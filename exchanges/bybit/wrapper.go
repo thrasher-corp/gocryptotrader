@@ -115,7 +115,7 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 	// Futures take profit and stop loss orders that rest as limit orders apply to the filled quantity only, which Bybit
 	// calls partial mode
 	if s.AssetType != asset.Spot && (arg.TPOrderType == "Limit" || arg.SLOrderType == "Limit") {
-		arg.TPSLMode = "Partial"
+		arg.TakeProfitStopLossMode = "Partial"
 	}
 	return arg, nil
 }
@@ -2420,7 +2420,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				if instruments[j].Symbol != ticks.List[i].Symbol {
 					continue
 				}
-				fundingInterval = time.Duration(instruments[j].FundingInterval) * time.Minute //nolint:gosec // A funding interval is a few hundred minutes
+				fundingInterval = time.Duration(instruments[j].FundingIntervalInMinutes) * time.Minute //nolint:gosec // A funding interval is a few hundred minutes
 				break
 			}
 			var lrt time.Time

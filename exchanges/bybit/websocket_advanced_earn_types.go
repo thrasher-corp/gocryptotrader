@@ -38,8 +38,8 @@ type DualAssetsOffer struct {
 // DualAssetsOfferPrice is a target price on offer for a Dual Assets direction
 type DualAssetsOfferPrice struct {
 	SelectPrice types.Number `json:"s"`
-	// APYE8 is the APY scaled by 1e8, documented as an integer but sent as a string
-	APYE8               types.Number `json:"a"`
+	// APYScaledBy1E8 is documented as an integer but sent as a string
+	APYScaledBy1E8      types.Number `json:"a"`
 	MaxInvestmentAmount types.Number `json:"m"`
 	ExpiredAt           types.Time   `json:"x"`
 }
@@ -56,11 +56,11 @@ type SmartLeverageOffer struct {
 
 // DiscountBuyOffer is a quote offered for a Discount Buy product, pushed on earn.discountbuy.offers
 type DiscountBuyOffer struct {
-	ProductID        string       `json:"p"`
-	CurrentPrice     types.Number `json:"c"` // Underlying index price
-	PurchasePrice    types.Number `json:"b"` // Anchor buy price
-	KnockoutPrice    types.Number `json:"k"`
-	KnockoutCouponE8 types.Number `json:"e"` // Annualised interest rate scaled by 1e8
+	ProductID                 string       `json:"p"`
+	CurrentPrice              types.Number `json:"c"` // Underlying index price
+	PurchasePrice             types.Number `json:"b"` // Anchor buy price
+	KnockoutPrice             types.Number `json:"k"`
+	KnockoutCouponScaledBy1E8 types.Number `json:"e"` // Annualised interest rate
 	// MaxInvestmentAmount is the most this quote accepts
 	MaxInvestmentAmount types.Number `json:"m"`
 	// InstitutionUID identifies the quoting market maker, and must be sent unchanged with the order

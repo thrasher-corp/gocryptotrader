@@ -68,7 +68,7 @@ func TestGetPreUpgradeOrderHistory(t *testing.T) {
 					LastPriceOnCreated:         29105.5,
 					ReduceOnly:                 true,
 					CloseOnTrigger:             true,
-					SMPType:                    "None",
+					SelfMatchPreventionType:    "None",
 					CreatedTime:                types.Time(time.UnixMilli(1682487465732)),
 					UpdatedTime:                types.Time(time.UnixMilli(1682487465735)),
 				},
@@ -105,9 +105,9 @@ func TestGetPreUpgradeOrderHistory(t *testing.T) {
 					TriggerBy:                  "UNKNOWN",
 					LastPriceOnCreated:         1245,
 					PlaceType:                  "iv",
-					SMPType:                    "CancelMaker",
-					SMPGroup:                   7,
-					SMPOrderID:                 "5f3e8a9b-2c1d-4e6f-8a7b-9c0d1e2f3a4b",
+					SelfMatchPreventionType:    "CancelMaker",
+					SelfMatchPreventionGroup:   7,
+					SelfMatchPreventionOrderID: "5f3e8a9b-2c1d-4e6f-8a7b-9c0d1e2f3a4b",
 					CreatedTime:                types.Time(time.UnixMilli(1682409600000)),
 					UpdatedTime:                types.Time(time.UnixMilli(1682413200000)),
 				},
@@ -127,9 +127,9 @@ func TestGetPreUpgradeOrderHistory(t *testing.T) {
 	}
 }
 
-func TestPreUpgradeOrderSMPGroup(t *testing.T) {
+func TestPreUpgradeOrderSelfMatchPreventionGroup(t *testing.T) {
 	t.Parallel()
-	requireDecodesEachForm(t, PreUpgradeOrder{SMPGroup: 7}, `{"smpGroup":7}`, `{"smpGroup":"7"}`)
+	requireDecodesEachForm(t, PreUpgradeOrder{SelfMatchPreventionGroup: 7}, `{"smpGroup":7}`, `{"smpGroup":"7"}`)
 }
 
 func TestGetPreUpgradeTradeHistory(t *testing.T) {

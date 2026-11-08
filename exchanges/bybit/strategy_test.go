@@ -18,7 +18,7 @@ func TestCreateStrategyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.CreateStrategyOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateStrategyOrder must reject a nil request")
-	pov := &StrategyPOVParametersRequest{Mode: "TradedVolume", ParticipationRate: 25.1}
+	percentageOfVolume := &StrategyPercentageOfVolumeParametersRequest{Mode: "TradedVolume", ParticipationRate: 25.1}
 	for _, tc := range []struct {
 		name string
 		req  *CreateStrategyOrderRequest
@@ -31,17 +31,17 @@ func TestCreateStrategyOrder(t *testing.T) {
 		{name: "chase order without size or position value", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "chaseOrder"}, err: errStrategySizeRequired},
 		{name: "iceberg without size or position value", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "iceberg"}, err: errStrategySizeRequired},
 		{name: "TWAP without duration", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "twap", Size: 1}, err: errStrategyDurationRequired},
-		{name: "POV without parameters", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1}, err: errStrategyPOVParametersRequired},
-		{name: "POV without mode", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, POVParameters: &StrategyPOVParametersRequest{ParticipationRate: 25}}, err: errStrategyPOVModeRequired},
-		{name: "POV without participation rate", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, POVParameters: &StrategyPOVParametersRequest{Mode: "TradedVolume"}}, err: errStrategyParticipationRateRequired},
-		{name: "POV with size and position value", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, PositionValue: 1000, POVParameters: pov}, err: errStrategySizeWithPositionValue},
-		{name: "POV without stop condition", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", POVParameters: pov}, err: errStrategyPOVStopConditionRequired},
+		{name: "POV without parameters", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1}, err: errStrategyPercentageOfVolumeParametersRequired},
+		{name: "POV without mode", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, PercentageOfVolumeParameters: &StrategyPercentageOfVolumeParametersRequest{ParticipationRate: 25}}, err: errStrategyPercentageOfVolumeModeRequired},
+		{name: "POV without participation rate", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, PercentageOfVolumeParameters: &StrategyPercentageOfVolumeParametersRequest{Mode: "TradedVolume"}}, err: errStrategyParticipationRateRequired},
+		{name: "POV with size and position value", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, PositionValue: 1000, PercentageOfVolumeParameters: percentageOfVolume}, err: errStrategySizeWithPositionValue},
+		{name: "POV without stop condition", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", PercentageOfVolumeParameters: percentageOfVolume}, err: errStrategyPercentageOfVolumeStopConditionRequired},
 	} {
 		_, err = e.CreateStrategyOrder(t.Context(), tc.req)
 		require.ErrorIsf(t, err, tc.err, "CreateStrategyOrder must reject a request with %s", tc.name)
 	}
-	_, err = e.CreateStrategyOrder(t.Context(), &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Interval: new(30 * time.Second), POVParameters: pov})
-	require.ErrorIs(t, err, errStrategyPOVStopConditionRequired, "CreateStrategyOrder must not take a repeating interval as a POV stop condition")
+	_, err = e.CreateStrategyOrder(t.Context(), &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Interval: new(30 * time.Second), PercentageOfVolumeParameters: percentageOfVolume})
+	require.ErrorIs(t, err, errStrategyPercentageOfVolumeStopConditionRequired, "CreateStrategyOrder must not take a repeating interval as a POV stop condition")
 	for _, tc := range []struct {
 		mode string
 		err  error
@@ -50,17 +50,17 @@ func TestCreateStrategyOrder(t *testing.T) {
 		{mode: "OppositeSideLiquidity", err: errStrategyDepthReferenceRequired},
 		{mode: "SameSideLiquidity", err: errStrategyDepthReferenceRequired},
 	} {
-		_, err = e.CreateStrategyOrder(t.Context(), &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, POVParameters: &StrategyPOVParametersRequest{Mode: tc.mode, ParticipationRate: 25.1}})
+		_, err = e.CreateStrategyOrder(t.Context(), &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, PercentageOfVolumeParameters: &StrategyPercentageOfVolumeParametersRequest{Mode: tc.mode, ParticipationRate: 25.1}})
 		require.ErrorIsf(t, err, tc.err, "CreateStrategyOrder must reject a %s POV order without its reference", tc.mode)
 	}
 	// The smallest reference each mode takes is enough
 	created := restReplyTestInstance(t, map[string]string{"/v5/strategy/create": `{"retCode":0,"retMsg":"OK","result":{"strategyId":"119b6211-2611-461b-be5e-5ac557099e82"},"retExtInfo":{},"time":1760000000000}`})
-	for _, p := range []*StrategyPOVParametersRequest{
+	for _, p := range []*StrategyPercentageOfVolumeParametersRequest{
 		{Mode: "TradedVolume", ParticipationRate: 25.1, ReferenceWindow: time.Minute},
 		{Mode: "OppositeSideLiquidity", ParticipationRate: 25.1, DepthReference: 1},
 		{Mode: "SameSideLiquidity", ParticipationRate: 25.1, DepthReference: 1},
 	} {
-		_, err = created.CreateStrategyOrder(t.Context(), &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, POVParameters: p})
+		_, err = created.CreateStrategyOrder(t.Context(), &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, PercentageOfVolumeParameters: p})
 		require.NoErrorf(t, err, "CreateStrategyOrder must accept a %s POV order with its smallest reference", p.Mode)
 	}
 
@@ -75,19 +75,19 @@ func TestCreateStrategyOrder(t *testing.T) {
 		{
 			name: "twap",
 			req: &CreateStrategyOrderRequest{
-				Category:       "UTA_USDT",
-				Symbol:         "BTCUSDT",
-				Side:           "Buy",
-				StrategyType:   "twap",
-				Size:           0.05,
-				Duration:       26 * time.Minute,
-				ReduceOnly:     true,
-				PositionIndex:  1,
-				Interval:       new(time.Minute),
-				IsRandom:       true,
-				TriggerPrice:   75000,
-				MaxChasePrice:  83564.5,
-				ChasePercentE4: 100,
+				Category:                "UTA_USDT",
+				Symbol:                  "BTCUSDT",
+				Side:                    "Buy",
+				StrategyType:            "twap",
+				Size:                    0.05,
+				Duration:                26 * time.Minute,
+				ReduceOnly:              true,
+				PositionIndex:           1,
+				Interval:                new(time.Minute),
+				IsRandom:                true,
+				TriggerPrice:            75000,
+				MaxChasePrice:           83564.5,
+				ChasePercentScaledBy1E4: 100,
 			},
 			exp: &CreateStrategyOrderResponse{StrategyID: "119b6211-2611-461b-be5e-5ac557099e82"},
 		},
@@ -134,7 +134,7 @@ func TestCreateStrategyOrder(t *testing.T) {
 				Size:         0.5,
 				Duration:     time.Hour,
 				Interval:     new(time.Duration(0)),
-				POVParameters: &StrategyPOVParametersRequest{
+				PercentageOfVolumeParameters: &StrategyPercentageOfVolumeParametersRequest{
 					Mode:              "TradedVolume",
 					ParticipationRate: 25.1,
 					ReferenceWindow:   5 * time.Minute,
@@ -227,75 +227,75 @@ func TestGetStrategyList(t *testing.T) {
 		exp := &StrategyListResponse{
 			List: []Strategy{
 				{
-					StrategyID:           "119b6211-2611-461b-be5e-5ac557099e82",
-					Category:             "UTA_USDT",
-					Symbol:               "BTCUSDT",
-					Side:                 "Buy",
-					Size:                 0.05,
-					StrategyType:         "twap",
-					Status:               3,
-					ExecutedSize:         0.046,
-					ExecutedAveragePrice: 76695.48,
-					ExecutedStartTime:    types.Time(time.UnixMilli(1773711467045)),
-					ExecutedEndTime:      types.Time(time.UnixMilli(1773713075628)),
-					CreatedTime:          types.Time(time.UnixMilli(1773711467045)),
-					UpdatedTime:          types.Time(time.UnixMilli(1773713075628)),
-					ReduceOnly:           true,
-					TriggerPrice:         75000,
-					IsTriggered:          true,
-					LeverageType:         1,
-					TerminateType:        2,
-					TerminateRemark:      "RunningStop",
-					TriggerCount:         26,
-					TradingCount:         24,
-					RealisedPNL:          1.25,
-					StrategyName:         "accumulate btc",
-					StrategyPrefer:       "quickExecution",
-					Duration:             1560,
-					ExecutedDuration:     1608,
-					IsRandom:             true,
-					Interval:             60,
-					LimitPrice:           77000,
-					ChasePercentE4:       100,
-					ChaseDistance:        0.5,
-					MaxChasePrice:        83564.5,
-					ChaseOrderPrice:      76690.1,
-					ChasePrice:           "Bid1",
-					PostOnly:             1,
-					IsRebalance:          true,
-					OrderType:            "UNKNOWN",
-					OrderPriceOffset:     0.1,
-					StrategySL:           70000,
-					StrategyTP:           90000,
-					ArbitrageOrders:      []json.RawMessage{json.RawMessage(`{"orderId":"d67e97b1-7a6e-4a89-b9d7-098756e8b86f"}`)},
-					PositionValue:        3834.77,
-					FilledPositionValue:  3527.99,
+					StrategyID:                "119b6211-2611-461b-be5e-5ac557099e82",
+					Category:                  "UTA_USDT",
+					Symbol:                    "BTCUSDT",
+					Side:                      "Buy",
+					Size:                      0.05,
+					StrategyType:              "twap",
+					Status:                    3,
+					ExecutedSize:              0.046,
+					ExecutedAveragePrice:      76695.48,
+					ExecutedStartTime:         types.Time(time.UnixMilli(1773711467045)),
+					ExecutedEndTime:           types.Time(time.UnixMilli(1773713075628)),
+					CreatedTime:               types.Time(time.UnixMilli(1773711467045)),
+					UpdatedTime:               types.Time(time.UnixMilli(1773713075628)),
+					ReduceOnly:                true,
+					TriggerPrice:              75000,
+					IsTriggered:               true,
+					LeverageType:              1,
+					TerminateType:             2,
+					TerminateRemark:           "RunningStop",
+					TriggerCount:              26,
+					TradingCount:              24,
+					RealisedPNL:               1.25,
+					StrategyName:              "accumulate btc",
+					StrategyPrefer:            "quickExecution",
+					DurationInSeconds:         1560,
+					ExecutedDurationInSeconds: 1608,
+					IsRandom:                  true,
+					IntervalInSeconds:         60,
+					LimitPrice:                77000,
+					ChasePercentScaledBy1E4:   100,
+					ChaseDistance:             0.5,
+					MaxChasePrice:             83564.5,
+					ChaseOrderPrice:           76690.1,
+					ChasePrice:                "Bid1",
+					PostOnly:                  1,
+					IsRebalance:               true,
+					OrderType:                 "UNKNOWN",
+					OrderPriceOffset:          0.1,
+					StrategySL:                70000,
+					StrategyTP:                90000,
+					ArbitrageOrders:           []json.RawMessage{json.RawMessage(`{"orderId":"d67e97b1-7a6e-4a89-b9d7-098756e8b86f"}`)},
+					PositionValue:             3834.77,
+					FilledPositionValue:       3527.99,
 				},
 				{
-					StrategyID:           "6f1e2d3c-4b5a-4968-8776-655443322110",
-					Category:             "UTA_USDT",
-					Symbol:               "BTCUSDT",
-					Side:                 "Buy",
-					Size:                 0.5,
-					StrategyType:         "pov",
-					Status:               2,
-					ExecutedSize:         0.12,
-					ExecutedAveragePrice: 76702.1,
-					ExecutedStartTime:    types.Time(time.Unix(1773720000, 0)),
-					CreatedTime:          types.Time(time.Unix(1773719999, 0)),
-					UpdatedTime:          types.Time(time.Unix(1773721200, 0)),
-					TriggerCount:         40,
-					TradingCount:         40,
-					StrategyPrefer:       "quickExecution",
-					Duration:             3600,
-					ExecutedDuration:     1200,
-					Interval:             30,
-					OrderType:            "UNKNOWN",
-					ArbitrageOrders:      []json.RawMessage{},
-					Mode:                 "TradedVolume",
-					ParticipationRate:    25.1,
-					ReferenceWindow:      300,
-					DepthReference:       5,
+					StrategyID:                "6f1e2d3c-4b5a-4968-8776-655443322110",
+					Category:                  "UTA_USDT",
+					Symbol:                    "BTCUSDT",
+					Side:                      "Buy",
+					Size:                      0.5,
+					StrategyType:              "pov",
+					Status:                    2,
+					ExecutedSize:              0.12,
+					ExecutedAveragePrice:      76702.1,
+					ExecutedStartTime:         types.Time(time.Unix(1773720000, 0)),
+					CreatedTime:               types.Time(time.Unix(1773719999, 0)),
+					UpdatedTime:               types.Time(time.Unix(1773721200, 0)),
+					TriggerCount:              40,
+					TradingCount:              40,
+					StrategyPrefer:            "quickExecution",
+					DurationInSeconds:         3600,
+					ExecutedDurationInSeconds: 1200,
+					IntervalInSeconds:         30,
+					OrderType:                 "UNKNOWN",
+					ArbitrageOrders:           []json.RawMessage{},
+					Mode:                      "TradedVolume",
+					ParticipationRate:         25.1,
+					ReferenceWindow:           300,
+					DepthReference:            5,
 				},
 			},
 			NextCursor:     "eyJPZmZzZXQiOjQsIlBhZ2VTaXplIjoyfQ==",

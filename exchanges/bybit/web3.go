@@ -485,7 +485,7 @@ func (e *Exchange) ExecutePredictionBuy(ctx context.Context, r *PredictionBuyReq
 	if r.TokenID == "" {
 		return nil, errOutcomeTokenIDRequired
 	}
-	if r.Amount <= 0 {
+	if r.AmountInUSDC <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
 	if r.PayTokenCode == "" {
@@ -499,7 +499,7 @@ func (e *Exchange) ExecutePredictionBuy(ctx context.Context, r *PredictionBuyReq
 	}
 	body := make(map[string]any)
 	body["tokenId"] = r.TokenID
-	body["amount"] = strconv.FormatFloat(r.Amount, 'f', -1, 64)
+	body["amount"] = strconv.FormatFloat(r.AmountInUSDC, 'f', -1, 64)
 	body["payTokenCode"] = r.PayTokenCode
 	body["orderType"] = r.OrderType
 	body["slippage"] = strconv.FormatFloat(r.Slippage, 'f', -1, 64)

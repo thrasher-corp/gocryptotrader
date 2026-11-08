@@ -641,13 +641,13 @@ func TestGetSpotMarginFixedRateBorrowOrderQuote(t *testing.T) {
 				List: []SpotMarginFixedRateBorrowOrderQuote{
 					{
 						OrderCurrency: currency.ETH,
-						Term:          30,
+						TermInDays:    30,
 						AnnualRate:    0.026,
 						Quantity:      0.1,
 					},
 					{
 						OrderCurrency: currency.ETH,
-						Term:          90,
+						TermInDays:    90,
 						AnnualRate:    0.038,
 						Quantity:      0.1,
 					},
@@ -656,18 +656,18 @@ func TestGetSpotMarginFixedRateBorrowOrderQuote(t *testing.T) {
 		},
 		{
 			name: "one term by quantity, descending",
-			req:  &SpotMarginFixedRateBorrowOrderQuoteRequest{OrderCurrency: currency.ETH, Term: 30, OrderBy: "quantity", Sort: 1, Limit: 2},
+			req:  &SpotMarginFixedRateBorrowOrderQuoteRequest{OrderCurrency: currency.ETH, TermInDays: 30, OrderBy: "quantity", Sort: 1, Limit: 2},
 			exp: &SpotMarginFixedRateBorrowOrderQuoteResponse{
 				List: []SpotMarginFixedRateBorrowOrderQuote{
 					{
 						OrderCurrency: currency.ETH,
-						Term:          30,
+						TermInDays:    30,
 						AnnualRate:    0.1,
 						Quantity:      0.6,
 					},
 					{
 						OrderCurrency: currency.ETH,
-						Term:          30,
+						TermInDays:    30,
 						AnnualRate:    0.026,
 						Quantity:      0.1,
 					},
@@ -718,14 +718,14 @@ func TestSpotMarginFixedRateBorrow(t *testing.T) {
 	}{
 		{
 			name: "default repayment and fill",
-			req:  &SpotMarginFixedRateBorrowRequest{OrderCurrency: currency.BTC, OrderAmount: 0.01, AnnualRate: 0.02, Term: 30},
+			req:  &SpotMarginFixedRateBorrowRequest{OrderCurrency: currency.BTC, OrderAmount: 0.01, AnnualRate: 0.02, TermInDays: 30},
 			exp: &SpotMarginFixedRateBorrowResponse{
 				OrderID: "FIXED_BORROW_4563567182f746ec9f73e4357264d8c7187",
 			},
 		},
 		{
 			name: "flexible loan when due, full fill only",
-			req:  &SpotMarginFixedRateBorrowRequest{OrderCurrency: currency.USDT, OrderAmount: 1000, AnnualRate: 0.05, Term: 7, RepayType: "2", StrategyType: "FULL"},
+			req:  &SpotMarginFixedRateBorrowRequest{OrderCurrency: currency.USDT, OrderAmount: 1000, AnnualRate: 0.05, TermInDays: 7, RepayType: "2", StrategyType: "FULL"},
 			exp: &SpotMarginFixedRateBorrowResponse{
 				OrderID: "FIXED_BORROW_a17089fc526441faa52eb99b0b9feb69185",
 			},
@@ -789,7 +789,7 @@ func TestGetSpotMarginFixedRateBorrowOrderInfo(t *testing.T) {
 						OrderQuantity:  1,
 						OrderCurrency:  currency.ETH,
 						State:          2,
-						Term:           7,
+						TermInDays:     7,
 						RepayType:      "1",
 						StrategyType:   "PARTIAL",
 					},
@@ -800,7 +800,7 @@ func TestGetSpotMarginFixedRateBorrowOrderInfo(t *testing.T) {
 						OrderQuantity: 2,
 						OrderCurrency: currency.ETH,
 						State:         1,
-						Term:          30,
+						TermInDays:    30,
 						RepayType:     "2",
 						StrategyType:  "FULL",
 					},
@@ -810,7 +810,7 @@ func TestGetSpotMarginFixedRateBorrowOrderInfo(t *testing.T) {
 		},
 		{
 			name:     "filled order of a term",
-			req:      &SpotMarginFixedRateBorrowOrderInfoRequest{OrderID: "FIXED_BORROW_a17089fc526441faa52eb99b0b9feb69185", OrderCurrency: currency.USDT, State: 3, Term: 7, Limit: 1, Cursor: "30"},
+			req:      &SpotMarginFixedRateBorrowOrderInfoRequest{OrderID: "FIXED_BORROW_a17089fc526441faa52eb99b0b9feb69185", OrderCurrency: currency.USDT, State: 3, TermInDays: 7, Limit: 1, Cursor: "30"},
 			mockOnly: true,
 			exp: &SpotMarginFixedRateBorrowOrderInfoResponse{
 				List: []SpotMarginFixedRateBorrowOrder{
@@ -822,7 +822,7 @@ func TestGetSpotMarginFixedRateBorrowOrderInfo(t *testing.T) {
 						OrderQuantity:  1000,
 						OrderCurrency:  currency.USDT,
 						State:          3,
-						Term:           7,
+						TermInDays:     7,
 						RepayType:      "2",
 						StrategyType:   "FULL",
 					},
@@ -877,7 +877,7 @@ func TestGetSpotMarginFixedRateBorrowContractInfo(t *testing.T) {
 						ResidualPenaltyInterest: 0.012,
 						ResidualPrincipal:       400,
 						Status:                  3,
-						Term:                    1,
+						TermInDays:              1,
 						RepayType:               "1",
 						StrategyType:            "PARTIAL",
 					},
@@ -890,7 +890,7 @@ func TestGetSpotMarginFixedRateBorrowContractInfo(t *testing.T) {
 						OrderID:        "FIXED_BORROW_a17089fc526441faa52eb99b0b9feb69185",
 						RepaymentTime:  types.Time(time.Unix(1764244800, 0)),
 						Status:         2,
-						Term:           1,
+						TermInDays:     1,
 						RepayType:      "0",
 						StrategyType:   "PARTIAL",
 					},
@@ -900,7 +900,7 @@ func TestGetSpotMarginFixedRateBorrowContractInfo(t *testing.T) {
 		},
 		{
 			name:     "loans of an order",
-			req:      &SpotMarginFixedRateBorrowContractInfoRequest{OrderID: "FIXED_BORROW_4563567182f746ec9f73e4357264d8c7187", OrderCurrency: currency.ETH, Term: 7, Limit: 1, Cursor: "0"},
+			req:      &SpotMarginFixedRateBorrowContractInfoRequest{OrderID: "FIXED_BORROW_4563567182f746ec9f73e4357264d8c7187", OrderCurrency: currency.ETH, TermInDays: 7, Limit: 1, Cursor: "0"},
 			mockOnly: true,
 			exp: &SpotMarginFixedRateBorrowContractInfoResponse{
 				List: []SpotMarginFixedRateBorrowContract{
@@ -913,7 +913,7 @@ func TestGetSpotMarginFixedRateBorrowContractInfo(t *testing.T) {
 						RepaymentTime:     types.Time(time.Unix(1776220926, 0)),
 						ResidualPrincipal: 0.4,
 						Status:            1,
-						Term:              7,
+						TermInDays:        7,
 						RepayType:         "1",
 						StrategyType:      "PARTIAL",
 					},
@@ -994,7 +994,7 @@ func TestGetSpotMarginFixedRateAvailableInventory(t *testing.T) {
 		{name: "nil", err: common.ErrNilPointer},
 		{name: "no currency", req: &SpotMarginFixedRateAvailableInventoryRequest{}, err: currency.ErrCurrencyCodeEmpty},
 		{name: "no term", req: &SpotMarginFixedRateAvailableInventoryRequest{Currency: currency.USDT}, err: errTermNotSet},
-		{name: "no annual rate", req: &SpotMarginFixedRateAvailableInventoryRequest{Currency: currency.USDT, Term: 7}, err: errAnnualRateNotSet},
+		{name: "no annual rate", req: &SpotMarginFixedRateAvailableInventoryRequest{Currency: currency.USDT, TermInDays: 7}, err: errAnnualRateNotSet},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1006,12 +1006,12 @@ func TestGetSpotMarginFixedRateAvailableInventory(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetSpotMarginFixedRateAvailableInventory(t.Context(), &SpotMarginFixedRateAvailableInventoryRequest{Currency: currency.USDT, Term: 7, AnnualRate: 0.02})
+	result, err := e.GetSpotMarginFixedRateAvailableInventory(t.Context(), &SpotMarginFixedRateAvailableInventoryRequest{Currency: currency.USDT, TermInDays: 7, AnnualRate: 0.02})
 	require.NoError(t, err, "GetSpotMarginFixedRateAvailableInventory must not error")
 	if mockTests {
 		exp := &SpotMarginFixedRateAvailableInventoryResponse{
 			Currency:           currency.USDT,
-			Term:               7,
+			TermInDays:         7,
 			AnnualRate:         0.02,
 			AvailableInventory: 500000,
 			UpdateTime:         types.Time(time.Unix(1699272487, 0)),

@@ -86,8 +86,8 @@ type EventExecutionUpdate struct {
 	// EventContractType and EventContractDirection are numeric codes here, unlike the names the order stream sends
 	EventContractType      uint64 `json:"ecContractType"`
 	EventContractDirection uint64 `json:"ecDirection"`
-	// EventContractDurationWindow is in seconds; a number here but quoted, and empty for contracts without one, over REST
-	EventContractDurationWindow types.Number `json:"ecDurationWindow"`
+	// EventContractDurationWindowInSeconds is a number here but quoted, and empty for contracts without one, over REST
+	EventContractDurationWindowInSeconds types.Number `json:"ecDurationWindow"`
 	// EventContractTargetPrice is set for Target contracts only
 	EventContractTargetPrice types.Number `json:"ecTargetPrice"`
 	// EventContractLowerBound and EventContractUpperBound are set for Range contracts only
@@ -140,8 +140,8 @@ type EventOrderUpdate struct {
 	OrderStatus            string        `json:"orderStatus"`
 	EventContractType      string        `json:"ecContractType"`
 	EventContractDirection string        `json:"ecDirection"`
-	// EventContractDurationWindow is in seconds; a number here but quoted, and empty for contracts without one, over REST
-	EventContractDurationWindow types.Number `json:"ecDurationWindow"`
+	// EventContractDurationWindowInSeconds is a number here but quoted, and empty for contracts without one, over REST
+	EventContractDurationWindowInSeconds types.Number `json:"ecDurationWindow"`
 	// EventContractTargetPrice is set for Target contracts only
 	EventContractTargetPrice types.Number `json:"ecTargetPrice"`
 	// EventContractLowerBound and EventContractUpperBound are set for Range contracts only

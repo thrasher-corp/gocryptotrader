@@ -451,14 +451,14 @@ func TestGetInstrumentInfo(t *testing.T) {
 						MaxMktOrderQuantity:      150,
 						MinNotionalValue:         5,
 					},
-					UnifiedMarginTrade: true,
-					FundingInterval:    480,
-					CopyTrading:        "both",
-					UpperFundingRate:   0.00333,
-					LowerFundingRate:   -0.00333,
-					DisplayName:        "BTCUSDT",
-					FullName:           "Bitcoin",
-					Tags:               []string{},
+					UnifiedMarginTrade:       true,
+					FundingIntervalInMinutes: 480,
+					CopyTrading:              "both",
+					UpperFundingRate:         0.00333,
+					LowerFundingRate:         -0.00333,
+					DisplayName:              "BTCUSDT",
+					FullName:                 "Bitcoin",
+					Tags:                     []string{},
 					RiskParameters: RiskParameters{
 						PriceLimitRatioX: 0.01,
 						PriceLimitRatioY: 0.02,
@@ -531,12 +531,12 @@ func TestGetInstrumentInfo(t *testing.T) {
 						MaxMktOrderQuantity:      1800000,
 						MinNotionalValue:         5,
 					},
-					UnifiedMarginTrade: true,
-					FundingInterval:    240,
-					CopyTrading:        "none",
-					UpperFundingRate:   0.025,
-					LowerFundingRate:   -0.025,
-					DisplayName:        "10000NEXUSDT",
+					UnifiedMarginTrade:       true,
+					FundingIntervalInMinutes: 240,
+					CopyTrading:              "none",
+					UpperFundingRate:         0.025,
+					LowerFundingRate:         -0.025,
+					DisplayName:              "10000NEXUSDT",
 					Tags: []string{
 						"ST",
 					},
@@ -633,16 +633,16 @@ func TestGetInstrumentInfo(t *testing.T) {
 						MaxMktOrderQuantity:      31,
 						MinNotionalValue:         5,
 					},
-					UnifiedMarginTrade: true,
-					FundingInterval:    480,
-					CopyTrading:        "none",
-					UpperFundingRate:   0.02,
-					LowerFundingRate:   -0.02,
-					DisplayName:        "ANTHROPICUSDT",
-					FullName:           "Anthropic",
-					MarketRegion:       "US",
-					UnderlyingTicker:   "ANTHROPIC",
-					Tags:               []string{},
+					UnifiedMarginTrade:       true,
+					FundingIntervalInMinutes: 480,
+					CopyTrading:              "none",
+					UpperFundingRate:         0.02,
+					LowerFundingRate:         -0.02,
+					DisplayName:              "ANTHROPICUSDT",
+					FullName:                 "Anthropic",
+					MarketRegion:             "US",
+					UnderlyingTicker:         "ANTHROPIC",
+					Tags:                     []string{},
 					RiskParameters: RiskParameters{
 						PriceLimitRatioX: 0.03,
 						PriceLimitRatioY: 0.05,
@@ -699,14 +699,14 @@ func TestGetInstrumentInfo(t *testing.T) {
 						MaxMktOrderQuantity:      50000,
 						MinNotionalValue:         5,
 					},
-					UnifiedMarginTrade: true,
-					FundingInterval:    240,
-					CopyTrading:        "none",
-					UpperFundingRate:   0.025,
-					LowerFundingRate:   -0.025,
-					DisplayName:        "BPUSDT",
-					FullName:           "Backpack",
-					Tags:               []string{"ST"},
+					UnifiedMarginTrade:       true,
+					FundingIntervalInMinutes: 240,
+					CopyTrading:              "none",
+					UpperFundingRate:         0.025,
+					LowerFundingRate:         -0.025,
+					DisplayName:              "BPUSDT",
+					FullName:                 "Backpack",
+					Tags:                     []string{"ST"},
 					RiskParameters: RiskParameters{
 						PriceLimitRatioX: 0.15,
 						PriceLimitRatioY: 0.3,
@@ -774,14 +774,14 @@ func TestGetInstrumentInfo(t *testing.T) {
 						MaxMktOrderQuantity:      150,
 						MinNotionalValue:         5,
 					},
-					UnifiedMarginTrade: true,
-					FundingInterval:    480,
-					CopyTrading:        "both",
-					UpperFundingRate:   0.00333,
-					LowerFundingRate:   -0.00333,
-					DisplayName:        "BTCUSDT",
-					FullName:           "Bitcoin",
-					Tags:               []string{},
+					UnifiedMarginTrade:       true,
+					FundingIntervalInMinutes: 480,
+					CopyTrading:              "both",
+					UpperFundingRate:         0.00333,
+					LowerFundingRate:         -0.00333,
+					DisplayName:              "BTCUSDT",
+					FullName:                 "Bitcoin",
+					Tags:                     []string{},
 					RiskParameters: RiskParameters{
 						PriceLimitRatioX: 0.01,
 						PriceLimitRatioY: 0.02,
@@ -1039,17 +1039,17 @@ func TestOrderbooksWithoutOrdersUnmarshal(t *testing.T) {
 		CreationTimestamp: types.Time(time.UnixMilli(1793406613770)),
 	}, event, "an event book should decode every field")
 
-	var rpi RPIOrderbookResponse
-	require.NoError(t, json.Unmarshal([]byte(rest), &rpi), "Unmarshal must not error for an RPI book")
-	assert.Equal(t, RPIOrderbookResponse{
+	var retailPriceImprovement RetailPriceImprovementOrderbookResponse
+	require.NoError(t, json.Unmarshal([]byte(rest), &retailPriceImprovement), "Unmarshal must not error for an RPI book")
+	assert.Equal(t, RetailPriceImprovementOrderbookResponse{
 		Symbol:            "BTCUSDT",
-		Bids:              []RPIOrderbookLevel{},
-		Asks:              []RPIOrderbookLevel{},
+		Bids:              []RetailPriceImprovementOrderbookLevel{},
+		Asks:              []RetailPriceImprovementOrderbookLevel{},
 		Timestamp:         types.Time(time.UnixMilli(1793406613771)),
 		UpdateID:          -1,
 		Sequence:          -1,
 		CreationTimestamp: types.Time(time.UnixMilli(1793406613770)),
-	}, rpi, "an RPI book should decode every field")
+	}, retailPriceImprovement, "an RPI book should decode every field")
 
 	var spread SpreadOrderbookResponse
 	require.NoError(t, json.Unmarshal([]byte(rest), &spread), "Unmarshal must not error for a spread book")
@@ -1063,9 +1063,9 @@ func TestOrderbooksWithoutOrdersUnmarshal(t *testing.T) {
 		CreationTimestamp: types.Time(time.UnixMilli(1793406613770)),
 	}, spread, "a spread book should decode every field")
 
-	var rpiPush WebsocketRPIOrderbook
-	require.NoError(t, json.Unmarshal([]byte(push), &rpiPush), "Unmarshal must not error for an RPI push")
-	assert.Equal(t, WebsocketRPIOrderbook{Symbol: "BTCUSDT", Bids: []RPIOrderbookLevel{}, Asks: []RPIOrderbookLevel{}, UpdateID: 1, Sequence: -1}, rpiPush, "an RPI push should decode every field")
+	var retailPriceImprovementPush WebsocketRetailPriceImprovementOrderbook
+	require.NoError(t, json.Unmarshal([]byte(push), &retailPriceImprovementPush), "Unmarshal must not error for an RPI push")
+	assert.Equal(t, WebsocketRetailPriceImprovementOrderbook{Symbol: "BTCUSDT", Bids: []RetailPriceImprovementOrderbookLevel{}, Asks: []RetailPriceImprovementOrderbookLevel{}, UpdateID: 1, Sequence: -1}, retailPriceImprovementPush, "an RPI push should decode every field")
 
 	var spreadPush SpreadOrderbookData
 	require.NoError(t, json.Unmarshal([]byte(push), &spreadPush), "Unmarshal must not error for a spread push")
@@ -1212,39 +1212,39 @@ func TestGetOrderBook(t *testing.T) {
 	})
 }
 
-func TestGetRPIOrderBook(t *testing.T) {
+func TestGetRetailPriceImprovementOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetRPIOrderBook(t.Context(), cSpot, "", 2)
-	require.ErrorIs(t, err, errSymbolMissing, "GetRPIOrderBook must reject an empty symbol")
-	_, err = e.GetRPIOrderBook(t.Context(), cSpot, "BTCUSDT", 0)
-	require.ErrorIs(t, err, errLimitRequired, "GetRPIOrderBook must reject a zero limit")
+	_, err := e.GetRetailPriceImprovementOrderBook(t.Context(), cSpot, "", 2)
+	require.ErrorIs(t, err, errSymbolMissing, "GetRetailPriceImprovementOrderBook must reject an empty symbol")
+	_, err = e.GetRetailPriceImprovementOrderBook(t.Context(), cSpot, "BTCUSDT", 0)
+	require.ErrorIs(t, err, errLimitRequired, "GetRetailPriceImprovementOrderBook must reject a zero limit")
 
 	for _, tc := range []struct {
 		category string
-		exp      *RPIOrderbookResponse
+		exp      *RetailPriceImprovementOrderbookResponse
 	}{
-		{category: cSpot, exp: &RPIOrderbookResponse{
+		{category: cSpot, exp: &RetailPriceImprovementOrderbookResponse{
 			Symbol: "BTCUSDT",
-			Bids: []RPIOrderbookLevel{
+			Bids: []RetailPriceImprovementOrderbookLevel{
 				{
-					Price:      82557.4,
-					NonRPISize: 0.577019,
-					RPISize:    0.524532,
+					Price:                         82557.4,
+					NonRetailPriceImprovementSize: 0.577019,
+					RetailPriceImprovementSize:    0.524532,
 				},
 				{
-					Price:      82557.3,
-					NonRPISize: 0.001016,
+					Price:                         82557.3,
+					NonRetailPriceImprovementSize: 0.001016,
 				},
 			},
-			Asks: []RPIOrderbookLevel{
+			Asks: []RetailPriceImprovementOrderbookLevel{
 				{
-					Price:      82557.5,
-					NonRPISize: 1.025382,
-					RPISize:    0.29,
+					Price:                         82557.5,
+					NonRetailPriceImprovementSize: 1.025382,
+					RetailPriceImprovementSize:    0.29,
 				},
 				{
-					Price:      82557.8,
-					NonRPISize: 0.000091,
+					Price:                         82557.8,
+					NonRetailPriceImprovementSize: 0.000091,
 				},
 			},
 			Timestamp:         types.Time(time.UnixMilli(1791535212315)),
@@ -1252,26 +1252,26 @@ func TestGetRPIOrderBook(t *testing.T) {
 			Sequence:          115179128923,
 			CreationTimestamp: types.Time(time.UnixMilli(1791535212311)),
 		}},
-		{category: cLinear, exp: &RPIOrderbookResponse{
+		{category: cLinear, exp: &RetailPriceImprovementOrderbookResponse{
 			Symbol: "BTCUSDT",
-			Bids: []RPIOrderbookLevel{
+			Bids: []RetailPriceImprovementOrderbookLevel{
 				{
-					Price:      82525.9,
-					NonRPISize: 1.028,
+					Price:                         82525.9,
+					NonRetailPriceImprovementSize: 1.028,
 				},
 				{
-					Price:      82525.8,
-					NonRPISize: 0.001,
+					Price:                         82525.8,
+					NonRetailPriceImprovementSize: 0.001,
 				},
 			},
-			Asks: []RPIOrderbookLevel{
+			Asks: []RetailPriceImprovementOrderbookLevel{
 				{
-					Price:      82526,
-					NonRPISize: 15.005,
+					Price:                         82526,
+					NonRetailPriceImprovementSize: 15.005,
 				},
 				{
-					Price:      82526.1,
-					NonRPISize: 3.443,
+					Price:                         82526.1,
+					NonRetailPriceImprovementSize: 3.443,
 				},
 			},
 			Timestamp:         types.Time(time.UnixMilli(1791535212529)),
@@ -1282,13 +1282,13 @@ func TestGetRPIOrderBook(t *testing.T) {
 	} {
 		t.Run(tc.category, func(t *testing.T) {
 			t.Parallel()
-			result, err := e.GetRPIOrderBook(t.Context(), tc.category, "BTCUSDT", 2)
-			require.NoError(t, err, "GetRPIOrderBook must not error")
+			result, err := e.GetRetailPriceImprovementOrderBook(t.Context(), tc.category, "BTCUSDT", 2)
+			require.NoError(t, err, "GetRetailPriceImprovementOrderBook must not error")
 			if mockTests {
-				assert.Equal(t, tc.exp, result, "GetRPIOrderBook should decode every field")
+				assert.Equal(t, tc.exp, result, "GetRetailPriceImprovementOrderBook should decode every field")
 				return
 			}
-			assert.NotEmpty(t, result.Bids, "GetRPIOrderBook should return bids")
+			assert.NotEmpty(t, result.Bids, "GetRetailPriceImprovementOrderBook should return bids")
 		})
 	}
 }
@@ -1663,14 +1663,14 @@ func TestGetPublicTradingHistory(t *testing.T) {
 			Category: "spot",
 			List: []PublicTrade{
 				{
-					ExecutionID: "2290000001228767766",
-					Symbol:      "BTCUSDT",
-					Price:       82546.3,
-					Size:        0.000149,
-					Side:        "Sell",
-					Time:        types.Time(time.UnixMilli(1791535218199)),
-					IsRPITrade:  true,
-					Sequence:    115179134376,
+					ExecutionID:                   "2290000001228767766",
+					Symbol:                        "BTCUSDT",
+					Price:                         82546.3,
+					Size:                          0.000149,
+					Side:                          "Sell",
+					Time:                          types.Time(time.UnixMilli(1791535218199)),
+					IsRetailPriceImprovementTrade: true,
+					Sequence:                      115179134376,
 				},
 				{
 					ExecutionID: "2290000001228767765",
@@ -1795,7 +1795,7 @@ func TestGetHistoricalVolatility(t *testing.T) {
 	_, err = e.GetHistoricalVolatility(t.Context(), &HistoricalVolatilityRequest{Category: cOption, StartTime: marketTestEnd, EndTime: marketTestStart})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetHistoricalVolatility must reject a start after the end")
 
-	result, err := e.GetHistoricalVolatility(t.Context(), &HistoricalVolatilityRequest{Category: cOption, BaseCoin: currency.BTC, QuoteCoin: currency.USDT, Period: 7, StartTime: marketTestStart, EndTime: marketTestEnd})
+	result, err := e.GetHistoricalVolatility(t.Context(), &HistoricalVolatilityRequest{Category: cOption, BaseCoin: currency.BTC, QuoteCoin: currency.USDT, PeriodInDays: 7, StartTime: marketTestStart, EndTime: marketTestEnd})
 	require.NoError(t, err, "GetHistoricalVolatility must not error")
 	if mockTests {
 		exp := []HistoricalVolatilityResponse{
@@ -1825,16 +1825,16 @@ func TestGetInsurance(t *testing.T) {
 			UpdatedTime: types.Time(time.UnixMilli(1791534180000)),
 			List: []InsurancePool{
 				{
-					Coin:    currency.BTC,
-					Symbols: "BTCUSD",
-					Balance: 5090.29091969,
-					Value:   419908355.7,
+					Coin:       currency.BTC,
+					Symbols:    "BTCUSD",
+					Balance:    5090.29091969,
+					ValueInUSD: 419908355.7,
 				},
 				{
-					Coin:    currency.BTC,
-					Symbols: "BTCUSDZ26,BTCUSDH27",
-					Balance: 12.67272878,
-					Value:   989960.76,
+					Coin:       currency.BTC,
+					Symbols:    "BTCUSDZ26,BTCUSDH27",
+					Balance:    12.67272878,
+					ValueInUSD: 989960.76,
 				},
 			},
 		}
@@ -2162,30 +2162,30 @@ func TestGetOrderPriceLimit(t *testing.T) {
 	assert.Positive(t, result.BuyLimit.Float64(), "GetOrderPriceLimit should return a buy limit")
 }
 
-func TestGetADLAlert(t *testing.T) {
+func TestGetAutoDeleveragingAlert(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetADLAlert(t.Context(), "BTCUSDT")
-	require.NoError(t, err, "GetADLAlert must not error")
+	result, err := e.GetAutoDeleveragingAlert(t.Context(), "BTCUSDT")
+	require.NoError(t, err, "GetAutoDeleveragingAlert must not error")
 	if mockTests {
-		exp := &ADLAlertResponse{
+		exp := &AutoDeleveragingAlertResponse{
 			UpdatedTime: types.Time(time.UnixMilli(1791534240000)),
-			List: []ADLAlert{
+			List: []AutoDeleveragingAlert{
 				{
-					Coin:                currency.USDT,
-					Symbol:              "BTCUSDT",
-					Balance:             386878598.28325313,
-					MaxBalance:          386900000.5,
-					InsurancePNLRatio:   -1,
-					PNLRatio:            -0.000123,
-					ADLTriggerThreshold: 20000,
-					ADLStopRatio:        -0.95,
+					Coin:                             currency.USDT,
+					Symbol:                           "BTCUSDT",
+					Balance:                          386878598.28325313,
+					MaxBalance:                       386900000.5,
+					InsurancePNLRatio:                -1,
+					PNLRatio:                         -0.000123,
+					AutoDeleveragingTriggerThreshold: 20000,
+					AutoDeleveragingStopRatio:        -0.95,
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetADLAlert should decode every field")
+		assert.Equal(t, exp, result, "GetAutoDeleveragingAlert should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.List, "GetADLAlert should return alerts")
+	assert.NotEmpty(t, result.List, "GetAutoDeleveragingAlert should return alerts")
 }
 
 func TestGetFeeGroupStructure(t *testing.T) {
@@ -2227,9 +2227,9 @@ func TestGetFeeGroupStructure(t *testing.T) {
 								MakerRebate: -0.00001,
 							},
 							{
-								Level:          "MM 2",
-								MakerRebate:    -0.000025,
-								RPIMakerRebate: -0.00001,
+								Level:                             "MM 2",
+								MakerRebate:                       -0.000025,
+								RetailPriceImprovementMakerRebate: -0.00001,
 							},
 						},
 					},
@@ -2426,14 +2426,14 @@ func TestIntervalToString(t *testing.T) {
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "intervalToString should reject an interval Bybit does not offer")
 }
 
-func TestRPIOrderbookLevelUnmarshalJSON(t *testing.T) {
+func TestRetailPriceImprovementOrderbookLevelUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var l RPIOrderbookLevel
+	var l RetailPriceImprovementOrderbookLevel
 	require.NoError(t, l.UnmarshalJSON([]byte(`["116600.00","4.428","0.29"]`)), "UnmarshalJSON must not error")
-	assert.Equal(t, RPIOrderbookLevel{Price: 116600, NonRPISize: 4.428, RPISize: 0.29}, l, "UnmarshalJSON should decode every element")
+	assert.Equal(t, RetailPriceImprovementOrderbookLevel{Price: 116600, NonRetailPriceImprovementSize: 4.428, RetailPriceImprovementSize: 0.29}, l, "UnmarshalJSON should decode every element")
 	assert.Error(t, l.UnmarshalJSON([]byte(`{"price":"116600.00"}`)), "UnmarshalJSON should reject an object")
 	assert.Error(t, l.UnmarshalJSON([]byte(`["116600.00","bad","0.29"]`)), "UnmarshalJSON should reject an invalid number")
-	assert.ErrorIs(t, l.UnmarshalJSON([]byte(`["116600.00","4.428"]`)), errInvalidRPIOrderbookLevel, "UnmarshalJSON should reject a level without an RPI size")
+	assert.ErrorIs(t, l.UnmarshalJSON([]byte(`["116600.00","4.428"]`)), errInvalidRetailPriceImprovementOrderbookLevel, "UnmarshalJSON should reject a level without an RPI size")
 }
 
 func TestPreListingPhaseTimeUnmarshalJSON(t *testing.T) {
@@ -2667,7 +2667,7 @@ func TestTimeWindowEqualBounds(t *testing.T) {
 			name: "GetHistoricalVolatility", startKey: "startTime", endKey: "endTime",
 			result: `[{"period":7,"value":"0.30540647","time":"` + at + `"}]`,
 			send: func(ctx context.Context, ex *Exchange) (int, error) {
-				resp, err := ex.GetHistoricalVolatility(ctx, &HistoricalVolatilityRequest{Category: cOption, BaseCoin: currency.BTC, QuoteCoin: currency.USDT, Period: 7, StartTime: marketTestStart, EndTime: marketTestStart})
+				resp, err := ex.GetHistoricalVolatility(ctx, &HistoricalVolatilityRequest{Category: cOption, BaseCoin: currency.BTC, QuoteCoin: currency.USDT, PeriodInDays: 7, StartTime: marketTestStart, EndTime: marketTestStart})
 				return len(resp), err
 			},
 		},

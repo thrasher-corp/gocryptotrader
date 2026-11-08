@@ -121,21 +121,21 @@ type CryptoLoanCollateralAdjustment struct {
 	Amount             types.Number  `json:"amount"`
 	AdjustID           uint64        `json:"adjustId"`
 	AdjustTime         types.Time    `json:"adjustTime"`
-	PreLTV             types.Number  `json:"preLTV"`
-	AfterLTV           types.Number  `json:"afterLTV"`
+	PreLoanToValue     types.Number  `json:"preLTV"`
+	AfterLoanToValue   types.Number  `json:"afterLTV"`
 	Direction          uint64        `json:"direction"` // 0: add collateral, 1: reduce collateral
 	Status             uint64        `json:"status"`    // 1: success, 2: processing, 3: fail
 }
 
 // CryptoLoanPositionResponse holds the account's crypto loan debts, collateral and supplies
 type CryptoLoanPositionResponse struct {
-	BorrowList      []CryptoLoanBorrowPosition `json:"borrowList"`
-	CollateralList  []CryptoLoanCoinAmount     `json:"collateralList"` // AmountUSD after tiered collateral ratios
-	LTV             types.Number               `json:"ltv"`
-	SupplyList      []CryptoLoanCoinAmount     `json:"supplyList"`
-	TotalCollateral types.Number               `json:"totalCollateral"` // In USD
-	TotalDebt       types.Number               `json:"totalDebt"`       // Fixed and flexible debt in USD
-	TotalSupply     types.Number               `json:"totalSupply"`     // In USD
+	BorrowList           []CryptoLoanBorrowPosition `json:"borrowList"`
+	CollateralList       []CryptoLoanCoinAmount     `json:"collateralList"` // AmountUSD after tiered collateral ratios
+	LoanToValue          types.Number               `json:"ltv"`
+	SupplyList           []CryptoLoanCoinAmount     `json:"supplyList"`
+	TotalCollateralInUSD types.Number               `json:"totalCollateral"`
+	TotalDebtInUSD       types.Number               `json:"totalDebt"` // Fixed and flexible debt
+	TotalSupplyInUSD     types.Number               `json:"totalSupply"`
 	// CollateralRestriction is the platform collateral restriction status: -1 unknown, 0 not restricted, 1 not
 	// restricted but near the platform limit, 2 restricted, which rejects adding collateral
 	CollateralRestriction string `json:"colRes"`
@@ -269,7 +269,7 @@ type FlexibleLoanRepayment struct {
 // FixedLoanMarketRequest holds the parameters of GetFixedLoanLendingMarket and GetFixedLoanBorrowingMarket
 type FixedLoanMarketRequest struct {
 	OrderCurrency currency.Code
-	Term          uint64 // Days; optional
+	TermInDays    uint64 // Optional
 	OrderBy       string // apy, term or quantity
 	Sort          uint64 // 0: ascending, the default; 1: descending
 	Limit         uint64
@@ -283,7 +283,7 @@ type FixedLoanMarketResponse struct {
 // FixedLoanMarketQuote holds a fixed term crypto loan order open in the market
 type FixedLoanMarketQuote struct {
 	OrderCurrency currency.Code `json:"orderCurrency"`
-	Term          uint64        `json:"term"` // Days
+	TermInDays    uint64        `json:"term"`
 	AnnualRate    types.Number  `json:"annualRate"`
 	Quantity      types.Number  `json:"qty"`
 }
@@ -291,14 +291,14 @@ type FixedLoanMarketQuote struct {
 // FixedLoanAvailableInventoryRequest holds the parameters of GetFixedLoanAvailableInventory
 type FixedLoanAvailableInventoryRequest struct {
 	Currency   currency.Code
-	Term       uint64  // Days
+	TermInDays uint64
 	AnnualRate float64 // 0.02 is 2%
 }
 
 // FixedLoanAvailableInventoryResponse holds a coin's fixed term loan pool inventory at a term and annual rate
 type FixedLoanAvailableInventoryResponse struct {
 	Currency           currency.Code `json:"currency"`
-	Term               types.Number  `json:"term"` // Days
+	TermInDays         types.Number  `json:"term"`
 	AnnualRate         types.Number  `json:"annualRate"`
 	AvailableInventory types.Number  `json:"availableInventory"`
 	UpdateTime         types.Time    `json:"updateTime"`
@@ -310,9 +310,9 @@ type CreateFixedLoanBorrowOrderRequest struct {
 	OrderCurrency  currency.Code
 	OrderAmount    float64
 	AnnualRate     float64 // 0.02 is 2%
-	Term           uint64  // Days
-	RepayType      string  // 1: auto repayment, the default; 2: transfer to a flexible loan
-	StrategyType   string  // PARTIAL: allow partial fills, the default; FULL: fill fully only
+	TermInDays     uint64
+	RepayType      string // 1: auto repayment, the default; 2: transfer to a flexible loan
+	StrategyType   string // PARTIAL: allow partial fills, the default; FULL: fill fully only
 	CollateralList []CryptoLoanCollateral
 }
 
@@ -328,8 +328,8 @@ type CreateFixedLoanSupplyOrderRequest struct {
 	OrderCurrency   currency.Code
 	OrderAmount     float64
 	AnnualRate      float64 // 0.02 is 2%
-	Term            uint64  // Days
-	AvailableSource string  // 0: funding account, the default; 1: earn flexible account; 2: both
+	TermInDays      uint64
+	AvailableSource string // 0: funding account, the default; 1: earn flexible account; 2: both
 }
 
 // FixedLoanBorrowContractInfoRequest holds the filters of GetFixedLoanBorrowContractInfo; every field is optional
@@ -337,7 +337,7 @@ type FixedLoanBorrowContractInfoRequest struct {
 	OrderID       string
 	LoanID        string
 	OrderCurrency currency.Code
-	Term          uint64 // Days
+	TermInDays    uint64
 	Limit         uint64
 	Cursor        string
 }
@@ -361,7 +361,7 @@ type FixedLoanBorrowContract struct {
 	ResidualPenaltyInterest types.Number  `json:"residualPenaltyInterest"`
 	ResidualPrincipal       types.Number  `json:"residualPrincipal"`
 	Status                  uint64        `json:"status"` // 1: unrepaid, 2: fully repaid, 3: overdue
-	Term                    types.Number  `json:"term"`   // Days
+	TermInDays              types.Number  `json:"term"`
 	// RepayType is 1 auto repayment, 2 transfer to a flexible loan, or 0 no auto repayment for older orders
 	RepayType string `json:"repayType"`
 }
@@ -371,7 +371,7 @@ type FixedLoanSupplyContractInfoRequest struct {
 	OrderID        string
 	SupplyID       string
 	SupplyCurrency currency.Code
-	Term           uint64 // Days
+	TermInDays     uint64
 	Limit          uint64
 	Cursor         string
 }
@@ -395,7 +395,7 @@ type FixedLoanSupplyContract struct {
 	PenaltyInterest      types.Number  `json:"penaltyInterest"` // Overdue interest
 	ActualRedemptionTime types.Time    `json:"actualRedemptionTime"`
 	Status               uint64        `json:"status"` // 1: supplying, 2: redeemed
-	Term                 types.Number  `json:"term"`   // Days
+	TermInDays           types.Number  `json:"term"`
 }
 
 // UnmarshalJSON decodes a fixed term supply contract. The docs table names the paid interest interestPaid but the
@@ -427,7 +427,7 @@ type FixedLoanOrderInfoRequest struct {
 	OrderID       string
 	OrderCurrency currency.Code
 	State         string // 1: matching, 2: partially filled and cancelled, 3: fully filled, 4: cancelled
-	Term          uint64 // Days
+	TermInDays    uint64
 	Limit         uint64
 	Cursor        string
 }
@@ -447,8 +447,8 @@ type FixedLoanBorrowOrder struct {
 	OrderQuantity  types.Number  `json:"orderQty"`
 	OrderCurrency  currency.Code `json:"orderCurrency"`
 	// State is 1 matching, 2 partially filled and cancelled, 3 fully filled, 4 cancelled or 5 failed
-	State uint64 `json:"state"`
-	Term  uint64 `json:"term"` // Days
+	State      uint64 `json:"state"`
+	TermInDays uint64 `json:"term"`
 	// RepayType is 1 auto repayment, 2 transfer to a flexible loan, or 0 no auto repayment for older orders
 	RepayType    string `json:"repayType"`
 	StrategyType string `json:"strategyType"` // PARTIAL: partial fills allowed, FULL: full fill only
@@ -498,8 +498,8 @@ type FixedLoanSupplyOrder struct {
 	OrderQuantity  types.Number  `json:"orderQty"`
 	OrderCurrency  currency.Code `json:"orderCurrency"`
 	// State is 1 matching, 2 partially filled and cancelled, 3 fully filled, 4 cancelled or 5 failed
-	State uint64 `json:"state"`
-	Term  uint64 `json:"term"` // Days
+	State      uint64 `json:"state"`
+	TermInDays uint64 `json:"term"`
 }
 
 // RepayFixedLoanWithCollateralRequest holds the parameters of RepayFixedLoanWithCollateral

@@ -418,8 +418,8 @@ type Web3LPPool struct {
 	PoolName    string       `json:"poolName"`
 	PoolTag     string       `json:"poolTag"`
 	APY         types.Number `json:"apy"`
-	// TVL is the total value locked in USD
-	TVL                types.Number  `json:"tvl"`
+	// TVLInUSD is the total value locked
+	TVLInUSD           types.Number  `json:"tvl"`
 	Token0Symbol       currency.Code `json:"token0Symbol"`
 	Token0IconURLDay   string        `json:"token0IconUrlDay"`
 	Token0IconURLNight string        `json:"token0IconUrlNight"`
@@ -548,8 +548,8 @@ type PredictionFeeDetail struct {
 // PredictionBuyRequest holds the parameters for Execute Buy (prediction market)
 type PredictionBuyRequest struct {
 	TokenID string
-	// Amount is the USDC to invest
-	Amount       float64
+	// AmountInUSDC is the amount to invest
+	AmountInUSDC float64
 	PayTokenCode string
 	// OrderType is 1 for fill-or-kill, the only order type phase 1 supports
 	OrderType uint64
@@ -626,13 +626,12 @@ type PredictionOrderBookLevel struct {
 
 // PredictionTokenPriceResponse is an outcome token's best prices, on a 0 to 1 probability scale
 type PredictionTokenPriceResponse struct {
-	TokenID   string       `json:"tokenId"`
-	BestBid   types.Number `json:"bestBid"`
-	BestAsk   types.Number `json:"bestAsk"`
-	LastPrice types.Number `json:"lastPrice"`
-	// Volume24Hour is in USDC
-	Volume24Hour types.Number `json:"volume24h"`
-	UpdateTime   types.Time   `json:"updateTime"`
+	TokenID            string       `json:"tokenId"`
+	BestBid            types.Number `json:"bestBid"`
+	BestAsk            types.Number `json:"bestAsk"`
+	LastPrice          types.Number `json:"lastPrice"`
+	Volume24HourInUSDC types.Number `json:"volume24h"`
+	UpdateTime         types.Time   `json:"updateTime"`
 }
 
 // PredictionPriceHistoryResponse holds an outcome token's candles, newest first
@@ -723,10 +722,10 @@ type PredictionClosedPosition struct {
 
 // PredictionPortfolioSummaryResponse summarises the user's prediction market portfolio
 type PredictionPortfolioSummaryResponse struct {
-	// PositionValue is the open positions' market value in USDC
-	PositionValue    types.Number `json:"positionValue"`
-	PositionValueUSD types.Number `json:"positionValueUsd"`
-	BiggestWin       types.Number `json:"biggestWin"`
+	// PositionValueInUSDC is the open positions' market value
+	PositionValueInUSDC types.Number `json:"positionValue"`
+	PositionValueUSD    types.Number `json:"positionValueUsd"`
+	BiggestWin          types.Number `json:"biggestWin"`
 	// WinRate is a decimal fraction: 0.67 is 67%
 	WinRate   types.Number `json:"winRate"`
 	WinCount  uint64       `json:"winCount"`
@@ -757,12 +756,11 @@ type PredictionSideMarket struct {
 	MarketID string `json:"marketId"`
 	EventID  string `json:"eventId"`
 	// MarketType is 1 for a YES/NO market or 2 for a multi-outcome market
-	MarketType uint64                      `json:"marketType"`
-	Question   string                      `json:"question"`
-	Tokens     []PredictionSideMarketToken `json:"tokens"`
-	// Volume24Hour is in USDC
-	Volume24Hour types.Number `json:"volume24h"`
-	EndDate      types.Time   `json:"endDate"`
+	MarketType         uint64                      `json:"marketType"`
+	Question           string                      `json:"question"`
+	Tokens             []PredictionSideMarketToken `json:"tokens"`
+	Volume24HourInUSDC types.Number                `json:"volume24h"`
+	EndDate            types.Time                  `json:"endDate"`
 	// Status is 1 open, 2 closed or 3 resolved
 	Status uint64 `json:"status"`
 }
@@ -772,9 +770,8 @@ type PredictionSideMarketToken struct {
 	TokenID string `json:"tokenId"`
 	Outcome string `json:"outcome"`
 	// Price is the outcome's implied probability, from 0 to 1
-	Price types.Number `json:"price"`
-	// Liquidity is in USDC
-	Liquidity types.Number `json:"liquidity"`
+	Price           types.Number `json:"price"`
+	LiquidityInUSDC types.Number `json:"liquidity"`
 }
 
 // PredictionSportsMatchListRequest holds the parameters for Get Sports Match List

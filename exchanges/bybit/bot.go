@@ -265,8 +265,8 @@ func (e *Exchange) ValidateFuturesGridInput(ctx context.Context, arg *ValidateFu
 	if arg.TakeProfitPrice != 0 {
 		body["take_profit_price"] = strconv.FormatFloat(arg.TakeProfitPrice, 'f', -1, 64)
 	}
-	if arg.TPSLType != 0 {
-		body["tp_sl_type"] = arg.TPSLType
+	if arg.TakeProfitStopLossType != 0 {
+		body["tp_sl_type"] = arg.TakeProfitStopLossType
 	}
 	if arg.EntryPrice != 0 {
 		body["entry_price"] = strconv.FormatFloat(arg.EntryPrice, 'f', -1, 64)
@@ -349,8 +349,8 @@ func (e *Exchange) CreateFuturesGridBot(ctx context.Context, arg *CreateFuturesG
 	if arg.StopLossPrice != 0 {
 		body["stop_loss_price"] = strconv.FormatFloat(arg.StopLossPrice, 'f', -1, 64)
 	}
-	if arg.TPSLType != 0 {
-		body["tp_sl_type"] = arg.TPSLType
+	if arg.TakeProfitStopLossType != 0 {
+		body["tp_sl_type"] = arg.TakeProfitStopLossType
 	}
 	if arg.EntryPrice != 0 {
 		body["entry_price"] = strconv.FormatFloat(arg.EntryPrice, 'f', -1, 64)

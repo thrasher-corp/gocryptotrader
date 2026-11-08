@@ -31,21 +31,22 @@ type WebsocketOrderbook struct {
 	Sequence int64 `json:"seq"`
 }
 
-// WebsocketRPIOrderbookUpdate is a push from the orderbook.rpi.{symbol} topic (RPI Orderbook)
-type WebsocketRPIOrderbookUpdate struct {
-	Topic             string                `json:"topic"`
-	Type              string                `json:"type"`
-	Timestamp         types.Time            `json:"ts"`
-	Data              WebsocketRPIOrderbook `json:"data"`
-	CreationTimestamp types.Time            `json:"cts"` // Matching engine time, comparable with T on public trades
+// WebsocketRetailPriceImprovementOrderbookUpdate is a push from the orderbook.rpi.{symbol} topic (RPI Orderbook)
+type WebsocketRetailPriceImprovementOrderbookUpdate struct {
+	Topic             string                                   `json:"topic"`
+	Type              string                                   `json:"type"`
+	Timestamp         types.Time                               `json:"ts"`
+	Data              WebsocketRetailPriceImprovementOrderbook `json:"data"`
+	CreationTimestamp types.Time                               `json:"cts"` // Matching engine time, comparable with T on public trades
 }
 
-// WebsocketRPIOrderbook is an orderbook snapshot or delta that includes Retail Price Improvement quotes
-type WebsocketRPIOrderbook struct {
-	Symbol   string              `json:"s"`
-	Bids     []RPIOrderbookLevel `json:"b"`
-	Asks     []RPIOrderbookLevel `json:"a"`
-	UpdateID uint64              `json:"u"`
+// WebsocketRetailPriceImprovementOrderbook is an orderbook snapshot or delta that includes Retail Price Improvement
+// quotes
+type WebsocketRetailPriceImprovementOrderbook struct {
+	Symbol   string                                 `json:"s"`
+	Bids     []RetailPriceImprovementOrderbookLevel `json:"b"`
+	Asks     []RetailPriceImprovementOrderbookLevel `json:"a"`
+	UpdateID uint64                                 `json:"u"`
 	// Sequence is signed as WebsocketOrderbook's is, since Bybit can send -1 on the snapshot of a book that has no orders
 	Sequence int64 `json:"seq"`
 }
@@ -69,15 +70,15 @@ type WebsocketPublicTrade struct {
 	Size               types.Number `json:"v"`
 	Price              types.Number `json:"p"`
 	// TickDirection is set for perpetuals and futures only
-	TickDirection         string       `json:"L"`
-	TradeID               string       `json:"i"`
-	BlockTrade            bool         `json:"BT"`
-	RPI                   bool         `json:"RPI"`
-	Sequence              uint64       `json:"seq"`
-	MarkPrice             types.Number `json:"mP"`  // Options only
-	IndexPrice            types.Number `json:"iP"`  // Options only
-	MarkImpliedVolatility types.Number `json:"mIv"` // Options only
-	ImpliedVolatility     types.Number `json:"iv"`  // Options only
+	TickDirection          string       `json:"L"`
+	TradeID                string       `json:"i"`
+	BlockTrade             bool         `json:"BT"`
+	RetailPriceImprovement bool         `json:"RPI"`
+	Sequence               uint64       `json:"seq"`
+	MarkPrice              types.Number `json:"mP"`  // Options only
+	IndexPrice             types.Number `json:"iP"`  // Options only
+	MarkImpliedVolatility  types.Number `json:"mIv"` // Options only
+	ImpliedVolatility      types.Number `json:"iv"`  // Options only
 }
 
 // WebsocketTickerUpdate is a push from the tickers.{symbol} topic (Ticker). Linear and inverse tickers send a snapshot
@@ -221,25 +222,25 @@ type WebsocketPriceLimit struct {
 	SellLimit types.Number `json:"sellLmt"`
 }
 
-// WebsocketADLAlertUpdate is a push from the adlAlert.{USDT|USDC|inverse} topic (ADL Alert)
-type WebsocketADLAlertUpdate struct {
-	Topic     string              `json:"topic"`
-	Type      string              `json:"type"`
-	Timestamp types.Time          `json:"ts"`
-	Data      []WebsocketADLAlert `json:"data"`
+// WebsocketAutoDeleveragingAlertUpdate is a push from the adlAlert.{USDT|USDC|inverse} topic (ADL Alert)
+type WebsocketAutoDeleveragingAlertUpdate struct {
+	Topic     string                           `json:"topic"`
+	Type      string                           `json:"type"`
+	Timestamp types.Time                       `json:"ts"`
+	Data      []WebsocketAutoDeleveragingAlert `json:"data"`
 }
 
-// WebsocketADLAlert holds a contract's insurance pool balance and the drawdown ratios that trigger and stop
-// auto-deleveraging. The values are documented as strings but the docs' example sends bare numbers
-type WebsocketADLAlert struct {
+// WebsocketAutoDeleveragingAlert holds a contract's insurance pool balance and the drawdown ratios that trigger and
+// stop auto-deleveraging. The values are documented as strings but the docs' example sends bare numbers
+type WebsocketAutoDeleveragingAlert struct {
 	Coin   currency.Code `json:"c"`
 	Symbol string        `json:"s"`
 	// Balance of a shared insurance pool refreshes daily at 00:00 UTC
 	Balance types.Number `json:"b"`
 	// MaxBalance is deprecated and always empty
-	MaxBalance          types.Number `json:"mb"`
-	InsurancePNLRatio   types.Number `json:"i_pr"`
-	PNLRatio            types.Number `json:"pr"`
-	ADLTriggerThreshold types.Number `json:"adl_tt"`
-	ADLStopRatio        types.Number `json:"adl_sr"`
+	MaxBalance                       types.Number `json:"mb"`
+	InsurancePNLRatio                types.Number `json:"i_pr"`
+	PNLRatio                         types.Number `json:"pr"`
+	AutoDeleveragingTriggerThreshold types.Number `json:"adl_tt"`
+	AutoDeleveragingStopRatio        types.Number `json:"adl_sr"`
 }

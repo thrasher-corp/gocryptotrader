@@ -120,12 +120,12 @@ const (
 	getAccountInfoEPL
 	getAccountInstrumentsInfoEPL
 	getPayInfoEPL
-	getDCPInfoEPL
-	getSMPGroupIDEPL
+	getDisconnectionProtectInfoEPL
+	getSelfMatchPreventionGroupIDEPL
 	getTradeInfoForAnalysisEPL
 	getTradeBehaviourConfigEPL
-	setMMPEPL
-	resetMMPEPL
+	setMarketMakerProtectionEPL
+	resetMarketMakerProtectionEPL
 	repayLiabilityEPL
 	batchSetCollateralCoinEPL
 	setPriceLimitBehaviourEPL
@@ -161,7 +161,7 @@ const (
 	getPortfolioMarginInfoEPL
 	getUSDCSessionSettlementEPL
 	getTotalMembersAssetsEPL
-	getAvailableVASPsEPL
+	getAvailableVirtualAssetServiceProvidersEPL
 	getWithdrawalAddressListEPL
 	createInternalTransferEPL
 	createUniversalTransferEPL
@@ -254,7 +254,7 @@ const (
 	getInstitutionalLoanMarginCoinInfoEPL
 	getInstitutionalLoanOrdersEPL
 	getInstitutionalLoanRepaymentOrdersEPL
-	getInstitutionalLoanLTVEPL
+	getInstitutionalLoanLoanToValueEPL
 	bindOrUnbindUIDEPL
 	repayInstitutionalLoanEPL
 	getInstitutionalLoanDelayLiquidationStatusEPL
@@ -335,11 +335,11 @@ const (
 	getLiquidityMiningLiquidationRecordsEPL
 
 	// Real world assets
-	getRWAProductListEPL
-	placeRWAOrderEPL
-	getRWAPositionListEPL
-	getRWAOrderListEPL
-	getRWANAVChartEPL
+	getRealWorldAssetProductListEPL
+	placeRealWorldAssetOrderEPL
+	getRealWorldAssetPositionListEPL
+	getRealWorldAssetOrderListEPL
+	getRealWorldAssetNAVChartEPL
 
 	// Web3 liquidity pools, per user
 	executeWeb3LPStakeEPL
@@ -487,12 +487,12 @@ var endpointBudgets = map[request.EndpointLimit]rateLimitBudget{
 	getAccountInfoEPL:                    {time.Second, 50},
 	getAccountInstrumentsInfoEPL:         {time.Second, 10},
 	getPayInfoEPL:                        {time.Second, 50},
-	getDCPInfoEPL:                        {time.Second, 5},
-	getSMPGroupIDEPL:                     {time.Second, 5},
+	getDisconnectionProtectInfoEPL:       {time.Second, 5},
+	getSelfMatchPreventionGroupIDEPL:     {time.Second, 5},
 	getTradeInfoForAnalysisEPL:           {time.Second, 50},
 	getTradeBehaviourConfigEPL:           {time.Second, 50},
-	setMMPEPL:                            {time.Second, 5},
-	resetMMPEPL:                          {time.Second, 5},
+	setMarketMakerProtectionEPL:          {time.Second, 5},
+	resetMarketMakerProtectionEPL:        {time.Second, 5},
 	repayLiabilityEPL:                    {time.Second, 1},
 	batchSetCollateralCoinEPL:            {time.Second, 5},
 	setPriceLimitBehaviourEPL:            {time.Second, 10},
@@ -500,50 +500,50 @@ var endpointBudgets = map[request.EndpointLimit]rateLimitBudget{
 	upgradeToUnifiedAccountEPL:           {time.Second, 1},
 
 	// Asset
-	getTransferableCoinEPL:                 {time.Minute, 60},
-	getInternalTransferRecordsEPL:          {time.Minute, 60},
-	getSubUIDEPL:                           {time.Minute, 60},
-	getUniversalTransferRecordsEPL:         {time.Second, 5},
-	getAllCoinsBalanceEPL:                  {time.Second, 5},
-	getSingleCoinBalanceEPL:                {time.Second, 450},
-	getAssetOverviewEPL:                    {time.Second, 50},
-	getWithdrawableAmountEPL:               {time.Second, 300},
-	getDepositRecordsEPL:                   {time.Minute, 100},
-	getSubDepositRecordsEPL:                {time.Minute, 300},
-	getMasterDepositAddressEPL:             {time.Minute, 300},
-	getSubDepositAddressEPL:                {time.Minute, 300},
-	getWithdrawalRecordsEPL:                {time.Minute, 300},
-	getCoinInfoEPL:                         {time.Second, 5},
-	getCoinExchangeRecordsEPL:              {time.Minute, 600},
-	getConvertCoinListEPL:                  {time.Second, 30}, // the table's limit; the Convert guideline's older table allows 100 a second
-	getSmallBalanceExchangeHistoryEPL:      {time.Second, 5},  // the table's limit; its page allows 10 a second
-	getSmallBalanceCoinsEPL:                {time.Second, 10},
-	getDeliveryRecordEPL:                   {time.Second, 50},
-	getInternalDepositRecordsOffChainEPL:   {time.Second, 300},
-	getFiatBalanceEPL:                      {time.Second, 1000},
-	getFiatTradingPairListEPL:              {time.Second, 1000},
-	getFiatConvertStatusEPL:                {time.Second, 1000},
-	getFiatConvertHistoryEPL:               {time.Second, 1000},
-	getFundingAccountTransactionHistoryEPL: {time.Second, 30},
-	getPortfolioMarginInfoEPL:              {time.Second, 50},
-	getUSDCSessionSettlementEPL:            {time.Second, 50},
-	getTotalMembersAssetsEPL:               {time.Second, 50},
-	getAvailableVASPsEPL:                   {time.Second, 1},
-	getWithdrawalAddressListEPL:            {time.Second, 300},
-	createInternalTransferEPL:              {time.Minute, 60},
-	createUniversalTransferEPL:             {time.Second, 5},
-	withdrawCurrencyEPL:                    {time.Second, 5}, // Bybit also allows one withdrawal every 10 seconds for each chain and coin
-	cancelWithdrawalEPL:                    {time.Minute, 60},
-	requestQuoteEPL:                        {time.Second, 20}, // the table's limit; the Convert guideline allows 50 a second
-	confirmQuoteEPL:                        {time.Second, 20}, // the table's limit; the Convert guideline allows 50 a second
-	confirmSmallBalanceQuoteEPL:            {time.Second, 5},
-	requestSmallBalanceQuoteEPL:            {time.Second, 5},
-	setDepositAccountEPL:                   {time.Second, 300},
-	confirmFiatQuoteEPL:                    {time.Second, 100},
-	requestFiatQuoteEPL:                    {time.Second, 1000},
-	getConvertStatusEPL:                    {time.Second, 50}, // the table's limit; the Convert guideline allows 100 a second
-	getConvertHistoryEPL:                   {time.Second, 50}, // the table's limit; the Convert guideline allows 100 a second
-	getFiatReferencePriceEPL:               {time.Second, 1000},
+	getTransferableCoinEPL:                      {time.Minute, 60},
+	getInternalTransferRecordsEPL:               {time.Minute, 60},
+	getSubUIDEPL:                                {time.Minute, 60},
+	getUniversalTransferRecordsEPL:              {time.Second, 5},
+	getAllCoinsBalanceEPL:                       {time.Second, 5},
+	getSingleCoinBalanceEPL:                     {time.Second, 450},
+	getAssetOverviewEPL:                         {time.Second, 50},
+	getWithdrawableAmountEPL:                    {time.Second, 300},
+	getDepositRecordsEPL:                        {time.Minute, 100},
+	getSubDepositRecordsEPL:                     {time.Minute, 300},
+	getMasterDepositAddressEPL:                  {time.Minute, 300},
+	getSubDepositAddressEPL:                     {time.Minute, 300},
+	getWithdrawalRecordsEPL:                     {time.Minute, 300},
+	getCoinInfoEPL:                              {time.Second, 5},
+	getCoinExchangeRecordsEPL:                   {time.Minute, 600},
+	getConvertCoinListEPL:                       {time.Second, 30}, // the table's limit; the Convert guideline's older table allows 100 a second
+	getSmallBalanceExchangeHistoryEPL:           {time.Second, 5},  // the table's limit; its page allows 10 a second
+	getSmallBalanceCoinsEPL:                     {time.Second, 10},
+	getDeliveryRecordEPL:                        {time.Second, 50},
+	getInternalDepositRecordsOffChainEPL:        {time.Second, 300},
+	getFiatBalanceEPL:                           {time.Second, 1000},
+	getFiatTradingPairListEPL:                   {time.Second, 1000},
+	getFiatConvertStatusEPL:                     {time.Second, 1000},
+	getFiatConvertHistoryEPL:                    {time.Second, 1000},
+	getFundingAccountTransactionHistoryEPL:      {time.Second, 30},
+	getPortfolioMarginInfoEPL:                   {time.Second, 50},
+	getUSDCSessionSettlementEPL:                 {time.Second, 50},
+	getTotalMembersAssetsEPL:                    {time.Second, 50},
+	getAvailableVirtualAssetServiceProvidersEPL: {time.Second, 1},
+	getWithdrawalAddressListEPL:                 {time.Second, 300},
+	createInternalTransferEPL:                   {time.Minute, 60},
+	createUniversalTransferEPL:                  {time.Second, 5},
+	withdrawCurrencyEPL:                         {time.Second, 5}, // Bybit also allows one withdrawal every 10 seconds for each chain and coin
+	cancelWithdrawalEPL:                         {time.Minute, 60},
+	requestQuoteEPL:                             {time.Second, 20}, // the table's limit; the Convert guideline allows 50 a second
+	confirmQuoteEPL:                             {time.Second, 20}, // the table's limit; the Convert guideline allows 50 a second
+	confirmSmallBalanceQuoteEPL:                 {time.Second, 5},
+	requestSmallBalanceQuoteEPL:                 {time.Second, 5},
+	setDepositAccountEPL:                        {time.Second, 300},
+	confirmFiatQuoteEPL:                         {time.Second, 100},
+	requestFiatQuoteEPL:                         {time.Second, 1000},
+	getConvertStatusEPL:                         {time.Second, 50}, // the table's limit; the Convert guideline allows 100 a second
+	getConvertHistoryEPL:                        {time.Second, 50}, // the table's limit; the Convert guideline allows 100 a second
+	getFiatReferencePriceEPL:                    {time.Second, 1000},
 
 	// User
 	createNewSubUserIDEPL:          {time.Second, 1},
@@ -621,7 +621,7 @@ var endpointBudgets = map[request.EndpointLimit]rateLimitBudget{
 	getInstitutionalLoanMarginCoinInfoEPL:         {time.Second, 100},
 	getInstitutionalLoanOrdersEPL:                 {time.Second, 20},
 	getInstitutionalLoanRepaymentOrdersEPL:        {time.Second, 20},
-	getInstitutionalLoanLTVEPL:                    {time.Second, 20},
+	getInstitutionalLoanLoanToValueEPL:            {time.Second, 20},
 	bindOrUnbindUIDEPL:                            {time.Second, 1},
 	repayInstitutionalLoanEPL:                     {time.Second, 1},
 	getInstitutionalLoanDelayLiquidationStatusEPL: {time.Second, 2}, // from its page
@@ -702,11 +702,11 @@ var endpointBudgets = map[request.EndpointLimit]rateLimitBudget{
 	getLiquidityMiningLiquidationRecordsEPL: {time.Second, 10},
 
 	// Real world assets
-	getRWAProductListEPL:  {time.Second, 20}, // per IP
-	placeRWAOrderEPL:      {time.Second, 5},
-	getRWAPositionListEPL: {time.Second, 10},
-	getRWAOrderListEPL:    {time.Second, 10},
-	getRWANAVChartEPL:     {time.Second, 20}, // per IP
+	getRealWorldAssetProductListEPL:  {time.Second, 20}, // per IP
+	placeRealWorldAssetOrderEPL:      {time.Second, 5},
+	getRealWorldAssetPositionListEPL: {time.Second, 10},
+	getRealWorldAssetOrderListEPL:    {time.Second, 10},
+	getRealWorldAssetNAVChartEPL:     {time.Second, 20}, // per IP
 
 	// Web3 liquidity pools, per user
 	executeWeb3LPStakeEPL:     {time.Second, 1},

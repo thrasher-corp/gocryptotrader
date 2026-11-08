@@ -23,13 +23,13 @@ type SmallBalanceCoin struct {
 	SupportConvert uint64 `json:"supportConvert"`
 	// AvailableBalance may exceed the balance that can be converted
 	AvailableBalance types.Number `json:"availableBalance"`
-	// BaseValue is the balance valued in USDT
-	BaseValue    types.Number            `json:"baseValue"`
-	ToCoin       currency.Code           `json:"toCoin"`
-	ToAmount     types.Number            `json:"toAmount"`
-	ExchangeRate types.Number            `json:"exchangeRate"`
-	FeeInfo      *SmallBalanceFeeInfo    `json:"feeInfo"`
-	TaxFeeInfo   *SmallBalanceTaxFeeInfo `json:"taxFeeInfo"`
+	// BaseValueInUSDT is the balance's value
+	BaseValueInUSDT types.Number            `json:"baseValue"`
+	ToCoin          currency.Code           `json:"toCoin"`
+	ToAmount        types.Number            `json:"toAmount"`
+	ExchangeRate    types.Number            `json:"exchangeRate"`
+	FeeInfo         *SmallBalanceFeeInfo    `json:"feeInfo"`
+	TaxFeeInfo      *SmallBalanceTaxFeeInfo `json:"taxFeeInfo"`
 }
 
 // SmallBalanceFeeInfo is a small balance conversion's exchange fee

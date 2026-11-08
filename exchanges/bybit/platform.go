@@ -50,15 +50,15 @@ func (e *Exchange) RequestDemoTradingFunds(ctx context.Context, req *DemoTrading
 	if req.AdjustType != 0 {
 		body["adjustType"] = req.AdjustType
 	}
-	if len(req.UTADemoApplyMoney) != 0 {
-		funds := make([]map[string]any, len(req.UTADemoApplyMoney))
-		for i := range req.UTADemoApplyMoney {
+	if len(req.UnifiedTradingAccountDemoApplyMoney) != 0 {
+		funds := make([]map[string]any, len(req.UnifiedTradingAccountDemoApplyMoney))
+		for i := range req.UnifiedTradingAccountDemoApplyMoney {
 			fund := make(map[string]any)
-			if !req.UTADemoApplyMoney[i].Coin.IsEmpty() {
-				fund["coin"] = req.UTADemoApplyMoney[i].Coin.Upper().String()
+			if !req.UnifiedTradingAccountDemoApplyMoney[i].Coin.IsEmpty() {
+				fund["coin"] = req.UnifiedTradingAccountDemoApplyMoney[i].Coin.Upper().String()
 			}
-			if req.UTADemoApplyMoney[i].Amount != 0 {
-				fund["amountStr"] = strconv.FormatFloat(req.UTADemoApplyMoney[i].Amount, 'f', -1, 64)
+			if req.UnifiedTradingAccountDemoApplyMoney[i].Amount != 0 {
+				fund["amountStr"] = strconv.FormatFloat(req.UnifiedTradingAccountDemoApplyMoney[i].Amount, 'f', -1, 64)
 			}
 			funds[i] = fund
 		}

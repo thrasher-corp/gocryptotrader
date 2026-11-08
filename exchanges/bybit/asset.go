@@ -186,7 +186,7 @@ func (e *Exchange) GetSingleCoinBalance(ctx context.Context, arg *SingleCoinBala
 	if arg.Coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if arg.WithLTVTransferSafeAmount && arg.ToAccountType == "" {
+	if arg.WithLoanToValueTransferSafeAmount && arg.ToAccountType == "" {
 		return nil, errToAccountTypeRequired
 	}
 	params := url.Values{}
@@ -207,7 +207,7 @@ func (e *Exchange) GetSingleCoinBalance(ctx context.Context, arg *SingleCoinBala
 	if arg.WithTransferSafeAmount {
 		params.Set("withTransferSafeAmount", "1")
 	}
-	if arg.WithLTVTransferSafeAmount {
+	if arg.WithLoanToValueTransferSafeAmount {
 		params.Set("withLtvTransferSafeAmount", "1")
 	}
 	var resp *SingleCoinBalanceResponse

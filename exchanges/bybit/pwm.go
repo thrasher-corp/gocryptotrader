@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// PWM request validation errors
+// Private wealth management request validation errors
 var (
 	errPlanIDRequired        = errors.New("investment plan ID is required")
 	errFundIDRequired        = errors.New("fund ID is required")
@@ -28,9 +28,9 @@ var (
 	errNoFundsProvided       = errors.New("at least one fund is required")
 )
 
-// TransferPWMFunds transfers funds between two custodian sub-accounts of a fund; it must be called with the fund
-// custodian sub-account's API key (Fund Transfer Between Sub-Accounts)
-func (e *Exchange) TransferPWMFunds(ctx context.Context, req *PWMFundTransferRequest) (*PWMFundTransferResponse, error) {
+// TransferPrivateWealthManagementFunds transfers funds between two custodian sub-accounts of a fund; it must be called
+// with the fund custodian sub-account's API key (Fund Transfer Between Sub-Accounts)
+func (e *Exchange) TransferPrivateWealthManagementFunds(ctx context.Context, req *PrivateWealthManagementFundTransferRequest) (*PrivateWealthManagementFundTransferResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -55,14 +55,14 @@ func (e *Exchange) TransferPWMFunds(ctx context.Context, req *PWMFundTransferReq
 	body["toUserId"] = req.ToUserID
 	body["amount"] = strconv.FormatFloat(req.Amount, 'f', -1, 64)
 	body["coin"] = req.Coin.Upper().String()
-	var resp *PWMFundTransferResponse
+	var resp *PrivateWealthManagementFundTransferResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/pwm/fund-transfer", nil, body, &resp, defaultEPL)
 }
 
-// GetPWMFundTransferRecords returns the fund transfer between custodian sub-accounts with the given ID; it must be
-// called with the fund custodian sub-account's API key (Get Fund Transfer Records). The ID is required: without one
-// Bybit lists up to 20 transfers, in a reply the docs do not describe
-func (e *Exchange) GetPWMFundTransferRecords(ctx context.Context, transferID string, fromUserID uint64) (*PWMFundTransferRecordsResponse, error) {
+// GetPrivateWealthManagementFundTransferRecords returns the fund transfer between custodian sub-accounts with the given
+// ID; it must be called with the fund custodian sub-account's API key (Get Fund Transfer Records). The ID is required:
+// without one Bybit lists up to 20 transfers, in a reply the docs do not describe
+func (e *Exchange) GetPrivateWealthManagementFundTransferRecords(ctx context.Context, transferID string, fromUserID uint64) (*PrivateWealthManagementFundTransferRecordsResponse, error) {
 	if transferID == "" {
 		return nil, errMissingTransferID
 	}
@@ -71,12 +71,12 @@ func (e *Exchange) GetPWMFundTransferRecords(ctx context.Context, transferID str
 	if fromUserID != 0 {
 		params.Set("fromUserId", strconv.FormatUint(fromUserID, 10))
 	}
-	var resp *PWMFundTransferRecordsResponse
+	var resp *PrivateWealthManagementFundTransferRecordsResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/pwm/query-fund-transfer-result", params, nil, &resp, defaultEPL)
 }
 
-// GetAllPWMInvestmentPlans returns the account's investment plans (Get All Investment Plans)
-func (e *Exchange) GetAllPWMInvestmentPlans(ctx context.Context, req *PWMInvestmentPlansRequest) (*PWMInvestmentPlansResponse, error) {
+// GetAllPrivateWealthManagementInvestmentPlans returns the account's investment plans (Get All Investment Plans)
+func (e *Exchange) GetAllPrivateWealthManagementInvestmentPlans(ctx context.Context, req *PrivateWealthManagementInvestmentPlansRequest) (*PrivateWealthManagementInvestmentPlansResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -93,37 +93,37 @@ func (e *Exchange) GetAllPWMInvestmentPlans(ctx context.Context, req *PWMInvestm
 	if req.Cursor != "" {
 		params.Set("cursor", req.Cursor)
 	}
-	var resp *PWMInvestmentPlansResponse
+	var resp *PrivateWealthManagementInvestmentPlansResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/pwm/investment-plan/all", params, nil, &resp, defaultEPL)
 }
 
-// GetPWMInvestmentPlanDetail returns the assets and positions of an Active or Closed investment plan (Get Investment
-// Plan Detail)
-func (e *Exchange) GetPWMInvestmentPlanDetail(ctx context.Context, planID string) (*PWMInvestmentPlanDetailResponse, error) {
+// GetPrivateWealthManagementInvestmentPlanDetail returns the assets and positions of an Active or Closed investment
+// plan (Get Investment Plan Detail)
+func (e *Exchange) GetPrivateWealthManagementInvestmentPlanDetail(ctx context.Context, planID string) (*PrivateWealthManagementInvestmentPlanDetailResponse, error) {
 	if planID == "" {
 		return nil, errPlanIDRequired
 	}
 	params := url.Values{}
 	params.Set("planId", planID)
-	var resp *PWMInvestmentPlanDetailResponse
+	var resp *PrivateWealthManagementInvestmentPlanDetailResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/pwm/investment-plan/detail", params, nil, &resp, defaultEPL)
 }
 
-// GetPendingPWMInvestmentPlanDetail returns the configured products of a PendingSubscription investment plan (Get
-// Pending Investment Plan Detail)
-func (e *Exchange) GetPendingPWMInvestmentPlanDetail(ctx context.Context, planID string) (*PWMPendingInvestmentPlanDetailResponse, error) {
+// GetPendingPrivateWealthManagementInvestmentPlanDetail returns the configured products of a PendingSubscription
+// investment plan (Get Pending Investment Plan Detail)
+func (e *Exchange) GetPendingPrivateWealthManagementInvestmentPlanDetail(ctx context.Context, planID string) (*PrivateWealthManagementPendingInvestmentPlanDetailResponse, error) {
 	if planID == "" {
 		return nil, errPlanIDRequired
 	}
 	params := url.Values{}
 	params.Set("planId", planID)
-	var resp *PWMPendingInvestmentPlanDetailResponse
+	var resp *PrivateWealthManagementPendingInvestmentPlanDetailResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/pwm/investment-plan/new-plan", params, nil, &resp, defaultEPL)
 }
 
-// ClaimPWMWithdrawableFunds transfers the withdrawable funds of an Active investment plan out of it (Claim Withdrawable
-// Funds)
-func (e *Exchange) ClaimPWMWithdrawableFunds(ctx context.Context, req *PWMClaimRequest) (*PWMClaimResponse, error) {
+// ClaimPrivateWealthManagementWithdrawableFunds transfers the withdrawable funds of an Active investment plan out of it
+// (Claim Withdrawable Funds)
+func (e *Exchange) ClaimPrivateWealthManagementWithdrawableFunds(ctx context.Context, req *PrivateWealthManagementClaimRequest) (*PrivateWealthManagementClaimResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -139,12 +139,12 @@ func (e *Exchange) ClaimPWMWithdrawableFunds(ctx context.Context, req *PWMClaimR
 	if req.ToAccountType != "" {
 		body["toAccountType"] = req.ToAccountType
 	}
-	var resp *PWMClaimResponse
+	var resp *PrivateWealthManagementClaimResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/pwm/investment-plan/claim", nil, body, &resp, defaultEPL)
 }
 
-// GetPWMAssetTrend returns an investment plan's daily asset value (Get Asset Trend)
-func (e *Exchange) GetPWMAssetTrend(ctx context.Context, req *PWMAssetTrendRequest) (*PWMAssetTrendResponse, error) {
+// GetPrivateWealthManagementAssetTrend returns an investment plan's daily asset value (Get Asset Trend)
+func (e *Exchange) GetPrivateWealthManagementAssetTrend(ctx context.Context, req *PrivateWealthManagementAssetTrendRequest) (*PrivateWealthManagementAssetTrendResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -164,12 +164,12 @@ func (e *Exchange) GetPWMAssetTrend(ctx context.Context, req *PWMAssetTrendReque
 	if !req.EndTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(req.EndTime.UnixMilli(), 10))
 	}
-	var resp *PWMAssetTrendResponse
+	var resp *PrivateWealthManagementAssetTrendResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/pwm/investment-plan/asset-trend", params, nil, &resp, defaultEPL)
 }
 
-// GetPWMFundHistoricalNAV returns a fund's daily net asset value (Get Fund Historical NAV)
-func (e *Exchange) GetPWMFundHistoricalNAV(ctx context.Context, req *PWMFundHistoricalNAVRequest) (*PWMFundHistoricalNAVResponse, error) {
+// GetPrivateWealthManagementFundHistoricalNAV returns a fund's daily net asset value (Get Fund Historical NAV)
+func (e *Exchange) GetPrivateWealthManagementFundHistoricalNAV(ctx context.Context, req *PrivateWealthManagementFundHistoricalNAVRequest) (*PrivateWealthManagementFundHistoricalNAVResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -189,12 +189,13 @@ func (e *Exchange) GetPWMFundHistoricalNAV(ctx context.Context, req *PWMFundHist
 	if !req.EndTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(req.EndTime.UnixMilli(), 10))
 	}
-	var resp *PWMFundHistoricalNAVResponse
+	var resp *PrivateWealthManagementFundHistoricalNAVResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/pwm/investment-plan/fund-nav", params, nil, &resp, defaultEPL)
 }
 
-// SubscribePWMInvestmentPlan subscribes to a PendingSubscription investment plan (Subscribe Investment Plan)
-func (e *Exchange) SubscribePWMInvestmentPlan(ctx context.Context, req *PWMSubscribeRequest) (*PWMSubscribeResponse, error) {
+// SubscribePrivateWealthManagementInvestmentPlan subscribes to a PendingSubscription investment plan (Subscribe
+// Investment Plan)
+func (e *Exchange) SubscribePrivateWealthManagementInvestmentPlan(ctx context.Context, req *PrivateWealthManagementSubscribeRequest) (*PrivateWealthManagementSubscribeResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -210,12 +211,12 @@ func (e *Exchange) SubscribePWMInvestmentPlan(ctx context.Context, req *PWMSubsc
 	if req.AccountType != "" {
 		body["accountType"] = req.AccountType
 	}
-	var resp *PWMSubscribeResponse
+	var resp *PrivateWealthManagementSubscribeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/pwm/investment-plan/subscribe", nil, body, &resp, defaultEPL)
 }
 
-// InvestMoreInPWMInvestmentPlan adds to a product of an Active investment plan (Invest More)
-func (e *Exchange) InvestMoreInPWMInvestmentPlan(ctx context.Context, req *PWMInvestMoreRequest) (*PWMInvestMoreResponse, error) {
+// InvestMoreInPrivateWealthManagementInvestmentPlan adds to a product of an Active investment plan (Invest More)
+func (e *Exchange) InvestMoreInPrivateWealthManagementInvestmentPlan(ctx context.Context, req *PrivateWealthManagementInvestMoreRequest) (*PrivateWealthManagementInvestMoreResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -243,13 +244,13 @@ func (e *Exchange) InvestMoreInPWMInvestmentPlan(ctx context.Context, req *PWMIn
 	if req.AccountType != "" {
 		body["accountType"] = req.AccountType
 	}
-	var resp *PWMInvestMoreResponse
+	var resp *PrivateWealthManagementInvestMoreResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/pwm/investment-plan/invest-more", nil, body, &resp, defaultEPL)
 }
 
-// RedeemPWMInvestmentPlan redeems from a product of an investment plan; fund products redeem shares, other products an
-// amount (Redeem)
-func (e *Exchange) RedeemPWMInvestmentPlan(ctx context.Context, req *PWMRedeemRequest) (*PWMRedeemResponse, error) {
+// RedeemPrivateWealthManagementInvestmentPlan redeems from a product of an investment plan; fund products redeem
+// shares, other products an amount (Redeem)
+func (e *Exchange) RedeemPrivateWealthManagementInvestmentPlan(ctx context.Context, req *PrivateWealthManagementRedeemRequest) (*PrivateWealthManagementRedeemResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -289,13 +290,13 @@ func (e *Exchange) RedeemPWMInvestmentPlan(ctx context.Context, req *PWMRedeemRe
 	if req.PositionID != "" {
 		body["positionId"] = req.PositionID
 	}
-	var resp *PWMRedeemResponse
+	var resp *PrivateWealthManagementRedeemResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/pwm/investment-plan/redeem", nil, body, &resp, defaultEPL)
 }
 
-// GetPWMInvestmentPlanOrders returns the subscription, redemption and auto-reinvest orders of the account's investment
-// plans, newest first (Get Investment Plan Orders)
-func (e *Exchange) GetPWMInvestmentPlanOrders(ctx context.Context, req *PWMInvestmentPlanOrdersRequest) (*PWMInvestmentPlanOrdersResponse, error) {
+// GetPrivateWealthManagementInvestmentPlanOrders returns the subscription, redemption and auto-reinvest orders of the
+// account's investment plans, newest first (Get Investment Plan Orders)
+func (e *Exchange) GetPrivateWealthManagementInvestmentPlanOrders(ctx context.Context, req *PrivateWealthManagementInvestmentPlanOrdersRequest) (*PrivateWealthManagementInvestmentPlanOrdersResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -332,20 +333,21 @@ func (e *Exchange) GetPWMInvestmentPlanOrders(ctx context.Context, req *PWMInves
 	if req.OrderLinkID != "" {
 		params.Set("orderLinkId", req.OrderLinkID)
 	}
-	var resp *PWMInvestmentPlanOrdersResponse
+	var resp *PrivateWealthManagementInvestmentPlanOrdersResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/pwm/investment-plan/order", params, nil, &resp, defaultEPL)
 }
 
-// GetPWMSubscribableProductInfo returns the products a customised investment plan can hold, by category (Get
-// Subscribable Product Info)
-func (e *Exchange) GetPWMSubscribableProductInfo(ctx context.Context) (*PWMSubscribableProductInfoResponse, error) {
-	var resp *PWMSubscribableProductInfoResponse
+// GetPrivateWealthManagementSubscribableProductInfo returns the products a customised investment plan can hold, by
+// category (Get Subscribable Product Info)
+func (e *Exchange) GetPrivateWealthManagementSubscribableProductInfo(ctx context.Context) (*PrivateWealthManagementSubscribableProductInfoResponse, error) {
+	var resp *PrivateWealthManagementSubscribableProductInfoResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "/v5/earn/pwm/customize-plan/product", defaultEPL, &resp)
 }
 
-// CreatePWMCustomisedInvestmentPlan creates an investment plan from subscribable products and subscribes to it in one
-// step; an account may hold at most 20 Active and Pending plans (Create Customise Investment Plan)
-func (e *Exchange) CreatePWMCustomisedInvestmentPlan(ctx context.Context, req *PWMCustomisedPlanRequest) (*PWMCustomisedPlanResponse, error) {
+// CreatePrivateWealthManagementCustomisedInvestmentPlan creates an investment plan from subscribable products and
+// subscribes to it in one step; an account may hold at most 20 Active and Pending plans (Create Customise Investment
+// Plan)
+func (e *Exchange) CreatePrivateWealthManagementCustomisedInvestmentPlan(ctx context.Context, req *PrivateWealthManagementCustomisedPlanRequest) (*PrivateWealthManagementCustomisedPlanResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -360,8 +362,8 @@ func (e *Exchange) CreatePWMCustomisedInvestmentPlan(ctx context.Context, req *P
 		if req.Products[i].Amount <= 0 {
 			return nil, fmt.Errorf("%w: product %d", order.ErrAmountIsInvalid, i)
 		}
-		// The product ID and fund name are passed through from GetPWMSubscribableProductInfo, where a fund has no
-		// product ID and other products no fund name, so both are always sent
+		// The product ID and fund name are passed through from GetPrivateWealthManagementSubscribableProductInfo, where
+		// a fund has no product ID and other products no fund name, so both are always sent
 		products[i] = make(map[string]any)
 		products[i]["category"] = req.Products[i].Category
 		products[i]["productId"] = req.Products[i].ProductID
@@ -376,12 +378,13 @@ func (e *Exchange) CreatePWMCustomisedInvestmentPlan(ctx context.Context, req *P
 	if req.OrderLinkID != "" {
 		body["orderLinkId"] = req.OrderLinkID
 	}
-	var resp *PWMCustomisedPlanResponse
+	var resp *PrivateWealthManagementCustomisedPlanResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/pwm/customize-plan/create", nil, body, &resp, defaultEPL)
 }
 
-// GetAllPWMFunds returns the funds the institution created through the API, by descending fund ID (Get All Funds)
-func (e *Exchange) GetAllPWMFunds(ctx context.Context, req *PWMFundsRequest) (*PWMFundsResponse, error) {
+// GetAllPrivateWealthManagementFunds returns the funds the institution created through the API, by descending fund ID
+// (Get All Funds)
+func (e *Exchange) GetAllPrivateWealthManagementFunds(ctx context.Context, req *PrivateWealthManagementFundsRequest) (*PrivateWealthManagementFundsResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -401,13 +404,13 @@ func (e *Exchange) GetAllPWMFunds(ctx context.Context, req *PWMFundsRequest) (*P
 	if req.Cursor != "" {
 		params.Set("cursor", req.Cursor)
 	}
-	var resp *PWMFundsResponse
+	var resp *PrivateWealthManagementFundsResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/pwm/asset-manager/all-funds", params, nil, &resp, defaultEPL)
 }
 
-// SettlePWMFundProfit settles the profit share of an Active fund; repeating the request link ID returns the settlement's
-// current status (Settle Fund Profit)
-func (e *Exchange) SettlePWMFundProfit(ctx context.Context, fundID, requestLinkID string) (*PWMSettleFundProfitResponse, error) {
+// SettlePrivateWealthManagementFundProfit settles the profit share of an Active fund; repeating the request link ID
+// returns the settlement's current status (Settle Fund Profit)
+func (e *Exchange) SettlePrivateWealthManagementFundProfit(ctx context.Context, fundID, requestLinkID string) (*PrivateWealthManagementSettleFundProfitResponse, error) {
 	if fundID == "" {
 		return nil, errFundIDRequired
 	}
@@ -417,13 +420,13 @@ func (e *Exchange) SettlePWMFundProfit(ctx context.Context, fundID, requestLinkI
 	body := make(map[string]any)
 	body["fundId"] = fundID
 	body["reqLinkId"] = requestLinkID
-	var resp *PWMSettleFundProfitResponse
+	var resp *PrivateWealthManagementSettleFundProfitResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/pwm/asset-manager/settle-profit", nil, body, &resp, defaultEPL)
 }
 
-// CreatePWMFund creates a fund pending subscription; an institution may create at most 10 funds (Create Fund (Pending
-// Subscription))
-func (e *Exchange) CreatePWMFund(ctx context.Context, req *PWMCreateFundRequest) (*PWMCreateFundResponse, error) {
+// CreatePrivateWealthManagementFund creates a fund pending subscription; an institution may create at most 10 funds
+// (Create Fund (Pending Subscription))
+func (e *Exchange) CreatePrivateWealthManagementFund(ctx context.Context, req *PrivateWealthManagementCreateFundRequest) (*PrivateWealthManagementCreateFundResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -445,12 +448,13 @@ func (e *Exchange) CreatePWMFund(ctx context.Context, req *PWMCreateFundRequest)
 	if req.FundIntroduction != "" {
 		body["fundIntroduction"] = req.FundIntroduction
 	}
-	var resp *PWMCreateFundResponse
+	var resp *PrivateWealthManagementCreateFundResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/pwm/asset-manager/create-fund", nil, body, &resp, defaultEPL)
 }
 
-// CreatePWMInvestmentPlan creates an investment plan of PendingSubscribe funds for a user (Create Investment Plan)
-func (e *Exchange) CreatePWMInvestmentPlan(ctx context.Context, req *PWMCreateInvestmentPlanRequest) (*PWMCreateInvestmentPlanResponse, error) {
+// CreatePrivateWealthManagementInvestmentPlan creates an investment plan of PendingSubscribe funds for a user (Create
+// Investment Plan)
+func (e *Exchange) CreatePrivateWealthManagementInvestmentPlan(ctx context.Context, req *PrivateWealthManagementCreateInvestmentPlanRequest) (*PrivateWealthManagementCreateInvestmentPlanResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -487,13 +491,13 @@ func (e *Exchange) CreatePWMInvestmentPlan(ctx context.Context, req *PWMCreateIn
 	body["planType"] = req.PlanType
 	body["investmentDistribution"] = distribution
 	body["reqLinkId"] = req.RequestLinkID
-	var resp *PWMCreateInvestmentPlanResponse
+	var resp *PrivateWealthManagementCreateInvestmentPlanResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/pwm/asset-manager/create-investment-plan", nil, body, &resp, defaultEPL)
 }
 
-// GetPWMAssetManagerInvestmentPlans returns the investment plans the institution created through the API (Get
-// Investment Plans)
-func (e *Exchange) GetPWMAssetManagerInvestmentPlans(ctx context.Context, req *PWMAssetManagerInvestmentPlansRequest) (*PWMAssetManagerInvestmentPlansResponse, error) {
+// GetPrivateWealthManagementAssetManagerInvestmentPlans returns the investment plans the institution created through
+// the API (Get Investment Plans)
+func (e *Exchange) GetPrivateWealthManagementAssetManagerInvestmentPlans(ctx context.Context, req *PrivateWealthManagementAssetManagerInvestmentPlansRequest) (*PrivateWealthManagementAssetManagerInvestmentPlansResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -513,13 +517,13 @@ func (e *Exchange) GetPWMAssetManagerInvestmentPlans(ctx context.Context, req *P
 	if req.Cursor != "" {
 		params.Set("cursor", req.Cursor)
 	}
-	var resp *PWMAssetManagerInvestmentPlansResponse
+	var resp *PrivateWealthManagementAssetManagerInvestmentPlansResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/pwm/asset-manager/get-investment-plan", params, nil, &resp, defaultEPL)
 }
 
-// ManagePWMInvestmentPlan closes or deletes an investment plan, or adds funds to it and updates their amounts (Manage
-// Investment Plan)
-func (e *Exchange) ManagePWMInvestmentPlan(ctx context.Context, req *PWMManageInvestmentPlanRequest) (*PWMManageInvestmentPlanResponse, error) {
+// ManagePrivateWealthManagementInvestmentPlan closes or deletes an investment plan, or adds funds to it and updates
+// their amounts (Manage Investment Plan)
+func (e *Exchange) ManagePrivateWealthManagementInvestmentPlan(ctx context.Context, req *PrivateWealthManagementManageInvestmentPlanRequest) (*PrivateWealthManagementManageInvestmentPlanResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -550,12 +554,13 @@ func (e *Exchange) ManagePWMInvestmentPlan(ctx context.Context, req *PWMManageIn
 		}
 		body["updateFunds"] = funds
 	}
-	var resp *PWMManageInvestmentPlanResponse
+	var resp *PrivateWealthManagementManageInvestmentPlanResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/pwm/asset-manager/manage-investment-plan", nil, body, &resp, defaultEPL)
 }
 
-// GetAllPWMFundOrders returns the subscription and redemption orders of the institution's funds (Get All Fund Orders)
-func (e *Exchange) GetAllPWMFundOrders(ctx context.Context, req *PWMFundOrdersRequest) (*PWMFundOrdersResponse, error) {
+// GetAllPrivateWealthManagementFundOrders returns the subscription and redemption orders of the institution's funds
+// (Get All Fund Orders)
+func (e *Exchange) GetAllPrivateWealthManagementFundOrders(ctx context.Context, req *PrivateWealthManagementFundOrdersRequest) (*PrivateWealthManagementFundOrdersResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -586,13 +591,13 @@ func (e *Exchange) GetAllPWMFundOrders(ctx context.Context, req *PWMFundOrdersRe
 	if req.Cursor != "" {
 		params.Set("cursor", req.Cursor)
 	}
-	var resp *PWMFundOrdersResponse
+	var resp *PrivateWealthManagementFundOrdersResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/pwm/asset-manager/all-order", params, nil, &resp, defaultEPL)
 }
 
-// ManagePWMFundOrder approves or rejects a fund order pending review; repeating the request link ID returns the
-// order's current status (Manage Order)
-func (e *Exchange) ManagePWMFundOrder(ctx context.Context, req *PWMManageOrderRequest) (*PWMManageOrderResponse, error) {
+// ManagePrivateWealthManagementFundOrder approves or rejects a fund order pending review; repeating the request link ID
+// returns the order's current status (Manage Order)
+func (e *Exchange) ManagePrivateWealthManagementFundOrder(ctx context.Context, req *PrivateWealthManagementManageOrderRequest) (*PrivateWealthManagementManageOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -609,13 +614,14 @@ func (e *Exchange) ManagePWMFundOrder(ctx context.Context, req *PWMManageOrderRe
 	body["orderId"] = req.OrderID
 	body["action"] = req.Action
 	body["reqLinkId"] = req.RequestLinkID
-	var resp *PWMManageOrderResponse
+	var resp *PrivateWealthManagementManageOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/pwm/asset-manager/manage-order", nil, body, &resp, defaultEPL)
 }
 
-// CreatePWMFundSubAccount creates a sub-account for an Active fund. Creation is asynchronous: repeat the request with
-// the same request link ID to get the sub-account's UID once it is created (Create Fund Sub-Account)
-func (e *Exchange) CreatePWMFundSubAccount(ctx context.Context, fundID, requestLinkID string) (*PWMCreateFundSubAccountResponse, error) {
+// CreatePrivateWealthManagementFundSubAccount creates a sub-account for an Active fund. Creation is asynchronous:
+// repeat the request with the same request link ID to get the sub-account's UID once it is created (Create Fund
+// Sub-Account)
+func (e *Exchange) CreatePrivateWealthManagementFundSubAccount(ctx context.Context, fundID, requestLinkID string) (*PrivateWealthManagementCreateFundSubAccountResponse, error) {
 	if fundID == "" {
 		return nil, errFundIDRequired
 	}
@@ -625,6 +631,6 @@ func (e *Exchange) CreatePWMFundSubAccount(ctx context.Context, fundID, requestL
 	body := make(map[string]any)
 	body["fundId"] = fundID
 	body["reqLinkId"] = requestLinkID
-	var resp *PWMCreateFundSubAccountResponse
+	var resp *PrivateWealthManagementCreateFundSubAccountResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/pwm/asset-manager/create-sub-account", nil, body, &resp, defaultEPL)
 }

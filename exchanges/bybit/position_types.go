@@ -70,8 +70,8 @@ type PositionInfo struct {
 	UnrealisedPNL      types.Number `json:"unrealisedPnl"`
 	CurrentRealisedPNL types.Number `json:"curRealisedPnl"`
 	// CumulativeRealisedPNL is all time for perpetuals and futures, and meaningless for options
-	CumulativeRealisedPNL types.Number `json:"cumRealisedPnl"`
-	ADLRankIndicator      uint64       `json:"adlRankIndicator"`
+	CumulativeRealisedPNL         types.Number `json:"cumRealisedPnl"`
+	AutoDeleveragingRankIndicator uint64       `json:"adlRankIndicator"`
 	// CreatedTime is when the first position on the symbol was created
 	CreatedTime types.Time `json:"createdTime"`
 	UpdatedTime types.Time `json:"updatedTime"`
@@ -84,8 +84,8 @@ type PositionInfo struct {
 	// position's maintenance margin rate and leverage
 	MaintenanceMarginRateSystemUpdatedTime types.Time `json:"mmrSysUpdatedTime"`
 	LeverageSystemUpdatedTime              types.Time `json:"leverageSysUpdatedTime"`
-	// TPSLMode is deprecated and always Full
-	TPSLMode string `json:"tpslMode"`
+	// TakeProfitStopLossMode is deprecated and always Full
+	TakeProfitStopLossMode string `json:"tpslMode"`
 	// BustPrice is deprecated and always empty
 	BustPrice types.Number `json:"bustPrice"`
 	// PositionBalance is deprecated in favour of PositionInitialMargin
@@ -134,8 +134,8 @@ type SwitchPositionModeRequest struct {
 type TradingStopRequest struct {
 	Category string
 	Symbol   string
-	// TPSLMode is Full for the whole position, the only mode options support, or Partial
-	TPSLMode string
+	// TakeProfitStopLossMode is Full for the whole position, the only mode options support, or Partial
+	TakeProfitStopLossMode string
 	// PositionIndex is 0 in one-way mode, and 1 for the buy side or 2 for the sell side in hedge mode
 	PositionIndex uint64
 	// TakeProfit, StopLoss and TrailingStop are left unchanged when nil, and cancelled when they point to zero.

@@ -74,14 +74,14 @@ type PreUpgradeOrder struct {
 	ReduceOnly         bool         `json:"reduceOnly"`
 	CloseOnTrigger     bool         `json:"closeOnTrigger"`
 	// PlaceType applies to option: iv or price
-	PlaceType string `json:"placeType"`
-	SMPType   string `json:"smpType"`
-	// SMPGroup is documented as an integer here, but Bybit's other order endpoints changed it to a string in August
-	// 2026, so either is accepted
-	SMPGroup    types.Number `json:"smpGroup"`
-	SMPOrderID  string       `json:"smpOrderId"`
-	CreatedTime types.Time   `json:"createdTime"`
-	UpdatedTime types.Time   `json:"updatedTime"`
+	PlaceType               string `json:"placeType"`
+	SelfMatchPreventionType string `json:"smpType"`
+	// SelfMatchPreventionGroup is documented as an integer here, but Bybit's other order endpoints changed it to a
+	// string in August 2026, so either is accepted
+	SelfMatchPreventionGroup   types.Number `json:"smpGroup"`
+	SelfMatchPreventionOrderID string       `json:"smpOrderId"`
+	CreatedTime                types.Time   `json:"createdTime"`
+	UpdatedTime                types.Time   `json:"updatedTime"`
 }
 
 // PreUpgradeTradeHistoryRequest holds the parameters for GetPreUpgradeTradeHistory

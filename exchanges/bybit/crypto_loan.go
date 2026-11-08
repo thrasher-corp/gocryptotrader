@@ -289,8 +289,8 @@ func fixedLoanMarketPath(path string, req *FixedLoanMarketRequest) (string, erro
 	}
 	params := url.Values{}
 	params.Set("orderCurrency", req.OrderCurrency.Upper().String())
-	if req.Term > 0 {
-		params.Set("term", strconv.FormatUint(req.Term, 10))
+	if req.TermInDays > 0 {
+		params.Set("term", strconv.FormatUint(req.TermInDays, 10))
 	}
 	params.Set("orderBy", req.OrderBy)
 	if req.Sort > 0 {
@@ -311,7 +311,7 @@ func (e *Exchange) GetFixedLoanAvailableInventory(ctx context.Context, req *Fixe
 	if req.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if req.Term == 0 {
+	if req.TermInDays == 0 {
 		return nil, errLoanTermRequired
 	}
 	if req.AnnualRate <= 0 {
@@ -319,7 +319,7 @@ func (e *Exchange) GetFixedLoanAvailableInventory(ctx context.Context, req *Fixe
 	}
 	params := url.Values{}
 	params.Set("currency", req.Currency.Upper().String())
-	params.Set("term", strconv.FormatUint(req.Term, 10))
+	params.Set("term", strconv.FormatUint(req.TermInDays, 10))
 	params.Set("annualRate", strconv.FormatFloat(req.AnnualRate, 'f', -1, 64))
 	var resp *FixedLoanAvailableInventoryResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/crypto-loan-fixed/available-inventory", params, nil, &resp, getFixedLoanAvailableInventoryEPL)
@@ -340,14 +340,14 @@ func (e *Exchange) CreateFixedLoanBorrowOrder(ctx context.Context, req *CreateFi
 	if req.AnnualRate <= 0 {
 		return nil, errAnnualRateRequired
 	}
-	if req.Term == 0 {
+	if req.TermInDays == 0 {
 		return nil, errLoanTermRequired
 	}
 	body := map[string]any{
 		"orderCurrency": req.OrderCurrency.Upper().String(),
 		"orderAmount":   strconv.FormatFloat(req.OrderAmount, 'f', -1, 64),
 		"annualRate":    strconv.FormatFloat(req.AnnualRate, 'f', -1, 64),
-		"term":          strconv.FormatUint(req.Term, 10),
+		"term":          strconv.FormatUint(req.TermInDays, 10),
 	}
 	if req.RepayType != "" {
 		body["repayType"] = req.RepayType
@@ -390,14 +390,14 @@ func (e *Exchange) CreateFixedLoanSupplyOrder(ctx context.Context, req *CreateFi
 	if req.AnnualRate <= 0 {
 		return nil, errAnnualRateRequired
 	}
-	if req.Term == 0 {
+	if req.TermInDays == 0 {
 		return nil, errLoanTermRequired
 	}
 	body := map[string]any{
 		"orderCurrency": req.OrderCurrency.Upper().String(),
 		"orderAmount":   strconv.FormatFloat(req.OrderAmount, 'f', -1, 64),
 		"annualRate":    strconv.FormatFloat(req.AnnualRate, 'f', -1, 64),
-		"term":          strconv.FormatUint(req.Term, 10),
+		"term":          strconv.FormatUint(req.TermInDays, 10),
 	}
 	if req.AvailableSource != "" {
 		body["availableSource"] = req.AvailableSource
@@ -444,8 +444,8 @@ func (e *Exchange) GetFixedLoanBorrowContractInfo(ctx context.Context, req *Fixe
 	if !req.OrderCurrency.IsEmpty() {
 		params.Set("orderCurrency", req.OrderCurrency.Upper().String())
 	}
-	if req.Term > 0 {
-		params.Set("term", strconv.FormatUint(req.Term, 10))
+	if req.TermInDays > 0 {
+		params.Set("term", strconv.FormatUint(req.TermInDays, 10))
 	}
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
@@ -472,8 +472,8 @@ func (e *Exchange) GetFixedLoanSupplyContractInfo(ctx context.Context, req *Fixe
 	if !req.SupplyCurrency.IsEmpty() {
 		params.Set("supplyCurrency", req.SupplyCurrency.Upper().String())
 	}
-	if req.Term > 0 {
-		params.Set("term", strconv.FormatUint(req.Term, 10))
+	if req.TermInDays > 0 {
+		params.Set("term", strconv.FormatUint(req.TermInDays, 10))
 	}
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
@@ -543,8 +543,8 @@ func fixedLoanOrderInfoParams(req *FixedLoanOrderInfoRequest) (url.Values, error
 	if req.State != "" {
 		params.Set("state", req.State)
 	}
-	if req.Term > 0 {
-		params.Set("term", strconv.FormatUint(req.Term, 10))
+	if req.TermInDays > 0 {
+		params.Set("term", strconv.FormatUint(req.TermInDays, 10))
 	}
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))

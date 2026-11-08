@@ -203,13 +203,13 @@ func (x *DualAssetsOrderExtra) payload() (map[string]any, error) {
 		return nil, errAdvancedEarnDirectionNotSet
 	case x.SelectPrice <= 0:
 		return nil, fmt.Errorf("%w: selectPrice", errAdvancedEarnPriceNotSet)
-	case x.APYE8 == 0:
+	case x.APYScaledBy1E8 == 0:
 		return nil, errAdvancedEarnAPYNotSet
 	}
 	return map[string]any{
 		"orderDirection": x.OrderDirection,
 		"selectPrice":    strconv.FormatFloat(x.SelectPrice, 'f', -1, 64),
-		"apyE8":          x.APYE8,
+		"apyE8":          x.APYScaledBy1E8,
 	}, nil
 }
 
@@ -271,7 +271,7 @@ func (x *DiscountBuyOrderExtra) payload() (map[string]any, error) {
 		return nil, fmt.Errorf("%w: purchasePrice", errAdvancedEarnPriceNotSet)
 	case x.KnockoutPrice <= 0:
 		return nil, fmt.Errorf("%w: knockoutPrice", errAdvancedEarnPriceNotSet)
-	case x.KnockoutCouponE8 == 0:
+	case x.KnockoutCouponScaledBy1E8 == 0:
 		return nil, errAdvancedEarnKnockoutCouponNotSet
 	case x.SettleType == "":
 		return nil, errAdvancedEarnSettleTypeNotSet
@@ -282,7 +282,7 @@ func (x *DiscountBuyOrderExtra) payload() (map[string]any, error) {
 		"initialPrice":     strconv.FormatFloat(x.InitialPrice, 'f', -1, 64),
 		"purchasePrice":    strconv.FormatFloat(x.PurchasePrice, 'f', -1, 64),
 		"knockoutPrice":    strconv.FormatFloat(x.KnockoutPrice, 'f', -1, 64),
-		"knockoutCouponE8": strconv.FormatUint(x.KnockoutCouponE8, 10),
+		"knockoutCouponE8": strconv.FormatUint(x.KnockoutCouponScaledBy1E8, 10),
 		"settleType":       x.SettleType,
 		"instUid":          x.InstitutionUID,
 	}, nil

@@ -46,8 +46,8 @@ type AnnouncementType struct {
 // DemoTradingFundsRequest holds the parameters for RequestDemoTradingFunds
 type DemoTradingFundsRequest struct {
 	// AdjustType is 0 (the default) to add demo funds or 1 to reduce them
-	AdjustType        uint64
-	UTADemoApplyMoney []DemoApplyMoney
+	AdjustType                          uint64
+	UnifiedTradingAccountDemoApplyMoney []DemoApplyMoney
 }
 
 // DemoApplyMoney holds a coin and the amount of it to add or reduce. Each request is capped per coin, at 15 BTC,

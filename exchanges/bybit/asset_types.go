@@ -308,9 +308,8 @@ type MemberAssets struct {
 	// 12 Earn fund
 	Type uint64 `json:"type"`
 	// Stat is 0 when every downstream query succeeded, otherwise an error code
-	Stat int64 `json:"stat"`
-	// OriginalBalance is valued in USD
-	OriginalBalance types.Number `json:"origb"`
+	Stat                 int64        `json:"stat"`
+	OriginalBalanceInUSD types.Number `json:"origb"`
 	// QuoteBalance is valued in the requested coin
 	QuoteBalance types.Number          `json:"quoteb"`
 	Items        []MemberAccountAssets `json:"items"`
@@ -319,9 +318,8 @@ type MemberAssets struct {
 // MemberAccountAssets is the value of one account type of a member account
 type MemberAccountAssets struct {
 	// Type is the account type, such as ACCOUNT_TYPE_FUND or ACCOUNT_TYPE_UNIFIED
-	Type string `json:"type"`
-	// OriginalBalance is valued in USD
-	OriginalBalance types.Number `json:"origb"`
+	Type                 string       `json:"type"`
+	OriginalBalanceInUSD types.Number `json:"origb"`
 	// QuoteBalance is valued in the requested coin
 	QuoteBalance types.Number `json:"quoteb"`
 	// Stat is 0 when every downstream query succeeded, otherwise an error code
@@ -329,7 +327,7 @@ type MemberAccountAssets struct {
 }
 
 // SingleCoinBalanceRequest holds the Get Single Coin Balance parameters; AccountType and Coin are required, and
-// WithLTVTransferSafeAmount needs ToAccountType
+// WithLoanToValueTransferSafeAmount needs ToAccountType
 type SingleCoinBalanceRequest struct {
 	// MemberID is required to query a sub UID's balance with the master API key
 	MemberID string
@@ -342,8 +340,8 @@ type SingleCoinBalanceRequest struct {
 	WithBonus     bool
 	// WithTransferSafeAmount queries the amount not held back by delayed withdrawal
 	WithTransferSafeAmount bool
-	// WithLTVTransferSafeAmount queries the amount an institutional loan account can transfer at its risk level
-	WithLTVTransferSafeAmount bool
+	// WithLoanToValueTransferSafeAmount queries the amount an institutional loan account can transfer at its risk level
+	WithLoanToValueTransferSafeAmount bool
 }
 
 // SingleCoinBalanceResponse is one coin's balance in one account
@@ -363,8 +361,8 @@ type SingleCoinBalance struct {
 	Bonus           types.Number  `json:"bonus"`
 	// TransferSafeAmount is the amount that can be transferred
 	TransferSafeAmount types.Number `json:"transferSafeAmount"`
-	// LTVTransferSafeAmount is the amount an institutional loan account can transfer
-	LTVTransferSafeAmount types.Number `json:"ltvTransferSafeAmount"`
+	// LoanToValueTransferSafeAmount is the amount an institutional loan account can transfer
+	LoanToValueTransferSafeAmount types.Number `json:"ltvTransferSafeAmount"`
 }
 
 // AllCoinsBalanceRequest holds the Get All Coins Balance parameters; AccountType is required, and the Unified account
@@ -402,10 +400,10 @@ type WithdrawableAmountResponse struct {
 // WithdrawableAmountByWallet holds a coin's withdrawable amount per wallet; a wallet that cannot withdraw the coin, or
 // a removed Spot wallet, is nil
 type WithdrawableAmountByWallet struct {
-	Spot *WalletWithdrawableAmount `json:"SPOT"`
-	Fund *WalletWithdrawableAmount `json:"FUND"`
-	UTA  *WalletWithdrawableAmount `json:"UTA"`
-	Earn *WalletWithdrawableAmount `json:"EARN"`
+	Spot                  *WalletWithdrawableAmount `json:"SPOT"`
+	Fund                  *WalletWithdrawableAmount `json:"FUND"`
+	UnifiedTradingAccount *WalletWithdrawableAmount `json:"UTA"`
+	Earn                  *WalletWithdrawableAmount `json:"EARN"`
 }
 
 // WalletWithdrawableAmount is a coin's withdrawable amount in one wallet

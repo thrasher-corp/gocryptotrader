@@ -595,10 +595,10 @@ func TestSendWebsocketBatchOrderRequest(t *testing.T) {
 
 func TestWebsocketTradeRequestHeaderJSON(t *testing.T) {
 	t.Parallel()
-	data, err := json.Marshal(&WebsocketTradeRequestHeader{Timestamp: "1711001595207", ReceiveWindow: "8000", Referer: "broker-001"})
+	data, err := json.Marshal(&WebsocketTradeRequestHeader{TimestampInMilliseconds: "1711001595207", ReceiveWindowInMilliseconds: "8000", Referer: "broker-001"})
 	require.NoError(t, err, "Marshal must not error")
 	assert.JSONEq(t, `{"X-BAPI-TIMESTAMP":"1711001595207","X-BAPI-RECV-WINDOW":"8000","Referer":"broker-001"}`, string(data), "WebsocketTradeRequestHeader should marshal to Bybit's header names")
-	data, err = json.Marshal(&WebsocketTradeRequestHeader{Timestamp: "1711001595207"})
+	data, err = json.Marshal(&WebsocketTradeRequestHeader{TimestampInMilliseconds: "1711001595207"})
 	require.NoError(t, err, "Marshal must not error")
 	assert.JSONEq(t, `{"X-BAPI-TIMESTAMP":"1711001595207"}`, string(data), "WebsocketTradeRequestHeader should leave out an unset receive window and referer")
 }
@@ -608,7 +608,7 @@ func TestTimedTradeRequestStampSendTime(t *testing.T) {
 	newRequest := func(timestamp string) *WebsocketTradeRequest {
 		return &WebsocketTradeRequest{
 			RequestID: "test-001",
-			Header:    &WebsocketTradeRequestHeader{Timestamp: timestamp, ReceiveWindow: "8000"},
+			Header:    &WebsocketTradeRequestHeader{TimestampInMilliseconds: timestamp, ReceiveWindowInMilliseconds: "8000"},
 			Operation: "order.create",
 			Arguments: []any{map[string]any{"category": cLinear}},
 		}
@@ -653,7 +653,7 @@ func TestSendWebsocketTradeRequest(t *testing.T) {
 	assert.Equal(t, "order.create", req.Operation, "request operation should be kept")
 	assert.NotEmpty(t, req.RequestID, "request should carry a request ID")
 	require.NotNil(t, req.Header, "request must carry headers")
-	assert.NotEmpty(t, req.Header.Timestamp, "request should carry a timestamp header")
+	assert.NotEmpty(t, req.Header.TimestampInMilliseconds, "request should carry a timestamp header")
 	assert.Equal(t, []any{map[string]any{"category": cLinear}}, req.Arguments, "request should carry its argument")
 
 	_, err = sendWebsocketTradeRequest[OrderResponse](t.Context(), e, &FixtureConnection{reply: func(any) ([]byte, error) { return nil, errors.New("connection lost") }}, "order.create", nil, wsCreateOrderEPL)

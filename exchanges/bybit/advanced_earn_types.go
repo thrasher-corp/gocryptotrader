@@ -239,7 +239,7 @@ type DualAssetsProductQuote struct {
 // DualAssetsQuotePrice is a target price on offer for a Dual Assets direction
 type DualAssetsQuotePrice struct {
 	SelectPrice         types.Number `json:"selectPrice"`
-	APYE8               types.Number `json:"apyE8"` // APY scaled by 1e8
+	APYScaledBy1E8      types.Number `json:"apyE8"`
 	MaxInvestmentAmount types.Number `json:"maxInvestmentAmount"`
 	ExpiredAt           types.Time   `json:"expiredAt"`
 }
@@ -268,12 +268,12 @@ type DoubleWinProductQuote struct {
 
 // DiscountBuyProductQuote is a quote offered for a Discount Buy product
 type DiscountBuyProductQuote struct {
-	ProductID           string       `json:"productId"`
-	CurrentPrice        types.Number `json:"currentPrice"`
-	PurchasePrice       types.Number `json:"purchasePrice"`
-	KnockoutPrice       types.Number `json:"knockoutPrice"`
-	KnockoutCouponE8    types.Number `json:"knockoutCouponE8"` // Annualised interest rate scaled by 1e8
-	MaxInvestmentAmount types.Number `json:"maxInvestmentAmount"`
+	ProductID                 string       `json:"productId"`
+	CurrentPrice              types.Number `json:"currentPrice"`
+	PurchasePrice             types.Number `json:"purchasePrice"`
+	KnockoutPrice             types.Number `json:"knockoutPrice"`
+	KnockoutCouponScaledBy1E8 types.Number `json:"knockoutCouponE8"` // Annualised interest rate
+	MaxInvestmentAmount       types.Number `json:"maxInvestmentAmount"`
 	// InstitutionUID identifies the quoting market maker, and must be sent unchanged with the order
 	InstitutionUID string `json:"instUid"`
 	// ExpiredAt is zero when the institution set no expiry
@@ -313,8 +313,8 @@ type DualAssetsOrderExtra struct {
 	// OrderDirection is BuyLow or SellHigh
 	OrderDirection string
 	SelectPrice    float64
-	// APYE8 is the lowest APY accepted, scaled by 1e8; the order fails if the confirmed APY is lower
-	APYE8 uint64
+	// APYScaledBy1E8 is the lowest APY accepted; the order fails if the confirmed APY is lower
+	APYScaledBy1E8 uint64
 }
 
 // SmartLeverageStakeExtra holds the prices a Smart Leverage stake order is placed at
@@ -345,10 +345,10 @@ type DoubleWinStakeExtra struct {
 
 // DiscountBuyOrderExtra holds the Get Product Quote values a Discount Buy order accepts
 type DiscountBuyOrderExtra struct {
-	InitialPrice     float64
-	PurchasePrice    float64
-	KnockoutPrice    float64
-	KnockoutCouponE8 uint64
+	InitialPrice              float64
+	PurchasePrice             float64
+	KnockoutPrice             float64
+	KnockoutCouponScaledBy1E8 uint64
 	// SettleType is Base to receive the underlying asset when exercised, or Quote to receive USDT
 	SettleType     string
 	InstitutionUID string
@@ -413,7 +413,7 @@ type DualAssetsPosition struct {
 	// InvestCoin is the quote coin for BuyLow and the base coin for SellHigh
 	InvestCoin         currency.Code `json:"investCoin"`
 	Amount             types.Number  `json:"amount"`
-	APYE8              types.Number  `json:"apyE8"` // Confirmed APY scaled by 1e8
+	APYScaledBy1E8     types.Number  `json:"apyE8"` // Confirmed APY
 	Direction          string        `json:"direction"`
 	TargetPrice        types.Number  `json:"targetPrice"`
 	SettlementTime     types.Time    `json:"settlementTime"`
@@ -476,23 +476,23 @@ type DoubleWinPosition struct {
 
 // DiscountBuyPosition is an active Discount Buy position
 type DiscountBuyPosition struct {
-	PositionID       string        `json:"positionId"`
-	ProductID        string        `json:"productId"`
-	Category         string        `json:"category"`
-	Coin             currency.Code `json:"coin"`
-	UnderlyingAsset  currency.Code `json:"underlyingAsset"`
-	Amount           types.Number  `json:"amount"`
-	PurchasePrice    types.Number  `json:"purchasePrice"`
-	KnockoutPrice    types.Number  `json:"knockoutPrice"`
-	KnockoutCouponE8 types.Number  `json:"knockoutCouponE8"` // Annualised interest rate scaled by 1e8
-	Status           string        `json:"status"`
-	OrderID          string        `json:"orderId"`
-	Duration         string        `json:"duration"`
-	SettlementTime   types.Time    `json:"settlementTime"`
-	AccountType      string        `json:"accountType"`
-	ToAccountType    string        `json:"toAccountType"`
-	SettleType       string        `json:"settleType"`
-	ExpectReceiveAt  types.Time    `json:"expectReceiveAt"`
+	PositionID                string        `json:"positionId"`
+	ProductID                 string        `json:"productId"`
+	Category                  string        `json:"category"`
+	Coin                      currency.Code `json:"coin"`
+	UnderlyingAsset           currency.Code `json:"underlyingAsset"`
+	Amount                    types.Number  `json:"amount"`
+	PurchasePrice             types.Number  `json:"purchasePrice"`
+	KnockoutPrice             types.Number  `json:"knockoutPrice"`
+	KnockoutCouponScaledBy1E8 types.Number  `json:"knockoutCouponE8"` // Annualised interest rate
+	Status                    string        `json:"status"`
+	OrderID                   string        `json:"orderId"`
+	Duration                  string        `json:"duration"`
+	SettlementTime            types.Time    `json:"settlementTime"`
+	AccountType               string        `json:"accountType"`
+	ToAccountType             string        `json:"toAccountType"`
+	SettleType                string        `json:"settleType"`
+	ExpectReceiveAt           types.Time    `json:"expectReceiveAt"`
 }
 
 // AdvancedEarnOrderInfoRequest holds the parameters of Get Order Info for one Advanced Earn category
@@ -536,31 +536,31 @@ func (r *AdvancedEarnOrderInfoResponse) UnmarshalJSON(data []byte) error {
 
 // DualAssetsOrder is a Dual Assets order. The settlement fields are only set once the order is Settled
 type DualAssetsOrder struct {
-	OrderID          string        `json:"orderId"`
-	OrderLinkID      string        `json:"orderLinkId"`
-	ProductID        string        `json:"productId"`
-	Category         string        `json:"category"`
-	OrderType        string        `json:"orderType"`
-	Amount           types.Number  `json:"amount"`
-	Coin             currency.Code `json:"coin"`
-	BaseCoin         currency.Code `json:"baseCoin"`
-	QuoteCoin        currency.Code `json:"quoteCoin"`
-	Status           string        `json:"status"`
-	CreatedTime      types.Time    `json:"createdTime"`
-	UpdatedTime      types.Time    `json:"updatedTime"`
-	Direction        string        `json:"direction"`
-	TargetPrice      types.Number  `json:"targetPrice"`
-	SettlementTime   types.Time    `json:"settlementTime"`
-	EstimateAPYE8    types.Number  `json:"estimateApyE8"` // Estimated APY scaled by 1e8
-	Duration         string        `json:"duration"`
-	AccountType      string        `json:"accountType"`
-	ToAccountType    string        `json:"toAccountType"`
-	SelectAPYE8      types.Number  `json:"selectApyE8"` // APY selected at order time, scaled by 1e8
-	IsVIP            bool          `json:"isVip"`
-	SettlementCoin   currency.Code `json:"settlementCoin"`
-	SettlementAmount types.Number  `json:"settlementAmount"`
-	OrderMode        string        `json:"orderMode"`
-	SettlementPrice  types.Number  `json:"settlementPrice"`
+	OrderID                string        `json:"orderId"`
+	OrderLinkID            string        `json:"orderLinkId"`
+	ProductID              string        `json:"productId"`
+	Category               string        `json:"category"`
+	OrderType              string        `json:"orderType"`
+	Amount                 types.Number  `json:"amount"`
+	Coin                   currency.Code `json:"coin"`
+	BaseCoin               currency.Code `json:"baseCoin"`
+	QuoteCoin              currency.Code `json:"quoteCoin"`
+	Status                 string        `json:"status"`
+	CreatedTime            types.Time    `json:"createdTime"`
+	UpdatedTime            types.Time    `json:"updatedTime"`
+	Direction              string        `json:"direction"`
+	TargetPrice            types.Number  `json:"targetPrice"`
+	SettlementTime         types.Time    `json:"settlementTime"`
+	EstimateAPYScaledBy1E8 types.Number  `json:"estimateApyE8"` // Estimated APY
+	Duration               string        `json:"duration"`
+	AccountType            string        `json:"accountType"`
+	ToAccountType          string        `json:"toAccountType"`
+	SelectAPYScaledBy1E8   types.Number  `json:"selectApyE8"` // APY selected at order time
+	IsVIP                  bool          `json:"isVip"`
+	SettlementCoin         currency.Code `json:"settlementCoin"`
+	SettlementAmount       types.Number  `json:"settlementAmount"`
+	OrderMode              string        `json:"orderMode"`
+	SettlementPrice        types.Number  `json:"settlementPrice"`
 	// RefundStatus is only set on failed orders
 	RefundStatus     string       `json:"refundStatus"`
 	TrialBonusAmount types.Number `json:"trialBonusAmount"`
@@ -620,24 +620,24 @@ type DoubleWinOrder struct {
 
 // DiscountBuyOrder is a Discount Buy order
 type DiscountBuyOrder struct {
-	OrderID          string        `json:"orderId"`
-	OrderLinkID      string        `json:"orderLinkId"`
-	ProductID        string        `json:"productId"`
-	Category         string        `json:"category"`
-	OrderType        string        `json:"orderType"`
-	Amount           types.Number  `json:"amount"`
-	Coin             currency.Code `json:"coin"`
-	UnderlyingAsset  currency.Code `json:"underlyingAsset"`
-	Status           string        `json:"status"`
-	CreatedTime      types.Time    `json:"createdTime"`
-	PurchasePrice    types.Number  `json:"purchasePrice"`
-	KnockoutPrice    types.Number  `json:"knockoutPrice"`
-	KnockoutCouponE8 types.Number  `json:"knockoutCouponE8"` // Annualised interest rate scaled by 1e8
-	Duration         string        `json:"duration"`
-	SettlementTime   types.Time    `json:"settlementTime"`
-	AccountType      string        `json:"accountType"`
-	ToAccountType    string        `json:"toAccountType"`
-	SettleType       string        `json:"settleType"`
+	OrderID                   string        `json:"orderId"`
+	OrderLinkID               string        `json:"orderLinkId"`
+	ProductID                 string        `json:"productId"`
+	Category                  string        `json:"category"`
+	OrderType                 string        `json:"orderType"`
+	Amount                    types.Number  `json:"amount"`
+	Coin                      currency.Code `json:"coin"`
+	UnderlyingAsset           currency.Code `json:"underlyingAsset"`
+	Status                    string        `json:"status"`
+	CreatedTime               types.Time    `json:"createdTime"`
+	PurchasePrice             types.Number  `json:"purchasePrice"`
+	KnockoutPrice             types.Number  `json:"knockoutPrice"`
+	KnockoutCouponScaledBy1E8 types.Number  `json:"knockoutCouponE8"` // Annualised interest rate
+	Duration                  string        `json:"duration"`
+	SettlementTime            types.Time    `json:"settlementTime"`
+	AccountType               string        `json:"accountType"`
+	ToAccountType             string        `json:"toAccountType"`
+	SettleType                string        `json:"settleType"`
 	// SettlementPrice is the 30 minute TWAP before the settlement time
 	SettlementPrice  types.Number  `json:"settlementPrice"`
 	SettlementCoin   currency.Code `json:"settlementCoin"`
@@ -703,13 +703,13 @@ type LiquidityMiningProduct struct {
 	BaseCoinPrecision   uint64          `json:"baseCoinPrecision"`
 	QuoteCoinPrecision  uint64          `json:"quoteCoinPrecision"`
 	YieldCoins          []currency.Code `json:"yieldCoins"`
-	// APYE8 and APY7DayE8 are APY scaled by 1e8; the docs type them as integers but Bybit sends strings
-	APYE8              types.Number   `json:"apyE8"`
-	APY7DayE8          types.Number   `json:"apy7dE8"`
-	PoolLiquidityValue types.Number   `json:"poolLiquidityValue"` // In the quote coin
-	DailyYield         types.Number   `json:"dailyYield"`
-	SlippageLevels     []types.Number `json:"slippageLevels"`     // Investment amount at which each slippage tier starts
-	SlippageRateE8List []types.Number `json:"slippageRateE8List"` // Slippage rate of each tier, scaled by 1e8
+	// APYScaledBy1E8 and APY7DayScaledBy1E8 are typed as integers in the docs, but Bybit sends strings
+	APYScaledBy1E8              types.Number   `json:"apyE8"`
+	APY7DayScaledBy1E8          types.Number   `json:"apy7dE8"`
+	PoolLiquidityValue          types.Number   `json:"poolLiquidityValue"` // In the quote coin
+	DailyYield                  types.Number   `json:"dailyYield"`
+	SlippageLevels              []types.Number `json:"slippageLevels"`     // Investment amount at which each slippage tier starts
+	SlippageRateScaledBy1E8List []types.Number `json:"slippageRateE8List"` // Slippage rate of each tier
 	// APYBreakdown and APY7DayBreakdown split the APY and the 7 day APY by yield coin
 	APYBreakdown     []LiquidityMiningAPYBreakdown `json:"apyBreakdown"`
 	APY7DayBreakdown []LiquidityMiningAPYBreakdown `json:"apy7dBreakdown"`
@@ -785,7 +785,7 @@ type LiquidityMiningPosition struct {
 	LeveragedValue          types.Number  `json:"leveragedValue"`
 	Loan                    types.Number  `json:"loan"`
 	ClaimableYield          types.Number  `json:"claimableYield"`
-	CurrentAPR              types.Number  `json:"currentApr"` // APR scaled by 1e8
+	CurrentAPRScaledBy1E8   types.Number  `json:"currentApr"`
 	Leverage                types.Number  `json:"leverage"`
 	Margin                  types.Number  `json:"margin"`
 	LiquidationPrice        types.Number  `json:"liquidationPrice"`

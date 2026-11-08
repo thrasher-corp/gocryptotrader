@@ -290,21 +290,21 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 				},
 			},
 			exp: &PlaceOrderRequest{
-				Category:     cLinear,
-				Symbol:       "BTCUSDT",
-				Side:         sideBuy,
-				OrderType:    "Limit",
-				Quantity:     1,
-				Price:        80000,
-				TimeInForce:  "GTC",
-				TakeProfit:   90000,
-				TPTriggerBy:  "MarkPrice",
-				TPOrderType:  "Limit",
-				TPLimitPrice: 89990,
-				StopLoss:     75000,
-				SLTriggerBy:  "IndexPrice",
-				SLOrderType:  "Market",
-				TPSLMode:     "Partial",
+				Category:               cLinear,
+				Symbol:                 "BTCUSDT",
+				Side:                   sideBuy,
+				OrderType:              "Limit",
+				Quantity:               1,
+				Price:                  80000,
+				TimeInForce:            "GTC",
+				TakeProfit:             90000,
+				TPTriggerBy:            "MarkPrice",
+				TPOrderType:            "Limit",
+				TPLimitPrice:           89990,
+				StopLoss:               75000,
+				SLTriggerBy:            "IndexPrice",
+				SLOrderType:            "Market",
+				TakeProfitStopLossMode: "Partial",
 			},
 		},
 		{
@@ -438,7 +438,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 			},
 			exp: &PlaceOrderRequest{
 				Category: cLinear, Symbol: "BTCUSDT", Side: sideBuy, OrderType: "Limit", Quantity: 1, Price: 80000, TimeInForce: "GTC",
-				StopLoss: 75000, SLTriggerBy: "LastPrice", SLOrderType: "Limit", SLLimitPrice: 74990, TPSLMode: "Partial",
+				StopLoss: 75000, SLTriggerBy: "LastPrice", SLOrderType: "Limit", SLLimitPrice: 74990, TakeProfitStopLossMode: "Partial",
 			},
 		},
 		{
@@ -3549,12 +3549,12 @@ func TestGetActiveOrders(t *testing.T) {
 			// Two pages; the order for a symbol Bybit no longer lists is left out
 			name: "spot",
 			req:  &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType},
-			exp:  order.FilteredOrders{orders.spotPartial, orders.spotNew, orders.spotTPSL},
+			exp:  order.FilteredOrders{orders.spotPartial, orders.spotNew, orders.spotTakeProfitStopLoss},
 		},
 		{
 			name: "spot pairs",
 			req:  &order.MultiOrderRequest{Pairs: pairs, AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType},
-			exp:  order.FilteredOrders{orders.spotPartial, orders.spotTPSL},
+			exp:  order.FilteredOrders{orders.spotPartial, orders.spotTakeProfitStopLoss},
 		},
 		{
 			// USDT and USDC margined orders are requested by settle coin
@@ -5231,7 +5231,7 @@ func TestAuthSubscribe(t *testing.T) {
 
 // orderFixtures holds the details of the orders testdata/http.json records, as the shared exchange reports them
 type orderFixtures struct {
-	spotPartial, spotNew, spotTPSL, spotFilledByValue, spotCancelled                      order.Detail
+	spotPartial, spotNew, spotTakeProfitStopLoss, spotFilledByValue, spotCancelled        order.Detail
 	linearTakeProfit, linearDatedPartial, linearFilled, linearCancelled, linearInfoFilled order.Detail
 	usdcNew, usdcFilled, inversePartial, inverseFilled, optionPartial, optionFilled       order.Detail
 }
@@ -5255,7 +5255,7 @@ func newOrderFixtures(tb testing.TB) *orderFixtures {
 			Type: order.Limit, Side: order.Sell, Status: order.New, TimeInForce: order.GoodTillCancel, Price: 1900, Amount: 0.5, RemainingAmount: 0.5,
 			CostAsset: currency.USDT, Date: time.UnixMilli(1684738600000), LastUpdated: time.UnixMilli(1684738600000),
 		},
-		spotTPSL: order.Detail{
+		spotTakeProfitStopLoss: order.Detail{
 			Exchange: e.Name, OrderID: "1321003749386327560", ClientOrderID: "spot-test-04", Pair: currency.NewPairWithDelimiter("BTC", "USDT", "_"), AssetType: asset.Spot,
 			Type: order.StopLimit, Side: order.Sell, Status: order.Pending, TimeInForce: order.GoodTillCancel, Price: 16500, Amount: 0.05, TriggerPrice: 16400,
 			RemainingAmount: 0.05, CostAsset: currency.USDT, Date: time.UnixMilli(1684738700000), LastUpdated: time.UnixMilli(1684738700000),

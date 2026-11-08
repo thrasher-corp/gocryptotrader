@@ -84,7 +84,7 @@ func TestGetCardAssetRecords(t *testing.T) {
 						TotalTax:                    1.5,
 						Status:                      "1",
 						OrderNumber:                 "ORD20230101001",
-						MCCCode:                     "5411",
+						MerchantCategoryCode:        "5411",
 						MerchantCategoryDescription: "Grocery Stores",
 					},
 					{
@@ -111,7 +111,7 @@ func TestGetCardAssetRecords(t *testing.T) {
 						WithdrawalFee:               2.5,
 						Status:                      "2",
 						OrderNumber:                 "ORD20230102001",
-						MCCCode:                     "6011",
+						MerchantCategoryCode:        "6011",
 						MerchantCategoryDescription: "Automated Cash Disbursements",
 					},
 				},
@@ -152,7 +152,7 @@ func TestGetCardAssetRecords(t *testing.T) {
 						TotalTax:                    1.5,
 						Status:                      "1",
 						OrderNumber:                 "ORD20230101001",
-						MCCCode:                     "5411",
+						MerchantCategoryCode:        "5411",
 						MerchantCategoryDescription: "Grocery Stores",
 					},
 				},
@@ -272,11 +272,11 @@ func TestGetCardTierInfo(t *testing.T) {
 	require.NotNil(t, result, "GetCardTierInfo must return a result")
 	if mockTests {
 		exp := &CardTierInfoResponse{
-			UsedLimit:    10,
-			Limit:        500,
-			Unit:         "1",
-			Tier:         "GOLD",
-			AutoCashback: true,
+			UsedLimitInUSD: 10,
+			Limit:          500,
+			Unit:           "1",
+			Tier:           "GOLD",
+			AutoCashback:   true,
 		}
 		assert.Equal(t, exp, result, "GetCardTierInfo should decode every field")
 	}

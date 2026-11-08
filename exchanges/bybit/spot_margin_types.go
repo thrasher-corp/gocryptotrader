@@ -173,8 +173,8 @@ type SpotMarginAutoRepayMode struct {
 // SpotMarginFixedRateBorrowOrderQuoteRequest holds the parameters of Get Fixed-Rate Borrow Order Quote
 type SpotMarginFixedRateBorrowOrderQuoteRequest struct {
 	OrderCurrency currency.Code
-	// Term is in days: 7, 14, 30, 90 or 180
-	Term uint64
+	// TermInDays is 7, 14, 30, 90 or 180
+	TermInDays uint64
 	// OrderBy sorts by apy, term or quantity
 	OrderBy string
 	// Sort is 0 for ascending, the default, and 1 for descending
@@ -191,10 +191,9 @@ type SpotMarginFixedRateBorrowOrderQuoteResponse struct {
 // SpotMarginFixedRateBorrowOrderQuote is a fixed-rate lending offer, from Get Fixed-Rate Borrow Order Quote
 type SpotMarginFixedRateBorrowOrderQuote struct {
 	OrderCurrency currency.Code `json:"orderCurrency"`
-	// Term is in days
-	Term       uint64       `json:"term"`
-	AnnualRate types.Number `json:"annualRate"`
-	Quantity   types.Number `json:"qty"`
+	TermInDays    uint64        `json:"term"`
+	AnnualRate    types.Number  `json:"annualRate"`
+	Quantity      types.Number  `json:"qty"`
 }
 
 // SpotMarginFixedRateBorrowRequest holds the parameters of Fixed-Rate Borrow
@@ -203,8 +202,8 @@ type SpotMarginFixedRateBorrowRequest struct {
 	OrderAmount   float64
 	// AnnualRate is the interest rate to borrow at as a fraction, 0.02 for 2%
 	AnnualRate float64
-	// Term is in days: 7, 14, 30, 90 or 180
-	Term uint64
+	// TermInDays is 7, 14, 30, 90 or 180
+	TermInDays uint64
 	// RepayType is 1 to repay automatically from the account when the loan is due, the default, or 2 to turn it into a
 	// flexible loan
 	RepayType string
@@ -223,10 +222,10 @@ type SpotMarginFixedRateBorrowOrderInfoRequest struct {
 	OrderCurrency currency.Code
 	// State is 1 matching, 2 partially filled and cancelled, 3 fully filled or 4 cancelled
 	State uint64
-	// Term is in days: 7, 14, 30, 90 or 180
-	Term   uint64
-	Limit  uint64
-	Cursor string
+	// TermInDays is 7, 14, 30, 90 or 180
+	TermInDays uint64
+	Limit      uint64
+	Cursor     string
 }
 
 // SpotMarginFixedRateBorrowOrderInfoResponse holds a page of fixed-rate loan orders, newest first, from Get Fixed-Rate
@@ -246,9 +245,8 @@ type SpotMarginFixedRateBorrowOrder struct {
 	OrderQuantity  types.Number  `json:"orderQty"`
 	OrderCurrency  currency.Code `json:"orderCurrency"`
 	// State is 1 matching, 2 partially filled and cancelled, 3 fully filled, 4 cancelled or 5 failed
-	State uint64 `json:"state"`
-	// Term is in days
-	Term uint64 `json:"term"`
+	State      uint64 `json:"state"`
+	TermInDays uint64 `json:"term"`
 	// RepayType is 1 to repay automatically or 2 to turn the loan into a flexible loan when due
 	RepayType string `json:"repayType"`
 	// StrategyType is PARTIAL or FULL
@@ -259,10 +257,10 @@ type SpotMarginFixedRateBorrowOrder struct {
 type SpotMarginFixedRateBorrowContractInfoRequest struct {
 	OrderID       string
 	OrderCurrency currency.Code
-	// Term is in days: 7, 14, 30, 90 or 180
-	Term   uint64
-	Limit  uint64
-	Cursor string
+	// TermInDays is 7, 14, 30, 90 or 180
+	TermInDays uint64
+	Limit      uint64
+	Cursor     string
 }
 
 // SpotMarginFixedRateBorrowContractInfoResponse holds a page of fixed-rate loans, newest first, from Get Fixed-Rate
@@ -286,8 +284,8 @@ type SpotMarginFixedRateBorrowContract struct {
 	ResidualPrincipal       types.Number `json:"residualPrincipal"`
 	// Status is 1 unrepaid, 2 fully repaid or 3 overdue
 	Status uint64 `json:"status"`
-	// Term is in days; it is a string here, unlike the number Get Fixed-Rate Borrow Order Info sends
-	Term types.Number `json:"term"`
+	// TermInDays is a string here, unlike the number Get Fixed-Rate Borrow Order Info sends
+	TermInDays types.Number `json:"term"`
 	// RepayType is 1 to repay automatically, 2 to turn the loan into a flexible loan when due, or 0 for loans made
 	// before automatic repayment existed
 	RepayType string `json:"repayType"`
@@ -319,8 +317,8 @@ type SpotMarginFlexibleAvailableInventoryResponse struct {
 // SpotMarginFixedRateAvailableInventoryRequest holds the parameters of Get Fixed-Rate Available Inventory
 type SpotMarginFixedRateAvailableInventoryRequest struct {
 	Currency currency.Code
-	// Term is in days: 7, 14, 30, 90 or 180
-	Term uint64
+	// TermInDays is 7, 14, 30, 90 or 180
+	TermInDays uint64
 	// AnnualRate is the interest rate as a fraction, 0.02 for 2%
 	AnnualRate float64
 }
@@ -328,10 +326,9 @@ type SpotMarginFixedRateAvailableInventoryRequest struct {
 // SpotMarginFixedRateAvailableInventoryResponse holds how much of a coin the account can borrow for a term at an
 // interest rate, from Get Fixed-Rate Available Inventory
 type SpotMarginFixedRateAvailableInventoryResponse struct {
-	Currency currency.Code `json:"currency"`
-	// Term is in days
-	Term       types.Number `json:"term"`
-	AnnualRate types.Number `json:"annualRate"`
+	Currency   currency.Code `json:"currency"`
+	TermInDays types.Number  `json:"term"`
+	AnnualRate types.Number  `json:"annualRate"`
 	// AvailableInventory is the smallest of the platform's lendable amount, the account's remaining borrowing limit and
 	// the borrowing limit of the current leverage tier, rounded down to the borrowing precision
 	AvailableInventory types.Number `json:"availableInventory"`

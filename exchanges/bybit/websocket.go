@@ -64,16 +64,16 @@ const (
 
 // Public, private and system topic names
 const (
-	chanOrderbook      = "orderbook"
-	chanRPIOrderbook   = "orderbook.rpi"
-	chanFullOrderbook  = "orderbook.full"
-	chanPublicTrade    = "publicTrade"
-	chanPublicTicker   = "tickers"
-	chanKline          = "kline"
-	chanAllLiquidation = "allLiquidation"
-	chanInsurancePool  = "insurance"
-	chanPriceLimit     = "priceLimit"
-	chanADLAlert       = "adlAlert"
+	chanOrderbook                       = "orderbook"
+	chanRetailPriceImprovementOrderbook = "orderbook.rpi"
+	chanFullOrderbook                   = "orderbook.full"
+	chanPublicTrade                     = "publicTrade"
+	chanPublicTicker                    = "tickers"
+	chanKline                           = "kline"
+	chanAllLiquidation                  = "allLiquidation"
+	chanInsurancePool                   = "insurance"
+	chanPriceLimit                      = "priceLimit"
+	chanAutoDeleveragingAlert           = "adlAlert"
 
 	chanPositions     = "position"
 	chanExecution     = "execution"
@@ -669,7 +669,7 @@ func channelName(s *subscription.Subscription) string {
 // isSymbolChannel returns whether the channel accepts a symbol parameter
 func isSymbolChannel(name string) bool {
 	switch name {
-	case chanPositions, chanExecution, chanOrder, chanWallet, chanInsurancePool, chanADLAlert, chanSystemStatus:
+	case chanPositions, chanExecution, chanOrder, chanWallet, chanInsurancePool, chanAutoDeleveragingAlert, chanSystemStatus:
 		return false
 	}
 	return true

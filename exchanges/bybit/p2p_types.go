@@ -79,9 +79,8 @@ type P2POnlineAd struct {
 	AuthTag  []string `json:"authTag"`
 	UserType string   `json:"userType"`
 	// ItemType is ORIGIN for a regular ad or BULK for a bulk ad
-	ItemType string `json:"itemType"`
-	// PaymentPeriod is in minutes
-	PaymentPeriod uint64 `json:"paymentPeriod"`
+	ItemType               string `json:"itemType"`
+	PaymentPeriodInMinutes uint64 `json:"paymentPeriod"`
 }
 
 // P2PSymbolInfo holds the trading rules of an advertisement's token and currency pair
@@ -142,37 +141,35 @@ type P2PSymbolAdConfig struct {
 
 // P2PTradingPreferenceSet holds the requirements an advertisement sets for counterparties
 type P2PTradingPreferenceSet struct {
-	HasUnPostAd     types.Boolean `json:"hasUnPostAd"`
-	IsKYC           types.Boolean `json:"isKyc"`
-	IsEmail         types.Boolean `json:"isEmail"`
-	IsMobile        types.Boolean `json:"isMobile"`
-	HasRegisterTime types.Boolean `json:"hasRegisterTime"`
-	// RegisterTimeThreshold is in days
-	RegisterTimeThreshold     uint64        `json:"registerTimeThreshold"`
-	OrderFinishNumberDay30    uint64        `json:"orderFinishNumberDay30"`
-	CompleteRateDay30         types.Number  `json:"completeRateDay30"`
-	NationalLimit             string        `json:"nationalLimit"`
-	HasOrderFinishNumberDay30 types.Boolean `json:"hasOrderFinishNumberDay30"`
-	HasCompleteRateDay30      types.Boolean `json:"hasCompleteRateDay30"`
-	HasNationalLimit          types.Boolean `json:"hasNationalLimit"`
+	HasUnPostAd                 types.Boolean `json:"hasUnPostAd"`
+	IsKYC                       types.Boolean `json:"isKyc"`
+	IsEmail                     types.Boolean `json:"isEmail"`
+	IsMobile                    types.Boolean `json:"isMobile"`
+	HasRegisterTime             types.Boolean `json:"hasRegisterTime"`
+	RegisterTimeThresholdInDays uint64        `json:"registerTimeThreshold"`
+	OrderFinishNumberDay30      uint64        `json:"orderFinishNumberDay30"`
+	CompleteRateDay30           types.Number  `json:"completeRateDay30"`
+	NationalLimit               string        `json:"nationalLimit"`
+	HasOrderFinishNumberDay30   types.Boolean `json:"hasOrderFinishNumberDay30"`
+	HasCompleteRateDay30        types.Boolean `json:"hasCompleteRateDay30"`
+	HasNationalLimit            types.Boolean `json:"hasNationalLimit"`
 }
 
 // P2PTradingPreferenceSetRequest holds the counterparty requirements Post Ad and Update / Relist Ad set; every field is
 // sent, so a zero value removes the requirement
 type P2PTradingPreferenceSetRequest struct {
-	HasUnPostAd     bool
-	IsKYC           bool
-	IsEmail         bool
-	IsMobile        bool
-	HasRegisterTime bool
-	// RegisterTimeThreshold is in days
-	RegisterTimeThreshold     uint64
-	OrderFinishNumberDay30    uint64
-	CompleteRateDay30         float64
-	NationalLimit             string
-	HasOrderFinishNumberDay30 bool
-	HasCompleteRateDay30      bool
-	HasNationalLimit          bool
+	HasUnPostAd                 bool
+	IsKYC                       bool
+	IsEmail                     bool
+	IsMobile                    bool
+	HasRegisterTime             bool
+	RegisterTimeThresholdInDays uint64
+	OrderFinishNumberDay30      uint64
+	CompleteRateDay30           float64
+	NationalLimit               string
+	HasOrderFinishNumberDay30   bool
+	HasCompleteRateDay30        bool
+	HasNationalLimit            bool
 }
 
 // P2PPostAdRequest holds the parameters for Post Ad
@@ -193,10 +190,9 @@ type P2PPostAdRequest struct {
 	// TradingPreferenceSet sends an empty object when nil
 	TradingPreferenceSet *P2PTradingPreferenceSetRequest
 	// PaymentIDs holds up to 5 payment method IDs from Get User Payment
-	PaymentIDs []string
-	Quantity   float64
-	// PaymentPeriod is in minutes
-	PaymentPeriod uint64
+	PaymentIDs             []string
+	Quantity               float64
+	PaymentPeriodInMinutes uint64
 	// ItemType is ORIGIN for a regular ad or BULK for a bulk ad
 	ItemType string
 }
@@ -227,10 +223,9 @@ type P2PUpdateAdRequest struct {
 	// PaymentIDs holds up to 5 payment method IDs from Get User Payment
 	PaymentIDs []string
 	// ActionType is MODIFY to change the ad or ACTIVE to relist it
-	ActionType string
-	Quantity   float64
-	// PaymentPeriod is in minutes
-	PaymentPeriod uint64
+	ActionType             string
+	Quantity               float64
+	PaymentPeriodInMinutes uint64
 }
 
 // P2PUpdateAdResponse holds the security check an advertisement update may need. The docs list no response
@@ -287,25 +282,24 @@ type P2PMyAd struct {
 	MaxAmount        types.Number `json:"maxAmount"`
 	Remark           string       `json:"remark"`
 	// Status is 10 online, 20 offline or 30 completed
-	Status               uint64                  `json:"status"`
-	CreateDate           types.Time              `json:"createDate"`
-	Payments             []string                `json:"payments"`
-	OrderNumber          uint64                  `json:"orderNum"`
-	FinishNumber         uint64                  `json:"finishNum"`
-	RecentOrderNumber    uint64                  `json:"recentOrderNum"`
-	RecentExecuteRate    types.Number            `json:"recentExecuteRate"`
-	Fee                  types.Number            `json:"fee"`
-	IsOnline             bool                    `json:"isOnline"`
-	LastLogoutTime       types.Time              `json:"lastLogoutTime"`
-	SymbolInfo           P2PSymbolInfo           `json:"symbolInfo"`
-	TradingPreferenceSet P2PTradingPreferenceSet `json:"tradingPreferenceSet"`
-	PaymentTerms         []P2PAdPaymentTerm      `json:"paymentTerms"`
-	Version              uint64                  `json:"version"`
-	UpdateDate           types.Time              `json:"updateDate"`
-	FeeRate              types.Number            `json:"feeRate"`
-	// PaymentPeriod is in minutes
-	PaymentPeriod uint64 `json:"paymentPeriod"`
-	ItemType      string `json:"itemType"`
+	Status                 uint64                  `json:"status"`
+	CreateDate             types.Time              `json:"createDate"`
+	Payments               []string                `json:"payments"`
+	OrderNumber            uint64                  `json:"orderNum"`
+	FinishNumber           uint64                  `json:"finishNum"`
+	RecentOrderNumber      uint64                  `json:"recentOrderNum"`
+	RecentExecuteRate      types.Number            `json:"recentExecuteRate"`
+	Fee                    types.Number            `json:"fee"`
+	IsOnline               bool                    `json:"isOnline"`
+	LastLogoutTime         types.Time              `json:"lastLogoutTime"`
+	SymbolInfo             P2PSymbolInfo           `json:"symbolInfo"`
+	TradingPreferenceSet   P2PTradingPreferenceSet `json:"tradingPreferenceSet"`
+	PaymentTerms           []P2PAdPaymentTerm      `json:"paymentTerms"`
+	Version                uint64                  `json:"version"`
+	UpdateDate             types.Time              `json:"updateDate"`
+	FeeRate                types.Number            `json:"feeRate"`
+	PaymentPeriodInMinutes uint64                  `json:"paymentPeriod"`
+	ItemType               string                  `json:"itemType"`
 	// HiddenReason is why the ad is hidden; empty when it is not
 	HiddenReason string `json:"hiddenReason"`
 }
@@ -387,12 +381,11 @@ type P2PMyAdDetailsResponse struct {
 	TradingPreferenceSet P2PTradingPreferenceSet `json:"tradingPreferenceSet"`
 	PaymentTerms         []P2PAdPaymentTerm      `json:"paymentTerms"`
 	// Version is 1 for ads that pre-freeze funds or 2 for ads that do not
-	Version    uint64       `json:"version"`
-	UpdateDate types.Time   `json:"updateDate"`
-	FeeRate    types.Number `json:"feeRate"`
-	// PaymentPeriod is in minutes
-	PaymentPeriod uint64 `json:"paymentPeriod"`
-	ItemType      string `json:"itemType"`
+	Version                uint64       `json:"version"`
+	UpdateDate             types.Time   `json:"updateDate"`
+	FeeRate                types.Number `json:"feeRate"`
+	PaymentPeriodInMinutes uint64       `json:"paymentPeriod"`
+	ItemType               string       `json:"itemType"`
 }
 
 // P2POrderListRequest holds the parameters for Get All Orders and Get Pending Orders
@@ -733,24 +726,22 @@ type P2PUserInfoResponse struct {
 	KYCLevel       types.Number `json:"kycLevel"`
 	LastLogoutTime types.Time   `json:"lastLogoutTime"`
 	// RecentRate is the completion rate over the past 30 days; documented as both a string and an integer
-	RecentRate           types.Number `json:"recentRate"`
-	TotalFinishCount     uint64       `json:"totalFinishCount"`
-	TotalFinishSellCount uint64       `json:"totalFinishSellCount"`
-	TotalFinishBuyCount  uint64       `json:"totalFinishBuyCount"`
-	RecentFinishCount    uint64       `json:"recentFinishCount"`
-	// AverageReleaseTime and AverageTransferTime are in minutes
-	AverageReleaseTime  types.Number `json:"averageReleaseTime"`
-	AverageTransferTime types.Number `json:"averageTransferTime"`
-	AccountCreateDays   uint64       `json:"accountCreateDays"`
-	FirstTradeDays      uint64       `json:"firstTradeDays"`
-	RealName            string       `json:"realName"`
-	// RecentTradeAmount and TotalTradeAmount are in USDT
-	RecentTradeAmount types.Number  `json:"recentTradeAmount"`
-	TotalTradeAmount  types.Number  `json:"totalTradeAmount"`
-	ExecuteNumber     uint64        `json:"executeNum"`
-	OrderNumber       uint64        `json:"orderNum"`
-	HasUnPostAd       types.Boolean `json:"hasUnPostAd"`
-	RegisterTime      types.Time    `json:"registerTime"`
+	RecentRate                   types.Number  `json:"recentRate"`
+	TotalFinishCount             uint64        `json:"totalFinishCount"`
+	TotalFinishSellCount         uint64        `json:"totalFinishSellCount"`
+	TotalFinishBuyCount          uint64        `json:"totalFinishBuyCount"`
+	RecentFinishCount            uint64        `json:"recentFinishCount"`
+	AverageReleaseTimeInMinutes  types.Number  `json:"averageReleaseTime"`
+	AverageTransferTimeInMinutes types.Number  `json:"averageTransferTime"`
+	AccountCreateDays            uint64        `json:"accountCreateDays"`
+	FirstTradeDays               uint64        `json:"firstTradeDays"`
+	RealName                     string        `json:"realName"`
+	RecentTradeAmountInUSDT      types.Number  `json:"recentTradeAmount"`
+	TotalTradeAmountInUSDT       types.Number  `json:"totalTradeAmount"`
+	ExecuteNumber                uint64        `json:"executeNum"`
+	OrderNumber                  uint64        `json:"orderNum"`
+	HasUnPostAd                  types.Boolean `json:"hasUnPostAd"`
+	RegisterTime                 types.Time    `json:"registerTime"`
 	// AuthStatus is 1 for a verified advertiser or 2 otherwise
 	AuthStatus        uint64       `json:"authStatus"`
 	KYCCountryCode    string       `json:"kycCountryCode"`

@@ -409,13 +409,13 @@ func advancedEarnOffersExp() []any {
 				BuyLowPrice: []DualAssetsOfferPrice{
 					{
 						SelectPrice:         0.235,
-						APYE8:               222173550,
+						APYScaledBy1E8:      222173550,
 						MaxInvestmentAmount: 5000000,
 						ExpiredAt:           types.Time(time.Unix(1791534555, 0)),
 					},
 					{
 						SelectPrice:         0.23,
-						APYE8:               164145150,
+						APYScaledBy1E8:      164145150,
 						MaxInvestmentAmount: 5000000,
 						ExpiredAt:           types.Time(time.Unix(1791534555, 0)),
 					},
@@ -423,7 +423,7 @@ func advancedEarnOffersExp() []any {
 				SellHighPrice: []DualAssetsOfferPrice{
 					{
 						SelectPrice:         0.25,
-						APYE8:               145787400,
+						APYScaledBy1E8:      145787400,
 						MaxInvestmentAmount: 20903010.0334,
 						ExpiredAt:           types.Time(time.Unix(1791534555, 0)),
 					},
@@ -435,7 +435,7 @@ func advancedEarnOffersExp() []any {
 				BuyLowPrice: []DualAssetsOfferPrice{
 					{
 						SelectPrice:         12.882,
-						APYE8:               447660450,
+						APYScaledBy1E8:      447660450,
 						MaxInvestmentAmount: 5000000,
 						ExpiredAt:           types.Time(time.Unix(1791534560, 0)),
 					},
@@ -443,7 +443,7 @@ func advancedEarnOffersExp() []any {
 				SellHighPrice: []DualAssetsOfferPrice{
 					{
 						SelectPrice:         12.883,
-						APYE8:               448376850,
+						APYScaledBy1E8:      448376850,
 						MaxInvestmentAmount: 388078.2365,
 						ExpiredAt:           types.Time(time.Unix(1791534560, 0)),
 					},
@@ -468,24 +468,24 @@ func advancedEarnOffersExp() []any {
 		},
 		[]DiscountBuyOffer{
 			{
-				ProductID:           "15927",
-				CurrentPrice:        82605.07,
-				PurchasePrice:       82425,
-				KnockoutPrice:       83400,
-				KnockoutCouponE8:    10000000,
-				MaxInvestmentAmount: 950000,
-				InstitutionUID:      "103489231",
-				ExpiredAt:           types.Time(time.UnixMilli(1791534560467)),
+				ProductID:                 "15927",
+				CurrentPrice:              82605.07,
+				PurchasePrice:             82425,
+				KnockoutPrice:             83400,
+				KnockoutCouponScaledBy1E8: 10000000,
+				MaxInvestmentAmount:       950000,
+				InstitutionUID:            "103489231",
+				ExpiredAt:                 types.Time(time.UnixMilli(1791534560467)),
 			},
 			{
-				ProductID:           "15928",
-				CurrentPrice:        2500.15,
-				PurchasePrice:       2492,
-				KnockoutPrice:       2530,
-				KnockoutCouponE8:    10000000,
-				MaxInvestmentAmount: 950000,
-				InstitutionUID:      "103489231",
-				ExpiredAt:           types.Time(time.UnixMilli(1791534563700)),
+				ProductID:                 "15928",
+				CurrentPrice:              2500.15,
+				PurchasePrice:             2492,
+				KnockoutPrice:             2530,
+				KnockoutCouponScaledBy1E8: 10000000,
+				MaxInvestmentAmount:       950000,
+				InstitutionUID:            "103489231",
+				ExpiredAt:                 types.Time(time.UnixMilli(1791534563700)),
 			},
 		},
 		[]DoubleWinOffer{

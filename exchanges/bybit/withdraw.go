@@ -86,11 +86,11 @@ func (e *Exchange) GetWithdrawalRecords(ctx context.Context, arg *WithdrawalReco
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/withdraw/query-record", params, nil, &resp, getWithdrawalRecordsEPL)
 }
 
-// GetAvailableVASPs returns the virtual asset service providers a Travel Rule withdrawal can name, for the compliance
-// zone of the API key's UID (Get available VASPs)
-func (e *Exchange) GetAvailableVASPs(ctx context.Context) (*AvailableVASPsResponse, error) {
-	var resp *AvailableVASPsResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/withdraw/vasp/list", nil, nil, &resp, getAvailableVASPsEPL)
+// GetAvailableVirtualAssetServiceProviders returns the virtual asset service providers a Travel Rule withdrawal can
+// name, for the compliance zone of the API key's UID (Get available VASPs)
+func (e *Exchange) GetAvailableVirtualAssetServiceProviders(ctx context.Context) (*AvailableVirtualAssetServiceProvidersResponse, error) {
+	var resp *AvailableVirtualAssetServiceProvidersResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/withdraw/vasp/list", nil, nil, &resp, getAvailableVirtualAssetServiceProvidersEPL)
 }
 
 // WithdrawCurrency withdraws a coin to an address in the address book, or to a Bybit UID; a Bybit address is paid
@@ -164,14 +164,14 @@ func (b *WithdrawalBeneficiary) payload() map[string]any {
 		"beneficiaryTransactionPurpose":      b.TransactionPurpose,
 		"beneficiaryRepresentativeFirstName": b.RepresentativeFirstName,
 		"beneficiaryRepresentativeLastName":  b.RepresentativeLastName,
-		"vaspEntityId":                       b.VASPEntityID,
+		"vaspEntityId":                       b.VirtualAssetServiceProviderEntityID,
 		"beneficiaryName":                    b.Name,
 		"beneficiaryLegalType":               b.LegalType,
 		"beneficiaryWalletType":              b.WalletType,
 		"beneficiaryUnhostedWalletType":      b.UnhostedWalletType,
-		"beneficiaryPoiNumber":               b.POINumber,
-		"beneficiaryPoiType":                 b.POIType,
-		"beneficiaryPoiIssuingCountry":       b.POIIssuingCountry,
+		"beneficiaryPoiNumber":               b.ProofOfIdentityNumber,
+		"beneficiaryPoiType":                 b.ProofOfIdentityType,
+		"beneficiaryPoiIssuingCountry":       b.ProofOfIdentityIssuingCountry,
 		"beneficiaryAddressCountry":          b.AddressCountry,
 		"beneficiaryAddressState":            b.AddressState,
 		"beneficiaryAddressCity":             b.AddressCity,
@@ -185,8 +185,8 @@ func (b *WithdrawalBeneficiary) payload() map[string]any {
 			fields[key] = value
 		}
 	}
-	if !b.POIExpiredDate.IsZero() {
-		fields["beneficiaryPoiExpiredDate"] = b.POIExpiredDate.Format(time.DateOnly)
+	if !b.ProofOfIdentityExpiredDate.IsZero() {
+		fields["beneficiaryPoiExpiredDate"] = b.ProofOfIdentityExpiredDate.Format(time.DateOnly)
 	}
 	return fields
 }
@@ -212,14 +212,14 @@ func (q *TravelRuleQuestionnaire) encode() (string, error) {
 		"legalType":  q.LegalType,
 	}
 	for key, value := range map[string]string{
-		"vaspCode":                q.VASPCode,
+		"vaspCode":                q.VirtualAssetServiceProviderCode,
 		"firstName":               q.FirstName,
 		"lastName":                q.LastName,
 		"companyName":             q.CompanyName,
 		"transactionPurpose":      q.TransactionPurpose,
-		"poiType":                 q.POIType,
-		"poiNumber":               q.POINumber,
-		"poiIssuingCountry":       q.POIIssuingCountry,
+		"poiType":                 q.ProofOfIdentityType,
+		"poiNumber":               q.ProofOfIdentityNumber,
+		"poiIssuingCountry":       q.ProofOfIdentityIssuingCountry,
 		"representativeFirstName": q.RepresentativeFirstName,
 		"representativeLastName":  q.RepresentativeLastName,
 	} {
@@ -230,8 +230,8 @@ func (q *TravelRuleQuestionnaire) encode() (string, error) {
 	if q.IsSelfWallet != nil {
 		fields["isSelfWallet"] = *q.IsSelfWallet
 	}
-	if !q.POIExpiredDate.IsZero() {
-		fields["poiExpiredDate"] = q.POIExpiredDate.Format(time.DateOnly)
+	if !q.ProofOfIdentityExpiredDate.IsZero() {
+		fields["poiExpiredDate"] = q.ProofOfIdentityExpiredDate.Format(time.DateOnly)
 	}
 	encoded, err := json.Marshal(fields)
 	return string(encoded), err

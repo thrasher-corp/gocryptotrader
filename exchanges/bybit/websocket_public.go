@@ -61,7 +61,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case chanOrderbook:
 		switch depth, _, _ := strings.Cut(rest, "."); depth {
 		case "rpi":
-			return relayWebsocketResponse[WebsocketRPIOrderbookUpdate](ctx, e, respRaw)
+			return relayWebsocketResponse[WebsocketRetailPriceImprovementOrderbookUpdate](ctx, e, respRaw)
 		case "full":
 			// Full depth pushes deltas only, which need a REST snapshot to build a book from, so they are relayed as is
 			return relayWebsocketResponse[WebsocketOrderbookUpdate](ctx, e, respRaw)
@@ -79,8 +79,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return relayWebsocketResponse[WebsocketInsurancePoolUpdate](ctx, e, respRaw)
 	case chanPriceLimit:
 		return relayWebsocketResponse[WebsocketPriceLimitUpdate](ctx, e, respRaw)
-	case chanADLAlert:
-		return relayWebsocketResponse[WebsocketADLAlertUpdate](ctx, e, respRaw)
+	case chanAutoDeleveragingAlert:
+		return relayWebsocketResponse[WebsocketAutoDeleveragingAlertUpdate](ctx, e, respRaw)
 	}
 	return fmt.Errorf("%w: %s", errUnhandledStreamData, topic)
 }
@@ -384,7 +384,7 @@ func (e *Exchange) qualifyPublicSubscriptions(a asset.Item, subs subscription.Li
 func (e *Exchange) publicTopic(s *subscription.Subscription, a asset.Item) (string, error) {
 	name := channelName(s)
 	switch {
-	case name == chanInsurancePool, name == chanADLAlert:
+	case name == chanInsurancePool, name == chanAutoDeleveragingAlert:
 		group, err := contractGroup(a)
 		if err != nil {
 			return "", err

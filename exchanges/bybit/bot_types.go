@@ -62,15 +62,14 @@ type FuturesComboBotLimitResponse struct {
 	DebugMessage string `json:"debug_msg"`
 	// CheckCode is LIMIT_CHECK_CODE_SUCCESS_UNSPECIFIED when every setting is in range, and otherwise names the setting
 	// out of range
-	CheckCode             string        `json:"check_code"`
-	InitialMargin         BotLimitRange `json:"init_margin"`
-	Leverage              BotLimitRange `json:"leverage"`
-	AdjustPositionPercent BotLimitRange `json:"adjust_position_percent"`
-	// AdjustPositionTimeInterval is in seconds
-	AdjustPositionTimeInterval BotLimitRange `json:"adjust_position_time_interval"`
-	SLPercent                  BotLimitRange `json:"sl_percent"`
-	TPPercent                  BotLimitRange `json:"tp_percent"`
-	TrailingStopPercent        BotLimitRange `json:"trailing_stop_percent"`
+	CheckCode                           string        `json:"check_code"`
+	InitialMargin                       BotLimitRange `json:"init_margin"`
+	Leverage                            BotLimitRange `json:"leverage"`
+	AdjustPositionPercent               BotLimitRange `json:"adjust_position_percent"`
+	AdjustPositionTimeIntervalInSeconds BotLimitRange `json:"adjust_position_time_interval"`
+	SLPercent                           BotLimitRange `json:"sl_percent"`
+	TPPercent                           BotLimitRange `json:"tp_percent"`
+	TrailingStopPercent                 BotLimitRange `json:"trailing_stop_percent"`
 }
 
 // CreateBotResponse holds the outcome of creating a futures combo, futures Martingale or DCA bot
@@ -130,15 +129,14 @@ type FuturesComboBotDetail struct {
 	MaintenanceMarginRate types.Number                `json:"mmr"`
 	SymbolSettings        []FuturesComboSymbolSetting `json:"symbol_settings"`
 	// AdjustPositionMode is an enum name such as ADJUST_POSITION_MODE_TIME_OR_PERCENT
-	AdjustPositionMode    string       `json:"adjust_position_mode"`
-	AdjustPositionPercent types.Number `json:"adjust_position_percent"`
-	// AdjustPositionTimeInterval is in seconds
-	AdjustPositionTimeInterval uint64       `json:"adjust_position_time_interval"`
-	AdjustedPositionNumber     types.Number `json:"adjusted_position_num"`
-	LastAdjustPositionTime     types.Time   `json:"last_adjust_position_time"`
-	SLPercent                  types.Number `json:"sl_percent"`
-	TPPercent                  types.Number `json:"tp_percent"`
-	TrailingStopPercent        types.Number `json:"trailing_stop_percent"`
+	AdjustPositionMode                  string       `json:"adjust_position_mode"`
+	AdjustPositionPercent               types.Number `json:"adjust_position_percent"`
+	AdjustPositionTimeIntervalInSeconds uint64       `json:"adjust_position_time_interval"`
+	AdjustedPositionNumber              types.Number `json:"adjusted_position_num"`
+	LastAdjustPositionTime              types.Time   `json:"last_adjust_position_time"`
+	SLPercent                           types.Number `json:"sl_percent"`
+	TPPercent                           types.Number `json:"tp_percent"`
+	TrailingStopPercent                 types.Number `json:"trailing_stop_percent"`
 	// StopType is an enum name such as BOT_STOP_TYPE_BY_USER
 	StopType string `json:"stop_type"`
 	// CloseCode is an enum name such as BOT_CLOSE_CODE_CANCELED_MANUALLY
@@ -152,14 +150,13 @@ type FuturesComboBotDetail struct {
 	FollowNumber     uint64       `json:"follow_num"`
 	UsedRewardAmount types.Number `json:"used_reward_amount"`
 	// UsedRewardID is the ID of the first insurance voucher used
-	UsedRewardID string       `json:"used_reward_id"`
-	TotalBonus   types.Number `json:"total_bonus"`
-	// RunTimeDuration is in seconds
-	RunTimeDuration       types.Number `json:"run_time_duration"`
-	CreateTime            types.Time   `json:"create_time"`
-	EndTime               types.Time   `json:"end_time"`
-	LastModifySettingTime types.Time   `json:"last_modify_setting_time"`
-	WebsocketToken        string       `json:"ws_token"`
+	UsedRewardID             string       `json:"used_reward_id"`
+	TotalBonus               types.Number `json:"total_bonus"`
+	RunTimeDurationInSeconds types.Number `json:"run_time_duration"`
+	CreateTime               types.Time   `json:"create_time"`
+	EndTime                  types.Time   `json:"end_time"`
+	LastModifySettingTime    types.Time   `json:"last_modify_setting_time"`
+	WebsocketToken           string       `json:"ws_token"`
 }
 
 // FuturesComboSymbolSetting holds one symbol of a futures combo bot's portfolio
@@ -188,9 +185,9 @@ type ValidateFuturesGridInputRequest struct {
 	GridMode        uint64
 	StopLossPrice   float64
 	TakeProfitPrice float64
-	// TPSLType picks how take-profit and stop-loss trigger: 1 both by percentage, 2 both by price, 3 take-profit by
-	// price and stop-loss by percentage, 4 take-profit by percentage and stop-loss by price
-	TPSLType uint64
+	// TakeProfitStopLossType picks how take-profit and stop-loss trigger: 1 both by percentage, 2 both by price, 3
+	// take-profit by price and stop-loss by percentage, 4 take-profit by percentage and stop-loss by price
+	TakeProfitStopLossType uint64
 	// EntryPrice delays activation until the price reaches it
 	EntryPrice float64
 	// StopLossPercent and TakeProfitPercent are percentages, which this page's docs scale as 10 for 10% but Create
@@ -257,9 +254,9 @@ type CreateFuturesGridBotRequest struct {
 	StopLossPercent   float64
 	TakeProfitPrice   float64
 	StopLossPrice     float64
-	// TPSLType picks how take-profit and stop-loss trigger: 1 both by percentage, 2 both by price, 3 take-profit by
-	// price and stop-loss by percentage, 4 take-profit by percentage and stop-loss by price
-	TPSLType uint64
+	// TakeProfitStopLossType picks how take-profit and stop-loss trigger: 1 both by percentage, 2 both by price, 3
+	// take-profit by price and stop-loss by percentage, 4 take-profit by percentage and stop-loss by price
+	TakeProfitStopLossType uint64
 	// EntryPrice delays activation until the price reaches it
 	EntryPrice float64
 	// TrailingStopPercent is a ratio: 0.05 is 5%
@@ -341,9 +338,9 @@ type FuturesGridBotDetail struct {
 	TakeProfitPercent types.Number `json:"take_profit_per"`
 	StopLossPrice     types.Number `json:"stop_loss_price"`
 	TakeProfitPrice   types.Number `json:"take_profit_price"`
-	// TPSLType is an enum name such as TP_SL_TYPE_TP_PERCENT_SL_PRICE
-	TPSLType   string       `json:"tp_sl_type"`
-	EntryPrice types.Number `json:"entry_price"`
+	// TakeProfitStopLossType is an enum name such as TP_SL_TYPE_TP_PERCENT_SL_PRICE
+	TakeProfitStopLossType string       `json:"tp_sl_type"`
+	EntryPrice             types.Number `json:"entry_price"`
 	// RealClosePrice is the price when the bot stopped
 	RealClosePrice         types.Number `json:"real_close_price"`
 	MinPricePrecision      types.Number `json:"min_price_precision"`
@@ -386,12 +383,12 @@ type FuturesGridBotDetail struct {
 	CurrentPercent           types.Number `json:"current_per"`
 	TakerFeeRate             types.Number `json:"taker_fee_rate"`
 	MakerFeeRate             types.Number `json:"maker_fee_rate"`
-	// OperationTime is the milliseconds since the bot was created
-	OperationTime    types.Number `json:"operation_time"`
-	CreateTime       types.Time   `json:"create_time"`
-	ModifyTime       types.Time   `json:"modify_time"`
-	EndTime          types.Time   `json:"end_time"`
-	ADLRankIndicator uint64       `json:"adl_rank_indicator"`
+	// OperationTimeInMilliseconds is the time since the bot was created
+	OperationTimeInMilliseconds   types.Number `json:"operation_time"`
+	CreateTime                    types.Time   `json:"create_time"`
+	ModifyTime                    types.Time   `json:"modify_time"`
+	EndTime                       types.Time   `json:"end_time"`
+	AutoDeleveragingRankIndicator uint64       `json:"adl_rank_indicator"`
 }
 
 // GetFuturesMartingaleBotLimitRequest holds the futures Martingale bot settings to check against their accepted ranges
@@ -520,14 +517,13 @@ type FuturesMartingaleBotDetail struct {
 	// UsedRewardID is the ID of the first insurance voucher used
 	UsedRewardID string       `json:"used_reward_id"`
 	TotalBonus   types.Number `json:"total_bonus"`
-	// OperationTime is the seconds since the bot was created
-	OperationTime types.Number `json:"operation_time"`
-	CreateTime    types.Time   `json:"create_time"`
-	ModifyTime    types.Time   `json:"modify_time"`
-	EndTime       types.Time   `json:"end_time"`
-	// RunningDuration is in seconds
-	RunningDuration  types.Number `json:"running_duration"`
-	ADLRankIndicator uint64       `json:"adl_rank_indicator"`
+	// OperationTimeInSeconds is the time since the bot was created
+	OperationTimeInSeconds        types.Number `json:"operation_time"`
+	CreateTime                    types.Time   `json:"create_time"`
+	ModifyTime                    types.Time   `json:"modify_time"`
+	EndTime                       types.Time   `json:"end_time"`
+	RunningDurationInSeconds      types.Number `json:"running_duration"`
+	AutoDeleveragingRankIndicator uint64       `json:"adl_rank_indicator"`
 }
 
 // ValidateSpotGridInputRequest holds the spot grid bot settings to check against their accepted ranges
@@ -664,11 +660,11 @@ type SpotGridBotDetail struct {
 	// AllowFollow reports whether copy trading is allowed
 	AllowFollow  types.Boolean `json:"allow_follow"`
 	FollowNumber uint64        `json:"follow_num"`
-	// OperationTime is the milliseconds since the bot was created
-	OperationTime    types.Number `json:"operation_time"`
-	CreateTime       types.Time   `json:"create_time"`
-	EndTime          types.Time   `json:"end_time"`
-	UsedRewardAmount types.Number `json:"used_reward_amount"`
+	// OperationTimeInMilliseconds is the time since the bot was created
+	OperationTimeInMilliseconds types.Number `json:"operation_time"`
+	CreateTime                  types.Time   `json:"create_time"`
+	EndTime                     types.Time   `json:"end_time"`
+	UsedRewardAmount            types.Number `json:"used_reward_amount"`
 	// SettlementAssets describes the assets settled on close
 	SettlementAssets string `json:"settlement_assets"`
 	// AccountType is an enum name such as BOT_ACCOUNT_TYPE_FUND

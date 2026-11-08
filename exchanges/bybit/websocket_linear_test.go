@@ -68,7 +68,7 @@ func TestLinearSubscribe(t *testing.T) {
 func TestLinearUnsubscribe(t *testing.T) {
 	t.Parallel()
 	ex := websocketTestInstance(t)
-	subs := subscription.List{{Channel: chanADLAlert, Asset: asset.USDCMarginedFutures}}
+	subs := subscription.List{{Channel: chanAutoDeleveragingAlert, Asset: asset.USDCMarginedFutures}}
 	require.NoError(t, ex.LinearSubscribe(t.Context(), &FixtureConnection{}, asset.USDCMarginedFutures, subs), "LinearSubscribe must not error")
 	require.ErrorIs(t, ex.LinearUnsubscribe(t.Context(), &FixtureConnection{}, asset.OptionCombo, subs), asset.ErrInvalidAsset, "LinearUnsubscribe must reject a non-linear asset")
 	conn := &FixtureConnection{}

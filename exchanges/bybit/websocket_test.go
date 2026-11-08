@@ -1371,15 +1371,15 @@ func TestShareTopics(t *testing.T) {
 	require.NoError(t, ex.recordSubscriptions(bookConn, subscribeOperation, subscription.List{held}), "recordSubscriptions must not error")
 	level1, level200 := book("BTC", 1, "orderbook.1.BTCUSDT"), book("BTC", 200, "orderbook.200.BTCUSDT")
 	sharer, otherSymbol := book("BTC", 0, "orderbook.50.BTCUSDT"), book("ETH", 1, "orderbook.1.ETHUSDT")
-	rpi := &subscription.Subscription{Channel: chanRPIOrderbook, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "orderbook.rpi.BTCUSDT"}
+	retailPriceImprovement := &subscription.Subscription{Channel: chanRetailPriceImprovementOrderbook, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "orderbook.rpi.BTCUSDT"}
 	full := &subscription.Subscription{Channel: chanFullOrderbook, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "orderbook.full.BTCUSDT"}
-	pending, asked, err := ex.shareTopics(bookConn, subscribeOperation, subscription.List{level1, sharer, otherSymbol, rpi, full, level200})
+	pending, asked, err := ex.shareTopics(bookConn, subscribeOperation, subscription.List{level1, sharer, otherSymbol, retailPriceImprovement, full, level200})
 	ex.keepHolders(asked)
 	require.ErrorIs(t, err, errOrderbookDepthConflict, "shareTopics must refuse another depth of a symbol the connection holds")
 	assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "shareTopics should report a refusal as a subscription failure")
 	assert.ErrorContains(t, err, "orderbook.1.BTCUSDT conflicts with depth 50", "error should name each refused topic and the depth held")
 	assert.ErrorContains(t, err, "orderbook.200.BTCUSDT conflicts with depth 50", "error should name each refused topic and the depth held")
-	assert.Equal(t, subscription.List{otherSymbol, rpi, full}, pending, "shareTopics should send another symbol's depth and the topics that load no book")
+	assert.Equal(t, subscription.List{otherSymbol, retailPriceImprovement, full}, pending, "shareTopics should send another symbol's depth and the topics that load no book")
 	assert.Same(t, sharer, ex.Websocket.GetSubscription(sharer), "shareTopics should store a subscription sharing the topic of the depth held")
 	for _, refused := range []*subscription.Subscription{level1, level200} {
 		assert.Nilf(t, ex.Websocket.GetSubscription(refused), "shareTopics should not store refused %s", refused.QualifiedChannel)
@@ -1858,7 +1858,7 @@ func TestGenerateSpotSubscriptions(t *testing.T) {
 	ex.Features.Subscriptions = subscription.List{
 		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 200},
 		{Enabled: true, Asset: asset.All, Channel: subscription.CandlesChannel, Interval: kline.FiveMin},
-		{Enabled: true, Asset: asset.Spot, Channel: chanRPIOrderbook},
+		{Enabled: true, Asset: asset.Spot, Channel: chanRetailPriceImprovementOrderbook},
 		{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel},
 		{Enabled: true, Asset: asset.Spot, Channel: chanInsurancePool},
 		{Enabled: true, Channel: chanSystemStatus},
@@ -1891,7 +1891,7 @@ func TestDedicatedConnectionChannel(t *testing.T) {
 	} {
 		assert.Truef(t, dedicatedConnectionChannel(channel), "dedicatedConnectionChannel should report %s as subscribed on a connection of its own", channel)
 	}
-	for _, channel := range []string{chanOrderbook, chanRPIOrderbook, chanPublicTrade, chanPublicTicker, chanKline, subscription.TickerChannel} {
+	for _, channel := range []string{chanOrderbook, chanRetailPriceImprovementOrderbook, chanPublicTrade, chanPublicTicker, chanKline, subscription.TickerChannel} {
 		assert.Falsef(t, dedicatedConnectionChannel(channel), "dedicatedConnectionChannel should leave %s to the spot connection", channel)
 	}
 }
@@ -1917,7 +1917,7 @@ func TestGetSubscriptionTemplate(t *testing.T) {
 		{sub: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "tickers.BTCUSDT|tickers.ETHUSDT|;"},
 		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 200}, exp: "orderbook.200.BTCUSDT|orderbook.200.ETHUSDT|;"},
 		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel}, exp: "orderbook.50.BTCUSDT|orderbook.50.ETHUSDT|;"},
-		{sub: &subscription.Subscription{Channel: chanRPIOrderbook}, exp: "orderbook.rpi.BTCUSDT|orderbook.rpi.ETHUSDT|;"},
+		{sub: &subscription.Subscription{Channel: chanRetailPriceImprovementOrderbook}, exp: "orderbook.rpi.BTCUSDT|orderbook.rpi.ETHUSDT|;"},
 		{sub: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "publicTrade.BTCUSDT|publicTrade.ETHUSDT|;"},
 		{sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneHour}, exp: "kline.60.BTCUSDT|kline.60.ETHUSDT|;"},
 		{sub: &subscription.Subscription{Channel: subscription.MyWalletChannel}, exp: ";"},
@@ -1943,7 +1943,7 @@ func TestChannelName(t *testing.T) {
 		{channel: subscription.MyOrdersChannel, exp: "order"},
 		{channel: subscription.MyWalletChannel, exp: "wallet"},
 		{channel: subscription.MyTradesChannel, exp: "execution"},
-		{channel: chanRPIOrderbook, exp: "orderbook.rpi"},
+		{channel: chanRetailPriceImprovementOrderbook, exp: "orderbook.rpi"},
 		{channel: "dcp.future", exp: "dcp.future"},
 	} {
 		assert.Equalf(t, tc.exp, channelName(&subscription.Subscription{Channel: tc.channel}), "channelName should name %s by its Bybit topic", tc.channel)
@@ -1958,7 +1958,7 @@ func TestIsSymbolChannel(t *testing.T) {
 	}{
 		{name: chanPublicTicker, exp: true},
 		{name: chanOrderbook, exp: true},
-		{name: chanRPIOrderbook, exp: true},
+		{name: chanRetailPriceImprovementOrderbook, exp: true},
 		{name: chanFullOrderbook, exp: true},
 		{name: chanPublicTrade, exp: true},
 		{name: chanKline, exp: true},
@@ -1969,7 +1969,7 @@ func TestIsSymbolChannel(t *testing.T) {
 		{name: chanOrder},
 		{name: chanWallet},
 		{name: chanInsurancePool},
-		{name: chanADLAlert},
+		{name: chanAutoDeleveragingAlert},
 		{name: chanSystemStatus},
 	} {
 		assert.Equalf(t, tc.exp, isSymbolChannel(tc.name), "isSymbolChannel should report whether a %s topic names a symbol", tc.name)

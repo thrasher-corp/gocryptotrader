@@ -13,22 +13,22 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// GetRWAProductList returns the real world asset products, optionally for one settlement coin (Get Product List). The
-// user quota is only filled for signed requests, so the request is signed whenever credentials are set
-func (e *Exchange) GetRWAProductList(ctx context.Context, coin currency.Code) (*RWAProductListResponse, error) {
+// GetRealWorldAssetProductList returns the real world asset products, optionally for one settlement coin (Get Product
+// List). The user quota is only filled for signed requests, so the request is signed whenever credentials are set
+func (e *Exchange) GetRealWorldAssetProductList(ctx context.Context, coin currency.Code) (*RealWorldAssetProductListResponse, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.Upper().String())
 	}
-	var resp *RWAProductListResponse
+	var resp *RealWorldAssetProductListResponse
 	if e.AreCredentialsValid(ctx) {
-		return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/rwa/product", params, nil, &resp, getRWAProductListEPL)
+		return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/rwa/product", params, nil, &resp, getRealWorldAssetProductListEPL)
 	}
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v5/earn/rwa/product", params), getRWAProductListEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v5/earn/rwa/product", params), getRealWorldAssetProductListEPL, &resp)
 }
 
-// PlaceRWAOrder stakes into or redeems shares of a real world asset product (Place Order)
-func (e *Exchange) PlaceRWAOrder(ctx context.Context, req *PlaceRWAOrderRequest) (*PlaceRWAOrderResponse, error) {
+// PlaceRealWorldAssetOrder stakes into or redeems shares of a real world asset product (Place Order)
+func (e *Exchange) PlaceRealWorldAssetOrder(ctx context.Context, req *PlaceRealWorldAssetOrderRequest) (*PlaceRealWorldAssetOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -67,18 +67,18 @@ func (e *Exchange) PlaceRWAOrder(ctx context.Context, req *PlaceRWAOrderRequest)
 	if req.AccountType != "" {
 		body["accountType"] = req.AccountType
 	}
-	var resp *PlaceRWAOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/rwa/place-order", nil, body, &resp, placeRWAOrderEPL)
+	var resp *PlaceRealWorldAssetOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/earn/rwa/place-order", nil, body, &resp, placeRealWorldAssetOrderEPL)
 }
 
-// GetRWAPositionList returns the real world asset positions (Get Position List)
-func (e *Exchange) GetRWAPositionList(ctx context.Context) (*RWAPositionListResponse, error) {
-	var resp *RWAPositionListResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/rwa/position", nil, nil, &resp, getRWAPositionListEPL)
+// GetRealWorldAssetPositionList returns the real world asset positions (Get Position List)
+func (e *Exchange) GetRealWorldAssetPositionList(ctx context.Context) (*RealWorldAssetPositionListResponse, error) {
+	var resp *RealWorldAssetPositionListResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/rwa/position", nil, nil, &resp, getRealWorldAssetPositionListEPL)
 }
 
-// GetRWAOrderList returns real world asset stake and redeem orders (Get Order List)
-func (e *Exchange) GetRWAOrderList(ctx context.Context, req *RWAOrderListRequest) (*RWAOrderListResponse, error) {
+// GetRealWorldAssetOrderList returns real world asset stake and redeem orders (Get Order List)
+func (e *Exchange) GetRealWorldAssetOrderList(ctx context.Context, req *RealWorldAssetOrderListRequest) (*RealWorldAssetOrderListResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -112,12 +112,12 @@ func (e *Exchange) GetRWAOrderList(ctx context.Context, req *RWAOrderListRequest
 	if req.Cursor != "" {
 		params.Set("cursor", req.Cursor)
 	}
-	var resp *RWAOrderListResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/rwa/order", params, nil, &resp, getRWAOrderListEPL)
+	var resp *RealWorldAssetOrderListResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/earn/rwa/order", params, nil, &resp, getRealWorldAssetOrderListEPL)
 }
 
-// GetRWANAVChart returns the daily net asset value of a real world asset product (Get NAV Chart)
-func (e *Exchange) GetRWANAVChart(ctx context.Context, req *RWANAVChartRequest) (*RWANAVChartResponse, error) {
+// GetRealWorldAssetNAVChart returns the daily net asset value of a real world asset product (Get NAV Chart)
+func (e *Exchange) GetRealWorldAssetNAVChart(ctx context.Context, req *RealWorldAssetNAVChartRequest) (*RealWorldAssetNAVChartResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -137,6 +137,6 @@ func (e *Exchange) GetRWANAVChart(ctx context.Context, req *RWANAVChartRequest) 
 	if !req.EndTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(req.EndTime.Unix(), 10))
 	}
-	var resp *RWANAVChartResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v5/earn/rwa/nav-chart", params), getRWANAVChartEPL, &resp)
+	var resp *RealWorldAssetNAVChartResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v5/earn/rwa/nav-chart", params), getRealWorldAssetNAVChartEPL, &resp)
 }

@@ -7,8 +7,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// PWMFundTransferRequest transfers funds between two custodian sub-accounts of a fund
-type PWMFundTransferRequest struct {
+// PrivateWealthManagementFundTransferRequest transfers funds between two custodian sub-accounts of a fund
+type PrivateWealthManagementFundTransferRequest struct {
 	TransferID string
 	FromUserID uint64
 	ToUserID   uint64
@@ -16,14 +16,14 @@ type PWMFundTransferRequest struct {
 	Coin       currency.Code
 }
 
-// PWMFundTransferResponse is the status of a fund transfer between custodian sub-accounts
-type PWMFundTransferResponse struct {
+// PrivateWealthManagementFundTransferResponse is the status of a fund transfer between custodian sub-accounts
+type PrivateWealthManagementFundTransferResponse struct {
 	TransferID string `json:"transferId"`
 	Status     string `json:"status"`
 }
 
-// PWMFundTransferRecordsResponse is a fund transfer between custodian sub-accounts
-type PWMFundTransferRecordsResponse struct {
+// PrivateWealthManagementFundTransferRecordsResponse is a fund transfer between custodian sub-accounts
+type PrivateWealthManagementFundTransferRecordsResponse struct {
 	TransferID string        `json:"transferId"`
 	Status     string        `json:"status"`
 	FromUserID uint64        `json:"fromUserId"`
@@ -32,23 +32,23 @@ type PWMFundTransferRecordsResponse struct {
 	Coin       currency.Code `json:"coin"`
 }
 
-// PWMInvestmentPlansRequest filters the account's investment plans
-type PWMInvestmentPlansRequest struct {
+// PrivateWealthManagementInvestmentPlansRequest filters the account's investment plans
+type PrivateWealthManagementInvestmentPlansRequest struct {
 	PlanID string
 	Status string
 	Limit  uint64
 	Cursor string
 }
 
-// PWMInvestmentPlansResponse holds a page of the account's investment plans
-type PWMInvestmentPlansResponse struct {
-	List []PWMInvestmentPlan `json:"list"`
+// PrivateWealthManagementInvestmentPlansResponse holds a page of the account's investment plans
+type PrivateWealthManagementInvestmentPlansResponse struct {
+	List []PrivateWealthManagementInvestmentPlan `json:"list"`
 	// NextPageCursor is empty on the last page
 	NextPageCursor string `json:"nextPageCursor"`
 }
 
-// PWMInvestmentPlan is an investment plan
-type PWMInvestmentPlan struct {
+// PrivateWealthManagementInvestmentPlan is an investment plan
+type PrivateWealthManagementInvestmentPlan struct {
 	PlanID   string `json:"planId"`
 	PlanName string `json:"planName"`
 	PlanType string `json:"planType"`
@@ -56,14 +56,14 @@ type PWMInvestmentPlan struct {
 	// Source is who created the plan: consultant, direct or institution
 	Source string `json:"source"`
 	// CurrentAssetUSD is the configured amount while the plan is PendingSubscription
-	CurrentAssetUSD        types.Number                `json:"currentAssetUsd"`
-	AccumulateYieldUSD     types.Number                `json:"accumulateYieldUsd"`
-	InvestmentDistribution []PWMInvestmentDistribution `json:"investmentDistribution"`
-	CreatedTime            types.Time                  `json:"createdTime"`
+	CurrentAssetUSD        types.Number                                    `json:"currentAssetUsd"`
+	AccumulateYieldUSD     types.Number                                    `json:"accumulateYieldUsd"`
+	InvestmentDistribution []PrivateWealthManagementInvestmentDistribution `json:"investmentDistribution"`
+	CreatedTime            types.Time                                      `json:"createdTime"`
 }
 
-// PWMInvestmentDistribution is the holding of a product in an investment plan
-type PWMInvestmentDistribution struct {
+// PrivateWealthManagementInvestmentDistribution is the holding of a product in an investment plan
+type PrivateWealthManagementInvestmentDistribution struct {
 	Category string        `json:"category"`
 	Coin     currency.Code `json:"coin"`
 	// ProductID is the fund ID for fund products
@@ -72,8 +72,8 @@ type PWMInvestmentDistribution struct {
 	CurrentAmount types.Number `json:"currentAmount"`
 }
 
-// PWMInvestmentPlanDetailResponse is an Active or Closed investment plan's assets and positions
-type PWMInvestmentPlanDetailResponse struct {
+// PrivateWealthManagementInvestmentPlanDetailResponse is an Active or Closed investment plan's assets and positions
+type PrivateWealthManagementInvestmentPlanDetailResponse struct {
 	PlanID             string       `json:"planId"`
 	PlanName           string       `json:"planName"`
 	PlanType           string       `json:"planType"`
@@ -81,38 +81,38 @@ type PWMInvestmentPlanDetailResponse struct {
 	CurrentAssetUSD    types.Number `json:"currentAssetUsd"`
 	AccumulateYieldUSD types.Number `json:"accumulateYieldUsd"`
 	// WeightedAverageAPR is a decimal, 0.086 for 8.6%
-	WeightedAverageAPR types.Number     `json:"weightedAvgApr"`
-	CurrentAssets      []PWMCoinAmount  `json:"currentAssets"`
-	Positions          PWMPlanPositions `json:"positions"`
-	CreatedTime        types.Time       `json:"createdTime"`
+	WeightedAverageAPR types.Number                         `json:"weightedAvgApr"`
+	CurrentAssets      []PrivateWealthManagementCoinAmount  `json:"currentAssets"`
+	Positions          PrivateWealthManagementPlanPositions `json:"positions"`
+	CreatedTime        types.Time                           `json:"createdTime"`
 }
 
-// PWMCoinAmount is an amount of a coin held by an investment plan
-type PWMCoinAmount struct {
+// PrivateWealthManagementCoinAmount is an amount of a coin held by an investment plan
+type PrivateWealthManagementCoinAmount struct {
 	Coin   currency.Code `json:"coin"`
 	Amount types.Number  `json:"amount"`
 }
 
-// PWMPlanPositions holds an investment plan's positions by product category
-type PWMPlanPositions struct {
-	MultiCoinsEarning PWMMultiCoinsEarningPositions `json:"multiCoinsEarning"`
-	FixedYield        PWMFixedYieldPositions        `json:"fixedYield"`
-	EquityFunds       PWMEquityFundPositions        `json:"equityFunds"`
-	OnchainEarn       PWMOnchainEarnPositions       `json:"onchainEarn"`
+// PrivateWealthManagementPlanPositions holds an investment plan's positions by product category
+type PrivateWealthManagementPlanPositions struct {
+	MultiCoinsEarning PrivateWealthManagementMultiCoinsEarningPositions `json:"multiCoinsEarning"`
+	FixedYield        PrivateWealthManagementFixedYieldPositions        `json:"fixedYield"`
+	EquityFunds       PrivateWealthManagementEquityFundPositions        `json:"equityFunds"`
+	OnchainEarn       PrivateWealthManagementOnchainEarnPositions       `json:"onchainEarn"`
 	// FundingAccount is the idle funds of the plan's sub-account
-	FundingAccount []PWMCoinAmount `json:"fundingAccount"`
+	FundingAccount []PrivateWealthManagementCoinAmount `json:"fundingAccount"`
 }
 
-// PWMMultiCoinsEarningPositions holds an investment plan's flexible savings positions
-type PWMMultiCoinsEarningPositions struct {
-	TotalInvestmentUSD types.Number                   `json:"totalInvestmentUsd"`
-	AccumulateYieldUSD types.Number                   `json:"accumulateYieldUsd"`
-	WeightedAverageAPR types.Number                   `json:"weightedAvgApr"`
-	Items              []PWMMultiCoinsEarningPosition `json:"items"`
+// PrivateWealthManagementMultiCoinsEarningPositions holds an investment plan's flexible savings positions
+type PrivateWealthManagementMultiCoinsEarningPositions struct {
+	TotalInvestmentUSD types.Number                                       `json:"totalInvestmentUsd"`
+	AccumulateYieldUSD types.Number                                       `json:"accumulateYieldUsd"`
+	WeightedAverageAPR types.Number                                       `json:"weightedAvgApr"`
+	Items              []PrivateWealthManagementMultiCoinsEarningPosition `json:"items"`
 }
 
-// PWMMultiCoinsEarningPosition is a flexible savings position of an investment plan
-type PWMMultiCoinsEarningPosition struct {
+// PrivateWealthManagementMultiCoinsEarningPosition is a flexible savings position of an investment plan
+type PrivateWealthManagementMultiCoinsEarningPosition struct {
 	Category      string        `json:"category"`
 	ProductID     string        `json:"productId"`
 	Coin          currency.Code `json:"coin"`
@@ -125,41 +125,41 @@ type PWMMultiCoinsEarningPosition struct {
 	Status string `json:"status"`
 }
 
-// PWMFixedYieldPositions holds an investment plan's fixed yield positions
-type PWMFixedYieldPositions struct {
-	TotalInvestmentUSD types.Number            `json:"totalInvestmentUsd"`
-	AccumulateYieldUSD types.Number            `json:"accumulateYieldUsd"`
-	WeightedAverageAPR types.Number            `json:"weightedAvgApr"`
-	Items              []PWMFixedYieldPosition `json:"items"`
+// PrivateWealthManagementFixedYieldPositions holds an investment plan's fixed yield positions
+type PrivateWealthManagementFixedYieldPositions struct {
+	TotalInvestmentUSD types.Number                                `json:"totalInvestmentUsd"`
+	AccumulateYieldUSD types.Number                                `json:"accumulateYieldUsd"`
+	WeightedAverageAPR types.Number                                `json:"weightedAvgApr"`
+	Items              []PrivateWealthManagementFixedYieldPosition `json:"items"`
 }
 
-// PWMFixedYieldPosition is a fixed yield position of an investment plan
-type PWMFixedYieldPosition struct {
+// PrivateWealthManagementFixedYieldPosition is a fixed yield position of an investment plan
+type PrivateWealthManagementFixedYieldPosition struct {
 	Category        string        `json:"category"`
 	ProductID       string        `json:"productId"`
 	Coin            currency.Code `json:"coin"`
 	CurrentAmount   types.Number  `json:"currentAmount"`
 	AccumulateYield types.Number  `json:"accumulateYield"`
 	APR             types.Number  `json:"apr"`
-	// Duration is the lock-up in days
-	Duration     uint64     `json:"duration"`
-	MaturityTime types.Time `json:"maturityTime"`
-	AutoReinvest bool       `json:"autoReinvest"`
-	PositionID   string     `json:"positionId"`
+	// DurationInDays is the lock-up
+	DurationInDays uint64     `json:"duration"`
+	MaturityTime   types.Time `json:"maturityTime"`
+	AutoReinvest   bool       `json:"autoReinvest"`
+	PositionID     string     `json:"positionId"`
 	// Status is 0 Processing, 1 Active, 2 Redeeming, 3 PendingSubscription or 4 Closed
 	Status string `json:"status"`
 }
 
-// PWMEquityFundPositions holds an investment plan's equity fund positions
-type PWMEquityFundPositions struct {
-	TotalInvestmentUSD types.Number            `json:"totalInvestmentUsd"`
-	AccumulateYieldUSD types.Number            `json:"accumulateYieldUsd"`
-	WeightedAverageAPR types.Number            `json:"weightedAvgApr"`
-	Items              []PWMEquityFundPosition `json:"items"`
+// PrivateWealthManagementEquityFundPositions holds an investment plan's equity fund positions
+type PrivateWealthManagementEquityFundPositions struct {
+	TotalInvestmentUSD types.Number                                `json:"totalInvestmentUsd"`
+	AccumulateYieldUSD types.Number                                `json:"accumulateYieldUsd"`
+	WeightedAverageAPR types.Number                                `json:"weightedAvgApr"`
+	Items              []PrivateWealthManagementEquityFundPosition `json:"items"`
 }
 
-// PWMEquityFundPosition is an equity fund position of an investment plan
-type PWMEquityFundPosition struct {
+// PrivateWealthManagementEquityFundPosition is an equity fund position of an investment plan
+type PrivateWealthManagementEquityFundPosition struct {
 	Category string `json:"category"`
 	// ProductID is the fund ID
 	ProductID       string        `json:"productId"`
@@ -185,15 +185,15 @@ type PWMEquityFundPosition struct {
 	Status string `json:"status"`
 }
 
-// PWMOnchainEarnPositions holds an investment plan's on-chain earn positions
-type PWMOnchainEarnPositions struct {
-	TotalInvestmentUSD types.Number             `json:"totalInvestmentUsd"`
-	AccumulateYieldUSD types.Number             `json:"accumulateYieldUsd"`
-	Items              []PWMOnchainEarnPosition `json:"items"`
+// PrivateWealthManagementOnchainEarnPositions holds an investment plan's on-chain earn positions
+type PrivateWealthManagementOnchainEarnPositions struct {
+	TotalInvestmentUSD types.Number                                 `json:"totalInvestmentUsd"`
+	AccumulateYieldUSD types.Number                                 `json:"accumulateYieldUsd"`
+	Items              []PrivateWealthManagementOnchainEarnPosition `json:"items"`
 }
 
-// PWMOnchainEarnPosition is an on-chain earn position of an investment plan
-type PWMOnchainEarnPosition struct {
+// PrivateWealthManagementOnchainEarnPosition is an on-chain earn position of an investment plan
+type PrivateWealthManagementOnchainEarnPosition struct {
 	Category    string        `json:"category"`
 	ProductID   string        `json:"productId"`
 	Coin        currency.Code `json:"coin"`
@@ -204,35 +204,37 @@ type PWMOnchainEarnPosition struct {
 	Status string `json:"status"`
 }
 
-// PWMPendingInvestmentPlanDetailResponse is a PendingSubscription investment plan's configuration
-type PWMPendingInvestmentPlanDetailResponse struct {
+// PrivateWealthManagementPendingInvestmentPlanDetailResponse is a PendingSubscription investment plan's configuration
+type PrivateWealthManagementPendingInvestmentPlanDetailResponse struct {
 	PlanID   string `json:"planId"`
 	PlanName string `json:"planName"`
 	PlanType string `json:"planType"`
 	Status   string `json:"status"`
 	// Source is who created the plan: consultant, direct or institution
-	Source                   string                 `json:"source"`
-	TotalConfiguredAmountUSD types.Number           `json:"totalConfiguredAmountUsd"`
-	Products                 PWMPendingPlanProducts `json:"products"`
-	CreatedTime              types.Time             `json:"createdTime"`
+	Source                   string                                     `json:"source"`
+	TotalConfiguredAmountUSD types.Number                               `json:"totalConfiguredAmountUsd"`
+	Products                 PrivateWealthManagementPendingPlanProducts `json:"products"`
+	CreatedTime              types.Time                                 `json:"createdTime"`
 }
 
-// PWMPendingPlanProducts holds a pending investment plan's configured products by category
-type PWMPendingPlanProducts struct {
-	MultiCoinsEarning PWMPendingProductGroup    `json:"multiCoinsEarning"`
-	FixedYield        PWMPendingFixedYieldGroup `json:"fixedYield"`
-	EquityFunds       PWMPendingEquityFundGroup `json:"equityFunds"`
-	OnchainEarn       PWMPendingProductGroup    `json:"onchainEarn"`
+// PrivateWealthManagementPendingPlanProducts holds a pending investment plan's configured products by category
+type PrivateWealthManagementPendingPlanProducts struct {
+	MultiCoinsEarning PrivateWealthManagementPendingProductGroup    `json:"multiCoinsEarning"`
+	FixedYield        PrivateWealthManagementPendingFixedYieldGroup `json:"fixedYield"`
+	EquityFunds       PrivateWealthManagementPendingEquityFundGroup `json:"equityFunds"`
+	OnchainEarn       PrivateWealthManagementPendingProductGroup    `json:"onchainEarn"`
 }
 
-// PWMPendingProductGroup holds a pending investment plan's configured flexible savings or on-chain earn products
-type PWMPendingProductGroup struct {
-	ConfiguredAmountUSD types.Number              `json:"configuredAmountUsd"`
-	Items               []PWMPendingProductConfig `json:"items"`
+// PrivateWealthManagementPendingProductGroup holds a pending investment plan's configured flexible savings or on-chain
+// earn products
+type PrivateWealthManagementPendingProductGroup struct {
+	ConfiguredAmountUSD types.Number                                  `json:"configuredAmountUsd"`
+	Items               []PrivateWealthManagementPendingProductConfig `json:"items"`
 }
 
-// PWMPendingProductConfig is a configured flexible savings or on-chain earn product of a pending investment plan
-type PWMPendingProductConfig struct {
+// PrivateWealthManagementPendingProductConfig is a configured flexible savings or on-chain earn product of a pending
+// investment plan
+type PrivateWealthManagementPendingProductConfig struct {
 	Category  string        `json:"category"`
 	ProductID string        `json:"productId"`
 	Coin      currency.Code `json:"coin"`
@@ -242,43 +244,43 @@ type PWMPendingProductConfig struct {
 	APR types.Number `json:"apr"`
 }
 
-// PWMPendingFixedYieldGroup holds a pending investment plan's configured fixed yield products
-type PWMPendingFixedYieldGroup struct {
-	ConfiguredAmountUSD types.Number                 `json:"configuredAmountUsd"`
-	Items               []PWMPendingFixedYieldConfig `json:"items"`
+// PrivateWealthManagementPendingFixedYieldGroup holds a pending investment plan's configured fixed yield products
+type PrivateWealthManagementPendingFixedYieldGroup struct {
+	ConfiguredAmountUSD types.Number                                     `json:"configuredAmountUsd"`
+	Items               []PrivateWealthManagementPendingFixedYieldConfig `json:"items"`
 }
 
-// PWMPendingFixedYieldConfig is a configured fixed yield product of a pending investment plan
-type PWMPendingFixedYieldConfig struct {
+// PrivateWealthManagementPendingFixedYieldConfig is a configured fixed yield product of a pending investment plan
+type PrivateWealthManagementPendingFixedYieldConfig struct {
 	Category         string        `json:"category"`
 	ProductID        string        `json:"productId"`
 	Coin             currency.Code `json:"coin"`
 	ConfiguredAmount types.Number  `json:"configuredAmount"`
 	APR              types.Number  `json:"apr"`
-	// Duration is the lock-up in days
-	Duration uint64 `json:"duration"`
+	// DurationInDays is the lock-up
+	DurationInDays uint64 `json:"duration"`
 }
 
-// PWMPendingEquityFundGroup holds a pending investment plan's configured equity funds
-type PWMPendingEquityFundGroup struct {
-	ConfiguredAmountUSD types.Number                 `json:"configuredAmountUsd"`
-	Items               []PWMPendingEquityFundConfig `json:"items"`
+// PrivateWealthManagementPendingEquityFundGroup holds a pending investment plan's configured equity funds
+type PrivateWealthManagementPendingEquityFundGroup struct {
+	ConfiguredAmountUSD types.Number                                     `json:"configuredAmountUsd"`
+	Items               []PrivateWealthManagementPendingEquityFundConfig `json:"items"`
 }
 
-// PWMPendingEquityFundConfig is a configured equity fund of a pending investment plan
-type PWMPendingEquityFundConfig struct {
+// PrivateWealthManagementPendingEquityFundConfig is a configured equity fund of a pending investment plan
+type PrivateWealthManagementPendingEquityFundConfig struct {
 	Category string `json:"category"`
 	// ProductID is the fund ID
-	ProductID        string              `json:"productId"`
-	FundName         string              `json:"fundName"`
-	Coin             currency.Code       `json:"coin"`
-	ConfiguredAmount types.Number        `json:"configuredAmount"`
-	Tags             []string            `json:"tags"`
-	Introduction     PWMFundIntroduction `json:"introduction"`
+	ProductID        string                                  `json:"productId"`
+	FundName         string                                  `json:"fundName"`
+	Coin             currency.Code                           `json:"coin"`
+	ConfiguredAmount types.Number                            `json:"configuredAmount"`
+	Tags             []string                                `json:"tags"`
+	Introduction     PrivateWealthManagementFundIntroduction `json:"introduction"`
 }
 
-// PWMFundIntroduction introduces an equity fund
-type PWMFundIntroduction struct {
+// PrivateWealthManagementFundIntroduction introduces an equity fund
+type PrivateWealthManagementFundIntroduction struct {
 	Description            string       `json:"description"`
 	HistoricalYieldRateMax types.Number `json:"historicalYieldRateMax"`
 	HistoricalYieldRateMin types.Number `json:"historicalYieldRateMin"`
@@ -288,16 +290,16 @@ type PWMFundIntroduction struct {
 	LockupPeriod string       `json:"lockupPeriod"`
 }
 
-// PWMClaimRequest claims the withdrawable funds of an Active investment plan
-type PWMClaimRequest struct {
+// PrivateWealthManagementClaimRequest claims the withdrawable funds of an Active investment plan
+type PrivateWealthManagementClaimRequest struct {
 	PlanID string
 	// ToAccountType defaults to FUND
 	ToAccountType string
 	OrderLinkID   string
 }
 
-// PWMClaimResponse is the outcome of a withdrawable funds claim
-type PWMClaimResponse struct {
+// PrivateWealthManagementClaimResponse is the outcome of a withdrawable funds claim
+type PrivateWealthManagementClaimResponse struct {
 	PlanID string `json:"planId"`
 	// ToAccountType is the numeric code of the destination account type, although the request takes its name
 	ToAccountType uint64     `json:"toAccountType"`
@@ -305,68 +307,70 @@ type PWMClaimResponse struct {
 	CreatedTime   types.Time `json:"createdTime"`
 }
 
-// PWMAssetTrendRequest selects an investment plan's asset values. The window defaults to the last 7 days
-type PWMAssetTrendRequest struct {
+// PrivateWealthManagementAssetTrendRequest selects an investment plan's asset values. The window defaults to the last 7
+// days
+type PrivateWealthManagementAssetTrendRequest struct {
 	PlanID    string
 	StartTime time.Time
 	EndTime   time.Time
 }
 
-// PWMAssetTrendResponse holds an investment plan's daily asset value, oldest first
-type PWMAssetTrendResponse struct {
-	PlanID     string               `json:"planId"`
-	DataPoints []PWMAssetTrendPoint `json:"dataPoints"`
+// PrivateWealthManagementAssetTrendResponse holds an investment plan's daily asset value, oldest first
+type PrivateWealthManagementAssetTrendResponse struct {
+	PlanID     string                                   `json:"planId"`
+	DataPoints []PrivateWealthManagementAssetTrendPoint `json:"dataPoints"`
 }
 
-// PWMAssetTrendPoint is an investment plan's asset value at a day's settlement
-type PWMAssetTrendPoint struct {
+// PrivateWealthManagementAssetTrendPoint is an investment plan's asset value at a day's settlement
+type PrivateWealthManagementAssetTrendPoint struct {
 	// Date is YYYY-MM-DD
 	Date          string       `json:"date"`
 	AssetValueUSD types.Number `json:"assetValueUsd"`
 }
 
-// PWMFundHistoricalNAVRequest selects a fund's NAV history. The window defaults to the last 7 days and may span at most
-// 180 days
-type PWMFundHistoricalNAVRequest struct {
+// PrivateWealthManagementFundHistoricalNAVRequest selects a fund's NAV history. The window defaults to the last 7 days
+// and may span at most 180 days
+type PrivateWealthManagementFundHistoricalNAVRequest struct {
 	FundID    string
 	StartTime time.Time
 	EndTime   time.Time
 }
 
-// PWMFundHistoricalNAVResponse holds a fund's daily NAV, oldest first
-type PWMFundHistoricalNAVResponse struct {
+// PrivateWealthManagementFundHistoricalNAVResponse holds a fund's daily NAV, oldest first
+type PrivateWealthManagementFundHistoricalNAVResponse struct {
 	FundID   string        `json:"fundId"`
 	FundName string        `json:"fundName"`
 	Coin     currency.Code `json:"coin"`
 	// CurrentNAV is the current share value divided by the initial share value
-	CurrentNAV types.Number      `json:"currentNav"`
-	DataPoints []PWMFundNAVPoint `json:"dataPoints"`
+	CurrentNAV types.Number                          `json:"currentNav"`
+	DataPoints []PrivateWealthManagementFundNAVPoint `json:"dataPoints"`
 }
 
-// PWMFundNAVPoint is a fund's NAV at a day's settlement
-type PWMFundNAVPoint struct {
+// PrivateWealthManagementFundNAVPoint is a fund's NAV at a day's settlement
+type PrivateWealthManagementFundNAVPoint struct {
 	// Date is YYYY-MM-DD
 	Date string       `json:"date"`
 	NAV  types.Number `json:"nav"`
 }
 
-// PWMSubscribeRequest subscribes to a PendingSubscription investment plan
-type PWMSubscribeRequest struct {
+// PrivateWealthManagementSubscribeRequest subscribes to a PendingSubscription investment plan
+type PrivateWealthManagementSubscribeRequest struct {
 	PlanID string
 	// AccountType is the source account, FUND by default
 	AccountType string
 	OrderLinkID string
 }
 
-// PWMSubscribeResponse is an investment plan after subscription; it becomes Active on the first successful subscription
-type PWMSubscribeResponse struct {
+// PrivateWealthManagementSubscribeResponse is an investment plan after subscription; it becomes Active on the first
+// successful subscription
+type PrivateWealthManagementSubscribeResponse struct {
 	PlanID      string `json:"planId"`
 	Status      string `json:"status"`
 	OrderLinkID string `json:"orderLinkId"`
 }
 
-// PWMInvestMoreRequest adds to a product of an Active investment plan
-type PWMInvestMoreRequest struct {
+// PrivateWealthManagementInvestMoreRequest adds to a product of an Active investment plan
+type PrivateWealthManagementInvestMoreRequest struct {
 	PlanID string
 	// AccountType is the source account, FUND by default
 	AccountType string
@@ -377,8 +381,8 @@ type PWMInvestMoreRequest struct {
 	OrderLinkID string
 }
 
-// PWMInvestMoreResponse is the outcome of an additional investment in an investment plan
-type PWMInvestMoreResponse struct {
+// PrivateWealthManagementInvestMoreResponse is the outcome of an additional investment in an investment plan
+type PrivateWealthManagementInvestMoreResponse struct {
 	PlanID      string        `json:"planId"`
 	Category    string        `json:"category"`
 	ProductID   string        `json:"productId"`
@@ -389,8 +393,8 @@ type PWMInvestMoreResponse struct {
 	OrderID     string        `json:"orderId"`
 }
 
-// PWMRedeemRequest redeems from a product of an investment plan
-type PWMRedeemRequest struct {
+// PrivateWealthManagementRedeemRequest redeems from a product of an investment plan
+type PrivateWealthManagementRedeemRequest struct {
 	PlanID   string
 	Category string
 	// ProductID is the fund ID for fund products
@@ -404,9 +408,9 @@ type PWMRedeemRequest struct {
 	PositionID string
 }
 
-// PWMRedeemResponse is the outcome of an investment plan redemption; equity fund redemptions are Pending until
-// approved, others succeed at once
-type PWMRedeemResponse struct {
+// PrivateWealthManagementRedeemResponse is the outcome of an investment plan redemption; equity fund redemptions are
+// Pending until approved, others succeed at once
+type PrivateWealthManagementRedeemResponse struct {
 	OrderID   string `json:"orderId"`
 	PlanID    string `json:"planId"`
 	Category  string `json:"category"`
@@ -421,8 +425,8 @@ type PWMRedeemResponse struct {
 	OrderLinkID     string        `json:"orderLinkId"`
 }
 
-// PWMInvestmentPlanOrdersRequest filters investment plan orders
-type PWMInvestmentPlanOrdersRequest struct {
+// PrivateWealthManagementInvestmentPlanOrdersRequest filters investment plan orders
+type PrivateWealthManagementInvestmentPlanOrdersRequest struct {
 	PlanID    string
 	Category  string
 	Type      string
@@ -435,15 +439,15 @@ type PWMInvestmentPlanOrdersRequest struct {
 	OrderLinkID string
 }
 
-// PWMInvestmentPlanOrdersResponse holds a page of investment plan orders, newest first
-type PWMInvestmentPlanOrdersResponse struct {
-	List []PWMInvestmentPlanOrder `json:"list"`
+// PrivateWealthManagementInvestmentPlanOrdersResponse holds a page of investment plan orders, newest first
+type PrivateWealthManagementInvestmentPlanOrdersResponse struct {
+	List []PrivateWealthManagementInvestmentPlanOrder `json:"list"`
 	// NextPageCursor is empty on the last page
 	NextPageCursor string `json:"nextPageCursor"`
 }
 
-// PWMInvestmentPlanOrder is a subscription, redemption or auto-reinvest order of an investment plan
-type PWMInvestmentPlanOrder struct {
+// PrivateWealthManagementInvestmentPlanOrder is a subscription, redemption or auto-reinvest order of an investment plan
+type PrivateWealthManagementInvestmentPlanOrder struct {
 	OrderID     string        `json:"orderId"`
 	PlanID      string        `json:"planId"`
 	Type        string        `json:"type"`
@@ -456,20 +460,21 @@ type PWMInvestmentPlanOrder struct {
 	OrderTime   types.Time    `json:"orderTime"`
 }
 
-// PWMSubscribableProductInfoResponse holds the products a customised investment plan can hold, by category
-type PWMSubscribableProductInfoResponse struct {
-	Products []PWMProductGroup `json:"products"`
+// PrivateWealthManagementSubscribableProductInfoResponse holds the products a customised investment plan can hold, by
+// category
+type PrivateWealthManagementSubscribableProductInfoResponse struct {
+	Products []PrivateWealthManagementProductGroup `json:"products"`
 }
 
-// PWMProductGroup holds the subscribable products of a category
-type PWMProductGroup struct {
-	Type  string           `json:"type"`
-	Cards []PWMProductCard `json:"cards"`
+// PrivateWealthManagementProductGroup holds the subscribable products of a category
+type PrivateWealthManagementProductGroup struct {
+	Type  string                               `json:"type"`
+	Cards []PrivateWealthManagementProductCard `json:"cards"`
 }
 
-// PWMProductCard is a product a customised investment plan can hold. Funds set FundName, the APR range, Introduction,
-// MaxDrawdown and SharpRatio; other products set ProductID and APR
-type PWMProductCard struct {
+// PrivateWealthManagementProductCard is a product a customised investment plan can hold. Funds set FundName, the APR
+// range, Introduction, MaxDrawdown and SharpRatio; other products set ProductID and APR
+type PrivateWealthManagementProductCard struct {
 	Category  string        `json:"category"`
 	ProductID string        `json:"productId"`
 	FundName  string        `json:"fundName"`
@@ -484,26 +489,26 @@ type PWMProductCard struct {
 	AUM                 types.Number `json:"aum"`
 	MinInvestmentAmount types.Number `json:"minInvestmentAmount"`
 	MaxInvestmentAmount types.Number `json:"maxInvestmentAmount"`
-	// Duration is the lock-up in days; 0 is flexible
-	Duration     uint64       `json:"duration"`
-	MaxDrawdown  types.Number `json:"maxDrawdown"`
-	SharpRatio   types.Number `json:"sharpRatio"`
-	EstimatedAPR types.Number `json:"estAPR"`
+	// DurationInDays is the lock-up; 0 is flexible
+	DurationInDays uint64       `json:"duration"`
+	MaxDrawdown    types.Number `json:"maxDrawdown"`
+	SharpRatio     types.Number `json:"sharpRatio"`
+	EstimatedAPR   types.Number `json:"estAPR"`
 }
 
-// PWMCustomisedPlanRequest creates and subscribes to an investment plan of subscribable products
-type PWMCustomisedPlanRequest struct {
+// PrivateWealthManagementCustomisedPlanRequest creates and subscribes to an investment plan of subscribable products
+type PrivateWealthManagementCustomisedPlanRequest struct {
 	// AccountType is the source account, FUND by default
 	AccountType string
-	Products    []PWMCustomisedPlanProduct
+	Products    []PrivateWealthManagementCustomisedPlanProduct
 	// OrderLinkID is undocumented as a request parameter, but the response echoes it and Bybit's Python SDK requires
 	// it, so it is sent when set
 	OrderLinkID string
 }
 
-// PWMCustomisedPlanProduct is a product of a customised investment plan; Category, ProductID and FundName are passed
-// through from GetPWMSubscribableProductInfo
-type PWMCustomisedPlanProduct struct {
+// PrivateWealthManagementCustomisedPlanProduct is a product of a customised investment plan; Category, ProductID and
+// FundName are passed through from GetPrivateWealthManagementSubscribableProductInfo
+type PrivateWealthManagementCustomisedPlanProduct struct {
 	Category  string
 	ProductID string
 	FundName  string
@@ -511,8 +516,8 @@ type PWMCustomisedPlanProduct struct {
 	Amount float64
 }
 
-// PWMCustomisedPlanResponse is a created customised investment plan, Active once subscribed
-type PWMCustomisedPlanResponse struct {
+// PrivateWealthManagementCustomisedPlanResponse is a created customised investment plan, Active once subscribed
+type PrivateWealthManagementCustomisedPlanResponse struct {
 	PlanID string `json:"planId"`
 	// PlanName is generated as PWM-{planId}
 	PlanName    string `json:"planName"`
@@ -520,8 +525,8 @@ type PWMCustomisedPlanResponse struct {
 	OrderLinkID string `json:"orderLinkId"`
 }
 
-// PWMFundsRequest filters the institution's funds
-type PWMFundsRequest struct {
+// PrivateWealthManagementFundsRequest filters the institution's funds
+type PrivateWealthManagementFundsRequest struct {
 	Coin   currency.Code
 	FundID string
 	Status string
@@ -530,15 +535,15 @@ type PWMFundsRequest struct {
 	Cursor string
 }
 
-// PWMFundsResponse holds a page of the institution's funds
-type PWMFundsResponse struct {
-	List []PWMFund `json:"list"`
+// PrivateWealthManagementFundsResponse holds a page of the institution's funds
+type PrivateWealthManagementFundsResponse struct {
+	List []PrivateWealthManagementFund `json:"list"`
 	// NextPageCursor is empty on the last page
 	NextPageCursor string `json:"nextPageCursor"`
 }
 
-// PWMFund is a fund managed by the institution
-type PWMFund struct {
+// PrivateWealthManagementFund is a fund managed by the institution
+type PrivateWealthManagementFund struct {
 	FundID   string        `json:"fundId"`
 	FundName string        `json:"fundName"`
 	Coin     currency.Code `json:"coin"`
@@ -563,8 +568,8 @@ type PWMFund struct {
 	CreatedTime       types.Time   `json:"createdTime"`
 }
 
-// PWMSettleFundProfitResponse is the outcome of a fund profit settlement
-type PWMSettleFundProfitResponse struct {
+// PrivateWealthManagementSettleFundProfitResponse is the outcome of a fund profit settlement
+type PrivateWealthManagementSettleFundProfitResponse struct {
 	FundID string `json:"fundId"`
 	Status string `json:"status"`
 	// TotalProfitShared and InstitutionIncome are in the coin
@@ -574,8 +579,8 @@ type PWMSettleFundProfitResponse struct {
 	CreatedTime       types.Time    `json:"createdTime"`
 }
 
-// PWMCreateFundRequest creates a fund pending subscription
-type PWMCreateFundRequest struct {
+// PrivateWealthManagementCreateFundRequest creates a fund pending subscription
+type PrivateWealthManagementCreateFundRequest struct {
 	// FundName is 1 to 50 characters
 	FundName string
 	// Coin is the fund's base coin: BTC, ETH, USDT, USDC, SOL, MNT or XRP
@@ -589,8 +594,8 @@ type PWMCreateFundRequest struct {
 	RequestLinkID    string
 }
 
-// PWMCreateFundResponse is a created fund
-type PWMCreateFundResponse struct {
+// PrivateWealthManagementCreateFundResponse is a created fund
+type PrivateWealthManagementCreateFundResponse struct {
 	FundID            string        `json:"fundId"`
 	FundName          string        `json:"fundName"`
 	Coin              currency.Code `json:"coin"`
@@ -602,26 +607,27 @@ type PWMCreateFundResponse struct {
 	CreatedTime types.Time `json:"createdTime"`
 }
 
-// PWMCreateInvestmentPlanRequest creates an investment plan of the institution's funds for a user
-type PWMCreateInvestmentPlanRequest struct {
+// PrivateWealthManagementCreateInvestmentPlanRequest creates an investment plan of the institution's funds for a user
+type PrivateWealthManagementCreateInvestmentPlanRequest struct {
 	AccountUID string
 	// PlanName is at most 50 characters
 	PlanName               string
 	PlanType               string
-	InvestmentDistribution []PWMPlanFundAllocation
+	InvestmentDistribution []PrivateWealthManagementPlanFundAllocation
 	RequestLinkID          string
 }
 
-// PWMPlanFundAllocation is a fund configured into a new investment plan
-type PWMPlanFundAllocation struct {
+// PrivateWealthManagementPlanFundAllocation is a fund configured into a new investment plan
+type PrivateWealthManagementPlanFundAllocation struct {
 	// ProductID is the fund ID
 	ProductID string
 	// Amount is in the fund's coin
 	Amount float64
 }
 
-// PWMCreateInvestmentPlanResponse is a created investment plan, PendingSubscription until the user subscribes
-type PWMCreateInvestmentPlanResponse struct {
+// PrivateWealthManagementCreateInvestmentPlanResponse is a created investment plan, PendingSubscription until the user
+// subscribes
+type PrivateWealthManagementCreateInvestmentPlanResponse struct {
 	PlanID      string     `json:"planId"`
 	PlanType    string     `json:"planType"`
 	AccountUID  string     `json:"accountUid"`
@@ -629,8 +635,8 @@ type PWMCreateInvestmentPlanResponse struct {
 	CreatedTime types.Time `json:"createdTime"`
 }
 
-// PWMAssetManagerInvestmentPlansRequest filters the investment plans the institution created
-type PWMAssetManagerInvestmentPlansRequest struct {
+// PrivateWealthManagementAssetManagerInvestmentPlansRequest filters the investment plans the institution created
+type PrivateWealthManagementAssetManagerInvestmentPlansRequest struct {
 	PlanID          string
 	Status          string
 	SubscriptionUID string
@@ -639,15 +645,16 @@ type PWMAssetManagerInvestmentPlansRequest struct {
 	Cursor string
 }
 
-// PWMAssetManagerInvestmentPlansResponse holds a page of the investment plans the institution created
-type PWMAssetManagerInvestmentPlansResponse struct {
-	List []PWMAssetManagerInvestmentPlan `json:"list"`
+// PrivateWealthManagementAssetManagerInvestmentPlansResponse holds a page of the investment plans the institution
+// created
+type PrivateWealthManagementAssetManagerInvestmentPlansResponse struct {
+	List []PrivateWealthManagementAssetManagerInvestmentPlan `json:"list"`
 	// NextPageCursor is empty on the last page
 	NextPageCursor string `json:"nextPageCursor"`
 }
 
-// PWMAssetManagerInvestmentPlan is an investment plan the institution created
-type PWMAssetManagerInvestmentPlan struct {
+// PrivateWealthManagementAssetManagerInvestmentPlan is an investment plan the institution created
+type PrivateWealthManagementAssetManagerInvestmentPlan struct {
 	PlanID   string `json:"planId"`
 	PlanName string `json:"planName"`
 	PlanType string `json:"planType"`
@@ -657,47 +664,48 @@ type PWMAssetManagerInvestmentPlan struct {
 	// Source is who created the plan: consultant, direct or institution
 	Source string `json:"source"`
 	// CurrentAssetUSD is the configured amount while the plan is PendingSubscription
-	CurrentAssetUSD        types.Number                `json:"currentAssetUsd"`
-	AccumulateYieldUSD     types.Number                `json:"accumulateYieldUsd"`
-	InvestmentDistribution []PWMInvestmentDistribution `json:"investmentDistribution"`
-	CreatedTime            types.Time                  `json:"createdTime"`
+	CurrentAssetUSD        types.Number                                    `json:"currentAssetUsd"`
+	AccumulateYieldUSD     types.Number                                    `json:"accumulateYieldUsd"`
+	InvestmentDistribution []PrivateWealthManagementInvestmentDistribution `json:"investmentDistribution"`
+	CreatedTime            types.Time                                      `json:"createdTime"`
 }
 
-// PWMManageInvestmentPlanRequest closes or deletes an investment plan, or adds funds and updates their amounts
-type PWMManageInvestmentPlanRequest struct {
+// PrivateWealthManagementManageInvestmentPlanRequest closes or deletes an investment plan, or adds funds and updates
+// their amounts
+type PrivateWealthManagementManageInvestmentPlanRequest struct {
 	PlanID string
 	// UpdateStatus is Closed or Deleted; empty leaves the status unchanged
 	UpdateStatus string
 	// UpdateFunds updates the amount of a fund already in the plan, or adds it; at most 10 funds without duplicates
-	UpdateFunds   []PWMFundAllocation
+	UpdateFunds   []PrivateWealthManagementFundAllocation
 	RequestLinkID string
 }
 
-// PWMFundAllocation is a fund's configured amount in an investment plan update
-type PWMFundAllocation struct {
+// PrivateWealthManagementFundAllocation is a fund's configured amount in an investment plan update
+type PrivateWealthManagementFundAllocation struct {
 	FundID string
 	// Amount is in the fund's coin
 	Amount float64
 }
 
-// PWMManageInvestmentPlanResponse is an investment plan after an update
-type PWMManageInvestmentPlanResponse struct {
-	PlanID      string           `json:"planId"`
-	Status      string           `json:"status"`
-	UpdatedTime types.Time       `json:"updatedTime"`
-	UpdateFunds []PWMUpdatedFund `json:"updateFunds"`
+// PrivateWealthManagementManageInvestmentPlanResponse is an investment plan after an update
+type PrivateWealthManagementManageInvestmentPlanResponse struct {
+	PlanID      string                               `json:"planId"`
+	Status      string                               `json:"status"`
+	UpdatedTime types.Time                           `json:"updatedTime"`
+	UpdateFunds []PrivateWealthManagementUpdatedFund `json:"updateFunds"`
 }
 
-// PWMUpdatedFund is a fund configured into an investment plan after an update
-type PWMUpdatedFund struct {
+// PrivateWealthManagementUpdatedFund is a fund configured into an investment plan after an update
+type PrivateWealthManagementUpdatedFund struct {
 	FundID string `json:"fundId"`
 	// Amount is in the fund's coin
 	Amount types.Number `json:"amount"`
 }
 
-// PWMFundOrdersRequest filters the orders of the institution's funds. Without a window the last 7 days are returned;
-// with one, at most the 7 days before the end time
-type PWMFundOrdersRequest struct {
+// PrivateWealthManagementFundOrdersRequest filters the orders of the institution's funds. Without a window the last 7
+// days are returned; with one, at most the 7 days before the end time
+type PrivateWealthManagementFundOrdersRequest struct {
 	FundID    string
 	OrderType string
 	Status    string
@@ -708,15 +716,15 @@ type PWMFundOrdersRequest struct {
 	Cursor string
 }
 
-// PWMFundOrdersResponse holds a page of fund orders
-type PWMFundOrdersResponse struct {
-	List []PWMFundOrder `json:"list"`
+// PrivateWealthManagementFundOrdersResponse holds a page of fund orders
+type PrivateWealthManagementFundOrdersResponse struct {
+	List []PrivateWealthManagementFundOrder `json:"list"`
 	// NextPageCursor is empty on the last page
 	NextPageCursor string `json:"nextPageCursor"`
 }
 
-// PWMFundOrder is a subscription or redemption order of a fund
-type PWMFundOrder struct {
+// PrivateWealthManagementFundOrder is a subscription or redemption order of a fund
+type PrivateWealthManagementFundOrder struct {
 	OrderID  string `json:"orderId"`
 	FundID   string `json:"fundId"`
 	FundName string `json:"fundName"`
@@ -731,16 +739,16 @@ type PWMFundOrder struct {
 	CreatedTime types.Time   `json:"createdTime"`
 }
 
-// PWMManageOrderRequest approves or rejects a fund order pending review
-type PWMManageOrderRequest struct {
+// PrivateWealthManagementManageOrderRequest approves or rejects a fund order pending review
+type PrivateWealthManagementManageOrderRequest struct {
 	OrderID string
 	// Action is approve or reject
 	Action        string
 	RequestLinkID string
 }
 
-// PWMManageOrderResponse is a fund order after approval or rejection
-type PWMManageOrderResponse struct {
+// PrivateWealthManagementManageOrderResponse is a fund order after approval or rejection
+type PrivateWealthManagementManageOrderResponse struct {
 	OrderID string `json:"orderId"`
 	FundID  string `json:"fundId"`
 	// AccountUID is the fund's main account
@@ -755,8 +763,8 @@ type PWMManageOrderResponse struct {
 	UpdatedTime types.Time   `json:"updatedTime"`
 }
 
-// PWMCreateFundSubAccountResponse is the creation status of a fund sub-account
-type PWMCreateFundSubAccountResponse struct {
+// PrivateWealthManagementCreateFundSubAccountResponse is the creation status of a fund sub-account
+type PrivateWealthManagementCreateFundSubAccountResponse struct {
 	FundID string `json:"fundId"`
 	// SubAccountUID is "0" until the sub-account is created
 	SubAccountUID string     `json:"subAccountUid"`

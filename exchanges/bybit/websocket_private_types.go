@@ -56,21 +56,21 @@ type WebsocketPosition struct {
 	// NetDeltaRatio is empty unless delta neutral mode is enabled
 	NetDeltaRatio types.PreciseNumber `json:"netDeltaRatio"`
 	// CumulativeRealisedPNL covers all time for perpetuals and futures, and the current holding for options
-	CumulativeRealisedPNL types.PreciseNumber `json:"cumRealisedPnl"`
-	PositionStatus        string              `json:"positionStatus"`
-	ADLRankIndicator      uint64              `json:"adlRankIndicator"`
-	IsReduceOnly          bool                `json:"isReduceOnly"`
-	CreatedTime           types.Time          `json:"createdTime"`
-	UpdatedTime           types.Time          `json:"updatedTime"`
-	OpenTime              types.Time          `json:"openTime"`
+	CumulativeRealisedPNL         types.PreciseNumber `json:"cumRealisedPnl"`
+	PositionStatus                string              `json:"positionStatus"`
+	AutoDeleveragingRankIndicator uint64              `json:"adlRankIndicator"`
+	IsReduceOnly                  bool                `json:"isReduceOnly"`
+	CreatedTime                   types.Time          `json:"createdTime"`
+	UpdatedTime                   types.Time          `json:"updatedTime"`
+	OpenTime                      types.Time          `json:"openTime"`
 	// Sequence is -1 for a symbol that was never traded
 	Sequence                               int64               `json:"seq"`
 	MaintenanceMarginRateSystemUpdatedTime types.Time          `json:"mmrSysUpdatedTime"`
 	LeverageSystemUpdatedTime              types.Time          `json:"leverageSysUpdatedTime"`
 	PositionInitialMarginByMarkPrice       types.PreciseNumber `json:"positionIMByMp"`
 	PositionMaintenanceMarginByMarkPrice   types.PreciseNumber `json:"positionMMByMp"`
-	// TPSLMode is deprecated and always Full
-	TPSLMode string `json:"tpslMode"`
+	// TakeProfitStopLossMode is deprecated and always Full
+	TakeProfitStopLossMode string `json:"tpslMode"`
 	// BustPrice is deprecated and always empty
 	BustPrice types.PreciseNumber `json:"bustPrice"`
 	// PositionBalance is deprecated; PositionInitialMargin replaces it
@@ -217,30 +217,30 @@ type WebsocketOrder struct {
 	SlippageToleranceType  string        `json:"slippageToleranceType"`
 	SlippageTolerance      types.Number  `json:"slippageTolerance"`
 	// TriggerPrice is the activation price of a trailing stop order
-	TriggerPrice       types.Number `json:"triggerPrice"`
-	TakeProfit         types.Number `json:"takeProfit"`
-	StopLoss           types.Number `json:"stopLoss"`
-	TPSLMode           string       `json:"tpslMode"`
-	TPLimitPrice       types.Number `json:"tpLimitPrice"`
-	SLLimitPrice       types.Number `json:"slLimitPrice"`
-	TPTriggerBy        string       `json:"tpTriggerBy"`
-	SLTriggerBy        string       `json:"slTriggerBy"`
-	TriggerDirection   uint64       `json:"triggerDirection"`
-	TriggerBy          string       `json:"triggerBy"`
-	LastPriceOnCreated types.Number `json:"lastPriceOnCreated"`
-	ReduceOnly         bool         `json:"reduceOnly"`
-	CloseOnTrigger     bool         `json:"closeOnTrigger"`
-	PlaceType          string       `json:"placeType"`
-	SMPType            string       `json:"smpType"`
-	// SMPGroup changed from a number to a string in August 2026, so either is accepted
-	SMPGroup    types.Number `json:"smpGroup"`
-	SMPOrderID  string       `json:"smpOrderId"`
-	CreatedTime types.Time   `json:"createdTime"`
-	UpdatedTime types.Time   `json:"updatedTime"`
+	TriggerPrice            types.Number `json:"triggerPrice"`
+	TakeProfit              types.Number `json:"takeProfit"`
+	StopLoss                types.Number `json:"stopLoss"`
+	TakeProfitStopLossMode  string       `json:"tpslMode"`
+	TPLimitPrice            types.Number `json:"tpLimitPrice"`
+	SLLimitPrice            types.Number `json:"slLimitPrice"`
+	TPTriggerBy             string       `json:"tpTriggerBy"`
+	SLTriggerBy             string       `json:"slTriggerBy"`
+	TriggerDirection        uint64       `json:"triggerDirection"`
+	TriggerBy               string       `json:"triggerBy"`
+	LastPriceOnCreated      types.Number `json:"lastPriceOnCreated"`
+	ReduceOnly              bool         `json:"reduceOnly"`
+	CloseOnTrigger          bool         `json:"closeOnTrigger"`
+	PlaceType               string       `json:"placeType"`
+	SelfMatchPreventionType string       `json:"smpType"`
+	// SelfMatchPreventionGroup changed from a number to a string in August 2026, so either is accepted
+	SelfMatchPreventionGroup   types.Number `json:"smpGroup"`
+	SelfMatchPreventionOrderID string       `json:"smpOrderId"`
+	CreatedTime                types.Time   `json:"createdTime"`
+	UpdatedTime                types.Time   `json:"updatedTime"`
 	// CumulativeFeeDetail holds the cumulative fees of linear and spot orders by currency
-	CumulativeFeeDetail map[currency.Code]types.Number `json:"cumFeeDetail"`
-	RPITakerAccess      bool                           `json:"rpiTakerAccess"`
-	RPIMatchedQuantity  types.Number                   `json:"rpiMatchedQty"`
+	CumulativeFeeDetail                   map[currency.Code]types.Number `json:"cumFeeDetail"`
+	RetailPriceImprovementTakerAccess     bool                           `json:"rpiTakerAccess"`
+	RetailPriceImprovementMatchedQuantity types.Number                   `json:"rpiMatchedQty"`
 }
 
 // WebsocketWalletUpdate is a push from the wallet topic (Wallet)
@@ -269,9 +269,9 @@ type WebsocketWallet struct {
 	AccountMaintenanceMarginRateByMarkPrice types.Number `json:"accountMMRateByMp"`
 	TotalInitialMarginByMarkPrice           types.Number `json:"totalInitialMarginByMp"`
 	TotalMaintenanceMarginByMarkPrice       types.Number `json:"totalMaintenanceMarginByMp"`
-	// AccountLTV is deprecated
-	AccountLTV types.Number        `json:"accountLTV"`
-	Coins      []WalletBalanceCoin `json:"coin"`
+	// AccountLoanToValue is deprecated
+	AccountLoanToValue types.Number        `json:"accountLTV"`
+	Coins              []WalletBalanceCoin `json:"coin"`
 }
 
 // WebsocketGreeksUpdate is a push from the greeks topic (Greek)
@@ -308,18 +308,17 @@ type WebsocketStrategy struct {
 	Symbol   string       `json:"symbol"`
 	Size     types.Number `json:"size"`
 	Side     string       `json:"side"`
-	// Duration is in seconds, for TWAP strategies only
-	Duration uint64 `json:"duration"`
+	// DurationInSeconds is for TWAP strategies only
+	DurationInSeconds uint64 `json:"duration"`
 	// Status is 2 running, 3 terminated, 4 terminated with orders unfilled, 5 paused or 6 not triggered yet
 	Status uint64 `json:"status"`
 	// TerminateType is 0 not terminated, 1 stopped by the user, 2 completed or 3 insufficient balance
-	TerminateType   uint64 `json:"terminateType"`
-	TerminateRemark string `json:"terminateRemark"`
-	// ExecutedDuration is in seconds
-	ExecutedDuration     uint64       `json:"executedDuration"`
-	ExecutedSize         types.Number `json:"executedSize"`
-	ExecutedAveragePrice types.Number `json:"executedAvgPrice"`
-	ExecutedStartTime    types.Time   `json:"executedStartTimeE3"`
+	TerminateType             uint64       `json:"terminateType"`
+	TerminateRemark           string       `json:"terminateRemark"`
+	ExecutedDurationInSeconds uint64       `json:"executedDuration"`
+	ExecutedSize              types.Number `json:"executedSize"`
+	ExecutedAveragePrice      types.Number `json:"executedAvgPrice"`
+	ExecutedStartTime         types.Time   `json:"executedStartTimeE3"`
 	// ExecutedEndTime is zero until the strategy ends
 	ExecutedEndTime types.Time   `json:"executedEndTimeE3"`
 	CreatedTime     types.Time   `json:"createdTimeE3"`
@@ -330,13 +329,13 @@ type WebsocketStrategy struct {
 	TriggerCount    uint64       `json:"triggerCount"`
 	TradingCount    uint64       `json:"tradingCount"`
 	ChaseDistance   types.Number `json:"chaseDistance"` // Chase and iceberg only
-	// ChasePercentE4 is in basis points, so 100 is 1%; chase and iceberg only
-	ChasePercentE4  uint64       `json:"ChasePercentE4"`
-	MaxChasePrice   types.Number `json:"maxChasePrice"`   // Chase and iceberg only
-	ChaseOrderPrice types.Number `json:"chaseOrderPrice"` // Chase only
-	StrategyPrefer  string       `json:"strategyPrefer"`
-	// Interval is the time between orders in seconds, for TWAP strategies only
-	Interval uint64 `json:"interval"`
+	// ChasePercentScaledBy1E4 is in basis points, so 100 is 1%; chase and iceberg only
+	ChasePercentScaledBy1E4 uint64       `json:"ChasePercentE4"`
+	MaxChasePrice           types.Number `json:"maxChasePrice"`   // Chase and iceberg only
+	ChaseOrderPrice         types.Number `json:"chaseOrderPrice"` // Chase only
+	StrategyPrefer          string       `json:"strategyPrefer"`
+	// IntervalInSeconds is the time between orders, for TWAP strategies only
+	IntervalInSeconds uint64 `json:"interval"`
 	// LeverageType is 0 normal or 1 margin, for spot only
 	LeverageType uint64        `json:"leverageType"`
 	PostOnly     types.Boolean `json:"postOnly"` // Iceberg only

@@ -120,7 +120,7 @@ func TestGetRFQConfig(t *testing.T) {
 			MaxLegs:                       25,
 			MaxLP:                         50,
 			MaxActiveRFQ:                  10,
-			RFQExpireTime:                 10,
+			RFQExpireTimeInMinutes:        10,
 			MinLimitQuantitySpotOrder:     10,
 			MinLimitQuantityContractOrder: 10,
 			MinLimitQuantityOptionOrder:   1,
@@ -208,12 +208,12 @@ func TestCreateRFQQuote(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	result, err := e.CreateRFQQuote(t.Context(), &CreateRFQQuoteRequest{
-		RFQID:         rfqTestID,
-		QuoteLinkID:   rfqTestQuoteLinkID,
-		Anonymous:     true,
-		ExpireIn:      60,
-		QuoteBuyList:  append(buy, RFQQuoteLegRequest{Category: "linear", Symbol: "BTCUSDT"}),
-		QuoteSellList: []RFQQuoteLegRequest{{Category: "option", Symbol: rfqTestOption, Price: 1260}},
+		RFQID:           rfqTestID,
+		QuoteLinkID:     rfqTestQuoteLinkID,
+		Anonymous:       true,
+		ExpireInSeconds: 60,
+		QuoteBuyList:    append(buy, RFQQuoteLegRequest{Category: "linear", Symbol: "BTCUSDT"}),
+		QuoteSellList:   []RFQQuoteLegRequest{{Category: "option", Symbol: rfqTestOption, Price: 1260}},
 	})
 	require.NoError(t, err, "CreateRFQQuote must not error")
 	if mockTests {

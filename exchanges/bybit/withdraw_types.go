@@ -92,16 +92,17 @@ type WithdrawalRecord struct {
 	TaxType string       `json:"taxType"`
 }
 
-// AvailableVASPsResponse lists the virtual asset service providers a Travel Rule withdrawal can name
-type AvailableVASPsResponse struct {
-	VASP []VASP `json:"vasp"`
+// AvailableVirtualAssetServiceProvidersResponse lists the virtual asset service providers a Travel Rule withdrawal can
+// name
+type AvailableVirtualAssetServiceProvidersResponse struct {
+	VirtualAssetServiceProvider []VirtualAssetServiceProvider `json:"vasp"`
 }
 
-// VASP is a virtual asset service provider that can receive withdrawals
-type VASP struct {
-	// VASPEntityID identifies the receiving platform; others covers platforms not listed
-	VASPEntityID string `json:"vaspEntityId"`
-	VASPName     string `json:"vaspName"`
+// VirtualAssetServiceProvider is a platform that can receive withdrawals
+type VirtualAssetServiceProvider struct {
+	// VirtualAssetServiceProviderEntityID identifies the receiving platform; others covers platforms not listed
+	VirtualAssetServiceProviderEntityID string `json:"vaspEntityId"`
+	VirtualAssetServiceProviderName     string `json:"vaspName"`
 }
 
 // WithdrawalRequest holds the Withdraw parameters. Coin, Address, Amount and AccountType are required, and Chain is
@@ -142,8 +143,9 @@ type WithdrawalBeneficiary struct {
 	TransactionPurpose      string
 	RepresentativeFirstName string
 	RepresentativeLastName  string
-	// VASPEntityID is the receiving platform from GetAvailableVASPs, required for Korean users
-	VASPEntityID string
+	// VirtualAssetServiceProviderEntityID is the receiving platform from GetAvailableVirtualAssetServiceProviders,
+	// required for Korean users
+	VirtualAssetServiceProviderEntityID string
 	// Name is the receiver's KYC name, individual or company
 	Name string
 	// LegalType is individual, the API's default, or company
@@ -152,12 +154,13 @@ type WithdrawalBeneficiary struct {
 	WalletType string
 	// UnhostedWalletType is 0 for the user's own wallet or 1 for another's, for a non-custodial wallet
 	UnhostedWalletType string
-	// POINumber, POIType, POIIssuingCountry and POIExpiredDate describe the receiver's identity document, required for
-	// Turkey and Kazakhstan users; POIIssuingCountry is an ISO 3166-1 alpha-3 code
-	POINumber         string
-	POIType           string
-	POIIssuingCountry string
-	POIExpiredDate    time.Time
+	// ProofOfIdentityNumber, ProofOfIdentityType, ProofOfIdentityIssuingCountry and ProofOfIdentityExpiredDate describe
+	// the receiver's identity document, required for Turkey and Kazakhstan users; ProofOfIdentityIssuingCountry is an
+	// ISO 3166-1 alpha-3 code
+	ProofOfIdentityNumber         string
+	ProofOfIdentityType           string
+	ProofOfIdentityIssuingCountry string
+	ProofOfIdentityExpiredDate    time.Time
 	// The address, date of birth and place of birth fields are required for UAE users
 	AddressCountry    string
 	AddressState      string
@@ -181,8 +184,9 @@ type TravelRuleQuestionnaire struct {
 	WalletType uint64
 	// LegalType is individual or company, and is required
 	LegalType string
-	// VASPCode is the counterparty's VASP code from GetAvailableVASPs, others when not listed; custodial wallets need it
-	VASPCode string
+	// VirtualAssetServiceProviderCode is the counterparty's VASP code from GetAvailableVirtualAssetServiceProviders,
+	// others when not listed; custodial wallets need it
+	VirtualAssetServiceProviderCode string
 	// IsSelfWallet says whether a non-custodial wallet belongs to the user
 	IsSelfWallet *bool
 	// FirstName and LastName are required for an individual
@@ -192,13 +196,13 @@ type TravelRuleQuestionnaire struct {
 	CompanyName string
 	// TransactionPurpose is required in the EU and Turkey and is at least 20 characters
 	TransactionPurpose string
-	// POIType, POINumber, POIIssuingCountry and POIExpiredDate describe the proof of identity document Turkey and
-	// Kazakhstan require. POIType is ID_CARD, PASSPORT, DRIVERS, RESIDENCE_PERMIT or OTHER, and POIIssuingCountry an
-	// ISO 3166-1 alpha-3 code
-	POIType           string
-	POINumber         string
-	POIIssuingCountry string
-	POIExpiredDate    time.Time
+	// ProofOfIdentityType, ProofOfIdentityNumber, ProofOfIdentityIssuingCountry and ProofOfIdentityExpiredDate describe
+	// the proof of identity document Turkey and Kazakhstan require. ProofOfIdentityType is ID_CARD, PASSPORT, DRIVERS,
+	// RESIDENCE_PERMIT or OTHER, and ProofOfIdentityIssuingCountry an ISO 3166-1 alpha-3 code
+	ProofOfIdentityType           string
+	ProofOfIdentityNumber         string
+	ProofOfIdentityIssuingCountry string
+	ProofOfIdentityExpiredDate    time.Time
 	// RepresentativeFirstName and RepresentativeLastName name a company's representative for Korean withdrawals
 	RepresentativeFirstName string
 	RepresentativeLastName  string

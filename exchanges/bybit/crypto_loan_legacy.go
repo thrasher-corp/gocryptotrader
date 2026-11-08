@@ -79,7 +79,7 @@ func (e *Exchange) GetLegacyCryptoLoanUnpaidLoans(ctx context.Context, req *Lega
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if req.LoanTermType == "1" && req.LoanTerm == 0 {
+	if req.LoanTermType == "1" && req.LoanTermInDays == 0 {
 		return nil, fmt.Errorf("%w for fixed term loans", errLoanTermRequired)
 	}
 	params := url.Values{}
@@ -95,8 +95,8 @@ func (e *Exchange) GetLegacyCryptoLoanUnpaidLoans(ctx context.Context, req *Lega
 	if req.LoanTermType != "" {
 		params.Set("loanTermType", req.LoanTermType)
 	}
-	if req.LoanTerm > 0 {
-		params.Set("loanTerm", strconv.FormatUint(req.LoanTerm, 10))
+	if req.LoanTermInDays > 0 {
+		params.Set("loanTerm", strconv.FormatUint(req.LoanTermInDays, 10))
 	}
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
@@ -195,9 +195,9 @@ func (e *Exchange) AdjustLegacyCryptoLoanCollateralAmount(ctx context.Context, r
 	}, &resp, defaultEPL)
 }
 
-// GetLegacyCryptoLoanLTVAdjustmentHistory returns up to six months of the account's legacy crypto loan collateral
-// adjustments (Get Loan LTV Adjustment History)
-func (e *Exchange) GetLegacyCryptoLoanLTVAdjustmentHistory(ctx context.Context, req *LegacyCryptoLoanLTVAdjustmentHistoryRequest) (*LegacyCryptoLoanLTVAdjustmentHistoryResponse, error) {
+// GetLegacyCryptoLoanLoanToValueAdjustmentHistory returns up to six months of the account's legacy crypto loan
+// collateral adjustments (Get Loan LTV Adjustment History)
+func (e *Exchange) GetLegacyCryptoLoanLoanToValueAdjustmentHistory(ctx context.Context, req *LegacyCryptoLoanLoanToValueAdjustmentHistoryRequest) (*LegacyCryptoLoanLoanToValueAdjustmentHistoryResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -217,6 +217,6 @@ func (e *Exchange) GetLegacyCryptoLoanLTVAdjustmentHistory(ctx context.Context, 
 	if req.Cursor != "" {
 		params.Set("cursor", req.Cursor)
 	}
-	var resp *LegacyCryptoLoanLTVAdjustmentHistoryResponse
+	var resp *LegacyCryptoLoanLoanToValueAdjustmentHistoryResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/crypto-loan/adjustment-history", params, nil, &resp, defaultEPL)
 }

@@ -46,12 +46,11 @@ type CreateRFQResponse struct {
 
 // RFQConfigResponse holds the caller's desk code, RFQ limits and the quoting parties RFQs can be sent to
 type RFQConfigResponse struct {
-	DeskCode     string `json:"deskCode"`
-	MaxLegs      uint64 `json:"maxLegs"`
-	MaxLP        uint64 `json:"maxLP"`
-	MaxActiveRFQ uint64 `json:"maxActiveRfq"`
-	// RFQExpireTime is in minutes
-	RFQExpireTime                 uint64            `json:"rfqExpireTime"`
+	DeskCode                      string            `json:"deskCode"`
+	MaxLegs                       uint64            `json:"maxLegs"`
+	MaxLP                         uint64            `json:"maxLP"`
+	MaxActiveRFQ                  uint64            `json:"maxActiveRfq"`
+	RFQExpireTimeInMinutes        uint64            `json:"rfqExpireTime"`
 	MinLimitQuantitySpotOrder     uint64            `json:"minLimitQtySpotOrder"`
 	MinLimitQuantityContractOrder uint64            `json:"minLimitQtyContractOrder"`
 	MinLimitQuantityOptionOrder   uint64            `json:"minLimitQtyOptionOrder"`
@@ -97,10 +96,10 @@ type CreateRFQQuoteRequest struct {
 	RFQID       string
 	QuoteLinkID string
 	Anonymous   bool
-	// ExpireIn is the quote's lifetime in seconds; Bybit defaults it to 60
-	ExpireIn      uint64
-	QuoteBuyList  []RFQQuoteLegRequest
-	QuoteSellList []RFQQuoteLegRequest
+	// ExpireInSeconds is the quote's lifetime; Bybit defaults it to 60
+	ExpireInSeconds uint64
+	QuoteBuyList    []RFQQuoteLegRequest
+	QuoteSellList   []RFQQuoteLegRequest
 }
 
 // RFQQuoteLegRequest is the price of one leg of a quote to create

@@ -16,17 +16,17 @@ import (
 
 // Strategy request validation errors
 var (
-	errStrategyIDRequired                = errors.New("strategy ID required")
-	errStrategyTypeRequired              = errors.New("strategy type required")
-	errStrategySizeRequired              = errors.New("strategy size or position value required")
-	errStrategySizeWithPositionValue     = errors.New("strategy size and position value are mutually exclusive")
-	errStrategyDurationRequired          = errors.New("strategy duration required")
-	errStrategyPOVParametersRequired     = errors.New("POV strategy parameters required")
-	errStrategyPOVModeRequired           = errors.New("POV strategy mode required")
-	errStrategyParticipationRateRequired = errors.New("POV strategy participation rate required")
-	errStrategyPOVStopConditionRequired  = errors.New("POV strategy needs a duration, size, position value or one-time interval")
-	errStrategyReferenceWindowRequired   = errors.New("POV strategy reference window required for TradedVolume mode")
-	errStrategyDepthReferenceRequired    = errors.New("POV strategy depth reference required for liquidity modes")
+	errStrategyIDRequired                              = errors.New("strategy ID required")
+	errStrategyTypeRequired                            = errors.New("strategy type required")
+	errStrategySizeRequired                            = errors.New("strategy size or position value required")
+	errStrategySizeWithPositionValue                   = errors.New("strategy size and position value are mutually exclusive")
+	errStrategyDurationRequired                        = errors.New("strategy duration required")
+	errStrategyPercentageOfVolumeParametersRequired    = errors.New("POV strategy parameters required")
+	errStrategyPercentageOfVolumeModeRequired          = errors.New("POV strategy mode required")
+	errStrategyParticipationRateRequired               = errors.New("POV strategy participation rate required")
+	errStrategyPercentageOfVolumeStopConditionRequired = errors.New("POV strategy needs a duration, size, position value or one-time interval")
+	errStrategyReferenceWindowRequired                 = errors.New("POV strategy reference window required for TradedVolume mode")
+	errStrategyDepthReferenceRequired                  = errors.New("POV strategy depth reference required for liquidity modes")
 )
 
 // errStrategyOrderFailed is returned when Bybit accepts a strategy order request but reports that the strategy was not
@@ -60,13 +60,13 @@ func (e *Exchange) CreateStrategyOrder(ctx context.Context, arg *CreateStrategyO
 			return nil, errStrategyDurationRequired
 		}
 	case "pov":
-		if arg.POVParameters == nil {
-			return nil, errStrategyPOVParametersRequired
+		if arg.PercentageOfVolumeParameters == nil {
+			return nil, errStrategyPercentageOfVolumeParametersRequired
 		}
-		if arg.POVParameters.Mode == "" {
-			return nil, errStrategyPOVModeRequired
+		if arg.PercentageOfVolumeParameters.Mode == "" {
+			return nil, errStrategyPercentageOfVolumeModeRequired
 		}
-		if arg.POVParameters.ParticipationRate <= 0 {
+		if arg.PercentageOfVolumeParameters.ParticipationRate <= 0 {
 			return nil, errStrategyParticipationRateRequired
 		}
 		if arg.Size > 0 && arg.PositionValue > 0 {
@@ -74,15 +74,15 @@ func (e *Exchange) CreateStrategyOrder(ctx context.Context, arg *CreateStrategyO
 		}
 		oneTime := arg.Interval != nil && *arg.Interval < time.Second
 		if arg.Duration < time.Second && arg.Size <= 0 && arg.PositionValue <= 0 && !oneTime {
-			return nil, errStrategyPOVStopConditionRequired
+			return nil, errStrategyPercentageOfVolumeStopConditionRequired
 		}
-		switch arg.POVParameters.Mode {
+		switch arg.PercentageOfVolumeParameters.Mode {
 		case "TradedVolume":
-			if arg.POVParameters.ReferenceWindow < time.Second {
+			if arg.PercentageOfVolumeParameters.ReferenceWindow < time.Second {
 				return nil, errStrategyReferenceWindowRequired
 			}
 		case "OppositeSideLiquidity", "SameSideLiquidity":
-			if arg.POVParameters.DepthReference == 0 {
+			if arg.PercentageOfVolumeParameters.DepthReference == 0 {
 				return nil, errStrategyDepthReferenceRequired
 			}
 		}
@@ -125,8 +125,8 @@ func (e *Exchange) CreateStrategyOrder(ctx context.Context, arg *CreateStrategyO
 	if arg.ChaseDistance != 0 {
 		body["chaseDistance"] = strconv.FormatFloat(arg.ChaseDistance, 'f', -1, 64)
 	}
-	if arg.ChasePercentE4 != 0 {
-		body["chasePercentE4"] = arg.ChasePercentE4
+	if arg.ChasePercentScaledBy1E4 != 0 {
+		body["chasePercentE4"] = arg.ChasePercentScaledBy1E4
 	}
 	if arg.SubSize != 0 {
 		body["subSize"] = strconv.FormatFloat(arg.SubSize, 'f', -1, 64)
@@ -143,7 +143,7 @@ func (e *Exchange) CreateStrategyOrder(ctx context.Context, arg *CreateStrategyO
 	if arg.LimitPrice != 0 {
 		body["limitPrice"] = strconv.FormatFloat(arg.LimitPrice, 'f', -1, 64)
 	}
-	if p := arg.POVParameters; p != nil {
+	if p := arg.PercentageOfVolumeParameters; p != nil {
 		parameters := make(map[string]any)
 		parameters["mode"] = p.Mode
 		parameters["participationRate"] = strconv.FormatFloat(p.ParticipationRate, 'f', -1, 64)

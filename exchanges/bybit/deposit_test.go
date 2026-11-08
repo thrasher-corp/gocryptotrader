@@ -410,7 +410,7 @@ func TestSubmitDepositOriginatorInfo(t *testing.T) {
 	arg.DepositID = 1234567890
 	_, err = e.SubmitDepositOriginatorInfo(t.Context(), arg)
 	require.ErrorIs(t, err, errQuestionnaireRequired, "SubmitDepositOriginatorInfo must reject a missing questionnaire")
-	arg.Questionnaire = &TravelRuleQuestionnaire{VASPCode: "BINANCEUS_VASP", FirstName: "John", LastName: "Smith"}
+	arg.Questionnaire = &TravelRuleQuestionnaire{VirtualAssetServiceProviderCode: "BINANCEUS_VASP", FirstName: "John", LastName: "Smith"}
 	_, err = e.SubmitDepositOriginatorInfo(t.Context(), arg)
 	require.ErrorIs(t, err, errLegalTypeRequired, "SubmitDepositOriginatorInfo must reject a questionnaire without a legal type")
 

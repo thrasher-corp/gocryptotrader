@@ -164,27 +164,28 @@ type InstitutionalLoanRepaymentOrder struct {
 	Status       string        `json:"status"`       // 1: success, 2: fail
 }
 
-// InstitutionalLoanLTVResponse holds the loan-to-value ratio of each risk unit
-type InstitutionalLoanLTVResponse struct {
-	LTVInfo []InstitutionalLoanLTV `json:"ltvInfo"`
+// InstitutionalLoanLoanToValueResponse holds the loan-to-value ratio of each risk unit
+type InstitutionalLoanLoanToValueResponse struct {
+	LoanToValueInfo []InstitutionalLoanLoanToValue `json:"ltvInfo"`
 	// LiquidationStatus is 0 normal, 1 under liquidation, 2 manual repayment in progress or 3 transfer in progress
 	LiquidationStatus uint64 `json:"liqStatus"`
 }
 
-// InstitutionalLoanLTV holds a risk unit's loan-to-value ratio, debts and margin assets. While LiquidationStatus is not
-// 0, Bybit sends LTV, UnpaidAmount and Balance empty, which decode as 0, and UnpaidInfo and BalanceInfo empty
-type InstitutionalLoanLTV struct {
-	LTV types.Number `json:"ltv"`
-	// RemainingLiquidationTime is documented only as "remaining liquidation time (UTC time in seconds)", which may be a
-	// countdown or a Unix time, so it is kept as a number; it is empty until liquidation is triggered
-	RemainingLiquidationTime types.Number               `json:"rst"`
-	ParentUID                string                     `json:"parentUid"` // Designated risk unit UID bound to the loan
-	SubAccountUIDs           []string                   `json:"subAccountUids"`
-	UnpaidAmount             types.Number               `json:"unpaidAmount"` // Total debt in USD
-	UnpaidInfo               []InstitutionalLoanUnpaid  `json:"unpaidInfo"`
-	Balance                  types.Number               `json:"balance"` // Total margin assets converted to USDT
-	BalanceInfo              []InstitutionalLoanBalance `json:"balanceInfo"`
-	LiquidationStatus        uint64                     `json:"liqStatus"` // As InstitutionalLoanLTVResponse.LiquidationStatus
+// InstitutionalLoanLoanToValue holds a risk unit's loan-to-value ratio, debts and margin assets. While
+// LiquidationStatus is not 0, Bybit sends LoanToValue, UnpaidAmountInUSD and BalanceInUSDT empty, which decode as 0,
+// and UnpaidInfo and BalanceInfo empty
+type InstitutionalLoanLoanToValue struct {
+	LoanToValue types.Number `json:"ltv"`
+	// RemainingLiquidationTimeInSeconds is documented only as "remaining liquidation time (UTC time in seconds)", which
+	// may be a countdown or a Unix time, so it is kept as a number; it is empty until liquidation is triggered
+	RemainingLiquidationTimeInSeconds types.Number               `json:"rst"`
+	ParentUID                         string                     `json:"parentUid"` // Designated risk unit UID bound to the loan
+	SubAccountUIDs                    []string                   `json:"subAccountUids"`
+	UnpaidAmountInUSD                 types.Number               `json:"unpaidAmount"` // Total debt
+	UnpaidInfo                        []InstitutionalLoanUnpaid  `json:"unpaidInfo"`
+	BalanceInUSDT                     types.Number               `json:"balance"` // Total margin assets
+	BalanceInfo                       []InstitutionalLoanBalance `json:"balanceInfo"`
+	LiquidationStatus                 uint64                     `json:"liqStatus"` // As InstitutionalLoanLoanToValueResponse.LiquidationStatus
 }
 
 // InstitutionalLoanUnpaid holds a coin's institutional loan debt
@@ -216,23 +217,23 @@ type RepayInstitutionalLoanResponse struct {
 // InstitutionalLoanCoinDeltaAmountResponse holds the delta limits of an institutional loan hedge product's risk unit
 // and coins
 type InstitutionalLoanCoinDeltaAmountResponse struct {
-	RiskUnitDeltaAmount          types.Number                     `json:"riskUnitDeltaAmount"`          // Total limit in USD
-	RiskUnitDeltaAvailableAmount types.Number                     `json:"riskUnitDeltaAvailableAmount"` // In USD
-	RiskUnitDelta                types.Number                     `json:"riskUnitDelta"`
-	List                         []InstitutionalLoanCoinDeltaInfo `json:"list"`
+	RiskUnitDeltaAmountInUSD          types.Number                     `json:"riskUnitDeltaAmount"` // Total limit
+	RiskUnitDeltaAvailableAmountInUSD types.Number                     `json:"riskUnitDeltaAvailableAmount"`
+	RiskUnitDelta                     types.Number                     `json:"riskUnitDelta"`
+	List                              []InstitutionalLoanCoinDeltaInfo `json:"list"`
 }
 
 // InstitutionalLoanCoinDeltaInfo holds a coin's delta and delta limits
 type InstitutionalLoanCoinDeltaInfo struct {
-	Coin                     currency.Code `json:"coin"`
-	CoinDeltaSize            types.Number  `json:"coinDeltaSize"`            // In coin
-	CoinDeltaAvailableAmount types.Number  `json:"coinDeltaAvailableAmount"` // In USD
-	CoinDeltaAmount          types.Number  `json:"coinDeltaAmount"`          // Total limit in USD
+	Coin                          currency.Code `json:"coin"`
+	CoinDeltaSize                 types.Number  `json:"coinDeltaSize"` // In coin
+	CoinDeltaAvailableAmountInUSD types.Number  `json:"coinDeltaAvailableAmount"`
+	CoinDeltaAmountInUSD          types.Number  `json:"coinDeltaAmount"` // Total limit
 }
 
 // InstitutionalLoanDelayLiquidationStatusResponse holds an institutional loan account's LTV and liquidation state
 type InstitutionalLoanDelayLiquidationStatusResponse struct {
-	LTV types.Number `json:"ltv"`
+	LoanToValue types.Number `json:"ltv"`
 	// LiquidationStatus is 0 normal, 1 passive liquidation, 2 callback liquidation or 3 delay liquidation in progress
 	LiquidationStatus uint64 `json:"liquidationStatus"`
 	// DelayLiquidationStartTime and DelayLiquidationRemainingSeconds are set only while LiquidationStatus is 3

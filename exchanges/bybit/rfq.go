@@ -152,8 +152,8 @@ func (e *Exchange) CreateRFQQuote(ctx context.Context, req *CreateRFQQuoteReques
 	if req.Anonymous {
 		body["anonymous"] = true
 	}
-	if req.ExpireIn != 0 {
-		body["expireIn"] = req.ExpireIn
+	if req.ExpireInSeconds != 0 {
+		body["expireIn"] = req.ExpireInSeconds
 	}
 	if len(req.QuoteBuyList) != 0 {
 		legs, err := rfqQuoteLegsBody(req.QuoteBuyList)

@@ -240,7 +240,7 @@ var _ websocket.SendTimeStamper = timedTradeRequest{}
 // StampSendTime returns a copy of the request stamped with the time it is sent
 func (r timedTradeRequest) StampSendTime(t time.Time) any {
 	header := *r.Header
-	header.Timestamp = strconv.FormatInt(t.UnixMilli(), 10)
+	header.TimestampInMilliseconds = strconv.FormatInt(t.UnixMilli(), 10)
 	stamped := *r.WebsocketTradeRequest
 	stamped.Header = &header
 	return &stamped
@@ -251,7 +251,7 @@ func sendWebsocketTradeRequest[T any](ctx context.Context, e *Exchange, conn web
 	// The trade connection stamps the request again once its rate limit wait is over, through StampSendTime
 	req := &WebsocketTradeRequest{
 		RequestID: e.MessageID(),
-		Header:    &WebsocketTradeRequestHeader{Timestamp: strconv.FormatInt(time.Now().UnixMilli(), 10)},
+		Header:    &WebsocketTradeRequestHeader{TimestampInMilliseconds: strconv.FormatInt(time.Now().UnixMilli(), 10)},
 		Operation: op,
 		Arguments: []any{args},
 	}

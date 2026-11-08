@@ -58,7 +58,7 @@ func TestRequestDemoTradingFunds(t *testing.T) {
 	// The mock serves every URL key, the demo trading host's RestSandbox included
 	err = e.RequestDemoTradingFunds(t.Context(), &DemoTradingFundsRequest{
 		AdjustType: 1,
-		UTADemoApplyMoney: []DemoApplyMoney{
+		UnifiedTradingAccountDemoApplyMoney: []DemoApplyMoney{
 			{Coin: currency.USDT, Amount: 109},
 			{Coin: currency.ETH, Amount: 1},
 		},

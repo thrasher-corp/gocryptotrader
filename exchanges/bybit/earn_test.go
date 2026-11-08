@@ -101,7 +101,7 @@ func TestGetEarnProductInfo(t *testing.T) {
 						Status:                  "NotAvailable",
 						BonusEvents:             []EarnBonusEvent{},
 						Duration:                "Fixed",
-						Term:                    45,
+						TermInDays:              45,
 						RewardDistributionType:  "Simple",
 						RewardIntervalMinute:    64800,
 						RedeemProcessingMinute:  64800,
@@ -576,7 +576,7 @@ func TestGetEarnCouponList(t *testing.T) {
 					SpecCode:                "DA_APY_3PCT_30D",
 					Coin:                    currency.USDT,
 					APY:                     0.03,
-					Duration:                30,
+					DurationInDays:          30,
 					ClaimedAt:               types.Time(time.Unix(1759900800, 0)),
 					ExpireAt:                types.Time(time.Unix(1762492800, 0)),
 					UsedAt:                  types.Time(time.Unix(1759987200, 0)),
@@ -632,20 +632,20 @@ func TestGetBYUSDTProductInfo(t *testing.T) {
 			require.NoError(t, err, "GetBYUSDTProductInfo must not error")
 			if mockTests {
 				exp := &BYUSDTProductInfoResponse{
-					ProductID:         "1",
-					Coin:              currency.NewCode("BYUSDT"),
-					MintFeeRateE8:     5000000,
-					RedeemFeeRateE8:   100000,
-					MinInvestment:     100,
-					UserHolding:       588,
-					LeftQuota:         999412,
-					CanMint:           true,
-					SavingsBalance:    1412,
-					APRE8:             1890000,
-					BonusAPRE8:        1000000,
-					BonusMaxAmount:    100000,
-					BaseCoinPrecision: 4,
-					TokenPrecision:    4,
+					ProductID:                "1",
+					Coin:                     currency.NewCode("BYUSDT"),
+					MintFeeRateScaledBy1E8:   5000000,
+					RedeemFeeRateScaledBy1E8: 100000,
+					MinInvestmentInUSDT:      100,
+					UserHolding:              588,
+					LeftQuota:                999412,
+					CanMint:                  true,
+					SavingsBalance:           1412,
+					APRScaledBy1E8:           1890000,
+					BonusAPRScaledBy1E8:      1000000,
+					BonusMaxAmount:           100000,
+					BaseCoinPrecision:        4,
+					TokenPrecision:           4,
 				}
 				assert.Equal(t, exp, result, "GetBYUSDTProductInfo should decode every field")
 				return
@@ -797,13 +797,13 @@ func TestGetBYUSDTPositionInfo(t *testing.T) {
 	require.NoError(t, err, "GetBYUSDTPositionInfo must not error")
 	if mockTests {
 		exp := &BYUSDTPositionInfoResponse{
-			TotalAmount:    696,
-			TotalYield:     1.2345,
-			YesterdayYield: 0.1142,
-			APRE8:          60000000,
-			BonusAPRE8:     20000000,
-			BonusMaxAmount: 1000,
-			HasQuota:       true,
+			TotalAmount:         696,
+			TotalYield:          1.2345,
+			YesterdayYield:      0.1142,
+			APRScaledBy1E8:      60000000,
+			BonusAPRScaledBy1E8: 20000000,
+			BonusMaxAmount:      1000,
+			HasQuota:            true,
 		}
 		assert.Equal(t, exp, result, "GetBYUSDTPositionInfo should decode every field")
 		return
@@ -874,7 +874,7 @@ func TestGetBYUSDTHourlyYieldRecords(t *testing.T) {
 				{
 					EffectiveAmount: 500,
 					Yield:           0.02,
-					APRE8:           500000000,
+					APRScaledBy1E8:  500000000,
 					HourlyDate:      types.Time(time.Unix(1775088000, 0)),
 					CreatedTime:     types.Time(time.Unix(1775091600, 0)),
 				},
@@ -882,7 +882,7 @@ func TestGetBYUSDTHourlyYieldRecords(t *testing.T) {
 					EffectiveAmount: 500,
 					Yield:           0.01,
 					RewardType:      1,
-					APRE8:           200000000,
+					APRScaledBy1E8:  200000000,
 					HourlyDate:      types.Time(time.Unix(1775088000, 0)),
 					CreatedTime:     types.Time(time.Unix(1775091600, 0)),
 				},
@@ -912,12 +912,12 @@ func TestGetBYUSDTHistoryAPR(t *testing.T) {
 		exp := &BYUSDTHistoryAPRResponse{
 			List: []BYUSDTHistoryAPR{
 				{
-					Timestamp: types.Time(time.Unix(1791331200, 0)),
-					APRE8:     2160000,
+					Timestamp:      types.Time(time.Unix(1791331200, 0)),
+					APRScaledBy1E8: 2160000,
 				},
 				{
-					Timestamp: types.Time(time.Unix(1791417600, 0)),
-					APRE8:     2010000,
+					Timestamp:      types.Time(time.Unix(1791417600, 0)),
+					APRScaledBy1E8: 2010000,
 				},
 			},
 		}

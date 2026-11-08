@@ -7,13 +7,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// RWAProductListResponse holds real world asset products
-type RWAProductListResponse struct {
-	List []RWAProduct `json:"list"`
+// RealWorldAssetProductListResponse holds real world asset products
+type RealWorldAssetProductListResponse struct {
+	List []RealWorldAssetProduct `json:"list"`
 }
 
-// RWAProduct is a real world asset product
-type RWAProduct struct {
+// RealWorldAssetProduct is a real world asset product
+type RealWorldAssetProduct struct {
 	// ProductID is documented as an integer, but the API sends it quoted
 	ProductID types.Number `json:"productId"`
 	// Coin is the settlement coin
@@ -25,8 +25,8 @@ type RWAProduct struct {
 	BaseAPR    types.Number `json:"baseApr"`
 	BonusAPR   types.Number `json:"bonusApr"`
 	SavingType string       `json:"savingType"`
-	// Duration is the lock-up in days, 0 for Flexible products
-	Duration uint64 `json:"duration"`
+	// DurationInDays is the lock-up, 0 for Flexible products
+	DurationInDays uint64 `json:"duration"`
 	// NAV is the latest net asset value per share
 	NAV types.Number `json:"nav"`
 	// MinStakeAmount and MaxStakeAmount are in the settlement coin; MaxStakeAmount, UserMaxAmount and UserQuota are
@@ -47,8 +47,8 @@ type RWAProduct struct {
 	RedeemDurationMinutes uint64 `json:"redeem_duration_mins"`
 }
 
-// PlaceRWAOrderRequest is a real world asset stake or redeem order
-type PlaceRWAOrderRequest struct {
+// PlaceRealWorldAssetOrderRequest is a real world asset stake or redeem order
+type PlaceRealWorldAssetOrderRequest struct {
 	ProductID uint64
 	OrderType string
 	// Coin is the settlement coin
@@ -62,19 +62,19 @@ type PlaceRWAOrderRequest struct {
 	AccountType  string
 }
 
-// PlaceRWAOrderResponse identifies an accepted real world asset order, which settles asynchronously
-type PlaceRWAOrderResponse struct {
+// PlaceRealWorldAssetOrderResponse identifies an accepted real world asset order, which settles asynchronously
+type PlaceRealWorldAssetOrderResponse struct {
 	OrderID     string `json:"orderId"`
 	OrderLinkID string `json:"orderLinkId"`
 }
 
-// RWAPositionListResponse holds real world asset positions
-type RWAPositionListResponse struct {
-	List []RWAPosition `json:"list"`
+// RealWorldAssetPositionListResponse holds real world asset positions
+type RealWorldAssetPositionListResponse struct {
+	List []RealWorldAssetPosition `json:"list"`
 }
 
-// RWAPosition is a real world asset position
-type RWAPosition struct {
+// RealWorldAssetPosition is a real world asset position
+type RealWorldAssetPosition struct {
 	// ProductID is documented as an integer, but the product endpoints send it quoted
 	ProductID   types.Number  `json:"productId"`
 	Coin        currency.Code `json:"coin"`
@@ -88,13 +88,13 @@ type RWAPosition struct {
 	NAV                   types.Number `json:"nav"`
 	// HoldAmount is EffectiveShare times NAV, in the settlement coin
 	HoldAmount types.Number `json:"holdAmount"`
-	// Duration is the lock-up in days, 0 for Flexible products
-	Duration uint64 `json:"duration"`
+	// DurationInDays is the lock-up, 0 for Flexible products
+	DurationInDays uint64 `json:"duration"`
 }
 
-// RWAOrderListRequest filters real world asset orders. An OrderID, or else an OrderLinkID, selects one order and
-// ignores the other filters; the window defaults to the last 7 days and reaches back at most 180 days
-type RWAOrderListRequest struct {
+// RealWorldAssetOrderListRequest filters real world asset orders. An OrderID, or else an OrderLinkID, selects one order
+// and ignores the other filters; the window defaults to the last 7 days and reaches back at most 180 days
+type RealWorldAssetOrderListRequest struct {
 	OrderID     string
 	OrderLinkID string
 	OrderType   string
@@ -105,14 +105,14 @@ type RWAOrderListRequest struct {
 	Cursor      string
 }
 
-// RWAOrderListResponse holds a page of real world asset orders
-type RWAOrderListResponse struct {
-	List           []RWAOrder `json:"list"`
-	NextPageCursor string     `json:"nextPageCursor"`
+// RealWorldAssetOrderListResponse holds a page of real world asset orders
+type RealWorldAssetOrderListResponse struct {
+	List           []RealWorldAssetOrder `json:"list"`
+	NextPageCursor string                `json:"nextPageCursor"`
 }
 
-// RWAOrder is a real world asset stake or redeem order
-type RWAOrder struct {
+// RealWorldAssetOrder is a real world asset stake or redeem order
+type RealWorldAssetOrder struct {
 	OrderID     string `json:"orderId"`
 	OrderLinkID string `json:"orderLinkId"`
 	OrderType   string `json:"orderType"`
@@ -131,23 +131,23 @@ type RWAOrder struct {
 	SettledAmount types.Number `json:"settledAmount"`
 }
 
-// RWANAVChartRequest selects a real world asset product's NAV history. The window defaults to the 7 days before the
-// end time, which defaults to now, and may span at most 180 days
-type RWANAVChartRequest struct {
+// RealWorldAssetNAVChartRequest selects a real world asset product's NAV history. The window defaults to the 7 days
+// before the end time, which defaults to now, and may span at most 180 days
+type RealWorldAssetNAVChartRequest struct {
 	ProductID uint64
 	StartTime time.Time
 	EndTime   time.Time
 }
 
-// RWANAVChartResponse holds a real world asset product's daily NAV, oldest first
-type RWANAVChartResponse struct {
+// RealWorldAssetNAVChartResponse holds a real world asset product's daily NAV, oldest first
+type RealWorldAssetNAVChartResponse struct {
 	// ProductID is documented as an integer, but the API sends it quoted
-	ProductID types.Number `json:"productId"`
-	List      []RWANAV     `json:"list"`
+	ProductID types.Number        `json:"productId"`
+	List      []RealWorldAssetNAV `json:"list"`
 }
 
-// RWANAV is a real world asset product's NAV on a day
-type RWANAV struct {
+// RealWorldAssetNAV is a real world asset product's NAV on a day
+type RealWorldAssetNAV struct {
 	// Date is YYYY-MM-DD in UTC
 	Date string       `json:"date"`
 	NAV  types.Number `json:"nav"`

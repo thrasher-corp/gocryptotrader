@@ -188,34 +188,34 @@ func TestGetWithdrawalRecords(t *testing.T) {
 	assert.NotNil(t, result, "GetWithdrawalRecords should return a page")
 }
 
-func TestGetAvailableVASPs(t *testing.T) {
+func TestGetAvailableVirtualAssetServiceProviders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetAvailableVASPs(t.Context())
-	require.NoError(t, err, "GetAvailableVASPs must not error")
+	result, err := e.GetAvailableVirtualAssetServiceProviders(t.Context())
+	require.NoError(t, err, "GetAvailableVirtualAssetServiceProviders must not error")
 	if mockTests {
-		exp := &AvailableVASPsResponse{
-			VASP: []VASP{
+		exp := &AvailableVirtualAssetServiceProvidersResponse{
+			VirtualAssetServiceProvider: []VirtualAssetServiceProvider{
 				{
-					VASPEntityID: "basic-finance",
-					VASPName:     "Basic-finance",
+					VirtualAssetServiceProviderEntityID: "basic-finance",
+					VirtualAssetServiceProviderName:     "Basic-finance",
 				},
 				{
-					VASPEntityID: "korbit",
-					VASPName:     "korbit",
+					VirtualAssetServiceProviderEntityID: "korbit",
+					VirtualAssetServiceProviderName:     "korbit",
 				},
 				{
-					VASPEntityID: "others",
-					VASPName:     "Others (including Upbit)",
+					VirtualAssetServiceProviderEntityID: "others",
+					VirtualAssetServiceProviderName:     "Others (including Upbit)",
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetAvailableVASPs should decode every field")
+		assert.Equal(t, exp, result, "GetAvailableVirtualAssetServiceProviders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetAvailableVASPs should return the list")
+	assert.NotNil(t, result, "GetAvailableVirtualAssetServiceProviders should return the list")
 }
 
 func TestWithdrawCurrency(t *testing.T) {
@@ -271,38 +271,38 @@ func TestWithdrawCurrency(t *testing.T) {
 	arg.RequestID = "test00001"
 	arg.TransactionPurpose = "Long-term holding for retirement savings purpose"
 	arg.Questionnaire = &TravelRuleQuestionnaire{
-		WalletType:         1,
-		LegalType:          "individual",
-		IsSelfWallet:       &isSelfWallet,
-		FirstName:          "Ahmet",
-		LastName:           "Yilmaz",
-		TransactionPurpose: "Long-term holding for retirement savings purpose",
-		POIType:            "ID_CARD",
-		POINumber:          "12345678901",
-		POIIssuingCountry:  "TUR",
-		POIExpiredDate:     time.Date(2030, time.June, 15, 0, 0, 0, 0, time.UTC),
+		WalletType:                    1,
+		LegalType:                     "individual",
+		IsSelfWallet:                  &isSelfWallet,
+		FirstName:                     "Ahmet",
+		LastName:                      "Yilmaz",
+		TransactionPurpose:            "Long-term holding for retirement savings purpose",
+		ProofOfIdentityType:           "ID_CARD",
+		ProofOfIdentityNumber:         "12345678901",
+		ProofOfIdentityIssuingCountry: "TUR",
+		ProofOfIdentityExpiredDate:    time.Date(2030, time.June, 15, 0, 0, 0, 0, time.UTC),
 	}
 	arg.Beneficiary = &WithdrawalBeneficiary{
-		TransactionPurpose:      "Payment for consulting services rendered",
-		RepresentativeFirstName: "Min-jun",
-		RepresentativeLastName:  "Kim",
-		VASPEntityID:            "others",
-		Name:                    "Example Co., Ltd.",
-		LegalType:               "company",
-		WalletType:              "1",
-		UnhostedWalletType:      "1",
-		POINumber:               "BIN1234567890",
-		POIType:                 "OTHER",
-		POIIssuingCountry:       "KAZ",
-		POIExpiredDate:          time.Date(2099, time.December, 31, 0, 0, 0, 0, time.UTC),
-		AddressCountry:          "ARE",
-		AddressState:            "Dubai",
-		AddressCity:             "Dubai",
-		AddressBuilding:         "Example Tower",
-		AddressStreet:           "1 Example Street",
-		AddressPostalCode:       "00000",
-		DateOfBirth:             "1990-02-15",
-		PlaceOfBirth:            "Dubai",
+		TransactionPurpose:                  "Payment for consulting services rendered",
+		RepresentativeFirstName:             "Min-jun",
+		RepresentativeLastName:              "Kim",
+		VirtualAssetServiceProviderEntityID: "others",
+		Name:                                "Example Co., Ltd.",
+		LegalType:                           "company",
+		WalletType:                          "1",
+		UnhostedWalletType:                  "1",
+		ProofOfIdentityNumber:               "BIN1234567890",
+		ProofOfIdentityType:                 "OTHER",
+		ProofOfIdentityIssuingCountry:       "KAZ",
+		ProofOfIdentityExpiredDate:          time.Date(2099, time.December, 31, 0, 0, 0, 0, time.UTC),
+		AddressCountry:                      "ARE",
+		AddressState:                        "Dubai",
+		AddressCity:                         "Dubai",
+		AddressBuilding:                     "Example Tower",
+		AddressStreet:                       "1 Example Street",
+		AddressPostalCode:                   "00000",
+		DateOfBirth:                         "1990-02-15",
+		PlaceOfBirth:                        "Dubai",
 	}
 	result, err := e.WithdrawCurrency(t.Context(), arg)
 	require.NoError(t, err, "WithdrawCurrency must not error")
@@ -319,26 +319,26 @@ func TestWithdrawCurrency(t *testing.T) {
 func TestWithdrawalBeneficiaryPayload(t *testing.T) {
 	t.Parallel()
 	got := (&WithdrawalBeneficiary{
-		TransactionPurpose:      "Payment for consulting services rendered",
-		RepresentativeFirstName: "Min-jun",
-		RepresentativeLastName:  "Kim",
-		VASPEntityID:            "others",
-		Name:                    "Example Co., Ltd.",
-		LegalType:               "company",
-		WalletType:              "1",
-		UnhostedWalletType:      "1",
-		POINumber:               "BIN1234567890",
-		POIType:                 "OTHER",
-		POIIssuingCountry:       "KAZ",
-		POIExpiredDate:          time.Date(2099, time.December, 31, 0, 0, 0, 0, time.UTC),
-		AddressCountry:          "ARE",
-		AddressState:            "Dubai",
-		AddressCity:             "Dubai",
-		AddressBuilding:         "Example Tower",
-		AddressStreet:           "1 Example Street",
-		AddressPostalCode:       "00000",
-		DateOfBirth:             "1990-02-15",
-		PlaceOfBirth:            "Dubai",
+		TransactionPurpose:                  "Payment for consulting services rendered",
+		RepresentativeFirstName:             "Min-jun",
+		RepresentativeLastName:              "Kim",
+		VirtualAssetServiceProviderEntityID: "others",
+		Name:                                "Example Co., Ltd.",
+		LegalType:                           "company",
+		WalletType:                          "1",
+		UnhostedWalletType:                  "1",
+		ProofOfIdentityNumber:               "BIN1234567890",
+		ProofOfIdentityType:                 "OTHER",
+		ProofOfIdentityIssuingCountry:       "KAZ",
+		ProofOfIdentityExpiredDate:          time.Date(2099, time.December, 31, 0, 0, 0, 0, time.UTC),
+		AddressCountry:                      "ARE",
+		AddressState:                        "Dubai",
+		AddressCity:                         "Dubai",
+		AddressBuilding:                     "Example Tower",
+		AddressStreet:                       "1 Example Street",
+		AddressPostalCode:                   "00000",
+		DateOfBirth:                         "1990-02-15",
+		PlaceOfBirth:                        "Dubai",
 	}).payload()
 	exp := map[string]any{
 		"beneficiaryTransactionPurpose":      "Payment for consulting services rendered",
@@ -393,19 +393,19 @@ func TestTravelRuleQuestionnaireEncode(t *testing.T) {
 
 	isSelfWallet := false
 	got, err := (&TravelRuleQuestionnaire{
-		LegalType:               "company",
-		VASPCode:                "EXAMPLE_VASP",
-		IsSelfWallet:            &isSelfWallet,
-		FirstName:               "John",
-		LastName:                "Smith",
-		CompanyName:             "Example LLC",
-		TransactionPurpose:      "Settlement of an invoice for services",
-		POIType:                 "OTHER",
-		POINumber:               "BIN1234567890",
-		POIIssuingCountry:       "KAZ",
-		POIExpiredDate:          time.Date(2099, time.December, 31, 0, 0, 0, 0, time.UTC),
-		RepresentativeFirstName: "Min-jun",
-		RepresentativeLastName:  "Kim",
+		LegalType:                       "company",
+		VirtualAssetServiceProviderCode: "EXAMPLE_VASP",
+		IsSelfWallet:                    &isSelfWallet,
+		FirstName:                       "John",
+		LastName:                        "Smith",
+		CompanyName:                     "Example LLC",
+		TransactionPurpose:              "Settlement of an invoice for services",
+		ProofOfIdentityType:             "OTHER",
+		ProofOfIdentityNumber:           "BIN1234567890",
+		ProofOfIdentityIssuingCountry:   "KAZ",
+		ProofOfIdentityExpiredDate:      time.Date(2099, time.December, 31, 0, 0, 0, 0, time.UTC),
+		RepresentativeFirstName:         "Min-jun",
+		RepresentativeLastName:          "Kim",
 	}).encode()
 	require.NoError(t, err, "encode must not error")
 	exp := `{"companyName":"Example LLC","firstName":"John","isSelfWallet":false,"lastName":"Smith","legalType":"company",` +

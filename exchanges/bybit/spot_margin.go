@@ -199,8 +199,8 @@ func (e *Exchange) GetSpotMarginFixedRateBorrowOrderQuote(ctx context.Context, r
 	}
 	params := url.Values{}
 	params.Set("orderCurrency", r.OrderCurrency.Upper().String())
-	if r.Term != 0 {
-		params.Set("term", strconv.FormatUint(r.Term, 10))
+	if r.TermInDays != 0 {
+		params.Set("term", strconv.FormatUint(r.TermInDays, 10))
 	}
 	if r.OrderBy != "" {
 		params.Set("orderBy", r.OrderBy)
@@ -227,14 +227,14 @@ func (e *Exchange) SpotMarginFixedRateBorrow(ctx context.Context, r *SpotMarginF
 		return nil, limits.ErrAmountBelowMin
 	case r.AnnualRate <= 0:
 		return nil, errAnnualRateNotSet
-	case r.Term == 0:
+	case r.TermInDays == 0:
 		return nil, errTermNotSet
 	}
 	body := make(map[string]any)
 	body["orderCurrency"] = r.OrderCurrency.Upper().String()
 	body["orderAmount"] = strconv.FormatFloat(r.OrderAmount, 'f', -1, 64)
 	body["annualRate"] = strconv.FormatFloat(r.AnnualRate, 'f', -1, 64)
-	body["term"] = strconv.FormatUint(r.Term, 10)
+	body["term"] = strconv.FormatUint(r.TermInDays, 10)
 	if r.RepayType != "" {
 		body["repayType"] = r.RepayType
 	}
@@ -282,8 +282,8 @@ func (e *Exchange) GetSpotMarginFixedRateBorrowOrderInfo(ctx context.Context, r 
 	if r.State != 0 {
 		params.Set("state", strconv.FormatUint(r.State, 10))
 	}
-	if r.Term != 0 {
-		params.Set("term", strconv.FormatUint(r.Term, 10))
+	if r.TermInDays != 0 {
+		params.Set("term", strconv.FormatUint(r.TermInDays, 10))
 	}
 	if r.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(r.Limit, 10))
@@ -308,8 +308,8 @@ func (e *Exchange) GetSpotMarginFixedRateBorrowContractInfo(ctx context.Context,
 	if !r.OrderCurrency.IsEmpty() {
 		params.Set("orderCurrency", r.OrderCurrency.Upper().String())
 	}
-	if r.Term != 0 {
-		params.Set("term", strconv.FormatUint(r.Term, 10))
+	if r.TermInDays != 0 {
+		params.Set("term", strconv.FormatUint(r.TermInDays, 10))
 	}
 	if r.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(r.Limit, 10))
@@ -354,14 +354,14 @@ func (e *Exchange) GetSpotMarginFixedRateAvailableInventory(ctx context.Context,
 	switch {
 	case r.Currency.IsEmpty():
 		return nil, currency.ErrCurrencyCodeEmpty
-	case r.Term == 0:
+	case r.TermInDays == 0:
 		return nil, errTermNotSet
 	case r.AnnualRate <= 0:
 		return nil, errAnnualRateNotSet
 	}
 	params := url.Values{}
 	params.Set("currency", r.Currency.Upper().String())
-	params.Set("term", strconv.FormatUint(r.Term, 10))
+	params.Set("term", strconv.FormatUint(r.TermInDays, 10))
 	params.Set("annualRate", strconv.FormatFloat(r.AnnualRate, 'f', -1, 64))
 	var resp *SpotMarginFixedRateAvailableInventoryResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-margin-trade/fixed-available-inventory", params, nil, &resp, defaultEPL)

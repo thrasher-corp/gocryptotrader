@@ -25,8 +25,8 @@ type PlaceOrderRequest struct {
 	Quantity float64
 	// MarketUnit selects the unit of Quantity for spot market orders: baseCoin or quoteCoin
 	MarketUnit string
-	// RPITakerAccess lets the order match RPI quotes; market orders and IOC or FOK limit orders only
-	RPITakerAccess bool
+	// RetailPriceImprovementTakerAccess lets the order match RPI quotes; market orders and IOC or FOK limit orders only
+	RetailPriceImprovementTakerAccess bool
 	// SlippageToleranceType is TickSize or Percent, for market orders
 	SlippageToleranceType string
 	// SlippageTolerance is a number of ticks or a percentage, as SlippageToleranceType selects
@@ -41,21 +41,21 @@ type PlaceOrderRequest struct {
 	OrderImpliedVolatility float64
 	TimeInForce            string
 	// PositionIndex is 0 in one-way mode, and 1 for the buy side or 2 for the sell side in hedge mode
-	PositionIndex  uint64
-	OrderLinkID    string
-	TakeProfit     float64
-	StopLoss       float64
-	TPTriggerBy    string
-	SLTriggerBy    string
-	ReduceOnly     bool
-	CloseOnTrigger bool
-	SMPType        string
-	MMP            bool
-	TPSLMode       string
-	TPLimitPrice   float64
-	SLLimitPrice   float64
-	TPOrderType    string
-	SLOrderType    string
+	PositionIndex           uint64
+	OrderLinkID             string
+	TakeProfit              float64
+	StopLoss                float64
+	TPTriggerBy             string
+	SLTriggerBy             string
+	ReduceOnly              bool
+	CloseOnTrigger          bool
+	SelfMatchPreventionType string
+	MarketMakerProtection   bool
+	TakeProfitStopLossMode  string
+	TPLimitPrice            float64
+	SLLimitPrice            float64
+	TPOrderType             string
+	SLOrderType             string
 	// BBOSideType prices the order from the best bid or offer: Queue for its own side of the book, Counterparty for the
 	// other side
 	BBOSideType string
@@ -100,7 +100,7 @@ func (r *PlaceOrderRequest) Payload() (map[string]any, error) {
 	if r.MarketUnit != "" {
 		body["marketUnit"] = r.MarketUnit
 	}
-	if r.RPITakerAccess {
+	if r.RetailPriceImprovementTakerAccess {
 		body["rpiTakerAccess"] = true
 	}
 	if r.SlippageToleranceType != "" {
@@ -154,14 +154,14 @@ func (r *PlaceOrderRequest) Payload() (map[string]any, error) {
 	if r.CloseOnTrigger {
 		body["closeOnTrigger"] = true
 	}
-	if r.SMPType != "" {
-		body["smpType"] = r.SMPType
+	if r.SelfMatchPreventionType != "" {
+		body["smpType"] = r.SelfMatchPreventionType
 	}
-	if r.MMP {
+	if r.MarketMakerProtection {
 		body["mmp"] = true
 	}
-	if r.TPSLMode != "" {
-		body["tpslMode"] = r.TPSLMode
+	if r.TakeProfitStopLossMode != "" {
+		body["tpslMode"] = r.TakeProfitStopLossMode
 	}
 	if r.TPLimitPrice != 0 {
 		body["tpLimitPrice"] = strconv.FormatFloat(r.TPLimitPrice, 'f', -1, 64)
@@ -202,7 +202,7 @@ type AmendOrderRequest struct {
 	TriggerPrice           float64
 	Quantity               float64
 	Price                  float64
-	TPSLMode               string
+	TakeProfitStopLossMode string
 	// TakeProfit and StopLoss are left unchanged when nil, and cancelled when they point to zero
 	TakeProfit   *float64
 	StopLoss     *float64
@@ -255,8 +255,8 @@ func (r *AmendOrderRequest) Payload() (map[string]any, error) {
 	if r.Price != 0 {
 		body["price"] = strconv.FormatFloat(r.Price, 'f', -1, 64)
 	}
-	if r.TPSLMode != "" {
-		body["tpslMode"] = r.TPSLMode
+	if r.TakeProfitStopLossMode != "" {
+		body["tpslMode"] = r.TakeProfitStopLossMode
 	}
 	if r.TakeProfit != nil {
 		body["takeProfit"] = strconv.FormatFloat(*r.TakeProfit, 'f', -1, 64)
@@ -382,29 +382,29 @@ type OpenOrder struct {
 	OrderImpliedVolatility types.Number `json:"orderIv"`
 	MarketUnit             string       `json:"marketUnit"`
 	// TriggerPrice is the activation price when StopOrderType is TrailingStop
-	TriggerPrice     types.Number `json:"triggerPrice"`
-	TakeProfit       types.Number `json:"takeProfit"`
-	StopLoss         types.Number `json:"stopLoss"`
-	TPSLMode         string       `json:"tpslMode"`
-	OCOTriggerBy     string       `json:"ocoTriggerBy"`
-	TPLimitPrice     types.Number `json:"tpLimitPrice"`
-	SLLimitPrice     types.Number `json:"slLimitPrice"`
-	TPTriggerBy      string       `json:"tpTriggerBy"`
-	SLTriggerBy      string       `json:"slTriggerBy"`
-	TriggerDirection uint64       `json:"triggerDirection"`
-	TriggerBy        string       `json:"triggerBy"`
+	TriggerPrice           types.Number `json:"triggerPrice"`
+	TakeProfit             types.Number `json:"takeProfit"`
+	StopLoss               types.Number `json:"stopLoss"`
+	TakeProfitStopLossMode string       `json:"tpslMode"`
+	OCOTriggerBy           string       `json:"ocoTriggerBy"`
+	TPLimitPrice           types.Number `json:"tpLimitPrice"`
+	SLLimitPrice           types.Number `json:"slLimitPrice"`
+	TPTriggerBy            string       `json:"tpTriggerBy"`
+	SLTriggerBy            string       `json:"slTriggerBy"`
+	TriggerDirection       uint64       `json:"triggerDirection"`
+	TriggerBy              string       `json:"triggerBy"`
 	// LastPriceOnCreated is the last price when the order was placed; spot orders report it in BasePrice instead
-	LastPriceOnCreated types.Number `json:"lastPriceOnCreated"`
-	BasePrice          types.Number `json:"basePrice"`
-	ReduceOnly         bool         `json:"reduceOnly"`
-	CloseOnTrigger     bool         `json:"closeOnTrigger"`
-	PlaceType          string       `json:"placeType"`
-	SMPType            string       `json:"smpType"`
-	// SMPGroup is documented as a string but has been sent as a bare number
-	SMPGroup    types.Number `json:"smpGroup"`
-	SMPOrderID  string       `json:"smpOrderId"`
-	CreatedTime types.Time   `json:"createdTime"`
-	UpdatedTime types.Time   `json:"updatedTime"`
+	LastPriceOnCreated      types.Number `json:"lastPriceOnCreated"`
+	BasePrice               types.Number `json:"basePrice"`
+	ReduceOnly              bool         `json:"reduceOnly"`
+	CloseOnTrigger          bool         `json:"closeOnTrigger"`
+	PlaceType               string       `json:"placeType"`
+	SelfMatchPreventionType string       `json:"smpType"`
+	// SelfMatchPreventionGroup is documented as a string but has been sent as a bare number
+	SelfMatchPreventionGroup   types.Number `json:"smpGroup"`
+	SelfMatchPreventionOrderID string       `json:"smpOrderId"`
+	CreatedTime                types.Time   `json:"createdTime"`
+	UpdatedTime                types.Time   `json:"updatedTime"`
 	// CumulativeFeeDetail holds the cumulative fees of linear and spot orders by fee coin
 	CumulativeFeeDetail map[currency.Code]types.Number `json:"cumFeeDetail"`
 }
@@ -460,9 +460,9 @@ type HistoricalOrder struct {
 	SlippageTolerance     types.Number `json:"slippageTolerance"`
 	// ExtraFees lists, as a JSON string, the taxes charged on the Indonesian and EU sites; it is empty elsewhere
 	ExtraFees string `json:"extraFees"`
-	// RPITakerAccess is true when the order matched an RPI order
-	RPITakerAccess     bool         `json:"rpiTakerAccess"`
-	RPIMatchedQuantity types.Number `json:"rpiMatchedQty"`
+	// RetailPriceImprovementTakerAccess is true when the order matched an RPI order
+	RetailPriceImprovementTakerAccess     bool         `json:"rpiTakerAccess"`
+	RetailPriceImprovementMatchedQuantity types.Number `json:"rpiMatchedQty"`
 }
 
 // ExecutionRequest holds the parameters of Get Trade History. Without times it returns the last 7 days, and the
@@ -583,21 +583,21 @@ type BatchPlaceOrderItem struct {
 	OrderImpliedVolatility float64
 	TimeInForce            string
 	// PositionIndex is 0 in one-way mode, and 1 for the buy side or 2 for the sell side in hedge mode
-	PositionIndex  uint64
-	OrderLinkID    string
-	TakeProfit     float64
-	StopLoss       float64
-	TPTriggerBy    string
-	SLTriggerBy    string
-	ReduceOnly     bool
-	CloseOnTrigger bool
-	SMPType        string
-	MMP            bool
-	TPSLMode       string
-	TPLimitPrice   float64
-	SLLimitPrice   float64
-	TPOrderType    string
-	SLOrderType    string
+	PositionIndex           uint64
+	OrderLinkID             string
+	TakeProfit              float64
+	StopLoss                float64
+	TPTriggerBy             string
+	SLTriggerBy             string
+	ReduceOnly              bool
+	CloseOnTrigger          bool
+	SelfMatchPreventionType string
+	MarketMakerProtection   bool
+	TakeProfitStopLossMode  string
+	TPLimitPrice            float64
+	SLLimitPrice            float64
+	TPOrderType             string
+	SLOrderType             string
 }
 
 // Payload validates the order and returns its entry of a Batch Place Order body
@@ -671,14 +671,14 @@ func (r *BatchPlaceOrderItem) Payload() (map[string]any, error) {
 	if r.CloseOnTrigger {
 		body["closeOnTrigger"] = true
 	}
-	if r.SMPType != "" {
-		body["smpType"] = r.SMPType
+	if r.SelfMatchPreventionType != "" {
+		body["smpType"] = r.SelfMatchPreventionType
 	}
-	if r.MMP {
+	if r.MarketMakerProtection {
 		body["mmp"] = true
 	}
-	if r.TPSLMode != "" {
-		body["tpslMode"] = r.TPSLMode
+	if r.TakeProfitStopLossMode != "" {
+		body["tpslMode"] = r.TakeProfitStopLossMode
 	}
 	if r.TPLimitPrice != 0 {
 		body["tpLimitPrice"] = strconv.FormatFloat(r.TPLimitPrice, 'f', -1, 64)
@@ -768,7 +768,7 @@ type BatchAmendOrderItem struct {
 	TriggerPrice           float64
 	Quantity               float64
 	Price                  float64
-	TPSLMode               string
+	TakeProfitStopLossMode string
 	// TakeProfit and StopLoss are left unchanged when nil, and cancelled when they point to zero
 	TakeProfit   *float64
 	StopLoss     *float64
@@ -810,8 +810,8 @@ func (r *BatchAmendOrderItem) Payload() (map[string]any, error) {
 	if r.Price != 0 {
 		body["price"] = strconv.FormatFloat(r.Price, 'f', -1, 64)
 	}
-	if r.TPSLMode != "" {
-		body["tpslMode"] = r.TPSLMode
+	if r.TakeProfitStopLossMode != "" {
+		body["tpslMode"] = r.TakeProfitStopLossMode
 	}
 	if r.TakeProfit != nil {
 		body["takeProfit"] = strconv.FormatFloat(*r.TakeProfit, 'f', -1, 64)
@@ -948,10 +948,10 @@ type SetDisconnectCancelAllRequest struct {
 // PreCheckOrderResponse holds the account's margin rates before and after an order, from Pre Check Order. The rates
 // are scaled by 1e4: 30 is a rate of 0.3%
 type PreCheckOrderResponse struct {
-	OrderID                     string       `json:"orderId"`
-	OrderLinkID                 string       `json:"orderLinkId"`
-	PreInitialMarginRateE4      types.Number `json:"preImrE4"`
-	PreMaintenanceMarginRateE4  types.Number `json:"preMmrE4"`
-	PostInitialMarginRateE4     types.Number `json:"postImrE4"`
-	PostMaintenanceMarginRateE4 types.Number `json:"postMmrE4"`
+	OrderID                              string       `json:"orderId"`
+	OrderLinkID                          string       `json:"orderLinkId"`
+	PreInitialMarginRateScaledBy1E4      types.Number `json:"preImrE4"`
+	PreMaintenanceMarginRateScaledBy1E4  types.Number `json:"preMmrE4"`
+	PostInitialMarginRateScaledBy1E4     types.Number `json:"postImrE4"`
+	PostMaintenanceMarginRateScaledBy1E4 types.Number `json:"postMmrE4"`
 }

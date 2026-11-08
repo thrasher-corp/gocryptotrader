@@ -69,7 +69,7 @@ type CardAssetRecord struct {
 	WithdrawalFee         types.Number  `json:"withdrawalFee"`
 	Status                string        `json:"status"`
 	OrderNumber           string        `json:"orderNo"`
-	MCCCode               string        `json:"mccCode"` // Merchant category code
+	MerchantCategoryCode  string        `json:"mccCode"` // Merchant category code
 	// MerchantCategoryDescription describes the merchant category code
 	MerchantCategoryDescription string `json:"merchCategoryDesc"`
 }
@@ -136,9 +136,9 @@ type CardPointRecord struct {
 
 // CardTierInfoResponse holds the card reward tier and spending limit
 type CardTierInfoResponse struct {
-	// UsedLimit is points used multiplied by 0.002, in USD to 2 decimal places
-	UsedLimit types.Number `json:"usedLimit"`
-	Limit     types.Number `json:"limit"`
+	// UsedLimitInUSD is points used multiplied by 0.002, to 2 decimal places
+	UsedLimitInUSD types.Number `json:"usedLimit"`
+	Limit          types.Number `json:"limit"`
 	// Unit is the limit's unit; the docs describe it as USD and show the code 1
 	Unit         string `json:"unit"`
 	Tier         string `json:"tier"`

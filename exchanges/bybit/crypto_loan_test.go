@@ -166,8 +166,8 @@ func TestGetCryptoLoanCollateralAdjustmentHistory(t *testing.T) {
 					Amount:             0.08,
 					AdjustID:           27511,
 					AdjustTime:         types.Time(time.UnixMilli(1752627997907)),
-					PreLTV:             0.524602,
-					AfterLTV:           0.813743,
+					PreLoanToValue:     0.524602,
+					AfterLoanToValue:   0.813743,
 					Direction:          1,
 					Status:             1,
 				},
@@ -225,7 +225,7 @@ func TestGetCryptoLoanPosition(t *testing.T) {
 					Currency:  currency.USDC,
 				},
 			},
-			LTV: 0.524344,
+			LoanToValue: 0.524344,
 			SupplyList: []CryptoLoanCoinAmount{
 				{
 					Amount:    800.1304109589041,
@@ -233,9 +233,9 @@ func TestGetCryptoLoanPosition(t *testing.T) {
 					Currency:  currency.USDT,
 				},
 			},
-			TotalCollateral:       18381.41,
-			TotalDebt:             9638.17,
-			TotalSupply:           800.13,
+			TotalCollateralInUSD:  18381.41,
+			TotalDebtInUSD:        9638.17,
+			TotalSupplyInUSD:      800.13,
 			CollateralRestriction: "0",
 		}
 		assert.Equal(t, exp, result, "GetCryptoLoanPosition should decode every field")
@@ -470,7 +470,7 @@ func TestGetFixedLoanLendingMarket(t *testing.T) {
 
 	result, err := e.GetFixedLoanLendingMarket(t.Context(), &FixedLoanMarketRequest{
 		OrderCurrency: currency.USDT,
-		Term:          7,
+		TermInDays:    7,
 		OrderBy:       "apy",
 		Sort:          1,
 		Limit:         2,
@@ -481,13 +481,13 @@ func TestGetFixedLoanLendingMarket(t *testing.T) {
 			List: []FixedLoanMarketQuote{
 				{
 					OrderCurrency: currency.USDT,
-					Term:          7,
+					TermInDays:    7,
 					AnnualRate:    0.0336,
 					Quantity:      2064.43,
 				},
 				{
 					OrderCurrency: currency.USDT,
-					Term:          7,
+					TermInDays:    7,
 					AnnualRate:    0.0335,
 					Quantity:      23337.0173,
 				},
@@ -497,7 +497,7 @@ func TestGetFixedLoanLendingMarket(t *testing.T) {
 		return
 	}
 	for i := range result.List {
-		assert.Equalf(t, uint64(7), result.List[i].Term, "GetFixedLoanLendingMarket should return 7 day orders only, got %d days", result.List[i].Term)
+		assert.Equalf(t, uint64(7), result.List[i].TermInDays, "GetFixedLoanLendingMarket should return 7 day orders only, got %d days", result.List[i].TermInDays)
 	}
 }
 
@@ -517,13 +517,13 @@ func TestGetFixedLoanBorrowingMarket(t *testing.T) {
 			List: []FixedLoanMarketQuote{
 				{
 					OrderCurrency: currency.USDT,
-					Term:          7,
+					TermInDays:    7,
 					AnnualRate:    0.038,
 					Quantity:      1694,
 				},
 				{
 					OrderCurrency: currency.USDT,
-					Term:          30,
+					TermInDays:    30,
 					AnnualRate:    0.0385,
 					Quantity:      18334.0494,
 				},
@@ -556,7 +556,7 @@ func TestFixedLoanMarketPath(t *testing.T) {
 		},
 		{
 			name: "every parameter",
-			req:  &FixedLoanMarketRequest{OrderCurrency: currency.ETH, Term: 30, OrderBy: "quantity", Sort: 1, Limit: 100},
+			req:  &FixedLoanMarketRequest{OrderCurrency: currency.ETH, TermInDays: 30, OrderBy: "quantity", Sort: 1, Limit: 100},
 			exp:  "/v5/crypto-loan-fixed/supply-order-quote?limit=100&orderBy=quantity&orderCurrency=ETH&sort=1&term=30",
 		},
 	} {
@@ -573,22 +573,22 @@ func TestGetFixedLoanAvailableInventory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFixedLoanAvailableInventory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFixedLoanAvailableInventory must reject a nil request")
-	_, err = e.GetFixedLoanAvailableInventory(t.Context(), &FixedLoanAvailableInventoryRequest{Term: 7, AnnualRate: 0.02})
+	_, err = e.GetFixedLoanAvailableInventory(t.Context(), &FixedLoanAvailableInventoryRequest{TermInDays: 7, AnnualRate: 0.02})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetFixedLoanAvailableInventory must reject an empty coin")
 	_, err = e.GetFixedLoanAvailableInventory(t.Context(), &FixedLoanAvailableInventoryRequest{Currency: currency.USDT, AnnualRate: 0.02})
 	require.ErrorIs(t, err, errLoanTermRequired, "GetFixedLoanAvailableInventory must reject an empty term")
-	_, err = e.GetFixedLoanAvailableInventory(t.Context(), &FixedLoanAvailableInventoryRequest{Currency: currency.USDT, Term: 7})
+	_, err = e.GetFixedLoanAvailableInventory(t.Context(), &FixedLoanAvailableInventoryRequest{Currency: currency.USDT, TermInDays: 7})
 	require.ErrorIs(t, err, errAnnualRateRequired, "GetFixedLoanAvailableInventory must reject an empty annual rate")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetFixedLoanAvailableInventory(t.Context(), &FixedLoanAvailableInventoryRequest{Currency: currency.USDT, Term: 7, AnnualRate: 0.02})
+	result, err := e.GetFixedLoanAvailableInventory(t.Context(), &FixedLoanAvailableInventoryRequest{Currency: currency.USDT, TermInDays: 7, AnnualRate: 0.02})
 	require.NoError(t, err, "GetFixedLoanAvailableInventory must not error")
 	if mockTests {
 		exp := &FixedLoanAvailableInventoryResponse{
 			Currency:           currency.USDT,
-			Term:               7,
+			TermInDays:         7,
 			AnnualRate:         0.02,
 			AvailableInventory: 50000000,
 			UpdateTime:         types.Time(time.Unix(1699272487, 0)),
@@ -603,11 +603,11 @@ func TestCreateFixedLoanBorrowOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.CreateFixedLoanBorrowOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateFixedLoanBorrowOrder must reject a nil request")
-	_, err = e.CreateFixedLoanBorrowOrder(t.Context(), &CreateFixedLoanBorrowOrderRequest{OrderAmount: 1.5, AnnualRate: 0.022, Term: 30})
+	_, err = e.CreateFixedLoanBorrowOrder(t.Context(), &CreateFixedLoanBorrowOrderRequest{OrderAmount: 1.5, AnnualRate: 0.022, TermInDays: 30})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "CreateFixedLoanBorrowOrder must reject an empty coin")
-	_, err = e.CreateFixedLoanBorrowOrder(t.Context(), &CreateFixedLoanBorrowOrderRequest{OrderCurrency: currency.ETH, AnnualRate: 0.022, Term: 30})
+	_, err = e.CreateFixedLoanBorrowOrder(t.Context(), &CreateFixedLoanBorrowOrderRequest{OrderCurrency: currency.ETH, AnnualRate: 0.022, TermInDays: 30})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "CreateFixedLoanBorrowOrder must reject a zero amount")
-	_, err = e.CreateFixedLoanBorrowOrder(t.Context(), &CreateFixedLoanBorrowOrderRequest{OrderCurrency: currency.ETH, OrderAmount: 1.5, Term: 30})
+	_, err = e.CreateFixedLoanBorrowOrder(t.Context(), &CreateFixedLoanBorrowOrderRequest{OrderCurrency: currency.ETH, OrderAmount: 1.5, TermInDays: 30})
 	require.ErrorIs(t, err, errAnnualRateRequired, "CreateFixedLoanBorrowOrder must reject an empty annual rate")
 	_, err = e.CreateFixedLoanBorrowOrder(t.Context(), &CreateFixedLoanBorrowOrderRequest{OrderCurrency: currency.ETH, OrderAmount: 1.5, AnnualRate: 0.022})
 	require.ErrorIs(t, err, errLoanTermRequired, "CreateFixedLoanBorrowOrder must reject an empty term")
@@ -619,7 +619,7 @@ func TestCreateFixedLoanBorrowOrder(t *testing.T) {
 		OrderCurrency:  currency.ETH,
 		OrderAmount:    1.5,
 		AnnualRate:     0.022,
-		Term:           30,
+		TermInDays:     30,
 		RepayType:      "1",
 		StrategyType:   "PARTIAL",
 		CollateralList: []CryptoLoanCollateral{{Currency: currency.BTC, Amount: 0.1}},
@@ -679,11 +679,11 @@ func TestCreateFixedLoanSupplyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.CreateFixedLoanSupplyOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateFixedLoanSupplyOrder must reject a nil request")
-	_, err = e.CreateFixedLoanSupplyOrder(t.Context(), &CreateFixedLoanSupplyOrderRequest{OrderAmount: 1020, AnnualRate: 0.01, Term: 7})
+	_, err = e.CreateFixedLoanSupplyOrder(t.Context(), &CreateFixedLoanSupplyOrderRequest{OrderAmount: 1020, AnnualRate: 0.01, TermInDays: 7})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "CreateFixedLoanSupplyOrder must reject an empty coin")
-	_, err = e.CreateFixedLoanSupplyOrder(t.Context(), &CreateFixedLoanSupplyOrderRequest{OrderCurrency: currency.USDT, AnnualRate: 0.01, Term: 7})
+	_, err = e.CreateFixedLoanSupplyOrder(t.Context(), &CreateFixedLoanSupplyOrderRequest{OrderCurrency: currency.USDT, AnnualRate: 0.01, TermInDays: 7})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "CreateFixedLoanSupplyOrder must reject a zero amount")
-	_, err = e.CreateFixedLoanSupplyOrder(t.Context(), &CreateFixedLoanSupplyOrderRequest{OrderCurrency: currency.USDT, OrderAmount: 1020, Term: 7})
+	_, err = e.CreateFixedLoanSupplyOrder(t.Context(), &CreateFixedLoanSupplyOrderRequest{OrderCurrency: currency.USDT, OrderAmount: 1020, TermInDays: 7})
 	require.ErrorIs(t, err, errAnnualRateRequired, "CreateFixedLoanSupplyOrder must reject an empty annual rate")
 	_, err = e.CreateFixedLoanSupplyOrder(t.Context(), &CreateFixedLoanSupplyOrderRequest{OrderCurrency: currency.USDT, OrderAmount: 1020, AnnualRate: 0.01})
 	require.ErrorIs(t, err, errLoanTermRequired, "CreateFixedLoanSupplyOrder must reject an empty term")
@@ -695,7 +695,7 @@ func TestCreateFixedLoanSupplyOrder(t *testing.T) {
 		OrderCurrency:   currency.USDT,
 		OrderAmount:     1020,
 		AnnualRate:      0.01,
-		Term:            7,
+		TermInDays:      7,
 		AvailableSource: "0",
 	})
 	require.NoError(t, err, "CreateFixedLoanSupplyOrder must not error")
@@ -743,7 +743,7 @@ func TestGetFixedLoanBorrowContractInfo(t *testing.T) {
 		OrderID:       "13007",
 		LoanID:        "571",
 		OrderCurrency: currency.ETH,
-		Term:          30,
+		TermInDays:    30,
 		Limit:         10,
 		Cursor:        "572",
 	})
@@ -763,7 +763,7 @@ func TestGetFixedLoanBorrowContractInfo(t *testing.T) {
 					ResidualPenaltyInterest: 0.0001,
 					ResidualPrincipal:       1.4,
 					Status:                  1,
-					Term:                    30,
+					TermInDays:              30,
 					RepayType:               "1",
 				},
 			},
@@ -787,7 +787,7 @@ func TestGetFixedLoanSupplyContractInfo(t *testing.T) {
 		OrderID:        "13564",
 		SupplyID:       "567",
 		SupplyCurrency: currency.USDT,
-		Term:           7,
+		TermInDays:     7,
 		Limit:          10,
 		Cursor:         "568",
 	})
@@ -807,7 +807,7 @@ func TestGetFixedLoanSupplyContractInfo(t *testing.T) {
 					PenaltyInterest:      0.0001,
 					ActualRedemptionTime: types.Time(time.UnixMilli(1753087596082)),
 					Status:               2,
-					Term:                 7,
+					TermInDays:           7,
 				},
 			},
 			NextPageCursor: "566",
@@ -860,7 +860,7 @@ func TestGetFixedLoanBorrowOrderInfo(t *testing.T) {
 		OrderID:       "13010",
 		OrderCurrency: currency.USDT,
 		State:         "2",
-		Term:          30,
+		TermInDays:    30,
 		Limit:         10,
 		Cursor:        "13011",
 	})
@@ -876,7 +876,7 @@ func TestGetFixedLoanBorrowOrderInfo(t *testing.T) {
 					OrderQuantity:  2000,
 					OrderCurrency:  currency.USDT,
 					State:          2,
-					Term:           30,
+					TermInDays:     30,
 					RepayType:      "2",
 					StrategyType:   "PARTIAL",
 				},
@@ -939,7 +939,7 @@ func TestGetFixedLoanSupplyOrderInfo(t *testing.T) {
 		OrderID:       "13564",
 		OrderCurrency: currency.USDT,
 		State:         "2",
-		Term:          7,
+		TermInDays:    7,
 		Limit:         10,
 		Cursor:        "13565",
 	})
@@ -955,7 +955,7 @@ func TestGetFixedLoanSupplyOrderInfo(t *testing.T) {
 					OrderQuantity:  1020,
 					OrderCurrency:  currency.USDT,
 					State:          2,
-					Term:           7,
+					TermInDays:     7,
 				},
 			},
 			NextPageCursor: "13563",
@@ -979,7 +979,7 @@ func TestFixedLoanOrderInfoParams(t *testing.T) {
 		{name: "no filters", req: &FixedLoanOrderInfoRequest{}, exp: url.Values{}},
 		{
 			name: "every filter",
-			req:  &FixedLoanOrderInfoRequest{OrderID: "13010", OrderCurrency: currency.NewCode("usdt"), State: "2", Term: 30, Limit: 10, Cursor: "13011"},
+			req:  &FixedLoanOrderInfoRequest{OrderID: "13010", OrderCurrency: currency.NewCode("usdt"), State: "2", TermInDays: 30, Limit: 10, Cursor: "13011"},
 			exp: url.Values{
 				"orderId":       {"13010"},
 				"orderCurrency": {"USDT"},

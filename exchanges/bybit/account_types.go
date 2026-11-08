@@ -26,28 +26,27 @@ type WalletBalance struct {
 	AccountType                  string       `json:"accountType"`
 	AccountInitialMarginRate     types.Number `json:"accountIMRate"`
 	AccountMaintenanceMarginRate types.Number `json:"accountMMRate"`
-	// TotalEquity is the USD value of every coin's equity
-	TotalEquity types.Number `json:"totalEquity"`
-	// TotalWalletBalance is the USD value of every coin's wallet balance
-	TotalWalletBalance types.Number `json:"totalWalletBalance"`
-	// TotalMarginBalance is TotalWalletBalance plus TotalPerpetualUnrealisedPNL, in USD
-	TotalMarginBalance types.Number `json:"totalMarginBalance"`
-	// TotalAvailableBalance is in USD: TotalMarginBalance (cross margin) or TotalEquity (portfolio margin), less the
-	// haircut and TotalInitialMargin
-	TotalAvailableBalance types.Number `json:"totalAvailableBalance"`
-	// TotalPerpetualUnrealisedPNL is the unrealised P&L of perpetuals and futures, in USD
-	TotalPerpetualUnrealisedPNL types.Number `json:"totalPerpUPL"`
-	// TotalInitialMargin and TotalMaintenanceMargin are in USD
-	TotalInitialMargin     types.Number `json:"totalInitialMargin"`
-	TotalMaintenanceMargin types.Number `json:"totalMaintenanceMargin"`
+	// TotalEquityInUSD is the value of every coin's equity
+	TotalEquityInUSD types.Number `json:"totalEquity"`
+	// TotalWalletBalanceInUSD is the value of every coin's wallet balance
+	TotalWalletBalanceInUSD types.Number `json:"totalWalletBalance"`
+	// TotalMarginBalanceInUSD is TotalWalletBalanceInUSD plus TotalPerpetualUnrealisedPNLInUSD
+	TotalMarginBalanceInUSD types.Number `json:"totalMarginBalance"`
+	// TotalAvailableBalanceInUSD is TotalMarginBalanceInUSD (cross margin) or TotalEquityInUSD (portfolio margin), less
+	// the haircut and TotalInitialMarginInUSD
+	TotalAvailableBalanceInUSD types.Number `json:"totalAvailableBalance"`
+	// TotalPerpetualUnrealisedPNLInUSD is the unrealised P&L of perpetuals and futures
+	TotalPerpetualUnrealisedPNLInUSD types.Number `json:"totalPerpUPL"`
+	TotalInitialMarginInUSD          types.Number `json:"totalInitialMargin"`
+	TotalMaintenanceMarginInUSD      types.Number `json:"totalMaintenanceMargin"`
 	// The ByMarkPrice fields repeat the fields above, which Bybit now also calculates by mark price
 	AccountInitialMarginRateByMarkPrice     types.Number `json:"accountIMRateByMp"`
 	AccountMaintenanceMarginRateByMarkPrice types.Number `json:"accountMMRateByMp"`
 	TotalInitialMarginByMarkPrice           types.Number `json:"totalInitialMarginByMp"`
 	TotalMaintenanceMarginByMarkPrice       types.Number `json:"totalMaintenanceMarginByMp"`
-	// Deprecated: Bybit deprecated AccountLTV
-	AccountLTV types.Number        `json:"accountLTV"`
-	Coin       []WalletBalanceCoin `json:"coin"`
+	// Deprecated: Bybit deprecated AccountLoanToValue
+	AccountLoanToValue types.Number        `json:"accountLTV"`
+	Coin               []WalletBalanceCoin `json:"coin"`
 }
 
 // WalletBalanceCoin holds the balance of one coin in an account
@@ -165,13 +164,14 @@ type AccountInfoResponse struct {
 	IsMasterTrader      bool       `json:"isMasterTrader"`
 	SpotHedgingStatus   string     `json:"spotHedgingStatus"`
 	UpdatedTime         types.Time `json:"updatedTime"`
-	// Deprecated: DCPStatus is always OFF; GetDCPInfo returns the DCP configuration instead
-	DCPStatus string `json:"dcpStatus"`
-	// Deprecated: TimeWindow is always 0; GetDCPInfo returns the DCP configuration instead
+	// Deprecated: DisconnectionProtectStatus is always OFF; GetDisconnectionProtectInfo returns the DCP configuration
+	// instead
+	DisconnectionProtectStatus string `json:"dcpStatus"`
+	// Deprecated: TimeWindow is always 0; GetDisconnectionProtectInfo returns the DCP configuration instead
 	TimeWindow uint64 `json:"timeWindow"`
-	// Deprecated: SMPGroup is always 0; GetSMPGroupID returns the SMP group instead. Bybit sends smpGroup as a number
-	// here and as a string on its order endpoints, so either is accepted
-	SMPGroup types.Number `json:"smpGroup"`
+	// Deprecated: SelfMatchPreventionGroup is always 0; GetSelfMatchPreventionGroupID returns the SMP group instead.
+	// Bybit sends smpGroup as a number here and as a string on its order endpoints, so either is accepted
+	SelfMatchPreventionGroup types.Number `json:"smpGroup"`
 }
 
 // AccountInstrumentsInfoRequest holds the parameters of GetAccountInstrumentsInfo
@@ -212,26 +212,27 @@ type AccountInstrument struct {
 	LeverageFilter  AccountInstrumentLeverageFilter `json:"leverageFilter"`
 	PriceFilter     AccountInstrumentPriceFilter    `json:"priceFilter"`
 	LotSizeFilter   AccountInstrumentLotSizeFilter  `json:"lotSizeFilter"`
-	// UnifiedMarginTrade to UnderlyingTicker are for linear and inverse; FundingInterval is in minutes, and
-	// MarketRegion and UnderlyingTicker apply to TradFi perpetuals
-	UnifiedMarginTrade bool                            `json:"unifiedMarginTrade"`
-	FundingInterval    uint64                          `json:"fundingInterval"`
-	SettleCoin         currency.Code                   `json:"settleCoin"`
-	CopyTrading        string                          `json:"copyTrading"`
-	UpperFundingRate   types.Number                    `json:"upperFundingRate"`
-	LowerFundingRate   types.Number                    `json:"lowerFundingRate"`
-	DisplayName        string                          `json:"displayName"`
-	FullName           string                          `json:"fullName"`
-	MarketRegion       string                          `json:"marketRegion"`
-	UnderlyingTicker   string                          `json:"underlyingTicker"`
-	RiskParameters     AccountInstrumentRiskParameters `json:"riskParameters"`
+	// UnifiedMarginTrade to UnderlyingTicker are for linear and inverse, and MarketRegion and UnderlyingTicker apply
+	// to TradFi perpetuals
+	UnifiedMarginTrade       bool                            `json:"unifiedMarginTrade"`
+	FundingIntervalInMinutes uint64                          `json:"fundingInterval"`
+	SettleCoin               currency.Code                   `json:"settleCoin"`
+	CopyTrading              string                          `json:"copyTrading"`
+	UpperFundingRate         types.Number                    `json:"upperFundingRate"`
+	LowerFundingRate         types.Number                    `json:"lowerFundingRate"`
+	DisplayName              string                          `json:"displayName"`
+	FullName                 string                          `json:"fullName"`
+	MarketRegion             string                          `json:"marketRegion"`
+	UnderlyingTicker         string                          `json:"underlyingTicker"`
+	RiskParameters           AccountInstrumentRiskParameters `json:"riskParameters"`
 	// IsPreListing and PreListingInfo are for linear and inverse; PreListingInfo is nil unless IsPreListing
 	IsPreListing   bool                             `json:"isPreListing"`
 	PreListingInfo *AccountInstrumentPreListingInfo `json:"preListingInfo"`
-	// IsPublicRPI is whether every user can submit RPI orders for the symbol, and may lag by up to an hour
-	IsPublicRPI bool `json:"isPublicRpi"`
-	// Deprecated: MyRPIPermission always equals IsPublicRPI
-	MyRPIPermission bool `json:"myRpiPermission"`
+	// IsPublicRetailPriceImprovement is whether every user can submit RPI orders for the symbol, and may lag by up to
+	// an hour
+	IsPublicRetailPriceImprovement bool `json:"isPublicRpi"`
+	// Deprecated: MyRetailPriceImprovementPermission always equals IsPublicRetailPriceImprovement
+	MyRetailPriceImprovementPermission bool `json:"myRpiPermission"`
 	// Deprecated: Innovation is for spot; SymbolType replaces it
 	Innovation types.Boolean `json:"innovation"`
 	// XStockMultiplier is for spot xstocks symbols: stock price = token price / multiplier
@@ -357,10 +358,10 @@ type FeeRate struct {
 	// Symbol is "" for options
 	Symbol string `json:"symbol"`
 	// BaseCoin is only returned for options
-	BaseCoin        currency.Code `json:"baseCoin"`
-	TakerFeeRate    types.Number  `json:"takerFeeRate"`
-	MakerFeeRate    types.Number  `json:"makerFeeRate"`
-	RPIMakerFeeRate types.Number  `json:"rpiMakerFeeRate"`
+	BaseCoin                           currency.Code `json:"baseCoin"`
+	TakerFeeRate                       types.Number  `json:"takerFeeRate"`
+	MakerFeeRate                       types.Number  `json:"makerFeeRate"`
+	RetailPriceImprovementMakerFeeRate types.Number  `json:"rpiMakerFeeRate"`
 }
 
 // CollateralInfoResponse holds the collateral details of each coin
@@ -396,18 +397,18 @@ type CollateralInfo struct {
 	FreeBorrowingAmount types.Number `json:"freeBorrowingAmount"`
 }
 
-// DCPInfoResponse holds the Disconnected-CancelAll-Prevention configuration of each product
-type DCPInfoResponse struct {
-	DCPInfos []DCPInfo `json:"dcpInfos"`
+// DisconnectionProtectInfoResponse holds the Disconnected-CancelAll-Prevention configuration of each product
+type DisconnectionProtectInfoResponse struct {
+	DisconnectionProtectInfos []DisconnectionProtectInfo `json:"dcpInfos"`
 }
 
-// DCPInfo holds a product's Disconnected-CancelAll-Prevention configuration
-type DCPInfo struct {
+// DisconnectionProtectInfo holds a product's Disconnected-CancelAll-Prevention configuration
+type DisconnectionProtectInfo struct {
 	// Product is SPOT, DERIVATIVES or OPTIONS
-	Product   string `json:"product"`
-	DCPStatus string `json:"dcpStatus"`
-	// TimeWindow is the trigger window in seconds, between 3 and 300
-	TimeWindow types.Number `json:"timeWindow"`
+	Product                    string `json:"product"`
+	DisconnectionProtectStatus string `json:"dcpStatus"`
+	// TimeWindowInSeconds is the trigger window, between 3 and 300
+	TimeWindowInSeconds types.Number `json:"timeWindow"`
 }
 
 // SetMarginModeResponse holds the reasons a margin mode change failed, empty when it succeeded
@@ -485,32 +486,32 @@ type CoinGreeks struct {
 	TotalTheta types.Number  `json:"totalTheta"`
 }
 
-// MMPStateResponse holds the Market Maker Protection state of a base coin
-type MMPStateResponse struct {
-	Result []MMPState `json:"result"`
+// MarketMakerProtectionStateResponse holds the Market Maker Protection state of a base coin
+type MarketMakerProtectionStateResponse struct {
+	Result []MarketMakerProtectionState `json:"result"`
 }
 
-// MMPState holds a base coin's Market Maker Protection configuration and state
-type MMPState struct {
-	BaseCoin   currency.Code `json:"baseCoin"`
-	MMPEnabled bool          `json:"mmpEnabled"`
-	// Window and FrozenPeriod are in milliseconds
-	Window        types.Number `json:"window"`
-	FrozenPeriod  types.Number `json:"frozenPeriod"`
-	QuantityLimit types.Number `json:"qtyLimit"`
-	DeltaLimit    types.Number `json:"deltaLimit"`
-	VegaLimit     types.Number `json:"vegaLimit"`
-	// MMPFrozenUntil only applies while MMPFrozen
-	MMPFrozenUntil types.Time `json:"mmpFrozenUntil"`
-	MMPFrozen      bool       `json:"mmpFrozen"`
+// MarketMakerProtectionState holds a base coin's Market Maker Protection configuration and state
+type MarketMakerProtectionState struct {
+	BaseCoin                     currency.Code `json:"baseCoin"`
+	MarketMakerProtectionEnabled bool          `json:"mmpEnabled"`
+	WindowInMilliseconds         types.Number  `json:"window"`
+	FrozenPeriodInMilliseconds   types.Number  `json:"frozenPeriod"`
+	QuantityLimit                types.Number  `json:"qtyLimit"`
+	DeltaLimit                   types.Number  `json:"deltaLimit"`
+	VegaLimit                    types.Number  `json:"vegaLimit"`
+	// MarketMakerProtectionFrozenUntil only applies while MarketMakerProtectionFrozen
+	MarketMakerProtectionFrozenUntil types.Time `json:"mmpFrozenUntil"`
+	MarketMakerProtectionFrozen      bool       `json:"mmpFrozen"`
 }
 
-// SetMMPRequest holds the parameters of SetMMP; Market Maker Protection applies to options only
-type SetMMPRequest struct {
+// SetMarketMakerProtectionRequest holds the parameters of SetMarketMakerProtection; Market Maker Protection applies to
+// options only
+type SetMarketMakerProtectionRequest struct {
 	BaseCoin currency.Code
 	// Window is sent in milliseconds
 	Window time.Duration
-	// FrozenPeriod is sent in milliseconds; 0 keeps trading frozen until ResetMMP
+	// FrozenPeriod is sent in milliseconds; 0 keeps trading frozen until ResetMarketMakerProtection
 	FrozenPeriod time.Duration
 	// QuantityLimit, DeltaLimit and VegaLimit are positive with up to two decimal places
 	QuantityLimit float64
@@ -519,11 +520,11 @@ type SetMMPRequest struct {
 	VegaLimit float64
 }
 
-// SMPGroupIDResponse holds the account's Self-Match Prevention group
-type SMPGroupIDResponse struct {
-	// SMPGroup is 0 when the account has no group. Bybit sends smpGroup as a number here and as a string on its order
-	// endpoints, so either is accepted
-	SMPGroup types.Number `json:"smpGroup"`
+// SelfMatchPreventionGroupIDResponse holds the account's Self-Match Prevention group
+type SelfMatchPreventionGroupIDResponse struct {
+	// SelfMatchPreventionGroup is 0 when the account has no group. Bybit sends smpGroup as a number here and as a
+	// string on its order endpoints, so either is accepted
+	SelfMatchPreventionGroup types.Number `json:"smpGroup"`
 }
 
 // TradeBehaviourConfigResponse holds the account's trade behaviour settings
@@ -537,8 +538,8 @@ type TradeBehaviourConfigResponse struct {
 	DeltaEnable                   bool `json:"deltaEnable"`
 	SpotMNTFeeDeductionEnabled    bool `json:"smsef"`
 	FuturesMNTFeeDeductionEnabled bool `json:"fmsef"`
-	// SMPType is 0 no Self-Match Prevention, 1 cancel taker, 2 cancel maker or 3 cancel both
-	SMPType uint64 `json:"smpType"`
+	// SelfMatchPreventionType is 0 no Self-Match Prevention, 1 cancel taker, 2 cancel maker or 3 cancel both
+	SelfMatchPreventionType uint64 `json:"smpType"`
 }
 
 // SetDeltaNeutralModeResponse holds the outcome of a delta neutral mode change
@@ -603,10 +604,9 @@ type PayCollateralInfo struct {
 
 // PayCollateral holds a coin available to repay liabilities
 type PayCollateral struct {
-	Coin          currency.Code `json:"coin"`
-	AvailableSize types.Number  `json:"availableSize"`
-	// AvailableValue is in USD
-	AvailableValue types.Number `json:"availableValue"`
+	Coin                currency.Code `json:"coin"`
+	AvailableSize       types.Number  `json:"availableSize"`
+	AvailableValueInUSD types.Number  `json:"availableValue"`
 	// CoinScale is the coin's precision
 	CoinScale       uint64       `json:"coinScale"`
 	BorrowSize      types.Number `json:"borrowSize"`
@@ -617,12 +617,11 @@ type PayCollateral struct {
 // PayBorrowInfo holds the borrowing of the requested coin, or of every coin
 type PayBorrowInfo struct {
 	// Coin is only returned when a coin is requested
-	Coin       currency.Code `json:"coin"`
-	BorrowSize types.Number  `json:"borrowSize"`
-	// BorrowValue is in USD
-	BorrowValue      types.Number `json:"borrowValue"`
-	AssetFrozen      types.Number `json:"assetFrozen"`
-	AvailableBalance types.Number `json:"availableBalance"`
+	Coin             currency.Code `json:"coin"`
+	BorrowSize       types.Number  `json:"borrowSize"`
+	BorrowValueInUSD types.Number  `json:"borrowValue"`
+	AssetFrozen      types.Number  `json:"assetFrozen"`
+	AvailableBalance types.Number  `json:"availableBalance"`
 }
 
 // TradeInfoForAnalysisRequest holds the parameters of GetTradeInfoForAnalysis

@@ -31,8 +31,8 @@ type EarnProduct struct {
 	MaxRedeemAmount types.Number `json:"maxRedeemAmount"`
 	// Duration is Fixed or Flexible for On-Chain products
 	Duration string `json:"duration"`
-	// Term is the lock-up in days of On-Chain Fixed products
-	Term                   uint64        `json:"term"`
+	// TermInDays is the lock-up of On-Chain Fixed products
+	TermInDays             uint64        `json:"term"`
 	SwapCoin               currency.Code `json:"swapCoin"`
 	SwapCoinPrecision      types.Number  `json:"swapCoinPrecision"`
 	StakeExchangeRate      types.Number  `json:"stakeExchangeRate"`
@@ -293,10 +293,10 @@ type EarnCouponInterestCard struct {
 	Coin     currency.Code `json:"coin"`
 	// APY is the bonus APY as a decimal, 0.03 for 3%
 	APY types.Number `json:"apy"`
-	// Duration is the coupon validity in days
-	Duration  uint64     `json:"duration"`
-	ClaimedAt types.Time `json:"claimedAt"`
-	ExpireAt  types.Time `json:"expireAt"`
+	// DurationInDays is the coupon validity
+	DurationInDays uint64     `json:"duration"`
+	ClaimedAt      types.Time `json:"claimedAt"`
+	ExpireAt       types.Time `json:"expireAt"`
 	// UsedAt is zero while the coupon is unused
 	UsedAt                  types.Time   `json:"usedAt"`
 	Status                  string       `json:"status"`
@@ -330,19 +330,17 @@ type EarnCouponAwardCard struct {
 // BYUSDTProductInfoResponse is the BYUSDT product. UserHolding, LeftQuota, CanMint and SavingsBalance are only set for
 // signed requests
 type BYUSDTProductInfoResponse struct {
-	ProductID string        `json:"productId"`
-	Coin      currency.Code `json:"coin"`
-	// MintFeeRateE8, RedeemFeeRateE8, APRE8 and BonusAPRE8 are rates multiplied by 1e8
-	MintFeeRateE8   types.Number `json:"mintFeeRateE8"`
-	RedeemFeeRateE8 types.Number `json:"redeemFeeRateE8"`
-	// MinInvestment is in USDT
-	MinInvestment  types.Number `json:"minInvestment"`
-	UserHolding    types.Number `json:"userHolding"`
-	LeftQuota      types.Number `json:"leftQuota"`
-	CanMint        bool         `json:"canMint"`
-	SavingsBalance types.Number `json:"savingsBalance"`
-	APRE8          types.Number `json:"aprE8"`
-	BonusAPRE8     types.Number `json:"bonusAprE8"`
+	ProductID                string        `json:"productId"`
+	Coin                     currency.Code `json:"coin"`
+	MintFeeRateScaledBy1E8   types.Number  `json:"mintFeeRateE8"`
+	RedeemFeeRateScaledBy1E8 types.Number  `json:"redeemFeeRateE8"`
+	MinInvestmentInUSDT      types.Number  `json:"minInvestment"`
+	UserHolding              types.Number  `json:"userHolding"`
+	LeftQuota                types.Number  `json:"leftQuota"`
+	CanMint                  bool          `json:"canMint"`
+	SavingsBalance           types.Number  `json:"savingsBalance"`
+	APRScaledBy1E8           types.Number  `json:"aprE8"`
+	BonusAPRScaledBy1E8      types.Number  `json:"bonusAprE8"`
 	// BonusMaxAmount is the most principal that earns the bonus APR
 	BonusMaxAmount types.Number `json:"bonusMaxAmount"`
 	// BaseCoinPrecision and TokenPrecision are the decimal places of USDT and BYUSDT amounts
@@ -409,11 +407,11 @@ type BYUSDTPositionInfoResponse struct {
 	TotalAmount    types.Number `json:"totalAmount"`
 	TotalYield     types.Number `json:"totalYield"`
 	YesterdayYield types.Number `json:"yesterdayYield"`
-	// APRE8 and BonusAPRE8 are rates multiplied by 1e8; documented as integers, sent quoted
-	APRE8          types.Number `json:"aprE8"`
-	BonusAPRE8     types.Number `json:"bonusAprE8"`
-	BonusMaxAmount types.Number `json:"bonusMaxAmount"`
-	HasQuota       bool         `json:"hasQuota"`
+	// APRScaledBy1E8 and BonusAPRScaledBy1E8 are documented as integers but sent quoted
+	APRScaledBy1E8      types.Number `json:"aprE8"`
+	BonusAPRScaledBy1E8 types.Number `json:"bonusAprE8"`
+	BonusMaxAmount      types.Number `json:"bonusMaxAmount"`
+	HasQuota            bool         `json:"hasQuota"`
 }
 
 // BYUSDTYieldRecordsRequest filters BYUSDT daily or hourly yields
@@ -452,10 +450,10 @@ type BYUSDTHourlyYield struct {
 	Yield           types.Number `json:"yield"`
 	// RewardType is 0 for the base yield and 1 for the bonus yield
 	RewardType uint64 `json:"rewardType"`
-	// APRE8 is the applied APR multiplied by 1e8
-	APRE8       types.Number `json:"aprE8"`
-	HourlyDate  types.Time   `json:"hourlyDate"`
-	CreatedTime types.Time   `json:"createdTime"`
+	// APRScaledBy1E8 is the applied APR
+	APRScaledBy1E8 types.Number `json:"aprE8"`
+	HourlyDate     types.Time   `json:"hourlyDate"`
+	CreatedTime    types.Time   `json:"createdTime"`
 }
 
 // BYUSDTHistoryAPRResponse holds the BYUSDT daily APR, oldest first
@@ -465,9 +463,8 @@ type BYUSDTHistoryAPRResponse struct {
 
 // BYUSDTHistoryAPR is the BYUSDT APR of a day
 type BYUSDTHistoryAPR struct {
-	Timestamp types.Time `json:"timestamp"`
-	// APRE8 is the APR multiplied by 1e8
-	APRE8 types.Number `json:"aprE8"`
+	Timestamp      types.Time   `json:"timestamp"`
+	APRScaledBy1E8 types.Number `json:"aprE8"`
 }
 
 // FixedSavingProductInfoResponse holds Fixed Saving products

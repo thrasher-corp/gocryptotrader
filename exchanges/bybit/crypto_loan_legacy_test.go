@@ -24,12 +24,12 @@ func TestGetLegacyCryptoLoanCollateralCoins(t *testing.T) {
 				{
 					List: []LegacyCryptoLoanCollateralCoin{
 						{
-							CollateralAccuracy: 8,
-							Currency:           currency.ETH,
-							InitialLTV:         0.8,
-							MarginCallLTV:      0.87,
-							LiquidationLTV:     0.95,
-							MaxLimit:           32000,
+							CollateralAccuracy:     8,
+							Currency:               currency.ETH,
+							InitialLoanToValue:     0.8,
+							MarginCallLoanToValue:  0.87,
+							LiquidationLoanToValue: 0.95,
+							MaxLimit:               32000,
 						},
 					},
 					VIPLevel: "PRO1",
@@ -140,7 +140,7 @@ func TestGetLegacyCryptoLoanUnpaidLoans(t *testing.T) {
 		LoanCurrency:       currency.USDT,
 		CollateralCurrency: currency.BTC,
 		LoanTermType:       "1",
-		LoanTerm:           30,
+		LoanTermInDays:     30,
 		Limit:              10,
 		Cursor:             "1793683005081680385",
 	})
@@ -151,11 +151,11 @@ func TestGetLegacyCryptoLoanUnpaidLoans(t *testing.T) {
 				{
 					CollateralAmount:        0.0964687,
 					CollateralCurrency:      currency.BTC,
-					CurrentLTV:              0.4161,
+					CurrentLoanToValue:      0.4161,
 					ExpirationTime:          types.Time(time.Unix(1731149999, 0)),
 					HourlyInterestRate:      0.0000010633,
 					LoanCurrency:            currency.USDT,
-					LoanTerm:                30,
+					LoanTermInDays:          30,
 					OrderID:                 "1793683005081680384",
 					ResidualInterest:        0.04016,
 					ResidualPenaltyInterest: 0.0012,
@@ -193,7 +193,7 @@ func TestGetLegacyCryptoLoanRepaymentHistory(t *testing.T) {
 					CollateralCurrency: currency.BTC,
 					CollateralReturn:   0.0494727,
 					LoanCurrency:       currency.USDT,
-					LoanTerm:           7,
+					LoanTermInDays:     7,
 					OrderID:            "1794267532472646144",
 					RepayAmount:        1888.005198,
 					RepayID:            "1794271131730737664",
@@ -237,7 +237,7 @@ func TestGetLegacyCryptoLoanCompletedLoanHistory(t *testing.T) {
 					InitialCollateralAmount: 0.0494727,
 					InitialLoanAmount:       1,
 					LoanCurrency:            currency.ETH,
-					LoanTerm:                7,
+					LoanTermInDays:          7,
 					OrderID:                 "1793569729874260992",
 					RepaidInterest:          0.00000515,
 					RepaidPenaltyInterest:   0.0000012,
@@ -302,40 +302,40 @@ func TestAdjustLegacyCryptoLoanCollateralAmount(t *testing.T) {
 	assert.NotEmpty(t, result.AdjustID, "AdjustLegacyCryptoLoanCollateralAmount should return an adjustment ID")
 }
 
-func TestGetLegacyCryptoLoanLTVAdjustmentHistory(t *testing.T) {
+func TestGetLegacyCryptoLoanLoanToValueAdjustmentHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetLegacyCryptoLoanLTVAdjustmentHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetLegacyCryptoLoanLTVAdjustmentHistory must reject a nil request")
+	_, err := e.GetLegacyCryptoLoanLoanToValueAdjustmentHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetLegacyCryptoLoanLoanToValueAdjustmentHistory must reject a nil request")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetLegacyCryptoLoanLTVAdjustmentHistory(t.Context(), &LegacyCryptoLoanLTVAdjustmentHistoryRequest{
+	result, err := e.GetLegacyCryptoLoanLoanToValueAdjustmentHistory(t.Context(), &LegacyCryptoLoanLoanToValueAdjustmentHistoryRequest{
 		OrderID:            "1794267532472646144",
 		AdjustID:           "1794318409405331968",
 		CollateralCurrency: currency.BTC,
 		Limit:              10,
 		Cursor:             "1844656778923966467",
 	})
-	require.NoError(t, err, "GetLegacyCryptoLoanLTVAdjustmentHistory must not error")
+	require.NoError(t, err, "GetLegacyCryptoLoanLoanToValueAdjustmentHistory must not error")
 	if mockTests {
-		exp := &LegacyCryptoLoanLTVAdjustmentHistoryResponse{
-			List: []LegacyCryptoLoanLTVAdjustment{
+		exp := &LegacyCryptoLoanLoanToValueAdjustmentHistoryResponse{
+			List: []LegacyCryptoLoanLoanToValueAdjustment{
 				{
 					CollateralCurrency: currency.BTC,
 					OrderID:            "1794267532472646144",
 					AdjustID:           "1794318409405331968",
 					AdjustTime:         types.Time(time.UnixMilli(1728635422814)),
-					PreLTV:             0.6546,
-					AfterLTV:           0.7164,
+					PreLoanToValue:     0.6546,
+					AfterLoanToValue:   0.7164,
 					Direction:          1,
 					Amount:             0.001,
 				},
 			},
 			NextPageCursor: "1844656778923966466",
 		}
-		assert.Equal(t, exp, result, "GetLegacyCryptoLoanLTVAdjustmentHistory should decode every field")
+		assert.Equal(t, exp, result, "GetLegacyCryptoLoanLoanToValueAdjustmentHistory should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetLegacyCryptoLoanLTVAdjustmentHistory should return a result")
+	assert.NotNil(t, result, "GetLegacyCryptoLoanLoanToValueAdjustmentHistory should return a result")
 }

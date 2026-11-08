@@ -582,40 +582,40 @@ func TestGetTotalMembersAssets(t *testing.T) {
 			Stat:       1,
 			List: []MemberAssets{
 				{
-					UID:             100000001,
-					IsMaster:        true,
-					OriginalBalance: 7252396.538574542,
-					QuoteBalance:    124.18352734589561,
+					UID:                  100000001,
+					IsMaster:             true,
+					OriginalBalanceInUSD: 7252396.538574542,
+					QuoteBalance:         124.18352734589561,
 					Items: []MemberAccountAssets{
 						{
-							Type:            "ACCOUNT_TYPE_FUND",
-							OriginalBalance: 7180203.788461284,
-							QuoteBalance:    122.9486950078987,
+							Type:                 "ACCOUNT_TYPE_FUND",
+							OriginalBalanceInUSD: 7180203.788461284,
+							QuoteBalance:         122.9486950078987,
 						},
 						{
-							Type:            "ACCOUNT_TYPE_UNIFIED",
-							OriginalBalance: 17.46702425666126,
-							QuoteBalance:    0.000299092881107213,
+							Type:                 "ACCOUNT_TYPE_UNIFIED",
+							OriginalBalanceInUSD: 17.46702425666126,
+							QuoteBalance:         0.000299092881107213,
 						},
 						{
-							Type:            "ACCOUNT_TYPE_CONTRACT",
-							OriginalBalance: 72175.28308900143,
-							QuoteBalance:    1.2345332451158044,
+							Type:                 "ACCOUNT_TYPE_CONTRACT",
+							OriginalBalanceInUSD: 72175.28308900143,
+							QuoteBalance:         1.2345332451158044,
 						},
 					},
 				},
 				{
-					UID:             100000002,
-					Type:            1,
-					Stat:            1,
-					OriginalBalance: 116980.37505648528,
-					QuoteBalance:    2.004433503950749,
+					UID:                  100000002,
+					Type:                 1,
+					Stat:                 1,
+					OriginalBalanceInUSD: 116980.37505648528,
+					QuoteBalance:         2.004433503950749,
 					Items: []MemberAccountAssets{
 						{
-							Type:            "ACCOUNT_TYPE_UNIFIED",
-							OriginalBalance: 116980.37505648528,
-							QuoteBalance:    2.004433503950749,
-							Stat:            1,
+							Type:                 "ACCOUNT_TYPE_UNIFIED",
+							OriginalBalanceInUSD: 116980.37505648528,
+							QuoteBalance:         2.004433503950749,
+							Stat:                 1,
 						},
 					},
 				},
@@ -638,7 +638,7 @@ func TestGetSingleCoinBalance(t *testing.T) {
 	_, err = e.GetSingleCoinBalance(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetSingleCoinBalance must reject an empty coin")
 	arg.Coin = currency.USDT
-	arg.WithLTVTransferSafeAmount = true
+	arg.WithLoanToValueTransferSafeAmount = true
 	_, err = e.GetSingleCoinBalance(t.Context(), arg)
 	require.ErrorIs(t, err, errToAccountTypeRequired, "GetSingleCoinBalance must reject an LTV transfer safe amount query without a to account type")
 
@@ -679,12 +679,12 @@ func TestGetSingleCoinBalance(t *testing.T) {
 			AccountID:    "100000011",
 			MemberID:     "100000001",
 			Balance: SingleCoinBalance{
-				Coin:                  currency.USDT,
-				WalletBalance:         11999,
-				TransferBalance:       11999,
-				Bonus:                 5,
-				TransferSafeAmount:    11500.5,
-				LTVTransferSafeAmount: 7602.4861,
+				Coin:                          currency.USDT,
+				WalletBalance:                 11999,
+				TransferBalance:               11999,
+				Bonus:                         5,
+				TransferSafeAmount:            11500.5,
+				LoanToValueTransferSafeAmount: 7602.4861,
 			},
 		}
 		assert.Equal(t, exp, result, "GetSingleCoinBalance should decode every field")
@@ -784,7 +784,7 @@ func TestGetWithdrawableAmount(t *testing.T) {
 					WithdrawableAmount: 155.847,
 					AvailableBalance:   155.847,
 				},
-				UTA: &WalletWithdrawableAmount{
+				UnifiedTradingAccount: &WalletWithdrawableAmount{
 					Coin:               currency.LTC,
 					WithdrawableAmount: 498.0882,
 					AvailableBalance:   498.0882,

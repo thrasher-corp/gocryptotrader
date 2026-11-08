@@ -103,11 +103,11 @@ func (e *Exchange) GetInstitutionalLoanRepaymentOrders(ctx context.Context, req 
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/repaid-history", params, nil, &resp, getInstitutionalLoanRepaymentOrdersEPL)
 }
 
-// GetInstitutionalLoanLTV returns the loan-to-value ratio, debts and margin assets of each institutional loan risk
-// unit (Get LTV)
-func (e *Exchange) GetInstitutionalLoanLTV(ctx context.Context) (*InstitutionalLoanLTVResponse, error) {
-	var resp *InstitutionalLoanLTVResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/ltv-convert", nil, nil, &resp, getInstitutionalLoanLTVEPL)
+// GetInstitutionalLoanLoanToValue returns the loan-to-value ratio, debts and margin assets of each institutional loan
+// risk unit (Get LTV)
+func (e *Exchange) GetInstitutionalLoanLoanToValue(ctx context.Context) (*InstitutionalLoanLoanToValueResponse, error) {
+	var resp *InstitutionalLoanLoanToValueResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/ltv-convert", nil, nil, &resp, getInstitutionalLoanLoanToValueEPL)
 }
 
 // BindOrUnbindUID binds a UID to, or unbinds it from, the institutional loan risk unit of the API key's UID (Bind Or

@@ -482,7 +482,7 @@ func TestWebsocketProcessOrderbookWithoutOrders(t *testing.T) {
 	assert.Equal(t, []orderbook.Level{{Price: 0.5, Amount: 10}}, []orderbook.Level(book.Bids), "the delta should add the quote to the book")
 }
 
-func TestWebsocketRPIOrderbook(t *testing.T) {
+func TestWebsocketRetailPriceImprovementOrderbook(t *testing.T) {
 	t.Parallel()
 	ex := streamTestInstance(t)
 	frames := liveOrFixtureFrames(t, spotPublic, "testdata/wsPublicRPIOrderbook.jsonl", "orderbook.rpi.BTCUSDT")
@@ -492,36 +492,36 @@ func TestWebsocketRPIOrderbook(t *testing.T) {
 	data := relayed(ex)
 	require.Len(t, data, len(frames), "every push must be relayed")
 	if !mockTests {
-		assert.IsType(t, (*WebsocketRPIOrderbookUpdate)(nil), data[0], "pushes should be relayed decoded")
+		assert.IsType(t, (*WebsocketRetailPriceImprovementOrderbookUpdate)(nil), data[0], "pushes should be relayed decoded")
 		return
 	}
-	pushes := decodeFramesStrictly[WebsocketRPIOrderbookUpdate](t, frames)
-	expPushes := []WebsocketRPIOrderbookUpdate{
+	pushes := decodeFramesStrictly[WebsocketRetailPriceImprovementOrderbookUpdate](t, frames)
+	expPushes := []WebsocketRetailPriceImprovementOrderbookUpdate{
 		{
 			Topic:     "orderbook.rpi.BTCUSDT",
 			Type:      "snapshot",
 			Timestamp: types.Time(time.UnixMilli(1791535764116)),
-			Data: WebsocketRPIOrderbook{
+			Data: WebsocketRetailPriceImprovementOrderbook{
 				Symbol: "BTCUSDT",
-				Bids: []RPIOrderbookLevel{
+				Bids: []RetailPriceImprovementOrderbookLevel{
 					{
-						Price:      82590.5,
-						NonRPISize: 1.976699,
-						RPISize:    0.260218,
+						Price:                         82590.5,
+						NonRetailPriceImprovementSize: 1.976699,
+						RetailPriceImprovementSize:    0.260218,
 					},
 					{
-						Price:   82590.2,
-						RPISize: 0.29,
+						Price:                      82590.2,
+						RetailPriceImprovementSize: 0.29,
 					},
 				},
-				Asks: []RPIOrderbookLevel{
+				Asks: []RetailPriceImprovementOrderbookLevel{
 					{
-						Price:      82590.6,
-						NonRPISize: 0.412778,
+						Price:                         82590.6,
+						NonRetailPriceImprovementSize: 0.412778,
 					},
 					{
-						Price:   82592.4,
-						RPISize: 0.175695,
+						Price:                      82592.4,
+						RetailPriceImprovementSize: 0.175695,
 					},
 				},
 				UpdateID: 114982077,
@@ -533,23 +533,23 @@ func TestWebsocketRPIOrderbook(t *testing.T) {
 			Topic:     "orderbook.rpi.BTCUSDT",
 			Type:      "delta",
 			Timestamp: types.Time(time.UnixMilli(1791535764216)),
-			Data: WebsocketRPIOrderbook{
+			Data: WebsocketRetailPriceImprovementOrderbook{
 				Symbol: "BTCUSDT",
-				Bids: []RPIOrderbookLevel{
+				Bids: []RetailPriceImprovementOrderbookLevel{
 					{
-						Price:      82590.5,
-						NonRPISize: 1.982752,
-						RPISize:    0.260218,
+						Price:                         82590.5,
+						NonRetailPriceImprovementSize: 1.982752,
+						RetailPriceImprovementSize:    0.260218,
 					},
 					{
 						Price: 82590.2,
 					},
 				},
-				Asks: []RPIOrderbookLevel{
+				Asks: []RetailPriceImprovementOrderbookLevel{
 					{
-						Price:      82602.7,
-						NonRPISize: 0.00089,
-						RPISize:    0.175695,
+						Price:                         82602.7,
+						NonRetailPriceImprovementSize: 0.00089,
+						RetailPriceImprovementSize:    0.175695,
 					},
 				},
 				UpdateID: 114982078,
@@ -657,14 +657,14 @@ func TestWebsocketPublicTrade(t *testing.T) {
 			Timestamp: types.Time(time.UnixMilli(1791535765239)),
 			Data: []WebsocketPublicTrade{
 				{
-					OrderFillTimestamp: types.Time(time.UnixMilli(1791535765237)),
-					Symbol:             "BTCUSDT",
-					Side:               "Sell",
-					Size:               0.023863,
-					Price:              82590.5,
-					TradeID:            "2290000001228958155",
-					RPI:                true,
-					Sequence:           115179399571,
+					OrderFillTimestamp:     types.Time(time.UnixMilli(1791535765237)),
+					Symbol:                 "BTCUSDT",
+					Side:                   "Sell",
+					Size:                   0.023863,
+					Price:                  82590.5,
+					TradeID:                "2290000001228958155",
+					RetailPriceImprovement: true,
+					Sequence:               115179399571,
 				},
 			},
 		},
@@ -1758,7 +1758,7 @@ func TestWebsocketPriceLimit(t *testing.T) {
 	})
 }
 
-func TestWebsocketADLAlert(t *testing.T) {
+func TestWebsocketAutoDeleveragingAlert(t *testing.T) {
 	t.Parallel()
 	ex := streamTestInstance(t)
 	if !mockTests {
@@ -1767,29 +1767,29 @@ func TestWebsocketADLAlert(t *testing.T) {
 		require.NoError(t, ex.wsHandleData(t.Context(), nil, asset.CoinMarginedFutures, frames[0]), "wsHandleData must not error")
 		return
 	}
-	testRelayedPublicStream[WebsocketADLAlertUpdate](t, ex, "testdata/wsPublicADLAlert.jsonl", asset.USDTMarginedFutures, []WebsocketADLAlertUpdate{
+	testRelayedPublicStream[WebsocketAutoDeleveragingAlertUpdate](t, ex, "testdata/wsPublicADLAlert.jsonl", asset.USDTMarginedFutures, []WebsocketAutoDeleveragingAlertUpdate{
 		{
 			Topic:     "adlAlert.USDT",
 			Type:      "snapshot",
 			Timestamp: types.Time(time.Unix(1791535778, 0)),
-			Data: []WebsocketADLAlert{
+			Data: []WebsocketAutoDeleveragingAlert{
 				{
-					Coin:                currency.USDT,
-					Symbol:              "DGAIUSDT",
-					Balance:             17651927.40423898,
-					InsurancePNLRatio:   -1,
-					ADLTriggerThreshold: 20000,
-					ADLStopRatio:        -0.95,
+					Coin:                             currency.USDT,
+					Symbol:                           "DGAIUSDT",
+					Balance:                          17651927.40423898,
+					InsurancePNLRatio:                -1,
+					AutoDeleveragingTriggerThreshold: 20000,
+					AutoDeleveragingStopRatio:        -0.95,
 				},
 				{
-					Coin:                currency.USDT,
-					Symbol:              "FWOGUSDT",
-					Balance:             -5421.29889888,
-					MaxBalance:          -5421.29889888,
-					InsurancePNLRatio:   -0.3,
-					PNLRatio:            0.000174,
-					ADLTriggerThreshold: 10000,
-					ADLStopRatio:        -0.25,
+					Coin:                             currency.USDT,
+					Symbol:                           "FWOGUSDT",
+					Balance:                          -5421.29889888,
+					MaxBalance:                       -5421.29889888,
+					InsurancePNLRatio:                -0.3,
+					PNLRatio:                         0.000174,
+					AutoDeleveragingTriggerThreshold: 10000,
+					AutoDeleveragingStopRatio:        -0.25,
 				},
 			},
 		},
@@ -1825,7 +1825,7 @@ func TestPublicTopic(t *testing.T) {
 		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Pairs: btc, Levels: 200}, asset: asset.USDTMarginedFutures, exp: "orderbook.200.BTCUSDT"},
 		{sub: &subscription.Subscription{Channel: chanOrderbook, Pairs: btc}, asset: asset.USDTMarginedFutures, exp: "orderbook.50.BTCUSDT"},
 		{sub: &subscription.Subscription{Channel: chanOrderbook, Pairs: currency.Pairs{fixtureOptionPair}}, asset: asset.Options, exp: "orderbook.25.BTC-24SEP27-170000-P-USDT"},
-		{sub: &subscription.Subscription{Channel: chanRPIOrderbook, Pairs: btc}, asset: asset.USDTMarginedFutures, exp: "orderbook.rpi.BTCUSDT"},
+		{sub: &subscription.Subscription{Channel: chanRetailPriceImprovementOrderbook, Pairs: btc}, asset: asset.USDTMarginedFutures, exp: "orderbook.rpi.BTCUSDT"},
 		{sub: &subscription.Subscription{Channel: chanFullOrderbook, Pairs: currency.Pairs{currency.NewBTCUSD()}}, asset: asset.CoinMarginedFutures, exp: "orderbook.full.BTCUSD"},
 		{sub: &subscription.Subscription{Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{fixtureUSDCPerpetualPair}}, asset: asset.USDCMarginedFutures, exp: "publicTrade.BTCPERP"},
 		{sub: &subscription.Subscription{Channel: chanPublicTrade, Pairs: currency.Pairs{fixtureOptionPair, currency.NewPairWithDelimiter("BTC", "10OCT26-82750-C-USDT", "-")}}, asset: asset.Options, exp: "publicTrade.BTC"},
@@ -1835,8 +1835,8 @@ func TestPublicTopic(t *testing.T) {
 		{sub: &subscription.Subscription{Channel: chanPriceLimit, Pairs: currency.Pairs{currency.NewBTCUSD()}}, asset: asset.CoinMarginedFutures, exp: "priceLimit.BTCUSD"},
 		{sub: &subscription.Subscription{Channel: chanInsurancePool}, asset: asset.USDTMarginedFutures, exp: "insurance.USDT"},
 		{sub: &subscription.Subscription{Channel: chanInsurancePool}, asset: asset.USDCMarginedFutures, exp: "insurance.USDC"},
-		{sub: &subscription.Subscription{Channel: chanADLAlert}, asset: asset.CoinMarginedFutures, exp: "adlAlert.inverse"},
-		{sub: &subscription.Subscription{Channel: chanADLAlert}, asset: asset.Options, err: errContractGroupNotSupported},
+		{sub: &subscription.Subscription{Channel: chanAutoDeleveragingAlert}, asset: asset.CoinMarginedFutures, exp: "adlAlert.inverse"},
+		{sub: &subscription.Subscription{Channel: chanAutoDeleveragingAlert}, asset: asset.Options, err: errContractGroupNotSupported},
 		{sub: &subscription.Subscription{Channel: chanPublicTrade}, asset: asset.Options, err: currency.ErrCurrencyPairsEmpty},
 		{sub: &subscription.Subscription{Channel: chanPublicTrade, Pairs: currency.Pairs{fixtureOptionPair, currency.NewPairWithDelimiter("ETH", "10OCT26-2500-C-USDT", "-")}}, asset: asset.Options, err: errOptionTradesNotOneBaseCoin},
 		{sub: &subscription.Subscription{Channel: chanPublicTicker, Pairs: currency.Pairs{currency.NewBTCUSDT(), currency.NewBTCUSD()}}, asset: asset.USDTMarginedFutures, err: subscription.ErrNotSinglePair},

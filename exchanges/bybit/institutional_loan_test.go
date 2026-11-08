@@ -332,24 +332,24 @@ func TestGetInstitutionalLoanRepaymentOrders(t *testing.T) {
 	assert.NotNil(t, result, "GetInstitutionalLoanRepaymentOrders should return a result")
 }
 
-func TestGetInstitutionalLoanLTV(t *testing.T) {
+func TestGetInstitutionalLoanLoanToValue(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetInstitutionalLoanLTV(t.Context())
-	require.NoError(t, err, "GetInstitutionalLoanLTV must not error")
+	result, err := e.GetInstitutionalLoanLoanToValue(t.Context())
+	require.NoError(t, err, "GetInstitutionalLoanLoanToValue must not error")
 	if mockTests {
-		exp := &InstitutionalLoanLTVResponse{
-			LTVInfo: []InstitutionalLoanLTV{
+		exp := &InstitutionalLoanLoanToValueResponse{
+			LoanToValueInfo: []InstitutionalLoanLoanToValue{
 				{
-					LTV:                      0.86,
-					RemainingLiquidationTime: 1766465620,
-					ParentUID:                "100000001",
+					LoanToValue:                       0.86,
+					RemainingLiquidationTimeInSeconds: 1766465620,
+					ParentUID:                         "100000001",
 					SubAccountUIDs: []string{
 						"100000002",
 					},
-					UnpaidAmount: 30,
+					UnpaidAmountInUSD: 30,
 					UnpaidInfo: []InstitutionalLoanUnpaid{
 						{
 							Token:          currency.USDT,
@@ -357,7 +357,7 @@ func TestGetInstitutionalLoanLTV(t *testing.T) {
 							UnpaidInterest: 0.01,
 						},
 					},
-					Balance: 40,
+					BalanceInUSDT: 40,
 					BalanceInfo: []InstitutionalLoanBalance{
 						{
 							Token:           currency.USDT,
@@ -380,10 +380,10 @@ func TestGetInstitutionalLoanLTV(t *testing.T) {
 			},
 			LiquidationStatus: 3,
 		}
-		assert.Equal(t, exp, result, "GetInstitutionalLoanLTV should decode every field")
+		assert.Equal(t, exp, result, "GetInstitutionalLoanLoanToValue should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetInstitutionalLoanLTV should return a result")
+	assert.NotNil(t, result, "GetInstitutionalLoanLoanToValue should return a result")
 }
 
 func TestBindOrUnbindUID(t *testing.T) {
@@ -451,15 +451,15 @@ func TestGetInstitutionalLoanCoinDeltaAmount(t *testing.T) {
 	require.NoError(t, err, "GetInstitutionalLoanCoinDeltaAmount must not error")
 	if mockTests {
 		exp := &InstitutionalLoanCoinDeltaAmountResponse{
-			RiskUnitDeltaAmount:          500000,
-			RiskUnitDeltaAvailableAmount: 350000,
-			RiskUnitDelta:                0.8,
+			RiskUnitDeltaAmountInUSD:          500000,
+			RiskUnitDeltaAvailableAmountInUSD: 350000,
+			RiskUnitDelta:                     0.8,
 			List: []InstitutionalLoanCoinDeltaInfo{
 				{
-					Coin:                     currency.BTC,
-					CoinDeltaSize:            10,
-					CoinDeltaAvailableAmount: 200000,
-					CoinDeltaAmount:          300000,
+					Coin:                          currency.BTC,
+					CoinDeltaSize:                 10,
+					CoinDeltaAvailableAmountInUSD: 200000,
+					CoinDeltaAmountInUSD:          300000,
 				},
 			},
 		}
@@ -478,7 +478,7 @@ func TestGetInstitutionalLoanDelayLiquidationStatus(t *testing.T) {
 	require.NoError(t, err, "GetInstitutionalLoanDelayLiquidationStatus must not error")
 	if mockTests {
 		exp := &InstitutionalLoanDelayLiquidationStatusResponse{
-			LTV:                              0.9123,
+			LoanToValue:                      0.9123,
 			LiquidationStatus:                3,
 			DelayLiquidationStartTime:        types.Time(time.UnixMilli(1789012118462)),
 			DelayLiquidationRemainingSeconds: 1200,

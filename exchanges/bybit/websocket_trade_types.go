@@ -17,9 +17,9 @@ type WebsocketTradeRequest struct {
 
 // WebsocketTradeRequestHeader holds the headers of an order request
 type WebsocketTradeRequestHeader struct {
-	Timestamp string `json:"X-BAPI-TIMESTAMP"` // Unix milliseconds
-	// ReceiveWindow is in milliseconds, 5000 when empty
-	ReceiveWindow string `json:"X-BAPI-RECV-WINDOW,omitempty"`
+	TimestampInMilliseconds string `json:"X-BAPI-TIMESTAMP"` // Unix time
+	// ReceiveWindowInMilliseconds is 5000 when empty
+	ReceiveWindowInMilliseconds string `json:"X-BAPI-RECV-WINDOW,omitempty"`
 	// Referer identifies an API broker
 	Referer string `json:"Referer,omitempty"`
 }

@@ -99,7 +99,7 @@ func (e *Exchange) PostP2PAd(ctx context.Context, r *P2PPostAdRequest) (*P2PPost
 	if r.Quantity <= 0 {
 		return nil, fmt.Errorf("%w: quantity", order.ErrAmountIsInvalid)
 	}
-	if r.PaymentPeriod == 0 {
+	if r.PaymentPeriodInMinutes == 0 {
 		return nil, errPaymentPeriodRequired
 	}
 	if r.ItemType == "" {
@@ -118,7 +118,7 @@ func (e *Exchange) PostP2PAd(ctx context.Context, r *P2PPostAdRequest) (*P2PPost
 	body["tradingPreferenceSet"] = r.TradingPreferenceSet.payload()
 	body["paymentIds"] = r.PaymentIDs
 	body["quantity"] = strconv.FormatFloat(r.Quantity, 'f', -1, 64)
-	body["paymentPeriod"] = strconv.FormatUint(r.PaymentPeriod, 10)
+	body["paymentPeriod"] = strconv.FormatUint(r.PaymentPeriodInMinutes, 10)
 	body["itemType"] = r.ItemType
 	var resp *P2PPostAdResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/p2p/item/create", nil, body, &resp, postP2PAdEPL)
@@ -145,7 +145,7 @@ func (p *P2PTradingPreferenceSetRequest) payload() map[string]string {
 	prefs["isEmail"] = p2pFlag(p.IsEmail)
 	prefs["isMobile"] = p2pFlag(p.IsMobile)
 	prefs["hasRegisterTime"] = p2pFlag(p.HasRegisterTime)
-	prefs["registerTimeThreshold"] = strconv.FormatUint(p.RegisterTimeThreshold, 10)
+	prefs["registerTimeThreshold"] = strconv.FormatUint(p.RegisterTimeThresholdInDays, 10)
 	prefs["orderFinishNumberDay30"] = strconv.FormatUint(p.OrderFinishNumberDay30, 10)
 	prefs["completeRateDay30"] = strconv.FormatFloat(p.CompleteRateDay30, 'f', -1, 64)
 	prefs["nationalLimit"] = p.NationalLimit
@@ -199,7 +199,7 @@ func (e *Exchange) UpdateP2PAd(ctx context.Context, r *P2PUpdateAdRequest) (*P2P
 	if r.Quantity <= 0 {
 		return nil, fmt.Errorf("%w: quantity", order.ErrAmountIsInvalid)
 	}
-	if r.PaymentPeriod == 0 {
+	if r.PaymentPeriodInMinutes == 0 {
 		return nil, errPaymentPeriodRequired
 	}
 	body := make(map[string]any)
@@ -214,7 +214,7 @@ func (e *Exchange) UpdateP2PAd(ctx context.Context, r *P2PUpdateAdRequest) (*P2P
 	body["paymentIds"] = r.PaymentIDs
 	body["actionType"] = r.ActionType
 	body["quantity"] = strconv.FormatFloat(r.Quantity, 'f', -1, 64)
-	body["paymentPeriod"] = strconv.FormatUint(r.PaymentPeriod, 10)
+	body["paymentPeriod"] = strconv.FormatUint(r.PaymentPeriodInMinutes, 10)
 	var resp *P2PUpdateAdResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/p2p/item/update", nil, body, &resp, updateP2PAdEPL)
 }

@@ -123,13 +123,13 @@ func (e *Exchange) SetTradingStop(ctx context.Context, r *TradingStopRequest) er
 		return errCategoryNotSet
 	case r.Symbol == "":
 		return errSymbolMissing
-	case r.TPSLMode == "":
+	case r.TakeProfitStopLossMode == "":
 		return errTakeProfitOrStopLossModeMissing
 	}
 	body := make(map[string]any)
 	body["category"] = r.Category
 	body["symbol"] = r.Symbol
-	body["tpslMode"] = r.TPSLMode
+	body["tpslMode"] = r.TakeProfitStopLossMode
 	body["positionIdx"] = r.PositionIndex
 	if r.TakeProfit != nil {
 		body["takeProfit"] = strconv.FormatFloat(*r.TakeProfit, 'f', -1, 64)

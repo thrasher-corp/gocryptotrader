@@ -926,7 +926,7 @@ func TestGetWeb3LPPoolList(t *testing.T) {
 					PoolName:           "ETH-USDC Pool",
 					PoolTag:            "Trending",
 					APY:                12.5,
-					TVL:                1000000,
+					TVLInUSD:           1000000,
 					Token0Symbol:       currency.ETH,
 					Token0IconURLDay:   "https://example.com/eth-day.png",
 					Token0IconURLNight: "https://example.com/eth-night.png",
@@ -1135,7 +1135,7 @@ func TestExecutePredictionBuy(t *testing.T) {
 	r.TokenID = "token_yes_123"
 	_, err = e.ExecutePredictionBuy(t.Context(), r)
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "ExecutePredictionBuy must require a positive amount")
-	r.Amount = 100
+	r.AmountInUSDC = 100
 	_, err = e.ExecutePredictionBuy(t.Context(), r)
 	require.ErrorIs(t, err, errTokenCodeRequired, "ExecutePredictionBuy must require a pay token code")
 	r.PayTokenCode = "USDC"
@@ -1299,20 +1299,20 @@ func TestGetPredictionTokenPrice(t *testing.T) {
 	if mockTests {
 		exp := []PredictionTokenPriceResponse{
 			{
-				TokenID:      "token_yes_123",
-				BestBid:      0.64,
-				BestAsk:      0.66,
-				LastPrice:    0.65,
-				Volume24Hour: 50000,
-				UpdateTime:   types.Time(time.Unix(1704067200, 0)),
+				TokenID:            "token_yes_123",
+				BestBid:            0.64,
+				BestAsk:            0.66,
+				LastPrice:          0.65,
+				Volume24HourInUSDC: 50000,
+				UpdateTime:         types.Time(time.Unix(1704067200, 0)),
 			},
 			{
-				TokenID:      "token_no_123",
-				BestBid:      0.34,
-				BestAsk:      0.36,
-				LastPrice:    0.35,
-				Volume24Hour: 48000,
-				UpdateTime:   types.Time(time.Unix(1704067200, 0)),
+				TokenID:            "token_no_123",
+				BestBid:            0.34,
+				BestAsk:            0.36,
+				LastPrice:          0.35,
+				Volume24HourInUSDC: 48000,
+				UpdateTime:         types.Time(time.Unix(1704067200, 0)),
 			},
 		}
 		assert.Equal(t, exp, result, "GetPredictionTokenPrice should decode every field")
@@ -1468,12 +1468,12 @@ func TestGetPredictionPortfolioSummary(t *testing.T) {
 	require.NoError(t, err, "GetPredictionPortfolioSummary must not error")
 	if mockTests {
 		exp := &PredictionPortfolioSummaryResponse{
-			PositionValue:    580,
-			PositionValueUSD: 580,
-			BiggestWin:       120,
-			WinRate:          0.67,
-			WinCount:         10,
-			LossCount:        5,
+			PositionValueInUSDC: 580,
+			PositionValueUSD:    580,
+			BiggestWin:          120,
+			WinRate:             0.67,
+			WinCount:            10,
+			LossCount:           5,
 		}
 		assert.Equal(t, exp, result, "GetPredictionPortfolioSummary should decode every field")
 		return
@@ -1509,21 +1509,21 @@ func TestGetPredictionSideMarketList(t *testing.T) {
 					Question:   "Will Argentina win the 2026 FIFA World Cup?",
 					Tokens: []PredictionSideMarketToken{
 						{
-							TokenID:   "token_yes_123",
-							Outcome:   "YES",
-							Price:     0.65,
-							Liquidity: 100000,
+							TokenID:         "token_yes_123",
+							Outcome:         "YES",
+							Price:           0.65,
+							LiquidityInUSDC: 100000,
 						},
 						{
-							TokenID:   "token_no_123",
-							Outcome:   "NO",
-							Price:     0.35,
-							Liquidity: 95000,
+							TokenID:         "token_no_123",
+							Outcome:         "NO",
+							Price:           0.35,
+							LiquidityInUSDC: 95000,
 						},
 					},
-					Volume24Hour: 50000,
-					EndDate:      types.Time(time.Unix(1750000000, 0)),
-					Status:       1,
+					Volume24HourInUSDC: 50000,
+					EndDate:            types.Time(time.Unix(1750000000, 0)),
+					Status:             1,
 				},
 			},
 			Total:     1,

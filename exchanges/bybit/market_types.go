@@ -120,20 +120,19 @@ type InstrumentInfo struct {
 	SpecialTreatmentTag types.Boolean `json:"stTag"`
 	LaunchTime          types.Time    `json:"launchTime"`
 	// DeliveryTime is the expiry of dated contracts and options, and the delisting time of perpetual contracts
-	DeliveryTime       types.Time     `json:"deliveryTime"`
-	DeliveryFeeRate    types.Number   `json:"deliveryFeeRate"`
-	PriceScale         types.Number   `json:"priceScale"`
-	LeverageFilter     LeverageFilter `json:"leverageFilter"`
-	PriceFilter        PriceFilter    `json:"priceFilter"`
-	LotSizeFilter      LotSizeFilter  `json:"lotSizeFilter"`
-	UnifiedMarginTrade bool           `json:"unifiedMarginTrade"`
-	// FundingInterval is in minutes
-	FundingInterval  uint64       `json:"fundingInterval"`
-	CopyTrading      string       `json:"copyTrading"`
-	UpperFundingRate types.Number `json:"upperFundingRate"`
-	LowerFundingRate types.Number `json:"lowerFundingRate"`
-	DisplayName      string       `json:"displayName"`
-	FullName         string       `json:"fullName"`
+	DeliveryTime             types.Time     `json:"deliveryTime"`
+	DeliveryFeeRate          types.Number   `json:"deliveryFeeRate"`
+	PriceScale               types.Number   `json:"priceScale"`
+	LeverageFilter           LeverageFilter `json:"leverageFilter"`
+	PriceFilter              PriceFilter    `json:"priceFilter"`
+	LotSizeFilter            LotSizeFilter  `json:"lotSizeFilter"`
+	UnifiedMarginTrade       bool           `json:"unifiedMarginTrade"`
+	FundingIntervalInMinutes uint64         `json:"fundingInterval"`
+	CopyTrading              string         `json:"copyTrading"`
+	UpperFundingRate         types.Number   `json:"upperFundingRate"`
+	LowerFundingRate         types.Number   `json:"lowerFundingRate"`
+	DisplayName              string         `json:"displayName"`
+	FullName                 string         `json:"fullName"`
 	// MarketRegion and UnderlyingTicker describe the underlying asset of TradFi perpetual contracts
 	MarketRegion                  string         `json:"marketRegion"`
 	UnderlyingTicker              string         `json:"underlyingTicker"`
@@ -304,39 +303,40 @@ type OrderbookResponse struct {
 	CreationTimestamp types.Time `json:"cts"`
 }
 
-// RPIOrderbookResponse holds an orderbook snapshot that separates retail price improvement (RPI) order sizes
-type RPIOrderbookResponse struct {
-	Symbol    string              `json:"s"`
-	Bids      []RPIOrderbookLevel `json:"b"`
-	Asks      []RPIOrderbookLevel `json:"a"`
-	Timestamp types.Time          `json:"ts"`
+// RetailPriceImprovementOrderbookResponse holds an orderbook snapshot that separates retail price improvement (RPI)
+// order sizes
+type RetailPriceImprovementOrderbookResponse struct {
+	Symbol    string                                 `json:"s"`
+	Bids      []RetailPriceImprovementOrderbookLevel `json:"b"`
+	Asks      []RetailPriceImprovementOrderbookLevel `json:"a"`
+	Timestamp types.Time                             `json:"ts"`
 	// UpdateID and Sequence are signed as OrderbookResponse's are, since Bybit can send -1 for a book that has no orders
 	UpdateID          int64      `json:"u"`
 	Sequence          int64      `json:"seq"`
 	CreationTimestamp types.Time `json:"cts"`
 }
 
-// RPIOrderbookLevel is a price level that splits its size between ordinary and Retail Price Improvement orders. Bybit
-// sends it as a [price, size, RPI size] array, over REST and the RPI orderbook stream alike
-type RPIOrderbookLevel struct {
+// RetailPriceImprovementOrderbookLevel is a price level that splits its size between ordinary and Retail Price
+// Improvement orders. Bybit sends it as a [price, size, RPI size] array, over REST and the RPI orderbook stream alike
+type RetailPriceImprovementOrderbookLevel struct {
 	Price types.Number
-	// NonRPISize is the size of the orders that are not RPI orders; 0 in a delta, with an RPISize of 0, removes the
-	// level
-	NonRPISize types.Number
-	// RPISize is hidden, as 0, while an RPI order crosses an ordinary order on the other side
-	RPISize types.Number
+	// NonRetailPriceImprovementSize is the size of the orders that are not RPI orders; 0 in a delta, with an
+	// RetailPriceImprovementSize of 0, removes the level
+	NonRetailPriceImprovementSize types.Number
+	// RetailPriceImprovementSize is hidden, as 0, while an RPI order crosses an ordinary order on the other side
+	RetailPriceImprovementSize types.Number
 }
 
 // UnmarshalJSON decodes a [price, size, RPI size] level
-func (l *RPIOrderbookLevel) UnmarshalJSON(data []byte) error {
+func (l *RetailPriceImprovementOrderbookLevel) UnmarshalJSON(data []byte) error {
 	var level []types.Number
 	if err := json.Unmarshal(data, &level); err != nil {
 		return err
 	}
 	if len(level) != 3 {
-		return fmt.Errorf("%w: %s", errInvalidRPIOrderbookLevel, data)
+		return fmt.Errorf("%w: %s", errInvalidRetailPriceImprovementOrderbookLevel, data)
 	}
-	l.Price, l.NonRPISize, l.RPISize = level[0], level[1], level[2]
+	l.Price, l.NonRetailPriceImprovementSize, l.RetailPriceImprovementSize = level[0], level[1], level[2]
 	return nil
 }
 
@@ -460,14 +460,14 @@ type PublicTrade struct {
 	Price       types.Number `json:"price"`
 	Size        types.Number `json:"size"`
 	// Side is the taker's side
-	Side                  string       `json:"side"`
-	Time                  types.Time   `json:"time"`
-	IsBlockTrade          bool         `json:"isBlockTrade"`
-	IsRPITrade            bool         `json:"isRPITrade"`
-	MarkPrice             types.Number `json:"mP"`
-	IndexPrice            types.Number `json:"iP"`
-	MarkImpliedVolatility types.Number `json:"mIv"`
-	ImpliedVolatility     types.Number `json:"iv"`
+	Side                          string       `json:"side"`
+	Time                          types.Time   `json:"time"`
+	IsBlockTrade                  bool         `json:"isBlockTrade"`
+	IsRetailPriceImprovementTrade bool         `json:"isRPITrade"`
+	MarkPrice                     types.Number `json:"mP"`
+	IndexPrice                    types.Number `json:"iP"`
+	MarkImpliedVolatility         types.Number `json:"mIv"`
+	ImpliedVolatility             types.Number `json:"iv"`
 	// Sequence is the cross sequence
 	Sequence types.Number `json:"seq"`
 }
@@ -509,8 +509,8 @@ type HistoricalVolatilityRequest struct {
 	// BaseCoin defaults to BTC and QuoteCoin, USD or USDT, to USD, whose series ends on 26 December 2025
 	BaseCoin  currency.Code
 	QuoteCoin currency.Code
-	// Period is the averaging period in days, 7 by default
-	Period uint64
+	// PeriodInDays is the averaging period, 7 by default
+	PeriodInDays uint64
 	// StartTime and EndTime go together; without them the latest hour is returned
 	StartTime time.Time
 	EndTime   time.Time
@@ -533,10 +533,9 @@ type InsuranceResponse struct {
 type InsurancePool struct {
 	Coin currency.Code `json:"coin"`
 	// Symbols lists the contracts sharing the pool, comma separated; an isolated pool lists one
-	Symbols string       `json:"symbols"`
-	Balance types.Number `json:"balance"`
-	// Value is in USD
-	Value types.Number `json:"value"`
+	Symbols    string       `json:"symbols"`
+	Balance    types.Number `json:"balance"`
+	ValueInUSD types.Number `json:"value"`
 }
 
 // RiskLimitTiersResponse holds a page of risk limit tiers
@@ -651,15 +650,15 @@ type OrderPriceLimitResponse struct {
 	Timestamp types.Time   `json:"ts"`
 }
 
-// ADLAlertResponse holds auto-deleveraging alerts and insurance pool data
-type ADLAlertResponse struct {
+// AutoDeleveragingAlertResponse holds auto-deleveraging alerts and insurance pool data
+type AutoDeleveragingAlertResponse struct {
 	// UpdatedTime is documented as updateTime but sent as updatedTime
-	UpdatedTime types.Time `json:"updatedTime"`
-	List        []ADLAlert `json:"list"`
+	UpdatedTime types.Time              `json:"updatedTime"`
+	List        []AutoDeleveragingAlert `json:"list"`
 }
 
-// ADLAlert holds a contract's auto-deleveraging (ADL) thresholds and the state of its insurance pool
-type ADLAlert struct {
+// AutoDeleveragingAlert holds a contract's auto-deleveraging (ADL) thresholds and the state of its insurance pool
+type AutoDeleveragingAlert struct {
 	Coin   currency.Code `json:"coin"`
 	Symbol string        `json:"symbol"`
 	// Balance is the insurance pool balance; a shared pool's balance refreshes daily at 00:00 UTC
@@ -670,10 +669,10 @@ type ADLAlert struct {
 	InsurancePNLRatio types.Number `json:"insurancePnlRatio"`
 	// PNLRatio is the symbol's PnL drawdown ratio over the last 8 hours
 	PNLRatio types.Number `json:"pnlRatio"`
-	// ADLTriggerThreshold is the insurance pool balance above which PnL drawdown ADL can trigger
-	ADLTriggerThreshold types.Number `json:"adlTriggerThreshold"`
-	// ADLStopRatio is the PnL drawdown ratio above which ADL stops
-	ADLStopRatio types.Number `json:"adlStopRatio"`
+	// AutoDeleveragingTriggerThreshold is the insurance pool balance above which PnL drawdown ADL can trigger
+	AutoDeleveragingTriggerThreshold types.Number `json:"adlTriggerThreshold"`
+	// AutoDeleveragingStopRatio is the PnL drawdown ratio above which ADL stops
+	AutoDeleveragingStopRatio types.Number `json:"adlStopRatio"`
 }
 
 // FeeGroupStructureResponse holds contract fee groups
@@ -706,9 +705,9 @@ type ProFeeRate struct {
 
 // MarketMakerFeeRate holds a market maker level's rebate rates
 type MarketMakerFeeRate struct {
-	Level          string       `json:"level"`
-	MakerRebate    types.Number `json:"makerRebate"`
-	RPIMakerRebate types.Number `json:"rpiMakerRebate"`
+	Level                             string       `json:"level"`
+	MakerRebate                       types.Number `json:"makerRebate"`
+	RetailPriceImprovementMakerRebate types.Number `json:"rpiMakerRebate"`
 }
 
 // OptionBaseCoinsResponse holds option base coins

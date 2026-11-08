@@ -42,8 +42,8 @@ type CreateStrategyOrderRequest struct {
 	// ChaseDistance is the absolute distance from the best bid or ask; -1 fills an iceberg order at the counterparty
 	// price
 	ChaseDistance float64
-	// ChasePercentE4 is the offset from the best bid or ask in basis points: 100 is 1%
-	ChasePercentE4 uint64
+	// ChasePercentScaledBy1E4 is the offset from the best bid or ask in basis points: 100 is 1%
+	ChasePercentScaledBy1E4 uint64
 	// SubSize, OrderCount and SubPositionValue split an iceberg order into sub-orders
 	SubSize          float64
 	OrderCount       uint64
@@ -53,12 +53,12 @@ type CreateStrategyOrderRequest struct {
 	PostOnly *uint64
 	// LimitPrice applies to every iceberg sub-order
 	LimitPrice float64
-	// POVParameters is required by POV orders
-	POVParameters *StrategyPOVParametersRequest
+	// PercentageOfVolumeParameters is required by POV orders
+	PercentageOfVolumeParameters *StrategyPercentageOfVolumeParametersRequest
 }
 
-// StrategyPOVParametersRequest holds a POV order's execution parameters
-type StrategyPOVParametersRequest struct {
+// StrategyPercentageOfVolumeParametersRequest holds a POV order's execution parameters
+type StrategyPercentageOfVolumeParametersRequest struct {
 	// Mode is TradedVolume, OppositeSideLiquidity or SameSideLiquidity
 	Mode string
 	// ParticipationRate is a percentage from 1 to 100 with one decimal place: 25.1 is 25.1%
@@ -135,17 +135,17 @@ type Strategy struct {
 	StrategyName string       `json:"strategyName"`
 	// StrategyPrefer is limit, priceSpeedBalance, fastestExecution or quickExecution
 	StrategyPrefer string `json:"strategyPrefer"`
-	// Duration, ExecutedDuration and Interval are in seconds, for TWAP and POV orders
-	Duration         uint64       `json:"duration"`
-	ExecutedDuration uint64       `json:"executedDuration"`
-	IsRandom         bool         `json:"isRandom"`
-	Interval         uint64       `json:"interval"`
-	LimitPrice       types.Number `json:"limitPrice"`
-	// ChasePercentE4 is in basis points: 100 is 1%
-	ChasePercentE4  types.Number `json:"chasePercentE4"`
-	ChaseDistance   types.Number `json:"chaseDistance"`
-	MaxChasePrice   types.Number `json:"maxChasePrice"`
-	ChaseOrderPrice types.Number `json:"chaseOrderPrice"`
+	// DurationInSeconds, ExecutedDurationInSeconds and IntervalInSeconds are for TWAP and POV orders
+	DurationInSeconds         uint64       `json:"duration"`
+	ExecutedDurationInSeconds uint64       `json:"executedDuration"`
+	IsRandom                  bool         `json:"isRandom"`
+	IntervalInSeconds         uint64       `json:"interval"`
+	LimitPrice                types.Number `json:"limitPrice"`
+	// ChasePercentScaledBy1E4 is in basis points: 100 is 1%
+	ChasePercentScaledBy1E4 types.Number `json:"chasePercentE4"`
+	ChaseDistance           types.Number `json:"chaseDistance"`
+	MaxChasePrice           types.Number `json:"maxChasePrice"`
+	ChaseOrderPrice         types.Number `json:"chaseOrderPrice"`
 	// ChasePrice is the reference price side, such as Bid1 or Ask1
 	ChasePrice string `json:"chasePrice"`
 	// PostOnly is an iceberg order's maker-only mode: 0 taker allowed or 1 post-only

@@ -220,10 +220,11 @@ func (e *Exchange) GetCollateralInfo(ctx context.Context, ccy currency.Code) (*C
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/collateral-info", params, nil, &resp, getCollateralInfoEPL)
 }
 
-// GetDCPInfo returns the Disconnected-CancelAll-Prevention configuration of each product (Get DCP Info)
-func (e *Exchange) GetDCPInfo(ctx context.Context) (*DCPInfoResponse, error) {
-	var resp *DCPInfoResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/query-dcp-info", nil, nil, &resp, getDCPInfoEPL)
+// GetDisconnectionProtectInfo returns the Disconnected-CancelAll-Prevention configuration of each product (Get DCP
+// Info)
+func (e *Exchange) GetDisconnectionProtectInfo(ctx context.Context) (*DisconnectionProtectInfoResponse, error) {
+	var resp *DisconnectionProtectInfoResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/query-dcp-info", nil, nil, &resp, getDisconnectionProtectInfoEPL)
 }
 
 // SetCollateralCoin switches a coin's use as collateral in the unified account on or off (Set Collateral Coin)
@@ -321,28 +322,30 @@ func (e *Exchange) GetCoinGreeks(ctx context.Context, baseCoin currency.Code) (*
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/coin-greeks", params, nil, &resp, getCoinGreeksEPL)
 }
 
-// GetMMPState returns the Market Maker Protection configuration and state of a base coin (Get MMP State)
-func (e *Exchange) GetMMPState(ctx context.Context, baseCoin currency.Code) (*MMPStateResponse, error) {
+// GetMarketMakerProtectionState returns the Market Maker Protection configuration and state of a base coin (Get MMP
+// State)
+func (e *Exchange) GetMarketMakerProtectionState(ctx context.Context, baseCoin currency.Code) (*MarketMakerProtectionStateResponse, error) {
 	if baseCoin.IsEmpty() {
 		return nil, errBaseNotSet
 	}
 	params := url.Values{}
 	params.Set("baseCoin", baseCoin.Upper().String())
-	var resp *MMPStateResponse
+	var resp *MarketMakerProtectionStateResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/mmp-state", params, nil, &resp, defaultEPL)
 }
 
-// ResetMMP unfreezes a base coin after Market Maker Protection triggers, resetting its accumulated limits (Reset MMP)
-func (e *Exchange) ResetMMP(ctx context.Context, baseCoin currency.Code) error {
+// ResetMarketMakerProtection unfreezes a base coin after Market Maker Protection triggers, resetting its accumulated
+// limits (Reset MMP)
+func (e *Exchange) ResetMarketMakerProtection(ctx context.Context, baseCoin currency.Code) error {
 	if baseCoin.IsEmpty() {
 		return errBaseNotSet
 	}
 	body := map[string]any{"baseCoin": baseCoin.Upper().String()}
-	return e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-reset", nil, body, nil, resetMMPEPL)
+	return e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-reset", nil, body, nil, resetMarketMakerProtectionEPL)
 }
 
-// SetMMP configures Market Maker Protection for a base coin's options (Set MMP)
-func (e *Exchange) SetMMP(ctx context.Context, req *SetMMPRequest) error {
+// SetMarketMakerProtection configures Market Maker Protection for a base coin's options (Set MMP)
+func (e *Exchange) SetMarketMakerProtection(ctx context.Context, req *SetMarketMakerProtectionRequest) error {
 	if err := common.NilGuard(req); err != nil {
 		return err
 	}
@@ -368,13 +371,14 @@ func (e *Exchange) SetMMP(ctx context.Context, req *SetMMPRequest) error {
 	if req.VegaLimit != 0 {
 		body["vegaLimit"] = strconv.FormatFloat(req.VegaLimit, 'f', -1, 64)
 	}
-	return e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-modify", nil, body, nil, setMMPEPL)
+	return e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-modify", nil, body, nil, setMarketMakerProtectionEPL)
 }
 
-// GetSMPGroupID returns the account's Self-Match Prevention group ID, 0 when it has none (Get SMP Group ID)
-func (e *Exchange) GetSMPGroupID(ctx context.Context) (*SMPGroupIDResponse, error) {
-	var resp *SMPGroupIDResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/smp-group", nil, nil, &resp, getSMPGroupIDEPL)
+// GetSelfMatchPreventionGroupID returns the account's Self-Match Prevention group ID, 0 when it has none (Get SMP Group
+// ID)
+func (e *Exchange) GetSelfMatchPreventionGroupID(ctx context.Context) (*SelfMatchPreventionGroupIDResponse, error) {
+	var resp *SelfMatchPreventionGroupIDResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/smp-group", nil, nil, &resp, getSelfMatchPreventionGroupIDEPL)
 }
 
 // GetTradeBehaviourConfig returns how the account treats limit order prices beyond the price limit, and its delta

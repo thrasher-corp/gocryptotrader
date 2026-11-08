@@ -41,18 +41,18 @@ func TestGetWalletBalance(t *testing.T) {
 					AccountType:                             "UNIFIED",
 					AccountInitialMarginRate:                0.0221,
 					AccountMaintenanceMarginRate:            0.0049,
-					TotalEquity:                             1102.30486234,
-					TotalWalletBalance:                      1099.05014562,
-					TotalMarginBalance:                      1100.66014562,
-					TotalAvailableBalance:                   1076.33564562,
-					TotalPerpetualUnrealisedPNL:             1.61,
-					TotalInitialMargin:                      24.3245,
-					TotalMaintenanceMargin:                  5.3929,
+					TotalEquityInUSD:                        1102.30486234,
+					TotalWalletBalanceInUSD:                 1099.05014562,
+					TotalMarginBalanceInUSD:                 1100.66014562,
+					TotalAvailableBalanceInUSD:              1076.33564562,
+					TotalPerpetualUnrealisedPNLInUSD:        1.61,
+					TotalInitialMarginInUSD:                 24.3245,
+					TotalMaintenanceMarginInUSD:             5.3929,
 					AccountInitialMarginRateByMarkPrice:     0.0221,
 					AccountMaintenanceMarginRateByMarkPrice: 0.0049,
 					TotalInitialMarginByMarkPrice:           24.3245,
 					TotalMaintenanceMarginByMarkPrice:       5.3929,
-					AccountLTV:                              0.0012,
+					AccountLoanToValue:                      0.0012,
 					Coin: []WalletBalanceCoin{
 						{
 							Coin:                           currency.BTC,
@@ -277,14 +277,14 @@ func TestGetAccountInfo(t *testing.T) {
 	require.NoError(t, err, "GetAccountInfo must not error")
 	if mockTests {
 		exp := &AccountInfoResponse{
-			UnifiedMarginStatus: 5,
-			MarginMode:          "REGULAR_MARGIN",
-			IsMasterTrader:      true,
-			SpotHedgingStatus:   "ON",
-			UpdatedTime:         types.Time(time.Unix(1697078946, 0)),
-			DCPStatus:           "OFF",
-			TimeWindow:          10,
-			SMPGroup:            12,
+			UnifiedMarginStatus:        5,
+			MarginMode:                 "REGULAR_MARGIN",
+			IsMasterTrader:             true,
+			SpotHedgingStatus:          "ON",
+			UpdatedTime:                types.Time(time.Unix(1697078946, 0)),
+			DisconnectionProtectStatus: "OFF",
+			TimeWindow:                 10,
+			SelfMatchPreventionGroup:   12,
 		}
 		assert.Equal(t, exp, result, "GetAccountInfo should decode every field")
 		return
@@ -348,8 +348,8 @@ func TestGetAccountInstrumentsInfo(t *testing.T) {
 							PriceLimitRatioX: 0.05,
 							PriceLimitRatioY: 0.1,
 						},
-						IsPublicRPI:     true,
-						MyRPIPermission: true,
+						IsPublicRetailPriceImprovement:     true,
+						MyRetailPriceImprovementPermission: true,
 					},
 					{
 						Symbol:       "TSLAUSDT",
@@ -379,16 +379,16 @@ func TestGetAccountInstrumentsInfo(t *testing.T) {
 							MaxMktOrderQuantity:      4000,
 							PostOnlyMaxOrderQuantity: 20000,
 						},
-						UnifiedMarginTrade: true,
-						FundingInterval:    480,
-						SettleCoin:         currency.USDT,
-						CopyTrading:        "both",
-						UpperFundingRate:   0.005,
-						LowerFundingRate:   -0.005,
-						DisplayName:        "TSLA",
-						FullName:           "Tesla, Inc.",
-						MarketRegion:       "US",
-						UnderlyingTicker:   "TSLA",
+						UnifiedMarginTrade:       true,
+						FundingIntervalInMinutes: 480,
+						SettleCoin:               currency.USDT,
+						CopyTrading:              "both",
+						UpperFundingRate:         0.005,
+						LowerFundingRate:         -0.005,
+						DisplayName:              "TSLA",
+						FullName:                 "Tesla, Inc.",
+						MarketRegion:             "US",
+						UnderlyingTicker:         "TSLA",
 						RiskParameters: AccountInstrumentRiskParameters{
 							PriceLimitRatioX: 0.03,
 							PriceLimitRatioY: 0.05,
@@ -422,13 +422,13 @@ func TestGetAccountInstrumentsInfo(t *testing.T) {
 							MaxMktOrderQuantity:      20000,
 							PostOnlyMaxOrderQuantity: 100000,
 						},
-						UnifiedMarginTrade: true,
-						FundingInterval:    240,
-						SettleCoin:         currency.USDT,
-						CopyTrading:        "none",
-						UpperFundingRate:   0.02,
-						LowerFundingRate:   -0.02,
-						FullName:           "New Coin",
+						UnifiedMarginTrade:       true,
+						FundingIntervalInMinutes: 240,
+						SettleCoin:               currency.USDT,
+						CopyTrading:              "none",
+						UpperFundingRate:         0.02,
+						LowerFundingRate:         -0.02,
+						FullName:                 "New Coin",
 						RiskParameters: AccountInstrumentRiskParameters{
 							PriceLimitRatioX: 0.15,
 							PriceLimitRatioY: 0.3,
@@ -488,10 +488,10 @@ func TestGetAccountInstrumentsInfo(t *testing.T) {
 							PriceLimitRatioX: 0.05,
 							PriceLimitRatioY: 0.05,
 						},
-						IsPublicRPI:      true,
-						MyRPIPermission:  true,
-						XStockMultiplier: 1,
-						MarginTrading:    "utaOnly",
+						IsPublicRetailPriceImprovement:     true,
+						MyRetailPriceImprovementPermission: true,
+						XStockMultiplier:                   1,
+						MarginTrading:                      "utaOnly",
 					},
 					{
 						Symbol:     "AAPLXUSDT",
@@ -558,19 +558,19 @@ func TestGetAccountInstrumentsInfo(t *testing.T) {
 							MaxMktOrderQuantity:      5000000,
 							PostOnlyMaxOrderQuantity: 25000000,
 						},
-						UnifiedMarginTrade: true,
-						FundingInterval:    480,
-						SettleCoin:         currency.BTC,
-						CopyTrading:        "none",
-						UpperFundingRate:   0.00375,
-						LowerFundingRate:   -0.00375,
-						FullName:           "Bitcoin",
+						UnifiedMarginTrade:       true,
+						FundingIntervalInMinutes: 480,
+						SettleCoin:               currency.BTC,
+						CopyTrading:              "none",
+						UpperFundingRate:         0.00375,
+						LowerFundingRate:         -0.00375,
+						FullName:                 "Bitcoin",
 						RiskParameters: AccountInstrumentRiskParameters{
 							PriceLimitRatioX: 0.01,
 							PriceLimitRatioY: 0.02,
 						},
-						IsPublicRPI:     true,
-						MyRPIPermission: true,
+						IsPublicRetailPriceImprovement:     true,
+						MyRetailPriceImprovementPermission: true,
 					},
 				},
 			},
@@ -681,10 +681,10 @@ func TestGetFeeRate(t *testing.T) {
 				Category: "spot",
 				List: []FeeRate{
 					{
-						Symbol:          "BTCUSDT",
-						TakerFeeRate:    0.001,
-						MakerFeeRate:    0.0008,
-						RPIMakerFeeRate: 0.0007,
+						Symbol:                             "BTCUSDT",
+						TakerFeeRate:                       0.001,
+						MakerFeeRate:                       0.0008,
+						RetailPriceImprovementMakerFeeRate: 0.0007,
 					},
 				},
 			},
@@ -707,10 +707,10 @@ func TestGetFeeRate(t *testing.T) {
 			exp: &FeeRateResponse{
 				List: []FeeRate{
 					{
-						Symbol:          "BTCUSDT",
-						TakerFeeRate:    0.00055,
-						MakerFeeRate:    0.0002,
-						RPIMakerFeeRate: -0.00002,
+						Symbol:                             "BTCUSDT",
+						TakerFeeRate:                       0.00055,
+						MakerFeeRate:                       0.0002,
+						RetailPriceImprovementMakerFeeRate: -0.00002,
 					},
 				},
 			},
@@ -763,32 +763,32 @@ func TestGetCollateralInfo(t *testing.T) {
 	assert.NotEmpty(t, result.List, "GetCollateralInfo should return the coin")
 }
 
-func TestGetDCPInfo(t *testing.T) {
+func TestGetDisconnectionProtectInfo(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetDCPInfo(t.Context())
-	require.NoError(t, err, "GetDCPInfo must not error")
+	result, err := e.GetDisconnectionProtectInfo(t.Context())
+	require.NoError(t, err, "GetDisconnectionProtectInfo must not error")
 	if mockTests {
-		exp := &DCPInfoResponse{
-			DCPInfos: []DCPInfo{
+		exp := &DisconnectionProtectInfoResponse{
+			DisconnectionProtectInfos: []DisconnectionProtectInfo{
 				{
-					Product:    "SPOT",
-					DCPStatus:  "ON",
-					TimeWindow: 10,
+					Product:                    "SPOT",
+					DisconnectionProtectStatus: "ON",
+					TimeWindowInSeconds:        10,
 				},
 				{
-					Product:    "DERIVATIVES",
-					DCPStatus:  "ON",
-					TimeWindow: 30,
+					Product:                    "DERIVATIVES",
+					DisconnectionProtectStatus: "ON",
+					TimeWindowInSeconds:        30,
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetDCPInfo should decode every field")
+		assert.Equal(t, exp, result, "GetDisconnectionProtectInfo should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetDCPInfo should return a result")
+	assert.NotNil(t, result, "GetDisconnectionProtectInfo should return a result")
 }
 
 func TestSetCollateralCoin(t *testing.T) {
@@ -946,65 +946,65 @@ func TestGetCoinGreeks(t *testing.T) {
 	assert.NotNil(t, result, "GetCoinGreeks should return a result")
 }
 
-func TestGetMMPState(t *testing.T) {
+func TestGetMarketMakerProtectionState(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMMPState(t.Context(), currency.EMPTYCODE)
-	require.ErrorIs(t, err, errBaseNotSet, "GetMMPState must reject an empty base coin")
+	_, err := e.GetMarketMakerProtectionState(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, errBaseNotSet, "GetMarketMakerProtectionState must reject an empty base coin")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetMMPState(t.Context(), currency.BTC)
-	require.NoError(t, err, "GetMMPState must not error")
+	result, err := e.GetMarketMakerProtectionState(t.Context(), currency.BTC)
+	require.NoError(t, err, "GetMarketMakerProtectionState must not error")
 	if mockTests {
-		exp := &MMPStateResponse{
-			Result: []MMPState{
+		exp := &MarketMakerProtectionStateResponse{
+			Result: []MarketMakerProtectionState{
 				{
-					BaseCoin:       currency.BTC,
-					MMPEnabled:     true,
-					Window:         5000,
-					FrozenPeriod:   100000,
-					QuantityLimit:  0.01,
-					DeltaLimit:     0.01,
-					VegaLimit:      500000,
-					MMPFrozenUntil: types.Time(time.UnixMilli(1675760625519)),
-					MMPFrozen:      true,
+					BaseCoin:                         currency.BTC,
+					MarketMakerProtectionEnabled:     true,
+					WindowInMilliseconds:             5000,
+					FrozenPeriodInMilliseconds:       100000,
+					QuantityLimit:                    0.01,
+					DeltaLimit:                       0.01,
+					VegaLimit:                        500000,
+					MarketMakerProtectionFrozenUntil: types.Time(time.UnixMilli(1675760625519)),
+					MarketMakerProtectionFrozen:      true,
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetMMPState should decode every field")
+		assert.Equal(t, exp, result, "GetMarketMakerProtectionState should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetMMPState should return a result")
+	assert.NotNil(t, result, "GetMarketMakerProtectionState should return a result")
 }
 
-func TestResetMMP(t *testing.T) {
+func TestResetMarketMakerProtection(t *testing.T) {
 	t.Parallel()
-	err := e.ResetMMP(t.Context(), currency.EMPTYCODE)
-	require.ErrorIs(t, err, errBaseNotSet, "ResetMMP must reject an empty base coin")
+	err := e.ResetMarketMakerProtection(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, errBaseNotSet, "ResetMarketMakerProtection must reject an empty base coin")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	require.NoError(t, e.ResetMMP(t.Context(), currency.ETH), "ResetMMP must not error")
+	require.NoError(t, e.ResetMarketMakerProtection(t.Context(), currency.ETH), "ResetMarketMakerProtection must not error")
 }
 
-func TestSetMMP(t *testing.T) {
+func TestSetMarketMakerProtection(t *testing.T) {
 	t.Parallel()
-	err := e.SetMMP(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "SetMMP must reject a nil request")
-	req := &SetMMPRequest{}
-	err = e.SetMMP(t.Context(), req)
-	require.ErrorIs(t, err, errBaseNotSet, "SetMMP must reject an empty base coin")
+	err := e.SetMarketMakerProtection(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "SetMarketMakerProtection must reject a nil request")
+	req := &SetMarketMakerProtectionRequest{}
+	err = e.SetMarketMakerProtection(t.Context(), req)
+	require.ErrorIs(t, err, errBaseNotSet, "SetMarketMakerProtection must reject an empty base coin")
 	req.BaseCoin = currency.ETH
-	err = e.SetMMP(t.Context(), req)
-	require.ErrorIs(t, err, errTimeWindowRequired, "SetMMP must reject a missing window")
+	err = e.SetMarketMakerProtection(t.Context(), req)
+	require.ErrorIs(t, err, errTimeWindowRequired, "SetMarketMakerProtection must reject a missing window")
 	req.Window = 5 * time.Second
-	err = e.SetMMP(t.Context(), req)
-	require.ErrorIs(t, err, errQuantityLimitRequired, "SetMMP must reject a missing quantity limit")
+	err = e.SetMarketMakerProtection(t.Context(), req)
+	require.ErrorIs(t, err, errQuantityLimitRequired, "SetMarketMakerProtection must reject a missing quantity limit")
 	req.QuantityLimit = 50
-	err = e.SetMMP(t.Context(), req)
-	require.ErrorIs(t, err, errDeltaLimitRequired, "SetMMP must reject a missing delta limit")
+	err = e.SetMarketMakerProtection(t.Context(), req)
+	require.ErrorIs(t, err, errDeltaLimitRequired, "SetMarketMakerProtection must reject a missing delta limit")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1012,24 +1012,24 @@ func TestSetMMP(t *testing.T) {
 	req.FrozenPeriod = 100 * time.Second
 	req.DeltaLimit = 20
 	req.VegaLimit = 400000
-	require.NoError(t, e.SetMMP(t.Context(), req), "SetMMP must not error")
+	require.NoError(t, e.SetMarketMakerProtection(t.Context(), req), "SetMarketMakerProtection must not error")
 }
 
-func TestGetSMPGroupID(t *testing.T) {
+func TestGetSelfMatchPreventionGroupID(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetSMPGroupID(t.Context())
-	require.NoError(t, err, "GetSMPGroupID must not error")
+	result, err := e.GetSelfMatchPreventionGroupID(t.Context())
+	require.NoError(t, err, "GetSelfMatchPreventionGroupID must not error")
 	if mockTests {
-		exp := &SMPGroupIDResponse{
-			SMPGroup: 12,
+		exp := &SelfMatchPreventionGroupIDResponse{
+			SelfMatchPreventionGroup: 12,
 		}
-		assert.Equal(t, exp, result, "GetSMPGroupID should decode every field")
+		assert.Equal(t, exp, result, "GetSelfMatchPreventionGroupID should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetSMPGroupID should return a result")
+	assert.NotNil(t, result, "GetSelfMatchPreventionGroupID should return a result")
 }
 
 func TestGetTradeBehaviourConfig(t *testing.T) {
@@ -1040,7 +1040,7 @@ func TestGetTradeBehaviourConfig(t *testing.T) {
 	// Each flag decodes from its own key, which a fixture with every flag set cannot show
 	var flags TradeBehaviourConfigResponse
 	require.NoError(t, json.Unmarshal([]byte(`{"lpaSpot":true,"lpaPerp":false,"deltaEnable":false,"smsef":false,"fmsef":true,"smpType":1}`), &flags), "Unmarshal must not error")
-	assert.Equal(t, TradeBehaviourConfigResponse{LimitPriceActionSpot: true, FuturesMNTFeeDeductionEnabled: true, SMPType: 1}, flags, "TradeBehaviourConfigResponse should decode each flag from its own key")
+	assert.Equal(t, TradeBehaviourConfigResponse{LimitPriceActionSpot: true, FuturesMNTFeeDeductionEnabled: true, SelfMatchPreventionType: 1}, flags, "TradeBehaviourConfigResponse should decode each flag from its own key")
 	result, err := e.GetTradeBehaviourConfig(t.Context())
 	require.NoError(t, err, "GetTradeBehaviourConfig must not error")
 	if mockTests {
@@ -1050,7 +1050,7 @@ func TestGetTradeBehaviourConfig(t *testing.T) {
 			DeltaEnable:                   true,
 			SpotMNTFeeDeductionEnabled:    true,
 			FuturesMNTFeeDeductionEnabled: true,
-			SMPType:                       2,
+			SelfMatchPreventionType:       2,
 		}
 		assert.Equal(t, exp, result, "GetTradeBehaviourConfig should decode every field")
 		return
@@ -1174,10 +1174,10 @@ func TestGetPayInfo(t *testing.T) {
 			CollateralInfo: PayCollateralInfo{
 				CollateralList: []PayCollateral{
 					{
-						Coin:           currency.USDT,
-						AvailableSize:  13041.904274867704,
-						AvailableValue: 13038.369918809216,
-						CoinScale:      4,
+						Coin:                currency.USDT,
+						AvailableSize:       13041.904274867704,
+						AvailableValueInUSD: 13038.369918809216,
+						CoinScale:           4,
 					},
 					{
 						Coin:            currency.BTC,
@@ -1191,7 +1191,7 @@ func TestGetPayInfo(t *testing.T) {
 			BorrowInfo: PayBorrowInfo{
 				Coin:             currency.SOL,
 				BorrowSize:       0.10006838492650354,
-				BorrowValue:      9.17249761916995,
+				BorrowValueInUSD: 9.17249761916995,
 				AssetFrozen:      0.01,
 				AvailableBalance: 0.05,
 			},

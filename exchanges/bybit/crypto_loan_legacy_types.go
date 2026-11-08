@@ -18,12 +18,12 @@ type LegacyCryptoLoanVIPCollateralCoins struct {
 
 // LegacyCryptoLoanCollateralCoin holds a legacy crypto loan collateral coin's precision, LTV thresholds and limit
 type LegacyCryptoLoanCollateralCoin struct {
-	CollateralAccuracy uint64        `json:"collateralAccuracy"` // Decimal places
-	Currency           currency.Code `json:"currency"`           // Sent although the docs table omits it
-	InitialLTV         types.Number  `json:"initialLTV"`
-	MarginCallLTV      types.Number  `json:"marginCallLTV"`
-	LiquidationLTV     types.Number  `json:"liquidationLTV"`
-	MaxLimit           types.Number  `json:"maxLimit"`
+	CollateralAccuracy     uint64        `json:"collateralAccuracy"` // Decimal places
+	Currency               currency.Code `json:"currency"`           // Sent although the docs table omits it
+	InitialLoanToValue     types.Number  `json:"initialLTV"`
+	MarginCallLoanToValue  types.Number  `json:"marginCallLTV"`
+	LiquidationLoanToValue types.Number  `json:"liquidationLTV"`
+	MaxLimit               types.Number  `json:"maxLimit"`
 }
 
 // LegacyCryptoLoanBorrowableCoinsResponse holds the legacy crypto loan borrowable coins of each VIP level
@@ -68,8 +68,8 @@ type LegacyCryptoLoanUnpaidLoansRequest struct {
 	OrderID            string
 	LoanCurrency       currency.Code
 	CollateralCurrency currency.Code
-	LoanTermType       string // 1: fixed term, which needs LoanTerm; 2: flexible term; empty: both
-	LoanTerm           uint64 // Days, used when LoanTermType is 1
+	LoanTermType       string // 1: fixed term, which needs LoanTermInDays; 2: flexible term; empty: both
+	LoanTermInDays     uint64 // Used when LoanTermType is 1
 	Limit              uint64
 	Cursor             string
 }
@@ -84,12 +84,12 @@ type LegacyCryptoLoanUnpaidLoansResponse struct {
 type LegacyCryptoLoanUnpaidLoan struct {
 	CollateralAmount   types.Number  `json:"collateralAmount"`
 	CollateralCurrency currency.Code `json:"collateralCurrency"`
-	CurrentLTV         types.Number  `json:"currentLTV"`
+	CurrentLoanToValue types.Number  `json:"currentLTV"`
 	ExpirationTime     types.Time    `json:"expirationTime"` // Zero for flexible loans
 	// HourlyInterestRate is the real-time rate of a flexible loan or the fixed rate of a fixed term loan
 	HourlyInterestRate      types.Number  `json:"hourlyInterestRate"`
 	LoanCurrency            currency.Code `json:"loanCurrency"`
-	LoanTerm                types.Number  `json:"loanTerm"` // Days; 0 for flexible loans
+	LoanTermInDays          types.Number  `json:"loanTerm"` // 0 for flexible loans
 	OrderID                 string        `json:"orderId"`
 	ResidualInterest        types.Number  `json:"residualInterest"` // Unpaid interest
 	ResidualPenaltyInterest types.Number  `json:"residualPenaltyInterest"`
@@ -117,7 +117,7 @@ type LegacyCryptoLoanRepayment struct {
 	CollateralCurrency currency.Code `json:"collateralCurrency"`
 	CollateralReturn   types.Number  `json:"collateralReturn"` // Collateral returned by the final repayment, otherwise 0
 	LoanCurrency       currency.Code `json:"loanCurrency"`
-	LoanTerm           types.Number  `json:"loanTerm"` // Days; 0 for flexible loans
+	LoanTermInDays     types.Number  `json:"loanTerm"` // 0 for flexible loans
 	OrderID            string        `json:"orderId"`
 	RepayAmount        types.Number  `json:"repayAmount"`
 	RepayID            string        `json:"repayId"`
@@ -152,7 +152,7 @@ type LegacyCryptoLoanCompletedLoan struct {
 	InitialCollateralAmount types.Number  `json:"initialCollateralAmount"`
 	InitialLoanAmount       types.Number  `json:"initialLoanAmount"`
 	LoanCurrency            currency.Code `json:"loanCurrency"`
-	LoanTerm                types.Number  `json:"loanTerm"` // Days; 0 for flexible loans
+	LoanTermInDays          types.Number  `json:"loanTerm"` // 0 for flexible loans
 	OrderID                 string        `json:"orderId"`
 	RepaidInterest          types.Number  `json:"repaidInterest"`
 	RepaidPenaltyInterest   types.Number  `json:"repaidPenaltyInterest"`
@@ -171,9 +171,9 @@ type AdjustLegacyCryptoLoanCollateralAmountResponse struct {
 	AdjustID string `json:"adjustId"`
 }
 
-// LegacyCryptoLoanLTVAdjustmentHistoryRequest holds the filters of GetLegacyCryptoLoanLTVAdjustmentHistory; every
-// field is optional
-type LegacyCryptoLoanLTVAdjustmentHistoryRequest struct {
+// LegacyCryptoLoanLoanToValueAdjustmentHistoryRequest holds the filters of
+// GetLegacyCryptoLoanLoanToValueAdjustmentHistory; every field is optional
+type LegacyCryptoLoanLoanToValueAdjustmentHistoryRequest struct {
 	OrderID            string
 	AdjustID           string
 	CollateralCurrency currency.Code
@@ -181,20 +181,21 @@ type LegacyCryptoLoanLTVAdjustmentHistoryRequest struct {
 	Cursor             string
 }
 
-// LegacyCryptoLoanLTVAdjustmentHistoryResponse holds a page of legacy crypto loan collateral adjustments
-type LegacyCryptoLoanLTVAdjustmentHistoryResponse struct {
-	List           []LegacyCryptoLoanLTVAdjustment `json:"list"`
-	NextPageCursor string                          `json:"nextPageCursor"`
+// LegacyCryptoLoanLoanToValueAdjustmentHistoryResponse holds a page of legacy crypto loan collateral adjustments
+type LegacyCryptoLoanLoanToValueAdjustmentHistoryResponse struct {
+	List           []LegacyCryptoLoanLoanToValueAdjustment `json:"list"`
+	NextPageCursor string                                  `json:"nextPageCursor"`
 }
 
-// LegacyCryptoLoanLTVAdjustment holds a legacy crypto loan collateral adjustment and the LTV before and after it
-type LegacyCryptoLoanLTVAdjustment struct {
+// LegacyCryptoLoanLoanToValueAdjustment holds a legacy crypto loan collateral adjustment and the LTV before and after
+// it
+type LegacyCryptoLoanLoanToValueAdjustment struct {
 	CollateralCurrency currency.Code `json:"collateralCurrency"`
 	OrderID            string        `json:"orderId"`
 	AdjustID           string        `json:"adjustId"`
 	AdjustTime         types.Time    `json:"adjustTime"`
-	PreLTV             types.Number  `json:"preLTV"`
-	AfterLTV           types.Number  `json:"afterLTV"`
+	PreLoanToValue     types.Number  `json:"preLTV"`
+	AfterLoanToValue   types.Number  `json:"afterLTV"`
 	Direction          uint64        `json:"direction"` // 0: add collateral, 1: reduce collateral
 	Amount             types.Number  `json:"amount"`    // Sent although the docs table omits it
 }

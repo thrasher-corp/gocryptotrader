@@ -24,9 +24,9 @@ var (
 	errIndexNameRequired    = errors.New("index name is required")
 	errProductTypeRequired  = errors.New("product type is required")
 
-	errBaseCoinOrSymbolRequired = errors.New("base coin or symbol is required for option")
-	errInvalidRPIOrderbookLevel = errors.New("RPI orderbook level must hold a price, a size and an RPI size")
-	errOrderbookNotFound        = errors.New("orderbook not found")
+	errBaseCoinOrSymbolRequired                    = errors.New("base coin or symbol is required for option")
+	errInvalidRetailPriceImprovementOrderbookLevel = errors.New("RPI orderbook level must hold a price, a size and an RPI size")
+	errOrderbookNotFound                           = errors.New("orderbook not found")
 )
 
 // GetBybitServerTime returns Bybit's server time (Get Bybit Server Time)
@@ -206,9 +206,9 @@ func (e *Exchange) GetOrderBook(ctx context.Context, category, symbol string, li
 	return resp, json.Unmarshal(raw, &resp)
 }
 
-// GetRPIOrderBook returns a symbol's orderbook with retail price improvement (RPI) order sizes shown separately (Get
-// RPI Orderbook)
-func (e *Exchange) GetRPIOrderBook(ctx context.Context, category, symbol string, limit uint64) (*RPIOrderbookResponse, error) {
+// GetRetailPriceImprovementOrderBook returns a symbol's orderbook with retail price improvement (RPI) order sizes shown
+// separately (Get RPI Orderbook)
+func (e *Exchange) GetRetailPriceImprovementOrderBook(ctx context.Context, category, symbol string, limit uint64) (*RetailPriceImprovementOrderbookResponse, error) {
 	if symbol == "" {
 		return nil, errSymbolMissing
 	}
@@ -221,7 +221,7 @@ func (e *Exchange) GetRPIOrderBook(ctx context.Context, category, symbol string,
 	}
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.FormatUint(limit, 10))
-	var resp *RPIOrderbookResponse
+	var resp *RetailPriceImprovementOrderbookResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v5/market/rpi_orderbook", params), defaultEPL, &resp)
 }
 
@@ -392,8 +392,8 @@ func (e *Exchange) GetHistoricalVolatility(ctx context.Context, req *HistoricalV
 	if !req.QuoteCoin.IsEmpty() {
 		params.Set("quoteCoin", req.QuoteCoin.Upper().String())
 	}
-	if req.Period != 0 {
-		params.Set("period", strconv.FormatUint(req.Period, 10))
+	if req.PeriodInDays != 0 {
+		params.Set("period", strconv.FormatUint(req.PeriodInDays, 10))
 	}
 	if !req.StartTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(req.StartTime.UnixMilli(), 10))
@@ -545,14 +545,14 @@ func (e *Exchange) GetOrderPriceLimit(ctx context.Context, category, symbol stri
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v5/market/price-limit", params), defaultEPL, &resp)
 }
 
-// GetADLAlert returns auto-deleveraging (ADL) alerts and insurance pool data, of every contract when symbol is empty
-// (Get ADL Alert)
-func (e *Exchange) GetADLAlert(ctx context.Context, symbol string) (*ADLAlertResponse, error) {
+// GetAutoDeleveragingAlert returns auto-deleveraging (ADL) alerts and insurance pool data, of every contract when
+// symbol is empty (Get ADL Alert)
+func (e *Exchange) GetAutoDeleveragingAlert(ctx context.Context, symbol string) (*AutoDeleveragingAlertResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	var resp *ADLAlertResponse
+	var resp *AutoDeleveragingAlertResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v5/market/adlAlert", params), defaultEPL, &resp)
 }
 
