@@ -56,6 +56,8 @@ func TestDowngradeConfig(t *testing.T) {
 		name     string
 		input    string
 		expected string
+		errs     []error
+		errField string
 	}{
 		{
 			name:     "gRPC configuration",
@@ -87,10 +89,30 @@ func TestDowngradeConfig(t *testing.T) {
 			input:    `{"remoteControl":{"gRPC":null}}`,
 			expected: `{"remoteControl":{"gRPC":null}}`,
 		},
+		{
+			name:     "malformed gRPC configuration",
+			input:    `{"remoteControl":{"gRPC":`,
+			errs:     []error{common.ErrGettingField, jsonparser.MalformedJsonError},
+			errField: "gRPC configuration",
+		},
+		{
+			name:     "malformed timestamp precision",
+			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true!}}}`,
+			errs:     []error{common.ErrGettingField, jsonparser.UnknownValueTypeError},
+			errField: "gRPC timestamp precision",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			output, err := new(v18.Version).DowngradeConfig(t.Context(), []byte(tc.input))
+			if len(tc.errs) != 0 {
+				for _, want := range tc.errs {
+					require.ErrorIs(t, err, want, "DowngradeConfig must preserve the field-access sentinel and parser error")
+				}
+				require.ErrorContains(t, err, tc.errField, "DowngradeConfig must name the field it failed to read")
+				assert.Equal(t, tc.input, string(output), "DowngradeConfig should return the original configuration on error")
+				return
+			}
 			require.NoError(t, err, "DowngradeConfig must not error")
 			assert.JSONEq(t, tc.expected, string(output), "DowngradeConfig should restore the legacy default without overriding explicit settings")
 		})
@@ -108,24 +130,4 @@ func TestRegisteredMigration(t *testing.T) {
 	downgraded, err := versions.Manager.Deploy(t.Context(), upgraded, 17)
 	require.NoError(t, err, "Deploy must apply the registered v18 downgrade")
 	assert.JSONEq(t, `{"version":17,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}}}`, string(downgraded), "Deploy should restore the legacy default and set version 17")
-}
-
-func TestDowngradeConfigRejectsMalformedConfig(t *testing.T) {
-	t.Parallel()
-
-	input := []byte(`{"remoteControl":{"gRPC":`)
-	output, err := new(v18.Version).DowngradeConfig(t.Context(), input)
-	require.ErrorIs(t, err, common.ErrGettingField, "DowngradeConfig must reject malformed configuration")
-	require.ErrorIs(t, err, jsonparser.MalformedJsonError, "DowngradeConfig must preserve the parser error")
-	assert.Equal(t, input, output, "DowngradeConfig should return the original configuration on error")
-}
-
-func TestDowngradeConfigRejectsMalformedPrecision(t *testing.T) {
-	t.Parallel()
-	input := []byte(`{"remoteControl":{"gRPC":{"timeInNanoSeconds":true!}}}`)
-	output, err := new(v18.Version).DowngradeConfig(t.Context(), input)
-	require.ErrorIs(t, err, common.ErrGettingField, "DowngradeConfig must return the field-access sentinel")
-	require.ErrorIs(t, err, jsonparser.UnknownValueTypeError, "DowngradeConfig must preserve the malformed literal error")
-	require.ErrorContains(t, err, "gRPC timestamp precision", "DowngradeConfig must fail while reading the precision field")
-	assert.Equal(t, input, output, "DowngradeConfig should preserve the original configuration on error")
 }

@@ -18,7 +18,7 @@ import (
 
 func renderOrderbook(w io.Writer, book *gctrpc.OrderbookResponse, exchangeStyle bool, depthLimit int) error {
 	if exchangeStyle {
-		return renderOrderbookExchangeStyle(w, book, "test", "spot", depthLimit, true)
+		return renderOrderbookExchangeStyle(w, book, "test", "spot", depthLimit)
 	}
 	return renderOrderbookStream(w, book, "test", depthLimit)
 }
@@ -133,7 +133,7 @@ func TestOrderbookRenderingAlignment(t *testing.T) {
 	assert.Equal(t, "    123456         1234 |     234567         5678", lines[4], "large values should fit without tabs")
 	assert.Equal(t, "         1            0 |                        ", lines[5], "missing asks should be blank while genuine zero amounts remain visible")
 	output.Reset()
-	require.NoError(t, renderOrderbookExchangeStyle(&output, book, "test", "spot", 50, true), "exchange-style rendering must succeed")
+	require.NoError(t, renderOrderbookExchangeStyle(&output, book, "test", "spot", 50), "exchange-style rendering must succeed")
 	lines = strings.Split(output.String(), "\n")
 	require.Len(t, lines, 8, "the frame must contain only actual asks and bids")
 	assert.Equal(t, grayText+"Price(USD)  Amount(BTC)", lines[1], "exchange-style headings should use the same column widths")
@@ -162,7 +162,7 @@ func TestOrderbookRenderingWideValues(t *testing.T) {
 	assert.Equal(t, "  Price(USD)   Amount(BTC) |   Price(USD)   Amount(BTC)", lines[3], "headings should widen to the widest value on either side")
 	assert.Equal(t, " 99999.90000  125.00000000 | 100000.10000    0.01000000", lines[4], "values wider than their headings should stay aligned")
 	output.Reset()
-	require.NoError(t, renderOrderbookExchangeStyle(&output, book, "test", "spot", 50, true), "exchange-style rendering must succeed")
+	require.NoError(t, renderOrderbookExchangeStyle(&output, book, "test", "spot", 50), "exchange-style rendering must succeed")
 	lines = strings.Split(output.String(), "\n")
 	require.Len(t, lines, 7, "the frame must contain one ask and one bid")
 	assert.Equal(t, grayText+"  Price(USD)   Amount(BTC)", lines[1], "exchange-style headings should widen to the widest value")
@@ -200,7 +200,7 @@ func TestOrderbookRenderingUnicodeHeadings(t *testing.T) {
 			assert.Equal(t, heading+" | "+heading, lines[3], "Unicode headings should occupy terminal columns rather than byte or rune widths")
 			assert.Equal(t, bid+" | "+ask, lines[4], "values should align with the Unicode headings on both sides")
 			output.Reset()
-			require.NoError(t, renderOrderbookExchangeStyle(&output, book, "test", "spot", 50, true), "exchange-style rendering must succeed")
+			require.NoError(t, renderOrderbookExchangeStyle(&output, book, "test", "spot", 50), "exchange-style rendering must succeed")
 			lines = strings.Split(output.String(), "\n")
 			require.Len(t, lines, 7, "the frame must contain one ask and one bid")
 			assert.Equal(t, grayText+heading, lines[1], "exchange-style Unicode headings should use terminal widths")
@@ -214,24 +214,21 @@ func TestOrderbookExchangeStyleTimestamp(t *testing.T) {
 	t.Parallel()
 	updated := time.Date(2026, time.October, 13, 0, 0, 0, 123456789, time.UTC)
 	for _, tc := range []struct {
-		name               string
-		lastUpdated        *timestamppb.Timestamp
-		includeLastUpdated bool
+		name        string
+		lastUpdated *timestamppb.Timestamp
 	}{
-		{name: "timestamp hidden", lastUpdated: timestamppb.New(updated)},
-		{name: "snapshot timestamp", lastUpdated: timestamppb.New(updated), includeLastUpdated: true},
-		{name: "timestamp absent", includeLastUpdated: true},
-		{name: "stream timestamp", lastUpdated: timestamppb.New(updated), includeLastUpdated: true},
-		{name: "Unix epoch", lastUpdated: timestamppb.New(time.Unix(0, 0)), includeLastUpdated: true},
+		{name: "timestamp present", lastUpdated: timestamppb.New(updated)},
+		{name: "timestamp absent"},
+		{name: "Unix epoch", lastUpdated: timestamppb.New(time.Unix(0, 0))},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			book := &gctrpc.OrderbookResponse{Pair: &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"}, LastUpdated: tc.lastUpdated}
 			var output strings.Builder
-			require.NoError(t, renderOrderbookExchangeStyle(&output, book, "test", "spot", 50, tc.includeLastUpdated), "exchange-style rendering must succeed")
+			require.NoError(t, renderOrderbookExchangeStyle(&output, book, "test", "spot", 50), "exchange-style rendering must succeed")
 			title, _, _ := strings.Cut(output.String(), "\n")
 			expected := whiteText + "Orderbook stream for TEST spot BTC-USD"
-			if tc.includeLastUpdated && tc.lastUpdated != nil {
+			if tc.lastUpdated != nil {
 				expected += " - Last updated " + tc.lastUpdated.AsTime().Format(common.SimpleTimeFormatWithTimezone)
 			}
 			assert.Equal(t, expected, title, "available protobuf timestamps should render without assuming Unix units")
@@ -384,7 +381,7 @@ func TestOrderbookRenderingPrecision(t *testing.T) {
 				}
 				var output strings.Builder
 				if exchangeStyle {
-					require.NoError(t, renderOrderbookExchangeStyle(&output, book, "kucoin", "spot", 2, true), "exchange-style rendering must succeed")
+					require.NoError(t, renderOrderbookExchangeStyle(&output, book, "kucoin", "spot", 2), "exchange-style rendering must succeed")
 					assert.Contains(t, output.String(), greenText+"      4.080          4.00\n", "the bid should use the ask's price and amount precision")
 					assert.Contains(t, output.String(), greenText+"      4.000          0.00\n", "whole prices and zero amounts should be padded")
 					assert.Contains(t, output.String(), redText+"      4.200         14.40\n", "asks should use the same precision as bids")

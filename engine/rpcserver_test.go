@@ -2166,17 +2166,20 @@ func TestRPCServer_OrderTrades_CreationTime(t *testing.T) {
 
 			// The wrapper looks up the order by ID, independently of the requested market.
 			for _, requestedAsset := range []asset.Item{asset.Spot, asset.Futures, asset.All} {
-				requestPair := p
-				if requestedAsset == asset.All {
-					requestPair = &gctrpc.CurrencyPair{}
-				}
-				detail, err := s.GetOrder(t.Context(), &gctrpc.GetOrderRequest{Exchange: b.Name, OrderId: "2", Pair: requestPair, Asset: requestedAsset.String()})
-				require.NoError(t, err, "GetOrder must not error")
-				assert.Equal(t, reportedAsset.String(), detail.GetAssetType(), "GetOrder should preserve the reported asset rather than infer it from the request")
-				assert.Equal(t, fills["2"], tradeCreationTimes(t, detail.GetTrades()), "GetOrder should preserve each trade's timestamp nanoseconds")
-				for _, trade := range detail.GetTrades() {
-					assert.Equal(t, reportedAsset.String(), trade.GetAssetType(), "GetOrder should report the fill's asset type, not its order type or the requested asset")
-				}
+				// Each lookup enriches the same managed order, so keep these cases serial.
+				t.Run(requestedAsset.String(), func(t *testing.T) {
+					requestPair := p
+					if requestedAsset == asset.All {
+						requestPair = &gctrpc.CurrencyPair{}
+					}
+					detail, err := s.GetOrder(t.Context(), &gctrpc.GetOrderRequest{Exchange: b.Name, OrderId: "2", Pair: requestPair, Asset: requestedAsset.String()})
+					require.NoError(t, err, "GetOrder must not error")
+					assert.Equal(t, reportedAsset.String(), detail.GetAssetType(), "GetOrder should preserve the reported asset rather than infer it from the request")
+					assert.Equal(t, fills["2"], tradeCreationTimes(t, detail.GetTrades()), "GetOrder should preserve each trade's timestamp nanoseconds")
+					for _, trade := range detail.GetTrades() {
+						assert.Equal(t, reportedAsset.String(), trade.GetAssetType(), "GetOrder should report the fill's asset type, not its order type or the requested asset")
+					}
+				})
 			}
 
 			orders, err := s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
@@ -2260,6 +2263,15 @@ func TestRPCServer_buildFuturePosition(t *testing.T) {
 	}
 	response := new(RPCServer).buildFuturePosition(position, false, false, true, false)
 	assert.Equal(t, fills, orderTradeCreationTimes(t, response.GetOrders()), "buildFuturePosition should preserve each trade's timestamp nanoseconds")
+
+	t.Run("order amount differs from cost", func(t *testing.T) {
+		t.Parallel()
+		position := &futures.Position{Orders: []order.Detail{{Amount: 2, Cost: 52}}}
+		response := new(RPCServer).buildFuturePosition(position, false, false, true, false)
+		require.Len(t, response.GetOrders(), 1, "position must include its order")
+		assert.Equal(t, 2.0, response.GetOrders()[0].GetAmount(), "order amount should retain its quantity")
+		assert.Equal(t, 52.0, response.GetOrders()[0].GetCost(), "order cost should retain its separate value")
+	})
 }
 
 func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {

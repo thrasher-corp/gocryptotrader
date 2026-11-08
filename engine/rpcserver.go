@@ -3808,7 +3808,7 @@ func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPa
 				CreationTime:  position.Orders[i].Date.Format(common.SimpleTimeFormatWithTimezone),
 				Status:        position.Orders[i].Status.String(),
 				Price:         position.Orders[i].Price,
-				Amount:        position.Orders[i].Cost,
+				Amount:        position.Orders[i].Amount,
 				OpenVolume:    position.Orders[i].RemainingAmount,
 				Fee:           position.Orders[i].Fee,
 				FeeCurrency:   position.Orders[i].FeeAsset.String(),

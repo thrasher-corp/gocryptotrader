@@ -549,10 +549,17 @@ func TestGetOrderInfoCompoundOrderType(t *testing.T) {
 	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("buy_market")))
 
 	for _, requestedAsset := range []asset.Item{asset.Spot, asset.Futures, asset.All, asset.Empty} {
-		got, err := ex.GetOrderInfo(t.Context(), "1", testPair, requestedAsset)
-		require.NoError(t, err, "GetOrderInfo must not error for a compound order type")
-		assert.Equal(t, order.Buy, got.Side, "GetOrderInfo should map buy_market to the buy side")
-		assert.Equal(t, asset.Spot, got.AssetType, "GetOrderInfo should report the queried spot market regardless of the requested asset")
+		name := requestedAsset.String()
+		if requestedAsset == asset.Empty {
+			name = "unknown asset"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got, err := ex.GetOrderInfo(t.Context(), "1", testPair, requestedAsset)
+			require.NoError(t, err, "GetOrderInfo must not error for a compound order type")
+			assert.Equal(t, order.Buy, got.Side, "GetOrderInfo should map buy_market to the buy side")
+			assert.Equal(t, asset.Spot, got.AssetType, "GetOrderInfo should report the queried spot market regardless of the requested asset")
+		})
 	}
 }
 

@@ -25,6 +25,7 @@ func TestOrderUnmarshalJSON(t *testing.T) {
 	for _, tc := range []struct {
 		name, payload string
 		want          Order
+		wantErr       bool
 	}{
 		{
 			name:    "v1_id_only_undelimited",
@@ -35,26 +36,24 @@ func TestOrderUnmarshalJSON(t *testing.T) {
 			name: "v1_legacy_order_id_colon_symbol", payload: `{"order_id":2,"symbol":"doge:usd","is_cancelled":true}`,
 			want: Order{ID: 2, OrderID: 2, Symbol: currency.NewPairWithDelimiter("doge", "usd", ":"), IsCancelled: true},
 		},
+		{name: "non_numeric_id", payload: `{"id":"not-an-id"}`, wantErr: true},
+		{name: "unparseable_symbol", payload: `{"symbol":"x"}`, wantErr: true},
+		{name: "empty_array", payload: `[]`, wantErr: true},
+		{name: "numeric_array", payload: `[1]`, wantErr: true},
+		{name: "v2_history_array", payload: `[1,null,null,"tBTCUSD",1792648800123,1792648860456,5,3,"EXCHANGE LIMIT",null,null,null,0,"CANCELED",null,null,26,0]`, wantErr: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			if tc.wantErr {
+				got := Order{ID: 99}
+				assert.Error(t, json.Unmarshal([]byte(tc.payload), &got), "invalid wire fields should fail decoding")
+				assert.Equal(t, Order{ID: 99}, got, "failed decoding should not partially replace the order")
+				return
+			}
 			var got Order
 			require.NoError(t, json.Unmarshal([]byte(tc.payload), &got), "documented orders must decode")
 			assert.Equal(t, tc.want, got, "all decoded fields should retain their own values")
 		})
-	}
-}
-
-func TestOrderUnmarshalJSONErrors(t *testing.T) {
-	t.Parallel()
-	for _, payload := range []string{
-		`{"id":"not-an-id"}`, `{"symbol":"x"}`,
-		`[]`, `[1]`,
-		`[1,null,null,"tBTCUSD",1792648800123,1792648860456,5,3,"EXCHANGE LIMIT",null,null,null,0,"CANCELED",null,null,26,0]`,
-	} {
-		got := Order{ID: 99}
-		assert.Error(t, json.Unmarshal([]byte(payload), &got), "invalid wire fields should fail decoding")
-		assert.Equal(t, Order{ID: 99}, got, "failed decoding should not partially replace the order")
 	}
 }
 

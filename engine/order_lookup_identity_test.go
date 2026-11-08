@@ -90,16 +90,23 @@ func TestOrderManagerLookupResponseIdentity(t *testing.T) {
 			require.NoError(t, err, "order manager setup must succeed")
 			manager.started.Store(true)
 			for _, requested := range tc.requested {
-				got, err := manager.GetOrderInfo(t.Context(), ex.GetName(), "1", currency.NewBTCUSD(), requested)
-				require.NoError(t, err, "real wrapper lookup must survive the position tracker")
-				assert.Equal(t, asset.Futures, got.AssetType, "stored order should use its returned market")
-				assert.Equal(t, tc.wantPair, got.Pair.String(), "stored order should not inherit the requested spot pair")
-				assert.True(t, tc.wantDate.Equal(got.Date), "stored order should retain its creation time")
-				positions, err := manager.orderStore.futuresPositionController.GetPositionsForExchange(ex.GetName(), asset.Futures, got.Pair)
-				require.NoError(t, err, "returned instrument must have a tracked futures position")
-				assert.Len(t, positions, 1, "repeated lookups should retain one position for the returned instrument")
-				_, err = manager.orderStore.futuresPositionController.GetPositionsForExchange(ex.GetName(), asset.Futures, currency.NewBTCUSD())
-				assert.ErrorIs(t, err, futures.ErrPositionNotFound, "the requested spot pair should not acquire a futures position")
+				name := requested.String()
+				if requested == asset.Empty {
+					name = "unknown asset"
+				}
+				// Repeated lookups must keep enriching one position, so these cases run serially.
+				t.Run(name, func(t *testing.T) {
+					got, err := manager.GetOrderInfo(t.Context(), ex.GetName(), "1", currency.NewBTCUSD(), requested)
+					require.NoError(t, err, "real wrapper lookup must survive the position tracker")
+					assert.Equal(t, asset.Futures, got.AssetType, "stored order should use its returned market")
+					assert.Equal(t, tc.wantPair, got.Pair.String(), "stored order should not inherit the requested spot pair")
+					assert.True(t, tc.wantDate.Equal(got.Date), "stored order should retain its creation time")
+					positions, err := manager.orderStore.futuresPositionController.GetPositionsForExchange(ex.GetName(), asset.Futures, got.Pair)
+					require.NoError(t, err, "returned instrument must have a tracked futures position")
+					assert.Len(t, positions, 1, "repeated lookups should retain one position for the returned instrument")
+					_, err = manager.orderStore.futuresPositionController.GetPositionsForExchange(ex.GetName(), asset.Futures, currency.NewBTCUSD())
+					assert.ErrorIs(t, err, futures.ErrPositionNotFound, "the requested spot pair should not acquire a futures position")
+				})
 			}
 		})
 	}
