@@ -47,13 +47,17 @@ var previousSubscriptions = []subscription{
 	{channel: "myTrades", authenticated: true},
 }
 
+// futuresAsset is the futures asset as configs save it
+const futuresAsset = "futures"
+
 // futuresSubscriptions are the default subscriptions futures websocket support adds
 var futuresSubscriptions = []subscription{
-	{channel: "ticker", asset: "futures"},
-	{channel: "allTrades", asset: "futures"},
-	{channel: "orderbook", asset: "futures"},
-	{channel: "myOrders", asset: "futures", authenticated: true},
-	{channel: "myTrades", asset: "futures", authenticated: true},
+	{channel: "ticker", asset: futuresAsset},
+	{channel: "allTrades", asset: futuresAsset},
+	{channel: "orderbook", asset: futuresAsset},
+	{channel: "myOrders", asset: futuresAsset, authenticated: true},
+	{channel: "myTrades", asset: futuresAsset, authenticated: true},
+	{channel: "myWallet", asset: futuresAsset, authenticated: true},
 }
 
 // savedSubscription is a subscription as a config saves it

@@ -75,9 +75,9 @@ func TestSetFuturesPNLCurrencyPreference(t *testing.T) {
 
 func TestDeleteFuturesPNLCurrencyPreference(t *testing.T) {
 	t.Parallel()
+	// The cases share e and run in turn, so the requests after them also catch a refusal leaving state behind
 	for _, pair := range partialTestPairs {
 		t.Run(pair.String(), func(t *testing.T) {
-			t.Parallel()
 			_, err := e.DeleteFuturesPNLCurrencyPreference(t.Context(), pair)
 			require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "DeleteFuturesPNLCurrencyPreference must reject %q, which lacks a base or a quote", pair)
 		})

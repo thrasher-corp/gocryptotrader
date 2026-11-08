@@ -26,7 +26,8 @@ const (
 	futuresBook    = `{"enabled":true,"channel":"orderbook","asset":"futures"}`
 	futuresOrders  = `{"enabled":true,"channel":"myOrders","asset":"futures","authenticated":true}`
 	futuresFills   = `{"enabled":true,"channel":"myTrades","asset":"futures","authenticated":true}`
-	futuresDefault = futuresTicker + "," + futuresTrades + "," + futuresBook + "," + futuresOrders + "," + futuresFills
+	futuresWallet  = `{"enabled":true,"channel":"myWallet","asset":"futures","authenticated":true}`
+	futuresDefault = futuresTicker + "," + futuresTrades + "," + futuresBook + "," + futuresOrders + "," + futuresFills + "," + futuresWallet
 )
 
 // previousDefaults are Kraken's default subscriptions before futures websocket support
@@ -211,11 +212,12 @@ func TestDowngradeExchange(t *testing.T) {
 			name, in, exp string
 		}{
 			{"current defaults", subscriptions(append(previousDefaults, futuresDefault)...), downgraded(previousDefaults...)},
-			{"another order", subscriptions(futuresFills, myTrades, futuresTicker, orderbook, ticker, futuresBook, candles, futuresOrders, myOrders, futuresTrades, allTrades), downgraded(myTrades, orderbook, ticker, candles, myOrders, allTrades)},
-			{"upper case asset", subscriptions(append(previousDefaults, `{"enabled":true,"channel":"ticker","asset":"FUTURES"}`, futuresTrades, futuresBook, futuresOrders, futuresFills)...), downgraded(previousDefaults...)},
+			{"another order", subscriptions(futuresFills, myTrades, futuresTicker, orderbook, futuresWallet, ticker, futuresBook, candles, futuresOrders, myOrders, futuresTrades, allTrades), downgraded(myTrades, orderbook, ticker, candles, myOrders, allTrades)},
+			{"upper case asset", subscriptions(append(previousDefaults, `{"enabled":true,"channel":"ticker","asset":"FUTURES"}`, futuresTrades, futuresBook, futuresOrders, futuresFills, futuresWallet)...), downgraded(previousDefaults...)},
 			{"previous defaults", subscriptions(previousDefaults...), downgraded(previousDefaults...)},
-			{"futures subscription disabled", subscriptions(append(previousDefaults, disabledTicker, futuresTrades, futuresBook, futuresOrders, futuresFills)...), downgraded(append(previousDefaults, disabledTicker, futuresTrades, futuresBook, futuresOrders, futuresFills)...)},
+			{"futures subscription disabled", subscriptions(append(previousDefaults, disabledTicker, futuresTrades, futuresBook, futuresOrders, futuresFills, futuresWallet)...), downgraded(append(previousDefaults, disabledTicker, futuresTrades, futuresBook, futuresOrders, futuresFills, futuresWallet)...)},
 			{"futures subscriptions removed", subscriptions(append(previousDefaults, futuresTicker)...), downgraded(append(previousDefaults, futuresTicker)...)},
+			{"futures balances removed", subscriptions(append(previousDefaults, futuresTicker, futuresTrades, futuresBook, futuresOrders, futuresFills)...), downgraded(append(previousDefaults, futuresTicker, futuresTrades, futuresBook, futuresOrders, futuresFills)...)},
 			{"level 3 book added", subscriptions(append(previousDefaults, futuresDefault, level3)...), downgraded(append(previousDefaults, futuresDefault, level3)...)},
 			{"no features", `{"name":"Kraken"}`, `{"name":"Kraken"}`},
 		} {

@@ -53,9 +53,9 @@ func TestCalculateFundingFees(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "CalculateFundingFees must reject a nil request")
 	_, err = e.CalculateFundingFees(t.Context(), &FundingFeesRequest{Amount: 5})
 	require.ErrorIs(t, err, errFundingMethodIDEmpty, "CalculateFundingFees must reject an empty method ID")
+	// The cases share e and run in turn, so the requests after them also catch a refusal leaving state behind
 	for _, amount := range []float64{0, -5, math.NaN(), math.Inf(1), math.Inf(-1)} {
 		t.Run(strconv.FormatFloat(amount, 'g', -1, 64), func(t *testing.T) {
-			t.Parallel()
 			_, err := e.CalculateFundingFees(t.Context(), &FundingFeesRequest{MethodID: "d4ec4d52-b159-428e-ba64-f45455a978a1", Amount: amount})
 			require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "CalculateFundingFees must reject an amount of %v", amount)
 		})
@@ -1482,9 +1482,10 @@ func TestSetFundingTimes(t *testing.T) {
 	assert.Equal(t, url.Values{"start_time": {"2026-10-09T00:00:00Z"}, "end_time": {"2026-10-10T00:00:00.0000005Z"}}, params, "setFundingTimes should set the times in UTC")
 }
 
-func TestFundingLimitsRequest(t *testing.T) {
+func TestFundingLimitsRequest(t *testing.T) { //nolint:tparallel // The refusals run in turn before the request that succeeds
 	t.Parallel()
 	usdc := FundingAsset{Class: "currency", Name: currency.USDC}
+	// The cases run in turn, so the request after them also catches a refusal leaving state behind
 	for _, tc := range []struct {
 		name string
 		req  *FundingLimitsRequest
@@ -1496,7 +1497,6 @@ func TestFundingLimitsRequest(t *testing.T) {
 		{name: "preferred asset name", req: &FundingLimitsRequest{Asset: usdc, PreferredAsset: FundingAsset{Class: "currency"}}, err: currency.ErrCurrencyCodeEmpty},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			_, _, err := fundingLimitsRequest("/funding/v1/limits/deposit/", tc.req)
 			assert.ErrorIsf(t, err, tc.err, "fundingLimitsRequest should reject a request by its %s", tc.name)
 		})

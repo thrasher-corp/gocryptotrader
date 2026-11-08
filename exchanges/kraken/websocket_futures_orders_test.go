@@ -2347,49 +2347,89 @@ func (c *credentialsOnceContext) Value(key any) any {
 
 func TestStoreUnifiedFlexWallet(t *testing.T) {
 	t.Parallel()
-	ex := newTestExchange(t)
-	useTestCredentials(ex)
-	creds := ex.GetDefaultCredentials()
+	other := accounts.Credentials{Key: "other-key", Secret: testSecret}
 	storedBalances := accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 5, Free: 5}}
-	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{{ID: "flex", AssetType: asset.Futures, Balances: maps.Clone(storedBalances)}}, true), "Save must not error")
-	store := func(ex *Exchange) (*accounts.SubAccount, error) {
-		ex.futuresBalancesMu.Lock()
-		defer ex.futuresBalancesMu.Unlock()
-		return ex.storeUnifiedFlexWallet(t.Context(), creds)
+	for _, tc := range []struct {
+		name string
+		// these and others are what the balances feed last reported of the wallet of the credentials passed and of the
+		// other credentials' wallet, unified when true, and nil when it has reported nothing
+		these, others *bool
+		// contextCreds passes context credentials rather than the exchange's own, which are then the other credentials
+		contextCreds bool
+		spotOff      bool
+		expEmptied   bool
+	}{
+		{name: "not reported", expEmptied: true},
+		{name: "reported unified", these: new(true), expEmptied: true},
+		{name: "reported separate", these: new(false)},
+		{name: "reported separate for other credentials", others: new(false), expEmptied: true},
+		{name: "reported separate, and unified for other credentials", these: new(false), others: new(true)},
+		{name: "context credentials' not reported, the exchange's separate", others: new(false), contextCreds: true, expEmptied: true},
+		{name: "context credentials' separate, the exchange's unified", these: new(false), others: new(true), contextCreds: true},
+		{name: "not reported, spot disabled", spotOff: true},
+		{name: "reported unified, spot disabled", these: new(true), spotOff: true},
+		{name: "reported separate, spot disabled", these: new(false), spotOff: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			useTestCredentials(ex)
+			ctx, creds, otherCreds := t.Context(), ex.GetDefaultCredentials(), &other
+			if tc.contextCreds {
+				ctx = accounts.DeployCredentialsToContext(ctx, &other)
+				creds, otherCreds = &other, ex.GetDefaultCredentials()
+			}
+			storedFlex := func() accounts.CurrencyBalances {
+				subAccts, err := ex.Accounts.SubAccounts(creds, asset.Futures)
+				require.NoError(t, err, "SubAccounts must not error")
+				return futuresWalletBalances(subAccts)["flex"]
+			}
+			require.NoError(t, ex.Accounts.Save(ctx, accounts.SubAccounts{{ID: "flex", AssetType: asset.Futures, Balances: maps.Clone(storedBalances)}}, true), "Save must not error")
+			require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, !tc.spotOff), "SetAssetEnabled must not error")
+			ex.futuresBalancesMu.Lock()
+			for c, reported := range map[*accounts.Credentials]*bool{creds: tc.these, otherCreds: tc.others} {
+				if reported != nil {
+					if ex.futuresUnifiedWallets == nil {
+						ex.futuresUnifiedWallets = make(map[accounts.Credentials]bool)
+					}
+					ex.futuresUnifiedWallets[*c] = *reported
+				}
+			}
+			stored := ex.futuresWalletStored(creds, "flex")
+			stored.recordWhole(7)
+			stored.recordCurrency(currency.USD, 8)
+			ex.futuresWalletStored(creds, "cash").recordWhole(9)
+			ex.futuresWalletStored(otherCreds, "flex").recordWhole(10)
+			got, err := ex.storeUnifiedFlexWallet(ctx, creds)
+			record := *ex.futuresWalletStored(creds, "flex")
+			others := []futuresWalletStores{*ex.futuresWalletStored(creds, "cash"), *ex.futuresWalletStored(otherCreds, "flex")}
+			ex.futuresBalancesMu.Unlock()
+			require.NoErrorf(t, err, "storeUnifiedFlexWallet must not error for a wallet %s", tc.name)
+			assert.Equalf(t, []futuresWalletStores{{whole: 9, currencies: map[currency.Code]uint64{}}, {whole: 10, currencies: map[currency.Code]uint64{}}}, others,
+				"storeUnifiedFlexWallet should keep the records of the credentials' other wallets and of the other credentials' wallets for a wallet %s", tc.name)
+			if !tc.expEmptied {
+				assert.Nilf(t, got, "storeUnifiedFlexWallet should store nothing for a wallet %s, leaving its funds under futures", tc.name)
+				assert.Equalf(t, storedBalances, storedFlex(), "storeUnifiedFlexWallet should leave a wallet %s as stored", tc.name)
+				assert.Equalf(t, futuresWalletStores{whole: 7, currencies: map[currency.Code]uint64{currency.USD: 8}}, record,
+					"storeUnifiedFlexWallet should keep the record of a wallet %s", tc.name)
+				return
+			}
+			// Kraken's futures accounts reply does not say whether the wallet is unified, so one the feed has not reported
+			// separate is left to spot, which lists a unified wallet's funds
+			assert.Equalf(t, accounts.NewSubAccount(asset.Futures, "flex"), got, "storeUnifiedFlexWallet should return a wallet %s emptied", tc.name)
+			assert.Emptyf(t, storedFlex(), "storeUnifiedFlexWallet should store a wallet %s emptied", tc.name)
+			assert.Equalf(t, futuresWalletStores{currencies: map[currency.Code]uint64{}}, record,
+				"storeUnifiedFlexWallet should forget the reads and messages a wallet %s held balances from, so they hold back none of a separate wallet's", tc.name)
+		})
 	}
-	got, err := store(ex)
-	require.NoError(t, err, "storeUnifiedFlexWallet must not error for a separate wallet")
-	assert.Nil(t, got, "storeUnifiedFlexWallet should store nothing for a wallet not reported as the unified wallet")
-	assert.Equal(t, storedBalances, storedFuturesWallets(t, ex)["flex"], "storeUnifiedFlexWallet should leave a separate wallet as stored")
-
-	ex.futuresBalancesMu.Lock()
-	ex.futuresUnifiedWallets = map[accounts.Credentials]bool{*creds: true}
-	stored := ex.futuresWalletStored(creds, "flex")
-	stored.recordWhole(7)
-	stored.recordCurrency(currency.USD, 8)
-	ex.futuresBalancesMu.Unlock()
-	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
-	got, err = store(ex)
-	require.NoError(t, err, "storeUnifiedFlexWallet must not error while spot is disabled")
-	assert.Nil(t, got, "storeUnifiedFlexWallet should store nothing while spot is disabled, as spot reads then keep no funds current")
-	assert.Equal(t, storedBalances, storedFuturesWallets(t, ex)["flex"], "storeUnifiedFlexWallet should leave the unified wallet stored while spot is disabled")
-
-	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, true), "SetAssetEnabled must not error")
-	got, err = store(ex)
-	require.NoError(t, err, "storeUnifiedFlexWallet must not error for the unified wallet")
-	assert.Equal(t, accounts.NewSubAccount(asset.Futures, "flex"), got, "storeUnifiedFlexWallet should return the multi-collateral wallet emptied")
-	assert.Empty(t, storedFuturesWallets(t, ex)["flex"], "storeUnifiedFlexWallet should store the multi-collateral wallet emptied")
-	ex.futuresBalancesMu.Lock()
-	assert.Equal(t, futuresWalletStores{currencies: map[currency.Code]uint64{}}, *ex.futuresWalletStored(creds, "flex"),
-		"storeUnifiedFlexWallet should forget the reads and messages the wallet's balances came from, so they hold back none of a separate wallet's")
-	ex.futuresBalancesMu.Unlock()
 
 	noCreds := newTestExchange(t)
 	noCreds.SkipAuthCheck = false
 	noCreds.API.AuthenticatedSupport = true
 	noCreds.SetCredentials(&accounts.Credentials{})
-	noCreds.futuresUnifiedWallets = map[accounts.Credentials]bool{*creds: true}
-	_, err = store(noCreds)
+	noCreds.futuresBalancesMu.Lock()
+	_, err := noCreds.storeUnifiedFlexWallet(t.Context(), &other)
+	noCreds.futuresBalancesMu.Unlock()
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "storeUnifiedFlexWallet should return the error storing the wallet")
 }
 
@@ -2449,6 +2489,7 @@ func TestSaveFuturesFeedBalances(t *testing.T) {
 	_, err = noCreds.saveFuturesFeedBalances(t.Context(), 2, true, nil, cash(accounts.CurrencyBalances{}))
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "saveFuturesFeedBalances should reject missing credentials")
 
+	reportSeparateFlexWallet(ex)
 	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{
 		{ID: "cash", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}, currency.EUR: {Total: 1, Free: 1}}},
 		{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}}},
@@ -2548,10 +2589,11 @@ func TestSaveFuturesFeedBalances(t *testing.T) {
 		}
 		emptied := accounts.NewSubAccount(asset.Futures, "flex")
 
-		subAccts, err := ex.saveFuturesFeedBalances(t.Context(), 1, true, nil, flex(5))
+		require.NoError(t, ex.Accounts.Save(t.Context(), flex(4), true), "Save must not error")
+		subAccts, err := ex.saveFuturesFeedBalances(t.Context(), 1, false, nil, flex(5))
 		require.NoError(t, err, "saveFuturesFeedBalances must not error before the feed reports the wallet's kind")
-		assert.Equal(t, map[string]accounts.CurrencyBalances{"flex": {currency.USD: {Currency: currency.USD, Total: 5, Free: 5}}}, futuresWalletBalances(subAccts),
-			"saveFuturesFeedBalances should store the multi-collateral wallet before the feed reports it as the unified wallet")
+		assert.Equal(t, accounts.SubAccounts{emptied}, subAccts, "saveFuturesFeedBalances should return the multi-collateral wallet emptied until the feed reports it separate")
+		assert.Empty(t, storedFuturesWallets(t, ex)["flex"], "saveFuturesFeedBalances should store the multi-collateral wallet emptied until the feed reports it separate, as it may be the unified wallet")
 
 		ex.futuresBalancesMu.Lock()
 		ex.futuresWalletStored(creds, "flex").recordWhole(10)
@@ -2620,5 +2662,72 @@ func TestSaveFuturesFeedBalances(t *testing.T) {
 		noCreds.futuresUnifiedWallets = map[accounts.Credentials]bool{*onceCreds: true}
 		_, err = noCreds.saveFuturesFeedBalances(&credentialsOnceContext{Context: onceCtx}, 7, false, nil, flex(8))
 		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "saveFuturesFeedBalances should return the error storing the unified wallet emptied")
+	})
+
+	t.Run("transition to a separate wallet", func(t *testing.T) {
+		t.Parallel()
+		unified, separate := true, false
+		wallet := func(id string, usd float64) accounts.SubAccounts {
+			return accounts.SubAccounts{{ID: id, AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: usd, Free: usd}}}}
+		}
+		// step is a balances message that arrived as n, or a REST read requested as n, stored in the order given
+		type step struct {
+			n        uint64
+			read     bool
+			snapshot bool
+			unified  *bool
+			wallets  accounts.SubAccounts
+		}
+		for _, tc := range []struct {
+			name    string
+			spotOff bool
+			steps   []step
+			expFlex accounts.CurrencyBalances
+		}{
+			{
+				name: "a transition carrying another wallet holds back a read of the unified wallet requested before it",
+				steps: []step{
+					{n: 60, snapshot: true, unified: &unified, wallets: wallet("flex", 100)},
+					{n: 62, unified: &separate, wallets: wallet("cash", 25)},
+					{n: 61, read: true, wallets: wallet("flex", 100)},
+				},
+				expFlex: accounts.CurrencyBalances{},
+			},
+			{
+				name: "a repeated report of a separate wallet holds back no read requested before it",
+				steps: []step{
+					{n: 70, snapshot: true, unified: &separate, wallets: wallet("flex", 10)},
+					{n: 72, unified: &separate, wallets: wallet("cash", 25)},
+					{n: 71, read: true, wallets: wallet("flex", 100)},
+				},
+				expFlex: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 100, Free: 100}},
+			},
+			{
+				name:    "a transition keeps a newer read stored while spot is disabled",
+				spotOff: true,
+				steps: []step{
+					{n: 80, snapshot: true, unified: &unified, wallets: wallet("flex", 10)},
+					{n: 82, read: true, wallets: wallet("flex", 100)},
+					{n: 81, snapshot: true, unified: &separate, wallets: wallet("flex", 40)},
+				},
+				expFlex: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 100, Free: 100}},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestExchange(t)
+				useTestCredentials(ex)
+				require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, !tc.spotOff), "SetAssetEnabled must not error")
+				for _, s := range tc.steps {
+					if s.read {
+						require.NoErrorf(t, ex.saveFuturesBalances(t.Context(), s.n, s.wallets), "saveFuturesBalances must not error for read %d", s.n)
+						continue
+					}
+					_, err := ex.saveFuturesFeedBalances(t.Context(), s.n, s.snapshot, s.unified, s.wallets)
+					require.NoErrorf(t, err, "saveFuturesFeedBalances must not error for message %d", s.n)
+				}
+				assert.Equalf(t, tc.expFlex, storedFuturesWallets(t, ex)["flex"], "the multi-collateral wallet should hold the newest balances it may for %s", tc.name)
+			})
+		}
 	})
 }

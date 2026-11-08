@@ -2413,6 +2413,12 @@
       "channel": "myTrades",
       "asset": "futures",
       "authenticated": true
+     },
+     {
+      "enabled": true,
+      "channel": "myWallet",
+      "asset": "futures",
+      "authenticated": true
      }
     ]
    },

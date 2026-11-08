@@ -619,6 +619,22 @@ func TestDefaultSubscriptions(t *testing.T) {
 	ex := newTestExchange(t)
 	// Config version 19 migrates the previous default subscriptions to the defaults the config fixture holds
 	testsubs.EqualLists(t, defaultSubscriptions.Clone(), ex.Config.Features.Subscriptions.Clone())
+	// EqualLists leaves out whether a subscription is enabled or authenticated, which the migration matches saved
+	// defaults on
+	type savedDefault struct {
+		channel                string
+		asset                  asset.Item
+		enabled, authenticated bool
+	}
+	defaults := make([]savedDefault, 0, len(defaultSubscriptions))
+	saved := make([]savedDefault, 0, len(ex.Config.Features.Subscriptions))
+	for _, s := range defaultSubscriptions {
+		defaults = append(defaults, savedDefault{s.Channel, s.Asset, s.Enabled, s.Authenticated})
+	}
+	for _, s := range ex.Config.Features.Subscriptions {
+		saved = append(saved, savedDefault{s.Channel, s.Asset, s.Enabled, s.Authenticated})
+	}
+	assert.ElementsMatch(t, defaults, saved, "the config fixture should hold each default subscription enabled and authenticated as it is")
 	useTestCredentials(ex)
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	type feed struct {
@@ -652,6 +668,8 @@ func TestDefaultSubscriptions(t *testing.T) {
 		{asset.Futures, wsFuturesFeedBook}:       true,
 		{asset.Futures, wsFuturesFeedOpenOrders}: true,
 		{asset.Futures, wsFuturesFeedFills}:      true,
+		// The futures balances feed alone reports whether the multi-collateral wallet is the unified wallet
+		{asset.Futures, wsFuturesFeedBalances}: true,
 	}
 	assert.Equal(t, exp, got, "the default subscriptions should cover the spot and futures market and account feeds")
 }

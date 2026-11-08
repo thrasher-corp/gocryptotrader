@@ -80,7 +80,8 @@ type Exchange struct {
 	futuresBalancesMu    sync.Mutex
 	// futuresUnifiedWallets holds, by credentials, whether the balances feed last reported the multi-collateral wallet as
 	// the account's unified wallet, whose funds the spot balances list. Kraken's futures accounts reply does not say, so a
-	// REST read relies on the feed's word. futuresBalancesMu guards it
+	// REST read relies on the feed's word, and takes a wallet the feed has not reported as unified. futuresBalancesMu
+	// guards it
 	futuresUnifiedWallets map[accounts.Credentials]bool
 }
 

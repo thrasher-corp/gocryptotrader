@@ -1643,6 +1643,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 		if !mockTests {
 			sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
 		}
+		reportSeparateFlexWallet(ex)
 		started := time.Now()
 		result, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
 		require.NoError(t, err, "UpdateAccountBalances must not error")
@@ -1715,6 +1716,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				ex := newAccountTestExchange(t, "/derivatives/api/v3/accounts", accountTestFlexWallet(tc.currencies))
+				reportSeparateFlexWallet(ex)
 				started := time.Now()
 				result, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
 				require.NoError(t, err, "UpdateAccountBalances must not error")
@@ -1730,6 +1732,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 	t.Run("futures margin limits", func(t *testing.T) {
 		t.Parallel()
 		ex := newAccountTestExchange(t, "/derivatives/api/v3/accounts", accountTestMarginAccounts)
+		reportSeparateFlexWallet(ex)
 		started := time.Now()
 		result, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
 		require.NoError(t, err, "UpdateAccountBalances must not error")
@@ -1782,6 +1785,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 			accountTestFlexWallet(`{"USD":{"quantity":5000,"value":5000,"collateral":5000,"available":5000}}`),
 			accountTestFlexWallet(`{}`),
 		)
+		reportSeparateFlexWallet(ex)
 		_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
 		require.NoError(t, err, "UpdateAccountBalances must not error for the funded wallet")
 		started := time.Now()
@@ -1934,6 +1938,14 @@ func storedFuturesWallets(t *testing.T, ex *Exchange) map[string]accounts.Curren
 	subAccts, err := ex.Accounts.SubAccounts(ex.GetDefaultCredentials(), asset.Futures)
 	require.NoError(t, err, "SubAccounts must not error")
 	return futuresWalletBalances(subAccts)
+}
+
+// reportSeparateFlexWallet records that the balances feed reported the multi-collateral wallet as a separate wallet for
+// ex's default credentials, so that their futures reads and feed updates store it as they hold it while spot is enabled
+func reportSeparateFlexWallet(ex *Exchange) {
+	ex.futuresBalancesMu.Lock()
+	defer ex.futuresBalancesMu.Unlock()
+	ex.futuresUnifiedWallets = map[accounts.Credentials]bool{*ex.GetDefaultCredentials(): false}
 }
 
 // awaitClosed fails the test with msg unless ch is closed within five seconds
@@ -2089,6 +2101,7 @@ func TestUpdateAccountBalancesKeepsNewerFuturesBalances(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex, arrived, release := newHeldFuturesAccountsTestExchange(t, olderRead, newerRead)
+			reportSeparateFlexWallet(ex)
 			require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{
 				{ID: "cash", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}, currency.EUR: {Total: 1, Free: 1}}},
 				{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}, currency.ETH: {Total: 1, Free: 1}}},
@@ -2139,6 +2152,7 @@ func TestSaveFuturesBalances(t *testing.T) {
 	assert.ErrorIs(t, noCreds.saveFuturesBalances(t.Context(), 1, nil), exchange.ErrCredentialsAreEmpty, "saveFuturesBalances should reject missing credentials")
 
 	creds := ex.GetDefaultCredentials()
+	reportSeparateFlexWallet(ex)
 	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{
 		{ID: "cash", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}, currency.EUR: {Total: 1, Free: 1}}},
 		{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}}},
@@ -5410,6 +5424,132 @@ func TestCancelBatchOrders(t *testing.T) {
 			"d31f46d3-c3c1-4411-ab5d-a6b1e81ea6c9": order.ErrCancelFailed.Error() + ": no status returned",
 		}}
 		assert.Equal(t, exp, resp, "CancelBatchOrders should report each order's outcome, and an order Kraken reports nothing for as not cancelled")
+	})
+
+	t.Run("futures orders in batches of 500", func(t *testing.T) {
+		t.Parallel()
+		const a, b, unknown = "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b", "9ac37735-a838-4323-9dd2-5c672bd97b54", "d31f46d3-c3c1-4411-ab5d-a6b1e81ea6c9"
+		orders := make([]string, 1001)
+		for i := range orders {
+			orders[i] = "d31f46d3-c3c1-4411-ab5d-" + strconv.FormatInt(100000000000+int64(i), 10)
+		}
+		cancel := func(ids ...string) []order.Cancel {
+			cancels := make([]order.Cancel, len(ids))
+			for i, id := range ids {
+				cancels[i] = order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, OrderID: id}
+			}
+			return cancels
+		}
+		cancelled := func(ids ...string) map[string]string {
+			status := make(map[string]string, len(ids))
+			for _, id := range ids {
+				status[id] = order.Cancelled.String()
+			}
+			return status
+		}
+		renamed := cancel(a, a)
+		renamed[1].Pair, renamed[1].ClientOrderID = currency.NewPairWithDelimiter("PF", "ETHUSD", currency.UnderscoreDelimiter), "gct-repeat"
+		for _, tc := range []struct {
+			name    string
+			cancels []order.Cancel
+			refused int // the request Kraken refuses, counting from 1, or 0 for none
+			ended   int // the request after which the caller's context ends, or 0
+			sent    [][]string
+			status  map[string]string
+			unknown bool // whether the status of the order Kraken doesn't know follows the reply
+			err     error
+		}{
+			{name: "an order named twice, the second time with another pair and client order ID", cancels: renamed, sent: [][]string{{a}}, status: cancelled(a)},
+			{name: "repeats that are not adjacent", cancels: cancel(a, b, a, b, a), sent: [][]string{{a, b}}, status: cancelled(a, b)},
+			{name: "1001 orders", cancels: cancel(orders...), sent: [][]string{orders[:500], orders[500:1000], orders[1000:]}, status: cancelled(orders...)},
+			{name: "a repeat past a batch of 500", cancels: cancel(append(slices.Clone(orders[:500]), orders[0])...), sent: [][]string{orders[:500]}, status: cancelled(orders[:500]...)},
+			{name: "an order Kraken does not know, named twice, between two it does", cancels: cancel(a, unknown, unknown, b), sent: [][]string{{a, unknown, b}}, status: cancelled(a, b), unknown: true},
+			{name: "1001 orders, Kraken refusing the second batch", cancels: cancel(orders...), refused: 2, sent: [][]string{orders[:500], orders[500:1000]}, err: errAPIResponse},
+			{name: "1001 orders, the context ending after the first batch", cancels: cancel(orders...), ended: 1, sent: [][]string{orders[:500]}, err: context.Canceled},
+		} {
+			// Kraken's recorded not found cancellation names no order, while the batch fixture above names it
+			for _, reply := range []struct {
+				name          string
+				namesNotFound bool
+				unknownStatus string
+			}{
+				{name: "not found naming no order", unknownStatus: order.ErrCancelFailed.Error() + ": no status returned"},
+				{name: "not found naming the order", namesNotFound: true, unknownStatus: order.ErrOrderNotFound.Error()},
+			} {
+				t.Run(tc.name+", "+reply.name, func(t *testing.T) {
+					t.Parallel()
+					var mu sync.Mutex
+					var sent [][]string
+					done := make(map[string]bool)
+					ctx, end := context.WithCancel(t.Context())
+					defer end()
+					// The fake cancels an order it knows once, and answers a later cancellation of it not found. It
+					// refuses any request past those expected, so a batching loop that never ends fails rather than hangs
+					ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+						var req struct {
+							BatchOrder []struct {
+								OrderID string `json:"order_id"`
+							} `json:"batchOrder"`
+						}
+						assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &req), "Unmarshal should not error")
+						mu.Lock()
+						defer mu.Unlock()
+						ids := make([]string, len(req.BatchOrder))
+						for i, instruction := range req.BatchOrder {
+							ids[i] = instruction.OrderID
+						}
+						sent = append(sent, ids)
+						if len(sent) == tc.ended {
+							// The caller's context ends once this reply is written, so no later batch should reach the fake
+							defer end()
+						}
+						if len(sent) == tc.refused || len(sent) > len(tc.sent) {
+							_, err := w.Write([]byte(`{"result":"error","error":"apiLimitExceeded","serverTime":"2026-10-09T08:42:00.001Z"}`))
+							assert.NoError(t, err, "Write should not error")
+							return
+						}
+						statuses := make([]string, len(ids))
+						for i, id := range ids {
+							switch {
+							case id != unknown && !done[id]:
+								statuses[i] = `{"order_id":"` + id + `","orderEvents":[],"status":"cancelled"}`
+							case reply.namesNotFound:
+								statuses[i] = `{"order_id":"` + id + `","orderEvents":[],"status":"notFound"}`
+							default:
+								statuses[i] = `{"orderEvents":[],"status":"notFound"}`
+							}
+							done[id] = true
+						}
+						_, err := w.Write([]byte(`{"batchStatus":[` + strings.Join(statuses, ",") + `],"result":"success","serverTime":"2026-10-09T08:42:00.003Z"}`))
+						assert.NoError(t, err, "Write should not error")
+					})
+					cancels := slices.Clone(tc.cancels)
+					for i := range cancels {
+						cancels[i].Exchange = ex.Name
+					}
+					given := slices.Clone(cancels)
+					resp, err := ex.CancelBatchOrders(ctx, cancels)
+					assert.Equalf(t, given, cancels, "CancelBatchOrders should leave the cancellations it was given unchanged for %s", tc.name)
+					mu.Lock()
+					defer mu.Unlock()
+					assert.Equalf(t, tc.sent, sent, "CancelBatchOrders should send each order once, in batches of 500, for %s", tc.name)
+					if tc.err != nil {
+						assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should return the error that stopped it for %s", tc.name)
+						if tc.refused != 0 {
+							assert.ErrorContainsf(t, err, "apiLimitExceeded", "CancelBatchOrders should return Kraken's error for %s", tc.name)
+						}
+						return
+					}
+					require.NoErrorf(t, err, "CancelBatchOrders must not error for %s", tc.name)
+					exp := tc.status
+					if tc.unknown {
+						exp = maps.Clone(tc.status)
+						exp[unknown] = reply.unknownStatus
+					}
+					assert.Equalf(t, exp, resp.Status, "CancelBatchOrders should report each order's outcome for %s", tc.name)
+				})
+			}
+		}
 	})
 
 	for _, tc := range []struct {

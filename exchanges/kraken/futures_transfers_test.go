@@ -64,9 +64,9 @@ func TestFuturesWithdrawToSpotWallet(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "FuturesWithdrawToSpotWallet must reject a nil request")
 	_, err = e.FuturesWithdrawToSpotWallet(t.Context(), &FuturesWithdrawToSpotWalletRequest{Amount: 0.1})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "FuturesWithdrawToSpotWallet must reject an empty currency")
+	// The cases share e and run in turn, so the requests after them also catch a refusal leaving state behind
 	for _, amount := range []float64{0, -0.1, math.NaN(), math.Inf(1), math.Inf(-1)} {
 		t.Run(strconv.FormatFloat(amount, 'g', -1, 64), func(t *testing.T) {
-			t.Parallel()
 			_, err := e.FuturesWithdrawToSpotWallet(t.Context(), &FuturesWithdrawToSpotWalletRequest{Currency: currency.ETH, Amount: amount})
 			require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "FuturesWithdrawToSpotWallet must reject an amount of %v", amount)
 		})

@@ -1683,7 +1683,7 @@ func TestReadVersion18KrakenConfigFromFile(t *testing.T) {
 	require.NoError(t, json.Unmarshal(exchanges[i]["features"], &features), "Unmarshal must preserve Kraken's features")
 	var subs []json.RawMessage
 	require.NoError(t, json.Unmarshal(features["subscriptions"], &subs), "Unmarshal must preserve Kraken's subscriptions")
-	require.Len(t, subs, 11, "the config fixture must hold Kraken's default subscriptions")
+	require.Len(t, subs, 12, "the config fixture must hold Kraken's default subscriptions")
 	// Version 18's default subscriptions are the spot and account ones, which come before the futures ones
 	features["subscriptions"], err = json.Marshal(subs[:6])
 	require.NoError(t, err, "Marshal must encode Kraken's version 18 subscriptions")

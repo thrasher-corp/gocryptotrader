@@ -100,7 +100,7 @@ func TestMatchDefaults(t *testing.T) {
 	current := slices.Concat(previousSubscriptions, futuresSubscriptions)
 	matched, ok = matchDefaults(saved(current...), current)
 	require.True(t, ok, "matchDefaults must match the current defaults")
-	assert.Equal(t, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, matched, "matchDefaults should tell the futures defaults from the spot ones")
+	assert.Equal(t, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, matched, "matchDefaults should tell the futures defaults from the spot ones")
 
 	for name, subs := range map[string][]savedSubscription{
 		"a default missing":    saved(previous[1:]...),
@@ -147,7 +147,7 @@ func TestMigrateSubscriptions(t *testing.T) {
 		`{"enabled":true,"channel":"myOrders","authenticated":true},{"enabled":true,"channel":"myTrades","authenticated":true}`
 	futures := `{"enabled":true,"channel":"ticker","asset":"futures"},{"enabled":true,"channel":"allTrades","asset":"futures"},` +
 		`{"enabled":true,"channel":"orderbook","asset":"futures"},{"enabled":true,"channel":"myOrders","asset":"futures","authenticated":true},` +
-		`{"enabled":true,"channel":"myTrades","asset":"futures","authenticated":true}`
+		`{"enabled":true,"channel":"myTrades","asset":"futures","authenticated":true},{"enabled":true,"channel":"myWallet","asset":"futures","authenticated":true}`
 	features := func(subs ...string) string {
 		return `{"features":{"subscriptions":[` + strings.Join(subs, ",") + `]}}`
 	}

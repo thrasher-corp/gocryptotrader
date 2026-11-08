@@ -101,6 +101,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Futures, Channel: subscription.OrderbookChannel},
 	{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Asset: asset.Futures, Channel: subscription.MyTradesChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.MyWalletChannel, Authenticated: true},
 }
 
 // connectionSetups returns the setups of the spot connections: the public connection, which streams market data, the

@@ -735,14 +735,16 @@ func (e *Exchange) futuresWalletToStore(creds *accounts.Credentials, n uint64, w
 	return s, nil
 }
 
-// storeUnifiedFlexWallet stores the multi-collateral wallet emptied, returning it, while the balances feed last
-// reported it as the credentials' unified wallet and spot is enabled, so that spot reads keep its funds current; it
-// returns nil otherwise, leaving the funds under futures. Balances stored for spot before it was disabled stay stored,
-// as any disabled asset's do. The emptied wallet replaces whatever balances were stored, however recently, and forgets
-// the reads and messages they came from, so they hold back none of the balances a separate wallet reports once the feed
-// reports it separate. futuresBalancesMu must be held
+// storeUnifiedFlexWallet stores the multi-collateral wallet emptied, returning it, while spot is enabled and the
+// balances feed has not reported it as a separate wallet for the credentials, so that spot reads keep a unified
+// wallet's funds current; it returns nil otherwise, leaving the funds under futures. Kraken's futures accounts reply
+// does not say whether the wallet is unified, so a wallet the feed has not reported is taken as unified, as leaving a
+// separate wallet's funds uncounted until the feed reports it is safer than counting a unified wallet's twice. Balances
+// stored for spot before it was disabled stay stored, as any disabled asset's do. The emptied wallet replaces whatever
+// balances were stored, however recently, and forgets the reads and messages they came from, so they hold back none
+// of the balances a separate wallet reports once the feed reports it separate. futuresBalancesMu must be held
 func (e *Exchange) storeUnifiedFlexWallet(ctx context.Context, creds *accounts.Credentials) (*accounts.SubAccount, error) {
-	if !e.futuresUnifiedWallets[*creds] || !slices.Contains(e.GetAssetTypes(true), asset.Spot) {
+	if unified, reported := e.futuresUnifiedWallets[*creds]; (reported && !unified) || !slices.Contains(e.GetAssetTypes(true), asset.Spot) {
 		return nil, nil
 	}
 	flex := accounts.NewSubAccount(asset.Futures, "flex")
@@ -1652,6 +1654,13 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			return nil, err
 		}
 	}
+	// A futures order named more than once is cancelled once, as a repeat can record its failure over the cancellation
+	seen := make(map[string]bool, len(futuresIDs))
+	futuresIDs = slices.DeleteFunc(futuresIDs, func(id string) bool {
+		repeated := seen[id]
+		seen[id] = true
+		return repeated
+	})
 	for chunk := range slices.Chunk(futuresIDs, 500) {
 		instructions := make([]FuturesBatchInstruction, len(chunk))
 		for i := range chunk {

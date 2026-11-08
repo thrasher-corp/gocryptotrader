@@ -678,9 +678,10 @@ func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Con
 // wsFuturesProcessBalances stores the wallet balances a balances message holds, and relays those it stores with the
 // message. A snapshot holds every balance of each wallet it carries, so the cash and multi-collateral wallets it
 // carries are stored whole, and a currency they no longer list is removed, while an update holds only the balances that
-// changed. A multi-collateral wallet the feed reports as the unified wallet is stored emptied while spot is enabled.
-// Kraken names a single-collateral margin account differently over REST, so one is stored only under the name of the
-// REST account with its pair and currency, as UpdateAccountBalances stores it; the others are left to REST
+// changed. The multi-collateral wallet is stored emptied while spot is enabled, unless the feed has reported it as a
+// separate wallet, as storeUnifiedFlexWallet sets out. Kraken names a single-collateral margin account differently over
+// REST, so one is stored only under the name of the REST account with its pair and currency, as UpdateAccountBalances
+// stores it; the others are left to REST
 func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, feed string, respRaw []byte) error {
 	arrived := e.balancesSequence.Add(1)
 	var b WebsocketFuturesBalances
@@ -719,6 +720,11 @@ func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, feed string, re
 	var unified *bool
 	if b.FlexFutures != nil {
 		unified = b.FlexFutures.UnifiedBalances
+		// A snapshot holds the wallet's whole state, so one leaving out unified_balances, which Kraken documents as
+		// false for a separate wallet, reports it separate
+		if unified == nil && snapshot {
+			unified = new(false)
+		}
 	}
 	subAccts, err := e.saveFuturesFeedBalances(ctx, arrived, snapshot, unified, wallets)
 	if err != nil {
