@@ -120,6 +120,8 @@ var (
 	errMalformedCandles                     = errors.New("malformed candles")
 	errRiskManagementUnsupported            = errors.New("take-profit, stop-loss and stop entry settings are not supported")
 	errSlippageToleranceUnsupported         = errors.New("a slippage tolerance is not supported")
+	errTriggerPriceUnsupported              = errors.New("a trigger price is not supported")
+	errEndTimeUnsupported                   = errors.New("an end time is not supported")
 )
 
 // GetSymbols retrieves current exchange trading rules and symbol information

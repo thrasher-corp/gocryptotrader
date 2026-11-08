@@ -947,8 +947,8 @@ func (e *Exchange) GetServerTime(ctx context.Context, a asset.Item) (time.Time, 
 	return serverTime.Time(), err
 }
 
-// SubmitOrder submits a new order. Take-profit, stop-loss and stop entry settings and a slippage tolerance are
-// refused, since the order would be placed without them
+// SubmitOrder submits a new order. Take-profit, stop-loss and stop entry settings, a slippage tolerance, a trigger price
+// and an end time are refused, since the order would be placed without them
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
@@ -963,6 +963,12 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 	if s.SlippageTolerance != 0 {
 		return nil, fmt.Errorf("%w on a %s order", errSlippageToleranceUnsupported, s.AssetType)
+	}
+	if s.TriggerPrice != 0 {
+		return nil, fmt.Errorf("%w on a %s order", errTriggerPriceUnsupported, s.AssetType)
+	}
+	if !s.EndTime.IsZero() {
+		return nil, fmt.Errorf("%w on a %s order", errEndTimeUnsupported, s.AssetType)
 	}
 	switch s.AssetType {
 	case asset.Spot:

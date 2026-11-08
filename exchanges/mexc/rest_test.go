@@ -2293,12 +2293,31 @@ func TestSubmitOrder(t *testing.T) {
 		for name, modes := range eachRiskManagementFieldAlone() {
 			refusals[name] = refusal{s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 0.001, RiskManagementModes: modes}, err: errRiskManagementUnsupported}
 		}
+		endTime := time.Date(2030, time.January, 2, 3, 4, 5, 0, time.UTC)
 		for kind, s := range eachOrderKind() {
-			withStopLoss, withSlippage := s, s
+			withStopLoss, withSlippage, withTriggerPrice, withEndTime := s, s, s, s
 			withStopLoss.RiskManagementModes, withSlippage.SlippageTolerance = stopLoss, 0.001
+			withTriggerPrice.TriggerPrice, withEndTime.EndTime = 44000, endTime
 			refusals[kind+" order with a stop-loss"] = refusal{s: withStopLoss, err: errRiskManagementUnsupported}
 			refusals[kind+" order with a slippage tolerance"] = refusal{s: withSlippage, err: errSlippageToleranceUnsupported}
+			refusals[kind+" order with a trigger price"] = refusal{s: withTriggerPrice, err: errTriggerPriceUnsupported}
+			refusals[kind+" order with an end time"] = refusal{s: withEndTime, err: errEndTimeUnsupported}
 		}
+		maps.Copy(refusals, map[string]refusal{
+			"negative trigger price":                        {s: order.Submit{Side: order.Sell, Type: order.Market, Amount: 0.001, TriggerPrice: -44000}, err: errTriggerPriceUnsupported},
+			"trigger price on the index price":              {s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 0.001, TriggerPrice: 44000, TriggerPriceType: order.IndexPrice}, err: errTriggerPriceUnsupported},
+			"end time at the Unix epoch":                    {s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 0.001, EndTime: time.Unix(0, 0)}, err: errEndTimeUnsupported},
+			"trigger price on a market buy by quote amount": {s: order.Submit{Side: order.Buy, Type: order.Market, QuoteAmount: 100, TriggerPrice: 44000}, err: errTriggerPriceUnsupported},
+			"end time on a market buy by quote amount":      {s: order.Submit{Side: order.Buy, Type: order.Market, QuoteAmount: 100, EndTime: endTime}, err: errEndTimeUnsupported},
+			"small trigger price on the mark price, with a client order ID and leverage 1": {
+				s:   order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 0.001, Leverage: 1, ClientOrderID: "gct-1", TriggerPrice: 0.00001, TriggerPriceType: order.MarkPrice},
+				err: errTriggerPriceUnsupported,
+			},
+			"end time with a mark price trigger type, a client order ID and leverage 1": {
+				s:   order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 0.001, Leverage: 1, ClientOrderID: "gct-1", TriggerPriceType: order.MarkPrice, EndTime: endTime},
+				err: errEndTimeUnsupported,
+			},
+		})
 		for name, tc := range refusals {
 			t.Run(name+" refused", func(t *testing.T) {
 				t.Parallel()
@@ -2306,6 +2325,7 @@ func TestSubmitOrder(t *testing.T) {
 				tc.s.Exchange, tc.s.AssetType, tc.s.Pair = ex.Name, asset.Spot, spotTradablePair
 				resp, err := ex.SubmitOrder(t.Context(), &tc.s)
 				require.ErrorIs(t, err, tc.err, "SubmitOrder must refuse a setting the spot order would be placed without")
+				assert.ErrorContains(t, err, "on a spot order", "the refusal should name the order's asset")
 				assert.Nil(t, resp, "no order should be returned")
 				assert.Zero(t, requests.Load(), "nothing should be sent to the venue")
 			})
@@ -2420,18 +2440,42 @@ func TestSubmitOrder(t *testing.T) {
 		for name, modes := range eachRiskManagementFieldAlone() {
 			refusals[name] = refusal{s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 1, Leverage: 20, RiskManagementModes: modes}, err: errRiskManagementUnsupported}
 		}
+		endTime := time.Date(2030, time.January, 2, 3, 4, 5, 0, time.UTC)
 		for kind, s := range eachOrderKind() {
-			withStopLoss, withSlippage := s, s
+			withStopLoss, withSlippage, withTriggerPrice, withEndTime := s, s, s, s
 			withStopLoss.RiskManagementModes, withSlippage.SlippageTolerance = stopLoss, 0.001
+			withTriggerPrice.TriggerPrice, withEndTime.EndTime = 44000, endTime
 			refusals[kind+" order with a stop-loss"] = refusal{s: withStopLoss, err: errRiskManagementUnsupported}
 			refusals[kind+" order with a slippage tolerance"] = refusal{s: withSlippage, err: errSlippageToleranceUnsupported}
+			refusals[kind+" order with a trigger price"] = refusal{s: withTriggerPrice, err: errTriggerPriceUnsupported}
+			refusals[kind+" order with an end time"] = refusal{s: withEndTime, err: errEndTimeUnsupported}
 		}
+		maps.Copy(refusals, map[string]refusal{
+			"negative trigger price":             {s: order.Submit{Side: order.Sell, Type: order.Market, Amount: 1, Leverage: 20, TriggerPrice: -44000}, err: errTriggerPriceUnsupported},
+			"trigger price on the index price":   {s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 1, Leverage: 20, TriggerPrice: 44000, TriggerPriceType: order.IndexPrice}, err: errTriggerPriceUnsupported},
+			"trigger price on a close":           {s: order.Submit{Side: order.Sell, Type: order.Market, Amount: 1, ReduceOnly: true, TriggerPrice: 44000}, err: errTriggerPriceUnsupported},
+			"trigger price on a cross order":     {s: order.Submit{Side: order.Buy, Type: order.Market, Amount: 1, MarginType: margin.Multi, TriggerPrice: 44000}, err: errTriggerPriceUnsupported},
+			"trigger price on an isolated order": {s: order.Submit{Side: order.Sell, Type: order.Market, Amount: 1, Leverage: 20, MarginType: margin.Isolated, TriggerPrice: 44000}, err: errTriggerPriceUnsupported},
+			"end time at the Unix epoch":         {s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 1, Leverage: 20, EndTime: time.Unix(0, 0)}, err: errEndTimeUnsupported},
+			"end time on a close":                {s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 1, ReduceOnly: true, EndTime: endTime}, err: errEndTimeUnsupported},
+			"end time on a cross order":          {s: order.Submit{Side: order.Sell, Type: order.Limit, Price: 45000, Amount: 1, MarginType: margin.Multi, EndTime: endTime}, err: errEndTimeUnsupported},
+			"end time on an isolated order":      {s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 1, Leverage: 20, MarginType: margin.Isolated, EndTime: endTime}, err: errEndTimeUnsupported},
+			"small trigger price on the mark price, with a client order ID and leverage 1": {
+				s:   order.Submit{Side: order.Buy, Type: order.Market, Amount: 1, Leverage: 1, ClientOrderID: "gct-1", TriggerPrice: 0.00001, TriggerPriceType: order.MarkPrice},
+				err: errTriggerPriceUnsupported,
+			},
+			"end time with a mark price trigger type, a client order ID and leverage 1": {
+				s:   order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 1, Leverage: 1, ClientOrderID: "gct-1", TriggerPriceType: order.MarkPrice, EndTime: endTime},
+				err: errEndTimeUnsupported,
+			},
+		})
 		for name, tc := range refusals {
 			t.Run(name+" refused", func(t *testing.T) {
 				t.Parallel()
 				ex, requests := newRefusingTestExchange(t)
 				resp, err := submit(ex, tc.s)
 				require.ErrorIs(t, err, tc.err, "SubmitOrder must refuse a setting the futures order would be placed without")
+				assert.ErrorContains(t, err, "on a futures order", "the refusal should name the order's asset")
 				assert.Nil(t, resp, "no order should be returned")
 				assert.Zero(t, requests.Load(), "nothing should be sent to the venue")
 			})
