@@ -47,11 +47,22 @@ func TestNormaliseAddress(t *testing.T) {
 	assert.Equal(t, testZeroAddress, normalised, "normaliseAddress should return the zero address")
 	assert.Zero(t, raw, "normaliseAddress should decode the zero address")
 
+	t.Run("an EIP-55 address with a zero where an upper-case letter would go", func(t *testing.T) {
+		t.Parallel()
+		vector, _, err := normaliseAddress("0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB")
+		require.NoError(t, err, "normaliseAddress must not error for a valid EIP-55 address")
+		assert.Equal(t, "0xdbf03b407c01e7cd3cbea99509d93f8dddc8c6fb", vector, "normaliseAddress should lower-case a checksummed address")
+	})
+
 	for _, address := range []string{
 		"1719884eb866cb12b2287399b15f7db5e7d775ea",
 		"0x17",
 		"0xzz19884eb866cb12b2287399b15f7db5e7d775ea",
 		"0x5AAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+		"0xaB12345678901234567890123456789012345678",
+		"0xfB12345678901234567890123456789012345678",
+		"0xAb23456789012345678901234567890123456781",
+		"0xFb12345678901234567890123456789012345678",
 	} {
 		t.Run(subtestName(address), func(t *testing.T) {
 			t.Parallel()

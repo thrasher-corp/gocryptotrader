@@ -4205,6 +4205,37 @@ func TestGetOrderInfoExecution(t *testing.T) {
 	assert.Equal(t, 41000.0, result.Cost, "GetOrderInfo should add up the order's fills across pages, once each")
 	assert.Len(t, fillRequests(), 2, "GetOrderInfo should read the next page from the last fill of a full one")
 
+	// A full page ending at the order's final status is read on from that time, where more of its fills can follow
+	t.Run("full page ending at the final status", func(t *testing.T) {
+		t.Parallel()
+		endPage := make([]string, 0, maximumUserFillsCount)
+		endPage = append(endPage, first)
+		for i := range maximumUserFillsCount - 1 {
+			endPage = append(endPage, fill(99, uint64(20000+i), "1", "1", "1", "USDC", finishedAt))
+		}
+		secondAtEnd := strings.Replace(second, `"time":`+strconv.FormatInt(placedAt+400, 10), `"time":`+strconv.FormatInt(finishedAt, 10), 1)
+		paged, pagedRequests := newExecutionServer(t, status("filled", "0.0"), map[uint64]string{placedAt: `[` + strings.Join(endPage, ",") + `]`, finishedAt: `[` + endPage[len(endPage)-1] + `,` + secondAtEnd + `]`})
+		got, err := paged.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+		require.NoError(t, err, "GetOrderInfo must not error for a full page ending at the order's final status")
+		assert.Equal(t, 82000.0, got.AverageExecutedPrice, "GetOrderInfo should add the fills on the page after one ending at the order's final status")
+		assert.Len(t, pagedRequests(), 2, "GetOrderInfo should read on from a full page ending at the order's final status")
+	})
+
+	// A full page sharing a later read's cursor time is read on from a millisecond after it, as on the first read
+	t.Run("full page stuck at a later cursor", func(t *testing.T) {
+		t.Parallel()
+		atCursor := make([]string, 0, maximumUserFillsCount)
+		atCursor = append(atCursor, first)
+		for i := range maximumUserFillsCount - 1 {
+			atCursor = append(atCursor, fill(99, uint64(30000+i), "1", "1", "1", "USDC", placedAt+100))
+		}
+		again, againRequests := newExecutionServer(t, status("filled", "0.0"), map[uint64]string{placedAt: `[` + strings.Join(page, ",") + `]`, placedAt + 100: `[` + strings.Join(atCursor, ",") + `]`, placedAt + 101: `[` + second + `]`})
+		got, err := again.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+		require.NoError(t, err, "GetOrderInfo must not error for a full page stuck at a later cursor")
+		assert.Equal(t, 82000.0, got.AverageExecutedPrice, "GetOrderInfo should add the fills after a full page stuck at a later cursor")
+		assert.Len(t, againRequests(), 3, "GetOrderInfo should read on from a millisecond after a full page stuck at a later cursor")
+	})
+
 	// A full page holding all of the order's fills is the last read
 	complete := append(append(make([]string, 0, maximumUserFillsCount), page[:maximumUserFillsCount-2]...), first, second)
 	ex, fillRequests = newExecutionServer(t, status("filled", "0.0"), map[uint64]string{placedAt: `[` + strings.Join(complete, ",") + `]`})
@@ -4279,6 +4310,7 @@ func TestGetOrderInfoExecution(t *testing.T) {
 		{name: "cancelled unfilled", orderStatus: reduceOnly("reduceOnlyCanceled", "0.3"), pages: map[uint64]string{placedAt: `[` + other + `]`, 1: kept}, amount: 0.5, remaining: 0.3, status: order.Cancelled, requests: []InfoRequest{read(placedAt, finishedAt), earlier}},
 		{name: "cancelled partly filled", orderStatus: reduceOnly("canceled", "0.1"), pages: map[uint64]string{placedAt: `[` + first + `]`, 1: kept}, amount: 0.35, executed: 0.25, remaining: 0.1, cost: 20000, averagePrice: 80000, fee: 8, feeAsset: currency.USDC, status: order.PartiallyFilledCancelled, requests: []InfoRequest{read(placedAt, finishedAt), earlier}},
 		{name: "fills over two pages", orderStatus: reduceOnly("filled", "0.0"), pages: map[uint64]string{placedAt: `[` + strings.Join(page, ",") + `]`, placedAt + 100: `[` + first + `]`, 1: kept}, amount: 0.25, executed: 0.25, cost: 20000, averagePrice: 80000, fee: 8, feeAsset: currency.USDC, status: order.Filled, requests: []InfoRequest{read(placedAt, finishedAt), read(placedAt+100, finishedAt), earlier}},
+		{name: "fills on a page one short of full", orderStatus: reduceOnly("filled", "0.0"), pages: map[uint64]string{placedAt: `[` + strings.Join(page[1:], ",") + `]`, 1: kept}, amount: 0.25, executed: 0.25, cost: 20000, averagePrice: 80000, fee: 8, feeAsset: currency.USDC, status: order.Filled, requests: []InfoRequest{read(placedAt, finishedAt), earlier}},
 		// Hyperliquid drops an account's oldest fills first, so without an earlier fill the order's may have been dropped
 		{name: "earlier fills dropped", orderStatus: reduceOnly("filled", "0.0"), pages: map[uint64]string{placedAt: `[` + first + `]`, 1: `[]`}, amount: 0.5, executed: 0.5, status: order.Filled, requests: []InfoRequest{read(placedAt, finishedAt), earlier}},
 		{name: "earlier fills unread", orderStatus: reduceOnly("filled", "0.0"), pages: map[uint64]string{placedAt: `[` + first + `]`}, amount: 0.5, executed: 0.5, status: order.Filled, requests: []InfoRequest{read(placedAt, finishedAt), earlier}},

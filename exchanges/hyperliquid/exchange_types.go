@@ -161,7 +161,7 @@ type PlaceOrdersRequest struct {
 type BuilderFee struct {
 	// Builder is the address that receives the fee
 	Builder string
-	// Fee is at most 100, 0.1%, on perpetuals and 1000, 1%, on spot
+	// Fee is at most 100, 0.1%, on perpetuals and 1000, 1%, on spot and outcomes
 	Fee TenthsOfABasisPoint
 }
 
@@ -877,7 +877,7 @@ type TWAPOrderRequest struct {
 	ReduceOnly bool
 	// Minutes is the order's duration, 5 minutes to 7 days
 	Minutes uint64
-	// Randomise varies the timing of the order's slices
+	// Randomise varies each suborder's size at random, by up to 20% either way
 	Randomise bool
 	// ExpiresAfter, when set, makes Hyperliquid reject the action after this time
 	ExpiresAfter time.Time
@@ -1119,7 +1119,7 @@ type NegateOutcomeWire struct {
 // GossipPriorityBidRequest bids in a gossip priority auction for an IP address; the bid is charged from the spot balance
 // and burned
 type GossipPriorityBidRequest struct {
-	// SlotID is 0 or 1
+	// SlotID is 0, 1 or 2
 	SlotID uint64
 	// IP must exactly match the address the prioritised peer is seen from
 	IP netip.Addr

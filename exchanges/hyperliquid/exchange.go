@@ -53,12 +53,12 @@ var (
 	errAddressEncodingInvalid      = errors.New("address encoding must be hex or base58")
 	errAgentNameInvalid            = errors.New("agent name must be at most 16 characters, and is required for an expiring agent")
 	errAgentValidUntilInvalid      = errors.New("agent expiry must be in the future and at most 180 days ahead")
-	errBuilderFeeInvalid           = errors.New("builder fee exceeds its maximum of 100 tenths of a basis point on perpetuals or 1000 on spot")
+	errBuilderFeeInvalid           = errors.New("builder fee exceeds its maximum of 100 tenths of a basis point on perpetuals or 1000 on spot and outcomes")
 	errClientOrderIDInvalid        = errors.New("client order ID must be a 16-byte hexadecimal value")
 	errDestinationRecipientInvalid = errors.New("invalid destination recipient")
 	errExpiresAfterPassed          = errors.New("action expiry must be in the future")
 	errGossipIPInvalid             = errors.New("invalid gossip priority IP address")
-	errGossipSlotInvalid           = errors.New("gossip priority slot must be 0 or 1")
+	errGossipSlotInvalid           = errors.New("gossip priority slot must be 0, 1 or 2")
 	errInvalidGrouping             = errors.New("invalid order grouping")
 	errInvalidLeverage             = errors.New("leverage must be a positive whole number within the market maximum")
 	errInvalidTriggerKind          = errors.New("trigger kind must be tp or sl")
@@ -889,7 +889,7 @@ func (e *Exchange) BidGossipPriority(ctx context.Context, arg *GossipPriorityBid
 	if arg == nil {
 		return common.ErrNilPointer
 	}
-	if arg.SlotID > 1 {
+	if arg.SlotID > 2 {
 		return fmt.Errorf("%w: got %d", errGossipSlotInvalid, arg.SlotID)
 	}
 	if !arg.IP.IsValid() {
@@ -994,14 +994,16 @@ func validatePriorityGrouping(arg *PlaceOrdersRequest) error {
 }
 
 // builderFeeWire validates a builder fee against the maximum of the markets it applies to: 1000 tenths of a basis point
-// when every order is on spot, otherwise 100
+// when every order is on spot or an outcome, which takes builder fees as spot does, otherwise 100
 func builderFeeWire(builder *BuilderFee, orders []OrderRequest) (BuilderFeeWire, error) {
 	address, err := normaliseRecipientAddress(builder.Builder)
 	if err != nil {
 		return BuilderFeeWire{}, err
 	}
 	maximum := maximumSpotBuilderFee
-	if slices.ContainsFunc(orders, func(o OrderRequest) bool { return o.Asset < spotAssetIDBase || o.Asset >= builderPerpetualAssetIDBase }) {
+	if slices.ContainsFunc(orders, func(o OrderRequest) bool {
+		return o.Asset < spotAssetIDBase || (o.Asset >= builderPerpetualAssetIDBase && o.Asset < outcomeAssetIDBase)
+	}) {
 		maximum = maximumPerpetualBuilderFee
 	}
 	if builder.Fee > maximum {

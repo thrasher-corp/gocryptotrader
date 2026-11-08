@@ -2314,6 +2314,21 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		assert.Equal(t, order.PartiallyFilledCancelled, merged.Status, "the engine should hold the order partly filled and cancelled")
 	})
 
+	t.Run("cancel with nothing executed", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketOrderEventsExchange(t)
+		handleWebsocketFrames(t, ex,
+			websocketOrderUpdatesFrame(websocketOrderRowJSON(1031, "open", "0.02", "0.02", websocketOrderPlaced)),
+			websocketOrderUpdatesFrame(websocketOrderRowJSON(1031, "canceled", "0.02", "0.02", websocketOrderPlaced+300)),
+		)
+		cancelled := opened(ex.Name, "1031")
+		cancelled.Status, cancelled.LastUpdated = order.Cancelled, at(300)
+		relayed := slices.Concat(receiveOrderUpdates(t, ex), receiveOrderUpdates(t, ex))
+		assertNoWebsocketData(t, ex)
+		assert.Equal(t, []order.Detail{opened(ex.Name, "1031"), cancelled}, relayed, "the order stream should report the placement and the cancel")
+		assert.Nil(t, ex.websocketWatermarks.orders.byOrderID[1031], "the cancel should forget an order that executed nothing")
+	})
+
 	t.Run("duplicate fill from userEvents and userFills", func(t *testing.T) {
 		t.Parallel()
 		ex := newWebsocketTestExchange(t)
@@ -4873,7 +4888,6 @@ func TestKeyWebsocketSubscriptions(t *testing.T) {
 	assert.Same(t, heldKey, held.EnsureKeyed(), "keyWebsocketSubscriptions should keep the key of a subscription keyed by its feed, which may be held")
 }
 
-//nolint:tparallel // The subtests share ex and its local server in order
 func TestSubscribeToWebsocketChannels(t *testing.T) {
 	t.Parallel()
 	ex, venue := newLocalWebsocketTestExchange(t, subscription.List{})
@@ -4914,7 +4928,9 @@ func TestSubscribeToWebsocketChannels(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.ErrorIsf(t, ex.SubscribeToWebsocketChannels(subscription.List{tc.accountFeed}), errWebsocketAccountFeedsDisabled, "SubscribeToWebsocketChannels should refuse account feed %q without authenticated websocket support", tc.accountFeed.QualifiedChannel)
-			assert.ErrorIsf(t, ex.SubscribeToWebsocketChannels(subscription.List{tc.accountFeed, tc.marketFeed}), errWebsocketAccountFeedsDisabled, "SubscribeToWebsocketChannels should refuse account feed %q beside a market feed without authenticated websocket support", tc.accountFeed.QualifiedChannel)
+			batch := subscription.List{tc.accountFeed, tc.marketFeed}
+			assert.ErrorIsf(t, ex.SubscribeToWebsocketChannels(batch), errWebsocketAccountFeedsDisabled, "SubscribeToWebsocketChannels should refuse account feed %q beside a market feed without authenticated websocket support", tc.accountFeed.QualifiedChannel)
+			assert.Equalf(t, subscription.List{tc.accountFeed, tc.marketFeed}, batch, "SubscribeToWebsocketChannels should leave the caller's list holding account feed %q as it was", tc.accountFeed.QualifiedChannel)
 		})
 	}
 	exp = slices.Concat(exp, []string{`{"method":"subscribe","subscription":{"type":"allMids","dex":"flx"}}`, `{"method":"subscribe","subscription":{"type":"l2Book","coin":"BTC"}}`})
@@ -4927,6 +4943,83 @@ func TestSubscribeToWebsocketChannels(t *testing.T) {
 	assert.NotNil(t, ex.Websocket.GetSubscription(newWebsocketSubscriptionKey(notification)), "SubscribeToWebsocketChannels should hold the account feed")
 	received := venue.received()
 	assert.JSONEq(t, `{"method":"subscribe","subscription":{"type":"notification","user":"`+testAccountAddress+`"}}`, received[len(received)-1], "SubscribeToWebsocketChannels should subscribe the account feed")
+
+	// Serial, as it fills ex's subscriptions to the limit once the checks above have read them
+	t.Run("a request reaching Hyperliquid's limit", func(t *testing.T) {
+		public, err := ex.Websocket.GetConnection(websocketPublicConnection)
+		require.NoError(t, err, "GetConnection must return the public connection")
+		filler := make(subscription.List, 1000-len(ex.Websocket.GetSubscriptions())-1)
+		for i := range filler {
+			filler[i] = &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids, Params: map[string]any{"dex": "f" + strconv.Itoa(i)}}
+		}
+		keyWebsocketSubscriptions(filler)
+		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(public, filler...), "AddSuccessfulSubscriptions must not error")
+		last := &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}}
+		require.NoError(t, ex.SubscribeToWebsocketChannels(subscription.List{last}), "SubscribeToWebsocketChannels must send a request reaching Hyperliquid's limit of 1000")
+		assert.Len(t, ex.Websocket.GetSubscriptions(), 1000, "SubscribeToWebsocketChannels should hold 1000 subscriptions")
+	})
+
+	t.Run("a request passing Hyperliquid's limit beside 999 held", func(t *testing.T) {
+		t.Parallel()
+		full, fullVenue := newLocalWebsocketTestExchange(t, subscription.List{})
+		setTestPairs(t, full, asset.PerpetualContract, testPerpetualMapping, testBuilderMapping)
+		require.NoError(t, full.Websocket.Enable(t.Context()), "Enable must connect to the local websocket")
+		public, err := full.Websocket.GetConnection(websocketPublicConnection)
+		require.NoError(t, err, "GetConnection must return the public connection")
+		held := make(subscription.List, 999)
+		for i := range held {
+			held[i] = &subscription.Subscription{Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids, Params: map[string]any{"dex": "h" + strconv.Itoa(i)}}
+		}
+		keyWebsocketSubscriptions(held)
+		require.NoError(t, full.Websocket.AddSuccessfulSubscriptions(public, held...), "AddSuccessfulSubscriptions must not error")
+		// One ticker request for two pairs expands to two subscriptions, which are what count towards the limit
+		twoPairs := &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair, testBuilderPair}}
+		assert.ErrorIs(t, full.SubscribeToWebsocketChannels(subscription.List{twoPairs}), errWebsocketSubscriptionsLimit, "SubscribeToWebsocketChannels should refuse a request expanding to two subscriptions beside 999 held")
+		assert.Empty(t, fullVenue.received(), "SubscribeToWebsocketChannels should send none of a request passing the limit")
+		assert.Len(t, full.Websocket.GetSubscriptions(), 999, "SubscribeToWebsocketChannels should hold none of a request passing the limit")
+	})
+
+	t.Run("a batch with an account feed a held feed excludes", func(t *testing.T) {
+		t.Parallel()
+		excluding, excludingVenue := newLocalWebsocketTestExchange(t, subscription.List{})
+		require.NoError(t, excluding.Websocket.Enable(t.Context()), "Enable must connect to the local websocket")
+		aggregated := &subscription.Subscription{Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}}
+		require.NoError(t, excluding.SubscribeToWebsocketChannels(subscription.List{aggregated}), "SubscribeToWebsocketChannels must subscribe aggregated fills")
+		sent := excludingVenue.received()
+		events := &subscription.Subscription{Channel: wsSubscriptionUserEvents, Authenticated: true}
+		assert.ErrorIs(t, excluding.SubscribeToWebsocketChannels(subscription.List{{Channel: wsChannelAllMids}, events}), subscription.ErrExclusiveSubscription, "SubscribeToWebsocketChannels should refuse user events beside held aggregated fills")
+		assert.Equal(t, sent, excludingVenue.received(), "SubscribeToWebsocketChannels should send none of a batch a held feed excludes")
+		assert.Len(t, excluding.Websocket.GetSubscriptions(), 1, "SubscribeToWebsocketChannels should hold none of a batch a held feed excludes")
+	})
+
+	t.Run("a batch with a book a held book excludes once expanded", func(t *testing.T) {
+		t.Parallel()
+		booked, bookedVenue := newLocalWebsocketTestExchange(t, subscription.List{})
+		setTestPairs(t, booked, asset.PerpetualContract, testPerpetualMapping, testBuilderMapping)
+		require.NoError(t, booked.Websocket.Enable(t.Context()), "Enable must connect to the local websocket")
+		require.NoError(t, booked.SubscribeToWebsocketChannels(subscription.List{testBookSubscription(5, nil)}), "SubscribeToWebsocketChannels must subscribe a book")
+		sent := bookedVenue.received()
+		// The book request names no pairs, so only its expansion over the enabled pairs meets the held book
+		account := &subscription.Subscription{Channel: wsChannelNotification, Authenticated: true}
+		deeper := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.PerpetualContract, Levels: 20}
+		assert.ErrorIs(t, booked.SubscribeToWebsocketChannels(subscription.List{account, deeper}), subscription.ErrExclusiveSubscription, "SubscribeToWebsocketChannels should refuse a book that a held book excludes once expanded")
+		assert.Equal(t, sent, bookedVenue.received(), "SubscribeToWebsocketChannels should send none of a batch a held book excludes")
+		assert.Len(t, booked.Websocket.GetSubscriptions(), 1, "SubscribeToWebsocketChannels should hold none of a batch a held book excludes")
+	})
+
+	t.Run("a batch with a feed its expansion drops", func(t *testing.T) {
+		t.Parallel()
+		dropping, droppingVenue := newLocalWebsocketTestExchange(t, subscription.List{})
+		require.NoError(t, dropping.Websocket.Enable(t.Context()), "Enable must connect to the local websocket")
+		aggregated := &subscription.Subscription{Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}}
+		require.NoError(t, dropping.SubscribeToWebsocketChannels(subscription.List{aggregated}), "SubscribeToWebsocketChannels must subscribe aggregated fills")
+		sent := len(droppingVenue.received())
+		// Expansion drops a subscription for an asset with no enabled pairs, so these user events exclude nothing
+		dropped := &subscription.Subscription{Channel: wsSubscriptionUserEvents, Authenticated: true, Asset: asset.Futures}
+		require.NoError(t, dropping.SubscribeToWebsocketChannels(subscription.List{{Channel: wsChannelAllMids}, dropped}), "SubscribeToWebsocketChannels must subscribe the feeds its expansion keeps")
+		assert.Len(t, droppingVenue.received(), sent+1, "SubscribeToWebsocketChannels should send only the feed its expansion keeps")
+		assert.Len(t, dropping.Websocket.GetSubscriptions(), 2, "SubscribeToWebsocketChannels should hold the kept feed beside the held one")
+	})
 }
 
 func TestUnsubscribeToWebsocketChannels(t *testing.T) {
@@ -6340,6 +6433,9 @@ func TestWebsocketUintParameter(t *testing.T) {
 		{name: "an unsigned integer", value: uint64(5), exp: 5},
 		{name: "an integer", value: 5, exp: 5},
 		{name: "a whole JSON number", value: 5.0, exp: 5},
+		{name: "a zero integer", value: 0},
+		{name: "a zero JSON number", value: 0.0},
+		{name: "the largest uint32 as a JSON number", value: float64(math.MaxUint32), exp: math.MaxUint32},
 		{name: "a negative integer", value: -1, err: errWebsocketParameter},
 		{name: "a negative JSON number", value: -1.0, err: errWebsocketParameter},
 		{name: "a fractional JSON number", value: 5.5, err: errWebsocketParameter},

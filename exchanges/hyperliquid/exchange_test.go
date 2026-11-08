@@ -1260,6 +1260,10 @@ func TestSendToEVMWithData(t *testing.T) {
 		{name: "an unknown address encoding", mutate: func(r *SendToEVMWithDataRequest) { r.AddressEncoding = "bech32" }, err: errAddressEncodingInvalid},
 		{name: "an unprefixed hex recipient", mutate: func(r *SendToEVMWithDataRequest) { r.DestinationRecipient = testWithdrawalAddress[2:] }, err: errDestinationRecipientInvalid},
 		{name: "an invalid hex recipient", mutate: func(r *SendToEVMWithDataRequest) { r.DestinationRecipient = "0xzz" }, err: errDestinationRecipientInvalid},
+		{name: "an empty hex recipient", mutate: func(r *SendToEVMWithDataRequest) { r.DestinationRecipient = "0x" }, err: errDestinationRecipientInvalid},
+		{name: "a hex recipient shorter than its prefix", mutate: func(r *SendToEVMWithDataRequest) { r.DestinationRecipient = "0" }, err: errDestinationRecipientInvalid},
+		{name: "an empty hex recipient with surrounding whitespace", mutate: func(r *SendToEVMWithDataRequest) { r.DestinationRecipient = " 0x\t" }, err: errDestinationRecipientInvalid},
+		{name: "a hex recipient shorter than its prefix with surrounding whitespace", mutate: func(r *SendToEVMWithDataRequest) { r.DestinationRecipient = " 0 " }, err: errDestinationRecipientInvalid},
 		{name: "no base58 recipient", mutate: func(r *SendToEVMWithDataRequest) {
 			r.AddressEncoding = AddressEncodingBase58
 			r.DestinationRecipient = " "
@@ -1309,6 +1313,14 @@ func TestSendToEVMWithData(t *testing.T) {
 	require.NoError(t, err, "SendToEVMWithData must not error for an upper-case hex recipient")
 	exp = `{"type":"sendToEvmWithData","signatureChainId":"0x66eee","hyperliquidChain":"Mainnet","token":"USDC:0x6d1e7cde53ba9467b783cb7c530ce054","amount":"5","sourceDex":"spot","destinationRecipient":"` + testAccountAddress + `","addressEncoding":"hex","destinationChainId":999,"gasLimit":200000,"data":"0x","nonce":` + strconv.FormatUint(nonce, 10) + `}`
 	assert.JSONEq(t, exp, capturedAction(t, &captured), "SendToEVMWithData should send a hex recipient in lower case")
+	// Serial, as it shares ex and its recording server with the checks around it
+	t.Run("a hex recipient with surrounding whitespace", func(t *testing.T) {
+		padded := valid
+		padded.DestinationRecipient = " " + testWithdrawalAddress + "\t"
+		_, err := ex.SendToEVMWithData(t.Context(), &padded)
+		require.NoError(t, err, "SendToEVMWithData must accept a hex recipient with surrounding whitespace")
+		assert.Contains(t, capturedAction(t, &captured), `"destinationRecipient":"`+testWithdrawalAddress+`"`, "SendToEVMWithData should send the hex recipient without its whitespace")
+	})
 
 	arg := valid
 	arg.Data = []byte{0xde, 0xad, 0xbe, 0xef}
@@ -2167,7 +2179,6 @@ func TestClaimRewards(t *testing.T) {
 	assert.NoError(t, e.ClaimRewards(t.Context()), "ClaimRewards should not error")
 }
 
-//nolint:tparallel // The cases must run in order, before the later BidGossipPriority calls
 func TestBidGossipPriority(t *testing.T) {
 	t.Parallel()
 	ip := netip.MustParseAddr("203.0.113.7")
@@ -2178,7 +2189,7 @@ func TestBidGossipPriority(t *testing.T) {
 		err  error
 	}{
 		{name: "nil request", err: common.ErrNilPointer},
-		{name: "an unknown slot", arg: &GossipPriorityBidRequest{SlotID: 2, IP: ip, MaxGasInWei: 1}, err: errGossipSlotInvalid},
+		{name: "an unknown slot", arg: &GossipPriorityBidRequest{SlotID: 3, IP: ip, MaxGasInWei: 1}, err: errGossipSlotInvalid},
 		{name: "no IP address", arg: &GossipPriorityBidRequest{MaxGasInWei: 1}, err: errGossipIPInvalid},
 		{name: "no maximum gas", arg: &GossipPriorityBidRequest{IP: ip}, err: errMaxGasInvalid},
 	} {
@@ -2191,6 +2202,12 @@ func TestBidGossipPriority(t *testing.T) {
 	require.NoError(t, newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse).BidGossipPriority(t.Context(), &GossipPriorityBidRequest{IP: netip.MustParseAddr("::ffff:1.2.3.4"), MaxGasInWei: 100000000}), "BidGossipPriority must not error")
 	assert.JSONEq(t, `{"type":"gossipPriorityBid","slotId":0,"ip":"1.2.3.4","maxGas":100000000}`, capturedAction(t, &captured), "BidGossipPriority should send an IPv4-mapped address as IPv4")
 	assert.Empty(t, captured.VaultAddress, "BidGossipPriority should not act for the configured subaccount")
+	t.Run("the third slot", func(t *testing.T) {
+		t.Parallel()
+		var thirdSlot SignedActionRequest
+		require.NoError(t, newActionServerExchange(t, subAccountCredentials(), &thirdSlot, defaultActionResponse).BidGossipPriority(t.Context(), &GossipPriorityBidRequest{SlotID: 2, IP: ip, MaxGasInWei: 10000000}), "BidGossipPriority must accept slot 2")
+		assert.JSONEq(t, `{"type":"gossipPriorityBid","slotId":2,"ip":"203.0.113.7","maxGas":10000000}`, capturedAction(t, &thirdSlot), "BidGossipPriority should send slot 2")
+	})
 
 	// 10000000 wei is the auction's 0.1 HYPE minimum price
 	arg := &GossipPriorityBidRequest{SlotID: 1, IP: ip, MaxGasInWei: 10000000}
@@ -2205,7 +2222,7 @@ func TestBidGossipPriority(t *testing.T) {
 		require.NoError(t, err, "liveGossipPriorityIP must be an IP address")
 		status, err := e.GetGossipPriorityAuctionStatus(t.Context())
 		require.NoError(t, err, "GetGossipPriorityAuctionStatus must not error")
-		require.Len(t, status.Auctions, 2, "GetGossipPriorityAuctionStatus must return both slots' auctions")
+		require.GreaterOrEqual(t, len(status.Auctions), 2, "GetGossipPriorityAuctionStatus must return slot 1's auction")
 		// A winning bid is burned, so the live test only bids the minimum, which can win once the falling price reaches it
 		if price := status.Auctions[1].CurrentGas.Float64(); price <= 0 || price > 0.1 {
 			t.Skipf("The slot 1 auction price of %v HYPE is not open to the live test's 0.1 HYPE bid", price)
@@ -2285,6 +2302,7 @@ func TestBuilderFeeWire(t *testing.T) {
 	spot := OrderRequest{Asset: 10107}
 	perpetual := OrderRequest{Asset: 0}
 	builder := OrderRequest{Asset: 110000}
+	outcome := OrderRequest{Asset: 100279490}
 	for _, tc := range []struct {
 		name   string
 		orders []OrderRequest
@@ -2296,6 +2314,15 @@ func TestBuilderFeeWire(t *testing.T) {
 		{name: "a perpetual order above the perpetual maximum", orders: []OrderRequest{spot, perpetual}, fee: maximumPerpetualBuilderFee + 1, err: errBuilderFeeInvalid},
 		{name: "a builder DEX order above the perpetual maximum", orders: []OrderRequest{builder}, fee: maximumPerpetualBuilderFee + 1, err: errBuilderFeeInvalid},
 		{name: "a perpetual order at the perpetual maximum", orders: []OrderRequest{perpetual}, fee: maximumPerpetualBuilderFee},
+		{name: "the first spot market at the spot maximum", orders: []OrderRequest{{Asset: 10000}}, fee: 1000},
+		{name: "outcome orders at the spot maximum", orders: []OrderRequest{outcome}, fee: 1000},
+		{name: "outcome orders above the spot maximum", orders: []OrderRequest{outcome}, fee: 1001, err: errBuilderFeeInvalid},
+		{name: "spot and outcome orders at the spot maximum", orders: []OrderRequest{spot, outcome}, fee: 1000},
+		{name: "outcome and spot orders at the spot maximum", orders: []OrderRequest{outcome, spot}, fee: 1000},
+		{name: "the first outcome asset at the spot maximum", orders: []OrderRequest{{Asset: 100000000}}, fee: 1000},
+		{name: "the last builder DEX asset above the perpetual maximum", orders: []OrderRequest{{Asset: 99999999}}, fee: 101, err: errBuilderFeeInvalid},
+		{name: "an outcome and a perpetual order above the perpetual maximum", orders: []OrderRequest{outcome, perpetual}, fee: 101, err: errBuilderFeeInvalid},
+		{name: "a spot and a builder DEX order above the perpetual maximum", orders: []OrderRequest{spot, builder}, fee: 101, err: errBuilderFeeInvalid},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
