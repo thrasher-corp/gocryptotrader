@@ -41,6 +41,14 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
+	// Bybit's Place Order takes no margin mode or leverage, so the only margin type an order may name is cash, for a spot
+	// order that does not borrow, and the only leverage 1
+	if s.MarginType != margin.Unset && (s.AssetType != asset.Spot || s.MarginType != margin.NoMargin || s.AutoBorrow) {
+		return nil, fmt.Errorf("%w: %s for a %s order", margin.ErrMarginTypeUnsupported, s.MarginType, s.AssetType)
+	}
+	if s.Leverage != 0 && s.Leverage != 1 {
+		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, s.Leverage)
+	}
 	symbol, err := e.orderSymbol(s.Pair, s.AssetType)
 	if err != nil {
 		return nil, err
@@ -1354,6 +1362,12 @@ var spotOrderFilters = []string{"Order", "tpslOrder", "StopOrder", "OcoOrder", "
 func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
+	}
+	// Bybit's Cancel All Orders takes no side and no limit or market type, so it would cancel orders a cancellation naming
+	// one did not ask for
+	if (orderCancellation.Side != order.UnknownSide && orderCancellation.Side != order.AnySide) ||
+		(orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType) {
+		return order.CancelAllResponse{}, fmt.Errorf("%w: cancelling the orders of one side or type (side %s, type %s)", common.ErrFunctionNotSupported, orderCancellation.Side, orderCancellation.Type)
 	}
 	category := getCategoryName(orderCancellation.AssetType)
 	if category == "" {

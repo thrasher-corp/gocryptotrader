@@ -896,43 +896,51 @@ func TestRateLimiterWithWeightLimit(t *testing.T) {
 		{"a window budget of 12 in 100ms", GetRateLimiterWithWindowBudget(NewWindowBudget(100*time.Millisecond, 12), 1), 120},
 		{"no window budget", GetRateLimiterWithWindowBudget(nil, 1, NewWindowBudget(time.Second, 1)), rate.Inf},
 	} {
-		assert.Equalf(t, tc.want, tc.limiter.Limit(), "Limit should report the budget of %s exactly", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.want, tc.limiter.Limit(), "Limit should report the budget of %s exactly", tc.name)
+		})
 	}
 }
 
-func TestRateLimiterWithWeightSharesBudgetWith(t *testing.T) {
+func TestRateLimiterWithWeightSharesBudgetWith(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the groups share limiters and SharesBudgetWith is called again after them
 	t.Parallel()
 	shared, unrestricted := NewRateLimit(time.Second, 10), NewRateLimit(time.Second, 0)
 	orders, ip := NewWindowBudget(time.Second, 10), NewWindowBudget(5*time.Second, 570)
 	// Each group holds the endpoints drawing on one budget of their own: an endpoint shares a budget with every
 	// endpoint of its own group, itself included, and with no other, whatever shared budgets they also draw on.
-	groups := [][]*RateLimiterWithWeight{
-		{GetRateLimiterWithWeight(shared, 1), GetRateLimiterWithWeight(shared, 1), GetRateLimiterWithWeight(shared, 5), GetRateLimiterWithWeight(shared, 5), GetRateLimiterWithShared(shared, 1, ip)},
-		{GetRateLimiterWithWeight(unrestricted, 1), GetRateLimiterWithWeight(unrestricted, 5)},
-		{GetRateLimiterWithWindowBudget(orders, 1, ip), GetRateLimiterWithWindowBudget(orders, 1), GetRateLimiterWithWindowBudget(orders, 5, ip)},
-		{GetRateLimiterWithWindowBudget(NewWindowBudget(time.Second, 10), 1, ip)},
-		{GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, ip)},
-		{GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, ip)},
-		{GetRateLimiterWithWindowBudget(nil, 1, ip)},
-		{GetRateLimiterWithWindowBudget(nil, 1, ip)},
-		{NewRateLimitWithWeight(time.Second, 10, 1)},
-		{NewRateLimitWithWeight(time.Second, 10, 5)},
-		{NewRateLimitWithWeight(time.Second, 3, 5)},
-		{NewRateLimitWithWeight(time.Second, 20, 1)},
-		{NewRateLimitWithWeight(time.Second, 20, 5)},
-		{NewRateLimitWithWeight(time.Second, 0, 1)},
+	groups := []struct {
+		name      string
+		endpoints []*RateLimiterWithWeight
+	}{
+		{"one limiter at weights 1 and 5, one endpoint also on the IP budget", []*RateLimiterWithWeight{GetRateLimiterWithWeight(shared, 1), GetRateLimiterWithWeight(shared, 1), GetRateLimiterWithWeight(shared, 5), GetRateLimiterWithWeight(shared, 5), GetRateLimiterWithShared(shared, 1, ip)}},
+		{"one unrestricted limiter at weights 1 and 5", []*RateLimiterWithWeight{GetRateLimiterWithWeight(unrestricted, 1), GetRateLimiterWithWeight(unrestricted, 5)}},
+		{"one order window budget at weights 1 and 5, two endpoints also on the IP budget", []*RateLimiterWithWeight{GetRateLimiterWithWindowBudget(orders, 1, ip), GetRateLimiterWithWindowBudget(orders, 1), GetRateLimiterWithWindowBudget(orders, 5, ip)}},
+		{"a window budget of its own on the IP budget", []*RateLimiterWithWeight{GetRateLimiterWithWindowBudget(NewWindowBudget(time.Second, 10), 1, ip)}},
+		{"a limiter of its own on the IP budget", []*RateLimiterWithWeight{GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, ip)}},
+		{"another limiter of its own on the IP budget", []*RateLimiterWithWeight{GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, ip)}},
+		{"no window budget, on the IP budget", []*RateLimiterWithWeight{GetRateLimiterWithWindowBudget(nil, 1, ip)}},
+		{"another without a window budget, on the IP budget", []*RateLimiterWithWeight{GetRateLimiterWithWindowBudget(nil, 1, ip)}},
+		{"10 per second at weight 1", []*RateLimiterWithWeight{NewRateLimitWithWeight(time.Second, 10, 1)}},
+		{"10 per second at weight 5", []*RateLimiterWithWeight{NewRateLimitWithWeight(time.Second, 10, 5)}},
+		{"3 per second at weight 5", []*RateLimiterWithWeight{NewRateLimitWithWeight(time.Second, 3, 5)}},
+		{"20 per second at weight 1", []*RateLimiterWithWeight{NewRateLimitWithWeight(time.Second, 20, 1)}},
+		{"20 per second at weight 5", []*RateLimiterWithWeight{NewRateLimitWithWeight(time.Second, 20, 5)}},
+		{"unrestricted at weight 1", []*RateLimiterWithWeight{NewRateLimitWithWeight(time.Second, 0, 1)}},
 	}
 	for i, group := range groups {
-		for x, endpoint := range group {
-			for j, others := range groups {
-				for y, other := range others {
-					assert.Equalf(t, i == j, endpoint.SharesBudgetWith(other), "endpoint %d of group %d sharing with endpoint %d of group %d should be %t", x, i, y, j, i == j)
+		t.Run(group.name, func(t *testing.T) {
+			for x, endpoint := range group.endpoints {
+				for j, others := range groups {
+					for y, other := range others.endpoints {
+						assert.Equalf(t, i == j, endpoint.SharesBudgetWith(other), "endpoint %d of %q sharing with endpoint %d of %q should be %t", x, group.name, y, others.name, i == j)
+					}
 				}
 			}
-		}
+		})
 	}
-	assert.False(t, groups[0][0].SharesBudgetWith(RateLimitNotRequired), "a limiter should not share a budget with the no-op limiter")
-	assert.False(t, RateLimitNotRequired.SharesBudgetWith(groups[0][0]), "the no-op limiter should not share a budget with a limiter")
+	assert.False(t, groups[0].endpoints[0].SharesBudgetWith(RateLimitNotRequired), "a limiter should not share a budget with the no-op limiter")
+	assert.False(t, RateLimitNotRequired.SharesBudgetWith(groups[0].endpoints[0]), "the no-op limiter should not share a budget with a limiter")
 	assert.True(t, RateLimitNotRequired.SharesBudgetWith(RateLimitNotRequired), "the no-op limiter should share its absent budget with itself")
 }
 

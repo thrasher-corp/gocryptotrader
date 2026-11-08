@@ -513,6 +513,10 @@
     "allocs": 2,
     "bytes": 144
   },
+  "exchanges/request.BenchmarkRateLimitWithSharedSaturated": {
+    "allocs": 3,
+    "bytes": 160
+  },
   "exchanges/request.BenchmarkRedactEncodedValues/empty": {
     "allocs": 0,
     "bytes": 0

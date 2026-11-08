@@ -2471,6 +2471,61 @@ func TestSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported, "SubmitOrder must reject an asset Bybit does not trade")
 	_, err = e.SubmitOrder(t.Context(), &order.Submit{Exchange: e.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Market, Amount: 1, TimeInForce: order.FillOrKill})
 	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "SubmitOrder must refuse a time in force Bybit cannot honour before sending")
+	// Bybit applies the account's margin mode and the symbol's leverage, so an order naming a margin type other than cash
+	// for a spot order that does not borrow, or a leverage other than 1, is refused before anything is sent, while the
+	// orders it can apply are placed
+	refusing := newTransportTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "nothing should be sent", "%s %s was sent for an order SubmitOrder refuses", r.Method, r.URL.Path)
+	})
+	accepting := newTransportTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{"orderId":"1321003749386327578","orderLinkId":""},"retExtInfo":{},"time":1760000000000}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	require.NoError(t, accepting.DisableRateLimiter(), "DisableRateLimiter must not error")
+	for _, a := range []struct {
+		asset asset.Item
+		pair  currency.Pair
+	}{
+		{asset.Spot, currency.NewBTCUSDT()},
+		{asset.USDTMarginedFutures, currency.NewBTCUSDT()},
+		{asset.USDCMarginedFutures, currency.NewPair(currency.BTC, currency.PERP)},
+		{asset.CoinMarginedFutures, currency.NewBTCUSD()},
+		{asset.Options, currency.NewPairWithDelimiter("BTC", "26NOV24-92000-C", "-")},
+	} {
+		for name, tc := range unappliedSubmissions(refusing.Name, a.asset, a.pair) {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				_, err := refusing.SubmitOrder(t.Context(), tc.submit)
+				assert.ErrorIs(t, err, tc.err, "SubmitOrder should refuse an order Bybit cannot apply")
+			})
+		}
+		for name, submit := range appliedSubmissions(accepting.Name, a.asset, a.pair) {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				_, err := accepting.SubmitOrder(t.Context(), submit)
+				assert.NoError(t, err, "SubmitOrder should place an order Bybit can apply")
+			})
+		}
+	}
+	// A spot order trading cash, as every spot order that does not borrow does, may say so
+	var cashMu sync.Mutex
+	var cashBodies []string
+	cash := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "reading the order should not error")
+		cashMu.Lock()
+		cashBodies = append(cashBodies, string(body))
+		cashMu.Unlock()
+		_, err = fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{"orderId":"1321003749386327577","orderLinkId":""},"retExtInfo":{},"time":1760000000000}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	require.NoError(t, cash.DisableRateLimiter(), "DisableRateLimiter must not error")
+	placedCash, err := cash.SubmitOrder(t.Context(), &order.Submit{Exchange: cash.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1, MarginType: margin.NoMargin})
+	require.NoError(t, err, "SubmitOrder must not error for a spot order trading cash")
+	assert.Equal(t, margin.NoMargin, placedCash.MarginType, "SubmitOrder should report the cash margin type it placed the order with")
+	cashMu.Lock()
+	assert.Equal(t, []string{`{"category":"spot","orderType":"Limit","price":"1","qty":"1","side":"Buy","symbol":"BTCUSDT","timeInForce":"GTC"}`}, cashBodies, "SubmitOrder should place a spot order trading cash without borrowing")
+	cashMu.Unlock()
 	noOrderID := restReplyTestInstance(t, map[string]string{"/v5/order/create": `{"retCode":0,"retMsg":"OK","result":{"orderId":"","orderLinkId":"spot-test-10"},"retExtInfo":{},"time":1760000000000}`})
 	_, err = noOrderID.SubmitOrder(t.Context(), &order.Submit{Exchange: noOrderID.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1, ClientOrderID: "spot-test-10"})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "SubmitOrder must not report an order placed without Bybit's order ID")
@@ -2557,8 +2612,8 @@ func TestSubmitOrder(t *testing.T) {
 		},
 		{
 			name:   "options market",
-			submit: &order.Submit{Exchange: e.Name, Pair: optionsTradablePair, AssetType: asset.Options, Side: order.Sell, Type: order.Market, Price: 1, Amount: 1, Leverage: 1234, ClientOrderID: "1234"},
-			exp:    &order.SubmitResponse{Exchange: e.Name, Pair: optionsTradablePair, AssetType: asset.Options, Side: order.Sell, Type: order.Market, Price: 1, Amount: 1, Leverage: 1234, ClientOrderID: "1234", Status: order.New, OrderID: "9f1a3b5c-7d9e-4f1a-8b3c-5d7e9f1a3b5c"},
+			submit: &order.Submit{Exchange: e.Name, Pair: optionsTradablePair, AssetType: asset.Options, Side: order.Sell, Type: order.Market, Price: 1, Amount: 1, Leverage: 1, ClientOrderID: "1234"},
+			exp:    &order.SubmitResponse{Exchange: e.Name, Pair: optionsTradablePair, AssetType: asset.Options, Side: order.Sell, Type: order.Market, Price: 1, Amount: 1, Leverage: 1, ClientOrderID: "1234", Status: order.New, OrderID: "9f1a3b5c-7d9e-4f1a-8b3c-5d7e9f1a3b5c"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2570,6 +2625,211 @@ func TestSubmitOrder(t *testing.T) {
 			assert.Equal(t, tc.exp, resp, "SubmitOrder should return Bybit's order ID with the order")
 		})
 	}
+}
+
+// unappliedSubmission is an order naming a margin type or a leverage Bybit cannot apply, with the error SubmitOrder and
+// WebsocketSubmitOrder refuse it with
+type unappliedSubmission struct {
+	submit *order.Submit
+	err    error
+}
+
+// placeableOrders returns, by side and order type, an asset's order of each side order.Submit.Validate takes and each
+// order type Bybit places, priced, sized and triggered as that type needs
+func placeableOrders(exchangeName string, a asset.Item, pair currency.Pair) map[string]*order.Submit {
+	orders := make(map[string]*order.Submit)
+	for _, side := range []order.Side{order.Buy, order.Sell, order.Bid, order.Ask, order.Long, order.Short} {
+		for _, orderType := range []order.Type{order.Limit, order.Market, order.StopLimit, order.Stop, order.StopMarket} {
+			s := &order.Submit{Exchange: exchangeName, Pair: pair, AssetType: a, Side: side, Type: orderType, Amount: 1}
+			switch orderType {
+			case order.Limit:
+				s.Price = 1
+			case order.Market:
+				// Bybit sizes a spot market buy in the quote currency
+				s.QuoteAmount = 1
+			case order.StopLimit:
+				s.Price, s.TriggerPrice = 1, 1
+			case order.Stop, order.StopMarket:
+				s.TriggerPrice = 1
+			}
+			orders[side.Lower()+" "+orderType.Lower()] = s
+		}
+	}
+	return orders
+}
+
+// submissionFields returns, by name, edits giving an asset's limit order one more of the fields an order.Submit carries,
+// another value of its amount, price or pair, or many of those fields at once, each set to a value Bybit's Place Order
+// takes or does not read
+func submissionFields(a asset.Item) map[string]func(*order.Submit) {
+	fields := map[string]func(*order.Submit){
+		"good till cancel":                    func(s *order.Submit) { s.TimeInForce = order.GoodTillCancel },
+		"post only":                           func(s *order.Submit) { s.TimeInForce = order.PostOnly },
+		"good till cancel and post only":      func(s *order.Submit) { s.TimeInForce = order.GoodTillCancel | order.PostOnly },
+		"immediate or cancel":                 func(s *order.Submit) { s.TimeInForce = order.ImmediateOrCancel },
+		"fill or kill":                        func(s *order.Submit) { s.TimeInForce = order.FillOrKill },
+		"reduce only":                         func(s *order.Submit) { s.ReduceOnly = true },
+		"a client order ID":                   func(s *order.Submit) { s.ClientOrderID = "client-order-1" },
+		"a client ID":                         func(s *order.Submit) { s.ClientID = "client-1" },
+		"a quote amount":                      func(s *order.Submit) { s.QuoteAmount = 1 },
+		"a trigger at the last price, rising": func(s *order.Submit) { s.TriggerPrice, s.StopDirection = 2, order.StopUp },
+		"a trigger at the mark price, falling": func(s *order.Submit) {
+			s.TriggerPrice, s.TriggerPriceType, s.StopDirection = 0.5, order.MarkPrice, order.StopDown
+		},
+		"a trigger at the index price": func(s *order.Submit) { s.TriggerPrice, s.TriggerPriceType = 2, order.IndexPrice },
+		"a market take profit": func(s *order.Submit) {
+			s.RiskManagementModes.TakeProfit = order.RiskManagement{Price: 2, OrderType: order.Market, TriggerPriceType: order.MarkPrice}
+		},
+		"a limit take profit": func(s *order.Submit) {
+			s.RiskManagementModes.TakeProfit = order.RiskManagement{Price: 2, OrderType: order.Limit, LimitPrice: 2}
+		},
+		"a market stop loss": func(s *order.Submit) {
+			s.RiskManagementModes.StopLoss = order.RiskManagement{Price: 0.5, OrderType: order.Market, TriggerPriceType: order.IndexPrice}
+		},
+		"a limit stop loss": func(s *order.Submit) {
+			s.RiskManagementModes.StopLoss = order.RiskManagement{Price: 0.5, OrderType: order.Limit, LimitPrice: 0.5}
+		},
+		"borrowing":          func(s *order.Submit) { s.AutoBorrow = true },
+		"repaying":           func(s *order.Submit) { s.AutoRepay = true },
+		"its fees retrieved": func(s *order.Submit) { s.RetrieveFees, s.RetrieveFeeDelay = true, time.Second },
+		"an end time":        func(s *order.Submit) { s.EndTime = time.Unix(1760000000, 0) },
+		"price tracking": func(s *order.Submit) {
+			s.TrackingMode, s.TrackingValue, s.LimitTrackingMode, s.LimitTrackingValue = order.Distance, 1, order.Percentage, 1
+		},
+		"RFQ disabled":         func(s *order.Submit) { s.RFQDisabled = true },
+		"a slippage tolerance": func(s *order.Submit) { s.SlippageTolerance = 0.01 },
+		"a larger amount":      func(s *order.Submit) { s.Amount = 2 },
+		"a smaller amount":     func(s *order.Submit) { s.Amount = 0.01 },
+		"a higher price":       func(s *order.Submit) { s.Price = 80000 },
+		"a lower price":        func(s *order.Submit) { s.Price = 0.5 },
+		"a trigger at its own price": func(s *order.Submit) {
+			s.TriggerPrice = s.Price
+		},
+		"a take profit and a stop loss": func(s *order.Submit) {
+			s.RiskManagementModes.TakeProfit = order.RiskManagement{Price: 2, OrderType: order.Market}
+			s.RiskManagementModes.StopLoss = order.RiskManagement{Price: 0.5, OrderType: order.Market}
+		},
+		"many fields at once": func(s *order.Submit) {
+			s.Amount, s.Price, s.QuoteAmount = 2, 80000, 1
+			s.TimeInForce, s.ReduceOnly, s.ClientOrderID, s.ClientID = order.ImmediateOrCancel, true, "client-order-1", "client-1"
+			s.TriggerPrice, s.TriggerPriceType, s.StopDirection = 70000, order.MarkPrice, order.StopDown
+			s.RiskManagementModes.TakeProfit = order.RiskManagement{Price: 90000, OrderType: order.Limit, LimitPrice: 90000}
+			s.RiskManagementModes.StopLoss = order.RiskManagement{Price: 60000, OrderType: order.Market, TriggerPriceType: order.IndexPrice}
+			s.AutoRepay, s.RetrieveFees, s.RetrieveFeeDelay, s.EndTime = true, true, time.Second, time.Unix(1760000000, 0)
+			s.TrackingMode, s.TrackingValue, s.LimitTrackingMode, s.LimitTrackingValue = order.Distance, 1, order.Percentage, 1
+			s.RFQDisabled, s.SlippageTolerance = true, 0.01
+		},
+	}
+	if a == asset.Spot {
+		fields["a pair quoted in USDC"] = func(s *order.Submit) { s.Pair = currency.NewPair(currency.BTC, currency.USDC) }
+	}
+	return fields
+}
+
+// unappliedSubmissions returns, by name, an asset's orders that name a margin type or a leverage Bybit cannot apply:
+// buy and sell limit orders with every margin type but cash for a spot order that does not borrow, and with a leverage
+// other than 1; an order of each side and order type, and buy and sell limit orders with each of submissionFields, with
+// a margin type and with a leverage of 2; and orders Bybit also refuses for another reason, which get the same refusal
+func unappliedSubmissions(exchangeName string, a asset.Item, pair currency.Pair) map[string]unappliedSubmission {
+	orders := make(map[string]unappliedSubmission)
+	add := func(name string, edit func(*order.Submit), err error) {
+		for _, side := range []order.Side{order.Buy, order.Sell} {
+			s := &order.Submit{Exchange: exchangeName, Pair: pair, AssetType: a, Side: side, Type: order.Limit, Price: 1, Amount: 1}
+			edit(s)
+			orders[a.String()+" "+side.Lower()+" order "+name] = unappliedSubmission{submit: s, err: err}
+		}
+	}
+	modes := []margin.Type{margin.Isolated | margin.Multi, margin.NoMargin | margin.Multi, margin.NoMargin | margin.Isolated, margin.NoMargin | margin.SpotIsolated}
+	for mode := margin.Type(1); mode != 0; mode <<= 1 {
+		if mode != margin.NoMargin || a != asset.Spot {
+			modes = append(modes, mode)
+		}
+	}
+	for _, mode := range modes {
+		add(fmt.Sprintf("with margin type %s (%d)", mode, mode), func(s *order.Submit) { s.MarginType = mode }, margin.ErrMarginTypeUnsupported)
+	}
+	add("with margin type multi, borrowing", func(s *order.Submit) { s.MarginType, s.AutoBorrow = margin.Multi, true }, margin.ErrMarginTypeUnsupported)
+	add("with margin type no margin, borrowing", func(s *order.Submit) { s.MarginType, s.AutoBorrow = margin.NoMargin, true }, margin.ErrMarginTypeUnsupported)
+	for _, leverage := range []float64{0.5, 1.5, 2, 10, 1234, -1, math.NaN(), math.Inf(1), math.Inf(-1), 1.001, 0.999, 1.00000001, 0.99999999, math.Nextafter(1, 2), math.Nextafter(1, 0)} {
+		add(fmt.Sprintf("with leverage %v", leverage), func(s *order.Submit) { s.Leverage = leverage }, order.ErrSubmitLeverageNotSupported)
+		if a == asset.Spot {
+			add(fmt.Sprintf("with leverage %v, borrowing", leverage), func(s *order.Submit) { s.Leverage, s.AutoBorrow = leverage, true }, order.ErrSubmitLeverageNotSupported)
+			add(fmt.Sprintf("with leverage %v, trading cash", leverage), func(s *order.Submit) { s.Leverage, s.MarginType = leverage, margin.NoMargin }, order.ErrSubmitLeverageNotSupported)
+		}
+	}
+	for shape, placeable := range placeableOrders(exchangeName, a, pair) {
+		isolated, leveraged := *placeable, *placeable
+		isolated.MarginType, leveraged.Leverage = margin.Isolated, 2
+		orders[a.String()+" "+shape+" order with margin type isolated"] = unappliedSubmission{submit: &isolated, err: margin.ErrMarginTypeUnsupported}
+		orders[a.String()+" "+shape+" order with leverage 2"] = unappliedSubmission{submit: &leveraged, err: order.ErrSubmitLeverageNotSupported}
+	}
+	addEach := func(name string, edit func(*order.Submit)) {
+		for _, side := range []order.Side{order.Buy, order.Sell} {
+			isolated := &order.Submit{Exchange: exchangeName, Pair: pair, AssetType: a, Side: side, Type: order.Limit, Price: 1, Amount: 1, MarginType: margin.Isolated}
+			leveraged := &order.Submit{Exchange: exchangeName, Pair: pair, AssetType: a, Side: side, Type: order.Limit, Price: 1, Amount: 1, Leverage: 2}
+			edit(isolated)
+			edit(leveraged)
+			orders[a.String()+" "+side.Lower()+" order with "+name+" and margin type isolated"] = unappliedSubmission{submit: isolated, err: margin.ErrMarginTypeUnsupported}
+			orders[a.String()+" "+side.Lower()+" order with "+name+" and leverage 2"] = unappliedSubmission{submit: leveraged, err: order.ErrSubmitLeverageNotSupported}
+		}
+	}
+	for name, edit := range submissionFields(a) {
+		addEach(name, edit)
+	}
+	addEach("a time in force Bybit cannot honour", func(s *order.Submit) { s.TimeInForce = order.GoodTillDay })
+	addEach("an order type Bybit does not place", func(s *order.Submit) { s.Type = order.TrailingStop })
+	addEach("a stop limit type but no trigger price", func(s *order.Submit) { s.Type = order.StopLimit })
+	addEach("a take profit order type Bybit does not take", func(s *order.Submit) {
+		s.RiskManagementModes.TakeProfit = order.RiskManagement{Price: 2, OrderType: order.TrailingStop}
+	})
+	return orders
+}
+
+// appliedSubmissions returns, by name, an asset's orders naming a margin type or a leverage Bybit applies: buy and sell
+// limit orders with a leverage of 1, and for spot borrowing or trading cash, with or without that leverage; an order of
+// each side and order type with a leverage of 1, and for spot borrowing or trading cash; and buy and sell limit orders
+// with each of submissionFields, with a leverage of 1, and for spot trading cash
+func appliedSubmissions(exchangeName string, a asset.Item, pair currency.Pair) map[string]*order.Submit {
+	orders := make(map[string]*order.Submit)
+	add := func(name string, edit func(*order.Submit)) {
+		for _, side := range []order.Side{order.Buy, order.Sell} {
+			s := &order.Submit{Exchange: exchangeName, Pair: pair, AssetType: a, Side: side, Type: order.Limit, Price: 1, Amount: 1}
+			edit(s)
+			orders[a.String()+" "+side.Lower()+" order "+name] = s
+		}
+	}
+	add("with leverage 1", func(s *order.Submit) { s.Leverage = 1 })
+	if a == asset.Spot {
+		add("borrowing", func(s *order.Submit) { s.AutoBorrow = true })
+		add("borrowing with leverage 1", func(s *order.Submit) { s.AutoBorrow, s.Leverage = true, 1 })
+		add("trading cash", func(s *order.Submit) { s.MarginType = margin.NoMargin })
+		add("trading cash with leverage 1", func(s *order.Submit) { s.MarginType, s.Leverage = margin.NoMargin, 1 })
+	}
+	for shape, placeable := range placeableOrders(exchangeName, a, pair) {
+		unlevered := *placeable
+		unlevered.Leverage = 1
+		orders[a.String()+" "+shape+" order with leverage 1"] = &unlevered
+		if a == asset.Spot {
+			cash, borrowing := *placeable, *placeable
+			cash.MarginType, borrowing.AutoBorrow = margin.NoMargin, true
+			orders[a.String()+" "+shape+" order trading cash"] = &cash
+			orders[a.String()+" "+shape+" order borrowing"] = &borrowing
+		}
+	}
+	for name, edit := range submissionFields(a) {
+		for _, side := range []order.Side{order.Buy, order.Sell} {
+			unlevered := &order.Submit{Exchange: exchangeName, Pair: pair, AssetType: a, Side: side, Type: order.Limit, Price: 1, Amount: 1, Leverage: 1}
+			edit(unlevered)
+			orders[a.String()+" "+side.Lower()+" order with "+name+" and leverage 1"] = unlevered
+			// A spot order trading cash may not borrow
+			if a == asset.Spot && name != "borrowing" {
+				cash := &order.Submit{Exchange: exchangeName, Pair: pair, AssetType: a, Side: side, Type: order.Limit, Price: 1, Amount: 1, MarginType: margin.NoMargin}
+				edit(cash)
+				orders[a.String()+" "+side.Lower()+" order with "+name+" and trading cash"] = cash
+			}
+		}
+	}
+	return orders
 }
 
 func TestWebsocketOrderEntrySupported(t *testing.T) {
@@ -2893,7 +3153,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		cancel := make([]order.Cancel, 0, 11)
 		exp := make([][]map[string]string, 2)
 		for i := range 10 {
-			id := strconv.Itoa(1321003749386327560 + i)
+			id := strconv.FormatUint(1321003749386327560+uint64(i), 10)
 			cancel = append(cancel, order.Cancel{OrderID: id, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot})
 			exp[0] = append(exp[0], map[string]string{"symbol": "BTCUSDT", "orderId": id})
 		}
@@ -2990,6 +3250,95 @@ func TestCancelAllOrders(t *testing.T) {
 	refused, err := restReplyTestInstance(t, nil).CancelAllOrders(t.Context(), &order.Cancel{Exchange: e.Name, AssetType: asset.USDTMarginedFutures})
 	require.ErrorIs(t, err, errAPIResponse, "CancelAllOrders must return Bybit's refusal")
 	assert.Empty(t, refused.Status, "CancelAllOrders should report no order cancelled when Bybit refuses")
+	// Bybit's Cancel All Orders takes no side and no limit or market type, so a cancellation naming one is refused before
+	// anything is sent, while one naming any side and type is sent
+	refusing := newTransportTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "nothing should be sent", "%s %s was sent for a cancellation CancelAllOrders refuses", r.Method, r.URL.Path)
+	})
+	sides := []order.Side{order.Buy | order.Bid, order.Sell | order.Ask, order.Buy | order.Sell, order.Long | order.Short, order.AnySide | order.Buy, order.AnySide | order.Sell}
+	for side := order.Side(1); side != 0; side <<= 1 {
+		if side != order.AnySide {
+			sides = append(sides, side)
+		}
+	}
+	orderTypes := []order.Type{order.Limit | order.Market, order.AnyType | order.Limit, order.AnyType | order.Market, order.StopLimit, order.StopMarket, order.TakeProfitMarket, order.TrailingStopLimit, order.Bracket}
+	for orderType := order.Type(1); orderType != 0; orderType <<= 1 {
+		if orderType != order.AnyType {
+			orderTypes = append(orderTypes, orderType)
+		}
+	}
+	for _, a := range []struct {
+		name  string
+		asset asset.Item
+		pair  currency.Pair
+	}{
+		{"spot", asset.Spot, currency.NewBTCUSDT()},
+		{"spot without a pair", asset.Spot, currency.EMPTYPAIR},
+		{"USDT margined", asset.USDTMarginedFutures, currency.NewBTCUSDT()},
+		{"USDT margined without a pair", asset.USDTMarginedFutures, currency.EMPTYPAIR},
+		{"USDC margined", asset.USDCMarginedFutures, currency.NewPair(currency.BTC, currency.PERP)},
+		{"USDC margined without a pair", asset.USDCMarginedFutures, currency.EMPTYPAIR},
+		{"coin margined", asset.CoinMarginedFutures, currency.NewBTCUSD()},
+		{"options", asset.Options, currency.NewPairWithDelimiter("BTC", "26NOV24-92000-C", "-")},
+		{"options without a pair", asset.Options, currency.EMPTYPAIR},
+	} {
+		for _, side := range sides {
+			t.Run(fmt.Sprintf("%s orders of side %s (%d)", a.name, side, side), func(t *testing.T) {
+				t.Parallel()
+				_, err := refusing.CancelAllOrders(t.Context(), &order.Cancel{Exchange: refusing.Name, AssetType: a.asset, Pair: a.pair, Side: side})
+				assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders should refuse a side Bybit cannot narrow by")
+			})
+		}
+		for _, orderType := range orderTypes {
+			t.Run(fmt.Sprintf("%s orders of type %s (%d)", a.name, orderType, orderType), func(t *testing.T) {
+				t.Parallel()
+				_, err := refusing.CancelAllOrders(t.Context(), &order.Cancel{Exchange: refusing.Name, AssetType: a.asset, Pair: a.pair, Type: orderType})
+				assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders should refuse a type Bybit cannot narrow by")
+			})
+		}
+		for _, filter := range []struct {
+			side      order.Side
+			orderType order.Type
+		}{
+			{order.Buy, order.Limit},
+			{order.Sell, order.Market},
+			{order.AnySide, order.Limit},
+			{order.Buy, order.AnyType},
+		} {
+			t.Run(fmt.Sprintf("%s orders of side %s and type %s", a.name, filter.side, filter.orderType), func(t *testing.T) {
+				t.Parallel()
+				_, err := refusing.CancelAllOrders(t.Context(), &order.Cancel{Exchange: refusing.Name, AssetType: a.asset, Pair: a.pair, Side: filter.side, Type: filter.orderType})
+				assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders should refuse a side and type Bybit cannot narrow by")
+			})
+		}
+		for _, filter := range []struct {
+			side      order.Side
+			orderType order.Type
+		}{
+			{order.AnySide, order.UnknownType},
+			{order.UnknownSide, order.AnyType},
+			{order.AnySide, order.AnyType},
+		} {
+			t.Run(fmt.Sprintf("%s orders of side %s and type %s", a.name, filter.side, filter.orderType), func(t *testing.T) {
+				t.Parallel()
+				var sent atomic.Int32
+				ex := newTransportTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+					sent.Add(1)
+					_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{"list":[{"orderId":"1","orderLinkId":""}],"success":"1"},"retExtInfo":{},"time":1760000000000}`)
+					assert.NoError(t, err, "writing the reply should not error")
+				})
+				require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+				resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: a.asset, Pair: a.pair, Side: filter.side, Type: filter.orderType})
+				require.NoError(t, err, "CancelAllOrders must not error for any side and type")
+				assert.Equal(t, map[string]string{"1": "success"}, resp.Status, "CancelAllOrders should report the order Bybit cancelled")
+				requests := 1
+				if a.asset == asset.Spot {
+					requests = len(spotOrderFilters)
+				}
+				assert.Equal(t, requests, int(sent.Load()), "CancelAllOrders should send one cancellation for each kind of order")
+			})
+		}
+	}
 	// Bybit cancels at most 500 futures orders a request, so a full futures reply is followed by another request while
 	// each brings new orders, up to a bound of 20 requests. The replies hold Bybit's 500 rather than cancelAllLimit, so
 	// that a wrong limit fails here

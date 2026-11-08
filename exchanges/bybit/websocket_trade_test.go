@@ -730,6 +730,40 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "WebsocketSubmitOrder must refuse a time in force Bybit cannot honour before sending")
 	_, err = e.WebsocketSubmitOrder(t.Context(), &order.Submit{Exchange: e.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 82650, Amount: 0.0001})
 	require.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketSubmitOrder must not fall back to REST without a trade connection")
+	// An order naming a margin type or a leverage Bybit cannot apply is refused before anything goes over the trade
+	// connection, while the orders it can apply are placed
+	refusing := newTradeStreamExchange(t, &tradeStreamMock{reply: func(req *mockTradeRequest) (string, string) {
+		assert.Failf(t, "nothing should be sent", "%s was sent for an order WebsocketSubmitOrder refuses", req.Operation)
+		return orderReply(req, `{"orderId":"2290000000123456790","orderLinkId":""}`), ""
+	}})
+	accepting := newTradeStreamExchange(t, &tradeStreamMock{reply: func(req *mockTradeRequest) (string, string) {
+		return orderReply(req, `{"orderId":"2290000000123456791","orderLinkId":""}`), ""
+	}})
+	for _, a := range []struct {
+		asset asset.Item
+		pair  currency.Pair
+	}{
+		{asset.Spot, currency.NewBTCUSDT()},
+		{asset.USDTMarginedFutures, currency.NewBTCUSDT()},
+		{asset.USDCMarginedFutures, currency.NewPair(currency.BTC, currency.PERP)},
+		{asset.CoinMarginedFutures, currency.NewBTCUSD()},
+		{asset.Options, fixtureOptionPair},
+	} {
+		for name, tc := range unappliedSubmissions(refusing.Name, a.asset, a.pair) {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				_, err := refusing.WebsocketSubmitOrder(t.Context(), tc.submit)
+				assert.ErrorIs(t, err, tc.err, "WebsocketSubmitOrder should refuse an order Bybit cannot apply")
+			})
+		}
+		for name, submit := range appliedSubmissions(accepting.Name, a.asset, a.pair) {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				_, err := accepting.WebsocketSubmitOrder(t.Context(), submit)
+				assert.NoError(t, err, "WebsocketSubmitOrder should place an order Bybit can apply")
+			})
+		}
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

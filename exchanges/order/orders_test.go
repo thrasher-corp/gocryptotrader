@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -1577,25 +1578,37 @@ func TestIsActive(t *testing.T) {
 		3: {Amount: 1.0, ExecutedAmount: 1.1, Status: Active},
 	}
 
-	amountTests := map[int]struct {
+	amountTests := []struct {
+		name           string
 		o              Detail
 		expectedResult bool
 	}{
-		0: {orders[0], false},
-		1: {orders[1], true},
-		2: {orders[2], false},
-		3: {orders[3], false},
+		{"no amount", orders[0], false},
+		{"part of the amount executed", orders[1], true},
+		{"the whole amount executed", orders[2], false},
+		{"more than the amount executed", orders[3], false},
 		// An order sized by its quote amount, such as a market buy by value, has a base amount only of what it has bought
-		4: {Detail{QuoteAmount: 100, Status: Pending}, true},
-		5: {Detail{Amount: 0.4, ExecutedAmount: 0.4, QuoteAmount: 100, Cost: 40, Status: PartiallyFilled}, true},
-		6: {Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 100, Cost: 100, Status: PartiallyFilled}, false},
-		7: {Detail{QuoteAmount: 100, Status: Filled}, false},
+		{"a quote amount with nothing bought", Detail{QuoteAmount: 100, Status: Pending}, true},
+		{"a quote amount partly spent", Detail{Amount: 0.4, ExecutedAmount: 0.4, QuoteAmount: 100, Cost: 40, Status: PartiallyFilled}, true},
+		{"a quote amount wholly spent", Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 100, Cost: 100, Status: PartiallyFilled}, false},
+		{"a quote amount on a filled order", Detail{QuoteAmount: 100, Status: Filled}, false},
 		// An order without a quote amount is judged by its base amount alone, whatever its cost
-		8: {Detail{Amount: 1, ExecutedAmount: 1, Cost: -1, Status: PartiallyFilled}, false},
+		{"no quote amount with the whole amount executed", Detail{Amount: 1, ExecutedAmount: 1, Cost: -1, Status: PartiallyFilled}, false},
 	}
-	// specific tests
-	for num, tt := range amountTests {
-		assert.Equalf(t, tt.expectedResult, tt.o.IsActive(), "amountTests[%v] failed", num)
+	// The rows run in table order and then in reverse, as the map they replace ran them in no fixed order
+	for _, reverse := range []bool{false, true} {
+		rows, run := slices.Clone(amountTests), "in table order"
+		if reverse {
+			slices.Reverse(rows)
+			run = "in reverse order"
+		}
+		t.Run(run, func(t *testing.T) {
+			for _, tt := range rows {
+				t.Run(tt.name, func(t *testing.T) {
+					assert.Equalf(t, tt.expectedResult, tt.o.IsActive(), "IsActive should be %t for an order with %s", tt.expectedResult, tt.name)
+				})
+			}
+		})
 	}
 
 	statusTests := map[int]struct {
@@ -1647,25 +1660,37 @@ func TestIsInactive(t *testing.T) {
 		3: {Amount: 1.0, ExecutedAmount: 1.1, Status: Active},
 	}
 
-	amountTests := map[int]struct {
+	amountTests := []struct {
+		name           string
 		o              Detail
 		expectedResult bool
 	}{
-		0: {orders[0], true},
-		1: {orders[1], false},
-		2: {orders[2], true},
-		3: {orders[3], true},
+		{"no amount", orders[0], true},
+		{"part of the amount executed", orders[1], false},
+		{"the whole amount executed", orders[2], true},
+		{"more than the amount executed", orders[3], true},
 		// An order sized by its quote amount, such as a market buy by value, has a base amount only of what it has bought
-		4: {Detail{QuoteAmount: 100, Status: Pending}, false},
-		5: {Detail{Amount: 0.4, ExecutedAmount: 0.4, QuoteAmount: 100, Cost: 40, Status: PartiallyFilled}, false},
-		6: {Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 100, Cost: 100, Status: PartiallyFilled}, true},
-		7: {Detail{QuoteAmount: 100, Status: Filled}, true},
+		{"a quote amount with nothing bought", Detail{QuoteAmount: 100, Status: Pending}, false},
+		{"a quote amount partly spent", Detail{Amount: 0.4, ExecutedAmount: 0.4, QuoteAmount: 100, Cost: 40, Status: PartiallyFilled}, false},
+		{"a quote amount wholly spent", Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 100, Cost: 100, Status: PartiallyFilled}, true},
+		{"a quote amount on a filled order", Detail{QuoteAmount: 100, Status: Filled}, true},
 		// An order without a quote amount is judged by its base amount alone, whatever its cost
-		8: {Detail{Amount: 1, ExecutedAmount: 1, Cost: -1, Status: PartiallyFilled}, true},
+		{"no quote amount with the whole amount executed", Detail{Amount: 1, ExecutedAmount: 1, Cost: -1, Status: PartiallyFilled}, true},
 	}
-	// specific tests
-	for num, tt := range amountTests {
-		assert.Equalf(t, tt.expectedResult, tt.o.IsInactive(), "amountTests[%v] failed", num)
+	// The rows run in table order and then in reverse, as the map they replace ran them in no fixed order
+	for _, reverse := range []bool{false, true} {
+		rows, run := slices.Clone(amountTests), "in table order"
+		if reverse {
+			slices.Reverse(rows)
+			run = "in reverse order"
+		}
+		t.Run(run, func(t *testing.T) {
+			for _, tt := range rows {
+				t.Run(tt.name, func(t *testing.T) {
+					assert.Equalf(t, tt.expectedResult, tt.o.IsInactive(), "IsInactive should be %t for an order with %s", tt.expectedResult, tt.name)
+				})
+			}
+		})
 	}
 
 	statusTests := map[int]struct {
