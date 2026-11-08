@@ -490,14 +490,17 @@ func TestGetOrderHistory(t *testing.T) {
 			})
 		}
 	})
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
-		Side:      order.AnySide,
-		AssetType: asset.Spot,
-		Type:      order.AnyType,
+		_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			Side:      order.AnySide,
+			AssetType: asset.Spot,
+			Type:      order.AnyType,
+		})
+		assert.NoError(t, err, "GetOrderHistory should not error")
 	})
-	assert.NoError(t, err, "GetOrderHistory should not error")
 }
 
 // TestGetActiveOrdersEmptyResponse ensures an order the exchange no longer

@@ -3300,6 +3300,53 @@ func TestGetAllManagedPositions(t *testing.T) {
 	assert.Equal(t, exp, response.Positions[0].Orders[0], "returned order should match the managed position order")
 }
 
+func TestOrderbookItems(t *testing.T) {
+	t.Parallel()
+	levels := orderbook.Levels{
+		{Price: 1.234567891234567, Amount: 0.00000000123, StrPrice: "1.234567891234567890", StrAmount: "0.0000000012300", ID: 17},
+		{Price: 1, Amount: 2, ID: 18},
+	}
+	for _, tc := range []struct {
+		name       string
+		levels     orderbook.Levels
+		includeIDs bool
+		want       []*gctrpc.OrderbookItem
+	}{
+		{name: "nil", want: []*gctrpc.OrderbookItem{}},
+		{name: "empty", levels: orderbook.Levels{}, includeIDs: true, want: []*gctrpc.OrderbookItem{}},
+		{
+			name: "single level", levels: levels[:1],
+			want: []*gctrpc.OrderbookItem{
+				{Price: 1.234567891234567, Amount: 0.00000000123, StrPrice: "1.234567891234567890", StrAmount: "0.0000000012300"},
+			},
+		},
+		{
+			name: "snapshot levels", levels: levels,
+			want: []*gctrpc.OrderbookItem{
+				{Price: 1.234567891234567, Amount: 0.00000000123, StrPrice: "1.234567891234567890", StrAmount: "0.0000000012300"},
+				{Price: 1, Amount: 2},
+			},
+		},
+		{
+			name: "stream levels", levels: levels, includeIDs: true,
+			want: []*gctrpc.OrderbookItem{
+				{Price: 1.234567891234567, Amount: 0.00000000123, StrPrice: "1.234567891234567890", StrAmount: "0.0000000012300", Id: 17},
+				{Price: 1, Amount: 2, Id: 18},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := orderbookItems(tc.levels, tc.includeIDs)
+			require.Len(t, got, len(tc.want), "conversion must retain every level")
+			assert.NotNil(t, got, "empty inputs should retain the existing empty-slice response")
+			for i := range tc.want {
+				assert.True(t, proto.Equal(tc.want[i], got[i]), "conversion should preserve level values and ordering with IDs only for streams")
+			}
+		})
+	}
+}
+
 func TestGetOrderbookMovement(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()

@@ -535,25 +535,28 @@ func TestGetOrderHistory(t *testing.T) {
 			})
 		}
 	})
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	updatePairsOnce(t, e)
-	getOrdersRequest := order.MultiOrderRequest{
-		Type:      order.AnyType,
-		Pairs:     []currency.Pair{currency.NewBTCUSDT()},
-		AssetType: asset.Spot,
-		Side:      order.AnySide,
-	}
-	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
-	require.NoError(t, err)
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		updatePairsOnce(t, e)
+		getOrdersRequest := order.MultiOrderRequest{
+			Type:      order.AnyType,
+			Pairs:     []currency.Pair{currency.NewBTCUSDT()},
+			AssetType: asset.Spot,
+			Side:      order.AnySide,
+		}
+		_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
+		require.NoError(t, err)
 
-	getOrdersRequest.Pairs = []currency.Pair{btcusdPair}
-	getOrdersRequest.AssetType = asset.CoinMarginedFutures
-	_, err = e.GetOrderHistory(t.Context(), &getOrdersRequest)
-	require.NoError(t, err)
-	getOrdersRequest.Pairs = []currency.Pair{btcFutureDatedPair}
-	getOrdersRequest.AssetType = asset.Futures
-	_, err = e.GetOrderHistory(t.Context(), &getOrdersRequest)
-	require.NoError(t, err)
+		getOrdersRequest.Pairs = []currency.Pair{btcusdPair}
+		getOrdersRequest.AssetType = asset.CoinMarginedFutures
+		_, err = e.GetOrderHistory(t.Context(), &getOrdersRequest)
+		require.NoError(t, err)
+		getOrdersRequest.Pairs = []currency.Pair{btcFutureDatedPair}
+		getOrdersRequest.AssetType = asset.Futures
+		_, err = e.GetOrderHistory(t.Context(), &getOrdersRequest)
+		require.NoError(t, err)
+	})
 }
 
 func TestGetOrderHistorySpotExecutionMappings(t *testing.T) {
