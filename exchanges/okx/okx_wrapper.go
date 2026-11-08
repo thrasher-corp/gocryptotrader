@@ -935,7 +935,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		targetCurrency = "base_ccy" // Default to base currency
 		if s.QuoteAmount > 0 {
 			amount = s.QuoteAmount
-			targetCurrency = "quote_ccy"
+			targetCurrency = quantityTypeQuoteCurrency
 		}
 	}
 	// If asset type is spread
@@ -1602,7 +1602,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 
-	return &order.Detail{
+	detail := &order.Detail{
 		Amount:               orderDetail.Size.Float64(),
 		Exchange:             e.Name,
 		OrderID:              orderDetail.OrderID,
@@ -1614,11 +1614,21 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		Status:               status,
 		Price:                orderDetail.Price.Float64(),
 		ExecutedAmount:       orderDetail.AccumulatedFillSize.Float64(),
+		RemainingAmount:      orderDetail.Size.Float64() - orderDetail.AccumulatedFillSize.Float64(),
+		Fee:                  -orderDetail.TransactionFee.Float64(),
+		FeeAsset:             orderDetail.FeeCurrency,
 		AverageExecutedPrice: orderDetail.AveragePrice.Float64(),
 		Date:                 orderDetail.CreationTime.Time(),
 		LastUpdated:          orderDetail.UpdateTime.Time(),
 		TimeInForce:          tif,
-	}, nil
+	}
+	if assetType == asset.Spot && orderType == order.Market &&
+		(orderDetail.QuantityType == quantityTypeQuoteCurrency || (orderDetail.QuantityType == "" && orderDetail.Side == order.Buy)) {
+		// Quote-sized market orders do not establish the base quantity still to be filled.
+		detail.QuoteAmount = detail.Amount
+		detail.Amount, detail.RemainingAmount = 0, 0
+	}
+	return detail, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -1957,7 +1967,7 @@ allOrders:
 					return nil, err
 				}
 				orderAmount := orderList[i].Size
-				if orderList[i].QuantityType == "quote_ccy" {
+				if orderList[i].QuantityType == quantityTypeQuoteCurrency {
 					// Size is quote amount.
 					orderAmount /= orderList[i].AveragePrice
 				}
@@ -2725,7 +2735,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				return nil, err
 			}
 			orderAmount := positions[j].Size
-			if positions[j].QuantityType == "quote_ccy" {
+			if positions[j].QuantityType == quantityTypeQuoteCurrency {
 				// Size is quote amount.
 				orderAmount /= positions[j].AveragePrice
 			}

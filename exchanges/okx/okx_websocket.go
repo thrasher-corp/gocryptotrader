@@ -1182,7 +1182,7 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 		execAmount := response.Data[x].AccumulatedFillSize.Float64()
 
 		var quoteAmount float64
-		if response.Data[x].SizeType == "quote_ccy" {
+		if response.Data[x].SizeType == quantityTypeQuoteCurrency {
 			// Size is quote amount.
 			quoteAmount = orderAmount
 			if orderStatus == order.Filled {

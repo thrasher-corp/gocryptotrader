@@ -17,6 +17,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -445,6 +446,50 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("pagination and order identity", func(t *testing.T) {
+		t.Parallel()
+		for _, pages := range [][]int{{0}, {200, 1, 0}, {200, 200, 0}} {
+			t.Run(fmt.Sprint(pages), func(t *testing.T) {
+				t.Parallel()
+				var requests atomic.Int32
+				ex := setupOrderGuard(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if !assert.NoError(t, r.ParseForm(), "request form should parse") {
+						http.Error(w, "invalid form", http.StatusBadRequest)
+						return
+					}
+					page := int(requests.Add(1))
+					if page > len(pages) || r.Form.Get("current_page") != strconv.Itoa(page) {
+						assert.Fail(t, "history should request each page once in sequence")
+						http.Error(w, "unexpected page", http.StatusBadRequest)
+						return
+					}
+					assert.True(t, strings.HasSuffix(r.URL.Path, lbankQueryHistoryOrder), "request should query order history")
+					assert.Equal(t, "200", r.Form.Get("page_length"), "request should use the supported page size")
+					rows := make([]string, pages[page-1])
+					for i := range rows {
+						rows[i] = fmt.Sprintf(`{"order_id":"%d","symbol":"btc_usdt","type":"buy","price":12.5,"amount":5,"deal_amount":2,"avg_price":10,"status":1,"created_time":1758499200000}`, (page-1)*200+i+1)
+					}
+					_, err := fmt.Fprintf(w, `{"result":"true","error_code":0,"page_length":200,"current_page":%d,"orders":[%s]}`, page, strings.Join(rows, ","))
+					assert.NoError(t, err, "writing the history page should not error")
+				}))
+				require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
+				got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{Pairs: currency.Pairs{testPair}, Side: order.AnySide, AssetType: asset.Spot, Type: order.AnyType})
+				require.NoError(t, err, "GetOrderHistory must not error")
+				assert.EqualValues(t, len(pages), requests.Load(), "GetOrderHistory should fetch each page once")
+				expected := order.FilteredOrders{}
+				for page, count := range pages {
+					for i := range count {
+						expected = append(expected, order.Detail{
+							Exchange: ex.Name, OrderID: strconv.Itoa(page*200 + i + 1), Pair: testPair, Side: order.Buy, Status: order.PartiallyFilled,
+							Price: 12.5, AverageExecutedPrice: 10, Amount: 5, ExecutedAmount: 2, RemainingAmount: 3, Fee: 0.125,
+							Date: time.UnixMilli(1758499200000), LastUpdated: time.UnixMilli(1758499200000),
+						})
+					}
+				}
+				assert.Equal(t, expected, got, "GetOrderHistory should retain every page's complete orders and distinct IDs")
+			})
+		}
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{

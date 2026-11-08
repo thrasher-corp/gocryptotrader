@@ -281,7 +281,7 @@ func TestNonNegativeExecutedQuoteAmount(t *testing.T) {
 
 func TestGetOrderInfoExecutionQuoteMappings(t *testing.T) {
 	t.Parallel()
-	for _, cumulativeQuote := range []float64{120, -1} {
+	for _, cumulativeQuote := range []float64{120, 119.25, -1} {
 		t.Run(fmt.Sprintf("cumulative quote %v", cumulativeQuote), func(t *testing.T) {
 			t.Parallel()
 			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

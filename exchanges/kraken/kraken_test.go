@@ -1144,6 +1144,33 @@ func TestSpotOrderExecutionMappings(t *testing.T) {
 		Pair:                 currency.NewPairWithDelimiter("XBT", "USD", "_"),
 	}
 	assert.Equal(t, expHistory, gotHistory[0], "GetOrderHistory should map all order fields")
+
+	t.Run("rounded average", func(t *testing.T) {
+		t.Parallel()
+		const roundedResponse = `{"status":"closed","opentm":1700000000,"closetm":1700000060,"descr":{"pair":"XBTUSD","type":"buy","ordertype":"limit","price":"61"},"vol":"2","vol_exec":"1.5","cost":"90.01","fee":"0.3","price":"60.0"}`
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			response := `{"error":[],"result":{"order-124":` + roundedResponse + `}}`
+			if strings.HasSuffix(r.URL.Path, "/"+krakenClosedOrders) {
+				response = `{"error":[],"result":{"closed":{"order-124":` + roundedResponse + `},"count":1}}`
+			}
+			_, err := w.Write([]byte(response))
+			assert.NoError(t, err, "writing the order response should not error")
+		}))
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotTestPair}, true), "spot pair must be enabled")
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "c2VjcmV0"})
+		gotInfo, err := ex.GetOrderInfo(t.Context(), "order-124", currency.EMPTYPAIR, asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		assert.Equal(t, 90.01, gotInfo.ExecutedQuoteAmount, "GetOrderInfo should map the reported cost")
+		gotHistory, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{Type: order.AnyType, AssetType: asset.Spot, Side: order.AnySide})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		require.Len(t, gotHistory, 1, "GetOrderHistory must return the fixture order")
+		assert.Equal(t, 90.01, gotHistory[0].ExecutedQuoteAmount, "GetOrderHistory should map the reported cost")
+	})
 }
 
 // TestGetOrderInfo exercises GetOrderInfo

@@ -491,6 +491,50 @@ func TestUpdateOrderbookFuture(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("market order quantity units", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, requestType, state string
+			amount, filled, cost     float64
+			wantAmount, wantQuote    float64
+			wantRemaining            float64
+			wantAverage              float64
+			side                     order.Side
+			status                   order.Status
+		}{
+			{name: "filled quote buy", requestType: "buy-market", state: "filled", amount: 100, filled: 0.002, cost: 100, wantQuote: 100, wantAverage: 50000, side: order.Buy, status: order.Filled},
+			{name: "cancelled quote buy", requestType: "buy-market", state: "partial-canceled", amount: 100, filled: 0.001, cost: 60, wantQuote: 100, wantAverage: 60000, side: order.Buy, status: order.PartiallyCancelled},
+			{name: "unfilled quote buy", requestType: "buy-market", state: "canceled", amount: 100, wantQuote: 100, side: order.Buy, status: order.Cancelled},
+			{name: "cancelled base sell", requestType: "sell-market", state: "partial-canceled", amount: 2, filled: 1.5, cost: 90, wantAmount: 2, wantRemaining: 0.5, wantAverage: 60, side: order.Sell, status: order.PartiallyCancelled},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, "/v1"+huobiGetOrders, r.URL.Path, "request should query order history")
+					_, err := fmt.Fprintf(w, `{"status":"ok","data":[{"id":123,"symbol":"btcusdt","account-id":7,"amount":"%v","price":"0","created-at":1700000000000,"type":%q,"filled-amount":"%v","filled-cash-amount":"%v","filled-fees":"0.000001","finished-at":1700000060000,"state":%q}]}`, tc.amount, tc.requestType, tc.filled, tc.cost, tc.state)
+					assert.NoError(t, err, "writing the order response should not error")
+				}))
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				ex.API.AuthenticatedSupport = true
+				ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+				require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+				pair := currency.NewBTCUSDT()
+				got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{Type: order.AnyType, AssetType: asset.Spot, Side: order.AnySide, Pairs: currency.Pairs{pair}})
+				require.NoError(t, err, "GetOrderHistory must not error")
+				require.Len(t, got, 1, "GetOrderHistory must return one order")
+				expected := order.Detail{
+					Exchange: ex.Name, OrderID: "123", AccountID: "7", Pair: pair, Side: tc.side, Type: order.Market, Status: tc.status,
+					Amount: tc.wantAmount, QuoteAmount: tc.wantQuote, ExecutedAmount: tc.filled, ExecutedQuoteAmount: tc.cost,
+					RemainingAmount: tc.wantRemaining, AverageExecutedPrice: tc.wantAverage, Fee: 0.000001,
+					Date: time.UnixMilli(1700000000000), CloseTime: time.UnixMilli(1700000060000), LastUpdated: time.UnixMilli(1700000060000),
+				}
+				assert.Equal(t, expected, got[0], "GetOrderHistory should keep base and quote quantities in their own fields")
+			})
+		}
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	updatePairsOnce(t, e)
 	getOrdersRequest := order.MultiOrderRequest{

@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-func TestUpdateOrderFromDetailDerivedExecution(t *testing.T) {
+func testUpdateOrderFromDetailDerivedExecution(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name                               string
@@ -55,7 +55,7 @@ func TestUpdateOrderFromDetailDerivedExecution(t *testing.T) {
 	}
 }
 
-func TestUpdateOrderFromDetailRoundingPreservesExecutionMetadata(t *testing.T) {
+func testUpdateOrderFromDetailRoundingPreservesExecutionMetadata(t *testing.T) {
 	t.Parallel()
 	stored := Detail{
 		Amount: 0.2, RemainingAmount: 0.1, ExecutedAmount: 0.1,
@@ -96,7 +96,7 @@ func TestUpdateOrderFromModifyResponseReplacement(t *testing.T) {
 	assert.Equal(t, 1.0, d.ExecutedAmount, "the replacement order's execution should be its own")
 }
 
-func TestUpdateOrderFromDetailAmendmentSequences(t *testing.T) {
+func testUpdateOrderFromDetailAmendmentSequences(t *testing.T) {
 	t.Parallel()
 	rng := rand.New(rand.NewPCG(2375, 5665619267)) //nolint:gosec // Fixed seeds reproduce test quantities; this is not security-sensitive randomness.
 	for sequence := range 2000 {
@@ -125,7 +125,7 @@ func TestUpdateOrderFromDetailAmendmentSequences(t *testing.T) {
 	}
 }
 
-func TestUpdateOrderFromDetailMixedClocks(t *testing.T) {
+func testUpdateOrderFromDetailMixedClocks(t *testing.T) {
 	t.Parallel()
 	now := time.Unix(1735720640, 800000000)
 	for _, offset := range []time.Duration{-800 * time.Millisecond, -500 * time.Millisecond, -30 * time.Millisecond, 0, time.Second} {
@@ -182,7 +182,7 @@ func TestUpdateOrderFromDetailMixedClocks(t *testing.T) {
 	}
 }
 
-func TestUpdateOrderFromDetailDelayedSnapshots(t *testing.T) {
+func testUpdateOrderFromDetailDelayedSnapshots(t *testing.T) {
 	t.Parallel()
 	now := time.Unix(1735720640, 0)
 	for _, timestamp := range []time.Time{now.Add(-time.Second), now, now.Add(time.Second), {}} {

@@ -656,20 +656,18 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			return nil, err
 		}
 
-		b := int64(1)
-		tempResp, err := e.QueryOrderHistory(ctx,
-			fPair.String(), strconv.FormatInt(b, 10), "200")
-		if err != nil {
-			return finalResp, err
-		}
-		for len(tempResp.Orders) != 0 {
-			tempResp, err = e.QueryOrderHistory(ctx,
-				fPair.String(), strconv.FormatInt(b, 10), "200")
+		for page := uint64(1); ; page++ {
+			tempResp, err := e.QueryOrderHistory(ctx,
+				fPair.String(), strconv.FormatUint(page, 10), "200")
 			if err != nil {
 				return finalResp, err
 			}
+			if len(tempResp.Orders) == 0 {
+				break
+			}
 			for x := range tempResp.Orders {
 				resp.Exchange = e.Name
+				resp.OrderID = tempResp.Orders[x].OrderID
 				resp.Pair, err = currency.NewPairFromString(tempResp.Orders[x].Symbol)
 				if err != nil {
 					return nil, err
@@ -697,7 +695,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				}
 				resp.InferExecutionAndTimes()
 				finalResp = append(finalResp, resp)
-				b++
 			}
 		}
 	}

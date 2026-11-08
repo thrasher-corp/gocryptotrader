@@ -1598,6 +1598,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					Fee:                 resp[x].FilledFees,
 				}
 				setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
+				if SpotNewOrderRequestParamsType(resp[x].Type) == SpotNewOrderRequestTypeBuyMarket {
+					// The requested budget is in quote currency and does not establish a base remainder.
+					orderDetail.QuoteAmount = resp[x].Amount
+					orderDetail.Amount, orderDetail.RemainingAmount = 0, 0
+				}
 				orderDetail.InferExecutionAndTimes()
 				orders = append(orders, orderDetail)
 			}

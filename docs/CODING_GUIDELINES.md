@@ -283,6 +283,8 @@ Use `require` and `assert` appropriately:
 ### Test Coverage
 
 - Maintain original test inputs unless they are incorrect.
+- Add new scenarios as `t.Run` subtests of the function's existing test rather
+    than creating additional top-level tests for the same function.
 - Derive expected outcomes from intended behaviour and downstream requirements, not solely from the current implementation. Passing tests can preserve an incorrect policy.
 - When fixing behaviour for one accepted representation, extend the regression matrix to its equivalent forms. Cross relevant input dimensions, such as aliases, wildcards, accepted capitalisation, authentication or authorisation states, explicit, omitted or `null` values, and forward or reverse lifecycle transitions, where they can affect runtime behaviour.
 - Integration tests must reproduce the registration order, ownership and lookup paths relevant to the bug. For isolation tests, make the competing entry reachable first so lookup order cannot conceal a missing discriminator. Where practical, verify the test fails with the targeted fix removed, then restore the fix and verify it passes.

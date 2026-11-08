@@ -4079,6 +4079,87 @@ func TestRESTOrderExecutionMappings(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
+	t.Run("remaining quantity and fee", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range []asset.Item{asset.Spot, asset.PerpetualSwap} {
+			for _, tc := range []struct {
+				name, state, feeCurrency string
+				filled, fee, remaining   float64
+				orderType, quantityType  string
+				side                     order.Side
+				size, quoteAmount        float64
+			}{
+				{name: "partial fill charge", state: "partially_filled", feeCurrency: "USDC", filled: 2, fee: -0.06, remaining: 1},
+				{name: "partial fill rebate", state: "partially_filled", feeCurrency: "BTC", filled: 2, fee: 0.02, remaining: 1},
+				{name: "unfilled", state: "live", remaining: 3},
+				{name: "filled", state: "filled", feeCurrency: "USDT", filled: 3, fee: -0.09},
+				{name: "quote market buy", state: "partially_filled", filled: 2, orderType: "market", quantityType: "quote_ccy", side: order.Buy, size: 180, quoteAmount: 180},
+				{name: "quote market sell", state: "partially_filled", filled: 2, orderType: "market", quantityType: "quote_ccy", side: order.Sell, size: 180, quoteAmount: 180},
+				{name: "default market buy", state: "partially_filled", filled: 2, orderType: "market", side: order.Buy, size: 180, quoteAmount: 180},
+				{name: "base market buy", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", quantityType: "base_ccy", side: order.Buy},
+				{name: "default market sell", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", side: order.Sell},
+			} {
+				if a != asset.Spot && tc.orderType == "market" {
+					continue
+				}
+				t.Run(a.String()+"/"+tc.name, func(t *testing.T) {
+					t.Parallel()
+					orderType, side, size := tc.orderType, tc.side, tc.size
+					if orderType == "" {
+						orderType = "limit"
+					}
+					if side == order.UnknownSide {
+						side = order.Buy
+					}
+					if size == 0 {
+						size = 3
+					}
+					pair := mainPair
+					if a == asset.PerpetualSwap {
+						pair = perpetualSwapPair
+					}
+					average, reportedAverage := 0.0, ""
+					if tc.filled > 0 {
+						average, reportedAverage = 60, "60"
+					}
+					server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						assert.Equal(t, "/api/v5/trade/order", r.URL.Path, "request should query the order endpoint")
+						assert.Equal(t, pair.String(), r.URL.Query().Get("instId"), "request should identify the instrument")
+						_, err := fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instId":%q,"ordId":"42","clOrdId":"client","side":%q,"ordType":%q,"tgtCcy":%q,"state":%q,"sz":"%v","accFillSz":"%v","px":"61","avgPx":%q,"fee":"%v","feeCcy":%q,"cTime":"1700000000000","uTime":"1700000001000"}]}`, pair.String(), side.String(), orderType, tc.quantityType, tc.state, size, tc.filled, reportedAverage, tc.fee, tc.feeCurrency)
+						assert.NoError(t, err, "writing the order response should not error")
+					}))
+					ex := new(Exchange)
+					require.NoError(t, testexch.Setup(ex), "Setup must not error")
+					sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ex, a, pair)
+					ex.SkipAuthCheck = true
+					ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
+					require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
+					require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+					require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+					got, err := ex.GetOrderInfo(t.Context(), "42", pair, a)
+					require.NoError(t, err, "GetOrderInfo must not error")
+					status, err := order.StringToOrderStatus(tc.state)
+					require.NoError(t, err, "fixture status must be valid")
+					expectedType := order.Limit
+					if orderType == "market" {
+						expectedType = order.Market
+					}
+					amount := size
+					if tc.quoteAmount != 0 {
+						amount = 0
+					}
+					expected := &order.Detail{
+						Exchange: ex.Name, OrderID: "42", ClientOrderID: "client", Pair: pair, AssetType: a,
+						Side: side, Type: expectedType, Status: status, Price: 61, AverageExecutedPrice: average,
+						Amount: amount, QuoteAmount: tc.quoteAmount, ExecutedAmount: tc.filled, RemainingAmount: tc.remaining,
+						Fee: -tc.fee, FeeAsset: currency.NewCode(tc.feeCurrency),
+						Date: time.UnixMilli(1700000000000), LastUpdated: time.UnixMilli(1700000001000),
+					}
+					assert.Equal(t, expected, got, "GetOrderInfo should map all reported order fields")
+				})
+			}
+		}
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetOrderInfo(contextGenerate(), "123", perpetualSwapPair, asset.PerpetualSwap)
 	assert.NoError(t, err)

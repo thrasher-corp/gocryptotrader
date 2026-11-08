@@ -2408,6 +2408,22 @@ func TestProcessOrders(t *testing.T) {
 		}},
 	}}
 	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processOrders should map the order update")
+
+	t.Run("earlier fill at another price", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		resp := &SubscriptionResponse{
+			Channel: "orders",
+			Data:    json.RawMessage(`[{"symbol":"BTC_USDT","type":"LIMIT","quantity":"0.5","orderId":"32471407854219266","tradeFee":"0.0001","clientOrderId":"","accountType":"SPOT","feeCurrency":"BTC","eventType":"trade","source":"API","side":"BUY","filledQuantity":"0.3","filledAmount":"17990","matchRole":"MAKER","state":"PARTIALLY_FILLED","tradeTime":1757800060000,"tradeAmount":"12000","orderAmount":"0","createTime":1757800000000,"price":"60000","tradeQty":"0.2","tradePrice":"60000","tradeId":"68561301","ts":1757800060010}]`),
+		}
+		require.NoError(t, ex.processOrders(t.Context(), resp), "processOrders must not error")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "processOrders must send one order update")
+		details, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
+		require.True(t, ok, "order update must hold order details")
+		require.Len(t, details, 1, "order update must hold one order")
+		assert.Equal(t, 17990.0, details[0].ExecutedQuoteAmount, "processOrders should map the reported cumulative quote total")
+	})
 }
 
 // TestProcessOrdersPlaceEventNoTrade asserts a place event does not fabricate a
