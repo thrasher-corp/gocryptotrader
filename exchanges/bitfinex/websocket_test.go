@@ -257,10 +257,16 @@ func TestWebsocketFrameData(t *testing.T) {
 		`[1]`:             ``,
 		`[17082,[[1]],1]`: `[[1]],1]`,
 	} {
-		assert.Equalf(t, exp, string(wsFrameData([]byte(frame))), "wsFrameData should return %s from its data on", frame)
+		t.Run(frame, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, string(wsFrameData([]byte(frame))), "wsFrameData should return %s from its data on", frame)
+		})
 	}
 	for data, exp := range map[string]bool{`[[1,2]]`: true, `[ ]`: true, `[ [1]]`: true, `[1,2]`: false, `"hb"`: false, ``: false, `[`: false} {
-		assert.Equalf(t, exp, isSnapshot([]byte(data)), "isSnapshot should report %s correctly", data)
+		t.Run("isSnapshot "+subtestName(data), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, isSnapshot([]byte(data)), "isSnapshot should report %s correctly", data)
+		})
 	}
 	var data wsDataFrame[json.RawMessage]
 	assert.ErrorIs(t, data.UnmarshalJSON([]byte(`[-1,[1],1792128955839]`)), json.ErrTupleElementType, "a data frame's channel ID should not be negative")
@@ -268,14 +274,17 @@ func TestWebsocketFrameData(t *testing.T) {
 	assert.ErrorIs(t, typed.UnmarshalJSON([]byte(`[-1,"on",[1],1792128955839]`)), json.ErrTupleElementType, "a typed frame's channel ID should not be negative")
 }
 
-func TestFundingTradeData(t *testing.T) {
+func TestFundingTradeData(t *testing.T) { //nolint:tparallel // The cases share e, so they run serially
 	t.Parallel()
+	// The cases share e, so each also checks that a call keeps nothing from the other
 	for amount, side := range map[float64]order.Side{-500: order.Buy, 169.74: order.Sell} {
-		got := e.fundingTradeData(testFundingUSD, asset.MarginFunding, &PublicFundingTradeResponse{ID: 1, Time: types.Time(time.UnixMilli(1792128672000)), Amount: amount, Rate: 0.00013466, Period: 2})
-		assert.Equalf(t, trade.Data{
-			Exchange: e.Name, TID: "1", CurrencyPair: testFundingUSD, AssetType: asset.MarginFunding, Side: side, Price: 0.00013466, Amount: math.Abs(amount),
-			Timestamp: time.UnixMilli(1792128672000),
-		}, got, "fundingTradeData should price funding trade %v at its rate, funding taken buying the book's offers and funding provided selling", amount)
+		t.Run(strconv.FormatFloat(amount, 'f', -1, 64), func(t *testing.T) {
+			got := e.fundingTradeData(testFundingUSD, asset.MarginFunding, &PublicFundingTradeResponse{ID: 1, Time: types.Time(time.UnixMilli(1792128672000)), Amount: amount, Rate: 0.00013466, Period: 2})
+			assert.Equalf(t, trade.Data{
+				Exchange: e.Name, TID: "1", CurrencyPair: testFundingUSD, AssetType: asset.MarginFunding, Side: side, Price: 0.00013466, Amount: math.Abs(amount),
+				Timestamp: time.UnixMilli(1792128672000),
+			}, got, "fundingTradeData should price funding trade %v at its rate, funding taken buying the book's offers and funding provided selling", amount)
+		})
 	}
 }
 
@@ -324,8 +333,11 @@ func TestWebsocketHandleTicker(t *testing.T) {
 			FlashReturnRate: 0.0003007013698630137, BidPeriod: 120, AskPeriod: 2, FlashReturnRateAmount: 220889680.31768298,
 		}, *got, "wsHandleTicker should store the funding currency's ticker as of the time Bitfinex sent it")
 		assert.Len(t, relayedPayloads(ex), 2, "wsHandleTicker should relay each ticker it stores")
+		// The cases share ex, so each also checks that a call keeps nothing from the other
 		for key, frame := range map[string]string{"ticker:tBTCUSD": `[27793,{},1792128955839]`, "ticker:fUSD": `[47414,{},1792128955839]`} {
-			assert.ErrorIsf(t, ex.wsHandleTicker(t.Context(), fixtureSubscription(t, key), []byte(frame)), json.ErrTupleNotArray, "wsHandleTicker should refuse channel %s's ticker that is not an array", key)
+			t.Run(key, func(t *testing.T) {
+				assert.ErrorIsf(t, ex.wsHandleTicker(t.Context(), fixtureSubscription(t, key), []byte(frame)), json.ErrTupleNotArray, "wsHandleTicker should refuse channel %s's ticker that is not an array", key)
+			})
 		}
 	})
 }
@@ -530,7 +542,7 @@ func TestWebsocketHandleTrades(t *testing.T) {
 	assert.Empty(t, relayedPayloads(quiet), "trades should not be relayed with the trade feed off")
 }
 
-func TestWebsocketHandleTradesSnapshot(t *testing.T) {
+func TestWebsocketHandleTradesSnapshot(t *testing.T) { //nolint:tparallel // The cases share ex in order, so they run serially
 	t.Parallel()
 	ex, _ := newChannelTestExchange(t)
 	frames := mustPublicFixture(t).frames
@@ -559,6 +571,7 @@ func TestWebsocketHandleTradesSnapshot(t *testing.T) {
 		Timestamp: time.UnixMilli(1792129001000),
 	}, trades[0], "wsHandleTradesSnapshot should relay funding provided, a positive amount, as a sell at its rate")
 
+	// The cases share ex in order, and wsHandleTradesSnapshot is called again after them
 	for _, tc := range []struct {
 		name  string
 		s     *subscription.Subscription
@@ -569,7 +582,9 @@ func TestWebsocketHandleTradesSnapshot(t *testing.T) {
 		{name: "a trading pair's trade whose amount is not a number", s: spot, frame: `[20,[[1994606745,1792128952874,"x",82187]],1792128966409]`, err: json.ErrTupleElementType},
 		{name: "a funding trade whose amount is not a number", s: funding, frame: `[73873,[[434121332,1792129001000,"x",0.000125,2]],1792129172479]`, err: json.ErrTupleElementType},
 	} {
-		assert.ErrorIsf(t, ex.wsHandleTradesSnapshot(tc.s, wsFrameData([]byte(tc.frame)), []byte(tc.frame)), tc.err, "wsHandleTradesSnapshot should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, ex.wsHandleTradesSnapshot(tc.s, wsFrameData([]byte(tc.frame)), []byte(tc.frame)), tc.err, "wsHandleTradesSnapshot should refuse %s", tc.name)
+		})
 	}
 
 	ex.Features.Enabled.TradeFeed = false
@@ -577,7 +592,7 @@ func TestWebsocketHandleTradesSnapshot(t *testing.T) {
 	assert.Empty(t, relayedPayloads(ex), "wsHandleTradesSnapshot should relay nothing with the trade feed off")
 }
 
-func TestWebsocketHandleTradeExecuted(t *testing.T) {
+func TestWebsocketHandleTradeExecuted(t *testing.T) { //nolint:tparallel // The cases share ex in order, so they run serially
 	t.Parallel()
 	ex, _ := newChannelTestExchange(t)
 	spot, funding := fixtureSubscription(t, "trades:tBTCUSD"), fixtureSubscription(t, "trades:fUSD")
@@ -594,6 +609,7 @@ func TestWebsocketHandleTradeExecuted(t *testing.T) {
 		Timestamp: time.UnixMilli(1792129281000),
 	}}}, relayedPayloads(ex), "wsHandleTradeExecuted should relay funding provided, a positive amount, as a sell at its rate")
 
+	// The cases share ex in order, and wsHandleTradeExecuted is called again after them
 	for _, tc := range []struct {
 		name  string
 		s     *subscription.Subscription
@@ -604,7 +620,9 @@ func TestWebsocketHandleTradeExecuted(t *testing.T) {
 		{name: "a trading pair's trade that is not an array", s: spot, frame: string(notArray), err: json.ErrTupleNotArray},
 		{name: "a funding trade that is not an array", s: funding, frame: `[73873,"fte",{},1792129281509]`, err: json.ErrTupleNotArray},
 	} {
-		assert.ErrorIsf(t, ex.wsHandleTradeExecuted(tc.s, []byte(tc.frame)), tc.err, "wsHandleTradeExecuted should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, ex.wsHandleTradeExecuted(tc.s, []byte(tc.frame)), tc.err, "wsHandleTradeExecuted should refuse %s", tc.name)
+		})
 	}
 
 	ex.Features.Enabled.TradeFeed = false
@@ -612,18 +630,21 @@ func TestWebsocketHandleTradeExecuted(t *testing.T) {
 	assert.Empty(t, relayedPayloads(ex), "wsHandleTradeExecuted should relay nothing with the trade feed off")
 }
 
-func TestTradeData(t *testing.T) {
+func TestTradeData(t *testing.T) { //nolint:tparallel // The cases share e, so they run serially
 	t.Parallel()
+	// The cases share e, so each also checks that a call keeps nothing from the other
 	for amount, side := range map[float64]order.Side{0.00022: order.Buy, -0.00042782: order.Sell} {
-		got := e.tradeData(currency.NewBTCUSD(), asset.Spot, &PublicTradeResponse{ID: 1, Time: types.Time(time.UnixMilli(1792128966407)), Amount: amount, Price: 82200})
-		assert.Equalf(t, trade.Data{
-			Exchange: e.Name, TID: "1", CurrencyPair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: side, Price: 82200, Amount: math.Abs(amount),
-			Timestamp: time.UnixMilli(1792128966407),
-		}, got, "tradeData should record trade %v by its sign, buying positive and selling negative", amount)
+		t.Run(strconv.FormatFloat(amount, 'f', -1, 64), func(t *testing.T) {
+			got := e.tradeData(currency.NewBTCUSD(), asset.Spot, &PublicTradeResponse{ID: 1, Time: types.Time(time.UnixMilli(1792128966407)), Amount: amount, Price: 82200})
+			assert.Equalf(t, trade.Data{
+				Exchange: e.Name, TID: "1", CurrencyPair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: side, Price: 82200, Amount: math.Abs(amount),
+				Timestamp: time.UnixMilli(1792128966407),
+			}, got, "tradeData should record trade %v by its sign, buying positive and selling negative", amount)
+		})
 	}
 }
 
-func TestWebsocketHandleCandles(t *testing.T) {
+func TestWebsocketHandleCandles(t *testing.T) { //nolint:tparallel // The cases share ex in order, so they run serially
 	t.Parallel()
 	ex, conn := newChannelTestExchange(t)
 	require.Empty(t, replayFixtureChannel(t, ex, conn, "candles:trade:1m:tBTCUSD"), "the candles' frames must be handled without error")
@@ -669,6 +690,7 @@ func TestWebsocketHandleCandles(t *testing.T) {
 	empty := []byte(`[47158,[],1792128955850]`)
 	require.NoError(t, ex.wsHandleCandles(t.Context(), s, wsFrameData(empty), empty), "wsHandleCandles must not error for an empty snapshot")
 	assert.Empty(t, relayedPayloads(ex), "wsHandleCandles should relay nothing for an empty snapshot")
+	// The cases share ex in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		name, frame string
 		err         error
@@ -676,7 +698,9 @@ func TestWebsocketHandleCandles(t *testing.T) {
 		{name: "a snapshot's candle whose open is not a number", frame: `[47158,[[1792128900000,"x",82187,82210,82186,0.01000381]],1792128955850]`, err: json.ErrTupleElementType},
 		{name: "a candle update that is not an array", frame: `[47158,{},1792128968974]`, err: json.ErrTupleNotArray},
 	} {
-		assert.ErrorIsf(t, ex.wsHandleCandles(t.Context(), s, wsFrameData([]byte(tc.frame)), []byte(tc.frame)), tc.err, "wsHandleCandles should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, ex.wsHandleCandles(t.Context(), s, wsFrameData([]byte(tc.frame)), []byte(tc.frame)), tc.err, "wsHandleCandles should refuse %s", tc.name)
+		})
 	}
 }
 
@@ -774,68 +798,84 @@ func TestWebsocketHandleBook(t *testing.T) {
 func TestRawBookLevelResponseLevel(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name        string
 		b           RawBookLevelResponse
 		exp         orderbook.Level
 		bid, remove bool
 	}{
-		{b: RawBookLevelResponse{OrderID: 1, Price: 100, Amount: 0.5}, exp: orderbook.Level{ID: 1, Price: 100, Amount: 0.5}, bid: true},
-		{b: RawBookLevelResponse{OrderID: 2, Price: 101, Amount: -0.25}, exp: orderbook.Level{ID: 2, Price: 101, Amount: 0.25}},
-		{b: RawBookLevelResponse{OrderID: 3, Amount: -1}, exp: orderbook.Level{ID: 3, Amount: 1}, remove: true},
+		{name: "bid", b: RawBookLevelResponse{OrderID: 1, Price: 100, Amount: 0.5}, exp: orderbook.Level{ID: 1, Price: 100, Amount: 0.5}, bid: true},
+		{name: "ask", b: RawBookLevelResponse{OrderID: 2, Price: 101, Amount: -0.25}, exp: orderbook.Level{ID: 2, Price: 101, Amount: 0.25}},
+		{name: "removal", b: RawBookLevelResponse{OrderID: 3, Amount: -1}, exp: orderbook.Level{ID: 3, Amount: 1}, remove: true},
 	} {
-		l, bid, remove := tc.b.level()
-		assert.Equalf(t, tc.exp, l, "level should give order %d's level", tc.b.OrderID)
-		assert.Equalf(t, [2]bool{tc.bid, tc.remove}, [2]bool{bid, remove}, "level should give order %d's side by its amount, and remove it once priced zero", tc.b.OrderID)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			l, bid, remove := tc.b.level()
+			assert.Equalf(t, tc.exp, l, "level should give order %d's level", tc.b.OrderID)
+			assert.Equalf(t, [2]bool{tc.bid, tc.remove}, [2]bool{bid, remove}, "level should give order %d's side by its amount, and remove it once priced zero", tc.b.OrderID)
+		})
 	}
 }
 
 func TestBookLevelResponseLevel(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name        string
 		b           BookLevelResponse
 		exp         orderbook.Level
 		bid, remove bool
 	}{
-		{b: BookLevelResponse{Price: 100, Count: 2, Amount: 0.5}, exp: orderbook.Level{Price: 100, Amount: 0.5, OrderCount: 2}, bid: true},
-		{b: BookLevelResponse{Price: 101, Count: 1, Amount: -0.25}, exp: orderbook.Level{Price: 101, Amount: 0.25, OrderCount: 1}},
-		{b: BookLevelResponse{Price: 102, Amount: -1}, exp: orderbook.Level{Price: 102, Amount: 1}, remove: true},
+		{name: "bid", b: BookLevelResponse{Price: 100, Count: 2, Amount: 0.5}, exp: orderbook.Level{Price: 100, Amount: 0.5, OrderCount: 2}, bid: true},
+		{name: "ask", b: BookLevelResponse{Price: 101, Count: 1, Amount: -0.25}, exp: orderbook.Level{Price: 101, Amount: 0.25, OrderCount: 1}},
+		{name: "removal", b: BookLevelResponse{Price: 102, Amount: -1}, exp: orderbook.Level{Price: 102, Amount: 1}, remove: true},
 	} {
-		l, bid, remove := tc.b.level()
-		assert.Equalf(t, tc.exp, l, "level should give price %v's level", tc.b.Price)
-		assert.Equalf(t, [2]bool{tc.bid, tc.remove}, [2]bool{bid, remove}, "level should give price %v's side by its amount, and remove it once it counts no orders", tc.b.Price)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			l, bid, remove := tc.b.level()
+			assert.Equalf(t, tc.exp, l, "level should give price %v's level", tc.b.Price)
+			assert.Equalf(t, [2]bool{tc.bid, tc.remove}, [2]bool{bid, remove}, "level should give price %v's side by its amount, and remove it once it counts no orders", tc.b.Price)
+		})
 	}
 }
 
 func TestRawFundingBookLevelResponseLevel(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name        string
 		b           RawFundingBookLevelResponse
 		exp         orderbook.Level
 		bid, remove bool
 	}{
-		{b: RawFundingBookLevelResponse{OfferID: 9, Period: 30, Rate: 0.0002, Amount: -10}, exp: orderbook.Level{ID: 9, Price: 0.0002, Period: 30, Amount: 10}, bid: true},
-		{b: RawFundingBookLevelResponse{OfferID: 8, Period: 2, Rate: 0.0001, Amount: 5}, exp: orderbook.Level{ID: 8, Price: 0.0001, Period: 2, Amount: 5}},
-		{b: RawFundingBookLevelResponse{OfferID: 7, Period: 2, Amount: 1}, exp: orderbook.Level{ID: 7, Period: 2, Amount: 1}, remove: true},
+		{name: "bid", b: RawFundingBookLevelResponse{OfferID: 9, Period: 30, Rate: 0.0002, Amount: -10}, exp: orderbook.Level{ID: 9, Price: 0.0002, Period: 30, Amount: 10}, bid: true},
+		{name: "ask", b: RawFundingBookLevelResponse{OfferID: 8, Period: 2, Rate: 0.0001, Amount: 5}, exp: orderbook.Level{ID: 8, Price: 0.0001, Period: 2, Amount: 5}},
+		{name: "removal", b: RawFundingBookLevelResponse{OfferID: 7, Period: 2, Amount: 1}, exp: orderbook.Level{ID: 7, Period: 2, Amount: 1}, remove: true},
 	} {
-		l, bid, remove := tc.b.level()
-		assert.Equalf(t, tc.exp, l, "level should give offer %d's level, its rate as the price", tc.b.OfferID)
-		assert.Equalf(t, [2]bool{tc.bid, tc.remove}, [2]bool{bid, remove}, "level should give offer %d's side, a negative amount bidding, and remove it once rated zero", tc.b.OfferID)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			l, bid, remove := tc.b.level()
+			assert.Equalf(t, tc.exp, l, "level should give offer %d's level, its rate as the price", tc.b.OfferID)
+			assert.Equalf(t, [2]bool{tc.bid, tc.remove}, [2]bool{bid, remove}, "level should give offer %d's side, a negative amount bidding, and remove it once rated zero", tc.b.OfferID)
+		})
 	}
 }
 
 func TestFundingBookLevelResponseLevel(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name        string
 		b           FundingBookLevelResponse
 		exp         orderbook.Level
 		bid, remove bool
 	}{
-		{b: FundingBookLevelResponse{Rate: 0.0002, Period: 30, Count: 1, Amount: -10}, exp: orderbook.Level{Price: 0.0002, Period: 30, Amount: 10, OrderCount: 1}, bid: true},
-		{b: FundingBookLevelResponse{Rate: 0.0001, Period: 2, Count: 2, Amount: 5}, exp: orderbook.Level{Price: 0.0001, Period: 2, Amount: 5, OrderCount: 2}},
-		{b: FundingBookLevelResponse{Rate: 0.0003, Period: 2, Amount: 1}, exp: orderbook.Level{Price: 0.0003, Period: 2, Amount: 1}, remove: true},
+		{name: "bid", b: FundingBookLevelResponse{Rate: 0.0002, Period: 30, Count: 1, Amount: -10}, exp: orderbook.Level{Price: 0.0002, Period: 30, Amount: 10, OrderCount: 1}, bid: true},
+		{name: "ask", b: FundingBookLevelResponse{Rate: 0.0001, Period: 2, Count: 2, Amount: 5}, exp: orderbook.Level{Price: 0.0001, Period: 2, Amount: 5, OrderCount: 2}},
+		{name: "removal", b: FundingBookLevelResponse{Rate: 0.0003, Period: 2, Amount: 1}, exp: orderbook.Level{Price: 0.0003, Period: 2, Amount: 1}, remove: true},
 	} {
-		l, bid, remove := tc.b.level()
-		assert.Equalf(t, tc.exp, l, "level should give rate %v and period %d's level", tc.b.Rate, tc.b.Period)
-		assert.Equalf(t, [2]bool{tc.bid, tc.remove}, [2]bool{bid, remove}, "level should give rate %v and period %d's side, a negative amount bidding, and remove it once it counts no offers", tc.b.Rate, tc.b.Period)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			l, bid, remove := tc.b.level()
+			assert.Equalf(t, tc.exp, l, "level should give rate %v and period %d's level", tc.b.Rate, tc.b.Period)
+			assert.Equalf(t, [2]bool{tc.bid, tc.remove}, [2]bool{bid, remove}, "level should give rate %v and period %d's side, a negative amount bidding, and remove it once it counts no offers", tc.b.Rate, tc.b.Period)
+		})
 	}
 }
 
@@ -999,65 +1039,112 @@ func TestBookChecksum(t *testing.T) {
 	assert.Equal(t, crc32.ChecksumIEEE(exp[:len(exp)-1]), bookChecksum(deep, true), "bookChecksum should take the 25 lowest IDs of the orders sharing a price, from beyond the top 25 too")
 }
 
-func TestAppendJavaScriptNumber(t *testing.T) {
+func TestAppendJavaScriptNumber(t *testing.T) { //nolint:tparallel // The cases run serially, as appendJavaScriptNumber is called again after them
 	t.Parallel()
+	// Serial, as appendJavaScriptNumber is called again after these cases
 	for f, exp := range map[float64]string{
 		0: "0", 82191: "82191", -0.0002: "-0.0002", 0.000001: "0.000001", 1e-7: "1e-7", 1.5e-7: "1.5e-7", -9.99e-7: "-9.99e-7",
 		1e20: "100000000000000000000", 1e21: "1e+21", 1.5e22: "1.5e+22", 0.00013122534246575346: "0.00013122534246575346", 1e-100: "1e-100",
 	} {
-		assert.Equalf(t, exp, string(appendJavaScriptNumber(nil, f)), "appendJavaScriptNumber should write %v as JavaScript does", f)
+		t.Run(strconv.FormatFloat(f, 'g', -1, 64), func(t *testing.T) {
+			assert.Equalf(t, exp, string(appendJavaScriptNumber(nil, f)), "appendJavaScriptNumber should write %v as JavaScript does", f)
+		})
 	}
 	assert.Equal(t, "x:1e-7", string(appendJavaScriptNumber([]byte("x:"), 1e-7)), "appendJavaScriptNumber should append to what the buffer holds")
 }
 
-func TestWebsocketHandleDataErrors(t *testing.T) {
+func TestWebsocketHandleData(t *testing.T) {
 	t.Parallel()
-	ex, conn := newChannelTestExchange(t)
-	subscribeFixtureChannel(t, ex, conn, "ticker:tBTCUSD")
-	for _, tc := range []struct {
-		frame string
-		err   error
-	}{
-		{frame: ``, err: errWebsocketMalformedFrame},
-		{frame: `  `, err: errWebsocketMalformedFrame},
-		{frame: `"text"`, err: errWebsocketMalformedFrame},
-		{frame: `["x"]`, err: errWebsocketMalformedFrame},
-		{frame: `[]`, err: errWebsocketMalformedFrame},
-		{frame: `[-1,[1]]`, err: errWebsocketMalformedFrame},
-		{frame: `["1","hb"]`, err: errWebsocketMalformedFrame},
-		{frame: `{"event":"subscribed","channel":"ticker","chanId":-1,"symbol":"tBTCUSD"}`, err: nil},
-		{frame: `{"event":"info","code":-1,"msg":"platform info"}`, err: nil},
-		{frame: `[404,[1]]`, err: errWebsocketChannelUnknown},
-		{frame: `[27793]`, err: errWebsocketMalformedFrame},
-		{frame: `[27793,"zz",1]`, err: errWebsocketMalformedFrame},
-		{frame: `[27793,"cs",1,1]`, err: errWebsocketMalformedFrame},
-		{frame: `[27793,"te",[1,1,1,1],1]`, err: errWebsocketMalformedFrame},
-		{frame: `[27793,[1,"x"],1]`, err: json.ErrTupleElementType},
-		{frame: `[0]`, err: errWebsocketMalformedFrame},
-		{frame: `[0,[1]]`, err: errWebsocketMalformedFrame},
-		{frame: `{"event":`, err: nil},
-	} {
-		err := ex.wsHandleData(t.Context(), conn, []byte(tc.frame))
-		if tc.err == nil {
-			assert.Errorf(t, err, "wsHandleData should error for %s", tc.frame)
-			continue
+	t.Run("order status cut short", func(t *testing.T) {
+		t.Parallel()
+		ex, conn := newAccountTestExchange(t)
+		// An order's events as Bitfinex sent them, on its paper trading pair, recorded by github.com/visualHFT/VisualHFT: from
+		// the fifth fill on, its status is cut short, keeping its end
+		frame := func(event, updated, remaining, status string) []byte {
+			return []byte(`[0,"` + event + `",[198036008757,null,1740997824277,"tTESTETH:TESTUSD",1740997824277,` + updated + `,` + remaining +
+				`,1093.673236,"EXCHANGE LIMIT",null,null,null,0,"` + status + `",null,null,2365.3,2365.3,0,0,null,null,null,0,0,null,null,null,"BFX",null,null,{}]]`)
 		}
-		assert.ErrorIsf(t, err, tc.err, "wsHandleData should return the expected error for %s", tc.frame)
-	}
-	assert.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`[27793,"hb",1792128965585]`)), "a heartbeat should be handled")
-	assert.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`[404,"hb",1792128965585]`)), "a heartbeat Bitfinex sends before confirming its channel should be handled")
-	assert.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`[27793,"tu",[1,1,1,1],1]`)), "a trade execution update should be ignored")
+		// The cases are one order's events, handled on one exchange in the order Bitfinex sent them
+		for _, tc := range []struct {
+			name                string
+			frame               []byte
+			status              order.Status
+			executed, remaining float64
+		}{
+			{name: "one fill", frame: frame("on", "1740997824279", "1039.73177083", "PARTIALLY FILLED @ 2365.3(53.94146517)"), status: order.PartiallyFilled, executed: 53.94146517, remaining: 1039.73177083},
+			{name: "four fills", frame: frame("ou", "1740997826230", "794.14534185", "PARTIALLY FILLED @ 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0)"), status: order.PartiallyFilled, executed: 299.52789415, remaining: 794.14534185},
+			{name: "five fills cut short", frame: frame("ou", "1740997827231", "694.14534185", "... 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0)"), status: order.PartiallyFilled, executed: 399.52789415, remaining: 694.14534185},
+			{name: "six fills cut short", frame: frame("ou", "1740997828232", "594.14534185", "...LLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0)"), status: order.PartiallyFilled, executed: 499.52789415, remaining: 594.14534185},
+			{name: "cancelled cut short", frame: frame("oc", "1740997828295", "594.14534185", "CANCELED was: ...LLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0), PARTIALLY FILLED @ 2365.3(100.0)"), status: order.PartiallyFilledCancelled, executed: 499.52789415, remaining: 594.14534185},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, tc.frame), "wsHandleData must not error for %s", tc.frame)
+				relayed := relayedPayloads(ex)
+				require.Lenf(t, relayed, 1, "wsHandleData must relay the order of %s", tc.frame)
+				d, ok := relayed[0].(*order.Detail)
+				require.Truef(t, ok, "wsHandleData must relay the order of %s as an order detail", tc.frame)
+				assert.Equalf(t, tc.status, d.Status, "wsHandleData should report the order's status from %s", tc.frame)
+				assert.Equalf(t, [3]float64{1093.673236, tc.executed, tc.remaining}, [3]float64{d.Amount, d.ExecutedAmount, d.RemainingAmount},
+					"wsHandleData should report the order's whole amount, what it executed and what remains from %s", tc.frame)
+			})
+		}
+	})
+
+	t.Run("errors", func(t *testing.T) {
+		t.Parallel()
+		ex, conn := newChannelTestExchange(t)
+		subscribeFixtureChannel(t, ex, conn, "ticker:tBTCUSD")
+		// The cases share ex and conn in order, and wsHandleData is called again after them
+		for _, tc := range []struct {
+			frame string
+			err   error
+		}{
+			{frame: ``, err: errWebsocketMalformedFrame},
+			{frame: `  `, err: errWebsocketMalformedFrame},
+			{frame: `"text"`, err: errWebsocketMalformedFrame},
+			{frame: `["x"]`, err: errWebsocketMalformedFrame},
+			{frame: `[]`, err: errWebsocketMalformedFrame},
+			{frame: `[-1,[1]]`, err: errWebsocketMalformedFrame},
+			{frame: `["1","hb"]`, err: errWebsocketMalformedFrame},
+			{frame: `{"event":"subscribed","channel":"ticker","chanId":-1,"symbol":"tBTCUSD"}`, err: nil},
+			{frame: `{"event":"info","code":-1,"msg":"platform info"}`, err: nil},
+			{frame: `[404,[1]]`, err: errWebsocketChannelUnknown},
+			{frame: `[27793]`, err: errWebsocketMalformedFrame},
+			{frame: `[27793,"zz",1]`, err: errWebsocketMalformedFrame},
+			{frame: `[27793,"cs",1,1]`, err: errWebsocketMalformedFrame},
+			{frame: `[27793,"te",[1,1,1,1],1]`, err: errWebsocketMalformedFrame},
+			{frame: `[27793,[1,"x"],1]`, err: json.ErrTupleElementType},
+			{frame: `[0]`, err: errWebsocketMalformedFrame},
+			{frame: `[0,[1]]`, err: errWebsocketMalformedFrame},
+			{frame: `{"event":`, err: nil},
+		} {
+			t.Run(subtestName(tc.frame), func(t *testing.T) {
+				err := ex.wsHandleData(t.Context(), conn, []byte(tc.frame))
+				if tc.err == nil {
+					assert.Errorf(t, err, "wsHandleData should error for %s", tc.frame)
+					return
+				}
+				assert.ErrorIsf(t, err, tc.err, "wsHandleData should return the expected error for %s", tc.frame)
+			})
+		}
+		assert.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`[27793,"hb",1792128965585]`)), "a heartbeat should be handled")
+		assert.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`[404,"hb",1792128965585]`)), "a heartbeat Bitfinex sends before confirming its channel should be handled")
+		assert.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`[27793,"tu",[1,1,1,1],1]`)), "a trade execution update should be ignored")
+	})
 }
 
-func TestWebsocketHandleEvent(t *testing.T) {
+func TestWebsocketHandleEvent(t *testing.T) { //nolint:tparallel // The cases share ex and conn in order, so they run serially
 	t.Parallel()
 	ex, conn := newChannelTestExchange(t)
 	err := ex.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"ticker","chanId":1,"symbol":"tBTCUSD","subId":"unknown"}`))
 	assert.ErrorIs(t, err, errWebsocketChannelUnknown, "a subscription Bitfinex confirms without a request should error")
 	assert.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"conf","status":"OK","flags":163840}`)), "an accepted configuration should be handled")
 	assert.ErrorIs(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"conf","status":"FAILED"}`)), errWebsocketEventFailed, "a refused configuration should error")
+	// The cases share ex and conn in order, and wsHandleData is called again after them
 	for _, event := range []string{`{"event":"auth","status":"OK"}`, `{"event":"unsubscribed","chanId":5}`} {
-		assert.ErrorIsf(t, ex.wsHandleData(t.Context(), conn, []byte(event)), websocket.ErrSignatureNotMatched, "a reply no request awaits should error for %s", event)
+		t.Run(event, func(t *testing.T) {
+			assert.ErrorIsf(t, ex.wsHandleData(t.Context(), conn, []byte(event)), websocket.ErrSignatureNotMatched, "a reply no request awaits should error for %s", event)
+		})
 	}
 	err = ex.wsHandleData(t.Context(), conn, []byte(`{"event":"error","msg":"something","code":10000}`))
 	assert.ErrorIs(t, err, errWebsocketEventFailed, "an error answering no request should error")
@@ -1075,9 +1162,12 @@ func TestWebsocketHandleEvent(t *testing.T) {
 	assert.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"pong","cid":1234,"ts":1792128975841}`)), "a pong should be handled")
 	assert.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"info","version":2,"serverId":"x","platform":{"status":1}}`)), "the version info Bitfinex sends on connecting should be handled")
 	assert.Empty(t, relayedPayloads(ex), "the version info should not be relayed")
+	// The cases share ex and its relay in order, and wsHandleData is called again after them
 	for _, code := range []uint64{wsInfoServerRestart, wsInfoMaintenanceStart, wsInfoMaintenanceEnd} {
-		require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"info","code":`+strconv.FormatUint(code, 10)+`,"msg":"platform info"}`)), "info code %d must be handled", code)
-		assert.Equalf(t, []any{&PlatformInfoEvent{Code: code, Message: "platform info"}}, relayedPayloads(ex), "info code %d should be relayed", code)
+		t.Run("info code "+strconv.FormatUint(code, 10), func(t *testing.T) {
+			require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"info","code":`+strconv.FormatUint(code, 10)+`,"msg":"platform info"}`)), "info code %d must be handled", code)
+			assert.Equalf(t, []any{&PlatformInfoEvent{Code: code, Message: "platform info"}}, relayedPayloads(ex), "info code %d should be relayed", code)
+		})
 	}
 	require.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"novel"}`)), "an unknown event must be handled")
 	relayed := relayedPayloads(ex)
@@ -1085,7 +1175,7 @@ func TestWebsocketHandleEvent(t *testing.T) {
 	assert.IsType(t, websocket.UnhandledMessageWarning{}, relayed[0], "an unknown event should be relayed as unhandled")
 }
 
-func TestWebsocketHandleChannelEvent(t *testing.T) {
+func TestWebsocketHandleChannelEvent(t *testing.T) { //nolint:tparallel // The cases share ex and conn in order, so they run serially
 	t.Parallel()
 	ex, conn := newChannelTestExchange(t)
 	register := func(channelID uint64, s *subscription.Subscription) {
@@ -1108,6 +1198,7 @@ func TestWebsocketHandleChannelEvent(t *testing.T) {
 	_, err := ex.wsChannels.confirm("draining", conn, 8)
 	require.NoError(t, err, "confirm must not error for a channel unsubscribed before Bitfinex confirmed it")
 
+	// The cases share ex and conn in order, and wsHandleChannelEvent is called again after them
 	for _, tc := range []struct {
 		name      string
 		channelID uint64
@@ -1122,8 +1213,11 @@ func TestWebsocketHandleChannelEvent(t *testing.T) {
 		{name: "a checksum on a ticker channel", channelID: 1, frame: `[1,"cs",1,1792128955839]`, err: errWebsocketMalformedFrame},
 		{name: "an event on a channel of an unknown kind", channelID: 7, frame: `[7,[1],1792128955839]`, err: errWebsocketChannelUnknown},
 	} {
-		assert.ErrorIsf(t, ex.wsHandleChannelEvent(t.Context(), conn, tc.channelID, []byte(tc.frame)), tc.err, "wsHandleChannelEvent should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, ex.wsHandleChannelEvent(t.Context(), conn, tc.channelID, []byte(tc.frame)), tc.err, "wsHandleChannelEvent should refuse %s", tc.name)
+		})
 	}
+	// The cases share ex and conn in order, and wsHandleChannelEvent is called again after them
 	for _, tc := range []struct {
 		name      string
 		channelID uint64
@@ -1133,11 +1227,14 @@ func TestWebsocketHandleChannelEvent(t *testing.T) {
 		{name: "an event on a draining channel", channelID: 8, frame: `[8,[1],1792128955839]`},
 		{name: "a trade's execution update", channelID: 2, frame: `[2,"tu",[1994606752,1792128966407,0.00081636,82200],1792128966478]`},
 	} {
-		assert.NoErrorf(t, ex.wsHandleChannelEvent(t.Context(), conn, tc.channelID, []byte(tc.frame)), "wsHandleChannelEvent should handle %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NoErrorf(t, ex.wsHandleChannelEvent(t.Context(), conn, tc.channelID, []byte(tc.frame)), "wsHandleChannelEvent should handle %s", tc.name)
+		})
 	}
 	assert.Empty(t, relayedPayloads(ex), "wsHandleChannelEvent should relay nothing it refuses or skips")
 
 	frames := mustPublicFixture(t).frames
+	// The cases share ex and its relay in order, and the book one loads is read after them
 	for _, tc := range []struct {
 		name      string
 		channelID uint64
@@ -1151,12 +1248,14 @@ func TestWebsocketHandleChannelEvent(t *testing.T) {
 		{name: "a candle", channelID: 4, frame: []byte(`[4,[1792128960000,82200,82202,82202,82200,0.00170513],1792128968974]`), exp: []any{kline.Item{}}},
 		{name: "a derivative status", channelID: 5, frame: frames["status:deriv:tBTCF0:USTF0"][0], exp: []any{websocket.FundingData{}, &WebsocketDerivativeStatus{}}},
 	} {
-		require.NoErrorf(t, ex.wsHandleChannelEvent(t.Context(), conn, tc.channelID, tc.frame), "wsHandleChannelEvent must not error for %s", tc.name)
-		relayed := relayedPayloads(ex)
-		require.Lenf(t, relayed, len(tc.exp), "wsHandleChannelEvent must relay %s by its channel", tc.name)
-		for i := range tc.exp {
-			assert.IsTypef(t, tc.exp[i], relayed[i], "wsHandleChannelEvent should relay %s as its channel's data", tc.name)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoErrorf(t, ex.wsHandleChannelEvent(t.Context(), conn, tc.channelID, tc.frame), "wsHandleChannelEvent must not error for %s", tc.name)
+			relayed := relayedPayloads(ex)
+			require.Lenf(t, relayed, len(tc.exp), "wsHandleChannelEvent must relay %s by its channel", tc.name)
+			for i := range tc.exp {
+				assert.IsTypef(t, tc.exp[i], relayed[i], "wsHandleChannelEvent should relay %s as its channel's data", tc.name)
+			}
+		})
 	}
 	book, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSD(), asset.Spot)
 	require.NoError(t, err, "GetOrderbook must not error")
@@ -1417,18 +1516,21 @@ type stateConnection struct {
 
 func (c *stateConnection) IsConnected() bool { return c.connected }
 
-func TestGenerateSubscriptions(t *testing.T) {
+func TestGenerateSubscriptions(t *testing.T) { //nolint:tparallel // The cases share ex and fill pairs for the statements after them, so they run serially
 	t.Parallel()
 	ex := newTestExchange(t)
 	// A pair enabled for spot and margin has one channel, spot's
 	require.NoError(t, ex.CurrencyPairs.EnablePair(asset.Margin, currency.NewBTCUSD()), "EnablePair must not error")
 	pairs := map[asset.Item]currency.Pairs{}
 	assets := []asset.Item{asset.Spot, asset.Margin, asset.MarginFunding, asset.USDTMarginedFutures, asset.CoinMarginedFutures}
+	// The cases share ex, and fill pairs for the statements after them
 	for _, a := range assets {
-		enabled, err := ex.GetEnabledPairs(a)
-		require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
-		require.NotEmptyf(t, enabled, "the test config must enable %s pairs", a)
-		pairs[a] = enabled
+		t.Run(a.String(), func(t *testing.T) {
+			enabled, err := ex.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
+			require.NotEmptyf(t, enabled, "the test config must enable %s pairs", a)
+			pairs[a] = enabled
+		})
 	}
 	spot := pairs[asset.Spot]
 	marginOnly := slices.DeleteFunc(slices.Clone(pairs[asset.Margin]), func(p currency.Pair) bool { return spot.Contains(p, true) })
@@ -1527,57 +1629,78 @@ func TestGenerateSubscriptionsFromMigratedConfig(t *testing.T) {
 				ex.Name = t.Name()
 				subs, err := ex.generateSubscriptions()
 				require.NoError(t, err, "generateSubscriptions must not error for the upgraded configuration")
+				// The cases share subs, which later statements search again
 				for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.MarginFunding} {
-					for _, channel := range []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel} {
-						n := slices.IndexFunc(subs, func(s *subscription.Subscription) bool { return s.Channel == channel && s.Asset == a })
-						assert.NotEqualf(t, -1, n, "the upgraded configuration should subscribe %s's %s channel", a, channel)
-					}
+					t.Run(a.String(), func(t *testing.T) {
+						// The cases share subs, which later statements search again
+						for _, channel := range []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel} {
+							t.Run(channel, func(t *testing.T) {
+								n := slices.IndexFunc(subs, func(s *subscription.Subscription) bool { return s.Channel == channel && s.Asset == a })
+								assert.NotEqualf(t, -1, n, "the upgraded configuration should subscribe %s's %s channel", a, channel)
+							})
+						}
+					})
 				}
 				if !tc.perpetualPairs {
 					n := slices.IndexFunc(subs, func(s *subscription.Subscription) bool { return isDerivativeAsset(s.Asset) })
 					assert.Equal(t, -1, n, "the upgraded configuration should subscribe no perpetual contract without its pairs")
 					return
 				}
+				// The cases share ex, so each also checks that a call keeps nothing from the last
 				for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-					enabled, err := ex.GetEnabledPairs(a)
-					require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
-					require.NotEmptyf(t, enabled, "the test config must enable %s pairs", a)
-					for _, channel := range []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel, wsStatusChannel} {
-						n := slices.IndexFunc(subs, func(s *subscription.Subscription) bool { return s.Channel == channel && s.Asset == a })
-						assert.NotEqualf(t, -1, n, "the upgraded configuration should subscribe %s's %s channel", a, channel)
-					}
+					t.Run(a.String(), func(t *testing.T) {
+						enabled, err := ex.GetEnabledPairs(a)
+						require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
+						require.NotEmptyf(t, enabled, "the test config must enable %s pairs", a)
+						// The cases share subs, which later cases search again
+						for _, channel := range []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel, wsStatusChannel} {
+							t.Run(channel, func(t *testing.T) {
+								n := slices.IndexFunc(subs, func(s *subscription.Subscription) bool { return s.Channel == channel && s.Asset == a })
+								assert.NotEqualf(t, -1, n, "the upgraded configuration should subscribe %s's %s channel", a, channel)
+							})
+						}
+					})
 				}
 			})
 		}
 	}
 }
 
-func TestSubToMap(t *testing.T) {
+func TestSubToMap(t *testing.T) { //nolint:tparallel // The cases run serially, as subToMap is called again after them
 	t.Parallel()
 	_, err := subToMap(&subscription.Subscription{Channel: subscription.CandlesChannel, Params: map[string]any{CandlesPeriodKey: 30}}, asset.MarginFunding, testFundingUSD)
 	assert.ErrorIs(t, err, common.ErrTypeAssertFailure, "subToMap should error for a candle period that is not a string")
+	// Serial, as subToMap is called again after these cases
 	for _, k := range []string{"key", "symbol", "len", "event", "subId"} {
-		_, err = subToMap(&subscription.Subscription{Channel: subscription.TickerChannel, Params: map[string]any{k: "x"}}, asset.Spot, currency.NewBTCUSD())
-		assert.ErrorIsf(t, err, errSubscriptionParamReserved, "subToMap should refuse the reserved parameter %s", k)
+		t.Run("reserved "+k, func(t *testing.T) {
+			_, err = subToMap(&subscription.Subscription{Channel: subscription.TickerChannel, Params: map[string]any{k: "x"}}, asset.Spot, currency.NewBTCUSD())
+			assert.ErrorIsf(t, err, errSubscriptionParamReserved, "subToMap should refuse the reserved parameter %s", k)
+		})
 	}
 	_, err = subToMap(&subscription.Subscription{Channel: subscription.TickerChannel}, asset.Options, currency.NewBTCUSD())
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "subToMap should refuse an asset Bitfinex has no symbol for")
 	got, err := subToMap(&subscription.Subscription{Channel: "novel", Params: map[string]any{"freq": "F1"}}, asset.Spot, currency.NewPair(currency.NewCode("AVAX"), currency.USD))
 	require.NoError(t, err, "subToMap must not error")
 	assert.Equal(t, map[string]any{"channel": "novel", "freq": "F1", "symbol": "tAVAX:USD"}, got, "subToMap should pass other channels and parameters through, with the pair's symbol")
+	// Serial, as subToMap is called again after these cases
 	for a, p := range map[asset.Item]currency.Pair{asset.USDTMarginedFutures: testDerivativePair, asset.CoinMarginedFutures: testCoinMarginedPair} {
-		got, err = subToMap(&subscription.Subscription{Channel: wsStatusChannel}, a, p)
-		require.NoErrorf(t, err, "subToMap must not error for %s's status", a)
-		symbol, err := symbolFor(a, p)
-		require.NoError(t, err, "symbolFor must not error")
-		assert.Equalf(t, map[string]any{"channel": "status", "key": "deriv:" + symbol}, got, "subToMap should key %s's status by its derivative pair", a)
+		t.Run(a.String()+" status", func(t *testing.T) {
+			got, err = subToMap(&subscription.Subscription{Channel: wsStatusChannel}, a, p)
+			require.NoErrorf(t, err, "subToMap must not error for %s's status", a)
+			symbol, err := symbolFor(a, p)
+			require.NoError(t, err, "symbolFor must not error")
+			assert.Equalf(t, map[string]any{"channel": "status", "key": "deriv:" + symbol}, got, "subToMap should key %s's status by its derivative pair", a)
+		})
 	}
 	_, err = subToMap(&subscription.Subscription{Channel: wsStatusChannel}, asset.Spot, currency.NewBTCUSD())
 	assert.ErrorIs(t, err, errStatusChannelAsset, "subToMap should refuse the status of a pair that is not a derivative's")
+	// Serial, as subToMap is called again after these cases
 	for interval, timeFrame := range map[kline.Interval]string{kline.OneMin: "1m", kline.OneDay: "1D", kline.OneWeek: "1W", kline.TwoWeek: "14D", kline.OneMonth: "1M"} {
-		got, err = subToMap(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: interval}, asset.Spot, currency.NewBTCUSD())
-		require.NoErrorf(t, err, "subToMap must not error for %s candles", interval)
-		assert.Equalf(t, map[string]any{"channel": "candles", "key": "trade:" + timeFrame + ":tBTCUSD"}, got, "subToMap should key %s candles by Bitfinex's time frame", interval)
+		t.Run(interval.Short()+" candles", func(t *testing.T) {
+			got, err = subToMap(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: interval}, asset.Spot, currency.NewBTCUSD())
+			require.NoErrorf(t, err, "subToMap must not error for %s candles", interval)
+			assert.Equalf(t, map[string]any{"channel": "candles", "key": "trade:" + timeFrame + ":tBTCUSD"}, got, "subToMap should key %s candles by Bitfinex's time frame", interval)
+		})
 	}
 	_, err = subToMap(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FourHour}, asset.Spot, currency.NewBTCUSD())
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "subToMap should refuse candles of an interval Bitfinex has no time frame for")
@@ -1764,7 +1887,7 @@ func (c *scriptedConnection) SendMessageReturnResponse(_ context.Context, _ requ
 	return reply(payload)
 }
 
-func TestWebsocketSendUnsubscribe(t *testing.T) {
+func TestWebsocketSendUnsubscribe(t *testing.T) { //nolint:tparallel // The cases share ex and conn in order, so they run serially
 	t.Parallel()
 	ex, test := newChannelTestExchange(t)
 	var sent []any
@@ -1775,6 +1898,7 @@ func TestWebsocketSendUnsubscribe(t *testing.T) {
 		}
 	}
 	conn := &scriptedConnection{Connection: test}
+	// The cases share ex, conn and sent in order, and wsSendUnsubscribe is called again after them
 	for _, tc := range []struct {
 		name  string
 		reply func(any) ([]byte, error)
@@ -1786,8 +1910,10 @@ func TestWebsocketSendUnsubscribe(t *testing.T) {
 		{name: "another error", reply: reply(`{"event":"error","msg":"unsubscribe: failed","code":10000,"chanId":7}`, nil), err: errWebsocketUnsubscribe},
 		{name: "no reply", reply: reply(``, websocket.ErrSignatureTimeout), err: websocket.ErrSignatureTimeout},
 	} {
-		conn.script = []func(any) ([]byte, error){tc.reply}
-		assert.ErrorIsf(t, ex.wsSendUnsubscribe(t.Context(), conn, 7), tc.err, "wsSendUnsubscribe should report the outcome of %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			conn.script = []func(any) ([]byte, error){tc.reply}
+			assert.ErrorIsf(t, ex.wsSendUnsubscribe(t.Context(), conn, 7), tc.err, "wsSendUnsubscribe should report the outcome of %s", tc.name)
+		})
 	}
 	conn.script = []func(any) ([]byte, error){reply(`{"event":"error","msg":"unsubscribe: failed","code":10000,"chanId":7}`, nil)}
 	assert.ErrorContains(t, ex.wsSendUnsubscribe(t.Context(), conn, 7), "unsubscribe: failed (code 10000)", "wsSendUnsubscribe should report Bitfinex's message and code")
@@ -1853,7 +1979,7 @@ func TestWebsocketLateSubscribeConfirmation(t *testing.T) {
 	assert.ErrorIs(t, err, errWebsocketChannelUnknown, "a refused request should no longer be pending")
 }
 
-func TestWebsocketLateConfirmationAfterUnsubscribe(t *testing.T) {
+func TestWebsocketLateConfirmationAfterUnsubscribe(t *testing.T) { //nolint:tparallel // The cases share ex and conn in order, so they run serially
 	t.Parallel()
 	ex, test := newChannelTestExchange(t)
 	var subIDs []string
@@ -1866,28 +1992,32 @@ func TestWebsocketLateConfirmationAfterUnsubscribe(t *testing.T) {
 	tickerFrame := func(channelID string) []byte {
 		return []byte(`[` + channelID + `,[82191,2.9326838,82200,1.3811192,1108,0.01366484,82192,530.82146983,82641,79821,1358182043000],1792128955839]`)
 	}
+	// The cases share ex and conn in order, each reading what the connection recorded by its index
 	for i, tc := range []struct {
+		name      string
 		channelID uint64
 		reply     string
 	}{
-		{channelID: 7, reply: `{"event":"unsubscribed","status":"OK","chanId":7}`},
-		{channelID: 8, reply: `{"event":"error","msg":"unsubscribe: invalid","code":10400,"chanId":8}`},
+		{name: "the channel unsubscribed", channelID: 7, reply: `{"event":"unsubscribed","status":"OK","chanId":7}`},
+		{name: "a channel Bitfinex does not have", channelID: 8, reply: `{"event":"error","msg":"unsubscribe: invalid","code":10400,"chanId":8}`},
 	} {
-		s := fixtureSubscription(t, "ticker:tBTCUSD")
-		s.QualifiedChannel = `{"channel":"ticker","symbol":"tBTCUSD"}`
-		lateID := "late " + strconv.FormatUint(tc.channelID, 10)
-		require.ErrorIs(t, ex.wsSendSubscribe(t.Context(), conn, s, lateID), websocket.ErrSignatureTimeout, "a subscription whose confirmation is late must error")
-		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, s), "AddSuccessfulSubscriptions must not error")
-		require.NoError(t, ex.wsUnsubscribe(t.Context(), conn, subscription.List{s}), "wsUnsubscribe must not error for a subscription Bitfinex has not confirmed")
-		require.Empty(t, ex.Websocket.GetSubscriptions(), "unsubscribing must forget the subscription")
+		t.Run(tc.name, func(t *testing.T) {
+			s := fixtureSubscription(t, "ticker:tBTCUSD")
+			s.QualifiedChannel = `{"channel":"ticker","symbol":"tBTCUSD"}`
+			lateID := "late " + strconv.FormatUint(tc.channelID, 10)
+			require.ErrorIs(t, ex.wsSendSubscribe(t.Context(), conn, s, lateID), websocket.ErrSignatureTimeout, "a subscription whose confirmation is late must error")
+			require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, s), "AddSuccessfulSubscriptions must not error")
+			require.NoError(t, ex.wsUnsubscribe(t.Context(), conn, subscription.List{s}), "wsUnsubscribe must not error for a subscription Bitfinex has not confirmed")
+			require.Empty(t, ex.Websocket.GetSubscriptions(), "unsubscribing must forget the subscription")
 
-		channelID := strconv.FormatUint(tc.channelID, 10)
-		require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"ticker","chanId":`+channelID+`,"symbol":"tBTCUSD","subId":"`+subIDs[i]+`"}`)), "a confirmation of an unsubscribed subscription must be handled for channel %s", channelID)
-		assert.Nilf(t, ex.wsChannels.get(conn, tc.channelID), "a confirmation of an unsubscribed subscription should not map channel %s", channelID)
-		assert.Equalf(t, `{"event":"unsubscribe","chanId":`+channelID+`}`, conn.sent[i], "channel %s, which no subscription wants, should be unsubscribed", channelID)
-		assert.NoErrorf(t, ex.wsHandleData(t.Context(), conn, tickerFrame(channelID)), "an event on draining channel %s should be dropped", channelID)
-		require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(tc.reply)), "the reply unsubscribing draining channel %s must be handled", channelID)
-		assert.ErrorIsf(t, ex.wsHandleData(t.Context(), conn, tickerFrame(channelID)), errWebsocketChannelUnknown, "an event on drained channel %s should be unknown", channelID)
+			channelID := strconv.FormatUint(tc.channelID, 10)
+			require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"ticker","chanId":`+channelID+`,"symbol":"tBTCUSD","subId":"`+subIDs[i]+`"}`)), "a confirmation of an unsubscribed subscription must be handled for channel %s", channelID)
+			assert.Nilf(t, ex.wsChannels.get(conn, tc.channelID), "a confirmation of an unsubscribed subscription should not map channel %s", channelID)
+			assert.Equalf(t, `{"event":"unsubscribe","chanId":`+channelID+`}`, conn.sent[i], "channel %s, which no subscription wants, should be unsubscribed", channelID)
+			assert.NoErrorf(t, ex.wsHandleData(t.Context(), conn, tickerFrame(channelID)), "an event on draining channel %s should be dropped", channelID)
+			require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(tc.reply)), "the reply unsubscribing draining channel %s must be handled", channelID)
+			assert.ErrorIsf(t, ex.wsHandleData(t.Context(), conn, tickerFrame(channelID)), errWebsocketChannelUnknown, "an event on drained channel %s should be unknown", channelID)
+		})
 	}
 	_, err := ticker.GetTicker(ex.Name, currency.NewBTCUSD(), asset.Spot)
 	assert.Error(t, err, "a draining channel's events should not be stored")
@@ -1907,7 +2037,7 @@ func (c *endedContextConnection) SendJSONMessage(ctx context.Context, epl reques
 	return c.scriptedConnection.SendJSONMessage(ctx, epl, data)
 }
 
-func TestWebsocketSubscribeChannelUnconfirmed(t *testing.T) {
+func TestWebsocketSubscribeChannelUnconfirmed(t *testing.T) { //nolint:tparallel // The cases share ex and conn in order, so they run serially
 	t.Parallel()
 	ex, test := newChannelTestExchange(t)
 	conn := &endedContextConnection{scriptedConnection: &scriptedConnection{Connection: test}}
@@ -1917,7 +2047,8 @@ func TestWebsocketSubscribeChannelUnconfirmed(t *testing.T) {
 	ended, cancel := context.WithCancel(t.Context())
 	cancel()
 	// The manager records no subscription whose wait fails, so its channel is unsubscribed however its confirmation
-	// arrives: after the wait timed out or its context ended, or as either happened
+	// arrives: after the wait timed out or its context ended, or as either happened. The cases share ex and conn in
+	// order, and wsSubscribeChannel is called again after them
 	for _, tc := range []struct {
 		name      string
 		channelID string
@@ -1930,29 +2061,31 @@ func TestWebsocketSubscribeChannelUnconfirmed(t *testing.T) {
 		{name: "a confirmation as the wait timed out", channelID: "9", ctx: t.Context(), waitErr: websocket.ErrSignatureTimeout, confirmed: true},
 		{name: "a confirmation as the context ended", channelID: "10", ctx: ended, waitErr: context.Canceled, confirmed: true},
 	} {
-		var subID string
-		conn.script = append(conn.script, func(payload any) ([]byte, error) {
-			subID, _ = payload.(map[string]any)["subId"].(string)
-			if tc.confirmed {
+		t.Run(tc.name, func(t *testing.T) {
+			var subID string
+			conn.script = append(conn.script, func(payload any) ([]byte, error) {
+				subID, _ = payload.(map[string]any)["subId"].(string)
+				if tc.confirmed {
+					require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, confirmation(tc.channelID, subID)), "wsHandleData must not error for %s", tc.name)
+				}
+				return nil, tc.waitErr
+			})
+			s := fixtureSubscription(t, "ticker:tBTCUSD")
+			s.QualifiedChannel = `{"channel":"ticker","symbol":"tBTCUSD"}`
+			sent := len(conn.sent)
+			require.ErrorIsf(t, ex.wsSubscribeChannel(tc.ctx, conn, s), tc.waitErr, "wsSubscribeChannel must return the wait's error for %s", tc.name)
+			assert.Emptyf(t, ex.Websocket.GetSubscriptions(), "wsSubscribeChannel should record no subscription for %s", tc.name)
+			if !tc.confirmed {
 				require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, confirmation(tc.channelID, subID)), "wsHandleData must not error for %s", tc.name)
 			}
-			return nil, tc.waitErr
+			id, err := strconv.ParseUint(tc.channelID, 10, 64)
+			require.NoError(t, err, "ParseUint must not error")
+			assert.Nilf(t, ex.wsChannels.get(conn, id), "the channel of %s should not be mapped", tc.name)
+			assert.Equalf(t, []string{`{"event":"unsubscribe","chanId":` + tc.channelID + `}`}, conn.sent[sent:], "the channel of %s should be unsubscribed", tc.name)
+			// Bitfinex's reply is the draining channel's, which no request awaits
+			require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"unsubscribed","status":"OK","chanId":`+tc.channelID+`}`)), "wsHandleData must not error unsubscribing the channel of %s", tc.name)
+			assert.Falsef(t, ex.wsChannels.isDraining(conn, id), "the channel of %s should be forgotten once unsubscribed", tc.name)
 		})
-		s := fixtureSubscription(t, "ticker:tBTCUSD")
-		s.QualifiedChannel = `{"channel":"ticker","symbol":"tBTCUSD"}`
-		sent := len(conn.sent)
-		require.ErrorIsf(t, ex.wsSubscribeChannel(tc.ctx, conn, s), tc.waitErr, "wsSubscribeChannel must return the wait's error for %s", tc.name)
-		assert.Emptyf(t, ex.Websocket.GetSubscriptions(), "wsSubscribeChannel should record no subscription for %s", tc.name)
-		if !tc.confirmed {
-			require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, confirmation(tc.channelID, subID)), "wsHandleData must not error for %s", tc.name)
-		}
-		id, err := strconv.ParseUint(tc.channelID, 10, 64)
-		require.NoError(t, err, "ParseUint must not error")
-		assert.Nilf(t, ex.wsChannels.get(conn, id), "the channel of %s should not be mapped", tc.name)
-		assert.Equalf(t, []string{`{"event":"unsubscribe","chanId":` + tc.channelID + `}`}, conn.sent[sent:], "the channel of %s should be unsubscribed", tc.name)
-		// Bitfinex's reply is the draining channel's, which no request awaits
-		require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"unsubscribed","status":"OK","chanId":`+tc.channelID+`}`)), "wsHandleData must not error unsubscribing the channel of %s", tc.name)
-		assert.Falsef(t, ex.wsChannels.isDraining(conn, id), "the channel of %s should be forgotten once unsubscribed", tc.name)
 	}
 
 	// The same subscription on another connection, such as the one replacing this, keeps its request and its channel
@@ -2018,47 +2151,50 @@ func TestWebsocketSubscribeChannelTakenOver(t *testing.T) {
 		{name: "the same subscription", same: true},
 		{name: "the same subscription renewing the channel", same: true, renew: true},
 	} {
-		ex, test := newChannelTestExchange(t)
-		conn := &scriptedConnection{Connection: test}
-		require.NoError(t, ex.Websocket.TrackTestConnection(wsPublicConnection, conn), "TrackTestConnection must not error")
-		first := fixtureSubscription(t, "book:tBTCUSD:R0")
-		first.QualifiedChannel = `{"channel":"book","symbol":"tBTCUSD","prec":"R0","len":"25"}`
-		taker := first.Clone()
-		if tc.same {
-			taker = first
-		}
-		var renewalID string
-		conn.script = []func(any) ([]byte, error){
-			func(payload any) ([]byte, error) {
-				subID, _ := payload.(map[string]any)["subId"].(string)
-				require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, book("7", subID)), "the first request's confirmation must be handled for %s", tc.name)
-				require.NoErrorf(t, ex.Websocket.SubscribeToChannels(t.Context(), conn, subscription.List{taker}), "%s refused as a duplicate must take the channel over", tc.name)
-				if tc.renew {
-					require.ErrorIsf(t, ex.wsRenewChannel(t.Context(), conn, taker), websocket.ErrSignatureTimeout, "the renewal must still await its confirmation for %s", tc.name)
-				}
-				return nil, websocket.ErrSignatureTimeout
-			},
-			func(payload any) ([]byte, error) {
-				// The reader forgets a refused request
-				subID, _ := payload.(map[string]any)["subId"].(string)
-				ex.wsChannels.removePending(subID)
-				return []byte(`{"event":"error","msg":"subscribe: dup","code":10301,"chanId":7}`), nil
-			},
-			func(any) ([]byte, error) { return []byte(`{"event":"unsubscribed","status":"OK","chanId":7}`), nil },
-			func(payload any) ([]byte, error) {
-				renewalID, _ = payload.(map[string]any)["subId"].(string)
-				return nil, websocket.ErrSignatureTimeout
-			},
-		}
-		require.ErrorIsf(t, ex.Websocket.SubscribeToChannels(t.Context(), conn, subscription.List{first}), websocket.ErrSignatureTimeout, "the first request's wait must fail for %s", tc.name)
-		assert.Samef(t, taker, ex.Websocket.GetSubscription(first), "the manager should keep %s recorded", tc.name)
-		channelID := uint64(7)
-		if tc.renew {
-			require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, book("8", renewalID)), "the renewal's confirmation must be handled for %s", tc.name)
-			channelID = 8
-		}
-		assert.Samef(t, taker, ex.wsChannels.get(conn, channelID), "%s should keep the channel it took over", tc.name)
-		assert.Emptyf(t, conn.sent, "the failed wait should not unsubscribe the channel %s took over", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, test := newChannelTestExchange(t)
+			conn := &scriptedConnection{Connection: test}
+			require.NoError(t, ex.Websocket.TrackTestConnection(wsPublicConnection, conn), "TrackTestConnection must not error")
+			first := fixtureSubscription(t, "book:tBTCUSD:R0")
+			first.QualifiedChannel = `{"channel":"book","symbol":"tBTCUSD","prec":"R0","len":"25"}`
+			taker := first.Clone()
+			if tc.same {
+				taker = first
+			}
+			var renewalID string
+			conn.script = []func(any) ([]byte, error){
+				func(payload any) ([]byte, error) {
+					subID, _ := payload.(map[string]any)["subId"].(string)
+					require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, book("7", subID)), "the first request's confirmation must be handled for %s", tc.name)
+					require.NoErrorf(t, ex.Websocket.SubscribeToChannels(t.Context(), conn, subscription.List{taker}), "%s refused as a duplicate must take the channel over", tc.name)
+					if tc.renew {
+						require.ErrorIsf(t, ex.wsRenewChannel(t.Context(), conn, taker), websocket.ErrSignatureTimeout, "the renewal must still await its confirmation for %s", tc.name)
+					}
+					return nil, websocket.ErrSignatureTimeout
+				},
+				func(payload any) ([]byte, error) {
+					// The reader forgets a refused request
+					subID, _ := payload.(map[string]any)["subId"].(string)
+					ex.wsChannels.removePending(subID)
+					return []byte(`{"event":"error","msg":"subscribe: dup","code":10301,"chanId":7}`), nil
+				},
+				func(any) ([]byte, error) { return []byte(`{"event":"unsubscribed","status":"OK","chanId":7}`), nil },
+				func(payload any) ([]byte, error) {
+					renewalID, _ = payload.(map[string]any)["subId"].(string)
+					return nil, websocket.ErrSignatureTimeout
+				},
+			}
+			require.ErrorIsf(t, ex.Websocket.SubscribeToChannels(t.Context(), conn, subscription.List{first}), websocket.ErrSignatureTimeout, "the first request's wait must fail for %s", tc.name)
+			assert.Samef(t, taker, ex.Websocket.GetSubscription(first), "the manager should keep %s recorded", tc.name)
+			channelID := uint64(7)
+			if tc.renew {
+				require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, book("8", renewalID)), "the renewal's confirmation must be handled for %s", tc.name)
+				channelID = 8
+			}
+			assert.Samef(t, taker, ex.wsChannels.get(conn, channelID), "%s should keep the channel it took over", tc.name)
+			assert.Emptyf(t, conn.sent, "the failed wait should not unsubscribe the channel %s took over", tc.name)
+		})
 	}
 }
 
@@ -2077,38 +2213,44 @@ func TestWebsocketSubscribeChannelAbandonedBook(t *testing.T) {
 		{name: "books another connection carries", shared: true, carried: true},
 		{name: "books a closed connection carried", shared: true, carried: true, closed: true},
 	} {
-		ex, test := newChannelTestExchange(t)
-		conn := &scriptedConnection{Connection: test}
-		s := fixtureSubscription(t, "book:tBTCUSD:R0")
-		s.QualifiedChannel = `{"channel":"book","symbol":"tBTCUSD","prec":"R0","len":"25"}`
-		assets := []asset.Item{asset.Spot}
-		if tc.shared {
-			ex.wsSharedChannels.set(map[string]*subscription.Subscription{s.QualifiedChannel: s})
-			assets = append(assets, asset.Margin)
-		}
-		if tc.carried {
-			created, err := ex.Websocket.CreateTestConnection(wsPublicConnection)
-			require.NoError(t, err, "CreateTestConnection must not error")
-			other := &stateConnection{Connection: created, connected: !tc.closed}
-			ex.wsChannels.addPending("other", other, s.Clone())
-			_, err = ex.wsChannels.confirm("other", other, 3)
-			require.NoError(t, err, "confirm must not error")
-		}
-		conn.script = []func(any) ([]byte, error){func(payload any) ([]byte, error) {
-			subID, _ := payload.(map[string]any)["subId"].(string)
-			require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"book","chanId":7,"symbol":"tBTCUSD","prec":"R0","len":"25","subId":"`+subID+`"}`)), "the confirmation must be handled for %s", tc.name)
-			require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(`[7,[[1,100,0.5],[2,101,-0.25]],1792128962861]`)), "the snapshot must be handled for %s", tc.name)
-			return nil, websocket.ErrSignatureTimeout
-		}}
-		require.ErrorIsf(t, ex.wsSubscribeChannel(t.Context(), conn, s), websocket.ErrSignatureTimeout, "wsSubscribeChannel must return the wait's error for %s", tc.name)
-		for _, a := range assets {
-			_, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSD(), a)
-			if tc.carried && !tc.closed {
-				assert.NoErrorf(t, err, "the %s book should stay valid for %s", a, tc.name)
-			} else {
-				assert.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "the %s book should be invalidated for %s", a, tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, test := newChannelTestExchange(t)
+			conn := &scriptedConnection{Connection: test}
+			s := fixtureSubscription(t, "book:tBTCUSD:R0")
+			s.QualifiedChannel = `{"channel":"book","symbol":"tBTCUSD","prec":"R0","len":"25"}`
+			assets := []asset.Item{asset.Spot}
+			if tc.shared {
+				ex.wsSharedChannels.set(map[string]*subscription.Subscription{s.QualifiedChannel: s})
+				assets = append(assets, asset.Margin)
 			}
-		}
+			if tc.carried {
+				created, err := ex.Websocket.CreateTestConnection(wsPublicConnection)
+				require.NoError(t, err, "CreateTestConnection must not error")
+				other := &stateConnection{Connection: created, connected: !tc.closed}
+				ex.wsChannels.addPending("other", other, s.Clone())
+				_, err = ex.wsChannels.confirm("other", other, 3)
+				require.NoError(t, err, "confirm must not error")
+			}
+			conn.script = []func(any) ([]byte, error){func(payload any) ([]byte, error) {
+				subID, _ := payload.(map[string]any)["subId"].(string)
+				require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"book","chanId":7,"symbol":"tBTCUSD","prec":"R0","len":"25","subId":"`+subID+`"}`)), "the confirmation must be handled for %s", tc.name)
+				require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(`[7,[[1,100,0.5],[2,101,-0.25]],1792128962861]`)), "the snapshot must be handled for %s", tc.name)
+				return nil, websocket.ErrSignatureTimeout
+			}}
+			require.ErrorIsf(t, ex.wsSubscribeChannel(t.Context(), conn, s), websocket.ErrSignatureTimeout, "wsSubscribeChannel must return the wait's error for %s", tc.name)
+			// The cases share ex, so each also checks that a call keeps nothing from the last
+			for _, a := range assets {
+				t.Run(a.String(), func(t *testing.T) {
+					_, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSD(), a)
+					if tc.carried && !tc.closed {
+						assert.NoErrorf(t, err, "the %s book should stay valid for %s", a, tc.name)
+					} else {
+						assert.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "the %s book should be invalidated for %s", a, tc.name)
+					}
+				})
+			}
+		})
 	}
 }
 
@@ -2137,7 +2279,7 @@ func (c *pausingContext) Value(k any) any {
 	return c.Context.Value(k)
 }
 
-func TestWebsocketBookLoadedAsChannelAbandoned(t *testing.T) {
+func TestWebsocketBookLoadedAsChannelAbandoned(t *testing.T) { //nolint:tparallel // The cases share ex, so they run serially
 	t.Parallel()
 	// A snapshot handled as its channel is abandoned can load a book after the abandonment invalidated it: here the
 	// subscriber abandons the channel once spot's book has loaded, while the snapshot is relayed, and before margin's,
@@ -2175,9 +2317,12 @@ func TestWebsocketBookLoadedAsChannelAbandoned(t *testing.T) {
 	case <-ctx.Done():
 		require.FailNow(t, "the snapshot must be handled before the deadline")
 	}
+	// The cases share ex, so each also checks that a call keeps nothing from the last
 	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
-		_, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSD(), a)
-		assert.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "the %s book the snapshot loaded as its channel was abandoned should be invalidated", a)
+		t.Run(a.String(), func(t *testing.T) {
+			_, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSD(), a)
+			assert.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "the %s book the snapshot loaded as its channel was abandoned should be invalidated", a)
+		})
 	}
 }
 

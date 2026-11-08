@@ -3,6 +3,7 @@ package bitfinex
 import (
 	"context"
 	"math"
+	"strconv"
 	"testing"
 	"time"
 
@@ -127,13 +128,16 @@ func TestGetOpenOrders(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenOrders should return the request failure")
 }
 
-func TestGetOpenOrdersBySymbol(t *testing.T) {
+func TestGetOpenOrdersBySymbol(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.GetOpenOrdersBySymbol(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOpenOrdersBySymbol must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"", "t", "fUSD", "BTCUSD"} {
-		_, err = e.GetOpenOrdersBySymbol(t.Context(), &OpenOrdersBySymbolRequest{Symbol: symbol})
-		assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetOpenOrdersBySymbol should refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetOpenOrdersBySymbol(t.Context(), &OpenOrdersBySymbolRequest{Symbol: symbol})
+			assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetOpenOrdersBySymbol should refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetOpenOrdersBySymbol(t.Context(), &OpenOrdersBySymbolRequest{Symbol: "tBTCUSD", ClientOrderID: 1})
 	assert.ErrorIs(t, err, errClientOrderIDDateUnset, "GetOpenOrdersBySymbol should refuse a client order ID without its date")
@@ -158,13 +162,16 @@ func TestGetOpenOrdersBySymbol(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenOrdersBySymbol should return the request failure")
 }
 
-func TestPlaceOrder(t *testing.T) {
+func TestPlaceOrder(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.PlaceOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "PlaceOrder must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, orderType := range []string{"", "LIMITED", "limit", ExchangeOrderTypePrefix, ExchangeOrderTypePrefix + ExchangeOrderTypePrefix + OrderTypeLimit} {
-		_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{Type: orderType, Symbol: "tBTCUSD", Amount: 1, Price: 1})
-		assert.ErrorIsf(t, err, errInvalidOrderType, "PlaceOrder should refuse order type %q", orderType)
+		t.Run(subtestName(orderType), func(t *testing.T) {
+			_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{Type: orderType, Symbol: "tBTCUSD", Amount: 1, Price: 1})
+			assert.ErrorIsf(t, err, errInvalidOrderType, "PlaceOrder should refuse order type %q", orderType)
+		})
 	}
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{Type: OrderTypeLimit, Symbol: "fUSD", Amount: 1, Price: 1})
 	assert.ErrorIs(t, err, errTradingSymbolRequired, "PlaceOrder should refuse a funding currency symbol")
@@ -231,7 +238,7 @@ func TestUpdateOrder(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "UpdateOrder should return the request failure")
 }
 
-func TestCancelExistingOrder(t *testing.T) {
+func TestCancelExistingOrder(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.CancelExistingOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelExistingOrder must reject a nil request")
@@ -249,10 +256,19 @@ func TestCancelExistingOrder(t *testing.T) {
 			Status: NotificationStatusSuccess,
 			Text:   "Submitted for cancellation; waiting for confirmation (ID: 1747566428).",
 		}
-		for _, req := range []*CancelExistingOrderRequest{{ID: testOrderID}, {ClientOrderID: testClientOrderID, ClientOrderIDDate: testClientOrderIDDate}} {
-			result, err := e.CancelExistingOrder(t.Context(), req)
-			require.NoErrorf(t, err, "CancelExistingOrder must not error for %+v", req)
-			assert.Equalf(t, exp, result, "CancelExistingOrder should decode every field for %+v", req)
+		// The cases share e in order, so each also checks that a call keeps nothing from the last
+		for _, tc := range []struct {
+			name string
+			req  *CancelExistingOrderRequest
+		}{
+			{"order ID", &CancelExistingOrderRequest{ID: testOrderID}},
+			{"client order ID", &CancelExistingOrderRequest{ClientOrderID: testClientOrderID, ClientOrderIDDate: testClientOrderIDDate}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				result, err := e.CancelExistingOrder(t.Context(), tc.req)
+				require.NoErrorf(t, err, "CancelExistingOrder must not error for %+v", tc.req)
+				assert.Equalf(t, exp, result, "CancelExistingOrder should decode every field for %+v", tc.req)
+			})
 		}
 	} else {
 		placed := placeLiveTestOrder(t)
@@ -312,21 +328,95 @@ func TestOrderMultiOp(t *testing.T) {
 	}
 	_, err = e.OrderMultiOp(t.Context(), ops)
 	assert.ErrorIs(t, err, errTooManyOrderOperations, "OrderMultiOp should refuse more operations than Bitfinex takes")
-	for _, op := range []OrderOperation{nil, (*PlaceOrderRequest)(nil), (*UpdateOrderRequest)(nil), (*CancelExistingOrderRequest)(nil), (*CancelOrdersRequest)(nil)} {
-		_, err = e.OrderMultiOp(t.Context(), []OrderOperation{&CancelExistingOrderRequest{ID: 1}, op})
-		assert.ErrorIsf(t, err, common.ErrNilPointer, "OrderMultiOp should refuse a nil %T operation", op)
+	// newOperations returns n operations of every kind, their IDs out of order and the second to last repeating the
+	// one before it, and the operations as the request carries them
+	newOperations := func(n int) ([]OrderOperation, [][2]any) {
+		batch, sent := make([]OrderOperation, n), make([][2]any, n)
+		for i := range batch {
+			id := 1000 + uint64(i*7%n)
+			switch i % 4 {
+			case 0:
+				batch[i] = &PlaceOrderRequest{Type: OrderTypeLimit, Symbol: "tBTCUSD", Amount: 1, Price: 1, ClientOrderID: id}
+				sent[i] = [2]any{"on", map[string]any{"type": "LIMIT", "symbol": "tBTCUSD", "amount": "1", "price": "1", "cid": id}}
+			case 1:
+				batch[i], sent[i] = &UpdateOrderRequest{ID: id, Price: 1}, [2]any{"ou", map[string]any{"id": id, "price": "1"}}
+			case 2:
+				batch[i], sent[i] = &CancelExistingOrderRequest{ID: id}, [2]any{"oc", map[string]any{"id": id}}
+			default:
+				batch[i], sent[i] = &CancelOrdersRequest{IDs: []uint64{id}}, [2]any{"oc_multi", map[string]any{"id": []uint64{id}}}
+			}
+		}
+		batch[n-2], sent[n-2] = batch[n-3], sent[n-3]
+		return batch, sent
 	}
 	for _, tc := range []struct {
-		op  OrderOperation
-		err error
+		name       string
+		operations int
 	}{
-		{&PlaceOrderRequest{Type: OrderTypeLimit, Symbol: "tBTCUSD", Price: 1}, errInvalidAmount},
-		{&UpdateOrderRequest{Price: 1}, errOrderIDRequired},
-		{&CancelExistingOrderRequest{}, errOrderIDRequired},
-		{&CancelOrdersRequest{}, errOrdersToCancelRequired},
+		{"74 operations are sent in one request", 74},
+		{"75 operations, the most Bitfinex takes, are sent in one request", 75},
 	} {
-		_, err = e.OrderMultiOp(t.Context(), []OrderOperation{tc.op})
-		assert.ErrorIsf(t, err, tc.err, "OrderMultiOp should return the validation error of a %T operation", tc.op)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, bodies := newRequestBodyExchange(t, "/v2/auth/w/order/multi", `[1569347312984,"ox_multi-req",null,null,[],null,"SUCCESS","Submitting order operations."]`)
+			batch, sent := newOperations(tc.operations)
+			_, err := ex.OrderMultiOp(t.Context(), batch)
+			require.NoErrorf(t, err, "OrderMultiOp must send %d operations", tc.operations)
+			exp, err := json.Marshal(map[string]any{"ops": sent})
+			require.NoError(t, err, "Marshal must encode the operations sent")
+			assert.JSONEqf(t, string(exp), requestBody(t, bodies), "OrderMultiOp should send all %d operations, in order, in one request", tc.operations)
+		})
+	}
+	for _, operations := range []int{76, 150} {
+		t.Run(strconv.Itoa(operations)+" operations are refused without a request", func(t *testing.T) {
+			t.Parallel()
+			ex, bodies := newRequestBodyExchange(t, "/v2/auth/w/order/multi", `[1569347312984,"ox_multi-req",null,null,[],null,"SUCCESS","Submitting order operations."]`)
+			batch, _ := newOperations(operations)
+			_, err := ex.OrderMultiOp(t.Context(), batch)
+			assert.ErrorIsf(t, err, errTooManyOrderOperations, "OrderMultiOp should refuse %d operations", operations)
+			assert.Empty(t, bodies, "OrderMultiOp should send no request for operations it refuses")
+		})
+	}
+	t.Run("76 operations are refused for their number before any is checked", func(t *testing.T) {
+		t.Parallel()
+		ex, bodies := newRequestBodyExchange(t, "/v2/auth/w/order/multi", `[1569347312984,"ox_multi-req",null,null,[],null,"SUCCESS","Submitting order operations."]`)
+		batch, _ := newOperations(76)
+		batch[0] = nil
+		_, err := ex.OrderMultiOp(t.Context(), batch)
+		assert.ErrorIs(t, err, errTooManyOrderOperations, "OrderMultiOp should refuse too many operations before checking each one")
+		assert.Empty(t, bodies, "OrderMultiOp should send no request for operations it refuses")
+	})
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
+	for _, tc := range []struct {
+		name string
+		op   OrderOperation
+	}{
+		{"nil OrderOperation", nil},
+		{"nil PlaceOrderRequest", (*PlaceOrderRequest)(nil)},
+		{"nil UpdateOrderRequest", (*UpdateOrderRequest)(nil)},
+		{"nil CancelExistingOrderRequest", (*CancelExistingOrderRequest)(nil)},
+		{"nil CancelOrdersRequest", (*CancelOrdersRequest)(nil)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err = e.OrderMultiOp(t.Context(), []OrderOperation{&CancelExistingOrderRequest{ID: 1}, tc.op})
+			assert.ErrorIsf(t, err, common.ErrNilPointer, "OrderMultiOp should refuse a nil %T operation", tc.op)
+		})
+	}
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
+	for _, tc := range []struct {
+		name string
+		op   OrderOperation
+		err  error
+	}{
+		{"PlaceOrderRequest without an amount", &PlaceOrderRequest{Type: OrderTypeLimit, Symbol: "tBTCUSD", Price: 1}, errInvalidAmount},
+		{"UpdateOrderRequest without an ID", &UpdateOrderRequest{Price: 1}, errOrderIDRequired},
+		{"CancelExistingOrderRequest without an ID", &CancelExistingOrderRequest{}, errOrderIDRequired},
+		{"CancelOrdersRequest selecting no orders", &CancelOrdersRequest{}, errOrdersToCancelRequired},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err = e.OrderMultiOp(t.Context(), []OrderOperation{tc.op})
+			assert.ErrorIsf(t, err, tc.err, "OrderMultiOp should return the validation error of a %T operation", tc.op)
+		})
 	}
 
 	skipLiveUnlessCanManipulate(t)
@@ -437,13 +527,16 @@ func TestGetOrdersHistory(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrdersHistory should return the request failure")
 }
 
-func TestGetOrdersHistoryBySymbol(t *testing.T) {
+func TestGetOrdersHistoryBySymbol(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.GetOrdersHistoryBySymbol(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOrdersHistoryBySymbol must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"", "t", "fUSD", "BTCUSD"} {
-		_, err = e.GetOrdersHistoryBySymbol(t.Context(), &OrdersHistoryBySymbolRequest{Symbol: symbol})
-		assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetOrdersHistoryBySymbol should refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetOrdersHistoryBySymbol(t.Context(), &OrdersHistoryBySymbolRequest{Symbol: symbol})
+			assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetOrdersHistoryBySymbol should refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetOrdersHistoryBySymbol(t.Context(), &OrdersHistoryBySymbolRequest{Symbol: "tBTCUSD", Start: time.UnixMilli(1573486000000), End: time.UnixMilli(1573482000000)})
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd, "GetOrdersHistoryBySymbol should refuse a reversed window")
@@ -468,13 +561,16 @@ func TestGetOrdersHistoryBySymbol(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrdersHistoryBySymbol should return the request failure")
 }
 
-func TestGetOrderTrades(t *testing.T) {
+func TestGetOrderTrades(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.GetOrderTrades(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOrderTrades must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"", "t", "fUSD", "BTCUSD"} {
-		_, err = e.GetOrderTrades(t.Context(), &OrderTradesRequest{Symbol: symbol, OrderID: 1})
-		assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetOrderTrades should refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetOrderTrades(t.Context(), &OrderTradesRequest{Symbol: symbol, OrderID: 1})
+			assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetOrderTrades should refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetOrderTrades(t.Context(), &OrderTradesRequest{Symbol: "tBTCUSD"})
 	assert.ErrorIs(t, err, errOrderIDRequired, "GetOrderTrades should refuse a request without an order ID")
@@ -539,13 +635,16 @@ func TestGetAccountTrades(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetAccountTrades should return the request failure")
 }
 
-func TestGetAccountTradesBySymbol(t *testing.T) {
+func TestGetAccountTradesBySymbol(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.GetAccountTradesBySymbol(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetAccountTradesBySymbol must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"", "t", "fUSD", "BTCUSD"} {
-		_, err = e.GetAccountTradesBySymbol(t.Context(), &AccountTradesBySymbolRequest{Symbol: symbol})
-		assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetAccountTradesBySymbol should refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetAccountTradesBySymbol(t.Context(), &AccountTradesBySymbolRequest{Symbol: symbol})
+			assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetAccountTradesBySymbol should refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetAccountTradesBySymbol(t.Context(), &AccountTradesBySymbolRequest{Symbol: "tBTCUSD", Start: time.UnixMilli(1574970000000), End: time.UnixMilli(1574960000000)})
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAccountTradesBySymbol should refuse a reversed window")
@@ -575,13 +674,16 @@ func TestGetAccountTradesBySymbol(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetAccountTradesBySymbol should return the request failure")
 }
 
-func TestGetOverTheCounterOrdersHistory(t *testing.T) {
+func TestGetOverTheCounterOrdersHistory(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.GetOverTheCounterOrdersHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOverTheCounterOrdersHistory must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"t", "fUSD", "BTCUSD"} {
-		_, err = e.GetOverTheCounterOrdersHistory(t.Context(), &OverTheCounterOrdersHistoryRequest{Symbol: symbol})
-		assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetOverTheCounterOrdersHistory should refuse symbol %q", symbol)
+		t.Run("refuses "+symbol, func(t *testing.T) {
+			_, err = e.GetOverTheCounterOrdersHistory(t.Context(), &OverTheCounterOrdersHistoryRequest{Symbol: symbol})
+			assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetOverTheCounterOrdersHistory should refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetOverTheCounterOrdersHistory(t.Context(), &OverTheCounterOrdersHistoryRequest{Start: time.UnixMilli(1670600000000), End: time.UnixMilli(1669000000000)})
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd, "GetOverTheCounterOrdersHistory should refuse a reversed window")
@@ -591,24 +693,27 @@ func TestGetOverTheCounterOrdersHistory(t *testing.T) {
 	if mockTests {
 		reqs = []*OverTheCounterOrdersHistoryRequest{{}, {Symbol: "tBTCUSD", Start: time.UnixMilli(1669000000000), End: time.UnixMilli(1670600000000), Limit: 25, IDs: []uint64{123}}}
 	}
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, req := range reqs {
-		result, err := e.GetOverTheCounterOrdersHistory(t.Context(), req)
-		require.NoErrorf(t, err, "GetOverTheCounterOrdersHistory must not error for symbol %q", req.Symbol)
-		if mockTests {
-			exp := []OverTheCounterOrderResponse{testOverTheCounterOrder}
-			assert.Equalf(t, exp, result, "GetOverTheCounterOrdersHistory should decode every field for symbol %q", req.Symbol)
-		} else {
-			for i := range result {
-				assert.NotZerof(t, result[i].ID, "GetOverTheCounterOrdersHistory should return each order's ID for symbol %q", req.Symbol)
+		t.Run(subtestName(req.Symbol), func(t *testing.T) {
+			result, err := e.GetOverTheCounterOrdersHistory(t.Context(), req)
+			require.NoErrorf(t, err, "GetOverTheCounterOrdersHistory must not error for symbol %q", req.Symbol)
+			if mockTests {
+				exp := []OverTheCounterOrderResponse{testOverTheCounterOrder}
+				assert.Equalf(t, exp, result, "GetOverTheCounterOrdersHistory should decode every field for symbol %q", req.Symbol)
+			} else {
+				for i := range result {
+					assert.NotZerof(t, result[i].ID, "GetOverTheCounterOrdersHistory should return each order's ID for symbol %q", req.Symbol)
+				}
 			}
-		}
+		})
 	}
 
 	_, err = newUnavailableServerExchange(t).GetOverTheCounterOrdersHistory(t.Context(), &OverTheCounterOrdersHistoryRequest{})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOverTheCounterOrdersHistory should return the request failure")
 }
 
-func TestGetLedgers(t *testing.T) {
+func TestGetLedgers(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.GetLedgers(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetLedgers must reject a nil request")
@@ -623,17 +728,20 @@ func TestGetLedgers(t *testing.T) {
 		// The lower case currency is sent upper case
 		reqs = []*LedgersRequest{{}, {Currency: currency.NewCode("usd"), Category: LedgerCategorySettlement, Start: time.UnixMilli(1573500000000), End: time.UnixMilli(1573530000000), Limit: 25, Wallet: "margin"}}
 	}
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, req := range reqs {
-		result, err := e.GetLedgers(t.Context(), req)
-		require.NoErrorf(t, err, "GetLedgers must not error for currency %q", req.Currency)
-		if mockTests {
-			exp := []LedgerEntryResponse{testLedgerEntry}
-			assert.Equalf(t, exp, result, "GetLedgers should decode every field for currency %q", req.Currency)
-		} else {
-			for i := range result {
-				assert.NotZerof(t, result[i].ID, "GetLedgers should return each entry's ID for currency %q", req.Currency)
+		t.Run(subtestName(req.Currency.String()), func(t *testing.T) {
+			result, err := e.GetLedgers(t.Context(), req)
+			require.NoErrorf(t, err, "GetLedgers must not error for currency %q", req.Currency)
+			if mockTests {
+				exp := []LedgerEntryResponse{testLedgerEntry}
+				assert.Equalf(t, exp, result, "GetLedgers should decode every field for currency %q", req.Currency)
+			} else {
+				for i := range result {
+					assert.NotZerof(t, result[i].ID, "GetLedgers should return each entry's ID for currency %q", req.Currency)
+				}
 			}
-		}
+		})
 	}
 
 	_, err = newUnavailableServerExchange(t).GetLedgers(t.Context(), &LedgersRequest{})
@@ -677,19 +785,23 @@ func TestPlaceOrderRequestBody(t *testing.T) {
 	require.NoError(t, err, "body must not error for a market order without a price")
 	assertBodyJSON(t, `{"type":"EXCHANGE MARKET","symbol":"tBTCUSD","amount":"1","price":"0"}`, body)
 	for _, tc := range []struct {
-		r   PlaceOrderRequest
-		err error
+		name string
+		r    PlaceOrderRequest
+		err  error
 	}{
-		{r: PlaceOrderRequest{Amount: math.NaN()}, err: errInvalidAmount},
-		{r: PlaceOrderRequest{Amount: math.Inf(-1)}, err: errInvalidAmount},
-		{r: PlaceOrderRequest{Amount: 1, Price: math.NaN()}, err: errInvalidPrice},
-		{r: PlaceOrderRequest{Amount: 1, TrailingPrice: math.Inf(1)}, err: errInvalidPrice},
-		{r: PlaceOrderRequest{Amount: 1, AuxiliaryLimitPrice: -1}, err: errInvalidPrice},
-		{r: PlaceOrderRequest{Amount: 1, OneCancelsOtherStopPrice: math.NaN()}, err: errInvalidPrice},
+		{name: "NaN amount", r: PlaceOrderRequest{Amount: math.NaN()}, err: errInvalidAmount},
+		{name: "negative infinite amount", r: PlaceOrderRequest{Amount: math.Inf(-1)}, err: errInvalidAmount},
+		{name: "NaN price", r: PlaceOrderRequest{Amount: 1, Price: math.NaN()}, err: errInvalidPrice},
+		{name: "infinite trailing price", r: PlaceOrderRequest{Amount: 1, TrailingPrice: math.Inf(1)}, err: errInvalidPrice},
+		{name: "negative auxiliary limit price", r: PlaceOrderRequest{Amount: 1, AuxiliaryLimitPrice: -1}, err: errInvalidPrice},
+		{name: "NaN one cancels other stop price", r: PlaceOrderRequest{Amount: 1, OneCancelsOtherStopPrice: math.NaN()}, err: errInvalidPrice},
 	} {
-		tc.r.Type, tc.r.Symbol = OrderTypeLimit, "tBTCUSD"
-		_, err := tc.r.body()
-		assert.ErrorIsf(t, err, tc.err, "body should refuse %+v", tc.r)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.r.Type, tc.r.Symbol = OrderTypeLimit, "tBTCUSD"
+			_, err := tc.r.body()
+			assert.ErrorIsf(t, err, tc.err, "body should refuse %+v", tc.r)
+		})
 	}
 }
 
@@ -718,18 +830,22 @@ func TestUpdateOrderRequestBody(t *testing.T) {
 	require.NoError(t, err, "body must not error for an update of nothing")
 	assertBodyJSON(t, `{"id":1}`, body)
 	for _, tc := range []struct {
-		r   UpdateOrderRequest
-		err error
+		name string
+		r    UpdateOrderRequest
+		err  error
 	}{
-		{r: UpdateOrderRequest{Amount: math.NaN()}, err: errInvalidAmount},
-		{r: UpdateOrderRequest{Delta: math.Inf(1)}, err: errInvalidAmount},
-		{r: UpdateOrderRequest{Price: math.Inf(-1)}, err: errInvalidPrice},
-		{r: UpdateOrderRequest{TrailingPrice: -1}, err: errInvalidPrice},
-		{r: UpdateOrderRequest{AuxiliaryLimitPrice: -1}, err: errInvalidPrice},
+		{name: "NaN amount", r: UpdateOrderRequest{Amount: math.NaN()}, err: errInvalidAmount},
+		{name: "infinite delta", r: UpdateOrderRequest{Delta: math.Inf(1)}, err: errInvalidAmount},
+		{name: "negative infinite price", r: UpdateOrderRequest{Price: math.Inf(-1)}, err: errInvalidPrice},
+		{name: "negative trailing price", r: UpdateOrderRequest{TrailingPrice: -1}, err: errInvalidPrice},
+		{name: "negative auxiliary limit price", r: UpdateOrderRequest{AuxiliaryLimitPrice: -1}, err: errInvalidPrice},
 	} {
-		tc.r.ID = 1
-		_, err := tc.r.body()
-		assert.ErrorIsf(t, err, tc.err, "body should refuse %+v", tc.r)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.r.ID = 1
+			_, err := tc.r.body()
+			assert.ErrorIsf(t, err, tc.err, "body should refuse %+v", tc.r)
+		})
 	}
 }
 
@@ -737,16 +853,20 @@ func TestCheckOrderNumbers(t *testing.T) {
 	t.Parallel()
 	require.NoError(t, checkOrderNumbers([]float64{-1, 0, 1}, []float64{0, 1}), "checkOrderNumbers must accept signed amounts and prices of at least zero")
 	for _, tc := range []struct {
+		name            string
 		amounts, prices []float64
 		err             error
 	}{
-		{amounts: []float64{1, math.NaN()}, err: errInvalidAmount},
-		{amounts: []float64{math.Inf(1)}, err: errInvalidAmount},
-		{prices: []float64{1, -0.1}, err: errInvalidPrice},
-		{prices: []float64{math.NaN()}, err: errInvalidPrice},
-		{prices: []float64{math.Inf(1)}, err: errInvalidPrice},
+		{name: "NaN second amount", amounts: []float64{1, math.NaN()}, err: errInvalidAmount},
+		{name: "infinite amount", amounts: []float64{math.Inf(1)}, err: errInvalidAmount},
+		{name: "negative second price", prices: []float64{1, -0.1}, err: errInvalidPrice},
+		{name: "NaN price", prices: []float64{math.NaN()}, err: errInvalidPrice},
+		{name: "infinite price", prices: []float64{math.Inf(1)}, err: errInvalidPrice},
 	} {
-		assert.ErrorIsf(t, checkOrderNumbers(tc.amounts, tc.prices), tc.err, "checkOrderNumbers should refuse amounts %v and prices %v", tc.amounts, tc.prices)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, checkOrderNumbers(tc.amounts, tc.prices), tc.err, "checkOrderNumbers should refuse amounts %v and prices %v", tc.amounts, tc.prices)
+		})
 	}
 }
 
@@ -781,24 +901,39 @@ func TestCancelOrdersRequestBody(t *testing.T) {
 
 func TestOrderOperation(t *testing.T) {
 	t.Parallel()
+	// Serial, as operation is called again after these cases
 	for _, tc := range []struct {
+		name         string
 		op           OrderOperation
 		abbreviation string
 		body         string
 	}{
-		{&PlaceOrderRequest{Type: OrderTypeMarket, Symbol: "tBTCUSD", Amount: 1}, "on", `{"type":"MARKET","symbol":"tBTCUSD","amount":"1","price":"0"}`},
-		{&UpdateOrderRequest{ID: 1, Price: 2}, "ou", `{"id":1,"price":"2"}`},
-		{&CancelExistingOrderRequest{ID: 1}, "oc", `{"id":1}`},
-		{&CancelOrdersRequest{All: true}, "oc_multi", `{"all":1}`},
+		{"PlaceOrderRequest", &PlaceOrderRequest{Type: OrderTypeMarket, Symbol: "tBTCUSD", Amount: 1}, "on", `{"type":"MARKET","symbol":"tBTCUSD","amount":"1","price":"0"}`},
+		{"UpdateOrderRequest", &UpdateOrderRequest{ID: 1, Price: 2}, "ou", `{"id":1,"price":"2"}`},
+		{"CancelExistingOrderRequest", &CancelExistingOrderRequest{ID: 1}, "oc", `{"id":1}`},
+		{"CancelOrdersRequest", &CancelOrdersRequest{All: true}, "oc_multi", `{"all":1}`},
 	} {
-		abbreviation, body, err := tc.op.operation()
-		require.NoErrorf(t, err, "operation must not error for %T", tc.op)
-		assert.Equalf(t, tc.abbreviation, abbreviation, "operation should give the abbreviation of a %T", tc.op)
-		assertBodyJSON(t, tc.body, body)
+		t.Run(tc.name, func(t *testing.T) {
+			abbreviation, body, err := tc.op.operation()
+			require.NoErrorf(t, err, "operation must not error for %T", tc.op)
+			assert.Equalf(t, tc.abbreviation, abbreviation, "operation should give the abbreviation of a %T", tc.op)
+			assertBodyJSON(t, tc.body, body)
+		})
 	}
-	for _, op := range []OrderOperation{&PlaceOrderRequest{}, &UpdateOrderRequest{}, &CancelExistingOrderRequest{}, &CancelOrdersRequest{}} {
-		_, _, err := op.operation()
-		assert.Errorf(t, err, "operation should return the validation error of a %T", op)
+	for _, tc := range []struct {
+		name string
+		op   OrderOperation
+	}{
+		{"empty PlaceOrderRequest", &PlaceOrderRequest{}},
+		{"empty UpdateOrderRequest", &UpdateOrderRequest{}},
+		{"empty CancelExistingOrderRequest", &CancelExistingOrderRequest{}},
+		{"empty CancelOrdersRequest", &CancelOrdersRequest{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, _, err := tc.op.operation()
+			assert.Errorf(t, err, "operation should return the validation error of a %T", tc.op)
+		})
 	}
 }
 
@@ -840,17 +975,24 @@ func TestOrdersRecordsEveryPosition(t *testing.T) {
 
 func TestIsOrderType(t *testing.T) {
 	t.Parallel()
+	// Serial, as isOrderType is called again after these cases
 	for _, orderType := range []string{OrderTypeLimit, OrderTypeMarket, OrderTypeStop, OrderTypeStopLimit, OrderTypeTrailingStop, OrderTypeFillOrKill, OrderTypeImmediateOrCancel} {
-		assert.Truef(t, isOrderType(orderType), "isOrderType should accept %q", orderType)
-		assert.Truef(t, isOrderType(ExchangeOrderTypePrefix+orderType), "isOrderType should accept %q", ExchangeOrderTypePrefix+orderType)
+		t.Run("accepts "+orderType, func(t *testing.T) {
+			assert.Truef(t, isOrderType(orderType), "isOrderType should accept %q", orderType)
+			assert.Truef(t, isOrderType(ExchangeOrderTypePrefix+orderType), "isOrderType should accept %q", ExchangeOrderTypePrefix+orderType)
+		})
 	}
 	for _, orderType := range []string{"", "limit", "LIMITED", "EXCHANGE", ExchangeOrderTypePrefix, "EXCHANGELIMIT", ExchangeOrderTypePrefix + ExchangeOrderTypePrefix + OrderTypeLimit} {
-		assert.Falsef(t, isOrderType(orderType), "isOrderType should refuse %q", orderType)
+		t.Run("refuses "+subtestName(orderType), func(t *testing.T) {
+			t.Parallel()
+			assert.Falsef(t, isOrderType(orderType), "isOrderType should refuse %q", orderType)
+		})
 	}
 }
 
 func TestIsLedgerCategory(t *testing.T) {
 	t.Parallel()
+	// Serial, as isLedgerCategory is called again after these cases
 	for _, category := range []uint64{
 		LedgerCategoryExchange, LedgerCategoryPositionChange, LedgerCategoryPositionClaim, LedgerCategoryPositionTransfer,
 		LedgerCategoryPositionSwap, LedgerCategoryPositionFundingCost, LedgerCategoryMarginPayment, LedgerCategoryDerivativesFunding,
@@ -862,17 +1004,25 @@ func TestIsLedgerCategory(t *testing.T) {
 		LedgerCategoryAdjustment, LedgerCategoryExpense, LedgerCategoryCurrencyConversionFee, LedgerCategoryMonthlyProfitPayment,
 		LedgerCategoryLosses,
 	} {
-		assert.Truef(t, isLedgerCategory(category), "isLedgerCategory should accept %d", category)
+		t.Run("accepts "+strconv.FormatUint(category, 10), func(t *testing.T) {
+			assert.Truef(t, isLedgerCategory(category), "isLedgerCategory should accept %d", category)
+		})
 	}
 	for _, category := range []uint64{0, 1, 6, 30, 999, math.MaxUint64} {
-		assert.Falsef(t, isLedgerCategory(category), "isLedgerCategory should refuse %d", category)
+		t.Run("refuses "+strconv.FormatUint(category, 10), func(t *testing.T) {
+			t.Parallel()
+			assert.Falsef(t, isLedgerCategory(category), "isLedgerCategory should refuse %d", category)
+		})
 	}
 }
 
 func TestOrderDecimalParam(t *testing.T) {
 	t.Parallel()
 	for v, want := range map[float64]string{0: "", 0.1: "0.1", -2.5: "-2.5", 1e-8: "0.00000001", 1e21: "1000000000000000000000", 25000: "25000"} {
-		assert.Equalf(t, want, orderDecimalParam(v), "orderDecimalParam should format %v", v)
+		t.Run(strconv.FormatFloat(v, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, want, orderDecimalParam(v), "orderDecimalParam should format %v", v)
+		})
 	}
 }
 

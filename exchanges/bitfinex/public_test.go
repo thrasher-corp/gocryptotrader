@@ -55,11 +55,14 @@ func TestGetPlatformStatus(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetPlatformStatus should return the request failure")
 }
 
-func TestGetTicker(t *testing.T) {
+func TestGetTicker(t *testing.T) { //nolint:tparallel // the cases share e with the GetTicker calls after them
 	t.Parallel()
+	// Serial, as the cases share e and GetTicker is called on it again after them
 	for _, symbol := range []string{"", "t", "fUSD", "BTCUSD"} {
-		_, err := e.GetTicker(t.Context(), symbol)
-		assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetTicker should refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err := e.GetTicker(t.Context(), symbol)
+			assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetTicker should refuse symbol %q", symbol)
+		})
 	}
 
 	result, err := e.GetTicker(t.Context(), "tBTCUSD")
@@ -93,11 +96,14 @@ func TestGetTicker(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetTicker should return the request failure")
 }
 
-func TestGetFundingTicker(t *testing.T) {
+func TestGetFundingTicker(t *testing.T) { //nolint:tparallel // the cases share e with the GetFundingTicker calls after them
 	t.Parallel()
+	// Serial, as the cases share e and GetFundingTicker is called on it again after them
 	for _, symbol := range []string{"", "f", "tBTCUSD", "USD"} {
-		_, err := e.GetFundingTicker(t.Context(), symbol)
-		assert.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingTicker should refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err := e.GetFundingTicker(t.Context(), symbol)
+			assert.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingTicker should refuse symbol %q", symbol)
+		})
 	}
 
 	result, err := e.GetFundingTicker(t.Context(), "fUSD")
@@ -158,7 +164,7 @@ func TestGetTickers(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetTickers should return the request failure")
 }
 
-func TestTickersResponseUnmarshalJSON(t *testing.T) {
+func TestTickersResponseUnmarshalJSON(t *testing.T) { //nolint:tparallel // the cases decode into resp in turn
 	t.Parallel()
 	var resp TickersResponse
 	require.NoError(t, resp.UnmarshalJSON([]byte(`[]`)), "UnmarshalJSON must not error for no tickers")
@@ -175,8 +181,11 @@ func TestTickersResponseUnmarshalJSON(t *testing.T) {
 	assert.Empty(t, resp, "Unmarshal should leave no tickers decoded before an empty list")
 
 	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[["xBTCUSD",1]]`)), errUnknownSymbolType, "UnmarshalJSON should refuse a symbol of neither kind")
+	// Serial, as the cases decode into resp in turn, like the calls before and after them
 	for _, data := range []string{`[[1,2]]`, `[[]]`, `[1]`, `[["\uZZZZ",1]]`} {
-		assert.ErrorIsf(t, resp.UnmarshalJSON([]byte(data)), json.ErrTupleElementType, "UnmarshalJSON should refuse %s, a ticker without a symbol", data)
+		t.Run(data, func(t *testing.T) {
+			assert.ErrorIsf(t, resp.UnmarshalJSON([]byte(data)), json.ErrTupleElementType, "UnmarshalJSON should refuse %s, a ticker without a symbol", data)
+		})
 	}
 	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[["tBTCUSD","x"]]`)), json.ErrTupleElementType, "UnmarshalJSON should refuse a malformed trading pair ticker")
 	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[["fUSD","x"]]`)), json.ErrTupleElementType, "UnmarshalJSON should refuse a malformed funding currency ticker")
@@ -217,13 +226,16 @@ func TestGetTickersHistory(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetTickersHistory should return the request failure")
 }
 
-func TestGetPublicTrades(t *testing.T) {
+func TestGetPublicTrades(t *testing.T) { //nolint:tparallel // the cases share e with the GetPublicTrades calls after them
 	t.Parallel()
 	_, err := e.GetPublicTrades(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetPublicTrades must reject a nil request")
+	// Serial, as the cases share e and GetPublicTrades is called on it again after them
 	for _, symbol := range []string{"", "t", "fUSD", "BTCUSD"} {
-		_, err = e.GetPublicTrades(t.Context(), &PublicTradesRequest{Symbol: symbol})
-		require.ErrorIsf(t, err, errTradingSymbolRequired, "GetPublicTrades must refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetPublicTrades(t.Context(), &PublicTradesRequest{Symbol: symbol})
+			require.ErrorIsf(t, err, errTradingSymbolRequired, "GetPublicTrades must refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetPublicTrades(t.Context(), &PublicTradesRequest{Symbol: "tBTCUSD", Start: time.UnixMilli(2), End: time.UnixMilli(1)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPublicTrades must refuse a reversed window")
@@ -249,13 +261,16 @@ func TestGetPublicTrades(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetPublicTrades should return the request failure")
 }
 
-func TestGetPublicFundingTrades(t *testing.T) {
+func TestGetPublicFundingTrades(t *testing.T) { //nolint:tparallel // the cases share e with the GetPublicFundingTrades calls after them
 	t.Parallel()
 	_, err := e.GetPublicFundingTrades(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetPublicFundingTrades must reject a nil request")
+	// Serial, as the cases share e and GetPublicFundingTrades is called on it again after them
 	for _, symbol := range []string{"", "f", "tBTCUSD", "USD"} {
-		_, err = e.GetPublicFundingTrades(t.Context(), &PublicTradesRequest{Symbol: symbol})
-		require.ErrorIsf(t, err, errFundingSymbolRequired, "GetPublicFundingTrades must refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetPublicFundingTrades(t.Context(), &PublicTradesRequest{Symbol: symbol})
+			require.ErrorIsf(t, err, errFundingSymbolRequired, "GetPublicFundingTrades must refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetPublicFundingTrades(t.Context(), &PublicTradesRequest{Symbol: "fUSD", Start: time.UnixMilli(2), End: time.UnixMilli(1)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPublicFundingTrades must refuse a reversed window")
@@ -278,13 +293,16 @@ func TestGetPublicFundingTrades(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetPublicFundingTrades should return the request failure")
 }
 
-func TestGetBook(t *testing.T) {
+func TestGetBook(t *testing.T) { //nolint:tparallel // the cases share e with the GetBook calls after them
 	t.Parallel()
 	_, err := e.GetBook(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetBook must reject a nil request")
+	// Serial, as the cases share e and GetBook is called on it again after them
 	for _, symbol := range []string{"", "fUSD"} {
-		_, err = e.GetBook(t.Context(), &BookRequest{Symbol: symbol})
-		require.ErrorIsf(t, err, errTradingSymbolRequired, "GetBook must refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetBook(t.Context(), &BookRequest{Symbol: symbol})
+			require.ErrorIsf(t, err, errTradingSymbolRequired, "GetBook must refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetBook(t.Context(), &BookRequest{Symbol: "tBTCUSD", Precision: 5})
 	require.ErrorIs(t, err, errInvalidBookPrecision, "GetBook must refuse a precision beyond P4")
@@ -308,13 +326,16 @@ func TestGetBook(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetBook should return the request failure")
 }
 
-func TestGetFundingBook(t *testing.T) {
+func TestGetFundingBook(t *testing.T) { //nolint:tparallel // the cases share e with the GetFundingBook calls after them
 	t.Parallel()
 	_, err := e.GetFundingBook(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFundingBook must reject a nil request")
+	// Serial, as the cases share e and GetFundingBook is called on it again after them
 	for _, symbol := range []string{"", "tBTCUSD"} {
-		_, err = e.GetFundingBook(t.Context(), &BookRequest{Symbol: symbol})
-		require.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingBook must refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetFundingBook(t.Context(), &BookRequest{Symbol: symbol})
+			require.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingBook must refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetFundingBook(t.Context(), &BookRequest{Symbol: "fUSD", Precision: 5})
 	require.ErrorIs(t, err, errInvalidBookPrecision, "GetFundingBook must refuse a precision beyond P4")
@@ -334,13 +355,16 @@ func TestGetFundingBook(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetFundingBook should return the request failure")
 }
 
-func TestGetRawBook(t *testing.T) {
+func TestGetRawBook(t *testing.T) { //nolint:tparallel // the cases share e with the GetRawBook calls after them
 	t.Parallel()
 	_, err := e.GetRawBook(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetRawBook must reject a nil request")
+	// Serial, as the cases share e and GetRawBook is called on it again after them
 	for _, symbol := range []string{"", "fUSD"} {
-		_, err = e.GetRawBook(t.Context(), &RawBookRequest{Symbol: symbol})
-		require.ErrorIsf(t, err, errTradingSymbolRequired, "GetRawBook must refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetRawBook(t.Context(), &RawBookRequest{Symbol: symbol})
+			require.ErrorIsf(t, err, errTradingSymbolRequired, "GetRawBook must refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetRawBook(t.Context(), &RawBookRequest{Symbol: "tBTCUSD", Length: 50})
 	require.ErrorIs(t, err, errInvalidBookLength, "GetRawBook must refuse a length Bitfinex does not offer")
@@ -358,13 +382,16 @@ func TestGetRawBook(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetRawBook should return the request failure")
 }
 
-func TestGetRawFundingBook(t *testing.T) {
+func TestGetRawFundingBook(t *testing.T) { //nolint:tparallel // the cases share e with the GetRawFundingBook calls after them
 	t.Parallel()
 	_, err := e.GetRawFundingBook(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetRawFundingBook must reject a nil request")
+	// Serial, as the cases share e and GetRawFundingBook is called on it again after them
 	for _, symbol := range []string{"", "tBTCUSD"} {
-		_, err = e.GetRawFundingBook(t.Context(), &RawBookRequest{Symbol: symbol})
-		require.ErrorIsf(t, err, errFundingSymbolRequired, "GetRawFundingBook must refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetRawFundingBook(t.Context(), &RawBookRequest{Symbol: symbol})
+			require.ErrorIsf(t, err, errFundingSymbolRequired, "GetRawFundingBook must refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetRawFundingBook(t.Context(), &RawBookRequest{Symbol: "fUSD", Length: 50})
 	require.ErrorIs(t, err, errInvalidBookLength, "GetRawFundingBook must refuse a length Bitfinex does not offer")
@@ -382,12 +409,15 @@ func TestGetRawFundingBook(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetRawFundingBook should return the request failure")
 }
 
-func TestBookPrecision(t *testing.T) {
+func TestBookPrecision(t *testing.T) { //nolint:tparallel // bookPrecision is called again after the cases
 	t.Parallel()
+	// Serial, as bookPrecision is called again after these cases
 	for precision, exp := range map[uint64]string{0: "P0", 1: "P1", 2: "P2", 3: "P3", 4: "P4"} {
-		got, err := bookPrecision(precision)
-		require.NoErrorf(t, err, "bookPrecision must not error for %d", precision)
-		assert.Equalf(t, exp, got, "bookPrecision should format %d", precision)
+		t.Run(strconv.FormatUint(precision, 10), func(t *testing.T) {
+			got, err := bookPrecision(precision)
+			require.NoErrorf(t, err, "bookPrecision must not error for %d", precision)
+			assert.Equalf(t, exp, got, "bookPrecision should format %d", precision)
+		})
 	}
 	_, err := bookPrecision(5)
 	assert.ErrorIs(t, err, errInvalidBookPrecision, "bookPrecision should refuse a precision beyond P4")
@@ -398,14 +428,20 @@ func TestBookParams(t *testing.T) {
 	params, err := bookParams(0)
 	require.NoError(t, err, "bookParams must not error for an unset length")
 	assert.Empty(t, params, "bookParams should leave an unset length to Bitfinex's default")
+	// Serial, as bookParams is called again after these cases
 	for _, length := range []uint64{1, 25, 100, 250} {
-		params, err = bookParams(length)
-		require.NoErrorf(t, err, "bookParams must not error for length %d", length)
-		assert.Equalf(t, url.Values{"len": {strconv.FormatUint(length, 10)}}, params, "bookParams should send length %d", length)
+		t.Run(strconv.FormatUint(length, 10), func(t *testing.T) {
+			params, err = bookParams(length)
+			require.NoErrorf(t, err, "bookParams must not error for length %d", length)
+			assert.Equalf(t, url.Values{"len": {strconv.FormatUint(length, 10)}}, params, "bookParams should send length %d", length)
+		})
 	}
 	for _, length := range []uint64{2, 50, 251} {
-		_, err = bookParams(length)
-		assert.ErrorIsf(t, err, errInvalidBookLength, "bookParams should refuse length %d", length)
+		t.Run(strconv.FormatUint(length, 10), func(t *testing.T) {
+			t.Parallel()
+			_, err := bookParams(length)
+			assert.ErrorIsf(t, err, errInvalidBookLength, "bookParams should refuse length %d", length)
+		})
 	}
 }
 
@@ -460,6 +496,7 @@ func TestGetStatsHistory(t *testing.T) {
 
 func TestStatsKey(t *testing.T) {
 	t.Parallel()
+	// Serial, as statsKey is called again after these cases
 	for exp, req := range map[string]*StatsRequest{
 		"pos.size:1m:tBTCUSD:long":         {Key: StatsKeyPositionSize, Symbol: "tBTCUSD", Side: StatsSideLong},
 		"pos.size:1m:tBTCUSD:short":        {Key: StatsKeyPositionSize, Symbol: "tBTCUSD", Side: StatsSideShort},
@@ -471,33 +508,39 @@ func TestStatsKey(t *testing.T) {
 		"vol.30d:30m:BFX":                  {Key: StatsKeyVolume30Day, Symbol: StatsPlatform},
 		"vwap:1d:tBTCUSD":                  {Key: StatsKeyVolumeWeightedAveragePrice, Symbol: "tBTCUSD"},
 	} {
-		got, err := statsKey(req)
-		require.NoErrorf(t, err, "statsKey must not error for %s", exp)
-		assert.Equalf(t, exp, got, "statsKey should build %s", exp)
+		t.Run(exp, func(t *testing.T) {
+			got, err := statsKey(req)
+			require.NoErrorf(t, err, "statsKey must not error for %s", exp)
+			assert.Equalf(t, exp, got, "statsKey should build %s", exp)
+		})
 	}
 	for _, tc := range []struct {
-		req *StatsRequest
-		err error
+		name string
+		req  *StatsRequest
+		err  error
 	}{
-		{req: &StatsRequest{Symbol: "tBTCUSD"}, err: errInvalidStatsKey},
-		{req: &StatsRequest{Key: "pos.size:1m", Symbol: "tBTCUSD", Side: StatsSideLong}, err: errInvalidStatsKey},
-		{req: &StatsRequest{Key: StatsKeyPositionSize, Symbol: "fUSD", Side: StatsSideLong}, err: errTradingSymbolRequired},
-		{req: &StatsRequest{Key: StatsKeyVolumeWeightedAveragePrice}, err: errTradingSymbolRequired},
-		{req: &StatsRequest{Key: StatsKeyFundingSize, Symbol: "tBTCUSD"}, err: errFundingSymbolRequired},
-		{req: &StatsRequest{Key: StatsKeyCreditsSize}, err: errFundingSymbolRequired},
-		{req: &StatsRequest{Key: StatsKeyCreditsSizeByPair, Symbol: "tBTCUSD", Pair: "tBTCUSD"}, err: errFundingSymbolRequired},
-		{req: &StatsRequest{Key: StatsKeyVolume1Day}, err: errInvalidStatsSymbol},
-		{req: &StatsRequest{Key: StatsKeyVolume30Day, Symbol: "tBTCUSD"}, err: errInvalidStatsSymbol},
-		{req: &StatsRequest{Key: StatsKeyPositionSize, Symbol: "tBTCUSD"}, err: errInvalidStatsSide},
-		{req: &StatsRequest{Key: StatsKeyPositionSize, Symbol: "tBTCUSD", Side: "LONG"}, err: errInvalidStatsSide},
-		{req: &StatsRequest{Key: StatsKeyFundingSize, Symbol: "fUSD", Side: StatsSideLong}, err: errInvalidStatsSide},
-		{req: &StatsRequest{Key: StatsKeyCreditsSizeByPair, Symbol: "fUSD"}, err: errTradingSymbolRequired},
-		{req: &StatsRequest{Key: StatsKeyCreditsSizeByPair, Symbol: "fUSD", Pair: "fBTC"}, err: errTradingSymbolRequired},
-		{req: &StatsRequest{Key: StatsKeyCreditsSize, Symbol: "fUSD", Pair: "tBTCUSD"}, err: errInvalidStatsPair},
-		{req: &StatsRequest{Key: StatsKeyPositionSize, Symbol: "tBTCUSD", Side: StatsSideLong, Pair: "tBTCUSD"}, err: errInvalidStatsPair},
+		{name: "no key", req: &StatsRequest{Symbol: "tBTCUSD"}, err: errInvalidStatsKey},
+		{name: "key with its size", req: &StatsRequest{Key: "pos.size:1m", Symbol: "tBTCUSD", Side: StatsSideLong}, err: errInvalidStatsKey},
+		{name: "position size of a funding currency", req: &StatsRequest{Key: StatsKeyPositionSize, Symbol: "fUSD", Side: StatsSideLong}, err: errTradingSymbolRequired},
+		{name: "average price without a symbol", req: &StatsRequest{Key: StatsKeyVolumeWeightedAveragePrice}, err: errTradingSymbolRequired},
+		{name: "funding size of a trading pair", req: &StatsRequest{Key: StatsKeyFundingSize, Symbol: "tBTCUSD"}, err: errFundingSymbolRequired},
+		{name: "credits size without a symbol", req: &StatsRequest{Key: StatsKeyCreditsSize}, err: errFundingSymbolRequired},
+		{name: "credits size by pair of a trading pair", req: &StatsRequest{Key: StatsKeyCreditsSizeByPair, Symbol: "tBTCUSD", Pair: "tBTCUSD"}, err: errFundingSymbolRequired},
+		{name: "one day volume without a symbol", req: &StatsRequest{Key: StatsKeyVolume1Day}, err: errInvalidStatsSymbol},
+		{name: "thirty day volume of a trading pair", req: &StatsRequest{Key: StatsKeyVolume30Day, Symbol: "tBTCUSD"}, err: errInvalidStatsSymbol},
+		{name: "position size without a side", req: &StatsRequest{Key: StatsKeyPositionSize, Symbol: "tBTCUSD"}, err: errInvalidStatsSide},
+		{name: "position size with an upper case side", req: &StatsRequest{Key: StatsKeyPositionSize, Symbol: "tBTCUSD", Side: "LONG"}, err: errInvalidStatsSide},
+		{name: "funding size with a side", req: &StatsRequest{Key: StatsKeyFundingSize, Symbol: "fUSD", Side: StatsSideLong}, err: errInvalidStatsSide},
+		{name: "credits size by pair without a pair", req: &StatsRequest{Key: StatsKeyCreditsSizeByPair, Symbol: "fUSD"}, err: errTradingSymbolRequired},
+		{name: "credits size by pair of a funding pair", req: &StatsRequest{Key: StatsKeyCreditsSizeByPair, Symbol: "fUSD", Pair: "fBTC"}, err: errTradingSymbolRequired},
+		{name: "credits size with a pair", req: &StatsRequest{Key: StatsKeyCreditsSize, Symbol: "fUSD", Pair: "tBTCUSD"}, err: errInvalidStatsPair},
+		{name: "position size with a pair", req: &StatsRequest{Key: StatsKeyPositionSize, Symbol: "tBTCUSD", Side: StatsSideLong, Pair: "tBTCUSD"}, err: errInvalidStatsPair},
 	} {
-		_, err := statsKey(tc.req)
-		assert.ErrorIsf(t, err, tc.err, "statsKey should refuse %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := statsKey(tc.req)
+			assert.ErrorIsf(t, err, tc.err, "statsKey should refuse %+v", tc.req)
+		})
 	}
 }
 
@@ -574,43 +617,53 @@ func TestGetCandlesHistory(t *testing.T) {
 
 func TestCandleKey(t *testing.T) {
 	t.Parallel()
+	// Serial, as candleKey is called again after these cases
 	for interval, timeFrame := range map[kline.Interval]string{
 		kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "1h", kline.ThreeHour: "3h",
 		kline.SixHour: "6h", kline.TwelveHour: "12h", kline.OneDay: "1D", kline.OneWeek: "1W", kline.TwoWeek: "14D", kline.OneMonth: "1M",
 	} {
-		got, err := candleKey(&CandlesRequest{Symbol: "tBTCUSD", Interval: interval})
-		require.NoErrorf(t, err, "candleKey must not error for interval %s", interval)
-		assert.Equalf(t, "trade:"+timeFrame+":tBTCUSD", got, "candleKey should name interval %s %s", interval, timeFrame)
+		t.Run(interval.Short(), func(t *testing.T) {
+			got, err := candleKey(&CandlesRequest{Symbol: "tBTCUSD", Interval: interval})
+			require.NoErrorf(t, err, "candleKey must not error for interval %s", interval)
+			assert.Equalf(t, "trade:"+timeFrame+":tBTCUSD", got, "candleKey should name interval %s %s", interval, timeFrame)
+		})
 	}
+	// Serial, as candleKey is called again after these cases
 	for exp, req := range map[string]*CandlesRequest{
 		"trade:1D:fUSD:p30":        {Symbol: "fUSD", Interval: kline.OneDay, Period: 30},
 		"trade:1m:fUSD:a10:p2:p10": {Symbol: "fUSD", Interval: kline.OneMin, Aggregation: 10, PeriodStart: 2, PeriodEnd: 10},
 		"trade:1h:fUSD:a30:p2:p30": {Symbol: "fUSD", Interval: kline.OneHour, Aggregation: 30, PeriodStart: 2, PeriodEnd: 30},
 	} {
-		got, err := candleKey(req)
-		require.NoErrorf(t, err, "candleKey must not error for %s", exp)
-		assert.Equalf(t, exp, got, "candleKey should build %s", exp)
+		t.Run(exp, func(t *testing.T) {
+			got, err := candleKey(req)
+			require.NoErrorf(t, err, "candleKey must not error for %s", exp)
+			assert.Equalf(t, exp, got, "candleKey should build %s", exp)
+		})
 	}
 	for _, tc := range []struct {
-		req *CandlesRequest
-		err error
+		name string
+		req  *CandlesRequest
+		err  error
 	}{
-		{req: &CandlesRequest{Symbol: "tBTCUSD"}, err: kline.ErrUnsupportedInterval},
-		{req: &CandlesRequest{Symbol: "tBTCUSD", Interval: kline.TwoHour}, err: kline.ErrUnsupportedInterval},
-		{req: &CandlesRequest{Interval: kline.OneMin}, err: errSymbolRequired},
-		{req: &CandlesRequest{Symbol: "BTCUSD", Interval: kline.OneMin}, err: errSymbolRequired},
-		{req: &CandlesRequest{Symbol: "tBTCUSD", Interval: kline.OneMin, Period: 30}, err: errCandlesPeriodUnsupported},
-		{req: &CandlesRequest{Symbol: "tBTCUSD", Interval: kline.OneMin, Aggregation: 30, PeriodStart: 2, PeriodEnd: 30}, err: errCandlesPeriodUnsupported},
-		{req: &CandlesRequest{Symbol: "tBTCUSD", Interval: kline.OneMin, PeriodEnd: 30}, err: errCandlesPeriodUnsupported},
-		{req: &CandlesRequest{Symbol: "fUSD", Interval: kline.OneMin}, err: errCandlesPeriodRequired},
-		{req: &CandlesRequest{Symbol: "fUSD", Interval: kline.OneMin, PeriodStart: 2, PeriodEnd: 30}, err: errInvalidCandlesAggregation},
-		{req: &CandlesRequest{Symbol: "fUSD", Interval: kline.OneMin, Aggregation: 20, PeriodStart: 2, PeriodEnd: 30}, err: errInvalidCandlesAggregation},
-		{req: &CandlesRequest{Symbol: "fUSD", Interval: kline.OneMin, Aggregation: 30, Period: 30, PeriodStart: 2, PeriodEnd: 30}, err: errCandlesPeriodUnsupported},
-		{req: &CandlesRequest{Symbol: "fUSD", Interval: kline.OneMin, Aggregation: 30, PeriodStart: 2}, err: errCandlesPeriodRequired},
-		{req: &CandlesRequest{Symbol: "fUSD", Interval: kline.OneMin, Aggregation: 30, PeriodEnd: 30}, err: errCandlesPeriodRequired},
+		{name: "no interval", req: &CandlesRequest{Symbol: "tBTCUSD"}, err: kline.ErrUnsupportedInterval},
+		{name: "unsupported interval", req: &CandlesRequest{Symbol: "tBTCUSD", Interval: kline.TwoHour}, err: kline.ErrUnsupportedInterval},
+		{name: "no symbol", req: &CandlesRequest{Interval: kline.OneMin}, err: errSymbolRequired},
+		{name: "symbol without a prefix", req: &CandlesRequest{Symbol: "BTCUSD", Interval: kline.OneMin}, err: errSymbolRequired},
+		{name: "trading pair with a period", req: &CandlesRequest{Symbol: "tBTCUSD", Interval: kline.OneMin, Period: 30}, err: errCandlesPeriodUnsupported},
+		{name: "trading pair with an aggregation", req: &CandlesRequest{Symbol: "tBTCUSD", Interval: kline.OneMin, Aggregation: 30, PeriodStart: 2, PeriodEnd: 30}, err: errCandlesPeriodUnsupported},
+		{name: "trading pair with a period end", req: &CandlesRequest{Symbol: "tBTCUSD", Interval: kline.OneMin, PeriodEnd: 30}, err: errCandlesPeriodUnsupported},
+		{name: "funding currency without a period", req: &CandlesRequest{Symbol: "fUSD", Interval: kline.OneMin}, err: errCandlesPeriodRequired},
+		{name: "period start and end without an aggregation", req: &CandlesRequest{Symbol: "fUSD", Interval: kline.OneMin, PeriodStart: 2, PeriodEnd: 30}, err: errInvalidCandlesAggregation},
+		{name: "unsupported aggregation", req: &CandlesRequest{Symbol: "fUSD", Interval: kline.OneMin, Aggregation: 20, PeriodStart: 2, PeriodEnd: 30}, err: errInvalidCandlesAggregation},
+		{name: "aggregation with a period", req: &CandlesRequest{Symbol: "fUSD", Interval: kline.OneMin, Aggregation: 30, Period: 30, PeriodStart: 2, PeriodEnd: 30}, err: errCandlesPeriodUnsupported},
+		{name: "aggregation without a period end", req: &CandlesRequest{Symbol: "fUSD", Interval: kline.OneMin, Aggregation: 30, PeriodStart: 2}, err: errCandlesPeriodRequired},
+		{name: "aggregation without a period start", req: &CandlesRequest{Symbol: "fUSD", Interval: kline.OneMin, Aggregation: 30, PeriodEnd: 30}, err: errCandlesPeriodRequired},
 	} {
-		_, err := candleKey(tc.req)
-		assert.ErrorIsf(t, err, tc.err, "candleKey should refuse %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := candleKey(tc.req)
+			assert.ErrorIsf(t, err, tc.err, "candleKey should refuse %+v", tc.req)
+		})
 	}
 }
 
@@ -655,13 +708,16 @@ func TestGetDerivativesStatus(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetDerivativesStatus should return the request failure")
 }
 
-func TestGetDerivativesStatusHistory(t *testing.T) {
+func TestGetDerivativesStatusHistory(t *testing.T) { //nolint:tparallel // the cases share e with the GetDerivativesStatusHistory calls after them
 	t.Parallel()
 	_, err := e.GetDerivativesStatusHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetDerivativesStatusHistory must reject a nil request")
+	// Serial, as the cases share e and GetDerivativesStatusHistory is called on it again after them
 	for _, key := range []string{"", "BTCF0:USTF0", "fUSD"} {
-		_, err = e.GetDerivativesStatusHistory(t.Context(), &DerivativesStatusHistoryRequest{Key: key})
-		require.ErrorIsf(t, err, errTradingSymbolRequired, "GetDerivativesStatusHistory must refuse key %q", key)
+		t.Run(subtestName(key), func(t *testing.T) {
+			_, err = e.GetDerivativesStatusHistory(t.Context(), &DerivativesStatusHistoryRequest{Key: key})
+			require.ErrorIsf(t, err, errTradingSymbolRequired, "GetDerivativesStatusHistory must refuse key %q", key)
+		})
 	}
 	_, err = e.GetDerivativesStatusHistory(t.Context(), &DerivativesStatusHistoryRequest{Key: "tBTCF0:USTF0", Start: time.UnixMilli(2), End: time.UnixMilli(1)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetDerivativesStatusHistory must refuse a reversed window")
@@ -751,7 +807,7 @@ func TestLiquidationsResponseUnmarshalJSON(t *testing.T) {
 	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`{}`)), json.ErrTupleNotArray, "UnmarshalJSON should refuse an object")
 }
 
-func TestGetLeaderboards(t *testing.T) {
+func TestGetLeaderboards(t *testing.T) { //nolint:tparallel // GetLeaderboards is called again after each loop's cases
 	t.Parallel()
 	_, err := e.GetLeaderboards(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetLeaderboards must reject a nil request")
@@ -759,9 +815,12 @@ func TestGetLeaderboards(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidLeaderboardKey, "GetLeaderboards must refuse an unknown key")
 	_, err = e.GetLeaderboards(t.Context(), &LeaderboardsRequest{Key: LeaderboardKeyVolume, TimeFrame: kline.OneDay, Symbol: LeaderboardSymbolGlobal})
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "GetLeaderboards must refuse a time frame Bitfinex does not rank over")
+	// Serial, as the cases share e and GetLeaderboards is called on it again after them
 	for _, symbol := range []string{"", "fUSD"} {
-		_, err = e.GetLeaderboards(t.Context(), &LeaderboardsRequest{Key: LeaderboardKeyVolume, TimeFrame: kline.OneWeek, Symbol: symbol})
-		require.ErrorIsf(t, err, errTradingSymbolRequired, "GetLeaderboards must refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetLeaderboards(t.Context(), &LeaderboardsRequest{Key: LeaderboardKeyVolume, TimeFrame: kline.OneWeek, Symbol: symbol})
+			require.ErrorIsf(t, err, errTradingSymbolRequired, "GetLeaderboards must refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetLeaderboards(t.Context(), &LeaderboardsRequest{Key: LeaderboardKeyVolume, TimeFrame: kline.OneWeek, Symbol: LeaderboardSymbolGlobal, Start: time.UnixMilli(2), End: time.UnixMilli(1)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetLeaderboards must refuse a reversed window")
@@ -784,26 +843,32 @@ func TestGetLeaderboards(t *testing.T) {
 		assert.NotEmpty(t, result, "GetLeaderboards should return the leaderboard's standings")
 	}
 
+	// Serial, as GetLeaderboards is called again after these cases, though each has its own server
 	for timeFrame, name := range map[kline.Interval]string{kline.ThreeHour: "3h", kline.OneWeek: "1w", kline.OneMonth: "1M"} {
-		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equalf(t, "/v2/rankings/vol:"+name+":tBTCUSD/hist", r.URL.Path, "GetLeaderboards should name time frame %s %s", timeFrame, name)
-			_, err := w.Write([]byte(`[]`))
-			assert.NoError(t, err, "Writing the response should not error")
-		}))
-		_, err = ex.GetLeaderboards(t.Context(), &LeaderboardsRequest{Key: LeaderboardKeyVolume, TimeFrame: timeFrame, Symbol: "tBTCUSD"})
-		assert.NoErrorf(t, err, "GetLeaderboards should not error for time frame %s", timeFrame)
+		t.Run(timeFrame.Short(), func(t *testing.T) {
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equalf(t, "/v2/rankings/vol:"+name+":tBTCUSD/hist", r.URL.Path, "GetLeaderboards should name time frame %s %s", timeFrame, name)
+				_, err := w.Write([]byte(`[]`))
+				assert.NoError(t, err, "Writing the response should not error")
+			}))
+			_, err = ex.GetLeaderboards(t.Context(), &LeaderboardsRequest{Key: LeaderboardKeyVolume, TimeFrame: timeFrame, Symbol: "tBTCUSD"})
+			assert.NoErrorf(t, err, "GetLeaderboards should not error for time frame %s", timeFrame)
+		})
 	}
 	_, err = newUnavailableServerExchange(t).GetLeaderboards(t.Context(), &LeaderboardsRequest{Key: LeaderboardKeyVolume, TimeFrame: kline.OneWeek, Symbol: LeaderboardSymbolGlobal})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLeaderboards should return the request failure")
 }
 
-func TestGetFundingStatistics(t *testing.T) {
+func TestGetFundingStatistics(t *testing.T) { //nolint:tparallel // the cases share e with the GetFundingStatistics calls after them
 	t.Parallel()
 	_, err := e.GetFundingStatistics(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFundingStatistics must reject a nil request")
+	// Serial, as the cases share e and GetFundingStatistics is called on it again after them
 	for _, symbol := range []string{"", "f", "tBTCUSD"} {
-		_, err = e.GetFundingStatistics(t.Context(), &FundingStatisticsRequest{Symbol: symbol})
-		require.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingStatistics must refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetFundingStatistics(t.Context(), &FundingStatisticsRequest{Symbol: symbol})
+			require.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingStatistics must refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetFundingStatistics(t.Context(), &FundingStatisticsRequest{Symbol: "fUSD", Start: time.UnixMilli(2), End: time.UnixMilli(1)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetFundingStatistics must refuse a reversed window")
@@ -1035,7 +1100,7 @@ func TestGetDerivativesFees(t *testing.T) {
 	})
 }
 
-func TestGetPublicConfig(t *testing.T) {
+func TestGetPublicConfig(t *testing.T) { //nolint:tparallel // getPublicConfig is called again after the cases
 	t.Parallel()
 	result, err := getPublicConfig[[]string](t.Context(), newResponseServerExchange(t, `[["BTCUSD","ETHUSD"]]`), "conf/pub:list:pair:exchange")
 	require.NoError(t, err, "getPublicConfig must not error")
@@ -1043,9 +1108,12 @@ func TestGetPublicConfig(t *testing.T) {
 	result, err = getPublicConfig[[]string](t.Context(), newResponseServerExchange(t, `[[]]`), "conf/pub:list:pair:exchange")
 	require.NoError(t, err, "getPublicConfig must not error for a config with no entries")
 	assert.Empty(t, result, "getPublicConfig should decode a config with no entries")
+	// Serial, as getPublicConfig is called again after these cases, though each has its own server
 	for _, body := range []string{`[null]`, `[]`, `null`} {
-		_, err = getPublicConfig[[]string](t.Context(), newResponseServerExchange(t, body), "conf/pub:list:pair:exchange")
-		assert.ErrorIsf(t, err, common.ErrNoResponse, "getPublicConfig should error for response %s", body)
+		t.Run(body, func(t *testing.T) {
+			_, err = getPublicConfig[[]string](t.Context(), newResponseServerExchange(t, body), "conf/pub:list:pair:exchange")
+			assert.ErrorIsf(t, err, common.ErrNoResponse, "getPublicConfig should error for response %s", body)
+		})
 	}
 	_, err = getPublicConfig[[]string](t.Context(), newResponseServerExchange(t, `[1]`), "conf/pub:list:pair:exchange")
 	assert.Error(t, err, "getPublicConfig should return a decoding error")
@@ -1074,13 +1142,16 @@ func TestGetVirtualAssetServiceProviders(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetVirtualAssetServiceProviders should return the request failure")
 }
 
-func TestGetMarketAveragePrice(t *testing.T) {
+func TestGetMarketAveragePrice(t *testing.T) { //nolint:tparallel // the cases share e with the GetMarketAveragePrice calls after them
 	t.Parallel()
 	_, err := e.GetMarketAveragePrice(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetMarketAveragePrice must reject a nil request")
+	// Serial, as the cases share e and GetMarketAveragePrice is called on it again after them
 	for _, symbol := range []string{"", "fUSD"} {
-		_, err = e.GetMarketAveragePrice(t.Context(), &MarketAveragePriceRequest{Symbol: symbol, Amount: 1})
-		require.ErrorIsf(t, err, errTradingSymbolRequired, "GetMarketAveragePrice must refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetMarketAveragePrice(t.Context(), &MarketAveragePriceRequest{Symbol: symbol, Amount: 1})
+			require.ErrorIsf(t, err, errTradingSymbolRequired, "GetMarketAveragePrice must refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetMarketAveragePrice(t.Context(), &MarketAveragePriceRequest{Symbol: "tBTCUSD"})
 	require.ErrorIs(t, err, errInvalidAmount, "GetMarketAveragePrice must refuse a zero amount")
@@ -1109,13 +1180,16 @@ func TestGetMarketAveragePrice(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMarketAveragePrice should return the request failure")
 }
 
-func TestGetFundingMarketAveragePrice(t *testing.T) {
+func TestGetFundingMarketAveragePrice(t *testing.T) { //nolint:tparallel // the cases share e with the GetFundingMarketAveragePrice calls after them
 	t.Parallel()
 	_, err := e.GetFundingMarketAveragePrice(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFundingMarketAveragePrice must reject a nil request")
+	// Serial, as the cases share e and GetFundingMarketAveragePrice is called on it again after them
 	for _, symbol := range []string{"", "tBTCUSD"} {
-		_, err = e.GetFundingMarketAveragePrice(t.Context(), &FundingMarketAveragePriceRequest{Symbol: symbol, Amount: 1, Period: 2})
-		require.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingMarketAveragePrice must refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetFundingMarketAveragePrice(t.Context(), &FundingMarketAveragePriceRequest{Symbol: symbol, Amount: 1, Period: 2})
+			require.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingMarketAveragePrice must refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.GetFundingMarketAveragePrice(t.Context(), &FundingMarketAveragePriceRequest{Symbol: "fUSD", Period: 2})
 	require.ErrorIs(t, err, errInvalidAmount, "GetFundingMarketAveragePrice must refuse a zero amount")

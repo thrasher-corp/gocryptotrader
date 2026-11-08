@@ -24,12 +24,18 @@ func TestIsBitfinex(t *testing.T) {
 		`{"name":"Kraken"}`:                   false,
 		`{}`:                                  false,
 	} {
-		got, err := isBitfinex([]byte(input))
-		require.NoErrorf(t, err, "isBitfinex must not error for %s", input)
-		assert.Equalf(t, exp, got, "isBitfinex should read the name of %s as the config loader does", input)
+		t.Run(input, func(t *testing.T) {
+			t.Parallel()
+			got, err := isBitfinex([]byte(input))
+			require.NoErrorf(t, err, "isBitfinex must not error for %s", input)
+			assert.Equalf(t, exp, got, "isBitfinex should read the name of %s as the config loader does", input)
+		})
 	}
-	_, err := isBitfinex([]byte(`{"name":`))
-	assert.ErrorContains(t, err, "error decoding exchange name", "isBitfinex should report a configuration it cannot decode")
+	t.Run("undecodable configuration", func(t *testing.T) {
+		t.Parallel()
+		_, err := isBitfinex([]byte(`{"name":`))
+		assert.ErrorContains(t, err, "error decoding exchange name", "isBitfinex should report a configuration it cannot decode")
+	})
 }
 
 func TestReplaceSubscriptions(t *testing.T) {

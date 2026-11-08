@@ -127,8 +127,10 @@ func TestGetThalexFreeTransferCount(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetThalexFreeTransferCount should return the request failure")
 }
 
-func TestNewThalexTransferBody(t *testing.T) {
+func TestNewThalexTransferBody(t *testing.T) { //nolint:tparallel // newThalexTransferBody is called again after the cases
 	t.Parallel()
+
+	// Serial, as newThalexTransferBody is called again after these cases
 	for _, tc := range []struct {
 		name string
 		req  *ThalexTransferRequest
@@ -141,8 +143,10 @@ func TestNewThalexTransferBody(t *testing.T) {
 		{"no two factor token", &ThalexTransferRequest{Currency: currency.BTC, Amount: 1}, errTwoFactorTokenRequired},
 		{"an invalid two factor token", &ThalexTransferRequest{Currency: currency.BTC, Amount: 1, TwoFactorToken: &TwoFactorToken{Method: TwoFactorMethodU2F}}, errTwoFactorAssertionRequired},
 	} {
-		_, err := newThalexTransferBody(tc.req)
-		assert.ErrorIsf(t, err, tc.err, "newThalexTransferBody should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := newThalexTransferBody(tc.req)
+			assert.ErrorIsf(t, err, tc.err, "newThalexTransferBody should refuse %s", tc.name)
+		})
 	}
 
 	token := &TwoFactorToken{

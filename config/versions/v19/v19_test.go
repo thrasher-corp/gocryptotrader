@@ -66,24 +66,32 @@ func TestMigrationLeavesOtherExchanges(t *testing.T) {
 	t.Parallel()
 	statusEntries := append(append([]string(nil), currentDefaults...), `{"enabled":true,"channel":"status","asset":"spot"}`)
 	// The config loader takes the last of a repeated name, whatever the case of its key
-	names := []string{`"name":"Kraken",`, `"name":"Bitfinexx",`, `"name":"xBitfinex",`, `"name":"Bitfinzz",`, `"name":" Bitfinex ",`, `"name":"bitfinex","name":"Kraken",`, `"name":"bitfinex","Name":"Kraken",`, ``}
-	// An upgrade would change the previous defaults, and a downgrade the enabled spot status, so each exchange has both
-	entrySets := [][]string{previousDefaults, statusEntries}
-	inputs := make([]string, 0, len(entrySets)*len(names))
-	for _, entries := range entrySets {
-		bitfinex := subscriptions(entries...)
-		for _, name := range names {
-			inputs = append(inputs, strings.Replace(bitfinex, `"name":"Bitfinex",`, name, 1))
-		}
+	names := map[string]string{
+		"Kraken":                           `"name":"Kraken",`,
+		"Bitfinexx":                        `"name":"Bitfinexx",`,
+		"xBitfinex":                        `"name":"xBitfinex",`,
+		"Bitfinzz":                         `"name":"Bitfinzz",`,
+		"spaced Bitfinex":                  `"name":" Bitfinex ",`,
+		"bitfinex then Kraken":             `"name":"bitfinex","name":"Kraken",`,
+		"bitfinex then capitalised Kraken": `"name":"bitfinex","Name":"Kraken",`,
+		"no name":                          ``,
 	}
-	for _, input := range inputs {
-		for name, migrate := range map[string]func(context.Context, []byte) ([]byte, error){
-			"UpgradeExchange":   new(v19.Version).UpgradeExchange,
-			"DowngradeExchange": new(v19.Version).DowngradeExchange,
-		} {
-			got, err := migrate(t.Context(), []byte(input))
-			require.NoErrorf(t, err, "%s must not error for %s", name, input)
-			assert.Equalf(t, input, string(got), "%s should leave another exchange's configuration unchanged: %s", name, input)
+	// An upgrade would change the previous defaults, and a downgrade the enabled spot status, so each exchange has both
+	for entriesName, entries := range map[string][]string{"previous defaults": previousDefaults, "enabled spot status": statusEntries} {
+		bitfinex := subscriptions(entries...)
+		for exchangeName, field := range names {
+			input := strings.Replace(bitfinex, `"name":"Bitfinex",`, field, 1)
+			for name, migrate := range map[string]func(context.Context, []byte) ([]byte, error){
+				"UpgradeExchange":   new(v19.Version).UpgradeExchange,
+				"DowngradeExchange": new(v19.Version).DowngradeExchange,
+			} {
+				t.Run(entriesName+"/"+exchangeName+"/"+name, func(t *testing.T) {
+					t.Parallel()
+					got, err := migrate(t.Context(), []byte(input))
+					require.NoErrorf(t, err, "%s must not error for %s", name, input)
+					assert.Equalf(t, input, string(got), "%s should leave another exchange's configuration unchanged: %s", name, input)
+				})
+			}
 		}
 	}
 }
@@ -91,16 +99,23 @@ func TestMigrationLeavesOtherExchanges(t *testing.T) {
 func TestMigrationFindsBitfinexAsTheLoaderDoes(t *testing.T) {
 	t.Parallel()
 	// The config loader takes the last of a repeated name, whatever the case of its key
-	for _, name := range []string{`"name":"bitfinex",`, `"name":"Kraken","name":"Bitfinex",`, `"name":"Kraken","Name":"bitfinex",`} {
-		named := func(entries ...string) string {
-			return strings.Replace(subscriptions(entries...), `"name":"Bitfinex",`, name, 1)
-		}
-		got, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(named(previousDefaults...)))
-		require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
-		assert.JSONEqf(t, named(currentDefaults...), string(got), "UpgradeExchange should migrate an exchange the config loader reads as Bitfinex: %s", name)
-		got, err = new(v19.Version).DowngradeExchange(t.Context(), []byte(named(currentDefaults...)))
-		require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
-		assert.JSONEqf(t, named(previousDefaults...), string(got), "DowngradeExchange should migrate an exchange the config loader reads as Bitfinex: %s", name)
+	for caseName, name := range map[string]string{
+		"lower case name":           `"name":"bitfinex",`,
+		"repeated name":             `"name":"Kraken","name":"Bitfinex",`,
+		"repeated capitalised name": `"name":"Kraken","Name":"bitfinex",`,
+	} {
+		t.Run(caseName, func(t *testing.T) {
+			t.Parallel()
+			named := func(entries ...string) string {
+				return strings.Replace(subscriptions(entries...), `"name":"Bitfinex",`, name, 1)
+			}
+			got, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(named(previousDefaults...)))
+			require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+			assert.JSONEqf(t, named(currentDefaults...), string(got), "UpgradeExchange should migrate an exchange the config loader reads as Bitfinex: %s", name)
+			got, err = new(v19.Version).DowngradeExchange(t.Context(), []byte(named(currentDefaults...)))
+			require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+			assert.JSONEqf(t, named(previousDefaults...), string(got), "DowngradeExchange should migrate an exchange the config loader reads as Bitfinex: %s", name)
+		})
 	}
 }
 
@@ -139,6 +154,34 @@ func TestUpgradeExchangeSubscriptions(t *testing.T) {
 
 func TestDowngradeExchangeSubscriptions(t *testing.T) {
 	t.Parallel()
+	t.Run("status subscriptions", func(t *testing.T) {
+		t.Parallel()
+		for name, tc := range map[string]struct{ entries, exp []string }{
+			"wildcard status": {
+				entries: with(currentDefaults, 8, strings.Replace(usdtStatus, `"usdtmarginedfutures"`, `"all"`, 1)),
+				exp:     with(currentDefaults, 8, `{"enabled":false,"channel":"status","asset":"all"}`),
+			},
+			"spot status": {
+				entries: append(append([]string(nil), previousDefaults...), `{"enabled":true,"channel":"status","asset":"spot","pairs":"BTC-USD"}`),
+				exp:     append(append([]string(nil), previousDefaults...), `{"enabled":false,"channel":"status","asset":"spot","pairs":"BTC-USD"}`),
+			},
+			"perpetual status kept": {
+				entries: append(append([]string(nil), previousDefaults...), strings.Replace(usdtStatus, `"usdtmarginedfutures"`, `"USDTMarginedFutures"`, 1)),
+				exp:     append(append([]string(nil), previousDefaults...), strings.Replace(usdtStatus, `"usdtmarginedfutures"`, `"USDTMarginedFutures"`, 1)),
+			},
+			"disabled status kept": {
+				entries: append(append([]string(nil), previousDefaults...), `{"enabled":false,"channel":"status","asset":"all"}`),
+				exp:     append(append([]string(nil), previousDefaults...), `{"enabled":false,"channel":"status","asset":"all"}`),
+			},
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				got, err := new(v19.Version).DowngradeExchange(t.Context(), []byte(subscriptions(tc.entries...)))
+				require.NoError(t, err, "DowngradeExchange must not error")
+				assert.JSONEq(t, subscriptions(tc.exp...), string(got), "DowngradeExchange should disable the status subscriptions the previous version cannot subscribe to")
+			})
+		}
+	})
 	for name, entries := range map[string][]string{
 		"current defaults":  currentDefaults,
 		"reordered":         {coinStatus, orderbookEntry, usdtCandles, tickerEntry, fundingCandles, usdtStatus, marginCandles, coinCandles, tradesEntry, spotCandles},
@@ -220,49 +263,23 @@ func TestMigrationPreservesCustomSubscriptions(t *testing.T) {
 	}
 }
 
-func TestDowngradeDisablesStatusSubscriptions(t *testing.T) {
-	t.Parallel()
-	for name, tc := range map[string]struct{ entries, exp []string }{
-		"wildcard status": {
-			entries: with(currentDefaults, 8, strings.Replace(usdtStatus, `"usdtmarginedfutures"`, `"all"`, 1)),
-			exp:     with(currentDefaults, 8, `{"enabled":false,"channel":"status","asset":"all"}`),
-		},
-		"spot status": {
-			entries: append(append([]string(nil), previousDefaults...), `{"enabled":true,"channel":"status","asset":"spot","pairs":"BTC-USD"}`),
-			exp:     append(append([]string(nil), previousDefaults...), `{"enabled":false,"channel":"status","asset":"spot","pairs":"BTC-USD"}`),
-		},
-		"perpetual status kept": {
-			entries: append(append([]string(nil), previousDefaults...), strings.Replace(usdtStatus, `"usdtmarginedfutures"`, `"USDTMarginedFutures"`, 1)),
-			exp:     append(append([]string(nil), previousDefaults...), strings.Replace(usdtStatus, `"usdtmarginedfutures"`, `"USDTMarginedFutures"`, 1)),
-		},
-		"disabled status kept": {
-			entries: append(append([]string(nil), previousDefaults...), `{"enabled":false,"channel":"status","asset":"all"}`),
-			exp:     append(append([]string(nil), previousDefaults...), `{"enabled":false,"channel":"status","asset":"all"}`),
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			got, err := new(v19.Version).DowngradeExchange(t.Context(), []byte(subscriptions(tc.entries...)))
-			require.NoError(t, err, "DowngradeExchange must not error")
-			assert.JSONEq(t, subscriptions(tc.exp...), string(got), "DowngradeExchange should disable the status subscriptions the previous version cannot subscribe to")
-		})
-	}
-}
-
 func TestMigrationWithoutSubscriptions(t *testing.T) {
 	t.Parallel()
-	for _, input := range []string{
-		`{"name":"Bitfinex"}`,
-		`{"name":"Bitfinex","features":{}}`,
-		`{"name":"Bitfinex","features":{"subscriptions":null}}`,
+	for inputName, input := range map[string]string{
+		"no features":        `{"name":"Bitfinex"}`,
+		"empty features":     `{"name":"Bitfinex","features":{}}`,
+		"null subscriptions": `{"name":"Bitfinex","features":{"subscriptions":null}}`,
 	} {
 		for name, migrate := range map[string]func(context.Context, []byte) ([]byte, error){
 			"UpgradeExchange":   new(v19.Version).UpgradeExchange,
 			"DowngradeExchange": new(v19.Version).DowngradeExchange,
 		} {
-			got, err := migrate(t.Context(), []byte(input))
-			require.NoErrorf(t, err, "%s must not error for %s", name, input)
-			assert.Equalf(t, input, string(got), "%s should leave %s unchanged", name, input)
+			t.Run(inputName+"/"+name, func(t *testing.T) {
+				t.Parallel()
+				got, err := migrate(t.Context(), []byte(input))
+				require.NoErrorf(t, err, "%s must not error for %s", name, input)
+				assert.Equalf(t, input, string(got), "%s should leave %s unchanged", name, input)
+			})
 		}
 	}
 }

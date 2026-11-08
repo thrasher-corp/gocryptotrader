@@ -3,6 +3,7 @@ package bitfinex
 import (
 	"io"
 	"net/http"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -82,11 +83,14 @@ func TestGetMarginInfoBase(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMarginInfoBase should return the request failure")
 }
 
-func TestGetMarginInfoBySymbol(t *testing.T) {
+func TestGetMarginInfoBySymbol(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"", "t", "fUSD", "base", "sym_all"} {
-		_, err := e.GetMarginInfoBySymbol(t.Context(), symbol)
-		assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetMarginInfoBySymbol should refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err := e.GetMarginInfoBySymbol(t.Context(), symbol)
+			assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetMarginInfoBySymbol should refuse symbol %q", symbol)
+		})
 	}
 
 	skipLiveWithoutCredentials(t)
@@ -222,13 +226,16 @@ func TestClaimPosition(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ClaimPosition should return the request failure")
 }
 
-func TestIncreasePosition(t *testing.T) {
+func TestIncreasePosition(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.IncreasePosition(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "IncreasePosition must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"", "fUSD"} {
-		_, err = e.IncreasePosition(t.Context(), &IncreasePositionRequest{Symbol: symbol, Amount: 1})
-		require.ErrorIsf(t, err, errTradingSymbolRequired, "IncreasePosition must refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.IncreasePosition(t.Context(), &IncreasePositionRequest{Symbol: symbol, Amount: 1})
+			require.ErrorIsf(t, err, errTradingSymbolRequired, "IncreasePosition must refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.IncreasePosition(t.Context(), &IncreasePositionRequest{Symbol: "tBTCUSD"})
 	require.ErrorIs(t, err, errInvalidAmount, "IncreasePosition must refuse a zero amount")
@@ -257,9 +264,12 @@ func TestGetIncreasePositionInfo(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetIncreasePositionInfo(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetIncreasePositionInfo must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"", "fUSD"} {
-		_, err = e.GetIncreasePositionInfo(t.Context(), &IncreasePositionInfoRequest{Symbol: symbol})
-		require.ErrorIsf(t, err, errTradingSymbolRequired, "GetIncreasePositionInfo must refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.GetIncreasePositionInfo(t.Context(), &IncreasePositionInfoRequest{Symbol: symbol})
+			require.ErrorIsf(t, err, errTradingSymbolRequired, "GetIncreasePositionInfo must refuse symbol %q", symbol)
+		})
 	}
 
 	// The response decodes these through their tuple tags, never calling their own UnmarshalJSON methods
@@ -415,13 +425,16 @@ func TestGetPositionsAudit(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetPositionsAudit should return the request failure")
 }
 
-func TestUpdatePositionFundingType(t *testing.T) {
+func TestUpdatePositionFundingType(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.UpdatePositionFundingType(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "UpdatePositionFundingType must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"", "fUSD"} {
-		_, err = e.UpdatePositionFundingType(t.Context(), &UpdatePositionFundingTypeRequest{Symbol: symbol})
-		require.ErrorIsf(t, err, errTradingSymbolRequired, "UpdatePositionFundingType must refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err = e.UpdatePositionFundingType(t.Context(), &UpdatePositionFundingTypeRequest{Symbol: symbol})
+			require.ErrorIsf(t, err, errTradingSymbolRequired, "UpdatePositionFundingType must refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.UpdatePositionFundingType(t.Context(), &UpdatePositionFundingTypeRequest{Symbol: "tBTCUSD", FundingType: 2})
 	require.ErrorIs(t, err, errInvalidPositionFundingType, "UpdatePositionFundingType must refuse an undocumented funding type")
@@ -459,17 +472,23 @@ func TestUpdatePositionFundingType(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "UpdatePositionFundingType should return the request failure")
 }
 
-func TestSetDerivativePositionCollateral(t *testing.T) {
+func TestSetDerivativePositionCollateral(t *testing.T) { //nolint:tparallel // The subtests share e and req in order
 	t.Parallel()
 	_, err := e.SetDerivativePositionCollateral(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetDerivativePositionCollateral must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"", "fUSD"} {
-		_, err = e.SetDerivativePositionCollateral(t.Context(), &DerivativePositionCollateralRequest{Symbol: symbol, Collateral: 1})
-		require.ErrorIsf(t, err, errTradingSymbolRequired, "SetDerivativePositionCollateral must refuse symbol %q", symbol)
+		t.Run("symbol "+subtestName(symbol), func(t *testing.T) {
+			_, err = e.SetDerivativePositionCollateral(t.Context(), &DerivativePositionCollateralRequest{Symbol: symbol, Collateral: 1})
+			require.ErrorIsf(t, err, errTradingSymbolRequired, "SetDerivativePositionCollateral must refuse symbol %q", symbol)
+		})
 	}
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, collateral := range []float64{0, -1} {
-		_, err = e.SetDerivativePositionCollateral(t.Context(), &DerivativePositionCollateralRequest{Symbol: "tBTCF0:USTF0", Collateral: collateral})
-		require.ErrorIsf(t, err, errInvalidPositionCollateral, "SetDerivativePositionCollateral must refuse collateral %v", collateral)
+		t.Run("collateral "+strconv.FormatFloat(collateral, 'f', -1, 64), func(t *testing.T) {
+			_, err = e.SetDerivativePositionCollateral(t.Context(), &DerivativePositionCollateralRequest{Symbol: "tBTCF0:USTF0", Collateral: collateral})
+			require.ErrorIsf(t, err, errInvalidPositionCollateral, "SetDerivativePositionCollateral must refuse collateral %v", collateral)
+		})
 	}
 
 	// The docs take the collateral as a number, which encoding a float would send in exponent notation
@@ -498,19 +517,25 @@ func TestSetDerivativePositionCollateral(t *testing.T) {
 		assert.Equal(t, &APIError{Code: 10020, Message: "collateral: insufficient"}, apiErr, "SetDerivativePositionCollateral should decode the reported error")
 	}
 
+	// Serial, as the cases share req and SetDerivativePositionCollateral is called again after them
 	for _, response := range []string{`null`, `[]`} {
-		_, err = newResponseServerExchange(t, response).SetDerivativePositionCollateral(t.Context(), req)
-		assert.ErrorIsf(t, err, common.ErrNoResponse, "SetDerivativePositionCollateral should error for response %s", response)
+		t.Run("response "+response, func(t *testing.T) {
+			_, err = newResponseServerExchange(t, response).SetDerivativePositionCollateral(t.Context(), req)
+			assert.ErrorIsf(t, err, common.ErrNoResponse, "SetDerivativePositionCollateral should error for response %s", response)
+		})
 	}
 	_, err = newUnavailableServerExchange(t).SetDerivativePositionCollateral(t.Context(), req)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "SetDerivativePositionCollateral should return the request failure")
 }
 
-func TestGetDerivativePositionCollateralLimits(t *testing.T) {
+func TestGetDerivativePositionCollateralLimits(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"", "t", "fUSD"} {
-		_, err := e.GetDerivativePositionCollateralLimits(t.Context(), symbol)
-		assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetDerivativePositionCollateralLimits should refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err := e.GetDerivativePositionCollateralLimits(t.Context(), symbol)
+			assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetDerivativePositionCollateralLimits should refuse symbol %q", symbol)
+		})
 	}
 
 	skipLiveWithoutCredentials(t)

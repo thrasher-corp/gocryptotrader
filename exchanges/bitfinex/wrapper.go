@@ -833,6 +833,10 @@ func placeOrderRequest(s *order.Submit) (*PlaceOrderRequest, error) {
 	case s.TimeInForce.Is(order.GoodTillTime) && s.EndTime.IsZero():
 		return nil, fmt.Errorf("%w: %s orders need an end time", order.ErrUnsupportedTimeInForce, order.GoodTillTime)
 	}
+	// The response would report a trigger price Bitfinex was never sent
+	if s.TriggerPrice != 0 && (s.Type == order.Limit || s.Type == order.Market) {
+		return nil, fmt.Errorf("%w: %s orders have none", errTriggerPriceUnsupported, s.Type)
+	}
 	switch s.Type {
 	case order.Limit:
 		req.Type = OrderTypeLimit

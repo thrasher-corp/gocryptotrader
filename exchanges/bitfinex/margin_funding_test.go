@@ -2,6 +2,7 @@ package bitfinex
 
 import (
 	"net/http"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -46,21 +47,27 @@ func liveKeepFundingRequest(t *testing.T) *KeepFundingRequest {
 
 func TestOptionalFundingSymbolPath(t *testing.T) {
 	t.Parallel()
+	// Serial, as optionalFundingSymbolPath is called again after these cases
 	for _, tc := range []struct {
-		symbol, suffix, exp string
+		name, symbol, suffix, exp string
 	}{
-		{exp: "auth/r/funding/offers"},
-		{suffix: "/hist", exp: "auth/r/funding/offers/hist"},
-		{symbol: "fUSD", exp: "auth/r/funding/offers/fUSD"},
-		{symbol: "fUSD", suffix: "/hist", exp: "auth/r/funding/offers/fUSD/hist"},
+		{name: "no symbol or suffix", exp: "auth/r/funding/offers"},
+		{name: "suffix", suffix: "/hist", exp: "auth/r/funding/offers/hist"},
+		{name: "symbol", symbol: "fUSD", exp: "auth/r/funding/offers/fUSD"},
+		{name: "symbol and suffix", symbol: "fUSD", suffix: "/hist", exp: "auth/r/funding/offers/fUSD/hist"},
 	} {
-		path, err := optionalFundingSymbolPath("auth/r/funding/offers", tc.symbol, tc.suffix)
-		require.NoErrorf(t, err, "optionalFundingSymbolPath must not error for symbol %q", tc.symbol)
-		assert.Equalf(t, tc.exp, path, "optionalFundingSymbolPath should place symbol %q before suffix %q", tc.symbol, tc.suffix)
+		t.Run(tc.name, func(t *testing.T) {
+			path, err := optionalFundingSymbolPath("auth/r/funding/offers", tc.symbol, tc.suffix)
+			require.NoErrorf(t, err, "optionalFundingSymbolPath must not error for symbol %q", tc.symbol)
+			assert.Equalf(t, tc.exp, path, "optionalFundingSymbolPath should place symbol %q before suffix %q", tc.symbol, tc.suffix)
+		})
 	}
 	for _, symbol := range []string{"f", "tBTCUSD", "USD"} {
-		_, err := optionalFundingSymbolPath("auth/r/funding/offers", symbol, "")
-		assert.ErrorIsf(t, err, errFundingSymbolRequired, "optionalFundingSymbolPath should refuse symbol %q", symbol)
+		t.Run("refuses "+symbol, func(t *testing.T) {
+			t.Parallel()
+			_, err := optionalFundingSymbolPath("auth/r/funding/offers", symbol, "")
+			assert.ErrorIsf(t, err, errFundingSymbolRequired, "optionalFundingSymbolPath should refuse symbol %q", symbol)
+		})
 	}
 }
 
@@ -105,11 +112,14 @@ func TestOptionalFundingSymbolEndpoints(t *testing.T) {
 	assert.Equal(t, exp, paths, "An empty symbol should request every currency's path")
 }
 
-func TestGetActiveFundingOffers(t *testing.T) {
+func TestGetActiveFundingOffers(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"f", "tBTCUSD", "USD"} {
-		_, err := e.GetActiveFundingOffers(t.Context(), symbol)
-		assert.ErrorIsf(t, err, errFundingSymbolRequired, "GetActiveFundingOffers should refuse symbol %q", symbol)
+		t.Run(symbol, func(t *testing.T) {
+			_, err := e.GetActiveFundingOffers(t.Context(), symbol)
+			assert.ErrorIsf(t, err, errFundingSymbolRequired, "GetActiveFundingOffers should refuse symbol %q", symbol)
+		})
 	}
 
 	skipLiveWithoutCredentials(t)
@@ -143,25 +153,34 @@ func TestGetActiveFundingOffers(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetActiveFundingOffers should return the request failure")
 }
 
-func TestSubmitFundingOffer(t *testing.T) {
+func TestSubmitFundingOffer(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.SubmitFundingOffer(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SubmitFundingOffer must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, offerType := range []string{"", OrderTypeMarket, "limit"} {
-		_, err = e.SubmitFundingOffer(t.Context(), &SubmitFundingOfferRequest{Type: offerType, Symbol: "fUSD", Amount: 150, Rate: 0.0002, Period: 2})
-		require.ErrorIsf(t, err, errInvalidFundingOfferType, "SubmitFundingOffer must refuse type %q", offerType)
+		t.Run("type "+subtestName(offerType), func(t *testing.T) {
+			_, err = e.SubmitFundingOffer(t.Context(), &SubmitFundingOfferRequest{Type: offerType, Symbol: "fUSD", Amount: 150, Rate: 0.0002, Period: 2})
+			require.ErrorIsf(t, err, errInvalidFundingOfferType, "SubmitFundingOffer must refuse type %q", offerType)
+		})
 	}
 	_, err = e.SubmitFundingOffer(t.Context(), &SubmitFundingOfferRequest{Type: FundingOfferTypeFlashReturnRateDeltaVariable, Symbol: "fUSD", Amount: 150, Rate: -0.0001, Period: 2})
 	require.ErrorIs(t, err, errInvalidFundingOfferRate, "SubmitFundingOffer must refuse a negative FRRDELTAVAR offset")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"", "tBTCUSD", "USD"} {
-		_, err = e.SubmitFundingOffer(t.Context(), &SubmitFundingOfferRequest{Type: FundingOfferTypeLimit, Symbol: symbol, Amount: 150, Rate: 0.0002, Period: 2})
-		require.ErrorIsf(t, err, errFundingSymbolRequired, "SubmitFundingOffer must refuse symbol %q", symbol)
+		t.Run("symbol "+subtestName(symbol), func(t *testing.T) {
+			_, err = e.SubmitFundingOffer(t.Context(), &SubmitFundingOfferRequest{Type: FundingOfferTypeLimit, Symbol: symbol, Amount: 150, Rate: 0.0002, Period: 2})
+			require.ErrorIsf(t, err, errFundingSymbolRequired, "SubmitFundingOffer must refuse symbol %q", symbol)
+		})
 	}
 	_, err = e.SubmitFundingOffer(t.Context(), &SubmitFundingOfferRequest{Type: FundingOfferTypeLimit, Symbol: "fUSD", Rate: 0.0002, Period: 2})
 	require.ErrorIs(t, err, errInvalidAmount, "SubmitFundingOffer must refuse a zero amount")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, period := range []uint64{0, 1} {
-		_, err = e.SubmitFundingOffer(t.Context(), &SubmitFundingOfferRequest{Type: FundingOfferTypeLimit, Symbol: "fUSD", Amount: 150, Rate: 0.0002, Period: period})
-		require.ErrorIsf(t, err, errInvalidFundingOfferPeriod, "SubmitFundingOffer must refuse period %d", period)
+		t.Run("period "+strconv.FormatUint(period, 10), func(t *testing.T) {
+			_, err = e.SubmitFundingOffer(t.Context(), &SubmitFundingOfferRequest{Type: FundingOfferTypeLimit, Symbol: "fUSD", Amount: 150, Rate: 0.0002, Period: period})
+			require.ErrorIsf(t, err, errInvalidFundingOfferPeriod, "SubmitFundingOffer must refuse period %d", period)
+		})
 	}
 
 	// A zero rate offers at the flash return rate, so it must be sent rather than left out, and FRRDELTAFIX takes a
@@ -257,7 +276,7 @@ func TestCancelFundingOffer(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelFundingOffer should return the request failure")
 }
 
-func TestCancelAllFundingOffers(t *testing.T) {
+func TestCancelAllFundingOffers(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	if !mockTests {
 		t.Skip("CancelAllFundingOffers would cancel offers the test did not submit")
@@ -269,10 +288,13 @@ func TestCancelAllFundingOffers(t *testing.T) {
 		Text:   "All (8) submitted for cancellation; waiting for confirmation.",
 	}
 	// An empty currency is left out, cancelling the offers in every currency
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, c := range []currency.Code{currency.USD, currency.EMPTYCODE} {
-		result, err := e.CancelAllFundingOffers(t.Context(), c)
-		require.NoErrorf(t, err, "CancelAllFundingOffers must not error for currency %q", c)
-		assert.Equalf(t, exp, result, "CancelAllFundingOffers should decode every field for currency %q", c)
+		t.Run(subtestName(c.String()), func(t *testing.T) {
+			result, err := e.CancelAllFundingOffers(t.Context(), c)
+			require.NoErrorf(t, err, "CancelAllFundingOffers must not error for currency %q", c)
+			assert.Equalf(t, exp, result, "CancelAllFundingOffers should decode every field for currency %q", c)
+		})
 	}
 
 	_, err := newResponseServerExchange(t, `null`).CancelAllFundingOffers(t.Context(), currency.USD)
@@ -341,13 +363,16 @@ func TestFundingAutoRenew(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "FundingAutoRenew should return the request failure")
 }
 
-func TestKeepFunding(t *testing.T) {
+func TestKeepFunding(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.KeepFunding(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "KeepFunding must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, fundingType := range []string{"", "offer", "Credit"} {
-		_, err = e.KeepFunding(t.Context(), &KeepFundingRequest{Type: fundingType, IDs: []uint64{1}})
-		require.ErrorIsf(t, err, errInvalidKeepFundingType, "KeepFunding must refuse type %q", fundingType)
+		t.Run(subtestName(fundingType), func(t *testing.T) {
+			_, err = e.KeepFunding(t.Context(), &KeepFundingRequest{Type: fundingType, IDs: []uint64{1}})
+			require.ErrorIsf(t, err, errInvalidKeepFundingType, "KeepFunding must refuse type %q", fundingType)
+		})
 	}
 
 	// Changes sends 1 to keep and 0 to stop keeping
@@ -421,11 +446,14 @@ func TestGetFundingOffersHistory(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetFundingOffersHistory should return the request failure")
 }
 
-func TestGetFundingLoans(t *testing.T) {
+func TestGetFundingLoans(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"f", "tBTCUSD", "USD"} {
-		_, err := e.GetFundingLoans(t.Context(), symbol)
-		assert.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingLoans should refuse symbol %q", symbol)
+		t.Run(symbol, func(t *testing.T) {
+			_, err := e.GetFundingLoans(t.Context(), symbol)
+			assert.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingLoans should refuse symbol %q", symbol)
+		})
 	}
 
 	skipLiveWithoutCredentials(t)
@@ -501,11 +529,14 @@ func TestGetFundingLoansHistory(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetFundingLoansHistory should return the request failure")
 }
 
-func TestGetFundingCredits(t *testing.T) {
+func TestGetFundingCredits(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"f", "tBTCUSD", "USD"} {
-		_, err := e.GetFundingCredits(t.Context(), symbol)
-		assert.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingCredits should refuse symbol %q", symbol)
+		t.Run(symbol, func(t *testing.T) {
+			_, err := e.GetFundingCredits(t.Context(), symbol)
+			assert.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingCredits should refuse symbol %q", symbol)
+		})
 	}
 
 	skipLiveWithoutCredentials(t)
@@ -623,11 +654,14 @@ func TestGetAccountFundingTrades(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetAccountFundingTrades should return the request failure")
 }
 
-func TestGetFundingInfo(t *testing.T) {
+func TestGetFundingInfo(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"", "f", "tBTCUSD", "USD"} {
-		_, err := e.GetFundingInfo(t.Context(), symbol)
-		assert.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingInfo should refuse symbol %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			_, err := e.GetFundingInfo(t.Context(), symbol)
+			assert.ErrorIsf(t, err, errFundingSymbolRequired, "GetFundingInfo should refuse symbol %q", symbol)
+		})
 	}
 
 	skipLiveWithoutCredentials(t)

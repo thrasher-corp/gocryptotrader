@@ -23,6 +23,7 @@ var (
 
 func TestSymbolFor(t *testing.T) {
 	t.Parallel()
+	// Serial, as symbolFor is called again after these cases
 	for _, tc := range []struct {
 		a   asset.Item
 		p   currency.Pair
@@ -38,9 +39,11 @@ func TestSymbolFor(t *testing.T) {
 		{a: asset.MarginFunding, p: testFundingUSD, exp: "fUSD"},
 		{a: asset.MarginFunding, p: currency.NewPairWithDelimiter("avax", "", "-"), exp: "fAVAX"},
 	} {
-		got, err := symbolFor(tc.a, tc.p)
-		require.NoErrorf(t, err, "symbolFor must not error for %s %s", tc.a, tc.p)
-		assert.Equalf(t, tc.exp, got, "symbolFor should give %s %s's symbol", tc.a, tc.p)
+		t.Run(tc.a.String()+" "+tc.p.String(), func(t *testing.T) {
+			got, err := symbolFor(tc.a, tc.p)
+			require.NoErrorf(t, err, "symbolFor must not error for %s %s", tc.a, tc.p)
+			assert.Equalf(t, tc.exp, got, "symbolFor should give %s %s's symbol", tc.a, tc.p)
+		})
 	}
 	_, err := symbolFor(asset.Options, currency.NewBTCUSD())
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "symbolFor should refuse an asset Bitfinex has no symbol for")
@@ -55,8 +58,11 @@ func TestSymbolFor(t *testing.T) {
 		{a: asset.CoinMarginedFutures, p: testDerivativePair},
 		{a: asset.CoinMarginedFutures, p: currency.NewPair(currency.NewCode("ETHF0"), currency.BTC)},
 	} {
-		_, err := symbolFor(tc.a, tc.p)
-		assert.ErrorIsf(t, err, errPairNotOfAsset, "symbolFor should refuse %s as %s, rather than send it to another asset's market", tc.p, tc.a)
+		t.Run(tc.p.String()+" as "+tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := symbolFor(tc.a, tc.p)
+			assert.ErrorIsf(t, err, errPairNotOfAsset, "symbolFor should refuse %s as %s, rather than send it to another asset's market", tc.p, tc.a)
+		})
 	}
 }
 
@@ -69,7 +75,10 @@ func TestDerivativeAsset(t *testing.T) {
 		"BTCF0":      asset.CoinMarginedFutures,
 		"TESTBTCF0":  asset.CoinMarginedFutures,
 	} {
-		assert.Equalf(t, exp, derivativeAsset(currency.NewCode(collateral)), "derivativeAsset should give the asset %s margins", collateral)
+		t.Run(collateral, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, derivativeAsset(currency.NewCode(collateral)), "derivativeAsset should give the asset %s margins", collateral)
+		})
 	}
 	assert.True(t, isDerivativeAsset(asset.USDTMarginedFutures), "USDT margined futures should be a derivative asset")
 	assert.True(t, isDerivativeAsset(asset.CoinMarginedFutures), "coin margined futures should be a derivative asset")
@@ -79,6 +88,7 @@ func TestDerivativeAsset(t *testing.T) {
 
 func TestPairFromSymbol(t *testing.T) {
 	t.Parallel()
+	// Serial, as pairFromSymbol is called again after these cases
 	for symbol, exp := range map[string]currency.Pair{
 		"tBTCUSD":      currency.NewBTCUSD(),
 		"BTCUSD":       currency.NewBTCUSD(),
@@ -86,13 +96,18 @@ func TestPairFromSymbol(t *testing.T) {
 		"tBTCF0:USTF0": testDerivativePair,
 		"fUSD":         testFundingUSD,
 	} {
-		got, err := pairFromSymbol(symbol)
-		require.NoErrorf(t, err, "pairFromSymbol must not error for %s", symbol)
-		assert.Truef(t, exp.Equal(got), "pairFromSymbol should return %s for %s, got %s", exp, symbol, got)
+		t.Run(symbol, func(t *testing.T) {
+			got, err := pairFromSymbol(symbol)
+			require.NoErrorf(t, err, "pairFromSymbol must not error for %s", symbol)
+			assert.Truef(t, exp.Equal(got), "pairFromSymbol should return %s for %s, got %s", exp, symbol, got)
+		})
 	}
 	for _, symbol := range []string{"tBTC", "tBTCUSDT", "t:USD", "tBTC:", ""} {
-		_, err := pairFromSymbol(symbol)
-		assert.ErrorIsf(t, err, errSymbolUnparsable, "pairFromSymbol should refuse %q", symbol)
+		t.Run(subtestName(symbol), func(t *testing.T) {
+			t.Parallel()
+			_, err := pairFromSymbol(symbol)
+			assert.ErrorIsf(t, err, errSymbolUnparsable, "pairFromSymbol should refuse %q", symbol)
+		})
 	}
 }
 
@@ -121,14 +136,17 @@ func TestOrderTypeFromExchange(t *testing.T) {
 		ExchangeOrderTypePrefix + OrderTypeTrailingStop:   {t: order.TrailingStop},
 		ExchangeOrderTypePrefix + OrderTypeLimit + "    ": {t: order.UnknownType},
 	} {
-		gotType, gotTimeInForce, err := orderTypeFromExchange(orderType)
-		if exp.t == order.UnknownType {
-			assert.ErrorIsf(t, err, errUnknownOrderType, "orderTypeFromExchange should refuse %q", orderType)
-			continue
-		}
-		require.NoErrorf(t, err, "orderTypeFromExchange must not error for %s", orderType)
-		assert.Equalf(t, exp.t, gotType, "orderTypeFromExchange should give %s's type", orderType)
-		assert.Equalf(t, exp.timeInForce, gotTimeInForce, "orderTypeFromExchange should give %s's time in force", orderType)
+		t.Run(orderType, func(t *testing.T) {
+			t.Parallel()
+			gotType, gotTimeInForce, err := orderTypeFromExchange(orderType)
+			if exp.t == order.UnknownType {
+				assert.ErrorIsf(t, err, errUnknownOrderType, "orderTypeFromExchange should refuse %q", orderType)
+				return
+			}
+			require.NoErrorf(t, err, "orderTypeFromExchange must not error for %s", orderType)
+			assert.Equalf(t, exp.t, gotType, "orderTypeFromExchange should give %s's type", orderType)
+			assert.Equalf(t, exp.timeInForce, gotTimeInForce, "orderTypeFromExchange should give %s's time in force", orderType)
+		})
 	}
 }
 
@@ -172,7 +190,10 @@ func TestOrderStatusFromExchange(t *testing.T) {
 		"INSUFFICIENT BALANCE (G1) was: LLED @ 12.58(-15.53)":          order.PartiallyFilledCancelled,
 		"...LLED @ 2365.3(45.58642898)":                                order.UnknownStatus,
 	} {
-		assert.Equalf(t, exp, orderStatusFromExchange(status), "orderStatusFromExchange should give %q's status", status)
+		t.Run(status, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, orderStatusFromExchange(status), "orderStatusFromExchange should give %q's status", status)
+		})
 	}
 }
 
@@ -186,7 +207,10 @@ func TestClosedOrderStatus(t *testing.T) {
 		order.Active:                   order.Active,
 		order.InsufficientBalance:      order.InsufficientBalance,
 	} {
-		assert.Equalf(t, exp, closedOrderStatus(status), "closedOrderStatus should report a closed %s order %s", status, exp)
+		t.Run(status.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, closedOrderStatus(status), "closedOrderStatus should report a closed %s order %s", status, exp)
+		})
 	}
 }
 
@@ -206,8 +230,11 @@ func TestOrderStatusExecutedAmount(t *testing.T) {
 		"PARTIALLY FILLED @ x(0.1), PARTIALLY FILLED @ 100(y), PARTIALLY FILLED @ 100(0.1e-2147483647)": 0,
 		"... 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898)":                               45.58642898,
 	} {
-		got := orderStatusExecutedAmount(status)
-		assert.Truef(t, decimal.MustFromFloat(exp).Equal(got), "orderStatusExecutedAmount should add up the fills %q lists in full to %v exactly, got %s", status, exp, got)
+		t.Run(status, func(t *testing.T) {
+			t.Parallel()
+			got := orderStatusExecutedAmount(status)
+			assert.Truef(t, decimal.MustFromFloat(exp).Equal(got), "orderStatusExecutedAmount should add up the fills %q lists in full to %v exactly, got %s", status, exp, got)
+		})
 	}
 }
 
@@ -221,8 +248,11 @@ func TestSplitOrderStatus(t *testing.T) {
 		"EXECUTED @ 9500.0(-0.5) was ACTIVE (note:POSCLOSE)":         {"EXECUTED @ 9500.0(-0.5)", "ACTIVE (note:POSCLOSE)"},
 		"CANCELED was:  12.58(-15.53)":                               {"CANCELED", " 12.58(-15.53)"},
 	} {
-		current, previous := splitOrderStatus(status)
-		assert.Equalf(t, exp, [2]string{current, previous}, "splitOrderStatus should split %q into what the order is and what it was", status)
+		t.Run(status, func(t *testing.T) {
+			t.Parallel()
+			current, previous := splitOrderStatus(status)
+			assert.Equalf(t, exp, [2]string{current, previous}, "splitOrderStatus should split %q into what the order is and what it was", status)
+		})
 	}
 }
 
@@ -247,7 +277,10 @@ func TestIsFillListCut(t *testing.T) {
 		"D EXECUTED @ 12.58(-15.53)":                       true,
 		"XECUTED @ 12.58(-15.53)":                          true,
 	} {
-		assert.Equalf(t, exp, isFillListCut(fills), "isFillListCut should report whether %q starts part way through a fill", fills)
+		t.Run(subtestName(fills), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, isFillListCut(fills), "isFillListCut should report whether %q starts part way through a fill", fills)
+		})
 	}
 }
 
@@ -261,24 +294,31 @@ func TestIsOrderStatusCut(t *testing.T) {
 		"CANCELED was: ...LLED @ 2365.3(45.58642898)":                                    true,
 		"EXECUTED @ 2365.3(594.14534185): was ...LLED @ 2365.3(45.58642898)":             true,
 	} {
-		assert.Equalf(t, exp, isOrderStatusCut(status), "isOrderStatusCut should report whether %q was cut short", status)
+		t.Run(status, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, isOrderStatusCut(status), "isOrderStatusCut should report whether %q was cut short", status)
+		})
 	}
 }
 
 func TestOrderExecutedAmount(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		o   *OrderResponse
-		exp string
+		name string
+		o    *OrderResponse
+		exp  string
 	}{
-		{o: &OrderResponse{Amount: 0.25, OriginalAmount: 0.1, Status: "ACTIVE"}, exp: "0"},
-		{o: &OrderResponse{Amount: -0.4, OriginalAmount: -1, Status: "PARTIALLY FILLED @ 100.0(-0.3)"}, exp: "0.3"},
-		{o: &OrderResponse{Amount: 694.14534185, OriginalAmount: 1093.673236, Status: "... 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898)"}, exp: "399.52789415"},
-		{o: &OrderResponse{Amount: -0.9, OriginalAmount: -1, Status: "...LLED @ 100.0(-0.2), PARTIALLY FILLED @ 100.0(-0.2)"}, exp: "0.4"},
-		{o: &OrderResponse{OriginalAmount: 1, Status: "CANCELED was: ...LLED @ 100.0(0.2)"}, exp: "1"},
+		{name: "active order raised by an update", o: &OrderResponse{Amount: 0.25, OriginalAmount: 0.1, Status: "ACTIVE"}, exp: "0"},
+		{name: "partly filled order lowered by an update", o: &OrderResponse{Amount: -0.4, OriginalAmount: -1, Status: "PARTIALLY FILLED @ 100.0(-0.3)"}, exp: "0.3"},
+		{name: "status cut short", o: &OrderResponse{Amount: 694.14534185, OriginalAmount: 1093.673236, Status: "... 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898)"}, exp: "399.52789415"},
+		{name: "status cut short listing more than the amounts give", o: &OrderResponse{Amount: -0.9, OriginalAmount: -1, Status: "...LLED @ 100.0(-0.2), PARTIALLY FILLED @ 100.0(-0.2)"}, exp: "0.4"},
+		{name: "cancelled order whose status is cut short", o: &OrderResponse{OriginalAmount: 1, Status: "CANCELED was: ...LLED @ 100.0(0.2)"}, exp: "1"},
 	} {
-		got := orderExecutedAmount(tc.o)
-		assert.Truef(t, decimal.MustFromString(tc.exp).Equal(got), "orderExecutedAmount should report %s executed for an order of %v, placed for %v, %q, got %s", tc.exp, tc.o.Amount, tc.o.OriginalAmount, tc.o.Status, got)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := orderExecutedAmount(tc.o)
+			assert.Truef(t, decimal.MustFromString(tc.exp).Equal(got), "orderExecutedAmount should report %s executed for an order of %v, placed for %v, %q, got %s", tc.exp, tc.o.Amount, tc.o.OriginalAmount, tc.o.Status, got)
+		})
 	}
 }
 
@@ -294,7 +334,7 @@ func TestOrderSideFromAmount(t *testing.T) {
 	assert.ErrorIs(t, err, errOrderSideUnresolved, "a zero amount should have no side")
 }
 
-func TestOrderDetail(t *testing.T) {
+func TestOrderDetail(t *testing.T) { //nolint:tparallel // the cases share e in order
 	t.Parallel()
 	got, err := e.orderDetail(&OrderResponse{
 		ID: 1, ClientOrderID: 2, Symbol: "tBTCUSD", CreatedAt: types.Time(time.UnixMilli(1700000000001)), UpdatedAt: types.Time(time.UnixMilli(1700000000002)),
@@ -320,38 +360,48 @@ func TestOrderDetail(t *testing.T) {
 	assert.Equal(t, [2]float64{95, 0}, [2]float64{trailing.TriggerPrice, trailing.Price}, "a trailing stop order's price should be the stop Bitfinex works out from its distance, its trigger")
 
 	// Bitfinex keeps an order's original amount from before any update, as the documented update reply does: one raised
-	// from 0.1 to 0.25, and one lowered from 1 to 0.4 after executing 0.3, each by an update
+	// from 0.1 to 0.25, and one lowered from 1 to 0.4 after executing 0.3, each by an update. The cases share e in order,
+	// as do the refusals after them, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
+		name                        string
 		o                           *OrderResponse
 		amount, executed, remaining float64
 	}{
-		{o: &OrderResponse{ID: 1, Symbol: "tBTCUSD", Amount: 0.25, OriginalAmount: 0.1, Type: OrderTypeLimit, Status: "ACTIVE"}, amount: 0.25, remaining: 0.25},
-		{o: &OrderResponse{ID: 2, Symbol: "tBTCUSD", Amount: -0.4, OriginalAmount: -1, Type: OrderTypeLimit, Status: "PARTIALLY FILLED @ 100.0(-0.3)"}, amount: 0.7, executed: 0.3, remaining: 0.4},
+		{name: "raised by an update", o: &OrderResponse{ID: 1, Symbol: "tBTCUSD", Amount: 0.25, OriginalAmount: 0.1, Type: OrderTypeLimit, Status: "ACTIVE"}, amount: 0.25, remaining: 0.25},
+		{name: "lowered by an update after a fill", o: &OrderResponse{ID: 2, Symbol: "tBTCUSD", Amount: -0.4, OriginalAmount: -1, Type: OrderTypeLimit, Status: "PARTIALLY FILLED @ 100.0(-0.3)"}, amount: 0.7, executed: 0.3, remaining: 0.4},
 		// Added up as floats, 0.1 and 0.2 make 0.30000000000000004
-		{o: &OrderResponse{ID: 3, Symbol: "tBTCUSD", Amount: 0.2, OriginalAmount: 0.3, Type: OrderTypeLimit, Status: "PARTIALLY FILLED @ 100.0(0.1)"}, amount: 0.3, executed: 0.1, remaining: 0.2},
+		{name: "amounts added up as decimals", o: &OrderResponse{ID: 3, Symbol: "tBTCUSD", Amount: 0.2, OriginalAmount: 0.3, Type: OrderTypeLimit, Status: "PARTIALLY FILLED @ 100.0(0.1)"}, amount: 0.3, executed: 0.1, remaining: 0.2},
 	} {
-		got, err := e.orderDetail(tc.o)
-		require.NoErrorf(t, err, "orderDetail must not error for updated order %d", tc.o.ID)
-		assert.Equalf(t, tc.amount, got.Amount, "orderDetail should report updated order %d's whole amount as what it executed and what remains", tc.o.ID)
-		assert.Equalf(t, tc.executed, got.ExecutedAmount, "orderDetail should report what updated order %d executed from the fills its status lists", tc.o.ID)
-		assert.Equalf(t, tc.remaining, got.RemainingAmount, "orderDetail should report what remains of updated order %d", tc.o.ID)
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := e.orderDetail(tc.o)
+			require.NoErrorf(t, err, "orderDetail must not error for updated order %d", tc.o.ID)
+			assert.Equalf(t, tc.amount, got.Amount, "orderDetail should report updated order %d's whole amount as what it executed and what remains", tc.o.ID)
+			assert.Equalf(t, tc.executed, got.ExecutedAmount, "orderDetail should report what updated order %d executed from the fills its status lists", tc.o.ID)
+			assert.Equalf(t, tc.remaining, got.RemainingAmount, "orderDetail should report what remains of updated order %d", tc.o.ID)
+		})
 	}
 
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
-		o   *OrderResponse
-		err error
+		name string
+		o    *OrderResponse
+		err  error
 	}{
-		{o: &OrderResponse{Symbol: "tBTC", Type: OrderTypeLimit, OriginalAmount: 1}, err: errSymbolUnparsable},
-		{o: &OrderResponse{Symbol: "tBTCUSD", Type: "NOVEL", OriginalAmount: 1}, err: errUnknownOrderType},
-		{o: &OrderResponse{Symbol: "tBTCUSD", Type: OrderTypeLimit}, err: errOrderSideUnresolved},
+		{name: "unparsable symbol", o: &OrderResponse{Symbol: "tBTC", Type: OrderTypeLimit, OriginalAmount: 1}, err: errSymbolUnparsable},
+		{name: "unknown order type", o: &OrderResponse{Symbol: "tBTCUSD", Type: "NOVEL", OriginalAmount: 1}, err: errUnknownOrderType},
+		{name: "zero amount", o: &OrderResponse{Symbol: "tBTCUSD", Type: OrderTypeLimit}, err: errOrderSideUnresolved},
 	} {
-		_, err := e.orderDetail(tc.o)
-		assert.ErrorIsf(t, err, tc.err, "orderDetail should return the expected error for %+v", tc.o)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.orderDetail(tc.o)
+			assert.ErrorIsf(t, err, tc.err, "orderDetail should return the expected error for %+v", tc.o)
+		})
 	}
 }
 
-func TestWalletAsset(t *testing.T) {
+func TestWalletAsset(t *testing.T) { //nolint:tparallel // walletAsset is called again after the cases
 	t.Parallel()
+
+	// Serial, as walletAsset is called again after these cases
 	for _, tc := range []struct {
 		walletType string
 		c          currency.Code
@@ -365,9 +415,11 @@ func TestWalletAsset(t *testing.T) {
 		{walletType: WalletTypeFunding, c: currency.USD, exp: asset.MarginFunding},
 		{walletType: "deposit", c: currency.BTC, exp: asset.MarginFunding},
 	} {
-		got, err := walletAsset(tc.walletType, tc.c)
-		require.NoErrorf(t, err, "walletAsset must not error for %s %s", tc.walletType, tc.c)
-		assert.Equalf(t, tc.exp, got, "walletAsset should give the asset %s in the %s wallet funds", tc.c, tc.walletType)
+		t.Run(tc.walletType+" "+tc.c.String(), func(t *testing.T) {
+			got, err := walletAsset(tc.walletType, tc.c)
+			require.NoErrorf(t, err, "walletAsset must not error for %s %s", tc.walletType, tc.c)
+			assert.Equalf(t, tc.exp, got, "walletAsset should give the asset %s in the %s wallet funds", tc.c, tc.walletType)
+		})
 	}
 	_, err := walletAsset("contribution", currency.USD)
 	assert.ErrorIs(t, err, errUnknownWalletType, "walletAsset should refuse an unknown wallet type")

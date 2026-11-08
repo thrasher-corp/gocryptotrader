@@ -6,6 +6,7 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -239,13 +240,16 @@ func TestGetKeyPermissions(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetKeyPermissions should return the request failure")
 }
 
-func TestGenerateToken(t *testing.T) {
+func TestGenerateToken(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.GenerateToken(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GenerateToken must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, ttl := range []time.Duration{-time.Second, 1500 * time.Millisecond, time.Millisecond} {
-		_, err = e.GenerateToken(t.Context(), &GenerateTokenRequest{TimeToLive: ttl})
-		require.ErrorIsf(t, err, errInvalidTokenTimeToLive, "GenerateToken must refuse time to live %s", ttl)
+		t.Run(ttl.String(), func(t *testing.T) {
+			_, err = e.GenerateToken(t.Context(), &GenerateTokenRequest{TimeToLive: ttl})
+			require.ErrorIsf(t, err, errInvalidTokenTimeToLive, "GenerateToken must refuse time to live %s", ttl)
+		})
 	}
 	_, err = e.GenerateToken(t.Context(), &GenerateTokenRequest{Capabilities: []string{TokenCapabilityAccount, "x"}})
 	require.ErrorIs(t, err, errInvalidTokenCapability, "GenerateToken must refuse an unknown capability")
@@ -299,22 +303,28 @@ func TestGetChangelog(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetChangelog should return the request failure")
 }
 
-func TestTransferBetweenWallets(t *testing.T) {
+func TestTransferBetweenWallets(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.TransferBetweenWallets(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "TransferBetweenWallets must reject a nil request")
 	// trading and deposit are the old names of the margin and funding wallets
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, wallet := range []string{"", "trading", "deposit", "Exchange"} {
-		_, err = e.TransferBetweenWallets(t.Context(), &TransferBetweenWalletsRequest{From: wallet, To: WalletTypeExchange})
-		require.ErrorIsf(t, err, errInvalidAccountWallet, "TransferBetweenWallets must refuse from wallet %q", wallet)
-		_, err = e.TransferBetweenWallets(t.Context(), &TransferBetweenWalletsRequest{From: WalletTypeExchange, To: wallet})
-		require.ErrorIsf(t, err, errInvalidAccountWallet, "TransferBetweenWallets must refuse to wallet %q", wallet)
+		t.Run("wallet "+subtestName(wallet), func(t *testing.T) {
+			_, err = e.TransferBetweenWallets(t.Context(), &TransferBetweenWalletsRequest{From: wallet, To: WalletTypeExchange})
+			require.ErrorIsf(t, err, errInvalidAccountWallet, "TransferBetweenWallets must refuse from wallet %q", wallet)
+			_, err = e.TransferBetweenWallets(t.Context(), &TransferBetweenWalletsRequest{From: WalletTypeExchange, To: wallet})
+			require.ErrorIsf(t, err, errInvalidAccountWallet, "TransferBetweenWallets must refuse to wallet %q", wallet)
+		})
 	}
 	_, err = e.TransferBetweenWallets(t.Context(), &TransferBetweenWalletsRequest{From: WalletTypeExchange, To: WalletTypeFunding})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "TransferBetweenWallets must require a currency")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, amount := range []float64{0, -1} {
-		_, err = e.TransferBetweenWallets(t.Context(), &TransferBetweenWalletsRequest{From: WalletTypeExchange, To: WalletTypeFunding, Currency: currency.UST, Amount: amount})
-		require.ErrorIsf(t, err, errInvalidAmount, "TransferBetweenWallets must refuse amount %v", amount)
+		t.Run("amount "+strconv.FormatFloat(amount, 'f', -1, 64), func(t *testing.T) {
+			_, err = e.TransferBetweenWallets(t.Context(), &TransferBetweenWalletsRequest{From: WalletTypeExchange, To: WalletTypeFunding, Currency: currency.UST, Amount: amount})
+			require.ErrorIsf(t, err, errInvalidAmount, "TransferBetweenWallets must refuse amount %v", amount)
+		})
 	}
 	_, err = e.TransferBetweenWallets(t.Context(), &TransferBetweenWalletsRequest{From: WalletTypeExchange, To: WalletTypeFunding, Currency: currency.UST, Amount: 1, DestinationUserID: 1, TwoFactorToken: &TwoFactorToken{Method: "sms"}})
 	require.ErrorIs(t, err, errInvalidTwoFactorMethod, "TransferBetweenWallets must refuse an invalid two factor token")
@@ -332,13 +342,16 @@ func TestTransferBetweenWallets(t *testing.T) {
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
 		// Needs 1 UST in the exchange wallet, which is transferred to the funding wallet and back
+		// The second case transfers back what the first moves, so the cases run in order
 		for _, req := range []*TransferBetweenWalletsRequest{
 			{From: WalletTypeExchange, To: WalletTypeFunding, Currency: currency.UST, Amount: 1},
 			{From: WalletTypeFunding, To: WalletTypeExchange, Currency: currency.UST, Amount: 1},
 		} {
-			result, err := e.TransferBetweenWallets(t.Context(), req)
-			require.NoErrorf(t, err, "TransferBetweenWallets must not error from %s to %s", req.From, req.To)
-			assert.Equalf(t, req.To, result.Data.WalletTo, "TransferBetweenWallets should transfer to the %s wallet", req.To)
+			t.Run(req.From+" to "+req.To, func(t *testing.T) {
+				result, err := e.TransferBetweenWallets(t.Context(), req)
+				require.NoErrorf(t, err, "TransferBetweenWallets must not error from %s to %s", req.From, req.To)
+				assert.Equalf(t, req.To, result.Data.WalletTo, "TransferBetweenWallets should transfer to the %s wallet", req.To)
+			})
 		}
 		return
 	}
@@ -370,7 +383,7 @@ func TestTransferBetweenWallets(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "TransferBetweenWallets should return the request failure")
 }
 
-func TestRequestDepositAddress(t *testing.T) {
+func TestRequestDepositAddress(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.RequestDepositAddress(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "RequestDepositAddress must reject a nil request")
@@ -394,13 +407,16 @@ func TestRequestDepositAddress(t *testing.T) {
 		Text:   "success",
 	}
 	// The recorded requests hold the method in lower case, and op_renew only for a renewal
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, req := range []*DepositAddressRequest{
 		{Wallet: WalletTypeExchange, Method: "bitcoin"},
 		{Wallet: WalletTypeExchange, Method: "BITCOIN", Renew: true},
 	} {
-		result, err := e.RequestDepositAddress(t.Context(), req)
-		require.NoErrorf(t, err, "RequestDepositAddress must not error with renew %t", req.Renew)
-		assert.Equalf(t, exp, result, "RequestDepositAddress should decode the address with renew %t", req.Renew)
+		t.Run("renew "+strconv.FormatBool(req.Renew), func(t *testing.T) {
+			result, err := e.RequestDepositAddress(t.Context(), req)
+			require.NoErrorf(t, err, "RequestDepositAddress must not error with renew %t", req.Renew)
+			assert.Equalf(t, exp, result, "RequestDepositAddress should decode the address with renew %t", req.Renew)
+		})
 	}
 
 	req := &DepositAddressRequest{Wallet: WalletTypeExchange, Method: "bitcoin"}
@@ -438,11 +454,14 @@ func TestGetDepositAddressList(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetDepositAddressList should return the request failure")
 }
 
-func TestGenerateInvoice(t *testing.T) {
+func TestGenerateInvoice(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, amount := range []float64{0, -0.01} {
-		_, err := e.GenerateInvoice(t.Context(), amount)
-		require.ErrorIsf(t, err, errInvalidAmount, "GenerateInvoice must refuse amount %v", amount)
+		t.Run(strconv.FormatFloat(amount, 'f', -1, 64), func(t *testing.T) {
+			_, err := e.GenerateInvoice(t.Context(), amount)
+			require.ErrorIsf(t, err, errInvalidAmount, "GenerateInvoice must refuse amount %v", amount)
+		})
 	}
 
 	skipLiveUnlessCanManipulate(t)
@@ -579,10 +598,11 @@ func TestGetLightningNetworkPayment(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLightningNetworkPayment should return the request failure")
 }
 
-func TestRequestWithdrawal(t *testing.T) {
+func TestRequestWithdrawal(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.RequestWithdrawal(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "RequestWithdrawal must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		name string
 		req  *WithdrawalRequest
@@ -598,8 +618,10 @@ func TestRequestWithdrawal(t *testing.T) {
 		{"a first name alone", &WithdrawalRequest{Wallet: WalletTypeExchange, Method: "bitcoin", Amount: 1, Address: "a", TravelRule: &TravelRuleDetails{FirstName: "John"}}, errTravelRuleNameIncomplete},
 		{"a last name alone", &WithdrawalRequest{Wallet: WalletTypeExchange, Method: "bitcoin", Amount: 1, Address: "a", TravelRule: &TravelRuleDetails{LastName: "Doe"}}, errTravelRuleNameIncomplete},
 	} {
-		_, err = e.RequestWithdrawal(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "RequestWithdrawal must refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err = e.RequestWithdrawal(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "RequestWithdrawal must refuse %s", tc.name)
+		})
 	}
 
 	// The recorded request holds the travel rule details; these hold the other optional fields
@@ -741,17 +763,23 @@ func TestGetAlertList(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetAlertList should return the request failure")
 }
 
-func TestSetAlert(t *testing.T) {
+func TestSetAlert(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.SetAlert(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetAlert must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, symbol := range []string{"", "fUSD", "BTCUSD"} {
-		_, err = e.SetAlert(t.Context(), &SetAlertRequest{Symbol: symbol, Price: 1})
-		require.ErrorIsf(t, err, errTradingSymbolRequired, "SetAlert must refuse symbol %q", symbol)
+		t.Run("symbol "+subtestName(symbol), func(t *testing.T) {
+			_, err = e.SetAlert(t.Context(), &SetAlertRequest{Symbol: symbol, Price: 1})
+			require.ErrorIsf(t, err, errTradingSymbolRequired, "SetAlert must refuse symbol %q", symbol)
+		})
 	}
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, price := range []float64{0, -1} {
-		_, err = e.SetAlert(t.Context(), &SetAlertRequest{Symbol: "tBTCUSD", Price: price})
-		require.ErrorIsf(t, err, errInvalidPrice, "SetAlert must refuse price %v", price)
+		t.Run("price "+strconv.FormatFloat(price, 'f', -1, 64), func(t *testing.T) {
+			_, err = e.SetAlert(t.Context(), &SetAlertRequest{Symbol: "tBTCUSD", Price: price})
+			require.ErrorIsf(t, err, errInvalidPrice, "SetAlert must refuse price %v", price)
+		})
 	}
 
 	skipLiveUnlessCanManipulate(t)
@@ -805,10 +833,11 @@ func TestDeleteAlert(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "DeleteAlert should return the request failure")
 }
 
-func TestGetBalanceAvailable(t *testing.T) {
+func TestGetBalanceAvailable(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
 	_, err := e.GetBalanceAvailable(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetBalanceAvailable must reject a nil request")
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		name string
 		req  *BalanceAvailableRequest
@@ -822,8 +851,10 @@ func TestGetBalanceAvailable(t *testing.T) {
 		{"an exchange order without a price", &BalanceAvailableRequest{Symbol: "tBTCUSD", Type: BalanceAvailableTypeExchange, Direction: -1}, errInvalidPrice},
 		{"a negative price", &BalanceAvailableRequest{Symbol: "tBTCF0:USTF0", Type: BalanceAvailableTypeDerivative, Rate: -1}, errInvalidPrice},
 	} {
-		_, err = e.GetBalanceAvailable(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetBalanceAvailable must refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err = e.GetBalanceAvailable(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetBalanceAvailable must refuse %s", tc.name)
+		})
 	}
 
 	skipLiveWithoutCredentials(t)
@@ -931,11 +962,17 @@ func TestDeleteUserSettings(t *testing.T) {
 
 func TestCheckAccountWallet(t *testing.T) {
 	t.Parallel()
+	// Serial, as checkAccountWallet is called again after these cases
 	for _, wallet := range []string{WalletTypeExchange, WalletTypeMargin, WalletTypeFunding} {
-		assert.NoErrorf(t, checkAccountWallet(wallet), "checkAccountWallet should accept wallet %q", wallet)
+		t.Run("accepts "+wallet, func(t *testing.T) {
+			assert.NoErrorf(t, checkAccountWallet(wallet), "checkAccountWallet should accept wallet %q", wallet)
+		})
 	}
 	for _, wallet := range []string{"", "trading", "deposit", "EXCHANGE", "spot"} {
-		assert.ErrorIsf(t, checkAccountWallet(wallet), errInvalidAccountWallet, "checkAccountWallet should refuse wallet %q", wallet)
+		t.Run("refuses "+subtestName(wallet), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, checkAccountWallet(wallet), errInvalidAccountWallet, "checkAccountWallet should refuse wallet %q", wallet)
+		})
 	}
 }
 
@@ -945,7 +982,10 @@ func TestCheckUserSettingKeys(t *testing.T) {
 	assert.NoError(t, checkUserSettingKeys(slices.Values(valid)), "checkUserSettingKeys should accept keys matching the pattern")
 	assert.NoError(t, checkUserSettingKeys(maps.Keys(map[string]int{"api:x": 1})), "checkUserSettingKeys should accept a map's keys")
 	for _, key := range []string{"", "key1", "api", "API:key1", "api:key 1", "api:key.1", "api:kéy", "api:key:1", " api:key1", "xapi:key1"} {
-		assert.ErrorIsf(t, checkUserSettingKeys(slices.Values([]string{"api:ok", key})), errInvalidUserSettingKey, "checkUserSettingKeys should refuse key %q", key)
+		t.Run(subtestName(key), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, checkUserSettingKeys(slices.Values([]string{"api:ok", key})), errInvalidUserSettingKey, "checkUserSettingKeys should refuse key %q", key)
+		})
 	}
 }
 
@@ -956,12 +996,17 @@ func TestTwoFactorTokenValidate(t *testing.T) {
 	assert.ErrorIs(t, (&TwoFactorToken{Method: TwoFactorMethodOneTimePassword}).validate(), errTwoFactorPasswordRequired, "validate should require the one time password")
 	assert.ErrorIs(t, (&TwoFactorToken{Method: TwoFactorMethodU2F, Token: "123456"}).validate(), errTwoFactorAssertionRequired, "validate should require the assertion")
 	for _, method := range []string{"", "OTP", "sms"} {
-		assert.ErrorIsf(t, (&TwoFactorToken{Method: method, Token: "123456"}).validate(), errInvalidTwoFactorMethod, "validate should refuse method %q", method)
+		t.Run(subtestName(method), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, (&TwoFactorToken{Method: method, Token: "123456"}).validate(), errInvalidTwoFactorMethod, "validate should refuse method %q", method)
+		})
 	}
 }
 
-func TestLoginExtraInfoUnmarshalJSON(t *testing.T) {
+func TestLoginExtraInfoUnmarshalJSON(t *testing.T) { //nolint:tparallel // UnmarshalJSON is called again after the subtests
 	t.Parallel()
+
+	// Serial, as UnmarshalJSON is called again after these cases
 	for data, exp := range map[string]LoginExtraInfo{
 		`"{\"geo\": \"Cancún, MX\"}"`: LoginExtraInfo(`{"geo": "Cancún, MX"}`),
 		`" {\"a\":1} "`:               LoginExtraInfo(`{"a":1}`),
@@ -972,9 +1017,11 @@ func TestLoginExtraInfoUnmarshalJSON(t *testing.T) {
 		`""`:                          LoginExtraInfo(`""`),
 		`null`:                        LoginExtraInfo(`null`),
 	} {
-		var got LoginExtraInfo
-		require.NoErrorf(t, got.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for %s", data)
-		assert.Equalf(t, exp, got, "UnmarshalJSON should decode %s", data)
+		t.Run(data, func(t *testing.T) {
+			var got LoginExtraInfo
+			require.NoErrorf(t, got.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for %s", data)
+			assert.Equalf(t, exp, got, "UnmarshalJSON should decode %s", data)
+		})
 	}
 	var got LoginExtraInfo
 	assert.Error(t, got.UnmarshalJSON([]byte(`"\x"`)), "UnmarshalJSON should error for a malformed string")

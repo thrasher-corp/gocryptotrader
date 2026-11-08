@@ -47,8 +47,26 @@ func TestWebsocketInput(t *testing.T) {
 	assert.JSONEq(t, `[0,"oc",null,{"id":5}]`, string(out), "an input request should be the channel, type, a placeholder and the data")
 }
 
-func TestWebsocketPlaceOrder(t *testing.T) {
+func TestWebsocketPlaceOrder(t *testing.T) { //nolint:tparallel // the folded scenario runs serially before the test's own calls
 	t.Parallel()
+
+	// Serial, so the scenario runs before this test's own calls, as it could when it was a test of its own
+	t.Run("failed request and unreadable notification", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("these replies need the mock")
+		}
+		ex, _ := newWebsocketTestExchange(t, nil)
+		req := mockOrderRequest
+		req.Symbol = venueSilentSymbol
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		_, err := ex.WebsocketPlaceOrder(ctx, &req)
+		assert.ErrorIs(t, err, context.Canceled, "WebsocketPlaceOrder should return why its request failed")
+		req.Symbol = venueUnreadableSymbol
+		_, err = ex.WebsocketPlaceOrder(t.Context(), &req)
+		assert.ErrorIs(t, err, json.ErrTupleElementType, "WebsocketPlaceOrder should report a notification it cannot read")
+	})
+
 	_, err := e.WebsocketPlaceOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketPlaceOrder must reject a nil request")
 	_, err = e.WebsocketPlaceOrder(t.Context(), &PlaceOrderRequest{Type: "NOVEL", Symbol: "tBTCUSD", Amount: 1})
@@ -217,28 +235,51 @@ func TestWebsocketCancelFundingOffer(t *testing.T) {
 	}
 }
 
-func TestWebsocketInputFailures(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("these replies need the mock")
-	}
-	ex, _ := newWebsocketTestExchange(t, nil)
-	req := mockOrderRequest
-	req.Symbol = venueSilentSymbol
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	_, err := ex.WebsocketPlaceOrder(ctx, &req)
-	assert.ErrorIs(t, err, context.Canceled, "WebsocketPlaceOrder should return why its request failed")
-	req.Symbol = venueUnreadableSymbol
-	_, err = ex.WebsocketPlaceOrder(t.Context(), &req)
-	assert.ErrorIs(t, err, json.ErrTupleElementType, "WebsocketPlaceOrder should report a notification it cannot read")
-}
-
 func TestWebsocketCalc(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.WebsocketCalc(t.Context()), errCalcRequestsRequired, "WebsocketCalc must need a calculation")
 	tooMany := make([]string, wsMaxCalcRequests+1)
 	require.ErrorIs(t, e.WebsocketCalc(t.Context(), tooMany...), errTooManyCalcRequests, "WebsocketCalc must refuse more calculations than a request takes")
+	for _, tc := range []struct {
+		name         string
+		calculations int
+		refused      bool
+	}{
+		{name: "29 calculations are sent in one request", calculations: 29},
+		{name: "30 calculations, the most Bitfinex takes, are sent in one request", calculations: 30},
+		{name: "31 calculations are refused without a request", calculations: 31, refused: true},
+		{name: "60 calculations are refused without a request", calculations: 60, refused: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if !mockTests {
+				t.Skip("The mock websocket records the calc requests sent")
+			}
+			ex, venue := newWebsocketTestExchange(t, nil)
+			calcs := make([]string, tc.calculations)
+			sent := make([][1]string, tc.calculations)
+			for i := range calcs {
+				calcs[i] = "wallet_exchange_TEST" + strconv.Itoa(100+i*7%tc.calculations)
+				sent[i] = [1]string{calcs[i]}
+			}
+			err := ex.WebsocketCalc(t.Context(), calcs...)
+			if tc.refused {
+				require.ErrorIsf(t, err, errTooManyCalcRequests, "WebsocketCalc must refuse %d calculations", tc.calculations)
+				// A request sent after the refusal is the only one the mock should then receive
+				sent = [][1]string{{"balance"}}
+				err = ex.WebsocketCalc(t.Context(), "balance")
+			}
+			require.NoError(t, err, "WebsocketCalc must not error")
+			exp, err := json.Marshal(sent)
+			require.NoError(t, err, "Marshal must encode the calculations sent")
+			require.EventuallyWithT(t, func(c *assert.CollectT) {
+				inputs := venue.inputs(wsCalc)
+				if assert.Len(c, inputs, 1, "WebsocketCalc should send one request") {
+					assert.JSONEq(c, string(exp), string(inputs[0]), "WebsocketCalc should send every calculation it takes")
+				}
+			}, 5*time.Second, 10*time.Millisecond, "the calc request must reach the mock")
+		})
+	}
 	require.ErrorIs(t, newUnauthenticatedWebsocketExchange(t).WebsocketCalc(t.Context(), "balance"), errWebsocketNotAuthenticated, "WebsocketCalc must need an authenticated websocket")
 
 	skipLiveWithoutCredentials(t)

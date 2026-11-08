@@ -178,6 +178,14 @@ func skipLiveUnlessCanManipulate(t *testing.T) {
 	}
 }
 
+// subtestName names a subtest after its case's string, which may be empty
+func subtestName(s string) string {
+	if s == "" {
+		return "empty"
+	}
+	return s
+}
+
 func TestSendHTTPRequest(t *testing.T) {
 	t.Parallel()
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -281,8 +289,10 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "SendAuthenticatedHTTPRequest should error without authentication support")
 }
 
-func TestResponseError(t *testing.T) {
+func TestResponseError(t *testing.T) { //nolint:tparallel // responseError is called again after the cases
 	t.Parallel()
+
+	// Serial, as responseError is called again after these cases
 	for body, want := range map[string]error{
 		`["error",10020,"symbol: invalid"]`:        &APIError{Code: 10020, Message: "symbol: invalid"},
 		` ["error", 10114, "nonce: small"]`:        &APIError{Code: 10114, Message: "nonce: small"},
@@ -298,7 +308,9 @@ func TestResponseError(t *testing.T) {
 		``:                                         nil,
 		`null`:                                     nil,
 	} {
-		assert.Equalf(t, want, responseError([]byte(body)), "responseError should report the error in %s", body)
+		t.Run(subtestName(body), func(t *testing.T) {
+			assert.Equalf(t, want, responseError([]byte(body)), "responseError should report the error in %s", body)
+		})
 	}
 	assert.Error(t, responseError([]byte(`["error","code","message"]`)), "responseError should report an error array it cannot decode")
 	assert.Error(t, responseError([]byte(`["error",-1,"message"]`)), "responseError should report an error array whose code is not a Bitfinex code")
@@ -329,14 +341,20 @@ func TestTimeParam(t *testing.T) {
 
 func TestSortParam(t *testing.T) {
 	t.Parallel()
+	// Serial, as sortParam is called again after these cases
 	for sort, want := range map[int64]string{1: "1", -1: "-1"} {
-		got, err := sortParam(sort)
-		require.NoErrorf(t, err, "sortParam must not error for %d", sort)
-		assert.Equalf(t, want, got, "sortParam should format %d", sort)
+		t.Run(strconv.FormatInt(sort, 10), func(t *testing.T) {
+			got, err := sortParam(sort)
+			require.NoErrorf(t, err, "sortParam must not error for %d", sort)
+			assert.Equalf(t, want, got, "sortParam should format %d", sort)
+		})
 	}
 	for _, sort := range []int64{0, 2, -2} {
-		_, err := sortParam(sort)
-		assert.ErrorIsf(t, err, errInvalidSort, "sortParam should refuse %d", sort)
+		t.Run(strconv.FormatInt(sort, 10), func(t *testing.T) {
+			t.Parallel()
+			_, err := sortParam(sort)
+			assert.ErrorIsf(t, err, errInvalidSort, "sortParam should refuse %d", sort)
+		})
 	}
 }
 
@@ -391,16 +409,20 @@ func TestNewHistoryBody(t *testing.T) {
 func TestUnixMilliParam(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		t   time.Time
-		exp uint64
-		err error
+		name string
+		t    time.Time
+		exp  uint64
+		err  error
 	}{
-		{},
-		{t: time.UnixMilli(1700000000000), exp: 1700000000000},
-		{t: time.UnixMilli(-1), err: errTimeBeforeUnixEpoch},
+		{name: "zero time"},
+		{name: "time since 1970", t: time.UnixMilli(1700000000000), exp: 1700000000000},
+		{name: "time before 1970", t: time.UnixMilli(-1), err: errTimeBeforeUnixEpoch},
 	} {
-		got, err := unixMilliParam(tc.t)
-		require.ErrorIsf(t, err, tc.err, "unixMilliParam must return the expected error for %s", tc.t)
-		assert.Equalf(t, tc.exp, got, "unixMilliParam should give %s in Unix milliseconds", tc.t)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := unixMilliParam(tc.t)
+			require.ErrorIsf(t, err, tc.err, "unixMilliParam must return the expected error for %s", tc.t)
+			assert.Equalf(t, tc.exp, got, "unixMilliParam should give %s in Unix milliseconds", tc.t)
+		})
 	}
 }

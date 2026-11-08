@@ -61,8 +61,10 @@ func TestRecordBooleanPositions(t *testing.T) {
 	testTupleBooleans[TransferMethodStatusResponse](t, map[string]int{"DepositActive": 1, "WithdrawalActive": 2, "DepositPaymentIDAllowed": 7, "WithdrawalPaymentIDAllowed": 8})
 }
 
-func TestFundingFlagsUnmarshalJSON(t *testing.T) {
+func TestFundingFlagsUnmarshalJSON(t *testing.T) { //nolint:tparallel // FundingFlags.UnmarshalJSON is called again after the cases
 	t.Parallel()
+
+	// Serial, as FundingFlags.UnmarshalJSON is called again after these cases
 	for _, tc := range []struct {
 		data string
 		exp  FundingFlags
@@ -72,9 +74,11 @@ func TestFundingFlagsUnmarshalJSON(t *testing.T) {
 		{data: `{}`},
 		{data: ` {"future":1}`},
 	} {
-		var got FundingFlags
-		require.NoErrorf(t, got.UnmarshalJSON([]byte(tc.data)), "UnmarshalJSON must not error for %s", tc.data)
-		assert.Equalf(t, tc.exp, got, "UnmarshalJSON should decode %s", tc.data)
+		t.Run(tc.data, func(t *testing.T) {
+			var got FundingFlags
+			require.NoErrorf(t, got.UnmarshalJSON([]byte(tc.data)), "UnmarshalJSON must not error for %s", tc.data)
+			assert.Equalf(t, tc.exp, got, "UnmarshalJSON should decode %s", tc.data)
+		})
 	}
 	var got FundingFlags
 	assert.Error(t, got.UnmarshalJSON([]byte(`"x"`)), "UnmarshalJSON should error for a string")
@@ -195,13 +199,16 @@ func TestNotificationUnmarshalJSON(t *testing.T) {
 func TestNotificationErr(t *testing.T) {
 	t.Parallel()
 	for status, failed := range map[string]bool{NotificationStatusSuccess: false, "INFO": false, "": false, NotificationStatusError: true, NotificationStatusFailure: true} {
-		n := &Notification[OrderResponse]{Type: "on-req", Status: status, Text: "Invalid order"}
-		if !failed {
-			assert.NoErrorf(t, n.Err(), "Err should not error for status %q", status)
-			continue
-		}
-		err := n.Err()
-		assert.ErrorIsf(t, err, errNotificationFailed, "Err should error for status %q", status)
-		assert.ErrorContainsf(t, err, "on-req "+status+": Invalid order", "Err should give the notification's type, status and text for status %q", status)
+		t.Run(subtestName(status), func(t *testing.T) {
+			t.Parallel()
+			n := &Notification[OrderResponse]{Type: "on-req", Status: status, Text: "Invalid order"}
+			if !failed {
+				assert.NoErrorf(t, n.Err(), "Err should not error for status %q", status)
+				return
+			}
+			err := n.Err()
+			assert.ErrorIsf(t, err, errNotificationFailed, "Err should error for status %q", status)
+			assert.ErrorContainsf(t, err, "on-req "+status+": Invalid order", "Err should give the notification's type, status and text for status %q", status)
+		})
 	}
 }
