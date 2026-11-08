@@ -6,128 +6,106 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v18 "github.com/thrasher-corp/gocryptotrader/config/versions/v18"
 )
 
-func TestUpgradeConfig(t *testing.T) {
+func TestExchanges(t *testing.T) {
 	t.Parallel()
+	assert.Equal(t, []string{"Okx"}, new(v18.Version).Exchanges(), "migration should apply only to OKX")
+}
 
-	for _, tc := range []struct {
-		name     string
-		input    string
-		expected string
-	}{
+func TestUpgradeExchange(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, input, expected string }{
 		{
-			name:     "previous default",
-			input:    `{"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}}}`,
-			expected: `{"remoteControl":{"gRPC":{"enabled":true}}}`,
+			name:     "defaults",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`,
 		},
 		{
-			name:     "previous nanosecond selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true,"custom":"preserved"}}}`,
-			expected: `{"remoteControl":{"gRPC":{"custom":"preserved"}}}`,
+			name:     "escaped default",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\/\/ws.okx.com:8443\/ws\/v5\/public"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
 		},
 		{
-			name:     "missing setting",
-			input:    `{"remoteControl":{"gRPC":{"enabled":true}}}`,
-			expected: `{"remoteControl":{"gRPC":{"enabled":true}}}`,
+			name:     "missing",
+			input:    `{}`,
+			expected: `{}`,
 		},
 		{
-			name:     "missing gRPC configuration",
-			input:    `{"name":"gocryptotrader"}`,
-			expected: `{"name":"gocryptotrader"}`,
+			name:     "null",
+			input:    `{"api":{"urlEndpoints":null}}`,
+			expected: `{"api":{"urlEndpoints":null}}`,
+		},
+		{
+			name:     "custom",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`,
+		},
+		{
+			name:     "current",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
+		},
+		{
+			name:     "mixed custom and legacy endpoints",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com/ws/v5/business"}}}`,
+		},
+		{
+			name:     "missing public endpoint",
+			input:    `{"api":{"urlEndpoints":{"WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private"}}}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			output, err := new(v18.Version).UpgradeConfig(t.Context(), []byte(tc.input))
-			require.NoError(t, err, "UpgradeConfig must not error")
-			assert.JSONEq(t, tc.expected, string(output), "UpgradeConfig should remove, and only remove, the obsolete timestamp setting")
+			got, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+			require.NoError(t, err, "migration must succeed")
+			assert.JSONEq(t, tc.expected, string(got), "migration should replace only legacy defaults")
+		})
+	}
+	for _, tc := range []struct {
+		name, input string
+		expected    error
+	}{
+		{
+			name:     "invalid endpoint value",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":}}}`,
+			expected: jsonparser.UnknownValueTypeError,
+		},
+		{
+			name:     "invalid endpoint escape",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\z"}}}`,
+			expected: jsonparser.MalformedValueError,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+			require.ErrorIs(t, err, tc.expected, "invalid JSON must fail with its parser error")
 		})
 	}
 }
 
-func TestDowngradeConfig(t *testing.T) {
+func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
-
-	for _, tc := range []struct {
-		name     string
-		input    string
-		expected string
-		errs     []error
-		errField string
-	}{
-		{
-			name:     "gRPC configuration",
-			input:    `{"remoteControl":{"gRPC":{"enabled":true,"custom":"preserved"}}}`,
-			expected: `{"remoteControl":{"gRPC":{"enabled":true,"custom":"preserved","timeInNanoSeconds":false}}}`,
-		},
-		{
-			name:     "explicit seconds selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":false}}}`,
-			expected: `{"remoteControl":{"gRPC":{"timeInNanoSeconds":false}}}`,
-		},
-		{
-			name:     "explicit nanoseconds selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true}}}`,
-			expected: `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true}}}`,
-		},
-		{
-			name:     "null selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":null}}}`,
-			expected: `{"remoteControl":{"gRPC":{"timeInNanoSeconds":false}}}`,
-		},
-		{
-			name:     "missing gRPC configuration remains absent",
-			input:    `{"name":"gocryptotrader"}`,
-			expected: `{"name":"gocryptotrader"}`,
-		},
-		{
-			name:     "non-object gRPC configuration",
-			input:    `{"remoteControl":{"gRPC":null}}`,
-			expected: `{"remoteControl":{"gRPC":null}}`,
-		},
-		{
-			name:     "malformed gRPC configuration",
-			input:    `{"remoteControl":{"gRPC":`,
-			errs:     []error{common.ErrGettingField, jsonparser.MalformedJsonError},
-			errField: "gRPC configuration",
-		},
-		{
-			name:     "malformed timestamp precision",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true!}}}`,
-			errs:     []error{common.ErrGettingField, jsonparser.UnknownValueTypeError},
-			errField: "gRPC timestamp precision",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			output, err := new(v18.Version).DowngradeConfig(t.Context(), []byte(tc.input))
-			if len(tc.errs) != 0 {
-				for _, want := range tc.errs {
-					require.ErrorIs(t, err, want, "DowngradeConfig must preserve the field-access sentinel and parser error")
-				}
-				require.ErrorContains(t, err, tc.errField, "DowngradeConfig must name the field it failed to read")
-				assert.Equal(t, tc.input, string(output), "DowngradeConfig should return the original configuration on error")
-				return
-			}
-			require.NoError(t, err, "DowngradeConfig must not error")
-			assert.JSONEq(t, tc.expected, string(output), "DowngradeConfig should restore the legacy default without overriding explicit settings")
-		})
-	}
+	input := []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`)
+	got, err := new(v18.Version).DowngradeExchange(t.Context(), input)
+	require.NoError(t, err, "downgrade must succeed")
+	assert.Equal(t, input, got, "downgrade should retain the compatible port")
 }
 
 func TestRegisteredMigration(t *testing.T) {
 	t.Parallel()
-
-	input := []byte(`{"version":17,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":true}}}`)
-	upgraded, err := versions.Manager.Deploy(t.Context(), input, 18)
-	require.NoError(t, err, "Deploy must apply the registered v18 upgrade")
-	assert.JSONEq(t, `{"version":18,"remoteControl":{"gRPC":{"enabled":true}}}`, string(upgraded), "Deploy should remove the obsolete setting and set version 18")
-
-	downgraded, err := versions.Manager.Deploy(t.Context(), upgraded, 17)
-	require.NoError(t, err, "Deploy must apply the registered v18 downgrade")
-	assert.JSONEq(t, `{"version":17,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}}}`, string(downgraded), "Deploy should restore the legacy default and set version 17")
+	input := []byte(`{"version":17,"exchanges":[{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public"}}},{"name":"Other","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public"}}}]}`)
+	got, err := versions.Manager.Deploy(t.Context(), input, 18)
+	require.NoError(t, err, "registered upgrade must succeed")
+	assert.JSONEq(t, `{"version":18,"exchanges":[{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}},{"name":"Other","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public"}}}]}`, string(got), "only OKX defaults should migrate")
+	down, err := versions.Manager.Deploy(t.Context(), got, 17)
+	require.NoError(t, err, "registered downgrade must succeed")
+	again, err := versions.Manager.Deploy(t.Context(), down, 18)
+	require.NoError(t, err, "repeated upgrade must succeed")
+	assert.JSONEq(t, string(got), string(again), "migration round trip should preserve usable endpoints")
 }
