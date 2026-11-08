@@ -3204,6 +3204,33 @@
    "GET": [
     {
      "data": {
+      "code": -2011,
+      "msg": "Order list does not exist."
+     },
+     "queryString": "orderListId=28\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2011,
+      "msg": "Order list does not exist."
+     },
+     "queryString": "orderListId=41\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2011,
+      "msg": "Order list does not exist."
+     },
+     "queryString": "orderListId=999\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
       "orderListId": 123456,
       "contingencyType": "OCO",
       "listStatusType": "EXEC_STARTED",
@@ -20512,6 +20539,51 @@
     }
    ],
    "GET": [
+    {
+     "data": {
+      "code": -2011,
+      "msg": "Order list does not exist."
+     },
+     "queryString": "orderListId=28457\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2011,
+      "msg": "Order list does not exist."
+     },
+     "queryString": "orderListId=112233424\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2011,
+      "msg": "Order list does not exist."
+     },
+     "queryString": "isIsolated=TRUE\u0026orderListId=28457\u0026recvWindow=5000\u0026signature=x\u0026symbol=BTCUSDT\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2011,
+      "msg": "Order list does not exist."
+     },
+     "queryString": "isIsolated=TRUE\u0026orderListId=112233424\u0026recvWindow=5000\u0026signature=x\u0026symbol=BTCUSDT\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2011,
+      "msg": "Order list does not exist."
+     },
+     "queryString": "isIsolated=TRUE\u0026orderListId=12314234\u0026recvWindow=5000\u0026signature=x\u0026symbol=BTCUSDT\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
     {
      "data": {
       "orderListId": 27,

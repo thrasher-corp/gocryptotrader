@@ -2151,6 +2151,28 @@
      }
     ]
    }
+  },
+  {
+   "signed": true,
+   "params": {
+    "orderListId": 12569099454
+   },
+   "status": 400,
+   "error": {
+    "code": -2011,
+    "msg": "Order list does not exist."
+   }
+  },
+  {
+   "signed": true,
+   "params": {
+    "orderListId": 12569099460
+   },
+   "status": 400,
+   "error": {
+    "code": -2011,
+    "msg": "Order list does not exist."
+   }
   }
  ],
  "order.status": [

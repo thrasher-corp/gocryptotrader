@@ -1035,6 +1035,12 @@ func (e *Exchange) openOrders(ctx context.Context, pair currency.Pair, allSymbol
 
 // QueryOrder checks an order's status by orderID or origClientOrderID
 func (e *Exchange) QueryOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID uint64) (*TradeOrderResponse, error) {
+	return e.queryOrder(ctx, symbol, origClientOrderID, orderID, spotOrderQueryRate)
+}
+
+// queryOrder checks an order's status drawing on f, so the lookup an untyped cancellation makes can draw on the cancel
+// pool
+func (e *Exchange) queryOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID uint64, f request.EndpointLimit) (*TradeOrderResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1054,12 +1060,18 @@ func (e *Exchange) QueryOrder(ctx context.Context, symbol currency.Pair, origCli
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 	var resp *TradeOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/order", params, spotOrderQueryRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/order", params, f, &resp)
 }
 
 // GetOneCancelsTheOtherOrders queries an order list by orderListID or by its list client order ID, which the endpoint
 // takes as origClientOrderId
 func (e *Exchange) GetOneCancelsTheOtherOrders(ctx context.Context, orderListID uint64, origClientOrderID string) (*OneCancelsTheOtherOrderResponse, error) {
+	return e.getOneCancelsTheOtherOrders(ctx, orderListID, origClientOrderID, getOneCancelsTheOtherListRate)
+}
+
+// getOneCancelsTheOtherOrders queries an order list drawing on f, so the lookup an untyped cancellation makes can draw
+// on the cancel pool
+func (e *Exchange) getOneCancelsTheOtherOrders(ctx context.Context, orderListID uint64, origClientOrderID string, f request.EndpointLimit) (*OneCancelsTheOtherOrderResponse, error) {
 	if orderListID == 0 && origClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -1071,7 +1083,7 @@ func (e *Exchange) GetOneCancelsTheOtherOrders(ctx context.Context, orderListID 
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 	var resp *OneCancelsTheOtherOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/orderList", params, getOneCancelsTheOtherListRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/orderList", params, f, &resp)
 }
 
 // GetAllocations queries the allocations resulting from orders placed using smart order routing (SOR)

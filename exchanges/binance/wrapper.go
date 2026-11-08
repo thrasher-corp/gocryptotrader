@@ -1129,6 +1129,8 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 var (
 	errInvalidOrderID                 = errors.New("invalid order ID")
 	errAmbiguousOrderID               = errors.New("ID names both an order and an algo order")
+	errAmbiguousOrderListID           = errors.New("ID names both an order and an order list")
+	errOrderListIDRequiresOCOType     = errors.New("an order list ID pages order lists, which only the OCO type lists")
 	errTriggerPriceRequired           = errors.New("trigger price is required")
 	errTrailingStopPercentageRequired = errors.New("trailing stop orders need a percentage tracking value, their callback rate")
 	errBatchCancelResultMissing       = errors.New("cancellation result missing from the reply")
@@ -1188,6 +1190,29 @@ func parseFuturesOrderID(orderID string) (id uint64, isAlgo bool, err error) {
 		return id, false, err
 	}
 	if id, err = strconv.ParseUint(algoID, 10, 64); err != nil {
+		return 0, true, fmt.Errorf("%w %q: %w", errInvalidOrderID, orderID, err)
+	}
+	return id, true, nil
+}
+
+// orderListIDPrefix starts the order ID of each spot and margin OCO order list, as Binance numbers order lists apart
+// from orders, so that an ID says which of the two it names
+const orderListIDPrefix = "list-"
+
+// formatOrderListID returns the order ID of the spot or margin OCO order list with ID orderListID
+func formatOrderListID(orderListID uint64) string {
+	return orderListIDPrefix + strconv.FormatUint(orderListID, 10)
+}
+
+// parseSpotOrderID converts a spot or margin order ID into Binance's numeric form, an OCO order list's into its order
+// list ID, and reports whether it is an order list's
+func parseSpotOrderID(orderID string) (id uint64, isList bool, err error) {
+	listID, isList := strings.CutPrefix(orderID, orderListIDPrefix)
+	if !isList {
+		id, err = parseOrderID(orderID)
+		return id, false, err
+	}
+	if id, err = strconv.ParseUint(listID, 10, 64); err != nil {
 		return 0, true, fmt.Errorf("%w %q: %w", errInvalidOrderID, orderID, err)
 	}
 	return id, true, nil
@@ -1857,9 +1882,9 @@ func (e *Exchange) submitMarginOneCancelsTheOtherOrder(ctx context.Context, s *o
 }
 
 // orderListSubmitResponse completes the submit response of an OCO order list, which GCT tracks as one order identified
-// by the list's ID
+// by its order list ID, tagged as an order list's
 func (e *Exchange) orderListSubmitResponse(s *order.Submit, orderListID uint64, listClientOrderID, listOrderStatus string, transactionTime time.Time) (*order.SubmitResponse, error) {
-	resp, err := s.DeriveSubmitResponse(strconv.FormatUint(orderListID, 10))
+	resp, err := s.DeriveSubmitResponse(formatOrderListID(orderListID))
 	if err != nil {
 		return nil, err
 	}
@@ -2223,13 +2248,14 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	return resp, nil
 }
 
-// CancelOrder cancels an order by its order ID or client order ID. OCO order lists are cancelled by their order list ID
-// or list client order ID, and USDⓈ-M and COIN-M stop, take profit and trailing stop orders by their algo order ID or
-// client algo ID. A request without a type, as the RPC server and order manager send, whose ID no order has is tried
-// as an order list's on spot and margin, the ID SubmitOrder returns for one, while an untagged USDⓈ-M or COIN-M ID is
-// cancelled as the pair's order or algo order with it, as is the untagged ID of a COIN-M request with a stop, take
-// profit or trailing stop type: COIN-M also takes such orders through New Order until Binance's announced cut-over. A
-// margin request without a margin type is tried in the isolated margin account after the cross margin account
+// CancelOrder cancels an order by its order ID or client order ID. OCO order lists are cancelled by their order list ID,
+// tagged as an order list's, or list client order ID, and USDⓈ-M and COIN-M stop, take profit and trailing stop orders
+// by their algo order ID or client algo ID. A request without a type, as the RPC server and order manager send, with an
+// untagged ID is cancelled as the pair's order or OCO order list with it on spot and margin, as untaggedOrderList finds,
+// and as the pair's order or algo order with it on USDⓈ-M and COIN-M, as is the untagged ID of a COIN-M request with a
+// stop, take profit or trailing stop type: COIN-M also takes such orders through New Order until Binance's announced
+// cut-over. A margin request without a margin type is tried in the isolated margin account after the cross margin
+// account
 func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.PairAssetRequired()); err != nil {
 		return err
@@ -2244,15 +2270,21 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		}
 		return e.cancelFuturesOrder(ctx, o, orderID, isAlgo)
 	}
+	if o.AssetType == asset.Spot || o.AssetType == asset.Margin {
+		orderID, isList, err := parseSpotOrderID(o.OrderID)
+		if err != nil {
+			return err
+		}
+		if o.AssetType == asset.Spot {
+			return e.cancelSpotOrder(ctx, o, orderID, isList)
+		}
+		return e.cancelMarginOrder(ctx, o, orderID, isList)
+	}
 	orderID, err := parseOrderID(o.OrderID)
 	if err != nil {
 		return err
 	}
 	switch o.AssetType {
-	case asset.Spot:
-		return e.cancelSpotOrder(ctx, o, orderID)
-	case asset.Margin:
-		return e.cancelMarginOrder(ctx, o, orderID)
 	case asset.Options:
 		_, err = e.CancelOptionsOrder(ctx, o.Pair, o.ClientOrderID, orderID)
 		return err
@@ -2304,64 +2336,141 @@ func cancelError(err error) error {
 }
 
 // cancelSpotOrder cancels a spot order, or an OCO order list, through the WebSocket API when it can be used for orders
-// and REST otherwise. An untyped request whose ID no order has is tried as an order list's
-func (e *Exchange) cancelSpotOrder(ctx context.Context, o *order.Cancel, orderID uint64) error {
+// and REST otherwise. An order list ID or the OCO type names an order list, and an untyped request's untagged ID is
+// cancelled as the pair's order or order list with it, as untaggedOrderList finds
+func (e *Exchange) cancelSpotOrder(ctx context.Context, o *order.Cancel, orderID uint64, isList bool) error {
 	useWebsocket := e.canUseWebsocketAPIForOrders()
-	cancelList := func() error {
+	cancelList := func(orderListID uint64, listClientOrderID string) error {
 		var err error
 		if useWebsocket {
-			_, err = e.WebsocketCancelOneCancelsTheOtherOrder(ctx, &WebsocketCancelOrderListRequest{Symbol: o.Pair, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
+			_, err = e.WebsocketCancelOneCancelsTheOtherOrder(ctx, &WebsocketCancelOrderListRequest{Symbol: o.Pair, OrderListID: orderListID, ListClientOrderID: listClientOrderID})
 		} else {
-			_, err = e.CancelOneCancelsTheOtherOrder(ctx, &CancelOrderListRequest{Symbol: o.Pair, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
+			_, err = e.CancelOneCancelsTheOtherOrder(ctx, &CancelOrderListRequest{Symbol: o.Pair, OrderListID: orderListID, ListClientOrderID: listClientOrderID})
 		}
 		return cancelError(err)
 	}
-	if o.Type == order.OCO {
-		return cancelList()
+	if isList || o.Type == order.OCO {
+		return cancelList(orderID, o.ClientOrderID)
 	}
-	cancelOrder := func() error {
-		var err error
-		if useWebsocket {
-			_, err = e.WebsocketCancelExistingOrder(ctx, &WebsocketCancelOrderRequest{Symbol: o.Pair, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID})
-		} else {
-			_, err = e.CancelExistingOrder(ctx, &CancelOrderRequest{Symbol: o.Pair, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID})
+	if isUntypedRequest(o.Type) {
+		list, err := e.untaggedOrderList(ctx, asset.Spot, o.Pair, orderID, o.ClientOrderID, nil)
+		if err != nil {
+			return err
 		}
-		return cancelError(err)
+		if list != nil {
+			if err := cancelList(list.orderListID, ""); err != nil {
+				return fmt.Errorf("error cancelling order list: %w", err)
+			}
+			return nil
+		}
 	}
-	if !isUntypedRequest(o.Type) {
-		return cancelOrder()
+	var err error
+	if useWebsocket {
+		_, err = e.WebsocketCancelExistingOrder(ctx, &WebsocketCancelOrderRequest{Symbol: o.Pair, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID})
+	} else {
+		_, err = e.CancelExistingOrder(ctx, &CancelOrderRequest{Symbol: o.Pair, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID})
 	}
-	return cancelFirstFound(cancelOrder, cancelList)
+	return cancelError(err)
 }
 
 // cancelMarginOrder cancels a margin order, or an OCO order list, of the account MarginType names. A request naming no
 // account, as the order manager's do since orders drop their margin type, is tried in the cross margin account, then
 // in the isolated one when it names an order ID: a client order ID is unique only among an account's open orders, so
-// in the other account it may name an order the caller did not mean. An untyped request whose ID no order has is
-// tried as an order list's, each account's order and then its order list before the other account's: Binance's answer
-// for a pair without an isolated margin account need not say the order is unknown, which would stop the attempts
-// before a cross margin order list. An isolated margin order with the ID of a cross margin order list is not reached
-func (e *Exchange) cancelMarginOrder(ctx context.Context, o *order.Cancel, orderID uint64) error {
+// in the other account it may name an order the caller did not mean. An order list ID or the OCO type names an order
+// list, and an untyped request's untagged ID is cancelled as the pair's order or order list with it in those accounts,
+// as untaggedOrderList finds
+func (e *Exchange) cancelMarginOrder(ctx context.Context, o *order.Cancel, orderID uint64, isList bool) error {
 	isolated := []bool{o.MarginType == margin.Isolated}
 	if o.MarginType == margin.Unset && orderID != 0 {
 		isolated = []bool{false, true}
 	}
+	cancelList := func(isIsolated bool, orderListID uint64, listClientOrderID string) error {
+		_, err := e.CancelMarginAccountOneCancelsTheOtherOrder(ctx, &MarginOneCancelsTheOtherCancelRequest{Symbol: o.Pair, IsIsolated: isIsolated, OrderListID: orderListID, ListClientOrderID: listClientOrderID})
+		return cancelError(err)
+	}
 	var attempts []func() error
-	for _, isIsolated := range isolated {
-		if o.Type != order.OCO {
-			attempts = append(attempts, func() error {
-				_, err := e.CancelMarginAccountOrder(ctx, &MarginOrderCancelRequest{Symbol: o.Pair, IsIsolated: isIsolated, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID})
-				return cancelError(err)
-			})
+	if isList || o.Type == order.OCO {
+		for _, isIsolated := range isolated {
+			attempts = append(attempts, func() error { return cancelList(isIsolated, orderID, o.ClientOrderID) })
 		}
-		if o.Type == order.OCO || isUntypedRequest(o.Type) {
-			attempts = append(attempts, func() error {
-				_, err := e.CancelMarginAccountOneCancelsTheOtherOrder(ctx, &MarginOneCancelsTheOtherCancelRequest{Symbol: o.Pair, IsIsolated: isIsolated, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
-				return cancelError(err)
-			})
+		return cancelFirstFound(attempts...)
+	}
+	if isUntypedRequest(o.Type) {
+		list, err := e.untaggedOrderList(ctx, asset.Margin, o.Pair, orderID, o.ClientOrderID, isolated)
+		if err != nil {
+			return err
+		}
+		if list != nil {
+			if err := cancelList(list.isIsolated, list.orderListID, ""); err != nil {
+				return fmt.Errorf("error cancelling order list: %w", err)
+			}
+			return nil
 		}
 	}
+	for _, isIsolated := range isolated {
+		attempts = append(attempts, func() error {
+			_, err := e.CancelMarginAccountOrder(ctx, &MarginOrderCancelRequest{Symbol: o.Pair, IsIsolated: isIsolated, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID})
+			return cancelError(err)
+		})
+	}
 	return cancelFirstFound(attempts...)
+}
+
+// foundOrderList identifies the OCO order list untaggedOrderList found, by its order list ID and, on margin, its account
+type foundOrderList struct {
+	orderListID uint64
+	isIsolated  bool
+}
+
+// untaggedOrderList returns pair's spot or margin OCO order list with the ID or, when orderID is 0, the list client order
+// ID an untyped cancellation names without the order list ID prefix, or nil when pair has none; margin lookups are of
+// the accounts isolated names. Binance numbers order lists apart from orders and callers can hold its order list IDs, so
+// such an ID may name either kind, and errAmbiguousOrderListID is returned when pair has an order with it too, naming
+// the order's other ID as what tells the two apart. Spot lookups draw on the cancel pool, so the request they precede
+// does not wait on market data
+func (e *Exchange) untaggedOrderList(ctx context.Context, a asset.Item, pair currency.Pair, orderID uint64, clientOrderID string, isolated []bool) (*foundOrderList, error) {
+	var found foundOrderList
+	var err error
+	if a == asset.Spot {
+		var list *OneCancelsTheOtherOrderResponse
+		if list, err = e.spotOrderList(ctx, orderID, clientOrderID, pair, spotCancelLookupRate); err == nil {
+			found.orderListID = list.OrderListID
+		}
+	} else {
+		var list *MarginOrderListResponse
+		if list, err = e.marginOrderList(ctx, orderID, clientOrderID, pair, isolated); err == nil {
+			found.orderListID, found.isIsolated = list.OrderListID, list.IsIsolated
+		}
+	}
+	if errors.Is(err, order.ErrOrderNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	// The order is looked up by the ID the order list was: the order ID when there is one
+	id, otherID := strconv.FormatUint(orderID, 10), "client order ID alone"
+	if orderID == 0 {
+		id, otherID = clientOrderID, "order ID"
+	} else {
+		clientOrderID = ""
+	}
+	if a == asset.Spot {
+		if _, err = e.spotOrder(ctx, pair, orderID, clientOrderID, spotCancelLookupRate); err != nil && !errors.Is(err, order.ErrOrderNotFound) {
+			err = fmt.Errorf("error fetching order: %w", err)
+		}
+	} else {
+		// Margin lookups name the account whose answer failed
+		_, err = e.marginOrder(ctx, pair, orderID, clientOrderID, isolated)
+	}
+	switch {
+	case err == nil:
+		return nil, fmt.Errorf("%w: %s on %s %s; name the order by its %s, or the order list as %s", errAmbiguousOrderListID, id, a, pair, otherID, formatOrderListID(found.orderListID))
+	case errors.Is(err, order.ErrOrderNotFound):
+		return &found, nil
+	default:
+		return nil, err
+	}
 }
 
 // cancelFuturesOrder cancels a USDⓈ-M or COIN-M order, or an algo order by its algo order ID, its client algo ID or,
@@ -3019,8 +3128,9 @@ func (e *Exchange) cancelAllOptionsOrders(ctx context.Context, pair currency.Pai
 }
 
 // GetOrderInfo returns an order's details. A USDⓈ-M or COIN-M algo order ID is looked up as an algo order's, and an
-// untagged ID as the pair's order or algo order with it, as futuresOrderInfo finds; a margin order the cross margin
-// account does not have is looked up in the isolated margin account, since the request carries no margin type
+// untagged ID as the pair's order or algo order with it, as futuresOrderInfo finds; a spot or margin order list ID is
+// looked up as an OCO order list's, and an untagged ID as the pair's order or order list with it, as spotOrderInfo and
+// marginOrderInfo find
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, a asset.Item) (*order.Detail, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -3028,8 +3138,13 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
+	switch a {
+	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		return e.futuresOrderInfo(ctx, orderID, pair, a)
+	case asset.Spot:
+		return e.spotOrderInfo(ctx, orderID, pair)
+	case asset.Margin:
+		return e.marginOrderInfo(ctx, orderID, pair)
 	}
 	id, err := parseOrderID(orderID)
 	if err != nil {
@@ -3037,35 +3152,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	}
 	var d order.Detail
 	switch a {
-	case asset.Spot:
-		var o *TradeOrderResponse
-		if e.canUseWebsocketAPIForOrders() {
-			o, err = e.WebsocketQueryOrder(ctx, pair, id, "")
-		} else {
-			o, err = e.QueryOrder(ctx, pair, "", id)
-		}
-		if errors.Is(err, order.ErrOrderNotFound) {
-			return e.spotOrderListInfo(ctx, id, pair, err)
-		}
-		if err != nil {
-			return nil, err
-		}
-		d, err = e.spotOrderDetail(o, pair)
-	case asset.Margin:
-		o, crossErr := e.GetMarginAccountsOrder(ctx, pair, false, id, "")
-		if errors.Is(crossErr, errAPIResponse) {
-			var isolatedErr error
-			if o, isolatedErr = e.GetMarginAccountsOrder(ctx, pair, true, id, ""); isolatedErr != nil {
-				orderErr := common.AppendError(fmt.Errorf("error fetching cross margin order: %w", crossErr), fmt.Errorf("error fetching isolated margin order: %w", isolatedErr))
-				if errors.Is(crossErr, order.ErrOrderNotFound) {
-					return e.marginOrderListInfo(ctx, id, pair, orderErr)
-				}
-				return nil, orderErr
-			}
-		} else if crossErr != nil {
-			return nil, crossErr
-		}
-		d, err = e.marginOrderDetail(o, pair)
 	case asset.Options:
 		var o *OptionsOrderStatusResponse
 		if o, err = e.GetSingleEOptionsOrder(ctx, pair, "", id); err != nil {
@@ -3145,59 +3231,198 @@ func (e *Exchange) algoOrderInfo(a asset.Item, algo *USDTMarginedFuturesAlgoOrde
 	return &d, nil
 }
 
-// spotOrderListInfo returns pair's spot order list orderListID, as SubmitOrder identifies an OCO order by its order list
-// ID. orderErr is the error looking the ID up as an order gave, which stands when pair has no such order list
-func (e *Exchange) spotOrderListInfo(ctx context.Context, orderListID uint64, pair currency.Pair, orderErr error) (*order.Detail, error) {
-	var list *OneCancelsTheOtherOrderResponse
-	var err error
-	if e.canUseWebsocketAPIForOrders() {
-		list, err = e.WebsocketQueryOneCancelsTheOtherOrder(ctx, orderListID, "")
-	} else {
-		list, err = e.GetOneCancelsTheOtherOrders(ctx, orderListID, "")
-	}
-	if err != nil {
-		return nil, common.AppendError(orderErr, fmt.Errorf("error fetching order list: %w", err))
-	}
-	if list.ContingencyType != oneCancelsTheOtherContingencyType {
-		return nil, orderErr
-	}
-	return e.orderListInfo(asset.Spot, list.Symbol, list.OrderListID, list.ListClientOrderID, list.ListOrderStatus, list.TransactionTime.Time(), pair, orderErr)
-}
-
-// marginOrderListInfo returns pair's cross or isolated margin order list orderListID, as SubmitOrder identifies an OCO
-// order by its order list ID. orderErr is the error looking the ID up as an order gave, which stands when pair has no
-// such order list
-func (e *Exchange) marginOrderListInfo(ctx context.Context, orderListID uint64, pair currency.Pair, orderErr error) (*order.Detail, error) {
-	// Cross margin order list queries take no symbol, isolated ones require it
-	list, crossErr := e.GetMarginAccountOneCancelsTheOtherOrder(ctx, currency.EMPTYPAIR, false, orderListID, "")
-	if crossErr != nil {
-		var isolatedErr error
-		if list, isolatedErr = e.GetMarginAccountOneCancelsTheOtherOrder(ctx, pair, true, orderListID, ""); isolatedErr != nil {
-			listErr := common.AppendError(fmt.Errorf("error fetching cross margin order list: %w", crossErr), fmt.Errorf("error fetching isolated margin order list: %w", isolatedErr))
-			return nil, common.AppendError(orderErr, listErr)
-		}
-	}
-	if list.ContingencyType != oneCancelsTheOtherContingencyType {
-		return nil, orderErr
-	}
-	d, err := e.orderListInfo(asset.Margin, list.Symbol, list.OrderListID, list.ListClientOrderID, list.ListOrderStatus, list.TransactionTime.Time(), pair, orderErr)
-	if d != nil {
-		// Cancellations need the account the list belongs to
-		d.MarginType = marginAccountType(list.IsIsolated)
-	}
-	return d, err
-}
-
-// orderListInfo converts the order list GetOrderInfo found when it looked an order ID up as an order list ID, unless the
-// list belongs to another symbol, when orderErr, the error looking the ID up as an order gave, stands
-func (e *Exchange) orderListInfo(a asset.Item, symbol string, orderListID uint64, listClientOrderID, listOrderStatus string, transactionTime time.Time, pair currency.Pair, orderErr error) (*order.Detail, error) {
-	formatted, err := e.FormatSymbol(pair, a)
+// spotOrderInfo returns a spot order's or OCO order list's details. An order list ID is looked up as an order list's.
+// Binance numbers order lists apart from orders and callers can hold its order list IDs, so an untagged ID is looked up
+// as both, and errAmbiguousOrderListID is returned when pair has both
+func (e *Exchange) spotOrderInfo(ctx context.Context, orderID string, pair currency.Pair) (*order.Detail, error) {
+	id, isList, err := parseSpotOrderID(orderID)
 	if err != nil {
 		return nil, err
 	}
-	if symbol != formatted {
+	if isList {
+		list, err := e.spotOrderList(ctx, id, "", pair, getOneCancelsTheOtherListRate)
+		if err != nil {
+			return nil, err
+		}
+		return e.orderListInfo(asset.Spot, list.OrderListID, list.ListClientOrderID, list.ListOrderStatus, list.TransactionTime.Time(), pair)
+	}
+	o, orderErr := e.spotOrder(ctx, pair, id, "", spotOrderQueryRate)
+	if orderErr != nil && !errors.Is(orderErr, order.ErrOrderNotFound) {
 		return nil, orderErr
 	}
+	list, listErr := e.spotOrderList(ctx, id, "", pair, getOneCancelsTheOtherListRate)
+	switch {
+	case listErr != nil && !errors.Is(listErr, order.ErrOrderNotFound):
+		return nil, listErr
+	case listErr == nil && orderErr == nil:
+		return nil, fmt.Errorf("%w: %s on %s %s; look the order list up as %s", errAmbiguousOrderListID, orderID, asset.Spot, pair, formatOrderListID(list.OrderListID))
+	case listErr == nil:
+		return e.orderListInfo(asset.Spot, list.OrderListID, list.ListClientOrderID, list.ListOrderStatus, list.TransactionTime.Time(), pair)
+	case orderErr != nil:
+		return nil, common.AppendError(orderErr, listErr)
+	}
+	d, err := e.spotOrderDetail(o, pair)
+	if err != nil {
+		return nil, fmt.Errorf("error converting %s order %s: %w", asset.Spot, orderID, err)
+	}
+	return &d, nil
+}
+
+// marginOrderInfo returns a margin order's or OCO order list's details, looked up in the cross margin account and then
+// the isolated one, since the request carries no margin type. An order list ID is looked up as an order list's. Binance
+// numbers order lists apart from orders and callers can hold its order list IDs, so an untagged ID is looked up as
+// both, and errAmbiguousOrderListID is returned when pair has both
+func (e *Exchange) marginOrderInfo(ctx context.Context, orderID string, pair currency.Pair) (*order.Detail, error) {
+	id, isList, err := parseSpotOrderID(orderID)
+	if err != nil {
+		return nil, err
+	}
+	bothAccounts := []bool{false, true}
+	if isList {
+		list, err := e.marginOrderList(ctx, id, "", pair, bothAccounts)
+		if err != nil {
+			return nil, err
+		}
+		return e.marginOrderListInfo(list, pair)
+	}
+	o, orderErr := e.marginOrder(ctx, pair, id, "", bothAccounts)
+	if orderErr != nil && !errors.Is(orderErr, order.ErrOrderNotFound) {
+		return nil, orderErr
+	}
+	list, listErr := e.marginOrderList(ctx, id, "", pair, bothAccounts)
+	switch {
+	case listErr != nil && !errors.Is(listErr, order.ErrOrderNotFound):
+		return nil, listErr
+	case listErr == nil && orderErr == nil:
+		return nil, fmt.Errorf("%w: %s on %s %s; look the order list up as %s", errAmbiguousOrderListID, orderID, asset.Margin, pair, formatOrderListID(list.OrderListID))
+	case listErr == nil:
+		return e.marginOrderListInfo(list, pair)
+	case orderErr != nil:
+		return nil, common.AppendError(orderErr, listErr)
+	}
+	d, err := e.marginOrderDetail(o, pair)
+	if err != nil {
+		return nil, fmt.Errorf("error converting %s order %s: %w", asset.Margin, orderID, err)
+	}
+	return &d, nil
+}
+
+// spotOrder returns pair's spot order orderID or, when orderID is 0, clientOrderID, through the WebSocket API when it can
+// be used for orders and REST otherwise, drawing on f
+func (e *Exchange) spotOrder(ctx context.Context, pair currency.Pair, orderID uint64, clientOrderID string, f request.EndpointLimit) (*TradeOrderResponse, error) {
+	if e.canUseWebsocketAPIForOrders() {
+		return e.wsQueryOrder(ctx, pair, orderID, clientOrderID, f)
+	}
+	return e.queryOrder(ctx, pair, clientOrderID, orderID, f)
+}
+
+// spotOrderList returns pair's spot OCO order list orderListID or, when orderListID is 0, listClientOrderID, through the
+// WebSocket API when it can be used for orders and REST otherwise, drawing on f. order.ErrOrderNotFound is returned when
+// pair has no such OCO order list
+func (e *Exchange) spotOrderList(ctx context.Context, orderListID uint64, listClientOrderID string, pair currency.Pair, f request.EndpointLimit) (*OneCancelsTheOtherOrderResponse, error) {
+	var list *OneCancelsTheOtherOrderResponse
+	var err error
+	if e.canUseWebsocketAPIForOrders() {
+		list, err = e.wsQueryOneCancelsTheOtherOrder(ctx, orderListID, listClientOrderID, f)
+	} else {
+		list, err = e.getOneCancelsTheOtherOrders(ctx, orderListID, listClientOrderID, f)
+	}
+	if err != nil {
+		return nil, cancelError(fmt.Errorf("error fetching order list: %w", err))
+	}
+	if err := e.checkPairOrderList(asset.Spot, pair, list.Symbol, list.ContingencyType); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+// marginOrder returns pair's margin order orderID or, when orderID is 0, clientOrderID, from the margin accounts isolated
+// names, as marginLookup finds
+func (e *Exchange) marginOrder(ctx context.Context, pair currency.Pair, orderID uint64, clientOrderID string, isolated []bool) (*MarginTradeOrderResponse, error) {
+	return marginLookup(isolated, "order", func(isIsolated bool) (*MarginTradeOrderResponse, error) {
+		return e.GetMarginAccountsOrder(ctx, pair, isIsolated, orderID, clientOrderID)
+	})
+}
+
+// marginOrderList returns pair's margin OCO order list orderListID or, when orderListID is 0, listClientOrderID, from the
+// margin accounts isolated names, as marginLookup finds. The cross margin account's lookups take no symbol, so its order
+// list of another symbol is reported as not found
+func (e *Exchange) marginOrderList(ctx context.Context, orderListID uint64, listClientOrderID string, pair currency.Pair, isolated []bool) (*MarginOrderListResponse, error) {
+	list, err := marginLookup(isolated, "order list", func(isIsolated bool) (*MarginOrderListResponse, error) {
+		// Cross margin order list queries take no symbol, isolated ones require it
+		symbol := currency.EMPTYPAIR
+		if isIsolated {
+			symbol = pair
+		}
+		return e.GetMarginAccountOneCancelsTheOtherOrder(ctx, symbol, isIsolated, orderListID, listClientOrderID)
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := e.checkPairOrderList(asset.Margin, pair, list.Symbol, list.ContingencyType); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+// marginLookup returns what fetch finds in the first of the margin accounts isolated names, the cross margin account as
+// false and the isolated one as true, to have it, trying the next account after an error Binance answered with. The
+// error wraps order.ErrOrderNotFound only when no account has it: the first reported it unknown and each later one
+// answered with an error, as Binance's answer for a pair without an isolated margin account need not say it is unknown.
+// Otherwise the error is the first answer that cannot rule the account out
+func marginLookup[T any](isolated []bool, what string, fetch func(isIsolated bool) (*T, error)) (*T, error) {
+	var errs, inconclusive error
+	for i, isIsolated := range isolated {
+		found, err := fetch(isIsolated)
+		if err == nil {
+			return found, nil
+		}
+		account := "cross"
+		if isIsolated {
+			account = "isolated"
+		}
+		err = fmt.Errorf("error fetching %s margin %s: %w", account, what, err)
+		answered := errors.Is(err, errAPIResponse)
+		if inconclusive == nil && (!answered || i == 0 && !isUnknownOrder(err)) {
+			inconclusive = err
+		}
+		errs = common.AppendError(errs, err)
+		if !answered {
+			break
+		}
+	}
+	if inconclusive != nil {
+		return nil, inconclusive
+	}
+	return nil, cancelError(errs)
+}
+
+// checkPairOrderList returns order.ErrOrderNotFound unless an order list a lookup found is pair's OCO order list: order
+// list lookups other than the isolated margin account's take no symbol, and other contingency types, such as OTO
+// lists, are not OCO orders; their orders are found by their own order IDs
+func (e *Exchange) checkPairOrderList(a asset.Item, pair currency.Pair, symbol, contingencyType string) error {
+	formatted, err := e.FormatSymbol(pair, a)
+	if err != nil {
+		return err
+	}
+	if symbol != formatted || contingencyType != oneCancelsTheOtherContingencyType {
+		return fmt.Errorf("%w: no %s OCO order list has the ID", order.ErrOrderNotFound, formatted)
+	}
+	return nil
+}
+
+// marginOrderListInfo converts pair's margin OCO order list, with the account it belongs to, which cancellations need
+func (e *Exchange) marginOrderListInfo(list *MarginOrderListResponse, pair currency.Pair) (*order.Detail, error) {
+	d, err := e.orderListInfo(asset.Margin, list.OrderListID, list.ListClientOrderID, list.ListOrderStatus, list.TransactionTime.Time(), pair)
+	if err != nil {
+		return nil, err
+	}
+	d.MarginType = marginAccountType(list.IsIsolated)
+	return d, nil
+}
+
+// orderListInfo converts pair's OCO order list as GetOrderInfo returns it
+func (e *Exchange) orderListInfo(a asset.Item, orderListID uint64, listClientOrderID, listOrderStatus string, transactionTime time.Time, pair currency.Pair) (*order.Detail, error) {
 	d, err := e.orderListDetail(a, orderListID, listClientOrderID, listOrderStatus, transactionTime, pair)
 	if err != nil {
 		return nil, fmt.Errorf("error converting %s order list %d: %w", a, orderListID, err)
@@ -3373,14 +3598,14 @@ func (e *Exchange) marginOrderDetail(o *MarginTradeOrderResponse, pair currency.
 // orders
 const oneCancelsTheOtherContingencyType = "OCO"
 
-// orderListDetail converts an OCO order list, which GCT tracks as one order identified by the list's ID; the list
-// queries report neither the side nor the amounts of its orders. Values that cannot be converted are left unset and
-// returned as the error
+// orderListDetail converts an OCO order list, which GCT tracks as one order identified by its order list ID, tagged as
+// an order list's; the list queries report neither the side nor the amounts of its orders. Values that cannot be
+// converted are left unset and returned as the error
 func (e *Exchange) orderListDetail(a asset.Item, orderListID uint64, listClientOrderID, listOrderStatus string, transactionTime time.Time, pair currency.Pair) (order.Detail, error) {
 	status, err := orderListStatus(listOrderStatus)
 	return order.Detail{
 		Exchange:      e.Name,
-		OrderID:       strconv.FormatUint(orderListID, 10),
+		OrderID:       formatOrderListID(orderListID),
 		ClientOrderID: listClientOrderID,
 		Type:          order.OCO,
 		Status:        status,
@@ -3610,10 +3835,10 @@ func (e *Exchange) cryptocurrencyWithdrawalFee(ctx context.Context, c currency.C
 }
 
 // GetActiveOrders returns the open orders of the requested pairs, or of every symbol when none are requested. OCO order
-// lists are listed as orders identified by their order list ID when the OCO type is requested, while their orders are
-// listed among the open orders otherwise. USDⓈ-M and COIN-M algo orders are listed unless only limit or market orders
-// are requested, and a margin listing is of the isolated account, which needs pairs, when the isolated margin type is
-// requested
+// lists are listed as orders identified by their order list ID, tagged as an order list's, when the OCO type is
+// requested, while their orders are listed among the open orders otherwise. USDⓈ-M and COIN-M algo orders are listed
+// unless only limit or market orders are requested, and a margin listing is of the isolated account, which needs pairs,
+// when the isolated margin type is requested
 func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -3673,7 +3898,7 @@ func (e *Exchange) spotActiveOrders(ctx context.Context, req *order.MultiOrderRe
 			if l.ContingencyType != oneCancelsTheOtherContingencyType {
 				continue
 			}
-			orders = e.appendListedOrder(orders, asset.Spot, strconv.FormatUint(l.OrderListID, 10), currency.EMPTYPAIR, l.Symbol, func(pair currency.Pair) (order.Detail, error) {
+			orders = e.appendListedOrder(orders, asset.Spot, formatOrderListID(l.OrderListID), currency.EMPTYPAIR, l.Symbol, func(pair currency.Pair) (order.Detail, error) {
 				return e.orderListDetail(asset.Spot, l.OrderListID, l.ListClientOrderID, l.ListOrderStatus, l.TransactionTime.Time(), pair)
 			})
 		}
@@ -3721,7 +3946,7 @@ func (e *Exchange) appendMarginOrderLists(orders []order.Detail, requested curre
 		if l.ContingencyType != oneCancelsTheOtherContingencyType {
 			continue
 		}
-		orders = e.appendListedOrder(orders, asset.Margin, strconv.FormatUint(l.OrderListID, 10), requested, l.Symbol, func(pair currency.Pair) (order.Detail, error) {
+		orders = e.appendListedOrder(orders, asset.Margin, formatOrderListID(l.OrderListID), requested, l.Symbol, func(pair currency.Pair) (order.Detail, error) {
 			d, err := e.orderListDetail(asset.Margin, l.OrderListID, l.ListClientOrderID, l.ListOrderStatus, l.TransactionTime.Time(), pair)
 			d.MarginType = marginAccountType(l.IsIsolated)
 			return d, err
@@ -3845,11 +4070,12 @@ func (e *Exchange) optionsActiveOrders(ctx context.Context, req *order.MultiOrde
 }
 
 // GetOrderHistory returns the requested pairs' orders of every status, one page of the most Binance returns per pair:
-// orders from FromOrderID on, or algo orders from a USDⓈ-M or COIN-M algo order ID on, filtered to the request's time
-// window, or within the request's time window, which Binance limits per asset (24 hours on spot and margin, 7 days on
-// USDⓈ-M and COIN-M) and defaults when it is unset. OCO order lists are listed when the OCO type is requested, in one
-// page for every symbol on spot and cross margin, whose order list queries take no symbol, and USDⓈ-M and COIN-M algo
-// orders unless only limit or market orders are requested
+// orders from FromOrderID on, algo orders from a USDⓈ-M or COIN-M algo order ID on, or OCO order lists from a spot or
+// margin order list ID on, which needs the OCO type, filtered to the request's time window, or within the request's
+// time window, which Binance limits per asset (24 hours on spot and margin, 7 days on USDⓈ-M and COIN-M) and defaults
+// when it is unset. OCO order lists are listed when the OCO type is requested, in one page for every symbol on spot and
+// cross margin, whose order list queries take no symbol, and USDⓈ-M and COIN-M algo orders unless only limit or market
+// orders are requested
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -3859,12 +4085,18 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 	var fromID, algoFromID uint64
 	var err error
-	if req.AssetType == asset.USDTMarginedFutures || req.AssetType == asset.CoinMarginedFutures {
+	switch req.AssetType {
+	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		var isAlgo bool
 		if fromID, isAlgo, err = parseFuturesOrderID(req.FromOrderID); isAlgo {
 			fromID, algoFromID = 0, fromID
 		}
-	} else {
+	case asset.Spot, asset.Margin:
+		var isList bool
+		if fromID, isList, err = parseSpotOrderID(req.FromOrderID); err == nil && isList && req.Type != order.OCO {
+			err = fmt.Errorf("%w: %q", errOrderListIDRequiresOCOType, req.FromOrderID)
+		}
+	default:
 		fromID, err = parseOrderID(req.FromOrderID)
 	}
 	if err != nil {
@@ -4003,7 +4235,7 @@ func (e *Exchange) spotOrderHistory(ctx context.Context, req *order.MultiOrderRe
 			if l.ContingencyType != oneCancelsTheOtherContingencyType {
 				continue
 			}
-			orders = e.appendListedOrder(orders, asset.Spot, strconv.FormatUint(l.OrderListID, 10), currency.EMPTYPAIR, l.Symbol, func(pair currency.Pair) (order.Detail, error) {
+			orders = e.appendListedOrder(orders, asset.Spot, formatOrderListID(l.OrderListID), currency.EMPTYPAIR, l.Symbol, func(pair currency.Pair) (order.Detail, error) {
 				return e.orderListDetail(asset.Spot, l.OrderListID, l.ListClientOrderID, l.ListOrderStatus, l.TransactionTime.Time(), pair)
 			})
 		}

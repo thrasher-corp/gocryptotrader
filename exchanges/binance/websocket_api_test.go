@@ -2695,7 +2695,7 @@ func TestWebsocketHandleSpotAPIData(t *testing.T) {
 		},
 		&order.Detail{
 			Exchange:      t.Name(),
-			OrderID:       "2",
+			OrderID:       "list-2",
 			ClientOrderID: "F4QN4G8DlFATFlIUQ0cjdD",
 			Type:          order.OCO,
 			Status:        order.Active,
@@ -2812,7 +2812,7 @@ func TestWebsocketHandleSpotAPIData(t *testing.T) {
 		assert.Equal(t, &WebsocketListStatus{EventType: "listStatus", Symbol: "BTCUSDT", OrderListID: 3, ContingencyType: "OCO", ListOrderStatus: "UNKNOWN"}, relayed[0], "the unclassifiable list status should be relayed")
 		got, ok := relayed[1].(order.ClassificationError)
 		require.True(t, ok, "relay must hold a classification error")
-		assert.Equal(t, "3", got.OrderID, "the classification error should name the order list")
+		assert.Equal(t, "list-3", got.OrderID, "the classification error should name the order list")
 		assert.ErrorIs(t, got.Err, errUnknownOrderStatus, "the classification error should explain the list order status")
 	})
 
@@ -3274,7 +3274,7 @@ func TestListStatusUpdatesTrackedOrderList(t *testing.T) {
 	ex.userData.expect("spot", asset.Spot)
 	ex.userData.recordResponse("spot", []byte(`{"id":"spot","status":200,"result":{"subscriptionId":0}}`))
 	pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-	tracked := &order.Detail{Exchange: ex.Name, OrderID: "1930", ClientOrderID: "gct-oco", Type: order.OCO, Status: order.Active, AssetType: asset.Spot, Pair: pair}
+	tracked := &order.Detail{Exchange: ex.Name, OrderID: "list-1930", ClientOrderID: "gct-oco", Type: order.OCO, Status: order.Active, AssetType: asset.Spot, Pair: pair}
 	for _, frame := range []string{
 		`{"subscriptionId":0,"event":{"e":"executionReport","E":1791284900000,"s":"BTCUSDT","c":"leg-stop","S":"SELL","o":"STOP_LOSS_LIMIT","f":"GTC","q":"0.00100000","p":"69000.00000000","P":"70000.00000000","F":"0.00000000","g":1930,"C":"","x":"EXPIRED","X":"EXPIRED","r":"NONE","i":5001,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1791284900000,"t":-1,"I":1,"w":false,"m":false,"M":false,"O":1791284813000,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","V":"NONE","eR":"OCO_TRIGGER"}}`,
 		`{"subscriptionId":0,"event":{"e":"executionReport","E":1791284900000,"s":"BTCUSDT","c":"leg-limit","S":"SELL","o":"LIMIT_MAKER","f":"GTC","q":"0.00100000","p":"90000.00000000","P":"0.00000000","F":"0.00000000","g":1930,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5002,"l":"0.00100000","z":"0.00100000","L":"90000.00000000","n":"0.09","N":"USDT","T":1791284900000,"t":77,"I":2,"w":false,"m":true,"M":true,"O":1791284813000,"Z":"90.00000000","Y":"90.00000000","Q":"0.00000000","V":"NONE"}}`,
@@ -3293,7 +3293,7 @@ func TestListStatusUpdatesTrackedOrderList(t *testing.T) {
 	require.Equal(t, 1, updates, "the order list's event must update the tracked order once")
 	exp := &order.Detail{
 		Exchange:      ex.Name,
-		OrderID:       "1930",
+		OrderID:       "list-1930",
 		ClientOrderID: "gct-oco",
 		Type:          order.OCO,
 		Status:        order.Closed,

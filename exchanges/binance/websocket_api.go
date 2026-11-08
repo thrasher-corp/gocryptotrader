@@ -667,8 +667,8 @@ func (e *Exchange) processExecutionReport(ctx context.Context, a asset.Item, eve
 }
 
 // processListStatus relays a listStatus event, and an OCO order list as the order GCT tracks it: SubmitOrder returns an
-// OCO order list by its list ID, which only this event updates, since the legs' executionReport events carry their
-// own order IDs
+// OCO order list by its order list ID, tagged as an order list's, which only this event updates, since the legs'
+// executionReport events carry their own order IDs
 func (e *Exchange) processListStatus(ctx context.Context, a asset.Item, event []byte) error {
 	var resp WebsocketListStatus
 	if err := json.Unmarshal(event, &resp); err != nil {
@@ -1529,6 +1529,12 @@ func (e *Exchange) wsCurrentOpenOrders(ctx context.Context, symbol currency.Pair
 // WebsocketQueryOneCancelsTheOtherOrder returns an order list by its order list ID or client order list ID (Query Order
 // list)
 func (e *Exchange) WebsocketQueryOneCancelsTheOtherOrder(ctx context.Context, orderListID uint64, listClientOrderID string) (*OneCancelsTheOtherOrderResponse, error) {
+	return e.wsQueryOneCancelsTheOtherOrder(ctx, orderListID, listClientOrderID, getOneCancelsTheOtherListRate)
+}
+
+// wsQueryOneCancelsTheOtherOrder returns an order list drawing on f, so the lookup an untyped cancellation makes can draw
+// on the cancel pool
+func (e *Exchange) wsQueryOneCancelsTheOtherOrder(ctx context.Context, orderListID uint64, listClientOrderID string, f request.EndpointLimit) (*OneCancelsTheOtherOrderResponse, error) {
 	if orderListID == 0 && listClientOrderID == "" {
 		return nil, errOrderListIDRequired
 	}
@@ -1537,11 +1543,16 @@ func (e *Exchange) WebsocketQueryOneCancelsTheOtherOrder(ctx context.Context, or
 	// The method takes the client order list ID as origClientOrderId
 	params.setString("origClientOrderId", listClientOrderID)
 	var resp *OneCancelsTheOtherOrderResponse
-	return resp, e.SendSignedWebsocketAPIRequest(ctx, getOneCancelsTheOtherListRate, "orderList.status", params, &resp)
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, f, "orderList.status", params, &resp)
 }
 
 // WebsocketQueryOrder returns an order by its order ID or client order ID (Query order)
 func (e *Exchange) WebsocketQueryOrder(ctx context.Context, symbol currency.Pair, orderID uint64, originalClientOrderID string) (*TradeOrderResponse, error) {
+	return e.wsQueryOrder(ctx, symbol, orderID, originalClientOrderID, spotOrderQueryRate)
+}
+
+// wsQueryOrder returns an order drawing on f, so the lookup an untyped cancellation makes can draw on the cancel pool
+func (e *Exchange) wsQueryOrder(ctx context.Context, symbol currency.Pair, orderID uint64, originalClientOrderID string, f request.EndpointLimit) (*TradeOrderResponse, error) {
 	if orderID == 0 && originalClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -1552,7 +1563,7 @@ func (e *Exchange) WebsocketQueryOrder(ctx context.Context, symbol currency.Pair
 	params.setUint("orderId", orderID)
 	params.setString("origClientOrderId", originalClientOrderID)
 	var resp *TradeOrderResponse
-	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotOrderQueryRate, "order.status", params, &resp)
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, f, "order.status", params, &resp)
 }
 
 // WebsocketSubscribeUserDataStream subscribes the WebSocket API connection to the spot account's User Data Stream

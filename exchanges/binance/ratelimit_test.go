@@ -158,6 +158,7 @@ func TestEndpointCosts(t *testing.T) { //nolint:tparallel // Each case marks see
 		{spotOpenOrdersSpecificRate, spotIPPool, 6, "GET /api/v3/openOrders, one symbol"},
 		{spotOpenOrdersAllRate, spotIPPool, 80, "GET /api/v3/openOrders, all symbols"},
 		{spotCancelAllListingRate, spotCancelPool, 80, "GET /api/v3/openOrders and WS openOrders.status, all symbols, listed to cancel every symbol's orders"},
+		{spotCancelLookupRate, spotCancelPool, 4, "GET /api/v3/order and /api/v3/orderList, WS order.status and orderList.status, looked up for an untyped cancellation"},
 		{spotOrderQueryRate, spotIPPool, 4, "GET /api/v3/order, WS order.status"},
 		{getOneCancelsTheOtherListRate, spotIPPool, 4, "GET /api/v3/orderList, WS orderList.status"},
 		{getAllocationsRate, spotIPPool, 20, "GET /api/v3/myAllocations, WS myAllocations"},
