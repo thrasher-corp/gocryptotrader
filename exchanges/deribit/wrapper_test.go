@@ -3,6 +3,7 @@ package deribit
 import (
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"slices"
 	"strconv"
@@ -29,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -1678,6 +1680,11 @@ func TestSubmitOrderRequest(t *testing.T) {
 			submit: order.Submit{Type: order.TrailingStop, Amount: 10, TriggerPriceType: order.MarkPrice, TrackingMode: order.Distance, TrackingValue: 50},
 			exp:    &OrderRequest{Amount: 10, Type: "trailing_stop", Trigger: "mark_price", TriggerOffset: 50},
 		},
+		{
+			name:   "a spot cash order at a leverage of one",
+			submit: order.Submit{AssetType: asset.Spot, Type: order.Limit, Amount: 10, Price: 100, Leverage: 1, MarginType: margin.NoMargin},
+			exp:    &OrderRequest{Amount: 10, Type: "limit", Price: 100},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1696,6 +1703,14 @@ func TestSubmitOrderRequest(t *testing.T) {
 		{name: "an unknown trigger price", submit: order.Submit{Type: order.StopMarket, TriggerPriceType: order.UnknownPriceType}, err: order.ErrUnknownPriceType},
 		{name: "a trailing stop by percentage", submit: order.Submit{Type: order.TrailingStop, TrackingMode: order.Percentage, TrackingValue: 1}, err: errTrailingStopDistance},
 		{name: "a trailing stop without a distance", submit: order.Submit{Type: order.TrailingStop, TrackingMode: order.Distance}, err: errTrailingStopDistance},
+		{name: "a quote amount", submit: order.Submit{Type: order.Market, Amount: 10, QuoteAmount: 500}, err: errQuoteAmountUnsupported},
+		{name: "a limit order's quote amount", submit: order.Submit{Type: order.Limit, Amount: 10, Price: 100, QuoteAmount: 500}, err: errQuoteAmountUnsupported},
+		{name: "a leverage of two", submit: order.Submit{Type: order.Limit, Amount: 10, Price: 100, Leverage: 2}, err: order.ErrSubmitLeverageNotSupported},
+		{name: "a leverage of a half", submit: order.Submit{Type: order.Limit, Amount: 10, Price: 100, Leverage: 0.5}, err: order.ErrSubmitLeverageNotSupported},
+		{name: "a negative leverage", submit: order.Submit{Type: order.Limit, Amount: 10, Price: 100, Leverage: -1}, err: order.ErrSubmitLeverageNotSupported},
+		{name: "a quote amount below one", submit: order.Submit{Type: order.Market, Amount: 10, QuoteAmount: 0.5}, err: errQuoteAmountUnsupported},
+		{name: "a leverage of one and a half", submit: order.Submit{Type: order.Limit, Amount: 10, Price: 100, Leverage: 1.5}, err: order.ErrSubmitLeverageNotSupported},
+		{name: "a leverage that is not a number", submit: order.Submit{Type: order.Limit, Amount: 10, Price: 100, Leverage: math.NaN()}, err: order.ErrSubmitLeverageNotSupported},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1703,6 +1718,104 @@ func TestSubmitOrderRequest(t *testing.T) {
 			assert.ErrorIsf(t, err, tc.err, "submitOrderRequest should reject %s", tc.name)
 		})
 	}
+	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.Options, asset.FutureCombo, asset.OptionCombo} {
+		for _, m := range []margin.Type{margin.Isolated, margin.Multi, margin.SpotIsolated, margin.NoMargin, margin.Unknown} {
+			if a == asset.Spot && m == margin.NoMargin {
+				continue
+			}
+			t.Run(a.String()+" margin type "+m.String(), func(t *testing.T) {
+				t.Parallel()
+				_, err := submitOrderRequest(&order.Submit{AssetType: a, Type: order.Limit, Amount: 10, Price: 100, MarginType: m})
+				assert.ErrorIsf(t, err, margin.ErrMarginTypeUnsupported, "submitOrderRequest should reject a %s order of margin type %s", a, m)
+			})
+		}
+	}
+	t.Run("isolated and cross margin together", func(t *testing.T) {
+		t.Parallel()
+		_, err := submitOrderRequest(&order.Submit{AssetType: asset.Futures, Type: order.Limit, Amount: 10, Price: 100, MarginType: margin.Isolated | margin.Multi})
+		assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported, "submitOrderRequest should reject isolated and cross margin together")
+	})
+	t.Run("cash and isolated margin together on spot", func(t *testing.T) {
+		t.Parallel()
+		_, err := submitOrderRequest(&order.Submit{AssetType: asset.Spot, Type: order.Limit, Amount: 10, Price: 100, MarginType: margin.NoMargin | margin.Isolated})
+		assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported, "submitOrderRequest should reject cash and isolated margin together on spot")
+	})
+	// Every take profit, stop loss and stop entry field, set alone, asks for a linked order Deribit is not sent
+	for name, modes := range riskManagementModesEachField() {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := submitOrderRequest(&order.Submit{Type: order.Limit, Amount: 10, Price: 100, RiskManagementModes: modes})
+			assert.ErrorIsf(t, err, common.ErrNotYetImplemented, "submitOrderRequest should reject %s", name)
+		})
+	}
+	// Each refusal holds for every asset, order type and side Deribit places
+	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.Options, asset.FutureCombo, asset.OptionCombo} {
+		for _, orderType := range []order.Type{order.Limit, order.Market, order.StopLimit, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStop} {
+			for _, side := range []order.Side{order.Buy, order.Sell} {
+				for _, tc := range []struct {
+					name   string
+					submit order.Submit
+					err    error
+				}{
+					{name: "a quote amount", submit: order.Submit{QuoteAmount: 500}, err: errQuoteAmountUnsupported},
+					{name: "a leverage of two", submit: order.Submit{Leverage: 2}, err: order.ErrSubmitLeverageNotSupported},
+					{name: "an isolated margin type", submit: order.Submit{MarginType: margin.Isolated}, err: margin.ErrMarginTypeUnsupported},
+					{name: "a take profit", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{TakeProfit: order.RiskManagement{Enabled: true, Price: 110}}}, err: common.ErrNotYetImplemented},
+				} {
+					t.Run(a.String()+" "+orderType.Lower()+" "+side.Lower()+" with "+tc.name, func(t *testing.T) {
+						t.Parallel()
+						submit := tc.submit
+						submit.AssetType, submit.Type, submit.Side, submit.Amount, submit.Price, submit.TriggerPrice = a, orderType, side, 10, 100, 95
+						submit.TrackingMode, submit.TrackingValue = order.Distance, 50
+						_, err := submitOrderRequest(&submit)
+						assert.ErrorIsf(t, err, tc.err, "submitOrderRequest should reject a %s %s %s order with %s", a, orderType, side, tc.name)
+					})
+				}
+			}
+		}
+	}
+}
+
+// refusalTestPairs returns a pair of each asset Deribit trades, for requests refused before anything is sent, so none
+// needs to be listed
+func refusalTestPairs(t *testing.T) map[asset.Item]currency.Pair {
+	t.Helper()
+	pairs := make(map[asset.Item]currency.Pair, 5)
+	for a, instrument := range map[asset.Item]string{
+		asset.Spot:        "BTC_USDC",
+		asset.Futures:     "BTC-PERPETUAL",
+		asset.Options:     "BTC-15FEB19-3250-P",
+		asset.FutureCombo: "BTC-FS-27NOV26_PERP",
+		asset.OptionCombo: "ETH_USDC-PS-21OCT26-2420_2400",
+	} {
+		pair, err := currency.NewPairFromString(instrument)
+		require.NoErrorf(t, err, "NewPairFromString must not error for %s", instrument)
+		pairs[a] = pair
+	}
+	return pairs
+}
+
+// riskManagementModesEachField returns risk management modes each setting one field alone, named after it
+func riskManagementModesEachField() map[string]order.RiskManagementModes {
+	modes := map[string]order.RiskManagementModes{"a full risk management mode": {Mode: "full"}, "a partial risk management mode": {Mode: "partial"}}
+	for name, set := range map[string]func(*order.RiskManagementModes) *order.RiskManagement{
+		"take profit": func(m *order.RiskManagementModes) *order.RiskManagement { return &m.TakeProfit },
+		"stop loss":   func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopLoss },
+		"stop entry":  func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopEntry },
+	} {
+		for field, fill := range map[string]func(*order.RiskManagement){
+			"enabled":            func(r *order.RiskManagement) { r.Enabled = true },
+			"trigger price type": func(r *order.RiskManagement) { r.TriggerPriceType = order.MarkPrice },
+			"price":              func(r *order.RiskManagement) { r.Price = 90 },
+			"limit price":        func(r *order.RiskManagement) { r.LimitPrice = 89 },
+			"order type":         func(r *order.RiskManagement) { r.OrderType = order.Market },
+		} {
+			var m order.RiskManagementModes
+			fill(set(&m))
+			modes["a "+name+" "+field] = m
+		}
+	}
+	return modes
 }
 
 func TestTradeHistory(t *testing.T) {
@@ -1744,6 +1857,60 @@ func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.ModifyOrder(t.Context(), nil)
 	assert.ErrorIs(t, err, order.ErrModifyOrderIsNil, "ModifyOrder should reject a nil modification")
+	t.Run("take profit or stop loss", func(t *testing.T) {
+		t.Parallel()
+		pair := wrapperTestPair(t, asset.Futures)
+		for name, modes := range riskManagementModesEachField() {
+			for shape, m := range map[string]order.Modify{
+				"by order ID with an amount":    {OrderID: mockWrapperEditOrderID, Pair: pair, AssetType: asset.Futures, Amount: 4, Price: 222},
+				"by label with an amount":       {ClientOrderID: "label", Pair: pair, AssetType: asset.Futures, Amount: 4, Price: 222},
+				"by order ID without an amount": {OrderID: mockWrapperEditOrderID, Pair: pair, AssetType: asset.Futures, Price: 222},
+				"by label without an amount":    {ClientOrderID: "label", Pair: pair, AssetType: asset.Futures, Price: 222},
+			} {
+				t.Run(name+" "+shape, func(t *testing.T) {
+					t.Parallel()
+					var requests atomic.Int64
+					ex := newWrapperServerExchange(t, func(string, json.RawMessage) string {
+						requests.Add(1)
+						return `{"jsonrpc":"2.0","result":{}}`
+					})
+					m.RiskManagementModes = modes
+					_, err := ex.ModifyOrder(t.Context(), &m)
+					assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "ModifyOrder should reject %s %s", name, shape)
+					assert.Zerof(t, requests.Load(), "ModifyOrder should send nothing for %s %s", name, shape)
+				})
+			}
+		}
+	})
+	t.Run("a stop loss on each asset and side", func(t *testing.T) {
+		t.Parallel()
+		for a, pair := range refusalTestPairs(t) {
+			for _, side := range []order.Side{order.Buy, order.Sell} {
+				for shape, m := range map[string]order.Modify{
+					"by order ID with an amount":             {OrderID: mockWrapperEditOrderID, Pair: pair, AssetType: a, Side: side, Amount: 4, Price: 222},
+					"by label with an amount":                {ClientOrderID: "label", Pair: pair, AssetType: a, Side: side, Amount: 4, Price: 222},
+					"by order ID without an amount":          {OrderID: mockWrapperEditOrderID, Pair: pair, AssetType: a, Side: side, Price: 222},
+					"by label without an amount":             {ClientOrderID: "label", Pair: pair, AssetType: a, Side: side, Price: 222},
+					"by order ID with a trigger price alone": {OrderID: mockWrapperEditOrderID, Pair: pair, AssetType: a, Side: side, TriggerPrice: 200},
+					"by label with a trigger price alone":    {ClientOrderID: "label", Pair: pair, AssetType: a, Side: side, TriggerPrice: 200},
+					"by order ID post only":                  {OrderID: mockWrapperEditOrderID, Pair: pair, AssetType: a, Side: side, Amount: 4, Price: 222, TimeInForce: order.PostOnly},
+				} {
+					t.Run(a.String()+" "+side.Lower()+" "+shape, func(t *testing.T) {
+						t.Parallel()
+						var requests atomic.Int64
+						ex := newWrapperServerExchange(t, func(string, json.RawMessage) string {
+							requests.Add(1)
+							return `{"jsonrpc":"2.0","result":{}}`
+						})
+						m.RiskManagementModes = order.RiskManagementModes{StopLoss: order.RiskManagement{Enabled: true, Price: 90}}
+						_, err := ex.ModifyOrder(t.Context(), &m)
+						assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "ModifyOrder should reject a stop loss on a %s %s order %s", a, side, shape)
+						assert.Zerof(t, requests.Load(), "ModifyOrder should send nothing for a stop loss on a %s %s order %s", a, side, shape)
+					})
+				}
+			}
+		}
+	})
 
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
@@ -1787,6 +1954,41 @@ func TestModifyOrder(t *testing.T) {
 	twoOrders := `{"jsonrpc":"2.0","result":[{"order_id":"1","instrument_name":"BTC-15FEB19-3250-P","amount":10},{"order_id":"2","instrument_name":"BTC-15FEB19-3250-P","amount":10}]}`
 	_, err = newResponseServerExchange(t, twoOrders).ModifyOrder(t.Context(), &order.Modify{ClientOrderID: mockWrapperLabel, Pair: labelled, AssetType: asset.Options, Price: 0.003})
 	assert.ErrorIs(t, err, errOrderLabelNotUnique, "ModifyOrder should reject a label several orders share")
+	t.Run("an order ID with another pair and asset", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			instrument string
+			pair       currency.Pair
+			a          asset.Item
+		}{
+			{instrument: "BTC-PERPETUAL", pair: currency.NewPairWithDelimiter("BTC", perpString, currency.DashDelimiter), a: asset.Futures},
+			{instrument: "BTC-15FEB19-3250-P", pair: currency.NewPairWithDelimiter("BTC", "15FEB19-3250-P", currency.DashDelimiter), a: asset.Options},
+			{instrument: "BTC_USDC", pair: currency.NewPairWithDelimiter("BTC", "USDC", currency.UnderscoreDelimiter), a: asset.Spot},
+		} {
+			// Each asset is named with another pair, the order's own asset too, and each edit is made with and without an amount
+			for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.Options, asset.FutureCombo, asset.Margin} {
+				for _, edit := range []struct {
+					name   string
+					amount float64
+				}{{name: "with an amount", amount: 10}, {name: "without an amount"}} {
+					t.Run(tc.instrument+" named "+a.String()+" "+edit.name, func(t *testing.T) {
+						t.Parallel()
+						edited := `{"order_id":"1","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"` + tc.instrument + `","direction":"buy","amount":10,"price":30100}`
+						ex := newWrapperServerExchange(t, func(method string, _ json.RawMessage) string {
+							if method == "private/get_order_state" {
+								return `{"jsonrpc":"2.0","result":` + edited + `}`
+							}
+							return `{"jsonrpc":"2.0","result":{"order":` + edited + `,"trades":[]}}`
+						})
+						resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "1", Pair: ethPair, AssetType: a, Amount: edit.amount, Price: 30100})
+						require.NoErrorf(t, err, "ModifyOrder must not error for an order ID of %s named with the asset %s", tc.instrument, a)
+						assert.Equalf(t, tc.pair, resp.Pair, "ModifyOrder should return %s's pair when named with the asset %s", tc.instrument, a)
+						assert.Equalf(t, tc.a, resp.AssetType, "ModifyOrder should return %s's asset when named with the asset %s", tc.instrument, a)
+					})
+				}
+			}
+		}
+	})
 
 	for _, tc := range []struct {
 		a          asset.Item
@@ -1877,6 +2079,66 @@ func TestCancelAllOrders(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelAllOrders should reject a nil cancellation")
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Futures, Type: order.Market})
 	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "CancelAllOrders should reject market orders, which never rest")
+	// Deribit cancels a pair's or an asset's orders on both sides together, so naming one side sends nothing, whatever the
+	// type or asset cancelled
+	for _, tc := range []struct {
+		side      order.Side
+		orderType order.Type
+	}{
+		{order.Buy, order.Limit},
+		{order.Sell, order.Limit},
+		{order.Bid, order.Limit},
+		{order.Ask, order.Limit},
+		{order.Long, order.Limit},
+		{order.Short, order.Limit},
+		{order.ClosePosition, order.Limit},
+		{order.Buy, order.UnknownType},
+		{order.Buy, order.AnyType},
+		{order.Buy, order.Stop},
+		{order.Buy, order.TrailingStop},
+	} {
+		for name, pair := range map[string]currency.Pair{"a pair": wrapperTestPair(t, asset.Futures), "no pair": currency.EMPTYPAIR} {
+			t.Run("side "+tc.side.String()+" type "+tc.orderType.String()+" with "+name, func(t *testing.T) {
+				t.Parallel()
+				var requests atomic.Int64
+				ex := newWrapperServerExchange(t, func(string, json.RawMessage) string {
+					requests.Add(1)
+					return `{"jsonrpc":"2.0","result":0}`
+				})
+				_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Pair: pair, AssetType: asset.Futures, Type: tc.orderType, Side: tc.side})
+				assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "CancelAllOrders should reject cancelling the %s %s orders of %s alone", tc.side, tc.orderType, name)
+				assert.Zerof(t, requests.Load(), "CancelAllOrders should send nothing for the %s %s orders of %s", tc.side, tc.orderType, name)
+			})
+		}
+	}
+	for a, pair := range refusalTestPairs(t) {
+		for name, p := range map[string]currency.Pair{"a pair": pair, "no pair": currency.EMPTYPAIR} {
+			for _, side := range []order.Side{order.Buy, order.Sell} {
+				t.Run(a.String()+" side "+side.String()+" with "+name, func(t *testing.T) {
+					t.Parallel()
+					var requests atomic.Int64
+					ex := newWrapperServerExchange(t, func(string, json.RawMessage) string {
+						requests.Add(1)
+						return `{"jsonrpc":"2.0","result":0}`
+					})
+					_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Pair: p, AssetType: a, Type: order.Limit, Side: side})
+					assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "CancelAllOrders should reject cancelling the %s %s orders of %s alone", a, side, name)
+					assert.Zerof(t, requests.Load(), "CancelAllOrders should send nothing for the %s %s orders of %s", a, side, name)
+				})
+			}
+		}
+	}
+	t.Run("any side", func(t *testing.T) {
+		t.Parallel()
+		ex := newWrapperServerExchange(t, func(string, json.RawMessage) string {
+			return `{"jsonrpc":"2.0","result":[{"currency":"BTC","instrument_name":"BTC-PERPETUAL","type":"limit","result":[` +
+				`{"order_id":"buy-1","order_state":"cancelled","order_type":"limit","direction":"buy","instrument_name":"BTC-PERPETUAL","amount":30,"price":30000},` +
+				`{"order_id":"sell-1","order_state":"cancelled","order_type":"limit","direction":"sell","instrument_name":"BTC-PERPETUAL","amount":20,"price":31000}]}]}`
+		})
+		cancelled, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Pair: wrapperTestPair(t, asset.Futures), AssetType: asset.Futures, Type: order.Limit, Side: order.AnySide})
+		require.NoError(t, err, "CancelAllOrders must not error for any side")
+		assert.Equal(t, map[string]string{"buy-1": "cancelled", "sell-1": "cancelled"}, cancelled.Status, "CancelAllOrders should cancel the orders of any side")
+	})
 
 	// The execution reports of a limit order and of a stop order cancelled before it triggered, which keeps its state
 	reports := newWrapperServerExchange(t, func(string, json.RawMessage) string {

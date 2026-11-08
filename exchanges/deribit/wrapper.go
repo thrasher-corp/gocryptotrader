@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -43,6 +44,7 @@ var (
 	errCandleFieldsMismatch   = errors.New("candle fields differ in length")
 	errTradePagingStalled     = errors.New("trades sharing one timestamp fill a whole page")
 	errDepositAddressNetwork  = errors.New("deposit address is on another network")
+	errQuoteAmountUnsupported = errors.New("quote amount not supported, as Deribit sizes orders by amount")
 )
 
 const (
@@ -868,8 +870,24 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return resp, nil
 }
 
-// submitOrderRequest returns the order request placing an order, but its instrument
+// submitOrderRequest returns the order request placing an order, but its instrument. Deribit sizes an order by
+// amount, margins it under the account's margin model and places a take profit or stop loss only as a linked order,
+// so an order asking for a quote amount, a leverage, a margin type other than cash for spot, or a take profit or stop
+// loss is refused rather than placed without it
 func submitOrderRequest(s *order.Submit) (*OrderRequest, error) {
+	if s.QuoteAmount != 0 {
+		return nil, fmt.Errorf("%w: %v", errQuoteAmountUnsupported, s.QuoteAmount)
+	}
+	// A leverage of one, which the wrapper standards submit, asks for none
+	if s.Leverage != 0 && s.Leverage != 1 {
+		return nil, fmt.Errorf("%w: %v", order.ErrSubmitLeverageNotSupported, s.Leverage)
+	}
+	if s.MarginType != margin.Unset && (s.MarginType != margin.NoMargin || s.AssetType != asset.Spot) {
+		return nil, fmt.Errorf("%w: %s for a %s order", margin.ErrMarginTypeUnsupported, s.MarginType, s.AssetType)
+	}
+	if s.RiskManagementModes != (order.RiskManagementModes{}) {
+		return nil, fmt.Errorf("%w: a take profit or stop loss placed with an order", common.ErrNotYetImplemented)
+	}
 	orderType, err := orderTypeParam(s.Type)
 	if err != nil {
 		return nil, err
@@ -990,10 +1008,14 @@ func tradeHistory(exchangeName string, t *UserTradeResponse) (order.TradeHistory
 }
 
 // ModifyOrder edits an open order, identified by its ID or by its label in the pair; an amount left unset keeps the
-// order's amount, which Deribit requires with every edit
+// order's amount, which Deribit requires with every edit. Deribit edits no take profit or stop loss with an order, so
+// a modification setting one is refused
 func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.ModifyResponse, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
+	}
+	if m.RiskManagementModes != (order.RiskManagementModes{}) {
+		return nil, fmt.Errorf("%w: a take profit or stop loss edited with an order", common.ErrFunctionNotSupported)
 	}
 	overWebsocket := e.websocketForWrapper(true)
 	postOnly := m.TimeInForce.Is(order.PostOnly)
@@ -1063,6 +1085,9 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 	}
 	resp.Exchange = e.Name
 	resp.OrderID = detail.OrderID
+	// An order ID finds the order whatever pair and asset the modification names
+	resp.Pair = detail.Pair
+	resp.AssetType = detail.AssetType
 	resp.ClientOrderID = detail.ClientOrderID
 	resp.Type = detail.Type
 	resp.Side = detail.Side
@@ -1111,11 +1136,15 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 	return resp, nil
 }
 
-// CancelAllOrders cancels the orders of a type in a pair, or in every pair of the asset when the pair is empty
+// CancelAllOrders cancels the orders of a type in a pair, or in every pair of the asset when the pair is empty. Deribit
+// cancels them on both sides together, so a cancellation of one side's orders is refused
 func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	if err := c.Validate(); err != nil {
 		return resp, err
+	}
+	if c.Side != order.UnknownSide && c.Side != order.AnySide {
+		return resp, fmt.Errorf("%w: cancelling the orders of one side, %s", common.ErrFunctionNotSupported, c.Side)
 	}
 	orderType, err := cancelOrderTypeParam(c.Type)
 	if err != nil {

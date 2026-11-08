@@ -62,15 +62,20 @@ sent this way, and the challenge is returned instead.
 + `SubmitOrder` places limit, market, stop limit, stop market, take profit limit, take profit market and trailing stop
   orders. Trigger orders trigger on the last price unless `TriggerPriceType` selects the index or mark price, and a
   trailing stop needs a `TrackingMode` of `order.Distance` with its distance as the `TrackingValue`.
++ An order asking for a quote amount, a nonzero leverage other than one, a margin type other than cash for spot, or
+  a take profit or stop loss attached through `RiskManagementModes` is refused, as Deribit sizes orders by amount,
+  margins them under the account's margin model and attaches a take profit or stop loss only as a linked order.
 + Post only orders are rejected rather than repriced when they would take liquidity, as spot routed to Coinbase Exchange
   requires.
-+ `ModifyOrder` edits an order identified by its ID, or by its label in a pair. Deribit requires an amount with every
-  edit, so when the modification leaves it unset, the order is fetched first and keeps its amount.
++ `ModifyOrder` edits an order identified by its ID, or by its label in a pair. Deribit requires an amount or a
+  contract count with every edit, so when the modification leaves the amount unset, the order is fetched first and
+  keeps its amount. A take profit or stop loss attached through `RiskManagementModes` is refused, as Deribit
+  attaches neither with an edit.
 + `CancelBatchOrders` cancels one order a request, as Deribit cancels no list of orders, and reports each order's state
   or error; it checks every cancel first, so an invalid batch cancels nothing. `CancelAllOrders` cancels a pair's
-  orders, or every order of the asset when the pair is empty. Deribit cancels stop and take profit orders only as
-  whole groups, so `order.Stop` cancels every stop order, and stop limit, stop market and take profit types are
-  refused.
+  orders, or every order of the asset when the pair is empty, on both sides together, so a cancellation of one side's
+  orders is refused. Deribit cancels stop and take profit orders only as whole groups, so `order.Stop` cancels every
+  stop order, and stop limit, stop market and take profit types are refused.
 + `GetActiveOrders` returns the open orders of the requested pairs, or of every pair of the asset when none are
   requested. `GetOrderHistory` returns the latest 1000 recent and the latest 1000 historical orders of each requested
   pair, each order once, including those that never filled; Deribit keeps an order as a recent record for 30 minutes

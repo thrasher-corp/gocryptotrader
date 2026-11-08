@@ -770,6 +770,46 @@ func TestListAddressBeneficiaries(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "ListAddressBeneficiaries must reject a creation range ending before it starts")
 	_, err = e.ListAddressBeneficiaries(t.Context(), &ListAddressBeneficiariesRequest{UpdatedAfter: now, UpdatedBefore: now.Add(-time.Hour)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "ListAddressBeneficiaries must reject an update range ending before it starts")
+	// The creation range lies after the update range in the first case and before it in the second, so a check comparing
+	// one range's start with the other range's times fails
+	earlier, later := time.UnixMilli(1700000001000), time.UnixMilli(1700000002000)
+	for _, tc := range []struct {
+		name                                                     string
+		createdAfter, createdBefore, updatedAfter, updatedBefore time.Time
+		err                                                      error
+		sent                                                     string
+	}{
+		{
+			name:          "ranges ending as they start",
+			createdAfter:  later,
+			createdBefore: later,
+			updatedAfter:  earlier,
+			updatedBefore: earlier,
+			sent:          `{"created_before":1700000002000,"created_after":1700000002000,"updated_before":1700000001000,"updated_after":1700000001000}`,
+		},
+		{
+			name:          "ranges a nanosecond long",
+			createdAfter:  earlier.Add(time.Nanosecond),
+			createdBefore: earlier.Add(2 * time.Nanosecond),
+			updatedAfter:  later.Add(time.Nanosecond),
+			updatedBefore: later.Add(2 * time.Nanosecond),
+			sent:          `{"created_before":1700000001000,"created_after":1700000001000,"updated_before":1700000002000,"updated_after":1700000002000}`,
+		},
+		{name: "a creation range ending a nanosecond before it starts", createdAfter: later.Add(2 * time.Nanosecond), createdBefore: later.Add(time.Nanosecond), err: common.ErrStartAfterEnd},
+		{name: "an update range ending a nanosecond before it starts", updatedAfter: later.Add(2 * time.Nanosecond), updatedBefore: later.Add(time.Nanosecond), err: common.ErrStartAfterEnd},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"data":[],"continuation":"","count":0}}`)
+			_, err := ex.ListAddressBeneficiaries(t.Context(), &ListAddressBeneficiariesRequest{CreatedAfter: tc.createdAfter, CreatedBefore: tc.createdBefore, UpdatedAfter: tc.updatedAfter, UpdatedBefore: tc.updatedBefore})
+			require.ErrorIsf(t, err, tc.err, "ListAddressBeneficiaries must return the expected error for %s", tc.name)
+			if tc.err != nil {
+				assert.Emptyf(t, lastParams(), "ListAddressBeneficiaries should send nothing for %s", tc.name)
+				return
+			}
+			assert.JSONEqf(t, tc.sent, lastParams(), "ListAddressBeneficiaries should send %s", tc.name)
+		})
+	}
 
 	ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"data":[],"continuation":"","count":0}}`)
 	_, err = ex.ListAddressBeneficiaries(t.Context(), &ListAddressBeneficiariesRequest{

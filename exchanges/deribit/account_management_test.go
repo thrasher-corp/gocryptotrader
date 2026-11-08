@@ -1492,6 +1492,27 @@ func TestGetTransactionLog(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrDateUnset, "GetTransactionLog must reject an empty end time")
 	_, err = e.GetTransactionLog(t.Context(), &GetTransactionLogRequest{Currency: currency.BTC, StartTime: end, EndTime: start})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetTransactionLog must reject a start time after the end time")
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		err        error
+	}{
+		{name: "start time at the end time", start: end, end: end},
+		{name: "range a nanosecond long", start: end.Add(time.Nanosecond), end: end.Add(2 * time.Nanosecond)},
+		{name: "start time a nanosecond after the end time", start: end.Add(2 * time.Nanosecond), end: end.Add(time.Nanosecond), err: common.ErrStartAfterEnd},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"logs":[],"continuation":0}}`)
+			_, err := ex.GetTransactionLog(t.Context(), &GetTransactionLogRequest{Currency: currency.BTC, StartTime: tc.start, EndTime: tc.end})
+			require.ErrorIsf(t, err, tc.err, "GetTransactionLog must return the expected error for a %s", tc.name)
+			if tc.err != nil {
+				assert.Emptyf(t, lastParams(), "GetTransactionLog should send nothing for a %s", tc.name)
+				return
+			}
+			assert.JSONEqf(t, `{"currency":"BTC","start_timestamp":1613660407000,"end_timestamp":1613660407000}`, lastParams(), "GetTransactionLog should send a %s", tc.name)
+		})
+	}
 
 	skipLiveWithoutCredentials(t)
 	result, err := e.GetTransactionLog(t.Context(), testTransactionLogRequest())
