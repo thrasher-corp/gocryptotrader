@@ -18,19 +18,26 @@ func TestGetCardAssetRecords(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetCardAssetRecords must reject a nil request")
 	_, err = e.GetCardAssetRecords(t.Context(), &CardAssetRecordsRequest{})
 	require.ErrorIs(t, err, errCardQueryTypeRequired, "GetCardAssetRecords must require a query type without a transaction ID or order number")
+	ctx := t.Context()
+	// Cases share e and come before its requests below, so they run in order
 	for _, req := range []*CardAssetRecordsRequest{
 		{Type: "SIDE_QUERY_FINANCIAL", TransactionID: "txn-0001"},
 		{Type: "SIDE_QUERY_FINANCIAL", OrderNumber: "order-0001"},
 		{Type: "SIDE_QUERY_REFUND", TransactionID: "txn-0001"},
 		{Type: "SIDE_QUERY_REFUND", OrderNumber: "order-0001"},
 	} {
-		_, err = e.GetCardAssetRecords(t.Context(), req)
-		require.ErrorIsf(t, err, errCardTransactionIDAndOrderNotSet, "GetCardAssetRecords must require a transaction ID and order number for %s", req.Type)
+		t.Run(req.Type+" "+req.TransactionID+req.OrderNumber, func(t *testing.T) {
+			_, err := e.GetCardAssetRecords(ctx, req)
+			require.ErrorIsf(t, err, errCardTransactionIDAndOrderNotSet, "GetCardAssetRecords must require a transaction ID and order number for %s", req.Type)
+		})
 	}
 	queried := restReplyTestInstance(t, map[string]string{"/v5/card/transaction/query-asset-records": `{"retCode":0,"retMsg":"success","result":{},"retExtInfo":{},"time":1760000000000}`})
+	// Cases share queried's server and come before more requests, so they run in order
 	for _, queryType := range []string{"SIDE_QUERY_FINANCIAL", "SIDE_QUERY_REFUND"} {
-		_, err = queried.GetCardAssetRecords(t.Context(), &CardAssetRecordsRequest{Type: queryType, TransactionID: "txn-0001", OrderNumber: "order-0001"})
-		require.NoErrorf(t, err, "GetCardAssetRecords must accept %s with a transaction ID and order number", queryType)
+		t.Run(queryType+" with a transaction ID and order number", func(t *testing.T) {
+			_, err := queried.GetCardAssetRecords(ctx, &CardAssetRecordsRequest{Type: queryType, TransactionID: "txn-0001", OrderNumber: "order-0001"})
+			require.NoErrorf(t, err, "GetCardAssetRecords must accept %s with a transaction ID and order number", queryType)
+		})
 	}
 	_, err = e.GetCardAssetRecords(t.Context(), &CardAssetRecordsRequest{
 		Type: "SIDE_QUERY_AUTH_ALL", CreateBeginTime: time.UnixMilli(1672329600000), CreateEndTime: time.UnixMilli(1672156800000),

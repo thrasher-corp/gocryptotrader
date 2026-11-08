@@ -539,6 +539,8 @@ func TestRedeemPrivateWealthManagementInvestmentPlan(t *testing.T) {
 	unsent := newTransportTestExchange(t, func(http.ResponseWriter, *http.Request) {
 		assert.Fail(t, "RedeemPrivateWealthManagementInvestmentPlan should not send a redemption its product's rules refuse")
 	})
+	ctx := t.Context()
+	// Cases share unsent's server and come before more redemptions, so they run in order
 	for _, tc := range []struct {
 		name string
 		req  *PrivateWealthManagementRedeemRequest
@@ -549,8 +551,10 @@ func TestRedeemPrivateWealthManagementInvestmentPlan(t *testing.T) {
 		{name: "a FundPool product without a position ID", req: &PrivateWealthManagementRedeemRequest{PlanID: "10001", Category: "fundPool", ProductID: "430", Amount: 5000, OrderLinkID: "pwm-redeem-005"}, err: errPositionIDRequired},
 		{name: "an On-chain Earn product without a position ID", req: &PrivateWealthManagementRedeemRequest{PlanID: "10001", Category: "onchainEarn", ProductID: "25", Amount: 1, OrderLinkID: "pwm-redeem-006"}, err: errPositionIDRequired},
 	} {
-		_, err = unsent.RedeemPrivateWealthManagementInvestmentPlan(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "RedeemPrivateWealthManagementInvestmentPlan must reject %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := unsent.RedeemPrivateWealthManagementInvestmentPlan(ctx, tc.req)
+			require.ErrorIsf(t, err, tc.err, "RedeemPrivateWealthManagementInvestmentPlan must reject %s", tc.name)
+		})
 	}
 	// Which categories besides equity funds count as fund products is not documented, so shares alone are sent for them
 	var sentBody string

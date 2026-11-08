@@ -400,8 +400,9 @@ func TestReferralAwardTimeUnmarshalJSON(t *testing.T) {
 	assert.ErrorIs(t, result.UnmarshalJSON([]byte(`1790000000000`)), types.ErrInvalidTimestampFormat, "UnmarshalJSON should reject a Unix timestamp")
 }
 
-func TestReferralAwardTimeMarshalJSON(t *testing.T) {
+func TestReferralAwardTimeMarshalJSON(t *testing.T) { //nolint:tparallel // Cases precede a later call of the same function
 	t.Parallel()
+	// Cases come before the rejected year below, so they run in order
 	for _, tc := range []struct {
 		input time.Time
 		exp   string
@@ -409,9 +410,11 @@ func TestReferralAwardTimeMarshalJSON(t *testing.T) {
 		{input: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), exp: `"2026-10-01T00:00:00Z"`},
 		{exp: `"0001-01-01T00:00:00Z"`},
 	} {
-		data, err := json.Marshal(ReferralAwardTime(tc.input))
-		require.NoError(t, err, "Marshal must not error")
-		assert.Equal(t, tc.exp, string(data), "Marshal should encode the time in RFC 3339 format")
+		t.Run(tc.input.Format(time.RFC3339), func(t *testing.T) {
+			data, err := json.Marshal(ReferralAwardTime(tc.input))
+			require.NoError(t, err, "Marshal must not error")
+			assert.Equal(t, tc.exp, string(data), "Marshal should encode the time in RFC 3339 format")
+		})
 	}
 	_, err := json.Marshal(ReferralAwardTime(time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC)))
 	assert.Error(t, err, "Marshal should reject a year RFC 3339 cannot hold")

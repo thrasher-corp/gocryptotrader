@@ -465,7 +465,9 @@ func TestGetAllowedDepositCoinInfo(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetAllowedDepositCoinInfo(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetAllowedDepositCoinInfo must reject a nil request")
-	// The route answers a coin or a chain alone: coin=USDT lists the coin's chains and chain=ETH the chain's coins
+	ctx := t.Context()
+	// The route answers a coin or a chain alone: coin=USDT lists the coin's chains and chain=ETH the chain's coins. Cases
+	// come before more requests below, so they run in order
 	for _, tc := range []struct {
 		req   *AllowedDepositCoinInfoRequest
 		query string
@@ -473,13 +475,16 @@ func TestGetAllowedDepositCoinInfo(t *testing.T) {
 		{&AllowedDepositCoinInfoRequest{Coin: currency.USDT}, "coin=USDT"},
 		{&AllowedDepositCoinInfoRequest{Chain: "ETH"}, "chain=ETH"},
 	} {
+		// The test builds each case's exchange, as the loop did, so the exchange keeps the test's name and server
 		ex := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, tc.query, r.URL.RawQuery, "GetAllowedDepositCoinInfo should send a lone filter by itself")
 			_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"success","result":{"configList":[{"coin":"USDT","chain":"ETH","coinShowName":"USDT","chainType":"Ethereum (ERC20)","blockConfirmNumber":6,"minDepositAmount":"0.005"}],"nextPageCursor":"eyJwYWdlIjoyLCJsaW1pdCI6MTB9"},"retExtInfo":{},"time":1791971157539}`)
 			assert.NoError(t, err, "writing the reply should not error")
 		})
-		_, err = ex.GetAllowedDepositCoinInfo(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetAllowedDepositCoinInfo must accept the lone filter %s", tc.query)
+		t.Run(tc.query, func(t *testing.T) {
+			_, err := ex.GetAllowedDepositCoinInfo(ctx, tc.req)
+			require.NoErrorf(t, err, "GetAllowedDepositCoinInfo must accept the lone filter %s", tc.query)
+		})
 	}
 
 	// The route lists chains closed to deposits as well as open ones, such as USDT on Omni beside USDT on Ethereum

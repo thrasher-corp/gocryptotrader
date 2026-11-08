@@ -281,10 +281,12 @@ func TestGetBrokerSubAccountDepositRecords(t *testing.T) {
 	assert.NotNil(t, result, "GetBrokerSubAccountDepositRecords should return a result")
 }
 
-func TestSetBrokerRateLimit(t *testing.T) {
+func TestSetBrokerRateLimit(t *testing.T) { //nolint:tparallel // Cases share e with the requests that follow them
 	t.Parallel()
 	_, err := e.SetBrokerRateLimit(t.Context(), nil)
 	require.ErrorIs(t, err, errBrokerRateLimitsRequired, "SetBrokerRateLimit must reject no rate limits")
+	ctx := t.Context()
+	// Cases share e and come before its requests below, so they run in order
 	for _, tc := range []struct {
 		name  string
 		limit BrokerRateLimitRequest
@@ -294,8 +296,10 @@ func TestSetBrokerRateLimit(t *testing.T) {
 		{name: "business type", limit: BrokerRateLimitRequest{UIDs: []string{"100000002"}, Rate: 600}, err: errBrokerBusinessTypeRequired},
 		{name: "rate", limit: BrokerRateLimitRequest{UIDs: []string{"100000002"}, BusinessType: "SPOT"}, err: errBrokerRateRequired},
 	} {
-		_, err = e.SetBrokerRateLimit(t.Context(), []BrokerRateLimitRequest{tc.limit})
-		require.ErrorIsf(t, err, tc.err, "SetBrokerRateLimit must reject a rate limit without %s", tc.name)
+		t.Run("without "+tc.name, func(t *testing.T) {
+			_, err := e.SetBrokerRateLimit(ctx, []BrokerRateLimitRequest{tc.limit})
+			require.ErrorIsf(t, err, tc.err, "SetBrokerRateLimit must reject a rate limit without %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -434,10 +438,12 @@ func TestGetBrokerVoucherSpec(t *testing.T) {
 	assert.NotEmpty(t, result.ID, "GetBrokerVoucherSpec should return the voucher")
 }
 
-func TestIssueBrokerVoucher(t *testing.T) {
+func TestIssueBrokerVoucher(t *testing.T) { //nolint:tparallel // Cases share e with the request that follows them
 	t.Parallel()
 	err := e.IssueBrokerVoucher(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "IssueBrokerVoucher must reject a nil request")
+	ctx := t.Context()
+	// Cases share e and come before its request below, so they run in order
 	for _, tc := range []struct {
 		name   string
 		mutate func(*IssueBrokerVoucherRequest)
@@ -449,9 +455,11 @@ func TestIssueBrokerVoucher(t *testing.T) {
 		{name: "amount", mutate: func(r *IssueBrokerVoucherRequest) { r.Amount = 0 }, err: errBrokerVoucherAmountRequired},
 		{name: "broker ID", mutate: func(r *IssueBrokerVoucherRequest) { r.BrokerID = "" }, err: errBrokerIDRequired},
 	} {
-		r := &IssueBrokerVoucherRequest{AccountID: "100000002", AwardID: "123456", SpecCode: "award001", Amount: 100, BrokerID: "v-28478"}
-		tc.mutate(r)
-		require.ErrorIsf(t, e.IssueBrokerVoucher(t.Context(), r), tc.err, "IssueBrokerVoucher must reject a request without %s", tc.name)
+		t.Run("without "+tc.name, func(t *testing.T) {
+			r := &IssueBrokerVoucherRequest{AccountID: "100000002", AwardID: "123456", SpecCode: "award001", Amount: 100, BrokerID: "v-28478"}
+			tc.mutate(r)
+			require.ErrorIsf(t, e.IssueBrokerVoucher(ctx, r), tc.err, "IssueBrokerVoucher must reject a request without %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -461,10 +469,12 @@ func TestIssueBrokerVoucher(t *testing.T) {
 	assert.NoError(t, err, "IssueBrokerVoucher should not error")
 }
 
-func TestGetBrokerIssuedVoucher(t *testing.T) {
+func TestGetBrokerIssuedVoucher(t *testing.T) { //nolint:tparallel // Cases share e with the request that follows them
 	t.Parallel()
 	_, err := e.GetBrokerIssuedVoucher(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetBrokerIssuedVoucher must reject a nil request")
+	ctx := t.Context()
+	// Cases share e and come before its request below, so they run in order
 	for _, tc := range []struct {
 		name   string
 		mutate func(*GetBrokerIssuedVoucherRequest)
@@ -474,10 +484,12 @@ func TestGetBrokerIssuedVoucher(t *testing.T) {
 		{name: "voucher ID", mutate: func(r *GetBrokerIssuedVoucherRequest) { r.AwardID = "" }, err: errBrokerVoucherIDRequired},
 		{name: "spec code", mutate: func(r *GetBrokerIssuedVoucherRequest) { r.SpecCode = "" }, err: errBrokerSpecCodeRequired},
 	} {
-		r := &GetBrokerIssuedVoucherRequest{AccountID: "100000002", AwardID: "189528", SpecCode: "demo000"}
-		tc.mutate(r)
-		_, err = e.GetBrokerIssuedVoucher(t.Context(), r)
-		require.ErrorIsf(t, err, tc.err, "GetBrokerIssuedVoucher must reject a request without %s", tc.name)
+		t.Run("without "+tc.name, func(t *testing.T) {
+			r := &GetBrokerIssuedVoucherRequest{AccountID: "100000002", AwardID: "189528", SpecCode: "demo000"}
+			tc.mutate(r)
+			_, err := e.GetBrokerIssuedVoucher(ctx, r)
+			require.ErrorIsf(t, err, tc.err, "GetBrokerIssuedVoucher must reject a request without %s", tc.name)
+		})
 	}
 
 	if !mockTests {

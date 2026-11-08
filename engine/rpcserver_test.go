@@ -1258,6 +1258,36 @@ func TestUpdateAccountBalances(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
+
+	t.Run("fees", func(t *testing.T) {
+		t.Parallel()
+		s, exch := setupFeesExchange(t)
+		fill := order.TradeHistory{TID: "1", Price: 1000, Amount: 0.2}
+		fill.SetFees(newTestFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 0.2}))
+		reported := order.Detail{Exchange: exch.GetName(), OrderID: "1", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Status: order.PartiallyFilled, Trades: []order.TradeHistory{fill}}
+		reported.SetFees(newTestFees(t, order.FeeAmount{Currency: currency.BTC, Amount: 0.001}, order.FeeAmount{Currency: currency.USDT, Amount: 0.2}))
+		exch.activeOrders = []order.Detail{
+			reported,
+			{Exchange: exch.GetName(), OrderID: "2", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Status: order.Active, Fee: 0.1, FeeAsset: currency.USDT},
+		}
+		start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+		resp, err := s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
+			Exchange:  exch.GetName(),
+			AssetType: asset.Spot.String(),
+			Pair:      &gctrpc.CurrencyPair{Delimiter: "-", Base: "BTC", Quote: "USDT"},
+			StartDate: start.Format(common.SimpleTimeFormatWithTimezone),
+			EndDate:   start.AddDate(0, 0, 1).Format(common.SimpleTimeFormatWithTimezone),
+		})
+		require.NoError(t, err, "GetOrders must not error")
+		require.Len(t, resp.Orders, 2, "GetOrders must return both orders")
+		exp := &gctrpc.Fees{Amounts: []*gctrpc.FeeAmount{{Currency: "BTC", Amount: 0.001}, {Currency: "USDT", Amount: 0.2}}}
+		assert.Equal(t, exp, resp.Orders[0].Fees, "GetOrders should return the order's fees")
+		require.Len(t, resp.Orders[0].Trades, 1, "GetOrders must return the fill")
+		assert.Equal(t, &gctrpc.Fees{Amounts: []*gctrpc.FeeAmount{{Currency: "USDT", Amount: 0.2}}}, resp.Orders[0].Trades[0].Fees, "GetOrders should return the fill's own fees")
+		assert.Nil(t, resp.Orders[1].Fees, "GetOrders should leave fees that were not reported unset")
+		assert.Equal(t, 0.1, resp.Orders[1].Fee, "GetOrders should return a single fee as before")
+	})
+
 	exchName := "Binance"
 	engerino := &Engine{}
 	em := NewExchangeManager()
@@ -2380,6 +2410,25 @@ func getDummyStateManager(em *ExchangeManager) *CurrencyStateManager {
 
 func TestGetFuturesPositionsOrders(t *testing.T) {
 	t.Parallel()
+
+	t.Run("fees", func(t *testing.T) {
+		t.Parallel()
+		s, exch := setupFeesExchange(t)
+		reported := order.Detail{Exchange: exch.GetName(), OrderID: "1", Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures, Side: order.Long, Status: order.Filled}
+		reported.SetFees(newTestFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 0.5}))
+		exch.positionOrders = []order.Detail{reported, {Exchange: exch.GetName(), OrderID: "2", Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures}}
+		resp, err := s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
+			Exchange: exch.GetName(),
+			Asset:    asset.USDTMarginedFutures.String(),
+			Pair:     &gctrpc.CurrencyPair{Base: "BTC", Quote: "USDT"},
+		})
+		require.NoError(t, err, "GetFuturesPositionsOrders must not error")
+		require.Len(t, resp.Positions, 1, "GetFuturesPositionsOrders must return the position")
+		require.Len(t, resp.Positions[0].Orders, 2, "GetFuturesPositionsOrders must return both orders")
+		assert.Equal(t, &gctrpc.Fees{Amounts: []*gctrpc.FeeAmount{{Currency: "USDT", Amount: 0.5}}}, resp.Positions[0].Orders[0].Fees, "GetFuturesPositionsOrders should return the order's fees")
+		assert.Nil(t, resp.Positions[0].Orders[1].Fees, "GetFuturesPositionsOrders should leave fees that were not reported unset")
+	})
+
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
@@ -4512,13 +4561,16 @@ func TestFeesRPCPresence(t *testing.T) {
 			require.NoError(t, proto.Unmarshal(b, out), "proto.Unmarshal must not error")
 			assert.Equal(t, tc.fees != nil, out.Fees != nil, "the wire encoding should keep whether fees were reported")
 			assert.True(t, proto.Equal(in, out), "the wire encoding should keep the fees")
+			// Cases encode the one message in turn, so they run in order
 			for _, emitUnpopulated := range []bool{false, true} {
-				j, err := protojson.MarshalOptions{EmitUnpopulated: emitUnpopulated}.Marshal(in)
-				require.NoErrorf(t, err, "protojson Marshal must not error with EmitUnpopulated %t", emitUnpopulated)
-				out = new(gctrpc.OrderDetails)
-				require.NoErrorf(t, protojson.Unmarshal(j, out), "protojson Unmarshal must not error with EmitUnpopulated %t", emitUnpopulated)
-				assert.Equalf(t, tc.fees != nil, out.Fees != nil, "JSON should keep whether fees were reported with EmitUnpopulated %t", emitUnpopulated)
-				assert.Truef(t, proto.Equal(in, out), "JSON should keep the fees with EmitUnpopulated %t", emitUnpopulated)
+				t.Run(fmt.Sprintf("EmitUnpopulated %t", emitUnpopulated), func(t *testing.T) {
+					j, err := protojson.MarshalOptions{EmitUnpopulated: emitUnpopulated}.Marshal(in)
+					require.NoErrorf(t, err, "protojson Marshal must not error with EmitUnpopulated %t", emitUnpopulated)
+					out = new(gctrpc.OrderDetails)
+					require.NoErrorf(t, protojson.Unmarshal(j, out), "protojson Unmarshal must not error with EmitUnpopulated %t", emitUnpopulated)
+					assert.Equalf(t, tc.fees != nil, out.Fees != nil, "JSON should keep whether fees were reported with EmitUnpopulated %t", emitUnpopulated)
+					assert.Truef(t, proto.Equal(in, out), "JSON should keep the fees with EmitUnpopulated %t", emitUnpopulated)
+				})
 			}
 		})
 	}
@@ -4527,7 +4579,7 @@ func TestFeesRPCPresence(t *testing.T) {
 // TestGetOrderFees follows #2456's lookups through GetOrder, which stores each lookup: the response carries both
 // currencies once the second is reported and keeps them when a lookup omits fees, each fill keeps its own fees, and
 // GetManagedOrders returns what was stored
-func TestGetOrderFees(t *testing.T) {
+func TestGetOrderFees(t *testing.T) { //nolint:tparallel // top-level parallel is safe; each step's lookup updates the order the step before stored
 	t.Parallel()
 	s, exch := setupFeesExchange(t)
 	pair := &gctrpc.CurrencyPair{Delimiter: "-", Base: "BTC", Quote: "USDT"}
@@ -4535,6 +4587,8 @@ func TestGetOrderFees(t *testing.T) {
 	fill.SetFees(newTestFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 0.2}))
 	fillFees := &gctrpc.Fees{Amounts: []*gctrpc.FeeAmount{{Currency: "USDT", Amount: 0.2}}}
 	twoCurrencies := &gctrpc.Fees{Amounts: []*gctrpc.FeeAmount{{Currency: "BTC", Amount: 0.001}, {Currency: "USDT", Amount: 0.2}}}
+	ctx := t.Context()
+	// Each step's lookup updates the order the step before stored, so the steps run in order
 	for _, step := range []struct {
 		name   string
 		fees   order.Fees
@@ -4555,22 +4609,24 @@ func TestGetOrderFees(t *testing.T) {
 		},
 		{name: "a single fee without fees", fee: 0.3, exp: twoCurrencies},
 	} {
-		exch.orderInfo = &order.Detail{
-			Exchange:  exch.GetName(),
-			OrderID:   "1",
-			Pair:      currency.NewBTCUSDT(),
-			AssetType: asset.Spot,
-			Status:    order.PartiallyFilled,
-			Fee:       step.fee,
-			Trades:    []order.TradeHistory{fill},
-		}
-		exch.orderInfo.SetFees(step.fees)
-		resp, err := s.GetOrder(t.Context(), &gctrpc.GetOrderRequest{Exchange: exch.GetName(), OrderId: "1", Pair: pair, Asset: asset.Spot.String()})
-		require.NoErrorf(t, err, "GetOrder must not error for %s", step.name)
-		assert.Equalf(t, step.exp, resp.Fees, "GetOrder should return the order's fees for %s", step.name)
-		assert.Equalf(t, step.expFee, resp.Fee, "GetOrder should return the order's single fee for %s", step.name)
-		require.Lenf(t, resp.Trades, 1, "GetOrder must return the fill for %s", step.name)
-		assert.Equalf(t, fillFees, resp.Trades[0].Fees, "GetOrder should return the fill's own fees for %s", step.name)
+		t.Run(step.name, func(t *testing.T) {
+			exch.orderInfo = &order.Detail{
+				Exchange:  exch.GetName(),
+				OrderID:   "1",
+				Pair:      currency.NewBTCUSDT(),
+				AssetType: asset.Spot,
+				Status:    order.PartiallyFilled,
+				Fee:       step.fee,
+				Trades:    []order.TradeHistory{fill},
+			}
+			exch.orderInfo.SetFees(step.fees)
+			resp, err := s.GetOrder(ctx, &gctrpc.GetOrderRequest{Exchange: exch.GetName(), OrderId: "1", Pair: pair, Asset: asset.Spot.String()})
+			require.NoErrorf(t, err, "GetOrder must not error for %s", step.name)
+			assert.Equalf(t, step.exp, resp.Fees, "GetOrder should return the order's fees for %s", step.name)
+			assert.Equalf(t, step.expFee, resp.Fee, "GetOrder should return the order's single fee for %s", step.name)
+			require.Lenf(t, resp.Trades, 1, "GetOrder must return the fill for %s", step.name)
+			assert.Equalf(t, fillFees, resp.Trades[0].Fees, "GetOrder should return the fill's own fees for %s", step.name)
+		})
 	}
 
 	resp, err := s.GetManagedOrders(t.Context(), &gctrpc.GetOrdersRequest{Exchange: exch.GetName(), AssetType: asset.Spot.String(), Pair: pair})
@@ -4582,40 +4638,13 @@ func TestGetOrderFees(t *testing.T) {
 	assert.Equal(t, fillFees, resp.Orders[0].Trades[0].Fees, "GetManagedOrders should return the fill's own fees")
 }
 
-func TestGetOrdersFees(t *testing.T) {
-	t.Parallel()
-	s, exch := setupFeesExchange(t)
-	fill := order.TradeHistory{TID: "1", Price: 1000, Amount: 0.2}
-	fill.SetFees(newTestFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 0.2}))
-	reported := order.Detail{Exchange: exch.GetName(), OrderID: "1", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Status: order.PartiallyFilled, Trades: []order.TradeHistory{fill}}
-	reported.SetFees(newTestFees(t, order.FeeAmount{Currency: currency.BTC, Amount: 0.001}, order.FeeAmount{Currency: currency.USDT, Amount: 0.2}))
-	exch.activeOrders = []order.Detail{
-		reported,
-		{Exchange: exch.GetName(), OrderID: "2", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Status: order.Active, Fee: 0.1, FeeAsset: currency.USDT},
-	}
-	start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
-	resp, err := s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
-		Exchange:  exch.GetName(),
-		AssetType: asset.Spot.String(),
-		Pair:      &gctrpc.CurrencyPair{Delimiter: "-", Base: "BTC", Quote: "USDT"},
-		StartDate: start.Format(common.SimpleTimeFormatWithTimezone),
-		EndDate:   start.AddDate(0, 0, 1).Format(common.SimpleTimeFormatWithTimezone),
-	})
-	require.NoError(t, err, "GetOrders must not error")
-	require.Len(t, resp.Orders, 2, "GetOrders must return both orders")
-	exp := &gctrpc.Fees{Amounts: []*gctrpc.FeeAmount{{Currency: "BTC", Amount: 0.001}, {Currency: "USDT", Amount: 0.2}}}
-	assert.Equal(t, exp, resp.Orders[0].Fees, "GetOrders should return the order's fees")
-	require.Len(t, resp.Orders[0].Trades, 1, "GetOrders must return the fill")
-	assert.Equal(t, &gctrpc.Fees{Amounts: []*gctrpc.FeeAmount{{Currency: "USDT", Amount: 0.2}}}, resp.Orders[0].Trades[0].Fees, "GetOrders should return the fill's own fees")
-	assert.Nil(t, resp.Orders[1].Fees, "GetOrders should leave fees that were not reported unset")
-	assert.Equal(t, 0.1, resp.Orders[1].Fee, "GetOrders should return a single fee as before")
-}
-
-func TestSubmitOrder(t *testing.T) {
+func TestSubmitOrder(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share the RPC server and exchange
 	t.Parallel()
 	s, exch := setupFeesExchange(t)
 	pair := &gctrpc.CurrencyPair{Delimiter: "-", Base: currency.BTC.String(), Quote: currency.USDT.String()}
 	ethUSDT := &gctrpc.CurrencyPair{Delimiter: "-", Base: currency.ETH.String(), Quote: currency.USDT.String()}
+	ctx := t.Context()
+	// Cases share the RPC server and exchange, and SubmitOrder is called again after them, so they run in order
 	for _, tc := range []struct {
 		name string
 		req  *gctrpc.SubmitOrderRequest
@@ -4630,9 +4659,11 @@ func TestSubmitOrder(t *testing.T) {
 		{name: "an unknown order type", req: &gctrpc.SubmitOrderRequest{Exchange: exch.GetName(), Pair: pair, Side: "BUY", OrderType: "BOGUS", Amount: 1, Price: 1000, AssetType: "spot"}, err: order.ErrUnrecognisedOrderType},
 		{name: "an order the order manager rejects", req: &gctrpc.SubmitOrderRequest{Exchange: exch.GetName(), Pair: pair, Side: "BUY", OrderType: "LIMIT", Price: 1000, AssetType: "spot"}, err: order.ErrAmountIsInvalid},
 	} {
-		resp, err := s.SubmitOrder(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "SubmitOrder should reject %s", tc.name)
-		assert.Emptyf(t, resp.GetOrderId(), "SubmitOrder should not return an order ID for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := s.SubmitOrder(ctx, tc.req)
+			assert.ErrorIsf(t, err, tc.err, "SubmitOrder should reject %s", tc.name)
+			assert.Emptyf(t, resp.GetOrderId(), "SubmitOrder should not return an order ID for %s", tc.name)
+		})
 	}
 	assert.Nil(t, exch.submission, "SubmitOrder should not send a rejected order to the exchange")
 
@@ -4721,6 +4752,22 @@ func TestSubmitOrderFees(t *testing.T) {
 
 func TestBuildFuturePosition(t *testing.T) {
 	t.Parallel()
+
+	t.Run("fees", func(t *testing.T) {
+		t.Parallel()
+		fill := order.TradeHistory{TID: "1"}
+		fill.SetFees(newTestFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 0.1}))
+		reported := order.Detail{OrderID: "1", Trades: []order.TradeHistory{fill}}
+		reported.SetFees(newTestFees(t, order.FeeAmount{Currency: currency.BTC, Amount: 0.001}, order.FeeAmount{Currency: currency.USDT, Amount: 0.1}))
+		resp := new(RPCServer).buildFuturePosition(&futures.Position{Orders: []order.Detail{reported, {OrderID: "2"}}}, false, false, true, false)
+		require.Len(t, resp.Orders, 2, "buildFuturePosition must return both orders")
+		exp := &gctrpc.Fees{Amounts: []*gctrpc.FeeAmount{{Currency: "BTC", Amount: 0.001}, {Currency: "USDT", Amount: 0.1}}}
+		assert.Equal(t, exp, resp.Orders[0].Fees, "buildFuturePosition should return the order's fees")
+		require.Len(t, resp.Orders[0].Trades, 1, "buildFuturePosition must return the fill")
+		assert.Equal(t, &gctrpc.Fees{Amounts: []*gctrpc.FeeAmount{{Currency: "USDT", Amount: 0.1}}}, resp.Orders[0].Trades[0].Fees, "buildFuturePosition should return the fill's own fees")
+		assert.Nil(t, resp.Orders[1].Fees, "buildFuturePosition should leave fees that were not reported unset")
+	})
+
 	opened := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	position := &futures.Position{
 		Exchange:         "Binance",
@@ -4831,39 +4878,6 @@ func TestBuildFuturePosition(t *testing.T) {
 	}
 }
 
-func TestBuildFuturePositionFees(t *testing.T) {
-	t.Parallel()
-	fill := order.TradeHistory{TID: "1"}
-	fill.SetFees(newTestFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 0.1}))
-	reported := order.Detail{OrderID: "1", Trades: []order.TradeHistory{fill}}
-	reported.SetFees(newTestFees(t, order.FeeAmount{Currency: currency.BTC, Amount: 0.001}, order.FeeAmount{Currency: currency.USDT, Amount: 0.1}))
-	resp := new(RPCServer).buildFuturePosition(&futures.Position{Orders: []order.Detail{reported, {OrderID: "2"}}}, false, false, true, false)
-	require.Len(t, resp.Orders, 2, "buildFuturePosition must return both orders")
-	exp := &gctrpc.Fees{Amounts: []*gctrpc.FeeAmount{{Currency: "BTC", Amount: 0.001}, {Currency: "USDT", Amount: 0.1}}}
-	assert.Equal(t, exp, resp.Orders[0].Fees, "buildFuturePosition should return the order's fees")
-	require.Len(t, resp.Orders[0].Trades, 1, "buildFuturePosition must return the fill")
-	assert.Equal(t, &gctrpc.Fees{Amounts: []*gctrpc.FeeAmount{{Currency: "USDT", Amount: 0.1}}}, resp.Orders[0].Trades[0].Fees, "buildFuturePosition should return the fill's own fees")
-	assert.Nil(t, resp.Orders[1].Fees, "buildFuturePosition should leave fees that were not reported unset")
-}
-
-func TestGetFuturesPositionsOrdersFees(t *testing.T) {
-	t.Parallel()
-	s, exch := setupFeesExchange(t)
-	reported := order.Detail{Exchange: exch.GetName(), OrderID: "1", Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures, Side: order.Long, Status: order.Filled}
-	reported.SetFees(newTestFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 0.5}))
-	exch.positionOrders = []order.Detail{reported, {Exchange: exch.GetName(), OrderID: "2", Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures}}
-	resp, err := s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
-		Exchange: exch.GetName(),
-		Asset:    asset.USDTMarginedFutures.String(),
-		Pair:     &gctrpc.CurrencyPair{Base: "BTC", Quote: "USDT"},
-	})
-	require.NoError(t, err, "GetFuturesPositionsOrders must not error")
-	require.Len(t, resp.Positions, 1, "GetFuturesPositionsOrders must return the position")
-	require.Len(t, resp.Positions[0].Orders, 2, "GetFuturesPositionsOrders must return both orders")
-	assert.Equal(t, &gctrpc.Fees{Amounts: []*gctrpc.FeeAmount{{Currency: "USDT", Amount: 0.5}}}, resp.Positions[0].Orders[0].Fees, "GetFuturesPositionsOrders should return the order's fees")
-	assert.Nil(t, resp.Positions[0].Orders[1].Fees, "GetFuturesPositionsOrders should leave fees that were not reported unset")
-}
-
 // newBTCUSDTSpotExchange returns a Binance exchange from em that trades BTCUSDT spot, set up without API calls
 func newBTCUSDTSpotExchange(t *testing.T, em *ExchangeManager) exchange.IBotExchange {
 	t.Helper()
@@ -4882,7 +4896,7 @@ func newBTCUSDTSpotExchange(t *testing.T, em *ExchangeManager) exchange.IBotExch
 	return e
 }
 
-func TestRPCServerCancelOrder(t *testing.T) {
+func TestRPCServerCancelOrder(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share the RPC server, order manager and exchange
 	t.Parallel()
 	em := NewExchangeManager()
 	exch := &cancelRecordingExchange{IBotExchange: newBTCUSDTSpotExchange(t, em)}
@@ -4895,6 +4909,8 @@ func TestRPCServerCancelOrder(t *testing.T) {
 
 	pair := &gctrpc.CurrencyPair{Delimiter: "-", Base: currency.BTC.String(), Quote: currency.USDT.String()}
 	ethUSDT := &gctrpc.CurrencyPair{Delimiter: "-", Base: currency.ETH.String(), Quote: currency.USDT.String()}
+	ctx := t.Context()
+	// Cases share the server, order manager and exchange, and CancelOrder is called again after them, so they run in order
 	for _, tc := range []struct {
 		name string
 		req  *gctrpc.CancelOrderRequest
@@ -4906,9 +4922,11 @@ func TestRPCServerCancelOrder(t *testing.T) {
 		{name: "a pair the exchange does not list", req: &gctrpc.CancelOrderRequest{Exchange: exch.GetName(), OrderId: "1", Pair: ethUSDT, AssetType: "spot", Side: "SELL"}, err: errCurrencyPairInvalid},
 		{name: "an unknown side", req: &gctrpc.CancelOrderRequest{Exchange: exch.GetName(), OrderId: "1", Pair: pair, AssetType: "spot", Side: "SIDEWAYS"}, err: order.ErrSideIsInvalid},
 	} {
-		resp, err := s.CancelOrder(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "CancelOrder should reject %s", tc.name)
-		assert.Nilf(t, resp, "CancelOrder should not respond to %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := s.CancelOrder(ctx, tc.req)
+			assert.ErrorIsf(t, err, tc.err, "CancelOrder should reject %s", tc.name)
+			assert.Nilf(t, resp, "CancelOrder should not respond to %s", tc.name)
+		})
 	}
 	assert.Nil(t, exch.cancelled, "CancelOrder should not send a rejected request to the exchange")
 
@@ -4938,7 +4956,7 @@ func (b *batchCancelExchange) CancelBatchOrders(_ context.Context, o []order.Can
 	return b.response, b.err
 }
 
-func TestCancelBatchOrders(t *testing.T) {
+func TestCancelBatchOrders(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share the RPC server and exchange
 	t.Parallel()
 	em := NewExchangeManager()
 	exch := &batchCancelExchange{IBotExchange: newBTCUSDTSpotExchange(t, em)}
@@ -4947,6 +4965,8 @@ func TestCancelBatchOrders(t *testing.T) {
 
 	pair := &gctrpc.CurrencyPair{Delimiter: "-", Base: currency.BTC.String(), Quote: currency.USDT.String()}
 	ethUSDT := &gctrpc.CurrencyPair{Delimiter: "-", Base: currency.ETH.String(), Quote: currency.USDT.String()}
+	ctx := t.Context()
+	// Cases share the RPC server and exchange, and CancelBatchOrders is called again after them, so they run in order
 	for _, tc := range []struct {
 		name string
 		req  *gctrpc.CancelBatchOrdersRequest
@@ -4958,9 +4978,11 @@ func TestCancelBatchOrders(t *testing.T) {
 		{name: "a pair the exchange does not list", req: &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), OrdersId: "1", Pair: ethUSDT, AssetType: "spot", Side: "BUY"}, err: errCurrencyPairInvalid},
 		{name: "an unknown side", req: &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), OrdersId: "1", Pair: pair, AssetType: "spot", Side: "SIDEWAYS"}, err: order.ErrSideIsInvalid},
 	} {
-		resp, err := s.CancelBatchOrders(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should reject %s", tc.name)
-		assert.Nilf(t, resp, "CancelBatchOrders should not respond to %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := s.CancelBatchOrders(ctx, tc.req)
+			assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should reject %s", tc.name)
+			assert.Nilf(t, resp, "CancelBatchOrders should not respond to %s", tc.name)
+		})
 	}
 	assert.Nil(t, exch.cancelled, "CancelBatchOrders should not send a rejected request to the exchange")
 
@@ -4970,6 +4992,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		{AccountID: "main", OrderID: "2", Side: order.Buy, Pair: btcUSDT, AssetType: asset.Spot},
 		{AccountID: "main", OrderID: "3", Side: order.Buy, Pair: btcUSDT, AssetType: asset.Spot},
 	}
+	// Cases program the one exchange in turn, so they run in order
 	for _, tc := range []struct {
 		name     string
 		response *order.CancelBatchResponse
@@ -5002,10 +5025,12 @@ func TestCancelBatchOrders(t *testing.T) {
 			err:      errExpectedTestError,
 		},
 	} {
-		exch.response, exch.err, exch.cancelled = tc.response, tc.err, nil
-		resp, err := s.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), AccountId: "main", OrdersId: "1,2,3", Pair: pair, AssetType: "spot", Side: "BUY"})
-		assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should return the error for %s", tc.name)
-		assert.Equalf(t, tc.exp, resp, "CancelBatchOrders should return the response for %s", tc.name)
-		assert.Equalf(t, cancels, exch.cancelled, "CancelBatchOrders should send every requested order to the exchange for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			exch.response, exch.err, exch.cancelled = tc.response, tc.err, nil
+			resp, err := s.CancelBatchOrders(ctx, &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), AccountId: "main", OrdersId: "1,2,3", Pair: pair, AssetType: "spot", Side: "BUY"})
+			assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should return the error for %s", tc.name)
+			assert.Equalf(t, tc.exp, resp, "CancelBatchOrders should return the response for %s", tc.name)
+			assert.Equalf(t, cancels, exch.cancelled, "CancelBatchOrders should send every requested order to the exchange for %s", tc.name)
+		})
 	}
 }

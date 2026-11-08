@@ -100,27 +100,43 @@ func fillDataHandler(t *testing.T, ex *Exchange) error {
 	return errBufferFull
 }
 
-func TestWebsocketHandleDataTopics(t *testing.T) {
+func TestWebsocketHandleData(t *testing.T) { //nolint:tparallel // cases share ex, so the subtests run in order
 	t.Parallel()
 	ex := streamTestInstance(t)
-	err := ex.wsHandleData(t.Context(), nil, asset.Spot, []byte(`{"topic":"liquidation.BTCUSDT","ts":1673251091822,"type":"snapshot","data":{}}`))
-	require.ErrorIs(t, err, errUnhandledStreamData, "wsHandleData must error for a topic Bybit retired")
-	assert.ErrorContains(t, err, "liquidation.BTCUSDT", "error should name the topic")
-	err = ex.wsHandleData(t.Context(), nil, asset.Spot, []byte(`{"topic":"tickers_lt.BTC3LUSDT","ts":1672325446847,"type":"snapshot","data":{}}`))
-	require.ErrorIs(t, err, errUnhandledStreamData, "wsHandleData must error for the retired leveraged token topics")
-	err = ex.wsHandleData(t.Context(), nil, asset.Spot, []byte(`{"topic":1}`))
-	require.Error(t, err, "wsHandleData must error for a topic that is not a string")
-	err = ex.wsHandleData(t.Context(), &FixtureConnection{}, asset.Spot, []byte(`{"success":true,"ret_msg":"pong","conn_id":"0970e817-426e-429a-a679-ff7f55e0b16a","op":"ping"}`))
-	require.NoError(t, err, "wsHandleData must handle a pong")
-	err = ex.wsHandleData(t.Context(), nil, asset.Spot, []byte(`{"topic":"kline.1","data":[],"ts":1672324988882,"type":"snapshot"}`))
-	require.ErrorIs(t, err, errMalformedTopic, "wsHandleData must error for a kline topic without a symbol")
+	ctx := t.Context()
+	// The cases share ex, so they run in order
+	t.Run("retired topic", func(t *testing.T) {
+		err := ex.wsHandleData(ctx, nil, asset.Spot, []byte(`{"topic":"liquidation.BTCUSDT","ts":1673251091822,"type":"snapshot","data":{}}`))
+		require.ErrorIs(t, err, errUnhandledStreamData, "wsHandleData must error for a topic Bybit retired")
+		assert.ErrorContains(t, err, "liquidation.BTCUSDT", "error should name the topic")
+	})
+	t.Run("retired leveraged token topic", func(t *testing.T) {
+		err := ex.wsHandleData(ctx, nil, asset.Spot, []byte(`{"topic":"tickers_lt.BTC3LUSDT","ts":1672325446847,"type":"snapshot","data":{}}`))
+		require.ErrorIs(t, err, errUnhandledStreamData, "wsHandleData must error for the retired leveraged token topics")
+	})
+	t.Run("topic that is not a string", func(t *testing.T) {
+		err := ex.wsHandleData(ctx, nil, asset.Spot, []byte(`{"topic":1}`))
+		require.Error(t, err, "wsHandleData must error for a topic that is not a string")
+	})
+	t.Run("pong", func(t *testing.T) {
+		err := ex.wsHandleData(ctx, &FixtureConnection{}, asset.Spot, []byte(`{"success":true,"ret_msg":"pong","conn_id":"0970e817-426e-429a-a679-ff7f55e0b16a","op":"ping"}`))
+		require.NoError(t, err, "wsHandleData must handle a pong")
+	})
+	t.Run("kline topic without a symbol", func(t *testing.T) {
+		err := ex.wsHandleData(ctx, nil, asset.Spot, []byte(`{"topic":"kline.1","data":[],"ts":1672324988882,"type":"snapshot"}`))
+		require.ErrorIs(t, err, errMalformedTopic, "wsHandleData must error for a kline topic without a symbol")
+	})
 	for _, topic := range []string{"orderbook.50.BTCUSDT", "orderbook.rpi.BTCUSDT", "orderbook.full.BTCUSDT", "tickers.BTCUSDT", "kline.1.BTCUSDT", "allLiquidation.BTCUSDT", "insurance.USDT", "priceLimit.BTCUSDT", "adlAlert.USDT"} {
-		err = ex.wsHandleData(t.Context(), nil, asset.Spot, []byte(`{"topic":"`+topic+`","data":"bad"}`))
-		assert.Errorf(t, err, "wsHandleData should error for an undecodable %s push", topic)
+		t.Run("undecodable "+topic+" push", func(t *testing.T) {
+			err := ex.wsHandleData(ctx, nil, asset.Spot, []byte(`{"topic":"`+topic+`","data":"bad"}`))
+			assert.Errorf(t, err, "wsHandleData should error for an undecodable %s push", topic)
+		})
 	}
-	ex.SetTradeFeedStatus(true)
-	err = ex.wsHandleData(t.Context(), nil, asset.Spot, []byte(`{"topic":"publicTrade.BTCUSDT","data":"bad"}`))
-	assert.Error(t, err, "wsHandleData should error for an undecodable trade push")
+	t.Run("undecodable trade push", func(t *testing.T) {
+		ex.SetTradeFeedStatus(true)
+		err := ex.wsHandleData(ctx, nil, asset.Spot, []byte(`{"topic":"publicTrade.BTCUSDT","data":"bad"}`))
+		assert.Error(t, err, "wsHandleData should error for an undecodable trade push")
+	})
 }
 
 func TestRelayWebsocketResponse(t *testing.T) {
@@ -150,13 +166,15 @@ func TestRelayWebsocketResponse(t *testing.T) {
 	require.ErrorIs(t, err, errBufferFull, "relayWebsocketResponse must return the data handler's error")
 }
 
-func TestWebsocketOrderbook(t *testing.T) {
+func TestWebsocketOrderbook(t *testing.T) { //nolint:tparallel // live cases share ex, so the subtests run in order
 	t.Parallel()
 	ex := streamTestInstance(t)
+	ctx := t.Context()
 	if !mockTests {
 		option := liveOptionPair(t, ex)
 		optionSymbol, err := ex.symbol(option, asset.Options)
 		require.NoError(t, err, "symbol must not error")
+		// The cases share ex, so they run in order
 		for _, tc := range []struct {
 			streamURL string
 			topic     string
@@ -167,13 +185,15 @@ func TestWebsocketOrderbook(t *testing.T) {
 			{spotPublic, "orderbook.50.BTCUSDT", asset.Spot, currency.NewBTCUSDT(), 2},
 			{optionPublic, "orderbook.25." + optionSymbol, asset.Options, option, 1},
 		} {
-			frames, _ := liveStreamFrames(t, tc.streamURL, 20*time.Second, tc.frames, tc.topic)
-			require.NotEmptyf(t, frames, "%s must push", tc.topic)
-			for _, frame := range frames {
-				require.NoErrorf(t, ex.wsHandleData(t.Context(), nil, tc.asset, frame), "wsHandleData must not error for %s", tc.topic)
-			}
-			_, err := ex.Websocket.Orderbook.GetOrderbook(tc.pair, tc.asset)
-			require.NoErrorf(t, err, "GetOrderbook must not error for %s", tc.topic)
+			t.Run(tc.asset.String(), func(t *testing.T) {
+				frames, _ := liveStreamFrames(t, tc.streamURL, 20*time.Second, tc.frames, tc.topic)
+				require.NotEmptyf(t, frames, "%s must push", tc.topic)
+				for _, frame := range frames {
+					require.NoErrorf(t, ex.wsHandleData(ctx, nil, tc.asset, frame), "wsHandleData must not error for %s", tc.topic)
+				}
+				_, err := ex.Websocket.Orderbook.GetOrderbook(tc.pair, tc.asset)
+				require.NoErrorf(t, err, "GetOrderbook must not error for %s", tc.topic)
+			})
 		}
 		return
 	}
@@ -362,6 +382,24 @@ func TestWebsocketOrderbook(t *testing.T) {
 
 func TestWebsocketProcessOrderbook(t *testing.T) {
 	t.Parallel()
+	// The snapshot of an option's book that has no orders, whose seq is -1, loads a book the first quote's delta can
+	// update
+	t.Run("option book without orders", func(t *testing.T) {
+		t.Parallel()
+		ex := fixtureStreamInstance(t)
+		snapshot := []byte(`{"topic":"orderbook.25.BTC-24SEP27-170000-P-USDT","ts":1793406411577,"type":"snapshot","id":"orderbook.25.BTC-24SEP27-170000-P-USDT--1-1793406411571","data":{"s":"BTC-24SEP27-170000-P-USDT","b":[],"a":[],"u":1,"seq":-1},"cts":1791874180568}`)
+		require.NoError(t, ex.wsProcessOrderbook(t.Context(), asset.Options, snapshot), "wsProcessOrderbook must load a snapshot whose seq is -1")
+		book, err := ex.Websocket.Orderbook.GetOrderbook(fixtureOptionPair, asset.Options)
+		require.NoError(t, err, "GetOrderbook must return the empty book")
+		assert.Empty(t, book.Bids, "the book should hold no bids")
+		assert.Empty(t, book.Asks, "the book should hold no asks")
+
+		delta := []byte(`{"topic":"orderbook.25.BTC-24SEP27-170000-P-USDT","ts":1793406412577,"type":"delta","id":"orderbook.25.BTC-24SEP27-170000-P-USDT-77-1793406412571","data":{"s":"BTC-24SEP27-170000-P-USDT","b":[["0.5","10"]],"a":[],"u":2,"seq":77},"cts":1793406412570}`)
+		require.NoError(t, ex.wsProcessOrderbook(t.Context(), asset.Options, delta), "wsProcessOrderbook must apply the first quote's delta")
+		book, err = ex.Websocket.Orderbook.GetOrderbook(fixtureOptionPair, asset.Options)
+		require.NoError(t, err, "GetOrderbook must return the updated book")
+		assert.Equal(t, []orderbook.Level{{Price: 0.5, Amount: 10}}, []orderbook.Level(book.Bids), "the delta should add the quote to the book")
+	})
 	frames := fixtureFrames(t, "testdata/wsPublicOrderbook.jsonl")
 	require.Len(t, frames, 3, "the orderbook fixture must hold a spot snapshot, a spot delta and an option snapshot")
 	ex := fixtureStreamInstance(t)
@@ -461,25 +499,6 @@ func TestWebsocketProcessOrderbook(t *testing.T) {
 			assert.Empty(t, relayed(ex), "wsProcessOrderbook should publish nothing for a push it rejects")
 		})
 	}
-}
-
-// TestWebsocketProcessOrderbookWithoutOrders checks that the snapshot of an option's book that has no orders, whose seq
-// is -1, loads a book the first quote's delta can update
-func TestWebsocketProcessOrderbookWithoutOrders(t *testing.T) {
-	t.Parallel()
-	ex := fixtureStreamInstance(t)
-	snapshot := []byte(`{"topic":"orderbook.25.BTC-24SEP27-170000-P-USDT","ts":1793406411577,"type":"snapshot","id":"orderbook.25.BTC-24SEP27-170000-P-USDT--1-1793406411571","data":{"s":"BTC-24SEP27-170000-P-USDT","b":[],"a":[],"u":1,"seq":-1},"cts":1791874180568}`)
-	require.NoError(t, ex.wsProcessOrderbook(t.Context(), asset.Options, snapshot), "wsProcessOrderbook must load a snapshot whose seq is -1")
-	book, err := ex.Websocket.Orderbook.GetOrderbook(fixtureOptionPair, asset.Options)
-	require.NoError(t, err, "GetOrderbook must return the empty book")
-	assert.Empty(t, book.Bids, "the book should hold no bids")
-	assert.Empty(t, book.Asks, "the book should hold no asks")
-
-	delta := []byte(`{"topic":"orderbook.25.BTC-24SEP27-170000-P-USDT","ts":1793406412577,"type":"delta","id":"orderbook.25.BTC-24SEP27-170000-P-USDT-77-1793406412571","data":{"s":"BTC-24SEP27-170000-P-USDT","b":[["0.5","10"]],"a":[],"u":2,"seq":77},"cts":1793406412570}`)
-	require.NoError(t, ex.wsProcessOrderbook(t.Context(), asset.Options, delta), "wsProcessOrderbook must apply the first quote's delta")
-	book, err = ex.Websocket.Orderbook.GetOrderbook(fixtureOptionPair, asset.Options)
-	require.NoError(t, err, "GetOrderbook must return the updated book")
-	assert.Equal(t, []orderbook.Level{{Price: 0.5, Amount: 10}}, []orderbook.Level(book.Bids), "the delta should add the quote to the book")
 }
 
 func TestWebsocketRetailPriceImprovementOrderbook(t *testing.T) {
@@ -778,7 +797,7 @@ func TestWebsocketPublicTrade(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "wsHandleData must error for an unknown trade side")
 }
 
-func TestWebsocketProcessPublicTrade(t *testing.T) {
+func TestWebsocketProcessPublicTrade(t *testing.T) { //nolint:tparallel // cases share ex, so the subtests run in order
 	t.Parallel()
 	frames := fixtureFrames(t, "testdata/wsPublicTrade.jsonl")
 	require.Len(t, frames, 3, "the trade fixture must hold a spot, a linear and an option push")
@@ -846,6 +865,7 @@ func TestWebsocketProcessPublicTrade(t *testing.T) {
 	require.NoError(t, ex.wsProcessPublicTrade(asset.Options, noEnabledContract), "wsProcessPublicTrade must not error for an option push without an enabled contract")
 	assert.Empty(t, relayed(ex), "wsProcessPublicTrade should not relay an empty batch")
 
+	// The cases share ex, so they run in order
 	for _, tc := range []struct {
 		name  string
 		asset asset.Item
@@ -857,23 +877,26 @@ func TestWebsocketProcessPublicTrade(t *testing.T) {
 		{name: "an option trade without a symbol", asset: asset.Options, frame: bytes.Replace(frames[2], []byte(`"s":"BTC-24SEP27-170000-P-USDT"`), []byte(`"s":""`), 1), err: currency.ErrSymbolStringEmpty},
 		{name: "an undecodable push", asset: asset.Spot, frame: []byte(`{"topic":"publicTrade.BTCUSDT","data":"bad"}`)},
 	} {
-		err := ex.wsProcessPublicTrade(tc.asset, tc.frame)
-		if tc.err == nil {
-			require.Errorf(t, err, "wsProcessPublicTrade must error for %s", tc.name)
-		} else {
-			require.ErrorIsf(t, err, tc.err, "wsProcessPublicTrade must error for %s", tc.name)
-		}
-		assert.Emptyf(t, relayed(ex), "wsProcessPublicTrade should relay nothing for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			err := ex.wsProcessPublicTrade(tc.asset, tc.frame)
+			if tc.err == nil {
+				require.Errorf(t, err, "wsProcessPublicTrade must error for %s", tc.name)
+			} else {
+				require.ErrorIsf(t, err, tc.err, "wsProcessPublicTrade must error for %s", tc.name)
+			}
+			assert.Emptyf(t, relayed(ex), "wsProcessPublicTrade should relay nothing for %s", tc.name)
+		})
 	}
 }
 
-func TestPublicTradePair(t *testing.T) {
+func TestPublicTradePair(t *testing.T) { //nolint:tparallel // cases share ex, so the subtests run in order
 	t.Parallel()
 	ex := fixtureStreamInstance(t)
 	listedContract := currency.NewPairWithDelimiter("BTC", "10OCT26-82750-C-USDT", currency.DashDelimiter)
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Options, currency.Pairs{fixtureOptionPair, listedContract}, false), "StorePairs must not error for the listed option contracts")
 	datedFutures := currency.NewPair(currency.BTC, currency.NewCode("25DEC26"))
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDCMarginedFutures, currency.Pairs{fixtureUSDCPerpetualPair, datedFutures}, false), "StorePairs must not error for the listed USDC contracts")
+	// The cases share ex, so they run in order
 	for _, tc := range []struct {
 		symbol string
 		asset  asset.Item
@@ -888,32 +911,35 @@ func TestPublicTradePair(t *testing.T) {
 		{symbol: "BTC-25SEP27-170000-P-USDT", asset: asset.Options}, // Not listed when the pairs were last updated
 		{symbol: "", asset: asset.Options, err: currency.ErrSymbolStringEmpty},
 	} {
-		p, err := ex.publicTradePair(tc.symbol, tc.asset)
-		require.ErrorIsf(t, err, tc.err, "publicTradePair must return the expected error for %s %q", tc.asset, tc.symbol)
-		assert.Equalf(t, tc.exp, p, "publicTradePair should return the pair of %s %q, or an empty pair for an option trade to skip", tc.asset, tc.symbol)
+		t.Run(tc.asset.String()+" "+strconv.Quote(tc.symbol), func(t *testing.T) {
+			p, err := ex.publicTradePair(tc.symbol, tc.asset)
+			require.ErrorIsf(t, err, tc.err, "publicTradePair must return the expected error for %s %q", tc.asset, tc.symbol)
+			assert.Equalf(t, tc.exp, p, "publicTradePair should return the pair of %s %q, or an empty pair for an option trade to skip", tc.asset, tc.symbol)
+		})
 	}
-}
-
-// TestWebsocketTickerDelistedContract checks that the snapshot of a delisted contract, whose cs is -1, is read
-func TestWebsocketTickerDelistedContract(t *testing.T) {
-	t.Parallel()
-	ex := fixtureStreamInstance(t)
-	frame := []byte(`{"topic":"tickers.BTCUSDT","type":"snapshot","data":{"symbol":"BTCUSDT","tickDirection":"ZeroMinusTick","price24hPcnt":"0","lastPrice":"0.00000","prevPrice24h":"0.00000","highPrice24h":"0.00000","lowPrice24h":"0.00000","prevPrice1h":"0.00000","markPrice":"0.00000","indexPrice":"0.00000","openInterest":"0","openInterestValue":"0.00","turnover24h":"0.0000","volume24h":"0.0000","fundingIntervalHour":"8","fundingCap":"0.02","singleOpenInterest":"0","singleOpenInterestValue":"0.00","nextFundingTime":"1791648000000","fundingRate":"0","bid1Price":"","bid1Size":"","ask1Price":"","ask1Size":"","preOpenPrice":"","preQty":"","curPreListingPhase":""},"cs":-1,"ts":1792227602562}`)
-	pushes := decodeFramesStrictly[WebsocketTickerUpdate](t, [][]byte{frame})
-	assert.Equal(t, int64(-1), pushes[0].CrossSequence, "CrossSequence should hold the snapshot's cs")
-	require.NoError(t, ex.wsHandleData(t.Context(), nil, asset.USDTMarginedFutures, frame), "wsHandleData must read a snapshot whose cs is -1")
-	tick, err := ticker.GetTicker(ex.Name, currency.NewBTCUSDT(), asset.USDTMarginedFutures)
-	require.NoError(t, err, "GetTicker must return the stored ticker")
-	assert.Equal(t, time.UnixMilli(1792227602562), tick.LastUpdated, "the ticker should hold the push time")
 }
 
 func TestWebsocketTicker(t *testing.T) {
 	t.Parallel()
+	// The snapshot of a delisted contract, whose cs is -1, is read
+	t.Run("delisted contract snapshot", func(t *testing.T) {
+		t.Parallel()
+		ex := fixtureStreamInstance(t)
+		frame := []byte(`{"topic":"tickers.BTCUSDT","type":"snapshot","data":{"symbol":"BTCUSDT","tickDirection":"ZeroMinusTick","price24hPcnt":"0","lastPrice":"0.00000","prevPrice24h":"0.00000","highPrice24h":"0.00000","lowPrice24h":"0.00000","prevPrice1h":"0.00000","markPrice":"0.00000","indexPrice":"0.00000","openInterest":"0","openInterestValue":"0.00","turnover24h":"0.0000","volume24h":"0.0000","fundingIntervalHour":"8","fundingCap":"0.02","singleOpenInterest":"0","singleOpenInterestValue":"0.00","nextFundingTime":"1791648000000","fundingRate":"0","bid1Price":"","bid1Size":"","ask1Price":"","ask1Size":"","preOpenPrice":"","preQty":"","curPreListingPhase":""},"cs":-1,"ts":1792227602562}`)
+		pushes := decodeFramesStrictly[WebsocketTickerUpdate](t, [][]byte{frame})
+		assert.Equal(t, int64(-1), pushes[0].CrossSequence, "CrossSequence should hold the snapshot's cs")
+		require.NoError(t, ex.wsHandleData(t.Context(), nil, asset.USDTMarginedFutures, frame), "wsHandleData must read a snapshot whose cs is -1")
+		tick, err := ticker.GetTicker(ex.Name, currency.NewBTCUSDT(), asset.USDTMarginedFutures)
+		require.NoError(t, err, "GetTicker must return the stored ticker")
+		assert.Equal(t, time.UnixMilli(1792227602562), tick.LastUpdated, "the ticker should hold the push time")
+	})
 	ex := streamTestInstance(t)
+	ctx := t.Context()
 	if !mockTests {
 		option := liveOptionPair(t, ex)
 		optionSymbol, err := ex.symbol(option, asset.Options)
 		require.NoError(t, err, "symbol must not error")
+		// The cases share ex, so they run in order
 		for _, tc := range []struct {
 			streamURL string
 			topic     string
@@ -925,14 +951,16 @@ func TestWebsocketTicker(t *testing.T) {
 			{inversePublic, "tickers.BTCUSD", asset.CoinMarginedFutures, currency.NewBTCUSD()},
 			{optionPublic, "tickers." + optionSymbol, asset.Options, option},
 		} {
-			frames, _ := liveStreamFrames(t, tc.streamURL, 20*time.Second, 1, tc.topic)
-			require.NotEmptyf(t, frames, "%s must push", tc.topic)
-			for _, frame := range frames {
-				require.NoErrorf(t, ex.wsHandleData(t.Context(), nil, tc.asset, frame), "wsHandleData must not error for %s", tc.asset)
-			}
-			tick, err := ticker.GetTicker(ex.Name, tc.pair, tc.asset)
-			require.NoErrorf(t, err, "GetTicker must not error for %s", tc.asset)
-			assert.NotZerof(t, tick.LastUpdated, "%s ticker should hold the push time", tc.asset)
+			t.Run(tc.asset.String(), func(t *testing.T) {
+				frames, _ := liveStreamFrames(t, tc.streamURL, 20*time.Second, 1, tc.topic)
+				require.NotEmptyf(t, frames, "%s must push", tc.topic)
+				for _, frame := range frames {
+					require.NoErrorf(t, ex.wsHandleData(ctx, nil, tc.asset, frame), "wsHandleData must not error for %s", tc.asset)
+				}
+				tick, err := ticker.GetTicker(ex.Name, tc.pair, tc.asset)
+				require.NoErrorf(t, err, "GetTicker must not error for %s", tc.asset)
+				assert.NotZerof(t, tick.LastUpdated, "%s ticker should hold the push time", tc.asset)
+			})
 		}
 		return
 	}
@@ -1389,17 +1417,20 @@ func TestUpdateTickerDelta(t *testing.T) {
 	assert.Equal(t, &ticker.Price{AssetType: asset.Options, Bid: 83310, BidSize: 18.55, Ask: 85565, AskSize: 2.5}, option, "an option ticker's best bid and ask should be mapped")
 
 	// Linear and inverse tickers count open interest on both sides of each contract and on one side, which GCT reports;
-	// an option ticker's open interest, its only figure, counts one side
+	// an option ticker's open interest, its only figure, counts one side. updateTicker is called again after these
+	// cases, so they run in order
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures} {
-		contract := &ticker.Price{AssetType: a}
-		updateTicker(contract, &WebsocketTicker{OpenInterest: 57991.212, OpenInterestValue: 4787737065.36, SingleOpenInterest: 28995.606, SingleOpenInterestValue: 2393868532.68}, carried("openInterest", "openInterestValue", "singleOpenInterest", "singleOpenInterestValue"))
-		assert.Equalf(t, &ticker.Price{AssetType: a, OpenInterest: 28995.606, OpenInterestValue: 2393868532.68}, contract, "a %s ticker should report its single side open interest", a)
-		// A delta in which only the figure for both sides changed leaves the single side figure as it was
-		updateTicker(contract, &WebsocketTicker{OpenInterest: 57991.213, OpenInterestValue: 4787737147.92}, carried("openInterest", "openInterestValue"))
-		assert.Equalf(t, &ticker.Price{AssetType: a, OpenInterest: 28995.606, OpenInterestValue: 2393868532.68}, contract, "a %s ticker should not report open interest for both sides", a)
-		// The last contract closing takes open interest to zero
-		updateTicker(contract, &WebsocketTicker{}, carried("openInterest", "openInterestValue", "singleOpenInterest", "singleOpenInterestValue"))
-		assert.Equalf(t, &ticker.Price{AssetType: a}, contract, "a %s ticker should report open interest falling to zero", a)
+		t.Run(a.String()+" open interest", func(t *testing.T) {
+			contract := &ticker.Price{AssetType: a}
+			updateTicker(contract, &WebsocketTicker{OpenInterest: 57991.212, OpenInterestValue: 4787737065.36, SingleOpenInterest: 28995.606, SingleOpenInterestValue: 2393868532.68}, carried("openInterest", "openInterestValue", "singleOpenInterest", "singleOpenInterestValue"))
+			assert.Equalf(t, &ticker.Price{AssetType: a, OpenInterest: 28995.606, OpenInterestValue: 2393868532.68}, contract, "a %s ticker should report its single side open interest", a)
+			// A delta in which only the figure for both sides changed leaves the single side figure as it was
+			updateTicker(contract, &WebsocketTicker{OpenInterest: 57991.213, OpenInterestValue: 4787737147.92}, carried("openInterest", "openInterestValue"))
+			assert.Equalf(t, &ticker.Price{AssetType: a, OpenInterest: 28995.606, OpenInterestValue: 2393868532.68}, contract, "a %s ticker should not report open interest for both sides", a)
+			// The last contract closing takes open interest to zero
+			updateTicker(contract, &WebsocketTicker{}, carried("openInterest", "openInterestValue", "singleOpenInterest", "singleOpenInterestValue"))
+			assert.Equalf(t, &ticker.Price{AssetType: a}, contract, "a %s ticker should report open interest falling to zero", a)
+		})
 	}
 	option = &ticker.Price{AssetType: asset.Options}
 	updateTicker(option, &WebsocketTicker{OpenInterest: 1.2, OpenInterestValue: 99, SingleOpenInterest: 0.6}, carried("openInterest", "openInterestValue", "singleOpenInterest"))
@@ -1448,12 +1479,18 @@ func TestUpdateTickerDelta(t *testing.T) {
 			"openInterest": func(p *ticker.Price) *float64 { return &p.OpenInterest }, "openInterestValue": func(p *ticker.Price) *float64 { return &p.OpenInterestValue },
 		}),
 	} {
-		for field, value := range fields {
-			got, exp := full(a), full(a)
-			*value(exp) = 0
-			updateTicker(got, &WebsocketTicker{}, carried(field))
-			assert.Equalf(t, exp, got, "a %s delta taking %s to zero should change that field alone", a, field)
-		}
+		t.Run(a.String()+" delta taking one field to zero", func(t *testing.T) {
+			t.Parallel()
+			for field, value := range fields {
+				t.Run(field, func(t *testing.T) {
+					t.Parallel()
+					got, exp := full(a), full(a)
+					*value(exp) = 0
+					updateTicker(got, &WebsocketTicker{}, carried(field))
+					assert.Equalf(t, exp, got, "a %s delta taking %s to zero should change that field alone", a, field)
+				})
+			}
+		})
 	}
 }
 
@@ -1569,7 +1606,7 @@ func TestWebsocketKline(t *testing.T) {
 	require.ErrorIs(t, err, kline.ErrInvalidInterval, "wsHandleData must error for an unknown interval")
 }
 
-func TestWebsocketProcessKline(t *testing.T) {
+func TestWebsocketProcessKline(t *testing.T) { //nolint:tparallel // cases share ex, so the subtests run in order
 	t.Parallel()
 	frames := fixtureFrames(t, "testdata/wsPublicKline.jsonl")
 	require.Len(t, frames, 2, "the kline fixture must hold a spot and an inverse push")
@@ -1617,24 +1654,31 @@ func TestWebsocketProcessKline(t *testing.T) {
 	}
 	assert.Equal(t, exp, relayed(ex), "wsProcessKline should relay each candle with the pair its topic names")
 
-	// Whether a candle is partial follows its confirm flag, whichever asset it is of
+	ctx := t.Context()
+	// Whether a candle is partial follows its confirm flag, whichever asset it is of. The cases share ex, so they run in
+	// order
 	for i, a := range []asset.Item{asset.Spot, asset.CoinMarginedFutures} {
-		for _, confirmed := range []bool{false, true} {
-			frame := bytes.Replace(frames[i], []byte(`"confirm":`+strconv.FormatBool(i == 1)), []byte(`"confirm":`+strconv.FormatBool(confirmed)), 1)
-			require.NoErrorf(t, ex.wsProcessKline(t.Context(), a, frame), "wsProcessKline must not error for a %s candle confirmed %t", a, confirmed)
-			got := relayed(ex)
-			require.Lenf(t, got, 1, "wsProcessKline must relay a %s candle confirmed %t", a, confirmed)
-			item, ok := got[0].(kline.Item)
-			require.Truef(t, ok, "wsProcessKline must relay a %s candle confirmed %t as a kline item", a, confirmed)
-			require.Lenf(t, item.Candles, 1, "wsProcessKline must relay the %s candle confirmed %t", a, confirmed)
-			expIssues := kline.PartialCandle
-			if confirmed {
-				expIssues = ""
+		t.Run(a.String(), func(t *testing.T) {
+			for _, confirmed := range []bool{false, true} {
+				t.Run("confirm "+strconv.FormatBool(confirmed), func(t *testing.T) {
+					frame := bytes.Replace(frames[i], []byte(`"confirm":`+strconv.FormatBool(i == 1)), []byte(`"confirm":`+strconv.FormatBool(confirmed)), 1)
+					require.NoErrorf(t, ex.wsProcessKline(ctx, a, frame), "wsProcessKline must not error for a %s candle confirmed %t", a, confirmed)
+					got := relayed(ex)
+					require.Lenf(t, got, 1, "wsProcessKline must relay a %s candle confirmed %t", a, confirmed)
+					item, ok := got[0].(kline.Item)
+					require.Truef(t, ok, "wsProcessKline must relay a %s candle confirmed %t as a kline item", a, confirmed)
+					require.Lenf(t, item.Candles, 1, "wsProcessKline must relay the %s candle confirmed %t", a, confirmed)
+					expIssues := kline.PartialCandle
+					if confirmed {
+						expIssues = ""
+					}
+					assert.Equalf(t, expIssues, item.Candles[0].ValidationIssues, "wsProcessKline should mark a %s candle confirmed %t partial only while it is open", a, confirmed)
+				})
 			}
-			assert.Equalf(t, expIssues, item.Candles[0].ValidationIssues, "wsProcessKline should mark a %s candle confirmed %t partial only while it is open", a, confirmed)
-		}
+		})
 	}
 
+	// The cases share ex, so they run in order
 	for _, tc := range []struct {
 		name  string
 		frame []byte
@@ -1645,13 +1689,15 @@ func TestWebsocketProcessKline(t *testing.T) {
 		{name: "an unknown interval", frame: bytes.Replace(frames[0], []byte(`"interval":"1"`), []byte(`"interval":"2"`), 1), err: kline.ErrInvalidInterval},
 		{name: "an undecodable push", frame: []byte(`{"topic":"kline.1.BTCUSDT","data":"bad"}`)},
 	} {
-		err := ex.wsProcessKline(t.Context(), asset.Spot, tc.frame)
-		if tc.err == nil {
-			require.Errorf(t, err, "wsProcessKline must error for %s", tc.name)
-		} else {
-			require.ErrorIsf(t, err, tc.err, "wsProcessKline must error for %s", tc.name)
-		}
-		assert.Emptyf(t, relayed(ex), "wsProcessKline should relay nothing for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			err := ex.wsProcessKline(ctx, asset.Spot, tc.frame)
+			if tc.err == nil {
+				require.Errorf(t, err, "wsProcessKline must error for %s", tc.name)
+			} else {
+				require.ErrorIsf(t, err, tc.err, "wsProcessKline must error for %s", tc.name)
+			}
+			assert.Emptyf(t, relayed(ex), "wsProcessKline should relay nothing for %s", tc.name)
+		})
 	}
 
 	errBufferFull := fillDataHandler(t, ex)
@@ -1813,39 +1859,43 @@ func testRelayedPublicStream[T any](t *testing.T, ex *Exchange, fixture string, 
 	}
 }
 
-func TestPublicTopic(t *testing.T) {
+func TestPublicTopic(t *testing.T) { //nolint:tparallel // cases share e, so the subtests run in order
 	t.Parallel()
 	btc := currency.Pairs{currency.NewBTCUSDT()}
+	// The cases share e, so they run in order
 	for _, tc := range []struct {
+		name  string
 		sub   *subscription.Subscription
 		asset asset.Item
 		exp   string
 		err   error
 	}{
-		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Pairs: btc, Levels: 200}, asset: asset.USDTMarginedFutures, exp: "orderbook.200.BTCUSDT"},
-		{sub: &subscription.Subscription{Channel: chanOrderbook, Pairs: btc}, asset: asset.USDTMarginedFutures, exp: "orderbook.50.BTCUSDT"},
-		{sub: &subscription.Subscription{Channel: chanOrderbook, Pairs: currency.Pairs{fixtureOptionPair}}, asset: asset.Options, exp: "orderbook.25.BTC-24SEP27-170000-P-USDT"},
-		{sub: &subscription.Subscription{Channel: chanRetailPriceImprovementOrderbook, Pairs: btc}, asset: asset.USDTMarginedFutures, exp: "orderbook.rpi.BTCUSDT"},
-		{sub: &subscription.Subscription{Channel: chanFullOrderbook, Pairs: currency.Pairs{currency.NewBTCUSD()}}, asset: asset.CoinMarginedFutures, exp: "orderbook.full.BTCUSD"},
-		{sub: &subscription.Subscription{Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{fixtureUSDCPerpetualPair}}, asset: asset.USDCMarginedFutures, exp: "publicTrade.BTCPERP"},
-		{sub: &subscription.Subscription{Channel: chanPublicTrade, Pairs: currency.Pairs{fixtureOptionPair, currency.NewPairWithDelimiter("BTC", "10OCT26-82750-C-USDT", "-")}}, asset: asset.Options, exp: "publicTrade.BTC"},
-		{sub: &subscription.Subscription{Channel: subscription.TickerChannel, Pairs: currency.Pairs{fixtureUSDTFuturesPair}}, asset: asset.USDTMarginedFutures, exp: "tickers.BTCUSDT-16OCT26"},
-		{sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Pairs: btc, Interval: kline.FifteenMin}, asset: asset.USDTMarginedFutures, exp: "kline.15.BTCUSDT"},
-		{sub: &subscription.Subscription{Channel: chanAllLiquidation, Pairs: btc}, asset: asset.USDTMarginedFutures, exp: "allLiquidation.BTCUSDT"},
-		{sub: &subscription.Subscription{Channel: chanPriceLimit, Pairs: currency.Pairs{currency.NewBTCUSD()}}, asset: asset.CoinMarginedFutures, exp: "priceLimit.BTCUSD"},
-		{sub: &subscription.Subscription{Channel: chanInsurancePool}, asset: asset.USDTMarginedFutures, exp: "insurance.USDT"},
-		{sub: &subscription.Subscription{Channel: chanInsurancePool}, asset: asset.USDCMarginedFutures, exp: "insurance.USDC"},
-		{sub: &subscription.Subscription{Channel: chanAutoDeleveragingAlert}, asset: asset.CoinMarginedFutures, exp: "adlAlert.inverse"},
-		{sub: &subscription.Subscription{Channel: chanAutoDeleveragingAlert}, asset: asset.Options, err: errContractGroupNotSupported},
-		{sub: &subscription.Subscription{Channel: chanPublicTrade}, asset: asset.Options, err: currency.ErrCurrencyPairsEmpty},
-		{sub: &subscription.Subscription{Channel: chanPublicTrade, Pairs: currency.Pairs{fixtureOptionPair, currency.NewPairWithDelimiter("ETH", "10OCT26-2500-C-USDT", "-")}}, asset: asset.Options, err: errOptionTradesNotOneBaseCoin},
-		{sub: &subscription.Subscription{Channel: chanPublicTicker, Pairs: currency.Pairs{currency.NewBTCUSDT(), currency.NewBTCUSD()}}, asset: asset.USDTMarginedFutures, err: subscription.ErrNotSinglePair},
-		{sub: &subscription.Subscription{Channel: chanKline, Pairs: btc}, asset: asset.USDTMarginedFutures, err: subscription.ErrInvalidInterval},
-		{sub: &subscription.Subscription{Channel: chanPublicTicker, Pairs: btc}, asset: asset.Binary, err: asset.ErrNotSupported},
+		{name: "orderbook of 200 levels", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Pairs: btc, Levels: 200}, asset: asset.USDTMarginedFutures, exp: "orderbook.200.BTCUSDT"},
+		{name: "orderbook of default levels", sub: &subscription.Subscription{Channel: chanOrderbook, Pairs: btc}, asset: asset.USDTMarginedFutures, exp: "orderbook.50.BTCUSDT"},
+		{name: "option orderbook of default levels", sub: &subscription.Subscription{Channel: chanOrderbook, Pairs: currency.Pairs{fixtureOptionPair}}, asset: asset.Options, exp: "orderbook.25.BTC-24SEP27-170000-P-USDT"},
+		{name: "RPI orderbook", sub: &subscription.Subscription{Channel: chanRetailPriceImprovementOrderbook, Pairs: btc}, asset: asset.USDTMarginedFutures, exp: "orderbook.rpi.BTCUSDT"},
+		{name: "full orderbook", sub: &subscription.Subscription{Channel: chanFullOrderbook, Pairs: currency.Pairs{currency.NewBTCUSD()}}, asset: asset.CoinMarginedFutures, exp: "orderbook.full.BTCUSD"},
+		{name: "all trades", sub: &subscription.Subscription{Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{fixtureUSDCPerpetualPair}}, asset: asset.USDCMarginedFutures, exp: "publicTrade.BTCPERP"},
+		{name: "option trades of one base coin", sub: &subscription.Subscription{Channel: chanPublicTrade, Pairs: currency.Pairs{fixtureOptionPair, currency.NewPairWithDelimiter("BTC", "10OCT26-82750-C-USDT", "-")}}, asset: asset.Options, exp: "publicTrade.BTC"},
+		{name: "dated futures ticker", sub: &subscription.Subscription{Channel: subscription.TickerChannel, Pairs: currency.Pairs{fixtureUSDTFuturesPair}}, asset: asset.USDTMarginedFutures, exp: "tickers.BTCUSDT-16OCT26"},
+		{name: "candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Pairs: btc, Interval: kline.FifteenMin}, asset: asset.USDTMarginedFutures, exp: "kline.15.BTCUSDT"},
+		{name: "all liquidations", sub: &subscription.Subscription{Channel: chanAllLiquidation, Pairs: btc}, asset: asset.USDTMarginedFutures, exp: "allLiquidation.BTCUSDT"},
+		{name: "price limit", sub: &subscription.Subscription{Channel: chanPriceLimit, Pairs: currency.Pairs{currency.NewBTCUSD()}}, asset: asset.CoinMarginedFutures, exp: "priceLimit.BTCUSD"},
+		{name: "USDT insurance pool", sub: &subscription.Subscription{Channel: chanInsurancePool}, asset: asset.USDTMarginedFutures, exp: "insurance.USDT"},
+		{name: "USDC insurance pool", sub: &subscription.Subscription{Channel: chanInsurancePool}, asset: asset.USDCMarginedFutures, exp: "insurance.USDC"},
+		{name: "inverse ADL alert", sub: &subscription.Subscription{Channel: chanAutoDeleveragingAlert}, asset: asset.CoinMarginedFutures, exp: "adlAlert.inverse"},
+		{name: "option ADL alert", sub: &subscription.Subscription{Channel: chanAutoDeleveragingAlert}, asset: asset.Options, err: errContractGroupNotSupported},
+		{name: "option trades without contracts", sub: &subscription.Subscription{Channel: chanPublicTrade}, asset: asset.Options, err: currency.ErrCurrencyPairsEmpty},
+		{name: "option trades of two base coins", sub: &subscription.Subscription{Channel: chanPublicTrade, Pairs: currency.Pairs{fixtureOptionPair, currency.NewPairWithDelimiter("ETH", "10OCT26-2500-C-USDT", "-")}}, asset: asset.Options, err: errOptionTradesNotOneBaseCoin},
+		{name: "ticker of two pairs", sub: &subscription.Subscription{Channel: chanPublicTicker, Pairs: currency.Pairs{currency.NewBTCUSDT(), currency.NewBTCUSD()}}, asset: asset.USDTMarginedFutures, err: subscription.ErrNotSinglePair},
+		{name: "kline without an interval", sub: &subscription.Subscription{Channel: chanKline, Pairs: btc}, asset: asset.USDTMarginedFutures, err: subscription.ErrInvalidInterval},
+		{name: "unsupported asset", sub: &subscription.Subscription{Channel: chanPublicTicker, Pairs: btc}, asset: asset.Binary, err: asset.ErrNotSupported},
 	} {
-		topic, err := e.publicTopic(tc.sub, tc.asset)
-		require.ErrorIsf(t, err, tc.err, "publicTopic must return the expected error for %s %s", tc.asset, tc.sub.Channel)
-		assert.Equalf(t, tc.exp, topic, "publicTopic should return the topic for %s %s", tc.asset, tc.sub.Channel)
+		t.Run(tc.name, func(t *testing.T) {
+			topic, err := e.publicTopic(tc.sub, tc.asset)
+			require.ErrorIsf(t, err, tc.err, "publicTopic must return the expected error for %s %s", tc.asset, tc.sub.Channel)
+			assert.Equalf(t, tc.exp, topic, "publicTopic should return the topic for %s %s", tc.asset, tc.sub.Channel)
+		})
 	}
 }
 
@@ -1863,8 +1913,11 @@ func TestOrderbookLevels(t *testing.T) {
 		{asset: asset.CoinMarginedFutures, exp: defaultOrderbookLevels},
 		{asset: asset.Options, exp: defaultOptionOrderbookLevels},
 	} {
-		got := orderbookLevels(&subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: tc.levels}, tc.asset)
-		assert.Equalf(t, tc.exp, got, "orderbookLevels should return the depth for %s with levels %d", tc.asset, tc.levels)
+		t.Run(tc.asset.String()+" with levels "+strconv.Itoa(tc.levels), func(t *testing.T) {
+			t.Parallel()
+			got := orderbookLevels(&subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: tc.levels}, tc.asset)
+			assert.Equalf(t, tc.exp, got, "orderbookLevels should return the depth for %s with levels %d", tc.asset, tc.levels)
+		})
 	}
 }
 
@@ -1881,9 +1934,12 @@ func TestContractGroup(t *testing.T) {
 		{asset: asset.Spot, err: errContractGroupNotSupported},
 		{asset: asset.Options, err: errContractGroupNotSupported},
 	} {
-		group, err := contractGroup(tc.asset)
-		require.ErrorIsf(t, err, tc.err, "contractGroup must return the expected error for %s", tc.asset)
-		assert.Equalf(t, tc.exp, group, "contractGroup should name the %s group as the insurance and ADL alert topics do", tc.asset)
+		t.Run(tc.asset.String(), func(t *testing.T) {
+			t.Parallel()
+			group, err := contractGroup(tc.asset)
+			require.ErrorIsf(t, err, tc.err, "contractGroup must return the expected error for %s", tc.asset)
+			assert.Equalf(t, tc.exp, group, "contractGroup should name the %s group as the insurance and ADL alert topics do", tc.asset)
+		})
 	}
 }
 
@@ -1900,9 +1956,12 @@ func TestOptionTradeTopic(t *testing.T) {
 		{name: "no contracts", err: currency.ErrCurrencyPairsEmpty},
 		{name: "contracts of two base coins", pairs: currency.Pairs{fixtureOptionPair, currency.NewPairWithDelimiter("ETH", "10OCT26-2500-C-USDT", currency.DashDelimiter)}, err: errOptionTradesNotOneBaseCoin},
 	} {
-		topic, err := optionTradeTopic(tc.pairs)
-		require.ErrorIsf(t, err, tc.err, "optionTradeTopic must return the expected error for %s", tc.name)
-		assert.Equalf(t, tc.exp, topic, "optionTradeTopic should return the base coin's trade topic for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			topic, err := optionTradeTopic(tc.pairs)
+			require.ErrorIsf(t, err, tc.err, "optionTradeTopic must return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.exp, topic, "optionTradeTopic should return the base coin's trade topic for %s", tc.name)
+		})
 	}
 }
 

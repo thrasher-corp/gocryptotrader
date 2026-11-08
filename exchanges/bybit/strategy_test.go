@@ -19,6 +19,8 @@ func TestCreateStrategyOrder(t *testing.T) {
 	_, err := e.CreateStrategyOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateStrategyOrder must reject a nil request")
 	percentageOfVolume := &StrategyPercentageOfVolumeParametersRequest{Mode: "TradedVolume", ParticipationRate: 25.1}
+	ctx := t.Context()
+	// Cases share e and pov, which the requests below use again, so they run in order
 	for _, tc := range []struct {
 		name string
 		req  *CreateStrategyOrderRequest
@@ -37,11 +39,14 @@ func TestCreateStrategyOrder(t *testing.T) {
 		{name: "POV with size and position value", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, PositionValue: 1000, PercentageOfVolumeParameters: percentageOfVolume}, err: errStrategySizeWithPositionValue},
 		{name: "POV without stop condition", req: &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", PercentageOfVolumeParameters: percentageOfVolume}, err: errStrategyPercentageOfVolumeStopConditionRequired},
 	} {
-		_, err = e.CreateStrategyOrder(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "CreateStrategyOrder must reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.CreateStrategyOrder(ctx, tc.req)
+			require.ErrorIsf(t, err, tc.err, "CreateStrategyOrder must reject a request with %s", tc.name)
+		})
 	}
 	_, err = e.CreateStrategyOrder(t.Context(), &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Interval: new(30 * time.Second), PercentageOfVolumeParameters: percentageOfVolume})
 	require.ErrorIs(t, err, errStrategyPercentageOfVolumeStopConditionRequired, "CreateStrategyOrder must not take a repeating interval as a POV stop condition")
+	// Cases share e and come before its requests below, so they run in order
 	for _, tc := range []struct {
 		mode string
 		err  error
@@ -50,18 +55,23 @@ func TestCreateStrategyOrder(t *testing.T) {
 		{mode: "OppositeSideLiquidity", err: errStrategyDepthReferenceRequired},
 		{mode: "SameSideLiquidity", err: errStrategyDepthReferenceRequired},
 	} {
-		_, err = e.CreateStrategyOrder(t.Context(), &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, PercentageOfVolumeParameters: &StrategyPercentageOfVolumeParametersRequest{Mode: tc.mode, ParticipationRate: 25.1}})
-		require.ErrorIsf(t, err, tc.err, "CreateStrategyOrder must reject a %s POV order without its reference", tc.mode)
+		t.Run(tc.mode+" without its reference", func(t *testing.T) {
+			_, err := e.CreateStrategyOrder(ctx, &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, PercentageOfVolumeParameters: &StrategyPercentageOfVolumeParametersRequest{Mode: tc.mode, ParticipationRate: 25.1}})
+			require.ErrorIsf(t, err, tc.err, "CreateStrategyOrder must reject a %s POV order without its reference", tc.mode)
+		})
 	}
 	// The smallest reference each mode takes is enough
 	created := restReplyTestInstance(t, map[string]string{"/v5/strategy/create": `{"retCode":0,"retMsg":"OK","result":{"strategyId":"119b6211-2611-461b-be5e-5ac557099e82"},"retExtInfo":{},"time":1760000000000}`})
+	// Cases share created's server and come before more strategy orders, so they run in order
 	for _, p := range []*StrategyPercentageOfVolumeParametersRequest{
 		{Mode: "TradedVolume", ParticipationRate: 25.1, ReferenceWindow: time.Minute},
 		{Mode: "OppositeSideLiquidity", ParticipationRate: 25.1, DepthReference: 1},
 		{Mode: "SameSideLiquidity", ParticipationRate: 25.1, DepthReference: 1},
 	} {
-		_, err = created.CreateStrategyOrder(t.Context(), &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, PercentageOfVolumeParameters: p})
-		require.NoErrorf(t, err, "CreateStrategyOrder must accept a %s POV order with its smallest reference", p.Mode)
+		t.Run(p.Mode+" with its smallest reference", func(t *testing.T) {
+			_, err := created.CreateStrategyOrder(ctx, &CreateStrategyOrderRequest{Category: "UTA_USDT", Symbol: "BTCUSDT", Side: "Buy", StrategyType: "pov", Size: 1, PercentageOfVolumeParameters: p})
+			require.NoErrorf(t, err, "CreateStrategyOrder must accept a %s POV order with its smallest reference", p.Mode)
+		})
 	}
 
 	if !mockTests {

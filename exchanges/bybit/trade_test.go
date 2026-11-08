@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -976,7 +977,7 @@ func waitingBatchInstance(t *testing.T, budget orderBudget) (*Exchange, *batchTr
 	return ex, transport
 }
 
-func TestPlaceBatchOrder(t *testing.T) {
+func TestPlaceBatchOrder(t *testing.T) { //nolint:tparallel // Cases run in order before PlaceBatchOrder is called again
 	t.Parallel()
 	_, err := e.PlaceBatchOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "PlaceBatchOrder must reject a nil request")
@@ -995,8 +996,9 @@ func TestPlaceBatchOrder(t *testing.T) {
 		assert.Nil(t, result, "PlaceBatchOrder should return no result for a batch it did not send")
 		assert.Empty(t, transport.recorded(), "PlaceBatchOrder should not send a batch cancelled while it waits")
 	})
+	testCtx := t.Context()
 	// Bybit reports one result and one outcome for each order, so a reply with more or fewer of either cannot be matched
-	// to the orders sent
+	// to the orders sent. PlaceBatchOrder is called again below, so the cases run in order before those calls
 	for _, tc := range []struct {
 		name    string
 		reply   string
@@ -1033,10 +1035,13 @@ func TestPlaceBatchOrder(t *testing.T) {
 			},
 		},
 	} {
+		// The test builds each case's exchange, as the loop did, so the exchange keeps the test's name and server
 		ex := restReplyTestInstance(t, map[string]string{"/v5/order/create-batch": tc.reply})
-		unmatched, err := ex.PlaceBatchOrder(t.Context(), &BatchPlaceOrderRequest{Category: cSpot, Request: tc.request})
-		require.ErrorIsf(t, err, errBatchOutcomeMismatch, "PlaceBatchOrder must reject a reply with %s", tc.name)
-		assert.Nilf(t, unmatched, "PlaceBatchOrder should return no result for a reply with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			unmatched, err := ex.PlaceBatchOrder(testCtx, &BatchPlaceOrderRequest{Category: cSpot, Request: tc.request})
+			require.ErrorIsf(t, err, errBatchOutcomeMismatch, "PlaceBatchOrder must reject a reply with %s", tc.name)
+			assert.Nilf(t, unmatched, "PlaceBatchOrder should return no result for a reply with %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -1148,7 +1153,7 @@ func TestBatchPlaceOrderItemPayload(t *testing.T) {
 	assert.Equal(t, exp, body, "Payload should send every documented parameter, and a zero quantity to close the position")
 }
 
-func TestBatchAmendOrder(t *testing.T) {
+func TestBatchAmendOrder(t *testing.T) { //nolint:tparallel // Cases share e or input orders, and run before BatchAmendOrder is called again
 	t.Parallel()
 	_, err := e.BatchAmendOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "BatchAmendOrder must reject a nil request")
@@ -1171,6 +1176,8 @@ func TestBatchAmendOrder(t *testing.T) {
 	// the orders sent cannot be matched to them
 	first := BatchAmendOrderItem{Symbol: "ETH-30DEC22-500-C", OrderImpliedVolatility: 6.8, OrderID: "b551f227-7059-4fb5-a6a6-699c04dbd2f2"}
 	second := BatchAmendOrderItem{Symbol: "ETH-30DEC22-700-C", Price: 650, OrderID: "fa6a595f-1a57-483f-b9d3-30e9c8235a52"}
+	testCtx := t.Context()
+	// Cases share the orders above, and BatchAmendOrder is called again below, so they run in order
 	for _, tc := range []struct {
 		name    string
 		reply   string
@@ -1187,16 +1194,20 @@ func TestBatchAmendOrder(t *testing.T) {
 			request: []BatchAmendOrderItem{first},
 		},
 	} {
+		// The test builds each case's exchange, as the loop did, so the exchange keeps the test's name and server
 		ex := restReplyTestInstance(t, map[string]string{"/v5/order/amend-batch": tc.reply})
-		unmatched, err := ex.BatchAmendOrder(t.Context(), &BatchAmendOrderRequest{Category: cOption, Request: tc.request})
-		require.ErrorIsf(t, err, errBatchOutcomeMismatch, "BatchAmendOrder must reject a reply for %s orders than it sent", tc.name)
-		assert.Nilf(t, unmatched, "BatchAmendOrder should return no result for %s orders than it sent", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			unmatched, err := ex.BatchAmendOrder(testCtx, &BatchAmendOrderRequest{Category: cOption, Request: tc.request})
+			require.ErrorIsf(t, err, errBatchOutcomeMismatch, "BatchAmendOrder must reject a reply for %s orders than it sent", tc.name)
+			assert.Nilf(t, unmatched, "BatchAmendOrder should return no result for %s orders than it sent", tc.name)
+		})
 	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	if mockTests {
+		// Cases share e, which is called again below, so they run in order
 		for _, tc := range []struct {
 			name    string
 			orderID string
@@ -1205,8 +1216,10 @@ func TestBatchAmendOrder(t *testing.T) {
 			{name: "API error", orderID: "c0ffee00-0000-4000-8000-000000000001", err: order.ErrOrderNotFound},
 			{name: "null result", orderID: "c0ffee00-0000-4000-8000-000000000002", err: common.ErrNoResponse},
 		} {
-			_, err = e.BatchAmendOrder(t.Context(), &BatchAmendOrderRequest{Category: cLinear, Request: []BatchAmendOrderItem{{Symbol: "BTCUSDT", OrderID: tc.orderID, Price: 61000}}})
-			require.ErrorIsf(t, err, tc.err, "BatchAmendOrder must return the expected error for a reply with an %s", tc.name)
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := e.BatchAmendOrder(testCtx, &BatchAmendOrderRequest{Category: cLinear, Request: []BatchAmendOrderItem{{Symbol: "BTCUSDT", OrderID: tc.orderID, Price: 61000}}})
+				require.ErrorIsf(t, err, tc.err, "BatchAmendOrder must return the expected error for a reply with an %s", tc.name)
+			})
 		}
 		_, err = e.BatchAmendOrder(t.Context(), &BatchAmendOrderRequest{Category: cLinear, Request: []BatchAmendOrderItem{{Symbol: "BTCUSDT", OrderID: "c0ffee00-0000-4000-8000-000000000003", Price: 61000}}})
 		require.Error(t, err, "BatchAmendOrder must reject a reply whose retExtInfo is not an object, since its outcomes are unknown")
@@ -1449,12 +1462,15 @@ func TestCheckBatchCounts(t *testing.T) {
 		{results: 2, outcomes: 1},
 		{results: 2, outcomes: 3},
 	} {
-		err := checkBatchCounts(2, tc.results, tc.outcomes)
-		assert.ErrorIsf(t, err, errBatchOutcomeMismatch, "checkBatchCounts should reject %d results and %d outcomes for 2 orders", tc.results, tc.outcomes)
+		t.Run(fmt.Sprintf("%d results and %d outcomes", tc.results, tc.outcomes), func(t *testing.T) {
+			t.Parallel()
+			err := checkBatchCounts(2, tc.results, tc.outcomes)
+			assert.ErrorIsf(t, err, errBatchOutcomeMismatch, "checkBatchCounts should reject %d results and %d outcomes for 2 orders", tc.results, tc.outcomes)
+		})
 	}
 }
 
-func TestApplyBatchOrderOutcomes(t *testing.T) {
+func TestApplyBatchOrderOutcomes(t *testing.T) { //nolint:tparallel // Cases run in order before applyBatchOrderOutcomes is called again
 	t.Parallel()
 	orders := func() *BatchOrderResponse {
 		return &BatchOrderResponse{List: []BatchOrderResult{
@@ -1462,6 +1478,7 @@ func TestApplyBatchOrderOutcomes(t *testing.T) {
 			{Category: "spot", Symbol: "ATOMUSDT", OrderLinkID: "1666800494330512129"},
 		}}
 	}
+	// applyBatchOrderOutcomes is called again below, so the cases run in order before that call
 	for _, tc := range []struct {
 		name     string
 		resp     *BatchOrderResponse
@@ -1485,9 +1502,11 @@ func TestApplyBatchOrderOutcomes(t *testing.T) {
 			outcomes: []BatchOrderOutcome{{Message: "OK"}, {Message: "OK"}},
 		},
 	} {
-		result, err := applyBatchOrderOutcomes(tc.resp, tc.outcomes, 2)
-		assert.ErrorIsf(t, err, errBatchOutcomeMismatch, "applyBatchOrderOutcomes should reject %s", tc.name)
-		assert.Nilf(t, result, "applyBatchOrderOutcomes should return no result with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := applyBatchOrderOutcomes(tc.resp, tc.outcomes, 2)
+			assert.ErrorIsf(t, err, errBatchOutcomeMismatch, "applyBatchOrderOutcomes should reject %s", tc.name)
+			assert.Nilf(t, result, "applyBatchOrderOutcomes should return no result with %s", tc.name)
+		})
 	}
 
 	resp := orders()
@@ -1533,7 +1552,7 @@ func TestGetBorrowQuota(t *testing.T) {
 	assert.Equal(t, "BTCUSDT", result.Symbol, "GetBorrowQuota should return the requested symbol")
 }
 
-func TestSetDisconnectCancelAll(t *testing.T) {
+func TestSetDisconnectCancelAll(t *testing.T) { //nolint:tparallel // Cases share e
 	t.Parallel()
 	err := e.SetDisconnectCancelAll(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetDisconnectCancelAll must reject a nil request")
@@ -1543,11 +1562,15 @@ func TestSetDisconnectCancelAll(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
+	ctx := t.Context()
+	// Cases share e, so they run in order
 	for _, req := range []*SetDisconnectCancelAllRequest{
 		{TimeWindow: 300 * time.Second},
 		{Product: "DERIVATIVES", TimeWindow: 40 * time.Second},
 	} {
-		assert.NoErrorf(t, e.SetDisconnectCancelAll(t.Context(), req), "SetDisconnectCancelAll should not error for product %q", req.Product)
+		t.Run(fmt.Sprintf("product %q", req.Product), func(t *testing.T) {
+			assert.NoErrorf(t, e.SetDisconnectCancelAll(ctx, req), "SetDisconnectCancelAll should not error for product %q", req.Product)
+		})
 	}
 }
 

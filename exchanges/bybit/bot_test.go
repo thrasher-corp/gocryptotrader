@@ -1,6 +1,8 @@
 package bybit
 
 import (
+	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -16,8 +18,9 @@ import (
 
 const testBotBanReason = "Bots are not available to your account in its current region"
 
-func TestBotStatusError(t *testing.T) {
+func TestBotStatusError(t *testing.T) { //nolint:tparallel // Cases run in order before botStatusError is called again
 	t.Parallel()
+	// botStatusError is called again below, so the cases run in order before that call
 	for _, tc := range []struct {
 		statusCode uint64
 		mapped     error
@@ -33,16 +36,18 @@ func TestBotStatusError(t *testing.T) {
 		{statusCode: 429, mapped: errBotRateLimitExceeded, exp: "bot request failed: bot rate limit exceeded: status code 429: detail"},
 		{statusCode: 503, mapped: errBotNotClosable, exp: "bot request failed: bot cannot be closed in its current state: status code 503: detail"},
 	} {
-		err := botStatusError(tc.statusCode, "", "detail")
-		if tc.exp == "" {
-			assert.NoErrorf(t, err, "botStatusError should accept status code %d", tc.statusCode)
-			continue
-		}
-		require.ErrorIsf(t, err, errBotRequestFailed, "botStatusError must reject status code %d", tc.statusCode)
-		if tc.mapped != nil {
-			assert.ErrorIsf(t, err, tc.mapped, "botStatusError should map status code %d", tc.statusCode)
-		}
-		assert.EqualErrorf(t, err, tc.exp, "botStatusError should describe status code %d", tc.statusCode)
+		t.Run(fmt.Sprintf("status code %d", tc.statusCode), func(t *testing.T) {
+			err := botStatusError(tc.statusCode, "", "detail")
+			if tc.exp == "" {
+				assert.NoErrorf(t, err, "botStatusError should accept status code %d", tc.statusCode)
+				return
+			}
+			require.ErrorIsf(t, err, errBotRequestFailed, "botStatusError must reject status code %d", tc.statusCode)
+			if tc.mapped != nil {
+				assert.ErrorIsf(t, err, tc.mapped, "botStatusError should map status code %d", tc.statusCode)
+			}
+			assert.EqualErrorf(t, err, tc.exp, "botStatusError should describe status code %d", tc.statusCode)
+		})
 	}
 	assert.EqualError(t, botStatusError(421, "banned", "", "trace"), "bot request failed: user banned from bots: status code 421: banned: trace", "botStatusError should join every non-empty detail")
 }
@@ -66,8 +71,10 @@ func testFuturesComboBotRequest() *CreateFuturesComboBotRequest {
 }
 
 // requireFuturesComboBotValidation checks call rejects each setting Get Bot Parameter Limit and Create Bot require
-func requireFuturesComboBotValidation(t *testing.T, method string, call func(*CreateFuturesComboBotRequest) error) {
+func requireFuturesComboBotValidation(t *testing.T, method string, call func(context.Context, *CreateFuturesComboBotRequest) error) {
 	t.Helper()
+	ctx := t.Context()
+	// Every caller calls its function again after these cases, so they run in order
 	for _, tc := range []struct {
 		name   string
 		mutate func(*CreateFuturesComboBotRequest)
@@ -81,15 +88,17 @@ func requireFuturesComboBotValidation(t *testing.T, method string, call func(*Cr
 		{name: "a setting's target position percent", mutate: func(r *CreateFuturesComboBotRequest) { r.SymbolSettings[1].TargetPositionPercent = 0 }, err: errTargetPositionPercentRequired},
 		{name: "a setting's side", mutate: func(r *CreateFuturesComboBotRequest) { r.SymbolSettings[1].Side = 0 }, err: order.ErrSideIsInvalid},
 	} {
-		r := testFuturesComboBotRequest()
-		tc.mutate(r)
-		require.ErrorIsf(t, call(r), tc.err, "%s must reject a request without %s", method, tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			r := testFuturesComboBotRequest()
+			tc.mutate(r)
+			require.ErrorIsf(t, call(ctx, r), tc.err, "%s must reject a request without %s", method, tc.name)
+		})
 	}
 }
 
-func TestFuturesComboBotBody(t *testing.T) {
+func TestFuturesComboBotBody(t *testing.T) { //nolint:tparallel // Cases run in order before futuresComboBotBody is called again
 	t.Parallel()
-	requireFuturesComboBotValidation(t, "futuresComboBotBody", func(r *CreateFuturesComboBotRequest) error {
+	requireFuturesComboBotValidation(t, "futuresComboBotBody", func(_ context.Context, r *CreateFuturesComboBotRequest) error {
 		_, err := futuresComboBotBody(r)
 		return err
 	})
@@ -132,12 +141,12 @@ func TestFuturesComboBotBody(t *testing.T) {
 	assert.Equal(t, exp, body, "futuresComboBotBody should leave out the optional settings left unset")
 }
 
-func TestGetFuturesComboBotLimit(t *testing.T) {
+func TestGetFuturesComboBotLimit(t *testing.T) { //nolint:tparallel // Cases share e, which is called again after them
 	t.Parallel()
 	_, err := e.GetFuturesComboBotLimit(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFuturesComboBotLimit must reject a nil request")
-	requireFuturesComboBotValidation(t, "GetFuturesComboBotLimit", func(r *CreateFuturesComboBotRequest) error {
-		_, err := e.GetFuturesComboBotLimit(t.Context(), &GetFuturesComboBotLimitRequest{CreateFuturesComboBotRequest: *r})
+	requireFuturesComboBotValidation(t, "GetFuturesComboBotLimit", func(ctx context.Context, r *CreateFuturesComboBotRequest) error {
+		_, err := e.GetFuturesComboBotLimit(ctx, &GetFuturesComboBotLimitRequest{CreateFuturesComboBotRequest: *r})
 		return err
 	})
 	// Get Bot Parameter Limit's page requires neither rebalancing trigger, so only Create Bot checks them
@@ -203,37 +212,45 @@ func TestGetFuturesComboBotLimit(t *testing.T) {
 	assert.NotEmpty(t, result.CheckCode, "GetFuturesComboBotLimit should return a check code")
 }
 
-func TestCreateFuturesComboBot(t *testing.T) {
+func TestCreateFuturesComboBot(t *testing.T) { //nolint:tparallel // Cases share e or one reply server, each called again after them
 	t.Parallel()
 	_, err := e.CreateFuturesComboBot(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateFuturesComboBot must reject a nil request")
-	requireFuturesComboBotValidation(t, "CreateFuturesComboBot", func(r *CreateFuturesComboBotRequest) error {
-		_, err := e.CreateFuturesComboBot(t.Context(), r)
+	requireFuturesComboBotValidation(t, "CreateFuturesComboBot", func(ctx context.Context, r *CreateFuturesComboBotRequest) error {
+		_, err := e.CreateFuturesComboBot(ctx, r)
 		return err
 	})
+	testCtx := t.Context()
+	// Cases share e, which is called again below, so they run in order
 	for _, tc := range []struct {
+		name   string
 		mode   uint64
 		mutate func(*CreateFuturesComboBotRequest)
 		err    error
 	}{
-		{mode: 1, mutate: func(r *CreateFuturesComboBotRequest) { r.AdjustPositionTimeInterval = 0 }, err: errAdjustPositionTimeRequired},
-		{mode: 2, mutate: func(r *CreateFuturesComboBotRequest) { r.AdjustPositionPercent = 0 }, err: errAdjustPositionPercentRequired},
-		{mode: 3, mutate: func(r *CreateFuturesComboBotRequest) { r.AdjustPositionTimeInterval = 0 }, err: errAdjustPositionTimeRequired},
-		{mode: 3, mutate: func(r *CreateFuturesComboBotRequest) { r.AdjustPositionPercent = 0 }, err: errAdjustPositionPercentRequired},
+		{name: "mode 1 without its time interval", mode: 1, mutate: func(r *CreateFuturesComboBotRequest) { r.AdjustPositionTimeInterval = 0 }, err: errAdjustPositionTimeRequired},
+		{name: "mode 2 without its percent", mode: 2, mutate: func(r *CreateFuturesComboBotRequest) { r.AdjustPositionPercent = 0 }, err: errAdjustPositionPercentRequired},
+		{name: "mode 3 without its time interval", mode: 3, mutate: func(r *CreateFuturesComboBotRequest) { r.AdjustPositionTimeInterval = 0 }, err: errAdjustPositionTimeRequired},
+		{name: "mode 3 without its percent", mode: 3, mutate: func(r *CreateFuturesComboBotRequest) { r.AdjustPositionPercent = 0 }, err: errAdjustPositionPercentRequired},
 	} {
-		r := testFuturesComboBotRequest()
-		r.AdjustPositionMode = tc.mode
-		tc.mutate(r)
-		_, err = e.CreateFuturesComboBot(t.Context(), r)
-		require.ErrorIsf(t, err, tc.err, "CreateFuturesComboBot must reject adjust position mode %d without its trigger", tc.mode)
+		t.Run(tc.name, func(t *testing.T) {
+			r := testFuturesComboBotRequest()
+			r.AdjustPositionMode = tc.mode
+			tc.mutate(r)
+			_, err := e.CreateFuturesComboBot(testCtx, r)
+			require.ErrorIsf(t, err, tc.err, "CreateFuturesComboBot must reject adjust position mode %d without its trigger", tc.mode)
+		})
 	}
 	// Modes 4 to 6 rebalance by hand, on a settings change or on a transfer, and need neither trigger
 	created := restReplyTestInstance(t, map[string]string{"/v5/fcombobot/create": `{"retCode":0,"retMsg":"OK","result":{"status_code":200,"bot_id":"612323083000239723","debug_msg":"bot created"},"retExtInfo":{},"time":1760000000000}`})
+	// Cases here and in the next loop share created, so they run in order
 	for _, mode := range []uint64{4, 5, 6} {
-		r := testFuturesComboBotRequest()
-		r.AdjustPositionMode, r.AdjustPositionPercent, r.AdjustPositionTimeInterval = mode, 0, 0
-		_, err = created.CreateFuturesComboBot(t.Context(), r)
-		require.NoErrorf(t, err, "CreateFuturesComboBot must accept adjust position mode %d without a trigger", mode)
+		t.Run(fmt.Sprintf("mode %d without a trigger", mode), func(t *testing.T) {
+			r := testFuturesComboBotRequest()
+			r.AdjustPositionMode, r.AdjustPositionPercent, r.AdjustPositionTimeInterval = mode, 0, 0
+			_, err := created.CreateFuturesComboBot(testCtx, r)
+			require.NoErrorf(t, err, "CreateFuturesComboBot must accept adjust position mode %d without a trigger", mode)
+		})
 	}
 	// Time rebalancing needs no drift threshold, and percentage rebalancing no interval
 	for _, tc := range []struct {
@@ -244,10 +261,12 @@ func TestCreateFuturesComboBot(t *testing.T) {
 		{mode: 1, interval: time.Hour},
 		{mode: 2, percent: 0.05},
 	} {
-		r := testFuturesComboBotRequest()
-		r.AdjustPositionMode, r.AdjustPositionPercent, r.AdjustPositionTimeInterval = tc.mode, tc.percent, tc.interval
-		_, err = created.CreateFuturesComboBot(t.Context(), r)
-		require.NoErrorf(t, err, "CreateFuturesComboBot must accept adjust position mode %d with only its own trigger", tc.mode)
+		t.Run(fmt.Sprintf("mode %d with only its own trigger", tc.mode), func(t *testing.T) {
+			r := testFuturesComboBotRequest()
+			r.AdjustPositionMode, r.AdjustPositionPercent, r.AdjustPositionTimeInterval = tc.mode, tc.percent, tc.interval
+			_, err := created.CreateFuturesComboBot(testCtx, r)
+			require.NoErrorf(t, err, "CreateFuturesComboBot must accept adjust position mode %d with only its own trigger", tc.mode)
+		})
 	}
 
 	if !mockTests {
@@ -395,10 +414,12 @@ func TestGetFuturesComboBotDetail(t *testing.T) {
 	assert.NotEmpty(t, result.Detail.BotID, "GetFuturesComboBotDetail should return the bot")
 }
 
-func TestValidateFuturesGridInput(t *testing.T) {
+func TestValidateFuturesGridInput(t *testing.T) { //nolint:tparallel // Cases share e, which is called again after them
 	t.Parallel()
 	_, err := e.ValidateFuturesGridInput(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "ValidateFuturesGridInput must reject a nil request")
+	ctx := t.Context()
+	// Cases share e, which is called again below, so they run in order
 	for _, tc := range []struct {
 		name   string
 		mutate func(*ValidateFuturesGridInputRequest)
@@ -412,10 +433,12 @@ func TestValidateFuturesGridInput(t *testing.T) {
 		{name: "grid type", mutate: func(r *ValidateFuturesGridInputRequest) { r.GridType = 0 }, err: errGridTypeRequired},
 		{name: "grid mode", mutate: func(r *ValidateFuturesGridInputRequest) { r.GridMode = 0 }, err: errGridModeRequired},
 	} {
-		r := &ValidateFuturesGridInputRequest{Symbol: "BTCUSDT", CellNumber: 88, MinPrice: 230000, MaxPrice: 800000, Leverage: 6, GridType: 1, GridMode: 2}
-		tc.mutate(r)
-		_, err = e.ValidateFuturesGridInput(t.Context(), r)
-		require.ErrorIsf(t, err, tc.err, "ValidateFuturesGridInput must reject a request without %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			r := &ValidateFuturesGridInputRequest{Symbol: "BTCUSDT", CellNumber: 88, MinPrice: 230000, MaxPrice: 800000, Leverage: 6, GridType: 1, GridMode: 2}
+			tc.mutate(r)
+			_, err := e.ValidateFuturesGridInput(ctx, r)
+			require.ErrorIsf(t, err, tc.err, "ValidateFuturesGridInput must reject a request without %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -542,10 +565,12 @@ func testFuturesGridBotRequest() *CreateFuturesGridBotRequest {
 	}
 }
 
-func TestCreateFuturesGridBot(t *testing.T) {
+func TestCreateFuturesGridBot(t *testing.T) { //nolint:tparallel // Cases share e, which is called again after them
 	t.Parallel()
 	_, err := e.CreateFuturesGridBot(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateFuturesGridBot must reject a nil request")
+	ctx := t.Context()
+	// Cases share e, which is called again below, so they run in order
 	for _, tc := range []struct {
 		name   string
 		mutate func(*CreateFuturesGridBotRequest)
@@ -560,10 +585,12 @@ func TestCreateFuturesGridBot(t *testing.T) {
 		{name: "grid mode", mutate: func(r *CreateFuturesGridBotRequest) { r.GridMode = 0 }, err: errGridModeRequired},
 		{name: "total investment", mutate: func(r *CreateFuturesGridBotRequest) { r.TotalInvestment = 0 }, err: errGridTotalInvestmentRequired},
 	} {
-		r := testFuturesGridBotRequest()
-		tc.mutate(r)
-		_, err = e.CreateFuturesGridBot(t.Context(), r)
-		require.ErrorIsf(t, err, tc.err, "CreateFuturesGridBot must reject a request without %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			r := testFuturesGridBotRequest()
+			tc.mutate(r)
+			_, err := e.CreateFuturesGridBot(ctx, r)
+			require.ErrorIsf(t, err, tc.err, "CreateFuturesGridBot must reject a request without %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -725,10 +752,12 @@ func TestGetFuturesGridBotDetail(t *testing.T) {
 	assert.NotEmpty(t, result.Detail.BotID, "GetFuturesGridBotDetail should return the bot")
 }
 
-func TestGetFuturesMartingaleBotLimit(t *testing.T) {
+func TestGetFuturesMartingaleBotLimit(t *testing.T) { //nolint:tparallel // Cases share e, which is called again after them
 	t.Parallel()
 	_, err := e.GetFuturesMartingaleBotLimit(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFuturesMartingaleBotLimit must reject a nil request")
+	ctx := t.Context()
+	// Cases share e, which is called again below, so they run in order
 	for _, tc := range []struct {
 		name   string
 		mutate func(*GetFuturesMartingaleBotLimitRequest)
@@ -738,10 +767,12 @@ func TestGetFuturesMartingaleBotLimit(t *testing.T) {
 		{name: "martingale mode", mutate: func(r *GetFuturesMartingaleBotLimitRequest) { r.MartingaleMode = 0 }, err: errMartingaleModeRequired},
 		{name: "leverage", mutate: func(r *GetFuturesMartingaleBotLimitRequest) { r.Leverage = 0 }, err: errInvalidLeverage},
 	} {
-		r := &GetFuturesMartingaleBotLimitRequest{Symbol: "MNTUSDT", MartingaleMode: 1, Leverage: 5}
-		tc.mutate(r)
-		_, err = e.GetFuturesMartingaleBotLimit(t.Context(), r)
-		require.ErrorIsf(t, err, tc.err, "GetFuturesMartingaleBotLimit must reject a request without %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			r := &GetFuturesMartingaleBotLimitRequest{Symbol: "MNTUSDT", MartingaleMode: 1, Leverage: 5}
+			tc.mutate(r)
+			_, err := e.GetFuturesMartingaleBotLimit(ctx, r)
+			require.ErrorIsf(t, err, tc.err, "GetFuturesMartingaleBotLimit must reject a request without %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -829,10 +860,12 @@ func testFuturesMartingaleBotRequest() *CreateFuturesMartingaleBotRequest {
 	}
 }
 
-func TestCreateFuturesMartingaleBot(t *testing.T) {
+func TestCreateFuturesMartingaleBot(t *testing.T) { //nolint:tparallel // Cases share e, which is called again after them
 	t.Parallel()
 	_, err := e.CreateFuturesMartingaleBot(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateFuturesMartingaleBot must reject a nil request")
+	ctx := t.Context()
+	// Cases share e, which is called again below, so they run in order
 	for _, tc := range []struct {
 		name   string
 		mutate func(*CreateFuturesMartingaleBotRequest)
@@ -847,10 +880,12 @@ func TestCreateFuturesMartingaleBot(t *testing.T) {
 		{name: "initial margin", mutate: func(r *CreateFuturesMartingaleBotRequest) { r.InitialMargin = 0 }, err: errBotInitialMarginRequired},
 		{name: "round take-profit percent", mutate: func(r *CreateFuturesMartingaleBotRequest) { r.RoundTPPercent = 0 }, err: errRoundTPPercentRequired},
 	} {
-		r := testFuturesMartingaleBotRequest()
-		tc.mutate(r)
-		_, err = e.CreateFuturesMartingaleBot(t.Context(), r)
-		require.ErrorIsf(t, err, tc.err, "CreateFuturesMartingaleBot must reject a request without %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			r := testFuturesMartingaleBotRequest()
+			tc.mutate(r)
+			_, err := e.CreateFuturesMartingaleBot(ctx, r)
+			require.ErrorIsf(t, err, tc.err, "CreateFuturesMartingaleBot must reject a request without %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -984,10 +1019,12 @@ func TestGetFuturesMartingaleBotDetail(t *testing.T) {
 	assert.NotEmpty(t, result.FuturesMartingaleDetail.BotID, "GetFuturesMartingaleBotDetail should return the bot")
 }
 
-func TestValidateSpotGridInput(t *testing.T) {
+func TestValidateSpotGridInput(t *testing.T) { //nolint:tparallel // Cases share e, which is called again after them
 	t.Parallel()
 	_, err := e.ValidateSpotGridInput(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "ValidateSpotGridInput must reject a nil request")
+	ctx := t.Context()
+	// Cases share e, which is called again below, so they run in order
 	for _, tc := range []struct {
 		name   string
 		mutate func(*ValidateSpotGridInputRequest)
@@ -998,10 +1035,12 @@ func TestValidateSpotGridInput(t *testing.T) {
 		{name: "min price", mutate: func(r *ValidateSpotGridInputRequest) { r.MinPrice = 0 }, err: errGridMinPriceRequired},
 		{name: "max price", mutate: func(r *ValidateSpotGridInputRequest) { r.MaxPrice = 0 }, err: errGridMaxPriceRequired},
 	} {
-		r := &ValidateSpotGridInputRequest{Symbol: "MNTUSDT", CellNumber: 66, MinPrice: 0.3, MaxPrice: 1.2}
-		tc.mutate(r)
-		_, err = e.ValidateSpotGridInput(t.Context(), r)
-		require.ErrorIsf(t, err, tc.err, "ValidateSpotGridInput must reject a request without %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			r := &ValidateSpotGridInputRequest{Symbol: "MNTUSDT", CellNumber: 66, MinPrice: 0.3, MaxPrice: 1.2}
+			tc.mutate(r)
+			_, err := e.ValidateSpotGridInput(ctx, r)
+			require.ErrorIsf(t, err, tc.err, "ValidateSpotGridInput must reject a request without %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -1106,10 +1145,12 @@ func testSpotGridBotRequest() *CreateSpotGridBotRequest {
 	}
 }
 
-func TestCreateSpotGridBot(t *testing.T) {
+func TestCreateSpotGridBot(t *testing.T) { //nolint:tparallel // Cases share e, which is called again after them
 	t.Parallel()
 	_, err := e.CreateSpotGridBot(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateSpotGridBot must reject a nil request")
+	ctx := t.Context()
+	// Cases share e, which is called again below, so they run in order
 	for _, tc := range []struct {
 		name   string
 		mutate func(*CreateSpotGridBotRequest)
@@ -1125,10 +1166,12 @@ func TestCreateSpotGridBot(t *testing.T) {
 		{name: "base investment in base and quote mode", mutate: func(r *CreateSpotGridBotRequest) { r.BaseInvestment = -1 }, err: errGridBaseInvestmentRequired},
 		{name: "quote investment in base and quote mode", mutate: func(r *CreateSpotGridBotRequest) { r.QuoteInvestment = 0 }, err: errGridQuoteInvestmentRequired},
 	} {
-		r := testSpotGridBotRequest()
-		tc.mutate(r)
-		_, err = e.CreateSpotGridBot(t.Context(), r)
-		require.ErrorIsf(t, err, tc.err, "CreateSpotGridBot must reject a request without %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			r := testSpotGridBotRequest()
+			tc.mutate(r)
+			_, err := e.CreateSpotGridBot(ctx, r)
+			require.ErrorIsf(t, err, tc.err, "CreateSpotGridBot must reject a request without %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -1269,10 +1312,12 @@ func TestGetSpotGridBotDetail(t *testing.T) {
 	assert.NotEmpty(t, result.Detail.GridID, "GetSpotGridBotDetail should return the grid")
 }
 
-func TestCreateDCABot(t *testing.T) {
+func TestCreateDCABot(t *testing.T) { //nolint:tparallel // Cases share e, which is called again after them
 	t.Parallel()
 	_, err := e.CreateDCABot(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateDCABot must reject a nil request")
+	ctx := t.Context()
+	// Cases share e, which is called again below, so they run in order
 	for _, tc := range []struct {
 		name   string
 		mutate func(*CreateDCABotRequest)
@@ -1287,10 +1332,12 @@ func TestCreateDCABot(t *testing.T) {
 		{name: "a pair's base", mutate: func(r *CreateDCABotRequest) { r.Pairs[0].Base = currency.EMPTYCODE }, err: currency.ErrCurrencyCodeEmpty},
 		{name: "a pair's amount", mutate: func(r *CreateDCABotRequest) { r.Pairs[0].Amount = 0 }, err: order.ErrAmountIsInvalid},
 	} {
-		r := &CreateDCABotRequest{Frequency: time.Hour, QuoteCoin: currency.USDT, Pairs: []DCABotPairRequest{{Base: currency.BTC, Amount: 10}}}
-		tc.mutate(r)
-		_, err = e.CreateDCABot(t.Context(), r)
-		require.ErrorIsf(t, err, tc.err, "CreateDCABot must reject a request without %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			r := &CreateDCABotRequest{Frequency: time.Hour, QuoteCoin: currency.USDT, Pairs: []DCABotPairRequest{{Base: currency.BTC, Amount: 10}}}
+			tc.mutate(r)
+			_, err := e.CreateDCABot(ctx, r)
+			require.ErrorIsf(t, err, tc.err, "CreateDCABot must reject a request without %s", tc.name)
+		})
 	}
 
 	if !mockTests {

@@ -462,14 +462,18 @@ func TestWebsocketHandleEventPrivateData(t *testing.T) {
 func TestIsEventContractFrame(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name  string
 		frame string
 		exp   bool
 	}{
-		{frame: `{"topic":"execution","data":[{"category":"event","symbol":"BTCUSDT-15MIN-DOWN"}]}`, exp: true},
-		{frame: `{"topic":"order","data":[{"category":"linear","symbol":"BTCUSDT"}]}`},
-		{frame: `{"topic":"order","data":[]}`},
-		{frame: `{"topic":"order"`},
+		{name: "event contract execution", frame: `{"topic":"execution","data":[{"category":"event","symbol":"BTCUSDT-15MIN-DOWN"}]}`, exp: true},
+		{name: "linear order", frame: `{"topic":"order","data":[{"category":"linear","symbol":"BTCUSDT"}]}`},
+		{name: "order with empty data", frame: `{"topic":"order","data":[]}`},
+		{name: "truncated frame", frame: `{"topic":"order"`},
 	} {
-		assert.Equalf(t, tc.exp, isEventContractFrame([]byte(tc.frame)), "isEventContractFrame should return %t for %s", tc.exp, tc.frame)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, isEventContractFrame([]byte(tc.frame)), "isEventContractFrame should return %t for %s", tc.exp, tc.frame)
+		})
 	}
 }

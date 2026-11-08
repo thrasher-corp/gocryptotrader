@@ -304,7 +304,7 @@ func TestGetFuturesLeverage(t *testing.T) {
 	assert.Equal(t, cLinear, result.Category, "GetFuturesLeverage should return the requested category")
 }
 
-func TestSwitchPositionMode(t *testing.T) {
+func TestSwitchPositionMode(t *testing.T) { //nolint:tparallel // Cases share e and change the account in turn
 	t.Parallel()
 	err := e.SwitchPositionMode(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SwitchPositionMode must reject a nil request")
@@ -316,11 +316,18 @@ func TestSwitchPositionMode(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	for _, req := range []*SwitchPositionModeRequest{
-		{Category: cLinear, Symbol: "BTCUSDT", Mode: 3},
-		{Category: cLinear, Coin: currency.USDT},
+	ctx := t.Context()
+	// Cases share e and change the account in turn, so they run in order
+	for _, tc := range []struct {
+		name string
+		req  *SwitchPositionModeRequest
+	}{
+		{name: "symbol", req: &SwitchPositionModeRequest{Category: cLinear, Symbol: "BTCUSDT", Mode: 3}},
+		{name: "coin", req: &SwitchPositionModeRequest{Category: cLinear, Coin: currency.USDT}},
 	} {
-		assert.NoErrorf(t, e.SwitchPositionMode(t.Context(), req), "SwitchPositionMode should not error for symbol %q and coin %q", req.Symbol, req.Coin)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NoErrorf(t, e.SwitchPositionMode(ctx, tc.req), "SwitchPositionMode should not error for symbol %q and coin %q", tc.req.Symbol, tc.req.Coin)
+		})
 	}
 }
 
@@ -359,7 +366,7 @@ func TestSetTradingStop(t *testing.T) {
 	}
 }
 
-func TestSetAutoAddMargin(t *testing.T) {
+func TestSetAutoAddMargin(t *testing.T) { //nolint:tparallel // Cases share e and change the account in turn
 	t.Parallel()
 	err := e.SetAutoAddMargin(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetAutoAddMargin must reject a nil request")
@@ -371,11 +378,18 @@ func TestSetAutoAddMargin(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	for _, req := range []*SetAutoAddMarginRequest{
-		{Category: cLinear, Symbol: "BTCUSDT", PositionIndex: 2},
-		{Category: cLinear, Symbol: "BTCUSDT", AutoAddMargin: true},
+	ctx := t.Context()
+	// Cases share e and change the account in turn, so they run in order
+	for _, tc := range []struct {
+		name string
+		req  *SetAutoAddMarginRequest
+	}{
+		{name: "off", req: &SetAutoAddMarginRequest{Category: cLinear, Symbol: "BTCUSDT", PositionIndex: 2}},
+		{name: "on", req: &SetAutoAddMarginRequest{Category: cLinear, Symbol: "BTCUSDT", AutoAddMargin: true}},
 	} {
-		assert.NoErrorf(t, e.SetAutoAddMargin(t.Context(), req), "SetAutoAddMargin should not error turning it %t", req.AutoAddMargin)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NoErrorf(t, e.SetAutoAddMargin(ctx, tc.req), "SetAutoAddMargin should not error turning it %t", tc.req.AutoAddMargin)
+		})
 	}
 }
 

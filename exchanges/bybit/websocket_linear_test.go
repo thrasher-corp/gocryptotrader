@@ -38,11 +38,17 @@ func TestGenerateLinearDefaultSubscriptions(t *testing.T) {
 
 func TestCheckLinearAsset(t *testing.T) {
 	t.Parallel()
+	// The next loop calls checkLinearAsset again, so these cases run in order before it
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.USDCMarginedFutures} {
-		assert.NoErrorf(t, checkLinearAsset(a), "checkLinearAsset should accept %s, which the linear stream serves", a)
+		t.Run(a.String(), func(t *testing.T) {
+			assert.NoErrorf(t, checkLinearAsset(a), "checkLinearAsset should accept %s, which the linear stream serves", a)
+		})
 	}
 	for _, a := range []asset.Item{asset.Spot, asset.CoinMarginedFutures, asset.Options, asset.OptionCombo} {
-		assert.ErrorIsf(t, checkLinearAsset(a), asset.ErrInvalidAsset, "checkLinearAsset should refuse %s, which the linear stream does not serve", a)
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, checkLinearAsset(a), asset.ErrInvalidAsset, "checkLinearAsset should refuse %s, which the linear stream does not serve", a)
+		})
 	}
 }
 

@@ -303,31 +303,36 @@ func TestGetSpotMarginHistoricalInterestRate(t *testing.T) {
 	}
 }
 
-func TestToggleMarginTrade(t *testing.T) {
+func TestToggleMarginTrade(t *testing.T) { //nolint:tparallel // Cases share e and change the account in turn
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
+	ctx := t.Context()
+	// Cases share e and change the account in turn, so they run in order
 	for _, tc := range []struct {
-		on  bool
-		exp *SpotMarginModeResponse
+		name string
+		on   bool
+		exp  *SpotMarginModeResponse
 	}{
-		{on: true, exp: &SpotMarginModeResponse{
+		{name: "on", on: true, exp: &SpotMarginModeResponse{
 			SpotMarginMode: true,
 		}},
-		{on: false, exp: &SpotMarginModeResponse{}},
+		{name: "off", on: false, exp: &SpotMarginModeResponse{}},
 	} {
-		result, err := e.ToggleMarginTrade(t.Context(), tc.on)
-		require.NoErrorf(t, err, "ToggleMarginTrade must not error turning it %t", tc.on)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "ToggleMarginTrade should decode every field turning it %t", tc.on)
-			continue
-		}
-		assert.Equalf(t, tc.on, result.SpotMarginMode.Bool(), "ToggleMarginTrade should turn it %t", tc.on)
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.ToggleMarginTrade(ctx, tc.on)
+			require.NoErrorf(t, err, "ToggleMarginTrade must not error turning it %t", tc.on)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "ToggleMarginTrade should decode every field turning it %t", tc.on)
+				return
+			}
+			assert.Equalf(t, tc.on, result.SpotMarginMode.Bool(), "ToggleMarginTrade should turn it %t", tc.on)
+		})
 	}
 }
 
-func TestSetSpotMarginTradeLeverage(t *testing.T) {
+func TestSetSpotMarginTradeLeverage(t *testing.T) { //nolint:tparallel // Cases share e and change the account in turn
 	t.Parallel()
 	err := e.SetSpotMarginTradeLeverage(t.Context(), 0, currency.EMPTYCODE)
 	require.ErrorIs(t, err, errInvalidLeverage, "SetSpotMarginTradeLeverage must reject a request without a leverage")
@@ -335,14 +340,19 @@ func TestSetSpotMarginTradeLeverage(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
+	ctx := t.Context()
+	// Cases share e and change the account in turn, so they run in order
 	for _, tc := range []struct {
+		name     string
 		leverage float64
 		coin     currency.Code
 	}{
-		{leverage: 4},
-		{leverage: 3, coin: currency.BTC},
+		{name: "account", leverage: 4},
+		{name: "coin", leverage: 3, coin: currency.BTC},
 	} {
-		assert.NoErrorf(t, e.SetSpotMarginTradeLeverage(t.Context(), tc.leverage, tc.coin), "SetSpotMarginTradeLeverage should not error for coin %q", tc.coin)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NoErrorf(t, e.SetSpotMarginTradeLeverage(ctx, tc.leverage, tc.coin), "SetSpotMarginTradeLeverage should not error for coin %q", tc.coin)
+		})
 	}
 }
 

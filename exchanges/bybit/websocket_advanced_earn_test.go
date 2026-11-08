@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"fmt"
 	"net/http"
@@ -98,7 +99,10 @@ func TestIsAdvancedEarnChannel(t *testing.T) {
 		{channel: subscription.TickerChannel},
 		{channel: ""},
 	} {
-		assert.Equalf(t, tc.exp, isAdvancedEarnChannel(tc.channel), "isAdvancedEarnChannel should report whether the fp stream serves %q", tc.channel)
+		t.Run(cmp.Or(tc.channel, "empty channel"), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, isAdvancedEarnChannel(tc.channel), "isAdvancedEarnChannel should report whether the fp stream serves %q", tc.channel)
+		})
 	}
 }
 
@@ -141,9 +145,13 @@ func TestWebsocketHandleAdvancedEarnData(t *testing.T) {
 		})
 	}
 	assert.Error(t, ex.wsHandleAdvancedEarnData(t.Context(), nil, []byte(`not json`)), "wsHandleAdvancedEarnData should error on a frame that is not JSON")
+	testCtx := t.Context()
+	// Cases share ex, so they run in order
 	for _, channel := range advancedEarnChannels {
-		frame := []byte(`{"topic":"` + channel + `","data":{}}`)
-		assert.Errorf(t, ex.wsHandleAdvancedEarnData(t.Context(), nil, frame), "wsHandleAdvancedEarnData should error on %s offers that do not decode", channel)
+		t.Run("undecodable "+channel, func(t *testing.T) {
+			frame := []byte(`{"topic":"` + channel + `","data":{}}`)
+			assert.Errorf(t, ex.wsHandleAdvancedEarnData(testCtx, nil, frame), "wsHandleAdvancedEarnData should error on %s offers that do not decode", channel)
+		})
 	}
 }
 
@@ -216,10 +224,12 @@ func TestManageAdvancedEarnSubscriptions(t *testing.T) {
 	require.ErrorIs(t, err, subscription.ErrDuplicate, "manageAdvancedEarnSubscriptions must report a subscription it holds already")
 }
 
-func TestSendAdvancedEarnSubscription(t *testing.T) {
+func TestSendAdvancedEarnSubscription(t *testing.T) { //nolint:tparallel // Subtests share ex and req, so they run in order
 	t.Parallel()
 	ex := newAdvancedEarnTestExchange(t)
 	req := &AdvancedEarnSubscriptionRequest{RequestID: "2f9d3c1e", Operation: "subscribe", Arguments: []string{AdvancedEarnDualAssetsOffersChannel}}
+	ctx := t.Context()
+	// Cases share ex and req, which the calls after the loop use too, so they run in order
 	for _, tc := range []struct {
 		name  string
 		reply string // an empty reply fails the send
@@ -230,11 +240,13 @@ func TestSendAdvancedEarnSubscription(t *testing.T) {
 		{name: "null", reply: `null`, err: common.ErrNoResponse},
 		{name: "failed send", err: errFixtureSend},
 	} {
-		conn := &signatureConnection{FixtureConnection: &FixtureConnection{reply: replySequence(tc.reply)}}
-		err := ex.sendAdvancedEarnSubscription(t.Context(), conn, req)
-		require.ErrorIsf(t, err, tc.err, "sendAdvancedEarnSubscription must return the expected error (%s)", tc.name)
-		assert.Equalf(t, []any{req}, conn.sent, "sendAdvancedEarnSubscription should send the request (%s)", tc.name)
-		assert.Equalf(t, []any{"2f9d3c1e"}, conn.signatures, "sendAdvancedEarnSubscription should wait on the request ID, which the reply echoes (%s)", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			conn := &signatureConnection{FixtureConnection: &FixtureConnection{reply: replySequence(tc.reply)}}
+			err := ex.sendAdvancedEarnSubscription(ctx, conn, req)
+			require.ErrorIsf(t, err, tc.err, "sendAdvancedEarnSubscription must return the expected error (%s)", tc.name)
+			assert.Equalf(t, []any{req}, conn.sent, "sendAdvancedEarnSubscription should send the request (%s)", tc.name)
+			assert.Equalf(t, []any{"2f9d3c1e"}, conn.signatures, "sendAdvancedEarnSubscription should wait on the request ID, which the reply echoes (%s)", tc.name)
+		})
 	}
 	err := ex.sendAdvancedEarnSubscription(t.Context(), &FixtureConnection{reply: replySequence(`{"req_id":"2f9d3c1e","success":false,"ret_msg":"Params Error","op":"subscribe","conn_id":"d7k2mock"}`)}, req)
 	assert.ErrorContains(t, err, "Params Error", "sendAdvancedEarnSubscription should carry the stream's reason for a rejection")

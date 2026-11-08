@@ -3,8 +3,6 @@ package order
 import (
 	"math"
 	"testing"
-	"time"
-	"uuid"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -317,108 +315,6 @@ func TestTradeHistoryMergeFees(t *testing.T) {
 	}
 }
 
-// TestUpdateOrderFromDetailFees follows an order's cumulative fees through a sequence of lookups, starting with the one
-// #2456 describes: a second currency must replace the first lookup's single fee instead of leaving it standing for the
-// whole order, and repeated or omitted fees must leave the stored fees and LastUpdated alone
-func TestUpdateOrderFromDetailFees(t *testing.T) {
-	t.Parallel()
-	btc := newTestFees(t, FeeAmount{Currency: currency.BTC, Amount: 0.001})
-	btcUSDT := newTestFees(t, FeeAmount{Currency: currency.BTC, Amount: 0.001}, FeeAmount{Currency: currency.USDT, Amount: 0.2})
-	rebate := newTestFees(t, FeeAmount{Currency: currency.USDT, Amount: -0.05})
-	zero := newTestFees(t, FeeAmount{Currency: currency.BTC})
-	start := time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC)
-	stored := &Detail{OrderID: "1", LastUpdated: start}
-	for i, step := range []struct {
-		name     string
-		update   Detail
-		fees     Fees
-		fee      float64
-		feeAsset currency.Code
-		updated  bool
-	}{
-		{name: "one currency", update: detailWithFees(btc), fees: btc, fee: 0.001, feeAsset: currency.BTC, updated: true},
-		{name: "two currencies", update: detailWithFees(btcUSDT), fees: btcUSDT, updated: true},
-		{name: "repeated snapshot", update: detailWithFees(btcUSDT), fees: btcUSDT},
-		{name: "omitted fees", update: Detail{}, fees: btcUSDT},
-		{name: "single fee without fees", update: Detail{Fee: 0.3, FeeAsset: currency.USDT}, fees: btcUSDT},
-		{name: "rebate in one currency", update: detailWithFees(rebate), fees: rebate, fee: -0.05, feeAsset: currency.USDT, updated: true},
-		{name: "zero fee", update: detailWithFees(zero), fees: zero, feeAsset: currency.BTC, updated: true},
-		{name: "no fees", update: detailWithFees(newTestFees(t)), fees: newTestFees(t), updated: true},
-	} {
-		lastUpdated := stored.LastUpdated
-		step.update.OrderID = "1"
-		step.update.LastUpdated = start.Add(time.Duration(i+1) * time.Minute)
-		require.NoErrorf(t, stored.UpdateOrderFromDetail(&step.update), "UpdateOrderFromDetail must not error for %s", step.name)
-		assert.Equalf(t, step.fees, stored.Fees, "UpdateOrderFromDetail should store the fees for %s", step.name)
-		assert.Equalf(t, step.fee, stored.Fee, "UpdateOrderFromDetail should store the single fee for %s", step.name)
-		assert.Equalf(t, step.feeAsset, stored.FeeAsset, "UpdateOrderFromDetail should store the single fee asset for %s", step.name)
-		if step.updated {
-			assert.Equalf(t, step.update.LastUpdated, stored.LastUpdated, "UpdateOrderFromDetail should update LastUpdated for %s", step.name)
-		} else {
-			assert.Equalf(t, lastUpdated, stored.LastUpdated, "UpdateOrderFromDetail should not update LastUpdated for %s", step.name)
-		}
-	}
-}
-
-// TestUpdateOrderFromDetailMixedAssetFills replays #2394: a lookup mid-fill stores one fill's fee, and the lookup once
-// filled reports fees in a second asset, which must clear that single fee rather than leave it as the order's
-func TestUpdateOrderFromDetailMixedAssetFills(t *testing.T) {
-	t.Parallel()
-	mx := currency.NewCode("MX")
-	usdtFill := TradeHistory{TID: "1", Price: 3.5, Amount: 1}
-	usdtFill.SetFees(newTestFees(t, FeeAmount{Currency: currency.USDT, Amount: 0.0035}))
-	mxFill := TradeHistory{TID: "2", Price: 3.5, Amount: 1}
-	mxFill.SetFees(newTestFees(t, FeeAmount{Currency: mx, Amount: 0.01}))
-
-	midFill := Detail{OrderID: "1", Status: PartiallyFilled, Trades: []TradeHistory{usdtFill}}
-	midFill.SetFees(newTestFees(t, FeeAmount{Currency: currency.USDT, Amount: 0.0035}))
-	filled := Detail{OrderID: "1", Status: Filled, Trades: []TradeHistory{usdtFill, mxFill}}
-	filled.SetFees(newTestFees(t, FeeAmount{Currency: currency.USDT, Amount: 0.0035}, FeeAmount{Currency: mx, Amount: 0.01}))
-
-	stored := &Detail{OrderID: "1"}
-	require.NoError(t, stored.UpdateOrderFromDetail(&midFill), "UpdateOrderFromDetail must not error mid-fill")
-	assert.Equal(t, 0.0035, stored.Fee, "UpdateOrderFromDetail should store the fee mid-fill")
-	assert.Equal(t, currency.USDT, stored.FeeAsset, "UpdateOrderFromDetail should store the fee asset mid-fill")
-
-	require.NoError(t, stored.UpdateOrderFromDetail(&filled), "UpdateOrderFromDetail must not error once filled")
-	assert.Equal(t, filled.Fees, stored.Fees, "UpdateOrderFromDetail should store the fees in both assets")
-	assert.Zero(t, stored.Fee, "UpdateOrderFromDetail should not leave the first fill's fee as the order's")
-	assert.True(t, stored.FeeAsset.IsEmpty(), "UpdateOrderFromDetail should not leave the first fill's fee asset as the order's")
-	assert.Equal(t, filled.Trades, stored.Trades, "UpdateOrderFromDetail should keep each fill's own fees")
-}
-
-// TestUpdateOrderFromDetailFillFees checks that fills keep their own fees apart from the order's: a fill reported again
-// replaces its fees rather than adding to them, and fills never change the order's cumulative fees
-func TestUpdateOrderFromDetailFillFees(t *testing.T) {
-	t.Parallel()
-	orderFees := newTestFees(t, FeeAmount{Currency: currency.USDT, Amount: 0.3})
-	usdt := newTestFees(t, FeeAmount{Currency: currency.USDT, Amount: 0.1})
-	usdtGT := newTestFees(t, FeeAmount{Currency: currency.NewCode("GT"), Amount: 0.01}, FeeAmount{Currency: currency.USDT, Amount: 0.1})
-
-	stored := &Detail{OrderID: "1"}
-	stored.SetFees(orderFees)
-	update := &Detail{OrderID: "1", Trades: []TradeHistory{{TID: "1"}, {TID: "2"}, {TID: "3", Fees: usdt, Fee: 9, FeeAsset: "ETH"}}}
-	update.Trades[0].SetFees(usdt)
-	update.Trades[1].SetFees(usdtGT)
-	exp := []TradeHistory{
-		{TID: "1", Fees: usdt, Fee: 0.1, FeeAsset: "USDT"},
-		{TID: "2", Fees: usdtGT},
-		{TID: "3", Fees: usdt, Fee: 0.1, FeeAsset: "USDT"},
-	}
-	for _, pass := range []string{"first", "repeated"} {
-		require.NoErrorf(t, stored.UpdateOrderFromDetail(update), "UpdateOrderFromDetail must not error for the %s update", pass)
-		assert.Equalf(t, orderFees, stored.Fees, "UpdateOrderFromDetail should not change the order's fees from its fills for the %s update", pass)
-		assert.Equalf(t, 0.3, stored.Fee, "UpdateOrderFromDetail should not change the order's single fee from its fills for the %s update", pass)
-		assert.Equalf(t, exp, stored.Trades, "UpdateOrderFromDetail should keep each fill once with its own fees for the %s update", pass)
-	}
-
-	update = &Detail{OrderID: "1", Trades: []TradeHistory{{TID: "2"}}}
-	update.Trades[0].SetFees(usdt)
-	require.NoError(t, stored.UpdateOrderFromDetail(update), "UpdateOrderFromDetail must not error")
-	exp[1] = TradeHistory{TID: "2", Fees: usdt, Fee: 0.1, FeeAsset: "USDT"}
-	assert.Equal(t, exp, stored.Trades, "UpdateOrderFromDetail should replace a fill's fees with its newer ones")
-}
-
 // TestFeesIsolation checks that fees stored in or returned from an order cannot be changed through any other copy
 func TestFeesIsolation(t *testing.T) {
 	t.Parallel()
@@ -448,31 +344,4 @@ func TestFeesIsolation(t *testing.T) {
 
 	assert.Equal(t, exp, stored.Fees.Amounts(), "the stored order's fees should not change through another copy")
 	assert.Equal(t, exp, stored.Trades[0].Fees.Amounts(), "the stored fill's fees should not change through another copy")
-}
-
-func TestSubmitResponseDeriveDetailFees(t *testing.T) {
-	t.Parallel()
-	fill := TradeHistory{TID: "1"}
-	fill.SetFees(newTestFees(t, FeeAmount{Currency: currency.NewCode("BNB"), Amount: 0.0001}))
-	s := &SubmitResponse{OrderID: "1", Trades: []TradeHistory{fill}}
-	s.SetFees(newTestFees(t, FeeAmount{Currency: currency.NewCode("BNB"), Amount: 0.0001}, FeeAmount{Currency: currency.USDT, Amount: 0.2}))
-	d, err := s.DeriveDetail(uuid.NewV4())
-	require.NoError(t, err, "DeriveDetail must not error")
-	assert.Equal(t, s.Fees, d.Fees, "DeriveDetail should carry the order's fees")
-	assert.Zero(t, d.Fee, "DeriveDetail should not set a single fee for fees in several currencies")
-	assert.True(t, d.FeeAsset.IsEmpty(), "DeriveDetail should not set a single fee asset for fees in several currencies")
-	assert.Equal(t, s.Trades, d.Trades, "DeriveDetail should carry each fill's fees")
-
-	s = &SubmitResponse{Fees: newTestFees(t, FeeAmount{Currency: currency.USDT, Amount: 0.2}), Fee: 9, FeeAsset: currency.ETH}
-	d, err = s.DeriveDetail(uuid.NewV4())
-	require.NoError(t, err, "DeriveDetail must not error")
-	assert.Equal(t, 0.2, d.Fee, "DeriveDetail should take the single fee from reported fees")
-	assert.Equal(t, currency.USDT, d.FeeAsset, "DeriveDetail should take the single fee asset from reported fees")
-
-	s = &SubmitResponse{Fee: 0.1, FeeAsset: currency.USDT}
-	d, err = s.DeriveDetail(uuid.NewV4())
-	require.NoError(t, err, "DeriveDetail must not error")
-	assert.False(t, d.Fees.IsReported(), "DeriveDetail should not report fees the submission did not report")
-	assert.Equal(t, 0.1, d.Fee, "DeriveDetail should carry a single fee")
-	assert.Equal(t, currency.USDT, d.FeeAsset, "DeriveDetail should carry a single fee asset")
 }

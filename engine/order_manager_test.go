@@ -1486,6 +1486,7 @@ func TestGetOrdersSnapshot(t *testing.T) {
 		},
 	}
 	all := []order.Detail{{Status: order.Open}, {OrderID: "filled", Status: order.Filled}}
+	// Cases share the order manager, so they run in order
 	for _, tc := range []struct {
 		status order.Status
 		exp    []order.Detail
@@ -1495,7 +1496,9 @@ func TestGetOrdersSnapshot(t *testing.T) {
 		{status: order.AnyStatus, exp: all},
 		{status: order.UnknownStatus, exp: all},
 	} {
-		assert.Equalf(t, tc.exp, o.GetOrdersSnapshot(tc.status), "GetOrdersSnapshot should return the orders for status %s", tc.status)
+		t.Run(tc.status.String(), func(t *testing.T) {
+			assert.Equalf(t, tc.exp, o.GetOrdersSnapshot(tc.status), "GetOrdersSnapshot should return the orders for status %s", tc.status)
+		})
 	}
 
 	t.Run("waits for the order store's lock", func(t *testing.T) {
@@ -1938,12 +1941,14 @@ func newTestFees(t *testing.T, amounts ...order.FeeAmount) order.Fees {
 // TestOrderManagerFees follows #2456's lookups through the order manager's REST paths, GetOrderInfo and
 // FetchAndUpdateExchangeOrder: a second currency must replace the stored single fee, a lookup without fees keeps the
 // stored ones even when it carries a single fee, and an empty snapshot clears them
-func TestOrderManagerFees(t *testing.T) {
+func TestOrderManagerFees(t *testing.T) { //nolint:tparallel // top-level parallel is safe; each step updates the order the step before stored
 	t.Parallel()
 	s, exch := setupFeesExchange(t)
 	btc := newTestFees(t, order.FeeAmount{Currency: currency.BTC, Amount: 0.001})
 	btcUSDT := newTestFees(t, order.FeeAmount{Currency: currency.BTC, Amount: 0.001}, order.FeeAmount{Currency: currency.USDT, Amount: 0.2})
 	none := newTestFees(t)
+	ctx := t.Context()
+	// Each step updates the order the step before stored, so the steps run in order
 	for _, step := range []struct {
 		name     string
 		fees     order.Fees
@@ -1957,17 +1962,19 @@ func TestOrderManagerFees(t *testing.T) {
 		{name: "a single fee without fees", fee: 0.3, expFees: btcUSDT},
 		{name: "no fees", fees: none, expFees: none},
 	} {
-		exch.orderInfo = &order.Detail{Exchange: exch.GetName(), OrderID: "1", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Status: order.PartiallyFilled, Fee: step.fee}
-		exch.orderInfo.SetFees(step.fees)
-		got, err := s.OrderManager.GetOrderInfo(t.Context(), exch.GetName(), "1", currency.NewBTCUSDT(), asset.Spot)
-		require.NoErrorf(t, err, "GetOrderInfo must not error for %s", step.name)
-		stored, err := s.OrderManager.GetByExchangeAndID(exch.GetName(), "1")
-		require.NoErrorf(t, err, "GetByExchangeAndID must not error for %s", step.name)
-		for _, d := range []*order.Detail{&got, stored} {
-			assert.Equalf(t, step.expFees, d.Fees, "the order should have the expected fees for %s", step.name)
-			assert.Equalf(t, step.expFee, d.Fee, "the order should have the expected single fee for %s", step.name)
-			assert.Equalf(t, step.expAsset, d.FeeAsset, "the order should have the expected single fee asset for %s", step.name)
-		}
+		t.Run(step.name, func(t *testing.T) {
+			exch.orderInfo = &order.Detail{Exchange: exch.GetName(), OrderID: "1", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Status: order.PartiallyFilled, Fee: step.fee}
+			exch.orderInfo.SetFees(step.fees)
+			got, err := s.OrderManager.GetOrderInfo(ctx, exch.GetName(), "1", currency.NewBTCUSDT(), asset.Spot)
+			require.NoErrorf(t, err, "GetOrderInfo must not error for %s", step.name)
+			stored, err := s.OrderManager.GetByExchangeAndID(exch.GetName(), "1")
+			require.NoErrorf(t, err, "GetByExchangeAndID must not error for %s", step.name)
+			for _, d := range []*order.Detail{&got, stored} {
+				assert.Equalf(t, step.expFees, d.Fees, "the order should have the expected fees for %s", step.name)
+				assert.Equalf(t, step.expFee, d.Fee, "the order should have the expected single fee for %s", step.name)
+				assert.Equalf(t, step.expAsset, d.FeeAsset, "the order should have the expected single fee asset for %s", step.name)
+			}
+		})
 	}
 
 	exch.orderInfo.SetFees(btcUSDT)

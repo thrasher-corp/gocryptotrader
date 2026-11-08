@@ -1872,12 +1872,15 @@ func TestP2PFieldsDecodeEitherForm(t *testing.T) {
 	requireDecodesEachForm(t, P2PChatMessage{ID: preciseNumber(t, "1920001234567890123")}, `{"id":1920001234567890123}`, `{"id":"1920001234567890123"}`)
 }
 
-// requireDecodesEachForm decodes every form into a T and compares each with exp
+// requireDecodesEachForm decodes every form into a T, in a subtest named after the form, and compares each with exp
 func requireDecodesEachForm[T any](t *testing.T, exp T, forms ...string) {
 	t.Helper()
+	// Forms decode in turn, and a caller may decode more after them, so they run in order
 	for _, data := range forms {
-		var got T
-		require.NoErrorf(t, json.Unmarshal([]byte(data), &got), "Unmarshal must decode %s", data)
-		assert.Equalf(t, exp, got, "Unmarshal should decode %s", data)
+		t.Run(data, func(t *testing.T) {
+			var got T
+			require.NoErrorf(t, json.Unmarshal([]byte(data), &got), "Unmarshal must decode %s", data)
+			assert.Equalf(t, exp, got, "Unmarshal should decode %s", data)
+		})
 	}
 }

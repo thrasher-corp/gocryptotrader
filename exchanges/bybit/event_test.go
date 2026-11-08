@@ -234,6 +234,26 @@ func TestGetEventInstrumentsInfo(t *testing.T) {
 
 func TestGetEventOrderbook(t *testing.T) {
 	t.Parallel()
+	// The reply for a closed contract's book that has no orders has a seq of -1
+	t.Run("book without orders", func(t *testing.T) {
+		t.Parallel()
+		ex := newTransportTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+			_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{"s":"ETHUSDT-30OCT26-2100-ABOVE","r":[],"ts":1793424662476,"u":1,"seq":-1,"cts":1793326244226},"retExtInfo":{},"time":1793424662476}`)
+			assert.NoError(t, err, "writing the reply should not error")
+		})
+		result, err := ex.GetEventOrderbook(t.Context(), "ETHUSDT-30OCT26-2100-ABOVE")
+		require.NoError(t, err, "GetEventOrderbook must not error for a book without orders")
+		exp := &EventOrderbookResponse{
+			Symbol:            "ETHUSDT-30OCT26-2100-ABOVE",
+			Entries:           []EventOrderbookEntry{},
+			Timestamp:         types.Time(time.UnixMilli(1793424662476)),
+			UpdateID:          1,
+			Sequence:          -1,
+			CreationTimestamp: types.Time(time.UnixMilli(1793326244226)),
+		}
+		assert.Equal(t, exp, result, "GetEventOrderbook should decode every field")
+	})
+
 	_, err := e.GetEventOrderbook(t.Context(), "")
 	require.ErrorIs(t, err, errSymbolMissing, "GetEventOrderbook must reject an empty symbol")
 
@@ -256,26 +276,6 @@ func TestGetEventOrderbook(t *testing.T) {
 		return
 	}
 	assert.Equal(t, symbol, result.Symbol, "GetEventOrderbook should return the symbol's book")
-}
-
-// TestGetEventOrderbookWithoutOrders checks the reply for a closed contract's book that has no orders, whose seq is -1
-func TestGetEventOrderbookWithoutOrders(t *testing.T) {
-	t.Parallel()
-	ex := newTransportTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
-		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{"s":"ETHUSDT-30OCT26-2100-ABOVE","r":[],"ts":1793424662476,"u":1,"seq":-1,"cts":1793326244226},"retExtInfo":{},"time":1793424662476}`)
-		assert.NoError(t, err, "writing the reply should not error")
-	})
-	result, err := ex.GetEventOrderbook(t.Context(), "ETHUSDT-30OCT26-2100-ABOVE")
-	require.NoError(t, err, "GetEventOrderbook must not error for a book without orders")
-	exp := &EventOrderbookResponse{
-		Symbol:            "ETHUSDT-30OCT26-2100-ABOVE",
-		Entries:           []EventOrderbookEntry{},
-		Timestamp:         types.Time(time.UnixMilli(1793424662476)),
-		UpdateID:          1,
-		Sequence:          -1,
-		CreationTimestamp: types.Time(time.UnixMilli(1793326244226)),
-	}
-	assert.Equal(t, exp, result, "GetEventOrderbook should decode every field")
 }
 
 func TestEventOrderbookEntryUnmarshalJSON(t *testing.T) {

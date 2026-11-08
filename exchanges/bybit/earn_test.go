@@ -229,9 +229,19 @@ func TestGetEarnOrderHistory(t *testing.T) {
 	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired, "GetEarnOrderHistory must require an order ID or order link ID for OnChain")
 	// Either ID alone is enough for OnChain
 	onChain := restReplyTestInstance(t, map[string]string{"/v5/earn/order": `{"retCode":0,"retMsg":"OK","result":{"list":[],"nextPageCursor":""},"retExtInfo":{},"time":1760000000000}`})
-	for _, req := range []*EarnOrderHistoryRequest{{Category: "OnChain", OrderID: "1"}, {Category: "OnChain", OrderLinkID: "link-1"}} {
-		_, err = onChain.GetEarnOrderHistory(t.Context(), req)
-		assert.NoErrorf(t, err, "GetEarnOrderHistory should accept OnChain with order ID %q and link ID %q", req.OrderID, req.OrderLinkID)
+	ctx := t.Context()
+	// Cases share onChain's server and come before more requests, so they run in order
+	for _, tc := range []struct {
+		name string
+		req  *EarnOrderHistoryRequest
+	}{
+		{name: "order ID alone", req: &EarnOrderHistoryRequest{Category: "OnChain", OrderID: "1"}},
+		{name: "order link ID alone", req: &EarnOrderHistoryRequest{Category: "OnChain", OrderLinkID: "link-1"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := onChain.GetEarnOrderHistory(ctx, tc.req)
+			assert.NoErrorf(t, err, "GetEarnOrderHistory should accept OnChain with order ID %q and link ID %q", tc.req.OrderID, tc.req.OrderLinkID)
+		})
 	}
 
 	if !mockTests {
@@ -1436,7 +1446,7 @@ func TestGetAirdropDailyPNLRecords(t *testing.T) {
 	assert.NoError(t, err, "GetAirdropDailyPNLRecords should not error for the next page")
 }
 
-func TestEarnYieldHistoryResponseUnmarshal(t *testing.T) {
+func TestEarnYieldHistoryResponseUnmarshal(t *testing.T) { //nolint:tparallel // Cases decode in turn before the decodes that follow them
 	t.Parallel()
 	exp := EarnYieldHistoryResponse{
 		NextPageCursor: "eyJpZCI6MTAwMjA5N30=",
@@ -1456,11 +1466,14 @@ func TestEarnYieldHistoryResponseUnmarshal(t *testing.T) {
 		},
 	}
 	row := `{"productId":"428","coin":"USDT","id":"1002096","amount":"0.0608","yieldType":"Normal","distributionMode":"Manual","effectiveStakingAmount":"1000","orderId":"05a7012d-c4d6-493a-8c6b-023a1038944a","status":"Success","createdAt":"1759993805000"}`
-	// The docs' response example names the yields yield and their table list
+	// The docs' response example names the yields yield and their table list. Cases decode in turn before the decodes
+	// below, so they run in order
 	for _, key := range []string{"yield", "list"} {
-		var result EarnYieldHistoryResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(`{"`+key+`":[`+row+`],"nextPageCursor":"eyJpZCI6MTAwMjA5N30="}`), &result), "Unmarshal must not error for %s", key)
-		assert.Equalf(t, exp, result, "EarnYieldHistoryResponse should decode the yields from %s", key)
+		t.Run(key, func(t *testing.T) {
+			var result EarnYieldHistoryResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(`{"`+key+`":[`+row+`],"nextPageCursor":"eyJpZCI6MTAwMjA5N30="}`), &result), "Unmarshal must not error for %s", key)
+			assert.Equalf(t, exp, result, "EarnYieldHistoryResponse should decode the yields from %s", key)
+		})
 	}
 	// An empty yield is still the response's yields, whatever list holds
 	var emptyYield EarnYieldHistoryResponse

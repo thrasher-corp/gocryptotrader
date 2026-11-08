@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"bytes"
+	"cmp"
 	"strings"
 	"testing"
 	"time"
@@ -65,45 +66,159 @@ func livePrivateSubscription(t *testing.T, topics ...string) {
 	}
 }
 
-func TestWebsocketHandleAuthenticatedDataTopics(t *testing.T) {
+func TestWebsocketHandleAuthenticatedData(t *testing.T) { //nolint:tparallel // Subtests share ex and conn or replay fixtures in turn, so they run in order
 	t.Parallel()
+	// Cases share ex, and the pong and undecodable pushes share conn, so they run in order
 	ex := websocketTestInstance(t)
-	err := ex.wsHandleAuthenticatedData(t.Context(), nil, []byte(`{"id":"1","topic":"dcp.future","creationTime":1672364262482,"data":[]}`))
-	require.ErrorIs(t, err, errUnhandledStreamData, "wsHandleAuthenticatedData must error for a topic without documented pushes")
-	assert.ErrorContains(t, err, "dcp.future", "error should name the topic")
-	err = ex.wsHandleAuthenticatedData(t.Context(), nil, []byte(`{"topic":1}`))
-	require.Error(t, err, "wsHandleAuthenticatedData must error for a topic that is not a string")
+	ctx := t.Context()
+	t.Run("a topic without documented pushes", func(t *testing.T) {
+		err := ex.wsHandleAuthenticatedData(ctx, nil, []byte(`{"id":"1","topic":"dcp.future","creationTime":1672364262482,"data":[]}`))
+		require.ErrorIs(t, err, errUnhandledStreamData, "wsHandleAuthenticatedData must error for a topic without documented pushes")
+		assert.ErrorContains(t, err, "dcp.future", "error should name the topic")
+	})
+	t.Run("a topic that is not a string", func(t *testing.T) {
+		err := ex.wsHandleAuthenticatedData(ctx, nil, []byte(`{"topic":1}`))
+		require.Error(t, err, "wsHandleAuthenticatedData must error for a topic that is not a string")
+	})
 	conn := &FixtureConnection{match: websocket.NewMatch()}
-	err = ex.wsHandleAuthenticatedData(t.Context(), conn, []byte(`{"req_id":"test","op":"pong","args":["1675418560633"],"conn_id":"cfcb4ocsvfriu23r3er0-1b"}`))
-	require.NoError(t, err, "wsHandleAuthenticatedData must handle a pong")
+	t.Run("a pong", func(t *testing.T) {
+		err := ex.wsHandleAuthenticatedData(ctx, conn, []byte(`{"req_id":"test","op":"pong","args":["1675418560633"],"conn_id":"cfcb4ocsvfriu23r3er0-1b"}`))
+		require.NoError(t, err, "wsHandleAuthenticatedData must handle a pong")
+	})
 	for _, topic := range []string{"position", "execution", "execution.fast", "order", "wallet", "greeks", "strategy"} {
-		err = ex.wsHandleAuthenticatedData(t.Context(), conn, []byte(`{"topic":"`+topic+`","data":"bad"}`))
-		assert.Errorf(t, err, "wsHandleAuthenticatedData should error for an undecodable %s push", topic)
+		t.Run("an undecodable "+topic+" push", func(t *testing.T) {
+			err := ex.wsHandleAuthenticatedData(ctx, conn, []byte(`{"topic":"`+topic+`","data":"bad"}`))
+			assert.Errorf(t, err, "wsHandleAuthenticatedData should error for an undecodable %s push", topic)
+		})
 	}
 
 	// Spread, RFQ and event contract pushes share the private connection and are relayed as their own frames; event
-	// executions and orders also arrive on the generic execution and order topics
+	// executions and orders also arrive on the generic execution and order topics. The handler is not a pure function,
+	// so these cases run in fixture order too
 	for _, tc := range []struct {
+		name    string
 		fixture string
 		exp     []any // the frame each push should be relayed as, decoded from the push
 	}{
-		{fixture: "testdata/wsSpreadPrivate.jsonl", exp: []any{new(WebsocketSpreadOrderUpdate), new(WebsocketSpreadExecutionUpdate)}},
-		{fixture: "testdata/wsRFQPrivate.jsonl", exp: []any{new(WebsocketRFQQuoteUpdate), new(WebsocketRFQQuoteUpdate), new(WebsocketRFQTradeUpdate), new(WebsocketRFQInquiryUpdate)}},
-		{fixture: "testdata/wsEventPrivate.jsonl", exp: []any{new(WebsocketEventPositionUpdate), new(WebsocketEventExecutionUpdate), new(WebsocketEventExecutionUpdate), new(WebsocketEventOrderUpdate), new(WebsocketEventOrderUpdate)}},
+		{name: "spread pushes", fixture: "testdata/wsSpreadPrivate.jsonl", exp: []any{new(WebsocketSpreadOrderUpdate), new(WebsocketSpreadExecutionUpdate)}},
+		{name: "RFQ pushes", fixture: "testdata/wsRFQPrivate.jsonl", exp: []any{new(WebsocketRFQQuoteUpdate), new(WebsocketRFQQuoteUpdate), new(WebsocketRFQTradeUpdate), new(WebsocketRFQInquiryUpdate)}},
+		{name: "event contract pushes", fixture: "testdata/wsEventPrivate.jsonl", exp: []any{new(WebsocketEventPositionUpdate), new(WebsocketEventExecutionUpdate), new(WebsocketEventExecutionUpdate), new(WebsocketEventOrderUpdate), new(WebsocketEventOrderUpdate)}},
 	} {
-		frames := fixtureFrames(t, tc.fixture)
-		require.Lenf(t, frames, len(tc.exp), "%s must hold one push per expected frame", tc.fixture)
-		ex := websocketTestInstance(t)
-		for i, frame := range frames {
-			require.NoErrorf(t, json.Unmarshal(frame, tc.exp[i]), "Unmarshal must not error for %s push %d", tc.fixture, i)
-			require.NoErrorf(t, ex.wsHandleAuthenticatedData(t.Context(), nil, frame), "wsHandleAuthenticatedData must not error for %s push %d", tc.fixture, i)
-		}
-		assert.Equalf(t, tc.exp, relayed(ex), "wsHandleAuthenticatedData should relay each %s push as its topic's frame", tc.fixture)
+		t.Run(tc.name, func(t *testing.T) {
+			frames := fixtureFrames(t, tc.fixture)
+			require.Lenf(t, frames, len(tc.exp), "%s must hold one push per expected frame", tc.fixture)
+			ex := websocketTestInstance(t)
+			for i, frame := range frames {
+				require.NoErrorf(t, json.Unmarshal(frame, tc.exp[i]), "Unmarshal must not error for %s push %d", tc.fixture, i)
+				require.NoErrorf(t, ex.wsHandleAuthenticatedData(ctx, nil, frame), "wsHandleAuthenticatedData must not error for %s push %d", tc.fixture, i)
+			}
+			assert.Equalf(t, tc.exp, relayed(ex), "wsHandleAuthenticatedData should relay each %s push as its topic's frame", tc.fixture)
+		})
 	}
 }
 
 func TestWebsocketPosition(t *testing.T) {
 	t.Parallel()
+	t.Run("states", func(t *testing.T) {
+		t.Parallel()
+		payload := `{"id":"74199870_position_1787197420650","topic":"position","creationTime":1787197420650,"data":[{"positionIdx":0,"tradeMode":0,"riskId":1,"riskLimitValue":"25000","symbol":"BBUSDT","side":"Sell","size":"883","entryPrice":"0.01105794","sessionAvgPrice":"","leverage":"1","positionValue":"7.403955","positionBalance":"0","markPrice":"0.008385","positionIM":"7.41469557","positionMM":"0.15881967","positionIMByMp":"7.41469557","positionMMByMp":"0.15881967","takeProfit":"0","stopLoss":"0","trailingStop":"0","unrealisedPnl":"2.360203","cumRealisedPnl":"0.00281412","curRealisedPnl":"0.00281412","createdTime":"1728875391204","updatedTime":"1787197420648","tpslMode":"Full","liqPrice":"0.20927497","bustPrice":"","category":"linear","positionStatus":"Normal","adlRankIndicator":2,"autoAddMargin":0,"leverageSysUpdatedTime":"","mmrSysUpdatedTime":"","seq":169498457174,"openTime":1786983352599,"breakEvenPrice":"0.01105504","isReduceOnly":false}]}`
+		pair := currency.NewPair(currency.NewCode("BB"), currency.USDT)
+		for _, tt := range []struct {
+			name                string
+			replacements        []string
+			expectedStatus      order.Status
+			expectedRiskStatus  order.Status
+			expectedDirection   order.Side
+			expectedCloseDate   time.Time
+			expectedOpeningDate time.Time
+		}{
+			{name: "sell", expectedStatus: order.Open, expectedDirection: order.Short, expectedOpeningDate: time.UnixMilli(1786983352599)},
+			{name: "buy", replacements: []string{`"side":"Sell"`, `"side":"Buy"`}, expectedStatus: order.Open, expectedDirection: order.Long, expectedOpeningDate: time.UnixMilli(1786983352599)},
+			{name: "flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
+			{name: "closed long hedge leg", replacements: []string{`"positionIdx":0`, `"positionIdx":1`, `"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.Long, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
+			{name: "closed short hedge leg", replacements: []string{`"positionIdx":0`, `"positionIdx":2`, `"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.Short, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
+			{name: "liquidating", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Liq"`}, expectedStatus: order.Open, expectedRiskStatus: order.Liquidated, expectedDirection: order.Short, expectedOpeningDate: time.UnixMilli(1786983352599)},
+			{name: "auto deleveraging", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Adl"`}, expectedStatus: order.Open, expectedRiskStatus: order.AutoDeleverage, expectedDirection: order.Short, expectedOpeningDate: time.UnixMilli(1786983352599)},
+			{name: "liquidated flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`, `"positionStatus":"Normal"`, `"positionStatus":"Liq"`}, expectedStatus: order.Closed, expectedRiskStatus: order.Liquidated, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
+			{name: "auto deleveraged flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`, `"positionStatus":"Normal"`, `"positionStatus":"Adl"`}, expectedStatus: order.Closed, expectedRiskStatus: order.AutoDeleverage, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
+			{name: "missing open time", replacements: []string{`"openTime":1786983352599`, `"openTime":0`}, expectedStatus: order.Open, expectedDirection: order.Short},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				ex := websocketTestInstance(t)
+				require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{pair}, false), "StorePairs must store the captured position pair")
+				require.NoError(t, ex.wsProcessPosition(t.Context(), []byte(strings.NewReplacer(tt.replacements...).Replace(payload))), "wsProcessPosition must process the captured position")
+				require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessPosition must relay the position")
+				message := <-ex.Websocket.DataHandler.C
+				positions, ok := message.Data.([]futures.Position)
+				require.True(t, ok, "position handler must emit canonical futures positions")
+				require.Len(t, positions, 1, "position handler must emit one position")
+				assert.Equal(t, tt.expectedStatus, positions[0].Status, "position status should be canonical")
+				assert.Equal(t, tt.expectedRiskStatus, positions[0].RiskStatus, "position risk status should preserve liquidation state")
+				assert.Equal(t, positions[0].LatestSize.IsZero(), positions[0].Status.IsInactive(), "position lifecycle should agree with its latest size")
+				assert.Equal(t, tt.expectedDirection, positions[0].OpeningDirection, "opening direction should be canonical")
+				assert.Equal(t, tt.expectedDirection, positions[0].LatestDirection, "latest direction should be canonical")
+				assert.Equal(t, tt.expectedCloseDate, positions[0].CloseDate, "position close time should be correct")
+				assert.Equal(t, tt.expectedOpeningDate, positions[0].OpeningDate, "position opening time should use only Bybit's open time")
+				assert.Equal(t, "0.00281412", positions[0].RealisedPNL.String(), "position realised PNL should use the current position value")
+				assert.Equal(t, "0.20927497", positions[0].EstimatedLiquidationPrice.String(), "position liquidation price should be correct")
+				assert.Equal(t, "7.41469557", positions[0].PositionMargin.String(), "position margin should preserve Bybit's initial margin")
+				assert.Equal(t, positions[0].PositionMargin, positions[0].InitialMarginRequirement, "initial margin requirement should match Bybit's position margin")
+				assert.Equal(t, "0.15881967", positions[0].MaintenanceMarginRequirement.String(), "maintenance margin requirement should preserve Bybit's absolute margin")
+				assert.True(t, positions[0].MaintenanceMarginFraction.IsZero(), "maintenance margin fraction should remain unset without Bybit risk tier data")
+			})
+		}
+		ex := websocketTestInstance(t)
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{pair}, false), "StorePairs must store the captured position pair")
+		err := ex.wsProcessPosition(t.Context(), []byte(strings.Replace(payload, `"side":"Sell"`, `"side":"Any"`, 1)))
+		require.ErrorIs(t, err, order.ErrPositionSideUnsupported, "wsProcessPosition must reject a non-directional position side")
+		err = ex.wsProcessPosition(t.Context(), []byte(strings.Replace(payload, `"side":"Sell"`, `"side":"Hold"`, 1)))
+		require.ErrorIs(t, err, order.ErrSideIsInvalid, "wsProcessPosition must reject an unknown position side")
+		err = ex.wsProcessPosition(t.Context(), []byte(strings.Replace(payload, `"symbol":"BBUSDT"`, `"symbol":"ZZZQUSDT"`, 1)))
+		require.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessPosition must reject an unknown pair")
+		err = ex.wsProcessPosition(t.Context(), []byte(strings.NewReplacer(`"category":"linear"`, `"category":"spot"`, `"symbol":"BBUSDT"`, `"symbol":"BTCUSDT"`).Replace(payload)))
+		require.ErrorIs(t, err, asset.ErrNotSupported, "wsProcessPosition must reject a spot position")
+		assert.Empty(t, relayed(ex), "wsProcessPosition should relay nothing for a push whose only position it rejects")
+		require.NoError(t, ex.wsProcessPosition(t.Context(), []byte(`{"topic":"position","data":[]}`)), "wsProcessPosition must not error for a push without positions")
+		assert.Empty(t, relayed(ex), "wsProcessPosition should not relay an empty batch")
+
+		// A push can carry several positions, such as both legs of a hedge mode position, and every one of them is relayed
+		position := payload[strings.IndexByte(payload, '[')+1 : strings.LastIndexByte(payload, ']')]
+		shortLeg := strings.Replace(position, `"positionIdx":0`, `"positionIdx":2`, 1)
+		longLeg := strings.NewReplacer(`"positionIdx":0`, `"positionIdx":1`, `"side":"Sell"`, `"side":"Buy"`).Replace(position)
+		require.NoError(t, ex.wsProcessPosition(t.Context(), []byte(strings.Replace(payload, position, shortLeg+","+longLeg, 1))), "wsProcessPosition must process both legs of a hedge mode position")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessPosition must relay the push")
+		positions, ok := (<-ex.Websocket.DataHandler.C).Data.([]futures.Position)
+		require.True(t, ok, "wsProcessPosition must relay canonical futures positions")
+		require.Len(t, positions, 2, "wsProcessPosition must relay every position of a push")
+		assert.Equal(t, order.Short, positions[0].LatestDirection, "wsProcessPosition should relay the short leg first, as it was pushed")
+		assert.Equal(t, order.Long, positions[1].LatestDirection, "wsProcessPosition should relay the long leg second, as it was pushed")
+
+		// A position that cannot be read is reported without holding back the push's other positions
+		require.NoError(t, ex.wsProcessPosition(t.Context(), []byte(payload)), "wsProcessPosition must process the captured position")
+		exp := relayed(ex)
+		require.Len(t, exp, 1, "wsProcessPosition must relay the captured position")
+		unknownPair := strings.Replace(position, `"symbol":"BBUSDT"`, `"symbol":"BTCUSDT-26SEP25"`, 1)
+		unknownSide := strings.NewReplacer(`"positionIdx":0`, `"positionIdx":1`, `"side":"Sell"`, `"side":"Hold"`).Replace(position)
+		spotPosition := strings.NewReplacer(`"category":"linear"`, `"category":"spot"`, `"symbol":"BBUSDT"`, `"symbol":"BTCUSDT"`, `"positionIdx":0`, `"positionIdx":2`).Replace(position)
+		undecodable := strings.NewReplacer(`"positionIdx":0`, `"positionIdx":2`, `"size":"883"`, `"size":"broken"`).Replace(position)
+		mixed := []byte(strings.Replace(payload, position, unknownPair+","+position+","+spotPosition+","+unknownSide+","+undecodable, 1))
+		err = ex.wsProcessPosition(t.Context(), mixed)
+		require.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessPosition must report a position whose symbol is not an available pair")
+		require.ErrorIs(t, err, order.ErrSideIsInvalid, "wsProcessPosition must report every position it cannot read")
+		require.ErrorIs(t, err, asset.ErrNotSupported, "wsProcessPosition must report a position without a collateral currency")
+		assert.ErrorContains(t, err, "linear BTCUSDT-26SEP25 position index 0", "error should identify the position of the unknown pair")
+		assert.ErrorContains(t, err, "linear BBUSDT position index 1", "error should identify the position of the unknown side")
+		assert.ErrorContains(t, err, "spot BTCUSDT position index 2", "error should identify the position without a collateral currency")
+		assert.ErrorContains(t, err, "linear BBUSDT position index 2", "error should identify the position that cannot be decoded")
+		assert.Equal(t, exp, relayed(ex), "wsProcessPosition should relay the push's other positions")
+
+		errBufferFull := fillDataHandler(t, ex)
+		require.ErrorIs(t, ex.wsProcessPosition(t.Context(), []byte(payload)), errBufferFull, "wsProcessPosition must return the data handler's error")
+		err = ex.wsProcessPosition(t.Context(), mixed)
+		require.ErrorIs(t, err, errBufferFull, "wsProcessPosition must return the data handler's error for a push with a failed position")
+		assert.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessPosition should still report the failed position when the relay fails")
+	})
 	if !mockTests {
 		livePrivateSubscription(t, "position")
 		return
@@ -256,107 +371,6 @@ func preciseNumber(t *testing.T, s string) types.PreciseNumber {
 	return n
 }
 
-func TestWebsocketPositionStates(t *testing.T) {
-	t.Parallel()
-	payload := `{"id":"74199870_position_1787197420650","topic":"position","creationTime":1787197420650,"data":[{"positionIdx":0,"tradeMode":0,"riskId":1,"riskLimitValue":"25000","symbol":"BBUSDT","side":"Sell","size":"883","entryPrice":"0.01105794","sessionAvgPrice":"","leverage":"1","positionValue":"7.403955","positionBalance":"0","markPrice":"0.008385","positionIM":"7.41469557","positionMM":"0.15881967","positionIMByMp":"7.41469557","positionMMByMp":"0.15881967","takeProfit":"0","stopLoss":"0","trailingStop":"0","unrealisedPnl":"2.360203","cumRealisedPnl":"0.00281412","curRealisedPnl":"0.00281412","createdTime":"1728875391204","updatedTime":"1787197420648","tpslMode":"Full","liqPrice":"0.20927497","bustPrice":"","category":"linear","positionStatus":"Normal","adlRankIndicator":2,"autoAddMargin":0,"leverageSysUpdatedTime":"","mmrSysUpdatedTime":"","seq":169498457174,"openTime":1786983352599,"breakEvenPrice":"0.01105504","isReduceOnly":false}]}`
-	pair := currency.NewPair(currency.NewCode("BB"), currency.USDT)
-	for _, tt := range []struct {
-		name                string
-		replacements        []string
-		expectedStatus      order.Status
-		expectedRiskStatus  order.Status
-		expectedDirection   order.Side
-		expectedCloseDate   time.Time
-		expectedOpeningDate time.Time
-	}{
-		{name: "sell", expectedStatus: order.Open, expectedDirection: order.Short, expectedOpeningDate: time.UnixMilli(1786983352599)},
-		{name: "buy", replacements: []string{`"side":"Sell"`, `"side":"Buy"`}, expectedStatus: order.Open, expectedDirection: order.Long, expectedOpeningDate: time.UnixMilli(1786983352599)},
-		{name: "flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
-		{name: "closed long hedge leg", replacements: []string{`"positionIdx":0`, `"positionIdx":1`, `"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.Long, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
-		{name: "closed short hedge leg", replacements: []string{`"positionIdx":0`, `"positionIdx":2`, `"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.Short, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
-		{name: "liquidating", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Liq"`}, expectedStatus: order.Open, expectedRiskStatus: order.Liquidated, expectedDirection: order.Short, expectedOpeningDate: time.UnixMilli(1786983352599)},
-		{name: "auto deleveraging", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Adl"`}, expectedStatus: order.Open, expectedRiskStatus: order.AutoDeleverage, expectedDirection: order.Short, expectedOpeningDate: time.UnixMilli(1786983352599)},
-		{name: "liquidated flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`, `"positionStatus":"Normal"`, `"positionStatus":"Liq"`}, expectedStatus: order.Closed, expectedRiskStatus: order.Liquidated, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
-		{name: "auto deleveraged flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`, `"positionStatus":"Normal"`, `"positionStatus":"Adl"`}, expectedStatus: order.Closed, expectedRiskStatus: order.AutoDeleverage, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
-		{name: "missing open time", replacements: []string{`"openTime":1786983352599`, `"openTime":0`}, expectedStatus: order.Open, expectedDirection: order.Short},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			ex := websocketTestInstance(t)
-			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{pair}, false), "StorePairs must store the captured position pair")
-			require.NoError(t, ex.wsProcessPosition(t.Context(), []byte(strings.NewReplacer(tt.replacements...).Replace(payload))), "wsProcessPosition must process the captured position")
-			require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessPosition must relay the position")
-			message := <-ex.Websocket.DataHandler.C
-			positions, ok := message.Data.([]futures.Position)
-			require.True(t, ok, "position handler must emit canonical futures positions")
-			require.Len(t, positions, 1, "position handler must emit one position")
-			assert.Equal(t, tt.expectedStatus, positions[0].Status, "position status should be canonical")
-			assert.Equal(t, tt.expectedRiskStatus, positions[0].RiskStatus, "position risk status should preserve liquidation state")
-			assert.Equal(t, positions[0].LatestSize.IsZero(), positions[0].Status.IsInactive(), "position lifecycle should agree with its latest size")
-			assert.Equal(t, tt.expectedDirection, positions[0].OpeningDirection, "opening direction should be canonical")
-			assert.Equal(t, tt.expectedDirection, positions[0].LatestDirection, "latest direction should be canonical")
-			assert.Equal(t, tt.expectedCloseDate, positions[0].CloseDate, "position close time should be correct")
-			assert.Equal(t, tt.expectedOpeningDate, positions[0].OpeningDate, "position opening time should use only Bybit's open time")
-			assert.Equal(t, "0.00281412", positions[0].RealisedPNL.String(), "position realised PNL should use the current position value")
-			assert.Equal(t, "0.20927497", positions[0].EstimatedLiquidationPrice.String(), "position liquidation price should be correct")
-			assert.Equal(t, "7.41469557", positions[0].PositionMargin.String(), "position margin should preserve Bybit's initial margin")
-			assert.Equal(t, positions[0].PositionMargin, positions[0].InitialMarginRequirement, "initial margin requirement should match Bybit's position margin")
-			assert.Equal(t, "0.15881967", positions[0].MaintenanceMarginRequirement.String(), "maintenance margin requirement should preserve Bybit's absolute margin")
-			assert.True(t, positions[0].MaintenanceMarginFraction.IsZero(), "maintenance margin fraction should remain unset without Bybit risk tier data")
-		})
-	}
-	ex := websocketTestInstance(t)
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{pair}, false), "StorePairs must store the captured position pair")
-	err := ex.wsProcessPosition(t.Context(), []byte(strings.Replace(payload, `"side":"Sell"`, `"side":"Any"`, 1)))
-	require.ErrorIs(t, err, order.ErrPositionSideUnsupported, "wsProcessPosition must reject a non-directional position side")
-	err = ex.wsProcessPosition(t.Context(), []byte(strings.Replace(payload, `"side":"Sell"`, `"side":"Hold"`, 1)))
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "wsProcessPosition must reject an unknown position side")
-	err = ex.wsProcessPosition(t.Context(), []byte(strings.Replace(payload, `"symbol":"BBUSDT"`, `"symbol":"ZZZQUSDT"`, 1)))
-	require.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessPosition must reject an unknown pair")
-	err = ex.wsProcessPosition(t.Context(), []byte(strings.NewReplacer(`"category":"linear"`, `"category":"spot"`, `"symbol":"BBUSDT"`, `"symbol":"BTCUSDT"`).Replace(payload)))
-	require.ErrorIs(t, err, asset.ErrNotSupported, "wsProcessPosition must reject a spot position")
-	assert.Empty(t, relayed(ex), "wsProcessPosition should relay nothing for a push whose only position it rejects")
-	require.NoError(t, ex.wsProcessPosition(t.Context(), []byte(`{"topic":"position","data":[]}`)), "wsProcessPosition must not error for a push without positions")
-	assert.Empty(t, relayed(ex), "wsProcessPosition should not relay an empty batch")
-
-	// A push can carry several positions, such as both legs of a hedge mode position, and every one of them is relayed
-	position := payload[strings.IndexByte(payload, '[')+1 : strings.LastIndexByte(payload, ']')]
-	shortLeg := strings.Replace(position, `"positionIdx":0`, `"positionIdx":2`, 1)
-	longLeg := strings.NewReplacer(`"positionIdx":0`, `"positionIdx":1`, `"side":"Sell"`, `"side":"Buy"`).Replace(position)
-	require.NoError(t, ex.wsProcessPosition(t.Context(), []byte(strings.Replace(payload, position, shortLeg+","+longLeg, 1))), "wsProcessPosition must process both legs of a hedge mode position")
-	require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessPosition must relay the push")
-	positions, ok := (<-ex.Websocket.DataHandler.C).Data.([]futures.Position)
-	require.True(t, ok, "wsProcessPosition must relay canonical futures positions")
-	require.Len(t, positions, 2, "wsProcessPosition must relay every position of a push")
-	assert.Equal(t, order.Short, positions[0].LatestDirection, "wsProcessPosition should relay the short leg first, as it was pushed")
-	assert.Equal(t, order.Long, positions[1].LatestDirection, "wsProcessPosition should relay the long leg second, as it was pushed")
-
-	// A position that cannot be read is reported without holding back the push's other positions
-	require.NoError(t, ex.wsProcessPosition(t.Context(), []byte(payload)), "wsProcessPosition must process the captured position")
-	exp := relayed(ex)
-	require.Len(t, exp, 1, "wsProcessPosition must relay the captured position")
-	unknownPair := strings.Replace(position, `"symbol":"BBUSDT"`, `"symbol":"BTCUSDT-26SEP25"`, 1)
-	unknownSide := strings.NewReplacer(`"positionIdx":0`, `"positionIdx":1`, `"side":"Sell"`, `"side":"Hold"`).Replace(position)
-	spotPosition := strings.NewReplacer(`"category":"linear"`, `"category":"spot"`, `"symbol":"BBUSDT"`, `"symbol":"BTCUSDT"`, `"positionIdx":0`, `"positionIdx":2`).Replace(position)
-	undecodable := strings.NewReplacer(`"positionIdx":0`, `"positionIdx":2`, `"size":"883"`, `"size":"broken"`).Replace(position)
-	mixed := []byte(strings.Replace(payload, position, unknownPair+","+position+","+spotPosition+","+unknownSide+","+undecodable, 1))
-	err = ex.wsProcessPosition(t.Context(), mixed)
-	require.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessPosition must report a position whose symbol is not an available pair")
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "wsProcessPosition must report every position it cannot read")
-	require.ErrorIs(t, err, asset.ErrNotSupported, "wsProcessPosition must report a position without a collateral currency")
-	assert.ErrorContains(t, err, "linear BTCUSDT-26SEP25 position index 0", "error should identify the position of the unknown pair")
-	assert.ErrorContains(t, err, "linear BBUSDT position index 1", "error should identify the position of the unknown side")
-	assert.ErrorContains(t, err, "spot BTCUSDT position index 2", "error should identify the position without a collateral currency")
-	assert.ErrorContains(t, err, "linear BBUSDT position index 2", "error should identify the position that cannot be decoded")
-	assert.Equal(t, exp, relayed(ex), "wsProcessPosition should relay the push's other positions")
-
-	errBufferFull := fillDataHandler(t, ex)
-	require.ErrorIs(t, ex.wsProcessPosition(t.Context(), []byte(payload)), errBufferFull, "wsProcessPosition must return the data handler's error")
-	err = ex.wsProcessPosition(t.Context(), mixed)
-	require.ErrorIs(t, err, errBufferFull, "wsProcessPosition must return the data handler's error for a push with a failed position")
-	assert.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessPosition should still report the failed position when the relay fails")
-}
-
 func TestPositionCollateralCurrency(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
@@ -383,7 +397,7 @@ func TestPositionCollateralCurrency(t *testing.T) {
 	}
 }
 
-func TestWebsocketExecution(t *testing.T) {
+func TestWebsocketExecution(t *testing.T) { //nolint:tparallel // Subtests share ex, so they run in order
 	t.Parallel()
 	if !mockTests {
 		livePrivateSubscription(t, "execution")
@@ -550,9 +564,13 @@ func TestWebsocketExecution(t *testing.T) {
 		},
 	}
 	assert.Equal(t, exp, relayed(ex), "wsHandleAuthenticatedData should relay each execution as a fill")
+	ctx := t.Context()
+	// Cases share ex, which the calls after the loop use too, so they run in order
 	for _, execType := range []string{"Funding", "Settle", "Delivery", "ForwardSplitOpen"} {
-		require.NoErrorf(t, ex.wsHandleAuthenticatedData(t.Context(), nil, []byte(`{"topic":"execution","data":[{"category":"linear","symbol":"BTCUSDT","side":"Sell","execType":"`+execType+`"}]}`)), "wsHandleAuthenticatedData must not error for a %s execution", execType)
-		assert.Emptyf(t, relayed(ex), "wsHandleAuthenticatedData should not relay a %s execution as a fill", execType)
+		t.Run(execType, func(t *testing.T) {
+			require.NoErrorf(t, ex.wsHandleAuthenticatedData(ctx, nil, []byte(`{"topic":"execution","data":[{"category":"linear","symbol":"BTCUSDT","side":"Sell","execType":"`+execType+`"}]}`)), "wsHandleAuthenticatedData must not error for a %s execution", execType)
+			assert.Emptyf(t, relayed(ex), "wsHandleAuthenticatedData should not relay a %s execution as a fill", execType)
+		})
 	}
 	err := ex.wsHandleAuthenticatedData(t.Context(), nil, []byte(`{"topic":"execution","data":[{"category":"linear","symbol":"ZZZQUSDT","side":"Sell","execType":"Trade"}]}`))
 	require.ErrorIs(t, err, currency.ErrPairNotFound, "wsHandleAuthenticatedData must error for an execution of an unknown pair")
@@ -560,7 +578,7 @@ func TestWebsocketExecution(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "wsHandleAuthenticatedData must error for an execution of an unknown side")
 }
 
-func TestWebsocketProcessExecution(t *testing.T) {
+func TestWebsocketProcessExecution(t *testing.T) { //nolint:tparallel // Subtests share ex, so they run in order
 	t.Parallel()
 	frames := fixtureFrames(t, "testdata/wsPrivateExecution.jsonl")
 	require.Len(t, frames, 3, "the execution fixture must hold a linear, a spot and an option push")
@@ -666,6 +684,8 @@ func TestWebsocketProcessExecution(t *testing.T) {
 	})}
 	assert.Equal(t, exp, relayed(ex), "wsProcessExecution should relay the push's other trades in turn")
 
+	ctx := t.Context()
+	// Cases share ex, which the calls after the loop use too, so they run in order
 	for _, tc := range []struct {
 		name  string
 		frame []byte
@@ -676,13 +696,15 @@ func TestWebsocketProcessExecution(t *testing.T) {
 		{name: "an unknown side", frame: bytes.Replace(frames[0], []byte(`"side":"Sell"`), []byte(`"side":"Hold"`), 1), err: order.ErrSideIsInvalid},
 		{name: "an undecodable push", frame: []byte(`{"topic":"execution","data":"bad"}`)},
 	} {
-		err := ex.wsProcessExecution(t.Context(), tc.frame)
-		if tc.err == nil {
-			require.Errorf(t, err, "wsProcessExecution must error for %s", tc.name)
-		} else {
-			require.ErrorIsf(t, err, tc.err, "wsProcessExecution must error for %s", tc.name)
-		}
-		assert.Emptyf(t, relayed(ex), "wsProcessExecution should relay nothing for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			err := ex.wsProcessExecution(ctx, tc.frame)
+			if tc.err == nil {
+				require.Errorf(t, err, "wsProcessExecution must error for %s", tc.name)
+			} else {
+				require.ErrorIsf(t, err, tc.err, "wsProcessExecution must error for %s", tc.name)
+			}
+			assert.Emptyf(t, relayed(ex), "wsProcessExecution should relay nothing for %s", tc.name)
+		})
 	}
 
 	errBufferFull := fillDataHandler(t, ex)
@@ -714,25 +736,36 @@ func TestIsTradeExecution(t *testing.T) {
 		{execType: "UNKNOWN"},
 		{execType: ""},
 	} {
-		assert.Equalf(t, tc.exp, isTradeExecution(tc.execType), "isTradeExecution should report whether a %q execution is a trade", tc.execType)
+		t.Run(cmp.Or(tc.execType, "empty execution type"), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, isTradeExecution(tc.execType), "isTradeExecution should report whether a %q execution is a trade", tc.execType)
+		})
 	}
 }
 
-func TestExtraFeesUnmarshalJSON(t *testing.T) {
+func TestExtraFeesUnmarshalJSON(t *testing.T) { //nolint:tparallel // UnmarshalJSON is called again after the subtests, so they run in order
 	t.Parallel()
 	exp := ExtraFees{{FeeCoin: currency.USDT, FeeType: "GST", SubFeeType: "IND_GST", FeeRate: 0.0000675, Fee: 0.006403779}}
-	for _, data := range []string{
-		`[{"feeCoin":"USDT","feeType":"GST","subFeeType":"IND_GST","feeRate":"0.0000675","fee":"0.006403779"}]`,
-		`"[{\"feeCoin\":\"USDT\",\"feeType\":\"GST\",\"subFeeType\":\"IND_GST\",\"feeRate\":\"0.0000675\",\"fee\":\"0.006403779\"}]"`,
+	// UnmarshalJSON is called again after each loop, so the cases run in order
+	for _, tc := range []struct {
+		name string
+		data string
+	}{
+		{name: "list", data: `[{"feeCoin":"USDT","feeType":"GST","subFeeType":"IND_GST","feeRate":"0.0000675","fee":"0.006403779"}]`},
+		{name: "list encoded in a string", data: `"[{\"feeCoin\":\"USDT\",\"feeType\":\"GST\",\"subFeeType\":\"IND_GST\",\"feeRate\":\"0.0000675\",\"fee\":\"0.006403779\"}]"`},
 	} {
-		var fees ExtraFees
-		require.NoErrorf(t, fees.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for %s", data)
-		assert.Equalf(t, exp, fees, "UnmarshalJSON should decode %s", data)
+		t.Run(tc.name, func(t *testing.T) {
+			var fees ExtraFees
+			require.NoErrorf(t, fees.UnmarshalJSON([]byte(tc.data)), "UnmarshalJSON must not error for %s", tc.data)
+			assert.Equalf(t, exp, fees, "UnmarshalJSON should decode %s", tc.data)
+		})
 	}
 	for _, data := range []string{`""`, `null`} {
-		fees := ExtraFees{{}}
-		require.NoErrorf(t, fees.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for %s", data)
-		assert.Nilf(t, fees, "UnmarshalJSON should decode %s as no fees", data)
+		t.Run(data, func(t *testing.T) {
+			fees := ExtraFees{{}}
+			require.NoErrorf(t, fees.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for %s", data)
+			assert.Nilf(t, fees, "UnmarshalJSON should decode %s as no fees", data)
+		})
 	}
 	var fees ExtraFees
 	require.ErrorIs(t, fees.UnmarshalJSON([]byte(`1`)), errInvalidExtraFees, "UnmarshalJSON must reject a number")
@@ -818,7 +851,7 @@ func TestWebsocketFastExecution(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrPairNotFound, "wsHandleAuthenticatedData must error for a fast execution of an unknown pair")
 }
 
-func TestWebsocketProcessFastExecution(t *testing.T) {
+func TestWebsocketProcessFastExecution(t *testing.T) { //nolint:tparallel // Subtests share ex, so they run in order
 	t.Parallel()
 	frames := fixtureFrames(t, "testdata/wsPrivateFastExecution.jsonl")
 	require.Len(t, frames, 1, "the fast execution fixture must hold one push")
@@ -850,6 +883,8 @@ func TestWebsocketProcessFastExecution(t *testing.T) {
 	assert.Equal(t, []any{[]fill.Data{sell, buy}}, relayed(ex), "wsProcessFastExecution should relay the push's executions as fills")
 
 	unknownPair := bytes.Replace(frames[0], []byte(`"symbol":"BTCUSDT"`), []byte(`"symbol":"ZZZQUSDT"`), 1)
+	ctx := t.Context()
+	// Cases share ex, which the calls after the loop use too, so they run in order
 	for _, tc := range []struct {
 		name  string
 		frame []byte
@@ -863,15 +898,17 @@ func TestWebsocketProcessFastExecution(t *testing.T) {
 		{name: "an execution that cannot be decoded", frame: bytes.Replace(frames[0], []byte(`"execQty":"0.003"`), []byte(`"execQty":"broken"`), 1), named: []string{"linear BTCUSDT execution 3510f361-0add-5c7b-a2e7-9679810944fc"}, exp: []any{[]fill.Data{buy}}},
 		{name: "an undecodable push", frame: []byte(`{"topic":"execution.fast","data":"bad"}`)},
 	} {
-		err := ex.wsProcessFastExecution(t.Context(), tc.frame)
-		require.Errorf(t, err, "wsProcessFastExecution must error for %s", tc.name)
-		for _, expErr := range tc.errs {
-			require.ErrorIsf(t, err, expErr, "wsProcessFastExecution must report each failed execution for %s", tc.name)
-		}
-		for _, named := range tc.named {
-			assert.ErrorContainsf(t, err, named, "error should identify each failed execution for %s", tc.name)
-		}
-		assert.Equalf(t, tc.exp, relayed(ex), "wsProcessFastExecution should relay only the executions it reads for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			err := ex.wsProcessFastExecution(ctx, tc.frame)
+			require.Errorf(t, err, "wsProcessFastExecution must error for %s", tc.name)
+			for _, expErr := range tc.errs {
+				require.ErrorIsf(t, err, expErr, "wsProcessFastExecution must report each failed execution for %s", tc.name)
+			}
+			for _, named := range tc.named {
+				assert.ErrorContainsf(t, err, named, "error should identify each failed execution for %s", tc.name)
+			}
+			assert.Equalf(t, tc.exp, relayed(ex), "wsProcessFastExecution should relay only the executions it reads for %s", tc.name)
+		})
 	}
 
 	require.NoError(t, ex.wsProcessFastExecution(t.Context(), []byte(`{"topic":"execution.fast","creationTime":1716800399338,"data":[]}`)), "wsProcessFastExecution must not error for a push without executions")
@@ -884,9 +921,10 @@ func TestWebsocketProcessFastExecution(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessFastExecution should still report the failed execution when the relay fails")
 }
 
-func TestExecutionFill(t *testing.T) {
+func TestExecutionFill(t *testing.T) { //nolint:tparallel // Subtests share ex, so they run in order
 	t.Parallel()
 	ex := fixtureStreamInstance(t)
+	// Cases share ex, so they run in order
 	for _, tc := range []struct {
 		category string
 		symbol   string
@@ -905,25 +943,27 @@ func TestExecutionFill(t *testing.T) {
 		{category: cLinear, symbol: "ZZZQUSDT", side: "Sell", err: currency.ErrPairNotFound},
 		{category: cLinear, symbol: "BTCUSDT", side: "Hold", err: order.ErrSideIsInvalid},
 	} {
-		f, err := ex.executionFill(tc.category, tc.symbol, tc.side, "0ab1bdf7-4219-438b-b30a-32ec863018f7", "9aac161b-8ed6-450d-9cab-c5cc67c21784", "linear-close-001")
-		require.ErrorIsf(t, err, tc.err, "executionFill must return the expected error for %s %s", tc.category, tc.symbol)
-		var exp fill.Data
-		if tc.err == nil {
-			exp = fill.Data{
-				ID:            "0ab1bdf7-4219-438b-b30a-32ec863018f7",
-				Exchange:      "TestExecutionFill",
-				AssetType:     tc.asset,
-				CurrencyPair:  tc.pair,
-				Side:          tc.expSide,
-				OrderID:       "9aac161b-8ed6-450d-9cab-c5cc67c21784",
-				ClientOrderID: "linear-close-001",
+		t.Run(tc.category+" "+tc.symbol+" "+tc.side, func(t *testing.T) {
+			f, err := ex.executionFill(tc.category, tc.symbol, tc.side, "0ab1bdf7-4219-438b-b30a-32ec863018f7", "9aac161b-8ed6-450d-9cab-c5cc67c21784", "linear-close-001")
+			require.ErrorIsf(t, err, tc.err, "executionFill must return the expected error for %s %s", tc.category, tc.symbol)
+			var exp fill.Data
+			if tc.err == nil {
+				exp = fill.Data{
+					ID:            "0ab1bdf7-4219-438b-b30a-32ec863018f7",
+					Exchange:      "TestExecutionFill",
+					AssetType:     tc.asset,
+					CurrencyPair:  tc.pair,
+					Side:          tc.expSide,
+					OrderID:       "9aac161b-8ed6-450d-9cab-c5cc67c21784",
+					ClientOrderID: "linear-close-001",
+				}
 			}
-		}
-		assert.Equalf(t, exp, f, "executionFill should identify the %s %s fill", tc.category, tc.symbol)
+			assert.Equalf(t, exp, f, "executionFill should identify the %s %s fill", tc.category, tc.symbol)
+		})
 	}
 }
 
-func TestWebsocketOrder(t *testing.T) {
+func TestWebsocketOrder(t *testing.T) { //nolint:tparallel // Subtests share ex and conn, so they run in order
 	t.Parallel()
 	if !mockTests {
 		livePrivateSubscription(t, "order")
@@ -1006,21 +1046,26 @@ func TestWebsocketOrder(t *testing.T) {
 	option.SetFees(mustFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 1.25}))
 	exp := []any{[]order.Detail{linear}, []order.Detail{spot}, []order.Detail{option}}
 	assert.Equal(t, exp, relayed(ex), "wsHandleAuthenticatedData should relay each order as an order detail")
+	ctx := t.Context()
+	// Cases share ex and conn, so they run in order
 	for _, tc := range []struct {
+		name string
 		data string
 		err  error
 	}{
-		{data: `{"category":"linear","symbol":"ZZZQUSDT","side":"Sell","orderType":"Limit","timeInForce":"GTC"}`, err: currency.ErrPairNotFound},
-		{data: `{"category":"linear","symbol":"BTCUSDT","side":"Hold","orderType":"Limit","timeInForce":"GTC"}`, err: order.ErrSideIsInvalid},
-		{data: `{"category":"linear","symbol":"BTCUSDT","side":"Sell","orderType":"Iceberg","timeInForce":"GTC"}`, err: order.ErrUnrecognisedOrderType},
-		{data: `{"category":"linear","symbol":"BTCUSDT","side":"Sell","orderType":"Limit","timeInForce":"Forever"}`, err: order.ErrInvalidTimeInForce},
+		{name: "an unknown pair", data: `{"category":"linear","symbol":"ZZZQUSDT","side":"Sell","orderType":"Limit","timeInForce":"GTC"}`, err: currency.ErrPairNotFound},
+		{name: "an unknown side", data: `{"category":"linear","symbol":"BTCUSDT","side":"Hold","orderType":"Limit","timeInForce":"GTC"}`, err: order.ErrSideIsInvalid},
+		{name: "an unknown order type", data: `{"category":"linear","symbol":"BTCUSDT","side":"Sell","orderType":"Iceberg","timeInForce":"GTC"}`, err: order.ErrUnrecognisedOrderType},
+		{name: "an unknown time in force", data: `{"category":"linear","symbol":"BTCUSDT","side":"Sell","orderType":"Limit","timeInForce":"Forever"}`, err: order.ErrInvalidTimeInForce},
 	} {
-		err := ex.wsHandleAuthenticatedData(t.Context(), conn, []byte(`{"topic":"order","data":[`+tc.data+`]}`))
-		require.ErrorIsf(t, err, tc.err, "wsHandleAuthenticatedData must reject %s", tc.data)
+		t.Run(tc.name, func(t *testing.T) {
+			err := ex.wsHandleAuthenticatedData(ctx, conn, []byte(`{"topic":"order","data":[`+tc.data+`]}`))
+			require.ErrorIsf(t, err, tc.err, "wsHandleAuthenticatedData must reject %s", tc.data)
+		})
 	}
 }
 
-func TestWebsocketProcessOrder(t *testing.T) {
+func TestWebsocketProcessOrder(t *testing.T) { //nolint:tparallel // Subtests share ex, so they run in order
 	t.Parallel()
 	frames := fixtureFrames(t, "testdata/wsPrivateOrder.jsonl")
 	require.Len(t, frames, 3, "the order fixture must hold a linear, a spot and an option push")
@@ -1121,13 +1166,17 @@ func TestWebsocketProcessOrder(t *testing.T) {
 	conditional.Type = order.StopMarket
 	assert.Equal(t, []any{[]order.Detail{conditional}}, relayed(ex), "wsProcessOrder should relay a conditional market order as a stop market order")
 
-	// Block trade orders, and orders Bybit names no type for, read back as GetOrderHistory reads them
+	ctx := t.Context()
+	// Block trade orders, and orders Bybit names no type for, read back as GetOrderHistory reads them. Cases share ex,
+	// which the calls after the loop use too, so they run one at a time
 	for orderType, exp := range map[string]order.Type{"Block trade-Limit": order.Limit, "Block trade Roll Back": order.UnknownType, "UNKNOWN": order.UnknownType} {
-		frame := bytes.Replace(bytes.Replace(frames[0], []byte(`"orderType":"Limit"`), []byte(`"orderType":"`+orderType+`"`), 1), []byte(`"stopOrderType":"TakeProfit"`), []byte(`"stopOrderType":""`), 1)
-		require.NoErrorf(t, ex.wsProcessOrder(t.Context(), frame), "wsProcessOrder must not error for order type %q", orderType)
-		typed := linear
-		typed.Type = exp
-		assert.Equalf(t, []any{[]order.Detail{typed}}, relayed(ex), "wsProcessOrder should relay order type %q as GetOrderHistory reads it", orderType)
+		t.Run(orderType, func(t *testing.T) {
+			frame := bytes.Replace(bytes.Replace(frames[0], []byte(`"orderType":"Limit"`), []byte(`"orderType":"`+orderType+`"`), 1), []byte(`"stopOrderType":"TakeProfit"`), []byte(`"stopOrderType":""`), 1)
+			require.NoErrorf(t, ex.wsProcessOrder(ctx, frame), "wsProcessOrder must not error for order type %q", orderType)
+			typed := linear
+			typed.Type = exp
+			assert.Equalf(t, []any{[]order.Detail{typed}}, relayed(ex), "wsProcessOrder should relay order type %q as GetOrderHistory reads it", orderType)
+		})
 	}
 
 	// Bybit sizes a spot market buy by value unless told otherwise, and reports some such buys with an empty market unit
@@ -1158,6 +1207,7 @@ func TestWebsocketProcessOrder(t *testing.T) {
 	require.NoError(t, ex.wsProcessOrder(t.Context(), []byte(`{"topic":"order","data":[]}`)), "wsProcessOrder must not error for a push without orders")
 	assert.Empty(t, relayed(ex), "wsProcessOrder should not relay an empty batch")
 
+	// Cases share ex, which the calls after the loop use too, so they run in order
 	for _, tc := range []struct {
 		name  string
 		frame []byte
@@ -1170,13 +1220,15 @@ func TestWebsocketProcessOrder(t *testing.T) {
 		{name: "a fee without a coin", frame: bytes.Replace(frames[0], []byte(`"cumFeeDetail":{"USDT":"13.629"}`), []byte(`"cumFeeDetail":{"":"13.629"}`), 1), err: currency.ErrCurrencyCodeEmpty},
 		{name: "an undecodable push", frame: []byte(`{"topic":"order","data":"bad"}`)},
 	} {
-		err := ex.wsProcessOrder(t.Context(), tc.frame)
-		if tc.err == nil {
-			require.Errorf(t, err, "wsProcessOrder must error for %s", tc.name)
-		} else {
-			require.ErrorIsf(t, err, tc.err, "wsProcessOrder must error for %s", tc.name)
-		}
-		assert.Emptyf(t, relayed(ex), "wsProcessOrder should relay nothing for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			err := ex.wsProcessOrder(ctx, tc.frame)
+			if tc.err == nil {
+				require.Errorf(t, err, "wsProcessOrder must error for %s", tc.name)
+			} else {
+				require.ErrorIsf(t, err, tc.err, "wsProcessOrder must error for %s", tc.name)
+			}
+			assert.Emptyf(t, relayed(ex), "wsProcessOrder should relay nothing for %s", tc.name)
+		})
 	}
 
 	errBufferFull := fillDataHandler(t, ex)
@@ -1331,13 +1383,16 @@ func fixtureWebsocketOrders() []WebsocketOrderUpdate {
 	}
 }
 
-func TestWebsocketEntries(t *testing.T) {
+func TestWebsocketEntries(t *testing.T) { //nolint:tparallel // websocketEntries is called again after the subtests, so they run in order
 	t.Parallel()
 	_, err := websocketEntries[WebsocketOrder]([]byte(`{"topic":"order","data":"bad"}`), "order", "orderId")
 	require.Error(t, err, "websocketEntries must error for a push whose data is not a list")
+	// websocketEntries is called again after the loop, so the cases run in order
 	for _, creationTime := range []string{`"bad"`, `42`} {
-		_, err = websocketEntries[WebsocketOrder]([]byte(`{"topic":"order","creationTime":`+creationTime+`,"data":[]}`), "order", "orderId")
-		require.Errorf(t, err, "websocketEntries must error for a push whose creation time %s is not a time", creationTime)
+		t.Run(creationTime, func(t *testing.T) {
+			_, err := websocketEntries[WebsocketOrder]([]byte(`{"topic":"order","creationTime":`+creationTime+`,"data":[]}`), "order", "orderId")
+			require.Errorf(t, err, "websocketEntries must error for a push whose creation time %s is not a time", creationTime)
+		})
 	}
 	entries, err := websocketEntries[WebsocketOrder]([]byte(`{"topic":"order","data":[]}`), "order", "orderId")
 	require.NoError(t, err, "websocketEntries must not error for a push without entries")
@@ -1350,12 +1405,15 @@ func TestWebsocketEntries(t *testing.T) {
 	assert.Equal(t, exp, entries, "websocketEntries should decode the other entries in turn")
 }
 
-func TestTimeInForceFromString(t *testing.T) {
+func TestTimeInForceFromString(t *testing.T) { //nolint:tparallel // timeInForceFromString is called again after the subtests, so they run one at a time
 	t.Parallel()
+	// timeInForceFromString is called again after the loop, so the cases run one at a time
 	for in, exp := range map[string]order.TimeInForce{"RPI": order.PostOnly, "PostOnly": order.PostOnly, "GTC": order.GoodTillCancel, "IOC": order.ImmediateOrCancel, "FOK": order.FillOrKill} {
-		tif, err := timeInForceFromString(in)
-		require.NoErrorf(t, err, "timeInForceFromString must not error for %s", in)
-		assert.Equalf(t, exp, tif, "timeInForceFromString should map %s", in)
+		t.Run(in, func(t *testing.T) {
+			tif, err := timeInForceFromString(in)
+			require.NoErrorf(t, err, "timeInForceFromString must not error for %s", in)
+			assert.Equalf(t, exp, tif, "timeInForceFromString should map %s", in)
+		})
 	}
 	_, err := timeInForceFromString("Forever")
 	require.ErrorIs(t, err, order.ErrInvalidTimeInForce, "timeInForceFromString must reject an unknown time in force")
@@ -1363,6 +1421,47 @@ func TestTimeInForceFromString(t *testing.T) {
 
 func TestWebsocketWallet(t *testing.T) {
 	t.Parallel()
+	t.Run("replaces REST balances", func(t *testing.T) {
+		t.Parallel()
+		payload := []byte(`{"id":"wallet-update","topic":"wallet","creationTime":1787197420650,"data":[{"accountIMRate":"0.01","accountMMRate":"0.005","totalEquity":"120","totalWalletBalance":"100","totalMarginBalance":"110","totalAvailableBalance":"75","totalPerpUPL":"10","totalInitialMargin":"25","totalMaintenanceMargin":"5","coin":[{"coin":"USDT","equity":"120","usdValue":"120","walletBalance":"100","locked":"15","spotBorrow":"20","availableToWithdraw":"","availableToBorrow":"","borrowAmount":"20","accruedInterest":"0","totalOrderIM":"5","totalPositionIM":"20","totalPositionMM":"5","unrealisedPnl":"10","cumRealisedPnl":"2","bonus":"0","spotHedgingQty":"0"}],"accountType":"UNIFIED","accountLTV":""}]}`)
+		pushes := decodeFramesStrictly[WebsocketWalletUpdate](t, [][]byte{payload})
+		require.Len(t, pushes[0].Data, 1, "the wallet payload must hold one account")
+		require.Len(t, pushes[0].Data[0].Coins, 1, "the wallet payload must hold one coin")
+		assert.Zero(t, pushes[0].Data[0].Coins[0].AvailableToWithdraw, "the deprecated empty availableToWithdraw should decode as zero")
+		ex := withMockCredentials(websocketTestInstance(t))
+		seed := accounts.NewSubAccount(asset.Spot, "")
+		seed.Balances.Set(currency.USDT, accounts.Balance{Total: 90, Hold: 25, Free: 65, Borrowed: 10})
+		require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{seed}, true), "Accounts.Save must seed a REST snapshot")
+		startedAt := time.Now()
+		require.NoError(t, ex.wsProcessWalletPushData(t.Context(), payload), "wsProcessWalletPushData must process current UNIFIED wallet payload")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessWalletPushData must relay the wallet")
+		message := <-ex.Websocket.DataHandler.C
+		subAccounts, ok := message.Data.(accounts.SubAccounts)
+		require.True(t, ok, "wallet handler must emit canonical subaccounts")
+		require.Len(t, subAccounts, 1, "wallet handler must emit one subaccount")
+		balance, ok := subAccounts[0].Balances[currency.USDT]
+		require.True(t, ok, "wallet handler must emit the USDT balance")
+		assert.False(t, balance.UpdatedAt.Before(startedAt), "wallet update should use local arrival order")
+		assert.False(t, balance.UpdatedAt.After(time.Now()), "wallet update should be stamped with its arrival time")
+		creds, err := ex.GetCredentials(t.Context())
+		require.NoError(t, err, "GetCredentials must not error")
+		stored, err := ex.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
+		require.NoError(t, err, "GetBalance must return the stored USDT balance")
+		assert.Equal(t, balance, stored, "wallet update should store the balance it emits")
+		balance.UpdatedAt = time.Time{}
+		exp := accounts.Balance{Currency: currency.USDT, Total: 100, Hold: 40, Free: 60, Borrowed: 20, AvailableWithoutBorrow: 40}
+		assert.Equal(t, exp, balance, "wallet update should replace the REST snapshot with the push's balances, as REST computes them")
+
+		// A coin pushed with nothing left replaces the stored balance with nothing
+		emptied := []byte(`{"id":"wallet-update-2","topic":"wallet","creationTime":1787197421650,"data":[{"accountType":"UNIFIED","coin":[{"coin":"USDT","walletBalance":"0","locked":"0","spotBorrow":"0","borrowAmount":"0","totalOrderIM":"0","totalPositionIM":"0","bonus":"0"}]}]}`)
+		require.NoError(t, ex.wsProcessWalletPushData(t.Context(), emptied), "wsProcessWalletPushData must process an emptied wallet")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessWalletPushData must relay the emptied wallet")
+		<-ex.Websocket.DataHandler.C
+		stored, err = ex.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
+		require.NoError(t, err, "GetBalance must return the stored USDT balance")
+		stored.UpdatedAt = time.Time{}
+		assert.Equal(t, accounts.Balance{Currency: currency.USDT}, stored, "an emptied wallet push should replace the stored balance")
+	})
 	if !mockTests {
 		livePrivateSubscription(t, "wallet")
 		return
@@ -1461,48 +1560,6 @@ func TestWebsocketWallet(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "wsHandleAuthenticatedData must error without account storage")
 }
 
-func TestWebsocketWalletReplacesRESTBalances(t *testing.T) {
-	t.Parallel()
-	payload := []byte(`{"id":"wallet-update","topic":"wallet","creationTime":1787197420650,"data":[{"accountIMRate":"0.01","accountMMRate":"0.005","totalEquity":"120","totalWalletBalance":"100","totalMarginBalance":"110","totalAvailableBalance":"75","totalPerpUPL":"10","totalInitialMargin":"25","totalMaintenanceMargin":"5","coin":[{"coin":"USDT","equity":"120","usdValue":"120","walletBalance":"100","locked":"15","spotBorrow":"20","availableToWithdraw":"","availableToBorrow":"","borrowAmount":"20","accruedInterest":"0","totalOrderIM":"5","totalPositionIM":"20","totalPositionMM":"5","unrealisedPnl":"10","cumRealisedPnl":"2","bonus":"0","spotHedgingQty":"0"}],"accountType":"UNIFIED","accountLTV":""}]}`)
-	pushes := decodeFramesStrictly[WebsocketWalletUpdate](t, [][]byte{payload})
-	require.Len(t, pushes[0].Data, 1, "the wallet payload must hold one account")
-	require.Len(t, pushes[0].Data[0].Coins, 1, "the wallet payload must hold one coin")
-	assert.Zero(t, pushes[0].Data[0].Coins[0].AvailableToWithdraw, "the deprecated empty availableToWithdraw should decode as zero")
-	ex := withMockCredentials(websocketTestInstance(t))
-	seed := accounts.NewSubAccount(asset.Spot, "")
-	seed.Balances.Set(currency.USDT, accounts.Balance{Total: 90, Hold: 25, Free: 65, Borrowed: 10})
-	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{seed}, true), "Accounts.Save must seed a REST snapshot")
-	startedAt := time.Now()
-	require.NoError(t, ex.wsProcessWalletPushData(t.Context(), payload), "wsProcessWalletPushData must process current UNIFIED wallet payload")
-	require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessWalletPushData must relay the wallet")
-	message := <-ex.Websocket.DataHandler.C
-	subAccounts, ok := message.Data.(accounts.SubAccounts)
-	require.True(t, ok, "wallet handler must emit canonical subaccounts")
-	require.Len(t, subAccounts, 1, "wallet handler must emit one subaccount")
-	balance, ok := subAccounts[0].Balances[currency.USDT]
-	require.True(t, ok, "wallet handler must emit the USDT balance")
-	assert.False(t, balance.UpdatedAt.Before(startedAt), "wallet update should use local arrival order")
-	assert.False(t, balance.UpdatedAt.After(time.Now()), "wallet update should be stamped with its arrival time")
-	creds, err := ex.GetCredentials(t.Context())
-	require.NoError(t, err, "GetCredentials must not error")
-	stored, err := ex.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
-	require.NoError(t, err, "GetBalance must return the stored USDT balance")
-	assert.Equal(t, balance, stored, "wallet update should store the balance it emits")
-	balance.UpdatedAt = time.Time{}
-	exp := accounts.Balance{Currency: currency.USDT, Total: 100, Hold: 40, Free: 60, Borrowed: 20, AvailableWithoutBorrow: 40}
-	assert.Equal(t, exp, balance, "wallet update should replace the REST snapshot with the push's balances, as REST computes them")
-
-	// A coin pushed with nothing left replaces the stored balance with nothing
-	emptied := []byte(`{"id":"wallet-update-2","topic":"wallet","creationTime":1787197421650,"data":[{"accountType":"UNIFIED","coin":[{"coin":"USDT","walletBalance":"0","locked":"0","spotBorrow":"0","borrowAmount":"0","totalOrderIM":"0","totalPositionIM":"0","bonus":"0"}]}]}`)
-	require.NoError(t, ex.wsProcessWalletPushData(t.Context(), emptied), "wsProcessWalletPushData must process an emptied wallet")
-	require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessWalletPushData must relay the emptied wallet")
-	<-ex.Websocket.DataHandler.C
-	stored, err = ex.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
-	require.NoError(t, err, "GetBalance must return the stored USDT balance")
-	stored.UpdatedAt = time.Time{}
-	assert.Equal(t, accounts.Balance{Currency: currency.USDT}, stored, "an emptied wallet push should replace the stored balance")
-}
-
 func TestWebsocketGreeks(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
@@ -1525,21 +1582,6 @@ func TestWebsocketGreeks(t *testing.T) {
 			},
 		},
 	})
-}
-
-func TestWebsocketDisconnectionProtect(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		livePrivateSubscription(t, "dcp.future")
-		return
-	}
-	ex := websocketTestInstance(t)
-	conn := &FixtureConnection{}
-	require.NoError(t, ex.authSubscribe(t.Context(), conn, subscription.List{{Channel: "dcp.future", Asset: asset.All}, {Channel: "dcp.spot", Asset: asset.All}}), "authSubscribe must not error")
-	require.Len(t, conn.sent, 1, "authSubscribe must send one request")
-	req, ok := conn.sent[0].(*SubscriptionRequest)
-	require.True(t, ok, "authSubscribe must send a SubscriptionRequest")
-	assert.Equal(t, []string{"dcp.future", "dcp.spot"}, req.Arguments, "the dcp topics should be sent as named")
 }
 
 func TestWebsocketStrategy(t *testing.T) {

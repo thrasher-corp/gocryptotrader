@@ -21,6 +21,342 @@ import (
 func TestRateLimit(t *testing.T) {
 	t.Parallel()
 
+	// A definition drawing on a rate.Limiter alone, as every exchange's but Bybit's does, still sends each request when
+	// reserving its weight one token at a time from a twin limiter, at the moment the request asks, would
+	t.Run("keeps token bucket timing", func(t *testing.T) {
+		t.Parallel()
+		arrivals := []time.Duration{0, 0, 0, 50 * time.Millisecond, 50 * time.Millisecond, time.Second, 1010 * time.Millisecond, 3 * time.Second, 3 * time.Second, 3 * time.Second, 7 * time.Second}
+		for _, tc := range []struct {
+			limit  rate.Limit
+			burst  int
+			weight Weight
+		}{
+			{10, 1, 1}, {10, 1, 5}, {3, 1, 2}, {100, 1, 40}, {30, 1, 50}, {2, 5, 3}, {0.5, 1, 1}, {1000, 10, 7}, {20, 1, 1},
+		} {
+			t.Run(fmt.Sprintf("%v a second with a burst of %d at weight %d", tc.limit, tc.burst, tc.weight), func(t *testing.T) {
+				t.Parallel()
+				synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+					r, twin := GetRateLimiterWithWeight(rate.NewLimiter(tc.limit, tc.burst), tc.weight), rate.NewLimiter(tc.limit, tc.burst)
+					start := time.Now()
+					exp, sends := make([]time.Duration, len(arrivals)), make([]time.Duration, len(arrivals))
+					var wg sync.WaitGroup
+					for i, arrival := range arrivals {
+						time.Sleep(arrival - time.Since(start))
+						now := time.Now()
+						var last *rate.Reservation
+						for range tc.weight {
+							last = twin.ReserveN(now, 1)
+						}
+						exp[i] = now.Add(last.DelayFrom(now)).Sub(start)
+						wg.Go(func() {
+							assert.NoError(t, r.RateLimit(t.Context()), "a request should be sent")
+							sends[i] = time.Since(start)
+						})
+						synctest.Wait()
+					}
+					wg.Wait()
+					assert.Equal(t, exp, sends, "each request should be sent when a plain token bucket reservation falls due")
+				})
+			})
+		}
+	})
+
+	t.Run("with shared", func(t *testing.T) {
+		t.Parallel()
+
+		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+			shared := NewWindowBudget(500*time.Millisecond, 1)
+			first := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
+			second := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
+
+			start := time.Now()
+			require.NoError(t, first.RateLimit(t.Context()), "first request must not error")
+			assert.Zero(t, time.Since(start), "first request should not wait")
+
+			start = time.Now()
+			require.NoError(t, second.RateLimit(t.Context()), "second request must not error")
+			assert.Equal(t, 500*time.Millisecond, time.Since(start), "a request on another endpoint should wait for the shared budget")
+
+			slow := GetRateLimiterWithShared(NewRateLimit(time.Second, 1), 1, NewWindowBudget(500*time.Millisecond, 1))
+			require.NoError(t, slow.RateLimit(t.Context()), "slow endpoint's first request must not error")
+			start = time.Now()
+			require.NoError(t, slow.RateLimit(t.Context()), "slow endpoint's second request must not error")
+			assert.Equal(t, time.Second, time.Since(start), "a request should wait for the slowest of its limits")
+
+			weighted := GetRateLimiterWithShared(NewRateLimit(time.Second, 100), 5, NewWindowBudget(time.Second, 1))
+			start = time.Now()
+			require.NoError(t, weighted.RateLimit(t.Context()), "weighted request must not error")
+			assert.Equal(t, 40*time.Millisecond, time.Since(start), "a weighted request should take its weight from its own limiter but one request from a shared budget")
+
+			time.Sleep(time.Second)
+			require.NoError(t, first.RateLimit(t.Context()), "request must not error once the shared window has passed")
+			err := second.RateLimit(WithDelayNotAllowed(t.Context()))
+			assert.ErrorIs(t, err, ErrDelayNotAllowed, "a request the shared budget would delay should be refused when delays are not allowed")
+			time.Sleep(500 * time.Millisecond)
+			require.NoError(t, second.RateLimit(WithDelayNotAllowed(t.Context())), "a refused request must take nothing from the shared budget")
+		})
+	})
+
+	t.Run("with shared releases reservations", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("cancelled while waiting", func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+				shared := NewWindowBudget(time.Second, 1)
+				own := rate.NewLimiter(rate.Limit(1), 1)
+				first := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
+				waiting := GetRateLimiterWithShared(own, 2, shared)
+				require.NoError(t, first.RateLimit(t.Context()), "first request must take the shared budget")
+
+				ctx, cancel := context.WithCancel(t.Context())
+				errs := make(chan error, 1)
+				go func() { errs <- waiting.RateLimit(ctx) }()
+				synctest.Wait()
+				cancel()
+				require.ErrorIs(t, <-errs, context.Canceled, "a request cancelled while waiting must return the cancellation")
+
+				// Without the release, the cancelled request's booking and tokens, due in one second, would keep both budgets
+				// taken for another second
+				time.Sleep(time.Second)
+				require.NoError(t, first.RateLimit(WithDelayNotAllowed(t.Context())), "a cancelled request must give back its shared booking")
+				require.NoError(t, GetRateLimiterWithWeight(own, 1).RateLimit(WithDelayNotAllowed(t.Context())), "a cancelled request must give back its own reservations")
+			})
+		})
+
+		t.Run("deadline exceeded", func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+				shared := NewWindowBudget(time.Second, 1)
+				first := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
+				second := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
+				require.NoError(t, first.RateLimit(t.Context()), "first request must take the shared budget")
+
+				ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+				defer cancel()
+				require.ErrorIs(t, second.RateLimit(ctx), context.DeadlineExceeded, "a request the shared budget would delay past its deadline must be refused")
+				time.Sleep(time.Second)
+				require.NoError(t, second.RateLimit(WithDelayNotAllowed(t.Context())), "a request refused for its deadline must take nothing from the shared budget")
+			})
+		})
+	})
+
+	t.Run("with shared concurrent", func(t *testing.T) {
+		t.Parallel()
+
+		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+			shared := NewWindowBudget(100*time.Millisecond, 1)
+			start := time.Now()
+			errs := common.ErrorCollector{}
+			for range 10 {
+				endpoint := GetRateLimiterWithShared(NewRateLimit(time.Second, 100), 1, shared)
+				errs.Go(func() error { return endpoint.RateLimit(t.Context()) })
+			}
+			require.NoError(t, errs.Collect(), "concurrent requests must not error")
+			assert.Equal(t, 900*time.Millisecond, time.Since(start), "requests on separate endpoints should queue on their shared budget")
+		})
+	})
+
+	t.Run("with window budget", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("a request after a batch of the whole budget waits a whole window", func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+				orders := GetRateLimiterWithWindowBudget(NewWindowBudget(time.Second, 10), 1)
+				start := time.Now()
+				require.NoError(t, orders.RateLimit(WithWeight(t.Context(), 10)), "a batch of the whole budget must not error")
+				assert.Zero(t, time.Since(start), "a batch of the whole budget should go at once on an idle budget")
+				require.NoError(t, orders.RateLimit(t.Context()), "a request after the batch must not error")
+				assert.Equal(t, time.Second, time.Since(start), "a request after a batch of the whole budget should wait until the batch leaves the window")
+			})
+		})
+
+		t.Run("concurrent batches of the whole budget go a window apart", func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+				orders := GetRateLimiterWithWindowBudget(NewWindowBudget(time.Second, 10), 1)
+				start := time.Now()
+				var mu sync.Mutex
+				var sends []time.Duration
+				var errs common.ErrorCollector
+				for range 3 {
+					errs.Go(func() error {
+						if err := orders.RateLimit(WithWeight(t.Context(), 10)); err != nil {
+							return err
+						}
+						mu.Lock()
+						sends = append(sends, time.Since(start))
+						mu.Unlock()
+						return nil
+					})
+				}
+				require.NoError(t, errs.Collect(), "concurrent batches must not error")
+				slices.Sort(sends)
+				assert.Equal(t, []time.Duration{0, time.Second, 2 * time.Second}, sends, "batches of the whole budget should go a window apart")
+			})
+		})
+
+		for _, tc := range []struct {
+			name    string
+			singles int
+			exp     time.Duration
+		}{
+			{"a batch fitting the room left in the window goes at once", 7, 600 * time.Millisecond},
+			{"a batch larger than the room left waits until the window has room for all of it", 8, time.Second},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+					orders := GetRateLimiterWithWindowBudget(NewWindowBudget(time.Second, 10), 1)
+					start := time.Now()
+					for i := range tc.singles {
+						if i > 0 {
+							time.Sleep(100 * time.Millisecond)
+						}
+						require.NoError(t, orders.RateLimit(WithDelayNotAllowed(t.Context())), "a single request must go at once")
+					}
+					require.NoError(t, orders.RateLimit(WithWeight(t.Context(), 3)), "a batch of three must not error")
+					assert.Equal(t, tc.exp, time.Since(start), "a batch of three should go once no window holding it holds more than the budget")
+				})
+			})
+		}
+
+		t.Run("no window holds more than the budget under a mixed load", func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+				budget := NewWindowBudget(time.Second, 10)
+				shared := NewWindowBudget(time.Second, 12)
+				rest, websocket := GetRateLimiterWithWindowBudget(budget, 1, shared), GetRateLimiterWithWindowBudget(budget, 1)
+				random := rand.New(rand.NewPCG(3, 4)) //nolint:gosec // A fixed seed keeps the load reproducible
+				start := time.Now()
+				var mu sync.Mutex
+				var sends, restSends []weightedSend
+				var errs common.ErrorCollector
+				weights := []Weight{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+				for range 120 {
+					arrival, weight, overREST := time.Duration(random.IntN(5000))*time.Millisecond, weights[random.IntN(len(weights))], random.IntN(2) == 0
+					if random.IntN(2) == 0 {
+						weight = 1
+					}
+					errs.Go(func() error {
+						time.Sleep(arrival)
+						limiter := websocket
+						if overREST {
+							limiter = rest
+						}
+						if err := limiter.RateLimit(WithWeight(t.Context(), weight)); err != nil {
+							return err
+						}
+						sent := weightedSend{time.Since(start), int(weight)}
+						if sent.at < arrival {
+							return fmt.Errorf("a request asked for at %s was sent at %s", arrival, sent.at)
+						}
+						mu.Lock()
+						sends = append(sends, sent)
+						if overREST {
+							restSends = append(restSends, weightedSend{sent.at, 1})
+						}
+						mu.Unlock()
+						return nil
+					})
+				}
+				require.NoError(t, errs.Collect(), "every request must be sent, and none before it asked")
+				require.Len(t, sends, 120, "every request must be sent")
+				assert.Equal(t, 10, busiestWeightedWindow(sends, time.Second), "the busiest second should fill the budget without exceeding it")
+				assert.LessOrEqual(t, busiestWeightedWindow(restSends, time.Second), 12, "the shared budget should count each request once, whatever its weight")
+			})
+		})
+
+		t.Run("a request takes a moment ahead of one held back by a shared budget", func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+				budget, shared := NewWindowBudget(time.Second, 10), NewWindowBudget(5*time.Second, 1)
+				require.NoError(t, sharedOnly(shared).RateLimit(t.Context()), "a request must fill the shared budget")
+				start := time.Now()
+				held := make(chan time.Duration, 1)
+				go func() {
+					assert.NoError(t, GetRateLimiterWithWindowBudget(budget, 1, shared).RateLimit(t.Context()), "the held back request should be sent")
+					held <- time.Since(start)
+				}()
+				synctest.Wait()
+				time.Sleep(10 * time.Millisecond)
+				require.NoError(t, GetRateLimiterWithWindowBudget(budget, 1).RateLimit(WithDelayNotAllowed(t.Context())), "a request on the budget alone must not wait for one the shared budget holds back")
+				assert.Equal(t, 5*time.Second, <-held, "the held back request should be sent when the shared budget has room")
+			})
+		})
+
+		t.Run("refusals book nothing", func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+				budget := NewWindowBudget(time.Second, 10)
+				orders := GetRateLimiterWithWindowBudget(budget, 1)
+				require.NoError(t, orders.RateLimit(WithWeight(t.Context(), 8)), "a batch of eight must go at once")
+				require.ErrorIs(t, orders.RateLimit(WithWeight(t.Context(), 11)), ErrWeightExceedsBudget, "a batch larger than the budget must be refused")
+				require.ErrorIs(t, orders.RateLimit(WithWeight(WithDelayNotAllowed(t.Context()), 3)), ErrDelayNotAllowed, "a batch that would wait must be refused when delays are not allowed")
+				ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+				defer cancel()
+				require.ErrorIs(t, orders.RateLimit(WithWeight(ctx, 3)), context.DeadlineExceeded, "a batch that would wait past its deadline must be refused")
+				rateLimitReservationMu.Lock()
+				booked := len(budget.booked)
+				rateLimitReservationMu.Unlock()
+				assert.Equal(t, 8, booked, "refused batches should book nothing")
+				assert.NoError(t, orders.RateLimit(WithWeight(WithDelayNotAllowed(t.Context()), 2)), "the room refused batches would have taken should be left")
+			})
+		})
+
+		t.Run("a cancelled batch gives back every request it booked", func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+				budget := NewWindowBudget(time.Second, 10)
+				orders := GetRateLimiterWithWindowBudget(budget, 1)
+				require.NoError(t, orders.RateLimit(WithWeight(t.Context(), 10)), "a batch of the whole budget must go at once")
+				ctx, cancel := context.WithCancel(t.Context())
+				errs := make(chan error, 1)
+				go func() { errs <- orders.RateLimit(WithWeight(ctx, 5)) }()
+				synctest.Wait()
+				time.Sleep(500 * time.Millisecond)
+				cancel()
+				require.ErrorIs(t, <-errs, context.Canceled, "a batch cancelled while waiting must return the cancellation")
+				time.Sleep(500 * time.Millisecond)
+				assert.NoError(t, orders.RateLimit(WithWeight(WithDelayNotAllowed(t.Context()), 10)), "a cancelled batch should leave the whole budget once the first batch leaves the window")
+			})
+		})
+	})
+
+	t.Run("with shared refusals reserve nothing", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name string
+			ctx  func(context.Context) (context.Context, context.CancelFunc)
+			err  error
+		}{
+			{"delay not allowed", func(ctx context.Context) (context.Context, context.CancelFunc) {
+				return WithDelayNotAllowed(ctx), func() {}
+			}, ErrDelayNotAllowed},
+			{"deadline too soon", func(ctx context.Context) (context.Context, context.CancelFunc) {
+				return context.WithTimeout(ctx, 50*time.Millisecond)
+			}, context.DeadlineExceeded},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+					shared := NewWindowBudget(time.Second, 1)
+					own := NewRateLimit(time.Second, 10)
+					require.NoError(t, sharedOnly(shared).RateLimit(t.Context()), "a request must fill the shared budget")
+					ctx, cancel := tc.ctx(t.Context())
+					defer cancel()
+					require.ErrorIs(t, GetRateLimiterWithShared(own, 1, shared).RateLimit(ctx), tc.err, "a request the shared budget would delay must be refused")
+					assert.NoError(t, GetRateLimiterWithWeight(own, 1).RateLimit(WithDelayNotAllowed(t.Context())), "a refused request should leave its endpoint's clock and budget untouched")
+					rateLimitReservationMu.Lock()
+					booked := len(shared.booked)
+					rateLimitReservationMu.Unlock()
+					assert.Equal(t, 1, booked, "a refused request should book nothing in the shared budget")
+				})
+			})
+		}
+	})
+
 	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
 		err := (*RateLimiterWithWeight)(nil).RateLimit(t.Context())
 		assert.ErrorContains(t, err, "nil pointer: *request.RateLimiterWithWeight")
@@ -154,6 +490,75 @@ func TestRateLimit_Concurrent(t *testing.T) {
 
 func TestRateLimitBarrier(t *testing.T) {
 	t.Parallel()
+
+	t.Run("with shared", func(t *testing.T) {
+		t.Parallel()
+
+		for _, tc := range []struct {
+			name     string
+			requests int
+			err      error
+		}{
+			{"a shared budget with room for one participant refuses the group", 1, ErrDelayNotAllowed},
+			{"a shared budget with room for every participant admits the group", 2, nil},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+				require.NoError(t, err, "barrier contexts must be created")
+				shared := NewWindowBudget(time.Hour, tc.requests)
+				left := GetRateLimiterWithShared(NewRateLimit(time.Hour, 1), 1, shared)
+				right := GetRateLimiterWithShared(NewRateLimit(time.Hour, 1), 1, shared)
+				errs := make(chan error, 2)
+				go func() { errs <- left.RateLimit(contexts[0]) }()
+				go func() { errs <- right.RateLimit(contexts[1]) }()
+				for range 2 {
+					assert.ErrorIs(t, <-errs, tc.err, "every participant should share the group's outcome")
+				}
+				rateLimitReservationMu.Lock()
+				booked := len(shared.booked)
+				rateLimitReservationMu.Unlock()
+				if tc.err != nil {
+					assert.Zero(t, booked, "a refused group should book nothing in the shared budget")
+					assert.NoError(t, left.RateLimit(WithDelayNotAllowed(t.Context())), "a refused group should give back its own reservations")
+					return
+				}
+				assert.Equal(t, 2, booked, "an admitted group should book every participant in the shared budget")
+			})
+		}
+	})
+
+	t.Run("with window budget", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name    string
+			weights []Weight
+			err     error
+			booked  int
+		}{
+			{"a budget with room for every participant's weight admits the group", []Weight{6, 4}, nil, 10},
+			{"a budget without room for every participant's weight refuses the group", []Weight{6, 5}, ErrDelayNotAllowed, 0},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				contexts, err := NewRateLimitBarrierContexts(t.Context(), uint(len(tc.weights)))
+				require.NoError(t, err, "barrier contexts must be created")
+				budget := NewWindowBudget(time.Hour, 10)
+				errs := make(chan error, len(tc.weights))
+				for i, weight := range tc.weights {
+					orders := GetRateLimiterWithWindowBudget(budget, 1)
+					go func() { errs <- orders.RateLimit(WithWeight(contexts[i], weight)) }()
+				}
+				for range tc.weights {
+					assert.ErrorIs(t, <-errs, tc.err, "every participant should share the group's outcome")
+				}
+				rateLimitReservationMu.Lock()
+				booked := len(budget.booked)
+				rateLimitReservationMu.Unlock()
+				assert.Equal(t, tc.booked, booked, "a group should book every participant's weight only when it is admitted")
+			})
+		}
+	})
 
 	t.Run("both immediate", func(t *testing.T) {
 		t.Parallel()
@@ -444,47 +849,6 @@ func TestRateLimit_Linear(t *testing.T) {
 	})
 }
 
-// TestRateLimitKeepsTokenBucketTiming checks that a definition drawing on a rate.Limiter alone, as every exchange's but
-// Bybit's does, still sends each request when reserving its weight one token at a time from a twin limiter, at the
-// moment the request asks, would
-func TestRateLimitKeepsTokenBucketTiming(t *testing.T) {
-	t.Parallel()
-	arrivals := []time.Duration{0, 0, 0, 50 * time.Millisecond, 50 * time.Millisecond, time.Second, 1010 * time.Millisecond, 3 * time.Second, 3 * time.Second, 3 * time.Second, 7 * time.Second}
-	for _, tc := range []struct {
-		limit  rate.Limit
-		burst  int
-		weight Weight
-	}{
-		{10, 1, 1}, {10, 1, 5}, {3, 1, 2}, {100, 1, 40}, {30, 1, 50}, {2, 5, 3}, {0.5, 1, 1}, {1000, 10, 7}, {20, 1, 1},
-	} {
-		t.Run(fmt.Sprintf("%v a second with a burst of %d at weight %d", tc.limit, tc.burst, tc.weight), func(t *testing.T) {
-			t.Parallel()
-			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-				r, twin := GetRateLimiterWithWeight(rate.NewLimiter(tc.limit, tc.burst), tc.weight), rate.NewLimiter(tc.limit, tc.burst)
-				start := time.Now()
-				exp, sends := make([]time.Duration, len(arrivals)), make([]time.Duration, len(arrivals))
-				var wg sync.WaitGroup
-				for i, arrival := range arrivals {
-					time.Sleep(arrival - time.Since(start))
-					now := time.Now()
-					var last *rate.Reservation
-					for range tc.weight {
-						last = twin.ReserveN(now, 1)
-					}
-					exp[i] = now.Add(last.DelayFrom(now)).Sub(start)
-					wg.Go(func() {
-						assert.NoError(t, r.RateLimit(t.Context()), "a request should be sent")
-						sends[i] = time.Since(start)
-					})
-					synctest.Wait()
-				}
-				wg.Wait()
-				assert.Equal(t, exp, sends, "each request should be sent when a plain token bucket reservation falls due")
-			})
-		})
-	}
-}
-
 func TestNewRateLimit(t *testing.T) {
 	t.Parallel()
 
@@ -634,139 +998,6 @@ func TestGetRateLimiterWithWindowBudget(t *testing.T) {
 	assert.Equal(t, []*WindowBudget{shared}, unbudgeted.shared, "a nil budget should leave the shared budgets to limit the endpoint")
 }
 
-func TestRateLimitWithShared(t *testing.T) {
-	t.Parallel()
-
-	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-		shared := NewWindowBudget(500*time.Millisecond, 1)
-		first := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
-		second := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
-
-		start := time.Now()
-		require.NoError(t, first.RateLimit(t.Context()), "first request must not error")
-		assert.Zero(t, time.Since(start), "first request should not wait")
-
-		start = time.Now()
-		require.NoError(t, second.RateLimit(t.Context()), "second request must not error")
-		assert.Equal(t, 500*time.Millisecond, time.Since(start), "a request on another endpoint should wait for the shared budget")
-
-		slow := GetRateLimiterWithShared(NewRateLimit(time.Second, 1), 1, NewWindowBudget(500*time.Millisecond, 1))
-		require.NoError(t, slow.RateLimit(t.Context()), "slow endpoint's first request must not error")
-		start = time.Now()
-		require.NoError(t, slow.RateLimit(t.Context()), "slow endpoint's second request must not error")
-		assert.Equal(t, time.Second, time.Since(start), "a request should wait for the slowest of its limits")
-
-		weighted := GetRateLimiterWithShared(NewRateLimit(time.Second, 100), 5, NewWindowBudget(time.Second, 1))
-		start = time.Now()
-		require.NoError(t, weighted.RateLimit(t.Context()), "weighted request must not error")
-		assert.Equal(t, 40*time.Millisecond, time.Since(start), "a weighted request should take its weight from its own limiter but one request from a shared budget")
-
-		time.Sleep(time.Second)
-		require.NoError(t, first.RateLimit(t.Context()), "request must not error once the shared window has passed")
-		err := second.RateLimit(WithDelayNotAllowed(t.Context()))
-		assert.ErrorIs(t, err, ErrDelayNotAllowed, "a request the shared budget would delay should be refused when delays are not allowed")
-		time.Sleep(500 * time.Millisecond)
-		require.NoError(t, second.RateLimit(WithDelayNotAllowed(t.Context())), "a refused request must take nothing from the shared budget")
-	})
-}
-
-func TestRateLimitWithSharedReleasesReservations(t *testing.T) {
-	t.Parallel()
-
-	t.Run("cancelled while waiting", func(t *testing.T) {
-		t.Parallel()
-		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-			shared := NewWindowBudget(time.Second, 1)
-			own := rate.NewLimiter(rate.Limit(1), 1)
-			first := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
-			waiting := GetRateLimiterWithShared(own, 2, shared)
-			require.NoError(t, first.RateLimit(t.Context()), "first request must take the shared budget")
-
-			ctx, cancel := context.WithCancel(t.Context())
-			errs := make(chan error, 1)
-			go func() { errs <- waiting.RateLimit(ctx) }()
-			synctest.Wait()
-			cancel()
-			require.ErrorIs(t, <-errs, context.Canceled, "a request cancelled while waiting must return the cancellation")
-
-			// Without the release, the cancelled request's booking and tokens, due in one second, would keep both budgets
-			// taken for another second
-			time.Sleep(time.Second)
-			require.NoError(t, first.RateLimit(WithDelayNotAllowed(t.Context())), "a cancelled request must give back its shared booking")
-			require.NoError(t, GetRateLimiterWithWeight(own, 1).RateLimit(WithDelayNotAllowed(t.Context())), "a cancelled request must give back its own reservations")
-		})
-	})
-
-	t.Run("deadline exceeded", func(t *testing.T) {
-		t.Parallel()
-		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-			shared := NewWindowBudget(time.Second, 1)
-			first := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
-			second := GetRateLimiterWithShared(NewRateLimit(time.Second, 10), 1, shared)
-			require.NoError(t, first.RateLimit(t.Context()), "first request must take the shared budget")
-
-			ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
-			defer cancel()
-			require.ErrorIs(t, second.RateLimit(ctx), context.DeadlineExceeded, "a request the shared budget would delay past its deadline must be refused")
-			time.Sleep(time.Second)
-			require.NoError(t, second.RateLimit(WithDelayNotAllowed(t.Context())), "a request refused for its deadline must take nothing from the shared budget")
-		})
-	})
-}
-
-func TestRateLimitBarrierWithShared(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		name     string
-		requests int
-		err      error
-	}{
-		{"a shared budget with room for one participant refuses the group", 1, ErrDelayNotAllowed},
-		{"a shared budget with room for every participant admits the group", 2, nil},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
-			require.NoError(t, err, "barrier contexts must be created")
-			shared := NewWindowBudget(time.Hour, tc.requests)
-			left := GetRateLimiterWithShared(NewRateLimit(time.Hour, 1), 1, shared)
-			right := GetRateLimiterWithShared(NewRateLimit(time.Hour, 1), 1, shared)
-			errs := make(chan error, 2)
-			go func() { errs <- left.RateLimit(contexts[0]) }()
-			go func() { errs <- right.RateLimit(contexts[1]) }()
-			for range 2 {
-				assert.ErrorIs(t, <-errs, tc.err, "every participant should share the group's outcome")
-			}
-			rateLimitReservationMu.Lock()
-			booked := len(shared.booked)
-			rateLimitReservationMu.Unlock()
-			if tc.err != nil {
-				assert.Zero(t, booked, "a refused group should book nothing in the shared budget")
-				assert.NoError(t, left.RateLimit(WithDelayNotAllowed(t.Context())), "a refused group should give back its own reservations")
-				return
-			}
-			assert.Equal(t, 2, booked, "an admitted group should book every participant in the shared budget")
-		})
-	}
-}
-
-func TestRateLimitWithSharedConcurrent(t *testing.T) {
-	t.Parallel()
-
-	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-		shared := NewWindowBudget(100*time.Millisecond, 1)
-		start := time.Now()
-		errs := common.ErrorCollector{}
-		for range 10 {
-			endpoint := GetRateLimiterWithShared(NewRateLimit(time.Second, 100), 1, shared)
-			errs.Go(func() error { return endpoint.RateLimit(t.Context()) })
-		}
-		require.NoError(t, errs.Collect(), "concurrent requests must not error")
-		assert.Equal(t, 900*time.Millisecond, time.Since(start), "requests on separate endpoints should queue on their shared budget")
-	})
-}
-
 // weightedSend is when a request was sent and how many requests it counted as
 type weightedSend struct {
 	at     time.Duration
@@ -788,205 +1019,6 @@ func busiestWeightedWindow(sends []weightedSend, window time.Duration) int {
 		busiest = max(busiest, held)
 	}
 	return busiest
-}
-
-func TestRateLimitWithWindowBudget(t *testing.T) {
-	t.Parallel()
-
-	t.Run("a request after a batch of the whole budget waits a whole window", func(t *testing.T) {
-		t.Parallel()
-		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-			orders := GetRateLimiterWithWindowBudget(NewWindowBudget(time.Second, 10), 1)
-			start := time.Now()
-			require.NoError(t, orders.RateLimit(WithWeight(t.Context(), 10)), "a batch of the whole budget must not error")
-			assert.Zero(t, time.Since(start), "a batch of the whole budget should go at once on an idle budget")
-			require.NoError(t, orders.RateLimit(t.Context()), "a request after the batch must not error")
-			assert.Equal(t, time.Second, time.Since(start), "a request after a batch of the whole budget should wait until the batch leaves the window")
-		})
-	})
-
-	t.Run("concurrent batches of the whole budget go a window apart", func(t *testing.T) {
-		t.Parallel()
-		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-			orders := GetRateLimiterWithWindowBudget(NewWindowBudget(time.Second, 10), 1)
-			start := time.Now()
-			var mu sync.Mutex
-			var sends []time.Duration
-			var errs common.ErrorCollector
-			for range 3 {
-				errs.Go(func() error {
-					if err := orders.RateLimit(WithWeight(t.Context(), 10)); err != nil {
-						return err
-					}
-					mu.Lock()
-					sends = append(sends, time.Since(start))
-					mu.Unlock()
-					return nil
-				})
-			}
-			require.NoError(t, errs.Collect(), "concurrent batches must not error")
-			slices.Sort(sends)
-			assert.Equal(t, []time.Duration{0, time.Second, 2 * time.Second}, sends, "batches of the whole budget should go a window apart")
-		})
-	})
-
-	for _, tc := range []struct {
-		name    string
-		singles int
-		exp     time.Duration
-	}{
-		{"a batch fitting the room left in the window goes at once", 7, 600 * time.Millisecond},
-		{"a batch larger than the room left waits until the window has room for all of it", 8, time.Second},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-				orders := GetRateLimiterWithWindowBudget(NewWindowBudget(time.Second, 10), 1)
-				start := time.Now()
-				for i := range tc.singles {
-					if i > 0 {
-						time.Sleep(100 * time.Millisecond)
-					}
-					require.NoError(t, orders.RateLimit(WithDelayNotAllowed(t.Context())), "a single request must go at once")
-				}
-				require.NoError(t, orders.RateLimit(WithWeight(t.Context(), 3)), "a batch of three must not error")
-				assert.Equal(t, tc.exp, time.Since(start), "a batch of three should go once no window holding it holds more than the budget")
-			})
-		})
-	}
-
-	t.Run("no window holds more than the budget under a mixed load", func(t *testing.T) {
-		t.Parallel()
-		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-			budget := NewWindowBudget(time.Second, 10)
-			shared := NewWindowBudget(time.Second, 12)
-			rest, websocket := GetRateLimiterWithWindowBudget(budget, 1, shared), GetRateLimiterWithWindowBudget(budget, 1)
-			random := rand.New(rand.NewPCG(3, 4)) //nolint:gosec // A fixed seed keeps the load reproducible
-			start := time.Now()
-			var mu sync.Mutex
-			var sends, restSends []weightedSend
-			var errs common.ErrorCollector
-			weights := []Weight{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-			for range 120 {
-				arrival, weight, overREST := time.Duration(random.IntN(5000))*time.Millisecond, weights[random.IntN(len(weights))], random.IntN(2) == 0
-				if random.IntN(2) == 0 {
-					weight = 1
-				}
-				errs.Go(func() error {
-					time.Sleep(arrival)
-					limiter := websocket
-					if overREST {
-						limiter = rest
-					}
-					if err := limiter.RateLimit(WithWeight(t.Context(), weight)); err != nil {
-						return err
-					}
-					sent := weightedSend{time.Since(start), int(weight)}
-					if sent.at < arrival {
-						return fmt.Errorf("a request asked for at %s was sent at %s", arrival, sent.at)
-					}
-					mu.Lock()
-					sends = append(sends, sent)
-					if overREST {
-						restSends = append(restSends, weightedSend{sent.at, 1})
-					}
-					mu.Unlock()
-					return nil
-				})
-			}
-			require.NoError(t, errs.Collect(), "every request must be sent, and none before it asked")
-			require.Len(t, sends, 120, "every request must be sent")
-			assert.Equal(t, 10, busiestWeightedWindow(sends, time.Second), "the busiest second should fill the budget without exceeding it")
-			assert.LessOrEqual(t, busiestWeightedWindow(restSends, time.Second), 12, "the shared budget should count each request once, whatever its weight")
-		})
-	})
-
-	t.Run("a request takes a moment ahead of one held back by a shared budget", func(t *testing.T) {
-		t.Parallel()
-		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-			budget, shared := NewWindowBudget(time.Second, 10), NewWindowBudget(5*time.Second, 1)
-			require.NoError(t, sharedOnly(shared).RateLimit(t.Context()), "a request must fill the shared budget")
-			start := time.Now()
-			held := make(chan time.Duration, 1)
-			go func() {
-				assert.NoError(t, GetRateLimiterWithWindowBudget(budget, 1, shared).RateLimit(t.Context()), "the held back request should be sent")
-				held <- time.Since(start)
-			}()
-			synctest.Wait()
-			time.Sleep(10 * time.Millisecond)
-			require.NoError(t, GetRateLimiterWithWindowBudget(budget, 1).RateLimit(WithDelayNotAllowed(t.Context())), "a request on the budget alone must not wait for one the shared budget holds back")
-			assert.Equal(t, 5*time.Second, <-held, "the held back request should be sent when the shared budget has room")
-		})
-	})
-
-	t.Run("refusals book nothing", func(t *testing.T) {
-		t.Parallel()
-		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-			budget := NewWindowBudget(time.Second, 10)
-			orders := GetRateLimiterWithWindowBudget(budget, 1)
-			require.NoError(t, orders.RateLimit(WithWeight(t.Context(), 8)), "a batch of eight must go at once")
-			require.ErrorIs(t, orders.RateLimit(WithWeight(t.Context(), 11)), ErrWeightExceedsBudget, "a batch larger than the budget must be refused")
-			require.ErrorIs(t, orders.RateLimit(WithWeight(WithDelayNotAllowed(t.Context()), 3)), ErrDelayNotAllowed, "a batch that would wait must be refused when delays are not allowed")
-			ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
-			defer cancel()
-			require.ErrorIs(t, orders.RateLimit(WithWeight(ctx, 3)), context.DeadlineExceeded, "a batch that would wait past its deadline must be refused")
-			rateLimitReservationMu.Lock()
-			booked := len(budget.booked)
-			rateLimitReservationMu.Unlock()
-			assert.Equal(t, 8, booked, "refused batches should book nothing")
-			assert.NoError(t, orders.RateLimit(WithWeight(WithDelayNotAllowed(t.Context()), 2)), "the room refused batches would have taken should be left")
-		})
-	})
-
-	t.Run("a cancelled batch gives back every request it booked", func(t *testing.T) {
-		t.Parallel()
-		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-			budget := NewWindowBudget(time.Second, 10)
-			orders := GetRateLimiterWithWindowBudget(budget, 1)
-			require.NoError(t, orders.RateLimit(WithWeight(t.Context(), 10)), "a batch of the whole budget must go at once")
-			ctx, cancel := context.WithCancel(t.Context())
-			errs := make(chan error, 1)
-			go func() { errs <- orders.RateLimit(WithWeight(ctx, 5)) }()
-			synctest.Wait()
-			time.Sleep(500 * time.Millisecond)
-			cancel()
-			require.ErrorIs(t, <-errs, context.Canceled, "a batch cancelled while waiting must return the cancellation")
-			time.Sleep(500 * time.Millisecond)
-			assert.NoError(t, orders.RateLimit(WithWeight(WithDelayNotAllowed(t.Context()), 10)), "a cancelled batch should leave the whole budget once the first batch leaves the window")
-		})
-	})
-}
-
-func TestRateLimitBarrierWithWindowBudget(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name    string
-		weights []Weight
-		err     error
-		booked  int
-	}{
-		{"a budget with room for every participant's weight admits the group", []Weight{6, 4}, nil, 10},
-		{"a budget without room for every participant's weight refuses the group", []Weight{6, 5}, ErrDelayNotAllowed, 0},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			contexts, err := NewRateLimitBarrierContexts(t.Context(), uint(len(tc.weights)))
-			require.NoError(t, err, "barrier contexts must be created")
-			budget := NewWindowBudget(time.Hour, 10)
-			errs := make(chan error, len(tc.weights))
-			for i, weight := range tc.weights {
-				orders := GetRateLimiterWithWindowBudget(budget, 1)
-				go func() { errs <- orders.RateLimit(WithWeight(contexts[i], weight)) }()
-			}
-			for range tc.weights {
-				assert.ErrorIs(t, <-errs, tc.err, "every participant should share the group's outcome")
-			}
-			rateLimitReservationMu.Lock()
-			booked := len(budget.booked)
-			rateLimitReservationMu.Unlock()
-			assert.Equal(t, tc.booked, booked, "a group should book every participant's weight only when it is admitted")
-		})
-	}
 }
 
 func TestGetRateLimiterWithWeight(t *testing.T) {
@@ -1390,39 +1422,6 @@ func TestRateLimitWithSharedSendTimes(t *testing.T) {
 	})
 }
 
-func TestRateLimitWithSharedRefusalsReserveNothing(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name string
-		ctx  func(context.Context) (context.Context, context.CancelFunc)
-		err  error
-	}{
-		{"delay not allowed", func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return WithDelayNotAllowed(ctx), func() {}
-		}, ErrDelayNotAllowed},
-		{"deadline too soon", func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return context.WithTimeout(ctx, 50*time.Millisecond)
-		}, context.DeadlineExceeded},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-				shared := NewWindowBudget(time.Second, 1)
-				own := NewRateLimit(time.Second, 10)
-				require.NoError(t, sharedOnly(shared).RateLimit(t.Context()), "a request must fill the shared budget")
-				ctx, cancel := tc.ctx(t.Context())
-				defer cancel()
-				require.ErrorIs(t, GetRateLimiterWithShared(own, 1, shared).RateLimit(ctx), tc.err, "a request the shared budget would delay must be refused")
-				assert.NoError(t, GetRateLimiterWithWeight(own, 1).RateLimit(WithDelayNotAllowed(t.Context())), "a refused request should leave its endpoint's clock and budget untouched")
-				rateLimitReservationMu.Lock()
-				booked := len(shared.booked)
-				rateLimitReservationMu.Unlock()
-				assert.Equal(t, 1, booked, "a refused request should book nothing in the shared budget")
-			})
-		})
-	}
-}
-
 // bookedBudget returns a budget of the given requests a second holding n bookings at t
 func bookedBudget(requests int, t time.Time, n int) *WindowBudget {
 	return &WindowBudget{window: time.Second, requests: requests, booked: slices.Repeat([]time.Time{t}, n)}
@@ -1560,9 +1559,10 @@ func TestPlanLocked(t *testing.T) {
 	})
 }
 
-func TestRateLimiterWithWeightBookings(t *testing.T) {
+func TestRateLimiterWithWeightBookings(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share budgets
 	t.Parallel()
 	own, shared, other := NewWindowBudget(time.Second, 10), NewWindowBudget(time.Second, 600), NewWindowBudget(time.Second, 12)
+	// Cases share the budgets, so they run in order
 	for _, tc := range []struct {
 		name    string
 		limiter *RateLimiterWithWeight
@@ -1574,17 +1574,21 @@ func TestRateLimiterWithWeightBookings(t *testing.T) {
 		{"a window budget of the endpoint's own books the weight", GetRateLimiterWithWindowBudget(own, 1), 7, []windowBooking{{own, 7}}},
 		{"an own budget is booked before shared ones", GetRateLimiterWithWindowBudget(own, 1, shared, other), 3, []windowBooking{{own, 3}, {shared, 1}, {other, 1}}},
 	} {
-		assert.Equalf(t, tc.exp, tc.limiter.bookings(tc.weight), "bookings should return what %s books", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equalf(t, tc.exp, tc.limiter.bookings(tc.weight), "bookings should return what %s books", tc.name)
+		})
 	}
 }
 
-func TestRateLimiterWithWeightWeightFor(t *testing.T) {
+func TestRateLimiterWithWeightWeightFor(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share limiters
 	t.Parallel()
 	limited, budgeted := NewRateLimitWithWeight(time.Second, 10, 2), GetRateLimiterWithWindowBudget(NewWindowBudget(time.Second, 10), 1)
 	unweighted := func(ctx context.Context) context.Context { return ctx }
 	weighted := func(weight Weight) func(context.Context) context.Context {
 		return func(ctx context.Context) context.Context { return WithWeight(ctx, weight) }
 	}
+	testCtx := t.Context()
+	// Cases share the limiters, so they run in order
 	for _, tc := range []struct {
 		name    string
 		limiter *RateLimiterWithWeight
@@ -1600,9 +1604,11 @@ func TestRateLimiterWithWeightWeightFor(t *testing.T) {
 		{"a weight a window budget never admits", budgeted, weighted(11), 0, ErrWeightExceedsBudget},
 		{"any weight without a window budget", GetRateLimiterWithWindowBudget(nil, 1), weighted(255), 255, nil},
 	} {
-		weight, err := tc.limiter.weightFor(tc.weigh(t.Context()))
-		require.ErrorIsf(t, err, tc.err, "weightFor must return the expected error for %s", tc.name)
-		assert.Equalf(t, tc.exp, weight, "weightFor should return the weight for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			weight, err := tc.limiter.weightFor(tc.weigh(testCtx))
+			require.ErrorIsf(t, err, tc.err, "weightFor must return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.exp, weight, "weightFor should return the weight for %s", tc.name)
+		})
 	}
 }
 
@@ -1812,7 +1818,10 @@ func TestNewWindowBudget(t *testing.T) {
 		{5 * time.Second, 0, nil},
 		{5 * time.Second, -1, nil},
 	} {
-		assert.Equalf(t, tc.exp, NewWindowBudget(tc.window, tc.requests), "NewWindowBudget should return a budget of %d requests in %s, or none", tc.requests, tc.window)
+		t.Run(fmt.Sprintf("%d requests in %s", tc.requests, tc.window), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, NewWindowBudget(tc.window, tc.requests), "NewWindowBudget should return a budget of %d requests in %s, or none", tc.requests, tc.window)
+		})
 	}
 }
 
@@ -1900,7 +1909,8 @@ func TestWindowBudgetEarliestLocked(t *testing.T) {
 			}
 			return true
 		}
-		for range 4000 {
+		// Each case draws its inputs from the one generator after the case before, so the cases run in order
+		for c := range 4000 {
 			requests, window := 1+random.IntN(6), 10
 			n := 1 + random.IntN(requests)
 			booked := make([]int, random.IntN(16))
@@ -1909,18 +1919,20 @@ func TestWindowBudgetEarliestLocked(t *testing.T) {
 			}
 			slices.Sort(booked)
 			from := random.IntN(40)
-			exp := from
-			for !hasRoom(booked, requests, n, window, exp) {
-				exp++
-			}
-			b := &WindowBudget{window: time.Duration(window) * time.Second, requests: requests}
-			for _, seconds := range booked {
-				b.booked = append(b.booked, at(float64(seconds)))
-			}
-			rateLimitReservationMu.Lock()
-			got := b.earliestLocked(at(float64(from)), n)
-			rateLimitReservationMu.Unlock()
-			require.Equalf(t, at(float64(exp)), got, "earliestLocked must match a search of every moment for %d of %d requests booked at %v from %d", n, requests, booked, from)
+			t.Run(fmt.Sprint("case ", c), func(t *testing.T) {
+				exp := from
+				for !hasRoom(booked, requests, n, window, exp) {
+					exp++
+				}
+				b := &WindowBudget{window: time.Duration(window) * time.Second, requests: requests}
+				for _, seconds := range booked {
+					b.booked = append(b.booked, at(float64(seconds)))
+				}
+				rateLimitReservationMu.Lock()
+				got := b.earliestLocked(at(float64(from)), n)
+				rateLimitReservationMu.Unlock()
+				require.Equalf(t, at(float64(exp)), got, "earliestLocked must match a search of every moment for %d of %d requests booked at %v from %d", n, requests, booked, from)
+			})
 		}
 	})
 }
@@ -1956,10 +1968,11 @@ func TestWindowBudgetCancelLocked(t *testing.T) {
 	(&WindowBudget{window: time.Second, requests: 1}).cancelLocked(now, 1)
 }
 
-func TestFirstAfter(t *testing.T) {
+func TestFirstAfter(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share times and firstAfter is called again after them
 	t.Parallel()
 	now := time.Now().Round(0)
 	times := []time.Time{now, now.Add(time.Second), now.Add(time.Second), now.Add(2 * time.Second)}
+	// Cases share the times and firstAfter is called again after them, so they run in order
 	for _, tc := range []struct {
 		at  time.Time
 		exp int
@@ -1970,7 +1983,9 @@ func TestFirstAfter(t *testing.T) {
 		{now.Add(2 * time.Second), 4},
 		{now.Add(3 * time.Second), 4},
 	} {
-		assert.Equalf(t, tc.exp, firstAfter(times, tc.at), "firstAfter should return the index of the first time after %s", tc.at.Sub(now))
+		t.Run(fmt.Sprint("after ", tc.at.Sub(now)), func(t *testing.T) {
+			assert.Equalf(t, tc.exp, firstAfter(times, tc.at), "firstAfter should return the index of the first time after %s", tc.at.Sub(now))
+		})
 	}
 	assert.Zero(t, firstAfter(nil, now), "firstAfter should return 0 for no times")
 }

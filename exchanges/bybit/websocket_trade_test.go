@@ -172,41 +172,45 @@ func TestWebsocketAuthenticateTradeConnection(t *testing.T) {
 	require.ErrorContains(t, err, "connection lost", "WebsocketAuthenticateTradeConnection must return a failed send")
 }
 
-func TestWebsocketHandleTradeData(t *testing.T) {
+func TestWebsocketHandleTradeData(t *testing.T) { //nolint:tparallel // Subtests share the package exchange e, so they run in order
 	t.Parallel()
+	// Cases share the package exchange e, so they run in order
 	for _, tc := range []struct {
+		name  string
 		input string
 		match string
 		err   error
 	}{
-		{input: `{"reqId":"test-005","retCode":0,"retMsg":"OK","op":"order.create","data":{"orderId":"a4c1718e-fe53-4659-a118-1f6ecce04ad9","orderLinkId":""}}`, match: "test-005"},
-		{input: `{"retCode":0,"retMsg":"OK","op":"auth","connId":"cnt5leec0hvan15eukcg-2t"}`, match: "auth"},
-		{input: `{"retCode":0,"retMsg":"OK","op":"pong","data":["1711002002529"],"connId":"cnt5leec0hvan15eukcg-2v"}`},
-		{input: `{"op":"pewpewpew"}`, err: errUnhandledStreamData},
-		{input: `{"reqId":"noMatch","retCode":0,"op":"order.create"}`, err: websocket.ErrSignatureNotMatched},
-		{input: `{"reqId":1}`, err: errors.New("reqId")},
-		{input: `{"op":1}`, err: errors.New("op")},
+		{name: "an order reply", input: `{"reqId":"test-005","retCode":0,"retMsg":"OK","op":"order.create","data":{"orderId":"a4c1718e-fe53-4659-a118-1f6ecce04ad9","orderLinkId":""}}`, match: "test-005"},
+		{name: "an auth reply", input: `{"retCode":0,"retMsg":"OK","op":"auth","connId":"cnt5leec0hvan15eukcg-2t"}`, match: "auth"},
+		{name: "a pong", input: `{"retCode":0,"retMsg":"OK","op":"pong","data":["1711002002529"],"connId":"cnt5leec0hvan15eukcg-2v"}`},
+		{name: "an unknown operation", input: `{"op":"pewpewpew"}`, err: errUnhandledStreamData},
+		{name: "a reply no request awaits", input: `{"reqId":"noMatch","retCode":0,"op":"order.create"}`, err: websocket.ErrSignatureNotMatched},
+		{name: "a request ID that is not a string", input: `{"reqId":1}`, err: errors.New("reqId")},
+		{name: "an operation that is not a string", input: `{"op":1}`, err: errors.New("op")},
 	} {
-		conn := &FixtureConnection{match: websocket.NewMatch()}
-		var ch <-chan []byte
-		if tc.match != "" {
-			var err error
-			ch, err = conn.match.Set(tc.match, 1)
-			require.NoError(t, err, "match.Set must not error")
-		}
-		err := e.wsHandleTradeData(conn, []byte(tc.input))
-		switch {
-		case tc.err == nil:
-			require.NoError(t, err, "wsHandleTradeData must not error")
-		case tc.err.Error() == "reqId", tc.err.Error() == "op":
-			require.Errorf(t, err, "wsHandleTradeData must error for %s", tc.input)
-		default:
-			require.ErrorIs(t, err, tc.err, "wsHandleTradeData must return the expected error")
-		}
-		if tc.match != "" {
-			require.Len(t, ch, 1, "the reply must reach its request")
-			assert.Equal(t, tc.input, string(<-ch), "the reply should reach its request unchanged")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			conn := &FixtureConnection{match: websocket.NewMatch()}
+			var ch <-chan []byte
+			if tc.match != "" {
+				var err error
+				ch, err = conn.match.Set(tc.match, 1)
+				require.NoError(t, err, "match.Set must not error")
+			}
+			err := e.wsHandleTradeData(conn, []byte(tc.input))
+			switch {
+			case tc.err == nil:
+				require.NoError(t, err, "wsHandleTradeData must not error")
+			case tc.err.Error() == "reqId", tc.err.Error() == "op":
+				require.Errorf(t, err, "wsHandleTradeData must error for %s", tc.input)
+			default:
+				require.ErrorIs(t, err, tc.err, "wsHandleTradeData must return the expected error")
+			}
+			if tc.match != "" {
+				require.Len(t, ch, 1, "the reply must reach its request")
+				assert.Equal(t, tc.input, string(<-ch), "the reply should reach its request unchanged")
+			}
+		})
 	}
 }
 
@@ -347,7 +351,7 @@ func batchResults(createAt time.Time) []WebsocketBatchOrderResult {
 	}
 }
 
-func TestWebsocketCreateBatchOrders(t *testing.T) {
+func TestWebsocketCreateBatchOrders(t *testing.T) { //nolint:tparallel // Subtests share the package exchange e, so they run in order
 	t.Parallel()
 	item := BatchPlaceOrderItem{Symbol: "BTCUSDT", Side: "Buy", OrderType: "Limit", Quantity: 0.001, Price: 82000, OrderLinkID: "batch-000"}
 	_, err := e.WebsocketCreateBatchOrders(t.Context(), nil)
@@ -358,19 +362,24 @@ func TestWebsocketCreateBatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported, "WebsocketCreateBatchOrders must refuse a category websocket order entry does not support")
 	_, err = e.WebsocketCreateBatchOrders(t.Context(), &BatchPlaceOrderRequest{Category: cLinear})
 	require.ErrorIs(t, err, errNoOrderPassed, "WebsocketCreateBatchOrders must require orders")
+	ctx := t.Context()
+	// Cases share the package exchange e and item, which the calls after the loop use too, so they run in order
 	for _, tc := range []struct {
+		name   string
 		mutate func(*BatchPlaceOrderItem)
 		err    error
 	}{
-		{mutate: func(i *BatchPlaceOrderItem) { i.Symbol = "" }, err: errSymbolMissing},
-		{mutate: func(i *BatchPlaceOrderItem) { i.Side = "" }, err: order.ErrSideIsInvalid},
-		{mutate: func(i *BatchPlaceOrderItem) { i.OrderType = "" }, err: order.ErrTypeIsInvalid},
-		{mutate: func(i *BatchPlaceOrderItem) { i.Quantity = 0 }, err: limits.ErrAmountBelowMin},
+		{name: "an order without a symbol", mutate: func(i *BatchPlaceOrderItem) { i.Symbol = "" }, err: errSymbolMissing},
+		{name: "an order without a side", mutate: func(i *BatchPlaceOrderItem) { i.Side = "" }, err: order.ErrSideIsInvalid},
+		{name: "an order without an order type", mutate: func(i *BatchPlaceOrderItem) { i.OrderType = "" }, err: order.ErrTypeIsInvalid},
+		{name: "an order without a quantity", mutate: func(i *BatchPlaceOrderItem) { i.Quantity = 0 }, err: limits.ErrAmountBelowMin},
 	} {
-		bad := item
-		tc.mutate(&bad)
-		_, err = e.WebsocketCreateBatchOrders(t.Context(), &BatchPlaceOrderRequest{Category: cLinear, Request: []BatchPlaceOrderItem{item, bad}})
-		require.ErrorIs(t, err, tc.err, "WebsocketCreateBatchOrders must validate every order")
+		t.Run(tc.name, func(t *testing.T) {
+			bad := item
+			tc.mutate(&bad)
+			_, err := e.WebsocketCreateBatchOrders(ctx, &BatchPlaceOrderRequest{Category: cLinear, Request: []BatchPlaceOrderItem{item, bad}})
+			require.ErrorIs(t, err, tc.err, "WebsocketCreateBatchOrders must validate every order")
+		})
 	}
 	_, err = e.WebsocketCreateBatchOrders(t.Context(), &BatchPlaceOrderRequest{Category: cLinear, Request: []BatchPlaceOrderItem{item}})
 	require.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketCreateBatchOrders must not fall back to REST without a trade connection")
@@ -492,12 +501,15 @@ func TestWebsocketCancelBatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, errBatchOutcomeMismatch, "WebsocketCancelBatchOrders must reject a reply for more orders than it sent")
 }
 
-func TestWebsocketOrderEPL(t *testing.T) {
+func TestWebsocketOrderEPL(t *testing.T) { //nolint:tparallel // websocketOrderEPL is called again after the subtests, so they run one at a time
 	t.Parallel()
+	// websocketOrderEPL is called again after the loop, so the cases run one at a time
 	for category, exp := range map[string]any{cSpot: wsCreateSpotOrderEPL, cLinear: wsCreateOrderEPL, cInverse: wsCreateOrderEPL, cOption: wsCreateOptionOrderEPL} {
-		epl, err := websocketOrderEPL("order.create", category)
-		require.NoErrorf(t, err, "websocketOrderEPL must not error for %s", category)
-		assert.Equalf(t, exp, epl, "websocketOrderEPL should return the %s limit", category)
+		t.Run(category, func(t *testing.T) {
+			epl, err := websocketOrderEPL("order.create", category)
+			require.NoErrorf(t, err, "websocketOrderEPL must not error for %s", category)
+			assert.Equalf(t, exp, epl, "websocketOrderEPL should return the %s limit", category)
+		})
 	}
 	_, err := websocketOrderEPL("order.create", "")
 	require.ErrorIs(t, err, errCategoryNotSet, "websocketOrderEPL must require a category")
@@ -534,7 +546,7 @@ func TestSendWebsocketOrderRequest(t *testing.T) {
 	assert.Nil(t, got, "sendWebsocketOrderRequest should return no order IDs for a refused request")
 }
 
-func TestSendWebsocketBatchOrderRequest(t *testing.T) {
+func TestSendWebsocketBatchOrderRequest(t *testing.T) { //nolint:tparallel // Subtests share ex and its mock, so they run in order
 	t.Parallel()
 	payload := map[string]any{"category": cLinear, "request": []any{
 		map[string]any{"symbol": "BTCUSDT", "side": "Buy", "orderType": "Limit", "qty": "0.001", "price": "82000", "orderLinkId": "batch-000"},
@@ -577,12 +589,16 @@ func TestSendWebsocketBatchOrderRequest(t *testing.T) {
 	got, err = ex.sendWebsocketBatchOrderRequest(t.Context(), "order.create-batch", cLinear, 2, payload, wsCreateBatchOrderEPL)
 	require.ErrorIs(t, err, errBatchOutcomeMismatch, "sendWebsocketBatchOrderRequest must not report results when Bybit sends fewer results than orders")
 	assert.Nil(t, got, "sendWebsocketBatchOrderRequest should return no results when Bybit sends fewer results than orders")
-	// The reply holds two results and two outcomes, which cannot be matched to a batch of any other size
+	// The reply holds two results and two outcomes, which cannot be matched to a batch of any other size. Cases share ex
+	// and its mock, which the calls after the loop use too, so they run in order
 	m.setReply(func(req *mockTradeRequest) (string, string) { return batchReply(req, "1740453408555"), "" })
+	ctx := t.Context()
 	for _, orders := range []int{1, 3} {
-		got, err = ex.sendWebsocketBatchOrderRequest(t.Context(), "order.create-batch", cLinear, orders, payload, wsCreateBatchOrderEPL)
-		require.ErrorIsf(t, err, errBatchOutcomeMismatch, "sendWebsocketBatchOrderRequest must not report two results for a batch of %d orders", orders)
-		assert.Nilf(t, got, "sendWebsocketBatchOrderRequest should return no results for a batch of %d orders", orders)
+		t.Run("a batch of "+strconv.Itoa(orders), func(t *testing.T) {
+			got, err = ex.sendWebsocketBatchOrderRequest(ctx, "order.create-batch", cLinear, orders, payload, wsCreateBatchOrderEPL)
+			require.ErrorIsf(t, err, errBatchOutcomeMismatch, "sendWebsocketBatchOrderRequest must not report two results for a batch of %d orders", orders)
+			assert.Nilf(t, got, "sendWebsocketBatchOrderRequest should return no results for a batch of %d orders", orders)
+		})
 	}
 
 	m.setReply(func(req *mockTradeRequest) (string, string) {
@@ -628,6 +644,42 @@ func TestTimedTradeRequestStampSendTime(t *testing.T) {
 
 func TestSendWebsocketTradeRequest(t *testing.T) {
 	t.Parallel()
+	t.Run("stamps when sent", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		stamps := make(map[string]string)
+		m := &tradeStreamMock{reply: func(req *mockTradeRequest) (string, string) {
+			mu.Lock()
+			stamps[string(req.Arguments[0])] = req.Header["X-BAPI-TIMESTAMP"]
+			mu.Unlock()
+			return orderReply(req, `{"orderId":"c1956690-b731-4191-97c0-94b00422231b","orderLinkId":""}`), ""
+		}}
+		ex := newTradeStreamExchange(t, m)
+		conn, err := ex.Websocket.GetConnection(OutboundTradeConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		// A rate limit barrier holds the first request back until the second joins it, as a rate limit wait would. Their
+		// endpoint has no budget, so they take nothing from the order budgets other tests draw on. The deadline ends both
+		// requests should the barrier never admit them
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		contexts, err := request.NewRateLimitBarrierContexts(ctx, 2)
+		require.NoError(t, err, "NewRateLimitBarrierContexts must not error")
+		held := make(chan error, 1)
+		go func() {
+			_, err := sendWebsocketTradeRequest[OrderResponse](contexts[0], ex, conn, "order.create", "held", wsSubscriptionEPL)
+			held <- err
+		}()
+		time.Sleep(100 * time.Millisecond)
+		joined := time.Now()
+		_, err = sendWebsocketTradeRequest[OrderResponse](contexts[1], ex, conn, "order.create", "joining", wsSubscriptionEPL)
+		require.NoError(t, err, "sendWebsocketTradeRequest must not error")
+		require.NoError(t, <-held, "sendWebsocketTradeRequest must not error for the held request")
+		mu.Lock()
+		defer mu.Unlock()
+		stamp, err := strconv.ParseInt(stamps[`"held"`], 10, 64)
+		require.NoError(t, err, "the held request's timestamp must be Unix milliseconds")
+		assert.GreaterOrEqual(t, stamp, joined.UnixMilli(), "a request held back by its rate limit should be stamped when it is sent, not when it was made")
+	})
 	conn := &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"reqId":"1","retCode":0,"retMsg":"OK","op":"order.create","data":{"orderId":"a4c1718e-fe53-4659-a118-1f6ecce04ad9","orderLinkId":"test-005"},"retExtInfo":{},"header":{"X-Bapi-Limit":"10","X-Bapi-Limit-Status":"9","X-Bapi-Limit-Reset-Timestamp":"1711001595208","Traceid":"38b7977b430f9bd228f4b19724794dfd","Timenow":"1711001595209"},"connId":"cnt5leec0hvan15eukcg-2v"}`)}
 	resp, err := sendWebsocketTradeRequest[OrderResponse](t.Context(), e, conn, "order.create", map[string]any{"category": cLinear}, wsCreateOrderEPL)
 	require.NoError(t, err, "sendWebsocketTradeRequest must not error")
@@ -663,43 +715,6 @@ func TestSendWebsocketTradeRequest(t *testing.T) {
 	// A null reply carries no return code, so it does not confirm the order was accepted
 	_, err = sendWebsocketTradeRequest[OrderResponse](t.Context(), e, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`null`)}, "order.create", nil, wsCreateOrderEPL)
 	require.ErrorIs(t, err, common.ErrNoResponse, "sendWebsocketTradeRequest must not accept a null reply")
-}
-
-func TestSendWebsocketTradeRequestStampsWhenSent(t *testing.T) {
-	t.Parallel()
-	var mu sync.Mutex
-	stamps := make(map[string]string)
-	m := &tradeStreamMock{reply: func(req *mockTradeRequest) (string, string) {
-		mu.Lock()
-		stamps[string(req.Arguments[0])] = req.Header["X-BAPI-TIMESTAMP"]
-		mu.Unlock()
-		return orderReply(req, `{"orderId":"c1956690-b731-4191-97c0-94b00422231b","orderLinkId":""}`), ""
-	}}
-	ex := newTradeStreamExchange(t, m)
-	conn, err := ex.Websocket.GetConnection(OutboundTradeConnection)
-	require.NoError(t, err, "GetConnection must not error")
-	// A rate limit barrier holds the first request back until the second joins it, as a rate limit wait would. Their
-	// endpoint has no budget, so they take nothing from the order budgets other tests draw on. The deadline ends both
-	// requests should the barrier never admit them
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-	defer cancel()
-	contexts, err := request.NewRateLimitBarrierContexts(ctx, 2)
-	require.NoError(t, err, "NewRateLimitBarrierContexts must not error")
-	held := make(chan error, 1)
-	go func() {
-		_, err := sendWebsocketTradeRequest[OrderResponse](contexts[0], ex, conn, "order.create", "held", wsSubscriptionEPL)
-		held <- err
-	}()
-	time.Sleep(100 * time.Millisecond)
-	joined := time.Now()
-	_, err = sendWebsocketTradeRequest[OrderResponse](contexts[1], ex, conn, "order.create", "joining", wsSubscriptionEPL)
-	require.NoError(t, err, "sendWebsocketTradeRequest must not error")
-	require.NoError(t, <-held, "sendWebsocketTradeRequest must not error for the held request")
-	mu.Lock()
-	defer mu.Unlock()
-	stamp, err := strconv.ParseInt(stamps[`"held"`], 10, 64)
-	require.NoError(t, err, "the held request's timestamp must be Unix milliseconds")
-	assert.GreaterOrEqual(t, stamp, joined.UnixMilli(), "a request held back by its rate limit should be stamped when it is sent, not when it was made")
 }
 
 func TestWebsocketSubmitOrder(t *testing.T) {

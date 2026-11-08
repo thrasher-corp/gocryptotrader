@@ -130,7 +130,10 @@ func TestStringToOrderStatus(t *testing.T) {
 		},
 	}
 	for x := range input {
-		assert.Equalf(t, input[x].Expectation, StringToOrderStatus(input[x].OrderStatus), "StringToOrderStatus should return %s for %q", input[x].Expectation, input[x].OrderStatus)
+		t.Run(strconv.Quote(input[x].OrderStatus), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, input[x].Expectation, StringToOrderStatus(input[x].OrderStatus), "StringToOrderStatus should return %s for %q", input[x].Expectation, input[x].OrderStatus)
+		})
 	}
 }
 
@@ -176,20 +179,24 @@ func TestIsNil(t *testing.T) {
 	t.Parallel()
 	coin := "BTC"
 	for _, tc := range []struct {
-		v   any
-		exp bool
+		name string
+		v    any
+		exp  bool
 	}{
-		{v: nil, exp: true},
-		{v: (*string)(nil), exp: true},
-		{v: map[string]any(nil), exp: true},
-		{v: []string(nil), exp: true},
-		{v: &coin, exp: false},
-		{v: map[string]any{}, exp: false},
-		{v: []string{}, exp: false},
-		{v: struct{}{}, exp: false},
-		{v: "", exp: false},
+		{name: "nil interface", v: nil, exp: true},
+		{name: "nil pointer", v: (*string)(nil), exp: true},
+		{name: "nil map", v: map[string]any(nil), exp: true},
+		{name: "nil slice", v: []string(nil), exp: true},
+		{name: "pointer", v: &coin, exp: false},
+		{name: "empty map", v: map[string]any{}, exp: false},
+		{name: "empty slice", v: []string{}, exp: false},
+		{name: "struct", v: struct{}{}, exp: false},
+		{name: "empty string", v: "", exp: false},
 	} {
-		assert.Equalf(t, tc.exp, isNil(tc.v), "isNil should report whether %#v is nil", tc.v)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, isNil(tc.v), "isNil should report whether %#v is nil", tc.v)
+		})
 	}
 }
 
@@ -240,6 +247,38 @@ func (unencodableBody) MarshalJSON() ([]byte, error) {
 
 func TestSendAuthHTTPRequest(t *testing.T) {
 	t.Parallel()
+
+	t.Run("signs each attempt", func(t *testing.T) {
+		t.Parallel()
+		// The requester builds each attempt after its rate limit wait and a retry's backoff, and Bybit refuses a timestamp
+		// older than its receive window, so each attempt must be signed when it is sent
+		var mu sync.Mutex
+		var timestamps, signatures []string
+		ex := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			timestamps = append(timestamps, r.Header.Get("X-BAPI-TIMESTAMP"))
+			signatures = append(signatures, r.Header.Get("X-BAPI-SIGN"))
+			first := len(timestamps) == 1
+			mu.Unlock()
+			if first {
+				w.WriteHeader(http.StatusTooManyRequests)
+				return
+			}
+			_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{},"retExtInfo":{},"time":1688639403423}`)
+			assert.NoError(t, err, "writing the response should not error")
+		})
+		require.NoError(t, ex.SendAuthHTTPRequest(t.Context(), exchange.RestSpot, http.MethodGet, "/v5/account/info", url.Values{"category": {"spot"}}, nil, nil, defaultEPL), "SendAuthHTTPRequest must not error once its retry succeeds")
+		mu.Lock()
+		defer mu.Unlock()
+		require.Len(t, timestamps, 2, "SendAuthHTTPRequest must send the request again after a 429")
+		first, err := strconv.ParseInt(timestamps[0], 10, 64)
+		require.NoError(t, err, "the first timestamp must be an integer")
+		retried, err := strconv.ParseInt(timestamps[1], 10, 64)
+		require.NoError(t, err, "the retried timestamp must be an integer")
+		assert.Greater(t, retried, first, "a retried request should carry the time it is sent at")
+		assert.Equal(t, getSign(timestamps[1]+"key"+defaultRecvWindow+"category=spot", "secret"), signatures[1], "a retried request should be signed with its own timestamp")
+	})
+
 	var body string
 	var gotMethod, gotQuery, gotBody string
 	var gotHeader http.Header
@@ -299,11 +338,14 @@ func TestSendAuthHTTPRequest(t *testing.T) {
 	require.NoError(t, ex.SendAuthHTTPRequest(t.Context(), exchange.RestSpot, http.MethodPost, "/v5/account/mmp-reset", url.Values{}, nil, nil, defaultEPL), "SendAuthHTTPRequest must not error with empty query parameters")
 	assert.Equal(t, "{}", gotBody, "a POST request with empty query parameters should send an empty object")
 	assert.Empty(t, gotQuery, "a POST request with empty query parameters should not carry a query string")
-	// A nil map, pointer or slice holds no body, as a nil interface does
+	ctx := t.Context()
+	// A nil map, pointer or slice holds no body, as a nil interface does. Cases share ex, so they run in order
 	for _, typedNil := range []any{map[string]any(nil), (*struct{ Coin string })(nil), []any(nil)} {
-		require.NoErrorf(t, ex.SendAuthHTTPRequest(t.Context(), exchange.RestSpot, http.MethodPost, "/v5/account/mmp-reset", nil, typedNil, nil, defaultEPL), "SendAuthHTTPRequest must not error with a %T body", typedNil)
-		assert.Equalf(t, "{}", gotBody, "a POST request with a %T body should send an empty object", typedNil)
-		assert.NoErrorf(t, ex.SendAuthHTTPRequest(t.Context(), exchange.RestSpot, http.MethodGet, "/v5/order/realtime", nil, typedNil, nil, defaultEPL), "SendAuthHTTPRequest should send a GET with a %T body", typedNil)
+		t.Run(fmt.Sprintf("%T body", typedNil), func(t *testing.T) {
+			require.NoErrorf(t, ex.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-reset", nil, typedNil, nil, defaultEPL), "SendAuthHTTPRequest must not error with a %T body", typedNil)
+			assert.Equalf(t, "{}", gotBody, "a POST request with a %T body should send an empty object", typedNil)
+			assert.NoErrorf(t, ex.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/order/realtime", nil, typedNil, nil, defaultEPL), "SendAuthHTTPRequest should send a GET with a %T body", typedNil)
+		})
 	}
 
 	require.NoError(t, ex.SendAuthHTTPRequest(t.Context(), exchange.RestSpot, http.MethodPost, "/v5/card/reward/point/cashback/detail", url.Values{"bizTxnId": {"TXN20230101001"}}, nil, nil, defaultEPL), "SendAuthHTTPRequest must not error")
@@ -350,37 +392,6 @@ func TestSendAuthHTTPRequest(t *testing.T) {
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "SendAuthHTTPRequest should require credentials")
 }
 
-func TestSendAuthHTTPRequestSignsEachAttempt(t *testing.T) {
-	t.Parallel()
-	// The requester builds each attempt after its rate limit wait and a retry's backoff, and Bybit refuses a timestamp
-	// older than its receive window, so each attempt must be signed when it is sent
-	var mu sync.Mutex
-	var timestamps, signatures []string
-	ex := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		mu.Lock()
-		timestamps = append(timestamps, r.Header.Get("X-BAPI-TIMESTAMP"))
-		signatures = append(signatures, r.Header.Get("X-BAPI-SIGN"))
-		first := len(timestamps) == 1
-		mu.Unlock()
-		if first {
-			w.WriteHeader(http.StatusTooManyRequests)
-			return
-		}
-		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{},"retExtInfo":{},"time":1688639403423}`)
-		assert.NoError(t, err, "writing the response should not error")
-	})
-	require.NoError(t, ex.SendAuthHTTPRequest(t.Context(), exchange.RestSpot, http.MethodGet, "/v5/account/info", url.Values{"category": {"spot"}}, nil, nil, defaultEPL), "SendAuthHTTPRequest must not error once its retry succeeds")
-	mu.Lock()
-	defer mu.Unlock()
-	require.Len(t, timestamps, 2, "SendAuthHTTPRequest must send the request again after a 429")
-	first, err := strconv.ParseInt(timestamps[0], 10, 64)
-	require.NoError(t, err, "the first timestamp must be an integer")
-	retried, err := strconv.ParseInt(timestamps[1], 10, 64)
-	require.NoError(t, err, "the retried timestamp must be an integer")
-	assert.Greater(t, retried, first, "a retried request should carry the time it is sent at")
-	assert.Equal(t, getSign(timestamps[1]+"key"+defaultRecvWindow+"category=spot", "secret"), signatures[1], "a retried request should be signed with its own timestamp")
-}
-
 var errRequestItem = errors.New("request item cannot be built")
 
 func TestSendRequest(t *testing.T) {
@@ -415,17 +426,27 @@ func TestSendRequest(t *testing.T) {
 
 	t.Run("no nonce lock", func(t *testing.T) {
 		t.Parallel()
-		for _, auth := range []request.AuthType{request.UnauthenticatedRequest, request.AuthenticatedRequest} {
-			ex, newItem := serve(t, http.StatusOK, `{"retCode":0,"retMsg":"OK","result":{"timeSecond":"1688639403","timeNano":"1688639403423213947"},"retExtInfo":{},"time":1688639403423}`)
-			var sent *request.Item
-			var result *ServerTimeResponse
-			require.NoErrorf(t, ex.sendRequest(t.Context(), defaultEPL, auth, &result, func() (*request.Item, error) {
-				item, err := newItem()
-				sent = item
-				return item, err
-			}), "sendRequest must not error for auth type %d", auth)
-			require.NotNilf(t, sent, "sendRequest must build its request for auth type %d", auth)
-			assert.Truef(t, sent.NonceEnabled, "sendRequest should not queue a request of auth type %d for the requester's nonce lock, which would move it past its booked send time", auth)
+		ctx := t.Context()
+		for _, tc := range []struct {
+			name string
+			auth request.AuthType
+		}{
+			{"unauthenticated", request.UnauthenticatedRequest},
+			{"authenticated", request.AuthenticatedRequest},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, newItem := serve(t, http.StatusOK, `{"retCode":0,"retMsg":"OK","result":{"timeSecond":"1688639403","timeNano":"1688639403423213947"},"retExtInfo":{},"time":1688639403423}`)
+				var sent *request.Item
+				var result *ServerTimeResponse
+				require.NoErrorf(t, ex.sendRequest(ctx, defaultEPL, tc.auth, &result, func() (*request.Item, error) {
+					item, err := newItem()
+					sent = item
+					return item, err
+				}), "sendRequest must not error for auth type %d", tc.auth)
+				require.NotNilf(t, sent, "sendRequest must build its request for auth type %d", tc.auth)
+				assert.Truef(t, sent.NonceEnabled, "sendRequest should not queue a request of auth type %d for the requester's nonce lock, which would move it past its booked send time", tc.auth)
+			})
 		}
 	})
 
@@ -435,11 +456,15 @@ func TestSendRequest(t *testing.T) {
 		ex := newTransportTestExchange(t, func(http.ResponseWriter, *http.Request) { sent.Store(true) })
 		endpoint, err := ex.API.Endpoints.GetURL(exchange.RestSpot)
 		require.NoError(t, err, "GetURL must not error")
+		ctx := t.Context()
+		// Cases share ex and the sent flag checked after them, so they run in order
 		for _, result := range []any{(*ServerTimeResponse)(nil), (**ServerTimeResponse)(nil), (*RestResponse)(nil), map[string]any(nil), []any(nil)} {
-			err := ex.sendRequest(t.Context(), defaultEPL, request.UnauthenticatedRequest, result, func() (*request.Item, error) {
-				return &request.Item{Method: http.MethodGet, Path: endpoint + "/v5/market/time"}, nil
+			t.Run(fmt.Sprintf("%T", result), func(t *testing.T) {
+				err := ex.sendRequest(ctx, defaultEPL, request.UnauthenticatedRequest, result, func() (*request.Item, error) {
+					return &request.Item{Method: http.MethodGet, Path: endpoint + "/v5/market/time"}, nil
+				})
+				assert.ErrorIsf(t, err, common.ErrNilPointer, "sendRequest should refuse a nil %T result", result)
 			})
-			assert.ErrorIsf(t, err, common.ErrNilPointer, "sendRequest should refuse a nil %T result", result)
 		}
 		assert.False(t, sent.Load(), "sendRequest should send nothing for a result it could not decode into")
 	})
@@ -611,8 +636,11 @@ func TestAPIError(t *testing.T) {
 	assert.Equal(t, "bybit API error: code 10001 msg params error", err.Error(), "Error should leave out empty details")
 	assert.Equal(t, []error{errAPIResponse}, err.Unwrap(), "an unmapped code should unwrap to errAPIResponse only")
 	for _, empty := range []string{`""`, "null", ""} {
-		err = &APIError{Code: 10001, Message: "params error", ExtendedInfo: json.RawMessage(empty)}
-		assert.Equalf(t, "bybit API error: code 10001 msg params error", err.Error(), "Error should leave out details sent as %q", empty)
+		t.Run(strconv.Quote(empty), func(t *testing.T) {
+			t.Parallel()
+			err := &APIError{Code: 10001, Message: "params error", ExtendedInfo: json.RawMessage(empty)}
+			assert.Equalf(t, "bybit API error: code 10001 msg params error", err.Error(), "Error should leave out details sent as %q", empty)
+		})
 	}
 }
 

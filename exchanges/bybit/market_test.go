@@ -900,10 +900,14 @@ func TestGetInstrumentSummary(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetInstrumentSummary must reject a nil request")
 	_, err = e.GetInstrumentSummary(t.Context(), &InstrumentSummaryRequest{})
 	require.ErrorIs(t, err, errCategoryNotSet, "GetInstrumentSummary must reject an empty category")
-	// Bybit answers these with 10001, its own categories in another case among them
+	ctx := t.Context()
+	// Bybit answers these with 10001, its own categories in another case among them. Cases share e and come before its
+	// requests below, so they run in order
 	for _, category := range []string{cSpot, cInverse, "LINEAR", "Option"} {
-		_, err = e.GetInstrumentSummary(t.Context(), &InstrumentSummaryRequest{Category: category})
-		require.ErrorIsf(t, err, errUnsupportedCategory, "GetInstrumentSummary must reject category %q", category)
+		t.Run("unsupported category "+category, func(t *testing.T) {
+			_, err := e.GetInstrumentSummary(ctx, &InstrumentSummaryRequest{Category: category})
+			require.ErrorIsf(t, err, errUnsupportedCategory, "GetInstrumentSummary must reject category %q", category)
+		})
 	}
 
 	for _, tc := range []struct {
@@ -986,37 +990,6 @@ func TestGetInstrumentSummary(t *testing.T) {
 			assert.Equal(t, tc.req.Category, result.Category, "GetInstrumentSummary should return the requested category")
 			assert.NotEmpty(t, result.List, "GetInstrumentSummary should return instruments")
 		})
-	}
-}
-
-// TestUpdateOrderbookWithoutOrders checks that the reply for an option's book that has no orders, whose u and seq are
-// -1, replaces a book stored earlier with an empty one
-func TestUpdateOrderbookWithoutOrders(t *testing.T) {
-	t.Parallel()
-	ex := newTransportTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
-		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"SUCCESS","result":{"s":"BTC-24SEP27-170000-P-USDT","b":[],"a":[],"u":-1,"ts":1793406613771,"seq":-1,"cts":1793406613771},"retExtInfo":{},"time":1793406621231}`)
-		assert.NoError(t, err, "writing the reply should not error")
-	})
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Options, currency.Pairs{fixtureOptionPair}, false), "StorePairs must not error for the available pairs")
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Options, currency.Pairs{fixtureOptionPair}, true), "StorePairs must not error for the enabled pairs")
-	stored := &orderbook.Book{
-		Exchange:     ex.Name,
-		Pair:         fixtureOptionPair,
-		Asset:        asset.Options,
-		LastUpdated:  time.UnixMilli(1793406600000),
-		LastUpdateID: 99,
-		Bids:         []orderbook.Level{{Price: 1, Amount: 1}},
-		Asks:         []orderbook.Level{{Price: 2, Amount: 1}},
-	}
-	require.NoError(t, stored.Process(), "Process must store the earlier book")
-	book, err := ex.UpdateOrderbook(t.Context(), fixtureOptionPair, asset.Options)
-	require.NoError(t, err, "UpdateOrderbook must not error for a book without orders")
-	stored, err = orderbook.Get(ex.Name, fixtureOptionPair, asset.Options)
-	require.NoError(t, err, "Get must return the stored book")
-	for _, b := range []*orderbook.Book{book, stored} {
-		assert.Empty(t, b.Bids, "the book should hold no bids")
-		assert.Empty(t, b.Asks, "the book should hold no asks")
-		assert.Equal(t, int64(-1), b.LastUpdateID, "the book should hold the reply's update ID")
 	}
 }
 
@@ -1649,9 +1622,13 @@ func TestGetPublicTradingHistory(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetPublicTradingHistory must reject a nil request")
 	_, err = e.GetPublicTradingHistory(t.Context(), &PublicTradingHistoryRequest{Symbol: "BTCUSDT"})
 	require.ErrorIs(t, err, errCategoryNotSet, "GetPublicTradingHistory must reject an empty category")
+	ctx := t.Context()
+	// Cases share e and come before its requests below, so they run in order
 	for _, category := range []string{cSpot, cLinear, cInverse} {
-		_, err = e.GetPublicTradingHistory(t.Context(), &PublicTradingHistoryRequest{Category: category})
-		require.ErrorIsf(t, err, errSymbolMissing, "GetPublicTradingHistory must require a symbol for %s", category)
+		t.Run(category+" without a symbol", func(t *testing.T) {
+			_, err := e.GetPublicTradingHistory(ctx, &PublicTradingHistoryRequest{Category: category})
+			require.ErrorIsf(t, err, errSymbolMissing, "GetPublicTradingHistory must require a symbol for %s", category)
+		})
 	}
 
 	for _, tc := range []struct {
@@ -2415,12 +2392,15 @@ func TestPriceKlineItemUnmarshalJSON(t *testing.T) {
 	assert.Error(t, k.UnmarshalJSON([]byte(`["bad"]`)), "UnmarshalJSON should reject an invalid timestamp")
 }
 
-func TestIntervalToString(t *testing.T) {
+func TestIntervalToString(t *testing.T) { //nolint:tparallel // Cases precede a later call of the same function
 	t.Parallel()
+	// Cases come before the unsupported interval below, so they run in order
 	for interval, exp := range map[kline.Interval]string{kline.OneMin: "1", kline.SixHour: "360", kline.TwelveHour: "720", kline.OneDay: "D", kline.OneWeek: "W", kline.OneMonth: "M"} {
-		got, err := intervalToString(interval)
-		require.NoErrorf(t, err, "intervalToString must not error for %s", interval)
-		assert.Equalf(t, exp, got, "intervalToString should convert %s", interval)
+		t.Run(interval.Word(), func(t *testing.T) {
+			got, err := intervalToString(interval)
+			require.NoErrorf(t, err, "intervalToString must not error for %s", interval)
+			assert.Equalf(t, exp, got, "intervalToString should convert %s", interval)
+		})
 	}
 	_, err := intervalToString(kline.SevenHour)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "intervalToString should reject an interval Bybit does not offer")
@@ -2473,9 +2453,12 @@ func TestPreListingPhaseTimeMarshalJSON(t *testing.T) {
 		{input: time.UnixMilli(1773655200000).UTC(), exp: `"2026-03-16T10:00:00Z"`},
 		{exp: `"0001-01-01T00:00:00Z"`},
 	} {
-		data, err := PreListingPhaseTime(tc.input).MarshalJSON()
-		require.NoError(t, err, "MarshalJSON must not error")
-		assert.Equal(t, tc.exp, string(data), "MarshalJSON should encode the time in RFC 3339 format")
+		t.Run(tc.input.Format(time.RFC3339), func(t *testing.T) {
+			t.Parallel()
+			data, err := PreListingPhaseTime(tc.input).MarshalJSON()
+			require.NoError(t, err, "MarshalJSON must not error")
+			assert.Equal(t, tc.exp, string(data), "MarshalJSON should encode the time in RFC 3339 format")
+		})
 	}
 }
 
@@ -2496,7 +2479,10 @@ func TestExpiryDate(t *testing.T) {
 		{time.Date(2026, 12, 25, 8, 0, 0, 0, time.UTC), "25DEC26"},
 		{time.Date(2026, 11, 7, 6, 0, 0, 0, time.FixedZone("AEDT", 11*60*60)), "6NOV26"},
 	} {
-		assert.Equalf(t, tc.exp, expiryDate(tc.expiry), "expiryDate should format %s", tc.expiry)
+		t.Run(tc.expiry.Format(time.RFC3339), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, expiryDate(tc.expiry), "expiryDate should format %s", tc.expiry)
+		})
 	}
 }
 

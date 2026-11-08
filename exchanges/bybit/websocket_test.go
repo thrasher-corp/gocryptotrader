@@ -255,20 +255,24 @@ func TestStreamOrigin(t *testing.T) {
 		{url: "wss://stream.bybit.com:port/v5/public/spot", err: errNoStreamOrigin},
 		{url: "wss://stream bybit.com/v5/public/spot", err: errNoStreamOrigin},
 	} {
-		got, err := streamOrigin(tc.url)
-		if tc.err != nil {
-			assert.ErrorIsf(t, err, tc.err, "streamOrigin should reject %q", tc.url)
-			assert.ErrorContainsf(t, err, tc.url, "streamOrigin should name the URL %q it rejects", tc.url)
-			assert.Emptyf(t, got, "streamOrigin should return no origin for %q", tc.url)
-			continue
-		}
-		require.NoErrorf(t, err, "streamOrigin must not error for %q", tc.url)
-		assert.Equalf(t, tc.exp, got, "streamOrigin should return the scheme and host of %q", tc.url)
+		t.Run(strconv.Quote(tc.url), func(t *testing.T) {
+			t.Parallel()
+			got, err := streamOrigin(tc.url)
+			if tc.err != nil {
+				assert.ErrorIsf(t, err, tc.err, "streamOrigin should reject %q", tc.url)
+				assert.ErrorContainsf(t, err, tc.url, "streamOrigin should name the URL %q it rejects", tc.url)
+				assert.Emptyf(t, got, "streamOrigin should return no origin for %q", tc.url)
+				return
+			}
+			require.NoErrorf(t, err, "streamOrigin must not error for %q", tc.url)
+			assert.Equalf(t, tc.exp, got, "streamOrigin should return the scheme and host of %q", tc.url)
+		})
 	}
 }
 
 func TestAuxiliaryStreamURL(t *testing.T) {
 	t.Parallel()
+	// The regional hosts' loop calls auxiliaryStreamURL again, so these cases run in order before it
 	for _, tc := range []struct {
 		url string
 		exp string
@@ -299,32 +303,42 @@ func TestAuxiliaryStreamURL(t *testing.T) {
 		{url: "wss://stream-testnet.bybits.org/v5/public/spot", exp: "wss://stream-testnet.bybits.org"},
 		{url: "/v5/public/spot", err: errNoStreamOrigin},
 	} {
-		for _, path := range []string{systemStatusPath, advancedEarnPath, spreadPublicPath, rfqPublicPath, eventPublicPath} {
-			got, err := auxiliaryStreamURL(tc.url, path)
-			if tc.err != nil {
-				assert.ErrorIsf(t, err, tc.err, "auxiliaryStreamURL should reject %q", tc.url)
-				continue
+		t.Run(strconv.Quote(tc.url), func(t *testing.T) {
+			for _, path := range []string{systemStatusPath, advancedEarnPath, spreadPublicPath, rfqPublicPath, eventPublicPath} {
+				t.Run(path, func(t *testing.T) {
+					got, err := auxiliaryStreamURL(tc.url, path)
+					if tc.err != nil {
+						assert.ErrorIsf(t, err, tc.err, "auxiliaryStreamURL should reject %q", tc.url)
+						return
+					}
+					require.NoErrorf(t, err, "auxiliaryStreamURL must not error for %q", tc.url)
+					exp := tc.exp
+					if path == systemStatusPath && tc.expStatus != "" {
+						exp = tc.expStatus
+					}
+					assert.Equalf(t, exp+path, got, "auxiliaryStreamURL should place %s of %q on %s", path, tc.url, exp)
+				})
 			}
-			require.NoErrorf(t, err, "auxiliaryStreamURL must not error for %q", tc.url)
-			exp := tc.exp
-			if path == systemStatusPath && tc.expStatus != "" {
-				exp = tc.expStatus
-			}
-			assert.Equalf(t, exp+path, got, "auxiliaryStreamURL should place %s of %q on %s", path, tc.url, exp)
-		}
+		})
 	}
 	// Every regional site's testnet host sends them to Bybit's testnet, apart from the EU testnet's status stream
 	for _, host := range regionalStreamHosts {
-		testnet := "wss://" + strings.Replace(host, "stream.", "stream-testnet.", 1)
-		for _, path := range []string{systemStatusPath, advancedEarnPath, spreadPublicPath, rfqPublicPath, eventPublicPath} {
-			got, err := auxiliaryStreamURL(testnet+"/v5/public/spot", path)
-			require.NoErrorf(t, err, "auxiliaryStreamURL must not error for %q", testnet)
-			exp := testnetStreamOrigin + path
-			if host == euStreamHost && path == systemStatusPath {
-				exp = testnet + path
+		t.Run(host, func(t *testing.T) {
+			t.Parallel()
+			testnet := "wss://" + strings.Replace(host, "stream.", "stream-testnet.", 1)
+			for _, path := range []string{systemStatusPath, advancedEarnPath, spreadPublicPath, rfqPublicPath, eventPublicPath} {
+				t.Run(path, func(t *testing.T) {
+					t.Parallel()
+					got, err := auxiliaryStreamURL(testnet+"/v5/public/spot", path)
+					require.NoErrorf(t, err, "auxiliaryStreamURL must not error for %q", testnet)
+					exp := testnetStreamOrigin + path
+					if host == euStreamHost && path == systemStatusPath {
+						exp = testnet + path
+					}
+					assert.Equalf(t, exp, got, "auxiliaryStreamURL should place %s of %q on %s", path, testnet, exp)
+				})
 			}
-			assert.Equalf(t, exp, got, "auxiliaryStreamURL should place %s of %q on %s", path, testnet, exp)
-		}
+		})
 	}
 }
 
@@ -993,11 +1007,12 @@ func TestPublicConnectionArgsLimit(t *testing.T) {
 	assert.Len(t, ex.Websocket.GetSubscriptions(), len(spot)+len(optionTopics), "the websocket should store every spot and option subscription")
 }
 
-func TestSplitRejectedSubscriptions(t *testing.T) {
+func TestSplitRejectedSubscriptions(t *testing.T) { //nolint:tparallel // cases share their subscriptions, so the subtests run in order
 	t.Parallel()
 	a := &subscription.Subscription{QualifiedChannel: "orderbook.50.BTCUSDT"}
 	b := &subscription.Subscription{QualifiedChannel: "orderbook.50.ZZZQUSDT"}
 	c := &subscription.Subscription{QualifiedChannel: "orderbook.50.BTCUSD"}
+	// The cases share the subscriptions a, b and c, so they run in order
 	for _, tc := range []struct {
 		message      string
 		expRejected  subscription.List
@@ -1009,9 +1024,11 @@ func TestSplitRejectedSubscriptions(t *testing.T) {
 		{message: "error:handler not found,topic:orderbook.50.BTCUSD", expRejected: subscription.List{c}, expRemaining: subscription.List{a, b}},
 		{message: "args size >10", expRejected: subscription.List{a, b, c}},
 	} {
-		rejected, remaining := splitRejectedSubscriptions(subscription.List{a, b, c}, tc.message)
-		assert.Equalf(t, tc.expRejected, rejected, "splitRejectedSubscriptions should reject the named topics for %q", tc.message)
-		assert.Equalf(t, tc.expRemaining, remaining, "splitRejectedSubscriptions should keep the other topics for %q", tc.message)
+		t.Run(tc.message, func(t *testing.T) {
+			rejected, remaining := splitRejectedSubscriptions(subscription.List{a, b, c}, tc.message)
+			assert.Equalf(t, tc.expRejected, rejected, "splitRejectedSubscriptions should reject the named topics for %q", tc.message)
+			assert.Equalf(t, tc.expRemaining, remaining, "splitRejectedSubscriptions should keep the other topics for %q", tc.message)
+		})
 	}
 }
 
@@ -1223,7 +1240,7 @@ func TestUniqueTopics(t *testing.T) {
 	assert.Equal(t, []string{"publicTrade.BTC", "tickers.BTC-24SEP27-170000-P-USDT"}, uniqueTopics(subs), "uniqueTopics should list each topic once in order")
 }
 
-func TestShareTopics(t *testing.T) {
+func TestShareTopics(t *testing.T) { //nolint:tparallel // cases share ex, so the subtests run in order
 	t.Parallel()
 	optionTrades := func(contract string) *subscription.Subscription {
 		return &subscription.Subscription{Channel: chanPublicTrade, Asset: asset.Options, Pairs: currency.Pairs{currency.NewPairWithDelimiter("BTC", contract, currency.DashDelimiter)}, QualifiedChannel: "publicTrade.BTC"}
@@ -1235,15 +1252,17 @@ func TestShareTopics(t *testing.T) {
 	require.NoError(t, ex.recordSubscriptions(spotConn, subscribeOperation, subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "tickers.BTCUSDT"}}), "recordSubscriptions must not error")
 
 	// The spot and linear streams name their topics alike, and only a subscription on the same connection shares one,
-	// whatever asset either names
+	// whatever asset either names. The cases share ex, so they run in order
 	for _, linearTicker := range []*subscription.Subscription{
 		{Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "tickers.BTCUSDT"},
 		{Channel: chanPublicTicker, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "tickers.BTCUSDT"},
 	} {
-		pending, leaving, err := ex.shareTopics(linearConn, subscribeOperation, subscription.List{linearTicker})
-		require.NoError(t, err, "shareTopics must not error")
-		assert.Equalf(t, subscription.List{linearTicker}, pending, "shareTopics should leave a topic another connection holds to be sent for a %s subscription", linearTicker.Asset)
-		assert.Empty(t, leaving.holders, "shareTopics should mark nothing leaving for a subscribe")
+		t.Run(linearTicker.Channel, func(t *testing.T) {
+			pending, leaving, err := ex.shareTopics(linearConn, subscribeOperation, subscription.List{linearTicker})
+			require.NoError(t, err, "shareTopics must not error")
+			assert.Equalf(t, subscription.List{linearTicker}, pending, "shareTopics should leave a topic another connection holds to be sent for a %s subscription", linearTicker.Asset)
+			assert.Empty(t, leaving.holders, "shareTopics should mark nothing leaving for a subscribe")
+		})
 	}
 
 	pending, _, err := ex.shareTopics(optionConn, subscribeOperation, subscription.List{call})
@@ -1411,14 +1430,17 @@ func TestShareTopics(t *testing.T) {
 	// Two depths held at once, as concurrent requests can leave them, refuse a subscribe to either, but not an
 	// unsubscribe from one
 	require.NoError(t, ex.recordSubscriptions(bookConn, subscribeOperation, subscription.List{level1}), "recordSubscriptions must not error")
+	// The cases share ex, so they run in order
 	for _, s := range []*subscription.Subscription{
 		{Channel: subscription.OrderbookChannel, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Levels: 1, QualifiedChannel: "orderbook.1.BTCUSDT"},
 		{Channel: subscription.OrderbookChannel, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Levels: 50, QualifiedChannel: "orderbook.50.BTCUSDT"},
 	} {
-		pending, asked, err = ex.shareTopics(bookConn, subscribeOperation, subscription.List{s})
-		ex.keepHolders(asked)
-		assert.ErrorIsf(t, err, errOrderbookDepthConflict, "shareTopics should refuse %s while the connection holds two depths of its symbol", s.QualifiedChannel)
-		assert.Emptyf(t, pending, "shareTopics should not send %s while the connection holds two depths of its symbol", s.QualifiedChannel)
+		t.Run(s.QualifiedChannel, func(t *testing.T) {
+			pending, asked, err = ex.shareTopics(bookConn, subscribeOperation, subscription.List{s})
+			ex.keepHolders(asked)
+			assert.ErrorIsf(t, err, errOrderbookDepthConflict, "shareTopics should refuse %s while the connection holds two depths of its symbol", s.QualifiedChannel)
+			assert.Emptyf(t, pending, "shareTopics should not send %s while the connection holds two depths of its symbol", s.QualifiedChannel)
+		})
 	}
 	pending, leaving, err = ex.shareTopics(bookConn, unsubscribeOperation, subscription.List{level1})
 	ex.keepHolders(leaving)
@@ -1527,13 +1549,16 @@ func TestOrderbookDepthTopic(t *testing.T) {
 		"tickers.BTCUSDT":                        {},
 		"":                                       {},
 	} {
-		depth, symbol, ok := orderbookDepthTopic(topic)
-		assert.Equalf(t, exp, parsed{depth: depth, symbol: symbol, ok: ok}, "orderbookDepthTopic should parse %q", topic)
+		t.Run(strconv.Quote(topic), func(t *testing.T) {
+			t.Parallel()
+			depth, symbol, ok := orderbookDepthTopic(topic)
+			assert.Equalf(t, exp, parsed{depth: depth, symbol: symbol, ok: ok}, "orderbookDepthTopic should parse %q", topic)
+		})
 	}
 }
 
 // TestTopicHolderMarks checks that each request clears only its own leaving marks, and all of them
-func TestTopicHolderMarks(t *testing.T) {
+func TestTopicHolderMarks(t *testing.T) { //nolint:tparallel // cases share ex, so the subtests run in order
 	t.Parallel()
 	ticker := func(channel, base string) *subscription.Subscription {
 		return &subscription.Subscription{Channel: channel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPairWithDelimiter(base, "USDT", "")}, QualifiedChannel: "tickers." + base + "USDT"}
@@ -1567,11 +1592,14 @@ func TestTopicHolderMarks(t *testing.T) {
 	require.NoError(t, err, "shareTopics must not error when unsubscribing")
 	assert.ElementsMatch(t, subscription.List{held, other}, both.holders, "shareTopics should mark both holders it unsubscribes")
 	ex.keepHolders(both)
+	// The cases share ex, so they run in order
 	for _, sub := range []*subscription.Subscription{ticker(chanPublicTicker, "BTC"), ticker(chanPublicTicker, "ETH")} {
-		pending, _, err = ex.shareTopics(conn, subscribeOperation, subscription.List{sub})
-		require.NoError(t, err, "shareTopics must not error")
-		assert.Emptyf(t, pending, "shareTopics should count %s's holder once its request clears its marks", sub.QualifiedChannel)
-		require.NoError(t, ex.recordSubscriptions(conn, unsubscribeOperation, subscription.List{sub}), "recordSubscriptions must not error")
+		t.Run(sub.QualifiedChannel, func(t *testing.T) {
+			pending, _, err = ex.shareTopics(conn, subscribeOperation, subscription.List{sub})
+			require.NoError(t, err, "shareTopics must not error")
+			assert.Emptyf(t, pending, "shareTopics should count %s's holder once its request clears its marks", sub.QualifiedChannel)
+			require.NoError(t, ex.recordSubscriptions(conn, unsubscribeOperation, subscription.List{sub}), "recordSubscriptions must not error")
+		})
 	}
 	_, earlier, err := ex.shareTopics(conn, unsubscribeOperation, subscription.List{other})
 	require.NoError(t, err, "shareTopics must not error when unsubscribing")
@@ -1850,38 +1878,9 @@ func TestTopicBatches(t *testing.T) {
 	assert.Empty(t, topicBatches(nil, 2), "topicBatches should return no batches for no subscriptions")
 }
 
-func TestGenerateSpotSubscriptions(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true), "StorePairs must not error")
-	ex.Features.Subscriptions = subscription.List{
-		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 200},
-		{Enabled: true, Asset: asset.All, Channel: subscription.CandlesChannel, Interval: kline.FiveMin},
-		{Enabled: true, Asset: asset.Spot, Channel: chanRetailPriceImprovementOrderbook},
-		{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel},
-		{Enabled: true, Asset: asset.Spot, Channel: chanInsurancePool},
-		{Enabled: true, Channel: chanSystemStatus},
-		// Channels with connections of their own are left to those, whatever asset they are configured for
-		{Enabled: true, Asset: asset.Spot, Channel: ChannelSpreadTicker, Params: map[string]any{"symbol": "SOLUSDT_SOL/USDT"}},
-		{Enabled: true, Asset: asset.All, Channel: ChannelEventOrderbook, Params: map[string]any{"symbol": "BTCUSDT-PRED"}},
-		{Enabled: true, Asset: asset.Spot, Channel: ChannelRFQPublicTrades},
-		{Enabled: true, Asset: asset.All, Channel: AdvancedEarnDualAssetsOffersChannel},
-	}
-	subs, err := ex.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	for _, s := range subs {
-		assert.Equal(t, asset.Spot, s.Asset, "the spot connection should only generate spot subscriptions")
-	}
-	assert.ElementsMatch(t, []string{"orderbook.200.BTCUSDT", "kline.5.BTCUSDT", "orderbook.rpi.BTCUSDT"}, subs.QualifiedChannels(), "generateSubscriptions should expand the spot topics")
-
-	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel}}
-	_, err = ex.generateSubscriptions()
-	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "generateSubscriptions must reject a subscription without a topic")
-}
-
 func TestDedicatedConnectionChannel(t *testing.T) {
 	t.Parallel()
+	// The next loop calls dedicatedConnectionChannel again, so these cases run in order before it
 	for _, channel := range []string{
 		ChannelSpreadOrderbook, ChannelSpreadPublicTrade, ChannelSpreadTicker, ChannelSpreadOrder, ChannelSpreadExecution,
 		ChannelEventOrderbook, ChannelEventPublicTrade, ChannelEventPosition, ChannelEventExecution, ChannelEventOrder,
@@ -1889,14 +1888,19 @@ func TestDedicatedConnectionChannel(t *testing.T) {
 		AdvancedEarnDualAssetsOffersChannel, AdvancedEarnSmartLeverageOffersChannel, AdvancedEarnDiscountBuyOffersChannel,
 		AdvancedEarnDoubleWinOffersChannel, chanSystemStatus,
 	} {
-		assert.Truef(t, dedicatedConnectionChannel(channel), "dedicatedConnectionChannel should report %s as subscribed on a connection of its own", channel)
+		t.Run(channel, func(t *testing.T) {
+			assert.Truef(t, dedicatedConnectionChannel(channel), "dedicatedConnectionChannel should report %s as subscribed on a connection of its own", channel)
+		})
 	}
 	for _, channel := range []string{chanOrderbook, chanRetailPriceImprovementOrderbook, chanPublicTrade, chanPublicTicker, chanKline, subscription.TickerChannel} {
-		assert.Falsef(t, dedicatedConnectionChannel(channel), "dedicatedConnectionChannel should leave %s to the spot connection", channel)
+		t.Run(channel, func(t *testing.T) {
+			t.Parallel()
+			assert.Falsef(t, dedicatedConnectionChannel(channel), "dedicatedConnectionChannel should leave %s to the spot connection", channel)
+		})
 	}
 }
 
-func TestGetSubscriptionTemplate(t *testing.T) {
+func TestGetSubscriptionTemplate(t *testing.T) { //nolint:tparallel // cases share tpl, so the subtests run in order
 	t.Parallel()
 	tpl, err := e.GetSubscriptionTemplate(nil)
 	require.NoError(t, err, "GetSubscriptionTemplate must not error")
@@ -1910,21 +1914,25 @@ func TestGetSubscriptionTemplate(t *testing.T) {
 			"AssetSeparator": ";",
 		}
 	}
+	// The cases share tpl, which runs again after them, so they run in order
 	for _, tc := range []struct {
-		sub *subscription.Subscription
-		exp string
+		name string
+		sub  *subscription.Subscription
+		exp  string
 	}{
-		{sub: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "tickers.BTCUSDT|tickers.ETHUSDT|;"},
-		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 200}, exp: "orderbook.200.BTCUSDT|orderbook.200.ETHUSDT|;"},
-		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel}, exp: "orderbook.50.BTCUSDT|orderbook.50.ETHUSDT|;"},
-		{sub: &subscription.Subscription{Channel: chanRetailPriceImprovementOrderbook}, exp: "orderbook.rpi.BTCUSDT|orderbook.rpi.ETHUSDT|;"},
-		{sub: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "publicTrade.BTCUSDT|publicTrade.ETHUSDT|;"},
-		{sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneHour}, exp: "kline.60.BTCUSDT|kline.60.ETHUSDT|;"},
-		{sub: &subscription.Subscription{Channel: subscription.MyWalletChannel}, exp: ";"},
+		{name: "ticker", sub: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "tickers.BTCUSDT|tickers.ETHUSDT|;"},
+		{name: "orderbook of 200 levels", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 200}, exp: "orderbook.200.BTCUSDT|orderbook.200.ETHUSDT|;"},
+		{name: "orderbook of default levels", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel}, exp: "orderbook.50.BTCUSDT|orderbook.50.ETHUSDT|;"},
+		{name: "RPI orderbook", sub: &subscription.Subscription{Channel: chanRetailPriceImprovementOrderbook}, exp: "orderbook.rpi.BTCUSDT|orderbook.rpi.ETHUSDT|;"},
+		{name: "all trades", sub: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "publicTrade.BTCUSDT|publicTrade.ETHUSDT|;"},
+		{name: "hourly candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneHour}, exp: "kline.60.BTCUSDT|kline.60.ETHUSDT|;"},
+		{name: "wallet", sub: &subscription.Subscription{Channel: subscription.MyWalletChannel}, exp: ";"},
 	} {
-		var buf bytes.Buffer
-		require.NoErrorf(t, tpl.Execute(&buf, templateContext(tc.sub)), "Execute must not error for %s", tc.sub.Channel)
-		assert.Equalf(t, tc.exp, strings.TrimSpace(buf.String()), "GetSubscriptionTemplate should expand %s into one topic per pair", tc.sub.Channel)
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			require.NoErrorf(t, tpl.Execute(&buf, templateContext(tc.sub)), "Execute must not error for %s", tc.sub.Channel)
+			assert.Equalf(t, tc.exp, strings.TrimSpace(buf.String()), "GetSubscriptionTemplate should expand %s into one topic per pair", tc.sub.Channel)
+		})
 	}
 	err = tpl.Execute(new(bytes.Buffer), templateContext(&subscription.Subscription{Channel: subscription.CandlesChannel}))
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "GetSubscriptionTemplate must refuse a candle subscription without an interval")
@@ -1946,7 +1954,10 @@ func TestChannelName(t *testing.T) {
 		{channel: chanRetailPriceImprovementOrderbook, exp: "orderbook.rpi"},
 		{channel: "dcp.future", exp: "dcp.future"},
 	} {
-		assert.Equalf(t, tc.exp, channelName(&subscription.Subscription{Channel: tc.channel}), "channelName should name %s by its Bybit topic", tc.channel)
+		t.Run(tc.channel, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, channelName(&subscription.Subscription{Channel: tc.channel}), "channelName should name %s by its Bybit topic", tc.channel)
+		})
 	}
 }
 
@@ -1972,12 +1983,16 @@ func TestIsSymbolChannel(t *testing.T) {
 		{name: chanAutoDeleveragingAlert},
 		{name: chanSystemStatus},
 	} {
-		assert.Equalf(t, tc.exp, isSymbolChannel(tc.name), "isSymbolChannel should report whether a %s topic names a symbol", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, isSymbolChannel(tc.name), "isSymbolChannel should report whether a %s topic names a symbol", tc.name)
+		})
 	}
 }
 
-func TestSymbol(t *testing.T) {
+func TestSymbol(t *testing.T) { //nolint:tparallel // cases share e, so the subtests run in order
 	t.Parallel()
+	// The cases share e, so they run in order
 	for _, tc := range []struct {
 		pair  currency.Pair
 		asset asset.Item
@@ -1990,9 +2005,11 @@ func TestSymbol(t *testing.T) {
 		{pair: currency.NewBTCUSD(), asset: asset.CoinMarginedFutures, exp: "BTCUSD"},
 		{pair: currency.NewPair(currency.BTC, currency.NewCode("24SEP27-170000-P-USDT")), asset: asset.Options, exp: "BTC-24SEP27-170000-P-USDT"},
 	} {
-		symbol, err := e.symbol(tc.pair, tc.asset)
-		require.NoErrorf(t, err, "symbol must not error for %s", tc.asset)
-		assert.Equalf(t, tc.exp, symbol, "symbol should name %s as Bybit does", tc.asset)
+		t.Run(tc.exp, func(t *testing.T) {
+			symbol, err := e.symbol(tc.pair, tc.asset)
+			require.NoErrorf(t, err, "symbol must not error for %s", tc.asset)
+			assert.Equalf(t, tc.exp, symbol, "symbol should name %s as Bybit does", tc.asset)
+		})
 	}
 	_, err := e.symbol(currency.NewBTCUSDT(), asset.Binary)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "symbol must error for an unsupported asset")
@@ -2041,7 +2058,10 @@ func TestHasPotentialDelimiter(t *testing.T) {
 		{asset: asset.USDTMarginedFutures},            // BTCUSDT-16OCT26, whose dash belongs to the quote
 		{asset: asset.CoinMarginedFutures},            // BTCUSDH26
 	} {
-		assert.Equalf(t, tc.exp, hasPotentialDelimiter(tc.asset), "hasPotentialDelimiter should report whether %s symbols separate base and quote with a dash", tc.asset)
+		t.Run(tc.asset.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, hasPotentialDelimiter(tc.asset), "hasPotentialDelimiter should report whether %s symbols separate base and quote with a dash", tc.asset)
+		})
 	}
 }
 

@@ -377,9 +377,13 @@ func TestGetAdvancedEarnProductQuote(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetAdvancedEarnProductQuote(t.Context(), "", "155525")
 	require.ErrorIs(t, err, errCategoryNotSet, "GetAdvancedEarnProductQuote must require a category")
+	ctx := t.Context()
+	// Cases share e and come before its quotes below, so they run in order
 	for _, category := range []string{AdvancedEarnCategoryDualAssets, AdvancedEarnCategorySmartLeverage, AdvancedEarnCategoryDoubleWin} {
-		_, err = e.GetAdvancedEarnProductQuote(t.Context(), category, "")
-		require.ErrorIsf(t, err, errAdvancedEarnProductIDNotSet, "GetAdvancedEarnProductQuote must require a %s product ID", category)
+		t.Run(category+" without a product ID", func(t *testing.T) {
+			_, err := e.GetAdvancedEarnProductQuote(ctx, category, "")
+			require.ErrorIsf(t, err, errAdvancedEarnProductIDNotSet, "GetAdvancedEarnProductQuote must require a %s product ID", category)
+		})
 	}
 
 	for _, tc := range []struct {
@@ -1689,8 +1693,9 @@ func TestAddLiquidityMiningMargin(t *testing.T) {
 	assert.NotEmpty(t, result.OrderID, "AddLiquidityMiningMargin should return an order ID")
 }
 
-func TestLiquidityMiningPositionOrderBody(t *testing.T) {
+func TestLiquidityMiningPositionOrderBody(t *testing.T) { //nolint:tparallel // Cases precede a later call of the same function
 	t.Parallel()
+	// Cases come before the body built below, so they run in order
 	for _, tc := range []struct {
 		name                               string
 		productID, orderLinkID, positionID string
@@ -1700,9 +1705,11 @@ func TestLiquidityMiningPositionOrderBody(t *testing.T) {
 		{name: "an order link ID", productID: "5", positionID: "1498", err: errOrderLinkIDMissing},
 		{name: "a position ID", productID: "5", orderLinkID: "lm-reinvest-01", err: errAdvancedEarnPositionIDNotSet},
 	} {
-		body, err := liquidityMiningPositionOrderBody(tc.productID, tc.orderLinkID, tc.positionID)
-		assert.ErrorIsf(t, err, tc.err, "liquidityMiningPositionOrderBody should require %s", tc.name)
-		assert.Nilf(t, body, "liquidityMiningPositionOrderBody should return no body without %s", tc.name)
+		t.Run("without "+tc.name, func(t *testing.T) {
+			body, err := liquidityMiningPositionOrderBody(tc.productID, tc.orderLinkID, tc.positionID)
+			assert.ErrorIsf(t, err, tc.err, "liquidityMiningPositionOrderBody should require %s", tc.name)
+			assert.Nilf(t, body, "liquidityMiningPositionOrderBody should return no body without %s", tc.name)
+		})
 	}
 
 	body, err := liquidityMiningPositionOrderBody("5", "lm-reinvest-01", "1498")

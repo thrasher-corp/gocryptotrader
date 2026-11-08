@@ -386,15 +386,19 @@ func TestGetInstitutionalLoanLoanToValue(t *testing.T) {
 	assert.NotNil(t, result, "GetInstitutionalLoanLoanToValue should return a result")
 }
 
-func TestBindOrUnbindUID(t *testing.T) {
+func TestBindOrUnbindUID(t *testing.T) { //nolint:tparallel // Cases share e with the requests that follow them
 	t.Parallel()
 	_, err := e.BindOrUnbindUID(t.Context(), "", "0")
 	require.ErrorIs(t, err, errUIDRequired, "BindOrUnbindUID must reject an empty UID")
 	_, err = e.BindOrUnbindUID(t.Context(), "100000002", "")
 	require.ErrorIs(t, err, errOperateRequired, "BindOrUnbindUID must reject an empty operation")
+	ctx := t.Context()
+	// Cases share e and come before its requests below, so they run in order
 	for _, operate := range []string{"2", "-1", "01", " 0", "0 ", "bind"} {
-		_, err = e.BindOrUnbindUID(t.Context(), "100000002", operate)
-		require.ErrorIsf(t, err, errInvalidOperate, "BindOrUnbindUID must reject operate %q", operate)
+		t.Run(operate, func(t *testing.T) {
+			_, err := e.BindOrUnbindUID(ctx, "100000002", operate)
+			require.ErrorIsf(t, err, errInvalidOperate, "BindOrUnbindUID must reject operate %q", operate)
+		})
 	}
 
 	if !mockTests {

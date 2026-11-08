@@ -26,7 +26,7 @@ var (
 	rfqTestEnd   = time.UnixMilli(1791331200000)
 )
 
-func TestCreateRFQ(t *testing.T) {
+func TestCreateRFQ(t *testing.T) { //nolint:tparallel // Cases share e with the requests that follow them
 	t.Parallel()
 	_, err := e.CreateRFQ(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateRFQ must reject a nil request")
@@ -35,6 +35,8 @@ func TestCreateRFQ(t *testing.T) {
 	require.ErrorIs(t, err, errCounterpartiesRequired, "CreateRFQ must reject a request without counterparties")
 	_, err = e.CreateRFQ(t.Context(), &CreateRFQRequest{Counterparties: []string{"SPMAKERTEST"}})
 	require.ErrorIs(t, err, errRFQLegsRequired, "CreateRFQ must reject a request without legs")
+	ctx := t.Context()
+	// Cases share e and come before its requests below, so they run in order
 	for _, tc := range []struct {
 		name string
 		leg  RFQLegRequest
@@ -45,8 +47,10 @@ func TestCreateRFQ(t *testing.T) {
 		{name: "side", leg: RFQLegRequest{Category: "option", Symbol: rfqTestOption, Quantity: 10}, err: order.ErrSideIsInvalid},
 		{name: "quantity", leg: RFQLegRequest{Category: "option", Symbol: rfqTestOption, Side: "Buy"}, err: order.ErrAmountIsInvalid},
 	} {
-		_, err = e.CreateRFQ(t.Context(), &CreateRFQRequest{Counterparties: []string{"SPMAKERTEST"}, List: []RFQLegRequest{tc.leg}})
-		require.ErrorIsf(t, err, tc.err, "CreateRFQ must reject a leg without a %s", tc.name)
+		t.Run("leg without a "+tc.name, func(t *testing.T) {
+			_, err := e.CreateRFQ(ctx, &CreateRFQRequest{Counterparties: []string{"SPMAKERTEST"}, List: []RFQLegRequest{tc.leg}})
+			require.ErrorIsf(t, err, tc.err, "CreateRFQ must reject a leg without a %s", tc.name)
+		})
 	}
 	_, err = e.CreateRFQ(t.Context(), &CreateRFQRequest{
 		Counterparties: []string{"SPMAKERTEST"},
@@ -81,8 +85,9 @@ func TestCreateRFQ(t *testing.T) {
 	assert.NotEmpty(t, result.RFQID, "CreateRFQ should return an RFQ ID")
 }
 
-func TestRFQLegBody(t *testing.T) {
+func TestRFQLegBody(t *testing.T) { //nolint:tparallel // Cases precede a later call of the same function
 	t.Parallel()
+	// Cases come before the leg built below, so they run in order
 	for _, tc := range []struct {
 		name             string
 		category, symbol string
@@ -96,9 +101,11 @@ func TestRFQLegBody(t *testing.T) {
 		{name: "no quantity", category: "option", symbol: rfqTestOption, side: "Buy", err: order.ErrAmountIsInvalid},
 		{name: "a negative quantity", category: "option", symbol: rfqTestOption, side: "Buy", quantity: -10, err: order.ErrAmountIsInvalid},
 	} {
-		body, err := rfqLegBody(tc.category, tc.symbol, tc.side, tc.quantity)
-		assert.ErrorIsf(t, err, tc.err, "rfqLegBody should reject a leg with %s", tc.name)
-		assert.Nilf(t, body, "rfqLegBody should return no body for a leg with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			body, err := rfqLegBody(tc.category, tc.symbol, tc.side, tc.quantity)
+			assert.ErrorIsf(t, err, tc.err, "rfqLegBody should reject a leg with %s", tc.name)
+			assert.Nilf(t, body, "rfqLegBody should return no body for a leg with %s", tc.name)
+		})
 	}
 
 	body, err := rfqLegBody("linear", "BTCUSDT", "Sell", 4.6)
@@ -229,8 +236,9 @@ func TestCreateRFQQuote(t *testing.T) {
 	}
 }
 
-func TestRFQQuoteLegsBody(t *testing.T) {
+func TestRFQQuoteLegsBody(t *testing.T) { //nolint:tparallel // Cases precede a later call of the same function
 	t.Parallel()
+	// Cases come before the legs built below, so they run in order
 	for _, tc := range []struct {
 		name string
 		legs []RFQQuoteLegRequest
@@ -239,10 +247,12 @@ func TestRFQQuoteLegsBody(t *testing.T) {
 		{name: "a leg without a category", legs: []RFQQuoteLegRequest{{Category: "option", Symbol: rfqTestOption, Price: 1250.5}, {Symbol: "BTCUSDT"}}, err: errCategoryNotSet},
 		{name: "a leg without a symbol", legs: []RFQQuoteLegRequest{{Category: "option", Symbol: rfqTestOption, Price: 1250.5}, {Category: "linear"}}, err: errSymbolMissing},
 	} {
-		body, err := rfqQuoteLegsBody(tc.legs)
-		assert.ErrorIsf(t, err, tc.err, "rfqQuoteLegsBody should reject %s", tc.name)
-		assert.ErrorContainsf(t, err, "leg 1", "rfqQuoteLegsBody should name the leg it rejects for %s", tc.name)
-		assert.Nilf(t, body, "rfqQuoteLegsBody should return no body for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			body, err := rfqQuoteLegsBody(tc.legs)
+			assert.ErrorIsf(t, err, tc.err, "rfqQuoteLegsBody should reject %s", tc.name)
+			assert.ErrorContainsf(t, err, "leg 1", "rfqQuoteLegsBody should name the leg it rejects for %s", tc.name)
+			assert.Nilf(t, body, "rfqQuoteLegsBody should return no body for %s", tc.name)
+		})
 	}
 
 	body, err := rfqQuoteLegsBody([]RFQQuoteLegRequest{{Category: "option", Symbol: rfqTestOption, Price: 1250.5}, {Category: "linear", Symbol: "BTCUSDT"}})
