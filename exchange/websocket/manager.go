@@ -50,6 +50,7 @@ var (
 	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
+	errMaxSubscriptionsNeedsMultiConnection = errors.New("connection max subscriptions requires multi-connection management")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
 	errNoConnectFunc                        = errors.New("websocket connect func not set")
 	errAlreadyConnected                     = errors.New("websocket already connected")
@@ -371,6 +372,10 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		}
 		m.connectionManager = append(m.connectionManager, &websocket{setup: c, subscriptions: subscription.NewStore()})
 		return nil
+	}
+
+	if c.MaxSubscriptions > 0 {
+		return fmt.Errorf("%w: %w", errConnSetup, errMaxSubscriptionsNeedsMultiConnection)
 	}
 
 	if c.Authenticated {

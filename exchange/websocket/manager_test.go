@@ -819,62 +819,68 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	})
 }
 
-func TestConnectBatchesByConnectionSubscriptionLimit(t *testing.T) {
+func TestConnect(t *testing.T) {
 	t.Parallel()
 
-	m := NewManager()
-	m.exchangeName = "test"
-	m.useMultiConnectionManagement = true
-	m.MaxSubscriptionsPerConnection = 2
-	m.trafficTimeout = time.Minute
-	m.setEnabled(true)
+	t.Run("batches each connection setup by its own subscription limit", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.exchangeName = "test"
+		m.useMultiConnectionManagement = true
+		m.MaxSubscriptionsPerConnection = 2
+		m.trafficTimeout = time.Minute
+		m.setEnabled(true)
 
-	srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
-	}))
-	t.Cleanup(func() { cleanupManagerMonitors(t, m) })
-
-	tests := []struct {
-		filter           string
-		maxSubscriptions int
-		subscriptions    int
-		want             []int
-	}{
-		{"larger limit", 5, 5, []int{5}},
-		{"smaller limit", 1, 2, []int{1, 1}},
-		{"manager default", 0, 3, []int{2, 1}},
-	}
-	for _, tc := range tests {
-		require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
-			URL:              "ws" + srv.URL[len("http"):] + "/ws",
-			MessageFilter:    tc.filter,
-			MaxSubscriptions: tc.maxSubscriptions,
-			Connector: func(ctx context.Context, conn Connection) error {
-				return conn.Dial(ctx, dialer, nil, nil)
-			},
-			GenerateSubscriptions: func() (subscription.List, error) {
-				subs := make(subscription.List, tc.subscriptions)
-				for i := range subs {
-					subs[i] = &subscription.Subscription{Channel: tc.filter + strconv.Itoa(i)}
-				}
-				return subs, nil
-			},
-			Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
-				return m.AddSuccessfulSubscriptions(c, s...)
-			},
-			Handler: func(context.Context, Connection, []byte) error { return nil },
+		srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 		}))
-	}
+		t.Cleanup(func() { cleanupManagerMonitors(t, m) })
 
-	require.NoError(t, m.Connect(t.Context()))
-
-	for i, tc := range tests {
-		var got []int
-		for _, conn := range m.snapshotManagedConnections(m.connectionManager[i]) {
-			got = append(got, conn.Subscriptions().Len())
+		tests := []struct {
+			filter           string
+			maxSubscriptions int
+			subscriptions    int
+			want             []int
+		}{
+			{"larger limit", 5, 5, []int{5}},
+			{"smaller limit", 1, 2, []int{1, 1}},
+			{"manager default", 0, 3, []int{2, 1}},
 		}
-		assert.Equalf(t, tc.want, got, "%s connections should be batched by their subscription limit", tc.filter)
-	}
+		for _, tc := range tests {
+			require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+				URL:              "ws" + srv.URL[len("http"):] + "/ws",
+				MessageFilter:    tc.filter,
+				MaxSubscriptions: tc.maxSubscriptions,
+				Connector: func(ctx context.Context, conn Connection) error {
+					return conn.Dial(ctx, dialer, nil, nil)
+				},
+				GenerateSubscriptions: func() (subscription.List, error) {
+					subs := make(subscription.List, tc.subscriptions)
+					for i := range subs {
+						subs[i] = &subscription.Subscription{Channel: tc.filter + strconv.Itoa(i)}
+					}
+					return subs, nil
+				},
+				Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
+					return m.AddSuccessfulSubscriptions(c, s...)
+				},
+				Handler: func(context.Context, Connection, []byte) error { return nil },
+			}))
+		}
+
+		require.NoError(t, m.Connect(t.Context()))
+
+		// Serial rows check the connections straight after Connect; parallel ones run later, when the traffic monitor may have closed them
+		for i, tc := range tests {
+			t.Run(tc.filter, func(t *testing.T) {
+				var got []int
+				for _, conn := range m.snapshotManagedConnections(m.connectionManager[i]) {
+					got = append(got, conn.Subscriptions().Len())
+				}
+				assert.Equal(t, tc.want, got, "connections should be batched by the setup's subscription limit")
+			})
+		}
+	})
 }
 
 // newConnectionCountingServer returns a mock server URL and dialer, along with the number of websocket connections the
@@ -2169,6 +2175,16 @@ func TestSetupNewConnection(t *testing.T) {
 		})
 		require.ErrorIs(t, err, errInvalidMaxSubscriptions, "SetupNewConnection must reject a negative connection limit")
 		assert.Empty(t, m.connectionManager, "rejected setup should not be added to the connection manager")
+	})
+
+	t.Run("connection limit without multi-connection management is rejected", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		require.NoError(t, m.Setup(newDefaultSetup()), "Setup must not error")
+		err := m.SetupNewConnection(&ConnectionSetup{URL: "urlstring", MaxSubscriptions: 1})
+		require.ErrorIs(t, err, errMaxSubscriptionsNeedsMultiConnection, "SetupNewConnection must reject a connection limit without multi-connection management")
+		assert.Nil(t, m.Conn, "rejected setup should not set the connection")
+		assert.Nil(t, m.AuthConn, "rejected setup should not set the authenticated connection")
 	})
 }
 

@@ -270,6 +270,13 @@ func TestCheckSubscriptions(t *testing.T) {
 
 		err = m.checkSubscriptions(conn, subscription.List{{Channel: "one"}, {Channel: "two"}, {Channel: "three"}})
 		assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "checkSubscriptions should error past the connection subscription limit")
+
+		require.NoError(t, conn.subscriptions.Add(&subscription.Subscription{Channel: "existing"}), "Add must not error")
+		err = m.checkSubscriptions(conn, subscription.List{{Channel: "one"}})
+		assert.NoError(t, err, "checkSubscriptions should allow subscriptions filling an occupied connection to its limit")
+
+		err = m.checkSubscriptions(conn, subscription.List{{Channel: "one"}, {Channel: "two"}})
+		assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "checkSubscriptions should count the connection's subscriptions against its limit")
 	})
 }
 

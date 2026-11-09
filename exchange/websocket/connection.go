@@ -77,7 +77,7 @@ type ConnectionSetup struct {
 	ConnectionLevelReporter  Reporter
 	// MaxSubscriptions is the most subscriptions each connection made from this setup can hold, for endpoints whose
 	// limit differs from the manager's. Zero uses the manager's MaxSubscriptionsPerConnection. Multi-connection
-	// management only.
+	// management only; SetupNewConnection rejects a positive value otherwise.
 	MaxSubscriptions int
 
 	// URL defines the websocket server URL to connect to
