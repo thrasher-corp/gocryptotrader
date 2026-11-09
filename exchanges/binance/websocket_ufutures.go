@@ -36,12 +36,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
-// USDⓈ-M and options share the routed fstream hosts; each product gets its own connections so their handlers never
-// see the other's payloads
+// fstreamHost is the default host for USDⓈ-M and options
 const (
-	fstreamPublicURL  = "wss://fstream.binance.com/public/stream"
-	fstreamMarketURL  = "wss://fstream.binance.com/market/stream"
-	fstreamPrivateURL = "wss://fstream.binance.com/private/stream"
+	fstreamHost = "wss://fstream.binance.com"
+
+	fstreamPublicRoute  = "/public/stream"
+	fstreamMarketRoute  = "/market/stream"
+	fstreamPrivateRoute = "/private/stream"
 
 	usdtmPublicFilter  = "usd-m-public"
 	usdtmMarketFilter  = "usd-m-market"
