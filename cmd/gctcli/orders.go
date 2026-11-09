@@ -18,75 +18,32 @@ var (
 
 // submitOrderRequest validates command flags and keeps account and client order identifiers distinct.
 func submitOrderRequest(c *cli.Context) (*gctrpc.SubmitOrderRequest, error) {
-	var exchangeName string
-	var currencyPair string
-	var orderSide string
-	var orderType string
-	var amount float64
-	var price float64
-	var clientID string
-	var assetType string
-	var marginType string
-
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
-
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
-
+	currencyPair := c.String(pairFlagName)
 	if !validPair(currencyPair) {
 		return nil, errInvalidPair
 	}
 
-	if c.IsSet(sideFlag) {
-		orderSide = c.String(sideFlag)
-	}
-
+	orderSide := c.String(sideFlagName)
 	if orderSide == "" {
 		return nil, errSubmitOrderSideRequired
 	}
 
-	if c.IsSet("type") {
-		orderType = c.String("type")
-	}
-
+	orderType := c.String("type")
 	if orderType == "" {
 		return nil, errSubmitOrderTypeRequired
 	}
 
-	if c.IsSet(amountFlag) {
-		amount = c.Float64(amountFlag)
-	}
-
+	amount := c.Float64(amountFlagName)
 	if amount == 0 {
 		return nil, errSubmitOrderAmountRequired
 	}
 
-	// price is optional for market orders
-	if c.IsSet("price") {
-		price = c.Float64("price")
-	}
-
-	if c.IsSet("client_id") {
-		clientID = c.String("client_id")
-	}
-
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
-
-	if c.IsSet("margintype") {
-		marginType = c.String("margintype")
-	}
-
-	assetType = strings.ToLower(assetType)
+	assetType := strings.ToLower(c.String(assetFlagName))
 	if !validAsset(assetType) {
 		return nil, errInvalidAsset
 	}
 
-	marginType = strings.ToLower(marginType)
+	marginType := strings.ToLower(c.String(marginTypeFlagName))
 	if marginType != "" && !margin.IsValidString(marginType) {
 		return nil, margin.ErrInvalidMarginType
 	}
@@ -97,7 +54,7 @@ func submitOrderRequest(c *cli.Context) (*gctrpc.SubmitOrderRequest, error) {
 	}
 
 	return &gctrpc.SubmitOrderRequest{
-		Exchange: exchangeName,
+		Exchange: c.String(exchangeFlagName),
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
@@ -106,8 +63,8 @@ func submitOrderRequest(c *cli.Context) (*gctrpc.SubmitOrderRequest, error) {
 		Side:          orderSide,
 		OrderType:     orderType,
 		Amount:        amount,
-		Price:         price,
-		ClientId:      clientID,
+		Price:         c.Float64(priceFlagName),
+		ClientId:      c.String("client_id"),
 		ClientOrderId: c.String("client_order_id"),
 		AssetType:     assetType,
 		MarginType:    marginType,

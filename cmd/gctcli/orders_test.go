@@ -42,11 +42,11 @@ func TestSubmitOrderRequest(t *testing.T) {
 		name, flag, value string
 		want              error
 	}{
-		{name: "missing side", flag: sideFlag, want: errSubmitOrderSideRequired},
+		{name: "missing side", flag: sideFlagName, want: errSubmitOrderSideRequired},
 		{name: "missing type", flag: "type", want: errSubmitOrderTypeRequired},
-		{name: "zero amount", flag: amountFlag, value: "0", want: errSubmitOrderAmountRequired},
-		{name: "invalid pair", flag: pairFlag, value: "X", want: errInvalidPair},
-		{name: "invalid asset", flag: assetFlag, value: "bogus", want: errInvalidAsset},
+		{name: "zero amount", flag: amountFlagName, value: "0", want: errSubmitOrderAmountRequired},
+		{name: "invalid pair", flag: pairFlagName, value: "X", want: errInvalidPair},
+		{name: "invalid asset", flag: assetFlagName, value: "bogus", want: errInvalidAsset},
 		{name: "invalid margin", flag: "margintype", value: "bogus", want: margin.ErrInvalidMarginType},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
