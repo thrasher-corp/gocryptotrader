@@ -49,9 +49,6 @@ const (
 	// futuresResyncMarkerPrefix starts the symbol of a marker request, which no contract has. The venue refuses a
 	// subscription to a contract it doesn't list with a reply naming the symbol, the one reply which names its request
 	futuresResyncMarkerPrefix = "gct-resync-"
-	// futuresResyncReplies is how many replies a marker request waits for: the one owed, should it still come, and its
-	// own
-	futuresResyncReplies = 2
 
 	futuresWebsocketPing         = `{"method":"ping"}`
 	futuresWebsocketPingInterval = 15 * time.Second
@@ -133,7 +130,7 @@ func (e *Exchange) futuresWebsocketRequest(ctx context.Context, conn websocket.C
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if e.futuresRepliesOwed[conn] {
+	if e.futuresRepliesOwed[conn] > 0 {
 		if err := e.resyncFuturesReplies(ctx, conn); err != nil {
 			return err
 		}
@@ -141,7 +138,7 @@ func (e *Exchange) futuresWebsocketRequest(ctx context.Context, conn websocket.C
 	data, err := conn.SendMessageReturnResponse(ctx, request.Unset, futuresWebsocketReplySignature, req)
 	if err != nil {
 		if futuresRequestSent(err) && !awaitLateFuturesReply(ctx, conn) {
-			e.oweFuturesReply(conn)
+			e.oweFuturesReplies(conn, 1)
 		}
 		return err
 	}
@@ -182,36 +179,42 @@ func awaitLateFuturesReply(ctx context.Context, conn websocket.Connection) bool 
 	return (<-late).Err == nil
 }
 
-// oweFuturesReply records that a connection owes a reply, and forgets the connections closed since, whose replies
-// can no longer arrive
-func (e *Exchange) oweFuturesReply(conn websocket.Connection) {
+// oweFuturesReplies records that a connection may owe n more replies, and forgets the connections closed since, whose
+// replies can no longer arrive
+func (e *Exchange) oweFuturesReplies(conn websocket.Connection, n int) {
 	if e.futuresRepliesOwed == nil {
-		e.futuresRepliesOwed = make(map[websocket.Connection]bool)
+		e.futuresRepliesOwed = make(map[websocket.Connection]int)
 	}
 	for owing := range e.futuresRepliesOwed {
 		if c, ok := owing.(interface{ IsConnected() bool }); ok && !c.IsConnected() {
 			delete(e.futuresRepliesOwed, owing)
 		}
 	}
-	e.futuresRepliesOwed[conn] = true
+	e.futuresRepliesOwed[conn] += n
 }
 
-// resyncFuturesReplies brings a connection owing a reply back in step. It sends a marker request, a subscription to a
-// symbol no contract has, and drops the replies before the venue's refusal of it, which names the symbol. The venue
-// answers requests in the order they are sent, so a reply owed arrives before that refusal or not at all
+// resyncFuturesReplies brings a connection back in step after requests whose replies may still come. It sends a marker
+// request, a subscription to a symbol no contract has, and drains the replies before the venue's refusal of it, which
+// names the symbol, reporting the refusals it reads. The venue answers requests in the order they are sent, so a
+// reply owed arrives before that refusal or not at all. A marker sent but left unanswered is owed in turn
 func (e *Exchange) resyncFuturesReplies(ctx context.Context, conn websocket.Connection) error {
 	e.futuresResyncMarkers++
 	marker := futuresResyncMarker(futuresResyncMarkerPrefix + strconv.FormatUint(e.futuresResyncMarkers, 10))
+	inspector := &futuresResyncInspector{marker: marker, report: func(err error) { e.reportFuturesWebsocketError(ctx, err) }}
 	replies, err := conn.SendMessageReturnResponsesWithInspector(ctx, request.Unset, futuresWebsocketReplySignature, &WebsocketFuturesRequest{
 		Method: futuresSubscribePrefix + futuresChannelTicker,
 		Param:  &WebsocketFuturesChannelParams{Symbol: string(marker)},
-	}, futuresResyncReplies, marker)
+	}, e.futuresRepliesOwed[conn]+1, inspector)
 	if err != nil {
+		if futuresRequestSent(err) {
+			e.oweFuturesReplies(conn, 1)
+		}
 		return fmt.Errorf("%w: marker %s: %w", errFuturesWebsocketOutOfStep, marker, err)
 	}
 	if n := len(replies); n == 0 || !marker.IsFinal(replies[n-1]) {
 		// More replies were owed than the marker waited for, so its own is still to come
-		return fmt.Errorf("%w: marker %s unanswered after %d replies", errFuturesWebsocketOutOfStep, marker, len(replies))
+		e.oweFuturesReplies(conn, 1)
+		return fmt.Errorf("%w: marker %s unanswered after %d replies", errFuturesWebsocketOutOfStep, marker, n)
 	}
 	delete(e.futuresRepliesOwed, conn)
 	return nil
@@ -224,6 +227,26 @@ type futuresResyncMarker string
 // IsFinal reports whether a reply names the marker
 func (m futuresResyncMarker) IsFinal(reply []byte) bool {
 	return bytes.Contains(reply, []byte(m))
+}
+
+// futuresResyncInspector ends a marker request's wait at the venue's refusal of the marker. A reply it reads before
+// that is owed by a request given up on or by an unsubscription, so a refusal among them is reported as it is read,
+// however the wait ends, as the reader reports one no request waits for; an earlier marker's refusal is not
+type futuresResyncInspector struct {
+	marker futuresResyncMarker
+	report func(error)
+}
+
+// IsFinal reports whether a reply names the marker, and reports a refusal read before it
+func (i *futuresResyncInspector) IsFinal(reply []byte) bool {
+	if i.marker.IsFinal(reply) {
+		return true
+	}
+	var resp *WebsocketFuturesResponse
+	if err := json.Unmarshal(reply, &resp); err == nil && resp != nil && resp.Channel == futuresChannelError && !bytes.Contains(resp.Data, []byte(futuresResyncMarkerPrefix)) {
+		i.report(fmt.Errorf("%w: %s", errFuturesWebsocketRejected, resp.Data))
+	}
+	return false
 }
 
 // futuresChannelRequest returns the venue's method and parameters of a public futures subscription
@@ -274,10 +297,16 @@ func (e *Exchange) WebsocketFuturesSubscribe(ctx context.Context, conn websocket
 }
 
 // WebsocketFuturesUnsubscribe unsubscribes from public futures channels, with the parameters each subscription was sent
-// with, which the venue needs to match them. No answer is waited for, as the venue sends none for a listed contract; it
-// does refuse an unsubscription naming a contract it doesn't list
+// with, which the venue needs to match them. The venue answers an unsubscription only to refuse one naming a contract
+// it doesn't list, so the connection may owe a reply for each, and a marker request follows them to drain those
+// replies, reporting the refusals it reads, rather than leave one to answer the next request. Should the marker fail,
+// that is reported too and the replies stay owed, for the next request to drain first. A refused unsubscription leaves
+// nothing subscribed at the venue, so every subscription sent is removed
 func (e *Exchange) WebsocketFuturesUnsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	e.futuresWebsocketRequestMu.Lock()
+	defer e.futuresWebsocketRequestMu.Unlock()
 	var errs error
+	sent := make(subscription.List, 0, len(subs))
 	for _, s := range subs {
 		method, params, err := futuresChannelRequest(s)
 		if err != nil {
@@ -288,9 +317,23 @@ func (e *Exchange) WebsocketFuturesUnsubscribe(ctx context.Context, conn websock
 			errs = common.AppendError(errs, fmt.Errorf("unsubscribing %s: %w", s.QualifiedChannel, err))
 			continue
 		}
-		errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(conn, s))
+		sent = append(sent, s)
 	}
-	return errs
+	if len(sent) == 0 {
+		return errs
+	}
+	e.oweFuturesReplies(conn, len(sent))
+	if err := e.resyncFuturesReplies(ctx, conn); err != nil {
+		e.reportFuturesWebsocketError(ctx, fmt.Errorf("unsubscribing: %w", err))
+	}
+	return common.AppendError(errs, e.Websocket.RemoveSubscriptions(conn, sent...))
+}
+
+// reportFuturesWebsocketError relays an error no caller is waiting for, as the websocket reader relays a handler's
+func (e *Exchange) reportFuturesWebsocketError(ctx context.Context, err error) {
+	if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+		log.Errorf(log.WebsocketMgr, "%s: %s %s", e.Name, errSend, err)
+	}
 }
 
 // websocketFuturesLogin logs a futures connection in, once per connection
@@ -324,12 +367,28 @@ func (e *Exchange) websocketFuturesLogin(ctx context.Context, conn websocket.Con
 }
 
 // websocketFuturesSubscribePrivate subscribes to private futures channels. After a login the venue pushes every
-// private channel, so the subscriptions are recorded and the pushes of channels without one are dropped
+// private channel, so the subscriptions are recorded and the pushes of channels without one are dropped. They are
+// recorded before the login is sent, as the venue's pushes can follow its reply at once, and removed should it fail
 func (e *Exchange) websocketFuturesSubscribePrivate(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	if err := e.websocketFuturesLogin(ctx, conn); err != nil {
-		return fmt.Errorf("%w: %w", websocket.ErrSubscriptionFailure, err)
+	var errs error
+	recorded := make(subscription.List, 0, len(subs))
+	for _, s := range subs {
+		if err := e.Websocket.AddSubscriptions(conn, s); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s: %w", websocket.ErrSubscriptionFailure, s.QualifiedChannel, err))
+			continue
+		}
+		recorded = append(recorded, s)
 	}
-	return e.Websocket.AddSuccessfulSubscriptions(conn, subs...)
+	if len(recorded) == 0 {
+		return errs
+	}
+	if err := e.websocketFuturesLogin(ctx, conn); err != nil {
+		return common.AppendError(errs, common.AppendError(fmt.Errorf("%w: %w", websocket.ErrSubscriptionFailure, err), e.Websocket.RemoveSubscriptions(conn, recorded...)))
+	}
+	for _, s := range recorded {
+		errs = common.AppendError(errs, s.SetState(subscription.SubscribedState))
+	}
+	return errs
 }
 
 // websocketFuturesUnsubscribePrivate unsubscribes from private futures channels, whose pushes are then dropped

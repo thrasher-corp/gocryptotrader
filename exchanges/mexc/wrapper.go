@@ -1056,9 +1056,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 // submitFuturesOrder places a futures order sized in contracts. An order without a margin type is isolated, and an
 // isolated order opening a position without leverage takes the account's leverage for that side, since the venue
 // needs one and order submissions through RPC carry none. A reducing order names the position it closes, when one is
-// open, and takes that position's margin mode, not the isolated default, when it names none. On an account in one-way
-// position mode it is also sent reduce-only, since the venue documents that mode as opening or closing by the side
-// type and the position held
+// open, and takes that position's margin mode, not the isolated default, when it names none. Every order carries the
+// account's position mode, read before it is sent, since the venue takes an order without one as hedge mode and
+// refuses one whose mode differs from the account's; on an account in one-way mode a reducing order is also sent
+// reduce-only, so that it can't open a position
 func (e *Exchange) submitFuturesOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if s.QuoteAmount != 0 {
 		return nil, fmt.Errorf("%w: futures orders are sized in contracts by Amount", order.ErrAmountIsInvalid)
@@ -1078,16 +1079,20 @@ func (e *Exchange) submitFuturesOrder(ctx context.Context, s *order.Submit) (*or
 	if s.Leverage < 0 || s.Leverage != math.Trunc(s.Leverage) {
 		return nil, fmt.Errorf("%w: %v, the venue takes whole leverage", errInvalidLeverage, s.Leverage)
 	}
+	// validateFuturesOrder checks this too, but only once the reads below are made
+	if len(s.ClientOrderID) > futuresExternalOrderIDLimit {
+		return nil, fmt.Errorf("%w: %q", errExternalOrderIDTooLong, s.ClientOrderID)
+	}
 	leverage := uint64(s.Leverage)
+	positionMode, err := e.GetFuturesPositionMode(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("reading the account's position mode: %w", err)
+	}
+	if positionMode != FuturesPositionModeHedge && positionMode != FuturesPositionModeOneWay {
+		return nil, fmt.Errorf("%w: %d, an order is sent only in hedge or one-way mode", errInvalidPositionMode, positionMode)
+	}
 	var positionID uint64
-	var positionMode uint8
 	if s.ReduceOnly {
-		if positionMode, err = e.GetFuturesPositionMode(ctx); err != nil {
-			return nil, fmt.Errorf("reading the position mode for a reduce-only order: %w", err)
-		}
-		if positionMode != FuturesPositionModeHedge && positionMode != FuturesPositionModeOneWay {
-			return nil, fmt.Errorf("%w: %d, a reduce-only order is sent only in hedge or one-way mode", errInvalidPositionMode, positionMode)
-		}
 		position, err := e.futuresClosingPosition(ctx, s.Pair, side, s.MarginType)
 		if err != nil {
 			return nil, err
@@ -1114,10 +1119,8 @@ func (e *Exchange) submitFuturesOrder(ctx context.Context, s *order.Submit) (*or
 		OpenType:        openType,
 		ExternalOrderID: s.ClientOrderID,
 		PositionID:      positionID,
-	}
-	if positionMode == FuturesPositionModeOneWay {
-		req.PositionMode = FuturesPositionModeOneWay
-		req.ReduceOnly = true
+		PositionMode:    positionMode,
+		ReduceOnly:      s.ReduceOnly && positionMode == FuturesPositionModeOneWay,
 	}
 	if isFuturesLimitOrderType(orderType) {
 		req.Price = s.Price
@@ -1285,7 +1288,7 @@ func (e *Exchange) cancelFuturesOrder(ctx context.Context, ord *order.Cancel) er
 		return err
 	}
 	for _, r := range results {
-		if r == nil || r.OrderID.String() != ord.OrderID {
+		if r == nil || !r.OrderID.Is(id) {
 			continue
 		}
 		if r.ErrorCode != 0 {
@@ -1320,15 +1323,15 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel)
 	for start := 0; start < len(ids); start += futuresBatchLimit {
 		end := min(start+futuresBatchLimit, len(ids))
 		results, err := e.CancelFuturesOrders(ctx, ids[start:end])
-		errs = common.AppendError(errs, recordFuturesCancelOutcomes(resp, orders[start:end], results, err))
+		errs = common.AppendError(errs, recordFuturesCancelOutcomes(resp, orders[start:end], ids[start:end], results, err))
 	}
 	return resp, errs
 }
 
-// recordFuturesCancelOutcomes reports each requested order's outcome in the batch response. A request that failed is
-// reported against every order it carried, and an order the venue returned no outcome for is reported as missing;
-// both are returned as errors
-func recordFuturesCancelOutcomes(resp *order.CancelBatchResponse, requested []order.Cancel, results []*FuturesCancelOrderResponse, err error) error {
+// recordFuturesCancelOutcomes reports each requested order's outcome in the batch response, under the ID it was
+// requested by; requestIDs holds the IDs as sent. A request that failed is reported against every order it carried,
+// and an order the venue returned no outcome for is reported as missing; both are returned as errors
+func recordFuturesCancelOutcomes(resp *order.CancelBatchResponse, requested []order.Cancel, requestIDs []uint64, results []*FuturesCancelOrderResponse, err error) error {
 	if err != nil {
 		ids := make([]string, len(requested))
 		for i := range requested {
@@ -1340,7 +1343,7 @@ func recordFuturesCancelOutcomes(resp *order.CancelBatchResponse, requested []or
 	var errs error
 	for i := range requested {
 		id := requested[i].OrderID
-		idx := slices.IndexFunc(results, func(r *FuturesCancelOrderResponse) bool { return r != nil && r.OrderID.String() == id })
+		idx := slices.IndexFunc(results, func(r *FuturesCancelOrderResponse) bool { return r != nil && r.OrderID.Is(requestIDs[i]) })
 		switch {
 		case idx == -1:
 			resp.Status[id] = errCancelOutcomeMissing.Error()
@@ -2245,9 +2248,9 @@ func futuresContractStatus(state uint8) string {
 	return "unknown"
 }
 
-// GetLatestFundingRates returns the latest settled funding rates of perpetual contracts, those of the enabled pairs
-// when no pair is set. The current rate is settled at the next funding time, so it is returned as the predicted rate
-// when requested
+// GetLatestFundingRates returns the funding rates of perpetual contracts' current funding periods, those of the
+// enabled pairs when no pair is set, timed at each period's start. The venue settles a period's rate at its next
+// funding time and publishes no rate for the period after, so no predicted rate is returned
 func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
@@ -2283,34 +2286,23 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			currentBySymbol[c.Symbol] = c
 		}
 	}
+	checked := time.Now()
 	resp := make([]fundingrate.LatestRateResponse, 0, len(pairs))
 	for _, p := range pairs {
 		rate, ok := currentBySymbol[p.String()]
 		if !ok {
 			return nil, fmt.Errorf("%w: %s", fundingrate.ErrNoFundingRatesFound, p)
 		}
-		history, err := e.GetFuturesFundingRateHistory(ctx, p, &FuturesPageRequest{PageNumber: 1, PageSize: 1})
-		if err != nil {
-			return nil, err
-		}
 		latest := fundingrate.LatestRateResponse{
 			Exchange:       e.Name,
 			Asset:          r.Asset,
 			Pair:           p,
+			LatestRate:     fundingrate.Rate{Rate: decimal.MustFromFloat(rate.FundingRate)},
 			TimeOfNextRate: rate.NextSettleTime.Time(),
-			TimeChecked:    time.Now(),
+			TimeChecked:    checked,
 		}
-		if history != nil && len(history.ResultList) > 0 {
-			latest.LatestRate = fundingrate.Rate{
-				Time: history.ResultList[0].SettleTime.Time(),
-				Rate: decimal.MustFromFloat(history.ResultList[0].FundingRate),
-			}
-		}
-		if r.IncludePredictedRate {
-			latest.PredictedUpcomingRate = fundingrate.Rate{
-				Time: rate.NextSettleTime.Time(),
-				Rate: decimal.MustFromFloat(rate.FundingRate),
-			}
+		if next, hours := rate.NextSettleTime.Time(), rate.CollectCycleHours; !next.IsZero() && hours > 0 && hours <= math.MaxInt64/uint64(time.Hour) {
+			latest.LatestRate.Time = next.Add(-time.Duration(hours) * time.Hour)
 		}
 		resp = append(resp, latest)
 	}
@@ -2608,7 +2600,9 @@ func (e *Exchange) GetLeverage(ctx context.Context, a asset.Item, pair currency.
 }
 
 // GetFuturesPositionSummary returns a summary of a contract's open position. With both sides open in hedge mode the
-// direction of the request names the side; isolated positions are preferred over cross positions
+// direction of the request names the side; isolated positions are preferred over cross positions. The mark price is
+// the contract's fair price, which the position's notional size is valued at, and the maintenance margin fraction is
+// the venue's margin ratio for the position
 func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
@@ -2635,6 +2629,16 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 	if err != nil {
 		return nil, err
 	}
+	fair, err := e.GetFuturesFairPrice(ctx, fPair)
+	if err != nil {
+		return nil, err
+	}
+	if fair == nil {
+		return nil, common.ErrNoResponse
+	}
+	if fair.FairPrice <= 0 {
+		return nil, fmt.Errorf("%w: %v for %s", errInvalidFairPrice, fair.FairPrice, fPair)
+	}
 	size := decimal.MustFromFloat(pos.HoldVolume)
 	if pos.PositionType == FuturesPositionTypeShort {
 		size = size.Neg()
@@ -2648,10 +2652,11 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 		Asset:                     r.Asset,
 		MarginType:                futuresMarginType(pos.OpenType),
 		Currency:                  contract.SettleCoin,
-		NotionalSize:              decimal.MustFromFloat(futuresCost(contract, pos.HoldVolume, pos.HoldAveragePrice)),
+		NotionalSize:              decimal.MustFromFloat(futuresCost(contract, pos.HoldVolume, fair.FairPrice)),
 		Leverage:                  decimal.NewFromInt(int64(min(pos.Leverage, math.MaxInt64))),
 		EstimatedLiquidationPrice: decimal.MustFromFloat(pos.LiquidatePrice),
 		CollateralUsed:            decimal.MustFromFloat(pos.InitialMargin),
+		MarkPrice:                 decimal.MustFromFloat(fair.FairPrice),
 		CurrentSize:               size,
 		ContractSize:              decimal.MustFromFloat(contract.ContractSize),
 		ContractMultiplier:        decimal.MustFromFloat(contract.ContractSize),
@@ -2659,6 +2664,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 		AverageOpenPrice:          decimal.MustFromFloat(pos.OpenAveragePrice),
 		UnrealisedPNL:             decimal.MustFromFloat(pos.UnrealisedPNL),
 		RealisedPNL:               decimal.MustFromFloat(pos.RealisedPNL),
+		MaintenanceMarginFraction: decimal.MustFromFloat(pos.MarginRatio),
 	}
 	if pos.OpenType == FuturesOpenTypeIsolated {
 		summary.IsolatedMargin = decimal.MustFromFloat(pos.InitialMargin)

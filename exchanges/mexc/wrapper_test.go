@@ -238,20 +238,20 @@ func TestGetLatestFundingRates(t *testing.T) {
 	if mockTests {
 		assert.False(t, result[0].TimeChecked.IsZero(), "the rate should record when it was checked")
 		result[0].TimeChecked = time.Time{}
-		// The predicted rate is the current one, settled at the next funding
+		// The latest rate is the current funding period's, from the start of its eight hour cycle, and the venue
+		// publishes no rate for the period after
 		exp := fundingrate.LatestRateResponse{
-			Exchange:              "MEXC",
-			Asset:                 asset.Futures,
-			Pair:                  futuresTradablePair,
-			LatestRate:            fundingrate.Rate{Time: time.Unix(1792828800, 0), Rate: decimal.MustFromFloat(0.000035)},
-			PredictedUpcomingRate: fundingrate.Rate{Time: time.Unix(1792857600, 0), Rate: decimal.MustFromFloat(0.000034)},
-			TimeOfNextRate:        time.Unix(1792857600, 0),
+			Exchange:       "MEXC",
+			Asset:          asset.Futures,
+			Pair:           futuresTradablePair,
+			LatestRate:     fundingrate.Rate{Time: time.Unix(1792828800, 0), Rate: decimal.MustFromFloat(0.000034)},
+			TimeOfNextRate: time.Unix(1792857600, 0),
 		}
-		assert.Equal(t, exp, result[0], "the latest and predicted rates should be mapped")
+		assert.Equal(t, exp, result[0], "the current funding period's rate should be mapped")
 	} else {
-		assert.False(t, result[0].LatestRate.Time.IsZero(), "the latest settled rate should carry its time")
-		assert.True(t, result[0].TimeOfNextRate.After(result[0].LatestRate.Time), "the next funding should follow the latest")
-		assert.Equal(t, result[0].TimeOfNextRate, result[0].PredictedUpcomingRate.Time, "the predicted rate should be settled at the next funding")
+		assert.False(t, result[0].LatestRate.Time.IsZero(), "the current funding period's rate should carry its start")
+		assert.True(t, result[0].TimeOfNextRate.After(result[0].LatestRate.Time), "the next funding should follow the period's start")
+		assert.Zero(t, result[0].PredictedUpcomingRate, "no rate should be predicted, as the venue publishes none for the period after")
 	}
 
 	result, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.Futures})
@@ -267,18 +267,55 @@ func TestGetLatestFundingRates(t *testing.T) {
 				Exchange:       "MEXC",
 				Asset:          asset.Futures,
 				Pair:           futuresTradablePair,
-				LatestRate:     fundingrate.Rate{Time: time.Unix(1792828800, 0), Rate: decimal.MustFromFloat(0.000035)},
+				LatestRate:     fundingrate.Rate{Time: time.Unix(1792828800, 0), Rate: decimal.MustFromFloat(0.000034)},
 				TimeOfNextRate: time.Unix(1792857600, 0),
 			},
 			{
 				Exchange:       "MEXC",
 				Asset:          asset.Futures,
 				Pair:           futuresInversePair,
-				LatestRate:     fundingrate.Rate{Time: time.Unix(1792828800, 0), Rate: decimal.MustFromFloat(0.000098)},
+				LatestRate:     fundingrate.Rate{Time: time.Unix(1792828800, 0), Rate: decimal.MustFromFloat(0.000076)},
 				TimeOfNextRate: time.Unix(1792857600, 0),
 			},
 		}
 		assert.Equal(t, exp, result, "every enabled contract's rate should be mapped")
+	}
+
+	// The enabled contracts' rates are read in one request, and a rate's period starts its cycle before the next
+	// funding; without a cycle or a next funding time, the period's start is unknown
+	for name, tc := range map[string]struct {
+		cycle string
+		next  string
+		start time.Time
+	}{
+		"eight hour cycle":       {cycle: "8", next: "1792857600000", start: time.Unix(1792828800, 0)},
+		"one hour cycle":         {cycle: "1", next: "1792857600000", start: time.Unix(1792854000, 0)},
+		"no cycle":               {cycle: "0", next: "1792857600000"},
+		"no next funding":        {cycle: "8", next: "0"},
+		"cycle beyond durations": {cycle: "18446744073709551615", next: "1792857600000"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			rate := func(symbol string) string {
+				return `{"symbol":"` + symbol + `","fundingRate":0.0001,"collectCycle":` + tc.cycle + `,"nextSettleTime":` + tc.next + `}`
+			}
+			handler, requests := countRequests(futuresHandler(t, futuresRoute{
+				method: http.MethodGet,
+				path:   "contract/funding_rate",
+				data:   "[" + rate("BTC_USDT") + "," + rate("ETH_USDT") + "," + rate("BTC_USD") + "]",
+			}))
+			ex := testExchangeFor(t, handler, liveUnavailable)
+			result, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.Futures, IncludePredictedRate: true})
+			require.NoError(t, err, "GetLatestFundingRates must not error for the enabled pairs")
+			assert.EqualValues(t, 1, requests.Load(), "the enabled contracts' rates should be read in one request")
+			require.Len(t, result, 2, "every enabled contract's rate must be returned")
+			for i, pair := range []currency.Pair{futuresTradablePair, futuresInversePair} {
+				assert.Truef(t, result[i].Pair.Equal(pair), "rate %d should be %s's", i, pair)
+				assert.Equalf(t, tc.start, result[i].LatestRate.Time, "%s's rate should be timed at its period's start", pair)
+				assert.Truef(t, decimal.MustFromFloat(0.0001).Equal(result[i].LatestRate.Rate), "%s's rate should be its current one", pair)
+				assert.Zerof(t, result[i].PredictedUpcomingRate, "%s should have no predicted rate", pair)
+			}
+		})
 	}
 }
 
@@ -930,21 +967,25 @@ func TestSelectFuturesPosition(t *testing.T) {
 
 func TestRecordFuturesCancelOutcomes(t *testing.T) {
 	t.Parallel()
-	requested := []order.Cancel{{OrderID: "101716841474621953"}, {OrderID: "108885377779302912"}, {OrderID: "108886241042563584"}}
+	// The last order is requested with leading zeros, which the venue's echo of its ID drops
+	requested := []order.Cancel{{OrderID: "101716841474621953"}, {OrderID: "108885377779302912"}, {OrderID: "108886241042563584"}, {OrderID: "0108886241042563585"}}
+	requestIDs := []uint64{101716841474621953, 108885377779302912, 108886241042563584, 108886241042563585}
 	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
-	err := recordFuturesCancelOutcomes(resp, requested, []*FuturesCancelOrderResponse{
+	err := recordFuturesCancelOutcomes(resp, requested, requestIDs, []*FuturesCancelOrderResponse{
 		{OrderID: "101716841474621953", ErrorCode: 2040, ErrorMessage: "order not exist"},
 		{OrderID: "108886241042563584", ErrorMessage: "success"},
+		{OrderID: "108886241042563585", ErrorMessage: "success"},
 	}, nil)
 	require.ErrorIs(t, err, errCancelOutcomeMissing, "an order without an outcome must be reported")
 	assert.Equal(t, map[string]string{
-		"101716841474621953": "order not exist",
-		"108885377779302912": errCancelOutcomeMissing.Error(),
-		"108886241042563584": order.Cancelled.String(),
-	}, resp.Status, "every requested order should carry its outcome")
+		"101716841474621953":  "order not exist",
+		"108885377779302912":  errCancelOutcomeMissing.Error(),
+		"108886241042563584":  order.Cancelled.String(),
+		"0108886241042563585": order.Cancelled.String(),
+	}, resp.Status, "every requested order should carry its outcome under the ID it was requested by")
 
 	resp = &order.CancelBatchResponse{Status: make(map[string]string)}
-	err = recordFuturesCancelOutcomes(resp, requested[:1], nil, errFuturesRequestFailed)
+	err = recordFuturesCancelOutcomes(resp, requested[:1], requestIDs[:1], nil, errFuturesRequestFailed)
 	require.ErrorIs(t, err, errFuturesRequestFailed, "a failed request must be returned")
 	assert.Equal(t, errFuturesRequestFailed.Error(), resp.Status["101716841474621953"], "a failed request should be reported against its orders")
 }
@@ -998,7 +1039,8 @@ func TestSubmitFuturesOrder(t *testing.T) {
 		}
 	}
 
-	// An opening order names its side type, buy to open a long and sell to open a short, and reads no position mode
+	// An opening order names its side type, buy to open a long and sell to open a short, and carries the account's
+	// position mode, read before it is placed, but is never sent reduce-only
 	for _, tc := range []struct {
 		name string
 		s    order.Submit
@@ -1029,20 +1071,26 @@ func TestSubmitFuturesOrder(t *testing.T) {
 			body: `{"symbol":"BTC_USDT","vol":1,"leverage":5,"side":3,"sideType":"sell","type":5,"openType":1,"stpMode":0}`,
 		},
 	} {
-		t.Run("open "+tc.name, func(t *testing.T) {
-			t.Parallel()
-			handler, requests := record(futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/create", body: tc.body, data: placed}))
-			ex := testExchangeFor(t, handler, liveUnavailable)
-			resp, err := submit(ex, tc.s)
-			require.NoError(t, err, "submitFuturesOrder must not error")
-			assert.Equal(t, "739113577038255618", resp.OrderID, "submitFuturesOrder should return the placed order's ID")
-			sent, _ := requests()
-			assert.Equal(t, []string{place}, sent, "an opening order should only be placed")
-		})
+		for _, positionMode := range []string{"1", "2"} {
+			t.Run("position mode "+positionMode+" open "+tc.name, func(t *testing.T) {
+				t.Parallel()
+				body := strings.Replace(tc.body, `"stpMode":0}`, `"positionMode":`+positionMode+`,"stpMode":0}`, 1)
+				handler, requests := record(futuresHandler(t,
+					futuresRoute{method: http.MethodGet, path: "private/position/position_mode", data: positionMode},
+					futuresRoute{method: http.MethodPost, path: "private/order/create", body: body, data: placed},
+				))
+				ex := testExchangeFor(t, handler, liveUnavailable)
+				resp, err := submit(ex, tc.s)
+				require.NoError(t, err, "submitFuturesOrder must not error")
+				assert.Equal(t, "739113577038255618", resp.OrderID, "submitFuturesOrder should return the placed order's ID")
+				sent, _ := requests()
+				assert.Equal(t, []string{readMode, place}, sent, "an opening order should read the position mode once, then be placed")
+			})
+		}
 	}
 
 	// A reducing order reads the account's position mode once, then the position it closes. On a hedge account its body
-	// is the one listed; on a one-way account it also carries positionMode 2 and reduceOnly
+	// is the one listed with positionMode 1; on a one-way account it carries positionMode 2 and reduceOnly
 	position := func(id, positionType, openType string) string {
 		return strings.NewReplacer(`"positionId":1109973831`, `"positionId":`+id, `"positionType":1`, `"positionType":`+positionType, `"openType":1`, `"openType":`+openType).Replace(futuresOpenPositionReply)
 	}
@@ -1105,7 +1153,7 @@ func TestSubmitFuturesOrder(t *testing.T) {
 		},
 	} {
 		for positionMode, body := range map[string]string{
-			"1": tc.body,
+			"1": strings.Replace(tc.body, `"stpMode":0}`, `"positionMode":1,"stpMode":0}`, 1),
 			"2": strings.Replace(tc.body, `"stpMode":0}`, `"positionMode":2,"reduceOnly":true,"stpMode":0}`, 1),
 		} {
 			t.Run("position mode "+positionMode+" "+tc.name, func(t *testing.T) {
@@ -1126,7 +1174,8 @@ func TestSubmitFuturesOrder(t *testing.T) {
 	}
 
 	// Whatever else a reducing order names, both position modes send it with its own type, side, price and closing
-	// position, the one-way body adding only positionMode 2 and reduceOnly, and both fail it alike. One exchange serves
+	// position, the hedge body adding positionMode 1 and the one-way body positionMode 2 and reduceOnly, and both fail
+	// it alike. One exchange serves
 	// each subtest's submissions in turn, as one for each would double the package's race run
 	for _, side := range []order.Side{order.Buy, order.Sell} {
 		isolatedID, crossID, wantSide, wantSideType := "1109973831", "1109973832", "4", "sell"
@@ -1224,9 +1273,10 @@ func TestSubmitFuturesOrder(t *testing.T) {
 							if positionID != "" {
 								exp["positionId"] = exactNumber(positionID)
 							}
+							exp["positionMode"] = exactNumber("1")
 							hedge, err := exactJSON(hedgeBody)
 							require.NoErrorf(t, err, "with %s, the hedge mode body must be JSON", venue.name)
-							assert.Equalf(t, exp, hedge, "with %s, the hedge mode body should be sent", venue.name)
+							assert.Equalf(t, exp, hedge, "with %s, the hedge mode body should add positionMode 1", venue.name)
 							exp["positionMode"], exp["reduceOnly"] = exactNumber("2"), true
 							oneWay, err := exactJSON(oneWayBody)
 							require.NoErrorf(t, err, "with %s, the one-way mode body must be JSON", venue.name)
@@ -1238,7 +1288,8 @@ func TestSubmitFuturesOrder(t *testing.T) {
 		}
 	}
 
-	// A reducing order makes no other request where the position mode can't be read or is neither hedge nor one-way
+	// An order, opening or reducing, makes no other request where the position mode can't be read or is neither hedge
+	// nor one-way
 	for positionMode, exp := range map[string]error{
 		"refused": errFuturesRequestFailed,
 		"0":       errInvalidPositionMode,
@@ -1261,14 +1312,16 @@ func TestSubmitFuturesOrder(t *testing.T) {
 					for _, orderType := range []order.Type{order.Market, order.Limit} {
 						t.Run(orderType.String(), func(t *testing.T) {
 							for marginName, marginType := range map[string]margin.Type{"unnamed margin": margin.Unset, "isolated": margin.Isolated, "cross": margin.Multi} {
-								t.Run(marginName, func(t *testing.T) {
-									recorded, requests := record(handler)
-									serving.Store(&recorded)
-									_, err := submit(ex, order.Submit{Side: side, Type: orderType, MarginType: marginType, ReduceOnly: true})
-									assert.ErrorIsf(t, err, exp, "a %s %s order with %s should be stopped by the position mode", side, orderType, marginName)
-									sent, _ := requests()
-									assert.Equalf(t, []string{readMode}, sent, "a %s %s order with %s should make no request after the position mode stops it", side, orderType, marginName)
-								})
+								for _, reduceOnly := range []bool{false, true} {
+									t.Run(marginName+" reduce-only "+strconv.FormatBool(reduceOnly), func(t *testing.T) {
+										recorded, requests := record(handler)
+										serving.Store(&recorded)
+										_, err := submit(ex, order.Submit{Side: side, Type: orderType, MarginType: marginType, ReduceOnly: reduceOnly})
+										assert.ErrorIsf(t, err, exp, "a %s %s order with %s, reduce-only %t, should be stopped by the position mode", side, orderType, marginName, reduceOnly)
+										sent, _ := requests()
+										assert.Equalf(t, []string{readMode}, sent, "a %s %s order with %s, reduce-only %t, should make no request after the position mode stops it", side, orderType, marginName, reduceOnly)
+									})
+								}
 							}
 						})
 					}
@@ -1321,7 +1374,7 @@ func TestSubmitFuturesOrder(t *testing.T) {
 			side: order.Buy,
 			handler: func(t *testing.T) http.HandlerFunc {
 				t.Helper()
-				return refuse("private/order/create", futuresHandler(t))
+				return refuse("private/order/create", futuresHandler(t, futuresRoute{method: http.MethodGet, path: "private/position/position_mode", data: "1"}))
 			},
 			err: errFuturesRequestFailed,
 		},
@@ -1330,7 +1383,10 @@ func TestSubmitFuturesOrder(t *testing.T) {
 			side: order.Buy,
 			handler: func(t *testing.T) http.HandlerFunc {
 				t.Helper()
-				return futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/create", data: `{}`})
+				return futuresHandler(t,
+					futuresRoute{method: http.MethodGet, path: "private/position/position_mode", data: "1"},
+					futuresRoute{method: http.MethodPost, path: "private/order/create", data: `{}`},
+				)
 			},
 			err: common.ErrNoResponse,
 		},
@@ -1370,7 +1426,8 @@ func TestCancelBatchOrders(t *testing.T) {
 		_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures, OrderID: "x"}})
 		require.ErrorIs(t, err, errInvalidFuturesID)
 
-		// 51 orders take two requests, of 50 orders and of one
+		// 51 orders take two requests, of 50 orders and of one. The last is requested with leading zeros, which the
+		// venue's echo of its ID drops
 		orders := make([]order.Cancel, futuresBatchLimit+1)
 		firstIDs, firstOutcomes := make([]string, futuresBatchLimit), make([]string, futuresBatchLimit)
 		for i := range orders {
@@ -1381,6 +1438,7 @@ func TestCancelBatchOrders(t *testing.T) {
 				firstOutcomes[i] = `{"orderId":` + id + `,"errorCode":0}`
 			}
 		}
+		orders[futuresBatchLimit].OrderID = "0001050"
 		var requests atomic.Int32
 		replay := futuresHandler(t, futuresRoute{
 			method: http.MethodPost,
@@ -1400,8 +1458,8 @@ func TestCancelBatchOrders(t *testing.T) {
 		resp, err := ex.CancelBatchOrders(t.Context(), orders)
 		require.NoError(t, err, "a refused cancellation must be reported in its status, not as an error")
 		assert.EqualValues(t, 2, requests.Load(), "the orders should be cancelled 50 at a time")
-		// A refused order carries the venue's reason
-		exp := &order.CancelBatchResponse{Status: map[string]string{"1050": "order state cannot be cancelled"}}
+		// A refused order carries the venue's reason, under the ID it was requested by
+		exp := &order.CancelBatchResponse{Status: map[string]string{"0001050": "order state cannot be cancelled"}}
 		for _, id := range firstIDs {
 			exp.Status[id] = order.Cancelled.String()
 		}
@@ -1743,6 +1801,8 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 		}
 		assert.Equal(t, futuresTradablePair, summary.Pair, "the summary should be of the pair asked for")
 		assert.True(t, summary.CurrentSize.IsPositive(), "a long position's size should be positive")
+		assert.True(t, summary.MarkPrice.IsPositive(), "the mark price should be the contract's fair price")
+		assert.True(t, summary.NotionalSize.IsPositive(), "the notional size should be the position's value at the mark price")
 	})
 
 	_, err := e.GetFuturesPositionSummary(t.Context(), nil)
@@ -1771,25 +1831,75 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	_, err = ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)})
 	require.ErrorIs(t, err, errContractNotFound, "GetFuturesPositionSummary must refuse a position on a contract the venue does not list")
 
-	ex = testExchangeFor(t, futuresHandler(t, futuresContractsRoute, futuresRoute{
+	// The positions are read, then the contract's details and its fair price, the venue's mark price
+	held := strings.Replace(futuresOpenPositionReply, `"leverage":2,`, `"leverage":2,"marginRatio":0.0027,`, 1)
+	fairPrice := futuresRoute{method: http.MethodGet, path: "contract/fair_price/BTC_USDT", data: `{"symbol":"BTC_USDT","fairPrice":110000,"timestamp":1761887140000}`}
+	// A position is not summarised without a usable fair price, of a linear or an inverse contract, whose value divides
+	// by it
+	inverseHeld := `{"positionId":1109973840,"symbol":"BTC_USD","positionType":1,"openType":1,"state":1,"holdVol":5,` +
+		`"holdAvgPrice":50000,"openAvgPrice":50000,"liquidatePrice":33500,"oim":0.005,"im":0.005,"realised":-0.000003,` +
+		`"leverage":2,"marginRatio":0.0041,"createTime":1761887133854,"updateTime":1761887133854,"version":1,"unRealizedPnl":0.0000012}`
+	for _, contract := range []struct {
+		pair     currency.Pair
+		symbol   string
+		position string
+	}{
+		{futuresTradablePair, "BTC_USDT", held},
+		{futuresInversePair, "BTC_USD", inverseHeld},
+	} {
+		for name, tc := range map[string]struct {
+			fairPrice string
+			err       error
+		}{
+			"fair price refused":   {fairPrice: `{"success":false,"code":1001,"message":"Contract does not exist"}`, err: errFuturesRequestFailed},
+			"fair price not given": {fairPrice: `{"success":true,"code":0,"data":null}`, err: common.ErrNoResponse},
+			"fair price left out":  {fairPrice: `{"success":true,"code":0,"data":{"symbol":"` + contract.symbol + `"}}`, err: errInvalidFairPrice},
+			"fair price zero":      {fairPrice: `{"success":true,"code":0,"data":{"symbol":"` + contract.symbol + `","fairPrice":0}}`, err: errInvalidFairPrice},
+			"fair price negative":  {fairPrice: `{"success":true,"code":0,"data":{"symbol":"` + contract.symbol + `","fairPrice":-1}}`, err: errInvalidFairPrice},
+		} {
+			t.Run(contract.symbol+" "+name, func(t *testing.T) {
+				t.Parallel()
+				others := futuresHandler(t, futuresContractsRoute, futuresRoute{
+					method: http.MethodGet,
+					path:   "private/position/open_positions",
+					query:  "symbol=" + contract.symbol,
+					data:   "[" + contract.position + "]",
+				})
+				unpriced := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/api/v1/contract/fair_price/"+contract.symbol {
+						_, _ = w.Write([]byte(tc.fairPrice))
+						return
+					}
+					others(w, r)
+				}, liveUnavailable)
+				summary, err := unpriced.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: contract.pair})
+				assert.ErrorIsf(t, err, tc.err, "GetFuturesPositionSummary should not summarise a %s position without a usable fair price", contract.symbol)
+				assert.Nil(t, summary, "no summary should be returned")
+			})
+		}
+	}
+
+	ex = testExchangeFor(t, futuresHandler(t, futuresContractsRoute, fairPrice, futuresRoute{
 		method: http.MethodGet,
 		path:   "private/position/open_positions",
 		query:  "symbol=BTC_USDT",
-		data:   "[" + futuresOpenPositionReply + "]",
+		data:   "[" + held + "]",
 	}), liveUnavailable)
 	summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: futuresTradablePair})
 	require.NoError(t, err, "GetFuturesPositionSummary must not error")
-	// A long position's size is positive, its notional size is its value, and an isolated position reports its margin
+	// A long position's size is positive, its notional size is its value at the mark price, five contracts of 0.0001 BTC
+	// at 110000, its margin ratio is its maintenance margin fraction, and an isolated position reports its margin
 	exp := &futures.PositionSummary{
 		Pair:                      futuresTradablePair,
 		Asset:                     asset.Futures,
 		MarginType:                margin.Isolated,
 		Currency:                  currency.USDT,
 		IsolatedMargin:            decimal.MustFromFloat(27.444375),
-		NotionalSize:              decimal.MustFromFloat(54.88875),
+		NotionalSize:              decimal.MustFromFloat(55),
 		Leverage:                  decimal.NewFromInt(2),
 		EstimatedLiquidationPrice: decimal.MustFromFloat(55020.5),
 		CollateralUsed:            decimal.MustFromFloat(27.444375),
+		MarkPrice:                 decimal.MustFromFloat(110000),
 		CurrentSize:               decimal.MustFromFloat(5),
 		ContractSize:              decimal.MustFromFloat(0.0001),
 		ContractMultiplier:        decimal.MustFromFloat(0.0001),
@@ -1797,14 +1907,15 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 		AverageOpenPrice:          decimal.MustFromFloat(109777.5),
 		UnrealisedPNL:             decimal.MustFromFloat(-0.0039),
 		RealisedPNL:               decimal.MustFromFloat(-0.0329),
+		MaintenanceMarginFraction: decimal.MustFromFloat(0.0027),
 	}
 	assert.Equal(t, exp, summary, "the position should be summarised")
 
-	ex = testExchangeFor(t, futuresHandler(t, futuresContractsRoute, futuresRoute{
+	ex = testExchangeFor(t, futuresHandler(t, futuresContractsRoute, fairPrice, futuresRoute{
 		method: http.MethodGet,
 		path:   "private/position/open_positions",
 		query:  "symbol=BTC_USDT",
-		data:   "[" + futuresOpenPositionReply + "," + strings.Replace(futuresOpenPositionReply, `"positionType":1`, `"positionType":2`, 1) + "]",
+		data:   "[" + held + "," + strings.Replace(held, `"positionType":1`, `"positionType":2`, 1) + "]",
 	}), liveUnavailable)
 	_, err = ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: futuresTradablePair})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "both sides open must need a direction")
@@ -1815,25 +1926,30 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 
 	ex = testExchangeFor(t, futuresHandler(t, futuresContractsRoute, futuresRoute{
 		method: http.MethodGet,
+		path:   "contract/fair_price/BTC_USD",
+		data:   `{"symbol":"BTC_USD","fairPrice":40000,"timestamp":1761887140000}`,
+	}, futuresRoute{
+		method: http.MethodGet,
 		path:   "private/position/open_positions",
 		query:  "symbol=BTC_USD",
 		data: `[{"positionId":1109973840,"symbol":"BTC_USD","positionType":1,"openType":1,"state":1,"holdVol":5,` +
 			`"holdAvgPrice":50000,"openAvgPrice":50000,"liquidatePrice":33500,"oim":0.005,"im":0.005,"realised":-0.000003,` +
-			`"leverage":2,"createTime":1761887133854,"updateTime":1761887133854,"version":1,"unRealizedPnl":0.0000012}]`,
+			`"leverage":2,"marginRatio":0.0041,"createTime":1761887133854,"updateTime":1761887133854,"version":1,"unRealizedPnl":0.0000012}]`,
 	}), liveUnavailable)
 	summary, err = ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: futuresInversePair})
 	require.NoError(t, err, "GetFuturesPositionSummary must not error for an inverse contract")
-	// Five contracts of 100 USD at 50000 are worth 0.01 BTC, the settlement currency the summary is in
+	// Five contracts of 100 USD at a mark price of 40000 are worth 0.0125 BTC, the settlement currency the summary is in
 	exp = &futures.PositionSummary{
 		Pair:                      futuresInversePair,
 		Asset:                     asset.Futures,
 		MarginType:                margin.Isolated,
 		Currency:                  currency.BTC,
 		IsolatedMargin:            decimal.MustFromFloat(0.005),
-		NotionalSize:              decimal.MustFromFloat(0.01),
+		NotionalSize:              decimal.MustFromFloat(0.0125),
 		Leverage:                  decimal.NewFromInt(2),
 		EstimatedLiquidationPrice: decimal.MustFromFloat(33500),
 		CollateralUsed:            decimal.MustFromFloat(0.005),
+		MarkPrice:                 decimal.MustFromFloat(40000),
 		CurrentSize:               decimal.MustFromFloat(5),
 		ContractSize:              decimal.MustFromFloat(100),
 		ContractMultiplier:        decimal.MustFromFloat(100),
@@ -1841,6 +1957,7 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 		AverageOpenPrice:          decimal.MustFromFloat(50000),
 		UnrealisedPNL:             decimal.MustFromFloat(0.0000012),
 		RealisedPNL:               decimal.MustFromFloat(-0.000003),
+		MaintenanceMarginFraction: decimal.MustFromFloat(0.0041),
 	}
 	assert.Equal(t, exp, summary, "an inverse position should be summarised in its settlement currency")
 }

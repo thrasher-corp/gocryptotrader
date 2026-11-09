@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -2351,13 +2352,17 @@ func TestSubmitOrder(t *testing.T) {
 			t.Parallel()
 			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
 				method: http.MethodGet,
+				path:   "private/position/position_mode",
+				data:   "1",
+			}, futuresRoute{
+				method: http.MethodGet,
 				path:   "private/position/leverage",
 				query:  "symbol=BTC_USDT",
 				data:   `[{"positionType":1,"openType":1,"leverage":20},{"positionType":2,"openType":1,"leverage":10}]`,
 			}, futuresRoute{
 				method: http.MethodPost,
 				path:   "private/order/create",
-				body:   `{"symbol":"BTC_USDT","price":50000,"vol":1,"leverage":20,"side":1,"sideType":"buy","type":1,"openType":1,"externalOid":"gct-1","stpMode":0}`,
+				body:   `{"symbol":"BTC_USDT","price":50000,"vol":1,"leverage":20,"side":1,"sideType":"buy","type":1,"openType":1,"externalOid":"gct-1","positionMode":1,"stpMode":0}`,
 				data:   `{"orderId":"739113577038255616","ts":1761888808839}`,
 			}), liveUnavailable)
 			resp, err := submit(ex, order.Submit{Side: order.Buy, Type: order.Limit, Price: 50000, Amount: 1, ClientOrderID: "gct-1"})
@@ -2385,6 +2390,10 @@ func TestSubmitOrder(t *testing.T) {
 		t.Run("isolated open without leverage set", func(t *testing.T) {
 			t.Parallel()
 			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
+				method: http.MethodGet,
+				path:   "private/position/position_mode",
+				data:   "1",
+			}, futuresRoute{
 				method: http.MethodGet,
 				path:   "private/position/leverage",
 				query:  "symbol=BTC_USDT",
@@ -2481,8 +2490,39 @@ func TestSubmitOrder(t *testing.T) {
 			})
 		}
 
+		// A client order ID the venue can't take is refused before anything is sent, the position mode's read included,
+		// whether the order opens or closes
+		for _, reduceOnly := range []bool{false, true} {
+			t.Run("overlong client order ID with reduce-only "+strconv.FormatBool(reduceOnly)+" refused", func(t *testing.T) {
+				t.Parallel()
+				ex, requests := newRefusingTestExchange(t)
+				clientOrderID := strings.Repeat("g", futuresExternalOrderIDLimit+1)
+				resp, err := submit(ex, order.Submit{Side: order.Buy, Type: order.Market, Amount: 1, MarginType: margin.Multi, ReduceOnly: reduceOnly, ClientOrderID: clientOrderID})
+				require.ErrorIs(t, err, errExternalOrderIDTooLong, "SubmitOrder must refuse a client order ID longer than the venue takes")
+				assert.Nil(t, resp, "no order should be returned")
+				assert.Zero(t, requests.Load(), "nothing should be sent to the venue")
+			})
+		}
+		t.Run("longest client order ID placed", func(t *testing.T) {
+			t.Parallel()
+			clientOrderID := strings.Repeat("g", futuresExternalOrderIDLimit)
+			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
+				method: http.MethodGet,
+				path:   "private/position/position_mode",
+				data:   "1",
+			}, futuresRoute{
+				method: http.MethodPost,
+				path:   "private/order/create",
+				body:   `{"symbol":"BTC_USDT","vol":1,"side":1,"sideType":"buy","type":5,"openType":2,"externalOid":"` + clientOrderID + `","positionMode":1,"stpMode":0}`,
+				data:   `{"orderId":"739113577038255616","ts":1761888808839}`,
+			}), liveUnavailable)
+			resp, err := submit(ex, order.Submit{Side: order.Buy, Type: order.Market, Amount: 1, MarginType: margin.Multi, ClientOrderID: clientOrderID})
+			require.NoError(t, err, "SubmitOrder must place an order whose client order ID is as long as the venue takes")
+			assert.Equal(t, clientOrderID, resp.ClientOrderID, "the placed order should carry its client order ID")
+		})
+
 		// A close names the position it closes, when one is open, and takes that position's margin mode when it names none.
-		// On a one-way account it is also sent reduce-only
+		// It carries the account's position mode, and on a one-way account it is also sent reduce-only
 		isolatedLong := futuresOpenPositionReply
 		crossLong := strings.NewReplacer(`"positionId":1109973831`, `"positionId":1109973832`, `"openType":1`, `"openType":2`).Replace(futuresOpenPositionReply)
 		for name, tc := range map[string]struct {
@@ -2495,15 +2535,15 @@ func TestSubmitOrder(t *testing.T) {
 		}{
 			"cross close": {
 				positionMode: "1", positions: "[" + isolatedLong + "," + crossLong + "]", marginType: margin.Multi,
-				body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"stpMode":0}`, exp: margin.Multi,
+				body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"positionMode":1,"stpMode":0}`, exp: margin.Multi,
 			},
 			"close of the position's margin mode": {
 				positionMode: "1", positions: "[" + crossLong + "]",
-				body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"stpMode":0}`, exp: margin.Multi,
+				body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"positionMode":1,"stpMode":0}`, exp: margin.Multi,
 			},
 			"close without a position": {
 				positionMode: "1", positions: "[]",
-				body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":1,"stpMode":0}`, exp: margin.Isolated,
+				body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":1,"positionMode":1,"stpMode":0}`, exp: margin.Isolated,
 			},
 			"close of either margin mode": {positionMode: "1", positions: "[" + isolatedLong + "," + crossLong + "]", err: errMarginTypeAmbiguous},
 			"one-way cross close": {
@@ -2650,21 +2690,24 @@ func TestCancelOrder(t *testing.T) {
 			"refused":   {data: `[{"orderId":739106551624717312,"errorCode":2040,"errorMsg":"order not exist"}]`, err: errFuturesRequestFailed},
 			"missing":   {data: `[]`, err: errCancelOutcomeMissing},
 		} {
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
-				var sent []byte
-				replay := futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/cancel", body: `[739106551624717312]`, data: tc.data})
-				ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
-					var err error
-					sent, err = io.ReadAll(r.Body)
-					assert.NoError(t, err, "reading the request body should not error")
-					r.Body = io.NopCloser(bytes.NewReader(sent))
-					replay(w, r)
-				}, liveUnavailable)
-				err := cancel(ex, order.Cancel{OrderID: orderID})
-				require.ErrorIs(t, err, tc.err, "the cancellation's outcome must be returned")
-				assert.Equal(t, "["+orderID+"]", string(sent), "the order ID should be sent exactly, as a number")
-			})
+			// The venue's echo of an order ID requested with leading zeros drops them, and still names the order
+			for _, requested := range []string{orderID, "000" + orderID} {
+				t.Run(name+" "+requested, func(t *testing.T) {
+					t.Parallel()
+					var sent []byte
+					replay := futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/cancel", body: `[739106551624717312]`, data: tc.data})
+					ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+						var err error
+						sent, err = io.ReadAll(r.Body)
+						assert.NoError(t, err, "reading the request body should not error")
+						r.Body = io.NopCloser(bytes.NewReader(sent))
+						replay(w, r)
+					}, liveUnavailable)
+					err := cancel(ex, order.Cancel{OrderID: requested})
+					require.ErrorIsf(t, err, tc.err, "the outcome of cancelling order %s must be returned", requested)
+					assert.Equalf(t, "["+orderID+"]", string(sent), "order %s should be sent exactly, as a number", requested)
+				})
+			}
 		}
 
 		for data, exp := range map[string]error{
@@ -2931,9 +2974,16 @@ func TestSendFuturesHTTPRequest(t *testing.T) {
 	}{
 		`{"success":false,"code":1001,"message":"contract not activated"}`: {errFuturesRequestFailed, "code 1001: contract not activated"},
 		`{"success":false,"code":600,"msg":"parameter error"}`:             {errFuturesRequestFailed, "code 600: parameter error"},
-		// As ccxt reads the envelope, a reply is refused only when it carries neither success nor a success code
-		`{"success":true,"code":200,"msg":"success"}`: {},
-		`{"success":false,"code":0}`:                  {},
+		// Success false is a refusal whatever its code, and a reply without success is refused only by a code which
+		// is neither 0 nor 200
+		`{"success":false,"code":0,"message":"refused"}`: {errFuturesRequestFailed, "code 0: refused"},
+		`{"success":false,"code":200,"msg":"refused"}`:   {errFuturesRequestFailed, "code 200: refused"},
+		`{"success":false}`:                              {errFuturesRequestFailed, "code 0: "},
+		`{"code":500,"message":"system error"}`:          {errFuturesRequestFailed, "code 500: system error"},
+		`{"success":true,"code":200,"msg":"success"}`:    {},
+		`{"success":true,"code":0}`:                      {},
+		`{"code":0}`:                                     {},
+		`{"code":200,"msg":"success"}`:                   {},
 	} {
 		t.Run(reply, func(t *testing.T) {
 			ex := newPrivateTestExchange(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(reply)) })

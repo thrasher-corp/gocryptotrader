@@ -118,13 +118,10 @@ func joinFuturesStates(states []uint8) string {
 	return strings.Join(parts, ",")
 }
 
-// PlaceFuturesOrder places a futures order, which must name its side type
+// PlaceFuturesOrder places a futures order
 func (e *Exchange) PlaceFuturesOrder(ctx context.Context, req *FuturesOrderRequest) (*FuturesOrderPlacementResponse, error) {
 	if err := validateFuturesOrder(req); err != nil {
 		return nil, err
-	}
-	if req.SideType == "" {
-		return nil, fmt.Errorf("%w: unset", errInvalidSideType)
 	}
 	var resp *FuturesOrderPlacementResponse
 	return resp, e.SendFuturesHTTPRequest(ctx, futuresPlaceOrderEPL, http.MethodPost, "private/order/create", nil, req, &resp, true)

@@ -1167,60 +1167,6 @@
       "code": 0,
       "data": {
        "currentPage": 1,
-       "pageSize": 1,
-       "resultList": [
-        {
-         "collectCycle": 8,
-         "fundingRate": 0.000035,
-         "settleTime": 1792828800000,
-         "symbol": "BTC_USDT"
-        }
-       ],
-       "totalCount": 1620,
-       "totalPage": 1620
-      },
-      "success": true
-     },
-     "queryString": "page_num=1&page_size=1&symbol=BTC_USDT",
-     "bodyParams": "",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ]
-     }
-    },
-    {
-     "data": {
-      "code": 0,
-      "data": {
-       "currentPage": 1,
-       "pageSize": 1,
-       "resultList": [
-        {
-         "collectCycle": 8,
-         "fundingRate": 0.000098,
-         "settleTime": 1792828800000,
-         "symbol": "BTC_USD"
-        }
-       ],
-       "totalCount": 1620,
-       "totalPage": 1620
-      },
-      "success": true
-     },
-     "queryString": "page_num=1&page_size=1&symbol=BTC_USD",
-     "bodyParams": "",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ]
-     }
-    },
-    {
-     "data": {
-      "code": 0,
-      "data": {
-       "currentPage": 1,
        "pageSize": 2,
        "resultList": [
         {

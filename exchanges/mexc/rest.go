@@ -45,9 +45,11 @@ type Exchange struct {
 	// name only the method, and an error reply at most the contract it refuses, so a reply can only be matched
 	// to the one request waiting for it. It also guards the two fields below.
 	futuresWebsocketRequestMu sync.Mutex
-	// futuresRepliesOwed holds the futures connections owing the reply to a request which went unanswered, even
-	// after a wait for a late reply. Such a reply could still arrive and answer the next request sent.
-	futuresRepliesOwed map[websocket.Connection]bool
+	// futuresRepliesOwed holds how many replies each futures connection may still owe: one for a request which went
+	// unanswered, even after a wait for a late reply, or for a marker request which did, and one for each
+	// unsubscription, which the venue answers only to refuse. Such a reply could still arrive and answer the next
+	// request sent, so that request first sends a marker request and drains them.
+	futuresRepliesOwed map[websocket.Connection]int
 	// futuresResyncMarkers numbers the marker requests which bring a connection owing a reply back in step
 	futuresResyncMarkers uint64
 
@@ -110,6 +112,7 @@ var (
 	errStopPlanOrderIDRequired              = errors.New("take-profit and stop-loss order id is required")
 	errSelfTradePreventionUIDsShort         = errors.New("a self-trade prevention group needs at least two sub-account uids")
 	errContractNotFound                     = errors.New("futures contract not found")
+	errInvalidFairPrice                     = errors.New("invalid futures fair price")
 	errFuturesWebsocketRejected             = errors.New("futures websocket request rejected")
 	errFuturesWebsocketOutOfStep            = errors.New("futures websocket replies out of step with requests")
 	errInvalidFuturesID                     = errors.New("invalid futures id")
@@ -1773,9 +1776,10 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	}, authType)
 }
 
-// futuresResponse is the envelope of every futures REST reply; Data decodes into the caller's result
+// futuresResponse is the envelope of every futures REST reply; Data decodes into the caller's result. Success is nil
+// when a reply leaves it out
 type futuresResponse struct {
-	Success bool   `json:"success"`
+	Success *bool  `json:"success"`
 	Code    uint64 `json:"code"`
 	Message string `json:"message"`
 	Msg     string `json:"msg"`
@@ -1850,9 +1854,10 @@ func (e *Exchange) sendFuturesHTTPRequest(ctx context.Context, epl request.Endpo
 	}, authType); err != nil {
 		return err
 	}
-	// A refused request is answered with HTTP 200, success false and its error code. Some endpoints report success
-	// with code 200 rather than 0, so, as ccxt does, a reply is refused only when it carries neither
-	if !resp.Success && resp.Code != 0 && resp.Code != 200 {
+	// A refused request is answered with HTTP 200, success false and its error code, so success false is a refusal
+	// whatever the code. Some endpoints report success with code 200 rather than 0, so a reply without success is
+	// refused only when its code is neither
+	if (resp.Success != nil && !*resp.Success) || (resp.Success == nil && resp.Code != 0 && resp.Code != 200) {
 		message := resp.Message
 		if message == "" {
 			message = resp.Msg

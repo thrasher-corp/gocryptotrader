@@ -84,7 +84,8 @@ type FuturesOrderRequest struct {
 	Leverage uint64  `json:"leverage,omitempty"`
 	Side     uint8   `json:"side"`
 	// SideType is FuturesSideTypeBuy for an order opening a long or closing a short and FuturesSideTypeSell for one
-	// opening a short or closing a long. The single order endpoint requires it; the batch endpoint doesn't list it
+	// opening a short or closing a long. It is optional: MEXC listed it as required on the single order from 23 October
+	// 2026, but neither order endpoint lists it now
 	SideType        string  `json:"sideType,omitempty"`
 	Type            uint8   `json:"type"`
 	OpenType        uint8   `json:"openType"`
@@ -97,9 +98,10 @@ type FuturesOrderRequest struct {
 	LossTrend    uint8 `json:"lossTrend,omitempty"`
 	ProfitTrend  uint8 `json:"profitTrend,omitempty"`
 	PriceProtect uint8 `json:"priceProtect,omitempty"`
+	// PositionMode is FuturesPositionModeHedge or FuturesPositionModeOneWay. The venue takes an order without one as
+	// hedge mode, and refuses an order whose mode differs from the account's
 	PositionMode uint8 `json:"positionMode,omitempty"`
-	// ReduceOnly applies in one-way position mode only, where an order opens or closes by its side type and the
-	// position held; in hedge mode the close sides reduce
+	// ReduceOnly applies in one-way position mode only; in hedge mode the close sides reduce
 	ReduceOnly bool `json:"reduceOnly,omitempty"`
 	// MarketCeiling opens a position with all of the available balance
 	MarketCeiling bool `json:"marketCeiling,omitempty"`

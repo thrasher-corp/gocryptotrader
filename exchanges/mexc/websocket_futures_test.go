@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -543,7 +544,7 @@ func TestFuturesWebsocketRequest(t *testing.T) {
 			require.ErrorIs(t, <-done, websocket.ErrSignatureTimeout, "futuresWebsocketRequest must return the timeout")
 			assert.True(t, conn.awaited, "the late reply should be awaited")
 			assert.True(t, held, "the request lock should be held until the late reply is read, so that no other request is sent meanwhile")
-			assert.True(t, ex.futuresRepliesOwed[conn], "a connection whose late reply did not come should owe it")
+			assert.Equal(t, 1, ex.futuresRepliesOwed[conn], "a connection whose late reply did not come should owe it")
 		})
 	})
 
@@ -565,7 +566,7 @@ func TestFuturesWebsocketRequest(t *testing.T) {
 		err := ex.futuresWebsocketRequest(t.Context(), conn, &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}})
 		require.ErrorIs(t, err, websocket.ErrSignatureTimeout, "futuresWebsocketRequest must return the timeout")
 		assert.True(t, conn.awaited, "the late reply should be waited for")
-		assert.True(t, ex.futuresRepliesOwed[conn], "a connection whose late reply could not be waited for should owe it")
+		assert.Equal(t, 1, ex.futuresRepliesOwed[conn], "a connection whose late reply could not be waited for should owe it")
 	})
 
 	t.Run("owed reply", func(t *testing.T) {
@@ -581,13 +582,16 @@ func TestFuturesWebsocketRequest(t *testing.T) {
 			replies []string
 			sendErr error
 			err     error
+			// owedAfter is how many replies the connection owes after a failed marker: the one it owed, and the
+			// marker's own when the marker was sent
+			owedAfter int
 		}{
 			{name: "marker answered", replies: []string{refusal}},
 			{name: "marker answered after the reply owed", replies: []string{owed, refusal}},
 			{name: "marker refused in other words", replies: []string{`{"channel":"rs.error","data":"marker gct-resync-1 refused"}`}},
-			{name: "marker unanswered after its replies", replies: []string{owed, owed}, err: errFuturesWebsocketOutOfStep},
-			{name: "no replies", err: errFuturesWebsocketOutOfStep},
-			{name: "marker not sent", sendErr: errSendFailed, err: errSendFailed},
+			{name: "marker unanswered after its replies", replies: []string{owed, owed}, err: errFuturesWebsocketOutOfStep, owedAfter: 2},
+			{name: "no replies", err: errFuturesWebsocketOutOfStep, owedAfter: 2},
+			{name: "marker not sent", sendErr: errSendFailed, err: errSendFailed, owedAfter: 1},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
@@ -596,13 +600,13 @@ func TestFuturesWebsocketRequest(t *testing.T) {
 				for _, r := range tc.replies {
 					conn.markerReplies = append(conn.markerReplies, []byte(r))
 				}
-				ex.futuresRepliesOwed = map[websocket.Connection]bool{conn: true}
+				ex.futuresRepliesOwed = map[websocket.Connection]int{conn: 1}
 				err := ex.futuresWebsocketRequest(t.Context(), conn, req)
 				if tc.err != nil {
 					require.ErrorIs(t, err, tc.err, "futuresWebsocketRequest must return why the connection is out of step")
 					assert.ErrorIs(t, err, errFuturesWebsocketOutOfStep, "the request should fail as out of step")
 					assert.Empty(t, conn.sent, "a request should not be sent until a marker is answered")
-					assert.True(t, ex.futuresRepliesOwed[conn], "the connection should still owe a reply")
+					assert.Equal(t, tc.owedAfter, ex.futuresRepliesOwed[conn], "the connection should still owe its reply, and a marker's when one was sent")
 					return
 				}
 				require.NoError(t, err, "futuresWebsocketRequest must not error")
@@ -831,7 +835,7 @@ func TestFuturesWebsocketRequestResync(t *testing.T) {
 				assert.ErrorIs(t, err, websocket.ErrSignatureTimeout, "the failure should carry the marker's timeout")
 				assert.Equal(t, 2*limit, time.Since(start), "an unanswered marker should be waited for twice the response limit")
 				assert.Equal(t, []string{"BTC_USDT", "gct-resync-1"}, venue.sent(), "a request should not be sent until a marker is answered")
-				assert.True(t, ex.futuresRepliesOwed[conn], "the connection should still owe a reply")
+				assert.Equal(t, 2, ex.futuresRepliesOwed[conn], "the connection should owe the request's reply and the marker's")
 				synctest.Sleep(tc.gap)
 				err = subscribe("BTC_USD")
 				assert.ErrorIs(t, err, errFuturesWebsocketRejected, "a request should be answered once a later marker is")
@@ -860,11 +864,11 @@ func TestFuturesWebsocketRequestResyncContextEnds(t *testing.T) {
 		assert.ErrorIs(t, err, context.DeadlineExceeded, "the failure should carry the context's error")
 		assert.Equal(t, 50*time.Millisecond, time.Since(start), "the request should return when its context ends")
 		assert.Equal(t, []string{"BTC_USDT", "gct-resync-1"}, venue.sent(), "a request should not be sent until a marker is answered")
-		assert.True(t, ex.futuresRepliesOwed[conn], "the connection should still owe a reply")
+		assert.Equal(t, 2, ex.futuresRepliesOwed[conn], "the connection should owe the request's reply and the marker's")
 	})
 }
 
-func TestOweFuturesReply(t *testing.T) {
+func TestOweFuturesReplies(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
 	undialled, err := ex.Websocket.CreateTestConnection(futuresPublicConnection)
@@ -880,10 +884,11 @@ func TestOweFuturesReply(t *testing.T) {
 	open := dialFuturesTestVenue(t, ex, new(futuresLateReplyVenue).handle)
 	unknown := &futuresReplyConnection{}
 	for _, conn := range []websocket.Connection{undialled, closed, open, unknown} {
-		ex.oweFuturesReply(conn)
+		ex.oweFuturesReplies(conn, 1)
 	}
-	assert.Equal(t, map[websocket.Connection]bool{open: true, unknown: true}, ex.futuresRepliesOwed,
-		"a connection never dialled or shut down should be forgotten, and an open one or one which does not report it kept")
+	ex.oweFuturesReplies(open, 2)
+	assert.Equal(t, map[websocket.Connection]int{open: 3, unknown: 1}, ex.futuresRepliesOwed,
+		"a connection never dialled or shut down should be forgotten, and an open one or one which does not report it kept, owing every reply recorded")
 }
 
 func TestFuturesWebsocketRequestRateLimited(t *testing.T) {
@@ -1326,13 +1331,25 @@ func TestMigratedSubscriptionsCoverFutures(t *testing.T) {
 }
 
 // futuresVenue is a mock futures websocket venue. It acknowledges subscriptions and logins, refuses the contract or API
-// key it is told to, pushes a frame after a subscription to a channel it holds one for, and records what it is sent
+// key it is told to, and a marker request's symbol, as no contract has it, and answers an unsubscription only to refuse
+// one. It pushes a frame after a subscription to a channel it holds one for, and beforeLogin ahead of its reply to an
+// accepted login, and records what it is sent
 type futuresVenue struct {
-	refuse string
-	pushes map[string]string
-	mu     sync.Mutex
-	conn   *gws.Conn
-	sent   []string
+	refuse      string
+	pushes      map[string]string
+	beforeLogin string
+	// atLogin is called when a login is accepted, before anything is written
+	atLogin func()
+	mu      sync.Mutex
+	conn    *gws.Conn
+	sent    []string
+}
+
+// delist makes the venue refuse a contract from now on, as it does one it no longer lists
+func (v *futuresVenue) delist(symbol string) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.refuse = symbol
 }
 
 // write sends a frame, one at a time
@@ -1370,11 +1387,19 @@ func (v *futuresVenue) handle(_ testing.TB, msg []byte, conn *gws.Conn) error {
 	}
 	v.mu.Lock()
 	v.sent = append(v.sent, req.Method)
+	refuse := v.refuse
 	v.mu.Unlock()
 	switch {
 	case req.Method == "ping":
 		return v.write(conn, `{"channel":"pong","data":1792842501046,"ts":1792842501046}`)
 	case strings.HasPrefix(req.Method, futuresUnsubscribePrefix):
+		var params WebsocketFuturesChannelParams
+		if err := json.Unmarshal(req.Param, &params); err != nil {
+			return err
+		}
+		if params.Symbol == refuse {
+			return v.write(conn, `{"channel":"rs.error","data":"Contract [`+params.Symbol+`] not exists","ts":1792842495741}`)
+		}
 		return nil
 	case req.Method == futuresMethodLogin:
 		var login WebsocketFuturesLoginParams
@@ -1385,8 +1410,16 @@ func (v *futuresVenue) handle(_ testing.TB, msg []byte, conn *gws.Conn) error {
 		if err != nil {
 			return err
 		}
-		if login.APIKey != "test-key" || login.Signature != hex.EncodeToString(mac) || login.APIKey == v.refuse {
+		if login.APIKey != "test-key" || login.Signature != hex.EncodeToString(mac) || login.APIKey == refuse {
 			return v.write(conn, `{"channel":"rs.error","data":"Apikey doesn't exist!","ts":1792842495741}`)
+		}
+		if v.atLogin != nil {
+			v.atLogin()
+		}
+		if v.beforeLogin != "" {
+			if err := v.write(conn, v.beforeLogin); err != nil {
+				return err
+			}
 		}
 		return v.write(conn, `{"channel":"rs.login","data":"success","ts":"1587442022003"}`)
 	case strings.HasPrefix(req.Method, futuresSubscribePrefix):
@@ -1394,7 +1427,7 @@ func (v *futuresVenue) handle(_ testing.TB, msg []byte, conn *gws.Conn) error {
 		if err := json.Unmarshal(req.Param, &params); err != nil {
 			return err
 		}
-		if params.Symbol == v.refuse {
+		if params.Symbol == refuse || strings.HasPrefix(params.Symbol, futuresResyncMarkerPrefix) {
 			return v.write(conn, `{"channel":"rs.error","data":"Contract [`+params.Symbol+`] not exists","ts":1792842495741}`)
 		}
 		if err := v.write(conn, `{"channel":"rs.`+req.Method+`","data":"success","ts":1792842495741}`); err != nil {
@@ -1480,6 +1513,229 @@ func TestWebsocketFuturesSubscribeRefused(t *testing.T) {
 	assert.Equal(t, "ticker@BTC_USDT", subs[0].QualifiedChannel, "the accepted subscription should be recorded")
 }
 
+func TestWebsocketFuturesUnsubscribeRefused(t *testing.T) {
+	t.Parallel()
+	ex := newFuturesWebsocketTestExchange(t)
+	venue := new(futuresVenue)
+	require.NoError(t, connectFuturesVenue(t, ex, venue, subscription.List{{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel}}), "Connect must not error")
+	conn, err := ex.Websocket.GetConnection(futuresPublicConnection)
+	require.NoError(t, err, "GetConnection must not error")
+	var delisted subscription.List
+	for _, s := range ex.Websocket.GetSubscriptions() {
+		if s.QualifiedChannel == "ticker@BTC_USD" {
+			delisted = append(delisted, s)
+		}
+	}
+	require.Len(t, delisted, 1, "the subscription to the contract to delist must be recorded")
+
+	// The venue refuses to unsubscribe from a contract it no longer lists, and the refusal comes before the reply to a
+	// subscription sent after it on the connection
+	venue.delist("BTC_USD")
+	require.NoError(t, ex.Websocket.UnsubscribeChannels(t.Context(), conn, delisted), "UnsubscribeChannels must not error when the venue holds no such subscription")
+	next := &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{futuresTradablePair}, QualifiedChannel: "deal@BTC_USDT"}
+	require.NoError(t, ex.Websocket.SubscribeToChannels(t.Context(), conn, subscription.List{next}), "a subscription after a refused unsubscription must be answered by its own reply")
+	got := make([]string, 0, 2)
+	for _, s := range ex.Websocket.GetSubscriptions() {
+		assert.Equalf(t, subscription.SubscribedState, s.State(), "%s should be subscribed", s.QualifiedChannel)
+		got = append(got, s.QualifiedChannel)
+	}
+	assert.ElementsMatch(t, []string{"ticker@BTC_USDT", "deal@BTC_USDT"}, got, "the refused unsubscription should be removed and the next subscription recorded")
+	assert.Equal(t, []string{"sub.ticker", "sub.ticker", "unsub.ticker", "sub.ticker", "sub.deal"}, venue.methods(),
+		"the unsubscription should be followed by a marker request before the next subscription")
+	err = relayedError(t, ex)
+	assert.ErrorIs(t, err, errFuturesWebsocketRejected, "the refused unsubscription should be reported")
+	assert.ErrorContains(t, err, "Contract [BTC_USD]", "the refusal reported should be the unsubscription's")
+}
+
+// relayedError returns the next error relayed by an exchange's websocket
+func relayedError(t *testing.T, ex *Exchange) error {
+	t.Helper()
+	err, ok := relayed(t, ex).(error)
+	require.True(t, ok, "an error must be relayed")
+	return err
+}
+
+func TestWebsocketFuturesUnsubscribe(t *testing.T) {
+	t.Parallel()
+	tickerSubscription := func(symbol string) *subscription.Subscription {
+		pair := currency.NewPairWithDelimiter(strings.TrimSuffix(symbol, "_USDT"), "USDT", currency.UnderscoreDelimiter)
+		return &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel, Pairs: currency.Pairs{pair}, QualifiedChannel: "ticker@" + symbol}
+	}
+	// serve answers a marker request with the frames given, then the marker's refusal unless told to leave it
+	// unanswered, answers nothing else, and records each request's method and symbol
+	serve := func(beforeMarker []string, refuseMarker bool) (mockws.WsMockFunc, func() []string) {
+		var mu sync.Mutex
+		var requests []string
+		return func(_ testing.TB, msg []byte, conn *gws.Conn) error {
+				var req struct {
+					Method string                        `json:"method"`
+					Param  WebsocketFuturesChannelParams `json:"param"`
+				}
+				if err := json.Unmarshal(msg, &req); err != nil {
+					return err
+				}
+				mu.Lock()
+				requests = append(requests, req.Method+" "+req.Param.Symbol)
+				mu.Unlock()
+				if !strings.HasPrefix(req.Param.Symbol, futuresResyncMarkerPrefix) {
+					return nil
+				}
+				for _, frame := range beforeMarker {
+					if err := conn.WriteMessage(gws.TextMessage, []byte(frame)); err != nil {
+						return err
+					}
+				}
+				if !refuseMarker {
+					return nil
+				}
+				return conn.WriteMessage(gws.TextMessage, []byte(`{"channel":"rs.error","data":"Contract [`+req.Param.Symbol+`] not exists","ts":1792842495741}`))
+			}, func() []string {
+				mu.Lock()
+				defer mu.Unlock()
+				return slices.Clone(requests)
+			}
+	}
+	const refusal = `{"channel":"rs.error","data":"Contract [BTC_USDT] not exists","ts":1792842495741}`
+
+	t.Run("nothing to send", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		handle, requests := serve(nil, true)
+		conn := dialFuturesTestVenue(t, ex, handle)
+		unpaired := tickerSubscription("BTC_USDT")
+		unpaired.Pairs = nil
+		err := ex.WebsocketFuturesUnsubscribe(t.Context(), conn, subscription.List{unpaired})
+		assert.ErrorIs(t, err, subscription.ErrNotSinglePair, "an unsubscription the venue can't take should be returned")
+		assert.Empty(t, requests(), "no marker should follow when no unsubscription was sent")
+	})
+
+	// A reply owed by an earlier request comes before the unsubscription's refusal and the marker's, and all are drained
+	t.Run("reply owed", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		handle, requests := serve([]string{`{"channel":"rs.sub.ticker","data":"success","ts":1792842495741}`, refusal}, true)
+		conn := dialFuturesTestVenue(t, ex, handle)
+		sub := tickerSubscription("BTC_USDT")
+		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, sub), "AddSuccessfulSubscriptions must not error")
+		ex.futuresRepliesOwed = map[websocket.Connection]int{conn: 1}
+		require.NoError(t, ex.WebsocketFuturesUnsubscribe(t.Context(), conn, subscription.List{sub}), "WebsocketFuturesUnsubscribe must not error once the marker is answered")
+		assert.Empty(t, ex.futuresRepliesOwed, "no reply should be owed once the marker is answered")
+		assert.Empty(t, ex.Websocket.GetSubscriptions(), "the unsubscribed channel should be removed")
+		assert.Equal(t, []string{"unsub.ticker BTC_USDT", "sub.ticker gct-resync-1"}, requests(), "the unsubscription should be followed by one marker")
+		err := relayedError(t, ex)
+		assert.ErrorIs(t, err, errFuturesWebsocketRejected, "the unsubscription's refusal should be reported")
+		assert.ErrorContains(t, err, "Contract [BTC_USDT]", "the refusal reported should be the unsubscription's")
+		requireNothingRelayed(t, ex)
+	})
+
+	// The marker's wait can end at its context's deadline, after the replies it waits for or with none, and each refusal
+	// it read is reported all the same
+	for name, beforeMarker := range map[string][]string{
+		"marker unanswered":                   nil,
+		"marker unanswered after a refusal":   {refusal},
+		"marker unanswered after its replies": {refusal, `{"channel":"rs.sub.ticker","data":"success","ts":1792842495741}`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				defer synctest.Sleep(time.Minute)
+				ex := newFuturesWebsocketTestExchange(t)
+				handle, requests := serve(beforeMarker, false)
+				conn := dialFuturesTestVenue(t, ex, handle)
+				sub := tickerSubscription("BTC_USDT")
+				require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, sub), "AddSuccessfulSubscriptions must not error")
+				// Long enough for the connection's rate limiter to let the marker follow the unsubscription
+				ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+				defer cancel()
+				done := make(chan error, 1)
+				go func() { done <- ex.WebsocketFuturesUnsubscribe(ctx, conn, subscription.List{sub}) }()
+				synctest.Wait()
+				held := !ex.futuresWebsocketRequestMu.TryLock()
+				if !held {
+					ex.futuresWebsocketRequestMu.Unlock()
+				}
+				require.NoError(t, <-done, "an unsubscription whose marker goes unanswered must still succeed, leaving the replies owed")
+				assert.True(t, held, "the request lock should be held until the marker's wait ends, so that no other request is sent meanwhile")
+				assert.Equal(t, 2, ex.futuresRepliesOwed[conn], "the connection should owe the unsubscription's reply and the marker's")
+				assert.Empty(t, ex.Websocket.GetSubscriptions(), "the unsubscription was sent, so its channel should be removed")
+				assert.Equal(t, []string{"unsub.ticker BTC_USDT", "sub.ticker gct-resync-1"}, requests(), "the unsubscription should be followed by one marker")
+				if beforeMarker != nil {
+					err := relayedError(t, ex)
+					assert.ErrorIs(t, err, errFuturesWebsocketRejected, "a refusal the marker's wait collected should be reported")
+					assert.ErrorContains(t, err, "Contract [BTC_USDT]", "the refusal reported should be the unsubscription's")
+				}
+				assert.ErrorIs(t, relayedError(t, ex), errFuturesWebsocketOutOfStep, "the unanswered marker should be reported")
+				requireNothingRelayed(t, ex)
+			})
+		})
+	}
+
+	// The replies to unsubscriptions and their marker can come after the marker's wait ends; the next request then
+	// drains them all before it is sent, and gets its own reply
+	t.Run("replies after the marker's wait", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			defer synctest.Sleep(time.Minute)
+			ex := newFuturesWebsocketTestExchange(t)
+			var mu sync.Mutex
+			var requests []string
+			conn := dialFuturesTestVenue(t, ex, func(_ testing.TB, msg []byte, c *gws.Conn) error {
+				var req struct {
+					Method string                        `json:"method"`
+					Param  WebsocketFuturesChannelParams `json:"param"`
+				}
+				if err := json.Unmarshal(msg, &req); err != nil {
+					return err
+				}
+				mu.Lock()
+				requests = append(requests, req.Method+" "+req.Param.Symbol)
+				mu.Unlock()
+				// Every request is answered 400 ms after it is read: a listed contract's subscription is acknowledged, and
+				// any other request refused
+				time.Sleep(400 * time.Millisecond)
+				reply := `{"channel":"rs.error","data":"Contract [` + req.Param.Symbol + `] not exists","ts":1792842495741}`
+				if req.Param.Symbol == "BTC_USDT" {
+					reply = `{"channel":"rs.` + req.Method + `","data":"success","ts":1792842495741}`
+				}
+				return c.WriteMessage(gws.TextMessage, []byte(reply))
+			})
+			delisted := subscription.List{tickerSubscription("NOPE_USDT"), tickerSubscription("GONE_USDT")}
+			require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, delisted...), "AddSuccessfulSubscriptions must not error")
+			ctx, cancel := context.WithTimeout(t.Context(), 250*time.Millisecond)
+			defer cancel()
+			require.NoError(t, ex.WebsocketFuturesUnsubscribe(ctx, conn, delisted), "an unsubscription whose marker's wait ends must still succeed")
+			assert.Equal(t, 3, ex.futuresRepliesOwed[conn], "the connection should owe both refusals and the marker's")
+			assert.ErrorIs(t, relayedError(t, ex), errFuturesWebsocketOutOfStep, "the marker's ended wait should be reported")
+			err := ex.futuresWebsocketRequest(t.Context(), conn, &WebsocketFuturesRequest{Method: "sub.deal", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}})
+			require.NoError(t, err, "the next request must be answered by its own reply once the replies owed are drained")
+			assert.Empty(t, ex.futuresRepliesOwed, "no reply should be owed once a marker is answered")
+			// The refusals drained are reported, and the earlier marker's refusal, drained with them, is not
+			for _, symbol := range []string{"NOPE_USDT", "GONE_USDT"} {
+				err := relayedError(t, ex)
+				assert.ErrorIsf(t, err, errFuturesWebsocketRejected, "the refused unsubscription from %s should be reported", symbol)
+				assert.ErrorContainsf(t, err, "Contract ["+symbol+"]", "the refusal reported should be %s's", symbol)
+			}
+			requireNothingRelayed(t, ex)
+			mu.Lock()
+			defer mu.Unlock()
+			assert.Equal(t, []string{"unsub.ticker NOPE_USDT", "unsub.ticker GONE_USDT", "sub.ticker gct-resync-1", "sub.ticker gct-resync-2", "sub.deal BTC_USDT"}, requests,
+				"the next request should be sent after one marker drains the replies owed")
+		})
+	})
+}
+
+func TestReportFuturesWebsocketError(t *testing.T) {
+	t.Parallel()
+	ex := newFuturesWebsocketTestExchange(t)
+	ex.Websocket.DataHandler = stream.NewRelay(1)
+	relayedFirst := errors.New("relayed")
+	ex.reportFuturesWebsocketError(t.Context(), relayedFirst)
+	// The relay is full, so the next error is logged rather than relayed, without waiting for room
+	ex.reportFuturesWebsocketError(t.Context(), errors.New("logged"))
+	assert.Equal(t, relayedFirst, relayed(t, ex), "the error reported while the relay had room should be relayed")
+	requireNothingRelayed(t, ex)
+}
+
 func TestWebsocketFuturesSubscribePrivate(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
@@ -1498,6 +1754,57 @@ func TestWebsocketFuturesSubscribePrivate(t *testing.T) {
 	detail, ok := relayed(t, ex).(*order.Detail)
 	require.True(t, ok, "the pushed order must be relayed")
 	assert.Equal(t, futuresOrderFrameDetail(ex.Name), detail, "the pushed order should be relayed")
+}
+
+func TestWebsocketFuturesSubscribePrivatePushedAtLogin(t *testing.T) {
+	t.Parallel()
+	ex := newFuturesWebsocketTestExchange(t)
+	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	// The venue pushes the private channels once a login is accepted, so a push can come no later than its reply
+	venue := &futuresVenue{beforeLogin: futuresOrderFrame}
+	atLogin := make(chan []subscription.State, 1)
+	venue.atLogin = func() {
+		subs := ex.Websocket.GetSubscriptions()
+		states := make([]subscription.State, 0, len(subs))
+		for _, s := range subs {
+			states = append(states, s.State())
+		}
+		atLogin <- states
+	}
+	require.NoError(t, connectFuturesVenue(t, ex, venue, subscription.List{
+		{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	}), "Connect must not error")
+	select {
+	case states := <-atLogin:
+		assert.Equal(t, []subscription.State{subscription.SubscribingState}, states, "the private subscription should be recorded, as subscribing, before the login is sent")
+	default:
+		require.Fail(t, "the login must reach the venue")
+	}
+	detail, ok := relayed(t, ex).(*order.Detail)
+	require.True(t, ok, "the order pushed with the login's reply must be relayed")
+	assert.Equal(t, futuresOrderFrameDetail(ex.Name), detail, "the order pushed with the login's reply should be relayed")
+	subs := ex.Websocket.GetSubscriptions()
+	require.Len(t, subs, 1, "the private subscription must be recorded")
+	assert.Equal(t, subscription.SubscribedState, subs[0].State(), "the private subscription should be subscribed once the login is accepted")
+}
+
+func TestWebsocketFuturesSubscribePrivateDuplicate(t *testing.T) {
+	t.Parallel()
+	ex := newFuturesWebsocketTestExchange(t)
+	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	venue := new(futuresVenue)
+	conn := dialFuturesTestVenue(t, ex, venue.handle)
+	held := &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true, QualifiedChannel: futuresChannelOrder}
+	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, held), "AddSuccessfulSubscriptions must not error")
+	err := ex.websocketFuturesSubscribePrivate(t.Context(), conn, subscription.List{held})
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "a subscription already held must fail to subscribe")
+	assert.ErrorIs(t, err, subscription.ErrDuplicate, "the failure should say the subscription is held already")
+	assert.Empty(t, venue.methods(), "nothing should be sent when no subscription could be recorded")
+	assert.Equal(t, subscription.SubscribedState, held.State(), "the subscription already held should stay subscribed")
 }
 
 func TestWebsocketFuturesSubscribePrivateRefused(t *testing.T) {

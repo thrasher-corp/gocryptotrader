@@ -32,6 +32,13 @@ const (
 // others. A bare number is read as an unsigned integer, since order IDs above 2^53 lose digits as a float64
 type FuturesID string
 
+// Is reports whether the identifier is the number id. Identifiers are compared as numbers, since the venue echoes an
+// ID without the leading zeros a request may have sent it with
+func (f FuturesID) Is(id uint64) bool {
+	n, err := strconv.ParseUint(string(f), 10, 64)
+	return err == nil && n == id
+}
+
 // UnmarshalJSON decodes an identifier from a JSON string or number. The venue sends an ID of zero where there is
 // none, such as the order of an untriggered plan order, so zero and null decode as an empty ID
 func (f *FuturesID) UnmarshalJSON(data []byte) error {

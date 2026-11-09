@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -136,11 +137,25 @@ func TestPlaceFuturesOrder(t *testing.T) {
 
 	_, err := e.PlaceFuturesOrder(t.Context(), &FuturesOrderRequest{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-	// The cases run in order before the placement below, which calls PlaceFuturesOrder as well
+	// A side type is optional, as neither order endpoint lists it now, so an order without one is sent without one
 	for _, side := range []uint8{FuturesSideOpenLong, FuturesSideCloseShort, FuturesSideOpenShort, FuturesSideCloseLong} {
-		t.Run("side "+strconv.FormatUint(uint64(side), 10), func(t *testing.T) {
-			_, err = e.PlaceFuturesOrder(t.Context(), &FuturesOrderRequest{Symbol: "BTC_USDT", Volume: 1, Side: side, Type: FuturesOrderTypeMarket, OpenType: FuturesOpenTypeCross})
-			require.ErrorIsf(t, err, errInvalidSideType, "an order of side %d without a side type must be refused before it is sent", side)
+		t.Run("side "+strconv.FormatUint(uint64(side), 10)+" without a side type", func(t *testing.T) {
+			t.Parallel()
+			var requests atomic.Int32
+			placed := futuresHandler(t, futuresRoute{
+				method: http.MethodPost,
+				path:   "private/order/create",
+				body:   `{"symbol":"BTC_USDT","vol":1,"side":` + strconv.FormatUint(uint64(side), 10) + `,"type":5,"openType":2,"stpMode":0}`,
+				data:   `{"orderId":"739113577038255617","ts":1761888808840}`,
+			})
+			ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				placed(w, r)
+			}, liveUnavailable)
+			result, err := ex.PlaceFuturesOrder(t.Context(), &FuturesOrderRequest{Symbol: "BTC_USDT", Volume: 1, Side: side, Type: FuturesOrderTypeMarket, OpenType: FuturesOpenTypeCross})
+			require.NoErrorf(t, err, "an order of side %d without a side type must be placed", side)
+			assert.Equalf(t, FuturesID("739113577038255617"), result.OrderID, "an order of side %d without a side type should be placed", side)
+			assert.EqualValuesf(t, 1, requests.Load(), "an order of side %d without a side type should be sent once", side)
 		})
 	}
 
