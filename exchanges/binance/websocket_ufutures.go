@@ -36,7 +36,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
-// fstreamHost is the default host for USDⓈ-M and options
+// USDⓈ-M and options share the fstream host and its routes; each product gets its own connections so their handlers
+// never see the other's payloads
 const (
 	fstreamHost = "wss://fstream.binance.com"
 

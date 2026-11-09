@@ -1489,7 +1489,7 @@ func TestSubscribeBadResp(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
-	t.Run("sets up the spot connections", func(t *testing.T) {
+	t.Run("sets up the stream connections", func(t *testing.T) {
 		t.Parallel()
 		root, err := testutils.RootPathFromCWD()
 		require.NoError(t, err, "RootPathFromCWD must not error")
@@ -1626,6 +1626,54 @@ func TestSetup(t *testing.T) {
 				conn, err := ex.Websocket.CreateTestConnection(spotWebsocketAPI)
 				require.NoError(t, err, "the WebSocket API connection must be registered")
 				assert.Equal(t, tc.exp, conn.GetURL(), "the WebSocket API connection should take the configured WebsocketTradeURL")
+			})
+		}
+	})
+	t.Run("takes only a host for each derivatives stream endpoint", func(t *testing.T) {
+		t.Parallel()
+		root, err := testutils.RootPathFromCWD()
+		require.NoError(t, err, "RootPathFromCWD must not error")
+		for _, tc := range []struct {
+			name, configured string
+			endpoint         exchange.URL
+			err              error
+			filter, exp      string
+		}{
+			{name: "a USD-M stream URL", configured: "wss://fstream.binancefuture.com/public/stream", endpoint: exchange.WebsocketUSDTMargined, err: errStreamEndpointNotHost},
+			{name: "a COIN-M stream URL", configured: "wss://dstream.binancefuture.com/stream", endpoint: exchange.WebsocketCoinMargined, err: errStreamEndpointNotHost},
+			{name: "an options host with a query", configured: "wss://fstream.binancefuture.com?listenKey=1", endpoint: exchange.WebsocketOptions, err: errStreamEndpointNotHost},
+			{name: "a COIN-M path without a host", configured: "/stream", endpoint: exchange.WebsocketCoinMargined, err: errStreamEndpointNotHost},
+			{name: "a USD-M scheme-relative URL", configured: "//fstream.binancefuture.com/public/stream", endpoint: exchange.WebsocketUSDTMargined, err: errStreamEndpointNotHost},
+			{name: "an options path with a query naming a host", configured: "/stream?next=wss://fstream.binancefuture.com", endpoint: exchange.WebsocketOptions, err: errStreamEndpointNotHost},
+			{name: "a COIN-M opaque URI", configured: "wss:dstream.binancefuture.com", endpoint: exchange.WebsocketCoinMargined, err: errStreamEndpointNotHost},
+			{name: "a COIN-M user without a host", configured: "wss://user@", endpoint: exchange.WebsocketCoinMargined, err: errStreamEndpointNotHost},
+			{name: "a USD-M host with a user", configured: "wss://user@fstream.binancefuture.com", endpoint: exchange.WebsocketUSDTMargined, err: errStreamEndpointNotHost},
+			{name: "a lone slash", configured: "/", endpoint: exchange.WebsocketOptions, err: errStreamEndpointNotHost},
+			{name: "an options host with an empty query", configured: "wss://fstream.binancefuture.com?", endpoint: exchange.WebsocketOptions, err: errStreamEndpointNotHost},
+			{name: "a USD-M port without a host", configured: "wss://:443", endpoint: exchange.WebsocketUSDTMargined, err: errStreamEndpointNotHost},
+			{name: "a USD-M host with a port", configured: "wss://fstream.binancefuture.com:443", endpoint: exchange.WebsocketUSDTMargined, filter: usdtmPublicFilter, exp: "wss://fstream.binancefuture.com:443/public/stream"},
+			{name: "a COIN-M host with a trailing slash", configured: "wss://dstream.binancefuture.com/", endpoint: exchange.WebsocketCoinMargined, filter: coinmFilter, exp: "wss://dstream.binancefuture.com/stream"},
+			{name: "a USD-M host with a trailing slash", configured: "wss://fstream.binancefuture.com/", endpoint: exchange.WebsocketUSDTMargined, filter: usdtmPrivateFilter, exp: "wss://fstream.binancefuture.com/private/stream"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				cfg := &config.Config{}
+				require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
+				exchCfg, err := cfg.GetExchangeConfig("Binance")
+				require.NoError(t, err, "GetExchangeConfig must not error")
+				exchCfg.API.Endpoints[tc.endpoint.String()] = tc.configured
+				ex := new(Exchange)
+				ex.SetDefaults()
+				ex.Websocket = sharedtestvalues.NewTestWebsocket()
+				err = ex.Setup(exchCfg)
+				require.ErrorIsf(t, err, tc.err, "Setup must return the expected error for %s", tc.name)
+				if tc.err != nil {
+					assert.ErrorContainsf(t, err, tc.endpoint.String(), "Setup should name the endpoint for %s", tc.name)
+					return
+				}
+				conn, err := ex.Websocket.CreateTestConnection(tc.filter)
+				require.NoError(t, err, "the derivatives stream connection must be registered")
+				assert.Equal(t, tc.exp, conn.GetURL(), "the derivatives stream connection should take the host without its trailing slash")
 			})
 		}
 	})

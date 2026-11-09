@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"iter"
 	"math"
+	"net/url"
 	"slices"
 	"sort"
 	"strconv"
@@ -69,7 +70,10 @@ var defaultAssetPairStores = map[asset.Item]currency.PairStore{
 	},
 }
 
-var errDefaultNetworkNotFound = errors.New("default network not found")
+var (
+	errDefaultNetworkNotFound = errors.New("default network not found")
+	errStreamEndpointNotHost  = errors.New("a derivatives stream endpoint must be a host, as each connection adds its own route")
+)
 
 // SetDefaults sets the basic defaults for Binance
 func (e *Exchange) SetDefaults() {
@@ -277,6 +281,19 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		if urlConf[urlType], err = e.API.Endpoints.GetURL(urlType); err != nil {
 			return err
 		}
+	}
+	// Unlike WebsocketSpot, these endpoints hold only a host: a full stream URL there, as the spot endpoint takes, would
+	// double the route each connection adds
+	for _, urlType := range []exchange.URL{exchange.WebsocketUSDTMargined, exchange.WebsocketCoinMargined, exchange.WebsocketOptions} {
+		host := strings.TrimSuffix(urlConf[urlType], "/")
+		u, err := url.ParseRequestURI(host)
+		if err != nil {
+			return fmt.Errorf("%w: %s is %q: %w", errStreamEndpointNotHost, urlType, urlConf[urlType], err)
+		}
+		if u.Hostname() == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.ForceQuery {
+			return fmt.Errorf("%w: %s is %q", errStreamEndpointNotHost, urlType, urlConf[urlType])
+		}
+		urlConf[urlType] = host
 	}
 
 	// A configured WebsocketSpot endpoint, such as the market data only host or a testnet, carries the spot streams

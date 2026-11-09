@@ -8,7 +8,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
-// COIN-M serves market data and user data streams from WebsocketCoinMargined endpoint + "/stream"
+// COIN-M serves market data and user data streams on one route, without the fstream host's public, market and private
+// split
 const (
 	dstreamHost  = "wss://dstream.binance.com"
 	dstreamRoute = "/stream"
