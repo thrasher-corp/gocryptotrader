@@ -637,9 +637,6 @@ func TestItemString(t *testing.T) {
 	assert.Equal(t, "HWORLD", newItem.String())
 }
 
-// 28848025	        40.84 ns/op	       8 B/op	       1 allocs/op // Current
-//
-//	546290	      2192 ns/op	       8 B/op	       1 allocs/op // Previous
 func BenchmarkNewCode(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {

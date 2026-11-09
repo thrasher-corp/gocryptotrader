@@ -2,6 +2,7 @@ package binance
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -177,21 +178,133 @@ func returnWithin(fn func() error) error {
 	}
 }
 
-func BenchmarkWebsocketHandleData(b *testing.B) {
-	b.ReportAllocs()
-	lines := fixtureLines(b, "testdata/wsSpot.jsonl")
-	ex := newTestExchange(b)
-	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
-		return nil, errTestNoSnapshot
-	})
-	for b.Loop() {
-		for x := range lines {
-			assert.NoError(b, ex.wsHandleData(b.Context(), nil, lines[x]), "wsHandleData should not error")
-		}
-		for len(ex.Websocket.DataHandler.C) > 0 {
-			<-ex.Websocket.DataHandler.C
+// drainRelayed empties the data handler's queue and returns how many payloads it held, and whether they were one of
+// each type in want, in that order. Relay.Send has queued a payload by the time it returns, so the queue holds all a
+// handler relayed
+func drainRelayed(ex *Exchange, want ...reflect.Type) (relayed int, asWanted bool) {
+	asWanted = true
+	for {
+		select {
+		case p := <-ex.Websocket.DataHandler.C:
+			if relayed >= len(want) || reflect.TypeOf(p.Data) != want[relayed] {
+				asWanted = false
+			}
+			relayed++
+		default:
+			return relayed, asWanted && relayed == len(want)
 		}
 	}
+}
+
+// newBenchmarkExchange returns an exchange set up from the test configuration under the benchmark's name, with the
+// authenticated websocket support and placeholder credentials that storing streamed balances needs. Unlike
+// newTestExchange's, its REST requests are not mocked, as setting that up logs, and a benchmark must not write to its
+// output
+func newBenchmarkExchange(b *testing.B) *Exchange {
+	b.Helper()
+	ex := new(Exchange)
+	require.NoError(b, testexch.Setup(ex), "Setup must not error")
+	ex.Name = b.Name()
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+	return ex
+}
+
+// BenchmarkWebsocketHandleData measures each message type separately, so a regression names its handler. Each runs on
+// an exchange of its own, named after it, so that no case's book or stored state carries into another's
+func BenchmarkWebsocketHandleData(b *testing.B) {
+	market := fixtureLines(b, "testdata/wsSpot.jsonl")
+	userData := fixtureLines(b, "testdata/wsSpotUserData.jsonl")
+	for _, tc := range []struct {
+		name      string
+		line      []byte
+		userData  bool
+		tradeFeed bool
+		// The types of the payloads handling the message relays, in order
+		relays []reflect.Type
+	}{
+		{name: "Ticker", line: market[1], relays: []reflect.Type{reflect.TypeFor[*ticker.Price]()}},
+		{name: "Kline", line: market[2], relays: []reflect.Type{reflect.TypeFor[kline.Item]()}},
+		// The test configuration leaves the trade feed off, under which a trade is dropped before it is decoded
+		{name: "Trade", line: market[0], tradeFeed: true, relays: []reflect.Type{reflect.TypeFor[[]trade.Data]()}},
+		{name: "PartialDepth", line: market[4], relays: []reflect.Type{reflect.TypeFor[*orderbook.Depth]()}},
+		{name: "BalanceUpdate", line: userData[2], userData: true, relays: []reflect.Type{reflect.TypeFor[*WebsocketBalanceUpdate]()}},
+		// An OCO order list's status relays the event and the order list as the order GCT tracks
+		{name: "ListStatus", line: userData[8], userData: true, relays: []reflect.Type{reflect.TypeFor[*WebsocketListStatus](), reflect.TypeFor[*order.Detail]()}},
+		{name: "ExecutionReport", line: userData[3], userData: true, relays: []reflect.Type{reflect.TypeFor[*order.Detail]()}},
+		{name: "OutboundAccountPosition", line: userData[0], userData: true, relays: []reflect.Type{reflect.TypeFor[accounts.SubAccounts]()}},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			ex := newBenchmarkExchange(b)
+			if tc.tradeFeed {
+				ex.Features.Enabled.TradeFeed = true
+				ex.Websocket.Trade.Setup(true, ex.Websocket.DataHandler)
+			}
+			handle := ex.wsHandleData
+			if tc.userData {
+				// The fixture's events are the spot account's subscription 0
+				ex.userData.expect("spot", asset.Spot)
+				ex.userData.recordResponse("spot", []byte(`{"id":"spot","status":200,"result":{"subscriptionId":0}}`))
+				handle = ex.wsHandleSpotAPIData
+			}
+			ctx := b.Context()
+			for b.Loop() {
+				require.NoError(b, handle(ctx, nil, tc.line), "handling the message must not error")
+				if relayed, asWanted := drainRelayed(ex, tc.relays...); !asWanted {
+					b.Fatalf("handling the message must relay one payload of each of %v, in order, not %d payloads", tc.relays, relayed)
+				}
+			}
+		})
+	}
+
+	b.Run("Depth", func(b *testing.B) {
+		ex := newBenchmarkExchange(b)
+		pair, err := ex.MatchSymbolWithAvailablePairs("BTCUSDT", asset.Spot, false)
+		require.NoError(b, err, "MatchSymbolWithAvailablePairs must not error")
+		frame := market[6]
+		const firstUpdateID, finalUpdateID = 101096708651, 101096708675
+		prefix, suffix, ok := bytes.Cut(frame, []byte(`"U":101096708651,"u":101096708675`))
+		require.True(b, ok, "the fixture's diff depth frame must carry its update IDs")
+		// The book synchronises from a snapshot just before the frame, holding the levels it changes, so the frame and
+		// each one after it apply to the book as a stream's next event does
+		useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
+			return &orderbook.Book{
+				Exchange:     ex.Name,
+				Pair:         pair,
+				Asset:        asset.Spot,
+				Bids:         orderbook.Levels{{Price: 86104, Amount: 0.02991}},
+				Asks:         orderbook.Levels{{Price: 86104.04, Amount: 1}},
+				LastUpdateID: firstUpdateID - 1,
+				LastUpdated:  time.UnixMilli(1791284980500),
+			}, nil
+		})
+		ctx := b.Context()
+		require.NoError(b, ex.wsHandleData(ctx, nil, frame), "wsHandleData must not error for the first diff depth frame")
+		// The snapshot and the frame are each relayed as the book
+		var relayed int
+		require.Eventually(b, func() bool {
+			n, _ := drainRelayed(ex)
+			relayed += n
+			last, err := ex.Websocket.Orderbook.LastUpdateID(pair, asset.Spot)
+			return err == nil && last == finalUpdateID && relayed == 2
+		}, 30*time.Second, 10*time.Millisecond, "the book must synchronise from the snapshot")
+
+		// Each frame takes the update IDs after the last one's, written into one buffer, so that only handling it allocates
+		book := []reflect.Type{reflect.TypeFor[*orderbook.Depth]()}
+		buf := make([]byte, 0, len(frame)+8)
+		last := int64(finalUpdateID)
+		for b.Loop() {
+			buf = append(append(buf[:0], prefix...), `"U":`...)
+			buf = strconv.AppendInt(buf, last+1, 10)
+			last += finalUpdateID - firstUpdateID + 1
+			buf = strconv.AppendInt(append(buf, `,"u":`...), last, 10)
+			buf = append(buf, suffix...)
+			require.NoError(b, ex.wsHandleData(ctx, nil, buf), "wsHandleData must not error")
+			if relayed, asWanted := drainRelayed(ex, book...); !asWanted {
+				b.Fatalf("wsHandleData must relay the updated book once, not %d payloads", relayed)
+			}
+		}
+	})
 }
 
 func TestStreamPayloads(t *testing.T) { //nolint:tparallel // the frames decode in the fixture's order, so they run in order while the test runs in parallel
