@@ -74,20 +74,22 @@ const (
 )
 
 var (
-	errTransferMethodUnknown    = errors.New("no transfer method for currency")
-	errTransferMethodNeeded     = errors.New("transfer chain required, as the currency has several")
-	errInvalidClientOrderID     = errors.New("client order ID must be an unsigned integer")
-	errUnsupportedOrderType     = errors.New("order type not supported")
-	errHistoryPageFull          = errors.New("history has more records from one millisecond than a page holds")
-	errInvalidLeverage          = errors.New("invalid leverage")
-	errOrderLeverageUnknown     = errors.New("order leverage unknown")
-	errPositionCollateralNotSet = errors.New("position collateral not set")
-	errTriggerPriceRequired     = errors.New("trigger price required")
-	errTriggerPriceUnsupported  = errors.New("trigger price not supported")
-	errPriceUnsupported         = errors.New("price not supported")
-	errOrderTypeUnchangeable    = errors.New("order type cannot be changed")
-	errQuoteAmountUnsupported   = errors.New("quote amount not supported, as Bitfinex sizes orders in the base currency")
-	errTrackingModeUnsupported  = errors.New("tracking mode not supported")
+	errTransferMethodUnknown       = errors.New("no transfer method for currency")
+	errTransferMethodNeeded        = errors.New("transfer chain required, as the currency has several")
+	errInvalidClientOrderID        = errors.New("client order ID must be an unsigned integer")
+	errUnsupportedOrderType        = errors.New("order type not supported")
+	errHistoryPageFull             = errors.New("history has more records from one millisecond than a page holds")
+	errInvalidLeverage             = errors.New("invalid leverage")
+	errOrderLeverageUnknown        = errors.New("order leverage unknown")
+	errPositionCollateralNotSet    = errors.New("position collateral not set")
+	errTriggerPriceRequired        = errors.New("trigger price required")
+	errTriggerPriceUnsupported     = errors.New("trigger price not supported")
+	errPriceUnsupported            = errors.New("price not supported")
+	errOrderTypeUnchangeable       = errors.New("order type cannot be changed")
+	errQuoteAmountUnsupported      = errors.New("quote amount not supported, as Bitfinex sizes orders in the base currency")
+	errTrackingModeUnsupported     = errors.New("tracking mode not supported")
+	errRiskManagementUnsupported   = errors.New("take profit, stop loss and stop entry orders not supported")
+	errTriggerPriceTypeUnsupported = errors.New("trigger price type not supported")
 )
 
 // SetDefaults sets the basic defaults for bitfinex
@@ -807,6 +809,9 @@ func placeOrderRequest(s *order.Submit) (*PlaceOrderRequest, error) {
 	if s.QuoteAmount != 0 {
 		return nil, fmt.Errorf("%w: %v", errQuoteAmountUnsupported, s.QuoteAmount)
 	}
+	if err := checkOrderOptions(&s.RiskManagementModes, s.TriggerPriceType); err != nil {
+		return nil, err
+	}
 	symbol, err := orderSymbol(s.AssetType, s.Pair)
 	if err != nil {
 		return nil, err
@@ -889,6 +894,19 @@ func placeOrderRequest(s *order.Submit) (*PlaceOrderRequest, error) {
 	return req, nil
 }
 
+// checkOrderOptions refuses what an order or a modification asks for that Bitfinex takes no field for, rather than
+// leave it out of an order reported as placed or modified: a take profit, stop loss or stop entry with the order, and a
+// price type for its trigger. The last price is a price type's zero value, so it reads the same as none
+func checkOrderOptions(r *order.RiskManagementModes, triggerPriceType order.PriceType) error {
+	if *r != (order.RiskManagementModes{}) {
+		return errRiskManagementUnsupported
+	}
+	if triggerPriceType != order.LastPrice {
+		return fmt.Errorf("%w: %s", errTriggerPriceTypeUnsupported, triggerPriceType)
+	}
+	return nil
+}
+
 // derivativeLeverage returns a derivative order's leverage as Bitfinex takes it, a whole number from 1 to 100
 func derivativeLeverage(leverage float64) (uint64, error) {
 	if leverage < minimumDerivativeLeverage || leverage > maximumDerivativeLeverage || leverage != math.Trunc(leverage) {
@@ -920,6 +938,9 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 	// Bitfinex signs an order's amount by its side, buying positive and selling negative
 	if m.Amount != 0 && !m.Side.IsLong() && !m.Side.IsShort() {
 		return nil, fmt.Errorf("%w: %s, and an order's amount is signed by its side", order.ErrSideIsInvalid, m.Side)
+	}
+	if err := checkOrderOptions(&m.RiskManagementModes, m.TriggerPriceType); err != nil {
+		return nil, err
 	}
 	o, err := e.openOrder(ctx, id)
 	if err != nil {
@@ -1161,15 +1182,24 @@ func (e *Exchange) submitOrderCancellations(ctx context.Context, req *CancelOrde
 	return statuses, nil
 }
 
-// openOrderDetails returns the account's open orders of an asset, on a pair when one is given
+// openOrderDetails returns the account's open orders of an asset, or of every asset when given all or none, on a pair
+// when one is given
 func (e *Exchange) openOrderDetails(ctx context.Context, p currency.Pair, a asset.Item) ([]order.Detail, error) {
 	var orders []OrderResponse
 	var err error
 	if p.IsEmpty() {
 		orders, err = e.GetOpenOrders(ctx, &OpenOrdersRequest{})
 	} else {
+		// Every asset's orders on a pair are on the pair's one symbol, a spot pair's margin orders included
+		symbolAsset := a
+		if !a.IsValid() {
+			symbolAsset = asset.Spot
+			if isDerivativePair(p) {
+				symbolAsset = derivativeAsset(p.Quote)
+			}
+		}
 		var symbol string
-		if symbol, err = orderSymbol(a, p); err != nil {
+		if symbol, err = orderSymbol(symbolAsset, p); err != nil {
 			return nil, err
 		}
 		orders, err = e.GetOpenOrdersBySymbol(ctx, &OpenOrdersBySymbolRequest{Symbol: symbol})

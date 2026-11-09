@@ -45,7 +45,9 @@ refused.
 + Client order IDs must be numbers, as Bitfinex's are.
 + An order has no margin mode to choose, so `SubmitOrder` refuses a `MarginType` other than a derivative's isolated
   margin, a margin order's cross margin and a spot order's no margin. It also refuses a `QuoteAmount`, as Bitfinex sizes
-  orders in the base currency.
+  orders in the base currency. `SubmitOrder` and `ModifyOrder` refuse `RiskManagementModes`, as Bitfinex places no take
+  profit, stop loss or stop entry with an order, and a `TriggerPriceType` other than the last price, its zero value, as
+  Bitfinex takes none.
 + `ModifyOrder` looks the order up, as Bitfinex reads an update by the order's type and takes its amount as what remains
   of the order. It moves a stop by its `TriggerPrice`, refusing a `Price` without one, such as the modify order RPC
   sends; a stop limit by its `TriggerPrice` and its `Price`, its limit; a trailing stop, which trails the market, by

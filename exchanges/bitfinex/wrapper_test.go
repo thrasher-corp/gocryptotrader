@@ -816,6 +816,52 @@ func TestPlaceOrderRequest(t *testing.T) {
 		assert.Nil(t, got, "placeOrderRequest should return no request for a quote amount given in place of an amount")
 	})
 
+	t.Run("take profit, stop loss and trigger price type refusals", func(t *testing.T) {
+		t.Parallel()
+		pairs := map[asset.Item]currency.Pair{
+			asset.Spot:                currency.NewBTCUSD(),
+			asset.Margin:              currency.NewBTCUSD(),
+			asset.USDTMarginedFutures: testDerivativePair,
+			asset.CoinMarginedFutures: testCoinMarginedPair,
+		}
+		// Every order type placeOrderRequest takes, every name for a side and every time in force it takes, as no refusal
+		// of either depends on them
+		orders := []order.Submit{
+			{Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100},
+			{Type: order.Market, Side: order.Sell, Amount: 1, TimeInForce: order.ImmediateOrCancel},
+			{Type: order.Stop, Side: order.Bid, Amount: 1, TriggerPrice: 100, TimeInForce: order.PostOnly},
+			{Type: order.StopLimit, Side: order.Ask, Amount: 1, Price: 90, TriggerPrice: 95},
+			{Type: order.TrailingStop, Side: order.Long, Amount: 1, TrackingValue: 10, ReduceOnly: true},
+			{Type: order.Limit, Side: order.Short, Amount: 1, Price: 100, TimeInForce: order.FillOrKill},
+			{Type: order.StopLimit, Side: order.Sell, Amount: 1, Price: 90, TriggerPrice: 95, TimeInForce: order.GoodTillTime, EndTime: time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC)},
+			{Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, TimeInForce: order.GoodTillCrossing},
+			{Type: order.Limit, Side: order.Sell, Amount: 1, Price: 100, TimeInForce: order.GoodTillCancel},
+			{Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, TimeInForce: order.GoodTillDay | order.GoodTillTime, EndTime: time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC)},
+		}
+		options := orderOptionCases()
+		for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+			for _, s := range orders {
+				s.AssetType, s.Pair = a, pairs[a]
+				name := a.String() + " " + s.Side.String() + " " + s.Type.String()
+				if s.TimeInForce != order.UnknownTIF {
+					name += " " + s.TimeInForce.String()
+				}
+				for _, option := range options {
+					t.Run(name+" with "+option.name, func(t *testing.T) {
+						t.Parallel()
+						_, err := placeOrderRequest(&s)
+						require.NoErrorf(t, err, "placeOrderRequest must place a %s order", name)
+						with := s
+						with.RiskManagementModes, with.TriggerPriceType = option.risk, option.triggerPriceType
+						got, err := placeOrderRequest(&with)
+						assert.ErrorIsf(t, err, option.err, "placeOrderRequest should refuse a %s order with %s", name, option.name)
+						assert.Nilf(t, got, "placeOrderRequest should return no request for a %s order with %s", name, option.name)
+					})
+				}
+			}
+		}
+	})
+
 	until := time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
 		name string
@@ -975,6 +1021,69 @@ func TestPlaceOrderRequest(t *testing.T) {
 	}
 }
 
+// orderOptionCase is an option of an order or a modification that Bitfinex takes no field for, set alone, and the error
+// refusing it
+type orderOptionCase struct {
+	name             string
+	risk             order.RiskManagementModes
+	triggerPriceType order.PriceType
+	err              error
+}
+
+// orderOptionCases returns each take profit and stop loss mode, each field of a take profit, stop loss and stop entry set
+// alone, as wrappers read them by price or by flag, and each price type for a trigger but the last price
+func orderOptionCases() []orderOptionCase {
+	legs := []struct {
+		name string
+		of   func(*order.RiskManagementModes) *order.RiskManagement
+	}{
+		{"take profit", func(r *order.RiskManagementModes) *order.RiskManagement { return &r.TakeProfit }},
+		{"stop loss", func(r *order.RiskManagementModes) *order.RiskManagement { return &r.StopLoss }},
+		{"stop entry", func(r *order.RiskManagementModes) *order.RiskManagement { return &r.StopEntry }},
+	}
+	fields := []struct {
+		name string
+		set  func(*order.RiskManagement)
+	}{
+		{"flag", func(m *order.RiskManagement) { m.Enabled = true }},
+		{"mark price trigger", func(m *order.RiskManagement) { m.TriggerPriceType = order.MarkPrice }},
+		{"index price trigger", func(m *order.RiskManagement) { m.TriggerPriceType = order.IndexPrice }},
+		{"unknown price type trigger", func(m *order.RiskManagement) { m.TriggerPriceType = order.UnknownPriceType }},
+		{"price", func(m *order.RiskManagement) { m.Price = 120 }},
+		{"negative price", func(m *order.RiskManagement) { m.Price = -120 }},
+		{"price that is not a number", func(m *order.RiskManagement) { m.Price = math.NaN() }},
+		{"limit price", func(m *order.RiskManagement) { m.LimitPrice = 121 }},
+		{"order type", func(m *order.RiskManagement) { m.OrderType = order.Limit }},
+	}
+	cases := make([]orderOptionCase, 0, 5+len(legs)*len(fields))
+	cases = append(cases,
+		orderOptionCase{name: "a full take profit and stop loss mode", risk: order.RiskManagementModes{Mode: "full"}, err: errRiskManagementUnsupported},
+		orderOptionCase{name: "a partial take profit and stop loss mode", risk: order.RiskManagementModes{Mode: "partial"}, err: errRiskManagementUnsupported},
+		orderOptionCase{name: "a trigger on the index price", triggerPriceType: order.IndexPrice, err: errTriggerPriceTypeUnsupported},
+		orderOptionCase{name: "a trigger on the mark price", triggerPriceType: order.MarkPrice, err: errTriggerPriceTypeUnsupported},
+		orderOptionCase{name: "a trigger on an unknown price type", triggerPriceType: order.UnknownPriceType, err: errTriggerPriceTypeUnsupported},
+	)
+	for _, leg := range legs {
+		for _, field := range fields {
+			c := orderOptionCase{name: "a " + leg.name + "'s " + field.name, err: errRiskManagementUnsupported}
+			field.set(leg.of(&c.risk))
+			cases = append(cases, c)
+		}
+	}
+	return cases
+}
+
+func TestCheckOrderOptions(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, checkOrderOptions(new(order.RiskManagementModes), order.LastPrice), "checkOrderOptions should take a trigger on the last price, a price type's zero value, as none")
+	for _, tc := range orderOptionCases() {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, checkOrderOptions(&tc.risk, tc.triggerPriceType), tc.err, "checkOrderOptions should refuse %s", tc.name)
+		})
+	}
+}
+
 func TestSubmitOrder(t *testing.T) { //nolint:tparallel // The cases share placed in order
 	t.Parallel()
 	_, err := e.SubmitOrder(t.Context(), nil)
@@ -991,6 +1100,14 @@ func TestSubmitOrder(t *testing.T) { //nolint:tparallel // The cases share place
 	limit.Exchange = unanswered.Name
 	_, err = unanswered.SubmitOrder(t.Context(), &limit)
 	require.ErrorIs(t, err, common.ErrNoResponse, "SubmitOrder must report a reply without the order placed")
+	unsent, bodies := newRequestBodyExchange(t, "/v2/auth/w/order/submit", `[1678987199,"on-req",null,null,[],null,"SUCCESS","Submitting 0 orders."]`)
+	limit.Exchange, limit.RiskManagementModes = unsent.Name, order.RiskManagementModes{StopLoss: order.RiskManagement{Enabled: true, Price: 0.9}}
+	_, err = unsent.SubmitOrder(t.Context(), &limit)
+	assert.ErrorIs(t, err, errRiskManagementUnsupported, "SubmitOrder should refuse a stop loss, which Bitfinex takes no field for")
+	limit.RiskManagementModes, limit.TriggerPriceType = order.RiskManagementModes{}, order.MarkPrice
+	_, err = unsent.SubmitOrder(t.Context(), &limit)
+	assert.ErrorIs(t, err, errTriggerPriceTypeUnsupported, "SubmitOrder should refuse a trigger price type, which Bitfinex takes no field for")
+	assert.Empty(t, bodies, "SubmitOrder should send no order it refuses")
 
 	// Bitfinex places each order with its price at 90: a stop's and a stop limit's trigger, and a trailing stop's stop
 	placed := newResponseServerExchange(t, `[1678987199,"on-req",null,null,[[1747566431,null,1678987199446,"tBTCUSD",1678987199446,1678987199448,-1,-1,"EXCHANGE STOP",null,null,null,0,"ACTIVE",null,null,90,0,0,0,null,null,null,0,0,null,null,null,"API>BFX",null,null,null]],null,"SUCCESS","Submitting exchange stop sell order for 1 BTC."]`)
@@ -1365,6 +1482,56 @@ func TestModifyOrder(t *testing.T) {
 			_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "16", AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Side: order.Buy, Type: order.Stop, Price: 95})
 			assert.ErrorIs(t, err, errOrderTypeUnchangeable, "ModifyOrder should refuse to make the order another type")
 			assert.Len(t, updates(), 3, "ModifyOrder should send nothing for a modification it refuses")
+		})
+
+		t.Run("take profit, stop loss and trigger price type refusals", func(t *testing.T) {
+			t.Parallel()
+			ex, updates := newOrderUpdateTestExchange(t, testOrderRecord{id: 11, symbol: "tBTCUSD", orderType: "LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 100})
+			pairs := map[asset.Item]currency.Pair{
+				asset.Spot:                currency.NewBTCUSD(),
+				asset.Margin:              currency.NewBTCUSD(),
+				asset.USDTMarginedFutures: testDerivativePair,
+				asset.CoinMarginedFutures: testCoinMarginedPair,
+			}
+			// No side, any side and every name for one, no type, any type and every type Bitfinex places, every time in force,
+			// and new prices, amounts and trigger prices, as no refusal depends on them
+			modifications := []struct {
+				name string
+				m    order.Modify
+			}{
+				{name: "a buy's new price", m: order.Modify{Side: order.Buy, Price: 101}},
+				{name: "an ask limit's new amount", m: order.Modify{Side: order.Ask, Type: order.Limit, Amount: 2}},
+				{name: "a post only long's new price", m: order.Modify{Side: order.Long, Price: 101, TimeInForce: order.PostOnly}},
+				{name: "a sell's new amount", m: order.Modify{Side: order.Sell, Amount: 2}},
+				{name: "a short stop's new trigger price", m: order.Modify{Side: order.Short, Type: order.Stop, TriggerPrice: 92}},
+				{name: "a good till time bid stop limit's new prices", m: order.Modify{Side: order.Bid, Type: order.StopLimit, Price: 99, TriggerPrice: 92, TimeInForce: order.GoodTillTime}},
+				{name: "a good till cancelled sell limit's new price", m: order.Modify{Side: order.Sell, Type: order.Limit, Price: 101, TimeInForce: order.GoodTillCancel}},
+				{name: "an immediate or cancel buy market's new amount", m: order.Modify{Side: order.Buy, Type: order.Market, Amount: 2, TimeInForce: order.ImmediateOrCancel}},
+				{name: "a fill or kill short limit's new amount", m: order.Modify{Side: order.Short, Type: order.Limit, Amount: 2, TimeInForce: order.FillOrKill}},
+				{name: "a good till crossing bid limit's new price", m: order.Modify{Side: order.Bid, Type: order.Limit, Price: 101, TimeInForce: order.GoodTillCrossing}},
+				{name: "a long trailing stop's new amount", m: order.Modify{Side: order.Long, Type: order.TrailingStop, Amount: 2}},
+				{name: "a new price without a side", m: order.Modify{Price: 101}},
+				{name: "a new price for any side", m: order.Modify{Side: order.AnySide, Price: 101}},
+				{name: "a buy's new price for any type", m: order.Modify{Side: order.Buy, Type: order.AnyType, Price: 101}},
+				{name: "a good till day sell's new price", m: order.Modify{Side: order.Sell, Price: 101, TimeInForce: order.GoodTillDay}},
+				{name: "a stop or reduce short's new amount", m: order.Modify{Side: order.Short, Amount: 2, TimeInForce: order.StopOrReduce}},
+			}
+			options := orderOptionCases()
+			// The cases share ex in order, and the check after them expects none of them to have sent an update
+			for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+				for _, mod := range modifications {
+					for _, option := range options {
+						t.Run(a.String()+" "+mod.name+" with "+option.name, func(t *testing.T) {
+							m := mod.m
+							m.OrderID, m.AssetType, m.Pair = "11", a, pairs[a]
+							m.RiskManagementModes, m.TriggerPriceType = option.risk, option.triggerPriceType
+							_, err := ex.ModifyOrder(t.Context(), &m)
+							assert.ErrorIsf(t, err, option.err, "ModifyOrder should refuse %s with %s for a %s order", mod.name, option.name, a)
+						})
+					}
+				}
+			}
+			assert.Empty(t, updates(), "ModifyOrder should send no update it refuses")
 		})
 
 		t.Run("refusals", func(t *testing.T) {
@@ -1850,6 +2017,140 @@ func TestCancelAllOrders(t *testing.T) {
 		for id, status := range resp.Status {
 			assert.Equalf(t, order.PendingCancel.String(), status, "CancelAllOrders should report order %s pending cancellation until it closes", id)
 		}
+	})
+
+	t.Run("a pair of every asset", func(t *testing.T) {
+		t.Parallel()
+		testListingPair := currency.NewPair(currency.NewCode("TESTBTCF0"), currency.NewCode("TESTUSDTF0"))
+		fourLetterPair := currency.NewPair(currency.DOGE, currency.USD)
+		// Each asset a pair trades has a buy and a sell of each type, one of them twice side by side, read in an order its IDs
+		// do not sort to, so no order of an asset, side or type goes unread, uncancelled or unfiltered, and none is merged
+		// with or reordered past another; ETH-USD's order is on another symbol. Each order's pair, asset, side and type are
+		// given beside it rather than read from it, as the wrapper reads them
+		open := []struct {
+			record testOrderRecord
+			pair   currency.Pair
+			a      asset.Item
+			side   order.Side
+			typ    order.Type
+		}{
+			{testOrderRecord{id: 201, symbol: "tBTCUSD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 100}, currency.NewBTCUSD(), asset.Spot, order.Buy, order.Limit},
+			{testOrderRecord{id: 230, symbol: "tBTCUSD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: 3, original: 3, price: 95}, currency.NewBTCUSD(), asset.Spot, order.Buy, order.Limit},
+			{testOrderRecord{id: 208, symbol: "tBTCUSD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: -2, original: -2, price: 130}, currency.NewBTCUSD(), asset.Spot, order.Sell, order.Limit},
+			{testOrderRecord{id: 202, symbol: "tBTCUSD", orderType: "LIMIT", status: "ACTIVE", amount: -1, original: -1, price: 120}, currency.NewBTCUSD(), asset.Margin, order.Sell, order.Limit},
+			{testOrderRecord{id: 231, symbol: "tBTCUSD", orderType: "LIMIT", status: "ACTIVE", amount: -3, original: -3, price: 125}, currency.NewBTCUSD(), asset.Margin, order.Sell, order.Limit},
+			{testOrderRecord{id: 210, symbol: "tBTCUSD", orderType: "LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 90}, currency.NewBTCUSD(), asset.Margin, order.Buy, order.Limit},
+			{testOrderRecord{id: 209, symbol: "tBTCUSD", orderType: "EXCHANGE STOP", status: "ACTIVE", amount: -1, original: -1, price: 80}, currency.NewBTCUSD(), asset.Spot, order.Sell, order.Stop},
+			{testOrderRecord{id: 211, symbol: "tBTCUSD", orderType: "STOP", status: "ACTIVE", amount: 1, original: 1, price: 150}, currency.NewBTCUSD(), asset.Margin, order.Buy, order.Stop},
+			{testOrderRecord{id: 232, symbol: "tBTCUSD", orderType: "EXCHANGE STOP", status: "ACTIVE", amount: 1, original: 1, price: 160}, currency.NewBTCUSD(), asset.Spot, order.Buy, order.Stop},
+			{testOrderRecord{id: 233, symbol: "tBTCUSD", orderType: "STOP", status: "ACTIVE", amount: -1, original: -1, price: 70}, currency.NewBTCUSD(), asset.Margin, order.Sell, order.Stop},
+			{testOrderRecord{id: 203, symbol: "tETHUSD", orderType: "LIMIT", status: "ACTIVE", amount: -1, original: -1, price: 200}, currency.NewPair(currency.ETH, currency.USD), asset.Margin, order.Sell, order.Limit},
+			{testOrderRecord{id: 234, symbol: "tBTCF0:USTF0", orderType: "LIMIT", status: "ACTIVE", amount: 0.3, original: 0.3, price: 69000, meta: `{"$F33":10}`}, testDerivativePair, asset.USDTMarginedFutures, order.Buy, order.Limit},
+			{testOrderRecord{id: 204, symbol: "tBTCF0:USTF0", orderType: "LIMIT", status: "ACTIVE", amount: 0.1, original: 0.1, price: 70000, meta: `{"$F33":10}`}, testDerivativePair, asset.USDTMarginedFutures, order.Buy, order.Limit},
+			{testOrderRecord{id: 212, symbol: "tBTCF0:USTF0", orderType: "LIMIT", status: "ACTIVE", amount: -0.2, original: -0.2, price: 75000, meta: `{"$F33":10}`}, testDerivativePair, asset.USDTMarginedFutures, order.Sell, order.Limit},
+			{testOrderRecord{id: 213, symbol: "tBTCF0:USTF0", orderType: "STOP", status: "ACTIVE", amount: -0.1, original: -0.1, price: 65000, meta: `{"$F33":10}`}, testDerivativePair, asset.USDTMarginedFutures, order.Sell, order.Stop},
+			{testOrderRecord{id: 235, symbol: "tBTCF0:USTF0", orderType: "STOP", status: "ACTIVE", amount: 0.1, original: 0.1, price: 80000, meta: `{"$F33":10}`}, testDerivativePair, asset.USDTMarginedFutures, order.Buy, order.Stop},
+			{testOrderRecord{id: 236, symbol: "tETHF0:BTCF0", orderType: "LIMIT", status: "ACTIVE", amount: 2, original: 2, price: 0.025, meta: `{"$F33":10}`}, testCoinMarginedPair, asset.CoinMarginedFutures, order.Buy, order.Limit},
+			{testOrderRecord{id: 205, symbol: "tETHF0:BTCF0", orderType: "LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 0.03, meta: `{"$F33":10}`}, testCoinMarginedPair, asset.CoinMarginedFutures, order.Buy, order.Limit},
+			{testOrderRecord{id: 214, symbol: "tETHF0:BTCF0", orderType: "LIMIT", status: "ACTIVE", amount: -1, original: -1, price: 0.04, meta: `{"$F33":10}`}, testCoinMarginedPair, asset.CoinMarginedFutures, order.Sell, order.Limit},
+			{testOrderRecord{id: 215, symbol: "tETHF0:BTCF0", orderType: "STOP", status: "ACTIVE", amount: 1, original: 1, price: 0.05, meta: `{"$F33":10}`}, testCoinMarginedPair, asset.CoinMarginedFutures, order.Buy, order.Stop},
+			{testOrderRecord{id: 237, symbol: "tETHF0:BTCF0", orderType: "STOP", status: "ACTIVE", amount: -1, original: -1, price: 0.02, meta: `{"$F33":10}`}, testCoinMarginedPair, asset.CoinMarginedFutures, order.Sell, order.Stop},
+			{testOrderRecord{id: 238, symbol: "tTESTBTCF0:TESTUSDTF0", orderType: "LIMIT", status: "ACTIVE", amount: 0.2, original: 0.2, price: 69000, meta: `{"$F33":10}`}, testListingPair, asset.USDTMarginedFutures, order.Buy, order.Limit},
+			{testOrderRecord{id: 206, symbol: "tTESTBTCF0:TESTUSDTF0", orderType: "LIMIT", status: "ACTIVE", amount: 0.1, original: 0.1, price: 70000, meta: `{"$F33":10}`}, testListingPair, asset.USDTMarginedFutures, order.Buy, order.Limit},
+			{testOrderRecord{id: 239, symbol: "tTESTBTCF0:TESTUSDTF0", orderType: "LIMIT", status: "ACTIVE", amount: -0.1, original: -0.1, price: 75000, meta: `{"$F33":10}`}, testListingPair, asset.USDTMarginedFutures, order.Sell, order.Limit},
+			{testOrderRecord{id: 216, symbol: "tTESTBTCF0:TESTUSDTF0", orderType: "STOP", status: "ACTIVE", amount: -0.1, original: -0.1, price: 65000, meta: `{"$F33":10}`}, testListingPair, asset.USDTMarginedFutures, order.Sell, order.Stop},
+			{testOrderRecord{id: 240, symbol: "tTESTBTCF0:TESTUSDTF0", orderType: "STOP", status: "ACTIVE", amount: 0.1, original: 0.1, price: 80000, meta: `{"$F33":10}`}, testListingPair, asset.USDTMarginedFutures, order.Buy, order.Stop},
+			{testOrderRecord{id: 241, symbol: "tDOGE:USD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: 200, original: 200, price: 0.19}, fourLetterPair, asset.Spot, order.Buy, order.Limit},
+			{testOrderRecord{id: 207, symbol: "tDOGE:USD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: 100, original: 100, price: 0.2}, fourLetterPair, asset.Spot, order.Buy, order.Limit},
+			{testOrderRecord{id: 242, symbol: "tDOGE:USD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: -100, original: -100, price: 0.3}, fourLetterPair, asset.Spot, order.Sell, order.Limit},
+			{testOrderRecord{id: 217, symbol: "tDOGE:USD", orderType: "EXCHANGE STOP", status: "ACTIVE", amount: -100, original: -100, price: 0.1}, fourLetterPair, asset.Spot, order.Sell, order.Stop},
+			{testOrderRecord{id: 243, symbol: "tDOGE:USD", orderType: "EXCHANGE STOP", status: "ACTIVE", amount: 100, original: 100, price: 0.4}, fourLetterPair, asset.Spot, order.Buy, order.Stop},
+			{testOrderRecord{id: 245, symbol: "tDOGE:USD", orderType: "LIMIT", status: "ACTIVE", amount: 100, original: 100, price: 0.18}, fourLetterPair, asset.Margin, order.Buy, order.Limit},
+			{testOrderRecord{id: 244, symbol: "tDOGE:USD", orderType: "LIMIT", status: "ACTIVE", amount: 50, original: 50, price: 0.17}, fourLetterPair, asset.Margin, order.Buy, order.Limit},
+			{testOrderRecord{id: 246, symbol: "tDOGE:USD", orderType: "LIMIT", status: "ACTIVE", amount: -100, original: -100, price: 0.31}, fourLetterPair, asset.Margin, order.Sell, order.Limit},
+			{testOrderRecord{id: 247, symbol: "tDOGE:USD", orderType: "STOP", status: "ACTIVE", amount: 100, original: 100, price: 0.41}, fourLetterPair, asset.Margin, order.Buy, order.Stop},
+			{testOrderRecord{id: 248, symbol: "tDOGE:USD", orderType: "STOP", status: "ACTIVE", amount: -100, original: -100, price: 0.09}, fourLetterPair, asset.Margin, order.Sell, order.Stop},
+		}
+		records := make([]testOrderRecord, len(open))
+		for i := range open {
+			records[i] = open[i].record
+		}
+		for _, p := range []struct {
+			name   string
+			pair   currency.Pair
+			assets []asset.Item
+		}{
+			{name: "a spot pair", pair: currency.NewBTCUSD(), assets: []asset.Item{asset.Spot, asset.Margin}},
+			{name: "a USDT margined pair", pair: testDerivativePair, assets: []asset.Item{asset.USDTMarginedFutures}},
+			{name: "a coin margined pair", pair: testCoinMarginedPair, assets: []asset.Item{asset.CoinMarginedFutures}},
+			{name: "a test listing's pair", pair: testListingPair, assets: []asset.Item{asset.USDTMarginedFutures}},
+			{name: "a four letter currency's pair", pair: fourLetterPair, assets: []asset.Item{asset.Spot, asset.Margin}},
+		} {
+			for _, a := range append([]asset.Item{asset.All, asset.Empty}, p.assets...) {
+				assets := "of " + a.String()
+				switch a {
+				case asset.All:
+					assets = "of every asset"
+				case asset.Empty:
+					assets = "with no asset"
+				}
+				// side is the side asked for, by every name for one, and matches the side of the orders it names; no order is a
+				// market order
+				for _, filter := range []struct {
+					name    string
+					side    order.Side
+					matches order.Side
+					typ     order.Type
+				}{
+					{name: ""},
+					{name: ", buys", side: order.Buy, matches: order.Buy},
+					{name: ", bids", side: order.Bid, matches: order.Buy},
+					{name: ", longs", side: order.Long, matches: order.Buy},
+					{name: ", sells", side: order.Sell, matches: order.Sell},
+					{name: ", asks", side: order.Ask, matches: order.Sell},
+					{name: ", shorts", side: order.Short, matches: order.Sell},
+					{name: ", limit orders", typ: order.Limit},
+					{name: ", stops", typ: order.Stop},
+					{name: ", limit buys", side: order.Buy, matches: order.Buy, typ: order.Limit},
+					{name: ", sell stops", side: order.Sell, matches: order.Sell, typ: order.Stop},
+					{name: ", market orders", typ: order.Market},
+				} {
+					var exp []testOrderRecord
+					for i := range open {
+						o := &open[i]
+						if o.pair.Equal(p.pair) && (a == asset.All || a == asset.Empty || o.a == a) &&
+							(filter.matches == order.UnknownSide || o.side == filter.matches) && (filter.typ == order.UnknownType || o.typ == filter.typ) {
+							exp = append(exp, o.record)
+						}
+					}
+					t.Run(p.name+" "+assets+filter.name, func(t *testing.T) {
+						t.Parallel()
+						ex, cancellations := newCancelTestExchange(t, records, exp)
+						resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a, Pair: p.pair, Side: filter.side, Type: filter.typ})
+						require.NoError(t, err, "CancelAllOrders must not error")
+						status := make(map[string]string, len(exp))
+						ids := make([]any, len(exp))
+						for i := range exp {
+							status[strconv.FormatUint(exp[i].id, 10)] = order.PendingCancel.String()
+							ids[i] = float64(exp[i].id)
+						}
+						assert.Equal(t, status, resp.Status, "CancelAllOrders should report the pair's orders of the assets, side and type asked for")
+						if len(exp) == 0 {
+							assert.Empty(t, cancellations(), "CancelAllOrders should send no cancellation when none of the pair's orders matches")
+							return
+						}
+						assert.Equal(t, []map[string]any{{"id": ids}}, cancellations(), "CancelAllOrders should cancel only the pair's orders of the assets, side and type asked for, by their IDs")
+					})
+				}
+			}
+		}
+		t.Run("a derivative pair of the other collateral", func(t *testing.T) {
+			t.Parallel()
+			ex, cancellations := newCancelTestExchange(t, records, nil)
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.CoinMarginedFutures, Pair: testDerivativePair})
+			assert.ErrorIs(t, err, errPairNotOfAsset, "CancelAllOrders should refuse a pair of another asset than the one asked for")
+			assert.Empty(t, cancellations(), "CancelAllOrders should cancel nothing for a pair it refuses")
+		})
 	})
 }
 
@@ -3457,6 +3758,10 @@ func TestWrapperOrdersThroughWebsocket(t *testing.T) {
 	require.NoError(t, err, "SubmitOrder must not error through the websocket")
 	_, err = ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Stop, Side: order.Sell, Amount: req.Amount, TriggerPrice: math.Inf(1)})
 	assert.ErrorIs(t, err, errInvalidPrice, "SubmitOrder should return the websocket order's error")
+	_, err = ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: req.Amount, Price: req.Price, RiskManagementModes: order.RiskManagementModes{StopLoss: order.RiskManagement{Enabled: true, Price: req.Price / 2}}})
+	assert.ErrorIs(t, err, errRiskManagementUnsupported, "SubmitOrder should refuse a stop loss through the websocket")
+	_, err = ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Stop, Side: order.Sell, Amount: req.Amount, TriggerPrice: req.Price / 2, TriggerPriceType: order.MarkPrice})
+	assert.ErrorIs(t, err, errTriggerPriceTypeUnsupported, "SubmitOrder should refuse a trigger on the mark price through the websocket")
 	if !mockTests {
 		id, err := parseOrderID(resp.OrderID)
 		require.NoError(t, err, "SubmitOrder must return the order's ID")
@@ -3464,7 +3769,7 @@ func TestWrapperOrdersThroughWebsocket(t *testing.T) {
 	}
 	require.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: resp.OrderID, AssetType: asset.Spot, Pair: currency.NewBTCUSD()}), "CancelOrder must not error through the websocket")
 	if mockTests {
-		assert.Len(t, venue.inputs(wsOrderNew), 1, "SubmitOrder should place the order through the websocket")
+		assert.Len(t, venue.inputs(wsOrderNew), 1, "SubmitOrder should place the order through the websocket, and send none it refuses")
 		assert.Len(t, venue.inputs(wsOrderCancel), 1, "CancelOrder should cancel the order through the websocket")
 	}
 }
