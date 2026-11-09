@@ -18,13 +18,6 @@ const (
 	chainAnalysis = "https://chainflyer.bitflyer.jp/v1/"
 	tradeBaseURL  = "https://lightning.bitflyer.com/trade/"
 
-	// Public endpoints for chain analysis
-	latestBlock        = "block/latest"
-	blockByBlockHash   = "block/"
-	blockByBlockHeight = "block/height/"
-	transaction        = "tx/"
-	address            = "address/"
-
 	// APIURL
 	japanURL  = "https://api.bitflyer.jp/v1"
 	usURL     = "https://api.bitflyer.com/v1"
@@ -47,39 +40,39 @@ type Exchange struct {
 	exchange.Base
 }
 
-// GetLatestBlockCA returns the latest block information from bitflyer chain
+// GetLatestBlockChainAnalysis returns the latest block information from bitflyer chain
 // analysis system
-func (e *Exchange) GetLatestBlockCA(ctx context.Context) (ChainAnalysisBlock, error) {
-	var resp ChainAnalysisBlock
-	return resp, e.SendHTTPRequest(ctx, exchange.ChainAnalysis, latestBlock, &resp)
+func (e *Exchange) GetLatestBlockChainAnalysis(ctx context.Context) (*ChainAnalysisBlockResponse, error) {
+	var resp *ChainAnalysisBlockResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.ChainAnalysis, "block/latest", &resp)
 }
 
-// GetBlockCA returns block information by blockhash from bitflyer chain
+// GetBlockChainAnalysis returns block information by block hash from bitflyer chain
 // analysis system
-func (e *Exchange) GetBlockCA(ctx context.Context, blockhash string) (ChainAnalysisBlock, error) {
-	var resp ChainAnalysisBlock
-	return resp, e.SendHTTPRequest(ctx, exchange.ChainAnalysis, blockByBlockHash+blockhash, &resp)
+func (e *Exchange) GetBlockChainAnalysis(ctx context.Context, blockHash string) (*ChainAnalysisBlockResponse, error) {
+	var resp *ChainAnalysisBlockResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.ChainAnalysis, "block/"+blockHash, &resp)
 }
 
-// GetBlockbyHeightCA returns the block information by height from bitflyer chain
+// GetBlockByHeightChainAnalysis returns the block information by height from bitflyer chain
 // analysis system
-func (e *Exchange) GetBlockbyHeightCA(ctx context.Context, height int64) (ChainAnalysisBlock, error) {
-	var resp ChainAnalysisBlock
-	return resp, e.SendHTTPRequest(ctx, exchange.ChainAnalysis, blockByBlockHeight+strconv.FormatInt(height, 10), &resp)
+func (e *Exchange) GetBlockByHeightChainAnalysis(ctx context.Context, height uint64) (*ChainAnalysisBlockResponse, error) {
+	var resp *ChainAnalysisBlockResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.ChainAnalysis, "block/height/"+strconv.FormatUint(height, 10), &resp)
 }
 
-// GetTransactionByHashCA returns transaction information by txHash from
+// GetTransactionByHashChainAnalysis returns transaction information by txHash from
 // bitflyer chain analysis system
-func (e *Exchange) GetTransactionByHashCA(ctx context.Context, txHash string) (ChainAnalysisTransaction, error) {
-	var resp ChainAnalysisTransaction
-	return resp, e.SendHTTPRequest(ctx, exchange.ChainAnalysis, transaction+txHash, &resp)
+func (e *Exchange) GetTransactionByHashChainAnalysis(ctx context.Context, txHash string) (*ChainAnalysisTransactionResponse, error) {
+	var resp *ChainAnalysisTransactionResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.ChainAnalysis, "tx/"+txHash, &resp)
 }
 
-// GetAddressInfoCA returns balance information for address by addressln string
-// from bitflyer chain analysis system
-func (e *Exchange) GetAddressInfoCA(ctx context.Context, addressln string) (ChainAnalysisAddress, error) {
-	var resp ChainAnalysisAddress
-	return resp, e.SendHTTPRequest(ctx, exchange.ChainAnalysis, address+addressln, &resp)
+// GetAddressInfoChainAnalysis returns balance information for an address from bitflyer
+// chain analysis system
+func (e *Exchange) GetAddressInfoChainAnalysis(ctx context.Context, address string) (*ChainAnalysisAddressResponse, error) {
+	var resp *ChainAnalysisAddressResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.ChainAnalysis, "address/"+address, &resp)
 }
 
 // GetMarkets returns market information
