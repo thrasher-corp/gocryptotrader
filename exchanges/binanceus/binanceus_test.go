@@ -2055,7 +2055,7 @@ func TestNewOrderResponseFillsTradeID(t *testing.T) {
 	assert.Equal(t, int64(56), resp.Fills[0].TradeID)
 	assert.Equal(t, int64(57), resp.Fills[1].TradeID)
 
-	var trades []order.TradeHistory
+	trades := make([]order.TradeHistory, 0, len(resp.Fills))
 	for i := range resp.Fills {
 		var tradeID string
 		if resp.Fills[i].TradeID > 0 {
