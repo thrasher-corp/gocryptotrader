@@ -1398,6 +1398,13 @@ func TestWebsocketFuturesProcessOpenOrders(t *testing.T) {
 		var errs interface{ Unwrap() []error }
 		require.ErrorAs(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrdersSnapshot, []byte(snapshot)), &errs, "wsFuturesProcessOpenOrders must return the relay's errors")
 		assert.Len(t, errs.Unwrap(), 2, "wsFuturesProcessOpenOrders should try to relay each order of a snapshot")
+		update := futuresOpenOrderMessage("third", 10, 0, "new_placed_order_by_user")
+		assert.Error(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrders, []byte(update)), "wsFuturesProcessOpenOrders should return the error relaying an update")
+		// An order store holds the amount of none of them, so a fill leaving nothing of one remaining after the tracker has
+		// forgotten its quantity must give it no status
+		for _, orderID := range []string{"first", "second", "third"} {
+			assert.Falsef(t, ex.futuresOrders.get(orderID).quantitiesRelayed, "wsFuturesProcessOpenOrders should not take the quantities of order %s, which it could not relay, as relayed", orderID)
+		}
 	})
 }
 
@@ -1866,13 +1873,25 @@ func TestWebsocketFuturesProcessBalances(t *testing.T) {
 		noCreds.SkipAuthCheck = false
 		noCreds.API.AuthenticatedSupport = true
 		noCreds.SetCredentials(&accounts.Credentials{})
-		for _, msg := range []string{`{"feed":"balances","account":"DemoUser","flex_futures":{}}`, `{"feed":"balances_snapshot","account":"DemoUser"}`} {
-			require.NoErrorf(t, noCreds.wsFuturesHandleData(t.Context(), nil, []byte(msg)), "wsFuturesHandleData must not need credentials for %s, which carries no wallet and says nothing of the wallet's kind", msg)
-			assert.Lenf(t, relayed(noCreds), 1, "wsFuturesHandleData should relay %s, which carries no wallet", msg)
+		// The cases share noCreds and run in turn, as each reads what its own message relayed
+		for _, tc := range []struct{ name, msg string }{
+			{name: "an update carrying an empty multi-collateral wallet", msg: `{"feed":"balances","account":"DemoUser","flex_futures":{}}`},
+			{name: "a snapshot carrying no wallet", msg: `{"feed":"balances_snapshot","account":"DemoUser"}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				require.NoErrorf(t, noCreds.wsFuturesHandleData(t.Context(), nil, []byte(tc.msg)), "wsFuturesHandleData must not need credentials for %s, which carries no wallet and says nothing of the wallet's kind", tc.msg)
+				assert.Lenf(t, relayed(noCreds), 1, "wsFuturesHandleData should relay %s, which carries no wallet", tc.msg)
+			})
 		}
-		for _, flex := range []string{`{"unified_balances":true}`, `{"unified_balances":false}`, `{}`} {
-			err = noCreds.wsFuturesHandleData(t.Context(), nil, []byte(`{"feed":"balances_snapshot","account":"DemoUser","flex_futures":`+flex+`}`))
-			assert.ErrorIsf(t, err, exchange.ErrCredentialsAreEmpty, "wsFuturesHandleData should return the error recording the wallet's kind a snapshot carrying %s reports", flex)
+		for _, tc := range []struct{ name, flex string }{
+			{name: "a snapshot reporting the unified wallet", flex: `{"unified_balances":true}`},
+			{name: "a snapshot reporting a separate wallet", flex: `{"unified_balances":false}`},
+			{name: "a snapshot leaving out the wallet's kind", flex: `{}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				err := noCreds.wsFuturesHandleData(t.Context(), nil, []byte(`{"feed":"balances_snapshot","account":"DemoUser","flex_futures":`+tc.flex+`}`))
+				assert.ErrorIsf(t, err, exchange.ErrCredentialsAreEmpty, "wsFuturesHandleData should return the error recording the wallet's kind a snapshot carrying %s reports", tc.flex)
+			})
 		}
 	})
 }

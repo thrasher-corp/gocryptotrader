@@ -40,6 +40,9 @@ type futuresOrderState struct {
 	quantity, filled float64
 	// open is set while open_orders reports the order open, so a snapshot leaving it out shows it has left
 	open bool
+	// quantitiesRelayed is set once an update carrying the order's quantity has been relayed, so an order store holds
+	// its amount whatever the tracker has forgotten since
+	quantitiesRelayed bool
 	// fillIDs holds the fills counted, each once, as a fills snapshot repeats recent fills, and fillTotal adds up their
 	// quantities as decimals, so that fills of an order's quantity add up to it: in floating point, 0.1 and 0.7 add up
 	// to less than 0.8. fillQuantity is that total as a float
@@ -86,11 +89,12 @@ func (t *futuresOrderTracker) get(orderID string) futuresOrderState {
 	return futuresOrderState{}
 }
 
-// snapshot records the open orders an open_orders snapshot holds, and forgets the open orders it leaves out, which
-// left the open orders while the feed was not subscribed, keeping one a fill has left nothing of as finished, for its
-// later reports. An order it holds can have filled before the fills feed's snapshot, so its fills are no longer taken
-// as all reported as they happened, unless they already left nothing of it remaining, as nothing more of it can then
-// execute
+// snapshot records the open orders an open_orders snapshot holds, and takes the open orders it leaves out as finished,
+// as they left the open orders while the feed was not subscribed. One a fill has left nothing of keeps its quantity
+// for its later reports; the others' quantities may have changed unseen, so they are forgotten, and each is kept for
+// its fills from the snapshot on, which can show that it filled. An order the snapshot holds can have filled before the
+// fills feed's snapshot, so its fills are no longer taken as all reported as they happened, unless they already left
+// nothing of it remaining, as nothing more of it can then execute
 func (t *futuresOrderTracker) snapshot(conn websocket.Connection, orders []WebsocketFuturesOpenOrder) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -109,7 +113,7 @@ func (t *futuresOrderTracker) snapshot(conn websocket.Connection, orders []Webso
 		case s.filledInFull:
 			s.open = false
 		default:
-			delete(t.orders, id)
+			s.open, s.quantity, s.updated = false, 0, time.Now()
 		}
 	}
 	t.prune()
@@ -181,6 +185,15 @@ func (t *futuresOrderTracker) record(conn websocket.Connection, o *WebsocketFutu
 	s.reportedAhead = s.reportedAhead || o.Filled > s.fillQuantity
 	s.updated = time.Now()
 	return s
+}
+
+// relayedQuantities records that an update carrying an order's quantity was relayed
+func (t *futuresOrderTracker) relayedQuantities(orderID string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if s, ok := t.orders[orderID]; ok {
+		s.quantitiesRelayed = true
+	}
 }
 
 // finish records that open_orders removed an order, and why, returning what the feeds have reported of it. An order
@@ -291,15 +304,18 @@ func (s *futuresOrderState) executed() float64 {
 	return executed
 }
 
-// knownFilled reports whether a fill has left nothing of an order whose quantities are known remaining. Later reports
-// of the order leave it filled: open_orders can report its earlier changes, or the trigger of the stop that placed it,
-// after the fills feed reports the fill, and an edit arriving after it is rejected as the order cannot be found
+// knownFilled reports whether a fill has left nothing remaining of an order whose quantities are known, or whose
+// quantities an update has relayed, as an order store then holds its amount: so one that filled while the feeds were
+// not subscribed, whose quantity the tracker has forgotten, is filled too, its quantities left to the order store.
+// Later reports of the order leave it filled: open_orders can report its earlier changes, or the trigger of the stop
+// that placed it, after the fills feed reports the fill, and an edit arriving after it is rejected as the order cannot
+// be found
 func (s *futuresOrderState) knownFilled() bool {
-	return s.filledInFull && (s.quantity > 0 || s.liveOnly)
+	return s.filledInFull && (s.quantity > 0 || s.liveOnly || s.quantitiesRelayed)
 }
 
-// reportStatus returns the status of an order open_orders reports for a reason: filled once a fill has left nothing of
-// an order whose quantities are known remaining, otherwise the status the reason gives
+// reportStatus returns the status of an order open_orders reports for a reason: filled once knownFilled reports it
+// filled, otherwise the status the reason gives
 func (s *futuresOrderState) reportStatus(reason string, isCancel bool) order.Status {
 	if s.knownFilled() {
 		return order.Filled
@@ -307,10 +323,9 @@ func (s *futuresOrderState) reportStatus(reason string, isCancel bool) order.Sta
 	return futuresOrderUpdateStatus(reason, isCancel, s.executed())
 }
 
-// fillStatus returns the status of an order a fill reports: filled, once a fill leaves nothing of an order whose
-// quantities are known remaining; as open_orders removed it, when it has, with the fills counted since, so a
-// cancellation reported before its fills is partly filled once they are counted; otherwise none, leaving the status
-// to open_orders
+// fillStatus returns the status of an order a fill reports: filled, once knownFilled reports it filled; as open_orders
+// removed it, when it has, with the fills counted since, so a cancellation reported before its fills is partly filled
+// once they are counted; otherwise none, leaving the status to open_orders
 func (s *futuresOrderState) fillStatus() order.Status {
 	switch {
 	case s.knownFilled():

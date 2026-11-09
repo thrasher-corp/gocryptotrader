@@ -4965,6 +4965,27 @@ func TestModifyOrder(t *testing.T) {
 		refuses(t, "a slippage tolerance", order.Modify{SlippageTolerance: 0.0001}, errSlippageUnsupported)
 		refuses(t, "a negative slippage tolerance", order.Modify{SlippageTolerance: -0.0001}, errSlippageUnsupported)
 		refuses(t, "the smallest slippage tolerance", order.Modify{SlippageTolerance: math.SmallestNonzeroFloat64}, errSlippageUnsupported)
+		refuses(t, "a new client order ID", order.Modify{NewClientOrderID: "gct-new-1"}, errNewClientOrderIDUnsupported)
+		refuses(t, "a new client order ID the same as the order's", order.Modify{ClientOrderID: "gct-limit-1", NewClientOrderID: "gct-limit-1"}, errNewClientOrderIDUnsupported)
+		// refuses gives each edit an order ID and an amount, which these edits leave out
+		t.Run("a new client order ID on an edit of the price alone, or naming the order by its client order ID", func(t *testing.T) {
+			for _, m := range []order.Modify{
+				{AssetType: asset.Spot, Pair: spotTestPair, OrderID: "OQCLML-BW3P3-BUCMWZ", Price: 80000},
+				{AssetType: asset.Spot, Pair: spotTestPair, ClientOrderID: "gct-limit-1", Amount: 0.5},
+				{AssetType: asset.Futures, Pair: futuresTestPair, OrderID: "4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b", Price: 80000},
+				{AssetType: asset.Futures, Pair: futuresTestPair, ClientOrderID: "gct-limit-1", Amount: 0.5},
+			} {
+				m.NewClientOrderID = "gct-new-1"
+				m.Exchange = ex.Name
+				_, err := ex.ModifyOrder(t.Context(), &m)
+				assert.ErrorIsf(t, err, errNewClientOrderIDUnsupported, "ModifyOrder should refuse a new client order ID for %+v rather than edit the order without", m)
+				if m.AssetType == asset.Spot {
+					m.Exchange = wsEx.Name
+					_, err = wsEx.ModifyOrder(t.Context(), &m)
+					assert.ErrorIsf(t, err, errNewClientOrderIDUnsupported, "ModifyOrder should refuse a new client order ID for %+v over the private websocket rather than amend the order without", m)
+				}
+			}
+		})
 		// Each field of a take profit, stop loss or stop entry asks for one, set alone
 		for _, kind := range []struct {
 			name string

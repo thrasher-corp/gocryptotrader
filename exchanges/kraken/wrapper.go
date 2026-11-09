@@ -37,17 +37,18 @@ import (
 )
 
 var (
-	errUnknownOrderType           = errors.New("unknown order type")
-	errUnknownOrderStatus         = errors.New("unknown order status")
-	errOrderEditFailed            = errors.New("order edit failed")
-	errOrderEditImmediateOrCancel = errors.New("order edit applied as immediate or cancel and its unfilled part removed")
-	errNoDepositMethods           = errors.New("no deposit methods")
-	errDepositMethodUnknown       = errors.New("deposit method not offered")
-	errNoWithdrawalMethods        = errors.New("no withdrawal methods")
-	errTradeFeeMissing            = errors.New("trade fee missing")
-	errInvalidLeverage            = errors.New("invalid leverage")
-	errRiskManagementUnsupported  = errors.New("take profit, stop loss and stop entry not supported")
-	errSlippageUnsupported        = errors.New("slippage tolerance not supported")
+	errUnknownOrderType            = errors.New("unknown order type")
+	errUnknownOrderStatus          = errors.New("unknown order status")
+	errOrderEditFailed             = errors.New("order edit failed")
+	errOrderEditImmediateOrCancel  = errors.New("order edit applied as immediate or cancel and its unfilled part removed")
+	errNoDepositMethods            = errors.New("no deposit methods")
+	errDepositMethodUnknown        = errors.New("deposit method not offered")
+	errNoWithdrawalMethods         = errors.New("no withdrawal methods")
+	errTradeFeeMissing             = errors.New("trade fee missing")
+	errInvalidLeverage             = errors.New("invalid leverage")
+	errRiskManagementUnsupported   = errors.New("take profit, stop loss and stop entry not supported")
+	errSlippageUnsupported         = errors.New("slippage tolerance not supported")
+	errNewClientOrderIDUnsupported = errors.New("new client order ID not supported")
 )
 
 // offlineTakerFee is the taker fee of Kraken Pro's lowest volume tier, the most a spot trade is charged
@@ -1441,8 +1442,8 @@ func futuresTriggerSignal(p order.PriceType) (string, error) {
 // ModifyOrder changes an order's quantity and prices. A spot order is amended in place, keeping its ID and, where
 // possible, its queue priority. An edit of a futures stop order should carry its trigger price even when that stays the
 // same, as Kraken documents the stop price as required and OrderManager.Modify fills in only the amount and price. An
-// edit asking for a take profit, stop loss, stop entry or slippage tolerance is refused, as neither Kraken's edits nor
-// the wrapper set them
+// edit asking for a take profit, stop loss, stop entry, slippage tolerance or new client order ID is refused, as
+// neither Kraken's edits nor the wrapper set them
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
@@ -1452,6 +1453,9 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	}
 	if action.SlippageTolerance != 0 {
 		return nil, fmt.Errorf("%w: %v", errSlippageUnsupported, action.SlippageTolerance)
+	}
+	if action.NewClientOrderID != "" {
+		return nil, fmt.Errorf("%w: %q", errNewClientOrderIDUnsupported, action.NewClientOrderID)
 	}
 	switch action.AssetType {
 	case asset.Spot:

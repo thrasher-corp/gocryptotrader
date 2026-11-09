@@ -499,7 +499,7 @@ func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, conn websocke
 				continue
 			}
 			state.addTo(d)
-			errs = common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, d))
+			errs = common.AppendError(errs, e.relayFuturesOrder(ctx, d))
 		}
 		return errs
 	}
@@ -517,7 +517,7 @@ func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, conn websocke
 			Status:    state.reportStatus(state.reason, u.IsCancel),
 		}
 		state.addTo(d)
-		return e.Websocket.DataHandler.Send(ctx, d)
+		return e.relayFuturesOrder(ctx, d)
 	}
 	state := e.futuresOrders.update(conn, u.Order)
 	if u.IsCancel {
@@ -528,7 +528,19 @@ func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, conn websocke
 		return err
 	}
 	state.addTo(d)
-	return e.Websocket.DataHandler.Send(ctx, d)
+	return e.relayFuturesOrder(ctx, d)
+}
+
+// relayFuturesOrder relays a futures order update, recording when it carries the order's quantity that an order store
+// can now hold the order's amount
+func (e *Exchange) relayFuturesOrder(ctx context.Context, d *order.Detail) error {
+	if err := e.Websocket.DataHandler.Send(ctx, d); err != nil {
+		return err
+	}
+	if d.Amount > 0 {
+		e.futuresOrders.relayedQuantities(d.OrderID)
+	}
+	return nil
 }
 
 // futuresWsOrderDetail converts an open futures order
@@ -652,7 +664,7 @@ func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Con
 		}
 		d.Status = state.fillStatus()
 		state.addTo(d)
-		errs = common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, d))
+		errs = common.AppendError(errs, e.relayFuturesOrder(ctx, d))
 		if e.IsFillsFeedEnabled() {
 			fills = append(fills, fill.Data{
 				ID:            f.FillID,

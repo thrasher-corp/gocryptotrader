@@ -119,6 +119,20 @@ authenticated websocket support is enabled and credentials are set, the account'
 with the `myOrders`, `myTrades` and `myWallet` channels. Futures order books stream whole, so futures subscriptions
 take no `levels`. Futures order updates leave an order's average price, cost and fee unset, as the feeds cannot show
 that the fills they report are all of the order's; each fill is relayed as the order's trade, with its price and fee.
+Once a fill leaves nothing of an order remaining, the order is relayed filled, even if it filled while the futures
+connection was down, if an update carrying its quantity was relayed earlier and the order is still tracked. When the
+order's quantity is not known and its fills cannot make it up, as when it filled while the connection was down and no
+report has given its quantity since, the update relaying it filled carries no quantities, as the order may have been
+amended unseen, and the order manager takes all of the amount it holds as executed. An order no longer open stays
+tracked until at least ten minutes pass without a report of it, an open orders snapshot that leaves out an open order
+not yet filled in full counting as a report. One cancelled while the connection was down is not relayed cancelled, as
+the open orders snapshot then only leaves it out, relaying nothing of it, which leaves its stored status as it was,
+though its fills can still relay the status of a removal or rejection of it the open orders feed reported earlier. An
+order that filled while the connection was down, whose quantity is not known and was never relayed, such as one placed
+while it was down, gets from its fills the status the open orders feed's removal or rejection of it gives, if the order
+is still tracked, such as closed for a stop removed as triggered, and otherwise none, as its fills cannot be told from
+the fills of orders that finished before the feeds were subscribed, which are stored without a status for the order
+manager to look up.
 
 + The private, level 3 and futures connections are optional: one that is refused, or drops, is dialled again on its
 own while the other connections stay up. It waits the connection monitor delay, then twice as long after each further
@@ -172,7 +186,7 @@ and an order book at a depth are, is subscribed to for spot alone. So is one to 
 no slippage tolerance, and the wrapper attaches no take profit, stop loss or stop entry to an order, so `SubmitOrder`
 refuses `RiskManagementModes`, `SlippageTolerance` and any `MarginType` but `cash` on a spot order without leverage,
 which is the order it places, rather than place the order without them. `ModifyOrder` refuses `RiskManagementModes`
-and `SlippageTolerance` likewise.
+and `SlippageTolerance` likewise, and a `NewClientOrderID`, which neither Kraken's amendments nor its edits take.
 
 + Orders can be managed over the private connection. The wrapper's spot order functions use it while it is connected
 and holds a subscription, and REST otherwise, such as when Kraken refuses the websocket token:

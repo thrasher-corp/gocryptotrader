@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1574,6 +1576,241 @@ func TestFuturesOrderFilledBeforeANewConnection(t *testing.T) {
 	}
 }
 
+func TestFuturesOrderFilledWhileDisconnected(t *testing.T) {
+	t.Parallel()
+	// 4 of the order's 10 filled before the connection went down, and its last fill, of the other 6, while it was down
+	listed := []string{`{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + futuresOpenOrder("o-80", 10, 4) + `]}`, futuresEmptyFillsSnapshot}
+	placed := []string{
+		futuresEmptySnapshot,
+		futuresEmptyFillsSnapshot,
+		futuresOpenOrderMessage("o-80", 10, 0, "new_placed_order_by_user"),
+		futuresFillMessage(wsFuturesFeedFills, "o-80", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD"),
+	}
+	// The fills snapshot comes first, holding the fill of 4, so the fill is counted before open_orders reports the order
+	filledFirst := []string{futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-80", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD"), listed[0]}
+	// The tracker keys orders by their order ID, which the fills give, whatever client order ID the order has
+	listedWithClientOrderID := []string{`{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` +
+		strings.Replace(futuresOpenOrder("o-80", 10, 4), `"order_id":"o-80"`, `"order_id":"o-80","cli_ord_id":"gct-client-80"`, 1) + `]}`, futuresEmptyFillsSnapshot}
+	last := func(feed string) string {
+		return futuresFillMessage(feed, "o-80", "f-2", "PF_XBTUSD", 6, 0, 20000, 0.3, "USD")
+	}
+	for _, tc := range []struct {
+		name        string
+		msgs        []string
+		reconnected []string
+		// resting has the feeds last report the order before the connection went down longer ago than
+		// futuresOrderRetention
+		resting bool
+	}{
+		{name: "listed, its last fill in the fills snapshot before the open_orders snapshot", msgs: listed, reconnected: []string{last(wsFuturesFeedFillsSnapshot), futuresEmptySnapshot}},
+		{name: "listed, its last fill in the fills snapshot after the open_orders snapshot", msgs: listed, reconnected: []string{futuresEmptySnapshot, last(wsFuturesFeedFillsSnapshot)}},
+		{name: "listed, its last fill reported before the snapshots", msgs: listed, reconnected: []string{last(wsFuturesFeedFills), futuresEmptySnapshot, futuresEmptyFillsSnapshot}},
+		// An order the open_orders snapshot left out was placed before it, so a fill of it reported after both snapshots
+		// does not show its fills were all reported as they happened
+		{name: "listed, its last fill reported after the snapshots", msgs: listed, reconnected: []string{futuresEmptySnapshot, futuresEmptyFillsSnapshot, last(wsFuturesFeedFills)}},
+		{name: "listed, resting past futuresOrderRetention", msgs: listed, reconnected: []string{futuresEmptySnapshot, last(wsFuturesFeedFillsSnapshot)}, resting: true},
+		{name: "listed, its last fill followed by an edit rejected", msgs: listed, reconnected: []string{futuresEmptySnapshot, last(wsFuturesFeedFillsSnapshot), futuresRemovalMessage("o-80", "order_for_edit_not_found")}},
+		{name: "listed, its last fill followed by the trigger of the stop that placed it", msgs: listed, reconnected: []string{futuresEmptySnapshot, last(wsFuturesFeedFillsSnapshot), futuresRemovalMessage("o-80", "stop_order_triggered")}},
+		{name: "listed after a fill of it, its last fill in the fills snapshot after the open_orders snapshot", msgs: filledFirst, reconnected: []string{futuresEmptySnapshot, last(wsFuturesFeedFillsSnapshot)}},
+		{name: "listed with a client order ID, its last fill in the fills snapshot after the open_orders snapshot", msgs: listedWithClientOrderID, reconnected: []string{futuresEmptySnapshot, last(wsFuturesFeedFillsSnapshot)}},
+		{name: "placed after the snapshots, its last fill in the fills snapshot before the open_orders snapshot", msgs: placed, reconnected: []string{last(wsFuturesFeedFillsSnapshot), futuresEmptySnapshot}},
+		{name: "placed after the snapshots, its last fill in the fills snapshot after the open_orders snapshot", msgs: placed, reconnected: []string{futuresEmptySnapshot, last(wsFuturesFeedFillsSnapshot)}},
+		{name: "placed after the snapshots, its last fill reported before the snapshots", msgs: placed, reconnected: []string{last(wsFuturesFeedFills), futuresEmptySnapshot, futuresEmptyFillsSnapshot}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			seedTestAssetNames(ex)
+			details := futuresOrderUpdates(t, ex, tc.msgs...)
+			require.NotEmpty(t, details, "the order's reports must relay order updates")
+			if tc.resting {
+				ex.futuresOrders.mu.Lock()
+				ex.futuresOrders.orders["o-80"].updated = time.Now().Add(-futuresOrderRetention - time.Second)
+				ex.futuresOrders.mu.Unlock()
+			}
+			later := futuresOrderUpdatesOn(t, ex, &futuresTestConn{name: "new"}, tc.reconnected...)
+			require.NotEmpty(t, later, "the order's last fill must relay an order update")
+			fillTime := time.UnixMilli(1600256966528)
+			exp := &order.Detail{
+				Exchange:    ex.Name,
+				AssetType:   asset.Futures,
+				OrderID:     "o-80",
+				Pair:        futuresTestPair,
+				Side:        order.Buy,
+				Type:        order.Limit,
+				Status:      order.Filled,
+				LastUpdated: fillTime,
+				Trades:      []order.TradeHistory{{TID: "f-2", Price: 20000, Amount: 6, Fee: 0.3, FeeAsset: "USD", Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Timestamp: fillTime}},
+			}
+			assert.Equal(t, exp, later[0], "the last fill should relay the order filled, leaving its quantities to the order store, as the order may have been amended unseen")
+			for _, d := range later[1:] {
+				assert.Equal(t, &order.Detail{Exchange: ex.Name, AssetType: asset.Futures, OrderID: "o-80", Status: order.Filled}, d, "a later report should relay the order filled, leaving its quantities to the order store")
+			}
+			stored := details[0]
+			mergeOrderUpdates(t, stored, details[1:])
+			mergeOrderUpdates(t, stored, later)
+			type quantities struct{ amount, executed, remaining float64 }
+			assert.Equal(t, order.Filled, stored.Status, "the order should be stored filled")
+			assert.Equal(t, quantities{10, 10, 0}, quantities{stored.Amount, stored.ExecutedAmount, stored.RemainingAmount}, "the order should be stored with all of its quantity executed")
+		})
+	}
+
+	t.Run("listed with none of it filled", func(t *testing.T) {
+		t.Parallel()
+		lastFill := futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-85", "f-1", "PF_XBTUSD", 2, 0, 20000, 0.5, "USD")
+		for _, tc := range []struct {
+			name        string
+			reconnected []string
+		}{
+			{name: "its fill in the fills snapshot before the open_orders snapshot", reconnected: []string{lastFill, futuresEmptySnapshot}},
+			{name: "its fill in the fills snapshot after the open_orders snapshot", reconnected: []string{futuresEmptySnapshot, lastFill}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestExchange(t)
+				seedTestAssetNames(ex)
+				details := futuresOrderUpdates(t, ex, `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[`+futuresOpenOrder("o-85", 2, 0)+`]}`, futuresEmptyFillsSnapshot)
+				require.Len(t, details, 1, "the open_orders snapshot must relay the order")
+				later := futuresOrderUpdatesOn(t, ex, &futuresTestConn{name: "new"}, tc.reconnected...)
+				require.Len(t, later, 1, "the order's fill must relay an order update")
+				assert.Equal(t, order.Filled, later[0].Status, "the fill should relay the order filled")
+				stored := details[0]
+				mergeOrderUpdates(t, stored, later)
+				type quantities struct{ amount, executed, remaining float64 }
+				assert.Equal(t, quantities{2, 2, 0}, quantities{stored.Amount, stored.ExecutedAmount, stored.RemainingAmount}, "the order should be stored with all of its quantity executed")
+			})
+		}
+	})
+
+	t.Run("listed with a fractional quantity", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		seedTestAssetNames(ex)
+		details := futuresOrderUpdates(t, ex, `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[`+futuresOpenOrder("o-82", 0.8, 0.1)+`]}`, futuresEmptyFillsSnapshot)
+		require.Len(t, details, 1, "the open_orders snapshot must relay the order")
+		later := futuresOrderUpdatesOn(t, ex, &futuresTestConn{name: "new"}, futuresEmptySnapshot, futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-82", "f-2", "PF_XBTUSD", 0.7, 0, 20000, 0.3, "USD"))
+		require.Len(t, later, 1, "the order's last fill must relay an order update")
+		assert.Equal(t, order.Filled, later[0].Status, "the last fill should relay the order filled")
+		stored := details[0]
+		mergeOrderUpdates(t, stored, later)
+		type quantities struct{ amount, executed, remaining float64 }
+		assert.Equal(t, quantities{0.8, 0.8, 0}, quantities{stored.Amount, stored.ExecutedAmount, stored.RemainingAmount}, "the order should be stored with all of its quantity executed")
+	})
+
+	t.Run("left out of the open_orders snapshot, then removed", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		seedTestAssetNames(ex)
+		details := futuresOrderUpdates(t, ex, listed...)
+		require.Len(t, details, 1, "the open_orders snapshot must relay the order")
+		later := futuresOrderUpdatesOn(t, ex, &futuresTestConn{name: "new"}, futuresEmptySnapshot, futuresRemovalMessage("o-80", "cancelled_by_user"))
+		require.Len(t, later, 1, "the removal must relay an order update")
+		// The order is kept with what open_orders last reported of it filled
+		assert.Equal(t, &order.Detail{Exchange: ex.Name, AssetType: asset.Futures, OrderID: "o-80", Status: order.PartiallyFilledCancelled}, later[0], "the removal should relay the order cancelled after the fills open_orders reported")
+	})
+
+	// An order store holds an order's amount once any update carrying it is relayed, as when the open_orders snapshot
+	// listing it could not be relayed, but a later report on the same connection, which knows its quantity, could
+	t.Run("listed while the data handler was full, then relayed by a later report", func(t *testing.T) {
+		t.Parallel()
+		limitOrder := futuresOpenOrder("o-83", 10, 4)
+		// A stop without a limit price places a market order under its ID once it triggers, whose fill can come before
+		// open_orders reports the trigger
+		stopMarketOrder := strings.NewReplacer(`"limit_price":20000`, `"limit_price":0`, `"stop_price":0`, `"stop_price":19000`, `"type":"limit"`, `"type":"stop"`, `"filled":4`, `"filled":0`).Replace(limitOrder)
+		for _, tc := range []struct {
+			name    string
+			listing string
+			later   string
+		}{
+			{name: "fill", listing: limitOrder, later: futuresFillMessage(wsFuturesFeedFills, "o-83", "f-1", "PF_XBTUSD", 2, 4, 20000, 0.1, "USD")},
+			{name: "trigger of its stop", listing: limitOrder, later: futuresRemovalMessage("o-83", "stop_order_triggered")},
+			{
+				name:    "trigger of its stop, reported with the order",
+				listing: limitOrder,
+				later:   `{"feed":"open_orders","order":` + limitOrder + `,"is_cancel":true,"reason":"stop_order_triggered"}`,
+			},
+			{
+				name:    "fill of the market order its stop placed",
+				listing: stopMarketOrder,
+				later:   strings.Replace(futuresFillMessage(wsFuturesFeedFills, "o-83", "f-1", "PF_XBTUSD", 6, 4, 20000, 0.1, "USD"), `"order_type":"lmt"`, `"order_type":"mkt"`, 1),
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestExchange(t)
+				seedTestAssetNames(ex)
+				ex.Websocket.DataHandler = stream.NewRelay(1)
+				require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "earlier payload"), "Send must not error")
+				snapshot := `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + tc.listing + `]}`
+				require.Error(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrdersSnapshot, []byte(snapshot)), "wsFuturesProcessOpenOrders must return the error relaying the order")
+				ex.Websocket.DataHandler = stream.NewRelay(100)
+				details := futuresOrderUpdates(t, ex, tc.later)
+				require.Len(t, details, 1, "the later report must relay an order update")
+				require.Equal(t, 10.0, details[0].Amount, "the later report must relay the order's quantity")
+				later := futuresOrderUpdatesOn(t, ex, &futuresTestConn{name: "new"}, futuresEmptySnapshot, futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-83", "f-2", "PF_XBTUSD", 4, 0, 20000, 0.3, "USD"))
+				require.Len(t, later, 1, "the order's last fill must relay an order update")
+				assert.Equal(t, order.Filled, later[0].Status, "the last fill should relay the order filled, as an order store holds its amount")
+				stored := details[0]
+				mergeOrderUpdates(t, stored, later)
+				type quantities struct{ amount, executed, remaining float64 }
+				assert.Equal(t, quantities{10, 10, 0}, quantities{stored.Amount, stored.ExecutedAmount, stored.RemainingAmount}, "the order should be stored with all of its quantity executed")
+			})
+		}
+	})
+
+	t.Run("known only by its fills", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		seedTestAssetNames(ex)
+		pastFill := func(feed string) string {
+			return futuresFillMessage(feed, "o-84", "f-9", "PF_XBTUSD", 5, 0, 20000, 0.3, "USD")
+		}
+		details := futuresOrderUpdates(t, ex, pastFill(wsFuturesFeedFillsSnapshot))
+		require.Len(t, details, 1, "the fills snapshot must relay the order's trade")
+		require.Zero(t, details[0].Amount, "the fills snapshot must relay no quantity of an order no update reported open")
+		later := futuresOrderUpdatesOn(t, ex, &futuresTestConn{name: "new"}, futuresEmptySnapshot, pastFill(wsFuturesFeedFillsSnapshot))
+		require.Len(t, later, 1, "the repeated fill must relay an order update")
+		// Relaying its trade gave no order store its amount, so it is left without a status for the order manager to look up
+		assert.Equal(t, order.UnknownStatus, later[0].Status, "a repeated last fill should relay no status for an order whose quantity no update relayed")
+	})
+
+	t.Run("listed on a contract missing from the available pairs", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		seedTestAssetNames(ex)
+		listedLater := currency.NewPairWithDelimiter("PF", "GCTUSD", currency.UnderscoreDelimiter)
+		snapshot := `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + strings.Replace(futuresOpenOrder("o-81", 10, 4), `"PF_XBTUSD"`, `"PF_GCTUSD"`, 1) + `]}`
+		require.ErrorIs(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrdersSnapshot, []byte(snapshot)), currency.ErrPairNotFound, "wsFuturesProcessOpenOrders must return the error of an order on a contract missing from the available pairs")
+		require.Empty(t, relayed(ex), "nothing must be relayed for a contract missing from the available pairs")
+		pairs, err := ex.CurrencyPairs.GetPairs(asset.Futures, false)
+		require.NoError(t, err, "GetPairs must not error")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, append(pairs, listedLater), false), "StorePairs must not error")
+		later := futuresOrderUpdatesOn(t, ex, &futuresTestConn{name: "new"}, futuresEmptySnapshot, futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-81", "f-2", "PF_GCTUSD", 6, 0, 200, 0.3, "USD"))
+		require.Len(t, later, 1, "the order's last fill must relay an order update")
+		// No order store holds the order's amount, so it is left without a status for the order manager to look up
+		assert.Equal(t, order.UnknownStatus, later[0].Status, "the last fill should relay no status for an order whose quantities no update relayed")
+		assert.Zero(t, later[0].ExecutedAmount, "the last fill should relay no executed quantity for an order whose quantities no update relayed")
+	})
+}
+
+func TestRelayFuturesOrder(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	for _, orderID := range []string{"with an amount", "without an amount", "unrelayed"} {
+		ex.futuresOrders.update(nil, &WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Quantity: 10, OrderID: orderID})
+	}
+	require.NoError(t, ex.relayFuturesOrder(t.Context(), &order.Detail{OrderID: "without an amount", Status: order.Filled}), "relayFuturesOrder must not error")
+	require.NoError(t, ex.relayFuturesOrder(t.Context(), &order.Detail{OrderID: "with an amount", Amount: 10}), "relayFuturesOrder must not error")
+	assert.Equal(t, []any{&order.Detail{OrderID: "without an amount", Status: order.Filled}, &order.Detail{OrderID: "with an amount", Amount: 10}}, relayed(ex), "relayFuturesOrder should relay each update")
+	assert.False(t, ex.futuresOrders.get("without an amount").quantitiesRelayed, "relayFuturesOrder should not take an update without an amount as relaying the order's quantity")
+	assert.True(t, ex.futuresOrders.get("with an amount").quantitiesRelayed, "relayFuturesOrder should record that an update carrying an amount relayed the order's quantity")
+
+	ex.Websocket.DataHandler = stream.NewRelay(1)
+	require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "earlier payload"), "Send must not error")
+	assert.Error(t, ex.relayFuturesOrder(t.Context(), &order.Detail{OrderID: "unrelayed", Amount: 10}), "relayFuturesOrder should return the error relaying an update")
+	assert.False(t, ex.futuresOrders.get("unrelayed").quantitiesRelayed, "relayFuturesOrder should not record the quantity of an update it could not relay as relayed")
+}
+
 func TestFuturesOrderFillsOfOrdersInOneMessage(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
@@ -1615,7 +1852,20 @@ func TestFuturesOrderTracker(t *testing.T) {
 
 	// An open order missing from a later snapshot left the open orders unseen
 	tracker.snapshot(nil, nil)
-	assert.Zero(t, tracker.get("left").quantity, "a snapshot should forget an open order it leaves out")
+	left := tracker.get("left")
+	assert.Zero(t, left.quantity, "a snapshot should forget the quantity of an open order it leaves out")
+	assert.False(t, left.open, "a snapshot should take an open order it leaves out as finished")
+	tracker.mu.Lock()
+	_, kept := tracker.orders["left"]
+	tracker.mu.Unlock()
+	assert.True(t, kept, "a snapshot should keep an open order it leaves out, for a later fill to show it filled")
+	tracker.relayedQuantities("left")
+	assert.True(t, tracker.get("left").quantitiesRelayed, "relayedQuantities should record that the order's quantities were relayed")
+	tracker.relayedQuantities("unrecorded")
+	tracker.mu.Lock()
+	_, recorded := tracker.orders["unrecorded"]
+	tracker.mu.Unlock()
+	assert.False(t, recorded, "relayedQuantities should record nothing of an order the tracker does not hold")
 	filledInFull := tracker.get("filled in full")
 	assert.Equal(t, 10.0, filledInFull.quantity, "a snapshot should keep an open order a fill has left nothing of, for its later reports")
 	assert.False(t, filledInFull.open, "a snapshot should take an open order a fill has left nothing of as finished once it leaves it out")
@@ -2088,8 +2338,8 @@ func TestFuturesOrderQuantityCoverage(t *testing.T) {
 		reports []report
 		// filled is the order's last fill, the last message, which leaves nothing of the order remaining
 		filled float64
-		status order.Status
-		// amount is the order's quantity and executed quantity the last fill relays, zero when it relays its trade alone
+		// amount is the order's quantity and executed quantity the last fill relays, zero when it leaves them to the
+		// order store, which holds the amount open_orders reported
 		amount float64
 	}{
 		// The order was amended from 10 to 5 and filled while the connection was down
@@ -2113,7 +2363,6 @@ func TestFuturesOrderQuantityCoverage(t *testing.T) {
 			name:    "listed again by an open_orders snapshot after the fills snapshot on a new connection",
 			reports: []report{{msgs: initial}, {onNew: true, msgs: []string{futuresEmptyFillsSnapshot, snapshot(5, 2), lastFill(wsFuturesFeedFills, 3)}}},
 			filled:  3,
-			status:  order.Filled,
 			amount:  5,
 		},
 		// The order was amended from 10 to 5 and filled while open_orders was unsubscribed
@@ -2139,14 +2388,12 @@ func TestFuturesOrderQuantityCoverage(t *testing.T) {
 			name:    "stop removed as triggered",
 			reports: []report{{msgs: append(slices.Clone(initial), futuresRemovalMessage("o-30", "stop_order_triggered"))}, {onNew: true, msgs: []string{lastFill(wsFuturesFeedFillsSnapshot, 5)}}},
 			filled:  5,
-			status:  order.Closed,
 		},
 		// A finished order's quantity cannot change, so the fills Kraken reports late count against it
 		{
 			name:    "filled",
 			reports: []report{{msgs: append(slices.Clone(initial), futuresRemovalMessage("o-30", "full_fill"))}, {onNew: true, msgs: []string{lastFill(wsFuturesFeedFillsSnapshot, 6)}}},
 			filled:  6,
-			status:  order.Filled,
 			amount:  10,
 		},
 	} {
@@ -2177,13 +2424,13 @@ func TestFuturesOrderQuantityCoverage(t *testing.T) {
 				Pair:           futuresTestPair,
 				Side:           order.Buy,
 				Type:           order.Limit,
-				Status:         tc.status,
+				Status:         order.Filled,
 				Amount:         tc.amount,
 				ExecutedAmount: tc.amount,
 				LastUpdated:    fillTime,
 				Trades:         []order.TradeHistory{{TID: "f-last", Price: 20000, Amount: tc.filled, Fee: 0.25, FeeAsset: "USD", Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Timestamp: fillTime}},
 			}
-			assert.Equal(t, exp, details[len(details)-1], "the last fill should relay the order's quantity only while open_orders reports the order's changes, or once it has finished")
+			assert.Equal(t, exp, details[len(details)-1], "the last fill should relay the order filled, with its quantity only while open_orders reports the order's changes, or once it has finished")
 		})
 	}
 }
@@ -2377,7 +2624,11 @@ func TestStoreUnifiedFlexWallet(t *testing.T) {
 			ctx, creds, otherCreds := t.Context(), ex.GetDefaultCredentials(), &other
 			if tc.contextCreds {
 				ctx = accounts.DeployCredentialsToContext(ctx, &other)
-				creds, otherCreds = &other, ex.GetDefaultCredentials()
+				// The exchange keys context credentials as GetCredentials returns them, and live tests run the auth
+				// check, which decodes Kraken's secret
+				fromContext, err := ex.GetCredentials(ctx)
+				require.NoError(t, err, "GetCredentials must not error for the context credentials")
+				creds, otherCreds = fromContext, ex.GetDefaultCredentials()
 			}
 			storedFlex := func() accounts.CurrencyBalances {
 				subAccts, err := ex.Accounts.SubAccounts(creds, asset.Futures)
@@ -2670,6 +2921,9 @@ func TestSaveFuturesFeedBalances(t *testing.T) {
 		wallet := func(id string, usd float64) accounts.SubAccounts {
 			return accounts.SubAccounts{{ID: id, AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: usd, Free: usd}}}}
 		}
+		euros := func(id string, eur float64) accounts.SubAccounts {
+			return accounts.SubAccounts{{ID: id, AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.EUR: {Currency: currency.EUR, Total: eur, Free: eur}}}}
+		}
 		// step is a balances message that arrived as n, or a REST read requested as n, stored in the order given
 		type step struct {
 			n        uint64
@@ -2681,8 +2935,10 @@ func TestSaveFuturesFeedBalances(t *testing.T) {
 		for _, tc := range []struct {
 			name    string
 			spotOff bool
-			steps   []step
-			expFlex accounts.CurrencyBalances
+			// contextCreds has the messages and reads come for context credentials rather than the exchange's own
+			contextCreds bool
+			steps        []step
+			expFlex      accounts.CurrencyBalances
 		}{
 			{
 				name: "a transition carrying another wallet holds back a read of the unified wallet requested before it",
@@ -2712,21 +2968,61 @@ func TestSaveFuturesFeedBalances(t *testing.T) {
 				},
 				expFlex: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 100, Free: 100}},
 			},
+			{
+				name:    "a transition holds back a read of the unified wallet requested before it while spot is disabled",
+				spotOff: true,
+				steps: []step{
+					{n: 90, snapshot: true, unified: &unified, wallets: wallet("flex", 10)},
+					{n: 92, unified: &separate},
+					{n: 91, read: true, wallets: wallet("flex", 100)},
+				},
+				expFlex: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 10, Free: 10}},
+			},
+			// The transitions below carry the separate wallet's balance of another currency than the read, so the read is
+			// held back by the transition's record alone, and the wallet is stored as separate
+			{
+				name: "a transition holds back a read of another currency of the unified wallet requested before it",
+				steps: []step{
+					{n: 100, snapshot: true, unified: &unified, wallets: wallet("flex", 10)},
+					{n: 102, unified: &separate, wallets: wallet("flex", 7)},
+					{n: 101, read: true, wallets: euros("flex", 100)},
+				},
+				expFlex: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 7, Free: 7}},
+			},
+			{
+				name:         "a transition holds back a read of the unified wallet requested before it for context credentials",
+				contextCreds: true,
+				steps: []step{
+					{n: 110, snapshot: true, unified: &unified, wallets: wallet("flex", 10)},
+					{n: 112, unified: &separate, wallets: wallet("flex", 7)},
+					{n: 111, read: true, wallets: euros("flex", 100)},
+				},
+				expFlex: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 7, Free: 7}},
+			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				ex := newTestExchange(t)
 				useTestCredentials(ex)
 				require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, !tc.spotOff), "SetAssetEnabled must not error")
+				ctx := t.Context()
+				if tc.contextCreds {
+					ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "context-key", Secret: testSecret})
+				}
 				for _, s := range tc.steps {
 					if s.read {
-						require.NoErrorf(t, ex.saveFuturesBalances(t.Context(), s.n, s.wallets), "saveFuturesBalances must not error for read %d", s.n)
+						require.NoErrorf(t, ex.saveFuturesBalances(ctx, s.n, s.wallets), "saveFuturesBalances must not error for read %d", s.n)
 						continue
 					}
-					_, err := ex.saveFuturesFeedBalances(t.Context(), s.n, s.snapshot, s.unified, s.wallets)
+					_, err := ex.saveFuturesFeedBalances(ctx, s.n, s.snapshot, s.unified, s.wallets)
 					require.NoErrorf(t, err, "saveFuturesFeedBalances must not error for message %d", s.n)
 				}
-				assert.Equalf(t, tc.expFlex, storedFuturesWallets(t, ex)["flex"], "the multi-collateral wallet should hold the newest balances it may for %s", tc.name)
+				// The exchange keys the store by the credentials GetCredentials returns, whose secret live tests decode
+				creds, err := ex.GetCredentials(ctx)
+				require.NoError(t, err, "GetCredentials must not error")
+				subAccts, err := ex.Accounts.SubAccounts(creds, asset.Futures)
+				require.NoError(t, err, "SubAccounts must not error")
+				assert.Equalf(t, tc.expFlex, futuresWalletBalances(subAccts)["flex"], "the multi-collateral wallet should hold the newest balances it may for %s", tc.name)
 			})
 		}
 	})

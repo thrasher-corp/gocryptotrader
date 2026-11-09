@@ -327,6 +327,16 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.RemainingAmount = 0
 		updated = true
 	}
+	// All of a futures order an update reports filled, without saying what executed or what remains, executed, as when
+	// a fill leaves nothing of the order remaining after the exchange lost track of its amount. A futures order counts
+	// its amount as what executes is counted, unless a nonzero ContractAmount differs from it, as when OKX's and
+	// KuCoin's position histories convert contracts into the amount, while a spot market buy's amount can be what it
+	// spends, as on Huobi
+	if m.Status == Filled && m.ExecutedAmount == 0 && m.RemainingAmount == 0 && d.AssetType.IsFutures() &&
+		(d.ContractAmount == 0 || d.ContractAmount == d.Amount) && d.ExecutedAmount < d.Amount {
+		d.ExecutedAmount = d.Amount
+		updated = true
+	}
 	if updated {
 		if m.LastUpdated.IsZero() || d.LastUpdated.Equal(m.LastUpdated) {
 			d.LastUpdated = time.Now()

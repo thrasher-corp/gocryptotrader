@@ -564,9 +564,9 @@ func TestCancelAllFuturesOrdersAfter(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelAllFuturesOrdersAfter(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllFuturesOrdersAfter must reject a nil request")
+	// The cases share e and run in turn, so the requests after them also catch a refusal leaving state behind
 	for _, timeout := range []time.Duration{-time.Second, 1500 * time.Millisecond, (1 << 32) * time.Second} {
 		t.Run(timeout.String(), func(t *testing.T) {
-			t.Parallel()
 			_, err := e.CancelAllFuturesOrdersAfter(t.Context(), &FuturesCancelAllOrdersAfterRequest{Timeout: timeout})
 			require.ErrorIsf(t, err, errFuturesInvalidTimeout, "CancelAllFuturesOrdersAfter must reject a timeout of %s", timeout)
 		})

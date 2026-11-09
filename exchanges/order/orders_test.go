@@ -945,7 +945,7 @@ func BenchmarkStringToOrderStatus(b *testing.B) {
 	}
 }
 
-func TestUpdateOrderFromModifyResponse(t *testing.T) { //nolint:tparallel // The inactive status cases update od in order; the others share nothing
+func TestUpdateOrderFromModifyResponse(t *testing.T) { //nolint:tparallel // The status cases update od in order; the table cases share nothing
 	od := Detail{OrderID: "1"}
 	updated := time.Now()
 
@@ -1044,10 +1044,11 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) { //nolint:tparallel // The
 			assert.Equalf(t, exp, od, "a response without quantities should update an order %s", s)
 		})
 	}
+	// The cases update od in turn after the statuses above, so each also checks an update keeps nothing from the order
+	// od held before
 	for _, s := range []Status{UnknownStatus, New, Open, Active, PartiallyFilled} {
 		t.Run(s.String(), func(t *testing.T) {
-			t.Parallel()
-			od := Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 10, ExecutedAmount: 2, RemainingAmount: 8}
+			od = Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 10, ExecutedAmount: 2, RemainingAmount: 8}
 			od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", Price: 99, TriggerPrice: 109, Amount: 7, ExecutedAmount: 2, RemainingAmount: 5})
 			exp := Detail{OrderID: "1", Status: s, Price: 99, TriggerPrice: 109, Amount: 7, ExecutedAmount: 2, RemainingAmount: 5}
 			od.LastUpdated = time.Time{}
@@ -1422,6 +1423,151 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 				t.Parallel()
 				require.NoError(t, tc.stored.UpdateOrderFromDetail(&tc.update), "UpdateOrderFromDetail must not error")
 				assert.Equal(t, tc.expRemaining, tc.stored.RemainingAmount, "RemainingAmount should be correct")
+			})
+		}
+	})
+
+	t.Run("executed amount after an update", func(t *testing.T) {
+		t.Parallel()
+		lastUpdated := time.Now().Add(-time.Hour)
+		for _, tc := range []struct {
+			name        string
+			stored      Detail
+			update      Detail
+			expExecuted float64
+			// expMoved is whether the update should move the order's LastUpdated, as it does when it changes the order
+			expMoved bool
+		}{
+			{
+				name:        "filled update without an executed or remaining amount",
+				stored:      Detail{OrderID: "1", AssetType: asset.Futures, Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:      Detail{OrderID: "1", Status: Filled},
+				expExecuted: 10,
+				expMoved:    true,
+			},
+			{
+				name:        "filled update with an amount alone",
+				stored:      Detail{OrderID: "2", AssetType: asset.Futures, Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:      Detail{OrderID: "2", Status: Filled, Amount: 12},
+				expExecuted: 12,
+				expMoved:    true,
+			},
+			{
+				name:        "filled update without amounts for an order stored filled short of its amount",
+				stored:      Detail{OrderID: "3", AssetType: asset.Futures, Status: Filled, Amount: 10, ExecutedAmount: 4},
+				update:      Detail{OrderID: "3", Status: Filled},
+				expExecuted: 10,
+				expMoved:    true,
+			},
+			{
+				name:        "filled update without amounts for an order stored filled in full",
+				stored:      Detail{OrderID: "4", AssetType: asset.Futures, Status: Filled, Amount: 10, ExecutedAmount: 10},
+				update:      Detail{OrderID: "4", Status: Filled},
+				expExecuted: 10,
+			},
+			{
+				name:        "filled update without amounts for an order stored with more executed than its amount",
+				stored:      Detail{OrderID: "5", AssetType: asset.Futures, Status: Filled, Amount: 10, ExecutedAmount: 12},
+				update:      Detail{OrderID: "5", Status: Filled},
+				expExecuted: 12,
+			},
+			{
+				name:     "filled update without amounts for an order of a quote amount",
+				stored:   Detail{OrderID: "6", AssetType: asset.Futures, Status: New, QuoteAmount: 70},
+				update:   Detail{OrderID: "6", Status: Filled},
+				expMoved: true,
+			},
+			{
+				name:        "filled update with an executed amount",
+				stored:      Detail{OrderID: "7", AssetType: asset.Futures, Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:      Detail{OrderID: "7", Status: Filled, ExecutedAmount: 7},
+				expExecuted: 7,
+				expMoved:    true,
+			},
+			{
+				name:     "filled update with a remaining amount",
+				stored:   Detail{OrderID: "8", AssetType: asset.Futures, Status: New, Amount: 3840, RemainingAmount: 3840},
+				update:   Detail{OrderID: "8", Status: Filled, RemainingAmount: 2724},
+				expMoved: true,
+			},
+			{
+				name:        "cancellation without amounts",
+				stored:      Detail{OrderID: "9", AssetType: asset.Futures, Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:      Detail{OrderID: "9", Status: Cancelled},
+				expExecuted: 4,
+				expMoved:    true,
+			},
+			{
+				name:        "update without a status or amounts",
+				stored:      Detail{OrderID: "10", AssetType: asset.Futures, Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:      Detail{OrderID: "10"},
+				expExecuted: 4,
+			},
+			{
+				name:        "update without a status or amounts for an order stored filled short of its amount",
+				stored:      Detail{OrderID: "14", AssetType: asset.Futures, Status: Filled, Amount: 10, ExecutedAmount: 4},
+				update:      Detail{OrderID: "14"},
+				expExecuted: 4,
+			},
+			{
+				name:        "filled update without amounts for an order of a fractional amount",
+				stored:      Detail{OrderID: "15", AssetType: asset.Futures, Status: PartiallyFilled, Amount: 0.8, ExecutedAmount: 0.1, RemainingAmount: 0.7},
+				update:      Detail{OrderID: "15", Status: Filled},
+				expExecuted: 0.8,
+				expMoved:    true,
+			},
+			{
+				name:        "filled update without amounts for a futures order counting its contracts as its amount",
+				stored:      Detail{OrderID: "17", AssetType: asset.Futures, Status: PartiallyFilled, Amount: 10, ContractAmount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:      Detail{OrderID: "17", Status: Filled},
+				expExecuted: 10,
+				expMoved:    true,
+			},
+			{
+				// OKX's and KuCoin's position histories convert an order's contracts into its amount, and count what executed
+				// in contracts
+				name:        "filled update without amounts for a futures order whose amount was converted from its contracts",
+				stored:      Detail{OrderID: "18", AssetType: asset.Futures, Status: PartiallyFilled, Amount: 100, ContractAmount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:      Detail{OrderID: "18", Status: Filled},
+				expExecuted: 4,
+				expMoved:    true,
+			},
+			{
+				name:        "filled update without amounts for a perpetual swap order",
+				stored:      Detail{OrderID: "16", AssetType: asset.PerpetualSwap, Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:      Detail{OrderID: "16", Status: Filled},
+				expExecuted: 10,
+				expMoved:    true,
+			},
+			{
+				name:        "filled update without amounts naming a stored order of no asset a futures order",
+				stored:      Detail{OrderID: "11", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:      Detail{OrderID: "11", AssetType: asset.Futures, Status: Filled},
+				expExecuted: 10,
+				expMoved:    true,
+			},
+			{
+				// A Huobi market buy's amount is what it spends in the quote currency, while what executed is in the base
+				name:        "filled update without amounts for a spot market buy",
+				stored:      Detail{OrderID: "12", AssetType: asset.Spot, Type: Market, Side: Buy, Status: PartiallyFilled, Amount: 100, ExecutedAmount: 0.004},
+				update:      Detail{OrderID: "12", Status: Filled},
+				expExecuted: 0.004,
+				expMoved:    true,
+			},
+			{
+				name:        "filled update without amounts for a spot limit order",
+				stored:      Detail{OrderID: "13", AssetType: asset.Spot, Type: Limit, Side: Buy, Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:      Detail{OrderID: "13", Status: Filled},
+				expExecuted: 4,
+				expMoved:    true,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				tc.stored.LastUpdated = lastUpdated
+				require.NoError(t, tc.stored.UpdateOrderFromDetail(&tc.update), "UpdateOrderFromDetail must not error")
+				assert.Equal(t, tc.expExecuted, tc.stored.ExecutedAmount, "ExecutedAmount should be correct")
+				assert.Equal(t, tc.expMoved, tc.stored.LastUpdated.After(lastUpdated), "LastUpdated should move only when the update changes the order")
 			})
 		}
 	})
