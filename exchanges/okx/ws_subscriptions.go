@@ -21,9 +21,9 @@ type channelPairKey struct {
 type spotMarginEvaluator map[channelPairKey]bool
 
 // NeedsOutboundSubscription checks if a subscription is needed based on existing spot/margin subscriptions. If asset
-// is not spot or margin, it always returns true.
+// is not spot or margin, or the channel is asset-scoped, it always returns true.
 func (s spotMarginEvaluator) NeedsOutboundSubscription(pair currency.Pair, channel string, assetType asset.Item) (bool, error) {
-	if assetType != asset.Spot && assetType != asset.Margin {
+	if isAssetChannel(&subscription.Subscription{Channel: channel}) || (assetType != asset.Spot && assetType != asset.Margin) {
 		return true, nil
 	}
 	need, ok := s[getChannelKey(pair, channel, assetType)]
@@ -57,7 +57,7 @@ func (e *Exchange) getSpotMarginEvaluator(subs []*subscription.Subscription) spo
 	eval := make(spotMarginEvaluator)
 incoming:
 	for i, s := range subs {
-		if s.Asset != asset.Spot && s.Asset != asset.Margin {
+		if isAssetChannel(s) || (s.Asset != asset.Spot && s.Asset != asset.Margin) {
 			continue
 		}
 
@@ -91,7 +91,7 @@ incoming:
 }
 
 func inverseSpotMarginSubscription(sub *subscription.Subscription) (*subscription.Subscription, bool) {
-	if sub == nil || (sub.Asset != asset.Spot && sub.Asset != asset.Margin) {
+	if sub == nil || isAssetChannel(sub) || (sub.Asset != asset.Spot && sub.Asset != asset.Margin) {
 		return nil, false
 	}
 	inverse := sub.Clone()
