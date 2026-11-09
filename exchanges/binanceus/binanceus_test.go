@@ -2014,3 +2014,79 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 		})
 	}
 }
+
+func TestNewOrderResponseFillsTradeID(t *testing.T) {
+	t.Parallel()
+	const raw = `{
+		"symbol": "BTCUSD",
+		"orderId": 12345,
+		"orderListId": -1,
+		"clientOrderId": "testOrder123",
+		"transactTime": 1507725176595,
+		"price": "0.00000000",
+		"origQty": "3.00000000",
+		"executedQty": "3.00000000",
+		"cummulativeQuoteQty": "301.00000000",
+		"status": "FILLED",
+		"timeInForce": "GTC",
+		"type": "MARKET",
+		"side": "BUY",
+		"fills": [
+			{
+				"price": "100.00000000",
+				"qty": "1.00000000",
+				"commission": "0.10000000",
+				"commissionAsset": "USD",
+				"tradeId": 56
+			},
+			{
+				"price": "100.50000000",
+				"qty": "2.00000000",
+				"commission": "0.20100000",
+				"commissionAsset": "USD",
+				"tradeId": 57
+			}
+		]
+	}`
+
+	var resp NewOrderResponse
+	require.NoError(t, json.Unmarshal([]byte(raw), &resp))
+	require.Len(t, resp.Fills, 2)
+	assert.Equal(t, int64(56), resp.Fills[0].TradeID)
+	assert.Equal(t, int64(57), resp.Fills[1].TradeID)
+
+	var trades []order.TradeHistory
+	for i := range resp.Fills {
+		var tradeID string
+		if resp.Fills[i].TradeID > 0 {
+			tradeID = strconv.FormatInt(resp.Fills[i].TradeID, 10)
+		}
+		trades = append(trades, order.TradeHistory{
+			Price:    resp.Fills[i].Price,
+			Amount:   resp.Fills[i].Qty,
+			Fee:      resp.Fills[i].Commission,
+			FeeAsset: resp.Fills[i].CommissionAsset,
+			Exchange: "Binanceus",
+			TID:      tradeID,
+		})
+	}
+	require.Len(t, trades, 2)
+	assert.Equal(t, "56", trades[0].TID)
+	assert.Equal(t, "57", trades[1].TID)
+
+	// Ensure distinct TIDs prevent stored fills from collapsing when merged
+	d := &order.Detail{
+		Exchange: "Binanceus",
+		OrderID:  "12345",
+		Trades:   trades,
+	}
+	cp := d.Copy()
+	require.NoError(t, d.UpdateOrderFromDetail(&cp))
+	require.Len(t, d.Trades, 2)
+	assert.Equal(t, "56", d.Trades[0].TID)
+	assert.Equal(t, 100.0, d.Trades[0].Price)
+	assert.Equal(t, 1.0, d.Trades[0].Amount)
+	assert.Equal(t, "57", d.Trades[1].TID)
+	assert.Equal(t, 100.5, d.Trades[1].Price)
+	assert.Equal(t, 2.0, d.Trades[1].Amount)
+}
