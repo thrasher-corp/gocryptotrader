@@ -70,17 +70,17 @@ var (
 		TransactionHashes: []string{"4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"},
 	}
 	recordedBlock = ChainAnalysisBlockResponse{
-		BlockHash:         "00000000000000000000ebfbb163cda54e9be3bd6322a821f0278a59e74ab303",
-		Height:            924496,
-		IsMain:            true,
-		Version:           589856768,
-		PreviousBlock:     "00000000000000000000054cca3f6caf0fe809321a7586361fe89befc49c9fcf",
-		MerkleRoot:        "600ab5166d50eb5b7fb738c645f25e830ab68577465eeaee3f28c6cb2d5d71e2",
-		Timestamp:         time.Date(2025, time.November, 21, 2, 0, 10, 0, time.UTC),
-		Bits:              385997110,
-		Nonce:             3009599600,
-		TransactionNumber: 3367,
-		TotalFees:         3989756,
+		BlockHash:          "00000000000000000000ebfbb163cda54e9be3bd6322a821f0278a59e74ab303",
+		Height:             924496,
+		IsMain:             true,
+		Version:            589856768,
+		PreviousBlock:      "00000000000000000000054cca3f6caf0fe809321a7586361fe89befc49c9fcf",
+		MerkleRoot:         "600ab5166d50eb5b7fb738c645f25e830ab68577465eeaee3f28c6cb2d5d71e2",
+		Timestamp:          time.Date(2025, time.November, 21, 2, 0, 10, 0, time.UTC),
+		Bits:               385997110,
+		Nonce:              3009599600,
+		TransactionNumber:  3367,
+		TotalFeesInSatoshi: 3989756,
 		TransactionHashes: []string{
 			"c995838345475b0e25841cbec9dee730c451f1004ebf3ee482c78ad78c7f7aaa",
 			"f343a7af8774151ee9afb2934ad55b245d17e695790cd672a7a437ee3a2fa849",
@@ -119,21 +119,21 @@ func assertChainAnalysisBlock(t *testing.T, exp, got *ChainAnalysisBlockResponse
 	assert.Equal(t, exp, got, "block should match the recorded response")
 }
 
-func TestGetLatestBlockCA(t *testing.T) {
+func TestGetLatestBlockChainAnalysis(t *testing.T) {
 	t.Parallel()
 	ex := chainAnalysisTestExchange(t, "/v1/block/latest", recordedBlockResponse)
-	got, err := ex.GetLatestBlockCA(t.Context())
-	require.NoError(t, err, "GetLatestBlockCA must not error")
-	require.NotNil(t, got, "GetLatestBlockCA must return a block")
+	got, err := ex.GetLatestBlockChainAnalysis(t.Context())
+	require.NoError(t, err, "GetLatestBlockChainAnalysis must not error")
+	require.NotNil(t, got, "GetLatestBlockChainAnalysis must return a block")
 	if !mockTests {
 		assert.GreaterOrEqual(t, got.Height, recordedBlock.Height, "latest block height should not be below the recorded block")
 		assert.EqualValues(t, got.TransactionNumber, len(got.TransactionHashes), "latest block should list every transaction hash")
 		return
 	}
-	assert.Equal(t, &recordedBlock, got, "GetLatestBlockCA should decode the latest block")
+	assert.Equal(t, &recordedBlock, got, "GetLatestBlockChainAnalysis should decode the latest block")
 }
 
-func TestGetBlockCA(t *testing.T) {
+func TestGetBlockChainAnalysis(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name       string
@@ -155,17 +155,17 @@ func TestGetBlockCA(t *testing.T) {
 			requestURI: "/v1/block/000000000000000001434fb0e5cc5e521de59bff70c325185a5c67bd5418c61a",
 			response:   `{"block_hash":"000000000000000001434fb0e5cc5e521de59bff70c325185a5c67bd5418c61a","height":471561,"is_main":true,"version":536870912,"prev_block":"000000000000000000a1782a9d78672672e4291347c47ac3206ed8716bb4952b","merkle_root":"417c5c54b0b8c77731e8b346dfd3d7e2f7285f6be13f92bb7ab8dc2bbda1e6a5","timestamp":"2017-06-16T15:46:26Z","bits":402759343,"nonce":4044123665,"txnum":1831,"total_fees":207976286,"tx_hashes":["f7dccccc239415dc637b5ac69e8e82d2912428c323d2760cbea23609167538d9","3d331a285cce965e0fc0fe0d2d4de8c50a07f03b33faf2406f431acae2bb8673","ebd99b10cc5d62fb9410cfb35482da5a2a25dcbf779e4ec745e169851baf416e"]}`,
 			exp: ChainAnalysisBlockResponse{
-				BlockHash:         "000000000000000001434fb0e5cc5e521de59bff70c325185a5c67bd5418c61a",
-				Height:            471561,
-				IsMain:            true,
-				Version:           536870912,
-				PreviousBlock:     "000000000000000000a1782a9d78672672e4291347c47ac3206ed8716bb4952b",
-				MerkleRoot:        "417c5c54b0b8c77731e8b346dfd3d7e2f7285f6be13f92bb7ab8dc2bbda1e6a5",
-				Timestamp:         time.Date(2017, time.June, 16, 15, 46, 26, 0, time.UTC),
-				Bits:              402759343,
-				Nonce:             4044123665,
-				TransactionNumber: 1831,
-				TotalFees:         207976286,
+				BlockHash:          "000000000000000001434fb0e5cc5e521de59bff70c325185a5c67bd5418c61a",
+				Height:             471561,
+				IsMain:             true,
+				Version:            536870912,
+				PreviousBlock:      "000000000000000000a1782a9d78672672e4291347c47ac3206ed8716bb4952b",
+				MerkleRoot:         "417c5c54b0b8c77731e8b346dfd3d7e2f7285f6be13f92bb7ab8dc2bbda1e6a5",
+				Timestamp:          time.Date(2017, time.June, 16, 15, 46, 26, 0, time.UTC),
+				Bits:               402759343,
+				Nonce:              4044123665,
+				TransactionNumber:  1831,
+				TotalFeesInSatoshi: 207976286,
 				TransactionHashes: []string{
 					"f7dccccc239415dc637b5ac69e8e82d2912428c323d2760cbea23609167538d9",
 					"3d331a285cce965e0fc0fe0d2d4de8c50a07f03b33faf2406f431acae2bb8673",
@@ -177,15 +177,15 @@ func TestGetBlockCA(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex := chainAnalysisTestExchange(t, tc.requestURI, tc.response)
-			got, err := ex.GetBlockCA(t.Context(), tc.blockHash)
-			require.NoError(t, err, "GetBlockCA must not error")
-			require.NotNil(t, got, "GetBlockCA must return a block")
+			got, err := ex.GetBlockChainAnalysis(t.Context(), tc.blockHash)
+			require.NoError(t, err, "GetBlockChainAnalysis must not error")
+			require.NotNil(t, got, "GetBlockChainAnalysis must return a block")
 			assertChainAnalysisBlock(t, &tc.exp, got)
 		})
 	}
 }
 
-func TestGetBlockByHeightCA(t *testing.T) {
+func TestGetBlockByHeightChainAnalysis(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name       string
@@ -200,36 +200,36 @@ func TestGetBlockByHeightCA(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex := chainAnalysisTestExchange(t, tc.requestURI, tc.response)
-			got, err := ex.GetBlockByHeightCA(t.Context(), tc.height)
-			require.NoError(t, err, "GetBlockByHeightCA must not error")
-			require.NotNil(t, got, "GetBlockByHeightCA must return a block")
+			got, err := ex.GetBlockByHeightChainAnalysis(t.Context(), tc.height)
+			require.NoError(t, err, "GetBlockByHeightChainAnalysis must not error")
+			require.NotNil(t, got, "GetBlockByHeightChainAnalysis must return a block")
 			assertChainAnalysisBlock(t, &tc.exp, got)
 		})
 	}
 }
 
-func TestGetTransactionByHashCA(t *testing.T) {
+func TestGetTransactionByHashChainAnalysis(t *testing.T) {
 	t.Parallel()
 	const documentedResponse = `{"tx_hash":"0562d1f063cd4127053d838b165630445af5e480ceb24e1fd9ecea52903cb772","block_height":370470,"confirmed":325,"fees":20000,"size":257,"received_date":"2015-08-19T00:46:01.017","version":1,"lock_time":0,"inputs":[{"prev_hash":"d43008e8019a641565615ec02b8c7d107fc470c4d500dcbb9299756afb9ee4b5","prev_index":1,"value":350080000,"script":"473044022062c6c81df6726573297c2288b7ed7be1d85c5b79ccf7e79a5c808c0e13b5e4f202200f2ae49c1119b2d74239086d12ec3ce96e408fb24adffe0dbb2424fbd7d1da27014104e8c8c15f6b714b46ed7ee49c023c009de5ed5b98bd60ca2d762be235274761f1db206f85b0072cc3ff62f727492740bfe0879d6135fe63b63454fe8aab268e13","address":"1ygL6TVoUiGXVGcjeGLee5zsarrbqYgwk","sequence":4294967295}],"outputs":[{"value":60000,"script":"76a914b066879afa8a2e35419a4826a6f8702438c5fc4388ac","address":"1H5ikemcbo71w1JXw1J3J8aSuPHwABEHEH"},{"value":350000000,"script":"76a914e84e80236d767cb7b4c344e3007af25ea7a5f12788ac","address":"1NBKopSCvBSD5vrAamyrgQ7W9a9wLpo4Gx"}]}`
 	documented := ChainAnalysisTransactionResponse{
 		TransactionHash: "0562d1f063cd4127053d838b165630445af5e480ceb24e1fd9ecea52903cb772",
 		BlockHeight:     370470,
 		Confirmed:       325,
-		Fees:            20000,
-		Size:            257,
+		FeesInSatoshi:   20000,
+		SizeInBytes:     257,
 		ReceivedDate:    "2015-08-19T00:46:01.017",
 		Version:         1,
 		Inputs: []ChainAnalysisTransactionInput{{
-			PreviousHash:  "d43008e8019a641565615ec02b8c7d107fc470c4d500dcbb9299756afb9ee4b5",
-			PreviousIndex: 1,
-			Value:         350080000,
-			Script:        "473044022062c6c81df6726573297c2288b7ed7be1d85c5b79ccf7e79a5c808c0e13b5e4f202200f2ae49c1119b2d74239086d12ec3ce96e408fb24adffe0dbb2424fbd7d1da27014104e8c8c15f6b714b46ed7ee49c023c009de5ed5b98bd60ca2d762be235274761f1db206f85b0072cc3ff62f727492740bfe0879d6135fe63b63454fe8aab268e13",
-			Address:       "1ygL6TVoUiGXVGcjeGLee5zsarrbqYgwk",
-			Sequence:      4294967295,
+			PreviousHash:   "d43008e8019a641565615ec02b8c7d107fc470c4d500dcbb9299756afb9ee4b5",
+			PreviousIndex:  1,
+			ValueInSatoshi: 350080000,
+			Script:         "473044022062c6c81df6726573297c2288b7ed7be1d85c5b79ccf7e79a5c808c0e13b5e4f202200f2ae49c1119b2d74239086d12ec3ce96e408fb24adffe0dbb2424fbd7d1da27014104e8c8c15f6b714b46ed7ee49c023c009de5ed5b98bd60ca2d762be235274761f1db206f85b0072cc3ff62f727492740bfe0879d6135fe63b63454fe8aab268e13",
+			Address:        "1ygL6TVoUiGXVGcjeGLee5zsarrbqYgwk",
+			Sequence:       4294967295,
 		}},
 		Outputs: []ChainAnalysisTransactionOutput{
-			{Value: 60000, Script: "76a914b066879afa8a2e35419a4826a6f8702438c5fc4388ac", Address: "1H5ikemcbo71w1JXw1J3J8aSuPHwABEHEH"},
-			{Value: 350000000, Script: "76a914e84e80236d767cb7b4c344e3007af25ea7a5f12788ac", Address: "1NBKopSCvBSD5vrAamyrgQ7W9a9wLpo4Gx"},
+			{ValueInSatoshi: 60000, Script: "76a914b066879afa8a2e35419a4826a6f8702438c5fc4388ac", Address: "1H5ikemcbo71w1JXw1J3J8aSuPHwABEHEH"},
+			{ValueInSatoshi: 350000000, Script: "76a914e84e80236d767cb7b4c344e3007af25ea7a5f12788ac", Address: "1NBKopSCvBSD5vrAamyrgQ7W9a9wLpo4Gx"},
 		},
 	}
 	withLockTime := func(lockTime uint64) ChainAnalysisTransactionResponse {
@@ -258,7 +258,7 @@ func TestGetTransactionByHashCA(t *testing.T) {
 				TransactionHash: "f7dccccc239415dc637b5ac69e8e82d2912428c323d2760cbea23609167538d9",
 				BlockHeight:     471561,
 				Confirmed:       453110,
-				Size:            182,
+				SizeInBytes:     182,
 				ReceivedDate:    "2017-06-16T15:45:56.517",
 				Version:         1,
 				Inputs: []ChainAnalysisTransactionInput{{
@@ -268,7 +268,7 @@ func TestGetTransactionByHashCA(t *testing.T) {
 					Sequence:      4294967295,
 				}},
 				Outputs: []ChainAnalysisTransactionOutput{
-					{Value: 1457976286, Script: "76a914536ffa992491508dca0354e52f32a3a7a679a53a88ac", Address: "18cBEMRxXHqzWWCxZNtU91F5sbUNKhL5PX"},
+					{ValueInSatoshi: 1457976286, Script: "76a914536ffa992491508dca0354e52f32a3a7a679a53a88ac", Address: "18cBEMRxXHqzWWCxZNtU91F5sbUNKhL5PX"},
 				},
 			},
 		},
@@ -279,21 +279,21 @@ func TestGetTransactionByHashCA(t *testing.T) {
 				t.Skip("response is synthetic and only runs mocked")
 			}
 			ex := chainAnalysisTestExchange(t, "/v1/tx/"+tc.txHash, tc.response)
-			got, err := ex.GetTransactionByHashCA(t.Context(), tc.txHash)
-			require.NoError(t, err, "GetTransactionByHashCA must not error")
-			require.NotNil(t, got, "GetTransactionByHashCA must return a transaction")
+			got, err := ex.GetTransactionByHashChainAnalysis(t.Context(), tc.txHash)
+			require.NoError(t, err, "GetTransactionByHashChainAnalysis must not error")
+			require.NotNil(t, got, "GetTransactionByHashChainAnalysis must return a transaction")
 			if !mockTests {
 				assert.GreaterOrEqual(t, got.Confirmed, tc.exp.Confirmed, "Confirmed should not be below the recorded count")
 				_, err = time.Parse("2006-01-02T15:04:05.999", got.ReceivedDate)
 				assert.NoError(t, err, "ReceivedDate should be a date and time without a zone designator")
 				got.Confirmed, got.ReceivedDate = tc.exp.Confirmed, tc.exp.ReceivedDate
 			}
-			assert.Equal(t, &tc.exp, got, "GetTransactionByHashCA should decode the requested transaction")
+			assert.Equal(t, &tc.exp, got, "GetTransactionByHashChainAnalysis should decode the requested transaction")
 		})
 	}
 }
 
-func TestGetAddressInfoCA(t *testing.T) {
+func TestGetAddressInfoChainAnalysis(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name     string
@@ -327,14 +327,14 @@ func TestGetAddressInfoCA(t *testing.T) {
 				t.Skip("no recorded response, only runs live")
 			}
 			ex := chainAnalysisTestExchange(t, "/v1/address/"+tc.address, tc.response)
-			got, err := ex.GetAddressInfoCA(t.Context(), tc.address)
-			require.NoError(t, err, "GetAddressInfoCA must not error")
-			require.NotNil(t, got, "GetAddressInfoCA must return an address")
+			got, err := ex.GetAddressInfoChainAnalysis(t.Context(), tc.address)
+			require.NoError(t, err, "GetAddressInfoChainAnalysis must not error")
+			require.NotNil(t, got, "GetAddressInfoChainAnalysis must return an address")
 			if !mockTests {
-				assert.Equal(t, tc.address, got.Address, "GetAddressInfoCA should return the requested address")
+				assert.Equal(t, tc.address, got.Address, "GetAddressInfoChainAnalysis should return the requested address")
 				return
 			}
-			assert.Equal(t, &tc.exp, got, "GetAddressInfoCA should decode the requested address")
+			assert.Equal(t, &tc.exp, got, "GetAddressInfoChainAnalysis should decode the requested address")
 		})
 	}
 }

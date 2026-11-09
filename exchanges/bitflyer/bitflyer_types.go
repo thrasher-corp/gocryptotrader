@@ -11,27 +11,27 @@ var errUnhandledCurrency = errors.New("unhandled currency")
 
 // ChainAnalysisBlockResponse holds block information from the bitcoin network
 type ChainAnalysisBlockResponse struct {
-	BlockHash         string    `json:"block_hash"`
-	Height            uint64    `json:"height"`
-	IsMain            bool      `json:"is_main"`
-	Version           int64     `json:"version"` // Signed 32-bit in the Bitcoin protocol
-	PreviousBlock     string    `json:"prev_block"`
-	MerkleRoot        string    `json:"merkle_root"`
-	Timestamp         time.Time `json:"timestamp"`
-	Bits              uint64    `json:"bits"`
-	Nonce             uint64    `json:"nonce"`
-	TransactionNumber uint64    `json:"txnum"`      // Number of transactions in the block
-	TotalFees         uint64    `json:"total_fees"` // In satoshi
-	TransactionHashes []string  `json:"tx_hashes"`
+	BlockHash          string    `json:"block_hash"`
+	Height             uint64    `json:"height"`
+	IsMain             bool      `json:"is_main"`
+	Version            int64     `json:"version"` // Signed 32-bit in the Bitcoin protocol
+	PreviousBlock      string    `json:"prev_block"`
+	MerkleRoot         string    `json:"merkle_root"`
+	Timestamp          time.Time `json:"timestamp"`
+	Bits               uint64    `json:"bits"`
+	Nonce              uint64    `json:"nonce"`
+	TransactionNumber  uint64    `json:"txnum"` // Number of transactions in the block
+	TotalFeesInSatoshi uint64    `json:"total_fees"`
+	TransactionHashes  []string  `json:"tx_hashes"`
 }
 
 // ChainAnalysisTransactionResponse holds transaction data from the bitcoin network
 type ChainAnalysisTransactionResponse struct {
 	TransactionHash string                           `json:"tx_hash"`
-	BlockHeight     int64                            `json:"block_height"`  // -1 when the transaction is not in a block
-	Confirmed       uint64                           `json:"confirmed"`     // Number of confirmations
-	Fees            uint64                           `json:"fees"`          // In satoshi
-	Size            uint64                           `json:"size"`          // In bytes
+	BlockHeight     int64                            `json:"block_height"` // -1 when the transaction is not in a block
+	Confirmed       uint64                           `json:"confirmed"`    // Number of confirmations
+	FeesInSatoshi   uint64                           `json:"fees"`
+	SizeInBytes     uint64                           `json:"size"`
 	ReceivedDate    string                           `json:"received_date"` // UTC, without a zone designator
 	Version         int64                            `json:"version"`       // Signed 32-bit in the Bitcoin protocol
 	LockTime        uint64                           `json:"lock_time"`     // A block height below 500000000, otherwise a Unix time
@@ -41,19 +41,19 @@ type ChainAnalysisTransactionResponse struct {
 
 // ChainAnalysisTransactionInput holds a transaction input from the bitcoin network
 type ChainAnalysisTransactionInput struct {
-	PreviousHash  string `json:"prev_hash"`
-	PreviousIndex int64  `json:"prev_index"` // Signed because a coinbase input reports -1
-	Value         uint64 `json:"value"`      // In satoshi
-	Script        string `json:"script"`
-	Address       string `json:"address"`
-	Sequence      uint64 `json:"sequence"`
+	PreviousHash   string `json:"prev_hash"`
+	PreviousIndex  int64  `json:"prev_index"` // Signed because a coinbase input reports -1
+	ValueInSatoshi uint64 `json:"value"`
+	Script         string `json:"script"`
+	Address        string `json:"address"`
+	Sequence       uint64 `json:"sequence"`
 }
 
 // ChainAnalysisTransactionOutput holds a transaction output from the bitcoin network
 type ChainAnalysisTransactionOutput struct {
-	Value   uint64 `json:"value"` // In satoshi
-	Script  string `json:"script"`
-	Address string `json:"address"`
+	ValueInSatoshi uint64 `json:"value"`
+	Script         string `json:"script"`
+	Address        string `json:"address"`
 }
 
 // ChainAnalysisAddressResponse holds address information from the bitcoin network
