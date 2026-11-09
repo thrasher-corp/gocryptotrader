@@ -126,6 +126,62 @@ func TestSharedPackages(t *testing.T) {
 	assert.Equal(t, []string{"d"}, onlyBase, "a package only the base lists should be set apart")
 }
 
+func TestSelectPackages(t *testing.T) {
+	t.Parallel()
+	listed := []string{"currency", "exchanges/orderbook", "log"}
+	for _, tc := range []struct {
+		name      string
+		selection string
+		want      map[string]bool
+		err       error
+		text      string
+	}{
+		{name: "nothing named selects every listed package", selection: ""},
+		{name: "only whitespace selects every listed package", selection: " \t\n "},
+		{name: "a relative path", selection: "./currency/", want: map[string]bool{"currency": true}},
+		{name: "the module import path", selection: "github.com/thrasher-corp/gocryptotrader/exchanges/orderbook", want: map[string]bool{"exchanges/orderbook": true}},
+		{name: "every spelling of one package", selection: "currency ./currency ./currency// currency/. github.com/thrasher-corp/gocryptotrader/currency", want: map[string]bool{"currency": true}},
+		{name: "packages separated by any whitespace", selection: "./log/\n\t./currency/", want: map[string]bool{"currency": true, "log": true}},
+		{name: "a package the list does not benchmark", selection: "./currency/ ./exchanges/kraken/", err: errPkgNotListed, text: `"./exchanges/kraken/"`},
+		{name: "a prefix of a listed package", selection: "./exchanges/order/", err: errPkgNotListed, text: `"./exchanges/order/"`},
+		{name: "the last element of a listed package", selection: "orderbook", err: errPkgNotListed, text: `"orderbook"`},
+		{name: "a wildcard", selection: "./exchanges/...", err: errBadPackagePath},
+		{name: "a path outside the module", selection: "../currency", err: errBadPackagePath},
+		{name: "an absolute path", selection: "/currency", err: errBadPackagePath},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			selected, err := selectPackages(tc.selection, listed)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "selectPackages should refuse the selection")
+				assert.ErrorContains(t, err, tc.text, "the error should name the package as it was given")
+				return
+			}
+			require.NoError(t, err, "selectPackages must not error")
+			assert.Equal(t, tc.want, selected, "selectPackages should return the packages named, or nil when it names none")
+		})
+	}
+}
+
+func TestKeepSelected(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		selected map[string]bool
+		want     []string
+	}{
+		{name: "no selection keeps the whole list", want: []string{"currency", "exchanges/orderbook", "log"}},
+		{name: "a selection keeps list order", selected: map[string]bool{"log": true, "currency": true}, want: []string{"currency", "log"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			list := []string{"currency", "exchanges/orderbook", "log"}
+			assert.Equal(t, tc.want, keepSelected(list, tc.selected), "keepSelected should keep the selected packages in list order")
+			assert.Equal(t, []string{"currency", "exchanges/orderbook", "log"}, list, "keepSelected should leave the list it was given unchanged")
+		})
+	}
+}
+
 // tarArchive builds an archive of the given entries, with each regular file's body after its header
 func tarArchive(t *testing.T, entries ...tar.Header) *bytes.Buffer {
 	t.Helper()
@@ -570,6 +626,61 @@ func TestRunComparison(t *testing.T) {
 
 	require.NoError(t, runComparison(&bytes.Buffer{}, newOptions("HEAD~1")), "-compare must not error against a base without a package list")
 	assert.Equal(t, []string{"summary.md"}, dirNames(t, outDir), "a base without a package list should leave only its report, not the raw output of the run before")
+
+	// newListedRepo commits packages meow, beta and woof, each with one benchmark, under the package list given
+	newListedRepo := func(t *testing.T, list string) string {
+		t.Helper()
+		const listedBench = "package %s\n\nimport \"testing\"\n\nfunc Benchmark%s(b *testing.B) {\n\tfor b.Loop() {\n\t}\n}\n"
+		return newRepo(t, map[string]string{
+			"go.mod":                   "module github.com/thrasher-corp/gocryptotrader\n\ngo 1.24\n",
+			"benchmarks/packages.txt":  list,
+			"benchmarks/baseline.json": "{}\n",
+			"meow/meow_test.go":        fmt.Sprintf(listedBench, "meow", "Meow"),
+			"beta/beta_test.go":        fmt.Sprintf(listedBench, "beta", "Beta"),
+			"woof/woof_test.go":        fmt.Sprintf(listedBench, "woof", "Woof"),
+		})
+	}
+	t.Run("a selection measures only the packages it names, in list order", func(t *testing.T) {
+		t.Parallel()
+		o := compareOptions(t, newListedRepo(t, "meow\nbeta\nwoof\n"), "HEAD", 1, "-run", "^$", "-bench", ".", "-benchmem", "-count", "1")
+		o.pkg = "./woof/ ./meow/"
+		var out bytes.Buffer
+		require.NoError(t, runComparison(&out, o), "-compare must not error for a selection")
+		assert.Contains(t, out.String(), "2 benchmarks in 2 packages", "the report should count only the selected packages")
+		assert.NotContains(t, out.String(), "`beta", "a package left out of the selection should not be reported")
+		for _, side := range []string{"base", "head"} {
+			data, err := os.ReadFile(filepath.Join(o.out, side+".txt"))
+			require.NoErrorf(t, err, "reading %s.txt must not error", side)
+			raw := string(data)
+			meow := strings.Index(raw, "pkg: github.com/thrasher-corp/gocryptotrader/meow\n")
+			woof := strings.Index(raw, "pkg: github.com/thrasher-corp/gocryptotrader/woof\n")
+			require.NotEqualf(t, -1, meow, "%s.txt must hold meow's output", side)
+			assert.Greaterf(t, woof, meow, "%s.txt should measure woof after meow, in list order", side)
+			assert.NotContainsf(t, raw, "/beta\n", "%s.txt should hold no output from a package left out of the selection", side)
+		}
+	})
+	t.Run("a selected package only the head lists is not compared", func(t *testing.T) {
+		t.Parallel()
+		repo := newListedRepo(t, "meow\n")
+		writeFiles(t, repo, map[string]string{"benchmarks/packages.txt": "meow\nbeta\n"})
+		o := compareOptions(t, repo, "HEAD", 1, "-run", "^$", "-bench", ".", "-benchmem", "-count", "1")
+		o.pkg = "./beta/"
+		var out bytes.Buffer
+		require.NoError(t, runComparison(&out, o), "-compare must not error for a selected package the base does not list")
+		assert.Contains(t, out.String(), "- `beta`: package only listed at the head", "a selected package the base does not list should be reported as not compared")
+		assert.NotContains(t, out.String(), "`meow", "a package the base lists but the selection leaves out should not be reported")
+	})
+	t.Run("without a selection a package only the base lists is still reported", func(t *testing.T) {
+		t.Parallel()
+		repo := newListedRepo(t, "meow\nbeta\n")
+		writeFiles(t, repo, map[string]string{"benchmarks/packages.txt": "meow\n"})
+		o := compareOptions(t, repo, "HEAD", 1, "-run", "^$", "-bench", ".", "-benchmem", "-count", "1")
+		var out, progress bytes.Buffer
+		o.progress = &progress
+		require.NoError(t, runComparison(&out, o), "-compare must not error without a selection")
+		assert.Contains(t, progress.String(), " across 1 package\n", "the progress line should count the one package both revisions list")
+		assert.Contains(t, out.String(), "- `beta`: package only listed at the base", "a package only the base lists should be reported as not compared")
+	})
 }
 
 // dirNames returns the names of the entries in dir, sorted
@@ -610,6 +721,13 @@ func TestRunComparisonErrors(t *testing.T) {
 			t.Helper()
 			o := newOptions(t, bench)
 			o.packagesPath = filepath.Join(t.TempDir(), "packages.txt")
+			return o
+		}},
+		{name: "a selected package the list does not benchmark, before the base is read", err: errPkgNotListed, setup: func(t *testing.T) *options {
+			t.Helper()
+			o := newOptions(t, bench)
+			o.pkg = "./missing/"
+			o.compare = "no-such-revision"
 			return o
 		}},
 		{name: "a missing baseline", err: errNoBaseline, setup: func(t *testing.T) *options {

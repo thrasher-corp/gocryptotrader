@@ -38,6 +38,7 @@ var (
 	errNoResults          = errors.New("no benchmark results found on stdin")
 	errInvalidSamples     = errors.New("-samples must be the odd -count passed to go test")
 	errPruneWithoutUpdate = errors.New("-prune only applies with -update")
+	errPkgWithoutCompare  = errors.New("-pkg only applies with -compare")
 	errUnlistedOutput     = errors.New("benchmark output includes packages the package list does not benchmark")
 	errIncompleteRun      = errors.New("refusing to prune on a run that did not finish every listed package")
 	errPruneNeedsVerbose  = errors.New("refusing to prune on output from go test without -v, which says nothing of a benchmark that skips before measuring")
@@ -56,6 +57,7 @@ type options struct {
 	prune        bool
 	list         bool
 	compare      string
+	pkg          string
 	out          string
 	progress     io.Writer
 	args         []string
@@ -71,6 +73,7 @@ func main() {
 	flag.BoolVar(&o.list, "list", false, "check the package list against the packages declaring benchmarks, then print it as go test arguments")
 	flag.StringVar(&o.compare, "compare", "", "measure this commit and the working tree in alternating rounds, one sample per process, "+
 		"and report their timings and allocations side by side; give go test's flags after --. No difference fails it")
+	flag.StringVar(&o.pkg, "pkg", "", "with -compare, measure only the listed packages this names, separated by spaces, such as ./currency/; every listed package when empty")
 	flag.StringVar(&o.out, "out", ".bench-compare", "with -compare, the directory for each revision's raw output and summary.md; before writing them a run removes any base.txt, head.txt and summary.md already there")
 	flag.Parse()
 	o.args = flag.Args()
@@ -85,6 +88,9 @@ func run(in io.Reader, out io.Writer, o *options) error {
 	// Its arguments are go test's flags, and it reads no stdin
 	if o.compare != "" {
 		return runComparison(out, o)
+	}
+	if o.pkg != "" {
+		return errPkgWithoutCompare
 	}
 	// A file named as an argument would be ignored while benchcheck waited on stdin
 	if len(o.args) > 0 {

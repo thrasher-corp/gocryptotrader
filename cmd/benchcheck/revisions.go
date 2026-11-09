@@ -28,6 +28,7 @@ var (
 	errCountMismatch    = errors.New("-count in the go test flags must equal -samples")
 	errArchiveEntry     = errors.New("git archive produced an entry -compare cannot extract")
 	errProcessTimeout   = errors.New("benchmark process ran past its time limit")
+	errPkgNotListed     = errors.New("-pkg names a package the package list does not benchmark")
 )
 
 // processTimeout bounds each test binary's run, since go test's -timeout does not cover benchmarks and
@@ -79,6 +80,10 @@ func runComparison(out io.Writer, o *options) error {
 		return err
 	}
 	pkgs, err := LoadPackages(o.packagesPath)
+	if err != nil {
+		return err
+	}
+	selected, err := selectPackages(o.pkg, pkgs.List)
 	if err != nil {
 		return err
 	}
@@ -140,8 +145,8 @@ func runComparison(out io.Writer, o *options) error {
 	case err != nil:
 		return fmt.Errorf("base: %w", err)
 	}
-	c.packages, c.onlyHead, c.onlyBase = sharedPackages(pkgs.List, basePkgs.List)
-	fmt.Fprintf(progress, "benchcheck: comparing %s with %s across %d packages\n", shortCommit(c.base.commit), shortCommit(c.head.commit), len(c.packages))
+	c.packages, c.onlyHead, c.onlyBase = sharedPackages(keepSelected(pkgs.List, selected), keepSelected(basePkgs.List, selected))
+	fmt.Fprintf(progress, "benchcheck: comparing %s with %s across %s\n", shortCommit(c.base.commit), shortCommit(c.head.commit), plural(len(c.packages), "package"))
 
 	// Building everything first keeps the compiler off the machine while it measures
 	for _, r := range []*revision{c.base, c.head} {
@@ -222,6 +227,37 @@ func binaryFlags(goTestFlags []string, samples int) ([]string, error) {
 		}
 	}
 	return flags, nil
+}
+
+// selectPackages returns the packages -pkg names, separated by spaces, in the package list's form, or nil
+// when it names none, which selects every listed package. A package the head does not list is refused,
+// since the comparison would measure nothing of it.
+func selectPackages(selection string, listed []string) (map[string]bool, error) {
+	entries := strings.Fields(selection)
+	if len(entries) == 0 {
+		return nil, nil
+	}
+	selected := make(map[string]bool, len(entries))
+	for _, entry := range entries {
+		pkg, err := canonicalPackage(entry)
+		if err != nil {
+			return nil, fmt.Errorf("-pkg: %w", err)
+		}
+		if !slices.Contains(listed, pkg) {
+			return nil, fmt.Errorf("%w: %q", errPkgNotListed, entry)
+		}
+		selected[pkg] = true
+	}
+	return selected, nil
+}
+
+// keepSelected returns the packages of list that selected holds, in list order, or list itself when
+// selected is nil
+func keepSelected(list []string, selected map[string]bool) []string {
+	if selected == nil {
+		return list
+	}
+	return slices.DeleteFunc(slices.Clone(list), func(pkg string) bool { return !selected[pkg] })
 }
 
 // sharedPackages splits the head's package list into those the base lists too, in the head's order, and

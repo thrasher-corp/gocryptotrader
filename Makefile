@@ -121,13 +121,14 @@ bench_apply: check_bench_goflags
 
 # Measures BASE and the working tree in alternating rounds, one sample per process, and reports their
 # timings and allocations side by side, saving each revision's raw output and the report in
-# BENCH_COMPARE_OUT. It is advisory: only a failure to measure fails it.
-# Usage: make bench_compare BASE=upstream/master
+# BENCH_COMPARE_OUT. It is advisory: only a failure to measure fails it. PKG narrows it to the listed
+# packages it names.
+# Usage: make bench_compare BASE=upstream/master [PKG=./currency/]
 BENCH_COMPARE_OUT ?= .bench-compare
 bench_compare: check_bench_pkgs
 	@test -n "$(BASE)" || { echo "set BASE to the commit to compare with, e.g. make bench_compare BASE=upstream/master"; exit 1; }
 	out="$(BENCH_COMPARE_OUT)"; case $$out in "~/"*) out="$$HOME/$${out#"~/"}";; esac; \
-		$(BENCH_ENV) go run ./cmd/benchcheck -compare "$(BASE)" -samples $(BENCH_SAMPLES) -out "$$out" -- $(BENCH_FLAGS)
+		$(BENCH_ENV) go run ./cmd/benchcheck -compare "$(BASE)" -pkg "$(PKG)" -samples $(BENCH_SAMPLES) -out "$$out" -- $(BENCH_FLAGS)
 
 test:
 	go test $(RACE_FLAG) -count=1 -coverprofile=coverage.txt -covermode=atomic  ./...

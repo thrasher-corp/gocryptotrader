@@ -69,27 +69,39 @@ func TestMainExitStatus(t *testing.T) {
 
 func TestMainRejectsArguments(t *testing.T) {
 	t.Parallel()
-	if os.Getenv("BENCHCHECK_TEST_MAIN_ARGUMENT") != "" {
-		os.Args = []string{"benchcheck", "-samples", "3", "out.txt"}
+	if args := os.Getenv("BENCHCHECK_TEST_MAIN_ARGUMENTS"); args != "" {
+		os.Args = append([]string{"benchcheck", "-samples", "3"}, strings.Split(args, "\n")...)
 		main()
 		return
 	}
-	// stdin stays open, so a main that read it before rejecting the argument would wait out the deadline
-	stdin, stdinWriter, err := os.Pipe()
-	require.NoError(t, err, "os.Pipe must not error")
-	t.Cleanup(func() {
-		assert.NoError(t, stdin.Close(), "closing stdin should not error")
-		assert.NoError(t, stdinWriter.Close(), "closing stdin's writer should not error")
-	})
-	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestMainRejectsArguments$") //nolint:gosec // re-runs this test binary to exercise main
-	cmd.Env = append(os.Environ(), "BENCHCHECK_TEST_MAIN_ARGUMENT=1")
-	cmd.Stdin = stdin
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, ctx.Err(), "main must reject the argument without waiting on stdin")
-	assert.Error(t, err, "main should exit non-zero when given a file argument")
-	assert.Contains(t, string(out), "unexpected argument", "main should refuse a file argument rather than read stdin")
+	for _, tc := range []struct {
+		name string
+		args []string
+		text string
+	}{
+		{name: "a file argument", args: []string{"out.txt"}, text: "unexpected argument"},
+		{name: "-pkg without -compare", args: []string{"-pkg", "./currency/"}, text: "-pkg only applies with -compare"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			// stdin stays open, so a main that read it before rejecting the argument would wait out the deadline
+			stdin, stdinWriter, err := os.Pipe()
+			require.NoError(t, err, "os.Pipe must not error")
+			t.Cleanup(func() {
+				assert.NoError(t, stdin.Close(), "closing stdin should not error")
+				assert.NoError(t, stdinWriter.Close(), "closing stdin's writer should not error")
+			})
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestMainRejectsArguments$") //nolint:gosec // re-runs this test binary to exercise main
+			cmd.Env = append(os.Environ(), "BENCHCHECK_TEST_MAIN_ARGUMENTS="+strings.Join(tc.args, "\n"))
+			cmd.Stdin = stdin
+			out, err := cmd.CombinedOutput()
+			require.NoError(t, ctx.Err(), "main must reject the arguments without waiting on stdin")
+			assert.Errorf(t, err, "main should exit non-zero for %s", tc.name)
+			assert.Containsf(t, string(out), tc.text, "main should refuse %s rather than read stdin", tc.name)
+		})
+	}
 }
 
 func TestRunList(t *testing.T) {
@@ -310,12 +322,27 @@ func TestRunRejectsArguments(t *testing.T) {
 	}
 }
 
-func TestRunRejectsPruneWithoutUpdate(t *testing.T) {
+func TestRunRejectsFlagsOutsideTheirMode(t *testing.T) {
 	t.Parallel()
-	o := testOptions(t)
-	o.prune = true
-	assert.ErrorIs(t, run(strings.NewReader(sampleOutput), &bytes.Buffer{}, o), errPruneWithoutUpdate,
-		"-prune should not be silently ignored in check mode")
+	for _, tc := range []struct {
+		name  string
+		setup func(o *options)
+		err   error
+	}{
+		{name: "-prune in check mode", err: errPruneWithoutUpdate, setup: func(o *options) { o.prune = true }},
+		{name: "-pkg in check mode", err: errPkgWithoutCompare, setup: func(o *options) { o.pkg = "./currency/" }},
+		{name: "-pkg with -list", err: errPkgWithoutCompare, setup: func(o *options) { o.pkg, o.list = "./currency/", true }},
+		{name: "-pkg with -update", err: errPkgWithoutCompare, setup: func(o *options) { o.pkg, o.update = "./currency/", true }},
+		{name: "-pkg with -update and -prune", err: errPkgWithoutCompare, setup: func(o *options) { o.pkg, o.update, o.prune = "./currency/", true, true }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			o := testOptions(t)
+			tc.setup(o)
+			assert.ErrorIsf(t, run(strings.NewReader(sampleOutput), &bytes.Buffer{}, o), tc.err,
+				"%s should be refused rather than ignored", tc.name)
+		})
+	}
 }
 
 func TestRunRejectsUnlistedOutput(t *testing.T) {

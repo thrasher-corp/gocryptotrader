@@ -234,6 +234,9 @@ machine at one time:
 make bench_compare BASE=upstream/master
 ```
 
+Set `PKG` to compare only the packages it names, such as `PKG=./currency/`. Each must be listed in
+`benchmarks/packages.txt`.
+
 It builds the test binaries of `BASE` and of the working tree first, then measures them in
 `BENCH_SAMPLES` rounds of one sample each, swapping which revision runs first every round so that
 drift in the machine's load falls on both. Each sample is a process of its own: some benchmarks
