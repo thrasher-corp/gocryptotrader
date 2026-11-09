@@ -399,18 +399,24 @@ func TestMuxPublish(t *testing.T) {
 	assert.NoError(t, err, "stop should not error")
 }
 
-// 13636467	        84.26 ns/op	     141 B/op	       1 allocs/op
 func BenchmarkSubscribe(b *testing.B) {
 	d := NewDispatcher()
-	err := d.start(0, 0)
+	err := d.start(DefaultMaxWorkers, DefaultJobsLimit)
 	require.NoError(b, err, "start must not error")
+	// Each sample starts more relayers, which would otherwise stay blocked for the run
+	b.Cleanup(func() { assert.NoError(b, d.stop(), "stop should not error") })
 	mux := GetNewMux(d)
 	newID, err := mux.GetID()
 	require.NoError(b, err, "GetID must not error")
 
+	// Unsubscribing keeps the subscriber slice a steady length, as its growth moves B/op between runs
 	for b.Loop() {
-		_, err := mux.Subscribe(newID)
+		pipe, err := mux.Subscribe(newID)
 		if err != nil {
+			b.Error(err)
+			continue
+		}
+		if err := pipe.Release(); err != nil {
 			b.Error(err)
 		}
 	}
