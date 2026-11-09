@@ -126,7 +126,6 @@ func TestGetInstrumentIDCode(t *testing.T) {
 	}
 }
 
-// 7696807	       153.1 ns/op	      48 B/op	       2 allocs/op
 func BenchmarkMessageID(b *testing.B) {
 	e := new(Exchange)
 	for b.Loop() {
