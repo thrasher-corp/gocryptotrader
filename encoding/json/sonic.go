@@ -3,6 +3,8 @@
 package json
 
 import (
+	"bytes"
+	jsonv1 "encoding/json" //nolint:depguard // Acceptable use in gct json wrapper
 	"errors"
 	"io"
 
@@ -25,11 +27,11 @@ var (
 	Valid = sonic.ConfigStd.Valid
 )
 
-// Decoder reads and decodes JSON values from an input stream. sonic's own decoder is embedded, so
-// only More and Decode differ from it
+// Decoder reads and decodes JSON values from an input stream
 type Decoder struct {
 	sonic.Decoder
-	r *readLatch
+	r             *readLatch
+	bufferDropped bool
 }
 
 // NewDecoder returns a new decoder that reads from r
@@ -46,13 +48,26 @@ func (d *Decoder) More() bool {
 }
 
 // Decode reads the next JSON-encoded value from its input and stores it in the value pointed to by
-// v. A read failure More reported is returned here where the encoding/json fallback reports io.EOF
-// in its place, so the value the loop goes on to decode carries the error rather than losing it.
-// Native sonic latches the failure and returns it itself
+// v, returning a read failure More reported where the encoding/json fallback would report io.EOF
 func (d *Decoder) Decode(v any) error {
 	err := d.Decoder.Decode(v)
+	if err == nil {
+		return nil
+	}
+	if _, fallback := d.Decoder.(*jsonv1.Decoder); !fallback {
+		d.bufferDropped = true
+	}
 	if d.r.err != nil && errors.Is(err, io.EOF) {
 		return d.r.err
 	}
 	return err
+}
+
+// Buffered returns a reader of the data remaining in the Decoder's buffer. Native sonic drops its
+// buffer when a Decode fails, after which its own Buffered can panic
+func (d *Decoder) Buffered() io.Reader {
+	if d.bufferDropped {
+		return bytes.NewReader(nil)
+	}
+	return d.Decoder.Buffered()
 }

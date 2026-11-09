@@ -1,6 +1,5 @@
-// Package json is an abstraction middleware package to allow switching between json encoder/decoder implementations
-// The default implementation is golang.org/encoding/json/v2.
-// Build with `sonic_on` tag to switch to using github.com/bytedance/sonic
+// Package json provides JSON encoding and decoding, using encoding/json/v2 by default and
+// github.com/bytedance/sonic when built with -tags sonic_on.
 //
 // Neither build is a full v1 *encoding/json, and the gaps are not the same on each. Both drop
 // Token and InputOffset, which sonic's Decoder interface does not expose. The default build
@@ -16,34 +15,23 @@
 // values where v1 skipped it (CallMethodsWithLegacySemantics); currency.Code relies on the map key
 // half, so it carries text methods for the sonic build, which does not.
 //
-// Behaviour differs by build in both directions. The sonic notes below describe its native
-// backend; on the 64-bit platforms it does not cover it falls back to encoding/json, which restores
-// v1 encoding and can return v1 error types, while the sonic_on build does not compile for 32-bit
-// platforms, illumos, Solaris or Plan 9. Implementation remains "bytedance/sonic" where it builds.
-// The default build is the outlier on a bytes.Buffer that grows between Decode calls, or a reader
-// serving more after io.EOF: once a Decode has failed because the input ended before or inside a
-// value, the next one can read on into later input, where v1 and sonic return their error again.
-// v1, the default build and sonic each report something different for a truncated "{": v1
-// reports io.ErrUnexpectedEOF, the default build a *SyntaxError and sonic io.EOF. sonic is the
-// outlier elsewhere: it ties U+2028 and U+2029 escaping to SetEscapeHTML where v1 escaped them
-// either way, re-attempts a failed write rather than latching it, and with indentation disabled
-// writes each value's trailing newline separately, so an Encode can fail after writing its value,
-// and the next value can run on from it. Its Decoder parts from v1 where a read ends, in two ways.
-// It ends a top level number there, where v1 reads on to see whether more of it follows, so "1"
-// then "2" decodes as two values and "1.5" then "e3" as 1.5, while "1e" then "2" gets sonic's own
-// syntax error, "1e" not being a number by itself, even where the number straddles the end of
-// sonic's own buffer, 4096 bytes unless its pool hands over a larger one, from a reader holding the
-// whole input. And it reads on past bytes that begin no value, like that "e3" or "xyz", and through
-// a value whose end it cannot find, rather than reporting them, so they and any value after them
-// surface as the read's failure, or as io.EOF where the stream ends, which is also why it reports
-// io.EOF for a truncated "{". A malformed value whose end it does find, such as "[1,]", gets
-// sonic's own syntax error instead, unless it is a top level number followed directly by a byte
-// that cannot continue it, as in "1.2.3" or "01": that decodes as the number, as in v1, but sonic
-// drops the bytes after it up to the next whitespace, comma, "]" or "}", where v1 reports them or
-// decodes them as the next value. A stray "]" or "}" decodes as nothing, without error, on every
-// call. The Decoder is wrapped so that More reports a failed read rather than the end of the
-// stream, sonic reporting the two alike, and Decode returns that failure where the encoding/json
-// fallback reports io.EOF in its place; every other method is its own
+// Behaviour differs by build:
+//
+//   - sonic_on selects encoding/json (v1) outside amd64 and arm64, or on Go 1.28 or later. It does
+//     not compile for 32-bit platforms, nor natively for illumos, Solaris or Plan 9.
+//     Implementation remains "bytedance/sonic".
+//   - Only the default build can resume decoding input supplied after a Decode fails because the
+//     input ended, or after More returns false at its end.
+//   - Native sonic ties U+2028/U+2029 escaping to SetEscapeHTML, where v1 always escapes them, and
+//     does not latch write errors. Without indentation it writes newlines separately, so Encode can
+//     fail after writing a value, and the next value can run into it.
+//   - Native sonic's decoder can split, truncate or reject top level numbers at read boundaries,
+//     including its own buffer's, and can discard valid values after a top level number. It can
+//     read past unrecognised or unterminated input, and the values after it, to EOF or a read
+//     error. A stray "]" or "}" succeeds on every call without consuming input. A truncated "{"
+//     returns io.EOF, where the default build returns a *SyntaxError and v1 io.ErrUnexpectedEOF.
+//   - The sonic wrapper makes More report read failures, Decode return the failure the fallback
+//     hides behind io.EOF, and Buffered return an empty reader after a native Decode error.
 package json
 
 import (
