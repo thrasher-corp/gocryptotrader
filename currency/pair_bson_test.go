@@ -62,17 +62,17 @@ func TestPairBSONValue(t *testing.T) {
 			assert.Equal(t, tc.pair, *ptrOut.Pair, "pair should round-trip through a pointer field")
 		})
 	}
-}
 
-func TestPairBSONValueNilPointer(t *testing.T) {
-	t.Parallel()
-	data, err := bson.Marshal(bsonPairPointerDocument{})
-	require.NoError(t, err, "Marshal must not error")
-	assert.Equal(t, bson.TypeNull, bson.Raw(data).Lookup("pair").Type, "a nil pair should be stored as null")
-	initial := NewBTCUSDT()
-	out := bsonPairPointerDocument{Pair: &initial}
-	require.NoError(t, bson.Unmarshal(data, &out), "Unmarshal must not error")
-	assert.Nil(t, out.Pair, "null should read back as a nil pair")
+	t.Run("nil pointer", func(t *testing.T) {
+		t.Parallel()
+		data, err := bson.Marshal(bsonPairPointerDocument{})
+		require.NoError(t, err, "Marshal must not error")
+		assert.Equal(t, bson.TypeNull, bson.Raw(data).Lookup("pair").Type, "a nil pair should be stored as null")
+		initial := NewBTCUSDT()
+		out := bsonPairPointerDocument{Pair: &initial}
+		require.NoError(t, bson.Unmarshal(data, &out), "Unmarshal must not error")
+		assert.Nil(t, out.Pair, "null should read back as a nil pair")
+	})
 }
 
 func TestPairUnmarshalBSONValueErrors(t *testing.T) {
