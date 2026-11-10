@@ -2067,26 +2067,84 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-func BenchmarkWsHandleData(bb *testing.B) {
-	bb.ReportAllocs()
-	ap, err := e.CurrencyPairs.GetPairs(asset.Spot, false)
-	require.NoError(bb, err)
-	err = e.CurrencyPairs.StorePairs(asset.Spot, ap, true)
-	require.NoError(bb, err)
+// BenchmarkWsHandleData measures each message type separately, so a regression names its handler
+func BenchmarkWsHandleData(b *testing.B) {
+	e := new(Exchange)
+	require.NoError(b, testexch.Setup(e), "Test instance Setup must not error")
+
+	pair, err := e.MatchSymbolWithAvailablePairs("BNBBTC", asset.Spot, false)
+	require.NoError(b, err, "MatchSymbolWithAvailablePairs must not error")
+	// Only the fixture's pair is enabled. ExecutionReport still pays for Pairs.ContainsAll cloning every
+	// available pair, as production does.
+	require.NoError(b, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, true), "StorePairs must not error")
+	// Other enabled assets would make the work per iteration vary with map order
+	for _, a := range e.CurrencyPairs.GetAssetTypes(true) {
+		if a != asset.Spot {
+			require.NoErrorf(b, e.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+		}
+	}
+
+	// Built directly, since setupOrderbookManager starts REST sync workers that outlive the benchmark and
+	// print into its output. Seeded mid-sync at lastUpdateID 156, as the fixture's update starts at 157.
+	depth := &update{
+		buffer:       make(chan *WebsocketDepthStream, 1),
+		fetchingBook: true,
+		lastUpdateID: 156,
+	}
+	e.obm = &orderbookManager{
+		state: map[currency.Code]map[currency.Code]map[asset.Item]*update{
+			pair.Base: {pair.Quote: {asset.Spot: depth}},
+		},
+		jobs: make(chan job, maxWSOrderbookJobs),
+	}
 
 	data, err := os.ReadFile("testdata/wsHandleData.jsonl")
-	require.NoError(bb, err)
+	require.NoError(b, err, "ReadFile must not error")
 	lines := bytes.Split(data, []byte("\n"))
-	require.Len(bb, lines, 8)
-	go func() {
-		for {
-			<-e.Websocket.DataHandler.C
-		}
-	}()
-	for bb.Loop() {
-		for x := range lines {
-			assert.NoError(bb, e.wsHandleData(bb.Context(), lines[x]))
-		}
+	require.Len(b, lines, 8, "the fixture must hold one line per message type")
+
+	for _, tc := range []struct {
+		name   string
+		line   []byte
+		relays bool
+		depth  bool
+	}{
+		{name: "Ticker", line: lines[0], relays: true},
+		{name: "Kline", line: lines[1], relays: true},
+		// Trades relay only when trade saving or streaming is enabled
+		{name: "Trade", line: lines[2]},
+		{name: "Depth", line: lines[3], depth: true},
+		{name: "BalanceUpdate", line: lines[4], relays: true},
+		{name: "ListStatus", line: lines[5], relays: true},
+		{name: "ExecutionReport", line: lines[6], relays: true},
+		{name: "OutboundAccountPosition", line: lines[7], relays: true},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			ctx := b.Context()
+			for b.Loop() {
+				require.NoError(b, e.wsHandleData(ctx, tc.line), "wsHandleData must not error")
+				if tc.depth {
+					select {
+					case <-depth.buffer:
+					default:
+						b.Fatal("wsHandleData must stage the depth update")
+					}
+					depth.lastUpdateID = 156
+				}
+				// Relay.Send has queued the payload by the time it returns, so a non-blocking
+				// receive is safe, and draining keeps the relay from filling
+				select {
+				case <-e.Websocket.DataHandler.C:
+					if !tc.relays {
+						b.Fatal("wsHandleData must not relay this message")
+					}
+				default:
+					if tc.relays {
+						b.Fatal("wsHandleData must relay this message")
+					}
+				}
+			}
+		})
 	}
 }
 
