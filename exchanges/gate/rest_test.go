@@ -1068,7 +1068,6 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 	return enabledAssetPair[a]
 }
 
-// BenchmarkTimeInForceFromString-8         1528101               767.3 ns/op             0 B/op          0 allocs/op
 func BenchmarkTimeInForceFromString(b *testing.B) {
 	for b.Loop() {
 		for _, tifString := range []string{gtcTIF, iocTIF, pocTIF, fokTIF} {
