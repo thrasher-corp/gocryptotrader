@@ -3,13 +3,13 @@ package margin
 import (
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 	"github.com/thrasher-corp/gocryptotrader/internal/testing/bsonvalue"
-	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 var (
-	_ bson.ValueMarshaler   = Type(0)
-	_ bson.ValueUnmarshaler = (*Type)(nil)
+	_ bsonwire.ValueMarshaler   = Type(0)
+	_ bsonwire.ValueUnmarshaler = (*Type)(nil)
 )
 
 func TestTypeBSONValue(t *testing.T) {

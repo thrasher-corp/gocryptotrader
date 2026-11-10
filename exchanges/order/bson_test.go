@@ -3,19 +3,19 @@ package order
 import (
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 	"github.com/thrasher-corp/gocryptotrader/internal/testing/bsonvalue"
-	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 var (
-	_ bson.ValueMarshaler   = Side(0)
-	_ bson.ValueUnmarshaler = (*Side)(nil)
-	_ bson.ValueMarshaler   = Type(0)
-	_ bson.ValueUnmarshaler = (*Type)(nil)
-	_ bson.ValueMarshaler   = Status(0)
-	_ bson.ValueUnmarshaler = (*Status)(nil)
-	_ bson.ValueMarshaler   = TimeInForce(0)
-	_ bson.ValueUnmarshaler = (*TimeInForce)(nil)
+	_ bsonwire.ValueMarshaler   = Side(0)
+	_ bsonwire.ValueUnmarshaler = (*Side)(nil)
+	_ bsonwire.ValueMarshaler   = Type(0)
+	_ bsonwire.ValueUnmarshaler = (*Type)(nil)
+	_ bsonwire.ValueMarshaler   = Status(0)
+	_ bsonwire.ValueUnmarshaler = (*Status)(nil)
+	_ bsonwire.ValueMarshaler   = TimeInForce(0)
+	_ bsonwire.ValueUnmarshaler = (*TimeInForce)(nil)
 )
 
 // flags returns zero followed by every single-bit value from first to last

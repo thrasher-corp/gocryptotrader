@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"go.mongodb.org/mongo-driver/v2/bson"
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 // Public errors related to assets
@@ -267,18 +267,14 @@ func (a Item) MarshalJSON() ([]byte, error) {
 
 // MarshalBSONValue implements bson.ValueMarshaler, storing the Item as its string
 func (a Item) MarshalBSONValue() (typ byte, data []byte, err error) {
-	bt, data, err := bson.MarshalValue(a.String())
-	return byte(bt), data, err
+	return bsonwire.TypeString, bsonwire.MarshalString(a.String()), nil
 }
 
 // UnmarshalBSONValue implements bson.ValueUnmarshaler. An Item without a string of its own is stored as an empty
 // string, and reads back as Empty.
 func (a *Item) UnmarshalBSONValue(typ byte, data []byte) error {
-	if bson.Type(typ) != bson.TypeString {
-		return fmt.Errorf("%w: expected a BSON string, got %s", ErrNotSupported, bson.Type(typ))
-	}
-	var str string
-	if err := bson.UnmarshalValue(bson.TypeString, data, &str); err != nil {
+	str, err := bsonwire.UnmarshalString(typ, data)
+	if err != nil {
 		return fmt.Errorf("%w: %w", ErrNotSupported, err)
 	}
 	if str == "" {

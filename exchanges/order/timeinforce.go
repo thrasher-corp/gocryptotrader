@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"go.mongodb.org/mongo-driver/v2/bson"
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 // var error definitions
@@ -153,18 +153,14 @@ func (t TimeInForce) MarshalJSON() ([]byte, error) {
 
 // MarshalBSONValue implements bson.ValueMarshaler, storing the TimeInForce as its string
 func (t TimeInForce) MarshalBSONValue() (typ byte, data []byte, err error) {
-	bt, data, err := bson.MarshalValue(t.String())
-	return byte(bt), data, err
+	return bsonwire.TypeString, bsonwire.MarshalString(t.String()), nil
 }
 
 // UnmarshalBSONValue implements bson.ValueUnmarshaler. A non-zero TimeInForce with no supported flag is stored
 // as unknownTIFStr, which StringToTimeInForce rejects as exchange input, and reads back as UnknownTIF.
 func (t *TimeInForce) UnmarshalBSONValue(typ byte, data []byte) error {
-	if bson.Type(typ) != bson.TypeString {
-		return fmt.Errorf("%w: expected a BSON string, got %s", ErrInvalidTimeInForce, bson.Type(typ))
-	}
-	var str string
-	if err := bson.UnmarshalValue(bson.TypeString, data, &str); err != nil {
+	str, err := bsonwire.UnmarshalString(typ, data)
+	if err != nil {
 		return fmt.Errorf("%w: %w", ErrInvalidTimeInForce, err)
 	}
 	if str == unknownTIFStr {
