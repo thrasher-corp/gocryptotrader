@@ -1605,11 +1605,13 @@ func TestSetupSandbox(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	require.NoError(t, testexch.MockHTTPInstance(e, ""), "MockHTTPInstance must not error")
-	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
-	testexch.UpdatePairsOnce(t, e)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	require.NoError(t, testexch.MockHTTPInstance(ex, ""), "MockHTTPInstance must not error")
+	require.NoError(t, storeTestPairs(ex), "storeTestPairs must not error")
+	// UpdatePairsOnce caches pairs by exchange name, so a name of its own keeps the recorded pairs from the live tests
+	ex.Name = t.Name()
+	testexch.UpdatePairsOnce(t, ex)
 }
 
 func TestGetAccountBalances(t *testing.T) {
@@ -2110,8 +2112,7 @@ func TestUpdateTicker(t *testing.T) {
 			t.Run(a.String(), func(t *testing.T) {
 				t.Parallel()
 				pair := getPair(t, a)
-				ex := new(Exchange)
-				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				ex := newTestExchange(t)
 				testexch.UpdatePairsOnce(t, ex)
 				// Isolate the cache so another test cannot supply the ticker being checked.
 				ex.Name = t.Name()
@@ -2394,8 +2395,7 @@ func TestUpdateTickers(t *testing.T) {
 				switch a {
 				case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures, asset.Options:
 					pair := getPair(t, a)
-					ex := new(Exchange)
-					require.NoError(t, testexch.Setup(ex), "Setup must not error")
+					ex := newTestExchange(t)
 					if a == asset.Options {
 						testexch.UpdatePairsOnce(t, ex)
 					}
@@ -2462,8 +2462,7 @@ func TestUpdateTickers(t *testing.T) {
 	if mockTests {
 		return // The base volume check below needs live tickers from an unmocked instance
 	}
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex := newTestExchange(t)
 	ex.Name = t.Name()
 	require.NoError(t, ex.UpdateTickers(t.Context(), asset.USDTMarginedFutures), "UpdateTickers must not error")
 
@@ -4907,8 +4906,7 @@ func getMarketDataPair(t *testing.T, ex *Exchange, a asset.Item, hasData deliver
 		return ex, getPair(t, a)
 	}
 	pair := getActiveDeliveryPair(t, hasData)
-	deliveryEx := new(Exchange)
-	require.NoError(t, testexch.Setup(deliveryEx), "Setup must not error")
+	deliveryEx := newTestExchange(t)
 	deliveryEx.Name = t.Name()
 	require.NoError(t, deliveryEx.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, false), "StorePairs must not error for available pairs")
 	require.NoError(t, deliveryEx.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, true), "StorePairs must not error for enabled pairs")
