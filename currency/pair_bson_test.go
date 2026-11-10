@@ -85,6 +85,7 @@ func TestPairUnmarshalBSONValueErrors(t *testing.T) {
 		"non-string field": bson.D{{Key: "b", Value: int32(1)}},
 		"null field":       bson.D{{Key: "q", Value: nil}},
 		"unexpected field": bson.D{{Key: "b", Value: "BTC"}, {Key: "base", Value: "BTC"}},
+		"unexpected last":  bson.D{{Key: "b", Value: "BTC"}, {Key: "d", Value: "-"}, {Key: "q", Value: "USDT"}, {Key: "base", Value: "BTC"}},
 		"long field names": bson.D{{Key: "base", Value: "BTC"}, {Key: "quote", Value: "USDT"}},
 	} {
 		t.Run(name, func(t *testing.T) {
