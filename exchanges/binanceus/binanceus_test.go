@@ -2049,44 +2049,39 @@ func TestNewOrderResponseFillsTradeID(t *testing.T) {
 		]
 	}`
 
-	var resp NewOrderResponse
-	require.NoError(t, json.Unmarshal([]byte(raw), &resp))
-	require.Len(t, resp.Fills, 2)
-	assert.Equal(t, int64(56), resp.Fills[0].TradeID)
-	assert.Equal(t, int64(57), resp.Fills[1].TradeID)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.SkipAuthCheck = true
+	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+	var requests atomic.Int64
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		assert.Equal(t, http.MethodPost, r.Method, "method should be POST")
+		assert.Equal(t, "/api/v3/order", r.URL.Path, "path should match the new order endpoint")
+		_, err := w.Write([]byte(raw))
+		assert.NoError(t, err, "response should be written")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
 
-	trades := make([]order.TradeHistory, 0, len(resp.Fills))
-	for i := range resp.Fills {
-		var tradeID string
-		if resp.Fills[i].TradeID > 0 {
-			tradeID = strconv.FormatInt(resp.Fills[i].TradeID, 10)
-		}
-		trades = append(trades, order.TradeHistory{
-			Price:    resp.Fills[i].Price,
-			Amount:   resp.Fills[i].Qty,
-			Fee:      resp.Fills[i].Commission,
-			FeeAsset: resp.Fills[i].CommissionAsset,
-			Exchange: "Binanceus",
-			TID:      tradeID,
-		})
+	resp, err := ex.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:  ex.Name,
+		Pair:      currency.NewBTCUSD(),
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+		Type:      order.Market,
+		Amount:    3,
+	})
+	require.NoError(t, err, "SubmitOrder must not error")
+	assert.Equal(t, int64(1), requests.Load(), "exactly one request should reach the server")
+	exp := []order.TradeHistory{
+		{Price: 100, Amount: 1, Fee: 0.1, FeeAsset: "USD", Exchange: ex.Name, TID: "56"},
+		{Price: 100.5, Amount: 2, Fee: 0.201, FeeAsset: "USD", Exchange: ex.Name, TID: "57"},
 	}
-	require.Len(t, trades, 2)
-	assert.Equal(t, "56", trades[0].TID)
-	assert.Equal(t, "57", trades[1].TID)
+	assert.Equal(t, exp, resp.Trades, "SubmitOrder should keep each fill's trade ID")
 
-	// Ensure distinct TIDs prevent stored fills from collapsing when merged
-	d := &order.Detail{
-		Exchange: "Binanceus",
-		OrderID:  "12345",
-		Trades:   trades,
-	}
+	d := &order.Detail{Exchange: ex.Name, OrderID: resp.OrderID, Trades: resp.Trades}
 	cp := d.Copy()
-	require.NoError(t, d.UpdateOrderFromDetail(&cp))
-	require.Len(t, d.Trades, 2)
-	assert.Equal(t, "56", d.Trades[0].TID)
-	assert.Equal(t, 100.0, d.Trades[0].Price)
-	assert.Equal(t, 1.0, d.Trades[0].Amount)
-	assert.Equal(t, "57", d.Trades[1].TID)
-	assert.Equal(t, 100.5, d.Trades[1].Price)
-	assert.Equal(t, 2.0, d.Trades[1].Amount)
+	require.NoError(t, d.UpdateOrderFromDetail(&cp), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, exp, d.Trades, "fills should stay distinct when the order is merged with a copy of itself")
 }
