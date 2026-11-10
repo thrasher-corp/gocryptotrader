@@ -100,8 +100,8 @@ func TestPairUnmarshalBSONValueErrors(t *testing.T) {
 	}
 }
 
-// TestPairUnmarshalBSONValueMalformed calls UnmarshalBSONValue directly, since the driver rejects a malformed document
-// before calling it
+// TestPairUnmarshalBSONValueMalformed calls UnmarshalBSONValue directly, since bson.Unmarshal rejects some of these
+// documents before calling it
 func TestPairUnmarshalBSONValueMalformed(t *testing.T) {
 	t.Parallel()
 	for name, data := range map[string][]byte{
