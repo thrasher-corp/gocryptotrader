@@ -54,7 +54,7 @@ func AssertRoundTrip[T fmt.Stringer](t *testing.T, initial T, cases []Case[T]) {
 		assert.Nil(t, out.Value, "null should read back as a nil pointer")
 	})
 	for _, tc := range cases {
-		t.Run(tc.In.String(), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v %#v", tc.In, tc.In), func(t *testing.T) {
 			t.Parallel()
 			data, err := bson.Marshal(document[T]{Value: tc.In})
 			require.NoError(t, err, "Marshal must not error")
