@@ -91,7 +91,9 @@ func TestPairUnmarshalBSONValueErrors(t *testing.T) {
 			t.Parallel()
 			data, err := bson.Marshal(bson.D{{Key: "pair", Value: value}})
 			require.NoError(t, err, "Marshal must not error")
-			assert.ErrorIs(t, bson.Unmarshal(data, &bsonPairDocument{}), ErrCreatingPair, "Unmarshal should reject the stored value")
+			out := bsonPairDocument{Pair: NewPairWithDelimiter("LTC", "XRP", "_")}
+			assert.ErrorIs(t, bson.Unmarshal(data, &out), ErrCreatingPair, "Unmarshal should reject the stored value")
+			assert.Equal(t, NewPairWithDelimiter("LTC", "XRP", "_"), out.Pair, "a rejected value should leave the pair unchanged")
 		})
 	}
 }
