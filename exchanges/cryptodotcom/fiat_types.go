@@ -143,7 +143,7 @@ type FiatTransactionHistoryResponse struct {
 // reported for withdrawals
 type FiatTransaction struct {
 	ID             string              `json:"id"`
-	AccountID      string              `json:"account_id"`
+	AccountID      NumericID           `json:"account_id"`
 	Currency       currency.Code       `json:"currency"`
 	Amount         types.PreciseNumber `json:"amount"`
 	AmountInUSD    types.PreciseNumber `json:"amount_in_usd"`
@@ -348,6 +348,8 @@ type FiatBankAccountRequest struct {
 	Currency         currency.Code `json:"currency"`
 	// BankAccountID relinks an existing bank account, and is left empty to link a new one
 	BankAccountID string `json:"bank_account_id,omitempty"`
+	// OnBehalfOfAccountUUID is the account UUID of the user a broker links the bank account for, sent beside the params
+	OnBehalfOfAccountUUID string `json:"-"`
 }
 
 // fiatBankAccountsResponse is the result of a fiat-create-bank-account or fiat-get-bank-accounts request

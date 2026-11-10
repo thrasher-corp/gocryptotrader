@@ -119,6 +119,16 @@ func TestStake(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNoResponse, "Stake should error for a null result")
 	_, err = newUnavailableServerExchange(t).Stake(t.Context(), req)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "Stake should return a request failure")
+
+	t.Run("bare pre-stake charge rate", func(t *testing.T) {
+		t.Parallel()
+		ex := newResponseServerExchange(t, testResponse("private/staking/stake",
+			`{"staking_id":"1","instrument_name":"SOL.staked","status":"NEW","quantity":"1","pre_stake_charge_rate_in_bps":50}`))
+		got, err := ex.Stake(t.Context(), &StakeRequest{InstrumentName: "SOL.staked", Quantity: 1})
+		require.NoError(t, err, "Stake must accept a bare pre-stake charge rate")
+		exp := &StakeResponse{StakingID: "1", InstrumentName: "SOL.staked", Status: StakingStatusNew, Quantity: preciseNumber("1"), PreStakeChargeRateBasisPoints: 50}
+		assert.Equal(t, exp, got, "Stake should decode a bare pre-stake charge rate")
+	})
 }
 
 func TestUnstake(t *testing.T) {
@@ -248,6 +258,16 @@ func TestGetStakingInstruments(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetStakingInstruments should error for a null result")
 	_, err = newUnavailableServerExchange(t).GetStakingInstruments(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetStakingInstruments should return a request failure")
+
+	t.Run("bare pre-stake charge rate", func(t *testing.T) {
+		t.Parallel()
+		ex := newResponseServerExchange(t, testResponse("private/staking/get-staking-instruments",
+			`{"data":[{"instrument_name":"SOL.staked","pre_stake_charge_rate_in_bps":50}]}`))
+		got, err := ex.GetStakingInstruments(t.Context())
+		require.NoError(t, err, "GetStakingInstruments must accept a bare pre-stake charge rate")
+		exp := []StakingInstrumentResponse{{InstrumentName: "SOL.staked", PreStakeChargeRateBasisPoints: 50}}
+		assert.Equal(t, exp, got, "GetStakingInstruments should decode a bare pre-stake charge rate")
+	})
 }
 
 // stakingHistoryParamCases are a staking history query with every param set and with none, and the params each sends

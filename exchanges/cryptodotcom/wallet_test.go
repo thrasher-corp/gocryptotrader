@@ -99,6 +99,18 @@ func TestGetCurrencyNetworks(t *testing.T) {
 	_, err = newUnavailableServerExchange(t).GetCurrencyNetworks(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetCurrencyNetworks should return the request's failure")
 
+	t.Run("bare confirmation count", func(t *testing.T) {
+		t.Parallel()
+		ex := newResponseServerExchange(t, testResponse("private/get-currency-networks",
+			`{"currency_map":{"BTC":{"network_list":[{"network_id":"BTC","confirmation_required":12}]}}}`))
+		got, err := ex.GetCurrencyNetworks(t.Context())
+		require.NoError(t, err, "GetCurrencyNetworks must accept a bare confirmation count")
+		exp := &CurrencyNetworksResponse{Currencies: map[currency.Code]WalletCurrency{
+			currency.BTC: {Networks: []CurrencyNetwork{{NetworkID: "BTC", ConfirmationsRequired: 12}}},
+		}}
+		assert.Equal(t, exp, got, "GetCurrencyNetworks should decode a bare confirmation count")
+	})
+
 	skipLiveWithoutCredentials(t)
 	result, err := e.GetCurrencyNetworks(t.Context())
 	require.NoError(t, err, "GetCurrencyNetworks must not error")

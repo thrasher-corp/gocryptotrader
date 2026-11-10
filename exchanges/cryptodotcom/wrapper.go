@@ -81,6 +81,8 @@ var (
 	errClientOrderIDNotAmendable = errors.New("an advanced order's client order ID cannot be amended")
 	errMarginNotFinite           = errors.New("margin must be a finite number")
 	errIsolatedPositionNotOpen   = errors.New("isolated position not open yet")
+	errInstrumentNotFound        = errors.New("instrument not found")
+	errNoMaximumLeverage         = errors.New("instrument has no maximum leverage")
 )
 
 // SetDefaults sets the basic defaults for Crypto.com
@@ -528,23 +530,48 @@ func orderbookLevels(levels []OrderbookLevel) orderbook.Levels {
 // UpdateAccountBalances returns the account's balances, which every asset trades from, as Crypto.com keeps one wallet
 // for spot, margin and derivatives, saved under spot whichever asset asks, as a push saves it, so that the store holds
 // and counts it once. A negative quantity is borrowed, the reserved quantity is held by open orders, and an isolated
-// position's balances are held by that position
+// position's balances are held by that position. Neither the response nor a push says when Crypto.com read its
+// balances, so a response is not saved when a push or another response saved the wallet while it was requested, as it
+// may be the older, and the stored wallet is returned instead
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	if !e.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	e.walletMu.Lock()
+	saves := e.walletSaves[*creds]
+	e.walletMu.Unlock()
 	balances, err := e.GetUserBalance(ctx)
 	if err != nil {
 		return nil, err
 	}
+	e.walletMu.Lock()
+	defer e.walletMu.Unlock()
+	if e.walletSaves[*creds] != saves {
+		return e.GetCachedSubAccounts(ctx, a)
+	}
 	wallet := balanceSubAccount(asset.Spot, balances)
-	if err := e.Accounts.Save(ctx, accounts.SubAccounts{wallet}, true); err != nil {
+	err = e.Accounts.Save(ctx, accounts.SubAccounts{wallet}, true)
+	e.countWalletSave(creds)
+	if err != nil {
 		return nil, err
 	}
 	// The store publishes the wallet it saves to its subscribers, so the asset that asked labels a copy
 	subAcct := *wallet
 	subAcct.AssetType = a
 	return accounts.SubAccounts{&subAcct}, nil
+}
+
+// countWalletSave counts a save of the wallet of credentials, whether or not it errored, as a save can change some
+// balances before it fails; walletMu must be held
+func (e *Exchange) countWalletSave(creds *accounts.Credentials) {
+	if e.walletSaves == nil {
+		e.walletSaves = make(map[accounts.Credentials]uint64)
+	}
+	e.walletSaves[*creds]++
 }
 
 // GetCachedSubAccounts returns the account's wallet as an asset's sub accounts, as every asset trades from the one wallet
@@ -1348,9 +1375,9 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 
 // submitOrder places an order with the advanced order methods' create for a trigger order, and otherwise with the
 // trading methods'. A margin order is tracked by its client order ID before it is placed, as its trades can arrive
-// before its order ID does, until Crypto.com refuses it; one whose outcome is unknown, as when the request fails or is
-// cancelled, may have been placed, so is still tracked. An isolated margin order is placed on its instrument's isolated
-// position, when the account holds one
+// before its order ID does, until Crypto.com gives its order ID or refuses it; one whose outcome is unknown, as when the
+// request fails or is cancelled, may have been placed, so is still tracked. An isolated margin order is placed on its
+// instrument's isolated position, when the account holds one
 func (e *Exchange) submitOrder(ctx context.Context, s *order.Submit, create func(context.Context, *CreateOrderRequest) (*OrderIDResponse, error), createAdvanced func(context.Context, *CreateAdvancedOrderRequest) (*OrderIDResponse, error)) (*order.SubmitResponse, error) {
 	r, err := e.newOrderRequest(s)
 	if err != nil {
@@ -1372,7 +1399,7 @@ func (e *Exchange) submitOrder(ctx context.Context, s *order.Submit, create func
 		}
 		return nil, err
 	}
-	e.trackMarginOrder(s.AssetType, resp.OrderID, resp.ClientOrderID)
+	e.trackMarginOrder(s.AssetType, resp.OrderID, r.clientOrderID)
 	return submitResponse(s, resp)
 }
 
@@ -1466,12 +1493,13 @@ func (e *Exchange) trackListRefused(requests []*orderRequest, list []int, err er
 	}
 }
 
-// trackListAnswered tracks the orders Crypto.com placed from an answered list by their order IDs, and stops tracking
-// the client order IDs of those it rejected; an order the answer gives no outcome for may have been placed
+// trackListAnswered tracks the orders Crypto.com placed from an answered list by their order IDs in place of the client
+// order IDs they were sent with, and stops tracking the client order IDs of those it rejected; an order the answer
+// gives no outcome for may have been placed
 func (e *Exchange) trackListAnswered(orders []*order.Submit, requests []*orderRequest, list []int, responses []*order.SubmitResponse) {
 	for _, i := range list {
 		if responses[i].SubmissionError == nil {
-			e.trackMarginOrder(orders[i].AssetType, responses[i].OrderID, responses[i].ClientOrderID)
+			e.trackMarginOrder(orders[i].AssetType, responses[i].OrderID, requests[i].clientOrderID)
 		} else if _, rejected := errors.AsType[*APIError](responses[i].SubmissionError); rejected {
 			e.untrackClientOrderID(requests[i].clientOrderID)
 		}
@@ -1528,11 +1556,9 @@ type orderAmendment struct {
 	orderType   order.Type
 }
 
-// newOrderAmendment returns the request amending an order. Crypto.com takes an amended order's quantity and limit price
-// together, so those the modification leaves unset are restated from the order, which is fetched for them, for its type
-// when the modification does not give it, and for its time in force when the modification gives one, which an
-// amendment cannot change; an order the advanced order methods hold, such as a leg of an OTO list, is amended by them
-// whatever its type
+// newOrderAmendment returns the request amending an order. Crypto.com takes a regular amendment's quantity and limit
+// price together, so those left unset are restated from the order; a trigger order or an order-list leg is amended
+// through the advanced endpoint
 func (e *Exchange) newOrderAmendment(ctx context.Context, m *order.Modify) (*orderAmendment, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
@@ -1540,10 +1566,10 @@ func (e *Exchange) newOrderAmendment(ctx context.Context, m *order.Modify) (*ord
 	if !e.SupportsAsset(m.AssetType) {
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, m.AssetType)
 	}
-	a := &orderAmendment{price: m.Price, amount: m.Amount}
-	advanced := isTriggerOrder(m.Type)
+	amendment := &orderAmendment{price: m.Price, amount: m.Amount}
+	useAdvancedEndpoint := isTriggerOrder(m.Type)
 	marketTrigger := m.Type == order.Stop || m.Type == order.StopMarket || m.Type == order.TakeProfit || m.Type == order.TakeProfitMarket
-	if a.amount == 0 || (a.price == 0 && !marketTrigger) || m.Type == order.UnknownType || m.Type == order.AnyType || m.TimeInForce != order.UnknownTIF {
+	if amendment.amount == 0 || (amendment.price == 0 && !marketTrigger) || m.Type == order.UnknownType || m.Type == order.AnyType || m.TimeInForce != order.UnknownTIF {
 		o, fromAdvanced, err := e.orderByID(ctx, m.OrderID, m.ClientOrderID)
 		if err != nil {
 			return nil, err
@@ -1552,57 +1578,57 @@ func (e *Exchange) newOrderAmendment(ctx context.Context, m *order.Modify) (*ord
 		if err != nil {
 			return nil, err
 		}
-		advanced = fromAdvanced || isTriggerOrder(orderType)
+		useAdvancedEndpoint = fromAdvanced || isTriggerOrder(orderType)
 		if m.Type == order.UnknownType || m.Type == order.AnyType {
 			// The order's own type decides, as a price sent for a trigger market order would make it a trigger limit order
 			marketTrigger = orderType == order.Stop || orderType == order.TakeProfit
-			a.orderType = orderType
+			amendment.orderType = orderType
 		}
-		if a.timeInForce, err = timeInForceFromResponse(o.TimeInForce, o.ExecutionInstructions); err != nil {
+		if amendment.timeInForce, err = timeInForceFromResponse(o.TimeInForce, o.ExecutionInstructions); err != nil {
 			return nil, err
 		}
 		// Crypto.com amends only an order's quantity and prices, so a time in force other than the order's is refused
 		// rather than reported as amended
-		if m.TimeInForce != order.UnknownTIF && effectiveTimeInForce(m.TimeInForce) != effectiveTimeInForce(a.timeInForce) {
-			return nil, fmt.Errorf("%w: %s, not %s", errTimeInForceNotAmendable, a.timeInForce, m.TimeInForce)
+		if m.TimeInForce != order.UnknownTIF && effectiveTimeInForce(m.TimeInForce) != effectiveTimeInForce(amendment.timeInForce) {
+			return nil, fmt.Errorf("%w: %s, not %s", errTimeInForceNotAmendable, amendment.timeInForce, m.TimeInForce)
 		}
-		if a.amount == 0 {
-			a.amount = o.Quantity.Float64()
+		if amendment.amount == 0 {
+			amendment.amount = o.Quantity.Float64()
 		}
-		if a.price == 0 {
-			a.price = o.LimitPrice.Float64()
+		if amendment.price == 0 {
+			amendment.price = o.LimitPrice.Float64()
 		}
 	}
 	if marketTrigger {
 		// A limit price would make the trigger market order a trigger limit order
-		a.price = 0
+		amendment.price = 0
 	}
-	if advanced {
+	if useAdvancedEndpoint {
 		// The advanced order methods' amend takes a client order ID only to name the order, so a new one would be dropped
 		if m.NewClientOrderID != "" {
 			return nil, fmt.Errorf("%w: %q", errClientOrderIDNotAmendable, m.NewClientOrderID)
 		}
-		price := types.Number(a.price)
-		a.trigger = &AmendAdvancedOrderRequest{
+		price := types.Number(amendment.price)
+		amendment.trigger = &AmendAdvancedOrderRequest{
 			OrderID:           m.OrderID,
 			ClientOrderID:     m.ClientOrderID,
-			NewQuantity:       types.Number(a.amount),
+			NewQuantity:       types.Number(amendment.amount),
 			NewPrice:          &price,
 			NewReferencePrice: types.Number(m.TriggerPrice),
 		}
-		return a, nil
+		return amendment, nil
 	}
 	if m.TriggerPrice != 0 {
 		return nil, errTriggerPriceUnsupported
 	}
-	a.order = &AmendOrderRequest{
+	amendment.order = &AmendOrderRequest{
 		OrderID:               m.OrderID,
 		OriginalClientOrderID: m.ClientOrderID,
 		ClientOrderID:         m.NewClientOrderID,
-		NewPrice:              types.Number(a.price),
-		NewQuantity:           types.Number(a.amount),
+		NewPrice:              types.Number(amendment.price),
+		NewQuantity:           types.Number(amendment.amount),
 	}
-	return a, nil
+	return amendment, nil
 }
 
 // modifyResponse returns an amended order's modify response, with the quantity and price it was amended to, and the
@@ -1827,7 +1853,7 @@ func (e *Exchange) cancelOrders(ctx context.Context, cancels []orderCancel) (map
 		// An order both refused keeps the trading methods' refusal beside the advanced order methods' outcome
 		for i := range list {
 			id := list[i].cancelID()
-			if previous, ok := refused[id]; ok && status[id] != order.Cancelled.String() {
+			if previous, ok := refused[id]; ok && status[id] != order.PendingCancel.String() {
 				status[id] = previous + "; " + status[id]
 			}
 		}
@@ -1845,7 +1871,8 @@ func (c *orderCancel) cancelID() string {
 
 // listCancelStatus sets the outcome of each order of a cancelled list from the list's entries, which give each order's
 // outcome by its index in the list, and returns the indexes of the orders Crypto.com refused to cancel for the order
-// named, which the advanced order methods may hold
+// named, which the advanced order methods may hold. An order Crypto.com accepted to cancel is pending cancellation, as
+// it cancels asynchronously and can still fill the order first
 func listCancelStatus(list []orderCancel, entries []OrderListEntryResponse, status map[string]string) (refused []int) {
 	for i := range list {
 		status[list[i].cancelID()] = "no result for the order"
@@ -1863,7 +1890,7 @@ func listCancelStatus(list []orderCancel, entries []OrderListEntryResponse, stat
 			}
 			continue
 		}
-		status[list[index].cancelID()] = order.Cancelled.String()
+		status[list[index].cancelID()] = order.PendingCancel.String()
 	}
 	return refused
 }
@@ -2574,7 +2601,8 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 // GetFuturesPositionSummary returns a derivative's position, its cross margin position if it has one, with the
 // account's margin, which every cross margin position shares, or else its isolated position, with that position's.
 // get-positions leaves out a position's margins, prices and leverage, so the mark price is the instrument's, the
-// leverage the isolated position's or else the account's, and the margin requirements an isolated position's own
+// leverage the isolated position's or else the lower of the account's and the instrument's maximum, and the margin
+// requirements an isolated position's own
 func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	if r == nil {
 		return nil, common.ErrNilPointer
@@ -2638,13 +2666,11 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 		if len(balances) > 0 {
 			account = &balances[0].BalanceSummary
 		}
-		settings, err := e.GetAccountSettings(ctx)
+		leverage, err := e.crossMarginLeverage(ctx, name)
 		if err != nil {
 			return nil, err
 		}
-		if len(settings) > 0 {
-			summary.Leverage = settings[0].Leverage.Decimal()
-		}
+		summary.Leverage = leverage.Decimal()
 	}
 	if account != nil {
 		summary.AvailableEquity = account.TotalAvailableBalance.Decimal()
@@ -2739,8 +2765,8 @@ func (e *Exchange) isolatedPosition(ctx context.Context, instrumentName string) 
 	return nil, fmt.Errorf("%w: %s %s", errNoIsolatedPosition, instrumentName, id)
 }
 
-// GetLeverage returns the leverage of a derivative's isolated position, or the account's leverage, which its cross
-// margin positions share
+// GetLeverage returns the leverage of a derivative's isolated position, or of its cross margin position, the lower of
+// the account's leverage and the instrument's maximum, as Crypto.com applies whichever is lower
 func (e *Exchange) GetLeverage(ctx context.Context, a asset.Item, p currency.Pair, marginType margin.Type, _ order.Side) (float64, error) {
 	if !a.IsFutures() || !e.SupportsAsset(a) {
 		return 0, fmt.Errorf("%w: %s", futures.ErrNotFuturesAsset, a)
@@ -2756,6 +2782,20 @@ func (e *Exchange) GetLeverage(ctx context.Context, a asset.Item, p currency.Pai
 		}
 		return pos.Leverage.Float64(), nil
 	}
+	name, err := e.instrumentName(a, p)
+	if err != nil {
+		return 0, err
+	}
+	leverage, err := e.crossMarginLeverage(ctx, name)
+	if err != nil {
+		return 0, err
+	}
+	return leverage.Float64(), nil
+}
+
+// crossMarginLeverage returns the leverage of an instrument's cross margin position, the lower of the account's
+// leverage and the instrument's maximum, as Crypto.com applies whichever is lower
+func (e *Exchange) crossMarginLeverage(ctx context.Context, instrumentName string) (types.Number, error) {
 	settings, err := e.GetAccountSettings(ctx)
 	if err != nil {
 		return 0, err
@@ -2763,7 +2803,19 @@ func (e *Exchange) GetLeverage(ctx context.Context, a asset.Item, p currency.Pai
 	if len(settings) == 0 {
 		return 0, common.ErrNoResponse
 	}
-	return settings[0].Leverage.Float64(), nil
+	instruments, err := e.GetInstruments(ctx)
+	if err != nil {
+		return 0, err
+	}
+	i := slices.IndexFunc(instruments, func(inst InstrumentResponse) bool { return inst.Symbol == instrumentName })
+	if i == -1 {
+		return 0, fmt.Errorf("%w: %s", errInstrumentNotFound, instrumentName)
+	}
+	maximum := instruments[i].MaximumLeverage
+	if maximum <= 0 || math.IsNaN(maximum.Float64()) {
+		return 0, fmt.Errorf("%w: %s", errNoMaximumLeverage, instrumentName)
+	}
+	return min(settings[0].Leverage, maximum), nil
 }
 
 // SetLeverage sets the leverage of a derivative's isolated position, or the account's leverage, a whole number up to

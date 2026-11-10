@@ -65,7 +65,7 @@ type StakeResponse struct {
 	Status                        string              `json:"status"`
 	Quantity                      types.PreciseNumber `json:"quantity"`
 	UnderlyingCurrency            currency.Code       `json:"underlying_inst_name"`
-	PreStakeChargeRateBasisPoints uint64              `json:"pre_stake_charge_rate_in_bps,string"`
+	PreStakeChargeRateBasisPoints types.Number        `json:"pre_stake_charge_rate_in_bps"`
 	PreStakeCharge                types.PreciseNumber `json:"pre_stake_charge"`
 	Reason                        string              `json:"reason"`
 }
@@ -121,7 +121,7 @@ type StakingInstrumentResponse struct {
 	LockUpPeriodDays              types.Number              `json:"lock_up_period"`
 	IsCompoundReward              bool                      `json:"is_compound_reward"`
 	PreStakeChargeEnabled         bool                      `json:"pre_stake_charge_enable"`
-	PreStakeChargeRateBasisPoints uint64                    `json:"pre_stake_charge_rate_in_bps,string"`
+	PreStakeChargeRateBasisPoints types.Number              `json:"pre_stake_charge_rate_in_bps"`
 	IsRestaked                    bool                      `json:"is_restaked"`
 	AdditionalRewards             []StakingAdditionalReward `json:"additional_rewards"`
 }

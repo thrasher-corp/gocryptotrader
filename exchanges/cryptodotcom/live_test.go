@@ -120,6 +120,12 @@ func (*websocketVenue) answerSubscriptions(string, ...[]json.RawMessage) {}
 
 func (*websocketVenue) beforeAnswering(string, func()) {}
 
+func (*websocketVenue) loseRequests(string, int) {}
+
+func (*websocketVenue) loseAnswers(string, int) {}
+
+func (*websocketVenue) trackSubscriptions() {}
+
 // newMarketDataVenue stands in for the mock of Crypto.com's market data websocket, which the live tests do not use
 func newMarketDataVenue(*testing.T) *websocketVenue {
 	return nil

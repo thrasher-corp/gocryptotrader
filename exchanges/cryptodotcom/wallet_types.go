@@ -87,7 +87,7 @@ type CurrencyNetwork struct {
 	WithdrawalEnabled       bool                `json:"withdraw_enabled"`
 	MinimumWithdrawalAmount types.PreciseNumber `json:"min_withdrawal_amount"`
 	DepositEnabled          bool                `json:"deposit_enabled"`
-	ConfirmationsRequired   uint64              `json:"confirmation_required,string"`
+	ConfirmationsRequired   types.Number        `json:"confirmation_required"`
 }
 
 // depositAddressParams is the params of a get-deposit-address request

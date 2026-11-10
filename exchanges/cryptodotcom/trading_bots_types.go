@@ -463,7 +463,7 @@ func (b *TradingBotResponse) decodeSettings(data json.RawMessage) error {
 // TradingBotExecutionSummary summarises a trading bot's executions; Crypto.com documents its fields, which vary by bot
 // type, for DCA bots only, so other types may report fields not decoded here
 type TradingBotExecutionSummary struct {
-	ExecutedOrders uint64              `json:"executed_order,string"`
+	ExecutedOrders types.Number        `json:"executed_order"`
 	TotalInvested  types.PreciseNumber `json:"total_invested"`
 	TotalQuantity  types.PreciseNumber `json:"total_quantity"`
 	AveragePrice   types.PreciseNumber `json:"avg_price"`

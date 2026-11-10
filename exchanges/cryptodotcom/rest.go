@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -40,6 +41,10 @@ type Exchange struct {
 	// marginOrders holds the orders on spot instruments known to trade on margin, for their trades, which do not say so,
 	// to be filled as margin
 	marginOrders *cache.LRUCache
+	// walletMu guards walletSaves, which counts the saves of each credentials' wallet, so that a REST snapshot is not
+	// saved over a push or another snapshot saved while it was requested
+	walletMu    sync.Mutex
+	walletSaves map[accounts.Credentials]uint64
 }
 
 const (
@@ -132,6 +137,8 @@ type requestBody struct {
 	Nonce     uint64          `json:"nonce"`
 	APIKey    string          `json:"api_key,omitempty"`
 	Signature string          `json:"sig,omitempty"`
+	// OnBehalfOfAccountUUID is the account UUID of the user a broker sends a fiat request for, beside the params
+	OnBehalfOfAccountUUID string `json:"on_behalf_of_account_uuid,omitempty"`
 }
 
 // SendHTTPRequest sends a public method's GET request with params as its query string, and decodes its result
@@ -159,16 +166,22 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, epl request.EndpointLimi
 // SendAuthenticatedHTTPRequest sends a private method's POST request, signed with the configured credentials, with
 // params, which may be nil, as its params object, and decodes its result
 func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, epl request.EndpointLimit, method string, params, result any) error {
+	return e.sendAuthenticatedRequest(ctx, epl, method, "", params, result)
+}
+
+// sendAuthenticatedRequest sends a private method's POST request as SendAuthenticatedHTTPRequest does, for the user a
+// broker names by onBehalfOfAccountUUID, which is left unsent when empty
+func (e *Exchange) sendAuthenticatedRequest(ctx context.Context, epl request.EndpointLimit, method, onBehalfOfAccountUUID string, params, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	return e.sendPostRequest(ctx, epl, method, params, result, creds)
+	return e.sendPostRequest(ctx, epl, method, params, result, creds, onBehalfOfAccountUUID)
 }
 
-// sendPostRequest sends a POST request with params as its params object, signed when credentials are given, and
-// decodes its result
-func (e *Exchange) sendPostRequest(ctx context.Context, epl request.EndpointLimit, method string, params, result any, creds *accounts.Credentials) error {
+// sendPostRequest sends a POST request with params as its params object, signed when credentials are given, for the
+// user a broker names by onBehalfOfAccountUUID when it is set, and decodes its result
+func (e *Exchange) sendPostRequest(ctx context.Context, epl request.EndpointLimit, method string, params, result any, creds *accounts.Credentials, onBehalfOfAccountUUID string) error {
 	endpoint, err := e.API.Endpoints.GetURL(exchange.RestSpot)
 	if err != nil {
 		return err
@@ -190,10 +203,11 @@ func (e *Exchange) sendPostRequest(ctx context.Context, epl request.EndpointLimi
 		body := requestBody{
 			// The ID only has to be unique to tell responses apart, so the requester's nonce, which takes its timed lock,
 			// serves; the nonce Crypto.com checks is the time in milliseconds
-			ID:     uint64(e.Requester.GetNonce(nonce.UnixNano)), //nolint:gosec // A nanosecond nonce is positive
-			Method: method,
-			Params: encodedParams,
-			Nonce:  requestNonce(),
+			ID:                    uint64(e.Requester.GetNonce(nonce.UnixNano)), //nolint:gosec // A nanosecond nonce is positive
+			Method:                method,
+			Params:                encodedParams,
+			Nonce:                 requestNonce(),
+			OnBehalfOfAccountUUID: onBehalfOfAccountUUID,
 		}
 		if creds != nil {
 			body.APIKey = creds.Key

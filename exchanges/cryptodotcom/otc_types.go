@@ -169,19 +169,23 @@ type OTCQuoteResponse struct {
 }
 
 // UnmarshalJSON decodes a quote, taking its expiry time from expire_time_ns, an alias Crypto.com sends in its place, when
-// expiry_time_ns is missing
+// expiry_time_ns is missing; null leaves the quote unchanged
 func (q *OTCQuoteResponse) UnmarshalJSON(data []byte) error {
 	type Alias OTCQuoteResponse
-	aux := struct {
-		*Alias
+	var aux *struct {
+		Alias
 		ExpireTime types.Time `json:"expire_time_ns"`
-	}{Alias: (*Alias)(q)}
+	}
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	if q.ExpiryTime.Time().IsZero() {
-		q.ExpiryTime = aux.ExpireTime
+	if aux == nil {
+		return nil
 	}
+	if aux.ExpiryTime.Time().IsZero() {
+		aux.ExpiryTime = aux.ExpireTime
+	}
+	*q = OTCQuoteResponse(aux.Alias)
 	return nil
 }
 

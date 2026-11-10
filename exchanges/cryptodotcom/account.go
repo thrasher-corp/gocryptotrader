@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 const (
@@ -101,7 +102,7 @@ func (e *Exchange) CreateSubAccountTransfer(ctx context.Context, req *SubAccount
 	}
 	params := *req
 	params.Currency = req.Currency.Upper()
-	return e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/create-subaccount-transfer", &params, nil)
+	return e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/create-subaccount-transfer", &params, nil)
 }
 
 // GetSubAccountBalances returns the balance of each of the master account's sub-accounts

@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 const (
@@ -43,7 +44,7 @@ func (e *Exchange) CreateOrder(ctx context.Context, r *CreateOrderRequest) (*Ord
 		return nil, err
 	}
 	var resp *OrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, createOrderEPL, "private/create-order", params, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), createOrderEPL, "private/create-order", params, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -101,7 +102,7 @@ func (e *Exchange) ClosePosition(ctx context.Context, r *ClosePositionRequest) (
 		return nil, err
 	}
 	var resp *OrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/close-position", r, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/close-position", r, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -151,7 +152,7 @@ func (e *Exchange) CreateOrderList(ctx context.Context, orders []CreateOrderRequ
 		return nil, err
 	}
 	var resp []OrderListEntryResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/create-order-list", params, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/create-order-list", params, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -237,7 +238,7 @@ func (e *Exchange) CreateIsolatedMarginTransfer(ctx context.Context, r *CreateIs
 	if r.Amount <= 0 {
 		return errInvalidAmount
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/create-isolated-margin-transfer", r, nil)
+	return e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/create-isolated-margin-transfer", r, nil)
 }
 
 // ChangeIsolatedMarginLeverage sets an isolated position's maximum leverage
@@ -580,7 +581,7 @@ func newCancelOrderListParams(orders []CancelOrderListEntryRequest) (*cancelOrde
 }
 
 // checkOrderListLength checks a list holds at least one order and at most limit
-func checkOrderListLength(length, limit int) error {
+func checkOrderListLength(length, limit int) error { //nolint:unparam // the regular and advanced order list limits are separate limits that happen to be equal
 	if length == 0 {
 		return errOrderListEmpty
 	}

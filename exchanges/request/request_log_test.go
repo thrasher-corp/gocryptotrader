@@ -91,6 +91,9 @@ func TestIsSensitiveLogKey(t *testing.T) {
 		{name: "pass-word"},
 		{name: "prefix_KEY", sensitive: true},
 		{name: "prefix_ſign"},
+		{name: "sig", sensitive: true},
+		{name: "Request-Sig", sensitive: true},
+		{name: "signal"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -256,6 +259,8 @@ func TestBodyForLogContentTypeAndUnchangedJSON(t *testing.T) {
 		{name: "declared form whose form pass breaks its JSON", contentType: "application/x-www-form-urlencoded", body: `{"passphrase":"secret","redirect":"https://example.com/?api_key=1"}`, expected: "[REDACTED INVALID JSON BODY]"},
 		{name: "declared form carrying a number outside float64's range", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret","n":1e9999}`, expected: "[REDACTED INVALID JSON BODY]"},
 		{name: "declared form carrying an indented JSON array", contentType: "application/x-www-form-urlencoded", body: ` [{"apiKey":"secret"}]`, expected: ` [{"apiKey":"[REDACTED]"}]`},
+		{name: "signed JSON request", contentType: "application/json", body: `{"id":1,"method":"private/user-balance","api_key":"placeholder-key","sig":"placeholder-signature","params":{},"nonce":1}`, expected: `{"id":1,"method":"private/user-balance","api_key":"[REDACTED]","sig":"[REDACTED]","params":{},"nonce":1}`},
+		{name: "request echoed in a string value", contentType: "application/json", body: `{"code":40101,"message":"UNAUTHORIZED","original":"{\"id\":1,\"method\":\"private/user-balance\",\"api_key\":\"placeholder-key\",\"sig\":\"placeholder-signature\",\"params\":{},\"nonce\":1}"}`, expected: `{"code":40101,"message":"UNAUTHORIZED","original":"{\"id\":1,\"method\":\"private/user-balance\",\"api_key\":\"[REDACTED]\",\"sig\":\"[REDACTED]\",\"params\":{},\"nonce\":1}"}`},
 		{name: "non-form body", contentType: "text/plain", body: "upstream unavailable", expected: "[REDACTED NON-FORM BODY]"},
 		{name: "undeclared invalid JSON", body: `{"password":"secret"`, expected: "[REDACTED INVALID JSON BODY]"},
 	}
@@ -522,6 +527,31 @@ func TestExecuteRequestBadStatusRedactsCredentials(t *testing.T) {
 	require.ErrorIs(t, err, ErrBadStatus, "form-labelled JSON error must return ErrBadStatus")
 	assert.Contains(t, err.Error(), `"password":"[REDACTED]"`, "form-labelled JSON error should retain redacted response structure")
 	assert.NotContains(t, err.Error(), "response-secret", "form-labelled JSON error should not expose response credentials")
+}
+
+func TestExecuteRequestBadStatusRedactsEchoedRequest(t *testing.T) {
+	t.Parallel()
+	const echo = `{"code":40101,"message":"UNAUTHORIZED","original":"{\"id\":1,\"method\":\"private/get-order-detail\",\"api_key\":\"placeholder-key\",\"sig\":\"placeholder-signature\",\"params\":{\"order_id\":\"1\"},\"nonce\":1}"}`
+	httpClient := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			Status:     "401 Unauthorized",
+			StatusCode: http.StatusUnauthorized,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(echo)),
+			Request:    req,
+		}, nil
+	})}
+	r, err := New("test", httpClient)
+	require.NoError(t, err, "New must not error")
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com", http.NoBody)
+	require.NoError(t, err, "NewRequestWithContext must not error")
+
+	_, err = r.executeRequest(t.Context(), &Item{Method: http.MethodPost, Path: "https://example.com"}, req, 1, false)
+	require.ErrorIs(t, err, ErrBadStatus, "executeRequest must return ErrBadStatus")
+	assert.Contains(t, err.Error(), `\"api_key\":\"[REDACTED]\",\"sig\":\"[REDACTED]\",\"params\":{\"order_id\":\"1\"}`, "bad status error should keep the echoed request with its credentials redacted")
+	for _, secret := range []string{"placeholder-key", "placeholder-signature"} {
+		assert.NotContainsf(t, err.Error(), secret, "bad status error should not contain %s", secret)
+	}
 }
 
 func TestExecuteRequestRecordingFailureRedactsCredentials(t *testing.T) {

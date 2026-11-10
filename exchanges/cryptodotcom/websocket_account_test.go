@@ -544,7 +544,9 @@ func TestWebsocketUserTrades(t *testing.T) { //nolint:tparallel // the cases sha
 func TestTrackMarginOrder(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	ex.trackMarginOrder(asset.Margin, "1", "c1")
+	// Order 1 is known by its order ID, and the margin order sent with client order ID c1 awaits its order ID
+	ex.trackMarginOrder(asset.Margin, "1", "")
+	ex.trackMarginOrder(asset.Margin, "", "c1")
 	assert.True(t, ex.isMarginOrder("1", ""), "isMarginOrder should report an order tracked as a margin order by its order ID")
 	assert.True(t, ex.isMarginOrder("", "c1"), "isMarginOrder should report an order tracked as a margin order by its client order ID")
 	assert.True(t, ex.isMarginOrder("2", "c1"), "isMarginOrder should report an order whose client order ID is tracked")
@@ -562,12 +564,12 @@ func TestTrackMarginOrder(t *testing.T) {
 	ex.trackMarginOrder(asset.Spot, "", "c1")
 	assert.False(t, ex.isMarginOrder("", "c1"), "trackMarginOrder should stop tracking an order trading as spot by its client order ID")
 
-	// Orders can share a client order ID, so an order known to trade as spot by its order ID is not taken for the margin
-	// order that shares it, though an order not known by its order ID is
+	// Orders can share a client order ID, so once the margin order's order ID is known neither an order known to trade as
+	// spot by its order ID nor one not known by its order ID is taken for it
 	ex.trackMarginOrder(asset.Spot, "101", "shared")
 	ex.trackMarginOrder(asset.Margin, "102", "shared")
 	assert.False(t, ex.isMarginOrder("101", "shared"), "isMarginOrder should tell an order known by its order ID by that alone")
-	assert.True(t, ex.isMarginOrder("103", "shared"), "isMarginOrder should tell an order not known by its order ID by its client order ID")
+	assert.False(t, ex.isMarginOrder("103", "shared"), "isMarginOrder should not take an order not known by its order ID for the margin order sharing its client order ID once that order's ID is known")
 
 	ex.trackMarginOrder(asset.Margin, "", "c4")
 	ex.untrackClientOrderID("c4")
@@ -577,6 +579,16 @@ func TestTrackMarginOrder(t *testing.T) {
 	untracked.untrackClientOrderID("c1")
 	untracked.trackMarginOrder(asset.Margin, "1", "c1")
 	assert.False(t, untracked.isMarginOrder("1", "c1"), "isMarginOrder should report no order without a margin order cache")
+
+	t.Run("client ID fallback expires when exchange ID is known", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.trackMarginOrder(asset.Margin, "", "shared")
+		assert.True(t, ex.isMarginOrder("102", "shared"), "isMarginOrder should report a margin order awaiting its order ID by its client order ID")
+		ex.trackMarginOrder(asset.Margin, "102", "shared")
+		assert.True(t, ex.isMarginOrder("102", ""), "isMarginOrder should report the margin order by its order ID once known")
+		assert.False(t, ex.isMarginOrder("103", "shared"), "isMarginOrder should not take another order sharing the client order ID for the margin order once its order ID is known")
+	})
 }
 
 func TestWebsocketTransactions(t *testing.T) {

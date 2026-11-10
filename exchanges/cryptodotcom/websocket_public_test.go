@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -15,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -555,6 +560,52 @@ func TestWebsocketBookResubscription(t *testing.T) {
 		assert.Len(t, venue.received(websocketMethodUnsubscribe), 2, "the book channel should be unsubscribed again")
 		assert.Len(t, venue.received(websocketMethodSubscribe), 2, "the book channel should be subscribed again")
 	})
+
+	// An unanswered unsubscription may still have stopped the channel's deltas, which would then never ask for the
+	// snapshot the books await. The mock refuses to subscribe a channel its connection holds, so that the channel is
+	// subscribed again only once it is unsubscribed
+	for _, tc := range []struct {
+		name string
+		lose func(v *websocketVenue, method string, n int)
+	}{
+		{name: "unsubscribe applied without an acknowledgement", lose: (*websocketVenue).loseAnswers},
+		{name: "unsubscribe unanswered before being applied", lose: (*websocketVenue).loseRequests},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			venue := newMarketDataVenue(t)
+			venue.trackSubscriptions()
+			// The trade connection is authenticated too, as a recovery connecting the websocket again would drop it and with
+			// it any orders it placed under cancel on disconnect
+			ex, err := newUserDataTestExchange(t, venue, recordedBookChannelSubscription(), withTestResponseMaxLimit(t, venue))
+			require.NoError(t, err, "Connect must not error")
+			conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			tradeConn, err := ex.Websocket.GetConnection(websocketTradeConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
+
+			tc.lose(venue, websocketMethodUnsubscribe, 1)
+			err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3))
+			require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report a delta out of sequence")
+			requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
+			unsubscribes := venue.received(websocketMethodUnsubscribe)
+			require.Len(t, unsubscribes, 2, "the book channel must be unsubscribed again once its unsubscription goes unanswered")
+			assert.Equal(t, unsubscribes[0].Connection, unsubscribes[1].Connection, "the book channel should be unsubscribed again on its connection")
+			assert.Len(t, venue.received(websocketMethodSubscribe), 2, "the book channel should be subscribed again once")
+
+			current, err := ex.Websocket.GetConnection(websocketTradeConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			assert.Same(t, tradeConn, current, "the trade connection should be kept")
+			_, err = ex.WebsocketAPI().GetCancelOnDisconnect(t.Context())
+			require.NoError(t, err, "the trade connection must stay usable")
+			auths := venue.received(websocketMethodAuth)
+			require.Len(t, auths, 1, "the trade connection must be authenticated once, not again on a new connection")
+			requests := venue.received("private/get-cancel-on-disconnect")
+			require.Len(t, requests, 1, "GetCancelOnDisconnect must send one request")
+			assert.Equal(t, auths[0].Connection, requests[0].Connection, "the trade connection should be the one authenticated when the websocket connected")
+		})
+	}
 }
 
 func TestWebsocketBookSubscriptionRetry(t *testing.T) {
@@ -1035,6 +1086,48 @@ func TestWebsocketHandleChannelData(t *testing.T) {
 
 func TestWebsocketMarketDataConnect(t *testing.T) {
 	t.Parallel()
+	t.Run("public data works while the private socket is down", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("separate endpoints are tested against mock servers")
+		}
+		venue := newMarketDataVenue(t)
+		var privateCalls atomic.Int32
+		private := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			privateCalls.Add(1)
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}))
+		private.Start()
+		privateURL := "ws" + strings.TrimPrefix(private.URL, "http")
+		ex := newTestExchange(t)
+		ex.Config.API.AuthenticatedWebsocketSupport = false
+		ex.Features.Subscriptions = subscription.List{
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD}},
+		}
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.WebsocketSpot.String(), venue.url), "the public endpoint must be configured")
+		for _, endpoint := range []exchange.URL{exchange.WebsocketPrivate, exchange.WebsocketTrade} {
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint.String(), privateURL), "the private endpoint must be configured")
+		}
+		ex.Websocket = websocket.NewManager()
+		require.NoError(t, ex.setupWebsocket(ex.Config), "websocket setup must succeed")
+		t.Cleanup(func() {
+			assert.NoError(t, ex.Websocket.Disable(), "the websocket should be disabled during cleanup")
+			if err := ex.Websocket.Shutdown(); err != nil {
+				assert.ErrorIs(t, err, websocket.ErrNotConnected, "only an already-disconnected socket should fail shutdown")
+			}
+		})
+		t.Cleanup(venue.closing)
+		err := ex.Websocket.Connect(t.Context())
+		assert.Zero(t, privateCalls.Load(), "public-only mode should leave the private endpoint unused")
+		require.NoError(t, err, "public market data must connect")
+		require.Len(t, ex.Websocket.GetSubscriptions(), 1, "the ticker subscription must survive")
+		err = ex.SendWebsocketRequest(t.Context(), "private/get-cancel-on-disconnect", nil, nil)
+		assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "SendWebsocketRequest should report the missing authentication, not the missing trade connection")
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		err = ex.SendWebsocketRequest(t.Context(), "private/get-cancel-on-disconnect", nil, nil)
+		assert.ErrorIs(t, err, websocket.ErrNotConnected, "SendWebsocketRequest should report the trade connection a public-only connect left out")
+		assert.Zero(t, privateCalls.Load(), "SendWebsocketRequest should not dial the private endpoint")
+	})
 	subs := subscription.List{
 		{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD}},
 		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 10, Pairs: currency.Pairs{spotBTCUSD}},
@@ -1190,5 +1283,24 @@ func TestWebsocketSubscribe(t *testing.T) {
 		requests = venue.received(websocketMethodSubscribe)
 		require.Len(t, requests, 5, "wsSubscribe must send one subscribe request")
 		assert.JSONEq(t, `{"channels":["ticker.ETH_USD"]}`, string(requests[4].Params), "wsSubscribe should leave out the refused book subscription")
+	})
+
+	t.Run("one channel is acknowledged before the batch times out", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		accepted := &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotBTCUSD}, QualifiedChannel: "ticker.BTC_USD"}
+		missing := &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotBTCUSDT}, QualifiedChannel: "ticker.BTC_USDT"}
+		venue.answerSubscriptions(missing.QualifiedChannel, []json.RawMessage{marketDataFrame(t, missing.QualifiedChannel, 1)})
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		err = ex.wsSubscribe(ctx, conn, subscription.List{accepted, missing})
+		require.ErrorIs(t, err, context.DeadlineExceeded, "the unanswered channel must be reported")
+		assert.Same(t, accepted, ex.Websocket.GetSubscription(accepted), "the acknowledged channel should remain tracked")
+		assert.Equal(t, subscription.SubscribedState, accepted.State(), "the acknowledged channel should be subscribed")
+		assert.Nil(t, ex.Websocket.GetSubscription(missing), "the unanswered channel should stay unconfirmed")
 	})
 }

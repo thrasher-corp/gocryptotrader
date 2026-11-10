@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -37,7 +38,7 @@ func (e *Exchange) CreateAdvancedOrder(ctx context.Context, req *CreateAdvancedO
 		return nil, err
 	}
 	var resp *OrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/create-order", req, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-order", req, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -73,7 +74,7 @@ func (e *Exchange) CreateOneCancelsTheOtherOrder(ctx context.Context, orders []A
 		return nil, err
 	}
 	var resp *AdvancedOrderListIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/create-oco", params, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-oco", params, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -102,7 +103,7 @@ func (e *Exchange) CreateOneTriggersTheOtherOrder(ctx context.Context, orders []
 		return nil, err
 	}
 	var resp *AdvancedOrderListIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/create-oto", params, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-oto", params, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -133,7 +134,7 @@ func (e *Exchange) CreateOneTriggersAOneCancelsTheOtherOrder(ctx context.Context
 		return nil, err
 	}
 	var resp *AdvancedOrderListIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/create-otoco", params, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-otoco", params, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -236,7 +237,7 @@ func (e *Exchange) CreateAdvancedOrderList(ctx context.Context, orders []CreateA
 		return nil, err
 	}
 	var resp []OrderListEntryResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/create-order-list", params, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-order-list", params, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -541,7 +542,7 @@ func (r *GetAdvancedOrderHistoryRequest) params() (*advancedOrderHistoryParams, 
 
 // createAdvancedOrderListParams validates an advanced order list's trigger orders and returns its params
 func createAdvancedOrderListParams(orders []CreateAdvancedOrderRequest) (*advancedOrderListParams[CreateAdvancedOrderRequest], error) {
-	if err := validateAdvancedOrderListLength(len(orders)); err != nil {
+	if err := checkOrderListLength(len(orders), maxAdvancedOrderListLength); err != nil {
 		return nil, err
 	}
 	for i := range orders {
@@ -554,7 +555,7 @@ func createAdvancedOrderListParams(orders []CreateAdvancedOrderRequest) (*advanc
 
 // cancelAdvancedOrderListParams validates the orders an advanced cancel list identifies and returns its params
 func cancelAdvancedOrderListParams(orders []AdvancedOrderIDRequest) (*advancedOrderListParams[AdvancedOrderIDRequest], error) {
-	if err := validateAdvancedOrderListLength(len(orders)); err != nil {
+	if err := checkOrderListLength(len(orders), maxAdvancedOrderListLength); err != nil {
 		return nil, err
 	}
 	for i := range orders {
@@ -563,16 +564,4 @@ func cancelAdvancedOrderListParams(orders []AdvancedOrderIDRequest) (*advancedOr
 		}
 	}
 	return &advancedOrderListParams[AdvancedOrderIDRequest]{OrderList: orders}, nil
-}
-
-// validateAdvancedOrderListLength checks an advanced order list holds at least one order and at most
-// maxAdvancedOrderListLength
-func validateAdvancedOrderListLength(length int) error {
-	if length == 0 {
-		return errOrderListEmpty
-	}
-	if length > maxAdvancedOrderListLength {
-		return fmt.Errorf("%w: %d orders exceed the maximum of %d", errOrderListTooLong, length, maxAdvancedOrderListLength)
-	}
-	return nil
 }

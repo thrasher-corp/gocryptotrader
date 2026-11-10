@@ -470,7 +470,23 @@ var testOrderbooks = map[asset.Item]orderbook.Book{
 	},
 }
 
-func TestUpdateAccountBalances(t *testing.T) { //nolint:tparallel // the cases share ex and its account store and run in order
+// walletLockProbe records, each time the account store looks up the credentials it saves under, whether the wallet
+// lock is held
+type walletLockProbe struct {
+	*Exchange
+	lockHeld []bool
+}
+
+func (p *walletLockProbe) GetCredentials(ctx context.Context) (*accounts.Credentials, error) {
+	held := !p.walletMu.TryLock()
+	if !held {
+		p.walletMu.Unlock()
+	}
+	p.lockHeld = append(p.lockHeld, held)
+	return p.Exchange.GetCredentials(ctx)
+}
+
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	_, err := ex.UpdateAccountBalances(t.Context(), asset.Options)
@@ -484,6 +500,183 @@ func TestUpdateAccountBalances(t *testing.T) { //nolint:tparallel // the cases s
 	refused, err := older.UpdateAccountBalances(t.Context(), asset.Margin)
 	require.ErrorContains(t, err, "out of sequence", "UpdateAccountBalances must return the store's refusal of an older reply")
 	assert.Nil(t, refused, "UpdateAccountBalances should return no wallet the store refused")
+
+	t.Run("credentials refused before any request", func(t *testing.T) {
+		t.Parallel()
+		unauthenticated := newTestExchange(t)
+		setTestCredentials(unauthenticated, &accounts.Credentials{})
+		unauthenticated.SkipAuthCheck = false
+		_, err := unauthenticated.UpdateAccountBalances(t.Context(), asset.Spot)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "UpdateAccountBalances should refuse empty credentials")
+	})
+	t.Run("in-flight REST snapshot preserves newer websocket balances", func(t *testing.T) {
+		t.Parallel()
+		var exch *Exchange
+		exch, received := newRoutesServerExchange(t, map[string]testRoute{
+			"private/user-balance": func(string) (string, *APIError) {
+				push := &websocketChannelPush{Data: []byte(`[{"position_balances":[{"instrument_name":"BTC","quantity":"2"},{"instrument_name":"ETH","quantity":"3"}]}]`)}
+				assert.NoError(t, exch.wsHandleUserBalance(t.Context(), push), "the newer balance should be saved")
+				return `{"data":[{"position_balances":[{"instrument_name":"BTC","quantity":"1"}]}]}`, nil
+			},
+		})
+		got, err := exch.UpdateAccountBalances(t.Context(), asset.PerpetualSwap)
+		require.NoError(t, err, "UpdateAccountBalances must return the stored wallet")
+		require.Len(t, received(), 1, "the REST request must reach the server")
+		require.Len(t, got, 1, "UpdateAccountBalances must return the one wallet")
+		assert.Equal(t, asset.PerpetualSwap, got[0].AssetType, "the stored wallet should be labelled for the asset that asked")
+		assert.Equal(t, 2.0, got[0].Balances[currency.BTC].Total, "the returned BTC balance should be the newer one")
+		assert.Equal(t, 3.0, got[0].Balances[currency.ETH].Total, "the returned ETH balance should be the newer one")
+		balances, err := exch.GetCachedCurrencyBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "cached balances must be available")
+		assert.Equal(t, 2.0, balances[currency.BTC].Total, "the newer BTC balance should survive")
+		assert.Equal(t, 3.0, balances[currency.ETH].Total, "the newer ETH balance should survive")
+	})
+	t.Run("a push for other credentials leaves the snapshot to be saved", func(t *testing.T) {
+		t.Parallel()
+		var exch *Exchange
+		exch, _ = newRoutesServerExchange(t, map[string]testRoute{
+			"private/user-balance": func(string) (string, *APIError) {
+				ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "other-key", Secret: "other-secret"})
+				push := &websocketChannelPush{Data: []byte(`[{"position_balances":[{"instrument_name":"ETH","quantity":"3"}]}]`)}
+				assert.NoError(t, exch.wsHandleUserBalance(ctx, push), "the other credentials' balance should be saved")
+				return `{"data":[{"position_balances":[{"instrument_name":"BTC","quantity":"1"}]}]}`, nil
+			},
+		})
+		got, err := exch.UpdateAccountBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		require.Len(t, got, 1, "UpdateAccountBalances must return the one wallet")
+		assert.Equal(t, 1.0, got[0].Balances[currency.BTC].Total, "the snapshot should be returned")
+		balances, err := exch.GetCachedCurrencyBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "cached balances must be available")
+		assert.Equal(t, 1.0, balances[currency.BTC].Total, "the snapshot should be saved")
+		assert.NotContains(t, balances, currency.ETH, "the other credentials' push should not reach this wallet")
+	})
+	t.Run("a push whose save fails still holds the snapshot back", func(t *testing.T) {
+		t.Parallel()
+		var exch *Exchange
+		var pushes atomic.Int64
+		exch, _ = newRoutesServerExchange(t, map[string]testRoute{
+			"private/user-balance": func(string) (string, *APIError) {
+				// A balance timed before the stored one fails the save, which still saves the balances beside it
+				push := &websocketChannelPush{Data: []byte(`[{"position_balances":[{"instrument_name":"BTC","quantity":"5","update_timestamp_ms":1607063412000},{"instrument_name":"ETH","quantity":"3"}]}]`)}
+				assert.ErrorContains(t, exch.wsHandleUserBalance(t.Context(), push), "out of sequence", "the push's older BTC balance should be refused")
+				pushes.Add(1)
+				return `{"data":[{"position_balances":[{"instrument_name":"BTC","quantity":"1"}]}]}`, nil
+			},
+		})
+		stored := &websocketChannelPush{Data: []byte(`[{"position_balances":[{"instrument_name":"BTC","quantity":"2","update_timestamp_ms":1607063412001}]}]`)}
+		require.NoError(t, exch.wsHandleUserBalance(t.Context(), stored), "the stored balance must be saved")
+		_, err := exch.UpdateAccountBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "UpdateAccountBalances must return the stored wallet")
+		require.Equal(t, int64(1), pushes.Load(), "the push must arrive during the request")
+		balances, err := exch.GetCachedCurrencyBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "cached balances must be available")
+		assert.Equal(t, 2.0, balances[currency.BTC].Total, "the stored BTC balance should survive")
+		assert.Equal(t, 3.0, balances[currency.ETH].Total, "the ETH balance the failed save stored should survive")
+	})
+	t.Run("a snapshot whose save failed still holds an older one back", func(t *testing.T) {
+		t.Parallel()
+		var exch *Exchange
+		var requests atomic.Int64
+		exch, _ = newRoutesServerExchange(t, map[string]testRoute{
+			"private/user-balance": func(string) (string, *APIError) {
+				switch requests.Add(1) {
+				case 1:
+					_, err := exch.UpdateAccountBalances(t.Context(), asset.Spot)
+					assert.ErrorContains(t, err, "out of sequence", "the newer snapshot's older BTC balance should be refused")
+					return `{"data":[{"position_balances":[{"instrument_name":"BTC","quantity":"1"}]}]}`, nil
+				default:
+					// A balance timed before the stored one fails the save, which still saves the balances beside it
+					return `{"data":[{"position_balances":[{"instrument_name":"BTC","quantity":"5","update_timestamp_ms":1607063412000},{"instrument_name":"ETH","quantity":"3"}]}]}`, nil
+				}
+			},
+		})
+		stored := &websocketChannelPush{Data: []byte(`[{"position_balances":[{"instrument_name":"BTC","quantity":"2","update_timestamp_ms":1607063412001}]}]`)}
+		require.NoError(t, exch.wsHandleUserBalance(t.Context(), stored), "the stored balance must be saved")
+		_, err := exch.UpdateAccountBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "UpdateAccountBalances must return the stored wallet")
+		require.Equal(t, int64(2), requests.Load(), "the newer snapshot must be requested during the older one")
+		balances, err := exch.GetCachedCurrencyBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "cached balances must be available")
+		assert.Equal(t, 2.0, balances[currency.BTC].Total, "the stored BTC balance should survive")
+		assert.Equal(t, 3.0, balances[currency.ETH].Total, "the ETH balance the failed save stored should survive")
+	})
+	t.Run("a snapshot requested later but read earlier is not saved over the one answered first", func(t *testing.T) {
+		t.Parallel()
+		earlierReached, laterRead, earlierSaved := make(chan struct{}), make(chan struct{}), make(chan struct{})
+		var requests atomic.Int64
+		exch, _ := newRoutesServerExchange(t, map[string]testRoute{
+			"private/user-balance": func(string) (string, *APIError) {
+				if requests.Add(1) == 1 {
+					close(earlierReached)
+					<-laterRead
+					return `{"data":[{"position_balances":[{"instrument_name":"BTC","quantity":"2"},{"instrument_name":"ETH","quantity":"3"}]}]}`, nil
+				}
+				close(laterRead)
+				<-earlierSaved
+				return `{"data":[{"position_balances":[{"instrument_name":"BTC","quantity":"1"}]}]}`, nil
+			},
+		})
+		earlierErr := make(chan error, 1)
+		go func() {
+			_, err := exch.UpdateAccountBalances(t.Context(), asset.Spot)
+			earlierErr <- err
+			close(earlierSaved)
+		}()
+		<-earlierReached
+		got, err := exch.UpdateAccountBalances(t.Context(), asset.Margin)
+		require.NoError(t, <-earlierErr, "the snapshot answered first must be saved")
+		require.NoError(t, err, "UpdateAccountBalances must return the stored wallet")
+		require.Len(t, got, 1, "UpdateAccountBalances must return the one wallet")
+		assert.Equal(t, asset.Margin, got[0].AssetType, "the stored wallet should be labelled for the asset that asked")
+		assert.Equal(t, 2.0, got[0].Balances[currency.BTC].Total, "the stored BTC balance should be returned")
+		assert.Equal(t, 3.0, got[0].Balances[currency.ETH].Total, "the stored ETH balance should be returned")
+		balances, err := exch.GetCachedCurrencyBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "cached balances must be available")
+		assert.Equal(t, 2.0, balances[currency.BTC].Total, "the stored BTC balance should survive")
+		assert.Equal(t, 3.0, balances[currency.ETH].Total, "the stored ETH balance should survive")
+	})
+	t.Run("a snapshot requested before a newer one completed is not saved over it", func(t *testing.T) {
+		t.Parallel()
+		// Every asset's snapshot saves the one wallet, so a newer one requested for any asset holds the older back
+		for _, newer := range []asset.Item{asset.Spot, asset.Margin, asset.PerpetualSwap, asset.Futures} {
+			t.Run(newer.String(), func(t *testing.T) {
+				t.Parallel()
+				var exch *Exchange
+				var requests atomic.Int64
+				exch, _ = newRoutesServerExchange(t, map[string]testRoute{
+					"private/user-balance": func(string) (string, *APIError) {
+						if requests.Add(1) == 1 {
+							_, err := exch.UpdateAccountBalances(t.Context(), newer)
+							assert.NoErrorf(t, err, "the newer snapshot requested for %s should be saved", newer)
+							return `{"data":[{"position_balances":[{"instrument_name":"BTC","quantity":"1"}]}]}`, nil
+						}
+						return `{"data":[{"position_balances":[{"instrument_name":"ETH","quantity":"3"}]}]}`, nil
+					},
+				})
+				got, err := exch.UpdateAccountBalances(t.Context(), asset.Spot)
+				require.NoError(t, err, "UpdateAccountBalances must return the stored wallet")
+				require.Len(t, got, 1, "UpdateAccountBalances must return the one wallet")
+				assert.Equal(t, 3.0, got[0].Balances[currency.ETH].Total, "the newer snapshot should be returned")
+				assert.NotContains(t, got[0].Balances, currency.BTC, "the older snapshot should not be returned")
+				balances, err := exch.GetCachedCurrencyBalances(t.Context(), asset.Spot)
+				require.NoError(t, err, "cached balances must be available")
+				assert.Equal(t, 3.0, balances[currency.ETH].Total, "the newer snapshot should stay saved")
+				assert.NotContains(t, balances, currency.BTC, "the older snapshot should not be saved")
+			})
+		}
+	})
+	t.Run("a snapshot holds the wallet lock while it is saved", func(t *testing.T) {
+		t.Parallel()
+		exch, _ := newRoutesServerExchange(t, map[string]testRoute{
+			"private/user-balance": testResult(`{"data":[{"position_balances":[{"instrument_name":"BTC","quantity":"1"}]}]}`),
+		})
+		probe := &walletLockProbe{Exchange: exch}
+		exch.Accounts = accounts.MustNewAccounts(probe)
+		_, err := exch.UpdateAccountBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "UpdateAccountBalances must save the snapshot")
+		assert.Equal(t, []bool{true}, probe.lockHeld, "the wallet lock should be held while the snapshot is saved, so that no push is saved between its check and its save")
+	})
 	skipLiveWithoutCredentials(t)
 	// The cases share ex and its account store in order, so each also checks that an update keeps nothing from the last
 	for _, a := range ex.GetAssetTypes(false) {
@@ -2149,6 +2342,25 @@ func TestSubmitOrder(t *testing.T) { //nolint:tparallel // the cases run in orde
 
 func TestSubmitOrderTracksMarginOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("an older order's update keeps a reused client order ID tracked", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		older := []byte(`{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.order","channel":"user.order","data":[{"order_id":"101","client_oid":"shared","instrument_name":"BTC_USD","exec_inst":["MARGIN_ORDER"],"side":"BUY","order_type":"LIMIT","status":"FILLED","quantity":"0.001","limit_price":"50000"}]}}`)
+		require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, older), "the older order's update must be handled")
+		placing := func(_ context.Context, r *CreateOrderRequest) (*OrderIDResponse, error) {
+			assert.NoError(t, ex.wsHandleChannelData(t.Context(), nil, older), "the older order's update should be handled while the new order is in flight")
+			filled, err := ex.userTradeFill(&WebsocketUserTrade{OrderID: "102", ClientOrderID: r.ClientOrderID, InstrumentName: "BTC_USD", Side: "BUY"})
+			if assert.NoError(t, err, "userTradeFill should not error for the new order's early trade") {
+				assert.Equal(t, asset.Margin, filled.AssetType, "the new margin order's trade arriving before its order ID should still be filled as margin")
+			}
+			return &OrderIDResponse{OrderID: "102", ClientOrderID: r.ClientOrderID}, nil
+		}
+		_, err := ex.submitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001, ClientOrderID: "shared"}, placing, nil)
+		require.NoError(t, err, "submitOrder must not error")
+		assert.True(t, ex.isMarginOrder("101", ""), "the older margin order should stay tracked by its order ID")
+		assert.True(t, ex.isMarginOrder("102", ""), "the new margin order should be tracked by its order ID")
+		assert.False(t, ex.isMarginOrder("", "shared"), "the reused client order ID should no longer be tracked once the new order's ID is known")
+	})
 	ex := newTestExchange(t)
 	// placing records the order sent and whether its client order ID was tracked as a margin order's when it was sent,
 	// then answers it with orderID, or with err
@@ -2170,12 +2382,13 @@ func TestSubmitOrderTracksMarginOrders(t *testing.T) {
 	assert.Equal(t, sent.ClientOrderID, got.ClientOrderID, "submitOrder should report the client order ID it gave the order")
 	assert.True(t, trackedWhenSent, "submitOrder should track a margin order by its client order ID before placing it, as its trades can arrive first")
 	assert.True(t, ex.isMarginOrder("9", ""), "submitOrder should track a placed margin order by its order ID")
+	assert.False(t, ex.isMarginOrder("", sent.ClientOrderID), "submitOrder should stop tracking a placed margin order by its client order ID, which other orders can share, once its order ID is known")
 
-	// A spot order reusing the client order ID stops it marking a margin order, which its order ID still marks
+	// A spot order reusing the client order ID is tracked as no margin order, and the margin order still by its order ID
 	s.AssetType, s.ClientOrderID = asset.Spot, sent.ClientOrderID
 	_, err = ex.submitOrder(t.Context(), s, placing("10", nil), nil)
 	require.NoError(t, err, "submitOrder must not error for a spot order")
-	assert.False(t, trackedWhenSent, "submitOrder should stop tracking a client order ID a spot order reuses before placing it")
+	assert.False(t, trackedWhenSent, "submitOrder should not track a client order ID a spot order reuses when placing it")
 	assert.False(t, ex.isMarginOrder("10", s.ClientOrderID), "submitOrder should track a placed spot order as no margin order")
 	assert.True(t, ex.isMarginOrder("9", s.ClientOrderID), "the margin order should still be tracked by its order ID")
 
@@ -2198,6 +2411,39 @@ func TestSubmitOrderTracksMarginOrders(t *testing.T) {
 	_, err = ex.submitOrder(t.Context(), s, placing("", context.Canceled), nil)
 	require.ErrorIs(t, err, context.Canceled, "submitOrder must return the request's error")
 	assert.True(t, ex.isMarginOrder("", "unknown"), "submitOrder should go on tracking the client order ID of an order whose outcome is unknown")
+
+	// A spot order reusing that client order ID stops it marking a margin order before the spot order is placed, as the
+	// spot order's trades can arrive first
+	s.AssetType = asset.Spot
+	_, err = ex.submitOrder(t.Context(), s, placing("11", nil), nil)
+	require.NoError(t, err, "submitOrder must not error for a spot order reusing a client order ID")
+	assert.False(t, trackedWhenSent, "submitOrder should stop tracking a client order ID a spot order reuses before placing it")
+	assert.False(t, ex.isMarginOrder("11", s.ClientOrderID), "submitOrder should track a placed spot order as no margin order")
+
+	t.Run("acknowledgement omits client ID", func(t *testing.T) {
+		t.Parallel()
+		// A margin order is sent with the client order ID it is given, else one generated for it
+		for _, tc := range []struct{ name, clientOrderID string }{
+			{name: "given", clientOrderID: "margin_given"},
+			{name: "generated"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestExchange(t)
+				var sentClientOrderID string
+				acknowledge := func(_ context.Context, r *CreateOrderRequest) (*OrderIDResponse, error) {
+					sentClientOrderID = r.ClientOrderID
+					return &OrderIDResponse{OrderID: "41"}, nil
+				}
+				s := &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001, ClientOrderID: tc.clientOrderID}
+				_, err := ex.submitOrder(t.Context(), s, acknowledge, nil)
+				require.NoError(t, err, "submitOrder must not error for an acknowledgement without a client order ID")
+				require.NotEmpty(t, sentClientOrderID, "submitOrder must send a margin order with a client order ID")
+				assert.True(t, ex.isMarginOrder("41", ""), "submitOrder should track the placed margin order by its order ID")
+				assert.False(t, ex.isMarginOrder("", sentClientOrderID), "submitOrder should stop tracking the client order ID it sent the margin order with, which the acknowledgement omits")
+			})
+		}
+	})
 }
 
 func TestWebsocketSubmitOrder(t *testing.T) {
@@ -2488,7 +2734,7 @@ func TestWebsocketSubmitOrdersTracksMarginOrders(t *testing.T) {
 	assert.True(t, triggerTrackedWhenSent.Load(), "WebsocketSubmitOrders should track a margin trigger order by its client order ID before placing it")
 	assert.True(t, listTrackedWhenNextSent.Load(), "WebsocketSubmitOrders should track a list's placed orders by their order IDs before sending the next list")
 	assert.True(t, ex.isMarginOrder("11", ""), "WebsocketSubmitOrders should track a placed margin order by its order ID")
-	assert.True(t, ex.isMarginOrder("", "margin_placed"), "WebsocketSubmitOrders should track a placed margin order by its client order ID")
+	assert.False(t, ex.isMarginOrder("", "margin_placed"), "WebsocketSubmitOrders should stop tracking a placed margin order by its client order ID, which other orders can share, once its order ID is known")
 	assert.False(t, ex.isMarginOrder("", "margin_rejected"), "WebsocketSubmitOrders should stop tracking the client order ID of an order Crypto.com rejected")
 	assert.False(t, ex.isMarginOrder("13", "spot_placed"), "WebsocketSubmitOrders should track a placed spot order as no margin order")
 	assert.True(t, ex.isMarginOrder("21", ""), "WebsocketSubmitOrders should track a placed margin trigger order by its order ID")
@@ -2519,6 +2765,29 @@ func TestWebsocketSubmitOrdersTracksMarginOrders(t *testing.T) {
 	require.Len(t, got, 2, "WebsocketSubmitOrders must return a response for every order")
 	assert.ErrorIs(t, got[1].SubmissionError, order.ErrUnableToPlaceOrder, "WebsocketSubmitOrders should report an order the answer gives no outcome for")
 	assert.True(t, ex.isMarginOrder("", "margin_unanswered"), "WebsocketSubmitOrders should go on tracking the client order ID of an order the answer gives no outcome for")
+
+	t.Run("acknowledgement omits client ID", func(t *testing.T) {
+		t.Parallel()
+		ex, venue := newWebsocketTestExchange(t)
+		// A margin order is sent with the client order ID it is given, else one generated for it, and the answer names
+		// neither
+		given := &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001, ClientOrderID: "margin_given"}
+		generated := &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001}
+		venue.respond("private/create-order-list", `[{"code":0,"index":0,"order_id":"41"},{"code":0,"index":1,"order_id":"42"}]`)
+		_, err := ex.WebsocketSubmitOrders(t.Context(), []*order.Submit{given, generated})
+		require.NoError(t, err, "WebsocketSubmitOrders must not error for an answer without client order IDs")
+		requests := venue.received("private/create-order-list")
+		require.Len(t, requests, 1, "WebsocketSubmitOrders must send both orders in one list")
+		var sent createOrderListParams
+		require.NoError(t, json.Unmarshal(requests[0].Params, &sent), "the list's params must decode")
+		require.Len(t, sent.OrderList, 2, "the list must hold both orders")
+		for i, orderID := range []string{"41", "42"} {
+			clientOrderID := sent.OrderList[i].ClientOrderID
+			require.NotEmptyf(t, clientOrderID, "order %s must be sent with a client order ID", orderID)
+			assert.Truef(t, ex.isMarginOrder(orderID, ""), "WebsocketSubmitOrders should track margin order %s by its order ID", orderID)
+			assert.Falsef(t, ex.isMarginOrder("", clientOrderID), "WebsocketSubmitOrders should stop tracking client order ID %q, which the answer omits, once order %s is placed", clientOrderID, orderID)
+		}
+	})
 }
 
 func TestNewOrderAmendment(t *testing.T) { //nolint:tparallel // the cases run in order, the refusals on one shared exchange
@@ -3148,8 +3417,8 @@ func TestCancelBatchOrders(t *testing.T) {
 	got, err := ex.CancelBatchOrders(t.Context(), cancels)
 	require.NoError(t, err, "CancelBatchOrders must not error")
 	exp := &order.CancelBatchResponse{Status: map[string]string{
-		"1": "CANCELLED", "2": "CANCELLED", "3": "CANCELLED", "4": "CANCELLED", "5": "CANCELLED", "6": "CANCELLED",
-		"7": "CANCELLED", "8": "CANCELLED", "9": "CANCELLED", "10": "no result for the order", "11": "CANCELLED", "my_sl_order": "CANCELLED",
+		"1": "PENDING_CANCEL", "2": "PENDING_CANCEL", "3": "PENDING_CANCEL", "4": "PENDING_CANCEL", "5": "PENDING_CANCEL", "6": "PENDING_CANCEL",
+		"7": "PENDING_CANCEL", "8": "PENDING_CANCEL", "9": "PENDING_CANCEL", "10": "no result for the order", "11": "PENDING_CANCEL", "my_sl_order": "PENDING_CANCEL",
 	}}
 	assert.Equal(t, exp, got, "CancelBatchOrders should return every order's outcome")
 	requests := received()
@@ -3173,7 +3442,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	})
 	got, err = ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1"}, {OrderID: "2"}})
 	require.NoError(t, err, "CancelBatchOrders must not error for an entry refused for the request")
-	exp = &order.CancelBatchResponse{Status: map[string]string{"1": "42901 TOO_MANY_REQUESTS", "2": "CANCELLED"}}
+	exp = &order.CancelBatchResponse{Status: map[string]string{"1": "42901 TOO_MANY_REQUESTS", "2": "PENDING_CANCEL"}}
 	assert.Equal(t, exp, got, "CancelBatchOrders should report an entry refused for the request")
 	assert.Len(t, received(), 1, "CancelBatchOrders should not retry an entry refused for the request with the advanced order methods")
 
@@ -3191,7 +3460,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	require.ErrorAs(t, err, &apiErr, "CancelBatchOrders must return the error of a list whose request failed")
 	require.NotNil(t, got, "CancelBatchOrders must return the outcomes of the lists sent before one failed")
 	assert.Len(t, got.Status, 10, "CancelBatchOrders should return the outcome of each order of the lists sent before one failed")
-	assert.Equal(t, "CANCELLED", got.Status["10"], "CancelBatchOrders should report the orders cancelled before a list failed")
+	assert.Equal(t, "PENDING_CANCEL", got.Status["10"], "CancelBatchOrders should report the orders cancelled before a list failed")
 	assert.NotContains(t, got.Status, "11", "CancelBatchOrders should report no outcome for an order whose list failed")
 }
 
@@ -3217,7 +3486,7 @@ func TestCancelAllOrders(t *testing.T) {
 	})
 	got, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
 	require.NoError(t, err, "CancelAllOrders must not error")
-	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"1": "CANCELLED", "4": "CANCELLED"}}, got, "CancelAllOrders should cancel the asset's orders only")
+	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"1": "PENDING_CANCEL", "4": "PENDING_CANCEL"}}, got, "CancelAllOrders should cancel the asset's orders only")
 	expRequests := []testRequest{
 		{Method: "private/get-open-orders", Params: `{}`},
 		{Method: "private/advanced/get-open-orders", Params: `{}`},
@@ -3241,14 +3510,21 @@ func TestCancelAllOrders(t *testing.T) {
 	got, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr, "CancelAllOrders must return the error of a list whose request failed")
-	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"1": "CANCELLED"}}, got, "CancelAllOrders should return the outcomes of the lists sent before one failed")
+	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"1": "PENDING_CANCEL"}}, got, "CancelAllOrders should return the outcomes of the lists sent before one failed")
 }
 
 func TestListCancelStatus(t *testing.T) {
 	t.Parallel()
+	t.Run("an acknowledgement leaves cancellation pending", func(t *testing.T) {
+		t.Parallel()
+		status := make(map[string]string)
+		refused := listCancelStatus([]orderCancel{{OrderID: "1"}}, []OrderListEntryResponse{{Index: 0, Code: 0}}, status)
+		assert.Empty(t, refused, "an acknowledged cancellation should not be refused")
+		assert.Equal(t, order.PendingCancel.String(), status["1"], "the order should be pending cancellation")
+	})
 	status := make(map[string]string)
 	refused := listCancelStatus([]orderCancel{{OrderID: "1"}, {ClientOrderID: "c"}, {OrderID: "3"}}, []OrderListEntryResponse{{Index: 1}, {Index: -1}, {Index: 3}, {Index: 2, Code: 316, Message: "NO_ACTIVE_ORDER"}}, status)
-	assert.Equal(t, map[string]string{"1": "no result for the order", "c": "CANCELLED", "3": "316 NO_ACTIVE_ORDER"}, status, "listCancelStatus should key an order by its client order ID without an order ID, and leave out entries out of range")
+	assert.Equal(t, map[string]string{"1": "no result for the order", "c": "PENDING_CANCEL", "3": "316 NO_ACTIVE_ORDER"}, status, "listCancelStatus should key an order by its client order ID without an order ID, and leave out entries out of range")
 	assert.Equal(t, []int{2}, refused, "listCancelStatus should return the indexes of the orders Crypto.com refused to cancel")
 
 	// Entries refused for the request rather than their orders are reported, and left out of the orders refused
@@ -4126,6 +4402,7 @@ var testPositionRoutes = map[string]testRoute{
 			{"instrument_name":"USD","isolation_id":"19848526","isolation_type":"ISOLATED_MARGIN","leverage":"2","total_available_balance":"0.4","total_margin_balance":"5.397","total_initial_margin":"2.7","total_maintenance_margin":"1.35","total_cash_balance":"5.4","total_collateral_value":"5.4","total_effective_leverage":"0.4"}]}]}`),
 	"private/get-account-settings": testResult(`[{"leverage":"20","stp_id":"100","stp_scope":"S","stp_inst":"M"}]`),
 	"public/get-valuations":        testResult(`{"instrument_name":"BTCUSD-PERP","data":[{"v":"80819.5","t":1792899065000}]}`),
+	"public/get-instruments":       testResult(`{"data":[{"symbol":"BTCUSD-PERP","inst_type":"PERPETUAL_SWAP","max_leverage":"10","tradable":true}]}`),
 }
 
 func TestGetFuturesPositionSummary(t *testing.T) {
@@ -4161,7 +4438,7 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 		NotionalLeverage:       numberDecimal(1.9040123),
 		MarginBalance:          decimal.MustFromString("7595.42571782"),
 		NotionalSize:           decimal.MustFromString("-0.1984").Abs().Mul(numberDecimal(80819.5)),
-		Leverage:               numberDecimal(20),
+		Leverage:               numberDecimal(10),
 		MarkPrice:              numberDecimal(80819.5),
 		CurrentSize:            decimal.MustFromString("-0.1984"),
 		ContractSettlementType: futures.Linear,
@@ -4170,7 +4447,7 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 		FreeCollateral:         decimal.MustFromString("4721.05898582"),
 		TotalCollateral:        decimal.MustFromString("7651.18811483"),
 	}
-	assert.Equal(t, exp, got, "GetFuturesPositionSummary should summarise the cross margin position with the account's margin and leverage, valued at the mark price")
+	assert.Equal(t, exp, got, "GetFuturesPositionSummary should summarise the cross margin position with the account's margin, the lower of the account's and the instrument's maximum leverage, valued at the mark price")
 
 	isolated := maps.Clone(testPositionRoutes)
 	isolated["private/get-positions"] = testResult(`{"data":[{"quantity":"0.0002","open_pos_cost":"10.959000","open_position_pnl":"-0.003000","instrument_name":"BTCUSD-PERP","isolation_id":"19848526","isolation_type":"ISOLATED_MARGIN"}]}`)
@@ -4372,6 +4649,60 @@ func TestGetLeverage(t *testing.T) {
 	assert.Equal(t, 2.0, got, "GetLeverage should return an isolated position's leverage")
 	_, err = ex.GetLeverage(t.Context(), asset.PerpetualSwap, currency.NewPairWithDelimiter("ETHUSD", "PERP", currency.DashDelimiter), margin.Isolated, order.UnknownSide)
 	assert.ErrorIs(t, err, errNoIsolatedPosition, "GetLeverage should error without an isolated position")
+
+	t.Run("the contract cap limits cross margin leverage", func(t *testing.T) {
+		t.Parallel()
+		exch, received := newRoutesServerExchange(t, map[string]testRoute{
+			"private/get-account-settings": testResult(`[{"leverage":"50"}]`),
+			"public/get-instruments":       testResult(`{"data":[{"symbol":"BTCUSD-PERP","inst_type":"PERPETUAL_SWAP","max_leverage":"20","tradable":true},{"symbol":"ETHUSD-PERP","inst_type":"PERPETUAL_SWAP","max_leverage":"10","tradable":true}]}`),
+		})
+		got, err := exch.GetLeverage(t.Context(), asset.PerpetualSwap, testPerpetualPair, margin.Multi, order.UnknownSide)
+		require.NoError(t, err, "GetLeverage must return the effective contract limit")
+		assert.Equal(t, 20.0, got, "leverage should be capped by the instrument")
+		assert.Equal(t, []testRequest{{Method: "private/get-account-settings", Params: `{}`}, {Method: "public/get-instruments"}}, received(), "GetLeverage should read the account's leverage and the instrument's maximum")
+	})
+	t.Run("the account's leverage under the contract cap", func(t *testing.T) {
+		t.Parallel()
+		exch, _ := newRoutesServerExchange(t, map[string]testRoute{
+			"private/get-account-settings": testResult(`[{"leverage":"5"}]`),
+			"public/get-instruments":       testResult(`{"data":[{"symbol":"BTCUSD-PERP","inst_type":"PERPETUAL_SWAP","max_leverage":"20","tradable":true}]}`),
+		})
+		got, err := exch.GetLeverage(t.Context(), asset.PerpetualSwap, testPerpetualPair, margin.Multi, order.UnknownSide)
+		require.NoError(t, err, "GetLeverage must not error under the contract cap")
+		assert.Equal(t, 5.0, got, "the account's lower leverage should apply")
+	})
+	for _, tc := range []struct {
+		name        string
+		instruments string
+		err         error
+	}{
+		{"an instrument missing from the catalogue", `{"data":[{"symbol":"ETHUSD-PERP","max_leverage":"20"}]}`, errInstrumentNotFound},
+		{"an instrument without a maximum leverage", `{"data":[{"symbol":"BTCUSD-PERP"}]}`, errNoMaximumLeverage},
+		{"an instrument whose maximum leverage is not a number", `{"data":[{"symbol":"BTCUSD-PERP","max_leverage":"NaN"}]}`, errNoMaximumLeverage},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			exch, _ := newRoutesServerExchange(t, map[string]testRoute{
+				"private/get-account-settings": testResult(`[{"leverage":"50"}]`),
+				"public/get-instruments":       testResult(tc.instruments),
+			})
+			_, err := exch.GetLeverage(t.Context(), asset.PerpetualSwap, testPerpetualPair, margin.Multi, order.UnknownSide)
+			assert.ErrorIs(t, err, tc.err, "GetLeverage should refuse an instrument it cannot cap")
+		})
+	}
+	t.Run("the instrument catalogue's failure", func(t *testing.T) {
+		t.Parallel()
+		exch, _ := newRoutesServerExchange(t, map[string]testRoute{
+			"private/get-account-settings": testResult(`[{"leverage":"50"}]`),
+			"public/get-instruments":       func(string) (string, *APIError) { return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"} },
+		})
+		_, err := exch.GetLeverage(t.Context(), asset.PerpetualSwap, testPerpetualPair, margin.Multi, order.UnknownSide)
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "GetLeverage must return the catalogue's failure")
+		assert.Equal(t, &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}, apiErr, "GetLeverage should return the catalogue's error")
+	})
+	_, err = ex.GetLeverage(t.Context(), asset.PerpetualSwap, currency.EMPTYPAIR, margin.Multi, order.UnknownSide)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetLeverage should refuse an empty pair before any request")
 }
 
 func TestSetLeverage(t *testing.T) {

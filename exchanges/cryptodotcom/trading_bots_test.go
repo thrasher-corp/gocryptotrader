@@ -597,6 +597,15 @@ func TestGetTradingBots(t *testing.T) { //nolint:tparallel // the cases run in o
 			require.NoErrorf(t, err, "GetTradingBots must not error against the test server for %+v", tc.req)
 		})
 	}
+	// Serial too, so the case runs before the GetTradingBots calls below
+	t.Run("bare executed order count", func(t *testing.T) {
+		ex := newResponseServerExchange(t, testResponse("private/bot/get-trading-bots",
+			`{"bot_list":[{"bot_id":"1","bot_type":"DCA","state":"RUNNING","execution_summary":{"executed_order":5}}]}`))
+		got, err := ex.GetTradingBots(t.Context(), &TradingBotsRequest{BotTypes: []string{TradingBotTypeDollarCostAveraging}, States: []string{TradingBotStateRunning}})
+		require.NoError(t, err, "GetTradingBots must accept a bare executed order count")
+		exp := []TradingBotResponse{{BotID: "1", BotType: TradingBotTypeDollarCostAveraging, State: TradingBotStateRunning, ExecutionSummary: TradingBotExecutionSummary{ExecutedOrders: 5}}}
+		assert.Equal(t, exp, got, "GetTradingBots should decode a bare executed order count")
+	})
 	minimal := &TradingBotsRequest{BotTypes: []string{TradingBotTypeDollarCostAveraging}, States: []string{TradingBotStateRunning}}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/bot/get-trading-bots","code":0,"result":null}`).GetTradingBots(t.Context(), minimal)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetTradingBots should error for a null result")

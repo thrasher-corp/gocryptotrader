@@ -98,7 +98,9 @@ func (e *Exchange) wsHandleUserOrders(ctx context.Context, push *websocketChanne
 // execution instructions when it trades on margin, and tracks it as a margin order or not for its trades
 func (e *Exchange) userOrderDetail(o *OrderResponse) (*order.Detail, error) {
 	a := orderAsset(o.InstrumentName, o.ExecutionInstructions)
-	e.trackMarginOrder(a, o.OrderID, o.ClientOrderID)
+	// A client order ID is tracked only until the submission that sent it learns its outcome, as another order sharing
+	// the ID may be in flight
+	e.trackMarginOrder(a, o.OrderID, "")
 	p, err := pairFromInstrument(a, o.InstrumentName)
 	if err != nil {
 		return nil, err
@@ -125,6 +127,8 @@ func (e *Exchange) trackMarginOrder(a asset.Item, orderID, clientOrderID string)
 	}
 	if orderID != "" {
 		e.marginOrders.Add(marginOrderKey{id: orderID}, a == asset.Margin)
+		e.untrackClientOrderID(clientOrderID)
+		return
 	}
 	if a == asset.Margin && clientOrderID != "" {
 		e.marginOrders.Add(marginOrderKey{id: clientOrderID, client: true}, true)
@@ -215,11 +219,6 @@ func (e *Exchange) userTradeFill(t *WebsocketUserTrade) (fill.Data, error) {
 	}, nil
 }
 
-// wsHandleTransactions relays the account's transactions, trades and every other change to its balances
-func (e *Exchange) wsHandleTransactions(ctx context.Context, push *websocketChannelPush) error {
-	return relayUserData[TransactionResponse](ctx, e, push)
-}
-
 // wsHandleUserBalance saves the account's balances to the account store and relays them. Crypto.com keeps one wallet
 // for spot, margin and derivatives, which is saved once, under spot, as UpdateAccountBalances saves it whichever asset
 // asks, since the account store adds up every asset's balances. Crypto.com's docs leave out whether a push holds every
@@ -232,16 +231,19 @@ func (e *Exchange) wsHandleUserBalance(ctx context.Context, push *websocketChann
 	if len(balances) == 0 {
 		return nil
 	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
 	subAccts := accounts.SubAccounts{balanceSubAccount(asset.Spot, balances)}
-	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
+	e.walletMu.Lock()
+	err = e.Accounts.Save(ctx, subAccts, false)
+	e.countWalletSave(creds)
+	e.walletMu.Unlock()
+	if err != nil {
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, subAccts)
-}
-
-// wsHandlePositions relays the account's open positions
-func (e *Exchange) wsHandlePositions(ctx context.Context, push *websocketChannelPush) error {
-	return relayUserData[PositionResponse](ctx, e, push)
 }
 
 // wsHandleAccountRisk relays the account's risk, with the account the push names
@@ -257,26 +259,6 @@ func (e *Exchange) wsHandleAccountRisk(ctx context.Context, push *websocketChann
 		risks[i].AccountID = push.AccountID
 	}
 	return e.Websocket.DataHandler.Send(ctx, risks)
-}
-
-// wsHandlePositionBalance relays the account's collateral balances and positions
-func (e *Exchange) wsHandlePositionBalance(ctx context.Context, push *websocketChannelPush) error {
-	return relayUserData[WebsocketPositionBalance](ctx, e, push)
-}
-
-// wsHandleOTCQuoteRequests relays the account's OTC quote requests as their statuses change
-func (e *Exchange) wsHandleOTCQuoteRequests(ctx context.Context, push *websocketChannelPush) error {
-	return relayUserData[OTCQuoteRequestResponse](ctx, e, push)
-}
-
-// wsHandleOTCQuotes relays the quotes liquidity providers make for the account's OTC quote requests
-func (e *Exchange) wsHandleOTCQuotes(ctx context.Context, push *websocketChannelPush) error {
-	return relayUserData[OTCQuoteResponse](ctx, e, push)
-}
-
-// wsHandleOTCDeals relays the account's OTC deals as their statuses change
-func (e *Exchange) wsHandleOTCDeals(ctx context.Context, push *websocketChannelPush) error {
-	return relayUserData[OTCDealResponse](ctx, e, push)
 }
 
 // relayUserData relays the data a user channel's push holds, unless it holds none

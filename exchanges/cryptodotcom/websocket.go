@@ -156,7 +156,7 @@ func (subscribeInspector) IsFinal(data []byte) bool {
 
 // setupWebsocket sets the websocket up with its connections: market data, up to the subscription limit each, the user
 // channels connection and the trade connection, which carries the WebsocketAPI methods and is dialled whether or not
-// any channel is subscribed
+// any channel is subscribed, while authenticated endpoints can be used
 func (e *Exchange) setupWebsocket(exch *config.Exchange) error {
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
@@ -213,6 +213,7 @@ func (e *Exchange) setupWebsocket(exch *config.Exchange) error {
 			Handler:                  e.wsHandleData,
 			MessageFilter:            websocketTradeConnection,
 			SubscriptionsNotRequired: true,
+			AuthenticatedOnly:        true,
 			ConnectionRateLimiter: func() *request.RateLimiterWithWeight {
 				return request.NewRateLimitWithWeight(time.Second, websocketUserRate, 1)
 			},
@@ -288,14 +289,18 @@ func (w WebsocketAPI) GetCancelOnDisconnect(ctx context.Context) (*CancelOnDisco
 
 // SendWebsocketRequest sends a private method's request over the authenticated trade connection, with params, which
 // may be nil, as its params object, and decodes its result. A websocket not connected is reported as such before it is
-// reported as not authenticated, which follows from it
+// reported as not authenticated, which follows from it, and a websocket connected without authentication has no trade
+// connection
 func (e *Exchange) SendWebsocketRequest(ctx context.Context, method string, params, result any) error {
-	conn, err := e.Websocket.GetConnection(websocketTradeConnection)
-	if err != nil {
-		return err
+	if !e.Websocket.IsConnected() {
+		return websocket.ErrNotConnected
 	}
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%w: %s", errWebsocketNotAuthenticated, method)
+	}
+	conn, err := e.Websocket.GetConnection(websocketTradeConnection)
+	if err != nil {
+		return err
 	}
 	return e.sendConnectionRequest(ctx, conn, method, params, result)
 }
@@ -415,33 +420,33 @@ func (e *Exchange) wsHandleChannelData(ctx context.Context, conn websocket.Conne
 	case IndexPriceChannel:
 		return e.wsHandleIndexPrice(ctx, &push)
 	case MarkPriceChannel:
-		return e.wsHandleMarkPrice(ctx, &push)
+		return relayInstrumentValues[WebsocketMarkPrice](ctx, e, &push)
 	case SettlementPriceChannel:
-		return e.wsHandleSettlementPrice(ctx, &push)
+		return relayInstrumentValues[WebsocketSettlementPrice](ctx, e, &push)
 	case FundingRateChannel:
-		return e.wsHandleFundingRate(ctx, &push)
+		return relayInstrumentValues[WebsocketFundingRate](ctx, e, &push)
 	case EstimatedFundingRateChannel:
-		return e.wsHandleEstimatedFundingRate(ctx, &push)
+		return relayInstrumentValues[WebsocketEstimatedFundingRate](ctx, e, &push)
 	case channelUserOrder, AdvancedOrdersChannel, channelUserAdvancedOrder:
 		return e.wsHandleUserOrders(ctx, &push)
 	case channelUserTrade:
 		return e.wsHandleUserTrades(ctx, &push)
 	case TransactionsChannel:
-		return e.wsHandleTransactions(ctx, &push)
+		return relayUserData[TransactionResponse](ctx, e, &push)
 	case channelUserBalance:
 		return e.wsHandleUserBalance(ctx, &push)
 	case PositionsChannel:
-		return e.wsHandlePositions(ctx, &push)
+		return relayUserData[PositionResponse](ctx, e, &push)
 	case AccountRiskChannel:
 		return e.wsHandleAccountRisk(ctx, &push)
 	case PositionBalanceChannel:
-		return e.wsHandlePositionBalance(ctx, &push)
+		return relayUserData[WebsocketPositionBalance](ctx, e, &push)
 	case OTCQuoteRequestsChannel:
-		return e.wsHandleOTCQuoteRequests(ctx, &push)
+		return relayUserData[OTCQuoteRequestResponse](ctx, e, &push)
 	case OTCQuotesChannel:
-		return e.wsHandleOTCQuotes(ctx, &push)
+		return relayUserData[OTCQuoteResponse](ctx, e, &push)
 	case OTCDealsChannel:
-		return e.wsHandleOTCDeals(ctx, &push)
+		return relayUserData[OTCDealResponse](ctx, e, &push)
 	}
 	return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(data)})
 }
@@ -716,7 +721,8 @@ func qualifiedChannels(subs subscription.List) []string {
 }
 
 // wsSubscribeBatch sends a subscribe request for channels and waits for each channel's answer, or for an answer refusing
-// the request as a whole, keeping each subscription answered without an error
+// the request as a whole, keeping each subscription answered without an error, those answered before the wait timed out
+// or was cancelled included, as Crypto.com pushes their data
 func (e *Exchange) wsSubscribeBatch(ctx context.Context, conn websocket.Connection, params *subscriptionRequest, subs subscription.List) error {
 	byChannel := make(map[string]*subscription.Subscription, len(subs))
 	for _, s := range subs {
@@ -728,11 +734,7 @@ func (e *Exchange) wsSubscribeBatch(ctx context.Context, conn websocket.Connecti
 	}
 	id := e.nextWebsocketRequestID()
 	req := &websocketRequest{ID: id, Method: websocketMethodSubscribe, Params: encodedParams, Nonce: requestNonce()}
-	responses, err := conn.SendMessageReturnResponsesWithInspector(ctx, request.Unset, id, req, len(params.Channels), subscribeInspector{})
-	if err != nil {
-		return err
-	}
-	var errs error
+	responses, errs := conn.SendMessageReturnResponsesWithInspector(ctx, request.Unset, id, req, len(params.Channels), subscribeInspector{})
 	for _, data := range responses {
 		var resp websocketResponse
 		if err := json.Unmarshal(data, &resp); err != nil {
@@ -776,9 +778,17 @@ func (e *Exchange) wsUnsubscribe(ctx context.Context, conn websocket.Connection,
 	return errs
 }
 
-// wsUnsubscribeBatch sends an unsubscribe request for channels, which Crypto.com acknowledges once, and removes them
+// wsUnsubscribeBatch sends an unsubscribe request for channels, which Crypto.com acknowledges once, and removes them. A
+// book channel resubscribing for a new snapshot is unsubscribed once more, on the same connection, when its request
+// times out, as Crypto.com may have applied the request and stopped the channel's deltas, which would leave its books
+// awaiting a snapshot that no delta asks for
 func (e *Exchange) wsUnsubscribeBatch(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	if err := e.sendConnectionRequest(ctx, conn, websocketMethodUnsubscribe, &subscriptionRequest{Channels: qualifiedChannels(subs)}, nil); err != nil {
+	params := &subscriptionRequest{Channels: qualifiedChannels(subs)}
+	err := e.sendConnectionRequest(ctx, conn, websocketMethodUnsubscribe, params, nil)
+	if errors.Is(err, websocket.ErrSignatureTimeout) && len(subs) == 1 && subs[0].Channel == subscription.OrderbookChannel && subs[0].State() == subscription.ResubscribingState {
+		err = e.sendConnectionRequest(ctx, conn, websocketMethodUnsubscribe, params, nil)
+	}
+	if err != nil {
 		return err
 	}
 	return e.Websocket.RemoveSubscriptions(conn, subs...)

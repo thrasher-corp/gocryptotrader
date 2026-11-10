@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 var (
@@ -16,11 +17,11 @@ var (
 	errPlaidPublicTokenRequired = errors.New("public token from Plaid required")
 )
 
-// GetFiatAccess returns whether each currency can be deposited and withdrawn on each payment network, which brokers
-// check on behalf of their users
-func (e *Exchange) GetFiatAccess(ctx context.Context) ([]FiatAccessResponse, error) {
+// GetFiatAccess returns whether each currency can be deposited and withdrawn on each payment network, which a broker
+// checks for the user whose account UUID it gives as onBehalfOfAccountUUID, which is left unsent when empty
+func (e *Exchange) GetFiatAccess(ctx context.Context, onBehalfOfAccountUUID string) ([]FiatAccessResponse, error) {
 	var resp *fiatAccessesResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-access", nil, &resp); err != nil {
+	if err := e.sendAuthenticatedRequest(ctx, privateEPL, "private/fiat/fiat-access", onBehalfOfAccountUUID, nil, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -34,7 +35,7 @@ func (e *Exchange) GetFiatDepositInfo(ctx context.Context, req *FiatPaymentNetwo
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
-	params := &fiatPaymentNetworksParams{PaymentNetworks: joinPaymentNetworks(req.PaymentNetworks)}
+	params := &fiatPaymentNetworksParams{PaymentNetworks: strings.Join(req.PaymentNetworks, ", ")}
 	var resp *fiatDepositInfoListResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-deposit-info", params, &resp); err != nil {
 		return nil, err
@@ -97,7 +98,7 @@ func (e *Exchange) CreateFiatWithdrawal(ctx context.Context, req *FiatWithdrawal
 	params := *req
 	params.Currency = req.Currency.Upper()
 	var resp *FiatWithdrawalResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-create-withdraw", &params, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/fiat/fiat-create-withdraw", &params, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -155,7 +156,7 @@ func (e *Exchange) CreateFiatBankAccount(ctx context.Context, req *FiatBankAccou
 	params := *req
 	params.Currency = req.Currency.Upper()
 	var resp *fiatBankAccountsResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-create-bank-account", &params, &resp); err != nil {
+	if err := e.sendAuthenticatedRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/fiat/fiat-create-bank-account", req.OnBehalfOfAccountUUID, &params, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -169,7 +170,7 @@ func (e *Exchange) GetFiatBankAccounts(ctx context.Context, req *FiatPaymentNetw
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
-	params := &fiatPaymentNetworksParams{PaymentNetworks: joinPaymentNetworks(req.PaymentNetworks)}
+	params := &fiatPaymentNetworksParams{PaymentNetworks: strings.Join(req.PaymentNetworks, ", ")}
 	var resp *fiatBankAccountsResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-get-bank-accounts", params, &resp); err != nil {
 		return nil, err
@@ -207,12 +208,6 @@ func newFiatHistoryParams(req *FiatHistoryRequest) (*fiatHistoryParams, error) {
 		PageSize:        req.PageSize,
 		StartTime:       startTime,
 		EndTime:         endTime,
-		PaymentNetworks: joinPaymentNetworks(req.PaymentNetworks),
+		PaymentNetworks: strings.Join(req.PaymentNetworks, ", "),
 	}, nil
-}
-
-// joinPaymentNetworks returns payment networks as the comma-separated list Crypto.com filters by, separated as the
-// docs' example separates them
-func joinPaymentNetworks(paymentNetworks []string) string {
-	return strings.Join(paymentNetworks, ", ")
 }

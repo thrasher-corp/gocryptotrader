@@ -1,6 +1,7 @@
 package cryptodotcom
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -271,6 +273,39 @@ func newSignedRecorder(t *testing.T, method, result string) (ex *Exchange, sent 
 		mu.Lock()
 		defer mu.Unlock()
 		return slices.Clone(params)
+	}
+	return ex, sent
+}
+
+// newEnvelopeRecorder returns an exchange whose signed requests of method a test server records whole, raw and decoded,
+// and answers with result
+func newEnvelopeRecorder(t *testing.T, method, result string) (ex *Exchange, sent func() ([]string, []requestBody)) {
+	t.Helper()
+	response := testResponse(method, result)
+	var mu sync.Mutex
+	var raws []string
+	var bodies []requestBody
+	ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, err := io.ReadAll(r.Body)
+		if !assert.NoError(t, err, "Reading the request body should not error") {
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewReader(raw))
+		body, ok := readSignedRequest(t, r)
+		if !ok {
+			return
+		}
+		mu.Lock()
+		raws = append(raws, string(raw))
+		bodies = append(bodies, body)
+		mu.Unlock()
+		_, err = w.Write([]byte(response))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+	sent = func() ([]string, []requestBody) {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(raws), slices.Clone(bodies)
 	}
 	return ex, sent
 }
@@ -625,9 +660,152 @@ func TestSendPostRequest(t *testing.T) {
 			assert.NoError(t, err, "Writing the response should not error")
 		}))
 		var result OrderIDResponse
-		require.NoError(t, ex.sendPostRequest(t.Context(), stakingEPL, "public/staking/get-conversion-rate", nil, &result, nil), "sendPostRequest must not error unsigned")
+		require.NoError(t, ex.sendPostRequest(t.Context(), stakingEPL, "public/staking/get-conversion-rate", nil, &result, nil, ""), "sendPostRequest must not error unsigned")
 		assert.Equal(t, OrderIDResponse{OrderID: "2"}, result, "sendPostRequest should decode the result")
 	})
+}
+
+// TestTimedOutRequestRetries checks that a write Crypto.com may already have processed is not sent again after a
+// timeout, while reads, cancels and changes to absolute values are
+func TestTimedOutRequestRetries(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		retried bool
+		call    func(context.Context, *Exchange) error
+	}{
+		{name: "CreateOrder", call: func(ctx context.Context, ex *Exchange) error {
+			req := tradingTestOrder()
+			req.ClientOrderID = ""
+			_, err := ex.CreateOrder(ctx, req)
+			return err
+		}},
+		{name: "ClosePosition", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.ClosePosition(ctx, &ClosePositionRequest{InstrumentName: "BTCUSD-PERP", OrderType: OrderTypeMarket})
+			return err
+		}},
+		{name: "CreateOrderList", call: func(ctx context.Context, ex *Exchange) error {
+			orders := tradingTestOrderList()
+			for i := range orders {
+				orders[i].ClientOrderID = ""
+			}
+			_, err := ex.CreateOrderList(ctx, orders)
+			return err
+		}},
+		{name: "CreateIsolatedMarginTransfer", call: func(ctx context.Context, ex *Exchange) error {
+			return ex.CreateIsolatedMarginTransfer(ctx, &CreateIsolatedMarginTransferRequest{IsolationID: tradingTestIsolationID, Direction: IsolatedMarginTransferDirectionCredit, Amount: 50})
+		}},
+		{name: "CreateAdvancedOrder", call: func(ctx context.Context, ex *Exchange) error {
+			req := advancedTriggerOrder()
+			req.ClientOrderID = ""
+			_, err := ex.CreateAdvancedOrder(ctx, &req)
+			return err
+		}},
+		{name: "CreateOneCancelsTheOtherOrder", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CreateOneCancelsTheOtherOrder(ctx, ocoOrders())
+			return err
+		}},
+		{name: "CreateOneTriggersTheOtherOrder", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CreateOneTriggersTheOtherOrder(ctx, otoOrders())
+			return err
+		}},
+		{name: "CreateOneTriggersAOneCancelsTheOtherOrder", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CreateOneTriggersAOneCancelsTheOtherOrder(ctx, otocoOrders())
+			return err
+		}},
+		{name: "CreateAdvancedOrderList", call: func(ctx context.Context, ex *Exchange) error {
+			orders := advancedOrderListOrders()
+			for i := range orders {
+				orders[i].ClientOrderID = ""
+			}
+			_, err := ex.CreateAdvancedOrderList(ctx, orders)
+			return err
+		}},
+		{name: "CreateWithdrawal", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CreateWithdrawal(ctx, &WithdrawalRequest{Currency: currency.BTC, Amount: 1, Address: "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf"})
+			return err
+		}},
+		{name: "CreateFiatWithdrawal", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CreateFiatWithdrawal(ctx, &FiatWithdrawalRequest{BankAccountID: "b2", Amount: 100, Currency: currency.EUR, PaymentNetwork: PaymentNetworkOpenPaydSEPA})
+			return err
+		}},
+		{name: "CreateFiatBankAccount", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CreateFiatBankAccount(ctx, &FiatBankAccountRequest{PlaidAccountID: "a2", PlaidPublicToken: "public-sandbox-2", Currency: currency.USD})
+			return err
+		}},
+		{name: "CreateSubAccountTransfer", call: func(ctx context.Context, ex *Exchange) error {
+			return ex.CreateSubAccountTransfer(ctx, &SubAccountTransferRequest{FromAccountUUID: "a", ToAccountUUID: "b", Currency: currency.CRO, Amount: 1})
+		}},
+		{name: "Stake", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.Stake(ctx, &StakeRequest{InstrumentName: "SOL.staked", Quantity: 1})
+			return err
+		}},
+		{name: "Unstake", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.Unstake(ctx, &UnstakeRequest{InstrumentName: "SOL.staked", Quantity: 0.5})
+			return err
+		}},
+		{name: "ConvertStakedToken", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.ConvertStakedToken(ctx, &ConvertStakedTokenRequest{FromInstrumentName: "ETH.staked", ToInstrumentName: "CDCETH", ExpectedRate: 1.0203, FromQuantity: 3.14159265, SlippageToleranceBasisPoints: 3})
+			return err
+		}},
+		{name: "RequestOTCQuote", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.RequestOTCQuote(ctx, validOTCQuoteRequest())
+			return err
+		}},
+		{name: "RequestOTCDeal", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.RequestOTCDeal(ctx, validOTCDealRequest())
+			return err
+		}},
+		{name: "CreateTradingBot", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CreateTradingBot(ctx, &CreateTradingBotRequest{BotType: TradingBotTypeDollarCostAveraging, NotifyOnBotChange: true, Settings: dcaBotSettings()})
+			return err
+		}},
+		{name: "GetUserBalance", retried: true, call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.GetUserBalance(ctx)
+			return err
+		}},
+		{name: "CancelExistingOrder", retried: true, call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CancelExistingOrder(ctx, &CancelOrderRequest{OrderID: tradingTestOrderID})
+			return err
+		}},
+		{name: "AmendOrder", retried: true, call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.AmendOrder(ctx, &AmendOrderRequest{OrderID: tradingTestOrderID, NewPrice: 82000, NewQuantity: 0.0002})
+			return err
+		}},
+		{name: "ChangeAccountLeverage", retried: true, call: func(ctx context.Context, ex *Exchange) error {
+			return ex.ChangeAccountLeverage(ctx, &ChangeAccountLeverageRequest{AccountID: tradingTestAccountID, Leverage: 10})
+		}},
+		{name: "PauseTradingBot", retried: true, call: func(ctx context.Context, ex *Exchange) error {
+			return ex.PauseTradingBot(ctx, &TradingBotRequest{BotID: "4611686018431234561", BotType: TradingBotTypeDollarCostAveraging})
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var requests atomic.Int64
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// The server notices the client giving up, which ends the request's context, only once the body is read
+				_, err := io.Copy(io.Discard, r.Body)
+				assert.NoError(t, err, "Reading the request body should not error")
+				if requests.Add(1) == 1 {
+					select {
+					case <-r.Context().Done():
+					case <-time.After(time.Second):
+					}
+					return
+				}
+				w.WriteHeader(http.StatusBadRequest)
+			}))
+			require.NoError(t, ex.SetHTTPClientTimeout(250*time.Millisecond), "SetHTTPClientTimeout must not error")
+			err := tc.call(t.Context(), ex)
+			if tc.retried {
+				assert.ErrorIsf(t, err, request.ErrBadStatus, "%s should return its retry's reply", tc.name)
+				assert.Equalf(t, int64(2), requests.Load(), "%s should send a timed-out request again", tc.name)
+				return
+			}
+			assert.ErrorIsf(t, err, context.DeadlineExceeded, "%s should return the timeout", tc.name)
+			assert.Equalf(t, int64(1), requests.Load(), "%s should send a timed-out request once", tc.name)
+		})
+	}
 }
 
 func TestUnixMilliParam(t *testing.T) {

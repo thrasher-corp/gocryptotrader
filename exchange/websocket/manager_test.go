@@ -631,6 +631,94 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			require.NoError(t, ws.Shutdown())
 		})
 
+		t.Run("authenticated only connection", func(t *testing.T) {
+			for _, authenticated := range []bool{false, true} {
+				t.Run(strconv.FormatBool(authenticated), func(t *testing.T) {
+					var publicDials, authenticatedDials atomic.Int32
+					ws := newConfiguredMultiManager(t, nil)
+					ws.SetCanUseAuthenticatedEndpoints(authenticated)
+					ws.connectionManager = []*websocket{
+						{setup: &ConnectionSetup{
+							URL:                   mockURL,
+							GenerateSubscriptions: func() (subscription.List, error) { return testSubs, nil },
+							Connector: func(ctx context.Context, conn Connection) error {
+								publicDials.Add(1)
+								return dial(ctx, conn)
+							},
+							Handler:    noopHandler,
+							Subscriber: func(context.Context, Connection, subscription.List) error { return nil },
+						}, subscriptions: subscription.NewStore()},
+						{setup: &ConnectionSetup{
+							URL:                      mockURL,
+							MessageFilter:            "authenticated",
+							AuthenticatedOnly:        true,
+							SubscriptionsNotRequired: true,
+							Connector: func(context.Context, Connection) error {
+								authenticatedDials.Add(1)
+								return errDastardlyReason
+							},
+							Handler: noopHandler,
+						}, subscriptions: subscription.NewStore()},
+					}
+					ws.connectionManager[0].setup.Subscriber = func(context.Context, Connection, subscription.List) error {
+						return ws.connectionManager[0].subscriptions.Add(testSubs[0])
+					}
+					err := ws.Connect(t.Context())
+					if authenticated {
+						require.ErrorIs(t, err, errDastardlyReason, "Connect must dial an authenticated only connection when authenticated")
+						assert.Positive(t, authenticatedDials.Load(), "the authenticated only connection should be dialled")
+						assert.False(t, ws.IsConnected(), "a failed authenticated only connection should stop the public ones")
+						return
+					}
+					require.NoError(t, err, "Connect must skip an authenticated only connection without authentication")
+					assert.Zero(t, authenticatedDials.Load(), "the authenticated only connection should not be dialled")
+					assert.Equal(t, int32(1), publicDials.Load(), "the public connection should be dialled")
+					assert.True(t, ws.IsConnected(), "the public connection should stay connected")
+					require.NoError(t, ws.Shutdown(), "Shutdown must not error")
+				})
+			}
+		})
+
+		t.Run("authenticated only connection with subscriptions", func(t *testing.T) {
+			var authenticatedDials atomic.Int32
+			ws := newConfiguredMultiManager(t, nil)
+			ws.SetCanUseAuthenticatedEndpoints(false)
+			ws.trafficTimeout = time.Minute
+			subscriber := func(_ context.Context, conn Connection, subs subscription.List) error {
+				return ws.AddSuccessfulSubscriptions(conn, subs...)
+			}
+			ws.connectionManager = []*websocket{
+				{setup: &ConnectionSetup{
+					URL:                   mockURL,
+					GenerateSubscriptions: func() (subscription.List, error) { return testSubs, nil },
+					Connector:             dial,
+					Handler:               noopHandler,
+					Subscriber:            subscriber,
+				}, subscriptions: subscription.NewStore()},
+				{setup: &ConnectionSetup{
+					URL:               mockURL,
+					MessageFilter:     "authenticated",
+					AuthenticatedOnly: true,
+					GenerateSubscriptions: func() (subscription.List, error) {
+						return subscription.List{{Channel: "authenticated", Authenticated: true}}, nil
+					},
+					Connector: func(ctx context.Context, conn Connection) error {
+						authenticatedDials.Add(1)
+						return dial(ctx, conn)
+					},
+					Handler:    noopHandler,
+					Subscriber: subscriber,
+				}, subscriptions: subscription.NewStore()},
+			}
+			require.NoError(t, ws.Connect(t.Context()), "Connect must skip an authenticated only connection without authentication")
+			require.NoError(t, ws.FlushChannels(t.Context()), "FlushChannels must not error without authentication")
+			assert.Zero(t, authenticatedDials.Load(), "FlushChannels should not dial an authenticated only connection without authentication")
+			ws.SetCanUseAuthenticatedEndpoints(true)
+			require.NoError(t, ws.FlushChannels(t.Context()), "FlushChannels must not error with authentication")
+			assert.Equal(t, int32(1), authenticatedDials.Load(), "FlushChannels should dial an authenticated only connection with authentication")
+			require.NoError(t, ws.Shutdown(), "Shutdown must not error")
+		})
+
 		t.Run("subscriptions not required connector failure", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, &ConnectionSetup{
 				URL:                      mockURL,
@@ -1701,6 +1789,46 @@ func TestWaitForResponses(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.Equal(t, "hello", string(got[0]))
+
+	t.Run("responses received before a timeout are returned with it", func(t *testing.T) {
+		t.Parallel()
+		conn := &connection{ResponseMaxLimit: 100 * time.Millisecond, Match: NewMatch()}
+		ch := make(chan []byte, 1)
+		ch <- []byte("first")
+		got, err := conn.waitForResponses(t.Context(), "partial", ch, 2, nil)
+		require.ErrorIs(t, err, ErrSignatureTimeout, "waitForResponses must time out waiting for the second response")
+		assert.Equal(t, [][]byte{[]byte("first")}, got, "waitForResponses should return the response received before the timeout")
+	})
+	t.Run("responses received before a cancellation are returned with it", func(t *testing.T) {
+		t.Parallel()
+		conn := &connection{ResponseMaxLimit: time.Minute, Match: NewMatch()}
+		ch := make(chan []byte)
+		ctx, cancel := context.WithCancel(t.Context())
+		go func() {
+			ch <- []byte("first")
+			cancel()
+		}()
+		got, err := conn.waitForResponses(ctx, "partial", ch, 2, nil)
+		require.ErrorIs(t, err, context.Canceled, "waitForResponses must return the cancellation")
+		assert.Equal(t, [][]byte{[]byte("first")}, got, "waitForResponses should return the response received before the cancellation")
+	})
+}
+
+func TestSendMessageReturnResponsesReturnsPartialResponses(t *testing.T) {
+	t.Parallel()
+	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	wc := &connection{
+		URL:              "ws" + mock.URL[len("http"):] + "/ws",
+		ResponseMaxLimit: 250 * time.Millisecond,
+		Match:            NewMatch(),
+	}
+	require.NoError(t, wc.Dial(t.Context(), dialer, http.Header{}, nil), "Dial must not error")
+	go readMessages(t, wc)
+	req := testRequest{Event: "subscribe", RequestID: 12345}
+	got, err := wc.SendMessageReturnResponsesWithInspector(t.Context(), request.Unset, req.RequestID, req, 2, nil)
+	require.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponsesWithInspector must time out waiting for the second response")
+	require.Len(t, got, 1, "SendMessageReturnResponsesWithInspector must return the response received before the timeout")
+	assert.Contains(t, string(got[0]), `"reqid":12345`, "the echoed request should be returned")
 }
 
 type inspection struct {

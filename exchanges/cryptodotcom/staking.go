@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -27,7 +28,7 @@ func (e *Exchange) GetStakingConversionRate(ctx context.Context, instrumentName 
 	}
 	var resp *StakingConversionRateResponse
 	// A public method sent as a POST, which Crypto.com answers unsigned
-	if err := e.sendPostRequest(ctx, stakingEPL, "public/staking/get-conversion-rate", &stakingInstrumentParams{InstrumentName: instrumentName}, &resp, nil); err != nil {
+	if err := e.sendPostRequest(ctx, stakingEPL, "public/staking/get-conversion-rate", &stakingInstrumentParams{InstrumentName: instrumentName}, &resp, nil, ""); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -45,7 +46,7 @@ func (e *Exchange) Stake(ctx context.Context, req *StakeRequest) (*StakeResponse
 		return nil, err
 	}
 	var resp *StakeResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/stake", req, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), stakingEPL, "private/staking/stake", req, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -64,7 +65,7 @@ func (e *Exchange) Unstake(ctx context.Context, req *UnstakeRequest) (*UnstakeRe
 		return nil, err
 	}
 	var resp *UnstakeResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/unstake", req, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), stakingEPL, "private/staking/unstake", req, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -177,7 +178,7 @@ func (e *Exchange) ConvertStakedToken(ctx context.Context, req *ConvertStakedTok
 		SlippageToleranceBasisPoints: strconv.FormatFloat(req.SlippageToleranceBasisPoints.Float64(), 'f', -1, 64),
 	}
 	var resp *ConvertStakedTokenResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/convert", params, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), stakingEPL, "private/staking/convert", params, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {

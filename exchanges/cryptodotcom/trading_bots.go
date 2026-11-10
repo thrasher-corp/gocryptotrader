@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
@@ -56,7 +57,7 @@ func (e *Exchange) CreateTradingBot(ctx context.Context, req *CreateTradingBotRe
 		return nil, err
 	}
 	var resp *CreateTradingBotResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/bot/create-trading-bot", req, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/bot/create-trading-bot", req, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {

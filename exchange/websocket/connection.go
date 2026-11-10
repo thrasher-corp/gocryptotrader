@@ -43,9 +43,11 @@ type Connection interface {
 	SetupPingHandler(request.EndpointLimit, PingHandler)
 	// SendMessageReturnResponse will send a WS message to the connection and wait for response
 	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, request any) ([]byte, error)
-	// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
+	// SendMessageReturnResponses will send a WS message to the connection and wait for N responses; on a timeout or
+	// cancellation the responses received before it are returned with the error
 	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, request any, expected int) ([][]byte, error)
-	// SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses with message inspection
+	// SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses with message inspection;
+	// on a timeout or cancellation the responses received before it are returned with the error
 	SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature, request any, expected int, messageInspector Inspector) ([][]byte, error)
 	// SendRawMessage sends a message over the connection without JSON encoding it
 	SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error
@@ -75,6 +77,9 @@ type ConnectionSetup struct {
 	Authenticated            bool // unused for multi-connection websocket
 	SubscriptionsNotRequired bool
 	ConnectionLevelReporter  Reporter
+	// AuthenticatedOnly skips connecting and flushing subscriptions while authenticated endpoints cannot be used, for a
+	// connection that only carries authenticated requests and whose failure would otherwise stop the public connections
+	AuthenticatedOnly bool
 
 	// URL defines the websocket server URL to connect to
 	URL string
@@ -392,13 +397,15 @@ func (c *connection) SendMessageReturnResponse(ctx context.Context, epl request.
 }
 
 // SendMessageReturnResponses will send a WS message to the connection and wait for N responses
-// An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
+// An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked, as the responses
+// received before a timeout or cancellation are returned with its error
 func (c *connection) SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int) ([][]byte, error) {
 	return c.SendMessageReturnResponsesWithInspector(ctx, epl, signature, payload, expected, nil)
 }
 
 // SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses
-// An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
+// An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked, as the responses
+// received before a timeout or cancellation are returned with its error
 func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector Inspector) ([][]byte, error) {
 	outbound, err := json.Marshal(payload)
 	if err != nil {
@@ -419,7 +426,7 @@ func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context
 
 	resps, err := c.waitForResponses(ctx, signature, ch, expected, messageInspector)
 	if err != nil {
-		return nil, err
+		return resps, err
 	}
 
 	if c.Reporter != nil {
@@ -429,7 +436,8 @@ func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context
 	return resps, err
 }
 
-// waitForResponses waits for N responses from a channel
+// waitForResponses waits for N responses from a channel, returning those received before a timeout or cancellation
+// with its error
 func (c *connection) waitForResponses(ctx context.Context, signature any, ch <-chan []byte, expected int, messageInspector Inspector) ([][]byte, error) {
 	timeout := time.NewTimer(c.ResponseMaxLimit * time.Duration(expected))
 	defer timeout.Stop()
@@ -447,10 +455,10 @@ inspection:
 			}
 		case <-timeout.C:
 			c.Match.RemoveSignature(signature)
-			return nil, fmt.Errorf("%s %w %v", c.ExchangeName, ErrSignatureTimeout, signature)
+			return resps, fmt.Errorf("%s %w %v", c.ExchangeName, ErrSignatureTimeout, signature)
 		case <-ctx.Done():
 			c.Match.RemoveSignature(signature)
-			return nil, ctx.Err()
+			return resps, ctx.Err()
 		}
 	}
 

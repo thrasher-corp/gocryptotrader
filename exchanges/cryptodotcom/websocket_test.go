@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 )
@@ -364,6 +365,95 @@ func TestWebsocketUnsubscribeBatch(t *testing.T) {
 	require.Len(t, requests, 2, "each call must send one request")
 	assert.JSONEq(t, `{"channels":["`+subs[0].QualifiedChannel+`"]}`, string(requests[1].Params), "wsUnsubscribeBatch should name its channels and nothing else")
 	assert.ErrorIs(t, ex.wsUnsubscribeBatch(t.Context(), conn, subs[:1]), subscription.ErrNotFound, "wsUnsubscribeBatch should report a channel it cannot remove")
+
+	// Only a book channel resubscribing alone is unsubscribed once more, and only when its request times out
+	for _, tc := range []struct {
+		name     string
+		channels []string
+		state    subscription.State
+		// lost is how many unsubscribe requests the mock leaves unanswered, and refusal what it refuses them with
+		lost    int
+		refusal *APIError
+		// requests is how many unsubscribe requests are sent, and err the error unsubscribing ends with
+		requests int
+		err      error
+	}{
+		{name: "a resubscribing book channel answered when sent again", channels: []string{"book.BTC_USD.10"}, state: subscription.ResubscribingState, lost: 1, requests: 2},
+		{name: "a resubscribing book channel unanswered twice", channels: []string{"book.BTC_USD.10"}, state: subscription.ResubscribingState, lost: 2, requests: 2, err: websocket.ErrSignatureTimeout},
+		{name: "a book channel not resubscribing", channels: []string{"book.BTC_USD.10"}, state: subscription.SubscribedState, lost: 1, requests: 1, err: websocket.ErrSignatureTimeout},
+		{name: "a resubscribing ticker channel", channels: []string{"ticker.BTC_USD"}, state: subscription.ResubscribingState, lost: 1, requests: 1, err: websocket.ErrSignatureTimeout},
+		{name: "two resubscribing book channels", channels: []string{"book.BTC_USD.10", "book.ETH_USD.10"}, state: subscription.ResubscribingState, lost: 1, requests: 1, err: websocket.ErrSignatureTimeout},
+		{name: "a resubscribing book channel refused", channels: []string{"book.BTC_USD.10"}, state: subscription.ResubscribingState, refusal: &APIError{Code: 50001, Message: "ERR_INTERNAL"}, requests: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			venue := newWebsocketVenue(t)
+			ex, err := newMarketDataTestExchange(t, venue, subscription.List{
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 10, Pairs: currency.Pairs{spotBTCUSD, spotETHUSD}},
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD}},
+			}, withTestResponseMaxLimit(t, venue))
+			require.NoError(t, err, "Connect must not error")
+			conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			subs := make(subscription.List, len(tc.channels))
+			for i, channel := range tc.channels {
+				subs[i] = conn.Subscriptions().Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: channel}})
+				require.NotNilf(t, subs[i], "%s must be subscribed", channel)
+				if tc.state != subscription.SubscribedState {
+					require.NoErrorf(t, subs[i].SetState(tc.state), "SetState must not error for %s", channel)
+				}
+			}
+			venue.loseAnswers(websocketMethodUnsubscribe, tc.lost)
+			venue.fail(websocketMethodUnsubscribe, tc.refusal)
+
+			err = ex.wsUnsubscribeBatch(t.Context(), conn, subs)
+			answered := tc.err == nil && tc.refusal == nil
+			switch {
+			case tc.refusal != nil:
+				var apiErr *APIError
+				require.ErrorAs(t, err, &apiErr, "wsUnsubscribeBatch must report the refused request")
+				assert.Equal(t, tc.refusal, apiErr, "wsUnsubscribeBatch should report the refused request's error")
+			case tc.err != nil:
+				require.ErrorIs(t, err, tc.err, "wsUnsubscribeBatch must report the request timing out")
+			default:
+				require.NoError(t, err, "wsUnsubscribeBatch must not error once its request is answered")
+			}
+			requests := venue.received(websocketMethodUnsubscribe)
+			require.Len(t, requests, tc.requests, "wsUnsubscribeBatch must send the expected number of unsubscribe requests")
+			for _, r := range requests[1:] {
+				assert.Equal(t, requests[0].Connection, r.Connection, "wsUnsubscribeBatch should send its request again on the same connection")
+				assert.NotEqual(t, requests[0].ID, r.ID, "wsUnsubscribeBatch should send its request again with a request ID of its own")
+				assert.JSONEq(t, string(requests[0].Params), string(r.Params), "wsUnsubscribeBatch should send the same channels again")
+			}
+			for _, s := range subs {
+				stored := ex.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: s.QualifiedChannel}})
+				if answered {
+					assert.Nilf(t, stored, "wsUnsubscribeBatch should remove %s once its request is answered", s.QualifiedChannel)
+					assert.Equalf(t, subscription.UnsubscribedState, s.State(), "wsUnsubscribeBatch should leave %s unsubscribed", s.QualifiedChannel)
+					continue
+				}
+				assert.NotNilf(t, stored, "wsUnsubscribeBatch should keep %s when its request fails", s.QualifiedChannel)
+				assert.Equalf(t, tc.state, s.State(), "wsUnsubscribeBatch should leave the state of %s alone when its request fails", s.QualifiedChannel)
+			}
+		})
+	}
+}
+
+// testResponseMaxLimit is how long the connections of an exchange that withTestResponseMaxLimit prepares wait for each
+// answer, so that an answer the mock loses times out soon
+const testResponseMaxLimit = 500 * time.Millisecond
+
+// withTestResponseMaxLimit returns a function preparing an exchange whose connections wait testResponseMaxLimit for each
+// answer from venue; it sets the websocket up again, as each connection takes its wait from the configuration when the
+// websocket is set up
+func withTestResponseMaxLimit(t *testing.T, venue *websocketVenue) func(*Exchange) {
+	t.Helper()
+	return func(ex *Exchange) {
+		ex.Config.WebsocketResponseMaxLimit = testResponseMaxLimit
+		ex.Websocket = sharedtestvalues.NewTestWebsocket()
+		require.NoError(t, ex.setupWebsocket(ex.Config), "setupWebsocket must not error")
+		require.NoError(t, ex.Websocket.SetAllConnectionURLs(venue.url), "SetAllConnectionURLs must not error")
+	}
 }
 
 // holdAnswers has the mock hold back its answers to a method's requests until the test ends, so that an answer cannot end

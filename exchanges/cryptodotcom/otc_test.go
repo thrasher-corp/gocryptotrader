@@ -715,6 +715,18 @@ func TestOTCQuoteResponseUnmarshalJSON(t *testing.T) { //nolint:tparallel // the
 			assert.Equalf(t, OTCQuoteResponse{QuoteID: "1", ExpiryTime: tc.exp}, quote, "Unmarshal should take the expiry time from %s", tc.name)
 		})
 	}
+	// Serial too, so the cases run before the later calls of the same function
+	t.Run("reuse with expiry alias", func(t *testing.T) {
+		var quote OTCQuoteResponse
+		require.NoError(t, json.Unmarshal([]byte(`{"quote_id":"1","expiry_time_ns":"1749104839012345678"}`), &quote), "Unmarshal must not error for the first quote")
+		require.NoError(t, json.Unmarshal([]byte(`{"quote_id":"2","expire_time_ns":"1749104840000000000"}`), &quote), "Unmarshal must not error for the second quote")
+		assert.Equal(t, OTCQuoteResponse{QuoteID: "2", ExpiryTime: types.Time(time.Unix(0, 1749104840000000000))}, quote, "Unmarshal should take the expiry time from the quote it decodes")
+	})
+	t.Run("null leaves a quote unchanged", func(t *testing.T) {
+		quote := OTCQuoteResponse{QuoteID: "1", ExpiryTime: expiry}
+		require.NoError(t, json.Unmarshal([]byte(`null`), &quote), "Unmarshal must not error for null")
+		assert.Equal(t, OTCQuoteResponse{QuoteID: "1", ExpiryTime: expiry}, quote, "Unmarshal should leave a quote unchanged for null")
+	})
 	var quote OTCQuoteResponse
 	assert.Error(t, json.Unmarshal([]byte(`{"quote_id":1}`), &quote), "Unmarshal should error for a malformed quote")
 	assert.Error(t, json.Unmarshal([]byte(`{"expire_time_ns":"soon"}`), &quote), "Unmarshal should error for a malformed alias")

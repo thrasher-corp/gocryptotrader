@@ -15,20 +15,33 @@ import (
 
 func TestGetFiatAccess(t *testing.T) {
 	t.Parallel()
+	t.Run("broker account is in the request envelope", func(t *testing.T) {
+		t.Parallel()
+		ex, sent := newEnvelopeRecorder(t, "private/fiat/fiat-access", `{"accesses":[]}`)
+		_, err := ex.GetFiatAccess(t.Context(), "52e7c00f-1324-5a6a-bf6e-de445bde21a5")
+		require.NoError(t, err, "GetFiatAccess must not error for a broker's user")
+		_, err = ex.GetFiatAccess(t.Context(), "")
+		require.NoError(t, err, "GetFiatAccess must not error for the account itself")
+		raws, bodies := sent()
+		require.Len(t, bodies, 2, "GetFiatAccess must send two requests")
+		assert.Equal(t, "52e7c00f-1324-5a6a-bf6e-de445bde21a5", bodies[0].OnBehalfOfAccountUUID, "the broker's user should be named beside the params")
+		assert.JSONEq(t, `{}`, string(bodies[0].Params), "the params should be unchanged")
+		assert.NotContains(t, raws[1], "on_behalf_of_account_uuid", "no user should be named for the account itself")
+	})
 	ex, sent := newSignedRecorder(t, "private/fiat/fiat-access", `{"accesses":[]}`)
-	_, err := ex.GetFiatAccess(t.Context())
+	_, err := ex.GetFiatAccess(t.Context(), "")
 	require.NoError(t, err, "GetFiatAccess must not error")
 	params := sent()
 	require.Len(t, params, 1, "GetFiatAccess must send one request")
 	assert.JSONEq(t, `{}`, params[0], "GetFiatAccess should send empty params")
 
-	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/fiat/fiat-access","code":0,"result":null}`).GetFiatAccess(t.Context())
+	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/fiat/fiat-access","code":0,"result":null}`).GetFiatAccess(t.Context(), "")
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetFiatAccess should error for a null result")
-	_, err = newUnavailableServerExchange(t).GetFiatAccess(t.Context())
+	_, err = newUnavailableServerExchange(t).GetFiatAccess(t.Context(), "")
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetFiatAccess should return the request's failure")
 
 	skipLiveWithoutCredentials(t)
-	result, err := e.GetFiatAccess(t.Context())
+	result, err := e.GetFiatAccess(t.Context(), "")
 	require.NoError(t, err, "GetFiatAccess must not error")
 	if mockTests {
 		exp := []FiatAccessResponse{
@@ -242,6 +255,28 @@ func TestGetFiatWithdrawHistory(t *testing.T) { //nolint:tparallel // the cases 
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetFiatWithdrawHistory should error for a null result")
 	_, err = newUnavailableServerExchange(t).GetFiatWithdrawHistory(t.Context(), &FiatHistoryRequest{PageSize: 10})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetFiatWithdrawHistory should return the request's failure")
+
+	// Serial too, so the case runs before the GetFiatWithdrawHistory call below
+	t.Run("bare account ID", func(t *testing.T) {
+		ex := newResponseServerExchange(t, testResponse("private/fiat/fiat-withdraw-history",
+			`{"page":0,"page_size":1,"total":1,"transaction_history_list":[{"id":"a6a41d92-1cdc-4dd3-b845-85fa203405a2","account_id":6871391474021396480,"currency":"EUR","amount":"10","status":"pending","payment_network":"openpayd_exchange_sepa","created_at":1778553420579}]}`))
+		history, err := ex.GetFiatWithdrawHistory(t.Context(), &FiatHistoryRequest{PageSize: 1})
+		require.NoError(t, err, "GetFiatWithdrawHistory must accept a bare account ID")
+		exp := &FiatTransactionHistoryResponse{
+			PageSize: 1,
+			Total:    1,
+			Transactions: []FiatTransaction{{
+				ID:             "a6a41d92-1cdc-4dd3-b845-85fa203405a2",
+				AccountID:      "6871391474021396480",
+				Currency:       currency.EUR,
+				Amount:         preciseNumber("10"),
+				PaymentNetwork: PaymentNetworkOpenPaydSEPA,
+				Status:         FiatTransactionStatusPending,
+				CreatedAt:      types.Time(time.UnixMilli(1778553420579)),
+			}},
+		}
+		assert.Equal(t, exp, history, "GetFiatWithdrawHistory should keep every digit of a bare account ID")
+	})
 
 	skipLiveWithoutCredentials(t)
 	result, err := e.GetFiatWithdrawHistory(t.Context(), &FiatHistoryRequest{PageSize: 2, StartTime: time.UnixMilli(1778200000000), EndTime: time.UnixMilli(1778600000000)})
@@ -554,7 +589,7 @@ func TestGetFiatTransactionLimit(t *testing.T) {
 	}
 }
 
-func TestCreateFiatBankAccount(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
+func TestCreateFiatBankAccount(t *testing.T) {
 	t.Parallel()
 	// The cases run in order on e, before the CreateFiatBankAccount calls below, so each also checks that a refusal
 	// leaves nothing behind
@@ -583,6 +618,21 @@ func TestCreateFiatBankAccount(t *testing.T) { //nolint:tparallel // the cases r
 	require.Len(t, params, 2, "CreateFiatBankAccount must send two requests")
 	assert.JSONEq(t, `{"plaid_account_id":"a1","plaid_public_token":"public-sandbox-1","currency":"USD","bank_account_id":"b1"}`, params[0], "CreateFiatBankAccount should send every param, the currency in upper case")
 	assert.JSONEq(t, `{"plaid_account_id":"a2","plaid_public_token":"public-sandbox-2","currency":"USD"}`, params[1], "CreateFiatBankAccount should send only the required params when the others are unset")
+
+	t.Run("broker account is in the request envelope", func(t *testing.T) {
+		t.Parallel()
+		ex, sent := newEnvelopeRecorder(t, "private/fiat/fiat-create-bank-account", `{"bank_accounts_list":[]}`)
+		_, err := ex.CreateFiatBankAccount(t.Context(), &FiatBankAccountRequest{PlaidAccountID: "a1", PlaidPublicToken: "public-sandbox-1", Currency: currency.USD, OnBehalfOfAccountUUID: "52e7c00f-1324-5a6a-bf6e-de445bde21a5"})
+		require.NoError(t, err, "CreateFiatBankAccount must not error for a broker's user")
+		_, err = ex.CreateFiatBankAccount(t.Context(), &FiatBankAccountRequest{PlaidAccountID: "a2", PlaidPublicToken: "public-sandbox-2", Currency: currency.USD})
+		require.NoError(t, err, "CreateFiatBankAccount must not error for the account itself")
+		raws, bodies := sent()
+		require.Len(t, bodies, 2, "CreateFiatBankAccount must send two requests")
+		assert.Equal(t, "52e7c00f-1324-5a6a-bf6e-de445bde21a5", bodies[0].OnBehalfOfAccountUUID, "the broker's user should be named beside the params")
+		assert.JSONEq(t, `{"plaid_account_id":"a1","plaid_public_token":"public-sandbox-1","currency":"USD"}`, string(bodies[0].Params), "the params should not hold the broker's user")
+		assert.Contains(t, raws[0], `"on_behalf_of_account_uuid":"52e7c00f-1324-5a6a-bf6e-de445bde21a5"`, "the envelope should name the broker's user")
+		assert.NotContains(t, raws[1], "on_behalf_of_account_uuid", "no user should be named for the account itself")
+	})
 
 	req := &FiatBankAccountRequest{PlaidAccountID: "vzeNDwK7KQIm4yEog683uElbp9GRLEFXGK98D", PlaidPublicToken: "public-sandbox-0a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d", Currency: currency.USD}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/fiat/fiat-create-bank-account","code":0,"result":null}`).CreateFiatBankAccount(t.Context(), req)

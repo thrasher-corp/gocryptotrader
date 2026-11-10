@@ -484,26 +484,6 @@ func (e *Exchange) wsHandleIndexPrice(ctx context.Context, push *websocketChanne
 	return errs
 }
 
-// wsHandleMarkPrice relays an instrument's mark price for each asset it trades as
-func (e *Exchange) wsHandleMarkPrice(ctx context.Context, push *websocketChannelPush) error {
-	return relayInstrumentValues[WebsocketMarkPrice](ctx, e, push)
-}
-
-// wsHandleSettlementPrice relays a future's settlement price
-func (e *Exchange) wsHandleSettlementPrice(ctx context.Context, push *websocketChannelPush) error {
-	return relayInstrumentValues[WebsocketSettlementPrice](ctx, e, push)
-}
-
-// wsHandleFundingRate relays a perpetual swap's funding rate
-func (e *Exchange) wsHandleFundingRate(ctx context.Context, push *websocketChannelPush) error {
-	return relayInstrumentValues[WebsocketFundingRate](ctx, e, push)
-}
-
-// wsHandleEstimatedFundingRate relays a perpetual swap's estimated funding rate
-func (e *Exchange) wsHandleEstimatedFundingRate(ctx context.Context, push *websocketChannelPush) error {
-	return relayInstrumentValues[WebsocketEstimatedFundingRate](ctx, e, push)
-}
-
 // instrumentValue is a value pushed for an instrument, which is relayed for each asset the instrument trades as
 type instrumentValue[T any] interface {
 	*T

@@ -212,8 +212,8 @@ type AccountSettingsResponse struct {
 
 // FeeRateResponse is the account's 30-day trading volume tiers and the fee rates they give, in basis points
 type FeeRateResponse struct {
-	SpotTier                                 uint64       `json:"spot_tier,string"`
-	DerivativesTier                          uint64       `json:"deriv_tier,string"`
+	SpotTier                                 types.Number `json:"spot_tier"`
+	DerivativesTier                          types.Number `json:"deriv_tier"`
 	EffectiveSpotMakerRateBasisPoints        types.Number `json:"effective_spot_maker_rate_bps"`
 	EffectiveSpotTakerRateBasisPoints        types.Number `json:"effective_spot_taker_rate_bps"`
 	EffectiveDerivativesMakerRateBasisPoints types.Number `json:"effective_deriv_maker_rate_bps"`
@@ -249,8 +249,8 @@ type UserTradeResponse struct {
 	CreateTime          types.Time          `json:"create_time"`
 	CreateTimeNano      types.Time          `json:"create_time_ns"`
 	TransactionTimeNano types.Time          `json:"transact_time_ns"`
-	MatchCount          uint64              `json:"match_count,string"`
-	MatchIndex          uint64              `json:"match_index,string"`
+	MatchCount          types.Number        `json:"match_count"`
+	MatchIndex          types.Number        `json:"match_index"`
 	IsolationID         string              `json:"isolation_id"`
 	IsolationType       string              `json:"isolation_type"`
 }

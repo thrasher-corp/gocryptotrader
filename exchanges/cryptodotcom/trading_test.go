@@ -1029,6 +1029,15 @@ func TestGetFeeRate(t *testing.T) {
 	_, err = newUnavailableServerExchange(t).GetFeeRate(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetFeeRate should return a request failure")
 
+	t.Run("bare fee tiers", func(t *testing.T) {
+		t.Parallel()
+		ex := newResponseServerExchange(t, testResponse("private/get-fee-rate", `{"spot_tier":1,"deriv_tier":2,"effective_spot_maker_rate_bps":"5"}`))
+		got, err := ex.GetFeeRate(t.Context())
+		require.NoError(t, err, "GetFeeRate must accept bare tiers")
+		exp := &FeeRateResponse{SpotTier: 1, DerivativesTier: 2, EffectiveSpotMakerRateBasisPoints: 5}
+		assert.Equal(t, exp, got, "GetFeeRate should decode bare tiers")
+	})
+
 	skipLiveWithoutCredentials(t)
 	result, err := e.GetFeeRate(t.Context())
 	require.NoError(t, err, "GetFeeRate must not error")
@@ -1225,6 +1234,21 @@ func TestGetUserTrades(t *testing.T) { //nolint:tparallel // the cases run in or
 			ex := newSignedParamsServer(t, "private/get-trades", tc.params, testResponse("private/get-trades", `{"data":[]}`))
 			_, err := ex.GetUserTrades(t.Context(), tc.req)
 			assert.NoErrorf(t, err, "GetUserTrades should not error for %s", tc.name)
+		})
+	}
+	// Serial too, so the cases run before the GetUserTrades calls below
+	for _, tc := range []struct {
+		name  string
+		trade string
+	}{
+		{"bare match counts", `{"match_count":2,"match_index":1}`},
+		{"quoted match counts", `{"match_count":"2","match_index":"1"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newResponseServerExchange(t, testResponse("private/get-trades", `{"data":[`+tc.trade+`]}`))
+			got, err := ex.GetUserTrades(t.Context(), &UserTradesRequest{})
+			require.NoError(t, err, "GetUserTrades must accept the match counts")
+			assert.Equal(t, []UserTradeResponse{{MatchCount: 2, MatchIndex: 1}}, got, "GetUserTrades should decode the match counts")
 		})
 	}
 	req := &UserTradesRequest{InstrumentName: "BTCUSD-PERP", StartTime: time.Unix(0, tradingTestTradesWindowStart), EndTime: time.Unix(0, tradingTestTradesWindowEnd), Limit: 20}
@@ -1430,6 +1454,20 @@ func TestBareIntegerFields(t *testing.T) {
 		{"a quoted convert request ID", `{"convert_id":"1"}`, new(StakingConvertRequestResponse), &StakingConvertRequestResponse{ConvertID: "1"}},
 		{"bare fiat history paging", `{"page":2,"page_size":10,"total":30}`, new(FiatTransactionHistoryResponse), &FiatTransactionHistoryResponse{Page: 2, PageSize: 10, Total: 30}},
 		{"quoted fiat history paging", `{"page":"2","page_size":"10","total":"30"}`, new(FiatTransactionHistoryResponse), &FiatTransactionHistoryResponse{Page: 2, PageSize: 10, Total: 30}},
+		{"a bare fiat transaction account ID", `{"account_id":6871391474021396480}`, new(FiatTransaction), &FiatTransaction{AccountID: "6871391474021396480"}},
+		{"a quoted fiat transaction account ID", `{"account_id":"6871391474021396480"}`, new(FiatTransaction), &FiatTransaction{AccountID: "6871391474021396480"}},
+		{"a bare confirmation count", `{"confirmation_required":12}`, new(CurrencyNetwork), &CurrencyNetwork{ConfirmationsRequired: 12}},
+		{"a quoted confirmation count", `{"confirmation_required":"12"}`, new(CurrencyNetwork), &CurrencyNetwork{ConfirmationsRequired: 12}},
+		{"a bare stake's pre-stake charge rate", `{"pre_stake_charge_rate_in_bps":50}`, new(StakeResponse), &StakeResponse{PreStakeChargeRateBasisPoints: 50}},
+		{"a quoted stake's pre-stake charge rate", `{"pre_stake_charge_rate_in_bps":"50"}`, new(StakeResponse), &StakeResponse{PreStakeChargeRateBasisPoints: 50}},
+		{"a bare staking instrument's pre-stake charge rate", `{"pre_stake_charge_rate_in_bps":50}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{PreStakeChargeRateBasisPoints: 50}},
+		{"a quoted staking instrument's pre-stake charge rate", `{"pre_stake_charge_rate_in_bps":"50"}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{PreStakeChargeRateBasisPoints: 50}},
+		{"bare trade match counts", `{"match_count":2,"match_index":1}`, new(UserTradeResponse), &UserTradeResponse{MatchCount: 2, MatchIndex: 1}},
+		{"quoted trade match counts", `{"match_count":"2","match_index":"1"}`, new(UserTradeResponse), &UserTradeResponse{MatchCount: 2, MatchIndex: 1}},
+		{"bare fee tiers", `{"spot_tier":1,"deriv_tier":2}`, new(FeeRateResponse), &FeeRateResponse{SpotTier: 1, DerivativesTier: 2}},
+		{"quoted fee tiers", `{"spot_tier":"1","deriv_tier":"2"}`, new(FeeRateResponse), &FeeRateResponse{SpotTier: 1, DerivativesTier: 2}},
+		{"a bare executed order count", `{"executed_order":5}`, new(TradingBotExecutionSummary), &TradingBotExecutionSummary{ExecutedOrders: 5}},
+		{"a quoted executed order count", `{"executed_order":"5"}`, new(TradingBotExecutionSummary), &TradingBotExecutionSummary{ExecutedOrders: 5}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -43,7 +44,7 @@ func (e *Exchange) RequestOTCQuote(ctx context.Context, req *OTCQuoteRequest) ([
 		return nil, err
 	}
 	var resp *dataResponse[OTCQuoteRequestResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/request-quote", params, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/otc/request-quote", params, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -135,7 +136,7 @@ func (e *Exchange) RequestOTCDeal(ctx context.Context, req *OTCDealRequest) (*OT
 		return nil, err
 	}
 	var resp *OTCDealResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/request-deal", params, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/otc/request-deal", params, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {

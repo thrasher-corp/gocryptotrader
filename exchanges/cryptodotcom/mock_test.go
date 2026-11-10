@@ -210,8 +210,9 @@ type websocketVenueRequest struct {
 // websocketVenue mocks Crypto.com's user API websocket. It authenticates a public/auth request signed with the
 // placeholder credentials, acknowledges subscriptions, unless a test set an error refusing subscribe requests as a
 // whole, and answers every other method with the error a test set for it, else the result a test set for it, else the
-// result recorded for it in testdata/websocketapi; it records every request. As a mock of the market data websocket it
-// answers a channel's subscriptions with the error or the frames set for the channel in place of an acknowledgement
+// result recorded for it in testdata/websocketapi; it records every request, including those a test has it lose. As a
+// mock of the market data websocket it answers a channel's subscriptions with the error or the frames set for the
+// channel in place of an acknowledgement
 type websocketVenue struct {
 	url      string
 	mu       sync.Mutex
@@ -225,6 +226,13 @@ type websocketVenue struct {
 	rejections map[string]*APIError
 	// hooks holds the functions run on receiving a method's request, before it is answered
 	hooks map[string]func()
+	// lostRequests holds how many of a method's next requests are neither applied nor answered, as when a request is lost
+	// before Crypto.com applies it, and lostAnswers how many are applied but not answered, as when the answer is lost
+	lostRequests map[string]int
+	lostAnswers  map[string]int
+	// subscribed holds the channels each connection holds, by the connection's number, once a test has the mock track
+	// them
+	subscribed map[int]map[string]bool
 	// closed stops the mock reporting errors answering, once the exchange going away ends the frames being written
 	closed bool
 	// connections counts the connections the mock has accepted
@@ -238,11 +246,13 @@ var venueUpgrader = gws.Upgrader{CheckOrigin: func(*http.Request) bool { return 
 func newWebsocketVenue(t *testing.T) *websocketVenue {
 	t.Helper()
 	venue := &websocketVenue{
-		results:    make(map[string]json.RawMessage),
-		errs:       make(map[string]*APIError),
-		answers:    make(map[string][][]json.RawMessage),
-		rejections: make(map[string]*APIError),
-		hooks:      make(map[string]func()),
+		results:      make(map[string]json.RawMessage),
+		errs:         make(map[string]*APIError),
+		answers:      make(map[string][][]json.RawMessage),
+		rejections:   make(map[string]*APIError),
+		hooks:        make(map[string]func()),
+		lostRequests: make(map[string]int),
+		lostAnswers:  make(map[string]int),
 	}
 	files, err := filepath.Glob(mockWebsocketAPIFiles)
 	require.NoError(t, err, "Glob must not error")
@@ -336,6 +346,29 @@ func (v *websocketVenue) rejectSubscriptions(channel string, err *APIError) {
 	v.rejections[channel] = err
 }
 
+// loseRequests has the mock neither apply nor answer a method's next n requests, as when they are lost before
+// Crypto.com applies them
+func (v *websocketVenue) loseRequests(method string, n int) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.lostRequests[method] = n
+}
+
+// loseAnswers has the mock apply a method's next n requests without answering them, as when their answers are lost
+func (v *websocketVenue) loseAnswers(method string, n int) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.lostAnswers[method] = n
+}
+
+// trackSubscriptions has the mock track the channels each connection subscribes and unsubscribes, and refuse to
+// subscribe a channel the connection already holds, as Crypto.com's docs leave out whether it accepts one
+func (v *websocketVenue) trackSubscriptions() {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.subscribed = make(map[int]map[string]bool)
+}
+
 // received returns the requests received for a method, in arrival order
 func (v *websocketVenue) received(method string) []websocketVenueRequest {
 	v.mu.Lock()
@@ -349,15 +382,16 @@ func (v *websocketVenue) received(method string) []websocketVenueRequest {
 	return requests
 }
 
-// answer records a request and writes the mock's answer to it. A subscribe request's answers are chosen as the request
-// is recorded, so a test that has seen the request knows what it was answered with
+// answer records a request and writes the mock's answer to it, unless a test has the mock lose the request, which is
+// then not applied either, or its answer. A subscribe request's answers are chosen as the request is recorded, so a
+// test that has seen the request knows what it was answered with
 func (v *websocketVenue) answer(conn *gws.Conn, connection int, msg []byte) error {
 	var req websocketRequest
 	if err := json.Unmarshal(msg, &req); err != nil {
 		return err
 	}
 	var channels []string
-	if req.Method == websocketMethodSubscribe {
+	if req.Method == websocketMethodSubscribe || req.Method == websocketMethodUnsubscribe {
 		var err error
 		if channels, err = requestChannels(req.Params); err != nil {
 			return err
@@ -365,18 +399,37 @@ func (v *websocketVenue) answer(conn *gws.Conn, connection int, msg []byte) erro
 	}
 	v.mu.Lock()
 	v.requests = append(v.requests, websocketVenueRequest{ID: req.ID, Method: req.Method, Params: req.Params, Nonce: req.Nonce, Bytes: len(msg), Connection: connection})
+	if v.lostRequests[req.Method] > 0 {
+		v.lostRequests[req.Method]--
+		v.mu.Unlock()
+		return nil
+	}
+	answerLost := v.lostAnswers[req.Method] > 0
+	if answerLost {
+		v.lostAnswers[req.Method]--
+	}
 	result, hasResult := v.results[req.Method]
 	apiErr := v.errs[req.Method]
 	var answers []subscriptionAnswer
 	if apiErr == nil {
-		for _, channel := range channels {
-			answers = append(answers, v.nextSubscriptionAnswer(channel))
+		switch req.Method {
+		case websocketMethodSubscribe:
+			for _, channel := range channels {
+				answers = append(answers, v.nextSubscriptionAnswer(connection, channel))
+			}
+		case websocketMethodUnsubscribe:
+			for _, channel := range channels {
+				delete(v.subscribed[connection], channel)
+			}
 		}
 	}
 	hook := v.hooks[req.Method]
 	v.mu.Unlock()
 	if hook != nil {
 		hook()
+	}
+	if answerLost {
+		return nil
 	}
 	resp := map[string]any{"id": req.ID, "method": req.Method, "code": 0}
 	switch req.Method {
@@ -431,15 +484,25 @@ type subscriptionAnswer struct {
 	frames  []json.RawMessage
 }
 
-// nextSubscriptionAnswer returns the answer to a channel's next subscription, which takes the next set of frames set for
-// the channel, the last set answering any after; the caller holds the mock's lock
-func (v *websocketVenue) nextSubscriptionAnswer(channel string) subscriptionAnswer {
+// nextSubscriptionAnswer returns the answer to a channel's next subscription on a connection, which takes the next set of
+// frames set for the channel, the last set answering any after, unless the mock tracks subscriptions and the connection
+// holds the channel already; the caller holds the mock's lock
+func (v *websocketVenue) nextSubscriptionAnswer(connection int, channel string) subscriptionAnswer {
+	if v.subscribed[connection][channel] {
+		return subscriptionAnswer{channel: channel, err: &APIError{Code: 40001, Message: "BAD_REQUEST"}}
+	}
 	a := subscriptionAnswer{channel: channel, err: v.rejections[channel]}
 	if sets := v.answers[channel]; len(sets) != 0 {
 		a.frames = sets[0]
 		if len(sets) > 1 {
 			v.answers[channel] = sets[1:]
 		}
+	}
+	if v.subscribed != nil && a.err == nil {
+		if v.subscribed[connection] == nil {
+			v.subscribed[connection] = make(map[string]bool)
+		}
+		v.subscribed[connection][channel] = true
 	}
 	return a
 }

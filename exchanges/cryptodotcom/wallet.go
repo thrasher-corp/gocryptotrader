@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 // maxWalletHistoryPageSize is the most deposits or withdrawals a history page holds
@@ -29,7 +30,7 @@ func (e *Exchange) CreateWithdrawal(ctx context.Context, req *WithdrawalRequest)
 	params := *req
 	params.Currency = req.Currency.Upper()
 	var resp *WithdrawalResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/create-withdrawal", &params, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/create-withdrawal", &params, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
