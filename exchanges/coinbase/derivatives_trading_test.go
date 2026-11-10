@@ -1028,7 +1028,7 @@ func TestGlobalDerivativesGetMargins(t *testing.T) { //nolint:tparallel // the l
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMargins should return the request failure")
 }
 
-func TestGlobalDerivativesGetMaxOrderSize(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
+func TestGlobalDerivativesGetMaxOrderSize(t *testing.T) {
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetMaxOrderSize(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetMaxOrderSize must reject a nil request")
@@ -1066,6 +1066,14 @@ func TestGlobalDerivativesGetMaxOrderSize(t *testing.T) { //nolint:tparallel // 
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetMaxOrderSize should error for a null result")
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetMaxOrderSize(t.Context(), req)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMaxOrderSize should return the request failure")
+
+	t.Run("sends a leverage of 1", func(t *testing.T) {
+		t.Parallel()
+		ex, lastRequest := newDerivativesTradingParamsServer(t, `{"jsonrpc":"2.0","result":{}}`)
+		_, err := ex.GlobalDerivatives().GetMaxOrderSize(t.Context(), &DerivativesMaxOrderSizeRequest{InstrumentName: derivativesTradingLiveInstrument, Leverage: 1})
+		require.NoError(t, err, "GetMaxOrderSize must accept a leverage of 1")
+		assert.JSONEq(t, `{"instrument_name":"BTC_USDC-PERPETUAL","leverage":1}`, string(lastRequest().Params), "GetMaxOrderSize should send a leverage of 1")
+	})
 }
 
 func TestGlobalDerivativesGetOpenOrders(t *testing.T) { //nolint:tparallel // the live case runs before the case on a local server
@@ -1712,7 +1720,7 @@ func TestGlobalDerivativesSell(t *testing.T) { //nolint:tparallel // the live ca
 	assert.ErrorIs(t, err, request.ErrBadStatus, "Sell should return the request failure")
 }
 
-func TestGlobalDerivativesSetLeverage(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
+func TestGlobalDerivativesSetLeverage(t *testing.T) {
 	t.Parallel()
 	_, err := e.GlobalDerivatives().SetLeverage(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetLeverage must reject a nil request")
@@ -1740,6 +1748,15 @@ func TestGlobalDerivativesSetLeverage(t *testing.T) { //nolint:tparallel // the 
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SetLeverage should error for a null result to setting a leverage")
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().SetLeverage(t.Context(), mockDerivativesSetLeverageRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "SetLeverage should return the request failure")
+
+	t.Run("sets a leverage of 1", func(t *testing.T) {
+		t.Parallel()
+		ex, lastRequest := newDerivativesTradingParamsServer(t, `{"jsonrpc":"2.0","result":1}`)
+		leverage, err := ex.GlobalDerivatives().SetLeverage(t.Context(), &DerivativesSetLeverageRequest{InstrumentName: "SOL_USDC-PERPETUAL", Leverage: new(1.0)})
+		require.NoError(t, err, "SetLeverage must accept a leverage of 1")
+		assert.Equal(t, 1.0, leverage, "SetLeverage should return the leverage stored")
+		assert.JSONEq(t, `{"instrument_name":"SOL_USDC-PERPETUAL","leverage":1}`, string(lastRequest().Params), "SetLeverage should send a leverage of 1")
+	})
 }
 
 func TestDerivativesCancelAllResponseUnmarshalJSON(t *testing.T) { //nolint:tparallel // the refusals decode into one resp in order

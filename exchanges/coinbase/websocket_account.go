@@ -377,9 +377,9 @@ func (s *advancedTradeOrderSizes) complete(orderID string, base, quote float64) 
 	}
 	d := lookup.latest
 	d.Amount, d.QuoteAmount = base, quote
-	if base > 0 {
-		d.RemainingAmount = max(base-d.ExecutedAmount, 0)
-	}
+	// Without a base size, the report's remainder can be in the quote currency, as a report older than an edit gives
+	// it, so none is relayed, as the order's next report relays none
+	d.RemainingAmount = max(base-d.ExecutedAmount, 0)
 	return d, lookupRelay
 }
 

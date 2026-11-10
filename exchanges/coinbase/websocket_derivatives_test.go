@@ -349,6 +349,18 @@ func TestWebsocketDerivativesAuthenticateFailure(t *testing.T) {
 	assert.Error(t, ex.wsDerivativesSendAuth(t.Context(), conn), "wsDerivativesSendAuth should error without credentials")
 }
 
+// checkedConnection is a closed reauthConnection counting how often it is checked for being connected
+type checkedConnection struct {
+	reauthConnection
+	checks atomic.Int32
+}
+
+// IsConnected counts the check and reports the connection closed
+func (c *checkedConnection) IsConnected() bool {
+	c.checks.Add(1)
+	return false
+}
+
 func TestWebsocketDerivativesScheduleReauthentication(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
@@ -359,6 +371,35 @@ func TestWebsocketDerivativesScheduleReauthentication(t *testing.T) {
 	closed := &reauthConnection{result: json.RawMessage(`{}`)}
 	ex.wsDerivativesScheduleReauthentication(t.Context(), closed, ex.derivativesSessions.authenticated(closed, testAPIKey), time.Millisecond)
 	assert.Never(t, func() bool { return closed.sent() != 0 }, 50*time.Millisecond, time.Millisecond, "a closed connection should not be authenticated again")
+
+	t.Run("does not retry a renewal that asks for no retry", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		closed := new(checkedConnection)
+		authentication := ex.derivativesSessions.authenticated(closed, testAPIKey)
+		// A later authentication supersedes the renewal, which ends one wrongly retried at once when the test ends
+		t.Cleanup(func() { ex.derivativesSessions.authenticated(closed, testAPIKey) })
+		ex.wsDerivativesScheduleReauthentication(t.Context(), closed, authentication, time.Millisecond)
+		require.Eventually(t, func() bool { return closed.checks.Load() != 0 }, 30*time.Second, time.Millisecond, "the renewal must check whether the connection is connected")
+		assert.Never(t, func() bool { return closed.checks.Load() > 1 }, 50*time.Millisecond, time.Millisecond, "a renewal of a closed connection, which asks for no retry, should not be tried again")
+		assert.Zero(t, closed.sent(), "a closed connection should not be authenticated again")
+	})
+
+	t.Run("retries a failed renewal after the retry interval", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		synctest.Test(t, func(t *testing.T) {
+			refused := &reauthConnection{err: errors.New("refused"), connected: true}
+			// A session lasting an hour is renewed 5 minutes before it expires
+			ex.wsDerivativesScheduleReauthentication(t.Context(), refused, ex.derivativesSessions.authenticated(refused, testAPIKey), time.Hour)
+			time.Sleep(55*time.Minute + time.Second)
+			synctest.Wait()
+			assert.Equal(t, 1, refused.sent(), "a session should be renewed before it expires")
+			time.Sleep(derivativesReauthenticateRetry)
+			synctest.Wait()
+			assert.Equal(t, 2, refused.sent(), "a failed renewal should be tried again after the retry interval")
+		})
+	})
 }
 
 // switchedConnection is a reauthConnection a test can disconnect while its renewals run

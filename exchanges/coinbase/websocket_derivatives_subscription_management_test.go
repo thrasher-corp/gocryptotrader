@@ -55,6 +55,23 @@ func TestWebsocketAPISubscribePrivate(t *testing.T) {
 	require.NoError(t, err, "WebsocketAPI.UnsubscribePrivate must not error")
 	assert.Equal(t, req.Channels, unsubscribed, "WebsocketAPI.UnsubscribePrivate should return the channels unsubscribed")
 
+	t.Run("sends a label of 16 characters", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		ex, venue := newDerivativesWebsocketTestExchange(t)
+		labelled := &DerivativesPrivateSubscribeRequest{Channels: []string{"user.lock"}, Label: "gct-sixteen-char"}
+		subscribed, err := ex.WebsocketAPI().SubscribePrivate(t.Context(), labelled)
+		require.NoError(t, err, "WebsocketAPI.SubscribePrivate must accept a label of 16 characters")
+		assert.Equal(t, labelled.Channels, subscribed, "WebsocketAPI.SubscribePrivate should return the channels subscribed")
+		if mockTests {
+			requests := venue.requestsFor("private/subscribe")
+			require.Len(t, requests, 1, "the mock must receive the private subscription")
+			assert.JSONEq(t, `{"channels":["user.lock"],"label":"gct-sixteen-char"}`, string(requests[0].Params), "WebsocketAPI.SubscribePrivate should send the label whole")
+		}
+		_, err = ex.WebsocketAPI().UnsubscribePrivate(t.Context(), labelled.Channels)
+		require.NoError(t, err, "WebsocketAPI.UnsubscribePrivate must not error")
+	})
+
 	unauthenticated, _ := newUnauthenticatedDerivativesWebsocketTestExchange(t)
 	_, err = unauthenticated.WebsocketAPI().SubscribePrivate(t.Context(), req)
 	assert.ErrorIs(t, err, errDerivativesWebsocketNotAuthenticated, "WebsocketAPI.SubscribePrivate should refuse an unauthenticated connection")

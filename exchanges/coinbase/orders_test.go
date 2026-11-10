@@ -1102,6 +1102,19 @@ func TestOrderConfigurationRequests(t *testing.T) {
 			body:          `{"base_size":"10","start_time":"2026-10-19T23:00:00Z","end_time":"2026-10-20T00:00:00Z","limit_price":"10000","number_buckets":"5","bucket_size":"2","bucket_duration":"300s"}`,
 		},
 		{
+			// Only a start after the end is refused locally; Coinbase decides whether a window this short can execute
+			name:          "TWAP limit GTD starting at its end",
+			configuration: &TWAPLimitGTDRequest{BaseSize: 10, StartTime: end, EndTime: end, LimitPrice: 10000},
+			key:           "twap_limit_gtd",
+			body:          `{"base_size":"10","start_time":"2026-10-20T00:00:00Z","end_time":"2026-10-20T00:00:00Z","limit_price":"10000"}`,
+		},
+		{
+			name:          "TWAP limit GTD without a bucket duration",
+			configuration: &TWAPLimitGTDRequest{BaseSize: 10, StartTime: start, EndTime: end, LimitPrice: 10000, NumberOfBuckets: 5, BucketSize: 2},
+			key:           "twap_limit_gtd",
+			body:          `{"base_size":"10","start_time":"2026-10-19T23:00:00Z","end_time":"2026-10-20T00:00:00Z","limit_price":"10000","number_buckets":"5","bucket_size":"2"}`,
+		},
+		{
 			name:          "stop limit GTC",
 			configuration: &StopLimitStopLimitGTCRequest{BaseSize: 0.001, LimitPrice: 10000, StopPrice: 20000, StopDirection: StopDirectionStopUp},
 			key:           "stop_limit_stop_limit_gtc",

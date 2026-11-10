@@ -482,6 +482,10 @@ func TestParseSigningKey(t *testing.T) {
 	require.NoError(t, err, "GenerateKey must not error")
 	edPKCS8, err := x509.MarshalPKCS8PrivateKey(edKey)
 	require.NoError(t, err, "MarshalPKCS8PrivateKey must not error")
+	// An X25519 key agrees keys rather than signing them; PKCS#8 holds it as algorithm 1.3.101.110 and its 32 bytes
+	x25519PKCS8 := append([]byte{0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x6e, 0x04, 0x22, 0x04, 0x20}, edKey.Seed()...)
+	_, err = x509.ParsePKCS8PrivateKey(x25519PKCS8)
+	require.NoError(t, err, "ParsePKCS8PrivateKey must parse the X25519 key")
 	toPEM := func(blockType string, der []byte) string {
 		return string(pem.EncodeToMemory(&pem.Block{Type: blockType, Bytes: der}))
 	}
@@ -499,6 +503,7 @@ func TestParseSigningKey(t *testing.T) {
 		{name: "not base64 or PEM", secret: "not a key"},
 		{name: "base64 of wrong length", secret: base64.StdEncoding.EncodeToString([]byte("short"))},
 		{name: "PEM with invalid DER", secret: toPEM("PRIVATE KEY", []byte("garbage"))},
+		{name: "PKCS#8 PEM X25519", secret: toPEM("PRIVATE KEY", x25519PKCS8)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

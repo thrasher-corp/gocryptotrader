@@ -291,6 +291,13 @@ func TestDerivativesErrorError(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, "code 13009: unauthorized {\"reason\":\"invalid_token\"}", (&DerivativesError{Code: 13009, Message: "unauthorized", Data: json.RawMessage(`{"reason":"invalid_token"}`)}).Error(), "Error should add the error's data")
 	assert.Equal(t, "code -32601: Method not found", (&DerivativesError{Code: -32601, Message: "Method not found", Data: json.RawMessage(`null`)}).Error(), "Error should leave null data out")
+
+	t.Run("adds nothing for an error sent without data", func(t *testing.T) {
+		t.Parallel()
+		var derivativesErr DerivativesError
+		require.NoError(t, json.Unmarshal([]byte(`{"code":13009,"message":"unauthorized"}`), &derivativesErr), "Unmarshal must not error")
+		assert.Equal(t, "code 13009: unauthorized", derivativesErr.Error(), "Error should add nothing to an error the gateway sent without data")
+	})
 }
 
 func TestIsDerivativesPrivateMethod(t *testing.T) {

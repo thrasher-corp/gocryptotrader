@@ -3,6 +3,7 @@ package coinbase
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"net/http"
@@ -615,43 +616,371 @@ func TestWebsocketLookUpOrderSizes(t *testing.T) {
 		}
 	})
 
-	t.Run("drops an order cancelled while it is looked up", func(t *testing.T) {
+	t.Run("drops an order closed while it is looked up", func(t *testing.T) {
 		t.Parallel()
-		const orderID = "eeeeeeee-ffff-0000-1111-222222222222"
+		for _, tc := range []struct {
+			name             string
+			status           string
+			executed, leaves string
+			closed           order.Status
+		}{
+			{name: "cancelled", status: OrderStatusCancelled, executed: "0", leaves: "0.5", closed: order.Cancelled},
+			{name: "cancelled after a partial fill", status: OrderStatusCancelled, executed: "0.25", leaves: "0.25", closed: order.PartiallyFilledCancelled},
+			{name: "filled", status: OrderStatusFilled, executed: "0.5", leaves: "0", closed: order.Filled},
+			{name: "expired", status: OrderStatusExpired, executed: "0.25", leaves: "0.25", closed: order.Expired},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				const orderID = "eeeeeeee-ffff-0000-1111-222222222222"
+				listed, release := make(chan struct{}), make(chan struct{})
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					close(listed)
+					select {
+					case <-release:
+					case <-r.Context().Done():
+						return
+					}
+					_, err := w.Write([]byte(`{"orders":[{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"SELL","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"0.5","limit_price":"90000"}}}],"has_next":false,"cursor":""}`))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				update := func(status, executed, leaves string) *WebsocketEnvelope {
+					return &WebsocketEnvelope{
+						Channel:   wsChannelUser,
+						Timestamp: time.Date(2026, 10, 19, 1, 30, 0, 0, time.UTC),
+						Events: json.RawMessage(`[{"type":"update","orders":[{"order_id":"` + orderID + `","order_side":"SELL","order_type":"LIMIT","status":"` + status +
+							`","product_id":"BTC-USD","product_type":"SPOT","time_in_force":"GOOD_UNTIL_CANCELLED","limit_price":"90000","cumulative_quantity":"` + executed + `","leaves_quantity":"` + leaves + `"}]}]`),
+					}
+				}
+				require.NoError(t, handleUser(t, ex, update(OrderStatusOpen, "0", "0.5")), "wsHandleUser must not error")
+				awaitClosed(t, listed, "the order must be looked up")
+				// The order closes while its size is being looked up
+				require.NoErrorf(t, handleUser(t, ex, update(tc.status, tc.executed, tc.leaves)), "wsHandleUser must not error for the %s order's report", tc.name)
+				close(release)
+				awaitLookupsSettled(t, ex)
+				var statuses []order.Status
+				for _, details := range relayed[[]order.Detail](ex) {
+					for i := range details {
+						statuses = append(statuses, details[i].Status)
+					}
+				}
+				assert.Equalf(t, []order.Status{order.Open, tc.closed}, statuses, "the lookup should not relay the %s order the channel reported closed meanwhile", tc.name)
+				_, ok := ex.orderSizes.get(orderID)
+				assert.Falsef(t, ok, "the lookup should not record the %s order's size", tc.name)
+			})
+		}
+	})
+
+	t.Run("reports a failed lookup, then looks up no more", func(t *testing.T) {
+		t.Parallel()
+		// Orders placed elsewhere are reported without their sizes; more of them than one lookup names are looked up in
+		// batches, the first of which fails
+		for _, tc := range []struct {
+			name   string
+			orders int
+		}{
+			{"one order", 1},
+			{"more orders than one lookup names", orderSizeLookupBatchSize + 1},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ids := make([]string, tc.orders)
+				reports := make([]string, len(ids))
+				for i := range ids {
+					ids[i] = "ffffffff-0000-1111-2222-" + strconv.FormatInt(100000000000+int64(i), 10)
+					reports[i] = `{"order_id":"` + ids[i] + `","order_side":"SELL","order_type":"LIMIT","status":"OPEN","product_id":"BTC-USD","product_type":"SPOT","time_in_force":"GOOD_UNTIL_CANCELLED","limit_price":"90000","cumulative_quantity":"0","leaves_quantity":"0.5"}`
+				}
+				var lookups atomic.Int32
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					lookups.Add(1)
+					if slices.Contains(r.URL.Query()["order_ids"], ids[0]) {
+						http.Error(w, `{"error":"INTERNAL","error_details":"internal error","message":"internal error"}`, http.StatusInternalServerError)
+						return
+					}
+					// The next batch, which names the last order alone, is answered, so a lookup going on after the failed one
+					// would relay the order with its size
+					_, err := w.Write([]byte(listedOrder(ids[len(ids)-1], "0.5")))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				require.NoErrorf(t, handleUser(t, ex, &WebsocketEnvelope{
+					Channel:   wsChannelUser,
+					Timestamp: time.Date(2026, 10, 19, 1, 30, 0, 0, time.UTC),
+					Events:    json.RawMessage(`[{"type":"update","orders":[` + strings.Join(reports, ",") + `]}]`),
+				}), "wsHandleUser must not error for %s", tc.name)
+				awaitLookupsSettled(t, ex)
+				var errs []error
+				var details [][]order.Detail
+				for _, p := range relayed[any](ex) {
+					switch v := p.(type) {
+					case error:
+						errs = append(errs, v)
+					case []order.Detail:
+						details = append(details, v)
+					}
+				}
+				assert.Equalf(t, int32(1), lookups.Load(), "the user channel should look up no more orders after a failed lookup of %s", tc.name)
+				require.Lenf(t, errs, 1, "the user channel must report the failed lookup of %s", tc.name)
+				apiErr, ok := errors.AsType[*APIError](errs[0])
+				require.Truef(t, ok, "the user channel must report the refusal of the lookup of %s", tc.name)
+				assert.Equalf(t, &APIError{ErrorType: "INTERNAL", Message: "internal error", ErrorDetails: "internal error"}, apiErr, "the user channel should report the refusal Coinbase sent for the lookup of %s", tc.name)
+				require.Lenf(t, details, 1, "the user channel must relay %s as reported, and with no looked up size", tc.name)
+				assert.Lenf(t, details[0], len(ids), "the user channel should relay every order reported of %s", tc.name)
+				_, ok = ex.orderSizes.get(ids[len(ids)-1])
+				assert.Falsef(t, ok, "the user channel should record no size it did not look up for %s", tc.name)
+			})
+		}
+	})
+
+	t.Run("looks up once an order whose configuration this package does not decode", func(t *testing.T) {
+		t.Parallel()
+		const orderID = "dddddddd-eeee-ffff-0000-666666666666"
 		listed, release := make(chan struct{}), make(chan struct{})
+		var lists atomic.Int32
 		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			close(listed)
-			select {
-			case <-release:
-			case <-r.Context().Done():
-				return
+			if lists.Add(1) == 1 {
+				close(listed)
+				select {
+				case <-release:
+				case <-r.Context().Done():
+					return
+				}
 			}
-			_, err := w.Write([]byte(`{"orders":[{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"SELL","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"0.5","limit_price":"90000"}}}],"has_next":false,"cursor":""}`))
+			_, err := w.Write([]byte(`{"orders":[{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"SELL","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{}}],"has_next":false,"cursor":""}`))
 			assert.NoError(t, err, "writing the response should not error")
 		}))
-		update := func(status string) *WebsocketEnvelope {
-			return &WebsocketEnvelope{
-				Channel:   wsChannelUser,
-				Timestamp: time.Date(2026, 10, 19, 1, 30, 0, 0, time.UTC),
-				Events: json.RawMessage(`[{"type":"update","orders":[{"order_id":"` + orderID + `","order_side":"SELL","order_type":"LIMIT","status":"` + status +
-					`","product_id":"BTC-USD","product_type":"SPOT","time_in_force":"GOOD_UNTIL_CANCELLED","limit_price":"90000","cumulative_quantity":"0","leaves_quantity":"0.5"}]}]`),
-			}
-		}
-		require.NoError(t, handleUser(t, ex, update(OrderStatusOpen)), "wsHandleUser must not error")
+		require.NoError(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusOpen, "0", "0.5")), "wsHandleUser must not error")
 		awaitClosed(t, listed, "the order must be looked up")
-		// The order is cancelled while its size is being looked up
-		require.NoError(t, handleUser(t, ex, update(OrderStatusCancelled)), "wsHandleUser must not error for the cancellation")
+		// The order's next report, while it is looked up, gives it a size that the list then leaves out
+		require.NoError(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusOpen, "0", "0.5")), "wsHandleUser must not error for the order's next report")
 		close(release)
 		awaitLookupsSettled(t, ex)
-		var statuses []order.Status
-		for _, details := range relayed[[]order.Detail](ex) {
-			for i := range details {
-				statuses = append(statuses, details[i].Status)
-			}
+		assert.Equal(t, int32(1), lists.Load(), "the user channel should not look up again an order whose list gives no size")
+		got := relayed[[]order.Detail](ex)
+		require.Len(t, got, 3, "the user channel must relay the order's two reports, then the lookup's")
+		require.Len(t, got[2], 1, "the lookup must relay the order")
+		assert.Equal(t, orderID, got[2][0].OrderID, "the lookup should relay the order it looked up")
+		assert.Zero(t, got[2][0].Amount, "the lookup should relay the order without a size")
+		size, ok := ex.orderSizes.get(orderID)
+		require.True(t, ok, "the lookup must record the order")
+		assert.Zero(t, size.base, "the lookup should record no base size the list left out")
+		assert.Zero(t, size.quote, "the lookup should record no quote size the list left out")
+		assert.False(t, size.disputed, "the lookup should leave the order undisputed")
+	})
+
+	t.Run("relays no remainder for an order listed without a base size", func(t *testing.T) {
+		t.Parallel()
+		// An edit records the order's size, 0.02, as a base size, which its report older than the edit's response
+		// disputes with what remains of the size the order was placed with
+		for _, tc := range []struct {
+			name   string
+			leaves string
+			listed string
+			quote  float64
+		}{
+			{name: "listed with its quote size alone", leaves: "1000", listed: `"size_in_quote":true,"order_configuration":{"limit_limit_gtc":{"quote_size":"1000","limit_price":"90000"}}`, quote: 1000},
+			{name: "listed with a configuration this package does not decode", leaves: "0.03", listed: `"order_configuration":{}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				const orderID = "dddddddd-eeee-ffff-0000-777777777777"
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var body string
+					switch r.URL.Path {
+					case "/api/v3/brokerage/orders/edit":
+						body = `{"success":true,"errors":[]}`
+					case "/api/v3/brokerage/orders/historical/batch":
+						body = `{"orders":[{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"SELL","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0",` + tc.listed + `}],"has_next":false,"cursor":""}`
+					default:
+						assert.Failf(t, "EditOrder should edit the order and the user channel look it up", "requested %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				_, err := ex.EditOrder(t.Context(), &EditOrderRequest{OrderID: orderID, Price: 90000, Size: 0.02})
+				require.NoErrorf(t, err, "EditOrder must not error for an order %s", tc.name)
+				report := userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusOpen, "0", tc.leaves)
+				require.NoErrorf(t, handleUser(t, ex, report), "wsHandleUser must not error for the report of an order %s", tc.name)
+				awaitLookupsSettled(t, ex)
+				got := relayed[[]order.Detail](ex)
+				require.Lenf(t, got, 2, "the user channel must relay the report, then the lookup, of an order %s", tc.name)
+				require.Lenf(t, got[1], 1, "the lookup must relay an order %s", tc.name)
+				assert.Zerof(t, got[1][0].Amount, "the lookup should relay no base size for an order %s", tc.name)
+				assert.Equalf(t, tc.quote, got[1][0].QuoteAmount, "the lookup should relay the quote size of an order %s", tc.name)
+				assert.Zerof(t, got[1][0].RemainingAmount, "the lookup should relay no remainder for an order %s", tc.name)
+				require.NoErrorf(t, handleUser(t, ex, report), "wsHandleUser must not error for the next report of an order %s", tc.name)
+				next := relayed[[]order.Detail](ex)
+				require.Lenf(t, next, 1, "the user channel must relay the next report of an order %s", tc.name)
+				require.Lenf(t, next[0], 1, "the next report must relay an order %s", tc.name)
+				assert.Zerof(t, next[0][0].RemainingAmount, "the next report should relay no remainder for an order %s, as the lookup does", tc.name)
+			})
 		}
-		assert.Equal(t, []order.Status{order.Open, order.Cancelled}, statuses, "the lookup should not relay an order the channel reported cancelled meanwhile")
-		_, ok := ex.orderSizes.get(orderID)
-		assert.False(t, ok, "the lookup should not record a closed order's size")
+	})
+
+	t.Run("relays what remains of the base size it settles on, never below zero", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name                   string
+			orderType, status      string
+			executed, leaves, fees string
+			listed, relisted       string
+			// editedBefore is the size an edit records before the order's report, editedDuring the size one records
+			// while the order is being looked up
+			editedBefore, editedDuring float64
+			// lateExecuted and lateLeaves are a report of the order sent while it is being looked up
+			lateExecuted, lateLeaves string
+			lists                    int32
+			base, quote, remaining   float64
+		}{
+			{
+				name: "a partly filled order listed with its quote size alone", executed: "0.002", leaves: "820",
+				listed: `"size_in_quote":true,"order_configuration":{"limit_limit_gtc":{"quote_size":"1000","limit_price":"90000"}}`,
+				quote:  1000,
+			},
+			{
+				name: "a partly filled order listed with both sizes", executed: "0.125", leaves: "33750",
+				listed: `"order_configuration":{"limit_limit_gtc":{"base_size":"0.5","quote_size":"45000","limit_price":"90000"}}`,
+				base:   0.5, quote: 45000, remaining: 0.375,
+			},
+			{
+				name: "a partly filled order that has paid fees", executed: "0.25", leaves: "0.75", fees: "135",
+				listed: `"order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"90000"}}`,
+				base:   1, remaining: 0.75,
+			},
+			{
+				name: "a partly filled stop limit order", orderType: OrderTypeStopLimit, executed: "0.25", leaves: "0.75",
+				listed: `"order_configuration":{"stop_limit_stop_limit_gtc":{"base_size":"1","limit_price":"90000","stop_price":"91000","stop_direction":"STOP_DIRECTION_STOP_DOWN"}}`,
+				base:   1, remaining: 0.75,
+			},
+			{
+				name: "a pending order", status: OrderStatusPending, executed: "0", leaves: "1",
+				listed: `"order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"90000"}}`,
+				base:   1, remaining: 1,
+			},
+			{
+				// The list's state can be older than the channel's: it gives the size before an edit made elsewhere
+				// enlarged the order, which has since executed more than that
+				name: "an order that executed more than the base size listed", executed: "1.25", leaves: "0.75",
+				listed: `"order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"90000"}}`,
+				base:   1,
+			},
+			{
+				// An edit records the order's size, which its report older than the edit's response disputes with what
+				// remains of the size the order was placed with
+				name: "an order listed with the size an edit enlarged it to", editedBefore: 2, executed: "0.25", leaves: "0.75",
+				listed: `"order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}}`,
+				base:   2, remaining: 1.75,
+			},
+			{
+				name: "an order listed with the size an edit reduced it to", editedBefore: 1, executed: "0.25", leaves: "1.75",
+				listed: `"order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"90000"}}`,
+				base:   1, remaining: 0.75,
+			},
+			{
+				// The size an edit records while the order is being looked up is newer than the list's
+				name: "an order an edit reduces while it is looked up", editedDuring: 1, executed: "0.25", leaves: "1.75",
+				listed: `"order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}}`,
+				base:   1, remaining: 0.75,
+			},
+			{
+				name: "an order sized in quote that an edit gives a base size while it is looked up", editedDuring: 0.5, executed: "0.125", leaves: "33750",
+				listed: `"size_in_quote":true,"order_configuration":{"limit_limit_gtc":{"quote_size":"45000","limit_price":"90000"}}`,
+				base:   0.5, remaining: 0.375,
+			},
+			{
+				// A report older than the edit's response disputes the size the edit recorded, which is still newer than
+				// the list's
+				name: "an order an edit enlarges while it is looked up, then a report older than the edit", editedDuring: 2, executed: "0.125", leaves: "0.875",
+				lateExecuted: "0.25", lateLeaves: "0.75",
+				listed: `"order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"90000"}}`,
+				base:   2, remaining: 1.75,
+			},
+			{
+				// The order's report while it is being looked up gives another size than the list's, so it is looked up
+				// again
+				name: "an order an edit made elsewhere reduces while it is looked up", executed: "0.25", leaves: "1.75",
+				lateExecuted: "0.25", lateLeaves: "0.75",
+				listed:   `"order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}}`,
+				relisted: `"order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"90000"}}`,
+				lists:    2, base: 1, remaining: 0.75,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				const orderID = "dddddddd-eeee-ffff-0000-999999999999"
+				orderType := cmp.Or(tc.orderType, OrderTypeLimit)
+				held := tc.editedDuring != 0 || tc.lateLeaves != ""
+				listing, release := make(chan struct{}), make(chan struct{})
+				listingOnce := sync.OnceFunc(func() { close(listing) })
+				releaseOnce := sync.OnceFunc(func() { close(release) })
+				t.Cleanup(releaseOnce)
+				var lists atomic.Int32
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var body string
+					switch r.URL.Path {
+					case "/api/v3/brokerage/orders/edit":
+						body = `{"success":true,"errors":[]}`
+					case "/api/v3/brokerage/orders/historical/batch":
+						configuration := tc.listed
+						if lists.Add(1) == 1 {
+							listingOnce()
+							if held {
+								select {
+								case <-release:
+								case <-r.Context().Done():
+									return
+								}
+							}
+						} else if tc.relisted != "" {
+							configuration = tc.relisted
+						}
+						body = `{"orders":[{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"SELL","status":"OPEN","order_type":"` + orderType + `","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0",` + configuration + `}],"has_next":false,"cursor":""}`
+					default:
+						assert.Failf(t, "the user channel should look the order up", "requested %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				report := func(executed, leaves string) *WebsocketEnvelope {
+					return &WebsocketEnvelope{
+						Channel:   wsChannelUser,
+						Timestamp: time.Date(2026, 10, 19, 1, 30, 0, 0, time.UTC),
+						Events: json.RawMessage(`[{"type":"update","orders":[{"order_id":"` + orderID + `","order_side":"SELL","order_type":"` + orderType + `","status":"` + cmp.Or(tc.status, OrderStatusOpen) +
+							`","product_id":"BTC-USD","product_type":"SPOT","time_in_force":"GOOD_UNTIL_CANCELLED","limit_price":"90000","cumulative_quantity":"` + executed +
+							`","leaves_quantity":"` + leaves + `","total_fees":"` + cmp.Or(tc.fees, "0") + `"}]}]`),
+					}
+				}
+				if tc.editedBefore != 0 {
+					_, err := ex.EditOrder(t.Context(), &EditOrderRequest{OrderID: orderID, Price: 90000, Size: tc.editedBefore})
+					require.NoErrorf(t, err, "EditOrder must not error for %s", tc.name)
+				}
+				require.NoErrorf(t, handleUser(t, ex, report(tc.executed, tc.leaves)), "wsHandleUser must not error for the report of %s", tc.name)
+				relays := 2
+				if held {
+					awaitClosed(t, listing, "the order must be looked up")
+					if tc.editedDuring != 0 {
+						_, err := ex.EditOrder(t.Context(), &EditOrderRequest{OrderID: orderID, Price: 90000, Size: tc.editedDuring})
+						require.NoErrorf(t, err, "EditOrder must not error for %s", tc.name)
+					}
+					if tc.lateLeaves != "" {
+						require.NoErrorf(t, handleUser(t, ex, report(tc.lateExecuted, tc.lateLeaves)), "wsHandleUser must not error for the later report of %s", tc.name)
+						relays++
+					}
+					releaseOnce()
+				}
+				awaitLookupsSettled(t, ex)
+				assert.Equalf(t, cmp.Or(tc.lists, 1), lists.Load(), "the user channel should look up %s as often as its reports dispute the list", tc.name)
+				got := relayed[[]order.Detail](ex)
+				require.Lenf(t, got, relays, "the user channel must relay the reports, then the lookup, of %s", tc.name)
+				lookup := got[len(got)-1]
+				require.Lenf(t, lookup, 1, "the lookup must relay %s", tc.name)
+				assert.Equalf(t, tc.base, lookup[0].Amount, "the lookup should relay the base size it settles on for %s", tc.name)
+				assert.Equalf(t, tc.quote, lookup[0].QuoteAmount, "the lookup should relay the quote size it settles on for %s", tc.name)
+				assert.Equalf(t, tc.remaining, lookup[0].RemainingAmount, "the lookup should relay what remains of the base size it settles on for %s", tc.name)
+			})
+		}
 	})
 }
 
@@ -1004,6 +1333,42 @@ func TestWebsocketHandleUser(t *testing.T) {
 		require.Len(t, got[0], 1, "the user channel must relay the order")
 		assert.Zero(t, got[0][0].Amount, "the user channel should relay an order first reported cancelled without a size")
 	})
+
+	t.Run("relays an order listed without a size as reported, without looking it up", func(t *testing.T) {
+		t.Parallel()
+		const orderID = "dddddddd-eeee-ffff-0000-eeeeeeeeeeee"
+		var lists atomic.Int32
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			lists.Add(1)
+			_, err := w.Write([]byte(`{"orders":[{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"SELL","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{}}],"has_next":false,"cursor":""}`))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		// A list read the live order with a configuration this package does not decode, so recorded it without a size
+		listed := &Order{
+			OrderID:            orderID,
+			ProductID:          "BTC-USD",
+			ProductType:        ProductTypeSpot,
+			OrderConfiguration: &OrderConfiguration{},
+			Side:               OrderSideSell,
+			Status:             OrderStatusOpen,
+			TimeInForce:        TimeInForceGoodUntilCancelled,
+			OrderType:          OrderTypeLimit,
+		}
+		_, err := ex.orderDetail(listed, ex.orderSizes.stamp())
+		require.NoError(t, err, "orderDetail must not error")
+		require.NoError(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusOpen, "0", "2")), "wsHandleUser must not error")
+		awaitLookupsSettled(t, ex)
+		got := relayed[[]order.Detail](ex)
+		require.Len(t, got, 1, "the user channel must relay the order once")
+		require.Len(t, got[0], 1, "the user channel must relay the order")
+		assert.Zero(t, got[0][0].Amount, "the user channel should relay the order without a size")
+		// The report's remaining quantity is in the currency the order was placed in, which the list did not say
+		assert.Zero(t, got[0][0].RemainingAmount, "the user channel should relay no remaining amount for an order of unknown size")
+		assert.Zero(t, lists.Load(), "the user channel should not look up an order its list gave no size")
+		size, ok := ex.orderSizes.get(orderID)
+		require.True(t, ok, "the user channel must keep the order's record")
+		assert.False(t, size.disputed, "the user channel should not dispute a size the list left out")
+	})
 }
 
 func TestEditOrderReportedBeforeResponse(t *testing.T) {
@@ -1174,6 +1539,29 @@ func TestOrderStatusLiveness(t *testing.T) {
 	}
 }
 
+func TestSameOrderSize(t *testing.T) {
+	t.Parallel()
+	// Eight-decimal sizes near a million whose floats differ by exactly orderSizeTolerance of the larger
+	size, atTolerance := 1000007.61449337, 1000007.61449237
+	require.Equal(t, float64(orderSizeTolerance*size), size-atTolerance, "the sizes must be exactly the tolerance apart")
+	for _, tc := range []struct {
+		name  string
+		other float64
+		same  bool
+	}{
+		{name: "equal", other: size, same: true},
+		{name: "within the tolerance", other: 1000007.61449238, same: true},
+		{name: "exactly the tolerance apart", other: atTolerance, same: true},
+		{name: "just over the tolerance apart", other: 1000007.61449236},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.same, sameOrderSize(size, tc.other), "sameOrderSize should report whether %v is the same size as %v", size, tc.other)
+			assert.Equalf(t, tc.same, sameOrderSize(tc.other, size), "sameOrderSize should report whether %v is the same size as %v", tc.other, size)
+		})
+	}
+}
+
 func TestAdvancedTradeOrderSizes(t *testing.T) {
 	t.Parallel()
 	open := func(id string) order.Detail { return order.Detail{OrderID: id, Status: order.Open} }
@@ -1219,6 +1607,40 @@ func TestAdvancedTradeOrderSizes(t *testing.T) {
 	}
 	sizes.set("fresh", 1, 0)
 	assert.Len(t, sizes.sizes, 1, "set should forget sizes recorded long ago once the record is large")
+
+	t.Run("records the later of the sizes one list gives an order", func(t *testing.T) {
+		t.Parallel()
+		// A list's pages share the stamp it began at, and a later page read the order after an edit
+		var sizes advancedTradeOrderSizes
+		listed := sizes.stamp()
+		sizes.setListed("relisted", 1, 0, listed)
+		sizes.setListed("relisted", 2, 0, listed)
+		size, ok := sizes.get("relisted")
+		require.True(t, ok, "get must return a listed order's size")
+		assert.Equal(t, 2.0, size.base, "setListed should record the size a list gave an order last")
+	})
+
+	for _, tc := range []struct {
+		name      string
+		closed    int
+		kept      float64
+		remaining int
+	}{
+		{name: "keeps a size an order closed with long ago while fewer closed orders than the threshold are kept", closed: orderSizesPruneThreshold - 1, kept: 2, remaining: orderSizesPruneThreshold - 1},
+		{name: "forgets a size an order closed with long ago once the threshold of closed orders are kept", closed: orderSizesPruneThreshold, remaining: orderSizesPruneThreshold - 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var sizes advancedTradeOrderSizes
+			sizes.closed = map[string]closedOrderSize{"long ago": {base: 2, closed: time.Now().Add(-2 * closedOrderSizeLifetime)}}
+			for i := range tc.closed - 1 {
+				sizes.closed[strconv.Itoa(i)] = closedOrderSize{base: 1, closed: time.Now()}
+			}
+			sizes.set("fresh", 1, 0)
+			assert.Equalf(t, tc.kept, sizes.closedSize("long ago"), "set should keep the size an order closed with long ago only while fewer than %d closed orders are kept", orderSizesPruneThreshold)
+			assert.Lenf(t, sizes.closed, tc.remaining, "set should keep the sizes orders closed with recently among %d", tc.closed)
+		})
+	}
 }
 
 func TestAdvancedTradeOrderSizesClosed(t *testing.T) {
@@ -1515,6 +1937,31 @@ func TestProcessMergedTickers(t *testing.T) {
 		assert.Zero(t, got[0].Ask, "a refused ticker should not make a best ask sent long ago mergeable")
 		assert.Zero(t, got[0].QuoteVolume, "a refused ticker should not make a quote volume sent long ago mergeable")
 	})
+
+	for _, tc := range []struct {
+		name   string
+		after  time.Duration
+		merged bool
+	}{
+		{name: "merges fields sent exactly the merge window before", after: tickerMergeWindow, merged: true},
+		{name: "does not merge fields sent just over the merge window before", after: tickerMergeWindow + time.Millisecond},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newWebsocketTestExchange(t)
+			sent := time.Date(2026, 10, 19, 1, 30, 0, 0, time.UTC)
+			// A REST ticker sends the best bid and ask and the quote volume, which a batched ticker leaves out
+			_, err := ex.processMergedTickers([]ticker.Price{{ExchangeName: ex.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Last: 82000, Bid: 81999, BidSize: 2, Ask: 82001, AskSize: 3, QuoteVolume: 123, LastUpdated: sent}}, false, false)
+			require.NoError(t, err, "processMergedTickers must not error for a REST ticker")
+			got, err := ex.processMergedTickers([]ticker.Price{{ExchangeName: ex.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Last: 82010, LastUpdated: sent.Add(tc.after)}}, true, true)
+			require.NoError(t, err, "processMergedTickers must not error for a batched ticker")
+			exp := ticker.Price{ExchangeName: ex.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Last: 82010, LastUpdated: sent.Add(tc.after)}
+			if tc.merged {
+				exp.Bid, exp.BidSize, exp.Ask, exp.AskSize, exp.QuoteVolume = 81999, 2, 82001, 3, 123
+			}
+			assert.Equal(t, []ticker.Price{exp}, got, "processMergedTickers should merge the fields a source sent up to the merge window before, and no earlier")
+		})
+	}
 }
 
 func TestWebsocketOrderDetailErrors(t *testing.T) { //nolint:tparallel // the cases share ex and envelope in order
@@ -2289,6 +2736,35 @@ func TestWebsocketManageChannel(t *testing.T) {
 		require.NoError(t, err, "CreateTestConnection must not error")
 		err = ex.wsManageChannel(t.Context(), conn, wsRequestSubscribe, subscription.List{{Channel: "nonsense", QualifiedChannel: "nonsense"}})
 		assert.ErrorIs(t, err, errWebsocketChannelUnknown, "wsManageChannel should error for a channel Advanced Trade does not stream")
+	})
+
+	t.Run("reports an unsubscribe the reply does not confirm", func(t *testing.T) {
+		t.Parallel()
+		venue := new(advancedTradeVenue)
+		ex, err := connectAdvancedTradeTestExchange(t, venue, subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}})
+		require.NoError(t, err, "Connect must subscribe to the mock venue")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		var tickers subscription.List
+		for _, s := range ex.Websocket.GetSubscriptions() {
+			if s.QualifiedChannel == wsChannelTicker {
+				tickers = append(tickers, s)
+			}
+		}
+		require.NotEmpty(t, tickers, "the ticker channel must be subscribed")
+		// The venue's reply to the unsubscribe goes on listing BTC-USD
+		venue.mu.Lock()
+		venue.ignore = map[string]bool{"BTC-USD": true}
+		venue.mu.Unlock()
+		err = ex.wsManageChannel(t.Context(), conn, wsRequestUnsubscribe, tickers)
+		assert.ErrorIs(t, err, errWebsocketUnsubscribeUnconfirmed, "wsManageChannel should report an unsubscribe the reply does not confirm")
+		var remaining currency.Pairs
+		for _, s := range ex.Websocket.GetSubscriptions() {
+			if s.QualifiedChannel == wsChannelTicker {
+				remaining = append(remaining, s.Pairs...)
+			}
+		}
+		assert.Equal(t, currency.Pairs{currency.NewBTCUSD().Format(productIDFormat)}, remaining, "wsManageChannel should keep the subscription the reply still lists and remove the others")
 	})
 }
 

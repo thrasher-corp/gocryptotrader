@@ -115,4 +115,35 @@ func TestWebsocketAPISetHeartbeat(t *testing.T) {
 
 	err = newTestExchange(t).WebsocketAPI().SetHeartbeat(t.Context(), 30*time.Second)
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.SetHeartbeat should error without a websocket connection")
+
+	t.Run("sets the gateway's minimum interval", func(t *testing.T) {
+		t.Parallel()
+		ex, venue := newDerivativesWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().SetHeartbeat(t.Context(), 10*time.Second), "WebsocketAPI.SetHeartbeat must accept the gateway's minimum interval of 10 seconds")
+		if !mockTests {
+			// The live connection is shared, so its heartbeats are restored for the other tests
+			require.NoError(t, ex.WebsocketAPI().SetHeartbeat(t.Context(), derivativesHeartbeatInterval), "WebsocketAPI.SetHeartbeat must restore the connection's heartbeats")
+			return
+		}
+		// The gateway's connections ask for heartbeats themselves once they connect, so the mock can hold their requests too
+		var intervals []float64
+		for _, req := range venue.requestsFor("public/set_heartbeat") {
+			var params DerivativesHeartbeatWireRequest
+			require.NoError(t, json.Unmarshal(req.Params, &params), "the heartbeat params must decode")
+			intervals = append(intervals, params.Interval)
+		}
+		assert.Contains(t, intervals, 10.0, "WebsocketAPI.SetHeartbeat should send the minimum interval in seconds")
+	})
+
+	t.Run("refuses 9 seconds, under the gateway's minimum", func(t *testing.T) {
+		t.Parallel()
+		err := newTestExchange(t).WebsocketAPI().SetHeartbeat(t.Context(), 9*time.Second)
+		assert.ErrorIs(t, err, errDerivativesHeartbeatIntervalTooShort, "WebsocketAPI.SetHeartbeat should refuse 9 seconds, under the gateway's minimum of 10")
+	})
+
+	t.Run("refuses a nanosecond past a whole number of seconds", func(t *testing.T) {
+		t.Parallel()
+		err := newTestExchange(t).WebsocketAPI().SetHeartbeat(t.Context(), 10*time.Second+time.Nanosecond)
+		assert.ErrorIs(t, err, errDerivativesHeartbeatIntervalFraction, "WebsocketAPI.SetHeartbeat should refuse an interval a nanosecond past a whole number of seconds")
+	})
 }

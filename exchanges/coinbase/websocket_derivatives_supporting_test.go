@@ -49,6 +49,18 @@ func TestWebsocketAPIHello(t *testing.T) {
 
 	_, err = newTestExchange(t).WebsocketAPI().Hello(t.Context(), &DerivativesHelloRequest{ClientName: testSupportingClientName, ClientVersion: testSupportingClientVersion})
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.Hello should error without a connection")
+
+	t.Run("reports a reply without a result", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the live gateway answers with its API version")
+		}
+		ex, venue := newDerivativesWebsocketTestExchange(t)
+		venue.override("public/hello", []byte(`{"result":null}`))
+		resp, err := ex.WebsocketAPI().Hello(t.Context(), &DerivativesHelloRequest{ClientName: testSupportingClientName, ClientVersion: testSupportingClientVersion})
+		assert.ErrorIs(t, err, common.ErrNoResponse, "WebsocketAPI.Hello should report a reply without a result")
+		assert.Nil(t, resp, "WebsocketAPI.Hello should return no response for a reply without a result")
+	})
 }
 
 func TestWebsocketAPIGetStatus(t *testing.T) {
