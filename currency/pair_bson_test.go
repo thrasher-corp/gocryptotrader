@@ -69,7 +69,8 @@ func TestPairBSONValueNilPointer(t *testing.T) {
 	data, err := bson.Marshal(bsonPairPointerDocument{})
 	require.NoError(t, err, "Marshal must not error")
 	assert.Equal(t, bson.TypeNull, bson.Raw(data).Lookup("pair").Type, "a nil pair should be stored as null")
-	out := bsonPairPointerDocument{Pair: &Pair{Base: BTC, Quote: USDT}}
+	initial := NewBTCUSDT()
+	out := bsonPairPointerDocument{Pair: &initial}
 	require.NoError(t, bson.Unmarshal(data, &out), "Unmarshal must not error")
 	assert.Nil(t, out.Pair, "null should read back as a nil pair")
 }
