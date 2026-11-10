@@ -184,6 +184,59 @@ var oneHourCandles = func() []Candle {
 func TestRequest_ProcessResponse(t *testing.T) {
 	t.Parallel()
 
+	scenarios := func(t *testing.T) {
+		t.Helper()
+		t.Run("a candle opening between intervals", func(t *testing.T) {
+			t.Parallel()
+
+			start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+			pair := currency.NewBTCUSDT()
+			r, err := CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, OneHour, start, start.AddDate(0, 0, 1), 1)
+			require.NoError(t, err, "CreateKlineRequest must not error")
+
+			holder, err := r.ProcessResponse([]Candle{{Time: start.Add(time.Minute), Close: 1}})
+			require.ErrorIs(t, err, errCandleOpenTimeIsNotUTCAligned, "ProcessResponse must refuse a candle opening between intervals")
+			assert.Nil(t, holder, "ProcessResponse should return no candles")
+		})
+
+		// The intervals run in turn, as the loop they come from ran them
+		t.Run("extended requests", func(t *testing.T) {
+			t.Parallel()
+
+			for _, tc := range []struct {
+				name             string
+				exchangeInterval Interval
+				candles          []Candle
+				inRange          int
+			}{
+				{name: "extended request of hourly candles", exchangeInterval: OneHour, candles: getOneHour(), inRange: 24},
+				{name: "extended request of minute candles", exchangeInterval: OneMin, candles: getOneMinute(), inRange: 1440},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+					pair := currency.NewBTCUSDT()
+					r, err := CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, tc.exchangeInterval, start, start.AddDate(0, 0, 1), 1)
+					require.NoErrorf(t, err, "CreateKlineRequest must not error for %s candles", tc.exchangeInterval)
+					r.IsExtended = true
+					exp := slices.Clone(tc.candles[:tc.inRange])
+					holder, err := r.ProcessResponse(tc.candles)
+					require.NoErrorf(t, err, "ProcessResponse must not error for %s candles", tc.exchangeInterval)
+					require.Lenf(t, holder.Candles, 24, "ProcessResponse must return hourly candles from %s candles", tc.exchangeInterval)
+					assert.Equalf(t, exp, r.ProcessedCandles, "ProcessResponse should keep the %s candles it processed, before any conversion", tc.exchangeInterval)
+					holder.Candles[0].Close++
+					assert.Equalf(t, exp, r.ProcessedCandles, "ProcessResponse should keep its own copy of the %s candles it processed", tc.exchangeInterval)
+				})
+			}
+		})
+	}
+	// The scenarios run both before and after this test's own calls, as they could run on either side of them when
+	// they were tests of their own
+	t.Run("before the test's own calls", scenarios)
+	t.Run("after the test's own calls", func(t *testing.T) {
+		t.Parallel()
+		scenarios(t)
+	})
+
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 1)
 	pair := currency.NewBTCUSDT()
@@ -311,45 +364,6 @@ func TestRequest_ProcessResponse_OneMonth(t *testing.T) {
 	assert.Equal(t, start, holder.Candles[0].Time)
 	assert.Equal(t, start.AddDate(0, 1, 0), holder.Candles[1].Time)
 	assert.Equal(t, start.AddDate(0, 2, 0), holder.Candles[2].Time)
-}
-
-func TestRequest_ProcessResponse_MisalignedCandle(t *testing.T) {
-	t.Parallel()
-
-	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	pair := currency.NewBTCUSDT()
-	r, err := CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, OneHour, start, start.AddDate(0, 0, 1), 1)
-	require.NoError(t, err, "CreateKlineRequest must not error")
-
-	holder, err := r.ProcessResponse([]Candle{{Time: start.Add(time.Minute), Close: 1}})
-	require.ErrorIs(t, err, errCandleOpenTimeIsNotUTCAligned, "ProcessResponse must refuse a candle opening between intervals")
-	assert.Nil(t, holder, "ProcessResponse should return no candles")
-}
-
-func TestRequest_ProcessResponse_Extended(t *testing.T) {
-	t.Parallel()
-
-	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	pair := currency.NewBTCUSDT()
-	for _, tc := range []struct {
-		exchangeInterval Interval
-		candles          []Candle
-		inRange          int
-	}{
-		{exchangeInterval: OneHour, candles: getOneHour(), inRange: 24},
-		{exchangeInterval: OneMin, candles: getOneMinute(), inRange: 1440},
-	} {
-		r, err := CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, tc.exchangeInterval, start, start.AddDate(0, 0, 1), 1)
-		require.NoErrorf(t, err, "CreateKlineRequest must not error for %s candles", tc.exchangeInterval)
-		r.IsExtended = true
-		exp := slices.Clone(tc.candles[:tc.inRange])
-		holder, err := r.ProcessResponse(tc.candles)
-		require.NoErrorf(t, err, "ProcessResponse must not error for %s candles", tc.exchangeInterval)
-		require.Lenf(t, holder.Candles, 24, "ProcessResponse must return hourly candles from %s candles", tc.exchangeInterval)
-		assert.Equalf(t, exp, r.ProcessedCandles, "ProcessResponse should keep the %s candles it processed, before any conversion", tc.exchangeInterval)
-		holder.Candles[0].Close++
-		assert.Equalf(t, exp, r.ProcessedCandles, "ProcessResponse should keep its own copy of the %s candles it processed", tc.exchangeInterval)
-	}
 }
 
 func TestExtendedRequest_ProcessResponse(t *testing.T) {
