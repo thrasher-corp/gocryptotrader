@@ -49,7 +49,7 @@ func TestPairBSONValue(t *testing.T) {
 			require.True(t, ok, "pair must be stored as a BSON document")
 			assert.Equal(t, bson.Raw(want), stored, "pair should be stored as its non-empty fields")
 
-			out := bsonPairDocument{Pair: NewPair(LTC, XRP)}
+			out := bsonPairDocument{Pair: NewPairWithDelimiter("LTC", "XRP", "_")}
 			require.NoError(t, bson.Unmarshal(data, &out), "Unmarshal must not error")
 			assert.Equal(t, tc.pair, out.Pair, "pair should keep its case and delimiter")
 			assert.True(t, tc.pair.Equal(out.Pair), "pair should read back as the same currency codes")
