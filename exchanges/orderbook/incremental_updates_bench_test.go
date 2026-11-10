@@ -22,6 +22,13 @@ func BenchmarkProcessUpdateUpdateOrInsertDelete(b *testing.B) {
 		Asks:       Levels{{ID: 1000}},
 		Action:     DeleteAction,
 	}
+	// The first insert grows the levels once, so it comes before b.Loop to keep that out of B/op
+	if err := depth.ProcessUpdate(updateOrInsertUpdate); err != nil {
+		b.Fatal(err)
+	}
+	if err := depth.ProcessUpdate(deleteUpdate); err != nil {
+		b.Fatal(err)
+	}
 	for b.Loop() {
 		if err := depth.ProcessUpdate(updateOrInsertUpdate); err != nil {
 			b.Fatal(err)
