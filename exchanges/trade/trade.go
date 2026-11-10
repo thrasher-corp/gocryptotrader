@@ -241,6 +241,7 @@ func ConvertTradesToCandles(interval kline.Interval, trades ...Data) (*kline.Ite
 	for k, v := range groupedData {
 		candles.Candles = append(candles.Candles, classifyOHLCV(time.Unix(k, 0), v...))
 	}
+	candles.SortCandlesByTimestamp(false)
 
 	return &candles, nil
 }

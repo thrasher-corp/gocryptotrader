@@ -101,7 +101,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	adds := pm.GetAddresses()
+	adds := pm.base.Addresses
 	adds[0].WhiteListed = true
 	assert.NoError(t, err)
 

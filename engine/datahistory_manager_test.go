@@ -420,6 +420,56 @@ func TestValidateJob(t *testing.T) {
 	dhj.Exchange = ""
 	err = m.validateJob(dhj)
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
+
+	newJob := func(dataType dataHistoryDataType) *DataHistoryJob {
+		return &DataHistoryJob{
+			Nickname:  "TestValidateJob",
+			Exchange:  testExchange,
+			Asset:     asset.Spot,
+			Pair:      currency.NewBTCUSD(),
+			StartDate: time.Now().Add(-time.Hour * 60),
+			EndDate:   time.Now().Add(-time.Minute),
+			Interval:  kline.OneHour,
+			DataType:  dataType,
+		}
+	}
+
+	t.Run("convert candles needs a source interval", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryConvertCandlesDataType)
+		job.Interval = 0
+		job.ConversionInterval = kline.OneDay
+		assert.ErrorIs(t, m.validateJob(job), kline.ErrUnsupportedInterval, "validateJob should reject a convert candles job without an interval")
+		job.Interval = kline.OneHour
+		assert.NoError(t, m.validateJob(job), "validateJob should accept a convert candles job with both intervals")
+	})
+
+	t.Run("decimal place comparison limit", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryCandleValidationDataType)
+		job.DecimalPlaceComparison = maxDecimalPlaceComparison
+		assert.NoError(t, m.validateJob(job), "validateJob should accept the largest decimal place comparison")
+		job.DecimalPlaceComparison = maxDecimalPlaceComparison + 1
+		assert.ErrorIs(t, m.validateJob(job), errInvalidDecimalPlaces, "validateJob should reject a decimal place comparison an int64 cannot hold")
+	})
+
+	t.Run("secondary source validation limits", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryCandleValidationSecondarySourceType)
+		job.SecondaryExchangeSource = testExchange
+		job.RequestSizeLimit = defaultDataHistoryRequestSizeLimit + 1
+		require.NoError(t, m.validateJob(job), "validateJob must not error")
+		assert.Equal(t, defaultDataHistoryRequestSizeLimit, job.RequestSizeLimit, "request size limit should be capped")
+		assert.Equal(t, defaultDecimalPlaceComparison, job.DecimalPlaceComparison, "decimal place comparison should be defaulted")
+	})
+
+	t.Run("range with too many intervals", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryCandleDataType)
+		job.Interval = kline.OneMin
+		job.StartDate = time.Now().Add(-time.Minute * (maxDataHistoryJobIntervals + 60))
+		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should reject a job spanning too many intervals")
+	})
 }
 
 func TestGetAllJobStatusBetween(t *testing.T) {
@@ -1151,6 +1201,34 @@ func TestUpscaleJobCandleData(t *testing.T) {
 	if r.Status != dataHistoryStatusComplete {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusComplete)
 	}
+
+	t.Run("saves the converted candles", func(t *testing.T) {
+		t.Parallel()
+		m, _ := createDHM(t)
+		var saved *kline.Item
+		m.candleSaver = func(candles *kline.Item, _ bool) (uint64, error) {
+			saved = candles
+			return 0, nil
+		}
+		job := *j
+		_, err := m.convertCandleData(&job, job.StartDate, job.EndDate)
+		require.NoError(t, err, "convertCandleData must not error")
+		require.NotNil(t, saved, "convertCandleData must save candles")
+		assert.Equal(t, kline.OneDay, saved.Interval, "saved candles should be at the conversion interval")
+	})
+}
+
+func TestRunValidationJob(t *testing.T) {
+	t.Parallel()
+	m, _ := createDHM(t)
+	job := &DataHistoryJob{
+		Nickname:         "TestRunValidationJob",
+		StartDate:        time.Now().Add(-time.Hour * 24),
+		EndDate:          time.Now(),
+		Interval:         kline.OneHour,
+		RequestSizeLimit: 2_562_048, // An hour multiplied by this no longer fits in a time.Duration
+	}
+	assert.ErrorIs(t, m.runValidationJob(t.Context(), job, nil), kline.ErrInvalidInterval, "runValidationJob should reject an interval length that overflows")
 }
 
 func TestValidateCandles(t *testing.T) {

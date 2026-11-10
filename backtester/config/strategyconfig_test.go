@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/top2bottom2"
@@ -398,6 +399,15 @@ func TestReadStrategyConfigFromFile(t *testing.T) {
 
 	_, err = ReadStrategyConfigFromFile("test")
 	assert.ErrorIs(t, err, common.ErrFileNotFound)
+
+	t.Run("null config", func(t *testing.T) {
+		nullFile := filepath.Join(t.TempDir(), "null.strat")
+		require.NoError(t, os.WriteFile(nullFile, []byte("null"), 0o600), "WriteFile must not error")
+		cfg, err := ReadStrategyConfigFromFile(nullFile)
+		require.NoError(t, err, "ReadStrategyConfigFromFile must not error")
+		require.NotNil(t, cfg, "ReadStrategyConfigFromFile must not return a nil config")
+		assert.Error(t, cfg.Validate(), "an empty config should fail validation")
+	})
 }
 
 func TestGenerateConfigForDCAAPICandles(t *testing.T) {

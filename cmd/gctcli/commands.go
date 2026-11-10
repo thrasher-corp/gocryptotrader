@@ -1352,10 +1352,18 @@ func cancelBatchOrders(c *cli.Context) error {
 
 var cancelAllOrdersCommand = &cli.Command{
 	Name:   "cancelallorders",
-	Usage:  "cancels all orders for an exchange",
+	Usage:  "cancels all orders for an exchange, optionally limited to an asset type and currency pair",
 	Action: cancelAllOrders,
 	Flags: []cli.Flag{
 		requiredExchangeFlag,
+		&cli.StringFlag{
+			Name:  assetFlagName,
+			Usage: assetUsage,
+		},
+		&cli.StringFlag{
+			Name:  pairFlagName,
+			Usage: pairUsage,
+		},
 	},
 }
 
@@ -1380,6 +1388,24 @@ var modifyOrderCommand = &cli.Command{
 }
 
 func cancelAllOrders(c *cli.Context) error {
+	request := &gctrpc.CancelAllOrdersRequest{Exchange: c.String(exchangeFlagName)}
+	if assetType := strings.ToLower(c.String(assetFlagName)); assetType != "" {
+		if !validAsset(assetType) {
+			return errInvalidAsset
+		}
+		request.AssetType = assetType
+	}
+	if currencyPair := c.String(pairFlagName); currencyPair != "" {
+		if !validPair(currencyPair) {
+			return errInvalidPair
+		}
+		p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+		if err != nil {
+			return err
+		}
+		request.Pair = &gctrpc.CurrencyPair{Delimiter: p.Delimiter, Base: p.Base.String(), Quote: p.Quote.String()}
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -1387,9 +1413,7 @@ func cancelAllOrders(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.CancelAllOrders(c.Context, &gctrpc.CancelAllOrdersRequest{
-		Exchange: c.String(exchangeFlagName),
-	})
+	result, err := client.CancelAllOrders(c.Context, request)
 	if err != nil {
 		return err
 	}

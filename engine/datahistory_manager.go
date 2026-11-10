@@ -512,7 +512,10 @@ func (m *DataHistoryManager) runValidationJob(ctx context.Context, job *DataHist
 	}
 	var intervalsProcessed uint64
 	var jobIntervals, intervalsToCheck []time.Time
-	intervalLength := job.Interval.Duration() * time.Duration(job.RequestSizeLimit) //nolint:gosec // TODO: Ensure size limit can't overflow
+	intervalLength := job.Interval.Duration() * time.Duration(job.RequestSizeLimit) //nolint:gosec // an overflow is not positive and is rejected below
+	if intervalLength <= 0 {
+		return fmt.Errorf("job %s %w: interval %s with request size limit %d", job.Nickname, kline.ErrInvalidInterval, job.Interval, job.RequestSizeLimit)
+	}
 	for i := job.StartDate; i.Before(job.EndDate); i = i.Add(intervalLength) {
 		jobIntervals = append(jobIntervals, i)
 	}
@@ -890,7 +893,7 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 		return r, nil //nolint:nilerr // error is returned in the job result
 	}
 	newCandles.SourceJobID = job.ID
-	err = m.saveCandlesInBatches(job, candles, r)
+	err = m.saveCandlesInBatches(job, newCandles, r)
 	return r, err
 }
 
@@ -1249,11 +1252,19 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
 
-	if job.DataType == dataHistoryConvertCandlesDataType && job.ConversionInterval <= 0 {
-		return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.ConversionInterval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
+	if job.DataType == dataHistoryConvertCandlesDataType {
+		if job.ConversionInterval <= 0 {
+			return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.ConversionInterval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
+		}
+		if job.Interval <= 0 {
+			return fmt.Errorf("job interval %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
+		}
 	}
 
-	if job.DataType == dataHistoryCandleValidationDataType {
+	if job.DataType == dataHistoryCandleValidationDataType || job.DataType == dataHistoryCandleValidationSecondarySourceType {
+		if job.DecimalPlaceComparison > maxDecimalPlaceComparison {
+			return fmt.Errorf("job %s %w: %d exceeds %d", job.Nickname, errInvalidDecimalPlaces, job.DecimalPlaceComparison, maxDecimalPlaceComparison)
+		}
 		if job.DecimalPlaceComparison == 0 {
 			log.Warnf(log.DataHistory, "job %s decimal place comparison %v invalid. defaulting to %v decimal places when comparing data for validation", job.Nickname, job.DecimalPlaceComparison, defaultDecimalPlaceComparison)
 			job.DecimalPlaceComparison = defaultDecimalPlaceComparison
@@ -1268,6 +1279,9 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	job.EndDate = job.EndDate.Round(job.Interval.Duration())
 	if err := common.StartEndTimeCheck(job.StartDate, job.EndDate); err != nil {
 		return fmt.Errorf("job %s %w start: %v end %v", job.Nickname, err, job.StartDate, job.EndDate)
+	}
+	if err := checkIntervalCount(job.StartDate, job.EndDate, job.Interval.Duration(), maxDataHistoryJobIntervals); err != nil {
+		return fmt.Errorf("job %s %w", job.Nickname, err)
 	}
 
 	return nil

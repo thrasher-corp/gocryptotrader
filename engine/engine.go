@@ -417,22 +417,7 @@ func (bot *Engine) Start() error {
 		gctlog.Errorf(gctlog.Global, "Currency Converter system failed to start %s", err)
 	}
 
-	if bot.Settings.EnableGRPC {
-		go StartRPCServer(runtimeCtx, bot)
-	}
-
-	if bot.Settings.EnablePortfolioManager {
-		if bot.portfolioManager == nil {
-			if p, err := setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, bot.Config.Portfolio); err != nil {
-				gctlog.Errorf(gctlog.Global, "portfolio manager unable to setup: %s", err)
-			} else {
-				bot.portfolioManager = p
-				if err := bot.portfolioManager.Start(runtimeCtx, &bot.ServicesWG); err != nil {
-					gctlog.Errorf(gctlog.Global, "portfolio manager unable to start: %s", err)
-				}
-			}
-		}
-	}
+	bot.initPortfolioManager(runtimeCtx)
 
 	if bot.Settings.EnableDataHistoryManager {
 		if bot.dataHistoryManager == nil {
@@ -557,8 +542,33 @@ func (bot *Engine) Start() error {
 		}
 	}
 
+	// Started last so that requests never see subsystems which are still being set up
+	if bot.Settings.EnableGRPC {
+		go StartRPCServer(runtimeCtx, bot)
+	}
+
 	startSuccessful = true
 	return nil
+}
+
+// initPortfolioManager sets up the portfolio manager even when it is disabled, so that the withdraw manager holds the
+// instance which a later enable starts
+func (bot *Engine) initPortfolioManager(ctx context.Context) {
+	if bot.portfolioManager != nil {
+		return
+	}
+	p, err := setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, bot.Config.Portfolio)
+	if err != nil {
+		gctlog.Errorf(gctlog.Global, "portfolio manager unable to setup: %s", err)
+		return
+	}
+	bot.portfolioManager = p
+	if !bot.Settings.EnablePortfolioManager {
+		return
+	}
+	if err := p.Start(ctx, &bot.ServicesWG); err != nil {
+		gctlog.Errorf(gctlog.Global, "portfolio manager unable to start: %s", err)
+	}
 }
 
 func (bot *Engine) getRuntimeContext() context.Context {

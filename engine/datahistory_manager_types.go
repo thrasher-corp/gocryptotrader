@@ -104,6 +104,7 @@ var (
 	errJobInvalid                 = errors.New("job has not been setup properly and cannot be processed")
 	errInvalidDataHistoryStatus   = errors.New("unsupported data history status received")
 	errInvalidDataHistoryDataType = errors.New("unsupported data history data type received")
+	errInvalidDecimalPlaces       = errors.New("invalid decimal place comparison")
 	errNilResult                  = errors.New("received nil job result")
 	errJobMustBeActiveOrPaused    = errors.New("job must be active or paused to be set as a prerequisite")
 	errNilCandles                 = errors.New("received nil candles")
@@ -121,6 +122,10 @@ const (
 	defaultDataHistoryTicker                  = time.Minute
 	defaultDataHistoryTradeRequestSize uint64 = 10
 	defaultDecimalPlaceComparison      uint64 = 3
+	// maxDecimalPlaceComparison keeps the comparison multiplier of ten to that power within an int64
+	maxDecimalPlaceComparison uint64 = 18
+	// maxDataHistoryJobIntervals bounds the intervals one job may span, as its date ranges are built for the whole job
+	maxDataHistoryJobIntervals = 1_000_000
 )
 
 // DataHistoryManager is responsible for synchronising,

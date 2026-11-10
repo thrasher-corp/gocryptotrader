@@ -3,11 +3,14 @@ package portfolio
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -393,4 +396,27 @@ func TestGetProvider(t *testing.T) {
 	p, ok = b.Providers.GetProvider("NonExistent")
 	assert.False(t, ok, "GetProvider should return false for non-existent provider")
 	assert.Equal(t, provider{}, p, "GetProvider should return an empty provider for non-existent provider")
+}
+
+func TestGetAddresses(t *testing.T) {
+	t.Parallel()
+	b := &Base{Addresses: []Address{{Address: "one"}, {Address: "two"}}}
+	got := b.GetAddresses()
+	require.Len(t, got, 2, "GetAddresses must return every address")
+	got[0].Address = "changed"
+	assert.Equal(t, "one", b.Addresses[0].Address, "GetAddresses should return a copy")
+
+	t.Run("concurrent with writers", func(t *testing.T) {
+		t.Parallel()
+		b := &Base{}
+		var wg sync.WaitGroup
+		for i := range 20 {
+			wg.Go(func() {
+				assert.NoError(t, b.AddAddress("address-"+strconv.Itoa(i), "", currency.BTC, 1), "AddAddress should not error")
+			})
+			wg.Go(func() { b.GetAddresses() })
+		}
+		wg.Wait()
+		assert.Len(t, b.GetAddresses(), 20, "GetAddresses should return every added address")
+	})
 }
