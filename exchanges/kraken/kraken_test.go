@@ -1312,6 +1312,7 @@ func TestWithdrawCancel(t *testing.T) {
 func TestWsSubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
 	testexch.SetupWebsocket(t, e)
 
 	for _, enabled := range []bool{false, true} {
@@ -1412,6 +1413,7 @@ func TestWsSubscribe(t *testing.T) {
 func TestWsResubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "TestInstance must not error")
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
 	testexch.SetupWebsocket(t, e)
 
 	err := e.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 1000}})
@@ -1443,6 +1445,7 @@ func TestWsOrderbookSub(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
 	testexch.SetupWebsocket(t, e)
 
 	err := e.Subscribe(subscription.List{{
@@ -1475,6 +1478,7 @@ func TestWsCandlesSub(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
 	testexch.SetupWebsocket(t, e)
 
 	err := e.Subscribe(subscription.List{{
@@ -1544,6 +1548,7 @@ func TestWsOwnTradesSub(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
 	testexch.SetupWebsocket(t, e)
 
 	err := e.Subscribe(subscription.List{{Channel: subscription.MyTradesChannel, Authenticated: true}})
@@ -1624,6 +1629,7 @@ func TestGetWSToken(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
 	testexch.SetupWebsocket(t, e)
 
 	resp, err := e.GetWebsocketToken(t.Context())

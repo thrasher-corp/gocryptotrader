@@ -2165,6 +2165,7 @@ func TestSubscribe(t *testing.T) {
 		}
 		e = testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
+		t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
 		testexch.SetupWebsocket(t, e)
 	}
 	err = e.Subscribe(channels)

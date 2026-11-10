@@ -27,6 +27,7 @@ exchanges/okx
 exchanges/order
 exchanges/orderbook
 exchanges/request
+internal/testing/exchange
 log
 types
 types/decimal

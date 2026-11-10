@@ -3,12 +3,16 @@ package exchange
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"weak"
@@ -26,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
@@ -33,6 +38,9 @@ import (
 )
 
 const multiConnectionFilter = "multi-connection-test"
+
+// coldSetupEnv marks the process TestSetup's concurrent case starts to run its workers before anything loads the config
+const coldSetupEnv = "TESTEXCH_TEST_COLD_SETUP"
 
 type multiConnectionSetupExchange struct {
 	sharedtestvalues.CustomEx
@@ -42,7 +50,7 @@ func (e *multiConnectionSetupExchange) GetBase() *exchange.Base {
 	return &e.Base
 }
 
-func newMultiConnectionSetupExchange(tb testing.TB, websocketURL string, dialer *gws.Dialer, trafficTimeout time.Duration) *multiConnectionSetupExchange {
+func newMultiConnectionSetupExchange(tb testing.TB, websocketURL string, dialer *gws.Dialer, trafficTimeout time.Duration, modify ...func(*multiConnectionSetupExchange, *websocket.ConnectionSetup)) *multiConnectionSetupExchange {
 	tb.Helper()
 
 	e := &multiConnectionSetupExchange{}
@@ -63,7 +71,7 @@ func newMultiConnectionSetupExchange(tb testing.TB, websocketURL string, dialer 
 	})
 	require.NoError(tb, err, "Setup must not error for the multi-connection manager")
 
-	err = e.Base.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	setup := &websocket.ConnectionSetup{
 		URL: websocketURL,
 		Connector: func(ctx context.Context, conn websocket.Connection) error {
 			return conn.Dial(ctx, dialer, nil, nil)
@@ -74,7 +82,11 @@ func newMultiConnectionSetupExchange(tb testing.TB, websocketURL string, dialer 
 		Subscriber:    func(context.Context, websocket.Connection, subscription.List) error { return nil },
 		Handler:       func(context.Context, websocket.Connection, []byte) error { return nil },
 		MessageFilter: multiConnectionFilter,
-	})
+	}
+	for _, m := range modify {
+		m(e, setup)
+	}
+	err = e.Base.Websocket.SetupNewConnection(setup)
 	require.NoError(tb, err, "SetupNewConnection must not error for the multi-connection manager")
 
 	return e
@@ -158,12 +170,35 @@ func TestSetup(t *testing.T) {
 	})
 
 	t.Run("concurrent", func(t *testing.T) {
+		if os.Getenv(coldSetupEnv) == "" {
+			// Earlier cases have loaded the config, so the workers run in a fresh process, where they contend for the
+			// first load
+			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestSetup$/^concurrent$", "-test.timeout=90s") //nolint:gosec // re-runs this test binary with nothing loaded
+			cmd.Env = append(os.Environ(), coldSetupEnv+"=1")
+			out, err := cmd.CombinedOutput()
+			require.NoErrorf(t, err, "Concurrent Setup must not error in a fresh process:\n%s", out)
+			return
+		}
+		const workers = 8
+		ready, start := make(chan struct{}, workers), make(chan struct{})
 		var ec common.ErrorCollector
-		for range 8 {
-			ec.Go(func() error { return Setup(new(binance.Exchange)) })
+		for range workers {
+			ec.Go(func() error {
+				ready <- struct{}{}
+				<-start
+				return Setup(new(binance.Exchange))
+			})
 		}
 		done := make(chan error, 1)
-		go func() { done <- ec.Collect() }()
+		go func() {
+			for range workers {
+				<-ready
+			}
+			close(start)
+			done <- ec.Collect()
+		}()
 		select {
 		case err := <-done:
 			assert.NoError(t, err, "Concurrent Setup should not error")
@@ -329,6 +364,9 @@ func TestCopyExchangeConfig(t *testing.T) {
 
 func BenchmarkSetup(b *testing.B) {
 	b.ReportAllocs()
+	// Loaded first, so that the one-off load is not shared out over however many calls the run makes
+	_, err := testConfig()
+	require.NoError(b, err, "testConfig must not error")
 	for b.Loop() {
 		require.NoError(b, Setup(new(binance.Exchange)), "Setup must not error")
 	}
@@ -393,6 +431,43 @@ func TestMockWebsocketInstance(t *testing.T) {
 		assert.False(t, e.Websocket.IsEnabled(), "Websocket should be disabled once its test ends, so its monitor stops reconnecting")
 	})
 
+	t.Run("waits for a running mock handler", func(t *testing.T) {
+		entered, release, returned := make(chan struct{}), make(chan struct{}), make(chan struct{})
+		releaseHandler := sync.OnceFunc(func() { close(release) })
+		t.Cleanup(releaseHandler)
+		handlerReturned := sync.OnceFunc(func() { close(returned) })
+		var waited bool
+		t.Run("instance", func(t *testing.T) {
+			held := mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error {
+				close(entered)
+				<-release
+				return nil
+			})
+			// Registered before the instance's own cleanup, so it runs after it
+			t.Cleanup(func() {
+				select {
+				case <-returned:
+					waited = true
+				default:
+				}
+			})
+			e := MockWebsocketInstance[binance.Exchange](t, func(w http.ResponseWriter, r *http.Request) {
+				defer handlerReturned()
+				held(w, r)
+			})
+			err := e.Websocket.Conn.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("{}"))
+			require.NoError(t, err, "SendRawMessage must not error")
+			select {
+			case <-entered:
+			case <-time.After(10 * time.Second):
+				require.FailNow(t, "Mock handler must receive the frame")
+			}
+			// Still held when the test ends, so its cleanup has to wait for the release
+			time.AfterFunc(100*time.Millisecond, releaseHandler)
+		})
+		assert.True(t, waited, "MockWebsocketInstance should wait for a running mock handler before its test ends")
+	})
+
 	t.Run("does not retain exchange", func(t *testing.T) {
 		var ref weak.Pointer[binance.Exchange]
 		t.Run("instance", func(t *testing.T) {
@@ -403,6 +478,147 @@ func TestMockWebsocketInstance(t *testing.T) {
 			return ref.Value() == nil
 		}, 10*time.Second, 10*time.Millisecond, "MockWebsocketInstance should not keep the exchange reachable once its test ends")
 	})
+}
+
+// failureRecorder records the failures reported through it instead of failing its test
+type failureRecorder struct {
+	testing.TB
+	failures  []string
+	onFailure func()
+}
+
+func (r *failureRecorder) Errorf(format string, args ...any) {
+	r.failures = append(r.failures, fmt.Sprintf(format, args...))
+	if r.onFailure != nil {
+		r.onFailure()
+	}
+}
+
+func TestMockHandlers(t *testing.T) {
+	t.Parallel()
+
+	newRequest := func(tb testing.TB) *http.Request {
+		tb.Helper()
+		return httptest.NewRequestWithContext(tb.Context(), http.MethodGet, "/", http.NoBody)
+	}
+
+	t.Run("refuses requests after stop", func(t *testing.T) {
+		t.Parallel()
+		var m mockHandlers
+		var calls int
+		h := m.track(t, func(http.ResponseWriter, *http.Request) { calls++ })
+
+		h(httptest.NewRecorder(), newRequest(t))
+		require.Equal(t, 1, calls, "track must run the handler before stop")
+
+		stopped := m.stop()
+		w := httptest.NewRecorder()
+		h(w, newRequest(t))
+		assert.Equal(t, 1, calls, "track should not run the handler after stop")
+		assert.Equal(t, http.StatusServiceUnavailable, w.Code, "track should refuse a request after stop")
+		select {
+		case <-stopped:
+		default:
+			assert.Fail(t, "stop's channel should be closed when no handler is running")
+		}
+		assert.Equal(t, stopped, m.stop(), "stop should return the same channel when called again")
+	})
+
+	t.Run("stays open until the running handler returns", func(t *testing.T) {
+		t.Parallel()
+		var m mockHandlers
+		entered, release, returned := make(chan struct{}), make(chan struct{}), make(chan struct{})
+		h := m.track(t, func(http.ResponseWriter, *http.Request) {
+			close(entered)
+			<-release
+		})
+		r := newRequest(t)
+		go func() {
+			defer close(returned)
+			h(httptest.NewRecorder(), r)
+		}()
+		select {
+		case <-entered:
+		case <-time.After(10 * time.Second):
+			require.FailNow(t, "The handler must start")
+		}
+		stopped := m.stop()
+		select {
+		case <-stopped:
+			assert.Fail(t, "stop's channel should stay open while a handler is running")
+		default:
+		}
+		close(release)
+		select {
+		case <-returned:
+		case <-time.After(10 * time.Second):
+			require.FailNow(t, "The handler must return")
+		}
+		select {
+		case <-stopped:
+		default:
+			assert.Fail(t, "stop's channel should be closed once the running handler has returned")
+		}
+	})
+
+	for _, tc := range []struct {
+		name   string
+		value  any
+		report string
+	}{
+		{"reports a panic while its handler still counts as running", "mock failure", "mock failure"},
+		{"reports a panic that only wraps the abort sentinel", fmt.Errorf("wrapped: %w", http.ErrAbortHandler), "wrapped: "},
+		{"passes an aborted response through without a report", http.ErrAbortHandler, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var m mockHandlers
+			entered, release, returned := make(chan struct{}), make(chan struct{}), make(chan struct{})
+			var stopped <-chan struct{}
+			var reportedAfterReturn bool
+			rec := &failureRecorder{TB: t}
+			rec.onFailure = func() {
+				select {
+				case <-stopped:
+					reportedAfterReturn = true
+				default:
+				}
+			}
+			h := m.track(rec, func(http.ResponseWriter, *http.Request) {
+				close(entered)
+				<-release
+				panic(tc.value)
+			})
+			r := newRequest(t)
+			var escaped error
+			go func() {
+				defer close(returned)
+				defer func() { escaped, _ = recover().(error) }()
+				h(httptest.NewRecorder(), r)
+			}()
+			select {
+			case <-entered:
+			case <-time.After(10 * time.Second):
+				require.FailNow(t, "The handler must start")
+			}
+			stopped = m.stop()
+			close(release)
+			select {
+			case <-returned:
+			case <-time.After(10 * time.Second):
+				require.FailNow(t, "The handler must return")
+			}
+			assert.ErrorIs(t, escaped, http.ErrAbortHandler, "track should abort the response of a handler that panics")
+			if tc.report == "" {
+				assert.Empty(t, rec.failures, "track should not report an aborted response")
+				return
+			}
+			require.Len(t, rec.failures, 1, "track must report the panic once")
+			assert.Contains(t, rec.failures[0], "Mock handler should not panic", "track should say what the failure is")
+			assert.Contains(t, rec.failures[0], tc.report, "track should report the panic's value")
+			assert.False(t, reportedAfterReturn, "track should report the panic before its handler stops counting as running")
+		})
+	}
 }
 
 func TestSetupWebsocket(t *testing.T) {
@@ -454,6 +670,42 @@ func TestSetupWebsocket(t *testing.T) {
 		assert.Len(t, e.Base.Features.Subscriptions, 1, "SetupWebsocket should leave a connected exchange alone")
 	})
 
+	t.Run("relays a frame handled during connect", func(t *testing.T) {
+		const reply = "auth reply"
+		handled := make(chan struct{})
+		replyHandled := sync.OnceFunc(func() { close(handled) })
+		// A silent connection must outlast the test, or the monitors reconnect it and authenticate again
+		e := newMultiConnectionSetupExchange(t, websocketURL, dialer, time.Hour, func(e *multiConnectionSetupExchange, s *websocket.ConnectionSetup) {
+			s.Handler = func(ctx context.Context, _ websocket.Connection, msg []byte) error {
+				defer replyHandled()
+				return e.Base.Websocket.DataHandler.Send(ctx, string(msg))
+			}
+			// The server echoes the frame, and waiting for the reader to handle the echo puts that before Connect returns
+			s.Authenticate = func(ctx context.Context, conn websocket.Connection) error {
+				if err := conn.SendRawMessage(ctx, request.Unset, gws.TextMessage, []byte(reply)); err != nil {
+					return err
+				}
+				select {
+				case <-handled:
+					return nil
+				case <-time.After(10 * time.Second):
+					return errors.New("reply not handled within ten seconds")
+				}
+			}
+		})
+		e.Base.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		t.Cleanup(func() { assert.NoError(t, e.Base.Websocket.Disable(), "Websocket disable should not error") })
+
+		SetupWebsocket(t, e)
+
+		select {
+		case got := <-e.Base.Websocket.DataHandler.C:
+			assert.Equal(t, reply, got.Data, "SetupWebsocket should relay the frame handled during Connect")
+		default:
+			assert.Fail(t, "SetupWebsocket should relay a frame handled during Connect to the relay its test reads")
+		}
+	})
+
 	t.Run("websocket disabled", func(t *testing.T) {
 		e := newMultiConnectionSetupExchange(t, websocketURL, dialer, trafficTimeout)
 		require.NoError(t, e.Base.Websocket.Disable(), "Websocket disable must not error")
@@ -466,16 +718,30 @@ func TestSetupWebsocket(t *testing.T) {
 	})
 
 	t.Run("does not retain exchange", func(t *testing.T) {
-		ref := func() weak.Pointer[multiConnectionSetupExchange] {
+		recorded := func(key weak.Pointer[exchange.Base]) bool {
+			setupWsMutex.Lock()
+			defer setupWsMutex.Unlock()
+			_, ok := setupWsOnce[key]
+			return ok
+		}
+		ref, key := func() (weak.Pointer[multiConnectionSetupExchange], weak.Pointer[exchange.Base]) {
 			e := newMultiConnectionSetupExchange(t, websocketURL, dialer, trafficTimeout)
 			SetupWebsocket(t, e)
 			require.True(t, e.Base.Websocket.IsConnected(), "Websocket must be connected after SetupWebsocket")
 			require.NoError(t, e.Base.Websocket.Disable(), "Websocket disable must not error")
-			return weak.Make(e)
+			key := weak.Make(&e.Base)
+			require.True(t, recorded(key), "SetupWebsocket must record the exchange it set up")
+			// The exchange must stay referenced until its entry has been seen, or it could be collected and forgotten first
+			runtime.KeepAlive(e)
+			return weak.Make(e), key
 		}()
 		assert.Eventually(t, func() bool {
 			runtime.GC()
 			return ref.Value() == nil
 		}, 10*time.Second, 10*time.Millisecond, "SetupWebsocket should not keep a disabled exchange reachable")
+		assert.Eventually(t, func() bool {
+			runtime.GC()
+			return !recorded(key)
+		}, 10*time.Second, 10*time.Millisecond, "SetupWebsocket should forget an exchange once it is collected")
 	})
 }

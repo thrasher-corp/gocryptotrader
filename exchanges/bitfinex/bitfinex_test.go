@@ -7,10 +7,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/buger/jsonparser"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -29,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -1439,46 +1442,77 @@ func TestGenerateSubscriptions(t *testing.T) {
 // TestWSSubscribe tests Subscribe and Unsubscribe functionality
 // See also TestSubscribeReq which covers key and symbol conversion
 func TestWSSubscribe(t *testing.T) {
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "TestInstance must not error")
-	testexch.SetupWebsocket(t, e)
-	err := e.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
-	require.NoError(t, err, "Subscribe must not error")
-	catcher := func() (ok bool) {
-		i := <-e.Websocket.DataHandler.C
-		_, ok = i.Data.(*ticker.Price)
-		return ok
+	setup := func(tb testing.TB, websocketURL string) *Exchange {
+		tb.Helper()
+		e := new(Exchange)
+		require.NoError(tb, testexch.Setup(e), "TestInstance must not error")
+		if websocketURL != "" {
+			require.NoError(tb, e.Websocket.SetAllConnectionURLs(websocketURL), "SetAllConnectionURLs must not error")
+		}
+		tb.Cleanup(func() { assert.NoError(tb, e.Shutdown(), "Shutdown should not error") })
+		testexch.SetupWebsocket(tb, e)
+		return e
 	}
-	assert.Eventually(t, catcher, sharedtestvalues.WebsocketResponseDefaultTimeout, time.Millisecond*10, "Ticker response should arrive")
 
-	subs, err := e.GetSubscriptions()
-	require.NoError(t, err, "GetSubscriptions must not error")
-	require.Len(t, subs, 1, "We must only have 1 subscription; subID subscription must have been Removed by subscribeToChan")
+	t.Run("live", func(t *testing.T) {
+		e := setup(t, "")
+		err := e.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
+		require.NoError(t, err, "Subscribe must not error")
+		catcher := func() (ok bool) {
+			i := <-e.Websocket.DataHandler.C
+			_, ok = i.Data.(*ticker.Price)
+			return ok
+		}
+		assert.Eventually(t, catcher, sharedtestvalues.WebsocketResponseDefaultTimeout, time.Millisecond*10, "Ticker response should arrive")
 
-	err = e.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
-	require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Duplicate subscription must error correctly")
+		subs, err := e.GetSubscriptions()
+		require.NoError(t, err, "GetSubscriptions must not error")
+		require.Len(t, subs, 1, "We must only have 1 subscription; subID subscription must have been Removed by subscribeToChan")
 
-	subs, err = e.GetSubscriptions()
-	require.NoError(t, err, "GetSubscriptions must not error")
-	require.Len(t, subs, 1, "We must only have one subscription after an error attempt")
+		err = e.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
+		require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Duplicate subscription must error correctly")
 
-	err = e.Unsubscribe(subs)
-	assert.NoError(t, err, "Unsubscribing should not error")
+		subs, err = e.GetSubscriptions()
+		require.NoError(t, err, "GetSubscriptions must not error")
+		require.Len(t, subs, 1, "We must only have one subscription after an error attempt")
 
-	chanID, ok := subs[0].Key.(int)
-	assert.True(t, ok, "sub.Key should be an int")
+		err = e.Unsubscribe(subs)
+		assert.NoError(t, err, "Unsubscribing should not error")
 
-	err = e.Unsubscribe(subs)
-	assert.ErrorContains(t, err, strconv.Itoa(chanID), "Unsubscribe should contain correct chanId")
-	assert.ErrorContains(t, err, "unsubscribe: invalid (code: 10400)", "Unsubscribe should contain correct upstream error")
+		chanID, ok := subs[0].Key.(int)
+		assert.True(t, ok, "sub.Key should be an int")
 
-	err = e.Subscribe(subscription.List{{
-		Channel: subscription.TickerChannel,
-		Pairs:   currency.Pairs{currency.NewBTCUSD()},
-		Asset:   asset.Spot,
-		Params:  map[string]any{"key": "tBTCUSD"},
-	}})
-	assert.ErrorIs(t, err, errParamNotAllowed, "Trying to use a 'key' param should error errParamNotAllowed")
+		err = e.Unsubscribe(subs)
+		assert.ErrorContains(t, err, strconv.Itoa(chanID), "Unsubscribe should contain correct chanId")
+		assert.ErrorContains(t, err, "unsubscribe: invalid (code: 10400)", "Unsubscribe should contain correct upstream error")
+
+		err = e.Subscribe(subscription.List{{
+			Channel: subscription.TickerChannel,
+			Pairs:   currency.Pairs{currency.NewBTCUSD()},
+			Asset:   asset.Spot,
+			Params:  map[string]any{"key": "tBTCUSD"},
+		}})
+		assert.ErrorIs(t, err, errParamNotAllowed, "Trying to use a 'key' param should error errParamNotAllowed")
+	})
+
+	t.Run("shuts its websocket down when its test ends", func(t *testing.T) {
+		server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(testing.TB, []byte, *gws.Conn) error { return nil }))
+		server.Start()
+		var e *Exchange
+		// A failing run's fallback, registered here so that it runs after the checks below
+		t.Cleanup(func() {
+			if e != nil && e.Websocket.IsEnabled() {
+				assert.NoError(t, e.Websocket.Disable(), "Websocket disable should not error")
+			}
+		})
+		t.Run("owner", func(t *testing.T) {
+			e = setup(t, "ws"+strings.TrimPrefix(server.URL, "http"))
+			require.True(t, e.Websocket.IsConnected(), "Websocket must be connected during its test")
+		})
+		require.NotNil(t, e, "The owner must set up an exchange")
+		assert.False(t, e.Websocket.IsEnabled(), "Websocket should be disabled once its test ends")
+		assert.False(t, e.Websocket.IsConnected(), "Websocket should be shut down once its test ends")
+	})
 }
 
 // TestSubToMap tests the channel to request map marshalling

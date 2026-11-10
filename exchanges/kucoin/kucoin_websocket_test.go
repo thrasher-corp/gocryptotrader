@@ -1774,6 +1774,7 @@ func TestSubscribeBatches(t *testing.T) {
 
 	ku := testInstance(t)
 	ku.Features.Subscriptions = subscription.List{}
+	t.Cleanup(func() { assert.NoError(t, ku.Shutdown(), "Shutdown should not error") })
 	testexch.SetupWebsocket(t, ku)
 
 	ku.Features.Subscriptions = subscription.List{
@@ -1838,6 +1839,7 @@ func TestSubscribeBatchLimit(t *testing.T) {
 		tb.Helper()
 		ku := testInstance(tb)
 		ku.Features.Subscriptions = subscription.List{}
+		tb.Cleanup(func() { assert.NoError(tb, ku.Shutdown(), "Shutdown should not error") })
 		testexch.SetupWebsocket(tb, ku)
 
 		avail, err := ku.GetAvailablePairs(asset.Spot)
@@ -1906,6 +1908,7 @@ func TestSubscribeTickerAll(t *testing.T) {
 
 	ku := testInstance(t)
 	ku.Features.Subscriptions = subscription.List{}
+	t.Cleanup(func() { assert.NoError(t, ku.Shutdown(), "Shutdown should not error") })
 	testexch.SetupWebsocket(t, ku)
 	done := make(chan struct{})
 	go func() { // drain websocket messages when subscribed to all tickers
