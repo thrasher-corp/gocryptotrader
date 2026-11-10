@@ -4815,15 +4815,20 @@ func (v *orderListVenue) reply(method string, get func(string) string) (string, 
 
 // record adds a request and the IDs it carries to the venue's log
 func (v *orderListVenue) record(method string, get func(string) string) {
+	v.mu.Lock()
+	v.sent = append(v.sent, venueLogEntry(method, get))
+	v.mu.Unlock()
+}
+
+// venueLogEntry describes a request of method, with the parameters get returns, by the IDs it carries
+func venueLogEntry(method string, get func(string) string) string {
 	entry := []string{method}
 	for _, k := range []string{"orderListId", "orderId", "fromId", "origClientOrderId", "listClientOrderId", "isIsolated"} {
 		if val := get(k); val != "" {
 			entry = append(entry, k+"="+val)
 		}
 	}
-	v.mu.Lock()
-	v.sent = append(v.sent, strings.Join(entry, " "))
-	v.mu.Unlock()
+	return strings.Join(entry, " ")
 }
 
 // requests returns the requests the venue has been sent since the last call
@@ -4851,9 +4856,16 @@ func (v *orderListVenue) newExchange(t *testing.T, websocketAPI bool) *Exchange 
 		_, err := w.Write([]byte(reply))
 		assert.NoError(t, err, "Write should not error")
 	})
-	if !websocketAPI {
-		return ex
+	if websocketAPI {
+		useFakeVenueWebsocketAPI(t, ex, v.record, v.reply)
 	}
+	return ex
+}
+
+// useFakeVenueWebsocketAPI routes ex's spot orders through a WebSocket API connection whose requests record logs and
+// reply answers, by method name with the parameters get returns
+func useFakeVenueWebsocketAPI(t *testing.T, ex *Exchange, record func(method string, get func(string) string), reply func(method string, get func(string) string) (string, bool)) {
+	t.Helper()
 	ex.API.AuthenticatedSupport = true
 	ex.API.AuthenticatedWebsocketSupport = true
 	useMockWebsocket(t, ex, ex.spotWebsocketAPIConnectionSetup(ex.Config), func(tb testing.TB, msg []byte, w *gws.Conn) error {
@@ -4873,18 +4885,17 @@ func (v *orderListVenue) newExchange(t *testing.T, websocketAPI bool) *Exchange 
 			}
 			return ""
 		}
-		v.record(req.Method, get)
-		reply, ok := v.reply(req.Method, get)
-		assert.NotContainsf(tb, reply, "unexpected request", "%s should not be requested", req.Method)
+		record(req.Method, get)
+		answer, ok := reply(req.Method, get)
+		assert.NotContainsf(tb, answer, "unexpected request", "%s should not be requested", req.Method)
 		if !ok {
-			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"id":%q,"status":400,"error":%s}`, req.ID, reply))
+			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"id":%q,"status":400,"error":%s}`, req.ID, answer))
 		}
-		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"id":%q,"status":200,"result":%s}`, req.ID, reply))
+		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"id":%q,"status":200,"result":%s}`, req.ID, answer))
 	})
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, ex.canUseWebsocketAPIForOrders(), "the exchange must route spot orders through the WebSocket API")
-	return ex
 }
 
 // TestOrderListIDRoundTrips ensures that the order list ID each read of a spot or margin OCO order list reports reaches
@@ -5005,6 +5016,346 @@ func TestOrderListIDRoundTrips(t *testing.T) {
 				tc.order + " orderId=77",
 			}, v.requests(), "neither the order nor the order list should be cancelled")
 		})
+	}
+}
+
+// heldOrder is an order or OCO order list a fake venue holds in its spot, cross margin or isolated margin account
+type heldOrder struct {
+	account, symbol string
+	id              uint64
+	clientOrderID   string
+	isList          bool
+}
+
+// String names the held order as the venue logs it cancelled
+func (h *heldOrder) String() string {
+	kind := "order"
+	if h.isList {
+		kind = "order list"
+	}
+	return h.account + " " + kind + " " + strconv.FormatUint(h.id, 10)
+}
+
+// replies returns the held order as a lookup returns it and as its cancellation does
+func (h *heldOrder) replies() (found, cancelled string) {
+	isIsolated := strconv.FormatBool(h.account == "isolated")
+	if h.isList {
+		listReply := func(status string) string {
+			return fmt.Sprintf(`{"orderListId":%d,"contingencyType":"OCO","listStatusType":"EXEC_STARTED","listOrderStatus":%q,"listClientOrderId":%q,"transactionTime":1791284980615,"symbol":%q,"isIsolated":%s,"orders":[{"symbol":%[4]q,"orderId":9001,"clientOrderId":"leg-a"},{"symbol":%[4]q,"orderId":9002,"clientOrderId":"leg-b"}]}`, h.id, status, h.clientOrderID, h.symbol, isIsolated)
+		}
+		return listReply("EXECUTING"), listReply("ALL_DONE")
+	}
+	orderReply := func(status string) string {
+		return fmt.Sprintf(`{"symbol":%q,"orderId":%d,"orderListId":-1,"clientOrderId":%q,"price":"80000","origQty":"1","executedQty":"0","cummulativeQuoteQty":"0","status":%q,"timeInForce":"GTC","type":"LIMIT","side":"BUY","time":1791284980615,"updateTime":1791284980615,"isWorking":true,"isIsolated":%s}`, h.symbol, h.id, h.clientOrderID, status, isIsolated)
+	}
+	return orderReply("NEW"), orderReply("CANCELED")
+}
+
+// orderIDsVenue is a fake venue answering spot and margin lookups and cancellations of the orders and OCO order lists
+// it holds as Binance documents them. An order lookup or cancellation, or an order list cancellation, sent both IDs
+// searches the number and rejects a client order ID the one found lacks. An order list lookup sent both answers by the
+// list client order ID alone when byClientOrderID, as Binance's WebSocket API documents, and by the number alone
+// otherwise. Lookups without a symbol, of an order list in the spot or cross margin account, find any symbol's
+type orderIDsVenue struct {
+	held            []heldOrder
+	byClientOrderID bool
+	mu              sync.Mutex
+	sent, cancelled []string
+}
+
+// record adds a request and the IDs it carries to the venue's log
+func (v *orderIDsVenue) record(method string, get func(string) string) {
+	v.mu.Lock()
+	v.sent = append(v.sent, venueLogEntry(method, get))
+	v.mu.Unlock()
+}
+
+// reply returns the venue's answer to a request of method, by REST method and path or WebSocket API method name, with
+// the parameters get returns, logging what it cancels
+func (v *orderIDsVenue) reply(method string, get func(string) string) (string, bool) {
+	switch method {
+	case "GET /api/v3/order", "DELETE /api/v3/order", "order.status", "order.cancel",
+		"GET /api/v3/orderList", "DELETE /api/v3/orderList", "orderList.status", "orderList.cancel",
+		"GET /sapi/v1/margin/order", "DELETE /sapi/v1/margin/order", "GET /sapi/v1/margin/orderList", "DELETE /sapi/v1/margin/orderList":
+	default:
+		return `{"code":-1,"msg":"unexpected request"}`, false
+	}
+	account := "spot"
+	if strings.Contains(method, "/sapi/") {
+		account = "cross"
+		if get("isIsolated") == "TRUE" {
+			account = "isolated"
+		}
+	}
+	isList := strings.Contains(method, "orderList")
+	isCancel := strings.HasPrefix(method, http.MethodDelete+" ") || strings.HasSuffix(method, ".cancel")
+	id, clientID := get("orderId"), get("origClientOrderId")
+	unknown := `{"code":-2013,"msg":"Order does not exist."}`
+	switch {
+	case isList:
+		id, unknown = get("orderListId"), `{"code":-2011,"msg":"Order list does not exist."}`
+		if isCancel {
+			clientID = get("listClientOrderId")
+		}
+	case isCancel:
+		unknown = `{"code":-2011,"msg":"Unknown order sent."}`
+	}
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	for i := range v.held {
+		h := &v.held[i]
+		if h.account != account || h.isList != isList || get("symbol") != "" && get("symbol") != h.symbol {
+			continue
+		}
+		hasID, hasClientID := id == strconv.FormatUint(h.id, 10), clientID == h.clientOrderID
+		var found bool
+		switch {
+		case id == "":
+			found = hasClientID
+		case clientID == "":
+			found = hasID
+		case isList && !isCancel && v.byClientOrderID:
+			found = hasClientID
+		case isList && !isCancel:
+			found = hasID
+		default:
+			found = hasID && hasClientID
+		}
+		if !found {
+			continue
+		}
+		lookedUp, cancelled := h.replies()
+		if isCancel {
+			v.cancelled = append(v.cancelled, h.String())
+			return cancelled, true
+		}
+		return lookedUp, true
+	}
+	return unknown, false
+}
+
+// newExchange returns an exchange sending its requests to the venue, its spot orders through the WebSocket API when
+// websocketAPI is set
+func (v *orderIDsVenue) newExchange(t *testing.T, websocketAPI bool) *Exchange {
+	t.Helper()
+	// Not shared with orderListVenue's: gosec's taint analysis (G705) takes a reply reached through an interface as the
+	// request written back
+	ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		method := r.Method + " " + r.URL.Path
+		v.record(method, q.Get)
+		reply, ok := v.reply(method, q.Get)
+		assert.NotContainsf(t, reply, "unexpected request", "%s should not be requested", method)
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+		_, err := w.Write([]byte(reply))
+		assert.NoError(t, err, "Write should not error")
+	})
+	if websocketAPI {
+		useFakeVenueWebsocketAPI(t, ex, v.record, v.reply)
+	}
+	return ex
+}
+
+// TestCancelOrderOrderListLookups ensures that an untyped spot or margin CancelOrder cancels the order or OCO order list
+// its IDs name, and nothing else, whichever ID a venue answers an order list lookup sent both IDs by, as Binance's
+// WebSocket API answers it by the list client order ID alone. Each margin account's answer is checked apart, and an
+// order list numbered 0, which requests take as no order list ID, is cancelled by its list client order ID
+func TestCancelOrderOrderListLookups(t *testing.T) {
+	t.Parallel()
+	type transport struct {
+		name         string
+		a            asset.Item
+		websocketAPI bool
+		// The account the venue holds the orders of in the cases for every transport
+		account string
+		// Requests by REST method and path or WebSocket API method: looking up and cancelling an order list or an order
+		list, cancelList, order, cancelOrder string
+	}
+	transports := []transport{
+		{name: "spot", a: asset.Spot, account: "spot", list: "GET /api/v3/orderList", cancelList: "DELETE /api/v3/orderList", order: "GET /api/v3/order", cancelOrder: "DELETE /api/v3/order"},
+		{name: "spot websocket API", a: asset.Spot, websocketAPI: true, account: "spot", list: "orderList.status", cancelList: "orderList.cancel", order: "order.status", cancelOrder: "order.cancel"},
+		{name: "margin", a: asset.Margin, account: "cross", list: "GET /sapi/v1/margin/orderList", cancelList: "DELETE /sapi/v1/margin/orderList", order: "GET /sapi/v1/margin/order", cancelOrder: "DELETE /sapi/v1/margin/order"},
+	}
+	// eachAccount returns request followed, on margin, by the same request of the isolated margin account
+	eachAccount := func(tr *transport, request string) []string {
+		if tr.a != asset.Margin {
+			return []string{request}
+		}
+		return []string{request, request + " isIsolated=TRUE"}
+	}
+	for _, tc := range []struct {
+		name            string
+		marginOnly      bool
+		byClientOrderID bool
+		held            func(tr *transport) []heldOrder
+		cancel          order.Cancel
+		exp             func(tr *transport) []string
+		cancelled       func(tr *transport) []string
+		err             error
+		// The error over the WebSocket API, when it is not err
+		websocketAPIErr error
+	}{
+		{
+			name:            "order named by both IDs beside an order list with its client order ID",
+			byClientOrderID: true,
+			held: func(tr *transport) []heldOrder {
+				return []heldOrder{{account: tr.account, symbol: "BTCUSDT", id: 77, clientOrderID: "shared-id"}, {account: tr.account, symbol: "BTCUSDT", id: 88, clientOrderID: "shared-id", isList: true}}
+			},
+			cancel: order.Cancel{OrderID: "77", ClientOrderID: "shared-id"},
+			exp: func(tr *transport) []string {
+				return append(eachAccount(tr, tr.list+" orderListId=77 origClientOrderId=shared-id"), tr.cancelOrder+" orderId=77 origClientOrderId=shared-id")
+			},
+			cancelled: func(tr *transport) []string { return []string{tr.account + " order 77"} },
+		},
+		{
+			name:            "no order of the number beside an order list with the client order ID",
+			byClientOrderID: true,
+			held: func(tr *transport) []heldOrder {
+				return []heldOrder{{account: tr.account, symbol: "BTCUSDT", id: 88, clientOrderID: "shared-id", isList: true}}
+			},
+			cancel: order.Cancel{OrderID: "77", ClientOrderID: "shared-id"},
+			exp: func(tr *transport) []string {
+				return append(eachAccount(tr, tr.list+" orderListId=77 origClientOrderId=shared-id"), eachAccount(tr, tr.cancelOrder+" orderId=77 origClientOrderId=shared-id")...)
+			},
+			cancelled: func(*transport) []string { return nil },
+			err:       order.ErrOrderNotFound,
+		},
+		{
+			name: "order named by both IDs beside an order list with its number",
+			held: func(tr *transport) []heldOrder {
+				return []heldOrder{{account: tr.account, symbol: "BTCUSDT", id: 77, clientOrderID: "shared-id"}, {account: tr.account, symbol: "BTCUSDT", id: 77, clientOrderID: "other-list", isList: true}}
+			},
+			cancel: order.Cancel{OrderID: "77", ClientOrderID: "shared-id"},
+			exp: func(tr *transport) []string {
+				return append(eachAccount(tr, tr.list+" orderListId=77 origClientOrderId=shared-id"), tr.cancelOrder+" orderId=77 origClientOrderId=shared-id")
+			},
+			cancelled: func(tr *transport) []string { return []string{tr.account + " order 77"} },
+		},
+		{
+			name:            "order list named by both IDs, answered by its client order ID",
+			byClientOrderID: true,
+			held: func(tr *transport) []heldOrder {
+				return []heldOrder{{account: tr.account, symbol: "BTCUSDT", id: 77, clientOrderID: "gct-oco", isList: true}}
+			},
+			cancel: order.Cancel{OrderID: "77", ClientOrderID: "gct-oco"},
+			exp: func(tr *transport) []string {
+				return append(append([]string{tr.list + " orderListId=77 origClientOrderId=gct-oco"}, eachAccount(tr, tr.order+" orderId=77")...), tr.cancelList+" orderListId=77")
+			},
+			cancelled: func(tr *transport) []string { return []string{tr.account + " order list 77"} },
+		},
+		{
+			name: "order list named by both IDs, answered by its number",
+			held: func(tr *transport) []heldOrder {
+				return []heldOrder{{account: tr.account, symbol: "BTCUSDT", id: 77, clientOrderID: "gct-oco", isList: true}}
+			},
+			cancel: order.Cancel{OrderID: "77", ClientOrderID: "gct-oco"},
+			exp: func(tr *transport) []string {
+				return append(append([]string{tr.list + " orderListId=77 origClientOrderId=gct-oco"}, eachAccount(tr, tr.order+" orderId=77")...), tr.cancelList+" orderListId=77")
+			},
+			cancelled: func(tr *transport) []string { return []string{tr.account + " order list 77"} },
+		},
+		{
+			name: "order list numbered 1 by its number",
+			held: func(tr *transport) []heldOrder {
+				return []heldOrder{{account: tr.account, symbol: "BTCUSDT", id: 1, clientOrderID: "one-list", isList: true}}
+			},
+			cancel: order.Cancel{OrderID: "1"},
+			exp: func(tr *transport) []string {
+				return append(append([]string{tr.list + " orderListId=1"}, eachAccount(tr, tr.order+" orderId=1")...), tr.cancelList+" orderListId=1")
+			},
+			cancelled: func(tr *transport) []string { return []string{tr.account + " order list 1"} },
+		},
+		{
+			name: "order list numbered 0 by its list client order ID",
+			held: func(tr *transport) []heldOrder {
+				return []heldOrder{{account: tr.account, symbol: "BTCUSDT", clientOrderID: "zero-list", isList: true}}
+			},
+			cancel: order.Cancel{ClientOrderID: "zero-list"},
+			exp: func(tr *transport) []string {
+				return []string{tr.list + " origClientOrderId=zero-list", tr.order + " origClientOrderId=zero-list", tr.cancelList + " listClientOrderId=zero-list"}
+			},
+			cancelled: func(tr *transport) []string { return []string{tr.account + " order list 0"} },
+		},
+		{
+			// Requests take an order list ID of 0 as none, so the order list ID alone cannot name it
+			name: "order list numbered 0 by its order list ID",
+			held: func(tr *transport) []heldOrder {
+				return []heldOrder{{account: tr.account, symbol: "BTCUSDT", clientOrderID: "zero-list", isList: true}}
+			},
+			cancel:          order.Cancel{OrderID: "list-0"},
+			exp:             func(*transport) []string { return nil },
+			cancelled:       func(*transport) []string { return nil },
+			err:             order.ErrOrderIDNotSet,
+			websocketAPIErr: errOrderListIDRequired,
+		},
+		{
+			// The cross margin account's order list with the client order ID is not the one named
+			name:       "isolated margin order list numbered 0 by its list client order ID",
+			marginOnly: true,
+			held: func(*transport) []heldOrder {
+				return []heldOrder{{account: "cross", symbol: "BTCUSDT", id: 88, clientOrderID: "zero-list", isList: true}, {account: "isolated", symbol: "BTCUSDT", clientOrderID: "zero-list", isList: true}}
+			},
+			cancel: order.Cancel{ClientOrderID: "zero-list", MarginType: margin.Isolated},
+			exp: func(tr *transport) []string {
+				return []string{tr.list + " origClientOrderId=zero-list isIsolated=TRUE", tr.order + " origClientOrderId=zero-list isIsolated=TRUE", tr.cancelList + " listClientOrderId=zero-list isIsolated=TRUE"}
+			},
+			cancelled: func(*transport) []string { return []string{"isolated order list 0"} },
+		},
+		{
+			name:            "isolated margin order list beside a cross margin one with its client order ID",
+			marginOnly:      true,
+			byClientOrderID: true,
+			held: func(*transport) []heldOrder {
+				return []heldOrder{{account: "cross", symbol: "BTCUSDT", id: 88, clientOrderID: "shared-id", isList: true}, {account: "isolated", symbol: "BTCUSDT", id: 77, clientOrderID: "shared-id", isList: true}}
+			},
+			cancel: order.Cancel{OrderID: "77", ClientOrderID: "shared-id"},
+			exp: func(tr *transport) []string {
+				return append(append(eachAccount(tr, tr.list+" orderListId=77 origClientOrderId=shared-id"), eachAccount(tr, tr.order+" orderId=77")...), tr.cancelList+" orderListId=77 isIsolated=TRUE")
+			},
+			cancelled: func(*transport) []string { return []string{"isolated order list 77"} },
+		},
+		{
+			name:       "isolated margin order list beside another symbol's cross margin one with its number",
+			marginOnly: true,
+			held: func(*transport) []heldOrder {
+				return []heldOrder{{account: "cross", symbol: "ETHUSDT", id: 77, clientOrderID: "eth-oco", isList: true}, {account: "isolated", symbol: "BTCUSDT", id: 77, clientOrderID: "gct-oco", isList: true}}
+			},
+			cancel: order.Cancel{OrderID: "77"},
+			exp: func(tr *transport) []string {
+				return append(append(eachAccount(tr, tr.list+" orderListId=77"), eachAccount(tr, tr.order+" orderId=77")...), tr.cancelList+" orderListId=77 isIsolated=TRUE")
+			},
+			cancelled: func(*transport) []string { return []string{"isolated order list 77"} },
+		},
+	} {
+		for i := range transports {
+			tr := &transports[i]
+			if tc.marginOnly && tr.a != asset.Margin {
+				continue
+			}
+			t.Run(tr.name+" "+tc.name, func(t *testing.T) {
+				t.Parallel()
+				v := &orderIDsVenue{held: tc.held(tr), byClientOrderID: tc.byClientOrderID}
+				ex := v.newExchange(t, tr.websocketAPI)
+				cancel := tc.cancel
+				cancel.AssetType, cancel.Pair = tr.a, currency.NewBTCUSDT()
+				err := ex.CancelOrder(t.Context(), &cancel)
+				expErr := tc.err
+				if tr.websocketAPI && tc.websocketAPIErr != nil {
+					expErr = tc.websocketAPIErr
+				}
+				if expErr != nil {
+					assert.ErrorIs(t, err, expErr, "CancelOrder should return the expected error")
+				} else {
+					assert.NoError(t, err, "CancelOrder should not error")
+				}
+				v.mu.Lock()
+				defer v.mu.Unlock()
+				assert.Equal(t, tc.cancelled(tr), v.cancelled, "CancelOrder should cancel what its IDs name, and nothing else")
+				assert.Equal(t, tc.exp(tr), v.sent, "CancelOrder should send the expected requests")
+			})
+		}
 	}
 }
 
@@ -6057,6 +6408,26 @@ func TestGetOrderInfo(t *testing.T) {
 			orderID: "list-1930",
 			replies: map[string]string{"/sapi/v1/margin/orderList": `{"code":-2011,"msg":"Order list does not exist."}`},
 			err:     order.ErrOrderNotFound,
+		},
+		{
+			// Requests take an order list ID of 0 as none, so neither lookup is sent
+			name:    "spot order list ID 0",
+			a:       asset.Spot,
+			orderID: "list-0",
+			err:     order.ErrOrderIDNotSet,
+		},
+		{
+			name:    "margin order list ID 0",
+			a:       asset.Margin,
+			orderID: "list-0",
+			err:     order.ErrOrderIDNotSet,
+		},
+		{
+			name:    "margin order list ID of another symbol in the cross margin account",
+			a:       asset.Margin,
+			orderID: "list-1930",
+			replies: map[string]string{"/sapi/v1/margin/orderList": listReply("ETHUSDT"), "/sapi/v1/margin/orderList isolated": strings.TrimSuffix(listReply("BTCUSDT"), "}") + `,"isIsolated":true}`},
+			exp:     &order.Detail{Exchange: "TestGetOrderInfo/margin_order_list_ID_of_another_symbol_in_the_cross_margin_account", OrderID: "list-1930", ClientOrderID: "gct-oco", Type: order.OCO, Status: order.Active, AssetType: asset.Margin, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812300), Pair: currency.NewBTCUSDT(), MarginType: margin.Isolated},
 		},
 		{
 			name:    "margin invalid order list ID",
@@ -9775,6 +10146,8 @@ func TestMarginLookup(t *testing.T) {
 	noAccount := &APIError{Code: -3003, Message: "Margin account does not exist."}
 	outsideWindow := &APIError{Code: -1021, Message: "Timestamp for this request is outside of the recvWindow."}
 	connectionFailure := errors.New("connection reset")
+	// An answer that is not what the lookup looks for, such as an order list without each ID it names
+	notNamed := fmt.Errorf("%w: no BTCUSDT OCO order list has each ID", order.ErrOrderNotFound)
 	for _, tc := range []struct {
 		name     string
 		isolated []bool
@@ -9785,6 +10158,8 @@ func TestMarginLookup(t *testing.T) {
 	}{
 		{name: "cross margin order", isolated: []bool{false, true}, answers: []error{nil}, found: true},
 		{name: "isolated margin order", isolated: []bool{false, true}, answers: []error{notFound, nil}, found: true},
+		{name: "isolated margin order after another in the cross margin account", isolated: []bool{false, true}, answers: []error{notNamed, nil}, found: true},
+		{name: "another in both accounts", isolated: []bool{false, true}, answers: []error{notNamed, notNamed}, err: order.ErrOrderNotFound, errMsg: "error fetching isolated margin order: order not found: no BTCUSDT OCO order list has each ID"},
 		{name: "unknown in both accounts", isolated: []bool{false, true}, answers: []error{notFound, notFound}, err: order.ErrOrderNotFound},
 		{name: "unknown order list without an isolated margin account", isolated: []bool{false, true}, answers: []error{unknownList, noAccount}, err: order.ErrOrderNotFound, errMsg: "Margin account does not exist."},
 		{name: "isolated margin order after a cross margin failure", isolated: []bool{false, true}, answers: []error{outsideWindow, nil}, found: true},
@@ -9831,17 +10206,51 @@ func TestCheckPairOrderList(t *testing.T) {
 		name                    string
 		a                       asset.Item
 		symbol, contingencyType string
-		err                     error
+		// The order list ID found, with the list client order ID gct-oco, and the IDs the lookup named
+		orderListID, wantOrderListID uint64
+		wantListClientOrderID        string
+		err                          error
 	}{
-		{name: "pair's OCO order list", a: asset.Spot, symbol: "BTCUSDT", contingencyType: "OCO"},
-		{name: "another symbol's OCO order list", a: asset.Margin, symbol: "ETHUSDT", contingencyType: "OCO", err: order.ErrOrderNotFound},
-		{name: "pair's OTO order list", a: asset.Spot, symbol: "BTCUSDT", contingencyType: "OTO", err: order.ErrOrderNotFound},
-		{name: "asset without pairs", a: asset.Binary, symbol: "BTCUSDT", contingencyType: "OCO", err: asset.ErrNotSupported},
+		{name: "pair's OCO order list", a: asset.Spot, symbol: "BTCUSDT", contingencyType: "OCO", orderListID: 77, wantOrderListID: 77},
+		{name: "another symbol's OCO order list", a: asset.Margin, symbol: "ETHUSDT", contingencyType: "OCO", orderListID: 77, wantOrderListID: 77, err: order.ErrOrderNotFound},
+		{name: "pair's OTO order list", a: asset.Spot, symbol: "BTCUSDT", contingencyType: "OTO", orderListID: 77, wantOrderListID: 77, err: order.ErrOrderNotFound},
+		{name: "asset without pairs", a: asset.Binary, symbol: "BTCUSDT", contingencyType: "OCO", orderListID: 77, wantOrderListID: 77, err: asset.ErrNotSupported},
+		{name: "by its list client order ID", a: asset.Spot, symbol: "BTCUSDT", contingencyType: "OCO", orderListID: 77, wantListClientOrderID: "gct-oco"},
+		{name: "by both its IDs", a: asset.Margin, symbol: "BTCUSDT", contingencyType: "OCO", orderListID: 77, wantOrderListID: 77, wantListClientOrderID: "gct-oco"},
+		{name: "numbered 0 by its list client order ID", a: asset.Spot, symbol: "BTCUSDT", contingencyType: "OCO", wantListClientOrderID: "gct-oco"},
+		{name: "another order list ID", a: asset.Spot, symbol: "BTCUSDT", contingencyType: "OCO", orderListID: 77, wantOrderListID: 88, err: order.ErrOrderNotFound},
+		{name: "order list ID 1", a: asset.Margin, symbol: "BTCUSDT", contingencyType: "OCO", orderListID: 1, wantOrderListID: 1},
+		{name: "order list ID 1 and another order list ID", a: asset.Spot, symbol: "BTCUSDT", contingencyType: "OCO", orderListID: 2, wantOrderListID: 1, err: order.ErrOrderNotFound},
+		{name: "another list client order ID", a: asset.Margin, symbol: "BTCUSDT", contingencyType: "OCO", orderListID: 77, wantListClientOrderID: "shared-id", err: order.ErrOrderNotFound},
+		{name: "its list client order ID in another case", a: asset.Spot, symbol: "BTCUSDT", contingencyType: "OCO", orderListID: 77, wantListClientOrderID: "GCT-OCO", err: order.ErrOrderNotFound},
+		{name: "its order list ID and another list client order ID", a: asset.Spot, symbol: "BTCUSDT", contingencyType: "OCO", orderListID: 77, wantOrderListID: 77, wantListClientOrderID: "shared-id", err: order.ErrOrderNotFound},
+		{name: "its list client order ID and another order list ID", a: asset.Margin, symbol: "BTCUSDT", contingencyType: "OCO", orderListID: 88, wantOrderListID: 77, wantListClientOrderID: "gct-oco", err: order.ErrOrderNotFound},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			err := ex.checkPairOrderList(tc.a, currency.NewBTCUSDT(), tc.symbol, tc.contingencyType)
+			err := ex.checkPairOrderList(tc.a, currency.NewBTCUSDT(), tc.symbol, tc.contingencyType, tc.orderListID, "gct-oco", tc.wantOrderListID, tc.wantListClientOrderID)
 			assert.ErrorIs(t, err, tc.err, "checkPairOrderList should return the expected error")
+		})
+	}
+}
+
+func TestNewFoundOrderList(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name              string
+		orderListID       uint64
+		listClientOrderID string
+		isIsolated        bool
+		exp               foundOrderList
+	}{
+		{name: "numbered 0, cross margin or spot", listClientOrderID: "zero-list", exp: foundOrderList{listClientOrderID: "zero-list"}},
+		{name: "numbered 0, isolated margin", listClientOrderID: "zero-list", isIsolated: true, exp: foundOrderList{listClientOrderID: "zero-list", isIsolated: true}},
+		{name: "numbered 1, isolated margin", orderListID: 1, listClientOrderID: "one-list", isIsolated: true, exp: foundOrderList{orderListID: 1, isIsolated: true}},
+		{name: "numbered 77", orderListID: 77, listClientOrderID: "gct-oco", exp: foundOrderList{orderListID: 77}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, newFoundOrderList(tc.orderListID, tc.listClientOrderID, tc.isIsolated), "newFoundOrderList should keep the list client order ID of an order list numbered 0 alone")
 		})
 	}
 }

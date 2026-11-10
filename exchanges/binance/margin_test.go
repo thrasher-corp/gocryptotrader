@@ -1077,6 +1077,9 @@ func TestCancelAllOpenMarginAccountOrdersOnSymbol(t *testing.T) {
 
 func TestGetMarginAccountOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetMarginAccountOneCancelsTheOtherOrder(t.Context(), currency.NewBTCUSDT(), true, 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetMarginAccountOneCancelsTheOtherOrder must reject a request naming no order list")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -1117,6 +1120,8 @@ func TestCancelMarginAccountOneCancelsTheOtherOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelMarginAccountOneCancelsTheOtherOrder must reject a nil request")
 	_, err = e.CancelMarginAccountOneCancelsTheOtherOrder(t.Context(), &MarginOneCancelsTheOtherCancelRequest{ListClientOrderID: "12345678"})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelMarginAccountOneCancelsTheOtherOrder must reject an empty symbol")
+	_, err = e.CancelMarginAccountOneCancelsTheOtherOrder(t.Context(), &MarginOneCancelsTheOtherCancelRequest{Symbol: currency.NewBTCUSDT()})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelMarginAccountOneCancelsTheOtherOrder must reject a request naming no order list")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

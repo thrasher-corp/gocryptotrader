@@ -2386,7 +2386,7 @@ func (e *Exchange) cancelSpotOrder(ctx context.Context, o *order.Cancel, orderID
 			return err
 		}
 		if list != nil {
-			if err := cancelList(list.orderListID, ""); err != nil {
+			if err := cancelList(list.orderListID, list.listClientOrderID); err != nil {
 				return fmt.Errorf("error cancelling order list: %w", err)
 			}
 			return nil
@@ -2429,7 +2429,7 @@ func (e *Exchange) cancelMarginOrder(ctx context.Context, o *order.Cancel, order
 			return err
 		}
 		if list != nil {
-			if err := cancelList(list.isIsolated, list.orderListID, ""); err != nil {
+			if err := cancelList(list.isIsolated, list.orderListID, list.listClientOrderID); err != nil {
 				return fmt.Errorf("error cancelling order list: %w", err)
 			}
 			return nil
@@ -2444,30 +2444,41 @@ func (e *Exchange) cancelMarginOrder(ctx context.Context, o *order.Cancel, order
 	return cancelFirstFound(attempts...)
 }
 
-// foundOrderList identifies the OCO order list untaggedOrderList found, by its order list ID and, on margin, its account
+// foundOrderList identifies the OCO order list untaggedOrderList found by what cancels it: its order list ID or, for an
+// order list numbered 0, which requests take as no order list ID, its list client order ID, and on margin its account
 type foundOrderList struct {
-	orderListID uint64
-	isIsolated  bool
+	orderListID       uint64
+	listClientOrderID string
+	isIsolated        bool
 }
 
-// untaggedOrderList returns pair's spot or margin OCO order list with the ID or, when orderID is 0, the list client order
-// ID an untyped cancellation names without the order list ID prefix, or nil when pair has none; margin lookups are of
-// the accounts isolated names. Binance numbers order lists apart from orders and callers can hold its order list IDs, so
-// such an ID may name either kind, and errAmbiguousOrderListID is returned when pair has an order with it too, naming
-// the order's other ID as what tells the two apart. Spot lookups draw on the cancel pool, so the request they precede
-// does not wait on market data
+// newFoundOrderList returns the foundOrderList of an order list with orderListID and listClientOrderID, of the
+// isolated margin account when isIsolated
+func newFoundOrderList(orderListID uint64, listClientOrderID string, isIsolated bool) foundOrderList {
+	if orderListID != 0 {
+		listClientOrderID = ""
+	}
+	return foundOrderList{orderListID: orderListID, listClientOrderID: listClientOrderID, isIsolated: isIsolated}
+}
+
+// untaggedOrderList returns pair's spot or margin OCO order list with each ID an untyped cancellation names, its order
+// ID, which has no order list ID prefix, as the order list ID and its client order ID as the list client order ID, or
+// nil when pair has none; margin lookups are of the accounts isolated names. Binance numbers order lists apart from
+// orders and callers can hold its order list IDs, so such an ID may name either kind, and errAmbiguousOrderListID is
+// returned when pair has an order with it too, naming the order's other ID as what tells the two apart. Spot lookups
+// draw on the cancel pool, so the request they precede does not wait on market data
 func (e *Exchange) untaggedOrderList(ctx context.Context, a asset.Item, pair currency.Pair, orderID uint64, clientOrderID string, isolated []bool) (*foundOrderList, error) {
 	var found foundOrderList
 	var err error
 	if a == asset.Spot {
 		var list *OneCancelsTheOtherOrderResponse
 		if list, err = e.spotOrderList(ctx, orderID, clientOrderID, pair, spotCancelLookupRate); err == nil {
-			found.orderListID = list.OrderListID
+			found = newFoundOrderList(list.OrderListID, list.ListClientOrderID, false)
 		}
 	} else {
 		var list *MarginOrderListResponse
 		if list, err = e.marginOrderList(ctx, orderID, clientOrderID, pair, isolated); err == nil {
-			found.orderListID, found.isIsolated = list.OrderListID, list.IsIsolated
+			found = newFoundOrderList(list.OrderListID, list.ListClientOrderID, list.IsIsolated)
 		}
 	}
 	if errors.Is(err, order.ErrOrderNotFound) {
@@ -3344,9 +3355,9 @@ func (e *Exchange) spotOrder(ctx context.Context, pair currency.Pair, orderID ui
 	return e.queryOrder(ctx, pair, clientOrderID, orderID, f)
 }
 
-// spotOrderList returns pair's spot OCO order list orderListID or, when orderListID is 0, listClientOrderID, through the
-// WebSocket API when it can be used for orders and REST otherwise, drawing on f. order.ErrOrderNotFound is returned when
-// pair has no such OCO order list
+// spotOrderList returns pair's spot OCO order list with orderListID, unless it is 0, and listClientOrderID, unless it is
+// empty, through the WebSocket API when it can be used for orders and REST otherwise, drawing on f.
+// order.ErrOrderNotFound is returned when pair has no such OCO order list
 func (e *Exchange) spotOrderList(ctx context.Context, orderListID uint64, listClientOrderID string, pair currency.Pair, f request.EndpointLimit) (*OneCancelsTheOtherOrderResponse, error) {
 	var list *OneCancelsTheOtherOrderResponse
 	var err error
@@ -3358,7 +3369,7 @@ func (e *Exchange) spotOrderList(ctx context.Context, orderListID uint64, listCl
 	if err != nil {
 		return nil, cancelError(fmt.Errorf("error fetching order list: %w", err))
 	}
-	if err := e.checkPairOrderList(asset.Spot, pair, list.Symbol, list.ContingencyType); err != nil {
+	if err := e.checkPairOrderList(asset.Spot, pair, list.Symbol, list.ContingencyType, list.OrderListID, list.ListClientOrderID, orderListID, listClientOrderID); err != nil {
 		return nil, err
 	}
 	return list, nil
@@ -3372,32 +3383,34 @@ func (e *Exchange) marginOrder(ctx context.Context, pair currency.Pair, orderID 
 	})
 }
 
-// marginOrderList returns pair's margin OCO order list orderListID or, when orderListID is 0, listClientOrderID, from the
-// margin accounts isolated names, as marginLookup finds. The cross margin account's lookups take no symbol, so its order
-// list of another symbol is reported as not found
+// marginOrderList returns pair's margin OCO order list with orderListID, unless it is 0, and listClientOrderID, unless
+// it is empty, from the margin accounts isolated names, as marginLookup finds. Each account's answer is checked, as the
+// cross margin account's lookups take no symbol and either account may answer a lookup naming both IDs by one of them,
+// so an order list of another symbol, or without each ID, does not rule out the next account's
 func (e *Exchange) marginOrderList(ctx context.Context, orderListID uint64, listClientOrderID string, pair currency.Pair, isolated []bool) (*MarginOrderListResponse, error) {
-	list, err := marginLookup(isolated, "order list", func(isIsolated bool) (*MarginOrderListResponse, error) {
+	return marginLookup(isolated, "order list", func(isIsolated bool) (*MarginOrderListResponse, error) {
 		// Cross margin order list queries take no symbol, isolated ones require it
 		symbol := currency.EMPTYPAIR
 		if isIsolated {
 			symbol = pair
 		}
-		return e.GetMarginAccountOneCancelsTheOtherOrder(ctx, symbol, isIsolated, orderListID, listClientOrderID)
+		list, err := e.GetMarginAccountOneCancelsTheOtherOrder(ctx, symbol, isIsolated, orderListID, listClientOrderID)
+		if err != nil {
+			return nil, err
+		}
+		if err := e.checkPairOrderList(asset.Margin, pair, list.Symbol, list.ContingencyType, list.OrderListID, list.ListClientOrderID, orderListID, listClientOrderID); err != nil {
+			return nil, err
+		}
+		return list, nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	if err := e.checkPairOrderList(asset.Margin, pair, list.Symbol, list.ContingencyType); err != nil {
-		return nil, err
-	}
-	return list, nil
 }
 
 // marginLookup returns what fetch finds in the first of the margin accounts isolated names, the cross margin account as
-// false and the isolated one as true, to have it, trying the next account after an error Binance answered with. The
-// error wraps order.ErrOrderNotFound only when no account has it: the first reported it unknown and each later one
-// answered with an error, as Binance's answer for a pair without an isolated margin account need not say it is unknown.
-// Otherwise the error is the first answer that cannot rule the account out
+// false and the isolated one as true, to have it, trying the next account after an error Binance answered with or one
+// wrapping order.ErrOrderNotFound, as fetch returns for an answer that is not what it looks for. The error wraps
+// order.ErrOrderNotFound only when no account has it: the first reported it unknown and each later one answered with an
+// error, as Binance's answer for a pair without an isolated margin account need not say it is unknown. Otherwise the
+// error is the first answer that cannot rule the account out
 func marginLookup[T any](isolated []bool, what string, fetch func(isIsolated bool) (*T, error)) (*T, error) {
 	var errs, inconclusive error
 	for i, isIsolated := range isolated {
@@ -3410,7 +3423,7 @@ func marginLookup[T any](isolated []bool, what string, fetch func(isIsolated boo
 			account = "isolated"
 		}
 		err = fmt.Errorf("error fetching %s margin %s: %w", account, what, err)
-		answered := errors.Is(err, errAPIResponse)
+		answered := errors.Is(err, errAPIResponse) || errors.Is(err, order.ErrOrderNotFound)
 		if inconclusive == nil && (!answered || i == 0 && !isUnknownOrder(err)) {
 			inconclusive = err
 		}
@@ -3425,16 +3438,21 @@ func marginLookup[T any](isolated []bool, what string, fetch func(isIsolated boo
 	return nil, cancelError(errs)
 }
 
-// checkPairOrderList returns order.ErrOrderNotFound unless an order list a lookup found is pair's OCO order list: order
-// list lookups other than the isolated margin account's take no symbol, and other contingency types, such as OTO
-// lists, are not OCO orders; their orders are found by their own order IDs
-func (e *Exchange) checkPairOrderList(a asset.Item, pair currency.Pair, symbol, contingencyType string) error {
+// checkPairOrderList returns order.ErrOrderNotFound unless an order list a lookup found, with symbol, contingencyType,
+// orderListID and listClientOrderID, is pair's OCO order list with the lookup's wantOrderListID, unless it is 0, and
+// wantListClientOrderID, unless it is empty: order list lookups other than the isolated margin account's take no
+// symbol, other contingency types, such as OTO lists, are not OCO orders, whose orders are found by their own order IDs,
+// and Binance's WebSocket API answers a lookup naming both IDs by the list client order ID alone
+func (e *Exchange) checkPairOrderList(a asset.Item, pair currency.Pair, symbol, contingencyType string, orderListID uint64, listClientOrderID string, wantOrderListID uint64, wantListClientOrderID string) error {
 	formatted, err := e.FormatSymbol(pair, a)
 	if err != nil {
 		return err
 	}
 	if symbol != formatted || contingencyType != oneCancelsTheOtherContingencyType {
 		return fmt.Errorf("%w: no %s OCO order list has the ID", order.ErrOrderNotFound, formatted)
+	}
+	if wantOrderListID != 0 && orderListID != wantOrderListID || wantListClientOrderID != "" && listClientOrderID != wantListClientOrderID {
+		return fmt.Errorf("%w: no %s OCO order list has each ID", order.ErrOrderNotFound, formatted)
 	}
 	return nil
 }

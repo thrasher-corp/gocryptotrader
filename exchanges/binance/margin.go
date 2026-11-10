@@ -603,6 +603,9 @@ func (e *Exchange) CancelAllOpenMarginAccountOrdersOnSymbol(ctx context.Context,
 // GetMarginAccountOneCancelsTheOtherOrder returns one of the margin account's order lists by orderListID or
 // originalClientOrderID
 func (e *Exchange) GetMarginAccountOneCancelsTheOtherOrder(ctx context.Context, symbol currency.Pair, isIsolated bool, orderListID uint64, originalClientOrderID string) (*MarginOrderListResponse, error) {
+	if orderListID == 0 && originalClientOrderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
 	params := url.Values{}
 	if isIsolated {
 		params.Set("isIsolated", "TRUE")
@@ -632,6 +635,9 @@ func (e *Exchange) CancelMarginAccountOneCancelsTheOtherOrder(ctx context.Contex
 	}
 	if req.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if req.OrderListID == 0 && req.ListClientOrderID == "" {
+		return nil, order.ErrOrderIDNotSet
 	}
 	symbolValue, err := e.FormatSymbol(req.Symbol, asset.Margin)
 	if err != nil {
