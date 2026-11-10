@@ -273,6 +273,8 @@ Use `require` and `assert` appropriately:
     combining and zero-width characters.
 - Give asynchronous test waits deadlines. Run tests sequentially when
     dependencies mutate package-level state.
+- When testing timestamp precision with a simulated clock, advance it off the
+    truncation boundaries being tested so precision loss cannot pass unnoticed.
 - Test stream consumers with success, error-only and subsequent valid
     responses. Allow missing success fields on errors and preserve error reporting.
 - Use each endpoint's documented timestamp units. Shared renderers must omit

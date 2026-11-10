@@ -76,6 +76,8 @@ func TestGetOrderbookStream(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			synctest.Test(t, func(t *testing.T) {
+				// Move off the whole-second start so truncated error timestamps fall outside the expected window.
+				time.Sleep(123_456_789 * time.Nanosecond)
 				s, depth, request, lastUpdated := setupOrderbookStream(t)
 				if invalid {
 					require.ErrorIs(t, depth.Invalidate(errors.New("test invalidation")), orderbook.ErrOrderbookInvalid, "Invalidate must report the invalid book")
