@@ -103,7 +103,7 @@
     "allocs": 41608,
     "bytes": 10465949,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in October 2026, with MEXC in testdata/configtest.json, gave medians from 39976 to 40013. 0.4% is about 160 allocations either side of the budget, which covers that range with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with Binance's options pairs in testdata/configtest.json, gave medians from 41605 to 41631. 0.4% is about 166 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,

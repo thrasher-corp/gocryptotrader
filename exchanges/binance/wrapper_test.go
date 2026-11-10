@@ -1746,6 +1746,86 @@ func TestGetOrderHistory(t *testing.T) {
 		_, err = e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, Pairs: currency.Pairs{currency.NewBTCUSDT()}, FromOrderID: "algo-5"})
 		assert.ErrorIs(t, err, errInvalidOrderID, "GetOrderHistory should reject an algo order ID on spot")
 	})
+
+	// Only spot's documentation says which end of a window holding more than a page comes back, so each history holds
+	// every order of such a window whether the venue answers with its oldest orders or its most recent
+	t.Run("window holding more than a page", func(t *testing.T) {
+		t.Parallel()
+		start := time.Now().Add(-2 * time.Hour).Truncate(time.Hour)
+		for _, route := range []struct {
+			name      string
+			a         asset.Item
+			pair      currency.Pair
+			symbol    string
+			path      string
+			orderType order.Type
+			pageSize  int
+		}{
+			{"spot orders", asset.Spot, currency.NewBTCUSDT(), "BTCUSDT", "/api/v3/allOrders", order.Limit, 1000},
+			{"margin orders", asset.Margin, currency.NewBTCUSDT(), "BTCUSDT", "/sapi/v1/margin/allOrders", order.Limit, 500},
+			{"USDⓈ-M orders", asset.USDTMarginedFutures, currency.NewBTCUSDT(), "BTCUSDT", "/fapi/v1/allOrders", order.Limit, 1000},
+			{"USDⓈ-M algo orders", asset.USDTMarginedFutures, currency.NewBTCUSDT(), "BTCUSDT", "/fapi/v1/allAlgoOrders", order.StopMarket, 1000},
+			{"COIN-M orders", asset.CoinMarginedFutures, testCoinMarginedFuturesPair, "BTCUSD_PERP", "/dapi/v1/allOrders", order.Limit, 100},
+			{"COIN-M algo orders", asset.CoinMarginedFutures, testCoinMarginedFuturesPair, "BTCUSD_PERP", "/dapi/v1/allAlgoOrders", order.StopMarket, 100},
+			{"options orders", asset.Options, testOptionsPair, "BTC-261030-85000-C", "/eapi/v1/historyOrders", order.Limit, 1000},
+		} {
+			t.Run(route.name, func(t *testing.T) {
+				t.Parallel()
+				for _, newest := range []bool{false, true} {
+					name := "oldest first"
+					if newest {
+						name = "most recent first"
+					}
+					t.Run(name, func(t *testing.T) {
+						t.Parallel()
+						ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+							reply := "[]"
+							// COIN-M lists its orders for a conditional type as well, which this venue holds none of
+							if r.URL.Path == route.path {
+								q := r.URL.Query()
+								from, err := strconv.ParseInt(q.Get("startTime"), 10, 64)
+								assert.NoError(t, err, "startTime should be a number")
+								to, err := strconv.ParseInt(q.Get("endTime"), 10, 64)
+								assert.NoError(t, err, "endTime should be a number")
+								limit, err := strconv.Atoi(q.Get("limit"))
+								assert.NoError(t, err, "limit should be a number")
+								var page []string
+								for id := 1; id <= route.pageSize+1; id++ {
+									if at := start.Add(time.Duration(id) * time.Second).UnixMilli(); at >= from && at <= to {
+										page = append(page, fmt.Sprintf(`{"orderId":%[1]d,"algoId":%[1]d,"symbol":%[2]q,"side":"BUY","type":"LIMIT","orderType":"STOP_MARKET","status":"FILLED","algoStatus":"FINISHED","timeInForce":"GTC","origQty":"1","quantity":"1","executedQty":"1","price":"100","avgPrice":"100","actualPrice":"100","cumQuote":"100","cumBase":"0.001","cummulativeQuoteQty":"100","time":%[3]d,"createTime":%[3]d,"updateTime":%[3]d}`, id, route.symbol, at))
+									}
+								}
+								if len(page) > limit {
+									if newest {
+										page = page[len(page)-limit:]
+									} else {
+										page = page[:limit]
+									}
+								}
+								reply = "[" + strings.Join(page, ",") + "]"
+							}
+							_, err := w.Write([]byte(reply))
+							assert.NoError(t, err, "Write should not error")
+						})
+						history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: route.a, Pairs: currency.Pairs{route.pair}, Type: route.orderType, Side: order.AnySide, StartTime: start, EndTime: start.Add(time.Hour)})
+						require.NoError(t, err, "GetOrderHistory must not error")
+						exp := make([]string, route.pageSize+1)
+						for i := range exp {
+							exp[i] = strconv.Itoa(i + 1)
+							if route.orderType == order.StopMarket {
+								exp[i] = algoOrderID(exp[i])
+							}
+						}
+						got := make([]string, len(history))
+						for i := range history {
+							got[i] = history[i].OrderID
+						}
+						assert.Equal(t, exp, got, "GetOrderHistory should return each order of the window once, oldest first")
+					})
+				}
+			})
+		}
+	})
 }
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
@@ -9329,6 +9409,9 @@ func TestPagedOrderHistory(t *testing.T) {
 		end      time.Time
 		fromID   uint64
 		maxSpan  time.Duration
+		limit    int         // orders a page holds, 2 when zero
+		newest   bool        // the venue answers a window holding more than a page with its most recent orders
+		later    []testOrder // orders the venue holds from its second request on
 		orders   []testOrder
 		requests []window
 		exp      []uint64
@@ -9342,6 +9425,7 @@ func TestPagedOrderHistory(t *testing.T) {
 			requests: []window{
 				{start, start.Add(24 * time.Hour)},
 				{start.Add(24*time.Hour - time.Millisecond), start.Add(24 * time.Hour)},
+				{start, start.Add(time.Millisecond)},
 				{start.Add(24 * time.Hour), start.Add(48 * time.Hour)},
 				{start.Add(48 * time.Hour), start.Add(50 * time.Hour)},
 			},
@@ -9353,6 +9437,7 @@ func TestPagedOrderHistory(t *testing.T) {
 			requests: []window{
 				{start, start.Add(time.Hour)},
 				{start.Add(time.Hour - time.Millisecond), start.Add(time.Hour)},
+				{start, start.Add(time.Millisecond)},
 			},
 			exp: []uint64{1, 2, 3},
 		},
@@ -9363,8 +9448,160 @@ func TestPagedOrderHistory(t *testing.T) {
 				{start, start.Add(time.Hour)},
 				{start.Add(time.Minute), start.Add(time.Hour)},
 				{start.Add(time.Minute + time.Millisecond), start.Add(time.Hour)},
+				{start, start.Add(time.Minute)},
+				{start, start.Add(time.Minute - time.Millisecond)},
+			},
+			exp: []uint64{3, 1, 2},
+		},
+		{
+			name: "oldest orders of a window holding more than a page", end: start.Add(time.Hour), maxSpan: 24 * time.Hour,
+			orders: []testOrder{at(1, 10*time.Minute), at(2, 20*time.Minute), at(3, 30*time.Minute)},
+			requests: []window{
+				{start, start.Add(time.Hour)},
+				{start.Add(20 * time.Minute), start.Add(time.Hour)},
+				{start.Add(30 * time.Minute), start.Add(time.Hour)},
+				{start, start.Add(10 * time.Minute)},
+			},
+			exp: []uint64{1, 2, 3},
+		},
+		{
+			name: "window holding one page", end: start.Add(time.Hour), maxSpan: 24 * time.Hour,
+			orders: []testOrder{at(1, 10*time.Minute), at(2, 20*time.Minute)},
+			requests: []window{
+				{start, start.Add(time.Hour)},
+				{start.Add(20 * time.Minute), start.Add(time.Hour)},
+				{start, start.Add(10 * time.Minute)},
 			},
 			exp: []uint64{1, 2},
+		},
+		{
+			name: "most recent orders of a window holding more than a page", end: start.Add(time.Hour), maxSpan: 24 * time.Hour, newest: true,
+			orders: []testOrder{at(1, 0), at(2, 10*time.Minute), at(3, 20*time.Minute), at(4, 30*time.Minute), at(5, 40*time.Minute)},
+			requests: []window{
+				{start, start.Add(time.Hour)},
+				{start.Add(40 * time.Minute), start.Add(time.Hour)},
+				{start, start.Add(30 * time.Minute)},
+				{start, start.Add(20 * time.Minute)},
+				{start, start.Add(10 * time.Minute)},
+				{start, start.Add(time.Millisecond)},
+			},
+			exp: []uint64{1, 2, 3, 4, 5},
+		},
+		{
+			name: "most recent orders of each span", end: start.Add(50 * time.Hour), maxSpan: 24 * time.Hour, newest: true,
+			orders: []testOrder{at(1, 0), at(2, time.Hour), at(3, 2*time.Hour), at(4, 25*time.Hour), at(5, 26*time.Hour), at(6, 27*time.Hour)},
+			requests: []window{
+				{start, start.Add(24 * time.Hour)},
+				{start.Add(2 * time.Hour), start.Add(24 * time.Hour)},
+				{start, start.Add(time.Hour)},
+				{start, start.Add(time.Millisecond)},
+				{start.Add(24 * time.Hour), start.Add(48 * time.Hour)},
+				{start.Add(27 * time.Hour), start.Add(48 * time.Hour)},
+				{start.Add(24 * time.Hour), start.Add(26 * time.Hour)},
+				{start.Add(24 * time.Hour), start.Add(25 * time.Hour)},
+				{start.Add(48 * time.Hour), start.Add(50 * time.Hour)},
+			},
+			exp: []uint64{1, 2, 3, 4, 5, 6},
+		},
+		{
+			name: "most recent orders beyond a full page within one millisecond", end: start.Add(time.Hour), maxSpan: 24 * time.Hour, newest: true,
+			orders: []testOrder{at(1, 5*time.Minute), at(2, 5*time.Minute), at(3, 5*time.Minute), at(4, 30*time.Minute)},
+			requests: []window{
+				{start, start.Add(time.Hour)},
+				{start.Add(30 * time.Minute), start.Add(time.Hour)},
+				{start, start.Add(5 * time.Minute)},
+				{start, start.Add(5 * time.Minute)},
+				{start, start.Add(5*time.Minute - time.Millisecond)},
+			},
+			exp: []uint64{2, 3, 4},
+		},
+		{
+			name: "most recent orders before a full millisecond", end: start.Add(time.Hour), maxSpan: 24 * time.Hour, newest: true,
+			orders: []testOrder{at(1, time.Minute), at(2, 5*time.Minute), at(3, 5*time.Minute), at(4, 30*time.Minute)},
+			requests: []window{
+				{start, start.Add(time.Hour)},
+				{start.Add(30 * time.Minute), start.Add(time.Hour)},
+				{start, start.Add(5 * time.Minute)},
+				{start, start.Add(5 * time.Minute)},
+				{start, start.Add(5*time.Minute - time.Millisecond)},
+			},
+			exp: []uint64{1, 2, 3, 4},
+		},
+		{
+			name: "most recent orders before a full page in the span's third millisecond", end: start.Add(time.Hour), maxSpan: 24 * time.Hour, newest: true,
+			orders: []testOrder{at(1, 0), at(2, 2*time.Millisecond), at(3, 2*time.Millisecond), at(4, 5*time.Millisecond)},
+			requests: []window{
+				{start, start.Add(time.Hour)},
+				{start.Add(5 * time.Millisecond), start.Add(time.Hour)},
+				{start, start.Add(2 * time.Millisecond)},
+				{start, start.Add(2 * time.Millisecond)},
+				{start, start.Add(time.Millisecond)},
+			},
+			exp: []uint64{1, 2, 3, 4},
+		},
+		{
+			name: "most recent orders paged back to orders the previous span fetched", end: start.Add(2 * time.Hour), maxSpan: time.Hour, limit: 3, newest: true,
+			orders: []testOrder{
+				at(1, time.Hour), at(2, time.Hour), at(3, time.Hour+2*time.Millisecond), at(4, time.Hour+4*time.Millisecond),
+				at(5, time.Hour+6*time.Millisecond), at(6, time.Hour+8*time.Millisecond),
+			},
+			requests: []window{
+				{start, start.Add(time.Hour)},
+				{start.Add(time.Hour), start.Add(2 * time.Hour)},
+				{start.Add(time.Hour + 8*time.Millisecond), start.Add(2 * time.Hour)},
+				{start.Add(time.Hour), start.Add(time.Hour + 4*time.Millisecond)},
+				{start.Add(time.Hour), start.Add(time.Hour + time.Millisecond)},
+			},
+			exp: []uint64{1, 2, 3, 4, 5, 6},
+		},
+		{
+			name: "most recent orders paged back to the span's start", end: start.Add(20 * time.Millisecond), maxSpan: 10 * time.Millisecond, newest: true,
+			orders: []testOrder{at(1, 10*time.Millisecond), at(2, 12*time.Millisecond), at(3, 14*time.Millisecond)},
+			requests: []window{
+				{start, start.Add(10 * time.Millisecond)},
+				{start.Add(10 * time.Millisecond), start.Add(20 * time.Millisecond)},
+				{start.Add(14 * time.Millisecond), start.Add(20 * time.Millisecond)},
+				{start.Add(10 * time.Millisecond), start.Add(12 * time.Millisecond)},
+				{start.Add(10 * time.Millisecond), start.Add(11 * time.Millisecond)},
+			},
+			exp: []uint64{1, 2, 3},
+		},
+		{
+			name: "most recent orders all fetched by the previous span", end: start.Add(20 * time.Millisecond), maxSpan: 10 * time.Millisecond, newest: true,
+			orders: []testOrder{at(1, 10*time.Millisecond), at(2, 10*time.Millisecond)},
+			requests: []window{
+				{start, start.Add(10 * time.Millisecond)},
+				{start.Add(9 * time.Millisecond), start.Add(10 * time.Millisecond)},
+				{start, start.Add(10 * time.Millisecond)},
+				{start, start.Add(9 * time.Millisecond)},
+				{start.Add(10 * time.Millisecond), start.Add(20 * time.Millisecond)},
+				{start.Add(11 * time.Millisecond), start.Add(20 * time.Millisecond)},
+				{start.Add(10 * time.Millisecond), start.Add(11 * time.Millisecond)},
+			},
+			exp: []uint64{1, 2},
+		},
+		{
+			name: "most recent orders sharing the span's first millisecond", end: start.Add(time.Hour), maxSpan: 24 * time.Hour, newest: true,
+			orders: []testOrder{at(1, 0), at(2, 0), at(3, 5*time.Minute)},
+			requests: []window{
+				{start, start.Add(time.Hour)},
+				{start.Add(5 * time.Minute), start.Add(time.Hour)},
+				{start, start.Add(time.Millisecond)},
+			},
+			exp: []uint64{1, 2, 3},
+		},
+		{
+			name: "most recent orders and one placed after the first request", end: start.Add(time.Hour), maxSpan: 24 * time.Hour, newest: true,
+			orders: []testOrder{at(1, 10*time.Minute), at(2, 20*time.Minute), at(3, 30*time.Minute)},
+			later:  []testOrder{at(4, 40*time.Minute)},
+			requests: []window{
+				{start, start.Add(time.Hour)},
+				{start.Add(30 * time.Minute), start.Add(time.Hour)},
+				{start.Add(40 * time.Minute), start.Add(time.Hour)},
+				{start, start.Add(20 * time.Minute)},
+				{start, start.Add(10 * time.Minute)},
+			},
+			exp: []uint64{1, 2, 3, 4},
 		},
 		{
 			name: "paged across a shared millisecond", end: start.Add(time.Hour), maxSpan: 24 * time.Hour,
@@ -9375,6 +9612,7 @@ func TestPagedOrderHistory(t *testing.T) {
 				{start.Add(time.Minute), start.Add(time.Hour)},
 				{start.Add(time.Minute + time.Millisecond), start.Add(time.Hour)},
 				{start.Add(3 * time.Minute), start.Add(time.Hour)},
+				{start, start.Add(time.Millisecond)},
 			},
 			exp: []uint64{1, 2, 3, 4, 5},
 		},
@@ -9386,6 +9624,7 @@ func TestPagedOrderHistory(t *testing.T) {
 			requests: []window{
 				{start, start.Add(time.Hour)},
 				{start.Add(time.Hour - time.Millisecond), start.Add(time.Hour)},
+				{start, start.Add(time.Millisecond)},
 			},
 			exp: []uint64{1, 2, 3},
 		},
@@ -9407,18 +9646,30 @@ func TestPagedOrderHistory(t *testing.T) {
 				windowStart = tc.begin
 			}
 			var requests []window
-			// Serve like Binance: the first two orders within the window's milliseconds, or from the order ID
-			got, err := pagedOrderHistory(windowStart, tc.end, tc.fromID, tc.maxSpan, 2, func(from, to time.Time) ([]testOrder, error) {
+			limit := cmp.Or(tc.limit, 2)
+			// Serve like Binance: a page of orders within the window's milliseconds, the first or with newest the last, or
+			// from the order ID
+			got, err := pagedOrderHistory(windowStart, tc.end, tc.fromID, tc.maxSpan, limit, func(from, to time.Time) ([]testOrder, error) {
 				requests = append(requests, window{from, to})
 				// A pager that keeps requesting fails here rather than hanging the test
 				if !assert.LessOrEqual(t, len(requests), 100, "pagedOrderHistory should stop requesting") {
 					return nil, errAPIResponse
 				}
+				held := tc.orders
+				if len(requests) > 1 {
+					held = append(slices.Clone(tc.orders), tc.later...)
+				}
 				var page []testOrder
-				for _, o := range tc.orders {
-					if len(page) < 2 && (from.IsZero() || tc.fromID != 0 || (o.time.UnixMilli() >= from.UnixMilli() && o.time.UnixMilli() <= to.UnixMilli())) {
+				for _, o := range held {
+					if from.IsZero() || tc.fromID != 0 || (o.time.UnixMilli() >= from.UnixMilli() && o.time.UnixMilli() <= to.UnixMilli()) {
 						page = append(page, o)
 					}
+				}
+				if len(page) > limit {
+					if tc.newest {
+						return page[len(page)-limit:], nil
+					}
+					return page[:limit], nil
 				}
 				return page, nil
 			}, timeOf, idOf)
@@ -9435,6 +9686,17 @@ func TestPagedOrderHistory(t *testing.T) {
 		return nil, errAPIResponse
 	}, timeOf, idOf)
 	assert.ErrorIs(t, err, errAPIResponse, "pagedOrderHistory should return a fetch error")
+	_, err = pagedOrderHistory(start, start.Add(time.Hour), 0, time.Hour, 2, func(from, to time.Time) ([]testOrder, error) {
+		switch {
+		case to.Before(start.Add(time.Hour)):
+			return nil, errAPIResponse
+		case from.Equal(start):
+			return []testOrder{at(1, 10*time.Minute), at(2, 20*time.Minute)}, nil
+		default:
+			return []testOrder{at(2, 20*time.Minute)}, nil
+		}
+	}, timeOf, idOf)
+	assert.ErrorIs(t, err, errAPIResponse, "pagedOrderHistory should return an error fetching older orders")
 
 	// A window ending more than a span in the future stops before a span starting after now, which the requests'
 	// validation refuses

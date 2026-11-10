@@ -4178,13 +4178,16 @@ const (
 )
 
 // pagedOrderHistory fetches the orders between start and end in spans of at most maxSpan, or in one span when maxSpan
-// is zero, paging forward by time within a span while full pages of limit orders come back. Each span and page starts
-// at the time the previous one ended, inclusive, so orders sharing that millisecond are kept, and orders already
-// fetched are dropped by ID; only orders beyond a full page within one millisecond, or within a span's last two, cannot
-// be reached. Spans stop once the next would start after now, which holds no orders yet and fails the requests'
-// validation. Without a time window one request returns Binance's default, its most recent orders. A request from an
-// order ID is one request without a window, which returns the orders from that ID on: Binance lets a window override
-// the ID, or refuses the two together, so the window is applied to the orders returned, either bound alone included
+// is zero, paging forward by time within a span while full pages of limit orders come back. Only spot's documentation
+// says that a window holding more than limit orders returns its oldest, so a span whose first page is full is also
+// paged back from that page's earliest order, in case it held the span's most recent orders, and the orders that adds go
+// before the span's others. Each page starts where the previous one ended, or when paging back ends where it started,
+// inclusive, so orders sharing that millisecond are kept, and orders already fetched are dropped by ID; only orders
+// beyond a full page within one millisecond, or within a span's first or last two, cannot be reached. Spans stop once
+// the next would start after now, which holds no orders yet and fails the requests' validation. Without a time window
+// one request returns Binance's default, its most recent orders. A request from an order ID is one request without a
+// window, which returns the orders from that ID on: Binance lets a window override the ID, or refuses the two together,
+// so the window is applied to the orders returned, either bound alone included
 func pagedOrderHistory[T any](start, end time.Time, fromID uint64, maxSpan time.Duration, limit int, fetch func(start, end time.Time) ([]T, error), timeOf func(*T) time.Time, idOf func(*T) uint64) ([]T, error) {
 	if fromID != 0 {
 		if !start.IsZero() && !end.IsZero() && start.After(end) {
@@ -4217,34 +4220,44 @@ func pagedOrderHistory[T any](start, end time.Time, fromID uint64, maxSpan time.
 	start, end = startMilli, endMilli
 	var orders []T
 	seen := make(map[uint64]struct{})
+	unseen := func(page []T) []T {
+		var fresh []T
+		for i := range page {
+			id := idOf(&page[i])
+			if _, ok := seen[id]; !ok {
+				seen[id] = struct{}{}
+				fresh = append(fresh, page[i])
+			}
+		}
+		return fresh
+	}
 	for spanStart := start; ; {
 		spanEnd := end
 		if maxSpan > 0 && spanStart.Add(maxSpan).Before(end) {
 			spanEnd = spanStart.Add(maxSpan)
 		}
+		spanFirst := len(orders)
+		// earliest is the time of a full first page's earliest order; the first full page is the first page, as one that
+		// is not full ends the paging
+		var earliest time.Time
 		for pageStart := spanStart; ; {
 			page, err := fetch(pageStart, spanEnd)
 			if err != nil {
 				return nil, err
 			}
-			added := 0
-			for i := range page {
-				id := idOf(&page[i])
-				if _, ok := seen[id]; ok {
-					continue
-				}
-				seen[id] = struct{}{}
-				orders = append(orders, page[i])
-				added++
-			}
+			fresh := unseen(page)
+			orders = append(orders, fresh...)
 			if len(page) < limit {
 				break
+			}
+			if earliest.IsZero() {
+				earliest = timeOf(&page[0])
 			}
 			next := timeOf(&page[len(page)-1])
 			if next.Before(pageStart) {
 				next = pageStart
 			}
-			if added == 0 {
+			if len(fresh) == 0 {
 				// A full page of orders already fetched cannot reach the rest of its millisecond, so paging moves past it
 				next = next.Add(time.Millisecond)
 			}
@@ -4258,6 +4271,28 @@ func pagedOrderHistory[T any](start, end time.Time, fromID uint64, maxSpan time.
 				next = last
 			}
 			pageStart = next
+		}
+		if !earliest.IsZero() {
+			for pageEnd := earliest; ; {
+				if !spanStart.Before(pageEnd) {
+					// A window must start before it ends, so the span's first millisecond gets a page with the one after it
+					pageEnd = spanStart.Add(time.Millisecond)
+				}
+				page, err := fetch(spanStart, pageEnd)
+				if err != nil {
+					return nil, err
+				}
+				fresh := unseen(page)
+				orders = slices.Insert(orders, spanFirst, fresh...)
+				if len(page) < limit || !spanStart.Add(time.Millisecond).Before(pageEnd) {
+					break
+				}
+				pageEnd = timeOf(&page[0])
+				if len(fresh) == 0 {
+					// A full page of orders already fetched cannot reach the rest of its millisecond, so paging moves before it
+					pageEnd = pageEnd.Add(-time.Millisecond)
+				}
+			}
 		}
 		if !spanEnd.Before(end) || spanEnd.After(time.Now()) {
 			return orders, nil
