@@ -43,7 +43,7 @@ const (
 	postonlyStr = "POSTONLY"
 	sorStr      = "SOR"
 
-	// unknownTIFStr is the string of a TimeInForce with no supported flag
+	// unknownTIFStr is the string of a non-zero TimeInForce with no supported flag
 	unknownTIFStr = "UNKNOWN"
 )
 
