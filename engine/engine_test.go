@@ -1029,4 +1029,3 @@ func TestLoadExchangeStartsWebsocketAfterRuntimeLoad(t *testing.T) {
 	assert.EqualValues(t, 2, builder.connects.Load(), "connector should be called for the replacement")
 	t.Cleanup(func() { assert.NoError(t, reloaded.Shutdown(), "reloaded websocket should shut down cleanly") })
 }
-}

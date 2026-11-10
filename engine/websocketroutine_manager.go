@@ -183,8 +183,8 @@ func (m *WebsocketRoutineManager) registerExchange(ctx context.Context, exch exc
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
 
-	if exch == nil {
-		return errExchangeIsNil
+	if err := common.NilGuard(exch); err != nil {
+		return fmt.Errorf("%w: %w", errExchangeIsNil, err)
 	}
 
 	if m.state.Load() == stoppedState {
@@ -220,9 +220,12 @@ func (m *WebsocketRoutineManager) registerExchange(ctx context.Context, exch exc
 
 // unregisterExchange stops the data receiver associated with an unloaded
 // exchange so a replacement instance can register without duplicating receivers.
-func (m *WebsocketRoutineManager) unregisterExchange(name string) {
-	if m == nil || name == "" {
-		return
+func (m *WebsocketRoutineManager) unregisterExchange(name string) error {
+	if m == nil {
+		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
+	}
+	if name == "" {
+		return common.ErrExchangeNameNotSet
 	}
 
 	key := strings.ToLower(name)
@@ -234,6 +237,7 @@ func (m *WebsocketRoutineManager) unregisterExchange(name string) {
 	if cancel != nil {
 		cancel()
 	}
+	return nil
 }
 
 // websocketDataReceiver handles websocket data coming from a websocket feed

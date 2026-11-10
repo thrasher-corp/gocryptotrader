@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -555,8 +556,9 @@ func TestWebsocketRoutineManagerRegisterExchange(t *testing.T) {
 	var nilManager *WebsocketRoutineManager
 	require.ErrorIs(t, nilManager.registerExchange(t.Context(), nil), ErrNilSubsystem, "registerExchange must reject a nil manager")
 	require.ErrorIs(t, m.registerExchange(t.Context(), nil), errExchangeIsNil, "registerExchange must reject a nil exchange")
-	nilManager.unregisterExchange(websocketTestExchangeName)
-	m.unregisterExchange("")
+	require.ErrorIs(t, m.registerExchange(t.Context(), (*websocketTestExchange)(nil)), errExchangeIsNil, "registerExchange must reject a typed-nil exchange")
+	require.ErrorIs(t, nilManager.unregisterExchange(websocketTestExchangeName), ErrNilSubsystem, "unregisterExchange must reject a nil manager")
+	require.ErrorIs(t, m.unregisterExchange(""), common.ErrExchangeNameNotSet, "unregisterExchange must reject an empty name")
 
 	var connects atomic.Int32
 	ws, err := testWebsocketManager(websocketTestExchangeName, &connects)
@@ -610,7 +612,7 @@ func TestWebsocketRoutineManagerRegisterExchange(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 	}
 
-	m.unregisterExchange(websocketTestExchangeName)
+	require.NoError(t, m.unregisterExchange(websocketTestExchangeName))
 	require.NoError(t, replacement.DataHandler.Send(t.Context(), "after unload"))
 	select {
 	case data := <-received:
@@ -717,7 +719,10 @@ func TestWebsocketRoutineManagerReloadExchangeFromHandler(t *testing.T) {
 	returned := make(chan error, 1)
 	require.NoError(t, m.registerWebsocketDataHandler(func(_ string, data any) error {
 		if data == "reload from a handler" {
-			m.unregisterExchange(websocketTestExchangeName)
+			if err := m.unregisterExchange(websocketTestExchangeName); err != nil {
+				returned <- err
+				return nil
+			}
 			returned <- m.registerExchange(t.Context(), replacement)
 		}
 		return nil
