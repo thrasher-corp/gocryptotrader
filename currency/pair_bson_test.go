@@ -81,6 +81,7 @@ func TestPairUnmarshalBSONValueErrors(t *testing.T) {
 		"integer":          int32(1),
 		"null":             nil,
 		"array":            bson.A{"BTC", "-", "USDT"},
+		"empty array":      bson.A{},
 		"non-string field": bson.D{{Key: "b", Value: int32(1)}},
 		"null field":       bson.D{{Key: "q", Value: nil}},
 		"unexpected field": bson.D{{Key: "b", Value: "BTC"}, {Key: "base", Value: "BTC"}},
