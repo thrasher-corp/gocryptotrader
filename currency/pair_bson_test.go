@@ -98,12 +98,8 @@ func TestPairUnmarshalBSONValueErrors(t *testing.T) {
 			assert.Equal(t, NewPairWithDelimiter("LTC", "XRP", "_"), out.Pair, "a rejected value should leave the pair unchanged")
 		})
 	}
-}
 
-// TestPairUnmarshalBSONValueMalformed calls UnmarshalBSONValue directly, since bson.Unmarshal rejects some of these
-// documents before calling it
-func TestPairUnmarshalBSONValueMalformed(t *testing.T) {
-	t.Parallel()
+	// bson.Unmarshal rejects some of these documents before calling UnmarshalBSONValue, so they are passed to it directly
 	for name, data := range map[string][]byte{
 		"truncated length":  {5, 0},
 		"length beyond end": {0xFF, 0, 0, 0, 0},
