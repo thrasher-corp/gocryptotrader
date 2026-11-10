@@ -157,8 +157,8 @@ func (t TimeInForce) MarshalBSONValue() (typ byte, data []byte, err error) {
 	return byte(bt), data, err
 }
 
-// UnmarshalBSONValue implements bson.ValueUnmarshaler. A TimeInForce with no supported flag is stored as
-// unknownTIFStr, which StringToTimeInForce rejects as exchange input, and reads back as UnknownTIF.
+// UnmarshalBSONValue implements bson.ValueUnmarshaler. A non-zero TimeInForce with no supported flag is stored
+// as unknownTIFStr, which StringToTimeInForce rejects as exchange input, and reads back as UnknownTIF.
 func (t *TimeInForce) UnmarshalBSONValue(typ byte, data []byte) error {
 	if bson.Type(typ) != bson.TypeString {
 		return fmt.Errorf("%w: expected a BSON string, got %s", ErrInvalidTimeInForce, bson.Type(typ))
