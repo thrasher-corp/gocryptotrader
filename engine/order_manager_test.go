@@ -1045,6 +1045,28 @@ func TestProcessOrders(t *testing.T) {
 	if res[0].Status != order.Active {
 		t.Errorf("Order 3 should be active, but status is %s", res[0].Status)
 	}
+	t.Run("quote-sized orders absent from pending list", func(t *testing.T) {
+		for _, tc := range []struct {
+			name          string
+			filled, spent float64
+		}{
+			{"unfilled", 0, 0}, {"partially filled", 100000, 5}, {"quote budget spent", 3, 10},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				id := "quote-sized-" + tc.name
+				require.NoError(t, m.orderStore.add(&order.Detail{
+					Exchange: testExchange, OrderID: id, Pair: pairs[0], AssetType: asset.Spot,
+					Type: order.Market, Side: order.Buy, Status: order.PartiallyFilled,
+					QuoteAmount: 10, ExecutedAmount: tc.filled, ExecutedQuoteAmount: tc.spent, LastUpdated: time.Now().Add(-time.Hour),
+				}), "order store must accept a quote-sized order")
+				m.processOrders(t.Context())
+				stored, err := m.GetOrdersFiltered(&order.Filter{OrderID: id})
+				require.NoError(t, err, "stored order lookup must not error")
+				require.Len(t, stored, 1, "order must remain in the store")
+				assert.Equal(t, order.Cancelled, stored[0].Status, "sweep should fetch final status after the order leaves the pending list")
+			})
+		}
+	})
 }
 
 func TestGetOrdersFiltered(t *testing.T) {

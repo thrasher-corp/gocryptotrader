@@ -483,15 +483,19 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 // IsActive returns true if an order has a status that indicates it is currently
 // available on the exchange
 func (d *Detail) IsActive() bool {
+	// Quote-sized orders have no known base quantity; their status determines activity.
+	quoteSized := d.Amount == 0 && d.QuoteAmount > 0
 	return d.Status != UnknownStatus &&
-		d.Amount > 0 &&
-		d.Amount > d.ExecutedAmount &&
+		(quoteSized || (d.Amount > 0 && d.Amount > d.ExecutedAmount)) &&
 		activeStatuses&d.Status == d.Status
 }
 
 // IsInactive returns true if an order has a status that indicates it is
 // currently not available on the exchange
 func (d *Detail) IsInactive() bool {
+	if d.Amount == 0 && d.QuoteAmount > 0 {
+		return d.Status.IsInactive()
+	}
 	return d.Amount <= 0 ||
 		d.Amount <= d.ExecutedAmount ||
 		d.Status.IsInactive()

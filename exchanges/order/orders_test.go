@@ -1579,6 +1579,29 @@ func TestMatchFilter(t *testing.T) {
 }
 
 func TestIsActive(t *testing.T) {
+	t.Parallel()
+	t.Run("quote-sized orders", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name   string
+			detail Detail
+			active bool
+		}{
+			{"unfilled", Detail{QuoteAmount: 180, Status: Open}, true},
+			{"filled", Detail{QuoteAmount: 180, ExecutedAmount: 3, Status: Filled}, false},
+			{"base quantity known and filled", Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 60, Status: Active}, false},
+			{"base fill larger than quote budget", Detail{QuoteAmount: 10, ExecutedAmount: 100000, Status: PartiallyFilled}, true},
+			{"budget spent pending final status", Detail{QuoteAmount: 180, ExecutedAmount: 3, ExecutedQuoteAmount: 180, Status: PartiallyFilled}, true},
+			{"unknown status", Detail{QuoteAmount: 180, ExecutedAmount: 2, Status: UnknownStatus}, false},
+			{"cancelled", Detail{QuoteAmount: 180, Status: Cancelled}, false},
+			{"negative base quantity", Detail{Amount: -1, QuoteAmount: 180, Status: Open}, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				assert.Equal(t, tc.active, tc.detail.IsActive(), "IsActive should respect status without comparing base fills with quote budgets")
+			})
+		}
+	})
 	orders := map[int]Detail{
 		0: {Amount: 0.0, Status: Active},
 		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
@@ -1644,6 +1667,22 @@ func BenchmarkIsActive(b *testing.B) {
 }
 
 func TestIsInactive(t *testing.T) {
+	t.Parallel()
+	t.Run("quote-sized orders", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			status   Status
+			inactive bool
+		}{
+			{Open, false}, {PartiallyFilled, false}, {Filled, true}, {Cancelled, true}, {UnknownStatus, true},
+		} {
+			t.Run(tc.status.String(), func(t *testing.T) {
+				t.Parallel()
+				detail := Detail{QuoteAmount: 180, ExecutedAmount: 3, Status: tc.status}
+				assert.Equal(t, tc.inactive, detail.IsInactive(), "IsInactive should use status when the base quantity is unknown")
+			})
+		}
+	})
 	orders := map[int]Detail{
 		0: {Amount: 0.0, Status: Active},
 		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},

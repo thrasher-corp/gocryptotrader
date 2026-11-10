@@ -1188,24 +1188,6 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 		orderAmount := response.Data[x].Size.Float64()
 		execAmount := response.Data[x].AccumulatedFillSize.Float64()
 
-		var quoteAmount float64
-		if response.Data[x].SizeType == quantityTypeQuoteCurrency {
-			// Size is quote amount.
-			quoteAmount = orderAmount
-			if orderStatus == order.Filled {
-				// We prefer to take execAmount over calculating from quoteAmount / avgPrice
-				// because it avoids rounding issues
-				orderAmount = execAmount
-			} else {
-				if avgPrice > 0 {
-					orderAmount /= avgPrice
-				} else {
-					// Size not in Base, and we can't derive a sane value for it
-					orderAmount = 0
-				}
-			}
-		}
-
 		var remainingAmount float64
 		// Float64 rounding may lead to execAmount > orderAmount by a tiny fraction
 		// noting that the order can be fully executed before it's marked as status Filled
@@ -1226,12 +1208,12 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 			OrderID:              response.Data[x].OrderID,
 			Pair:                 pair,
 			Price:                response.Data[x].Price.Float64(),
-			QuoteAmount:          quoteAmount,
 			RemainingAmount:      remainingAmount,
 			Side:                 response.Data[x].Side,
 			Status:               orderStatus,
 			Type:                 orderType,
 		}
+		setOrderAmounts(d, response.Data[x].SizeType)
 		if orderStatus == order.Filled {
 			d.CloseTime = response.Data[x].FillTime.Time()
 			if d.Amount == 0 {

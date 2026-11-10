@@ -352,6 +352,15 @@ func TestCancelOrder(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
+	t.Run("response identity", func(t *testing.T) {
+		t.Parallel()
+		ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("buy")))
+		require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
+		got, err := ex.GetOrderInfo(t.Context(), "1", testPair, asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must return the fixture order")
+		assert.Equal(t, "1", got.OrderID, "GetOrderInfo should preserve the response order ID")
+		assert.Equal(t, time.UnixMilli(1758499200000), got.Date, "GetOrderInfo should preserve the creation timestamp")
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetOrderInfo(t.Context(), "9ead39f5-701a-400b-b635-d7349eb0f6b", currency.EMPTYPAIR, asset.Spot)
@@ -434,6 +443,16 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("response identity", func(t *testing.T) {
+		t.Parallel()
+		ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("buy")))
+		require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
+		got, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{Pairs: currency.Pairs{testPair}, Side: order.AnySide, Type: order.AnyType, AssetType: asset.Spot})
+		require.NoError(t, err, "GetActiveOrders must return the fixture order")
+		require.Len(t, got, 1, "GetActiveOrders must return one order")
+		assert.Equal(t, "1", got[0].OrderID, "GetActiveOrders should preserve the response order ID")
+		assert.Equal(t, time.UnixMilli(1758499200000), got[0].Date, "GetActiveOrders should preserve the creation timestamp")
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
@@ -467,7 +486,8 @@ func TestGetOrderHistory(t *testing.T) {
 					assert.Equal(t, "200", r.Form.Get("page_length"), "request should use the supported page size")
 					rows := make([]string, pages[page-1])
 					for i := range rows {
-						rows[i] = fmt.Sprintf(`{"order_id":"%d","symbol":"btc_usdt","type":"buy","price":12.5,"amount":5,"deal_amount":2,"avg_price":10,"status":1,"created_time":1758499200000}`, (page-1)*200+i+1)
+						id := (page-1)*200 + i + 1
+						rows[i] = fmt.Sprintf(`{"order_id":"%d","symbol":"btc_usdt","type":"buy","price":12.5,"amount":5,"deal_amount":2,"avg_price":10,"status":1,"created_time":%d}`, id, int64(1758499200000)+int64(id))
 					}
 					_, err := fmt.Fprintf(w, `{"result":"true","error_code":0,"page_length":200,"current_page":%d,"orders":[%s]}`, page, strings.Join(rows, ","))
 					assert.NoError(t, err, "writing the history page should not error")
@@ -482,11 +502,16 @@ func TestGetOrderHistory(t *testing.T) {
 						expected = append(expected, order.Detail{
 							Exchange: ex.Name, OrderID: strconv.Itoa(page*200 + i + 1), Pair: testPair, Side: order.Buy, Status: order.PartiallyFilled,
 							Price: 12.5, AverageExecutedPrice: 10, Amount: 5, ExecutedAmount: 2, RemainingAmount: 3, Fee: 0.125,
-							Date: time.UnixMilli(1758499200000), LastUpdated: time.UnixMilli(1758499200000),
+							Date: time.UnixMilli(1758499200000 + int64(page*200+i+1)), LastUpdated: time.UnixMilli(1758499200000 + int64(page*200+i+1)),
 						})
 					}
 				}
-				assert.Equal(t, expected, got, "GetOrderHistory should retain every page's complete orders and distinct IDs")
+				require.Equal(t, len(expected), len(got), "GetOrderHistory must return every page's orders")
+				for i := range expected {
+					if !assert.Equalf(t, expected[i], got[i], "GetOrderHistory should retain order %d complete with its own ID and timestamps", i) {
+						break
+					}
+				}
 			})
 		}
 	})

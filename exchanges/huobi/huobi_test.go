@@ -1253,6 +1253,10 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("quantity units", func(t *testing.T) {
+		t.Parallel()
+		testSpotOrderQuantities(t, true)
+	})
 	getOrdersRequest := order.MultiOrderRequest{
 		AssetType: asset.Spot,
 		Type:      order.AnyType,

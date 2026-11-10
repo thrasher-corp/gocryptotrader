@@ -1280,20 +1280,27 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			return nil, err
 		}
 		orderDetail = order.Detail{
-			Exchange:       e.Name,
-			OrderID:        orderID,
-			AccountID:      strconv.FormatInt(respData.AccountID, 10),
-			Pair:           p,
-			Type:           orderType,
-			Side:           orderSide,
-			Date:           respData.CreatedAt.Time(),
-			Status:         orderStatus,
-			Price:          respData.Price,
-			Amount:         respData.Amount,
-			ExecutedAmount: respData.FilledAmount,
-			Fee:            respData.FilledFees,
-			AssetType:      a,
+			Exchange:            e.Name,
+			OrderID:             orderID,
+			AccountID:           strconv.FormatInt(respData.AccountID, 10),
+			Pair:                p,
+			Type:                orderType,
+			Side:                orderSide,
+			Date:                respData.CreatedAt.Time(),
+			Status:              orderStatus,
+			Price:               respData.Price,
+			Amount:              respData.Amount,
+			ExecutedAmount:      respData.FilledAmount,
+			RemainingAmount:     respData.Amount - respData.FilledAmount,
+			ExecutedQuoteAmount: respData.FilledCashAmount,
+			Fee:                 respData.FilledFees,
+			AssetType:           a,
 		}
+		if respData.Type == "buy-market" {
+			orderDetail.QuoteAmount, orderDetail.Amount = orderDetail.Amount, 0
+			orderDetail.RemainingAmount = 0
+		}
+		orderDetail.InferExecutionAndTimes()
 	case asset.CoinMarginedFutures:
 		orderInfo, err := e.GetSwapOrderInfo(ctx, pair, orderID, "")
 		if err != nil {
@@ -1452,18 +1459,25 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			}
 			for x := range resp {
 				orderDetail := order.Detail{
-					OrderID:         strconv.FormatInt(resp[x].ID, 10),
-					Price:           resp[x].Price,
-					Amount:          resp[x].Amount,
-					ExecutedAmount:  resp[x].FilledAmount,
-					RemainingAmount: resp[x].Amount - resp[x].FilledAmount,
-					Pair:            req.Pairs[i],
-					Exchange:        e.Name,
-					Date:            resp[x].CreatedAt.Time(),
-					AccountID:       strconv.FormatInt(resp[x].AccountID, 10),
-					Fee:             resp[x].FilledFees,
+					OrderID:             strconv.FormatInt(resp[x].ID, 10),
+					Price:               resp[x].Price,
+					Amount:              resp[x].Amount,
+					ExecutedAmount:      resp[x].FilledAmount,
+					RemainingAmount:     resp[x].Amount - resp[x].FilledAmount,
+					ExecutedQuoteAmount: resp[x].FilledCashAmount,
+					AssetType:           req.AssetType,
+					Pair:                req.Pairs[i],
+					Exchange:            e.Name,
+					Date:                resp[x].CreatedAt.Time(),
+					AccountID:           strconv.FormatInt(resp[x].AccountID, 10),
+					Fee:                 resp[x].FilledFees,
 				}
 				setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
+				if resp[x].Type == "buy-market" {
+					orderDetail.QuoteAmount = orderDetail.Amount
+					orderDetail.Amount, orderDetail.RemainingAmount = 0, 0
+				}
+				orderDetail.InferExecutionAndTimes()
 				orders = append(orders, orderDetail)
 			}
 		}

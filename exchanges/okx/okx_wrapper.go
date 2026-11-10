@@ -909,8 +909,12 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if !e.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
-	if s.Amount <= 0 {
+	quoteSizedMarket := s.Type == order.Market && (s.AssetType == asset.Spot || (s.AssetType == asset.Margin && s.Side == order.Buy)) && s.QuoteAmount > 0
+	if s.Amount < 0 || (s.Amount == 0 && !quoteSizedMarket) {
 		return nil, limits.ErrAmountBelowMin
+	}
+	if s.AssetType == asset.Margin && s.Type == order.Market && s.Side == order.Buy && s.QuoteAmount <= 0 {
+		return nil, fmt.Errorf("%w: margin market buys require QuoteAmount", order.ErrAmountMustBeSet)
 	}
 	pairFormat, err := e.GetPairFormat(s.AssetType, true)
 	if err != nil {
@@ -939,6 +943,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			amount = s.QuoteAmount
 			targetCurrency = quantityTypeQuoteCurrency
 		}
+	}
+	if s.AssetType == asset.Margin && s.Type == order.Market && s.Side == order.Buy {
+		amount = s.QuoteAmount
 	}
 	// If asset type is spread
 	if s.AssetType == asset.Spread {
@@ -1624,13 +1631,18 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		LastUpdated:          orderDetail.UpdateTime.Time(),
 		TimeInForce:          tif,
 	}
-	if assetType == asset.Spot && orderType == order.Market &&
-		(orderDetail.QuantityType == quantityTypeQuoteCurrency || (orderDetail.QuantityType == "" && orderDetail.Side == order.Buy)) {
-		// Quote-sized market orders do not establish the base quantity still to be filled.
+	setOrderAmounts(detail, orderDetail.QuantityType)
+	return detail, nil
+}
+
+// setOrderAmounts keeps quote budgets separate from base fills across REST and websocket orders.
+func setOrderAmounts(detail *order.Detail, quantityType string) {
+	spotQuoteSized := detail.AssetType == asset.Spot && (quantityType == quantityTypeQuoteCurrency || (quantityType == "" && detail.Side == order.Buy))
+	marginQuoteSized := detail.AssetType == asset.Margin && detail.Side == order.Buy
+	if detail.Type == order.Market && (spotQuoteSized || marginQuoteSized) {
 		detail.QuoteAmount = detail.Amount
 		detail.Amount, detail.RemainingAmount = 0, 0
 	}
-	return detail, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -1847,6 +1859,7 @@ allOrders:
 				LastUpdated:          orderList[i].UpdateTime.Time(),
 				TimeInForce:          tif,
 			})
+			setOrderAmounts(&resp[len(resp)-1], orderList[i].QuantityType)
 		}
 		if len(orderList) < 100 {
 			// Since the we passed a limit of 0 to the method GetOrderList,
@@ -1969,10 +1982,6 @@ allOrders:
 					return nil, err
 				}
 				orderAmount := orderList[i].Size
-				if orderList[i].QuantityType == quantityTypeQuoteCurrency {
-					// Size is quote amount.
-					orderAmount /= orderList[i].AveragePrice
-				}
 
 				remainingAmount := float64(0)
 				if orderStatus != order.Filled {
@@ -1998,6 +2007,7 @@ allOrders:
 					Pair:                 pair,
 					TimeInForce:          tif,
 				})
+				setOrderAmounts(&resp[len(resp)-1], orderList[i].QuantityType)
 			}
 		}
 		if len(orderList) < 100 {

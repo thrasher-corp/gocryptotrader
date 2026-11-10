@@ -501,6 +501,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 				return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 			}
 			resp.Exchange = e.Name
+			resp.OrderID = tempResp.Orders[0].OrderID
 			resp.Pair, err = currency.NewPairFromString(key)
 			if err != nil {
 				return nil, err
@@ -513,6 +514,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 
 			resp.Status = e.GetStatus(tempResp.Orders[0].Status)
 			resp.Price = tempResp.Orders[0].Price
+			resp.Date = tempResp.Orders[0].CreateTime.Time()
 			resp.Amount = tempResp.Orders[0].Amount
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
@@ -576,7 +578,6 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 	}
 
 	var finalResp []order.Detail
-	var resp order.Detail
 	tempData, err := e.getAllOpenOrderID(ctx)
 	if err != nil {
 		return finalResp, err
@@ -592,7 +593,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 				// The exchange returned no order for this ID, so it is not active.
 				continue
 			}
+			var resp order.Detail
 			resp.Exchange = e.Name
+			resp.OrderID = tempResp.Orders[0].OrderID
 			resp.Pair, err = currency.NewPairFromString(key)
 			if err != nil {
 				return nil, err
@@ -639,7 +642,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	}
 
 	var finalResp []order.Detail
-	var resp order.Detail
 	var tempCurr currency.Pairs
 	if len(getOrdersRequest.Pairs) == 0 {
 		var err error
@@ -666,6 +668,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				break
 			}
 			for x := range tempResp.Orders {
+				var resp order.Detail
 				resp.Exchange = e.Name
 				resp.OrderID = tempResp.Orders[x].OrderID
 				resp.Pair, err = currency.NewPairFromString(tempResp.Orders[x].Symbol)
