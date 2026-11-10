@@ -5,112 +5,135 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.mongodb.org/mongo-driver/v2/bson"
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 var (
-	_ bson.ValueMarshaler   = Pair{}
-	_ bson.ValueUnmarshaler = (*Pair)(nil)
+	_ bsonwire.ValueMarshaler   = Pair{}
+	_ bsonwire.ValueUnmarshaler = (*Pair)(nil)
 )
-
-// bsonPairDocument holds a pair as a document field, since BSON stores values within documents
-type bsonPairDocument struct {
-	Pair Pair `bson:"pair"`
-}
-
-// bsonPairPointerDocument holds a pair through a pointer, which the driver sets to nil for BSON null without calling
-// UnmarshalBSONValue
-type bsonPairPointerDocument struct {
-	Pair *Pair `bson:"pair"`
-}
 
 func TestPairBSONValue(t *testing.T) {
 	t.Parallel()
 	for name, tc := range map[string]struct {
 		pair   Pair
-		stored bson.D
+		stored []byte
 	}{
-		"empty":                {EMPTYPAIR, bson.D{}},
-		"no delimiter":         {NewBTCUSDT(), bson.D{{Key: "b", Value: "BTC"}, {Key: "q", Value: "USDT"}}},
-		"delimiter":            {NewPairWithDelimiter("BTC", "USDT", "-"), bson.D{{Key: "b", Value: "BTC"}, {Key: "d", Value: "-"}, {Key: "q", Value: "USDT"}}},
-		"lower case":           {NewPairWithDelimiter("eth", "usdc", "/"), bson.D{{Key: "b", Value: "eth"}, {Key: "d", Value: "/"}, {Key: "q", Value: "usdc"}}},
-		"long delimiter":       {NewPairWithDelimiter("BTC", "USDT", "-_-"), bson.D{{Key: "b", Value: "BTC"}, {Key: "d", Value: "-_-"}, {Key: "q", Value: "USDT"}}},
-		"control in delimiter": {NewPairWithDelimiter("BTC", "USDT", "\x1F"), bson.D{{Key: "b", Value: "BTC"}, {Key: "d", Value: "\x1F"}, {Key: "q", Value: "USDT"}}},
-		"base only":            {NewPair(BTC, EMPTYCODE), bson.D{{Key: "b", Value: "BTC"}}},
-		"quote only":           {NewPairWithDelimiter("", "USDT", "-"), bson.D{{Key: "d", Value: "-"}, {Key: "q", Value: "USDT"}}},
+		"empty": {
+			EMPTYPAIR,
+			bsonwire.MarshalDocument(),
+		},
+		"no delimiter": {
+			NewBTCUSDT(),
+			bsonwire.MarshalDocument(bsonwire.Field{Key: "b", Value: "BTC"}, bsonwire.Field{Key: "q", Value: "USDT"}),
+		},
+		"delimiter": {
+			NewPairWithDelimiter("BTC", "USDT", "-"),
+			bsonwire.MarshalDocument(bsonwire.Field{Key: "b", Value: "BTC"}, bsonwire.Field{Key: "d", Value: "-"}, bsonwire.Field{Key: "q", Value: "USDT"}),
+		},
+		"lower case": {
+			NewPairWithDelimiter("eth", "usdc", "/"),
+			bsonwire.MarshalDocument(bsonwire.Field{Key: "b", Value: "eth"}, bsonwire.Field{Key: "d", Value: "/"}, bsonwire.Field{Key: "q", Value: "usdc"}),
+		},
+		"long delimiter": {
+			NewPairWithDelimiter("BTC", "USDT", "-_-"),
+			bsonwire.MarshalDocument(bsonwire.Field{Key: "b", Value: "BTC"}, bsonwire.Field{Key: "d", Value: "-_-"}, bsonwire.Field{Key: "q", Value: "USDT"}),
+		},
+		"control in delimiter": {
+			NewPairWithDelimiter("BTC", "USDT", "\x1F"),
+			bsonwire.MarshalDocument(bsonwire.Field{Key: "b", Value: "BTC"}, bsonwire.Field{Key: "d", Value: "\x1F"}, bsonwire.Field{Key: "q", Value: "USDT"}),
+		},
+		"base only": {
+			NewPair(BTC, EMPTYCODE),
+			bsonwire.MarshalDocument(bsonwire.Field{Key: "b", Value: "BTC"}),
+		},
+		"quote only": {
+			NewPairWithDelimiter("", "USDT", "-"),
+			bsonwire.MarshalDocument(bsonwire.Field{Key: "d", Value: "-"}, bsonwire.Field{Key: "q", Value: "USDT"}),
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			data, err := bson.Marshal(bsonPairDocument{Pair: tc.pair})
-			require.NoError(t, err, "Marshal must not error")
-			want, err := bson.Marshal(tc.stored)
-			require.NoError(t, err, "Marshal of the expected document must not error")
-			stored, ok := bson.Raw(data).Lookup("pair").DocumentOK()
-			require.True(t, ok, "pair must be stored as a BSON document")
-			assert.Equal(t, bson.Raw(want), stored, "pair should be stored as its non-empty fields")
+			typ, data, err := tc.pair.MarshalBSONValue()
+			require.NoError(t, err, "MarshalBSONValue must not error")
+			assert.Equal(t, bsonwire.TypeEmbeddedDocument, typ, "pair should be stored as a BSON document")
+			assert.Equal(t, tc.stored, data, "pair should be stored as its non-empty fields")
 
-			out := bsonPairDocument{Pair: NewPairWithDelimiter("LTC", "XRP", "_")}
-			require.NoError(t, bson.Unmarshal(data, &out), "Unmarshal must not error")
-			assert.Equal(t, tc.pair, out.Pair, "pair should keep its case and delimiter")
-			assert.True(t, tc.pair.Equal(out.Pair), "pair should read back as the same currency codes")
-
-			data, err = bson.Marshal(bsonPairPointerDocument{Pair: &tc.pair})
-			require.NoError(t, err, "Marshal of a pointer field must not error")
-			var ptrOut bsonPairPointerDocument
-			require.NoError(t, bson.Unmarshal(data, &ptrOut), "Unmarshal of a pointer field must not error")
-			require.NotNil(t, ptrOut.Pair, "pointer field must be set")
-			assert.Equal(t, tc.pair, *ptrOut.Pair, "pair should round-trip through a pointer field")
+			out := NewPairWithDelimiter("LTC", "XRP", "_")
+			require.NoError(t, out.UnmarshalBSONValue(typ, data), "UnmarshalBSONValue must not error")
+			assert.Equal(t, tc.pair, out, "pair should keep its case and delimiter")
+			assert.True(t, tc.pair.Equal(out), "pair should read back as the same currency codes")
 		})
 	}
-
-	t.Run("nil pointer", func(t *testing.T) {
-		t.Parallel()
-		data, err := bson.Marshal(bsonPairPointerDocument{})
-		require.NoError(t, err, "Marshal must not error")
-		assert.Equal(t, bson.TypeNull, bson.Raw(data).Lookup("pair").Type, "a nil pair should be stored as null")
-		initial := NewBTCUSDT()
-		out := bsonPairPointerDocument{Pair: &initial}
-		require.NoError(t, bson.Unmarshal(data, &out), "Unmarshal must not error")
-		assert.Nil(t, out.Pair, "null should read back as a nil pair")
-	})
 }
 
 func TestPairUnmarshalBSONValueErrors(t *testing.T) {
 	t.Parallel()
-	for name, value := range map[string]any{
-		"string":           "BTC-USDT",
-		"integer":          int32(1),
-		"null":             nil,
-		"array":            bson.A{"BTC", "-", "USDT"},
-		"empty array":      bson.A{},
-		"non-string field": bson.D{{Key: "b", Value: int32(1)}},
-		"null field":       bson.D{{Key: "q", Value: nil}},
-		"unexpected field": bson.D{{Key: "b", Value: "BTC"}, {Key: "base", Value: "BTC"}},
-		"unexpected last":  bson.D{{Key: "b", Value: "BTC"}, {Key: "d", Value: "-"}, {Key: "q", Value: "USDT"}, {Key: "base", Value: "BTC"}},
-		"long field names": bson.D{{Key: "base", Value: "BTC"}, {Key: "quote", Value: "USDT"}},
+	initial := NewPairWithDelimiter("LTC", "XRP", "_")
+	for name, tc := range map[string]struct {
+		typ  byte
+		data []byte
+	}{
+		"string": {
+			bsonwire.TypeString,
+			bsonwire.MarshalString("BTC-USDT"),
+		},
+		"integer": {
+			bsonwire.TypeInt32,
+			[]byte{1, 0, 0, 0},
+		},
+		"null": {
+			bsonwire.TypeNull,
+			nil,
+		},
+		"array": {
+			bsonwire.TypeArray,
+			bsonwire.MarshalDocument(bsonwire.Field{Key: "0", Value: "BTC"}, bsonwire.Field{Key: "1", Value: "-"}, bsonwire.Field{Key: "2", Value: "USDT"}),
+		},
+		"empty array": {
+			bsonwire.TypeArray,
+			bsonwire.MarshalDocument(),
+		},
+		"non-string field": {
+			bsonwire.TypeEmbeddedDocument,
+			[]byte{0x0C, 0x00, 0x00, 0x00, bsonwire.TypeInt32, 'b', 0x00, 0x01, 0x00, 0x00, 0x00, 0x00},
+		},
+		"null field": {
+			bsonwire.TypeEmbeddedDocument,
+			[]byte{0x08, 0x00, 0x00, 0x00, bsonwire.TypeNull, 'q', 0x00, 0x00},
+		},
+		"unexpected field": {
+			bsonwire.TypeEmbeddedDocument,
+			bsonwire.MarshalDocument(bsonwire.Field{Key: "b", Value: "BTC"}, bsonwire.Field{Key: "base", Value: "BTC"}),
+		},
+		"unexpected last": {
+			bsonwire.TypeEmbeddedDocument,
+			bsonwire.MarshalDocument(bsonwire.Field{Key: "b", Value: "BTC"}, bsonwire.Field{Key: "d", Value: "-"}, bsonwire.Field{Key: "q", Value: "USDT"}, bsonwire.Field{Key: "base", Value: "BTC"}),
+		},
+		"long field names": {
+			bsonwire.TypeEmbeddedDocument,
+			bsonwire.MarshalDocument(bsonwire.Field{Key: "base", Value: "BTC"}, bsonwire.Field{Key: "quote", Value: "USDT"}),
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			data, err := bson.Marshal(bson.D{{Key: "pair", Value: value}})
-			require.NoError(t, err, "Marshal must not error")
-			out := bsonPairDocument{Pair: NewPairWithDelimiter("LTC", "XRP", "_")}
-			assert.ErrorIs(t, bson.Unmarshal(data, &out), ErrCreatingPair, "Unmarshal should reject the stored value")
-			assert.Equal(t, NewPairWithDelimiter("LTC", "XRP", "_"), out.Pair, "a rejected value should leave the pair unchanged")
+			out := initial
+			assert.ErrorIs(t, out.UnmarshalBSONValue(tc.typ, tc.data), ErrCreatingPair, "UnmarshalBSONValue should reject the stored value")
+			assert.Equal(t, initial, out, "a rejected value should leave the pair unchanged")
 		})
 	}
 
-	// bson.Unmarshal rejects some of these documents before calling UnmarshalBSONValue, so they are passed to it directly
 	for name, data := range map[string][]byte{
 		"truncated length":  {5, 0},
 		"length beyond end": {0xFF, 0, 0, 0, 0},
-		"truncated element": {8, 0, 0, 0, byte(bson.TypeString), 'b', 0, 0},
+		"truncated element": {8, 0, 0, 0, bsonwire.TypeString, 'b', 0, 0},
 		"wrong terminator":  {5, 0, 0, 0, 1},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			p := NewBTCUSDT()
-			assert.ErrorIs(t, p.UnmarshalBSONValue(byte(bson.TypeEmbeddedDocument), data), ErrCreatingPair, "UnmarshalBSONValue should reject malformed bytes")
-			assert.Equal(t, NewBTCUSDT(), p, "a rejected value should leave the pair unchanged")
+			out := initial
+			assert.ErrorIs(t, out.UnmarshalBSONValue(bsonwire.TypeEmbeddedDocument, data), ErrCreatingPair, "UnmarshalBSONValue should reject malformed bytes")
+			assert.Equal(t, initial, out, "a rejected value should leave the pair unchanged")
 		})
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"go.mongodb.org/mongo-driver/v2/bson"
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 // EMPTYFORMAT defines an empty pair format
@@ -82,49 +82,37 @@ const (
 // delimiter has no d, and the empty pair is the empty document. Each code is stored as Code.String, keeping its case,
 // so {"pair.b": "BTC", "pair.q": "USDT"} finds BTC-USDT whatever its delimiter.
 func (p Pair) MarshalBSONValue() (typ byte, data []byte, err error) {
-	doc := make(bson.D, 0, 3)
-	for _, f := range []bson.E{
+	fields := make([]bsonwire.Field, 0, 3)
+	for _, f := range []bsonwire.Field{
 		{Key: bsonPairBase, Value: p.Base.String()},
 		{Key: bsonPairDelimiter, Value: p.Delimiter},
 		{Key: bsonPairQuote, Value: p.Quote.String()},
 	} {
 		if f.Value != "" {
-			doc = append(doc, f)
+			fields = append(fields, f)
 		}
 	}
-	bt, data, err := bson.MarshalValue(doc)
-	return byte(bt), data, err
+	return bsonwire.TypeEmbeddedDocument, bsonwire.MarshalDocument(fields...), nil
 }
 
 // UnmarshalBSONValue implements bson.ValueUnmarshaler, reading the document MarshalBSONValue stores. A missing field
 // reads as empty.
 func (p *Pair) UnmarshalBSONValue(typ byte, data []byte) error {
-	if bson.Type(typ) != bson.TypeEmbeddedDocument {
-		return fmt.Errorf("%w: expected a BSON document, got %s", ErrCreatingPair, bson.Type(typ))
-	}
-	doc := bson.Raw(data)
-	if err := doc.Validate(); err != nil {
-		return fmt.Errorf("%w: %w", ErrCreatingPair, err)
-	}
-	elems, err := doc.Elements()
+	fields, err := bsonwire.UnmarshalDocument(typ, data)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrCreatingPair, err)
 	}
 	var base, delimiter, quote string
-	for _, e := range elems {
-		v, ok := e.Value().StringValueOK()
-		if !ok {
-			return fmt.Errorf("%w: field %q must be a string, got %s", ErrCreatingPair, e.Key(), e.Value().Type)
-		}
-		switch e.Key() {
+	for _, f := range fields {
+		switch f.Key {
 		case bsonPairBase:
-			base = v
+			base = f.Value
 		case bsonPairDelimiter:
-			delimiter = v
+			delimiter = f.Value
 		case bsonPairQuote:
-			quote = v
+			quote = f.Value
 		default:
-			return fmt.Errorf("%w: unexpected field %q", ErrCreatingPair, e.Key())
+			return fmt.Errorf("%w: unexpected field %q", ErrCreatingPair, f.Key)
 		}
 	}
 	*p = Pair{Base: NewCode(base), Delimiter: delimiter, Quote: NewCode(quote)}
