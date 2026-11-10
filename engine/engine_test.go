@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -22,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
@@ -873,6 +875,33 @@ func TestSetupExchanges(t *testing.T) {
 	})
 }
 
+// Not parallel: it swaps the package-level cache the parallel withdrawal tests use
+func TestValidateSettingsWithdrawCacheSize(t *testing.T) {
+	oldCache, oldSize := withdraw.Cache, withdraw.CacheSize
+	t.Cleanup(func() { withdraw.Cache, withdraw.CacheSize = oldCache, oldSize })
+
+	for _, size := range []uint64{1, 3, 26} {
+		withdraw.Cache = cache.New(oldSize)
+		validateSettings(&Engine{Config: &config.Config{}}, &Settings{WithdrawCacheSize: size}, FlagSet{"withdrawcachesize": true})
+		assert.Equal(t, size, withdraw.CacheSize, "CacheSize should take the flag's value")
+		for i := range size + 1 {
+			withdraw.Cache.Add(i, i)
+		}
+		assert.Equalf(t, size, withdraw.Cache.Len(), "the withdrawal cache should hold the flag's size of %d", size)
+		assert.Falsef(t, withdraw.Cache.Contains(uint64(0)), "the withdrawal cache should evict its oldest entry beyond %d", size)
+	}
+
+	unflagged := cache.New(oldSize)
+	withdraw.Cache, withdraw.CacheSize = unflagged, oldSize
+	validateSettings(&Engine{Config: &config.Config{}}, &Settings{WithdrawCacheSize: 2}, FlagSet{})
+	assert.Same(t, unflagged, withdraw.Cache, "the withdrawal cache should be left alone without the flag")
+	assert.Equal(t, oldSize, withdraw.CacheSize, "CacheSize should be left alone without the flag")
+	for i := range oldSize + 1 {
+		unflagged.Add(i, i)
+	}
+	assert.Equal(t, oldSize, unflagged.Len(), "the withdrawal cache should keep its size without the flag")
+}
+
 // refusedSubscriptionsBuilder builds the test exchange with a websocket that connects but has its
 // subscriptions refused, so Connect returns an error while the socket stays up
 type refusedSubscriptionsBuilder struct {
@@ -999,4 +1028,5 @@ func TestLoadExchangeStartsWebsocketAfterRuntimeLoad(t *testing.T) {
 	assert.True(t, secondWS.IsConnected(), "reloaded websocket should connect")
 	assert.EqualValues(t, 2, builder.connects.Load(), "connector should be called for the replacement")
 	t.Cleanup(func() { assert.NoError(t, reloaded.Shutdown(), "reloaded websocket should shut down cleanly") })
+}
 }

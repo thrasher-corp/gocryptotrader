@@ -97,17 +97,26 @@ func TestRequiredCommandFlags(t *testing.T) {
 		flagName string
 		required bool
 	}{
-		{name: "ticker exchange", command: getTickerCommand, flagName: exchangeFlag, required: true},
-		{name: "ticker pair", command: getTickerCommand, flagName: pairFlag, required: true},
-		{name: "ticker asset", command: getTickerCommand, flagName: assetFlag, required: true},
-		{name: "submit side", command: submitOrderCommand, flagName: sideFlag, required: true},
-		{name: "submit amount", command: submitOrderCommand, flagName: amountFlag, required: true},
+		{name: "ticker exchange", command: getTickerCommand, flagName: "exchange", required: true},
+		{name: "ticker pair", command: getTickerCommand, flagName: "pair", required: true},
+		{name: "ticker asset", command: getTickerCommand, flagName: "asset", required: true},
+		{name: "submit side", command: submitOrderCommand, flagName: "side", required: true},
+		{name: "submit amount", command: submitOrderCommand, flagName: "amount", required: true},
 		{name: "submit margin optional", command: submitOrderCommand, flagName: "margintype"},
-		{name: "cancel pair optional", command: cancelOrderCommand, flagName: pairFlag},
-		{name: "open interest pair optional", command: futuresCommands.Command("getopeninterest"), flagName: pairFlag},
+		{name: "cancel pair optional", command: cancelOrderCommand, flagName: "pair"},
+		{name: "open interest pair optional", command: futuresCommands.Command("getopeninterest"), flagName: "pair"},
 		{name: "set leverage margin type optional", command: futuresCommands.Command("setleverage"), flagName: "margintype"},
 		{name: "get leverage margin type optional", command: futuresCommands.Command("getleverage"), flagName: "margintype"},
 		{name: "change position margin type optional", command: futuresCommands.Command("changepositionmargin"), flagName: "margintype"},
+		{name: "enable subsystem", command: enableSubsystemCommand, flagName: "subsystem", required: true},
+		{name: "portfolio address", command: addPortfolioAddressCommand, flagName: "address", required: true},
+		{name: "portfolio coin type", command: addPortfolioAddressCommand, flagName: "coin_type", required: true},
+		{name: "deposit address cryptocurrency", command: getCryptocurrencyDepositAddressCommand, flagName: "cryptocurrency", required: true},
+		{name: "withdraw currency", command: withdrawCryptocurrencyFundsCommand, flagName: "currency", required: true},
+		{name: "withdraw amount", command: withdrawCryptocurrencyFundsCommand, flagName: "amount", required: true},
+		{name: "withdrawal ID", command: withdrawalRequestCommand.Command("byid"), flagName: "id", required: true},
+		{name: "logger name", command: getLoggerDetailsCommand, flagName: "logger", required: true},
+		{name: "enable pairs", command: exchangePairManagerCommand.Command("enable"), flagName: "pairs", required: true},
 		{name: "set margin type required", command: futuresCommands.Command("setmargintype"), flagName: "margintype", required: true},
 		{name: "set proxy optional", command: websocketManagerCommand.Command("setproxy"), flagName: "proxy"},
 		{name: "set URL optional", command: websocketManagerCommand.Command("seturl"), flagName: "url"},
@@ -127,11 +136,11 @@ func TestRequiredCommandFlags(t *testing.T) {
 					continue
 				}
 				required, ok := flag.(cli.RequiredFlag)
-				require.True(t, ok)
-				require.Equal(t, tc.required, required.IsRequired())
+				require.True(t, ok, "flag must expose whether it is required")
+				assert.Equal(t, tc.required, required.IsRequired(), "flag should retain its required state")
 				return
 			}
-			t.Fatalf("flag %q missing from %s", tc.flagName, tc.command.Name)
+			require.FailNowf(t, "command must define the expected flag", "flag %q missing from %s", tc.flagName, tc.command.Name)
 		})
 	}
 }

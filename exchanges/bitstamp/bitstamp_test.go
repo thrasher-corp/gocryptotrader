@@ -867,7 +867,7 @@ func TestWsOrderUpdate(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", e.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.jsonl", e.wsHandleData)
 	e.Websocket.DataHandler.Close()
 	assert.Len(t, e.Websocket.DataHandler.C, 8, "Should see 8 orders")
 	for resp := range e.Websocket.DataHandler.C {
