@@ -128,6 +128,9 @@ func TestPairUnmarshalBSONValueErrors(t *testing.T) {
 		"length beyond end": {0xFF, 0, 0, 0, 0},
 		"truncated element": {8, 0, 0, 0, bsonwire.TypeString, 'b', 0, 0},
 		"wrong terminator":  {5, 0, 0, 0, 1},
+		"base no NUL":       {16, 0, 0, 0, bsonwire.TypeString, 'b', 0, 4, 0, 0, 0, 'B', 'T', 'C', 'X', 0},
+		"delimiter no NUL":  {37, 0, 0, 0, bsonwire.TypeString, 'b', 0, 4, 0, 0, 0, 'B', 'T', 'C', 0, bsonwire.TypeString, 'd', 0, 2, 0, 0, 0, '-', 'X', bsonwire.TypeString, 'q', 0, 5, 0, 0, 0, 'U', 'S', 'D', 'T', 0, 0},
+		"quote no NUL":      {28, 0, 0, 0, bsonwire.TypeString, 'b', 0, 4, 0, 0, 0, 'B', 'T', 'C', 0, bsonwire.TypeString, 'q', 0, 5, 0, 0, 0, 'U', 'S', 'D', 'T', 'X', 0},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
