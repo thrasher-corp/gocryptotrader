@@ -172,6 +172,46 @@ func TestEncoderDecoder(t *testing.T) {
 	rest, err := io.ReadAll(dec.Buffered())
 	require.NoError(t, err, "reading the buffered remainder must not error")
 	assert.Contains(t, string(rest), "trailing", "Buffered should expose the unread remainder")
+
+	t.Run("after a failed Decode", func(t *testing.T) {
+		t.Parallel()
+		type integerField struct {
+			N int `json:"n"`
+		}
+		for name, tc := range map[string]struct {
+			input         string
+			dst           func() any
+			rejectUnknown bool
+		}{
+			"type mismatch":              {input: `"x"`, dst: func() any { return new(int) }},
+			"field type mismatch":        {input: `{"n":"x"}`, dst: func() any { return new(integerField) }},
+			"UnmarshalJSON error":        {input: `"x"`, dst: func() any { return new(number) }},
+			"timestamp parse error":      {input: `"not-a-time"`, dst: func() any { return new(time.Time) }},
+			"unknown field":              {input: `{"m":1}`, dst: func() any { return new(integerField) }, rejectUnknown: true},
+			"number overflowing float64": {input: "1e999", dst: func() any { return new(any) }},
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				dec := NewDecoder(strings.NewReader(tc.input + " 2 3 "))
+				if tc.rejectUnknown {
+					dec.DisallowUnknownFields()
+				}
+				first := dec.Decode(tc.dst())
+				require.Error(t, first, "Decode must fail on a value that does not fit its destination")
+				for _, want := range []int{2, 3} {
+					var next int
+					err := dec.Decode(&next)
+					if nativeSonic() {
+						assert.Equal(t, first, err, "native sonic should return the first error again")
+						assert.Zero(t, next, "native sonic should decode nothing once a Decode has failed")
+						continue
+					}
+					require.NoError(t, err, "Decode must go on to the next value, as v1 does")
+					assert.Equal(t, want, next, "Decode should decode the next value without skipping one")
+				}
+			})
+		}
+	})
 }
 
 func TestDecoderBuffered(t *testing.T) {

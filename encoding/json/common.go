@@ -30,6 +30,8 @@
 //     read past unrecognised or unterminated input, and the values after it, to EOF or a read
 //     error. A stray "]" or "}" succeeds on every call without consuming input. A truncated "{"
 //     returns io.EOF, where the default build returns a *SyntaxError and v1 io.ErrUnexpectedEOF.
+//     Once a Decode fails, every later Decode returns the same error, where v1 and the default
+//     build decode the next value after one that fails to unmarshal, such as a type mismatch.
 //   - The sonic wrapper makes More report read failures, Decode return the failure the fallback
 //     hides behind io.EOF, and Buffered return an empty reader after a native Decode error.
 package json
