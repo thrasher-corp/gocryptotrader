@@ -31,7 +31,7 @@ func TestSideBSONValue(t *testing.T) {
 	t.Parallel()
 	cases := append(bsonvalue.Named(flags(Buy, MissingData)...), bsonvalue.Case[Side]{In: MissingData << 1, Want: UnknownSide})
 	bsonvalue.AssertRoundTrip(t, MissingData<<2, cases)
-	bsonvalue.AssertUnmarshalErrors(t, Buy, "SIDEWAYS", ErrSideIsInvalid)
+	bsonvalue.AssertUnmarshalErrors(t, MissingData<<2, Buy, "SIDEWAYS", ErrSideIsInvalid)
 }
 
 func TestTypeBSONValue(t *testing.T) {
@@ -42,14 +42,14 @@ func TestTypeBSONValue(t *testing.T) {
 		bsonvalue.Case[Type]{In: MarketMakerProtection << 1, Want: UnknownType},
 	)
 	bsonvalue.AssertRoundTrip(t, MarketMakerProtection<<2, cases)
-	bsonvalue.AssertUnmarshalErrors(t, Limit, "SIDEWAYS", ErrUnrecognisedOrderType)
+	bsonvalue.AssertUnmarshalErrors(t, MarketMakerProtection<<2, Limit, "SIDEWAYS", ErrUnrecognisedOrderType)
 }
 
 func TestStatusBSONValue(t *testing.T) {
 	t.Parallel()
 	cases := append(bsonvalue.Named(flags(AnyStatus, STP)...), bsonvalue.Case[Status]{In: STP << 1, Want: UnknownStatus})
 	bsonvalue.AssertRoundTrip(t, STP<<2, cases)
-	bsonvalue.AssertUnmarshalErrors(t, Filled, "SIDEWAYS", errUnrecognisedOrderStatus)
+	bsonvalue.AssertUnmarshalErrors(t, STP<<2, Filled, "SIDEWAYS", errUnrecognisedOrderStatus)
 }
 
 func TestTimeInForceBSONValue(t *testing.T) {
@@ -60,5 +60,5 @@ func TestTimeInForceBSONValue(t *testing.T) {
 		bsonvalue.Case[TimeInForce]{In: GoodTillCancel | StopOrReduce<<1, Want: GoodTillCancel},
 	)
 	bsonvalue.AssertRoundTrip(t, StopOrReduce<<2, cases)
-	bsonvalue.AssertUnmarshalErrors(t, GoodTillCancel, "GTC,SIDEWAYS", ErrInvalidTimeInForce)
+	bsonvalue.AssertUnmarshalErrors(t, StopOrReduce<<2, GoodTillCancel, "GTC,SIDEWAYS", ErrInvalidTimeInForce)
 }

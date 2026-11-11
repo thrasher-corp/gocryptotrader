@@ -19,5 +19,5 @@ func TestTypeBSONValue(t *testing.T) {
 		bsonvalue.Case[Type]{In: Unknown << 1, Want: Unknown},
 	)
 	bsonvalue.AssertRoundTrip(t, Unknown<<2, cases)
-	bsonvalue.AssertUnmarshalErrors(t, Isolated, "moon", ErrInvalidMarginType)
+	bsonvalue.AssertUnmarshalErrors(t, Unknown<<2, Isolated, "moon", ErrInvalidMarginType)
 }

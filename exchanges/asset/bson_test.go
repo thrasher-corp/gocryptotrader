@@ -20,5 +20,5 @@ func TestItemBSONValue(t *testing.T) {
 	}
 	cases := append(bsonvalue.Named(items...), bsonvalue.Case[Item]{In: All + 1, Want: Empty})
 	bsonvalue.AssertRoundTrip(t, All+2, cases)
-	bsonvalue.AssertUnmarshalErrors(t, Spot, "moon", ErrNotSupported)
+	bsonvalue.AssertUnmarshalErrors(t, All+2, Spot, "moon", ErrNotSupported)
 }

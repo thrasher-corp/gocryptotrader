@@ -51,12 +51,13 @@ func AssertRoundTrip[T interface {
 }
 
 // AssertUnmarshalErrors checks that reading a T from an unrecognised string, a BSON integer, a BSON null, a BSON
-// symbol holding valid's string, or malformed string bytes returns errInvalid. A symbol is encoded the same way as a
-// string, so only a check of the BSON type rejects it.
+// symbol holding valid's string, or malformed string bytes returns errInvalid and leaves a value holding initial
+// unchanged. A symbol is encoded the same way as a string, so only a check of the BSON type rejects it. Pass the
+// initial value given to AssertRoundTrip, which no case reads back as.
 func AssertUnmarshalErrors[T fmt.Stringer, PT interface {
 	*T
 	bsonwire.ValueUnmarshaler
-}](t *testing.T, valid T, unrecognised string, errInvalid error) {
+}](t *testing.T, initial, valid T, unrecognised string, errInvalid error) {
 	t.Helper()
 	for name, data := range map[string][]byte{
 		"truncated string length":  {5, 0},
@@ -64,8 +65,9 @@ func AssertUnmarshalErrors[T fmt.Stringer, PT interface {
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			var v T
+			v := initial
 			assert.ErrorIs(t, PT(&v).UnmarshalBSONValue(bsonwire.TypeString, data), errInvalid, "UnmarshalBSONValue should reject malformed bytes")
+			assert.Equal(t, initial, v, "a rejected value should leave the value unchanged")
 		})
 	}
 	for name, tc := range map[string]struct {
@@ -79,8 +81,9 @@ func AssertUnmarshalErrors[T fmt.Stringer, PT interface {
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			var v T
+			v := initial
 			assert.ErrorIs(t, PT(&v).UnmarshalBSONValue(tc.typ, tc.data), errInvalid, "UnmarshalBSONValue should reject the stored value")
+			assert.Equal(t, initial, v, "a rejected value should leave the value unchanged")
 		})
 	}
 }
