@@ -435,13 +435,7 @@ func newRoutedExchange(t *testing.T, routes map[string]string) *Exchange {
 // a server error, so a test can fail a later request of a method that makes several
 func newRefusingRoutedExchange(t *testing.T, refused string, routes map[string]string) *Exchange {
 	t.Helper()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.API.AuthenticatedSupport = true
-	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
-	ex.SkipAuthCheck = true
-	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
 		body, ok := routes[r.URL.Path]
 		if !ok || (refused != "" && strings.Contains(r.URL.RawQuery, refused)) {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -449,7 +443,20 @@ func newRefusingRoutedExchange(t *testing.T, refused string, routes map[string]s
 		}
 		_, err := fmt.Fprint(w, body)
 		assert.NoError(t, err, "writing the response should not error")
-	}))
+	})
+}
+
+// newServedExchange returns an exchange whose REST requests reach a server answering with handler, signing with
+// placeholder credentials
+func newServedExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
+	t.Helper()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+	ex.SkipAuthCheck = true
+	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+	server := httptest.NewTestServer(t, handler)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	for _, u := range []exchange.URL{exchange.RestSpot, exchange.RestFutures} {
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(u.String(), server.URL), "SetRunningURL must not error")
@@ -487,6 +494,16 @@ func newIsolatedExchange(t *testing.T) *Exchange {
 		}
 	}
 	ex.Name = t.Name()
+	return ex
+}
+
+// unsignedExchange returns an exchange allowed to send authenticated requests but holding no credentials, so a request
+// that passes its checks fails only at signing, before anything is sent
+func unsignedExchange(t *testing.T) *Exchange {
+	t.Helper()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.API.AuthenticatedSupport = true
 	return ex
 }
 
@@ -806,6 +823,13 @@ func TestGetUnderlyingFromCurrencyPair(t *testing.T) {
 	uly, err := e.GetUnderlyingFromCurrencyPair(currency.Pair{Delimiter: currency.UnderscoreDelimiter, Base: currency.BTC, Quote: currency.NewCode("USDT_LLK")})
 	require.NoError(t, err)
 	assert.True(t, uly.Equal(currency.NewBTCUSDT()))
+
+	t.Run("an underlying itself", func(t *testing.T) {
+		t.Parallel()
+		uly, err := e.GetUnderlyingFromCurrencyPair(currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter))
+		require.NoError(t, err, "GetUnderlyingFromCurrencyPair must allow a pair of two currencies")
+		assert.True(t, uly.Equal(currency.NewBTCUSDT()), "GetUnderlyingFromCurrencyPair should return the pair itself")
+	})
 }
 
 func TestTickerHandlersSkipEmptyBatches(t *testing.T) {
@@ -851,6 +875,7 @@ func TestFuturesPositionBOBCapturedPayloads(t *testing.T) {
 
 		require.NoError(t, ex.WebsocketHandleFuturesData(t.Context(), nil, payloads[i], asset.USDTMarginedFutures),
 			"WebsocketHandleFuturesData must process the captured position update")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "WebsocketHandleFuturesData must relay the captured position update")
 		message := <-ex.Websocket.DataHandler.C
 		positions, ok := message.Data.([]futures.Position)
 		require.True(t, ok, "captured payload must emit canonical futures positions")
@@ -887,6 +912,7 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), payload, asset.USDTMarginedFutures))
+	require.Len(t, e.Websocket.DataHandler.C, 1, "processFuturesPositionsNotification must relay the captured position")
 	message := <-e.Websocket.DataHandler.C
 	positions, ok := message.Data.([]futures.Position)
 	require.True(t, ok, "captured payload must emit canonical futures positions")
@@ -912,6 +938,7 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 	).Replace(string(payload)))
 	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), classicCrossPayload, asset.USDTMarginedFutures),
 		"processFuturesPositionsNotification must process classic cross margin")
+	require.Len(t, e.Websocket.DataHandler.C, 1, "processFuturesPositionsNotification must relay the classic cross margin position")
 	message = <-e.Websocket.DataHandler.C
 	positions, ok = message.Data.([]futures.Position)
 	require.True(t, ok, "classic cross-margin payload must emit canonical futures positions")
@@ -922,6 +949,7 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 	closedPayload := []byte(strings.Replace(string(payload), `"size":"-55"`, `"size":"0"`, 1))
 	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), closedPayload, asset.USDTMarginedFutures),
 		"processFuturesPositionsNotification must process a zero-size update")
+	require.Len(t, e.Websocket.DataHandler.C, 1, "processFuturesPositionsNotification must relay the zero-size update")
 	message = <-e.Websocket.DataHandler.C
 	positions, ok = message.Data.([]futures.Position)
 	require.True(t, ok, "zero-size update must emit canonical futures positions")
@@ -944,6 +972,7 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 			dualPayload := []byte(strings.Replace(string(closedPayload), `"mode":"single"`, `"mode":"`+tt.mode+`"`, 1))
 			require.NoError(t, ex.processFuturesPositionsNotification(t.Context(), dualPayload, asset.USDTMarginedFutures),
 				"processFuturesPositionsNotification must process a zero-size dual-mode update")
+			require.Len(t, ex.Websocket.DataHandler.C, 1, "processFuturesPositionsNotification must relay the zero-size dual-mode update")
 			message := <-ex.Websocket.DataHandler.C
 			positions, ok := message.Data.([]futures.Position)
 			require.True(t, ok, "zero-size dual-mode update must emit canonical futures positions")
@@ -965,6 +994,7 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 		deliveryPayload := []byte(strings.Replace(string(payload), "GPS_USDT", formattedPair.String(), 1))
 		require.NoError(t, ex.processFuturesPositionsNotification(t.Context(), deliveryPayload, asset.DeliveryFutures),
 			"processFuturesPositionsNotification must process a delivery position")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "processFuturesPositionsNotification must relay the delivery position")
 		message := <-ex.Websocket.DataHandler.C
 		positions, ok := message.Data.([]futures.Position)
 		require.True(t, ok, "delivery update must emit canonical futures positions")

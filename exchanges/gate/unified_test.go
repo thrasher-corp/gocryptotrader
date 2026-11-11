@@ -2,6 +2,8 @@ package gate
 
 import (
 	"math"
+	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -279,6 +282,12 @@ func TestGetInterestDeductionRecords(t *testing.T) {
 
 	_, err = e.GetInterestDeductionRecords(t.Context(), &UnifiedInterestRecordsRequest{Currency: currency.BTC, Limit: 101})
 	require.ErrorIs(t, err, errInvalidLimit, "GetInterestDeductionRecords must reject a limit above 100")
+
+	t.Run("a limit of 100 is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetInterestDeductionRecords(t.Context(), &UnifiedInterestRecordsRequest{Currency: currency.BTC, Limit: 100})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetInterestDeductionRecords should allow a limit of 100 and fail only at signing")
+	})
 
 	_, err = e.GetInterestDeductionRecords(t.Context(), &UnifiedInterestRecordsRequest{Currency: currency.BTC, Type: "invalid"})
 	require.ErrorIs(t, err, errInvalidLoanType, "GetInterestDeductionRecords must reject an unknown loan type")
@@ -625,6 +634,21 @@ func TestGetUnifiedHistoricalLendingRates(t *testing.T) {
 
 	_, err = e.GetUnifiedHistoricalLendingRates(t.Context(), &UnifiedHistoricalLendingRatesRequest{Currency: currency.USDT, Limit: 101})
 	require.ErrorIs(t, err, errInvalidLimit, "GetUnifiedHistoricalLendingRates must reject a limit above 100")
+
+	t.Run("a limit of 100 is allowed", func(t *testing.T) {
+		t.Parallel()
+		var requests atomic.Int32
+		ex := futuresLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			assert.Equal(t, "/api/v4/unified/history_loan_rate", r.URL.Path, "the request should reach the lending rate endpoint")
+			assert.Equal(t, "100", r.URL.Query().Get("limit"), "the request should carry the limit")
+			_, err := w.Write([]byte(`{}`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		_, err := ex.GetUnifiedHistoricalLendingRates(t.Context(), &UnifiedHistoricalLendingRatesRequest{Currency: currency.USDT, Limit: 100})
+		require.NoError(t, err, "GetUnifiedHistoricalLendingRates must allow a limit of 100")
+		assert.Equal(t, int32(1), requests.Load(), "GetUnifiedHistoricalLendingRates should send the request")
+	})
 
 	result, err := e.GetUnifiedHistoricalLendingRates(t.Context(), &UnifiedHistoricalLendingRatesRequest{Currency: currency.USDT})
 	require.NoError(t, err, "GetUnifiedHistoricalLendingRates must not error")

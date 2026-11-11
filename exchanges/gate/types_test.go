@@ -111,6 +111,10 @@ func TestDisplayNumber(t *testing.T) {
 		{input: `"0.1%"`, exp: DisplayNumber{Text: "0.1%", Value: 0.1}},
 		{input: `"<$0.01"`, exp: DisplayNumber{Text: "<$0.01", Value: 0.01}},
 		{input: `"$1,234.56"`, exp: DisplayNumber{Text: "$1,234.56", Value: 1234.56}},
+		{input: `"$9.5"`, exp: DisplayNumber{Text: "$9.5", Value: 9.5}},
+		{input: `"$1.29"`, exp: DisplayNumber{Text: "$1.29", Value: 1.29}},
+		{input: `"APR:1.5"`, exp: DisplayNumber{Text: "APR:1.5", Value: 1.5}},
+		{input: `"1.5:"`, exp: DisplayNumber{Text: "1.5:", Value: 1.5}},
 		{input: `"-$0.04"`, exp: DisplayNumber{Text: "-$0.04", Value: -0.04}},
 		{input: `"$-1.5"`, exp: DisplayNumber{Text: "$-1.5", Value: -1.5}},
 		{input: `"0.04 USDT"`, exp: DisplayNumber{Text: "0.04 USDT", Value: 0.04}},
@@ -122,15 +126,18 @@ func TestDisplayNumber(t *testing.T) {
 		{input: `""`, exp: DisplayNumber{}},
 		{input: `null`, exp: DisplayNumber{}},
 	} {
-		got := DisplayNumber{Text: "stale", Value: 1}
-		require.NoErrorf(t, got.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must not error for %s", tc.input)
-		assert.Equalf(t, tc.exp, got, "UnmarshalJSON should decode %s", tc.input)
-		assert.Equalf(t, tc.exp.Value, got.Float64(), "Float64 should return the number without its signs for %s", tc.input)
-		payload, err := json.Marshal(got)
-		require.NoErrorf(t, err, "Marshal must not error for %s", tc.input)
-		var roundTrip string
-		require.NoErrorf(t, json.Unmarshal(payload, &roundTrip), "Unmarshal must read back the marshalled %s", tc.input)
-		assert.Equalf(t, tc.exp.Text, roundTrip, "Marshal should write %s as Gate sent it", tc.input)
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+			got := DisplayNumber{Text: "stale", Value: 1}
+			require.NoErrorf(t, got.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must not error for %s", tc.input)
+			assert.Equalf(t, tc.exp, got, "UnmarshalJSON should decode %s", tc.input)
+			assert.Equalf(t, tc.exp.Value, got.Float64(), "Float64 should return the number without its signs for %s", tc.input)
+			payload, err := json.Marshal(got)
+			require.NoErrorf(t, err, "Marshal must not error for %s", tc.input)
+			var roundTrip string
+			require.NoErrorf(t, json.Unmarshal(payload, &roundTrip), "Unmarshal must read back the marshalled %s", tc.input)
+			assert.Equalf(t, tc.exp.Text, roundTrip, "Marshal should write %s as Gate sent it", tc.input)
+		})
 	}
 	for _, input := range []string{`true`, `{}`, `[1]`, `"unterminated`, `1.2.3`} {
 		var got DisplayNumber

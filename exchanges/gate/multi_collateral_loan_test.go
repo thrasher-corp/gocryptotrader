@@ -1,6 +1,10 @@
 package gate
 
 import (
+	"net/http"
+	"slices"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -8,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -270,6 +275,18 @@ func TestGetMultiCollateralCurrencyQuota(t *testing.T) {
 	_, err = e.GetMultiCollateralCurrencyQuota(t.Context(), "borrow", []currency.Code{currency.BTC, currency.ETH})
 	require.ErrorIs(t, err, errTooManyCurrencyCodes, "GetMultiCollateralCurrencyQuota must accept a single borrow currency")
 
+	t.Run("a single borrow currency is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetMultiCollateralCurrencyQuota(t.Context(), "borrow", []currency.Code{currency.BTC})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetMultiCollateralCurrencyQuota should allow one borrow currency and fail only at signing")
+	})
+
+	t.Run("two collateral currencies are allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetMultiCollateralCurrencyQuota(t.Context(), "collateral", []currency.Code{currency.BTC, currency.ETH})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetMultiCollateralCurrencyQuota should allow several collateral currencies and fail only at signing")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -336,6 +353,21 @@ func TestGetMultiCollateralCurrentRates(t *testing.T) {
 
 	_, err = e.GetMultiCollateralCurrentRates(t.Context(), make([]currency.Code, 101), "")
 	require.ErrorIs(t, err, errTooManyCurrencyCodes, "GetMultiCollateralCurrentRates must reject more than 100 currencies")
+
+	t.Run("100 currencies are allowed", func(t *testing.T) {
+		t.Parallel()
+		var requests atomic.Int32
+		ex := futuresLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			assert.Equal(t, "/api/v4/loan/multi_collateral/current_rate", r.URL.Path, "the request should reach the current rate endpoint")
+			assert.Len(t, strings.Split(r.URL.Query().Get("currencies"), ","), 100, "the request should carry every currency")
+			_, err := w.Write([]byte(`[]`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		_, err := ex.GetMultiCollateralCurrentRates(t.Context(), slices.Repeat([]currency.Code{currency.BTC}, 100), "")
+		require.NoError(t, err, "GetMultiCollateralCurrentRates must allow 100 currencies")
+		assert.Equal(t, int32(1), requests.Load(), "GetMultiCollateralCurrentRates should send the request")
+	})
 
 	result, err := e.GetMultiCollateralCurrentRates(t.Context(), []currency.Code{currency.BTC, currency.GT}, "")
 	require.NoError(t, err, "GetMultiCollateralCurrentRates must not error")

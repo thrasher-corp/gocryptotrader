@@ -240,6 +240,7 @@ func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) {
 		startedAt := time.Now()
 		require.NoError(t, ex.processBalancePushData(ctx, payloads[i], asset.USDTMarginedFutures),
 			"processBalancePushData must process the captured balance update")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "processBalancePushData must relay the captured balance update")
 		message := <-ex.Websocket.DataHandler.C
 		changes, ok := message.Data.(accounts.SubAccounts)
 		require.True(t, ok, "captured balance payload must emit subaccount changes")
@@ -278,6 +279,7 @@ func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) {
 	require.NoError(t, ex.processBalancePushData(ctx,
 		[]byte(`[{"balance":1000.5,"time":1788148806,"time_ms":1788148806000,"user":"12870774","currency":"usdt"}]`),
 		asset.USDTMarginedFutures), "processBalancePushData must floor free funds during a drawdown")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "processBalancePushData must relay the drawdown")
 	message := <-ex.Websocket.DataHandler.C
 	changes, ok := message.Data.(accounts.SubAccounts)
 	require.True(t, ok, "captured balance payload must emit subaccount changes")
@@ -287,6 +289,7 @@ func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) {
 	require.NoError(t, ex.processBalancePushData(ctx,
 		[]byte(`[{"balance":6106.7961637458,"time":1788148807,"time_ms":1788148807000,"user":"12870774","currency":"usdt"}]`),
 		asset.USDTMarginedFutures), "processBalancePushData must process balance recovery")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "processBalancePushData must relay the recovery")
 	message = <-ex.Websocket.DataHandler.C
 	changes, ok = message.Data.(accounts.SubAccounts)
 	require.True(t, ok, "captured balance payload must emit subaccount changes")

@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -483,6 +484,12 @@ func TestPublishP2PAdOrder(t *testing.T) {
 	arg.Type = P2PAdOperationEditSell
 	_, err = e.PublishP2PAdOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errP2PAdIDRequired, "PublishP2PAdOrder must require the ad ID when editing")
+
+	t.Run("editing a buy ad is an operation", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).PublishP2PAdOrder(t.Context(), &PublishP2PAdRequest{CurrencyType: currency.USDT, ExchangeType: currency.USD, Type: P2PAdOperationEditBuy, AdvertisementID: "test-ad", UnitPrice: 1, Number: 1, PayType: "bank", MinAmount: 1, MaxAmount: 2})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "PublishP2PAdOrder should allow operation 3 and fail only at signing")
+	})
 	arg.Type = P2PAdOperationPublishSell
 	_, err = e.PublishP2PAdOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errP2PUnitPriceRequired, "PublishP2PAdOrder must require a unit price")
@@ -495,6 +502,35 @@ func TestPublishP2PAdOrder(t *testing.T) {
 	arg.PayType = "bank,swift"
 	_, err = e.PublishP2PAdOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errP2PTradeLimitRequired, "PublishP2PAdOrder must require crypto per-order limits by default")
+
+	for _, tc := range []struct {
+		name             string
+		basis            uint8
+		minimum, maximum types.Number
+	}{
+		{name: "a zero crypto minimum beside a maximum is refused", basis: P2PLimitBasisCrypto, maximum: 500},
+		{name: "a zero crypto maximum beside a minimum is refused", basis: P2PLimitBasisCrypto, minimum: 10},
+		{name: "a zero fiat minimum beside a maximum is refused", basis: P2PLimitBasisFiat, maximum: 500},
+		{name: "a zero fiat maximum beside a minimum is refused", basis: P2PLimitBasisFiat, minimum: 10},
+		{name: "a negative crypto minimum is refused", basis: P2PLimitBasisCrypto, minimum: -1, maximum: 500},
+		{name: "a negative crypto maximum is refused", basis: P2PLimitBasisCrypto, minimum: 10, maximum: -1},
+		{name: "a negative fiat minimum is refused", basis: P2PLimitBasisFiat, minimum: -1, maximum: 500},
+		{name: "a negative fiat maximum is refused", basis: P2PLimitBasisFiat, minimum: 10, maximum: -1},
+	} {
+		limited := *arg
+		limited.LimitBasis = tc.basis
+		if tc.basis == P2PLimitBasisFiat {
+			limited.MinAmount, limited.MaxAmount = 10, 500
+			limited.FiatMinAmount, limited.FiatMaxAmount = tc.minimum, tc.maximum
+		} else {
+			limited.MinAmount, limited.MaxAmount = tc.minimum, tc.maximum
+		}
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := unsignedExchange(t).PublishP2PAdOrder(t.Context(), &limited)
+			assert.ErrorIs(t, err, errP2PTradeLimitRequired, "PublishP2PAdOrder should reject a limit that is not positive")
+		})
+	}
 	arg.LimitBasis = P2PLimitBasisFiat
 	arg.MinAmount, arg.MaxAmount = 10, 500
 	_, err = e.PublishP2PAdOrder(t.Context(), arg)

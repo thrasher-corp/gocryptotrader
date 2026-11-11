@@ -350,6 +350,12 @@ func TestGetIsolatedMarginLoans(t *testing.T) {
 	_, err := e.GetIsolatedMarginLoans(t.Context(), currency.BTC, BTCUSDT, 0, 101)
 	require.ErrorIs(t, err, errInvalidLimit, "GetIsolatedMarginLoans must reject a limit above 100")
 
+	t.Run("a limit of 100 is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetIsolatedMarginLoans(t.Context(), currency.BTC, BTCUSDT, 0, 100)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetIsolatedMarginLoans should allow a limit of 100 and fail only at signing")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -374,6 +380,12 @@ func TestGetIsolatedMarginLoanRecords(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetIsolatedMarginLoanRecords(t.Context(), currency.BTC, BTCUSDT, 0, 101, "")
 	require.ErrorIs(t, err, errInvalidLimit, "GetIsolatedMarginLoanRecords must reject a limit above 100")
+
+	t.Run("a limit of 100 is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetIsolatedMarginLoanRecords(t.Context(), currency.BTC, BTCUSDT, 0, 100, "")
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetIsolatedMarginLoanRecords should allow a limit of 100 and fail only at signing")
+	})
 
 	_, err = e.GetIsolatedMarginLoanRecords(t.Context(), currency.BTC, BTCUSDT, 0, 0, "margin")
 	require.ErrorIs(t, err, errInvalidIsolatedMarginLoanType, "GetIsolatedMarginLoanRecords must reject a type other than borrow or repay")
@@ -401,6 +413,12 @@ func TestGetIsolatedMarginInterestDeductionRecords(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.BTC, BTCUSDT, 0, 1001, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, errInvalidLimit, "GetIsolatedMarginInterestDeductionRecords must reject a limit above 1000")
+
+	t.Run("a limit of 1000 is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.BTC, BTCUSDT, 0, 1000, time.Time{}, time.Time{})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetIsolatedMarginInterestDeductionRecords should allow a limit of 1000 and fail only at signing")
+	})
 	tn := time.Now()
 	_, err = e.GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.BTC, BTCUSDT, 0, 0, tn.Add(time.Hour), tn)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetIsolatedMarginInterestDeductionRecords must reject a start after the end")

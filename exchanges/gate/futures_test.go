@@ -3,6 +3,8 @@ package gate
 import (
 	"io"
 	"net/http"
+	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -579,6 +582,34 @@ func TestPremiumIndexKline(t *testing.T) {
 	_, err = e.PremiumIndexKline(t.Context(), currency.USDT, contract, startTime, endTime, 1, kline.OneWeek)
 	require.ErrorIs(t, err, errLimitWithTimeRange, "PremiumIndexKline must reject a limit combined with a time range")
 
+	t.Run("a time range without a limit is allowed", func(t *testing.T) {
+		t.Parallel()
+		var requests atomic.Int32
+		ex := futuresLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			assert.Equal(t, "/api/v4/futures/usdt/premium_index", r.URL.Path, "the request should reach the premium index endpoint")
+			assert.Empty(t, r.URL.Query().Get("limit"), "the request should carry no limit")
+			_, err := w.Write([]byte(`[]`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		_, err := ex.PremiumIndexKline(t.Context(), currency.USDT, contract, startTime, endTime, 0, kline.OneWeek)
+		require.NoError(t, err, "PremiumIndexKline must allow a time range without a limit")
+		assert.Equal(t, int32(1), requests.Load(), "PremiumIndexKline should send the request")
+	})
+
+	t.Run("a limit with only a start is refused", func(t *testing.T) {
+		t.Parallel()
+		var requests atomic.Int32
+		ex := futuresLocalServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+			requests.Add(1)
+			_, err := w.Write([]byte(`[]`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		_, err := ex.PremiumIndexKline(t.Context(), currency.USDT, contract, startTime, time.Time{}, 1, kline.OneWeek)
+		assert.ErrorIs(t, err, errLimitWithTimeRange, "PremiumIndexKline should reject a limit with only a start")
+		assert.Zero(t, requests.Load(), "PremiumIndexKline should send nothing")
+	})
+
 	result, err := e.PremiumIndexKline(t.Context(), currency.USDT, contract, time.Time{}, time.Time{}, 1, kline.OneWeek)
 	require.NoError(t, err, "PremiumIndexKline must not error with a limit")
 	if mockTests {
@@ -886,6 +917,12 @@ func TestGetAllFuturesPositionsOfUsers(t *testing.T) {
 
 	_, err = e.GetAllFuturesPositionsOfUsers(t.Context(), currency.USDT, true, 101, 0)
 	require.ErrorIs(t, err, errInvalidLimit, "GetAllFuturesPositionsOfUsers must reject a limit above 100")
+
+	t.Run("limit of 100 is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetAllFuturesPositionsOfUsers(t.Context(), currency.USDT, true, 100, 0)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetAllFuturesPositionsOfUsers should allow a limit of 100 and fail only at signing")
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -1251,6 +1288,12 @@ func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 	_, err = e.UpdatePositionLeverageInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), -1, 0.001)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported, "UpdatePositionLeverageInDualMode must reject a negative leverage")
 
+	t.Run("leverage 0 for cross margin is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).UpdatePositionLeverageInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 0, 0.001)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "UpdatePositionLeverageInDualMode should allow leverage 0 and fail only at signing")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
@@ -1420,6 +1463,33 @@ func TestPlaceBatchFuturesOrders(t *testing.T) {
 	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, make([]FuturesOrderCreateRequest, 11))
 	require.ErrorIs(t, err, errTooManyOrderRequest, "PlaceBatchFuturesOrders must reject more than 10 orders")
 
+	t.Run("a full batch of 10", func(t *testing.T) {
+		t.Parallel()
+		var requests atomic.Int32
+		ex := futuresLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			assert.Equal(t, "/api/v4/futures/usdt/batch_orders", r.URL.Path, "the orders should be placed by the batch endpoint")
+			var orders []FuturesOrderCreateRequest
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&orders), "Decode should not error")
+			results := make([]map[string]any, len(orders))
+			for i := range orders {
+				results[i] = map[string]any{"succeeded": true, "id": 9000 + i, "text": orders[i].Text}
+			}
+			assert.NoError(t, json.NewEncoder(w).Encode(results), "Encode should not error")
+		})
+		orders := make([]FuturesOrderCreateRequest, 10)
+		for i := range orders {
+			orders[i] = FuturesOrderCreateRequest{Contract: currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), Size: types.Number(i + 1), Price: 3765, TimeInForce: "gtc", Text: "t-full-" + strconv.Itoa(i), Settle: currency.USDT}
+		}
+		result, err := ex.PlaceBatchFuturesOrders(t.Context(), currency.USDT, orders)
+		require.NoError(t, err, "PlaceBatchFuturesOrders must place 10 orders")
+		assert.Equal(t, int32(1), requests.Load(), "PlaceBatchFuturesOrders should place 10 orders in one request")
+		require.Len(t, result, 10, "PlaceBatchFuturesOrders must report each of the 10 orders")
+		for i := range orders {
+			assert.Equalf(t, orders[i].Text, result[i].Text, "PlaceBatchFuturesOrders should report order %s in its place", orders[i].Text)
+		}
+	})
+
 	arg := FuturesOrderCreateRequest{}
 	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateRequest{arg})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "PlaceBatchFuturesOrders must reject an empty contract")
@@ -1537,6 +1607,12 @@ func TestAmendFuturesOrder(t *testing.T) {
 
 	_, err = e.AmendFuturesOrder(t.Context(), currency.BTC, "1234", &AmendFuturesOrderRequest{Price: -1})
 	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "AmendFuturesOrder must reject a negative price")
+
+	t.Run("a size without a price is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).AmendFuturesOrder(t.Context(), currency.BTC, "1234", &AmendFuturesOrderRequest{Size: 10})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "AmendFuturesOrder should allow a size-only amendment and fail only at signing")
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1833,6 +1909,33 @@ func TestAmendBatchFuturesOrders(t *testing.T) {
 	_, err = e.AmendBatchFuturesOrders(t.Context(), currency.USDT, make([]*BatchAmendFuturesOrderRequest, 11))
 	require.ErrorIs(t, err, errTooManyOrders, "AmendBatchFuturesOrders must reject more than 10 orders")
 
+	t.Run("a full batch of 10", func(t *testing.T) {
+		t.Parallel()
+		var requests atomic.Int32
+		ex := futuresLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			assert.Equal(t, "/api/v4/futures/usdt/batch_amend_orders", r.URL.Path, "the orders should be amended by the batch endpoint")
+			var amends []BatchAmendFuturesOrderRequest
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&amends), "Decode should not error")
+			results := make([]map[string]any, len(amends))
+			for i := range amends {
+				results[i] = map[string]any{"succeeded": true, "id": amends[i].OrderID}
+			}
+			assert.NoError(t, json.NewEncoder(w).Encode(results), "Encode should not error")
+		})
+		amends := make([]*BatchAmendFuturesOrderRequest, 10)
+		for i := range amends {
+			amends[i] = &BatchAmendFuturesOrderRequest{OrderID: uint64(9100 + i), Price: 54321}
+		}
+		result, err := ex.AmendBatchFuturesOrders(t.Context(), currency.USDT, amends)
+		require.NoError(t, err, "AmendBatchFuturesOrders must amend 10 orders")
+		assert.Equal(t, int32(1), requests.Load(), "AmendBatchFuturesOrders should amend 10 orders in one request")
+		require.Len(t, result, 10, "AmendBatchFuturesOrders must report each of the 10 orders")
+		for i := range amends {
+			assert.Equalf(t, amends[i].OrderID, result[i].ID, "AmendBatchFuturesOrders should report order %d in its place", amends[i].OrderID)
+		}
+	})
+
 	_, err = e.AmendBatchFuturesOrders(t.Context(), currency.USDT, []*BatchAmendFuturesOrderRequest{nil})
 	require.ErrorIs(t, err, common.ErrNilPointer, "AmendBatchFuturesOrders must reject a nil amendment")
 
@@ -1879,6 +1982,13 @@ func TestPlaceFuturesBestBidOfferOrder(t *testing.T) {
 		_, err = e.PlaceFuturesBestBidOfferOrder(t.Context(), currency.USDT, &FuturesBestBidOfferOrderRequest{Contract: contract, Size: 1, Direction: "sell", Level: level})
 		require.ErrorIsf(t, err, errInvalidOrderBookLevel, "PlaceFuturesBestBidOfferOrder must reject order book level %d", level)
 	}
+	for _, level := range []uint64{1, 20} {
+		t.Run("level "+strconv.FormatUint(level, 10)+" is allowed", func(t *testing.T) {
+			t.Parallel()
+			_, err := unsignedExchange(t).PlaceFuturesBestBidOfferOrder(t.Context(), currency.USDT, &FuturesBestBidOfferOrderRequest{Contract: contract, Size: 1, Direction: "sell", Level: level})
+			assert.ErrorIsf(t, err, exchange.ErrCredentialsAreEmpty, "PlaceFuturesBestBidOfferOrder should allow order book level %d and fail only at signing", level)
+		})
+	}
 
 	_, err = e.PlaceFuturesBestBidOfferOrder(t.Context(), currency.USDT, &FuturesBestBidOfferOrderRequest{Contract: contract, Size: 1, Direction: "sell", Level: 8, TimeInForce: "day"})
 	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "PlaceFuturesBestBidOfferOrder must reject an unknown time in force")
@@ -1914,6 +2024,12 @@ func TestCreateTrailOrder(t *testing.T) {
 
 	_, err = e.CreateTrailOrder(t.Context(), currency.USDT, &CreateTrailOrderRequest{Contract: contract, Amount: 10, PriceType: 4})
 	require.ErrorIs(t, err, errInvalidTriggerPriceType, "CreateTrailOrder must reject an unknown price type")
+
+	t.Run("mark price type is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).CreateTrailOrder(t.Context(), currency.USDT, &CreateTrailOrderRequest{Contract: contract, Amount: 10, PriceType: 3})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "CreateTrailOrder should allow price type 3 and fail only at signing")
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1974,6 +2090,12 @@ func TestStopAllTrailOrders(t *testing.T) {
 	_, err = e.StopAllTrailOrders(t.Context(), currency.USDT, &StopAllTrailOrdersRequest{RelatedPosition: 3})
 	require.ErrorIs(t, err, errInvalidTrailOrderFilter, "StopAllTrailOrders must reject an unknown related position")
 
+	t.Run("short related position is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).StopAllTrailOrders(t.Context(), currency.USDT, &StopAllTrailOrdersRequest{RelatedPosition: 2})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "StopAllTrailOrders should allow related position 2 and fail only at signing")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
@@ -1997,6 +2119,21 @@ func TestGetTrailOrders(t *testing.T) {
 	for _, arg := range []*GetTrailOrdersRequest{{SortBy: 3}, {RelatedPosition: 3}, {ReduceOnly: 3}, {Side: 3}} {
 		_, err = e.GetTrailOrders(t.Context(), currency.USDT, arg)
 		require.ErrorIsf(t, err, errInvalidTrailOrderFilter, "GetTrailOrders must reject the filter %+v", arg)
+	}
+	for _, tc := range []struct {
+		name string
+		arg  *GetTrailOrdersRequest
+	}{
+		{name: "sort by end time is allowed", arg: &GetTrailOrdersRequest{SortBy: 2}},
+		{name: "short related position is allowed", arg: &GetTrailOrdersRequest{RelatedPosition: 2}},
+		{name: "orders that do not reduce are allowed", arg: &GetTrailOrdersRequest{ReduceOnly: 2}},
+		{name: "short side is allowed", arg: &GetTrailOrdersRequest{Side: 2}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := unsignedExchange(t).GetTrailOrders(t.Context(), currency.USDT, tc.arg)
+			assert.ErrorIsf(t, err, exchange.ErrCredentialsAreEmpty, "GetTrailOrders should allow the filter %+v and fail only at signing", tc.arg)
+		})
 	}
 
 	startTime, endTime := getTime()
@@ -2051,6 +2188,12 @@ func TestUpdateTrailOrder(t *testing.T) {
 
 	_, err = e.UpdateTrailOrder(t.Context(), currency.USDT, &UpdateTrailOrderRequest{ID: 63585, PriceType: 4})
 	require.ErrorIs(t, err, errInvalidTriggerPriceType, "UpdateTrailOrder must reject an unknown price type")
+
+	t.Run("mark price type is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).UpdateTrailOrder(t.Context(), currency.USDT, &UpdateTrailOrderRequest{ID: 63585, PriceType: 3})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "UpdateTrailOrder should allow price type 3 and fail only at signing")
+	})
 
 	_, err = newFixedResponseExchange(t, "/api/v4/futures/usdt/autoorder/v1/trail/update", `null`).UpdateTrailOrder(t.Context(), currency.USDT, &UpdateTrailOrderRequest{ID: 63585, Amount: 20})
 	require.ErrorIs(t, err, common.ErrNoResponse, "UpdateTrailOrder must reject a response without the order")
@@ -2280,6 +2423,19 @@ func TestGetChaseOrders(t *testing.T) {
 		_, err = e.GetChaseOrders(t.Context(), currency.USDT, arg)
 		require.ErrorIsf(t, err, errInvalidChaseOrderFilter, "GetChaseOrders must reject the filter %+v", arg)
 	}
+	for _, tc := range []struct {
+		name string
+		arg  *GetChaseOrdersRequest
+	}{
+		{name: "orders that do not reduce are allowed", arg: &GetChaseOrdersRequest{SortBy: 1, ReduceOnly: 2}},
+		{name: "short side is allowed", arg: &GetChaseOrdersRequest{SortBy: 1, Side: 2}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := unsignedExchange(t).GetChaseOrders(t.Context(), currency.USDT, tc.arg)
+			assert.ErrorIsf(t, err, exchange.ErrCredentialsAreEmpty, "GetChaseOrders should allow the filter %+v and fail only at signing", tc.arg)
+		})
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2493,6 +2649,21 @@ func TestAmendFuturesPriceTriggeredOrder(t *testing.T) {
 
 	_, err = e.AmendFuturesPriceTriggeredOrder(t.Context(), currency.USDT, &AmendFuturesPriceTriggeredOrderRequest{OrderID: 1432329, PriceType: &unknownPriceType})
 	require.ErrorIs(t, err, errInvalidTriggerPriceType, "AmendFuturesPriceTriggeredOrder must reject an unknown price type")
+
+	for _, priceType := range []int64{0, 2} {
+		t.Run("price type "+strconv.FormatInt(priceType, 10)+" is allowed", func(t *testing.T) {
+			t.Parallel()
+			_, err := unsignedExchange(t).AmendFuturesPriceTriggeredOrder(t.Context(), currency.USDT, &AmendFuturesPriceTriggeredOrderRequest{OrderID: 1432329, PriceType: &priceType})
+			assert.ErrorIsf(t, err, exchange.ErrCredentialsAreEmpty, "AmendFuturesPriceTriggeredOrder should allow price type %d and fail only at signing", priceType)
+		})
+	}
+
+	t.Run("price type -1 is refused", func(t *testing.T) {
+		t.Parallel()
+		priceType := int64(-1)
+		_, err := unsignedExchange(t).AmendFuturesPriceTriggeredOrder(t.Context(), currency.USDT, &AmendFuturesPriceTriggeredOrderRequest{OrderID: 1432329, PriceType: &priceType})
+		assert.ErrorIs(t, err, errInvalidTriggerPriceType, "AmendFuturesPriceTriggeredOrder should refuse price type -1")
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

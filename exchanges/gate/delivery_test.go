@@ -907,6 +907,12 @@ func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 	_, err = e.UpdateDeliveryPositionLeverage(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), -1)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported, "UpdateDeliveryPositionLeverage must reject a negative leverage")
 
+	t.Run("leverage 0 for cross margin is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).UpdateDeliveryPositionLeverage(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), 0)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "UpdateDeliveryPositionLeverage should allow leverage 0 and fail only at signing")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}

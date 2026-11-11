@@ -1,7 +1,10 @@
 package gate
 
 import (
+	"net/http"
 	"slices"
+	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -11,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -414,6 +418,12 @@ func TestGetAccountBatchFeeRates(t *testing.T) {
 	_, err = e.GetAccountBatchFeeRates(t.Context(), make([]string, 51))
 	require.ErrorIs(t, err, errTooManyCurrencyPairs, "GetAccountBatchFeeRates must reject more than 50 currency pairs")
 
+	t.Run("50 currency pairs are allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetAccountBatchFeeRates(t.Context(), slices.Repeat([]string{"BTC_USDT"}, 50))
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetAccountBatchFeeRates should allow 50 currency pairs and fail only at signing")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -475,6 +485,18 @@ func TestGetSpotAccountBook(t *testing.T) {
 	startTime, endTime := getTime()
 	_, err = e.GetSpotAccountBook(t.Context(), &GetSpotAccountBookRequest{From: endTime.Add(-time.Hour * 24 * 31), To: endTime})
 	require.ErrorIs(t, err, errTimeRangeTooLong, "GetSpotAccountBook must reject a range longer than 30 days")
+
+	t.Run("a range a second over 30 days is refused", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetSpotAccountBook(t.Context(), &GetSpotAccountBookRequest{From: endTime.Add(-30*24*time.Hour - time.Second), To: endTime})
+		assert.ErrorIs(t, err, errTimeRangeTooLong, "GetSpotAccountBook should reject a range a second over 30 days")
+	})
+
+	t.Run("a range of 30 days is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetSpotAccountBook(t.Context(), &GetSpotAccountBookRequest{From: endTime.Add(-30 * 24 * time.Hour), To: endTime})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetSpotAccountBook should allow a range of 30 days and fail only at signing")
+	})
 
 	_, err = e.GetSpotAccountBook(t.Context(), &GetSpotAccountBookRequest{From: endTime, To: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetSpotAccountBook must reject a start time after the end time")
@@ -929,6 +951,33 @@ func TestCancelBatchOrdersWithIDList(t *testing.T) {
 	_, err = e.CancelBatchOrdersWithIDList(t.Context(), make([]CancelOrderByIDRequest, 21))
 	require.ErrorIs(t, err, errInvalidOrderSize, "CancelBatchOrdersWithIDList must reject more than 20 orders")
 
+	t.Run("a full batch of 20", func(t *testing.T) {
+		t.Parallel()
+		var requests atomic.Int32
+		ex := futuresLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			assert.Equal(t, "/api/v4/spot/cancel_batch_orders", r.URL.Path, "the orders should be cancelled by the batch endpoint")
+			var orders []CancelOrderByIDRequest
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&orders), "Decode should not error")
+			results := make([]CancelOrderByIDResponse, len(orders))
+			for i := range orders {
+				results[i] = CancelOrderByIDResponse{CurrencyPair: orders[i].CurrencyPair, OrderID: orders[i].ID, Succeeded: true}
+			}
+			assert.NoError(t, json.NewEncoder(w).Encode(results), "Encode should not error")
+		})
+		orders := make([]CancelOrderByIDRequest, 20)
+		for i := range orders {
+			orders[i] = CancelOrderByIDRequest{CurrencyPair: currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), ID: strconv.Itoa(7000 + i)}
+		}
+		result, err := ex.CancelBatchOrdersWithIDList(t.Context(), orders)
+		require.NoError(t, err, "CancelBatchOrdersWithIDList must cancel 20 orders")
+		assert.Equal(t, int32(1), requests.Load(), "CancelBatchOrdersWithIDList should cancel 20 orders in one request")
+		require.Len(t, result, 20, "CancelBatchOrdersWithIDList must report each of the 20 orders")
+		for i := range orders {
+			assert.Equalf(t, orders[i].ID, result[i].OrderID, "CancelBatchOrdersWithIDList should report order %s in its place", orders[i].ID)
+		}
+	})
+
 	_, err = e.CancelBatchOrdersWithIDList(t.Context(), []CancelOrderByIDRequest{{ID: "1234567"}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelBatchOrdersWithIDList must reject an empty currency pair")
 
@@ -1132,6 +1181,18 @@ func TestGetMySpotTradingHistory(t *testing.T) {
 	_, err = e.GetMySpotTradingHistory(t.Context(), &GetMySpotTradingHistoryRequest{From: endTime.Add(-time.Hour * 24 * 31), To: endTime})
 	require.ErrorIs(t, err, errTimeRangeTooLong, "GetMySpotTradingHistory must reject a range longer than 30 days")
 
+	t.Run("a range a second over 30 days is refused", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetMySpotTradingHistory(t.Context(), &GetMySpotTradingHistoryRequest{From: endTime.Add(-30*24*time.Hour - time.Second), To: endTime})
+		assert.ErrorIs(t, err, errTimeRangeTooLong, "GetMySpotTradingHistory should reject a range a second over 30 days")
+	})
+
+	t.Run("a range of 30 days is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetMySpotTradingHistory(t.Context(), &GetMySpotTradingHistoryRequest{From: endTime.Add(-30 * 24 * time.Hour), To: endTime})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetMySpotTradingHistory should allow a range of 30 days and fail only at signing")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -1226,6 +1287,33 @@ func TestAmendBatchSpotOrders(t *testing.T) {
 	valid := &BatchAmendSpotOrderRequest{OrderID: "121212", CurrencyPair: getPair(t, asset.Spot), Amount: 1, AmendText: "test"}
 	_, err = e.AmendBatchSpotOrders(t.Context(), slices.Repeat([]*BatchAmendSpotOrderRequest{valid}, 6))
 	require.ErrorIs(t, err, errTooManyBatchOrders, "AmendBatchSpotOrders must reject more than 5 orders")
+
+	t.Run("a full batch of 5", func(t *testing.T) {
+		t.Parallel()
+		var requests atomic.Int32
+		ex := futuresLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			assert.Equal(t, "/api/v4/spot/amend_batch_orders", r.URL.Path, "the orders should be amended by the batch endpoint")
+			var amends []BatchAmendSpotOrderRequest
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&amends), "Decode should not error")
+			results := make([]SpotOrderResponse, len(amends))
+			for i := range amends {
+				results[i] = SpotOrderResponse{OrderID: amends[i].OrderID, Succeeded: true}
+			}
+			assert.NoError(t, json.NewEncoder(w).Encode(results), "Encode should not error")
+		})
+		amends := make([]*BatchAmendSpotOrderRequest, 5)
+		for i := range amends {
+			amends[i] = &BatchAmendSpotOrderRequest{OrderID: strconv.Itoa(8000 + i), CurrencyPair: currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), Amount: 1}
+		}
+		result, err := ex.AmendBatchSpotOrders(t.Context(), amends)
+		require.NoError(t, err, "AmendBatchSpotOrders must amend 5 orders")
+		assert.Equal(t, int32(1), requests.Load(), "AmendBatchSpotOrders should amend 5 orders in one request")
+		require.Len(t, result, 5, "AmendBatchSpotOrders must report each of the 5 orders")
+		for i := range amends {
+			assert.Equalf(t, amends[i].OrderID, result[i].OrderID, "AmendBatchSpotOrders should report order %s in its place", amends[i].OrderID)
+		}
+	})
 
 	_, err = e.AmendBatchSpotOrders(t.Context(), []*BatchAmendSpotOrderRequest{nil})
 	require.ErrorIs(t, err, common.ErrNilPointer, "AmendBatchSpotOrders must reject a nil order")
@@ -1323,6 +1411,12 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 	_, err = e.CreatePriceTriggeredOrder(t.Context(), arg)
 	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "CreatePriceTriggeredOrder must reject a non-positive trigger price")
 
+	t.Run("a zero trigger price is refused", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).CreatePriceTriggeredOrder(t.Context(), &PriceTriggeredOrderRequest{Market: getPair(t, asset.Spot)})
+		assert.ErrorIs(t, err, limits.ErrPriceBelowMin, "CreatePriceTriggeredOrder should reject a zero trigger price")
+	})
+
 	arg.Trigger.Price = 1
 	_, err = e.CreatePriceTriggeredOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidTriggerRule, "CreatePriceTriggeredOrder must reject an invalid trigger rule")
@@ -1353,6 +1447,17 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 	arg.Put.TimeInForce = pocTIF
 	_, err = e.CreatePriceTriggeredOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrInvalidTimeInForce, "CreatePriceTriggeredOrder must reject time in force other than gtc or ioc")
+
+	t.Run("a put price of 0 is allowed", func(t *testing.T) {
+		t.Parallel()
+		zeroPrice := &PriceTriggeredOrderRequest{
+			Market:  getPair(t, asset.Spot),
+			Trigger: TriggerPriceInfo{Price: 1, Rule: ">=", ExpireAfter: types.DurationSeconds(time.Hour)},
+			Put:     PutOrder{Type: "market", Side: "sell", Amount: 1, TimeInForce: iocTIF},
+		}
+		_, err := unsignedExchange(t).CreatePriceTriggeredOrder(t.Context(), zeroPrice)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "CreatePriceTriggeredOrder should allow a put price of 0 and fail only at signing")
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

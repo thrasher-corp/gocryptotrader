@@ -1,6 +1,7 @@
 package gate
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -197,6 +198,19 @@ func TestWebsocketFuturesCancelOrdersByIDs(t *testing.T) {
 
 	_, err = e.WebsocketFuturesCancelOrdersByIDs(t.Context(), asset.USDTMarginedFutures, make([]string, 21))
 	require.ErrorIs(t, err, errTooManyOrderIDs)
+
+	t.Run("a full batch of 20", func(t *testing.T) {
+		t.Parallel()
+		// The limit itself passes the check, so an unconnected instance fails only at sending
+		unconnected := new(Exchange)
+		require.NoError(t, testexch.Setup(unconnected), "Setup must not error")
+		orderIDs := make([]string, 20)
+		for i := range orderIDs {
+			orderIDs[i] = strconv.Itoa(9200 + i)
+		}
+		_, err := unconnected.WebsocketFuturesCancelOrdersByIDs(t.Context(), asset.USDTMarginedFutures, orderIDs)
+		assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketFuturesCancelOrdersByIDs should allow 20 orders and fail only at sending")
+	})
 
 	_, err = e.WebsocketFuturesCancelOrdersByIDs(t.Context(), asset.USDTMarginedFutures, []string{"1", ""})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)

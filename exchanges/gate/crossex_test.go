@@ -133,7 +133,10 @@ func TestCrossExchangeSymbolIdentifierBusinessType(t *testing.T) {
 		asset.Margin:  "MARGIN",
 		asset.Futures: "FUTURE",
 	} {
-		assert.Equalf(t, exp, (&CrossExchangeSymbolIdentifierRequest{Asset: a}).businessType(), "businessType should map %s", a)
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, (&CrossExchangeSymbolIdentifierRequest{Asset: a}).businessType(), "businessType should map %s", a)
+		})
 	}
 }
 

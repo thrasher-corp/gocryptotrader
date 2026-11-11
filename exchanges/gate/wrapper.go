@@ -1897,6 +1897,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
+			sizes := make(map[string]*contractSize)
 			var o []*TradingHistoryItemResponse
 			if req.AssetType == asset.DeliveryFutures {
 				o, err = e.GetMyDeliveryTradingHistory(ctx, settle, req.FromOrderID, fp, 0, 0, 0, "")
@@ -1912,30 +1913,45 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					return nil, err
 				}
 				side, amount, _ := getSideAndAmountFromSize(fill.Size.Float64(), 0)
-				od := order.Detail{
-					OrderID:   fill.OrderID,
-					Side:      side,
-					Amount:    amount,
-					Price:     fill.Price.Float64(),
-					Date:      fill.CreateTime.Time(),
-					Exchange:  e.Name,
-					Pair:      fp,
-					AssetType: req.AssetType,
-					// Costs are kept in the settlement currency, as a delivery contract's quote names the contract
-					CostAsset: settle,
+				price, fee := fill.Price.Float64(), fill.Fee.Float64()
+				size, ok := sizes[fill.Contract]
+				if !ok {
+					size = e.lookupContractSize(ctx, req.AssetType, settle, fp.Format(format))
+					if err := ctx.Err(); err != nil {
+						return nil, err
+					}
+					sizes[fill.Contract] = size
+				}
+				// Costs are kept in the settlement currency, as a delivery contract's quote names the contract. A fill
+				// is valued from its contract's size, as InferCostsAndTimes would take a contract count for an amount
+				resp = append(resp, order.Detail{
+					OrderID:              fill.OrderID,
+					Side:                 side,
+					Amount:               amount,
+					ExecutedAmount:       amount,
+					Price:                price,
+					AverageExecutedPrice: price,
+					Cost:                 size.settledValue(amount, price),
+					CostAsset:            settle,
+					Fee:                  fee,
+					FeeAsset:             settle,
+					Date:                 fill.CreateTime.Time(),
+					LastUpdated:          fill.CreateTime.Time(),
+					Exchange:             e.Name,
+					Pair:                 fp,
+					AssetType:            req.AssetType,
 					Trades: []order.TradeHistory{{
 						TID:       strconv.FormatUint(fill.ID, 10),
-						Price:     fill.Price.Float64(),
+						Price:     price,
 						Amount:    amount,
-						Fee:       fill.Fee.Float64(),
+						Fee:       fee,
+						FeeAsset:  settle.String(),
 						Side:      side,
 						IsMaker:   fill.Role == "maker",
 						Timestamp: fill.CreateTime.Time(),
 						Exchange:  e.Name,
 					}},
-				}
-				od.InferCostsAndTimes()
-				resp = append(resp, od)
+				})
 			}
 		}
 	case asset.Options:
@@ -1960,31 +1976,42 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
+			var size *contractSize
+			if len(o) != 0 {
+				size = e.lookupContractSize(ctx, req.AssetType, settle, fp)
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
+			}
 			for _, fill := range o {
 				side, amount, _ := getSideAndAmountFromSize(fill.Size.Float64(), 0)
-				od := order.Detail{
-					OrderID:   strconv.FormatUint(fill.OrderID, 10),
-					Side:      side,
-					Amount:    amount,
-					Price:     fill.Price.Float64(),
-					Date:      fill.CreateTime.Time(),
-					Exchange:  e.Name,
-					Pair:      fp,
-					AssetType: req.AssetType,
-					// Costs are kept in the settlement currency, as an options contract's quote names the contract
-					CostAsset: settle,
+				price := fill.Price.Float64()
+				// Costs are kept in the settlement currency, as an options contract's quote names the contract. A fill
+				// is valued from its contract's size, as InferCostsAndTimes would take a contract count for an amount
+				resp = append(resp, order.Detail{
+					OrderID:              strconv.FormatUint(fill.OrderID, 10),
+					Side:                 side,
+					Amount:               amount,
+					ExecutedAmount:       amount,
+					Price:                price,
+					AverageExecutedPrice: price,
+					Cost:                 size.settledValue(amount, price),
+					CostAsset:            settle,
+					Date:                 fill.CreateTime.Time(),
+					LastUpdated:          fill.CreateTime.Time(),
+					Exchange:             e.Name,
+					Pair:                 fp,
+					AssetType:            req.AssetType,
 					Trades: []order.TradeHistory{{
 						TID:       strconv.FormatUint(fill.ID, 10),
-						Price:     fill.Price.Float64(),
+						Price:     price,
 						Amount:    amount,
 						Side:      side,
 						IsMaker:   fill.TradeRole == "maker",
 						Timestamp: fill.CreateTime.Time(),
 						Exchange:  e.Name,
 					}},
-				}
-				od.InferCostsAndTimes()
-				resp = append(resp, od)
+				})
 			}
 		}
 	default:
@@ -2789,6 +2816,50 @@ func (c *DeliveryContractResponse) openInterest() float64 {
 
 func (c *DeliveryContractResponse) contractName() string {
 	return c.Name
+}
+
+// contractSize is what valuing a contract's fills in its settlement currency needs
+type contractSize struct {
+	contractType string
+	multiplier   float64
+}
+
+// lookupContractSize returns the size of a futures, delivery or options contract, or nil when Gate does not describe
+// it, as for a contract it no longer lists
+func (e *Exchange) lookupContractSize(ctx context.Context, a asset.Item, settle currency.Code, contract currency.Pair) *contractSize {
+	switch a {
+	case asset.DeliveryFutures:
+		if c, err := e.GetDeliveryContract(ctx, settle, contract); err == nil && c != nil {
+			return &contractSize{contractType: c.Type, multiplier: c.QuantoMultiplier.Float64()}
+		}
+	case asset.Options:
+		if c, err := e.GetOptionsSpecifiedContractDetail(ctx, contract); err == nil && c != nil {
+			return &contractSize{multiplier: c.Multiplier.Float64()}
+		}
+	default:
+		if c, err := e.GetFuturesContract(ctx, settle, contract.String()); err == nil && c != nil {
+			return &contractSize{contractType: c.Type, multiplier: c.QuantoMultiplier.Float64()}
+		}
+	}
+	return nil
+}
+
+// settledValue returns what contracts at price are worth in their settlement currency, or 0 when the contract's size
+// is unknown. An inverse contract is worth one unit of its quote currency, as openInterest relies on, so in the
+// settlement currency each is worth one over the price
+func (s *contractSize) settledValue(contracts, price float64) float64 {
+	switch {
+	case s == nil:
+		return 0
+	case s.contractType == contractTypeInverse:
+		if price <= 0 {
+			return 0
+		}
+		return contracts / price
+	case s.multiplier <= 0:
+		return 0
+	}
+	return contracts * price * s.multiplier
 }
 
 func getRequestedOpenInterestPair(e *Exchange, keys []key.PairAsset, a asset.Item) (currency.Pair, error) {

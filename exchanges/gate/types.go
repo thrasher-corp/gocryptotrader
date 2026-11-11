@@ -1622,7 +1622,7 @@ type WebsocketOptionsOrder struct {
 	Tkfr            types.Number  `json:"tkfr"`
 	Underlying      string        `json:"underlying"`
 	User            string        `json:"user"`
-	CreationTime    types.Time    `json:"time_ms"`
+	MessageTime     types.Time    `json:"time_ms"`
 }
 
 // WebsocketOptionsUserTrade represents user's personal trades of option account.

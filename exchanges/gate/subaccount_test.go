@@ -1,6 +1,8 @@
 package gate
 
 import (
+	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -39,6 +41,21 @@ var recordedSubAccountAPIKey = &SubAccountAPIKeyResponse{
 
 func TestListSubAccounts(t *testing.T) {
 	t.Parallel()
+	t.Run("type 0 lists every type", func(t *testing.T) {
+		t.Parallel()
+		var requests atomic.Int32
+		ex := futuresLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			assert.Equal(t, "/api/v4/sub_accounts", r.URL.Path, "the request should reach the sub-account endpoint")
+			assert.Equal(t, "0", r.URL.Query().Get("type"), "the request should ask for every type of sub-account")
+			_, err := w.Write([]byte(`[]`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		_, err := ex.ListSubAccounts(t.Context(), 0)
+		require.NoError(t, err, "ListSubAccounts must list every type of sub-account")
+		assert.Equal(t, int32(1), requests.Load(), "ListSubAccounts should send the request")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}

@@ -180,6 +180,18 @@ func TestGetCrossMarginBorrowHistory(t *testing.T) {
 	_, err := e.GetCrossMarginBorrowHistory(t.Context(), 6, currency.BTC, 0, 0, false)
 	require.ErrorIs(t, err, errInvalidOrderStatus, "GetCrossMarginBorrowHistory must reject an unknown status")
 
+	t.Run("repayment status 3 is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetCrossMarginBorrowHistory(t.Context(), 3, currency.BTC, 0, 0, false)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetCrossMarginBorrowHistory should allow status 3 and fail only at signing")
+	})
+
+	t.Run("status 4 is refused", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetCrossMarginBorrowHistory(t.Context(), 4, currency.BTC, 0, 0, false)
+		assert.ErrorIs(t, err, errInvalidOrderStatus, "GetCrossMarginBorrowHistory should refuse status 4")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -83,6 +84,22 @@ func TestCreateFlashSwapOrder(t *testing.T) {
 	arg.SellAmount = 34234
 	_, err = e.CreateFlashSwapOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "CreateFlashSwapOrder must reject an empty buy amount")
+
+	for _, tc := range []struct {
+		name       string
+		sellAmount types.Number
+		err        error
+	}{
+		{name: "a zero sell amount beside a buy amount is refused", sellAmount: 0, err: order.ErrAmountIsInvalid},
+		{name: "a negative sell amount is refused", sellAmount: -1, err: order.ErrAmountIsInvalid},
+		{name: "a sell amount of 1 is allowed", sellAmount: 1, err: exchange.ErrCredentialsAreEmpty},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := unsignedExchange(t).CreateFlashSwapOrder(t.Context(), &FlashSwapOrderRequest{PreviewID: "1234", BuyCurrency: currency.BTC, SellCurrency: currency.USDT, SellAmount: tc.sellAmount, BuyAmount: 1})
+			assert.ErrorIsf(t, err, tc.err, "CreateFlashSwapOrder should check a sell amount of %v against zero", tc.sellAmount)
+		})
+	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

@@ -3447,25 +3447,36 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 	// futuresFill is a futures fill, which Gate sizes negative for a sell, in contracts and identified by its own fill
 	// ID besides the ID of the order it filled
-	futuresFill := func(a asset.Item, orderID, fillID string, side order.Side, price, amount, fee float64, isMaker bool, date time.Time) order.FilteredOrders {
+	futuresFill := func(a asset.Item, orderID, fillID string, side order.Side, price, amount, fee, cost float64, isMaker bool, date time.Time) order.FilteredOrders {
 		settle, err := getSettlementCurrency(currency.EMPTYPAIR, a)
 		require.NoErrorf(t, err, "getSettlementCurrency must not error for %s", a)
+		// Gate reports no fee on an options fill
+		var feeAsset currency.Code
+		if a != asset.Options {
+			feeAsset = settle
+		}
 		return order.FilteredOrders{{
-			Exchange:    e.Name,
-			OrderID:     orderID,
-			Side:        side,
-			Pair:        getPair(t, a),
-			AssetType:   a,
-			Price:       price,
-			Amount:      amount,
-			CostAsset:   settle,
-			Date:        date,
-			LastUpdated: date,
+			Exchange:             e.Name,
+			OrderID:              orderID,
+			Side:                 side,
+			Pair:                 getPair(t, a),
+			AssetType:            a,
+			Price:                price,
+			AverageExecutedPrice: price,
+			Amount:               amount,
+			ExecutedAmount:       amount,
+			Cost:                 cost,
+			CostAsset:            settle,
+			Fee:                  fee,
+			FeeAsset:             feeAsset,
+			Date:                 date,
+			LastUpdated:          date,
 			Trades: []order.TradeHistory{{
 				TID:       fillID,
 				Price:     price,
 				Amount:    amount,
 				Fee:       fee,
+				FeeAsset:  feeAsset.String(),
 				Side:      side,
 				IsMaker:   isMaker,
 				Timestamp: date,
@@ -3473,10 +3484,16 @@ func TestGetOrderHistory(t *testing.T) {
 			}},
 		}}
 	}
-	usdtFill := futuresFill(asset.USDTMarginedFutures, "21893289840", "121234235", order.Short, 31500.5, 30, 0.0473, true, time.UnixMilli(1744150000123))
-	coinFill := futuresFill(asset.CoinMarginedFutures, "21893289839", "121234231", order.Long, 100.123, 100, 0.01, false, time.UnixMilli(1514764800123))
-	deliveryFill := futuresFill(asset.DeliveryFutures, "21893289839", "121234231", order.Short, 100.123, 100, 0.01, true, time.UnixMilli(1514764800123))
-	optionsFill := futuresFill(asset.Options, "6", "7", order.Short, 100, 1, 0, true, time.Unix(1631763397, 0))
+	// The recorded contracts size BTC_USDT and the delivery contract at 0.0001, the option at 0.01, and BTC_USD is
+	// inverse, so worth one dollar a contract
+	usdtContracts, usdtPrice := 30.0, 31500.5
+	usdtFill := futuresFill(asset.USDTMarginedFutures, "21893289840", "121234235", order.Short, usdtPrice, usdtContracts, 0.0473, usdtContracts*usdtPrice*0.0001, true, time.UnixMilli(1744150000123))
+	coinContracts, coinPrice := 100.0, 100.123
+	coinFill := futuresFill(asset.CoinMarginedFutures, "21893289839", "121234231", order.Long, coinPrice, coinContracts, 0.01, coinContracts/coinPrice, false, time.UnixMilli(1514764800123))
+	deliveryContracts, deliveryPrice := 100.0, 100.123
+	deliveryFill := futuresFill(asset.DeliveryFutures, "21893289839", "121234231", order.Short, deliveryPrice, deliveryContracts, 0.01, deliveryContracts*deliveryPrice*0.0001, true, time.UnixMilli(1514764800123))
+	optionsContracts, optionsPrice := 1.0, 100.0
+	optionsFill := futuresFill(asset.Options, "6", "7", order.Short, optionsPrice, optionsContracts, 0, optionsContracts*optionsPrice*0.01, true, time.Unix(1631763397, 0))
 	for _, tc := range []struct {
 		a         asset.Item
 		withPairs bool
@@ -3516,6 +3533,164 @@ func TestGetOrderHistory(t *testing.T) {
 				assert.Equal(t, tc.a, got[i].AssetType, "GetOrderHistory should return fills of the requested asset")
 				assert.True(t, got[i].Pair.IsPopulated(), "GetOrderHistory should populate each fill's pair")
 			}
+		})
+	}
+
+	usdtPair, coinPair := getPair(t, asset.USDTMarginedFutures).String(), getPair(t, asset.CoinMarginedFutures).String()
+	deliveryPair, optionsPair := getPair(t, asset.DeliveryFutures).String(), getPair(t, asset.Options).String()
+	usdtFills := `[{"id":1,"create_time":1744150000,"contract":"` + usdtPair + `","order_id":"11","size":"-4","price":"30000","fee":"0.25","role":"maker"},` +
+		`{"id":2,"create_time":1744150001,"contract":"` + usdtPair + `","order_id":"12","size":"2","price":"30000","fee":"0.125","role":"taker"}]`
+	for _, tc := range []struct {
+		name   string
+		a      asset.Item
+		routes map[string]string
+		costs  []float64
+	}{
+		{name: "a linear contract is valued by its multiplier", a: asset.USDTMarginedFutures, routes: map[string]string{
+			"/api/v4/futures/usdt/my_trades":             usdtFills,
+			"/api/v4/futures/usdt/contracts/" + usdtPair: `{"name":"` + usdtPair + `","type":"direct","quanto_multiplier":"0.25"}`,
+		}, costs: []float64{30000, 15000}},
+		{name: "an inverse contract is worth a dollar a contract", a: asset.CoinMarginedFutures, routes: map[string]string{
+			"/api/v4/futures/btc/my_trades":             `[{"id":3,"create_time":1744150000,"contract":"` + coinPair + `","order_id":"13","size":"100","price":"25000","fee":"0.0000002","role":"taker"}]`,
+			"/api/v4/futures/btc/contracts/" + coinPair: `{"name":"` + coinPair + `","type":"inverse","quanto_multiplier":"0"}`,
+		}, costs: []float64{0.004}},
+		{name: "a delivery contract is valued by its multiplier", a: asset.DeliveryFutures, routes: map[string]string{
+			"/api/v4/delivery/usdt/my_trades":                 `[{"id":4,"create_time":1744150000,"contract":"` + deliveryPair + `","order_id":"14","size":"-2","price":"30000","fee":"0.5","role":"maker"}]`,
+			"/api/v4/delivery/usdt/contracts/" + deliveryPair: `{"name":"` + deliveryPair + `","type":"direct","quanto_multiplier":"0.5"}`,
+		}, costs: []float64{30000}},
+		{name: "an options contract is valued by its multiplier", a: asset.Options, routes: map[string]string{
+			"/api/v4/options/my_trades":                `[{"id":5,"create_time":1744150000,"contract":"` + optionsPair + `","order_id":15,"size":-2,"price":"100","role":"taker"}]`,
+			"/api/v4/options/contracts/" + optionsPair: `{"name":"` + optionsPair + `","multiplier":"0.25"}`,
+		}, costs: []float64{50}},
+		{name: "a contract Gate does not describe leaves the cost unset", a: asset.USDTMarginedFutures, routes: map[string]string{
+			"/api/v4/futures/usdt/my_trades": usdtFills,
+		}, costs: []float64{0, 0}},
+		{name: "a contract with no multiplier leaves the cost unset", a: asset.USDTMarginedFutures, routes: map[string]string{
+			"/api/v4/futures/usdt/my_trades":             usdtFills,
+			"/api/v4/futures/usdt/contracts/" + usdtPair: `{"name":"` + usdtPair + `","type":"direct","quanto_multiplier":"0"}`,
+		}, costs: []float64{0, 0}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := &order.MultiOrderRequest{Type: order.AnyType, Side: order.AnySide, AssetType: tc.a}
+			if tc.a == asset.Options {
+				req.Pairs = currency.Pairs{getPair(t, tc.a)}
+			}
+			got, err := newRoutedExchange(t, tc.routes).GetOrderHistory(t.Context(), req)
+			require.NoError(t, err, "GetOrderHistory must not error")
+			require.Len(t, got, len(tc.costs), "GetOrderHistory must return every fill")
+			settle, err := getSettlementCurrency(currency.EMPTYPAIR, tc.a)
+			require.NoError(t, err, "getSettlementCurrency must not error")
+			for i := range got {
+				assert.Equalf(t, tc.costs[i], got[i].Cost, "GetOrderHistory should value fill %d in the settlement currency", i)
+				assert.Equalf(t, settle, got[i].CostAsset, "GetOrderHistory should keep fill %d's cost in the settlement currency", i)
+				assert.Equalf(t, got[i].Amount, got[i].ExecutedAmount, "GetOrderHistory should report fill %d as fully executed", i)
+				assert.Equalf(t, got[i].Price, got[i].AverageExecutedPrice, "GetOrderHistory should report fill %d's price as its average", i)
+				assert.Equalf(t, got[i].Date, got[i].LastUpdated, "GetOrderHistory should date fill %d's last update by the fill", i)
+			}
+		})
+	}
+
+	t.Run("each contract is looked up once", func(t *testing.T) {
+		t.Parallel()
+		var lookups atomic.Int32
+		ex := newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			body := usdtFills
+			if strings.Contains(r.URL.Path, "/contracts/") {
+				lookups.Add(1)
+				body = `{"type":"direct","quanto_multiplier":"0.25"}`
+			}
+			_, err := fmt.Fprint(w, body)
+			assert.NoError(t, err, "writing the response should not error")
+		})
+		got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{Type: order.AnyType, Side: order.AnySide, AssetType: asset.USDTMarginedFutures})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		require.Len(t, got, 2, "GetOrderHistory must return both fills")
+		assert.Equal(t, int32(1), lookups.Load(), "GetOrderHistory should look up a contract once for all its fills")
+	})
+
+	for _, tc := range []struct {
+		name           string
+		a              asset.Item
+		fillsPath      string
+		fills          string
+		withOptionPair bool
+	}{
+		{name: "a futures contract lookup ended by the context", a: asset.USDTMarginedFutures, fillsPath: "/api/v4/futures/usdt/my_trades", fills: usdtFills},
+		{
+			name: "an options contract lookup ended by the context", a: asset.Options, fillsPath: "/api/v4/options/my_trades", withOptionPair: true,
+			fills: `[{"id":5,"create_time":1744150000,"contract":"` + optionsPair + `","order_id":15,"size":-2,"price":"100","role":"taker"}]`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancel := context.WithCancel(t.Context())
+			t.Cleanup(cancel)
+			ex := newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == tc.fillsPath {
+					_, err := fmt.Fprint(w, tc.fills)
+					assert.NoError(t, err, "writing the response should not error")
+					return
+				}
+				cancel()
+				w.WriteHeader(http.StatusInternalServerError)
+			})
+			req := &order.MultiOrderRequest{Type: order.AnyType, Side: order.AnySide, AssetType: tc.a}
+			if tc.withOptionPair {
+				req.Pairs = currency.Pairs{getPair(t, tc.a)}
+			}
+			_, err := ex.GetOrderHistory(ctx, req)
+			assert.ErrorIs(t, err, context.Canceled, "GetOrderHistory should return the context's error rather than fills without their cost")
+		})
+	}
+}
+
+func TestLookupContractSize(t *testing.T) {
+	t.Parallel()
+	usdtPair, deliveryPair, optionsPair := getPair(t, asset.USDTMarginedFutures), getPair(t, asset.DeliveryFutures), getPair(t, asset.Options)
+	ex := newRoutedExchange(t, map[string]string{
+		"/api/v4/futures/usdt/contracts/" + usdtPair.String():      `{"type":"direct","quanto_multiplier":"0.0001"}`,
+		"/api/v4/delivery/usdt/contracts/" + deliveryPair.String(): `{"type":"direct","quanto_multiplier":"0.5"}`,
+		"/api/v4/options/contracts/" + optionsPair.String():        `{"multiplier":"0.25"}`,
+	})
+	for _, tc := range []struct {
+		name string
+		a    asset.Item
+		pair currency.Pair
+		exp  *contractSize
+	}{
+		{name: "futures contract", a: asset.USDTMarginedFutures, pair: usdtPair, exp: &contractSize{contractType: "direct", multiplier: 0.0001}},
+		{name: "delivery contract", a: asset.DeliveryFutures, pair: deliveryPair, exp: &contractSize{contractType: "direct", multiplier: 0.5}},
+		{name: "options contract", a: asset.Options, pair: optionsPair, exp: &contractSize{multiplier: 0.25}},
+		{name: "a contract Gate does not describe", a: asset.CoinMarginedFutures, pair: getPair(t, asset.CoinMarginedFutures)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			settle, err := getSettlementCurrency(currency.EMPTYPAIR, tc.a)
+			require.NoError(t, err, "getSettlementCurrency must not error")
+			assert.Equal(t, tc.exp, ex.lookupContractSize(t.Context(), tc.a, settle, tc.pair), "lookupContractSize should return the contract's size")
+		})
+	}
+}
+
+func TestContractSizeSettledValue(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name             string
+		size             *contractSize
+		contracts, price float64
+		exp              float64
+	}{
+		{name: "an unknown contract has no value", contracts: 4, price: 30000},
+		{name: "a linear contract scales by its multiplier", size: &contractSize{contractType: "direct", multiplier: 0.25}, contracts: 4, price: 30000, exp: 30000},
+		{name: "an inverse contract is worth a unit of its quote", size: &contractSize{contractType: contractTypeInverse}, contracts: 100, price: 25000, exp: 0.004},
+		{name: "an inverse contract has no value at no price", size: &contractSize{contractType: contractTypeInverse}, contracts: 100},
+		{name: "a contract without a multiplier has no value", size: &contractSize{contractType: "direct"}, contracts: 4, price: 30000},
+		{name: "an options contract scales by its multiplier", size: &contractSize{multiplier: 0.25}, contracts: 2, price: 100, exp: 50},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, tc.size.settledValue(tc.contracts, tc.price), "settledValue should value the contracts in their settlement currency")
 		})
 	}
 }
@@ -4142,6 +4317,57 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		EndDate:         time.Now(),
 	})
 	require.ErrorIs(t, err, fundingrate.ErrFundingRateOutsideLimits, "GetHistoricalFundingRates must reject a start before the rates Gate returns")
+
+	t.Run("rates at both ends of the window are kept", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the window's ends are the recorded rates' times")
+		}
+		result, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+			Asset:           asset.USDTMarginedFutures,
+			Pair:            getPair(t, asset.USDTMarginedFutures),
+			PaymentCurrency: currency.USDT,
+			StartDate:       time.Unix(1774954800, 0),
+			EndDate:         time.Unix(1774969200, 0),
+		})
+		require.NoError(t, err, "GetHistoricalFundingRates must allow a window starting on the earliest recorded rate")
+		require.Len(t, result.FundingRates, 5, "GetHistoricalFundingRates must keep every recorded rate in the window")
+		assert.Equal(t, time.Unix(1774969200, 0), result.FundingRates[0].Time, "GetHistoricalFundingRates should keep the rate at the window's end")
+		assert.Equal(t, time.Unix(1774954800, 0), result.FundingRates[4].Time, "GetHistoricalFundingRates should keep the rate at the window's start")
+	})
+
+	t.Run("a start a second before the earliest rate is refused", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the earliest rate is the recorded one")
+		}
+		_, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+			Asset:           asset.USDTMarginedFutures,
+			Pair:            getPair(t, asset.USDTMarginedFutures),
+			PaymentCurrency: currency.USDT,
+			StartDate:       time.Unix(1774954799, 0),
+			EndDate:         time.Unix(1774969200, 0),
+		})
+		assert.ErrorIs(t, err, fundingrate.ErrFundingRateOutsideLimits, "GetHistoricalFundingRates should refuse a start a second before the earliest recorded rate")
+	})
+
+	t.Run("rates a second outside the window are dropped", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the window's ends are a second inside the recorded rates' times")
+		}
+		result, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+			Asset:           asset.USDTMarginedFutures,
+			Pair:            getPair(t, asset.USDTMarginedFutures),
+			PaymentCurrency: currency.USDT,
+			StartDate:       time.Unix(1774954801, 0),
+			EndDate:         time.Unix(1774969199, 0),
+		})
+		require.NoError(t, err, "GetHistoricalFundingRates must allow a window inside the recorded rates")
+		require.Len(t, result.FundingRates, 3, "GetHistoricalFundingRates must drop the rates a second outside the window")
+		assert.Equal(t, time.Unix(1774965600, 0), result.FundingRates[0].Time, "GetHistoricalFundingRates should drop the rate a second after the window's end")
+		assert.Equal(t, time.Unix(1774958401, 0), result.FundingRates[2].Time, "GetHistoricalFundingRates should drop the rate a second before the window's start")
+	})
 
 	result, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,

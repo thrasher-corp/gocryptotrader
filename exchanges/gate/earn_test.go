@@ -341,6 +341,33 @@ func TestCreateAutoInvestPlan(t *testing.T) {
 	_, err = e.CreateAutoInvestPlan(t.Context(), arg)
 	require.ErrorIs(t, err, errNoValidParameterPassed, "CreateAutoInvestPlan must require portfolio items")
 
+	for _, tc := range []struct {
+		name                  string
+		periodType            string
+		periodDay, periodHour uint64
+		err                   error
+	}{
+		{name: "day 30 of a monthly plan is allowed", periodType: "monthly", periodDay: 30, err: exchange.ErrCredentialsAreEmpty},
+		{name: "day 31 of a monthly plan is refused", periodType: "monthly", periodDay: 31, err: errInvalidPlanPeriodDay},
+		{name: "weekday 0 of a weekly plan is refused", periodType: "weekly", periodDay: 0, err: errInvalidPlanPeriodDay},
+		{name: "weekday 1 of a weekly plan is allowed", periodType: "weekly", periodDay: 1, err: exchange.ErrCredentialsAreEmpty},
+		{name: "weekday 7 of a weekly plan is allowed", periodType: "weekly", periodDay: 7, err: exchange.ErrCredentialsAreEmpty},
+		{name: "hour 23 is allowed", periodType: "daily", periodHour: 23, err: exchange.ErrCredentialsAreEmpty},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := unsignedExchange(t).CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{
+				PlanMoney:      currency.USDT,
+				PlanAmount:     10,
+				PlanPeriodType: tc.periodType,
+				PlanPeriodDay:  tc.periodDay,
+				PlanPeriodHour: tc.periodHour,
+				Items:          []*AutoInvestPlanItem{{Asset: currency.BTC, Ratio: 100}},
+			})
+			assert.ErrorIs(t, err, tc.err, "CreateAutoInvestPlan should check the period against its bounds")
+		})
+	}
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
@@ -928,6 +955,12 @@ func TestGetFixedTermSubscriptionHistory(t *testing.T) {
 	startTime, endTime := getTime()
 	_, err = e.GetFixedTermSubscriptionHistory(t.Context(), &FixedTermHistoryRequest{Type: 1, Page: 1, Limit: 10, StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetFixedTermSubscriptionHistory must reject a reversed time range")
+
+	t.Run("bonus reward type 4 is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetFixedTermSubscriptionHistory(t.Context(), &FixedTermHistoryRequest{Type: 4, Page: 1, Limit: 10})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetFixedTermSubscriptionHistory should allow type 4 and fail only at signing")
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

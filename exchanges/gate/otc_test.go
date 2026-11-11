@@ -126,6 +126,24 @@ func TestCreateFiatOrder(t *testing.T) {
 	_, err = e.CreateFiatOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet, "CreateFiatOrder must require a fiat amount")
 
+	for _, tc := range []struct {
+		name         string
+		cryptoAmount types.Number
+		err          error
+	}{
+		{name: "a zero crypto amount beside a fiat amount is refused", cryptoAmount: 0, err: order.ErrAmountMustBeSet},
+		{name: "a negative crypto amount is refused", cryptoAmount: -1, err: order.ErrAmountMustBeSet},
+		{name: "a crypto amount of 1 is allowed", cryptoAmount: 1, err: exchange.ErrCredentialsAreEmpty},
+	} {
+		fiatOrder := *arg
+		fiatOrder.CryptoAmount, fiatOrder.FiatAmount = tc.cryptoAmount, 29891
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := unsignedExchange(t).CreateFiatOrder(t.Context(), &fiatOrder)
+			assert.ErrorIsf(t, err, tc.err, "CreateFiatOrder should check a crypto amount of %v against zero", tc.cryptoAmount)
+		})
+	}
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
@@ -158,6 +176,25 @@ func TestCreateStablecoinOrder(t *testing.T) {
 	arg.PayAmount = 30000
 	_, err = e.CreateStablecoinOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet, "CreateStablecoinOrder must require a get amount")
+
+	for _, tc := range []struct {
+		name      string
+		payAmount types.Number
+		err       error
+	}{
+		{name: "a zero pay amount beside a get amount is refused", payAmount: 0, err: order.ErrAmountMustBeSet},
+		{name: "a negative pay amount is refused", payAmount: -1, err: order.ErrAmountMustBeSet},
+		{name: "a pay amount of 1 is allowed", payAmount: 1, err: exchange.ErrCredentialsAreEmpty},
+	} {
+		stablecoinOrder := *arg
+		stablecoinOrder.PayAmount, stablecoinOrder.GetAmount = tc.payAmount, 29990
+		stablecoinOrder.Side, stablecoinOrder.QuoteToken = "PAY", otcTestQuoteToken
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := unsignedExchange(t).CreateStablecoinOrder(t.Context(), &stablecoinOrder)
+			assert.ErrorIsf(t, err, tc.err, "CreateStablecoinOrder should check a pay amount of %v against zero", tc.payAmount)
+		})
+	}
 	arg.GetAmount = 29990
 	_, err = e.CreateStablecoinOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errOTCSideRequired, "CreateStablecoinOrder must require a side")

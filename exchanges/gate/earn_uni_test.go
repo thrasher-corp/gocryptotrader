@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -214,6 +215,18 @@ func TestGetUniLoanCurrencyAnnualisedTrendChart(t *testing.T) {
 
 	_, err = e.GetUniLoanCurrencyAnnualisedTrendChart(t.Context(), endTime.Add(-31*24*time.Hour), endTime, currency.AE)
 	require.ErrorIs(t, err, errUniChartRangeExceeded, "GetUniLoanCurrencyAnnualisedTrendChart must reject a range beyond 30 days")
+
+	t.Run("a range a second over 30 days is refused", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetUniLoanCurrencyAnnualisedTrendChart(t.Context(), endTime.Add(-30*24*time.Hour-time.Second), endTime, currency.AE)
+		assert.ErrorIs(t, err, errUniChartRangeExceeded, "GetUniLoanCurrencyAnnualisedTrendChart should reject a range a second over 30 days")
+	})
+
+	t.Run("a range of 30 days is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).GetUniLoanCurrencyAnnualisedTrendChart(t.Context(), endTime.Add(-30*24*time.Hour), endTime, currency.AE)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetUniLoanCurrencyAnnualisedTrendChart should allow a range of 30 days and fail only at signing")
+	})
 
 	_, err = e.GetUniLoanCurrencyAnnualisedTrendChart(t.Context(), startTime, endTime, currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetUniLoanCurrencyAnnualisedTrendChart must require a currency")

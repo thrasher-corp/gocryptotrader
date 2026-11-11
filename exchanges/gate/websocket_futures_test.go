@@ -561,6 +561,7 @@ func TestProcessPositionCloseData(t *testing.T) {
 			payload := []byte(`{"time":1541505434,"channel":"futures.position_closes","event":"update","result":[{"contract":"BTC_USD","pnl":-0.000624354791,"side":"long","text":"` + tt.text + `","time":1547198562,"time_ms":1547198562123,"user":"211xxxx"}]}`)
 			require.NoError(t, ex.processPositionCloseData(t.Context(), payload, asset.CoinMarginedFutures),
 				"processPositionCloseData must process the close update")
+			require.Len(t, ex.Websocket.DataHandler.C, 1, "processPositionCloseData must relay the close update")
 			message := <-ex.Websocket.DataHandler.C
 			positions, ok := message.Data.([]futures.Position)
 			require.True(t, ok, "position close must emit canonical futures positions")
@@ -1141,6 +1142,7 @@ func TestFuturesLiveCapturedPayloads(t *testing.T) {
 				ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
 				require.NoError(t, ex.processFuturesUserTrades([]byte(tt.payload), asset.USDTMarginedFutures),
 					"processFuturesUserTrades must process captured live data")
+				require.Len(t, ex.Websocket.DataHandler.C, 1, "processFuturesUserTrades must relay the captured fill")
 				message := <-ex.Websocket.DataHandler.C
 				fills, ok := message.Data.([]fill.Data)
 				require.True(t, ok, "captured user trade must emit fills")
@@ -1164,6 +1166,7 @@ func TestFuturesLiveCapturedPayloads(t *testing.T) {
 		payload := []byte(`{"time":1788387249,"time_ms":1788387249995,"channel":"futures.positions","event":"update","result":[{"time":1788387249,"time_ms":1788387249995,"size":"-37","user":"12870774","leverage_max":25,"mode":"single","update_id":4815,"cross_leverage_limit":20,"liq_price":0.4942,"maintenance_rate":0.8,"risk_limit":10000000,"last_close_pnl":0.00672032,"entry_price":0.252077758621,"leverage":1,"realised_pnl":2.0063498704,"contract":"RAVE_USDT","history_point":0,"margin":93.40867384569,"realised_point":0,"history_pnl":-55.48692517441,"pos_margin_mode":"isolated","lever":"1"}]}`)
 		require.NoError(t, ex.processFuturesPositionsNotification(t.Context(), payload, asset.USDTMarginedFutures),
 			"processFuturesPositionsNotification must process captured live data")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "processFuturesPositionsNotification must relay the captured position")
 		message := <-ex.Websocket.DataHandler.C
 		positions, ok := message.Data.([]futures.Position)
 		require.True(t, ok, "captured position must emit canonical positions")

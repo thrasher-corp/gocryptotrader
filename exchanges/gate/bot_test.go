@@ -192,6 +192,14 @@ func TestCreateMarginGridBot(t *testing.T) {
 	_, err = e.CreateMarginGridBot(t.Context(), arg)
 	require.ErrorIs(t, err, errBotPriceTypeInvalid, "CreateMarginGridBot must reject an invalid price type")
 
+	geometric := *arg
+	geometric.CreateParams.PriceType = BotPriceTypeGeometric
+	t.Run("geometric price type is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).CreateMarginGridBot(t.Context(), &geometric)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "CreateMarginGridBot should allow the geometric price type and fail only at signing")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
@@ -228,6 +236,15 @@ func TestCreateInfiniteGridBot(t *testing.T) {
 	arg.CreateParams.PriceType = &invalidPriceType
 	_, err = e.CreateInfiniteGridBot(t.Context(), arg)
 	require.ErrorIs(t, err, errBotPriceTypeInvalid, "CreateInfiniteGridBot must reject an invalid price type")
+
+	geometric := *arg
+	geometricPriceType := BotPriceTypeGeometric
+	geometric.CreateParams.PriceType = &geometricPriceType
+	t.Run("geometric price type is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).CreateInfiniteGridBot(t.Context(), &geometric)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "CreateInfiniteGridBot should allow the geometric price type and fail only at signing")
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -269,6 +286,14 @@ func TestCreateFuturesGridBot(t *testing.T) {
 	arg.CreateParams.PriceType = 2
 	_, err = e.CreateFuturesGridBot(t.Context(), arg)
 	require.ErrorIs(t, err, errBotPriceTypeInvalid, "CreateFuturesGridBot must reject an invalid price type")
+
+	geometric := *arg
+	geometric.CreateParams.PriceType = BotPriceTypeGeometric
+	t.Run("geometric price type is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).CreateFuturesGridBot(t.Context(), &geometric)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "CreateFuturesGridBot should allow the geometric price type and fail only at signing")
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

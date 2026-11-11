@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -725,6 +726,38 @@ func TestSetOptionsMarketMakerProtection(t *testing.T) {
 		_, err = e.SetOptionsMarketMakerProtection(t.Context(), arg)
 		require.ErrorIsf(t, err, tc.err, "SetOptionsMarketMakerProtection must reject an invalid %s", tc.name)
 	}
+
+	for _, tc := range []struct {
+		name   string
+		modify func(*OptionsMarketMakerProtectionRequest)
+	}{
+		{name: "a window of 0 is allowed", modify: func(r *OptionsMarketMakerProtectionRequest) { r.Window = 0 }},
+		{name: "a frozen period of 0 is allowed", modify: func(r *OptionsMarketMakerProtectionRequest) { r.FrozenPeriod = 0 }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			arg := newRequest()
+			tc.modify(arg)
+			_, err := unsignedExchange(t).SetOptionsMarketMakerProtection(t.Context(), arg)
+			assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "SetOptionsMarketMakerProtection should allow the setting and fail only at signing")
+		})
+	}
+
+	t.Run("a delta limit of 1 is allowed", func(t *testing.T) {
+		t.Parallel()
+		arg := newRequest()
+		arg.DeltaLimit = 1
+		_, err := unsignedExchange(t).SetOptionsMarketMakerProtection(t.Context(), arg)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "SetOptionsMarketMakerProtection should allow a delta limit of 1 and fail only at signing")
+	})
+
+	t.Run("a delta limit of 0 is refused", func(t *testing.T) {
+		t.Parallel()
+		arg := newRequest()
+		arg.DeltaLimit = 0
+		_, err := unsignedExchange(t).SetOptionsMarketMakerProtection(t.Context(), arg)
+		assert.ErrorIs(t, err, errInvalidMarketMakerProtectionLimit, "SetOptionsMarketMakerProtection should refuse a delta limit of 0")
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

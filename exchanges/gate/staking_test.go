@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -58,6 +59,12 @@ func TestSwapStakingCoins(t *testing.T) {
 
 	_, err = e.SwapStakingCoins(t.Context(), &StakingSwapRequest{Coin: currency.ETH, Side: 2, Amount: 1})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "SwapStakingCoins must reject a side other than stake or redeem")
+
+	t.Run("redeem side 1 is allowed", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).SwapStakingCoins(t.Context(), &StakingSwapRequest{Coin: currency.ETH, Side: 1, Amount: 1})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "SwapStakingCoins should allow side 1 and fail only at signing")
+	})
 
 	_, err = e.SwapStakingCoins(t.Context(), &StakingSwapRequest{Coin: currency.ETH})
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "SwapStakingCoins must require an amount")
