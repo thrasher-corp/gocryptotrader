@@ -133,6 +133,10 @@ func (e *Exchange) generateDerivativesSubscriptions(a asset.Item, belongs func(*
 	var subs subscription.List
 	var errs error
 	for _, t := range e.Features.Subscriptions {
+		if t.Channel == subscription.MyOrdersChannel {
+			// Each asset's user data stream already carries its orders; Allow a no-op sub without error for cross compatibility
+			continue
+		}
 		if (t.Asset != a && t.Asset != asset.All) || !belongs(t) {
 			continue
 		}

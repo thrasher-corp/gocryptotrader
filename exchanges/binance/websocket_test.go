@@ -1402,6 +1402,19 @@ func TestGenerateSubscriptions(t *testing.T) {
 		&subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: "depth@100ms", Interval: kline.HundredMilliseconds},
 	), subs)
 
+	// Each asset's user data stream already carries its orders, so MyOrdersChannel has no stream of its own
+	for _, a := range []asset.Item{asset.Empty, asset.Spot, asset.All} {
+		t.Run("my orders "+a.String(), func(t *testing.T) {
+			t.Parallel()
+			testEx := newTestExchange(t)
+			testEx.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			testEx.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Asset: a, Authenticated: true}}
+			generated, err := testEx.generateSubscriptions()
+			require.NoErrorf(t, err, "generateSubscriptions must not error for %s my orders", a)
+			assert.Emptyf(t, generated, "generateSubscriptions should generate no stream for %s my orders", a)
+		})
+	}
+
 	// Spot disabled leaves nothing to subscribe to, so the connection is not made
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
 	subs, err = ex.generateSubscriptions()

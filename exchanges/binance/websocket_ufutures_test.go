@@ -338,6 +338,63 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 			testsubs.EqualLists(t, tc.exp, generated)
 		})
 	}
+
+	// Each asset's user data stream already carries its orders, so MyOrdersChannel has no stream of its own
+	myOrders := func(a asset.Item) subscription.List {
+		return subscription.List{{Enabled: true, Asset: a, Channel: subscription.MyOrdersChannel, Authenticated: true}}
+	}
+	allMyOrders := func() subscription.List {
+		subs := make(subscription.List, 0, 5)
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options, asset.All} {
+			subs = append(subs, myOrders(a)...)
+		}
+		return subs
+	}
+	// Configuring it for every asset, all assets included, keeps the derivatives defaults from being added, so each
+	// generator has only MyOrdersChannel to consider
+	myOrdersEx := setup(t, allMyOrders())
+	myOrdersEx.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	for _, tc := range []struct {
+		name     string
+		generate func() (subscription.List, error)
+	}{
+		{"spot", myOrdersEx.generateSubscriptions},
+		{"USDⓈ-M /public", myOrdersEx.generateUSDTMarginedFuturesPublicSubscriptions},
+		{"USDⓈ-M /market", myOrdersEx.generateUSDTMarginedFuturesMarketSubscriptions},
+		{"COIN-M", myOrdersEx.generateCoinMarginedFuturesSubscriptions},
+		{"options /public", myOrdersEx.generateOptionsPublicSubscriptions},
+		{"options /market", myOrdersEx.generateOptionsMarketSubscriptions},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			subs, err := tc.generate()
+			require.NoErrorf(t, err, "%s generation must not error with only MyOrdersChannel configured", tc.name)
+			assert.Emptyf(t, subs, "%s generation should generate no streams with only MyOrdersChannel configured", tc.name)
+		})
+	}
+
+	t.Run("my orders only still subscribes each private user data stream", func(t *testing.T) {
+		t.Parallel()
+		ex := setup(t, allMyOrders())
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		for _, tc := range []struct {
+			a        asset.Item
+			generate func() (subscription.List, error)
+		}{
+			{asset.USDTMarginedFutures, ex.generateUSDTMarginedFuturesUserDataSubscriptions},
+			{asset.CoinMarginedFutures, ex.generateCoinMarginedFuturesUserDataSubscriptions},
+			{asset.Options, ex.generateOptionsUserDataSubscriptions},
+		} {
+			t.Run(tc.a.String(), func(t *testing.T) {
+				t.Parallel()
+				subs, err := tc.generate()
+				require.NoErrorf(t, err, "%s user data generation must not error", tc.a)
+				testsubs.EqualLists(t, subscription.List{{Channel: userDataStreamChannel, Asset: tc.a, Authenticated: true}}, subs)
+			})
+		}
+	})
 }
 
 func TestDerivativesStreamName(t *testing.T) {
