@@ -100,10 +100,10 @@
     "bytes": 184753
   },
   "config.BenchmarkUpdateConfig": {
-    "allocs": 39976,
-    "bytes": 9963232,
+    "allocs": 41180,
+    "bytes": 10298088,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in October 2026, with MEXC in testdata/configtest.json, gave medians from 39976 to 40013. 0.4% is about 160 allocations either side of the budget, which covers that range with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with MEXC's spot and futures pairs in testdata/configtest.json, gave medians from 41180 to 41201. 0.4% is about 165 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,

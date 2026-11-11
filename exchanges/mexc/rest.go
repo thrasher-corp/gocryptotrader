@@ -51,6 +51,10 @@ type Exchange struct {
 	// futuresLoginConn is the futures connection last logged in; the private futures channels share one connection
 	futuresLoginMu   sync.Mutex
 	futuresLoginConn websocket.Connection
+
+	// spotListenKeyRefused records that the venue refused a listen key, which only the private spot channels need,
+	// so that they are left out from then on while the private futures channels, which log in with the API key, are not
+	spotListenKeyRefused atomic.Bool
 }
 
 const (

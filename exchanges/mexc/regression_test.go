@@ -1074,11 +1074,13 @@ type listenKeyTestConn struct {
 	websocket.Connection
 	url    string
 	closed atomic.Bool
+	dials  atomic.Int64
 }
 
 func (c *listenKeyTestConn) SetURL(u string) { c.url = u }
 func (c *listenKeyTestConn) GetURL() string  { return c.url }
 func (c *listenKeyTestConn) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
+	c.dials.Add(1)
 	return nil
 }
 func (c *listenKeyTestConn) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {}
@@ -1869,6 +1871,8 @@ func TestAPIKeyInfoCreateTime(t *testing.T) {
 type subscriptionTestConn struct {
 	websocket.Connection
 	replies map[string]string
+	mu      sync.Mutex
+	sent    []string
 }
 
 func (c *subscriptionTestConn) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, req any) ([]byte, error) {
@@ -1876,6 +1880,9 @@ func (c *subscriptionTestConn) SendMessageReturnResponse(_ context.Context, _ re
 	if !ok || len(p.Params) != 1 {
 		return nil, errors.New("unexpected subscription payload")
 	}
+	c.mu.Lock()
+	c.sent = append(c.sent, p.Params[0])
+	c.mu.Unlock()
 	return []byte(c.replies[p.Params[0]]), nil
 }
 
@@ -2386,10 +2393,11 @@ func TestSubmitOrderReadsBackAMarketOrderWithoutAQuantity(t *testing.T) {
 // the manager rolls them back when a later one fails, so the market data must not depend on the key.
 func TestWebsocketKeepsMarketDataWhenNoListenKeyCanBeMinted(t *testing.T) {
 	t.Parallel()
-	var publicSubscribed atomic.Int64
+	var publicSubscribed, listenKeyRequests atomic.Int64
 	var upgrader gws.Upgrader
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "userDataStream") {
+			listenKeyRequests.Add(1)
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write([]byte(`{"code":700003,"msg":"listen key limit reached"}`))
 			return
@@ -2448,7 +2456,15 @@ func TestWebsocketKeepsMarketDataWhenNoListenKeyCanBeMinted(t *testing.T) {
 	public, err := ex.generatePublicSubscriptions()
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	assert.Equal(t, int64(len(public)), publicSubscribed.Load(), "every public channel should be subscribed")
-	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "the private channels should be left out of later connects")
+	private, err := ex.generatePrivateSubscriptions()
+	require.NoError(t, err, "generatePrivateSubscriptions must not error")
+	assert.Empty(t, private, "the private channels should be left out of later connects")
+
+	// A flush reconnects under the manager's lock, where the connection monitor can't redial first as it can between a
+	// Shutdown and a Connect
+	require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "FlushChannels must not error, as it leaves the private channels out")
+	assert.Equal(t, 2*int64(len(public)), publicSubscribed.Load(), "every public channel should be subscribed again")
+	assert.Equal(t, int64(1), listenKeyRequests.Load(), "a refused listen key should not be asked for again")
 }
 
 // TestGetAnnouncementsReportsRejectedParameters reports the error MEXC answers a rejected parameter with. A language it

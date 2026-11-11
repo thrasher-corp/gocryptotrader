@@ -1284,6 +1284,185 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 	for _, s := range spot {
 		assert.Equalf(t, asset.Spot, s.Asset, "the spot connection should not carry %s", s.QualifiedChannel)
 	}
+
+	t.Run("private channels kept once a spot listen key is refused", func(t *testing.T) {
+		t.Parallel()
+		listenKeyRequests := make(chan struct{}, 8)
+		refusing := newPrivateTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost || r.URL.Path != "/api/v3/userDataStream" {
+				t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			}
+			select {
+			case listenKeyRequests <- struct{}{}:
+			default:
+			}
+			// MEXC documents SPOT_ACCOUNT_READ as required for a listen key, which a key made for futures alone lacks
+			http.Error(w, `{"code":700007,"msg":"No permission to access the endpoint"}`, http.StatusForbidden)
+		})
+		var contracts []*FuturesContractResponse
+		require.NoError(t, json.Unmarshal([]byte(futuresContractsReply), &contracts), "the contracts must decode")
+		refusing.storeFuturesContracts(contracts)
+		refusing.Features.Subscriptions = defaultSubscriptions.Clone()
+		refusing.API.AuthenticatedWebsocketSupport = true
+		refusing.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		spotPublic, err := refusing.generatePublicSubscriptions()
+		require.NoError(t, err, "generatePublicSubscriptions must not error")
+		require.NotEmpty(t, spotPublic, "the public spot channels must be generated")
+		spotPrivate, err := refusing.generatePrivateSubscriptions()
+		require.NoError(t, err, "generatePrivateSubscriptions must not error")
+		require.NotEmpty(t, spotPrivate, "the private spot channels must be generated before a listen key is refused")
+
+		// The refusal holds whether the next private dial fails or not, and across the public dials around it
+		require.NoError(t, refusing.WsConnect(t.Context(), &listenKeyTestConn{url: "wss://public"}), "WsConnect must not error")
+		require.Error(t, refusing.wsConnectPrivate(t.Context(), &failingDialConn{url: "wss://private"}), "wsConnectPrivate must report its failed dial")
+		require.NoError(t, refusing.WsConnect(t.Context(), &listenKeyTestConn{url: "wss://public"}), "WsConnect must not error")
+		require.NoError(t, refusing.wsConnectPrivate(t.Context(), &listenKeyTestConn{url: "wss://private"}), "wsConnectPrivate must not error")
+		assert.Len(t, listenKeyRequests, 1, "a refused listen key should not be asked for again")
+
+		// The venue would accept every channel here, so a private one sent without a listen key would be stored
+		replies := map[string]string{spotPublic[0].QualifiedChannel: `{"id":0,"code":0,"msg":"` + spotPublic[0].QualifiedChannel + `"}`}
+		for _, s := range spotPrivate {
+			replies[s.QualifiedChannel] = `{"id":0,"code":0,"msg":"` + s.QualifiedChannel + `"}`
+		}
+		conn := &subscriptionTestConn{replies: replies}
+		assert.ErrorIs(t, refusing.Subscribe(t.Context(), conn, subscription.List{spotPublic[0], spotPrivate[0]}), errNoListenKey,
+			"a batch carrying a private spot channel should be refused whole")
+		assert.NoError(t, refusing.Subscribe(t.Context(), conn, spotPublic[:1]), "a public spot channel should still be subscribed")
+		assert.ErrorIs(t, refusing.Subscribe(t.Context(), conn, spotPrivate), errNoListenKey, "the private spot channels should be refused without a listen key")
+		unflagged := spotPrivate[0].Clone()
+		unflagged.Authenticated = false
+		assert.ErrorIs(t, refusing.Subscribe(t.Context(), conn, subscription.List{unflagged}), errNoListenKey,
+			"a private spot channel configured without the Authenticated flag should be refused too")
+		stored := refusing.Websocket.GetSubscriptions()
+		require.Len(t, stored, 1, "only the public spot channel must be subscribed")
+		assert.Equal(t, spotPublic[0].QualifiedChannel, stored[0].QualifiedChannel, "only the public spot channel should be subscribed")
+		left, err := refusing.generatePrivateSubscriptions()
+		require.NoError(t, err, "generatePrivateSubscriptions must not error")
+		assert.Empty(t, left, "the private spot channels should be left out once a listen key is refused")
+		refusing.Features.Subscriptions = append(defaultSubscriptions.Clone(), &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: unflagged.Channel})
+		left, err = refusing.generatePrivateSubscriptions()
+		require.NoError(t, err, "generatePrivateSubscriptions must not error")
+		assert.Empty(t, left, "a private spot channel configured without the Authenticated flag should be left out too")
+
+		futuresPrivate, err := refusing.generateFuturesPrivateSubscriptions()
+		require.NoError(t, err, "generateFuturesPrivateSubscriptions must not error")
+		channels := make([]string, 0, len(futuresPrivate))
+		for _, s := range futuresPrivate {
+			channels = append(channels, s.QualifiedChannel)
+		}
+		assert.ElementsMatch(t, []string{"personal.order", "personal.order.deal", "personal.asset", "personal.position"}, channels,
+			"the private futures channels, which log in with the API key, should be kept")
+		venue := new(futuresVenue)
+		futuresConn := dialFuturesTestVenue(t, refusing, venue.handle)
+		require.NoError(t, refusing.websocketFuturesSubscribePrivate(t.Context(), futuresConn, futuresPrivate), "websocketFuturesSubscribePrivate must not error")
+		assert.Equal(t, []string{futuresMethodLogin}, venue.methods(), "the private futures connection should log in")
+
+		// Neither the futures login nor an unsubscription lifts the refusal
+		assert.NoError(t, refusing.Unsubscribe(t.Context(), conn, spotPublic[:1]), "the public spot channel should be unsubscribed")
+		left, err = refusing.generatePrivateSubscriptions()
+		require.NoError(t, err, "generatePrivateSubscriptions must not error")
+		assert.Empty(t, left, "the private spot channels should stay left out")
+		require.NoError(t, refusing.wsConnectPrivate(t.Context(), &listenKeyTestConn{url: "wss://private"}), "wsConnectPrivate must not error")
+		assert.Len(t, listenKeyRequests, 1, "a refused listen key should not be asked for again")
+	})
+
+	t.Run("private channels kept once a spot listen key request fails", func(t *testing.T) {
+		t.Parallel()
+		for _, failure := range []string{"timed out", "connection dropped", "malformed reply"} {
+			t.Run(failure, func(t *testing.T) {
+				t.Parallel()
+				failing := newPrivateTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					if r.Method != http.MethodPost || r.URL.Path != "/api/v3/userDataStream" {
+						t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+					}
+					switch failure {
+					case "timed out":
+						<-r.Context().Done()
+					case "connection dropped":
+						hijacker, ok := w.(http.Hijacker)
+						if !assert.True(t, ok, "the test server should let a handler take its connection") {
+							return
+						}
+						if conn, _, err := hijacker.Hijack(); assert.NoError(t, err, "Hijack should not error") {
+							_ = conn.Close()
+						}
+					case "malformed reply":
+						_, _ = w.Write([]byte("<html>"))
+					}
+				})
+				if failure == "timed out" {
+					require.NoError(t, failing.Requester.SetHTTPClientTimeout(50*time.Millisecond), "SetHTTPClientTimeout must not error")
+				}
+				var contracts []*FuturesContractResponse
+				require.NoError(t, json.Unmarshal([]byte(futuresContractsReply), &contracts), "the contracts must decode")
+				failing.storeFuturesContracts(contracts)
+				failing.Features.Subscriptions = defaultSubscriptions.Clone()
+				failing.API.AuthenticatedWebsocketSupport = true
+				failing.Websocket.SetCanUseAuthenticatedEndpoints(true)
+				require.NoError(t, failing.wsConnectPrivate(t.Context(), &listenKeyTestConn{url: "wss://private"}), "wsConnectPrivate must not error")
+				left, err := failing.generatePrivateSubscriptions()
+				require.NoError(t, err, "generatePrivateSubscriptions must not error")
+				assert.Empty(t, left, "the private spot channels should be left out once the listen key request fails")
+				futuresPrivate, err := failing.generateFuturesPrivateSubscriptions()
+				require.NoError(t, err, "generateFuturesPrivateSubscriptions must not error")
+				assert.Len(t, futuresPrivate, 4, "the private futures channels should be kept")
+			})
+		}
+	})
+
+	t.Run("private futures channels kept across flushes once a spot listen key is refused", func(t *testing.T) {
+		t.Parallel()
+		listenKeyRequests := make(chan struct{}, 8)
+		ex := newPrivateTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost || r.URL.Path != "/api/v3/userDataStream" {
+				t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			}
+			select {
+			case listenKeyRequests <- struct{}{}:
+			default:
+			}
+			http.Error(w, `{"code":700007,"msg":"No permission to access the endpoint"}`, http.StatusForbidden)
+		})
+		var contracts []*FuturesContractResponse
+		require.NoError(t, json.Unmarshal([]byte(futuresContractsReply), &contracts), "the contracts must decode")
+		ex.storeFuturesContracts(contracts)
+		// Credentials are checked, with REST authentication off, so the futures login rests on the websocket's own
+		// authenticated support
+		ex.SkipAuthCheck = false
+		ex.API.AuthenticatedSupport = false
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		venue := &futuresVenue{beforeLogin: futuresAssetFrame}
+		require.ErrorIs(t, connectFuturesVenue(t, ex, venue, subscription.List{
+			{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
+			{Enabled: true, Asset: asset.Futures, Channel: subscription.MyAccountChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.Futures, Channel: FuturesPositionsChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true},
+		}), errNoListenKey, "the first connect must report the private spot channel it couldn't subscribe")
+		_, ok := relayed(t, ex).(accounts.SubAccounts)
+		require.True(t, ok, "the first connect's futures login must deliver an asset push")
+
+		// A flush reconnects under the manager's lock, where the connection monitor can't redial first as it can between a
+		// Shutdown and a Connect
+		require.NoError(t, ex.Websocket.FlushChannels(context.WithoutCancel(t.Context())), "FlushChannels must not error")
+		require.NoError(t, ex.Websocket.FlushChannels(context.WithoutCancel(t.Context())), "FlushChannels must not error")
+		var logins int
+		for _, m := range venue.methods() {
+			if m == futuresMethodLogin {
+				logins++
+			}
+		}
+		assert.Equal(t, 3, logins, "the futures connection should log in at every connect")
+		var private []string
+		for _, s := range ex.Websocket.GetSubscriptions() {
+			if s.Authenticated {
+				private = append(private, s.Asset.String()+" "+s.QualifiedChannel)
+			}
+		}
+		assert.ElementsMatch(t, []string{"futures personal.asset", "futures personal.position"}, private,
+			"the private futures subscriptions should be kept, and the private spot one left out")
+		assert.Len(t, listenKeyRequests, 1, "a refused listen key should not be asked for again")
+	})
 }
 
 func TestGenerateFuturesSubscriptionsUnserved(t *testing.T) {
@@ -1985,89 +2164,93 @@ func TestReportFuturesWebsocketError(t *testing.T) {
 
 func TestWebsocketFuturesSubscribePrivate(t *testing.T) {
 	t.Parallel()
-	ex := newFuturesWebsocketTestExchange(t)
-	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
-	ex.API.AuthenticatedWebsocketSupport = true
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	venue := new(futuresVenue)
-	require.NoError(t, connectFuturesVenue(t, ex, venue, subscription.List{
-		{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
-		{Enabled: true, Asset: asset.Futures, Channel: subscription.MyAccountChannel, Authenticated: true},
-	}), "Connect must not error")
-	assert.Equal(t, []string{futuresMethodLogin}, venue.methods(), "the connection should log in once and subscribe to nothing, as the venue pushes every private channel")
-	assert.Len(t, ex.Websocket.GetSubscriptions(), 2, "the private subscriptions should be recorded")
 
-	venue.push(t, futuresOrderFrame)
-	detail, ok := relayed(t, ex).(*order.Detail)
-	require.True(t, ok, "the pushed order must be relayed")
-	assert.Equal(t, futuresOrderFrameDetail(ex.Name), detail, "the pushed order should be relayed")
-}
+	t.Run("logs in once and relays the pushes of the channels subscribed", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		venue := new(futuresVenue)
+		require.NoError(t, connectFuturesVenue(t, ex, venue, subscription.List{
+			{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.Futures, Channel: subscription.MyAccountChannel, Authenticated: true},
+		}), "Connect must not error")
+		assert.Equal(t, []string{futuresMethodLogin}, venue.methods(), "the connection should log in once and subscribe to nothing, as the venue pushes every private channel")
+		assert.Len(t, ex.Websocket.GetSubscriptions(), 2, "the private subscriptions should be recorded")
 
-func TestWebsocketFuturesSubscribePrivatePushedAtLogin(t *testing.T) {
-	t.Parallel()
-	ex := newFuturesWebsocketTestExchange(t)
-	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
-	ex.API.AuthenticatedWebsocketSupport = true
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	// The venue pushes the private channels once a login is accepted, so a push can come no later than its reply
-	venue := &futuresVenue{beforeLogin: futuresOrderFrame}
-	atLogin := make(chan []subscription.State, 1)
-	venue.atLogin = func() {
-		subs := ex.Websocket.GetSubscriptions()
-		states := make([]subscription.State, 0, len(subs))
-		for _, s := range subs {
-			states = append(states, s.State())
-		}
-		atLogin <- states
-	}
-	require.NoError(t, connectFuturesVenue(t, ex, venue, subscription.List{
-		{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
-	}), "Connect must not error")
-	select {
-	case states := <-atLogin:
-		assert.Equal(t, []subscription.State{subscription.SubscribingState}, states, "the private subscription should be recorded, as subscribing, before the login is sent")
-	default:
-		require.Fail(t, "the login must reach the venue")
-	}
-	detail, ok := relayed(t, ex).(*order.Detail)
-	require.True(t, ok, "the order pushed with the login's reply must be relayed")
-	assert.Equal(t, futuresOrderFrameDetail(ex.Name), detail, "the order pushed with the login's reply should be relayed")
-	subs := ex.Websocket.GetSubscriptions()
-	require.Len(t, subs, 1, "the private subscription must be recorded")
-	assert.Equal(t, subscription.SubscribedState, subs[0].State(), "the private subscription should be subscribed once the login is accepted")
-}
-
-func TestWebsocketFuturesSubscribePrivateDuplicate(t *testing.T) {
-	t.Parallel()
-	ex := newFuturesWebsocketTestExchange(t)
-	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
-	ex.API.AuthenticatedWebsocketSupport = true
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	venue := new(futuresVenue)
-	conn := dialFuturesTestVenue(t, ex, venue.handle)
-	held := &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true, QualifiedChannel: futuresChannelOrder}
-	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, held), "AddSuccessfulSubscriptions must not error")
-	err := ex.websocketFuturesSubscribePrivate(t.Context(), conn, subscription.List{held})
-	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "a subscription already held must fail to subscribe")
-	assert.ErrorIs(t, err, subscription.ErrDuplicate, "the failure should say the subscription is held already")
-	assert.Empty(t, venue.methods(), "nothing should be sent when no subscription could be recorded")
-	assert.Equal(t, subscription.SubscribedState, held.State(), "the subscription already held should stay subscribed")
-}
-
-func TestWebsocketFuturesSubscribePrivateRefused(t *testing.T) {
-	t.Parallel()
-	ex := newFuturesWebsocketTestExchange(t)
-	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
-	ex.API.AuthenticatedWebsocketSupport = true
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	err := connectFuturesVenue(t, ex, &futuresVenue{refuse: "test-key"}, subscription.List{
-		{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
-		{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
+		venue.push(t, futuresOrderFrame)
+		detail, ok := relayed(t, ex).(*order.Detail)
+		require.True(t, ok, "the pushed order must be relayed")
+		assert.Equal(t, futuresOrderFrameDetail(ex.Name), detail, "the pushed order should be relayed")
 	})
-	require.ErrorIs(t, err, errFuturesWebsocketRejected, "a refused login must be reported")
-	subs := ex.Websocket.GetSubscriptions()
-	require.Len(t, subs, 2, "the public subscriptions must survive a refused login")
-	for _, s := range subs {
-		assert.Equalf(t, subscription.TickerChannel, s.Channel, "%s should not be recorded after a refused login", s.QualifiedChannel)
-	}
+
+	t.Run("relays a push that comes with the login's reply", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		// The venue pushes the private channels once a login is accepted, so a push can come no later than its reply
+		venue := &futuresVenue{beforeLogin: futuresOrderFrame}
+		atLogin := make(chan []subscription.State, 1)
+		venue.atLogin = func() {
+			subs := ex.Websocket.GetSubscriptions()
+			states := make([]subscription.State, 0, len(subs))
+			for _, s := range subs {
+				states = append(states, s.State())
+			}
+			atLogin <- states
+		}
+		require.NoError(t, connectFuturesVenue(t, ex, venue, subscription.List{
+			{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
+		}), "Connect must not error")
+		select {
+		case states := <-atLogin:
+			assert.Equal(t, []subscription.State{subscription.SubscribingState}, states, "the private subscription should be recorded, as subscribing, before the login is sent")
+		default:
+			require.Fail(t, "the login must reach the venue")
+		}
+		detail, ok := relayed(t, ex).(*order.Detail)
+		require.True(t, ok, "the order pushed with the login's reply must be relayed")
+		assert.Equal(t, futuresOrderFrameDetail(ex.Name), detail, "the order pushed with the login's reply should be relayed")
+		subs := ex.Websocket.GetSubscriptions()
+		require.Len(t, subs, 1, "the private subscription must be recorded")
+		assert.Equal(t, subscription.SubscribedState, subs[0].State(), "the private subscription should be subscribed once the login is accepted")
+	})
+
+	t.Run("refuses a subscription already held", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		venue := new(futuresVenue)
+		conn := dialFuturesTestVenue(t, ex, venue.handle)
+		held := &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true, QualifiedChannel: futuresChannelOrder}
+		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, held), "AddSuccessfulSubscriptions must not error")
+		err := ex.websocketFuturesSubscribePrivate(t.Context(), conn, subscription.List{held})
+		require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "a subscription already held must fail to subscribe")
+		assert.ErrorIs(t, err, subscription.ErrDuplicate, "the failure should say the subscription is held already")
+		assert.Empty(t, venue.methods(), "nothing should be sent when no subscription could be recorded")
+		assert.Equal(t, subscription.SubscribedState, held.State(), "the subscription already held should stay subscribed")
+	})
+
+	t.Run("keeps the public subscriptions when the login is refused", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		err := connectFuturesVenue(t, ex, &futuresVenue{refuse: "test-key"}, subscription.List{
+			{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
+			{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
+		})
+		require.ErrorIs(t, err, errFuturesWebsocketRejected, "a refused login must be reported")
+		subs := ex.Websocket.GetSubscriptions()
+		require.Len(t, subs, 2, "the public subscriptions must survive a refused login")
+		for _, s := range subs {
+			assert.Equalf(t, subscription.TickerChannel, s.Channel, "%s should not be recorded after a refused login", s.QualifiedChannel)
+		}
+	})
 }
