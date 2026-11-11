@@ -1715,6 +1715,7 @@ func (e *Exchange) processFuturesOrderTradeUpdate(ctx context.Context, data []by
 		AssetType:            a,
 		Date:                 o.OrderTradeTime.Time(),
 		LastUpdated:          o.OrderTradeTime.Time(),
+		CloseTime:            timeIfClosed(status, o.OrderTradeTime.Time()),
 		Pair:                 pair,
 	}
 	if a == asset.USDTMarginedFutures {
@@ -1789,6 +1790,7 @@ func (e *Exchange) processFuturesAlgoUpdate(ctx context.Context, data []byte, a 
 		AssetType:            a,
 		Date:                 resp.TransactionTime.Time(),
 		LastUpdated:          resp.TransactionTime.Time(),
+		CloseTime:            timeIfClosed(status, resp.TransactionTime.Time()),
 		Pair:                 pair,
 	})
 }

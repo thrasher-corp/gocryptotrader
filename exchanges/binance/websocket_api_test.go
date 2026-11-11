@@ -2625,6 +2625,7 @@ func TestWebsocketHandleSpotAPIData(t *testing.T) {
 			AssetType:       asset.Margin,
 			Date:            time.UnixMilli(1791285050000),
 			LastUpdated:     time.UnixMilli(1791285060999),
+			CloseTime:       time.UnixMilli(1791285060999),
 			Pair:            pair,
 			TimeInForce:     order.PostOnly,
 		},
@@ -2666,6 +2667,7 @@ func TestWebsocketHandleSpotAPIData(t *testing.T) {
 			AssetType:            asset.Spot,
 			Date:                 time.UnixMilli(1499405658657),
 			LastUpdated:          time.UnixMilli(1499405658657),
+			CloseTime:            time.UnixMilli(1499405658657),
 			Pair:                 pair,
 			TimeInForce:          order.GoodTillCancel,
 		},
@@ -3264,6 +3266,19 @@ func TestProcessExecutionReport(t *testing.T) {
 		}}
 		assert.Equal(t, exp, relayedPayloads(ex), "processExecutionReport should relay the amounts REST reports")
 	})
+
+	t.Run("closes an order when its status is final", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		event := []byte(`{"e":"executionReport","E":1791285061000,"s":"BTCUSDT","c":"gct-filled","S":"BUY","o":"LIMIT","f":"GTC","q":"0.3","p":"3","P":"0","x":"TRADE","X":"FILLED","r":"NONE","i":2,"l":"0.3","z":"0.3","L":"3","n":"0","N":null,"T":1791285061000,"t":8,"O":1791285059000,"Z":"0.9","Y":"0.9","Q":"0"}`)
+		require.NoError(t, ex.processExecutionReport(t.Context(), asset.Spot, event), "processExecutionReport must not error")
+		payloads := relayedPayloads(ex)
+		require.Len(t, payloads, 1, "processExecutionReport must relay the filled order")
+		d, ok := payloads[0].(*order.Detail)
+		require.True(t, ok, "the payload must be an order detail")
+		assert.Equal(t, order.Filled, d.Status, "the order should carry the filled status")
+		assert.Equal(t, time.UnixMilli(1791285061000), d.CloseTime, "the order should close at the transaction time")
+	})
 }
 
 // TestListStatusUpdatesTrackedOrderList feeds the events of an OCO order list whose limit maker leg fills and whose stop
@@ -3299,6 +3314,7 @@ func TestListStatusUpdatesTrackedOrderList(t *testing.T) {
 		Status:        order.Closed,
 		AssetType:     asset.Spot,
 		LastUpdated:   time.UnixMilli(1791284900001),
+		CloseTime:     time.UnixMilli(1791284900001),
 		Pair:          pair,
 	}
 	assert.Equal(t, exp, tracked, "the tracked order list should close with its list status")

@@ -3566,6 +3566,14 @@ func marginAccountType(isIsolated bool) margin.Type {
 	return margin.Multi
 }
 
+// timeIfClosed returns t if status is known and IsInactive, otherwise returns an empty time
+func timeIfClosed(status order.Status, t time.Time) time.Time {
+	if status != order.UnknownStatus && status.IsInactive() {
+		return t
+	}
+	return time.Time{}
+}
+
 // setFilledCost sets a spot or margin order's cost and average price from the quote amount its fills total, which
 // Binance reports as negative for historical orders whose total is not available
 func setFilledCost(d *order.Detail, cumulativeQuote, executed types.Number) {
@@ -3606,6 +3614,7 @@ func (e *Exchange) spotOrderDetail(o *TradeOrderResponse, pair currency.Pair) (o
 		AssetType:      asset.Spot,
 		Date:           o.Time.Time(),
 		LastUpdated:    o.UpdateTime.Time(),
+		CloseTime:      timeIfClosed(vars.Status, o.UpdateTime.Time()),
 		Pair:           pair,
 	}
 	d.RemainingAmount = remainingAmount(o.OriginalQuantity, o.ExecutedQuantity)
@@ -3631,6 +3640,7 @@ func (e *Exchange) marginOrderDetail(o *MarginTradeOrderResponse, pair currency.
 		AssetType:      asset.Margin,
 		Date:           o.Time.Time(),
 		LastUpdated:    o.UpdateTime.Time(),
+		CloseTime:      timeIfClosed(vars.Status, o.UpdateTime.Time()),
 		Pair:           pair,
 		MarginType:     marginAccountType(o.IsIsolated),
 	}
@@ -3658,6 +3668,7 @@ func (e *Exchange) orderListDetail(a asset.Item, orderListID uint64, listClientO
 		AssetType:     a,
 		Date:          transactionTime,
 		LastUpdated:   transactionTime,
+		CloseTime:     timeIfClosed(status, transactionTime),
 		Pair:          pair,
 	}, err
 }
@@ -3684,6 +3695,7 @@ func (e *Exchange) usdtMarginedFuturesOrderDetail(o *USDTMarginedFuturesOrderRes
 		AssetType:            asset.USDTMarginedFutures,
 		Date:                 o.Time.Time(),
 		LastUpdated:          o.UpdateTime.Time(),
+		CloseTime:            timeIfClosed(vars.Status, o.UpdateTime.Time()),
 		Pair:                 pair,
 	}
 	if vars.OrderType == order.TrailingStop || o.OriginalType == trailingStopOrderType {
@@ -3718,6 +3730,7 @@ func (e *Exchange) algoOrderDetail(a asset.Item, o *USDTMarginedFuturesAlgoOrder
 		AssetType:            a,
 		Date:                 o.CreateTime.Time(),
 		LastUpdated:          o.UpdateTime.Time(),
+		CloseTime:            timeIfClosed(status, o.UpdateTime.Time()),
 		Pair:                 pair,
 	}
 	switch status {
@@ -3751,6 +3764,7 @@ func (e *Exchange) coinMarginedFuturesOrderDetail(o *CoinMarginedFuturesOrderDet
 		AssetType:            asset.CoinMarginedFutures,
 		Date:                 o.Time.Time(),
 		LastUpdated:          o.UpdateTime.Time(),
+		CloseTime:            timeIfClosed(vars.Status, o.UpdateTime.Time()),
 		Pair:                 pair,
 	}
 	if vars.OrderType == order.TrailingStop || o.OriginalType == trailingStopOrderType {
@@ -3787,6 +3801,7 @@ func (e *Exchange) optionsOrderDetail(o *OptionsOrder, createTime time.Time, pos
 		AssetType:            asset.Options,
 		Date:                 createTime,
 		LastUpdated:          o.UpdateTime.Time(),
+		CloseTime:            timeIfClosed(vars.Status, o.UpdateTime.Time()),
 		Pair:                 pair,
 	}
 	if postOnly {

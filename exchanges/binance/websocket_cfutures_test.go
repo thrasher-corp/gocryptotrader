@@ -169,7 +169,7 @@ func TestWebsocketHandleCoinMarginedFuturesUserData(t *testing.T) {
 			TimeInForce: order.PostOnly, ReduceOnly: true, Price: 86000.1, Amount: 2, TriggerPrice: 86100.1, AverageExecutedPrice: 86000.1,
 			ExecutedAmount: 2, FeeAsset: currency.BTC, Exchange: ex.Name, OrderID: "8888888", ClientOrderID: "TEST", Type: order.Limit,
 			Side: order.Buy, Status: order.Filled, AssetType: asset.CoinMarginedFutures, Date: time.UnixMilli(1591274595442),
-			LastUpdated: time.UnixMilli(1591274595442), Pair: testCoinMarginedFuturesPair,
+			LastUpdated: time.UnixMilli(1591274595442), CloseTime: time.UnixMilli(1591274595442), Pair: testCoinMarginedFuturesPair,
 			Trades: []order.TradeHistory{{
 				Price: 86000.1, Amount: 1, Fee: 0.00000116, Exchange: ex.Name, TID: "1157454910", Type: order.Limit, Side: order.Buy,
 				Timestamp: time.UnixMilli(1591274595442), IsMaker: true, FeeAsset: "BTC",
