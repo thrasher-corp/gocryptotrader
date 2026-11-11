@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -41,17 +42,11 @@ type Exchange struct {
 	futuresContractsMu sync.RWMutex
 	futuresContracts   map[string]*FuturesContractResponse
 
-	// futuresWebsocketRequestMu keeps one futures websocket request in flight at a time: the venue's replies
-	// name only the method, and an error reply at most the contract it refuses, so a reply can only be matched
-	// to the one request waiting for it. It also guards the two fields below.
-	futuresWebsocketRequestMu sync.Mutex
-	// futuresRepliesOwed holds how many replies each futures connection may still owe: one for a request which went
-	// unanswered, even after a wait for a late reply, or for a marker request which did, and one for each
-	// unsubscription, which the venue answers only to refuse. Such a reply could still arrive and answer the next
-	// request sent, so that request first sends a marker request and drains them.
-	futuresRepliesOwed map[websocket.Connection]int
+	// futuresConnections holds each futures connection's request lock and the replies it may still owe
+	futuresConnectionsMu sync.Mutex
+	futuresConnections   map[websocket.Connection]*futuresConnection
 	// futuresResyncMarkers numbers the marker requests which bring a connection owing a reply back in step
-	futuresResyncMarkers uint64
+	futuresResyncMarkers atomic.Uint64
 
 	// futuresLoginConn is the futures connection last logged in; the private futures channels share one connection
 	futuresLoginMu   sync.Mutex
