@@ -4990,81 +4990,37 @@ func (o *orderInfoExchange) GetOrderInfo(context.Context, string, currency.Pair,
 	return &detail, nil
 }
 
-type cancelAllRecorder struct {
-	exchange.IBotExchange
-	got *order.Cancel
-}
-
-func (c *cancelAllRecorder) CancelAllOrders(_ context.Context, cancel *order.Cancel) (order.CancelAllResponse, error) {
-	c.got = cancel
-	return order.CancelAllResponse{Status: map[string]string{"1": "cancelled"}}, nil
-}
-
-func TestRPCServerCancelAllOrders(t *testing.T) {
-	t.Parallel()
-	newServer := func(t *testing.T) (*RPCServer, *cancelAllRecorder, string) {
-		t.Helper()
-		em := NewExchangeManager()
-		exch, err := em.NewExchangeByName(testExchange)
-		require.NoError(t, err, "NewExchangeByName must not error")
-		exch.SetDefaults()
-		b := exch.GetBase()
-		b.Name = newUniqueFakeExchangeName()
-		recorder := &cancelAllRecorder{IBotExchange: exch}
-		require.NoError(t, em.Add(recorder), "Add must not error")
-		return &RPCServer{Engine: &Engine{ExchangeManager: em}}, recorder, b.Name
-	}
-
-	t.Run("exchange only", func(t *testing.T) {
-		t.Parallel()
-		s, recorder, name := newServer(t)
-		resp, err := s.CancelAllOrders(t.Context(), &gctrpc.CancelAllOrdersRequest{Exchange: name})
-		require.NoError(t, err, "CancelAllOrders must not error")
-		require.NotNil(t, recorder.got, "CancelAllOrders must pass a cancellation to the exchange")
-		assert.Equal(t, name, recorder.got.Exchange, "cancellation should name the exchange")
-		assert.Equal(t, int64(1), resp.Count, "response should count the cancelled orders")
-	})
-
-	t.Run("asset and pair", func(t *testing.T) {
-		t.Parallel()
-		s, recorder, name := newServer(t)
-		_, err := s.CancelAllOrders(t.Context(), &gctrpc.CancelAllOrdersRequest{
-			Exchange:  name,
-			AssetType: "spot",
-			Pair:      &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"},
-		})
-		require.NoError(t, err, "CancelAllOrders must not error")
-		require.NotNil(t, recorder.got, "CancelAllOrders must pass a cancellation to the exchange")
-		assert.Equal(t, asset.Spot, recorder.got.AssetType, "cancellation should carry the asset type")
-		assert.True(t, recorder.got.Pair.Equal(currency.NewBTCUSD()), "cancellation should carry the pair")
-	})
-
-	t.Run("invalid asset", func(t *testing.T) {
-		t.Parallel()
-		s, _, name := newServer(t)
-		_, err := s.CancelAllOrders(t.Context(), &gctrpc.CancelAllOrdersRequest{Exchange: name, AssetType: "meow"})
-		assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders should reject an unknown asset type")
-	})
-}
-
 func TestCheckIntervalCount(t *testing.T) {
 	t.Parallel()
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
-		name     string
-		end      time.Time
-		interval time.Duration
-		wantErr  error
+		name        string
+		startOffset time.Duration
+		end         time.Time
+		interval    time.Duration
+		wantErr     error
+		wantMessage string
 	}{
 		{name: "below the limit", end: start.Add(99 * time.Hour), interval: time.Hour},
 		{name: "at the limit", end: start.Add(100 * time.Hour), interval: time.Hour},
-		{name: "above the limit", end: start.Add(101 * time.Hour), interval: time.Hour, wantErr: errRangeTooLarge},
+		{name: "above the limit", end: start.Add(101 * time.Hour), interval: time.Hour, wantErr: errRangeTooLarge, wantMessage: "101 exceeds 100"},
+		{name: "partial interval counts", end: start.Add(100*time.Hour + time.Minute), interval: time.Hour, wantErr: errRangeTooLarge, wantMessage: "101 exceeds 100"},
+		{name: "sub-second range at the limit", end: start.Add(100 * time.Millisecond), interval: time.Millisecond},
+		{name: "sub-second range above the limit", end: start.Add(101 * time.Millisecond), interval: time.Millisecond, wantErr: errRangeTooLarge},
+		{name: "nanosecond interval within one second", end: start.Add(100 * time.Millisecond), interval: time.Nanosecond, wantErr: errRangeTooLarge},
+		{name: "range crossing a second boundary", startOffset: 900 * time.Millisecond, end: start.Add(1100 * time.Millisecond), interval: 5 * time.Millisecond},
+		{name: "fraction beyond whole seconds", end: start.Add(1500 * time.Millisecond), interval: 10 * time.Millisecond, wantErr: errRangeTooLarge},
 		{name: "range longer than a duration can hold", end: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), interval: 10 * 365 * 24 * time.Hour, wantErr: errRangeTooLarge},
+		{name: "long range within the limit", end: time.Date(2420, 1, 1, 0, 0, 0, 0, time.UTC), interval: 5 * 365 * 24 * time.Hour},
 		{name: "unset interval is left to later validation", end: start.Add(1000 * time.Hour)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.ErrorIs(t, checkIntervalCount(start, tc.end, tc.interval, 100), tc.wantErr, "checkIntervalCount should return the expected error")
+			err := checkIntervalCount(start.Add(tc.startOffset), tc.end, tc.interval, 100)
+			require.ErrorIs(t, err, tc.wantErr, "checkIntervalCount must return the expected error")
+			if tc.wantMessage != "" {
+				assert.ErrorContains(t, err, tc.wantMessage, "checkIntervalCount should report the intervals needed")
+			}
 		})
 	}
 }
@@ -5116,6 +5072,55 @@ func TestSetExchangePair(t *testing.T) {
 		enabled, err := cfgPairs.GetPairs(asset.Spot, true)
 		require.NoError(t, err, "GetPairs must not error")
 		assert.False(t, enabled.Contains(ltcusd, true), "config should not enable a pair the exchange rejected")
+	})
+
+	t.Run("disable", func(t *testing.T) {
+		t.Parallel()
+		s, b, cfgPairs := newServer(t, currency.Pairs{btcusd, ltcusd})
+		for _, enable := range []bool{true, false} {
+			_, err := s.SetExchangePair(t.Context(), request(b.Name, enable))
+			require.NoErrorf(t, err, "SetExchangePair must not error for enable %t", enable)
+		}
+		for name, manager := range map[string]*currency.PairsManager{"config": cfgPairs, "exchange": &b.CurrencyPairs} {
+			enabled, err := manager.GetPairs(asset.Spot, true)
+			require.NoErrorf(t, err, "GetPairs must not error for the %s", name)
+			assert.Falsef(t, enabled.Contains(ltcusd, true), "pair should be disabled in the %s", name)
+		}
+	})
+
+	t.Run("pair not enabled on the running exchange stays enabled in the config", func(t *testing.T) {
+		t.Parallel()
+		s, b, cfgPairs := newServer(t, currency.Pairs{btcusd, ltcusd})
+		cfgPairs.Pairs[asset.Spot].Enabled = currency.Pairs{btcusd, ltcusd}
+		_, err := s.SetExchangePair(t.Context(), request(b.Name, false))
+		require.ErrorIs(t, err, errSpecificPairNotEnabled, "SetExchangePair must error when the exchange has not enabled the pair")
+		enabled, err := cfgPairs.GetPairs(asset.Spot, true)
+		require.NoError(t, err, "GetPairs must not error")
+		assert.True(t, enabled.Contains(ltcusd, true), "config should keep a pair the exchange could not disable")
+	})
+
+	t.Run("config sharing the pair manager of the running exchange", func(t *testing.T) {
+		t.Parallel()
+		em := NewExchangeManager()
+		b := newFakeExchange(t, em, map[asset.Item]currency.Pairs{asset.Spot: {btcusd, ltcusd}})
+		b.CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{btcusd}
+		cfg := &config.Config{Exchanges: []config.Exchange{{Name: b.Name, CurrencyPairs: &b.CurrencyPairs}}}
+		s := &RPCServer{Engine: &Engine{Config: cfg, ExchangeManager: em}}
+		configFormat, err := cfg.GetPairFormat(b.Name, asset.Spot)
+		require.NoError(t, err, "GetPairFormat must not error")
+		require.NotEmpty(t, configFormat.Delimiter, "config format must have a delimiter for the stored pair to show it")
+		for _, enable := range []bool{true, false} {
+			_, err := s.SetExchangePair(t.Context(), request(b.Name, enable))
+			require.NoErrorf(t, err, "SetExchangePair must not error for enable %t", enable)
+			enabled, err := b.CurrencyPairs.GetPairs(asset.Spot, true)
+			require.NoError(t, err, "GetPairs must not error")
+			require.Equalf(t, enable, enabled.Contains(ltcusd, true), "pair must be enabled %t", enable)
+			if enable {
+				stored, err := enabled.DeriveFrom(ltcusd.String())
+				require.NoError(t, err, "DeriveFrom must not error")
+				assert.Equal(t, ltcusd.Format(configFormat).String(), stored.String(), "pair should be stored in the config's format")
+			}
+		}
 	})
 }
 

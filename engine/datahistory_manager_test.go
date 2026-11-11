@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -469,6 +470,24 @@ func TestValidateJob(t *testing.T) {
 		job.Interval = kline.OneMin
 		job.StartDate = time.Now().Add(-time.Minute * (maxDataHistoryJobIntervals + 60))
 		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should reject a job spanning too many intervals")
+	})
+
+	t.Run("sub-second range with too many intervals", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryConvertTradesDataType)
+		job.Interval = kline.Interval(time.Nanosecond)
+		job.StartDate = time.Now().Add(-time.Hour).Truncate(time.Second)
+		job.EndDate = job.StartDate.Add(900 * time.Millisecond)
+		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should count the intervals of a range shorter than a second")
+	})
+
+	t.Run("conversion interval with too many intervals", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryConvertCandlesDataType)
+		job.ConversionInterval = kline.Interval(time.Millisecond)
+		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should count the intervals the job's date ranges are built with")
+		job.ConversionInterval = kline.OneDay
+		assert.NoError(t, m.validateJob(job), "validateJob should accept a conversion interval within the limit")
 	})
 }
 
@@ -1218,17 +1237,63 @@ func TestUpscaleJobCandleData(t *testing.T) {
 	})
 }
 
+func TestValidationIntervalLength(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name             string
+		interval         kline.Interval
+		requestSizeLimit uint64
+		want             time.Duration
+		wantErr          error
+	}{
+		{name: "length fits", interval: kline.OneHour, requestSizeLimit: 500, want: 500 * time.Hour},
+		{name: "longest length", interval: 1, requestSizeLimit: math.MaxInt64, want: math.MaxInt64},
+		{name: "longest interval once", interval: math.MaxInt64, requestSizeLimit: 1, want: math.MaxInt64},
+		{name: "largest product that fits", interval: 2, requestSizeLimit: math.MaxInt64 / 2, want: math.MaxInt64 - 1},
+		{name: "one nanosecond too long", interval: 2, requestSizeLimit: math.MaxInt64/2 + 1, wantErr: kline.ErrInvalidInterval},
+		{name: "product wraps to a negative duration", interval: kline.OneHour, requestSizeLimit: 2_562_048, wantErr: kline.ErrInvalidInterval},
+		{name: "product wraps to a positive duration", interval: 1<<62 + 1, requestSizeLimit: 4, wantErr: kline.ErrInvalidInterval},
+		{name: "limit beyond a duration", interval: 1, requestSizeLimit: math.MaxInt64 + 1, wantErr: kline.ErrInvalidInterval},
+		{name: "limit beyond a duration wraps to a positive duration", interval: 2, requestSizeLimit: math.MaxInt64 + 2, wantErr: kline.ErrInvalidInterval},
+		{name: "negative interval with a limit beyond a duration", interval: -kline.OneHour, requestSizeLimit: math.MaxUint64 - 1, wantErr: kline.ErrInvalidInterval},
+		{name: "negative interval", interval: -kline.OneHour, requestSizeLimit: 2, wantErr: kline.ErrInvalidInterval},
+		{name: "zero interval", requestSizeLimit: 2, wantErr: kline.ErrInvalidInterval},
+		{name: "zero limit", interval: kline.OneHour, wantErr: kline.ErrInvalidInterval},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := validationIntervalLength(tc.interval, tc.requestSizeLimit)
+			require.ErrorIs(t, err, tc.wantErr, "validationIntervalLength must return the expected error")
+			assert.Equal(t, tc.want, got, "validationIntervalLength should return the expected length")
+		})
+	}
+}
+
 func TestRunValidationJob(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
-	job := &DataHistoryJob{
-		Nickname:         "TestRunValidationJob",
-		StartDate:        time.Now().Add(-time.Hour * 24),
-		EndDate:          time.Now(),
-		Interval:         kline.OneHour,
-		RequestSizeLimit: 2_562_048, // An hour multiplied by this no longer fits in a time.Duration
+	start := time.Now().Add(-time.Hour * 24)
+	for _, tc := range []struct {
+		name             string
+		interval         kline.Interval
+		requestSizeLimit uint64
+	}{
+		{name: "length wraps to a negative duration", interval: kline.OneHour, requestSizeLimit: 2_562_048},
+		{name: "length wraps to a positive duration", interval: 1<<62 + 1, requestSizeLimit: 4},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			job := &DataHistoryJob{
+				Nickname:  "TestRunValidationJob",
+				StartDate: start,
+				// Short enough to step through quickly were a wrapped positive length accepted
+				EndDate:          start.Add(40 * time.Nanosecond),
+				Interval:         tc.interval,
+				RequestSizeLimit: tc.requestSizeLimit,
+			}
+			assert.ErrorIs(t, m.runValidationJob(t.Context(), job, nil), kline.ErrInvalidInterval, "runValidationJob should reject an interval length that overflows")
+		})
 	}
-	assert.ErrorIs(t, m.runValidationJob(t.Context(), job, nil), kline.ErrInvalidInterval, "runValidationJob should reject an interval length that overflows")
 }
 
 func TestValidateCandles(t *testing.T) {

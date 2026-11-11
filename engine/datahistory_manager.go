@@ -504,6 +504,14 @@ completionCheck:
 	return nil
 }
 
+// validationIntervalLength returns the time one validation request spans, rejecting a length a time.Duration cannot hold
+func validationIntervalLength(interval kline.Interval, requestSizeLimit uint64) (time.Duration, error) {
+	if interval <= 0 || requestSizeLimit == 0 || requestSizeLimit > math.MaxInt64/uint64(interval) {
+		return 0, fmt.Errorf("%w: interval %s with request size limit %d", kline.ErrInvalidInterval, interval, requestSizeLimit)
+	}
+	return interval.Duration() * time.Duration(requestSizeLimit), nil //nolint:gosec // the limit is checked to fit above
+}
+
 // runValidationJob verifies existing database candle data against
 // the original API's data, or a secondary exchange source
 func (m *DataHistoryManager) runValidationJob(ctx context.Context, job *DataHistoryJob, exch exchange.IBotExchange) error {
@@ -512,9 +520,9 @@ func (m *DataHistoryManager) runValidationJob(ctx context.Context, job *DataHist
 	}
 	var intervalsProcessed uint64
 	var jobIntervals, intervalsToCheck []time.Time
-	intervalLength := job.Interval.Duration() * time.Duration(job.RequestSizeLimit) //nolint:gosec // an overflow is not positive and is rejected below
-	if intervalLength <= 0 {
-		return fmt.Errorf("job %s %w: interval %s with request size limit %d", job.Nickname, kline.ErrInvalidInterval, job.Interval, job.RequestSizeLimit)
+	intervalLength, err := validationIntervalLength(job.Interval, job.RequestSizeLimit)
+	if err != nil {
+		return fmt.Errorf("job %s %w", job.Nickname, err)
 	}
 	for i := job.StartDate; i.Before(job.EndDate); i = i.Add(intervalLength) {
 		jobIntervals = append(jobIntervals, i)
@@ -1282,6 +1290,12 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	}
 	if err := checkIntervalCount(job.StartDate, job.EndDate, job.Interval.Duration(), maxDataHistoryJobIntervals); err != nil {
 		return fmt.Errorf("job %s %w", job.Nickname, err)
+	}
+	if job.DataType == dataHistoryConvertCandlesDataType {
+		// A convert candles job's date ranges are built with its conversion interval
+		if err := checkIntervalCount(job.StartDate, job.EndDate, job.ConversionInterval.Duration(), maxDataHistoryJobIntervals); err != nil {
+			return fmt.Errorf("job %s conversion interval %w", job.Nickname, err)
+		}
 	}
 
 	return nil

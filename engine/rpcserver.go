@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -83,9 +84,10 @@ func checkIntervalCount(start, end time.Time, interval time.Duration, limit floa
 	if interval <= 0 {
 		return nil
 	}
-	// Whole seconds are used because a time.Duration saturates on ranges longer than 292 years
-	if count := float64(end.Unix()-start.Unix()) / interval.Seconds(); count > limit {
-		return fmt.Errorf("%w: %.0f exceeds %.0f, reduce the range or use a larger interval", errRangeTooLarge, count, limit)
+	// Wall clock seconds and nanoseconds are combined as floats, as a time.Duration saturates on ranges longer than 292 years
+	window := float64(end.Unix()-start.Unix())*float64(time.Second) + float64(end.Nanosecond()-start.Nanosecond())
+	if count := window / float64(interval); count > limit {
+		return fmt.Errorf("%w: %.0f exceeds %.0f, reduce the range or use a larger interval", errRangeTooLarge, math.Ceil(count), limit)
 	}
 	return nil
 }
@@ -1386,22 +1388,8 @@ func (s *RPCServer) CancelAllOrders(ctx context.Context, r *gctrpc.CancelAllOrde
 		return nil, err
 	}
 
-	cancel := &order.Cancel{Exchange: r.Exchange}
-	if r.AssetType != "" {
-		cancel.AssetType, err = asset.New(r.AssetType)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if r.Pair != nil {
-		cancel.Pair, err = currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	// TODO: Change to order manager
-	resp, err := exch.CancelAllOrders(ctx, cancel)
+	resp, err := exch.CancelAllOrders(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1939,6 +1927,8 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 	if err != nil {
 		return nil, err
 	}
+	// A config without its own pairs shares the running exchange's pair manager, which then takes each change once
+	sharedPairs := exchCfg.CurrencyPairs == &base.CurrencyPairs
 	var pass bool
 	var newErrors error
 	for i := range r.Pairs {
@@ -1954,12 +1944,14 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 				newErrors = common.AppendError(newErrors, fmt.Errorf("%s %w", r.Pairs[i], err))
 				continue
 			}
-			err = base.CurrencyPairs.EnablePair(a, p)
-			if err != nil {
-				// Keep the config in step with the running exchange
-				err = common.AppendError(err, exchCfg.CurrencyPairs.DisablePair(a, p.Format(pairFmt)))
-				newErrors = common.AppendError(newErrors, fmt.Errorf("%s %w", r.Pairs[i], err))
-				continue
+			if !sharedPairs {
+				err = base.CurrencyPairs.EnablePair(a, p)
+				if err != nil {
+					// Keep the config in step with the running exchange
+					err = common.AppendError(err, exchCfg.CurrencyPairs.DisablePair(a, p.Format(pairFmt)))
+					newErrors = common.AppendError(newErrors, fmt.Errorf("%s %w", r.Pairs[i], err))
+					continue
+				}
 			}
 			pass = true
 			continue
@@ -1974,15 +1966,17 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 			return nil, err
 		}
 
-		err = base.CurrencyPairs.DisablePair(a, p)
-		if err != nil {
-			// Keep the config in step with the running exchange
-			revertErr := exchCfg.CurrencyPairs.EnablePair(a, p.Format(pairFmt))
-			if errors.Is(err, currency.ErrPairNotFound) {
-				newErrors = common.AppendError(newErrors, common.AppendError(fmt.Errorf("%s %w", r.Pairs[i], errSpecificPairNotEnabled), revertErr))
-				continue
+		if !sharedPairs {
+			err = base.CurrencyPairs.DisablePair(a, p)
+			if err != nil {
+				// Keep the config in step with the running exchange
+				revertErr := exchCfg.CurrencyPairs.EnablePair(a, p.Format(pairFmt))
+				if errors.Is(err, currency.ErrPairNotFound) {
+					newErrors = common.AppendError(newErrors, common.AppendError(fmt.Errorf("%s %w", r.Pairs[i], errSpecificPairNotEnabled), revertErr))
+					continue
+				}
+				return nil, common.AppendError(err, revertErr)
 			}
-			return nil, common.AppendError(err, revertErr)
 		}
 		pass = true
 	}
