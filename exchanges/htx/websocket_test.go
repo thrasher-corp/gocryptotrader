@@ -116,7 +116,7 @@ func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
 	return fmt.Errorf("%w: %s", errUnhandledMockWebsocketMessage, msg)
 }
 
-func TestWSFixture(t *testing.T) {
+func TestWebsocketFixture(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name, request, response string
@@ -154,7 +154,7 @@ func TestWSFixture(t *testing.T) {
 	})
 }
 
-func TestWSHandleData(t *testing.T) {
+func TestWebsocketHandleData(t *testing.T) {
 	t.Parallel()
 	t.Run("futures private notification", func(t *testing.T) {
 		t.Parallel()
@@ -249,7 +249,7 @@ func TestWSHandleData(t *testing.T) {
 	require.ErrorIs(t, h.wsHandleData(t.Context(), nil, []byte(`{"ping":123}`)), common.ErrNilPointer, "websocket ping data must require a connection")
 }
 
-func TestWSHandleChannelMsgs(t *testing.T) {
+func TestWebsocketHandleChannelMsgs(t *testing.T) {
 	t.Parallel()
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
@@ -390,6 +390,23 @@ func TestManageSubs(t *testing.T) {
 // TestSubscribe exercises public subscriptions against the deterministic websocket fixture.
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true, websocket: true})
+		pair, err := h.FormatExchangeCurrency(btcusdtPair, asset.Spot)
+		require.NoError(t, err, "live subscription pair must use the spot wire format")
+		initial := subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{pair}}}
+		connectHTXLiveWebsocket(t, h, initial)
+		subs, err := (subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{pair}}}).ExpandTemplates(h)
+		require.NoError(t, err, "live subscription must expand to its wire topic")
+		require.NoError(t, h.Subscribe(subs), "live public subscription must be acknowledged")
+		for _, sub := range subs {
+			assert.Equal(t, subscription.SubscribedState, sub.State(), "live subscription should be tracked as subscribed")
+		}
+	})
 	t.Run("authenticated derivatives", func(t *testing.T) {
 		t.Parallel()
 		h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
@@ -485,6 +502,21 @@ func TestSubscribe(t *testing.T) {
 
 func TestUnsubscribe(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true, websocket: true})
+		pair, err := h.FormatExchangeCurrency(btcusdtPair, asset.Spot)
+		require.NoError(t, err, "live subscription pair must use the spot wire format")
+		initial := subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{pair}}}
+		connectHTXLiveWebsocket(t, h, initial)
+		subs := h.Websocket.GetSubscriptions()
+		require.NotEmpty(t, subs, "live connection must have its initial subscription")
+		require.NoError(t, h.Unsubscribe(subs), "live public unsubscription must be acknowledged")
+		assert.Empty(t, h.Websocket.GetSubscriptions(), "live unsubscription should remove the tracked topic")
+	})
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	subs, err := defaultSubscriptions.ExpandTemplates(h)
 	require.NoError(t, err, "ExpandTemplates must not error")
@@ -561,7 +593,7 @@ func TestGetErrResp(t *testing.T) {
 	assert.ErrorContains(t, err, "invalid authentication (2001)", "derivative websocket errors should include their numeric code")
 }
 
-func TestWSSubscriptionKeyMatch(t *testing.T) {
+func TestWebsocketSubscriptionKeyMatch(t *testing.T) {
 	t.Parallel()
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
@@ -613,7 +645,7 @@ func TestWSSubscriptionKeyMatch(t *testing.T) {
 	})
 }
 
-func TestWSHandleSubscriptionResponse(t *testing.T) {
+func TestWebsocketHandleSubscriptionResponse(t *testing.T) {
 	t.Parallel()
 	t.Run("spot nil connection", func(t *testing.T) {
 		t.Parallel()
@@ -692,7 +724,7 @@ func TestWSHandleSubscriptionResponse(t *testing.T) {
 	require.ErrorIs(t, new(Exchange).wsHandleSubscriptionResponse(typedNil, wsSubOp, "orders.*", nil), common.ErrNilPointer, "acknowledgement must reject a typed nil connection")
 }
 
-func TestWSConnect(t *testing.T) {
+func TestWebsocketConnect(t *testing.T) {
 	t.Parallel()
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
@@ -994,7 +1026,7 @@ func TestUnsubscribeConnection(t *testing.T) {
 	assert.Nil(t, conn.Subscriptions().Get(sub), "subscription should be removed")
 }
 
-func TestWSSubscriptionKeyGetQualifiedChannel(t *testing.T) {
+func TestWebsocketSubscriptionKeyGetQualifiedChannel(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name string
@@ -1012,7 +1044,7 @@ func TestWSSubscriptionKeyGetQualifiedChannel(t *testing.T) {
 	}
 }
 
-func BenchmarkWSSubscriptionKeyLookup(b *testing.B) {
+func BenchmarkWebsocketSubscriptionKeyLookup(b *testing.B) {
 	for _, count := range []int{16, 400, 2660} {
 		for _, indexed := range []bool{false, true} {
 			b.Run(fmt.Sprintf("subscriptions=%d/indexed=%t", count, indexed), func(b *testing.B) {

@@ -13,7 +13,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestWSHandleCoinMarginedPrivateMessage(t *testing.T) {
+func TestWebsocketHandleCoinMarginedPrivateMessage(t *testing.T) {
 	t.Parallel()
 	type testCase struct {
 		name     string

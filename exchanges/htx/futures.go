@@ -857,7 +857,9 @@ func (e *Exchange) FuturesOrderDetails(ctx context.Context, symbol, orderID, ord
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	req["order_id"] = orderID
-	req["created_at"] = strconv.FormatInt(createdAt.Unix(), 10)
+	if !createdAt.IsZero() {
+		req["created_at"] = strconv.FormatInt(createdAt.UnixMilli(), 10)
+	}
 	oType, ok := validOrderType[orderType]
 	if !ok {
 		return nil, errInvalidOrderType

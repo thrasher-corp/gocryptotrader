@@ -1,6 +1,7 @@
 package htx
 
 import (
+	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -15,6 +16,18 @@ import (
 
 func TestGetV5AssetsDeductionCurrencies(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetV5AssetsDeductionCurrencies(ctx)
+		require.NoError(t, err, "GetV5AssetsDeductionCurrencies live request must succeed")
+		require.NotNil(t, response, "live deduction currencies response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/assets_deduction_currency", `{"code":200,"data":{"currency":["USDT","HTX"]}}`, nil)
 	resp, err := h.GetV5AssetsDeductionCurrencies(t.Context())
 	require.NoError(t, err, "GetV5AssetsDeductionCurrencies must not error")
@@ -27,6 +40,18 @@ func TestGetV5AssetsDeductionCurrencies(t *testing.T) {
 
 func TestGetV5MultiAssetsMarginCurrencies(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetV5MultiAssetsMarginCurrencies(ctx)
+		require.NoError(t, err, "GetV5MultiAssetsMarginCurrencies live request must succeed")
+		require.NotNil(t, response, "live collateral currencies response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/multi_assets_margin", `{"code":200,"data":{"multi_assets":["USDT","BTC"]}}`, nil)
 	resp, err := h.GetV5MultiAssetsMarginCurrencies(t.Context())
 	require.NoError(t, err, "GetV5MultiAssetsMarginCurrencies must not error")
@@ -35,6 +60,18 @@ func TestGetV5MultiAssetsMarginCurrencies(t *testing.T) {
 
 func TestGetV5EliteAccountRatio(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetV5EliteAccountRatio(ctx, btcusdtPair, "5min")
+		require.NoError(t, err, "GetV5EliteAccountRatio live request must succeed")
+		require.NotNil(t, response, "live account ratio response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/elite_account_ratio", `{"code":200,"data":[{"contract_code":"BTC-USDT","buy_ratio":"0.6"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
 		assert.Equal(t, "5min", r.URL.Query().Get("period"), "period should be sent")
@@ -47,6 +84,18 @@ func TestGetV5EliteAccountRatio(t *testing.T) {
 
 func TestGetV5ElitePositionRatio(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetV5ElitePositionRatio(ctx, btcusdtPair, "5min")
+		require.NoError(t, err, "GetV5ElitePositionRatio live request must succeed")
+		require.NotNil(t, response, "live position ratio response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/elite_position_ratio", `{"code":200,"data":[{"contract_code":"BTC-USDT","sell_ratio":"0.4"}]}`, nil)
 	resp, err := h.GetV5ElitePositionRatio(t.Context(), btcusdtPair, "5min")
 	require.NoError(t, err, "GetV5ElitePositionRatio must not error")
@@ -56,6 +105,18 @@ func TestGetV5ElitePositionRatio(t *testing.T) {
 
 func TestGetV5EstimatedSettlementPrice(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetV5EstimatedSettlementPrice(ctx, currency.EMPTYPAIR)
+		require.NoError(t, err, "GetV5EstimatedSettlementPrice live request must succeed")
+		require.NotNil(t, response, "live estimated settlement response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/estimated_settlement_price", `{"code":200,"data":[{"contract_code":"BTC-USDT","estimated_settlement_price":"10"}]}`, nil)
 	resp, err := h.GetV5EstimatedSettlementPrice(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err, "GetV5EstimatedSettlementPrice must not error")
@@ -65,6 +126,18 @@ func TestGetV5EstimatedSettlementPrice(t *testing.T) {
 
 func TestGetV5FundingRates(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetV5FundingRates(ctx, &V5FundingRatesRequest{ContractCodes: currency.Pairs{btcusdtPair}})
+		require.NoError(t, err, "GetV5FundingRates live request must succeed")
+		require.NotNil(t, response, "live funding rate response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate", `{"code":200,"data":[{"contract_code":"BTC-USDT","funding_rate":"-0.0001","funding_time":"1782460800000","next_funding_time":"1782489600000","min_funding_rate":"-0.00375","max_funding_rate":"0.00375"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT,ETH-USDT", r.URL.Query().Get("contract_code"), "contract codes should be sent")
 	})
@@ -87,6 +160,18 @@ func TestGetV5FundingRates(t *testing.T) {
 
 func TestGetV5FundingRateHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetV5FundingRateHistory(ctx, &V5FundingRateHistoryRequest{ContractCode: "BTC-USDT", Limit: 10})
+		require.NoError(t, err, "GetV5FundingRateHistory live request must succeed")
+		require.NotNil(t, response, "live funding history response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate_history", `{"code":200,"data":[{"id":"9566","contract_code":"BTC-USDT","funding_rate":"-0.00375","funding_time":"1721887200000"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
 		assert.Equal(t, "10", r.URL.Query().Get("limit"), "limit should be sent")
@@ -110,6 +195,18 @@ func TestGetV5FundingRateHistory(t *testing.T) {
 
 func TestGetV5PriceLimits(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetV5PriceLimits(ctx, btcusdtPair)
+		require.NoError(t, err, "GetV5PriceLimits live request must succeed")
+		require.NotNil(t, response, "live price limits response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/price_limit", `{"code":200,"data":[{"contract_code":"BTC-USDT","high_limit":"88660.5","low_limit":"100"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
 	})
@@ -122,6 +219,18 @@ func TestGetV5PriceLimits(t *testing.T) {
 
 func TestGetV5LiquidationOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetV5LiquidationOrders(ctx, &V5LiquidationOrdersRequest{ContractCode: "BTC-USDT", Limit: 10})
+		require.NoError(t, err, "GetV5LiquidationOrders live request must succeed")
+		require.NotNil(t, response, "live liquidation orders response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/liquidation_orders", `{"code":200,"data":[{"id":"1","volume":"2"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
 		assert.Equal(t, "10", r.URL.Query().Get("limit"), "limit should be sent")
@@ -144,6 +253,18 @@ func TestGetV5LiquidationOrders(t *testing.T) {
 
 func TestGetV5MarketRiskLimit(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetV5MarketRiskLimit(ctx, btcusdtPair, "cross", "1")
+		require.NoError(t, err, "GetV5MarketRiskLimit live request must succeed")
+		require.NotNil(t, response, "live risk limits response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/risk/limit", `{"code":200,"data":[{"contract_code":"BTC-USDT","max_lever":"20"}]}`, nil)
 	resp, err := h.GetV5MarketRiskLimit(t.Context(), btcusdtPair, "cross", "1")
 	require.NoError(t, err, "GetV5MarketRiskLimit must not error")
@@ -153,6 +274,18 @@ func TestGetV5MarketRiskLimit(t *testing.T) {
 
 func TestGetV5SettlementHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetV5SettlementHistory(ctx, &V5SettlementHistoryRequest{ContractCode: "BTC-USDT", Limit: 10})
+		require.NoError(t, err, "GetV5SettlementHistory live request must succeed")
+		require.NotNil(t, response, "live settlement history response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/settlement_history", `{"code":200,"data":[{"id":"1","settlement_price":"10"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
 	})
@@ -173,6 +306,19 @@ func TestGetV5SettlementHistory(t *testing.T) {
 
 func TestGetV5OpenInterest(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetV5OpenInterest(ctx, btcusdtPair)
+		require.NoError(t, err, "GetV5OpenInterest live request must succeed")
+		require.NotNil(t, response, "live open interest response must decode")
+		assert.Equal(t, "BTC-USDT", response.OpenInterest.ContractCode, "open interest should belong to the requested contract")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/open_interest", `{"code":200,"success":true,"data":{"contract_code":"BTC-USDT"}}`, nil)
 	resp, err := h.GetV5OpenInterest(t.Context(), btcusdtPair)
 	require.NoError(t, err, "GetV5OpenInterest must not error")

@@ -8,7 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-func TestWSFuturesTimestampUnmarshalJSON(t *testing.T) {
+func TestWebsocketFuturesTimestampUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	type testCase struct {
 		name, input, want string
@@ -34,7 +34,7 @@ func TestWSFuturesTimestampUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestWSFuturesTimestampMarshalJSON(t *testing.T) {
+func TestWebsocketFuturesTimestampMarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, input := range []string{`1492420473027`, `"1492420473027"`} {
 		t.Run(input, func(t *testing.T) {

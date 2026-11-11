@@ -210,19 +210,39 @@ func TestSetup(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := e.FetchTradablePairs(t.Context(), asset.Futures)
-	require.NoError(t, err)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		_, err := e.FetchTradablePairs(t.Context(), asset.Futures)
+		require.NoError(t, err)
+	})
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	require.NoError(t, h.UpdateTradablePairs(t.Context()), "UpdateTradablePairs must not error")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+		require.NoError(t, h.UpdateTradablePairs(t.Context()), "UpdateTradablePairs must not error")
+	})
 }
 
 func TestUpdateCurrencyStates(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		require.NoError(t, h.UpdateCurrencyStates(t.Context(), asset.Spot), "live currency states must update")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v2/reference/currencies", `{
 		"code":200,
 		"data":[
@@ -248,40 +268,46 @@ func TestUpdateCurrencyStates(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	type testCase struct {
-		name           string
-		asset          asset.Item
-		pair           currency.Pair
-		invalidPair    currency.Pair
-		expectedErrMsg string
-	}
-	for _, tc := range []testCase{
-		{name: "spot", asset: asset.Spot, pair: currency.NewPairWithDelimiter("BTC", "USDT", "_"), invalidPair: currency.NewPairWithDelimiter("INV", "ALID", "-"), expectedErrMsg: "invalid symbol"},
-		{name: "coin margined futures", asset: asset.CoinMarginedFutures, pair: currency.NewPairWithDelimiter("BTC", "USD", "_"), invalidPair: currency.NewPairWithDelimiter("INV", "ALID", "_"), expectedErrMsg: "symbol data error"},
-		{name: "delivery futures", asset: asset.Futures, pair: btccwPair},
-		{name: "USDT margined futures", asset: asset.USDTMarginedFutures, pair: btcusdtPair},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			h := new(Exchange)
-			require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
-			h.Name = t.Name()
-			if tc.asset == asset.CoinMarginedFutures || tc.asset == asset.Futures {
-				limitPair := tc.pair
-				if tc.asset == asset.Futures {
-					h.futureContractCodes = map[string]currency.Code{"CW": currency.NewCode("261106")}
-					limitPair = currency.NewPair(currency.BTC, currency.NewCode("261106"))
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		type testCase struct {
+			name           string
+			asset          asset.Item
+			pair           currency.Pair
+			invalidPair    currency.Pair
+			expectedErrMsg string
+		}
+		for _, tc := range []testCase{
+			{name: "spot", asset: asset.Spot, pair: currency.NewPairWithDelimiter("BTC", "USDT", "_"), invalidPair: currency.NewPairWithDelimiter("INV", "ALID", "-"), expectedErrMsg: "invalid symbol"},
+			{name: "coin margined futures", asset: asset.CoinMarginedFutures, pair: currency.NewPairWithDelimiter("BTC", "USD", "_"), invalidPair: currency.NewPairWithDelimiter("INV", "ALID", "_"), expectedErrMsg: "symbol data error"},
+			{name: "delivery futures", asset: asset.Futures, pair: btccwPair},
+			{name: "USDT margined futures", asset: asset.USDTMarginedFutures, pair: btcusdtPair},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				h := new(Exchange)
+				require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
+				h.Name = t.Name()
+				if tc.asset == asset.CoinMarginedFutures || tc.asset == asset.Futures {
+					limitPair := tc.pair
+					if tc.asset == asset.Futures {
+						h.futureContractCodes = map[string]currency.Code{"CW": currency.NewCode("261106")}
+						limitPair = currency.NewPair(currency.BTC, currency.NewCode("261106"))
+					}
+					require.NoError(t, limits.Load([]limits.MinMaxLevel{{Key: key.NewExchangeAssetPair(h.Name, tc.asset, limitPair), MultiplierDecimal: 100}}), "inverse multiplier must be loaded under the tradable contract")
 				}
-				require.NoError(t, limits.Load([]limits.MinMaxLevel{{Key: key.NewExchangeAssetPair(h.Name, tc.asset, limitPair), MultiplierDecimal: 100}}), "inverse multiplier must be loaded under the tradable contract")
-			}
-			if tc.expectedErrMsg != "" {
-				_, err := h.UpdateTicker(t.Context(), tc.invalidPair, tc.asset)
-				assert.ErrorContains(t, err, tc.expectedErrMsg, "invalid pair should return the venue error")
-			}
-			_, err := h.UpdateTicker(t.Context(), tc.pair, tc.asset)
-			require.NoError(t, err, "UpdateTicker must accept the asset's enabled pair")
-		})
-	}
+				if tc.expectedErrMsg != "" {
+					_, err := h.UpdateTicker(t.Context(), tc.invalidPair, tc.asset)
+					assert.ErrorContains(t, err, tc.expectedErrMsg, "invalid pair should return the venue error")
+				}
+				_, err := h.UpdateTicker(t.Context(), tc.pair, tc.asset)
+				require.NoError(t, err, "UpdateTicker must accept the asset's enabled pair")
+			})
+		}
+	})
 	type tickerResponseCase struct {
 		name                       string
 		a                          asset.Item
@@ -381,29 +407,47 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	type testCase struct {
-		name        string
-		asset       asset.Item
-		pair        currency.Pair
-		expectedErr error
-	}
-	for _, tc := range []testCase{
-		{name: "spot", asset: asset.Spot, pair: btcusdtPair},
-		{name: "coin margined futures", asset: asset.CoinMarginedFutures, pair: btcusdPair},
-		{name: "delivery futures", asset: asset.Futures, pair: btccwPair},
-		{name: "USDT margined futures", asset: asset.USDTMarginedFutures, pair: btcusdtPair},
-		{name: "unsupported asset", asset: asset.Binary, pair: btcusdtPair, expectedErr: asset.ErrNotSupported},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			_, err := e.UpdateOrderbook(t.Context(), tc.pair, tc.asset)
-			require.ErrorIs(t, err, tc.expectedErr, "UpdateOrderbook must return the expected asset result")
-		})
-	}
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		type testCase struct {
+			name        string
+			asset       asset.Item
+			pair        currency.Pair
+			expectedErr error
+		}
+		for _, tc := range []testCase{
+			{name: "spot", asset: asset.Spot, pair: btcusdtPair},
+			{name: "coin margined futures", asset: asset.CoinMarginedFutures, pair: btcusdPair},
+			{name: "delivery futures", asset: asset.Futures, pair: btccwPair},
+			{name: "USDT margined futures", asset: asset.USDTMarginedFutures, pair: btcusdtPair},
+			{name: "unsupported asset", asset: asset.Binary, pair: btcusdtPair, expectedErr: asset.ErrNotSupported},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				_, err := e.UpdateOrderbook(t.Context(), tc.pair, tc.asset)
+				require.ErrorIs(t, err, tc.expectedErr, "UpdateOrderbook must return the expected asset result")
+			})
+		}
+	})
 }
 
 func TestUpdateOrderbookWithLimit(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		book, err := h.UpdateOrderbookWithLimit(t.Context(), btcusdtPair, asset.Spot, 5)
+		require.NoError(t, err, "live capped orderbook must be readable")
+		require.NotNil(t, book, "live capped orderbook must decode")
+		assert.LessOrEqual(t, len(book.Bids), 5, "live bid depth should honour the limit")
+		assert.LessOrEqual(t, len(book.Asks), 5, "live ask depth should honour the limit")
+	})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"status":"ok","tick":{"ts":1604312615051,"bids":[[10,2],[9,3]],"asks":[[11,2],[12,3]]}}`))
 	}))
@@ -423,6 +467,9 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		for _, tc := range []struct {
 			asset asset.Item
@@ -1289,22 +1336,28 @@ func TestGetHistoricCandles(t *testing.T) {
 		}
 	}
 
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	updatePairsOnce(t, e)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		e := new(Exchange)
+		require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+		updatePairsOnce(t, e)
 
-	endTime := time.Now().Add(-time.Hour).Truncate(time.Hour)
-	_, err := e.GetHistoricCandles(t.Context(), btcusdtPair, asset.Spot, kline.OneMin, endTime.Add(-time.Hour), endTime)
-	require.NoError(t, err)
+		endTime := time.Now().Add(-time.Hour).Truncate(time.Hour)
+		_, err := e.GetHistoricCandles(t.Context(), btcusdtPair, asset.Spot, kline.OneMin, endTime.Add(-time.Hour), endTime)
+		require.NoError(t, err)
 
-	_, err = e.GetHistoricCandles(t.Context(), btcusdtPair, asset.Spot, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
-	require.NoError(t, err)
+		_, err = e.GetHistoricCandles(t.Context(), btcusdtPair, asset.Spot, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
+		require.NoError(t, err)
 
-	_, err = e.GetHistoricCandles(t.Context(), btcFutureDatedPair, asset.Futures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
-	require.NoError(t, err)
+		_, err = e.GetHistoricCandles(t.Context(), btcFutureDatedPair, asset.Futures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
+		require.NoError(t, err)
 
-	_, err = e.GetHistoricCandles(t.Context(), btcusdPair, asset.CoinMarginedFutures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
-	require.NoError(t, err)
+		_, err = e.GetHistoricCandles(t.Context(), btcusdPair, asset.CoinMarginedFutures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
+		require.NoError(t, err)
+	})
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -1374,33 +1427,45 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		})
 	}
 
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	updatePairsOnce(t, e)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		e := new(Exchange)
+		require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+		updatePairsOnce(t, e)
 
-	endTime := time.Now().Add(-time.Hour).Truncate(time.Hour)
-	_, err := e.GetHistoricCandlesExtended(t.Context(), btcusdtPair, asset.Spot, kline.OneMin, endTime.Add(-time.Hour), endTime)
-	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+		endTime := time.Now().Add(-time.Hour).Truncate(time.Hour)
+		_, err := e.GetHistoricCandlesExtended(t.Context(), btcusdtPair, asset.Spot, kline.OneMin, endTime.Add(-time.Hour), endTime)
+		require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
-	_, err = e.GetHistoricCandlesExtended(t.Context(), btcFutureDatedPair, asset.Futures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
-	require.NoError(t, err)
+		_, err = e.GetHistoricCandlesExtended(t.Context(), btcFutureDatedPair, asset.Futures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
+		require.NoError(t, err)
 
-	// demonstrate that adjusting time doesn't wreck non-day intervals
-	_, err = e.GetHistoricCandlesExtended(t.Context(), btcFutureDatedPair, asset.Futures, kline.OneHour, endTime.AddDate(0, 0, -1), endTime)
-	require.NoError(t, err)
+		// demonstrate that adjusting time doesn't wreck non-day intervals
+		_, err = e.GetHistoricCandlesExtended(t.Context(), btcFutureDatedPair, asset.Futures, kline.OneHour, endTime.AddDate(0, 0, -1), endTime)
+		require.NoError(t, err)
 
-	_, err = e.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.CoinMarginedFutures, kline.OneDay, endTime.AddDate(0, 0, -7), time.Now())
-	require.NoError(t, err)
+		_, err = e.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.CoinMarginedFutures, kline.OneDay, endTime.AddDate(0, 0, -7), time.Now())
+		require.NoError(t, err)
 
-	_, err = e.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.CoinMarginedFutures, kline.OneHour, endTime.AddDate(0, 0, -1), time.Now())
-	require.NoError(t, err)
+		_, err = e.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.CoinMarginedFutures, kline.OneHour, endTime.AddDate(0, 0, -1), time.Now())
+		require.NoError(t, err)
+	})
 }
 
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
-	st, err := e.GetServerTime(t.Context(), asset.Spot)
-	require.NoError(t, err)
-	assert.NotEmpty(t, st, "GetServerTime should return a time")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		st, err := e.GetServerTime(t.Context(), asset.Spot)
+		require.NoError(t, err)
+		assert.NotEmpty(t, st, "GetServerTime should return a time")
+	})
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
@@ -1414,6 +1479,9 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	t.Run("live spot", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
@@ -1777,6 +1845,15 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		_, err := h.GetAccountFundingHistory(t.Context())
+		require.NoError(t, err, "live funding history must be readable")
+	})
 	var requests atomic.Uint64
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/query/deposit-withdraw",
 		`{"status":"ok","data":[{"id":1,"type":"deposit","currency":"btc","tx-hash":"tx-1","chain":"btc","amount":2,"address":"address-1","fee":0,"state":"safe","created-at":1612261330443},{"id":2,"type":"withdraw","currency":"usdt","tx-hash":"tx-2","chain":"trc20usdt","amount":3,"address":"address-2","fee":0.1,"state":"confirmed","error-msg":"withdraw rejected: address risk","created-at":1612261389250}]}`,
@@ -1814,6 +1891,16 @@ func TestGetAccountFundingHistory(t *testing.T) {
 
 func TestGetAccountID(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		accountIDs, err := h.GetAccountID(t.Context())
+		require.NoError(t, err, "live account IDs must be readable")
+		assert.NotEmpty(t, accountIDs, "the authenticated user should have an account")
+	})
 	t.Run("empty accounts", func(t *testing.T) {
 		t.Parallel()
 		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/account/accounts", `{"status":"ok","data":[]}`, nil)
@@ -2548,6 +2635,18 @@ func TestModifyOrder(t *testing.T) {
 
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		_, err := h.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
+			Exchange: h.Name, Type: withdraw.Crypto, Currency: currency.BTC, Amount: 1,
+			Crypto: withdraw.CryptoRequest{Address: "fabricated-address", Chain: "btc"},
+		})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "live venue must reject withdrawal to the fabricated address")
+	})
 
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange:    e.Name,
@@ -2593,6 +2692,17 @@ func TestValidateAPICredentials(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		address, err := h.GetDepositAddress(t.Context(), currency.USDT, "", "")
+		require.NoError(t, err, "live deposit address must be readable")
+		require.NotNil(t, address, "live deposit address must decode")
+		assert.NotEmpty(t, address.Address, "live deposit address should be populated")
+	})
 	for _, tc := range []struct{ name, currency, chain string }{
 		{name: "missing currency", currency: "btc"}, {name: "missing chain", currency: "usdt", chain: "unknown"},
 	} {
@@ -2706,6 +2816,9 @@ func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	t.Run("live spot", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		t.Run("unknown order", func(t *testing.T) {
 			t.Parallel()
@@ -3073,14 +3186,20 @@ func TestGetRecentTrades(t *testing.T) {
 			assert.Equal(t, order.Sell, trades[1].Side, "sell side should decode")
 		})
 	}
-	_, err := e.GetRecentTrades(t.Context(), btcusdtPair, asset.Spot)
-	require.NoError(t, err)
-	_, err = e.GetRecentTrades(t.Context(), btccwPair, asset.Futures)
-	require.NoError(t, err)
-	_, err = e.GetRecentTrades(t.Context(), btcusdPair, asset.CoinMarginedFutures)
-	require.NoError(t, err)
-	_, err = e.GetRecentTrades(t.Context(), btcusdtPair, asset.USDTMarginedFutures)
-	require.NoError(t, err)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		_, err := e.GetRecentTrades(t.Context(), btcusdtPair, asset.Spot)
+		require.NoError(t, err)
+		_, err = e.GetRecentTrades(t.Context(), btccwPair, asset.Futures)
+		require.NoError(t, err)
+		_, err = e.GetRecentTrades(t.Context(), btcusdPair, asset.CoinMarginedFutures)
+		require.NoError(t, err)
+		_, err = e.GetRecentTrades(t.Context(), btcusdtPair, asset.USDTMarginedFutures)
+		require.NoError(t, err)
+	})
 }
 
 func TestGetHistoricTrades(t *testing.T) {
@@ -3447,6 +3566,20 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 
 func TestWebsocketSubmitOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
+		connectHTXLiveWebsocket(t, h, nil)
+		_, err := h.WebsocketSubmitOrders(t.Context(), []*order.Submit{{
+			Exchange: h.Name, AssetType: asset.USDTMarginedFutures,
+			Pair: currency.NewPairWithDelimiter("INVALID", "USDT", "-"), Side: order.Buy,
+			Type: order.Limit, Price: 1, Amount: 1,
+		}})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "live venue must reject submission for the fabricated contract")
+	})
 	t.Run("protect mode until submission completes", func(t *testing.T) {
 		t.Parallel()
 		started, release := make(chan struct{}), make(chan struct{})
@@ -3664,9 +3797,15 @@ func TestGetAvailableTransferChains(t *testing.T) {
 		_, err := h.GetAvailableTransferChains(t.Context(), currency.USDT)
 		require.ErrorIs(t, err, errNoTransferChains, "missing currency metadata must return the sentinel")
 	})
-	c, err := e.GetAvailableTransferChains(t.Context(), currency.USDT)
-	require.NoError(t, err)
-	require.Greater(t, len(c), 2, "Must get more than 2 chains")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		c, err := e.GetAvailableTransferChains(t.Context(), currency.USDT)
+		require.NoError(t, err)
+		require.Greater(t, len(c), 2, "Must get more than 2 chains")
+	})
 }
 
 func TestGetWithdrawalsHistory(t *testing.T) {
@@ -3818,14 +3957,20 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesContractDetails(t.Context(), asset.Spot)
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
-	resp, err := e.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		resp, err := e.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 
-	_, err = e.GetFuturesContractDetails(t.Context(), asset.CoinMarginedFutures)
-	require.NoError(t, err)
-	_, err = e.GetFuturesContractDetails(t.Context(), asset.Futures)
-	require.NoError(t, err)
+		_, err = e.GetFuturesContractDetails(t.Context(), asset.CoinMarginedFutures)
+		require.NoError(t, err)
+		_, err = e.GetFuturesContractDetails(t.Context(), asset.Futures)
+		require.NoError(t, err)
+	})
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
@@ -3861,39 +4006,45 @@ func TestGetLatestFundingRates(t *testing.T) {
 			assert.Equal(t, upcoming.Add(-interval), rates[0].LatestRate.Time.UTC(), "latest rate time should use the contract interval")
 		})
 	}
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test Instance Setup must not fail")
-	updatePairsOnce(t, e)
-	err := e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, currency.NewBTCUSDT())
-	if err != nil {
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		e := new(Exchange)
+		require.NoError(t, testexch.Setup(e), "Test Instance Setup must not fail")
+		updatePairsOnce(t, e)
+		err := e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, currency.NewBTCUSDT())
+		if err != nil {
+			require.ErrorIs(t, err, currency.ErrPairAlreadyEnabled)
+		}
+
+		resp, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
+			Asset:                asset.USDTMarginedFutures,
+			Pair:                 currency.NewBTCUSDT(),
+			IncludePredictedRate: true,
+		})
+		require.ErrorIs(t, err, common.ErrFunctionNotSupported, "USDT-margined predicted funding rates must be rejected")
+		assert.Empty(t, resp, "unsupported predicted funding rates should not be returned")
+
+		resp, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
+			Asset:                asset.CoinMarginedFutures,
+			Pair:                 currency.NewBTCUSD(),
+			IncludePredictedRate: true,
+		})
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+
+		err = e.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, currency.NewBTCUSD())
 		require.ErrorIs(t, err, currency.ErrPairAlreadyEnabled)
-	}
 
-	resp, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewBTCUSDT(),
-		IncludePredictedRate: true,
+		resp, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
+			Asset:                asset.CoinMarginedFutures,
+			IncludePredictedRate: true,
+		})
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	})
-	require.ErrorIs(t, err, common.ErrFunctionNotSupported, "USDT-margined predicted funding rates must be rejected")
-	assert.Empty(t, resp, "unsupported predicted funding rates should not be returned")
-
-	resp, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.CoinMarginedFutures,
-		Pair:                 currency.NewBTCUSD(),
-		IncludePredictedRate: true,
-	})
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp)
-
-	err = e.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, currency.NewBTCUSD())
-	require.ErrorIs(t, err, currency.ErrPairAlreadyEnabled)
-
-	resp, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.CoinMarginedFutures,
-		IncludePredictedRate: true,
-	})
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp)
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
@@ -4111,6 +4262,9 @@ func TestGetOpenInterest(t *testing.T) {
 	}
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		updatePairsOnce(t, e)
 
 		resp, err := e.GetOpenInterest(t.Context(), key.PairAsset{
@@ -4145,7 +4299,6 @@ func TestGetOpenInterest(t *testing.T) {
 
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
-	updatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		pairs, err := e.CurrencyPairs.GetPairs(a, false)
 		require.NoErrorf(t, err, "cannot get pairs for %s", a)
@@ -4158,23 +4311,29 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	updatePairsOnce(t, e)
-	for _, a := range e.GetAssetTypes(false) {
-		t.Run(a.String(), func(t *testing.T) {
-			t.Parallel()
-			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-			pairs, err := e.CurrencyPairs.GetPairs(a, false)
-			require.NoError(t, err, "GetPairs must not error")
-			require.NotEmpty(t, pairs, "GetPairs must return pairs")
-			for _, p := range pairs {
-				l, err := e.GetOrderExecutionLimits(a, p)
-				require.NoError(t, err, "GetOrderExecutionLimits must not error")
-				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
-				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
-				assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-			}
-		})
-	}
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		updatePairsOnce(t, e)
+		for _, a := range e.GetAssetTypes(false) {
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+				pairs, err := e.CurrencyPairs.GetPairs(a, false)
+				require.NoError(t, err, "GetPairs must not error")
+				require.NotEmpty(t, pairs, "GetPairs must return pairs")
+				for _, p := range pairs {
+					l, err := e.GetOrderExecutionLimits(a, p)
+					require.NoError(t, err, "GetOrderExecutionLimits must not error")
+					assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+					assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+					assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+				}
+			})
+		}
+	})
 	t.Run("unsupported asset", func(t *testing.T) {
 		t.Parallel()
 		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
@@ -4183,18 +4342,24 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func TestBootstrap(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test Instance Setup must not fail")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		e := new(Exchange)
+		require.NoError(t, testexch.Setup(e), "Test Instance Setup must not fail")
 
-	c, err := e.Bootstrap(t.Context())
-	require.NoError(t, err)
-	assert.True(t, c, "Bootstrap should return true to continue")
+		c, err := e.Bootstrap(t.Context())
+		require.NoError(t, err)
+		assert.True(t, c, "Bootstrap should return true to continue")
 
-	e.futureContractCodes = nil
-	e.Features.Enabled.AutoPairUpdates = false
-	_, err = e.Bootstrap(t.Context())
-	require.NoError(t, err)
-	require.NotNil(t, e.futureContractCodes)
+		e.futureContractCodes = nil
+		e.Features.Enabled.AutoPairUpdates = false
+		_, err = e.Bootstrap(t.Context())
+		require.NoError(t, err)
+		require.NotNil(t, e.futureContractCodes)
+	})
 }
 
 var (

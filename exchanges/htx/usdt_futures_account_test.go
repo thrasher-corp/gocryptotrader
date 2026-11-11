@@ -21,6 +21,9 @@ func TestGetV5AssetMode(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		response, err := h.GetV5AssetMode(t.Context())
 		require.NoError(t, err, "live collateral mode must be readable")
@@ -38,6 +41,9 @@ func TestSetV5AssetMode(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		_, err := h.SetV5AssetMode(t.Context(), 99)
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "venue must reject the fabricated asset mode")
@@ -58,6 +64,9 @@ func TestGetV5AccountBills(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		response, err := h.GetV5AccountBills(t.Context(), &V5AccountBillsRequest{Limit: 10})
 		require.NoError(t, err, "live account bills must be readable")
@@ -92,6 +101,9 @@ func TestGetV5FeeDeductionCurrency(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		response, err := h.GetV5FeeDeductionCurrency(t.Context())
 		require.NoError(t, err, "live fee deduction setting must be readable")
@@ -108,6 +120,9 @@ func TestSetV5FeeDeductionCurrency(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		_, err := h.SetV5FeeDeductionCurrency(t.Context(), &V5SetFeeDeductionCurrencyRequest{FeeOption: 99, DeductionCurrency: currency.NewCode("INVALID")})
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "venue must reject the fabricated fee deduction preference")
@@ -125,6 +140,9 @@ func TestV5UniversalTransfer(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		_, err := h.V5UniversalTransfer(t.Context(), &V5UniversalTransferRequest{Amount: 1, Currency: currency.NewCode("INVALID"), FromAccountType: "spot", ToAccountType: "linear-swap"})
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "venue must reject a transfer of the fabricated currency")
@@ -191,6 +209,9 @@ func TestGetV5UniversalTransferRecords(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		response, err := h.GetV5UniversalTransferRecords(t.Context(), &V5UniversalTransferRecordsRequest{Currency: currency.USDT, Limit: 10})
 		require.NoError(t, err, "live transfer records must be readable")
@@ -224,6 +245,9 @@ func TestGetV5AccountBalance(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		response, err := h.GetV5AccountBalance(t.Context())
 		require.NoError(t, err, "live account balance must be readable")

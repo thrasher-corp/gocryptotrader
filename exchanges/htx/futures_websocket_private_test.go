@@ -28,7 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestFormatLegacyFuturesWSOrder(t *testing.T) {
+func TestFormatLegacyFuturesWebsocketOrder(t *testing.T) {
 	t.Parallel()
 	for _, item := range []asset.Item{asset.Futures, asset.CoinMarginedFutures} {
 		t.Run(item.String()+" cost asset", func(t *testing.T) {
@@ -135,7 +135,7 @@ func TestFormatLegacyFuturesWSOrder(t *testing.T) {
 	}
 }
 
-func TestWSGenerateFuturesSignature(t *testing.T) {
+func TestWebsocketGenerateFuturesSignature(t *testing.T) {
 	t.Parallel()
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketCoinMarginedPrivate)
@@ -159,7 +159,7 @@ func TestWSGenerateFuturesSignature(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "wsGenerateFuturesSignature must reject nil credentials")
 }
 
-func TestWSFuturesLogin(t *testing.T) {
+func TestWebsocketFuturesLogin(t *testing.T) {
 	t.Parallel()
 	type testCase struct {
 		name         string
@@ -229,7 +229,7 @@ func TestWSFuturesLogin(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "wsFuturesLogin must reject nil connections")
 }
 
-func TestWSHandleFuturesPing(t *testing.T) {
+func TestWebsocketHandleFuturesPing(t *testing.T) {
 	t.Parallel()
 	type testCase struct {
 		name, input, expected string
@@ -323,7 +323,7 @@ func TestGetFuturesPrivateSubscription(t *testing.T) {
 	assert.Nil(t, h.getFuturesPrivateSubscription(conn, "invalid"), "unrecognised topics should not resolve")
 }
 
-func TestWSHandleFuturesPrivateMessage(t *testing.T) {
+func TestWebsocketHandleFuturesPrivateMessage(t *testing.T) {
 	t.Parallel()
 	t.Run("fill lifecycle", func(t *testing.T) {
 		t.Parallel()
@@ -415,7 +415,7 @@ func TestWSHandleFuturesPrivateMessage(t *testing.T) {
 	}
 }
 
-func TestWSHandleDeliveryFuturesPrivateMessage(t *testing.T) {
+func TestWebsocketHandleDeliveryFuturesPrivateMessage(t *testing.T) {
 	t.Parallel()
 	type testCase struct {
 		name     string

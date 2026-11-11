@@ -1,6 +1,7 @@
 package htx
 
 import (
+	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -13,6 +14,19 @@ import (
 
 func TestGetLinearSwapMarkets(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetLinearSwapMarkets(ctx, btcusdtPair, "", "swap", "")
+		require.NoError(t, err, "GetLinearSwapMarkets live request must succeed")
+		require.NotEmpty(t, response, "live contract metadata must include the requested market")
+		assert.Equal(t, "BTC-USDT", response[0].ContractCode, "contract metadata should belong to the requested market")
+	})
 	type testCase struct {
 		name, date, deliveryTime string
 		expected                 time.Time
@@ -44,6 +58,18 @@ func TestGetLinearSwapMarkets(t *testing.T) {
 
 func TestGetLinearSwapMarketDepth(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetLinearSwapMarketDepth(ctx, btcusdtPair, "step0")
+		require.NoError(t, err, "GetLinearSwapMarketDepth live request must succeed")
+		require.NotNil(t, response, "live order book response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/linear-swap-ex/market/depth", `{"status":"ok","tick":{"id":123}}`, nil)
 	resp, err := h.GetLinearSwapMarketDepth(t.Context(), btcusdtPair, "step0")
 	require.NoError(t, err, "GetLinearSwapMarketDepth must not error")
@@ -52,6 +78,18 @@ func TestGetLinearSwapMarketDepth(t *testing.T) {
 
 func TestGetLinearSwapMarketOverview(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetLinearSwapMarketOverview(ctx, btcusdtPair)
+		require.NoError(t, err, "GetLinearSwapMarketOverview live request must succeed")
+		require.NotNil(t, response, "live market overview response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/linear-swap-ex/market/detail/merged", `{"status":"ok","ch":"market.BTC-USDT.detail","tick":{"id":123}}`, nil)
 	resp, err := h.GetLinearSwapMarketOverview(t.Context(), btcusdtPair)
 	require.NoError(t, err, "GetLinearSwapMarketOverview must not error")
@@ -60,6 +98,18 @@ func TestGetLinearSwapMarketOverview(t *testing.T) {
 
 func TestGetLinearSwapKlineData(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetLinearSwapKlineData(ctx, btcusdtPair, "1min", 10, time.Time{}, time.Time{})
+		require.NoError(t, err, "GetLinearSwapKlineData live request must succeed")
+		require.NotNil(t, response, "live candle response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/linear-swap-ex/market/history/kline", `{"status":"ok","data":[{"id":1604312615,"close":1}]}`, nil)
 	resp, err := h.GetLinearSwapKlineData(t.Context(), btcusdtPair, "1min", 10, time.Time{}, time.Time{})
 	require.NoError(t, err, "GetLinearSwapKlineData must not error")
@@ -73,6 +123,18 @@ func TestGetLinearSwapKlineData(t *testing.T) {
 
 func TestGetLinearSwapBatchTrades(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetLinearSwapBatchTrades(ctx, btcusdtPair, 10)
+		require.NoError(t, err, "GetLinearSwapBatchTrades live request must succeed")
+		require.NotNil(t, response, "live trade history response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/linear-swap-ex/market/history/trade", `{"status":"ok","id":123,"data":[{"id":1,"data":[{"id":2,"price":10}]}]}`, nil)
 	resp, err := h.GetLinearSwapBatchTrades(t.Context(), btcusdtPair, 10)
 	require.NoError(t, err, "GetLinearSwapBatchTrades must not error")

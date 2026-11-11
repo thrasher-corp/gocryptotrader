@@ -18,6 +18,9 @@ func TestPlaceV5AlgoOrder(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		response, err := h.PlaceV5AlgoOrder(t.Context(), &V5AlgoOrderRequest{ContractCode: "INVALID-USDT", MarginMode: "cross", PositionSide: "long", Side: "buy", Type: "trigger", Volume: 1, Price: 1, TriggerPrice: 2, TriggerPriceType: "last", OrderPriceType: "limit"})
 		if err != nil {
@@ -67,6 +70,9 @@ func TestCancelV5AlgoOrders(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		const fabricatedOrderID = "9223372036854775807"
 		response, err := h.CancelV5AlgoOrders(t.Context(), []*V5CancelAlgoOrderRequest{{ContractCode: "BTC-USDT", AlgoID: fabricatedOrderID}})
@@ -91,6 +97,9 @@ func TestGetV5AlgoOrder(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		open, err := h.GetV5OpenAlgoOrders(t.Context(), &V5OpenAlgoOrdersRequest{ContractCode: "BTC-USDT", Type: "trigger", Limit: 1})
 		require.NoError(t, err, "live strategy order must be discoverable")
@@ -119,6 +128,9 @@ func TestGetV5OpenAlgoOrders(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		response, err := h.GetV5OpenAlgoOrders(t.Context(), &V5OpenAlgoOrdersRequest{ContractCode: "BTC-USDT", Type: "trigger", Limit: 10})
 		require.NoError(t, err, "live open strategy orders must be readable")
@@ -149,6 +161,9 @@ func TestGetV5AlgoOrderHistory(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		end := time.Now().UTC()
 		response, err := h.GetV5AlgoOrderHistory(t.Context(), &V5AlgoOrderHistoryRequest{ContractCode: "BTC-USDT", MarginMode: "cross", Type: "trigger", StartTime: end.Add(-24 * time.Hour), EndTime: end, Limit: 10})

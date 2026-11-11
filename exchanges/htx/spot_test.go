@@ -361,6 +361,18 @@ func TestUnmarshalResponse(t *testing.T) {
 
 func TestGetCurrenciesIncludingChains(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetCurrenciesIncludingChains(ctx, currency.USDT)
+		require.NoError(t, err, "GetCurrenciesIncludingChains live request must succeed")
+		require.NotEmpty(t, response, "live currency metadata must include the requested currency")
+	})
 	t.Run("API failure", func(t *testing.T) {
 		t.Parallel()
 		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v2/reference/currencies", `{"status":"error","err-msg":"invalid currency"}`, nil)
@@ -382,6 +394,18 @@ func TestGetCurrenciesIncludingChains(t *testing.T) {
 
 func TestGetMarginRates(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetMarginRates(ctx, btcusdtPair)
+		require.NoError(t, err, "GetMarginRates live request must succeed")
+		require.NotNil(t, response, "live margin rates response must decode")
+	})
 	type testCase struct {
 		name, body string
 		wantErr    error
@@ -415,42 +439,85 @@ func TestGetSpotKline(t *testing.T) {
 		_, err := e.GetSpotKline(t.Context(), nil)
 		require.ErrorIs(t, err, common.ErrNilPointer, "GetSpotKline must reject a nil request")
 	})
-	_, err := e.GetSpotKline(t.Context(), &KlinesRequest{Symbol: btcusdtPair, Period: "1min"})
-	require.NoError(t, err)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := e.GetSpotKline(ctx, &KlinesRequest{Symbol: btcusdtPair, Period: "1min"})
+		require.NoError(t, err, "live spot candles must be readable")
+	})
 }
 
 func TestGetMarketDetailMerged(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarketDetailMerged(t.Context(), btcusdtPair)
-	require.NoError(t, err)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := e.GetMarketDetailMerged(ctx, btcusdtPair)
+		require.NoError(t, err)
+	})
 }
 
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetDepth(t.Context(),
-		&OrderBookRequest{
-			Symbol: btcusdtPair,
-			Type:   OrderBookDepthTypeStep1,
-		})
-	require.NoError(t, err)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := e.GetDepth(ctx,
+			&OrderBookRequest{
+				Symbol: btcusdtPair,
+				Type:   OrderBookDepthTypeStep1,
+			})
+		require.NoError(t, err)
+	})
 }
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTrades(t.Context(), btcusdtPair)
-	require.NoError(t, err)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := e.GetTrades(ctx, btcusdtPair)
+		require.NoError(t, err)
+	})
 }
 
 func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetLatestSpotPrice(t.Context(), btcusdtPair)
-	require.NoError(t, err)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := e.GetLatestSpotPrice(ctx, btcusdtPair)
+		require.NoError(t, err)
+	})
 }
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		_, err := e.GetTradeHistory(t.Context(), btcusdtPair, 50)
 		require.NoError(t, err)
 	})
@@ -466,30 +533,76 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetMarketDetail(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarketDetail(t.Context(), btcusdtPair)
-	require.NoError(t, err)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := e.GetMarketDetail(ctx, btcusdtPair)
+		require.NoError(t, err)
+	})
 }
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSymbols(t.Context())
-	require.NoError(t, err)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := e.GetSymbols(ctx)
+		require.NoError(t, err)
+	})
 }
 
 func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCurrencies(t.Context())
-	require.NoError(t, err)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := e.GetCurrencies(ctx)
+		require.NoError(t, err)
+	})
 }
 
 func TestGet24HourMarketSummary(t *testing.T) {
 	t.Parallel()
-	_, err := e.Get24HourMarketSummary(t.Context(), btcusdtPair)
-	require.NoError(t, err)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := e.Get24HourMarketSummary(ctx, btcusdtPair)
+		require.NoError(t, err)
+	})
 }
 
 func TestGetAccounts(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetAccounts(ctx)
+		require.NoError(t, err, "GetAccounts live request must succeed")
+		for _, account := range response {
+			assert.NotZero(t, account.ID, "account should have an identifier")
+		}
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/account/accounts", emptySuccessResponse, nil)
 	_, err := h.GetAccounts(t.Context())
 	require.NoError(t, err, "GetAccounts must not error")
@@ -497,6 +610,17 @@ func TestGetAccounts(t *testing.T) {
 
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := h.GetAccountBalance(ctx, "9223372036854775807")
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetAccountBalance must report the venue rejection for fabricated details")
+	})
 	t.Run("credentials required", func(t *testing.T) {
 		t.Parallel()
 		h := new(Exchange)
@@ -512,6 +636,20 @@ func TestGetAccountBalance(t *testing.T) {
 
 func TestGetAggregatedBalance(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetAggregatedBalance(ctx)
+		require.NoError(t, err, "GetAggregatedBalance live request must succeed")
+		for _, balance := range response {
+			assert.NotEmpty(t, balance.Currency, "aggregated balance should identify its currency")
+		}
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/subuser/aggregate-balance", emptySuccessResponse, nil)
 	_, err := h.GetAggregatedBalance(t.Context())
 	require.NoError(t, err, "GetAggregatedBalance must not error")
@@ -519,6 +657,17 @@ func TestGetAggregatedBalance(t *testing.T) {
 
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := h.SpotNewOrder(ctx, &SpotOrderRequest{Symbol: btcusdtPair, AccountID: 9223372036854775807, Amount: 0.001, Price: 1, Type: SpotOrderTypeBuyLimit})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "SpotNewOrder must report the venue rejection for fabricated details")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/place", `{"status":"ok","data":"123"}`, nil)
 	arg := SpotOrderRequest{
 		Symbol:    btcusdtPair,
@@ -544,6 +693,9 @@ func TestCancelExistingOrder(t *testing.T) {
 	})
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		const fabricatedOrderID = uint64(9223372036854775807)
 		_, err := h.CancelExistingOrder(t.Context(), fabricatedOrderID)
@@ -553,6 +705,17 @@ func TestCancelExistingOrder(t *testing.T) {
 
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := h.GetOrder(ctx, 9223372036854775807)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetOrder must report the venue rejection for fabricated details")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/orders/1337", emptySuccessResponse, nil)
 	_, err := h.GetOrder(t.Context(), 1337)
 	require.NoError(t, err, "GetOrder must not error")
@@ -560,6 +723,17 @@ func TestGetOrder(t *testing.T) {
 
 func TestGetOrderMatchResults(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := h.GetOrderMatchResults(ctx, 9223372036854775807)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetOrderMatchResults must report the venue rejection for fabricated details")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+fmt.Sprintf("/order/orders/%s/matchresults", "1337"), emptySuccessResponse, nil)
 	_, err := h.GetOrderMatchResults(t.Context(), 1337)
 	require.NoError(t, err, "GetOrderMatchResults must not error")
@@ -569,6 +743,9 @@ func TestGetOrders(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		end := time.Now().UTC().Truncate(time.Millisecond)
 		for _, tc := range []struct {
@@ -621,6 +798,17 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := h.GetOpenOrders(ctx, btcusdtPair, "9223372036854775807", "buy", 10)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetOpenOrders must report the venue rejection for fabricated details")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/openOrders", emptySuccessResponse, nil)
 	_, err := h.GetOpenOrders(t.Context(), btcusdtPair, "100009", "buy", 10)
 	require.NoError(t, err, "GetOpenOrders must not error")
@@ -628,6 +816,20 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetOrdersMatch(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.GetOrdersMatch(ctx, btcusdtPair, "", "", "", "", "", "10")
+		require.NoError(t, err, "GetOrdersMatch live request must succeed")
+		for _, match := range response {
+			assert.NotZero(t, match.ID, "execution should have an identifier")
+		}
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/matchresults", emptySuccessResponse, nil)
 	_, err := h.GetOrdersMatch(t.Context(), btcusdtPair, "buy-limit", "", "", "", "", "10")
 	require.NoError(t, err, "GetOrdersMatch must not error")
@@ -635,6 +837,17 @@ func TestGetOrdersMatch(t *testing.T) {
 
 func TestGetMarginLoanOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := h.GetMarginLoanOrders(ctx, btcusdtPair, "usdt", "", "", "", "", "", "10")
+		require.NoError(t, err, "GetMarginLoanOrders live request must succeed")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/margin/loan-orders", emptySuccessResponse, nil)
 	_, err := h.GetMarginLoanOrders(t.Context(), btcusdtPair, "usdt", "", "", "", "", "", "10")
 	require.NoError(t, err, "GetMarginLoanOrders must not error")
@@ -642,6 +855,17 @@ func TestGetMarginLoanOrders(t *testing.T) {
 
 func TestGetMarginAccountBalance(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := h.GetMarginAccountBalance(ctx, btcusdtPair)
+		require.NoError(t, err, "GetMarginAccountBalance live request must succeed")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/margin/accounts/balance", emptySuccessResponse, nil)
 	_, err := h.GetMarginAccountBalance(t.Context(), btcusdtPair)
 	require.NoError(t, err, "GetMarginAccountBalance must not error")
@@ -649,6 +873,17 @@ func TestGetMarginAccountBalance(t *testing.T) {
 
 func TestMarginTransfer(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := h.MarginTransfer(ctx, btcusdtPair, "invalid", 1, true)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "MarginTransfer must report the venue rejection for fabricated details")
+	})
 	type testCase struct {
 		name string
 		in   bool
@@ -672,6 +907,17 @@ func TestMarginTransfer(t *testing.T) {
 
 func TestMarginOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := h.MarginOrder(ctx, btcusdtPair, "invalid", 1)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "MarginOrder must report the venue rejection for fabricated details")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/margin/orders", `{"status":"ok","data":123}`, nil)
 	_, err := h.MarginOrder(t.Context(), btcusdtPair, "usdt", 1.25)
 	require.NoError(t, err, "MarginOrder must not error")
@@ -679,6 +925,17 @@ func TestMarginOrder(t *testing.T) {
 
 func TestMarginRepayment(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := h.MarginRepayment(ctx, 9223372036854775807, 1)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "MarginRepayment must report the venue rejection for fabricated details")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+fmt.Sprintf("/margin/orders/%s/repay", "1"), `{"status":"ok","data":123}`, nil)
 	_, err := h.MarginRepayment(t.Context(), 1, 1.25)
 	require.NoError(t, err, "MarginRepayment must not error")
@@ -686,6 +943,17 @@ func TestMarginRepayment(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := h.Withdraw(ctx, currency.BTC, "invalid-address", "", "btc", 0.001, 0.0001)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "Withdraw must report the venue rejection for fabricated details")
+	})
 	type testCase struct {
 		name    string
 		code    currency.Code
@@ -715,6 +983,17 @@ func TestWithdraw(t *testing.T) {
 
 func TestCancelWithdraw(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := h.CancelWithdraw(ctx, 9223372036854775807)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelWithdraw must report the venue rejection for fabricated details")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+fmt.Sprintf("/dw/withdraw-virtual/%s/cancel", "1337"), `{"status":"ok","data":123}`, nil)
 	_, err := h.CancelWithdraw(t.Context(), 1337)
 	require.NoError(t, err, "CancelWithdraw must not error")
@@ -746,6 +1025,18 @@ func TestSetFeeBuilder(t *testing.T) {
 
 func TestQueryDepositAddress(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.QueryDepositAddress(ctx, currency.BTC)
+		require.NoError(t, err, "QueryDepositAddress live request must succeed")
+		require.NotEmpty(t, response, "live deposit address must be returned")
+	})
 	type testCase struct {
 		name, body string
 		wantErr    error
@@ -776,6 +1067,19 @@ func TestQueryDepositAddress(t *testing.T) {
 
 func TestQueryWithdrawQuotas(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.QueryWithdrawQuotas(ctx, "btc")
+		require.NoError(t, err, "QueryWithdrawQuotas live request must succeed")
+		require.NotNil(t, response, "live withdrawal quota response must decode")
+		assert.Equal(t, "btc", response.Currency, "withdrawal quota should identify the requested currency")
+	})
 	type testCase struct {
 		name, body string
 		wantErr    error
@@ -804,6 +1108,18 @@ func TestQueryWithdrawQuotas(t *testing.T) {
 
 func TestSearchForExistedWithdrawsAndDeposits(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.SearchForExistedWithdrawsAndDeposits(ctx, currency.BTC, "deposit", "next", 0, 10)
+		require.NoError(t, err, "SearchForExistedWithdrawsAndDeposits live request must succeed")
+		require.NotNil(t, response, "live transfer history response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/query/deposit-withdraw", emptySuccessResponse, func(r *http.Request) {
 		assert.Equal(t, "next", r.URL.Query().Get("direct"), "direct query parameter should match")
 		assert.Empty(t, r.URL.Query().Get("direction"), "undocumented direction query parameter should not be sent")
@@ -814,6 +1130,23 @@ func TestSearchForExistedWithdrawsAndDeposits(t *testing.T) {
 
 func TestCancelOrderBatch(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		response, err := h.CancelOrderBatch(ctx, []string{"9223372036854775807"}, nil)
+		if err != nil {
+			require.ErrorIs(t, err, request.ErrAuthRequestFailed, "fabricated cancellation must report an authenticated venue rejection")
+		} else {
+			require.NotNil(t, response, "batch cancellation rejection must decode")
+			assert.Empty(t, response.Success, "fabricated order should never be cancelled")
+			assert.NotEmpty(t, response.Failed, "fabricated order should have a rejection result")
+		}
+	})
 	type testCase struct {
 		name             string
 		orderCount       int
@@ -879,6 +1212,17 @@ func TestCancelOrderBatch(t *testing.T) {
 
 func TestCancelOpenOrdersBatch(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := h.CancelOpenOrdersBatch(ctx, "9223372036854775807", btcusdtPair)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelOpenOrdersBatch must report the venue rejection for fabricated details")
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/batchCancelOpenOrders", `{"status":"ok","data":{"success-count":1,"failed-count":0,"next-id":-1}}`, nil)
 	_, err := h.CancelOpenOrdersBatch(t.Context(), "1", btcusdtPair)
 	require.NoError(t, err, "CancelOpenOrdersBatch must not error")
@@ -919,16 +1263,32 @@ func TestValidateCancelOpenOrdersBatchResponse(t *testing.T) {
 
 func TestGetBatchLinearSwapContracts(t *testing.T) {
 	t.Parallel()
-	resp, err := e.GetBatchLinearSwapContracts(t.Context())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		resp, err := e.GetBatchLinearSwapContracts(ctx)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	})
 }
 
 func TestGetBatchFuturesContracts(t *testing.T) {
 	t.Parallel()
-	resp, err := e.GetBatchFuturesContracts(t.Context())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		resp, err := e.GetBatchFuturesContracts(ctx)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	})
 }
 
 func updatePairsOnce(tb testing.TB, h *Exchange) {
@@ -1002,15 +1362,31 @@ func TestUpdatePairsOnce(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTickers(t.Context())
-	require.NoError(t, err)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := e.GetTickers(ctx)
+		require.NoError(t, err)
+	})
 }
 
 func TestGetCurrentServerTime(t *testing.T) {
 	t.Parallel()
-	st, err := e.GetCurrentServerTime(t.Context())
-	require.NoError(t, err)
-	assert.NotEmpty(t, st, "GetCurrentServerTime should return a time")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		st, err := e.GetCurrentServerTime(ctx)
+		require.NoError(t, err)
+		assert.NotEmpty(t, st, "GetCurrentServerTime should return a time")
+	})
 }
 
 func TestGetFee(t *testing.T) {
@@ -1092,7 +1468,15 @@ func TestCalculateTradingFee(t *testing.T) {
 
 func TestGetBatchCoinMarginSwapContracts(t *testing.T) {
 	t.Parallel()
-	resp, err := e.GetBatchCoinMarginSwapContracts(t.Context())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		resp, err := e.GetBatchCoinMarginSwapContracts(ctx)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	})
 }

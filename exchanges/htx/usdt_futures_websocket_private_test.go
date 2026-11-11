@@ -214,6 +214,9 @@ func TestWebsocketPlaceV5Order(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
 		connectHTXLiveWebsocket(t, h, nil)
 		response, err := h.WebsocketPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT", MarginMode: "cross", PositionSide: "long", Side: "invalid", Type: "post_only", Price: 1, Volume: 1})
@@ -268,6 +271,9 @@ func TestWebsocketPlaceV5BatchOrders(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
 		connectHTXLiveWebsocket(t, h, nil)
 		response, err := h.WebsocketPlaceV5BatchOrders(t.Context(), []*V5OrderRequest{{ContractCode: "BTC-USDT", MarginMode: "cross", PositionSide: "long", Side: "invalid", Type: "post_only", Price: 1, Volume: 1}})
@@ -297,6 +303,9 @@ func TestWebsocketCancelV5Order(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
 		const fabricatedOrderID = "9223372036854775807"
 		connectHTXLiveWebsocket(t, h, nil)
@@ -324,6 +333,9 @@ func TestWebsocketCancelV5BatchOrders(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
 		const fabricatedOrderID = "9223372036854775807"
 		connectHTXLiveWebsocket(t, h, nil)
@@ -393,6 +405,9 @@ func TestWebsocketCancelAllV5Orders(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
 		connectHTXLiveWebsocket(t, h, nil)
 		response, err := h.WebsocketCancelAllV5Orders(t.Context(), &V5CancelAllOrdersRequest{ContractCode: "INVALID-USDT", Side: "buy", PositionSide: "long"})
@@ -419,7 +434,7 @@ func TestWebsocketCancelAllV5Orders(t *testing.T) {
 	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "WebsocketCancelAllV5Orders must reject unauthenticated requests")
 }
 
-func TestSendV5WSOrderUpdate(t *testing.T) {
+func TestSendV5WebsocketOrderUpdate(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
@@ -472,7 +487,7 @@ func TestSendV5WSOrderUpdate(t *testing.T) {
 	})
 }
 
-func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
+func TestWebsocketHandleUSDTMarginedPrivateMessage(t *testing.T) {
 	t.Parallel()
 	type testCase struct {
 		name     string
@@ -571,7 +586,7 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 	assert.True(t, orderUpdate.ReduceOnly, "reduce-only should be retained")
 }
 
-func TestSendV5WSExecutionUpdates(t *testing.T) {
+func TestSendV5WebsocketExecutionUpdates(t *testing.T) {
 	t.Parallel()
 	type testCase struct {
 		name, raw string

@@ -300,13 +300,15 @@ type FuturesBatchOrderRequest struct {
 	Volume         float64 `json:"volume"`
 	Direction      string  `json:"direction"`
 	Offset         string  `json:"offset"`
-	LeverageRate   uint64  `json:"leverRate"`
-	OrderPriceType string  `json:"orderPriceType"`
+	LeverageRate   uint64  `json:"lever_rate"`
+	OrderPriceType string  `json:"order_price_type"`
 }
 
 // FuturesBatchOrderResponse stores batch order data
 type FuturesBatchOrderResponse struct {
-	Orders []FuturesOrderResponse `json:"orders_data"`
+	Orders    []FuturesOrderResponse `json:"orders_data"`
+	Results   SwapBatchOrderResult   `json:"data"`
+	Timestamp types.Time             `json:"ts"`
 }
 
 // FuturesCancelOrderResponse stores cancel order data

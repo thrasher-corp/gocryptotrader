@@ -61,6 +61,9 @@ func TestHTXLivePrivateWebsocket(t *testing.T) {
 	} {
 		t.Run(tc.asset.String(), func(t *testing.T) {
 			t.Parallel()
+			if mockTests {
+				t.Skip("Live testing requires the mock_test_off build tag")
+			}
 			h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true})
 			if tc.asset != asset.USDTMarginedFutures {
 				require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "test must isolate the requested private socket")

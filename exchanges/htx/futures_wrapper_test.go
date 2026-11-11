@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -73,6 +74,17 @@ func TestAppendFuturesCandles(t *testing.T) {
 
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
+		end := time.Now().UTC()
+		rates, err := h.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: btcusdtPair, StartDate: end.Add(-24 * time.Hour), EndDate: end})
+		require.NoError(t, err, "live historical funding rates must be readable")
+		require.NotNil(t, rates, "live funding history must decode")
+	})
 	for _, bounded := range []bool{false, true} {
 		t.Run(fmt.Sprintf("exact millisecond bounds/%t", bounded), func(t *testing.T) {
 			t.Parallel()
@@ -255,6 +267,15 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		err := h.SetLeverage(t.Context(), asset.USDTMarginedFutures, currency.NewPairWithDelimiter("INVALID", "USDT", "-"), margin.Multi, 1, order.Buy)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "live venue must reject leverage changes for the fabricated contract")
+	})
 	type testCase struct {
 		mode     margin.Type
 		expected string
@@ -379,6 +400,14 @@ func TestGetCurrencyForRealisedPNL(t *testing.T) {
 
 func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		require.NoError(t, h.SetCollateralMode(t.Context(), asset.USDTMarginedFutures, collateral.SingleMode), "live collateral mode setter must accept single-asset mode")
+	})
 	type testCase struct {
 		name         string
 		mode         collateral.Mode
@@ -416,6 +445,16 @@ func TestSetCollateralMode(t *testing.T) {
 
 func TestGetCollateralMode(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		mode, err := h.GetCollateralMode(t.Context(), asset.USDTMarginedFutures)
+		require.NoError(t, err, "live collateral mode must be readable")
+		assert.Contains(t, []collateral.Mode{collateral.SingleMode, collateral.MultiMode}, mode, "live collateral mode should be recognised")
+	})
 	type testCase struct {
 		name      string
 		assetMode uint64
@@ -448,6 +487,16 @@ func TestGetCollateralMode(t *testing.T) {
 
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		leverage, err := h.GetLeverage(t.Context(), asset.USDTMarginedFutures, btcusdtPair, margin.Multi, order.Buy)
+		require.NoError(t, err, "live leverage must be readable")
+		assert.Positive(t, leverage, "live leverage should be positive")
+	})
 	t.Run("null V5 response", func(t *testing.T) {
 		t.Parallel()
 		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/lever", `null`, nil)
@@ -558,6 +607,18 @@ func TestGetLeverage(t *testing.T) {
 
 func TestChangePositionMargin(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		_, err := h.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{
+			Asset: asset.USDTMarginedFutures, Pair: currency.NewPairWithDelimiter("INVALID", "USDT", "-"),
+			MarginType: margin.Isolated, OriginalAllocatedMargin: 1, NewAllocatedMargin: 2,
+		})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "live venue must reject margin changes for the fabricated contract")
+	})
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 	_, err := h.ChangePositionMargin(t.Context(), nil)

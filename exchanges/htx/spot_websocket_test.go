@@ -24,7 +24,7 @@ import (
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
-func TestWSHandleCandleMsg(t *testing.T) {
+func TestWebsocketHandleCandleMsg(t *testing.T) {
 	t.Parallel()
 	t.Run("timestamp overflow", func(t *testing.T) {
 		t.Parallel()
@@ -63,7 +63,7 @@ func TestWSHandleCandleMsg(t *testing.T) {
 	assert.Equal(t, exp, c)
 }
 
-func TestWSHandleOrderbookMsg(t *testing.T) {
+func TestWebsocketHandleOrderbookMsg(t *testing.T) {
 	t.Parallel()
 	type testCase struct {
 		name string
@@ -117,8 +117,8 @@ func TestWSHandleOrderbookMsg(t *testing.T) {
 	assert.Equal(t, 0.56281, liq, "Bid Liquidity should be correct")
 }
 
-// TestWSHandleAllTradesMsg ensures wsHandleAllTrades sends trade.Data to the ws.DataHandler
-func TestWSHandleAllTradesMsg(t *testing.T) {
+// TestWebsocketHandleAllTradesMsg ensures wsHandleAllTrades sends trade.Data to the ws.DataHandler
+func TestWebsocketHandleAllTradesMsg(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
@@ -164,7 +164,7 @@ func TestWSHandleAllTradesMsg(t *testing.T) {
 	require.Empty(t, e.Websocket.DataHandler.C, "Must not see any errors going to datahandler")
 }
 
-func TestWSHandleTickerMsg(t *testing.T) {
+func TestWebsocketHandleTickerMsg(t *testing.T) {
 	t.Parallel()
 	t.Run("derivative volume units", func(t *testing.T) {
 		t.Parallel()
@@ -262,7 +262,7 @@ func TestWSHandleTickerMsg(t *testing.T) {
 	assert.Equal(t, tick, stored, "stored ticker should match the dispatched ticker")
 }
 
-func TestWSHandleV1Ping(t *testing.T) {
+func TestWebsocketHandleV1Ping(t *testing.T) {
 	t.Parallel()
 	messages := make(chan []byte, 1)
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, _ *gws.Conn) error {

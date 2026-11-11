@@ -19,6 +19,9 @@ func TestPlaceV5BatchOrders(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		response, err := h.PlaceV5BatchOrders(t.Context(), []*V5OrderRequest{{ContractCode: "BTC-USDT", MarginMode: "cross", PositionSide: "long", Side: "invalid", Type: "post_only", Price: 1, Volume: 1}})
 		if err != nil {
@@ -43,6 +46,9 @@ func TestCancelV5BatchOrders(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		const fabricatedOrderID = "9223372036854775807"
 		response, err := h.CancelV5BatchOrders(t.Context(), &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{fabricatedOrderID}})
@@ -67,6 +73,9 @@ func TestSetV5CancelAfter(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		_, err := h.SetV5CancelAfter(t.Context(), &V5CancelAfterRequest{Enabled: "invalid", Timeout: 60})
 		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "fabricated cancellation setting should be rejected")
@@ -83,6 +92,9 @@ func TestCloseV5Position(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		response, err := h.CloseV5Position(t.Context(), &V5ClosePositionRequest{ContractCode: "INVALID-USDT", MarginMode: "cross", PositionSide: "long"})
 		if err != nil {
@@ -104,6 +116,9 @@ func TestCloseAllV5Positions(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		response, err := h.CloseAllV5Positions(t.Context())
 		require.NoError(t, err, "live close-all must be accepted")
@@ -123,6 +138,9 @@ func TestGetV5OrderHistory(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		for _, mode := range []string{"cross", "isolated"} {
 			t.Run(mode, func(t *testing.T) {
@@ -179,6 +197,9 @@ func TestGetV5OrderDetails(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		end := time.Now().UTC()
 		start := end.Add(-24 * time.Hour)
@@ -227,6 +248,9 @@ func TestGetV5OpenPositions(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		response, err := h.GetV5OpenPositions(t.Context(), btcusdtPair)
 		require.NoError(t, err, "live open positions must be readable")
@@ -247,6 +271,9 @@ func TestPlaceV5Order(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		response, err := h.PlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT", MarginMode: "cross", PositionSide: "long", Side: "invalid", Type: "post_only", Price: 1, Volume: 1})
 		if err != nil {
@@ -270,6 +297,9 @@ func TestCancelV5Order(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		const fabricatedOrderID = "9223372036854775807"
 		response, err := h.CancelV5Order(t.Context(), btcusdtPair, fabricatedOrderID, "")
@@ -291,6 +321,9 @@ func TestCancelAllV5Orders(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		response, err := h.CancelAllV5Orders(t.Context(), currency.NewPair(currency.NewCode("INVALID"), currency.USDT), "buy", "long")
 		if err != nil {
@@ -315,6 +348,9 @@ func TestGetV5Order(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		for _, mode := range []string{"cross", "isolated"} {
 			t.Run(mode, func(t *testing.T) {
@@ -344,6 +380,9 @@ func TestGetV5OpenOrders(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		for _, mode := range []string{"cross", "isolated"} {
 			t.Run(mode, func(t *testing.T) {

@@ -67,6 +67,60 @@ func TestAdd(t *testing.T) {
 	assert.NotNil(t, sub.Key, "Add should call EnsureKeyed")
 }
 
+func TestStoreUnsafeAdd(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, previousChannel, nextChannel string
+		otherOnPrevious, missingIndex      bool
+	}{
+		{name: "assign a default key"},
+		{name: "initialise topic index", nextChannel: "orders.next", missingIndex: true},
+		{name: "replace within one topic", previousChannel: "orders.previous", nextChannel: "orders.previous"},
+		{name: "move the last subscription", previousChannel: "orders.previous", nextChannel: "orders.next"},
+		{name: "preserve other subscriptions", previousChannel: "orders.previous", nextChannel: "orders.next", otherOnPrevious: true},
+		{name: "remove the previous topic", previousChannel: "orders.previous"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := NewStore()
+			var other *Subscription
+			if tc.previousChannel != "" {
+				previous := &Subscription{Key: "replaced", Channel: MyOrdersChannel, QualifiedChannel: tc.previousChannel}
+				s.unsafeAdd(previous)
+				if tc.otherOnPrevious {
+					other = &Subscription{Key: "other", Channel: MyOrdersChannel, QualifiedChannel: tc.previousChannel}
+					s.unsafeAdd(other)
+				}
+			}
+			if tc.missingIndex {
+				s.channels = nil
+			}
+			next := &Subscription{Channel: MyOrdersChannel, QualifiedChannel: tc.nextChannel}
+			if tc.previousChannel != "" {
+				next.Key = "replaced"
+			}
+			s.unsafeAdd(next)
+			require.NotNil(t, next.Key, "unsafeAdd must assign an omitted key")
+			assert.Same(t, next, s.Get(next.Key), "the primary store should retain the replacement")
+			if tc.nextChannel != "" {
+				assert.Same(t, next, s.channels[tc.nextChannel][next.Key], "the topic index should retain the replacement")
+			}
+			if other != nil {
+				assert.Same(t, other, s.Get(other.Key), "replacing one subscription should preserve another identity")
+				assert.Same(t, other, s.channels[tc.previousChannel][other.Key], "the old topic should retain its other subscription")
+				require.Len(t, s.channels[tc.previousChannel], 1, "the old topic must lose the moved subscription")
+			} else if tc.previousChannel != "" && tc.previousChannel != tc.nextChannel {
+				assert.NotContains(t, s.channels, tc.previousChannel, "the emptied topic should be removed from the index")
+			}
+			expected := 1
+			if other != nil {
+				expected++
+			}
+			assert.Len(t, s.List(), expected, "replacement should retain exactly the expected subscriptions")
+		})
+	}
+}
+
 // TestGet exercises Get and get methods
 // Ensures that key's Match is used, but does not exercise subscription.Match; See TestMatch for that coverage
 func TestGet(t *testing.T) {

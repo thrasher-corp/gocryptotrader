@@ -623,6 +623,7 @@ type BatchOrderSuccess struct {
 	Index         uint64 `json:"index"`
 	OrderID       uint64 `json:"order_id"`
 	OrderIDString string `json:"order_id_str"`
+	ClientOrderID uint64 `json:"client_order_id"`
 }
 
 // SwapBatchOrderRequest stores batch order request data

@@ -21,7 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestWSHandleMyAccountMsg(t *testing.T) {
+func TestWebsocketHandleMyAccountMsg(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
@@ -48,7 +48,7 @@ func TestWSHandleMyAccountMsg(t *testing.T) {
 	}
 }
 
-func TestWSHandleMyOrdersMsg(t *testing.T) {
+func TestWebsocketHandleMyOrdersMsg(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
@@ -114,7 +114,7 @@ func TestWSHandleMyOrdersMsg(t *testing.T) {
 	}
 }
 
-func TestWSHandleMyTradesMsg(t *testing.T) {
+func TestWebsocketHandleMyTradesMsg(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
@@ -157,7 +157,7 @@ func TestWSHandleMyTradesMsg(t *testing.T) {
 	assert.Equal(t, exp, d, "Order Detail should match")
 }
 
-func TestWSGenerateSignature(t *testing.T) {
+func TestWebsocketGenerateSignature(t *testing.T) {
 	t.Parallel()
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketPrivate)
@@ -171,7 +171,7 @@ func TestWSGenerateSignature(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "spot websocket signature generation must require credentials")
 }
 
-func TestWSLogin(t *testing.T) {
+func TestWebsocketLogin(t *testing.T) {
 	t.Parallel()
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
@@ -182,7 +182,7 @@ func TestWSLogin(t *testing.T) {
 	assert.True(t, h.Websocket.CanUseAuthenticatedEndpoints(), "successful login should enable authenticated endpoints")
 }
 
-func TestWSHandleV2Ping(t *testing.T) {
+func TestWebsocketHandleV2Ping(t *testing.T) {
 	t.Parallel()
 	messages := make(chan []byte, 1)
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, _ *gws.Conn) error {

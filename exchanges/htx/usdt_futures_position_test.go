@@ -27,6 +27,9 @@ func TestGetV5Leverage(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		for _, mode := range []string{"cross", "isolated"} {
 			t.Run(mode, func(t *testing.T) {
@@ -54,6 +57,9 @@ func TestSetV5Leverage(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		_, err := h.SetV5Leverage(t.Context(), &V5SetLeverageRequest{ContractCode: "INVALID-USDT", MarginMode: "cross", PositionSide: "long", LeverageRate: 5})
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "venue must reject leverage changes for the fabricated contract")
@@ -70,6 +76,9 @@ func TestAdjustV5PositionMargin(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		_, err := h.AdjustV5PositionMargin(t.Context(), &V5AdjustPositionMarginRequest{ContractCode: "INVALID-USDT", PositionSide: "long", Type: "add", Amount: 1})
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "venue must reject margin changes for the fabricated contract")
@@ -86,6 +95,9 @@ func TestGetV5PositionMode(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		response, err := h.GetV5PositionMode(t.Context())
 		require.NoError(t, err, "live position mode must be readable")
@@ -102,6 +114,9 @@ func TestSetV5PositionMode(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
 		_, err := h.SetV5PositionMode(t.Context(), "invalid")
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "venue must reject the fabricated position mode")
@@ -281,6 +296,9 @@ func TestGetV5PositionRiskLimit(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		response, err := h.GetV5PositionRiskLimit(t.Context(), btcusdtPair, "cross", "")
 		require.NoError(t, err, "live position risk limit must be readable")
@@ -300,6 +318,9 @@ func TestGetV5PositionRiskLimitTiers(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
 		response, err := h.GetV5PositionRiskLimitTiers(t.Context(), btcusdtPair, "cross")
 		require.NoError(t, err, "live position risk tiers must be readable")
@@ -315,6 +336,17 @@ func TestGetV5PositionRiskLimitTiers(t *testing.T) {
 
 func TestSwitchLinearSwapLeverage(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("Live testing requires the mock_test_off build tag")
+		}
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		err := h.SwitchLinearSwapLeverage(ctx, currency.NewPairWithDelimiter("INVALID", "USDT", "-"), 5, true, order.Buy)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "fabricated contract must be rejected by the live leverage endpoint")
+	})
 	type testCase struct {
 		name         string
 		mode         string
