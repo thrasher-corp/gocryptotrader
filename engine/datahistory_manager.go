@@ -1273,7 +1273,8 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		if job.DecimalPlaceComparison > maxDecimalPlaceComparison {
 			return fmt.Errorf("job %s %w: %d exceeds %d", job.Nickname, errInvalidDecimalPlaces, job.DecimalPlaceComparison, maxDecimalPlaceComparison)
 		}
-		if job.DecimalPlaceComparison == 0 {
+		// Zero is unset for the primary source, while a secondary source job compares whole units
+		if job.DecimalPlaceComparison == 0 && job.DataType == dataHistoryCandleValidationDataType {
 			log.Warnf(log.DataHistory, "job %s decimal place comparison %v invalid. defaulting to %v decimal places when comparing data for validation", job.Nickname, job.DecimalPlaceComparison, defaultDecimalPlaceComparison)
 			job.DecimalPlaceComparison = defaultDecimalPlaceComparison
 		}

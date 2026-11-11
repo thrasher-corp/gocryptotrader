@@ -416,7 +416,16 @@ func TestGetAddresses(t *testing.T) {
 			})
 			wg.Go(func() { b.GetAddresses() })
 		}
-		wg.Wait()
+		done := make(chan struct{})
+		go func() {
+			wg.Wait()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(time.Minute):
+			require.FailNow(t, "AddAddress and GetAddresses must finish within a minute")
+		}
 		assert.Len(t, b.GetAddresses(), 20, "GetAddresses should return every added address")
 	})
 }

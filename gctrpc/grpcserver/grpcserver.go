@@ -3,6 +3,8 @@ package grpcserver
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -71,8 +73,8 @@ func Start(ctx context.Context, cfg *Config) error {
 	if err := CheckCerts(cfg.TLSDir); err != nil {
 		return err
 	}
-	certFile, keyFile := filepath.Join(cfg.TLSDir, "cert.pem"), filepath.Join(cfg.TLSDir, "key.pem")
-	creds, err := credentials.NewServerTLSFromFile(certFile, keyFile)
+	// Both servers and the gateway use this one key pair, so a later change to the files cannot fail the proxy after Start
+	keyPair, err := tls.LoadX509KeyPair(filepath.Join(cfg.TLSDir, "cert.pem"), filepath.Join(cfg.TLSDir, "key.pem"))
 	if err != nil {
 		return fmt.Errorf("unable to load gRPC TLS key pair: %w", err)
 	}
@@ -87,11 +89,11 @@ func Start(ctx context.Context, cfg *Config) error {
 	if authenticate == nil {
 		authenticate = auth.BasicAuthFunc(cfg.Username, cfg.Password)
 	}
-	s := grpc.NewServer(serverOptions(creds, authenticate, cfg.StatusCode)...)
+	s := grpc.NewServer(serverOptions(credentials.NewServerTLSFromCert(&keyPair), authenticate, cfg.StatusCode)...)
 	cfg.Register(s)
 
 	if cfg.ProxyListenAddress != "" {
-		if err := startProxy(ctx, cfg, certFile, keyFile); err != nil {
+		if err := startProxy(ctx, cfg, &keyPair); err != nil {
 			_ = lis.Close()
 			return err
 		}
@@ -122,18 +124,16 @@ func Start(ctx context.Context, cfg *Config) error {
 	return nil
 }
 
-func startProxy(ctx context.Context, cfg *Config, certFile, keyFile string) error {
+func startProxy(ctx context.Context, cfg *Config, keyPair *tls.Certificate) error {
 	listenConfig := net.ListenConfig{}
 	lis, err := listenConfig.Listen(ctx, "tcp", cfg.ProxyListenAddress)
 	if err != nil {
 		return fmt.Errorf("gRPC proxy listener failed to bind: %w", err)
 	}
 
-	creds, err := credentials.NewClientTLSFromFile(certFile, "")
-	if err != nil {
-		_ = lis.Close()
-		return fmt.Errorf("unable to load gRPC proxy TLS certificate: %w", err)
-	}
+	roots := x509.NewCertPool()
+	roots.AddCert(keyPair.Leaf)
+	creds := credentials.NewClientTLSFromCert(roots, "")
 
 	// The gateway's connection to the gRPC server is closed only after the HTTP server has drained, so it can't use ctx
 	connCtx, closeConn := context.WithCancel(context.Background())
@@ -153,6 +153,7 @@ func startProxy(ctx context.Context, cfg *Config, certFile, keyFile string) erro
 		ReadHeaderTimeout: proxyReadTimeout,
 		ReadTimeout:       proxyReadTimeout,
 		Handler:           auth.RequireBasicAuth(mux, cfg.Username, cfg.Password),
+		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{*keyPair}, MinVersion: tls.VersionTLS12},
 	}
 
 	context.AfterFunc(ctx, func() {
@@ -165,7 +166,7 @@ func startProxy(ctx context.Context, cfg *Config, certFile, keyFile string) erro
 	})
 
 	go func() {
-		if err := server.ServeTLS(lis, certFile, keyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := server.ServeTLS(lis, "", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Errorf(log.GRPCSys, "gRPC proxy server failed to serve: %s", err)
 		}
 	}()

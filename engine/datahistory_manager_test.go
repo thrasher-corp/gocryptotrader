@@ -461,7 +461,16 @@ func TestValidateJob(t *testing.T) {
 		job.RequestSizeLimit = defaultDataHistoryRequestSizeLimit + 1
 		require.NoError(t, m.validateJob(job), "validateJob must not error")
 		assert.Equal(t, defaultDataHistoryRequestSizeLimit, job.RequestSizeLimit, "request size limit should be capped")
-		assert.Equal(t, defaultDecimalPlaceComparison, job.DecimalPlaceComparison, "decimal place comparison should be defaulted")
+		assert.Zero(t, job.DecimalPlaceComparison, "a secondary source job should keep a zero decimal place comparison")
+		job.DecimalPlaceComparison = maxDecimalPlaceComparison + 1
+		assert.ErrorIs(t, m.validateJob(job), errInvalidDecimalPlaces, "validateJob should reject a decimal place comparison an int64 cannot hold")
+	})
+
+	t.Run("primary source decimal place comparison default", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryCandleValidationDataType)
+		require.NoError(t, m.validateJob(job), "validateJob must not error")
+		assert.Equal(t, defaultDecimalPlaceComparison, job.DecimalPlaceComparison, "a primary source job should default a zero decimal place comparison")
 	})
 
 	t.Run("range with too many intervals", func(t *testing.T) {
@@ -1586,6 +1595,112 @@ func (d dataHistoryJobService) GetRelatedUpcomingJobs(_ string) ([]*datahistoryj
 			Status:   int64(dataHistoryStatusPaused),
 		},
 	}, nil
+}
+
+// jobDBLoadingResultsByNickname leaves a job's results out of GetByID and GetByNickName and returns them from
+// GetJobAndAllResults only for the job's nickname, as the database does
+type jobDBLoadingResultsByNickname struct {
+	datahistoryjob.IDBService
+	nickname string
+}
+
+func (j jobDBLoadingResultsByNickname) GetByID(id string) (*datahistoryjob.DataHistoryJob, error) {
+	return withoutJobResults(j.IDBService.GetByID(id))
+}
+
+func (j jobDBLoadingResultsByNickname) GetByNickName(nickname string) (*datahistoryjob.DataHistoryJob, error) {
+	return withoutJobResults(j.IDBService.GetByNickName(nickname))
+}
+
+func (j jobDBLoadingResultsByNickname) GetJobAndAllResults(nickname string) (*datahistoryjob.DataHistoryJob, error) {
+	if !strings.EqualFold(nickname, j.nickname) {
+		return nil, sql.ErrNoRows
+	}
+	return j.IDBService.GetJobAndAllResults(nickname)
+}
+
+func withoutJobResults(job *datahistoryjob.DataHistoryJob, err error) (*datahistoryjob.DataHistoryJob, error) {
+	if err != nil {
+		return nil, err
+	}
+	without := *job
+	without.Results = nil
+	return &without, nil
+}
+
+func TestJobDBLoadingResultsByNickname(t *testing.T) {
+	t.Parallel()
+	newStore := func() (jobDBLoadingResultsByNickname, *datahistoryjob.DataHistoryJob) {
+		job := &datahistoryjob.DataHistoryJob{
+			Nickname: "TestJobDBLoadingResultsByNickname",
+			Results:  []*datahistoryjobresult.DataHistoryJobResult{{ID: jobID, JobID: jobID}},
+		}
+		return jobDBLoadingResultsByNickname{IDBService: dataHistoryJobService{job: job}, nickname: job.Nickname}, job
+	}
+
+	t.Run("lookups by ID and nickname leave the results out", func(t *testing.T) {
+		t.Parallel()
+		store, job := newStore()
+		byID, err := store.GetByID(jobID)
+		require.NoError(t, err, "GetByID must not error")
+		assert.Empty(t, byID.Results, "GetByID should leave the results out")
+		byNickname, err := store.GetByNickName(job.Nickname)
+		require.NoError(t, err, "GetByNickName must not error")
+		assert.Empty(t, byNickname.Results, "GetByNickName should leave the results out")
+		assert.Len(t, job.Results, 1, "the stored job should keep its results")
+	})
+
+	t.Run("full lookup by the job's nickname loads the results", func(t *testing.T) {
+		t.Parallel()
+		store, job := newStore()
+		full, err := store.GetJobAndAllResults(strings.ToUpper(job.Nickname))
+		require.NoError(t, err, "GetJobAndAllResults must not error")
+		assert.Len(t, full.Results, 1, "GetJobAndAllResults should load the job's results")
+	})
+
+	t.Run("full lookup by another nickname finds nothing", func(t *testing.T) {
+		t.Parallel()
+		store, _ := newStore()
+		_, err := store.GetJobAndAllResults("")
+		assert.ErrorIs(t, err, sql.ErrNoRows, "GetJobAndAllResults should find nothing for another nickname")
+	})
+
+	t.Run("lookup errors are returned", func(t *testing.T) {
+		t.Parallel()
+		store := jobDBLoadingResultsByNickname{IDBService: failingJobDB{}, nickname: "failing"}
+		for _, tc := range []struct {
+			name   string
+			lookup func() (*datahistoryjob.DataHistoryJob, error)
+		}{
+			{name: "GetByID", lookup: func() (*datahistoryjob.DataHistoryJob, error) { return store.GetByID(jobID) }},
+			{name: "GetByNickName", lookup: func() (*datahistoryjob.DataHistoryJob, error) { return store.GetByNickName("failing") }},
+			{name: "GetJobAndAllResults", lookup: func() (*datahistoryjob.DataHistoryJob, error) { return store.GetJobAndAllResults("failing") }},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				job, err := tc.lookup()
+				assert.ErrorIs(t, err, errExpectedTestError, "the lookup should return the store's error")
+				assert.Nil(t, job, "the lookup should return no job with the error")
+			})
+		}
+	})
+}
+
+// failingJobDB fails every lookup
+type failingJobDB struct {
+	datahistoryjob.IDBService
+}
+
+func (failingJobDB) GetByID(string) (*datahistoryjob.DataHistoryJob, error) {
+	return nil, errExpectedTestError
+}
+
+func (failingJobDB) GetByNickName(string) (*datahistoryjob.DataHistoryJob, error) {
+	return nil, errExpectedTestError
+}
+
+func (failingJobDB) GetJobAndAllResults(string) (*datahistoryjob.DataHistoryJob, error) {
+	return nil, errExpectedTestError
 }
 
 func (d dataHistoryJobResultService) Upsert(_ ...*datahistoryjobresult.DataHistoryJobResult) error {

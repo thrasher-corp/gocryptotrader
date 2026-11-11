@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 	"google.golang.org/grpc/codes"
@@ -115,6 +116,7 @@ func TestStartRPCServer(t *testing.T) {
 		roots := x509.NewCertPool()
 		require.True(t, roots.AppendCertsFromPEM(caCert), "AppendCertsFromPEM must accept the generated certificate")
 		client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}}, Timeout: 10 * time.Second}
+		// Serial and in this order, so the valid request follows the refused ones on the same proxy
 		for _, tc := range []struct {
 			name               string
 			username, password string
@@ -124,15 +126,17 @@ func TestStartRPCServer(t *testing.T) {
 			{name: "wrong password", username: server.config.GRPC.Username, password: "wrong", wantStatus: http.StatusUnauthorized},
 			{name: "valid credentials", username: server.config.GRPC.Username, password: server.config.GRPC.Password, wantStatus: http.StatusOK},
 		} {
-			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://"+proxyAddress+"/v1/listalltasks", http.NoBody)
-			require.NoError(t, err, "NewRequestWithContext must not error")
-			if tc.username != "" {
-				req.SetBasicAuth(tc.username, tc.password)
-			}
-			resp, err := client.Do(req)
-			require.NoErrorf(t, err, "Do must not error for %s", tc.name)
-			assert.Equalf(t, tc.wantStatus, resp.StatusCode, "HTTP status code should match for %s", tc.name)
-			assert.NoError(t, resp.Body.Close(), "Close should not error")
+			t.Run(tc.name, func(t *testing.T) {
+				req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://"+proxyAddress+"/v1/listalltasks", http.NoBody)
+				require.NoError(t, err, "NewRequestWithContext must not error")
+				if tc.username != "" {
+					req.SetBasicAuth(tc.username, tc.password)
+				}
+				resp, err := client.Do(req)
+				require.NoError(t, err, "Do must not error")
+				assert.Equal(t, tc.wantStatus, resp.StatusCode, "HTTP status code should match")
+				assert.NoError(t, resp.Body.Close(), "Close should not error")
+			})
 		}
 	})
 }
@@ -713,6 +717,19 @@ func TestRPCStatusCode(t *testing.T) {
 		{name: "unknown task", err: errTaskNotFound, want: codes.NotFound},
 		{name: "missing strategy file", err: fmt.Errorf("%w %v", common.ErrFileNotFound, "path"), want: codes.NotFound},
 		{name: "task has not ran", err: errTaskHasNotRan, want: codes.FailedPrecondition},
+		{name: "task is running", err: errTaskIsRunning, want: codes.FailedPrecondition},
+		{name: "task already ran", err: errAlreadyRan, want: codes.FailedPrecondition},
+		{name: "task cannot be cleared", err: errCannotClear, want: codes.FailedPrecondition},
+		{name: "live task only", err: errLiveOnly, want: codes.FailedPrecondition},
+		{name: "date unset", err: gctcommon.ErrDateUnset, want: codes.InvalidArgument},
+		{name: "start after end", err: gctcommon.ErrStartAfterEnd, want: codes.InvalidArgument},
+		{name: "start equals end", err: gctcommon.ErrStartEqualsEnd, want: codes.InvalidArgument},
+		{name: "database port", err: errBadPort, want: codes.InvalidArgument},
+		{name: "ambiguous data source", err: errAmbiguousDataSource, want: codes.InvalidArgument},
+		{name: "no data source", err: errNoDataSource, want: codes.InvalidArgument},
+		{name: "interval unset", err: errIntervalUnset, want: codes.InvalidArgument},
+		{name: "invalid interval", err: gctkline.ErrInvalidInterval, want: codes.InvalidArgument},
+		{name: "unsupported asset", err: asset.ErrNotSupported, want: codes.InvalidArgument},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
