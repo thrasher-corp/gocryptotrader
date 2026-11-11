@@ -804,6 +804,8 @@ func TestWebsocketLookUpOrderSizes(t *testing.T) {
 				awaitLookupsSettled(t, ex)
 				got := relayed[[]order.Detail](ex)
 				require.Lenf(t, got, 2, "the user channel must relay the report, then the lookup, of an order %s", tc.name)
+				require.Lenf(t, got[0], 1, "the report must relay an order %s", tc.name)
+				assert.Zerof(t, got[0][0].RemainingAmount, "the report should relay no remainder for an order %s whose size it disputes", tc.name)
 				require.Lenf(t, got[1], 1, "the lookup must relay an order %s", tc.name)
 				assert.Zerof(t, got[1][0].Amount, "the lookup should relay no base size for an order %s", tc.name)
 				assert.Equalf(t, tc.quote, got[1][0].QuoteAmount, "the lookup should relay the quote size of an order %s", tc.name)
@@ -981,6 +983,58 @@ func TestWebsocketLookUpOrderSizes(t *testing.T) {
 				assert.Equalf(t, tc.remaining, lookup[0].RemainingAmount, "the lookup should relay what remains of the base size it settles on for %s", tc.name)
 			})
 		}
+	})
+}
+
+func TestWebsocketOrderDetail(t *testing.T) {
+	t.Parallel()
+	envelope := &WebsocketEnvelope{Channel: wsChannelUser, Timestamp: time.Date(2026, 10, 19, 1, 30, 0, 0, time.UTC)}
+	for _, tc := range []struct {
+		name                           string
+		status                         string
+		productID, productType         string
+		base, quote                    float64
+		executed, leaves               string
+		amount, quoteAmount, remaining float64
+		disputed                       bool
+	}{
+		{name: "an order with no recorded size", status: OrderStatusOpen, executed: "0.1", leaves: "0.4"},
+		{name: "an order whose report agrees with its base size", status: OrderStatusOpen, base: 0.5, executed: "0.1", leaves: "0.4", amount: 0.5, remaining: 0.4},
+		{name: "an order whose report gives it a larger base size", status: OrderStatusOpen, base: 0.02, executed: "0", leaves: "1000", amount: 0.02, disputed: true},
+		{name: "an order whose report gives it a smaller base size", status: OrderStatusOpen, base: 0.5, executed: "0.1", leaves: "0.2", amount: 0.5, disputed: true},
+		{name: "a pending order reported with its base size", status: OrderStatusPending, base: 0.5, executed: "0", leaves: "0.5", amount: 0.5, remaining: 0.5},
+		{name: "an order reported while an edit is queued", status: OrderStatusEditQueued, base: 0.02, executed: "0", leaves: "1000", amount: 0.02},
+		{name: "an order reported at its recorded size while an edit is queued", status: OrderStatusEditQueued, base: 0.5, executed: "0", leaves: "0.5", amount: 0.5},
+		{name: "a partly filled order reported while an edit is queued", status: OrderStatusEditQueued, base: 0.5, executed: "0.1", leaves: "0.2", amount: 0.5},
+		{name: "a partly filled future reported while an edit is queued", status: OrderStatusEditQueued, productID: "BIP-20DEC30-CDE", productType: ProductTypeFuture, base: 2, executed: "0.5", leaves: "1", amount: 2},
+		{name: "an order sized in both currencies", status: OrderStatusOpen, base: 0.5, quote: 1000, executed: "0.1", leaves: "800", amount: 0.5, quoteAmount: 1000, remaining: 0.4},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newWrapperTestExchange(t)
+			const orderID = "dddddddd-eeee-ffff-0000-888888888888"
+			productID, productType := tc.productID, tc.productType
+			if productID == "" {
+				productID, productType = "BTC-USD", ProductTypeSpot
+			}
+			if tc.base > 0 {
+				ex.orderSizes.set(orderID, tc.base, tc.quote)
+			}
+			var o WebsocketUserOrder
+			require.NoError(t, json.Unmarshal([]byte(`{"order_id":"`+orderID+`","order_side":"SELL","order_type":"LIMIT","status":"`+tc.status+`","product_id":"`+productID+`","product_type":"`+productType+`","time_in_force":"GOOD_UNTIL_CANCELLED","limit_price":"90000","cumulative_quantity":"`+tc.executed+`","leaves_quantity":"`+tc.leaves+`"}`), &o), "unmarshalling the order must not error")
+			d, err := ex.websocketOrderDetail(&o, envelope)
+			require.NoErrorf(t, err, "websocketOrderDetail must not error for %s", tc.name)
+			assert.Equalf(t, tc.amount, d.Amount, "websocketOrderDetail should relay the size of %s", tc.name)
+			assert.Equalf(t, tc.quoteAmount, d.QuoteAmount, "websocketOrderDetail should relay the quote size of %s", tc.name)
+			assert.InDeltaf(t, tc.remaining, d.RemainingAmount, 1e-12, "websocketOrderDetail should relay the remainder of %s", tc.name)
+			size, ok := ex.orderSizes.get(orderID)
+			assert.Equalf(t, tc.disputed, ok && size.disputed, "websocketOrderDetail should dispute the size of %s only when its report does", tc.name)
+		})
+	}
+	t.Run("refuses an unknown product type", func(t *testing.T) {
+		t.Parallel()
+		_, err := newTestExchange(t).websocketOrderDetail(&WebsocketUserOrder{OrderID: "1", ProductType: "TELEPORT"}, envelope)
+		assert.ErrorIs(t, err, errUnknownProductType, "websocketOrderDetail should error for an unknown product type")
 	})
 }
 

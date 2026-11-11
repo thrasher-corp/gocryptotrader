@@ -1056,7 +1056,11 @@ func TestGlobalDerivativesGetInstruments(t *testing.T) {
 		assert.Equal(t, mockMarketDataFutures(), resp, "GetInstruments should decode every field")
 	} else {
 		require.NotEmpty(t, resp, "GetInstruments must return USDC's futures")
-		assert.NotNil(t, resp[0].MarginParameters, "GetInstruments should return the extended margin parameters")
+		// The gateway can omit the extended details, so the live case checks what the request selects
+		for i := range resp {
+			assert.Equalf(t, DerivativesKindFuture, resp[i].Kind, "GetInstruments should return %s as a future", resp[i].InstrumentName)
+			assert.Equalf(t, currency.USDC, resp[i].SettlementCurrency, "GetInstruments should return %s as settled in USDC", resp[i].InstrumentName)
+		}
 	}
 
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2271,7 +2275,12 @@ func TestGlobalDerivativesGetTicker(t *testing.T) { //nolint:tparallel // the ca
 			}
 			assert.Equalf(t, name, resp.InstrumentName, "GetTicker should return %s", name)
 			assert.Equalf(t, exp.Greeks != nil, resp.Greeks != nil, "GetTicker should return greeks for %s only if it is an option", name)
-			assert.Equalf(t, exp.ComboState != "", resp.ComboState != "", "GetTicker should return a combo state for %s only if it is a combo", name)
+			// The gateway can leave a combo's state out
+			if exp.ComboState == "" {
+				assert.Emptyf(t, resp.ComboState, "GetTicker should return no combo state for %s, which is not a combo", name)
+			} else if resp.ComboState != "" {
+				assert.Containsf(t, []string{DerivativesComboStateActive, DerivativesComboStateInactive}, resp.ComboState, "GetTicker should return %s's combo state as active or inactive", name)
+			}
 		})
 	}
 
@@ -2387,7 +2396,11 @@ func TestGlobalDerivativesGetTickersByCurrency(t *testing.T) {
 		assert.Equal(t, mockMarketDataTickersByCurrency(), resp, "GetTickersByCurrency should decode every field")
 	} else {
 		require.NotEmpty(t, resp, "GetTickersByCurrency must return USDC's futures")
-		assert.Len(t, resp[0].Bids, 3, "GetTickersByCurrency should return each ticker's book at the depth requested")
+		// A thin book holds fewer levels than the depth requested
+		for i := range resp {
+			assert.LessOrEqualf(t, len(resp[i].Bids), 3, "GetTickersByCurrency should return at most the depth of bids requested for %s", resp[i].InstrumentName)
+			assert.LessOrEqualf(t, len(resp[i].Asks), 3, "GetTickersByCurrency should return at most the depth of asks requested for %s", resp[i].InstrumentName)
+		}
 	}
 
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

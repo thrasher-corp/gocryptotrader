@@ -1898,11 +1898,23 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 			return nil, fmt.Errorf("%w: %s, as Advanced Trade's stops trigger on the last trade price", order.ErrUnknownPriceType, m.TriggerPriceType)
 		}
 		price, size, tif := m.Price, m.Amount, m.TimeInForce
-		if price == 0 || size == 0 || tif != order.UnknownTIF {
-			existing, err := e.GetOrder(ctx, m.OrderID)
-			if err != nil {
-				return nil, err
+		fromOrder := price == 0 || size == 0 || tif != order.UnknownTIF
+		// The order manager stores the response's asset and pair over the order's, so the response gives the order's own
+		// or, where the read fails or cannot name its product, none; an edit taking nothing else from the order goes ahead
+		// if the read fails, as it names the order by its ID
+		a, pair := asset.Empty, currency.EMPTYPAIR
+		existing, err := e.GetOrder(ctx, m.OrderID)
+		if err != nil && fromOrder {
+			return nil, err
+		}
+		if err == nil {
+			if existingAsset, err := productTypeAsset(existing.ProductType); err == nil {
+				if existingPair, err := e.productPair(existing.ProductID, existingAsset); err == nil {
+					a, pair = existingAsset, existingPair
+				}
 			}
+		}
+		if fromOrder {
 			values := orderConfigurationValues(existing.OrderConfiguration)
 			if price == 0 {
 				price = values.limitPrice
@@ -1927,6 +1939,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 		if err != nil {
 			return nil, err
 		}
+		resp.AssetType, resp.Pair = a, pair
 		resp.Price, resp.Amount, resp.TimeInForce = price, size, tif
 		return resp, nil
 	case isDerivativesAsset(m.AssetType):
@@ -2058,7 +2071,10 @@ func (e *Exchange) modifyDerivativesOrder(ctx context.Context, m *order.Modify) 
 	if err != nil {
 		return nil, err
 	}
+	// The order manager stores the response's asset and pair over the order's, so they are the edited order's own
 	resp.OrderID = detail.OrderID
+	resp.AssetType = detail.AssetType
+	resp.Pair = detail.Pair
 	resp.ClientOrderID = detail.ClientOrderID
 	resp.Type = detail.Type
 	resp.Side = detail.Side

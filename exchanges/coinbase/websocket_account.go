@@ -430,10 +430,16 @@ func (e *Exchange) websocketOrderDetail(o *WebsocketUserOrder, envelope *Websock
 		switch {
 		case amount > 0 && quoteAmount == 0:
 			remaining = o.LeavesQuantity.Float64()
+			// A report while an edit is queued, or one older than an edit's response, can give what remains of the size,
+			// or in the currency, the order had before the edit, so neither relays a remainder
+			if o.Status == OrderStatusEditQueued {
+				remaining = 0
+			}
 			// An edit made elsewhere, or one reported before its response, changes the size an open order's
 			// quantities give, but so does a report older than an edit's response, so the order is looked up
 			if reported, ok := openOrderSize(o); ok && !sameOrderSize(reported, amount) {
 				e.orderSizes.dispute(o.OrderID)
+				remaining = 0
 			}
 			// A filled order that executed more than its recorded size was enlarged by an edit made elsewhere; one that
 			// executed less keeps its size, as Coinbase can mark an order filled that leaves dust unfilled

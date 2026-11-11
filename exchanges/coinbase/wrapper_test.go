@@ -2239,6 +2239,128 @@ func TestModifyOrder(t *testing.T) {
 		assert.Equal(t, testWrapperDerivativesOrderID, resp.OrderID, "ModifyOrder should return the gateway order's ID")
 	})
 
+	t.Run("reports the asset and pair of the order it edits", func(t *testing.T) {
+		t.Parallel()
+		advancedTradeOrders := map[string]string{
+			"spot":      `{"order":{"order_id":"spot","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}}}`,
+			"future":    `{"order":{"order_id":"future","product_id":"BIP-20DEC30-CDE","product_type":"FUTURE","side":"BUY","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}}}`,
+			"empty":     `{}`,
+			"noproduct": `{"order":{"order_id":"noproduct","product_id":"","product_type":"SPOT","side":"BUY","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}}}`,
+			"equity":    `{"order":{"order_id":"equity","product_id":"AAPL-USD","product_type":"EQUITY","side":"BUY","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"200"}}}}`,
+		}
+		for _, tc := range []struct {
+			name, orderID string
+			named         asset.Item
+			namedPair     currency.Pair
+			timeInForce   order.TimeInForce
+			price, amount float64
+			expAsset      asset.Item
+			expPair       currency.Pair
+			expErr        bool
+			storedAsset   asset.Item
+			storedPair    currency.Pair
+		}{
+			{name: "a spot order named a future", orderID: "spot", named: asset.Futures, namedPair: testFuturesPair, timeInForce: order.GoodTillCancel, price: 80100, amount: 1, expAsset: asset.Spot, expPair: currency.NewBTCUSD()},
+			{name: "a spot order named another pair", orderID: "spot", named: asset.Spot, namedPair: currency.NewPair(currency.ETH, currency.USD), timeInForce: order.GoodTillCancel, price: 80100, amount: 1, expAsset: asset.Spot, expPair: currency.NewBTCUSD()},
+			{name: "a future named a spot order", orderID: "future", named: asset.Spot, namedPair: currency.NewBTCUSD(), timeInForce: order.GoodTillCancel, price: 80100, amount: 1, expAsset: asset.Futures, expPair: testFuturesPair},
+			{name: "a spot order named a future, its amount left to the order", orderID: "spot", named: asset.Futures, namedPair: testFuturesPair, price: 80100, expAsset: asset.Spot, expPair: currency.NewBTCUSD()},
+			{name: "a spot order named a future, its price left to the order", orderID: "spot", named: asset.Futures, namedPair: testFuturesPair, amount: 1, expAsset: asset.Spot, expPair: currency.NewBTCUSD()},
+			// The order manager passes no time in force for an order placed without one
+			{name: "a spot order named a future, its price and amount given", orderID: "spot", named: asset.Futures, namedPair: testFuturesPair, price: 80100, amount: 1, expAsset: asset.Spot, expPair: currency.NewBTCUSD()},
+			{name: "an order that cannot be read, its price and amount given", orderID: "unreadable", named: asset.Futures, namedPair: testFuturesPair, price: 80100, amount: 1, expAsset: asset.Empty, expPair: currency.EMPTYPAIR, storedAsset: asset.Spot, storedPair: currency.NewBTCUSD()},
+			{name: "an order that cannot be read, named a spot order", orderID: "unreadable", named: asset.Spot, namedPair: currency.NewBTCUSD(), price: 80100, amount: 1, expAsset: asset.Empty, expPair: currency.EMPTYPAIR, storedAsset: asset.Futures, storedPair: testFuturesPair},
+			{name: "an order that cannot be read, named another pair", orderID: "unreadable", named: asset.Spot, namedPair: currency.NewPair(currency.ETH, currency.USD), price: 80100, amount: 1, expAsset: asset.Empty, expPair: currency.EMPTYPAIR, storedAsset: asset.Spot, storedPair: currency.NewBTCUSD()},
+			{name: "an order whose read returns nothing, its price and amount given", orderID: "empty", named: asset.Futures, namedPair: testFuturesPair, price: 80100, amount: 1, expAsset: asset.Empty, expPair: currency.EMPTYPAIR, storedAsset: asset.Spot, storedPair: currency.NewBTCUSD()},
+			{name: "an order that cannot be read, its price left to the order", orderID: "unreadable", named: asset.Spot, namedPair: currency.NewBTCUSD(), amount: 1, expErr: true},
+			{name: "an equity order named a spot order", orderID: "equity", named: asset.Spot, namedPair: currency.NewBTCUSD(), timeInForce: order.GoodTillCancel, price: 80100, amount: 1, expAsset: asset.Empty, expPair: currency.EMPTYPAIR, storedAsset: asset.Spot, storedPair: currency.NewPair(currency.NewCode("AAPL"), currency.USD)},
+			{name: "an order read without its product, named a future", orderID: "noproduct", named: asset.Futures, namedPair: testFuturesPair, price: 80100, amount: 1, expAsset: asset.Empty, expPair: currency.EMPTYPAIR, storedAsset: asset.Spot, storedPair: currency.NewBTCUSD()},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var reads, edits atomic.Int32
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var body string
+					if r.Method == http.MethodGet {
+						reads.Add(1)
+					}
+					switch r.Method + " " + r.URL.Path {
+					case http.MethodGet + " /api/v3/brokerage/orders/historical/unreadable":
+						w.WriteHeader(http.StatusInternalServerError)
+						body = `{"error":"INTERNAL","message":"internal error","error_details":"internal error"}`
+					case http.MethodGet + " /api/v3/brokerage/orders/historical/" + tc.orderID:
+						body = advancedTradeOrders[tc.orderID]
+					case http.MethodPost + " /api/v3/brokerage/orders/edit":
+						edits.Add(1)
+						body = `{"success":true,"errors":[]}`
+					default:
+						assert.Failf(t, "ModifyOrder should only read and edit the order", "%s %s", r.Method, r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: tc.orderID, Pair: tc.namedPair, AssetType: tc.named, TimeInForce: tc.timeInForce, Price: tc.price, Amount: tc.amount})
+				assert.Equalf(t, int32(1), reads.Load(), "ModifyOrder should read %s once", tc.name)
+				if tc.expErr {
+					require.Errorf(t, err, "ModifyOrder must error editing %s", tc.name)
+					assert.Zerof(t, edits.Load(), "ModifyOrder should send no edit of %s", tc.name)
+					return
+				}
+				require.NoErrorf(t, err, "ModifyOrder must not error editing %s", tc.name)
+				assert.Equalf(t, int32(1), edits.Load(), "ModifyOrder should send one edit of %s", tc.name)
+				assert.Equalf(t, tc.expAsset, resp.AssetType, "ModifyOrder should report the asset expected for %s", tc.name)
+				assert.Truef(t, tc.expPair.Equal(resp.Pair), "ModifyOrder should report the pair expected for %s, not %s", tc.name, resp.Pair)
+				if tc.storedAsset != asset.Empty {
+					stored := order.Detail{OrderID: tc.orderID, AssetType: tc.storedAsset, Pair: tc.storedPair}
+					stored.UpdateOrderFromModifyResponse(resp)
+					assert.Equalf(t, tc.storedAsset, stored.AssetType, "the order manager should keep the stored asset of %s", tc.name)
+					assert.Truef(t, tc.storedPair.Equal(stored.Pair), "the order manager should keep the stored pair of %s, not %s", tc.name, stored.Pair)
+				}
+			})
+		}
+		const (
+			usdcOrder    = `{"order_id":"USDC-1","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}`
+			inverseOrder = `{"order_id":"2","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"buy","price":80000,"amount":10}`
+		)
+		for _, tc := range []struct {
+			name, orderID, order string
+			named                asset.Item
+			namedPair            currency.Pair
+			expAsset             asset.Item
+			expPair              currency.Pair
+		}{
+			{name: "a USDC perpetual order named an inverse perpetual", orderID: "USDC-1", order: usdcOrder, named: asset.CoinMarginedFutures, namedPair: testUSDCPerpetual, expAsset: asset.USDCMarginedFutures, expPair: testUSDCPerpetual},
+			{name: "a USDC perpetual order named another pair", orderID: "USDC-1", order: usdcOrder, named: asset.USDCMarginedFutures, namedPair: currency.NewPairWithDelimiter("ETH", "USDC-PERPETUAL", currency.UnderscoreDelimiter), expAsset: asset.USDCMarginedFutures, expPair: testUSDCPerpetual},
+			{name: "an inverse perpetual order named a USDC perpetual", orderID: "2", order: inverseOrder, named: asset.USDCMarginedFutures, namedPair: testUSDCPerpetual, expAsset: asset.CoinMarginedFutures, expPair: testCoinPerpetual},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+					switch req.Method {
+					case "private/get_order_state":
+						return `{"jsonrpc":"2.0","result":` + tc.order + `}`
+					case "private/edit":
+						return `{"jsonrpc":"2.0","result":{"order":` + tc.order + `,"trades":[]}}`
+					}
+					assert.Failf(t, "ModifyOrder should only read and edit the order", "sent %s", req.Method)
+					return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+				})
+				resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: tc.orderID, Pair: tc.namedPair, AssetType: tc.named, Price: 80100})
+				require.NoErrorf(t, err, "ModifyOrder must not error editing %s", tc.name)
+				var edits int
+				for _, req := range sent() {
+					if req.Method == "private/edit" {
+						edits++
+					}
+				}
+				assert.Equalf(t, 1, edits, "ModifyOrder should send one edit of %s", tc.name)
+				assert.Equalf(t, tc.expAsset, resp.AssetType, "ModifyOrder should report the asset expected for %s", tc.name)
+				assert.Truef(t, tc.expPair.Equal(resp.Pair), "ModifyOrder should report the pair expected for %s, not %s", tc.name, resp.Pair)
+			})
+		}
+	})
+
 	t.Run("accepts only the trigger price type the order keeps", func(t *testing.T) {
 		t.Parallel()
 		priceTypes := []order.PriceType{order.LastPrice, order.IndexPrice, order.MarkPrice, order.UnknownPriceType}
