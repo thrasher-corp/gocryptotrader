@@ -67,7 +67,9 @@ func (m *tradeStreamMock) handle(_ testing.TB, msg []byte, c *gws.Conn) error {
 		}
 		return c.WriteMessage(gws.TextMessage, []byte(`{"retCode":0,"retMsg":"OK","op":"auth","connId":"cnt5leec0hvan15eukcg-2t"}`))
 	case "ping":
-		return nil
+		// Bybit answers every heartbeat; without the answer a connection the test leaves idle for a whole traffic timeout
+		// is shut down and redialled by the websocket manager
+		return c.WriteMessage(gws.TextMessage, []byte(`{"op":"pong","args":["1711001595209"],"conn_id":"cnt5leec0hvan15eukcg-2v"}`))
 	}
 	m.requests = append(m.requests, &req)
 	reply, push := m.reply(&req)

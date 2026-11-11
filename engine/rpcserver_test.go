@@ -4956,85 +4956,6 @@ func (b *batchCancelExchange) CancelBatchOrders(_ context.Context, o []order.Can
 	return b.response, b.err
 }
 
-func TestCancelBatchOrdersRequests(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share the RPC server and exchange
-	t.Parallel()
-	em := NewExchangeManager()
-	exch := &batchCancelExchange{IBotExchange: newBTCUSDTSpotExchange(t, em)}
-	require.NoError(t, em.Add(exch), "Add must not error")
-	s := &RPCServer{Engine: &Engine{ExchangeManager: em}}
-
-	pair := &gctrpc.CurrencyPair{Delimiter: "-", Base: currency.BTC.String(), Quote: currency.USDT.String()}
-	ethUSDT := &gctrpc.CurrencyPair{Delimiter: "-", Base: currency.ETH.String(), Quote: currency.USDT.String()}
-	ctx := t.Context()
-	// Cases share the RPC server and exchange, and CancelBatchOrders is called again after them, so they run in order
-	for _, tc := range []struct {
-		name string
-		req  *gctrpc.CancelBatchOrdersRequest
-		err  error
-	}{
-		{name: "no pair", req: &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), OrdersId: "1", AssetType: "spot", Side: "BUY"}, err: errCurrencyPairUnset},
-		{name: "an unknown asset", req: &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), OrdersId: "1", Pair: pair, AssetType: "bogus", Side: "BUY"}, err: asset.ErrNotSupported},
-		{name: "an exchange that is not loaded", req: &gctrpc.CancelBatchOrdersRequest{Exchange: "unknown", OrdersId: "1", Pair: pair, AssetType: "spot", Side: "BUY"}, err: ErrExchangeNotFound},
-		{name: "a pair the exchange does not list", req: &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), OrdersId: "1", Pair: ethUSDT, AssetType: "spot", Side: "BUY"}, err: errCurrencyPairInvalid},
-		{name: "an unknown side", req: &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), OrdersId: "1", Pair: pair, AssetType: "spot", Side: "SIDEWAYS"}, err: order.ErrSideIsInvalid},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			resp, err := s.CancelBatchOrders(ctx, tc.req)
-			assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should reject %s", tc.name)
-			assert.Nilf(t, resp, "CancelBatchOrders should not respond to %s", tc.name)
-		})
-	}
-	assert.Nil(t, exch.cancelled, "CancelBatchOrders should not send a rejected request to the exchange")
-
-	btcUSDT := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "-")
-	cancels := []order.Cancel{
-		{AccountID: "main", OrderID: "1", Side: order.Buy, Pair: btcUSDT, AssetType: asset.Spot},
-		{AccountID: "main", OrderID: "2", Side: order.Buy, Pair: btcUSDT, AssetType: asset.Spot},
-		{AccountID: "main", OrderID: "3", Side: order.Buy, Pair: btcUSDT, AssetType: asset.Spot},
-	}
-	// Cases program the one exchange in turn, so they run in order
-	for _, tc := range []struct {
-		name     string
-		response *order.CancelBatchResponse
-		err      error
-		exp      *gctrpc.CancelBatchOrdersResponse
-	}{
-		{
-			name:     "statuses the exchange reports",
-			response: &order.CancelBatchResponse{Status: map[string]string{"1": order.Cancelled.String(), "2": "Order does not exist."}},
-			exp:      &gctrpc.CancelBatchOrdersResponse{Orders: []*gctrpc.Orders{{Exchange: exch.GetName(), OrderStatus: map[string]string{"1": order.Cancelled.String(), "2": "Order does not exist.", "3": order.UnknownStatus.String()}}}},
-		},
-		{
-			// Kraken cancels a batch without reporting each order's status
-			name: "no statuses from an exchange that accepted the batch",
-			exp:  &gctrpc.CancelBatchOrdersResponse{Orders: []*gctrpc.Orders{{Exchange: exch.GetName(), OrderStatus: map[string]string{"1": order.Cancelled.String(), "2": order.Cancelled.String(), "3": order.Cancelled.String()}}}},
-		},
-		{
-			name:     "an exchange that reports no order's status",
-			response: &order.CancelBatchResponse{Status: map[string]string{}},
-			exp:      &gctrpc.CancelBatchOrdersResponse{Orders: []*gctrpc.Orders{{Exchange: exch.GetName(), OrderStatus: map[string]string{"1": order.UnknownStatus.String(), "2": order.UnknownStatus.String(), "3": order.UnknownStatus.String()}}}},
-		},
-		{
-			name:     "an exchange response without statuses",
-			response: &order.CancelBatchResponse{},
-			exp:      &gctrpc.CancelBatchOrdersResponse{Orders: []*gctrpc.Orders{{Exchange: exch.GetName(), OrderStatus: map[string]string{"1": order.UnknownStatus.String(), "2": order.UnknownStatus.String(), "3": order.UnknownStatus.String()}}}},
-		},
-		{
-			name:     "an exchange error",
-			response: &order.CancelBatchResponse{Status: map[string]string{"1": order.Cancelled.String()}},
-			err:      errExpectedTestError,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			exch.response, exch.err, exch.cancelled = tc.response, tc.err, nil
-			resp, err := s.CancelBatchOrders(ctx, &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), AccountId: "main", OrdersId: "1,2,3", Pair: pair, AssetType: "spot", Side: "BUY"})
-			assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should return the error for %s", tc.name)
-			assert.Equalf(t, tc.exp, resp, "CancelBatchOrders should return the response for %s", tc.name)
-			assert.Equalf(t, cancels, exch.cancelled, "CancelBatchOrders should send every requested order to the exchange for %s", tc.name)
-		})
-	}
-}
-
 type batchCancelRPCFake struct {
 	fExchange
 	cancelsReceived []order.Cancel
@@ -5259,5 +5180,84 @@ func TestCancelBatchOrders(t *testing.T) {
 			OrdersId:  "1,2",
 		})
 		assert.ErrorContains(t, err, "exchange unavailable")
+	})
+
+	t.Run("refuses invalid requests and relays the exchange's response for every order sent", func(t *testing.T) {
+		t.Parallel()
+		em := NewExchangeManager()
+		exch := &batchCancelExchange{IBotExchange: newBTCUSDTSpotExchange(t, em)}
+		require.NoError(t, em.Add(exch), "Add must not error")
+		s := &RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+		pair := &gctrpc.CurrencyPair{Delimiter: "-", Base: currency.BTC.String(), Quote: currency.USDT.String()}
+		ethUSDT := &gctrpc.CurrencyPair{Delimiter: "-", Base: currency.ETH.String(), Quote: currency.USDT.String()}
+		ctx := t.Context()
+		// Cases share the RPC server and exchange, and CancelBatchOrders is called again after them, so they run in order
+		for _, tc := range []struct {
+			name string
+			req  *gctrpc.CancelBatchOrdersRequest
+			err  error
+		}{
+			{name: "no pair", req: &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), OrdersId: "1", AssetType: "spot", Side: "BUY"}, err: errCurrencyPairUnset},
+			{name: "an unknown asset", req: &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), OrdersId: "1", Pair: pair, AssetType: "bogus", Side: "BUY"}, err: asset.ErrNotSupported},
+			{name: "an exchange that is not loaded", req: &gctrpc.CancelBatchOrdersRequest{Exchange: "unknown", OrdersId: "1", Pair: pair, AssetType: "spot", Side: "BUY"}, err: ErrExchangeNotFound},
+			{name: "a pair the exchange does not list", req: &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), OrdersId: "1", Pair: ethUSDT, AssetType: "spot", Side: "BUY"}, err: errCurrencyPairInvalid},
+			{name: "an unknown side", req: &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), OrdersId: "1", Pair: pair, AssetType: "spot", Side: "SIDEWAYS"}, err: order.ErrSideIsInvalid},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				resp, err := s.CancelBatchOrders(ctx, tc.req)
+				assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should reject %s", tc.name)
+				assert.Nilf(t, resp, "CancelBatchOrders should not respond to %s", tc.name)
+			})
+		}
+		assert.Nil(t, exch.cancelled, "CancelBatchOrders should not send a rejected request to the exchange")
+
+		btcUSDT := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "-")
+		cancels := []order.Cancel{
+			{AccountID: "main", OrderID: "1", Side: order.Buy, Pair: btcUSDT, AssetType: asset.Spot},
+			{AccountID: "main", OrderID: "2", Side: order.Buy, Pair: btcUSDT, AssetType: asset.Spot},
+			{AccountID: "main", OrderID: "3", Side: order.Buy, Pair: btcUSDT, AssetType: asset.Spot},
+		}
+		// Cases program the one exchange in turn, so they run in order
+		for _, tc := range []struct {
+			name     string
+			response *order.CancelBatchResponse
+			err      error
+			exp      *gctrpc.CancelBatchOrdersResponse
+		}{
+			{
+				name:     "statuses the exchange reports",
+				response: &order.CancelBatchResponse{Status: map[string]string{"1": order.Cancelled.String(), "2": "Order does not exist."}},
+				exp:      &gctrpc.CancelBatchOrdersResponse{Orders: []*gctrpc.Orders{{Exchange: exch.GetName(), OrderStatus: map[string]string{"1": order.Cancelled.String(), "2": "Order does not exist.", "3": order.UnknownStatus.String()}}}},
+			},
+			{
+				// Kraken cancels a batch without reporting each order's status
+				name: "no statuses from an exchange that accepted the batch",
+				exp:  &gctrpc.CancelBatchOrdersResponse{Orders: []*gctrpc.Orders{{Exchange: exch.GetName(), OrderStatus: map[string]string{"1": order.Cancelled.String(), "2": order.Cancelled.String(), "3": order.Cancelled.String()}}}},
+			},
+			{
+				name:     "an exchange that reports no order's status",
+				response: &order.CancelBatchResponse{Status: map[string]string{}},
+				exp:      &gctrpc.CancelBatchOrdersResponse{Orders: []*gctrpc.Orders{{Exchange: exch.GetName(), OrderStatus: map[string]string{"1": order.UnknownStatus.String(), "2": order.UnknownStatus.String(), "3": order.UnknownStatus.String()}}}},
+			},
+			{
+				name:     "an exchange response without statuses",
+				response: &order.CancelBatchResponse{},
+				exp:      &gctrpc.CancelBatchOrdersResponse{Orders: []*gctrpc.Orders{{Exchange: exch.GetName(), OrderStatus: map[string]string{"1": order.UnknownStatus.String(), "2": order.UnknownStatus.String(), "3": order.UnknownStatus.String()}}}},
+			},
+			{
+				name:     "an exchange error",
+				response: &order.CancelBatchResponse{Status: map[string]string{"1": order.Cancelled.String()}},
+				err:      errExpectedTestError,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				exch.response, exch.err, exch.cancelled = tc.response, tc.err, nil
+				resp, err := s.CancelBatchOrders(ctx, &gctrpc.CancelBatchOrdersRequest{Exchange: exch.GetName(), AccountId: "main", OrdersId: "1,2,3", Pair: pair, AssetType: "spot", Side: "BUY"})
+				assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should return the error for %s", tc.name)
+				assert.Equalf(t, tc.exp, resp, "CancelBatchOrders should return the response for %s", tc.name)
+				assert.Equalf(t, cancels, exch.cancelled, "CancelBatchOrders should send every requested order to the exchange for %s", tc.name)
+			})
+		}
 	})
 }
