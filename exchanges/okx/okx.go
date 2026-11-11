@@ -224,10 +224,21 @@ func (e *Exchange) ClosePositions(ctx context.Context, arg *ClosePositionsReques
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
+	// OKX requires mgnMode on close-position, so an unset margin mode is
+	// rejected here rather than left for the exchange to refuse.
 	switch arg.MarginMode {
-	case "", TradeModeCross, TradeModeIsolated:
+	case TradeModeCross, TradeModeIsolated:
 	default:
-		return nil, margin.ErrMarginTypeUnsupported
+		return nil, fmt.Errorf("%w: %q, the margin mode is required, use %q or %q", margin.ErrMarginTypeUnsupported, arg.MarginMode, TradeModeCross, TradeModeIsolated)
+	}
+	// posSide is required by OKX only in long/short mode, which this layer
+	// cannot see, so an unset value passes and a set one is normalised and
+	// checked.
+	arg.PositionSide = strings.ToLower(arg.PositionSide)
+	switch arg.PositionSide {
+	case "", positionSideLong, positionSideShort, positionSideNet:
+	default:
+		return nil, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, arg.PositionSide)
 	}
 	var resp *ClosePositionResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, closePositionEPL, http.MethodPost, "trade/close-position", arg, &resp, request.AuthenticatedRequest)

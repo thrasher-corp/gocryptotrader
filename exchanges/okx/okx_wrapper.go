@@ -984,16 +984,14 @@ func (e *Exchange) validateSubmitPrelude(ctx context.Context, s *order.Submit) (
 	case asset.Spot, asset.Margin, asset.Spread:
 		p.sideType = s.Side.String()
 	case asset.Futures, asset.PerpetualSwap, asset.Options:
-		// OKX requires side for every instrument type, and contracts carry
-		// the direction in side as well as posSide, which only futures and
-		// perpetual swap accept.
+		// OKX requires side for every instrument type. Contracts derive
+		// posSide separately from the account's position mode in the order
+		// derivation, so the prelude leaves it unset rather than carry a
+		// placeholder a later override might miss.
 		if s.Side.IsLong() {
 			p.sideType = order.Buy.Lower()
 		} else if s.Side.IsShort() {
 			p.sideType = order.Sell.Lower()
-		}
-		if s.AssetType != asset.Options {
-			p.positionSide = s.Side.Lower()
 		}
 	}
 	if s.AssetType == asset.Futures || s.AssetType == asset.PerpetualSwap {

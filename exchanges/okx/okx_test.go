@@ -1216,6 +1216,10 @@ func TestClosePositions(t *testing.T) {
 	require.ErrorIs(t, err, errMissingInstrumentID)
 	_, err = e.ClosePositions(contextGenerate(), &ClosePositionsRequestParams{InstrumentID: mainPair.String(), MarginMode: "abc"})
 	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+	_, err = e.ClosePositions(contextGenerate(), &ClosePositionsRequestParams{InstrumentID: mainPair.String()})
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+	_, err = e.ClosePositions(contextGenerate(), &ClosePositionsRequestParams{InstrumentID: mainPair.String(), MarginMode: "cross", PositionSide: "invalid"})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.ClosePositions(contextGenerate(), &ClosePositionsRequestParams{
