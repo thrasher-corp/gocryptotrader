@@ -2179,12 +2179,17 @@ func TestSetupNewConnection(t *testing.T) {
 
 	t.Run("connection limit without multi-connection management is rejected", func(t *testing.T) {
 		t.Parallel()
-		m := NewManager()
-		require.NoError(t, m.Setup(newDefaultSetup()), "Setup must not error")
-		err := m.SetupNewConnection(&ConnectionSetup{URL: "urlstring", MaxSubscriptions: 1})
-		require.ErrorIs(t, err, errMaxSubscriptionsNeedsMultiConnection, "SetupNewConnection must reject a connection limit without multi-connection management")
-		assert.Nil(t, m.Conn, "rejected setup should not set the connection")
-		assert.Nil(t, m.AuthConn, "rejected setup should not set the authenticated connection")
+		for _, authenticated := range []bool{false, true} {
+			t.Run("authenticated "+strconv.FormatBool(authenticated), func(t *testing.T) {
+				t.Parallel()
+				m := NewManager()
+				require.NoError(t, m.Setup(newDefaultSetup()), "Setup must not error")
+				err := m.SetupNewConnection(&ConnectionSetup{URL: "urlstring", MaxSubscriptions: 1, Authenticated: authenticated})
+				require.ErrorIs(t, err, errMaxSubscriptionsNeedsMultiConnection, "SetupNewConnection must reject a connection limit without multi-connection management")
+				assert.Nil(t, m.Conn, "rejected setup should not set the connection")
+				assert.Nil(t, m.AuthConn, "rejected setup should not set the authenticated connection")
+			})
+		}
 	})
 }
 
