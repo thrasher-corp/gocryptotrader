@@ -5005,7 +5005,7 @@ func TestFormatPairString(t *testing.T) {
 		{
 			name:      "spot",
 			assetType: asset.Spot,
-			pair:      currency.NewPair(currency.BTC, currency.USDC),
+			pair:      currency.NewBTCUSDC(),
 			exp:       "BTC_USDC",
 		},
 		{
