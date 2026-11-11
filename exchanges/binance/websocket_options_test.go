@@ -349,7 +349,7 @@ func TestOptionsOrderTradeUpdateFills(t *testing.T) {
 			TimeInForce: order.GoodTillCancel, Price: 3660, Amount: 0.3, AverageExecutedPrice: 3660, ExecutedAmount: 0.3, Cost: 1098,
 			FeeAsset: currency.USDT, Exchange: ex.Name, OrderID: "4611869636869226549", ClientOrderID: "two-fills", Type: order.Limit, Side: order.Sell,
 			Status: order.Filled, AssetType: asset.Options, Date: time.UnixMilli(1791300000200), LastUpdated: time.UnixMilli(1791300000200),
-			Pair: testOptionsPair, Trades: trades[1:],
+			CloseTime: time.UnixMilli(1791300000200), Pair: testOptionsPair, Trades: trades[1:],
 		},
 	}
 	payloads := relayedPayloads(ex)

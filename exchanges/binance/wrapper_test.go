@@ -1169,6 +1169,25 @@ func TestGetActiveOrders(t *testing.T) {
 		})
 	}
 
+	t.Run("unrecognised status keeps its order without a close time", func(t *testing.T) {
+		t.Parallel()
+		ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/fapi/v1/openOrders", r.URL.Path, "GetActiveOrders should request the USDⓈ-M open orders")
+			assert.Equal(t, "BTCUSDT", r.URL.Query().Get("symbol"), "GetActiveOrders should request the pair's USDⓈ-M open orders")
+			_, err := w.Write([]byte(`[{"orderId":42,"symbol":"BTCUSDT","status":"UNRECOGNISED","clientOrderId":"gct-unknown-status","price":"80000","origQty":"0.002","executedQty":"0","timeInForce":"GTC","type":"LIMIT","side":"BUY","positionSide":"BOTH","updateTime":1791284812400,"time":1791284812300}]`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{currency.NewBTCUSDT()}, false), "StorePairs must not error")
+		resp, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.USDTMarginedFutures, Type: order.Limit, Side: order.AnySide, Pairs: currency.Pairs{currency.NewBTCUSDT()},
+		})
+		require.NoError(t, err, "GetActiveOrders must keep an order whose status it cannot convert")
+		require.Len(t, resp, 1, "GetActiveOrders must list the order")
+		assert.Equal(t, order.UnknownStatus, resp[0].Status, "the order should keep the unrecognised status unset")
+		assert.Equal(t, time.UnixMilli(1791284812400), resp[0].LastUpdated, "the order should keep its update time")
+		assert.Zero(t, resp[0].CloseTime, "an order with an unrecognised status should carry no close time")
+	})
+
 	t.Run("spot OCO", func(t *testing.T) {
 		t.Parallel()
 		ex := newTestExchange(t)
@@ -1224,6 +1243,7 @@ func TestGetActiveOrders(t *testing.T) {
 					AssetType:            asset.Spot,
 					Date:                 time.UnixMilli(1660801715639),
 					LastUpdated:          time.UnixMilli(1660801717945),
+					CloseTime:            time.UnixMilli(1660801717945),
 					Pair:                 currency.NewBTCUSDT(),
 				},
 			},
@@ -1309,6 +1329,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:            asset.Spot,
 						Date:                 time.Unix(1744110000, 0),
 						LastUpdated:          time.Unix(1744110000, 0),
+						CloseTime:            time.Unix(1744110000, 0),
 						Pair:                 currency.NewBTCUSDT(),
 					},
 					{
@@ -1326,6 +1347,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:       asset.Spot,
 						Date:            time.Unix(1744111000, 0),
 						LastUpdated:     time.Unix(1744112000, 0),
+						CloseTime:       time.Unix(1744112000, 0),
 						Pair:            currency.NewBTCUSDT(),
 					},
 					{
@@ -1342,6 +1364,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:      asset.Spot,
 						Date:           time.Unix(1744113000, 0),
 						LastUpdated:    time.Unix(1744113000, 0),
+						CloseTime:      time.Unix(1744113000, 0),
 						Pair:           currency.NewBTCUSDT(),
 					},
 				},
@@ -1359,6 +1382,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:     asset.Spot,
 						Date:          time.Unix(1744114000, 0),
 						LastUpdated:   time.Unix(1744114000, 0),
+						CloseTime:     time.Unix(1744114000, 0),
 						Pair:          currency.NewBTCUSDT(),
 					},
 				},
@@ -1384,6 +1408,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:            asset.Margin,
 						Date:                 time.Unix(1791284814, 0),
 						LastUpdated:          time.UnixMilli(1791284814200),
+						CloseTime:            time.UnixMilli(1791284814200),
 						Pair:                 currency.NewBTCUSDT(),
 						MarginType:           margin.Multi,
 					},
@@ -1401,6 +1426,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:       asset.Margin,
 						Date:            time.Unix(1791284818, 0),
 						LastUpdated:     time.Unix(1791284819, 0),
+						CloseTime:       time.Unix(1791284819, 0),
 						Pair:            currency.NewBTCUSDT(),
 						MarginType:      margin.Multi,
 					},
@@ -1420,6 +1446,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:     asset.Margin,
 						Date:          time.Unix(1791284821, 0),
 						LastUpdated:   time.Unix(1791284821, 0),
+						CloseTime:     time.Unix(1791284821, 0),
 						Pair:          currency.NewBTCUSDT(),
 						MarginType:    margin.Multi,
 					},
@@ -1438,6 +1465,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:     asset.Margin,
 						Date:          time.Unix(1791284820, 0),
 						LastUpdated:   time.Unix(1791284820, 0),
+						CloseTime:     time.Unix(1791284820, 0),
 						Pair:          currency.NewBTCUSDT(),
 						MarginType:    margin.Isolated,
 					},
@@ -1463,6 +1491,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:            asset.USDTMarginedFutures,
 						Date:                 time.Unix(1744120000, 0),
 						LastUpdated:          time.Unix(1744120500, 0),
+						CloseTime:            time.Unix(1744120500, 0),
 						Pair:                 currency.NewBTCUSDT(),
 					},
 					{
@@ -1479,6 +1508,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:       asset.USDTMarginedFutures,
 						Date:            time.Unix(1744121000, 0),
 						LastUpdated:     time.Unix(1744121000, 0),
+						CloseTime:       time.Unix(1744121000, 0),
 						Pair:            currency.NewBTCUSDT(),
 					},
 					{
@@ -1512,6 +1542,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:            asset.USDTMarginedFutures,
 						Date:                 time.Unix(1744123000, 0),
 						LastUpdated:          time.Unix(1744124000, 0),
+						CloseTime:            time.Unix(1744124000, 0),
 						Pair:                 currency.NewBTCUSDT(),
 					},
 				},
@@ -1536,6 +1567,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:            asset.CoinMarginedFutures,
 						Date:                 time.Unix(1744120400, 0),
 						LastUpdated:          time.Unix(1744120500, 0),
+						CloseTime:            time.Unix(1744120500, 0),
 						Pair:                 currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"),
 					},
 					{
@@ -1552,6 +1584,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:       asset.CoinMarginedFutures,
 						Date:            time.Unix(1744120600, 0),
 						LastUpdated:     time.Unix(1744120700, 0),
+						CloseTime:       time.Unix(1744120700, 0),
 						Pair:            currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"),
 					},
 					{
@@ -1569,6 +1602,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:            asset.CoinMarginedFutures,
 						Date:                 time.UnixMilli(1744120900000),
 						LastUpdated:          time.UnixMilli(1744121000000),
+						CloseTime:            time.UnixMilli(1744121000000),
 						Pair:                 currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"),
 					},
 				},
@@ -1594,6 +1628,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:            asset.Options,
 						Date:                 time.Unix(1744121600, 0),
 						LastUpdated:          time.Unix(1744121700, 0),
+						CloseTime:            time.Unix(1744121700, 0),
 						Pair:                 currency.NewPairWithDelimiter("BTC", "260410-72000-P", "-"),
 					},
 					{
@@ -1611,6 +1646,7 @@ func TestGetOrderHistory(t *testing.T) {
 						AssetType:       asset.Options,
 						Date:            time.Unix(1744121800, 0),
 						LastUpdated:     time.Unix(1744121900, 0),
+						CloseTime:       time.Unix(1744121900, 0),
 						Pair:            currency.NewPairWithDelimiter("BTC", "260410-72000-P", "-"),
 					},
 				},
@@ -5774,7 +5810,8 @@ func TestCoinMarginedAlgoOrders(t *testing.T) {
 		exp := &order.Detail{
 			TimeInForce: order.GoodTillCancel, ReduceOnly: true, Amount: 1, TriggerPrice: 70000, AverageExecutedPrice: 69990, ExecutedAmount: 1,
 			Exchange: ex.Name, OrderID: "algo-3100001", ClientOrderID: "gct-cm-stop", Type: order.StopMarket, Side: order.Sell, Status: order.Closed,
-			AssetType: asset.CoinMarginedFutures, Date: time.UnixMilli(1744120800000), LastUpdated: time.UnixMilli(1744120900000), Pair: pair,
+			AssetType: asset.CoinMarginedFutures, Date: time.UnixMilli(1744120800000), LastUpdated: time.UnixMilli(1744120900000),
+			CloseTime: time.UnixMilli(1744120900000), Pair: pair,
 		}
 		assert.Equal(t, exp, d, "GetOrderInfo should return the COIN-M algo order")
 		assert.Equal(t, 2, sent(), "GetOrderInfo should send every expected request")
@@ -6152,6 +6189,7 @@ func TestGetOrderInfo(t *testing.T) {
 				AssetType:            asset.Margin,
 				Date:                 time.Unix(1791284814, 0),
 				LastUpdated:          time.UnixMilli(1791284814200),
+				CloseTime:            time.UnixMilli(1791284814200),
 				Pair:                 currency.NewBTCUSDT(),
 				MarginType:           margin.Multi,
 			},
@@ -6230,6 +6268,7 @@ func TestGetOrderInfo(t *testing.T) {
 				AssetType:            asset.USDTMarginedFutures,
 				Date:                 time.UnixMilli(1750485492076),
 				LastUpdated:          time.UnixMilli(1750485492076),
+				CloseTime:            time.UnixMilli(1750485492076),
 				Pair:                 currency.NewBTCUSDT(),
 			},
 		},
@@ -6254,6 +6293,7 @@ func TestGetOrderInfo(t *testing.T) {
 				AssetType:            asset.USDTMarginedFutures,
 				Date:                 time.UnixMilli(1750485492076),
 				LastUpdated:          time.UnixMilli(1750485492076),
+				CloseTime:            time.UnixMilli(1750485492076),
 				Pair:                 currency.NewBTCUSDT(),
 			},
 		},
@@ -6312,6 +6352,7 @@ func TestGetOrderInfo(t *testing.T) {
 				AssetType:            asset.Options,
 				Date:                 time.Unix(1744120800, 0),
 				LastUpdated:          time.Unix(1744120801, 0),
+				CloseTime:            time.Unix(1744120801, 0),
 				Pair:                 currency.NewPairWithDelimiter("BTC", "260410-72000-P", "-"),
 			},
 		},
@@ -6349,6 +6390,7 @@ func TestGetOrderInfo(t *testing.T) {
 				AssetType:            asset.Spot,
 				Date:                 time.UnixMilli(1660801715700),
 				LastUpdated:          time.UnixMilli(1660801715700),
+				CloseTime:            time.UnixMilli(1660801715700),
 				Pair:                 currency.NewBTCUSDT(),
 			}
 			assert.Equal(t, exp, resp, "GetOrderInfo should return the order queried over the WebSocket API")
@@ -6564,13 +6606,19 @@ func TestGetOrderInfo(t *testing.T) {
 			name:    "USDⓈ-M algo order part filled",
 			a:       asset.USDTMarginedFutures,
 			replies: map[string]string{"/fapi/v1/order": notFound, "/fapi/v1/algoOrder": `{"algoId":1930,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"SELL","positionSide":"BOTH","timeInForce":"GTC","quantity":"1","algoStatus":"FINISHED","actualOrderId":"7","actualPrice":"2990","actualType":"MARKET","actualQty":"0.4","triggerPrice":"3000","icebergQuantity":"null","createTime":1791284812300,"updateTime":1791284812400}`},
-			exp:     &order.Detail{TimeInForce: order.GoodTillCancel, Amount: 1, TriggerPrice: 3000, AverageExecutedPrice: 2990, ExecutedAmount: 0.4, RemainingAmount: 0.6, Exchange: "TestGetOrderInfo/USDⓈ-M_algo_order_part_filled", OrderID: "algo-1930", ClientOrderID: "gct-algo", Type: order.StopMarket, Side: order.Sell, Status: order.Closed, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400), Pair: currency.NewBTCUSDT()},
+			exp: &order.Detail{
+				TimeInForce: order.GoodTillCancel, Amount: 1, TriggerPrice: 3000, AverageExecutedPrice: 2990, ExecutedAmount: 0.4, RemainingAmount: 0.6, Exchange: "TestGetOrderInfo/USDⓈ-M_algo_order_part_filled", OrderID: "algo-1930", ClientOrderID: "gct-algo", Type: order.StopMarket, Side: order.Sell, Status: order.Closed, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400),
+				CloseTime: time.UnixMilli(1791284812400), Pair: currency.NewBTCUSDT(),
+			},
 		},
 		{
 			name:    "USDⓈ-M close position algo order filled",
 			a:       asset.USDTMarginedFutures,
 			replies: map[string]string{"/fapi/v1/order": notFound, "/fapi/v1/algoOrder": `{"algoId":1930,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"SELL","positionSide":"BOTH","timeInForce":"GTC","quantity":"0","algoStatus":"FINISHED","actualOrderId":"8","actualPrice":"2990","actualType":"MARKET","actualQty":"0.5","triggerPrice":"3000","icebergQuantity":"null","closePosition":true,"createTime":1791284812300,"updateTime":1791284812400}`},
-			exp:     &order.Detail{TimeInForce: order.GoodTillCancel, TriggerPrice: 3000, AverageExecutedPrice: 2990, ExecutedAmount: 0.5, Exchange: "TestGetOrderInfo/USDⓈ-M_close_position_algo_order_filled", OrderID: "algo-1930", ClientOrderID: "gct-algo", Type: order.StopMarket, Side: order.Sell, Status: order.Closed, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400), Pair: currency.NewBTCUSDT()},
+			exp: &order.Detail{
+				TimeInForce: order.GoodTillCancel, TriggerPrice: 3000, AverageExecutedPrice: 2990, ExecutedAmount: 0.5, Exchange: "TestGetOrderInfo/USDⓈ-M_close_position_algo_order_filled", OrderID: "algo-1930", ClientOrderID: "gct-algo", Type: order.StopMarket, Side: order.Sell, Status: order.Closed, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400),
+				CloseTime: time.UnixMilli(1791284812400), Pair: currency.NewBTCUSDT(),
+			},
 		},
 		{
 			name:    "USDⓈ-M algo order ID",
@@ -9910,6 +9958,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 							AssetType:            asset.USDTMarginedFutures,
 							Date:                 time.Unix(1744120000, 0),
 							LastUpdated:          time.Unix(1744120500, 0),
+							CloseTime:            time.Unix(1744120500, 0),
 							Pair:                 currency.NewBTCUSDT(),
 							MarginType:           margin.Isolated,
 						},
@@ -9943,6 +9992,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 							AssetType:            asset.CoinMarginedFutures,
 							Date:                 time.Unix(1744120400, 0),
 							LastUpdated:          time.Unix(1744120500, 0),
+							CloseTime:            time.Unix(1744120500, 0),
 							Pair:                 coinmPair,
 							MarginType:           margin.Isolated,
 						},
@@ -10813,6 +10863,25 @@ func TestWorkingTypeString(t *testing.T) {
 	assert.Equal(t, WorkingTypeMarkPrice, got, "workingTypeString should convert the mark price")
 	_, err = workingTypeString(order.IndexPrice)
 	assert.ErrorIs(t, err, order.ErrUnknownPriceType, "workingTypeString should reject the index price")
+}
+
+func TestTimeIfClosed(t *testing.T) {
+	t.Parallel()
+	updated := time.UnixMilli(1791284812400)
+	for _, tc := range []struct {
+		name   string
+		status order.Status
+		exp    time.Time
+	}{
+		{"unknown", order.UnknownStatus, time.Time{}},
+		{"open", order.New, time.Time{}},
+		{"final", order.Filled, updated},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, timeIfClosed(tc.status, updated), "timeIfClosed should return %s for a %s status", tc.exp, tc.name)
+		})
+	}
 }
 
 func TestAlgoOrderStatus(t *testing.T) {

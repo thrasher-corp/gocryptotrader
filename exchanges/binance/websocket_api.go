@@ -644,6 +644,7 @@ func (e *Exchange) processExecutionReport(ctx context.Context, a asset.Item, eve
 		AssetType:            a,
 		Date:                 resp.OrderCreationTime.Time(),
 		LastUpdated:          resp.TransactionTime.Time(),
+		CloseTime:            timeIfClosed(status, resp.TransactionTime.Time()),
 		Pair:                 pair,
 		TimeInForce:          spotTimeInForce(oType, tif),
 	}

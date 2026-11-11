@@ -370,6 +370,7 @@ func (e *Exchange) processOptionsOrderTradeUpdate(ctx context.Context, data []by
 		AssetType:            asset.Options,
 		Date:                 o.OrderTradeTime.Time(),
 		LastUpdated:          o.OrderTradeTime.Time(),
+		CloseTime:            timeIfClosed(status, o.OrderTradeTime.Time()),
 		Pair:                 pair,
 	}
 	if o.ExecutionType == "TRADE" {

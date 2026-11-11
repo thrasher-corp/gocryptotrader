@@ -2794,8 +2794,8 @@ func TestFuturesOrderTradeUpdateFills(t *testing.T) {
 				&order.Detail{
 					TimeInForce: order.GoodTillCancel, Price: 86000, Amount: 3, AverageExecutedPrice: 86000, ExecutedAmount: 3, Cost: tc.expCosts[1],
 					FeeAsset: tc.feeAsset, Exchange: ex.Name, OrderID: "4242", ClientOrderID: "two-fills", Type: order.Limit, Side: order.Buy, Status: order.Filled,
-					AssetType: tc.a, Date: time.UnixMilli(1791300000200), LastUpdated: time.UnixMilli(1791300000200), Pair: tc.pair,
-					Trades: trades[1:],
+					AssetType: tc.a, Date: time.UnixMilli(1791300000200), LastUpdated: time.UnixMilli(1791300000200), CloseTime: time.UnixMilli(1791300000200),
+					Pair: tc.pair, Trades: trades[1:],
 				},
 			}
 			payloads := relayedPayloads(ex)
@@ -2915,7 +2915,7 @@ func TestFuturesOrderTradeUpdateLiquidation(t *testing.T) {
 		TimeInForce: order.ImmediateOrCancel, Price: 84000, Amount: 0.1, AverageExecutedPrice: 84100, ExecutedAmount: 0.1, Cost: 8410,
 		FeeAsset: currency.USDT, Exchange: ex.Name, OrderID: "8886780", ClientOrderID: "autoclose-1791300000000", Type: order.Liquidation, Side: order.Sell,
 		Status: order.Filled, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791300000000), LastUpdated: time.UnixMilli(1791300000000),
-		Pair: testUSDTMarginedFuturesPair,
+		CloseTime: time.UnixMilli(1791300000000), Pair: testUSDTMarginedFuturesPair,
 		Trades: []order.TradeHistory{{
 			Price: 84100, Amount: 0.1, Fee: 42.05, Exchange: ex.Name, TID: "10200", Type: order.Liquidation, Side: order.Sell,
 			Timestamp: time.UnixMilli(1791300000000), FeeAsset: "USDT",
@@ -2938,7 +2938,8 @@ func TestProcessFuturesAlgoUpdate(t *testing.T) { //nolint:tparallel // the case
 	exp := &order.Detail{
 		TimeInForce: order.GoodTillCancel, ReduceOnly: true, Amount: 0.01, RemainingAmount: 0.01, TriggerPrice: 85000, Exchange: ex.Name,
 		OrderID: "algo-2148720", ClientOrderID: "stop-loss", Type: order.StopMarket, Side: order.Sell, Status: order.Cancelled,
-		AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791300000000), LastUpdated: time.UnixMilli(1791300000000), Pair: testUSDTMarginedFuturesPair,
+		AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791300000000), LastUpdated: time.UnixMilli(1791300000000),
+		CloseTime: time.UnixMilli(1791300000000), Pair: testUSDTMarginedFuturesPair,
 	}
 	assert.Equal(t, exp, payloads[1], "processFuturesAlgoUpdate should relay the algo order identified by its algo order ID")
 	rest, err := ex.algoOrderDetail(asset.USDTMarginedFutures, &USDTMarginedFuturesAlgoOrderBase{
@@ -2948,6 +2949,15 @@ func TestProcessFuturesAlgoUpdate(t *testing.T) { //nolint:tparallel // the case
 	}, 0, testUSDTMarginedFuturesPair)
 	require.NoError(t, err, "algoOrderDetail must not error")
 	assert.Equal(t, &rest, payloads[1], "processFuturesAlgoUpdate should convert the algo order as the REST algo order queries do")
+
+	t.Run("open order", func(t *testing.T) {
+		require.NoError(t, ex.processFuturesAlgoUpdate(t.Context(), algoUpdate("BTCUSDT", "SELL", "STOP_MARKET", "GTC", "NEW"), asset.USDTMarginedFutures), "processFuturesAlgoUpdate must not error for a new algo order")
+		openPayloads := relayedPayloads(ex)
+		require.Len(t, openPayloads, 2, "processFuturesAlgoUpdate must relay the event and its algo order")
+		d, ok := openPayloads[1].(*order.Detail)
+		require.True(t, ok, "the second payload must be an order detail")
+		assert.Zero(t, d.CloseTime, "an open algo order should carry no close time")
+	})
 
 	// The order manager holds a conditional order SubmitOrder placed under its algo order ID, so the update reaches it
 	update, ok := payloads[1].(*order.Detail)
