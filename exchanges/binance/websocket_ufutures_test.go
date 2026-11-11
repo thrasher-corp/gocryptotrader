@@ -350,26 +350,44 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		}
 		return subs
 	}
-	// Configuring it for every asset, all assets included, keeps the derivatives defaults from being added, so each
-	// generator has only MyOrdersChannel to consider
-	myOrdersEx := setup(t, allMyOrders())
-	myOrdersEx.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	for _, tc := range []struct {
-		name     string
-		generate func() (subscription.List, error)
+	for _, auth := range []struct {
+		name                 string
+		canUseAuthenticated  bool
+		flaggedAuthenticated bool
 	}{
-		{"spot", myOrdersEx.generateSubscriptions},
-		{"USDⓈ-M /public", myOrdersEx.generateUSDTMarginedFuturesPublicSubscriptions},
-		{"USDⓈ-M /market", myOrdersEx.generateUSDTMarginedFuturesMarketSubscriptions},
-		{"COIN-M", myOrdersEx.generateCoinMarginedFuturesSubscriptions},
-		{"options /public", myOrdersEx.generateOptionsPublicSubscriptions},
-		{"options /market", myOrdersEx.generateOptionsMarketSubscriptions},
+		{"my orders only generates no streams", true, true},
+		{"my orders only without usable credentials generates no streams", false, true},
+		{"my orders only not flagged as authenticated generates no streams", true, false},
+		{"my orders only neither flagged nor with usable credentials generates no streams", false, false},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(auth.name, func(t *testing.T) {
 			t.Parallel()
-			subs, err := tc.generate()
-			require.NoErrorf(t, err, "%s generation must not error with only MyOrdersChannel configured", tc.name)
-			assert.Emptyf(t, subs, "%s generation should generate no streams with only MyOrdersChannel configured", tc.name)
+			subs := allMyOrders()
+			for _, s := range subs {
+				s.Authenticated = auth.flaggedAuthenticated
+			}
+			// Configuring it for every asset, all assets included, keeps the derivatives defaults from being added, so each
+			// generator has only MyOrdersChannel to consider
+			myOrdersEx := setup(t, subs)
+			myOrdersEx.Websocket.SetCanUseAuthenticatedEndpoints(auth.canUseAuthenticated)
+			for _, tc := range []struct {
+				name     string
+				generate func() (subscription.List, error)
+			}{
+				{"spot", myOrdersEx.generateSubscriptions},
+				{"USDⓈ-M /public", myOrdersEx.generateUSDTMarginedFuturesPublicSubscriptions},
+				{"USDⓈ-M /market", myOrdersEx.generateUSDTMarginedFuturesMarketSubscriptions},
+				{"COIN-M", myOrdersEx.generateCoinMarginedFuturesSubscriptions},
+				{"options /public", myOrdersEx.generateOptionsPublicSubscriptions},
+				{"options /market", myOrdersEx.generateOptionsMarketSubscriptions},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					subs, err := tc.generate()
+					require.NoErrorf(t, err, "%s generation must not error with only MyOrdersChannel configured", tc.name)
+					assert.Emptyf(t, subs, "%s generation should generate no streams with only MyOrdersChannel configured", tc.name)
+				})
+			}
 		})
 	}
 

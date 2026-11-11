@@ -467,7 +467,7 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	subs := make(subscription.List, 0, len(e.Features.Subscriptions))
 	for _, s := range e.Features.Subscriptions {
 		if s.Channel == subscription.MyOrdersChannel {
-			// Each asset's user data stream already carries its orders; Allow a no-op sub without error for cross compatibility
+			// Each asset's user data stream already carries its orders, so myOrders is accepted without a stream of its own
 			continue
 		}
 		switch s.Asset {

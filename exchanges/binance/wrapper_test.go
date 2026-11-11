@@ -10876,6 +10876,16 @@ func TestTimeIfClosed(t *testing.T) {
 		{"unknown", order.UnknownStatus, time.Time{}},
 		{"open", order.New, time.Time{}},
 		{"final", order.Filled, updated},
+		{"pending", order.Pending, time.Time{}},
+		{"partially filled", order.PartiallyFilled, time.Time{}},
+		{"pending cancel", order.PendingCancel, time.Time{}},
+		{"active", order.Active, time.Time{}},
+		{"auto deleverage", order.AutoDeleverage, time.Time{}},
+		{"cancelled", order.Cancelled, updated},
+		{"rejected", order.Rejected, updated},
+		{"expired", order.Expired, updated},
+		{"closed", order.Closed, updated},
+		{"liquidated", order.Liquidated, updated},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

@@ -1403,15 +1403,22 @@ func TestGenerateSubscriptions(t *testing.T) {
 	), subs)
 
 	// Each asset's user data stream already carries its orders, so MyOrdersChannel has no stream of its own
-	for _, a := range []asset.Item{asset.Empty, asset.Spot, asset.All} {
-		t.Run("my orders "+a.String(), func(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		a    asset.Item
+	}{
+		{"my orders without an asset", asset.Empty},
+		{"my orders spot", asset.Spot},
+		{"my orders all assets", asset.All},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			testEx := newTestExchange(t)
 			testEx.Websocket.SetCanUseAuthenticatedEndpoints(true)
-			testEx.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Asset: a, Authenticated: true}}
+			testEx.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Asset: tc.a, Authenticated: true}}
 			generated, err := testEx.generateSubscriptions()
-			require.NoErrorf(t, err, "generateSubscriptions must not error for %s my orders", a)
-			assert.Emptyf(t, generated, "generateSubscriptions should generate no stream for %s my orders", a)
+			require.NoErrorf(t, err, "generateSubscriptions must not error for %s", tc.name)
+			assert.Emptyf(t, generated, "generateSubscriptions should generate no stream for %s", tc.name)
 		})
 	}
 
