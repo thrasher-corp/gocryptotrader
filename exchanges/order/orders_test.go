@@ -1567,7 +1567,7 @@ func TestIsActive(t *testing.T) {
 		}{
 			{"unfilled", Detail{QuoteAmount: 180, Status: Open}, true},
 			{"filled", Detail{QuoteAmount: 180, ExecutedAmount: 3, Status: Filled}, false},
-			{"base quantity known and filled", Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 60, Status: Active}, false},
+			{"base quantity fully executed despite active status", Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 60, Status: Active}, false},
 			{"base fill larger than quote budget", Detail{QuoteAmount: 10, ExecutedAmount: 100000, Status: PartiallyFilled}, true},
 			{"budget spent pending final status", Detail{QuoteAmount: 180, ExecutedAmount: 3, ExecutedQuoteAmount: 180, Status: PartiallyFilled}, true},
 			{"unknown status", Detail{QuoteAmount: 180, ExecutedAmount: 2, Status: UnknownStatus}, false},
