@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -42,8 +44,13 @@ func accountFrame(t *testing.T, channel string, i int) []byte {
 
 // enableFillsFeed has an exchange relay the fills its websocket receives through its fills feed
 func enableFillsFeed(ex *Exchange) {
-	ex.SetFillsFeedStatus(true)
-	ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
+	setFillsFeed(ex, true)
+}
+
+// setFillsFeed sets whether an exchange relays the fills its websocket receives through its fills feed
+func setFillsFeed(ex *Exchange, enabled bool) {
+	ex.SetFillsFeedStatus(enabled)
+	ex.Websocket.Fills.Setup(enabled, ex.Websocket.DataHandler)
 }
 
 // documentedOrderDetails returns the order details of the documented perpetual swap order and the margin order
@@ -524,8 +531,8 @@ func TestWebsocketUserTrades(t *testing.T) { //nolint:tparallel // the cases sha
 		require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(trade)), "wsHandleChannelData must not error for the trade of an order being placed")
 		return &OrderIDResponse{OrderID: "19848531", ClientOrderID: r.ClientOrderID}, nil
 	}
-	_, err = ex.submitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Type: order.Market, Side: order.Buy, Pair: spotBTCUSD, AssetType: asset.Margin, Amount: 0.001, ClientOrderID: "margin_placing"}, placing, nil)
-	require.NoError(t, err, "submitOrder must not error")
+	_, err = ex.submitOrderWith(t.Context(), &order.Submit{Exchange: ex.Name, Type: order.Market, Side: order.Buy, Pair: spotBTCUSD, AssetType: asset.Margin, Amount: 0.001, ClientOrderID: "margin_placing"}, placing, nil)
+	require.NoError(t, err, "submitOrderWith must not error")
 	exp = []any{[]fill.Data{{
 		Timestamp:     time.UnixMilli(1613575617290),
 		Exchange:      ex.Name,
@@ -786,8 +793,17 @@ func TestWebsocketAccountRisk(t *testing.T) {
 	ex := newTestExchange(t)
 	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, accountFrame(t, "user.account_risk", 0)), "wsHandleChannelData must not error for the acknowledgement")
 	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, accountFrame(t, "user.account_risk", 1)), "wsHandleChannelData must not error")
+	exp := []any{[]WebsocketAccountRisk{documentedAccountRisk()}}
+	assert.Equal(t, exp, relayedData(ex), "the account's risk should be relayed with the account the push names")
+	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(`{"id":-1,"method":"subscribe","code":0,"result":{"account_id":"`+documentedAccountID+`","subscription":"user.account_risk","channel":"user.account_risk","data":[]}}`)), "wsHandleChannelData must not error without risk")
+	assert.Empty(t, relayedData(ex), "nothing should be relayed without risk")
+	assert.ErrorIs(t, ex.wsHandleChannelData(t.Context(), nil, []byte(`{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.account_risk","channel":"user.account_risk","data":{}}}`)), errMalformedWebsocketMessage, "wsHandleChannelData should refuse risk it cannot decode")
+}
+
+// documentedAccountRisk returns the account's risk testdata/wsAccount.json holds, with the account its push names
+func documentedAccountRisk() WebsocketAccountRisk {
 	cross, isolated := documentedPositions()
-	exp := []any{[]WebsocketAccountRisk{{
+	return WebsocketAccountRisk{
 		AccountID:                  documentedAccountID,
 		InstrumentName:             "USD",
 		TotalAvailableBalance:      preciseNumber("4721.05898582"),
@@ -862,11 +878,7 @@ func TestWebsocketAccountRisk(t *testing.T) {
 			}},
 			Positions: []PositionResponse{isolated},
 		}},
-	}}}
-	assert.Equal(t, exp, relayedData(ex), "the account's risk should be relayed with the account the push names")
-	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(`{"id":-1,"method":"subscribe","code":0,"result":{"account_id":"`+documentedAccountID+`","subscription":"user.account_risk","channel":"user.account_risk","data":[]}}`)), "wsHandleChannelData must not error without risk")
-	assert.Empty(t, relayedData(ex), "nothing should be relayed without risk")
-	assert.ErrorIs(t, ex.wsHandleChannelData(t.Context(), nil, []byte(`{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.account_risk","channel":"user.account_risk","data":{}}}`)), errMalformedWebsocketMessage, "wsHandleChannelData should refuse risk it cannot decode")
+	}
 }
 
 func TestWebsocketPositionBalance(t *testing.T) {
@@ -1007,4 +1019,595 @@ func TestWebsocketUserDataConnect(t *testing.T) {
 	usd := balances[currency.USD]
 	usd.UpdatedAt = time.Time{}
 	assert.Equal(t, accounts.Balance{Currency: currency.USD, Total: 3113.50747209, Hold: 100, Free: 3013.50747209}, usd, "the balances the acknowledgement carries should be stored, then changed by the push after")
+}
+
+// documentedOrders returns the orders a recorded order channel frame holds
+func documentedOrders(t *testing.T, frame []byte) []OrderResponse {
+	t.Helper()
+	var orders []OrderResponse
+	require.NoError(t, json.Unmarshal(channelPush(t, frame).Data, &orders), "the frame's orders must decode")
+	return orders
+}
+
+// documentedTrades returns the trades a recorded user.trade frame holds
+func documentedTrades(t *testing.T, frame []byte) []WebsocketUserTrade {
+	t.Helper()
+	var trades []WebsocketUserTrade
+	require.NoError(t, json.Unmarshal(channelPush(t, frame).Data, &trades), "the frame's trades must decode")
+	return trades
+}
+
+// userChannelPush returns a user channel's push of data
+func userChannelPush(channel, data string) *websocketChannelPush {
+	return &websocketChannelPush{Subscription: channel, Channel: channel, Data: json.RawMessage(data)}
+}
+
+func TestWebsocketHandleUserOrders(t *testing.T) { //nolint:tparallel // the cases share one exchange, the margin orders it tracks and its data handler in order
+	t.Parallel()
+	ex := newTestExchange(t)
+	perpetual, marginOrder := documentedOrderDetails(ex.Name)
+	untold := `{"order_id":"1","order_type":"NOPE","side":"BUY","status":"ACTIVE","instrument_name":"BTC_USD"},{"order_id":"2","order_type":"LIMIT","side":"BUY","status":"ACTIVE","instrument_name":"BTC"}`
+	told := `{"order_id":"3","order_type":"LIMIT","side":"SELL","time_in_force":"GOOD_TILL_CANCEL","exec_inst":[],"quantity":"0.0100","limit_price":"60000.0","status":"ACTIVE","instrument_name":"BTC_USD","fee_instrument_name":"USD","create_time":1613575617173,"update_time":1613575617173}`
+	toldDetail := order.Detail{
+		Exchange:        ex.Name,
+		OrderID:         "3",
+		Pair:            spotBTCUSD,
+		AssetType:       asset.Spot,
+		Side:            order.Sell,
+		Type:            order.Limit,
+		Status:          order.Active,
+		TimeInForce:     order.GoodTillCancel,
+		Price:           60000,
+		Amount:          0.01,
+		RemainingAmount: 0.01,
+		CostAsset:       currency.USD,
+		FeeAsset:        currency.USD,
+		Date:            time.UnixMilli(1613575617173),
+		LastUpdated:     time.UnixMilli(1613575617173),
+	}
+	untoldErrors := []error{order.ErrUnrecognisedOrderType, errMalformedInstrumentName}
+	untoldOrders := []string{"user.order order 1:", "user.order order 2:"}
+	// The cases share ex, which tracks the margin orders it is told of, and drain its data handler in order
+	for _, tc := range []struct {
+		name    string
+		push    *websocketChannelPush
+		relayed []any
+		// errs are the errors reported, and reported what the error says of the orders it is about
+		errs     []error
+		reported []string
+	}{
+		{name: "the open orders on subscribing", push: channelPush(t, accountFrame(t, "user.order", 0)), relayed: []any{[]order.Detail{perpetual}}},
+		{name: "an order pushed as it changes", push: channelPush(t, accountFrame(t, "user.order", 1)), relayed: []any{[]order.Detail{marginOrder}}},
+		{name: "an advanced order's legs", push: channelPush(t, accountFrame(t, "user.advance.order", 0)), relayed: []any{documentedAdvancedOrderLegs(ex.Name)}},
+		{name: "orders whose details cannot be told reported, the others relayed", push: userChannelPush(channelUserOrder, `[`+untold+`,`+told+`]`), relayed: []any{[]order.Detail{toldDetail}}, errs: untoldErrors, reported: untoldOrders},
+		{name: "orders none of whose details can be told", push: userChannelPush(channelUserOrder, `[`+untold+`]`), errs: untoldErrors, reported: untoldOrders},
+		{name: "no orders", push: userChannelPush(channelUserOrder, `[]`)},
+		{name: "orders that cannot be decoded", push: userChannelPush(channelUserOrder, `{}`), errs: []error{errMalformedWebsocketMessage}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ex.wsHandleUserOrders(t.Context(), tc.push)
+			if len(tc.errs) == 0 {
+				assert.NoError(t, err, "wsHandleUserOrders should not error")
+			}
+			for _, want := range tc.errs {
+				assert.ErrorIs(t, err, want, "wsHandleUserOrders should report each order whose detail it cannot tell")
+			}
+			for _, text := range tc.reported {
+				assert.ErrorContains(t, err, text, "wsHandleUserOrders should name the channel and each order whose detail it cannot tell")
+			}
+			assert.Equal(t, tc.relayed, relayedData(ex), "wsHandleUserOrders should relay the details of the orders it can tell")
+		})
+	}
+	assert.True(t, ex.isMarginOrder(marginOrder.OrderID, ""), "wsHandleUserOrders should track a margin order as one for its trades")
+
+	t.Run("orders that cannot be relayed", func(t *testing.T) {
+		full := fillDataHandler(t, ex)
+		assert.ErrorIs(t, ex.wsHandleUserOrders(t.Context(), channelPush(t, accountFrame(t, "user.order", 0))), full, "wsHandleUserOrders should report orders it cannot relay")
+	})
+}
+
+func TestUserOrderDetail(t *testing.T) { //nolint:tparallel // the cases share one exchange and the margin orders it tracks in order
+	t.Parallel()
+	ex := newTestExchange(t)
+	perpetualOrder := documentedOrders(t, accountFrame(t, "user.order", 0))[0]
+	marginOrder := documentedOrders(t, accountFrame(t, "user.order", 1))[0]
+	perpetualDetail, marginDetail := documentedOrderDetails(ex.Name)
+	spotOrder := marginOrder
+	spotOrder.ExecutionInstructions = nil
+	spotDetail := marginDetail
+	spotDetail.AssetType, spotDetail.MarginType = asset.Spot, margin.Unset
+	futureOrder := perpetualOrder
+	futureOrder.InstrumentName = "BTCUSD-261030"
+	futureDetail := perpetualDetail
+	futureDetail.Pair, futureDetail.AssetType = futureBTCUSD, asset.Futures
+	marginPerpetualOrder := perpetualOrder
+	marginPerpetualOrder.ExecutionInstructions = []string{ExecutionInstructionMarginOrder}
+	unnamedOrder := spotOrder
+	unnamedOrder.InstrumentName = "BTC"
+	untypedOrder := spotOrder
+	untypedOrder.OrderType = "NOPE"
+	// trackedOrder is an order's IDs, and whether it is tracked as a margin order
+	type trackedOrder struct {
+		orderID, clientOrderID string
+		isMargin               bool
+	}
+	// The margin order was sent with its client order ID, which is tracked until its submission learns its outcome
+	ex.trackMarginOrder(asset.Margin, "", marginOrder.ClientOrderID)
+	// The cases share ex and the margin orders it tracks in order
+	for _, tc := range []struct {
+		name     string
+		response *OrderResponse
+		exp      *order.Detail
+		err      error
+		tracked  []trackedOrder
+	}{
+		{name: "a perpetual swap's order", response: &perpetualOrder, exp: &perpetualDetail, tracked: []trackedOrder{{orderID: perpetualOrder.OrderID}}},
+		{
+			name: "a spot instrument's order trading on margin", response: &marginOrder, exp: &marginDetail,
+			tracked: []trackedOrder{{orderID: marginOrder.OrderID, isMargin: true}, {clientOrderID: marginOrder.ClientOrderID, isMargin: true}},
+		},
+		{
+			name: "the order trading as spot, its client order ID left to the submission that sent it", response: &spotOrder, exp: &spotDetail,
+			tracked: []trackedOrder{{orderID: spotOrder.OrderID}, {clientOrderID: spotOrder.ClientOrderID, isMargin: true}, {orderID: spotOrder.OrderID, clientOrderID: spotOrder.ClientOrderID}},
+		},
+		{name: "a future's order", response: &futureOrder, exp: &futureDetail, tracked: []trackedOrder{{orderID: futureOrder.OrderID}}},
+		{name: "a derivative's order naming margin, which trades as the derivative", response: &marginPerpetualOrder, exp: &perpetualDetail, tracked: []trackedOrder{{orderID: marginPerpetualOrder.OrderID}}},
+		{name: "an order of an instrument that cannot be named", response: &unnamedOrder, err: errMalformedInstrumentName},
+		{name: "an order of a type Crypto.com does not name", response: &untypedOrder, err: order.ErrUnrecognisedOrderType},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ex.userOrderDetail(tc.response)
+			require.ErrorIs(t, err, tc.err, "userOrderDetail must return the expected error")
+			assert.Equal(t, tc.exp, got, "userOrderDetail should return the order's detail as the asset it trades as")
+			for _, o := range tc.tracked {
+				assert.Equalf(t, o.isMargin, ex.isMarginOrder(o.orderID, o.clientOrderID), "userOrderDetail should leave order %q of client order %q tracked as a margin order or not", o.orderID, o.clientOrderID)
+			}
+		})
+	}
+}
+
+func TestUntrackClientOrderID(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	// Client order IDs c1 and c2 are tracked as margin orders', and c1 is a margin order's order ID too
+	ex.trackMarginOrder(asset.Margin, "", "c1")
+	ex.trackMarginOrder(asset.Margin, "", "c2")
+	ex.trackMarginOrder(asset.Margin, "c1", "")
+	// The cases untrack the client order IDs ex tracks in order
+	for _, tc := range []struct {
+		name          string
+		clientOrderID string
+		// tracked are the client order IDs tracked as margin orders' after
+		tracked []string
+	}{
+		{"no client order ID", "", []string{"c1", "c2"}},
+		{"a client order ID not tracked", "c3", []string{"c1", "c2"}},
+		{"a client order ID tracked", "c1", []string{"c2"}},
+		{"a client order ID untracked already", "c1", []string{"c2"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ex.untrackClientOrderID(tc.clientOrderID)
+			for _, id := range []string{"c1", "c2", "c3"} {
+				assert.Equalf(t, slices.Contains(tc.tracked, id), ex.isMarginOrder("", id), "untrackClientOrderID should leave client order ID %s tracked as a margin order's or not", id)
+			}
+			assert.True(t, ex.isMarginOrder("c1", ""), "untrackClientOrderID should leave an order ID of the same name tracked")
+		})
+	}
+
+	t.Run("no margin order cache", func(t *testing.T) {
+		t.Parallel()
+		var untracked Exchange
+		assert.NotPanics(t, func() { untracked.untrackClientOrderID("c1") }, "untrackClientOrderID should pass over an exchange tracking no orders")
+	})
+}
+
+func TestIsMarginOrder(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	// Order m1 trades on margin and order s1 as spot, known by their order IDs, and the margin order sent with client
+	// order ID c1 awaits its order ID
+	ex.trackMarginOrder(asset.Margin, "m1", "")
+	ex.trackMarginOrder(asset.Spot, "s1", "")
+	ex.trackMarginOrder(asset.Margin, "", "c1")
+	// The cases read the orders ex tracks in order
+	for _, tc := range []struct {
+		name                   string
+		orderID, clientOrderID string
+		exp                    bool
+	}{
+		{"an order tracked as a margin order by its order ID", "m1", "c2", true},
+		{"an order tracked as trading as spot by its order ID", "s1", "", false},
+		{"an order told apart by its order ID from the margin order sharing its client order ID", "s1", "c1", false},
+		{"an order not tracked, of a client order ID tracked as a margin order's", "o1", "c1", true},
+		{"a margin order by its client order ID alone", "", "c1", true},
+		{"an order tracked by neither ID", "o1", "c2", false},
+		{"no IDs", "", "", false},
+		{"an order ID not taken for a client order ID", "", "m1", false},
+		{"a client order ID not taken for an order ID", "c1", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equalf(t, tc.exp, ex.isMarginOrder(tc.orderID, tc.clientOrderID), "isMarginOrder should report whether order %q of client order %q is tracked as a margin order", tc.orderID, tc.clientOrderID)
+		})
+	}
+
+	t.Run("no margin order cache", func(t *testing.T) {
+		t.Parallel()
+		var untracked Exchange
+		assert.False(t, untracked.isMarginOrder("m1", "c1"), "isMarginOrder should report no margin order without a margin order cache")
+	})
+}
+
+func TestWebsocketHandleUserTrades(t *testing.T) { //nolint:tparallel // the cases share one exchange, its fills feed and its data handler in order
+	t.Parallel()
+	ex := newTestExchange(t)
+	documented := channelPush(t, accountFrame(t, "user.trade", 0))
+	reported := documentedTrades(t, accountFrame(t, "user.trade", 0))
+	perpetualFill := fill.Data{
+		Timestamp:     time.Unix(0, 1613570791060123456),
+		Exchange:      ex.Name,
+		AssetType:     asset.PerpetualSwap,
+		CurrencyPair:  perpBTCUSD,
+		Side:          order.Buy,
+		OrderID:       "19708564",
+		ClientOrderID: "6ac2421d-5078-4ef6-a9d5-9680602ce123",
+		TradeID:       "38554669",
+		Price:         51278.5,
+		Amount:        0.05,
+	}
+	untold := `{"trade_id":"1","side":"NOPE","instrument_name":"BTC_USD"},{"trade_id":"2","side":"BUY","instrument_name":"BTCUSD"}`
+	told := `{"trade_id":"3","traded_quantity":"0.0010","traded_price":"51000.00","side":"BUY","instrument_name":"BTC_USD","create_time":1613575617290}`
+	toldFill := fill.Data{Timestamp: time.UnixMilli(1613575617290), Exchange: ex.Name, AssetType: asset.Spot, CurrencyPair: spotBTCUSD, Side: order.Buy, TradeID: "3", Price: 51000, Amount: 0.001}
+	untoldErrors := []error{order.ErrSideIsInvalid, errMalformedInstrumentName}
+	untoldTrades := []string{"user.trade trade 1:", "user.trade trade 2:"}
+	// The cases share ex, setting its fills feed in turn, and drain its data handler in order
+	for _, tc := range []struct {
+		name      string
+		fillsFeed bool
+		push      *websocketChannelPush
+		relayed   []any
+		// errs are the errors reported, and reported what the error says of the trades it is about
+		errs     []error
+		reported []string
+	}{
+		{name: "trades relayed as Crypto.com reports them without a fills feed", push: documented, relayed: []any{reported}},
+		{name: "no trades without a fills feed", push: userChannelPush(channelUserTrade, `[]`)},
+		{name: "trades that cannot be decoded without a fills feed", push: userChannelPush(channelUserTrade, `{}`), errs: []error{errMalformedWebsocketMessage}},
+		{name: "trades filled through the fills feed", fillsFeed: true, push: documented, relayed: []any{[]fill.Data{perpetualFill}}},
+		{name: "trades whose fills cannot be told reported, the others filled", fillsFeed: true, push: userChannelPush(channelUserTrade, `[`+untold+`,`+told+`]`), relayed: []any{[]fill.Data{toldFill}}, errs: untoldErrors, reported: untoldTrades},
+		{name: "trades none of whose fills can be told", fillsFeed: true, push: userChannelPush(channelUserTrade, `[`+untold+`]`), errs: untoldErrors, reported: untoldTrades},
+		{name: "no trades with a fills feed", fillsFeed: true, push: userChannelPush(channelUserTrade, `[]`)},
+		{name: "trades that cannot be decoded with a fills feed", fillsFeed: true, push: userChannelPush(channelUserTrade, `{}`), errs: []error{errMalformedWebsocketMessage}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setFillsFeed(ex, tc.fillsFeed)
+			err := ex.wsHandleUserTrades(t.Context(), tc.push)
+			if len(tc.errs) == 0 {
+				assert.NoError(t, err, "wsHandleUserTrades should not error")
+			}
+			for _, want := range tc.errs {
+				assert.ErrorIs(t, err, want, "wsHandleUserTrades should report each trade whose fill it cannot tell")
+			}
+			for _, text := range tc.reported {
+				assert.ErrorContains(t, err, text, "wsHandleUserTrades should name the channel and each trade whose fill it cannot tell")
+			}
+			assert.Equal(t, tc.relayed, relayedData(ex), "wsHandleUserTrades should relay the trades, or the fills it can tell through the fills feed")
+		})
+	}
+
+	// The cases share ex, setting its fills feed in turn
+	for _, fillsFeed := range []bool{false, true} {
+		t.Run("trades that cannot be relayed, the fills feed enabled "+strconv.FormatBool(fillsFeed), func(t *testing.T) {
+			setFillsFeed(ex, fillsFeed)
+			full := fillDataHandler(t, ex)
+			assert.ErrorIs(t, ex.wsHandleUserTrades(t.Context(), documented), full, "wsHandleUserTrades should report trades it cannot relay")
+		})
+	}
+}
+
+func TestUserTradeFill(t *testing.T) { //nolint:tparallel // the cases share one exchange and the margin orders it tracks
+	t.Parallel()
+	ex := newTestExchange(t)
+	perpetualTrade := documentedTrades(t, accountFrame(t, "user.trade", 0))[0]
+	spotTrade := documentedTrades(t, accountFrame(t, "user.trade", 1))[0]
+	perpetualFill := fill.Data{
+		Timestamp:     time.Unix(0, 1613570791060123456),
+		Exchange:      ex.Name,
+		AssetType:     asset.PerpetualSwap,
+		CurrencyPair:  perpBTCUSD,
+		Side:          order.Buy,
+		OrderID:       "19708564",
+		ClientOrderID: "6ac2421d-5078-4ef6-a9d5-9680602ce123",
+		TradeID:       "38554669",
+		Price:         51278.5,
+		Amount:        0.05,
+	}
+	spotFill := fill.Data{
+		Timestamp:     time.Unix(0, 1613575617280123456),
+		Exchange:      ex.Name,
+		AssetType:     asset.Spot,
+		CurrencyPair:  spotBTCUSD,
+		Side:          order.Sell,
+		OrderID:       "19848530",
+		ClientOrderID: "1613571154910",
+		TradeID:       "38554670",
+		Price:         51200,
+		Amount:        0.005,
+	}
+	// tradeWith and fillWith return a copy of a trade or a fill with change made to it
+	tradeWith := func(base *WebsocketUserTrade, change func(*WebsocketUserTrade)) *WebsocketUserTrade {
+		c := *base
+		change(&c)
+		return &c
+	}
+	fillWith := func(base *fill.Data, change func(*fill.Data)) *fill.Data {
+		c := *base
+		change(&c)
+		return &c
+	}
+	// Order 19848530 trades on margin and order 19848600 as spot, known by their order IDs, and the margin order sent with
+	// client order ID c-margin awaits its order ID
+	ex.trackMarginOrder(asset.Margin, spotTrade.OrderID, "")
+	ex.trackMarginOrder(asset.Spot, "19848600", "")
+	ex.trackMarginOrder(asset.Margin, "", "c-margin")
+	// The cases read the orders ex tracks in order
+	for _, tc := range []struct {
+		name  string
+		trade *WebsocketUserTrade
+		exp   *fill.Data
+		err   error
+	}{
+		{name: "a perpetual swap's trade, timed to the nanosecond", trade: &perpetualTrade, exp: &perpetualFill},
+		{name: "a spot trade of an order tracked as a margin order", trade: &spotTrade, exp: fillWith(&spotFill, func(f *fill.Data) { f.AssetType = asset.Margin })},
+		{
+			name:  "a spot trade of an order not tracked",
+			trade: tradeWith(&spotTrade, func(c *WebsocketUserTrade) { c.OrderID, c.ClientOrderID = "19848601", "c-spot" }),
+			exp:   fillWith(&spotFill, func(f *fill.Data) { f.OrderID, f.ClientOrderID = "19848601", "c-spot" }),
+		},
+		{
+			name:  "a spot trade of a margin order known by its client order ID",
+			trade: tradeWith(&spotTrade, func(c *WebsocketUserTrade) { c.OrderID, c.ClientOrderID = "19848602", "c-margin" }),
+			exp:   fillWith(&spotFill, func(f *fill.Data) { f.AssetType, f.OrderID, f.ClientOrderID = asset.Margin, "19848602", "c-margin" }),
+		},
+		{
+			name:  "a spot trade of an order known to trade as spot, whatever its client order ID",
+			trade: tradeWith(&spotTrade, func(c *WebsocketUserTrade) { c.OrderID, c.ClientOrderID = "19848600", "c-margin" }),
+			exp:   fillWith(&spotFill, func(f *fill.Data) { f.OrderID, f.ClientOrderID = "19848600", "c-margin" }),
+		},
+		{
+			name:  "a derivative's trade of an order ID tracked as a margin order's",
+			trade: tradeWith(&perpetualTrade, func(c *WebsocketUserTrade) { c.OrderID = spotTrade.OrderID }),
+			exp:   fillWith(&perpetualFill, func(f *fill.Data) { f.OrderID = spotTrade.OrderID }),
+		},
+		{
+			name:  "a future's trade",
+			trade: tradeWith(&perpetualTrade, func(c *WebsocketUserTrade) { c.InstrumentName = "BTCUSD-261030" }),
+			exp:   fillWith(&perpetualFill, func(f *fill.Data) { f.AssetType, f.CurrencyPair = asset.Futures, futureBTCUSD }),
+		},
+		{
+			name:  "a trade timed to the millisecond",
+			trade: tradeWith(&perpetualTrade, func(c *WebsocketUserTrade) { c.CreateTimeNano = types.Time{} }),
+			exp:   fillWith(&perpetualFill, func(f *fill.Data) { f.Timestamp = time.UnixMilli(1613570791060) }),
+		},
+		{
+			name:  "a trade without a time",
+			trade: tradeWith(&perpetualTrade, func(c *WebsocketUserTrade) { c.CreateTime, c.CreateTimeNano = types.Time{}, types.Time{} }),
+			exp:   fillWith(&perpetualFill, func(f *fill.Data) { f.Timestamp = time.Time{} }),
+		},
+		{
+			name:  "a trade naming its side in lower case",
+			trade: tradeWith(&perpetualTrade, func(c *WebsocketUserTrade) { c.Side = "buy" }),
+			exp:   &perpetualFill,
+		},
+		{name: "a trade of an instrument that cannot be named", trade: tradeWith(&spotTrade, func(c *WebsocketUserTrade) { c.InstrumentName = "BTC" }), err: errMalformedInstrumentName},
+		{name: "a trade of a side Crypto.com does not name", trade: tradeWith(&spotTrade, func(c *WebsocketUserTrade) { c.Side = "NOPE" }), err: order.ErrSideIsInvalid},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ex.userTradeFill(tc.trade)
+			require.ErrorIs(t, err, tc.err, "userTradeFill must return the expected error")
+			if tc.exp == nil {
+				assert.Equal(t, fill.Data{}, got, "userTradeFill should return no fill with its error")
+				return
+			}
+			assert.Equal(t, *tc.exp, got, "userTradeFill should return the trade as a fill of the asset its order trades as")
+		})
+	}
+}
+
+// countedWalletSaves returns how many saves of the wallet of credentials an exchange has counted
+func countedWalletSaves(ex *Exchange, creds *accounts.Credentials) uint64 {
+	ex.walletMu.Lock()
+	defer ex.walletMu.Unlock()
+	return ex.walletSaves[*creds]
+}
+
+// withoutUpdateTimes returns balances without the times the account store stamps them with as it saves them, having
+// checked those are recent
+func withoutUpdateTimes(t *testing.T, balances accounts.CurrencyBalances) accounts.CurrencyBalances {
+	t.Helper()
+	for c, b := range balances {
+		assert.WithinDurationf(t, time.Now(), b.UpdatedAt, time.Minute, "the %s balance should be stamped when it was saved", c)
+		b.UpdatedAt = time.Time{}
+		balances[c] = b
+	}
+	return balances
+}
+
+func TestWebsocketHandleUserBalance(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	setTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	cro := accounts.Balance{Currency: currency.CRO, Total: 24422.72427884, Free: 24422.72427884}
+	usd := accounts.Balance{Currency: currency.USD, Total: 3113.50747209, Free: 3113.50747209}
+	heldUSD := accounts.Balance{Currency: currency.USD, Total: 3113.50747209, Hold: 100, Free: 3013.50747209}
+	usdOnly := `[{"instrument_name":"USD","position_balances":[{"instrument_name":"USD","quantity":"3113.50747209","reserved_qty":"0.00000000"}]}]`
+	// The cases change the balances ex stores, and count its saves, in order
+	for _, tc := range []struct {
+		name string
+		push *websocketChannelPush
+		// relayed are the balances relayed, and stored those stored after, when the push holds any
+		relayed, stored accounts.CurrencyBalances
+		err             error
+	}{
+		{
+			name:    "the balances on subscribing",
+			push:    channelPush(t, accountFrame(t, "user.balance", 0)),
+			relayed: accounts.CurrencyBalances{currency.CRO: cro, currency.USD: usd},
+			stored:  accounts.CurrencyBalances{currency.CRO: cro, currency.USD: usd},
+		},
+		{
+			name:    "the balances as they change",
+			push:    channelPush(t, accountFrame(t, "user.balance", 1)),
+			relayed: accounts.CurrencyBalances{currency.CRO: cro, currency.USD: heldUSD},
+			stored:  accounts.CurrencyBalances{currency.CRO: cro, currency.USD: heldUSD},
+		},
+		{
+			name:    "a change leaving a currency out, which is kept",
+			push:    userChannelPush(channelUserBalance, usdOnly),
+			relayed: accounts.CurrencyBalances{currency.USD: usd},
+			stored:  accounts.CurrencyBalances{currency.CRO: cro, currency.USD: usd},
+		},
+		{name: "no balances", push: userChannelPush(channelUserBalance, `[]`)},
+		{name: "balances that cannot be decoded", push: userChannelPush(channelUserBalance, `{}`), err: errMalformedWebsocketMessage},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			saves := countedWalletSaves(ex, creds)
+			require.ErrorIs(t, ex.wsHandleUserBalance(t.Context(), tc.push), tc.err, "wsHandleUserBalance must return the expected error")
+			relayed := relayedData(ex)
+			if tc.relayed == nil {
+				assert.Empty(t, relayed, "wsHandleUserBalance should relay nothing without balances")
+				assert.Equal(t, saves, countedWalletSaves(ex, creds), "wsHandleUserBalance should count no save without balances")
+				return
+			}
+			require.Len(t, relayed, 1, "wsHandleUserBalance must relay the balances once")
+			subAccts, ok := relayed[0].(accounts.SubAccounts)
+			require.True(t, ok, "wsHandleUserBalance must relay the balances as sub accounts")
+			require.Len(t, subAccts, 1, "wsHandleUserBalance must relay the one wallet")
+			subAccts[0].Balances = withoutUpdateTimes(t, subAccts[0].Balances)
+			assert.Equal(t, accounts.SubAccounts{{AssetType: asset.Spot, Balances: tc.relayed}}, subAccts, "wsHandleUserBalance should relay the push's balances once, under spot, as every asset trades from the one wallet")
+			stored, err := ex.Accounts.CurrencyBalances(creds, asset.Spot)
+			require.NoError(t, err, "CurrencyBalances must not error")
+			assert.Equal(t, tc.stored, withoutUpdateTimes(t, stored), "wsHandleUserBalance should store the push's balances, keeping those it leaves out")
+			assert.Equal(t, saves+1, countedWalletSaves(ex, creds), "wsHandleUserBalance should count the wallet's save")
+		})
+	}
+
+	t.Run("balances that cannot be relayed", func(t *testing.T) {
+		full := fillDataHandler(t, ex)
+		saves := countedWalletSaves(ex, creds)
+		assert.ErrorIs(t, ex.wsHandleUserBalance(t.Context(), channelPush(t, accountFrame(t, "user.balance", 1))), full, "wsHandleUserBalance should report balances it cannot relay")
+		stored, err := ex.Accounts.CurrencyBalances(creds, asset.Spot)
+		require.NoError(t, err, "CurrencyBalances must not error")
+		assert.Equal(t, accounts.CurrencyBalances{currency.CRO: cro, currency.USD: heldUSD}, withoutUpdateTimes(t, stored), "wsHandleUserBalance should store the balances it cannot relay")
+		assert.Equal(t, saves+1, countedWalletSaves(ex, creds), "wsHandleUserBalance should count the save of balances it cannot relay")
+	})
+
+	t.Run("balances without credentials", func(t *testing.T) {
+		t.Parallel()
+		unauthenticated := newTestExchange(t)
+		setTestCredentials(unauthenticated, &accounts.Credentials{})
+		// Checking the credentials, which the mock skips, refuses empty ones
+		unauthenticated.SkipAuthCheck = false
+		assert.ErrorIs(t, unauthenticated.wsHandleUserBalance(t.Context(), channelPush(t, accountFrame(t, "user.balance", 0))), exchange.ErrCredentialsAreEmpty, "wsHandleUserBalance should report balances it has no credentials to store under")
+		assert.Empty(t, relayedData(unauthenticated), "wsHandleUserBalance should relay no balances it cannot store")
+		assert.Empty(t, unauthenticated.walletSaves, "wsHandleUserBalance should count no save without credentials")
+	})
+
+	t.Run("balances the account store refuses", func(t *testing.T) {
+		t.Parallel()
+		refused := newTestExchange(t)
+		setTestCredentials(refused, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
+		refusedCreds, err := refused.GetCredentials(t.Context())
+		require.NoError(t, err, "GetCredentials must not error")
+		refused.Accounts = nil
+		assert.ErrorIs(t, refused.wsHandleUserBalance(t.Context(), channelPush(t, accountFrame(t, "user.balance", 0))), common.ErrNilPointer, "wsHandleUserBalance should report balances the account store refuses")
+		assert.Empty(t, relayedData(refused), "wsHandleUserBalance should relay no balances it cannot store")
+		assert.Equal(t, uint64(1), countedWalletSaves(refused, refusedCreds), "wsHandleUserBalance should count a save that fails, as one may change some balances before failing")
+	})
+}
+
+func TestWebsocketHandleAccountRisk(t *testing.T) { //nolint:tparallel // the cases share one exchange and its data handler in order
+	t.Parallel()
+	ex := newTestExchange(t)
+	documented := documentedAccountRisk()
+	unnamed := documented
+	unnamed.AccountID = ""
+	documentedPush := channelPush(t, accountFrame(t, "user.account_risk", 1))
+	accountRisk := func(accountID, data string) *websocketChannelPush {
+		return &websocketChannelPush{AccountID: accountID, Subscription: AccountRiskChannel, Channel: AccountRiskChannel, Data: json.RawMessage(data)}
+	}
+	// The cases share ex and drain its data handler in order
+	for _, tc := range []struct {
+		name    string
+		push    *websocketChannelPush
+		relayed []any
+		err     error
+	}{
+		{name: "the account's risk with the account the push names", push: documentedPush, relayed: []any{[]WebsocketAccountRisk{documented}}},
+		{name: "the risk of a push naming no account", push: accountRisk("", string(documentedPush.Data)), relayed: []any{[]WebsocketAccountRisk{unnamed}}},
+		{
+			name:    "several risks, each with the account the push names",
+			push:    accountRisk(documentedAccountID, `[{"total_available_balance":"1"},{"total_available_balance":"2","account_id":"another"}]`),
+			relayed: []any{[]WebsocketAccountRisk{{AccountID: documentedAccountID, TotalAvailableBalance: preciseNumber("1")}, {AccountID: documentedAccountID, TotalAvailableBalance: preciseNumber("2")}}},
+		},
+		{name: "no risk", push: accountRisk(documentedAccountID, `[]`)},
+		{name: "risk that cannot be decoded", push: accountRisk(documentedAccountID, `{}`), err: errMalformedWebsocketMessage},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.ErrorIs(t, ex.wsHandleAccountRisk(t.Context(), tc.push), tc.err, "wsHandleAccountRisk must return the expected error")
+			assert.Equal(t, tc.relayed, relayedData(ex), "wsHandleAccountRisk should relay the risk with the account the push names")
+		})
+	}
+
+	t.Run("risk that cannot be relayed", func(t *testing.T) {
+		full := fillDataHandler(t, ex)
+		assert.ErrorIs(t, ex.wsHandleAccountRisk(t.Context(), documentedPush), full, "wsHandleAccountRisk should report risk it cannot relay")
+	})
+}
+
+func TestRelayUserData(t *testing.T) { //nolint:tparallel // the cases share one exchange and its data handler in order
+	t.Parallel()
+	ex := newTestExchange(t)
+	cross, isolated := documentedPositions()
+	positions := func(ctx context.Context, push *websocketChannelPush) error {
+		return relayUserData[PositionResponse](ctx, ex, push)
+	}
+	quoteRequests := func(ctx context.Context, push *websocketChannelPush) error {
+		return relayUserData[OTCQuoteRequestResponse](ctx, ex, push)
+	}
+	transactions := func(ctx context.Context, push *websocketChannelPush) error {
+		return relayUserData[TransactionResponse](ctx, ex, push)
+	}
+	// The cases share ex and drain its data handler in order
+	for _, tc := range []struct {
+		name    string
+		relay   func(context.Context, *websocketChannelPush) error
+		push    *websocketChannelPush
+		relayed []any
+		err     error
+	}{
+		{name: "positions", relay: positions, push: channelPush(t, accountFrame(t, "user.positions", 0)), relayed: []any{[]PositionResponse{cross, isolated}}},
+		{
+			name: "quote requests", relay: quoteRequests, push: channelPush(t, accountFrame(t, "user.otc_qr.requests", 1)),
+			relayed: []any{[]OTCQuoteRequestResponse{{QuoteRequestID: "88997712345", ClientQuoteRequestID: "abcd13456", Status: OTCQuoteRequestStatusActive}}},
+		},
+		{
+			name: "transactions", relay: transactions, push: userChannelPush(TransactionsChannel, `[{"journal_id":"187078","instrument_name":"BTCUSD-PERP","journal_type":"TRADING"}]`),
+			relayed: []any{[]TransactionResponse{{JournalID: "187078", InstrumentName: "BTCUSD-PERP", JournalType: JournalTypeTrading}}},
+		},
+		{name: "no data", relay: positions, push: userChannelPush(PositionsChannel, `[]`)},
+		{name: "null data", relay: positions, push: userChannelPush(PositionsChannel, `null`)},
+		{name: "data that cannot be decoded", relay: positions, push: userChannelPush(PositionsChannel, `{}`), err: errMalformedWebsocketMessage},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.ErrorIs(t, tc.relay(t.Context(), tc.push), tc.err, "relayUserData must return the expected error")
+			assert.Equal(t, tc.relayed, relayedData(ex), "relayUserData should relay the data as the type asked for, unless there is none")
+		})
+	}
+
+	t.Run("data that cannot be relayed", func(t *testing.T) {
+		full := fillDataHandler(t, ex)
+		assert.ErrorIs(t, positions(t.Context(), channelPush(t, accountFrame(t, "user.positions", 0))), full, "relayUserData should report data it cannot relay")
+	})
 }

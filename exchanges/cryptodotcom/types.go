@@ -9,6 +9,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+// jsonNull is the JSON null a raw value is compared with
+const jsonNull = "null"
+
 // Instrument types
 const (
 	InstrumentTypeCurrencyPair  = "CCY_PAIR"
@@ -190,7 +193,7 @@ type NumericID string
 
 // UnmarshalJSON decodes an identifier from a JSON string or a bare JSON integer, leaving it unchanged for null
 func (n *NumericID) UnmarshalJSON(data []byte) error {
-	if string(data) == "null" {
+	if string(data) == jsonNull {
 		return nil
 	}
 	if len(data) != 0 && data[0] == '"' {

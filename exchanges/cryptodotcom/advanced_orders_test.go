@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -67,6 +68,61 @@ func advancedTriggerOrder() CreateAdvancedOrderRequest {
 		ReferencePrice: 0.028,
 		ClientOrderID:  "c5f682ed-7108-4f1c-b755-972fcdca0f02",
 	}
+}
+
+// placeAdvancedTestOrder places advancedTriggerOrder, with a client order ID of its own, for a live test to act on, and
+// returns the order's IDs
+func placeAdvancedTestOrder(t *testing.T) AdvancedOrderIDRequest {
+	t.Helper()
+	req := advancedTriggerOrder()
+	req.ClientOrderID = newTradingTestClientOrderID()
+	resp, err := e.CreateAdvancedOrder(t.Context(), &req)
+	require.NoError(t, err, "CreateAdvancedOrder must place the trigger order the test acts on")
+	return AdvancedOrderIDRequest{OrderID: resp.OrderID, ClientOrderID: req.ClientOrderID}
+}
+
+// cancelAdvancedOrderAfterTest cancels a trigger order a live test placed once the test ends
+func cancelAdvancedOrderAfterTest(t *testing.T, orderID string) {
+	t.Helper()
+	t.Cleanup(func() {
+		_, err := e.CancelAdvancedOrder(context.WithoutCancel(t.Context()), &AdvancedOrderIDRequest{OrderID: orderID})
+		assert.NoErrorf(t, err, "CancelAdvancedOrder should cancel trigger order %s, which the test placed", orderID)
+	})
+}
+
+// cancelAdvancedOrderIfTestFails cancels a trigger order a live test placed to cancel itself, should the test fail
+// before it does
+func cancelAdvancedOrderIfTestFails(t *testing.T, orderID string) {
+	t.Helper()
+	t.Cleanup(func() {
+		if !t.Failed() {
+			return
+		}
+		if _, err := e.CancelAdvancedOrder(context.WithoutCancel(t.Context()), &AdvancedOrderIDRequest{OrderID: orderID}); err != nil {
+			t.Logf("CancelAdvancedOrder could not cancel trigger order %s, which the test placed: %v", orderID, err)
+		}
+	})
+}
+
+// contingencyTestOrders returns an OCO's, OTO's or OTOCO's orders, each with a client order ID of its own in live mode, so
+// that strategies the tests place are not refused as duplicates; mock mode keeps the orders as recorded
+func contingencyTestOrders(orders []AdvancedOrderLegRequest) []AdvancedOrderLegRequest {
+	if mockTests {
+		return orders
+	}
+	clientOrderID := newTradingTestClientOrderID()
+	for i := range orders {
+		orders[i].ClientOrderID = clientOrderID + "-" + strconv.Itoa(i)
+	}
+	return orders
+}
+
+// cancelContingencyAfterTest cancels an OCO, OTO or OTOCO a live test placed once the test ends
+func cancelContingencyAfterTest(t *testing.T, listID string, cancel func(*Exchange, context.Context, string) error) {
+	t.Helper()
+	t.Cleanup(func() {
+		assert.NoErrorf(t, cancel(e, context.WithoutCancel(t.Context()), listID), "Cancelling list %s, which the test placed, should not error", listID)
+	})
 }
 
 // triggerOrderRefusals are changes to a trigger order which Crypto.com refuses, and the errors CreateAdvancedOrder,
@@ -263,7 +319,8 @@ func oneTriggersAOneCancelsTheOtherRefusals() []contingencyRefusal {
 	)
 }
 
-// testCancelContingency tests a method cancelling an OCO, OTO or OTOCO by its list ID; the recorded mock cancels listID
+// testCancelContingency checks a method cancelling an OCO, OTO or OTOCO by its list ID refuses an empty list ID, sends
+// listID and returns a failed request's error
 func testCancelContingency(t *testing.T, name, method, listID string, cancel func(*Exchange, context.Context, string) error) {
 	t.Helper()
 	require.ErrorIsf(t, cancel(newAdvancedRefusalExchange(t), t.Context(), ""), errListIDRequired, "%s must refuse an empty list ID", name)
@@ -273,9 +330,6 @@ func testCancelContingency(t *testing.T, name, method, listID string, cancel fun
 		{name: "a list ID", req: listID, params: `{"list_id":"` + listID + `"}`},
 	})
 	assert.ErrorIsf(t, cancel(newUnavailableServerExchange(t), t.Context(), listID), request.ErrBadStatus, "%s should error for an unavailable server", name)
-
-	skipLiveUnlessCanManipulate(t)
-	require.NoErrorf(t, cancel(e, t.Context(), listID), "%s must not error", name)
 }
 
 func TestCreateAdvancedOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
@@ -366,13 +420,18 @@ func TestCreateAdvancedOrder(t *testing.T) { //nolint:tparallel // the refusals 
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateAdvancedOrder should error for an unavailable server")
 
 	skipLiveUnlessCanManipulate(t)
+	if !mockTests {
+		req.ClientOrderID = newTradingTestClientOrderID()
+	}
 	result, err := e.CreateAdvancedOrder(t.Context(), &req)
 	require.NoError(t, err, "CreateAdvancedOrder must not error")
 	if mockTests {
 		exp := &OrderIDResponse{OrderID: "5755600460443882762", ClientOrderID: "c5f682ed-7108-4f1c-b755-972fcdca0f02"}
 		assert.Equal(t, exp, result, "CreateAdvancedOrder should decode every field")
 	} else {
-		assert.NotEmpty(t, result.OrderID, "CreateAdvancedOrder should return the order ID")
+		require.NotEmpty(t, result.OrderID, "CreateAdvancedOrder must return the order ID")
+		cancelAdvancedOrderAfterTest(t, result.OrderID)
+		assert.Equal(t, req.ClientOrderID, result.ClientOrderID, "CreateAdvancedOrder should return the order's client order ID")
 	}
 }
 
@@ -388,6 +447,8 @@ var amendAdvancedOrderRefusals = []struct {
 	{name: "an amendment without a new quantity", req: &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewPrice: new(types.Number(0.0278))}, err: errInvalidQuantity},
 	{name: "an amendment with a negative new quantity", req: &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: -10, NewPrice: new(types.Number(0.0278))}, err: errInvalidQuantity},
 	{name: "an amendment without a new price", req: &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: 10}, err: errNewPriceRequired},
+	{name: "an amendment with a negative new price", req: &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: 10, NewPrice: new(types.Number(-0.0278))}, err: errInvalidPrice},
+	{name: "an amendment with a negative new reference price", req: &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: 10, NewPrice: new(types.Number(0.0278)), NewReferencePrice: -0.0279}, err: errInvalidReferencePrice},
 }
 
 func TestAmendAdvancedOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
@@ -429,13 +490,17 @@ func TestAmendAdvancedOrder(t *testing.T) { //nolint:tparallel // the refusals s
 	assert.ErrorIs(t, err, request.ErrBadStatus, "AmendAdvancedOrder should error for an unavailable server")
 
 	skipLiveUnlessCanManipulate(t)
+	if !mockTests {
+		req.OrderID = placeAdvancedTestOrder(t).OrderID
+		cancelAdvancedOrderAfterTest(t, req.OrderID)
+	}
 	result, err := e.AmendAdvancedOrder(t.Context(), req)
 	require.NoError(t, err, "AmendAdvancedOrder must not error")
 	if mockTests {
 		exp := &OrderIDResponse{OrderID: "5755600460443882762", ClientOrderID: "c5f682ed-7108-4f1c-b755-972fcdca0f02"}
 		assert.Equal(t, exp, result, "AmendAdvancedOrder should decode every field")
 	} else {
-		assert.NotEmpty(t, result.OrderID, "AmendAdvancedOrder should return the order ID")
+		assert.Equal(t, req.OrderID, result.OrderID, "AmendAdvancedOrder should return the amended order's ID")
 	}
 }
 
@@ -507,19 +572,25 @@ func TestCreateOneCancelsTheOtherOrder(t *testing.T) { //nolint:tparallel // the
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateOneCancelsTheOtherOrder should error for an unavailable server")
 
 	skipLiveUnlessCanManipulate(t)
-	result, err := e.CreateOneCancelsTheOtherOrder(t.Context(), ocoOrders())
+	result, err := e.CreateOneCancelsTheOtherOrder(t.Context(), contingencyTestOrders(ocoOrders()))
 	require.NoError(t, err, "CreateOneCancelsTheOtherOrder must not error")
 	if mockTests {
 		exp := &AdvancedOrderListIDResponse{ListID: "6498090546073120100"}
 		assert.Equal(t, exp, result, "CreateOneCancelsTheOtherOrder should decode every field")
 	} else {
-		assert.NotEmpty(t, result.ListID, "CreateOneCancelsTheOtherOrder should return the list ID")
+		require.NotEmpty(t, result.ListID, "CreateOneCancelsTheOtherOrder must return the list ID")
+		cancelContingencyAfterTest(t, string(result.ListID), (*Exchange).CancelOneCancelsTheOtherOrder)
 	}
 }
 
 func TestCancelOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
 	testCancelContingency(t, "CancelOneCancelsTheOtherOrder", "private/advanced/cancel-oco", "6498090546073120100", (*Exchange).CancelOneCancelsTheOtherOrder)
+
+	skipLiveUnlessCanManipulate(t)
+	placed, err := e.CreateOneCancelsTheOtherOrder(t.Context(), contingencyTestOrders(ocoOrders()))
+	require.NoError(t, err, "CreateOneCancelsTheOtherOrder must place the OCO the test cancels")
+	require.NoError(t, e.CancelOneCancelsTheOtherOrder(t.Context(), string(placed.ListID)), "CancelOneCancelsTheOtherOrder must not error")
 }
 
 func TestCreateOneTriggersTheOtherOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
@@ -595,19 +666,25 @@ func TestCreateOneTriggersTheOtherOrder(t *testing.T) { //nolint:tparallel // th
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateOneTriggersTheOtherOrder should error for an unavailable server")
 
 	skipLiveUnlessCanManipulate(t)
-	result, err := e.CreateOneTriggersTheOtherOrder(t.Context(), otoOrders())
+	result, err := e.CreateOneTriggersTheOtherOrder(t.Context(), contingencyTestOrders(otoOrders()))
 	require.NoError(t, err, "CreateOneTriggersTheOtherOrder must not error")
 	if mockTests {
 		exp := &AdvancedOrderListIDResponse{ListID: "6498090546073120199"}
 		assert.Equal(t, exp, result, "CreateOneTriggersTheOtherOrder should decode every field")
 	} else {
-		assert.NotEmpty(t, result.ListID, "CreateOneTriggersTheOtherOrder should return the list ID")
+		require.NotEmpty(t, result.ListID, "CreateOneTriggersTheOtherOrder must return the list ID")
+		cancelContingencyAfterTest(t, string(result.ListID), (*Exchange).CancelOneTriggersTheOtherOrder)
 	}
 }
 
 func TestCancelOneTriggersTheOtherOrder(t *testing.T) {
 	t.Parallel()
 	testCancelContingency(t, "CancelOneTriggersTheOtherOrder", "private/advanced/cancel-oto", "6498090546073120199", (*Exchange).CancelOneTriggersTheOtherOrder)
+
+	skipLiveUnlessCanManipulate(t)
+	placed, err := e.CreateOneTriggersTheOtherOrder(t.Context(), contingencyTestOrders(otoOrders()))
+	require.NoError(t, err, "CreateOneTriggersTheOtherOrder must place the OTO the test cancels")
+	require.NoError(t, e.CancelOneTriggersTheOtherOrder(t.Context(), string(placed.ListID)), "CancelOneTriggersTheOtherOrder must not error")
 }
 
 func TestCreateOneTriggersAOneCancelsTheOtherOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
@@ -647,19 +724,25 @@ func TestCreateOneTriggersAOneCancelsTheOtherOrder(t *testing.T) { //nolint:tpar
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateOneTriggersAOneCancelsTheOtherOrder should error for an unavailable server")
 
 	skipLiveUnlessCanManipulate(t)
-	result, err := e.CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), otocoOrders())
+	result, err := e.CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), contingencyTestOrders(otocoOrders()))
 	require.NoError(t, err, "CreateOneTriggersAOneCancelsTheOtherOrder must not error")
 	if mockTests {
 		exp := &AdvancedOrderListIDResponse{ListID: "6498090546073120243"}
 		assert.Equal(t, exp, result, "CreateOneTriggersAOneCancelsTheOtherOrder should decode every field")
 	} else {
-		assert.NotEmpty(t, result.ListID, "CreateOneTriggersAOneCancelsTheOtherOrder should return the list ID")
+		require.NotEmpty(t, result.ListID, "CreateOneTriggersAOneCancelsTheOtherOrder must return the list ID")
+		cancelContingencyAfterTest(t, string(result.ListID), (*Exchange).CancelOneTriggersAOneCancelsTheOtherOrder)
 	}
 }
 
 func TestCancelOneTriggersAOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
 	testCancelContingency(t, "CancelOneTriggersAOneCancelsTheOtherOrder", "private/advanced/cancel-otoco", "6498090546073120243", (*Exchange).CancelOneTriggersAOneCancelsTheOtherOrder)
+
+	skipLiveUnlessCanManipulate(t)
+	placed, err := e.CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), contingencyTestOrders(otocoOrders()))
+	require.NoError(t, err, "CreateOneTriggersAOneCancelsTheOtherOrder must place the OTOCO the test cancels")
+	require.NoError(t, e.CancelOneTriggersAOneCancelsTheOtherOrder(t.Context(), string(placed.ListID)), "CancelOneTriggersAOneCancelsTheOtherOrder must not error")
 }
 
 func TestCancelAdvancedOrder(t *testing.T) {
@@ -690,13 +773,16 @@ func TestCancelAdvancedOrder(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAdvancedOrder should error for an unavailable server")
 
 	skipLiveUnlessCanManipulate(t)
+	if !mockTests {
+		req.OrderID = placeAdvancedTestOrder(t).OrderID
+	}
 	result, err := e.CancelAdvancedOrder(t.Context(), req)
 	require.NoError(t, err, "CancelAdvancedOrder must not error")
 	if mockTests {
 		exp := &OrderIDResponse{OrderID: "5755600460443882762", ClientOrderID: "c5f682ed-7108-4f1c-b755-972fcdca0f02"}
 		assert.Equal(t, exp, result, "CancelAdvancedOrder should decode every field")
 	} else {
-		assert.NotEmpty(t, result.OrderID, "CancelAdvancedOrder should return the order ID")
+		assert.Equal(t, req.OrderID, result.OrderID, "CancelAdvancedOrder should return the cancelled order's ID")
 	}
 }
 
@@ -742,6 +828,11 @@ func TestCancelAllAdvancedOrders(t *testing.T) { //nolint:tparallel // the refus
 	assert.ErrorIs(t, newUnavailableServerExchange(t).CancelAllAdvancedOrders(t.Context(), req), request.ErrBadStatus, "CancelAllAdvancedOrders should error for an unavailable server")
 
 	skipLiveUnlessCanManipulate(t)
+	if !mockTests {
+		// An instrument the other tests place no advanced orders on, so that cancelling its orders live leaves the BTC_USD
+		// OTOs and OTOCOs the cancel tests place and cancel
+		req.InstrumentName = tradingTestCancelAllInstrument
+	}
 	require.NoError(t, e.CancelAllAdvancedOrders(t.Context(), req), "CancelAllAdvancedOrders must not error")
 }
 
@@ -894,7 +985,11 @@ func TestGetAdvancedOrderDetail(t *testing.T) {
 		history, err := e.GetAdvancedOrderHistory(t.Context(), &GetAdvancedOrderHistoryRequest{})
 		require.NoError(t, err, "GetAdvancedOrderHistory must not error")
 		if len(history) == 0 {
-			t.Skip("the account has no advanced order in the past day to look up")
+			// With no advanced order of the account's from the past day to look up, Crypto.com refusing the recorded order,
+			// which is not the account's, shows it looked the order up
+			_, err = e.GetAdvancedOrderDetail(t.Context(), req)
+			assertRefusedFor(t, err, unknownOrderCodes, "GetAdvancedOrderDetail")
+			return
 		}
 		req.OrderID = history[0].OrderID
 	}
@@ -1130,6 +1225,20 @@ func advancedOrderListOrders() []CreateAdvancedOrderRequest {
 	}
 }
 
+// advancedOrderListTestOrders returns advancedOrderListOrders, each with a client order ID of its own in live mode, as a
+// run placing the docs' client order IDs would have its next run refused as duplicates; mock mode keeps them, as recorded
+func advancedOrderListTestOrders() []CreateAdvancedOrderRequest {
+	orders := advancedOrderListOrders()
+	if mockTests {
+		return orders
+	}
+	clientOrderID := newTradingTestClientOrderID()
+	for i := range orders {
+		orders[i].ClientOrderID = clientOrderID + "-" + strconv.Itoa(i)
+	}
+	return orders
+}
+
 // createAdvancedOrderListRefusals returns the lists of trigger orders CreateAdvancedOrderList and its websocket form
 // refuse before sending
 func createAdvancedOrderListRefusals() []advancedListRefusal[CreateAdvancedOrderRequest] {
@@ -1201,6 +1310,7 @@ func TestCreateAdvancedOrderList(t *testing.T) { //nolint:tparallel // the refus
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateAdvancedOrderList should error for an unavailable server")
 
 	skipLiveUnlessCanManipulate(t)
+	orders = advancedOrderListTestOrders()
 	result, err = e.CreateAdvancedOrderList(t.Context(), orders)
 	require.NoError(t, err, "CreateAdvancedOrderList must not error")
 	if mockTests {
@@ -1210,7 +1320,12 @@ func TestCreateAdvancedOrderList(t *testing.T) { //nolint:tparallel // the refus
 		}
 		assert.Equal(t, exp, result, "CreateAdvancedOrderList should decode every field")
 	} else {
-		assert.Len(t, result, len(orders), "CreateAdvancedOrderList should return each order's outcome")
+		for i := range result {
+			if result[i].Code == 0 {
+				cancelAdvancedOrderAfterTest(t, result[i].OrderID)
+			}
+		}
+		assertListOutcomes(t, result, len(orders), "CreateAdvancedOrderList", "place")
 	}
 }
 
@@ -1253,14 +1368,22 @@ func TestCancelAdvancedOrderList(t *testing.T) { //nolint:tparallel // the refus
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAdvancedOrderList should error for an unavailable server")
 
 	skipLiveUnlessCanManipulate(t)
+	if !mockTests {
+		first := placeAdvancedTestOrder(t)
+		cancelAdvancedOrderIfTestFails(t, first.OrderID)
+		second := placeAdvancedTestOrder(t)
+		cancelAdvancedOrderIfTestFails(t, second.OrderID)
+		orders = []AdvancedOrderIDRequest{{OrderID: first.OrderID}, {ClientOrderID: second.ClientOrderID}}
+	}
 	result, err = e.CancelAdvancedOrderList(t.Context(), orders)
 	require.NoError(t, err, "CancelAdvancedOrderList must not error")
+	require.Len(t, result, len(orders), "CancelAdvancedOrderList must return each cancel's outcome")
 	if mockTests {
 		exp := []OrderListEntryResponse{{}, {Index: 1}}
 		assert.Equal(t, exp, result, "CancelAdvancedOrderList should decode every field")
-	} else {
-		assert.Len(t, result, len(orders), "CancelAdvancedOrderList should return each cancel's outcome")
+		return
 	}
+	assertListOutcomes(t, result, len(orders), "CancelAdvancedOrderList", "cancel")
 }
 
 func TestGetAdvancedOrderListDetail(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
@@ -1301,7 +1424,16 @@ func TestGetAdvancedOrderListDetail(t *testing.T) { //nolint:tparallel // the re
 		require.NoError(t, err, "GetAdvancedOrderHistory must not error")
 		i := slices.IndexFunc(history, func(o OrderResponse) bool { return o.ListID != "" })
 		if i < 0 {
-			t.Skip("the account has no OCO, SPOT_ATTACH or DERIV_ATTACH in the past day to look up")
+			// With no list of the account's from the past day to look up, Crypto.com's answer for the recorded lists, which
+			// are not the account's, shows it looked them up; its docs leave out whether it refuses unknown list IDs or
+			// returns no orders for them, so either passes
+			unknown, err := e.GetAdvancedOrderListDetail(t.Context(), listIDs)
+			if err != nil {
+				assertRefusedFor(t, err, unknownOrderCodes, "GetAdvancedOrderListDetail")
+			} else {
+				assert.Empty(t, unknown, "GetAdvancedOrderListDetail should return no orders for lists the account does not hold")
+			}
+			return
 		}
 		listIDs = []string{string(history[i].ListID)}
 	}
@@ -1481,6 +1613,609 @@ func TestAdvancedOrderLegRequestValidate(t *testing.T) {
 			leg := ocoOrders()[1]
 			tc.change(&leg)
 			assert.NoErrorf(t, leg.validate(), "validate should accept %s", tc.name)
+		})
+	}
+}
+
+func TestValidateAdvancedOrder(t *testing.T) {
+	t.Parallel()
+	// Each order holds the fields validateAdvancedOrder is given, as AdvancedOrderLegRequest.validate passes them
+	for _, tc := range []struct {
+		name  string
+		order *AdvancedOrderLegRequest
+		err   error
+	}{
+		{name: "a LIMIT order", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideBuy, OrderType: OrderTypeLimit, Price: 78000}},
+		{name: "a MARKET order", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeMarket}},
+		{name: "a STOP_LOSS order", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeStopLoss, ReferencePrice: 40000}},
+		{name: "a STOP_LIMIT order", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeStopLimit, Price: 39900, ReferencePrice: 40000}},
+		{name: "a TAKE_PROFIT order", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeTakeProfit, ReferencePrice: 120000}},
+		{
+			name:  "a TAKE_PROFIT_LIMIT order",
+			order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeTakeProfitLimit, Price: 120100, ReferencePrice: 120000},
+		},
+		{
+			name:  "a trigger order comparing the mark price",
+			order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeStopLoss, ReferencePrice: 40000, ReferencePriceType: ReferencePriceTypeMarkPrice},
+		},
+		{
+			name:  "a trigger order comparing the index price",
+			order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeStopLoss, ReferencePrice: 40000, ReferencePriceType: ReferencePriceTypeIndexPrice},
+		},
+		{
+			name:  "a trigger order comparing the last price",
+			order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeStopLoss, ReferencePrice: 40000, ReferencePriceType: ReferencePriceTypeLastPrice},
+		},
+		{name: "an order without an instrument", order: &AdvancedOrderLegRequest{Side: SideBuy, OrderType: OrderTypeLimit, Price: 78000}, err: errInstrumentNameRequired},
+		{name: "an order without a side", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", OrderType: OrderTypeLimit, Price: 78000}, err: errInvalidSide},
+		{name: "a lower-case side", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: "buy", OrderType: OrderTypeLimit, Price: 78000}, err: errInvalidSide},
+		{name: "an order without a type", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideBuy, Price: 78000}, err: errInvalidOrderType},
+		{name: "an unknown type", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideBuy, OrderType: "STOP", ReferencePrice: 40000}, err: errInvalidOrderType},
+		{name: "a lower-case type", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideBuy, OrderType: "limit", Price: 78000}, err: errInvalidOrderType},
+		{name: "a LIMIT order without a price", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideBuy, OrderType: OrderTypeLimit}, err: errInvalidPrice},
+		{name: "a LIMIT order with a negative price", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideBuy, OrderType: OrderTypeLimit, Price: -78000}, err: errInvalidPrice},
+		{
+			name:  "a STOP_LIMIT order without a price",
+			order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeStopLimit, ReferencePrice: 40000},
+			err:   errInvalidPrice,
+		},
+		{
+			name:  "a TAKE_PROFIT_LIMIT order without a price",
+			order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeTakeProfitLimit, ReferencePrice: 120000},
+			err:   errInvalidPrice,
+		},
+		{name: "a STOP_LOSS order without a reference price", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeStopLoss}, err: errInvalidReferencePrice},
+		{
+			name:  "a STOP_LIMIT order without a reference price",
+			order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeStopLimit, Price: 39900},
+			err:   errInvalidReferencePrice,
+		},
+		{name: "a TAKE_PROFIT order without a reference price", order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeTakeProfit}, err: errInvalidReferencePrice},
+		{
+			name:  "a TAKE_PROFIT_LIMIT order without a reference price",
+			order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeTakeProfitLimit, Price: 120100},
+			err:   errInvalidReferencePrice,
+		},
+		{
+			name:  "a trigger order with a negative reference price",
+			order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeStopLoss, ReferencePrice: -40000},
+			err:   errInvalidReferencePrice,
+		},
+		{
+			name:  "an unknown reference price type",
+			order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeStopLoss, ReferencePrice: 40000, ReferencePriceType: "MID_PRICE"},
+			err:   errInvalidReferencePriceType,
+		},
+		{
+			name:  "a lower-case reference price type",
+			order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeStopLoss, ReferencePrice: 40000, ReferencePriceType: "mark_price"},
+			err:   errInvalidReferencePriceType,
+		},
+		{
+			name:  "a LIMIT order with an unknown reference price type",
+			order: &AdvancedOrderLegRequest{InstrumentName: "BTC_USD", Side: SideBuy, OrderType: OrderTypeLimit, Price: 78000, ReferencePriceType: "MID_PRICE"},
+			err:   errInvalidReferencePriceType,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			o := tc.order
+			err := validateAdvancedOrder(o.InstrumentName, o.Side, o.OrderType, o.Price, o.ReferencePrice, o.ReferencePriceType)
+			assert.ErrorIsf(t, err, tc.err, "validateAdvancedOrder should return the expected error for %s", tc.name)
+		})
+	}
+}
+
+func TestIsTriggerOrderType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		orderType string
+		exp       bool
+	}{
+		{OrderTypeStopLoss, true},
+		{OrderTypeStopLimit, true},
+		{OrderTypeTakeProfit, true},
+		{OrderTypeTakeProfitLimit, true},
+		{OrderTypeLimit, false},
+		{OrderTypeMarket, false},
+		{"", false},
+		{"stop_loss", false},
+		{CancelOrderTypeTrigger, false},
+	} {
+		t.Run(subtestName(tc.orderType), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, isTriggerOrderType(tc.orderType), "isTriggerOrderType should report whether %q is a trigger order type", tc.orderType)
+		})
+	}
+}
+
+func TestAmendAdvancedOrderRequestParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range amendAdvancedOrderRefusals {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := tc.req.params()
+			assert.ErrorIsf(t, err, tc.err, "params should refuse %s", tc.name)
+			assert.Nilf(t, got, "params should return no params for %s", tc.name)
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		req  *AmendAdvancedOrderRequest
+		exp  *amendAdvancedOrderParams
+	}{
+		{
+			name: "a trigger market order named by its order ID, its zero price kept",
+			req:  &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: 10, NewPrice: new(types.Number(0))},
+			exp:  &amendAdvancedOrderParams{OrderID: "5755600460443882762", NewQuantity: 10, NewPrice: "0"},
+		},
+		{
+			name: "a trigger limit order named by its client order ID",
+			req:  &AmendAdvancedOrderRequest{ClientOrderID: "c5f682ed-7108-4f1c-b755-972fcdca0f02", NewQuantity: 10, NewPrice: new(types.Number(0.0279))},
+			exp:  &amendAdvancedOrderParams{ClientOrderID: "c5f682ed-7108-4f1c-b755-972fcdca0f02", NewQuantity: 10, NewPrice: "0.0279"},
+		},
+		{
+			name: "every field",
+			req: &AmendAdvancedOrderRequest{
+				OrderID:           "5755600460443882762",
+				ClientOrderID:     "c5f682ed-7108-4f1c-b755-972fcdca0f02",
+				NewQuantity:       12,
+				NewPrice:          new(types.Number(0.0278)),
+				NewReferencePrice: 0.0279,
+			},
+			exp: &amendAdvancedOrderParams{
+				OrderID:           "5755600460443882762",
+				ClientOrderID:     "c5f682ed-7108-4f1c-b755-972fcdca0f02",
+				NewQuantity:       12,
+				NewPrice:          "0.0278",
+				NewReferencePrice: 0.0279,
+			},
+		},
+		{
+			name: "a price below a millionth, in plain notation",
+			req:  &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: 1000000, NewPrice: new(types.Number(0.00000123))},
+			exp:  &amendAdvancedOrderParams{OrderID: "5755600460443882762", NewQuantity: 1000000, NewPrice: "0.00000123"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := tc.req.params()
+			require.NoErrorf(t, err, "params must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "params should return the params of %s", tc.name)
+		})
+	}
+}
+
+func TestValidateContingencyOrders(t *testing.T) {
+	t.Parallel()
+	limit, stopLoss := ocoOrders()[0], ocoOrders()[1]
+	market := limit
+	market.OrderType, market.Price = OrderTypeMarket, 0
+	stopLimit := stopLoss
+	stopLimit.OrderType, stopLimit.Price = OrderTypeStopLimit, 39900
+	takeProfit := stopLoss
+	takeProfit.OrderType, takeProfit.ReferencePrice = OrderTypeTakeProfit, 130000
+	takeProfitLimit := takeProfit
+	takeProfitLimit.OrderType, takeProfitLimit.Price = OrderTypeTakeProfitLimit, 130100
+	noInstrument := stopLoss
+	noInstrument.InstrumentName = ""
+	for _, tc := range []struct {
+		name            string
+		orders          []AdvancedOrderLegRequest
+		contingencyType string
+		count           int
+		exp             *contingencyOrderCounts
+		err             error
+		contains        string
+	}{
+		{name: "no orders", contingencyType: ContingencyTypeOneCancelsTheOther, count: 2, err: errOrderListEmpty},
+		{
+			name:            "an OCO of one order",
+			orders:          []AdvancedOrderLegRequest{limit},
+			contingencyType: ContingencyTypeOneCancelsTheOther,
+			count:           2,
+			err:             errOrderListTooShort,
+			contains:        "an OCO takes 2 orders, not 1",
+		},
+		{
+			name:            "an OTOCO of two orders",
+			orders:          []AdvancedOrderLegRequest{limit, stopLoss},
+			contingencyType: ContingencyTypeOneTriggersAOneCancelsTheOther,
+			count:           3,
+			err:             errOrderListTooShort,
+			contains:        "an OTOCO takes 3 orders, not 2",
+		},
+		{
+			name:            "an OTO of three orders",
+			orders:          []AdvancedOrderLegRequest{limit, stopLoss, takeProfit},
+			contingencyType: ContingencyTypeOneTriggersTheOther,
+			count:           2,
+			err:             errOrderListTooLong,
+			contains:        "an OTO takes 2 orders, not 3",
+		},
+		{
+			name:            "an OTOCO of four orders",
+			orders:          []AdvancedOrderLegRequest{limit, stopLoss, takeProfit, takeProfit},
+			contingencyType: ContingencyTypeOneTriggersAOneCancelsTheOther,
+			count:           3,
+			err:             errOrderListTooLong,
+			contains:        "an OTOCO takes 3 orders, not 4",
+		},
+		{
+			name:            "an invalid first order",
+			orders:          []AdvancedOrderLegRequest{noInstrument, limit},
+			contingencyType: ContingencyTypeOneCancelsTheOther,
+			count:           2,
+			err:             errInstrumentNameRequired,
+			contains:        "order 0:",
+		},
+		{
+			name:            "an invalid last order",
+			orders:          []AdvancedOrderLegRequest{limit, stopLoss, noInstrument},
+			contingencyType: ContingencyTypeOneTriggersAOneCancelsTheOther,
+			count:           3,
+			err:             errInstrumentNameRequired,
+			contains:        "order 2:",
+		},
+		{
+			name:            "a LIMIT order and a STOP_LOSS",
+			orders:          []AdvancedOrderLegRequest{limit, stopLoss},
+			contingencyType: ContingencyTypeOneCancelsTheOther,
+			count:           2,
+			exp:             &contingencyOrderCounts{limit: 1, stopLoss: 1},
+		},
+		{
+			name:            "a MARKET order and a STOP_LIMIT, counted as a stop loss",
+			orders:          []AdvancedOrderLegRequest{market, stopLimit},
+			contingencyType: ContingencyTypeOneTriggersTheOther,
+			count:           2,
+			exp:             &contingencyOrderCounts{market: 1, stopLoss: 1},
+		},
+		{
+			name:            "a LIMIT order, a STOP_LOSS and a TAKE_PROFIT",
+			orders:          []AdvancedOrderLegRequest{limit, stopLoss, takeProfit},
+			contingencyType: ContingencyTypeOneTriggersAOneCancelsTheOther,
+			count:           3,
+			exp:             &contingencyOrderCounts{limit: 1, stopLoss: 1, takeProfit: 1},
+		},
+		{
+			name:            "a TAKE_PROFIT_LIMIT, counted as a take profit, before a MARKET order",
+			orders:          []AdvancedOrderLegRequest{takeProfitLimit, market},
+			contingencyType: ContingencyTypeOneTriggersTheOther,
+			count:           2,
+			exp:             &contingencyOrderCounts{market: 1, takeProfit: 1},
+		},
+		{
+			name:            "two LIMIT orders, counted for the strategy to judge",
+			orders:          []AdvancedOrderLegRequest{limit, limit},
+			contingencyType: ContingencyTypeOneCancelsTheOther,
+			count:           2,
+			exp:             &contingencyOrderCounts{limit: 2},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := validateContingencyOrders(tc.orders, tc.contingencyType, tc.count)
+			assert.ErrorIsf(t, err, tc.err, "validateContingencyOrders should return the expected error for %s", tc.name)
+			if tc.contains != "" {
+				assert.ErrorContainsf(t, err, tc.contains, "validateContingencyOrders should say why it refuses %s", tc.name)
+			}
+			assert.Equalf(t, tc.exp, got, "validateContingencyOrders should count the orders of %s", tc.name)
+		})
+	}
+}
+
+func TestOneCancelsTheOtherParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range oneCancelsTheOtherRefusals() {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := oneCancelsTheOtherParams(tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "oneCancelsTheOtherParams should refuse %s", tc.name)
+			assert.Nilf(t, got, "oneCancelsTheOtherParams should return no params for %s", tc.name)
+		})
+	}
+	limit, stopLoss := ocoOrders()[0], ocoOrders()[1]
+	markPrice := stopLoss
+	markPrice.ReferencePriceType = ReferencePriceTypeMarkPrice
+	stopLimit := stopLoss
+	stopLimit.OrderType, stopLimit.Price = OrderTypeStopLimit, 39900
+	takeProfit := stopLoss
+	takeProfit.OrderType, takeProfit.ReferencePrice = OrderTypeTakeProfit, 130000
+	takeProfitLimit := takeProfit
+	takeProfitLimit.OrderType, takeProfitLimit.Price = OrderTypeTakeProfitLimit, 130100
+	for _, tc := range []struct {
+		name   string
+		orders []AdvancedOrderLegRequest
+	}{
+		{"the docs' OCO", ocoOrders()},
+		{"a trigger order comparing the mark price", []AdvancedOrderLegRequest{limit, markPrice}},
+		{"a STOP_LIMIT trigger order", []AdvancedOrderLegRequest{limit, stopLimit}},
+		{"a TAKE_PROFIT trigger order", []AdvancedOrderLegRequest{limit, takeProfit}},
+		{"a TAKE_PROFIT_LIMIT trigger order", []AdvancedOrderLegRequest{limit, takeProfitLimit}},
+		{"the trigger order first", []AdvancedOrderLegRequest{stopLoss, limit}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := oneCancelsTheOtherParams(tc.orders)
+			require.NoErrorf(t, err, "oneCancelsTheOtherParams must not error for %s", tc.name)
+			assert.Equalf(t, &advancedOrderListParams[AdvancedOrderLegRequest]{OrderList: tc.orders}, got, "oneCancelsTheOtherParams should return the params of %s", tc.name)
+		})
+	}
+}
+
+func TestOneTriggersTheOtherParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range oneTriggersTheOtherRefusals() {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := oneTriggersTheOtherParams(tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "oneTriggersTheOtherParams should refuse %s", tc.name)
+			assert.Nilf(t, got, "oneTriggersTheOtherParams should return no params for %s", tc.name)
+		})
+	}
+	limit, stopLoss := otoOrders()[0], otoOrders()[1]
+	indexPrice := stopLoss
+	indexPrice.ReferencePriceType = ReferencePriceTypeIndexPrice
+	stopLimit := stopLoss
+	stopLimit.OrderType, stopLimit.Price = OrderTypeStopLimit, 29900
+	for _, tc := range []struct {
+		name   string
+		orders []AdvancedOrderLegRequest
+	}{
+		{"the docs' OTO", otoOrders()},
+		{
+			"a MARKET buy spending a notional and a TAKE_PROFIT_LIMIT comparing the last price",
+			[]AdvancedOrderLegRequest{
+				{InstrumentName: "BTC_USD", Side: SideBuy, OrderType: OrderTypeMarket, Notional: 8000},
+				{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeTakeProfitLimit, Quantity: 0.1, Price: 84000, ReferencePrice: 84100, ReferencePriceType: ReferencePriceTypeLastPrice},
+			},
+		},
+		{"a trigger order comparing the index price, which only an OCO refuses", []AdvancedOrderLegRequest{limit, indexPrice}},
+		{"a STOP_LIMIT trigger order", []AdvancedOrderLegRequest{limit, stopLimit}},
+		{"the trigger order first", []AdvancedOrderLegRequest{stopLoss, limit}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := oneTriggersTheOtherParams(tc.orders)
+			require.NoErrorf(t, err, "oneTriggersTheOtherParams must not error for %s", tc.name)
+			assert.Equalf(t, &advancedOrderListParams[AdvancedOrderLegRequest]{OrderList: tc.orders}, got, "oneTriggersTheOtherParams should return the params of %s", tc.name)
+		})
+	}
+}
+
+func TestOneTriggersAOneCancelsTheOtherParams(t *testing.T) {
+	t.Parallel()
+	limit, stopLoss, takeProfit := otocoOrders()[0], otocoOrders()[1], otocoOrders()[2]
+	market := limit
+	market.OrderType, market.Price = OrderTypeMarket, 0
+	stopLimit := stopLoss
+	stopLimit.OrderType, stopLimit.Price = OrderTypeStopLimit, 29900
+	takeProfitLimit := takeProfit
+	takeProfitLimit.OrderType, takeProfitLimit.Price = OrderTypeTakeProfitLimit, 120100
+	refusals := append(
+		oneTriggersAOneCancelsTheOtherRefusals(),
+		contingencyRefusal{name: "an OTOCO of a LIMIT order, a MARKET order and a stop loss", orders: []AdvancedOrderLegRequest{limit, market, stopLoss}, err: errInvalidContingencyOrders},
+		contingencyRefusal{name: "an OTOCO of a STOP_LOSS and a STOP_LIMIT", orders: []AdvancedOrderLegRequest{limit, stopLoss, stopLimit}, err: errInvalidContingencyOrders},
+		contingencyRefusal{name: "an OTOCO of a TAKE_PROFIT and a TAKE_PROFIT_LIMIT", orders: []AdvancedOrderLegRequest{limit, takeProfit, takeProfitLimit}, err: errInvalidContingencyOrders},
+	)
+	for _, tc := range refusals {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := oneTriggersAOneCancelsTheOtherParams(tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "oneTriggersAOneCancelsTheOtherParams should refuse %s", tc.name)
+			assert.Nilf(t, got, "oneTriggersAOneCancelsTheOtherParams should return no params for %s", tc.name)
+		})
+	}
+	lastPrice := takeProfitLimit
+	lastPrice.ReferencePriceType = ReferencePriceTypeLastPrice
+	for _, tc := range []struct {
+		name   string
+		orders []AdvancedOrderLegRequest
+	}{
+		{"the docs' OTOCO", otocoOrders()},
+		{"a MARKET order, a STOP_LIMIT and a TAKE_PROFIT_LIMIT comparing the last price", []AdvancedOrderLegRequest{market, stopLimit, lastPrice}},
+		{"the trigger orders first", []AdvancedOrderLegRequest{takeProfit, stopLoss, limit}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := oneTriggersAOneCancelsTheOtherParams(tc.orders)
+			require.NoErrorf(t, err, "oneTriggersAOneCancelsTheOtherParams must not error for %s", tc.name)
+			assert.Equalf(t, &advancedOrderListParams[AdvancedOrderLegRequest]{OrderList: tc.orders}, got, "oneTriggersAOneCancelsTheOtherParams should return the params of %s", tc.name)
+		})
+	}
+}
+
+func TestNewAdvancedListIDParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, listID string
+		exp          *advancedListIDParams
+		err          error
+	}{
+		{name: "an empty list ID", err: errListIDRequired},
+		{name: "a list ID", listID: "6498090546073120100", exp: &advancedListIDParams{ListID: "6498090546073120100"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newAdvancedListIDParams(tc.listID)
+			assert.ErrorIsf(t, err, tc.err, "newAdvancedListIDParams should return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "newAdvancedListIDParams should return the params of %s", tc.name)
+		})
+	}
+}
+
+func TestAdvancedOrderIDRequestValidate(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		req  *AdvancedOrderIDRequest
+		err  error
+	}{
+		{"a nil request", nil, common.ErrNilPointer},
+		{"a request without an order ID or client order ID", &AdvancedOrderIDRequest{}, errOrderIDRequired},
+		{"an order ID", &AdvancedOrderIDRequest{OrderID: "5755600460443882762"}, nil},
+		{"a client order ID", &AdvancedOrderIDRequest{ClientOrderID: "c5f682ed-7108-4f1c-b755-972fcdca0f02"}, nil},
+		{"an order ID and a client order ID", &AdvancedOrderIDRequest{OrderID: "5755600460443882762", ClientOrderID: "c5f682ed-7108-4f1c-b755-972fcdca0f02"}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.req.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		})
+	}
+}
+
+func TestCancelAllAdvancedOrdersRequestValidate(t *testing.T) {
+	t.Parallel()
+	for _, tc := range cancelAllAdvancedOrdersRefusals {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.req.validate(), tc.err, "validate should refuse %s", tc.name)
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		req  *CancelAllAdvancedOrdersRequest
+		err  error
+	}{
+		{"a lower-case order type", &CancelAllAdvancedOrdersRequest{OrderType: "all"}, errInvalidCancelOrderType},
+		{"a lower-case position type", &CancelAllAdvancedOrdersRequest{InstrumentName: "BTCUSD-PERP", PositionType: "cross_margin"}, errInvalidPositionType},
+		{"a cancel of every instrument's advanced orders", &CancelAllAdvancedOrdersRequest{}, nil},
+		{"a cancel of an instrument's advanced orders", &CancelAllAdvancedOrdersRequest{InstrumentName: "BTC_USD"}, nil},
+		{"a cancel of the limit orders of advanced orders", &CancelAllAdvancedOrdersRequest{InstrumentName: "BTC_USD", OrderType: CancelOrderTypeLimit}, nil},
+		{"a cancel of every instrument's trigger orders", &CancelAllAdvancedOrdersRequest{OrderType: CancelOrderTypeTrigger}, nil},
+		{"a cancel of every order", &CancelAllAdvancedOrdersRequest{OrderType: CancelOrderTypeAll}, nil},
+		{"a cancel of a cross margin position's orders", &CancelAllAdvancedOrdersRequest{InstrumentName: "BTCUSD-PERP", PositionType: PositionTypeCrossMargin}, nil},
+		{
+			"a cancel of every order of an isolated position",
+			&CancelAllAdvancedOrdersRequest{InstrumentName: "BTCUSD-PERP", OrderType: CancelOrderTypeAll, PositionType: PositionTypeIsolatedMargin},
+			nil,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.req.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		})
+	}
+}
+
+func TestGetAdvancedOrderHistoryRequestParams(t *testing.T) {
+	t.Parallel()
+	startTime, endTime := time.Unix(0, 1792713600000081486), time.Unix(0, 1792799991058211357)
+	for _, tc := range []struct {
+		name string
+		req  *GetAdvancedOrderHistoryRequest
+		exp  *advancedOrderHistoryParams
+		err  error
+	}{
+		{name: "a nil request", err: common.ErrNilPointer},
+		{name: "a start time after the end time", req: &GetAdvancedOrderHistoryRequest{StartTime: endTime, EndTime: startTime}, err: common.ErrStartAfterEnd},
+		{name: "a start time at the end time", req: &GetAdvancedOrderHistoryRequest{StartTime: startTime, EndTime: startTime}, err: common.ErrStartEqualsEnd},
+		{
+			name: "a window starting in the future",
+			req:  &GetAdvancedOrderHistoryRequest{StartTime: time.Now().Add(time.Hour), EndTime: time.Now().Add(2 * time.Hour)},
+			err:  common.ErrStartAfterTimeNow,
+		},
+		{name: "a limit above 100", req: &GetAdvancedOrderHistoryRequest{Limit: maxAdvancedOrderHistoryLimit + 1}, err: errInvalidCount},
+		{name: "a start time before 1970", req: &GetAdvancedOrderHistoryRequest{StartTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
+		{name: "an end time before 1970", req: &GetAdvancedOrderHistoryRequest{EndTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a window before 1970", req: &GetAdvancedOrderHistoryRequest{StartTime: time.Unix(0, -2), EndTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a request with Crypto.com's defaults", req: &GetAdvancedOrderHistoryRequest{}, exp: &advancedOrderHistoryParams{}},
+		{
+			name: "a request with every field",
+			req:  &GetAdvancedOrderHistoryRequest{InstrumentName: "BTCUSD-PERP", StartTime: startTime, EndTime: endTime, Limit: maxAdvancedOrderHistoryLimit},
+			exp:  &advancedOrderHistoryParams{InstrumentName: "BTCUSD-PERP", StartTime: 1792713600000081486, EndTime: 1792799991058211357, Limit: maxAdvancedOrderHistoryLimit},
+		},
+		{name: "a start time alone", req: &GetAdvancedOrderHistoryRequest{StartTime: startTime}, exp: &advancedOrderHistoryParams{StartTime: 1792713600000081486}},
+		{name: "an end time alone", req: &GetAdvancedOrderHistoryRequest{EndTime: endTime}, exp: &advancedOrderHistoryParams{EndTime: 1792799991058211357}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := tc.req.params()
+			assert.ErrorIsf(t, err, tc.err, "params should return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "params should return the params of %s", tc.name)
+		})
+	}
+}
+
+func TestCreateAdvancedOrderListParams(t *testing.T) {
+	t.Parallel()
+	order := advancedTriggerOrder()
+	for _, tc := range []struct {
+		name   string
+		orders []CreateAdvancedOrderRequest
+		err    error
+	}{
+		{name: "an empty list", err: errOrderListEmpty},
+		{name: "a list of 11 orders", orders: slices.Repeat([]CreateAdvancedOrderRequest{order}, maxAdvancedOrderListLength+1), err: errOrderListTooLong},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := createAdvancedOrderListParams(tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "createAdvancedOrderListParams should refuse %s", tc.name)
+			assert.Nilf(t, got, "createAdvancedOrderListParams should return no params for %s", tc.name)
+		})
+	}
+	for _, tc := range triggerOrderRefusals {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			refused := advancedTriggerOrder()
+			tc.change(&refused)
+			got, err := createAdvancedOrderListParams([]CreateAdvancedOrderRequest{advancedTriggerOrder(), refused})
+			assert.ErrorIsf(t, err, tc.err, "createAdvancedOrderListParams should refuse a list holding %s", tc.name)
+			assert.ErrorContainsf(t, err, "order 1:", "createAdvancedOrderListParams should name the index of %s", tc.name)
+			assert.Nilf(t, got, "createAdvancedOrderListParams should return no params for a list holding %s", tc.name)
+		})
+	}
+	stopLoss := advancedOrderListOrders()[0]
+	for _, tc := range []struct {
+		name   string
+		orders []CreateAdvancedOrderRequest
+	}{
+		{"a list of one order", []CreateAdvancedOrderRequest{stopLoss}},
+		{"the docs' list of two orders", advancedOrderListOrders()},
+		{"a list of 10 orders", slices.Repeat([]CreateAdvancedOrderRequest{stopLoss}, maxAdvancedOrderListLength)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := createAdvancedOrderListParams(tc.orders)
+			require.NoErrorf(t, err, "createAdvancedOrderListParams must not error for %s", tc.name)
+			assert.Equalf(t, &advancedOrderListParams[CreateAdvancedOrderRequest]{OrderList: tc.orders}, got, "createAdvancedOrderListParams should return the params of %s", tc.name)
+		})
+	}
+}
+
+func TestCancelAdvancedOrderListParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range cancelAdvancedOrderListRefusals() {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := cancelAdvancedOrderListParams(tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "cancelAdvancedOrderListParams should refuse %s", tc.name)
+			assert.Nilf(t, got, "cancelAdvancedOrderListParams should return no params for %s", tc.name)
+		})
+	}
+	t.Run("the index of an order without an order ID or client order ID", func(t *testing.T) {
+		t.Parallel()
+		_, err := cancelAdvancedOrderListParams([]AdvancedOrderIDRequest{{}, {OrderID: "289991951579667814"}})
+		assert.ErrorContains(t, err, "order 0:", "cancelAdvancedOrderListParams should name the index of the order without an order ID or client order ID")
+	})
+	for _, tc := range []struct {
+		name   string
+		orders []AdvancedOrderIDRequest
+	}{
+		{"a list of one order ID", []AdvancedOrderIDRequest{{OrderID: "289991951579667814"}}},
+		{
+			"a list of an order ID and client order ID, and a client order ID",
+			[]AdvancedOrderIDRequest{{OrderID: "289991951579667814", ClientOrderID: "my_sl_order"}, {ClientOrderID: "my_tp_order"}},
+		},
+		{"a list of 10 orders", slices.Repeat([]AdvancedOrderIDRequest{{ClientOrderID: "my_tp_order"}}, maxAdvancedOrderListLength)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := cancelAdvancedOrderListParams(tc.orders)
+			require.NoErrorf(t, err, "cancelAdvancedOrderListParams must not error for %s", tc.name)
+			assert.Equalf(t, &advancedOrderListParams[AdvancedOrderIDRequest]{OrderList: tc.orders}, got, "cancelAdvancedOrderListParams should return the params of %s", tc.name)
 		})
 	}
 }

@@ -13,7 +13,9 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+	"uuid"
 
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -100,8 +102,13 @@ const (
 
 // enableTradeFeed has an exchange relay the trades its websocket receives to its data handler
 func enableTradeFeed(ex *Exchange) {
-	ex.SetTradeFeedStatus(true)
-	ex.Websocket.Trade.Setup(true, ex.Websocket.DataHandler)
+	setTradeFeed(ex, true)
+}
+
+// setTradeFeed sets whether an exchange relays the trades its websocket receives to its data handler
+func setTradeFeed(ex *Exchange, enabled bool) {
+	ex.SetTradeFeedStatus(enabled)
+	ex.Websocket.Trade.Setup(enabled, ex.Websocket.DataHandler)
 }
 
 // relayedData returns what an exchange's websocket has relayed to its data handler so far
@@ -148,6 +155,88 @@ func requireBooksAt(t *testing.T, ex *Exchange, pair currency.Pair, updateID int
 // recordedBookChannelSubscription returns a subscription to the recorded book channel, book.BTC_USD.10
 func recordedBookChannelSubscription() subscription.List {
 	return subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 10, Pairs: currency.Pairs{spotBTCUSD}}}
+}
+
+// recordedSnapshotBook returns an asset's book as the last recorded snapshot of the snapshot book channel loads it
+func recordedSnapshotBook(exchangeName string, a asset.Item) *orderbook.Book {
+	return &orderbook.Book{
+		Bids:              orderbook.Levels{{Price: 2359.74, Amount: 6.7928, OrderCount: 7}, {Price: 2359.73, Amount: 1.4923, OrderCount: 1}, {Price: 2359.69, Amount: 0.2465, OrderCount: 1}, {Price: 2359.61, Amount: 0.0042, OrderCount: 1}, {Price: 2359.6, Amount: 0.8118, OrderCount: 1}, {Price: 2359.59, Amount: 3.2354, OrderCount: 3}, {Price: 2359.56, Amount: 1.3625, OrderCount: 2}, {Price: 2359.54, Amount: 2.6086, OrderCount: 2}, {Price: 2359.49, Amount: 0.7426, OrderCount: 1}, {Price: 2359.48, Amount: 0.4303, OrderCount: 1}},
+		Asks:              orderbook.Levels{{Price: 2359.75, Amount: 3.5136, OrderCount: 7}, {Price: 2359.83, Amount: 1.6505, OrderCount: 1}, {Price: 2359.91, Amount: 0.2428, OrderCount: 1}, {Price: 2359.94, Amount: 1.0188, OrderCount: 2}, {Price: 2359.97, Amount: 0.2891, OrderCount: 1}, {Price: 2359.99, Amount: 0.4147, OrderCount: 1}, {Price: 2360, Amount: 0.086, OrderCount: 1}, {Price: 2360.02, Amount: 0.2889, OrderCount: 1}, {Price: 2360.03, Amount: 0.8505, OrderCount: 4}, {Price: 2360.04, Amount: 0.0626, OrderCount: 1}},
+		Exchange:          exchangeName,
+		Pair:              spotETHUSD,
+		Asset:             a,
+		LastUpdated:       time.UnixMilli(1792893036530),
+		LastPushed:        time.UnixMilli(1792893036570),
+		LastUpdateID:      390670048243712,
+		ValidateOrderbook: true,
+	}
+}
+
+// recordedDeltaBook returns an asset's book as the recorded delta book channel's first snapshot and its recorded deltas
+// leave it
+func recordedDeltaBook(exchangeName string, a asset.Item) *orderbook.Book {
+	return &orderbook.Book{
+		Bids:              orderbook.Levels{{Price: 80775.53, Amount: 0.32012, OrderCount: 12}, {Price: 80775.52, Amount: 0.0028, OrderCount: 1}, {Price: 80775, Amount: 0.003, OrderCount: 1}, {Price: 80774.47, Amount: 0.00495, OrderCount: 1}, {Price: 80774.18, Amount: 0.0033, OrderCount: 1}, {Price: 80774.17, Amount: 0.00018, OrderCount: 1}, {Price: 80773.45, Amount: 0.0035, OrderCount: 1}, {Price: 80773.23, Amount: 0.02144, OrderCount: 1}, {Price: 80773.22, Amount: 0.06191, OrderCount: 1}, {Price: 80772.86, Amount: 0.0099, OrderCount: 1}},
+		Asks:              orderbook.Levels{{Price: 80775.54, Amount: 0.82815, OrderCount: 11}, {Price: 80776.11, Amount: 0.03095, OrderCount: 1}, {Price: 80779.95, Amount: 0.04378, OrderCount: 1}, {Price: 80780.58, Amount: 0.14625, OrderCount: 1}, {Price: 80780.6, Amount: 0.0025, OrderCount: 1}, {Price: 80781.32, Amount: 0.0028, OrderCount: 1}, {Price: 80781.33, Amount: 0.0028, OrderCount: 1}, {Price: 80782.21, Amount: 0.00537, OrderCount: 1}, {Price: 80782.71, Amount: 0.08568, OrderCount: 3}, {Price: 80783.44, Amount: 0.1184, OrderCount: 1}},
+		Exchange:          exchangeName,
+		Pair:              spotBTCUSD,
+		Asset:             a,
+		LastUpdated:       time.UnixMilli(1792893127261),
+		LastPushed:        time.UnixMilli(1792893127306),
+		LastUpdateID:      recordedBookUpdateID,
+		ValidateOrderbook: true,
+	}
+}
+
+// requireBooksLoaded waits for an exchange's spot and margin BTC_USD books to be loaded, and returns when the later of
+// them was
+func requireBooksLoaded(t *testing.T, ex *Exchange) time.Time {
+	t.Helper()
+	assets := []asset.Item{asset.Spot, asset.Margin}
+	require.Eventually(t, func() bool {
+		for _, a := range assets {
+			if _, err := ex.Websocket.Orderbook.GetOrderbook(spotBTCUSD, a); err != nil {
+				return false
+			}
+		}
+		return true
+	}, 30*time.Second, 10*time.Millisecond, "the spot and margin BTC_USD books must be loaded")
+	var inserted time.Time
+	for _, a := range assets {
+		book, err := ex.Websocket.Orderbook.GetOrderbook(spotBTCUSD, a)
+		require.NoErrorf(t, err, "GetOrderbook must not error for %s", a)
+		if book.InsertedAt.After(inserted) {
+			inserted = book.InsertedAt
+		}
+	}
+	return inserted
+}
+
+// requireBooksReloaded waits for an exchange's spot and margin BTC_USD books to load a snapshot after one loaded when
+// given
+func requireBooksReloaded(t *testing.T, ex *Exchange, inserted time.Time) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			if book, err := ex.Websocket.Orderbook.GetOrderbook(spotBTCUSD, a); err != nil || !book.InsertedAt.After(inserted) {
+				return false
+			}
+		}
+		return true
+	}, 30*time.Second, 10*time.Millisecond, "the spot and margin BTC_USD books must load a new snapshot")
+}
+
+// mockMarketDataVenue returns a mock of Crypto.com's market data websocket answering each channel's subscriptions with
+// the frames recorded for it, for a scenario only the mock can produce; it skips the test in live mode
+func mockMarketDataVenue(t *testing.T) *websocketVenue {
+	t.Helper()
+	venue := newWebsocketVenue(t)
+	recorded, err := marketDataFrames()
+	require.NoError(t, err, "the recorded frames must load")
+	for channel, sets := range recorded {
+		venue.answerSubscriptions(channel, sets...)
+	}
+	return venue
 }
 
 func TestWebsocketCandleTimeframe(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
@@ -296,18 +385,7 @@ func TestWebsocketBook(t *testing.T) {
 		require.NoErrorf(t, err, "GetOrderbook must not error for %s", a)
 		assert.NotZerof(t, book.InsertedAt, "the %s book should record when it was loaded", a)
 		book.InsertedAt = time.Time{}
-		exp := &orderbook.Book{
-			Bids:              orderbook.Levels{{Price: 2359.74, Amount: 6.7928, OrderCount: 7}, {Price: 2359.73, Amount: 1.4923, OrderCount: 1}, {Price: 2359.69, Amount: 0.2465, OrderCount: 1}, {Price: 2359.61, Amount: 0.0042, OrderCount: 1}, {Price: 2359.6, Amount: 0.8118, OrderCount: 1}, {Price: 2359.59, Amount: 3.2354, OrderCount: 3}, {Price: 2359.56, Amount: 1.3625, OrderCount: 2}, {Price: 2359.54, Amount: 2.6086, OrderCount: 2}, {Price: 2359.49, Amount: 0.7426, OrderCount: 1}, {Price: 2359.48, Amount: 0.4303, OrderCount: 1}},
-			Asks:              orderbook.Levels{{Price: 2359.75, Amount: 3.5136, OrderCount: 7}, {Price: 2359.83, Amount: 1.6505, OrderCount: 1}, {Price: 2359.91, Amount: 0.2428, OrderCount: 1}, {Price: 2359.94, Amount: 1.0188, OrderCount: 2}, {Price: 2359.97, Amount: 0.2891, OrderCount: 1}, {Price: 2359.99, Amount: 0.4147, OrderCount: 1}, {Price: 2360, Amount: 0.086, OrderCount: 1}, {Price: 2360.02, Amount: 0.2889, OrderCount: 1}, {Price: 2360.03, Amount: 0.8505, OrderCount: 4}, {Price: 2360.04, Amount: 0.0626, OrderCount: 1}},
-			Exchange:          ex.Name,
-			Pair:              spotETHUSD,
-			Asset:             a,
-			LastUpdated:       time.UnixMilli(1792893036530),
-			LastPushed:        time.UnixMilli(1792893036570),
-			LastUpdateID:      390670048243712,
-			ValidateOrderbook: true,
-		}
-		assert.Equalf(t, exp, book, "the %s book should be the last snapshot", a)
+		assert.Equalf(t, recordedSnapshotBook(ex.Name, a), book, "the %s book should be the last snapshot", a)
 	}
 	relayed := relayedData(ex)
 	assert.Len(t, relayed, 4, "each snapshot should relay the book of each asset its instrument trades as")
@@ -346,22 +424,11 @@ func TestWebsocketBookUpdate(t *testing.T) {
 	for i := 1; i <= 4; i++ {
 		require.NoErrorf(t, ex.wsHandleChannelData(t.Context(), nil, marketDataFrame(t, recordedBookChannel, i)), "wsHandleChannelData must not error for frame %d", i)
 	}
-	exp := &orderbook.Book{
-		Bids:              orderbook.Levels{{Price: 80775.53, Amount: 0.32012, OrderCount: 12}, {Price: 80775.52, Amount: 0.0028, OrderCount: 1}, {Price: 80775, Amount: 0.003, OrderCount: 1}, {Price: 80774.47, Amount: 0.00495, OrderCount: 1}, {Price: 80774.18, Amount: 0.0033, OrderCount: 1}, {Price: 80774.17, Amount: 0.00018, OrderCount: 1}, {Price: 80773.45, Amount: 0.0035, OrderCount: 1}, {Price: 80773.23, Amount: 0.02144, OrderCount: 1}, {Price: 80773.22, Amount: 0.06191, OrderCount: 1}, {Price: 80772.86, Amount: 0.0099, OrderCount: 1}},
-		Asks:              orderbook.Levels{{Price: 80775.54, Amount: 0.82815, OrderCount: 11}, {Price: 80776.11, Amount: 0.03095, OrderCount: 1}, {Price: 80779.95, Amount: 0.04378, OrderCount: 1}, {Price: 80780.58, Amount: 0.14625, OrderCount: 1}, {Price: 80780.6, Amount: 0.0025, OrderCount: 1}, {Price: 80781.32, Amount: 0.0028, OrderCount: 1}, {Price: 80781.33, Amount: 0.0028, OrderCount: 1}, {Price: 80782.21, Amount: 0.00537, OrderCount: 1}, {Price: 80782.71, Amount: 0.08568, OrderCount: 3}, {Price: 80783.44, Amount: 0.1184, OrderCount: 1}},
-		Exchange:          ex.Name,
-		Pair:              spotBTCUSD,
-		LastUpdated:       time.UnixMilli(1792893127261),
-		LastPushed:        time.UnixMilli(1792893127306),
-		LastUpdateID:      recordedBookUpdateID,
-		ValidateOrderbook: true,
-	}
 	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
 		book, err := ex.Websocket.Orderbook.GetOrderbook(spotBTCUSD, a)
 		require.NoErrorf(t, err, "GetOrderbook must not error for %s", a)
 		book.InsertedAt = time.Time{}
-		exp.Asset = a
-		assert.Equalf(t, exp, book, "the %s book should be the snapshot with each delta applied", a)
+		assert.Equalf(t, recordedDeltaBook(ex.Name, a), book, "the %s book should be the snapshot with each delta applied", a)
 	}
 	assert.Len(t, relayedData(ex), 8, "the snapshot and each delta should relay the book of each asset its instrument trades as")
 
@@ -398,6 +465,86 @@ func TestWebsocketBookResubscription(t *testing.T) {
 	if !mockTests {
 		t.Skip("book resynchronisation is tested against the mock websocket, which can send deltas out of sequence or that break a book, and fail an unsubscription")
 	}
+	t.Run("REST refresh during a live book", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
+		answerBookSnapshotFirst(t, venue)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
+		restBook, err := ex.UpdateOrderbook(t.Context(), spotBTCUSD, asset.Spot)
+		require.NoError(t, err, "UpdateOrderbook must not error during a live book")
+		assert.True(t, restBook.RestSnapshot, "UpdateOrderbook should return the REST snapshot")
+		assert.Equal(t, testOrderbooks[asset.Spot].Bids, restBook.Bids, "UpdateOrderbook should return the REST snapshot's bids")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
+		for i := 2; i <= 4; i++ {
+			require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, i)), "delta %d must extend the live book", i)
+		}
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
+		assert.Empty(t, venue.received(websocketMethodUnsubscribe), "the REST refresh should leave the live book subscribed")
+	})
+	t.Run("REST refresh when the websocket book is unavailable", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name        string
+			stop        func(*testing.T, *Exchange, websocket.Connection, *websocketVenue)
+			invalidated []asset.Item
+		}{
+			{name: "invalidated", stop: func(t *testing.T, ex *Exchange, _ websocket.Connection, _ *websocketVenue) {
+				t.Helper()
+				require.NoError(t, ex.Websocket.Orderbook.InvalidateOrderbook(spotBTCUSD, asset.Spot), "InvalidateOrderbook must not error")
+			}, invalidated: []asset.Item{asset.Spot}},
+			{name: "unsubscribed", stop: func(t *testing.T, ex *Exchange, conn websocket.Connection, _ *websocketVenue) {
+				t.Helper()
+				s := conn.Subscriptions().Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}})
+				require.NotNil(t, s, "the book channel must be stored against its connection")
+				require.NoError(t, ex.Websocket.UnsubscribeChannels(t.Context(), conn, subscription.List{s}), "UnsubscribeChannels must not error")
+			}, invalidated: []asset.Item{asset.Spot, asset.Margin}},
+			{name: "unsubscription unanswered", stop: func(t *testing.T, ex *Exchange, conn websocket.Connection, venue *websocketVenue) {
+				t.Helper()
+				s := conn.Subscriptions().Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}})
+				require.NotNil(t, s, "the book channel must be stored against its connection")
+				venue.loseAnswers(websocketMethodUnsubscribe, 1)
+				require.ErrorIs(t, ex.Websocket.UnsubscribeChannels(t.Context(), conn, subscription.List{s}), websocket.ErrSignatureTimeout, "UnsubscribeChannels must return the unanswered request's timeout")
+			}, invalidated: []asset.Item{asset.Spot, asset.Margin}},
+			{name: "shut down", stop: func(t *testing.T, ex *Exchange, _ websocket.Connection, _ *websocketVenue) {
+				t.Helper()
+				// Disabled first, so the connection monitor cannot reconnect and reload the books before the REST refresh
+				require.NoError(t, ex.Websocket.Disable(), "Disable must not error")
+				if err := ex.Websocket.Shutdown(); err != nil {
+					require.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown must only fail when the connection monitor has shut the connection down first")
+				}
+			}, invalidated: []asset.Item{asset.Spot, asset.Margin}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				venue := newMarketDataVenue(t)
+				answerBookSnapshotFirst(t, venue)
+				ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription(), withTestResponseMaxLimit(t, venue))
+				require.NoError(t, err, "Connect must not error")
+				conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+				require.NoError(t, err, "GetConnection must not error")
+				requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
+				tc.stop(t, ex, conn, venue)
+				for _, a := range tc.invalidated {
+					_, err := orderbook.Get(ex.Name, spotBTCUSD, a)
+					assert.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "the %s book should be invalid once the websocket no longer maintains it", a)
+				}
+				restBook, err := ex.UpdateOrderbook(t.Context(), spotBTCUSD, asset.Spot)
+				require.NoError(t, err, "UpdateOrderbook must not error")
+				stored, err := orderbook.Get(ex.Name, spotBTCUSD, asset.Spot)
+				require.NoError(t, err, "orderbook.Get must return the stored REST snapshot")
+				assert.True(t, stored.RestSnapshot, "the REST snapshot should replace the websocket book")
+				assert.Equal(t, restBook.Bids, stored.Bids, "the store should hold the REST snapshot's bids")
+				if !ex.Websocket.IsEnabled() {
+					// The cleanup disables the websocket, which it must find enabled
+					require.NoError(t, ex.Websocket.Enable(t.Context()), "Enable must not error")
+				}
+			})
+		}
+	})
 	t.Run("a delta out of sequence", func(t *testing.T) {
 		t.Parallel()
 		t.Run("a delta repeated", func(t *testing.T) {
@@ -608,6 +755,45 @@ func TestWebsocketBookResubscription(t *testing.T) {
 	}
 }
 
+func TestInvalidateUnsubscribedBooks(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	unlisted := currency.NewPair(currency.NewCode("ZZZ"), currency.USD).Format(currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter})
+	load := func(p currency.Pair, a asset.Item) {
+		t.Helper()
+		require.NoErrorf(t, ex.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{Exchange: ex.Name, Pair: p, Asset: a, Bids: orderbook.Levels{{Price: 1, Amount: 1}}, Asks: orderbook.Levels{{Price: 2, Amount: 1}}, LastUpdated: time.Now()}), "LoadSnapshot must load the %s %s book", a, p)
+	}
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		load(spotBTCUSD, a)
+		load(spotETHUSD, a)
+	}
+	load(unlisted, asset.Spot)
+	require.NoError(t, (&orderbook.Book{Exchange: ex.Name, Pair: spotETHUSD, Asset: asset.Margin, Bids: orderbook.Levels{{Price: 3, Amount: 1}}, LastUpdated: time.Now()}).Process(), "Process must store a REST snapshot over the margin ETH_USD book")
+
+	ex.invalidateUnsubscribedBooks(&subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotBTCUSD, spotETHUSD, unlisted}})
+	for _, tc := range []struct {
+		pair    currency.Pair
+		asset   asset.Item
+		invalid bool
+	}{
+		{pair: spotBTCUSD, asset: asset.Spot, invalid: true},
+		{pair: spotBTCUSD, asset: asset.Margin, invalid: true},
+		{pair: spotETHUSD, asset: asset.Spot, invalid: true},
+		{pair: spotETHUSD, asset: asset.Margin},
+		{pair: unlisted, asset: asset.Spot, invalid: true},
+	} {
+		_, err := orderbook.Get(ex.Name, tc.pair, tc.asset)
+		if tc.invalid {
+			assert.ErrorIsf(t, err, errBookUnsubscribed, "invalidateUnsubscribedBooks should invalidate the %s %s book the channel loaded", tc.asset, tc.pair)
+		} else {
+			assert.NoErrorf(t, err, "invalidateUnsubscribedBooks should leave the %s %s book a REST snapshot replaced", tc.asset, tc.pair)
+		}
+	}
+	assert.NotPanics(t, func() {
+		ex.invalidateUnsubscribedBooks(&subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotCROUSD}})
+	}, "invalidateUnsubscribedBooks should pass over a pair without a book")
+}
+
 func TestWebsocketBookSubscriptionRetry(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
@@ -640,7 +826,7 @@ func TestWebsocketBookSubscriptionRetry(t *testing.T) {
 		assert.Len(t, venue.received(websocketMethodSubscribe), 3, "the refused book channel should be subscribed once more")
 		assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the refused book channel should not be unsubscribed again")
 
-		// TestWebsocketBookRetryStops checks how soon the retry stops on a synctest bubble's clock, which a stall of the test
+		// TestRetryBookSubscription checks how soon the retry stops on a synctest bubble's clock, which a stall of the test
 		// cannot move
 		ex.retryBookSubscription(t.Context(), conn, s)
 		assert.Len(t, venue.received(websocketMethodSubscribe), 3, "retryBookSubscription should not subscribe a book channel held again")
@@ -717,8 +903,36 @@ func (c *bookRetryConnection) Subscriptions() *subscription.Store {
 	return c.subscriptions
 }
 
-func TestWebsocketBookRetryStops(t *testing.T) {
+func TestRetryBookSubscription(t *testing.T) {
 	t.Parallel()
+	t.Run("a book channel subscribed again over a connection", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription(), func(ex *Exchange) {
+			ex.bookResubscribeDelay = 10 * time.Millisecond
+		})
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		inserted := requireBooksLoaded(t, ex)
+		key := qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}}
+		s := conn.Subscriptions().Get(key)
+		require.NotNil(t, s, "the book channel must be stored against its connection")
+		// A resubscription refused once its unsubscription is answered leaves the channel so: unsubscribed, and off its
+		// connection
+		require.NoError(t, ex.Websocket.UnsubscribeChannels(t.Context(), conn, subscription.List{s}), "UnsubscribeChannels must not error")
+		require.NoError(t, conn.Subscriptions().Remove(s), "Remove must not error")
+
+		ex.retryBookSubscription(t.Context(), conn, s)
+		assert.Same(t, s, ex.Websocket.GetSubscription(key), "retryBookSubscription should subscribe the book channel again")
+		assert.Same(t, s, conn.Subscriptions().Get(key), "retryBookSubscription should store the book channel against its connection again")
+		assert.Equal(t, subscription.SubscribedState, s.State(), "retryBookSubscription should leave the book channel subscribed")
+		requireBooksReloaded(t, ex, inserted)
+		if mockTests {
+			assert.Len(t, venue.received(websocketMethodSubscribe), 2, "retryBookSubscription should subscribe the book channel once more")
+		}
+	})
+
 	const delay = 50 * time.Millisecond
 	refuse := func(*Exchange, *bookRetryConnection) error {
 		return &APIError{Code: 42901, Message: "TOO_MANY_REQUESTS"}
@@ -728,7 +942,8 @@ func TestWebsocketBookRetryStops(t *testing.T) {
 		done      bool
 		doneAfter time.Duration
 		connected bool
-		held      bool
+		// held has the book channel held again, and storedBefore stored against its connection already
+		held, storedBefore bool
 		// answer answers each attempt's subscription, and can change what the retry checks before its next attempt
 		answer        func(*Exchange, *bookRetryConnection) error
 		elapsed       time.Duration
@@ -744,6 +959,7 @@ func TestWebsocketBookRetryStops(t *testing.T) {
 		// The attempts wait 1, 2, 4, 8 and 16 times the first delay
 		{name: "attempts run out", connected: true, answer: refuse, elapsed: 31 * delay, connectChecks: bookResubscribeAttempts, subscribed: []time.Duration{delay, 3 * delay, 7 * delay, 15 * delay, 31 * delay}},
 		{name: "subscribed", connected: true, answer: func(*Exchange, *bookRetryConnection) error { return nil }, elapsed: delay, connectChecks: 1, subscribed: []time.Duration{delay}, stored: true},
+		{name: "subscribed while stored against its connection already", connected: true, storedBefore: true, answer: func(*Exchange, *bookRetryConnection) error { return nil }, elapsed: delay, connectChecks: 1, subscribed: []time.Duration{delay}, stored: true},
 		{name: "configuration removed after a refusal", connected: true, answer: func(ex *Exchange, conn *bookRetryConnection) error {
 			ex.Features.Subscriptions = nil
 			return refuse(ex, conn)
@@ -775,6 +991,9 @@ func TestWebsocketBookRetryStops(t *testing.T) {
 				if tc.held {
 					require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(nil, s), "AddSuccessfulSubscriptions must not error")
 				}
+				if tc.storedBefore {
+					require.NoError(t, conn.subscriptions.Add(s), "Add must not error")
+				}
 				ctx, cancel := context.WithCancel(t.Context())
 				defer cancel()
 				if tc.done {
@@ -791,6 +1010,27 @@ func TestWebsocketBookRetryStops(t *testing.T) {
 			})
 		})
 	}
+
+	t.Run("a connection that cannot say whether it is connected", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.Features.Subscriptions = recordedBookChannelSubscription()
+		ex.bookResubscribeDelay = delay
+		synctest.Test(t, func(t *testing.T) {
+			ex.Websocket = websocket.NewManager()
+			conn := newScriptedConnection()
+			start := time.Now()
+			var subscribed []time.Duration
+			ex.Websocket.Subscriber = func(subscription.List) error {
+				subscribed = append(subscribed, time.Since(start))
+				return nil
+			}
+			s := &subscription.Subscription{QualifiedChannel: recordedBookChannel}
+			ex.retryBookSubscription(t.Context(), conn, s)
+			assert.Equal(t, []time.Duration{delay}, subscribed, "retryBookSubscription should subscribe the book channel over a connection that cannot say whether it is connected")
+			assert.Same(t, s, conn.subscriptions.Get(s), "retryBookSubscription should store the book channel it subscribed against its connection")
+		})
+	})
 
 	t.Run("connection to the mock lost", func(t *testing.T) {
 		t.Parallel()
@@ -814,14 +1054,48 @@ func TestWebsocketBookRetryStops(t *testing.T) {
 	})
 }
 
-func TestQualifiedChannelKey(t *testing.T) {
+func TestQualifiedChannelKeyMatch(t *testing.T) {
 	t.Parallel()
 	k := qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: "ticker.BTC_USD"}}
-	assert.True(t, k.Match(&subscription.ExactKey{Subscription: &subscription.Subscription{Channel: subscription.TickerChannel, QualifiedChannel: "ticker.BTC_USD"}}), "Match should match a subscription with the key's qualified channel")
-	assert.False(t, k.Match(&subscription.ExactKey{Subscription: &subscription.Subscription{QualifiedChannel: "ticker.BTC_USDT"}}), "Match should not match a subscription with another qualified channel")
-	assert.False(t, k.Match(&subscription.ExactKey{}), "Match should not match a key without a subscription")
-	assert.Equal(t, k.Subscription, k.GetSubscription(), "GetSubscription should return the key's subscription")
-	assert.Equal(t, "ticker.BTC_USD", k.String(), "String should give the qualified channel")
+	for _, tc := range []struct {
+		name string
+		key  subscription.MatchableKey
+		exp  bool
+	}{
+		{"a subscription with the key's qualified channel", &subscription.ExactKey{Subscription: &subscription.Subscription{Channel: subscription.TickerChannel, QualifiedChannel: "ticker.BTC_USD"}}, true},
+		{"a subscription with the key's qualified channel, whatever else it names", &subscription.ExactKey{Subscription: &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Margin, Pairs: currency.Pairs{spotBTCUSD}, QualifiedChannel: "ticker.BTC_USD"}}, true},
+		{"another key of the same qualified channel", qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: "ticker.BTC_USD"}}, true},
+		{"a subscription with another qualified channel", &subscription.ExactKey{Subscription: &subscription.Subscription{QualifiedChannel: "ticker.BTC_USDT"}}, false},
+		{"a qualified channel differing only in case", &subscription.ExactKey{Subscription: &subscription.Subscription{QualifiedChannel: "ticker.btc_usd"}}, false},
+		{"a key without a subscription", &subscription.ExactKey{}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, k.Match(tc.key), "Match should report whether a key's subscription has the key's qualified channel")
+		})
+	}
+
+	t.Run("a subscription found in a store", func(t *testing.T) {
+		t.Parallel()
+		store := subscription.NewStore()
+		s := &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotBTCUSD}, QualifiedChannel: "ticker.BTC_USD"}
+		require.NoError(t, store.Add(s), "Add must not error")
+		assert.Same(t, s, store.Get(k), "a store should find the subscription with the key's qualified channel")
+		assert.Nil(t, store.Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: "ticker.ETH_USD"}}), "a store should find no subscription without the key's qualified channel")
+	})
+}
+
+func TestQualifiedChannelKeyGetSubscription(t *testing.T) {
+	t.Parallel()
+	s := &subscription.Subscription{QualifiedChannel: "ticker.BTC_USD"}
+	assert.Same(t, s, qualifiedChannelKey{s}.GetSubscription(), "GetSubscription should return the subscription holding the qualified channel")
+	assert.Nil(t, qualifiedChannelKey{}.GetSubscription(), "GetSubscription should return no subscription for a key without one")
+}
+
+func TestQualifiedChannelKeyString(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "ticker.BTC_USD", qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: "ticker.BTC_USD"}}.String(), "String should give the qualified channel")
+	assert.Empty(t, qualifiedChannelKey{&subscription.Subscription{}}.String(), "String should give no channel for a subscription without a qualified channel")
 }
 
 func TestWebsocketTicker(t *testing.T) { //nolint:tparallel // the cases share one exchange and its data handler in order
@@ -1303,4 +1577,923 @@ func TestWebsocketSubscribe(t *testing.T) {
 		assert.Equal(t, subscription.SubscribedState, accepted.State(), "the acknowledged channel should be subscribed")
 		assert.Nil(t, ex.Websocket.GetSubscription(missing), "the unanswered channel should stay unconfirmed")
 	})
+}
+
+// marketDataPush returns a market data channel's push of data for an instrument
+func marketDataPush(channel, instrument, data string) *websocketChannelPush {
+	return &websocketChannelPush{InstrumentName: instrument, Subscription: channel + "." + instrument, Channel: channel, Data: json.RawMessage(data)}
+}
+
+// oneInchUSD is the pair of 1INCH_USD, a spot instrument the test configuration makes available without enabling it
+var oneInchUSD = currency.NewPair(currency.NewCode("1INCH"), currency.USD).Format(currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter})
+
+func TestWebsocketCandleInterval(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
+	t.Parallel()
+	// The cases run in order, the refusals among them, so each also checks that a call keeps nothing from the last
+	for _, tc := range []struct {
+		timeframe string
+		exp       kline.Interval
+		err       error
+	}{
+		{"1m", kline.OneMin, nil},
+		{"5m", kline.FiveMin, nil},
+		{"15m", kline.FifteenMin, nil},
+		{"30m", kline.ThirtyMin, nil},
+		{"1h", kline.OneHour, nil},
+		{"2h", kline.TwoHour, nil},
+		{"4h", kline.FourHour, nil},
+		{"12h", kline.TwelveHour, nil},
+		{"1D", kline.OneDay, nil},
+		{"7D", kline.SevenDay, nil},
+		{"14D", kline.TwoWeek, nil},
+		{"1M", kline.OneMonth, nil},
+		{"1d", 0, kline.ErrUnsupportedInterval},
+		{"3m", 0, kline.ErrUnsupportedInterval},
+		{"1m ", 0, kline.ErrUnsupportedInterval},
+		{"", 0, kline.ErrUnsupportedInterval},
+		{"1h", kline.OneHour, nil},
+	} {
+		t.Run(subtestName(tc.timeframe), func(t *testing.T) {
+			got, err := websocketCandleInterval(tc.timeframe)
+			require.ErrorIsf(t, err, tc.err, "websocketCandleInterval must return the expected error for %q", tc.timeframe)
+			assert.Equalf(t, tc.exp, got, "websocketCandleInterval should give the interval %q names", tc.timeframe)
+		})
+	}
+}
+
+func TestWebsocketHandleBook(t *testing.T) { //nolint:tparallel // the cases change one exchange's books in order
+	t.Parallel()
+	ex := newTestExchange(t)
+	// bookState is what the ETH_USD books hold once a snapshot loads them
+	type bookState struct {
+		bids, asks                   orderbook.Levels
+		updated, published, updateID int64
+	}
+	recorded := recordedSnapshotBook(ex.Name, asset.Spot)
+	snapshot := &bookState{bids: recorded.Bids, asks: recorded.Asks, updated: recorded.LastUpdated.UnixMilli(), published: recorded.LastPushed.UnixMilli(), updateID: recorded.LastUpdateID}
+	replaced := &bookState{bids: orderbook.Levels{{Price: 2399, Amount: 2.5, OrderCount: 3}}, asks: orderbook.Levels{{Price: 2400, Amount: 1.5, OrderCount: 2}}, updated: 1792893039990, published: 1792893040000, updateID: 390670048300000}
+	untimed := &bookState{bids: orderbook.Levels{{Price: 2398, Amount: 2.5, OrderCount: 3}}, asks: orderbook.Levels{{Price: 2401, Amount: 1.5, OrderCount: 2}}, updated: 1792893041000, published: 1792893041000, updateID: 390670048300001}
+	last := &bookState{bids: orderbook.Levels{{Price: 2396, Amount: 2, OrderCount: 2}}, asks: orderbook.Levels{{Price: 2403, Amount: 2, OrderCount: 2}}, updated: 1792893042990, published: 1792893043000, updateID: 390670048300003}
+	var state *bookState
+	// The cases change the books ex holds in order
+	for _, tc := range []struct {
+		name string
+		push *websocketChannelPush
+		// loaded is what the books hold after, as before when nil, and relayed how many books are relayed
+		loaded  *bookState
+		relayed int
+		err     error
+	}{
+		{name: "a snapshot loading the book of each asset its instrument trades as", push: channelPush(t, marketDataFrame(t, recordedSnapshotBookChannel, 2)), loaded: snapshot, relayed: 2},
+		{
+			name:    "a snapshot replacing the books",
+			push:    marketDataPush(channelBook, "ETH_USD", `[{"asks":[["2400.00","1.5","2"]],"bids":[["2399.00","2.5","3"]],"t":1792893040000,"tt":1792893039990,"u":390670048300000}]`),
+			loaded:  replaced,
+			relayed: 2,
+		},
+		{
+			name:    "a snapshot without an update time, updated when it was published",
+			push:    marketDataPush(channelBook, "ETH_USD", `[{"asks":[["2401.00","1.5","2"]],"bids":[["2398.00","2.5","3"]],"t":1792893041000,"u":390670048300001}]`),
+			loaded:  untimed,
+			relayed: 2,
+		},
+		{
+			name:    "several snapshots in one push, the last kept",
+			push:    marketDataPush(channelBook, "ETH_USD", `[{"asks":[["2402.00","1","1"]],"bids":[["2397.00","1","1"]],"t":1792893042000,"tt":1792893041990,"u":390670048300002},{"asks":[["2403.00","2","2"]],"bids":[["2396.00","2","2"]],"t":1792893043000,"tt":1792893042990,"u":390670048300003}]`),
+			loaded:  last,
+			relayed: 4,
+		},
+		{name: "a snapshot of an instrument not enabled", push: marketDataPush(channelBook, "1INCH_USD", `[{"asks":[["0.09","10","1"]],"bids":[["0.08","10","1"]],"t":1792909196186,"u":1}]`)},
+		{name: "a snapshot of an instrument no asset trades", push: marketDataPush(channelBook, "NOPE_USD", `[]`), err: currency.ErrPairNotFound},
+		{name: "a snapshot that cannot be decoded", push: marketDataPush(channelBook, "ETH_USD", `{}`), err: errMalformedWebsocketMessage},
+		{name: "a snapshot without a time", push: marketDataPush(channelBook, "ETH_USD", `[{"asks":[["2404.00","1","1"]],"bids":[["2395.00","1","1"]],"u":390670048300004}]`), err: orderbook.ErrLastUpdatedNotSet},
+		{name: "a snapshot of a level without a price", push: marketDataPush(channelBook, "ETH_USD", `[{"asks":[["2404.00","1","1"]],"bids":[["0","1","1"]],"t":1792893044000,"u":390670048300004}]`), err: orderbook.ErrPriceZero},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.ErrorIs(t, ex.wsHandleBook(t.Context(), tc.push), tc.err, "wsHandleBook must return the expected error")
+			if tc.loaded != nil {
+				state = tc.loaded
+			}
+			for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+				book, err := ex.Websocket.Orderbook.GetOrderbook(spotETHUSD, a)
+				require.NoErrorf(t, err, "GetOrderbook must not error for %s", a)
+				assert.NotZerof(t, book.InsertedAt, "the %s book should record when it was loaded", a)
+				book.InsertedAt = time.Time{}
+				exp := &orderbook.Book{
+					Bids:              state.bids,
+					Asks:              state.asks,
+					Exchange:          ex.Name,
+					Pair:              spotETHUSD,
+					Asset:             a,
+					LastUpdated:       time.UnixMilli(state.updated),
+					LastPushed:        time.UnixMilli(state.published),
+					LastUpdateID:      state.updateID,
+					ValidateOrderbook: true,
+				}
+				assert.Equalf(t, exp, book, "the %s book should hold the last snapshot loaded", a)
+			}
+			relayed := relayedData(ex)
+			assert.Len(t, relayed, tc.relayed, "wsHandleBook should relay each book it loads")
+			for _, data := range relayed {
+				assert.IsType(t, &orderbook.Depth{}, data, "wsHandleBook should relay the books it loads")
+			}
+		})
+	}
+	_, err := ex.Websocket.Orderbook.GetOrderbook(oneInchUSD, asset.Spot)
+	assert.ErrorIs(t, err, orderbook.ErrDepthNotFound, "wsHandleBook should load no book of an instrument not enabled")
+
+	t.Run("snapshots that cannot be relayed", func(t *testing.T) {
+		full := fillDataHandler(t, ex)
+		err := ex.wsHandleBook(t.Context(), marketDataPush(channelBook, "ETH_USD", `[{"asks":[["2405.00","1","1"]],"bids":[["2394.00","1","1"]],"t":1792893045000,"u":390670048300005}]`))
+		assert.ErrorIs(t, err, full, "wsHandleBook should report the books it cannot relay")
+		requireBooksAt(t, ex, spotETHUSD, 390670048300005)
+	})
+}
+
+func TestWebsocketHandleBookUpdate(t *testing.T) {
+	t.Parallel()
+	recordedDelta := func(t *testing.T, frame int) string {
+		t.Helper()
+		data, _, _, err := jsonparser.Get(marketDataFrame(t, recordedBookChannel, frame), "result", "data", "[0]")
+		require.NoErrorf(t, err, "recorded frame %d must hold a delta", frame)
+		return string(data)
+	}
+	deltas := func(instrument string, data ...string) *websocketChannelPush {
+		return marketDataPush(channelBookUpdate, instrument, "["+strings.Join(data, ",")+"]")
+	}
+	// withRecordedSnapshot returns an exchange whose spot and margin BTC_USD books hold the snapshot the recorded deltas
+	// follow
+	withRecordedSnapshot := func(t *testing.T) *Exchange {
+		t.Helper()
+		ex := newTestExchange(t)
+		require.NoError(t, ex.wsHandleBook(t.Context(), channelPush(t, marketDataFrame(t, recordedBookChannel, 1))), "wsHandleBook must load the recorded snapshot")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
+		relayedData(ex)
+		return ex
+	}
+	// loadBook loads an asset's BTC_USD book at an update
+	loadBook := func(t *testing.T, ex *Exchange, a asset.Item, updateID int64) {
+		t.Helper()
+		book := &orderbook.Book{Exchange: ex.Name, Pair: spotBTCUSD, Asset: a, Bids: orderbook.Levels{{Price: 80775.53, Amount: 1}}, Asks: orderbook.Levels{{Price: 80775.54, Amount: 1}}, LastUpdated: time.Now(), LastUpdateID: updateID}
+		require.NoErrorf(t, ex.Websocket.Orderbook.LoadSnapshot(t.Context(), book), "LoadSnapshot must load the %s book", a)
+	}
+	// booksInvalid checks an exchange's BTC_USD books of the assets given have been invalidated
+	booksInvalid := func(t *testing.T, ex *Exchange, assets ...asset.Item) {
+		t.Helper()
+		for _, a := range assets {
+			_, err := ex.Websocket.Orderbook.LastUpdateID(spotBTCUSD, a)
+			assert.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "wsHandleBookUpdate should invalidate the %s book", a)
+		}
+	}
+	firstDelta, secondDelta, thirdDelta := recordedDelta(t, 2), recordedDelta(t, 3), recordedDelta(t, 4)
+	const firstDeltaUpdateID = 382097463890240
+	unchangedDelta := `{"update":{"asks":[],"bids":[]},"t":1792893127150,"tt":1792893127140,"u":382097463058305,"pu":382097463058304,"cs":0}`
+	noUpdateDelta := `{"t":1792893127150,"tt":1792893127140,"u":382097463058305,"pu":382097463058304,"cs":0}`
+	breakingDelta := `{"update":{"asks":[],"bids":[["0","1","1"]]},"t":1792893127150,"tt":1792893127140,"u":382097463058305,"pu":382097463058304,"cs":0}`
+
+	for _, tc := range []struct {
+		name   string
+		pushes []*websocketChannelPush
+	}{
+		{"deltas following the books' last update applied in turn", []*websocketChannelPush{deltas("BTC_USD", firstDelta), deltas("BTC_USD", secondDelta), deltas("BTC_USD", thirdDelta)}},
+		{"deltas in one push applied in turn", []*websocketChannelPush{deltas("BTC_USD", firstDelta, secondDelta, thirdDelta)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := withRecordedSnapshot(t)
+			conn := newScriptedConnection()
+			for i, push := range tc.pushes {
+				require.NoErrorf(t, ex.wsHandleBookUpdate(t.Context(), conn, push), "wsHandleBookUpdate must apply push %d", i)
+			}
+			for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+				book, err := ex.Websocket.Orderbook.GetOrderbook(spotBTCUSD, a)
+				require.NoErrorf(t, err, "GetOrderbook must not error for %s", a)
+				book.InsertedAt = time.Time{}
+				assert.Equalf(t, recordedDeltaBook(ex.Name, a), book, "wsHandleBookUpdate should apply each delta to the %s book", a)
+			}
+			assert.Len(t, relayedData(ex), 6, "wsHandleBookUpdate should relay each asset's book as each delta updates it")
+			assert.Zero(t, conn.recorded().lookups, "wsHandleBookUpdate should not resubscribe a book channel whose deltas follow on")
+		})
+	}
+
+	t.Run("a delta without levels moving the books on", func(t *testing.T) {
+		t.Parallel()
+		ex := withRecordedSnapshot(t)
+		conn := newScriptedConnection()
+		before, err := ex.Websocket.Orderbook.GetOrderbook(spotBTCUSD, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must not error")
+		require.NoError(t, ex.wsHandleBookUpdate(t.Context(), conn, deltas("BTC_USD", unchangedDelta)), "wsHandleBookUpdate must not error for a delta without levels")
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			book, err := ex.Websocket.Orderbook.GetOrderbook(spotBTCUSD, a)
+			require.NoErrorf(t, err, "GetOrderbook must not error for %s", a)
+			exp := *before
+			exp.Asset, exp.LastUpdated, exp.LastPushed, exp.LastUpdateID = a, time.UnixMilli(1792893127140), time.UnixMilli(1792893127150), 382097463058305
+			exp.InsertedAt, book.InsertedAt = time.Time{}, time.Time{}
+			assert.Equalf(t, &exp, book, "wsHandleBookUpdate should move the %s book on to the delta's update, leaving its levels", a)
+		}
+		assert.Zero(t, conn.recorded().lookups, "wsHandleBookUpdate should not resubscribe a book channel whose deltas follow on")
+	})
+
+	for _, tc := range []struct {
+		name string
+		push *websocketChannelPush
+		err  error
+	}{
+		{"a delta of an instrument not enabled, which is dropped", deltas("1INCH_USD", firstDelta), nil},
+		{"a delta of an instrument no asset trades", deltas("NOPE_USD", firstDelta), currency.ErrPairNotFound},
+		{"deltas that cannot be decoded", marketDataPush(channelBookUpdate, "BTC_USD", `{}`), errMalformedWebsocketMessage},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			conn := newScriptedConnection()
+			assert.ErrorIs(t, ex.wsHandleBookUpdate(t.Context(), conn, tc.push), tc.err, "wsHandleBookUpdate should return the expected error")
+			assert.Empty(t, relayedData(ex), "wsHandleBookUpdate should update no book")
+			assert.Zero(t, conn.recorded().lookups, "wsHandleBookUpdate should not resubscribe the book channel")
+		})
+	}
+
+	for _, tc := range []struct {
+		name   string
+		push   *websocketChannelPush
+		update int64
+	}{
+		{"a delta without its update", deltas("BTC_USD", noUpdateDelta), recordedBookSnapshotUpdateID},
+		{"a delta without its update after one applied", deltas("BTC_USD", firstDelta, noUpdateDelta), firstDeltaUpdateID},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := withRecordedSnapshot(t)
+			conn := newScriptedConnection()
+			assert.ErrorIs(t, ex.wsHandleBookUpdate(t.Context(), conn, tc.push), errBookDeltaHasNoUpdate, "wsHandleBookUpdate should refuse a delta without its update")
+			requireBooksAt(t, ex, spotBTCUSD, tc.update)
+			assert.Zero(t, conn.recorded().lookups, "wsHandleBookUpdate should not resubscribe the book channel")
+		})
+	}
+
+	t.Run("a delta while the books await a snapshot, asking for one again", func(t *testing.T) {
+		t.Parallel()
+		ex := withRecordedSnapshot(t)
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			require.NoErrorf(t, ex.Websocket.Orderbook.InvalidateOrderbook(spotBTCUSD, a), "InvalidateOrderbook must not error for %s", a)
+		}
+		conn := newScriptedConnection()
+		require.NoError(t, ex.wsHandleBookUpdate(t.Context(), conn, deltas("BTC_USD", firstDelta)), "wsHandleBookUpdate must drop a delta while the books await a snapshot")
+		booksInvalid(t, ex, asset.Spot, asset.Margin)
+		assert.Equal(t, 1, conn.recorded().lookups, "wsHandleBookUpdate should ask for a snapshot again")
+	})
+
+	t.Run("a delta before the books are loaded, asking for a snapshot", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		conn := newScriptedConnection()
+		require.NoError(t, ex.wsHandleBookUpdate(t.Context(), conn, deltas("BTC_USD", firstDelta)), "wsHandleBookUpdate must drop a delta before the books are loaded")
+		_, err := ex.Websocket.Orderbook.GetOrderbook(spotBTCUSD, asset.Spot)
+		assert.ErrorIs(t, err, orderbook.ErrDepthNotFound, "wsHandleBookUpdate should load no book")
+		assert.Equal(t, 1, conn.recorded().lookups, "wsHandleBookUpdate should ask for a snapshot")
+	})
+
+	for _, tc := range []struct {
+		name string
+		// books returns an exchange holding the books the delta finds, and invalidated are those it invalidates
+		books       func(*testing.T) *Exchange
+		push        *websocketChannelPush
+		invalidated []asset.Item
+		err         error
+	}{
+		{
+			name:        "a delta following an update the books did not take",
+			books:       withRecordedSnapshot,
+			push:        deltas("BTC_USD", secondDelta),
+			invalidated: []asset.Item{asset.Spot, asset.Margin},
+			err:         errBookOutOfSync,
+		},
+		{
+			name: "a book missing from an asset",
+			books: func(t *testing.T) *Exchange {
+				t.Helper()
+				ex := newTestExchange(t)
+				loadBook(t, ex, asset.Spot, recordedBookSnapshotUpdateID)
+				return ex
+			},
+			push:        deltas("BTC_USD", firstDelta),
+			invalidated: []asset.Item{asset.Spot},
+			err:         errBookOutOfSync,
+		},
+		{
+			name: "books at different updates",
+			books: func(t *testing.T) *Exchange {
+				t.Helper()
+				ex := newTestExchange(t)
+				loadBook(t, ex, asset.Spot, recordedBookSnapshotUpdateID)
+				loadBook(t, ex, asset.Margin, recordedBookSnapshotUpdateID+1)
+				return ex
+			},
+			push:        deltas("BTC_USD", firstDelta),
+			invalidated: []asset.Item{asset.Spot, asset.Margin},
+			err:         errBookOutOfSync,
+		},
+		{
+			name:        "a delta that breaks a book",
+			books:       withRecordedSnapshot,
+			push:        deltas("BTC_USD", breakingDelta),
+			invalidated: []asset.Item{asset.Spot, asset.Margin},
+			err:         orderbook.ErrOrderbookInvalid,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := tc.books(t)
+			conn := newScriptedConnection()
+			assert.ErrorIs(t, ex.wsHandleBookUpdate(t.Context(), conn, tc.push), tc.err, "wsHandleBookUpdate should report books it can no longer update")
+			booksInvalid(t, ex, tc.invalidated...)
+			assert.Equal(t, 1, conn.recorded().lookups, "wsHandleBookUpdate should resubscribe the book channel for a new snapshot")
+		})
+	}
+
+	t.Run("deltas that cannot be relayed reported, every book updated", func(t *testing.T) {
+		t.Parallel()
+		ex := withRecordedSnapshot(t)
+		conn := newScriptedConnection()
+		full := fillDataHandler(t, ex)
+		assert.ErrorIs(t, ex.wsHandleBookUpdate(t.Context(), conn, deltas("BTC_USD", firstDelta)), full, "wsHandleBookUpdate should report the books it cannot relay")
+		requireBooksAt(t, ex, spotBTCUSD, firstDeltaUpdateID)
+		assert.Zero(t, conn.recorded().lookups, "wsHandleBookUpdate should not resubscribe a book channel whose books it cannot relay")
+	})
+}
+
+func TestResynchroniseBooks(t *testing.T) {
+	t.Parallel()
+	t.Run("a new snapshot over a connection", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		inserted := requireBooksLoaded(t, ex)
+		// The mock holds back the unsubscription, and with it the new snapshot, until the books are checked
+		checked := make(chan struct{})
+		release := sync.OnceFunc(func() { close(checked) })
+		t.Cleanup(release)
+		venue.beforeAnswering(websocketMethodUnsubscribe, func() { <-checked })
+		assets, err := ex.enabledInstrumentAssets("BTC_USD")
+		require.NoError(t, err, "enabledInstrumentAssets must not error")
+
+		ex.resynchroniseBooks(t.Context(), conn, recordedBookChannel, assets)
+		if mockTests {
+			for _, a := range assets {
+				_, err := ex.Websocket.Orderbook.LastUpdateID(a.Pair, a.Asset)
+				assert.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "resynchroniseBooks should invalidate the %s book", a.Asset)
+			}
+		}
+		release()
+		requireBooksReloaded(t, ex, inserted)
+		if mockTests {
+			requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
+			assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "resynchroniseBooks should unsubscribe the book channel once")
+			assert.Len(t, venue.received(websocketMethodSubscribe), 2, "resynchroniseBooks should subscribe the book channel again once")
+		}
+	})
+
+	t.Run("the books named invalidated and a snapshot asked for", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		require.NoError(t, ex.wsHandleBook(t.Context(), channelPush(t, marketDataFrame(t, recordedBookChannel, 1))), "wsHandleBook must load the recorded snapshot")
+		conn := newScriptedConnection()
+		ex.resynchroniseBooks(t.Context(), conn, recordedBookChannel, []instrumentAsset{{Asset: asset.Spot, Pair: spotBTCUSD}})
+		_, err := ex.Websocket.Orderbook.LastUpdateID(spotBTCUSD, asset.Spot)
+		assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "resynchroniseBooks should invalidate the books named")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID, asset.Margin)
+		assert.Equal(t, scriptedRecord{lookups: 1}, conn.recorded(), "resynchroniseBooks should ask for a new snapshot once")
+	})
+
+	t.Run("books never loaded", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		conn := newScriptedConnection()
+		ex.resynchroniseBooks(t.Context(), conn, recordedBookChannel, []instrumentAsset{{Asset: asset.Spot, Pair: spotBTCUSD}, {Asset: asset.Margin, Pair: spotBTCUSD}})
+		_, err := ex.Websocket.Orderbook.LastUpdateID(spotBTCUSD, asset.Spot)
+		assert.ErrorIs(t, err, orderbook.ErrDepthNotFound, "resynchroniseBooks should load no book")
+		assert.Equal(t, scriptedRecord{lookups: 1}, conn.recorded(), "resynchroniseBooks should ask for a snapshot of books never loaded")
+	})
+}
+
+func TestResubscribeBook(t *testing.T) {
+	t.Parallel()
+	key := qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}}
+	t.Run("a subscribed book channel resubscribed for a new snapshot over a connection", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		inserted := requireBooksLoaded(t, ex)
+		s := conn.Subscriptions().Get(key)
+		require.NotNil(t, s, "the book channel must be stored against its connection")
+
+		ex.resubscribeBook(t.Context(), conn, recordedBookChannel)
+		requireBooksReloaded(t, ex, inserted)
+		assert.Eventually(t, func() bool { return s.State() == subscription.SubscribedState }, 10*time.Second, 10*time.Millisecond, "resubscribeBook should leave the book channel subscribed")
+		if mockTests {
+			requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
+			assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "resubscribeBook should unsubscribe the book channel once")
+			assert.Len(t, venue.received(websocketMethodSubscribe), 2, "resubscribeBook should subscribe the book channel again once")
+		}
+	})
+
+	t.Run("a book channel not stored against its connection left alone", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		conn := newScriptedConnection()
+		ex.resubscribeBook(t.Context(), conn, recordedBookChannel)
+		assert.Equal(t, scriptedRecord{lookups: 1}, conn.recorded(), "resubscribeBook should look the book channel up and send nothing")
+	})
+
+	for _, tc := range []struct {
+		name  string
+		state subscription.State
+	}{
+		{"inactive", subscription.InactiveState},
+		{"subscribing", subscription.SubscribingState},
+		{"resubscribing", subscription.ResubscribingState},
+		{"unsubscribing", subscription.UnsubscribingState},
+		{"unsubscribed", subscription.UnsubscribedState},
+	} {
+		t.Run("a book channel "+tc.name+" left alone", func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			conn := newScriptedConnection()
+			s := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotBTCUSD}, Levels: 10, QualifiedChannel: recordedBookChannel}
+			if tc.state != subscription.InactiveState {
+				require.NoError(t, s.SetState(tc.state), "SetState must not error")
+			}
+			require.NoError(t, conn.subscriptions.Add(s), "Add must not error")
+			ex.resubscribeBook(t.Context(), conn, recordedBookChannel)
+			assert.Never(t, func() bool { return s.State() != tc.state }, 100*time.Millisecond, 10*time.Millisecond, "resubscribeBook should leave a book channel it is not subscribed to as it is")
+			assert.Equal(t, scriptedRecord{lookups: 1}, conn.recorded(), "resubscribeBook should look the book channel up and send nothing")
+		})
+	}
+
+	t.Run("a book channel whose resubscription fails before unsubscribing left subscribed", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		conn := newScriptedConnection()
+		s := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotBTCUSD}, Levels: 10, QualifiedChannel: recordedBookChannel}
+		require.NoError(t, s.SetState(subscription.SubscribedState), "SetState must not error")
+		require.NoError(t, conn.subscriptions.Add(s), "Add must not error")
+		// The websocket's manager refuses to unsubscribe over a connection it does not manage
+		ex.resubscribeBook(t.Context(), conn, recordedBookChannel)
+		require.Eventually(t, func() bool { return conn.recorded().lookups == 2 }, 10*time.Second, 10*time.Millisecond, "the resubscription must look up the connection's subscriptions")
+		assert.Eventually(t, func() bool { return s.State() == subscription.SubscribedState }, 10*time.Second, 10*time.Millisecond, "resubscribeBook should leave the book channel subscribed")
+		assert.Empty(t, conn.recorded().requests, "resubscribeBook should send nothing over a connection it cannot unsubscribe from")
+	})
+
+	t.Run("a failed unsubscription leaving the book channel subscribed", func(t *testing.T) {
+		t.Parallel()
+		venue := mockMarketDataVenue(t)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
+		s := conn.Subscriptions().Get(key)
+		require.NotNil(t, s, "the book channel must be stored against its connection")
+		venue.fail(websocketMethodUnsubscribe, &APIError{Code: 50001, Message: "ERR_INTERNAL"})
+
+		ex.resubscribeBook(t.Context(), conn, recordedBookChannel)
+		require.Eventually(t, func() bool { return len(venue.received(websocketMethodUnsubscribe)) == 1 }, 10*time.Second, 10*time.Millisecond, "the book channel must be unsubscribed")
+		assert.Eventually(t, func() bool { return s.State() == subscription.SubscribedState }, 10*time.Second, 10*time.Millisecond, "resubscribeBook should leave a book channel it failed to unsubscribe subscribed")
+		assert.Never(t, func() bool { return len(venue.received(websocketMethodSubscribe)) > 1 }, 200*time.Millisecond, 10*time.Millisecond, "resubscribeBook should not subscribe a book channel it failed to unsubscribe")
+	})
+
+	t.Run("a refused subscription retried", func(t *testing.T) {
+		t.Parallel()
+		venue := mockMarketDataVenue(t)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription(), func(ex *Exchange) {
+			ex.bookResubscribeDelay = 10 * time.Millisecond
+		})
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
+		// The mock clears the refusal as it answers the resubscription, so that the retry is accepted whatever the timing
+		venue.rejectSubscriptions(recordedBookChannel, &APIError{Code: 42901, Message: "TOO_MANY_REQUESTS"})
+		venue.beforeAnswering(websocketMethodSubscribe, func() { venue.rejectSubscriptions(recordedBookChannel, nil) })
+
+		ex.resubscribeBook(t.Context(), conn, recordedBookChannel)
+		require.Eventually(t, func() bool {
+			s := conn.Subscriptions().Get(key)
+			return s != nil && s.State() == subscription.SubscribedState && len(venue.received(websocketMethodSubscribe)) == 3
+		}, 10*time.Second, 10*time.Millisecond, "the refused book channel must be subscribed again by a retry")
+		requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
+		assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "resubscribeBook should unsubscribe the book channel once")
+	})
+
+	// A flush removing the book channel can unsubscribe it while its resubscription waits for its unsubscription's
+	// answer, and the resubscription then finds the channel unsubscribed already
+	t.Run("a book channel unsubscribed while it resubscribes left unsubscribed", func(t *testing.T) {
+		t.Parallel()
+		venue := mockMarketDataVenue(t)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription(), func(ex *Exchange) {
+			ex.bookResubscribeDelay = 10 * time.Millisecond
+		})
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
+		s := conn.Subscriptions().Get(key)
+		require.NotNil(t, s, "the book channel must be stored against its connection")
+		venue.beforeAnswering(websocketMethodUnsubscribe, func() { _ = s.SetState(subscription.UnsubscribedState) })
+
+		ex.resubscribeBook(t.Context(), conn, recordedBookChannel)
+		require.Eventually(t, func() bool { return len(venue.received(websocketMethodUnsubscribe)) == 1 }, 10*time.Second, 10*time.Millisecond, "the book channel must be unsubscribed")
+		assert.Never(t, func() bool { return len(venue.received(websocketMethodSubscribe)) > 1 }, 300*time.Millisecond, 10*time.Millisecond, "resubscribeBook should not subscribe a book channel unsubscribed while it resubscribed")
+		assert.Equal(t, subscription.UnsubscribedState, s.State(), "resubscribeBook should leave the book channel unsubscribed")
+		assert.Nil(t, ex.Websocket.GetSubscription(key), "resubscribeBook should leave the book channel removed")
+	})
+
+	t.Run("a resubscription started twice sent once", func(t *testing.T) {
+		t.Parallel()
+		venue := mockMarketDataVenue(t)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
+		// The mock holds back the unsubscription until both resubscriptions have started
+		started := make(chan struct{})
+		release := sync.OnceFunc(func() { close(started) })
+		t.Cleanup(release)
+		venue.beforeAnswering(websocketMethodUnsubscribe, func() { <-started })
+
+		ex.resubscribeBook(t.Context(), conn, recordedBookChannel)
+		ex.resubscribeBook(t.Context(), conn, recordedBookChannel)
+		release()
+		requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
+		assert.Never(t, func() bool { return len(venue.received(websocketMethodUnsubscribe)) > 1 }, 200*time.Millisecond, 10*time.Millisecond, "resubscribeBook should resubscribe a book channel once while it resubscribes")
+		assert.Len(t, venue.received(websocketMethodSubscribe), 2, "resubscribeBook should subscribe the book channel again once")
+	})
+}
+
+func TestIsConfiguredMarketDataChannel(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		subs    subscription.List
+		channel string
+		exp     bool
+	}{
+		{"a channel the configuration names", recordedBookChannelSubscription(), recordedBookChannel, true},
+		{"a channel the configuration does not name", recordedBookChannelSubscription(), "book.ETH_USD.10", false},
+		{"a channel of margin's, named as spot's", subscription.List{{Enabled: true, Asset: asset.Margin, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD}}}, "ticker.BTC_USD", true},
+		{"a user channel, which no market data connection carries", subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true}}, "user.order", false},
+		{"a channel of a configuration that cannot be told", append(recordedBookChannelSubscription(), &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: "nope"}), recordedBookChannel, false},
+		{"no configuration", nil, recordedBookChannel, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			ex.Features.Subscriptions = tc.subs
+			assert.Equal(t, tc.exp, ex.isConfiguredMarketDataChannel(tc.channel), "isConfiguredMarketDataChannel should report whether the configured market data subscriptions name the channel")
+		})
+	}
+}
+
+func TestWebsocketHandleTicker(t *testing.T) { //nolint:tparallel // the cases share one exchange, whose tickers they store, and its data handler in order
+	t.Parallel()
+	ex := newTestExchange(t)
+	btcUSD := func(a asset.Item) ticker.Price {
+		return ticker.Price{Last: 80787.84, High: 81007.04, Low: 79128.21, Bid: 80787.84, BidSize: 0.05028, Ask: 80787.85, AskSize: 0.5319, BaseVolume: 2215.1469, QuoteVolume: 177736579.59, PercentChange24Hour: -0.02, Pair: spotBTCUSD, ExchangeName: ex.Name, AssetType: a, LastUpdated: time.UnixMilli(1792892978711)}
+	}
+	laterBTCUSD := func(a asset.Item) ticker.Price {
+		return ticker.Price{Last: 80787.84, High: 81007.04, Low: 79128.21, Bid: 80787.84, BidSize: 0.0503, Ask: 80787.85, AskSize: 0.54183, BaseVolume: 2215.1469, QuoteVolume: 177736579.59, PercentChange24Hour: -0.02, Pair: spotBTCUSD, ExchangeName: ex.Name, AssetType: a, LastUpdated: time.UnixMilli(1792892978822)}
+	}
+	firstSpotBTCUSD := btcUSD(asset.Spot)
+	later := `{"h":"81007.04","l":"79128.21","a":"80787.84","c":"-0.0002","b":"80787.84","bs":"0.05030","k":"80787.85","ks":"0.54183","i":"BTC_USD","v":"2215.1469","vv":"177736579.59","oi":"0","t":1792892978822}`
+	crossed := `{"h":"81007.04","l":"79128.21","a":"80787.84","c":"-0.0002","b":"80787.85","bs":"0.05030","k":"80787.85","ks":"0.54183","i":"BTC_USD","v":"2215.1469","vv":"177736579.59","oi":"0","t":1792892978923}`
+	// The cases share ex, whose tickers they store, and drain its data handler in order
+	for _, tc := range []struct {
+		name    string
+		push    *websocketChannelPush
+		relayed []ticker.Price
+		// kept is a ticker stored before that the case leaves stored
+		kept *ticker.Price
+		err  error
+	}{
+		{name: "a spot instrument's ticker stored and relayed for spot and margin", push: channelPush(t, marketDataFrame(t, "ticker.BTC_USD", 0)), relayed: []ticker.Price{btcUSD(asset.Spot), btcUSD(asset.Margin)}},
+		{
+			name: "a ticker quoted in a currency other than its volume value's", push: channelPush(t, marketDataFrame(t, "ticker.BTC_USDT", 0)),
+			relayed: []ticker.Price{{Last: 80956.49, High: 81099.29, Low: 79232.39, Bid: 80951.66, BidSize: 0.01872, Ask: 80951.67, AskSize: 0.20126, BaseVolume: 1071.3429, Pair: spotBTCUSDT, ExchangeName: ex.Name, AssetType: asset.Spot, LastUpdated: time.UnixMilli(1792894311364)}},
+		},
+		{
+			name: "a perpetual swap's ticker", push: channelPush(t, marketDataFrame(t, "ticker.BTCUSD-PERP", 0)),
+			relayed: []ticker.Price{{Last: 80750.3, High: 81004.7, Low: 79117.7, Bid: 80750.3, BidSize: 0.0087, Ask: 80750.4, AskSize: 0.0331, BaseVolume: 2512.7932, QuoteVolume: 201559679.09, PercentChange24Hour: -0.13, OpenInterest: 6179.573, Pair: perpBTCUSD, ExchangeName: ex.Name, AssetType: asset.PerpetualSwap, LastUpdated: time.UnixMilli(1792893199728)}},
+		},
+		{name: "a ticker of an instrument not enabled", push: channelPush(t, marketDataFrame(t, "ticker.1INCH_USD", 0))},
+		{name: "a ticker of an instrument no asset trades", push: marketDataPush(channelTicker, "NOPE_USD", `[]`), err: currency.ErrPairNotFound},
+		{name: "tickers that cannot be decoded", push: marketDataPush(channelTicker, "BTC_USD", `{}`), err: errMalformedWebsocketMessage},
+		{name: "no tickers", push: marketDataPush(channelTicker, "BTC_USD", `[]`)},
+		{name: "a ticker that cannot be stored, which is not relayed", push: marketDataPush(channelTicker, "BTC_USD", `[`+crossed+`]`), kept: &firstSpotBTCUSD, err: ticker.ErrBidEqualsAsk},
+		{name: "the tickers of a batch stored relayed, the others reported", push: marketDataPush(channelTicker, "BTC_USD", `[`+later+`,`+crossed+`]`), relayed: []ticker.Price{laterBTCUSD(asset.Spot), laterBTCUSD(asset.Margin)}, err: ticker.ErrBidEqualsAsk},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.ErrorIs(t, ex.wsHandleTicker(t.Context(), tc.push), tc.err, "wsHandleTicker must return the expected error")
+			var exp []any
+			if len(tc.relayed) != 0 {
+				exp = []any{tc.relayed}
+			}
+			assert.Equal(t, exp, relayedData(ex), "wsHandleTicker should relay the tickers it stores, for each asset their instrument trades as")
+			for i := range tc.relayed {
+				stored, err := ticker.GetTicker(ex.Name, tc.relayed[i].Pair, tc.relayed[i].AssetType)
+				require.NoErrorf(t, err, "GetTicker must not error for the %s ticker relayed", tc.relayed[i].AssetType)
+				assert.Equalf(t, &tc.relayed[i], stored, "wsHandleTicker should store the %s ticker it relays", tc.relayed[i].AssetType)
+			}
+			if tc.kept != nil {
+				stored, err := ticker.GetTicker(ex.Name, tc.kept.Pair, tc.kept.AssetType)
+				require.NoError(t, err, "GetTicker must not error for the ticker stored before")
+				assert.Equal(t, tc.kept, stored, "wsHandleTicker should keep the ticker stored before one it cannot store")
+			}
+		})
+	}
+	_, err := ticker.GetTicker(ex.Name, oneInchUSD, asset.Spot)
+	assert.Error(t, err, "wsHandleTicker should store no ticker of an instrument not enabled")
+
+	t.Run("tickers that cannot be relayed", func(t *testing.T) {
+		full := fillDataHandler(t, ex)
+		assert.ErrorIs(t, ex.wsHandleTicker(t.Context(), channelPush(t, marketDataFrame(t, "ticker.BTC_USD", 0))), full, "wsHandleTicker should report the tickers it cannot relay")
+		stored, err := ticker.GetTicker(ex.Name, spotBTCUSD, asset.Spot)
+		require.NoError(t, err, "GetTicker must not error")
+		assert.Equal(t, &firstSpotBTCUSD, stored, "wsHandleTicker should store the tickers it cannot relay")
+	})
+}
+
+func TestWebsocketHandleTrades(t *testing.T) { //nolint:tparallel // the cases share one exchange, its trade feed and its data handler in order
+	t.Parallel()
+	ex := newTestExchange(t)
+	frame := marketDataFrame(t, "trade.BTC_USD", 0)
+	recordedTrades := make([]trade.Data, 0, 6)
+	for _, recorded := range []struct {
+		id     string
+		amount float64
+	}{{"1792893186501857915", 0.04871}, {"1792893186501857914", 0.13482}, {"1792893186501857913", 0.03096}} {
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			recordedTrades = append(recordedTrades, trade.Data{TID: recorded.id, Exchange: ex.Name, CurrencyPair: spotBTCUSD, AssetType: a, Side: order.Sell, Price: 80750.57, Amount: recorded.amount, Timestamp: time.UnixMilli(1792893186501)})
+		}
+	}
+	unreadSide := bytes.Replace(frame, []byte(`"s":"SELL"`), []byte(`"s":"NOPE"`), 1)
+	// The cases share ex, setting its trade feed and trade saving in turn, and drain its data handler in order
+	for _, tc := range []struct {
+		name            string
+		tradeFeed, save bool
+		push            *websocketChannelPush
+		relayed         []any
+		err             error
+	}{
+		{name: "trades neither relayed nor saved, which are not decoded", push: marketDataPush(channelTrade, "BTC_USD", `{}`)},
+		{name: "trades saved without a trade feed", save: true, push: channelPush(t, frame)},
+		{name: "trades relayed through the trade feed for each asset their instrument trades as", tradeFeed: true, push: channelPush(t, frame), relayed: []any{recordedTrades}},
+		{name: "trades relayed and saved", tradeFeed: true, save: true, push: channelPush(t, frame), relayed: []any{recordedTrades}},
+		{name: "a trade whose side cannot be read reported, the others relayed", tradeFeed: true, push: channelPush(t, unreadSide), relayed: []any{recordedTrades[2:]}, err: order.ErrSideIsInvalid},
+		{name: "trades of an instrument not enabled", tradeFeed: true, push: marketDataPush(channelTrade, "1INCH_USD", `[{"d":"1","t":1792909196186,"p":"0.08901","q":"10","s":"BUY","i":"1INCH_USD","m":"1"}]`)},
+		{name: "trades of an instrument no asset trades", tradeFeed: true, push: marketDataPush(channelTrade, "NOPE_USD", `[]`), err: currency.ErrPairNotFound},
+		{name: "trades that cannot be decoded", tradeFeed: true, push: marketDataPush(channelTrade, "BTC_USD", `{}`), err: errMalformedWebsocketMessage},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setTradeFeed(ex, tc.tradeFeed)
+			ex.SetSaveTradeDataStatus(tc.save)
+			require.ErrorIs(t, ex.wsHandleTrades(tc.push), tc.err, "wsHandleTrades must return the expected error")
+			relayed := relayedData(ex)
+			if tc.save {
+				// Saving trades gives them IDs, which it writes into the trades the trade feed has relayed already
+				for _, data := range relayed {
+					if trades, ok := data.([]trade.Data); ok {
+						for i := range trades {
+							trades[i].ID = uuid.UUID{}
+						}
+					}
+				}
+			}
+			assert.Equal(t, tc.relayed, relayed, "wsHandleTrades should relay the trades it can read through the trade feed")
+		})
+	}
+
+	t.Run("trades that cannot be relayed", func(t *testing.T) {
+		setTradeFeed(ex, true)
+		ex.SetSaveTradeDataStatus(false)
+		full := fillDataHandler(t, ex)
+		assert.ErrorIs(t, ex.wsHandleTrades(channelPush(t, frame)), full, "wsHandleTrades should report the trades it cannot relay")
+	})
+}
+
+func TestWebsocketHandleCandles(t *testing.T) { //nolint:tparallel // the cases share one exchange and its data handler in order
+	t.Parallel()
+	ex := newTestExchange(t)
+	candles := []kline.Candle{
+		{Time: time.UnixMilli(1792893060000), Open: 80776.63, High: 80786.75, Low: 80776.63, Close: 80782.7, Volume: 0.51772},
+		{Time: time.UnixMilli(1792893120000), Open: 80775.53, High: 80775.53, Low: 80755.6, Close: 80755.6, Volume: 0.30336},
+		{Time: time.UnixMilli(1792893180000), Open: 80750.57, High: 80750.57, Low: 80750.57, Close: 80750.57, Volume: 0.24306},
+	}
+	candlesPush := func(instrument, timeframe, data string) *websocketChannelPush {
+		push := marketDataPush(channelCandlestick, instrument, data)
+		push.Interval = timeframe
+		return push
+	}
+	hourCandle := `[{"o":"80750.5","h":"80800.0","l":"80700.0","c":"80790.0","v":"12.5","t":1792890000000,"ut":1792893599000}]`
+	// The cases share ex and drain its data handler in order
+	for _, tc := range []struct {
+		name    string
+		push    *websocketChannelPush
+		relayed []any
+		err     error
+	}{
+		{
+			name: "candles relayed for each asset their instrument trades as", push: channelPush(t, marketDataFrame(t, "candlestick.1m.BTC_USD", 0)),
+			relayed: []any{
+				kline.Item{Exchange: ex.Name, Pair: spotBTCUSD, Asset: asset.Spot, Interval: kline.OneMin, Candles: candles},
+				kline.Item{Exchange: ex.Name, Pair: spotBTCUSD, Asset: asset.Margin, Interval: kline.OneMin, Candles: candles},
+			},
+		},
+		{
+			name: "a perpetual swap's candles", push: candlesPush("BTCUSD-PERP", "1h", hourCandle),
+			relayed: []any{kline.Item{Exchange: ex.Name, Pair: perpBTCUSD, Asset: asset.PerpetualSwap, Interval: kline.OneHour, Candles: []kline.Candle{{Time: time.UnixMilli(1792890000000), Open: 80750.5, High: 80800, Low: 80700, Close: 80790, Volume: 12.5}}}},
+		},
+		{name: "candles of a timeframe Crypto.com does not name, refused before they are decoded", push: candlesPush("BTC_USD", "3m", `{}`), err: kline.ErrUnsupportedInterval},
+		{name: "candles that cannot be decoded", push: candlesPush("BTC_USD", "1m", `{}`), err: errMalformedWebsocketMessage},
+		{name: "no candles", push: candlesPush("BTC_USD", "1m", `[]`)},
+		{name: "no candles of an instrument no asset trades", push: candlesPush("NOPE_USD", "1m", `[]`), err: currency.ErrPairNotFound},
+		{name: "candles of an instrument not enabled", push: candlesPush("1INCH_USD", "1h", hourCandle)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.ErrorIs(t, ex.wsHandleCandles(t.Context(), tc.push), tc.err, "wsHandleCandles must return the expected error")
+			assert.Equal(t, tc.relayed, relayedData(ex), "wsHandleCandles should relay the candles for each asset their instrument trades as")
+		})
+	}
+
+	t.Run("each asset's candles its own", func(t *testing.T) {
+		require.NoError(t, ex.wsHandleCandles(t.Context(), channelPush(t, marketDataFrame(t, "candlestick.1m.BTC_USD", 0))), "wsHandleCandles must not error")
+		relayed := relayedData(ex)
+		require.Len(t, relayed, 2, "wsHandleCandles must relay the candles of spot and margin")
+		spotCandles, ok := relayed[0].(kline.Item)
+		require.True(t, ok, "the spot candles must be relayed as a kline item")
+		marginCandles, ok := relayed[1].(kline.Item)
+		require.True(t, ok, "the margin candles must be relayed as a kline item")
+		spotCandles.Candles[0].Open = 0
+		assert.Equal(t, candles, marginCandles.Candles, "wsHandleCandles should give each asset candles of its own, which changing another's leaves")
+	})
+
+	t.Run("candles that cannot be relayed", func(t *testing.T) {
+		full := fillDataHandler(t, ex)
+		assert.ErrorIs(t, ex.wsHandleCandles(t.Context(), channelPush(t, marketDataFrame(t, "candlestick.1m.BTC_USD", 0))), full, "wsHandleCandles should report the candles it cannot relay")
+	})
+}
+
+func TestWebsocketHandleIndexPrice(t *testing.T) { //nolint:tparallel // the cases share one exchange and its data handler in order
+	t.Parallel()
+	ex := newTestExchange(t)
+	// The cases share ex and drain its data handler in order
+	for _, tc := range []struct {
+		name    string
+		push    *websocketChannelPush
+		relayed []any
+		err     error
+	}{
+		{
+			name: "an index's price relayed with the index's name", push: channelPush(t, marketDataFrame(t, "index.BTCUSD-INDEX", 0)),
+			relayed: []any{&WebsocketIndexPrice{IndexName: "BTCUSD-INDEX", IndexPrice: 80784.28, Time: types.Time(time.UnixMilli(1792892978000))}},
+		},
+		{
+			name: "an index's prices relayed in turn", push: marketDataPush(IndexPriceChannel, "ETHUSD-INDEX", `[{"v":"2359.1","t":1792892978000},{"v":"2359.2","t":1792892979000}]`),
+			relayed: []any{
+				&WebsocketIndexPrice{IndexName: "ETHUSD-INDEX", IndexPrice: 2359.1, Time: types.Time(time.UnixMilli(1792892978000))},
+				&WebsocketIndexPrice{IndexName: "ETHUSD-INDEX", IndexPrice: 2359.2, Time: types.Time(time.UnixMilli(1792892979000))},
+			},
+		},
+		{name: "no prices", push: marketDataPush(IndexPriceChannel, "BTCUSD-INDEX", `[]`)},
+		{name: "prices that cannot be decoded", push: marketDataPush(IndexPriceChannel, "BTCUSD-INDEX", `{}`), err: errMalformedWebsocketMessage},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.ErrorIs(t, ex.wsHandleIndexPrice(t.Context(), tc.push), tc.err, "wsHandleIndexPrice must return the expected error")
+			assert.Equal(t, tc.relayed, relayedData(ex), "wsHandleIndexPrice should relay each of the index's prices with its name")
+		})
+	}
+
+	t.Run("prices that cannot be relayed", func(t *testing.T) {
+		full := fillDataHandler(t, ex)
+		assert.ErrorIs(t, ex.wsHandleIndexPrice(t.Context(), channelPush(t, marketDataFrame(t, "index.BTCUSD-INDEX", 0))), full, "wsHandleIndexPrice should report the prices it cannot relay")
+	})
+}
+
+func TestRelayInstrumentValues(t *testing.T) { //nolint:tparallel // the cases share one exchange and its data handler in order
+	t.Parallel()
+	ex := newTestExchange(t)
+	markPrices := func(ctx context.Context, push *websocketChannelPush) error {
+		return relayInstrumentValues[WebsocketMarkPrice](ctx, ex, push)
+	}
+	settlementPrices := func(ctx context.Context, push *websocketChannelPush) error {
+		return relayInstrumentValues[WebsocketSettlementPrice](ctx, ex, push)
+	}
+	fundingRates := func(ctx context.Context, push *websocketChannelPush) error {
+		return relayInstrumentValues[WebsocketFundingRate](ctx, ex, push)
+	}
+	estimatedFundingRates := func(ctx context.Context, push *websocketChannelPush) error {
+		return relayInstrumentValues[WebsocketEstimatedFundingRate](ctx, ex, push)
+	}
+	markPrice := func(a asset.Item, price float64, at int64) *WebsocketMarkPrice {
+		return &WebsocketMarkPrice{Pair: spotBTCUSD, AssetType: a, MarkPrice: types.Number(price), Time: types.Time(time.UnixMilli(at))}
+	}
+	// The cases share ex and drain its data handler in order
+	for _, tc := range []struct {
+		name    string
+		relay   func(context.Context, *websocketChannelPush) error
+		push    *websocketChannelPush
+		relayed []any
+		err     error
+	}{
+		{
+			name: "a spot instrument's mark price, relayed for spot and margin", relay: markPrices, push: channelPush(t, marketDataFrame(t, "mark.BTC_USD", 0)),
+			relayed: []any{markPrice(asset.Spot, 80783.17, 1792893005000), markPrice(asset.Margin, 80783.17, 1792893005000)},
+		},
+		{
+			name: "a perpetual swap's mark price", relay: markPrices, push: channelPush(t, marketDataFrame(t, "mark.BTCUSD-PERP", 0)),
+			relayed: []any{&WebsocketMarkPrice{Pair: perpBTCUSD, AssetType: asset.PerpetualSwap, MarkPrice: 80784, Time: types.Time(time.UnixMilli(1792892978000))}},
+		},
+		{
+			name: "a future's settlement price", relay: settlementPrices, push: channelPush(t, marketDataFrame(t, "settlement.BTCUSD-261030", 1)),
+			relayed: []any{&WebsocketSettlementPrice{Pair: futureBTCUSD, AssetType: asset.Futures, SettlementPrice: 80860.9, Time: types.Time(time.UnixMilli(1793347200000))}},
+		},
+		{
+			name: "a perpetual swap's funding rate", relay: fundingRates, push: channelPush(t, marketDataFrame(t, "funding.BTCUSD-PERP", 0)),
+			relayed: []any{&WebsocketFundingRate{Pair: perpBTCUSD, AssetType: asset.PerpetualSwap, FundingRate: 0.000009839, Time: types.Time(time.UnixMilli(1792893185000))}},
+		},
+		{
+			name: "a perpetual swap's estimated funding rate", relay: estimatedFundingRates, push: channelPush(t, marketDataFrame(t, "estimatedfunding.BTCUSD-PERP", 0)),
+			relayed: []any{&WebsocketEstimatedFundingRate{Pair: perpBTCUSD, AssetType: asset.PerpetualSwap, EstimatedFundingRate: 0.000003673, Time: types.Time(time.UnixMilli(1792893179000))}},
+		},
+		{
+			name: "several values, each relayed for each asset in turn", relay: markPrices, push: marketDataPush(MarkPriceChannel, "BTC_USD", `[{"v":"80783.17","t":1792893005000},{"v":"80783.15","t":1792893006000}]`),
+			relayed: []any{markPrice(asset.Spot, 80783.17, 1792893005000), markPrice(asset.Margin, 80783.17, 1792893005000), markPrice(asset.Spot, 80783.15, 1792893006000), markPrice(asset.Margin, 80783.15, 1792893006000)},
+		},
+		{name: "values of an instrument not enabled", relay: markPrices, push: marketDataPush(MarkPriceChannel, "1INCH_USD", `[{"v":"0.08901","t":1792909196186}]`)},
+		{name: "values of an instrument no asset trades", relay: markPrices, push: marketDataPush(MarkPriceChannel, "NOPE_USD", `[]`), err: currency.ErrPairNotFound},
+		{name: "values that cannot be decoded", relay: markPrices, push: marketDataPush(MarkPriceChannel, "BTC_USD", `{}`), err: errMalformedWebsocketMessage},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.ErrorIs(t, tc.relay(t.Context(), tc.push), tc.err, "relayInstrumentValues must return the expected error")
+			assert.Equal(t, tc.relayed, relayedData(ex), "relayInstrumentValues should relay each value for each asset its instrument trades as")
+		})
+	}
+
+	t.Run("each asset's value its own", func(t *testing.T) {
+		require.NoError(t, markPrices(t.Context(), channelPush(t, marketDataFrame(t, "mark.BTC_USD", 0))), "relayInstrumentValues must not error")
+		relayed := relayedData(ex)
+		require.Len(t, relayed, 2, "relayInstrumentValues must relay the mark price of spot and margin")
+		spotPrice, ok := relayed[0].(*WebsocketMarkPrice)
+		require.True(t, ok, "the spot mark price must be relayed as a mark price")
+		spotPrice.MarkPrice = 0
+		assert.Equal(t, markPrice(asset.Margin, 80783.17, 1792893005000), relayed[1], "relayInstrumentValues should give each asset a value of its own, which changing another's leaves")
+	})
+
+	t.Run("values that cannot be relayed", func(t *testing.T) {
+		full := fillDataHandler(t, ex)
+		assert.ErrorIs(t, markPrices(t.Context(), channelPush(t, marketDataFrame(t, "mark.BTC_USD", 0))), full, "relayInstrumentValues should report the values it cannot relay")
+	})
+}
+
+func TestWebsocketMarkPriceSetInstrumentAsset(t *testing.T) {
+	t.Parallel()
+	price := &WebsocketMarkPrice{MarkPrice: 80783.17, Time: types.Time(time.UnixMilli(1792893005000))}
+	price.setInstrumentAsset(instrumentAsset{Asset: asset.Spot, Pair: spotBTCUSD})
+	assert.Equal(t, &WebsocketMarkPrice{Pair: spotBTCUSD, AssetType: asset.Spot, MarkPrice: 80783.17, Time: types.Time(time.UnixMilli(1792893005000))}, price, "setInstrumentAsset should set the pair and asset, leaving the price")
+	price.setInstrumentAsset(instrumentAsset{Asset: asset.PerpetualSwap, Pair: perpBTCUSD})
+	assert.Equal(t, &WebsocketMarkPrice{Pair: perpBTCUSD, AssetType: asset.PerpetualSwap, MarkPrice: 80783.17, Time: types.Time(time.UnixMilli(1792893005000))}, price, "setInstrumentAsset should replace the pair and asset set before")
+}
+
+func TestWebsocketSettlementPriceSetInstrumentAsset(t *testing.T) {
+	t.Parallel()
+	price := &WebsocketSettlementPrice{SettlementPrice: 80860.9, Time: types.Time(time.UnixMilli(1793347200000))}
+	price.setInstrumentAsset(instrumentAsset{Asset: asset.Futures, Pair: futureBTCUSD})
+	assert.Equal(t, &WebsocketSettlementPrice{Pair: futureBTCUSD, AssetType: asset.Futures, SettlementPrice: 80860.9, Time: types.Time(time.UnixMilli(1793347200000))}, price, "setInstrumentAsset should set the pair and asset, leaving the price")
+	price.setInstrumentAsset(instrumentAsset{Asset: asset.Spot, Pair: spotBTCUSD})
+	assert.Equal(t, &WebsocketSettlementPrice{Pair: spotBTCUSD, AssetType: asset.Spot, SettlementPrice: 80860.9, Time: types.Time(time.UnixMilli(1793347200000))}, price, "setInstrumentAsset should replace the pair and asset set before")
+}
+
+func TestWebsocketFundingRateSetInstrumentAsset(t *testing.T) {
+	t.Parallel()
+	rate := &WebsocketFundingRate{FundingRate: 0.000009839, Time: types.Time(time.UnixMilli(1792893185000))}
+	rate.setInstrumentAsset(instrumentAsset{Asset: asset.PerpetualSwap, Pair: perpBTCUSD})
+	assert.Equal(t, &WebsocketFundingRate{Pair: perpBTCUSD, AssetType: asset.PerpetualSwap, FundingRate: 0.000009839, Time: types.Time(time.UnixMilli(1792893185000))}, rate, "setInstrumentAsset should set the pair and asset, leaving the rate")
+	rate.setInstrumentAsset(instrumentAsset{Asset: asset.PerpetualSwap, Pair: perpETHUSD})
+	assert.Equal(t, &WebsocketFundingRate{Pair: perpETHUSD, AssetType: asset.PerpetualSwap, FundingRate: 0.000009839, Time: types.Time(time.UnixMilli(1792893185000))}, rate, "setInstrumentAsset should replace the pair set before")
+}
+
+func TestWebsocketEstimatedFundingRateSetInstrumentAsset(t *testing.T) {
+	t.Parallel()
+	rate := &WebsocketEstimatedFundingRate{EstimatedFundingRate: 0.000003673, Time: types.Time(time.UnixMilli(1792893179000))}
+	rate.setInstrumentAsset(instrumentAsset{Asset: asset.PerpetualSwap, Pair: perpBTCUSD})
+	assert.Equal(t, &WebsocketEstimatedFundingRate{Pair: perpBTCUSD, AssetType: asset.PerpetualSwap, EstimatedFundingRate: 0.000003673, Time: types.Time(time.UnixMilli(1792893179000))}, rate, "setInstrumentAsset should set the pair and asset, leaving the rate")
+	rate.setInstrumentAsset(instrumentAsset{Asset: asset.Futures, Pair: futureBTCUSD})
+	assert.Equal(t, &WebsocketEstimatedFundingRate{Pair: futureBTCUSD, AssetType: asset.Futures, EstimatedFundingRate: 0.000003673, Time: types.Time(time.UnixMilli(1792893179000))}, rate, "setInstrumentAsset should replace the pair and asset set before")
 }

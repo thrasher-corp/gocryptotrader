@@ -2,6 +2,7 @@ package cryptodotcom
 
 import (
 	"context"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -196,6 +197,84 @@ func cancelTradingOrderAfterTest(t *testing.T, orderID string) {
 		_, err := e.CancelExistingOrder(context.WithoutCancel(t.Context()), &CancelOrderRequest{OrderID: orderID})
 		assert.NoErrorf(t, err, "CancelExistingOrder should cancel order %s, which the test placed", orderID)
 	})
+}
+
+// cancelTradingOrderIfTestFails cancels an order a live test placed to cancel itself, should the test fail before it
+// does
+func cancelTradingOrderIfTestFails(t *testing.T, orderID string) {
+	t.Helper()
+	t.Cleanup(func() {
+		if !t.Failed() {
+			return
+		}
+		if _, err := e.CancelExistingOrder(context.WithoutCancel(t.Context()), &CancelOrderRequest{OrderID: orderID}); err != nil {
+			t.Logf("CancelExistingOrder could not cancel order %s, which the test placed: %v", orderID, err)
+		}
+	})
+}
+
+// assertListOutcomes checks a live list answer holds one outcome for each of its n orders, by index, and that each order
+// was placed or cancelled as the test asked
+func assertListOutcomes(t *testing.T, result []OrderListEntryResponse, n int, method, action string) {
+	t.Helper()
+	require.Lenf(t, result, n, "%s must report one outcome for each order", method)
+	indexes := make([]int64, n)
+	for i := range result {
+		indexes[i] = result[i].Index.Int64()
+		assert.Zerof(t, result[i].Code.Int64(), "%s should %s order %d: %s", method, action, indexes[i], result[i].Message)
+	}
+	want := make([]int64, n)
+	for i := range want {
+		want[i] = int64(i)
+	}
+	assert.ElementsMatchf(t, want, indexes, "%s should report each order's outcome once", method)
+}
+
+// The codes Crypto.com's docs give for refusing a request for what the account does not hold: an order or list ID it
+// does not know (NOT_FOUND, INVALID_ORDERID), a position (NO_POSITION, POSITION_NO_EXIST) and an isolation ID
+// (INVALID_ISOLATION_ID)
+var (
+	unknownOrderCodes       = []int64{40401, 212}
+	noPositionCodes         = []int64{201, 317}
+	unknownIsolationIDCodes = []int64{613}
+)
+
+// assertRefusedFor checks Crypto.com refused a request with one of codes, for what the request names, which the account
+// does not hold, rather than refusing the request itself, as it does for its credentials or a malformed request
+func assertRefusedFor(t *testing.T, err error, codes []int64, name string) {
+	t.Helper()
+	var apiErr *APIError
+	require.ErrorAsf(t, err, &apiErr, "%s must return Crypto.com's refusal", name)
+	assert.Containsf(t, codes, apiErr.Code, "%s should be refused for what it names, not for the request: %s", name, apiErr)
+}
+
+// closeTestPositionRequest returns a request closing part of the account's cross margin position on BTCUSD-PERP with a
+// LIMIT order priced away from the market, which rests until the test cancels it: a long position closes with a sell
+// above the market and a short one with a buy below it, at the prices the other live tests use. It returns nil when the
+// account holds no such position
+func closeTestPositionRequest(t *testing.T) *ClosePositionRequest {
+	t.Helper()
+	positions, err := e.GetPositions(t.Context(), &PositionsRequest{InstrumentName: "BTCUSD-PERP"})
+	require.NoError(t, err, "GetPositions must return the account's positions")
+	i := slices.IndexFunc(positions, func(p PositionResponse) bool {
+		return p.InstrumentName == "BTCUSD-PERP" && !isIsolated(p.IsolationID) && !p.Quantity.IsZero()
+	})
+	if i < 0 {
+		return nil
+	}
+	price := types.Number(120000)
+	if positions[i].Quantity.Float64() < 0 {
+		price = tradingTestOrder().Price
+	}
+	return &ClosePositionRequest{InstrumentName: "BTCUSD-PERP", OrderType: OrderTypeLimit, Price: price, Quantity: 0.0001}
+}
+
+// isolatedTestPosition returns one of the account's isolated positions, or nil when it holds none
+func isolatedTestPosition(t *testing.T) *IsolatedPositionBalance {
+	t.Helper()
+	balances, err := e.GetUserBalance(t.Context())
+	require.NoError(t, err, "GetUserBalance must return the account's isolated positions")
+	return findIsolatedPosition(balances, func(p *IsolatedPositionBalance) bool { return isIsolated(p.IsolationID) })
 }
 
 func TestCreateOrder(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
@@ -496,12 +575,24 @@ func TestClosePosition(t *testing.T) { //nolint:tparallel // the cases run in or
 
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
-		t.Skip("ClosePosition needs an open position, which the live tests do not open")
+		live := closeTestPositionRequest(t)
+		if live == nil {
+			// With no cross margin position to close, Crypto.com refusing the close for it shows it looked the position up
+			_, err = e.ClosePosition(t.Context(), req)
+			assertRefusedFor(t, err, noPositionCodes, "ClosePosition")
+			return
+		}
+		req = live
 	}
 	result, err := e.ClosePosition(t.Context(), req)
 	require.NoError(t, err, "ClosePosition must not error")
-	exp := &OrderIDResponse{OrderID: "6530219466236720404", ClientOrderID: "1684d6e4-2c55-64e1-52c3-3aa9febc3a23"}
-	assert.Equal(t, exp, result, "ClosePosition should decode every field")
+	if mockTests {
+		exp := &OrderIDResponse{OrderID: "6530219466236720404", ClientOrderID: "1684d6e4-2c55-64e1-52c3-3aa9febc3a23"}
+		assert.Equal(t, exp, result, "ClosePosition should decode every field")
+	} else {
+		require.NotEmpty(t, result.OrderID, "ClosePosition must return the closing order's ID")
+		cancelTradingOrderAfterTest(t, result.OrderID)
+	}
 }
 
 func TestGetOpenOrders(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
@@ -642,7 +733,11 @@ func TestGetOrderDetail(t *testing.T) { //nolint:tparallel // the cases run in o
 		orders, err := e.GetUserOrderHistory(t.Context(), &UserOrderHistoryRequest{Limit: 1})
 		require.NoError(t, err, "GetUserOrderHistory must not error")
 		if len(orders) == 0 {
-			t.Skip("GetOrderDetail needs an order, and the account has none in its recent history")
+			// With no order of the account's to look up, Crypto.com refusing the recorded order, which is not the
+			// account's, shows it looked the order up
+			_, err = e.GetOrderDetail(t.Context(), req)
+			assertRefusedFor(t, err, unknownOrderCodes, "GetOrderDetail")
+			return
 		}
 		req.OrderID = orders[0].OrderID
 	}
@@ -745,7 +840,7 @@ func TestCreateOrderList(t *testing.T) { //nolint:tparallel // the cases run in 
 				cancelTradingOrderAfterTest(t, result[i].OrderID)
 			}
 		}
-		assert.Equal(t, len(orders), len(result), "CreateOrderList should report each order's outcome")
+		assertListOutcomes(t, result, len(orders), "CreateOrderList", "place")
 	}
 }
 
@@ -799,10 +894,11 @@ func TestCancelOrderList(t *testing.T) { //nolint:tparallel // the cases run in 
 
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
-		orders = []CancelOrderListEntryRequest{
-			{InstrumentName: "BTCUSD-PERP", OrderID: placeTradingTestOrder(t)},
-			{InstrumentName: "BTCUSD-PERP", OrderID: placeTradingTestOrder(t)},
-		}
+		first := placeTradingTestOrder(t)
+		cancelTradingOrderIfTestFails(t, first)
+		second := placeTradingTestOrder(t)
+		cancelTradingOrderIfTestFails(t, second)
+		orders = []CancelOrderListEntryRequest{{InstrumentName: "BTCUSD-PERP", OrderID: first}, {InstrumentName: "BTCUSD-PERP", OrderID: second}}
 	}
 	result, err := e.CancelOrderList(t.Context(), orders)
 	require.NoError(t, err, "CancelOrderList must not error")
@@ -810,9 +906,7 @@ func TestCancelOrderList(t *testing.T) { //nolint:tparallel // the cases run in 
 		exp := []OrderListEntryResponse{{Index: 0, Code: 0}, {Index: 1, Code: 0}}
 		assert.Equal(t, exp, result, "CancelOrderList should decode every field")
 	} else {
-		for i := range result {
-			assert.Zerof(t, result[i].Code, "CancelOrderList should cancel order %v", result[i].Index)
-		}
+		assertListOutcomes(t, result, len(orders), "CancelOrderList", "cancel")
 	}
 }
 
@@ -848,7 +942,16 @@ func TestChangeAccountLeverage(t *testing.T) { //nolint:tparallel // the cases r
 
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
-		t.Skip("ChangeAccountLeverage needs the account's ID, which private/get-accounts gives")
+		accounts, err := e.GetAccounts(t.Context(), &AccountsRequest{})
+		require.NoError(t, err, "GetAccounts must return the account whose leverage the test sets")
+		settings, err := e.GetAccountSettings(t.Context())
+		require.NoError(t, err, "GetAccountSettings must not error")
+		require.NotEmpty(t, settings, "GetAccountSettings must return the account's settings")
+		leverage, err := strconv.ParseUint(settings[0].Leverage.String(), 10, 64)
+		require.NoError(t, err, "the account's leverage must be a whole number")
+		// Setting the leverage the account has leaves it as it was, which a change and its restore could not promise while
+		// TestChangeAccountSettings reads and sets the same leverage
+		req = &ChangeAccountLeverageRequest{AccountID: accounts.ThisAccount.UUID, Leverage: leverage}
 	}
 	require.NoError(t, e.ChangeAccountLeverage(t.Context(), req), "ChangeAccountLeverage must not error")
 }
@@ -972,9 +1075,22 @@ func TestCreateIsolatedMarginTransfer(t *testing.T) { //nolint:tparallel // the 
 
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
-		t.Skip("CreateIsolatedMarginTransfer needs an isolated position, which the live tests do not open")
+		position := isolatedTestPosition(t)
+		if position == nil {
+			// With no isolated position, Crypto.com refusing the recorded isolation ID, which is not the account's, shows it
+			// looked the position up
+			assertRefusedFor(t, e.CreateIsolatedMarginTransfer(t.Context(), req), unknownIsolationIDCodes, "CreateIsolatedMarginTransfer")
+			return
+		}
+		req = &CreateIsolatedMarginTransferRequest{IsolationID: position.IsolationID, Direction: IsolatedMarginTransferDirectionCredit, Amount: 1}
 	}
 	require.NoError(t, e.CreateIsolatedMarginTransfer(t.Context(), req), "CreateIsolatedMarginTransfer must not error")
+	if !mockTests {
+		debit := &CreateIsolatedMarginTransferRequest{IsolationID: req.IsolationID, Direction: IsolatedMarginTransferDirectionDebit, Amount: req.Amount}
+		t.Cleanup(func() {
+			assert.NoError(t, e.CreateIsolatedMarginTransfer(context.WithoutCancel(t.Context()), debit), "CreateIsolatedMarginTransfer should debit the margin the test credited")
+		})
+	}
 }
 
 func TestChangeIsolatedMarginLeverage(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
@@ -1014,7 +1130,15 @@ func TestChangeIsolatedMarginLeverage(t *testing.T) { //nolint:tparallel // the 
 
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
-		t.Skip("ChangeIsolatedMarginLeverage needs an isolated position, which the live tests do not open")
+		position := isolatedTestPosition(t)
+		if position == nil {
+			// With no isolated position, Crypto.com refusing the recorded isolation ID, which is not the account's, shows it
+			// looked the position up
+			assertRefusedFor(t, e.ChangeIsolatedMarginLeverage(t.Context(), req), unknownIsolationIDCodes, "ChangeIsolatedMarginLeverage")
+			return
+		}
+		// Setting the maximum leverage the position has leaves it as it was
+		req = &ChangeIsolatedMarginLeverageRequest{IsolationID: position.IsolationID, Leverage: position.Leverage}
 	}
 	require.NoError(t, e.ChangeIsolatedMarginLeverage(t.Context(), req), "ChangeIsolatedMarginLeverage must not error")
 }
@@ -1406,6 +1530,190 @@ func TestGetTransactions(t *testing.T) { //nolint:tparallel // the cases run in 
 	}
 }
 
+func TestNewCreateOrderParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		req  *CreateOrderRequest
+		err  error
+	}{
+		{"a nil request", nil, common.ErrNilPointer},
+		{"an order without an instrument", &CreateOrderRequest{Side: SideBuy, OrderType: OrderTypeMarket, Quantity: 0.0001}, errInstrumentNameRequired},
+		{"an order without a side", &CreateOrderRequest{InstrumentName: "BTC_USD", OrderType: OrderTypeMarket, Quantity: 0.0001}, errInvalidSide},
+		{"a lower-case order type", &CreateOrderRequest{InstrumentName: "BTC_USD", Side: SideBuy, OrderType: "market", Quantity: 0.0001}, errInvalidOrderType},
+		{"a limit order with a negative price", &CreateOrderRequest{InstrumentName: "BTC_USD", Side: SideBuy, OrderType: OrderTypeLimit, Price: -1, Quantity: 0.0001}, errInvalidPrice},
+		{"a market order with a negative price", &CreateOrderRequest{InstrumentName: "BTC_USD", Side: SideBuy, OrderType: OrderTypeMarket, Price: -1, Quantity: 0.0001}, errInvalidPrice},
+		{"a market buy spending neither a quantity nor a notional", &CreateOrderRequest{InstrumentName: "BTC_USD", Side: SideBuy, OrderType: OrderTypeMarket}, errInvalidQuantity},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newCreateOrderParams(tc.req)
+			assert.ErrorIsf(t, err, tc.err, "newCreateOrderParams should refuse %s", tc.name)
+			assert.Nilf(t, got, "newCreateOrderParams should return no params for %s", tc.name)
+		})
+	}
+	for _, tc := range createOrderRefusals {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := tradingTestOrder()
+			tc.modify(req)
+			got, err := newCreateOrderParams(req)
+			assert.ErrorIsf(t, err, tc.err, "newCreateOrderParams should refuse %s", tc.name)
+			assert.Nilf(t, got, "newCreateOrderParams should return no params for %s", tc.name)
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		req  *CreateOrderRequest
+		exp  *createOrderParams
+	}{
+		{
+			name: "every optional param, its fee currency upper-cased",
+			req: &CreateOrderRequest{
+				InstrumentName:                 "BTCUSD-PERP",
+				Side:                           SideBuy,
+				OrderType:                      OrderTypeLimit,
+				Price:                          50000.5,
+				Quantity:                       0.0001,
+				ClientOrderID:                  strings.Repeat("c", 36),
+				TimeInForce:                    TimeInForceGoodTillCancel,
+				ExecutionInstructions:          []string{ExecutionInstructionPostOnly, ExecutionInstructionReduceOnly, ExecutionInstructionIsolatedMargin, ExecutionInstructionMarginOrder},
+				SpotMargin:                     SpotMarginMargin,
+				FeeInstrumentName:              currency.NewCode("cro"),
+				SelfTradePreventionID:          32767,
+				SelfTradePreventionInstruction: SelfTradePreventionCancelBoth,
+				SelfTradePreventionScope:       SelfTradePreventionScopeSubAccount,
+				IsolatedMarginAmount:           50,
+				IsolationID:                    tradingTestIsolationID,
+				Leverage:                       10,
+			},
+			exp: &createOrderParams{
+				InstrumentName:                 "BTCUSD-PERP",
+				Side:                           SideBuy,
+				OrderType:                      OrderTypeLimit,
+				Price:                          50000.5,
+				Quantity:                       0.0001,
+				ClientOrderID:                  strings.Repeat("c", 36),
+				TimeInForce:                    TimeInForceGoodTillCancel,
+				ExecutionInstructions:          []string{ExecutionInstructionPostOnly, ExecutionInstructionReduceOnly, ExecutionInstructionIsolatedMargin, ExecutionInstructionMarginOrder},
+				SpotMargin:                     SpotMarginMargin,
+				FeeInstrumentName:              "CRO",
+				SelfTradePreventionID:          32767,
+				SelfTradePreventionInstruction: SelfTradePreventionCancelBoth,
+				SelfTradePreventionScope:       SelfTradePreventionScopeSubAccount,
+				IsolatedMarginAmount:           50,
+				IsolationID:                    tradingTestIsolationID,
+				Leverage:                       10,
+			},
+		},
+		{
+			name: "a market buy spending a notional",
+			req:  &CreateOrderRequest{InstrumentName: "BTC_USD", Side: SideBuy, OrderType: OrderTypeMarket, Notional: 100},
+			exp:  &createOrderParams{InstrumentName: "BTC_USD", Side: SideBuy, OrderType: OrderTypeMarket, Notional: 100},
+		},
+		{
+			name: "a market sell of a quantity on spot",
+			req:  &CreateOrderRequest{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeMarket, Quantity: 0.00001, SpotMargin: SpotMarginSpot},
+			exp:  &createOrderParams{InstrumentName: "BTC_USD", Side: SideSell, OrderType: OrderTypeMarket, Quantity: 0.00001, SpotMargin: SpotMarginSpot},
+		},
+		{
+			name: "a limit order of only the required params",
+			req:  &CreateOrderRequest{InstrumentName: "ONE_USDT", Side: SideBuy, OrderType: OrderTypeLimit, Price: 0.0000013, Quantity: 1000},
+			exp:  &createOrderParams{InstrumentName: "ONE_USDT", Side: SideBuy, OrderType: OrderTypeLimit, Price: 0.0000013, Quantity: 1000},
+		},
+		{
+			name: "a post-only order resting by default and resetting self-trade prevention",
+			req:  &CreateOrderRequest{InstrumentName: "BTCUSD-PERP", Side: SideBuy, OrderType: OrderTypeLimit, Price: 50000.5, Quantity: 0.0001, ExecutionInstructions: []string{ExecutionInstructionPostOnly}, SelfTradePreventionScope: SelfTradePreventionScopeReset},
+			exp:  &createOrderParams{InstrumentName: "BTCUSD-PERP", Side: SideBuy, OrderType: OrderTypeLimit, Price: 50000.5, Quantity: 0.0001, ExecutionInstructions: []string{ExecutionInstructionPostOnly}, SelfTradePreventionScope: SelfTradePreventionScopeReset},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newCreateOrderParams(tc.req)
+			require.NoErrorf(t, err, "newCreateOrderParams must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "newCreateOrderParams should return the params of %s", tc.name)
+		})
+	}
+}
+
+func TestValidateOrderInstructions(t *testing.T) {
+	t.Parallel()
+	// Each order holds the instructions validateOrderInstructions is given, as the order methods pass them
+	for _, tc := range []struct {
+		name  string
+		order *CreateOrderRequest
+		err   error
+	}{
+		{name: "no instructions", order: &CreateOrderRequest{}},
+		{
+			name: "every instruction",
+			order: &CreateOrderRequest{
+				ClientOrderID:                  strings.Repeat("c", 36),
+				TimeInForce:                    TimeInForceGoodTillCancel,
+				ExecutionInstructions:          []string{ExecutionInstructionPostOnly, ExecutionInstructionReduceOnly},
+				SelfTradePreventionScope:       SelfTradePreventionScopeSubAccount,
+				SelfTradePreventionInstruction: SelfTradePreventionCancelMaker,
+				SelfTradePreventionID:          32767,
+			},
+		},
+		{name: "an order immediate or cancel", order: &CreateOrderRequest{TimeInForce: TimeInForceImmediateOrCancel}},
+		{name: "an order fill or kill", order: &CreateOrderRequest{TimeInForce: TimeInForceFillOrKill}},
+		{name: "a client order ID of 37 characters", order: &CreateOrderRequest{ClientOrderID: strings.Repeat("c", 37)}, err: errClientOrderIDTooLong},
+		{name: "an abbreviated time in force", order: &CreateOrderRequest{TimeInForce: "GTC"}, err: errInvalidTimeInForce},
+		{name: "a lower-case time in force", order: &CreateOrderRequest{TimeInForce: "good_till_cancel"}, err: errInvalidTimeInForce},
+		{name: "an unknown execution instruction", order: &CreateOrderRequest{ExecutionInstructions: []string{"HIDDEN"}}, err: errInvalidExecutionInstruction},
+		{
+			name:  "a post-only order fill or kill",
+			order: &CreateOrderRequest{TimeInForce: TimeInForceFillOrKill, ExecutionInstructions: []string{ExecutionInstructionPostOnly}},
+			err:   errInvalidTimeInForce,
+		},
+		{
+			name:  "an unknown self-trade prevention scope",
+			order: &CreateOrderRequest{SelfTradePreventionScope: "X", SelfTradePreventionInstruction: SelfTradePreventionCancelMaker},
+			err:   errInvalidSelfTradePreventionScope,
+		},
+		{name: "a self-trade prevention ID without a scope", order: &CreateOrderRequest{SelfTradePreventionID: 1}, err: errInvalidSelfTradePreventionID},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			o := tc.order
+			err := validateOrderInstructions(o.ClientOrderID, o.TimeInForce, o.ExecutionInstructions, o.SelfTradePreventionScope, o.SelfTradePreventionInstruction, o.SelfTradePreventionID)
+			assert.ErrorIsf(t, err, tc.err, "validateOrderInstructions should return the expected error for %s", tc.name)
+		})
+	}
+}
+
+func TestValidateCreateExecutionInstructions(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name         string
+		instructions []string
+		timeInForce  string
+		err          error
+	}{
+		{name: "no instructions"},
+		{name: "every instruction but SMART_POST_ONLY", instructions: []string{ExecutionInstructionPostOnly, ExecutionInstructionReduceOnly, ExecutionInstructionIsolatedMargin, ExecutionInstructionMarginOrder}},
+		{name: "SMART_POST_ONLY", instructions: []string{ExecutionInstructionSmartPostOnly, ExecutionInstructionReduceOnly}},
+		{name: "a post-only order resting by default", instructions: []string{ExecutionInstructionPostOnly}},
+		{name: "a post-only order good till cancelled", instructions: []string{ExecutionInstructionPostOnly}, timeInForce: TimeInForceGoodTillCancel},
+		{name: "an order immediate or cancel", instructions: []string{ExecutionInstructionReduceOnly}, timeInForce: TimeInForceImmediateOrCancel},
+		{name: "a post-only order immediate or cancel", instructions: []string{ExecutionInstructionPostOnly}, timeInForce: TimeInForceImmediateOrCancel, err: errInvalidTimeInForce},
+		{name: "a post-only order fill or kill", instructions: []string{ExecutionInstructionPostOnly}, timeInForce: TimeInForceFillOrKill, err: errInvalidTimeInForce},
+		{name: "both post-only instructions", instructions: []string{ExecutionInstructionPostOnly, ExecutionInstructionSmartPostOnly}, err: errInvalidExecutionInstruction},
+		{name: "both post-only instructions, SMART_POST_ONLY first", instructions: []string{ExecutionInstructionSmartPostOnly, ExecutionInstructionPostOnly}, err: errInvalidExecutionInstruction},
+		{name: "the liquidation instruction, which is only reported", instructions: []string{ExecutionInstructionLiquidation}, err: errInvalidExecutionInstruction},
+		{name: "a lower-case instruction", instructions: []string{"post_only"}, err: errInvalidExecutionInstruction},
+		{name: "an empty instruction", instructions: []string{""}, err: errInvalidExecutionInstruction},
+		{name: "an unknown instruction after a known one", instructions: []string{ExecutionInstructionReduceOnly, "HIDDEN"}, err: errInvalidExecutionInstruction},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateCreateExecutionInstructions(tc.instructions, tc.timeInForce)
+			assert.ErrorIsf(t, err, tc.err, "validateCreateExecutionInstructions should return the expected error for %s", tc.name)
+		})
+	}
+}
+
 func TestValidateSelfTradePrevention(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -1432,6 +1740,420 @@ func TestValidateSelfTradePrevention(t *testing.T) {
 			t.Parallel()
 			err := validateSelfTradePrevention(tc.scope, tc.instruction, tc.id)
 			assert.ErrorIsf(t, err, tc.err, "validateSelfTradePrevention should return the expected error for scope %q, instruction %q and ID %d", tc.scope, tc.instruction, tc.id)
+		})
+	}
+}
+
+func TestAmendOrderRequestValidate(t *testing.T) {
+	t.Parallel()
+	for _, tc := range amendOrderRefusals {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.req.validate(), tc.err, "validate should refuse %s", tc.name)
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		req  *AmendOrderRequest
+	}{
+		{"an order named by its order ID", &AmendOrderRequest{OrderID: tradingTestOrderID, NewPrice: 50000, NewQuantity: 0.0002}},
+		{"an order named by its original client order ID", &AmendOrderRequest{OriginalClientOrderID: tradingTestOrderClientOrderID, NewPrice: 50000, NewQuantity: 0.0002}},
+		{
+			name: "every field, with a client order ID of 36 characters",
+			req:  &AmendOrderRequest{OrderID: tradingTestOrderID, OriginalClientOrderID: tradingTestOrderClientOrderID, ClientOrderID: strings.Repeat("c", 36), NewPrice: 50000, NewQuantity: 0.0002},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, tc.req.validate(), "validate should accept %s", tc.name)
+		})
+	}
+}
+
+func TestCancelOrderRequestValidate(t *testing.T) {
+	t.Parallel()
+	for _, tc := range cancelOrderRefusals {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.req.validate(), tc.err, "validate should refuse %s", tc.name)
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		req  *CancelOrderRequest
+	}{
+		{"an order named by its order ID", &CancelOrderRequest{OrderID: tradingTestOrderID}},
+		{"an order named by its client order ID", &CancelOrderRequest{ClientOrderID: tradingTestOrderClientOrderID}},
+		{"both IDs", &CancelOrderRequest{OrderID: tradingTestOrderID, ClientOrderID: tradingTestOrderClientOrderID}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, tc.req.validate(), "validate should accept %s", tc.name)
+		})
+	}
+}
+
+func TestCancelAllOrdersRequestValidate(t *testing.T) {
+	t.Parallel()
+	for _, tc := range cancelAllOrdersRefusals {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.req.validate(), tc.err, "validate should refuse %s", tc.name)
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		req  *CancelAllOrdersRequest
+		err  error
+	}{
+		{"a lower-case type", &CancelAllOrdersRequest{OrderType: "all"}, errInvalidOrderType},
+		{"no params", &CancelAllOrdersRequest{}, nil},
+		{"an instrument's orders", &CancelAllOrdersRequest{InstrumentName: "BTCUSD-PERP"}, nil},
+		{"limit orders", &CancelAllOrdersRequest{OrderType: CancelOrderTypeLimit}, nil},
+		{"every order of an instrument", &CancelAllOrdersRequest{InstrumentName: "BTCUSD-PERP", OrderType: CancelOrderTypeAll}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.req.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		})
+	}
+}
+
+func TestClosePositionRequestValidate(t *testing.T) {
+	t.Parallel()
+	for _, tc := range closePositionRefusals {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.req.validate(), tc.err, "validate should refuse %s", tc.name)
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		req  *ClosePositionRequest
+		err  error
+	}{
+		{"a limit order with a negative price", &ClosePositionRequest{InstrumentName: "BTCUSD-PERP", OrderType: OrderTypeLimit, Price: -30000}, errInvalidPrice},
+		{"a market order with a negative price", &ClosePositionRequest{InstrumentName: "BTCUSD-PERP", OrderType: OrderTypeMarket, Price: -30000}, errInvalidPrice},
+		{"a market order closing the whole position", &ClosePositionRequest{InstrumentName: "BTCUSD-PERP", OrderType: OrderTypeMarket}, nil},
+		{"a market order closing part of the position", &ClosePositionRequest{InstrumentName: "BTCUSD-PERP", OrderType: OrderTypeMarket, Quantity: 0.0001}, nil},
+		{
+			name: "a limit order closing part of an isolated position",
+			req:  &ClosePositionRequest{InstrumentName: "BTCUSD-PERP", OrderType: OrderTypeLimit, Price: 30000, Quantity: 0.0001, IsolationID: tradingTestIsolationID},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.req.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		})
+	}
+}
+
+func TestNewCreateOrderListParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		orders   []CreateOrderRequest
+		err      error
+		contains string
+	}{
+		{name: "an empty list", err: errOrderListEmpty},
+		{name: "a list of 11 orders", orders: slices.Repeat([]CreateOrderRequest{*tradingTestOrder()}, maxOrderListLength+1), err: errOrderListTooLong},
+		{
+			name:     "a list starting with an order without an instrument",
+			orders:   []CreateOrderRequest{{Side: SideBuy, OrderType: OrderTypeMarket, Quantity: 0.0001}, *tradingTestOrder()},
+			err:      errInstrumentNameRequired,
+			contains: "order 0:",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newCreateOrderListParams(tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "newCreateOrderListParams should refuse %s", tc.name)
+			if tc.contains != "" {
+				assert.ErrorContainsf(t, err, tc.contains, "newCreateOrderListParams should name the index of %s", tc.name)
+			}
+			assert.Nilf(t, got, "newCreateOrderListParams should return no params for %s", tc.name)
+		})
+	}
+	for _, tc := range createOrderRefusals {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			orders := []CreateOrderRequest{*tradingTestOrder(), *tradingTestOrder()}
+			tc.modify(&orders[1])
+			got, err := newCreateOrderListParams(orders)
+			assert.ErrorIsf(t, err, tc.err, "newCreateOrderListParams should refuse %s", tc.name)
+			assert.ErrorContainsf(t, err, "order 1:", "newCreateOrderListParams should name the index of %s", tc.name)
+			assert.Nilf(t, got, "newCreateOrderListParams should return no params for %s", tc.name)
+		})
+	}
+	testOrderParams := createOrderParams{
+		InstrumentName:        "BTCUSD-PERP",
+		Side:                  SideBuy,
+		OrderType:             OrderTypeLimit,
+		Price:                 50000.5,
+		Quantity:              0.0001,
+		ClientOrderID:         tradingTestOrderClientOrderID,
+		TimeInForce:           TimeInForceGoodTillCancel,
+		ExecutionInstructions: []string{ExecutionInstructionPostOnly},
+	}
+	for _, tc := range []struct {
+		name   string
+		orders []CreateOrderRequest
+		exp    *createOrderListParams
+	}{
+		{
+			name:   "a list of one order",
+			orders: []CreateOrderRequest{*tradingTestOrder()},
+			exp:    &createOrderListParams{ContingencyType: ContingencyTypeList, OrderList: []createOrderParams{testOrderParams}},
+		},
+		{
+			name:   "the docs' list of two orders",
+			orders: tradingTestOrderList(),
+			exp: &createOrderListParams{
+				ContingencyType: ContingencyTypeList,
+				OrderList: []createOrderParams{
+					{InstrumentName: "CRO_USD", Side: SideSell, OrderType: OrderTypeLimit, Price: 0.12, Quantity: 10, ClientOrderID: "api_leg1"},
+					{InstrumentName: "CRO_USD", Side: SideSell, OrderType: OrderTypeLimit, Price: 0.122, Quantity: 20, ClientOrderID: "api_leg2"},
+				},
+			},
+		},
+		{
+			name:   "a list of 10 orders",
+			orders: slices.Repeat([]CreateOrderRequest{*tradingTestOrder()}, maxOrderListLength),
+			exp:    &createOrderListParams{ContingencyType: ContingencyTypeList, OrderList: slices.Repeat([]createOrderParams{testOrderParams}, maxOrderListLength)},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newCreateOrderListParams(tc.orders)
+			require.NoErrorf(t, err, "newCreateOrderListParams must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "newCreateOrderListParams should return the params of %s", tc.name)
+		})
+	}
+}
+
+func TestNewCancelOrderListParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range cancelOrderListRefusals {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newCancelOrderListParams(tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "newCancelOrderListParams should refuse %s", tc.name)
+			assert.Nilf(t, got, "newCancelOrderListParams should return no params for %s", tc.name)
+		})
+	}
+	t.Run("the index of an order named by neither ID", func(t *testing.T) {
+		t.Parallel()
+		_, err := newCancelOrderListParams([]CancelOrderListEntryRequest{{InstrumentName: "CRO_USD"}, {OrderID: tradingTestOrderID}})
+		assert.ErrorContains(t, err, "order 0:", "newCancelOrderListParams should name the index of the order named by neither ID")
+	})
+	for _, tc := range []struct {
+		name   string
+		orders []CancelOrderListEntryRequest
+	}{
+		{"an order named by its client order ID", []CancelOrderListEntryRequest{{InstrumentName: "CRO_USD", ClientOrderID: "api_leg1"}}},
+		{
+			"an order with every field and one named by its order ID only",
+			[]CancelOrderListEntryRequest{{InstrumentName: "CRO_USD", OrderID: "5755600460443882762", ClientOrderID: "api_leg1"}, {OrderID: "5755600460443882763"}},
+		},
+		{"a list of 10 orders", slices.Repeat([]CancelOrderListEntryRequest{{OrderID: tradingTestOrderID}}, maxOrderListLength)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newCancelOrderListParams(tc.orders)
+			require.NoErrorf(t, err, "newCancelOrderListParams must not error for %s", tc.name)
+			assert.Equalf(t, &cancelOrderListParams{ContingencyType: ContingencyTypeList, OrderList: tc.orders}, got, "newCancelOrderListParams should return the params of %s", tc.name)
+		})
+	}
+}
+
+func TestCheckOrderListLength(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		length int
+		err    error
+	}{
+		{"no orders", 0, errOrderListEmpty},
+		{"one order", 1, nil},
+		{"as many orders as the limit", maxOrderListLength, nil},
+		{"an order more than the limit", maxOrderListLength + 1, errOrderListTooLong},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			// The limits are passed as the constants the order list methods pass, as the function's nolint:unparam holds
+			// only while every call passes 10
+			assert.ErrorIsf(t, checkOrderListLength(tc.length, maxOrderListLength), tc.err, "checkOrderListLength should return the expected error for %d orders", tc.length)
+			assert.ErrorIsf(t, checkOrderListLength(tc.length, maxAdvancedOrderListLength), tc.err, "checkOrderListLength should return the expected error for %d advanced orders", tc.length)
+		})
+	}
+}
+
+func TestNewTradingHistoryParams(t *testing.T) {
+	t.Parallel()
+	start, end := time.Unix(0, tradingTestTradesWindowStart), time.Unix(0, tradingTestTradesWindowEnd)
+	// Each request holds the query newTradingHistoryParams is given, as GetTransactions passes it
+	for _, tc := range []struct {
+		name string
+		req  *TransactionsRequest
+		exp  *tradingHistoryParams
+		err  error
+	}{
+		{name: "a window starting after it ends", req: &TransactionsRequest{StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
+		{name: "a window starting as it ends", req: &TransactionsRequest{StartTime: start, EndTime: start}, err: common.ErrStartEqualsEnd},
+		{name: "a window starting in the future", req: &TransactionsRequest{StartTime: time.Now().Add(time.Hour), EndTime: time.Now().Add(2 * time.Hour)}, err: common.ErrStartAfterTimeNow},
+		{name: "a limit above 100", req: &TransactionsRequest{Limit: maxTradingHistoryLimit + 1}, err: errInvalidCount},
+		{name: "a start before the Unix epoch", req: &TransactionsRequest{StartTime: time.Unix(-1, 0)}, err: errTimeBeforeUnixEpoch},
+		{name: "an end before the Unix epoch", req: &TransactionsRequest{EndTime: time.Unix(-1, 0)}, err: errTimeBeforeUnixEpoch},
+		{name: "a window before the Unix epoch", req: &TransactionsRequest{StartTime: time.Unix(-2, 0), EndTime: time.Unix(-1, 0)}, err: errTimeBeforeUnixEpoch},
+		{name: "no params", req: &TransactionsRequest{}, exp: &tradingHistoryParams{}},
+		{
+			name: "every param",
+			req:  &TransactionsRequest{InstrumentName: "BTCUSD-PERP", JournalType: JournalTypeSessionSettle, StartTime: start, EndTime: end, Limit: maxTradingHistoryLimit, IsolationID: tradingTestIsolationID},
+			exp: &tradingHistoryParams{
+				InstrumentName: "BTCUSD-PERP",
+				JournalType:    JournalTypeSessionSettle,
+				StartTime:      tradingTestTradesWindowStart,
+				EndTime:        tradingTestTradesWindowEnd,
+				Limit:          maxTradingHistoryLimit,
+				IsolationID:    tradingTestIsolationID,
+			},
+		},
+		{name: "a start alone", req: &TransactionsRequest{StartTime: start}, exp: &tradingHistoryParams{StartTime: tradingTestTradesWindowStart}},
+		{name: "an end alone", req: &TransactionsRequest{EndTime: end}, exp: &tradingHistoryParams{EndTime: tradingTestTradesWindowEnd}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			r := tc.req
+			got, err := newTradingHistoryParams(r.InstrumentName, r.JournalType, r.StartTime, r.EndTime, r.Limit, r.IsolationID)
+			assert.ErrorIsf(t, err, tc.err, "newTradingHistoryParams should return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "newTradingHistoryParams should return the params of %s", tc.name)
+		})
+	}
+}
+
+func TestNewBatchOrderParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		req      *BatchOrderRequest
+		err      error
+		contains string
+	}{
+		{name: "a nil request", err: common.ErrNilPointer},
+		{name: "a batch without an instrument", req: &BatchOrderRequest{Cancels: []CancelOrderRequest{{OrderID: tradingTestOrderID}}}, err: errInstrumentNameRequired},
+		{name: "an empty batch", req: &BatchOrderRequest{InstrumentName: "BTCUSD-PERP"}, err: errOrderListEmpty},
+		{
+			name: "a batch of 11 creates",
+			req:  &BatchOrderRequest{InstrumentName: "BTCUSD-PERP", Creates: slices.Repeat([]CreateOrderRequest{*tradingTestOrder()}, maxBatchCreates+1)},
+			err:  errOrderListTooLong,
+		},
+		{
+			name:     "a cancel naming no order",
+			req:      &BatchOrderRequest{InstrumentName: "BTCUSD-PERP", Cancels: []CancelOrderRequest{{OrderID: tradingTestOrderID}, {}}},
+			err:      errOrderIDRequired,
+			contains: "cancel 1:",
+		},
+		{
+			name:     "a create of another instrument",
+			req:      &BatchOrderRequest{InstrumentName: "ETHUSD-PERP", Creates: []CreateOrderRequest{*tradingTestOrder()}},
+			err:      errBatchInstrumentMismatch,
+			contains: "create 0:",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newBatchOrderParams(tc.req)
+			assert.ErrorIsf(t, err, tc.err, "newBatchOrderParams should refuse %s", tc.name)
+			if tc.contains != "" {
+				assert.ErrorContainsf(t, err, tc.contains, "newBatchOrderParams should name the index of %s", tc.name)
+			}
+			assert.Nilf(t, got, "newBatchOrderParams should return no params for %s", tc.name)
+		})
+	}
+	for _, tc := range createOrderRefusals {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := tradingTestBatch()
+			tc.modify(&req.Creates[1])
+			got, err := newBatchOrderParams(req)
+			assert.ErrorIsf(t, err, tc.err, "newBatchOrderParams should refuse %s", tc.name)
+			assert.ErrorContainsf(t, err, "create 1:", "newBatchOrderParams should name the index of %s", tc.name)
+			assert.Nilf(t, got, "newBatchOrderParams should return no params for %s", tc.name)
+		})
+	}
+	tenCreates := func() *BatchOrderRequest {
+		return &BatchOrderRequest{InstrumentName: "BTCUSD-PERP", Creates: slices.Repeat([]CreateOrderRequest{{Side: SideBuy, OrderType: OrderTypeLimit, Price: 41000, Quantity: 0.0001}}, maxBatchCreates)}
+	}
+	for _, tc := range []struct {
+		name string
+		req  func() *BatchOrderRequest
+		exp  *batchOrderParams
+	}{
+		{
+			name: "the docs' batch, its creates inheriting its instrument",
+			req:  tradingTestBatch,
+			exp: &batchOrderParams{
+				InstrumentName: "BTCUSD-PERP",
+				Cancels:        []CancelOrderRequest{{OrderID: tradingTestOrderID}, {ClientOrderID: "my-client-order-id"}},
+				Creates: []createOrderParams{
+					{
+						Side:                  SideBuy,
+						OrderType:             OrderTypeLimit,
+						Price:                 41555,
+						Quantity:              0.01,
+						ClientOrderID:         "optional-client-id",
+						TimeInForce:           TimeInForceGoodTillCancel,
+						ExecutionInstructions: []string{ExecutionInstructionPostOnly, ExecutionInstructionReduceOnly},
+					},
+					{Side: SideBuy, OrderType: OrderTypeLimit, Price: 41000, Quantity: 0.0001, ExecutionInstructions: []string{ExecutionInstructionPostOnly}},
+				},
+			},
+		},
+		{
+			name: "every optional param, with a create naming the batch's instrument",
+			req: func() *BatchOrderRequest {
+				return &BatchOrderRequest{
+					InstrumentName:                        "BTCUSD-PERP",
+					Cancels:                               []CancelOrderRequest{{OrderID: tradingTestOrderID, ClientOrderID: tradingTestOrderClientOrderID}},
+					Creates:                               []CreateOrderRequest{{InstrumentName: "BTCUSD-PERP", Side: SideSell, OrderType: OrderTypeMarket, Quantity: 0.01}},
+					SelfTradePreventionCancelType:         SelfTradePreventionCancelMaker,
+					SelfTradePreventionAccountEnforcement: true,
+					SelfTradePreventionGroup:              "1",
+				}
+			},
+			exp: &batchOrderParams{
+				InstrumentName:                        "BTCUSD-PERP",
+				Cancels:                               []CancelOrderRequest{{OrderID: tradingTestOrderID, ClientOrderID: tradingTestOrderClientOrderID}},
+				Creates:                               []createOrderParams{{Side: SideSell, OrderType: OrderTypeMarket, Quantity: 0.01}},
+				SelfTradePreventionCancelType:         SelfTradePreventionCancelMaker,
+				SelfTradePreventionAccountEnforcement: true,
+				SelfTradePreventionGroup:              "1",
+			},
+		},
+		{
+			name: "only cancels",
+			req: func() *BatchOrderRequest {
+				return &BatchOrderRequest{InstrumentName: "BTCUSD-PERP", Cancels: []CancelOrderRequest{{ClientOrderID: "my-client-order-id"}}}
+			},
+			exp: &batchOrderParams{InstrumentName: "BTCUSD-PERP", Cancels: []CancelOrderRequest{{ClientOrderID: "my-client-order-id"}}},
+		},
+		{
+			name: "only 10 creates",
+			req:  tenCreates,
+			exp: &batchOrderParams{
+				InstrumentName: "BTCUSD-PERP",
+				Creates:        slices.Repeat([]createOrderParams{{Side: SideBuy, OrderType: OrderTypeLimit, Price: 41000, Quantity: 0.0001}}, maxBatchCreates),
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := tc.req()
+			got, err := newBatchOrderParams(req)
+			require.NoErrorf(t, err, "newBatchOrderParams must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "newBatchOrderParams should return the params of %s", tc.name)
+			assert.Equalf(t, tc.req(), req, "newBatchOrderParams should leave the request of %s as it was", tc.name)
 		})
 	}
 }

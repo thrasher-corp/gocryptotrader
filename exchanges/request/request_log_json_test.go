@@ -85,6 +85,81 @@ func FuzzRedactJSONBody(f *testing.F) {
 	})
 }
 
+func TestRedactJSONDocument(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, document, exp string
+		depth               int
+		changed             bool
+	}{
+		{name: "public document", document: `{"n":1,"note":"a"}`, exp: `{"n":1,"note":"a"}`, depth: 1},
+		{name: "sensitive name", document: `{"n":1,"secret":"s"}`, exp: `{"n":1,"secret":"[REDACTED]"}`, depth: 1, changed: true},
+		{name: "document in a string value", document: `{"original":"{\"sig\":\"s\"}"}`, exp: `{"original":"{\"sig\":\"[REDACTED]\"}"}`, depth: 1, changed: true},
+		{name: "document in a string value beyond the depth", document: `{"original":"{\"n\":1}"}`, exp: `{"original":"[REDACTED]"}`, depth: 0, changed: true},
+		{name: "public document in a string value", document: `{"original":"{\"n\":1}"}`, exp: `{"original":"{\"n\":1}"}`, depth: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, changed, err := redactJSONDocument([]byte(tc.document), tc.depth)
+			require.NoError(t, err, "redactJSONDocument must not error for a valid document")
+			assert.Equal(t, tc.exp, string(got), "redactJSONDocument should replace only sensitive values")
+			assert.Equal(t, tc.changed, changed, "redactJSONDocument should report whether it replaced a value")
+		})
+	}
+	for _, tc := range []struct {
+		name, document string
+		err            error
+	}{
+		{name: "empty", err: errInvalidJSONLogBody},
+		{name: "two documents", document: `{} {}`, err: errInvalidJSONLogBody},
+		{name: "unfinished", document: `{"n":`},
+		{name: "number overflowing in a sensitive value", document: `{"secret":1e9999}`},
+		{name: "number overflowing in a public value", document: `{"n":1e9999}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, changed, err := redactJSONDocument([]byte(tc.document), 1)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "redactJSONDocument should refuse anything but one document")
+			} else {
+				assert.Error(t, err, "redactJSONDocument should refuse an invalid document")
+			}
+			assert.Nil(t, got, "redactJSONDocument should return nothing for an invalid document")
+			assert.False(t, changed, "redactJSONDocument should report nothing changed for an invalid document")
+		})
+	}
+}
+
+func TestRedactJSONStringValue(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, value, exp string
+		depth            int
+		changed          bool
+	}{
+		{name: "text", value: `"plain"`, depth: 1},
+		{name: "escaped text", value: `"\tplain"`, depth: 1},
+		{name: "empty", value: `""`, depth: 1},
+		{name: "public document", value: `"{\"n\":1}"`, depth: 1},
+		{name: "document with a sensitive name", value: `"{\"n\":1,\"api_key\":\"k\"}"`, exp: `"{\"n\":1,\"api_key\":\"[REDACTED]\"}"`, depth: 1, changed: true},
+		{name: "array document after spaces", value: `"  [{\"token\":1}]"`, exp: `"  [{\"token\":\"[REDACTED]\"}]"`, depth: 1, changed: true},
+		{name: "document after escaped whitespace", value: `"\n{\"secret\":1}"`, exp: `"\n{\"secret\":\"[REDACTED]\"}"`, depth: 1, changed: true},
+		{name: "document beyond the depth", value: `"{\"n\":1}"`, exp: `"[REDACTED]"`, changed: true},
+		{name: "text starting like a document", value: `"{not a document"`, exp: `"[REDACTED]"`, depth: 1, changed: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, changed := redactJSONStringValue([]byte(tc.value), tc.depth)
+			assert.Equal(t, tc.changed, changed, "redactJSONStringValue should report whether it replaced the value")
+			if !tc.changed {
+				assert.Nil(t, got, "redactJSONStringValue should return nothing for a value it keeps")
+				return
+			}
+			assert.Equal(t, tc.exp, string(got), "redactJSONStringValue should return the value with its document's sensitive values replaced")
+		})
+	}
+}
+
 func TestSkipJSONLogValue(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

@@ -91,26 +91,28 @@ func TestStake(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidQuantity, "Stake must error without a quantity")
 	_, err = e.Stake(t.Context(), &StakeRequest{InstrumentName: "SOL.staked", Quantity: -1})
 	require.ErrorIs(t, err, errInvalidQuantity, "Stake must error for a negative quantity")
-	skipLiveUnlessCanManipulate(t)
-
 	req := &StakeRequest{InstrumentName: "SOL.staked", Quantity: 1}
-	result, err := e.Stake(t.Context(), req)
-	require.NoError(t, err, "Stake must not error")
-	if mockTests {
-		exp := &StakeResponse{
-			StakingID:                     "4611686018445261031",
-			InstrumentName:                "SOL.staked",
-			Status:                        StakingStatusNew,
-			Quantity:                      preciseNumber("1"),
-			UnderlyingCurrency:            currency.SOL,
-			PreStakeChargeRateBasisPoints: 50,
-			PreStakeCharge:                preciseNumber("0.005"),
-			Reason:                        "NO_ERROR",
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveUnlessCanManipulate(t)
+		result, err := e.Stake(t.Context(), req)
+		require.NoError(t, err, "Stake must not error")
+		if mockTests {
+			exp := &StakeResponse{
+				StakingID:                     "4611686018445261031",
+				InstrumentName:                "SOL.staked",
+				Status:                        StakingStatusNew,
+				Quantity:                      preciseNumber("1"),
+				UnderlyingCurrency:            currency.SOL,
+				PreStakeChargeRateBasisPoints: 50,
+				PreStakeCharge:                preciseNumber("0.005"),
+				Reason:                        "NO_ERROR",
+			}
+			assert.Equal(t, exp, result, "Stake should decode every field")
+		} else {
+			assert.NotEmpty(t, result.StakingID, "Stake should return the stake request's ID")
 		}
-		assert.Equal(t, exp, result, "Stake should decode every field")
-	} else {
-		assert.NotEmpty(t, result.StakingID, "Stake should return the stake request's ID")
-	}
+	})
 
 	ex := newSignedParamsServer(t, "private/staking/stake", `{"instrument_name":"SOL.staked","quantity":"1"}`, `{"id":1,"method":"private/staking/stake","code":0,"result":{"staking_id":"1"}}`)
 	_, err = ex.Stake(t.Context(), req)
@@ -139,24 +141,26 @@ func TestUnstake(t *testing.T) {
 	require.ErrorIs(t, err, errInstrumentNameRequired, "Unstake must error without an instrument name")
 	_, err = e.Unstake(t.Context(), &UnstakeRequest{InstrumentName: "SOL.staked"})
 	require.ErrorIs(t, err, errInvalidQuantity, "Unstake must error without a quantity")
-	skipLiveUnlessCanManipulate(t)
-
 	req := &UnstakeRequest{InstrumentName: "SOL.staked", Quantity: 0.5}
-	result, err := e.Unstake(t.Context(), req)
-	require.NoError(t, err, "Unstake must not error")
-	if mockTests {
-		exp := &UnstakeResponse{
-			StakingID:          "4611686018445261047",
-			InstrumentName:     "SOL.staked",
-			Status:             StakingStatusNew,
-			Quantity:           preciseNumber("0.5"),
-			UnderlyingCurrency: currency.SOL,
-			Reason:             "NO_ERROR",
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveUnlessCanManipulate(t)
+		result, err := e.Unstake(t.Context(), req)
+		require.NoError(t, err, "Unstake must not error")
+		if mockTests {
+			exp := &UnstakeResponse{
+				StakingID:          "4611686018445261047",
+				InstrumentName:     "SOL.staked",
+				Status:             StakingStatusNew,
+				Quantity:           preciseNumber("0.5"),
+				UnderlyingCurrency: currency.SOL,
+				Reason:             "NO_ERROR",
+			}
+			assert.Equal(t, exp, result, "Unstake should decode every field")
+		} else {
+			assert.NotEmpty(t, result.StakingID, "Unstake should return the unstake request's ID")
 		}
-		assert.Equal(t, exp, result, "Unstake should decode every field")
-	} else {
-		assert.NotEmpty(t, result.StakingID, "Unstake should return the unstake request's ID")
-	}
+	})
 
 	ex := newSignedParamsServer(t, "private/staking/unstake", `{"instrument_name":"SOL.staked","quantity":"0.5"}`, `{"id":1,"method":"private/staking/unstake","code":0,"result":{"staking_id":"1"}}`)
 	_, err = ex.Unstake(t.Context(), req)
@@ -167,31 +171,33 @@ func TestUnstake(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "Unstake should return a request failure")
 }
 
-func TestGetStakingPosition(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of GetStakingPosition
+func TestGetStakingPosition(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetStakingPosition(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetStakingPosition must error for a nil request")
-	skipLiveWithoutCredentials(t)
-
-	result, err := e.GetStakingPosition(t.Context(), &StakingPositionRequest{InstrumentName: "SOL.staked"})
-	require.NoError(t, err, "GetStakingPosition must not error")
-	if mockTests {
-		exp := []StakingPositionResponse{
-			{
-				InstrumentName:          "SOL.staked",
-				UnderlyingCurrency:      currency.SOL,
-				StakedQuantity:          preciseNumber("30000.00"),
-				PendingStakedQuantity:   preciseNumber("20000.00"),
-				PendingUnstakedQuantity: preciseNumber("10000.00"),
-				RewardEligibleQuantity:  preciseNumber("10000.00"),
-			},
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetStakingPosition(t.Context(), &StakingPositionRequest{InstrumentName: "SOL.staked"})
+		require.NoError(t, err, "GetStakingPosition must not error")
+		if mockTests {
+			exp := []StakingPositionResponse{
+				{
+					InstrumentName:          "SOL.staked",
+					UnderlyingCurrency:      currency.SOL,
+					StakedQuantity:          preciseNumber("30000.00"),
+					PendingStakedQuantity:   preciseNumber("20000.00"),
+					PendingUnstakedQuantity: preciseNumber("10000.00"),
+					RewardEligibleQuantity:  preciseNumber("10000.00"),
+				},
+			}
+			assert.Equal(t, exp, result, "GetStakingPosition should decode every field")
+		} else {
+			for i := range result {
+				assert.Equalf(t, "SOL.staked", result[i].InstrumentName, "GetStakingPosition should return position %d of the instrument requested", i)
+			}
 		}
-		assert.Equal(t, exp, result, "GetStakingPosition should decode every field")
-	} else {
-		for i := range result {
-			assert.Equalf(t, "SOL.staked", result[i].InstrumentName, "GetStakingPosition should return position %d of the instrument requested", i)
-		}
-	}
+	})
 
 	// The cases run in order, before the calls of GetStakingPosition below, which parallel cases would follow
 	for _, tc := range []struct {
@@ -216,43 +222,45 @@ func TestGetStakingPosition(t *testing.T) { //nolint:tparallel // the cases run 
 
 func TestGetStakingInstruments(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-
-	result, err := e.GetStakingInstruments(t.Context())
-	require.NoError(t, err, "GetStakingInstruments must not error")
-	if mockTests {
-		exp := []StakingInstrumentResponse{
-			{
-				InstrumentName:       "SOL.staked",
-				UnderlyingCurrency:   currency.SOL,
-				RewardInstrumentName: "SOL.staked",
-				EstimatedRewards:     0.0661,
-				RewardRateType:       StakingRewardRateTypeAPR,
-				MinimumStakeAmount:   0.00000001,
-				RewardFrequencyDays:  2.5,
-				LockUpPeriodDays:     5,
-				IsCompoundReward:     true,
-				AdditionalRewards:    []StakingAdditionalReward{},
-			},
-			{
-				InstrumentName:       "DYDX.staked",
-				UnderlyingCurrency:   currency.DYDX,
-				RewardInstrumentName: "DYDX",
-				EstimatedRewards:     0.05,
-				RewardRateType:       StakingRewardRateTypeAPR,
-				MinimumStakeAmount:   0.00000001,
-				RewardFrequencyDays:  1,
-				LockUpPeriodDays:     31,
-				AdditionalRewards:    []StakingAdditionalReward{{RewardInstrumentName: "USD_Stable_Coin"}},
-			},
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetStakingInstruments(t.Context())
+		require.NoError(t, err, "GetStakingInstruments must not error")
+		if mockTests {
+			exp := []StakingInstrumentResponse{
+				{
+					InstrumentName:       "SOL.staked",
+					UnderlyingCurrency:   currency.SOL,
+					RewardInstrumentName: "SOL.staked",
+					EstimatedRewards:     0.0661,
+					RewardRateType:       StakingRewardRateTypeAPR,
+					MinimumStakeAmount:   0.00000001,
+					RewardFrequencyDays:  2.5,
+					LockUpPeriodDays:     5,
+					IsCompoundReward:     true,
+					AdditionalRewards:    []StakingAdditionalReward{},
+				},
+				{
+					InstrumentName:       "DYDX.staked",
+					UnderlyingCurrency:   currency.DYDX,
+					RewardInstrumentName: "DYDX",
+					EstimatedRewards:     0.05,
+					RewardRateType:       StakingRewardRateTypeAPR,
+					MinimumStakeAmount:   0.00000001,
+					RewardFrequencyDays:  1,
+					LockUpPeriodDays:     31,
+					AdditionalRewards:    []StakingAdditionalReward{{RewardInstrumentName: "USD_Stable_Coin"}},
+				},
+			}
+			assert.Equal(t, exp, result, "GetStakingInstruments should decode every field")
+		} else {
+			assert.NotEmpty(t, result, "GetStakingInstruments should return instruments")
 		}
-		assert.Equal(t, exp, result, "GetStakingInstruments should decode every field")
-	} else {
-		assert.NotEmpty(t, result, "GetStakingInstruments should return instruments")
-	}
+	})
 
 	ex := newSignedParamsServer(t, "private/staking/get-staking-instruments", `{}`, `{"id":1,"method":"private/staking/get-staking-instruments","code":0,"result":{"data":[]}}`)
-	_, err = ex.GetStakingInstruments(t.Context())
+	_, err := ex.GetStakingInstruments(t.Context())
 	require.NoError(t, err, "GetStakingInstruments must not error against the test server")
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/staking/get-staking-instruments","code":0,"result":null}`).GetStakingInstruments(t.Context())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetStakingInstruments should error for a null result")
@@ -284,48 +292,50 @@ var stakingHistoryParamCases = []struct {
 	{name: "no params", req: &StakingHistoryRequest{}, exp: `{}`},
 }
 
-func TestGetOpenStakes(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of GetOpenStakes
+func TestGetOpenStakes(t *testing.T) {
 	t.Parallel()
 	requireStakingHistoryValidation(t, "GetOpenStakes", func(req *StakingHistoryRequest) error {
 		_, err := e.GetOpenStakes(t.Context(), req)
 		return err
 	})
-	skipLiveWithoutCredentials(t)
-
-	req := &StakingHistoryRequest{InstrumentName: "SOL.staked", StartTime: stakingHistoryStart, EndTime: stakingHistoryEnd, Limit: 10}
-	result, err := e.GetOpenStakes(t.Context(), req)
-	require.NoError(t, err, "GetOpenStakes must not error")
-	if mockTests {
-		exp := []StakingRequestResponse{
-			{
-				InstrumentName:     "SOL.staked",
-				UnderlyingCurrency: currency.SOL,
-				CycleID:            "5821",
-				StakingID:          "4611686018445098512",
-				Status:             StakingStatusPending,
-				AccountID:          "8b1fd0a5-3d2e-4f7a-9c61-2e5b7a4d9f30",
-				Quantity:           preciseNumber("1"),
-				Side:               StakingSideStake,
-				CreateTime:         types.Time(time.UnixMilli(1691461234567)),
-			},
-			{
-				InstrumentName:     "SOL.staked",
-				UnderlyingCurrency: currency.SOL,
-				CycleID:            "5822",
-				StakingID:          "4611686018445101227",
-				Status:             StakingStatusPendingUnstaking,
-				AccountID:          "8b1fd0a5-3d2e-4f7a-9c61-2e5b7a4d9f30",
-				Quantity:           preciseNumber("0.5"),
-				Side:               StakingSideUnstake,
-				CreateTime:         types.Time(time.UnixMilli(1691502345678)),
-			},
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		req := &StakingHistoryRequest{InstrumentName: "SOL.staked", StartTime: stakingHistoryStart, EndTime: stakingHistoryEnd, Limit: 10}
+		result, err := e.GetOpenStakes(t.Context(), req)
+		require.NoError(t, err, "GetOpenStakes must not error")
+		if mockTests {
+			exp := []StakingRequestResponse{
+				{
+					InstrumentName:     "SOL.staked",
+					UnderlyingCurrency: currency.SOL,
+					CycleID:            "5821",
+					StakingID:          "4611686018445098512",
+					Status:             StakingStatusPending,
+					AccountID:          "8b1fd0a5-3d2e-4f7a-9c61-2e5b7a4d9f30",
+					Quantity:           preciseNumber("1"),
+					Side:               StakingSideStake,
+					CreateTime:         types.Time(time.UnixMilli(1691461234567)),
+				},
+				{
+					InstrumentName:     "SOL.staked",
+					UnderlyingCurrency: currency.SOL,
+					CycleID:            "5822",
+					StakingID:          "4611686018445101227",
+					Status:             StakingStatusPendingUnstaking,
+					AccountID:          "8b1fd0a5-3d2e-4f7a-9c61-2e5b7a4d9f30",
+					Quantity:           preciseNumber("0.5"),
+					Side:               StakingSideUnstake,
+					CreateTime:         types.Time(time.UnixMilli(1691502345678)),
+				},
+			}
+			assert.Equal(t, exp, result, "GetOpenStakes should decode every field")
+		} else {
+			for i := range result {
+				assert.NotEmptyf(t, result[i].StakingID, "GetOpenStakes should return request %d's ID", i)
+			}
 		}
-		assert.Equal(t, exp, result, "GetOpenStakes should decode every field")
-	} else {
-		for i := range result {
-			assert.NotEmptyf(t, result[i].StakingID, "GetOpenStakes should return request %d's ID", i)
-		}
-	}
+	})
 
 	// The cases run in order, before the calls of GetOpenStakes below, which parallel cases would follow
 	for _, tc := range stakingHistoryParamCases {
@@ -335,54 +345,56 @@ func TestGetOpenStakes(t *testing.T) { //nolint:tparallel // the cases run in or
 			require.NoErrorf(t, err, "GetOpenStakes must not error against the test server for %+v", tc.req)
 		})
 	}
-	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/staking/get-open-stake","code":0,"result":null}`).GetOpenStakes(t.Context(), &StakingHistoryRequest{})
+	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/staking/get-open-stake","code":0,"result":null}`).GetOpenStakes(t.Context(), &StakingHistoryRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOpenStakes should error for a null result")
 	_, err = newUnavailableServerExchange(t).GetOpenStakes(t.Context(), &StakingHistoryRequest{})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenStakes should return a request failure")
 }
 
-func TestGetStakeHistory(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of GetStakeHistory
+func TestGetStakeHistory(t *testing.T) {
 	t.Parallel()
 	requireStakingHistoryValidation(t, "GetStakeHistory", func(req *StakingHistoryRequest) error {
 		_, err := e.GetStakeHistory(t.Context(), req)
 		return err
 	})
-	skipLiveWithoutCredentials(t)
-
-	req := &StakingHistoryRequest{InstrumentName: "SOL.staked", StartTime: stakingHistoryStart, EndTime: stakingHistoryEnd, Limit: 10}
-	result, err := e.GetStakeHistory(t.Context(), req)
-	require.NoError(t, err, "GetStakeHistory must not error")
-	if mockTests {
-		exp := []StakingRequestResponse{
-			{
-				InstrumentName:     "SOL.staked",
-				UnderlyingCurrency: currency.SOL,
-				CycleID:            "5819",
-				StakingID:          "4611686018444920315",
-				Status:             StakingStatusCompleted,
-				AccountID:          "8b1fd0a5-3d2e-4f7a-9c61-2e5b7a4d9f30",
-				Quantity:           preciseNumber("1"),
-				Side:               StakingSideStake,
-				CreateTime:         types.Time(time.UnixMilli(1691458765432)),
-			},
-			{
-				InstrumentName:     "SOL.staked",
-				UnderlyingCurrency: currency.SOL,
-				CycleID:            "5820",
-				StakingID:          "4611686018444937786",
-				Status:             StakingStatusRejected,
-				AccountID:          "8b1fd0a5-3d2e-4f7a-9c61-2e5b7a4d9f30",
-				Quantity:           preciseNumber("0.5"),
-				Side:               StakingSideUnstake,
-				CreateTime:         types.Time(time.UnixMilli(1691512345678)),
-			},
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		req := &StakingHistoryRequest{InstrumentName: "SOL.staked", StartTime: stakingHistoryStart, EndTime: stakingHistoryEnd, Limit: 10}
+		result, err := e.GetStakeHistory(t.Context(), req)
+		require.NoError(t, err, "GetStakeHistory must not error")
+		if mockTests {
+			exp := []StakingRequestResponse{
+				{
+					InstrumentName:     "SOL.staked",
+					UnderlyingCurrency: currency.SOL,
+					CycleID:            "5819",
+					StakingID:          "4611686018444920315",
+					Status:             StakingStatusCompleted,
+					AccountID:          "8b1fd0a5-3d2e-4f7a-9c61-2e5b7a4d9f30",
+					Quantity:           preciseNumber("1"),
+					Side:               StakingSideStake,
+					CreateTime:         types.Time(time.UnixMilli(1691458765432)),
+				},
+				{
+					InstrumentName:     "SOL.staked",
+					UnderlyingCurrency: currency.SOL,
+					CycleID:            "5820",
+					StakingID:          "4611686018444937786",
+					Status:             StakingStatusRejected,
+					AccountID:          "8b1fd0a5-3d2e-4f7a-9c61-2e5b7a4d9f30",
+					Quantity:           preciseNumber("0.5"),
+					Side:               StakingSideUnstake,
+					CreateTime:         types.Time(time.UnixMilli(1691512345678)),
+				},
+			}
+			assert.Equal(t, exp, result, "GetStakeHistory should decode every field")
+		} else {
+			for i := range result {
+				assert.NotEmptyf(t, result[i].StakingID, "GetStakeHistory should return request %d's ID", i)
+			}
 		}
-		assert.Equal(t, exp, result, "GetStakeHistory should decode every field")
-	} else {
-		for i := range result {
-			assert.NotEmptyf(t, result[i].StakingID, "GetStakeHistory should return request %d's ID", i)
-		}
-	}
+	})
 
 	// The cases run in order, before the calls of GetStakeHistory below, which parallel cases would follow
 	for _, tc := range stakingHistoryParamCases {
@@ -392,40 +404,42 @@ func TestGetStakeHistory(t *testing.T) { //nolint:tparallel // the cases run in 
 			require.NoErrorf(t, err, "GetStakeHistory must not error against the test server for %+v", tc.req)
 		})
 	}
-	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/staking/get-stake-history","code":0,"result":null}`).GetStakeHistory(t.Context(), &StakingHistoryRequest{})
+	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/staking/get-stake-history","code":0,"result":null}`).GetStakeHistory(t.Context(), &StakingHistoryRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetStakeHistory should error for a null result")
 	_, err = newUnavailableServerExchange(t).GetStakeHistory(t.Context(), &StakingHistoryRequest{})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetStakeHistory should return a request failure")
 }
 
-func TestGetStakingRewardHistory(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of GetStakingRewardHistory
+func TestGetStakingRewardHistory(t *testing.T) {
 	t.Parallel()
 	requireStakingHistoryValidation(t, "GetStakingRewardHistory", func(req *StakingHistoryRequest) error {
 		_, err := e.GetStakingRewardHistory(t.Context(), req)
 		return err
 	})
-	skipLiveWithoutCredentials(t)
-
-	req := &StakingHistoryRequest{InstrumentName: "SOL.staked", StartTime: stakingHistoryStart, EndTime: stakingHistoryEnd, Limit: 10}
-	result, err := e.GetStakingRewardHistory(t.Context(), req)
-	require.NoError(t, err, "GetStakingRewardHistory must not error")
-	if mockTests {
-		exp := []StakingRewardResponse{
-			{
-				StakingInstrumentName: "SOL.staked",
-				UnderlyingCurrency:    currency.SOL,
-				RewardInstrumentName:  "SOL.staked",
-				RewardQuantity:        preciseNumber("123.4567"),
-				StakedBalance:         preciseNumber("1234567"),
-				EventTime:             types.Time(time.UnixMilli(1691539200000)),
-			},
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		req := &StakingHistoryRequest{InstrumentName: "SOL.staked", StartTime: stakingHistoryStart, EndTime: stakingHistoryEnd, Limit: 10}
+		result, err := e.GetStakingRewardHistory(t.Context(), req)
+		require.NoError(t, err, "GetStakingRewardHistory must not error")
+		if mockTests {
+			exp := []StakingRewardResponse{
+				{
+					StakingInstrumentName: "SOL.staked",
+					UnderlyingCurrency:    currency.SOL,
+					RewardInstrumentName:  "SOL.staked",
+					RewardQuantity:        preciseNumber("123.4567"),
+					StakedBalance:         preciseNumber("1234567"),
+					EventTime:             types.Time(time.UnixMilli(1691539200000)),
+				},
+			}
+			assert.Equal(t, exp, result, "GetStakingRewardHistory should decode every field")
+		} else {
+			for i := range result {
+				assert.Positivef(t, result[i].RewardQuantity.Float64(), "GetStakingRewardHistory should return reward %d's quantity", i)
+			}
 		}
-		assert.Equal(t, exp, result, "GetStakingRewardHistory should decode every field")
-	} else {
-		for i := range result {
-			assert.Positivef(t, result[i].RewardQuantity.Float64(), "GetStakingRewardHistory should return reward %d's quantity", i)
-		}
-	}
+	})
 
 	// The cases run in order, before the calls of GetStakingRewardHistory below, which parallel cases would follow
 	for _, tc := range stakingHistoryParamCases {
@@ -435,13 +449,13 @@ func TestGetStakingRewardHistory(t *testing.T) { //nolint:tparallel // the cases
 			require.NoErrorf(t, err, "GetStakingRewardHistory must not error against the test server for %+v", tc.req)
 		})
 	}
-	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/staking/get-reward-history","code":0,"result":null}`).GetStakingRewardHistory(t.Context(), &StakingHistoryRequest{})
+	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/staking/get-reward-history","code":0,"result":null}`).GetStakingRewardHistory(t.Context(), &StakingHistoryRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetStakingRewardHistory should error for a null result")
 	_, err = newUnavailableServerExchange(t).GetStakingRewardHistory(t.Context(), &StakingHistoryRequest{})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetStakingRewardHistory should return a request failure")
 }
 
-func TestConvertStakedToken(t *testing.T) { //nolint:tparallel // the cases run in order on e and before the later calls of ConvertStakedToken
+func TestConvertStakedToken(t *testing.T) {
 	t.Parallel()
 	_, err := e.ConvertStakedToken(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "ConvertStakedToken must error for a nil request")
@@ -465,27 +479,30 @@ func TestConvertStakedToken(t *testing.T) { //nolint:tparallel // the cases run 
 			require.ErrorIsf(t, err, tc.err, "ConvertStakedToken must error %s", tc.name)
 		})
 	}
-	skipLiveUnlessCanManipulate(t)
-
-	result, err := e.ConvertStakedToken(t.Context(), req)
-	require.NoError(t, err, "ConvertStakedToken must not error")
-	if mockTests {
-		exp := &ConvertStakedTokenResponse{
-			FromInstrumentName:           "ETH.staked",
-			ToInstrumentName:             "CDCETH",
-			ExpectedRate:                 1.0203,
-			FromQuantity:                 preciseNumber("3.14159265"),
-			SlippageToleranceBasisPoints: 3,
-			ConvertID:                    "4611686018445302411",
-			Reason:                       "NO_ERROR",
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveUnlessCanManipulate(t)
+		result, err := e.ConvertStakedToken(t.Context(), req)
+		require.NoError(t, err, "ConvertStakedToken must not error")
+		if mockTests {
+			exp := &ConvertStakedTokenResponse{
+				FromInstrumentName:           "ETH.staked",
+				ToInstrumentName:             "CDCETH",
+				ExpectedRate:                 1.0203,
+				FromQuantity:                 preciseNumber("3.14159265"),
+				SlippageToleranceBasisPoints: 3,
+				ConvertID:                    "4611686018445302411",
+				Reason:                       "NO_ERROR",
+			}
+			assert.Equal(t, exp, result, "ConvertStakedToken should decode every field")
+		} else {
+			assert.NotEmpty(t, result.ConvertID, "ConvertStakedToken should return the convert request's ID")
 		}
-		assert.Equal(t, exp, result, "ConvertStakedToken should decode every field")
-	} else {
-		assert.NotEmpty(t, result.ConvertID, "ConvertStakedToken should return the convert request's ID")
-	}
+	})
 
 	zeroSlippage := *req
 	zeroSlippage.SlippageToleranceBasisPoints = 0
+
 	// The cases run in order, using req and zeroSlippage, before the calls of ConvertStakedToken below, which parallel
 	// cases would follow
 	for _, tc := range []struct {
@@ -523,37 +540,39 @@ var stakingConvertHistoryParamCases = []struct {
 	{name: "no params", req: &StakingConvertHistoryRequest{}, exp: `{}`},
 }
 
-func TestGetOpenStakingConverts(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of GetOpenStakingConverts
+func TestGetOpenStakingConverts(t *testing.T) {
 	t.Parallel()
 	requireStakingConvertHistoryValidation(t, "GetOpenStakingConverts", func(req *StakingConvertHistoryRequest) error {
 		_, err := e.GetOpenStakingConverts(t.Context(), req)
 		return err
 	})
-	skipLiveWithoutCredentials(t)
-
-	req := &StakingConvertHistoryRequest{StartTime: stakingHistoryStart, EndTime: stakingHistoryEnd, Limit: 10}
-	result, err := e.GetOpenStakingConverts(t.Context(), req)
-	require.NoError(t, err, "GetOpenStakingConverts must not error")
-	if mockTests {
-		exp := []StakingConvertRequestResponse{
-			{
-				FromInstrumentName:           "ETH.staked",
-				ToInstrumentName:             "CDCETH",
-				ExpectedRate:                 1.0203,
-				FromQuantity:                 preciseNumber("3.14159265"),
-				ToQuantity:                   preciseNumber("0"),
-				SlippageToleranceBasisPoints: 3,
-				ConvertID:                    "4611686018445319652",
-				Status:                       StakingConvertStatusNew,
-				CreateTime:                   types.Time(time.UnixMilli(1691530000123)),
-			},
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		req := &StakingConvertHistoryRequest{StartTime: stakingHistoryStart, EndTime: stakingHistoryEnd, Limit: 10}
+		result, err := e.GetOpenStakingConverts(t.Context(), req)
+		require.NoError(t, err, "GetOpenStakingConverts must not error")
+		if mockTests {
+			exp := []StakingConvertRequestResponse{
+				{
+					FromInstrumentName:           "ETH.staked",
+					ToInstrumentName:             "CDCETH",
+					ExpectedRate:                 1.0203,
+					FromQuantity:                 preciseNumber("3.14159265"),
+					ToQuantity:                   preciseNumber("0"),
+					SlippageToleranceBasisPoints: 3,
+					ConvertID:                    "4611686018445319652",
+					Status:                       StakingConvertStatusNew,
+					CreateTime:                   types.Time(time.UnixMilli(1691530000123)),
+				},
+			}
+			assert.Equal(t, exp, result, "GetOpenStakingConverts should decode every field")
+		} else {
+			for i := range result {
+				assert.NotEmptyf(t, result[i].ConvertID, "GetOpenStakingConverts should return request %d's ID", i)
+			}
 		}
-		assert.Equal(t, exp, result, "GetOpenStakingConverts should decode every field")
-	} else {
-		for i := range result {
-			assert.NotEmptyf(t, result[i].ConvertID, "GetOpenStakingConverts should return request %d's ID", i)
-		}
-	}
+	})
 
 	// The cases run in order, before the calls of GetOpenStakingConverts below, which parallel cases would follow
 	for _, tc := range stakingConvertHistoryParamCases {
@@ -563,44 +582,46 @@ func TestGetOpenStakingConverts(t *testing.T) { //nolint:tparallel // the cases 
 			require.NoErrorf(t, err, "GetOpenStakingConverts must not error against the test server for %+v", tc.req)
 		})
 	}
-	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/staking/get-open-convert","code":0,"result":null}`).GetOpenStakingConverts(t.Context(), &StakingConvertHistoryRequest{})
+	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/staking/get-open-convert","code":0,"result":null}`).GetOpenStakingConverts(t.Context(), &StakingConvertHistoryRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOpenStakingConverts should error for a null result")
 	_, err = newUnavailableServerExchange(t).GetOpenStakingConverts(t.Context(), &StakingConvertHistoryRequest{})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenStakingConverts should return a request failure")
 }
 
-func TestGetStakingConvertHistory(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of GetStakingConvertHistory
+func TestGetStakingConvertHistory(t *testing.T) {
 	t.Parallel()
 	requireStakingConvertHistoryValidation(t, "GetStakingConvertHistory", func(req *StakingConvertHistoryRequest) error {
 		_, err := e.GetStakingConvertHistory(t.Context(), req)
 		return err
 	})
-	skipLiveWithoutCredentials(t)
-
-	req := &StakingConvertHistoryRequest{StartTime: stakingHistoryStart, EndTime: stakingHistoryEnd, Limit: 10}
-	result, err := e.GetStakingConvertHistory(t.Context(), req)
-	require.NoError(t, err, "GetStakingConvertHistory must not error")
-	if mockTests {
-		exp := []StakingConvertRequestResponse{
-			{
-				FromInstrumentName:           "ETH.staked",
-				ToInstrumentName:             "CDCETH",
-				ExpectedRate:                 1.0203,
-				FromQuantity:                 preciseNumber("3.14159265"),
-				SlippageToleranceBasisPoints: 3,
-				ActualRate:                   1.0203,
-				ToQuantity:                   preciseNumber("3.07908718"),
-				ConvertID:                    "4611686018445288107",
-				Status:                       StakingConvertStatusCompleted,
-				CreateTime:                   types.Time(time.UnixMilli(1691470000456)),
-			},
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		req := &StakingConvertHistoryRequest{StartTime: stakingHistoryStart, EndTime: stakingHistoryEnd, Limit: 10}
+		result, err := e.GetStakingConvertHistory(t.Context(), req)
+		require.NoError(t, err, "GetStakingConvertHistory must not error")
+		if mockTests {
+			exp := []StakingConvertRequestResponse{
+				{
+					FromInstrumentName:           "ETH.staked",
+					ToInstrumentName:             "CDCETH",
+					ExpectedRate:                 1.0203,
+					FromQuantity:                 preciseNumber("3.14159265"),
+					SlippageToleranceBasisPoints: 3,
+					ActualRate:                   1.0203,
+					ToQuantity:                   preciseNumber("3.07908718"),
+					ConvertID:                    "4611686018445288107",
+					Status:                       StakingConvertStatusCompleted,
+					CreateTime:                   types.Time(time.UnixMilli(1691470000456)),
+				},
+			}
+			assert.Equal(t, exp, result, "GetStakingConvertHistory should decode every field")
+		} else {
+			for i := range result {
+				assert.NotEmptyf(t, result[i].ConvertID, "GetStakingConvertHistory should return request %d's ID", i)
+			}
 		}
-		assert.Equal(t, exp, result, "GetStakingConvertHistory should decode every field")
-	} else {
-		for i := range result {
-			assert.NotEmptyf(t, result[i].ConvertID, "GetStakingConvertHistory should return request %d's ID", i)
-		}
-	}
+	})
 
 	// The cases run in order, before the calls of GetStakingConvertHistory below, which parallel cases would follow
 	for _, tc := range stakingConvertHistoryParamCases {
@@ -610,8 +631,128 @@ func TestGetStakingConvertHistory(t *testing.T) { //nolint:tparallel // the case
 			require.NoErrorf(t, err, "GetStakingConvertHistory must not error against the test server for %+v", tc.req)
 		})
 	}
-	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/staking/get-convert-history","code":0,"result":null}`).GetStakingConvertHistory(t.Context(), &StakingConvertHistoryRequest{})
+	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/staking/get-convert-history","code":0,"result":null}`).GetStakingConvertHistory(t.Context(), &StakingConvertHistoryRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetStakingConvertHistory should error for a null result")
 	_, err = newUnavailableServerExchange(t).GetStakingConvertHistory(t.Context(), &StakingConvertHistoryRequest{})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetStakingConvertHistory should return a request failure")
+}
+
+func TestValidateStakingQuantity(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name           string
+		instrumentName string
+		quantity       types.Number
+		err            error
+	}{
+		{name: "a whole quantity", instrumentName: "SOL.staked", quantity: 1},
+		{name: "the least stake", instrumentName: "SOL.staked", quantity: 0.00000001},
+		{name: "no instrument", quantity: 1, err: errInstrumentNameRequired},
+		{name: "no instrument or quantity", err: errInstrumentNameRequired},
+		{name: "no quantity", instrumentName: "SOL.staked", err: errInvalidQuantity},
+		{name: "a negative quantity", instrumentName: "SOL.staked", quantity: -1, err: errInvalidQuantity},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateStakingQuantity(tc.instrumentName, tc.quantity), tc.err, "validateStakingQuantity should return the expected error for %s", tc.name)
+		})
+	}
+}
+
+func TestNewStakingHistoryParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		req  *StakingHistoryRequest
+		exp  *stakingHistoryParams
+		err  error
+	}{
+		{
+			name: "every field",
+			req:  &StakingHistoryRequest{InstrumentName: "SOL.staked", StartTime: stakingHistoryStart, EndTime: stakingHistoryEnd, Limit: 10},
+			exp:  &stakingHistoryParams{InstrumentName: "SOL.staked", StartTime: 1691455454495000000, EndTime: 1691545277000000000, Limit: 10},
+		},
+		{name: "no fields", req: &StakingHistoryRequest{}, exp: &stakingHistoryParams{}},
+		{name: "a nil request", err: common.ErrNilPointer},
+		{name: "a limit above the largest", req: &StakingHistoryRequest{InstrumentName: "SOL.staked", Limit: stakingHistoryMaximumLimit + 1}, err: errInvalidCount},
+		{name: "a window starting after it ends", req: &StakingHistoryRequest{StartTime: stakingHistoryEnd, EndTime: stakingHistoryStart}, err: common.ErrStartAfterEnd},
+		{name: "an end before the Unix epoch", req: &StakingHistoryRequest{EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newStakingHistoryParams(tc.req)
+			require.ErrorIsf(t, err, tc.err, "newStakingHistoryParams must return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "newStakingHistoryParams should return the params of %s", tc.name)
+		})
+	}
+}
+
+func TestNewStakingConvertHistoryParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		req  *StakingConvertHistoryRequest
+		exp  *stakingHistoryParams
+		err  error
+	}{
+		{
+			name: "every field",
+			req:  &StakingConvertHistoryRequest{StartTime: stakingHistoryStart, EndTime: stakingHistoryEnd, Limit: 10},
+			exp:  &stakingHistoryParams{StartTime: 1691455454495000000, EndTime: 1691545277000000000, Limit: 10},
+		},
+		{name: "no fields", req: &StakingConvertHistoryRequest{}, exp: &stakingHistoryParams{}},
+		{name: "a nil request", err: common.ErrNilPointer},
+		{name: "a limit above the largest", req: &StakingConvertHistoryRequest{Limit: stakingHistoryMaximumLimit + 1}, err: errInvalidCount},
+		{name: "a window starting after it ends", req: &StakingConvertHistoryRequest{StartTime: stakingHistoryEnd, EndTime: stakingHistoryStart}, err: common.ErrStartAfterEnd},
+		{name: "an end before the Unix epoch", req: &StakingConvertHistoryRequest{EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newStakingConvertHistoryParams(tc.req)
+			require.ErrorIsf(t, err, tc.err, "newStakingConvertHistoryParams must return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "newStakingConvertHistoryParams should return the params of %s", tc.name)
+		})
+	}
+}
+
+func TestNewStakingWindowParams(t *testing.T) {
+	t.Parallel()
+	now := time.Now()
+	for _, tc := range []struct {
+		name           string
+		instrumentName string
+		start, end     time.Time
+		limit          uint64
+		exp            *stakingHistoryParams
+		err            error
+	}{
+		{
+			name:           "every param",
+			instrumentName: "SOL.staked",
+			start:          stakingHistoryStart,
+			end:            stakingHistoryEnd,
+			limit:          10,
+			exp:            &stakingHistoryParams{InstrumentName: "SOL.staked", StartTime: 1691455454495000000, EndTime: 1691545277000000000, Limit: 10},
+		},
+		{name: "no params", exp: &stakingHistoryParams{}},
+		{name: "a start without an end", start: stakingHistoryStart, exp: &stakingHistoryParams{StartTime: 1691455454495000000}},
+		{name: "an end without a start", end: stakingHistoryEnd, exp: &stakingHistoryParams{EndTime: 1691545277000000000}},
+		{name: "a start to the nanosecond", start: time.Unix(0, 1691455454495123456), exp: &stakingHistoryParams{StartTime: 1691455454495123456}},
+		{name: "a start at the Unix epoch", start: time.Unix(0, 0), exp: &stakingHistoryParams{}},
+		{name: "a start a nanosecond after the Unix epoch", start: time.Unix(0, 1), exp: &stakingHistoryParams{StartTime: 1}},
+		{name: "the largest limit", limit: stakingHistoryMaximumLimit, exp: &stakingHistoryParams{Limit: stakingHistoryMaximumLimit}},
+		{name: "a limit above the largest", limit: stakingHistoryMaximumLimit + 1, err: errInvalidCount},
+		{name: "a window starting after it ends", start: stakingHistoryEnd, end: stakingHistoryStart, err: common.ErrStartAfterEnd},
+		{name: "a window starting as it ends", start: stakingHistoryStart, end: stakingHistoryStart, err: common.ErrStartEqualsEnd},
+		{name: "a window starting in the future", start: now.Add(time.Hour), end: now.Add(2 * time.Hour), err: common.ErrStartAfterTimeNow},
+		{name: "a start a nanosecond before the Unix epoch", start: time.Unix(0, -1), err: errTimeBeforeUnixEpoch},
+		{name: "an end a nanosecond before the Unix epoch", end: time.Unix(0, -1), err: errTimeBeforeUnixEpoch},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newStakingWindowParams(tc.instrumentName, tc.start, tc.end, tc.limit)
+			require.ErrorIsf(t, err, tc.err, "newStakingWindowParams must return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "newStakingWindowParams should return the params of %s", tc.name)
+		})
+	}
 }

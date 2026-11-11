@@ -30,26 +30,14 @@ func (e *Exchange) CreateWithdrawal(ctx context.Context, req *WithdrawalRequest)
 	params := *req
 	params.Currency = req.Currency.Upper()
 	var resp *WithdrawalResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/create-withdrawal", &params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/create-withdrawal", &params, &resp)
 }
 
 // GetCurrencyNetworks returns the networks each currency can be deposited and withdrawn on, with their withdrawal fees
 // and minimums
 func (e *Exchange) GetCurrencyNetworks(ctx context.Context) (*CurrencyNetworksResponse, error) {
 	var resp *CurrencyNetworksResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-currency-networks", nil, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-currency-networks", nil, &resp)
 }
 
 // GetDepositAddresses returns a currency's deposit addresses, one for each network; the API key needs the withdrawal
@@ -58,14 +46,8 @@ func (e *Exchange) GetDepositAddresses(ctx context.Context, ccy currency.Code) (
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp *depositAddressesResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-deposit-address", &depositAddressParams{Currency: ccy.Upper()}, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.DepositAddresses, nil
+	var resp depositAddressesResponse
+	return resp.DepositAddresses, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-deposit-address", &depositAddressParams{Currency: ccy.Upper()}, &resp)
 }
 
 // GetDepositHistory returns a page of the account's crypto deposits
@@ -74,14 +56,8 @@ func (e *Exchange) GetDepositHistory(ctx context.Context, req *WalletHistoryRequ
 	if err != nil {
 		return nil, err
 	}
-	var resp *depositHistoryResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-deposit-history", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Deposits, nil
+	var resp depositHistoryResponse
+	return resp.Deposits, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-deposit-history", params, &resp)
 }
 
 // GetWithdrawalHistory returns a page of the account's crypto withdrawals
@@ -90,14 +66,8 @@ func (e *Exchange) GetWithdrawalHistory(ctx context.Context, req *WalletHistoryR
 	if err != nil {
 		return nil, err
 	}
-	var resp *withdrawalHistoryResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-withdrawal-history", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Withdrawals, nil
+	var resp withdrawalHistoryResponse
+	return resp.Withdrawals, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-withdrawal-history", params, &resp)
 }
 
 // newWalletHistoryParams validates a deposit or withdrawal history request and returns its params

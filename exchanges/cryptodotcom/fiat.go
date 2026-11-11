@@ -20,14 +20,8 @@ var (
 // GetFiatAccess returns whether each currency can be deposited and withdrawn on each payment network, which a broker
 // checks for the user whose account UUID it gives as onBehalfOfAccountUUID, which is left unsent when empty
 func (e *Exchange) GetFiatAccess(ctx context.Context, onBehalfOfAccountUUID string) ([]FiatAccessResponse, error) {
-	var resp *fiatAccessesResponse
-	if err := e.sendAuthenticatedRequest(ctx, privateEPL, "private/fiat/fiat-access", onBehalfOfAccountUUID, nil, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Accesses, nil
+	var resp fiatAccessesResponse
+	return resp.Accesses, e.sendAuthenticatedRequest(ctx, privateEPL, "private/fiat/fiat-access", onBehalfOfAccountUUID, nil, &resp)
 }
 
 // GetFiatDepositInfo returns the bank accounts to deposit fiat to, one for each payment network
@@ -36,14 +30,8 @@ func (e *Exchange) GetFiatDepositInfo(ctx context.Context, req *FiatPaymentNetwo
 		return nil, common.ErrNilPointer
 	}
 	params := &fiatPaymentNetworksParams{PaymentNetworks: strings.Join(req.PaymentNetworks, ", ")}
-	var resp *fiatDepositInfoListResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-deposit-info", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.DepositInfo, nil
+	var resp fiatDepositInfoListResponse
+	return resp.DepositInfo, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-deposit-info", params, &resp)
 }
 
 // GetFiatDepositHistory returns a page of the account's fiat deposits
@@ -53,13 +41,7 @@ func (e *Exchange) GetFiatDepositHistory(ctx context.Context, req *FiatHistoryRe
 		return nil, err
 	}
 	var resp *FiatTransactionHistoryResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-deposit-history", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-deposit-history", params, &resp)
 }
 
 // GetFiatWithdrawHistory returns a page of the account's fiat withdrawals
@@ -69,13 +51,7 @@ func (e *Exchange) GetFiatWithdrawHistory(ctx context.Context, req *FiatHistoryR
 		return nil, err
 	}
 	var resp *FiatTransactionHistoryResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-withdraw-history", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-withdraw-history", params, &resp)
 }
 
 // CreateFiatWithdrawal withdraws fiat to a linked bank account; the API key needs the withdrawal permission
@@ -98,13 +74,7 @@ func (e *Exchange) CreateFiatWithdrawal(ctx context.Context, req *FiatWithdrawal
 	params := *req
 	params.Currency = req.Currency.Upper()
 	var resp *FiatWithdrawalResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/fiat/fiat-create-withdraw", &params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/fiat/fiat-create-withdraw", &params, &resp)
 }
 
 // GetFiatTransactionQuota returns how much can be withdrawn on a payment network each day and month, and how much of
@@ -117,7 +87,7 @@ func (e *Exchange) GetFiatTransactionQuota(ctx context.Context, paymentNetwork s
 	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-transaction-quota", &fiatPaymentNetworkParams{PaymentNetwork: paymentNetwork}, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil || resp.Details == nil {
+	if resp.Details == nil {
 		return nil, common.ErrNoResponse
 	}
 	return resp.Details, nil
@@ -129,13 +99,7 @@ func (e *Exchange) GetFiatTransactionLimit(ctx context.Context, paymentNetwork s
 		return nil, errPaymentNetworkRequired
 	}
 	var resp *FiatTransactionLimitResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-transaction-limit", &fiatPaymentNetworkParams{PaymentNetwork: paymentNetwork}, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-transaction-limit", &fiatPaymentNetworkParams{PaymentNetwork: paymentNetwork}, &resp)
 }
 
 // CreateFiatBankAccount links a bank account for fiat withdrawals through Plaid, and returns the account's bank
@@ -155,14 +119,8 @@ func (e *Exchange) CreateFiatBankAccount(ctx context.Context, req *FiatBankAccou
 	}
 	params := *req
 	params.Currency = req.Currency.Upper()
-	var resp *fiatBankAccountsResponse
-	if err := e.sendAuthenticatedRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/fiat/fiat-create-bank-account", req.OnBehalfOfAccountUUID, &params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.BankAccounts, nil
+	var resp fiatBankAccountsResponse
+	return resp.BankAccounts, e.sendAuthenticatedRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/fiat/fiat-create-bank-account", req.OnBehalfOfAccountUUID, &params, &resp)
 }
 
 // GetFiatBankAccounts returns the bank accounts linked for fiat withdrawals
@@ -171,14 +129,8 @@ func (e *Exchange) GetFiatBankAccounts(ctx context.Context, req *FiatPaymentNetw
 		return nil, common.ErrNilPointer
 	}
 	params := &fiatPaymentNetworksParams{PaymentNetworks: strings.Join(req.PaymentNetworks, ", ")}
-	var resp *fiatBankAccountsResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-get-bank-accounts", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.BankAccounts, nil
+	var resp fiatBankAccountsResponse
+	return resp.BankAccounts, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/fiat/fiat-get-bank-accounts", params, &resp)
 }
 
 // newFiatHistoryParams validates a fiat deposit or withdrawal history request and returns its params

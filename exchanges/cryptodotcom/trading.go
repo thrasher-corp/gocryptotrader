@@ -44,13 +44,7 @@ func (e *Exchange) CreateOrder(ctx context.Context, r *CreateOrderRequest) (*Ord
 		return nil, err
 	}
 	var resp *OrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), createOrderEPL, "private/create-order", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), createOrderEPL, "private/create-order", params, &resp)
 }
 
 // AmendOrder amends an order's price and quantity. Crypto.com cancels the order and creates its replacement, which
@@ -61,13 +55,7 @@ func (e *Exchange) AmendOrder(ctx context.Context, r *AmendOrderRequest) (*Order
 		return nil, err
 	}
 	var resp *OrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/amend-order", r, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/amend-order", r, &resp)
 }
 
 // CancelExistingOrder cancels an order; Crypto.com confirms the request before the order is cancelled, which the
@@ -77,13 +65,7 @@ func (e *Exchange) CancelExistingOrder(ctx context.Context, r *CancelOrderReques
 		return nil, err
 	}
 	var resp *OrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, cancelOrderEPL, "private/cancel-order", r, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, cancelOrderEPL, "private/cancel-order", r, &resp)
 }
 
 // CancelAllExistingOrders cancels the orders of an instrument, or of every instrument; Crypto.com confirms the request
@@ -102,13 +84,7 @@ func (e *Exchange) ClosePosition(ctx context.Context, r *ClosePositionRequest) (
 		return nil, err
 	}
 	var resp *OrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/close-position", r, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/close-position", r, &resp)
 }
 
 // GetOpenOrders returns the open orders of an instrument, or of every instrument
@@ -116,14 +92,8 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, r *OpenOrdersRequest) ([]O
 	if r == nil {
 		return nil, common.ErrNilPointer
 	}
-	var resp *dataResponse[OrderResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-open-orders", r, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[OrderResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-open-orders", r, &resp)
 }
 
 // GetOrderDetail returns an order
@@ -135,13 +105,7 @@ func (e *Exchange) GetOrderDetail(ctx context.Context, r *OrderDetailRequest) (*
 		return nil, errOrderIDRequired
 	}
 	var resp *OrderResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, getOrderDetailEPL, "private/get-order-detail", r, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, getOrderDetailEPL, "private/get-order-detail", r, &resp)
 }
 
 // CreateOrderList creates a list of 1 to 10 LIMIT or MARKET orders and returns each order's outcome by its index in
@@ -152,13 +116,7 @@ func (e *Exchange) CreateOrderList(ctx context.Context, orders []CreateOrderRequ
 		return nil, err
 	}
 	var resp []OrderListEntryResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/create-order-list", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/create-order-list", params, &resp)
 }
 
 // CancelOrderList cancels a list of 1 to 10 orders and returns each cancel's outcome by its index in the list; a cancel
@@ -169,13 +127,7 @@ func (e *Exchange) CancelOrderList(ctx context.Context, orders []CancelOrderList
 		return nil, err
 	}
 	var resp []OrderListEntryResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/cancel-order-list", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/cancel-order-list", params, &resp)
 }
 
 // ChangeAccountLeverage sets the account's maximum leverage
@@ -213,13 +165,7 @@ func (e *Exchange) ChangeAccountSettings(ctx context.Context, r *ChangeAccountSe
 // GetAccountSettings returns the account's maximum leverage and self-trade prevention settings
 func (e *Exchange) GetAccountSettings(ctx context.Context) ([]AccountSettingsResponse, error) {
 	var resp []AccountSettingsResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-account-settings", nil, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-account-settings", nil, &resp)
 }
 
 // CreateIsolatedMarginTransfer moves USD margin between the account and an isolated position
@@ -258,13 +204,7 @@ func (e *Exchange) ChangeIsolatedMarginLeverage(ctx context.Context, r *ChangeIs
 // GetFeeRate returns the account's 30-day trading volume tiers and the spot and derivatives fee rates they give
 func (e *Exchange) GetFeeRate(ctx context.Context) (*FeeRateResponse, error) {
 	var resp *FeeRateResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-fee-rate", nil, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-fee-rate", nil, &resp)
 }
 
 // GetInstrumentFeeRate returns the account's fee rates for an instrument
@@ -273,13 +213,7 @@ func (e *Exchange) GetInstrumentFeeRate(ctx context.Context, instrumentName stri
 		return nil, errInstrumentNameRequired
 	}
 	var resp *InstrumentFeeRateResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-instrument-fee-rate", &instrumentFeeRateParams{InstrumentName: instrumentName}, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-instrument-fee-rate", &instrumentFeeRateParams{InstrumentName: instrumentName}, &resp)
 }
 
 // GetUserOrderHistory returns the account's past orders, for recovering what the user.order channel missed; Crypto.com
@@ -292,14 +226,8 @@ func (e *Exchange) GetUserOrderHistory(ctx context.Context, r *UserOrderHistoryR
 	if err != nil {
 		return nil, err
 	}
-	var resp *dataResponse[OrderResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, getOrderHistoryEPL, "private/get-order-history", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[OrderResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, getOrderHistoryEPL, "private/get-order-history", params, &resp)
 }
 
 // GetUserTrades returns the account's trades, for recovering what the user.trade channel missed; Crypto.com keeps six
@@ -312,14 +240,8 @@ func (e *Exchange) GetUserTrades(ctx context.Context, r *UserTradesRequest) ([]U
 	if err != nil {
 		return nil, err
 	}
-	var resp *dataResponse[UserTradeResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, getTradesEPL, "private/get-trades", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[UserTradeResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, getTradesEPL, "private/get-trades", params, &resp)
 }
 
 // GetTransactions returns the account's transactions, such as trades, fees, funding and settlements; Crypto.com keeps
@@ -332,14 +254,8 @@ func (e *Exchange) GetTransactions(ctx context.Context, r *TransactionsRequest) 
 	if err != nil {
 		return nil, err
 	}
-	var resp *dataResponse[TransactionResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-transactions", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[TransactionResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-transactions", params, &resp)
 }
 
 // newCreateOrderParams validates an order and returns the params creating it

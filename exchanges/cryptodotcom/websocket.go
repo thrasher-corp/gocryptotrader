@@ -165,6 +165,7 @@ func (e *Exchange) setupWebsocket(exch *config.Exchange) error {
 		MaxWebsocketSubscriptionsPerConnection: websocketMaxSubscriptionsPerConnection,
 		TradeFeed:                              e.Features.Enabled.TradeFeed,
 		FillsFeed:                              e.Features.Enabled.FillsFeed,
+		InvalidateOrderbooksOnShutdown:         true,
 	}); err != nil {
 		return err
 	}
@@ -334,7 +335,7 @@ func decodeWebsocketResponse(data []byte, result any) error {
 	if result == nil {
 		return nil
 	}
-	if len(resp.Result) == 0 || string(resp.Result) == "null" {
+	if len(resp.Result) == 0 || string(resp.Result) == jsonNull {
 		return fmt.Errorf("%w: %s", common.ErrNoResponse, resp.Method)
 	}
 	return json.Unmarshal(resp.Result, result)
@@ -781,12 +782,22 @@ func (e *Exchange) wsUnsubscribe(ctx context.Context, conn websocket.Connection,
 // wsUnsubscribeBatch sends an unsubscribe request for channels, which Crypto.com acknowledges once, and removes them. A
 // book channel resubscribing for a new snapshot is unsubscribed once more, on the same connection, when its request
 // times out, as Crypto.com may have applied the request and stopped the channel's deltas, which would leave its books
-// awaiting a snapshot that no delta asks for
+// awaiting a snapshot that no delta asks for. The books of its book channels are invalidated once the request is
+// answered, or once it goes unanswered, as Crypto.com may then have stopped them
 func (e *Exchange) wsUnsubscribeBatch(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	params := &subscriptionRequest{Channels: qualifiedChannels(subs)}
 	err := e.sendConnectionRequest(ctx, conn, websocketMethodUnsubscribe, params, nil)
-	if errors.Is(err, websocket.ErrSignatureTimeout) && len(subs) == 1 && subs[0].Channel == subscription.OrderbookChannel && subs[0].State() == subscription.ResubscribingState {
+	unanswered := errors.Is(err, websocket.ErrSignatureTimeout)
+	if unanswered && len(subs) == 1 && subs[0].Channel == subscription.OrderbookChannel && subs[0].State() == subscription.ResubscribingState {
 		err = e.sendConnectionRequest(ctx, conn, websocketMethodUnsubscribe, params, nil)
+	}
+	if err == nil || unanswered {
+		// An unanswered unsubscription may have stopped a book channel, whatever any retry is answered with
+		for _, s := range subs {
+			if s.Channel == subscription.OrderbookChannel {
+				e.invalidateUnsubscribedBooks(s)
+			}
+		}
 	}
 	if err != nil {
 		return err

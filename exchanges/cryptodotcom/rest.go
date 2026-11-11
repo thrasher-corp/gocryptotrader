@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"slices"
@@ -80,6 +81,7 @@ var (
 	errOrderListEmpty         = errors.New("order list empty")
 	errOrderListTooLong       = errors.New("order list too long")
 	errTimeBeforeUnixEpoch    = errors.New("time before the Unix epoch")
+	errTimeTooLate            = errors.New("time later than a request param can hold")
 )
 
 // Response codes of a request Crypto.com refuses as a whole, whatever it asks
@@ -111,9 +113,9 @@ func (a *APIError) Error() string {
 // apiResponse is the envelope of every response, whose code is 0 when the request succeeded; Crypto.com sends the
 // code as a JSON number although its docs show a string, so either is decoded
 type apiResponse struct {
-	Code    types.Number `json:"code"`
-	Message string       `json:"message"`
-	Result  any          `json:"result"`
+	Code    types.Number    `json:"code"`
+	Message string          `json:"message"`
+	Result  json.RawMessage `json:"result"`
 }
 
 // err returns the error a response reports, or nil when it reports none
@@ -141,14 +143,15 @@ type requestBody struct {
 	OnBehalfOfAccountUUID string `json:"on_behalf_of_account_uuid,omitempty"`
 }
 
-// SendHTTPRequest sends a public method's GET request with params as its query string, and decodes its result
+// SendHTTPRequest sends a public method's GET request with params as its query string, and decodes its result into
+// result, which is nil when none is wanted; a wanted result Crypto.com leaves out is common.ErrNoResponse
 func (e *Exchange) SendHTTPRequest(ctx context.Context, epl request.EndpointLimit, method string, params url.Values, result any) error {
 	endpoint, err := e.API.Endpoints.GetURL(exchange.RestSpot)
 	if err != nil {
 		return err
 	}
 	path := common.EncodeURLValues(endpoint+apiPath+method, params)
-	resp := &apiResponse{Result: result}
+	resp := new(apiResponse)
 	err = e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
 			Method:                 http.MethodGet,
@@ -160,11 +163,11 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, epl request.EndpointLimi
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.UnauthenticatedRequest)
-	return responseError(resp, err)
+	return decodeResult(resp, err, method, result, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends a private method's POST request, signed with the configured credentials, with
-// params, which may be nil, as its params object, and decodes its result
+// params, which may be nil, as its params object, and decodes its result into result as SendHTTPRequest does
 func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, epl request.EndpointLimit, method string, params, result any) error {
 	return e.sendAuthenticatedRequest(ctx, epl, method, "", params, result)
 }
@@ -198,7 +201,7 @@ func (e *Exchange) sendPostRequest(ctx context.Context, epl request.EndpointLimi
 	if creds != nil {
 		requestType = request.AuthenticatedRequest
 	}
-	resp := &apiResponse{Result: result}
+	resp := new(apiResponse)
 	err = e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		body := requestBody{
 			// The ID only has to be unique to tell responses apart, so the requester's nonce, which takes its timed lock,
@@ -234,7 +237,7 @@ func (e *Exchange) sendPostRequest(ctx context.Context, epl request.EndpointLimi
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, requestType)
-	return responseError(resp, err)
+	return decodeResult(resp, err, method, result, requestType)
 }
 
 // responseError returns the error a response reports, else the request's. Crypto.com answers a failed request with
@@ -250,6 +253,24 @@ func responseError(resp *apiResponse, requestErr error) error {
 	return requestErr
 }
 
+// decodeResult returns the error a response or its request reports, else decodes the response's result into result
+// when one is wanted; a wanted result that is missing or null is common.ErrNoResponse, naming the method, while an
+// empty list or object is a result. A result an authenticated request cannot decode is marked as the requester marks
+// that request's failures
+func decodeResult(resp *apiResponse, requestErr error, method string, result any, requestType request.AuthType) error {
+	if err := responseError(resp, requestErr); err != nil || result == nil {
+		return err
+	}
+	if len(resp.Result) == 0 || string(resp.Result) == jsonNull {
+		return fmt.Errorf("%w: %s", common.ErrNoResponse, method)
+	}
+	err := json.Unmarshal(resp.Result, result)
+	if err != nil && requestType == request.AuthenticatedRequest {
+		return common.AppendError(err, request.ErrAuthRequestFailed)
+	}
+	return err
+}
+
 // encodeParams returns params as the JSON object a request sends, an empty object when params is nil, as Crypto.com
 // wants params on every request
 func encodeParams(params any) (json.RawMessage, error) {
@@ -260,7 +281,7 @@ func encodeParams(params any) (json.RawMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	if string(encoded) == "null" {
+	if string(encoded) == jsonNull {
 		return json.RawMessage("{}"), nil
 	}
 	return encoded, nil
@@ -337,7 +358,7 @@ func appendParamString(sb *strings.Builder, value []byte, dataType jsonparser.Va
 		}
 		sb.WriteString(s)
 	case jsonparser.Null:
-		sb.WriteString("null")
+		sb.WriteString(jsonNull)
 	default:
 		sb.Write(value)
 	}
@@ -345,27 +366,39 @@ func appendParamString(sb *strings.Builder, value []byte, dataType jsonparser.Va
 }
 
 // unixMilliParam returns a time as the Unix milliseconds a request param takes, zero, which is left unsent, for the
-// zero time, and an error for a time before 1970
+// zero time, and an error for a time before 1970 or after the last millisecond an int64 holds, which would wrap
 func unixMilliParam(t time.Time) (uint64, error) {
 	if t.IsZero() {
 		return 0, nil
 	}
-	ms := t.UnixMilli()
-	if ms < 0 {
+	if t.Before(unixEpoch) {
 		return 0, fmt.Errorf("%w: %s", errTimeBeforeUnixEpoch, t)
 	}
-	return uint64(ms), nil
+	if t.After(lastUnixMilliTime) {
+		return 0, fmt.Errorf("%w: %s", errTimeTooLate, t)
+	}
+	return uint64(t.UnixMilli()), nil
 }
 
 // unixNanoParam returns a time as the Unix nanoseconds a request param takes, zero, which is left unsent, for the zero
-// time, and an error for a time before 1970; Crypto.com recommends nanoseconds for paging history accurately
+// time, and an error for a time before 1970 or after 2262-04-11T23:47:16.854775807Z, the last nanosecond an int64
+// holds, which would wrap; Crypto.com recommends nanoseconds for paging history accurately
 func unixNanoParam(t time.Time) (uint64, error) {
 	if t.IsZero() {
 		return 0, nil
 	}
-	ns := t.UnixNano()
-	if ns < 0 {
+	if t.Before(unixEpoch) {
 		return 0, fmt.Errorf("%w: %s", errTimeBeforeUnixEpoch, t)
 	}
-	return uint64(ns), nil
+	if t.After(lastUnixNanoTime) {
+		return 0, fmt.Errorf("%w: %s", errTimeTooLate, t)
+	}
+	return uint64(t.UnixNano()), nil
 }
+
+// The bounds of the times Unix time params hold
+var (
+	unixEpoch         = time.Unix(0, 0)
+	lastUnixMilliTime = time.UnixMilli(math.MaxInt64)
+	lastUnixNanoTime  = time.Unix(0, math.MaxInt64)
+)

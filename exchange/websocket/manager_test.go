@@ -27,6 +27,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -240,6 +242,12 @@ func TestSetup(t *testing.T) {
 	websocketSetup.ExchangeConfig.WebsocketTrafficTimeout = time.Minute
 	err = w.Setup(websocketSetup)
 	assert.NoError(t, err, "Setup should not error")
+	assert.False(t, w.invalidateOrderbooksOnShutdown, "Setup should leave the orderbooks to outlive a shutdown by default")
+
+	w = &Manager{DataHandler: stream.NewRelay(1)}
+	websocketSetup.InvalidateOrderbooksOnShutdown = true
+	require.NoError(t, w.Setup(websocketSetup), "Setup must not error")
+	assert.True(t, w.invalidateOrderbooksOnShutdown, "Setup should keep that the orderbooks are invalidated on shutdown")
 }
 
 func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level parallel is safe; serial subtests limit websocket CI contention
@@ -905,46 +913,99 @@ func newConnectionCountingServer(t *testing.T) (string, *gws.Dialer, *atomic.Int
 func TestConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
 	t.Parallel()
 
-	synctest.Test(t, func(t *testing.T) {
-		wsURL, dialer, openConnections := newConnectionCountingServer(t)
-		ws := NewManager()
-		t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
-		setup := newDefaultSetup()
-		setup.RunningURL = wsURL
-		require.NoError(t, ws.Setup(setup), "Setup must not error")
-		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL}), "SetupNewConnection must not error")
-		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL, Authenticated: true}), "SetupNewConnection must not error for the authenticated connection")
+	t.Run("single connection", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			wsURL, dialer, openConnections := newConnectionCountingServer(t)
+			ws := NewManager()
+			t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+			setup := newDefaultSetup()
+			setup.RunningURL = wsURL
+			require.NoError(t, ws.Setup(setup), "Setup must not error")
+			require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL}), "SetupNewConnection must not error")
+			require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL, Authenticated: true}), "SetupNewConnection must not error for the authenticated connection")
 
-		readerDone := make(chan struct{})
-		// Mirrors an exchange whose login on the authenticated socket fails after the public socket and its reader are
-		// already running
-		ws.connector = func() error {
-			if err := ws.Conn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
-				return err
-			}
-			ws.Wg.Go(func() {
-				defer close(readerDone)
-				for {
-					if resp := ws.Conn.ReadMessage(); resp.Raw == nil {
-						return
-					}
+			readerDone := make(chan struct{})
+			// Mirrors an exchange whose login on the authenticated socket fails after the public socket and its reader are
+			// already running
+			ws.connector = func() error {
+				if err := ws.Conn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
+					return err
 				}
-			})
-			if err := ws.AuthConn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
-				return err
+				ws.Wg.Go(func() {
+					defer close(readerDone)
+					for {
+						if resp := ws.Conn.ReadMessage(); resp.Raw == nil {
+							return
+						}
+					}
+				})
+				if err := ws.AuthConn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
+					return err
+				}
+				return errDastardlyReason
 			}
-			return errDastardlyReason
-		}
 
-		require.ErrorIs(t, ws.Connect(t.Context()), errDastardlyReason, "Connect must return the connector error")
+			require.ErrorIs(t, ws.Connect(t.Context()), errDastardlyReason, "Connect must return the connector error")
+			assert.False(t, ws.IsConnected(), "IsConnected should return false after a failed connect")
+			assert.False(t, ws.IsConnecting(), "IsConnecting should return false after a failed connect")
+			select {
+			case <-readerDone:
+			default:
+				assert.Fail(t, "reader should be stopped by the time Connect returns")
+			}
+			assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, 5*time.Second, 10*time.Millisecond, "server should see both sockets closed")
+		})
+	})
+
+	t.Run("multiple connections", func(t *testing.T) {
+		t.Parallel()
+		server, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+		wsURL := "ws" + server.URL[len("http"):] + "/ws"
+		ws := NewManager()
+		setup := newDefaultSetup()
+		setup.ExchangeConfig.Name = t.Name()
+		setup.UseMultiConnectionManagement = true
+		setup.InvalidateOrderbooksOnShutdown = true
+		require.NoError(t, ws.Setup(setup), "Setup must not error")
+		p := currency.NewBTCUSDT()
+		loaded := make(chan struct{})
+		markLoaded := sync.OnceFunc(func() { close(loaded) })
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+			URL:                   wsURL,
+			Connector:             func(ctx context.Context, c Connection) error { return c.Dial(ctx, dialer, nil, nil) },
+			GenerateSubscriptions: func() (subscription.List, error) { return subscription.List{{Channel: "book"}}, nil },
+			Subscriber: func(ctx context.Context, c Connection, subs subscription.List) error {
+				// The echo reaches the reader, whose handler loads a book before the next connection fails
+				if err := c.SendJSONMessage(ctx, request.Unset, map[string]string{"load": "book"}); err != nil {
+					return err
+				}
+				<-loaded
+				return ws.AddSuccessfulSubscriptions(c, subs...)
+			},
+			Unsubscriber: func(context.Context, Connection, subscription.List) error { return nil },
+			Handler: func(ctx context.Context, _ Connection, _ []byte) error {
+				defer markLoaded()
+				return ws.Orderbook.LoadSnapshot(ctx, &orderbook.Book{Exchange: t.Name(), Pair: p, Asset: asset.Spot, LastUpdated: time.Now(), Bids: orderbook.Levels{{Price: 1, Amount: 1}}})
+			},
+		}), "SetupNewConnection must not error")
+		// The failing connection also ends the context, so that no connection monitor redials and reloads the book
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+			URL:                      wsURL + "/fails",
+			SubscriptionsNotRequired: true,
+			Connector: func(context.Context, Connection) error {
+				cancel()
+				return context.Canceled
+			},
+			Handler: func(context.Context, Connection, []byte) error { return nil },
+		}), "SetupNewConnection must not error for the failing connection")
+
+		require.ErrorIs(t, ws.Connect(ctx), context.Canceled, "Connect must return the failing connection's error")
 		assert.False(t, ws.IsConnected(), "IsConnected should return false after a failed connect")
-		assert.False(t, ws.IsConnecting(), "IsConnecting should return false after a failed connect")
-		select {
-		case <-readerDone:
-		default:
-			assert.Fail(t, "reader should be stopped by the time Connect returns")
-		}
-		assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, 5*time.Second, 10*time.Millisecond, "server should see both sockets closed")
+		_, err := orderbook.Get(t.Name(), p, asset.Spot)
+		assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "Connect should invalidate the orderbook an earlier connection loaded, as its reader has stopped")
 	})
 }
 
@@ -1812,10 +1873,60 @@ func TestWaitForResponses(t *testing.T) {
 		require.ErrorIs(t, err, context.Canceled, "waitForResponses must return the cancellation")
 		assert.Equal(t, [][]byte{[]byte("first")}, got, "waitForResponses should return the response received before the cancellation")
 	})
+	t.Run("responses queued before a stop", func(t *testing.T) {
+		t.Parallel()
+		first, second := []byte("first"), []byte("second")
+		for _, tc := range []struct {
+			name      string
+			maxLimit  time.Duration
+			cancel    bool
+			expected  int
+			queued    [][]byte
+			inspector Inspector
+			exp       [][]byte
+			err       error
+		}{
+			{name: "partial sequence on cancellation", maxLimit: time.Minute, cancel: true, expected: 2, queued: [][]byte{first}, exp: [][]byte{first}, err: context.Canceled},
+			{name: "partial sequence on timeout", maxLimit: time.Nanosecond, expected: 2, queued: [][]byte{first}, exp: [][]byte{first}, err: ErrSignatureTimeout},
+			{name: "whole sequence on cancellation", maxLimit: time.Minute, cancel: true, expected: 2, queued: [][]byte{first, second}, exp: [][]byte{first, second}},
+			{name: "whole sequence on timeout", maxLimit: time.Nanosecond, expected: 2, queued: [][]byte{first, second}, exp: [][]byte{first, second}},
+			{name: "final response on cancellation", maxLimit: time.Minute, cancel: true, expected: 3, queued: [][]byte{first, second}, inspector: inspection{breakEarly: true}, exp: [][]byte{first}},
+			{name: "final response on timeout", maxLimit: time.Nanosecond, expected: 3, queued: [][]byte{first, second}, inspector: inspection{breakEarly: true}, exp: [][]byte{first}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				// select chooses between a queued response and the stop at random, so the runs give each order a chance
+				for range 64 {
+					conn := &connection{ResponseMaxLimit: tc.maxLimit, Match: NewMatch()}
+					ch, err := conn.Match.Set("queued", tc.expected)
+					require.NoError(t, err, "Set must not error")
+					for _, resp := range tc.queued {
+						require.True(t, conn.Match.IncomingWithData("queued", resp), "IncomingWithData must queue the response")
+					}
+					ctx := t.Context()
+					if tc.cancel {
+						var cancel context.CancelFunc
+						ctx, cancel = context.WithCancel(ctx)
+						cancel()
+					}
+					got, err := conn.waitForResponses(ctx, "queued", ch, tc.expected, tc.inspector)
+					if tc.err != nil {
+						require.ErrorIs(t, err, tc.err, "waitForResponses must return the stop for a partial sequence")
+					} else {
+						require.NoError(t, err, "waitForResponses must not error for a sequence the queued responses complete")
+					}
+					require.Equal(t, tc.exp, got, "waitForResponses must return every response queued up to the end of the sequence")
+					assert.False(t, conn.Match.IncomingWithData("queued", []byte("late")), "waitForResponses should leave the signature unregistered")
+				}
+			})
+		}
+	})
 }
 
-func TestSendMessageReturnResponsesReturnsPartialResponses(t *testing.T) {
-	t.Parallel()
+// newEchoTestConnection returns a connection to a local websocket server that echoes each request, routing the first
+// echo with a request ID to its matcher
+func newEchoTestConnection(t *testing.T) *connection {
+	t.Helper()
 	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	wc := &connection{
 		URL:              "ws" + mock.URL[len("http"):] + "/ws",
@@ -1824,11 +1935,51 @@ func TestSendMessageReturnResponsesReturnsPartialResponses(t *testing.T) {
 	}
 	require.NoError(t, wc.Dial(t.Context(), dialer, http.Header{}, nil), "Dial must not error")
 	go readMessages(t, wc)
-	req := testRequest{Event: "subscribe", RequestID: 12345}
-	got, err := wc.SendMessageReturnResponsesWithInspector(t.Context(), request.Unset, req.RequestID, req, 2, nil)
-	require.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponsesWithInspector must time out waiting for the second response")
-	require.Len(t, got, 1, "SendMessageReturnResponsesWithInspector must return the response received before the timeout")
-	assert.Contains(t, string(got[0]), `"reqid":12345`, "the echoed request should be returned")
+	return wc
+}
+
+func TestConnectionSendMessageReturnResponses(t *testing.T) {
+	t.Parallel()
+	t.Run("answered", func(t *testing.T) {
+		t.Parallel()
+		wc := newEchoTestConnection(t)
+		req := testRequest{Event: "subscribe", RequestID: 12344}
+		got, err := wc.SendMessageReturnResponses(t.Context(), request.Unset, req.RequestID, req, 1)
+		require.NoError(t, err, "SendMessageReturnResponses must not error")
+		require.Len(t, got, 1, "SendMessageReturnResponses must return the response")
+		assert.Contains(t, string(got[0]), `"reqid":12344`, "the echoed request should be returned")
+	})
+	t.Run("partial responses on a timeout", func(t *testing.T) {
+		t.Parallel()
+		wc := newEchoTestConnection(t)
+		req := testRequest{Event: "subscribe", RequestID: 12345}
+		got, err := wc.SendMessageReturnResponses(t.Context(), request.Unset, req.RequestID, req, 2)
+		require.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponses must time out waiting for the second response")
+		require.Len(t, got, 1, "SendMessageReturnResponses must return the response received before the timeout")
+		assert.Contains(t, string(got[0]), `"reqid":12345`, "the echoed request should be returned")
+	})
+}
+
+func TestConnectionSendMessageReturnResponsesWithInspector(t *testing.T) {
+	t.Parallel()
+	t.Run("final response", func(t *testing.T) {
+		t.Parallel()
+		wc := newEchoTestConnection(t)
+		req := testRequest{Event: "subscribe", RequestID: 12346}
+		got, err := wc.SendMessageReturnResponsesWithInspector(t.Context(), request.Unset, req.RequestID, req, 2, inspection{breakEarly: true})
+		require.NoError(t, err, "SendMessageReturnResponsesWithInspector must not error once the inspector finds the final response")
+		require.Len(t, got, 1, "SendMessageReturnResponsesWithInspector must return the final response")
+		assert.Contains(t, string(got[0]), `"reqid":12346`, "the echoed request should be returned")
+	})
+	t.Run("partial responses on a timeout", func(t *testing.T) {
+		t.Parallel()
+		wc := newEchoTestConnection(t)
+		req := testRequest{Event: "subscribe", RequestID: 12347}
+		got, err := wc.SendMessageReturnResponsesWithInspector(t.Context(), request.Unset, req.RequestID, req, 2, nil)
+		require.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponsesWithInspector must time out waiting for the second response")
+		require.Len(t, got, 1, "SendMessageReturnResponsesWithInspector must return the response received before the timeout")
+		assert.Contains(t, string(got[0]), `"reqid":12347`, "the echoed request should be returned")
+	})
 }
 
 type inspection struct {
@@ -2720,6 +2871,30 @@ func TestGetConnection(t *testing.T) {
 	conn, err := ws.GetConnection("testURL")
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
+}
+
+func TestTeardown(t *testing.T) {
+	t.Parallel()
+	for _, invalidate := range []bool{false, true} {
+		t.Run("invalidate orderbooks "+strconv.FormatBool(invalidate), func(t *testing.T) {
+			t.Parallel()
+			m := NewManager()
+			require.NoError(t, m.Orderbook.Setup(t.Name(), m.DataHandler, false), "Orderbook.Setup must not error")
+			m.invalidateOrderbooksOnShutdown = invalidate
+			p := currency.NewBTCUSDT()
+			require.NoError(t, m.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{Exchange: t.Name(), Pair: p, Asset: asset.Spot, Bids: orderbook.Levels{{Price: 1, Amount: 1}}, LastUpdated: time.Now()}), "LoadSnapshot must not error")
+			m.m.Lock()
+			_, err := m.teardown()
+			m.m.Unlock()
+			require.NoError(t, err, "teardown must not error")
+			_, err = m.Orderbook.GetOrderbook(p, asset.Spot)
+			if invalidate {
+				assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "teardown should invalidate the orderbooks the websocket loaded")
+			} else {
+				assert.NoError(t, err, "teardown should leave the orderbooks valid unless set to invalidate them")
+			}
+		})
+	}
 }
 
 func TestShutdown(t *testing.T) {

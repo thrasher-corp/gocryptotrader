@@ -304,3 +304,40 @@ func TestGetWithdrawalHistory(t *testing.T) { //nolint:tparallel // the cases ru
 		}
 	}
 }
+
+func TestNewWalletHistoryParams(t *testing.T) {
+	t.Parallel()
+	start, end := time.UnixMilli(1587846300000), time.UnixMilli(1587846358253)
+	now := time.Now()
+	for _, tc := range []struct {
+		name string
+		req  *WalletHistoryRequest
+		exp  *walletHistoryParams
+		err  error
+	}{
+		{
+			name: "every field",
+			req:  &WalletHistoryRequest{Currency: currency.XRP, StartTime: start, EndTime: end, PageSize: 2, Page: 1, Status: DepositStatusNotArrived},
+			exp:  &walletHistoryParams{Currency: "XRP", StartTime: 1587846300000, EndTime: 1587846358253, PageSize: 2, Page: 1, Status: DepositStatusNotArrived},
+		},
+		{name: "no fields", req: &WalletHistoryRequest{}, exp: &walletHistoryParams{}},
+		{name: "a lower case currency", req: &WalletHistoryRequest{Currency: currency.NewCode("xrp")}, exp: &walletHistoryParams{Currency: "XRP"}},
+		{name: "a start without an end", req: &WalletHistoryRequest{StartTime: start}, exp: &walletHistoryParams{StartTime: 1587846300000}},
+		{name: "an end without a start", req: &WalletHistoryRequest{EndTime: end}, exp: &walletHistoryParams{EndTime: 1587846358253}},
+		{name: "the largest page size", req: &WalletHistoryRequest{PageSize: maxWalletHistoryPageSize}, exp: &walletHistoryParams{PageSize: maxWalletHistoryPageSize}},
+		{name: "a nil request", err: common.ErrNilPointer},
+		{name: "a page size above the largest", req: &WalletHistoryRequest{PageSize: maxWalletHistoryPageSize + 1}, err: errInvalidCount},
+		{name: "a window starting after it ends", req: &WalletHistoryRequest{StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
+		{name: "a window starting as it ends", req: &WalletHistoryRequest{StartTime: start, EndTime: start}, err: common.ErrStartEqualsEnd},
+		{name: "a window starting in the future", req: &WalletHistoryRequest{StartTime: now.Add(time.Hour), EndTime: now.Add(2 * time.Hour)}, err: common.ErrStartAfterTimeNow},
+		{name: "a start before the Unix epoch", req: &WalletHistoryRequest{StartTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+		{name: "an end before the Unix epoch", req: &WalletHistoryRequest{EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newWalletHistoryParams(tc.req)
+			require.ErrorIsf(t, err, tc.err, "newWalletHistoryParams must return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "newWalletHistoryParams should return the params of %s", tc.name)
+		})
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16,8 +17,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -31,7 +34,12 @@ import (
 
 const (
 	// canManipulateRealOrders lets live tests with credentials change the account they act for: place, amend and
-	// cancel orders priced away from the market, and change and restore account settings
+	// cancel orders priced away from the market, and cancel the account's ETHUSD-PERP orders; create, update, pause,
+	// resume and terminate trading bots, a funding arbitrage bot among them, which trades at the market; stake, unstake
+	// and convert staked tokens; request OTC quotes and deals; move funds to a sub-account and to isolated positions'
+	// margin, and back; withdraw BTC to the donation address and fiat to the first linked bank account; set the tests'
+	// websocket connection to cancel its orders when it disconnects; and write leverage and account settings back as
+	// they found them
 	canManipulateRealOrders = false
 	// testAPIKey and testAPISecret are placeholder credentials, which the mock responses and the test servers accept
 	testAPIKey    = "mock-api-key"
@@ -498,6 +506,56 @@ func TestParamString(t *testing.T) {
 	}
 }
 
+func TestAppendParamString(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		value    string
+		dataType jsonparser.ValueType
+		exp      string
+	}{
+		{name: "object keys in ascending order", value: `{"b":"2","a":{"d":true,"c":null}}`, dataType: jsonparser.Object, exp: "acnulldtrueb2"},
+		{name: "array elements in order", value: `["x",1,[2,"y"]]`, dataType: jsonparser.Array, exp: "x12y"},
+		{name: "string unescaped", value: `a\"b`, dataType: jsonparser.String, exp: `a"b`},
+		{name: "number as sent", value: `1.50`, dataType: jsonparser.Number, exp: "1.50"},
+		{name: "boolean", value: `false`, dataType: jsonparser.Boolean, exp: "false"},
+		{name: "null", value: `null`, dataType: jsonparser.Null, exp: "null"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var sb strings.Builder
+			require.NoErrorf(t, appendParamString(&sb, []byte(tc.value), tc.dataType), "appendParamString must not error for %s", tc.value)
+			assert.Equalf(t, tc.exp, sb.String(), "appendParamString should append the params string of %s", tc.value)
+		})
+	}
+	for _, tc := range []struct {
+		name     string
+		value    string
+		dataType jsonparser.ValueType
+	}{
+		{name: "truncated object", value: `{"a":`, dataType: jsonparser.Object},
+		{name: "invalid key escape", value: `{"\uZZZZ":1}`, dataType: jsonparser.Object},
+		{name: "truncated array", value: `[1,`, dataType: jsonparser.Array},
+		{name: "invalid element escape", value: `["\uZZZZ"]`, dataType: jsonparser.Array},
+		{name: "invalid string escape", value: `\uZZZZ`, dataType: jsonparser.String},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var sb strings.Builder
+			assert.Errorf(t, appendParamString(&sb, []byte(tc.value), tc.dataType), "appendParamString should error for %s", tc.value)
+		})
+	}
+}
+
+func TestRequestNonce(t *testing.T) {
+	t.Parallel()
+	before := uint64(time.Now().UnixMilli())
+	got := requestNonce()
+	after := uint64(time.Now().UnixMilli())
+	assert.GreaterOrEqual(t, got, before, "requestNonce should be the time in milliseconds when it is called")
+	assert.LessOrEqual(t, got, after, "requestNonce should be the time in milliseconds when it is called")
+}
+
 func TestSignRequest(t *testing.T) {
 	t.Parallel()
 	for _, v := range signatureVectors {
@@ -536,7 +594,7 @@ func TestEncodeParams(t *testing.T) { //nolint:tparallel // the cases run in ord
 	assert.Error(t, err, "encodeParams should error for params that cannot be marshalled")
 }
 
-func TestAPIError(t *testing.T) {
+func TestAPIErrorError(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, "40001 BAD_REQUEST", (&APIError{Code: 40001, Message: "BAD_REQUEST"}).Error(), "APIError should give its code and message")
 	assert.Equal(t, "40001", (&APIError{Code: 40001}).Error(), "APIError should give only its code without a message")
@@ -554,6 +612,93 @@ func TestResponseError(t *testing.T) {
 	err = responseError(&apiResponse{Code: 40001, Message: "BAD_REQUEST"}, request.ErrBadStatus)
 	require.ErrorAs(t, err, &apiErr, "responseError must return the reported error over the request's")
 	assert.NotErrorIs(t, err, request.ErrBadStatus, "responseError should report the error Crypto.com explains over the bad status")
+}
+
+func TestAPIResponseErr(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, (&apiResponse{Message: "ignored without a code"}).err(), "err should not error for code 0")
+	err := (&apiResponse{Code: 40001, Message: "BAD_REQUEST"}).err()
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr, "err must return an APIError for a nonzero code")
+	assert.Equal(t, &APIError{Code: 40001, Message: "BAD_REQUEST"}, apiErr, "err should report the response's code and message")
+}
+
+func TestDecodeResult(t *testing.T) {
+	t.Parallel()
+	t.Run("errors before decoding", func(t *testing.T) {
+		t.Parallel()
+		var result *OrderIDResponse
+		assert.ErrorIs(t, decodeResult(&apiResponse{Result: json.RawMessage(`{"order_id":"1"}`)}, request.ErrBadStatus, "private/get-order-detail", &result, request.UnauthenticatedRequest), request.ErrBadStatus, "decodeResult should return the request's error")
+		var apiErr *APIError
+		require.ErrorAs(t, decodeResult(&apiResponse{Code: 40401, Message: "NOT_FOUND", Result: json.RawMessage(`{"order_id":"1"}`)}, nil, "private/get-order-detail", &result, request.UnauthenticatedRequest), &apiErr, "decodeResult must return the response's error")
+		assert.Equal(t, &APIError{Code: 40401, Message: "NOT_FOUND"}, apiErr, "decodeResult should report the response's code and message")
+		assert.Nil(t, result, "decodeResult should not decode the result of a failed request")
+		require.ErrorAs(t, decodeResult(&apiResponse{Code: 40401, Message: "NOT_FOUND", Result: json.RawMessage(`["1"]`)}, nil, "private/get-order-detail", &result, request.UnauthenticatedRequest), &apiErr, "decodeResult must return the response's error over a result of the wrong type")
+	})
+	t.Run("missing result", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct{ name, result string }{
+			{name: "absent"},
+			{name: "null", result: "null"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				resp := &apiResponse{Result: json.RawMessage(tc.result)}
+				var pointer *OrderIDResponse
+				var value OrderIDResponse
+				var list []OrderIDResponse
+				held := &OrderIDResponse{OrderID: "1"}
+				for _, destination := range []struct {
+					name   string
+					result any
+				}{
+					{name: "pointer", result: &pointer},
+					{name: "struct", result: &value},
+					{name: "list", result: &list},
+					{name: "pointer holding an earlier result", result: &held},
+				} {
+					assert.ErrorIsf(t, decodeResult(resp, nil, "private/get-order-detail", destination.result, request.UnauthenticatedRequest), common.ErrNoResponse, "decodeResult should require a wanted result for a %s", destination.name)
+				}
+				assert.Equal(t, &OrderIDResponse{OrderID: "1"}, held, "decodeResult should leave the destination of a missing result as it was")
+				assert.ErrorContains(t, decodeResult(resp, nil, "private/get-order-detail", &pointer, request.UnauthenticatedRequest), "private/get-order-detail", "decodeResult should name the method whose result is missing")
+				assert.NoError(t, decodeResult(resp, nil, "private/get-order-detail", nil, request.UnauthenticatedRequest), "decodeResult should accept no result when none is wanted")
+			})
+		}
+	})
+	t.Run("empty list", func(t *testing.T) {
+		t.Parallel()
+		var result []OrderIDResponse
+		require.NoError(t, decodeResult(&apiResponse{Result: json.RawMessage(`[]`)}, nil, "private/get-order-detail", &result, request.UnauthenticatedRequest), "decodeResult must accept an empty list as a result")
+		assert.Equal(t, []OrderIDResponse{}, result, "decodeResult should decode an empty list")
+	})
+	t.Run("empty object", func(t *testing.T) {
+		t.Parallel()
+		var result *OrderIDResponse
+		require.NoError(t, decodeResult(&apiResponse{Result: json.RawMessage(`{}`)}, nil, "private/get-order-detail", &result, request.UnauthenticatedRequest), "decodeResult must accept an empty object as a result")
+		assert.Equal(t, &OrderIDResponse{}, result, "decodeResult should decode an empty object")
+	})
+	t.Run("object", func(t *testing.T) {
+		t.Parallel()
+		var result *OrderIDResponse
+		require.NoError(t, decodeResult(&apiResponse{Result: json.RawMessage(`{"order_id":"1","client_oid":"c"}`)}, nil, "private/get-order-detail", &result, request.UnauthenticatedRequest), "decodeResult must not error")
+		assert.Equal(t, &OrderIDResponse{OrderID: "1", ClientOrderID: "c"}, result, "decodeResult should decode the result")
+	})
+	t.Run("malformed result", func(t *testing.T) {
+		t.Parallel()
+		resp := &apiResponse{Result: json.RawMessage(`["1"]`)}
+		var result *OrderIDResponse
+		err := decodeResult(resp, nil, "private/get-order-detail", &result, request.UnauthenticatedRequest)
+		require.Error(t, err, "decodeResult must error for a result of the wrong type")
+		assert.NotErrorIs(t, err, request.ErrAuthRequestFailed, "decodeResult should not mark an unauthenticated request's result")
+		assert.ErrorIs(t, decodeResult(resp, nil, "private/get-order-detail", &result, request.AuthenticatedRequest), request.ErrAuthRequestFailed, "decodeResult should mark an authenticated request's result it cannot decode")
+	})
+	t.Run("unusable destination", func(t *testing.T) {
+		t.Parallel()
+		resp := &apiResponse{Result: json.RawMessage(`{"order_id":"1"}`)}
+		var typedNil *OrderIDResponse
+		assert.Error(t, decodeResult(resp, nil, "private/get-order-detail", typedNil, request.UnauthenticatedRequest), "decodeResult should error for a nil pointer destination")
+		assert.Error(t, decodeResult(resp, nil, "private/get-order-detail", OrderIDResponse{}, request.UnauthenticatedRequest), "decodeResult should error for a destination that is not a pointer")
+	})
 }
 
 func TestSendHTTPRequest(t *testing.T) {
@@ -590,6 +735,61 @@ func TestSendHTTPRequest(t *testing.T) {
 	ex.API.Endpoints = ex.NewEndpoints()
 	err = ex.SendHTTPRequest(t.Context(), publicEPL, "public/get-tickers", nil, &result)
 	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound, "SendHTTPRequest should error without an endpoint")
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		var tickers dataResponse[TickerResponse]
+		require.NoError(t, e.SendHTTPRequest(t.Context(), publicEPL, "public/get-tickers", nil, &tickers), "SendHTTPRequest must not error")
+		assert.NotEmpty(t, tickers.Data, "SendHTTPRequest should decode the tickers")
+	})
+	t.Run("missing result respects the destination", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct{ name, body string }{
+			{name: "missing", body: `{"code":0}`},
+			{name: "null", body: `{"code":0,"result":null}`},
+			{name: "null between spaces", body: `{"code":0,"result" : null }`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newResponseServerExchange(t, tc.body)
+				var result *OrderIDResponse
+				assert.ErrorIs(t, ex.SendHTTPRequest(t.Context(), publicEPL, "public/get-tickers", nil, &result), common.ErrNoResponse, "SendHTTPRequest should require a wanted result")
+				var value OrderIDResponse
+				assert.ErrorIs(t, ex.SendHTTPRequest(t.Context(), publicEPL, "public/get-tickers", nil, &value), common.ErrNoResponse, "SendHTTPRequest should require a wanted result of a destination that cannot be nil")
+				assert.NoError(t, ex.SendHTTPRequest(t.Context(), publicEPL, "public/get-tickers", nil, nil), "SendHTTPRequest should accept no result when none is wanted")
+			})
+		}
+	})
+	t.Run("empty list is a result", func(t *testing.T) {
+		t.Parallel()
+		var result []OrderIDResponse
+		require.NoError(t, newResponseServerExchange(t, `{"code":0,"result":[]}`).SendHTTPRequest(t.Context(), publicEPL, "public/get-tickers", nil, &result), "SendHTTPRequest must accept an empty list as a result")
+		assert.Empty(t, result, "SendHTTPRequest should decode an empty list")
+	})
+	t.Run("empty object is a result", func(t *testing.T) {
+		t.Parallel()
+		var result *OrderIDResponse
+		require.NoError(t, newResponseServerExchange(t, `{"code":0,"result":{}}`).SendHTTPRequest(t.Context(), publicEPL, "public/get-tickers", nil, &result), "SendHTTPRequest must accept an empty object as a result")
+		assert.Equal(t, &OrderIDResponse{}, result, "SendHTTPRequest should decode an empty object")
+	})
+	t.Run("reported error beats the result", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct{ name, body string }{
+			{name: "result after the code", body: `{"code":40401,"message":"NOT_FOUND","result":{"order_id":"1"}}`},
+			{name: "result before the code", body: `{"result":{"order_id":"1"},"code":40401,"message":"NOT_FOUND"}`},
+			{name: "result of the wrong type before the code", body: `{"result":["1"],"code":40401,"message":"NOT_FOUND"}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var result *OrderIDResponse
+				err := newResponseServerExchange(t, tc.body).SendHTTPRequest(t.Context(), publicEPL, "public/get-tickers", nil, &result)
+				var apiErr *APIError
+				require.ErrorAs(t, err, &apiErr, "SendHTTPRequest must return the error Crypto.com reports")
+				assert.Equal(t, &APIError{Code: 40401, Message: "NOT_FOUND"}, apiErr, "SendHTTPRequest should report the response's code and message")
+				assert.Nil(t, result, "SendHTTPRequest should not decode the result of a failed request")
+			})
+		}
+	})
 }
 
 func TestSendAuthenticatedHTTPRequest(t *testing.T) {
@@ -638,6 +838,94 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	require.NoError(t, setupTestExchange(unauthenticated), "setupTestExchange must not error")
 	err = unauthenticated.SendAuthenticatedHTTPRequest(t.Context(), getOrderDetailEPL, "private/get-order-detail", nil, &result)
 	assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "SendAuthenticatedHTTPRequest should error without authentication support")
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		var balances dataResponse[UserBalanceResponse]
+		require.NoError(t, e.SendAuthenticatedHTTPRequest(t.Context(), privateEPL, "private/user-balance", nil, &balances), "SendAuthenticatedHTTPRequest must not error")
+		assert.NotEmpty(t, balances.Data, "SendAuthenticatedHTTPRequest should decode the balances")
+	})
+	t.Run("missing result respects the destination", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct{ name, body string }{
+			{name: "missing", body: `{"code":0}`},
+			{name: "null", body: `{"code":0,"result":null}`},
+			{name: "null between spaces", body: `{"code":0,"result" : null }`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newResponseServerExchange(t, tc.body)
+				var result *OrderIDResponse
+				assert.ErrorIs(t, ex.SendAuthenticatedHTTPRequest(t.Context(), getOrderDetailEPL, "private/get-order-detail", nil, &result), common.ErrNoResponse, "SendAuthenticatedHTTPRequest should require a wanted result")
+				var value OrderIDResponse
+				assert.ErrorIs(t, ex.SendAuthenticatedHTTPRequest(t.Context(), getOrderDetailEPL, "private/get-order-detail", nil, &value), common.ErrNoResponse, "SendAuthenticatedHTTPRequest should require a wanted result of a destination that cannot be nil")
+				assert.NoError(t, ex.SendAuthenticatedHTTPRequest(t.Context(), getOrderDetailEPL, "private/get-order-detail", nil, nil), "SendAuthenticatedHTTPRequest should accept no result when none is wanted")
+			})
+		}
+	})
+	t.Run("empty list is a result", func(t *testing.T) {
+		t.Parallel()
+		var result []OrderIDResponse
+		require.NoError(t, newResponseServerExchange(t, `{"code":0,"result":[]}`).SendAuthenticatedHTTPRequest(t.Context(), getOrderDetailEPL, "private/get-order-detail", nil, &result), "SendAuthenticatedHTTPRequest must accept an empty list as a result")
+		assert.Empty(t, result, "SendAuthenticatedHTTPRequest should decode an empty list")
+	})
+	t.Run("empty object is a result", func(t *testing.T) {
+		t.Parallel()
+		var result *OrderIDResponse
+		require.NoError(t, newResponseServerExchange(t, `{"code":0,"result":{}}`).SendAuthenticatedHTTPRequest(t.Context(), getOrderDetailEPL, "private/get-order-detail", nil, &result), "SendAuthenticatedHTTPRequest must accept an empty object as a result")
+		assert.Equal(t, &OrderIDResponse{}, result, "SendAuthenticatedHTTPRequest should decode an empty object")
+	})
+	t.Run("reported error beats the result", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct{ name, body string }{
+			{name: "result after the code", body: `{"code":40401,"message":"NOT_FOUND","result":{"order_id":"1"}}`},
+			{name: "result before the code", body: `{"result":{"order_id":"1"},"code":40401,"message":"NOT_FOUND"}`},
+			{name: "result of the wrong type before the code", body: `{"result":["1"],"code":40401,"message":"NOT_FOUND"}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var result *OrderIDResponse
+				err := newResponseServerExchange(t, tc.body).SendAuthenticatedHTTPRequest(t.Context(), getOrderDetailEPL, "private/get-order-detail", nil, &result)
+				var apiErr *APIError
+				require.ErrorAs(t, err, &apiErr, "SendAuthenticatedHTTPRequest must return the error Crypto.com reports")
+				assert.Equal(t, &APIError{Code: 40401, Message: "NOT_FOUND"}, apiErr, "SendAuthenticatedHTTPRequest should report the response's code and message")
+				assert.Nil(t, result, "SendAuthenticatedHTTPRequest should not decode the result of a failed request")
+			})
+		}
+	})
+	t.Run("result of the wrong type keeps the requester's mark", func(t *testing.T) {
+		t.Parallel()
+		var result *OrderIDResponse
+		err := newResponseServerExchange(t, `{"code":0,"result":["1"]}`).SendAuthenticatedHTTPRequest(t.Context(), getOrderDetailEPL, "private/get-order-detail", nil, &result)
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthenticatedHTTPRequest should mark a result it cannot decode as a failed authenticated request")
+	})
+}
+
+func TestSendAuthenticatedRequest(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var sent []string
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, ok := readSignedRequest(t, r)
+		if !ok {
+			return
+		}
+		mu.Lock()
+		sent = append(sent, body.OnBehalfOfAccountUUID)
+		mu.Unlock()
+		_, err := w.Write([]byte(`{"id":1,"method":"private/fiat/fiat-access","code":0,"result":{"order_id":"1"}}`))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+	var result *OrderIDResponse
+	require.NoError(t, ex.sendAuthenticatedRequest(t.Context(), privateEPL, "private/fiat/fiat-access", "", nil, &result), "sendAuthenticatedRequest must not error for the account's own request")
+	require.NoError(t, ex.sendAuthenticatedRequest(t.Context(), privateEPL, "private/fiat/fiat-access", "8f3e8f7e-1a2b-4c5d-9e0f-123456789abc", nil, &result), "sendAuthenticatedRequest must not error for a broker's request")
+	assert.Equal(t, &OrderIDResponse{OrderID: "1"}, result, "sendAuthenticatedRequest should decode the result")
+	assert.Equal(t, []string{"", "8f3e8f7e-1a2b-4c5d-9e0f-123456789abc"}, sent, "sendAuthenticatedRequest should send the broker's account UUID only when given")
+
+	unauthenticated := new(Exchange)
+	require.NoError(t, setupTestExchange(unauthenticated), "setupTestExchange must not error")
+	assert.ErrorIs(t, unauthenticated.sendAuthenticatedRequest(t.Context(), privateEPL, "private/fiat/fiat-access", "", nil, &result), exchange.ErrAuthenticationSupportNotEnabled, "sendAuthenticatedRequest should error without credentials")
 }
 
 func TestSendPostRequest(t *testing.T) {
@@ -662,6 +950,9 @@ func TestSendPostRequest(t *testing.T) {
 		var result OrderIDResponse
 		require.NoError(t, ex.sendPostRequest(t.Context(), stakingEPL, "public/staking/get-conversion-rate", nil, &result, nil, ""), "sendPostRequest must not error unsigned")
 		assert.Equal(t, OrderIDResponse{OrderID: "2"}, result, "sendPostRequest should decode the result")
+		err := newResponseServerExchange(t, `{"code":0,"result":["2"]}`).sendPostRequest(t.Context(), stakingEPL, "public/staking/get-conversion-rate", nil, &result, nil, "")
+		require.Error(t, err, "sendPostRequest must error for a result of the wrong type")
+		assert.NotErrorIs(t, err, request.ErrAuthRequestFailed, "sendPostRequest should not mark an unsigned request's result as a failed authenticated request")
 	})
 }
 
@@ -819,6 +1110,10 @@ func TestUnixMilliParam(t *testing.T) {
 		{name: "zero time"},
 		{name: "after the epoch", t: time.UnixMilli(1700000000123), exp: 1700000000123},
 		{name: "before the epoch", t: time.UnixMilli(-1), err: errTimeBeforeUnixEpoch},
+		{name: "the epoch", t: time.Unix(0, 0)},
+		{name: "the last millisecond an int64 holds", t: time.UnixMilli(math.MaxInt64), exp: math.MaxInt64},
+		{name: "after the last millisecond an int64 holds", t: time.UnixMilli(math.MaxInt64).Add(time.Millisecond), err: errTimeTooLate},
+		{name: "so long before the epoch its milliseconds would wrap", t: time.Date(-300000000, 1, 1, 0, 0, 0, 0, time.UTC), err: errTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -840,6 +1135,10 @@ func TestUnixNanoParam(t *testing.T) {
 		{name: "zero time"},
 		{name: "after the epoch", t: time.Unix(0, 1700000000123456789), exp: 1700000000123456789},
 		{name: "before the epoch", t: time.Unix(0, -1), err: errTimeBeforeUnixEpoch},
+		{name: "the last nanosecond an int64 holds", t: time.Unix(0, math.MaxInt64), exp: math.MaxInt64},
+		{name: "after the last nanosecond an int64 holds", t: time.Unix(0, math.MaxInt64).Add(time.Nanosecond), err: errTimeTooLate},
+		{name: "a year an int64 of nanoseconds wraps", t: time.Date(2600, 1, 1, 0, 0, 0, 0, time.UTC), err: errTimeTooLate},
+		{name: "a year before the first an int64 of nanoseconds holds", t: time.Date(1600, 1, 1, 0, 0, 0, 0, time.UTC), err: errTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

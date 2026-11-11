@@ -39,8 +39,12 @@ import (
 )
 
 const (
+	// websocketBookFreshness is how recently the websocket must have updated a book for a REST refresh to leave it in
+	// place: Crypto.com sends a subscribed book's changes every 10 or 100 milliseconds, or its snapshot every 500, and
+	// an empty delta after 5 seconds without changes, so a book it still streams is updated at least every 5 seconds
+	websocketBookFreshness = 10 * time.Second
 	// tradesPageLimit is the most public trades a get-trades request returns, and tradesHistoryWindow the longest window
-	// it serves
+	// its docs allow
 	tradesPageLimit     = 150
 	tradesHistoryWindow = 7 * 24 * time.Hour
 	// candlesPageLimit is the most candles a get-candlestick request returns
@@ -83,6 +87,7 @@ var (
 	errIsolatedPositionNotOpen   = errors.New("isolated position not open yet")
 	errInstrumentNotFound        = errors.New("instrument not found")
 	errNoMaximumLeverage         = errors.New("instrument has no maximum leverage")
+	errOrderListOutcomeUnknown   = errors.New("order outcome unknown")
 )
 
 // SetDefaults sets the basic defaults for Crypto.com
@@ -486,7 +491,9 @@ func percentFromFraction(fraction types.Number) float64 {
 	return fraction.Decimal().Mul(decimal.NewFromInt(100)).InexactFloat64()
 }
 
-// UpdateOrderbook updates and returns a pair's order book, as deep as Crypto.com serves it by default
+// UpdateOrderbook updates and returns a pair's order book, as deep as Crypto.com serves it by default. A book the
+// websocket loaded and has updated within websocketBookFreshness is left in place, as the REST snapshot carries no
+// update ID for its deltas to follow, and the REST snapshot is returned all the same
 func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	name, err := e.instrumentName(a, p)
 	if err != nil {
@@ -500,18 +507,19 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 		return nil, fmt.Errorf("%w: %s %s", orderbook.ErrOrderbookNotFound, a, p)
 	}
 	book := &orderbook.Book{
-		Exchange:          e.Name,
-		Pair:              p,
-		Asset:             a,
-		ValidateOrderbook: e.ValidateOrderbook,
-		LastUpdated:       resp.Data[0].Timestamp.Time(),
-		Bids:              orderbookLevels(resp.Data[0].Bids),
-		Asks:              orderbookLevels(resp.Data[0].Asks),
+		Exchange:               e.Name,
+		Pair:                   p,
+		Asset:                  a,
+		ValidateOrderbook:      e.ValidateOrderbook,
+		LastUpdated:            resp.Data[0].Timestamp.Time(),
+		Bids:                   orderbookLevels(resp.Data[0].Bids),
+		Asks:                   orderbookLevels(resp.Data[0].Asks),
+		DeferToWebsocketWithin: websocketBookFreshness,
 	}
 	if err := book.Process(); err != nil {
 		return nil, err
 	}
-	return orderbook.Get(e.Name, p, a)
+	return book, nil
 }
 
 // orderbookLevels returns order book levels as GoCryptoTrader holds them
@@ -847,7 +855,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 }
 
 // GetHistoricTrades returns a pair's trades from the start time, inclusive, to the end time, exclusive, oldest first,
-// requesting seven days at a time, the longest window get-trades serves
+// requesting seven days at a time, the longest window get-trades' docs allow
 func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time) ([]trade.Data, error) {
 	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
@@ -1365,20 +1373,20 @@ func submitResponse(s *order.Submit, resp *OrderIDResponse) (*order.SubmitRespon
 
 // SubmitOrder places an order
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	return e.submitOrder(ctx, s, e.CreateOrder, e.CreateAdvancedOrder)
+	return e.submitOrderWith(ctx, s, e.CreateOrder, e.CreateAdvancedOrder)
 }
 
 // WebsocketSubmitOrder places an order over the websocket
 func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	return e.submitOrder(ctx, s, e.WebsocketAPI().CreateOrder, e.WebsocketAPI().CreateAdvancedOrder)
+	return e.submitOrderWith(ctx, s, e.WebsocketAPI().CreateOrder, e.WebsocketAPI().CreateAdvancedOrder)
 }
 
-// submitOrder places an order with the advanced order methods' create for a trigger order, and otherwise with the
+// submitOrderWith places an order with the advanced order methods' create for a trigger order, and otherwise with the
 // trading methods'. A margin order is tracked by its client order ID before it is placed, as its trades can arrive
-// before its order ID does, until Crypto.com gives its order ID or refuses it; one whose outcome is unknown, as when the
-// request fails or is cancelled, may have been placed, so is still tracked. An isolated margin order is placed on its
-// instrument's isolated position, when the account holds one
-func (e *Exchange) submitOrder(ctx context.Context, s *order.Submit, create func(context.Context, *CreateOrderRequest) (*OrderIDResponse, error), createAdvanced func(context.Context, *CreateAdvancedOrderRequest) (*OrderIDResponse, error)) (*order.SubmitResponse, error) {
+// before its order ID does, until Crypto.com gives its order ID or refuses it; one whose outcome is unknown, as when
+// the request fails or is cancelled, may have been placed, so is still tracked. An isolated margin order is placed on
+// its instrument's isolated position, when the account holds one
+func (e *Exchange) submitOrderWith(ctx context.Context, s *order.Submit, create func(context.Context, *CreateOrderRequest) (*OrderIDResponse, error), createAdvanced func(context.Context, *CreateAdvancedOrderRequest) (*OrderIDResponse, error)) (*order.SubmitResponse, error) {
 	r, err := e.newOrderRequest(s)
 	if err != nil {
 		return nil, err
@@ -1404,13 +1412,14 @@ func (e *Exchange) submitOrder(ctx context.Context, s *order.Submit, create func
 }
 
 // WebsocketSubmitOrders places orders over the websocket, in lists of up to 10, trigger orders in lists of their own;
-// an order Crypto.com rejects has its submission error set. A list whose request fails, or whose answer cannot be read,
+// an order Crypto.com rejects has its submission error set, and one its answer leaves out an unknown status, as it may
+// have been placed. A list whose request fails, or whose answer cannot be read,
 // stops the orders after it, and the responses of the lists placed before it are returned with the error, the rest left
-// nil. Each list's margin orders are tracked as submitOrder tracks an order, by their client order IDs before the list is
-// sent and by their order IDs once it is answered, and an isolated margin order is placed as submitOrder places one, on
-// its instrument's isolated position. Orders naming none open a new isolated position each, and Crypto.com refuses a
-// second on one instrument, so a second isolated margin order on an instrument without one is refused before any list
-// is sent
+// nil. Each list's margin orders are tracked as submitOrderWith tracks an order, by their client order IDs before the
+// list is sent and by their order IDs once it is answered, and an isolated margin order is placed as submitOrderWith
+// places one, on its instrument's isolated position. Orders naming none open a new isolated position each, and
+// Crypto.com refuses a second on one instrument, so a second isolated margin order on an instrument without one is
+// refused before any list is sent
 func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) ([]*order.SubmitResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrderListEmpty
@@ -1507,8 +1516,9 @@ func (e *Exchange) trackListAnswered(orders []*order.Submit, requests []*orderRe
 }
 
 // listSubmitResponses sets the submit responses of a list of orders, by their indexes in the submitted orders, from the
-// list's entries, which give each order's outcome by its index in the list. An entry it cannot read leaves the list's
-// responses unset, rather than reporting rejected the orders whose entries it has not read
+// list's entries, which give each order's outcome by its index in the list. An order without an entry may have been
+// placed, so its outcome is unknown rather than rejected. An entry it cannot read leaves the list's responses unset,
+// rather than reporting rejected the orders whose entries it has not read
 func listSubmitResponses(orders []*order.Submit, list []int, entries []OrderListEntryResponse, responses []*order.SubmitResponse) error {
 	listResponses := make([]*order.SubmitResponse, len(list))
 	for k, i := range list {
@@ -1519,8 +1529,8 @@ func listSubmitResponses(orders []*order.Submit, list []int, entries []OrderList
 			Pair:            orders[i].Pair,
 			AssetType:       orders[i].AssetType,
 			ClientOrderID:   orders[i].ClientOrderID,
-			Status:          order.Rejected,
-			SubmissionError: fmt.Errorf("%w: no result for the order", order.ErrUnableToPlaceOrder),
+			Status:          order.UnknownStatus,
+			SubmissionError: errOrderListOutcomeUnknown,
 		}
 	}
 	for j := range entries {
@@ -1529,6 +1539,7 @@ func listSubmitResponses(orders []*order.Submit, list []int, entries []OrderList
 			continue
 		}
 		if code := entries[j].Code.Int64(); code != 0 {
+			listResponses[index].Status = order.Rejected
 			listResponses[index].SubmissionError = fmt.Errorf("%w: %w", order.ErrUnableToPlaceOrder, &APIError{Code: code, Message: entries[j].Message})
 			continue
 		}
@@ -1660,7 +1671,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 	if err != nil {
 		return nil, err
 	}
-	resp, err := amendOrder(ctx, a, e.AmendOrder, e.AmendAdvancedOrder)
+	resp, err := amendOrderWith(ctx, a, e.AmendOrder, e.AmendAdvancedOrder)
 	if err != nil {
 		return nil, err
 	}
@@ -1674,17 +1685,17 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, m *order.Modify) (*
 	if err != nil {
 		return nil, err
 	}
-	resp, err := amendOrder(ctx, a, e.WebsocketAPI().AmendOrder, e.WebsocketAPI().AmendAdvancedOrder)
+	resp, err := amendOrderWith(ctx, a, e.WebsocketAPI().AmendOrder, e.WebsocketAPI().AmendAdvancedOrder)
 	if err != nil {
 		return nil, err
 	}
 	return modifyResponse(m, a, resp)
 }
 
-// amendOrder amends an order with the advanced order methods' amend for an order they hold, and otherwise with the
+// amendOrderWith amends an order with the advanced order methods' amend for an order they hold, and otherwise with the
 // trading methods' amend, falling back to the advanced order methods' should Crypto.com refuse it, as only they amend a
 // leg of an order list; an amendment giving the order a new client order ID, which they cannot, does not fall back
-func amendOrder(ctx context.Context, a *orderAmendment, amend func(context.Context, *AmendOrderRequest) (*OrderIDResponse, error), amendAdvanced func(context.Context, *AmendAdvancedOrderRequest) (*OrderIDResponse, error)) (*OrderIDResponse, error) {
+func amendOrderWith(ctx context.Context, a *orderAmendment, amend func(context.Context, *AmendOrderRequest) (*OrderIDResponse, error), amendAdvanced func(context.Context, *AmendAdvancedOrderRequest) (*OrderIDResponse, error)) (*OrderIDResponse, error) {
 	if a.trigger != nil {
 		return amendAdvanced(ctx, a.trigger)
 	}
@@ -1718,17 +1729,17 @@ func isTriggerOrder(t order.Type) bool {
 // methods; an order of another type the trading methods cannot cancel, such as a leg of an OTO list, is cancelled by
 // them too
 func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
-	return cancelOrder(ctx, o, e.CancelExistingOrder, e.CancelAdvancedOrder)
+	return cancelOrderWith(ctx, o, e.CancelExistingOrder, e.CancelAdvancedOrder)
 }
 
 // WebsocketCancelOrder cancels an order by its order ID or client order ID over the websocket, as CancelOrder does
 func (e *Exchange) WebsocketCancelOrder(ctx context.Context, o *order.Cancel) error {
-	return cancelOrder(ctx, o, e.WebsocketAPI().CancelExistingOrder, e.WebsocketAPI().CancelAdvancedOrder)
+	return cancelOrderWith(ctx, o, e.WebsocketAPI().CancelExistingOrder, e.WebsocketAPI().CancelAdvancedOrder)
 }
 
-// cancelOrder cancels an order with the advanced order methods' cancel for a trigger order, and otherwise with the
+// cancelOrderWith cancels an order with the advanced order methods' cancel for a trigger order, and otherwise with the
 // trading methods' cancel, falling back to the advanced order methods' should Crypto.com refuse it
-func cancelOrder(ctx context.Context, o *order.Cancel, cancel func(context.Context, *CancelOrderRequest) (*OrderIDResponse, error), cancelAdvanced func(context.Context, *AdvancedOrderIDRequest) (*OrderIDResponse, error)) error {
+func cancelOrderWith(ctx context.Context, o *order.Cancel, cancel func(context.Context, *CancelOrderRequest) (*OrderIDResponse, error), cancelAdvanced func(context.Context, *AdvancedOrderIDRequest) (*OrderIDResponse, error)) error {
 	if err := o.Validate(); err != nil {
 		return err
 	}

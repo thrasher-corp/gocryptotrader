@@ -744,3 +744,23 @@ func TestInvalidateOrderbook(t *testing.T) {
 	_, err = w.GetOrderbook(cp, asset.Spot)
 	require.ErrorIs(t, err, errOrderbookInvalidated)
 }
+
+func TestInvalidateWebsocketOrderbooks(t *testing.T) {
+	t.Parallel()
+	streamed, err := getExclusivePair()
+	require.NoError(t, err, "getExclusivePair must not error")
+	replaced, err := getExclusivePair()
+	require.NoError(t, err, "getExclusivePair must not error")
+	o := &Orderbook{}
+	require.NoError(t, o.Setup(exchangeName, stream.NewRelay(4), false), "Setup must not error")
+	for _, p := range []currency.Pair{streamed, replaced} {
+		require.NoError(t, o.LoadSnapshot(t.Context(), &orderbook.Book{Exchange: exchangeName, Pair: p, Asset: asset.Spot, Bids: orderbook.Levels{{Price: 1, Amount: 1}}, LastUpdated: time.Now()}), "LoadSnapshot must not error")
+	}
+	require.NoError(t, (&orderbook.Book{Exchange: exchangeName, Pair: replaced, Asset: asset.Spot, Bids: orderbook.Levels{{Price: 2, Amount: 1}}, LastUpdated: time.Now()}).Process(), "Process must store the REST snapshot")
+	o.InvalidateWebsocketOrderbooks()
+	_, err = o.GetOrderbook(streamed, asset.Spot)
+	assert.ErrorIs(t, err, errWebsocketShutdown, "InvalidateWebsocketOrderbooks should invalidate a book the websocket loaded")
+	got, err := o.GetOrderbook(replaced, asset.Spot)
+	require.NoError(t, err, "InvalidateWebsocketOrderbooks must leave a REST snapshot valid")
+	assert.Equal(t, orderbook.Levels{{Price: 2, Amount: 1}}, got.Bids, "InvalidateWebsocketOrderbooks should leave the REST snapshot's bids")
+}

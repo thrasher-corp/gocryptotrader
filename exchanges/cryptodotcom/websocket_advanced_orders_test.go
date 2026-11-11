@@ -1,7 +1,6 @@
 package cryptodotcom
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,23 +23,14 @@ func testWebsocketAPIAdvancedFailures(t *testing.T, venue *websocketVenue, name,
 	assert.Equalf(t, &APIError{Code: 40001, Message: "BAD_REQUEST"}, apiErr, "%s should return Crypto.com's error", name)
 }
 
-// testWebsocketAPICancelContingency tests a websocket method cancelling an OCO, OTO or OTOCO by its list ID
-func testWebsocketAPICancelContingency(t *testing.T, name, method, listID string, cancel func(WebsocketAPI, context.Context, string) error) {
+// testWebsocketAPICancelContingency checks a websocket method cancelling an OCO, OTO or OTOCO sent the mock one request
+// for listID, and that cancel returns the error the mock answers with
+func testWebsocketAPICancelContingency(t *testing.T, venue *websocketVenue, name, method, listID string, cancel func() error) {
 	t.Helper()
-	require.ErrorIsf(t, cancel(newAdvancedRefusalExchange(t).WebsocketAPI(), t.Context(), ""), errListIDRequired, "%s must refuse an empty list ID", name)
-	skipLiveUnlessCanManipulate(t)
-
-	ex, venue := newWebsocketTestExchange(t)
-	require.NoErrorf(t, cancel(ex.WebsocketAPI(), t.Context(), listID), "%s must not error", name)
-	if !mockTests {
-		return
-	}
 	requests := venue.received(method)
 	require.Lenf(t, requests, 1, "%s must send one request", name)
 	assert.JSONEqf(t, `{"list_id":"`+listID+`"}`, string(requests[0].Params), "%s should send the list ID", name)
-	testWebsocketAPIAdvancedFailures(t, venue, name, method, false, func() error {
-		return cancel(ex.WebsocketAPI(), t.Context(), listID)
-	})
+	testWebsocketAPIAdvancedFailures(t, venue, name, method, false, cancel)
 }
 
 func TestWebsocketAPICreateAdvancedOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
@@ -61,10 +51,15 @@ func TestWebsocketAPICreateAdvancedOrder(t *testing.T) { //nolint:tparallel // t
 
 	ex, venue := newWebsocketTestExchange(t)
 	req := advancedTriggerOrder()
+	if !mockTests {
+		req.ClientOrderID = newTradingTestClientOrderID()
+	}
 	result, err := ex.WebsocketAPI().CreateAdvancedOrder(t.Context(), &req)
 	require.NoError(t, err, "CreateAdvancedOrder must not error")
 	if !mockTests {
-		assert.NotEmpty(t, result.OrderID, "CreateAdvancedOrder should return the order ID")
+		require.NotEmpty(t, result.OrderID, "CreateAdvancedOrder must return the order ID")
+		cancelAdvancedOrderAfterTest(t, result.OrderID)
+		assert.Equal(t, req.ClientOrderID, result.ClientOrderID, "CreateAdvancedOrder should return the order's client order ID")
 		return
 	}
 	exp := &OrderIDResponse{OrderID: "5755600460443882762", ClientOrderID: "c5f682ed-7108-4f1c-b755-972fcdca0f02"}
@@ -92,10 +87,14 @@ func TestWebsocketAPIAmendAdvancedOrder(t *testing.T) { //nolint:tparallel // th
 
 	ex, venue := newWebsocketTestExchange(t)
 	req := &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: 10, NewPrice: new(types.Number(0)), NewReferencePrice: 0.0279}
+	if !mockTests {
+		req.OrderID = placeAdvancedTestOrder(t).OrderID
+		cancelAdvancedOrderAfterTest(t, req.OrderID)
+	}
 	result, err := ex.WebsocketAPI().AmendAdvancedOrder(t.Context(), req)
 	require.NoError(t, err, "AmendAdvancedOrder must not error")
 	if !mockTests {
-		assert.NotEmpty(t, result.OrderID, "AmendAdvancedOrder should return the order ID")
+		assert.Equal(t, req.OrderID, result.OrderID, "AmendAdvancedOrder should return the amended order's ID")
 		return
 	}
 	exp := &OrderIDResponse{OrderID: "5755600460443882762", ClientOrderID: "c5f682ed-7108-4f1c-b755-972fcdca0f02"}
@@ -122,10 +121,11 @@ func TestWebsocketAPICreateOneCancelsTheOtherOrder(t *testing.T) { //nolint:tpar
 	skipLiveUnlessCanManipulate(t)
 
 	ex, venue := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CreateOneCancelsTheOtherOrder(t.Context(), ocoOrders())
+	result, err := ex.WebsocketAPI().CreateOneCancelsTheOtherOrder(t.Context(), contingencyTestOrders(ocoOrders()))
 	require.NoError(t, err, "CreateOneCancelsTheOtherOrder must not error")
 	if !mockTests {
-		assert.NotEmpty(t, result.ListID, "CreateOneCancelsTheOtherOrder should return the list ID")
+		require.NotEmpty(t, result.ListID, "CreateOneCancelsTheOtherOrder must return the list ID")
+		cancelContingencyAfterTest(t, string(result.ListID), (*Exchange).CancelOneCancelsTheOtherOrder)
 		return
 	}
 	exp := &AdvancedOrderListIDResponse{ListID: "6498090546073120100"}
@@ -141,7 +141,21 @@ func TestWebsocketAPICreateOneCancelsTheOtherOrder(t *testing.T) { //nolint:tpar
 
 func TestWebsocketAPICancelOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	testWebsocketAPICancelContingency(t, "CancelOneCancelsTheOtherOrder", "private/advanced/cancel-oco", "6498090546073120100", WebsocketAPI.CancelOneCancelsTheOtherOrder)
+	err := newAdvancedRefusalExchange(t).WebsocketAPI().CancelOneCancelsTheOtherOrder(t.Context(), "")
+	require.ErrorIs(t, err, errListIDRequired, "CancelOneCancelsTheOtherOrder must refuse an empty list ID")
+	skipLiveUnlessCanManipulate(t)
+
+	ex, venue := newWebsocketTestExchange(t)
+	placed, err := ex.WebsocketAPI().CreateOneCancelsTheOtherOrder(t.Context(), contingencyTestOrders(ocoOrders()))
+	require.NoError(t, err, "CreateOneCancelsTheOtherOrder must place the OCO the test cancels")
+	listID := string(placed.ListID)
+	require.NoError(t, ex.WebsocketAPI().CancelOneCancelsTheOtherOrder(t.Context(), listID), "CancelOneCancelsTheOtherOrder must not error")
+	if !mockTests {
+		return
+	}
+	testWebsocketAPICancelContingency(t, venue, "CancelOneCancelsTheOtherOrder", "private/advanced/cancel-oco", listID, func() error {
+		return ex.WebsocketAPI().CancelOneCancelsTheOtherOrder(t.Context(), listID)
+	})
 }
 
 func TestWebsocketAPICreateOneTriggersTheOtherOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
@@ -157,10 +171,11 @@ func TestWebsocketAPICreateOneTriggersTheOtherOrder(t *testing.T) { //nolint:tpa
 	skipLiveUnlessCanManipulate(t)
 
 	ex, venue := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CreateOneTriggersTheOtherOrder(t.Context(), otoOrders())
+	result, err := ex.WebsocketAPI().CreateOneTriggersTheOtherOrder(t.Context(), contingencyTestOrders(otoOrders()))
 	require.NoError(t, err, "CreateOneTriggersTheOtherOrder must not error")
 	if !mockTests {
-		assert.NotEmpty(t, result.ListID, "CreateOneTriggersTheOtherOrder should return the list ID")
+		require.NotEmpty(t, result.ListID, "CreateOneTriggersTheOtherOrder must return the list ID")
+		cancelContingencyAfterTest(t, string(result.ListID), (*Exchange).CancelOneTriggersTheOtherOrder)
 		return
 	}
 	exp := &AdvancedOrderListIDResponse{ListID: "6498090546073120199"}
@@ -176,7 +191,21 @@ func TestWebsocketAPICreateOneTriggersTheOtherOrder(t *testing.T) { //nolint:tpa
 
 func TestWebsocketAPICancelOneTriggersTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	testWebsocketAPICancelContingency(t, "CancelOneTriggersTheOtherOrder", "private/advanced/cancel-oto", "6498090546073120199", WebsocketAPI.CancelOneTriggersTheOtherOrder)
+	err := newAdvancedRefusalExchange(t).WebsocketAPI().CancelOneTriggersTheOtherOrder(t.Context(), "")
+	require.ErrorIs(t, err, errListIDRequired, "CancelOneTriggersTheOtherOrder must refuse an empty list ID")
+	skipLiveUnlessCanManipulate(t)
+
+	ex, venue := newWebsocketTestExchange(t)
+	placed, err := ex.WebsocketAPI().CreateOneTriggersTheOtherOrder(t.Context(), contingencyTestOrders(otoOrders()))
+	require.NoError(t, err, "CreateOneTriggersTheOtherOrder must place the OTO the test cancels")
+	listID := string(placed.ListID)
+	require.NoError(t, ex.WebsocketAPI().CancelOneTriggersTheOtherOrder(t.Context(), listID), "CancelOneTriggersTheOtherOrder must not error")
+	if !mockTests {
+		return
+	}
+	testWebsocketAPICancelContingency(t, venue, "CancelOneTriggersTheOtherOrder", "private/advanced/cancel-oto", listID, func() error {
+		return ex.WebsocketAPI().CancelOneTriggersTheOtherOrder(t.Context(), listID)
+	})
 }
 
 func TestWebsocketAPICreateOneTriggersAOneCancelsTheOtherOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
@@ -192,10 +221,11 @@ func TestWebsocketAPICreateOneTriggersAOneCancelsTheOtherOrder(t *testing.T) { /
 	skipLiveUnlessCanManipulate(t)
 
 	ex, venue := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), otocoOrders())
+	result, err := ex.WebsocketAPI().CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), contingencyTestOrders(otocoOrders()))
 	require.NoError(t, err, "CreateOneTriggersAOneCancelsTheOtherOrder must not error")
 	if !mockTests {
-		assert.NotEmpty(t, result.ListID, "CreateOneTriggersAOneCancelsTheOtherOrder should return the list ID")
+		require.NotEmpty(t, result.ListID, "CreateOneTriggersAOneCancelsTheOtherOrder must return the list ID")
+		cancelContingencyAfterTest(t, string(result.ListID), (*Exchange).CancelOneTriggersAOneCancelsTheOtherOrder)
 		return
 	}
 	exp := &AdvancedOrderListIDResponse{ListID: "6498090546073120243"}
@@ -211,7 +241,21 @@ func TestWebsocketAPICreateOneTriggersAOneCancelsTheOtherOrder(t *testing.T) { /
 
 func TestWebsocketAPICancelOneTriggersAOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	testWebsocketAPICancelContingency(t, "CancelOneTriggersAOneCancelsTheOtherOrder", "private/advanced/cancel-otoco", "6498090546073120243", WebsocketAPI.CancelOneTriggersAOneCancelsTheOtherOrder)
+	err := newAdvancedRefusalExchange(t).WebsocketAPI().CancelOneTriggersAOneCancelsTheOtherOrder(t.Context(), "")
+	require.ErrorIs(t, err, errListIDRequired, "CancelOneTriggersAOneCancelsTheOtherOrder must refuse an empty list ID")
+	skipLiveUnlessCanManipulate(t)
+
+	ex, venue := newWebsocketTestExchange(t)
+	placed, err := ex.WebsocketAPI().CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), contingencyTestOrders(otocoOrders()))
+	require.NoError(t, err, "CreateOneTriggersAOneCancelsTheOtherOrder must place the OTOCO the test cancels")
+	listID := string(placed.ListID)
+	require.NoError(t, ex.WebsocketAPI().CancelOneTriggersAOneCancelsTheOtherOrder(t.Context(), listID), "CancelOneTriggersAOneCancelsTheOtherOrder must not error")
+	if !mockTests {
+		return
+	}
+	testWebsocketAPICancelContingency(t, venue, "CancelOneTriggersAOneCancelsTheOtherOrder", "private/advanced/cancel-otoco", listID, func() error {
+		return ex.WebsocketAPI().CancelOneTriggersAOneCancelsTheOtherOrder(t.Context(), listID)
+	})
 }
 
 func TestWebsocketAPICancelAdvancedOrder(t *testing.T) {
@@ -225,10 +269,13 @@ func TestWebsocketAPICancelAdvancedOrder(t *testing.T) {
 
 	ex, venue := newWebsocketTestExchange(t)
 	req := &AdvancedOrderIDRequest{ClientOrderID: "c5f682ed-7108-4f1c-b755-972fcdca0f02"}
+	if !mockTests {
+		req.ClientOrderID = placeAdvancedTestOrder(t).ClientOrderID
+	}
 	result, err := ex.WebsocketAPI().CancelAdvancedOrder(t.Context(), req)
 	require.NoError(t, err, "CancelAdvancedOrder must not error")
 	if !mockTests {
-		assert.NotEmpty(t, result.OrderID, "CancelAdvancedOrder should return the order ID")
+		assert.Equal(t, req.ClientOrderID, result.ClientOrderID, "CancelAdvancedOrder should return the cancelled order's client order ID")
 		return
 	}
 	exp := &OrderIDResponse{OrderID: "5755600460443882762", ClientOrderID: "c5f682ed-7108-4f1c-b755-972fcdca0f02"}
@@ -280,10 +327,15 @@ func TestWebsocketAPICreateAdvancedOrderList(t *testing.T) { //nolint:tparallel 
 	skipLiveUnlessCanManipulate(t)
 
 	ex, venue := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CreateAdvancedOrderList(t.Context(), advancedOrderListOrders())
+	result, err := ex.WebsocketAPI().CreateAdvancedOrderList(t.Context(), advancedOrderListTestOrders())
 	require.NoError(t, err, "CreateAdvancedOrderList must not error")
 	if !mockTests {
-		assert.Len(t, result, len(advancedOrderListOrders()), "CreateAdvancedOrderList should return each order's outcome")
+		for i := range result {
+			if result[i].Code == 0 {
+				cancelAdvancedOrderAfterTest(t, result[i].OrderID)
+			}
+		}
+		assertListOutcomes(t, result, len(advancedOrderListOrders()), "CreateAdvancedOrderList", "place")
 		return
 	}
 	exp := []OrderListEntryResponse{
@@ -314,10 +366,18 @@ func TestWebsocketAPICancelAdvancedOrderList(t *testing.T) { //nolint:tparallel 
 
 	ex, venue := newWebsocketTestExchange(t)
 	orders := []AdvancedOrderIDRequest{{OrderID: "289991951579667814"}, {ClientOrderID: "my_tp_order"}}
+	if !mockTests {
+		first := placeAdvancedTestOrder(t)
+		cancelAdvancedOrderIfTestFails(t, first.OrderID)
+		second := placeAdvancedTestOrder(t)
+		cancelAdvancedOrderIfTestFails(t, second.OrderID)
+		orders = []AdvancedOrderIDRequest{{OrderID: first.OrderID}, {ClientOrderID: second.ClientOrderID}}
+	}
 	result, err := ex.WebsocketAPI().CancelAdvancedOrderList(t.Context(), orders)
 	require.NoError(t, err, "CancelAdvancedOrderList must not error")
+	require.Len(t, result, len(orders), "CancelAdvancedOrderList must return each cancel's outcome")
 	if !mockTests {
-		assert.Len(t, result, len(orders), "CancelAdvancedOrderList should return each cancel's outcome")
+		assertListOutcomes(t, result, len(orders), "CancelAdvancedOrderList", "cancel")
 		return
 	}
 	exp := []OrderListEntryResponse{{}, {Index: 1}}

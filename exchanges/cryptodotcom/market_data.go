@@ -24,26 +24,14 @@ var (
 // GetRiskParameters returns Smart Cross Margin's risk parameters
 func (e *Exchange) GetRiskParameters(ctx context.Context) (*RiskParametersResponse, error) {
 	var resp *RiskParametersResponse
-	if err := e.SendHTTPRequest(ctx, publicEPL, "public/get-risk-parameters", nil, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendHTTPRequest(ctx, publicEPL, "public/get-risk-parameters", nil, &resp)
 }
 
 // GetInstruments returns every instrument Crypto.com trades. The docs' event and combo filters serve prediction
 // markets, which this exchange does not list, so it ignores them and sends every instrument in one response
 func (e *Exchange) GetInstruments(ctx context.Context) ([]InstrumentResponse, error) {
-	var resp *dataResponse[InstrumentResponse]
-	if err := e.SendHTTPRequest(ctx, publicEPL, "public/get-instruments", nil, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[InstrumentResponse]
+	return resp.Data, e.SendHTTPRequest(ctx, publicEPL, "public/get-instruments", nil, &resp)
 }
 
 // GetOrderbook returns an instrument's order book
@@ -60,13 +48,7 @@ func (e *Exchange) GetOrderbook(ctx context.Context, req *OrderbookRequest) (*Or
 		params.Set("depth", strconv.FormatUint(req.Depth, 10))
 	}
 	var resp *OrderbookResponse
-	if err := e.SendHTTPRequest(ctx, publicEPL, "public/get-book", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendHTTPRequest(ctx, publicEPL, "public/get-book", params, &resp)
 }
 
 // GetCandlestick returns an instrument's candles, oldest first: the latest Count whose periods overlap the window
@@ -96,13 +78,7 @@ func (e *Exchange) GetCandlestick(ctx context.Context, req *CandlestickRequest) 
 		return nil, err
 	}
 	var resp *CandlestickResponse
-	if err := e.SendHTTPRequest(ctx, publicEPL, "public/get-candlestick", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendHTTPRequest(ctx, publicEPL, "public/get-candlestick", params, &resp)
 }
 
 // GetTrades returns an instrument's public trades, newest first: the latest Count from StartTime, inclusive, to
@@ -122,14 +98,8 @@ func (e *Exchange) GetTrades(ctx context.Context, req *TradesRequest) ([]TradeRe
 	if err := setTimeWindowParams(params, req.StartTime, req.EndTime, unixNanoParam); err != nil {
 		return nil, err
 	}
-	var resp *dataResponse[TradeResponse]
-	if err := e.SendHTTPRequest(ctx, publicEPL, "public/get-trades", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[TradeResponse]
+	return resp.Data, e.SendHTTPRequest(ctx, publicEPL, "public/get-trades", params, &resp)
 }
 
 // GetTickers returns the ticker of the instrument requested, or of every instrument
@@ -142,14 +112,8 @@ func (e *Exchange) GetTickers(ctx context.Context, req *TickersRequest) ([]Ticke
 		params = url.Values{}
 		params.Set("instrument_name", req.InstrumentName)
 	}
-	var resp *dataResponse[TickerResponse]
-	if err := e.SendHTTPRequest(ctx, publicEPL, "public/get-tickers", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[TickerResponse]
+	return resp.Data, e.SendHTTPRequest(ctx, publicEPL, "public/get-tickers", params, &resp)
 }
 
 // GetValuations returns an instrument's values of a valuation type, newest first: the latest Count before EndTime.
@@ -175,13 +139,7 @@ func (e *Exchange) GetValuations(ctx context.Context, req *ValuationsRequest) (*
 		return nil, err
 	}
 	var resp *ValuationsResponse
-	if err := e.SendHTTPRequest(ctx, publicEPL, "public/get-valuations", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendHTTPRequest(ctx, publicEPL, "public/get-valuations", params, &resp)
 }
 
 // GetExpiredSettlementPrice returns the prices expired instruments of a type settled at, the latest expiries first
@@ -197,26 +155,14 @@ func (e *Exchange) GetExpiredSettlementPrice(ctx context.Context, req *ExpiredSe
 	if req.Page > 0 {
 		params.Set("page", strconv.FormatUint(req.Page, 10))
 	}
-	var resp *dataResponse[ExpiredSettlementPriceResponse]
-	if err := e.SendHTTPRequest(ctx, publicEPL, "public/get-expired-settlement-price", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[ExpiredSettlementPriceResponse]
+	return resp.Data, e.SendHTTPRequest(ctx, publicEPL, "public/get-expired-settlement-price", params, &resp)
 }
 
 // GetDepositInstruments returns the currencies and tokens that can be deposited, and whether each counts as collateral
 func (e *Exchange) GetDepositInstruments(ctx context.Context) ([]DepositInstrumentResponse, error) {
 	var resp []DepositInstrumentResponse
-	if err := e.SendHTTPRequest(ctx, publicEPL, "public/get-deposit-instruments", nil, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendHTTPRequest(ctx, publicEPL, "public/get-deposit-instruments", nil, &resp)
 }
 
 // GetInsurance returns a currency's insurance fund balances, hourly and newest first: the latest Count before EndTime,
@@ -237,13 +183,7 @@ func (e *Exchange) GetInsurance(ctx context.Context, req *InsuranceRequest) (*In
 		return nil, err
 	}
 	var resp *InsuranceResponse
-	if err := e.SendHTTPRequest(ctx, publicEPL, "public/get-insurance", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendHTTPRequest(ctx, publicEPL, "public/get-insurance", params, &resp)
 }
 
 // setTimeWindowParams sets the start_ts and end_ts of a time window, each converted by toParam and left out when unset

@@ -41,6 +41,7 @@ const (
 var (
 	errBookDeltaHasNoUpdate = errors.New("book delta has no update")
 	errBookOutOfSync        = errors.New("order book out of sync")
+	errBookUnsubscribed     = errors.New("book channel unsubscribed")
 )
 
 // websocketCandleTimeframes are the intervals the candlestick channel serves, by the timeframe Crypto.com names each by
@@ -233,6 +234,26 @@ func bookUpdateTime(b *WebsocketBook) time.Time {
 		return t
 	}
 	return b.PublishTime.Time()
+}
+
+// invalidateUnsubscribedBooks invalidates the books an unsubscribed book channel loaded, which nothing updates any more,
+// so REST snapshots replace them rather than defer to them: the book of each asset its instrument trades as, or only
+// the subscription's own when the instrument is no longer listed. A book a REST snapshot replaced already is left as
+// it is
+func (e *Exchange) invalidateUnsubscribedBooks(s *subscription.Subscription) {
+	for _, p := range s.Pairs {
+		books := []instrumentAsset{{Asset: s.Asset, Pair: p}}
+		if instrument, err := e.instrumentName(s.Asset, p); err == nil {
+			if assets, err := e.instrumentAssets(instrument); err == nil {
+				books = assets
+			}
+		}
+		for _, b := range books {
+			if depth, err := orderbook.GetDepth(e.Name, b.Pair, b.Asset); err == nil {
+				depth.InvalidateWebsocketSnapshot(errBookUnsubscribed)
+			}
+		}
+	}
 }
 
 // resynchroniseBooks invalidates the books of an instrument's assets, so that nothing trades on them, and resubscribes

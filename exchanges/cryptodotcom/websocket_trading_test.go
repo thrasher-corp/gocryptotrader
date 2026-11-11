@@ -177,14 +177,26 @@ func TestWebsocketAPIClosePosition(t *testing.T) { //nolint:tparallel // the ref
 		})
 	}
 	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("ClosePosition needs an open position, which the live tests do not open")
-	}
 
 	ex, venue := newWebsocketTestExchange(t)
 	req := &ClosePositionRequest{InstrumentName: "BTCUSD-PERP", OrderType: OrderTypeLimit, Price: 30000, Quantity: 0.0001}
+	if !mockTests {
+		live := closeTestPositionRequest(t)
+		if live == nil {
+			// With no cross margin position to close, Crypto.com refusing the close for it shows it looked the position up
+			_, err := ex.WebsocketAPI().ClosePosition(t.Context(), req)
+			assertRefusedFor(t, err, noPositionCodes, "ClosePosition")
+			return
+		}
+		req = live
+	}
 	result, err := ex.WebsocketAPI().ClosePosition(t.Context(), req)
 	require.NoError(t, err, "ClosePosition must not error")
+	if !mockTests {
+		require.NotEmpty(t, result.OrderID, "ClosePosition must return the closing order's ID")
+		cancelTradingOrderAfterTest(t, result.OrderID)
+		return
+	}
 	exp := &OrderIDResponse{OrderID: "6530219466236720404", ClientOrderID: "1684d6e4-2c55-64e1-52c3-3aa9febc3a23"}
 	assert.Equal(t, exp, result, "ClosePosition should decode every field")
 	requests := venue.received("private/close-position")
@@ -244,7 +256,7 @@ func TestWebsocketAPICreateOrderList(t *testing.T) { //nolint:tparallel // the r
 				cancelTradingOrderAfterTest(t, result[i].OrderID)
 			}
 		}
-		assert.Equal(t, len(orders), len(result), "CreateOrderList should report each order's outcome")
+		assertListOutcomes(t, result, len(orders), "CreateOrderList", "place")
 	}
 }
 
@@ -264,10 +276,11 @@ func TestWebsocketAPICancelOrderList(t *testing.T) { //nolint:tparallel // the r
 	ex, venue := newWebsocketTestExchange(t)
 	orders := []CancelOrderListEntryRequest{{InstrumentName: "CRO_USD", ClientOrderID: "api_leg1"}, {InstrumentName: "CRO_USD", ClientOrderID: "api_leg2"}}
 	if !mockTests {
-		orders = []CancelOrderListEntryRequest{
-			{InstrumentName: "BTCUSD-PERP", OrderID: placeTradingTestOrder(t)},
-			{InstrumentName: "BTCUSD-PERP", OrderID: placeTradingTestOrder(t)},
-		}
+		first := placeTradingTestOrder(t)
+		cancelTradingOrderIfTestFails(t, first)
+		second := placeTradingTestOrder(t)
+		cancelTradingOrderIfTestFails(t, second)
+		orders = []CancelOrderListEntryRequest{{InstrumentName: "BTCUSD-PERP", OrderID: first}, {InstrumentName: "BTCUSD-PERP", OrderID: second}}
 	}
 	result, err := ex.WebsocketAPI().CancelOrderList(t.Context(), orders)
 	require.NoError(t, err, "CancelOrderList must not error")
@@ -282,9 +295,7 @@ func TestWebsocketAPICancelOrderList(t *testing.T) { //nolint:tparallel // the r
 		_, err = ex.WebsocketAPI().CancelOrderList(t.Context(), orders)
 		assert.ErrorIs(t, err, common.ErrNoResponse, "CancelOrderList should error for a null result")
 	} else {
-		for i := range result {
-			assert.Zerof(t, result[i].Code, "CancelOrderList should cancel order %v", result[i].Index)
-		}
+		assertListOutcomes(t, result, len(orders), "CancelOrderList", "cancel")
 	}
 }
 

@@ -43,26 +43,14 @@ func (e *Exchange) RequestOTCQuote(ctx context.Context, req *OTCQuoteRequest) ([
 	if err != nil {
 		return nil, err
 	}
-	var resp *dataResponse[OTCQuoteRequestResponse]
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/otc/request-quote", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[OTCQuoteRequestResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/otc/request-quote", params, &resp)
 }
 
 // GetOTCInstruments returns the instruments quotes can be requested on
 func (e *Exchange) GetOTCInstruments(ctx context.Context) ([]OTCInstrumentResponse, error) {
-	var resp *otcInstrumentListResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-otc-instruments", nil, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.InstrumentList, nil
+	var resp otcInstrumentListResponse
+	return resp.InstrumentList, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-otc-instruments", nil, &resp)
 }
 
 // GetOTCOpenQuoteRequests returns the quote requests still new or active
@@ -71,14 +59,8 @@ func (e *Exchange) GetOTCOpenQuoteRequests(ctx context.Context, req *OTCQuoteReq
 	if err != nil {
 		return nil, err
 	}
-	var resp *otcQuoteRequestListResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-open-quote-requests", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.QuoteRequestList, nil
+	var resp otcQuoteRequestListResponse
+	return resp.QuoteRequestList, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-open-quote-requests", params, &resp)
 }
 
 // GetOTCOpenQuotes returns the quotes still active
@@ -87,14 +69,8 @@ func (e *Exchange) GetOTCOpenQuotes(ctx context.Context, req *OTCQuoteHistoryReq
 	if err != nil {
 		return nil, err
 	}
-	var resp *otcQuoteListResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-open-quotes", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.QuoteList, nil
+	var resp otcQuoteListResponse
+	return resp.QuoteList, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-open-quotes", params, &resp)
 }
 
 // GetOTCQuoteHistory returns the quotes received
@@ -103,14 +79,8 @@ func (e *Exchange) GetOTCQuoteHistory(ctx context.Context, req *OTCQuoteHistoryR
 	if err != nil {
 		return nil, err
 	}
-	var resp *otcQuoteListResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-quote-history", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.QuoteList, nil
+	var resp otcQuoteListResponse
+	return resp.QuoteList, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-quote-history", params, &resp)
 }
 
 // GetOTCQuoteRequestHistory returns the quote requests completed or rejected
@@ -119,14 +89,8 @@ func (e *Exchange) GetOTCQuoteRequestHistory(ctx context.Context, req *OTCQuoteR
 	if err != nil {
 		return nil, err
 	}
-	var resp *otcQuoteRequestListResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-quote-request-history", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.QuoteRequestList, nil
+	var resp otcQuoteRequestListResponse
+	return resp.QuoteRequestList, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-quote-request-history", params, &resp)
 }
 
 // RequestOTCDeal requests a deal on a quote, whose progress the user.otc.deals channel reports
@@ -136,13 +100,7 @@ func (e *Exchange) RequestOTCDeal(ctx context.Context, req *OTCDealRequest) (*OT
 		return nil, err
 	}
 	var resp *OTCDealResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/otc/request-deal", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/otc/request-deal", params, &resp)
 }
 
 // GetOTCOpenDeals returns the deals not yet settled or rejected
@@ -151,14 +109,8 @@ func (e *Exchange) GetOTCOpenDeals(ctx context.Context, req *OTCDealHistoryReque
 	if err != nil {
 		return nil, err
 	}
-	var resp *otcDealListResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-open-deals", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.DealList, nil
+	var resp otcDealListResponse
+	return resp.DealList, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-open-deals", params, &resp)
 }
 
 // GetOTCDealHistory returns the deals settled or rejected
@@ -167,26 +119,14 @@ func (e *Exchange) GetOTCDealHistory(ctx context.Context, req *OTCDealHistoryReq
 	if err != nil {
 		return nil, err
 	}
-	var resp *otcDealListResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-deal-history", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.DealList, nil
+	var resp otcDealListResponse
+	return resp.DealList, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-deal-history", params, &resp)
 }
 
 // GetOTCSettleLaterLimit returns the account's limit on deals settled later, and how much of it is used
 func (e *Exchange) GetOTCSettleLaterLimit(ctx context.Context) (*OTCSettleLaterLimitResponse, error) {
 	var resp *OTCSettleLaterLimitResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-settle-later-limit", nil, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-settle-later-limit", nil, &resp)
 }
 
 // GetOTCUnsettledAmounts returns the amounts pending settlement by settlement date and currency, ordered by date and
@@ -195,9 +135,6 @@ func (e *Exchange) GetOTCUnsettledAmounts(ctx context.Context) ([]OTCUnsettledAm
 	var resp *otcUnsettledAmountsResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/otc/get-unsettled-amounts", nil, &resp); err != nil {
 		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
 	}
 	return resp.amounts()
 }

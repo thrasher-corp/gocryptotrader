@@ -28,13 +28,7 @@ func (e *Exchange) GetStakingConversionRate(ctx context.Context, instrumentName 
 	}
 	var resp *StakingConversionRateResponse
 	// A public method sent as a POST, which Crypto.com answers unsigned
-	if err := e.sendPostRequest(ctx, stakingEPL, "public/staking/get-conversion-rate", &stakingInstrumentParams{InstrumentName: instrumentName}, &resp, nil, ""); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.sendPostRequest(ctx, stakingEPL, "public/staking/get-conversion-rate", &stakingInstrumentParams{InstrumentName: instrumentName}, &resp, nil, "")
 }
 
 // Stake requests a quantity of a staking instrument be staked on-chain to earn rewards
@@ -46,13 +40,7 @@ func (e *Exchange) Stake(ctx context.Context, req *StakeRequest) (*StakeResponse
 		return nil, err
 	}
 	var resp *StakeResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), stakingEPL, "private/staking/stake", req, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), stakingEPL, "private/staking/stake", req, &resp)
 }
 
 // Unstake requests a quantity of a staking instrument be unstaked, which may wait on the underlying blockchain's
@@ -65,13 +53,7 @@ func (e *Exchange) Unstake(ctx context.Context, req *UnstakeRequest) (*UnstakeRe
 		return nil, err
 	}
 	var resp *UnstakeResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), stakingEPL, "private/staking/unstake", req, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), stakingEPL, "private/staking/unstake", req, &resp)
 }
 
 // GetStakingPosition returns the staking positions, of one instrument or of every one
@@ -79,26 +61,14 @@ func (e *Exchange) GetStakingPosition(ctx context.Context, req *StakingPositionR
 	if req == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, req)
 	}
-	var resp *dataResponse[StakingPositionResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-staking-position", req, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[StakingPositionResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-staking-position", req, &resp)
 }
 
 // GetStakingInstruments returns the instruments that can be staked, with their minimum stake amounts and reward rates
 func (e *Exchange) GetStakingInstruments(ctx context.Context) ([]StakingInstrumentResponse, error) {
-	var resp *dataResponse[StakingInstrumentResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-staking-instruments", nil, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[StakingInstrumentResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-staking-instruments", nil, &resp)
 }
 
 // GetOpenStakes returns the stake and unstake requests not yet completed or rejected
@@ -107,14 +77,8 @@ func (e *Exchange) GetOpenStakes(ctx context.Context, req *StakingHistoryRequest
 	if err != nil {
 		return nil, err
 	}
-	var resp *dataResponse[StakingRequestResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-open-stake", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[StakingRequestResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-open-stake", params, &resp)
 }
 
 // GetStakeHistory returns the stake and unstake requests completed or rejected
@@ -123,14 +87,8 @@ func (e *Exchange) GetStakeHistory(ctx context.Context, req *StakingHistoryReque
 	if err != nil {
 		return nil, err
 	}
-	var resp *dataResponse[StakingRequestResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-stake-history", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[StakingRequestResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-stake-history", params, &resp)
 }
 
 // GetStakingRewardHistory returns the staking rewards paid
@@ -139,14 +97,8 @@ func (e *Exchange) GetStakingRewardHistory(ctx context.Context, req *StakingHist
 	if err != nil {
 		return nil, err
 	}
-	var resp *dataResponse[StakingRewardResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-reward-history", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[StakingRewardResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-reward-history", params, &resp)
 }
 
 // ConvertStakedToken requests a conversion between a staked token and its liquid staking token, such as ETH.staked and
@@ -178,13 +130,7 @@ func (e *Exchange) ConvertStakedToken(ctx context.Context, req *ConvertStakedTok
 		SlippageToleranceBasisPoints: strconv.FormatFloat(req.SlippageToleranceBasisPoints.Float64(), 'f', -1, 64),
 	}
 	var resp *ConvertStakedTokenResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), stakingEPL, "private/staking/convert", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), stakingEPL, "private/staking/convert", params, &resp)
 }
 
 // GetOpenStakingConverts returns the convert requests not yet completed or rejected
@@ -193,14 +139,8 @@ func (e *Exchange) GetOpenStakingConverts(ctx context.Context, req *StakingConve
 	if err != nil {
 		return nil, err
 	}
-	var resp *dataResponse[StakingConvertRequestResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-open-convert", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[StakingConvertRequestResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-open-convert", params, &resp)
 }
 
 // GetStakingConvertHistory returns the convert requests completed or rejected
@@ -209,14 +149,8 @@ func (e *Exchange) GetStakingConvertHistory(ctx context.Context, req *StakingCon
 	if err != nil {
 		return nil, err
 	}
-	var resp *dataResponse[StakingConvertRequestResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-convert-history", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[StakingConvertRequestResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, stakingEPL, "private/staking/get-convert-history", params, &resp)
 }
 
 // validateStakingQuantity checks a stake or unstake request's instrument and quantity

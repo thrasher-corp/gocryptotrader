@@ -437,12 +437,13 @@ func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context
 }
 
 // waitForResponses waits for N responses from a channel, returning those received before a timeout or cancellation
-// with its error
+// with its error; responses already queued when it stops count as received, so a sequence they complete succeeds
 func (c *connection) waitForResponses(ctx context.Context, signature any, ch <-chan []byte, expected int, messageInspector Inspector) ([][]byte, error) {
 	timeout := time.NewTimer(c.ResponseMaxLimit * time.Duration(expected))
 	defer timeout.Stop()
 
 	resps := make([][]byte, 0, expected)
+	var stopErr error
 inspection:
 	for range expected {
 		select {
@@ -454,11 +455,28 @@ inspection:
 				break inspection
 			}
 		case <-timeout.C:
-			c.Match.RemoveSignature(signature)
-			return resps, fmt.Errorf("%s %w %v", c.ExchangeName, ErrSignatureTimeout, signature)
+			stopErr = fmt.Errorf("%s %w %v", c.ExchangeName, ErrSignatureTimeout, signature)
+			break inspection
 		case <-ctx.Done():
-			c.Match.RemoveSignature(signature)
-			return resps, ctx.Err()
+			stopErr = ctx.Err()
+			break inspection
+		}
+	}
+
+	if stopErr != nil {
+		// select chooses among ready cases at random, so responses may still be queued; unregistering first stops any
+		// more being queued, which bounds the drain
+		c.Match.RemoveSignature(signature)
+		for range len(ch) {
+			resp := <-ch
+			resps = append(resps, resp)
+			if messageInspector != nil && messageInspector.IsFinal(resp) {
+				stopErr = nil
+				break
+			}
+		}
+		if stopErr != nil && len(resps) < expected {
+			return resps, stopErr
 		}
 	}
 

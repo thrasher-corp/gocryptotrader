@@ -128,7 +128,7 @@ func (s *TradingBotDollarCostAveragingSettings) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&tradingBotDollarCostAveragingSettingsWire{
 		IsBasket:                        s.IsBasket,
 		Allocations:                     s.Allocations,
-		InvestmentCurrency:              s.InvestmentCurrency,
+		InvestmentCurrency:              s.InvestmentCurrency.Upper(),
 		Side:                            s.Side,
 		OrderType:                       s.OrderType,
 		AutoStake:                       s.AutoStake,
@@ -146,8 +146,11 @@ func (s *TradingBotDollarCostAveragingSettings) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// UnmarshalJSON decodes the settings as Crypto.com reports them
+// UnmarshalJSON decodes the settings as Crypto.com reports them; null leaves them as they are
 func (s *TradingBotDollarCostAveragingSettings) UnmarshalJSON(data []byte) error {
+	if string(data) == jsonNull {
+		return nil
+	}
 	var w tradingBotDollarCostAveragingSettingsWire
 	if err := json.Unmarshal(data, &w); err != nil {
 		return err
@@ -224,8 +227,11 @@ func (s *TradingBotTimeWeightedAveragePriceSettings) MarshalJSON() ([]byte, erro
 	})
 }
 
-// UnmarshalJSON decodes the settings as Crypto.com reports them
+// UnmarshalJSON decodes the settings as Crypto.com reports them; null leaves them as they are
 func (s *TradingBotTimeWeightedAveragePriceSettings) UnmarshalJSON(data []byte) error {
+	if string(data) == jsonNull {
+		return nil
+	}
 	var w tradingBotTimeWeightedAveragePriceSettingsWire
 	if err := json.Unmarshal(data, &w); err != nil {
 		return err
@@ -272,6 +278,15 @@ type TradingBotFundingArbitrageSettings struct {
 
 // BotType returns TradingBotTypeFundingArbitrage
 func (*TradingBotFundingArbitrageSettings) BotType() string { return TradingBotTypeFundingArbitrage }
+
+// MarshalJSON encodes the settings as Crypto.com takes them, the investment currency in upper case as Crypto.com names
+// currencies
+func (s *TradingBotFundingArbitrageSettings) MarshalJSON() ([]byte, error) {
+	type settings TradingBotFundingArbitrageSettings
+	upper := settings(*s)
+	upper.InvestmentCurrency = upper.InvestmentCurrency.Upper()
+	return json.Marshal(&upper)
+}
 
 // TradingBotLeg is a funding arbitrage bot's position in an instrument
 type TradingBotLeg struct {
@@ -437,7 +452,7 @@ func (b *TradingBotResponse) UnmarshalJSON(data []byte) error {
 // without settings rather than failing the whole list of bots
 func (b *TradingBotResponse) decodeSettings(data json.RawMessage) error {
 	b.Settings = nil
-	if len(data) == 0 || string(data) == "null" {
+	if len(data) == 0 || string(data) == jsonNull {
 		return nil
 	}
 	var settings TradingBotSettings

@@ -38,13 +38,7 @@ func (e *Exchange) CreateAdvancedOrder(ctx context.Context, req *CreateAdvancedO
 		return nil, err
 	}
 	var resp *OrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-order", req, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-order", req, &resp)
 }
 
 // AmendAdvancedOrder amends a trigger order, and can turn a trigger limit order into a trigger market order or back.
@@ -56,13 +50,7 @@ func (e *Exchange) AmendAdvancedOrder(ctx context.Context, req *AmendAdvancedOrd
 		return nil, err
 	}
 	var resp *OrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/amend-order", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/amend-order", params, &resp)
 }
 
 // CreateOneCancelsTheOtherOrder places a one-cancels-the-other strategy, which Crypto.com offers on spot instruments
@@ -74,13 +62,7 @@ func (e *Exchange) CreateOneCancelsTheOtherOrder(ctx context.Context, orders []A
 		return nil, err
 	}
 	var resp *AdvancedOrderListIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-oco", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-oco", params, &resp)
 }
 
 // CancelOneCancelsTheOtherOrder cancels an OCO's orders by its list ID; Crypto.com answers on accepting the request,
@@ -103,13 +85,7 @@ func (e *Exchange) CreateOneTriggersTheOtherOrder(ctx context.Context, orders []
 		return nil, err
 	}
 	var resp *AdvancedOrderListIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-oto", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-oto", params, &resp)
 }
 
 // CancelOneTriggersTheOtherOrder cancels a SPOT_ATTACH's or DERIV_ATTACH's orders by its list ID, whether it holds two
@@ -134,13 +110,7 @@ func (e *Exchange) CreateOneTriggersAOneCancelsTheOtherOrder(ctx context.Context
 		return nil, err
 	}
 	var resp *AdvancedOrderListIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-otoco", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-otoco", params, &resp)
 }
 
 // CancelOneTriggersAOneCancelsTheOtherOrder cancels a SPOT_ATTACH's or DERIV_ATTACH's orders by its list ID, whether it
@@ -162,13 +132,7 @@ func (e *Exchange) CancelAdvancedOrder(ctx context.Context, req *AdvancedOrderID
 		return nil, err
 	}
 	var resp *OrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/cancel-order", req, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/cancel-order", req, &resp)
 }
 
 // CancelAllAdvancedOrders cancels the advanced orders a request selects; Crypto.com answers on accepting the request,
@@ -186,14 +150,8 @@ func (e *Exchange) GetAdvancedOpenOrders(ctx context.Context, req *GetAdvancedOp
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	var resp *dataResponse[OrderResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/get-open-orders", req, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[OrderResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/get-open-orders", req, &resp)
 }
 
 // GetAdvancedOrderDetail returns one order of an advanced order
@@ -202,13 +160,7 @@ func (e *Exchange) GetAdvancedOrderDetail(ctx context.Context, req *AdvancedOrde
 		return nil, err
 	}
 	var resp *OrderResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/get-order-detail", req, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/get-order-detail", req, &resp)
 }
 
 // GetAdvancedOrderHistory returns orders of advanced orders from the order history; Crypto.com recommends the
@@ -218,14 +170,8 @@ func (e *Exchange) GetAdvancedOrderHistory(ctx context.Context, req *GetAdvanced
 	if err != nil {
 		return nil, err
 	}
-	var resp *dataResponse[OrderResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/get-order-history", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[OrderResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/get-order-history", params, &resp)
 }
 
 // CreateAdvancedOrderList places up to 10 trigger orders, returning each order's outcome by its index in orders.
@@ -237,13 +183,7 @@ func (e *Exchange) CreateAdvancedOrderList(ctx context.Context, orders []CreateA
 		return nil, err
 	}
 	var resp []OrderListEntryResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-order-list", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-order-list", params, &resp)
 }
 
 // CancelAdvancedOrderList cancels up to 10 orders of advanced orders, returning each cancel's outcome by its index in
@@ -255,13 +195,7 @@ func (e *Exchange) CancelAdvancedOrderList(ctx context.Context, orders []Advance
 		return nil, err
 	}
 	var resp []OrderListEntryResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/cancel-order-list", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/cancel-order-list", params, &resp)
 }
 
 // GetAdvancedOrderListDetail returns the orders of OCOs, SPOT_ATTACHes and DERIV_ATTACHes by their list IDs
@@ -269,14 +203,8 @@ func (e *Exchange) GetAdvancedOrderListDetail(ctx context.Context, listIDs []str
 	if len(listIDs) == 0 || slices.Contains(listIDs, "") {
 		return nil, errListIDRequired
 	}
-	var resp *dataResponse[OrderResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/get-order-list-detail", &advancedOrderListDetailParams{ListIDs: listIDs}, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[OrderResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/get-order-list-detail", &advancedOrderListDetailParams{ListIDs: listIDs}, &resp)
 }
 
 // validate checks a trigger order has what Crypto.com requires of one, and that an order attached to a position is
@@ -382,6 +310,12 @@ func (r *AmendAdvancedOrderRequest) params() (*amendAdvancedOrderParams, error) 
 	}
 	if r.NewPrice == nil {
 		return nil, errNewPriceRequired
+	}
+	if *r.NewPrice < 0 {
+		return nil, errInvalidPrice
+	}
+	if r.NewReferencePrice < 0 {
+		return nil, errInvalidReferencePrice
 	}
 	return &amendAdvancedOrderParams{
 		OrderID:           r.OrderID,

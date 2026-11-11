@@ -2,6 +2,7 @@ package cryptodotcom
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"math"
@@ -19,6 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -34,6 +37,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -384,6 +388,14 @@ func TestTickerPrice(t *testing.T) {
 	got := e.tickerPrice(&TickerResponse{InstrumentName: "ETH_BTC", LastPrice: 0.0325, Volume24Hour: 12, USDVolume24Hour: 31000}, asset.Spot, ethBTC)
 	exp := &ticker.Price{Last: 0.0325, BaseVolume: 12, Pair: ethBTC, ExchangeName: e.Name, AssetType: asset.Spot}
 	assert.Equal(t, exp, got, "tickerPrice should leave out the USD volume of a pair not quoted in USD")
+
+	t.Run("every field of a pair quoted in USD", func(t *testing.T) {
+		t.Parallel()
+		updated := time.UnixMilli(1792836351902)
+		resp := &TickerResponse{InstrumentName: "BTC_USD", High24Hour: 81000, Low24Hour: 79000, LastPrice: 80000, Volume24Hour: 12, USDVolume24Hour: 960000, PriceChange24Hour: -0.0078, BestBidPrice: 79999.5, BestAskPrice: 80000.5, OpenInterest: 5, Timestamp: types.Time(updated)}
+		exp := &ticker.Price{Last: 80000, High: 81000, Low: 79000, Bid: 79999.5, Ask: 80000.5, BaseVolume: 12, QuoteVolume: 960000, PercentChange24Hour: -0.78, OpenInterest: 5, Pair: testSpotPair, ExchangeName: e.Name, AssetType: asset.Spot, LastUpdated: updated}
+		assert.Equal(t, exp, e.tickerPrice(resp, asset.Spot, testSpotPair), "tickerPrice should map every field, the USD volume as a USD pair's quote volume")
+	})
 }
 
 func TestPercentFromFraction(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
@@ -426,10 +438,14 @@ func TestUpdateOrderbook(t *testing.T) { //nolint:tparallel // the cases share e
 				return
 			}
 			exp := testOrderbooks[a]
-			exp.Exchange, exp.Pair, exp.Asset, exp.ValidateOrderbook = ex.Name, p, a, ex.ValidateOrderbook
-			assert.NotZerof(t, got.InsertedAt, "UpdateOrderbook should time when %s %s's book was stored", a, p)
-			got.InsertedAt = time.Time{}
-			assert.Equalf(t, &exp, got, "UpdateOrderbook should return %s %s's book", a, p)
+			exp.Exchange, exp.Pair, exp.Asset, exp.ValidateOrderbook, exp.DeferToWebsocketWithin = ex.Name, p, a, ex.ValidateOrderbook, 10*time.Second
+			assert.Equalf(t, &exp, got, "UpdateOrderbook should return %s %s's REST snapshot", a, p)
+			stored, err := orderbook.Get(ex.Name, p, a)
+			require.NoErrorf(t, err, "orderbook.Get must return %s %s's stored book", a, p)
+			assert.NotZerof(t, stored.InsertedAt, "UpdateOrderbook should time when %s %s's book was stored", a, p)
+			stored.InsertedAt = time.Time{}
+			exp.DeferToWebsocketWithin = 0
+			assert.Equalf(t, &exp, stored, "UpdateOrderbook should store %s %s's REST snapshot without a websocket book", a, p)
 		})
 	}
 
@@ -926,7 +942,8 @@ func TestBalanceSubAccount(t *testing.T) {
 func TestValidateAPICredentials(t *testing.T) {
 	t.Parallel()
 	skipLiveWithoutCredentials(t)
-	assert.NoError(t, newTestExchange(t).ValidateAPICredentials(t.Context(), asset.Spot), "ValidateAPICredentials should not error")
+	ex := newTestExchange(t)
+	assert.NoError(t, ex.ValidateAPICredentials(t.Context(), asset.Spot), "ValidateAPICredentials should not error")
 }
 
 // testWalletRoutes answer the deposit and withdrawal history requests GetAccountFundingHistory and GetWithdrawalsHistory
@@ -1302,9 +1319,6 @@ func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	t.Run("requests seven days at a time", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
-			t.Skip("the windows requested are checked against a test server")
-		}
 		ex, received := newRoutesServerExchange(t, map[string]testRoute{"public/get-trades": testResult(`{"data":[]}`)})
 		start := testWindowStart.Add(-8 * 24 * time.Hour)
 		_, err := ex.GetHistoricTrades(t.Context(), testSpotPair, asset.Spot, start, testWindowStart)
@@ -1317,10 +1331,53 @@ func TestGetHistoricTrades(t *testing.T) {
 		}
 		assert.Equal(t, exp, received(), "GetHistoricTrades should request seven days at a time from the end")
 	})
+	// Serial, as live it requests the trades through e, which the calls below share
+	t.Run("returns the trades before a window's last seven days", func(t *testing.T) {
+		// BTCUSD-260626 expired on 2026-06-26, so the window's last seven days hold only its last two trades, and the three
+		// before them only a second request returns; the test server answers each request as Crypto.com answered it live
+		p := currency.NewPairWithDelimiter("BTCUSD", "260626", currency.DashDelimiter)
+		start, end := time.Date(2026, time.June, 24, 0, 0, 0, 0, time.UTC), time.Date(2026, time.July, 2, 0, 0, 0, 0, time.UTC)
+		ex := e
+		if mockTests {
+			ns := func(at time.Time) string { return strconv.FormatInt(at.UnixNano(), 10) }
+			split := end.Add(-tradesHistoryWindow)
+			answers := map[string]string{
+				"count=150&end_ts=" + ns(end) + "&instrument_name=BTCUSD-260626&start_ts=" + ns(split): `{"data":[
+					{"d":"1782395584888467444","t":1782395584888,"tn":1782395584888467444,"q":"0.0049","p":"58695.0","s":"sell","i":"BTCUSD-260626","m":"4611686018428638301"},
+					{"d":"1782395584888465806","t":1782395584888,"tn":1782395584888465806,"q":"0.0001","p":"59016.4","s":"sell","i":"BTCUSD-260626","m":"4611686018428638300"}]}`,
+				"count=150&end_ts=" + ns(split) + "&instrument_name=BTCUSD-260626&start_ts=" + ns(start): `{"data":[
+					{"d":"1782323279014412130","t":1782323279014,"tn":1782323279014412130,"q":"0.0001","p":"59091.0","s":"sell","i":"BTCUSD-260626","m":"4611686018428638299"},
+					{"d":"1782309868179660268","t":1782309868179,"tn":1782309868179660268,"q":"0.0001","p":"61220.7","s":"sell","i":"BTCUSD-260626","m":"4611686018428638298"},
+					{"d":"1782269951061082861","t":1782269951061,"tn":1782269951061082861,"q":"0.0002","p":"62584.4","s":"buy","i":"BTCUSD-260626","m":"4611686018428638297"}]}`,
+			}
+			ex, _ = newRoutesServerExchange(t, map[string]testRoute{"public/get-trades": func(params string) (string, *APIError) {
+				answer, ok := answers[params]
+				if !ok {
+					return "", &APIError{Code: 40004, Message: "no answer recorded for " + params}
+				}
+				return answer, nil
+			}})
+		}
+		got, err := ex.GetHistoricTrades(t.Context(), p, asset.Futures, start, end)
+		require.NoError(t, err, "GetHistoricTrades must not error")
+		exp := []trade.Data{
+			{TID: "1782269951061082861", Exchange: ex.Name, CurrencyPair: p, AssetType: asset.Futures, Side: order.Buy, Price: 62584.4, Amount: 0.0002, Timestamp: time.Unix(0, 1782269951061082861)},
+			{TID: "1782309868179660268", Exchange: ex.Name, CurrencyPair: p, AssetType: asset.Futures, Side: order.Sell, Price: 61220.7, Amount: 0.0001, Timestamp: time.Unix(0, 1782309868179660268)},
+			{TID: "1782323279014412130", Exchange: ex.Name, CurrencyPair: p, AssetType: asset.Futures, Side: order.Sell, Price: 59091, Amount: 0.0001, Timestamp: time.Unix(0, 1782323279014412130)},
+			{TID: "1782395584888465806", Exchange: ex.Name, CurrencyPair: p, AssetType: asset.Futures, Side: order.Sell, Price: 59016.4, Amount: 0.0001, Timestamp: time.Unix(0, 1782395584888465806)},
+			{TID: "1782395584888467444", Exchange: ex.Name, CurrencyPair: p, AssetType: asset.Futures, Side: order.Sell, Price: 58695, Amount: 0.0049, Timestamp: time.Unix(0, 1782395584888467444)},
+		}
+		assert.Equal(t, exp, got, "GetHistoricTrades should return the trades before the window's last seven days with those in them, oldest first")
+	})
 	_, err := e.GetHistoricTrades(t.Context(), testSpotPair, asset.Spot, testWindowStart, testWindowStart)
 	require.ErrorIs(t, err, common.ErrStartEqualsEnd, "GetHistoricTrades must refuse an empty window")
 	_, err = e.GetHistoricTrades(t.Context(), currency.EMPTYPAIR, asset.Spot, testWindowStart, testWindowStart.Add(time.Minute))
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetHistoricTrades must refuse an empty pair")
+	_, err = newUnavailableServerExchange(t).GetHistoricTrades(t.Context(), testSpotPair, asset.Spot, testWindowStart, testWindowStart.Add(time.Minute))
+	require.ErrorIs(t, err, request.ErrBadStatus, "GetHistoricTrades must return the request's failure")
+	unknownSide := newResponseServerExchange(t, `{"id":-1,"method":"public/get-trades","code":0,"result":{"data":[{"d":"1","t":1792800000001,"tn":1792800000001000000,"q":"0.1","p":"81097","s":"hold","i":"BTC_USD"}]}}`)
+	_, err = unknownSide.GetHistoricTrades(t.Context(), testSpotPair, asset.Spot, testWindowStart, testWindowStart.Add(time.Minute))
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "GetHistoricTrades must refuse a trade of an unknown side")
 	p := testPair(t, asset.Spot)
 	end := testWindowStart.Add(time.Second)
 	got, err := e.GetHistoricTrades(mockRequestContext(t), p, asset.Spot, testWindowStart, end)
@@ -1744,14 +1801,15 @@ func skipIfTwoWeeksEnded(t *testing.T, start time.Time) {
 
 func TestCandles(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("the candle window is checked against a test server")
+	// Crypto.com takes in a monthly candle opening at a window's end, so the window ends a millisecond early: live, a window
+	// ending at October's opening returns October's candle with the others. The reply was recorded live for this request
+	ex := e
+	var received func() []testRequest
+	if mockTests {
+		ex, received = newRoutesServerExchange(t, map[string]testRoute{
+			"public/get-candlestick": testResult(`{"interval":"1M","data":[{"o":"58562.87","h":"66925.83","l":"57737.07","c":"62840.00","v":"126396.4943","t":1782864000000},{"o":"62843.05","h":"81500.00","l":"62216.48","c":"78559.98","v":"122373.96006","t":1785542400000},{"o":"78571.17","h":"87427.66","l":"74897.07","c":"83564.32","v":"109085.85444","t":1788220800000}],"instrument_name":"BTC_USD"}`),
+		})
 	}
-	// Crypto.com takes in a monthly candle opening at a window's end, so the window ends a millisecond early; the reply was
-	// recorded live for this request
-	ex, received := newRoutesServerExchange(t, map[string]testRoute{
-		"public/get-candlestick": testResult(`{"interval":"1M","data":[{"o":"58562.87","h":"66925.83","l":"57737.07","c":"62840.00","v":"126396.4943","t":1782864000000},{"o":"62843.05","h":"81500.00","l":"62216.48","c":"78559.98","v":"122373.96006","t":1785542400000},{"o":"78571.17","h":"87427.66","l":"74897.07","c":"83564.32","v":"109085.85444","t":1788220800000}],"instrument_name":"BTC_USD"}`),
-	})
 	start, end := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, time.October, 1, 0, 0, 0, 0, time.UTC)
 	got, err := ex.candles(t.Context(), "BTC_USD", kline.OneMonth, start, end)
 	require.NoError(t, err, "candles must not error")
@@ -1761,27 +1819,34 @@ func TestCandles(t *testing.T) {
 		{Time: time.UnixMilli(1788220800000), Open: 78571.17, High: 87427.66, Low: 74897.07, Close: 83564.32, Volume: 109085.85444},
 	}
 	assert.Equal(t, exp, got, "candles should return the monthly candles opening within the window")
-	assert.Equal(t, []testRequest{{Method: "public/get-candlestick", Params: "count=300&end_ts=1790812799999&instrument_name=BTC_USD&start_ts=1782864000000&timeframe=1M"}}, received(), "candles should end a monthly window a millisecond early")
+	if mockTests {
+		assert.Equal(t, []testRequest{{Method: "public/get-candlestick", Params: "count=300&end_ts=1790812799999&instrument_name=BTC_USD&start_ts=1782864000000&timeframe=1M"}}, received(), "candles should end a monthly window a millisecond early")
+	}
+	_, err = newUnavailableServerExchange(t).candles(t.Context(), "BTC_USD", kline.OneMonth, start, end)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "candles should return the request's failure")
 }
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDepositAddress(t.Context(), currency.EMPTYCODE, "", "")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetDepositAddress must refuse an empty currency")
-	skipLiveWithoutCredentials(t)
-	got, err := e.GetDepositAddress(t.Context(), currency.CRO, "", "")
-	require.NoError(t, err, "GetDepositAddress must not error")
-	if !mockTests {
-		assert.NotEmpty(t, got.Address, "GetDepositAddress should return an address")
-		return
-	}
-	exp := &deposit.Address{Address: "cro1q9vfn0fjtyfvx3h8k2rwwgvxnz9k4j6m3y5pth", Chain: "CRO"}
-	assert.Equal(t, exp, got, "GetDepositAddress should return the currency's only active address")
-	got, err = e.GetDepositAddress(t.Context(), currency.CRO, "", "cro")
-	require.NoError(t, err, "GetDepositAddress must not error for a chain")
-	assert.Equal(t, exp, got, "GetDepositAddress should match a chain in either case")
-	_, err = e.GetDepositAddress(t.Context(), currency.CRO, "", "ETH")
-	assert.ErrorIs(t, err, errNoDepositAddress, "GetDepositAddress should refuse a chain whose address is inactive")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		got, err := e.GetDepositAddress(t.Context(), currency.CRO, "", "")
+		require.NoError(t, err, "GetDepositAddress must not error")
+		if !mockTests {
+			assert.NotEmpty(t, got.Address, "GetDepositAddress should return an address")
+			return
+		}
+		exp := &deposit.Address{Address: "cro1q9vfn0fjtyfvx3h8k2rwwgvxnz9k4j6m3y5pth", Chain: "CRO"}
+		assert.Equal(t, exp, got, "GetDepositAddress should return the currency's only active address")
+		got, err = e.GetDepositAddress(t.Context(), currency.CRO, "", "cro")
+		require.NoError(t, err, "GetDepositAddress must not error for a chain")
+		assert.Equal(t, exp, got, "GetDepositAddress should match a chain in either case")
+		_, err = e.GetDepositAddress(t.Context(), currency.CRO, "", "ETH")
+		assert.ErrorIs(t, err, errNoDepositAddress, "GetDepositAddress should refuse a chain whose address is inactive")
+	})
 
 	ex := newResponseServerExchange(t, `{"id":1,"method":"private/get-deposit-address","code":0,"result":{"deposit_address_list":[
 		{"currency":"USDC","address":"0xabc","status":"1","network":"ETH"},
@@ -1789,7 +1854,7 @@ func TestGetDepositAddress(t *testing.T) {
 	_, err = ex.GetDepositAddress(t.Context(), currency.USDC, "", "")
 	assert.ErrorIs(t, err, errChainRequired, "GetDepositAddress should refuse a currency with active addresses on several chains without a chain")
 	assert.True(t, ex.Features.Supports.RESTCapabilities.MultiChainDepositRequiresChainSet, "Crypto.com should require a chain for a currency deposited on several networks, so the deposit address sync asks for each")
-	got, err = ex.GetDepositAddress(t.Context(), currency.USDC, "", "SOL")
+	got, err := ex.GetDepositAddress(t.Context(), currency.USDC, "", "SOL")
 	require.NoError(t, err, "GetDepositAddress must not error for one of several chains")
 	assert.Equal(t, &deposit.Address{Address: "Gh7", Tag: "memo", Chain: "SOL"}, got, "GetDepositAddress should split the address tag")
 }
@@ -1814,7 +1879,7 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyNotFound, "GetAvailableTransferChains should refuse a currency without networks")
 }
 
-func TestWithdrawCryptocurrencyFunds(t *testing.T) {
+func TestWithdrawCryptocurrencyFunds(t *testing.T) { //nolint:tparallel // the withdrawal runs on e in order, before the later call of the same method
 	t.Parallel()
 	_, err := e.WithdrawCryptocurrencyFunds(t.Context(), nil)
 	require.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil, "WithdrawCryptocurrencyFunds must validate the request")
@@ -1830,20 +1895,29 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	placed, err := newResponseServerExchange(t, `{"id":-1,"method":"private/create-withdrawal","code":0,"result":{"id":2220,"amount":1,"fee":0.0004,"symbol":"BTC","address":"2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf","client_wid":"my_withdrawal_002","create_time":1607063412000,"network_id":null}}`).WithdrawCryptocurrencyFunds(t.Context(), req)
 	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not report a withdrawal Crypto.com took, with a bare ID, as failed")
 	assert.Equal(t, "2220", placed.ID, "WithdrawCryptocurrencyFunds should return a bare withdrawal ID")
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("a live withdrawal would move funds")
-	}
-	got, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
-		Exchange:      e.Name,
-		Currency:      currency.BTC,
-		Amount:        1,
-		Type:          withdraw.Crypto,
-		ClientOrderID: "my_withdrawal_002",
-		Crypto:        withdraw.CryptoRequest{Address: "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf", Chain: "BTC"},
+	ctx := t.Context()
+	t.Run("a BTC withdrawal", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		w := &withdraw.Request{
+			Exchange:      e.Name,
+			Currency:      currency.BTC,
+			Amount:        1,
+			Type:          withdraw.Crypto,
+			ClientOrderID: "my_withdrawal_002",
+			Crypto:        withdraw.CryptoRequest{Address: "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf", Chain: "BTC"},
+		}
+		if !mockTests {
+			// Live, a small amount goes to GoCryptoTrader's donation address, which the API key must have whitelisted
+			w = &withdraw.Request{Exchange: e.Name, Currency: currency.BTC, Amount: 0.001, Type: withdraw.Crypto, Crypto: withdraw.CryptoRequest{Address: core.BitcoinDonationAddress, Chain: "BTC"}}
+		}
+		got, err := e.WithdrawCryptocurrencyFunds(ctx, w)
+		require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error")
+		if mockTests {
+			assert.Equal(t, &withdraw.ExchangeResponse{Name: e.Name, ID: "2220"}, got, "WithdrawCryptocurrencyFunds should return the withdrawal's ID")
+		} else {
+			assert.NotEmpty(t, got.ID, "WithdrawCryptocurrencyFunds should return the withdrawal's ID")
+		}
 	})
-	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error")
-	assert.Equal(t, &withdraw.ExchangeResponse{Name: e.Name, ID: "2220"}, got, "WithdrawCryptocurrencyFunds should return the withdrawal's ID")
 
 	// The address tag, which currencies such as XRP need, is sent with the address
 	ex, sent := newSignedRecorder(t, "private/create-withdrawal", `{"id":"2221"}`)
@@ -1869,7 +1943,7 @@ func TestWithdrawFiatFunds(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "WithdrawFiatFundsToInternationalBank should not be supported")
 }
 
-func TestGetFeeByType(t *testing.T) { //nolint:tparallel // the cases share e and run in order before the GetFeeByType calls after them
+func TestGetFeeByType(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFeeByType(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFeeByType must refuse a nil fee builder")
@@ -1889,25 +1963,29 @@ func TestGetFeeByType(t *testing.T) { //nolint:tparallel // the cases share e an
 	require.NoError(t, offline.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.EMPTYPAIR}, false), "StorePairs must store the available pairs")
 	_, err = offline.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetFeeByType should refuse a trade fee for an empty pair")
-	skipLiveWithoutCredentials(t)
-	taker, err := e.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: testSpotPair, PurchasePrice: 80000, Amount: 0.5})
-	require.NoError(t, err, "GetFeeByType must not error for a taker fee")
-	maker, err := e.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: testSpotPair, PurchasePrice: 80000, Amount: 0.5, IsMaker: true})
-	require.NoError(t, err, "GetFeeByType must not error for a maker fee")
-	if !mockTests {
-		assert.Positive(t, taker, "GetFeeByType should return a taker fee")
-		return
-	}
-	assert.InDelta(t, 27.6, taker, 1e-9, "GetFeeByType should charge 6.9 basis points of a taker trade's value")
-	assert.InDelta(t, 26, maker, 1e-9, "GetFeeByType should charge 6.5 basis points of a maker trade's value")
-	// The cases run in order on e, before the GetFeeByType calls below
-	for c, exp := range map[currency.Code]float64{currency.NewCode("MATIC"): 20, currency.NewCode("AGLD"): 0} {
-		t.Run(c.String(), func(t *testing.T) {
-			fee, err := e.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyWithdrawalFee, Pair: currency.NewPair(c, currency.EMPTYCODE)})
-			require.NoErrorf(t, err, "GetFeeByType must not error for %s's withdrawal fee", c)
-			assert.Equalf(t, exp, fee, "GetFeeByType should return %s's withdrawal fee on its default network, or its only one", c)
-		})
-	}
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		taker, err := e.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: testSpotPair, PurchasePrice: 80000, Amount: 0.5})
+		require.NoError(t, err, "GetFeeByType must not error for a taker fee")
+		maker, err := e.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: testSpotPair, PurchasePrice: 80000, Amount: 0.5, IsMaker: true})
+		require.NoError(t, err, "GetFeeByType must not error for a maker fee")
+		if !mockTests {
+			assert.Positive(t, taker, "GetFeeByType should return a taker fee")
+			return
+		}
+		assert.InDelta(t, 27.6, taker, 1e-9, "GetFeeByType should charge 6.9 basis points of a taker trade's value")
+		assert.InDelta(t, 26, maker, 1e-9, "GetFeeByType should charge 6.5 basis points of a maker trade's value")
+		for c, exp := range map[currency.Code]float64{currency.NewCode("MATIC"): 20, currency.NewCode("AGLD"): 0} {
+			t.Run(c.String(), func(t *testing.T) {
+				t.Parallel()
+				fee, err := e.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyWithdrawalFee, Pair: currency.NewPair(c, currency.EMPTYCODE)})
+				require.NoErrorf(t, err, "GetFeeByType must not error for %s's withdrawal fee", c)
+				assert.Equalf(t, exp, fee, "GetFeeByType should return %s's withdrawal fee on its default network, or its only one", c)
+			})
+		}
+	})
+
 	ex := newResponseServerExchange(t, `{"id":1,"method":"private/get-currency-networks","code":0,"result":{"currency_map":{"USDC":{"default_network":"SOL","network_list":[{"network_id":"ETH"},{"network_id":"BNB"}]}}}}`)
 	_, err = ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyWithdrawalFee, Pair: currency.NewPair(currency.USDC, currency.EMPTYCODE)})
 	assert.ErrorIs(t, err, errNoDefaultNetwork, "GetFeeByType should refuse a currency whose default network it does not list")
@@ -2251,33 +2329,36 @@ func clearSubmitTimes(t *testing.T, sr *order.SubmitResponse) {
 	sr.Date, sr.LastUpdated = time.Time{}, time.Time{}
 }
 
-func TestSubmitOrder(t *testing.T) { //nolint:tparallel // the cases run in order, as SubmitOrder is called again after them
+func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.SubmitOrder(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil, "SubmitOrder must refuse a nil order")
-	skipLiveUnlessCanManipulate(t)
-	s := testSubmit()
-	if !mockTests {
-		s.ClientOrderID = newTradingTestClientOrderID()
-	}
-	got, err := e.SubmitOrder(t.Context(), s)
-	require.NoError(t, err, "SubmitOrder must not error")
-	if !mockTests {
-		cancelTradingOrderAfterTest(t, got.OrderID)
-		return
-	}
-	clearSubmitTimes(t, got)
-	assert.Equal(t, testSubmitResponse(t, s, tradingTestOrderID), got, "SubmitOrder should return the order's ID")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveUnlessCanManipulate(t)
+		s := testSubmit()
+		if !mockTests {
+			s.ClientOrderID = newTradingTestClientOrderID()
+		}
+		got, err := e.SubmitOrder(t.Context(), s)
+		require.NoError(t, err, "SubmitOrder must not error")
+		if !mockTests {
+			cancelTradingOrderAfterTest(t, got.OrderID)
+			return
+		}
+		clearSubmitTimes(t, got)
+		assert.Equal(t, testSubmitResponse(t, s, tradingTestOrderID), got, "SubmitOrder should return the order's ID")
 
-	trigger := testTriggerSubmit()
-	trigger.TriggerPriceType = order.UnknownPriceType
-	_, err = e.SubmitOrder(t.Context(), trigger)
-	require.ErrorIs(t, err, errInvalidPriceType, "SubmitOrder must refuse an order it cannot place")
+		trigger := testTriggerSubmit()
+		trigger.TriggerPriceType = order.UnknownPriceType
+		_, err = e.SubmitOrder(t.Context(), trigger)
+		require.ErrorIs(t, err, errInvalidPriceType, "SubmitOrder must refuse an order it cannot place")
+	})
 
 	ex, received := newRoutesServerExchange(t, map[string]testRoute{"private/advanced/create-order": testResult(advancedOrderIDResult)})
-	trigger = testTriggerSubmit()
+	trigger := testTriggerSubmit()
 	trigger.ClientOrderID = ""
-	got, err = ex.SubmitOrder(t.Context(), trigger)
+	got, err := ex.SubmitOrder(t.Context(), trigger)
 	require.NoError(t, err, "SubmitOrder must not error for a trigger order")
 	clearSubmitTimes(t, got)
 	exp := testSubmitResponse(t, trigger, "5755600460443882762")
@@ -2340,7 +2421,7 @@ func TestSubmitOrder(t *testing.T) { //nolint:tparallel // the cases run in orde
 	assert.Equal(t, []testRequest{{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`}}, received(), "SubmitOrder should not place an isolated margin order whose isolated position it could not look up")
 }
 
-func TestSubmitOrderTracksMarginOrders(t *testing.T) {
+func TestSubmitOrderWith(t *testing.T) {
 	t.Parallel()
 	t.Run("an older order's update keeps a reused client order ID tracked", func(t *testing.T) {
 		t.Parallel()
@@ -2355,8 +2436,8 @@ func TestSubmitOrderTracksMarginOrders(t *testing.T) {
 			}
 			return &OrderIDResponse{OrderID: "102", ClientOrderID: r.ClientOrderID}, nil
 		}
-		_, err := ex.submitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001, ClientOrderID: "shared"}, placing, nil)
-		require.NoError(t, err, "submitOrder must not error")
+		_, err := ex.submitOrderWith(t.Context(), &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001, ClientOrderID: "shared"}, placing, nil)
+		require.NoError(t, err, "submitOrderWith must not error")
 		assert.True(t, ex.isMarginOrder("101", ""), "the older margin order should stay tracked by its order ID")
 		assert.True(t, ex.isMarginOrder("102", ""), "the new margin order should be tracked by its order ID")
 		assert.False(t, ex.isMarginOrder("", "shared"), "the reused client order ID should no longer be tracked once the new order's ID is known")
@@ -2376,49 +2457,49 @@ func TestSubmitOrderTracksMarginOrders(t *testing.T) {
 		}
 	}
 	s := &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001}
-	got, err := ex.submitOrder(t.Context(), s, placing("9", nil), nil)
-	require.NoError(t, err, "submitOrder must not error for a margin order")
-	require.NotEmpty(t, sent.ClientOrderID, "submitOrder must give a margin order without a client order ID one")
-	assert.Equal(t, sent.ClientOrderID, got.ClientOrderID, "submitOrder should report the client order ID it gave the order")
-	assert.True(t, trackedWhenSent, "submitOrder should track a margin order by its client order ID before placing it, as its trades can arrive first")
-	assert.True(t, ex.isMarginOrder("9", ""), "submitOrder should track a placed margin order by its order ID")
-	assert.False(t, ex.isMarginOrder("", sent.ClientOrderID), "submitOrder should stop tracking a placed margin order by its client order ID, which other orders can share, once its order ID is known")
+	got, err := ex.submitOrderWith(t.Context(), s, placing("9", nil), nil)
+	require.NoError(t, err, "submitOrderWith must not error for a margin order")
+	require.NotEmpty(t, sent.ClientOrderID, "submitOrderWith must give a margin order without a client order ID one")
+	assert.Equal(t, sent.ClientOrderID, got.ClientOrderID, "submitOrderWith should report the client order ID it gave the order")
+	assert.True(t, trackedWhenSent, "submitOrderWith should track a margin order by its client order ID before placing it, as its trades can arrive first")
+	assert.True(t, ex.isMarginOrder("9", ""), "submitOrderWith should track a placed margin order by its order ID")
+	assert.False(t, ex.isMarginOrder("", sent.ClientOrderID), "submitOrderWith should stop tracking a placed margin order by its client order ID, which other orders can share, once its order ID is known")
 
 	// A spot order reusing the client order ID is tracked as no margin order, and the margin order still by its order ID
 	s.AssetType, s.ClientOrderID = asset.Spot, sent.ClientOrderID
-	_, err = ex.submitOrder(t.Context(), s, placing("10", nil), nil)
-	require.NoError(t, err, "submitOrder must not error for a spot order")
-	assert.False(t, trackedWhenSent, "submitOrder should not track a client order ID a spot order reuses when placing it")
-	assert.False(t, ex.isMarginOrder("10", s.ClientOrderID), "submitOrder should track a placed spot order as no margin order")
+	_, err = ex.submitOrderWith(t.Context(), s, placing("10", nil), nil)
+	require.NoError(t, err, "submitOrderWith must not error for a spot order")
+	assert.False(t, trackedWhenSent, "submitOrderWith should not track a client order ID a spot order reuses when placing it")
+	assert.False(t, ex.isMarginOrder("10", s.ClientOrderID), "submitOrderWith should track a placed spot order as no margin order")
 	assert.True(t, ex.isMarginOrder("9", s.ClientOrderID), "the margin order should still be tracked by its order ID")
 
 	// A margin order Crypto.com refuses is no longer tracked by its client order ID
 	s.AssetType, s.ClientOrderID = asset.Margin, "refused"
-	_, err = ex.submitOrder(t.Context(), s, placing("", &APIError{Code: 306, Message: "INSUFFICIENT_AVAILABLE_BALANCE"}), nil)
+	_, err = ex.submitOrderWith(t.Context(), s, placing("", &APIError{Code: 306, Message: "INSUFFICIENT_AVAILABLE_BALANCE"}), nil)
 	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr, "submitOrder must return Crypto.com's refusal")
-	assert.True(t, trackedWhenSent, "submitOrder should track a margin order by its client order ID before placing it")
-	assert.False(t, ex.isMarginOrder("", "refused"), "submitOrder should stop tracking the client order ID of an order Crypto.com refused")
+	require.ErrorAs(t, err, &apiErr, "submitOrderWith must return Crypto.com's refusal")
+	assert.True(t, trackedWhenSent, "submitOrderWith should track a margin order by its client order ID before placing it")
+	assert.False(t, ex.isMarginOrder("", "refused"), "submitOrderWith should stop tracking the client order ID of an order Crypto.com refused")
 
 	// A margin order its own checks refuse is neither sent nor tracked by its client order ID
 	s.ClientOrderID = strings.Repeat("c", 37)
-	_, err = ex.submitOrder(t.Context(), s, placing("", nil), nil)
-	require.ErrorIs(t, err, errClientOrderIDTooLong, "submitOrder must refuse a client order ID of 37 characters")
-	assert.False(t, ex.isMarginOrder("", s.ClientOrderID), "submitOrder should not track the client order ID of an order its checks refuse")
+	_, err = ex.submitOrderWith(t.Context(), s, placing("", nil), nil)
+	require.ErrorIs(t, err, errClientOrderIDTooLong, "submitOrderWith must refuse a client order ID of 37 characters")
+	assert.False(t, ex.isMarginOrder("", s.ClientOrderID), "submitOrderWith should not track the client order ID of an order its checks refuse")
 
 	// A margin order whose request fails otherwise may have been placed, so is still tracked
 	s.ClientOrderID = "unknown"
-	_, err = ex.submitOrder(t.Context(), s, placing("", context.Canceled), nil)
-	require.ErrorIs(t, err, context.Canceled, "submitOrder must return the request's error")
-	assert.True(t, ex.isMarginOrder("", "unknown"), "submitOrder should go on tracking the client order ID of an order whose outcome is unknown")
+	_, err = ex.submitOrderWith(t.Context(), s, placing("", context.Canceled), nil)
+	require.ErrorIs(t, err, context.Canceled, "submitOrderWith must return the request's error")
+	assert.True(t, ex.isMarginOrder("", "unknown"), "submitOrderWith should go on tracking the client order ID of an order whose outcome is unknown")
 
 	// A spot order reusing that client order ID stops it marking a margin order before the spot order is placed, as the
 	// spot order's trades can arrive first
 	s.AssetType = asset.Spot
-	_, err = ex.submitOrder(t.Context(), s, placing("11", nil), nil)
-	require.NoError(t, err, "submitOrder must not error for a spot order reusing a client order ID")
-	assert.False(t, trackedWhenSent, "submitOrder should stop tracking a client order ID a spot order reuses before placing it")
-	assert.False(t, ex.isMarginOrder("11", s.ClientOrderID), "submitOrder should track a placed spot order as no margin order")
+	_, err = ex.submitOrderWith(t.Context(), s, placing("11", nil), nil)
+	require.NoError(t, err, "submitOrderWith must not error for a spot order reusing a client order ID")
+	assert.False(t, trackedWhenSent, "submitOrderWith should stop tracking a client order ID a spot order reuses before placing it")
+	assert.False(t, ex.isMarginOrder("11", s.ClientOrderID), "submitOrderWith should track a placed spot order as no margin order")
 
 	t.Run("acknowledgement omits client ID", func(t *testing.T) {
 		t.Parallel()
@@ -2436,11 +2517,11 @@ func TestSubmitOrderTracksMarginOrders(t *testing.T) {
 					return &OrderIDResponse{OrderID: "41"}, nil
 				}
 				s := &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001, ClientOrderID: tc.clientOrderID}
-				_, err := ex.submitOrder(t.Context(), s, acknowledge, nil)
-				require.NoError(t, err, "submitOrder must not error for an acknowledgement without a client order ID")
-				require.NotEmpty(t, sentClientOrderID, "submitOrder must send a margin order with a client order ID")
-				assert.True(t, ex.isMarginOrder("41", ""), "submitOrder should track the placed margin order by its order ID")
-				assert.False(t, ex.isMarginOrder("", sentClientOrderID), "submitOrder should stop tracking the client order ID it sent the margin order with, which the acknowledgement omits")
+				_, err := ex.submitOrderWith(t.Context(), s, acknowledge, nil)
+				require.NoError(t, err, "submitOrderWith must not error for an acknowledgement without a client order ID")
+				require.NotEmpty(t, sentClientOrderID, "submitOrderWith must send a margin order with a client order ID")
+				assert.True(t, ex.isMarginOrder("41", ""), "submitOrderWith should track the placed margin order by its order ID")
+				assert.False(t, ex.isMarginOrder("", sentClientOrderID), "submitOrderWith should stop tracking the client order ID it sent the margin order with, which the acknowledgement omits")
 			})
 		}
 	})
@@ -2478,16 +2559,146 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	assert.Len(t, venue.received("private/advanced/create-order"), 1, "WebsocketSubmitOrder should place a trigger order with the advanced order methods")
 }
 
-func TestWebsocketSubmitOrders(t *testing.T) { //nolint:tparallel // the cases share orders and exchanges in order
+func TestWebsocketSubmitOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketSubmitOrders(t.Context(), nil)
 	require.ErrorIs(t, err, errOrderListEmpty, "WebsocketSubmitOrders must refuse no orders")
 	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{testSubmit(), nil})
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil, "WebsocketSubmitOrders must refuse a nil order")
-	skipLiveUnlessCanManipulate(t)
+	t.Run("orders placed in a list", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		ex, venue := newWebsocketTestExchange(t)
+		orders := []*order.Submit{testSubmit(), testSubmit()}
+		orders[1].ClientOrderID = "api_leg2"
+		for i, s := range orders {
+			s.Exchange = ex.Name
+			if !mockTests {
+				s.ClientOrderID = newTradingTestClientOrderID() + "-" + strconv.Itoa(i)
+			}
+		}
+		got, err := ex.WebsocketSubmitOrders(t.Context(), orders)
+		require.NoError(t, err, "WebsocketSubmitOrders must not error")
+		require.Len(t, got, len(orders), "WebsocketSubmitOrders must return a response for every order")
+		if !mockTests {
+			for i := range got {
+				if assert.NoErrorf(t, got[i].SubmissionError, "WebsocketSubmitOrders should place order %d", i) {
+					cancelTradingOrderAfterTest(t, got[i].OrderID)
+				}
+			}
+			return
+		}
+		for i, orderID := range []string{"5755600460443882762", "5755600460443882763"} {
+			clearSubmitTimes(t, got[i])
+			assert.Equalf(t, testSubmitResponse(t, orders[i], orderID), got[i], "WebsocketSubmitOrders should return order %d's ID", i)
+		}
+		requests := venue.received("private/create-order-list")
+		require.Len(t, requests, 1, "WebsocketSubmitOrders must send the orders in one list")
+		assert.JSONEq(t, `{"contingency_type":"LIST","order_list":[`+tradingTestOrderParams+`,`+strings.Replace(tradingTestOrderParams, tradingTestOrderClientOrderID, "api_leg2", 1)+`]}`, string(requests[0].Params), "WebsocketSubmitOrders should send the orders in a list")
+	})
+	// The cases below set the mock websocket's answers and refusals, which Crypto.com cannot be made to give
 	if !mockTests {
-		t.Skip("the orders would be placed live in lists")
+		return
 	}
+	t.Run("tracks margin orders", func(t *testing.T) {
+		t.Parallel()
+		ex, venue := newWebsocketTestExchange(t)
+		marginOrder := func(clientOrderID string) *order.Submit {
+			return &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001, ClientOrderID: clientOrderID}
+		}
+		spot := marginOrder("spot_placed")
+		spot.AssetType = asset.Spot
+		trigger := marginOrder("margin_trigger")
+		trigger.Type, trigger.Price, trigger.TriggerPrice = order.StopLimit, 49000, 49500
+		var trackedWhenSent, triggerTrackedWhenSent, listTrackedWhenNextSent atomic.Bool
+		venue.beforeAnswering("private/create-order-list", func() { trackedWhenSent.Store(ex.isMarginOrder("", "margin_placed")) })
+		venue.beforeAnswering("private/advanced/create-order-list", func() {
+			triggerTrackedWhenSent.Store(ex.isMarginOrder("", "margin_trigger"))
+			listTrackedWhenNextSent.Store(ex.isMarginOrder("11", ""))
+		})
+		venue.respond("private/create-order-list", `[{"code":0,"index":0,"client_oid":"margin_placed","order_id":"11"},{"code":318,"index":1,"message":"EXCEEDS_MAX_ALLOWED_ORDERS"},{"code":0,"index":2,"client_oid":"spot_placed","order_id":"13"}]`)
+		venue.respond("private/advanced/create-order-list", `[{"code":0,"index":0,"client_oid":"margin_trigger","order_id":"21"}]`)
+		_, err := ex.WebsocketSubmitOrders(t.Context(), []*order.Submit{marginOrder("margin_placed"), marginOrder("margin_rejected"), spot, trigger})
+		require.NoError(t, err, "WebsocketSubmitOrders must not error")
+		assert.True(t, trackedWhenSent.Load(), "WebsocketSubmitOrders should track a margin order by its client order ID before placing it, as its trades can arrive first")
+		assert.True(t, triggerTrackedWhenSent.Load(), "WebsocketSubmitOrders should track a margin trigger order by its client order ID before placing it")
+		assert.True(t, listTrackedWhenNextSent.Load(), "WebsocketSubmitOrders should track a list's placed orders by their order IDs before sending the next list")
+		assert.True(t, ex.isMarginOrder("11", ""), "WebsocketSubmitOrders should track a placed margin order by its order ID")
+		assert.False(t, ex.isMarginOrder("", "margin_placed"), "WebsocketSubmitOrders should stop tracking a placed margin order by its client order ID, which other orders can share, once its order ID is known")
+		assert.False(t, ex.isMarginOrder("", "margin_rejected"), "WebsocketSubmitOrders should stop tracking the client order ID of an order Crypto.com rejected")
+		assert.False(t, ex.isMarginOrder("13", "spot_placed"), "WebsocketSubmitOrders should track a placed spot order as no margin order")
+		assert.True(t, ex.isMarginOrder("21", ""), "WebsocketSubmitOrders should track a placed margin trigger order by its order ID")
+
+		venue.fail("private/create-order-list", &APIError{Code: 40001, Message: "BAD_REQUEST"})
+		_, err = ex.WebsocketSubmitOrders(t.Context(), []*order.Submit{marginOrder("margin_refused")})
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "WebsocketSubmitOrders must return Crypto.com's refusal of a list")
+		assert.False(t, ex.isMarginOrder("", "margin_refused"), "WebsocketSubmitOrders should stop tracking the client order IDs of a list Crypto.com refused")
+
+		// A list whose request fails otherwise may have been placed, so its orders are still tracked
+		done, cancel := context.WithCancel(t.Context())
+		cancel()
+		// A frame can be sent with its context already ended, so its refusal waits until the request has given up on it
+		answered := make(chan struct{})
+		venue.beforeAnswering("private/create-order-list", func() { <-answered })
+		_, err = ex.WebsocketSubmitOrders(done, []*order.Submit{marginOrder("margin_unknown")})
+		close(answered)
+		venue.beforeAnswering("private/create-order-list", nil)
+		require.ErrorIs(t, err, context.Canceled, "WebsocketSubmitOrders must return the request's error")
+		assert.True(t, ex.isMarginOrder("", "margin_unknown"), "WebsocketSubmitOrders should go on tracking the client order IDs of a list whose outcome is unknown")
+
+		// An order an answered list gives no outcome for may have been placed, so is still tracked
+		venue.fail("private/create-order-list", nil)
+		venue.respond("private/create-order-list", `[{"code":0,"index":0,"client_oid":"margin_answered","order_id":"31"}]`)
+		got, err := ex.WebsocketSubmitOrders(t.Context(), []*order.Submit{marginOrder("margin_answered"), marginOrder("margin_unanswered")})
+		require.NoError(t, err, "WebsocketSubmitOrders must not error for a list answered for one of its orders")
+		require.Len(t, got, 2, "WebsocketSubmitOrders must return a response for every order")
+		assert.ErrorIs(t, got[1].SubmissionError, errOrderListOutcomeUnknown, "WebsocketSubmitOrders should report an order the answer gives no outcome for as having an unknown outcome")
+		assert.True(t, ex.isMarginOrder("", "margin_unanswered"), "WebsocketSubmitOrders should go on tracking the client order ID of an order the answer gives no outcome for")
+
+		t.Run("acknowledgement omits client ID", func(t *testing.T) {
+			t.Parallel()
+			ex, venue := newWebsocketTestExchange(t)
+			// A margin order is sent with the client order ID it is given, else one generated for it, and the answer names
+			// neither
+			given := &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001, ClientOrderID: "margin_given"}
+			generated := &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001}
+			venue.respond("private/create-order-list", `[{"code":0,"index":0,"order_id":"41"},{"code":0,"index":1,"order_id":"42"}]`)
+			_, err := ex.WebsocketSubmitOrders(t.Context(), []*order.Submit{given, generated})
+			require.NoError(t, err, "WebsocketSubmitOrders must not error for an answer without client order IDs")
+			requests := venue.received("private/create-order-list")
+			require.Len(t, requests, 1, "WebsocketSubmitOrders must send both orders in one list")
+			var sent createOrderListParams
+			require.NoError(t, json.Unmarshal(requests[0].Params, &sent), "the list's params must decode")
+			require.Len(t, sent.OrderList, 2, "the list must hold both orders")
+			for i, orderID := range []string{"41", "42"} {
+				clientOrderID := sent.OrderList[i].ClientOrderID
+				require.NotEmptyf(t, clientOrderID, "order %s must be sent with a client order ID", orderID)
+				assert.Truef(t, ex.isMarginOrder(orderID, ""), "WebsocketSubmitOrders should track margin order %s by its order ID", orderID)
+				assert.Falsef(t, ex.isMarginOrder("", clientOrderID), "WebsocketSubmitOrders should stop tracking client order ID %q, which the answer omits, once order %s is placed", clientOrderID, orderID)
+			}
+		})
+		t.Run("missing acknowledgement leaves the outcome unknown", func(t *testing.T) {
+			t.Parallel()
+			ex, venue := newWebsocketTestExchange(t)
+			venue.respond("private/create-order-list", `[{"code":0,"index":0,"order_id":"41"},{"code":318,"index":2,"message":"EXCEEDS_MAX_ALLOWED_ORDERS"}]`)
+			orders := make([]*order.Submit, 0, 3)
+			for _, id := range []string{"answered", "unanswered", "rejected"} {
+				orders = append(orders, &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001, ClientOrderID: id})
+			}
+			got, err := ex.WebsocketSubmitOrders(t.Context(), orders)
+			require.NoError(t, err, "WebsocketSubmitOrders must not error for a list answered for some of its orders")
+			require.Len(t, got, len(orders), "WebsocketSubmitOrders must return a response for every order")
+			assert.Equal(t, order.New, got[0].Status, "WebsocketSubmitOrders should report the accepted order new")
+			assert.NoError(t, got[0].SubmissionError, "WebsocketSubmitOrders should report no error for the accepted order")
+			assert.Equal(t, order.UnknownStatus, got[1].Status, "WebsocketSubmitOrders should give the unanswered order an unknown status")
+			assert.ErrorIs(t, got[1].SubmissionError, errOrderListOutcomeUnknown, "WebsocketSubmitOrders should report the unanswered order's outcome unknown")
+			assert.NotErrorIs(t, got[1].SubmissionError, order.ErrUnableToPlaceOrder, "WebsocketSubmitOrders should not report the unanswered order as not placed")
+			assert.Equal(t, order.Rejected, got[2].Status, "WebsocketSubmitOrders should report the refused order rejected")
+			assert.ErrorIs(t, got[2].SubmissionError, order.ErrUnableToPlaceOrder, "WebsocketSubmitOrders should report the refused order not placed")
+			assert.True(t, ex.isMarginOrder("", "unanswered"), "WebsocketSubmitOrders should go on tracking the unanswered order's client order ID")
+			assert.False(t, ex.isMarginOrder("", "rejected"), "WebsocketSubmitOrders should stop tracking the refused order's client order ID")
+		})
+	})
 	ex, venue := newWebsocketTestExchange(t)
 	orders := []*order.Submit{testSubmit(), testTriggerSubmit(), testSubmit()}
 	for _, s := range orders {
@@ -2694,7 +2905,15 @@ func TestListSubmitResponses(t *testing.T) {
 	responses := make([]*order.SubmitResponse, 2)
 	require.NoError(t, listSubmitResponses(orders, []int{1}, []OrderListEntryResponse{{Index: 3}}, responses), "listSubmitResponses must not error for an entry out of range")
 	assert.Nil(t, responses[0], "listSubmitResponses should only set the responses of the list's orders")
-	assert.ErrorIs(t, responses[1].SubmissionError, order.ErrUnableToPlaceOrder, "listSubmitResponses should report an order without an entry")
+	assert.ErrorIs(t, responses[1].SubmissionError, errOrderListOutcomeUnknown, "listSubmitResponses should report an order without an entry as having an unknown outcome")
+	assert.Equal(t, order.UnknownStatus, responses[1].Status, "listSubmitResponses should give an order without an entry an unknown status")
+	t.Run("entries indexed at the list's length or below zero", func(t *testing.T) {
+		t.Parallel()
+		outside := make([]*order.SubmitResponse, 2)
+		require.NoError(t, listSubmitResponses([]*order.Submit{testSubmit(), testSubmit()}, []int{1}, []OrderListEntryResponse{{Index: 1, Code: 306}, {Index: -1, Code: 306}}, outside), "listSubmitResponses must not error for entries outside the list")
+		require.NotNil(t, outside[1], "listSubmitResponses must set the response of the list's order")
+		assert.Equal(t, order.UnknownStatus, outside[1].Status, "listSubmitResponses should ignore entries outside the list")
+	})
 	err := listSubmitResponses(orders, []int{0}, []OrderListEntryResponse{{Index: 0}}, responses)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "listSubmitResponses should refuse an accepted entry without an order ID")
 	assert.Nil(t, responses[0], "listSubmitResponses should leave a list's responses unset when it cannot read an entry")
@@ -2705,89 +2924,6 @@ func TestListSubmitResponses(t *testing.T) {
 	err = listSubmitResponses(orders, []int{0, 1, 2}, []OrderListEntryResponse{{Index: 0, OrderID: "100"}, {Index: 1}, {Index: 2, OrderID: "102"}}, responses)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "listSubmitResponses should refuse an accepted entry without an order ID among others")
 	assert.Equal(t, make([]*order.SubmitResponse, 3), responses, "listSubmitResponses should leave every response of a list unset when it cannot read one of its entries")
-}
-
-func TestWebsocketSubmitOrdersTracksMarginOrders(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("the orders would be placed live in lists")
-	}
-	ex, venue := newWebsocketTestExchange(t)
-	marginOrder := func(clientOrderID string) *order.Submit {
-		return &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001, ClientOrderID: clientOrderID}
-	}
-	spot := marginOrder("spot_placed")
-	spot.AssetType = asset.Spot
-	trigger := marginOrder("margin_trigger")
-	trigger.Type, trigger.Price, trigger.TriggerPrice = order.StopLimit, 49000, 49500
-	var trackedWhenSent, triggerTrackedWhenSent, listTrackedWhenNextSent atomic.Bool
-	venue.beforeAnswering("private/create-order-list", func() { trackedWhenSent.Store(ex.isMarginOrder("", "margin_placed")) })
-	venue.beforeAnswering("private/advanced/create-order-list", func() {
-		triggerTrackedWhenSent.Store(ex.isMarginOrder("", "margin_trigger"))
-		listTrackedWhenNextSent.Store(ex.isMarginOrder("11", ""))
-	})
-	venue.respond("private/create-order-list", `[{"code":0,"index":0,"client_oid":"margin_placed","order_id":"11"},{"code":318,"index":1,"message":"EXCEEDS_MAX_ALLOWED_ORDERS"},{"code":0,"index":2,"client_oid":"spot_placed","order_id":"13"}]`)
-	venue.respond("private/advanced/create-order-list", `[{"code":0,"index":0,"client_oid":"margin_trigger","order_id":"21"}]`)
-	_, err := ex.WebsocketSubmitOrders(t.Context(), []*order.Submit{marginOrder("margin_placed"), marginOrder("margin_rejected"), spot, trigger})
-	require.NoError(t, err, "WebsocketSubmitOrders must not error")
-	assert.True(t, trackedWhenSent.Load(), "WebsocketSubmitOrders should track a margin order by its client order ID before placing it, as its trades can arrive first")
-	assert.True(t, triggerTrackedWhenSent.Load(), "WebsocketSubmitOrders should track a margin trigger order by its client order ID before placing it")
-	assert.True(t, listTrackedWhenNextSent.Load(), "WebsocketSubmitOrders should track a list's placed orders by their order IDs before sending the next list")
-	assert.True(t, ex.isMarginOrder("11", ""), "WebsocketSubmitOrders should track a placed margin order by its order ID")
-	assert.False(t, ex.isMarginOrder("", "margin_placed"), "WebsocketSubmitOrders should stop tracking a placed margin order by its client order ID, which other orders can share, once its order ID is known")
-	assert.False(t, ex.isMarginOrder("", "margin_rejected"), "WebsocketSubmitOrders should stop tracking the client order ID of an order Crypto.com rejected")
-	assert.False(t, ex.isMarginOrder("13", "spot_placed"), "WebsocketSubmitOrders should track a placed spot order as no margin order")
-	assert.True(t, ex.isMarginOrder("21", ""), "WebsocketSubmitOrders should track a placed margin trigger order by its order ID")
-
-	venue.fail("private/create-order-list", &APIError{Code: 40001, Message: "BAD_REQUEST"})
-	_, err = ex.WebsocketSubmitOrders(t.Context(), []*order.Submit{marginOrder("margin_refused")})
-	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr, "WebsocketSubmitOrders must return Crypto.com's refusal of a list")
-	assert.False(t, ex.isMarginOrder("", "margin_refused"), "WebsocketSubmitOrders should stop tracking the client order IDs of a list Crypto.com refused")
-
-	// A list whose request fails otherwise may have been placed, so its orders are still tracked
-	done, cancel := context.WithCancel(t.Context())
-	cancel()
-	// A frame can be sent with its context already ended, so its refusal waits until the request has given up on it
-	answered := make(chan struct{})
-	venue.beforeAnswering("private/create-order-list", func() { <-answered })
-	_, err = ex.WebsocketSubmitOrders(done, []*order.Submit{marginOrder("margin_unknown")})
-	close(answered)
-	venue.beforeAnswering("private/create-order-list", nil)
-	require.ErrorIs(t, err, context.Canceled, "WebsocketSubmitOrders must return the request's error")
-	assert.True(t, ex.isMarginOrder("", "margin_unknown"), "WebsocketSubmitOrders should go on tracking the client order IDs of a list whose outcome is unknown")
-
-	// An order an answered list gives no outcome for may have been placed, so is still tracked
-	venue.fail("private/create-order-list", nil)
-	venue.respond("private/create-order-list", `[{"code":0,"index":0,"client_oid":"margin_answered","order_id":"31"}]`)
-	got, err := ex.WebsocketSubmitOrders(t.Context(), []*order.Submit{marginOrder("margin_answered"), marginOrder("margin_unanswered")})
-	require.NoError(t, err, "WebsocketSubmitOrders must not error for a list answered for one of its orders")
-	require.Len(t, got, 2, "WebsocketSubmitOrders must return a response for every order")
-	assert.ErrorIs(t, got[1].SubmissionError, order.ErrUnableToPlaceOrder, "WebsocketSubmitOrders should report an order the answer gives no outcome for")
-	assert.True(t, ex.isMarginOrder("", "margin_unanswered"), "WebsocketSubmitOrders should go on tracking the client order ID of an order the answer gives no outcome for")
-
-	t.Run("acknowledgement omits client ID", func(t *testing.T) {
-		t.Parallel()
-		ex, venue := newWebsocketTestExchange(t)
-		// A margin order is sent with the client order ID it is given, else one generated for it, and the answer names
-		// neither
-		given := &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001, ClientOrderID: "margin_given"}
-		generated := &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001}
-		venue.respond("private/create-order-list", `[{"code":0,"index":0,"order_id":"41"},{"code":0,"index":1,"order_id":"42"}]`)
-		_, err := ex.WebsocketSubmitOrders(t.Context(), []*order.Submit{given, generated})
-		require.NoError(t, err, "WebsocketSubmitOrders must not error for an answer without client order IDs")
-		requests := venue.received("private/create-order-list")
-		require.Len(t, requests, 1, "WebsocketSubmitOrders must send both orders in one list")
-		var sent createOrderListParams
-		require.NoError(t, json.Unmarshal(requests[0].Params, &sent), "the list's params must decode")
-		require.Len(t, sent.OrderList, 2, "the list must hold both orders")
-		for i, orderID := range []string{"41", "42"} {
-			clientOrderID := sent.OrderList[i].ClientOrderID
-			require.NotEmptyf(t, clientOrderID, "order %s must be sent with a client order ID", orderID)
-			assert.Truef(t, ex.isMarginOrder(orderID, ""), "WebsocketSubmitOrders should track margin order %s by its order ID", orderID)
-			assert.Falsef(t, ex.isMarginOrder("", clientOrderID), "WebsocketSubmitOrders should stop tracking client order ID %q, which the answer omits, once order %s is placed", clientOrderID, orderID)
-		}
-	})
 }
 
 func TestNewOrderAmendment(t *testing.T) { //nolint:tparallel // the cases run in order, the refusals on one shared exchange
@@ -2940,22 +3076,31 @@ func TestModifyOrder(t *testing.T) { //nolint:tparallel // the cases run in orde
 	require.ErrorIs(t, err, order.ErrModifyOrderIsNil, "ModifyOrder must refuse a nil modification")
 	_, err = e.ModifyOrder(t.Context(), &order.Modify{Pair: testPerpetualPair, AssetType: asset.Options, OrderID: "1"})
 	require.ErrorIs(t, err, asset.ErrNotSupported, "ModifyOrder must refuse an unsupported asset")
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("the amended order would be placed live")
-	}
-	m := &order.Modify{Exchange: e.Name, OrderID: tradingTestOrderID, Type: order.Limit, Side: order.Buy, AssetType: asset.PerpetualSwap, Pair: testPerpetualPair, Price: 50000, Amount: 0.0002}
-	got, err := e.ModifyOrder(t.Context(), m)
-	require.NoError(t, err, "ModifyOrder must not error")
-	exp := &order.ModifyResponse{Exchange: e.Name, OrderID: tradingTestOrderID, ClientOrderID: tradingTestOrderClientOrderID, Pair: testPerpetualPair, Type: order.Limit, Side: order.Buy, AssetType: asset.PerpetualSwap, Price: 50000, Amount: 0.0002}
-	assert.Equal(t, exp, got, "ModifyOrder should amend the order's price and quantity")
-
 	cro := currency.NewPairWithDelimiter("CRO", "USD", currency.UnderscoreDelimiter)
-	m = &order.Modify{Exchange: e.Name, OrderID: "5755600460443882762", Type: order.StopLimit, Side: order.Sell, AssetType: asset.Spot, Pair: cro, Price: 0.0278, Amount: 10, TriggerPrice: 0.0279}
-	got, err = e.ModifyOrder(t.Context(), m)
-	require.NoError(t, err, "ModifyOrder must not error for a trigger order")
-	exp = &order.ModifyResponse{Exchange: e.Name, OrderID: "5755600460443882762", ClientOrderID: tradingTestOrderClientOrderID, Pair: cro, Type: order.StopLimit, Side: order.Sell, AssetType: asset.Spot, Price: 0.0278, Amount: 10, TriggerPrice: 0.0279}
-	assert.Equal(t, exp, got, "ModifyOrder should amend a trigger order with the advanced order methods")
+	ctx := t.Context()
+	t.Run("an order amended", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		m := &order.Modify{Exchange: e.Name, OrderID: tradingTestOrderID, Type: order.Limit, Side: order.Buy, AssetType: asset.PerpetualSwap, Pair: testPerpetualPair, Price: 50000, Amount: 0.0002}
+		if !mockTests {
+			m.OrderID = placeTradingTestOrder(t)
+			cancelTradingOrderAfterTest(t, m.OrderID)
+		}
+		got, err := e.ModifyOrder(ctx, m)
+		require.NoError(t, err, "ModifyOrder must not error")
+		if !mockTests {
+			// Crypto.com answers an amend with the order ID it was given, as its documented example shows
+			assert.Equal(t, m.OrderID, got.OrderID, "ModifyOrder should return the amended order's ID")
+			return
+		}
+		exp := &order.ModifyResponse{Exchange: e.Name, OrderID: tradingTestOrderID, ClientOrderID: tradingTestOrderClientOrderID, Pair: testPerpetualPair, Type: order.Limit, Side: order.Buy, AssetType: asset.PerpetualSwap, Price: 50000, Amount: 0.0002}
+		assert.Equal(t, exp, got, "ModifyOrder should amend the order's price and quantity")
+
+		m = &order.Modify{Exchange: e.Name, OrderID: "5755600460443882762", Type: order.StopLimit, Side: order.Sell, AssetType: asset.Spot, Pair: cro, Price: 0.0278, Amount: 10, TriggerPrice: 0.0279}
+		got, err = e.ModifyOrder(ctx, m)
+		require.NoError(t, err, "ModifyOrder must not error for a trigger order")
+		exp = &order.ModifyResponse{Exchange: e.Name, OrderID: "5755600460443882762", ClientOrderID: tradingTestOrderClientOrderID, Pair: cro, Type: order.StopLimit, Side: order.Sell, AssetType: asset.Spot, Price: 0.0278, Amount: 10, TriggerPrice: 0.0279}
+		assert.Equal(t, exp, got, "ModifyOrder should amend a trigger order with the advanced order methods")
+	})
 
 	// An OTO list's limit leg, which only the advanced order methods know, has its quantity restated
 	ex, received := newRoutesServerExchange(t, map[string]testRoute{
@@ -2963,10 +3108,10 @@ func TestModifyOrder(t *testing.T) { //nolint:tparallel // the cases run in orde
 		"private/advanced/get-order-detail": testResult(`{"order_id":"5755600460443890101","order_type":"LIMIT","side":"BUY","quantity":"0.0100","limit_price":"78000.0","status":"ACTIVE","instrument_name":"BTC_USD"}`),
 		"private/advanced/amend-order":      testResult(`{"order_id":"5755600460443890101","client_oid":"1792836351900"}`),
 	})
-	m = &order.Modify{Exchange: ex.Name, OrderID: "5755600460443890101", AssetType: asset.Spot, Pair: testSpotPair, Price: 77000}
-	got, err = ex.ModifyOrder(t.Context(), m)
+	m := &order.Modify{Exchange: ex.Name, OrderID: "5755600460443890101", AssetType: asset.Spot, Pair: testSpotPair, Price: 77000}
+	got, err := ex.ModifyOrder(t.Context(), m)
 	require.NoError(t, err, "ModifyOrder must not error for an order list's leg")
-	exp = &order.ModifyResponse{Exchange: ex.Name, OrderID: "5755600460443890101", ClientOrderID: "1792836351900", Pair: testSpotPair, Type: order.Limit, AssetType: asset.Spot, Price: 77000, Amount: 0.01}
+	exp := &order.ModifyResponse{Exchange: ex.Name, OrderID: "5755600460443890101", ClientOrderID: "1792836351900", Pair: testSpotPair, Type: order.Limit, AssetType: asset.Spot, Price: 77000, Amount: 0.01}
 	assert.Equal(t, exp, got, "ModifyOrder should restate the leg's quantity, and report its type")
 	expRequests := []testRequest{
 		{Method: "private/get-order-detail", Params: `{"order_id":"5755600460443890101"}`},
@@ -3148,13 +3293,19 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	_, err := e.WebsocketModifyOrder(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrModifyOrderIsNil, "WebsocketModifyOrder must refuse a nil modification")
 	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("the amended order would be placed live")
-	}
 	ex, venue := newWebsocketTestExchange(t)
 	m := &order.Modify{Exchange: ex.Name, OrderID: tradingTestOrderID, Type: order.Limit, Side: order.Buy, AssetType: asset.PerpetualSwap, Pair: testPerpetualPair, Price: 50000, Amount: 0.0002}
+	if !mockTests {
+		m.OrderID = placeTradingTestOrder(t)
+		cancelTradingOrderAfterTest(t, m.OrderID)
+	}
 	got, err := ex.WebsocketModifyOrder(t.Context(), m)
 	require.NoError(t, err, "WebsocketModifyOrder must not error")
+	if !mockTests {
+		// Crypto.com answers an amend with the order ID it was given, as its documented example shows
+		assert.Equal(t, m.OrderID, got.OrderID, "WebsocketModifyOrder should return the amended order's ID")
+		return
+	}
 	exp := &order.ModifyResponse{Exchange: ex.Name, OrderID: tradingTestOrderID, ClientOrderID: tradingTestOrderClientOrderID, Pair: testPerpetualPair, Type: order.Limit, Side: order.Buy, AssetType: asset.PerpetualSwap, Price: 50000, Amount: 0.0002}
 	assert.Equal(t, exp, got, "WebsocketModifyOrder should amend the order's price and quantity")
 	requests := venue.received("private/amend-order")
@@ -3176,7 +3327,7 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	assert.Equal(t, int64(50001), apiErr.Code, "WebsocketModifyOrder should return Crypto.com's refusal")
 }
 
-func TestAmendOrderFallback(t *testing.T) {
+func TestAmendOrderWith(t *testing.T) {
 	t.Parallel()
 	notFound := func(string) (string, *APIError) { return "", &APIError{Code: 212, Message: "INVALID_ORDERID"} }
 	legAmended := testResult(`{"order_id":"5755600460443890101","client_oid":"leg"}`)
@@ -3218,10 +3369,10 @@ func TestAmendOrderFallback(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ex, received := newRoutesServerExchange(t, tc.routes)
-			got, err := amendOrder(t.Context(), tc.amendment, ex.AmendOrder, ex.AmendAdvancedOrder)
-			require.NoErrorf(t, err, "amendOrder must not error for %s", tc.name)
-			assert.Equalf(t, tc.exp, got, "amendOrder should return the amended order's IDs for %s", tc.name)
-			assert.Equalf(t, tc.requests, received(), "amendOrder should send the amendments expected for %s", tc.name)
+			got, err := amendOrderWith(t.Context(), tc.amendment, ex.AmendOrder, ex.AmendAdvancedOrder)
+			require.NoErrorf(t, err, "amendOrderWith must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "amendOrderWith should return the amended order's IDs for %s", tc.name)
+			assert.Equalf(t, tc.requests, received(), "amendOrderWith should send the amendments expected for %s", tc.name)
 		})
 	}
 
@@ -3267,15 +3418,15 @@ func TestAmendOrderFallback(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex, received := newRoutesServerExchange(t, tc.routes)
-			got, err := amendOrder(t.Context(), tc.amendment, ex.AmendOrder, ex.AmendAdvancedOrder)
-			assert.Nilf(t, got, "amendOrder should return no IDs for %s", tc.name)
+			got, err := amendOrderWith(t.Context(), tc.amendment, ex.AmendOrder, ex.AmendAdvancedOrder)
+			assert.Nilf(t, got, "amendOrderWith should return no IDs for %s", tc.name)
 			var apiErr *APIError
-			require.ErrorAsf(t, err, &apiErr, "amendOrder must return the trading methods' refusal of %s", tc.name)
-			assert.Equalf(t, tc.apiErr, apiErr, "amendOrder should return Crypto.com's code and message for %s", tc.name)
+			require.ErrorAsf(t, err, &apiErr, "amendOrderWith must return the trading methods' refusal of %s", tc.name)
+			assert.Equalf(t, tc.apiErr, apiErr, "amendOrderWith should return Crypto.com's code and message for %s", tc.name)
 			if tc.err != nil {
-				assert.ErrorIsf(t, err, tc.err, "amendOrder should return why it did not amend %s", tc.name)
+				assert.ErrorIsf(t, err, tc.err, "amendOrderWith should return why it did not amend %s", tc.name)
 			}
-			assert.Equalf(t, tc.requests, received(), "amendOrder should send the amendments expected for %s", tc.name)
+			assert.Equalf(t, tc.requests, received(), "amendOrderWith should send the amendments expected for %s", tc.name)
 		})
 	}
 }
@@ -3301,16 +3452,20 @@ func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.CancelOrder(t.Context(), nil), order.ErrCancelOrderIsNil, "CancelOrder must refuse a nil cancel")
 	require.ErrorIs(t, e.CancelOrder(t.Context(), &order.Cancel{}), order.ErrOrderIDNotSet, "CancelOrder must refuse a cancel without an order ID")
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		orderID := placeTradingTestOrder(t)
-		assert.NoError(t, e.CancelOrder(t.Context(), &order.Cancel{OrderID: orderID, Type: order.Limit}), "CancelOrder should cancel the order the test placed")
-		return
-	}
-	assert.NoError(t, e.CancelOrder(t.Context(), &order.Cancel{OrderID: tradingTestOrderID, Type: order.Limit}), "CancelOrder should cancel an order")
-	assert.NoError(t, e.CancelOrder(t.Context(), &order.Cancel{OrderID: "5755600460443882762", Type: order.StopLimit}), "CancelOrder should cancel a trigger order with the advanced order methods")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			orderID := placeTradingTestOrder(t)
+			assert.NoError(t, e.CancelOrder(t.Context(), &order.Cancel{OrderID: orderID, Type: order.Limit}), "CancelOrder should cancel the order the test placed")
+			return
+		}
+		assert.NoError(t, e.CancelOrder(t.Context(), &order.Cancel{OrderID: tradingTestOrderID, Type: order.Limit}), "CancelOrder should cancel an order")
+		assert.NoError(t, e.CancelOrder(t.Context(), &order.Cancel{OrderID: "5755600460443882762", Type: order.StopLimit}), "CancelOrder should cancel a trigger order with the advanced order methods")
+	})
 
 	notFound := func(string) (string, *APIError) { return "", &APIError{Code: 40401, Message: "NOT_FOUND"} }
+
 	ex, received := newRoutesServerExchange(t, map[string]testRoute{
 		"private/cancel-order":          notFound,
 		"private/advanced/cancel-order": testResult(`{"order_id":"5755600460443890101"}`),
@@ -3390,15 +3545,61 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	assert.Len(t, venue.received("private/advanced/cancel-order"), 1, "WebsocketCancelOrder should cancel a trigger order with the advanced order methods")
 }
 
+func TestCancelOrderWith(t *testing.T) {
+	t.Parallel()
+	notFound := &APIError{Code: 40401, Message: "NOT_FOUND"}
+	for _, tc := range []struct {
+		name        string
+		cancel      *order.Cancel
+		cancelErr   error
+		advancedErr error
+		exp         []string
+		err         error
+		apiErrs     []*APIError
+	}{
+		{name: "nil cancel", err: order.ErrCancelOrderIsNil},
+		{name: "no order ID", cancel: &order.Cancel{Type: order.Limit}, err: order.ErrOrderIDNotSet},
+		{name: "trigger order", cancel: &order.Cancel{OrderID: "1", Type: order.StopLimit}, exp: []string{"advanced 1/"}},
+		{name: "trigger order refused", cancel: &order.Cancel{ClientOrderID: "c", Type: order.TakeProfit}, advancedErr: notFound, exp: []string{"advanced /c"}, apiErrs: []*APIError{notFound}},
+		{name: "regular order", cancel: &order.Cancel{OrderID: "1", Type: order.Limit}, exp: []string{"regular 1/"}},
+		{name: "leg the trading methods refuse", cancel: &order.Cancel{OrderID: "1", ClientOrderID: "c"}, cancelErr: notFound, exp: []string{"regular 1/c", "advanced 1/c"}},
+		{name: "refused by both", cancel: &order.Cancel{ClientOrderID: "c"}, cancelErr: notFound, advancedErr: &APIError{Code: 316, Message: "NO_ACTIVE_ORDER"}, exp: []string{"regular /c", "advanced /c"}, apiErrs: []*APIError{notFound, {Code: 316, Message: "NO_ACTIVE_ORDER"}}},
+		{name: "request refused as a whole", cancel: &order.Cancel{OrderID: "1"}, cancelErr: &APIError{Code: codeTooManyRequests, Message: "TOO_MANY_REQUESTS"}, exp: []string{"regular 1/"}, apiErrs: []*APIError{{Code: codeTooManyRequests, Message: "TOO_MANY_REQUESTS"}}},
+		{name: "request failed", cancel: &order.Cancel{OrderID: "1"}, cancelErr: request.ErrBadStatus, exp: []string{"regular 1/"}, err: request.ErrBadStatus},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var calls []string
+			cancel := func(_ context.Context, r *CancelOrderRequest) (*OrderIDResponse, error) {
+				calls = append(calls, "regular "+r.OrderID+"/"+r.ClientOrderID)
+				return &OrderIDResponse{OrderID: r.OrderID}, tc.cancelErr
+			}
+			cancelAdvanced := func(_ context.Context, r *AdvancedOrderIDRequest) (*OrderIDResponse, error) {
+				calls = append(calls, "advanced "+r.OrderID+"/"+r.ClientOrderID)
+				return &OrderIDResponse{OrderID: r.OrderID}, tc.advancedErr
+			}
+			err := cancelOrderWith(t.Context(), tc.cancel, cancel, cancelAdvanced)
+			switch {
+			case tc.err != nil:
+				require.ErrorIs(t, err, tc.err, "cancelOrderWith must return the expected error")
+			case len(tc.apiErrs) > 0:
+				for _, exp := range tc.apiErrs {
+					assert.ErrorContainsf(t, err, exp.Error(), "cancelOrderWith should return Crypto.com's refusal %s", exp)
+				}
+			default:
+				require.NoError(t, err, "cancelOrderWith must not error")
+			}
+			assert.Equal(t, tc.exp, calls, "cancelOrderWith should send the cancels expected")
+		})
+	}
+}
+
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelBatchOrders(t.Context(), nil)
 	require.ErrorIs(t, err, errOrderListEmpty, "CancelBatchOrders must refuse no orders")
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1"}, {}})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelBatchOrders must refuse an order without an ID")
-	if !mockTests {
-		t.Skip("the batch is checked against a test server")
-	}
 	ex, received := newRoutesServerExchange(t, map[string]testRoute{
 		"private/cancel-order-list": func(params string) (string, *APIError) {
 			if strings.Contains(params, `"order_id":"11"`) {
@@ -3462,6 +3663,22 @@ func TestCancelBatchOrders(t *testing.T) {
 	assert.Len(t, got.Status, 10, "CancelBatchOrders should return the outcome of each order of the lists sent before one failed")
 	assert.Equal(t, "PENDING_CANCEL", got.Status["10"], "CancelBatchOrders should report the orders cancelled before a list failed")
 	assert.NotContains(t, got.Status, "11", "CancelBatchOrders should report no outcome for an order whose list failed")
+
+	// The recorded mock holds a cancel of trigger orders only, so live the batch cancels two orders the test places
+	skipLiveUnlessCanManipulate(t)
+	cancels = []order.Cancel{{OrderID: "289991951579667814", Type: order.Stop}, {ClientOrderID: "my_tp_order", Type: order.TakeProfit}}
+	exp = &order.CancelBatchResponse{Status: map[string]string{"289991951579667814": "PENDING_CANCEL", "my_tp_order": "PENDING_CANCEL"}}
+	if !mockTests {
+		first := placeTradingTestOrder(t)
+		cancelTradingOrderIfTestFails(t, first)
+		second := placeTradingTestOrder(t)
+		cancelTradingOrderIfTestFails(t, second)
+		cancels = []order.Cancel{{OrderID: first}, {OrderID: second}}
+		exp = &order.CancelBatchResponse{Status: map[string]string{first: "PENDING_CANCEL", second: "PENDING_CANCEL"}}
+	}
+	got, err = e.CancelBatchOrders(t.Context(), cancels)
+	require.NoError(t, err, "CancelBatchOrders must not error")
+	assert.Equal(t, exp, got, "CancelBatchOrders should report every order pending cancellation")
 }
 
 func TestCancelAllOrders(t *testing.T) {
@@ -3470,9 +3687,6 @@ func TestCancelAllOrders(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelAllOrders must refuse a nil cancel")
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Options})
 	require.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders must refuse an unsupported asset")
-	if !mockTests {
-		t.Skip("cancelling every order is checked against a test server")
-	}
 	ex, received := newRoutesServerExchange(t, map[string]testRoute{
 		"private/get-open-orders": testResult(`{"data":[
 			{"order_id":"1","order_type":"LIMIT","side":"BUY","status":"ACTIVE","instrument_name":"BTC_USD","exec_inst":[]},
@@ -3511,6 +3725,32 @@ func TestCancelAllOrders(t *testing.T) {
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr, "CancelAllOrders must return the error of a list whose request failed")
 	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"1": "PENDING_CANCEL"}}, got, "CancelAllOrders should return the outcomes of the lists sent before one failed")
+
+	// An instrument the other tests place no orders on, so that cancelling its orders live leaves theirs
+	skipLiveUnlessCanManipulate(t)
+	ex = e
+	if mockTests {
+		ex, received = newRoutesServerExchange(t, map[string]testRoute{
+			"private/get-open-orders":          testResult(`{"data":[{"order_id":"6","order_type":"LIMIT","side":"BUY","status":"ACTIVE","instrument_name":"ETHUSD-PERP","exec_inst":["POST_ONLY"]}]}`),
+			"private/advanced/get-open-orders": testResult(`{"data":[]}`),
+			"private/cancel-order-list":        testResult(`[{"code":0,"index":0}]`),
+		})
+	}
+	got, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.PerpetualSwap, Pair: perpETHUSD})
+	require.NoError(t, err, "CancelAllOrders must not error for a perpetual's orders")
+	if !mockTests {
+		for orderID, status := range got.Status {
+			assert.Equalf(t, "PENDING_CANCEL", status, "CancelAllOrders should cancel order %s", orderID)
+		}
+		return
+	}
+	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"6": "PENDING_CANCEL"}}, got, "CancelAllOrders should cancel the perpetual's open orders")
+	expRequests = []testRequest{
+		{Method: "private/get-open-orders", Params: `{"instrument_name":"ETHUSD-PERP"}`},
+		{Method: "private/advanced/get-open-orders", Params: `{"instrument_name":"ETHUSD-PERP"}`},
+		{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[{"order_id":"6"}]}`},
+	}
+	assert.Equal(t, expRequests, received(), "CancelAllOrders should list the perpetual's open orders and cancel them by their IDs")
 }
 
 func TestListCancelStatus(t *testing.T) {
@@ -3539,51 +3779,63 @@ func TestListCancelStatus(t *testing.T) {
 	}
 }
 
-func TestGetOrderInfo(t *testing.T) {
+func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // the order is looked up on e in order, before the later calls of the same method
 	t.Parallel()
 	_, err := e.GetOrderInfo(t.Context(), "", currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOrderInfo must refuse an empty order ID")
 	_, err = e.GetOrderInfo(t.Context(), "1", currency.EMPTYPAIR, asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetOrderInfo must refuse an unsupported asset")
-	skipLiveWithoutCredentials(t)
-	if !mockTests {
-		t.Skip("no order is known to look up live")
-	}
-	got, err := e.GetOrderInfo(t.Context(), "6530219466236720403", testPerpetualPair, asset.PerpetualSwap)
-	require.NoError(t, err, "GetOrderInfo must not error")
-	exp := &order.Detail{
-		TimeInForce:        order.GoodTillCancel,
-		Price:              50000,
-		Amount:             0.01,
-		RemainingAmount:    0.01,
-		CostAsset:          currency.USD,
-		FeeAsset:           currency.USD,
-		Exchange:           e.Name,
-		OrderID:            "6530219466236720403",
-		ClientOrderID:      "1613571154900",
-		AccountID:          "52e7c00f-1324-5a6a-bf6e-de445bde21a5",
-		Type:               order.Limit,
-		Side:               order.Buy,
-		Status:             order.Cancelled,
-		AssetType:          asset.PerpetualSwap,
-		Date:               time.Unix(0, 1613575617173123456),
-		CloseTime:          time.UnixMilli(1613575617209),
-		LastUpdated:        time.UnixMilli(1613575617209),
-		Pair:               testPerpetualPair,
-		MarginType:         margin.Multi,
-		SettlementCurrency: currency.USD,
-	}
-	assert.Equal(t, exp, got, "GetOrderInfo should return every field of the order")
-	_, err = e.GetOrderInfo(t.Context(), "6530219466236720403", testSpotPair, asset.Spot)
-	assert.ErrorIs(t, err, errOrderAssetMismatch, "GetOrderInfo should refuse an order of another asset")
+	ctx := t.Context()
+	t.Run("an order of the trading methods", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		orderID := "6530219466236720403"
+		if !mockTests {
+			orderID = placeTradingTestOrder(t)
+			cancelTradingOrderAfterTest(t, orderID)
+		}
+		got, err := e.GetOrderInfo(ctx, orderID, testPerpetualPair, asset.PerpetualSwap)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		if mockTests {
+			exp := &order.Detail{
+				TimeInForce:        order.GoodTillCancel,
+				Price:              50000,
+				Amount:             0.01,
+				RemainingAmount:    0.01,
+				CostAsset:          currency.USD,
+				FeeAsset:           currency.USD,
+				Exchange:           e.Name,
+				OrderID:            "6530219466236720403",
+				ClientOrderID:      "1613571154900",
+				AccountID:          "52e7c00f-1324-5a6a-bf6e-de445bde21a5",
+				Type:               order.Limit,
+				Side:               order.Buy,
+				Status:             order.Cancelled,
+				AssetType:          asset.PerpetualSwap,
+				Date:               time.Unix(0, 1613575617173123456),
+				CloseTime:          time.UnixMilli(1613575617209),
+				LastUpdated:        time.UnixMilli(1613575617209),
+				Pair:               testPerpetualPair,
+				MarginType:         margin.Multi,
+				SettlementCurrency: currency.USD,
+			}
+			assert.Equal(t, exp, got, "GetOrderInfo should return every field of the order")
+		} else {
+			placed := tradingTestOrder()
+			exp := &order.Detail{Exchange: e.Name, OrderID: orderID, Pair: testPerpetualPair, AssetType: asset.PerpetualSwap, Side: order.Buy, Type: order.Limit, Price: placed.Price.Float64(), Amount: placed.Quantity.Float64()}
+			terms := &order.Detail{Exchange: got.Exchange, OrderID: got.OrderID, Pair: got.Pair, AssetType: got.AssetType, Side: got.Side, Type: got.Type, Price: got.Price, Amount: got.Amount}
+			assert.Equal(t, exp, terms, "GetOrderInfo should return the order the test placed")
+		}
+		_, err = e.GetOrderInfo(ctx, orderID, testSpotPair, asset.Spot)
+		assert.ErrorIs(t, err, errOrderAssetMismatch, "GetOrderInfo should refuse an order of another asset")
+	})
 
 	ex, _ := newRoutesServerExchange(t, map[string]testRoute{
 		"private/get-order-detail":          func(string) (string, *APIError) { return "", &APIError{Code: 40401, Message: "NOT_FOUND"} },
 		"private/advanced/get-order-detail": testResult(`{"order_id":"5755600460443890102","order_type":"STOP_LOSS","side":"SELL","quantity":"0.0100","ref_price":"74000.00","status":"ACTIVE","instrument_name":"BTC_USD","exec_inst":["MARGIN_ORDER"]}`),
 	})
-	got, err = ex.GetOrderInfo(t.Context(), "5755600460443890102", currency.EMPTYPAIR, asset.Margin)
+	got, err := ex.GetOrderInfo(t.Context(), "5755600460443890102", currency.EMPTYPAIR, asset.Margin)
 	require.NoError(t, err, "GetOrderInfo must not error for a trigger order")
-	exp = &order.Detail{Amount: 0.01, TriggerPrice: 74000, RemainingAmount: 0.01, CostAsset: currency.USD, Exchange: ex.Name, OrderID: "5755600460443890102", Type: order.Stop, Side: order.Sell, Status: order.Active, AssetType: asset.Margin, Pair: testSpotPair, MarginType: margin.Multi}
+	exp := &order.Detail{Amount: 0.01, TriggerPrice: 74000, RemainingAmount: 0.01, CostAsset: currency.USD, Exchange: ex.Name, OrderID: "5755600460443890102", Type: order.Stop, Side: order.Sell, Status: order.Active, AssetType: asset.Margin, Pair: testSpotPair, MarginType: margin.Multi}
 	assert.Equal(t, exp, got, "GetOrderInfo should look an order the trading methods do not know up among the advanced orders")
 
 	_, err = newUnavailableServerExchange(t).GetOrderInfo(t.Context(), "1", currency.EMPTYPAIR, asset.Spot)
@@ -3659,78 +3911,81 @@ func TestGetOrderHistory(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrGetOrdersRequestIsNil, "GetOrderHistory must refuse a nil request")
 	_, err = e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, StartTime: testWindowStart, EndTime: testWindowStart.Add(-time.Hour)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetOrderHistory must refuse a start after the end")
-	skipLiveWithoutCredentials(t)
-	ex := e
-	var received func() []testRequest
-	if mockTests {
-		ex, received = newRoutesServerExchange(t, map[string]testRoute{
-			"private/get-order-history": testResult(`{"data":[
-				{"order_id":"18342500","client_oid":"1613571154800","order_type":"LIMIT","side":"BUY","quantity":"0.0500","limit_price":"51283.0","avg_price":"51278.5","cumulative_quantity":"0.0500","cumulative_value":"2563.925","cumulative_fee":"1.0256","status":"FILLED","instrument_name":"BTC_USD","exec_inst":["MARGIN_ORDER"],"fee_instrument_name":"USD","create_time":"1792634400000","update_time":"1792634400100"},
-				{"order_id":"18342311","order_type":"MARKET","side":"BUY","order_value":"25","quantity":"0","cumulative_quantity":"0.0003","cumulative_value":"24.99","status":"FILLED","instrument_name":"BTC_USD","create_time":"1792630800000","update_time":"1792630800001"}]}`),
-			"private/advanced/get-order-history": testResult(`{"data":[]}`),
-		})
-	}
-	start := testWindowStart.Add(-2 * privateHistoryWindow)
-	end := start.Add(36 * time.Hour)
-	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, StartTime: start, EndTime: end})
-	require.NoError(t, err, "GetOrderHistory must not error")
-	if !mockTests {
-		return
-	}
-	exp := order.FilteredOrders{{
-		Amount:          0,
-		QuoteAmount:     25,
-		ExecutedAmount:  0.0003,
-		Cost:            24.99,
-		CostAsset:       currency.USD,
-		Exchange:        ex.Name,
-		OrderID:         "18342311",
-		Type:            order.Market,
-		Side:            order.Buy,
-		Status:          order.Filled,
-		AssetType:       asset.Spot,
-		Date:            time.UnixMilli(1792630800000),
-		CloseTime:       time.UnixMilli(1792630800001),
-		LastUpdated:     time.UnixMilli(1792630800001),
-		Pair:            testSpotPair,
-		RemainingAmount: 0,
-	}}
-	assert.Equal(t, exp, got, "GetOrderHistory should return the asset's past orders, a market buy by notional with its notional as the quote amount")
 	ns := func(t time.Time) string { return `"` + strconv.FormatInt(t.UnixNano(), 10) + `"` }
-	day := end.Add(-privateHistoryWindow)
-	expRequests := []testRequest{
-		{Method: "private/get-order-history", Params: `{"start_time":` + ns(day) + `,"end_time":` + ns(end) + `,"limit":100}`},
-		{Method: "private/get-order-history", Params: `{"start_time":` + ns(start) + `,"end_time":` + ns(day) + `,"limit":100}`},
-		{Method: "private/advanced/get-order-history", Params: `{"start_time":` + ns(day) + `,"end_time":` + ns(end) + `,"limit":"100"}`},
-		{Method: "private/advanced/get-order-history", Params: `{"start_time":` + ns(start) + `,"end_time":` + ns(day) + `,"limit":"100"}`},
-	}
-	requests := received()
-	require.Len(t, requests, len(expRequests), "GetOrderHistory must request each history a day at a time")
-	for i := range expRequests {
-		assert.Equalf(t, expRequests[i].Method, requests[i].Method, "GetOrderHistory request %d should be for its method", i)
-		assert.JSONEqf(t, expRequests[i].Params, requests[i].Params, "GetOrderHistory request %d should request its day", i)
-	}
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		ex := e
+		var received func() []testRequest
+		if mockTests {
+			ex, received = newRoutesServerExchange(t, map[string]testRoute{
+				"private/get-order-history": testResult(`{"data":[
+					{"order_id":"18342500","client_oid":"1613571154800","order_type":"LIMIT","side":"BUY","quantity":"0.0500","limit_price":"51283.0","avg_price":"51278.5","cumulative_quantity":"0.0500","cumulative_value":"2563.925","cumulative_fee":"1.0256","status":"FILLED","instrument_name":"BTC_USD","exec_inst":["MARGIN_ORDER"],"fee_instrument_name":"USD","create_time":"1792634400000","update_time":"1792634400100"},
+					{"order_id":"18342311","order_type":"MARKET","side":"BUY","order_value":"25","quantity":"0","cumulative_quantity":"0.0003","cumulative_value":"24.99","status":"FILLED","instrument_name":"BTC_USD","create_time":"1792630800000","update_time":"1792630800001"}]}`),
+				"private/advanced/get-order-history": testResult(`{"data":[]}`),
+			})
+		}
+		start := testWindowStart.Add(-2 * privateHistoryWindow)
+		end := start.Add(36 * time.Hour)
+		got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, StartTime: start, EndTime: end})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		if !mockTests {
+			return
+		}
+		exp := order.FilteredOrders{{
+			Amount:          0,
+			QuoteAmount:     25,
+			ExecutedAmount:  0.0003,
+			Cost:            24.99,
+			CostAsset:       currency.USD,
+			Exchange:        ex.Name,
+			OrderID:         "18342311",
+			Type:            order.Market,
+			Side:            order.Buy,
+			Status:          order.Filled,
+			AssetType:       asset.Spot,
+			Date:            time.UnixMilli(1792630800000),
+			CloseTime:       time.UnixMilli(1792630800001),
+			LastUpdated:     time.UnixMilli(1792630800001),
+			Pair:            testSpotPair,
+			RemainingAmount: 0,
+		}}
+		assert.Equal(t, exp, got, "GetOrderHistory should return the asset's past orders, a market buy by notional with its notional as the quote amount")
+		day := end.Add(-privateHistoryWindow)
+		expRequests := []testRequest{
+			{Method: "private/get-order-history", Params: `{"start_time":` + ns(day) + `,"end_time":` + ns(end) + `,"limit":100}`},
+			{Method: "private/get-order-history", Params: `{"start_time":` + ns(start) + `,"end_time":` + ns(day) + `,"limit":100}`},
+			{Method: "private/advanced/get-order-history", Params: `{"start_time":` + ns(day) + `,"end_time":` + ns(end) + `,"limit":"100"}`},
+			{Method: "private/advanced/get-order-history", Params: `{"start_time":` + ns(start) + `,"end_time":` + ns(day) + `,"limit":"100"}`},
+		}
+		requests := received()
+		require.Len(t, requests, len(expRequests), "GetOrderHistory must request each history a day at a time")
+		for i := range expRequests {
+			assert.Equalf(t, expRequests[i].Method, requests[i].Method, "GetOrderHistory request %d should be for its method", i)
+			assert.JSONEqf(t, expRequests[i].Params, requests[i].Params, "GetOrderHistory request %d should request its day", i)
+		}
+	})
 
 	// Without a start time each history is requested for the day before the end, the advanced order methods' trigger
 	// orders with the trading methods' orders, which the request's filters choose from
-	ex, received = newRoutesServerExchange(t, map[string]testRoute{
+	ex, received := newRoutesServerExchange(t, map[string]testRoute{
 		"private/get-order-history":          testResult(`{"data":[{"order_id":"1","order_type":"LIMIT","side":"BUY","quantity":"1","limit_price":"80000","cumulative_quantity":"1","status":"FILLED","instrument_name":"BTC_USD","create_time":"1792634400000","update_time":"1792634400100"}]}`),
 		"private/advanced/get-order-history": testResult(`{"data":[{"order_id":"2","order_type":"STOP_LOSS","side":"SELL","quantity":"1","ref_price":"79000","status":"CANCELED","instrument_name":"BTC_USD","create_time":"1792634400200","update_time":"1792634400300"}]}`),
 	})
-	end = time.UnixMilli(1792634400000).Add(time.Hour)
-	got, err = ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, EndTime: end})
+	end := time.UnixMilli(1792634400000).Add(time.Hour)
+	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, EndTime: end})
 	require.NoError(t, err, "GetOrderHistory must not error without a start time")
 	orderIDs := make([]string, len(got))
 	for i := range got {
 		orderIDs[i] = got[i].OrderID
 	}
 	assert.Equal(t, []string{"1", "2"}, orderIDs, "GetOrderHistory should return the trading methods' orders and the advanced order methods' trigger orders")
-	day = end.Add(-privateHistoryWindow)
-	expRequests = []testRequest{
+	day := end.Add(-privateHistoryWindow)
+	expRequests := []testRequest{
 		{Method: "private/get-order-history", Params: `{"start_time":` + ns(day) + `,"end_time":` + ns(end) + `,"limit":100}`},
 		{Method: "private/advanced/get-order-history", Params: `{"start_time":` + ns(day) + `,"end_time":` + ns(end) + `,"limit":"100"}`},
 	}
-	requests = received()
+	requests := received()
 	require.Len(t, requests, len(expRequests), "GetOrderHistory must request each history's day before the end without a start time")
 	for i := range expRequests {
 		assert.Equalf(t, expRequests[i].Method, requests[i].Method, "GetOrderHistory request %d should be for its method without a start time", i)
@@ -4064,6 +4319,14 @@ func TestOrderDetail(t *testing.T) { //nolint:tparallel // the cases run in orde
 	require.NoError(t, quantityErr, "orderDetail must not error for a stop loss buy by quantity")
 	assert.Equal(t, 0.1, quantityDetail.Amount, "orderDetail should give a stop loss buy by quantity its quantity")
 	assert.Zero(t, quantityDetail.QuoteAmount, "orderDetail should give a stop loss buy by quantity no quote amount")
+
+	t.Run("executed beyond its quantity", func(t *testing.T) {
+		overfilled := closed
+		overfilled.CumulativeQuantity = preciseNumber("0.02")
+		got, err := e.orderDetail(&overfilled, asset.PerpetualSwap, testPerpetualPair)
+		require.NoError(t, err, "orderDetail must not error for an order executed beyond its quantity")
+		assert.Zero(t, got.RemainingAmount, "orderDetail should leave nothing remaining of an order executed beyond its quantity")
+	})
 
 	// The refusals run in order on e, after the calls above, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
@@ -4411,14 +4674,17 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFuturesPositionSummary must refuse a nil request")
 	_, err = e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Spot, Pair: testSpotPair})
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset, "GetFuturesPositionSummary must refuse a spot pair")
-	skipLiveWithoutCredentials(t)
 	if !mockTests {
-		_, err := e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.PerpetualSwap, Pair: testPair(t, asset.PerpetualSwap)})
-		if err != nil {
-			assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "GetFuturesPositionSummary should only error for a pair without a position")
-		}
-		return
+		t.Run("live", func(t *testing.T) {
+			t.Parallel()
+			skipLiveWithoutCredentials(t)
+			_, err := e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.PerpetualSwap, Pair: testPair(t, asset.PerpetualSwap)})
+			if err != nil {
+				assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "GetFuturesPositionSummary should only error for a pair without a position")
+			}
+		})
 	}
+
 	// The isolated position is listed first, so that only the preference for the cross margin position finds that
 	cross := maps.Clone(testPositionRoutes)
 	cross["private/get-positions"] = testResult(`{"data":[
@@ -4635,16 +4901,20 @@ func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLeverage(t.Context(), asset.Spot, testSpotPair, margin.Multi, order.UnknownSide)
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset, "GetLeverage must refuse a spot pair")
-	skipLiveWithoutCredentials(t)
-	got, err := e.GetLeverage(t.Context(), asset.PerpetualSwap, testPair(t, asset.PerpetualSwap), margin.Multi, order.UnknownSide)
-	require.NoError(t, err, "GetLeverage must not error")
-	if !mockTests {
-		assert.Positive(t, got, "GetLeverage should return the account's leverage")
-		return
-	}
-	assert.Equal(t, 20.0, got, "GetLeverage should return the account's leverage for a cross margin position")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		got, err := e.GetLeverage(t.Context(), asset.PerpetualSwap, testPair(t, asset.PerpetualSwap), margin.Multi, order.UnknownSide)
+		require.NoError(t, err, "GetLeverage must not error")
+		if !mockTests {
+			assert.Positive(t, got, "GetLeverage should return the account's leverage")
+			return
+		}
+		assert.Equal(t, 20.0, got, "GetLeverage should return the account's leverage for a cross margin position")
+	})
+
 	ex, _ := newRoutesServerExchange(t, testPositionRoutes)
-	got, err = ex.GetLeverage(t.Context(), asset.PerpetualSwap, testPerpetualPair, margin.Isolated, order.UnknownSide)
+	got, err := ex.GetLeverage(t.Context(), asset.PerpetualSwap, testPerpetualPair, margin.Isolated, order.UnknownSide)
 	require.NoError(t, err, "GetLeverage must not error for an isolated position")
 	assert.Equal(t, 2.0, got, "GetLeverage should return an isolated position's leverage")
 	_, err = ex.GetLeverage(t.Context(), asset.PerpetualSwap, currency.NewPairWithDelimiter("ETHUSD", "PERP", currency.DashDelimiter), margin.Isolated, order.UnknownSide)
@@ -4709,15 +4979,29 @@ func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.SetLeverage(t.Context(), asset.Spot, testSpotPair, margin.Multi, 2, order.UnknownSide), futures.ErrNotFuturesAsset, "SetLeverage must refuse a spot pair")
 	require.ErrorIs(t, e.SetLeverage(t.Context(), asset.PerpetualSwap, testPerpetualPair, margin.Multi, 2.5, order.UnknownSide), errLeverageNotWhole, "SetLeverage must refuse an account leverage that is not a whole number")
-	if !mockTests {
-		t.Skip("setting leverage is checked against a test server")
-	}
 	routes := maps.Clone(testPositionRoutes)
 	routes["private/get-accounts"] = testResult(`{"this_account":{"uuid":"52e7c00f-1324-5a6a-bf6e-de445bde21a5"}}`)
 	routes["private/change-account-leverage"] = testResult("")
 	routes["private/change-isolated-margin-leverage"] = testResult("")
-	ex, received := newRoutesServerExchange(t, routes)
-	require.NoError(t, ex.SetLeverage(t.Context(), asset.PerpetualSwap, testPerpetualPair, margin.Multi, 10, order.UnknownSide), "SetLeverage must not error")
+	ex := e
+	var received func() []testRequest
+	if mockTests {
+		ex, received = newRoutesServerExchange(t, routes)
+	}
+	skipLiveUnlessCanManipulate(t)
+	leverage := 10.0
+	if !mockTests {
+		// Setting the leverage the account has leaves its settings as they were
+		settings, err := e.GetAccountSettings(t.Context())
+		require.NoError(t, err, "GetAccountSettings must not error")
+		require.NotEmpty(t, settings, "GetAccountSettings must return the account's settings")
+		leverage = settings[0].Leverage.Float64()
+	}
+	require.NoError(t, ex.SetLeverage(t.Context(), asset.PerpetualSwap, testPerpetualPair, margin.Multi, leverage, order.UnknownSide), "SetLeverage must not error")
+	// The isolated case needs an isolated position, which the live tests do not open
+	if !mockTests {
+		return
+	}
 	require.NoError(t, ex.SetLeverage(t.Context(), asset.PerpetualSwap, testPerpetualPair, margin.Isolated, 3.5, order.UnknownSide), "SetLeverage must not error for an isolated position")
 	exp := []testRequest{
 		{Method: "private/get-accounts", Params: `{}`},
@@ -4772,9 +5056,6 @@ func TestChangePositionMargin(t *testing.T) { //nolint:tparallel // the cases sh
 	_, err = refuser.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.PerpetualSwap, MarginType: margin.Isolated, OriginalAllocatedMargin: 5.4, NewAllocatedMargin: 8})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "ChangePositionMargin should refuse a request without a pair")
 	assert.Empty(t, refused(), "ChangePositionMargin should send no request without a pair")
-	if !mockTests {
-		t.Skip("changing a position's margin is checked against a test server")
-	}
 	routes := maps.Clone(testPositionRoutes)
 	routes["private/create-isolated-margin-transfer"] = testResult("")
 	ex, received := newRoutesServerExchange(t, routes)
@@ -4816,6 +5097,48 @@ func TestChangePositionMargin(t *testing.T) { //nolint:tparallel // the cases sh
 	require.ErrorAs(t, err, &apiErr, "ChangePositionMargin must return Crypto.com's refusal of the transfer")
 	assert.Equal(t, &APIError{Code: 306, Message: "INSUFFICIENT_AVAILABLE_BALANCE"}, apiErr, "ChangePositionMargin should return Crypto.com's code and message")
 	assert.Nil(t, got, "ChangePositionMargin should return no response for a transfer Crypto.com refuses")
+
+	// Live, margin moves to the account's isolated position on the pair and back, leaving the position as it was
+	skipLiveUnlessCanManipulate(t)
+	ex = e
+	if mockTests {
+		ex, received = newRoutesServerExchange(t, routes)
+	}
+	got, err = ex.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.PerpetualSwap, Pair: testPerpetualPair, MarginType: margin.Isolated, OriginalAllocatedMargin: 5.4, NewAllocatedMargin: 8})
+	if !mockTests && errors.Is(err, errNoIsolatedPosition) {
+		t.Skip("ChangePositionMargin needs an isolated position, which the account does not hold on the pair and the live tests do not open")
+	}
+	require.NoError(t, err, "ChangePositionMargin must not error")
+	restore := &margin.PositionChangeRequest{Asset: asset.PerpetualSwap, Pair: testPerpetualPair, MarginType: margin.Isolated, OriginalAllocatedMargin: 8, NewAllocatedMargin: 5.4}
+	// The cleanup moves the margin back only when the test stops first or Crypto.com refuses the move, as a move whose
+	// answer is lost may have happened
+	unrestored := true
+	t.Cleanup(func() {
+		if unrestored {
+			_, err := ex.ChangePositionMargin(context.WithoutCancel(t.Context()), restore)
+			assert.NoError(t, err, "ChangePositionMargin should move the margin the test added back")
+		}
+	})
+	assert.Equal(t, &margin.PositionChangeResponse{Exchange: ex.Name, Pair: testPerpetualPair, Asset: asset.PerpetualSwap, AllocatedMargin: 8, MarginType: margin.Isolated}, got, "ChangePositionMargin should return the new margin")
+	got, err = ex.ChangePositionMargin(t.Context(), restore)
+	var restoreRefused *APIError
+	unrestored = errors.As(err, &restoreRefused)
+	require.NoError(t, err, "ChangePositionMargin must not error moving the margin back")
+	assert.Equal(t, &margin.PositionChangeResponse{Exchange: ex.Name, Pair: testPerpetualPair, Asset: asset.PerpetualSwap, AllocatedMargin: 5.4, MarginType: margin.Isolated}, got, "ChangePositionMargin should return the original margin")
+	if !mockTests {
+		return
+	}
+	positions := testRequest{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`}
+	balance := testRequest{Method: "private/user-balance", Params: `{}`}
+	exp := []testRequest{
+		positions,
+		balance,
+		{Method: "private/create-isolated-margin-transfer", Params: `{"isolation_id":"19848526","direction":"CREDIT","amount":"2.6"}`},
+		positions,
+		balance,
+		{Method: "private/create-isolated-margin-transfer", Params: `{"isolation_id":"19848526","direction":"DEBIT","amount":"2.6"}`},
+	}
+	assert.Equal(t, exp, received(), "ChangePositionMargin should look the position up before each transfer, crediting it the margin's difference and debiting it back")
 }
 
 // TestOrderAndAccountRequestFailures holds the order and account paths to the failure of each request they make. Each row
@@ -4997,4 +5320,1882 @@ func TestWrapperRefusals(t *testing.T) {
 			assert.ErrorIsf(t, tc.call(ex), tc.exp, "%s should be refused", name)
 		})
 	}
+}
+
+func TestSetDefaults(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	ex.SetDefaults()
+	assert.Equal(t, "Cryptodotcom", ex.Name, "SetDefaults should name the exchange")
+	assert.True(t, ex.Enabled, "SetDefaults should enable the exchange")
+	assert.False(t, ex.Verbose, "SetDefaults should leave verbose output off")
+	assert.Equal(t, config.APICredentialsValidatorConfig{RequiresKey: true, RequiresSecret: true}, ex.API.CredentialsValidator, "SetDefaults should require an API key and secret")
+	underscore := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+	dash := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	expPairs := currency.FullStore{
+		asset.Spot:          {AssetEnabled: true, RequestFormat: underscore, ConfigFormat: underscore},
+		asset.Margin:        {AssetEnabled: true, RequestFormat: underscore, ConfigFormat: underscore},
+		asset.PerpetualSwap: {AssetEnabled: true, RequestFormat: dash, ConfigFormat: dash},
+		asset.Futures:       {AssetEnabled: true, RequestFormat: dash, ConfigFormat: dash},
+	}
+	assert.Equal(t, expPairs, ex.CurrencyPairs.Pairs, "SetDefaults should enable each asset, naming spot and margin pairs with an underscore and derivatives with a dash")
+	expFeatures := exchange.Features{
+		Supports: exchange.FeaturesSupported{
+			REST:      true,
+			Websocket: true,
+			RESTCapabilities: protocol.Features{
+				TickerBatching:                    true,
+				TickerFetching:                    true,
+				KlineFetching:                     true,
+				TradeFetching:                     true,
+				OrderbookFetching:                 true,
+				AutoPairUpdates:                   true,
+				AccountInfo:                       true,
+				CryptoDeposit:                     true,
+				CryptoWithdrawal:                  true,
+				GetOrder:                          true,
+				GetOrders:                         true,
+				CancelOrders:                      true,
+				CancelOrder:                       true,
+				SubmitOrder:                       true,
+				ModifyOrder:                       true,
+				DepositHistory:                    true,
+				WithdrawalHistory:                 true,
+				TradeFee:                          true,
+				CryptoWithdrawalFee:               true,
+				FundingRateFetching:               true,
+				PredictedFundingRate:              true,
+				MultiChainDeposits:                true,
+				MultiChainWithdrawals:             true,
+				MultiChainDepositRequiresChainSet: true,
+			},
+			WebsocketCapabilities: protocol.Features{
+				AccountBalance:         true,
+				GetOrders:              true,
+				TickerFetching:         true,
+				KlineFetching:          true,
+				TradeFetching:          true,
+				OrderbookFetching:      true,
+				FundingRateFetching:    true,
+				PredictedFundingRate:   true,
+				SubmitOrder:            true,
+				SubmitOrders:           true,
+				ModifyOrder:            true,
+				CancelOrder:            true,
+				DeadMansSwitch:         true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+				MessageCorrelation:     true,
+				MessageSequenceNumbers: true,
+			},
+			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission | exchange.AutoWithdrawCryptoWithSetup,
+			Kline:               kline.ExchangeCapabilitiesSupported{Intervals: true, DateRanges: true},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates:                    true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{kline.OneHour: true},
+				Positions:                       true,
+				CollateralMode:                  true,
+				Leverage:                        true,
+				OpenInterest:                    exchange.OpenInterestSupport{Supported: true, SupportedViaTicker: true, SupportsRestBatch: true},
+			},
+		},
+		Enabled: exchange.FeaturesEnabled{
+			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				// No two-week interval, as two-week candles are built from 7D ones
+				Intervals: kline.DeployExchangeIntervals(
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.SevenDay},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
+				),
+				GlobalResultLimit: 300,
+			},
+		},
+		Subscriptions: defaultSubscriptions.Clone(),
+	}
+	assert.Equal(t, expFeatures, ex.Features, "SetDefaults should set the features Crypto.com supports and those enabled by default")
+	require.Len(t, ex.Features.Subscriptions, len(defaultSubscriptions), "SetDefaults must subscribe the default channels")
+	for i := range defaultSubscriptions {
+		assert.NotSamef(t, defaultSubscriptions[i], ex.Features.Subscriptions[i], "SetDefaults should copy default subscription %d, so changing an exchange's subscriptions leaves the defaults", i)
+	}
+	expURLs := map[string]string{
+		exchange.RestSpot.String():         apiURL,
+		exchange.WebsocketSpot.String():    websocketMarketDataURL,
+		exchange.WebsocketPrivate.String(): websocketUserURL,
+		exchange.WebsocketTrade.String():   websocketUserURL,
+	}
+	assert.Equal(t, expURLs, ex.API.Endpoints.GetURLMap(), "SetDefaults should point REST and the websocket's connections at Crypto.com")
+	require.NotNil(t, ex.Requester, "SetDefaults must set the requester up")
+	assert.Equal(t, rateLimits, ex.Requester.GetRateLimiterDefinitions(), "SetDefaults should hold requests to Crypto.com's rate limits")
+	require.NotNil(t, ex.Websocket, "SetDefaults must make the websocket manager")
+	assert.False(t, ex.Websocket.IsInitialised(), "SetDefaults should leave the websocket for Setup to set up")
+	assert.Equal(t, defaultWebsocketConnectDelay, ex.websocketConnectDelay, "SetDefaults should have a websocket connection wait before it sends anything")
+	assert.Equal(t, defaultBookResubscribeDelay, ex.bookResubscribeDelay, "SetDefaults should set the delay before a book channel is subscribed again")
+	require.NotNil(t, ex.marginOrders, "SetDefaults must make the margin order cache")
+	assert.Zero(t, ex.marginOrders.Len(), "SetDefaults should track no margin orders")
+	assert.Equal(t, exchange.DefaultWebsocketResponseMaxLimit, ex.WebsocketResponseMaxLimit, "SetDefaults should set the default websocket response limit")
+	assert.Equal(t, exchange.DefaultWebsocketResponseCheckTimeout, ex.WebsocketResponseCheckTimeout, "SetDefaults should set the default websocket response check timeout")
+}
+
+func TestSetup(t *testing.T) {
+	t.Parallel()
+	raw, err := testExchangeConfig()
+	require.NoError(t, err, "testExchangeConfig must load Crypto.com's test configuration")
+	// Each case decodes its own copy of the configuration, as Setup changes the configuration it is given
+	setUp := func(t *testing.T) (*Exchange, *config.Exchange) {
+		t.Helper()
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.Name = t.Name()
+		cfg := new(config.Exchange)
+		require.NoError(t, json.Unmarshal(raw, cfg), "the test configuration must decode")
+		return ex, cfg
+	}
+	t.Run("a nil configuration", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := setUp(t)
+		refusal := (*config.Exchange)(nil).Validate()
+		require.Error(t, refusal, "Validate must refuse a nil configuration")
+		assert.ErrorIs(t, ex.Setup(nil), refusal, "Setup should return the configuration's refusal")
+		assert.False(t, ex.LoadedByConfig, "Setup should load nothing from a nil configuration")
+	})
+	t.Run("a disabled exchange", func(t *testing.T) {
+		t.Parallel()
+		ex, cfg := setUp(t)
+		cfg.Enabled = false
+		require.NoError(t, ex.Setup(cfg), "Setup must not error for a disabled exchange")
+		assert.False(t, ex.IsEnabled(), "Setup should disable an exchange its configuration disables")
+		assert.False(t, ex.LoadedByConfig, "Setup should not load a disabled exchange's configuration")
+		assert.False(t, ex.Websocket.IsInitialised(), "Setup should not set a disabled exchange's websocket up")
+	})
+	t.Run("an enabled exchange", func(t *testing.T) {
+		t.Parallel()
+		ex, cfg := setUp(t)
+		require.NoError(t, ex.Setup(cfg), "Setup must not error")
+		assert.True(t, ex.IsEnabled(), "Setup should enable an exchange its configuration enables")
+		assert.True(t, ex.LoadedByConfig, "Setup should load the exchange's configuration")
+		assert.Same(t, cfg, ex.Config, "Setup should keep the configuration it loaded")
+		assert.True(t, ex.Websocket.IsInitialised(), "Setup should set the websocket up")
+		assert.True(t, ex.Websocket.IsEnabled(), "Setup should enable the websocket the configuration enables")
+		urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+		require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+		assert.Equal(t, []string{websocketMarketDataURL, websocketUserURL}, urls, "Setup should set the market data connection up, and the user and trade connections, which share Crypto.com's user URL")
+	})
+	t.Run("the configuration's endpoints", func(t *testing.T) {
+		t.Parallel()
+		ex, cfg := setUp(t)
+		cfg.API.Endpoints = map[string]string{
+			exchange.RestSpot.String():         uatAPIURL,
+			exchange.WebsocketSpot.String():    uatWebsocketMarketDataURL,
+			exchange.WebsocketPrivate.String(): uatWebsocketUserURL,
+			exchange.WebsocketTrade.String():   uatWebsocketUserURL,
+		}
+		require.NoError(t, ex.Setup(cfg), "Setup must not error for Crypto.com's UAT sandbox")
+		restURL, err := ex.API.Endpoints.GetURL(exchange.RestSpot)
+		require.NoError(t, err, "GetURL must not error")
+		assert.Equal(t, uatAPIURL, restURL, "Setup should send REST requests to the configured URL")
+		urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+		require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+		assert.Equal(t, []string{uatWebsocketMarketDataURL, uatWebsocketUserURL}, urls, "Setup should connect the websocket to the configured URLs")
+	})
+	t.Run("a configuration it cannot apply", func(t *testing.T) {
+		t.Parallel()
+		ex, cfg := setUp(t)
+		cfg.ProxyAddress = "://no-scheme"
+		assert.ErrorIs(t, ex.Setup(cfg), exchange.ErrSettingProxyAddress, "Setup should return the error applying its configuration")
+		assert.False(t, ex.Websocket.IsInitialised(), "Setup should not set the websocket up once applying its configuration fails")
+	})
+	t.Run("a websocket it cannot set up", func(t *testing.T) {
+		t.Parallel()
+		ex, cfg := setUp(t)
+		ex.Websocket = nil
+		assert.ErrorIs(t, ex.Setup(cfg), common.ErrNilPointer, "Setup should return the error setting the websocket up")
+	})
+}
+
+func TestInstrumentIsAsset(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		inst   InstrumentResponse
+		assets asset.Items
+	}{
+		{name: "a pair margin trading is disabled for", inst: InstrumentResponse{InstrumentType: InstrumentTypeCurrencyPair}, assets: asset.Items{asset.Spot}},
+		{name: "a pair enabled for margin buys", inst: InstrumentResponse{InstrumentType: InstrumentTypeCurrencyPair, MarginBuyEnabled: true}, assets: asset.Items{asset.Spot, asset.Margin}},
+		{name: "a pair enabled for margin sells", inst: InstrumentResponse{InstrumentType: InstrumentTypeCurrencyPair, MarginSellEnabled: true}, assets: asset.Items{asset.Spot, asset.Margin}},
+		{name: "a perpetual swap whose margin flags are set", inst: InstrumentResponse{InstrumentType: InstrumentTypePerpetualSwap, MarginBuyEnabled: true, MarginSellEnabled: true}, assets: asset.Items{asset.PerpetualSwap}},
+		{name: "a future", inst: InstrumentResponse{InstrumentType: InstrumentTypeFuture}, assets: asset.Items{asset.Futures}},
+		{name: "a deposit currency", inst: InstrumentResponse{InstrumentType: InstrumentTypeCurrency}},
+		{name: "an instrument without a type", inst: InstrumentResponse{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.PerpetualSwap, asset.Futures, asset.Options} {
+				assert.Equalf(t, slices.Contains(tc.assets, a), instrumentIsAsset(&tc.inst, a), "instrumentIsAsset should tell whether %s trades as %s", tc.name, a)
+			}
+		})
+	}
+}
+
+func TestInstrumentPair(t *testing.T) {
+	t.Parallel()
+	btcUSD := InstrumentResponse{Symbol: "BTC_USD", BaseCurrency: currency.BTC, QuoteCurrency: currency.USD}
+	shibBTC := InstrumentResponse{Symbol: "SHIB_BTC@OEX_HK", BaseCurrency: currency.SHIB, QuoteCurrency: currency.BTC}
+	for _, tc := range []struct {
+		name string
+		inst InstrumentResponse
+		a    asset.Item
+		exp  currency.Pair
+		ok   bool
+	}{
+		{name: "a spot pair", inst: btcUSD, a: asset.Spot, exp: testSpotPair, ok: true},
+		{name: "a margin pair", inst: btcUSD, a: asset.Margin, exp: testSpotPair, ok: true},
+		{name: "a spot instrument whose name does not end in its quote", inst: shibBTC, a: asset.Spot, exp: currency.EMPTYPAIR},
+		{name: "a margin instrument whose name does not end in its quote", inst: shibBTC, a: asset.Margin, exp: currency.EMPTYPAIR},
+		{name: "a spot instrument whose name does not start with its base", inst: InstrumentResponse{Symbol: "WBTC_USD", BaseCurrency: currency.BTC, QuoteCurrency: currency.USD}, a: asset.Spot, exp: currency.EMPTYPAIR},
+		{name: "a perpetual swap, named by its underlying", inst: InstrumentResponse{Symbol: "BTCUSD-PERP", BaseCurrency: currency.BTC, QuoteCurrency: currency.USD}, a: asset.PerpetualSwap, exp: testPerpetualPair, ok: true},
+		{name: "a future, named by its underlying and expiry", inst: InstrumentResponse{Symbol: "BTCUSD-261030", BaseCurrency: currency.BTC, QuoteCurrency: currency.USD}, a: asset.Futures, exp: testFuturesPair, ok: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			p, ok, err := instrumentPair(&tc.inst, tc.a)
+			require.NoErrorf(t, err, "instrumentPair must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, p, "instrumentPair should return the pair of %s", tc.name)
+			assert.Equalf(t, tc.ok, ok, "instrumentPair should tell whether a pair names %s", tc.name)
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		inst InstrumentResponse
+		a    asset.Item
+		err  error
+	}{
+		{name: "a derivative named without a dash", inst: InstrumentResponse{Symbol: "BTCUSDPERP"}, a: asset.PerpetualSwap, err: errMalformedInstrumentName},
+		{name: "a spot instrument named without an underscore", inst: InstrumentResponse{Symbol: "BTCUSD", BaseCurrency: currency.BTC, QuoteCurrency: currency.USD}, a: asset.Spot, err: errMalformedInstrumentName},
+		{name: "an unsupported asset", inst: btcUSD, a: asset.Options, err: asset.ErrNotSupported},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			p, ok, err := instrumentPair(&tc.inst, tc.a)
+			assert.ErrorIsf(t, err, tc.err, "instrumentPair should refuse %s", tc.name)
+			assert.Equalf(t, currency.EMPTYPAIR, p, "instrumentPair should return no pair for %s", tc.name)
+			assert.Falsef(t, ok, "instrumentPair should report no pair for %s", tc.name)
+		})
+	}
+}
+
+func TestInstrumentName(t *testing.T) { //nolint:tparallel // the cases run in order on e
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		a    asset.Item
+		p    currency.Pair
+		exp  string
+	}{
+		{name: "a spot pair", a: asset.Spot, p: testSpotPair, exp: "BTC_USD"},
+		{name: "a margin pair", a: asset.Margin, p: testSpotPair, exp: "BTC_USD"},
+		{name: "a perpetual swap", a: asset.PerpetualSwap, p: testPerpetualPair, exp: "BTCUSD-PERP"},
+		{name: "a future", a: asset.Futures, p: testFuturesPair, exp: "BTCUSD-261030"},
+		{name: "a spot pair without a delimiter", a: asset.Spot, p: currency.NewBTCUSD(), exp: "BTC_USD"},
+		{name: "a perpetual swap in lower case with another delimiter", a: asset.PerpetualSwap, p: currency.NewPairWithDelimiter("btcusd", "perp", currency.ForwardSlashDelimiter), exp: "BTCUSD-PERP"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := e.instrumentName(tc.a, tc.p)
+			require.NoErrorf(t, err, "instrumentName must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "instrumentName should name %s as Crypto.com does", tc.name)
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		a    asset.Item
+		p    currency.Pair
+		err  error
+	}{
+		{name: "an empty pair", a: asset.Spot, p: currency.EMPTYPAIR, err: currency.ErrCurrencyPairEmpty},
+		{name: "a pair of an unsupported asset", a: asset.Options, p: testSpotPair, err: asset.ErrNotSupported},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.instrumentName(tc.a, tc.p)
+			assert.ErrorIsf(t, err, tc.err, "instrumentName should refuse %s", tc.name)
+		})
+	}
+}
+
+func TestOrderbookLevels(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		levels []OrderbookLevel
+		exp    orderbook.Levels
+	}{
+		{name: "no levels", exp: orderbook.Levels{}},
+		{
+			name:   "levels in the order given",
+			levels: []OrderbookLevel{{Price: 80848.56, Quantity: 0.24979, OrderCount: 8}, {Price: 80847.76, Quantity: 0.15236, OrderCount: 2}},
+			exp:    orderbook.Levels{{Price: 80848.56, Amount: 0.24979, OrderCount: 8}, {Price: 80847.76, Amount: 0.15236, OrderCount: 2}},
+		},
+		{name: "a level without orders", levels: []OrderbookLevel{{Price: 80848.56}}, exp: orderbook.Levels{{Price: 80848.56}}},
+		{name: "an order count of the largest int64", levels: []OrderbookLevel{{Price: 1, Quantity: 2, OrderCount: math.MaxInt64}}, exp: orderbook.Levels{{Price: 1, Amount: 2, OrderCount: math.MaxInt64}}},
+		{name: "an order count above the largest int64", levels: []OrderbookLevel{{Price: 1, Quantity: 2, OrderCount: math.MaxInt64 + 1}}, exp: orderbook.Levels{{Price: 1, Amount: 2, OrderCount: math.MaxInt64}}},
+		{name: "the largest order count", levels: []OrderbookLevel{{Price: 1, Quantity: 2, OrderCount: math.MaxUint64}}, exp: orderbook.Levels{{Price: 1, Amount: 2, OrderCount: math.MaxInt64}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, orderbookLevels(tc.levels), "orderbookLevels should return each level, its order count capped at the largest int64")
+		})
+	}
+}
+
+func TestCountWalletSave(t *testing.T) {
+	t.Parallel()
+	account := accounts.Credentials{Key: testAPIKey, Secret: testAPISecret}
+	subAccount := accounts.Credentials{Key: testAPIKey, Secret: testAPISecret, SubAccount: "sub-42"}
+	for _, tc := range []struct {
+		name   string
+		counts map[accounts.Credentials]uint64
+		creds  accounts.Credentials
+		exp    map[accounts.Credentials]uint64
+	}{
+		{name: "the first save of any credentials' wallet", creds: account, exp: map[accounts.Credentials]uint64{account: 1}},
+		{name: "another save of a wallet", counts: map[accounts.Credentials]uint64{account: 4}, creds: account, exp: map[accounts.Credentials]uint64{account: 5}},
+		{name: "a save of another sub account's wallet", counts: map[accounts.Credentials]uint64{account: 4}, creds: subAccount, exp: map[accounts.Credentials]uint64{account: 4, subAccount: 1}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := &Exchange{walletSaves: tc.counts}
+			ex.walletMu.Lock()
+			ex.countWalletSave(&tc.creds)
+			ex.walletMu.Unlock()
+			assert.Equal(t, tc.exp, ex.walletSaves, "countWalletSave should count each credentials' wallet saves apart")
+		})
+	}
+}
+
+// testCachedWallet returns the wallet the cached balance tests save under spot, as UpdateAccountBalances and the balance
+// pushes save it
+func testCachedWallet() *accounts.SubAccount {
+	wallet := accounts.NewSubAccount(asset.Spot, "")
+	wallet.Balances.Set(currency.BTC, accounts.Balance{Total: 2, Hold: 0.5, Free: 1.5, UpdatedAt: time.UnixMilli(1792894000000)})
+	wallet.Balances.Set(currency.USD, accounts.Balance{Total: 3113.5, Hold: 12.5, Free: 3101, UpdatedAt: time.UnixMilli(1792894000000)})
+	return wallet
+}
+
+// newWalletServerExchange returns a test server exchange, which must send no request, holding the sub accounts given
+func newWalletServerExchange(t *testing.T, subAccts ...*accounts.SubAccount) *Exchange {
+	t.Helper()
+	ex, _ := newRoutesServerExchange(t, nil)
+	if len(subAccts) != 0 {
+		require.NoError(t, ex.Accounts.Save(t.Context(), subAccts, true), "Save must save the sub accounts")
+	}
+	return ex
+}
+
+func TestGetCachedSubAccounts(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		a     asset.Item
+		label asset.Item
+	}{
+		{a: asset.Spot, label: asset.Spot},
+		{a: asset.Margin, label: asset.Margin},
+		{a: asset.PerpetualSwap, label: asset.PerpetualSwap},
+		{a: asset.Futures, label: asset.Futures},
+		{a: asset.All, label: asset.Spot},
+	} {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := newWalletServerExchange(t, testCachedWallet())
+			got, err := ex.GetCachedSubAccounts(t.Context(), tc.a)
+			require.NoErrorf(t, err, "GetCachedSubAccounts must not error for %s", tc.a)
+			assert.Equalf(t, accounts.SubAccounts{{AssetType: tc.label, Balances: testCachedWallet().Balances}}, got, "GetCachedSubAccounts should return the wallet saved under spot, labelled %s, for %s", tc.label, tc.a)
+			stored, err := ex.Accounts.SubAccounts(nil, asset.All)
+			require.NoError(t, err, "SubAccounts must not error")
+			assert.Equalf(t, accounts.SubAccounts{{AssetType: asset.Spot, Balances: testCachedWallet().Balances}}, stored, "GetCachedSubAccounts should label a copy for %s, leaving the wallet saved under spot", tc.a)
+		})
+	}
+	t.Run("every sub account saved under spot", func(t *testing.T) {
+		t.Parallel()
+		sub := accounts.NewSubAccount(asset.Spot, "sub-42")
+		sub.Balances.Set(currency.ETH, accounts.Balance{Total: 3, Free: 3, UpdatedAt: time.UnixMilli(1792894000000)})
+		ex := newWalletServerExchange(t, testCachedWallet(), sub)
+		got, err := ex.GetCachedSubAccounts(t.Context(), asset.Futures)
+		require.NoError(t, err, "GetCachedSubAccounts must not error")
+		exp := accounts.SubAccounts{
+			{AssetType: asset.Futures, Balances: testCachedWallet().Balances},
+			{ID: "sub-42", AssetType: asset.Futures, Balances: sub.Balances},
+		}
+		assert.ElementsMatch(t, exp, got, "GetCachedSubAccounts should label every sub account saved under spot")
+	})
+	t.Run("a sub account saved under another asset", func(t *testing.T) {
+		t.Parallel()
+		marginWallet := accounts.NewSubAccount(asset.Margin, "")
+		marginWallet.Balances.Set(currency.ETH, accounts.Balance{Total: 3, Free: 3, UpdatedAt: time.UnixMilli(1792894000000)})
+		ex := newWalletServerExchange(t, testCachedWallet(), marginWallet)
+		got, err := ex.GetCachedSubAccounts(t.Context(), asset.Margin)
+		require.NoError(t, err, "GetCachedSubAccounts must not error")
+		assert.Equal(t, accounts.SubAccounts{{AssetType: asset.Margin, Balances: testCachedWallet().Balances}}, got, "GetCachedSubAccounts should read margin's wallet from spot, not from a sub account saved under margin")
+	})
+	t.Run("an unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		_, err := newWalletServerExchange(t, testCachedWallet()).GetCachedSubAccounts(t.Context(), asset.Options)
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "GetCachedSubAccounts should refuse an unsupported asset")
+	})
+	t.Run("no wallet saved", func(t *testing.T) {
+		t.Parallel()
+		ex := newWalletServerExchange(t)
+		for _, a := range []asset.Item{asset.Margin, asset.All} {
+			_, err := ex.GetCachedSubAccounts(t.Context(), a)
+			assert.ErrorIsf(t, err, accounts.ErrNoSubAccounts, "GetCachedSubAccounts should find no wallet for %s before one is saved", a)
+		}
+	})
+	t.Run("credentials it cannot use", func(t *testing.T) {
+		t.Parallel()
+		ex := newWalletServerExchange(t, testCachedWallet())
+		setTestCredentials(ex, &accounts.Credentials{})
+		ex.SkipAuthCheck = false
+		_, err := ex.GetCachedSubAccounts(t.Context(), asset.Spot)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetCachedSubAccounts should refuse empty credentials")
+	})
+	t.Run("the wallet UpdateAccountBalances saved", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		ex := newTestExchange(t)
+		saved, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		require.Len(t, saved, 1, "UpdateAccountBalances must save the one wallet")
+		for _, a := range append(ex.GetAssetTypes(false), asset.All) {
+			got, err := ex.GetCachedSubAccounts(t.Context(), a)
+			require.NoErrorf(t, err, "GetCachedSubAccounts must not error for %s", a)
+			label := a
+			if a == asset.All {
+				label = asset.Spot
+			}
+			assert.Equalf(t, accounts.SubAccounts{{ID: saved[0].ID, AssetType: label, Balances: saved[0].Balances}}, got, "GetCachedSubAccounts should return the saved wallet for %s", a)
+		}
+	})
+}
+
+func TestGetCachedCurrencyBalances(t *testing.T) {
+	t.Parallel()
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.PerpetualSwap, asset.Futures, asset.All} {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := newWalletServerExchange(t, testCachedWallet()).GetCachedCurrencyBalances(t.Context(), a)
+			require.NoErrorf(t, err, "GetCachedCurrencyBalances must not error for %s", a)
+			assert.Equalf(t, testCachedWallet().Balances, got, "GetCachedCurrencyBalances should return the balances of the wallet saved under spot for %s", a)
+		})
+	}
+	t.Run("every sub account saved under spot", func(t *testing.T) {
+		t.Parallel()
+		sub := accounts.NewSubAccount(asset.Spot, "sub-42")
+		sub.Balances.Set(currency.ETH, accounts.Balance{Total: 3, Free: 3, UpdatedAt: time.UnixMilli(1792894000000)})
+		got, err := newWalletServerExchange(t, testCachedWallet(), sub).GetCachedCurrencyBalances(t.Context(), asset.PerpetualSwap)
+		require.NoError(t, err, "GetCachedCurrencyBalances must not error")
+		exp := testCachedWallet().Balances
+		exp.Set(currency.ETH, accounts.Balance{Total: 3, Free: 3, UpdatedAt: time.UnixMilli(1792894000000)})
+		assert.Equal(t, exp, got, "GetCachedCurrencyBalances should return the balances of every sub account saved under spot")
+	})
+	t.Run("balances saved under another asset", func(t *testing.T) {
+		t.Parallel()
+		marginWallet := accounts.NewSubAccount(asset.Margin, "")
+		marginWallet.Balances.Set(currency.ETH, accounts.Balance{Total: 3, Free: 3, UpdatedAt: time.UnixMilli(1792894000000)})
+		ex := newWalletServerExchange(t, testCachedWallet(), marginWallet)
+		for _, a := range []asset.Item{asset.Margin, asset.All} {
+			got, err := ex.GetCachedCurrencyBalances(t.Context(), a)
+			require.NoErrorf(t, err, "GetCachedCurrencyBalances must not error for %s", a)
+			assert.Equalf(t, testCachedWallet().Balances, got, "GetCachedCurrencyBalances should read %s's balances from spot only", a)
+		}
+	})
+	t.Run("an unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		_, err := newWalletServerExchange(t, testCachedWallet()).GetCachedCurrencyBalances(t.Context(), asset.Options)
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "GetCachedCurrencyBalances should refuse an unsupported asset")
+	})
+	t.Run("no balances saved", func(t *testing.T) {
+		t.Parallel()
+		for name, ex := range map[string]*Exchange{
+			"no wallet":       newWalletServerExchange(t),
+			"an empty wallet": newWalletServerExchange(t, accounts.NewSubAccount(asset.Spot, "")),
+		} {
+			_, err := ex.GetCachedCurrencyBalances(t.Context(), asset.Margin)
+			assert.ErrorIsf(t, err, accounts.ErrNoBalances, "GetCachedCurrencyBalances should find no balances in %s", name)
+		}
+	})
+	t.Run("credentials it cannot use", func(t *testing.T) {
+		t.Parallel()
+		ex := newWalletServerExchange(t, testCachedWallet())
+		setTestCredentials(ex, &accounts.Credentials{})
+		ex.SkipAuthCheck = false
+		_, err := ex.GetCachedCurrencyBalances(t.Context(), asset.Spot)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetCachedCurrencyBalances should refuse empty credentials")
+	})
+	t.Run("the wallet UpdateAccountBalances saved", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		ex := newTestExchange(t)
+		saved, err := ex.UpdateAccountBalances(t.Context(), asset.Margin)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		require.Len(t, saved, 1, "UpdateAccountBalances must save the one wallet")
+		for _, a := range append(ex.GetAssetTypes(false), asset.All) {
+			got, err := ex.GetCachedCurrencyBalances(t.Context(), a)
+			if len(saved[0].Balances) == 0 {
+				assert.ErrorIsf(t, err, accounts.ErrNoBalances, "GetCachedCurrencyBalances should find no balances in an empty wallet for %s", a)
+				continue
+			}
+			require.NoErrorf(t, err, "GetCachedCurrencyBalances must not error for %s", a)
+			assert.Equalf(t, saved[0].Balances, got, "GetCachedCurrencyBalances should return the saved wallet's balances for %s", a)
+		}
+	})
+}
+
+func TestWithdrawalCurrency(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		w    WithdrawalResponse
+		exp  currency.Code
+	}{
+		{name: "a withdrawal naming its currency", w: WithdrawalResponse{Currency: currency.XRP}, exp: currency.XRP},
+		{name: "a withdrawal naming its currency beside a symbol", w: WithdrawalResponse{Currency: currency.XRP, Symbol: currency.BTC}, exp: currency.XRP},
+		{name: "a withdrawal naming its symbol, as create-withdrawal's example does", w: WithdrawalResponse{Symbol: currency.BTC}, exp: currency.BTC},
+		{name: "a withdrawal naming neither", exp: currency.EMPTYCODE},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, withdrawalCurrency(&tc.w), "withdrawalCurrency should return the currency of %s", tc.name)
+		})
+	}
+}
+
+func TestDepositStatus(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, status, exp string
+	}{
+		{name: "not arrived", status: DepositStatusNotArrived, exp: "not arrived"},
+		{name: "arrived", status: DepositStatusArrived, exp: "arrived"},
+		{name: "failed", status: DepositStatusFailed, exp: "failed"},
+		{name: "pending", status: DepositStatusPending, exp: "pending"},
+		{name: "an unknown status", status: "9", exp: "9"},
+		{name: "no status", exp: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, depositStatus(tc.status), "depositStatus should describe status %q", tc.status)
+		})
+	}
+}
+
+func TestWithdrawalStatus(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, status, exp string
+	}{
+		{name: "pending", status: WithdrawalStatusPending, exp: "pending"},
+		{name: "processing", status: WithdrawalStatusProcessing, exp: "processing"},
+		{name: "rejected", status: WithdrawalStatusRejected, exp: "rejected"},
+		{name: "payment in progress", status: WithdrawalStatusPaymentInProgress, exp: "payment in progress"},
+		{name: "payment failed", status: WithdrawalStatusPaymentFailed, exp: "payment failed"},
+		{name: "completed", status: WithdrawalStatusCompleted, exp: "completed"},
+		{name: "cancelled", status: WithdrawalStatusCancelled, exp: "cancelled"},
+		{name: "an unknown status", status: "9", exp: "9"},
+		{name: "no status", exp: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, withdrawalStatus(tc.status), "withdrawalStatus should describe status %q", tc.status)
+		})
+	}
+}
+
+func TestTradeTime(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		record TradeResponse
+		exp    time.Time
+	}{
+		{
+			name:   "a trade timed to the nanosecond",
+			record: TradeResponse{TradeTime: types.Time(time.UnixMilli(1792899071637)), TradeTimeNano: types.Time(time.Unix(0, 1792899071637623911))},
+			exp:    time.Unix(0, 1792899071637623911),
+		},
+		{name: "a trade timed to the millisecond", record: TradeResponse{TradeTime: types.Time(time.UnixMilli(1792899071637))}, exp: time.UnixMilli(1792899071637)},
+		{name: "a trade without a time", exp: time.Time{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, tradeTime(&tc.record), "tradeTime should time %s", tc.name)
+		})
+	}
+}
+
+func TestTradeData(t *testing.T) { //nolint:tparallel // the cases run in order on e
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		trades []TradeResponse
+		a      asset.Item
+		p      currency.Pair
+		exp    []trade.Data
+	}{
+		{name: "no trades", a: asset.Spot, p: testSpotPair, exp: []trade.Data{}},
+		{
+			name: "trades of either side, sent in either case",
+			trades: []TradeResponse{
+				{TradeID: "1792899071637623911", TradeTime: types.Time(time.UnixMilli(1792899071637)), TradeTimeNano: types.Time(time.Unix(0, 1792899071637623911)), Quantity: 0.00002, Price: 80849.37, Side: "sell", InstrumentName: "BTC_USD"},
+				{TradeID: "1792899071550749165", TradeTime: types.Time(time.UnixMilli(1792899071550)), Quantity: 0.03092, Price: 80850.58, Side: "BUY", InstrumentName: "BTC_USD"},
+			},
+			a: asset.Spot,
+			p: testSpotPair,
+			exp: []trade.Data{
+				{TID: "1792899071637623911", Exchange: e.Name, CurrencyPair: testSpotPair, AssetType: asset.Spot, Side: order.Sell, Price: 80849.37, Amount: 0.00002, Timestamp: time.Unix(0, 1792899071637623911)},
+				{TID: "1792899071550749165", Exchange: e.Name, CurrencyPair: testSpotPair, AssetType: asset.Spot, Side: order.Buy, Price: 80850.58, Amount: 0.03092, Timestamp: time.UnixMilli(1792899071550)},
+			},
+		},
+		{
+			name:   "a trade of the asset and pair asked for",
+			trades: []TradeResponse{{TradeID: "1", TradeTimeNano: types.Time(time.Unix(0, 1792899071637623912)), Quantity: 0.0001, Price: 80816.4, Side: "Buy", InstrumentName: "BTCUSD-PERP"}},
+			a:      asset.PerpetualSwap,
+			p:      testPerpetualPair,
+			exp:    []trade.Data{{TID: "1", Exchange: e.Name, CurrencyPair: testPerpetualPair, AssetType: asset.PerpetualSwap, Side: order.Buy, Price: 80816.4, Amount: 0.0001, Timestamp: time.Unix(0, 1792899071637623912)}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := e.tradeData(tc.trades, tc.a, tc.p)
+			require.NoErrorf(t, err, "tradeData must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "tradeData should return %s as GoCryptoTrader holds them", tc.name)
+		})
+	}
+	t.Run("a trade of an unknown side after a valid one", func(t *testing.T) {
+		got, err := e.tradeData([]TradeResponse{{TradeID: "1", Side: "buy"}, {TradeID: "2", Side: "hold"}}, asset.Spot, testSpotPair)
+		assert.ErrorIs(t, err, order.ErrSideIsInvalid, "tradeData should refuse a trade of an unknown side")
+		assert.Nil(t, got, "tradeData should return none of the trades when it refuses one")
+	})
+}
+
+func TestWalletCurrency(t *testing.T) {
+	t.Parallel()
+	networks := testResult(`{"update_time":1641151604000,"currency_map":{
+		"USDC":{"full_name":"USD Coin","default_network":"ETH","network_list":[
+			{"network_id":"ETH","withdrawal_fee":"1.5","withdraw_enabled":true,"min_withdrawal_amount":"3","deposit_enabled":true,"confirmation_required":"12"},
+			{"network_id":"SOL","withdrawal_fee":"0.5","withdraw_enabled":false,"min_withdrawal_amount":"1","deposit_enabled":true,"confirmation_required":"1"}]},
+		"BTC":{"full_name":"Bitcoin","default_network":null,"network_list":[{"network_id":"BTC","withdrawal_fee":"0.0004","withdraw_enabled":true,"min_withdrawal_amount":"0.001","deposit_enabled":true,"confirmation_required":"2"}]}}}`)
+	usdc := &WalletCurrency{FullName: "USD Coin", DefaultNetwork: "ETH", Networks: []CurrencyNetwork{
+		{NetworkID: "ETH", WithdrawalFee: preciseNumber("1.5"), WithdrawalEnabled: true, MinimumWithdrawalAmount: preciseNumber("3"), DepositEnabled: true, ConfirmationsRequired: 12},
+		{NetworkID: "SOL", WithdrawalFee: preciseNumber("0.5"), MinimumWithdrawalAmount: preciseNumber("1"), DepositEnabled: true, ConfirmationsRequired: 1},
+	}}
+	for _, tc := range []struct {
+		name string
+		c    currency.Code
+	}{
+		{name: "a currency among several", c: currency.USDC},
+		{name: "a currency named in lower case", c: currency.NewCode("usdc")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, received := newRoutesServerExchange(t, map[string]testRoute{"private/get-currency-networks": networks})
+			got, err := ex.walletCurrency(t.Context(), tc.c)
+			require.NoErrorf(t, err, "walletCurrency must not error for %s", tc.name)
+			assert.Equalf(t, usdc, got, "walletCurrency should return the networks of %s", tc.name)
+			assert.Equalf(t, []testRequest{{Method: "private/get-currency-networks", Params: `{}`}}, received(), "walletCurrency should request every currency's networks for %s", tc.name)
+		})
+	}
+	for _, tc := range []struct {
+		name     string
+		networks testRoute
+		c        currency.Code
+	}{
+		{name: "a currency without networks", networks: networks, c: currency.NewCode("NOPE")},
+		{name: "an empty currency", networks: networks, c: currency.EMPTYCODE},
+		{name: "a reply holding no currencies", networks: testResult(`{"currency_map":{}}`), c: currency.USDC},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, _ := newRoutesServerExchange(t, map[string]testRoute{"private/get-currency-networks": tc.networks})
+			got, err := ex.walletCurrency(t.Context(), tc.c)
+			assert.ErrorIsf(t, err, currency.ErrCurrencyNotFound, "walletCurrency should refuse %s", tc.name)
+			assert.Nilf(t, got, "walletCurrency should return no networks for %s", tc.name)
+		})
+	}
+	t.Run("the networks request's failure", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := newRoutesServerExchange(t, map[string]testRoute{"private/get-currency-networks": func(string) (string, *APIError) {
+			return "", &APIError{Code: 40101, Message: "UNAUTHORIZED"}
+		}})
+		_, err := ex.walletCurrency(t.Context(), currency.USDC)
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "walletCurrency must return Crypto.com's refusal")
+		assert.Equal(t, &APIError{Code: 40101, Message: "UNAUTHORIZED"}, apiErr, "walletCurrency should return Crypto.com's code and message")
+	})
+	t.Run("the account's currency networks", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		c := currency.NewCode("MATIC")
+		if !mockTests {
+			c = currency.BTC
+		}
+		got, err := e.walletCurrency(t.Context(), c)
+		require.NoErrorf(t, err, "walletCurrency must not error for %s", c)
+		if mockTests {
+			exp := &WalletCurrency{FullName: "Polygon", DefaultNetwork: "ETH", Networks: []CurrencyNetwork{
+				{NetworkID: "BNB", WithdrawalFee: preciseNumber("0.80000000"), WithdrawalEnabled: true, MinimumWithdrawalAmount: preciseNumber("1.6"), DepositEnabled: true},
+				{NetworkID: "ETH", WithdrawalFee: preciseNumber("20.00000000"), WithdrawalEnabled: true, MinimumWithdrawalAmount: preciseNumber("40.0"), DepositEnabled: true},
+				{NetworkID: "MATIC", WithdrawalFee: preciseNumber("0.08000000"), MinimumWithdrawalAmount: preciseNumber("0.16"), DepositEnabled: true},
+			}}
+			assert.Equal(t, exp, got, "walletCurrency should return the recorded MATIC networks")
+		} else {
+			assert.NotEmptyf(t, got.Networks, "walletCurrency should return %s's networks", c)
+		}
+	})
+}
+
+func TestWithdrawFiatFundsToInternationalBank(t *testing.T) { //nolint:tparallel // the cases run in order on e
+	t.Parallel()
+	// It sends nothing, so the call through e runs live without credentials, and can move no funds
+	for _, tc := range []struct {
+		name string
+		req  *withdraw.Request
+	}{
+		{name: "no request"},
+		{name: "a withdrawal to an international bank", req: &withdraw.Request{Exchange: e.Name, Currency: currency.EUR, Amount: 100, Type: withdraw.Fiat, Fiat: withdraw.FiatRequest{IsExpressWire: true}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := e.WithdrawFiatFundsToInternationalBank(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "WithdrawFiatFundsToInternationalBank should not be supported for %s", tc.name)
+			assert.Nilf(t, got, "WithdrawFiatFundsToInternationalBank should return no withdrawal for %s", tc.name)
+		})
+	}
+}
+
+func TestSubmitResponse(t *testing.T) {
+	t.Parallel()
+	withoutClientOrderID := testSubmit()
+	withoutClientOrderID.ClientOrderID = ""
+	placed := func(clientOrderID string) order.SubmitResponse {
+		return order.SubmitResponse{
+			Exchange:      e.Name,
+			Type:          order.Limit,
+			Side:          order.Buy,
+			Pair:          testPerpetualPair,
+			AssetType:     asset.PerpetualSwap,
+			TimeInForce:   order.GoodTillCancel | order.PostOnly,
+			Price:         50000.5,
+			Amount:        0.0001,
+			ClientOrderID: clientOrderID,
+			Status:        order.New,
+			OrderID:       tradingTestOrderID,
+		}
+	}
+	for _, tc := range []struct {
+		name   string
+		submit *order.Submit
+		resp   OrderIDResponse
+		exp    order.SubmitResponse
+	}{
+		{
+			name:   "an order placed with a client order ID",
+			submit: testSubmit(),
+			resp:   OrderIDResponse{OrderID: tradingTestOrderID, ClientOrderID: tradingTestOrderClientOrderID},
+			exp:    placed(tradingTestOrderClientOrderID),
+		},
+		{
+			name:   "an order keeping its client order ID over another its answer names",
+			submit: testSubmit(),
+			resp:   OrderIDResponse{OrderID: tradingTestOrderID, ClientOrderID: "1792890506012"},
+			exp:    placed(tradingTestOrderClientOrderID),
+		},
+		{
+			name:   "an order placed without a client order ID, given Crypto.com's",
+			submit: withoutClientOrderID,
+			resp:   OrderIDResponse{OrderID: tradingTestOrderID, ClientOrderID: "1792890506012"},
+			exp:    placed("1792890506012"),
+		},
+		{
+			name:   "an order placed without a client order ID, its answer naming none",
+			submit: withoutClientOrderID,
+			resp:   OrderIDResponse{OrderID: tradingTestOrderID},
+			exp:    placed(""),
+		},
+		{
+			name:   "a market order, new until Crypto.com matches it",
+			submit: &order.Submit{Exchange: e.Name, Type: order.Market, Side: order.Sell, Pair: testSpotPair, AssetType: asset.Spot, Amount: 0.001, ClientOrderID: "market"},
+			resp:   OrderIDResponse{OrderID: "1", ClientOrderID: "market"},
+			exp:    order.SubmitResponse{Exchange: e.Name, Type: order.Market, Side: order.Sell, Pair: testSpotPair, AssetType: asset.Spot, Amount: 0.001, ClientOrderID: "market", Status: order.New, OrderID: "1"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := submitResponse(tc.submit, &tc.resp)
+			require.NoErrorf(t, err, "submitResponse must not error for %s", tc.name)
+			clearSubmitTimes(t, got)
+			assert.Equalf(t, &tc.exp, got, "submitResponse should return the submit response of %s", tc.name)
+		})
+	}
+	t.Run("an answer without an order ID", func(t *testing.T) {
+		t.Parallel()
+		got, err := submitResponse(testSubmit(), &OrderIDResponse{ClientOrderID: tradingTestOrderClientOrderID})
+		assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "submitResponse should refuse an answer without an order ID")
+		assert.Nil(t, got, "submitResponse should return no response for an answer without an order ID")
+	})
+}
+
+func TestTrackListSent(t *testing.T) {
+	t.Parallel()
+	t.Run("the list's spot and margin orders", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		ex.SetDefaults()
+		orders := []*order.Submit{{AssetType: asset.Margin}, {AssetType: asset.Spot}, {AssetType: asset.Margin}, {AssetType: asset.PerpetualSwap}}
+		requests := []*orderRequest{{clientOrderID: "margin"}, {clientOrderID: "spot"}, {clientOrderID: "unsent"}, {clientOrderID: "perpetual"}}
+		ex.trackListSent(orders, requests, []int{0, 1, 3})
+		assert.True(t, ex.isMarginOrder("", "margin"), "trackListSent should track the list's margin order by its client order ID")
+		assert.False(t, ex.isMarginOrder("", "spot"), "trackListSent should not track the list's spot order")
+		assert.False(t, ex.isMarginOrder("", "perpetual"), "trackListSent should not track the list's derivative order")
+		assert.False(t, ex.isMarginOrder("", "unsent"), "trackListSent should not track a margin order outside the list")
+		assert.Equal(t, uint64(1), ex.marginOrders.Len(), "trackListSent should track the list's margin order alone")
+	})
+	t.Run("a spot order reusing a margin order's client order ID", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.trackMarginOrder(asset.Margin, "", "shared")
+		ex.trackListSent([]*order.Submit{{AssetType: asset.Spot}}, []*orderRequest{{clientOrderID: "shared"}}, []int{0})
+		assert.False(t, ex.isMarginOrder("", "shared"), "trackListSent should stop tracking a client order ID a spot order of the list reuses, as its trades can arrive first")
+	})
+	t.Run("an empty list", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.trackMarginOrder(asset.Margin, "", "tracked")
+		ex.trackListSent([]*order.Submit{{AssetType: asset.Spot}}, []*orderRequest{{clientOrderID: "tracked"}}, nil)
+		assert.True(t, ex.isMarginOrder("", "tracked"), "trackListSent should change nothing for an empty list")
+		assert.Equal(t, uint64(1), ex.marginOrders.Len(), "trackListSent should track nothing for an empty list")
+	})
+}
+
+func TestTrackListRefused(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		err     error
+		tracked bool
+	}{
+		{name: "a list Crypto.com refused", err: &APIError{Code: 40001, Message: "BAD_REQUEST"}},
+		{name: "a list Crypto.com refused, its refusal wrapped", err: fmt.Errorf("sending order list: %w", &APIError{Code: 40001, Message: "BAD_REQUEST"})},
+		{name: "a list whose request was cancelled", err: context.Canceled, tracked: true},
+		{name: "a list whose request failed without Crypto.com's answer", err: request.ErrBadStatus, tracked: true},
+		{name: "no error", tracked: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			ex.SetDefaults()
+			requests := []*orderRequest{{clientOrderID: "first"}, {clientOrderID: "second"}, {clientOrderID: "unsent"}}
+			for _, r := range requests {
+				ex.trackMarginOrder(asset.Margin, "", r.clientOrderID)
+			}
+			ex.trackListRefused(requests, []int{0, 1}, tc.err)
+			for _, clientOrderID := range []string{"first", "second"} {
+				assert.Equalf(t, tc.tracked, ex.isMarginOrder("", clientOrderID), "trackListRefused should leave %s tracked only when Crypto.com did not refuse the list, for %s", clientOrderID, tc.name)
+			}
+			assert.Truef(t, ex.isMarginOrder("", "unsent"), "trackListRefused should leave an order outside the list tracked, for %s", tc.name)
+		})
+	}
+}
+
+func TestTrackListAnswered(t *testing.T) {
+	t.Parallel()
+	rejected := fmt.Errorf("%w: %w", order.ErrUnableToPlaceOrder, &APIError{Code: 318, Message: "EXCEEDS_MAX_ALLOWED_ORDERS"})
+	for _, tc := range []struct {
+		name           string
+		a              asset.Item
+		response       order.SubmitResponse
+		clientTracked  bool
+		orderIsMargin  bool
+		trackedOrderID string
+	}{
+		{name: "a margin order placed", a: asset.Margin, response: order.SubmitResponse{Status: order.New, OrderID: "11"}, orderIsMargin: true, trackedOrderID: "11"},
+		{name: "a spot order placed", a: asset.Spot, response: order.SubmitResponse{Status: order.New, OrderID: "13"}, trackedOrderID: "13"},
+		{name: "a margin order Crypto.com rejected", a: asset.Margin, response: order.SubmitResponse{Status: order.Rejected, SubmissionError: rejected}},
+		{name: "a margin order whose outcome is unknown", a: asset.Margin, response: order.SubmitResponse{Status: order.UnknownStatus, SubmissionError: errOrderListOutcomeUnknown}, clientTracked: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			ex.SetDefaults()
+			// The client order IDs are tracked as margin orders' as when the list was sent, a spot order's as when another
+			// margin order shares it
+			ex.trackMarginOrder(asset.Margin, "", "answered")
+			ex.trackMarginOrder(asset.Margin, "", "unsent")
+			orders := []*order.Submit{{AssetType: tc.a}, {AssetType: asset.Margin}}
+			requests := []*orderRequest{{clientOrderID: "answered"}, {clientOrderID: "unsent"}}
+			ex.trackListAnswered(orders, requests, []int{0}, []*order.SubmitResponse{&tc.response, nil})
+			assert.Equalf(t, tc.clientTracked, ex.isMarginOrder("", "answered"), "trackListAnswered should track the client order ID of %s only while its outcome is unknown", tc.name)
+			if tc.trackedOrderID != "" {
+				assert.Equalf(t, tc.orderIsMargin, ex.isMarginOrder(tc.trackedOrderID, "answered"), "trackListAnswered should track %s by its order ID", tc.name)
+			}
+			assert.Truef(t, ex.isMarginOrder("", "unsent"), "trackListAnswered should leave an order outside the list tracked, for %s", tc.name)
+		})
+	}
+}
+
+func TestModifyResponse(t *testing.T) {
+	t.Parallel()
+	cro := currency.NewPairWithDelimiter("CRO", "USD", currency.UnderscoreDelimiter)
+	limit := order.Modify{Exchange: e.Name, OrderID: "1", ClientOrderID: "c", Type: order.Limit, Side: order.Buy, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000}
+	for _, tc := range []struct {
+		name string
+		m    order.Modify
+		a    orderAmendment
+		resp OrderIDResponse
+		exp  *order.ModifyResponse
+	}{
+		{
+			name: "an amendment restating the order's quantity and time in force",
+			m:    limit,
+			a:    orderAmendment{price: 77000, amount: 0.01, timeInForce: order.GoodTillCancel | order.PostOnly},
+			resp: OrderIDResponse{OrderID: "1", ClientOrderID: "c"},
+			exp:  &order.ModifyResponse{Exchange: e.Name, OrderID: "1", ClientOrderID: "c", Pair: testSpotPair, Type: order.Limit, Side: order.Buy, AssetType: asset.Spot, TimeInForce: order.GoodTillCancel | order.PostOnly, Price: 77000, Amount: 0.01},
+		},
+		{
+			name: "a modification naming no type, given the order's, whose amended price is no limit price",
+			m:    order.Modify{Exchange: e.Name, OrderID: "1", Side: order.Sell, AssetType: asset.Spot, Pair: cro, Price: 0.0279, Amount: 10, TriggerPrice: 0.028},
+			a:    orderAmendment{amount: 10, orderType: order.Stop},
+			resp: OrderIDResponse{OrderID: "1"},
+			exp:  &order.ModifyResponse{Exchange: e.Name, OrderID: "1", Pair: cro, Type: order.Stop, Side: order.Sell, AssetType: asset.Spot, Amount: 10, TriggerPrice: 0.028},
+		},
+		{
+			name: "an order given a new client order ID",
+			m:    order.Modify{Exchange: e.Name, OrderID: "1", ClientOrderID: "original", NewClientOrderID: "renamed", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000, Amount: 0.01},
+			a:    orderAmendment{price: 77000, amount: 0.01},
+			resp: OrderIDResponse{OrderID: "1", ClientOrderID: "renamed"},
+			exp:  &order.ModifyResponse{Exchange: e.Name, OrderID: "1", ClientOrderID: "renamed", Pair: testSpotPair, Type: order.Limit, AssetType: asset.Spot, Price: 77000, Amount: 0.01},
+		},
+		{
+			name: "an order named by its client order ID, the answer giving its order ID",
+			m:    order.Modify{Exchange: e.Name, ClientOrderID: "c", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000, Amount: 0.01},
+			a:    orderAmendment{price: 77000, amount: 0.01},
+			resp: OrderIDResponse{OrderID: "1", ClientOrderID: "c"},
+			exp:  &order.ModifyResponse{Exchange: e.Name, OrderID: "1", ClientOrderID: "c", Pair: testSpotPair, Type: order.Limit, AssetType: asset.Spot, Price: 77000, Amount: 0.01},
+		},
+		{
+			name: "an answer naming neither ID",
+			m:    limit,
+			a:    orderAmendment{price: 77000, amount: 0.01},
+			exp:  &order.ModifyResponse{Exchange: e.Name, OrderID: "1", ClientOrderID: "c", Pair: testSpotPair, Type: order.Limit, Side: order.Buy, AssetType: asset.Spot, Price: 77000, Amount: 0.01},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := modifyResponse(&tc.m, &tc.a, &tc.resp)
+			require.NoErrorf(t, err, "modifyResponse must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "modifyResponse should return the modify response of %s", tc.name)
+		})
+	}
+	t.Run("no modification", func(t *testing.T) {
+		t.Parallel()
+		_, refusal := (*order.Modify)(nil).DeriveModifyResponse()
+		require.Error(t, refusal, "DeriveModifyResponse must refuse no modification")
+		got, err := modifyResponse(nil, &orderAmendment{}, &OrderIDResponse{OrderID: "1"})
+		assert.ErrorIs(t, err, refusal, "modifyResponse should return DeriveModifyResponse's refusal")
+		assert.Nil(t, got, "modifyResponse should return no response without a modification")
+	})
+}
+
+// acceptCancelList answers a cancel list request accepting each of its orders
+func acceptCancelList(params string) (string, *APIError) {
+	var list struct {
+		Orders []json.RawMessage `json:"order_list"`
+	}
+	if err := json.Unmarshal([]byte(params), &list); err != nil {
+		return "", &APIError{Code: 40001, Message: "BAD_REQUEST"}
+	}
+	entries := make([]string, len(list.Orders))
+	for i := range entries {
+		entries[i] = `{"code":0,"index":` + strconv.Itoa(i) + `}`
+	}
+	return "[" + strings.Join(entries, ",") + "]", nil
+}
+
+// assertJSONRequests checks a test server received the POST requests expected, in order, comparing their params as JSON
+func assertJSONRequests(t *testing.T, exp, got []testRequest) {
+	t.Helper()
+	require.Len(t, got, len(exp), "the test server must receive the requests expected")
+	for i := range exp {
+		assert.Equalf(t, exp[i].Method, got[i].Method, "request %d should be for its method", i)
+		assert.JSONEqf(t, exp[i].Params, got[i].Params, "request %d should send its params", i)
+	}
+}
+
+func TestCancelOrders(t *testing.T) {
+	t.Parallel()
+	t.Run("lists of up to 10, the trading methods' before the advanced order methods'", func(t *testing.T) {
+		t.Parallel()
+		ex, received := newRoutesServerExchange(t, map[string]testRoute{"private/cancel-order-list": acceptCancelList, "private/advanced/cancel-order-list": acceptCancelList})
+		// 11 orders of each kind fill a list of 10 and start another, and the advanced order sent first is still cancelled
+		// after the trading methods' lists
+		cancels := make([]orderCancel, 1, 22)
+		cancels[0] = orderCancel{OrderID: "101", Advanced: true}
+		exp := map[string]string{"101": "PENDING_CANCEL", "c11": "PENDING_CANCEL", "c111": "PENDING_CANCEL"}
+		regularIDs := make([]string, 0, 10)
+		advancedIDs := make([]string, 1, 10)
+		advancedIDs[0] = `{"order_id":"101"}`
+		for i := range 10 {
+			id := strconv.Itoa(i + 1)
+			cancels = append(cancels, orderCancel{OrderID: id})
+			exp[id] = "PENDING_CANCEL"
+			regularIDs = append(regularIDs, `{"order_id":"`+id+`"}`)
+		}
+		cancels = append(cancels, orderCancel{ClientOrderID: "c11"})
+		for i := range 9 {
+			id := strconv.Itoa(102 + i)
+			cancels = append(cancels, orderCancel{OrderID: id, Advanced: true})
+			exp[id] = "PENDING_CANCEL"
+			advancedIDs = append(advancedIDs, `{"order_id":"`+id+`"}`)
+		}
+		cancels = append(cancels, orderCancel{ClientOrderID: "c111", Advanced: true})
+		got, err := ex.cancelOrders(t.Context(), cancels)
+		require.NoError(t, err, "cancelOrders must not error")
+		assert.Equal(t, exp, got, "cancelOrders should report every order pending cancellation, keyed by its order ID or else its client order ID")
+		assertJSONRequests(t, []testRequest{
+			{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[` + strings.Join(regularIDs, ",") + `]}`},
+			{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[{"client_oid":"c11"}]}`},
+			{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[` + strings.Join(advancedIDs, ",") + `]}`},
+			{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[{"client_oid":"c111"}]}`},
+		}, received())
+	})
+	for _, tc := range []struct {
+		name     string
+		cancels  []orderCancel
+		regular  testRoute
+		advanced testRoute
+		exp      map[string]string
+		requests []testRequest
+	}{
+		{
+			name:     "an order the trading methods refuse, which the advanced order methods cancel",
+			cancels:  []orderCancel{{OrderID: "1"}, {OrderID: "2"}, {OrderID: "3", Advanced: true}},
+			regular:  testResult(`[{"code":0,"index":0},{"code":316,"index":1,"message":"NO_ACTIVE_ORDER"}]`),
+			advanced: acceptCancelList,
+			exp:      map[string]string{"1": "PENDING_CANCEL", "2": "PENDING_CANCEL", "3": "PENDING_CANCEL"},
+			requests: []testRequest{
+				{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[{"order_id":"1"},{"order_id":"2"}]}`},
+				{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[{"order_id":"3"},{"order_id":"2"}]}`},
+			},
+		},
+		{
+			name:     "an order both methods refuse",
+			cancels:  []orderCancel{{ClientOrderID: "c"}},
+			regular:  testResult(`[{"code":316,"index":0,"message":"NO_ACTIVE_ORDER"}]`),
+			advanced: testResult(`[{"code":40401,"index":0,"message":"NOT_FOUND"}]`),
+			exp:      map[string]string{"c": "316 NO_ACTIVE_ORDER; 40401 NOT_FOUND"},
+			requests: []testRequest{
+				{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[{"client_oid":"c"}]}`},
+				{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[{"client_oid":"c"}]}`},
+			},
+		},
+		{
+			name:     "an order the trading methods refuse and the advanced order methods' answer leaves out",
+			cancels:  []orderCancel{{OrderID: "1"}},
+			regular:  testResult(`[{"code":316,"index":0,"message":"NO_ACTIVE_ORDER"}]`),
+			advanced: testResult(`[]`),
+			exp:      map[string]string{"1": "316 NO_ACTIVE_ORDER; no result for the order"},
+			requests: []testRequest{
+				{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[{"order_id":"1"}]}`},
+				{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[{"order_id":"1"}]}`},
+			},
+		},
+		{
+			name:     "an order refused for the request, which the advanced order methods would refuse too",
+			cancels:  []orderCancel{{OrderID: "1"}},
+			regular:  testResult(`[{"code":42901,"index":0,"message":"TOO_MANY_REQUESTS"}]`),
+			exp:      map[string]string{"1": "42901 TOO_MANY_REQUESTS"},
+			requests: []testRequest{{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[{"order_id":"1"}]}`}},
+		},
+		{
+			name:     "a trigger order the advanced order methods refuse",
+			cancels:  []orderCancel{{OrderID: "3", Advanced: true}},
+			advanced: testResult(`[{"code":40401,"index":0,"message":"NOT_FOUND"}]`),
+			exp:      map[string]string{"3": "40401 NOT_FOUND"},
+			requests: []testRequest{{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[{"order_id":"3"}]}`}},
+		},
+		{name: "no orders", exp: map[string]string{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			routes := make(map[string]testRoute)
+			if tc.regular != nil {
+				routes["private/cancel-order-list"] = tc.regular
+			}
+			if tc.advanced != nil {
+				routes["private/advanced/cancel-order-list"] = tc.advanced
+			}
+			ex, received := newRoutesServerExchange(t, routes)
+			got, err := ex.cancelOrders(t.Context(), tc.cancels)
+			require.NoErrorf(t, err, "cancelOrders must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "cancelOrders should report the outcome of %s", tc.name)
+			assertJSONRequests(t, tc.requests, received())
+		})
+	}
+	t.Run("a list whose request fails, stopping the lists after it", func(t *testing.T) {
+		t.Parallel()
+		var lists atomic.Int64
+		ex, received := newRoutesServerExchange(t, map[string]testRoute{"private/cancel-order-list": func(params string) (string, *APIError) {
+			if lists.Add(1) == 1 {
+				return acceptCancelList(params)
+			}
+			return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}
+		}})
+		cancels := make([]orderCancel, 1, 12)
+		cancels[0] = orderCancel{OrderID: "101", Advanced: true}
+		exp := make(map[string]string, 10)
+		for i := range 11 {
+			id := strconv.Itoa(i + 1)
+			cancels = append(cancels, orderCancel{OrderID: id})
+			if i < 10 {
+				exp[id] = "PENDING_CANCEL"
+			}
+		}
+		got, err := ex.cancelOrders(t.Context(), cancels)
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "cancelOrders must return the error of the list whose request failed")
+		assert.Equal(t, &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}, apiErr, "cancelOrders should return Crypto.com's refusal")
+		assert.Equal(t, exp, got, "cancelOrders should return the outcomes of the list sent before the one that failed")
+		requests := received()
+		require.Len(t, requests, 2, "cancelOrders must send no list after the one that failed")
+		assert.Equal(t, "private/cancel-order-list", requests[1].Method, "cancelOrders should send the trading methods' second list last")
+	})
+	t.Run("an advanced order list whose request fails", func(t *testing.T) {
+		t.Parallel()
+		ex, received := newRoutesServerExchange(t, map[string]testRoute{
+			"private/cancel-order-list": acceptCancelList,
+			"private/advanced/cancel-order-list": func(string) (string, *APIError) {
+				return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}
+			},
+		})
+		got, err := ex.cancelOrders(t.Context(), []orderCancel{{OrderID: "1"}, {OrderID: "2", Advanced: true}})
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "cancelOrders must return the error of the advanced order list whose request failed")
+		assert.Equal(t, &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}, apiErr, "cancelOrders should return Crypto.com's refusal")
+		assert.Equal(t, map[string]string{"1": "PENDING_CANCEL"}, got, "cancelOrders should return the outcomes of the lists sent before the one that failed")
+		assert.Len(t, received(), 2, "cancelOrders should send both lists")
+	})
+	for _, tc := range []struct {
+		name    string
+		cancels []orderCancel
+	}{
+		{name: "an order named by neither ID", cancels: []orderCancel{{OrderID: "1"}, {}}},
+		{name: "a trigger order named by neither ID", cancels: []orderCancel{{Advanced: true}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, received := newRoutesServerExchange(t, nil)
+			got, err := ex.cancelOrders(t.Context(), tc.cancels)
+			assert.ErrorIsf(t, err, errOrderIDRequired, "cancelOrders should refuse %s", tc.name)
+			assert.Emptyf(t, got, "cancelOrders should report no outcome for %s", tc.name)
+			assert.Emptyf(t, received(), "cancelOrders should send no list for %s", tc.name)
+		})
+	}
+	t.Run("orders the account holds", func(t *testing.T) {
+		t.Parallel()
+		skipLiveUnlessCanManipulate(t)
+		// The recording cancels two trigger orders; live, the test places an order of its own to cancel
+		cancels := []orderCancel{{OrderID: "289991951579667814", Advanced: true}, {ClientOrderID: "my_tp_order", Advanced: true}}
+		exp := map[string]string{"289991951579667814": "PENDING_CANCEL", "my_tp_order": "PENDING_CANCEL"}
+		if !mockTests {
+			orderID := placeTradingTestOrder(t)
+			cancels, exp = []orderCancel{{OrderID: orderID}}, map[string]string{orderID: "PENDING_CANCEL"}
+		}
+		got, err := e.cancelOrders(t.Context(), cancels)
+		require.NoError(t, err, "cancelOrders must not error")
+		assert.Equal(t, exp, got, "cancelOrders should report each order pending cancellation")
+	})
+}
+
+func TestOrderCancelCancelID(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		c    orderCancel
+		exp  string
+	}{
+		{name: "an order ID", c: orderCancel{OrderID: "1"}, exp: "1"},
+		{name: "an order ID beside a client order ID", c: orderCancel{OrderID: "1", ClientOrderID: "c"}, exp: "1"},
+		{name: "a client order ID", c: orderCancel{ClientOrderID: "c"}, exp: "c"},
+		{name: "a trigger order's client order ID", c: orderCancel{ClientOrderID: "c", Advanced: true}, exp: "c"},
+		{name: "neither ID", c: orderCancel{}, exp: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, tc.c.cancelID(), "cancelID should key an order named by %s", tc.name)
+		})
+	}
+}
+
+func TestOrderByID(t *testing.T) {
+	t.Parallel()
+	held := testResult(`{"order_id":"1","client_oid":"c","order_type":"LIMIT","side":"BUY","status":"ACTIVE","instrument_name":"BTC_USD"}`)
+	exp := &OrderResponse{OrderID: "1", ClientOrderID: "c", OrderType: OrderTypeLimit, Side: SideBuy, Status: OrderStatusActive, InstrumentName: "BTC_USD"}
+	refused := func(code int64, message string) testRoute {
+		return func(string) (string, *APIError) { return "", &APIError{Code: code, Message: message} }
+	}
+	for _, tc := range []struct {
+		name                   string
+		orderID, clientOrderID string
+		routes                 map[string]testRoute
+		advanced               bool
+		requests               []testRequest
+	}{
+		{
+			name:     "an order the trading methods hold",
+			orderID:  "1",
+			routes:   map[string]testRoute{"private/get-order-detail": held},
+			requests: []testRequest{{Method: "private/get-order-detail", Params: `{"order_id":"1"}`}},
+		},
+		{
+			name:          "an order named by its client order ID",
+			clientOrderID: "c",
+			routes:        map[string]testRoute{"private/get-order-detail": held},
+			requests:      []testRequest{{Method: "private/get-order-detail", Params: `{"client_oid":"c"}`}},
+		},
+		{
+			name:     "an order the advanced order methods hold",
+			orderID:  "1",
+			routes:   map[string]testRoute{"private/get-order-detail": refused(40401, "NOT_FOUND"), "private/advanced/get-order-detail": held},
+			advanced: true,
+			requests: []testRequest{
+				{Method: "private/get-order-detail", Params: `{"order_id":"1"}`},
+				{Method: "private/advanced/get-order-detail", Params: `{"order_id":"1"}`},
+			},
+		},
+		{
+			name:          "an order the advanced order methods hold, named by both IDs",
+			orderID:       "1",
+			clientOrderID: "c",
+			routes:        map[string]testRoute{"private/get-order-detail": refused(212, "INVALID_ORDERID"), "private/advanced/get-order-detail": held},
+			advanced:      true,
+			requests: []testRequest{
+				{Method: "private/get-order-detail", Params: `{"order_id":"1","client_oid":"c"}`},
+				{Method: "private/advanced/get-order-detail", Params: `{"order_id":"1","client_oid":"c"}`},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, received := newRoutesServerExchange(t, tc.routes)
+			got, advanced, err := ex.orderByID(t.Context(), tc.orderID, tc.clientOrderID)
+			require.NoErrorf(t, err, "orderByID must not error for %s", tc.name)
+			assert.Equalf(t, exp, got, "orderByID should return %s", tc.name)
+			assert.Equalf(t, tc.advanced, advanced, "orderByID should tell whether the advanced order methods hold %s", tc.name)
+			assertJSONRequests(t, tc.requests, received())
+		})
+	}
+	t.Run("an order neither method holds", func(t *testing.T) {
+		t.Parallel()
+		ex, received := newRoutesServerExchange(t, map[string]testRoute{"private/get-order-detail": refused(40401, "NOT_FOUND"), "private/advanced/get-order-detail": refused(316, "NO_ACTIVE_ORDER")})
+		got, advanced, err := ex.orderByID(t.Context(), "1", "")
+		assert.ErrorContains(t, err, "40401 NOT_FOUND", "orderByID should report the trading methods' refusal")
+		assert.ErrorContains(t, err, "316 NO_ACTIVE_ORDER", "orderByID should report the advanced order methods' refusal")
+		assert.Nil(t, got, "orderByID should return no order")
+		assert.False(t, advanced, "orderByID should report no advanced order")
+		assert.Len(t, received(), 2, "orderByID should look the order up with both methods")
+	})
+	t.Run("a lookup refused for the request", func(t *testing.T) {
+		t.Parallel()
+		ex, received := newRoutesServerExchange(t, map[string]testRoute{"private/get-order-detail": refused(codeTooManyRequests, "TOO_MANY_REQUESTS")})
+		got, _, err := ex.orderByID(t.Context(), "1", "")
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "orderByID must return Crypto.com's refusal")
+		assert.Equal(t, &APIError{Code: codeTooManyRequests, Message: "TOO_MANY_REQUESTS"}, apiErr, "orderByID should return the refusal of the request")
+		assert.Nil(t, got, "orderByID should return no order")
+		assert.Len(t, received(), 1, "orderByID should not look up with the advanced order methods an order whose request was refused, which they would refuse too")
+	})
+	t.Run("a lookup that fails", func(t *testing.T) {
+		t.Parallel()
+		got, _, err := newUnavailableServerExchange(t).orderByID(t.Context(), "1", "")
+		assert.ErrorIs(t, err, request.ErrBadStatus, "orderByID should return the request's failure")
+		assert.Nil(t, got, "orderByID should return no order")
+	})
+	t.Run("an order named by neither ID", func(t *testing.T) {
+		t.Parallel()
+		ex, received := newRoutesServerExchange(t, nil)
+		_, _, err := ex.orderByID(t.Context(), "", "")
+		assert.ErrorIs(t, err, errOrderIDRequired, "orderByID should refuse an order named by neither ID")
+		assert.Empty(t, received(), "orderByID should send no lookup for an order named by neither ID")
+	})
+	t.Run("an order the account placed", func(t *testing.T) {
+		t.Parallel()
+		skipLiveUnlessCanManipulate(t)
+		orderID := "6530219466236720403"
+		if !mockTests {
+			orderID = placeTradingTestOrder(t)
+			cancelTradingOrderAfterTest(t, orderID)
+		}
+		got, advanced, err := e.orderByID(t.Context(), orderID, "")
+		require.NoError(t, err, "orderByID must not error")
+		assert.Equal(t, orderID, got.OrderID, "orderByID should return the order")
+		assert.Equal(t, "BTCUSD-PERP", got.InstrumentName, "orderByID should return the order's instrument")
+		assert.False(t, advanced, "orderByID should find the order with the trading methods")
+	})
+	t.Run("an order Crypto.com does not know", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		ex := e
+		if mockTests {
+			ex, _ = newRoutesServerExchange(t, map[string]testRoute{"private/get-order-detail": refused(40401, "NOT_FOUND"), "private/advanced/get-order-detail": refused(40401, "NOT_FOUND")})
+		}
+		_, _, err := ex.orderByID(t.Context(), "1", "")
+		var apiErr *APIError
+		assert.ErrorAs(t, err, &apiErr, "orderByID should return Crypto.com's refusal of an order it does not know")
+	})
+}
+
+func TestRequestInstrument(t *testing.T) { //nolint:tparallel // the cases run in order on e
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		a     asset.Item
+		pairs currency.Pairs
+		exp   string
+	}{
+		{name: "no pairs, every instrument", a: asset.Spot},
+		{name: "a spot pair", a: asset.Spot, pairs: currency.Pairs{testSpotPair}, exp: "BTC_USD"},
+		{name: "a perpetual swap", a: asset.PerpetualSwap, pairs: currency.Pairs{testPerpetualPair}, exp: "BTCUSD-PERP"},
+		{name: "several pairs, every instrument", a: asset.Spot, pairs: currency.Pairs{testSpotPair, spotETHUSD}},
+		{name: "several pairs, one of them empty", a: asset.Spot, pairs: currency.Pairs{testSpotPair, currency.EMPTYPAIR}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := e.requestInstrument(tc.a, tc.pairs)
+			require.NoErrorf(t, err, "requestInstrument must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "requestInstrument should name the instrument of %s", tc.name)
+		})
+	}
+	for _, tc := range []struct {
+		name  string
+		a     asset.Item
+		pairs currency.Pairs
+		err   error
+	}{
+		{name: "an empty pair", a: asset.Spot, pairs: currency.Pairs{currency.EMPTYPAIR}, err: currency.ErrCurrencyPairEmpty},
+		{name: "a pair of an unsupported asset", a: asset.Options, pairs: currency.Pairs{testSpotPair}, err: asset.ErrNotSupported},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.requestInstrument(tc.a, tc.pairs)
+			assert.ErrorIsf(t, err, tc.err, "requestInstrument should refuse %s", tc.name)
+		})
+	}
+}
+
+func TestOpenOrders(t *testing.T) {
+	t.Parallel()
+	routes := map[string]testRoute{
+		"private/get-open-orders":          testResult(`{"data":[{"order_id":"1","order_type":"LIMIT","side":"BUY","status":"ACTIVE","instrument_name":"BTCUSD-PERP"}]}`),
+		"private/advanced/get-open-orders": testResult(`{"data":[{"order_id":"2","order_type":"STOP_LOSS","side":"SELL","status":"ACTIVE","instrument_name":"BTCUSD-PERP","ref_price":"74000"}]}`),
+	}
+	expOpen := []OrderResponse{{OrderID: "1", OrderType: OrderTypeLimit, Side: SideBuy, Status: OrderStatusActive, InstrumentName: "BTCUSD-PERP"}}
+	expAdvanced := []OrderResponse{{OrderID: "2", OrderType: OrderTypeStopLoss, Side: SideSell, Status: OrderStatusActive, InstrumentName: "BTCUSD-PERP", ReferencePrice: preciseNumber("74000")}}
+	for _, tc := range []struct {
+		name   string
+		pairs  currency.Pairs
+		params string
+	}{
+		{name: "a pair's orders", pairs: currency.Pairs{testPerpetualPair}, params: `{"instrument_name":"BTCUSD-PERP"}`},
+		{name: "every instrument's orders", params: `{}`},
+		{name: "several pairs' orders, from every instrument's", pairs: currency.Pairs{testPerpetualPair, currency.NewPairWithDelimiter("ETHUSD", "PERP", currency.DashDelimiter)}, params: `{}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, received := newRoutesServerExchange(t, routes)
+			open, advanced, err := ex.openOrders(t.Context(), asset.PerpetualSwap, tc.pairs)
+			require.NoErrorf(t, err, "openOrders must not error for %s", tc.name)
+			assert.Equalf(t, expOpen, open, "openOrders should return the trading methods' open orders for %s", tc.name)
+			assert.Equalf(t, expAdvanced, advanced, "openOrders should return the advanced order methods' open orders for %s", tc.name)
+			assertJSONRequests(t, []testRequest{{Method: "private/get-open-orders", Params: tc.params}, {Method: "private/advanced/get-open-orders", Params: tc.params}}, received())
+		})
+	}
+	t.Run("an empty pair", func(t *testing.T) {
+		t.Parallel()
+		ex, received := newRoutesServerExchange(t, nil)
+		_, _, err := ex.openOrders(t.Context(), asset.PerpetualSwap, currency.Pairs{currency.EMPTYPAIR})
+		assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "openOrders should refuse an empty pair")
+		assert.Empty(t, received(), "openOrders should send no request for an empty pair")
+	})
+	for _, tc := range []struct {
+		name, refused string
+		requests      int
+	}{
+		{name: "the open orders' failure", refused: "private/get-open-orders", requests: 1},
+		{name: "the open trigger orders' failure", refused: "private/advanced/get-open-orders", requests: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			failing := maps.Clone(routes)
+			failing[tc.refused] = func(string) (string, *APIError) { return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"} }
+			ex, received := newRoutesServerExchange(t, failing)
+			open, advanced, err := ex.openOrders(t.Context(), asset.PerpetualSwap, nil)
+			var apiErr *APIError
+			require.ErrorAsf(t, err, &apiErr, "openOrders must return %s", tc.name)
+			assert.Equalf(t, &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}, apiErr, "openOrders should return Crypto.com's refusal for %s", tc.name)
+			assert.Nilf(t, open, "openOrders should return no open orders for %s", tc.name)
+			assert.Nilf(t, advanced, "openOrders should return no open trigger orders for %s", tc.name)
+			assert.Lenf(t, received(), tc.requests, "openOrders should send no request after %s", tc.name)
+		})
+	}
+	t.Run("the account's open orders", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		ex := e
+		if mockTests {
+			ex, _ = newRoutesServerExchange(t, routes)
+		}
+		p := testPair(t, asset.PerpetualSwap)
+		name, err := ex.instrumentName(asset.PerpetualSwap, p)
+		require.NoError(t, err, "instrumentName must not error")
+		open, advanced, err := ex.openOrders(t.Context(), asset.PerpetualSwap, currency.Pairs{p})
+		require.NoError(t, err, "openOrders must not error")
+		for _, o := range slices.Concat(open, advanced) {
+			assert.Equalf(t, name, o.InstrumentName, "openOrders should return only %s's orders", name)
+		}
+	})
+}
+
+func TestOrderDetails(t *testing.T) { //nolint:tparallel // the cases share e and the orders in order
+	t.Parallel()
+	orders := []OrderResponse{
+		{OrderID: "1", OrderType: OrderTypeLimit, Side: SideBuy, Status: OrderStatusActive, InstrumentName: "BTC_USD", Quantity: preciseNumber("0.01"), LimitPrice: preciseNumber("78000")},
+		{OrderID: "2", OrderType: OrderTypeLimit, Side: SideBuy, Status: OrderStatusActive, InstrumentName: "BTC_USD", ExecutionInstructions: []string{ExecutionInstructionMarginOrder}, Quantity: preciseNumber("0.01"), LimitPrice: preciseNumber("78000")},
+		{OrderID: "3", OrderType: OrderTypeLimit, Side: SideBuy, Status: OrderStatusActive, InstrumentName: "BTCUSD-PERP", Quantity: preciseNumber("0.01"), LimitPrice: preciseNumber("78000")},
+		{OrderID: "4", OrderType: OrderTypeLimit, Side: SideBuy, Status: OrderStatusActive, InstrumentName: "BTCUSD-261030", Quantity: preciseNumber("0.01"), LimitPrice: preciseNumber("78000")},
+		{OrderID: "5", OrderType: OrderTypeMarket, Side: SideSell, Status: OrderStatusFilled, InstrumentName: "BTC_USD", Quantity: preciseNumber("0.02"), CumulativeQuantity: preciseNumber("0.02"), UpdateTime: types.Time(time.UnixMilli(1792890500000))},
+	}
+	active := order.Detail{Exchange: e.Name, Side: order.Buy, Type: order.Limit, Status: order.Active, Price: 78000, Amount: 0.01, RemainingAmount: 0.01, CostAsset: currency.USD}
+	detail := func(orderID string, a asset.Item, p currency.Pair) order.Detail {
+		d := active
+		d.OrderID, d.AssetType, d.Pair = orderID, a, p
+		switch {
+		case a.IsFutures():
+			d.MarginType, d.SettlementCurrency = margin.Multi, currency.USD
+		case a == asset.Margin:
+			d.MarginType = margin.Multi
+		}
+		return d
+	}
+	for _, tc := range []struct {
+		a   asset.Item
+		exp []order.Detail
+	}{
+		{a: asset.Spot, exp: []order.Detail{
+			detail("1", asset.Spot, testSpotPair),
+			{Exchange: e.Name, OrderID: "5", Pair: testSpotPair, AssetType: asset.Spot, Side: order.Sell, Type: order.Market, Status: order.Filled, Amount: 0.02, ExecutedAmount: 0.02, CostAsset: currency.USD, LastUpdated: time.UnixMilli(1792890500000), CloseTime: time.UnixMilli(1792890500000)},
+		}},
+		{a: asset.Margin, exp: []order.Detail{detail("2", asset.Margin, testSpotPair)}},
+		{a: asset.PerpetualSwap, exp: []order.Detail{detail("3", asset.PerpetualSwap, testPerpetualPair)}},
+		{a: asset.Futures, exp: []order.Detail{detail("4", asset.Futures, testFuturesPair)}},
+		{a: asset.Options, exp: []order.Detail{}},
+	} {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			got, err := e.orderDetails(orders, tc.a)
+			require.NoErrorf(t, err, "orderDetails must not error for %s", tc.a)
+			assert.Equalf(t, tc.exp, got, "orderDetails should return only the %s orders, in order", tc.a)
+		})
+	}
+	t.Run("no orders", func(t *testing.T) {
+		got, err := e.orderDetails(nil, asset.Spot)
+		require.NoError(t, err, "orderDetails must not error without orders")
+		assert.Empty(t, got, "orderDetails should return no details without orders")
+	})
+	for _, tc := range []struct {
+		name    string
+		invalid OrderResponse
+		err     error
+	}{
+		{name: "a malformed instrument", invalid: OrderResponse{OrderID: "6", OrderType: OrderTypeLimit, Side: SideBuy, Status: OrderStatusActive, InstrumentName: "_USD"}, err: errMalformedInstrumentName},
+		{name: "an order of an unknown side", invalid: OrderResponse{OrderID: "6", OrderType: OrderTypeLimit, Side: "HOLD", Status: OrderStatusActive, InstrumentName: "BTC_USD"}, err: order.ErrSideIsInvalid},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := e.orderDetails([]OrderResponse{orders[0], tc.invalid}, asset.Spot)
+			assert.ErrorIsf(t, err, tc.err, "orderDetails should refuse %s", tc.name)
+			assert.Nilf(t, got, "orderDetails should return none of the orders when it refuses %s", tc.name)
+		})
+	}
+}
+
+func TestOrderHistory(t *testing.T) {
+	t.Parallel()
+	ns := func(at time.Time) string { return strconv.FormatInt(at.UnixNano(), 10) }
+	ms := func(at time.Time) string { return strconv.FormatInt(at.UnixMilli(), 10) }
+	end := testWindowStart
+	start := end.Add(-12 * time.Hour)
+	day := end.Add(-privateHistoryWindow)
+	window := func(method, instrument string, from, to time.Time) testRequest {
+		limit := `100`
+		if strings.HasPrefix(method, "private/advanced/") {
+			limit = `"100"`
+		}
+		params := `"start_time":"` + ns(from) + `","end_time":"` + ns(to) + `","limit":` + limit
+		if instrument != "" {
+			params = `"instrument_name":"` + instrument + `",` + params
+		}
+		return testRequest{Method: method, Params: "{" + params + "}"}
+	}
+	// Order 0 was created before every window the cases request, which is left out
+	orders := testResult(`{"data":[{"order_id":"1","create_time":"` + ms(end.Add(-time.Hour)) + `"},{"order_id":"0","create_time":"` + ms(end.Add(-25*time.Hour)) + `"}]}`)
+	triggers := testResult(`{"data":[{"order_id":"2","order_type":"STOP_LOSS","create_time":"` + ms(end.Add(-2*time.Hour)) + `"}]}`)
+	exp := []OrderResponse{
+		{OrderID: "1", CreateTime: types.Time(end.Add(-time.Hour))},
+		{OrderID: "2", OrderType: OrderTypeStopLoss, CreateTime: types.Time(end.Add(-2 * time.Hour))},
+	}
+	for _, tc := range []struct {
+		name       string
+		instrument string
+		start      time.Time
+		requests   []testRequest
+	}{
+		{
+			name:     "every instrument's orders over a window of a day or less",
+			start:    start,
+			requests: []testRequest{window("private/get-order-history", "", start, end), window("private/advanced/get-order-history", "", start, end)},
+		},
+		{
+			name:       "an instrument's orders",
+			instrument: "BTCUSD-PERP",
+			start:      start,
+			requests:   []testRequest{window("private/get-order-history", "BTCUSD-PERP", start, end), window("private/advanced/get-order-history", "BTCUSD-PERP", start, end)},
+		},
+		{
+			name:     "no start time, the day before the end",
+			requests: []testRequest{window("private/get-order-history", "", day, end), window("private/advanced/get-order-history", "", day, end)},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, received := newRoutesServerExchange(t, map[string]testRoute{"private/get-order-history": orders, "private/advanced/get-order-history": triggers})
+			got, err := ex.orderHistory(t.Context(), tc.instrument, tc.start, end)
+			require.NoErrorf(t, err, "orderHistory must not error for %s", tc.name)
+			assert.Equalf(t, exp, got, "orderHistory should return the window's orders, then its trigger orders, for %s", tc.name)
+			assertJSONRequests(t, tc.requests, received())
+		})
+	}
+	t.Run("a window longer than a day, a day at a time from its end", func(t *testing.T) {
+		t.Parallel()
+		from := end.Add(-36 * time.Hour)
+		ex, received := newRoutesServerExchange(t, map[string]testRoute{
+			"private/get-order-history":          testResult(`{"data":[{"order_id":"1","create_time":"` + ms(end.Add(-time.Hour)) + `"},{"order_id":"3","create_time":"` + ms(end.Add(-30*time.Hour)) + `"}]}`),
+			"private/advanced/get-order-history": testResult(`{"data":[]}`),
+		})
+		got, err := ex.orderHistory(t.Context(), "", from, end)
+		require.NoError(t, err, "orderHistory must not error")
+		expOrders := []OrderResponse{{OrderID: "1", CreateTime: types.Time(end.Add(-time.Hour))}, {OrderID: "3", CreateTime: types.Time(end.Add(-30 * time.Hour))}}
+		assert.Equal(t, expOrders, got, "orderHistory should return each day's orders, the latest day's first")
+		assertJSONRequests(t, []testRequest{
+			window("private/get-order-history", "", day, end),
+			window("private/get-order-history", "", from, day),
+			window("private/advanced/get-order-history", "", day, end),
+			window("private/advanced/get-order-history", "", from, day),
+		}, received())
+	})
+	t.Run("no end time, the current time", func(t *testing.T) {
+		t.Parallel()
+		ex, received := newRoutesServerExchange(t, map[string]testRoute{"private/get-order-history": testResult(`{"data":[]}`), "private/advanced/get-order-history": testResult(`{"data":[]}`)})
+		before := time.Now()
+		_, err := ex.orderHistory(t.Context(), "", time.Time{}, time.Time{})
+		after := time.Now()
+		require.NoError(t, err, "orderHistory must not error without a window")
+		requests := received()
+		require.Len(t, requests, 2, "orderHistory must request each history once")
+		for _, r := range requests {
+			var sent struct {
+				StartTime int64 `json:"start_time,string"`
+				EndTime   int64 `json:"end_time,string"`
+			}
+			require.NoErrorf(t, json.Unmarshal([]byte(r.Params), &sent), "%s's params must decode", r.Method)
+			assert.GreaterOrEqualf(t, sent.EndTime, before.UnixNano(), "orderHistory should end %s's window at the current time", r.Method)
+			assert.LessOrEqualf(t, sent.EndTime, after.UnixNano(), "orderHistory should end %s's window at the current time", r.Method)
+			assert.Equalf(t, privateHistoryWindow.Nanoseconds(), sent.EndTime-sent.StartTime, "orderHistory should start %s's window the day before its end", r.Method)
+		}
+	})
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		err        error
+	}{
+		{name: "a start after the end", start: end, end: start, err: common.ErrStartAfterEnd},
+		{name: "a start at the end", start: end, end: end, err: common.ErrStartEqualsEnd},
+		{name: "a start after the current time", start: time.Now().Add(time.Hour), end: time.Now().Add(2 * time.Hour), err: common.ErrStartAfterTimeNow},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, received := newRoutesServerExchange(t, nil)
+			_, err := ex.orderHistory(t.Context(), "", tc.start, tc.end)
+			assert.ErrorIsf(t, err, tc.err, "orderHistory should refuse %s", tc.name)
+			assert.Emptyf(t, received(), "orderHistory should send no request for %s", tc.name)
+		})
+	}
+	for _, tc := range []struct {
+		name, refused string
+		requests      int
+	}{
+		{name: "the orders' failure", refused: "private/get-order-history", requests: 1},
+		{name: "the trigger orders' failure", refused: "private/advanced/get-order-history", requests: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			routes := map[string]testRoute{"private/get-order-history": orders, "private/advanced/get-order-history": triggers}
+			routes[tc.refused] = func(string) (string, *APIError) { return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"} }
+			ex, received := newRoutesServerExchange(t, routes)
+			got, err := ex.orderHistory(t.Context(), "", start, end)
+			var apiErr *APIError
+			require.ErrorAsf(t, err, &apiErr, "orderHistory must return %s", tc.name)
+			assert.Equalf(t, &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}, apiErr, "orderHistory should return Crypto.com's refusal for %s", tc.name)
+			assert.Nilf(t, got, "orderHistory should return no orders for %s", tc.name)
+			assert.Lenf(t, received(), tc.requests, "orderHistory should send no request after %s", tc.name)
+		})
+	}
+	t.Run("the account's order history", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		to := time.Now()
+		from := to.Add(-time.Hour)
+		ex := e
+		if mockTests {
+			ex, _ = newRoutesServerExchange(t, map[string]testRoute{
+				"private/get-order-history":          testResult(`{"data":[{"order_id":"1","create_time":"` + ms(to.Add(-time.Minute)) + `"}]}`),
+				"private/advanced/get-order-history": testResult(`{"data":[{"order_id":"2","create_time":"` + ms(from.Add(-time.Minute)) + `"}]}`),
+			})
+		}
+		got, err := ex.orderHistory(mockRequestContext(t), "", from, to)
+		require.NoError(t, err, "orderHistory must not error")
+		for i := range got {
+			_, at := orderRecord(&got[i])
+			assert.Falsef(t, at.Before(from) || !at.Before(to), "orderHistory should return only orders created in the window, not order %s at %s", got[i].OrderID, at)
+		}
+	})
+}
+
+func TestLatestValuation(t *testing.T) {
+	t.Parallel()
+	t.Run("the latest value", func(t *testing.T) {
+		t.Parallel()
+		ex, received := newRoutesServerExchange(t, map[string]testRoute{"public/get-valuations": testResult(`{"instrument_name":"BTCUSD-PERP","data":[{"v":"80819.5","t":1792899065000}]}`)})
+		got, err := ex.latestValuation(t.Context(), "BTCUSD-PERP", ValuationTypeMarkPrice)
+		require.NoError(t, err, "latestValuation must not error")
+		assert.Equal(t, &Valuation{Value: 80819.5, Timestamp: types.Time(time.UnixMilli(1792899065000))}, got, "latestValuation should return the value")
+		assert.Equal(t, []testRequest{{Method: "public/get-valuations", Params: "count=1&instrument_name=BTCUSD-PERP&valuation_type=mark_price"}}, received(), "latestValuation should request the instrument's one latest value of the type")
+	})
+	t.Run("the first of several values, the latest", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := newRoutesServerExchange(t, map[string]testRoute{"public/get-valuations": testResult(`{"instrument_name":"BTCUSD-PERP","data":[{"v":"80819.5","t":1792899065000},{"v":"80810","t":1792899064000}]}`)})
+		got, err := ex.latestValuation(t.Context(), "BTCUSD-PERP", ValuationTypeMarkPrice)
+		require.NoError(t, err, "latestValuation must not error")
+		assert.Equal(t, &Valuation{Value: 80819.5, Timestamp: types.Time(time.UnixMilli(1792899065000))}, got, "latestValuation should return the first value, Crypto.com's latest")
+	})
+	t.Run("no value", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := newRoutesServerExchange(t, map[string]testRoute{"public/get-valuations": testResult(`{"instrument_name":"BTCUSD-PERP","data":[]}`)})
+		got, err := ex.latestValuation(t.Context(), "BTCUSD-PERP", ValuationTypeMarkPrice)
+		assert.ErrorIs(t, err, common.ErrNoResponse, "latestValuation should refuse a reply without a value")
+		assert.Nil(t, got, "latestValuation should return no value")
+	})
+	t.Run("the request's failure", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := newRoutesServerExchange(t, map[string]testRoute{"public/get-valuations": func(string) (string, *APIError) {
+			return "", &APIError{Code: 40004, Message: "Invalid instrument_name"}
+		}})
+		_, err := ex.latestValuation(t.Context(), "BTCUSD-PERP", ValuationTypeMarkPrice)
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "latestValuation must return Crypto.com's refusal")
+		assert.Equal(t, &APIError{Code: 40004, Message: "Invalid instrument_name"}, apiErr, "latestValuation should return Crypto.com's code and message")
+	})
+	for _, tc := range []struct {
+		name, instrument, valuationType string
+		err                             error
+	}{
+		{name: "no instrument", valuationType: ValuationTypeMarkPrice, err: errInstrumentNameRequired},
+		{name: "no valuation type", instrument: "BTCUSD-PERP", err: errValuationTypeRequired},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, received := newRoutesServerExchange(t, nil)
+			_, err := ex.latestValuation(t.Context(), tc.instrument, tc.valuationType)
+			assert.ErrorIsf(t, err, tc.err, "latestValuation should refuse %s", tc.name)
+			assert.Emptyf(t, received(), "latestValuation should send no request for %s", tc.name)
+		})
+	}
+	t.Run("a perpetual swap's funding rate", func(t *testing.T) {
+		t.Parallel()
+		name, err := e.instrumentName(asset.PerpetualSwap, testPair(t, asset.PerpetualSwap))
+		require.NoError(t, err, "instrumentName must not error")
+		got, err := e.latestValuation(t.Context(), name, ValuationTypeFundingRate)
+		require.NoErrorf(t, err, "latestValuation must not error for %s", name)
+		if mockTests {
+			assert.Equal(t, &Valuation{Value: 0.000009839, Timestamp: types.Time(time.UnixMilli(1792899065000))}, got, "latestValuation should return the recorded funding rate")
+		} else {
+			assert.NotZerof(t, got.Timestamp.Time(), "latestValuation should time %s's funding rate", name)
+		}
+	})
+}
+
+func TestTransactionTime(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		record TransactionResponse
+		exp    time.Time
+	}{
+		{
+			name:   "a transaction timed to the nanosecond",
+			record: TransactionResponse{EventTime: types.Time(time.UnixMilli(1792800000123)), EventTimeNano: types.Time(time.Unix(0, 1792800000123456789))},
+			exp:    time.Unix(0, 1792800000123456789),
+		},
+		{name: "a transaction timed to the millisecond", record: TransactionResponse{EventTime: types.Time(time.UnixMilli(1792800300000))}, exp: time.UnixMilli(1792800300000)},
+		{name: "a transaction without a time", exp: time.Time{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, transactionTime(&tc.record), "transactionTime should time %s", tc.name)
+		})
+	}
+}
+
+func TestFindIsolatedPosition(t *testing.T) {
+	t.Parallel()
+	// Each case searches balances of its own, so that the position found can be told apart by its address
+	balances := func() []UserBalanceResponse {
+		return []UserBalanceResponse{
+			{PositionBalances: []CollateralBalance{{InstrumentName: "USD", Quantity: preciseNumber("100")}}},
+			{IsolatedPositions: []IsolatedPositionBalance{{IsolationID: "19848526", Leverage: 2}, {IsolationID: "19848527", Leverage: 5}}},
+			{IsolatedPositions: []IsolatedPositionBalance{{IsolationID: "19848528", Leverage: 3}, {IsolationID: "19848527", Leverage: 10}}},
+		}
+	}
+	for _, tc := range []struct {
+		name            string
+		isolationID     string
+		entry, position int
+	}{
+		{name: "a position of the first entry holding isolated positions", isolationID: "19848526", entry: 1, position: 0},
+		{name: "the first of two matching positions", isolationID: "19848527", entry: 1, position: 1},
+		{name: "a position of a later entry", isolationID: "19848528", entry: 2, position: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			b := balances()
+			got := findIsolatedPosition(b, func(p *IsolatedPositionBalance) bool { return p.IsolationID == tc.isolationID })
+			assert.Samef(t, &b[tc.entry].IsolatedPositions[tc.position], got, "findIsolatedPosition should return %s", tc.name)
+		})
+	}
+	t.Run("no matching position", func(t *testing.T) {
+		t.Parallel()
+		var searched []string
+		got := findIsolatedPosition(balances(), func(p *IsolatedPositionBalance) bool {
+			searched = append(searched, p.IsolationID)
+			return false
+		})
+		assert.Nil(t, got, "findIsolatedPosition should return no position when none matches")
+		assert.Equal(t, []string{"19848526", "19848527", "19848528", "19848527"}, searched, "findIsolatedPosition should search every isolated position, in order")
+	})
+	t.Run("no balances", func(t *testing.T) {
+		t.Parallel()
+		got := findIsolatedPosition(nil, func(*IsolatedPositionBalance) bool { return true })
+		assert.Nil(t, got, "findIsolatedPosition should return no position without balances")
+	})
+}
+
+func TestCrossMarginLeverage(t *testing.T) {
+	t.Parallel()
+	refused := func(string) (string, *APIError) { return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"} }
+	btcPerpetual := func(maximum string) testRoute {
+		return testResult(`{"data":[{"symbol":"BTCUSD-PERP","inst_type":"PERPETUAL_SWAP","max_leverage":"` + maximum + `","tradable":true}]}`)
+	}
+	for _, tc := range []struct {
+		name        string
+		settings    string
+		instruments testRoute
+		exp         types.Number
+	}{
+		{name: "the account's leverage below the instrument's maximum", settings: `[{"leverage":"5"}]`, instruments: btcPerpetual("20"), exp: 5},
+		{name: "the account's leverage at the instrument's maximum", settings: `[{"leverage":"20"}]`, instruments: btcPerpetual("20"), exp: 20},
+		{name: "the account's leverage above the instrument's maximum", settings: `[{"leverage":"50"}]`, instruments: btcPerpetual("20"), exp: 20},
+		{name: "the first of several settings", settings: `[{"leverage":"10"},{"leverage":"30"}]`, instruments: btcPerpetual("20"), exp: 10},
+		{
+			name:        "the instrument among others",
+			settings:    `[{"leverage":"50"}]`,
+			instruments: testResult(`{"data":[{"symbol":"ETHUSD-PERP","max_leverage":"10"},{"symbol":"BTCUSD-PERP","max_leverage":"25"},{"symbol":"BTCUSD-261030","max_leverage":"5"}]}`),
+			exp:         25,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, received := newRoutesServerExchange(t, map[string]testRoute{"private/get-account-settings": testResult(tc.settings), "public/get-instruments": tc.instruments})
+			got, err := ex.crossMarginLeverage(t.Context(), "BTCUSD-PERP")
+			require.NoErrorf(t, err, "crossMarginLeverage must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "crossMarginLeverage should return the lower of the account's leverage and the instrument's maximum for %s", tc.name)
+			assert.Equalf(t, []testRequest{{Method: "private/get-account-settings", Params: `{}`}, {Method: "public/get-instruments"}}, received(), "crossMarginLeverage should read the account's settings and the instruments for %s", tc.name)
+		})
+	}
+	for _, tc := range []struct {
+		name        string
+		instruments testRoute
+		err         error
+	}{
+		{name: "an instrument missing from the instruments", instruments: testResult(`{"data":[{"symbol":"ETHUSD-PERP","max_leverage":"20"}]}`), err: errInstrumentNotFound},
+		{name: "an instrument without a maximum leverage", instruments: testResult(`{"data":[{"symbol":"BTCUSD-PERP"}]}`), err: errNoMaximumLeverage},
+		{name: "a negative maximum leverage", instruments: btcPerpetual("-1"), err: errNoMaximumLeverage},
+		{name: "a maximum leverage that is not a number", instruments: btcPerpetual("NaN"), err: errNoMaximumLeverage},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, _ := newRoutesServerExchange(t, map[string]testRoute{"private/get-account-settings": testResult(`[{"leverage":"50"}]`), "public/get-instruments": tc.instruments})
+			got, err := ex.crossMarginLeverage(t.Context(), "BTCUSD-PERP")
+			assert.ErrorIsf(t, err, tc.err, "crossMarginLeverage should refuse %s", tc.name)
+			assert.Zerof(t, got, "crossMarginLeverage should return no leverage for %s", tc.name)
+		})
+	}
+	t.Run("no settings", func(t *testing.T) {
+		t.Parallel()
+		ex, received := newRoutesServerExchange(t, map[string]testRoute{"private/get-account-settings": testResult(`[]`)})
+		_, err := ex.crossMarginLeverage(t.Context(), "BTCUSD-PERP")
+		assert.ErrorIs(t, err, common.ErrNoResponse, "crossMarginLeverage should refuse a reply without settings")
+		assert.Len(t, received(), 1, "crossMarginLeverage should not read the instruments without settings")
+	})
+	for _, tc := range []struct {
+		name   string
+		routes map[string]testRoute
+		sent   int
+	}{
+		{name: "the settings' failure", routes: map[string]testRoute{"private/get-account-settings": refused}, sent: 1},
+		{name: "the instruments' failure", routes: map[string]testRoute{"private/get-account-settings": testResult(`[{"leverage":"50"}]`), "public/get-instruments": refused}, sent: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, received := newRoutesServerExchange(t, tc.routes)
+			_, err := ex.crossMarginLeverage(t.Context(), "BTCUSD-PERP")
+			var apiErr *APIError
+			require.ErrorAsf(t, err, &apiErr, "crossMarginLeverage must return %s", tc.name)
+			assert.Equalf(t, &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}, apiErr, "crossMarginLeverage should return Crypto.com's refusal for %s", tc.name)
+			assert.Lenf(t, received(), tc.sent, "crossMarginLeverage should send no request after %s", tc.name)
+		})
+	}
+	t.Run("the account's leverage on a perpetual swap", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		name, err := e.instrumentName(asset.PerpetualSwap, testPair(t, asset.PerpetualSwap))
+		require.NoError(t, err, "instrumentName must not error")
+		got, err := e.crossMarginLeverage(t.Context(), name)
+		require.NoErrorf(t, err, "crossMarginLeverage must not error for %s", name)
+		if mockTests {
+			assert.Equal(t, types.Number(20), got, "crossMarginLeverage should return the recorded account's leverage, below the instrument's maximum of 100")
+		} else {
+			assert.Positivef(t, got.Float64(), "crossMarginLeverage should return %s's leverage", name)
+		}
+	})
 }

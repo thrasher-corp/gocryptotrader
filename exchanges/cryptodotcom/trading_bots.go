@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -57,13 +58,7 @@ func (e *Exchange) CreateTradingBot(ctx context.Context, req *CreateTradingBotRe
 		return nil, err
 	}
 	var resp *CreateTradingBotResponse
-	if err := e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/bot/create-trading-bot", req, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/bot/create-trading-bot", req, &resp)
 }
 
 // UpdateTradingBot updates a running or paused trading bot's notifications and display name, and a DCA or grid bot's
@@ -167,20 +162,14 @@ func (e *Exchange) GetTradingBots(ctx context.Context, req *TradingBotsRequest) 
 	if req.PageSize > tradingBotMaximumPageSize {
 		return nil, fmt.Errorf("%w: page size %d is above %d", errInvalidCount, req.PageSize, tradingBotMaximumPageSize)
 	}
-	var resp *tradingBotListResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/bot/get-trading-bots", &tradingBotsParams{
+	var resp tradingBotListResponse
+	return resp.BotList, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/bot/get-trading-bots", &tradingBotsParams{
 		BotID:    botID,
 		BotTypes: req.BotTypes,
 		States:   req.States,
 		Page:     req.Page,
 		PageSize: req.PageSize,
-	}, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.BotList, nil
+	}, &resp)
 }
 
 // GetTradingBotExecutions returns the orders a trading bot placed
@@ -199,14 +188,8 @@ func (e *Exchange) GetTradingBotExecutions(ctx context.Context, req *TradingBotE
 	if len(req.BasketInstrumentNames) > 0 {
 		params.BasketBotFilter = &tradingBotBasketFilter{IncludeChildSymbols: req.BasketInstrumentNames}
 	}
-	var resp *tradingBotExecutionListResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/bot/get-trading-bot-executions", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.ExecutionList, nil
+	var resp tradingBotExecutionListResponse
+	return resp.ExecutionList, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/bot/get-trading-bot-executions", params, &resp)
 }
 
 // validateSettings checks a DCA bot's settings
@@ -232,6 +215,9 @@ func (s *TradingBotDollarCostAveragingSettings) validateSettings() error {
 		}
 	}
 	if s.OrderType == OrderTypeLimit && s.Price <= 0 {
+		return errInvalidPrice
+	}
+	if s.Price < 0 || s.StopPrice < 0 || s.TakeProfitPrice < 0 {
 		return errInvalidPrice
 	}
 	if s.Quantity < 0 {
@@ -311,6 +297,9 @@ func (s *TradingBotGridSettings) validateSettings() error {
 	}
 	if s.UpperPrice <= s.LowerPrice {
 		return errInvalidTradingBotPriceRange
+	}
+	if s.StopPrice < 0 || s.TakeProfitPrice < 0 || s.TrailingUpPriceCap < 0 {
+		return errInvalidPrice
 	}
 	switch s.GridMode {
 	case TradingBotGridModeArithmetic, TradingBotGridModeGeometric:
@@ -400,14 +389,14 @@ func (s *TradingBotGridUpdateSettings) updateSettingsParams() (any, error) {
 	return s, nil
 }
 
-// validateTradingBotAllocations checks a DCA bot's allocations each name an instrument and a positive percentage
+// validateTradingBotAllocations checks a DCA bot's allocations each name an instrument and a positive, finite percentage
 func validateTradingBotAllocations(allocations []TradingBotAllocation) error {
 	var total decimal.Decimal
 	for i := range allocations {
 		if allocations[i].InstrumentName == "" {
 			return fmt.Errorf("allocation %d: %w", i, errInstrumentNameRequired)
 		}
-		if allocations[i].AllocatedPercentage <= 0 {
+		if p := allocations[i].AllocatedPercentage.Float64(); p <= 0 || math.IsNaN(p) || math.IsInf(p, 1) {
 			return fmt.Errorf("allocation %d: %w", i, errInvalidTradingBotAllocation)
 		}
 		total = total.Add(allocations[i].AllocatedPercentage.Decimal())
@@ -468,15 +457,18 @@ func tradingBotIDParam(botID string) (uint64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("%w %q: %w", errInvalidTradingBotID, botID, err)
 	}
+	if id == 0 {
+		// Bot ID 0 names no bot, and is left unsent, so a listing filtered by it would ask for every bot
+		return 0, fmt.Errorf("%w %q", errInvalidTradingBotID, botID)
+	}
 	return id, nil
 }
 
 // investmentFrequencyParam returns a DCA bot's investment frequency as the whole milliseconds Crypto.com takes, zero,
 // which is left unsent, for none, and an error for a negative frequency
 func investmentFrequencyParam(frequency time.Duration) (uint64, error) {
-	ms := frequency.Milliseconds()
-	if ms < 0 {
+	if frequency < 0 {
 		return 0, fmt.Errorf("%w: %s", errInvalidTradingBotInvestmentFrequency, frequency)
 	}
-	return uint64(ms), nil
+	return uint64(frequency.Milliseconds()), nil //nolint:gosec // The frequency is not negative, as checked above
 }

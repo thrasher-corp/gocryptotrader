@@ -26,14 +26,8 @@ var (
 // GetUserBalance returns the account's balance: its margin totals, its balance of each collateral and the balances of
 // its isolated positions
 func (e *Exchange) GetUserBalance(ctx context.Context) ([]UserBalanceResponse, error) {
-	var resp *dataResponse[UserBalanceResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/user-balance", nil, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[UserBalanceResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/user-balance", nil, &resp)
 }
 
 // GetUserBalanceHistory returns the account's total cash balance over time, which may for a while differ from what
@@ -59,13 +53,7 @@ func (e *Exchange) GetUserBalanceHistory(ctx context.Context, req *UserBalanceHi
 	}
 	params := &userBalanceHistoryParams{Timeframe: req.Timeframe, EndTime: endTime, Limit: req.Limit}
 	var resp *UserBalanceHistoryResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/user-balance-history", params, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/user-balance-history", params, &resp)
 }
 
 // GetAccounts returns the API key's account, its master account and a page of the master account's sub-accounts
@@ -74,13 +62,7 @@ func (e *Exchange) GetAccounts(ctx context.Context, req *AccountsRequest) (*Acco
 		return nil, common.ErrNilPointer
 	}
 	var resp *AccountsResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-accounts", req, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-accounts", req, &resp)
 }
 
 // CreateSubAccountTransfer moves funds between the master account and a sub-account, or between two sub-accounts
@@ -107,14 +89,8 @@ func (e *Exchange) CreateSubAccountTransfer(ctx context.Context, req *SubAccount
 
 // GetSubAccountBalances returns the balance of each of the master account's sub-accounts
 func (e *Exchange) GetSubAccountBalances(ctx context.Context) ([]UserBalanceResponse, error) {
-	var resp *dataResponse[UserBalanceResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-subaccount-balances", nil, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[UserBalanceResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-subaccount-balances", nil, &resp)
 }
 
 // GetPositions returns the account's open derivatives positions; the user.positions channel also reports their mark
@@ -123,14 +99,8 @@ func (e *Exchange) GetPositions(ctx context.Context, req *PositionsRequest) ([]P
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
-	var resp *dataResponse[PositionResponse]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-positions", req, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.Data, nil
+	var resp dataResponse[PositionResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-positions", req, &resp)
 }
 
 // GetFeeCreditBalances returns a page of the account's fee credits, by expiry date in ascending order
@@ -138,12 +108,6 @@ func (e *Exchange) GetFeeCreditBalances(ctx context.Context, req *FeeCreditBalan
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
-	var resp *feeCreditBalancesResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-fee-credit-balances", req, &resp); err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
-	return resp.FeeCredits, nil
+	var resp feeCreditBalancesResponse
+	return resp.FeeCredits, e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/get-fee-credit-balances", req, &resp)
 }

@@ -718,3 +718,41 @@ func TestGetFiatBankAccounts(t *testing.T) {
 		}
 	}
 }
+
+func TestNewFiatHistoryParams(t *testing.T) {
+	t.Parallel()
+	start, end := time.UnixMilli(1781126400000), time.UnixMilli(1781127400000)
+	now := time.Now()
+	for _, tc := range []struct {
+		name string
+		req  *FiatHistoryRequest
+		exp  *fiatHistoryParams
+		err  error
+	}{
+		{
+			name: "every field",
+			req:  &FiatHistoryRequest{Page: 3, PageSize: 10, StartTime: start, EndTime: end, PaymentNetworks: []string{PaymentNetworkUSDCubix, PaymentNetworkUSDSWIFT}},
+			exp:  &fiatHistoryParams{Page: 3, PageSize: 10, StartTime: 1781126400000, EndTime: 1781127400000, PaymentNetworks: "usd_cubix, usd_swift"},
+		},
+		{name: "only the page size", req: &FiatHistoryRequest{PageSize: 10}, exp: &fiatHistoryParams{PageSize: 10}},
+		{name: "one payment network", req: &FiatHistoryRequest{PageSize: 10, PaymentNetworks: []string{PaymentNetworkUSACH}}, exp: &fiatHistoryParams{PageSize: 10, PaymentNetworks: PaymentNetworkUSACH}},
+		{name: "a start without an end", req: &FiatHistoryRequest{PageSize: 10, StartTime: start}, exp: &fiatHistoryParams{PageSize: 10, StartTime: 1781126400000}},
+		{name: "a start at the Unix epoch without an end", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(0)}, exp: &fiatHistoryParams{PageSize: 10}},
+		{name: "a nil request", err: common.ErrNilPointer},
+		{name: "no page size", req: &FiatHistoryRequest{Page: 3, StartTime: start, EndTime: end}, err: errPageSizeRequired},
+		{name: "an end without a start", req: &FiatHistoryRequest{PageSize: 10, EndTime: end}, err: common.ErrDateUnset},
+		{name: "an end after a start at the Unix epoch", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(0), EndTime: end}, err: common.ErrDateUnset},
+		{name: "a window starting after it ends", req: &FiatHistoryRequest{PageSize: 10, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
+		{name: "a window starting as it ends", req: &FiatHistoryRequest{PageSize: 10, StartTime: start, EndTime: start}, err: common.ErrStartEqualsEnd},
+		{name: "a window starting in the future", req: &FiatHistoryRequest{PageSize: 10, StartTime: now.Add(time.Hour), EndTime: now.Add(2 * time.Hour)}, err: common.ErrStartAfterTimeNow},
+		{name: "a start before the Unix epoch", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a window before the Unix epoch", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-2), EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newFiatHistoryParams(tc.req)
+			require.ErrorIsf(t, err, tc.err, "newFiatHistoryParams must return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "newFiatHistoryParams should return the params of %s", tc.name)
+		})
+	}
+}
