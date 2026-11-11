@@ -34,7 +34,10 @@ func (w *orderbookCountingWriter) Write(p []byte) (int, error) {
 
 func BenchmarkOrderbookRendering(b *testing.B) {
 	for _, stringValues := range []bool{false, true} {
-		book := &gctrpc.OrderbookResponse{Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"}}
+		book := &gctrpc.OrderbookResponse{
+			Pair:        &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"},
+			LastUpdated: timestamppb.New(time.Unix(1_700_000_000, 123_456_789)),
+		}
 		for i := range 100 {
 			book.Bids = append(book.Bids, &gctrpc.OrderbookItem{Price: 60000 - float64(i), Amount: 0.125})
 			book.Asks = append(book.Asks, &gctrpc.OrderbookItem{Price: 60001 + float64(i), Amount: 0.25})

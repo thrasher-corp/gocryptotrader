@@ -1950,7 +1950,7 @@ func TestRPCServer_tickerResponse(t *testing.T) {
 	assert.True(t, proto.Equal(want, &decoded), "ticker RPC fields should survive a wire round trip")
 }
 
-func TestRPCServer_GetTicker_LastUpdated(t *testing.T) {
+func TestRPCServer_GetTicker(t *testing.T) {
 	t.Parallel()
 	// Make a dummy pair we'll be using for this test.
 	pair := currency.NewPairWithDelimiter("XXXXX", "YYYYY", "")
@@ -2010,7 +2010,7 @@ func TestRPCServer_GetTicker_LastUpdated(t *testing.T) {
 	assert.Equal(t, "XXXXX", response.Pair.Base, "response pair should not alias the request")
 }
 
-func TestRPCServer_GetOrderbook_LastUpdated(t *testing.T) {
+func TestRPCServer_GetOrderbook(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("binance")
@@ -2200,7 +2200,7 @@ func TestRPCServer_OrderTrades_CreationTime(t *testing.T) {
 	}
 }
 
-func TestRPCServer_GetOrderbooksExchangeIsolation(t *testing.T) {
+func TestRPCServer_GetOrderbooks(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	pair := currency.NewBTCUSDT()
