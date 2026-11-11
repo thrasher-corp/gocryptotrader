@@ -1,13 +1,16 @@
 package htx
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,23 +22,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
-
-// canManipulateRealOrders explicitly enables authenticated live tests which may change account state.
-const canManipulateRealOrders = false
-
-var apiCredentials = &accounts.Credentials{
-	Key:    "",
-	Secret: "",
-}
-
-func init() {
-	if !canManipulateRealOrders && os.Getenv("GCT_HTX_RUN_LIVE_TESTS") != "true" {
-		apiCredentials = new(accounts.Credentials)
-	}
-}
 
 var (
 	_                  exchange.IBotExchange = (*Exchange)(nil)
@@ -51,12 +39,6 @@ func TestMain(m *testing.M) {
 	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("HTX Setup error: %s", err)
-	}
-
-	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
-		e.API.AuthenticatedSupport = true
-		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiCredentials)
 	}
 
 	os.Exit(m.Run())
@@ -562,10 +544,10 @@ func TestCancelExistingOrder(t *testing.T) {
 	})
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		const nonexistentOrderID = uint64(9223372036854775807)
-		_, err := e.CancelExistingOrder(t.Context(), nonexistentOrderID)
-		require.Error(t, err, "CancelExistingOrder must reject a nonexistent live order")
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		const fabricatedOrderID = uint64(9223372036854775807)
+		_, err := h.CancelExistingOrder(t.Context(), fabricatedOrderID)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "venue must reject cancellation of the fabricated order")
 	})
 }
 
@@ -585,9 +567,56 @@ func TestGetOrderMatchResults(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		end := time.Now().UTC().Truncate(time.Millisecond)
+		for _, tc := range []struct {
+			name, start, end string
+		}{
+			{name: "default interval"},
+			{name: "millisecond interval", start: strconv.FormatInt(end.Add(-time.Hour).UnixMilli(), 10), end: strconv.FormatInt(end.UnixMilli(), 10)},
+			{name: "legacy date interval", start: end.Add(-24 * time.Hour).Format(time.DateOnly), end: end.Format(time.DateOnly)},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+				defer cancel()
+				orders, err := h.GetOrders(ctx, btcusdtPair, "", tc.start, tc.end, "filled,partial-canceled,canceled", "", "", "10")
+				require.NoError(t, err, "live spot history must accept the requested interval")
+				for _, row := range orders {
+					assert.NotZero(t, row.ID, "historical order should have an exchange ID")
+					assert.Equal(t, "btcusdt", row.Symbol, "historical order should belong to the requested market")
+					assert.False(t, row.CreatedAt.Time().IsZero(), "historical order should include its creation timestamp")
+				}
+			})
+		}
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/orders", emptySuccessResponse, nil)
 	_, err := h.GetOrders(t.Context(), btcusdtPair, "buy-limit", "", "", "submitted", "", "", "10")
 	require.NoError(t, err, "GetOrders must not error")
+	for _, tc := range []struct {
+		name, start, end, wantStart, wantEnd string
+	}{
+		{"millisecond timestamps", "1782864000000", "1782950400000", "1782864000000", "1782950400000"},
+		{"legacy dates", "2026-07-01", "2026-07-02", "1782864000000", "1782950400000"},
+		{"mixed date and milliseconds", "2026-07-01", "1782950400000", "1782864000000", "1782950400000"},
+		{"mixed milliseconds and date", "1782864000000", "2026-07-02", "1782864000000", "1782950400000"},
+		{"start only", "2026-07-01", "", "1782864000000", ""},
+		{"end only", "", "2026-07-02", "", "1782950400000"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/orders", emptySuccessResponse, func(r *http.Request) {
+				assert.Equal(t, tc.wantStart, r.URL.Query().Get("start-time"), "history start should use UTC milliseconds")
+				assert.Equal(t, tc.wantEnd, r.URL.Query().Get("end-time"), "history end should use UTC milliseconds")
+				assert.NotContains(t, r.URL.Query(), "start-date", "history should use the documented start field")
+				assert.NotContains(t, r.URL.Query(), "end-date", "history should use the documented end field")
+			})
+			_, err := h.GetOrders(t.Context(), btcusdtPair, "", tc.start, tc.end, "filled", "", "", "")
+			require.NoError(t, err, "GetOrders must accept both date representations")
+		})
+	}
 }
 
 func TestGetOpenOrders(t *testing.T) {
@@ -702,6 +731,17 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
 	}
+}
+
+func TestSetFeeBuilder(t *testing.T) {
+	t.Parallel()
+	first := setFeeBuilder()
+	first.Amount = 25
+	first.FeeType = exchange.OfflineTradeFee
+	second := setFeeBuilder()
+	assert.Equal(t, float64(1), second.Amount, "new fee fixtures should start at the default quantity")
+	assert.Equal(t, exchange.CryptocurrencyTradeFee, second.FeeType, "new fee fixtures should start with the default fee type")
+	assert.Equal(t, "BTC_LTC", second.Pair.String(), "fee fixtures should retain the cryptocurrency pair and delimiter")
 }
 
 func TestQueryDepositAddress(t *testing.T) {
@@ -917,6 +957,47 @@ func updatePairsOnce(tb testing.TB, h *Exchange) {
 
 	err := h.CurrencyPairs.EnablePair(asset.Futures, btcFutureDatedPair) // Must enable every time we refresh the CurrencyPairs from cache
 	require.NoError(tb, common.ExcludeError(err, currency.ErrPairAlreadyEnabled))
+}
+
+func TestUpdatePairsOnce(t *testing.T) {
+	// The helper updates the expiry cache shared by HTX's other tests.
+	previousPair, previousExpiry := btcFutureDatedPair, futureContractCodesCache
+	t.Cleanup(func() {
+		btcFutureDatedPair, futureContractCodesCache = previousPair, previousExpiry
+	})
+	btcFutureDatedPair = currency.EMPTYPAIR
+	futureContractCodesCache = nil
+	var requests atomic.Int32
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/common/symbols",
+		`{"status":"ok","data":[{"base-currency":"btc","quote-currency":"usdt","state":"online"}]}`,
+		func(*http.Request) { requests.Add(1) },
+		httpTestResponse{method: http.MethodGet, path: "/api/v1/contract_contract_info", body: `{"status":"ok","data":[{"contract_code":"BTC271231","contract_type":"this_week","contract_status":1}]}`, calls: 1},
+		httpTestResponse{method: http.MethodGet, path: "/swap-api/v1/swap_contract_info", body: `{"status":"ok","data":[{"contract_code":"BTC-USD","contract_status":1}]}`, calls: 1},
+		httpTestResponse{method: http.MethodGet, path: "/linear-swap-api/v1/swap_contract_info", body: `{"status":"ok","data":[{"contract_code":"BTC-USDT","contract_status":1}]}`, calls: 1})
+	endpoint, err := h.API.Endpoints.GetURL(exchange.RestSpot)
+	require.NoError(t, err, "mock spot endpoint must be available")
+	// The cache survives repeated test runs within one process.
+	h.Name = t.Name() + " " + endpoint
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), endpoint), "futures API must use the local mock")
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), endpoint), "USDT API must use the local mock")
+	updatePairsOnce(t, h)
+
+	restored := new(Exchange)
+	require.NoError(t, testexch.Setup(restored), "fresh exchange must initialise")
+	restored.Name = h.Name
+	for _, url := range []exchange.URL{exchange.RestSpot, exchange.RestFutures, exchange.RestUSDTMargined} {
+		require.NoError(t, restored.API.Endpoints.SetRunningURL(url.String(), endpoint), "restored exchange must use the local mock")
+	}
+	updatePairsOnce(t, restored)
+	for _, venue := range []*Exchange{h, restored} {
+		pair, err := venue.pairFromContractExpiryCode(btccwPair)
+		require.NoError(t, err, "current-week expiry must be available on both instances")
+		assert.Equal(t, "271231", pair.Quote.String(), "current-week alias should resolve to the cached expiry")
+		pairs, err := venue.GetEnabledPairs(asset.Futures)
+		require.NoError(t, err, "enabled delivery pairs must be available")
+		assert.True(t, pairs.Contains(pair, true), "resolved delivery pair should be enabled")
+	}
+	assert.Equal(t, int32(1), requests.Load(), "restoring a second instance should avoid another spot request")
 }
 
 func TestGetTickers(t *testing.T) {

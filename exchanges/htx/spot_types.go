@@ -268,6 +268,7 @@ type CancelOrderBatch struct {
 // OrderInfo stores the order info
 type OrderInfo struct {
 	ID               uint64       `json:"id"`
+	ClientOrderID    string       `json:"client-order-id"`
 	Symbol           string       `json:"symbol"`
 	AccountID        uint64       `json:"account-id"`
 	Amount           types.Number `json:"amount"`

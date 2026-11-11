@@ -25,6 +25,22 @@ import (
 
 func TestGetV5Leverage(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		for _, mode := range []string{"cross", "isolated"} {
+			t.Run(mode, func(t *testing.T) {
+				t.Parallel()
+				response, err := h.GetV5Leverage(t.Context(), btcusdtPair, mode, "")
+				require.NoError(t, err, "live leverage must be readable")
+				require.NotNil(t, response, "live leverage response must decode")
+				for _, level := range response.Leverage {
+					assert.Equal(t, "BTC-USDT", level.ContractCode, "leverage should belong to the requested contract")
+					assert.Positive(t, level.LeverageRate, "current leverage should be positive")
+				}
+			})
+		}
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/lever", `{"code":200,"data":[{"contract_code":"BTC-USDT","lever_rate":5,"available_lever":[1,5,10]}]}`, func(r *http.Request) {
 		assert.Equal(t, "cross", r.URL.Query().Get("margin_mode"), "margin mode should be sent")
 	})
@@ -36,6 +52,12 @@ func TestGetV5Leverage(t *testing.T) {
 
 func TestSetV5Leverage(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		_, err := h.SetV5Leverage(t.Context(), &V5SetLeverageRequest{ContractCode: "INVALID-USDT", MarginMode: "cross", PositionSide: "long", LeverageRate: 5})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "venue must reject leverage changes for the fabricated contract")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/lever", `{"code":200,"data":{"contract_code":"BTC-USDT","lever_rate":"5"}}`, nil)
 	_, err := h.SetV5Leverage(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetV5Leverage must reject nil request")
@@ -46,6 +68,12 @@ func TestSetV5Leverage(t *testing.T) {
 
 func TestAdjustV5PositionMargin(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		_, err := h.AdjustV5PositionMargin(t.Context(), &V5AdjustPositionMarginRequest{ContractCode: "INVALID-USDT", PositionSide: "long", Type: "add", Amount: 1})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "venue must reject margin changes for the fabricated contract")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/margin", `{"code":200,"message":"Success","data":null}`, nil)
 	_, err := h.AdjustV5PositionMargin(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "AdjustV5PositionMargin must reject nil request")
@@ -56,6 +84,14 @@ func TestAdjustV5PositionMargin(t *testing.T) {
 
 func TestGetV5PositionMode(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		response, err := h.GetV5PositionMode(t.Context())
+		require.NoError(t, err, "live position mode must be readable")
+		require.NotNil(t, response, "live position mode response must decode")
+		assert.Contains(t, []string{"single_side", "dual_side"}, response.Mode.PositionMode, "position mode should be recognised")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/mode", `{"code":200,"data":{"position_mode":"dual_side"}}`, nil)
 	resp, err := h.GetV5PositionMode(t.Context())
 	require.NoError(t, err, "GetV5PositionMode must not error")
@@ -64,6 +100,12 @@ func TestGetV5PositionMode(t *testing.T) {
 
 func TestSetV5PositionMode(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		_, err := h.SetV5PositionMode(t.Context(), "invalid")
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "venue must reject the fabricated position mode")
+	})
 	t.Run("exclude overlapping submissions and mode changes", func(t *testing.T) {
 		t.Parallel()
 		started, release := make(chan struct{}), make(chan struct{})
@@ -237,6 +279,16 @@ func TestAcquirePositionModeForSubmission(t *testing.T) {
 
 func TestGetV5PositionRiskLimit(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		response, err := h.GetV5PositionRiskLimit(t.Context(), btcusdtPair, "cross", "")
+		require.NoError(t, err, "live position risk limit must be readable")
+		require.NotNil(t, response, "live position risk limit response must decode")
+		for _, limit := range response.RiskLimits {
+			assert.Equal(t, "BTC-USDT", limit.ContractCode, "risk limit should belong to the requested contract")
+		}
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/risk/limit", `{"code":200,"data":[{"contract_code":"BTC-USDT","max_volume":"100"}]}`, nil)
 	resp, err := h.GetV5PositionRiskLimit(t.Context(), currency.EMPTYPAIR, "cross", "long")
 	require.NoError(t, err, "GetV5PositionRiskLimit must not error")
@@ -246,6 +298,14 @@ func TestGetV5PositionRiskLimit(t *testing.T) {
 
 func TestGetV5PositionRiskLimitTiers(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		response, err := h.GetV5PositionRiskLimitTiers(t.Context(), btcusdtPair, "cross")
+		require.NoError(t, err, "live position risk tiers must be readable")
+		require.NotNil(t, response, "live position risk tier response must decode")
+		assert.NotEmpty(t, response.RiskLimits, "the requested contract should have risk tiers")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/risk/limit_tier", `{"code":200,"data":[{"contract_code":"BTC-USDT","tier":"1"}]}`, nil)
 	resp, err := h.GetV5PositionRiskLimitTiers(t.Context(), btcusdtPair, "cross")
 	require.NoError(t, err, "GetV5PositionRiskLimitTiers must not error")

@@ -116,6 +116,44 @@ func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
 	return fmt.Errorf("%w: %s", errUnhandledMockWebsocketMessage, msg)
 }
 
+func TestWSFixture(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, request, response string
+	}{
+		{"derivatives login", `{"op":"auth"}`, `{"op":"auth","type":"api","ts":1489474081631,"err-code":0,"data":{"user-id":"12345678"}}`},
+		{"derivatives subscription", `{"op":"sub","topic":"orders.*"}`, `{"op":"sub","topic":"orders.*","ts":1489474081631,"err-code":0}`},
+		{"spot login", `{"action":"req","ch":"auth"}`, `{"action":"req","code":200,"ch":"auth","data":{}}`},
+		{"public unsubscription", `{"id":"17","unsub":"market.btcusdt.detail"}`, `{"id":"17","status":"ok","unsubbed":"market.btcusdt.detail"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, wsFixture))
+			server.Start()
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			dialer := new(gws.Dialer)
+			conn, response, err := dialer.DialContext(ctx, "ws"+strings.TrimPrefix(server.URL, "http"), nil)
+			if response != nil && response.Body != nil {
+				t.Cleanup(func() { assert.NoError(t, response.Body.Close(), "handshake response should close") })
+			}
+			require.NoError(t, err, "local websocket must connect")
+			t.Cleanup(func() { assert.NoError(t, conn.Close(), "local websocket should close") })
+			require.NoError(t, conn.SetReadDeadline(time.Now().Add(5*time.Second)), "fixture read must have a deadline")
+			require.NoError(t, conn.SetWriteDeadline(time.Now().Add(5*time.Second)), "fixture write must have a deadline")
+			require.NoError(t, conn.WriteMessage(gws.TextMessage, []byte(tc.request)), "fixture request must be written")
+			_, data, err := conn.ReadMessage()
+			require.NoError(t, err, "fixture response must be readable")
+			assert.JSONEq(t, tc.response, string(data), "fixture should return the documented acknowledgement")
+		})
+	}
+	t.Run("heartbeat and unknown operations", func(t *testing.T) {
+		t.Parallel()
+		require.NoError(t, wsFixture(t, []byte(`{"op":"pong"}`), nil), "heartbeat response must require no reply")
+		require.ErrorIs(t, wsFixture(t, []byte(`{"op":"unknown"}`), nil), errUnhandledMockWebsocketMessage, "unknown operation must return its sentinel")
+	})
+}
+
 func TestWSHandleData(t *testing.T) {
 	t.Parallel()
 	t.Run("futures private notification", func(t *testing.T) {

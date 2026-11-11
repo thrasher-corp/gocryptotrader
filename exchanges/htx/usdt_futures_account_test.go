@@ -19,6 +19,14 @@ import (
 
 func TestGetV5AssetMode(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		response, err := h.GetV5AssetMode(t.Context())
+		require.NoError(t, err, "live collateral mode must be readable")
+		require.NotNil(t, response, "live collateral mode response must decode")
+		assert.Contains(t, []uint64{0, 1, 2}, response.Mode.AssetMode, "asset mode should be recognised")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/asset_mode", `{"code":200,"data":{"asset_mode":1}}`, nil)
 	resp, err := h.GetV5AssetMode(t.Context())
 	require.NoError(t, err, "GetV5AssetMode must not error")
@@ -28,6 +36,12 @@ func TestGetV5AssetMode(t *testing.T) {
 
 func TestSetV5AssetMode(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		_, err := h.SetV5AssetMode(t.Context(), 99)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "venue must reject the fabricated asset mode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/asset_mode", `{"code":200,"data":{"asset_mode":2}}`, func(r *http.Request) {
 		var payload map[string]uint64
 		if assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "asset-mode request should decode") {
@@ -42,6 +56,17 @@ func TestSetV5AssetMode(t *testing.T) {
 
 func TestGetV5AccountBills(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		response, err := h.GetV5AccountBills(t.Context(), &V5AccountBillsRequest{Limit: 10})
+		require.NoError(t, err, "live account bills must be readable")
+		require.NotNil(t, response, "live account bills response must decode")
+		for _, bill := range response.Bills {
+			assert.NotEmpty(t, bill.ID, "bill ID should be present")
+			assert.False(t, bill.Currency.IsEmpty(), "bill currency should be present")
+		}
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/bills", `{"code":200,"data":[{"id":"1","amount":"2"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
 		assert.Equal(t, "10", r.URL.Query().Get("limit"), "limit should be sent")
@@ -65,6 +90,13 @@ func TestGetV5AccountBills(t *testing.T) {
 
 func TestGetV5FeeDeductionCurrency(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		response, err := h.GetV5FeeDeductionCurrency(t.Context())
+		require.NoError(t, err, "live fee deduction setting must be readable")
+		require.NotNil(t, response, "live fee deduction response must decode")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/fee_deduction_currency", `{"code":200,"data":{"fee_option":1,"deduction_currency":"HTX"}}`, nil)
 	resp, err := h.GetV5FeeDeductionCurrency(t.Context())
 	require.NoError(t, err, "GetV5FeeDeductionCurrency must not error")
@@ -74,6 +106,12 @@ func TestGetV5FeeDeductionCurrency(t *testing.T) {
 
 func TestSetV5FeeDeductionCurrency(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		_, err := h.SetV5FeeDeductionCurrency(t.Context(), &V5SetFeeDeductionCurrencyRequest{FeeOption: 99, DeductionCurrency: currency.NewCode("INVALID")})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "venue must reject the fabricated fee deduction preference")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/fee_deduction_currency", `{"code":200,"data":{"fee_option":1,"deduction_currency":"HTX"}}`, nil)
 	_, err := h.SetV5FeeDeductionCurrency(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetV5FeeDeductionCurrency must reject nil request")
@@ -85,6 +123,12 @@ func TestSetV5FeeDeductionCurrency(t *testing.T) {
 
 func TestV5UniversalTransfer(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		_, err := h.V5UniversalTransfer(t.Context(), &V5UniversalTransferRequest{Amount: 1, Currency: currency.NewCode("INVALID"), FromAccountType: "spot", ToAccountType: "linear-swap"})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "venue must reject a transfer of the fabricated currency")
+	})
 	t.Run("dedicated rate limit", func(t *testing.T) {
 		t.Parallel()
 		var sent atomic.Int32
@@ -145,6 +189,16 @@ func TestV5UniversalTransfer(t *testing.T) {
 
 func TestGetV5UniversalTransferRecords(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		response, err := h.GetV5UniversalTransferRecords(t.Context(), &V5UniversalTransferRecordsRequest{Currency: currency.USDT, Limit: 10})
+		require.NoError(t, err, "live transfer records must be readable")
+		require.NotNil(t, response, "live transfer records response must decode")
+		for _, transfer := range response.Transfers {
+			assert.True(t, transfer.Currency.Equal(currency.USDT), "transfer currency should match the filter")
+		}
+	})
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v5/account/universal_transfer_records", `{"code":200,"data":[{"id":1,"transfer_id":"123","amount":"10"}]}`, func(r *http.Request) {
 		assert.Equal(t, "123", r.URL.Query().Get("transfer_id"), "transfer ID should be sent")
 		assert.Equal(t, "USDT", r.URL.Query().Get("currency"), "currency should be sent")
@@ -168,6 +222,17 @@ func TestGetV5UniversalTransferRecords(t *testing.T) {
 
 func TestGetV5AccountBalance(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		response, err := h.GetV5AccountBalance(t.Context())
+		require.NoError(t, err, "live account balance must be readable")
+		require.NotNil(t, response, "live account balance response must decode")
+		assert.NotEmpty(t, response.Balance.State, "account state should be present")
+		for _, balance := range response.Balance.CurrencyBalances {
+			assert.False(t, balance.Currency.IsEmpty(), "balance currency should be present")
+		}
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/balance", `{"code":200,"data":{"state":"working"}}`, nil)
 	resp, err := h.GetV5AccountBalance(t.Context())
 	require.NoError(t, err, "GetV5AccountBalance must not error")

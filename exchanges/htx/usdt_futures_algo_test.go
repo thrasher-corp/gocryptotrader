@@ -10,11 +10,25 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestPlaceV5AlgoOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		response, err := h.PlaceV5AlgoOrder(t.Context(), &V5AlgoOrderRequest{ContractCode: "INVALID-USDT", MarginMode: "cross", PositionSide: "long", Side: "buy", Type: "trigger", Volume: 1, Price: 1, TriggerPrice: 2, TriggerPriceType: "last", OrderPriceType: "limit"})
+		if err != nil {
+			require.ErrorIs(t, err, request.ErrAuthRequestFailed, "live venue rejection must report an authenticated request failure")
+		} else {
+			require.NotNil(t, response, "strategy rejection must decode")
+			require.Len(t, response.Acknowledgements, 1, "strategy order must have one rejection acknowledgement")
+			assert.NotContains(t, []uint64{0, 200}, response.Acknowledgements[0].Code, "fabricated contract should be rejected")
+			assert.Empty(t, response.Acknowledgements[0].AlgoID, "fabricated contract should never create an order")
+		}
+	})
 	for _, priceMatch := range []string{"", "optimal_5"} {
 		t.Run("price match "+priceMatch, func(t *testing.T) {
 			t.Parallel()
@@ -51,6 +65,19 @@ func TestPlaceV5AlgoOrder(t *testing.T) {
 
 func TestCancelV5AlgoOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{changesAccount: true})
+		const fabricatedOrderID = "9223372036854775807"
+		response, err := h.CancelV5AlgoOrders(t.Context(), []*V5CancelAlgoOrderRequest{{ContractCode: "BTC-USDT", AlgoID: fabricatedOrderID}})
+		if err != nil {
+			require.ErrorIs(t, err, request.ErrAuthRequestFailed, "live venue rejection must report an authenticated request failure")
+		} else {
+			require.NotNil(t, response, "strategy cancellation rejection must decode")
+			require.Len(t, response.Acknowledgements, 1, "strategy cancellation must have one rejection acknowledgement")
+			assert.NotContains(t, []uint64{0, 200}, response.Acknowledgements[0].Code, "fabricated strategy ID should be rejected")
+		}
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/algo/cancel_orders", `{"code":200,"data":[{"algo_id":"1"}]}`, nil)
 	_, err := h.CancelV5AlgoOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrEmptyParams, "CancelV5AlgoOrders must reject empty request")
@@ -62,6 +89,22 @@ func TestCancelV5AlgoOrders(t *testing.T) {
 
 func TestGetV5AlgoOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		open, err := h.GetV5OpenAlgoOrders(t.Context(), &V5OpenAlgoOrdersRequest{ContractCode: "BTC-USDT", Type: "trigger", Limit: 1})
+		require.NoError(t, err, "live strategy order must be discoverable")
+		require.NotNil(t, open, "live open strategy response must decode")
+		if len(open.Orders) == 0 {
+			t.Skip("The account has no open BTC-USDT trigger order")
+		}
+		id := open.Orders[0].AlgoID
+		response, err := h.GetV5AlgoOrder(t.Context(), id, "", "trigger")
+		require.NoError(t, err, "live strategy order must be readable by ID")
+		require.NotNil(t, response, "live strategy order response must decode")
+		require.Len(t, response.Orders, 1, "lookup by strategy ID must return one order")
+		assert.Equal(t, id, response.Orders[0].AlgoID, "strategy lookup should retain the order ID")
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/algo/order", `{"code":200,"data":[{"algo_id":"1","volume":"2"}]}`, func(r *http.Request) {
 		assert.Equal(t, "1", r.URL.Query().Get("algo_id"), "algo ID should be sent")
 		assert.Equal(t, "trigger", r.URL.Query().Get("type"), "order type should be sent")
@@ -74,6 +117,17 @@ func TestGetV5AlgoOrder(t *testing.T) {
 
 func TestGetV5OpenAlgoOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		response, err := h.GetV5OpenAlgoOrders(t.Context(), &V5OpenAlgoOrdersRequest{ContractCode: "BTC-USDT", Type: "trigger", Limit: 10})
+		require.NoError(t, err, "live open strategy orders must be readable")
+		require.NotNil(t, response, "live open strategy response must decode")
+		for _, row := range response.Orders {
+			assert.Equal(t, "BTC-USDT", row.ContractCode, "open strategy should belong to the requested contract")
+			assert.NotEmpty(t, row.AlgoID, "strategy order ID should be present")
+		}
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/algo/order/opens", `{"code":200,"data":[{"algo_id":"1"}]}`, nil)
 	_, err := h.GetV5OpenAlgoOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetV5OpenAlgoOrders must reject nil request")
@@ -93,6 +147,18 @@ func TestGetV5OpenAlgoOrders(t *testing.T) {
 
 func TestGetV5AlgoOrderHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		end := time.Now().UTC()
+		response, err := h.GetV5AlgoOrderHistory(t.Context(), &V5AlgoOrderHistoryRequest{ContractCode: "BTC-USDT", MarginMode: "cross", Type: "trigger", StartTime: end.Add(-24 * time.Hour), EndTime: end, Limit: 10})
+		require.NoError(t, err, "live strategy history must be readable")
+		require.NotNil(t, response, "live strategy history response must decode")
+		for _, row := range response.Orders {
+			assert.Equal(t, "BTC-USDT", row.ContractCode, "historical strategy should belong to the requested contract")
+			assert.NotEmpty(t, row.AlgoID, "strategy order ID should be present")
+		}
+	})
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/algo/order/history", `{"code":200,"data":[{"algo_id":"1","actual_volume":"2"}]}`, func(r *http.Request) {
 		assert.Equal(t, "trigger", r.URL.Query().Get("type"), "order type should be sent")
 	})

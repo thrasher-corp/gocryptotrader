@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	"maps"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -101,6 +100,23 @@ func setV5PositionModeEndpoint(t *testing.T, h *Exchange, mode string) {
 	h.API.AuthenticatedSupport = true
 	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "position mode endpoint must be set")
+}
+
+func TestSetV5PositionModeEndpoint(t *testing.T) {
+	t.Parallel()
+	for _, positionMode := range []string{"single_side", "dual_side"} {
+		t.Run(positionMode, func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "test exchange must initialise")
+			request.WithLimiter(newRateLimits())(h.Requester)
+			setV5PositionModeEndpoint(t, h, positionMode)
+			response, err := h.GetV5PositionMode(t.Context())
+			require.NoError(t, err, "mocked position mode must be readable")
+			require.NotNil(t, response, "position mode response must decode")
+			assert.Equal(t, positionMode, response.Mode.PositionMode, "mock endpoint should return the configured mode")
+		})
+	}
 }
 
 func TestNewHTTPTestExchange(t *testing.T) {
@@ -405,6 +421,60 @@ func TestUpdateOrderbookWithLimit(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		for _, tc := range []struct {
+			asset asset.Item
+			pair  currency.Pair
+		}{
+			{asset.Spot, btcusdtPair},
+			{asset.CoinMarginedFutures, btcusdPair},
+		} {
+			t.Run(tc.asset.String(), func(t *testing.T) {
+				t.Parallel()
+				ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+				defer cancel()
+				end := time.Now().UTC().Truncate(time.Millisecond)
+				start := end.Add(-49 * time.Hour)
+				result, err := h.GetOrderHistory(ctx, &order.MultiOrderRequest{
+					AssetType: tc.asset, Pairs: currency.Pairs{tc.pair}, Side: order.AnySide, Type: order.AnyType,
+					StartTime: start, EndTime: end,
+				})
+				require.NoError(t, err, "live history must read all requested time windows")
+				seen := make(map[string]bool, len(result))
+				for _, detail := range result {
+					assert.NotEmpty(t, detail.OrderID, "historical order should have an exchange ID")
+					assert.False(t, seen[detail.OrderID], "historical order should appear once across pages and windows")
+					seen[detail.OrderID] = true
+					assert.True(t, detail.Pair.Equal(tc.pair), "historical order should belong to the requested market")
+					assert.False(t, detail.Date.Before(start), "historical order should respect the requested start")
+					assert.False(t, detail.Date.After(end), "historical order should respect the requested end")
+				}
+			})
+		}
+	})
+	t.Run("spot client order ID", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, field, id string
+		}{
+			{name: "provided", field: `,"client-order-id":"strategy-entry-19"`, id: "strategy-entry-19"},
+			{name: "omitted"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				response := fmt.Sprintf(`{"status":"ok","data":[{"id":19,"account-id":72,"symbol":"btcusdt","type":"buy-limit","state":"filled"%s}]}`, tc.field)
+				h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/orders", response, nil)
+				got, err := h.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Side: order.AnySide, Type: order.AnyType})
+				require.NoError(t, err, "spot order must decode")
+				require.Len(t, got, 1, "one spot order must be returned")
+				assert.Equal(t, "19", got[0].OrderID, "exchange order ID should be retained")
+				assert.Equal(t, "72", got[0].AccountID, "account ID should be retained")
+				assert.Equal(t, tc.id, got[0].ClientOrderID, "client order ID should be retained when supplied")
+			})
+		}
+	})
 	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
 		for _, tc := range []struct {
 			name  string
@@ -420,6 +490,86 @@ func TestGetOrderHistory(t *testing.T) {
 			})
 		}
 	}
+	t.Run("spot windows and pages", func(t *testing.T) {
+		t.Parallel()
+		start := time.Now().UTC().Add(-7 * 24 * time.Hour).Truncate(time.Second)
+		boundary := start.Add(48 * time.Hour)
+		end := boundary.Add(time.Hour)
+		type query struct {
+			start, end, from, direct string
+		}
+		expected := []query{
+			{start: strconv.FormatInt(boundary.UnixMilli(), 10), end: strconv.FormatInt(end.UnixMilli(), 10)},
+			{start: strconv.FormatInt(boundary.UnixMilli(), 10), end: strconv.FormatInt(end.UnixMilli(), 10), from: "101", direct: "next"},
+			{start: strconv.FormatInt(start.UnixMilli(), 10), end: strconv.FormatInt(boundary.UnixMilli(), 10)},
+		}
+		var mu sync.Mutex
+		var requests []query
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			values := r.URL.Query()
+			assert.Equal(t, "/v1/order/orders", r.URL.Path, "spot history path should match")
+			assert.Equal(t, "100", values.Get("size"), "spot history should request a full page")
+			request := query{values.Get("start-time"), values.Get("end-time"), values.Get("from"), values.Get("direct")}
+			mu.Lock()
+			requests = append(requests, request)
+			index := len(requests) - 1
+			mu.Unlock()
+			if index >= len(expected) || request != expected[index] {
+				http.Error(w, "unexpected history request", http.StatusBadRequest)
+				return
+			}
+			var first, last int
+			switch index {
+			case 0:
+				first, last = 200, 101
+			case 1:
+				first, last = 101, 100
+			case 2:
+				first, last = 100, 99
+			}
+			rows := make([]string, 0, first-last+1)
+			for id := first; id >= last; id-- {
+				created := boundary.Add(time.Duration(id-100) * time.Second)
+				rows = append(rows, fmt.Sprintf(`{"id":%d,"type":"buy-limit","state":"filled","created-at":%d}`, id, created.UnixMilli()))
+			}
+			_, _ = w.Write([]byte(`{"status":"ok","data":[` + strings.Join(rows, ",") + `]}`))
+		}))
+		t.Cleanup(server.Close)
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "HTX setup must succeed")
+		request.WithLimiter(newRateLimits())(h.Requester)
+		h.API.AuthenticatedSupport = true
+		h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "spot endpoint must use the mock")
+		orders, err := h.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{btcusdtPair}, StartTime: start, EndTime: end})
+		require.NoError(t, err, "older spot orders must be fetched")
+		require.Len(t, orders, 102, "each order must be returned exactly once")
+		for i, detail := range orders {
+			assert.Equal(t, strconv.Itoa(200-i), detail.OrderID, "orders should retain descending page order")
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, expected, requests, "requests should cover the exact windows and cursors")
+	})
+	for _, bound := range []string{"start", "end"} {
+		t.Run("spot "+bound+" only", func(t *testing.T) {
+			t.Parallel()
+			at := time.Now().UTC().Add(-7 * 24 * time.Hour).Truncate(time.Millisecond)
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/orders", `{"status":"ok","data":[]}`, func(r *http.Request) {
+				assert.Equal(t, strconv.FormatInt(at.UnixMilli(), 10), r.URL.Query().Get(bound+"-time"), "supplied bound should use milliseconds")
+				assert.Len(t, r.URL.Query()["start-time"], map[string]int{"start": 1, "end": 0}[bound], "start should only be sent when supplied")
+				assert.Len(t, r.URL.Query()["end-time"], map[string]int{"start": 0, "end": 1}[bound], "end should only be sent when supplied")
+			})
+			req := &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{btcusdtPair}}
+			if bound == "start" {
+				req.StartTime = at
+			} else {
+				req.EndTime = at
+			}
+			_, err := h.GetOrderHistory(t.Context(), req)
+			require.NoError(t, err, "one-sided spot history must be supported")
+		})
+	}
 	type testCase struct {
 		item           asset.Item
 		pair           currency.Pair
@@ -431,20 +581,35 @@ func TestGetOrderHistory(t *testing.T) {
 	} {
 		t.Run(tc.item.String()+" window overlap", func(t *testing.T) {
 			t.Parallel()
+			start := time.Now().UTC().Add(-7 * 24 * time.Hour).Truncate(time.Second)
+			boundary := start.Add(48 * time.Hour)
+			end := start.Add(72 * time.Hour)
+			response := fmt.Sprintf(`{"code":200,"data":[{"query_id":1,"order_id_str":"1","contract_code":%q,"direction":"buy","order_price_type":6,"status":6,"create_date":%d},{"query_id":2,"order_id_str":"2","contract_code":%q,"direction":"buy","order_price_type":6,"status":6,"create_date":%d}]}`,
+				tc.contract, boundary.UnixMilli(), tc.contract, start.Add(-time.Second).UnixMilli())
 			var calls atomic.Int32
-			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, tc.path, `{"code":200,"data":[{"query_id":1,"order_id_str":"1","contract_code":"`+tc.contract+`","direction":"buy","order_price_type":6,"status":6,"create_date":1782867600000}]}`, func(r *http.Request) {
-				var payload map[string]any
-				require.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "history request must decode")
-				calls.Add(1)
+			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, tc.path, response, func(r *http.Request) {
+				var bounds struct {
+					Start int64 `json:"start_time"`
+					End   int64 `json:"end_time"`
+				}
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&bounds), "history request should decode") {
+					return
+				}
+				switch calls.Add(1) {
+				case 1:
+					assert.Equal(t, start.UnixMilli(), bounds.Start, "first window should start at the requested time")
+					assert.Equal(t, boundary.UnixMilli(), bounds.End, "first window should end at the shared boundary")
+				case 2:
+					assert.Equal(t, boundary.UnixMilli(), bounds.Start, "second window should start at the shared boundary")
+					assert.Equal(t, end.UnixMilli(), bounds.End, "second window should end at the requested time")
+				}
 			})
-			start := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
-			orders, err := h.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: tc.item, Type: order.AnyType, Side: order.AnySide, Pairs: currency.Pairs{tc.pair}, StartTime: start, EndTime: start.Add(72 * time.Hour)})
+			orders, err := h.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: tc.item, Type: order.AnyType, Side: order.AnySide, Pairs: currency.Pairs{tc.pair}, StartTime: start, EndTime: end})
 			require.NoError(t, err, "history windows must decode")
-			assert.Equal(t, int32(2), calls.Load(), "each 48-hour window should be requested")
-			require.Len(t, orders, 1, "overlapping history rows must be returned once")
-			if tc.item == asset.Futures {
-				assert.Equal(t, time.UnixMilli(1782867600000), orders[0].Date, "delivery creation date should be retained")
-			}
+			assert.Equal(t, int32(2), calls.Load(), "each history window should be requested")
+			require.Len(t, orders, 1, "only the in-range order must remain after deduplication")
+			assert.Equal(t, "1", orders[0].OrderID, "the boundary order should survive")
+			assert.True(t, orders[0].Date.Equal(boundary), "creation date should retain the exchange timestamp")
 		})
 	}
 	type orderTypeCase struct {
@@ -580,12 +745,11 @@ func TestGetOrderHistory(t *testing.T) {
 		}
 	})
 	type contractHistoryCase struct {
-		name       string
-		item       asset.Item
-		pair       currency.Pair
-		path       string
-		contract   string
-		extraEntry map[string]any
+		name     string
+		item     asset.Item
+		pair     currency.Pair
+		path     string
+		contract string
 	}
 	for _, tc := range []contractHistoryCase{
 		{
@@ -601,57 +765,49 @@ func TestGetOrderHistory(t *testing.T) {
 			pair:     btccwPair,
 			path:     "/api/v3/contract_hisorders",
 			contract: "BTC_CW",
-			extraEntry: map[string]any{
-				"create_date": time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var calls atomic.Int64
+			startTime := time.Now().UTC().Add(-7 * 24 * time.Hour).Truncate(time.Second)
+			var cursorsMu sync.Mutex
+			var cursors []uint64
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, tc.path, r.URL.Path, "history endpoint path should match")
-				payload, err := io.ReadAll(r.Body)
-				assert.NoError(t, err, "request body should be readable")
-				var requestBody map[string]any
-				assert.NoError(t, json.Unmarshal(payload, &requestBody), "request body should decode")
-				assert.Equal(t, v3HistoryDirectionNext, requestBody["direct"], "history pagination should move forwards")
-				cursor, _ := requestBody["from_id"].(float64)
-				entries := make([]map[string]any, 0, 50)
-				switch int64(cursor) {
-				case 0:
-					for queryID := int64(1); queryID <= 50; queryID++ {
-						entry := map[string]any{
-							"fee":              -0.1,
-							"query_id":         queryID,
-							"order_id":         queryID,
-							"order_id_str":     strconv.FormatInt(queryID, 10),
-							"contract_code":    tc.contract,
-							"direction":        "buy",
-							"order_price_type": 6,
-							"status":           6,
-						}
-						maps.Copy(entry, tc.extraEntry)
-						entries = append(entries, entry)
-					}
-				case 50:
-					entry := map[string]any{
-						"fee":              -0.1,
-						"query_id":         int64(51),
-						"order_id":         int64(51),
-						"order_id_str":     "51",
-						"contract_code":    tc.contract,
-						"direction":        "buy",
-						"order_price_type": 6,
-						"status":           6,
-					}
-					maps.Copy(entry, tc.extraEntry)
-					entries = append(entries, entry)
+				var requestBody struct {
+					FromID uint64 `json:"from_id"`
+					Direct string `json:"direct"`
+					Limit  uint64 `json:"limit"`
 				}
-				response, err := json.Marshal(map[string]any{"code": 200, "data": entries})
-				assert.NoError(t, err, "response body should encode")
-				_, _ = w.Write(response)
-				calls.Add(1)
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&requestBody), "request body should decode") {
+					http.Error(w, "invalid body", http.StatusBadRequest)
+					return
+				}
+				assert.Equal(t, v3HistoryDirectionNext, requestBody.Direct, "history pagination should move forwards")
+				assert.Equal(t, uint64(50), requestBody.Limit, "history should request 50 orders at a time")
+				cursorsMu.Lock()
+				cursors = append(cursors, requestBody.FromID)
+				calls := len(cursors)
+				cursorsMu.Unlock()
+				var first, last int
+				switch {
+				case calls == 1 && requestBody.FromID == 0:
+					first, last = 50, 1
+				case calls == 2 && requestBody.FromID == 50:
+					first, last = 51, 50
+				default:
+					http.Error(w, "unexpected history cursor", http.StatusBadRequest)
+					return
+				}
+				entries := make([]map[string]any, 0, first-last+1)
+				for queryID := first; queryID >= last; queryID-- {
+					entries = append(entries, map[string]any{
+						"fee": -0.1, "query_id": queryID, "order_id": queryID, "order_id_str": strconv.Itoa(queryID),
+						"contract_code": tc.contract, "direction": "buy", "order_price_type": 6, "status": 6,
+						"create_date": startTime.Add(time.Duration(queryID) * time.Second).UnixMilli(),
+					})
+				}
+				assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"code": 200, "data": entries}), "history response should encode")
 			}))
 			t.Cleanup(server.Close)
 
@@ -660,7 +816,6 @@ func TestGetOrderHistory(t *testing.T) {
 			h.API.AuthenticatedSupport = true
 			h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
-			startTime := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
 			orders, err := h.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
 				Type:      order.AnyType,
 				Pairs:     []currency.Pair{tc.pair},
@@ -670,12 +825,20 @@ func TestGetOrderHistory(t *testing.T) {
 				EndTime:   startTime.Add(24 * time.Hour),
 			})
 			require.NoError(t, err, "GetOrderHistory must not error")
-			require.Len(t, orders, 51, "all cursor pages must be returned")
-			for _, detail := range orders {
+			require.Len(t, orders, 51, "all unique orders must be returned")
+			expectedIDs := make([]string, 0, 51)
+			for id := 50; id >= 1; id-- {
+				expectedIDs = append(expectedIDs, strconv.Itoa(id))
+			}
+			expectedIDs = append(expectedIDs, "51")
+			for i, detail := range orders {
+				assert.Equal(t, expectedIDs[i], detail.OrderID, "orders should retain page ordering and skip the repeated boundary")
 				assert.Equal(t, 0.1, detail.Fee, "history fees should use GCT charge signs")
 			}
 			assert.Equal(t, order.PostOnly, orders[0].TimeInForce, "numeric history type should retain post-only protection")
-			assert.Equal(t, int64(2), calls.Load(), "pagination should stop after the short final page")
+			cursorsMu.Lock()
+			defer cursorsMu.Unlock()
+			assert.Equal(t, []uint64{0, 50}, cursors, "the highest first-page query ID should be used for the next page")
 		})
 	}
 	t.Run("USDT margined futures", func(t *testing.T) {
@@ -724,13 +887,35 @@ func TestGetOrderHistory(t *testing.T) {
 	})
 }
 
-func TestGetV3HistoryWindows(t *testing.T) {
+func TestGetOrderHistoryWindows(t *testing.T) {
 	t.Parallel()
+	for _, startOnly := range []bool{false, true} {
+		t.Run(fmt.Sprintf("incomplete interval startOnly=%t", startOnly), func(t *testing.T) {
+			t.Parallel()
+			start, end := time.Time{}, time.Now()
+			if startOnly {
+				start, end = end, start
+			}
+			_, err := getOrderHistoryWindows(start, end, 90*24*time.Hour)
+			require.ErrorIs(t, err, errInvalidCreateDate, "history windows must require both interval bounds")
+		})
+	}
+	t.Run("spot maximum span", func(t *testing.T) {
+		t.Parallel()
+		const maxSpan = 180 * 24 * time.Hour
+		start := time.Now().UTC().Add(-maxSpan).Truncate(time.Second)
+		windows, err := getOrderHistoryWindows(start, start.Add(maxSpan), maxSpan)
+		require.NoError(t, err, "spot history must accept the full supported span")
+		require.Len(t, windows, 90, "spot history must split 180 days into 48-hour windows")
+		assert.Equal(t, start.Add(maxSpan), windows[89].end, "the final window should include the requested end")
+		_, err = getOrderHistoryWindows(start, start.Add(maxSpan+time.Millisecond), maxSpan)
+		require.ErrorIs(t, err, errInvalidCreateDate, "spot history must reject a span exceeding its limit")
+	})
 	for _, span := range []time.Duration{48 * time.Hour, 48*time.Hour + time.Millisecond, 96*time.Hour + 2*time.Millisecond} {
 		t.Run(span.String(), func(t *testing.T) {
 			t.Parallel()
 			start := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
-			windows, err := getV3HistoryWindows(start, start.Add(span))
+			windows, err := getOrderHistoryWindows(start, start.Add(span), 90*24*time.Hour)
 			require.NoError(t, err, "windows must succeed")
 			for i, window := range windows {
 				assert.True(t, window.start.Before(window.end), "each window should have a positive duration")
@@ -744,13 +929,13 @@ func TestGetV3HistoryWindows(t *testing.T) {
 	t.Run("equal times", func(t *testing.T) {
 		t.Parallel()
 		now := time.Now()
-		_, err := getV3HistoryWindows(now, now)
+		_, err := getOrderHistoryWindows(now, now, 90*24*time.Hour)
 		require.ErrorIs(t, err, common.ErrStartEqualsEnd, "equal dates must be rejected")
 	})
 	startTime := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
 	endTime := startTime.Add(5 * 24 * time.Hour)
-	windows, err := getV3HistoryWindows(startTime, endTime)
-	require.NoError(t, err, "getV3HistoryWindows must not error")
+	windows, err := getOrderHistoryWindows(startTime, endTime, 90*24*time.Hour)
+	require.NoError(t, err, "getOrderHistoryWindows must not error")
 	require.Len(t, windows, 3, "five days must be split into three windows")
 	for x := range windows {
 		assert.LessOrEqual(t, windows[x].end.Sub(windows[x].start), 48*time.Hour, "each window should be at most 48 hours")
@@ -759,16 +944,16 @@ func TestGetV3HistoryWindows(t *testing.T) {
 	assert.Equal(t, endTime, windows[len(windows)-1].end, "last window should preserve the requested end")
 	assert.Equal(t, windows[0].end, windows[1].start, "adjacent ranges should be contiguous")
 
-	windows, err = getV3HistoryWindows(time.Time{}, time.Time{})
-	require.NoError(t, err, "getV3HistoryWindows must accept an unspecified interval")
+	windows, err = getOrderHistoryWindows(time.Time{}, time.Time{}, 90*24*time.Hour)
+	require.NoError(t, err, "getOrderHistoryWindows must accept an unspecified interval")
 	require.Len(t, windows, 1, "an unspecified interval must produce one request")
 	assert.True(t, windows[0].start.IsZero(), "unspecified start should remain zero")
 	assert.True(t, windows[0].end.IsZero(), "unspecified end should remain zero")
 
-	_, err = getV3HistoryWindows(endTime, startTime)
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "getV3HistoryWindows must reject reversed intervals")
-	_, err = getV3HistoryWindows(startTime, startTime.Add(91*24*time.Hour))
-	require.ErrorIs(t, err, errInvalidCreateDate, "getV3HistoryWindows must reject intervals over 90 days")
+	_, err = getOrderHistoryWindows(endTime, startTime, 90*24*time.Hour)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "getOrderHistoryWindows must reject reversed intervals")
+	_, err = getOrderHistoryWindows(startTime, startTime.Add(91*24*time.Hour), 90*24*time.Hour)
+	require.ErrorIs(t, err, errInvalidCreateDate, "getOrderHistoryWindows must reject intervals over 90 days")
 }
 
 func TestCancelAllOrders(t *testing.T) {
@@ -1227,6 +1412,42 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live spot", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		result, err := h.GetActiveOrders(ctx, &order.MultiOrderRequest{
+			AssetType: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Side: order.AnySide, Type: order.AnyType,
+		})
+		require.NoError(t, err, "live active orders must be readable")
+		for _, detail := range result {
+			assert.NotEmpty(t, detail.OrderID, "active order should have an exchange ID")
+			assert.True(t, detail.Pair.Equal(btcusdtPair), "active order should belong to the requested market")
+			assert.Contains(t, []order.Status{order.New, order.Active, order.PartiallyFilled}, detail.Status, "active order should retain its open state")
+		}
+	})
+	t.Run("spot client order ID", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, field, id string
+		}{
+			{name: "provided", field: `,"client-order-id":"strategy-entry-19"`, id: "strategy-entry-19"},
+			{name: "omitted"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				response := fmt.Sprintf(`{"status":"ok","data":[{"id":19,"account-id":72,"symbol":"btcusdt","type":"buy-limit","state":"submitted"%s}]}`, tc.field)
+				h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/openOrders", response, nil)
+				got, err := h.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Side: order.AnySide, Type: order.AnyType})
+				require.NoError(t, err, "spot order must decode")
+				require.Len(t, got, 1, "one spot order must be returned")
+				assert.Equal(t, "19", got[0].OrderID, "exchange order ID should be retained")
+				assert.Equal(t, "72", got[0].AccountID, "account ID should be retained")
+				assert.Equal(t, tc.id, got[0].ClientOrderID, "client order ID should be retained when supplied")
+			})
+		}
+	})
 	t.Run("missing spot pairs", func(t *testing.T) {
 		t.Parallel()
 		_, err := new(Exchange).GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide})
@@ -2027,6 +2248,31 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name, response string
+		wantErr        error
+	}{
+		{name: "omitted acknowledgement code", response: `{"code":200,"data":{"order_id":"42"}}`},
+		{name: "zero acknowledgement code", response: `{"code":200,"data":{"code":0,"order_id":"42"}}`},
+		{name: "successful acknowledgement code", response: `{"code":200,"data":{"code":200,"order_id":"42"}}`},
+		{name: "rejected acknowledgement", response: `{"code":200,"data":{"code":1061,"message":"Incorrect order state","order_id":"42"}}`, wantErr: errAPIResponse},
+		{name: "outer request rejected", response: `{"code":400,"message":"Request rejected"}`, wantErr: request.ErrAuthRequestFailed},
+		{name: "null response", response: `null`, wantErr: errEmptyResult},
+	} {
+		t.Run("USDT margined "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel_order", tc.response, nil)
+			err := h.CancelOrder(t.Context(), &order.Cancel{OrderID: "42", Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures})
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "cancellation rejection must return the expected error")
+				if tc.wantErr == errAPIResponse {
+					assert.ErrorContains(t, err, "Incorrect order state", "cancellation error should retain the exchange reason")
+				}
+				return
+			}
+			require.NoError(t, err, "successful cancellation must be accepted")
+		})
+	}
 
 	err := e.CancelOrder(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelOrder must reject nil cancellations")
@@ -2458,6 +2704,55 @@ func TestFormatV5OrderDetail(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
+	t.Run("live spot", func(t *testing.T) {
+		t.Parallel()
+		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{})
+		t.Run("unknown order", func(t *testing.T) {
+			t.Parallel()
+			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+			defer cancel()
+			_, err := h.GetOrderInfo(ctx, "9223372036854775807", btcusdtPair, asset.Spot)
+			require.ErrorIs(t, err, request.ErrAuthRequestFailed, "live lookup must reject an unknown exchange order")
+		})
+		t.Run("recent order identity", func(t *testing.T) {
+			t.Parallel()
+			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+			defer cancel()
+			orders, err := h.GetOrders(ctx, btcusdtPair, "", "", "", "filled,partial-canceled,canceled", "", "", "1")
+			require.NoError(t, err, "recent spot orders must be discoverable")
+			if len(orders) == 0 {
+				t.Skip("The account has no recent BTC-USDT order for identity verification")
+			}
+			raw := orders[0]
+			id := strconv.FormatUint(raw.ID, 10)
+			result, err := h.GetOrderInfo(ctx, id, btcusdtPair, asset.Spot)
+			require.NoError(t, err, "live order must be readable by exchange ID")
+			require.NotNil(t, result, "live order detail must decode")
+			assert.Equal(t, id, result.OrderID, "live lookup should retain the exchange ID")
+			assert.Equal(t, raw.ClientOrderID, result.ClientOrderID, "live lookup should retain the client order ID")
+			assert.Equal(t, strconv.FormatUint(raw.AccountID, 10), result.AccountID, "live lookup should retain the account ID")
+		})
+	})
+	t.Run("spot client order ID", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, field, id string
+		}{
+			{name: "provided", field: `,"client-order-id":"strategy-entry-19"`, id: "strategy-entry-19"},
+			{name: "omitted"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				response := fmt.Sprintf(`{"status":"ok","data":{"id":19,"account-id":72,"symbol":"btcusdt","type":"buy-limit","state":"filled"%s}}`, tc.field)
+				h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/orders/19", response, nil)
+				got, err := h.GetOrderInfo(t.Context(), "19", btcusdtPair, asset.Spot)
+				require.NoError(t, err, "spot order must decode")
+				assert.Equal(t, "19", got.OrderID, "exchange order ID should be retained")
+				assert.Equal(t, "72", got.AccountID, "account ID should be retained")
+				assert.Equal(t, tc.id, got.ClientOrderID, "client order ID should be retained when supplied")
+			})
+		}
+	})
 	t.Run("V5 execution prices and cost", func(t *testing.T) {
 		t.Parallel()
 		// Volumes count contracts of 0.001 BTC or 0.01 ETH, so turnover differs from volume times average price.
@@ -3711,17 +4006,22 @@ func TestUpdateTickers(t *testing.T) {
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	btcKey := key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.USDTMarginedFutures}
+	ltcKey := key.PairAsset{Base: currency.LTC.Item, Quote: currency.USDT.Item, Asset: asset.USDTMarginedFutures}
 	ethKey := key.PairAsset{Base: currency.ETH.Item, Quote: currency.USDT.Item, Asset: asset.USDTMarginedFutures}
 	for _, tc := range []struct {
-		name        string
-		keys        []key.PairAsset
-		contracts   []string
-		failed      string
-		otherAssets bool
-		wantErr     error
+		name          string
+		keys          []key.PairAsset
+		contracts     []string
+		failed        string
+		otherAssets   bool
+		assetDisabled bool
+		wantErr       error
 	}{
 		{name: "requested contracts only", keys: []key.PairAsset{btcKey, ethKey}, contracts: []string{"BTC-USDT", "ETH-USDT"}, failed: "XRP-USDT", otherAssets: true},
 		{name: "same pair on another asset", keys: []key.PairAsset{btcKey, {Base: currency.ETH.Item, Quote: currency.USDT.Item, Asset: asset.CoinMarginedFutures}}, contracts: []string{"BTC-USDT"}, failed: "ETH-USDT"},
+		{name: "explicit disabled contract", keys: []key.PairAsset{ltcKey}, contracts: []string{"LTC-USDT"}},
+		{name: "mixed enabled and disabled contracts", keys: []key.PairAsset{ltcKey, btcKey}, contracts: []string{"LTC-USDT", "BTC-USDT"}},
+		{name: "explicit contract with asset disabled", keys: []key.PairAsset{ltcKey}, contracts: []string{"LTC-USDT"}, assetDisabled: true},
 		{name: "duplicate keys", keys: []key.PairAsset{btcKey, btcKey}, contracts: []string{"BTC-USDT"}, failed: "ETH-USDT"},
 		{name: "all enabled contracts", contracts: []string{"BTC-USDT", "ETH-USDT", "XRP-USDT"}},
 		{name: "empty keys", keys: []key.PairAsset{}, contracts: []string{"BTC-USDT", "ETH-USDT", "XRP-USDT"}},
@@ -3767,13 +4067,16 @@ func TestGetOpenInterest(t *testing.T) {
 			pairs := currency.Pairs{btcusdtPair, currency.NewPair(currency.ETH, currency.USDT), currency.NewPair(currency.XRP, currency.USDT), currency.NewPair(currency.LTC, currency.USDT)}
 			require.NoError(t, h.SetPairs(pairs, asset.USDTMarginedFutures, false), "available contracts must include the disabled pair")
 			require.NoError(t, h.SetPairs(pairs[:3], asset.USDTMarginedFutures, true), "only the first three contracts must be enabled")
+			if tc.assetDisabled {
+				require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "test must disable the entire asset")
+			}
 			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
 			result, err := h.GetOpenInterest(ctx, tc.keys...)
 			mu.Lock()
 			contracts := slices.Clone(requested)
 			mu.Unlock()
-			assert.Equal(t, tc.contracts, contracts, "only selected enabled contracts should be requested")
+			assert.Equal(t, tc.contracts, contracts, "only selected contracts should be requested")
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr, "requested contract errors must propagate")
 				return

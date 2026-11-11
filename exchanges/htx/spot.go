@@ -422,7 +422,8 @@ func (e *Exchange) GetOrderMatchResults(ctx context.Context, orderID uint64) ([]
 	return resp.Orders, err
 }
 
-// GetOrders returns a list of orders
+// GetOrders returns a list of orders. Time bounds accept Unix milliseconds or
+// dates in YYYY-MM-DD format, interpreted as midnight UTC.
 func (e *Exchange) GetOrders(ctx context.Context, symbol currency.Pair, orderTypes, start, end, states, from, direct, size string) ([]OrderInfo, error) {
 	vals := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
@@ -437,11 +438,17 @@ func (e *Exchange) GetOrders(ctx context.Context, symbol currency.Pair, orderTyp
 	}
 
 	if start != "" {
-		vals.Set("start-date", start)
+		if date, err := time.Parse(time.DateOnly, start); err == nil {
+			start = strconv.FormatInt(date.UnixMilli(), 10)
+		}
+		vals.Set("start-time", start)
 	}
 
 	if end != "" {
-		vals.Set("end-date", end)
+		if date, err := time.Parse(time.DateOnly, end); err == nil {
+			end = strconv.FormatInt(date.UnixMilli(), 10)
+		}
+		vals.Set("end-time", end)
 	}
 
 	if from != "" {

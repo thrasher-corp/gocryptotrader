@@ -1745,10 +1745,15 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		}
 		successes = result.Cancellations.Successes
 	case asset.USDTMarginedFutures:
-		var cancelledOrder *V5OrderResponse
-		cancelledOrder, err = e.CancelV5Order(ctx, o.Pair, o.OrderID, clientOrderID)
-		if err == nil && cancelledOrder == nil {
+		cancelledOrder, err := e.CancelV5Order(ctx, o.Pair, o.OrderID, clientOrderID)
+		if err != nil {
+			return err
+		}
+		if cancelledOrder == nil {
 			return errEmptyResult
+		}
+		if cancelledOrder.Acknowledgement.Code != 0 && cancelledOrder.Acknowledgement.Code != 200 {
+			return fmt.Errorf("%d: %w: %s", cancelledOrder.Acknowledgement.Code, errAPIResponse, cancelledOrder.Acknowledgement.Message)
 		}
 	case asset.Futures:
 		result, cancelErr := e.FuturesCancelOrder(ctx, o.Pair.Base, o.OrderID, clientOrderID)
@@ -2182,6 +2187,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		orderDetail = order.Detail{
 			Exchange:       e.Name,
 			OrderID:        orderID,
+			ClientOrderID:  resp.ClientOrderID,
 			AccountID:      strconv.FormatUint(resp.AccountID, 10),
 			Pair:           p,
 			Type:           orderType,
@@ -2431,6 +2437,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			for x := range resp {
 				orderDetail := order.Detail{
 					OrderID:         strconv.FormatUint(resp[x].ID, 10),
+					ClientOrderID:   resp[x].ClientOrderID,
 					Price:           resp[x].Price.Float64(),
 					Amount:          resp[x].Amount.Float64(),
 					ExecutedAmount:  resp[x].FilledAmount.Float64(),
@@ -2592,14 +2599,14 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	return req.Filter(e.Name, orders), nil
 }
 
-type v3HistoryWindow struct {
+type orderHistoryWindow struct {
 	start time.Time
 	end   time.Time
 }
 
-func getV3HistoryWindows(startTime, endTime time.Time) ([]v3HistoryWindow, error) {
+func getOrderHistoryWindows(startTime, endTime time.Time, maxRange time.Duration) ([]orderHistoryWindow, error) {
 	if startTime.IsZero() && endTime.IsZero() {
-		return []v3HistoryWindow{{}}, nil
+		return []orderHistoryWindow{{}}, nil
 	}
 	if startTime.IsZero() || endTime.IsZero() {
 		return nil, errInvalidCreateDate
@@ -2607,16 +2614,16 @@ func getV3HistoryWindows(startTime, endTime time.Time) ([]v3HistoryWindow, error
 	if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 		return nil, err
 	}
-	if endTime.Sub(startTime) > 90*24*time.Hour {
+	if endTime.Sub(startTime) > maxRange {
 		return nil, errInvalidCreateDate
 	}
-	windows := make([]v3HistoryWindow, 0, int(endTime.Sub(startTime)/(48*time.Hour))+1)
+	windows := make([]orderHistoryWindow, 0, int(endTime.Sub(startTime)/(48*time.Hour))+1)
 	for startTime.Before(endTime) {
 		windowEnd := startTime.Add(48 * time.Hour)
 		if windowEnd.After(endTime) {
 			windowEnd = endTime
 		}
-		windows = append(windows, v3HistoryWindow{start: startTime, end: windowEnd})
+		windows = append(windows, orderHistoryWindow{start: startTime, end: windowEnd})
 		startTime = windowEnd
 	}
 	return windows, nil
@@ -2635,43 +2642,71 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if len(req.Pairs) == 0 {
 			return nil, errCurrencyNotSupplied
 		}
-		states := "partial-canceled,filled,canceled"
-		for i := range req.Pairs {
-			resp, err := e.GetOrders(ctx,
-				req.Pairs[i],
-				"",
-				"",
-				"",
-				states,
-				"",
-				"",
-				"")
+		const states = "partial-canceled,filled,canceled"
+		const pageSize = 100
+		windows := []orderHistoryWindow{{start: req.StartTime, end: req.EndTime}}
+		if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
+			windows, err = getOrderHistoryWindows(req.StartTime, req.EndTime, 180*24*time.Hour)
 			if err != nil {
 				return nil, err
 			}
-			for x := range resp {
-				orderDetail := order.Detail{
-					OrderID:         strconv.FormatUint(resp[x].ID, 10),
-					Price:           resp[x].Price.Float64(),
-					Amount:          resp[x].Amount.Float64(),
-					ExecutedAmount:  firstNonZero(resp[x].FieldAmount, resp[x].FilledAmount),
-					RemainingAmount: resp[x].Amount.Float64() - firstNonZero(resp[x].FieldAmount, resp[x].FilledAmount),
-					Cost:            firstNonZero(resp[x].FieldCashAmount, resp[x].FilledCashAmount),
-					CostAsset:       req.Pairs[i].Quote,
-					Pair:            req.Pairs[i],
-					Exchange:        e.Name,
-					Date:            resp[x].CreatedAt.Time(),
-					CloseTime:       resp[x].FinishedAt.Time(),
-					AccountID:       strconv.FormatUint(resp[x].AccountID, 10),
-					Fee:             firstNonZero(resp[x].FieldFees, resp[x].FilledFees),
+		}
+		for i := range req.Pairs {
+			seen := make(map[uint64]struct{})
+			for _, window := range slices.Backward(windows) {
+				var start, end string
+				if !window.start.IsZero() {
+					start = strconv.FormatInt(window.start.UnixMilli(), 10)
 				}
-				setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
-				orderDetail.InferCostsAndTimes()
-				orders = append(orders, orderDetail)
+				if !window.end.IsZero() {
+					end = strconv.FormatInt(window.end.UnixMilli(), 10)
+				}
+				var cursor uint64
+				var from, direction string
+				for {
+					resp, err := e.GetOrders(ctx, req.Pairs[i], "", start, end, states, from, direction, strconv.Itoa(pageSize))
+					if err != nil {
+						return orders, err
+					}
+					for x := range resp {
+						if _, duplicate := seen[resp[x].ID]; duplicate {
+							continue
+						}
+						seen[resp[x].ID] = struct{}{}
+						orderDetail := order.Detail{
+							OrderID:         strconv.FormatUint(resp[x].ID, 10),
+							ClientOrderID:   resp[x].ClientOrderID,
+							Price:           resp[x].Price.Float64(),
+							Amount:          resp[x].Amount.Float64(),
+							ExecutedAmount:  firstNonZero(resp[x].FieldAmount, resp[x].FilledAmount),
+							RemainingAmount: resp[x].Amount.Float64() - firstNonZero(resp[x].FieldAmount, resp[x].FilledAmount),
+							Cost:            firstNonZero(resp[x].FieldCashAmount, resp[x].FilledCashAmount),
+							CostAsset:       req.Pairs[i].Quote,
+							Pair:            req.Pairs[i],
+							Exchange:        e.Name,
+							Date:            resp[x].CreatedAt.Time(),
+							CloseTime:       resp[x].FinishedAt.Time(),
+							AccountID:       strconv.FormatUint(resp[x].AccountID, 10),
+							Fee:             firstNonZero(resp[x].FieldFees, resp[x].FilledFees),
+						}
+						setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
+						orderDetail.InferCostsAndTimes()
+						orders = append(orders, orderDetail)
+					}
+					if len(resp) < pageSize {
+						break
+					}
+					next := resp[len(resp)-1].ID
+					if next == 0 || (cursor != 0 && next >= cursor) {
+						break
+					}
+					cursor = next
+					from, direction = strconv.FormatUint(cursor, 10), "next"
+				}
 			}
 		}
 	case asset.CoinMarginedFutures:
-		windows, err := getV3HistoryWindows(req.StartTime, req.EndTime)
+		windows, err := getOrderHistoryWindows(req.StartTime, req.EndTime, 90*24*time.Hour)
 		if err != nil {
 			return nil, err
 		}
@@ -2721,6 +2756,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 							Exchange:        e.Name,
 							AssetType:       req.AssetType,
 							OrderID:         orderHistory.OrderHistory.Orders[x].OrderIDString,
+							Date:            orderHistory.OrderHistory.Orders[x].CreateDate.Time(),
 							Side:            orderVars.Side,
 							Type:            orderVars.OrderType,
 							Status:          orderVars.Status,
@@ -2752,7 +2788,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if len(req.Pairs) == 0 {
 			return nil, errCurrencyNotSupplied
 		}
-		windows, err := getV3HistoryWindows(req.StartTime, req.EndTime)
+		windows, err := getOrderHistoryWindows(req.StartTime, req.EndTime, 90*24*time.Hour)
 		if err != nil {
 			return nil, err
 		}
@@ -2828,7 +2864,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 		}
 	case asset.Futures:
-		windows, err := getV3HistoryWindows(req.StartTime, req.EndTime)
+		windows, err := getOrderHistoryWindows(req.StartTime, req.EndTime, 90*24*time.Hour)
 		if err != nil {
 			return nil, err
 		}
@@ -3584,27 +3620,6 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 					},
 				}, nil
 			}
-		case asset.USDTMarginedFutures:
-			data, err := e.GetV5OpenInterest(ctx, k[0].Pair())
-			if err != nil {
-				return nil, err
-			}
-			if data == nil {
-				return nil, errEmptyResult
-			}
-			p, err := e.MatchSymbolWithAvailablePairs(data.OpenInterest.ContractCode, k[0].Asset, true)
-			if err != nil {
-				if !errors.Is(err, currency.ErrPairNotFound) {
-					return nil, err
-				}
-				break
-			}
-			return []futures.OpenInterest{
-				{
-					Key:          key.NewExchangeAssetPair(e.Name, k[0].Asset, p),
-					OpenInterest: data.OpenInterest.Amount.Float64(),
-				},
-			}, nil
 		case asset.CoinMarginedFutures:
 			data, err := e.SwapOpenInterestInformation(ctx, k[0].Pair())
 			if err != nil {
@@ -3628,8 +3643,18 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			}
 		}
 	}
+	var explicitUSDTPairs currency.Pairs
+	for _, requested := range k {
+		if requested.Asset == asset.USDTMarginedFutures && !explicitUSDTPairs.Contains(requested.Pair(), true) {
+			explicitUSDTPairs = append(explicitUSDTPairs, requested.Pair())
+		}
+	}
+	assets := e.GetAssetTypes(true)
+	if len(explicitUSDTPairs) != 0 && !assets.Contains(asset.USDTMarginedFutures) {
+		assets = append(assets, asset.USDTMarginedFutures)
+	}
 	var resp []futures.OpenInterest
-	for _, a := range e.GetAssetTypes(true) {
+	for _, a := range assets {
 		if len(k) > 0 && !slices.ContainsFunc(k, func(requested key.PairAsset) bool { return requested.Asset == a }) {
 			continue
 		}
@@ -3664,38 +3689,30 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				})
 			}
 		case asset.USDTMarginedFutures:
-			enabledPairs, err := e.GetEnabledPairs(asset.USDTMarginedFutures)
-			if err != nil {
-				return nil, err
-			}
-			for i := range enabledPairs {
-				if len(k) > 0 && !slices.ContainsFunc(k, func(requested key.PairAsset) bool {
-					return requested.Asset == a && requested.Pair().Equal(enabledPairs[i])
-				}) {
-					continue
+			pairs := explicitUSDTPairs
+			if len(k) == 0 {
+				var err error
+				pairs, err = e.GetEnabledPairs(a)
+				if err != nil {
+					return nil, err
 				}
-				data, err := e.GetV5OpenInterest(ctx, enabledPairs[i])
+			}
+			for _, pair := range pairs {
+				data, err := e.GetV5OpenInterest(ctx, pair)
 				if err != nil {
 					return nil, err
 				}
 				if data == nil {
 					return nil, errEmptyResult
 				}
-				p, isEnabled, err := e.MatchSymbolCheckEnabled(data.OpenInterest.ContractCode, a, true)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-					return nil, err
-				}
-				if !isEnabled {
+				p, err := e.MatchSymbolWithAvailablePairs(data.OpenInterest.ContractCode, a, true)
+				if errors.Is(err, currency.ErrPairNotFound) {
 					continue
 				}
-				var appendData bool
-				for j := range k {
-					if k[j].Asset == a && k[j].Pair().Equal(p) {
-						appendData = true
-						break
-					}
+				if err != nil {
+					return nil, err
 				}
-				if len(k) > 0 && !appendData {
+				if !pair.Equal(p) {
 					continue
 				}
 				resp = append(resp, futures.OpenInterest{
