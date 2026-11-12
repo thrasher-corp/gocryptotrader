@@ -6,10 +6,13 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -38,14 +41,29 @@ var dcaConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-api-c
 func TestStartRPCServer(t *testing.T) {
 	t.Parallel()
 
+	// 30000-31999 lies below the default ephemeral ranges and apart from the ports gctrpc/grpcserver's tests reserve in
+	// their own process; the map stops a later reservation picking a port again until its subtest ends
+	var reservedPorts sync.Map
 	reserveAddress := func(t *testing.T) string {
 		t.Helper()
 		listenConfig := net.ListenConfig{}
-		portListener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
-		require.NoError(t, err, "Listen must not error")
-		address := portListener.Addr().String()
-		require.NoError(t, portListener.Close(), "Close must not error")
-		return address
+		for range 100 {
+			port := 30000 + rand.IntN(2000) //nolint:gosec // a test port needs no cryptographic randomness
+			if _, taken := reservedPorts.LoadOrStore(port, struct{}{}); taken {
+				continue
+			}
+			address := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
+			portListener, err := listenConfig.Listen(t.Context(), "tcp", address)
+			if err != nil {
+				reservedPorts.Delete(port)
+				continue
+			}
+			require.NoError(t, portListener.Close(), "Close must not error")
+			t.Cleanup(func() { reservedPorts.Delete(port) })
+			return address
+		}
+		require.FailNow(t, "reserveAddress must find a free port")
+		return ""
 	}
 	canDial := func(t *testing.T, address string) bool {
 		t.Helper()
@@ -734,6 +752,33 @@ func TestRPCStatusCode(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, tc.want, rpcStatusCode(tc.err), "rpcStatusCode should return the expected code")
+		})
+	}
+}
+
+func TestGRPCServerTaskConfig(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                     string
+		generateReport           bool
+		wantOutput, wantTemplate string
+	}{
+		{name: "report paths left out without a report", generateReport: false},
+		{name: "report paths kept for a report", generateReport: true, wantOutput: "output", wantTemplate: "template"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := &GRPCServer{config: &config.BacktesterConfig{
+				Verbose: true,
+				Report:  config.Report{GenerateReport: tc.generateReport, OutputPath: "output", TemplatePath: "template"},
+			}}
+			taskCfg := s.taskConfig()
+			require.NotSame(t, s.config, taskCfg, "taskConfig must return a copy of the server config")
+			assert.True(t, taskCfg.Verbose, "taskConfig should copy the server config's settings")
+			assert.Equal(t, tc.wantOutput, taskCfg.Report.OutputPath, "taskConfig should set the task's report output path")
+			assert.Equal(t, tc.wantTemplate, taskCfg.Report.TemplatePath, "taskConfig should set the task's report template path")
+			assert.Equal(t, "output", s.config.Report.OutputPath, "taskConfig should leave the server's report output path alone")
+			assert.Equal(t, "template", s.config.Report.TemplatePath, "taskConfig should leave the server's report template path alone")
 		})
 	}
 }

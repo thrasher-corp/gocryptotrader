@@ -4838,6 +4838,49 @@ func TestGetExchangeTickerStream(t *testing.T) {
 	})
 }
 
+func TestReceiveOrDone(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns the next dispatched value", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		ch := make(chan any, 1)
+		ch <- "update"
+		data, err := receiveOrDone(ctx, ch)
+		require.NoError(t, err, "receiveOrDone must not error")
+		assert.Equal(t, "update", data, "receiveOrDone should return the dispatched value")
+	})
+
+	t.Run("closed channel", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		ch := make(chan any)
+		close(ch)
+		data, err := receiveOrDone(ctx, ch)
+		assert.ErrorIs(t, err, errDispatchSystem, "receiveOrDone should report a closed channel")
+		assert.Nil(t, data, "receiveOrDone should return no value for a closed channel")
+	})
+
+	t.Run("client gone away", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		done := make(chan error, 1)
+		go func() {
+			_, err := receiveOrDone(ctx, make(chan any))
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			assert.ErrorIs(t, err, context.Canceled, "receiveOrDone should return the context's error")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "receiveOrDone must return once the context is done")
+		}
+	})
+}
+
 func TestGetForexProviders(t *testing.T) {
 	t.Parallel()
 
