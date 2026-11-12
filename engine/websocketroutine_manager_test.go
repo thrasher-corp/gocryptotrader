@@ -787,7 +787,7 @@ func TestWebsocketRoutineManagerReceiverShutdown(t *testing.T) {
 				select {
 				case <-stopDone:
 				case <-time.After(time.Second):
-					require.FailNow(t, "Stop should drain queued payloads before it returns")
+					require.FailNow(t, "Stop must drain queued payloads before it returns")
 				}
 			}
 
