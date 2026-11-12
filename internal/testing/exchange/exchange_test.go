@@ -418,6 +418,32 @@ func TestMockWebsocketInstance(t *testing.T) {
 		assert.False(t, e.Websocket.IsConnected(), "Websocket should be shut down once its test ends")
 	})
 
+	t.Run("shut down with no handler running", func(t *testing.T) {
+		// Its handler returns once it has upgraded the connection, so this case checks the cleanup's own shutdown rather
+		// than one the connection monitor makes while the cleanup waits for a running handler
+		upgrader := gws.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+		upgraded := make(chan *gws.Conn, 1)
+		var e *binance.Exchange
+		var serverConn *gws.Conn
+		t.Run("instance", func(t *testing.T) {
+			e = MockWebsocketInstance[binance.Exchange](t, func(w http.ResponseWriter, r *http.Request) {
+				c, err := upgrader.Upgrade(w, r, nil)
+				if assert.NoError(t, err, "Upgrade should not error") {
+					upgraded <- c
+				}
+			})
+			require.True(t, e.Websocket.IsConnected(), "Websocket must be connected during its test")
+			select {
+			case serverConn = <-upgraded:
+			case <-time.After(10 * time.Second):
+				require.FailNow(t, "Mock handler must upgrade the connection")
+			}
+		})
+		require.NotNil(t, serverConn, "Mock handler must have upgraded the connection")
+		assert.False(t, e.Websocket.IsConnected(), "Websocket should be shut down once its test ends")
+		assert.NoError(t, serverConn.Close(), "Closing the mock's connection should not error")
+	})
+
 	t.Run("already shut down", func(t *testing.T) {
 		require.NoError(t, newInstance(t).Shutdown(), "Shutdown must not error")
 	})
@@ -494,7 +520,7 @@ func (r *failureRecorder) Errorf(format string, args ...any) {
 	}
 }
 
-func TestMockHandlers(t *testing.T) {
+func TestMockHandlersTrack(t *testing.T) {
 	t.Parallel()
 
 	newRequest := func(tb testing.TB) *http.Request {
@@ -619,6 +645,88 @@ func TestMockHandlers(t *testing.T) {
 			assert.False(t, reportedAfterReturn, "track should report the panic before its handler stops counting as running")
 		})
 	}
+}
+
+func TestMockHandlersStop(t *testing.T) {
+	t.Parallel()
+
+	t.Run("closes at once when no handler is running", func(t *testing.T) {
+		t.Parallel()
+		var m mockHandlers
+		select {
+		case <-m.stop():
+		default:
+			assert.Fail(t, "stop's channel should be closed when no handler is running")
+		}
+	})
+
+	t.Run("stays open while a handler is running", func(t *testing.T) {
+		t.Parallel()
+		m := mockHandlers{running: 1}
+		select {
+		case <-m.stop():
+			assert.Fail(t, "stop's channel should stay open while a handler is running")
+		default:
+		}
+	})
+
+	t.Run("returns the same channel when called again", func(t *testing.T) {
+		t.Parallel()
+		m := mockHandlers{running: 1}
+		stopped := m.stop()
+		assert.Equal(t, stopped, m.stop(), "stop should return the same channel when called again")
+	})
+}
+
+func TestMockHandlersDone(t *testing.T) {
+	t.Parallel()
+
+	t.Run("closes stop's channel once the last handler returns", func(t *testing.T) {
+		t.Parallel()
+		m := mockHandlers{running: 2}
+		stopped := m.stop()
+		m.done()
+		select {
+		case <-stopped:
+			assert.Fail(t, "stop's channel should stay open while another handler is running")
+		default:
+		}
+		m.done()
+		select {
+		case <-stopped:
+		default:
+			assert.Fail(t, "stop's channel should be closed once the last handler has returned")
+		}
+	})
+
+	t.Run("before stop", func(t *testing.T) {
+		t.Parallel()
+		m := mockHandlers{running: 1}
+		m.done()
+		select {
+		case <-m.stop():
+		default:
+			assert.Fail(t, "stop's channel should be closed once the only handler has returned")
+		}
+	})
+}
+
+func TestForgetWebsocketSetup(t *testing.T) {
+	t.Parallel()
+	forgottenKey, keptKey := weak.Make(new(exchange.Base)), weak.Make(new(exchange.Base))
+	setupWsMutex.Lock()
+	setupWsOnce[forgottenKey], setupWsOnce[keptKey] = true, true
+	setupWsMutex.Unlock()
+	t.Cleanup(func() { forgetWebsocketSetup(keptKey) })
+
+	forgetWebsocketSetup(forgottenKey)
+
+	setupWsMutex.Lock()
+	_, forgottenFound := setupWsOnce[forgottenKey]
+	_, keptFound := setupWsOnce[keptKey]
+	setupWsMutex.Unlock()
+	assert.False(t, forgottenFound, "forgetWebsocketSetup should drop the given exchange's entry")
+	assert.True(t, keptFound, "forgetWebsocketSetup should keep other exchanges' entries")
 }
 
 func TestSetupWebsocket(t *testing.T) {
