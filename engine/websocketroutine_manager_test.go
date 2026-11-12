@@ -767,7 +767,11 @@ func TestWebsocketRoutineManagerReceiverShutdown(t *testing.T) {
 					close(holding)
 					<-releaseHold
 				}
-				received <- data.(string)
+				s, ok := data.(string)
+				if !ok {
+					return errors.New("expected string payload")
+				}
+				received <- s
 				return nil
 			}, false))
 
