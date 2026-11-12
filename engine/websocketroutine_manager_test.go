@@ -830,11 +830,11 @@ func TestWebsocketRoutineManagerReloadExchangeFromHandler(t *testing.T) {
 	returned := make(chan error, 1)
 	require.NoError(t, m.registerWebsocketDataHandler(func(_ string, data any) error {
 		if data == "reload from a handler" {
-			if err := m.unregisterExchange(websocketTestExchangeName); err != nil {
-				returned <- err
-				return err
+			reloadErr := m.unregisterExchange(websocketTestExchangeName)
+			if reloadErr == nil {
+				reloadErr = m.registerExchange(t.Context(), replacement)
 			}
-			returned <- m.registerExchange(t.Context(), replacement)
+			returned <- reloadErr
 		}
 		return nil
 	}, false))

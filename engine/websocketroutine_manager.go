@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -260,6 +260,14 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ctx context.Context, ws 
 	// Engine.Stop stops the order manager, which still takes updates until then. Stop, unregisterExchange
 	// and a replacement registration cancel it instead.
 	receiverCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	// UnloadExchange shuts the websocket down before cancelling its receiver, so the relay can still hold the
+	// exchange's last updates, such as order fills: stop records how many, and the receiver drains up to that
+	// many before it ends.
+	var pending atomic.Int64
+	stop := func() {
+		pending.Store(int64(len(ws.DataHandler.C)))
+		cancel()
+	}
 
 	m.receiversMu.Lock()
 	if m.state.Load() == stoppedState {
@@ -274,44 +282,37 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ctx context.Context, ws 
 	if previous := m.dataReceivers[key]; previous != nil {
 		previous()
 	}
-	m.dataReceivers[key] = cancel
+	m.dataReceivers[key] = stop
+
+	deliver := func(data any) {
+		if data == nil {
+			log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
+		}
+		m.mu.RLock()
+		for x := range m.dataHandlers {
+			if err := m.dataHandlers[x](ws.GetName(), data); err != nil {
+				log.Errorln(log.WebsocketMgr, err)
+			}
+		}
+		m.mu.RUnlock()
+	}
 
 	// The receiver is counted in m.wg before releasing receiversMu so Stop
 	// cannot reach wg.Wait ahead of it.
 	m.wg.Go(func() {
-		deliver := func(payload stream.Payload) {
-			if payload.Data == nil {
-				log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
-			}
-			m.mu.RLock()
-			for x := range m.dataHandlers {
-				if err := m.dataHandlers[x](ws.GetName(), payload.Data); err != nil {
-					log.Errorln(log.WebsocketMgr, err)
-				}
-			}
-			m.mu.RUnlock()
-		}
-		drainRelay := func() {
-			for {
-				select {
-				case payload := <-ws.DataHandler.C:
-					deliver(payload)
-				default:
-					return
-				}
-			}
-		}
-		for {
+		for receiverCtx.Err() == nil {
 			select {
 			case <-receiverCtx.Done():
-				drainRelay()
-				return
 			case payload := <-ws.DataHandler.C:
-				deliver(payload)
-				if receiverCtx.Err() != nil {
-					drainRelay()
-					return
-				}
+				deliver(payload.Data)
+			}
+		}
+		for range pending.Load() {
+			select {
+			case payload := <-ws.DataHandler.C:
+				deliver(payload.Data)
+			default:
+				return
 			}
 		}
 	})
