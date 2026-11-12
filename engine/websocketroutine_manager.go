@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -278,24 +279,39 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ctx context.Context, ws 
 	// The receiver is counted in m.wg before releasing receiversMu so Stop
 	// cannot reach wg.Wait ahead of it.
 	m.wg.Go(func() {
+		deliver := func(payload stream.Payload) {
+			if payload.Data == nil {
+				log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
+			}
+			m.mu.RLock()
+			for x := range m.dataHandlers {
+				if err := m.dataHandlers[x](ws.GetName(), payload.Data); err != nil {
+					log.Errorln(log.WebsocketMgr, err)
+				}
+			}
+			m.mu.RUnlock()
+		}
+		drainRelay := func() {
+			for {
+				select {
+				case payload := <-ws.DataHandler.C:
+					deliver(payload)
+				default:
+					return
+				}
+			}
+		}
 		for {
 			select {
 			case <-receiverCtx.Done():
+				drainRelay()
 				return
 			case payload := <-ws.DataHandler.C:
+				deliver(payload)
 				if receiverCtx.Err() != nil {
+					drainRelay()
 					return
 				}
-				if payload.Data == nil {
-					log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
-				}
-				m.mu.RLock()
-				for x := range m.dataHandlers {
-					if err := m.dataHandlers[x](ws.GetName(), payload.Data); err != nil {
-						log.Errorln(log.WebsocketMgr, err)
-					}
-				}
-				m.mu.RUnlock()
 			}
 		}
 	})

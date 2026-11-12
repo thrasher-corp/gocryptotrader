@@ -564,11 +564,13 @@ func TestWebsocketRoutineManagerRegisterExchange(t *testing.T) {
 	ws, err := testWebsocketManager(websocketTestExchangeName, &connects)
 	require.NoError(t, err)
 	exch := &websocketTestExchange{name: websocketTestExchangeName, ws: ws, supportsWebsocket: true}
+	t.Cleanup(func() { assert.NoError(t, exch.Shutdown(), "Shutdown should not error") })
 
 	require.NoError(t, m.registerExchange(t.Context(), exch), "registerExchange must ignore a stopped routine manager")
 	assert.False(t, ws.IsConnected(), "websocket should stay disconnected before the routine manager starts")
 
 	require.NoError(t, m.Start(t.Context()))
+	t.Cleanup(func() { stopWebsocketRoutineManager(t, m) })
 	require.Eventually(t, m.IsRunning, time.Second, 10*time.Millisecond, "routine manager must reach the ready state")
 	require.ErrorIs(t, m.registerExchange(t.Context(), &websocketTestExchange{name: websocketTestExchangeName, supportsWebsocket: true}), errNilWebsocket, "registerExchange must reject a nil websocket")
 
@@ -594,6 +596,7 @@ func TestWebsocketRoutineManagerRegisterExchange(t *testing.T) {
 	replacement, err := testWebsocketManager(websocketTestExchangeName, &replacementConnects)
 	require.NoError(t, err)
 	sendReplacement := &websocketTestExchange{name: websocketTestExchangeName, ws: replacement, supportsWebsocket: true}
+	t.Cleanup(func() { assert.NoError(t, sendReplacement.Shutdown(), "Shutdown should not error") })
 	require.NoError(t, m.registerExchange(t.Context(), sendReplacement), "registerExchange must replace the receiver")
 	assert.True(t, replacement.IsConnected(), "replacement websocket should connect")
 
@@ -631,10 +634,6 @@ func TestWebsocketRoutineManagerRegisterExchange(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, m.registerExchange(t.Context(), &websocketTestExchange{name: websocketTestExchangeName, ws: noWebsocket}), "registerExchange must ignore an exchange without websocket support")
 	assert.Zero(t, disabled.Load(), "connector should not be called without websocket support")
-
-	require.NoError(t, m.Stop())
-	require.NoError(t, exch.Shutdown())
-	require.NoError(t, sendReplacement.Shutdown())
 }
 
 func TestWebsocketRoutineManagerRegisterExchangeConnectError(t *testing.T) {
@@ -702,11 +701,119 @@ func TestWebsocketRoutineManagerRegisterExchangeConnectError(t *testing.T) {
 	}
 }
 
+func TestWebsocketRoutineManagerReceiverShutdown(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		cancel   func(t *testing.T, m *WebsocketRoutineManager, ws *websocket.Manager)
+		enqueue  func(t *testing.T, ws *websocket.Manager, hold chan struct{})
+		expected []string
+	}{
+		{
+			name: "unregister",
+			cancel: func(t *testing.T, m *WebsocketRoutineManager, _ *websocket.Manager) {
+				t.Helper()
+				require.NoError(t, m.unregisterExchange(websocketTestExchangeName))
+			},
+			enqueue: func(t *testing.T, ws *websocket.Manager, holding chan struct{}) {
+				t.Helper()
+				require.NoError(t, ws.DataHandler.Send(t.Context(), "hold"))
+				select {
+				case <-holding:
+				case <-time.After(time.Second):
+					require.FailNow(t, "receiver must pick up the holding payload")
+				}
+				require.NoError(t, ws.DataHandler.Send(t.Context(), "queued-1"))
+				require.NoError(t, ws.DataHandler.Send(t.Context(), "queued-2"))
+			},
+			expected: []string{"hold", "queued-1", "queued-2"},
+		},
+		{
+			name:   "stop",
+			cancel: nil,
+			enqueue: func(t *testing.T, ws *websocket.Manager, holding chan struct{}) {
+				t.Helper()
+				require.NoError(t, ws.DataHandler.Send(t.Context(), "hold"))
+				select {
+				case <-holding:
+				case <-time.After(time.Second):
+					require.FailNow(t, "receiver must pick up the holding payload")
+				}
+				require.NoError(t, ws.DataHandler.Send(t.Context(), "queued-stop"))
+			},
+			expected: []string{"hold", "queued-stop"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m, err := setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+			require.NoError(t, err)
+			require.NoError(t, m.Start(t.Context()))
+			if tc.name != "stop" {
+				t.Cleanup(func() { stopWebsocketRoutineManager(t, m) })
+			}
+
+			var connects atomic.Int32
+			ws, err := testWebsocketManager(websocketTestExchangeName, &connects)
+			require.NoError(t, err)
+			exch := &websocketTestExchange{name: websocketTestExchangeName, ws: ws, supportsWebsocket: true}
+			t.Cleanup(func() { assert.NoError(t, exch.Shutdown(), "Shutdown should not error") })
+
+			releaseHold := make(chan struct{})
+			holding := make(chan struct{})
+			received := make(chan string, len(tc.expected)+1)
+			require.NoError(t, m.registerWebsocketDataHandler(func(_ string, data any) error {
+				if data == "hold" {
+					close(holding)
+					<-releaseHold
+				}
+				received <- data.(string)
+				return nil
+			}, false))
+
+			require.NoError(t, m.registerExchange(t.Context(), exch))
+			tc.enqueue(t, ws, holding)
+			stopDone := make(chan struct{})
+			if tc.name == "stop" {
+				go func() {
+					stopWebsocketRoutineManager(t, m)
+					close(stopDone)
+				}()
+			} else {
+				tc.cancel(t, m, ws)
+			}
+			close(releaseHold)
+			if tc.name == "stop" {
+				select {
+				case <-stopDone:
+				case <-time.After(time.Second):
+					require.FailNow(t, "Stop should drain queued payloads before it returns")
+				}
+			}
+
+			got := make(map[string]struct{}, len(tc.expected))
+			deadline := time.After(2 * time.Second)
+			for len(got) < len(tc.expected) {
+				select {
+				case data := <-received:
+					got[data] = struct{}{}
+				case <-deadline:
+					require.FailNowf(t, "receiver dropped queued payloads", "got %v want %v", got, tc.expected)
+				}
+			}
+			for _, want := range tc.expected {
+				assert.Contains(t, got, want)
+			}
+		})
+	}
+}
+
 func TestWebsocketRoutineManagerReloadExchangeFromHandler(t *testing.T) {
 	t.Parallel()
 	m, err := setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
 	require.NoError(t, err)
 	require.NoError(t, m.Start(t.Context()))
+	t.Cleanup(func() { stopWebsocketRoutineManager(t, m) })
 	var connects atomic.Int32
 	ws, err := testWebsocketManager(websocketTestExchangeName, &connects)
 	require.NoError(t, err)
@@ -735,7 +842,6 @@ func TestWebsocketRoutineManagerReloadExchangeFromHandler(t *testing.T) {
 	case <-time.After(time.Second):
 		require.FailNow(t, "reloading an exchange from a data handler must not wait on the handler lock")
 	}
-	stopWebsocketRoutineManager(t, m)
 }
 
 func TestWebsocketRoutineManagerReceiversRunUntilStop(t *testing.T) {
