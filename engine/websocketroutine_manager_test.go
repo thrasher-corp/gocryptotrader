@@ -721,7 +721,7 @@ func TestWebsocketRoutineManagerReloadExchangeFromHandler(t *testing.T) {
 		if data == "reload from a handler" {
 			if err := m.unregisterExchange(websocketTestExchangeName); err != nil {
 				returned <- err
-				return nil
+				return err
 			}
 			returned <- m.registerExchange(t.Context(), replacement)
 		}
