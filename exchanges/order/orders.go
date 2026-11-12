@@ -434,7 +434,7 @@ func (d *Detail) IsInactive() bool {
 // IsInactive returns true if the status indicates it is
 // currently not available on the exchange
 func (s Status) IsInactive() bool {
-	return inactiveStatuses&s == s
+	return s != UnknownStatus && inactiveStatuses&s == s
 }
 
 // WasOrderPlaced returns true if an order has a status that indicates that it

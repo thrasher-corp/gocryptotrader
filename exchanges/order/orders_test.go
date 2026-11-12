@@ -1394,6 +1394,13 @@ func BenchmarkIsActive(b *testing.B) {
 }
 
 func TestIsInactive(t *testing.T) {
+	t.Parallel()
+
+	t.Run("unknown status is not inactive", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, UnknownStatus.IsInactive(), "unknown status should not be inactive")
+	})
+
 	orders := map[int]Detail{
 		0: {Amount: 0.0, Status: Active},
 		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
@@ -1433,8 +1440,7 @@ func TestIsInactive(t *testing.T) {
 		10: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Rejected}, true},
 		11: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Expired}, true},
 		12: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Hidden}, false},
-		// For now force inactive on unknown status
-		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, true},
+		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, false},
 		14: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Open}, false},
 		15: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AutoDeleverage}, false},
 		16: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Closed}, true},
