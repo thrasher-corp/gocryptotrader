@@ -490,12 +490,17 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		submitOrderResponse.Status = order.Filled
 	}
 	for i := range response.Fills {
+		var tradeID string
+		if response.Fills[i].TradeID > 0 {
+			tradeID = strconv.FormatUint(response.Fills[i].TradeID, 10)
+		}
 		submitOrderResponse.Trades = append(submitOrderResponse.Trades, order.TradeHistory{
 			Price:    response.Fills[i].Price,
 			Amount:   response.Fills[i].Qty,
 			Fee:      response.Fills[i].Commission,
 			FeeAsset: response.Fills[i].CommissionAsset,
 			Exchange: e.Name,
+			TID:      tradeID,
 		})
 	}
 
