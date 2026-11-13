@@ -74,7 +74,13 @@ type ConnectionSetup struct {
 	ConnectionRateLimiter    func() *request.RateLimiterWithWeight
 	Authenticated            bool // unused for multi-connection websocket
 	SubscriptionsNotRequired bool
-	ConnectionLevelReporter  Reporter
+	// Optional marks a setup the other connections do not depend on: a failure to connect it, or the loss of one of its
+	// connections, leaves them up, and the connection monitor retries it after the monitor delay, doubling the delay
+	// after each further failure up to a minute, or the monitor delay when that is longer. The delay is kept across
+	// reconnections until it connects or has no subscriptions to connect for. A retry runs the setup's Connector without
+	// the manager's lock, so a dial to an unreachable host holds up no other call
+	Optional                bool
+	ConnectionLevelReporter Reporter
 
 	// URL defines the websocket server URL to connect to
 	URL string
@@ -135,11 +141,26 @@ type connection struct {
 	Wg                   *sync.WaitGroup
 	Connection           *gws.Conn
 	shutdown             chan struct{}
-	Match                *Match
-	ResponseMaxLimit     time.Duration
-	Traffic              chan struct{}
-	readMessageErrors    chan error
+	// closed is closed when a managed connection shuts down, so its ping work stops with it rather than with the manager;
+	// managed connections are never dialled again
+	closed            chan struct{}
+	closeOnce         sync.Once
+	Match             *Match
+	ResponseMaxLimit  time.Duration
+	Traffic           chan struct{}
+	readMessageErrors chan error
 }
+
+// connectionFaultError is a connection fault naming its connection, so the connection monitor can tell which setup it
+// belongs to, and whether it is still in use
+type connectionFaultError struct {
+	connection Connection
+	err        error
+}
+
+func (e *connectionFaultError) Error() string { return e.err.Error() }
+
+func (e *connectionFaultError) Unwrap() error { return e.err }
 
 // Dial sets proxy URLs and then connects to the websocket.
 // The dialer is copied so the caller's dialer is left unmodified, and the handshake is bounded by defaultHandshakeTimeout
@@ -259,6 +280,8 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 			select {
 			case <-c.shutdown:
 				return
+			case <-c.closed:
+				return
 			case <-time.After(handler.Delay):
 				if err := c.SendRawMessage(context.Background(), epl, handler.MessageType, handler.Message); err != nil {
 					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]: %v", c.ExchangeName, handler.Message, err)
@@ -296,7 +319,7 @@ func (c *connection) ReadMessage() Response {
 			// method on WebsocketConnection type has been called and can
 			// be skipped.
 			select {
-			case c.readMessageErrors <- fmt.Errorf("%w: %w (%q)", err, errConnectionFault, c.URL):
+			case c.readMessageErrors <- &connectionFaultError{connection: c, err: fmt.Errorf("%w: %w (%q)", err, errConnectionFault, removeURLQueryString(c.URL))}:
 			default:
 				// bypass if there is no receiver, as this stops it returning
 				// when shutdown is called.
@@ -353,7 +376,13 @@ func parseBinaryResponse(resp []byte) ([]byte, error) {
 // deadline that any write starting meanwhile clears. Taking writeControl afterwards waits for a write in progress to
 // return, so a reconnect cannot replace c.Connection underneath it.
 func (c *connection) Shutdown() error {
-	if c == nil || c.Connection == nil {
+	if c == nil {
+		return nil
+	}
+	if c.closed != nil {
+		c.closeOnce.Do(func() { close(c.closed) })
+	}
+	if c.Connection == nil {
 		return nil // Allow Shutdown to be called during early startup/teardown when the socket hasn't been created yet.
 	}
 	c.setConnectedStatus(false)

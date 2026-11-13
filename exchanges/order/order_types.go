@@ -129,6 +129,7 @@ type SubmitResponse struct {
 	Price                float64
 	Amount               float64
 	QuoteAmount          float64
+	ExecutedAmount       float64
 	RemainingAmount      float64
 	TriggerPrice         float64
 	ClientID             string
@@ -211,6 +212,7 @@ type ModifyResponse struct {
 
 	// Fields that need to be handled in scope after DeriveModifyResponse()
 	// if applicable
+	ExecutedAmount  float64
 	RemainingAmount float64
 	Date            time.Time
 	LastUpdated     time.Time

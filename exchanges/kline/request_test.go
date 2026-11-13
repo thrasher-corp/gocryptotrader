@@ -195,6 +195,9 @@ func TestRequest_ProcessResponse(t *testing.T) {
 	_, err = r.ProcessResponse(nil)
 	require.ErrorIs(t, err, ErrNoTimeSeriesDataToConvert)
 
+	_, err = r.ProcessResponse([]Candle{{Time: start}})
+	require.ErrorIs(t, err, ErrInvalidInterval)
+
 	_, err = CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, OneHour, start, end, 0)
 	require.ErrorIs(t, err, errInvalidSpecificEndpointLimit)
 
@@ -391,5 +394,56 @@ func TestRequest_Size(t *testing.T) {
 	}
 	if r.Size() != 2 {
 		t.Fatalf("received: '%v', but expected '%v'", r.Size(), 2)
+	}
+}
+
+func TestRequest_ProcessResponse_PartialCandleNoCandles(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2020, 1, 1, 10, 0, 0, 0, time.UTC)
+	end := start.Add(OneHour.Duration())
+	pair := currency.NewBTCUSDT()
+
+	for _, tc := range []struct {
+		name             string
+		exchangeInterval Interval
+		timeSeries       []Candle
+		err              error
+	}{
+		{
+			// The only exchange candle lands in the purged partial period, so the
+			// padded series has too few candles to build one client candle
+			name:             "conversion needs more candles than the purged series holds",
+			exchangeInterval: OneMin,
+			timeSeries:       []Candle{{Time: start, Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}},
+			err:              ErrInsufficientCandleData,
+		},
+		{
+			// Every exchange candle is outside the range and the padding for the
+			// partial period is purged, leaving nothing to process
+			name:             "all candles outside range with purged partial period",
+			exchangeInterval: OneHour,
+			timeSeries:       []Candle{{Time: start.Add(-OneHour.Duration()), Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}},
+			err:              ErrNoTimeSeriesDataToConvert,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			r := &Request{
+				Exchange:         "name",
+				Pair:             pair,
+				RequestFormatted: pair,
+				Asset:            asset.Spot,
+				ExchangeInterval: tc.exchangeInterval,
+				ClientRequired:   OneHour,
+				Start:            start,
+				End:              end,
+				PartialCandle:    true,
+				RequestLimit:     1,
+			}
+			holder, err := r.ProcessResponse(tc.timeSeries)
+			require.ErrorIs(t, err, tc.err, "ProcessResponse must return the expected error")
+			assert.Nil(t, holder, "ProcessResponse should not return a holder on error")
+		})
 	}
 }

@@ -24,6 +24,10 @@ import (
 const defaultDataSliceLimit = 5
 
 var (
+	// ErrResponseBodyNotJSON is returned, wrapped, by HTTPRecord and CheckResponsePayload for a response body they
+	// cannot read as JSON, such as a file, so a caller can tell a body with nothing to record from a failure to record
+	ErrResponseBodyNotJSON = errors.New("response body is not JSON")
+
 	errMismatchedJSONBodyShape  = errors.New("mismatched JSON body shape")
 	errUnsupportedJSONBodyShape = errors.New("unsupported JSON body shape")
 	errUnexpectedTrailingJSON   = errors.New("unexpected trailing JSON content")
@@ -316,7 +320,7 @@ func GetFilteredURLVals(vals url.Values, items Exclusion) string {
 func CheckResponsePayload(data []byte, items Exclusion, mockDataSliceLimit int) ([]byte, error) {
 	var intermediary any
 	if err := decodeLeadingJSONValue(data, &intermediary); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrResponseBodyNotJSON, err)
 	}
 
 	payload, err := CheckJSON(intermediary, &items, mockDataSliceLimit)

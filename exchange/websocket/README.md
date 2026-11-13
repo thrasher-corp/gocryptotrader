@@ -147,6 +147,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 }
 ```
 
+A connection setup can also set:
+
+- `Optional`, so that failing to connect it, or losing one of its connections, leaves the other connections up; the
+  connection monitor retries it after the monitor delay, doubling the delay after each further failure up to a minute,
+  or the monitor delay when that is longer
+
 ## Donations
 
 <img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
