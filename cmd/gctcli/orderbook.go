@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -330,7 +329,7 @@ func getOrderbook(c *cli.Context) error {
 	}
 
 	if c.Bool(exchangeStyleFlagName) {
-		return renderOrderbookExchangeStyle(os.Stdout, result, exchangeName, assetType, depthLimit, false)
+		return renderOrderbookExchangeStyle(os.Stdout, result, exchangeName, assetType, depthLimit)
 	}
 	jsonOutput(result)
 	return nil
@@ -440,7 +439,7 @@ func getOrderbookStream(c *cli.Context) error {
 		}
 
 		if c.Bool(exchangeStyleFlagName) {
-			err = renderOrderbookExchangeStyle(os.Stdout, resp, exchangeName, assetType, depthLimit, true)
+			err = renderOrderbookExchangeStyle(os.Stdout, resp, exchangeName, assetType, depthLimit)
 		} else {
 			err = renderOrderbookStream(os.Stdout, resp, exchangeName, depthLimit)
 		}
@@ -608,7 +607,7 @@ func renderOrderbookStream(w io.Writer, resp *gctrpc.OrderbookResponse, exchange
 	return writeOrderbookFrame(w, &frame)
 }
 
-func renderOrderbookExchangeStyle(w io.Writer, resp *gctrpc.OrderbookResponse, exchangeName, assetType string, depthLimit int, includeLastUpdated bool) error {
+func renderOrderbookExchangeStyle(w io.Writer, resp *gctrpc.OrderbookResponse, exchangeName, assetType string, depthLimit int) error {
 	bids, asks := orderbookDisplayLevels(resp.Bids, depthLimit), orderbookDisplayLevels(resp.Asks, depthLimit)
 	normaliseOrderbookPrecision(bids, asks)
 	upperBase, upperQuote := strings.ToUpper(resp.Pair.Base), strings.ToUpper(resp.Pair.Quote)
@@ -617,9 +616,8 @@ func renderOrderbookExchangeStyle(w io.Writer, resp *gctrpc.OrderbookResponse, e
 	var frame bytes.Buffer
 	frame.Grow(256 + (len(redText)+priceWidth+amountWidth+3)*(len(bids)+len(asks)))
 	fmt.Fprintf(&frame, "%sOrderbook stream for %v %v %v", whiteText, strings.ToUpper(exchangeName), assetType, upperBase+"-"+upperQuote)
-	// Only stream RPCs guarantee microseconds; snapshots use daemon-configured units.
-	if includeLastUpdated {
-		fmt.Fprintf(&frame, " - Last updated %s", time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
+	if resp.LastUpdated != nil {
+		fmt.Fprintf(&frame, " - Last updated %s", resp.LastUpdated.AsTime().Format(common.SimpleTimeFormatWithTimezone))
 	}
 	frame.WriteByte('\n')
 	frame.WriteString(grayText)
@@ -646,7 +644,7 @@ func renderExchangeOrderbookStream(w io.Writer, resp *gctrpc.OrderbookResponse, 
 		return nil
 	}
 	_, err := fmt.Fprintf(w, "Orderbook streamed for %s %s-%s at %s",
-		exchangeName, strings.ToUpper(resp.Pair.Base), strings.ToUpper(resp.Pair.Quote), time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
+		exchangeName, strings.ToUpper(resp.Pair.Base), strings.ToUpper(resp.Pair.Quote), resp.LastUpdated.AsTime().Format(common.SimpleTimeFormatWithTimezone))
 	return err
 }
 

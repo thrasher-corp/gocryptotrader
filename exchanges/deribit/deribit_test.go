@@ -4151,12 +4151,47 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	for assetType, cp := range assetTypeToPairsMap {
-		result, err := e.GetOrderInfo(t.Context(), "1234", cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
-	}
+	t.Run("creation and update timestamps", func(t *testing.T) {
+		t.Parallel()
+		for _, instrument := range []string{"BTC-PERPETUAL", "BTC_USDC", "BTC-26SEP25-30000-C"} {
+			t.Run(instrument, func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				ex.SkipAuthCheck = true
+				ex.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "mock-secret"})
+				require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.True(t, strings.HasSuffix(r.URL.Path, "/private/get_order_state"), "request should query order state")
+					_, err := fmt.Fprintf(w, `{"result":{"order_id":"1","instrument_name":%q,"order_type":"limit","order_state":"open","time_in_force":"good_til_cancelled","creation_timestamp":1792648800123,"last_update_timestamp":1792648860456}}`, instrument)
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "fixture URL must be installed")
+				for _, requested := range []asset.Item{asset.Spot, asset.Futures, asset.Options} {
+					t.Run(requested.String(), func(t *testing.T) {
+						t.Parallel()
+						detail, err := ex.GetOrderInfo(t.Context(), "1", currency.NewBTCUSD(), requested)
+						require.NoError(t, err, "GetOrderInfo must derive identity from the response")
+						assert.Equal(t, time.UnixMilli(1792648800123), detail.Date, "creation time should come from the distinct creation field")
+						assert.Equal(t, time.UnixMilli(1792648860456), detail.LastUpdated, "last update should retain its own field")
+					})
+				}
+			})
+		}
+	})
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		for assetType, cp := range assetTypeToPairsMap {
+			t.Run(assetType.String(), func(t *testing.T) {
+				t.Parallel()
+				result, err := e.GetOrderInfo(t.Context(), "1234", cp, assetType)
+				require.NoErrorf(t, err, "GetOrderInfo must succeed for asset type %s pair %s", assetType, cp)
+				require.NotNilf(t, result, "order must be returned for asset type %s pair %s", assetType, cp)
+			})
+		}
+	})
 }
 
 func TestGetDepositAddress(t *testing.T) {

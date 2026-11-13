@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 18,
+ "version": 19,
  "dataDirectory": "",
  "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
@@ -233,8 +233,7 @@
    "listenAddress": "localhost:9052",
    "grpcProxyEnabled": true,
    "grpcProxyListenAddress": "localhost:9053",
-   "grpcAllowBotShutdown": false,
-   "timeInNanoSeconds": false
+   "grpcAllowBotShutdown": false
   }
  },
  "portfolioAddresses": {

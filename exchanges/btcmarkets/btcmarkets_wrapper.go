@@ -556,6 +556,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 
 	resp.Exchange = e.Name
 	resp.OrderID = orderID
+	// FetchOrder queries the spot API by ID; a caller-supplied asset cannot change its market.
+	resp.AssetType = asset.Spot
 	resp.Pair = o.MarketID
 	resp.Price = o.Price
 	resp.Date = o.CreationTime

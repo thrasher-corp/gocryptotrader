@@ -6571,7 +6571,7 @@
         },
         "lastUpdated": {
           "type": "string",
-          "format": "int64"
+          "format": "date-time"
         },
         "assetType": {
           "type": "string"
@@ -6993,7 +6993,7 @@
         },
         "lastUpdated": {
           "type": "string",
-          "format": "int64"
+          "format": "date-time"
         },
         "currencyPair": {
           "type": "string"
@@ -7122,7 +7122,7 @@
       "properties": {
         "creationTime": {
           "type": "string",
-          "format": "int64"
+          "format": "date-time"
         },
         "id": {
           "type": "string"

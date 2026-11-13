@@ -482,28 +482,62 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	t.Run("reported spot asset", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.SkipAuthCheck = true
+		ex.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "mock-secret"})
+		require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
+		sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ex, asset.Spot, currency.NewBTCUSD())
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var payload string
+			switch r.URL.Path {
+			case "/spot/api/v3.2/user/open_orders":
+				payload = `[{"orderID":"1","symbol":"BTC-USD","side":"BUY","orderState":"open","orderType":76}]`
+			case "/spot/api/v3.2/user/trade_history":
+				payload = `[{"orderId":"1","tradeId":"fill-1","side":"BUY","timestamp":1789618131546}]`
+			default:
+				t.Errorf("active order lookup should not query unexpected path %s", r.URL.Path)
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			_, err := w.Write([]byte(payload))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "fixture URL must be installed")
+		orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSD()}, Side: order.AnySide, Type: order.AnyType})
+		require.NoError(t, err, "active spot orders must remain readable")
+		require.Len(t, orders, 1, "the wrapper must return the active order")
+		assert.Equal(t, asset.Spot, orders[0].AssetType, "active orders should identify their actual spot endpoint")
+		assert.Len(t, orders[0].Trades, 1, "asset classification should retain fills")
+	})
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	getOrdersRequest := order.MultiOrderRequest{
-		Pairs: []currency.Pair{
-			{
-				Delimiter: "-",
-				Base:      currency.BTC,
-				Quote:     currency.USD,
+		getOrdersRequest := order.MultiOrderRequest{
+			Pairs: []currency.Pair{
+				{
+					Delimiter: "-",
+					Base:      currency.BTC,
+					Quote:     currency.USD,
+				},
+				{
+					Delimiter: "-",
+					Base:      currency.XRP,
+					Quote:     currency.USD,
+				},
 			},
-			{
-				Delimiter: "-",
-				Base:      currency.XRP,
-				Quote:     currency.USD,
-			},
-		},
-		Type:      order.AnyType,
-		AssetType: asset.Spot,
-		Side:      order.AnySide,
-	}
+			Type:      order.AnyType,
+			AssetType: asset.Spot,
+			Side:      order.AnySide,
+		}
 
-	_, err := e.GetActiveOrders(t.Context(), &getOrdersRequest)
-	assert.NoError(t, err, "GetActiveOrders should not error")
+		_, err := e.GetActiveOrders(t.Context(), &getOrdersRequest)
+		assert.NoError(t, err, "GetActiveOrders should not error")
+	})
 }
 
 func TestGetOrderHistory(t *testing.T) {

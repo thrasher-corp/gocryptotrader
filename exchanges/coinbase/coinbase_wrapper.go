@@ -565,12 +565,18 @@ func (e *Exchange) CancelAllOrders(context.Context, *order.Cancel) (order.Cancel
 }
 
 // GetOrderInfo returns order information based on order ID
-func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetItem asset.Item) (*order.Detail, error) {
+func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	genOrderDetail, err := e.GetOrderByID(ctx, orderID, "", currency.Code{})
 	if err != nil {
 		return nil, err
 	}
-	response := e.getOrderRespToOrderDetail(genOrderDetail, pair, assetItem)
+	// GetOrderByID is not scoped by the incoming asset. Only the returned product type
+	// identifies the order's market; missing or unknown metadata must not be guessed.
+	assetItem, err := stringToStandardAsset(genOrderDetail.ProductType)
+	if err != nil {
+		return nil, fmt.Errorf("order %s product type %s: %w", orderID, genOrderDetail.ProductType, err)
+	}
+	response := e.getOrderRespToOrderDetail(genOrderDetail, genOrderDetail.ProductID, assetItem)
 	fillData, err := e.ListFills(ctx, []string{orderID}, nil, nil, 0, "", time.Time{}, time.Now(), defaultOrderFillCount)
 	if err != nil {
 		return nil, err
