@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	// ErrCannotTransact returns when its an issue to do nothing for an event
+	// ErrCannotTransact is returned when an event's order side cannot be transacted
 	ErrCannotTransact = errors.New("cannot transact")
 
 	errExceededPortfolioLimit  = errors.New("exceeded portfolio limit")
