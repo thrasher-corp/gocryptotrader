@@ -1435,6 +1435,7 @@ func TestWsResubscribe(t *testing.T) {
 	err = e.Websocket.ResubscribeToChannel(t.Context(), e.Websocket.Conn, subs[0])
 	require.NoError(t, err, "Resubscribe must not error")
 	require.Equal(t, subscription.SubscribedState, subs[0].State(), "subscription must be subscribed again")
+	assert.Same(t, subs[0], e.Websocket.GetSubscription(subs[0]), "Resubscribe should keep the subscription in the store")
 }
 
 // TestWsOrderbookSub tests orderbook subscriptions for MaxDepth params

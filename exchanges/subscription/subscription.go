@@ -137,7 +137,6 @@ func (s *Subscription) EnsureKeyed() any {
 
 // Clone returns a copy of a subscription
 // Key is set to nil, because most Key types contain a pointer to the subscription, and because the clone isn't added to the store yet
-// QualifiedChannel is not copied because it's expected that the contributing fields will be changed
 // Users should allow a default key to be assigned on AddSubscription or can SetKey as necessary
 func (s *Subscription) Clone() *Subscription {
 	s.m.RLock()
@@ -155,6 +154,56 @@ func (s *Subscription) Clone() *Subscription {
 		QualifiedChannel: s.QualifiedChannel,
 	}
 	s.m.RUnlock()
+	return c
+}
+
+// cloneWithKey returns a copy of a subscription which retains its Key
+// Clone clears Key because clones are normally re-keyed when they are added to a Store; subscriptions
+// which pass through ExpandTemplates unexpanded are the same logical subscription and must keep their key
+// to stay reconcilable, so this variant is used for them instead
+// Built-in key types which reference the subscription are re-pointed at the copy, so the key keeps
+// describing the returned subscription; any other key, including ones which describe a different
+// subscription, and custom keys, are carried over untouched
+func (s *Subscription) cloneWithKey() *Subscription {
+	c := s.Clone()
+	s.m.RLock()
+	defer s.m.RUnlock()
+	key := s.Key
+	switch k := key.(type) {
+	case *ExactKey:
+		if k != nil && k.Subscription == s {
+			key = &ExactKey{Subscription: c}
+		}
+	case ExactKey:
+		if k.Subscription == s {
+			key = ExactKey{Subscription: c}
+		}
+	case *IgnoringPairsKey:
+		if k != nil && k.Subscription == s {
+			key = &IgnoringPairsKey{Subscription: c}
+		}
+	case IgnoringPairsKey:
+		if k.Subscription == s {
+			key = IgnoringPairsKey{Subscription: c}
+		}
+	case *IgnoringAssetKey:
+		if k != nil && k.Subscription == s {
+			key = &IgnoringAssetKey{Subscription: c}
+		}
+	case IgnoringAssetKey:
+		if k.Subscription == s {
+			key = IgnoringAssetKey{Subscription: c}
+		}
+	case *ChannelKey:
+		if k != nil && k.Subscription == s {
+			key = &ChannelKey{Subscription: c}
+		}
+	case ChannelKey:
+		if k.Subscription == s {
+			key = ChannelKey{Subscription: c}
+		}
+	}
+	c.SetKey(key)
 	return c
 }
 
