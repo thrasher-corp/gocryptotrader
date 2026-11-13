@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -33,11 +34,12 @@ import (
 )
 
 // Please supply API keys here or in config/testdata.json to test authenticated endpoints
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e          *Exchange
@@ -50,11 +52,11 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Bitfinex Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	os.Exit(m.Run())
@@ -158,7 +160,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
 				}
 			case asset.MarginFunding:
-				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
+				// asset.ErrNotSupported would fail Bootstrap, and so LoadExchange, for the funding asset enabled by default
+				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), common.ErrNotYetImplemented, "UpdateOrderExecutionLimits must report margin funding limits as not yet implemented")
 			default:
 				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
 			}
@@ -600,6 +603,9 @@ func TestNewOrder(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 
 	tick, err := e.UpdateTicker(t.Context(), btcusdPair, asset.Spot)
 	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTicker may only error about locked markets")
@@ -674,7 +680,7 @@ func newMockTickerBatchExchange(t *testing.T, name string, payload [][]any) *Exc
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	ex.Name = name
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method, "Ticker batch request method should be GET")
 		assert.Equal(t, "/v2/tickers", r.URL.Path, "Ticker batch request path should be correct")
 		assert.Equal(t, "ALL", r.URL.Query().Get("symbols"), "Ticker batch request symbols should be correct")
@@ -683,7 +689,6 @@ func newMockTickerBatchExchange(t *testing.T, name string, payload [][]any) *Exc
 		err := json.NewEncoder(w).Encode(payload)
 		assert.NoError(t, err, "Encoding ticker batch payload should not error")
 	}))
-	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
@@ -1190,7 +1195,8 @@ func TestModifyOrder(t *testing.T) {
 			OrderID:   "1337",
 			AssetType: asset.Spot,
 			Pair:      currency.NewBTCUSD(),
-		})
+		},
+	)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1373,14 +1379,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
 
-	seenChannels := make(map[string]struct{}, len(subs))
+	seenChannels := make(common.Seen[string], len(subs))
 	spotChannelPairs := make(map[string]struct{})
 	for _, sub := range subs {
 		assert.NotEmpty(t, sub.QualifiedChannel, "QualifiedChannel should not be empty")
-
-		_, found := seenChannels[sub.QualifiedChannel]
-		assert.Falsef(t, found, "QualifiedChannel should be unique, got duplicate %q", sub.QualifiedChannel)
-		seenChannels[sub.QualifiedChannel] = struct{}{}
+		assert.Falsef(t, seenChannels.CheckAndRecord(sub.QualifiedChannel), "QualifiedChannel should be unique, got duplicate %q", sub.QualifiedChannel)
 
 		if len(sub.Pairs) != 1 {
 			continue
@@ -1624,7 +1627,7 @@ func TestWSAllTrades(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.AllTradesChannel, Key: 18788})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.jsonl", e.wsHandleData)
 	e.Websocket.DataHandler.Close()
 	expJSON := []string{
 		`{"TID":"412685577","AssetType":"spot","Side":"BUY","Price":176.3,"Amount":11.1998,"Timestamp":"2020-01-29T03:27:24.802Z"}`,
@@ -1717,10 +1720,10 @@ func TestWSTickerResponseTrailingField(t *testing.T) {
 		assert.Equal(t, 61.304, tick.Bid, "Ticker bid should be correct")
 		assert.Equal(t, 61.305, tick.Ask, "Ticker ask should be correct")
 		assert.Equal(t, 61.371, tick.Last, "Ticker last should be correct")
-		assert.Equal(t, 50973.3020771, tick.Volume, "Ticker volume should be correct")
+		assert.Equal(t, 50973.3020771, tick.BaseVolume, "Ticker BaseVolume should be correct")
 		assert.Equal(t, 62.5, tick.High, "Ticker high should be correct")
 		assert.Equal(t, 57.421, tick.Low, "Ticker low should be correct")
-		assert.True(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should stay zero when FIRST_TRADE is null")
+		assert.False(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should use the receipt time when FIRST_TRADE is null")
 	case <-time.After(time.Second):
 		t.Fatal("Ticker update must be queued")
 	}
@@ -1751,11 +1754,11 @@ func TestWSFundingTickerResponseTrailingField(t *testing.T) {
 		assert.Equal(t, 5.5, tick.Ask, "Ticker ask should be correct")
 		assert.Equal(t, 6.0, tick.AskPeriod, "Ticker ask period should be correct")
 		assert.Equal(t, 10.1, tick.Last, "Ticker last should be correct")
-		assert.Equal(t, 11.11, tick.Volume, "Ticker volume should be correct")
+		assert.Equal(t, 11.11, tick.BaseVolume, "Ticker BaseVolume should be correct")
 		assert.Equal(t, 12.12, tick.High, "Ticker high should be correct")
 		assert.Equal(t, 13.13, tick.Low, "Ticker low should be correct")
 		assert.Equal(t, 15.15, tick.FlashReturnRateAmount, "Ticker flash return rate amount should be correct")
-		assert.True(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should stay zero when FIRST_TRADE is null")
+		assert.False(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should use the receipt time when FIRST_TRADE is null")
 	case <-time.After(time.Second):
 		t.Fatal("Funding ticker update must be queued")
 	}
@@ -2321,7 +2324,7 @@ func TestCancelMultipleOrdersV2(t *testing.T) {
 // TestGetErrResp unit tests the helper func getErrResp
 func TestGetErrResp(t *testing.T) {
 	t.Parallel()
-	fixture, err := os.Open("testdata/getErrResp.json")
+	fixture, err := os.Open("testdata/getErrResp.jsonl")
 	if !assert.NoError(t, err, "Opening fixture should not error") {
 		t.FailNow()
 	}

@@ -86,9 +86,6 @@ func (m *WithdrawManager) SubmitWithdrawal(ctx context.Context, req *withdraw.Re
 		}
 	}
 	dbwithdraw.Event(resp)
-	if err == nil {
-		withdraw.Cache.Add(resp.ID, resp)
-	}
 	return resp, err
 }
 
@@ -107,7 +104,7 @@ func (m *WithdrawManager) WithdrawalEventByID(id string) (*withdraw.Response, er
 
 	l, err := dbwithdraw.GetEventByUUID(id)
 	if err != nil {
-		return nil, fmt.Errorf("%w %v", ErrWithdrawRequestNotFound, id)
+		return nil, fmt.Errorf("%w %v: %w", ErrWithdrawRequestNotFound, id, err)
 	}
 	withdraw.Cache.Add(id, l)
 	return l, nil

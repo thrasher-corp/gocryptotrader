@@ -2,7 +2,16 @@ package coinbase
 
 import (
 	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,8 +19,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -26,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -35,12 +46,15 @@ import (
 
 // Please supply your APIKeys here for better testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 	// Sandbox functionality only works for certain endpoints https://docs.cdp.coinbase.com/coinbase-app/advanced-trade-apis/sandbox
 	testingInSandbox = false
 )
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e                = &Exchange{}
@@ -90,6 +104,16 @@ func TestMain(m *testing.M) {
 		}
 	}
 	os.Exit(m.Run())
+}
+
+func TestWsProcessTicker(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	resp := &StandardWebsocketResponse{Events: []byte(`[{"type":"update","tickers":[{"type":"ticker","product_id":"UNTRACKED-USD","price":"1"}]}]`)}
+	require.NoError(t, ex.wsProcessTicker(t.Context(), resp), "wsProcessTicker must not error for a product with no alias")
+	assert.Empty(t, ex.Websocket.DataHandler.C, "wsProcessTicker should not relay an empty batch")
 }
 
 func TestSetup(t *testing.T) {
@@ -261,6 +285,44 @@ func TestCancelOrders(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
+func TestClassifyOrderNotFound(t *testing.T) {
+	t.Parallel()
+	body := json.RawMessage(`{"error":"NOT_FOUND","message":"fixture"}`)
+	err := classifyOrderNotFound(parseResponseError(fmt.Errorf("%w raw response: %s", request.ErrBadStatus, body), body))
+	assert.ErrorIs(t, err, order.ErrOrderNotFound, "error should wrap order not found")
+	assert.ErrorIs(t, err, request.ErrBadStatus, "error should preserve the request failure")
+	assert.ErrorContains(t, err, string(body), "error should preserve the raw Coinbase response")
+
+	body = json.RawMessage(`{"error":"INVALID_ARGUMENT","message":"fixture"}`)
+	err = classifyOrderNotFound(parseResponseError(fmt.Errorf("%w raw response: %s", request.ErrBadStatus, body), body))
+	assert.NotErrorIs(t, err, order.ErrOrderNotFound, "invalid argument should not prove order absence")
+	assert.ErrorIs(t, err, request.ErrBadStatus, "error should preserve the request failure")
+	assert.ErrorContains(t, err, string(body), "error should preserve the raw Coinbase response")
+}
+
+func TestParseResponseError(t *testing.T) {
+	t.Parallel()
+	unrelatedErr := errors.New("unrelated error")
+	assert.Same(t, unrelatedErr, parseResponseError(unrelatedErr, nil), "unrelated errors should be returned unchanged")
+
+	badStatusErr := fmt.Errorf("%w: fixture", request.ErrBadStatus)
+	assert.Same(t, badStatusErr, parseResponseError(badStatusErr, json.RawMessage(`{`)), "invalid JSON should return the original error")
+	assert.Same(t, badStatusErr, parseResponseError(badStatusErr, json.RawMessage(`{"message":"fixture"}`)), "a missing error type should return the original error")
+
+	err := parseResponseError(badStatusErr, json.RawMessage(`{"error":"NOT_FOUND","message":"fixture"}`))
+	responseErr, ok := errors.AsType[*responseError](err)
+	require.True(t, ok, "a structured error response must be wrapped")
+	assert.Equal(t, ErrorResponse{ErrorType: "NOT_FOUND", Message: "fixture"}, responseErr.response, "parsed response should match")
+	assert.ErrorIs(t, err, badStatusErr, "wrapped response should preserve the original error")
+}
+
+func TestCancelOrderResultError(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, cancelOrderResultError(OrderCancelDetail{Success: true}, "order-id"), "successful cancellation should not error")
+	assert.ErrorIs(t, cancelOrderResultError(OrderCancelDetail{FailureReason: unknownCancelOrderFailure}, "order-id"), order.ErrOrderNotFound, "unknown order should return order not found")
+	assert.ErrorIs(t, cancelOrderResultError(OrderCancelDetail{FailureReason: "INVALID_CANCEL_REQUEST"}, "order-id"), errOrderFailedToCancel, "other cancellation failures should return the generic cancellation error")
+}
+
 func TestClosePosition(t *testing.T) {
 	t.Parallel()
 	_, err := e.ClosePosition(t.Context(), "", currency.Pair{}, 0)
@@ -290,28 +352,24 @@ func TestPlaceOrder(t *testing.T) {
 	_, err = e.PlaceOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, errInvalidOrderType)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	id, err := uuid.NewV4()
-	assert.NoError(t, err)
+	id := uuid.NewV4()
 	ord = &PlaceOrderInfo{
 		ClientOID:  id.String(),
 		ProductID:  testPairStable.String(),
 		Side:       order.Buy.String(),
 		MarginType: "CROSS",
 		Leverage:   9999,
-		OrderInfo: OrderInfo{
-			PostOnly:   false,
-			EndTime:    time.Now().Add(time.Hour),
-			OrderType:  order.Limit,
-			BaseAmount: testAmount,
-			LimitPrice: testPrice,
-		},
+		PostOnly:   false,
+		EndTime:    time.Now().Add(time.Hour),
+		OrderType:  order.Limit,
+		BaseAmount: testAmount,
+		LimitPrice: testPrice,
 	}
 	resp, err := e.PlaceOrder(t.Context(), ord)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
-	id, err = uuid.NewV4()
-	assert.NoError(t, err)
+	id = uuid.NewV4()
 	ord.ClientOID = id.String()
 	ord.MarginType = "MULTI"
 	resp, err = e.PlaceOrder(t.Context(), ord)
@@ -653,10 +711,25 @@ func TestGetHistoricKlines(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
+func TestDurationFieldsUnmarshal(t *testing.T) {
+	t.Parallel()
+	var fp FutureProductDetails
+	require.NoError(t, json.Unmarshal([]byte(`{"venue":"FCM","contract_code":"BIT","time_to_expiry_ms":"1814400000"}`), &fp), "Unmarshal must not error")
+	assert.Equal(t, 1814400000.0, fp.TimeToExpiryMilliseconds.Float64(), "TimeToExpiryMilliseconds should decode as milliseconds")
+
+	var bm TWAPBucketMetadata
+	require.NoError(t, json.Unmarshal([]byte(`{"bucket_duration":"3600s","bucket_size":"0.5","number_buckets":"4","start_time":"2026-08-21T07:52:43Z","end_time":"2026-08-21T08:52:43Z"}`), &bm), "Unmarshal must not error")
+	assert.Equal(t, "3600s", bm.BucketDuration, "BucketDuration should decode as the exchange's duration string")
+	assert.Equal(t, 0.5, bm.BucketSize.Float64(), "BucketSize should decode")
+	assert.Equal(t, int64(4), int64(bm.NumberBuckets), "NumberBuckets should decode")
+	assert.Equal(t, time.Date(2026, 8, 21, 7, 52, 43, 0, time.UTC), bm.StartTime, "StartTime should decode")
+	assert.Equal(t, time.Date(2026, 8, 21, 8, 52, 43, 0, time.UTC), bm.EndTime, "EndTime should decode")
+}
+
 func TestGetAllProducts(t *testing.T) {
 	t.Parallel()
 	testPairs := []string{testPairFiat.String(), "ETH-USD"}
-	resp, err := e.GetAllProducts(t.Context(), 30000, 1, "SPOT", "PERPETUAL", "STATUS_ALL", "PRODUCTS_SORT_ORDER_UNDEFINED", testPairs, true, true, false)
+	resp, err := e.GetAllProducts(t.Context(), 1000, 1, "SPOT", "PERPETUAL", "STATUS_ALL", "PRODUCTS_SORT_ORDER_UNDEFINED", testPairs, true, true, false)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
@@ -1144,6 +1217,9 @@ func TestUpdateAccountBalances(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, exchangeBaseHelper(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	_, err := e.UpdateTicker(t.Context(), currency.Pair{}, asset.Spot)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	resp, err := e.UpdateTicker(t.Context(), testPairFiat, asset.Spot)
@@ -1533,6 +1609,12 @@ func TestWsAuth(t *testing.T) {
 	timer.Stop()
 }
 
+// isUnmarshalTypeErr reports whether err is, or wraps, a json.UnmarshalTypeError
+func isUnmarshalTypeErr(err error) bool {
+	_, ok := errors.AsType[*json.UnmarshalTypeError](err)
+	return ok
+}
+
 func TestWsHandleData(t *testing.T) {
 	done := make(chan struct{})
 	t.Cleanup(func() {
@@ -1549,39 +1631,38 @@ func TestWsHandleData(t *testing.T) {
 		}
 	}()
 	_, err := e.wsHandleData(t.Context(), nil)
-	var syntaxErr *json.SyntaxError
-	assert.True(t, errors.As(err, &syntaxErr) || strings.Contains(err.Error(), "Syntax error no sources available, the input json is empty"), errJSONUnmarshalUnexpected)
+	_, isSyntaxErr := errors.AsType[*json.SyntaxError](err)
+	assert.True(t, isSyntaxErr || strings.Contains(err.Error(), "Syntax error no sources available, the input json is empty"), errJSONUnmarshalUnexpected)
 	mockJSON := []byte(`{"type": "error"}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.Error(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "subscriptions"}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
-	var unmarshalTypeErr *json.UnmarshalTypeError
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": 1234}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	assert.True(t, isUnmarshalTypeErr(err) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": false}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	assert.True(t, isUnmarshalTypeErr(err) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": false}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	assert.True(t, isUnmarshalTypeErr(err) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": false}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	assert.True(t, isUnmarshalTypeErr(err) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": "moo", "trades": [{"price": "1.1"}]}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": false, "updates": [{"price_level": "1.1"}]}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	assert.True(t, isUnmarshalTypeErr(err) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.ErrorIs(t, err, errUnknownL2DataType)
@@ -1593,7 +1674,7 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": false}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	assert.True(t, isUnmarshalTypeErr(err) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "l", "orders": [{"limit_price": "2.2", "total_fees": "1.1", "post_only": true}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType)
@@ -1647,14 +1728,14 @@ func TestWsProcessCandleIntervalMapping(t *testing.T) {
 func TestProcessSnapshotUpdate(t *testing.T) {
 	t.Parallel()
 	req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "fakeside", PriceLevel: 1.1, NewQuantity: 2.2}}, ProductID: currency.NewBTCUSD()}
-	err := e.ProcessSnapshot(&req, time.Time{})
+	err := e.ProcessSnapshot(t.Context(), &req, time.Time{})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
-	err = e.ProcessUpdate(&req, time.Time{})
+	err = e.ProcessUpdate(t.Context(), &req, time.Time{})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
 	req.Changes[0].Side = "offer"
-	err = e.ProcessSnapshot(&req, time.Now())
+	err = e.ProcessSnapshot(t.Context(), &req, time.Now())
 	assert.NoError(t, err)
-	err = e.ProcessUpdate(&req, time.Now())
+	err = e.ProcessUpdate(t.Context(), &req, time.Now())
 	assert.NoError(t, err)
 }
 
@@ -1708,16 +1789,14 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := &Exchange{
-		Base: exchange.Base{
-			Config: &config.Exchange{
-				Features: &config.FeaturesConfig{
-					Subscriptions: subscription.List{
-						{Enabled: true, Channel: "matches"},
-					},
+		Config: &config.Exchange{
+			Features: &config.FeaturesConfig{
+				Subscriptions: subscription.List{
+					{Enabled: true, Channel: "matches"},
 				},
 			},
-			Features: exchange.Features{},
 		},
+		Features: exchange.Features{},
 	}
 	e.checkSubscriptions()
 	testsubs.EqualLists(t, defaultSubscriptions.Enabled(), e.Features.Subscriptions)
@@ -1729,6 +1808,76 @@ func TestGetJWT(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, _, err := e.GetJWT(t.Context(), "a")
 	assert.NoError(t, err)
+}
+
+func TestParseSigningKey(t *testing.T) {
+	t.Parallel()
+	ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	sec1, err := x509.MarshalECPrivateKey(ecKey)
+	require.NoError(t, err)
+	ecPKCS8, err := x509.MarshalPKCS8PrivateKey(ecKey)
+	require.NoError(t, err)
+	_, edKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	edPKCS8, err := x509.MarshalPKCS8PrivateKey(edKey)
+	require.NoError(t, err)
+	toPEM := func(blockType string, der []byte) string {
+		return string(pem.EncodeToMemory(&pem.Block{Type: blockType, Bytes: der}))
+	}
+	for _, tc := range []struct {
+		name    string
+		secret  string
+		wantAlg string
+		wantKey crypto.PrivateKey
+	}{
+		{name: "SEC1 PEM ECDSA", secret: toPEM("EC PRIVATE KEY", sec1), wantAlg: "ES256", wantKey: ecKey},
+		{name: "PKCS#8 PEM ECDSA", secret: toPEM("PRIVATE KEY", ecPKCS8), wantAlg: "ES256", wantKey: ecKey},
+		{name: "PKCS#8 PEM Ed25519", secret: toPEM("PRIVATE KEY", edPKCS8), wantAlg: "EdDSA", wantKey: edKey},
+		{name: "base64 Ed25519 private key", secret: base64.StdEncoding.EncodeToString(edKey), wantAlg: "EdDSA", wantKey: edKey},
+		{name: "base64 Ed25519 seed", secret: base64.StdEncoding.EncodeToString(edKey.Seed()), wantAlg: "EdDSA", wantKey: edKey},
+		{name: "not base64 or PEM", secret: "not a key"},
+		{name: "base64 of wrong length", secret: base64.StdEncoding.EncodeToString([]byte("short"))},
+		{name: "PEM with invalid DER", secret: toPEM("PRIVATE KEY", []byte("garbage"))},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			key, alg, err := parseSigningKey(tc.secret)
+			if tc.wantKey == nil {
+				require.Nil(t, key)
+				assert.ErrorIs(t, err, errDecodingPrivateKey)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantAlg, alg)
+			eq, ok := key.(interface{ Equal(crypto.PrivateKey) bool })
+			require.True(t, ok, "parsed key must support Equal")
+			assert.True(t, eq.Equal(tc.wantKey), "parsed key should equal the generated key")
+		})
+	}
+}
+
+func TestSignJWT(t *testing.T) {
+	t.Parallel()
+	ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	sig, err := signJWT(ecKey, "input")
+	require.NoError(t, err)
+	assert.Len(t, sig, 64, "ECDSA signature should be raw R||S")
+
+	p384Key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	require.NoError(t, err)
+	_, err = signJWT(p384Key, "input")
+	assert.ErrorIs(t, err, errDecodingPrivateKey, "signJWT should reject non-P-256 ECDSA keys")
+
+	pub, edKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	sig, err = signJWT(edKey, "input")
+	require.NoError(t, err)
+	assert.True(t, ed25519.Verify(pub, []byte("input"), sig), "Ed25519 signature should verify against the public key")
+
+	_, err = signJWT("not a key", "input")
+	assert.ErrorIs(t, err, common.ErrTypeAssertFailure)
 }
 
 func TestEncodeDateRange(t *testing.T) {
@@ -1910,8 +2059,8 @@ func exchangeBaseHelper(e *Exchange) error {
 	if err := testexch.Setup(e); err != nil {
 		return err
 	}
-	if apiKey != "" {
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	if apiCredentials.Key != "" {
+		e.SetCredentials(apiCredentials)
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
 	}

@@ -1,19 +1,26 @@
 package binanceus
 
 import (
+	"context"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	reflects "reflect"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -22,14 +29,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to test authenticated endpoints
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+// Please supply your own credentials here to do authenticated endpoint testing
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e               = &Exchange{}
@@ -44,10 +54,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Binanceus Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -636,6 +646,14 @@ func TestGetSubaccountInformation(t *testing.T) {
 	t.Parallel()
 	var resp SubAccount
 	require.NoError(t, json.Unmarshal([]byte(subaccountItemJSON), &resp), "Unmarshal SubAccount must not error")
+	t.Run("mocked response decodes", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockedExchange(t, `{"success":true,"subAccounts":[{"email":"sub@example.com"}]}`)
+		subaccounts, err := ex.GetSubaccountInformation(t.Context(), 0, 0, "", "")
+		require.NoError(t, err, "GetSubaccountInformation must not error")
+		require.Len(t, subaccounts, 1, "GetSubaccountInformation must return one sub-account")
+		assert.Equal(t, "sub@example.com", subaccounts[0].Email, "GetSubaccountInformation should decode the email")
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetSubaccountInformation(t.Context(), 1, 100, "", "")
 	if err != nil {
@@ -676,10 +694,34 @@ func TestGetSubaccountTransferHistory(t *testing.T) {
 	_, err := e.GetSubaccountTransferHistory(t.Context(), "", 0, 0, 0, 0)
 	assert.ErrorIs(t, err, errNotValidEmailAddress)
 
+	t.Run("mocked response decodes", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockedExchange(t, `{"success":true,"transfers":[{"asset":"BTC","qty":"2"}]}`)
+		transfers, err := ex.GetSubaccountTransferHistory(t.Context(), "sub@example.com", 0, 0, 0, 0)
+		require.NoError(t, err, "GetSubaccountTransferHistory must not error")
+		require.Len(t, transfers, 1, "GetSubaccountTransferHistory must return one transfer")
+		assert.Equal(t, uint64(2), transfers[0].Qty, "GetSubaccountTransferHistory should decode the quantity")
+	})
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	_, err = e.GetSubaccountTransferHistory(t.Context(), "example@golang.org", 0, 0, 0, 0)
 	assert.Error(t, err, "GetSubaccountTransferHistory should return an error on a bogus email")
+}
+
+func newMockedExchange(t *testing.T, response string) *Exchange {
+	t.Helper()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.SkipAuthCheck = true
+	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(response))
+		assert.NoError(t, err, "response should be written")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
+	return ex
 }
 
 func TestExecuteSubAccountTransfer(t *testing.T) {
@@ -695,6 +737,44 @@ func TestExecuteSubAccountTransfer(t *testing.T) {
 		Amount:    0.000005,
 	})
 	assert.ErrorContains(t, err, "You are not authorized to execute this request.")
+}
+
+func TestExecuteSubAccountTransferPreservesFractionalAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		amount float64
+		want   string
+	}{
+		{name: "fraction", amount: 1.9, want: "1.9"},
+		{name: "small fraction", amount: 0.00001234, want: "0.00001234"},
+		{name: "whole amount", amount: 2, want: "2"},
+		{name: "seventeen significant digits", amount: 0.12345678912345678, want: "0.12345678912345678"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+			ex.SkipAuthCheck = true
+			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method, "method should be POST")
+				assert.Equal(t, "/sapi/v3/sub-account/transfer", r.URL.Path, "path should match the transfer endpoint")
+				assert.Equal(t, tc.want, r.URL.Query().Get("amount"), "amount should retain its precision")
+				_, err := w.Write([]byte(`{"success":true,"txnId":"123"}`))
+				assert.NoError(t, err, "response should be written")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must be set")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "local endpoint must be set")
+			response, err := ex.ExecuteSubAccountTransfer(t.Context(), &SubAccountTransferRequestParams{
+				FromEmail: "sender@example.com", ToEmail: "receiver@example.com", Asset: "BTC", Amount: tc.amount,
+			})
+			require.NoError(t, err, "transfer must succeed")
+			require.NotNil(t, response, "response must not be nil")
+			assert.True(t, response.Success, "transfer should be successful")
+			assert.Equal(t, uint64(123), response.TxnID, "transaction ID should match the response")
+		})
+	}
 }
 
 func TestGetSubaccountAssets(t *testing.T) {
@@ -839,6 +919,15 @@ func TestCancelOpenOrdersForSymbol(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelOpenOrdersForSymbol(t.Context(), "")
 	assert.ErrorIs(t, err, errMissingCurrencySymbol)
+
+	t.Run("mocked response decodes", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockedExchange(t, `[{"symbol":"BTCUSDT","orderId":7}]`)
+		orders, err := ex.CancelOpenOrdersForSymbol(t.Context(), "BTCUSDT")
+		require.NoError(t, err, "CancelOpenOrdersForSymbol must not error")
+		require.Len(t, orders, 1, "CancelOpenOrdersForSymbol must return one order")
+		assert.Equal(t, uint64(7), orders[0].OrderID, "CancelOpenOrdersForSymbol should decode the order ID")
+	})
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
@@ -1124,6 +1213,44 @@ func TestWithdrawCrypto(t *testing.T) {
 	assert.ErrorContains(t, err, "You are not authorized to execute this request.")
 }
 
+func TestWithdrawCryptoPreservesFractionalAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		amount float64
+		want   string
+	}{
+		{name: "fraction", amount: 1.9, want: "1.9"},
+		{name: "small fraction", amount: 0.00001234, want: "0.00001234"},
+		{name: "whole amount", amount: 2, want: "2"},
+		{name: "seventeen significant digits", amount: 0.12345678912345678, want: "0.12345678912345678"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex))
+			ex.SkipAuthCheck = true
+			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/sapi/v1/capital/withdraw/apply", r.URL.Path)
+				assert.Equal(t, tc.want, r.URL.Query().Get("amount"))
+				_, err := w.Write([]byte(`{"id":"withdrawal-id"}`))
+				assert.NoError(t, err)
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()))
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL))
+			id, err := ex.WithdrawCrypto(t.Context(), &withdraw.Request{
+				Currency: currency.BTC,
+				Crypto:   withdraw.CryptoRequest{Chain: "BTC", Address: "test-address"},
+				Amount:   tc.amount,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, "withdrawal-id", id)
+		})
+	}
+}
+
 func TestFiatWithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -1150,6 +1277,99 @@ func TestFiatDepositHistory(t *testing.T) {
 	_, er := e.FiatDepositHistory(t.Context(), &FiatWithdrawalRequestParams{})
 	if er != nil {
 		t.Error("Binanceus FiatDepositHistory() error", er)
+	}
+}
+
+// TestFiatHistoryForwardsOrderID verifies the fiat withdrawal and deposit history
+// endpoints forward an orderId filter when one is supplied and omit it otherwise.
+func TestFiatHistoryForwardsOrderID(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		path    string
+		history func(*Exchange, context.Context, *FiatWithdrawalRequestParams) (FiatAssetsHistory, error)
+	}{
+		{name: "withdrawal", path: "/sapi/v1/fiatpayment/query/withdraw/history", history: (*Exchange).FiatWithdrawalHistory},
+		{name: "deposit", path: "/sapi/v1/fiatpayment/query/deposit/history", history: (*Exchange).FiatDepositHistory},
+	} {
+		for _, orderID := range []string{"1337", "6c2ff984890145fdac2b7160299062f0", ""} {
+			t.Run(tc.name+" orderId="+orderID, func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				ex.SkipAuthCheck = true
+				ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+				var requests atomic.Int64
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					assert.Equal(t, tc.path, r.URL.Path, "request should target the documented endpoint")
+					assert.Equal(t, orderID != "", r.URL.Query().Has("orderId"), "orderId should only be sent when set")
+					assert.Equal(t, orderID, r.URL.Query().Get("orderId"), "orderId should match the supplied value")
+					_, err := w.Write([]byte(`{"assetLogRecordList":[]}`))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
+				_, err := tc.history(ex, t.Context(), &FiatWithdrawalRequestParams{FiatCurrency: "USD", OrderID: orderID})
+				require.NoError(t, err, "fiat history request must not error")
+				assert.Equal(t, int64(1), requests.Load(), "exactly one request should reach the server")
+			})
+		}
+	}
+}
+
+func TestFiatHistoryEndTimeAndNilParams(t *testing.T) {
+	t.Parallel()
+	start, past, future := time.Now().Add(-48*time.Hour), time.Now().Add(-time.Hour), time.Now().Add(time.Hour)
+	startMilli, pastMilli := strconv.FormatInt(start.UnixMilli(), 10), strconv.FormatInt(past.UnixMilli(), 10)
+	for _, tc := range []struct {
+		name    string
+		history func(*Exchange, context.Context, *FiatWithdrawalRequestParams) (FiatAssetsHistory, error)
+	}{
+		{name: "withdrawal", history: (*Exchange).FiatWithdrawalHistory},
+		{name: "deposit", history: (*Exchange).FiatDepositHistory},
+	} {
+		t.Run(tc.name+" nil params", func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			_, err := tc.history(ex, t.Context(), nil)
+			require.ErrorIs(t, err, common.ErrNilPointer, "nil params must return ErrNilPointer")
+		})
+		for _, row := range []struct {
+			name      string
+			params    FiatWithdrawalRequestParams
+			startTime []string
+			endTime   []string
+		}{
+			{name: "no times"},
+			{name: "past endTime", params: FiatWithdrawalRequestParams{EndTime: past}, endTime: []string{pastMilli}},
+			{name: "future endTime", params: FiatWithdrawalRequestParams{EndTime: future}},
+			{name: "past startTime", params: FiatWithdrawalRequestParams{StartTime: start}, startTime: []string{startMilli}},
+			{name: "past startTime and past endTime", params: FiatWithdrawalRequestParams{StartTime: start, EndTime: past}, startTime: []string{startMilli}, endTime: []string{pastMilli}},
+			{name: "past startTime and future endTime", params: FiatWithdrawalRequestParams{StartTime: start, EndTime: future}, startTime: []string{startMilli}},
+		} {
+			t.Run(tc.name+" "+row.name, func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				ex.SkipAuthCheck = true
+				ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+				var requests atomic.Int64
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					assert.Equal(t, row.startTime, r.URL.Query()["startTime"], "startTime should match the expected values")
+					assert.Equal(t, row.endTime, r.URL.Query()["endTime"], "endTime should match the expected values")
+					_, err := w.Write([]byte(`{"assetLogRecordList":[]}`))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
+				_, err := tc.history(ex, t.Context(), &row.params)
+				require.NoError(t, err, "fiat history request must not error")
+				assert.Equal(t, int64(1), requests.Load(), "exactly one request should reach the server")
+			})
+		}
 	}
 }
 
@@ -1350,7 +1570,7 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	}}`)
 
 	p := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-	if err := e.SeedLocalCacheWithBook(p, &book); err != nil {
+	if err := e.SeedLocalCacheWithBook(t.Context(), p, &book); err != nil {
 		t.Fatal(err)
 	}
 	if err := e.wsHandleData(t.Context(), update1); err != nil {
@@ -1465,7 +1685,8 @@ func TestWebsocketBookTicker(t *testing.T) {
 			"a":"25.36520000",
 			"A":"40.66000000" 
 		}
-	  }`)
+	  }`,
+	)
 	if err := e.wsHandleData(t.Context(), bookTickerJSON); err != nil {
 		t.Error("Binanceus Book Ticker error", err)
 	}
@@ -1504,10 +1725,67 @@ func TestWebsocketAggTrade(t *testing.T) {
 				"m": true,
 				"M": true         
 			}
-	   }`)
+	   }`,
+	)
 	if err := e.wsHandleData(t.Context(), aggTradejson); err != nil {
 		t.Error("Binanceus Aggregated Trade Order Json() error", err)
 	}
+}
+
+func TestWsOrderUpdateDataUnmarshal(t *testing.T) {
+	t.Parallel()
+	// Binance.US's documented executionReport. An order resting on the book carries its working time
+	// as "W", which untagged matched IsOnOrderBook's "w" case-insensitively and, being a number,
+	// failed the whole update
+	const data = `{"e":"executionReport","E":1499405658658,"s":"ETHBTC","c":"mUvoqJxFIILMdfAW5iGSOW","S":"BUY","o":"LIMIT","f":"GTC","q":"1.00000000","p":"0.10264410","P":"0.00000000","d":4,"F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293153,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1499405658657,"t":-1,"I":8641984,"w":true,"m":false,"M":false,"O":1499405658657,"Z":"0.00000000","Y":"0.00000000","pl":"0.00000000","pL":"0.00000000","pY":"0.00000000","Q":"0.00000000","V":"NONE","D":1499405658657,"W":1499405658657,"u":12332,"v":122}`
+	var update WsOrderUpdateData
+	require.NoError(t, json.Unmarshal([]byte(data), &update), "Unmarshal must not error")
+	exp := WsOrderUpdateData{
+		EventType:            "executionReport",
+		EventTime:            types.Time(time.UnixMilli(1499405658658)),
+		Symbol:               "ETHBTC",
+		ClientOrderID:        "mUvoqJxFIILMdfAW5iGSOW",
+		Side:                 "BUY",
+		OrderType:            "LIMIT",
+		TimeInForce:          "GTC",
+		Quantity:             1,
+		Price:                0.1026441,
+		OrderListID:          -1,
+		CurrentExecutionType: "NEW",
+		OrderStatus:          "NEW",
+		RejectionReason:      "NONE",
+		OrderID:              4293153,
+		TransactionTime:      types.Time(time.UnixMilli(1499405658657)),
+		TradeID:              -1,
+		Ignored:              8641984,
+		IsOnOrderBook:        true,
+		OrderCreationTime:    types.Time(time.UnixMilli(1499405658657)),
+		WorkingTime:          types.Time(time.UnixMilli(1499405658657)),
+	}
+	assert.Equal(t, exp, update, "WsOrderUpdateData should unmarshal correctly")
+}
+
+func TestWebsocketAggregateTradeStreamUnmarshal(t *testing.T) {
+	t.Parallel()
+	// A live btcusdt@aggTrade message. Binance sends "M" as true on every trade, and untagged it
+	// decoded into IsMaker case-insensitively after "m", reporting every buyer as the maker. The
+	// websocket handler escaped only by re-marshalling through a map, which sorts "M" first
+	const data = `{"e":"aggTrade","E":1789126771861,"s":"BTCUSDT","a":30119095,"p":"76844.21000000","q":"0.00065000","f":31752023,"l":31752023,"T":1789126771861,"m":false,"M":true}`
+	var agg WebsocketAggregateTradeStream
+	require.NoError(t, json.Unmarshal([]byte(data), &agg), "Unmarshal must not error")
+	exp := WebsocketAggregateTradeStream{
+		EventType:        "aggTrade",
+		EventTime:        types.Time(time.UnixMilli(1789126771861)),
+		Symbol:           "BTCUSDT",
+		AggregateTradeID: 30119095,
+		Price:            76844.21,
+		Quantity:         0.00065,
+		FirstTradeID:     31752023,
+		LastTradeID:      31752023,
+		TradeTime:        types.Time(time.UnixMilli(1789126771861)),
+		BestMatchPrice:   true,
+	}
+	assert.Equal(t, exp, agg, "WebsocketAggregateTradeStream should unmarshal correctly")
 }
 
 var balanceUpdateInputJSON = `
@@ -1607,7 +1885,8 @@ var websocketDepthUpdate = []byte(
 		  ]
 		]
 	  }
-	`)
+	`,
+)
 
 func TestProcessUpdate(t *testing.T) {
 	t.Parallel()

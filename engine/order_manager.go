@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -23,7 +21,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
+
+// orderEventType labels order notifications pushed to the communications manager
+const orderEventType = "order"
 
 // SetupOrderManager will boot up the OrderManager
 func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, cfg *config.OrderManager) (*OrderManager, error) {
@@ -65,7 +67,7 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 
 // IsRunning safely checks whether the subsystem is running
 func (m *OrderManager) IsRunning() bool {
-	return m != nil && atomic.LoadInt32(&m.started) == 1
+	return m != nil && m.started.Load()
 }
 
 // Start runs the subsystem
@@ -73,7 +75,7 @@ func (m *OrderManager) Start(ctx context.Context) error {
 	if m == nil {
 		return fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+	if !m.started.CompareAndSwap(false, true) {
 		return fmt.Errorf("order manager %w", ErrSubSystemAlreadyStarted)
 	}
 	log.Debugln(log.OrderMgr, "Order manager starting...")
@@ -88,12 +90,12 @@ func (m *OrderManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	log.Debugln(log.OrderMgr, "Order manager shutting down...")
 	close(m.shutdown)
-	atomic.CompareAndSwapInt32(&m.started, 1, 0)
+	m.started.CompareAndSwap(true, false)
 	return nil
 }
 
@@ -151,7 +153,7 @@ func (m *OrderManager) cancelAllOrders(ctx context.Context, exchanges []exchange
 	if m == nil {
 		return
 	}
-	if requireRunning && atomic.LoadInt32(&m.started) == 0 {
+	if requireRunning && !m.started.Load() {
 		return
 	}
 
@@ -190,14 +192,14 @@ func (m *OrderManager) cancel(ctx context.Context, cancel *order.Cancel, require
 	if m == nil {
 		return fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if requireRunning && atomic.LoadInt32(&m.started) == 0 {
+	if requireRunning && !m.started.Load() {
 		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	var err error
 	defer func() {
 		if err != nil {
 			m.orderStore.commsManager.PushEvent(base.Event{
-				Type:    "order",
+				Type:    orderEventType,
 				Message: err.Error(),
 			})
 		}
@@ -249,7 +251,7 @@ func (m *OrderManager) cancel(ctx context.Context, cancel *order.Cancel, require
 	msg := fmt.Sprintf("Exchange %s order ID=%v cancelled.",
 		od.Exchange, od.OrderID)
 	log.Debugln(log.OrderMgr, msg)
-	m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
+	m.orderStore.commsManager.PushEvent(base.Event{Type: orderEventType, Message: msg})
 	return nil
 }
 
@@ -259,7 +261,7 @@ func (m *OrderManager) GetFuturesPositionsForExchange(exch string, item asset.It
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	if !item.IsFutures() {
@@ -275,7 +277,7 @@ func (m *OrderManager) GetOpenFuturesPosition(exch string, item asset.Item, pair
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	if !item.IsFutures() {
@@ -293,7 +295,7 @@ func (m *OrderManager) GetAllOpenFuturesPositions() ([]futures.Position, error) 
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	if !m.activelyTrackFuturesPositions {
@@ -308,7 +310,7 @@ func (m *OrderManager) ClearFuturesTracking(exch string, item asset.Item, pair c
 	if m == nil {
 		return fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	if !item.IsFutures() {
@@ -325,7 +327,7 @@ func (m *OrderManager) UpdateOpenPositionUnrealisedPNL(e string, item asset.Item
 	if m == nil {
 		return decimal.Zero, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return decimal.Zero, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	if !item.IsFutures() {
@@ -341,7 +343,7 @@ func (m *OrderManager) GetOrderInfo(ctx context.Context, exchangeName, orderID s
 	if m == nil {
 		return order.Detail{}, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return order.Detail{}, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 
@@ -407,7 +409,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 
@@ -445,7 +447,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 			mod.OrderID,
 		)
 		m.orderStore.commsManager.PushEvent(base.Event{
-			Type:    "order",
+			Type:    orderEventType,
 			Message: message,
 		})
 		return nil, err
@@ -465,7 +467,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 		message = "Exchange %s order ID=%v: modified successfully"
 	}
 	m.orderStore.commsManager.PushEvent(base.Event{
-		Type:    "order",
+		Type:    orderEventType,
 		Message: fmt.Sprintf(message, mod.Exchange, res.OrderID),
 	})
 	return &order.ModifyResponse{OrderID: res.OrderID}, err
@@ -477,7 +479,7 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	if newOrder == nil {
@@ -528,7 +530,7 @@ func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder *o
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	if newOrder == nil {
@@ -563,7 +565,7 @@ func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder *o
 // but a status of "" or ANY will include all
 // the time adds contexts for when the snapshot is relevant for
 func (m *OrderManager) GetOrdersSnapshot(s order.Status) []order.Detail {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || !m.started.Load() {
 		return nil
 	}
 	var os []order.Detail
@@ -585,7 +587,7 @@ func (m *OrderManager) GetOrdersFiltered(f *order.Filter) ([]order.Detail, error
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	return m.orderStore.getFilteredOrders(f)
@@ -597,7 +599,7 @@ func (m *OrderManager) GetOrdersActive(f *order.Filter) ([]order.Detail, error) 
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	return m.orderStore.getActiveOrders(f), nil
@@ -609,10 +611,7 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 		return nil, order.ErrOrderDetailIsNil
 	}
 
-	id, err := uuid.NewV4()
-	if err != nil {
-		log.Warnf(log.OrderMgr, "Unable to generate UUID. Err: %s", err)
-	}
+	id := uuid.NewV4()
 
 	detail, err := newOrderResp.DeriveDetail(id)
 	if err != nil {
@@ -641,7 +640,7 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 
 	log.Debugln(log.OrderMgr, msg)
 	if m.orderStore.commsManager != nil {
-		m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
+		m.orderStore.commsManager.PushEvent(base.Event{Type: orderEventType, Message: msg})
 	}
 
 	return &OrderSubmitResponse{Detail: detail, InternalOrderID: detail.InternalOrderID.String()}, nil
@@ -650,10 +649,10 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 // processOrders iterates over all exchange orders via API
 // and adds them to the internal order store
 func (m *OrderManager) processOrders(ctx context.Context) {
-	if !atomic.CompareAndSwapInt32(&m.processingOrders, 0, 1) {
+	if !m.processingOrders.CompareAndSwap(false, true) {
 		return
 	}
-	defer atomic.StoreInt32(&m.processingOrders, 0)
+	defer m.processingOrders.Store(false)
 	exchanges, err := m.orderStore.exchangeManager.GetExchanges()
 	if err != nil {
 		log.Errorf(log.OrderMgr, "order manager cannot get exchanges: %v", err)
@@ -788,9 +787,7 @@ func (m *OrderManager) processFuturesPositions(ctx context.Context, exch exchang
 	if len(position.Orders) == 0 {
 		return fmt.Errorf("%w position for '%v' '%v' '%v' has no orders", errNilOrder, exch.GetName(), position.Asset, position.Pair)
 	}
-	sort.Slice(position.Orders, func(i, j int) bool {
-		return position.Orders[i].Date.Before(position.Orders[j].Date)
-	})
+	slices.SortFunc(position.Orders, func(a, b order.Detail) int { return a.Date.Compare(b.Date) })
 	feat := exch.GetSupportedFeatures()
 	var err error
 	for i := range position.Orders {
@@ -871,7 +868,7 @@ func (m *OrderManager) FetchAndUpdateExchangeOrder(ctx context.Context, exch exc
 
 // Exists checks whether an order exists in the order store
 func (m *OrderManager) Exists(o *order.Detail) bool {
-	return m != nil && atomic.LoadInt32(&m.started) != 0 && m.orderStore.exists(o)
+	return m != nil && m.started.Load() && m.orderStore.exists(o)
 }
 
 // Add adds an order to the orderstore
@@ -879,7 +876,7 @@ func (m *OrderManager) Add(o *order.Detail) error {
 	if m == nil {
 		return fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 
@@ -891,7 +888,7 @@ func (m *OrderManager) GetByExchangeAndID(exchangeName, id string) (*order.Detai
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	return m.orderStore.getByExchangeAndID(exchangeName, id)
@@ -902,7 +899,7 @@ func (m *OrderManager) UpdateExistingOrder(od *order.Detail) error {
 	if m == nil {
 		return fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	return m.orderStore.updateExisting(od)
@@ -913,7 +910,7 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	if od == nil {
@@ -926,7 +923,7 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 			return
 		}
 		m.orderStore.commsManager.PushEvent(base.Event{
-			Type:    "order",
+			Type:    orderEventType,
 			Message: *message,
 		})
 	}(&msg)

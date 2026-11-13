@@ -28,12 +28,9 @@ type TickerResponse struct {
 
 // MarketDepthResponse stores arrays for asks, bids and a timestamp for a currency pair
 type MarketDepthResponse struct {
-	ErrCapture
-	Data struct {
-		Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
-		Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
-		Timestamp types.Time                       `json:"timestamp"`
-	} `json:"data"`
+	Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Timestamp types.Time                       `json:"timestamp"`
 }
 
 // TradeResponse stores date_ms, amount, price, type, tid for a currency pair
@@ -107,16 +104,6 @@ type QueryOrderFinalResponse struct {
 	Orders []OrderResponse
 }
 
-// OrderHistory stores data for past orders
-type OrderHistory struct {
-	Result      bool            `json:"result,string"`
-	Total       string          `json:"total"`
-	PageLength  uint8           `json:"page_length"`
-	Orders      json.RawMessage `json:"orders"`
-	CurrentPage uint8           `json:"current_page"`
-	ErrorCode   int64           `json:"error_code"`
-}
-
 // OrderHistoryResponse stores past orders
 type OrderHistoryResponse struct {
 	ErrCapture
@@ -178,11 +165,6 @@ type OpenOrderFinalResponse struct {
 	Orders     []OrderResponse
 }
 
-// ExchangeRateResponse stores information about USD-RMB rate
-type ExchangeRateResponse struct {
-	USD2CNY string `json:"USD2CNY"`
-}
-
 // WithdrawConfigResponse stores info about withdrawal configurations
 type WithdrawConfigResponse struct {
 	AmountScale         int64         `json:"amountScale,string"`
@@ -237,15 +219,19 @@ type ErrCapture struct {
 	Result bool  `json:"result,string"`
 }
 
-// GetAllOpenIDResp stores orderIds and currency pairs for open orders
-type GetAllOpenIDResp struct {
-	CurrencyPair string
-	OrderID      string
-}
-
-// TimestampResponse holds timestamp data
-type TimestampResponse struct {
-	Timestamp types.Time `json:"data"`
+// V2Response wraps all LBank v2 API responses
+//
+// result is reported as a JSON boolean by some endpoints and as a JSON string by
+// others, so it is decoded as a types.Boolean, which accepts both.
+type V2Response struct {
+	// Result is a pointer so that an absent or null result stays distinct from an
+	// explicit false: several successful endpoints omit result altogether and
+	// send only data, and a non-pointer types.Boolean would read those successes
+	// as failures.
+	Result    *types.Boolean  `json:"result"`
+	Msg       string          `json:"msg"`
+	Data      json.RawMessage `json:"data"`
+	ErrorCode int64           `json:"error_code"`
 }
 
 var errorCodes = map[int64]string{

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
@@ -55,7 +56,7 @@ func testInstance() *Exchange {
 		log.Fatalf("Bybit Setup error: %s", err)
 	}
 
-	b.SetCredentials("mock", "tester", "", "", "", "") // Hack for UpdateAccountBalances test
+	b.SetCredentials(&accounts.Credentials{Key: "mock", Secret: "tester"}) // Hack for UpdateAccountBalances test
 
 	if err := testexch.MockHTTPInstance(b); err != nil {
 		log.Fatalf("Bybit MockHTTPInstance error: %s", err)

@@ -2,18 +2,25 @@ package engine
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
@@ -49,7 +56,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 			name: "test file",
 			settings: &Settings{
 				ConfigFile:   config.TestFile,
-				CoreSettings: CoreSettings{EnableDryRun: true},
+				EnableDryRun: true,
 			},
 			want:    &empty,
 			wantErr: false,
@@ -60,7 +67,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 			settings: &Settings{
 				ConfigFile:   config.TestFile,
 				DataDir:      somePath,
-				CoreSettings: CoreSettings{EnableDryRun: true},
+				EnableDryRun: true,
 			},
 			want:    &somePath,
 			wantErr: false,
@@ -95,7 +102,7 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	tempDir := t.TempDir()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		CoreSettings: CoreSettings{EnableDryRun: true},
+		EnableDryRun: true,
 		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
@@ -292,7 +299,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	tempDir2 := t.TempDir()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		CoreSettings: CoreSettings{EnableDryRun: true},
+		EnableDryRun: true,
 		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
@@ -305,7 +312,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 
 	botTwo, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		CoreSettings: CoreSettings{EnableDryRun: true},
+		EnableDryRun: true,
 		DataDir:      tempDir2,
 	}, nil)
 	if err != nil {
@@ -361,6 +368,133 @@ func TestGetExchangeByName(t *testing.T) {
 
 	_, err = e.GetExchangeByName("Asdasd")
 	assert.ErrorIs(t, err, ErrExchangeNotFound)
+}
+
+func TestLoadExchangeConcurrently(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	e := &Engine{ExchangeManager: NewExchangeManager(), Config: &config.Config{}, runtimeCtx: ctx}
+	for _, name := range exchange.Exchanges {
+		e.Config.Exchanges = append(e.Config.Exchanges, config.Exchange{
+			Name:                          name,
+			WebsocketResponseCheckTimeout: config.DefaultWebsocketResponseCheckTimeout,
+			WebsocketResponseMaxLimit:     config.DefaultWebsocketResponseMaxLimit,
+			WebsocketTrafficTimeout:       config.DefaultWebsocketTrafficTimeout,
+		})
+	}
+	var wg sync.WaitGroup
+	for _, name := range exchange.Exchanges {
+		// Each load looks its config up among names the other loads are standardising; the cancelled context stops
+		// Bootstrap before it sends a request
+		wg.Go(func() {
+			err := e.LoadExchange(name)
+			assert.Truef(t, onlyCancelled(err), "LoadExchange should fail only on Bootstrap's cancelled context for %s, got: %v", name, err)
+		})
+	}
+	wg.Wait()
+	for i, name := range exchange.Exchanges {
+		exch, err := NewExchangeManager().NewExchangeByName(name)
+		require.NoError(t, err, "NewExchangeByName must not error")
+		exch.SetDefaults()
+		assert.Equal(t, exch.GetName(), e.Config.Exchanges[i].Name, "LoadExchange should standardise the exchange config's name")
+	}
+}
+
+// TestLoadExchangeEnabledRaceIsProtected checks that LoadExchange's writes to an exchange
+// config's Enabled field are synchronised with the config's readers, so that a bot loading
+// an exchange cannot race a concurrently served GetInfo request
+func TestLoadExchangeEnabledRaceIsProtected(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	testExchanges := []string{testExchange, "Bitfinex"}
+	e := &Engine{ExchangeManager: NewExchangeManager(), Config: &config.Config{}, runtimeCtx: ctx}
+	for _, name := range testExchanges {
+		e.Config.Exchanges = append(e.Config.Exchanges, config.Exchange{
+			Name:                          name,
+			WebsocketResponseCheckTimeout: config.DefaultWebsocketResponseCheckTimeout,
+			WebsocketResponseMaxLimit:     config.DefaultWebsocketResponseMaxLimit,
+			WebsocketTrafficTimeout:       config.DefaultWebsocketTrafficTimeout,
+		})
+	}
+
+	var wg sync.WaitGroup
+	for _, name := range testExchanges {
+		// The cancelled context stops Bootstrap after Setup, so each load still enables the config and each unload disables it
+		wg.Go(func() {
+			for range 20 {
+				err := e.LoadExchange(name)
+				assert.Truef(t, onlyCancelled(err), "LoadExchange should fail only on Bootstrap's cancelled context for %s, got: %v", name, err)
+				assert.NoErrorf(t, e.UnloadExchange(name), "UnloadExchange should not error for %s", name)
+			}
+		})
+	}
+	for range 2 {
+		// CountEnabledExchanges, GetEnabledExchanges and GetDisabledExchanges serve RPC and startup reads
+		wg.Go(func() {
+			for range 200 {
+				_ = e.Config.CountEnabledExchanges()
+				_ = e.Config.GetEnabledExchanges()
+				_ = e.Config.GetDisabledExchanges()
+			}
+		})
+	}
+	wg.Wait()
+	assert.Zero(t, e.Config.CountEnabledExchanges(), "UnloadExchange should leave every exchange config disabled")
+}
+
+// TestLoadExchangeRollbackRaceIsProtected checks that LoadExchange's rollback after a failed Setup is synchronised
+// with the config's readers
+func TestLoadExchangeRollbackRaceIsProtected(t *testing.T) {
+	t.Parallel()
+	// Should Setup ever pass, the cancelled context stops Bootstrap before it sends a request
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	// Setup rejects a config without websocket timeouts, so every load takes LoadExchange's rollback path
+	e := &Engine{ExchangeManager: NewExchangeManager(), Config: &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}}, runtimeCtx: ctx}
+	loaded := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		defer close(loaded)
+		for range 20 {
+			assert.ErrorContains(t, e.LoadExchange(testExchange), "invalid traffic timeout", "LoadExchange should fail Setup without websocket timeouts")
+		}
+	})
+	wg.Go(func() {
+		for {
+			select {
+			case <-loaded:
+				return
+			default:
+				_ = e.Config.CountEnabledExchanges()
+				_ = e.Config.GetEnabledExchanges()
+				_ = e.Config.GetDisabledExchanges()
+			}
+		}
+	})
+	wg.Wait()
+	assert.Zero(t, e.Config.CountEnabledExchanges(), "LoadExchange should roll the exchange config back to disabled when Setup fails")
+}
+
+// onlyCancelled reports whether err consists solely of context cancellations, however they are wrapped or joined
+func onlyCancelled(err error) bool {
+	switch e := err.(type) {
+	case interface{ Unwrap() []error }:
+		if errs := e.Unwrap(); len(errs) > 0 {
+			for _, err := range errs {
+				if !onlyCancelled(err) {
+					return false
+				}
+			}
+			return true
+		}
+	case interface{ Unwrap() error }:
+		if inner := e.Unwrap(); inner != nil {
+			return onlyCancelled(inner)
+		}
+	}
+	return errors.Is(err, context.Canceled)
 }
 
 func TestUnloadExchange(t *testing.T) {
@@ -436,6 +570,83 @@ func TestDryRunParamInteraction(t *testing.T) {
 	if !bot.Settings.EnableDryRun ||
 		!exchCfg.Verbose {
 		t.Error("dryrun should be true and verbose should be true")
+	}
+}
+
+func TestValidateAPICredentials(t *testing.T) {
+	t.Parallel()
+	t.Run("no enabled assets", func(t *testing.T) {
+		t.Parallel()
+		called := false
+		err := validateAPICredentials(t.Context(), testExchange, nil, func(context.Context, asset.Item) error {
+			called = true
+			return nil
+		})
+		require.ErrorIs(t, err, asset.ErrNotEnabled, "validation must fail when no assets are enabled")
+		assert.ErrorContains(t, err, testExchange, "error should name the exchange it came from")
+		assert.False(t, called, "validation should not run without an enabled asset")
+	})
+
+	errDeliveryAccountMissing := errors.New("delivery account missing")
+	var validated asset.Items
+	err := validateAPICredentials(t.Context(), testExchange, asset.Items{
+		asset.DeliveryFutures,
+		asset.USDTMarginedFutures,
+	}, func(_ context.Context, a asset.Item) error {
+		validated = append(validated, a)
+		if a == asset.DeliveryFutures {
+			return errDeliveryAccountMissing
+		}
+		return nil
+	})
+	require.NoError(t, err, "validation must succeed when another enabled account is available")
+	assert.Equal(t, asset.Items{asset.DeliveryFutures, asset.USDTMarginedFutures}, validated,
+		"validation should try another enabled futures account after an account-specific failure")
+
+	err = validateAPICredentials(t.Context(), testExchange, asset.Items{asset.DeliveryFutures}, func(context.Context, asset.Item) error {
+		return errDeliveryAccountMissing
+	})
+	require.ErrorIs(t, err, errDeliveryAccountMissing, "validation must return an error when every enabled account fails")
+
+	var seen asset.Items
+	err = validateAPICredentials(t.Context(), testExchange, asset.Items{
+		asset.Options,
+		asset.USDTMarginedFutures,
+		asset.Margin,
+		asset.Spot,
+		asset.PerpetualSwap,
+		asset.DeliveryFutures,
+		asset.Index,
+	}, func(_ context.Context, a asset.Item) error {
+		seen = append(seen, a)
+		return errDeliveryAccountMissing
+	})
+	require.ErrorIs(t, err, errDeliveryAccountMissing, "mixed asset validation must return the aggregated error")
+	assert.Equal(t, asset.Items{
+		asset.Spot,
+		asset.USDTMarginedFutures,
+		asset.PerpetualSwap,
+		asset.DeliveryFutures,
+		asset.Options,
+		asset.Margin,
+		asset.Index,
+	}, seen, "assets should be tried spot first, then futures, then the rest")
+	for _, a := range seen {
+		assert.ErrorContainsf(t, err, a.String()+": "+errDeliveryAccountMissing.Error(), "aggregated error should name %s and why it failed", a)
+	}
+
+	for _, venueWideErr := range []error{
+		exchange.ErrCredentialsAreEmpty,
+		exchange.ErrAuthenticationSupportNotEnabled,
+		&url.Error{Op: "Get", URL: "https://example.com/accounts", Err: context.DeadlineExceeded},
+	} {
+		validated = nil
+		err = validateAPICredentials(t.Context(), testExchange, asset.Items{asset.Spot, asset.USDTMarginedFutures}, func(_ context.Context, a asset.Item) error {
+			validated = append(validated, a)
+			return fmt.Errorf("%w, authenticated request failed", venueWideErr)
+		})
+		require.ErrorIs(t, err, venueWideErr, "venue-wide failure must be returned")
+		assert.Equal(t, asset.Items{asset.Spot}, validated, "venue-wide failure should stop further validation")
 	}
 }
 
@@ -659,4 +870,31 @@ func TestSetupExchanges(t *testing.T) {
 			assert.ElementsMatch(t, []string{"Bitstamp", "Bitfinex"}, exchangeNames)
 		})
 	})
+}
+
+// Not parallel: it swaps the package-level cache the parallel withdrawal tests use
+func TestValidateSettingsWithdrawCacheSize(t *testing.T) {
+	oldCache, oldSize := withdraw.Cache, withdraw.CacheSize
+	t.Cleanup(func() { withdraw.Cache, withdraw.CacheSize = oldCache, oldSize })
+
+	for _, size := range []uint64{1, 3, 26} {
+		withdraw.Cache = cache.New(oldSize)
+		validateSettings(&Engine{Config: &config.Config{}}, &Settings{WithdrawCacheSize: size}, FlagSet{"withdrawcachesize": true})
+		assert.Equal(t, size, withdraw.CacheSize, "CacheSize should take the flag's value")
+		for i := range size + 1 {
+			withdraw.Cache.Add(i, i)
+		}
+		assert.Equalf(t, size, withdraw.Cache.Len(), "the withdrawal cache should hold the flag's size of %d", size)
+		assert.Falsef(t, withdraw.Cache.Contains(uint64(0)), "the withdrawal cache should evict its oldest entry beyond %d", size)
+	}
+
+	unflagged := cache.New(oldSize)
+	withdraw.Cache, withdraw.CacheSize = unflagged, oldSize
+	validateSettings(&Engine{Config: &config.Config{}}, &Settings{WithdrawCacheSize: 2}, FlagSet{})
+	assert.Same(t, unflagged, withdraw.Cache, "the withdrawal cache should be left alone without the flag")
+	assert.Equal(t, oldSize, withdraw.CacheSize, "CacheSize should be left alone without the flag")
+	for i := range oldSize + 1 {
+		unflagged.Add(i, i)
+	}
+	assert.Equal(t, oldSize, unflagged.Len(), "the withdrawal cache should keep its size without the flag")
 }

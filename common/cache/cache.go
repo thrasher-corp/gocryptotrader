@@ -7,11 +7,11 @@ func New(capacity uint64) *LRUCache {
 	}
 }
 
-// Add new entry to Cache return true if entry removed
+// Add adds a new entry to the Cache.
 func (l *LRUCache) Add(k, v any) {
 	l.m.Lock()
+	defer l.m.Unlock()
 	l.lru.Add(k, v)
-	l.m.Unlock()
 }
 
 // Get looks up a key's value from the cache.

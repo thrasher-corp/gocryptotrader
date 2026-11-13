@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -119,9 +118,10 @@ type Exchange struct {
 	exchange.Base
 }
 
-// GetPlatformStatus returns the Bitfinex platform status
-func (e *Exchange) GetPlatformStatus(ctx context.Context) (int, error) {
-	var response []int
+// GetPlatformStatus returns the Bitfinex platform status, 1 operative or 0 in maintenance. It is
+// signed because -1 comes back alongside any error
+func (e *Exchange) GetPlatformStatus(ctx context.Context) (int64, error) {
+	var response []int64
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot,
 		bitfinexAPIVersion2+
 			bitfinexPlatformStatus,
@@ -503,7 +503,7 @@ func (e *Exchange) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 	default:
 		return nil, fmt.Errorf("invalid asset type for GetSiteInfoConfigData: %s", assetType)
 	}
-	var resp [][][]any
+	var resp [][][]json.RawMessage
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, bitfinexAPIVersion2+path, &resp, status)
 	if err != nil {
 		return nil, err
@@ -517,29 +517,21 @@ func (e *Exchange) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 		if len(data[i]) != 2 {
 			return nil, errors.New("response contained a tuple without exactly 2 items")
 		}
-		pairSymbol, ok := data[i][0].(string)
-		if !ok {
-			return nil, fmt.Errorf("could not convert first item in SiteInfoConfigData to string: Type is %T", data[i][0])
+		var pairSymbol string
+		if err := json.Unmarshal(data[i][0], &pairSymbol); err != nil {
+			return nil, fmt.Errorf("could not unmarshal pair symbol: %w", err)
 		}
 		if strings.Contains(pairSymbol, "TEST") {
 			continue
 		}
-		// SIC: Array type really is any. It contains nils and strings
-		info, ok := data[i][1].([]any)
-		if !ok {
-			return nil, fmt.Errorf("could not convert second item in SiteInfoConfigData to []any; Type is %T", data[i][1])
+		var info []types.Number
+		if err := json.Unmarshal(data[i][1], &info); err != nil {
+			return nil, fmt.Errorf("could not unmarshal order info for %s: %w", pairSymbol, err)
 		}
 		if len(info) < 5 {
 			return nil, errors.New("response contained order info with less than 5 elements")
 		}
-		minOrder, err := convert.FloatFromString(info[3])
-		if err != nil {
-			return nil, fmt.Errorf("could not convert MinOrderAmount: %s", err)
-		}
-		maxOrder, err := convert.FloatFromString(info[4])
-		if err != nil {
-			return nil, fmt.Errorf("could not convert MaxOrderAmount: %s", err)
-		}
+		minOrder, maxOrder := info[3].Float64(), info[4].Float64()
 		pair, err := currency.NewPairFromString(pairSymbol)
 		if err != nil {
 			return nil, err
@@ -1019,7 +1011,8 @@ func (e *Exchange) GetLiquidationFeed() error {
 // profit
 // Allowed time frames are 3h, 1w and 1M
 // Allowed symbols are trading pairs (e.g. tBTCUSD, tETHUSD and tGLOBAL:USD)
-func (e *Exchange) GetLeaderboard(ctx context.Context, k, timeframe, symbol string, sort, limit int, start, end string) ([]LeaderboardEntry, error) {
+// sort is signed because it is 1 for ascending and -1 for descending
+func (e *Exchange) GetLeaderboard(ctx context.Context, k, timeframe, symbol string, sort int64, limit uint64, start, end string) ([]LeaderboardEntry, error) {
 	validLeaderboardKey := func(input string) bool {
 		switch input {
 		case LeaderboardUnrealisedProfitPeriodDelta,
@@ -1042,10 +1035,10 @@ func (e *Exchange) GetLeaderboard(ctx context.Context, k, timeframe, symbol stri
 		symbol)
 	vals := url.Values{}
 	if sort != 0 {
-		vals.Set("sort", strconv.Itoa(sort))
+		vals.Set("sort", strconv.FormatInt(sort, 10))
 	}
 	if limit != 0 {
-		vals.Set("limit", strconv.Itoa(limit))
+		vals.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if start != "" {
 		vals.Set("start", start)
@@ -1095,7 +1088,7 @@ func (e *Exchange) GetLeaderboard(ctx context.Context, k, timeframe, symbol stri
 		result[x] = LeaderboardEntry{
 			Timestamp:     time.UnixMilli(int64(tm)),
 			Username:      username,
-			Ranking:       int(ranking),
+			Ranking:       uint64(ranking),
 			Value:         value,
 			TwitterHandle: parseTwitterHandle(r[9]),
 		}
@@ -1654,7 +1647,8 @@ func (e *Exchange) GetInactiveOrders(ctx context.Context, symbol string, ids ...
 		bitfinexV2Auth+"r/"+bitfinexOrders+"/"+symbol+"/"+bitfinexInactiveOrders,
 		req,
 		&response,
-		orderMulti)
+		orderMulti,
+	)
 }
 
 // GetOpenOrders returns all active orders and statuses
@@ -1683,7 +1677,7 @@ func (e *Exchange) GetActivePositions(ctx context.Context) ([]Position, error) {
 }
 
 // ClaimPosition allows positions to be claimed
-func (e *Exchange) ClaimPosition(ctx context.Context, positionID int) (Position, error) {
+func (e *Exchange) ClaimPosition(ctx context.Context, positionID uint64) (Position, error) {
 	response := Position{}
 	req := make(map[string]any)
 	req["position_id"] = positionID
@@ -1696,7 +1690,7 @@ func (e *Exchange) ClaimPosition(ctx context.Context, positionID int) (Position,
 }
 
 // GetBalanceHistory returns balance history for the account
-func (e *Exchange) GetBalanceHistory(ctx context.Context, symbol string, timeSince, timeUntil time.Time, limit int, wallet string) ([]BalanceHistory, error) {
+func (e *Exchange) GetBalanceHistory(ctx context.Context, symbol string, timeSince, timeUntil time.Time, limit uint64, wallet string) ([]BalanceHistory, error) {
 	var response []BalanceHistory
 	req := make(map[string]any)
 	req["currency"] = symbol
@@ -1722,7 +1716,7 @@ func (e *Exchange) GetBalanceHistory(ctx context.Context, symbol string, timeSin
 }
 
 // GetMovementHistory returns an array of past deposits and withdrawals
-func (e *Exchange) GetMovementHistory(ctx context.Context, symbol, method string, timeSince, timeUntil time.Time, limit int) ([]MovementHistory, error) {
+func (e *Exchange) GetMovementHistory(ctx context.Context, symbol, method string, timeSince, timeUntil time.Time, limit uint64) ([]MovementHistory, error) {
 	req := make(map[string]any)
 	req["currency"] = symbol
 
@@ -1745,7 +1739,7 @@ func (e *Exchange) GetMovementHistory(ctx context.Context, symbol, method string
 }
 
 // GetTradeHistory returns past executed trades
-func (e *Exchange) GetTradeHistory(ctx context.Context, currencyPair string, timestamp, until time.Time, limit, reverse int) ([]TradeHistory, error) {
+func (e *Exchange) GetTradeHistory(ctx context.Context, currencyPair string, timestamp, until time.Time, limit, reverse uint64) ([]TradeHistory, error) {
 	var response []TradeHistory
 	req := make(map[string]any)
 	req["currency"] = currencyPair

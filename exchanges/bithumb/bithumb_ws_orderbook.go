@@ -24,7 +24,7 @@ const (
 	maxWSOrderbookWorkers = 10
 )
 
-func (e *Exchange) processBooks(updates *WsOrderbooks) error {
+func (e *Exchange) processBooks(ctx context.Context, updates *WsOrderbooks) error {
 	bids := make([]orderbook.Level, 0, len(updates.List))
 	asks := make([]orderbook.Level, 0, len(updates.List))
 	for x := range updates.List {
@@ -35,7 +35,7 @@ func (e *Exchange) processBooks(updates *WsOrderbooks) error {
 		}
 		asks = append(asks, i)
 	}
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		Pair:       updates.List[0].Symbol,
 		Asset:      asset.Spot,
 		Bids:       bids,
@@ -45,7 +45,7 @@ func (e *Exchange) processBooks(updates *WsOrderbooks) error {
 }
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
-func (e *Exchange) UpdateLocalBuffer(wsdp *WsOrderbooks) (bool, error) {
+func (e *Exchange) UpdateLocalBuffer(ctx context.Context, wsdp *WsOrderbooks) (bool, error) {
 	if len(wsdp.List) < 1 {
 		return false, errors.New("insufficient data to process")
 	}
@@ -58,7 +58,7 @@ func (e *Exchange) UpdateLocalBuffer(wsdp *WsOrderbooks) (bool, error) {
 		return init, err
 	}
 
-	err = e.applyBufferUpdate(wsdp.List[0].Symbol)
+	err = e.applyBufferUpdate(ctx, wsdp.List[0].Symbol)
 	if err != nil {
 		e.invalidateAndCleanupOrderbook(wsdp.List[0].Symbol)
 	}
@@ -67,7 +67,7 @@ func (e *Exchange) UpdateLocalBuffer(wsdp *WsOrderbooks) (bool, error) {
 
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
-func (e *Exchange) applyBufferUpdate(pair currency.Pair) error {
+func (e *Exchange) applyBufferUpdate(ctx context.Context, pair currency.Pair) error {
 	fetching, needsFetching, err := e.obm.handleFetchingBook(pair)
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func (e *Exchange) applyBufferUpdate(pair currency.Pair) error {
 	}
 
 	if recent != nil {
-		err = e.obm.checkAndProcessOrderbookUpdate(e.processBooks, pair, recent)
+		err = e.obm.checkAndProcessOrderbookUpdate(ctx, e.processBooks, pair, recent)
 		if err != nil {
 			log.Errorf(log.WebsocketMgr, "%s error processing update - initiating new orderbook sync via REST: %s\n", e.Name, err)
 			err = e.obm.setNeedsFetchingBook(pair)
@@ -140,7 +140,7 @@ func (e *Exchange) processJob(ctx context.Context, p currency.Pair) error {
 
 	// Immediately apply the buffer updates so we don't wait for a
 	// new update to initiate this.
-	err = e.applyBufferUpdate(p)
+	err = e.applyBufferUpdate(ctx, p)
 	if err != nil {
 		e.invalidateAndCleanupOrderbook(p)
 		return err
@@ -331,7 +331,7 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
 	}
 }
 
-func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(*WsOrderbooks) error, pair currency.Pair, recent *orderbook.Book) error {
+func (o *orderbookManager) checkAndProcessOrderbookUpdate(ctx context.Context, processor func(context.Context, *WsOrderbooks) error, pair currency.Pair, recent *orderbook.Book) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
@@ -349,7 +349,7 @@ buffer:
 			if !state.validate(d, recent) {
 				continue
 			}
-			err := processor(d)
+			err := processor(ctx, d)
 			if err != nil {
 				return fmt.Errorf("%s %s processing update error: %w",
 					pair, asset.Spot, err)
@@ -400,11 +400,11 @@ func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 	if err != nil {
 		return err
 	}
-	return e.SeedLocalCacheWithBook(p, ob)
+	return e.SeedLocalCacheWithBook(ctx, p, ob)
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
+func (e *Exchange) SeedLocalCacheWithBook(ctx context.Context, p currency.Pair, o *Orderbook) error {
 	ob := &orderbook.Book{
 		Pair:              p,
 		Asset:             asset.Spot,
@@ -422,7 +422,7 @@ func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
 		ob.Asks[i].Price = o.Data.Asks[i].Price
 		ob.Asks[i].Amount = o.Data.Asks[i].Quantity
 	}
-	return e.Websocket.Orderbook.LoadSnapshot(ob)
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, ob)
 }
 
 // setNeedsFetchingBook completes the book fetching initiation.

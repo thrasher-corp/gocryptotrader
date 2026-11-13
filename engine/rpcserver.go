@@ -7,22 +7,18 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pquerna/otp/totp"
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/file"
-	"github.com/thrasher-corp/gocryptotrader/common/file/archive"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/common/timeperiods"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -47,11 +43,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
-	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -79,6 +75,7 @@ var (
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 	errInvalidStrategy         = errors.New("invalid strategy")
 	errSpecificPairNotEnabled  = errors.New("specified pair is not enabled")
+	errDuplicateOrderID        = errors.New("duplicate order id received")
 )
 
 // RPCServer struct
@@ -161,9 +158,7 @@ func StartRPCServer(ctx context.Context, engine *Engine) {
 	server := grpc.NewServer(opts...)
 	gctrpc.RegisterGoCryptoTraderServiceServer(server, &s)
 
-	go func() {
-		<-ctx.Done()
-
+	context.AfterFunc(ctx, func() {
 		done := make(chan struct{})
 		go func() {
 			server.GracefulStop()
@@ -178,7 +173,7 @@ func StartRPCServer(ctx context.Context, engine *Engine) {
 		}
 
 		_ = lis.Close()
-	}()
+	})
 
 	go func() {
 		if err := server.Serve(lis); err != nil && !errors.Is(err, net.ErrClosed) && !errors.Is(err, grpc.ErrServerStopped) {
@@ -227,7 +222,7 @@ func (s *RPCServer) startRPCRESTProxy(ctx context.Context) {
 		Handler:           s.authClient(mux),
 	}
 
-	go func() {
+	go func() { //nolint:gosec // Shutdown must outlive ctx, which has just been cancelled
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
@@ -299,8 +294,7 @@ func (s *RPCServer) GetSubsystems(_ context.Context, _ *gctrpc.GetSubsystemsRequ
 
 // EnableSubsystem enables a engine subsystem
 func (s *RPCServer) EnableSubsystem(_ context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericResponse, error) {
-	err := s.SetSubsystem(r.Subsystem, true)
-	if err != nil {
+	if err := s.SetSubsystem(r.Subsystem, true); err != nil {
 		return nil, err
 	}
 	return &gctrpc.GenericResponse{
@@ -311,8 +305,7 @@ func (s *RPCServer) EnableSubsystem(_ context.Context, r *gctrpc.GenericSubsyste
 
 // DisableSubsystem disables a engine subsystem
 func (s *RPCServer) DisableSubsystem(_ context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericResponse, error) {
-	err := s.SetSubsystem(r.Subsystem, false)
-	if err != nil {
+	if err := s.SetSubsystem(r.Subsystem, false); err != nil {
 		return nil, err
 	}
 	return &gctrpc.GenericResponse{
@@ -354,8 +347,7 @@ func (s *RPCServer) GetExchanges(_ context.Context, r *gctrpc.GetExchangesReques
 
 // DisableExchange disables an exchange
 func (s *RPCServer) DisableExchange(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericResponse, error) {
-	err := s.UnloadExchange(r.Exchange)
-	if err != nil {
+	if err := s.UnloadExchange(r.Exchange); err != nil {
 		return nil, err
 	}
 	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
@@ -363,8 +355,7 @@ func (s *RPCServer) DisableExchange(_ context.Context, r *gctrpc.GenericExchange
 
 // EnableExchange enables an exchange
 func (s *RPCServer) EnableExchange(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericResponse, error) {
-	err := s.LoadExchange(r.Exchange)
-	if err != nil {
+	if err := s.LoadExchange(r.Exchange); err != nil {
 		return nil, err
 	}
 	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
@@ -427,8 +418,46 @@ func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchange
 	return resp, nil
 }
 
-// GetTicker returns the ticker for a specified exchange, currency pair and
-// asset type
+// tickerResponse maps the stored ticker fields to their RPC representation.
+func (s *RPCServer) tickerResponse(p *ticker.Price) *gctrpc.TickerResponse {
+	return &gctrpc.TickerResponse{
+		Pair: &gctrpc.CurrencyPair{
+			Base:      p.Pair.Base.String(),
+			Quote:     p.Pair.Quote.String(),
+			Delimiter: p.Pair.Delimiter,
+		},
+		LastUpdated:                s.unixTimestamp(p.LastUpdated),
+		CurrencyPair:               p.Pair.String(),
+		Last:                       p.Last,
+		LastSize:                   p.LastSize,
+		VolumeWeightedAveragePrice: p.VolumeWeightedAveragePrice,
+		High:                       p.High,
+		Low:                        p.Low,
+		Bid:                        p.Bid,
+		BidSize:                    p.BidSize,
+		Ask:                        p.Ask,
+		AskSize:                    p.AskSize,
+		Volume:                     p.BaseVolume,
+		BaseVolume:                 p.BaseVolume,
+		QuoteVolume:                p.QuoteVolume,
+		Open:                       p.Open,
+		Open24Hour:                 p.Open24Hour,
+		PercentChange24Hour:        p.PercentChange24Hour,
+		Close:                      p.Close,
+		OpenInterest:               p.OpenInterest,
+		OpenInterestValue:          p.OpenInterestValue,
+		MarkPrice:                  p.MarkPrice,
+		IndexPrice:                 p.IndexPrice,
+		ExchangeName:               p.ExchangeName,
+		AssetType:                  p.AssetType.String(),
+		FlashReturnRate:            p.FlashReturnRate,
+		BidPeriod:                  p.BidPeriod,
+		AskPeriod:                  p.AskPeriod,
+		FlashReturnRateAmount:      p.FlashReturnRateAmount,
+	}
+}
+
+// GetTicker returns the cached ticker for an exchange, pair and asset type.
 func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
@@ -452,18 +481,14 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 		return nil, err
 	}
 
-	resp := &gctrpc.TickerResponse{
-		Pair:        r.Pair,
-		LastUpdated: s.unixTimestamp(t.LastUpdated),
-		Last:        t.Last,
-		High:        t.High,
-		Low:         t.Low,
-		Bid:         t.Bid,
-		Ask:         t.Ask,
-		Volume:      t.Volume,
-		PriceAth:    t.PriceATH,
+	resp := s.tickerResponse(t)
+	// GetTicker echoes the caller's pair format even when the cache uses another format.
+	resp.Pair = &gctrpc.CurrencyPair{
+		Base:      r.Pair.Base,
+		Quote:     r.Pair.Quote,
+		Delimiter: r.Pair.Delimiter,
 	}
-
+	resp.CurrencyPair = r.Pair.Base + r.Pair.Delimiter + r.Pair.Quote
 	return resp, nil
 }
 
@@ -475,26 +500,29 @@ func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (
 	for x := range activeTickers {
 		ticks := make([]*gctrpc.TickerResponse, len(activeTickers[x].ExchangeValues))
 		for y, val := range activeTickers[x].ExchangeValues {
-			ticks[y] = &gctrpc.TickerResponse{
-				Pair: &gctrpc.CurrencyPair{
-					Delimiter: val.Pair.Delimiter,
-					Base:      val.Pair.Base.String(),
-					Quote:     val.Pair.Quote.String(),
-				},
-				LastUpdated: s.unixTimestamp(val.LastUpdated),
-				Last:        val.Last,
-				High:        val.High,
-				Low:         val.Low,
-				Bid:         val.Bid,
-				Ask:         val.Ask,
-				Volume:      val.Volume,
-				PriceAth:    val.PriceATH,
-			}
+			ticks[y] = s.tickerResponse(val)
 		}
 		tickers[x] = &gctrpc.Tickers{Exchange: activeTickers[x].ExchangeName, Tickers: ticks}
 	}
 
 	return &gctrpc.GetTickersResponse{Tickers: tickers}, nil
+}
+
+// orderbookItems keeps level conversion consistent across snapshot and stream endpoints.
+func orderbookItems(levels orderbook.Levels, includeIDs bool) []*gctrpc.OrderbookItem {
+	items := make([]*gctrpc.OrderbookItem, len(levels))
+	for i := range levels {
+		items[i] = &gctrpc.OrderbookItem{
+			Amount:    levels[i].Amount,
+			Price:     levels[i].Price,
+			StrAmount: levels[i].StrAmount,
+			StrPrice:  levels[i].StrPrice,
+		}
+		if includeIDs {
+			items[i].Id = levels[i].ID
+		}
+	}
+	return items
 }
 
 // GetOrderbook returns an orderbook for a specific exchange, currency pair
@@ -517,20 +545,10 @@ func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookReques
 		return nil, err
 	}
 
-	bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
-	for x := range ob.Bids {
-		bids[x] = &gctrpc.OrderbookItem{Amount: ob.Bids[x].Amount, Price: ob.Bids[x].Price}
-	}
-
-	asks := make([]*gctrpc.OrderbookItem, len(ob.Asks))
-	for x := range ob.Asks {
-		asks[x] = &gctrpc.OrderbookItem{Amount: ob.Asks[x].Amount, Price: ob.Asks[x].Price}
-	}
-
 	resp := &gctrpc.OrderbookResponse{
 		Pair:        r.Pair,
-		Bids:        bids,
-		Asks:        asks,
+		Bids:        orderbookItems(ob.Bids, false),
+		Asks:        orderbookItems(ob.Asks, false),
 		LastUpdated: s.unixTimestamp(ob.LastUpdated),
 		AssetType:   r.AssetType,
 	}
@@ -571,14 +589,8 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 					},
 					AssetType:   a.String(),
 					LastUpdated: s.unixTimestamp(resp.LastUpdated),
-					Bids:        make([]*gctrpc.OrderbookItem, len(resp.Bids)),
-					Asks:        make([]*gctrpc.OrderbookItem, len(resp.Asks)),
-				}
-				for i := range resp.Bids {
-					ob.Bids[i] = &gctrpc.OrderbookItem{Amount: resp.Bids[i].Amount, Price: resp.Bids[i].Price}
-				}
-				for i := range resp.Asks {
-					ob.Asks[i] = &gctrpc.OrderbookItem{Amount: resp.Asks[i].Amount, Price: resp.Asks[i].Price}
+					Bids:        orderbookItems(resp.Bids, false),
+					Asks:        orderbookItems(resp.Asks, false),
 				}
 				obs = append(obs, ob)
 			}
@@ -888,7 +900,8 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 	cp := currency.NewPairWithDelimiter(
 		r.Pair.Base,
 		r.Pair.Quote,
-		r.Pair.Delimiter)
+		r.Pair.Delimiter,
+	)
 
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
@@ -913,8 +926,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 			return nil, err
 		}
 	}
-	err = common.StartEndTimeCheck(start, end)
-	if err != nil {
+	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
 	}
 
@@ -970,6 +982,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 			Amount:        resp[x].Amount,
 			OpenVolume:    resp[x].Amount - resp[x].ExecutedAmount,
 			Fee:           resp[x].Fee,
+			FeeCurrency:   resp[x].FeeAsset.String(),
 			Cost:          resp[x].Cost,
 			Trades:        trades,
 		}
@@ -986,7 +999,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 }
 
 // GetManagedOrders returns all orders from the Order Manager for the provided exchange,
-// asset type  and currency pair
+// asset type and currency pair
 func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*gctrpc.GetOrdersResponse, error) {
 	if r == nil {
 		return nil, errInvalidArguments
@@ -1003,7 +1016,8 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 	cp := currency.NewPairWithDelimiter(
 		r.Pair.Base,
 		r.Pair.Quote,
-		r.Pair.Delimiter)
+		r.Pair.Delimiter,
+	)
 
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
@@ -1059,6 +1073,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 			Amount:        resp[x].Amount,
 			OpenVolume:    resp[x].Amount - resp[x].ExecutedAmount,
 			Fee:           resp[x].Fee,
+			FeeCurrency:   resp[x].FeeAsset.String(),
 			Cost:          resp[x].Cost,
 			Trades:        trades,
 		}
@@ -1147,6 +1162,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 		Amount:        result.Amount,
 		OpenVolume:    result.RemainingAmount,
 		Fee:           result.Fee,
+		FeeCurrency:   result.FeeAsset.String(),
 		Trades:        trades,
 		Cost:          result.Cost,
 		UpdateTime:    updateTime,
@@ -1401,15 +1417,28 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 		return nil, err
 	}
 
-	status := make(map[string]string)
-	orders := strings.Split(r.OrdersId, ",")
+	if r.OrdersId == "" {
+		return nil, order.ErrCancelOrderIsNil
+	}
+
+	rawOrders := strings.Split(r.OrdersId, ",")
+	orders := make([]string, 0, len(rawOrders))
+	seen := make(common.Seen[string], len(rawOrders))
+	for _, id := range rawOrders {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return nil, ErrOrderIDCannotBeEmpty
+		}
+		if seen.CheckAndRecord(id) {
+			return nil, fmt.Errorf("%w: %s", errDuplicateOrderID, id)
+		}
+		orders = append(orders, id)
+	}
 	req := make([]order.Cancel, len(orders))
 	for x := range orders {
-		orderID := orders[x]
-		status[orderID] = order.Cancelled.String()
 		req[x] = order.Cancel{
 			AccountID: r.AccountId,
-			OrderID:   orderID,
+			OrderID:   orders[x],
 			Side:      side,
 			Pair:      pair,
 			AssetType: assetType,
@@ -1417,9 +1446,23 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}
 
 	// TODO: Change to order manager
-	_, err = exch.CancelBatchOrders(ctx, req)
+	resp, err := exch.CancelBatchOrders(ctx, req)
 	if err != nil {
 		return nil, err
+	}
+
+	status := make(map[string]string, len(orders))
+	for _, id := range orders {
+		if resp == nil {
+			// A wrapper that returns no response reports any failed cancel through its error
+			status[id] = order.Cancelled.String()
+			continue
+		}
+		reported, ok := resp.Status[id]
+		if !ok {
+			reported = order.UnknownStatus.String()
+		}
+		status[id] = reported
 	}
 
 	return &gctrpc.CancelBatchOrdersResponse{
@@ -1581,7 +1624,8 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 		return nil, fmt.Errorf("%s, %w", r.Exchange, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
-	addr, err := s.GetExchangeCryptocurrencyDepositAddress(ctx,
+	addr, err := s.GetExchangeCryptocurrencyDepositAddress(
+		ctx,
 		r.Exchange,
 		"",
 		r.Chain,
@@ -1628,8 +1672,7 @@ func (s *RPCServer) GetAvailableTransferChains(ctx context.Context, r *gctrpc.Ge
 // WithdrawCryptocurrencyFunds withdraws cryptocurrency funds specified by
 // exchange
 func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.WithdrawCryptoRequest) (*gctrpc.WithdrawResponse, error) {
-	_, err := s.GetExchangeByName(r.Exchange)
-	if err != nil {
+	if _, err := s.GetExchangeByName(r.Exchange); err != nil {
 		return nil, err
 	}
 
@@ -1864,8 +1907,7 @@ func (s *RPCServer) WithdrawalEventsByDate(_ context.Context, r *gctrpc.Withdraw
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
-	err = common.StartEndTimeCheck(start, end)
-	if err != nil {
+	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
 	}
 	var ret []*withdraw.Response
@@ -2076,26 +2118,11 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 			resp.LastUpdated = time.Now().UnixMicro()
 		} else {
 			resp.LastUpdated = base.LastUpdated.UnixMicro()
-			resp.Bids = make([]*gctrpc.OrderbookItem, len(base.Bids))
-			for i := range base.Bids {
-				resp.Bids[i] = &gctrpc.OrderbookItem{
-					Amount: base.Bids[i].Amount,
-					Price:  base.Bids[i].Price,
-					Id:     base.Bids[i].ID,
-				}
-			}
-			resp.Asks = make([]*gctrpc.OrderbookItem, len(base.Asks))
-			for i := range base.Asks {
-				resp.Asks[i] = &gctrpc.OrderbookItem{
-					Amount: base.Asks[i].Amount,
-					Price:  base.Asks[i].Price,
-					Id:     base.Asks[i].ID,
-				}
-			}
+			resp.Bids = orderbookItems(base.Bids, true)
+			resp.Asks = orderbookItems(base.Asks, true)
 		}
 
-		err = stream.Send(resp)
-		if err != nil {
+		if err := stream.Send(resp); err != nil {
 			return err
 		}
 		<-depth.Wait(nil)
@@ -2147,26 +2174,11 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 				Quote: ob.Pair.Quote.String(),
 			}
 			resp.AssetType = ob.Asset.String()
-			resp.Bids = make([]*gctrpc.OrderbookItem, len(ob.Bids))
-			for i := range ob.Bids {
-				resp.Bids[i] = &gctrpc.OrderbookItem{
-					Amount: ob.Bids[i].Amount,
-					Price:  ob.Bids[i].Price,
-					Id:     ob.Bids[i].ID,
-				}
-			}
-			resp.Asks = make([]*gctrpc.OrderbookItem, len(ob.Asks))
-			for i := range ob.Asks {
-				resp.Asks[i] = &gctrpc.OrderbookItem{
-					Amount: ob.Asks[i].Amount,
-					Price:  ob.Asks[i].Price,
-					Id:     ob.Asks[i].ID,
-				}
-			}
+			resp.Bids = orderbookItems(ob.Bids, true)
+			resp.Asks = orderbookItems(ob.Asks, true)
 		}
 
-		err = stream.Send(resp)
-		if err != nil {
+		if err := stream.Send(resp); err != nil {
 			return err
 		}
 	}
@@ -2223,21 +2235,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 			return common.GetTypeAssertError("*ticker.Price", data)
 		}
 
-		err := stream.Send(&gctrpc.TickerResponse{
-			Pair: &gctrpc.CurrencyPair{
-				Base:      t.Pair.Base.String(),
-				Quote:     t.Pair.Quote.String(),
-				Delimiter: t.Pair.Delimiter,
-			},
-			LastUpdated: s.unixTimestamp(t.LastUpdated),
-			Last:        t.Last,
-			High:        t.High,
-			Low:         t.Low,
-			Bid:         t.Bid,
-			Ask:         t.Ask,
-			Volume:      t.Volume,
-			PriceAth:    t.PriceATH,
-		})
+		err := stream.Send(s.tickerResponse(t))
 		if err != nil {
 			return err
 		}
@@ -2277,21 +2275,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 			return common.GetTypeAssertError("*ticker.Price", data)
 		}
 
-		err := stream.Send(&gctrpc.TickerResponse{
-			Pair: &gctrpc.CurrencyPair{
-				Base:      t.Pair.Base.String(),
-				Quote:     t.Pair.Quote.String(),
-				Delimiter: t.Pair.Delimiter,
-			},
-			LastUpdated: s.unixTimestamp(t.LastUpdated),
-			Last:        t.Last,
-			High:        t.High,
-			Low:         t.Low,
-			Bid:         t.Bid,
-			Ask:         t.Ask,
-			Volume:      t.Volume,
-			PriceAth:    t.PriceATH,
-		})
+		err := stream.Send(s.tickerResponse(t))
 		if err != nil {
 			return err
 		}
@@ -2308,8 +2292,7 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
-	err = common.StartEndTimeCheck(start, end)
-	if err != nil {
+	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
 	}
 	events, err := audit.GetEvent(start, end, r.OrderBy, int(r.Limit))
@@ -2356,8 +2339,7 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
-	err = common.StartEndTimeCheck(start, end)
-	if err != nil {
+	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
 	}
 	if r.Pair == nil {
@@ -2484,7 +2466,8 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 		response.Candles = append(response.Candles, tradeCandles.Candles...)
 
 		for i := range response.Candles {
-			log.Infof(log.GRPCSys,
+			log.Infof(
+				log.GRPCSys,
 				"Filled requested OHLCV data for %v %v %v interval at %v with trade data",
 				klineItem.Exchange,
 				klineItem.Pair.String(),
@@ -2495,316 +2478,6 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 	}
 
 	return &response, nil
-}
-
-// GCTScriptStatus returns a slice of current running scripts that includes next run time and uuid
-func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatusRequest) (*gctrpc.GCTScriptStatusResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	if gctscript.VMSCount.Len() < 1 {
-		return &gctrpc.GCTScriptStatusResponse{Status: "no scripts running"}, nil
-	}
-
-	resp := &gctrpc.GCTScriptStatusResponse{
-		Status: fmt.Sprintf("%v of %v virtual machines running", gctscript.VMSCount.Len(), s.gctScriptManager.GetMaxVirtualMachines()),
-	}
-
-	gctscript.AllVMSync.Range(func(_, v any) bool {
-		vm, ok := v.(*gctscript.VM)
-		if !ok {
-			log.Errorf(log.GRPCSys, "%v", common.GetTypeAssertError("*gctscript.VM", v))
-			return false
-		}
-		resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
-			Uuid:    vm.ID.String(),
-			Name:    vm.ShortName(),
-			NextRun: vm.NextRun.String(),
-		})
-
-		return true
-	})
-
-	return resp, nil
-}
-
-// GCTScriptQuery queries a running script and returns script running information
-func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRequest) (*gctrpc.GCTScriptQueryResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	UUID, err := uuid.FromString(r.Script.Uuid)
-	if err != nil {
-		//nolint:nilerr // error is returned in the GCTScriptQueryResponse
-		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
-	}
-
-	v, f := gctscript.AllVMSync.Load(UUID)
-	if !f {
-		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: "UUID not found"}, nil
-	}
-
-	vm, ok := v.(*gctscript.VM)
-	if !ok {
-		return nil, common.GetTypeAssertError("*gctscript.VM", v)
-	}
-	resp := &gctrpc.GCTScriptQueryResponse{
-		Status: MsgStatusOK,
-		Script: &gctrpc.GCTScript{
-			Name:    vm.ShortName(),
-			Uuid:    vm.ID.String(),
-			Path:    vm.Path,
-			NextRun: vm.NextRun.String(),
-		},
-	}
-	data, err := vm.Read()
-	if err != nil {
-		return nil, err
-	}
-	resp.Data = string(data)
-	return resp, nil
-}
-
-// GCTScriptExecute execute a script
-func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GenericResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	if r.Script.Path == "" {
-		r.Script.Path = gctscript.ScriptPath
-	}
-
-	gctVM := s.gctScriptManager.New()
-	if gctVM == nil {
-		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: "unable to create VM instance"}, nil
-	}
-
-	script := filepath.Join(r.Script.Path, r.Script.Name)
-	if err := gctVM.Load(script); err != nil {
-		return &gctrpc.GenericResponse{ //nolint:nilerr // error is returned in the generic response
-			Status: MsgStatusError,
-			Data:   err.Error(),
-		}, nil
-	}
-
-	go gctVM.CompileAndRun()
-
-	return &gctrpc.GenericResponse{
-		Status: MsgStatusOK,
-		Data:   gctVM.ShortName() + " (" + gctVM.ID.String() + ") executed",
-	}, nil
-}
-
-// GCTScriptStop terminate a running script
-func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequest) (*gctrpc.GenericResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	UUID, err := uuid.FromString(r.Script.Uuid)
-	if err != nil {
-		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
-	}
-
-	v, f := gctscript.AllVMSync.Load(UUID)
-	if !f {
-		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: "no running script found"}, nil
-	}
-
-	vm, ok := v.(*gctscript.VM)
-	if !ok {
-		return nil, common.GetTypeAssertError("*gctscript.VM", v)
-	}
-	err = vm.Shutdown()
-	status := " terminated"
-	if err != nil {
-		status = " " + err.Error()
-	}
-	return &gctrpc.GenericResponse{Status: MsgStatusOK, Data: vm.ID.String() + status}, nil
-}
-
-// GCTScriptUpload upload a new script to ScriptPath
-func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GenericResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	fPath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
-	fPathExits := fPath
-	if filepath.Ext(fPath) == ".zip" {
-		fPathExits = fPathExits[0 : len(fPathExits)-4]
-	}
-
-	if s, err := os.Stat(fPathExits); !os.IsNotExist(err) {
-		if !r.Overwrite {
-			return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
-		}
-		f := filepath.Join(gctscript.ScriptPath, "version_history")
-		err = os.MkdirAll(f, file.DefaultPermissionOctal)
-		if err != nil {
-			return nil, err
-		}
-		timeString := strconv.FormatInt(time.Now().UnixNano(), 10)
-		renamedFile := filepath.Join(f, timeString+"-"+filepath.Base(fPathExits))
-		if s.IsDir() {
-			err = archive.Zip(fPathExits, renamedFile+".zip")
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			err = file.Move(fPathExits, renamedFile)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	newFile, err := os.Create(fPath)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = newFile.Write(r.Data)
-	if err != nil {
-		return nil, err
-	}
-	err = newFile.Close()
-	if err != nil {
-		log.Errorln(log.Global, "Failed to close file handle, archive removal may fail")
-	}
-
-	if r.Archived {
-		files, errExtract := archive.UnZip(fPath, filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
-		if errExtract != nil {
-			log.Errorf(log.Global, "Failed to archive zip file %v", errExtract)
-			return &gctrpc.GenericResponse{Status: MsgStatusError, Data: errExtract.Error()}, nil
-		}
-		var failedFiles []string
-		for x := range files {
-			err = s.gctScriptManager.Validate(files[x])
-			if err != nil {
-				failedFiles = append(failedFiles, files[x])
-			}
-		}
-		err = os.Remove(fPath)
-		if err != nil {
-			return nil, err
-		}
-		if len(failedFiles) > 0 {
-			err = os.RemoveAll(filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
-			if err != nil {
-				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v (%v), manual deletion required", filepath.Base(fPath), err)
-			}
-			return &gctrpc.GenericResponse{Status: gctscript.ErrScriptFailedValidation, Data: strings.Join(failedFiles, ", ")}, nil
-		}
-	} else {
-		err = s.gctScriptManager.Validate(fPath)
-		if err != nil {
-			errRemove := os.Remove(fPath)
-			if errRemove != nil {
-				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v, manual deletion required: %v", filepath.Base(fPath), errRemove)
-			}
-			return &gctrpc.GenericResponse{Status: gctscript.ErrScriptFailedValidation, Data: err.Error()}, nil
-		}
-	}
-
-	return &gctrpc.GenericResponse{
-		Status: MsgStatusOK,
-		Data:   fmt.Sprintf("script %s written", newFile.Name()),
-	}, nil
-}
-
-// GCTScriptReadScript read a script and return contents
-func (s *RPCServer) GCTScriptReadScript(_ context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptQueryResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	filename := filepath.Join(gctscript.ScriptPath, r.Script.Name)
-	if !strings.HasPrefix(filename, filepath.Clean(gctscript.ScriptPath)+string(os.PathSeparator)) {
-		return nil, fmt.Errorf("%s: invalid file path", filename)
-	}
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	return &gctrpc.GCTScriptQueryResponse{
-		Status: MsgStatusOK,
-		Script: &gctrpc.GCTScript{
-			Name: filepath.Base(filename),
-			Path: filepath.Dir(filename),
-		},
-		Data: string(data),
-	}, nil
-}
-
-// GCTScriptListAll lists all scripts inside the default script path
-func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRequest) (*gctrpc.GCTScriptStatusResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	resp := &gctrpc.GCTScriptStatusResponse{}
-	err := filepath.Walk(gctscript.ScriptPath,
-		func(path string, _ os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if filepath.Ext(path) == common.GctExt {
-				resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
-					Name: path,
-				})
-			}
-			return nil
-		})
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
-}
-
-// GCTScriptStopAll stops all running scripts
-func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRequest) (*gctrpc.GenericResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	err := s.gctScriptManager.ShutdownAll()
-	if err != nil {
-		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
-	}
-
-	return &gctrpc.GenericResponse{
-		Status: MsgStatusOK,
-		Data:   "all running scripts have been stopped",
-	}, nil
-}
-
-// GCTScriptAutoLoadToggle adds or removes an entry to the autoload list
-func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScriptAutoLoadRequest) (*gctrpc.GenericResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	if r.Status {
-		err := s.gctScriptManager.Autoload(r.Script, true)
-		if err != nil {
-			//nolint:nilerr // error is returned in the generic response
-			return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
-		}
-		return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " removed from autoload list"}, nil
-	}
-
-	err := s.gctScriptManager.Autoload(r.Script, false)
-	if err != nil {
-		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
-	}
-	return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " added to autoload list"}, nil
 }
 
 // SetExchangeAsset enables or disables an exchanges asset type
@@ -2833,18 +2506,15 @@ func (s *RPCServer) SetExchangeAsset(_ context.Context, r *gctrpc.SetExchangeAss
 		return nil, err
 	}
 
-	err = base.CurrencyPairs.SetAssetEnabled(a, r.Enable)
-	if err != nil {
+	if err := base.CurrencyPairs.SetAssetEnabled(a, r.Enable); err != nil {
 		return nil, err
 	}
-	err = exchCfg.CurrencyPairs.SetAssetEnabled(a, r.Enable)
-	if err != nil {
+	if err := exchCfg.CurrencyPairs.SetAssetEnabled(a, r.Enable); err != nil {
 		return nil, err
 	}
 
 	if base.IsWebsocketEnabled() && base.Websocket.IsConnected() {
-		err = exch.FlushWebsocketChannels()
-		if err != nil {
+		if err := exch.FlushWebsocketChannels(); err != nil {
 			return nil, err
 		}
 	}
@@ -2878,31 +2548,26 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 			if err != nil {
 				return nil, err
 			}
-			err = exchCfg.CurrencyPairs.StorePairs(assets[i], pairs, true)
-			if err != nil {
+			if err := exchCfg.CurrencyPairs.StorePairs(assets[i], pairs, true); err != nil {
 				return nil, err
 			}
-			err = base.CurrencyPairs.StorePairs(assets[i], pairs, true)
-			if err != nil {
+			if err := base.CurrencyPairs.StorePairs(assets[i], pairs, true); err != nil {
 				return nil, err
 			}
 		}
 	} else {
 		for i := range assets {
-			err = exchCfg.CurrencyPairs.StorePairs(assets[i], nil, true)
-			if err != nil {
+			if err := exchCfg.CurrencyPairs.StorePairs(assets[i], nil, true); err != nil {
 				return nil, err
 			}
-			err = base.CurrencyPairs.StorePairs(assets[i], nil, true)
-			if err != nil {
+			if err := base.CurrencyPairs.StorePairs(assets[i], nil, true); err != nil {
 				return nil, err
 			}
 		}
 	}
 
 	if exch.IsWebsocketEnabled() && base.Websocket.IsConnected() {
-		err = exch.FlushWebsocketChannels()
-		if err != nil {
+		if err := exch.FlushWebsocketChannels(); err != nil {
 			return nil, err
 		}
 	}
@@ -2934,8 +2599,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(ctx context.Context, r *gctrpc.
 	}
 
 	if exch.IsWebsocketEnabled() {
-		err = exch.FlushWebsocketChannels()
-		if err != nil {
+		if err := exch.FlushWebsocketChannels(); err != nil {
 			return nil, err
 		}
 	}
@@ -3001,8 +2665,7 @@ func (s *RPCServer) WebsocketSetEnabled(ctx context.Context, r *gctrpc.Websocket
 		return &gctrpc.GenericResponse{Status: MsgStatusSuccess, Data: "websocket enabled"}, nil
 	}
 
-	err = w.Disable()
-	if err != nil {
+	if err := w.Disable(); err != nil {
 		return nil, err
 	}
 	exchCfg.Features.Enabled.Websocket = false
@@ -3073,8 +2736,7 @@ func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURL
 		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
 	}
 
-	err = w.SetWebsocketURL(r.Url, false, true)
-	if err != nil {
+	if err := w.SetWebsocketURL(r.Url, false, true); err != nil {
 		return nil, err
 	}
 	return &gctrpc.GenericResponse{
@@ -3116,8 +2778,7 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
-	err = common.StartEndTimeCheck(start, end)
-	if err != nil {
+	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
 	}
 	var trades []trade.Data
@@ -3159,8 +2820,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
-	err = common.StartEndTimeCheck(start, end)
-	if err != nil {
+	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
 	}
 
@@ -3258,8 +2918,7 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
-	err = common.StartEndTimeCheck(start, end)
-	if err != nil {
+	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
 	}
 	klineItem, err := kline.LoadFromDatabase(
@@ -3301,7 +2960,8 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 	}
 
 	if len(resp.MissingPeriods) == 0 {
-		resp.Status = fmt.Sprintf("no missing candles found between %v and %v",
+		resp.Status = fmt.Sprintf(
+			"no missing candles found between %v and %v",
 			r.Start,
 			r.End,
 		)
@@ -3346,8 +3006,7 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
-	err = common.StartEndTimeCheck(start, end)
-	if err != nil {
+	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
 	}
 	start = start.Truncate(time.Hour)
@@ -3400,7 +3059,8 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	}
 
 	if len(resp.MissingPeriods) == 0 {
-		resp.Status = fmt.Sprintf("no missing periods found between %v and %v",
+		resp.Status = fmt.Sprintf(
+			"no missing periods found between %v and %v",
 			r.Start,
 			r.End,
 		)
@@ -3461,8 +3121,7 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 	if err != nil {
 		return fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
-	err = common.StartEndTimeCheck(start, end)
-	if err != nil {
+	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return err
 	}
 	resp := &gctrpc.SavedTradesResponse{
@@ -3499,8 +3158,7 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 			})
 		}
 
-		err = stream.Send(grpcTrades)
-		if err != nil {
+		if err := stream.Send(grpcTrades); err != nil {
 			return err
 		}
 	}
@@ -3763,8 +3421,7 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
-	err = common.StartEndTimeCheck(start, end)
-	if err != nil {
+	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
 	}
 
@@ -3790,8 +3447,7 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 		PrerequisiteJobNickname:  r.PrerequisiteJobNickname,
 	}
 
-	err = s.dataHistoryManager.UpsertJob(&job, r.InsertOnly)
-	if err != nil {
+	if err := s.dataHistoryManager.UpsertJob(&job, r.InsertOnly); err != nil {
 		return nil, err
 	}
 
@@ -3826,7 +3482,7 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 
 	if r.Id != "" {
 		var id uuid.UUID
-		id, err = uuid.FromString(r.Id)
+		id, err = uuid.Parse(r.Id)
 		if err != nil {
 			return nil, fmt.Errorf("%s %w", r.Id, err)
 		}
@@ -3934,8 +3590,7 @@ func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDa
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
-	err = common.StartEndTimeCheck(start.Local(), end)
-	if err != nil {
+	if err := common.StartEndTimeCheck(start.Local(), end); err != nil {
 		return nil, err
 	}
 
@@ -4050,8 +3705,7 @@ func (s *RPCServer) UpdateDataHistoryJobPrerequisite(_ context.Context, r *gctrp
 		return nil, errNicknameUnset
 	}
 	status := "success"
-	err := s.dataHistoryManager.SetJobRelationship(r.PrerequisiteJobNickname, r.Nickname)
-	if err != nil {
+	if err := s.dataHistoryManager.SetJobRelationship(r.PrerequisiteJobNickname, r.Nickname); err != nil {
 		return nil, err
 	}
 	if r.PrerequisiteJobNickname == "" {
@@ -4123,8 +3777,7 @@ func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.Curren
 		return nil, err
 	}
 
-	err = exch.CanTradePair(cp, ai)
-	if err != nil {
+	if err := exch.CanTradePair(cp, ai); err != nil {
 		return nil, err
 	}
 	return s.currencyStateManager.CanTradePairRPC(r.Exchange,
@@ -4193,6 +3846,7 @@ func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPa
 				Amount:        position.Orders[i].Cost,
 				OpenVolume:    position.Orders[i].RemainingAmount,
 				Fee:           position.Orders[i].Fee,
+				FeeCurrency:   position.Orders[i].FeeAsset.String(),
 				Cost:          position.Orders[i].Cost,
 			}
 			if !position.Orders[i].LastUpdated.IsZero() {
@@ -4282,9 +3936,7 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(positions, func(i, j int) bool {
-		return positions[i].OpeningDate.Before(positions[j].OpeningDate)
-	})
+	slices.SortFunc(positions, func(a, b futures.Position) int { return a.OpeningDate.Compare(b.OpeningDate) })
 	response := make([]*gctrpc.FuturePosition, len(positions))
 	for i := range positions {
 		response[i] = s.buildFuturePosition(&positions[i], r.GetFundingPayments, r.IncludeFullFundingRates, r.IncludeFullOrderData, r.IncludePredictedRate)
@@ -4535,6 +4187,7 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 				Amount:         positionDetails[i].Orders[j].Amount,
 				OpenVolume:     positionDetails[i].Orders[j].RemainingAmount,
 				Fee:            positionDetails[i].Orders[j].Fee,
+				FeeCurrency:    positionDetails[i].Orders[j].FeeAsset.String(),
 				Cost:           positionDetails[i].Orders[j].Cost,
 				ContractAmount: positionDetails[i].Orders[j].ContractAmount,
 			}
@@ -4547,8 +4200,7 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 	response.Positions = positions
 	if r.SyncWithOrderManager {
 		for i := range positionDetails {
-			err = s.OrderManager.processFuturesPositions(ctx, exch, &positionDetails[i])
-			if err != nil {
+			if err := s.OrderManager.processFuturesPositions(ctx, exch, &positionDetails[i]); err != nil {
 				return nil, err
 			}
 		}
@@ -4782,8 +4434,8 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 
 	calculators := make([]futures.CollateralCalculator, 0, len(currBalances))
 	for curr, balance := range currBalances {
-		total := decimal.NewFromFloat(balance.Total)
-		free := decimal.NewFromFloat(balance.AvailableWithoutBorrow)
+		total := decimal.MustFromFloat(balance.Total)
+		free := decimal.MustFromFloat(balance.AvailableWithoutBorrow)
 		cal := futures.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
 			CollateralCurrency: curr,
@@ -4805,7 +4457,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			if tick.Last == 0 {
 				continue
 			}
-			cal.USDPrice = decimal.NewFromFloat(tick.Last)
+			cal.USDPrice = decimal.MustFromFloat(tick.Last)
 		}
 		calculators = append(calculators, cal)
 	}
@@ -5163,8 +4815,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 			return nil, err
 		}
 	}
-	err = common.StartEndTimeCheck(start, end)
-	if err != nil {
+	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
 	}
 
@@ -5597,8 +5248,7 @@ func (s *RPCServer) SetCollateralMode(ctx context.Context, r *gctrpc.SetCollater
 	if err != nil {
 		return nil, fmt.Errorf("%w %v", order.ErrCollateralInvalid, r.CollateralMode)
 	}
-	err = exch.SetCollateralMode(ctx, item, cm)
-	if err != nil {
+	if err := exch.SetCollateralMode(ctx, item, cm); err != nil {
 		return nil, err
 	}
 	return &gctrpc.SetCollateralModeResponse{
@@ -5641,8 +5291,7 @@ func (s *RPCServer) SetMarginType(ctx context.Context, r *gctrpc.SetMarginTypeRe
 		return nil, err
 	}
 
-	err = exch.SetMarginType(ctx, ai, cp, mt)
-	if err != nil {
+	if err := exch.SetMarginType(ctx, ai, cp, mt); err != nil {
 		return nil, err
 	}
 
@@ -5759,8 +5408,7 @@ func (s *RPCServer) SetLeverage(ctx context.Context, r *gctrpc.SetLeverageReques
 		}
 	}
 
-	err = exch.SetLeverage(ctx, ai, cp, mt, r.Leverage, orderSide)
-	if err != nil {
+	if err := exch.SetLeverage(ctx, ai, cp, mt, r.Leverage, orderSide); err != nil {
 		return nil, err
 	}
 

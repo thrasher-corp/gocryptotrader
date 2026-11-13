@@ -119,23 +119,6 @@ type MarginFundingDataV2 struct {
 	}
 }
 
-// MarginFundingData stores data for margin funding
-type MarginFundingData struct {
-	ID          int64
-	Symbol      string
-	MTSCreated  int64
-	MTSUpdated  int64
-	Amount      float64
-	AmountOrig  float64
-	OrderType   string
-	OfferStatus string
-	Active      string
-	Rate        float64
-	Period      float64
-	Notify      bool
-	Renew       bool
-}
-
 // Ticker holds ticker information
 type Ticker struct {
 	FlashReturnRate    float64
@@ -225,17 +208,11 @@ func (t *Trade) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Lendbook holds most recent funding data for a relevant currency
-type Lendbook struct {
-	Bids []Book `json:"bids"`
-	Asks []Book `json:"asks"`
-}
-
 // FundingBookItem is a generalised sub-type to hold book information
 type FundingBookItem struct {
 	Rate            float64    `json:"rate,string"`
 	Amount          float64    `json:"amount,string"`
-	Period          int        `json:"period"`
+	Period          uint64     `json:"period"`
 	Timestamp       types.Time `json:"timestamp"`
 	FlashReturnRate string     `json:"frr"`
 }
@@ -246,12 +223,6 @@ type Lends struct {
 	AmountLent float64    `json:"amount_lent,string"`
 	AmountUsed float64    `json:"amount_used,string"`
 	Timestamp  types.Time `json:"timestamp"`
-}
-
-// AccountInfoFull adds the error message to Account info
-type AccountInfoFull struct {
-	Info    []AccountInfo
-	Message string `json:"message"`
 }
 
 // AccountInfo general account information with fees
@@ -276,10 +247,10 @@ type AccountFees struct {
 
 // AccountSummary holds account summary data
 type AccountSummary struct {
-	TradeVolumePer30D []Currency `json:"trade_vol_30d"`
-	FundingProfit30D  []Currency `json:"funding_profit_30d"`
-	MakerFee          float64    `json:"maker_fee"`
-	TakerFee          float64    `json:"taker_fee"`
+	TradeVolumePer30Day []Currency `json:"trade_vol_30d"`
+	FundingProfit30Day  []Currency `json:"funding_profit_30d"`
+	MakerFee            float64    `json:"maker_fee"`
+	TakerFee            float64    `json:"taker_fee"`
 }
 
 // Currency is a sub-type for AccountSummary data
@@ -522,7 +493,7 @@ type MarginFunds struct {
 	PositionID int64      `json:"position_id"`
 	Currency   string     `json:"currency"`
 	Rate       float64    `json:"rate,string"`
-	Period     int        `json:"period"`
+	Period     uint64     `json:"period"`
 	Amount     float64    `json:"amount,string"`
 	Timestamp  types.Time `json:"timestamp"`
 	AutoClose  bool       `json:"auto_close"`
@@ -533,13 +504,6 @@ type MarginFunds struct {
 type MarginTotalTakenFunds struct {
 	PositionPair string  `json:"position_pair"`
 	TotalSwaps   float64 `json:"total_swaps,string"`
-}
-
-// Fee holds fee data for a specified currency
-type Fee struct {
-	Currency  string
-	TakerFees float64
-	MakerFees float64
 }
 
 // WebsocketBook holds booking information
@@ -577,21 +541,9 @@ const (
 type LeaderboardEntry struct {
 	Timestamp     time.Time
 	Username      string
-	Ranking       int
+	Ranking       uint64
 	Value         float64
 	TwitterHandle string
-}
-
-// WebsocketTicker holds ticker information
-type WebsocketTicker struct {
-	Bid             float64
-	BidSize         float64
-	Ask             float64
-	AskSize         float64
-	DailyChange     float64
-	DialyChangePerc float64
-	LastPrice       float64
-	Volume          float64
 }
 
 // WebsocketPosition holds position information
@@ -608,38 +560,6 @@ type WebsocketPosition struct {
 	Leverage          float64
 }
 
-// WebsocketWallet holds wallet information
-type WebsocketWallet struct {
-	Name              string
-	Currency          string
-	Balance           float64
-	UnsettledInterest float64
-}
-
-// WebsocketOrder holds order data
-type WebsocketOrder struct {
-	OrderID    int64
-	Pair       string
-	Amount     float64
-	OrigAmount float64
-	OrderType  string
-	Status     string
-	Price      float64
-	PriceAvg   float64
-	Timestamp  types.Time
-	Notify     int
-}
-
-// WebsocketTradeExecuted holds executed trade data
-type WebsocketTradeExecuted struct {
-	TradeID        int64
-	Pair           string
-	Timestamp      types.Time
-	OrderID        int64
-	AmountExecuted float64
-	PriceExecuted  float64
-}
-
 // WebsocketTradeData holds executed trade data
 type WebsocketTradeData struct {
 	TradeID        int64
@@ -653,19 +573,6 @@ type WebsocketTradeData struct {
 	Maker          bool
 	Fee            float64
 	FeeCurrency    string
-}
-
-// ErrorCapture is a simple type for returned errors from Bitfinex
-type ErrorCapture struct {
-	Message string `json:"message"`
-}
-
-// WebsocketHandshake defines the communication between the websocket API for
-// initial connection
-type WebsocketHandshake struct {
-	Event   string  `json:"event"`
-	Code    int64   `json:"code"`
-	Version float64 `json:"version"`
 }
 
 // WsAuthRequest container for WS auth request
@@ -819,11 +726,6 @@ type WsNewOfferRequest struct {
 	Rate   float64 `json:"rate,string,omitempty"`
 	Period float64 `json:"period,omitempty"`
 	Flags  int64   `json:"flags,omitempty"`
-}
-
-// WsCancelOfferRequest cancel offer request
-type WsCancelOfferRequest struct {
-	OrderID int64 `json:"id"`
 }
 
 // WsCancelAllOrdersRequest cancel all orders request

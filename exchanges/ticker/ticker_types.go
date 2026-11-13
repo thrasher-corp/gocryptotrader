@@ -3,19 +3,12 @@ package ticker
 import (
 	"sync"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-)
-
-// const values for the ticker package
-const (
-	errPairNotSet       = "ticker currency pair not set"
-	errAssetTypeNotSet  = "ticker asset type not set"
-	errTickerPriceIsNil = "ticker price is nil"
 )
 
 // Vars for the ticker package
@@ -33,26 +26,29 @@ type Service struct {
 
 // Price struct stores the currency pair and pricing information
 type Price struct {
-	Last         float64       `json:"Last"`
-	High         float64       `json:"High"`
-	Low          float64       `json:"Low"`
-	Bid          float64       `json:"Bid"`
-	BidSize      float64       `json:"BidSize"`
-	Ask          float64       `json:"Ask"`
-	AskSize      float64       `json:"AskSize"`
-	Volume       float64       `json:"Volume"`
-	QuoteVolume  float64       `json:"QuoteVolume"`
-	PriceATH     float64       `json:"PriceATH"`
-	Open         float64       `json:"Open"`
-	Close        float64       `json:"Close"`
-	OpenInterest float64       `json:"OpenInterest"`
-	MarkPrice    float64       `json:"MarkPrice"`
-	IndexPrice   float64       `json:"IndexPrice"`
-	Pair         currency.Pair `json:"Pair"`
-	ExchangeName string        `json:"exchangeName"`
-	AssetType    asset.Item    `json:"assetType"`
-	LastUpdated  time.Time
-
+	Last                       float64
+	LastSize                   float64
+	VolumeWeightedAveragePrice float64
+	High                       float64
+	Low                        float64
+	Bid                        float64
+	BidSize                    float64
+	Ask                        float64
+	AskSize                    float64
+	BaseVolume                 float64
+	QuoteVolume                float64
+	Open                       float64
+	Open24Hour                 float64
+	PercentChange24Hour        float64
+	Close                      float64
+	OpenInterest               float64
+	OpenInterestValue          float64
+	MarkPrice                  float64
+	IndexPrice                 float64
+	Pair                       currency.Pair
+	ExchangeName               string
+	AssetType                  asset.Item
+	LastUpdated                time.Time
 	// Funding rate field variables
 	FlashReturnRate       float64
 	BidPeriod             float64

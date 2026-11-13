@@ -3,8 +3,8 @@ package withdraw
 import (
 	"errors"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -51,7 +51,7 @@ var (
 	// Cache LRU cache for recent requests
 	Cache = cache.New(CacheSize)
 	// DryRunID uuid to use for dryruns
-	DryRunID, _ = uuid.FromString("3e7e2c25-5a0b-429b-95a1-0960079dce56")
+	DryRunID = uuid.MustParse("3e7e2c25-5a0b-429b-95a1-0960079dce56")
 )
 
 // CryptoRequest stores the info required for a crypto withdrawal request
@@ -117,9 +117,9 @@ type Request struct {
 	// Used exclusively in OKX to classify internal represented by '3' or on chain represented by '4'
 	InternalTransfer bool
 
-	TradePassword   string
-	OneTimePassword int64
-	PIN             int64
+	TradePassword   string `json:"-"`
+	OneTimePassword int64  `json:"-"`
+	PIN             int64  `json:"-"`
 
 	Crypto CryptoRequest `json:"crypto"`
 	Fiat   FiatRequest   `json:"fiat"`

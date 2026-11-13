@@ -83,7 +83,7 @@ func (o *OXR) GetLatest(baseCurrency, symbols string, prettyPrint, showAlternati
 // GetHistoricalRates returns historical exchange rates for any date available
 // from the Open Exchange Rates API.
 func (o *OXR) GetHistoricalRates(date, baseCurrency string, symbols []string, prettyPrint, showAlternative bool) (map[string]float64, error) {
-	var resp Latest
+	var resp Historical
 
 	v := url.Values{}
 	v.Set("base", baseCurrency)

@@ -6,6 +6,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+// Order price types referenced when mapping GoCryptoTrader order types onto the Huobi API
+const (
+	orderPriceTypeLimit        = "limit"
+	orderPriceTypeOpponent     = "opponent"
+	orderPriceTypeOptimal20    = "optimal_20"
+	orderPriceTypeOptimal20IOC = "optimal_20_ioc"
+	orderPriceTypeOptimal20FOK = "optimal_20_fok"
+	orderPriceTypePostOnly     = "post_only"
+)
+
 type errorCapture struct {
 	Status      string     `json:"status"`
 	CodeType1   any        `json:"err-code"` // can be either a string or int depending on the endpoint
@@ -27,7 +37,7 @@ type MarketSummary24Hr struct {
 		Low     float64 `json:"low"`
 		Version int64   `json:"version"`
 		Volume  float64 `json:"vol"`
-	}
+	} `json:"tick"`
 }
 
 // CurrenciesChainData stores currency and chain info
@@ -48,7 +58,7 @@ type CurrenciesChainData struct {
 		WithdrawStatus            string  `json:"withdrawStatus"`
 		MinimumWithdrawalAmount   float64 `json:"minWithdrawAmt,string"`
 		WithdrawPrecision         int16   `json:"withdrawPrecision"`
-		MaximumWithdrawAmount     float64 `json:"maxWithdrawwAmt,string"`
+		MaximumWithdrawAmount     float64 `json:"maxWithdrawAmt,string"`
 		WithdrawQuotaPerDay       float64 `json:"withdrawQuotaPerDay,string"`
 		WithdrawQuotaPerYear      float64 `json:"withdrawQuotaPerYear,string"`
 		WithdrawQuotaTotal        float64 `json:"withdrawQuotaTotal,string"`
@@ -57,388 +67,6 @@ type CurrenciesChainData struct {
 		AddressWithTag            bool    `json:"addrWithTag"`
 		AddressDepositTag         bool    `json:"addrDepositTag"`
 	} `json:"chains"`
-}
-
-// WsKlineData stores kline data for futures and swap websocket
-type WsKlineData struct {
-	Channel   string     `json:"ch"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		ID     int64   `json:"id"`
-		MRID   int64   `json:"mrid"`
-		Volume float64 `json:"vol"`
-		Count  float64 `json:"count"`
-		Open   float64 `json:"open"`
-		Close  float64 `json:"close"`
-		Low    float64 `json:"low"`
-		High   float64 `json:"high"`
-		Amount float64 `json:"amount"`
-	} `json:"tick"`
-}
-
-// WsMarketDepth stores market depth data for futures and swap websocket
-type WsMarketDepth struct {
-	Channel   string     `json:"ch"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		MRID      int64        `json:"mrid"`
-		ID        int64        `json:"id"`
-		Bids      [][2]float64 `json:"bids"`
-		Asks      [][2]float64 `json:"asks"`
-		Timestamp types.Time   `json:"ts"`
-		Version   int64        `json:"version"`
-		Channel   string       `json:"ch"`
-	} `json:"tick"`
-}
-
-// WsIncrementalMarketDepth stores incremental market depth data for swap and futures websocket
-type WsIncrementalMarketDepth struct {
-	Channel   string     `json:"ch"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		MRID      int64        `json:"mrid"`
-		ID        int64        `json:"id"`
-		Bids      [][2]float64 `json:"bids"`
-		Asks      [][2]float64 `json:"asks"`
-		Timestamp types.Time   `json:"ts"`
-		Version   int64        `json:"version"`
-		Channel   string       `json:"ch"`
-		Event     string       `json:"event"`
-	} `json:"tick"`
-}
-
-// WsMarketDetail stores market detail data for futures and swap websocket
-type WsMarketDetail struct {
-	Channel   string     `json:"ch"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		ID     int64   `json:"id"`
-		MRID   int64   `json:"mrid"`
-		Open   float64 `json:"open"`
-		Close  float64 `json:"close"`
-		High   float64 `json:"high"`
-		Low    float64 `json:"low"`
-		Amount float64 `json:"amount"`
-		Volume float64 `json:"vol"`
-		Count  float64 `json:"count"`
-	} `json:"tick"`
-}
-
-// WsMarketBBOData stores BBO data for futures and swap websocket
-type WsMarketBBOData struct {
-	Channel   string     `json:"ch"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		Channel   string     `json:"ch"`
-		MRID      int64      `json:"mrid"`
-		ID        int64      `json:"id"`
-		Bid       [2]float64 `json:"bid"`
-		Ask       [2]float64 `json:"ask"`
-		Timestamp types.Time `json:"ts"`
-		Version   int64      `json:":version"`
-	} `json:"tick"`
-}
-
-// WsSubTradeDetail stores trade detail data for futures websocket
-type WsSubTradeDetail struct {
-	Channel   string     `json:"ch"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		ID        int64      `json:"id"`
-		Timestamp types.Time `json:"ts"`
-		Data      []struct {
-			Amount    float64    `json:"amount"`
-			Timestamp types.Time `json:"ts"`
-			ID        int64      `json:"id"`
-			Price     float64    `json:"price"`
-			Direction string     `json:"direction"`
-		} `json:"data"`
-	} `json:"tick"`
-}
-
-//
-
-// Futures
-
-// FWsRequestKline stores requested kline data for futures websocket
-type FWsRequestKline struct {
-	Rep  string `json:"rep"`
-	ID   string `json:"id"`
-	WsID int64  `json:"wsid"`
-	Tick []struct {
-		Volume float64 `json:"vol"`
-		Count  float64 `json:"count"`
-		ID     int64   `json:"id"`
-		Open   float64 `json:"open"`
-		Close  float64 `json:"close"`
-		Low    float64 `json:"low"`
-		High   float64 `json:"high"`
-		Amount float64 `json:"amount"`
-	} `json:"tick"`
-}
-
-// FWsReqTradeDetail stores requested trade detail data for futures websocket
-type FWsReqTradeDetail struct {
-	Rep       string     `json:"rep"`
-	ID        string     `json:"id"`
-	Timestamp types.Time `json:"ts"`
-	Data      []struct {
-		ID        int64      `json:"id"`
-		Price     float64    `json:"price"`
-		Amount    float64    `json:"amount"`
-		Direction string     `json:"direction"`
-		Timestamp types.Time `json:"ts"`
-	} `json:"data"`
-}
-
-// FWsSubKlineIndex stores subscribed kline index data for futures websocket
-type FWsSubKlineIndex struct {
-	Channel   string     `json:"ch"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		ID     string  `json:"id"`
-		Open   float64 `json:"open,string"`
-		Close  float64 `json:"close,string"`
-		High   float64 `json:"high,string"`
-		Low    float64 `json:"low,string"`
-		Amount float64 `json:"amount,string"`
-		Volume float64 `json:"vol,string"`
-		Count  float64 `json:"count,string"`
-	} `json:"tick"`
-}
-
-// FWsReqKlineIndex stores requested kline index data for futures websocket
-type FWsReqKlineIndex struct {
-	ID        string     `json:"id"`
-	Rep       string     `json:"rep"`
-	WsID      int64      `json:"wsid"`
-	Timestamp types.Time `json:"ts"`
-	Data      []struct {
-		ID     int64   `json:"id"`
-		Open   float64 `json:"open"`
-		Close  float64 `json:"close"`
-		Low    float64 `json:"low"`
-		High   float64 `json:"high"`
-		Amount float64 `json:"amount"`
-		Volume float64 `json:"vol"`
-		Count  float64 `json:"count"`
-	} `json:"data"`
-}
-
-// FWsSubBasisData stores subscribed basis data for futures websocket
-type FWsSubBasisData struct {
-	Channel   string     `json:"ch"`
-	Timestamp types.Time `json:"ts"`
-	Tick      struct {
-		ID            int64   `json:"id"`
-		IndexPrice    float64 `json:"index_price,string"`
-		ContractPrice float64 `json:"contract_price,string"`
-		Basis         float64 `json:"basis,string"`
-		BasisRate     float64 `json:"basis_rate,string"`
-	}
-}
-
-// FWsReqBasisData stores requested basis data for futures websocket
-type FWsReqBasisData struct {
-	ID        string     `json:"id"`
-	Rep       string     `json:"rep"`
-	Timestamp types.Time `json:"ts"`
-	WsID      int64      `json:"wsid"`
-	Tick      struct {
-		ID            int64   `json:"id"`
-		IndexPrice    float64 `json:"index_price,string"`
-		ContractPrice float64 `json:"contract_price,string"`
-		Basis         float64 `json:"basis,string"`
-		BasisRate     float64 `json:"basis_rate,string"`
-	} `json:"tick"`
-}
-
-// FWsSubOrderData stores subscribed order data for futures websocket
-type FWsSubOrderData struct {
-	Operation      string     `json:"op"`
-	Topic          string     `json:"topic"`
-	UID            string     `json:"uid"`
-	Timestamp      types.Time `json:"ts"`
-	Symbol         string     `json:"symbol"`
-	ContractType   string     `json:"contract_type"`
-	ContractCode   string     `json:"contract_code"`
-	Volume         float64    `json:"volume"`
-	Price          float64    `json:"price"`
-	OrderPriceType string     `json:"order_price_type"`
-	Direction      string     `json:"direction"`
-	Offset         string     `json:"offset"`
-	Status         int64      `json:"status"`
-	LeverageRate   int64      `json:"lever_rate"`
-	OrderID        int64      `json:"order_id"`
-	OrderIDString  string     `json:"order_id_string"`
-	ClientOrderID  int64      `json:"client_order_id"`
-	OrderSource    string     `json:"order_source"`
-	OrderType      int64      `json:"order_type"`
-	CreatedAt      int64      `json:"created_at"`
-	TradeVolume    float64    `json:"trade_volume"`
-	TradeTurnover  float64    `json:"trade_turnover"`
-	Fee            float64    `json:"fee"`
-	TradeAvgPrice  float64    `json:"trade_avg_price"`
-	MarginFrozen   float64    `json:"margin_frozen"`
-	Profit         float64    `json:"profit"`
-	FeeAsset       string     `json:"fee_asset"`
-	CancelledAt    int64      `json:"canceled_at"`
-	Trade          []struct {
-		ID            string  `json:"id"`
-		TradeID       int64   `json:"trade_id"`
-		TradeVolume   float64 `json:"trade_volume"`
-		TradePrice    float64 `json:"trade_price"`
-		TradeFee      float64 `json:"trade_fee"`
-		TradeTurnover float64 `json:"trade_turnover"`
-		CreatedAt     int64   `json:"created_at"`
-		Role          string  `json:"role"`
-		FeeAsset      string  `json:"fee_asset"`
-	} `json:"trade"`
-}
-
-// FWsSubMatchOrderData stores subscribed match order data for futures websocket
-type FWsSubMatchOrderData struct {
-	Operation     string     `json:"op"`
-	Topic         string     `json:"topic"`
-	UID           string     `json:"uid"`
-	Timestamp     types.Time `json:"ts"`
-	Symbol        string     `json:"symbol"`
-	ContractType  string     `json:"contract_type"`
-	ContractCode  string     `json:"contract_code"`
-	Status        int64      `json:"status"`
-	OrderID       int64      `json:"order_id"`
-	OrderIDString string     `json:"order_id_string"`
-	OrderType     string     `json:"order_type"`
-	Volume        float64    `json:"volume"`
-	TradeVolume   float64    `json:"trade_volume"`
-	ClientOrderID int64      `json:"client_order_id"`
-	Trade         []struct {
-		ID            string  `json:"id"`
-		TradeID       int64   `json:"trade_id"`
-		TradeVolume   float64 `json:"trade_volume"`
-		TradePrice    float64 `json:"trade_price"`
-		TradeTurnover float64 `json:"trade_turnover"`
-		CreatedAt     int64   `json:"created_at"`
-		Role          string  `json:"role"`
-	}
-}
-
-// FWsSubEquityUpdates stores account equity updates data for futures websocket
-type FWsSubEquityUpdates struct {
-	Operation string     `json:"op"`
-	Topic     string     `json:"topic"`
-	UID       string     `json:"uid"`
-	Timestamp types.Time `json:"ts"`
-	Event     string     `json:"event"`
-	Data      []struct {
-		Symbol            string  `json:"symbol"`
-		MarginBalance     float64 `json:"margin_balance"`
-		MarginStatic      int64   `json:"margin_static"`
-		MarginPosition    float64 `json:"margin_position"`
-		MarginFrozen      float64 `json:"margin_frozen"`
-		MarginAvailable   float64 `json:"margin_available"`
-		ProfitReal        float64 `json:"profit_real"`
-		ProfitUnreal      float64 `json:"profit_unreal"`
-		WithdrawAvailable float64 `json:"withdraw_available"`
-		RiskRate          float64 `json:"risk_rate"`
-		LiquidationPrice  float64 `json:"liquidation_price"`
-		LeverageRate      float64 `json:"lever_rate"`
-		AdjustFactor      float64 `json:"adjust_factor"`
-	} `json:"data"`
-}
-
-// FWsSubPositionUpdates stores subscribed position updates data for futures websocket
-type FWsSubPositionUpdates struct {
-	Operation     string     `json:"op"`
-	Topic         string     `json:"topic"`
-	UID           string     `json:"uid"`
-	Timestamp     types.Time `json:"ts"`
-	Event         string     `json:"event"`
-	PositionsData []struct {
-		Symbol         string  `json:"symbol"`
-		ContractCode   string  `json:"contract_code"`
-		ContractType   string  `json:"contract_type"`
-		Volume         float64 `json:"volume"`
-		Available      float64 `json:"available"`
-		Frozen         float64 `json:"frozen"`
-		CostOpen       float64 `json:"cost_open"`
-		CostHold       float64 `json:"cost_hold"`
-		ProfitUnreal   float64 `json:"profit_unreal"`
-		ProfitRate     float64 `json:"profit_rate"`
-		Profit         float64 `json:"profit"`
-		PositionMargin float64 `json:"position_margin"`
-		LeverageRate   float64 `json:"lever_rate"`
-		Direction      string  `json:"direction"`
-		LastPrice      float64 `json:"last_price"`
-	} `json:"data"`
-}
-
-// FWsSubLiquidationOrders stores subscribed liquidation orders data for futures websocket
-type FWsSubLiquidationOrders struct {
-	Operation  string     `json:"op"`
-	Topic      string     `json:"topic"`
-	Timestamp  types.Time `json:"ts"`
-	OrdersData []struct {
-		Symbol       string     `json:"symbol"`
-		ContractCode string     `json:"contract_code"`
-		Direction    string     `json:"direction"`
-		Offset       string     `json:"offset"`
-		Volume       float64    `json:"volume"`
-		Price        float64    `json:"price"`
-		CreatedAt    types.Time `json:"created_at"`
-	} `json:"data"`
-}
-
-// FWsSubContractInfo stores contract info data for futures websocket
-type FWsSubContractInfo struct {
-	Operation    string     `json:"op"`
-	Topic        string     `json:"topic"`
-	Timestamp    types.Time `json:"ts"`
-	Event        string     `json:"event"`
-	ContractData []struct {
-		Symbol         string  `json:"symbol"`
-		ContractCode   string  `json:"contract_code"`
-		ContractType   string  `json:"contract_type"`
-		ContractSize   float64 `json:"contract_size"`
-		PriceTick      float64 `json:"price_tick"`
-		DeliveryDate   string  `json:"delivery_date"`
-		CreateDate     string  `json:"create_date"`
-		ContractStatus int64   `json:"contract_status"`
-	} `json:"data"`
-}
-
-// FWsSubTriggerOrderUpdates stores subscribed trigger order updates data for futures websocket
-type FWsSubTriggerOrderUpdates struct {
-	Operation string `json:"op"`
-	Topic     string `json:"topic"`
-	UID       string `json:"uid"`
-	Event     string `json:"event"`
-	Data      []struct {
-		Symbol          string  `json:"symbol"`
-		ContractCode    string  `json:"contract_code"`
-		ContractType    string  `json:"contract_type"`
-		TriggerType     string  `json:"trigger_type"`
-		Volume          float64 `json:"volume"`
-		OrderType       int64   `json:"order_type"`
-		Direction       string  `json:"direction"`
-		Offset          string  `json:"offset"`
-		LeverageRate    int64   `json:"lever_rate"`
-		OrderID         int64   `json:"order_id"`
-		OrderIDString   string  `json:"order_id_str"`
-		RelationOrderID string  `json:"relation_order_id"`
-		OrderPriceType  string  `json:"order_price_type"`
-		Status          int64   `json:"status"`
-		OrderSource     string  `json:"order_source"`
-		TriggerPrice    float64 `json:"trigger_price"`
-		TriggeredPrice  float64 `json:"triggered_price"`
-		OrderPrice      float64 `json:"order_price"`
-		CreatedAt       int64   `json:"created_at"`
-		TriggeredAt     int64   `json:"triggered_at"`
-		OrderInsertAt   int64   `json:"order_insert_at"`
-		CancelledAt     int64   `json:"canceled_at"`
-		FailCode        int64   `json:"fail_code"`
-		FailReason      string  `json:"fail_reason"`
-	} `json:"data"`
 }
 
 // --------------------------------Spot-----------------------------------------
@@ -494,15 +122,15 @@ type KlineItem struct {
 	High        float64    `json:"high"`
 	Amount      float64    `json:"amount"`
 	Volume      float64    `json:"vol"`
-	Count       int        `json:"count"`
+	Count       uint64     `json:"count"`
 }
 
 // CancelOpenOrdersBatch stores open order batch response data
 type CancelOpenOrdersBatch struct {
 	Data struct {
-		FailedCount  int `json:"failed-count"`
-		NextID       int `json:"next-id"`
-		SuccessCount int `json:"success-count"`
+		FailedCount  uint64 `json:"failed-count"`
+		NextID       int64  `json:"next-id"` // Signed because the API sends -1 when no open orders remain
+		SuccessCount uint64 `json:"success-count"`
 	} `json:"data"`
 	Status       string `json:"status"`
 	ErrorMessage string `json:"err-msg"`
@@ -574,7 +202,7 @@ var (
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
 	Symbol currency.Pair                  // Required; example LTCBTC,BTCUSDT
-	Type   OrderBookDataRequestParamsType `json:"type"` // step0, step1, step2, step3, step4, step5 (combined depth 0-5); when step0, no depth is merged
+	Type   OrderBookDataRequestParamsType // step0, step1, step2, step3, step4, step5 (combined depth 0-5); when step0, no depth is merged
 }
 
 // Orderbook stores the orderbook data
@@ -609,7 +237,7 @@ type Detail struct {
 	High      float64    `json:"high"`
 	Timestamp types.Time `json:"timestamp"`
 	ID        int64      `json:"id"`
-	Count     int        `json:"count"`
+	Count     uint64     `json:"count"`
 	Low       float64    `json:"low"`
 	Volume    float64    `json:"vol"`
 }
@@ -701,9 +329,9 @@ type OrderInfo struct {
 
 // OrderMatchInfo stores the order match info
 type OrderMatchInfo struct {
-	ID           int        `json:"id"`
-	OrderID      int        `json:"order-id"`
-	MatchID      int        `json:"match-id"`
+	ID           uint64     `json:"id"`
+	OrderID      uint64     `json:"order-id"`
+	MatchID      uint64     `json:"match-id"`
 	Symbol       string     `json:"symbol"`
 	Type         string     `json:"type"`
 	Source       string     `json:"source"`
@@ -724,16 +352,16 @@ type MarginOrder struct {
 	CreatedAt       int64  `json:"created-at"`
 	InterestAmount  string `json:"interest-amount"`
 	InterestRate    string `json:"interest-rate"`
-	AccountID       int    `json:"account-id"`
-	UserID          int    `json:"user-id"`
+	AccountID       uint64 `json:"account-id"`
+	UserID          uint64 `json:"user-id"`
 	UpdatedAt       int64  `json:"updated-at"`
-	ID              int    `json:"id"`
+	ID              uint64 `json:"id"`
 	State           string `json:"state"`
 }
 
 // MarginAccountBalance stores the margin account balance info
 type MarginAccountBalance struct {
-	ID       int              `json:"id"`
+	ID       uint64           `json:"id"`
 	Type     string           `json:"type"`
 	State    string           `json:"state"`
 	Symbol   string           `json:"symbol"`
@@ -745,7 +373,7 @@ type MarginAccountBalance struct {
 
 // SpotNewOrderRequestParams holds the params required to place an order
 type SpotNewOrderRequestParams struct {
-	AccountID int                           `json:"account-id,string"` // Account ID, obtained using the accounts method. Currency trades use the accountid of the ‘spot’ account; for loan asset transactions, please use the accountid of the ‘margin’ account.
+	AccountID uint64                        `json:"account-id,string"` // Account ID, obtained using the accounts method. Currency trades use the accountid of the ‘spot’ account; for loan asset transactions, please use the accountid of the ‘margin’ account.
 	Amount    float64                       `json:"amount"`            // The limit price indicates the quantity of the order, the market price indicates how much to buy when the order is paid, and the market price indicates how much the coin is sold when the order is sold.
 	Price     float64                       `json:"price"`             // Order price, market price does not use  this parameter
 	Source    string                        `json:"source"`            // Order source, api: API call, margin-api: loan asset transaction
@@ -813,11 +441,6 @@ type wsSubReq struct {
 	Unsub string `json:"unsub,omitempty"`
 }
 
-// WsHeartBeat defines a heartbeat request
-type WsHeartBeat struct {
-	ClientNonce int64 `json:"ping"`
-}
-
 // WsDepth defines market depth websocket response
 type WsDepth struct {
 	Channel   string     `json:"ch"`
@@ -878,7 +501,7 @@ type WsTrade struct {
 			Price     float64    `json:"price"`
 			Direction string     `json:"direction"`
 		} `json:"data"`
-	}
+	} `json:"tick"`
 }
 
 // wsReq contains authentication login fields

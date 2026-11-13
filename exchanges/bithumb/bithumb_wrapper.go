@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -233,8 +231,9 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         t.MaxPrice,
 			Low:          t.MinPrice,
-			Volume:       t.UnitsTraded24Hr,
+			BaseVolume:   t.UnitsTraded24Hour,
 			Open:         t.OpeningPrice,
+			Last:         t.ClosingPrice,
 			Close:        t.ClosingPrice,
 			Pair:         p,
 			ExchangeName: e.Name,
@@ -382,7 +381,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -778,8 +777,8 @@ func (e *Exchange) UpdateCurrencyStates(ctx context.Context, a asset.Item) error
 	payload := make(map[currency.Code]currencystate.Options)
 	for coin, options := range status.Data {
 		payload[currency.NewCode(coin)] = currencystate.Options{
-			Withdraw: convert.BoolPtr(options.WithdrawalStatus == 1),
-			Deposit:  convert.BoolPtr(options.DepositStatus == 1),
+			Withdraw: new(options.WithdrawalStatus == 1),
+			Deposit:  new(options.DepositStatus == 1),
 		}
 	}
 	return e.States.UpdateAll(a, payload)

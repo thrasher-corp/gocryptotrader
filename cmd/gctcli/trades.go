@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -15,202 +14,124 @@ import (
 var tradeCommand = &cli.Command{
 	Name:      "trade",
 	Usage:     "execute trade related commands",
-	ArgsUsage: "<command> <args>",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
-			Name:      "setexchangetradeprocessing",
-			Usage:     "sets whether an exchange can save trades to the database",
-			ArgsUsage: "<exchange> <status>",
-			Action:    setExchangeTradeProcessing,
+			Name:   "setexchangetradeprocessing",
+			Usage:  "sets whether an exchange can save trades to the database",
+			Action: setExchangeTradeProcessing,
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to change the status of",
-				},
+				requiredExchangeAliasFlag,
 				&cli.BoolFlag{
-					Name:  "status",
-					Usage: "<true>/<false>",
+					Name:     "status",
+					Required: true,
+					Usage:    "<true>/<false>",
 				},
 			},
 		},
 		{
-			Name:      "getrecent",
-			Usage:     "gets recent trades",
-			ArgsUsage: "<exchange> <pair> <asset>",
-			Action:    getRecentTrades,
+			Name:   "getrecent",
+			Usage:  "gets recent trades",
+			Action: getRecentTrades,
 			Flags: []cli.Flag{
+				requiredExchangeAliasFlag,
+				requiredPairAliasFlag,
+				requiredAssetAliasFlag,
+			},
+		},
+		{
+			Name:   "gethistoric",
+			Usage:  "gets trades between two periods",
+			Action: getHistoricTrades,
+			Flags: []cli.Flag{
+				requiredExchangeAliasFlag,
+				requiredPairAliasFlag,
+				requiredAssetAliasFlag,
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to get the trades from",
+					Name:  startFlagName,
+					Usage: startUsage,
+					Value: time.Now().Add(-time.Hour * 6).Format(time.DateTime),
 				},
 				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "the currency pair to get the trades for",
-				},
-				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair",
+					Name:  endFlagName,
+					Usage: endUsage + " WARNING: large date ranges may take considerable time",
+					Value: time.Now().Format(time.DateTime),
 				},
 			},
 		},
 		{
-			Name:      "gethistoric",
-			Usage:     "gets trades between two periods",
-			ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
-			Action:    getHistoricTrades,
+			Name:   "getsaved",
+			Usage:  "gets trades from the database",
+			Action: getSavedTrades,
 			Flags: []cli.Flag{
+				requiredExchangeAliasFlag,
+				requiredPairAliasFlag,
+				requiredAssetAliasFlag,
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to get the trades from",
+					Name:  startFlagName,
+					Usage: startUsage,
+					Value: time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 				},
 				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "the currency pair to get the trades for",
-				},
-				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair",
-				},
-				&cli.StringFlag{
-					Name:        "start",
-					Usage:       "<start>",
-					Value:       time.Now().Add(-time.Hour * 6).Format(time.DateTime),
-					Destination: &startTime,
-				},
-				&cli.StringFlag{
-					Name:        "end",
-					Usage:       "<end> WARNING: large date ranges may take considerable time",
-					Value:       time.Now().Format(time.DateTime),
-					Destination: &endTime,
+					Name:  endFlagName,
+					Usage: endUsage,
+					Value: time.Now().Format(time.DateTime),
 				},
 			},
 		},
 		{
-			Name:      "getsaved",
-			Usage:     "gets trades from the database",
-			ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
-			Action:    getSavedTrades,
+			Name:   "findmissingsavedtradeintervals",
+			Usage:  "will highlight any interval that is missing trade data so you can fill that gap",
+			Action: findMissingSavedTradeIntervals,
 			Flags: []cli.Flag{
+				requiredExchangeAliasFlag,
+				requiredPairAliasFlag,
+				requiredAssetAliasFlag,
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to get the trades from",
+					Name:  startFlagName,
+					Usage: startRoundedUsage,
+					Value: time.Now().Add(-time.Hour * 24).Truncate(time.Hour).Format(time.DateTime),
 				},
 				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "the currency pair to get the trades for",
-				},
-				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair",
-				},
-				&cli.StringFlag{
-					Name:        "start",
-					Usage:       "<start>",
-					Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
-					Destination: &startTime,
-				},
-				&cli.StringFlag{
-					Name:        "end",
-					Usage:       "<end>",
-					Value:       time.Now().Format(time.DateTime),
-					Destination: &endTime,
+					Name:  endFlagName,
+					Usage: endRoundedUsage,
+					Value: time.Now().Truncate(time.Hour).Format(time.DateTime),
 				},
 			},
 		},
 		{
-			Name:      "findmissingsavedtradeintervals",
-			Usage:     "will highlight any interval that is missing trade data so you can fill that gap",
-			ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
-			Action:    findMissingSavedTradeIntervals,
+			Name:   "convertsavedtradestocandles",
+			Usage:  "explicitly converts stored trade data to candles and saves the result to the database",
+			Action: convertSavedTradesToCandles,
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to find the missing trades",
-				},
-				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "the currency pair",
-				},
-				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair",
-				},
-				&cli.StringFlag{
-					Name:        "start",
-					Usage:       "<start> rounded down to the nearest hour",
-					Value:       time.Now().Add(-time.Hour * 24).Truncate(time.Hour).Format(time.DateTime),
-					Destination: &startTime,
-				},
-				&cli.StringFlag{
-					Name:        "end",
-					Usage:       "<end> rounded down to the nearest hour",
-					Value:       time.Now().Truncate(time.Hour).Format(time.DateTime),
-					Destination: &endTime,
-				},
-			},
-		},
-		{
-			Name:      "convertsavedtradestocandles",
-			Usage:     "explicitly converts stored trade data to candles and saves the result to the database",
-			ArgsUsage: "<exchange> <pair> <asset> <interval> <start> <end>",
-			Action:    convertSavedTradesToCandles,
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange",
-				},
-				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "the currency pair to get the trades for",
-				},
-				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair",
-				},
+				requiredExchangeAliasFlag,
+				requiredPairAliasFlag,
+				requiredAssetAliasFlag,
 				&cli.Int64Flag{
-					Name:        "interval",
-					Aliases:     []string{"i"},
-					Usage:       klineMessage,
-					Value:       86400,
-					Destination: &candleGranularity,
+					Name:    intervalFlagName,
+					Aliases: []string{"i"},
+					Usage:   klineMessage,
+					Value:   86400,
 				},
 				&cli.StringFlag{
-					Name:        "start",
-					Usage:       "<start>",
-					Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
-					Destination: &startTime,
+					Name:  startFlagName,
+					Usage: startUsage,
+					Value: time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 				},
 				&cli.StringFlag{
-					Name:        "end",
-					Usage:       "<end>",
-					Value:       time.Now().Format(time.DateTime),
-					Destination: &endTime,
+					Name:  endFlagName,
+					Usage: endUsage,
+					Value: time.Now().Format(time.DateTime),
 				},
 				&cli.BoolFlag{
-					Name:    "sync",
+					Name:    syncFlagName,
 					Aliases: []string{"s"},
 					Usage:   "will sync the resulting candles to the database <true/false>",
 				},
 				&cli.BoolFlag{
-					Name:    "force",
+					Name:    forceFlagName,
 					Aliases: []string{"f"},
-					Usage:   "will overwrite any conflicting candle data on save <true/false>",
+					Usage:   forceUsage,
 				},
 			},
 		},
@@ -218,22 +139,11 @@ var tradeCommand = &cli.Command{
 }
 
 func findMissingSavedTradeIntervals(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
-	}
+	currencyPair := c.String(pairFlagName)
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
@@ -243,37 +153,20 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 		return err
 	}
 
-	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
-	}
+	assetType := c.String(assetFlagName)
 
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
 
-	if !c.IsSet("start") {
-		if c.Args().Get(3) != "" {
-			startTime = c.Args().Get(3)
-		}
-	}
-
-	if !c.IsSet("end") {
-		if c.Args().Get(4) != "" {
-			endTime = c.Args().Get(4)
-		}
-	}
-
 	var s, e time.Time
-	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, c.String(startFlagName), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, c.String(endFlagName), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
+		return fmt.Errorf("invalid time format for end: %w", err)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -285,7 +178,7 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.FindMissingSavedTradeIntervals(c.Context,
 		&gctrpc.FindMissingTradePeriodsRequest{
-			ExchangeName: exchangeName,
+			ExchangeName: c.String(exchangeFlagName),
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
@@ -304,26 +197,8 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 }
 
 func setExchangeTradeProcessing(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
-	}
-
-	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-	var status bool
-	if c.IsSet("status") {
-		status = c.Bool("status")
-	} else {
-		statusStr := c.Args().Get(1)
-		var err error
-		status, err = strconv.ParseBool(statusStr)
-		if err != nil {
-			return err
-		}
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -335,8 +210,8 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.SetExchangeTradeProcessing(c.Context,
 		&gctrpc.SetExchangeTradeProcessingRequest{
-			Exchange: exchangeName,
-			Status:   status,
+			Exchange: c.String(exchangeFlagName),
+			Status:   c.Bool("status"),
 		})
 	if err != nil {
 		return err
@@ -347,22 +222,11 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 }
 
 func getSavedTrades(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
-	}
+	currencyPair := c.String(pairFlagName)
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
@@ -372,37 +236,20 @@ func getSavedTrades(c *cli.Context) error {
 		return err
 	}
 
-	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
-	}
+	assetType := c.String(assetFlagName)
 
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
 
-	if !c.IsSet("start") {
-		if c.Args().Get(3) != "" {
-			startTime = c.Args().Get(3)
-		}
-	}
-
-	if !c.IsSet("end") {
-		if c.Args().Get(4) != "" {
-			endTime = c.Args().Get(4)
-		}
-	}
-
 	var s, e time.Time
-	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, c.String(startFlagName), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, c.String(endFlagName), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
+		return fmt.Errorf("invalid time format for end: %w", err)
 	}
 
 	if e.Before(s) {
@@ -418,7 +265,7 @@ func getSavedTrades(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetSavedTrades(c.Context,
 		&gctrpc.GetSavedTradesRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlagName),
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
@@ -437,22 +284,11 @@ func getSavedTrades(c *cli.Context) error {
 }
 
 func getRecentTrades(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
-	}
+	currencyPair := c.String(pairFlagName)
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
@@ -462,12 +298,7 @@ func getRecentTrades(c *cli.Context) error {
 		return err
 	}
 
-	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
-	}
+	assetType := c.String(assetFlagName)
 
 	if !validAsset(assetType) {
 		return errInvalidAsset
@@ -482,7 +313,7 @@ func getRecentTrades(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetRecentTrades(c.Context,
 		&gctrpc.GetSavedTradesRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlagName),
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
@@ -499,22 +330,11 @@ func getRecentTrades(c *cli.Context) error {
 }
 
 func getHistoricTrades(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
-	}
+	currencyPair := c.String(pairFlagName)
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
@@ -524,36 +344,20 @@ func getHistoricTrades(c *cli.Context) error {
 		return err
 	}
 
-	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
-	}
+	assetType := c.String(assetFlagName)
 
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
 
-	if !c.IsSet("start") {
-		if c.Args().Get(3) != "" {
-			startTime = c.Args().Get(3)
-		}
-	}
-
-	if !c.IsSet("end") {
-		if c.Args().Get(4) != "" {
-			endTime = c.Args().Get(4)
-		}
-	}
 	var s, e time.Time
-	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, c.String(startFlagName), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, c.String(endFlagName), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
+		return fmt.Errorf("invalid time format for end: %w", err)
 	}
 
 	if e.Before(s) {
@@ -570,7 +374,7 @@ func getHistoricTrades(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetHistoricTrades(c.Context,
 		&gctrpc.GetSavedTradesRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlagName),
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
@@ -612,22 +416,11 @@ func getHistoricTrades(c *cli.Context) error {
 }
 
 func convertSavedTradesToCandles(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
-	}
+	currencyPair := c.String(pairFlagName)
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
@@ -637,61 +430,28 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 		return err
 	}
 
-	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
-	}
+	assetType := c.String(assetFlagName)
 
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("interval") {
-		candleGranularity = c.Int64("interval")
-	} else if c.Args().Get(3) != "" {
-		candleGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if !c.IsSet("start") {
-		if c.Args().Get(4) != "" {
-			startTime = c.Args().Get(4)
-		}
-	}
-
-	if !c.IsSet("end") {
-		if c.Args().Get(5) != "" {
-			endTime = c.Args().Get(5)
-		}
-	}
-
-	var sync bool
-	if c.IsSet("sync") {
-		sync = c.Bool("sync")
-	}
-
-	var force bool
-	if c.IsSet("force") {
-		force = c.Bool("force")
-	}
+	sync := c.Bool(syncFlagName)
+	force := c.Bool(forceFlagName)
 
 	if force && !sync {
 		return errors.New("cannot forcefully overwrite without sync")
 	}
 
-	candleInterval := time.Duration(candleGranularity) * time.Second
+	candleInterval := time.Duration(c.Int64(intervalFlagName)) * time.Second
 	var s, e time.Time
-	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, c.String(startFlagName), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, c.String(endFlagName), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
+		return fmt.Errorf("invalid time format for end: %w", err)
 	}
 
 	if e.Before(s) {
@@ -707,7 +467,7 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.ConvertTradesToCandles(c.Context,
 		&gctrpc.ConvertTradesToCandlesRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlagName),
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),

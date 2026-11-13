@@ -395,6 +395,28 @@ func TestChangePermission(t *testing.T) {
 	}
 }
 
+func TestChangePermissionSymlinks(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation requires elevated privileges on Windows")
+	}
+	tempDir := t.TempDir()
+	target := filepath.Join(tempDir, "target")
+	require.NoError(t, os.Mkdir(target, 0o750), "Mkdir must not error")
+	require.NoError(t, os.WriteFile(filepath.Join(target, "a.txt"), []byte("hello"), 0o600), "WriteFile must not error")
+	require.NoError(t, os.Symlink("a.txt", filepath.Join(target, "inner.txt")), "Symlink must not error")
+	require.NoError(t, ChangePermission(target), "ChangePermission must not error for a symlink resolving inside the tree")
+
+	outside := filepath.Join(tempDir, "outside.txt")
+	require.NoError(t, os.WriteFile(outside, []byte("secret"), 0o600), "WriteFile must not error")
+	require.NoError(t, os.Symlink(outside, filepath.Join(target, "escape.txt")), "Symlink must not error")
+	assert.ErrorContains(t, ChangePermission(target), "escapes from parent", "ChangePermission should reject a symlink resolving outside the tree")
+
+	fi, err := os.Stat(outside)
+	require.NoError(t, err, "Stat must not error")
+	assert.Equal(t, os.FileMode(0o600), fi.Mode().Perm(), "the file outside the tree should keep its permissions")
+}
+
 func TestAddPaddingOnUpperCase(t *testing.T) {
 	t.Parallel()
 
@@ -440,7 +462,7 @@ func TestErrors(t *testing.T) {
 	assert.Same(t, AppendError(e1, nil), e1, "Append nil to e1 should e1")
 	assert.Same(t, AppendError(nil, e2), e2, "Append e2 to nil should e2")
 
-	// Vanila error tests
+	// Vanilla error tests
 	err := AppendError(AppendError(AppendError(nil, e1), e2), e1)
 	assert.ErrorContains(t, err, "inconsistent gravity, barely marginal interest in your story, inconsistent gravity", "Should format consistently")
 	assert.ErrorIs(t, err, e1, "Should have inconsistent gravity")
@@ -650,7 +672,6 @@ func TestCounter(t *testing.T) {
 	require.Equal(t, int64(2), c.IncrementAndGet())
 }
 
-// 683185328	         1.787 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkCounter(b *testing.B) {
 	c := Counter{}
 	for b.Loop() {
@@ -691,6 +712,51 @@ func TestSetIfZero(t *testing.T) {
 	changed = SetIfZero(&s, "world")
 	assert.True(t, changed, "SetIfZero should change a zero value")
 	assert.Equal(t, "world", s, "SetIfZero should change a zero value")
+}
+
+func TestSeenCheckAndRecord(t *testing.T) {
+	t.Parallel()
+	seen := make(Seen[string])
+	for _, tc := range []struct {
+		item     string
+		expected bool
+		length   int
+	}{
+		{item: "first", length: 1},
+		{item: "first", expected: true, length: 1},
+		{item: "second", length: 2},
+		{item: "", length: 3},
+		{item: "", expected: true, length: 3},
+		{item: "first", expected: true, length: 3},
+	} {
+		assert.Equalf(t, tc.expected, seen.CheckAndRecord(tc.item), "CheckAndRecord should report whether %q was already seen", tc.item)
+		assert.Truef(t, seen[tc.item], "CheckAndRecord should mark %q as seen", tc.item)
+		assert.Len(t, seen, tc.length, "CheckAndRecord should add only new items")
+	}
+}
+
+func TestSeenCheckAndRecordExistingEntries(t *testing.T) {
+	t.Parallel()
+	seen := Seen[int]{1: true, 2: false}
+	assert.True(t, seen.CheckAndRecord(1), "CheckAndRecord should recognise an entry already marked seen")
+	assert.False(t, seen.CheckAndRecord(2), "CheckAndRecord should treat an entry marked false as unseen")
+	assert.True(t, seen.CheckAndRecord(2), "CheckAndRecord should mark an existing false entry as seen")
+	assert.Equal(t, Seen[int]{1: true, 2: true}, seen, "CheckAndRecord should preserve unrelated entries")
+}
+
+func TestSeenCheckAndRecordStructKeys(t *testing.T) {
+	t.Parallel()
+	type key struct {
+		name string
+		id   int
+	}
+	seen := make(Seen[key])
+	assert.False(t, seen.CheckAndRecord(key{name: "first", id: 1}), "CheckAndRecord should record a new struct key")
+	assert.True(t, seen.CheckAndRecord(key{name: "first", id: 1}), "CheckAndRecord should recognise an equal struct value")
+	assert.False(t, seen.CheckAndRecord(key{name: "first", id: 2}), "CheckAndRecord should distinguish different struct fields")
+	assert.False(t, seen.CheckAndRecord(key{}), "CheckAndRecord should record a zero-value struct key")
+	assert.True(t, seen.CheckAndRecord(key{}), "CheckAndRecord should recognise a repeated zero-value struct key")
+	assert.Len(t, seen, 3, "CheckAndRecord should retain each distinct struct key")
 }
 
 func TestContextFunctions(t *testing.T) {

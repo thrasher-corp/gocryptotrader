@@ -83,7 +83,7 @@ type WebsocketOrderResponse struct {
 	GTDiscount                bool          `json:"gt_discount"`
 	RebatedFee                types.Number  `json:"rebated_fee"`
 	RebatedFeeCurrency        currency.Code `json:"rebated_fee_currency"`
-	SelfTradePreventionID     int           `json:"stp_id"`
+	SelfTradePreventionID     types.Number  `json:"stp_id"`
 	SelfTradePreventionAction string        `json:"stp_act"`
 	AverageDealPrice          types.Number  `json:"avg_deal_price"`
 	Label                     string        `json:"label"`
@@ -100,7 +100,7 @@ type WebsocketFuturesOrderResponse struct {
 	Status                    string        `json:"status"`
 	Contract                  currency.Pair `json:"contract"`
 	Size                      types.Number  `json:"size"`
-	Iceberg                   int64         `json:"iceberg"`
+	Iceberg                   types.Number  `json:"iceberg"`
 	Price                     types.Number  `json:"price"`
 	IsClose                   bool          `json:"is_close"`
 	IsReduceOnly              bool          `json:"is_reduce_only"`
@@ -112,10 +112,12 @@ type WebsocketFuturesOrderResponse struct {
 	TakerFee                  types.Number  `json:"tkfr"`
 	MakerFee                  types.Number  `json:"mkfr"`
 	ReferenceUserID           int64         `json:"refu"`
-	SelfTradePreventionID     int64         `json:"stp_id"`
+	SelfTradePreventionID     types.Number  `json:"stp_id"`
 	SelfTradePreventionAction string        `json:"stp_act"`
 	AmendText                 string        `json:"amend_text"`
 	BizInfo                   string        `json:"biz_info"`
+	BestBidOffer              string        `json:"bbo"`
+	MarketOrderSlipRatio      types.Number  `json:"market_order_slip_ratio"`
 	UpdateTime                types.Time    `json:"update_time"`
 	Succeeded                 *bool         `json:"succeeded"` // Nil if not present in returned response.
 }

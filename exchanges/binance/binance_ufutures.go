@@ -128,7 +128,7 @@ func (e *Exchange) URecentTrades(ctx context.Context, symbol currency.Pair, from
 	}
 	params.Set("symbol", symbolValue)
 	if fromID != "" {
-		params.Set("fromID", fromID)
+		params.Set("fromId", fromID)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -146,7 +146,7 @@ func (e *Exchange) UFuturesHistoricalTrades(ctx context.Context, symbol currency
 	}
 	params.Set("symbol", symbolValue)
 	if fromID != "" {
-		params.Set("fromID", fromID)
+		params.Set("fromId", fromID)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -164,7 +164,7 @@ func (e *Exchange) UCompressedTrades(ctx context.Context, symbol currency.Pair, 
 	}
 	params.Set("symbol", symbolValue)
 	if fromID != "" {
-		params.Set("fromID", fromID)
+		params.Set("fromId", fromID)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -522,7 +522,7 @@ func (e *Exchange) UFuturesNewOrder(ctx context.Context, data *UFuturesNewOrderR
 		params.Set("reduceOnly", "true")
 	}
 	if data.NewClientOrderID != "" {
-		params.Set("newClientOrderID", data.NewClientOrderID)
+		params.Set("newClientOrderId", data.NewClientOrderID)
 	}
 	if data.ClosePosition != "" {
 		params.Set("closePosition", data.ClosePosition)
@@ -874,7 +874,7 @@ func (e *Exchange) UAccountTradesHistory(ctx context.Context, symbol currency.Pa
 	}
 	params.Set("symbol", symbolValue)
 	if fromID != "" {
-		params.Set("fromID", fromID)
+		params.Set("fromId", fromID)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))

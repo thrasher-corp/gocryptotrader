@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -78,8 +77,9 @@ const (
 )
 
 var (
-	assetTranslator     assetTranslatorStore
-	errBadChannelSuffix = errors.New("bad websocket channel suffix")
+	assetTranslator           assetTranslatorStore
+	errBadChannelSuffix       = errors.New("bad websocket channel suffix")
+	errUnexpectedCandleLength = errors.New("unexpected candle length")
 )
 
 // GenericResponse stores general response data for functions that only return success
@@ -99,8 +99,8 @@ type genericFuturesResponse struct {
 type Asset struct {
 	Altname         string `json:"altname"`
 	AclassBase      string `json:"aclass_base"`
-	Decimals        int    `json:"decimals"`
-	DisplayDecimals int    `json:"display_decimals"`
+	Decimals        uint64 `json:"decimals"`
+	DisplayDecimals uint64 `json:"display_decimals"`
 }
 
 // AssetPairs holds asset pair information
@@ -112,16 +112,16 @@ type AssetPairs struct {
 	AclassQuote       string      `json:"aclass_quote"`
 	Quote             string      `json:"quote"`
 	Lot               string      `json:"lot"`
-	PairDecimals      int         `json:"pair_decimals"`
-	LotDecimals       int         `json:"lot_decimals"`
-	LotMultiplier     int         `json:"lot_multiplier"`
-	LeverageBuy       []int       `json:"leverage_buy"`
-	LeverageSell      []int       `json:"leverage_sell"`
+	PairDecimals      uint64      `json:"pair_decimals"`
+	LotDecimals       uint64      `json:"lot_decimals"`
+	LotMultiplier     uint64      `json:"lot_multiplier"`
+	LeverageBuy       []uint64    `json:"leverage_buy"`
+	LeverageSell      []uint64    `json:"leverage_sell"`
 	Fees              [][]float64 `json:"fees"`
 	FeesMaker         [][]float64 `json:"fees_maker"`
 	FeeVolumeCurrency string      `json:"fee_volume_currency"`
-	MarginCall        int         `json:"margin_call"`
-	MarginStop        int         `json:"margin_stop"`
+	MarginCall        uint64      `json:"margin_call"`
+	MarginStop        uint64      `json:"margin_stop"`
 	OrderMinimum      float64     `json:"ordermin,string"`
 	TickSize          float64     `json:"tick_size,string"`
 	Status            string      `json:"status"`
@@ -141,9 +141,6 @@ type Ticker struct {
 	High                       float64
 	Open                       float64
 }
-
-// Tickers stores a map of tickers
-type Tickers map[string]Ticker
 
 // TickerResponse holds ticker information before its put into the Ticker struct
 type TickerResponse struct {
@@ -572,36 +569,9 @@ type WebsocketSubRequest struct {
 // WebsocketSubscriptionData contains details on WS channel
 type WebsocketSubscriptionData struct {
 	Name     string `json:"name,omitempty"`     // ticker|ohlc|trade|book|spread|*, * for all (ohlc interval value is 1 if all channels subscribed)
-	Interval int    `json:"interval,omitempty"` // Optional - Timeframe for candles subscription in minutes; default 1. Valid: 1|5|15|30|60|240|1440|10080|21600
-	Depth    int    `json:"depth,omitempty"`    // Optional - Depth associated with orderbook; default 10. Valid: 10|25|100|500|1000
+	Interval uint64 `json:"interval,omitempty"` // Optional - Timeframe for candles subscription in minutes; default 1. Valid: 1|5|15|30|60|240|1440|10080|21600
+	Depth    int    `json:"depth,omitempty"`    // Optional - Depth associated with orderbook; default 10. Valid: 10|25|100|500|1000. int to take subscription.Levels without a narrowing conversion
 	Token    string `json:"token,omitempty"`    // Optional - Token for authenticated channels
-}
-
-// WebsocketEventResponse holds all data response types
-type WebsocketEventResponse struct {
-	Event        string                            `json:"event"`
-	Status       string                            `json:"status"`
-	Pair         currency.Pair                     `json:"pair"`
-	RequestID    int64                             `json:"reqid,omitempty"`
-	Subscription WebsocketSubscriptionResponseData `json:"subscription"`
-	ChannelName  string                            `json:"channelName,omitempty"`
-	WebsocketSubscriptionEventResponse
-	WebsocketErrorResponse
-}
-
-// WebsocketSubscriptionEventResponse defines a websocket socket event response
-type WebsocketSubscriptionEventResponse struct {
-	ChannelID int64 `json:"channelID"`
-}
-
-// WebsocketSubscriptionResponseData defines a websocket subscription response
-type WebsocketSubscriptionResponseData struct {
-	Name string `json:"name"`
-}
-
-// WebsocketErrorResponse defines a websocket error response
-type WebsocketErrorResponse struct {
-	ErrorMessage string `json:"errorMessage"`
 }
 
 // WsTokenResponse holds the WS auth token
@@ -662,38 +632,6 @@ type WsOwnTrade struct {
 	Vol                float64    `json:"vol,string"`
 }
 
-// WsOpenOrders ws auth open order data
-type WsOpenOrders struct {
-	Cost           float64                `json:"cost,string"`
-	Description    WsOpenOrderDescription `json:"descr"`
-	ExpireTime     types.Time             `json:"expiretm"`
-	Fee            float64                `json:"fee,string"`
-	LimitPrice     float64                `json:"limitprice,string"`
-	Misc           string                 `json:"misc"`
-	OFlags         string                 `json:"oflags"`
-	OpenTime       types.Time             `json:"opentm"`
-	Price          float64                `json:"price,string"`
-	RefID          string                 `json:"refid"`
-	StartTime      types.Time             `json:"starttm"`
-	Status         string                 `json:"status"`
-	StopPrice      float64                `json:"stopprice,string"`
-	UserReference  float64                `json:"userref"`
-	Volume         float64                `json:"vol,string"`
-	ExecutedVolume float64                `json:"vol_exec,string"`
-}
-
-// WsOpenOrderDescription additional data for WsOpenOrders
-type WsOpenOrderDescription struct {
-	Close     string  `json:"close"`
-	Leverage  string  `json:"leverage"`
-	Order     string  `json:"order"`
-	OrderType string  `json:"ordertype"`
-	Pair      string  `json:"pair"`
-	Price     float64 `json:"price,string"`
-	Price2    float64 `json:"price2,string"`
-	Type      string  `json:"type"`
-}
-
 // WsAddOrderRequest request type for ws adding order
 type WsAddOrderRequest struct {
 	Event           string  `json:"event"`
@@ -742,14 +680,6 @@ type WsCancelOrderResponse struct {
 	ErrorMessage string `json:"errorMessage"`
 	RequestID    int64  `json:"reqid"`
 	Count        int64  `json:"count"`
-}
-
-// OrderVars stores side, status and type for any order/trade
-type OrderVars struct {
-	Side      order.Side
-	Status    order.Status
-	OrderType order.Type
-	Fee       float64
 }
 
 type genericRESTResponse struct {

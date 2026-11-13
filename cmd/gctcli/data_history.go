@@ -15,7 +15,7 @@ import (
 var dataHistoryCommands = &cli.Command{
 	Name:      "datahistory",
 	Usage:     "manage data history jobs to retrieve historic trade or candle data over time",
-	ArgsUsage: "<command> <args>",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:   "getactivejobs",
@@ -28,12 +28,14 @@ var dataHistoryCommands = &cli.Command{
 			Usage: "returns all jobs with creation dates between the two provided dates",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "start_date",
-					Usage: "formatted as: " + time.DateTime,
+					Name:     startDateFlagName,
+					Required: true,
+					Usage:    startDateUsage,
 				},
 				&cli.StringFlag{
-					Name:  "end_date",
-					Usage: "formatted as: " + time.DateTime,
+					Name:     endDateFlagName,
+					Required: true,
+					Usage:    endDateUsage,
 				},
 			},
 			Action: getDataHistoryJobsBetween,
@@ -42,7 +44,6 @@ var dataHistoryCommands = &cli.Command{
 			Name:        "getajob",
 			Usage:       "returns a job by either its id or nickname",
 			Description: "na-na, why don't you get a job?",
-			ArgsUsage:   "<id> or <nickname>",
 			Action:      getDataHistoryJob,
 			Flags:       specificJobSubCommands,
 		},
@@ -50,54 +51,47 @@ var dataHistoryCommands = &cli.Command{
 			Name:        "getjobwithdetailedresults",
 			Usage:       "returns a job by either its nickname along with all its data retrieval results",
 			Description: "results may be large",
-			ArgsUsage:   "<nickname>",
 			Action:      getDataHistoryJob,
 			Flags: []cli.Flag{
 				nicknameFlag,
 			},
 		},
 		{
-			Name:      "getjobstatussummary",
-			Usage:     "returns a job with human readable summary of its status",
-			ArgsUsage: "<nickname>",
-			Action:    getDataHistoryJobSummary,
+			Name:   "getjobstatussummary",
+			Usage:  "returns a job with human readable summary of its status",
+			Action: getDataHistoryJobSummary,
 			Flags: []cli.Flag{
 				nicknameFlag,
 			},
 		},
 		dataHistoryJobCommands,
 		{
-			Name:      "deletejob",
-			Usage:     "sets a jobs status to deleted so it no longer is processed",
-			ArgsUsage: "<id> or <nickname>",
-			Flags:     specificJobSubCommands,
-			Action:    setDataHistoryJobStatus,
+			Name:   "deletejob",
+			Usage:  "sets a jobs status to deleted so it no longer is processed",
+			Flags:  specificJobSubCommands,
+			Action: setDataHistoryJobStatus,
 		},
 		{
-			Name:      "pausejob",
-			Usage:     "sets a jobs status to paused so it no longer is processed",
-			ArgsUsage: "<id> or <nickname>",
-			Flags:     specificJobSubCommands,
-			Action:    setDataHistoryJobStatus,
+			Name:   "pausejob",
+			Usage:  "sets a jobs status to paused so it no longer is processed",
+			Flags:  specificJobSubCommands,
+			Action: setDataHistoryJobStatus,
 		},
 		{
-			Name:      "unpausejob",
-			Usage:     "sets a jobs status to active so it can be processed",
-			ArgsUsage: "<id> or <nickname>",
-			Flags:     specificJobSubCommands,
-			Action:    setDataHistoryJobStatus,
+			Name:   "unpausejob",
+			Usage:  "sets a jobs status to active so it can be processed",
+			Flags:  specificJobSubCommands,
+			Action: setDataHistoryJobStatus,
 		},
 		{
-			Name:      "updateprerequisite",
-			Usage:     "adds or updates a prerequisite job to the job referenced - if the job is active, it will be set as 'paused'",
-			ArgsUsage: "<prerequisite> <nickname>",
-			Flags:     prerequisiteJobSubCommands,
-			Action:    setPrerequisiteJob,
+			Name:   "updateprerequisite",
+			Usage:  "adds or updates a prerequisite job to the job referenced - if the job is active, it will be set as 'paused'",
+			Flags:  prerequisiteJobSubCommands,
+			Action: setPrerequisiteJob,
 		},
 		{
-			Name:      "removeprerequisite",
-			Usage:     "removes a prerequisite job from the job referenced - if the job is 'paused', it will be set as 'active'",
-			ArgsUsage: "<nickname>",
+			Name:  "removeprerequisite",
+			Usage: "removes a prerequisite job from the job referenced - if the job is 'paused', it will be set as 'active'",
 			Flags: []cli.Flag{
 				nicknameFlag,
 			},
@@ -106,10 +100,15 @@ var dataHistoryCommands = &cli.Command{
 	},
 }
 
+var (
+	errDataHistoryJobIdentifierRequired  = errors.New("a job ID or nickname must be set")
+	errDataHistoryJobIdentifiersConflict = errors.New("set a job ID or nickname, not both")
+)
+
 var dataHistoryJobCommands = &cli.Command{
 	Name:      "addjob",
 	Usage:     "add or update data history jobs",
-	ArgsUsage: "<command> <args>",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:   "savecandles",
@@ -151,39 +150,34 @@ var dataHistoryJobCommands = &cli.Command{
 }
 
 var (
-	maxRetryAttempts, requestSizeLimit, batchSize, comparisonDecimalPlaces uint64
-	guidExample                                                            = "deadbeef-dead-beef-dead-beef13371337"
-	overwriteDataFlag                                                      = &cli.BoolFlag{
+	guidExample       = "deadbeef-dead-beef-dead-beef13371337"
+	overwriteDataFlag = &cli.BoolFlag{
 		Name:  "overwrite_existing_data",
 		Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
 	}
 	comparisonDecimalPlacesFlag = &cli.Uint64Flag{
-		Name:        "comparison_decimal_places",
-		Usage:       "the number of decimal places used to compare against API data for accuracy",
-		Destination: &comparisonDecimalPlaces,
-		Value:       3,
+		Name:  "comparison_decimal_places",
+		Usage: "the number of decimal places used to compare against API data for accuracy",
+		Value: 3,
 	}
 	intolerancePercentageFlag = &cli.Float64Flag{
 		Name:  "intolerance_percentage",
 		Usage: "the number of decimal places used to compare against API data for accuracy",
 	}
 	requestSize500Flag = &cli.Uint64Flag{
-		Name:        "request_size_limit",
-		Usage:       "the number of candle intervals to retrieve per request. eg if interval is 1d and request_size_limit is 500, then retrieve 500 intervals per batch",
-		Destination: &requestSizeLimit,
-		Value:       500,
+		Name:  requestSizeLimitFlagName,
+		Usage: "the number of candle intervals to retrieve per request. eg if interval is 1d and request_size_limit is 500, then retrieve 500 intervals per batch",
+		Value: 500,
 	}
 	requestSize50Flag = &cli.Uint64Flag{
-		Name:        "request_size_limit",
-		Usage:       "the number of intervals to retrieve per request. eg if interval is 1d and request_size_limit is 50, then retrieve 50 intervals per batch",
-		Destination: &requestSizeLimit,
-		Value:       50,
+		Name:  requestSizeLimitFlagName,
+		Usage: "the number of intervals to retrieve per request. eg if interval is 1d and request_size_limit is 50, then retrieve 50 intervals per batch",
+		Value: 50,
 	}
 	requestSize10Flag = &cli.Uint64Flag{
-		Name:        "request_size_limit",
-		Usage:       "the number of intervals worth of trades to retrieve per API request. eg if interval is 1m and request_size_limit is 10, then retrieve 10 minutes of trades per batch",
-		Destination: &requestSizeLimit,
-		Value:       10,
+		Name:  requestSizeLimitFlagName,
+		Usage: "the number of intervals worth of trades to retrieve per API request. eg if interval is 1m and request_size_limit is 10, then retrieve 10 minutes of trades per batch",
+		Value: 10,
 	}
 	nicknameFlag = &cli.StringFlag{
 		Name:  "nickname",
@@ -192,65 +186,50 @@ var (
 	prerequisiteJobSubCommands = []cli.Flag{
 		nicknameFlag,
 		&cli.StringFlag{
-			Name:  "prerequisite_job_nickname",
-			Usage: "binance-spot-btc-usdt-2018-trades",
+			Name:  prerequisiteJobNicknameFlagName,
+			Usage: prerequisiteJobNicknameUsage,
 		},
 	}
 	specificJobSubCommands = []cli.Flag{
 		&cli.StringFlag{
-			Name:  "id",
+			Name:  idFlagName,
 			Usage: guidExample,
 		},
+		nicknameFlag,
 	}
 	baseJobSubCommands = []cli.Flag{
 		nicknameFlag,
+		requiredExchangeFlag,
+		requiredAssetFlag,
+		requiredPairFlag,
 		&cli.StringFlag{
-			Name:     "exchange",
-			Usage:    "eg binance",
-			Required: true,
+			Name:  startDateFlagName,
+			Usage: startDateUsage,
+			Value: time.Now().AddDate(-1, 0, 0).Format(time.DateTime),
 		},
 		&cli.StringFlag{
-			Name:     "asset",
-			Usage:    "eg spot",
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:     "pair",
-			Usage:    "eg btc-usdt",
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:        "start_date",
-			Usage:       "formatted as: " + time.DateTime,
-			Value:       time.Now().AddDate(-1, 0, 0).Format(time.DateTime),
-			Destination: &startTime,
-		},
-		&cli.StringFlag{
-			Name:        "end_date",
-			Usage:       "formatted as: " + time.DateTime,
-			Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
-			Destination: &endTime,
+			Name:  endDateFlagName,
+			Usage: endDateUsage,
+			Value: time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 		},
 		&cli.Uint64Flag{
-			Name:     "interval",
+			Name:     intervalFlagName,
 			Usage:    klineMessage,
 			Required: true,
 		},
 		&cli.Uint64Flag{
-			Name:        "max_retry_attempts",
-			Usage:       "the maximum retry attempts for an interval period before giving up",
-			Value:       3,
-			Destination: &maxRetryAttempts,
+			Name:  "max_retry_attempts",
+			Usage: "the maximum retry attempts for an interval period before giving up",
+			Value: 3,
 		},
 		&cli.Uint64Flag{
-			Name:        "batch_size",
-			Usage:       "when a job is processed, the number of processing cycles to run. eg a batch size of 3, an interval of 1m and a request_size_limit of 3 will retrieve 3 batches of 3m per cycle",
-			Destination: &batchSize,
-			Value:       3,
+			Name:  "batch_size",
+			Usage: "when a job is processed, the number of processing cycles to run. eg a batch size of 3, an interval of 1m and a request_size_limit of 3 will retrieve 3 batches of 3m per cycle",
+			Value: 3,
 		},
 		&cli.StringFlag{
-			Name:  "prerequisite_job_nickname",
-			Usage: "if present, adds or updates the job to have a prerequisite, will only run when prerequisite job is complete - use command 'removeprerequisite' to remove a prerequisite",
+			Name:  prerequisiteJobNicknameFlagName,
+			Usage: prerequisiteJobNicknameUsage,
 		},
 		&cli.BoolFlag{
 			Name:  "upsert",
@@ -278,7 +257,7 @@ var (
 		requestSize50Flag,
 		comparisonDecimalPlacesFlag,
 		intolerancePercentageFlag,
-		&cli.Uint64Flag{
+		&cli.BoolFlag{
 			Name:  "replace_on_issue",
 			Usage: "if true, when the intolerance percentage is exceeded, then the comparison API candle will replace the database candle",
 		},
@@ -295,25 +274,13 @@ var (
 )
 
 func getDataHistoryJob(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-
-	var id string
-	if c.IsSet("id") {
-		id = c.String("id")
-	} else {
-		id = c.Args().First()
+	request, err := dataHistoryJobRequest(c)
+	if err != nil {
+		return err
 	}
-	var nickname string
-	if c.IsSet("nickname") {
-		nickname = c.String("nickname")
-	}
-
-	if nickname != "" && id != "" {
-		return errors.New("can only set 'id' OR 'nickname'")
-	}
-
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -321,6 +288,19 @@ func getDataHistoryJob(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetDataHistoryJobDetails(c.Context, request)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func dataHistoryJobRequest(c *cli.Context) (*gctrpc.GetDataHistoryJobDetailsRequest, error) {
+	id, nickname, err := dataHistoryJobIdentifier(c)
+	if err != nil {
+		return nil, err
+	}
 	request := &gctrpc.GetDataHistoryJobDetailsRequest{
 		Id:       id,
 		Nickname: nickname,
@@ -329,12 +309,19 @@ func getDataHistoryJob(c *cli.Context) error {
 		request.FullDetails = true
 	}
 
-	result, err := client.GetDataHistoryJobDetails(c.Context, request)
-	if err != nil {
-		return err
+	return request, nil
+}
+
+// dataHistoryJobIdentifier selects one job identifier for commands that accept an ID or nickname.
+func dataHistoryJobIdentifier(c *cli.Context) (id, nickname string, err error) {
+	if c.IsSet(idFlagName) && c.IsSet("nickname") {
+		return "", "", errDataHistoryJobIdentifiersConflict
 	}
-	jsonOutput(result)
-	return nil
+	id, nickname = c.String(idFlagName), c.String("nickname")
+	if id == "" && nickname == "" {
+		return "", "", errDataHistoryJobIdentifierRequired
+	}
+	return id, nickname, nil
 }
 
 func getActiveDataHistoryJobs(c *cli.Context) error {
@@ -356,33 +343,21 @@ func getActiveDataHistoryJobs(c *cli.Context) error {
 }
 
 func upsertDataHistoryJob(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var (
-		err                                 error
-		nickname, exchange, assetType, pair string
-		interval, dataType                  int64
+		err      error
+		dataType int64
 	)
-	if c.IsSet("nickname") {
-		nickname = c.String("nickname")
-	}
 
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
-	}
-
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	}
+	assetType := c.String(assetFlagName)
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("pair") {
-		pair = c.String("pair")
-	}
+	pair := c.String(pairFlagName)
 	if !validPair(pair) {
 		return errInvalidPair
 	}
@@ -391,62 +366,17 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		return fmt.Errorf("cannot process pair: %w", err)
 	}
 
-	if c.IsSet("start_date") {
-		startTime = c.String("start_date")
-	}
-	if c.IsSet("end_date") {
-		endTime = c.String("end_date")
-	}
-
 	var s, e time.Time
-	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, c.String(startDateFlagName), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, c.String(endDateFlagName), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
+		return fmt.Errorf("invalid time format for end: %w", err)
 	}
 
-	if c.IsSet("interval") {
-		interval = c.Int64("interval")
-	}
-	candleInterval := time.Duration(interval) * time.Second
-	if c.IsSet("request_size_limit") {
-		requestSizeLimit = c.Uint64("request_size_limit")
-	}
-
-	if c.IsSet("max_retry_attempts") {
-		maxRetryAttempts = c.Uint64("max_retry_attempts")
-	}
-
-	if c.IsSet("batch_size") {
-		batchSize = c.Uint64("batch_size")
-	}
-	var upsert bool
-	if c.IsSet("upsert") {
-		upsert = c.Bool("upsert")
-	}
-
-	var secondaryExchange string
-	if c.IsSet("secondary_exchange") {
-		secondaryExchange = c.String("secondary_exchange")
-	}
-
-	var prerequisiteJobNickname string
-	if c.IsSet("prerequisite_job_nickname") {
-		prerequisiteJobNickname = c.String("prerequisite_job_nickname")
-	}
-
-	var intolerancePercentage float64
-	if c.IsSet("intolerance_percentage") {
-		intolerancePercentage = c.Float64("intolerance_percentage")
-	}
-
-	var replaceOnIssue bool
-	if c.IsSet("replace_on_issue") {
-		replaceOnIssue = c.Bool("replace_on_issue")
-	}
+	candleInterval := time.Duration(c.Int64(intervalFlagName)) * time.Second
 
 	switch c.Command.Name {
 	case "savecandles":
@@ -465,29 +395,6 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		return errors.New("unrecognised command, cannot set data type")
 	}
 
-	var conversionInterval time.Duration
-	var overwriteExistingData bool
-
-	switch dataType {
-	case 0, 1:
-		if c.IsSet("overwrite_existing_data") {
-			overwriteExistingData = c.Bool("overwrite_existing_data")
-		}
-	case 2, 3:
-		var cInterval int64
-		if c.IsSet("conversion_interval") {
-			cInterval = c.Int64("conversion_interval")
-		}
-		conversionInterval = time.Duration(cInterval) * time.Second
-		if c.IsSet("overwrite_existing_data") {
-			overwriteExistingData = c.Bool("overwrite_existing_data")
-		}
-	case 4:
-		if c.IsSet("comparison_decimal_places") {
-			comparisonDecimalPlaces = c.Uint64("comparison_decimal_places")
-		}
-	}
-
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -496,8 +403,8 @@ func upsertDataHistoryJob(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	request := &gctrpc.UpsertDataHistoryJobRequest{
-		Nickname: nickname,
-		Exchange: exchange,
+		Nickname: c.String("nickname"),
+		Exchange: c.String(exchangeFlagName),
 		Asset:    assetType,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
@@ -507,18 +414,18 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		StartDate:                s.Format(common.SimpleTimeFormatWithTimezone),
 		EndDate:                  e.Format(common.SimpleTimeFormatWithTimezone),
 		Interval:                 int64(candleInterval),
-		RequestSizeLimit:         requestSizeLimit,
+		RequestSizeLimit:         c.Uint64(requestSizeLimitFlagName),
 		DataType:                 dataType,
-		MaxRetryAttempts:         maxRetryAttempts,
-		BatchSize:                batchSize,
-		ConversionInterval:       int64(conversionInterval),
-		OverwriteExistingData:    overwriteExistingData,
-		PrerequisiteJobNickname:  prerequisiteJobNickname,
-		InsertOnly:               !upsert,
-		DecimalPlaceComparison:   comparisonDecimalPlaces,
-		SecondaryExchangeName:    secondaryExchange,
-		IssueTolerancePercentage: intolerancePercentage,
-		ReplaceOnIssue:           replaceOnIssue,
+		MaxRetryAttempts:         c.Uint64("max_retry_attempts"),
+		BatchSize:                c.Uint64("batch_size"),
+		ConversionInterval:       int64(time.Duration(c.Int64("conversion_interval")) * time.Second),
+		OverwriteExistingData:    c.Bool("overwrite_existing_data"),
+		PrerequisiteJobNickname:  c.String(prerequisiteJobNicknameFlagName),
+		InsertOnly:               !c.Bool("upsert"),
+		DecimalPlaceComparison:   c.Uint64("comparison_decimal_places"),
+		SecondaryExchangeName:    c.String("secondary_exchange"),
+		IssueTolerancePercentage: c.Float64("intolerance_percentage"),
+		ReplaceOnIssue:           c.Bool("replace_on_issue"),
 	}
 
 	result, err := client.UpsertDataHistoryJob(c.Context, request)
@@ -530,27 +437,17 @@ func upsertDataHistoryJob(c *cli.Context) error {
 }
 
 func getDataHistoryJobsBetween(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	if c.IsSet("start_date") {
-		startTime = c.String("start_date")
-	} else {
-		startTime = c.Args().First()
-	}
-	if c.IsSet("end_date") {
-		endTime = c.String("end_date")
-	} else {
-		endTime = c.Args().Get(1)
-	}
-	s, err := time.ParseInLocation(time.DateTime, startTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, c.String(startDateFlagName), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err := time.ParseInLocation(time.DateTime, endTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, c.String(endDateFlagName), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
+		return fmt.Errorf("invalid time format for end: %w", err)
 	}
 
 	if e.Before(s) {
@@ -577,24 +474,12 @@ func getDataHistoryJobsBetween(c *cli.Context) error {
 }
 
 func setDataHistoryJobStatus(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-
-	var id string
-	if c.IsSet("id") {
-		id = c.String("id")
-	} else {
-		id = c.Args().First()
-	}
-
-	var nickname string
-	if c.IsSet("nickname") {
-		nickname = c.String("nickname")
-	}
-
-	if nickname != "" && id != "" {
-		return errors.New("can only set 'id' OR 'nickname'")
+	id, nickname, err := dataHistoryJobIdentifier(c)
+	if err != nil {
+		return err
 	}
 
 	var status int64
@@ -631,15 +516,8 @@ func setDataHistoryJobStatus(c *cli.Context) error {
 }
 
 func getDataHistoryJobSummary(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
-	}
-
-	var nickname string
-	if c.IsSet("nickname") {
-		nickname = c.String("nickname")
-	} else {
-		nickname = c.Args().First()
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -650,7 +528,7 @@ func getDataHistoryJobSummary(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	request := &gctrpc.GetDataHistoryJobDetailsRequest{
-		Nickname: nickname,
+		Nickname: c.String("nickname"),
 	}
 
 	result, err := client.GetDataHistoryJobSummary(c.Context, request)
@@ -662,23 +540,11 @@ func getDataHistoryJobSummary(c *cli.Context) error {
 }
 
 func setPrerequisiteJob(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var nickname string
-	if c.IsSet("nickname") {
-		nickname = c.String("nickname")
-	} else {
-		nickname = c.Args().First()
-	}
-
-	var prerequisite string
-	if c.IsSet("prerequisite_job_nickname") {
-		prerequisite = c.String("prerequisite_job_nickname")
-	} else {
-		prerequisite = c.Args().Get(1)
-	}
+	prerequisite := c.String(prerequisiteJobNicknameFlagName)
 
 	if c.Command.Name == "updateprerequisite" && prerequisite == "" {
 		return errors.New("prerequisite required")
@@ -693,7 +559,7 @@ func setPrerequisiteJob(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	request := &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{
 		PrerequisiteJobNickname: prerequisite,
-		Nickname:                nickname,
+		Nickname:                c.String("nickname"),
 	}
 
 	result, err := client.UpdateDataHistoryJobPrerequisite(c.Context, request)

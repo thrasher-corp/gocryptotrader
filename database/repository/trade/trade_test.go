@@ -7,13 +7,12 @@ import (
 	"strconv"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -33,6 +32,7 @@ var (
 	}
 )
 
+//nolint:forbidigo // TestMain reports setup and teardown failures before or after a *testing.T exists
 func TestMain(m *testing.M) {
 	if verbose {
 		err := testhelpers.EnableVerboseTestOutput()
@@ -55,6 +55,24 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
+func TestInsertRejectsNonUUIDID(t *testing.T) {
+	t.Parallel()
+	// SQLite stores the ID column as unrestricted text, so a bad ID would write a row that
+	// trade.SQLDataToTrade can no longer read back
+	err := Insert(Data{
+		ID:        "not-a-uuid",
+		Exchange:  testExchanges[0].Name,
+		Base:      currency.BTC.String(),
+		Quote:     currency.USD.String(),
+		AssetType: asset.Spot.String(),
+		Price:     1337,
+		Amount:    1337,
+		Side:      order.Buy.String(),
+		Timestamp: time.Now(),
+	})
+	assert.ErrorIs(t, err, errInvalidTradeID, "Insert should reject a non-UUID ID")
+}
+
 func TestTrades(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -72,8 +90,8 @@ func TestTrades(t *testing.T) {
 		{
 			name: "SQLite",
 			config: &database.Config{
-				Driver:            database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+				Driver:   database.DBSQLite3,
+				Database: "./testdb",
 			},
 			seedDB: seedDB,
 		},
@@ -102,7 +120,7 @@ func tradeSQLTester(t *testing.T) {
 	trades := make([]Data, 20)
 	firstTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	for i := range 20 {
-		uu, _ := uuid.NewV4()
+		uu := uuid.NewV4()
 		trades[i] = Data{
 			ID:        uu.String(),
 			Timestamp: firstTime.Add(time.Minute * time.Duration(i+1)),
@@ -124,7 +142,7 @@ func tradeSQLTester(t *testing.T) {
 
 	trades2 := make([]Data, 20)
 	for i := range 20 {
-		uu, _ := uuid.NewV4()
+		uu := uuid.NewV4()
 		trades2[i] = Data{
 			ID:        uu.String(),
 			Timestamp: firstTime.Add(time.Minute * time.Duration(i+1)),

@@ -13,10 +13,10 @@ import (
 )
 
 func TestSetupWsSupportsMultiConnectionManagement(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 	}))
-	t.Cleanup(server.Close)
+	server.Start()
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")

@@ -2,9 +2,8 @@ package dispatch
 
 import (
 	"errors"
-	"sync/atomic"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
@@ -29,7 +28,7 @@ func (m *Mux) Subscribe(id uuid.UUID) (Pipe, error) {
 		return Pipe{}, err
 	}
 
-	if id.IsNil() {
+	if id == uuid.Nil() {
 		return Pipe{}, errIDNotSet
 	}
 
@@ -59,7 +58,7 @@ func (m *Mux) Publish(data any, ids ...uuid.UUID) error {
 	if len(ids) == 0 {
 		return errNoIDs
 	}
-	if atomic.LoadInt32(&m.d.subscriberCount) == 0 {
+	if m.d.subscriberCount.Load() == 0 {
 		return nil
 	}
 

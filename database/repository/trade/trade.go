@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -20,9 +20,18 @@ import (
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
+// errInvalidTradeID is returned when a supplied trade ID is not a UUID. SQLite stores the
+// column as unrestricted text, so without this an unreadable row could be written
+var errInvalidTradeID = errors.New("invalid trade ID")
+
 // Insert saves trade data to the database
 func Insert(trades ...Data) error {
 	for i := range trades {
+		if trades[i].ID != "" {
+			if _, err := uuid.Parse(trades[i].ID); err != nil {
+				return fmt.Errorf("%w %q: %w", errInvalidTradeID, trades[i].ID, err)
+			}
+		}
 		if trades[i].ExchangeNameID == "" && trades[i].Exchange != "" {
 			exchangeUUID, err := exchange.UUIDByName(trades[i].Exchange)
 			if err != nil {
@@ -148,11 +157,7 @@ func verifyTradeInIntervalsPostgres(ctx context.Context, tx *sql.Tx, exchangeNam
 func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	for i := range trades {
 		if trades[i].ID == "" {
-			freshUUID, err := uuid.NewV4()
-			if err != nil {
-				return err
-			}
-			trades[i].ID = freshUUID.String()
+			trades[i].ID = uuid.NewV4().String()
 		}
 		tempEvent := sqlite3.Trade{
 			ID:             trades[i].ID,
@@ -183,12 +188,7 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	var err error
 	for i := range trades {
 		if trades[i].ID == "" {
-			var freshUUID uuid.UUID
-			freshUUID, err = uuid.NewV4()
-			if err != nil {
-				return err
-			}
-			trades[i].ID = freshUUID.String()
+			trades[i].ID = uuid.NewV4().String()
 		}
 		tempEvent := postgres.Trade{
 			ExchangeNameID: trades[i].ExchangeNameID,
