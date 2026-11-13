@@ -40,6 +40,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbase"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/cryptodotcom"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deribit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gateio"
@@ -925,6 +926,8 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(bybit.Exchange), nil
 	case "coinut":
 		return new(coinut.Exchange), nil
+	case "cryptodotcom":
+		return new(cryptodotcom.Exchange), nil
 	case "deribit":
 		return new(deribit.Exchange), nil
 	case "coinbase":

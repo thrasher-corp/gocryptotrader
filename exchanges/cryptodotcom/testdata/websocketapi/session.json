@@ -1,0 +1,8 @@
+{
+ "private/set-cancel-on-disconnect": {
+  "scope": "CONNECTION"
+ },
+ "private/get-cancel-on-disconnect": {
+  "scope": "CONNECTION"
+ }
+}
