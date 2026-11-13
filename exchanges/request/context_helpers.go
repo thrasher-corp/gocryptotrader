@@ -231,7 +231,9 @@ func WithRetryNotAllowed(ctx context.Context) context.Context {
 	return context.WithValue(ctx, retryNotAllowedKey{}, struct{}{})
 }
 
-func hasRetryNotAllowed(ctx context.Context) bool {
+// HasRetryNotAllowed reports whether a context was marked by WithRetryNotAllowed, so a caller that retries a request
+// itself can honour it.
+func HasRetryNotAllowed(ctx context.Context) bool {
 	_, ok := ctx.Value(retryNotAllowedKey{}).(struct{})
 	return ok
 }

@@ -489,6 +489,10 @@
     "allocs": 1,
     "bytes": 8
   },
+  "exchanges/request.BenchmarkHeaderValuesForLog/authorization_data": {
+    "allocs": 0,
+    "bytes": 0
+  },
   "exchanges/request.BenchmarkHeaderValuesForLog/listenKey": {
     "allocs": 1,
     "bytes": 16
