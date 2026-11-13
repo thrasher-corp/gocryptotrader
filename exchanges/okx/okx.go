@@ -2136,12 +2136,13 @@ func (e *Exchange) GetBorrowRepayHistory(ctx context.Context, ccy currency.Code,
 	if eventType != "" {
 		params.Set("type", eventType)
 	}
-	if !after.IsZero() && !before.IsZero() {
-		err := common.StartEndTimeCheck(after, before)
-		if err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(after, before); err != nil {
+		return nil, err
+	}
+	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -3699,12 +3700,13 @@ func (e *Exchange) GetPremiumHistory(ctx context.Context, instrumentID string, a
 	}
 	params := url.Values{}
 	params.Set("instId", instrumentID)
-	if !after.IsZero() && !before.IsZero() {
-		err := common.StartEndTimeCheck(after, before)
-		if err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(after, before); err != nil {
+		return nil, err
+	}
+	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -5090,12 +5092,13 @@ func (e *Exchange) GetFiatDepositOrderHistory(ctx context.Context, ccy currency.
 	if state != "" {
 		params.Set("state", state)
 	}
-	if !after.IsZero() && !before.IsZero() {
-		err := common.StartEndTimeCheck(after, before)
-		if err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(after, before); err != nil {
+		return nil, err
+	}
+	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -5129,12 +5132,13 @@ func (e *Exchange) GetFiatWithdrawalOrderHistory(ctx context.Context, ccy curren
 	if state != "" {
 		params.Set("state", state)
 	}
-	if !after.IsZero() && !before.IsZero() {
-		err := common.StartEndTimeCheck(after, before)
-		if err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(after, before); err != nil {
+		return nil, err
+	}
+	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
 	if limit > 0 {

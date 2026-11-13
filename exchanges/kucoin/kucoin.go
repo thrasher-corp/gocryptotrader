@@ -1790,12 +1790,13 @@ func populateParams(ccy currency.Code, direction, bizType string, lastID, limit 
 // bizType possible values: 'DEPOSIT' -deposit, 'WITHDRAW' -withdraw, 'TRANSFER' -transfer, 'SUB_TRANSFER' -subaccount transfer,'TRADE_EXCHANGE' -trade, 'MARGIN_EXCHANGE' -margin trade, 'KUCOIN_BONUS' -bonus
 func (e *Exchange) GetAccountLedgers(ctx context.Context, ccy currency.Code, direction, bizType string, startAt, endAt time.Time) (*AccountLedgerResponse, error) {
 	params := populateParams(ccy, direction, bizType, 0, 0, time.Time{}, time.Time{})
-	if !startAt.IsZero() && !endAt.IsZero() {
-		err := common.StartEndTimeCheck(startAt, endAt)
-		if err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startAt, endAt); err != nil {
+		return nil, err
+	}
+	if !startAt.IsZero() {
 		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	var resp *AccountLedgerResponse
@@ -1828,12 +1829,13 @@ func (e *Exchange) GetFuturesAccountLedgers(ctx context.Context, ccy currency.Co
 	if forward {
 		params.Set("forward", "true")
 	}
-	if !startAt.IsZero() && !endAt.IsZero() {
-		err := common.StartEndTimeCheck(startAt, endAt)
-		if err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startAt, endAt); err != nil {
+		return nil, err
+	}
+	if !startAt.IsZero() {
 		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	if offset != 0 {

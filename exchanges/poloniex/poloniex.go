@@ -158,10 +158,8 @@ func (e *Exchange) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 	if err != nil {
 		return nil, err
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
@@ -259,10 +257,8 @@ func (e *Exchange) GetAccountBalances(ctx context.Context, accountID, accountTyp
 // GetAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
 // possible account activity types are: 200 for ALL, 201 for AIRDROP, 202 for COMMISSION_REBATE, 203, REFERRAL_REBATE: 204, SWAP: 205, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
 func (e *Exchange) GetAccountActivities(ctx context.Context, startTime, endTime time.Time, activityType, limit, from uint64, direction string, ccy currency.Code) ([]*AccountActivity, error) {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
@@ -310,10 +306,8 @@ func (e *Exchange) AccountsTransfer(ctx context.Context, arg *AccountTransferReq
 
 // GetAccountsTransferRecords gets a list of a user's transfer records
 func (e *Exchange) GetAccountsTransferRecords(ctx context.Context, startTime, endTime time.Time, direction string, ccy currency.Code, from, limit uint64) ([]*AccountTransferRecord, error) {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
@@ -355,10 +349,8 @@ func (e *Exchange) GetFeeInfo(ctx context.Context) (*FeeInfo, error) {
 
 // GetInterestHistory gets a list of a user's interest collection records
 func (e *Exchange) GetInterestHistory(ctx context.Context, startTime, endTime time.Time, direction string, from, limit uint64) ([]*InterestHistory, error) {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
@@ -430,10 +422,8 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, arg *SubAccountTransf
 
 // GetSubAccountTransferRecords gets a list of transfer records involving a user's subaccounts. Max interval for start and end time is 6 months.
 func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, arg *SubAccountTransferRecordRequest) ([]*SubAccountTransfer, error) {
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !arg.StartTime.IsZero() {
@@ -902,10 +892,8 @@ func (e *Exchange) CancelSmartOrders(ctx context.Context, symbols []currency.Pai
 }
 
 func orderFillParams(arg *OrdersHistoryRequest) (url.Values, error) {
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !arg.StartTime.IsZero() {
@@ -975,10 +963,8 @@ func (e *Exchange) GetSmartOrderHistory(ctx context.Context, arg *OrdersHistoryR
 
 // GetTradeHistory gets a list of all trades for an account
 func (e *Exchange) GetTradeHistory(ctx context.Context, symbols currency.Pairs, direction string, from, limit uint64, startTime, endTime time.Time) ([]*TradeHistory, error) {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
