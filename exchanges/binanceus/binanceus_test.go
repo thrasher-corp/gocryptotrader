@@ -2086,4 +2086,3 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 		})
 	}
 }
-
