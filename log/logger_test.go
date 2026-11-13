@@ -226,14 +226,12 @@ func TestGetWriters(t *testing.T) {
 
 	mu.Lock()
 	fileLoggingConfiguredCorrectly = false
-	_, err = getWriters(&SubLoggerConfig{Output: outputWriters})
-	require.ErrorIs(t, err, errFileLoggingNotConfiguredCorrectly)
-
+	_, notConfiguredErr := getWriters(&SubLoggerConfig{Output: outputWriters})
 	fileLoggingConfiguredCorrectly = true
-	_, err = getWriters(&SubLoggerConfig{Output: outputWriters})
-	require.NoError(t, err)
-
+	_, configuredErr := getWriters(&SubLoggerConfig{Output: outputWriters})
 	mu.Unlock()
+	require.ErrorIs(t, notConfiguredErr, errFileLoggingNotConfiguredCorrectly, "getWriters must error when file logging is not configured")
+	require.NoError(t, configuredErr, "getWriters must not error when file logging is configured")
 
 	outputWriters = "stdout|stderr|noobs"
 	err = getWritersProtected(&SubLoggerConfig{Output: outputWriters})

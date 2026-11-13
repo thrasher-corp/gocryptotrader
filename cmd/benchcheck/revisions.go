@@ -35,6 +35,10 @@ var (
 // a hung one would otherwise hold the job until the workflow's limit
 const processTimeout = 10 * time.Minute
 
+// processOutputWaitDelay bounds the wait for a test binary's output after it exits, since a process the
+// benchmark started can hold the output open
+const processOutputWaitDelay = 10 * time.Second
+
 // revision is one side of a comparison: a checkout of the module, its test binaries and the samples
 // they reported
 type revision struct {
@@ -411,7 +415,7 @@ func (r *revision) build(ctx context.Context, pkgs []string, dir string) error {
 
 // measure runs one round of a package's benchmarks and folds in what the process reported
 func (r *revision) measure(ctx context.Context, i int, pkg string, flags []string) error {
-	output, err := runTestBinary(ctx, r.binaries[i], filepath.Join(r.root, filepath.FromSlash(pkg)), flags, processTimeout)
+	output, err := runTestBinary(ctx, r.binaries[i], filepath.Join(r.root, filepath.FromSlash(pkg)), flags, processTimeout, processOutputWaitDelay)
 	r.output.Write(output)
 	if err != nil {
 		return fmt.Errorf("%s %s: %w", r.label, pkg, err)
@@ -439,16 +443,16 @@ func (r *revision) measure(ctx context.Context, i int, pkg string, flags []strin
 	return nil
 }
 
-// runTestBinary runs a test binary from dir, as go test does, killing it once timeout passes
-func runTestBinary(ctx context.Context, binary, dir string, flags []string, timeout time.Duration) ([]byte, error) {
+// runTestBinary runs a test binary from dir, as go test does, killing it once timeout passes and waiting
+// at most waitDelay for its output once it exits
+func runTestBinary(ctx context.Context, binary, dir string, flags []string, timeout, waitDelay time.Duration) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, flags...)
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
-	// A process the benchmark started can hold the output open after the kill
-	cmd.WaitDelay = 10 * time.Second
+	cmd.WaitDelay = waitDelay
 	err := cmd.Run()
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return out.Bytes(), fmt.Errorf("%w: %s", errProcessTimeout, timeout)

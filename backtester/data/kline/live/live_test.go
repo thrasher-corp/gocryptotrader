@@ -60,7 +60,7 @@ func TestLoadTrades(t *testing.T) {
 		RequestFormat: pFormat,
 		ConfigFormat:  pFormat,
 	}
-	data, err := LoadData(t.Context(), time.Now().Add(-interval.Duration()*60), exch, common.DataTrade, interval.Duration(), cp, currency.EMPTYPAIR, a, true)
+	data, err := LoadData(t.Context(), time.Now(), exch, common.DataTrade, interval.Duration(), cp, currency.EMPTYPAIR, a, true)
 	require.NoError(t, err, "LoadData must not error")
 	assert.NotEmpty(t, data.Candles, "Candles should not be empty")
 }

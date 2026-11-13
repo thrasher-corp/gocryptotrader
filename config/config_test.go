@@ -65,6 +65,11 @@ func (e closeErrorWriteCloser) Close() error {
 	return io.ErrClosedPipe
 }
 
+func TestMain(m *testing.M) {
+	scryptCost = 1 << 10
+	os.Exit(m.Run())
+}
+
 func TestGetNonExistentDefaultFilePathDoesNotCreateDefaultDir(t *testing.T) {
 	dir := common.GetDefaultDataDir(runtime.GOOS)
 	if file.Exists(dir) {

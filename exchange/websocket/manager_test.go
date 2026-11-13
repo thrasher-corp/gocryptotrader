@@ -1989,6 +1989,7 @@ func TestDisable(t *testing.T) {
 func TestEnable(t *testing.T) {
 	t.Parallel()
 	w := NewManager()
+	t.Cleanup(func() { cleanupManagerMonitors(t, w) })
 	w.connector = noopConnect
 	w.Subscriber = func(subscription.List) error { return nil }
 	w.Unsubscriber = func(subscription.List) error { return nil }

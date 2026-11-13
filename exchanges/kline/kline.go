@@ -652,13 +652,20 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 		limit = count
 	}
 
-	h := &IntervalRangeHolder{
-		Start: CreateIntervalTime(start),
-		End:   CreateIntervalTime(end),
-		Limit: limit,
+	batchSize := len(intervals)
+	if limit < uint64(batchSize) {
+		batchSize = int(limit) //nolint:gosec // limit is below len(intervals) here
 	}
 
-	for _, b := range common.Batch(intervals, int(limit)) { //nolint:gosec // Ignore this warning as Batch requires int
+	h := &IntervalRangeHolder{
+		Start:  CreateIntervalTime(start),
+		End:    CreateIntervalTime(end),
+		Limit:  limit,
+		Ranges: make([]IntervalRange, 0, (len(intervals)+batchSize-1)/batchSize),
+	}
+
+	// intervals is not used again, so its chunks need no defensive copy
+	for b := range slices.Chunk(intervals, batchSize) {
 		h.Ranges = append(h.Ranges, IntervalRange{
 			Start:     b[0].Start,
 			End:       b[len(b)-1].End,
