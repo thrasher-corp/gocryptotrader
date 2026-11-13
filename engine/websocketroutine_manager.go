@@ -219,8 +219,8 @@ func (m *WebsocketRoutineManager) registerExchange(ctx context.Context, exch exc
 	return nil
 }
 
-// unregisterExchange stops the data receiver associated with an unloaded
-// exchange so a replacement instance can register without duplicating receivers.
+// unregisterExchange cancels an unloaded exchange's data receiver, which then drains up to the relay depth recorded
+// just before the cancellation. Left registered, the receiver would run until Stop or another registration for the exchange.
 func (m *WebsocketRoutineManager) unregisterExchange(name string) error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
