@@ -20,6 +20,15 @@ func TestMatchURLVals(t *testing.T) {
 	nonceVal1.Add("nonce", "012349723587")
 	nonceVal2.Add("nonce", "9327373874")
 
+	signVal1, signVal2 := url.Values{}, url.Values{}
+	signVal1.Add("sign", "8c1b0f6e")
+	signVal2.Add("sign", "41a9d2c7")
+
+	// Recordings blank api_key, so a recorded request matches whichever key a test sends
+	apiKeyVal1, apiKeyVal2 := url.Values{}, url.Values{}
+	apiKeyVal1.Add("api_key", "")
+	apiKeyVal2.Add("api_key", "mock-api-key")
+
 	tests := []struct {
 		a   url.Values
 		b   url.Values
@@ -34,6 +43,10 @@ func TestMatchURLVals(t *testing.T) {
 		{emptyVal, emptyVal, true},
 		{testVal, testVal, true},
 		{nonceVal1, nonceVal2, true},
+		{signVal1, testVal, false},
+		{signVal1, signVal2, true},
+		{apiKeyVal1, testVal, false},
+		{apiKeyVal1, apiKeyVal2, true},
 	}
 	for _, tc := range tests {
 		got := MatchURLVals(tc.a, tc.b)

@@ -26,7 +26,7 @@ func MatchURLVals(v1, v2 url.Values) bool {
 	}
 
 	for key, val := range v1 {
-		if key == "nonce" || key == "signature" || key == "timestamp" || key == "tonce" || key == "key" { // delta values
+		if key == "nonce" || key == "signature" || key == "sign" || key == "timestamp" || key == "tonce" || key == "key" || key == "api_key" { // delta values
 			if _, ok := v2[key]; !ok {
 				return false
 			}

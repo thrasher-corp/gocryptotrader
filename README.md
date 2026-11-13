@@ -35,7 +35,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Huobi.Pro | Yes | Yes | NA |
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | NA |
-| Lbank | Yes | No | NA |
+| Lbank | Yes | Yes | NA |
 | MEXC | Yes | Yes | NA |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
@@ -174,10 +174,10 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 790 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 490 |
-| [shazbert](https://github.com/shazbert) | 424 |
-| [gloriousCode](https://github.com/gloriousCode) | 248 |
+| [thrasher-](https://github.com/thrasher-) | 793 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 495 |
+| [shazbert](https://github.com/shazbert) | 430 |
+| [gloriousCode](https://github.com/gloriousCode) | 251 |
 | [gbjk](https://github.com/gbjk) | 146 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
@@ -190,6 +190,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Copilot](https://github.com/apps/copilot-swe-agent) | 14 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
+| [Robin1987China](https://github.com/Robin1987China) | 10 |
 | [junnplus](https://github.com/junnplus) | 9 |
 | [cranktakular](https://github.com/cranktakular) | 9 |
 | [geseq](https://github.com/geseq) | 8 |
@@ -197,11 +198,14 @@ Binaries will be published once the codebase reaches a stable condition.
 | [140am](https://github.com/140am) | 8 |
 | [romanornr](https://github.com/romanornr) | 6 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
+| [evgmalkov](https://github.com/evgmalkov) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
 | [yangrq1018](https://github.com/yangrq1018) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
+| [dazi005](https://github.com/dazi005) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
+| [roberttidball](https://github.com/roberttidball) | 3 |
 | [dsinuela-taurus](https://github.com/dsinuela-taurus) | 2 |
 | [goyusia](https://github.com/goyusia) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
@@ -220,23 +224,24 @@ Binaries will be published once the codebase reaches a stable condition.
 | [alaningtrump](https://github.com/alaningtrump) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [MathieuCesbron](https://github.com/MathieuCesbron) | 2 |
-| [roberttidball](https://github.com/roberttidball) | 2 |
+| [Tyagiquamar](https://github.com/Tyagiquamar) | 2 |
 | [whilei](https://github.com/whilei) | 1 |
 | [gopherorg](https://github.com/gopherorg) | 1 |
 | [ginavalent](https://github.com/ginavalent) | 1 |
-| [gcmutator](https://github.com/gcmutator) | 1 |
 | [arttobe](https://github.com/arttobe) | 1 |
+| [gcmutator](https://github.com/gcmutator) | 1 |
 | [fmterrors](https://github.com/fmterrors) | 1 |
+| [fmtappendf](https://github.com/fmtappendf) | 1 |
 | [findfluctuate](https://github.com/findfluctuate) | 1 |
-| [evgmalkov](https://github.com/evgmalkov) | 1 |
 | [elonfliter](https://github.com/elonfliter) | 1 |
-| [dazi005](https://github.com/dazi005) | 1 |
 | [cuoguojida](https://github.com/cuoguojida) | 1 |
 | [criciss](https://github.com/criciss) | 1 |
+| [colinaumaty](https://github.com/colinaumaty) | 1 |
 | [chuanshanjida](https://github.com/chuanshanjida) | 1 |
 | [cangqiaoyuzhuo](https://github.com/cangqiaoyuzhuo) | 1 |
 | [box4wangjing](https://github.com/box4wangjing) | 1 |
 | [shoman4eg](https://github.com/shoman4eg) | 1 |
+| [zoupingcenter](https://github.com/zoupingcenter) | 1 |
 | [yuhangcangqian](https://github.com/yuhangcangqian) | 1 |
 | [youzichuan](https://github.com/youzichuan) | 1 |
 | [xiiiew](https://github.com/xiiiew) | 1 |
@@ -251,9 +256,9 @@ Binaries will be published once the codebase reaches a stable condition.
 | [slightsharp](https://github.com/slightsharp) | 1 |
 | [quantpoet](https://github.com/quantpoet) | 1 |
 | [phieudu241](https://github.com/phieudu241) | 1 |
-| [PARMESHWARPANWAR](https://github.com/PARMESHWARPANWAR) | 1 |
 | [nuxtreact](https://github.com/nuxtreact) | 1 |
 | [mickychang9](https://github.com/mickychang9) | 1 |
+| [kleonyuan](https://github.com/kleonyuan) | 1 |
 | [keeghcet](https://github.com/keeghcet) | 1 |
 | [lookfirst](https://github.com/lookfirst) | 1 |
 | [jimexist](https://github.com/jimexist) | 1 |
@@ -280,11 +285,11 @@ Binaries will be published once the codebase reaches a stable condition.
 | [tonywangcn](https://github.com/tonywangcn) | 1 |
 | [tongxiaofeng](https://github.com/tongxiaofeng) | 1 |
 | [serhiizghama](https://github.com/serhiizghama) | 1 |
+| [SashaMIT](https://github.com/SashaMIT) | 1 |
 | [cavapoo2](https://github.com/cavapoo2) | 1 |
 | [nolight132](https://github.com/nolight132) | 1 |
 | [Polizo96](https://github.com/Polizo96) | 1 |
 | [mortensorensen](https://github.com/mortensorensen) | 1 |
-| [Tyagiquamar](https://github.com/Tyagiquamar) | 1 |
 | [m1kola](https://github.com/m1kola) | 1 |
 | [mKurrels](https://github.com/mKurrels) | 1 |
 | [mgravitt](https://github.com/mgravitt) | 1 |
