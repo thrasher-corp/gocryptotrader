@@ -3916,7 +3916,7 @@ func TestStartRPCRESTProxy(t *testing.T) {
 	caCertPool := x509.NewCertPool()
 	ok := caCertPool.AppendCertsFromPEM(caCert)
 	require.True(t, ok, "AppendCertsFromPEM must return true")
-	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12}}, Timeout: 10 * time.Second}
+	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12}}, Timeout: 5 * time.Second}
 
 	for _, creds := range []struct {
 		testDescription string
