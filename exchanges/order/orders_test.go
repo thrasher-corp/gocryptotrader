@@ -1347,39 +1347,20 @@ func TestIsActive(t *testing.T) {
 		2: {orders[2], false},
 		3: {orders[3], false},
 	}
-	// specific tests
 	for num, tt := range amountTests {
 		assert.Equalf(t, tt.expectedResult, tt.o.IsActive(), "amountTests[%v] failed", num)
 	}
 
-	statusTests := map[int]struct {
-		o              Detail
-		expectedResult bool
-	}{
-		// For now force inactive on any status
-		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, false},
-		1:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: New}, true},
-		2:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Active}, true},
-		3:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyCancelled}, false},
-		4:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyFilled}, true},
-		5:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Filled}, false},
-		6:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Cancelled}, false},
-		7:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PendingCancel}, true},
-		8:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: InsufficientBalance}, false},
-		9:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: MarketUnavailable}, false},
-		10: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Rejected}, false},
-		11: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Expired}, false},
-		12: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Hidden}, true},
-		// For now force inactive on unknown status
-		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, false},
-		14: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Open}, true},
-		15: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AutoDeleverage}, true},
-		16: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Closed}, false},
-		17: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Pending}, true},
+	for _, s := range []Status{
+		New, Open, Pending, Active, PartiallyFilled, PendingCancel, AutoDeleverage, Hidden,
+	} {
+		assert.True(t, (&Detail{Amount: 1.0, Status: s}).IsActive(), s)
 	}
-	// specific tests
-	for num, tt := range statusTests {
-		require.Equalf(t, tt.expectedResult, tt.o.IsActive(), "statusTests[%v] failed", num)
+
+	for _, s := range []Status{
+		PartiallyCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, UnknownStatus, Closed,
+	} {
+		assert.False(t, (&Detail{Amount: 1.0, Status: s}).IsActive(), s)
 	}
 }
 
@@ -1417,38 +1398,20 @@ func TestIsInactive(t *testing.T) {
 		2: {orders[2], true},
 		3: {orders[3], true},
 	}
-	// specific tests
 	for num, tt := range amountTests {
 		assert.Equalf(t, tt.expectedResult, tt.o.IsInactive(), "amountTests[%v] failed", num)
 	}
 
-	statusTests := map[int]struct {
-		o              Detail
-		expectedResult bool
-	}{
-		// For now force inactive on any status
-		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, true},
-		1:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: New}, false},
-		2:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Active}, false},
-		3:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyCancelled}, true},
-		4:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyFilled}, false},
-		5:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Filled}, true},
-		6:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Cancelled}, true},
-		7:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PendingCancel}, false},
-		8:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: InsufficientBalance}, true},
-		9:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: MarketUnavailable}, true},
-		10: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Rejected}, true},
-		11: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Expired}, true},
-		12: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Hidden}, false},
-		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, false},
-		14: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Open}, false},
-		15: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AutoDeleverage}, false},
-		16: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Closed}, true},
-		17: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Pending}, false},
+	for _, s := range []Status{
+		New, Open, Pending, Active, PartiallyFilled, PendingCancel, AutoDeleverage, Hidden, UnknownStatus,
+	} {
+		assert.False(t, (&Detail{Amount: 1.0, Status: s}).IsInactive(), s)
 	}
-	// specific tests
-	for num, tt := range statusTests {
-		assert.Equalf(t, tt.expectedResult, tt.o.IsInactive(), "statusTests[%v] failed", num)
+
+	for _, s := range []Status{
+		PartiallyCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, Closed,
+	} {
+		assert.True(t, (&Detail{Amount: 1.0, Status: s}).IsInactive(), s)
 	}
 }
 
