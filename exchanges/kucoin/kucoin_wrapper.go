@@ -1039,8 +1039,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			TimeInForce:          StringToTimeInForce(orderDetail.TimeInForce, orderDetail.PostOnly),
 			ReduceOnly:           orderDetail.ReduceOnly,
 			Leverage:             orderDetail.Leverage,
-			AverageExecutedPrice: orderDetail.Price,
-			QuoteAmount:          orderDetail.Size,
+			AverageExecutedPrice: orderDetail.AverageDealPrice.Float64(),
 			ClientOrderID:        orderDetail.ClientOid,
 			Status:               oStatus,
 			CloseTime:            orderDetail.EndAt.Time(),
@@ -1093,29 +1092,32 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		} else {
 			remainingSize = orderDetail.Size.Float64() - orderDetail.DealSize.Float64()
 		}
-		return &order.Detail{
-			Exchange:             e.Name,
-			OrderID:              orderDetail.ID,
-			Pair:                 pair,
-			Type:                 oType,
-			Side:                 side,
-			Fee:                  orderDetail.Fee.Float64(),
-			AssetType:            assetType,
-			ExecutedAmount:       orderDetail.DealSize.Float64(),
-			RemainingAmount:      remainingSize,
-			Amount:               orderDetail.Size.Float64(),
-			Price:                orderDetail.Price.Float64(),
-			Date:                 orderDetail.CreatedAt.Time(),
-			HiddenOrder:          orderDetail.Hidden,
-			TimeInForce:          StringToTimeInForce(orderDetail.TimeInForce, orderDetail.PostOnly),
-			AverageExecutedPrice: orderDetail.Price.Float64(),
-			FeeAsset:             currency.NewCode(orderDetail.FeeCurrency),
-			ClientOrderID:        orderDetail.ClientOID,
-			Status:               oStatus,
-			CloseTime:            orderDetail.CreatedAt.Time(),
-			MarginType:           mType,
-			LastUpdated:          orderDetail.LastUpdatedAt.Time(),
-		}, nil
+		detail := &order.Detail{
+			Exchange:            e.Name,
+			OrderID:             orderDetail.ID,
+			Pair:                pair,
+			Type:                oType,
+			Side:                side,
+			Fee:                 orderDetail.Fee.Float64(),
+			AssetType:           assetType,
+			ExecutedAmount:      orderDetail.DealSize.Float64(),
+			ExecutedQuoteAmount: orderDetail.DealFunds.Float64(),
+			RemainingAmount:     remainingSize,
+			Amount:              orderDetail.Size.Float64(),
+			Price:               orderDetail.Price.Float64(),
+			Date:                orderDetail.CreatedAt.Time(),
+			HiddenOrder:         orderDetail.Hidden,
+			TimeInForce:         StringToTimeInForce(orderDetail.TimeInForce, orderDetail.PostOnly),
+			FeeAsset:            currency.NewCode(orderDetail.FeeCurrency),
+			ClientOrderID:       orderDetail.ClientOID,
+			Status:              oStatus,
+			MarginType:          mType,
+			LastUpdated:         orderDetail.LastUpdatedAt.Time(),
+		}
+		if detail.ExecutedAmount > 0 {
+			detail.AverageExecutedPrice = detail.ExecutedQuoteAmount / detail.ExecutedAmount
+		}
+		return detail, nil
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
@@ -1264,26 +1266,27 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 				return nil, err
 			}
 			orders = append(orders, order.Detail{
-				OrderID:            futuresOrders.Items[x].ID,
-				ClientOrderID:      futuresOrders.Items[x].ClientOid,
-				Amount:             futuresOrders.Items[x].Size,
-				ContractAmount:     futuresOrders.Items[x].Size,
-				RemainingAmount:    futuresOrders.Items[x].Size - futuresOrders.Items[x].FilledSize,
-				ExecutedAmount:     futuresOrders.Items[x].FilledSize,
-				Exchange:           e.Name,
-				Date:               futuresOrders.Items[x].CreatedAt.Time(),
-				LastUpdated:        futuresOrders.Items[x].UpdatedAt.Time(),
-				Price:              futuresOrders.Items[x].Price,
-				Side:               side,
-				Type:               oType,
-				Pair:               pair,
-				TimeInForce:        StringToTimeInForce(futuresOrders.Items[x].TimeInForce, futuresOrders.Items[x].PostOnly),
-				ReduceOnly:         futuresOrders.Items[x].ReduceOnly,
-				Status:             status,
-				SettlementCurrency: currency.NewCode(futuresOrders.Items[x].SettleCurrency),
-				Leverage:           futuresOrders.Items[x].Leverage,
-				AssetType:          getOrdersRequest.AssetType,
-				HiddenOrder:        futuresOrders.Items[x].Hidden,
+				OrderID:              futuresOrders.Items[x].ID,
+				ClientOrderID:        futuresOrders.Items[x].ClientOid,
+				Amount:               futuresOrders.Items[x].Size,
+				ContractAmount:       futuresOrders.Items[x].Size,
+				RemainingAmount:      futuresOrders.Items[x].Size - futuresOrders.Items[x].FilledSize,
+				ExecutedAmount:       futuresOrders.Items[x].FilledSize,
+				AverageExecutedPrice: futuresOrders.Items[x].AverageDealPrice.Float64(),
+				Exchange:             e.Name,
+				Date:                 futuresOrders.Items[x].CreatedAt.Time(),
+				LastUpdated:          futuresOrders.Items[x].UpdatedAt.Time(),
+				Price:                futuresOrders.Items[x].Price,
+				Side:                 side,
+				Type:                 oType,
+				Pair:                 pair,
+				TimeInForce:          StringToTimeInForce(futuresOrders.Items[x].TimeInForce, futuresOrders.Items[x].PostOnly),
+				ReduceOnly:           futuresOrders.Items[x].ReduceOnly,
+				Status:               status,
+				SettlementCurrency:   currency.NewCode(futuresOrders.Items[x].SettleCurrency),
+				Leverage:             futuresOrders.Items[x].Leverage,
+				AssetType:            getOrdersRequest.AssetType,
+				HiddenOrder:          futuresOrders.Items[x].Hidden,
 			})
 		}
 	case asset.Spot, asset.Margin:
@@ -1502,7 +1505,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				Type:            oType,
 				Pair:            pair,
 			})
-			orders[i].InferCostsAndTimes()
+			orders[i].InferExecutionAndTimes()
 		}
 	case asset.Spot, asset.Margin:
 		var singlePair currency.Pair
@@ -1631,19 +1634,20 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 					log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 				}
 				orders[i] = order.Detail{
-					Price:           responseOrders.Items[i].Price.Float64(),
-					Amount:          responseOrders.Items[i].Size.Float64(),
-					ExecutedAmount:  responseOrders.Items[i].DealSize.Float64(),
-					RemainingAmount: responseOrders.Items[i].Size.Float64() - responseOrders.Items[i].DealSize.Float64(),
-					Date:            responseOrders.Items[i].CreatedAt.Time(),
-					Exchange:        e.Name,
-					OrderID:         responseOrders.Items[i].ID,
-					Side:            orderSide,
-					Status:          orderStatus,
-					Type:            oType,
-					Pair:            pair,
+					Price:               responseOrders.Items[i].Price.Float64(),
+					Amount:              responseOrders.Items[i].Size.Float64(),
+					ExecutedAmount:      responseOrders.Items[i].DealSize.Float64(),
+					ExecutedQuoteAmount: responseOrders.Items[i].DealFunds.Float64(),
+					RemainingAmount:     responseOrders.Items[i].Size.Float64() - responseOrders.Items[i].DealSize.Float64(),
+					Date:                responseOrders.Items[i].CreatedAt.Time(),
+					Exchange:            e.Name,
+					OrderID:             responseOrders.Items[i].ID,
+					Side:                orderSide,
+					Status:              orderStatus,
+					Type:                oType,
+					Pair:                pair,
 				}
-				orders[i].InferCostsAndTimes()
+				orders[i].InferExecutionAndTimes()
 			}
 		}
 	}
@@ -2258,7 +2262,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.Posi
 				ContractAmount:  positionOrders.Items[y].Size,
 				ExecutedAmount:  positionOrders.Items[y].FilledSize,
 				RemainingAmount: positionOrders.Items[y].Size - positionOrders.Items[y].FilledSize,
-				CostAsset:       currency.NewCode(positionOrders.Items[y].SettleCurrency),
 				Exchange:        e.Name,
 				OrderID:         positionOrders.Items[y].ID,
 				ClientOrderID:   positionOrders.Items[y].ClientOid,

@@ -540,6 +540,56 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
+func TestTradeHistoryToOrderDetailExecutionMappings(t *testing.T) {
+	t.Parallel()
+	got, err := tradeHistoryToOrderDetail(&TradeHistory{
+		OrderID: 42, Amount: 2, Rate: 60, Pair: "btc_usd", Type: "buy",
+	}, currency.PairFormat{Delimiter: "_"}, "Yobit")
+	require.NoError(t, err, "tradeHistoryToOrderDetail must not error")
+	assert.Equal(t, order.Detail{
+		OrderID: "42", Exchange: "Yobit", Side: order.Buy, Pair: currency.NewPairWithDelimiter("btc", "usd", "_"),
+		Trades: []order.TradeHistory{{Price: 60, Amount: 2, Side: order.Buy, Exchange: "Yobit"}},
+	}, got, "conversion should preserve the fill without inventing order totals")
+	for _, fill := range []TradeHistory{
+		{OrderID: 42, Amount: 1.5, Rate: 11, Pair: "btc_usd", Type: "sell"},
+		{OrderID: 42, Amount: 0.5, Rate: 12, Pair: "btc_usd", Type: "sell"},
+	} {
+		got, err = tradeHistoryToOrderDetail(&fill, currency.PairFormat{Delimiter: "_"}, "Yobit")
+		require.NoError(t, err, "fill conversion must not error")
+		assert.Equal(t, order.Detail{
+			OrderID: "42", Exchange: "Yobit", Side: order.Sell, Pair: currency.NewPairWithDelimiter("btc", "usd", "_"),
+			Trades: []order.TradeHistory{{Price: fill.Rate, Amount: fill.Amount, Side: order.Sell, Exchange: "Yobit"}},
+		}, got, "each fill should remain separate from unknown order totals")
+	}
+}
+
+func TestGetOrderHistorySeparateFills(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "exchange setup must not error")
+	ex.SkipAuthCheck = true
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"success":1,"return":{"101":{"pair":"btc_usd","type":"sell","amount":1.5,"rate":11,"order_id":42,"timestamp":1700000000},"102":{"pair":"btc_usd","type":"sell","amount":0.5,"rate":12,"order_id":42,"timestamp":1700000060}}}`))
+		assert.NoError(t, err, "trade-history response should be written")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client setup must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "REST endpoint setup must not error")
+	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{Pairs: currency.Pairs{currency.NewBTCUSD()}, AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	assert.ElementsMatch(t, order.FilteredOrders{
+		{
+			OrderID: "42", Exchange: ex.Name, Side: order.Sell, Pair: currency.NewPairWithDelimiter("btc", "usd", "_"),
+			Date: time.Unix(1700000000, 0), LastUpdated: time.Unix(1700000000, 0),
+			Trades: []order.TradeHistory{{TID: "101", Price: 11, Amount: 1.5, Side: order.Sell, Exchange: ex.Name, Timestamp: time.Unix(1700000000, 0)}},
+		},
+		{
+			OrderID: "42", Exchange: ex.Name, Side: order.Sell, Pair: currency.NewPairWithDelimiter("btc", "usd", "_"),
+			Date: time.Unix(1700000060, 0), LastUpdated: time.Unix(1700000060, 0),
+			Trades: []order.TradeHistory{{TID: "102", Price: 12, Amount: 0.5, Side: order.Sell, Exchange: ex.Name, Timestamp: time.Unix(1700000060, 0)}},
+		},
+	}, got, "history should preserve map-key trade IDs and separate fills without inventing order totals")
+}
+
 // TestSubmitOrder and below can impact your orders on the exchange. Enable canManipulateRealOrders to run them
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()

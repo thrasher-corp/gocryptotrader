@@ -392,7 +392,11 @@ func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Det
 		}
 	}
 
-	oStatus, err = stringToOrderStatus(oContainer.Reply, oContainer.OpenQuantity)
+	openQuantity := oContainer.OpenQuantity
+	if oContainer.Reply == "order_filled" {
+		openQuantity = oContainer.Order.OpenQuantity.Float64()
+	}
+	oStatus, err = stringToOrderStatus(oContainer.Reply, openQuantity)
 	if err != nil {
 		return nil, err
 	}
@@ -420,8 +424,9 @@ func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Det
 		if err != nil {
 			return nil, err
 		}
-		o.RemainingAmount = oContainer.Order.OpenQuantity
-		o.Amount = oContainer.Order.Quantity
+		o.RemainingAmount = oContainer.Order.OpenQuantity.Float64()
+		o.Amount = oContainer.Order.Quantity.Float64()
+		o.ExecutedAmount = oContainer.Order.Quantity.Decimal().Sub(oContainer.Order.OpenQuantity.Decimal()).InexactFloat64()
 		o.OrderID = strconv.FormatInt(oContainer.Order.OrderID, 10)
 		o.LastUpdated = oContainer.Timestamp.Time()
 		o.Pair, o.AssetType, err = e.GetRequestFormattedPairAndAssetType(e.instrumentMap.LookupInstrument(oContainer.Order.InstrumentID))
