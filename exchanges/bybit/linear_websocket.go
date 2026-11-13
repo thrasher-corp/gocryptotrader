@@ -28,9 +28,10 @@ func (e *Exchange) GenerateLinearDefaultSubscriptions(a asset.Item) (subscriptio
 	for _, pair := range pairs {
 		for _, channel := range []string{chanOrderbook, chanPublicTrade, chanPublicTicker} {
 			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channel,
-				Pairs:   currency.Pairs{pair},
-				Asset:   a,
+				Channel:          channel,
+				QualifiedChannel: channel + ":" + pair.String(),
+				Pairs:            currency.Pairs{pair},
+				Asset:            a,
 			})
 		}
 	}
