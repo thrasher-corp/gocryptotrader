@@ -4283,17 +4283,17 @@ func (e *Exchange) GetActiveSpreadOrders(ctx context.Context, spreadID, orderTyp
 }
 
 // GetCompletedSpreadOrdersLast21Days retrieves the completed spread orders of the last 21 days. Results are returned in counter chronological order
-func (e *Exchange) GetCompletedSpreadOrdersLast21Days(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64) ([]SpreadOrder, error) {
+func (e *Exchange) GetCompletedSpreadOrdersLast21Days(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit uint64) ([]SpreadOrder, error) {
 	return e.getSpreadOrderHistory(ctx, spreadID, orderType, state, beginID, endID, begin, end, limit, "sprd/orders-history", getSpreadOrders21DaysEPL)
 }
 
 // GetCompletedSpreadOrdersLast3Months retrieves the completed spread orders of the last 3 months. Recent orders can lag behind the 21 day listing while they reach the archive. Results are returned in counter chronological order
-func (e *Exchange) GetCompletedSpreadOrdersLast3Months(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64) ([]SpreadOrder, error) {
+func (e *Exchange) GetCompletedSpreadOrdersLast3Months(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit uint64) ([]SpreadOrder, error) {
 	return e.getSpreadOrderHistory(ctx, spreadID, orderType, state, beginID, endID, begin, end, limit, "sprd/orders-history-archive", getSpreadOrders3MonthsEPL)
 }
 
 // getSpreadOrderHistory retrieves completed spread orders from route
-func (e *Exchange) getSpreadOrderHistory(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64, route string, rateLimit request.EndpointLimit) ([]SpreadOrder, error) {
+func (e *Exchange) getSpreadOrderHistory(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit uint64, route string, rateLimit request.EndpointLimit) ([]SpreadOrder, error) {
 	params := url.Values{}
 	if spreadID != "" {
 		params.Set("sprdId", spreadID)
@@ -4317,7 +4317,7 @@ func (e *Exchange) getSpreadOrderHistory(ctx context.Context, spreadID, orderTyp
 		params.Set("end", strconv.FormatInt(end.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []SpreadOrder
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)

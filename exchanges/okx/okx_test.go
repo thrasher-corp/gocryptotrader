@@ -1221,6 +1221,37 @@ func TestClosePositions(t *testing.T) {
 	_, err = e.ClosePositions(contextGenerate(), &ClosePositionsRequestParams{InstrumentID: mainPair.String(), MarginMode: "cross", PositionSide: "invalid"})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
+	t.Run("position side is sent in lower case", func(t *testing.T) {
+		t.Parallel()
+		for in, want := range map[string]string{"LONG": positionSideLong, "Short": positionSideShort} {
+			t.Run(in, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/trade/close-position" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the close position body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"instId": perpetualSwapPair.String(), "posSide": want, "clOrdId": "", "tag": ""}})
+				}))
+				_, err := ex.ClosePositions(t.Context(), &ClosePositionsRequestParams{InstrumentID: perpetualSwapPair.String(), MarginMode: TradeModeCross, PositionSide: in})
+				require.NoErrorf(t, err, "ClosePositions must accept position side %q", in)
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the close position body must decode")
+				assert.Equal(t, want, sent["posSide"], "the position side should be sent in lower case")
+			})
+		}
+	})
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.ClosePositions(contextGenerate(), &ClosePositionsRequestParams{
 		InstrumentID: mainPair.String(),
@@ -4578,40 +4609,45 @@ func TestOrderPushData(t *testing.T) {
 // TestWsOrderPushesParseEveryOrderType guards the order channel: a push for
 // each OKX order type that reads back as a GCT type with a time in force
 // reaches the data handler with both set, rather than erroring.
-func TestWsOrderPushesParseEveryOrderType(t *testing.T) {
+// TestWsProcessOrders guards the private orders stream: every documented
+// ordType must decode into its order type and time in force.
+func TestWsProcessOrders(t *testing.T) {
 	t.Parallel()
-	for ordType, exp := range map[string]struct {
-		oType order.Type
-		tif   order.TimeInForce
-	}{
-		orderPostOnly:                         {order.Limit, order.PostOnly},
-		orderFOK:                              {order.Limit, order.FillOrKill},
-		orderIOC:                              {order.Limit, order.ImmediateOrCancel},
-		orderOptionFOK:                        {order.Limit, order.FillOrKill},
-		orderOptimalLimitIOC:                  {order.OptimalLimit, order.ImmediateOrCancel},
-		orderMarketMakerProtection:            {order.MarketMakerProtection, order.UnknownTIF},
-		orderMarketMakerProtectionAndPostOnly: {order.MarketMakerProtection, order.PostOnly},
-		orderRPI:                              {order.Limit, order.UnknownTIF},
-		orderELP:                              {order.Limit, order.UnknownTIF},
-	} {
-		t.Run(ordType, func(t *testing.T) {
-			t.Parallel()
-			e := new(Exchange)
-			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-			push := []byte(`{"arg":{"channel":"orders","instType":"SPOT"},"data":[{"instId":"BTC-USDT","ordId":"1","ordType":"` + ordType + `","side":"buy","state":"live","sz":"1","accFillSz":"0","cTime":"1700000000000"}]}`)
-			require.NoErrorf(t, e.wsProcessOrders(t.Context(), push), "a %s order push must not error", ordType)
-			e.Websocket.DataHandler.Close()
-			var got *order.Detail
-			for resp := range e.Websocket.DataHandler.C {
-				d, ok := resp.Data.(*order.Detail)
-				require.True(t, ok, "the order push must reach the data handler as an order detail")
-				got = d
-			}
-			require.NotNil(t, got, "the order push must reach the data handler")
-			assert.Equal(t, exp.oType, got.Type, "the push should read the order type")
-			assert.Equal(t, exp.tif, got.TimeInForce, "the push should preserve the time in force")
-		})
-	}
+	t.Run("parses every order type", func(t *testing.T) {
+		t.Parallel()
+		for ordType, exp := range map[string]struct {
+			oType order.Type
+			tif   order.TimeInForce
+		}{
+			orderPostOnly:                         {order.Limit, order.PostOnly},
+			orderFOK:                              {order.Limit, order.FillOrKill},
+			orderIOC:                              {order.Limit, order.ImmediateOrCancel},
+			orderOptionFOK:                        {order.Limit, order.FillOrKill},
+			orderOptimalLimitIOC:                  {order.OptimalLimit, order.ImmediateOrCancel},
+			orderMarketMakerProtection:            {order.MarketMakerProtection, order.UnknownTIF},
+			orderMarketMakerProtectionAndPostOnly: {order.MarketMakerProtection, order.PostOnly},
+			orderRPI:                              {order.Limit, order.UnknownTIF},
+			orderELP:                              {order.Limit, order.UnknownTIF},
+		} {
+			t.Run(ordType, func(t *testing.T) {
+				t.Parallel()
+				e := new(Exchange)
+				require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+				push := []byte(`{"arg":{"channel":"orders","instType":"SPOT"},"data":[{"instId":"BTC-USDT","ordId":"1","ordType":"` + ordType + `","side":"buy","state":"live","sz":"1","accFillSz":"0","cTime":"1700000000000"}]}`)
+				require.NoErrorf(t, e.wsProcessOrders(t.Context(), push), "a %s order push must not error", ordType)
+				e.Websocket.DataHandler.Close()
+				var got *order.Detail
+				for resp := range e.Websocket.DataHandler.C {
+					d, ok := resp.Data.(*order.Detail)
+					require.True(t, ok, "the order push must reach the data handler as an order detail")
+					got = d
+				}
+				require.NotNil(t, got, "the order push must reach the data handler")
+				assert.Equal(t, exp.oType, got.Type, "the push should read the order type")
+				assert.Equal(t, exp.tif, got.TimeInForce, "the push should preserve the time in force")
+			})
+		}
+	})
 }
 
 var pushDataMap = map[string]string{
@@ -4722,6 +4758,57 @@ func TestWsHandleData(t *testing.T) {
 		require.Len(t, response.Data, 1, "funding push must contain one rate")
 		assert.Equal(t, "BTC-USDT-SWAP", response.Argument.InstrumentID.String(), "routing metadata should remain available")
 		assert.Equal(t, 0.0001, response.Data[0].FundingRate.Float64(), "funding rate should decode into its numeric type")
+	})
+
+	t.Run("instruments push caches ID codes", func(t *testing.T) {
+		t.Parallel()
+		// An instruments push's instrument ID codes reach the cache the
+		// websocket order operations read, so an instrument listed after
+		// start-up can trade over the websocket.
+		e := new(Exchange)
+		require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+		push := []byte(`{"arg":{"channel":"instruments","instType":"SPOT"},"data":[{"instType":"SPOT","instId":"NEW-USDT","instIdCode":4242}]}`)
+		require.NoError(t, e.wsHandleData(t.Context(), nil, push), "an instruments push must not error")
+		assert.EqualValues(t, 4242, e.getInstrumentIDCode("NEW-USDT"), "the pushed instrument's ID code should be cached")
+
+		t.Run("full relay still updates the code cache", func(t *testing.T) {
+			t.Parallel()
+
+			for _, tc := range []struct {
+				name string
+				code string
+				want uint64
+			}{
+				{name: "new code replaces the old code", code: "4242", want: 4242},
+				{name: "null code invalidates the old code", code: "null"},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+
+					ex := new(Exchange)
+					require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+					ex.cacheInstrumentIDCodes([]Instrument{
+						{InstrumentID: mainPair, InstrumentIDCode: 123},
+					})
+
+					for range cap(ex.Websocket.DataHandler.C) {
+						require.NoError(t,
+							ex.Websocket.DataHandler.Send(t.Context(), nil),
+							"prefilling the relay must not error")
+					}
+
+					push := []byte(`{"arg":{"channel":"instruments","instType":"SPOT"},"data":[{"instType":"SPOT","instId":"BTC-USDT","instIdCode":` + tc.code + `}]}`)
+
+					require.Error(t,
+						ex.wsHandleData(t.Context(), nil, push),
+						"a full relay must report its delivery error")
+
+					assert.Equal(t, tc.want, ex.getInstrumentIDCode("BTC-USDT"),
+						"the cache should reflect the received push even when relay delivery fails")
+				})
+			}
+		})
 	})
 }
 
@@ -7350,6 +7437,9 @@ func TestGetAccountInstruments(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+// TestOrderTypeString guards the ordType an order places. The post-only rows
+// read PostOnly from a time in force that combines PostOnly with other flags,
+// where an unlisted type combination is still refused.
 func TestOrderTypeString(t *testing.T) {
 	t.Parallel()
 	type OrderTypeWithTIF struct {
@@ -7406,42 +7496,28 @@ func TestOrderTypeString(t *testing.T) {
 			assert.Equal(t, val.Expected, orderTypeString)
 		})
 	}
-}
 
-// TestOrderTypeStringReadsPostOnlyFromCombinedTIFs guards the post-only order
-// types against a time in force that combines PostOnly with other flags,
-// which TimeInForce.IsValid allows: every such combination must still place
-// as post-only.
-func TestOrderTypeStringReadsPostOnlyFromCombinedTIFs(t *testing.T) {
-	t.Parallel()
-	flags := []order.TimeInForce{order.GoodTillCancel, order.GoodTillDay, order.GoodTillTime, order.GoodTillCrossing, order.StopOrReduce}
-	for mask := range 1 << len(flags) {
-		tif := order.PostOnly
-		for i, f := range flags {
-			if mask&(1<<i) != 0 {
-				tif |= f
+	t.Run("post-only is read from combined time in forces", func(t *testing.T) {
+		t.Parallel()
+		// A time in force that combines PostOnly with other flags, which
+		// TimeInForce.IsValid allows, must still place as post-only.
+		flags := []order.TimeInForce{order.GoodTillCancel, order.GoodTillDay, order.GoodTillTime, order.GoodTillCrossing, order.StopOrReduce}
+		for mask := range 1 << len(flags) {
+			tif := order.PostOnly
+			for i, f := range flags {
+				if mask&(1<<i) != 0 {
+					tif |= f
+				}
 			}
+			require.Truef(t, tif.IsValid(), "%s must be a valid time in force", tif)
+			got, err := orderTypeString(order.Limit, tif)
+			require.NoErrorf(t, err, "orderTypeString must not error for a limit order with %s", tif)
+			assert.Equalf(t, orderPostOnly, got, "a limit order with %s should place as post_only", tif)
+			got, err = orderTypeString(order.MarketMakerProtection, tif)
+			require.NoErrorf(t, err, "orderTypeString must not error for an MMP order with %s", tif)
+			assert.Equalf(t, orderMarketMakerProtectionAndPostOnly, got, "an MMP order with %s should place as mmp_and_post_only", tif)
 		}
-		require.Truef(t, tif.IsValid(), "%s must be a valid time in force", tif)
-		got, err := orderTypeString(order.Limit, tif)
-		require.NoErrorf(t, err, "orderTypeString must not error for a limit order with %s", tif)
-		assert.Equalf(t, orderPostOnly, got, "a limit order with %s should place as post_only", tif)
-		got, err = orderTypeString(order.MarketMakerProtection, tif)
-		require.NoErrorf(t, err, "orderTypeString must not error for an MMP order with %s", tif)
-		assert.Equalf(t, orderMarketMakerProtectionAndPostOnly, got, "an MMP order with %s should place as mmp_and_post_only", tif)
-	}
-}
-
-// TestWsInstrumentsPushCachesIDCodes guards the instruments channel handler:
-// a push's instrument ID codes reach the cache the websocket order operations
-// read, so an instrument listed after start-up can trade over the websocket.
-func TestWsInstrumentsPushCachesIDCodes(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	push := []byte(`{"arg":{"channel":"instruments","instType":"SPOT"},"data":[{"instType":"SPOT","instId":"NEW-USDT","instIdCode":4242}]}`)
-	require.NoError(t, e.wsHandleData(t.Context(), nil, push), "an instruments push must not error")
-	assert.EqualValues(t, 4242, e.getInstrumentIDCode("NEW-USDT"), "the pushed instrument's ID code should be cached")
+	})
 }
 
 // TestSpreadOrderTypeString pins the ordType a spread order places: the
@@ -7817,100 +7893,61 @@ func TestWsProcessSpreadOrderbook(t *testing.T) {
 
 func TestWsProcessPublicSpreadTrades(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessPublicSpreadTrades([]byte(wsProcessPublicSpreadTradesJSON))
-	assert.NoError(t, err)
-	trades, err := e.spreadPublicTrades([]byte(wsProcessPublicSpreadTradesJSON))
-	require.NoError(t, err, "spreadPublicTrades must not error")
-	require.Len(t, trades, 1, "spreadPublicTrades must return the pushed trade")
-	exp := trade.Data{
-		TID: "2499206329160695808", Exchange: e.Name, CurrencyPair: spreadPair, AssetType: asset.Spread,
-		Side: order.Sell, Price: -10, Amount: 0.001, Timestamp: time.UnixMilli(1726801105519),
-	}
-	assert.Equal(t, exp, trades[0], "the push should decode its trade rather than drop it")
-}
+	t.Run("public spread trades decode", func(t *testing.T) {
+		t.Parallel()
+		err := e.wsProcessPublicSpreadTrades([]byte(wsProcessPublicSpreadTradesJSON))
+		assert.NoError(t, err)
+		trades, err := e.spreadPublicTrades([]byte(wsProcessPublicSpreadTradesJSON))
+		require.NoError(t, err, "spreadPublicTrades must not error")
+		require.Len(t, trades, 1, "spreadPublicTrades must return the pushed trade")
+		exp := trade.Data{
+			TID: "2499206329160695808", Exchange: e.Name, CurrencyPair: spreadPair, AssetType: asset.Spread,
+			Side: order.Sell, Price: -10, Amount: 0.001, Timestamp: time.UnixMilli(1726801105519),
+		}
+		assert.Equal(t, exp, trades[0], "the push should decode its trade rather than drop it")
+	})
 
-// TestWsProcessPublicSpreadTradesHonoursSaveTradeData guards the saving gate:
-// with trade saving off a push must not reach the shared trade buffer, while
-// the decode still runs first so a malformed push reports its error. The
-// fixture trades carry a zero size, which the buffer rejects with an error,
-// so that error tells whether the buffer was reached. The database is only
-// configured, never connected: the rejected trade never enters the buffer.
-func TestWsProcessPublicSpreadTradesHonoursSaveTradeData(t *testing.T) {
-	t.Parallel()
-	zeroSize := strings.Replace(wsProcessPublicSpreadTradesJSON, `"sz": "0.001"`, `"sz": "0"`, 1)
-	require.NotEqual(t, wsProcessPublicSpreadTradesJSON, zeroSize, "the zero size replacement must find its fixture anchor")
-	for _, tc := range []struct {
-		name       string
-		save       bool
-		push       string
-		expErr     string
-		wantAnyErr bool
-	}{
-		{name: "saving off", save: false, push: zeroSize},
-		{name: "saving on", save: true, push: zeroSize, expErr: "received invalid trade data"},
-		// The decoder's message differs per JSON backend (stdlib vs sonic),
-		// so only the presence of the error is pinned for the malformed push.
-		{name: "malformed push with saving off", save: false, push: "{", wantAnyErr: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			e := new(Exchange)
-			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-			e.SetSaveTradeDataStatus(tc.save)
-			err := e.wsProcessPublicSpreadTrades([]byte(tc.push))
-			if tc.wantAnyErr {
-				assert.Error(t, err, "a malformed push should still report its decode error")
-				return
-			}
-			if tc.expErr == "" {
-				assert.NoError(t, err, "a push with trade saving off should not reach the trade buffer")
-				return
-			}
-			assert.ErrorContains(t, err, tc.expErr, "the push should report the expected error")
-		})
-	}
-}
-
-// TestWsProcessSpreadTradesHonoursSaveTradeData guards the private spread
-// trades stream against the same saving gate as the public one: with trade
-// saving off a push must not reach the shared trade buffer, while the decode
-// still runs first so a malformed push reports its error. The fixture trade
-// carries a zero fill size, which the buffer rejects with an error, so that
-// error tells whether the buffer was reached.
-func TestWsProcessSpreadTradesHonoursSaveTradeData(t *testing.T) {
-	t.Parallel()
-	zeroSize := strings.Replace(wsProcessSpreadTradesJSON, `"fillSz":"3"`, `"fillSz":"0"`, 1)
-	require.NotEqual(t, wsProcessSpreadTradesJSON, zeroSize, "the zero size replacement must find its fixture anchor")
-	for _, tc := range []struct {
-		name       string
-		save       bool
-		push       string
-		expErr     string
-		wantAnyErr bool
-	}{
-		{name: "saving off", save: false, push: zeroSize},
-		{name: "saving on", save: true, push: zeroSize, expErr: "received invalid trade data"},
-		// The decoder's message differs per JSON backend (stdlib vs sonic),
-		// so only the presence of the error is pinned for the malformed push.
-		{name: "malformed push with saving off", save: false, push: "{", wantAnyErr: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			e := new(Exchange)
-			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-			e.SetSaveTradeDataStatus(tc.save)
-			err := e.wsProcessSpreadTrades([]byte(tc.push))
-			if tc.wantAnyErr {
-				assert.Error(t, err, "a malformed push should still report its decode error")
-				return
-			}
-			if tc.expErr == "" {
-				assert.NoError(t, err, "a push with trade saving off should not reach the trade buffer")
-				return
-			}
-			assert.ErrorContains(t, err, tc.expErr, "the push should report the expected error")
-		})
-	}
+	t.Run("honours the save trade data gate", func(t *testing.T) {
+		t.Parallel()
+		// With trade saving off a push must not reach the shared trade
+		// buffer, while the decode still runs first so a malformed push
+		// reports its error. The fixture trades carry a zero size, which the
+		// buffer rejects with an error, so that error tells whether the
+		// buffer was reached. The database is only configured, never
+		// connected: the rejected trade never enters the buffer.
+		zeroSize := strings.Replace(wsProcessPublicSpreadTradesJSON, `"sz": "0.001"`, `"sz": "0"`, 1)
+		require.NotEqual(t, wsProcessPublicSpreadTradesJSON, zeroSize, "the zero size replacement must find its fixture anchor")
+		for _, tc := range []struct {
+			name       string
+			save       bool
+			push       string
+			expErr     string
+			wantAnyErr bool
+		}{
+			{name: "saving off", save: false, push: zeroSize},
+			{name: "saving on", save: true, push: zeroSize, expErr: "received invalid trade data"},
+			// The decoder's message differs per JSON backend (stdlib vs sonic),
+			// so only the presence of the error is pinned for the malformed push.
+			{name: "malformed push with saving off", save: false, push: "{", wantAnyErr: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				e := new(Exchange)
+				require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+				e.SetSaveTradeDataStatus(tc.save)
+				err := e.wsProcessPublicSpreadTrades([]byte(tc.push))
+				if tc.wantAnyErr {
+					assert.Error(t, err, "a malformed push should still report its decode error")
+					return
+				}
+				if tc.expErr == "" {
+					assert.NoError(t, err, "a push with trade saving off should not reach the trade buffer")
+					return
+				}
+				assert.ErrorContains(t, err, tc.expErr, "the push should report the expected error")
+			})
+		}
+	})
 }
 
 func TestWsProcessPublicSpreadTicker(t *testing.T) {
@@ -7961,8 +7998,53 @@ func TestWsProcessSpreadOrdersReportsFills(t *testing.T) {
 
 func TestWsProcessSpreadTradesJSON(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessSpreadTrades([]byte(wsProcessSpreadTradesJSON))
-	assert.NoError(t, err)
+	t.Run("private spread trades decode", func(t *testing.T) {
+		t.Parallel()
+		err := e.wsProcessSpreadTrades([]byte(wsProcessSpreadTradesJSON))
+		assert.NoError(t, err)
+	})
+
+	t.Run("honours the save trade data gate", func(t *testing.T) {
+		t.Parallel()
+		// The private spread trades stream keeps the same saving gate as the
+		// public one: with trade saving off a push must not reach the shared
+		// trade buffer, while the decode still runs first so a malformed push
+		// reports its error. The fixture trade carries a zero fill size,
+		// which the buffer rejects with an error, so that error tells whether
+		// the buffer was reached.
+		zeroSize := strings.Replace(wsProcessSpreadTradesJSON, `"fillSz":"3"`, `"fillSz":"0"`, 1)
+		require.NotEqual(t, wsProcessSpreadTradesJSON, zeroSize, "the zero size replacement must find its fixture anchor")
+		for _, tc := range []struct {
+			name       string
+			save       bool
+			push       string
+			expErr     string
+			wantAnyErr bool
+		}{
+			{name: "saving off", save: false, push: zeroSize},
+			{name: "saving on", save: true, push: zeroSize, expErr: "received invalid trade data"},
+			// The decoder's message differs per JSON backend (stdlib vs sonic),
+			// so only the presence of the error is pinned for the malformed push.
+			{name: "malformed push with saving off", save: false, push: "{", wantAnyErr: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				e := new(Exchange)
+				require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+				e.SetSaveTradeDataStatus(tc.save)
+				err := e.wsProcessSpreadTrades([]byte(tc.push))
+				if tc.wantAnyErr {
+					assert.Error(t, err, "a malformed push should still report its decode error")
+					return
+				}
+				if tc.expErr == "" {
+					assert.NoError(t, err, "a push with trade saving off should not reach the trade buffer")
+					return
+				}
+				assert.ErrorContains(t, err, tc.expErr, "the push should report the expected error")
+			})
+		}
+	})
 }
 
 func TestOrderTypeFromString(t *testing.T) {

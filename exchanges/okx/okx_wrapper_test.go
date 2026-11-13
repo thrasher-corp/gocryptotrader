@@ -1418,6 +1418,60 @@ func TestGetSpreadOrderHistoryFallsBackToArchive(t *testing.T) {
 		assert.ElementsMatch(t, []string{"SPD-NEW", "SPD-OLD"}, ids, "the archive crawl should add the old order without duplicating the shared one")
 	})
 
+	t.Run("archive pages with its endId cursor to a single remaining order", func(t *testing.T) {
+		t.Parallel()
+		archived := make([]map[string]string, 0, orderListPageSize+1)
+		want := make([]string, 0, orderListPageSize+2)
+		want = append(want, "SPD-NEW")
+		for x := range orderListPageSize + 1 {
+			id := fmt.Sprintf("SPD-ARC-%03d", x)
+			archived = append(archived, map[string]string{
+				"sprdId": "BTC-USDT_BTC-USDT", "ordId": id, "ordType": orderLimit,
+				"side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "px": "100",
+				"cTime": strconv.FormatInt(time.Now().Add(-kline.OneMonth.Duration()).UnixMilli()-int64(x), 10),
+			})
+			want = append(want, id)
+		}
+		var mu sync.Mutex
+		var archiveEndIDs []string
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/sprd/orders-history":
+				writeOKXData(t, w, []map[string]string{recent})
+			case "/sprd/orders-history-archive":
+				endID := r.URL.Query().Get("endId")
+				mu.Lock()
+				archiveEndIDs = append(archiveEndIDs, endID)
+				mu.Unlock()
+				switch endID {
+				case "":
+					writeOKXData(t, w, archived[:orderListPageSize])
+				case archived[orderListPageSize-1]["ordId"]:
+					writeOKXData(t, w, archived[orderListPageSize:])
+				default:
+					t.Errorf("unexpected archive endId %q", endID)
+					writeOKXData(t, w, []map[string]string{})
+				}
+			default:
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}
+		}))
+		resp, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide,
+			StartTime: time.Now().Add(-2 * kline.OneMonth.Duration()),
+		})
+		require.NoError(t, err, "GetOrderHistory must not error when the archive spans two pages")
+		ids := make([]string, 0, len(resp))
+		for x := range resp {
+			ids = append(ids, resp[x].OrderID)
+		}
+		assert.ElementsMatch(t, want, ids, "every archived order should be returned once, the single order on the last page included")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, []string{"", "SPD-ARC-099"}, archiveEndIDs, "the archive crawl should advance its endId cursor to each full page's last order ID")
+	})
+
 	t.Run("recent start time skips the archive", func(t *testing.T) {
 		t.Parallel()
 		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

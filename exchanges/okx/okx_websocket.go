@@ -473,11 +473,16 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelInstruments:
 		var response WSInstrumentResponse
-		if err := e.wsProcessPushData(ctx, respRaw, &response); err != nil {
+		// The ID code cache updates before the push is relayed to the
+		// DataHandler: a full relay queue must not leave a stale code cached
+		// while the websocket order operations read it, so the cache reflects
+		// every push this handler sees. The relay's delivery error is preserved
+		// for the websocket reader.
+		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
 		e.cacheInstrumentIDCodes(response.Data)
-		return nil
+		return e.Websocket.DataHandler.Send(ctx, &response)
 	case channelOpenInterest:
 		var response WSOpenInterestResponse
 		return e.wsProcessPushData(ctx, respRaw, &response)
