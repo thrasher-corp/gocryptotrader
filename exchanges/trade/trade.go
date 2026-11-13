@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 	"uuid"
@@ -204,7 +205,7 @@ func SQLDataToTrade(dbTrades ...tradesql.Data) ([]Data, error) {
 		if err != nil {
 			return nil, err
 		}
-		s, err := order.StringToOrderSide(dbTrades[i].Side)
+		s, err := storedSide(dbTrades[i].Side)
 		if err != nil {
 			return nil, err
 		}
@@ -224,6 +225,15 @@ func SQLDataToTrade(dbTrades ...tradesql.Data) ([]Data, error) {
 		}
 	}
 	return result, nil
+}
+
+// storedSide returns a stored trade's side. A trade saved with an unknown side is stored as UNKNOWN, or as no side
+// where the trade table's nullable side migration converted it, and reads back with an unknown side
+func storedSide(side string) (order.Side, error) {
+	if side == "" || strings.EqualFold(side, order.UnknownSide.String()) {
+		return order.UnknownSide, nil
+	}
+	return order.StringToOrderSide(side)
 }
 
 // ConvertTradesToCandles turns trade data into kline.Items
