@@ -1,10 +1,14 @@
 package mexc
 
 import (
+	"cmp"
+	"net/http"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types"
@@ -214,13 +218,24 @@ func TestSubscriptionAccepted(t *testing.T) {
 	assert.True(t, subscriptionAccepted("UNSUBSCRIPTION", ch, ch), "an echoed channel means the unsubscribe was accepted")
 }
 
+func TestIsSpotSubscription(t *testing.T) {
+	t.Parallel()
+	for _, a := range []asset.Item{asset.Spot, asset.All, asset.Empty} {
+		t.Run(cmp.Or(a.String(), "empty"), func(t *testing.T) {
+			t.Parallel()
+			assert.Truef(t, isSpotSubscription(&subscription.Subscription{Asset: a}), "a subscription for asset %q should be expanded with the spot template", a)
+		})
+	}
+	assert.False(t, isSpotSubscription(&subscription.Subscription{Asset: asset.Futures}), "a futures subscription should not be expanded with the spot template")
+}
+
 func TestGenerateSubscriptionsIncludesMiniTicker(t *testing.T) {
 	t.Parallel()
 	// A fresh instance: the live websocket tests' testexch.SetupWs empties the shared one's subscriptions.
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	require.NoError(t, ex.setEnabledPairs(spotTradablePair), "setEnabledPairs must not error")
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(nil)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	var found bool
 	for _, s := range subs {
@@ -290,5 +305,124 @@ func TestMiniTickersSubscription(t *testing.T) {
 	assert.Equal(t, "spot@"+channelMiniTickersV3+"@"+miniTickerTimezone, subs[0].QualifiedChannel, "the channel should carry no symbol and the timezone suffix")
 	for _, s := range defaultSubscriptions {
 		assert.NotEqual(t, channelMiniTickersV3, s.Channel, "the all-symbols channel should not be a default subscription")
+	}
+}
+
+func TestWebsocketDial(t *testing.T) {
+	t.Parallel()
+	var listenKeyRequests atomic.Int64
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		listenKeyRequests.Add(1)
+		http.Error(w, `{"code":700003,"msg":"listen key limit reached"}`, http.StatusBadRequest)
+	}))
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	for range 2 {
+		conn := &listenKeyTestConn{url: "wss://private"}
+		require.NoError(t, ex.wsDial(t.Context(), conn, true), "wsDial must dial the private connection without a listen key")
+		assert.Equal(t, int64(1), conn.dials.Load(), "the private connection should be dialled")
+		assert.Equal(t, "wss://private", conn.url, "the private connection should be dialled without a listen key")
+	}
+	assert.Equal(t, int64(1), listenKeyRequests.Load(), "a refused listen key should not be asked for again")
+	assert.True(t, ex.spotListenKeyRefused.Load(), "the refusal should be recorded")
+	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "the authenticated websocket should stay usable, as the private futures channels log in with the API key")
+}
+
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		refused bool
+	}{
+		{name: "private channels subscribed while they can be used"},
+		{name: "private channels refused once a listen key is refused", refused: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newPrivateTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+				t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			})
+			ex.Features.Subscriptions = defaultSubscriptions.Clone()
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			public, err := ex.generatePublicSubscriptions()
+			require.NoError(t, err, "generatePublicSubscriptions must not error")
+			require.NotEmpty(t, public, "the public spot channels must be generated")
+			private, err := ex.generatePrivateSubscriptions()
+			require.NoError(t, err, "generatePrivateSubscriptions must not error")
+			require.NotEmpty(t, private, "the private spot channels must be generated")
+			replies := make(map[string]string)
+			for _, s := range append(subscription.List{public[0]}, private...) {
+				replies[s.QualifiedChannel] = `{"id":0,"code":0,"msg":"` + s.QualifiedChannel + `"}`
+			}
+			conn := &subscriptionTestConn{replies: replies}
+			ex.spotListenKeyRefused.Store(tc.refused)
+			require.NoError(t, ex.Subscribe(t.Context(), conn, public[:1]), "Subscribe must subscribe a public spot channel")
+			err = ex.Subscribe(t.Context(), conn, private)
+			want := append(subscription.List{public[0]}, private...)
+			if tc.refused {
+				assert.ErrorIs(t, err, errNoListenKey, "the private spot channels should be refused without a listen key")
+				want = want[:1]
+			} else {
+				assert.NoError(t, err, "the private spot channels should be subscribed")
+			}
+			sent := make([]string, 0, len(want))
+			for _, s := range want {
+				sent = append(sent, s.QualifiedChannel)
+			}
+			assert.ElementsMatch(t, sent, conn.sent, "only the channels subscribed should be sent")
+			assert.ElementsMatch(t, want, ex.Websocket.GetSubscriptions(), "only the channels subscribed should be stored")
+		})
+	}
+}
+
+func TestSpotPrivateChannelsUsable(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                   string
+		authenticated, refused bool
+		usable                 bool
+	}{
+		{name: "authenticated", authenticated: true, usable: true},
+		{name: "authenticated, listen key refused", authenticated: true, refused: true},
+		{name: "unauthenticated, listen key refused", refused: true},
+		{name: "unauthenticated"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := &Exchange{Websocket: new(websocket.Manager)}
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(tc.authenticated)
+			ex.spotListenKeyRefused.Store(tc.refused)
+			assert.Equal(t, tc.usable, ex.spotPrivateChannelsUsable(), "the private spot channels should be usable only with the authenticated websocket and no listen key refused")
+		})
+	}
+}
+
+func TestGeneratePrivateSubscriptions(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                   string
+		authenticated, refused bool
+		channels               []string
+	}{
+		{name: "authenticated", authenticated: true, channels: []string{channelAccountV3, channelPrivateDealsV3, channelPrivateOrdersAPI}},
+		{name: "listen key refused", authenticated: true, refused: true},
+		{name: "unauthenticated"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			require.NoError(t, ex.setEnabledPairs(spotTradablePair), "setEnabledPairs must not error")
+			ex.Features.Subscriptions = defaultSubscriptions.Clone()
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(tc.authenticated)
+			ex.spotListenKeyRefused.Store(tc.refused)
+			subs, err := ex.generatePrivateSubscriptions()
+			require.NoError(t, err, "generatePrivateSubscriptions must not error")
+			channels := make([]string, 0, len(subs))
+			for _, s := range subs {
+				assert.Equalf(t, asset.Spot, s.Asset, "%s should be a spot channel", s.QualifiedChannel)
+				channels = append(channels, wsChannelName(s.QualifiedChannel))
+			}
+			assert.ElementsMatch(t, tc.channels, channels, "the private spot channels should be generated only while they can be used")
+		})
 	}
 }
