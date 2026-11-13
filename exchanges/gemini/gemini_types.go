@@ -5,20 +5,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// Ticker holds returned ticker data from the exchange
-type Ticker struct {
-	Ask    float64 `json:"ask,string"`
-	Bid    float64 `json:"bid,string"`
-	Last   float64 `json:"last,string"`
-	Volume struct {
-		Currency  float64
-		USD       float64
-		BTC       float64
-		ETH       float64
-		Timestamp types.Time
-	}
-}
-
 // SymbolDetails contains additional symbol details
 type SymbolDetails struct {
 	Symbol                string       `json:"symbol"`
@@ -169,9 +155,8 @@ type TradeHistory struct {
 	Exchange        string     `json:"exchange"`
 	IsAuctionFilled bool       `json:"is_auction_fill"`
 	ClientOrderID   string     `json:"client_order_id"`
-	// Used to store values
-	BaseCurrency  string
-	QuoteCurrency string
+	BaseCurrency    string     `json:"-"`
+	QuoteCurrency   string     `json:"-"`
 }
 
 // TradeVolume holds Volume information
@@ -247,13 +232,6 @@ type WithdrawalAddress struct {
 	Reason  string  `json:"reason"`
 }
 
-// ErrorCapture is a generalised error response from the server
-type ErrorCapture struct {
-	Result  string `json:"result"`
-	Reason  string `json:"reason"`
-	Message string `json:"message"`
-}
-
 // WsRequestPayload Request info to subscribe to a WS endpoint
 type WsRequestPayload struct {
 	Request string `json:"request"`
@@ -268,15 +246,6 @@ type WsSubscriptionAcknowledgementResponse struct {
 	SymbolFilter     []string `json:"symbolFilter"`
 	APISessionFilter []string `json:"apiSessionFilter"`
 	EventTypeFilter  []string `json:"eventTypeFilter"`
-}
-
-// WsHeartbeatResponse Gemini will send a heartbeat every five seconds so you'll know your WebSocket connection is active.
-type WsHeartbeatResponse struct {
-	Type           string     `json:"type"`
-	TimestampMS    types.Time `json:"timestampms"`
-	Sequence       int64      `json:"sequence"`
-	TraceID        string     `json:"trace_id"`
-	SocketSequence int64      `json:"socket_sequence"`
 }
 
 // WsOrderResponse contains active orders

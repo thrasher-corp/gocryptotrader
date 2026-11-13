@@ -1,14 +1,15 @@
 package order
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -271,11 +272,10 @@ func TestSubmit_DeriveSubmitResponse(t *testing.T) {
 func TestSubmitResponse_DeriveDetail(t *testing.T) {
 	t.Parallel()
 	var s *SubmitResponse
-	_, err := s.DeriveDetail(uuid.Nil)
+	_, err := s.DeriveDetail(uuid.Nil())
 	require.ErrorIs(t, err, errOrderSubmitResponseIsNil)
 
-	id, err := uuid.NewV4()
-	require.NoError(t, err)
+	id := uuid.NewV4()
 
 	s = &SubmitResponse{}
 	deets, err := s.DeriveDetail(id)
@@ -448,10 +448,6 @@ var filterOrdersByTypeBenchmark = &[]Detail{
 	{Type: Limit},
 }
 
-// BenchmarkFilterOrdersByType benchmark
-//
-// 392455	      3226 ns/op	   15840 B/op	       5 allocs/op // PREV
-// 9486490	       109.5 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByType(b *testing.B) {
 	for b.Loop() {
 		FilterOrdersByType(filterOrdersByTypeBenchmark, Limit)
@@ -494,10 +490,6 @@ var filterOrdersBySideBenchmark = &[]Detail{
 	{Side: Ask},
 }
 
-// BenchmarkFilterOrdersBySide benchmark
-//
-// 372594	      3049 ns/op	   15840 B/op	       5 allocs/op // PREV
-// 7412187	       148.8 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersBySide(b *testing.B) {
 	for b.Loop() {
 		FilterOrdersBySide(filterOrdersBySideBenchmark, Ask)
@@ -508,7 +500,8 @@ func TestFilterOrdersByTimeRange(t *testing.T) {
 	t.Parallel()
 
 	orders := make([]Detail, 0, 4)
-	orders = append(orders,
+	orders = append(
+		orders,
 		Detail{
 			Date: time.Unix(100, 0),
 		},
@@ -559,10 +552,6 @@ var filterOrdersByTimeRangeBenchmark = &[]Detail{
 	{Date: time.Unix(100, 0)},
 }
 
-// BenchmarkFilterOrdersByTimeRange benchmark
-//
-// 390822	      3335 ns/op	   15840 B/op	       5 allocs/op // PREV
-// 6201034	       172.1 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByTimeRange(b *testing.B) {
 	for b.Loop() {
 		err := FilterOrdersByTimeRange(filterOrdersByTimeRangeBenchmark, time.Unix(50, 0), time.Unix(150, 0))
@@ -631,10 +620,6 @@ var filterOrdersByPairsBenchmark = &[]Detail{
 	{Pair: currency.NewBTCUSD()},
 }
 
-// BenchmarkFilterOrdersByPairs benchmark
-//
-// 400032	      2977 ns/op	   15840 B/op	       5 allocs/op // PREV
-// 6977242	       172.8 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByPairs(b *testing.B) {
 	pairs := []currency.Pair{currency.NewBTCUSD()}
 	for b.Loop() {
@@ -795,8 +780,6 @@ func TestStringToOrderSide(t *testing.T) {
 
 var sideBenchmark Side
 
-// 9756914	       126.7 ns/op	       0 B/op	       0 allocs/op // PREV
-// 25200660	        57.63 ns/op	       3 B/op	       1 allocs/op // CURRENT
 func BenchmarkStringToOrderSide(b *testing.B) {
 	for b.Loop() {
 		sideBenchmark, _ = StringToOrderSide("any")
@@ -870,8 +853,6 @@ func TestStringToOrderType(t *testing.T) {
 
 var typeBenchmark Type
 
-// 5703705	       299.9 ns/op	       0 B/op	       0 allocs/op // PREV
-// 16353608	        81.23 ns/op	       8 B/op	       1 allocs/op // CURRENT
 func BenchmarkStringToOrderType(b *testing.B) {
 	for b.Loop() {
 		typeBenchmark, _ = StringToOrderType("trigger")
@@ -921,6 +902,8 @@ var stringsToOrderStatus = []struct {
 	{"iNsUfFiCiEnT_bAlAnCe", InsufficientBalance, nil},
 	{"PARTIALLY_CANCELLEd", PartiallyCancelled, nil},
 	{"partially canceLLed", PartiallyCancelled, nil},
+	{"PARTIALLY_CANCELED", PartiallyCancelled, nil},
+	{"partially_canceled", PartiallyCancelled, nil},
 	{"opeN", Open, nil},
 	{"cLosEd", Closed, nil},
 	{"cancellinG", Cancelling, nil},
@@ -943,8 +926,6 @@ func TestStringToOrderStatus(t *testing.T) {
 
 var statusBenchmark Status
 
-// 3569052	       351.8 ns/op	       0 B/op	       0 allocs/op // PREV
-// 11126791	       101.9 ns/op	      24 B/op	       1 allocs/op // CURRENT
 func BenchmarkStringToOrderStatus(b *testing.B) {
 	for b.Loop() {
 		statusBenchmark, _ = StringToOrderStatus("market_unavailable")
@@ -996,8 +977,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	err := od.UpdateOrderFromDetail(nil)
 	require.ErrorIs(t, err, ErrOrderDetailIsNil)
 
-	id, err := uuid.NewV4()
-	require.NoError(t, err)
+	id := uuid.NewV4()
 	const leet = "1337"
 	updated := time.Now()
 
@@ -1126,8 +1106,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, nextCloseTime, od.CloseTime)
 	assert.Equal(t, lastUpdatedWithoutIncoming, od.LastUpdated)
 
-	id, err = uuid.NewV4()
-	require.NoError(t, err)
+	id = uuid.NewV4()
 
 	om = &Detail{
 		InternalOrderID: id,
@@ -1135,7 +1114,86 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 
 	err = od.UpdateOrderFromDetail(om)
 	require.NoError(t, err)
-	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialization")
+	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialisation")
+}
+
+// TestUpdateOrderFromDetailMergesFeeAsset asserts the commission currency propagates through order
+// management. A venue that reports its fee in a named asset (and a zero fee, as with a maker rebate)
+// must not lose the currency when the fresh detail is merged into the stored order.
+func TestUpdateOrderFromDetailMergesFeeAsset(t *testing.T) {
+	t.Parallel()
+	stored := &Detail{}
+	err := stored.UpdateOrderFromDetail(&Detail{Fee: 0, FeeAsset: currency.USDT})
+	require.NoError(t, err)
+	assert.Equal(t, currency.USDT, stored.FeeAsset, "the fee currency should merge even when the fee is zero")
+
+	err = stored.UpdateOrderFromDetail(&Detail{})
+	require.NoError(t, err)
+	assert.Equal(t, currency.USDT, stored.FeeAsset, "an empty incoming fee currency should not clear the stored one")
+}
+
+// TestUpdateOrderFromDetailRemainingAmountInvariant ensures that when an
+// incoming detail carries a RemainingAmount alongside the fill(s) that
+// produced it, the stored RemainingAmount is trusted rather than re-derived
+// by subtracting trade amounts. Re-deriving double-counts fills and violates
+// the invariant ExecutedAmount + RemainingAmount == Amount.
+func TestUpdateOrderFromDetailRemainingAmountInvariant(t *testing.T) {
+	t.Parallel()
+
+	om := &Detail{
+		OrderID:         "abc",
+		Amount:          10,
+		ExecutedAmount:  4,
+		RemainingAmount: 6, // authoritative: 10 - 4
+		Trades:          []TradeHistory{{TID: "1", Price: 100, Amount: 4}},
+	}
+
+	od := &Detail{OrderID: "abc", Amount: 10}
+	require.NoError(t, od.UpdateOrderFromDetail(om), "UpdateOrderFromDetail must not error")
+
+	assert.Equal(t, 10.0, od.Amount, "Amount should be unchanged")
+	assert.Equal(t, 4.0, od.ExecutedAmount, "ExecutedAmount should come from the incoming detail")
+	assert.Equal(t, 6.0, od.RemainingAmount, "RemainingAmount should be the authoritative remaining, not reduced by trade amounts")
+	assert.Equal(t, od.Amount, od.ExecutedAmount+od.RemainingAmount, "ExecutedAmount + RemainingAmount should equal Amount")
+	assert.Equal(t, 6.0, om.RemainingAmount, "incoming detail should not be mutated")
+
+	// A fill at least as large as the reported remainder drove the old
+	// subtraction negative, which failed the guard in UpdateOrderFromDetail and
+	// dropped the update entirely, leaving the stored value stale rather than
+	// merely wrong.
+	od = &Detail{OrderID: "def", Amount: 10, RemainingAmount: 10}
+	om = &Detail{
+		OrderID:         "def",
+		Amount:          10,
+		ExecutedAmount:  8,
+		RemainingAmount: 2,
+		Trades:          []TradeHistory{{TID: "2", Price: 100, Amount: 8}},
+	}
+	require.NoError(t, od.UpdateOrderFromDetail(om), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, 2.0, od.RemainingAmount, "RemainingAmount should be updated when the fill is larger than the reported remainder")
+}
+
+// TestUpdateOrderFromDetailTradesOnly pins the behaviour for feeds that report
+// fills without a remainder (bitmex execution, kraken ownTrades, huobi
+// trade.clearing). The engine merges such a detail into a copy of the stored
+// order first, so this method sees the stored remainder alongside the new
+// trade; that remainder is now left alone rather than reduced by the trade
+// amount. Those exchanges get their remainder from a companion order feed or
+// the REST poll instead.
+func TestUpdateOrderFromDetailTradesOnly(t *testing.T) {
+	t.Parallel()
+
+	od := &Detail{OrderID: "ghi", Amount: 10, RemainingAmount: 10}
+	om := &Detail{
+		OrderID:         "ghi",
+		Amount:          10,
+		RemainingAmount: 10,
+		Trades:          []TradeHistory{{TID: "1", Price: 100, Amount: 4}},
+	}
+	require.NoError(t, od.UpdateOrderFromDetail(om), "UpdateOrderFromDetail must not error")
+
+	require.Len(t, od.Trades, 1, "trade must be merged")
+	assert.Equal(t, 10.0, od.RemainingAmount, "RemainingAmount should be left as reported, not reduced by the merged trade")
 }
 
 func TestClassificationError_Error(t *testing.T) {
@@ -1219,7 +1277,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 func TestMatchFilter(t *testing.T) {
 	t.Parallel()
-	id := uuid.Must(uuid.NewV4())
+	id := uuid.NewV4()
 
 	assert.True(t, new(Detail).MatchFilter(&Filter{}), "an empty filter should match an empty order")
 	assert.True(t, (&Detail{Exchange: "E", OrderID: "A", Side: Sell, Pair: currency.NewBTCUSD()}).MatchFilter(&Filter{}), "an empty filter should match any order")
@@ -1234,7 +1292,7 @@ func TestMatchFilter(t *testing.T) {
 		{"Exchange 𐄂", Filter{Exchange: "A"}, Detail{Exchange: "B"}, false},
 		{"Exchange Empty", Filter{Exchange: "A"}, Detail{}, false},
 		{"InternalOrderID ✓", Filter{InternalOrderID: id}, Detail{InternalOrderID: id}, true},
-		{"InternalOrderID 𐄂", Filter{InternalOrderID: id}, Detail{InternalOrderID: uuid.Must(uuid.NewV4())}, false},
+		{"InternalOrderID 𐄂", Filter{InternalOrderID: id}, Detail{InternalOrderID: uuid.NewV4()}, false},
 		{"InternalOrderID Empty", Filter{InternalOrderID: id}, Detail{}, false},
 		{"OrderID ✓", Filter{OrderID: "A"}, Detail{OrderID: "A"}, true},
 		{"OrderID 𐄂", Filter{OrderID: "A"}, Detail{OrderID: "B"}, false},
@@ -1327,8 +1385,6 @@ func TestIsActive(t *testing.T) {
 
 var activeBenchmark = Detail{Status: Pending, Amount: 1}
 
-// 610732089	         2.414 ns/op	       0 B/op	       0 allocs/op // PREV
-// 1000000000	         1.188 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkIsActive(b *testing.B) {
 	for b.Loop() {
 		if !activeBenchmark.IsActive() {
@@ -1392,7 +1448,6 @@ func TestIsInactive(t *testing.T) {
 
 var inactiveBenchmark = Detail{Status: Closed, Amount: 1}
 
-// 1000000000	         1.043 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkIsInactive(b *testing.B) {
 	for b.Loop() {
 		require.True(b, inactiveBenchmark.IsInactive())
@@ -1434,8 +1489,7 @@ func TestIsOrderPlaced(t *testing.T) {
 }
 
 func TestGenerateInternalOrderID(t *testing.T) {
-	id, err := uuid.NewV4()
-	assert.NoError(t, err)
+	id := uuid.NewV4()
 	od := Detail{
 		InternalOrderID: id,
 	}
@@ -1444,7 +1498,7 @@ func TestGenerateInternalOrderID(t *testing.T) {
 
 	od = Detail{}
 	od.GenerateInternalOrderID()
-	assert.False(t, od.InternalOrderID.IsNil(), "unable to generate internal order ID")
+	assert.NotEqual(t, uuid.Nil(), od.InternalOrderID, "unable to generate internal order ID")
 }
 
 func TestDetail_Copy(t *testing.T) {
@@ -1718,8 +1772,7 @@ func TestSideUnmarshal(t *testing.T) {
 	assert.NoError(t, s.UnmarshalJSON([]byte(`"SELL"`)), "Quoted valid side okay")
 	assert.Equal(t, Sell, s, "Correctly set order Side")
 	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "Quoted invalid side errors")
-	var jErr *json.UnmarshalTypeError
-	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
+	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`14`)), ErrSideIsInvalid, "non-string valid json is rejected")
 }
 
 func TestSideMarshalJSON(t *testing.T) {
@@ -1793,7 +1846,7 @@ func TestMarshalOrder(t *testing.T) {
 	}
 	j, err := json.Marshal(orderSubmit)
 	require.NoError(t, err, "Marshal must not error")
-	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"LimitTrackingMode":0,"LimitTrackingValue":0,"RFQDisabled":false,"SlippageTolerance":0}`)
+	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"AutoRepay":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"LimitTrackingMode":0,"LimitTrackingValue":0,"RFQDisabled":false,"SlippageTolerance":0}`)
 	assert.Equal(t, exp, j)
 }
 
@@ -1822,4 +1875,44 @@ func TestPosition(t *testing.T) {
 			assert.ErrorIs(t, err, a.err)
 		}
 	}
+}
+
+func TestSortOrders(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		reverse bool
+		want    []float64
+	}{
+		{
+			name: "ascending",
+			want: []float64{1, 2, 2, 3},
+		},
+		{
+			name:    "descending",
+			reverse: true,
+			want:    []float64{3, 2, 2, 1},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			orders := []Detail{
+				{Price: 2},
+				{Price: 3},
+				{Price: 1},
+				{Price: 2},
+			}
+			sortOrders(&orders, tc.reverse, func(a, b Detail) int { return cmp.Compare(a.Price, b.Price) })
+
+			got := make([]float64, len(orders))
+			for i := range orders {
+				got[i] = orders[i].Price
+			}
+			assert.Equal(t, tc.want, got, "sortOrders should order the prices")
+		})
+	}
+
+	var empty []Detail
+	assert.NotPanics(t, func() { sortOrders(&empty, false, func(a, b Detail) int { return cmp.Compare(a.Price, b.Price) }) },
+		"sortOrders should accept an empty slice")
 }

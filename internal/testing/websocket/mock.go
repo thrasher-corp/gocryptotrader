@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -11,6 +12,16 @@ import (
 )
 
 var upgrader = websocket.Upgrader{CheckOrigin: func(_ *http.Request) bool { return true }}
+
+// NewTestServer returns an in-memory test server and a dialer that reaches it. The server listens on
+// no network interface, so a websocket can only be dialled through its client transport's DialContext
+func NewTestServer(tb testing.TB, h http.Handler) (*httptest.Server, *websocket.Dialer) {
+	tb.Helper()
+	s := httptest.NewTestServer(tb, h)
+	tr, ok := s.Client().Transport.(*http.Transport)
+	require.True(tb, ok, "test server client transport must be an *http.Transport")
+	return s, &websocket.Dialer{NetDialContext: tr.DialContext}
+}
 
 // WsMockFunc is a websocket handler to be called with each websocket message
 type WsMockFunc func(testing.TB, []byte, *websocket.Conn) error

@@ -1,5 +1,6 @@
 {{define "communications slack" -}}
 {{template "header" .}}
+
 ## Slack Communications package
 
 ### What is Slack?
@@ -11,13 +12,14 @@ app and share different types of data
 ### Current Features
 
 + Basic communication to your slack channel information includes:
-	- Working status of bot
+  + Working status of bot
 
 ### How to enable
 
-+ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-communications-via-config-example)
++ [Enable via configuration]({{.RepoRoot}}/config/README.md#enable-communications-via-config-example)
 
 + Individual package example below:
+
 ```go
 import (
 "github.com/thrasher-corp/gocryptotrader/communications/slack"
@@ -28,11 +30,11 @@ s := new(slack.Slack)
 
 // Define slack configuration
 commsConfig := config.CommunicationsConfig{SlackConfig: config.SlackConfig{
-	Name:              "Slack",
-	Enabled:           true,
-	Verbose:           false,
-	TargetChannel:     "targetChan",
-	VerificationToken: "slackGeneratedToken",
+    Name:              "Slack",
+    Enabled:           true,
+    Verbose:           false,
+    TargetChannel:     "targetChan",
+    VerificationToken: "slackGeneratedToken",
 }}
 
 s.Setup(commsConfig)
@@ -43,7 +45,7 @@ err := s.Connect
 Once the bot has started you can interact with the bot using these commands
 via Slack:
 
-```
+```text
 !status 		- Displays current working status of bot
 !help 			- Displays help text
 !settings		- Displays current settings

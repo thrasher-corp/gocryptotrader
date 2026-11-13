@@ -339,11 +339,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 						return err
 					}
 
-					return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+					tickPrice := &ticker.Price{
 						ExchangeName: e.Name,
 						Open:         t.OpenPrice,
 						Close:        t.ClosePrice,
-						Volume:       t.TotalTradedVolume,
+						BaseVolume:   t.TotalTradedVolume,
 						QuoteVolume:  t.TotalTradedQuoteVolume,
 						High:         t.HighPrice,
 						Low:          t.LowPrice,
@@ -353,7 +353,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 						LastUpdated:  t.EventTime.Time(),
 						AssetType:    asset.Spot,
 						Pair:         pair,
-					})
+					}
+					if err := ticker.ProcessTicker(tickPrice); err != nil {
+						return err
+					}
+					return e.Websocket.DataHandler.Send(ctx, tickPrice)
 				case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 					"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
 					var ks KlineStream
@@ -395,7 +399,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 							e.Name,
 							err)
 					}
-					init, err := e.UpdateLocalBuffer(&depth)
+					init, err := e.UpdateLocalBuffer(ctx, &depth)
 					if err != nil {
 						if init {
 							return nil
@@ -472,7 +476,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 }
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
-func (e *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
+func (e *Exchange) UpdateLocalBuffer(ctx context.Context, wsdp *WebsocketDepthStream) (bool, error) {
 	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return false, err
@@ -499,7 +503,7 @@ func (e *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 		return init, err
 	}
 
-	err = e.applyBufferUpdate(currencyPair)
+	err = e.applyBufferUpdate(ctx, currencyPair)
 	if err != nil {
 		e.invalidateAndCleanupOrderbook(currencyPair)
 	}
@@ -634,8 +638,8 @@ func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 }
 
 // ProcessOrderbookUpdate processes the websocket orderbook update
-func (e *Exchange) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, wsDSUpdate *WebsocketDepthStream) error {
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
+func (e *Exchange) ProcessOrderbookUpdate(ctx context.Context, cp currency.Pair, a asset.Item, wsDSUpdate *WebsocketDepthStream) error {
+	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		Bids:       wsDSUpdate.UpdateBids.Levels(),
 		Asks:       wsDSUpdate.UpdateAsks.Levels(),
 		Pair:       cp,
@@ -672,7 +676,7 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
 
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
-func (e *Exchange) applyBufferUpdate(pair currency.Pair) error {
+func (e *Exchange) applyBufferUpdate(ctx context.Context, pair currency.Pair) error {
 	fetching, needsFetching, err := e.obm.handleFetchingBook(pair)
 	if err != nil {
 		return err
@@ -697,7 +701,7 @@ func (e *Exchange) applyBufferUpdate(pair currency.Pair) error {
 	}
 
 	if recent != nil {
-		err = e.obm.checkAndProcessOrderbookUpdate(e.ProcessOrderbookUpdate, pair, recent)
+		err = e.obm.checkAndProcessOrderbookUpdate(ctx, e.ProcessOrderbookUpdate, pair, recent)
 		if err != nil {
 			log.Errorf(
 				log.WebsocketMgr,
@@ -748,7 +752,7 @@ func (e *Exchange) processJob(ctx context.Context, p currency.Pair) error {
 
 	// Immediately apply the buffer updates so we don't wait for a
 	// new update to initiate this.
-	err = e.applyBufferUpdate(p)
+	err = e.applyBufferUpdate(ctx, p)
 	if err != nil {
 		e.invalidateAndCleanupOrderbook(p)
 		return err
@@ -762,12 +766,12 @@ func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 	if err != nil {
 		return err
 	}
-	return e.SeedLocalCacheWithBook(p, ob)
+	return e.SeedLocalCacheWithBook(ctx, p, ob)
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
-	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+func (e *Exchange) SeedLocalCacheWithBook(ctx context.Context, p currency.Pair, orderbookNew *OrderBook) error {
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 		Pair:              p,
 		Asset:             asset.Spot,
 		Exchange:          e.Name,
@@ -928,7 +932,7 @@ func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
 	return nil
 }
 
-func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Book) error {
+func (o *orderbookManager) checkAndProcessOrderbookUpdate(ctx context.Context, processor func(context.Context, currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Book) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
@@ -948,7 +952,7 @@ buffer:
 				return err
 			}
 			if process {
-				err := processor(pair, asset.Spot, d)
+				err := processor(ctx, pair, asset.Spot, d)
 				if err != nil {
 					return fmt.Errorf("%s %s processing update error: %w",
 						pair, asset.Spot, err)

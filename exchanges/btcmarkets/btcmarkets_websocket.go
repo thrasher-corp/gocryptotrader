@@ -121,7 +121,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		}
 
 		if ob.Snapshot {
-			err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			err = e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 				Pair:              ob.Currency,
 				Bids:              orderbook.Levels(ob.Bids),
 				Asks:              orderbook.Levels(ob.Asks),
@@ -132,7 +132,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				ValidateOrderbook: e.ValidateOrderbook,
 			})
 		} else {
-			err = e.Websocket.Orderbook.Update(&orderbook.Update{
+			err = e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 				UpdateTime:                 ob.Timestamp,
 				UpdateID:                   ob.SnapshotID,
 				Asset:                      asset.Spot,
@@ -203,18 +203,22 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 
-		return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		tickPrice := &ticker.Price{
 			ExchangeName: e.Name,
-			Volume:       tick.Volume,
+			BaseVolume:   tick.Volume,
 			High:         tick.High24,
-			Low:          tick.Low24h,
+			Low:          tick.Low24Hour,
 			Bid:          tick.Bid,
 			Ask:          tick.Ask,
 			Last:         tick.Last,
 			LastUpdated:  tick.Timestamp,
 			AssetType:    asset.Spot,
 			Pair:         tick.MarketID,
-		})
+		}
+		if err := ticker.ProcessTicker(tickPrice); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, tickPrice)
 	case fundChange:
 		var transferData WsFundTransfer
 		err := json.Unmarshal(respRaw, &transferData)

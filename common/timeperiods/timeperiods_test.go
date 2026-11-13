@@ -82,6 +82,27 @@ func TestFindTimeRangesContainingData(t *testing.T) {
 	assert.Len(t, ranges, 6, "ranges should have 6 time ranges")
 }
 
+func TestFindTimeRangesContainingDataOrderedRanges(t *testing.T) {
+	start := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	ranges, err := FindTimeRangesContainingData(
+		start,
+		start.Add(5*time.Minute),
+		time.Minute,
+		[]time.Time{
+			start.Add(3*time.Minute + 30*time.Second),
+			start.Add(30 * time.Second),
+		},
+	)
+	require.NoError(t, err, "FindTimeRangesContainingData must not error")
+	expected := []TimeRange{
+		{StartOfRange: start, EndOfRange: start.Add(time.Minute), HasDataInRange: true},
+		{StartOfRange: start.Add(time.Minute), EndOfRange: start.Add(3 * time.Minute)},
+		{StartOfRange: start.Add(3 * time.Minute), EndOfRange: start.Add(4 * time.Minute), HasDataInRange: true},
+		{StartOfRange: start.Add(4 * time.Minute), EndOfRange: start.Add(5 * time.Minute)},
+	}
+	assert.Equal(t, expected, ranges, "FindTimeRangesContainingData should return correctly ordered ranges")
+}
+
 func TestCalculateTimePeriodsInRange(t *testing.T) {
 	// validation issues
 	_, err := CalculateTimePeriodsInRange(time.Time{}, time.Time{}, 0)
@@ -139,6 +160,147 @@ func TestValidateCalculatePeriods(t *testing.T) {
 	if len(tpc.TimePeriods) > 0 {
 		t.Error("validation has been removed")
 	}
+}
+
+func TestSetTimePeriodExists(t *testing.T) {
+	start := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	testCalculator := TimePeriodCalculator{
+		start:          start,
+		end:            start.Add(4 * time.Minute),
+		periodDuration: time.Minute,
+		comparisonTimes: []time.Time{
+			start.Add(-time.Minute),
+			start.Add(30 * time.Second),
+			start.Add(45 * time.Second),
+			start.Add(2*time.Minute + 30*time.Second).In(time.FixedZone("comparison", 10*60*60)),
+			start.Add(4 * time.Minute),
+			start.Add(5 * time.Minute),
+		},
+	}
+	testCalculator.setTimePeriodExists()
+	assert.Equal(t, []TimePeriod{
+		{Time: start, dataInRange: true},
+		{Time: start.Add(time.Minute)},
+		{Time: start.Add(2 * time.Minute), dataInRange: true},
+		{Time: start.Add(3 * time.Minute)},
+	}, testCalculator.TimePeriods, "setTimePeriodExists should match comparison times to the correct periods")
+
+	emptyCalculator := TimePeriodCalculator{
+		start:          start,
+		end:            start.Add(2 * time.Minute),
+		periodDuration: time.Minute,
+	}
+	emptyCalculator.setTimePeriodExists()
+	assert.Equal(t, []TimePeriod{{Time: start}, {Time: start.Add(time.Minute)}}, emptyCalculator.TimePeriods, "setTimePeriodExists should leave periods unmatched without comparison times")
+
+	zeroRangeCalculator := TimePeriodCalculator{
+		start:           start,
+		end:             start,
+		periodDuration:  time.Minute,
+		comparisonTimes: []time.Time{start},
+	}
+	zeroRangeCalculator.setTimePeriodExists()
+	assert.Empty(t, zeroRangeCalculator.TimePeriods, "setTimePeriodExists should leave a zero-length range empty")
+
+	reversedRangeCalculator := TimePeriodCalculator{
+		start:           start.Add(time.Minute),
+		end:             start,
+		periodDuration:  time.Minute,
+		comparisonTimes: []time.Time{start},
+	}
+	reversedRangeCalculator.setTimePeriodExists()
+	assert.Empty(t, reversedRangeCalculator.TimePeriods, "setTimePeriodExists should leave a reversed range empty")
+
+	longRangeStart := time.Date(1700, time.January, 1, 0, 0, 0, 0, time.UTC)
+	longRangeEnd := longRangeStart.AddDate(400, 0, 0)
+	longRangeCalculator := TimePeriodCalculator{
+		start:           longRangeStart,
+		end:             longRangeEnd,
+		periodDuration:  24 * time.Hour,
+		comparisonTimes: []time.Time{longRangeEnd.Add(-time.Hour)},
+	}
+	longRangeCalculator.setTimePeriodExists()
+	matchedPeriods := 0
+	for i := range longRangeCalculator.TimePeriods {
+		if longRangeCalculator.TimePeriods[i].dataInRange {
+			matchedPeriods++
+		}
+	}
+	assert.Equal(t, 1, matchedPeriods, "setTimePeriodExists should match one period across a multi-century range")
+	require.NotEmpty(t, longRangeCalculator.TimePeriods, "setTimePeriodExists must calculate periods across a multi-century range")
+	assert.True(t, longRangeCalculator.TimePeriods[len(longRangeCalculator.TimePeriods)-1].dataInRange, "setTimePeriodExists should match the final period across a multi-century range")
+
+	zeroStartCalculator := TimePeriodCalculator{
+		start:           time.Time{},
+		end:             time.Time{}.Add(time.Minute),
+		periodDuration:  time.Minute,
+		comparisonTimes: []time.Time{time.Time{}.Add(30 * time.Second)},
+	}
+	zeroStartCalculator.setTimePeriodExists()
+	assert.Empty(t, zeroStartCalculator.TimePeriods, "setTimePeriodExists should leave a zero-start range empty")
+
+	truncatedZeroStart := time.Time{}.Add(30 * time.Second)
+	ranges, err := FindTimeRangesContainingData(truncatedZeroStart, truncatedZeroStart.Add(time.Minute), time.Minute, []time.Time{truncatedZeroStart})
+	require.NoError(t, err, "FindTimeRangesContainingData must not error when start truncates to zero")
+	assert.Empty(t, ranges, "FindTimeRangesContainingData should leave a range empty when start truncates to zero")
+}
+
+func TestSetTimePeriodExistsSupportedPeriods(t *testing.T) {
+	start := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	secondCalculator := TimePeriodCalculator{
+		start:           start,
+		end:             start.Add(2 * time.Second),
+		periodDuration:  time.Second,
+		comparisonTimes: []time.Time{start},
+	}
+	secondCalculator.setTimePeriodExists()
+	assert.Equal(t, []TimePeriod{{Time: start, dataInRange: true}, {Time: start.Add(time.Second)}}, secondCalculator.TimePeriods, "setTimePeriodExists should match an exact start with a second period")
+
+	hourCalculator := TimePeriodCalculator{
+		start:           start,
+		end:             start.Add(3 * time.Hour),
+		periodDuration:  time.Hour,
+		comparisonTimes: []time.Time{start.Add(90 * time.Minute)},
+	}
+	hourCalculator.setTimePeriodExists()
+	assert.Equal(t, []TimePeriod{{Time: start}, {Time: start.Add(time.Hour), dataInRange: true}, {Time: start.Add(2 * time.Hour)}}, hourCalculator.TimePeriods, "setTimePeriodExists should match the correct hour period")
+}
+
+func TestSetTimePeriodExistsReuse(t *testing.T) {
+	start := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	calculator := TimePeriodCalculator{
+		start:           start,
+		end:             start.Add(2 * time.Minute),
+		periodDuration:  time.Minute,
+		comparisonTimes: []time.Time{start},
+	}
+	calculator.setTimePeriodExists()
+	calculator.comparisonTimes = []time.Time{start.Add(time.Minute)}
+	calculator.setTimePeriodExists()
+	assert.Equal(t, []TimePeriod{
+		{Time: start, dataInRange: true},
+		{Time: start.Add(time.Minute), dataInRange: true},
+		{Time: start},
+		{Time: start.Add(time.Minute), dataInRange: true},
+	}, calculator.TimePeriods, "setTimePeriodExists should preserve matches when reused")
+}
+
+func TestSetTimePeriodExistsReuseWithoutNewPeriods(t *testing.T) {
+	start := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	calculator := TimePeriodCalculator{
+		start:          start,
+		end:            start.Add(2 * time.Minute),
+		periodDuration: time.Minute,
+	}
+	calculator.setTimePeriodExists()
+	calculator.start = calculator.end
+	calculator.comparisonTimes = []time.Time{start.Add(time.Minute)}
+	calculator.setTimePeriodExists()
+	expected := []TimePeriod{
+		{Time: start},
+		{Time: start.Add(time.Minute), dataInRange: true},
+	}
+	assert.Equal(t, expected, calculator.TimePeriods, "setTimePeriodExists should match existing periods without calculating new periods")
 }
 
 func TestSort(t *testing.T) {

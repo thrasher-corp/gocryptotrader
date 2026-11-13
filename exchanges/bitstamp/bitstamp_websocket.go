@@ -116,7 +116,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	case "subscription_succeeded", "unsubscription_succeeded":
 		return e.handleWSSubscription(event, respRaw)
 	case "data":
-		return e.handleWSOrderbook(respRaw)
+		return e.handleWSOrderbook(ctx, respRaw)
 	case "trade":
 		return e.handleWSTrade(respRaw)
 	case "order_created", "order_deleted", "order_changed":
@@ -290,7 +290,7 @@ func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, op st
 	return errs
 }
 
-func (e *Exchange) handleWSOrderbook(msg []byte) error {
+func (e *Exchange) handleWSOrderbook(ctx context.Context, msg []byte) error {
 	_, p, err := e.parseChannelName(msg)
 	if err != nil {
 		return err
@@ -311,7 +311,7 @@ func (e *Exchange) handleWSOrderbook(msg []byte) error {
 		ValidateOrderbook: e.ValidateOrderbook,
 	}
 	filterOrderbookZeroBidPrice(obUpdate)
-	return e.Websocket.Orderbook.LoadSnapshot(obUpdate)
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, obUpdate)
 }
 
 func (e *Exchange) seedOrderBook(ctx context.Context) error {
@@ -355,7 +355,7 @@ func (e *Exchange) seedOrderBook(ctx context.Context) error {
 
 		filterOrderbookZeroBidPrice(newOrderBook)
 
-		err = e.Websocket.Orderbook.LoadSnapshot(newOrderBook)
+		err = e.Websocket.Orderbook.LoadSnapshot(ctx, newOrderBook)
 		if err != nil {
 			return err
 		}

@@ -3,8 +3,8 @@ package engine
 import (
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -32,7 +32,7 @@ func TestAddRun(t *testing.T) {
 	err = rm.AddTask(bt)
 	assert.NoError(t, err)
 
-	if bt.MetaData.ID.IsNil() {
+	if bt.MetaData.ID == uuid.Nil() {
 		t.Errorf("received '%v' expected '%v'", bt.MetaData.ID, "a random ID")
 	}
 	if len(rm.tasks) != 1 {
@@ -54,10 +54,9 @@ func TestAddRun(t *testing.T) {
 func TestGetSummary(t *testing.T) {
 	t.Parallel()
 	rm := NewTaskManager()
-	id, err := uuid.NewV4()
-	assert.NoError(t, err)
+	id := uuid.NewV4()
 
-	_, err = rm.GetSummary(id)
+	_, err := rm.GetSummary(id)
 	assert.ErrorIs(t, err, errTaskNotFound)
 
 	bt := &BackTest{
@@ -118,8 +117,7 @@ func TestStopRun(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", len(list), 0)
 	}
 
-	id, err := uuid.NewV4()
-	assert.NoError(t, err)
+	id := uuid.NewV4()
 
 	err = rm.StopTask(id)
 	assert.ErrorIs(t, err, errTaskNotFound)
@@ -200,9 +198,8 @@ func TestStartRun(t *testing.T) {
 	t.Run("task not found", func(t *testing.T) {
 		t.Parallel()
 		rm := NewTaskManager()
-		id, err := uuid.NewV4()
-		require.NoError(t, err)
-		err = rm.StartTask(id)
+		id := uuid.NewV4()
+		err := rm.StartTask(id)
 		assert.ErrorIs(t, err, errTaskNotFound)
 	})
 
@@ -247,10 +244,9 @@ func TestStartRun(t *testing.T) {
 
 	t.Run("nil manager", func(t *testing.T) {
 		t.Parallel()
-		id, err := uuid.NewV4()
-		require.NoError(t, err)
+		id := uuid.NewV4()
 		var rm *TaskManager
-		err = rm.StartTask(id)
+		err := rm.StartTask(id)
 		assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 	})
 }
@@ -291,10 +287,9 @@ func TestClearRun(t *testing.T) {
 	t.Parallel()
 	rm := NewTaskManager()
 
-	id, err := uuid.NewV4()
-	assert.NoError(t, err)
+	id := uuid.NewV4()
 
-	err = rm.ClearTask(id)
+	err := rm.ClearTask(id)
 	assert.ErrorIs(t, err, errTaskNotFound)
 
 	bt := &BackTest{

@@ -83,7 +83,6 @@ func (p *CommunicationProvider) SetServiceStarted(t time.Time) {
 }
 
 func TestSetup(t *testing.T) {
-	var ic IComm
 	testConfigs := []struct {
 		isEnabled           bool
 		isConnected         bool
@@ -95,6 +94,7 @@ func TestSetup(t *testing.T) {
 		{true, true, false, nil},
 		{true, false, true, nil},
 	}
+	ic := make(IComm, 0, len(testConfigs))
 	for _, config := range testConfigs {
 		config.provider = &CommunicationProvider{
 			isEnabled:   config.isEnabled,
@@ -118,7 +118,6 @@ func TestSetup(t *testing.T) {
 }
 
 func TestPushEvent(t *testing.T) {
-	var ic IComm
 	testConfigs := []struct {
 		Enabled         bool
 		Connected       bool
@@ -130,6 +129,7 @@ func TestPushEvent(t *testing.T) {
 		{true, false, false, nil},
 		{true, true, true, nil},
 	}
+	ic := make(IComm, 0, len(testConfigs))
 	for _, config := range testConfigs {
 		config.provider = &CommunicationProvider{
 			isEnabled:   config.Enabled,

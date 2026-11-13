@@ -3,11 +3,10 @@ package funding
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -22,6 +21,7 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // SetupFundingManager creates the funding holder. It carries knowledge about levels of funding
@@ -333,25 +333,24 @@ func (f *FundManager) GenerateReport() (*Report, error) {
 		}
 
 		// create a breakdown of USD values and currency contributions over the span of run
-		var pricingOverTime []ItemSnapshot
-	snaps:
-		for _, snapshot := range f.items[x].snapshot {
+		pricingOverTime := make([]ItemSnapshot, 0, len(f.items[x].snapshot))
+		// keyed rather than ranged by value, as gocritic reads the 144 byte ItemSnapshot udecimal
+		// builds with as too large to copy per iteration
+		for ts := range f.items[x].snapshot {
+			snapshot := f.items[x].snapshot[ts]
 			pricingOverTime = append(pricingOverTime, snapshot)
 			if f.items[x].asset.IsFutures() || f.disableUSDTracking {
 				// futures contracts / collateral does not contribute to USD value
 				// no USD tracking means no USD values to breakdown
 				continue
 			}
-			for y := range report.USDTotalsOverTime {
-				if !report.USDTotalsOverTime[y].Time.Equal(snapshot.Time) {
-					continue
-				}
+			if y := slices.IndexFunc(report.USDTotalsOverTime, func(s ItemSnapshot) bool { return s.Time.Equal(snapshot.Time) }); y >= 0 {
 				report.USDTotalsOverTime[y].USDValue = report.USDTotalsOverTime[y].USDValue.Add(snapshot.USDValue)
 				report.USDTotalsOverTime[y].Breakdown = append(report.USDTotalsOverTime[y].Breakdown, CurrencyContribution{
 					Currency:        f.items[x].currency,
 					USDContribution: snapshot.USDValue,
 				})
-				continue snaps
+				continue
 			}
 			report.USDTotalsOverTime = append(report.USDTotalsOverTime, ItemSnapshot{
 				Time:     snapshot.Time,
@@ -365,9 +364,7 @@ func (f *FundManager) GenerateReport() (*Report, error) {
 			})
 		}
 
-		sort.Slice(pricingOverTime, func(i, j int) bool {
-			return pricingOverTime[i].Time.Before(pricingOverTime[j].Time)
-		})
+		slices.SortFunc(pricingOverTime, func(a, b ItemSnapshot) int { return a.Time.Compare(b.Time) })
 		item.Snapshots = pricingOverTime
 
 		if f.items[x].initialFunds.IsZero() {
@@ -384,9 +381,7 @@ func (f *FundManager) GenerateReport() (*Report, error) {
 	}
 
 	if len(report.USDTotalsOverTime) > 0 {
-		sort.Slice(report.USDTotalsOverTime, func(i, j int) bool {
-			return report.USDTotalsOverTime[i].Time.Before(report.USDTotalsOverTime[j].Time)
-		})
+		slices.SortFunc(report.USDTotalsOverTime, func(a, b ItemSnapshot) int { return a.Time.Compare(b.Time) })
 		report.FinalFunds = report.USDTotalsOverTime[len(report.USDTotalsOverTime)-1].USDValue
 	}
 
@@ -804,7 +799,7 @@ func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *acco
 	}
 
 	exchName = strings.ToLower(exchName)
-	amount := decimal.NewFromFloat(balance.Total)
+	amount := decimal.MustFromFloat(balance.Total)
 	for i := range f.items {
 		if f.items[i].asset.IsFutures() {
 			continue

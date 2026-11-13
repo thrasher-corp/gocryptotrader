@@ -3,6 +3,8 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -67,11 +69,7 @@ func (m *ExchangeManager) GetExchanges() ([]exchange.IBotExchange, error) {
 	}
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	exchs := make([]exchange.IBotExchange, 0, len(m.exchanges))
-	for _, exch := range m.exchanges {
-		exchs = append(exchs, exch)
-	}
-	return exchs, nil
+	return slices.AppendSeq(make([]exchange.IBotExchange, 0, len(m.exchanges)), maps.Values(m.exchanges)), nil
 }
 
 // RemoveExchange removes an exchange from the manager
@@ -146,25 +144,44 @@ func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 	}
 
 	type shutdownResult struct {
-		name string
-		key  string
-		err  error
+		name     string
+		key      string
+		err      error
+		duration time.Duration
+	}
+
+	type pendingShutdown struct {
+		name      string
+		key       string
+		startedAt time.Time
 	}
 
 	m.mtx.Lock()
-	exchanges := make([]exchange.IBotExchange, 0, len(m.exchanges))
-	for _, exch := range m.exchanges {
-		exchanges = append(exchanges, exch)
-	}
+	exchanges := slices.AppendSeq(make([]exchange.IBotExchange, 0, len(m.exchanges)), maps.Values(m.exchanges))
 	m.mtx.Unlock()
 
 	results := make(chan shutdownResult, len(exchanges))
 	abort := make(chan struct{})
 
+	pending := make(map[string]pendingShutdown, len(exchanges))
+	for _, exch := range exchanges {
+		name := exch.GetName()
+		key := strings.ToLower(name)
+		pending[key] = pendingShutdown{name: name, key: key, startedAt: time.Now()}
+	}
+
 	var wg sync.WaitGroup
 	for _, exch := range exchanges {
+		name := exch.GetName()
+		key := strings.ToLower(name)
 		wg.Go(func() {
-			result := shutdownResult{name: exch.GetName(), key: strings.ToLower(exch.GetName()), err: exch.Shutdown()}
+			startedAt := time.Now()
+			result := shutdownResult{
+				name:     name,
+				key:      key,
+				err:      exch.Shutdown(),
+				duration: time.Since(startedAt),
+			}
 			select {
 			case results <- result:
 			case <-abort:
@@ -179,13 +196,17 @@ func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 	}()
 
 	applyResult := func(res shutdownResult) {
-		m.mtx.Lock()
-		defer m.mtx.Unlock()
+		delete(pending, res.key)
+
 		if res.err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to shutdown %v.\n", res.name, res.err)
+			log.Errorf(log.ExchangeSys, "%s failed to shutdown after %s: %v", res.name, res.duration, res.err)
 			return
 		}
+
+		log.Debugf(log.ExchangeSys, "%s shutdown completed in %s", res.name, res.duration)
+		m.mtx.Lock()
 		delete(m.exchanges, res.key)
+		m.mtx.Unlock()
 	}
 
 	timer := time.NewTimer(shutdownTimeout)
@@ -205,22 +226,18 @@ func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 			}
 		}
 
-		m.mtx.Lock()
-		for name := range m.exchanges {
-			log.Warnf(log.ExchangeSys, "%s has failed to shutdown within %s, please review.\n", name, shutdownTimeout)
+		// Longest running shutdowns first
+		stillShuttingDown := slices.SortedFunc(maps.Values(pending), func(a, b pendingShutdown) int { return a.startedAt.Compare(b.startedAt) })
+
+		for _, p := range stillShuttingDown {
+			elapsed := time.Since(p.startedAt)
+			log.Warnf(log.ExchangeSys, "%s has failed to shutdown within %s (elapsed: %s), please review.", p.name, shutdownTimeout, elapsed)
 		}
-		m.mtx.Unlock()
 	case <-done:
 		close(results)
 		for res := range results {
 			applyResult(res)
 		}
-
-		m.mtx.Lock()
-		for name := range m.exchanges {
-			log.Errorf(log.ExchangeSys, "%s has failed to shutdown due to error, please review.\n", name)
-		}
-		m.mtx.Unlock()
 	}
 	return nil
 }

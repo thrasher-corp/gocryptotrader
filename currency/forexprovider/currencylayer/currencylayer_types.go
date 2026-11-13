@@ -3,6 +3,7 @@ package currencylayer
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // const declarations consist of endpoints and APIKey privileges
@@ -31,7 +32,7 @@ type CurrencyLayer struct {
 
 // Error Defines the response error if an error occurred
 type Error struct {
-	Code int    `json:"code"`
+	Code uint64 `json:"code"`
 	Type string `json:"type"`
 	Info string `json:"info"`
 }
@@ -42,7 +43,7 @@ type LiveRates struct {
 	Error     Error              `json:"error"`
 	Terms     string             `json:"terms"`
 	Privacy   string             `json:"privacy"`
-	Timestamp int64              `json:"timestamp"`
+	Timestamp types.Time         `json:"timestamp"`
 	Source    string             `json:"source"`
 	Quotes    map[string]float64 `json:"quotes"`
 }

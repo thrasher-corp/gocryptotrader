@@ -34,8 +34,8 @@ const (
 )
 
 var (
-	createdCounter         int64
-	removedCounter         int64
+	createdCounter         atomic.Int64
+	removedCounter         atomic.Int64
 	errNoSyncItemsEnabled  = errors.New("no sync items enabled")
 	errUnknownSyncItem     = errors.New("unknown sync item")
 	errCouldNotSyncNewData = errors.New("could not sync new data")
@@ -105,15 +105,15 @@ func SetupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeMana
 
 // IsRunning safely checks whether the subsystem is running
 func (m *SyncManager) IsRunning() bool {
-	return m != nil && atomic.LoadInt32(&m.started) == 1
+	return m != nil && m.started.Load()
 }
 
 // Start runs the subsystem
-func (m *SyncManager) Start() error {
+func (m *SyncManager) Start(ctx context.Context) error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+	if !m.started.CompareAndSwap(false, true) {
 		return ErrSubSystemAlreadyStarted
 	}
 	if !m.config.SynchronizeTicker &&
@@ -192,22 +192,22 @@ func (m *SyncManager) Start() error {
 		}
 	}
 
-	if atomic.CompareAndSwapInt32(&m.initSyncStarted, 0, 1) {
+	if m.initSyncStarted.CompareAndSwap(false, true) {
 		if m.config.LogInitialSyncEvents {
 			log.Debugf(log.SyncMgr,
 				"Exchange CurrencyPairSyncer initial sync started. %d items to process.",
-				atomic.LoadInt64(&createdCounter))
+				createdCounter.Load())
 		}
 		m.initSyncStartTime = time.Now()
 	}
 
 	go func() {
 		m.initSyncWG.Wait()
-		if atomic.CompareAndSwapInt32(&m.initSyncCompleted, 0, 1) {
+		if m.initSyncCompleted.CompareAndSwap(false, true) {
 			if m.config.LogInitialSyncEvents {
 				log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync is complete.")
 				log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync took %v [%v sync items].",
-					time.Since(m.initSyncStartTime), atomic.LoadInt64(&createdCounter))
+					time.Since(m.initSyncStartTime), createdCounter.Load())
 			}
 
 			if !m.config.SynchronizeContinuously {
@@ -221,12 +221,12 @@ func (m *SyncManager) Start() error {
 		}
 	}()
 
-	if atomic.LoadInt32(&m.initSyncCompleted) == 1 && !m.config.SynchronizeContinuously {
+	if m.initSyncCompleted.Load() && !m.config.SynchronizeContinuously {
 		return nil
 	}
 
 	for range m.config.NumWorkers {
-		go m.worker()
+		go m.worker(ctx)
 	}
 	m.initSyncWG.Done()
 	return nil
@@ -237,7 +237,7 @@ func (m *SyncManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
+	if !m.started.CompareAndSwap(true, false) {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrSubSystemNotStarted)
 	}
 	close(m.shutdown)
@@ -293,9 +293,9 @@ func (m *SyncManager) add(k key.ExchangeAssetPair, s syncBase) *currencyPairSync
 				c.trackers[SyncItemTicker].IsUsingWebsocket,
 				c.trackers[SyncItemTicker].IsUsingREST)
 		}
-		if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
+		if !m.initSyncCompleted.Load() {
 			m.initSyncWG.Add(1)
-			atomic.AddInt64(&createdCounter, 1)
+			createdCounter.Add(1)
 		}
 	}
 
@@ -308,9 +308,9 @@ func (m *SyncManager) add(k key.ExchangeAssetPair, s syncBase) *currencyPairSync
 				c.trackers[SyncItemOrderbook].IsUsingWebsocket,
 				c.trackers[SyncItemOrderbook].IsUsingREST)
 		}
-		if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
+		if !m.initSyncCompleted.Load() {
 			m.initSyncWG.Add(1)
-			atomic.AddInt64(&createdCounter, 1)
+			createdCounter.Add(1)
 		}
 	}
 
@@ -323,9 +323,9 @@ func (m *SyncManager) add(k key.ExchangeAssetPair, s syncBase) *currencyPairSync
 				c.trackers[SyncItemTrade].IsUsingWebsocket,
 				c.trackers[SyncItemTrade].IsUsingREST)
 		}
-		if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
+		if !m.initSyncCompleted.Load() {
 			m.initSyncWG.Add(1)
-			atomic.AddInt64(&createdCounter, 1)
+			createdCounter.Add(1)
 		}
 	}
 
@@ -344,10 +344,10 @@ func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrSubSystemNotStarted)
 	}
-	if atomic.LoadInt32(&m.initSyncStarted) != 1 {
+	if !m.initSyncStarted.Load() {
 		return nil
 	}
 
@@ -419,15 +419,15 @@ func (m *SyncManager) update(c *currencyPairSyncAgent, syncType syncItemType, er
 		s.NumErrors++
 	}
 	s.HaveData = true
-	if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
-		removedCount := atomic.AddInt64(&removedCounter, 1)
+	if !m.initSyncCompleted.Load() && !origHadData {
+		removedCount := removedCounter.Add(1)
 		if m.config.LogInitialSyncEvents {
 			log.Debugf(log.SyncMgr, "%s %s sync complete %v [%d/%d].",
 				c.Key.Exchange,
 				syncType,
 				m.FormatCurrency(c.Pair),
 				removedCount,
-				atomic.LoadInt64(&createdCounter))
+				createdCounter.Load())
 		}
 		m.initSyncWG.Done()
 	}
@@ -435,7 +435,7 @@ func (m *SyncManager) update(c *currencyPairSyncAgent, syncType syncItemType, er
 	return nil
 }
 
-func (m *SyncManager) worker() {
+func (m *SyncManager) worker(ctx context.Context) {
 	cleanup := func() {
 		log.Debugln(log.SyncMgr,
 			"Exchange CurrencyPairSyncer worker shutting down.")
@@ -492,7 +492,7 @@ func (m *SyncManager) worker() {
 						continue
 					}
 					for i := range enabledPairs {
-						if atomic.LoadInt32(&m.started) == 0 {
+						if !m.started.Load() {
 							return
 						}
 
@@ -506,10 +506,10 @@ func (m *SyncManager) worker() {
 						}
 
 						if m.config.SynchronizeTicker {
-							m.syncTicker(c, e)
+							m.syncTicker(ctx, c, e)
 						}
 						if m.config.SynchronizeOrderbook {
-							m.syncOrderbook(c, e)
+							m.syncOrderbook(ctx, c, e)
 						}
 						if m.config.SynchronizeTrades {
 							m.syncTrades(c)
@@ -521,7 +521,7 @@ func (m *SyncManager) worker() {
 	}
 }
 
-func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchange) {
+func (m *SyncManager) syncTicker(ctx context.Context, c *currencyPairSyncAgent, e exchange.IBotExchange) {
 	if !c.locks[SyncItemTicker].TryLock() {
 		return
 	}
@@ -572,7 +572,7 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 				if m.config.Verbose {
 					log.Debugf(log.SyncMgr, "Initialising %s REST ticker batching", exchangeName)
 				}
-				err = e.UpdateTickers(context.TODO(), c.Key.Asset)
+				err = e.UpdateTickers(ctx, c.Key.Asset)
 				if err == nil {
 					result, err = e.GetCachedTicker(c.Pair, c.Key.Asset)
 				}
@@ -588,7 +588,7 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 				result, err = e.GetCachedTicker(c.Pair, c.Key.Asset)
 			}
 		} else {
-			result, err = e.UpdateTicker(context.TODO(),
+			result, err = e.UpdateTicker(ctx,
 				c.Pair,
 				c.Key.Asset)
 		}
@@ -600,7 +600,7 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 	}
 }
 
-func (m *SyncManager) syncOrderbook(c *currencyPairSyncAgent, e exchange.IBotExchange) {
+func (m *SyncManager) syncOrderbook(ctx context.Context, c *currencyPairSyncAgent, e exchange.IBotExchange) {
 	if !c.locks[SyncItemOrderbook].TryLock() {
 		return
 	}
@@ -633,7 +633,7 @@ func (m *SyncManager) syncOrderbook(c *currencyPairSyncAgent, e exchange.IBotExc
 	}
 
 	if s.IsUsingREST && time.Since(s.LastUpdated) > m.config.TimeoutREST {
-		result, err := e.UpdateOrderbook(context.TODO(),
+		result, err := e.UpdateOrderbook(ctx,
 			c.Pair,
 			c.Key.Asset)
 		m.PrintOrderbookSummary(result, "REST", err)
@@ -703,7 +703,7 @@ func printConvertCurrencyFormat(origPrice float64, origCurrency, displayCurrency
 
 // PrintTickerSummary outputs the ticker results
 func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, err error) {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || !m.started.Load() {
 		return
 	}
 	if !m.config.SynchronizeTicker {
@@ -723,7 +723,7 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 	}
 
 	// ignoring error as not all tickers have volume populated and error is not actionable
-	_ = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
+	_ = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.BaseVolume)
 	if !m.config.LogSyncUpdateEvents {
 		return
 	}
@@ -743,7 +743,7 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 			printConvertCurrencyFormat(result.Bid, origCurrency, m.fiatDisplayCurrency),
 			printConvertCurrencyFormat(result.High, origCurrency, m.fiatDisplayCurrency),
 			printConvertCurrencyFormat(result.Low, origCurrency, m.fiatDisplayCurrency),
-			result.Volume)
+			result.BaseVolume)
 	} else {
 		if result.Pair.Quote.IsFiatCurrency() &&
 			result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
@@ -758,7 +758,7 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 				printCurrencyFormat(result.Bid, m.fiatDisplayCurrency),
 				printCurrencyFormat(result.High, m.fiatDisplayCurrency),
 				printCurrencyFormat(result.Low, m.fiatDisplayCurrency),
-				result.Volume)
+				result.BaseVolume)
 		} else {
 			log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f",
 				result.ExchangeName,
@@ -770,7 +770,7 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 				result.Bid,
 				result.High,
 				result.Low,
-				result.Volume)
+				result.BaseVolume)
 		}
 	}
 }
@@ -778,7 +778,7 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
 func (m *SyncManager) FormatCurrency(cp currency.Pair) string {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || !m.started.Load() {
 		return ""
 	}
 	return m.format.Format(cp)
@@ -790,7 +790,7 @@ const (
 
 // PrintOrderbookSummary outputs orderbook results
 func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Book, protocol string, err error) {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || !m.started.Load() {
 		return
 	}
 	if !m.config.SynchronizeOrderbook {
@@ -869,7 +869,7 @@ func (m *SyncManager) WaitForInitialSync() error {
 	}
 
 	m.inService.Wait()
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return fmt.Errorf("sync manager %w", ErrSubSystemNotStarted)
 	}
 

@@ -2,9 +2,8 @@ package engine
 
 import (
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -23,11 +22,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // Overriding functions
 // these are designed to override interface implementations
-// so there is less requirement gathering per test as the functions are
+// so there are fewer requirements to gather per test as the functions are
 // tested in their own package
 
 type fakeFolio struct{}

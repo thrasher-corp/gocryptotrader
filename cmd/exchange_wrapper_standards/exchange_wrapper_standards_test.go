@@ -249,7 +249,7 @@ func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues [
 				case methodValues[j].Type().Implements(contextParam):
 					// Errorf will use reflection on ctx and cause a race, so we need to replace it
 					literalInputs[j] = "<context>"
-				case methodValues[j].Kind() == reflect.Ptr:
+				case methodValues[j].Kind() == reflect.Pointer:
 					// dereference pointers just to add a bit more clarity
 					literalInputs[j] = methodValues[j].Elem().Interface()
 				default:

@@ -1,8 +1,11 @@
 package deribit
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -53,10 +56,16 @@ var (
 	errMaxScopeIsRequired                  = errors.New("max scope is required")
 	errTradeModeIsRequired                 = errors.New("self trading mode is required")
 	errUserIDRequired                      = errors.New("userID is required")
+	errUserIDOrClientInfoRequired          = errors.New("user_id or client_info is required")
 	errInvalidOrderSideOrDirection         = errors.New("invalid direction, only 'buy' or 'sell' are supported")
 	errDifferentInstruments                = errors.New("given instruments should have the same currency")
 	errZeroTimestamp                       = errors.New("zero timestamps are not allowed")
 	errMissingBlockTradeID                 = errors.New("missing block trade id")
+	errMissingBlockRFQID                   = errors.New("missing block rfq id")
+	errMissingBlockRFQQuoteIdentifier      = errors.New("block_rfq_quote_id required, or both block_rfq_id and label")
+	errEmptyBlockRFQQuoteCancelResponse    = errors.New("empty block rfq quote cancel response")
+	errInvalidBlockRFQQuoteCancelResponse  = errors.New("invalid block rfq quote cancel response")
+	errInvalidBrokerTradeUserID            = errors.New("invalid broker trade user_id")
 	errMissingSubAccountID                 = errors.New("missing subaccount id")
 	errUnsupportedInstrumentFormat         = errors.New("unsupported instrument type format")
 	errSessionNameRequired                 = errors.New("session_name is required")
@@ -65,6 +74,7 @@ var (
 	errMissingSignature                    = errors.New("missing signature")
 	errStartingHeartbeat                   = errors.New("error starting heartbeat")
 	errSendingHeartbeat                    = errors.New("error sending heartbeat")
+	errNoTickerSnapshot                    = errors.New("incremental ticker change received before its snapshot")
 
 	websocketRequestTimeout = time.Second * 30
 
@@ -83,7 +93,7 @@ type UnmarshalError struct {
 	Message string `json:"message"`
 	Data    struct {
 		Reason string `json:"reason"`
-	}
+	} `json:"data"`
 	Code int64 `json:"code"`
 }
 
@@ -106,7 +116,7 @@ type BookSummaryData struct {
 	CreationTimestamp      types.Time `json:"creation_timestamp"`
 	BidPrice               float64    `json:"bid_price"`
 	BaseCurrency           string     `json:"base_currency"`
-	Funding8H              float64    `json:"funding_8h,omitempty"`
+	Funding8Hour           float64    `json:"funding_8h,omitempty"`
 	CurrentFunding         float64    `json:"current_funding,omitempty"`
 	UnderlyingIndex        string     `json:"underlying_index"`
 	UnderlyingPrice        float64    `json:"underlying_price"`
@@ -148,21 +158,21 @@ type DeliveryPriceData struct {
 // FundingChartData stores futures funding chart data
 type FundingChartData struct {
 	CurrentInterest float64 `json:"current_interest"`
-	Interest8H      float64 `json:"interest_8h"`
+	Interest8Hour   float64 `json:"interest_8h"`
 	Data            []struct {
-		IndexPrice float64    `json:"index_price"`
-		Interest8H float64    `json:"interest_8h"`
-		Timestamp  types.Time `json:"timestamp"`
+		IndexPrice    float64    `json:"index_price"`
+		Interest8Hour float64    `json:"interest_8h"`
+		Timestamp     types.Time `json:"timestamp"`
 	} `json:"data"`
 }
 
 // FundingRateHistory represents a funding rate history item
 type FundingRateHistory struct {
-	Timestamp      types.Time `json:"timestamp"`
-	IndexPrice     float64    `json:"index_price"`      // Index price in base currency
-	PrevIndexPrice float64    `json:"prev_index_price"` // Previous index price in base currency
-	Interest8H     float64    `json:"interest_8h"`      // 8hour interest rate
-	Interest1H     float64    `json:"interest_1h"`      // 1hour interest rate
+	Timestamp          types.Time `json:"timestamp"`
+	IndexPrice         float64    `json:"index_price"`      // Index price in base currency
+	PreviousIndexPrice float64    `json:"prev_index_price"` // Previous index price in base currency
+	Interest8Hour      float64    `json:"interest_8h"`      // 8hour interest rate
+	Interest1Hour      float64    `json:"interest_1h"`      // 1hour interest rate
 }
 
 // HistoricalVolatilityData stores volatility data for requested symbols
@@ -171,16 +181,9 @@ type HistoricalVolatilityData struct {
 	Value     types.Number
 }
 
-// UnmarshalJSON  parses volatility data from a JSON array into HistoricalVolatilityData fields.
+// UnmarshalJSON parses volatility data from a JSON array into HistoricalVolatilityData fields.
 func (h *HistoricalVolatilityData) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[2]any{&h.Timestamp, &h.Value})
-}
-
-// IndexPrice holds index price for the instruments
-type IndexPrice struct {
-	BTC float64 `json:"BTC"`
-	ETH float64 `json:"ETH"`
-	Edp float64 `json:"edp"`
 }
 
 // IndexPriceData gets index price data
@@ -306,7 +309,7 @@ type Orderbook struct {
 		Theta float64 `json:"theta"`
 		Vega  float64 `json:"vega"`
 	} `json:"greeks"`
-	Funding8H      float64     `json:"funding_8h"`
+	Funding8Hour   float64     `json:"funding_8h"`
 	CurrentFunding float64     `json:"current_funding"`
 	ChangeID       int64       `json:"change_id"`
 	Bids           [][]float64 `json:"bids"`
@@ -320,16 +323,16 @@ type Orderbook struct {
 
 // TradeVolumesData stores data for trade volumes
 type TradeVolumesData struct {
-	PutsVolume       float64 `json:"puts_volume"`
-	PutsVolume7D     float64 `json:"puts_volume_7d"`
-	PutsVolume30D    float64 `json:"puts_volume_30d"`
-	FuturesVolume7D  float64 `json:"futures_volume_7d"`
-	FuturesVolume30D float64 `json:"futures_volume_30d"`
-	FuturesVolume    float64 `json:"futures_volume"`
-	CurrencyPair     string  `json:"currency_pair"`
-	CallsVolume7D    float64 `json:"calls_volume_7d"`
-	CallsVolume30D   float64 `json:"calls_volume_30d"`
-	CallsVolume      float64 `json:"calls_volume"`
+	PutsVolume         float64 `json:"puts_volume"`
+	PutsVolume7Day     float64 `json:"puts_volume_7d"`
+	PutsVolume30Day    float64 `json:"puts_volume_30d"`
+	FuturesVolume7Day  float64 `json:"futures_volume_7d"`
+	FuturesVolume30Day float64 `json:"futures_volume_30d"`
+	FuturesVolume      float64 `json:"futures_volume"`
+	CurrencyPair       string  `json:"currency_pair"`
+	CallsVolume7Day    float64 `json:"calls_volume_7d"`
+	CallsVolume30Day   float64 `json:"calls_volume_30d"`
+	CallsVolume        float64 `json:"calls_volume"`
 }
 
 // TVChartData stores trading view chart data
@@ -358,6 +361,16 @@ type VolatilityIndexData struct {
 	Close       float64   `json:"close"`
 }
 
+// TickerStats holds a ticker's 24 hour aggregates
+type TickerStats struct {
+	VolumeNotional float64 `json:"volume_notional"`
+	VolumeUSD      float64 `json:"volume_usd"`
+	Volume         float64 `json:"volume"`
+	PriceChange    float64 `json:"price_change"`
+	Low            float64 `json:"low"`
+	High           float64 `json:"high"`
+}
+
 // TickerData stores data for ticker
 type TickerData struct {
 	AskIV          float64 `json:"ask_iv"`
@@ -368,7 +381,7 @@ type TickerData struct {
 	BidIV          float64 `json:"bid_iv"`
 	CurrentFunding float64 `json:"current_funding"`
 	DeliveryPrice  float64 `json:"delivery_price"`
-	Funding8H      float64 `json:"funding_8h"`
+	Funding8Hour   float64 `json:"funding_8h"`
 	GreeksData     struct {
 		Delta float64 `json:"delta"`
 		Gamma float64 `json:"gamma"`
@@ -376,29 +389,22 @@ type TickerData struct {
 		Theta float64 `json:"theta"`
 		Vega  float64 `json:"vega"`
 	} `json:"greeks"`
-	IndexPrice      float64 `json:"index_price"`
-	InstrumentName  string  `json:"instrument_name"`
-	LastPrice       float64 `json:"last_price"`
-	MarkIV          float64 `json:"mark_iv"`
-	MarkPrice       float64 `json:"mark_price"`
-	MaxPrice        float64 `json:"max_price"`
-	MinPrice        float64 `json:"min_price"`
-	OpenInterest    float64 `json:"open_interest"`
-	SettlementPrice float64 `json:"settlement_price"`
-	State           string  `json:"state"`
-	Stats           struct {
-		VolumeNotional float64 `json:"volume_notional"`
-		VolumeUSD      float64 `json:"volume_usd"`
-		Volume         float64 `json:"volume"`
-		PriceChange    float64 `json:"price_change"`
-		Low            float64 `json:"low"`
-		High           float64 `json:"high"`
-	} `json:"stats"`
-	Timestamp              types.Time `json:"timestamp"`
-	UnderlyingIndex        string     `json:"underlying_index"`
-	UnderlyingPrice        float64    `json:"underlying_price"`
-	EstimatedDeliveryPrice float64    `json:"estimated_delivery_price"`
-	InterestValue          float64    `json:"interest_value"`
+	IndexPrice             float64     `json:"index_price"`
+	InstrumentName         string      `json:"instrument_name"`
+	LastPrice              float64     `json:"last_price"`
+	MarkIV                 float64     `json:"mark_iv"`
+	MarkPrice              float64     `json:"mark_price"`
+	MaxPrice               float64     `json:"max_price"`
+	MinPrice               float64     `json:"min_price"`
+	OpenInterest           float64     `json:"open_interest"`
+	SettlementPrice        float64     `json:"settlement_price"`
+	State                  string      `json:"state"`
+	Stats                  TickerStats `json:"stats"`
+	Timestamp              types.Time  `json:"timestamp"`
+	UnderlyingIndex        string      `json:"underlying_index"`
+	UnderlyingPrice        float64     `json:"underlying_price"`
+	EstimatedDeliveryPrice float64     `json:"estimated_delivery_price"`
+	InterestValue          float64     `json:"interest_value"`
 }
 
 // CancelWithdrawalData stores cancel request data for a withdrawal
@@ -952,6 +958,380 @@ type BlockTradeData struct {
 	Amount                 float64    `json:"amount"`
 }
 
+// BlockTradeState contains state and timestamp metadata for pending block trade requests.
+type BlockTradeState struct {
+	Value     string     `json:"value"`
+	Timestamp types.Time `json:"timestamp"`
+}
+
+// PendingBlockTradeData represents a pending block trade request object.
+type PendingBlockTradeData struct {
+	Nonce             string            `json:"nonce"`
+	Timestamp         types.Time        `json:"timestamp"`
+	Trades            []BlockTradeParam `json:"trades"`
+	AppName           string            `json:"app_name"`
+	Username          string            `json:"username"`
+	Role              string            `json:"role"`
+	UserID            int64             `json:"user_id"`
+	BrokerCode        string            `json:"broker_code"`
+	BrokerName        string            `json:"broker_name"`
+	State             BlockTradeState   `json:"state"`
+	CounterpartyState BlockTradeState   `json:"counterparty_state"`
+	ComboID           string            `json:"combo_id"`
+}
+
+// BlockTradeCollection represents a block trade object containing grouped trades.
+type BlockTradeCollection struct {
+	ID         string           `json:"id"`
+	Timestamp  types.Time       `json:"timestamp"`
+	Trades     []BlockTradeData `json:"trades"`
+	AppName    string           `json:"app_name"`
+	BrokerCode string           `json:"broker_code"`
+	BrokerName string           `json:"broker_name"`
+}
+
+// ExecutedBlockTradeCollection represents an executed block trade object containing grouped trades.
+type ExecutedBlockTradeCollection struct {
+	ID         string               `json:"id"`
+	Timestamp  types.Time           `json:"timestamp"`
+	Trades     []BlockTradeResponse `json:"trades"`
+	AppName    string               `json:"app_name"`
+	BrokerCode string               `json:"broker_code"`
+	BrokerName string               `json:"broker_name"`
+}
+
+// BlockRFQLeg describes one RFQ leg.
+type BlockRFQLeg struct {
+	Ratio          float64 `json:"ratio"`
+	InstrumentName string  `json:"instrument_name"`
+	Direction      string  `json:"direction"`
+	Price          float64 `json:"price"`
+}
+
+// BlockRFQHedgeLeg describes optional hedge details for a Block RFQ.
+type BlockRFQHedgeLeg struct {
+	Amount         float64 `json:"amount"`
+	InstrumentName string  `json:"instrument_name"`
+	Direction      string  `json:"direction"`
+	Price          float64 `json:"price"`
+}
+
+// BlockRFQQuoteLevel describes quote levels (bids/asks) in an RFQ.
+type BlockRFQQuoteLevel struct {
+	Makers               []string   `json:"makers"`
+	BlockRFQQuoteID      uint64     `json:"block_rfq_quote_id,omitempty"`
+	Direction            string     `json:"direction,omitempty"`
+	Price                float64    `json:"price"`
+	LastUpdateTimestamp  types.Time `json:"last_update_timestamp"`
+	ExecutionInstruction string     `json:"execution_instruction"`
+	Amount               float64    `json:"amount"`
+	ExpiresAt            types.Time `json:"expires_at"`
+}
+
+// BlockRFQTradeAllocationClientInfo describes broker/client allocation routing.
+type BlockRFQTradeAllocationClientInfo struct {
+	ClientID     uint64 `json:"client_id,omitempty"`
+	ClientLinkID uint64 `json:"client_link_id,omitempty"`
+	Name         string `json:"name,omitempty"`
+}
+
+// BlockRFQTradeAllocation describes request-side RFQ trade allocations.
+type BlockRFQTradeAllocation struct {
+	UserID     uint64                             `json:"user_id,omitempty"`
+	Amount     float64                            `json:"amount"`
+	ClientInfo *BlockRFQTradeAllocationClientInfo `json:"client_info,omitempty"`
+}
+
+// BlockRFQTradeAllocationResponse describes response-side RFQ trade allocations.
+type BlockRFQTradeAllocationResponse struct {
+	UserID     BrokerTradeUserID                  `json:"user_id"`
+	Amount     float64                            `json:"amount"`
+	ClientInfo *BlockRFQTradeAllocationClientInfo `json:"client_info,omitempty"`
+}
+
+// BlockRFQTrade describes a trade inside an RFQ payload.
+type BlockRFQTrade struct {
+	Direction        string                            `json:"direction"`
+	Price            float64                           `json:"price"`
+	Amount           float64                           `json:"amount"`
+	Maker            string                            `json:"maker"`
+	HedgeAmount      float64                           `json:"hedge_amount"`
+	TradeTrigger     map[string]any                    `json:"trade_trigger"`
+	TradeAllocations []BlockRFQTradeAllocationResponse `json:"trade_allocations"`
+}
+
+// BlockRFQData represents one Block RFQ entry.
+type BlockRFQData struct {
+	CreationTimestamp     types.Time           `json:"creation_timestamp"`
+	ExpirationTimestamp   types.Time           `json:"expiration_timestamp"`
+	BlockRFQID            uint64               `json:"block_rfq_id"`
+	Role                  string               `json:"role"`
+	State                 string               `json:"state"`
+	TakerRating           types.Number         `json:"taker_rating"`
+	Makers                []string             `json:"makers"`
+	Amount                float64              `json:"amount"`
+	MinTradeAmount        float64              `json:"min_trade_amount"`
+	Asks                  []BlockRFQQuoteLevel `json:"asks"`
+	Bids                  []BlockRFQQuoteLevel `json:"bids"`
+	Legs                  []BlockRFQLeg        `json:"legs"`
+	Hedge                 *BlockRFQHedgeLeg    `json:"hedge"`
+	ComboID               string               `json:"combo_id"`
+	Label                 string               `json:"label"`
+	AppName               string               `json:"app_name"`
+	MarkPrice             float64              `json:"mark_price"`
+	Disclosed             bool                 `json:"disclosed"`
+	Taker                 string               `json:"taker"`
+	IndexPrices           map[string]float64   `json:"index_prices"`
+	IncludedInTakerRating bool                 `json:"included_in_taker_rating"`
+	Trades                []BlockRFQTrade      `json:"trades"`
+	TradeTrigger          map[string]any       `json:"trade_trigger"`
+}
+
+// BlockRFQListResponse wraps RFQ list + continuation token response.
+type BlockRFQListResponse struct {
+	BlockRFQs    []BlockRFQData `json:"block_rfqs"`
+	Continuation string         `json:"continuation"`
+}
+
+// BlockRFQQuote describes a maker quote entry.
+type BlockRFQQuote struct {
+	CreationTimestamp    types.Time        `json:"creation_timestamp"`
+	LastUpdateTimestamp  types.Time        `json:"last_update_timestamp"`
+	BlockRFQID           uint64            `json:"block_rfq_id"`
+	BlockRFQQuoteID      uint64            `json:"block_rfq_quote_id"`
+	QuoteState           string            `json:"quote_state"`
+	ExecutionInstruction string            `json:"execution_instruction"`
+	Price                float64           `json:"price"`
+	Amount               float64           `json:"amount"`
+	Direction            string            `json:"direction"`
+	FilledAmount         float64           `json:"filled_amount"`
+	Legs                 []BlockRFQLeg     `json:"legs"`
+	Hedge                *BlockRFQHedgeLeg `json:"hedge"`
+	Replaced             bool              `json:"replaced"`
+	Label                string            `json:"label"`
+	AppName              string            `json:"app_name"`
+	QuoteStateReason     string            `json:"quote_state_reason"`
+}
+
+// BlockRFQQuoteCancelResponse represents cancel-all block RFQ quotes response data.
+type BlockRFQQuoteCancelResponse struct {
+	CancelCount uint64          `json:"cancel_count"`
+	Quotes      []BlockRFQQuote `json:"quotes"`
+}
+
+// UnmarshalJSON deserialises block RFQ quote cancellation response into a BlockRFQQuoteCancelResponse instance.
+func (a *BlockRFQQuoteCancelResponse) UnmarshalJSON(data []byte) error {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return fmt.Errorf("%w: %q", errEmptyBlockRFQQuoteCancelResponse, string(data))
+	}
+
+	if trimmed[0] == '[' {
+		var quotes []BlockRFQQuote
+		if err := json.Unmarshal(trimmed, &quotes); err != nil {
+			return fmt.Errorf("%w: %q: %v", errInvalidBlockRFQQuoteCancelResponse, string(data), err)
+		}
+		a.Quotes = quotes
+		a.CancelCount = uint64(len(quotes))
+		return nil
+	}
+
+	var cancelCount uint64
+	if err := json.Unmarshal(trimmed, &cancelCount); err != nil {
+		return fmt.Errorf("%w: %q: %v", errInvalidBlockRFQQuoteCancelResponse, string(data), err)
+	}
+	a.CancelCount = cancelCount
+	a.Quotes = nil
+	return nil
+}
+
+// BlockRFQTradeTrigger describes a typed trade trigger returned in accept responses.
+type BlockRFQTradeTrigger struct {
+	State     string  `json:"state"`
+	Price     float64 `json:"price"`
+	Direction string  `json:"direction"`
+}
+
+// BlockRFQAcceptResponse represents the response payload from accepting a block RFQ.
+type BlockRFQAcceptResponse struct {
+	TradeTrigger BlockRFQTradeTrigger   `json:"trade_trigger"`
+	BlockTrades  []BlockTradeCollection `json:"block_trades"`
+}
+
+// BlockRFQUserIdentity contains identity details for a single account.
+type BlockRFQUserIdentity struct {
+	UserID      uint64       `json:"user_id"`
+	TakerRating types.Number `json:"taker_rating"`
+	Identity    string       `json:"identity"`
+	IsMaker     bool         `json:"is_maker"`
+}
+
+// BlockRFQParentIdentity describes group identity information.
+type BlockRFQParentIdentity struct {
+	Identity string `json:"identity"`
+	IsMaker  bool   `json:"is_maker"`
+}
+
+// BlockRFQUserInfoResponse wraps user info response payload.
+type BlockRFQUserInfoResponse struct {
+	Parent BlockRFQParentIdentity `json:"parent"`
+	Users  []BlockRFQUserIdentity `json:"users"`
+}
+
+// BlockRFQTradeData is one public trade tape entry.
+type BlockRFQTradeData struct {
+	ID          uint64             `json:"id"`
+	Timestamp   types.Time         `json:"timestamp"`
+	Direction   string             `json:"direction"`
+	Amount      float64            `json:"amount"`
+	Price       float64            `json:"price"`
+	MarkPrice   float64            `json:"mark_price"`
+	Legs        []BlockRFQLeg      `json:"legs"`
+	ComboID     string             `json:"combo_id"`
+	Hedge       *BlockRFQHedgeLeg  `json:"hedge"`
+	IndexPrices map[string]float64 `json:"index_prices"`
+	Trades      []BlockRFQTrade    `json:"trades"`
+}
+
+// BlockRFQTradeTapeResponse wraps public block RFQ trade tape response payload.
+type BlockRFQTradeTapeResponse struct {
+	BlockRFQs    []BlockRFQTradeData `json:"block_rfqs"`
+	Continuation string              `json:"continuation"`
+}
+
+// GetBlockTradesRequest contains request parameters for fetching block trades.
+type GetBlockTradesRequest struct {
+	Currency   currency.Code
+	StartID    string
+	EndID      string
+	Count      uint64
+	BlockRFQID uint64
+	BrokerCode string
+}
+
+// CreateBlockRFQLeg describes one request leg for creating a block RFQ.
+type CreateBlockRFQLeg struct {
+	InstrumentName string  `json:"instrument_name"`
+	Amount         float64 `json:"amount"`
+	Direction      string  `json:"direction"`
+}
+
+// CreateBlockRFQRequest contains parameters for creating a block RFQ.
+type CreateBlockRFQRequest struct {
+	Legs             []CreateBlockRFQLeg
+	Makers           []string
+	TradeAllocations []BlockRFQTradeAllocation
+	Hedge            *BlockRFQHedgeLeg
+	Label            string
+	Disclosed        bool
+}
+
+// AddBlockRFQQuoteRequest contains parameters for adding a block RFQ quote.
+type AddBlockRFQQuoteRequest struct {
+	BlockRFQID           uint64
+	Amount               float64
+	Price                float64
+	Direction            string
+	ExecutionInstruction string
+	ExpiresAt            time.Time
+	Legs                 []BlockRFQLeg
+	Hedge                *BlockRFQHedgeLeg
+	Label                string
+}
+
+// EditBlockRFQQuoteRequest contains parameters for editing a block RFQ quote.
+type EditBlockRFQQuoteRequest struct {
+	BlockRFQQuoteID uint64
+	BlockRFQID      uint64
+	Amount          float64
+	Price           float64
+	Legs            []BlockRFQLeg
+	Hedge           *BlockRFQHedgeLeg
+	Label           string
+}
+
+// GetBlockRFQsRequest contains filters for listing block RFQs.
+type GetBlockRFQsRequest struct {
+	Currency     currency.Code
+	Count        uint64
+	State        string
+	Role         string
+	Continuation string
+	BlockRFQID   uint64
+}
+
+// AcceptBlockRFQRequest contains parameters for accepting a block RFQ.
+type AcceptBlockRFQRequest struct {
+	BlockRFQID  uint64
+	Price       float64
+	Amount      float64
+	Direction   string
+	Hedge       *BlockRFQHedgeLeg
+	Legs        []BlockRFQLeg
+	TimeInForce string
+}
+
+// GetBrokerTradesRequest contains request parameters for fetching broker trades.
+type GetBrokerTradesRequest struct {
+	Currency currency.Code
+	Count    uint64
+	StartID  string
+	EndID    string
+}
+
+// BrokerTradeUserID supports Deribit broker user_id payloads that may be masked strings or numeric IDs.
+type BrokerTradeUserID string
+
+// UnmarshalJSON unmarshals a broker trade user ID from either string or integer payloads.
+func (b *BrokerTradeUserID) UnmarshalJSON(data []byte) error {
+	var stringValue string
+	if err := json.Unmarshal(data, &stringValue); err == nil {
+		*b = BrokerTradeUserID(stringValue)
+		return nil
+	}
+	var integerValue uint64
+	if err := json.Unmarshal(data, &integerValue); err == nil {
+		*b = BrokerTradeUserID(strconv.FormatUint(integerValue, 10))
+		return nil
+	}
+	return fmt.Errorf("%w: %q", errInvalidBrokerTradeUserID, string(data))
+}
+
+// BrokerTradeParty describes a maker or taker party in a broker trade request or history entry.
+type BrokerTradeParty struct {
+	State          string            `json:"state,omitempty"`
+	ClientID       uint64            `json:"client_id"`
+	UserID         BrokerTradeUserID `json:"user_id"`
+	ClientName     string            `json:"client_name"`
+	ClientLinkName string            `json:"client_link_name"`
+	ClientLinkID   uint64            `json:"client_link_id"`
+}
+
+// BrokerTradeRequestItem represents one item in the get_broker_trade_requests response.
+type BrokerTradeRequestItem struct {
+	Timestamp types.Time        `json:"timestamp"`
+	State     string            `json:"state"`
+	Trades    []BlockTradeParam `json:"trades"`
+	Maker     BrokerTradeParty  `json:"maker"`
+	Taker     BrokerTradeParty  `json:"taker"`
+	Nonce     string            `json:"nonce"`
+}
+
+// BrokerTradeHistoryEntry represents one entry in the get_broker_trades history array.
+type BrokerTradeHistoryEntry struct {
+	ID        string           `json:"id"`
+	Timestamp types.Time       `json:"timestamp"`
+	Trades    []BlockTradeData `json:"trades"`
+	Maker     BrokerTradeParty `json:"maker"`
+	Taker     BrokerTradeParty `json:"taker"`
+}
+
+// BrokerTradeHistoryResponse wraps the get_broker_trades response payload.
+type BrokerTradeHistoryResponse struct {
+	History     []BrokerTradeHistoryEntry `json:"history"`
+	NextStartID string                    `json:"next_start_id"`
+}
+
 // Announcement represents public announcements.
 type Announcement struct {
 	Title                string     `json:"title"`
@@ -1062,11 +1442,6 @@ type BlockTradeMoveResponse struct {
 	Amount              float64 `json:"amount"`
 }
 
-// VersionInformation represents websocket version information
-type VersionInformation struct {
-	Version string `json:"version"`
-}
-
 // wsOrderbook represents orderbook push data for a book websocket subscription.
 type wsOrderbook struct {
 	Type           string     `json:"type"`
@@ -1110,11 +1485,11 @@ type wsRankingPrices []wsRankingPrice
 
 // wsPriceStatistics represents basic statistics about Deribit Index
 type wsPriceStatistics struct {
-	Low24H         float64 `json:"low24h"`
+	Low24Hour      float64 `json:"low24h"`
 	IndexName      string  `json:"index_name"`
 	HighVolatility bool    `json:"high_volatility"`
-	High24H        float64 `json:"high24h"`
-	Change24H      float64 `json:"change24h"`
+	High24Hour     float64 `json:"high24h"`
+	Change24Hour   float64 `json:"change24h"`
 }
 
 // wsVolatilityIndex represents volatility index push data
@@ -1134,76 +1509,86 @@ type wsEstimatedExpirationPrice struct {
 
 // wsTicker represents changes in ticker (key information about the instrument).
 type wsTicker struct {
-	Timestamp types.Time `json:"timestamp"`
-	Stats     struct {
-		VolumeUsd   float64 `json:"volume_usd"`
-		Volume      float64 `json:"volume"`
-		PriceChange float64 `json:"price_change"`
-		Low         float64 `json:"low"`
-		High        float64 `json:"high"`
-	} `json:"stats"`
-	State                  string  `json:"state"`
-	SettlementPrice        float64 `json:"settlement_price"`
-	OpenInterest           float64 `json:"open_interest"`
-	MinPrice               float64 `json:"min_price"`
-	MaxPrice               float64 `json:"max_price"`
-	MarkPrice              float64 `json:"mark_price"`
-	LastPrice              float64 `json:"last_price"`
-	InstrumentName         string  `json:"instrument_name"`
-	IndexPrice             float64 `json:"index_price"`
-	ImpliedBid             float64 `json:"implied_bid"`
-	ImpliedAsk             float64 `json:"implied_ask"`
-	EstimatedDeliveryPrice float64 `json:"estimated_delivery_price"`
-	ComboState             string  `json:"combo_state"`
-	BestBidPrice           float64 `json:"best_bid_price"`
-	BestBidAmount          float64 `json:"best_bid_amount"`
-	BestAskPrice           float64 `json:"best_ask_price"`
-	BestAskAmount          float64 `json:"best_ask_amount"`
+	Timestamp              types.Time  `json:"timestamp"`
+	Stats                  TickerStats `json:"stats"`
+	State                  string      `json:"state"`
+	SettlementPrice        float64     `json:"settlement_price"`
+	OpenInterest           float64     `json:"open_interest"`
+	MinPrice               float64     `json:"min_price"`
+	MaxPrice               float64     `json:"max_price"`
+	MarkPrice              float64     `json:"mark_price"`
+	LastPrice              float64     `json:"last_price"`
+	InstrumentName         string      `json:"instrument_name"`
+	IndexPrice             float64     `json:"index_price"`
+	ImpliedBid             float64     `json:"implied_bid"`
+	ImpliedAsk             float64     `json:"implied_ask"`
+	EstimatedDeliveryPrice float64     `json:"estimated_delivery_price"`
+	ComboState             string      `json:"combo_state"`
+	BestBidPrice           float64     `json:"best_bid_price"`
+	BestBidAmount          float64     `json:"best_bid_amount"`
+	BestAskPrice           float64     `json:"best_ask_price"`
+	BestAskAmount          float64     `json:"best_ask_amount"`
 }
 
-// WsIncrementalTicker represents a ticker information for incremental ticker subscriptions.
+// WsIncrementalTicker holds an incremental_ticker message. The first message for an instrument is a
+// snapshot carrying the whole ticker, and each change after it carries only the fields that moved.
+// A change clears the day's range by sending it as null, which would leave a plain float64 as it
+// was, so every field a change can leave out is a pointer, nil where a message leaves it out or
+// sends null
 type WsIncrementalTicker struct {
-	Type      string     `json:"type"`
-	Timestamp types.Time `json:"timestamp"`
-	Stats     struct {
-		VolumeUsd   float64 `json:"volume_usd"`
-		Volume      float64 `json:"volume"`
-		PriceChange float64 `json:"price_change"`
-	} `json:"stats"`
-	MinPrice               float64 `json:"min_price"`
-	MaxPrice               float64 `json:"max_price"`
-	MarkPrice              float64 `json:"mark_price"`
-	InstrumentName         string  `json:"instrument_name"`
-	IndexPrice             float64 `json:"index_price"`
-	EstimatedDeliveryPrice float64 `json:"estimated_delivery_price"`
-	BestBidAmount          float64 `json:"best_bid_amount"`
-	BestAskAmount          float64 `json:"best_ask_amount"`
+	Type                   string                    `json:"type"`
+	Timestamp              types.Time                `json:"timestamp"`
+	InstrumentName         string                    `json:"instrument_name"`
+	Stats                  WsIncrementalTickerStats  `json:"stats"`
+	Greeks                 WsIncrementalTickerGreeks `json:"greeks"`
+	State                  *string                   `json:"state"`
+	ComboState             *string                   `json:"combo_state"`
+	UnderlyingIndex        *string                   `json:"underlying_index"`
+	BestBidPrice           *float64                  `json:"best_bid_price"`
+	BestBidAmount          *float64                  `json:"best_bid_amount"`
+	BestAskPrice           *float64                  `json:"best_ask_price"`
+	BestAskAmount          *float64                  `json:"best_ask_amount"`
+	LastPrice              *float64                  `json:"last_price"`
+	MarkPrice              *float64                  `json:"mark_price"`
+	IndexPrice             *float64                  `json:"index_price"`
+	MinPrice               *float64                  `json:"min_price"`
+	MaxPrice               *float64                  `json:"max_price"`
+	EstimatedDeliveryPrice *float64                  `json:"estimated_delivery_price"`
+	DeliveryPrice          *float64                  `json:"delivery_price"`
+	SettlementPrice        *float64                  `json:"settlement_price"`
+	UnderlyingPrice        *float64                  `json:"underlying_price"`
+	OpenInterest           *float64                  `json:"open_interest"`
+	// ImpliedBid and ImpliedAsk are served only for combos, priced off the legs
+	ImpliedBid     *float64 `json:"implied_bid"`
+	ImpliedAsk     *float64 `json:"implied_ask"`
+	BidIV          *float64 `json:"bid_iv"`
+	AskIV          *float64 `json:"ask_iv"`
+	MarkIV         *float64 `json:"mark_iv"`
+	InterestRate   *float64 `json:"interest_rate"`
+	InterestValue  *float64 `json:"interest_value"`
+	CurrentFunding *float64 `json:"current_funding"`
+	Funding8Hour   *float64 `json:"funding_8h"`
+}
 
-	// For future_combo instruments
-	ImpliedAsk float64 `json:"implied_ask"`
-	ImpliedBid float64 `json:"implied_bid"`
+// WsIncrementalTickerStats holds the 24 hour aggregates an incremental_ticker message carries, each
+// nil where the message leaves it out or sends null
+type WsIncrementalTickerStats struct {
+	High           *float64 `json:"high"`
+	Low            *float64 `json:"low"`
+	PriceChange    *float64 `json:"price_change"`
+	Volume         *float64 `json:"volume"`
+	VolumeUSD      *float64 `json:"volume_usd"`
+	VolumeNotional *float64 `json:"volume_notional"`
+}
 
-	UnderlyingPrice float64 `json:"underlying_price"`
-	UnderlyingIndex string  `json:"underlying_index"`
-	State           string  `json:"state"`
-	SettlementPrice float64 `json:"settlement_price"`
-	OpenInterest    float64 `json:"open_interest"`
-
-	MarkIv       float64 `json:"mark_iv"`
-	LastPrice    float64 `json:"last_price"`
-	InterestRate float64 `json:"interest_rate"`
-	Greeks       struct {
-		Vega  float64 `json:"vega"`
-		Theta float64 `json:"theta"`
-		Rho   float64 `json:"rho"`
-		Gamma float64 `json:"gamma"`
-		Delta float64 `json:"delta"`
-	} `json:"greeks"`
-	ComboState   string  `json:"combo_state"`
-	BidIv        float64 `json:"bid_iv"`
-	BestBidPrice float64 `json:"best_bid_price"`
-	BestAskPrice float64 `json:"best_ask_price"`
-	AskIv        float64 `json:"ask_iv"`
+// WsIncrementalTickerGreeks holds the option greeks an incremental_ticker message carries, each nil
+// where the message leaves it out or sends null
+type WsIncrementalTickerGreeks struct {
+	Delta *float64 `json:"delta"`
+	Gamma *float64 `json:"gamma"`
+	Rho   *float64 `json:"rho"`
+	Theta *float64 `json:"theta"`
+	Vega  *float64 `json:"vega"`
 }
 
 // wsInstrumentState represents notifications about new or terminated instruments of given kind in given currency.

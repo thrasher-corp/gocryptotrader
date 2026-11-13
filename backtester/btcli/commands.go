@@ -15,7 +15,10 @@ import (
 )
 
 var (
-	doNotRunFlag = &cli.BoolFlag{
+	errStrategyPathRequired     = errors.New("strategy path must be set")
+	errTaskIDRequired           = errors.New("task ID must be set")
+	errNegativeIntervalOverride = errors.New("interval override duration cannot be less than 0")
+	doNotRunFlag                = &cli.BoolFlag{
 		Name:    "donotrunimmediately",
 		Aliases: []string{"dnr"},
 		Usage:   "if true, will load the strategy, but will not execute until another command is sent",
@@ -28,15 +31,15 @@ var (
 )
 
 var executeStrategyFromFileCommand = &cli.Command{
-	Name:      "executestrategyfromfile",
-	Usage:     "runs the strategy from a config file",
-	ArgsUsage: "<path>",
-	Action:    executeStrategyFromFile,
+	Name:   "executestrategyfromfile",
+	Usage:  "runs the strategy from a config file",
+	Action: executeStrategyFromFile,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:    "path",
-			Aliases: []string{"p"},
-			Usage:   "the filepath to a strategy to execute",
+			Name:     "path",
+			Aliases:  []string{"p"},
+			Usage:    "the filepath to a strategy to execute",
+			Required: true,
 		},
 		doNotRunFlag,
 		doNotStoreFlag,
@@ -59,8 +62,12 @@ var executeStrategyFromFileCommand = &cli.Command{
 }
 
 func executeStrategyFromFile(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
+	}
+	request, err := executeStrategyFromFileRequest(c)
+	if err != nil {
+		return err
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -69,87 +76,55 @@ func executeStrategyFromFile(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	var path string
-	if c.IsSet("path") {
-		path = c.String("path")
-	} else {
-		path = c.Args().First()
-	}
-
-	var dnr bool
-	if c.IsSet("donotrunimmediately") {
-		dnr = c.Bool("donotrunimmediately")
-	}
-	var dns bool
-	if c.IsSet("donotstore") {
-		dns = c.Bool("donotstore")
-	}
-
-	var startTimeOverride string
-	if c.IsSet("starttimeoverride") {
-		startTimeOverride = c.String("starttimeoverride")
-	} else {
-		startTimeOverride = c.Args().Get(3)
-	}
-
-	var endTimeOverride string
-	if c.IsSet("endtimeoverride") {
-		endTimeOverride = c.String("endtimeoverride")
-	} else {
-		endTimeOverride = c.Args().Get(4)
-	}
-
-	var s, e time.Time
-	if startTimeOverride != "" {
-		s, err = time.ParseInLocation(time.DateTime, startTimeOverride, time.Local)
-		if err != nil {
-			return fmt.Errorf("invalid time format for start: %v", err)
-		}
-	}
-	if endTimeOverride != "" {
-		e, err = time.ParseInLocation(time.DateTime, endTimeOverride, time.Local)
-		if err != nil {
-			return fmt.Errorf("invalid time format for end: %v", err)
-		}
-	}
-	if !s.IsZero() && !e.IsZero() {
-		err = common.StartEndTimeCheck(s, e)
-		if err != nil {
-			return err
-		}
-	}
-
-	var intervalOverride time.Duration
-	if c.IsSet("intervaloverride") {
-		intervalOverride = c.Duration("intervaloverride")
-	} else if c.Args().Get(5) != "" {
-		intervalOverride, err = time.ParseDuration(c.Args().Get(5))
-		if err != nil {
-			return err
-		}
-	}
-	if intervalOverride < 0 {
-		return errors.New("interval override duration cannot be less than 0")
-	}
-
 	client := btrpc.NewBacktesterServiceClient(conn)
-	result, err := client.ExecuteStrategyFromFile(
-		c.Context,
-		&btrpc.ExecuteStrategyFromFileRequest{
-			StrategyFilePath:    path,
-			DoNotRunImmediately: dnr,
-			DoNotStore:          dns,
-			StartTimeOverride:   timestamppb.New(s),
-			EndTimeOverride:     timestamppb.New(e),
-			IntervalOverride:    durationpb.New(intervalOverride),
-		},
-	)
+	result, err := client.ExecuteStrategyFromFile(c.Context, request)
 	if err != nil {
 		return err
 	}
 
 	jsonOutput(result)
 	return nil
+}
+
+func executeStrategyFromFileRequest(c *cli.Context) (*btrpc.ExecuteStrategyFromFileRequest, error) {
+	path := c.String("path")
+	if path == "" {
+		return nil, errStrategyPathRequired
+	}
+
+	var s, e time.Time
+	var err error
+	if startTimeOverride := c.String("starttimeoverride"); startTimeOverride != "" {
+		s, err = time.ParseInLocation(time.DateTime, startTimeOverride, time.Local)
+		if err != nil {
+			return nil, fmt.Errorf("invalid time format for start: %w", err)
+		}
+	}
+	if endTimeOverride := c.String("endtimeoverride"); endTimeOverride != "" {
+		e, err = time.ParseInLocation(time.DateTime, endTimeOverride, time.Local)
+		if err != nil {
+			return nil, fmt.Errorf("invalid time format for end: %w", err)
+		}
+	}
+	if !s.IsZero() && !e.IsZero() {
+		if err := common.StartEndTimeCheck(s, e); err != nil {
+			return nil, err
+		}
+	}
+
+	intervalOverride := c.Duration("intervaloverride")
+	if intervalOverride < 0 {
+		return nil, errNegativeIntervalOverride
+	}
+
+	return &btrpc.ExecuteStrategyFromFileRequest{
+		StrategyFilePath:    path,
+		DoNotRunImmediately: c.Bool("donotrunimmediately"),
+		DoNotStore:          c.Bool("donotstore"),
+		StartTimeOverride:   timestamppb.New(s),
+		EndTimeOverride:     timestamppb.New(e),
+		IntervalOverride:    durationpb.New(intervalOverride),
+	}, nil
 }
 
 var listAllTasksCommand = &cli.Command{
@@ -179,28 +154,21 @@ func listAllTasks(c *cli.Context) error {
 }
 
 var startTaskCommand = &cli.Command{
-	Name:      "starttask",
-	Usage:     "executes a strategy task loaded into the server",
-	ArgsUsage: "<id>",
-	Action:    startTask,
+	Name:   "starttask",
+	Usage:  "executes a strategy task loaded into the server",
+	Action: startTask,
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "id",
-			Usage: "the id of the strategy task",
-		},
+		taskIDFlag,
 	},
 }
 
 func startTask(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-
-	var id string
-	if c.IsSet("id") {
-		id = c.String("id")
-	} else {
-		id = c.Args().First()
+	id := c.String("id")
+	if id == "" {
+		return errTaskIDRequired
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -250,21 +218,21 @@ func startAllTasks(c *cli.Context) error {
 }
 
 var stopTaskCommand = &cli.Command{
-	Name:      "stoptask",
-	Usage:     "stops a strategy loaded into the server",
-	ArgsUsage: "<id>",
-	Action:    stopTask,
+	Name:   "stoptask",
+	Usage:  "stops a strategy loaded into the server",
+	Action: stopTask,
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "id",
-			Usage: "the id of the strategy task",
-		},
+		taskIDFlag,
 	},
 }
 
 func stopTask(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
+	}
+	id := c.String("id")
+	if id == "" {
+		return errTaskIDRequired
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -272,13 +240,6 @@ func stopTask(c *cli.Context) error {
 		return err
 	}
 	defer closeConn(conn, cancel)
-
-	var id string
-	if c.IsSet("id") {
-		id = c.String("id")
-	} else {
-		id = c.Args().First()
-	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.StopTask(
@@ -322,21 +283,21 @@ func stopAllTasks(c *cli.Context) error {
 }
 
 var clearTaskCommand = &cli.Command{
-	Name:      "cleartask",
-	Usage:     "clears/deletes a strategy loaded into the server - if it is not running",
-	ArgsUsage: "<id>",
-	Action:    clearTask,
+	Name:   "cleartask",
+	Usage:  "clears/deletes a strategy loaded into the server - if it is not running",
+	Action: clearTask,
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "id",
-			Usage: "the id of the strategy task",
-		},
+		taskIDFlag,
 	},
 }
 
 func clearTask(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
+	}
+	id := c.String("id")
+	if id == "" {
+		return errTaskIDRequired
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -344,13 +305,6 @@ func clearTask(c *cli.Context) error {
 		return err
 	}
 	defer closeConn(conn, cancel)
-
-	var id string
-	if c.IsSet("id") {
-		id = c.String("id")
-	} else {
-		id = c.Args().First()
-	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ClearTask(
@@ -597,22 +551,13 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		},
 	}
 
-	var dnr bool
-	if c.IsSet("donotrunimmediately") {
-		dnr = c.Bool("donotrunimmediately")
-	}
-	var dns bool
-	if c.IsSet("donotstore") {
-		dns = c.Bool("donotstore")
-	}
-
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromConfig(
 		c.Context,
 		&btrpc.ExecuteStrategyFromConfigRequest{
 			Config:              cfg,
-			DoNotRunImmediately: dnr,
-			DoNotStore:          dns,
+			DoNotRunImmediately: c.Bool("donotrunimmediately"),
+			DoNotStore:          c.Bool("donotstore"),
 		},
 	)
 	if err != nil {

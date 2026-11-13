@@ -3,7 +3,10 @@ package coinbase
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
@@ -17,8 +20,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -97,6 +100,8 @@ const (
 
 	defaultOrderFillCount = 3000       // Largest number of fills the exchange will let one retrieve in a request, found through experimentation
 	defaultOrderCount     = 2147483647 // int32 limit, largest number of orders the exchange will let one retrieve in a request, found through experimentation
+
+	unknownCancelOrderFailure = "UNKNOWN_CANCEL_ORDER"
 )
 
 // Constants defining whether a transfer is a deposit or withdrawal, used to simplify interactions with a few endpoints
@@ -363,7 +368,8 @@ func (e *Exchange) CancelOrders(ctx context.Context, orderIDs []string) ([]Order
 	resp := struct {
 		Results []OrderCancelDetail `json:"results"`
 	}{}
-	return resp.Results, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, cancelOrdersReqBase{OrderIDs: orderIDs}, true, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, cancelOrdersReqBase{OrderIDs: orderIDs}, true, &resp)
+	return resp.Results, classifyOrderNotFound(err)
 }
 
 // ClosePosition closes a position by client order ID, product ID, and size
@@ -471,7 +477,7 @@ func (e *Exchange) GetOrderByID(ctx context.Context, orderID, clientOID string, 
 	resp := struct {
 		Order GetOrderResponse `json:"order"`
 	}{}
-	return &resp.Order, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
+	return &resp.Order, classifyOrderNotFound(e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp))
 }
 
 // ListFills returns information on recent order fills
@@ -872,6 +878,7 @@ func (e *Exchange) GetHistoricKlines(ctx context.Context, productID string, gran
 // GetAllProducts returns information on all currency pairs that are available for trading
 // The getTradabilityStatus parameter is only used for authenticated requests, and will return the tradability status of SPOT products in their view_only field
 // The getAllProducts parameter overrides the set productType; with it set to true, it will return both SPOT and Futures products
+// The exchange caps limit at 1000, undocumented; 0 leaves the count to the exchange
 func (e *Exchange) GetAllProducts(ctx context.Context, limit, offset int32, productType, contractExpiryType, expiringContractStatus, productsSortOrder string, productIDs []string, getTradabilityStatus, getAllProducts, authenticated bool) (*AllProducts, error) {
 	vals := url.Values{}
 	vals.Set("limit", strconv.FormatInt(int64(limit), 10))
@@ -1356,6 +1363,33 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}, request.UnauthenticatedRequest)
 }
 
+type responseError struct {
+	response ErrorResponse
+	err      error
+}
+
+func (e *responseError) Error() string { return e.err.Error() }
+
+func (e *responseError) Unwrap() error { return e.err }
+
+func classifyOrderNotFound(err error) error {
+	if responseErr, ok := errors.AsType[*responseError](err); ok && responseErr.response.ErrorType == "NOT_FOUND" {
+		return fmt.Errorf("%w: %w", order.ErrOrderNotFound, err)
+	}
+	return err
+}
+
+func parseResponseError(err error, raw json.RawMessage) error {
+	if !errors.Is(err, request.ErrBadStatus) {
+		return err
+	}
+	var response ErrorResponse
+	if json.Unmarshal(raw, &response) != nil || response.ErrorType == "" {
+		return err
+	}
+	return &responseError{response: response, err: err}
+}
+
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, queryParams url.Values, payload any, isVersion3 bool, result any) (err error) {
 	endpoint, err := e.API.Endpoints.GetURL(ep)
@@ -1398,7 +1432,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		rateLim = V3Rate
 	}
 	if err := e.SendPayload(ctx, rateLim, newRequest, request.AuthenticatedRequest); err != nil {
-		return err
+		return parseResponseError(err, interim)
 	}
 	// Doing this error handling because the docs indicate that errors can be returned even with a 200 status code, and that these errors can be buried in the JSON returned
 	singleErrCap := struct {
@@ -1441,11 +1475,7 @@ func (e *Exchange) GetJWT(ctx context.Context, uri string) (string, time.Time, e
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	block, _ := pem.Decode([]byte(creds.Secret))
-	if block == nil {
-		return "", time.Time{}, errDecodingPrivateKey
-	}
-	privateKey, err := x509.ParseECPrivateKey(block.Bytes)
+	privateKey, alg, err := parseSigningKey(creds.Secret)
 	if err != nil {
 		return "", time.Time{}, err
 	}
@@ -1456,7 +1486,7 @@ func (e *Exchange) GetJWT(ctx context.Context, uri string) (string, time.Time, e
 	head := map[string]any{
 		"kid":   creds.Key,
 		"typ":   "JWT",
-		"alg":   "ES256",
+		"alg":   alg,
 		"nonce": nonce,
 	}
 	headJSON, err := json.Marshal(head)
@@ -1481,23 +1511,74 @@ func (e *Exchange) GetJWT(ctx context.Context, uri string) (string, time.Time, e
 	}
 	bodyEnc := base64.RawURLEncoding.EncodeToString(bodyJSON)
 	signingInput := headEnc + "." + bodyEnc
-	hash := sha256.Sum256([]byte(signingInput))
-	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash[:])
+	sig, err := signJWT(privateKey, signingInput)
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	n := privateKey.Params().N
-	halfN := new(big.Int).Rsh(n, 1)
-	if s.Cmp(halfN) == 1 {
-		s.Sub(n, s)
+	return signingInput + "." + base64.RawURLEncoding.EncodeToString(sig), regTime.Add(2 * time.Minute), nil
+}
+
+// parseSigningKey decodes a CDP API secret and returns the private key with
+// the matching JWT algorithm. ECDSA keys arrive as SEC1 or PKCS#8 PEM,
+// Ed25519 keys as PKCS#8 PEM or base64, either the 64 byte private key or
+// the 32 byte seed
+func parseSigningKey(secret string) (crypto.PrivateKey, string, error) {
+	block, _ := pem.Decode([]byte(secret))
+	if block == nil {
+		raw, err := base64.StdEncoding.DecodeString(secret)
+		if err != nil {
+			return nil, "", fmt.Errorf("%w: %w", errDecodingPrivateKey, err)
+		}
+		switch len(raw) {
+		case ed25519.SeedSize:
+			return ed25519.NewKeyFromSeed(raw), "EdDSA", nil
+		case ed25519.PrivateKeySize:
+			return ed25519.PrivateKey(raw), "EdDSA", nil
+		}
+		return nil, "", fmt.Errorf("%w: %d bytes is not an Ed25519 key or seed", errDecodingPrivateKey, len(raw))
 	}
-	rb := r.Bytes()
-	sb := s.Bytes()
-	sig := make([]byte, 64)
-	copy(sig[32-len(rb):32], rb)
-	copy(sig[64-len(sb):], sb)
-	sigEnc := base64.RawURLEncoding.EncodeToString(sig)
-	return signingInput + "." + sigEnc, regTime.Add(2 * time.Minute), nil
+	if ecKey, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
+		return ecKey, "ES256", nil
+	}
+	parsed, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, "", fmt.Errorf("%w: %w", errDecodingPrivateKey, err)
+	}
+	switch k := parsed.(type) {
+	case *ecdsa.PrivateKey:
+		return k, "ES256", nil
+	case ed25519.PrivateKey:
+		return k, "EdDSA", nil
+	}
+	return nil, "", fmt.Errorf("%w: unsupported key type %T", errDecodingPrivateKey, parsed)
+}
+
+// signJWT signs the JWT signing input with the given private key
+func signJWT(privKey crypto.PrivateKey, signingInput string) ([]byte, error) {
+	switch k := privKey.(type) {
+	case *ecdsa.PrivateKey:
+		if k.Curve != elliptic.P256() {
+			return nil, fmt.Errorf("%w: ECDSA private key must use P-256", errDecodingPrivateKey)
+		}
+		hash := sha256.Sum256([]byte(signingInput))
+		r, s, err := ecdsa.Sign(rand.Reader, k, hash[:])
+		if err != nil {
+			return nil, err
+		}
+		n := k.Params().N
+		halfN := new(big.Int).Rsh(n, 1)
+		if s.Cmp(halfN) == 1 {
+			s.Sub(n, s)
+		}
+		sig := make([]byte, 64)
+		r.FillBytes(sig[:32])
+		s.FillBytes(sig[32:])
+		return sig, nil
+	case ed25519.PrivateKey:
+		return ed25519.Sign(k, []byte(signingInput)), nil
+	default:
+		return nil, common.GetTypeAssertError("*ecdsa.PrivateKey|ed25519.PrivateKey", privKey)
+	}
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -1699,7 +1780,7 @@ func (o *Orders) UnmarshalJSON(data []byte) error {
 	}
 	switch a := alias.(type) {
 	case string:
-		if o.OrderID, err = uuid.FromString(a); err != nil {
+		if o.OrderID, err = uuid.Parse(a); err != nil {
 			return err
 		}
 		o.OrderCount = 1

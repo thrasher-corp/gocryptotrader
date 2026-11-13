@@ -3,10 +3,11 @@ package currency
 import (
 	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"slices"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
@@ -55,7 +56,31 @@ func (p Pairs) Strings() []string {
 
 // Join returns a comma separated list of currency pairs
 func (p Pairs) Join() string {
-	return strings.Join(p.Strings(), ",")
+	switch len(p) {
+	case 0:
+		return ""
+	case 1:
+		return p[0].String()
+	}
+
+	// Build directly to avoid allocating an intermediate string for each pair.
+	// len(p) - 1 accounts for the commas inserted between pairs.
+	outputLen := len(p) - 1
+	for i := range p {
+		outputLen += len(p[i].Base.String()) + len(p[i].Delimiter) + len(p[i].Quote.String())
+	}
+
+	var joined strings.Builder
+	joined.Grow(outputLen)
+	for i := range p {
+		if i > 0 {
+			joined.WriteByte(',')
+		}
+		joined.WriteString(p[i].Base.String())
+		joined.WriteString(p[i].Delimiter)
+		joined.WriteString(p[i].Quote.String())
+	}
+	return joined.String()
 }
 
 // Format formats the pair list to the exchange format configuration
@@ -242,7 +267,7 @@ type pairKey struct {
 // FindDifferences returns pairs which are new or have been removed
 func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifference, error) {
 	newPairs := make(Pairs, 0, len(incoming))
-	check := make(map[pairKey]bool)
+	check := make(common.Seen[pairKey])
 	formatDiff := false
 	for x := range incoming {
 		if incoming[x].IsEmpty() {
@@ -254,10 +279,9 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 		}
 
 		k := pairKey{Base: incoming[x].Base.Item, Quote: incoming[x].Quote.Item}
-		if check[k] {
+		if check.CheckAndRecord(k) {
 			return PairDifference{}, fmt.Errorf("contained in the incoming pairs %w", ErrPairDuplication)
 		}
-		check[k] = true
 		if !p.Contains(incoming[x], true) {
 			newPairs = append(newPairs, incoming[x])
 		}
@@ -274,10 +298,10 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 		}
 
 		k := pairKey{Base: p[x].Base.Item, Quote: p[x].Quote.Item}
-		if !incoming.Contains(p[x], true) || check[k] {
+		duplicate := check.CheckAndRecord(k)
+		if !incoming.Contains(p[x], true) || duplicate {
 			removedPairs = append(removedPairs, p[x])
 		}
-		check[k] = true
 	}
 	return PairDifference{New: newPairs, Remove: removedPairs, FormatDifference: formatDiff}, nil
 }
@@ -292,7 +316,7 @@ func (p Pairs) GetRandomPair() (Pair, error) {
 	if len(p) == 0 {
 		return EMPTYPAIR, ErrCurrencyPairsEmpty
 	}
-	return p[rand.Intn(len(p))], nil //nolint:gosec // basic number generation required, no need for crypto/rand
+	return p[rand.IntN(len(p))], nil //nolint:gosec // basic number generation required, no need for crypto/rand
 }
 
 // DeriveFrom matches symbol string to the available pairs list when no
@@ -409,12 +433,12 @@ func (p Pairs) GetStablesMatch(code Code) Pairs {
 
 // ValidateAndConform checks for duplications and empty pairs then conforms the
 // entire pairs list to the supplied formatting (unless bypassed).
-// Map[string]bool type is used to make sure delimiters are not included so
+// Normalised string keys are used to make sure delimiters are not included so
 // different formatting entry duplications can be found e.g. `LINKUSDTM21`,
-// `LIN-KUSDTM21` or `LINK-USDTM21 are all the same instances but with different
+// `LIN-KUSDTM21` or `LINK-USDTM21` are all the same instances but with different
 // unintentional processes for formatting.
 func (p Pairs) ValidateAndConform(pFmt PairFormat, bypassFormatting bool) (Pairs, error) {
-	processedPairs := make(map[string]bool, len(p))
+	processedPairs := make(common.Seen[string], len(p))
 	formatted := make(Pairs, len(p))
 	var target int
 	for x := range p {
@@ -422,11 +446,10 @@ func (p Pairs) ValidateAndConform(pFmt PairFormat, bypassFormatting bool) (Pairs
 			return nil, fmt.Errorf("cannot update pairs %w", ErrCurrencyPairEmpty)
 		}
 		strippedPair := EMPTYFORMAT.Format(p[x])
-		if processedPairs[strippedPair] {
+		if processedPairs.CheckAndRecord(strippedPair) {
 			return nil, fmt.Errorf("cannot update pairs %w with [%s]", ErrPairDuplication, p[x])
 		}
 		// Force application of supplied formatting
-		processedPairs[strippedPair] = true
 		if !bypassFormatting {
 			formatted[target] = p[x].Format(pFmt)
 		} else {

@@ -1,3 +1,0 @@
-fmt := import("fmt")
-
-fmt.printnope("hello world")

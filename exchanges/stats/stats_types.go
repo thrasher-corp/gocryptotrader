@@ -21,9 +21,3 @@ type Item struct {
 	Price     float64
 	Volume    float64
 }
-
-// byPrice allows sorting by price
-type byPrice []Item
-
-// byVolume allows sorting by volume
-type byVolume []Item

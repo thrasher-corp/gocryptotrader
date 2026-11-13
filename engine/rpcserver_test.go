@@ -8,7 +8,8 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
+	"math/rand/v2"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,9 +19,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
@@ -50,8 +49,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
+	"github.com/thrasher-corp/gocryptotrader/utils"
 	"github.com/thrasher-corp/goose"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -136,10 +138,7 @@ func (f fExchange) GetCollateralMode(_ context.Context, _ asset.Item) (collatera
 }
 
 func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *futures.PositionsRequest) ([]futures.PositionResponse, error) {
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	resp := make([]futures.PositionResponse, len(req.Pairs))
 	tt := time.Now()
 	for i := range req.Pairs {
@@ -151,6 +150,8 @@ func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *futures.Posi
 					Exchange:        f.GetName(),
 					Price:           1337,
 					Amount:          1337,
+					Fee:             0.25,
+					FeeAsset:        currency.USDT,
 					InternalOrderID: id,
 					OrderID:         "1337",
 					ClientOrderID:   "1337",
@@ -310,9 +311,8 @@ func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price
 		Low:          1337,
 		Bid:          1337,
 		Ask:          1337,
-		Volume:       1337,
+		BaseVolume:   1337,
 		QuoteVolume:  1337,
-		PriceATH:     1337,
 		Open:         1337,
 		Close:        1337,
 		Pair:         p,
@@ -442,12 +442,10 @@ func RPCTestSetup(t *testing.T) *Engine {
 	t.Helper()
 	var err error
 	dbConf := database.Config{
-		Enabled: true,
-		Driver:  database.DBSQLite3,
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: "test123.db",
-		},
+		Enabled:  true,
+		Driver:   database.DBSQLite3,
+		Host:     "localhost",
+		Database: "test123.db",
 	}
 	engerino := new(Engine)
 	dbm, err := SetupDatabaseConnectionManager(&dbConf)
@@ -522,14 +520,8 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatalf("failed to run migrations %v", err)
 	}
-	uuider, err := uuid.NewV4()
-	if err != nil {
-		t.Fatal(err)
-	}
-	uuider2, err := uuid.NewV4()
-	if err != nil {
-		t.Fatal(err)
-	}
+	uuider := uuid.NewV4()
+	uuider2 := uuid.NewV4()
 	err = dbexchange.InsertMany([]dbexchange.Details{{Name: testExchange, UUID: uuider}, {Name: "Binance", UUID: uuider2}})
 	if err != nil {
 		t.Fatalf("failed to insert exchange %v", err)
@@ -1290,7 +1282,7 @@ func TestGetOrders(t *testing.T) {
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{
@@ -1345,7 +1337,7 @@ func TestGetOrders(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
 
-	b.SetCredentials("test", "test", "", "", "", "")
+	b.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
 	b.API.AuthenticatedSupport = true
 
 	_, err = s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
@@ -1385,7 +1377,7 @@ func TestGetOrder(t *testing.T) {
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	assert.NoError(t, err)
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
@@ -1805,7 +1797,7 @@ func TestGetManagedOrders(t *testing.T) {
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{
@@ -1845,6 +1837,8 @@ func TestGetManagedOrders(t *testing.T) {
 	o := order.Detail{
 		Price:     100000,
 		Amount:    0.002,
+		Fee:       0.25,
+		FeeAsset:  currency.USDT,
 		Exchange:  "Binance",
 		Type:      order.Limit,
 		Side:      order.Sell,
@@ -1862,10 +1856,15 @@ func TestGetManagedOrders(t *testing.T) {
 		AssetType: "spot",
 		Pair:      p,
 	})
-	if err != nil {
+	switch {
+	case err != nil:
 		t.Errorf("non expected Error: %v", err)
-	} else if oo == nil || len(oo.GetOrders()) != 1 {
+	case oo == nil || len(oo.GetOrders()) != 1:
 		t.Errorf("unexpected order result: %v", oo)
+	default:
+		got := oo.GetOrders()[0]
+		assert.InDelta(t, 0.25, got.GetFee(), 1e-9, "the managed order should carry its fee")
+		assert.Equal(t, "USDT", got.GetFeeCurrency(), "the managed order should carry its fee currency from the stored order")
 	}
 }
 
@@ -1896,6 +1895,98 @@ func TestRPCServer_unixTimestamp(t *testing.T) {
 	timestampNanos := s.unixTimestamp(x)
 	if want := int64(sec*1_000_000_000 + nsec); timestampNanos != want {
 		t.Errorf("have %d, want %d", timestampSeconds, want)
+	}
+}
+
+func TestRPCServer_tickerResponse(t *testing.T) {
+	t.Parallel()
+
+	pair := currency.NewBTCUSD()
+	price := &ticker.Price{
+		Pair:                       pair,
+		ExchangeName:               "Bitstamp",
+		AssetType:                  asset.Spot,
+		LastUpdated:                time.Unix(1643640186, 123456789),
+		Last:                       1,
+		LastSize:                   2,
+		VolumeWeightedAveragePrice: 3,
+		High:                       4,
+		Low:                        5,
+		Bid:                        7,
+		BidSize:                    8,
+		Ask:                        10,
+		AskSize:                    11,
+		BaseVolume:                 12,
+		QuoteVolume:                13,
+		Open:                       14,
+		Open24Hour:                 15,
+		PercentChange24Hour:        16,
+		Close:                      17,
+		OpenInterest:               18,
+		OpenInterestValue:          19,
+		MarkPrice:                  20,
+		IndexPrice:                 21,
+		FlashReturnRate:            22,
+		BidPeriod:                  23,
+		AskPeriod:                  24,
+		FlashReturnRateAmount:      25,
+	}
+
+	for _, tc := range []struct {
+		name        string
+		nanoseconds bool
+		timestamp   int64
+	}{
+		{name: "seconds", timestamp: 1643640186},
+		{name: "nanoseconds", nanoseconds: true, timestamp: 1643640186123456789},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := &RPCServer{Engine: &Engine{Config: &config.Config{}}}
+			s.Config.RemoteControl.GRPC.TimeInNanoSeconds = tc.nanoseconds
+			want := &gctrpc.TickerResponse{
+				Pair: &gctrpc.CurrencyPair{
+					Base:  "BTC",
+					Quote: "USD",
+				},
+				LastUpdated:                tc.timestamp,
+				CurrencyPair:               "BTCUSD",
+				Last:                       1,
+				LastSize:                   2,
+				VolumeWeightedAveragePrice: 3,
+				High:                       4,
+				Low:                        5,
+				Bid:                        7,
+				BidSize:                    8,
+				Ask:                        10,
+				AskSize:                    11,
+				Volume:                     12,
+				BaseVolume:                 12,
+				QuoteVolume:                13,
+				Open:                       14,
+				Open24Hour:                 15,
+				PercentChange24Hour:        16,
+				Close:                      17,
+				OpenInterest:               18,
+				OpenInterestValue:          19,
+				MarkPrice:                  20,
+				IndexPrice:                 21,
+				ExchangeName:               "Bitstamp",
+				AssetType:                  asset.Spot.String(),
+				FlashReturnRate:            22,
+				BidPeriod:                  23,
+				AskPeriod:                  24,
+				FlashReturnRateAmount:      25,
+			}
+			got := s.tickerResponse(price)
+			assert.Equal(t, want, got, "ticker RPC response should contain every stored price field")
+
+			encoded, err := proto.Marshal(got)
+			require.NoError(t, err, "ticker RPC response must marshal")
+			var decoded gctrpc.TickerResponse
+			require.NoError(t, proto.Unmarshal(encoded, &decoded), "ticker RPC response must unmarshal")
+			assert.True(t, proto.Equal(want, &decoded), "ticker RPC fields should survive a wire round trip")
+		})
 	}
 }
 
@@ -1942,7 +2033,7 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 	request := &gctrpc.GetTickerRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
-			Delimiter: pair.Delimiter,
+			Delimiter: "-",
 			Base:      pair.Base.String(),
 			Quote:     pair.Quote.String(),
 		},
@@ -1952,22 +2043,19 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 	// Check if timestamp returned is in seconds if !TimeInNanoSeconds.
 	server.Config.RemoteControl.GRPC.TimeInNanoSeconds = false
 	one, err := server.GetTicker(t.Context(), request)
-	if err != nil {
-		t.Error(err)
-	}
-	if want := now.Unix(); one.LastUpdated != want {
-		t.Errorf("have %d, want %d", one.LastUpdated, want)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, now.Unix(), one.LastUpdated)
+	assert.Equal(t, request.Pair, one.Pair, "GetTicker should echo the requested pair")
+	assert.Equal(t, "XXXXX-YYYYY", one.CurrencyPair, "GetTicker should echo the requested pair format")
 
 	// Check if timestamp returned is in nanoseconds if TimeInNanoSeconds.
 	server.Config.RemoteControl.GRPC.TimeInNanoSeconds = true
 	two, err := server.GetTicker(t.Context(), request)
-	if err != nil {
-		t.Error(err)
-	}
-	if want := now.UnixNano(); two.LastUpdated != want {
-		t.Errorf("have %d, want %d", two.LastUpdated, want)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, now.UnixNano(), two.LastUpdated)
+	request.Pair.Base = "changed"
+	assert.Equal(t, "XXXXX", one.Pair.Base, "response pair should not alias the request")
+	assert.Equal(t, "XXXXX", two.Pair.Base, "response pair should not alias the request")
 }
 
 func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {
@@ -2079,7 +2167,7 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 
 	s := RPCServer{Engine: &Engine{
 		ExchangeManager:      em,
-		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em},
+		currencyStateManager: getDummyStateManager(em),
 	}}
 
 	_, err = s.CurrencyStateTradingPair(t.Context(),
@@ -2089,6 +2177,12 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 			Asset:    "spot",
 		})
 	require.NoError(t, err)
+}
+
+func getDummyStateManager(em *ExchangeManager) *CurrencyStateManager {
+	csm := &CurrencyStateManager{iExchangeManager: em}
+	csm.started.Store(true)
+	return csm
 }
 
 func TestGetFuturesPositionsOrders(t *testing.T) {
@@ -2134,19 +2228,16 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 
-	_, err = s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
+	resp, err := s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Futures.String(),
 		Pair: &gctrpc.CurrencyPair{
@@ -2156,6 +2247,9 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
+	require.NotEmpty(t, resp.GetPositions(), "positions must be returned")
+	require.NotEmpty(t, resp.GetPositions()[0].GetOrders(), "position orders must be returned")
+	assert.Equal(t, "USDT", resp.GetPositions()[0].GetOrders()[0].GetFeeCurrency(), "the position order should carry its fee currency")
 
 	_, err = s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: fakeExchangeName,
@@ -2207,10 +2301,8 @@ func TestGetCollateral(t *testing.T) {
 
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started: 1, iExchangeManager: em,
-			},
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
 		},
 	}
 
@@ -2275,6 +2367,45 @@ func TestShutdown(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestShutdownConcurrentRequestsDoNotBlock(t *testing.T) {
+	t.Parallel()
+	s := RPCServer{Engine: &Engine{
+		Settings: Settings{CoreSettings: CoreSettings{
+			EnableGRPCShutdown: true,
+		}},
+		GRPCShutdownSignal: make(chan struct{}, 1),
+	}}
+
+	const callers = 2
+	errCh := make(chan error, callers)
+	var wg sync.WaitGroup
+	wg.Add(callers)
+	for range callers {
+		go func() {
+			defer wg.Done()
+			_, err := s.Shutdown(t.Context(), &gctrpc.ShutdownRequest{})
+			errCh <- err
+		}()
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("concurrent Shutdown calls blocked")
+	}
+
+	for range callers {
+		require.NoError(t, <-errCh)
+	}
+	assert.LessOrEqual(t, len(s.Engine.GRPCShutdownSignal), 1)
+}
+
 func TestGetTechnicalAnalysis(t *testing.T) {
 	t.Parallel()
 
@@ -2310,11 +2441,8 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
 		},
 	}
 
@@ -2544,10 +2672,8 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started: 1, iExchangeManager: em,
-			},
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
 		},
 	}
 	_, err = s.GetMarginRatesHistory(t.Context(), nil)
@@ -2683,15 +2809,12 @@ func TestGetFundingRates(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 
@@ -2779,15 +2902,12 @@ func TestGetLatestFundingRate(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 
@@ -2869,15 +2989,12 @@ func TestGetManagedPosition(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 	_, err = s.GetManagedPosition(t.Context(), nil)
@@ -2907,7 +3024,7 @@ func TestGetManagedPosition(t *testing.T) {
 	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	s.OrderManager.started = 1
+	s.OrderManager.started.Store(true)
 	s.OrderManager.activelyTrackFuturesPositions = true
 	_, err = s.GetManagedPosition(t.Context(), request)
 	assert.ErrorIs(t, err, futures.ErrPositionNotFound)
@@ -2993,15 +3110,12 @@ func TestGetAllManagedPositions(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 	_, err = s.GetAllManagedPositions(t.Context(), nil)
@@ -3011,7 +3125,7 @@ func TestGetAllManagedPositions(t *testing.T) {
 	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour, ActivelyTrackFuturesPositions: true})
 	assert.NoError(t, err)
 
-	s.OrderManager.started = 1
+	s.OrderManager.started.Store(true)
 	_, err = s.GetAllManagedPositions(t.Context(), request)
 	assert.ErrorIs(t, err, futures.ErrNoPositionsFound)
 
@@ -3027,6 +3141,8 @@ func TestGetAllManagedPositions(t *testing.T) {
 		ExecutedAmount:       1337,
 		RemainingAmount:      1337,
 		Cost:                 1337,
+		Fee:                  1.5,
+		FeeAsset:             currency.USDT,
 		Exchange:             fakeExchangeName,
 		OrderID:              "1337",
 		Type:                 order.Market,
@@ -3043,8 +3159,58 @@ func TestGetAllManagedPositions(t *testing.T) {
 	request.GetFundingPayments = true
 	request.IncludeFullFundingRates = true
 	request.IncludeFullOrderData = true
-	_, err = s.GetAllManagedPositions(t.Context(), request)
-	assert.NoError(t, err)
+	resp, err := s.GetAllManagedPositions(t.Context(), request)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.GetPositions(), "positions must be returned")
+	require.NotEmpty(t, resp.GetPositions()[0].GetOrders(), "position orders must be returned")
+	assert.Equal(t, "USDT", resp.GetPositions()[0].GetOrders()[0].GetFeeCurrency(), "the managed position's order should carry its fee currency")
+}
+
+func TestOrderbookItems(t *testing.T) {
+	t.Parallel()
+	levels := orderbook.Levels{
+		{Price: 1.234567891234567, Amount: 0.00000000123, StrPrice: "1.234567891234567890", StrAmount: "0.0000000012300", ID: 17},
+		{Price: 1, Amount: 2, ID: 18},
+	}
+	for _, tc := range []struct {
+		name       string
+		levels     orderbook.Levels
+		includeIDs bool
+		want       []*gctrpc.OrderbookItem
+	}{
+		{name: "nil", want: []*gctrpc.OrderbookItem{}},
+		{name: "empty", levels: orderbook.Levels{}, includeIDs: true, want: []*gctrpc.OrderbookItem{}},
+		{
+			name: "single level", levels: levels[:1],
+			want: []*gctrpc.OrderbookItem{
+				{Price: 1.234567891234567, Amount: 0.00000000123, StrPrice: "1.234567891234567890", StrAmount: "0.0000000012300"},
+			},
+		},
+		{
+			name: "snapshot levels", levels: levels,
+			want: []*gctrpc.OrderbookItem{
+				{Price: 1.234567891234567, Amount: 0.00000000123, StrPrice: "1.234567891234567890", StrAmount: "0.0000000012300"},
+				{Price: 1, Amount: 2},
+			},
+		},
+		{
+			name: "stream levels", levels: levels, includeIDs: true,
+			want: []*gctrpc.OrderbookItem{
+				{Price: 1.234567891234567, Amount: 0.00000000123, StrPrice: "1.234567891234567890", StrAmount: "0.0000000012300", Id: 17},
+				{Price: 1, Amount: 2, Id: 18},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := orderbookItems(tc.levels, tc.includeIDs)
+			require.Len(t, got, len(tc.want), "conversion must retain every level")
+			assert.NotNil(t, got, "empty inputs should retain the existing empty-slice response")
+			for i := range tc.want {
+				assert.True(t, proto.Equal(tc.want[i], got[i]), "conversion should preserve level values and ordering with IDs only for streams")
+			}
+		})
+	}
 }
 
 func TestGetOrderbookMovement(t *testing.T) {
@@ -3693,7 +3859,7 @@ func TestStartRPCRESTProxy(t *testing.T) {
 		t.FailNow()
 	}
 
-	gRPCPort := rand.Intn(65535-42069) + 42069 //nolint:gosec // Don't require crypto/rand usage here
+	gRPCPort := rand.IntN(65535-42069) + 42069 //nolint:gosec // Don't require crypto/rand usage here
 	gRPCProxyPort := gRPCPort + 1
 
 	e := &Engine{
@@ -3717,7 +3883,9 @@ func TestStartRPCRESTProxy(t *testing.T) {
 	fakeTime := time.Now().Add(-time.Hour)
 	e.uptime = fakeTime
 
-	StartRPCServer(e)
+	rpcCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	StartRPCServer(rpcCtx, e)
 
 	// Give the proxy time to start
 	time.Sleep(time.Millisecond * 500)
@@ -3746,9 +3914,13 @@ func TestStartRPCRESTProxy(t *testing.T) {
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://localhost:"+strconv.Itoa(gRPCProxyPort)+"/v1/getinfo", http.NoBody)
 			require.NoError(t, err, "NewRequestWithContext must not error")
 			req.SetBasicAuth(creds.username, creds.password)
+			// the server measures uptime while handling the request, so it must fall within this window; bounding it
+			// here keeps slow response decoding, such as a JSON backend compiling its decoder, out of the measurement
+			sentAfter := time.Since(fakeTime)
 			resp, err := client.Do(req)
 			require.NoError(t, err, "Do must not error")
 			defer resp.Body.Close()
+			receivedBy := time.Since(fakeTime)
 
 			if creds.username == "bobmarley" && creds.password == "Sup3rdup3rS3cr3t" {
 				var info gctrpc.GetInfoResponse
@@ -3757,7 +3929,8 @@ func TestStartRPCRESTProxy(t *testing.T) {
 
 				uptimeDuration, err := time.ParseDuration(info.Uptime)
 				require.NoError(t, err, "ParseDuration must not error")
-				assert.InDelta(t, time.Since(fakeTime).Seconds(), uptimeDuration.Seconds(), 1.0, "Uptime should be within 1 second of the expected duration")
+				assert.GreaterOrEqual(t, uptimeDuration, sentAfter, "Uptime should be measured after the request was sent")
+				assert.LessOrEqual(t, uptimeDuration, receivedBy, "Uptime should be measured before the response arrived")
 			} else {
 				respBody, err := io.ReadAll(resp.Body)
 				require.NoError(t, err, "ReadAll must not error")
@@ -3819,6 +3992,47 @@ func TestRPCProxyAuthClient(t *testing.T) {
 	}
 }
 
+func TestStartRPCServerStopsListenerOnContextCancel(t *testing.T) {
+	t.Parallel()
+	tempDir := t.TempDir()
+	tempDirTLS := utils.GetTLSDir(tempDir)
+	require.NoError(t, os.MkdirAll(tempDirTLS, os.ModePerm), "MkdirAll must not error")
+	require.NoError(t, genCert(tempDirTLS), "genCert must not error")
+
+	listenConfig := net.ListenConfig{}
+	portListener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err, "Listen must not error")
+	listenAddress := portListener.Addr().String()
+	require.NoError(t, portListener.Close(), "Close must not error")
+
+	e := &Engine{
+		Config: &config.Config{RemoteControl: config.RemoteControlConfig{
+			GRPC: config.GRPCConfig{
+				Enabled:       true,
+				ListenAddress: listenAddress,
+			},
+		}},
+		Settings: Settings{DataDir: tempDir},
+	}
+
+	rpcCtx, cancel := context.WithCancel(context.Background())
+	StartRPCServer(rpcCtx, e)
+
+	canDial := func() bool {
+		dialer := net.Dialer{Timeout: 100 * time.Millisecond}
+		conn, dialErr := dialer.DialContext(t.Context(), "tcp", listenAddress)
+		if dialErr != nil {
+			return false
+		}
+		_ = conn.Close()
+		return true
+	}
+
+	assert.Eventually(t, canDial, 5*time.Second, 100*time.Millisecond, "gRPC listener should accept TCP connections after startup")
+	cancel()
+	assert.Eventually(t, func() bool { return !canDial() }, 5*time.Second, 100*time.Millisecond, "gRPC listener should close after context cancellation")
+}
+
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
@@ -3869,4 +4083,231 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	resp, err := s.GetCurrencyTradeURL(t.Context(), req)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.Url)
+}
+
+type batchCancelRPCFake struct {
+	fExchange
+	cancelsReceived []order.Cancel
+	resp            *order.CancelBatchResponse
+	err             error
+}
+
+func (f *batchCancelRPCFake) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	f.cancelsReceived = append(f.cancelsReceived, o...)
+	return f.resp, f.err
+}
+
+func setupBatchCancelServer(t *testing.T, fake *batchCancelRPCFake) *RPCServer {
+	t.Helper()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("binance")
+	require.NoError(t, err)
+
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled:  true,
+		Enabled:       []currency.Pair{currency.NewBTCUSDT()},
+		Available:     []currency.Pair{currency.NewBTCUSDT()},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+	})
+	require.NoError(t, err)
+
+	fake.IBotExchange = exch
+	err = em.Add(fake)
+	require.NoError(t, err)
+
+	return &RPCServer{Engine: &Engine{ExchangeManager: em}}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+
+	t.Run("reports wrapper statuses", func(t *testing.T) {
+		t.Parallel()
+
+		fake := &batchCancelRPCFake{
+			resp: &order.CancelBatchResponse{
+				Status: map[string]string{
+					"1": order.Cancelled.String(),
+					"2": "failed to cancel",
+				},
+			},
+		}
+		server := setupBatchCancelServer(t, fake)
+
+		res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+			Exchange:  fakeExchangeName,
+			AssetType: "spot",
+			Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+			Side:      "buy",
+			OrdersId:  "1,2,3",
+		})
+		require.NoError(t, err)
+		require.Len(t, res.Orders, 1)
+
+		status := res.Orders[0].OrderStatus
+		assert.Equal(t, order.Cancelled.String(), status["1"])
+		assert.Equal(t, "failed to cancel", status["2"])
+		assert.Equal(t, order.UnknownStatus.String(), status["3"], "an omitted status is reported as unknown")
+	})
+
+	t.Run("defaults when wrapper reports no status", func(t *testing.T) {
+		t.Parallel()
+
+		fake := &batchCancelRPCFake{}
+		server := setupBatchCancelServer(t, fake)
+
+		res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+			Exchange:  fakeExchangeName,
+			AssetType: "spot",
+			Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+			Side:      "buy",
+			OrdersId:  "10,20",
+		})
+		require.NoError(t, err)
+		require.Len(t, res.Orders, 1)
+
+		status := res.Orders[0].OrderStatus
+		assert.Equal(t, order.Cancelled.String(), status["10"])
+		assert.Equal(t, order.Cancelled.String(), status["20"])
+	})
+
+	t.Run("reports requested statuses", func(t *testing.T) {
+		t.Parallel()
+
+		cancelled, unknown := order.Cancelled.String(), order.UnknownStatus.String()
+		for _, tc := range []struct {
+			name     string
+			statuses map[string]string
+			expected map[string]string
+		}{
+			{name: "no status map", expected: map[string]string{"10": unknown, "20": unknown}},
+			{name: "empty status map", statuses: map[string]string{}, expected: map[string]string{"10": unknown, "20": unknown}},
+			{name: "unrequested order only", statuses: map[string]string{"30": cancelled}, expected: map[string]string{"10": unknown, "20": unknown}},
+			{name: "one requested order", statuses: map[string]string{"10": cancelled}, expected: map[string]string{"10": cancelled, "20": unknown}},
+			{name: "requested and unrequested orders", statuses: map[string]string{"10": cancelled, "30": cancelled}, expected: map[string]string{"10": cancelled, "20": unknown}},
+			{name: "every requested order", statuses: map[string]string{"10": cancelled, "20": "failed to cancel"}, expected: map[string]string{"10": cancelled, "20": "failed to cancel"}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				fake := &batchCancelRPCFake{
+					resp: &order.CancelBatchResponse{Status: tc.statuses},
+				}
+				server := setupBatchCancelServer(t, fake)
+
+				res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+					Exchange:  fakeExchangeName,
+					AssetType: "spot",
+					Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+					Side:      "buy",
+					OrdersId:  "10,20",
+				})
+				require.NoError(t, err)
+				require.Len(t, res.Orders, 1)
+				assert.Equal(t, tc.expected, res.Orders[0].OrderStatus, "order statuses should cover exactly the requested orders")
+			})
+		}
+	})
+
+	t.Run("trims", func(t *testing.T) {
+		t.Parallel()
+
+		unknown, cancelled := order.UnknownStatus.String(), order.Cancelled.String()
+		for _, tc := range []struct {
+			name     string
+			ordersID string
+			statuses map[string]string
+			sent     []string
+			reply    map[string]string
+		}{
+			{name: "whitespace padded IDs", ordersID: " 1 , 2 \t", sent: []string{"1", "2"}, reply: map[string]string{"1": unknown, "2": unknown}},
+			{name: "different valid statuses", ordersID: "2, \t1", statuses: map[string]string{"1": "failed to cancel", "2": cancelled}, sent: []string{"2", "1"}, reply: map[string]string{"1": "failed to cancel", "2": cancelled}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				fake := &batchCancelRPCFake{
+					resp: &order.CancelBatchResponse{Status: tc.statuses},
+				}
+				server := setupBatchCancelServer(t, fake)
+
+				res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+					Exchange:  fakeExchangeName,
+					AssetType: "spot",
+					Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+					Side:      "buy",
+					OrdersId:  tc.ordersID,
+				})
+				require.NoError(t, err)
+				require.Len(t, res.Orders, 1)
+				assert.Equal(t, tc.reply, res.Orders[0].OrderStatus, "the reply should be keyed by the trimmed order IDs")
+
+				pair := currency.NewPairWithDelimiter("btc", "usdt", "-")
+				sent := make([]order.Cancel, len(tc.sent))
+				for i, id := range tc.sent {
+					sent[i] = order.Cancel{OrderID: id, Side: order.Buy, Pair: pair, AssetType: asset.Spot}
+				}
+				assert.Equal(t, sent, fake.cancelsReceived, "each order ID should reach the exchange once, trimmed and in the order given")
+			})
+		}
+	})
+
+	t.Run("rejects empty and duplicate orders", func(t *testing.T) {
+		t.Parallel()
+
+		for _, tc := range []struct {
+			name     string
+			ordersID string
+			wantErr  error
+		}{
+			{name: "empty string", ordersID: "", wantErr: order.ErrCancelOrderIsNil},
+			{name: "all empty fragments", ordersID: " , , ", wantErr: ErrOrderIDCannotBeEmpty},
+			{name: "inner empty fragment", ordersID: "1,,2", wantErr: ErrOrderIDCannotBeEmpty},
+			{name: "trailing empty fragment", ordersID: "1,2,", wantErr: ErrOrderIDCannotBeEmpty},
+			{name: "adjacent duplicate", ordersID: "1, 1", wantErr: errDuplicateOrderID},
+			{name: "non-adjacent duplicate", ordersID: "1, 2, 1", wantErr: errDuplicateOrderID},
+			{name: "padded duplicate", ordersID: "2, 1, \t2", wantErr: errDuplicateOrderID},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				fake := &batchCancelRPCFake{}
+				server := setupBatchCancelServer(t, fake)
+
+				_, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+					Exchange:  fakeExchangeName,
+					AssetType: "spot",
+					Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+					Side:      "buy",
+					OrdersId:  tc.ordersID,
+				})
+				assert.ErrorIs(t, err, tc.wantErr)
+				assert.Empty(t, fake.cancelsReceived, "a refused batch should send nothing to the exchange")
+			})
+		}
+	})
+
+	t.Run("propagates wrapper error", func(t *testing.T) {
+		t.Parallel()
+
+		fake := &batchCancelRPCFake{
+			err: errors.New("exchange unavailable"),
+		}
+		server := setupBatchCancelServer(t, fake)
+
+		_, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+			Exchange:  fakeExchangeName,
+			AssetType: "spot",
+			Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+			Side:      "buy",
+			OrdersId:  "1,2",
+		})
+		assert.ErrorContains(t, err, "exchange unavailable")
+	})
 }

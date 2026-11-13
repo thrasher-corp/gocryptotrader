@@ -27,7 +27,7 @@ func NewBTCUSD() Pair {
 	return NewPair(BTC, USD)
 }
 
-// NewPairDelimiter splits the desired currency string at delimiter, then returns a Pair struct
+// NewPairDelimiter splits the desired currency string at the delimiter, then returns a Pair struct
 func NewPairDelimiter(currencyPair, delimiter string) (Pair, error) {
 	if currencyPair == "" {
 		return EMPTYPAIR, errEmptyPairString
@@ -35,12 +35,12 @@ func NewPairDelimiter(currencyPair, delimiter string) (Pair, error) {
 	if delimiter == "" {
 		return EMPTYPAIR, errDelimiterCannotBeEmpty
 	}
-	index := strings.Index(currencyPair, delimiter)
-	if index == -1 {
+	base, quote, ok := strings.Cut(currencyPair, delimiter)
+	if !ok {
 		return EMPTYPAIR,
 			fmt.Errorf("supplied pair: [%s] %s %w", currencyPair, delimiter, errDelimiterNotFound)
 	}
-	return Pair{Delimiter: delimiter, Base: NewCode(currencyPair[:index]), Quote: NewCode(currencyPair[index+1:])}, nil
+	return Pair{Delimiter: delimiter, Base: NewCode(base), Quote: NewCode(quote)}, nil
 }
 
 // NewPairFromStrings returns a CurrencyPair without a delimiter
@@ -113,8 +113,7 @@ func (f *PairFormat) clone() *PairFormat {
 	if f == nil {
 		return nil
 	}
-	c := *f
-	return &c
+	return new(*f)
 }
 
 // MatchPairsWithNoDelimiter will move along a predictable index on the provided currencyPair

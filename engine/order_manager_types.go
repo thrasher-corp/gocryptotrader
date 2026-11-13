@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -21,10 +22,11 @@ var (
 )
 
 var (
-	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
-	errNilOrder                 = errors.New("nil order received")
-	errFuturesTrackingDisabled  = errors.New("tracking futures positions disabled. enable it via config under orderManager activelyTrackFuturesPositions")
-	orderManagerInterval        = time.Second * 10
+	errNilCommunicationsManager     = errors.New("cannot start with nil communications manager")
+	errNilOrder                     = errors.New("nil order received")
+	errFuturesTrackingDisabled      = errors.New("tracking futures positions disabled. enable it via config under orderManager activelyTrackFuturesPositions")
+	orderManagerInterval            = time.Second * 10
+	orderManagerGracefulStopTimeout = time.Minute
 
 	errInvalidFuturesTrackingSeekDuration = errors.New("invalid config value for futuresTrackingSeekDuration")
 )
@@ -41,8 +43,8 @@ type orderManagerConfig struct {
 
 // OrderManager processes and stores orders across enabled exchanges
 type OrderManager struct {
-	started                       int32
-	processingOrders              int32
+	started                       atomic.Bool
+	processingOrders              atomic.Bool
 	shutdown                      chan struct{}
 	orderStore                    store
 	cfg                           orderManagerConfig

@@ -3,7 +3,6 @@ package exchange
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -32,7 +31,7 @@ func (e *multiConnectionSetupExchange) GetBase() *exchange.Base {
 	return &e.Base
 }
 
-func newMultiConnectionSetupExchange(tb testing.TB, websocketURL string) *multiConnectionSetupExchange {
+func newMultiConnectionSetupExchange(tb testing.TB, websocketURL string, dialer *gws.Dialer) *multiConnectionSetupExchange {
 	tb.Helper()
 
 	e := &multiConnectionSetupExchange{}
@@ -56,7 +55,7 @@ func newMultiConnectionSetupExchange(tb testing.TB, websocketURL string) *multiC
 	err = e.Base.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL: websocketURL,
 		Connector: func(ctx context.Context, conn websocket.Connection) error {
-			return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
+			return conn.Dial(ctx, dialer, nil, nil)
 		},
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return e.Base.Features.Subscriptions.Clone(), nil
@@ -118,12 +117,11 @@ func TestMockWsInstanceSupportsMultiConnectionManagement(t *testing.T) {
 }
 
 func TestSetupWsSupportsMultiConnectionManagement(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 	}))
-	t.Cleanup(server.Close)
 
-	e := newMultiConnectionSetupExchange(t, "ws"+strings.TrimPrefix(server.URL, "http"))
+	e := newMultiConnectionSetupExchange(t, "ws"+strings.TrimPrefix(server.URL, "http"), dialer)
 	t.Cleanup(func() {
 		if e.Base.Websocket.IsConnected() {
 			assert.NoError(t, e.Base.Websocket.Shutdown(), "Websocket shutdown should not error after SetupWs")

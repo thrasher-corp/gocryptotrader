@@ -1,7 +1,6 @@
 package orderbook
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -55,11 +54,11 @@ var bid = Levels{
 	{Price: 1317, Amount: 1},
 }
 
-func (l Levels) display() {
+func (l Levels) display(t *testing.T) {
+	t.Helper()
 	for x := range l {
-		fmt.Printf("Level: %+v %p \n", l[x], &l[x])
+		t.Logf("Level: %+v %p", l[x], &l[x])
 	}
-	fmt.Println()
 }
 
 func TestLoad(t *testing.T) {
@@ -97,15 +96,6 @@ func TestLoad(t *testing.T) {
 	// purge entire list
 	list.load(nil)
 	Check(t, list, 0, 0, 0)
-}
-
-// 27906781	        42.4 ns/op	       0 B/op	       0 allocs/op (old)
-// 84119028	        13.87 ns/op	       0 B/op	       0 allocs/op (new)
-func BenchmarkLoad(b *testing.B) {
-	ts := Levels{}
-	for b.Loop() {
-		ts.load(ask)
-	}
 }
 
 func TestUpdateInsertByPrice(t *testing.T) {
@@ -244,51 +234,6 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	Check(t, b, 6, 36, 6)
 }
 
-// 134830672	         9.83 ns/op	       0 B/op	       0 allocs/op (old)
-// 206689897	         5.761 ns/op	   0 B/op	       0 allocs/op (new)
-func BenchmarkUpdateInsertByPrice_Amend(b *testing.B) {
-	a := askLevels{}
-	a.load(ask)
-
-	updates := Levels{
-		{
-			Price:  1337, // Amend
-			Amount: 2,
-		},
-		{
-			Price:  1337, // Amend
-			Amount: 1,
-		},
-	}
-
-	for b.Loop() {
-		a.updateInsertByPrice(updates, 0)
-	}
-}
-
-// 49763002	        24.9 ns/op	       0 B/op	       0 allocs/op (old)
-// 25662849	        45.32 ns/op	       0 B/op	       0 allocs/op (new)
-func BenchmarkUpdateInsertByPrice_Insert_Delete(b *testing.B) {
-	a := askLevels{}
-
-	a.load(ask)
-
-	updates := Levels{
-		{
-			Price:  1337.5, // Insert
-			Amount: 2,
-		},
-		{
-			Price:  1337.5, // Delete
-			Amount: 0,
-		},
-	}
-
-	for b.Loop() {
-		a.updateInsertByPrice(updates, 0)
-	}
-}
-
 func TestUpdateByID(t *testing.T) {
 	a := askLevels{}
 	asksSnapshot := Levels{
@@ -320,7 +265,7 @@ func TestUpdateByID(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errIDCannotBeMatched)
 
-	err = a.updateByID(Levels{ // Simulate Bitmex updating
+	err = a.updateByID(Levels{ // Amount-only update
 		{Price: 0, Amount: 1337, ID: 3},
 	})
 	require.NoError(t, err)
@@ -335,28 +280,6 @@ func TestUpdateByID(t *testing.T) {
 
 	if got := a.retrieve(1000); len(got) != 6 {
 		t.Fatal("unexpected value for update")
-	}
-}
-
-// 46043871	        25.9 ns/op	       0 B/op	       0 allocs/op (old)
-// 63445401	        18.51 ns/op	       0 B/op	       0 allocs/op (new)
-func BenchmarkUpdateByID(b *testing.B) {
-	asks := Levels{}
-	asksSnapshot := Levels{
-		{Price: 1, Amount: 1, ID: 1},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 11, Amount: 1, ID: 11},
-	}
-	asks.load(asksSnapshot)
-
-	for b.Loop() {
-		err := asks.updateByID(asksSnapshot)
-		if err != nil {
-			b.Fatal(err)
-		}
 	}
 }
 
@@ -404,28 +327,6 @@ func TestDeleteByID(t *testing.T) {
 	err = a.deleteByID(Levels{{Price: 11, Amount: 1, ID: 1337}}, true)
 	if err != nil {
 		t.Fatal(err)
-	}
-}
-
-// 26724331	        44.69 ns/op	       0 B/op	       0 allocs/op
-func BenchmarkDeleteByID(b *testing.B) {
-	asks := Levels{}
-	asksSnapshot := Levels{
-		{Price: 1, Amount: 1, ID: 1},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 11, Amount: 1, ID: 11},
-	}
-	asks.load(asksSnapshot)
-
-	for b.Loop() {
-		err := asks.deleteByID(asksSnapshot, false)
-		if err != nil {
-			b.Fatal(err)
-		}
-		asks.load(asksSnapshot) // reset
 	}
 }
 
@@ -682,27 +583,6 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	Check(t, a, 14, 87, 7)
 }
 
-// 21614455	        81.74 ns/op	       0 B/op	       0 allocs/op
-func BenchmarkUpdateInsertByID_asks(b *testing.B) {
-	asks := Levels{}
-	asksSnapshot := Levels{
-		{Price: 1, Amount: 1, ID: 1},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 11, Amount: 1, ID: 11},
-	}
-	asks.load(asksSnapshot)
-
-	for b.Loop() {
-		err := asks.updateInsertByID(asksSnapshot, askCompare)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
 func TestUpdateInsertByIDBids(t *testing.T) {
 	b := bidLevels{}
 	bidsSnapshot := Levels{
@@ -953,148 +833,6 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	Check(t, b, 14, 87, 7)
 }
 
-// 20328886	        59.94 ns/op	       0 B/op	       0 allocs/op
-func BenchmarkUpdateInsertByID_bids(b *testing.B) {
-	bids := Levels{}
-	bidsSnapshot := Levels{
-		{Price: 0.5, Amount: 2, ID: 0},
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 12, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
-	}
-	bids.load(bidsSnapshot)
-
-	for b.Loop() {
-		err := bids.updateInsertByID(bidsSnapshot, bidCompare)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func TestInsertUpdatesBid(t *testing.T) {
-	b := bidLevels{}
-	bidsSnapshot := Levels{
-		{Price: 11, Amount: 1, ID: 11},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 1, Amount: 1, ID: 1},
-	}
-	b.load(bidsSnapshot)
-
-	err := b.insertUpdates(Levels{
-		{Price: 11, Amount: 1, ID: 11},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 1, Amount: 1, ID: 1},
-	})
-	require.ErrorIs(t, err, errCollisionDetected)
-
-	Check(t, b, 6, 36, 6)
-
-	// Insert at head
-	err = b.insertUpdates(Levels{{Price: 12, Amount: 1, ID: 11}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, b, 7, 48, 7)
-
-	// Insert at tail
-	err = b.insertUpdates(Levels{{Price: 0.5, Amount: 1, ID: 12}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, b, 8, 48.5, 8)
-
-	// Insert at mid
-	err = b.insertUpdates(Levels{{Price: 5.5, Amount: 1, ID: 13}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, b, 9, 54, 9)
-
-	// purge
-	b.load(nil)
-
-	// Add one at head
-	err = b.insertUpdates(Levels{{Price: 5.5, Amount: 1, ID: 13}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, b, 1, 5.5, 1)
-}
-
-func TestInsertUpdatesAsk(t *testing.T) {
-	a := askLevels{}
-	askSnapshot := Levels{
-		{Price: 1, Amount: 1, ID: 1},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 11, Amount: 1, ID: 11},
-	}
-	a.load(askSnapshot)
-
-	err := a.insertUpdates(Levels{
-		{Price: 11, Amount: 1, ID: 11},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 1, Amount: 1, ID: 1},
-	})
-	require.ErrorIs(t, err, errCollisionDetected)
-
-	Check(t, a, 6, 36, 6)
-
-	// Insert at tail
-	err = a.insertUpdates(Levels{{Price: 12, Amount: 1, ID: 11}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, a, 7, 48, 7)
-
-	// Insert at head
-	err = a.insertUpdates(Levels{{Price: 0.5, Amount: 1, ID: 12}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, a, 8, 48.5, 8)
-
-	// Insert at mid
-	err = a.insertUpdates(Levels{{Price: 5.5, Amount: 1, ID: 13}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, a, 9, 54, 9)
-
-	// purge
-	a.load(nil)
-
-	// Add one at head
-	err = a.insertUpdates(Levels{{Price: 5.5, Amount: 1, ID: 13}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, a, 1, 5.5, 1)
-}
-
 // check checks depth values after an update has taken place
 func Check(t *testing.T, depth any, liquidity, value float64, expectedLen int) {
 	t.Helper()
@@ -1113,17 +851,17 @@ func Check(t *testing.T, depth any, liquidity, value float64, expectedLen int) {
 
 	liquidityTotal, valueTotal := l.amount()
 	if liquidityTotal != liquidity {
-		l.display()
+		l.display(t)
 		t.Fatalf("mismatched liquidity expecting %v but received %v", liquidity, liquidityTotal)
 	}
 
 	if valueTotal != value {
-		l.display()
+		l.display(t)
 		t.Fatalf("mismatched total value expecting %v but received %v", value, valueTotal)
 	}
 
 	if len(l) != expectedLen {
-		l.display()
+		l.display(t)
 		t.Fatalf("mismatched expected length count expecting %v but received %v", expectedLen, len(l))
 	}
 
@@ -1137,10 +875,10 @@ func Check(t *testing.T, depth any, liquidity, value float64, expectedLen int) {
 		case price == 0:
 			price = l[x].Price
 		case isBid && price < l[x].Price:
-			l.display()
+			l.display(t)
 			t.Fatal("Bid pricing out of order should be descending")
 		case isAsk && price > l[x].Price:
-			l.display()
+			l.display(t)
 			t.Fatal("Ask pricing out of order should be ascending")
 		default:
 			price = l[x].Price
@@ -1834,22 +1572,4 @@ func TestFinalizeFields(t *testing.T) {
 	mov, err := m.finalizeFields(20000*151.11585, 20000, 151.08, 0, false)
 	assert.NoError(t, err, "finalizeFields should not error")
 	assert.InDelta(t, 717.0, mov.SlippageCost, 0.000000001, "SlippageCost should be correct")
-}
-
-// 8384302	       150.9 ns/op	     480 B/op	       1 allocs/op
-func BenchmarkRetrieve(b *testing.B) {
-	asks := Levels{}
-	asksSnapshot := Levels{
-		{Price: 1, Amount: 1, ID: 1},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 11, Amount: 1, ID: 11},
-	}
-	asks.load(asksSnapshot)
-
-	for b.Loop() {
-		_ = asks.retrieve(6)
-	}
 }

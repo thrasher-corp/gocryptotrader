@@ -39,7 +39,7 @@ func Infof(sl *SubLogger, format string, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
-		sl.getFields().stagef(f.logger.InfoHeader, format, a...)
+		f.stagef(f.logger.InfoHeader, format, a...)
 	}
 }
 
@@ -92,7 +92,7 @@ func Debugf(sl *SubLogger, data string, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
-		sl.getFields().stagef(f.logger.DebugHeader, data, v...)
+		f.stagef(f.logger.DebugHeader, data, v...)
 	}
 }
 
@@ -144,7 +144,7 @@ func Warnf(sl *SubLogger, data string, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
-		sl.getFields().stagef(f.logger.WarnHeader, data, v...)
+		f.stagef(f.logger.WarnHeader, data, v...)
 	}
 }
 
@@ -196,7 +196,7 @@ func Errorf(sl *SubLogger, data string, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
-		sl.getFields().stagef(f.logger.ErrorHeader, data, v...)
+		f.stagef(f.logger.ErrorHeader, data, v...)
 	}
 }
 
@@ -269,6 +269,7 @@ func (l *fields) stage(header string, deferFunc deferral) {
 // system.
 func (l *fields) stageln(header string, a ...any) {
 	if customLogHook != nil && customLogHook(header, l.name, a...) {
+		logFieldsPool.Put(l)
 		return
 	}
 	l.stage(header, func() string { return fmt.Sprint(a...) })
@@ -278,8 +279,14 @@ func (l *fields) stageln(header string, a ...any) {
 // the custom log hook if set, otherwise falls back to the library's internal
 // log system.
 func (l *fields) stagef(header, format string, a ...any) {
-	if customLogHook != nil && customLogHook(header, l.name, fmt.Sprintf(format, a...)) {
+	if customLogHook == nil {
+		l.stage(header, func() string { return fmt.Sprintf(format, a...) })
 		return
 	}
-	l.stage(header, func() string { return fmt.Sprintf(format, a...) })
+	formatted := fmt.Sprintf(format, a...)
+	if customLogHook(header, l.name, formatted) {
+		logFieldsPool.Put(l)
+		return
+	}
+	l.stage(header, func() string { return formatted })
 }

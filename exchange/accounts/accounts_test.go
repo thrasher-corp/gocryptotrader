@@ -220,6 +220,41 @@ func TestAccountsGetBalance(t *testing.T) {
 	assert.Equal(t, 2.0, b.Total, "Total should be correct")
 }
 
+func TestAccountsUpdateBalance(t *testing.T) {
+	t.Parallel()
+
+	_, err := (*Accounts)(nil).UpdateBalance(t.Context(), "", asset.Spot, currency.BTC, func(*Balance) {})
+	require.ErrorIs(t, err, common.ErrNilPointer, "UpdateBalance must reject a nil Accounts receiver")
+
+	a := accountsFixture(t)
+	ctx := DeployCredentialsToContext(t.Context(), creds1)
+	beforeUpdate := time.Now()
+	updated, err := a.UpdateBalance(ctx, "1b", asset.Spot, currency.BTC, func(balance *Balance) {
+		balance.Total = 3
+		balance.Free = 2
+	})
+	require.NoError(t, err, "UpdateBalance must update an existing balance")
+	assert.Equal(t, 3.0, updated.Total, "updated total should be returned")
+	assert.Equal(t, 2.0, updated.Free, "updated free balance should be returned")
+	assert.WithinRange(t, updated.UpdatedAt, beforeUpdate, time.Now(), "updated balance should receive the current arrival timestamp")
+
+	stored, err := a.GetBalance("1b", creds1, asset.Spot, currency.BTC)
+	require.NoError(t, err, "GetBalance must return the atomically updated balance")
+	assert.Equal(t, updated, stored, "stored balance should match the atomic update")
+
+	// Separate the calls on platforms with coarse clock resolution so timestamp ordering is deterministic.
+	time.Sleep(20 * time.Millisecond)
+	repeated, err := a.UpdateBalance(ctx, "1b", asset.Spot, currency.BTC, func(balance *Balance) {
+		balance.Total = 3
+		balance.Free = 2
+	})
+	require.NoError(t, err, "UpdateBalance must accept a repeat update that changes nothing")
+	assert.True(t, repeated.UpdatedAt.After(updated.UpdatedAt), "a repeat update that changes nothing should still refresh the arrival timestamp")
+
+	_, err = a.UpdateBalance(ctx, "1b", asset.Spot, currency.BTC, nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "UpdateBalance must reject a nil update callback")
+}
+
 func TestAccountsSave(t *testing.T) { //nolint:tparallel // Save's internal tests are sequential
 	t.Parallel()
 

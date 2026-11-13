@@ -29,7 +29,7 @@ var enabled = &gctrpc.GenericResponse{Status: "enabled"}
 
 // CurrencyStateManager manages currency states
 type CurrencyStateManager struct {
-	started  int32
+	started  atomic.Bool
 	shutdown chan struct{}
 	wg       sync.WaitGroup
 	iExchangeManager
@@ -55,17 +55,17 @@ func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*Cu
 }
 
 // Start runs the subsystem
-func (c *CurrencyStateManager) Start() error {
+func (c *CurrencyStateManager) Start(ctx context.Context) error {
 	log.Debugln(log.ExchangeSys, "Currency state manager starting...")
 	if c == nil {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrNilSubsystem)
 	}
 
-	if !atomic.CompareAndSwapInt32(&c.started, 0, 1) {
+	if !c.started.CompareAndSwap(false, true) {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemAlreadyStarted)
 	}
 	c.wg.Add(1)
-	go c.monitor()
+	go c.monitor(ctx)
 	log.Debugln(log.ExchangeSys, "Currency state manager started.")
 	return nil
 }
@@ -75,7 +75,7 @@ func (c *CurrencyStateManager) Stop() error {
 	if c == nil {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&c.started) == 0 {
+	if !c.started.Load() {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
 	}
 
@@ -84,7 +84,7 @@ func (c *CurrencyStateManager) Stop() error {
 	c.wg.Wait()
 	c.shutdown = make(chan struct{})
 	log.Debugf(log.ExchangeSys, "Currency state manager %s", MsgSubSystemShutdown)
-	atomic.StoreInt32(&c.started, 0)
+	c.started.Store(false)
 	return nil
 }
 
@@ -93,10 +93,10 @@ func (c *CurrencyStateManager) IsRunning() bool {
 	if c == nil {
 		return false
 	}
-	return atomic.LoadInt32(&c.started) == 1
+	return c.started.Load()
 }
 
-func (c *CurrencyStateManager) monitor() {
+func (c *CurrencyStateManager) monitor(ctx context.Context) {
 	defer c.wg.Done()
 	timer := time.NewTimer(0) // Prime firing of channel for initial sync.
 	for {
@@ -113,7 +113,7 @@ func (c *CurrencyStateManager) monitor() {
 			}
 			for x := range exchs {
 				wg.Add(1)
-				go c.update(exchs[x], &wg, exchs[x].GetAssetTypes(true))
+				go c.update(ctx, exchs[x], &wg, exchs[x].GetAssetTypes(true))
 			}
 			wg.Wait() // This causes some variability in the timer due to the
 			// longest length of request time. Can do time.Ticker but don't
@@ -123,10 +123,10 @@ func (c *CurrencyStateManager) monitor() {
 	}
 }
 
-func (c *CurrencyStateManager) update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.Items) {
+func (c *CurrencyStateManager) update(ctx context.Context, exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.Items) {
 	defer wg.Done()
 	for y := range enabledAssets {
-		err := exch.UpdateCurrencyStates(context.TODO(), enabledAssets[y])
+		err := exch.UpdateCurrencyStates(ctx, enabledAssets[y])
 		if err != nil {
 			if errors.Is(err, common.ErrNotYetImplemented) {
 				// Deploy default values for outbound gRPC aspects.

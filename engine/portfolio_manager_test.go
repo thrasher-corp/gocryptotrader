@@ -40,7 +40,7 @@ func TestIsPortfolioManagerRunning(t *testing.T) {
 		t.Error("expected false")
 	}
 	var wg sync.WaitGroup
-	err = m.Start(&wg)
+	err = m.Start(t.Context(), &wg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -52,19 +52,19 @@ func TestIsPortfolioManagerRunning(t *testing.T) {
 func TestPortfolioManagerStart(t *testing.T) {
 	var m *portfolioManager
 	var wg sync.WaitGroup
-	err := m.Start(nil)
+	err := m.Start(t.Context(), nil)
 	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	m, err = setupPortfolioManager(NewExchangeManager(), 0, nil)
 	assert.NoError(t, err)
 
-	err = m.Start(nil)
+	err = m.Start(t.Context(), nil)
 	assert.ErrorIs(t, err, errNilWaitGroup)
 
-	err = m.Start(&wg)
+	err = m.Start(t.Context(), &wg)
 	assert.NoError(t, err)
 
-	err = m.Start(&wg)
+	err = m.Start(t.Context(), &wg)
 	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 }
 
@@ -80,7 +80,7 @@ func TestPortfolioManagerStop(t *testing.T) {
 	err = m.Stop()
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	err = m.Start(&wg)
+	err = m.Start(t.Context(), &wg)
 	assert.NoError(t, err)
 
 	err = m.Stop()
@@ -99,28 +99,28 @@ func TestProcessPortfolio(t *testing.T) {
 	m, err := setupPortfolioManager(em, 0, nil)
 	assert.NoError(t, err)
 
-	m.processPortfolio()
+	m.processPortfolio(t.Context())
 }
 
 func TestUpdateExchangeBalances(t *testing.T) {
 	t.Parallel()
 
-	assert.ErrorContains(t, (*portfolioManager)(nil).updateExchangeBalances(), "nil pointer: *engine.portfolioManager")
-	assert.ErrorIs(t, new(portfolioManager).updateExchangeBalances(), ErrNilSubsystem)
+	assert.ErrorContains(t, (*portfolioManager)(nil).updateExchangeBalances(t.Context()), "nil pointer: *engine.portfolioManager")
+	assert.ErrorIs(t, new(portfolioManager).updateExchangeBalances(t.Context()), ErrNilSubsystem)
 
 	m, err := setupPortfolioManager(NewExchangeManager(), 0, &portfolio.Base{Verbose: true})
 	require.NoError(t, err, "setupPortfolioManager must not error")
-	assert.NoError(t, m.updateExchangeBalances(), "updateExchangeBalances should not error with an empty exchange list")
+	assert.NoError(t, m.updateExchangeBalances(t.Context()), "updateExchangeBalances should not error with an empty exchange list")
 
 	e := &mockExchange{err: errors.New("Mock UpdateBalanceError")}
 	m.exchangeManager.exchanges = map[string]exchange.IBotExchange{"mock": e}
-	assert.NoError(t, m.updateExchangeBalances(), "updateExchangeBalances should not error on disabled exchanges")
+	assert.NoError(t, m.updateExchangeBalances(t.Context()), "updateExchangeBalances should not error on disabled exchanges")
 
 	e.enabled = true
-	assert.NoError(t, m.updateExchangeBalances(), "updateExchangeBalances should skip exchange without auth support")
+	assert.NoError(t, m.updateExchangeBalances(t.Context()), "updateExchangeBalances should skip exchange without auth support")
 
 	e.authSupported = true
-	assert.ErrorIs(t, m.updateExchangeBalances(), e.err, "error should contain the UpdateAccountBalances error message")
+	assert.ErrorIs(t, m.updateExchangeBalances(t.Context()), e.err, "error should contain the UpdateAccountBalances error message")
 }
 
 func TestUpdateExchangeAddressBalances(t *testing.T) {

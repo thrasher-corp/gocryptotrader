@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
@@ -23,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // OnSignal receives the event from the strategy on whether it has signalled to buy, do nothing or sell
@@ -278,16 +278,16 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 	}
 	prevSnap := complianceManager.GetLatestSnapshot()
 	if filledOrder := fillEvent.GetOrder(); filledOrder != nil {
-		price := decimal.NewFromFloat(filledOrder.Price)
-		amount := decimal.NewFromFloat(filledOrder.Amount)
-		fee := decimal.NewFromFloat(filledOrder.Fee)
+		price := decimal.MustFromFloat(filledOrder.Price)
+		amount := decimal.MustFromFloat(filledOrder.Amount)
+		fee := decimal.MustFromFloat(filledOrder.Fee)
 		snapOrder := compliance.SnapshotOrder{
 			ClosePrice:          fillEvent.GetClosePrice(),
 			VolumeAdjustedPrice: fillEvent.GetVolumeAdjustedPrice(),
 			SlippageRate:        fillEvent.GetSlippageRate(),
 			CostBasis:           price.Mul(amount).Add(fee),
+			Order:               filledOrder,
 		}
-		snapOrder.Order = filledOrder
 		prevSnap.Orders = append(prevSnap.Orders, snapOrder)
 	}
 	snap := &compliance.Snapshot{
@@ -325,9 +325,7 @@ func (p *Portfolio) GetLatestComplianceSnapshot(exchangeName string, a asset.Ite
 	if err != nil {
 		return nil, err
 	}
-	snap := cm.GetLatestSnapshot()
-
-	return &snap, nil
+	return new(cm.GetLatestSnapshot()), nil
 }
 
 // getComplianceManager returns the order snapshots for a given exchange, asset, pair
@@ -411,7 +409,7 @@ func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser)
 	if len(pos) == 0 {
 		return nil, fmt.Errorf("%w should not happen", errNoHoldings)
 	}
-	amount := decimal.NewFromFloat(detail.Amount)
+	amount := decimal.MustFromFloat(detail.Amount)
 	switch {
 	case ev.IsLiquidated():
 		collateralReleaser.Liquidate()

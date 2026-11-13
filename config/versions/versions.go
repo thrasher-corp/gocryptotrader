@@ -21,6 +21,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/buger/jsonparser"
@@ -56,18 +57,18 @@ type ExchangeVersion interface {
 	DowngradeExchange(context.Context, []byte) ([]byte, error)
 }
 
-// manager contains versions registerVersioned during import init
+// manager contains versions registered during construction
 type manager struct {
 	m        sync.RWMutex
 	versions []any
 }
 
 // Manager is a public instance of the config version manager
-var Manager = &manager{}
+var Manager = newManager()
 
 // Deploy upgrades or downgrades the config between versions
 // Pass UseLatestVersion for version to use the latest version automatically
-// Prints an error an exits if the config file version or version param is not registered
+// Prints an error and exits if the config file version or version param is not registered
 func (m *manager) Deploy(ctx context.Context, j []byte, version uint16) ([]byte, error) {
 	if err := m.checkVersions(); err != nil {
 		return j, err
@@ -97,7 +98,7 @@ func (m *manager) Deploy(ctx context.Context, j []byte, version uint16) ([]byte,
 	case current64 >= UseLatestVersion:
 		return j, fmt.Errorf("%w: %w `version`: `%d`", errConfigVersion, errConfigVersionMax, current64)
 	}
-	current := uint16(current64)
+	current := uint16(current64) //nolint:gosec // Bounded above by UseLatestVersion (math.MaxUint16) and below by zero
 
 	switch {
 	case target == current:
@@ -182,7 +183,7 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 			return
 		}
 		for _, want := range wanted {
-			if want != "*" && want != name {
+			if want != "*" && !strings.EqualFold(want, name) {
 				continue
 			}
 			exchNew, err := method(patch, ctx, exchOrig)
@@ -223,7 +224,7 @@ func (m *manager) registerVersion(ver uint16, v any) {
 	m.versions[ver] = v
 }
 
-// Version returns a version registered by init or nil if nothing has been registered with that version number
+// Version returns a registered version or nil if nothing has been registered with that version number
 func (m *manager) Version(version uint16) any {
 	m.m.RLock()
 	defer m.m.RUnlock()

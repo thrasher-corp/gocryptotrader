@@ -1,12 +1,12 @@
 package signal
 
 import (
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // Event handler is used for getting trade signal details
@@ -63,7 +63,7 @@ type Signal struct {
 	// eg with $5000 usd and 1 BTC, specifying BTC ensures
 	// the USD value won't be utilised when sizing an order
 	CollateralCurrency currency.Code
-	// MatchOrderAmount flags to other event handlers
+	// MatchesOrderAmount flags to other event handlers
 	// that the order amount must match the set Amount property
 	MatchesOrderAmount bool
 }

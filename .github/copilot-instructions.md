@@ -1,3 +1,3 @@
 # Agent Instructions
 
-Please refer to the [coding guidelines](../docs/CODING_GUIDELINES.md).
+Before beginning any work, read the [coding guidelines](../docs/CODING_GUIDELINES.md) completely and follow all applicable instructions.

@@ -11,8 +11,10 @@ package fixer
 import (
 	"context"
 	"errors"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -55,12 +57,7 @@ func (f *Fixer) GetSupportedCurrencies() ([]string, error) {
 		return nil, errors.New(resp.Error.Type + resp.Error.Info)
 	}
 
-	currencies := make([]string, 0, len(resp.Map))
-	for key := range resp.Map {
-		currencies = append(currencies, key)
-	}
-
-	return currencies, nil
+	return slices.AppendSeq(make([]string, 0, len(resp.Map)), maps.Keys(resp.Map)), nil
 }
 
 // GetRates is a wrapper function to return rates

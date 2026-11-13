@@ -7,10 +7,47 @@ This document outlines the coding, formatting, and testing standards for impleme
 - Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
 - Code must adhere to these [Effective Go](https://go.dev/doc/effective_go) guidelines.
 - Code must also follow these [Go Style](https://google.github.io/styleguide/go/) guidelines.
+- Use Australian/British English in project-owned prose, comments, test
+    messages and identifiers. Prefer `-ise` and `-isation` spellings over
+    `-ize` and `-ization`, for example `normalise`, `serialise` and
+    `standardisation`. Preserve externally defined API names, protocol fields,
+    quotations and compatibility-sensitive public identifiers. When codespell
+    reports an American spelling, use the replacement in the
+    [custom dictionary](../contrib/spellcheck/codespell_custom_dictionary.txt)
+    unless an external contract requires the original spelling.
+
+### External dependencies
+
+- Prefer the standard library, existing project helpers and existing
+    dependencies before introducing another external dependency.
+- When the requirement can be met clearly and safely with a small, tested
+    implementation tailored to the situation, prefer that approach over adding
+    a dependency for convenience or hypothetical requirements.
+- Add an external dependency only when it provides a clear, substantial
+    benefit, such as significant deduplication, a measured performance
+    optimisation or functionality integral to the implementation that is
+    impractical to maintain locally. Explain the benefit and why existing or
+    project-specific alternatives are insufficient in the pull request.
+- Evaluate maintenance, licensing, security, transitive dependencies and build
+    costs before adding a dependency. This preference does not justify bespoke
+    cryptography or unsafe reimplementation of complex protocols.
+
+## Security
+
+See [SECURITY.md](../SECURITY.md) for the project's security policy, supported versions and reporting process.
+
+- Never commit API keys, secrets, client IDs or a populated `config.json`. Use placeholder values in tests and examples.
+- Never log or return credentials in error messages, RPC responses or test output.
+- If you discover a vulnerability while working on the codebase, report it privately as described in [SECURITY.md](../SECURITY.md). Do not describe it in a public issue, pull request or commit message.
 
 ## Exchange Implementation Guidelines
 
-Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for comprehensive steps on integrating a new exchange.
+Refer to the [ADD_NEW_EXCHANGE.md](../docs/ADD_NEW_EXCHANGE.md) document for comprehensive steps on integrating a new exchange.
+
+Websocket ticker handlers must process tickers into the shared store before
+relaying them to `DataHandler`. Do not relay a ticker that fails processing.
+For batches, relay the successfully processed entries and report any failures.
+Never relay an empty batch.
 
 ### Endpoint Organisation
 
@@ -29,6 +66,31 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 - Default to `uint64` for exchange API parameters and structs for integers where appropriate.
   - Avoid `int` (size varies by architecture) or `int64` (allows negatives where they don't make sense).
   - Aligns well with `strconv.FormatUint`.
+- Use a dedicated currency pair constructor when one exists (for example, `currency.NewBTCUSD()` or `currency.NewBTCUSDT()`) instead of constructing the same pair with `currency.NewPair`. Use `currency.NewPair` when no dedicated constructor exists or the currencies are selected at runtime.
+- Spell time periods out in field names, so that one form is used across exchanges: prefer
+  `Volume24Hour` over `Volume24H` or `Volume24Hr`.
+- Declare nested objects as named types rather than anonymous structs, so they can be referred to,
+  tested and reused:
+
+```go
+    // Preferred
+    // NotionalBracket describes a notional value bracket.
+    type NotionalBracket struct {
+        Bracket uint64 `json:"bracket"`
+    }
+
+    // NotionalBracketData contains the available notional brackets.
+    type NotionalBracketData struct {
+        Brackets []NotionalBracket `json:"brackets"`
+    }
+
+    // Avoid
+    type NotionalBracketData struct {
+        Brackets []struct {
+            Bracket int64 `json:"bracket"`
+        } `json:"brackets"`
+    }
+```
 
 ### TestMain usage
 
@@ -88,9 +150,42 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
     }
 ```
 
+- Prefer package-level sentinel errors for validation, parsing, and custom unmarshalling failures that produce deterministic, testable outcomes when callers or tests need stable `errors.Is` matching.
+- When returning additional context for a sentinel error, wrap the sentinel with `fmt.Errorf` and `%w` rather than replacing it with a new inline `errors.New(...)` value.
+
+```go
+    var errInvalidOrderSide = errors.New("invalid order side")
+
+    if side == "" {
+        return fmt.Errorf("%w: empty input", errInvalidOrderSide)
+    }
+```
+
 - Prefer meaningful and specific error messages that identify the operation being performed.
 - Always include enough context in errors to aid in debugging and traceability.
 - Do not use panic; always return and propagate errors cleanly.
+
+## Configuration Migrations
+
+Migration code lives in [config/versions](../config/versions), with each version in its own `vN` package. Start with the package instructions and the `ExchangeVersion` and `ConfigVersion` interfaces in [config/versions/versions.go](../config/versions/versions.go). Register new versions in [config/versions/register.go](../config/versions/register.go). For an exchange-specific example, see [config/versions/v14/v14.go](../config/versions/v14/v14.go) and its tests in [config/versions/v14/v14_test.go](../config/versions/v14/v14_test.go).
+
+- Add a new version for subsequent configuration changes rather than rewriting historical migrations to match new types. Keep migration-specific types local to the version package instead of depending on evolving types in the config package.
+- When merging branches that independently claim the same migration version, preserve the version already on the base branch and move the other migration to the next unused version. Update its registration, package and tests, current-version fixtures and defaults; test upgrade from the base branch's latest version and downgrade back to it. Do not combine unrelated migrations under the existing version merely to resolve the conflict.
+- For every configuration change, assess how existing saved configurations behave after upgrade. Implement a versioned migration when existing values would otherwise lose functionality, change meaning, or prevent adoption of an intended replacement.
+- Updating defaults or example configurations does not migrate existing installations. Test a representative configuration from the previous version through the real configuration loader.
+- When no migration is needed, explain why existing configurations remain compatible and whether retaining their previous behaviour is intentional.
+- Preserve explicit user choices. Apply default-changing migrations only to configurations that can be reliably identified as using the previous defaults.
+
+### Migration Guards
+
+- Before adding a guard that skips migration, identify the downstream dependency it protects and whether the affected entry can reach that code path. A disabled entry must not block migration solely because its channel exists.
+- Match configuration values using the same normalisation rules as the runtime. If runtime parsing is case-insensitive or canonicalises identifiers, test every accepted representation relevant to the migration, such as `spot`, `Spot` and `SPOT`.
+- Evaluate effective scope before filtering literal values. Wildcards such as `asset:"all"` can overlap a specific asset after expansion; test both wildcard and explicitly scoped entries.
+- Evaluate equivalent channel names together. Generic names and exchange-specific aliases may resolve to the same downstream subscription; guards must cover both spellings across explicit and wildcard scopes.
+- Distinguish explicit `false`, explicit `true`, omitted and `null` values where their meanings differ. Use presence-aware decoding when necessary, and document any conservative treatment of unspecified values.
+- Test both sides of each guard: a configuration that must remain unchanged and a minimally different configuration that must migrate. Exercise upgrade and downgrade when the guard is shared, and verify unrelated entries remain unchanged.
+- Validate migrated configurations through the real downstream loading, expansion and validation paths. Assert that the result remains usable, preserves the intended coverage and introduces no conflicting or exclusive entries.
+- Account for version advancement when a migration makes no changes. Do not assume a skipped transformation will be retried after the user changes their configuration.
 
 ## Testing Guidelines
 
@@ -101,6 +196,22 @@ Verify all tests pass by:
 ```console
     go test ./... -race -count 1
 ```
+
+### JSON and JSON Lines fixtures
+
+- Use `.json` for a single JSON document, including HTTP mock files containing
+    a routes object.
+- Use `.jsonl` for JSON Lines data: one complete JSON value per line. This
+    includes websocket message fixtures and other fixtures read one record at
+    a time, even when they currently contain only one record.
+- Each JSON Lines record must be valid JSON on a single line. Do not wrap the
+    record stream in an array or add commas between records.
+- When renaming fixtures, update all references, including tests, benchmarks,
+    documentation and any code that generates the files. Preserve fixture
+    contents unless a data change is required.
+- Audit formatter, linter and spell-checker filters when fixture extensions
+    change. Raw protocol fixtures must retain their intended treatment rather
+    than having wire values edited to satisfy prose checks.
 
 ### Assertion Usage
 
@@ -123,7 +234,7 @@ Use `require` and `assert` appropriately:
 
 ```go
     // Correct — format verb %s requires the f variant:
-    assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a)
+    assert.NoErrorf(t, err, "UpdateAccountBalances should not error for asset %s", a)
 
     // Correct — plain message, no format verbs:
     assert.ErrorIs(t, err, errInvalidOrderSize, "validate should return expected error")
@@ -132,47 +243,150 @@ Use `require` and `assert` appropriately:
     assert.ErrorIsf(t, err, errInvalidOrderSize, "validate should return expected error")
 ```
 
+#### Sentinel error coverage
+
+- When returning sentinel errors directly or wrapped, add direct `assert.ErrorIs` or `require.ErrorIs` coverage for that path.
+- For validation and custom unmarshalling helpers, prefer a focused test for the exact sentinel error path rather than relying only on indirect endpoint coverage.
+
 ### Test Coverage
 
 - Maintain original test inputs unless they are incorrect.
+- Derive expected outcomes from intended behaviour and downstream requirements, not solely from the current implementation. Passing tests can preserve an incorrect policy.
+- When fixing behaviour for one accepted representation, extend the regression matrix to its equivalent forms. Cross relevant input dimensions, such as aliases, wildcards, accepted capitalisation, authentication or authorisation states, explicit, omitted or `null` values, and forward or reverse lifecycle transitions, where they can affect runtime behaviour.
+- Integration tests must reproduce the registration order, ownership and lookup paths relevant to the bug. For isolation tests, make the competing entry reachable first so lookup order cannot conceal a missing discriminator. Where practical, verify the test fails with the targeted fix removed, then restore the fix and verify it passes.
+- When resolving review feedback, fix the underlying source of truth, add
+    focused regression coverage, regenerate derived files when applicable and
+    avoid unrelated behavioural or formatting changes.
 - Full test coverage is preferable; mock external calls as needed.
+- Test length, index and display limits with empty, single-entry and unequal
+    collections, and values below, at and above limits. Verify the final entry
+    and ordering; exercise CLI defaults and clamping through flag parsing.
+- Align and pad terminal output by display columns. Test opposing columns and
+    sides with values wider than Unicode headings, covering wide, fullwidth,
+    combining and zero-width characters.
+- Give asynchronous test waits deadlines. Run tests sequentially when
+    dependencies mutate package-level state.
+- Test stream consumers with success, error-only and subsequent valid
+    responses. Allow missing success fields on errors and preserve error reporting.
+- Use each endpoint's documented timestamp units. Shared renderers must omit
+    timestamps whose units are unknown.
+- Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
+- When changing a deduplication helper or its callers, test the caller's output
+    as well as the helper. Include duplicates and distinct identities to pin the
+    intended key, retained entry and any associated metadata. Do not substitute
+    tests of built-in allocation behaviour for project behaviour.
+- Pagination fixtures should reproduce relevant ordering, boundary inclusion
+    and overlap behaviour. Bound their request count or duration so a stalled
+    pager fails promptly, and compare the complete expected result rather than
+    relying only on its length.
+    Include a partial final page, particularly a single remaining record, so
+    whole-page fixtures cannot conceal a dropped tail or incorrect overlap guard.
+    Process a non-empty page before applying a cursor-progress guard: a cursor
+    that cannot advance may still accompany unseen records at its boundary.
+- For interface-valued inputs with nil guards, cover both a nil interface and
+    a typed-nil concrete value. For format detection and segmented-name rules,
+    include missing metadata, malformed inputs and multiple separators so the
+    tests distinguish the intended guard and segment from nearby alternatives.
+- When testing cyclic structures or traversal limits, validate the returned
+    structure with a bounded walk before invoking helpers that could traverse
+    indefinitely if the implementation regresses, such as `errors.Is`,
+    `errors.As` or recursive error formatting. Assert the expected termination
+    point without following the potentially cyclic remainder.
+- When adding a regression test or another scenario, add a `t.Run` inside the existing test for the function or method:
+  - This also applies to helpers, parsers and validators.
+  - Do not create a separate test function for each scenario or bug.
+  - If no test exists, create one named after the function.
+  - For table-driven tests, add a row to the existing table and run each row with `t.Run`.
+  - For tests using `synctest.Test`, put each `t.Run` outside the bubble and give each case its own `synctest.Test` call. Call `t.Parallel()` outside the bubble too; Go does not allow either call inside it.
+- Tests that check several components working together may stay in a separate integration test. Add new scenarios to that test using `t.Run`.
+- Give each `t.Run` a clear name that helps readers understand the case in the context of the parent test:
+  - The name may describe the behaviour, input, expected outcome or test mode, such as "live" or "mocked".
+  - A separate comment is usually not needed if the name and test already explain the case. Add a comment when extra context is useful.
+- Use `t.Parallel()` where tests can safely run in parallel:
+  - Call it inside each `t.Run` when safe.
+  - Keep data and setup separate where cases could affect each other.
+  - If a case must run serially, leave it out of that case and any parent tests that must also run serially. Add a comment explaining why.
+  - If `tparallel` reports missing `t.Parallel` calls, either keep the whole test serial, including its subtests, or add `//nolint:tparallel // reason` to the test function when a mix of serial and parallel execution is needed. Do not enable parallel execution just to satisfy lint.
+  - Only add the suppression when the linter reports an issue.
+- Use `t.Cleanup` to release resources needed by parallel subtests:
+  - A parent test's `defer` may release them before those subtests run.
+  - If cleanup needs a context, create a separate one because `t.Context()` is cancelled before cleanup starts.
+- For functions that call an exchange API, keep live testing available through either a live case in the same function test or the existing mock/live test mode. Do not rely only on a mock HTTP server.
+- If live requests cannot run in GitHub Actions, run mocked tests in CI and keep live testing available locally:
+  - Use the existing test settings and credential checks.
+  - Put checks that skip only a live case inside its `t.Run`, so the other cases still run.
+- Functions that do not call an exchange API do not need a live API case.
+
+#### Regression test example
+
+**Desirable:** Add the new scenario inside the existing function test.
+
+```go
+func TestGetOrderBookDepth(t *testing.T) {
+    t.Parallel()
+
+    t.Run("live API", func(t *testing.T) {
+        t.Parallel()
+        result, err := e.GetOrderBookDepth(t.Context(), "BTC-USDT", 400)
+        require.NoError(t, err, "GetOrderBookDepth must not error")
+        assert.NotNil(t, result, "order book should be returned")
+    })
+
+    t.Run("missing instrument ID returns an error", func(t *testing.T) {
+        t.Parallel()
+        _, err := e.GetOrderBookDepth(t.Context(), "", 400)
+        require.ErrorIs(t, err, errMissingInstrumentID, "missing ID must return the expected error")
+    })
+}
+```
+
+**Less desirable:** A separate test function for the new scenario.
+
+```go
+// TestGetOrderBookDepthMissingID checks for a missing instrument ID.
+func TestGetOrderBookDepthMissingID(t *testing.T) {
+    t.Parallel()
+    _, err := e.GetOrderBookDepth(t.Context(), "", 400)
+    require.ErrorIs(t, err, errMissingInstrumentID, "missing ID must return the expected error")
+}
+```
+
+### Interface Contracts
+
+- Name tests and files according to what they prove. Compile-time interface assertions establish API compatibility, not equivalent runtime behaviour; reserve "parity" for tests that compare behaviour.
+- Assert conformance against existing standard-library or dependency interfaces instead of duplicating their method signatures. Use custom contract interfaces only for the additional API being checked.
+- For build-tag-selected implementations, validate shared contracts and run relevant tests under every supported backend configuration affected by the change.
+- Keep signature compatibility separate from behavioural expectations. Document intentional backend differences and test them explicitly where relevant.
 
 ### Test deduplication
 
-- Test deduplication should be the default approach for exchanges and across the codebase, an example can be seen below:
+- Test deduplication should be the default approach for exchanges and across the codebase. Use a loop or table to avoid repeated checks, with a named `t.Run` for each case. Use `t.Parallel()` where safe, following the parallel testing guidance above.
 
-```diff
---- a/gateio_test.go
-+++ b/gateio_test.go
-@@ -89,19 +89,11 @@ func TestGetAccountInfo(t *testing.T) {
-     t.Parallel()
-     sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
--    _, err := g.UpdateAccountInfo(t.Context(), asset.Spot)
--    if err != nil {
--        t.Error("GetAccountInfo() error", err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.Margin); err != nil {
--        t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.CrossMargin); err != nil {
--        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.Options); err != nil {
--        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.Futures); err != nil {
--        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.DeliveryFutures); err != nil {
--        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
-+    for _, a := range g.GetAssetTypes(false) {
-+        _, err := g.UpdateAccountInfo(t.Context(), a)
-+        assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a)
-+    }
+```go
+func TestUpdateAccountBalances(t *testing.T) {
+    t.Parallel()
+
+    for _, a := range e.GetAssetTypes(false) {
+        t.Run(a.String(), func(t *testing.T) {
+            t.Parallel()
+            sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+            _, err := e.UpdateAccountBalances(t.Context(), a)
+            assert.NoErrorf(t, err, "UpdateAccountBalances should not error for asset %s", a)
+        })
+    }
 }
 ```
+
+### Benchmarks
+
+- Benchmarks in the packages listed in `benchmarks/packages.txt` are gated on their allocations by `make bench`, which CI runs on every pull request. See the [benchcheck README](../cmd/benchcheck/README.md).
+- A change that raises a benchmark's allocations fails the check until `benchmarks/baseline.json` records it, and one that lowers them is reported so the same change can lower the budget: run `make bench_update` on linux/amd64, or fold in the `bench-output` artifact the `benchmarks` workflow uploads with `make bench_apply BENCH_OUT=<file>`.
+- A new benchmark in a listed package needs a baseline entry, and a package that declares its first benchmark must be listed in `benchmarks/packages.txt`, or excluded there with a reason.
+- Budgets measure fixtures as well as code: `config.BenchmarkUpdateConfig` reloads `testdata/configtest.json` on every iteration, so a change to that file, such as adding an exchange, can move its allocations past the budget; refresh it in the same change.
+- Weigh a timing against the allocations it costs, such as an extra allocation that makes an operation faster, with `make bench_compare BASE=<commit>`, which measures both revisions on one machine. Pull requests get the same report in the summary of the advisory `benchmark comparison` workflow; timings never fail a check.
+- Keep benchmarks hermetic: no network, no shared state between benchmarks, no writes to stdout or stderr, and no `b.Skip` in the canonical profile.
+- Do not paste benchmark results into comments, where nothing checks them: `benchmarks/baseline.json` records the allocation budgets, timings are not gated, and `make misc_checks` rejects comment lines in the formats go test and benchstat print.
 
 ## Comments
 
@@ -191,12 +405,66 @@ Run the following after completing changes:
 
 This ensures proper formatting across the codebase.
 
+### Agent instruction entry points
+
+- Keep `AGENTS.md`, `CLAUDE.md` and `.github/copilot-instructions.md` as concise
+    regular Markdown files that direct their respective tools to read this
+    document completely before beginning work.
+- Keep detailed coding instructions in this document as the single source of
+    truth rather than duplicating them across tool-specific entry points.
+- Verify these files remain mode `100644` after bulk documentation changes.
+
+## Documentation and Markdown
+
+- Update the source templates under `cmd/documentation` before changing their
+    generated Markdown. Regenerate documentation from `cmd/documentation` with
+    `go run .` and include the resulting output in the change.
+- Run normal contributor fetching when regenerating the root README. Never
+    replace the contributor list with output generated from an empty list.
+- Generated documentation must use regular source-file permissions (`0644`)
+    and must not be executable.
+- Markdown normalisation may standardise prose whitespace and line endings,
+    but must preserve whitespace inside backtick and tilde fenced code blocks.
+    Add focused regression coverage when changing normalisation behaviour.
+- Keep code samples correctly formatted. Markdown auto-fixes must not alter
+    indentation or semantics inside fenced code blocks.
+- Use paths relative to each README for repository images and links so they
+    resolve at the checked-out revision on GitHub and pkg.go.dev. Generated
+    documentation must use `{{.RepoRoot}}` in templates for repository-root
+    resources.
+- Validate repository-relative resource references from the location of every
+    generated file. Checks must cover source templates and generated outputs
+    and verify that each referenced repository file exists.
+- When upgrading `markdownlint-cli2` in the `markdownlint` Makefile target,
+    review newly introduced rules before changing the config.
+- Lint both Markdown and template sources using the same scope as CI. This
+    needs Node.js 22 or later installed for `npx`:
+
+    ```console
+    make markdownlint
+    ```
+
+- Run the documentation generator twice when templates or normalisation
+    change. The second run must produce no additional diff.
+- Before submitting documentation changes, run `git diff --check` and verify
+    that generated files have no unexpected mode, encoding, or line-ending
+    changes.
+
 ## Linters and other miscellaneous checks
+
+- Checks for structured formats such as Markdown, JSON, YAML and Go should use
+    an appropriate parser where practical. Scan tracked source files and
+    templates, ignore examples inside code blocks and add a regression fixture
+    that proves the prohibited form is detected.
+- When a repository check requires a tool or runtime, provision that dependency
+    explicitly in its CI workflow and document the local prerequisite. Local
+    and CI execution must use the same check entry point, and a missing
+    dependency must fail clearly rather than silently skip validation.
 
 Run the following to check for linting issues:
 
 ```console
-    golangci-lint run ./... (or make lint)
+    make lint
 ```
 
 Run the miscellaneous repository checks locally with:
@@ -205,13 +473,27 @@ Run the miscellaneous repository checks locally with:
     make misc_checks
 ```
 
+Lint the GitHub workflows and shell scripts, which needs `shellcheck` and `pipx` installed, with:
+
+```console
+    make workflow_lint
+```
+
+Regenerate the gRPC code in `gctrpc` and `backtester/btrpc` with the protoc plugin versions that `go.mod` pins, which needs `buf` installed, with:
+
+```console
+    make proto
+```
+
+`make proto_check` fails if the generated files differ from what the protos generate.
+
 The full local verification flow can be run with:
 
 ```console
     make check
 ```
 
-This includes linting, miscellaneous checks and tests. The same miscellaneous checks are also run via [GitHub actions](/.github/workflows/misc.yml).
+This includes linting, miscellaneous checks, the generated code check and tests. The same miscellaneous checks are also run via [GitHub actions](../.github/workflows/misc.yml).
 
 - All lint warnings and errors must be resolved before merging.
 - Use `//nolint:linter-name` sparingly and always explain the reason in a comment next to the code.

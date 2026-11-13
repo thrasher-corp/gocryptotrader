@@ -2,13 +2,14 @@ package bitfinex
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash/crc32"
 	"net/http"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -143,20 +144,17 @@ func (e *Exchange) WsConnect() error {
 				e.Name,
 				err)
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-		e.Websocket.Wg.Add(1)
-		go e.wsReadData(ctx, e.Websocket.AuthConn)
-		err = e.WsSendAuth(ctx)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%v - authentication failed: %v\n",
-				e.Name,
-				err)
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		} else {
+			e.Websocket.Wg.Add(1)
+			go e.wsReadData(ctx, e.Websocket.AuthConn)
+			err = e.WsSendAuth(ctx)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%v - authentication failed: %v", e.Name, err)
+				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			}
 		}
 	}
 
-	e.Websocket.Wg.Add(1)
 	return e.ConfigureWS(ctx)
 }
 
@@ -704,7 +702,7 @@ func (e *Exchange) handleWSBookUpdate(ctx context.Context, c *subscription.Subsc
 				})
 			}
 		}
-		if err := e.WsInsertSnapshot(c.Pairs[0], c.Asset, newOrderbook, fundingRate); err != nil {
+		if err := e.WsInsertSnapshot(ctx, c.Pairs[0], c.Asset, newOrderbook, fundingRate); err != nil {
 			return fmt.Errorf("inserting snapshot error: %s",
 				err)
 		}
@@ -812,7 +810,22 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		ExchangeName: e.Name,
 	}
 
-	if len(tickerData) == 10 {
+	switch len(tickerData) {
+	case 11, 17:
+		// Bitfinex websocket tickers can append an optional trailing FIRST_TRADE
+		// timestamp. The docs note this field may be null.
+		if last := tickerData[len(tickerData)-1]; last != nil {
+			firstTradeTimestamp, firstTradeTimestampOK := last.(float64)
+			if !firstTradeTimestampOK {
+				return errTickerInvalidFirstTradeTime
+			}
+			t.LastUpdated = time.UnixMilli(int64(firstTradeTimestamp))
+		}
+		tickerData = tickerData[:len(tickerData)-1]
+	}
+
+	switch len(tickerData) {
+	case 10:
 		if t.Bid, ok = tickerData[0].(float64); !ok {
 			return errors.New("unable to type assert ticker bid")
 		}
@@ -822,7 +835,7 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		if t.Last, ok = tickerData[6].(float64); !ok {
 			return errors.New("unable to type assert ticker last")
 		}
-		if t.Volume, ok = tickerData[7].(float64); !ok {
+		if t.BaseVolume, ok = tickerData[7].(float64); !ok {
 			return errors.New("unable to type assert ticker volume")
 		}
 		if t.High, ok = tickerData[8].(float64); !ok {
@@ -831,7 +844,7 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		if t.Low, ok = tickerData[9].(float64); !ok {
 			return errors.New("unable to type assert ticker low")
 		}
-	} else {
+	case 16:
 		if t.FlashReturnRate, ok = tickerData[0].(float64); !ok {
 			return errors.New("unable to type assert ticker flash return rate")
 		}
@@ -856,7 +869,7 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		if t.Last, ok = tickerData[9].(float64); !ok {
 			return errors.New("unable to type assert ticker last")
 		}
-		if t.Volume, ok = tickerData[10].(float64); !ok {
+		if t.BaseVolume, ok = tickerData[10].(float64); !ok {
 			return errors.New("unable to type assert ticker volume")
 		}
 		if t.High, ok = tickerData[11].(float64); !ok {
@@ -866,8 +879,13 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 			return errors.New("unable to type assert ticker low")
 		}
 		if t.FlashReturnRateAmount, ok = tickerData[15].(float64); !ok {
-			return errors.New("unable to type assert ticker flash return rate")
+			return errors.New("unable to type assert ticker flash return rate amount")
 		}
+	default:
+		return fmt.Errorf("%w for websocket ticker payload: %v", errTickerInvalidFieldCount, tickerData)
+	}
+	if err := ticker.ProcessTicker(t); err != nil {
+		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, t)
 }
@@ -1449,7 +1467,7 @@ func (e *Exchange) wsHandleOrder(ctx context.Context, data []any) error {
 }
 
 // WsInsertSnapshot add the initial orderbook snapshot when subscribed to a channel
-func (e *Exchange) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books []WebsocketBook, fundingRate bool) error {
+func (e *Exchange) WsInsertSnapshot(ctx context.Context, p currency.Pair, assetType asset.Item, books []WebsocketBook, fundingRate bool) error {
 	if len(books) == 0 {
 		return errors.New("no orderbooks submitted")
 	}
@@ -1487,7 +1505,7 @@ func (e *Exchange) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	book.IsFundingRate = fundingRate
 	book.ValidateOrderbook = e.ValidateOrderbook
 	book.LastUpdated = time.Now() // Not included in snapshot
-	return e.Websocket.Orderbook.LoadSnapshot(&book)
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, &book)
 }
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
@@ -1563,7 +1581,7 @@ func (e *Exchange) WsUpdateOrderbook(ctx context.Context, c *subscription.Subscr
 	checkme := checksumStore[chanID]
 	if checkme == nil {
 		cMtx.Unlock()
-		return e.Websocket.Orderbook.Update(&orderbookUpdate)
+		return e.Websocket.Orderbook.Update(ctx, &orderbookUpdate)
 	}
 	checksumStore[chanID] = nil
 	cMtx.Unlock()
@@ -1588,7 +1606,7 @@ func (e *Exchange) WsUpdateOrderbook(ctx context.Context, c *subscription.Subscr
 		}
 	}
 
-	return e.Websocket.Orderbook.Update(&orderbookUpdate)
+	return e.Websocket.Orderbook.Update(ctx, &orderbookUpdate)
 }
 
 // resubOrderbook resubscribes the orderbook after a consistency error, probably a failed checksum,
@@ -2080,9 +2098,7 @@ subSort:
 				// Append root element
 				subset = append(subset, depth[x])
 				// Sort IDs by ascending
-				sort.Slice(subset, func(i, j int) bool {
-					return subset[i].ID < subset[j].ID
-				})
+				slices.SortFunc(subset, func(a, b orderbook.Level) int { return cmp.Compare(a.ID, b.ID) })
 				// Re-align elements with sorted ID subset
 				for z := range subset {
 					depth[x+z] = subset[z]

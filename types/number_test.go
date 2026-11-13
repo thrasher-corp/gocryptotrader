@@ -3,8 +3,8 @@ package types
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // TestNumberUnmarshalJSON asserts the following behaviour:
@@ -59,7 +59,7 @@ func TestNumberFloat64(t *testing.T) {
 // TestNumberDecimal asserts Decimal() returns a valid decimal.Decimal
 func TestNumberDecimal(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, decimal.NewFromFloat(0.04200064), Number(0.04200064).Decimal(), "Decimal() should return the correct value")
+	assert.Equal(t, decimal.MustFromFloat(0.04200064), Number(0.04200064).Decimal(), "Decimal() should return the correct value")
 }
 
 // TestNumberInt64 asserts Int64() returns a valid truncated int64
@@ -70,7 +70,6 @@ func TestNumberInt64(t *testing.T) {
 }
 
 // BenchmarkNumberUnmarshalJSON provides a barebones benchmark of Unmarshaling a string value
-// Ballpark: 42.78 ns/op        16 B/op          1 allocs/op
 func BenchmarkNumberUnmarshalJSON(b *testing.B) {
 	var n Number
 	for b.Loop() {
@@ -79,7 +78,6 @@ func BenchmarkNumberUnmarshalJSON(b *testing.B) {
 }
 
 // BenchmarkNumberMarshalJSON provides a barebones benchmark of Marshaling a string value
-// Ballpark: 118.2 ns/op            56 B/op          3 allocs/op
 func BenchmarkNumberMarshalJSON(b *testing.B) {
 	for b.Loop() {
 		_, _ = Number(1337.1337).MarshalJSON()

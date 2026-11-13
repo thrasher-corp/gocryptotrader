@@ -5,32 +5,19 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestValidCollateralType(t *testing.T) {
 	t.Parallel()
-	if !SingleMode.Valid() {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if !MultiMode.Valid() {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if !PortfolioMode.Valid() {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if !SpotFuturesMode.Valid() {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if UnsetMode.Valid() {
-		t.Fatal("expected 'false', received 'true'")
-	}
-	if UnknownMode.Valid() {
-		t.Fatal("expected 'false', received 'true'")
-	}
-	if Mode(137).Valid() {
-		t.Fatal("expected 'false', received 'true'")
-	}
+	require.True(t, SingleMode.Valid(), "Mode.Valid must return true for SingleMode")
+	require.True(t, MultiMode.Valid(), "Mode.Valid must return true for MultiMode")
+	require.True(t, PortfolioMode.Valid(), "Mode.Valid must return true for PortfolioMode")
+	require.True(t, SpotFuturesMode.Valid(), "Mode.Valid must return true for SpotFuturesMode")
+	require.False(t, UnsetMode.Valid(), "Mode.Valid must return false for UnsetMode")
+	require.False(t, UnknownMode.Valid(), "Mode.Valid must return false for UnknownMode")
+	require.False(t, Mode(137).Valid(), "Mode.Valid must return false for an unsupported value")
 }
 
 func TestUnmarshalJSONCollateralType(t *testing.T) {
@@ -42,141 +29,80 @@ func TestUnmarshalJSONCollateralType(t *testing.T) {
 	var alien martian
 	jason := []byte(`{"collateral":"single"}`)
 	err := json.Unmarshal(jason, &alien)
-	if err != nil {
-		t.Error(err)
-	}
-	if alien.M != SingleMode {
-		t.Errorf("received '%v' expected 'single'", alien.M)
-	}
+	require.NoError(t, err, "json.Unmarshal must not error for SingleMode")
+	assert.Equal(t, SingleMode, alien.M, "json.Unmarshal should set Mode to SingleMode")
 
 	jason = []byte(`{"collateral":"multi"}`)
 	err = json.Unmarshal(jason, &alien)
-	if err != nil {
-		t.Error(err)
-	}
-	if alien.M != MultiMode {
-		t.Errorf("received '%v' expected 'Multi'", alien.M)
-	}
+	require.NoError(t, err, "json.Unmarshal must not error for MultiMode")
+	assert.Equal(t, MultiMode, alien.M, "json.Unmarshal should set Mode to MultiMode")
 
 	jason = []byte(`{"collateral":"portfolio"}`)
 	err = json.Unmarshal(jason, &alien)
-	if err != nil {
-		t.Error(err)
-	}
-	if alien.M != PortfolioMode {
-		t.Errorf("received '%v' expected 'Portfolio'", alien.M)
-	}
+	require.NoError(t, err, "json.Unmarshal must not error for PortfolioMode")
+	assert.Equal(t, PortfolioMode, alien.M, "json.Unmarshal should set Mode to PortfolioMode")
 
 	jason = []byte(`{"collateral":"hello moto"}`)
 	err = json.Unmarshal(jason, &alien)
-	assert.ErrorIs(t, err, ErrInvalidCollateralMode)
+	assert.ErrorIs(t, err, ErrInvalidCollateralMode, "json.Unmarshal should return ErrInvalidCollateralMode for an unknown mode")
+	assert.Equal(t, UnknownMode, alien.M, "json.Unmarshal should set Mode to UnknownMode")
 
-	if alien.M != UnknownMode {
-		t.Errorf("received '%v' expected 'UnknownMode'", alien.M)
-	}
+	mode := SingleMode
+	err = mode.UnmarshalJSON([]byte(`1`))
+	assert.Error(t, err, "Mode.UnmarshalJSON should error for a non-string value")
+	assert.Equal(t, SingleMode, mode, "Mode.UnmarshalJSON should leave Mode unchanged after a decoding error")
 }
 
 func TestStringCollateralType(t *testing.T) {
 	t.Parallel()
-	if UnknownMode.String() != unknownCollateralStr {
-		t.Errorf("received '%v' expected '%v'", UnknownMode.String(), unknownCollateralStr)
-	}
-	if SingleMode.String() != singleCollateralStr {
-		t.Errorf("received '%v' expected '%v'", SingleMode.String(), singleCollateralStr)
-	}
-	if MultiMode.String() != multiCollateralStr {
-		t.Errorf("received '%v' expected '%v'", MultiMode.String(), multiCollateralStr)
-	}
-	if PortfolioMode.String() != portfolioCollateralStr {
-		t.Errorf("received '%v' expected '%v'", PortfolioMode.String(), portfolioCollateralStr)
-	}
-	if UnsetMode.String() != unsetCollateralStr {
-		t.Errorf("received '%v' expected '%v'", UnsetMode.String(), unsetCollateralStr)
-	}
+	assert.Equal(t, unknownCollateralStr, UnknownMode.String(), "Mode.String should return the correct value for UnknownMode")
+	assert.Equal(t, singleCollateralStr, SingleMode.String(), "Mode.String should return the correct value for SingleMode")
+	assert.Equal(t, multiCollateralStr, MultiMode.String(), "Mode.String should return the correct value for MultiMode")
+	assert.Equal(t, portfolioCollateralStr, PortfolioMode.String(), "Mode.String should return the correct value for PortfolioMode")
+	assert.Equal(t, unsetCollateralStr, UnsetMode.String(), "Mode.String should return the correct value for UnsetMode")
+	assert.Equal(t, spotFuturesCollateralStr, SpotFuturesMode.String(), "Mode.String should return the correct value for SpotFuturesMode")
+	assert.Empty(t, Mode(137).String(), "Mode.String should return an empty value for an unsupported mode")
 }
 
 func TestUpperCollateralType(t *testing.T) {
 	t.Parallel()
-	if UnknownMode.Upper() != strings.ToUpper(unknownCollateralStr) {
-		t.Errorf("received '%v' expected '%v'", UnknownMode.Upper(), strings.ToUpper(unknownCollateralStr))
-	}
-	if SingleMode.Upper() != strings.ToUpper(singleCollateralStr) {
-		t.Errorf("received '%v' expected '%v'", SingleMode.Upper(), strings.ToUpper(singleCollateralStr))
-	}
-	if MultiMode.Upper() != strings.ToUpper(multiCollateralStr) {
-		t.Errorf("received '%v' expected '%v'", MultiMode.Upper(), strings.ToUpper(multiCollateralStr))
-	}
-	if PortfolioMode.Upper() != strings.ToUpper(portfolioCollateralStr) {
-		t.Errorf("received '%v' expected '%v'", PortfolioMode.Upper(), strings.ToUpper(portfolioCollateralStr))
-	}
-	if UnsetMode.Upper() != strings.ToUpper(unsetCollateralStr) {
-		t.Errorf("received '%v' expected '%v'", UnsetMode.Upper(), strings.ToUpper(unsetCollateralStr))
-	}
+	assert.Equal(t, strings.ToUpper(unknownCollateralStr), UnknownMode.Upper(), "Mode.Upper should return the correct value for UnknownMode")
+	assert.Equal(t, strings.ToUpper(singleCollateralStr), SingleMode.Upper(), "Mode.Upper should return the correct value for SingleMode")
+	assert.Equal(t, strings.ToUpper(multiCollateralStr), MultiMode.Upper(), "Mode.Upper should return the correct value for MultiMode")
+	assert.Equal(t, strings.ToUpper(portfolioCollateralStr), PortfolioMode.Upper(), "Mode.Upper should return the correct value for PortfolioMode")
+	assert.Equal(t, strings.ToUpper(unsetCollateralStr), UnsetMode.Upper(), "Mode.Upper should return the correct value for UnsetMode")
 }
 
 func TestIsValidCollateralTypeString(t *testing.T) {
 	t.Parallel()
-	if IsValidCollateralModeString("lol") {
-		t.Fatal("expected 'false', received 'true'")
-	}
-	if !IsValidCollateralModeString("single") {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if !IsValidCollateralModeString("multi") {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if !IsValidCollateralModeString("portfolio") {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if !IsValidCollateralModeString("unset") {
-		t.Fatal("expected 'true', received 'false'")
-	}
-	if IsValidCollateralModeString("") {
-		t.Fatal("expected 'false', received 'true'")
-	}
-	if IsValidCollateralModeString("unknown") {
-		t.Fatal("expected 'false', received 'true'")
-	}
+	require.False(t, IsValidCollateralModeString("lol"), "IsValidCollateralModeString must return false for an invalid value")
+	require.True(t, IsValidCollateralModeString("single"), "IsValidCollateralModeString must return true for single")
+	require.True(t, IsValidCollateralModeString("multi"), "IsValidCollateralModeString must return true for multi")
+	require.True(t, IsValidCollateralModeString("portfolio"), "IsValidCollateralModeString must return true for portfolio")
+	require.True(t, IsValidCollateralModeString("unset"), "IsValidCollateralModeString must return true for unset")
+	require.False(t, IsValidCollateralModeString(""), "IsValidCollateralModeString must return false for an empty value")
+	require.False(t, IsValidCollateralModeString("unknown"), "IsValidCollateralModeString must return false for unknown")
 }
 
 func TestStringToCollateralType(t *testing.T) {
 	t.Parallel()
 	resp, err := StringToMode("lol")
-	assert.ErrorIs(t, err, ErrInvalidCollateralMode)
-
-	if resp != UnknownMode {
-		t.Errorf("received '%v' expected '%v'", resp, UnknownMode)
-	}
+	assert.ErrorIs(t, err, ErrInvalidCollateralMode, "StringToMode should return ErrInvalidCollateralMode for an invalid value")
+	assert.Equal(t, UnknownMode, resp, "StringToMode should return UnknownMode for an invalid value")
 
 	resp, err = StringToMode("")
-	if err != nil {
-		t.Error(err)
-	}
-	if resp != UnsetMode {
-		t.Errorf("received '%v' expected '%v'", resp, UnsetMode)
-	}
+	require.NoError(t, err, "StringToMode must not error for an empty value")
+	assert.Equal(t, UnsetMode, resp, "StringToMode should return UnsetMode for an empty value")
 
 	resp, err = StringToMode("single")
-	if err != nil {
-		t.Error(err)
-	}
-	if resp != SingleMode {
-		t.Errorf("received '%v' expected '%v'", resp, SingleMode)
-	}
+	require.NoError(t, err, "StringToMode must not error for single")
+	assert.Equal(t, SingleMode, resp, "StringToMode should return SingleMode for single")
 
 	resp, err = StringToMode("multi")
-	if err != nil {
-		t.Error(err)
-	}
-	if resp != MultiMode {
-		t.Errorf("received '%v' expected '%v'", resp, MultiMode)
-	}
+	require.NoError(t, err, "StringToMode must not error for multi")
+	assert.Equal(t, MultiMode, resp, "StringToMode should return MultiMode for multi")
 
 	resp, err = StringToMode("portfolio")
-	if err != nil {
-		t.Error(err)
-	}
-	if resp != PortfolioMode {
-		t.Errorf("received '%v' expected '%v'", resp, PortfolioMode)
-	}
+	require.NoError(t, err, "StringToMode must not error for portfolio")
+	assert.Equal(t, PortfolioMode, resp, "StringToMode should return PortfolioMode for portfolio")
 }

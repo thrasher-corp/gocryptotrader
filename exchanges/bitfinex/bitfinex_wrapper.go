@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -170,7 +169,6 @@ func (e *Exchange) SetDefaults() {
 	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -276,6 +274,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		queryAsset = asset.Spot
 	case asset.Futures:
 		queryAsset = asset.Futures
+	case asset.MarginFunding:
+		// Bootstrap skips this error for every enabled asset, where asset.ErrNotSupported fails the load
+		return common.ErrNotYetImplemented
 	default:
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
@@ -315,8 +316,9 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Low:          val.Low,
 			Bid:          val.Bid,
 			Ask:          val.Ask,
-			Volume:       val.Volume,
+			BaseVolume:   val.Volume,
 			Pair:         pair,
+			LastUpdated:  val.Timestamp.Time(),
 			AssetType:    a,
 			ExchangeName: e.Name,
 		})
@@ -525,7 +527,7 @@ allTrades:
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
@@ -648,7 +650,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	return err
 }
 
-// CancelBatchOrders cancels an orders by their corresponding ID numbers
+// CancelBatchOrders cancels orders by their corresponding ID numbers
 func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	// While bitfinex supports cancelling multiple orders, it is
 	// done in a way that is not helpful for GCT, and it would be better instead

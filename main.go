@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -17,8 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/gctscript"
-	gctscriptVM "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
@@ -53,7 +52,6 @@ func main() {
 	flag.BoolVar(&settings.EnableDepositAddressManager, "depositaddressmanager", true, "enables the deposit address manager")
 	flag.BoolVar(&settings.EnableConnectivityMonitor, "connectivitymonitor", true, "enables the connectivity monitor")
 	flag.BoolVar(&settings.EnableDatabaseManager, "databasemanager", true, "enables database manager")
-	flag.BoolVar(&settings.EnableGCTScriptManager, "gctscriptmanager", true, "enables gctscript manager")
 	flag.DurationVar(&settings.EventManagerDelay, "eventmanagerdelay", 0, "sets the event managers sleep delay between event checking")
 	flag.BoolVar(&settings.EnableNTPClient, "ntpclient", true, "enables the NTP client to check system clock drift")
 	flag.BoolVar(&settings.EnableDispatcher, "dispatch", true, "enables the dispatch system")
@@ -73,10 +71,12 @@ func main() {
 		"the amount of time before the syncer will switch from the websocket protocol to REST protocol (e.g. from websocket to REST)")
 
 	// Forex provider settings
+	flag.BoolVar(&settings.EnableAllRatesToday, "allratestoday", false, "overrides config and sets up foreign exchange AllRatesToday")
 	flag.BoolVar(&settings.EnableCurrencyConverter, "currencyconverter", false, "overrides config and sets up foreign exchange Currency Converter")
 	flag.BoolVar(&settings.EnableCurrencyLayer, "currencylayer", false, "overrides config and sets up foreign exchange Currency Layer")
 	flag.BoolVar(&settings.EnableExchangeRates, "exchangerates", false, "overrides config and sets up foreign exchange exchangeratesapi.io")
 	flag.BoolVar(&settings.EnableFixer, "fixer", false, "overrides config and sets up foreign exchange Fixer.io")
+	flag.BoolVar(&settings.EnableFXMacroData, "fxmacrodata", false, "overrides config and sets up foreign exchange FXMacroData")
 	flag.BoolVar(&settings.EnableOpenExchangeRates, "openexchangerates", false, "overrides config and sets up foreign exchange Open Exchange Rates")
 
 	// Exchange tuning settings
@@ -101,9 +101,6 @@ func main() {
 	flag.DurationVar(&settings.GlobalHTTPTimeout, "globalhttptimeout", 0, "sets common HTTP timeout value for HTTP requests")
 	flag.StringVar(&settings.GlobalHTTPUserAgent, "globalhttpuseragent", "", "sets the common HTTP client's user agent")
 	flag.StringVar(&settings.GlobalHTTPProxy, "globalhttpproxy", "", "sets the common HTTP client's proxy server")
-
-	// GCTScript tuning settings
-	flag.Uint64Var(&settings.MaxVirtualMachines, "maxvirtualmachines", gctscriptVM.DefaultMaxVirtualMachines, "set max virtual machines that can load")
 
 	// Withdraw Cache tuning settings
 	flag.Uint64Var(&settings.WithdrawCacheSize, "withdrawcachesize", withdraw.CacheSize, "set cache size for withdrawal requests")
@@ -130,20 +127,26 @@ func main() {
 		settings.ConfigFile = ""
 	}
 
-	settings.Shutdown = make(chan struct{})
+	settings.Shutdown = make(chan struct{}, 1)
 	engine.Bot, err = engine.NewFromSettings(&settings, flagSet)
 	if engine.Bot == nil || err != nil {
 		log.Fatalf("Unable to initialise bot engine. Error: %s\n", err)
 	}
 	config.SetConfig(engine.Bot.Config)
 
-	gctscript.Setup()
-
 	gctlog.Infof(gctlog.Global, "JSON encoding is set to package %q", json.Implementation)
 
 	engine.Bot.Settings.PrintLoadedSettings()
 
+	engine.Bot.EnsureRuntimeContext()
+	var shutdownRequested atomic.Bool
+	go waitForInterrupt(settings.Shutdown, engine.Bot, &shutdownRequested)
+
 	if err = engine.Bot.Start(); err != nil {
+		if shutdownRequested.Load() {
+			// Avoid calling Stop() on a partially-initialised engine.
+			return
+		}
 		errClose := gctlog.CloseLogger()
 		if errClose != nil {
 			log.Printf("Unable to close logger. Error: %s\n", errClose)
@@ -151,13 +154,21 @@ func main() {
 		log.Fatalf("Unable to start bot engine. Error: %s\n", err)
 	}
 
-	go waitForInterrupt(settings.Shutdown)
 	<-settings.Shutdown
 	engine.Bot.Stop()
 }
 
-func waitForInterrupt(waiter chan<- struct{}) {
+func waitForInterrupt(waiter chan<- struct{}, bot *engine.Engine, requested *atomic.Bool) {
 	interrupt := <-signaler.WaitForInterrupt()
 	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
-	waiter <- struct{}{}
+	if requested != nil {
+		requested.Store(true)
+	}
+	if bot != nil {
+		bot.RequestShutdown()
+	}
+	select {
+	case waiter <- struct{}{}:
+	default:
+	}
 }

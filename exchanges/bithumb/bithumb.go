@@ -7,9 +7,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -52,7 +54,10 @@ const (
 	privateMarketSell  = "/trade/market_sell"
 )
 
-var errSymbolIsEmpty = errors.New("symbol cannot be empty")
+var (
+	errSymbolIsEmpty       = errors.New("symbol cannot be empty")
+	errUnhandledBalanceTag = errors.New("unhandled balance tag")
+)
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bithumb
 type Exchange struct {
@@ -68,11 +73,7 @@ func (e *Exchange) GetTradablePairs(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 
-	currencies := make([]string, 0, len(result))
-	for x := range result {
-		currencies = append(currencies, x)
-	}
-	return currencies, nil
+	return slices.AppendSeq(make([]string, 0, len(result)), maps.Keys(result)), nil
 }
 
 // GetTicker returns ticker information
@@ -245,15 +246,14 @@ func (e *Exchange) GetAccountBalance(ctx context.Context, c string) (FullBalance
 	// Added due to increasing of the usable currencies on exchange, usually
 	// without notification, so we dont need to update structs later on
 	for tag, datum := range response.Data {
-		splitTag := strings.Split(tag, "_")
-		if len(splitTag) < 2 {
-			return fullBalance, fmt.Errorf("unhandled tag format: %q", splitTag)
+		kind, _, _ := strings.Cut(tag, "_")
+		_, c, found := strings.CutLast(tag, "_")
+		if !found {
+			return fullBalance, fmt.Errorf("%w: %q has no currency", errUnhandledBalanceTag, tag)
 		}
-
-		c := splitTag[len(splitTag)-1]
 		val := datum.Float64()
 
-		switch splitTag[0] {
+		switch kind {
 		case "available":
 			fullBalance.Available[c] = val
 		case "in":
@@ -265,7 +265,7 @@ func (e *Exchange) GetAccountBalance(ctx context.Context, c string) (FullBalance
 		case "xcoin":
 			fullBalance.Xcoin[c] = val
 		default:
-			return fullBalance, fmt.Errorf("getaccountbalance error tag name %s unhandled", splitTag)
+			return fullBalance, fmt.Errorf("%w: %q", errUnhandledBalanceTag, tag)
 		}
 	}
 
@@ -578,7 +578,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 		headers := make(map[string]string)
 		headers["Api-Key"] = creds.Key
-		headers["Api-Sign"] = base64.StdEncoding.EncodeToString(([]byte(hex.EncodeToString(hmac))))
+		headers["Api-Sign"] = base64.StdEncoding.EncodeToString([]byte(hex.EncodeToString(hmac)))
 		headers["Api-Nonce"] = n
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 

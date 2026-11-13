@@ -22,20 +22,25 @@ const (
 	SellOrder
 )
 
-// Ticker holds ticker information
+// Ticker holds ticker information from Bitstamp's single-market and all-market endpoints.
 type Ticker struct {
-	Last            float64    `json:"last,string"`
-	High            float64    `json:"high,string"`
-	Low             float64    `json:"low,string"`
-	Vwap            float64    `json:"vwap,string"`
-	Volume          float64    `json:"volume,string"`
-	Bid             float64    `json:"bid,string"`
-	Ask             float64    `json:"ask,string"`
-	Timestamp       types.Time `json:"timestamp"`
-	Open            float64    `json:"open,string"`
-	Open24          float64    `json:"open_24,string"`
-	Side            orderSide  `json:"side,string"`
-	PercentChange24 float64    `json:"percent_change_24,string"`
+	Last                       types.Number  `json:"last"`
+	High                       types.Number  `json:"high"`
+	Low                        types.Number  `json:"low"`
+	VolumeWeightedAveragePrice types.Number  `json:"vwap"`
+	Volume                     types.Number  `json:"volume"`
+	BestBid                    types.Number  `json:"bid"`
+	BestAsk                    types.Number  `json:"ask"`
+	Timestamp                  types.Time    `json:"timestamp"`
+	Open                       types.Number  `json:"open"`
+	Open24Hour                 types.Number  `json:"open_24"`
+	Side                       orderSide     `json:"side"`
+	PercentChange24Hour        types.Number  `json:"percent_change_24"`
+	MarkPrice                  types.Number  `json:"mark_price"`
+	IndexPrice                 types.Number  `json:"index_price"`
+	OpenInterest               types.Number  `json:"open_interest"`
+	OpenInterestValue          types.Number  `json:"open_interest_value"`
+	Market                     currency.Pair `json:"market"`
 }
 
 // Orderbook holds orderbook information
@@ -47,13 +52,13 @@ type Orderbook struct {
 
 // TradingPair holds trading pair information
 type TradingPair struct {
-	Name            string `json:"name"`
-	URLSymbol       string `json:"url_symbol"`
-	BaseDecimals    int    `json:"base_decimals"`
-	CounterDecimals int    `json:"counter_decimals"`
-	MinimumOrder    float64
-	Trading         string `json:"trading"`
-	Description     string `json:"description"`
+	Name            string  `json:"name"`
+	URLSymbol       string  `json:"url_symbol"`
+	BaseDecimals    uint8   `json:"base_decimals"`
+	CounterDecimals uint8   `json:"counter_decimals"`
+	MinimumOrder    float64 `json:"-"`
+	Trading         string  `json:"trading"`
+	Description     string  `json:"description"`
 }
 
 // Transactions holds transaction data
@@ -61,7 +66,7 @@ type Transactions struct {
 	Date    types.Time `json:"date"`
 	TradeID int64      `json:"tid,string"`
 	Price   float64    `json:"price,string"`
-	Type    int        `json:"type,string"`
+	Type    uint64     `json:"type,string"`
 	Amount  float64    `json:"amount,string"`
 }
 
@@ -139,14 +144,14 @@ type OrderStatus struct {
 		Fee          float64        `json:"fee,string"`
 		DateTime     types.DateTime `json:"datetime"`
 		Type         int64          `json:"type"`
-	}
+	} `json:"transactions"`
 }
 
 // CancelOrder holds the order cancellation info
 type CancelOrder struct {
 	Price  float64 `json:"price"`
 	Amount float64 `json:"amount"`
-	Type   int     `json:"type"`
+	Type   uint64  `json:"type"`
 	ID     int64   `json:"id"`
 }
 
@@ -207,16 +212,8 @@ type FIATWithdrawalResponse struct {
 // transactions
 type UnconfirmedBTCTransactions struct {
 	Address        string `json:"address"`
-	DestinationTag int    `json:"destination_tag"`
+	DestinationTag uint64 `json:"destination_tag"`
 	MemoID         string `json:"memo_id"`
-}
-
-// CaptureError is used to capture unmarshalled errors
-type CaptureError struct {
-	Status any `json:"status"`
-	Reason any `json:"reason"`
-	Code   any `json:"code"`
-	Error  any `json:"error"`
 }
 
 const (
@@ -254,7 +251,7 @@ type websocketTradeData struct {
 	PriceStr       string     `json:"price_str"`
 	Timestamp      types.Time `json:"timestamp"`
 	Price          float64    `json:"price"`
-	Type           int        `json:"type"`
+	Type           uint64     `json:"type"`
 	ID             int64      `json:"id"`
 }
 

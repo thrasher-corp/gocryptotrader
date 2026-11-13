@@ -21,9 +21,9 @@ type channelPairKey struct {
 type spotMarginEvaluator map[channelPairKey]bool
 
 // NeedsOutboundSubscription checks if a subscription is needed based on existing spot/margin subscriptions. If asset
-// is not spot or margin, it always returns true.
+// is not spot or margin, or the channel is asset-scoped, it always returns true.
 func (s spotMarginEvaluator) NeedsOutboundSubscription(pair currency.Pair, channel string, assetType asset.Item) (bool, error) {
-	if assetType != asset.Spot && assetType != asset.Margin {
+	if isAssetChannel(&subscription.Subscription{Channel: channel}) || (assetType != asset.Spot && assetType != asset.Margin) {
 		return true, nil
 	}
 	need, ok := s[getChannelKey(pair, channel, assetType)]
@@ -44,8 +44,8 @@ func (s *spotMarginEvaluator) exists(pair currency.Pair, channel string, assetTy
 
 func getChannelKey(pair currency.Pair, channel string, assetType asset.Item) channelPairKey {
 	return channelPairKey{
-		PairAsset: key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: assetType},
-		Channel:   channel,
+		Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: assetType,
+		Channel: channel,
 	}
 }
 
@@ -57,7 +57,7 @@ func (e *Exchange) getSpotMarginEvaluator(subs []*subscription.Subscription) spo
 	eval := make(spotMarginEvaluator)
 incoming:
 	for i, s := range subs {
-		if s.Asset != asset.Spot && s.Asset != asset.Margin {
+		if isAssetChannel(s) || (s.Asset != asset.Spot && s.Asset != asset.Margin) {
 			continue
 		}
 
@@ -91,7 +91,7 @@ incoming:
 }
 
 func inverseSpotMarginSubscription(sub *subscription.Subscription) (*subscription.Subscription, bool) {
-	if sub == nil || (sub.Asset != asset.Spot && sub.Asset != asset.Margin) {
+	if sub == nil || isAssetChannel(sub) || (sub.Asset != asset.Spot && sub.Asset != asset.Margin) {
 		return nil, false
 	}
 	inverse := sub.Clone()
@@ -104,7 +104,7 @@ func inverseSpotMarginSubscription(sub *subscription.Subscription) (*subscriptio
 	return inverse, true
 }
 
-func (e *Exchange) refreshEquivalentOrderbookSnapshot(sub *subscription.Subscription) error {
+func (e *Exchange) refreshEquivalentOrderbookSnapshot(ctx context.Context, sub *subscription.Subscription) error {
 	if sub == nil || sub.Channel != subscription.OrderbookChannel || len(sub.Pairs) == 0 {
 		return nil
 	}
@@ -125,7 +125,7 @@ func (e *Exchange) refreshEquivalentOrderbookSnapshot(sub *subscription.Subscrip
 	cloned := *book
 	cloned.Asset = sub.Asset
 	cloned.Pair = sub.Pairs[0]
-	return e.Websocket.Orderbook.LoadSnapshot(&cloned)
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, &cloned)
 }
 
 // trackEquivalentSubscriptionsOnExistingConnection identifies spot/margin equivalent subscriptions that can be logically attached to an existing connection, sends any required outbound subscribe payloads, and returns both remaining and tracked subscriptions for manager-level bookkeeping.
@@ -159,7 +159,7 @@ func (e *Exchange) trackEquivalentSubscriptionsOnExistingConnection(ctx context.
 		}
 	}
 	for _, sub := range tracked {
-		if err := e.refreshEquivalentOrderbookSnapshot(sub); err != nil {
+		if err := e.refreshEquivalentOrderbookSnapshot(ctx, sub); err != nil {
 			return nil, nil, err
 		}
 	}

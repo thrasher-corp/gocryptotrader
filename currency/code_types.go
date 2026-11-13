@@ -46,7 +46,7 @@ type Code struct {
 // Item defines a sub type containing the main attributes of a designated
 // currency code pointer
 type Item struct {
-	ID       int    `json:"id,omitempty"`
+	ID       int64  `json:"id,omitempty"`
 	FullName string `json:"fullName,omitempty"`
 	Symbol   string `json:"symbol"`
 	// Lower is the lower case symbol for optimization purposes so no need to

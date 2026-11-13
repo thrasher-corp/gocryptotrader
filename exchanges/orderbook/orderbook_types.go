@@ -4,8 +4,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -25,6 +25,10 @@ var (
 	ErrOrderbookNotFound = errors.New("cannot find orderbook(s)")
 	ErrPriceZero         = errors.New("price cannot be zero")
 	ErrExchangeNameEmpty = errors.New("empty orderbook exchange name")
+	// ErrInvalidContractMultiplier is returned when a linear contract multiplier is not positive.
+	ErrInvalidContractMultiplier = errors.New("contract multiplier must be greater than zero")
+	// ErrNotEnoughLiquidity indicates that an orderbook side cannot fill the requested amount.
+	ErrNotEnoughLiquidity = errors.New("not enough liquidity")
 )
 
 var (
@@ -36,7 +40,6 @@ var (
 	errDuplication          = errors.New("price duplication")
 	errIDDuplication        = errors.New("id duplication")
 	errPeriodUnset          = errors.New("funding rate period is unset")
-	errNotEnoughLiquidity   = errors.New("not enough liquidity")
 	errChecksumStringNotSet = errors.New("checksum string not set")
 )
 
@@ -177,14 +180,6 @@ type Movement struct {
 	// exchange as they might restrict the amount of information being passed
 	// back from either a REST request or websocket update
 	FullBookSideConsumed bool
-}
-
-// SideAmounts define the amounts total for the Levels, total value in
-// quotation and the cumulative base amounts.
-type SideAmounts struct {
-	Levels     int64
-	QuoteValue float64
-	BaseAmount float64
 }
 
 // LevelsArrayPriceAmount used to unmarshal orderbook levels from JSON slice of arrays
