@@ -100,10 +100,10 @@
     "bytes": 184753
   },
   "config.BenchmarkUpdateConfig": {
-    "allocs": 39976,
-    "bytes": 9963232,
+    "allocs": 41608,
+    "bytes": 10465949,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in October 2026, with MEXC in testdata/configtest.json, gave medians from 39976 to 40013. 0.4% is about 160 allocations either side of the budget, which covers that range with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with Binance's options pairs in testdata/configtest.json, gave medians from 41605 to 41631. 0.4% is about 166 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,
@@ -185,37 +185,41 @@
     "allocs": 1,
     "bytes": 32
   },
-  "exchanges/binance.BenchmarkWsHandleData/BalanceUpdate": {
-    "allocs": 3,
-    "bytes": 240
+  "exchanges/binance.BenchmarkWebsocketHandleData/BalanceUpdate": {
+    "allocs": 4,
+    "bytes": 176
   },
-  "exchanges/binance.BenchmarkWsHandleData/Depth": {
-    "allocs": 10,
-    "bytes": 416
+  "exchanges/binance.BenchmarkWebsocketHandleData/Depth": {
+    "allocs": 11,
+    "bytes": 640
   },
-  "exchanges/binance.BenchmarkWsHandleData/ExecutionReport": {
+  "exchanges/binance.BenchmarkWebsocketHandleData/ExecutionReport": {
+    "allocs": 25,
+    "bytes": 1672
+  },
+  "exchanges/binance.BenchmarkWebsocketHandleData/Kline": {
+    "allocs": 6,
+    "bytes": 600
+  },
+  "exchanges/binance.BenchmarkWebsocketHandleData/ListStatus": {
     "allocs": 9,
-    "bytes": 74782
+    "bytes": 896
   },
-  "exchanges/binance.BenchmarkWsHandleData/Kline": {
-    "allocs": 6,
-    "bytes": 616
+  "exchanges/binance.BenchmarkWebsocketHandleData/OutboundAccountPosition": {
+    "allocs": 16,
+    "bytes": 1688
   },
-  "exchanges/binance.BenchmarkWsHandleData/ListStatus": {
-    "allocs": 5,
-    "bytes": 560
+  "exchanges/binance.BenchmarkWebsocketHandleData/PartialDepth": {
+    "allocs": 12,
+    "bytes": 816
   },
-  "exchanges/binance.BenchmarkWsHandleData/OutboundAccountPosition": {
-    "allocs": 6,
-    "bytes": 464
-  },
-  "exchanges/binance.BenchmarkWsHandleData/Ticker": {
+  "exchanges/binance.BenchmarkWebsocketHandleData/Ticker": {
     "allocs": 7,
-    "bytes": 672
+    "bytes": 696
   },
-  "exchanges/binance.BenchmarkWsHandleData/Trade": {
-    "allocs": 2,
-    "bytes": 40
+  "exchanges/binance.BenchmarkWebsocketHandleData/Trade": {
+    "allocs": 7,
+    "bytes": 368
   },
   "exchanges/currencystate.BenchmarkGetCurrencyStateSnapshot/1": {
     "allocs": 2,

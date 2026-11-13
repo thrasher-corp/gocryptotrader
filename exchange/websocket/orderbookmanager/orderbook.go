@@ -130,6 +130,16 @@ func (o *Orderbook) LastUpdateID(p currency.Pair, a asset.Item) (int64, error) {
 	return depth.LastUpdateID()
 }
 
+// publishedUpdateID returns the update ID of the pair and asset's valid book in the exchange's order book store, which
+// holds a book a REST request published before this manager loaded one
+func (o *Orderbook) publishedUpdateID(p currency.Pair, a asset.Item) (int64, error) {
+	depth, err := orderbook.GetDepth(o.exchangeName, p, a)
+	if err != nil {
+		return 0, err
+	}
+	return depth.LastUpdateID()
+}
+
 // InvalidateOrderbook invalidates the orderbook so no trading can occur on potential corrupted data
 // TODO: Add in reason for invalidation for debugging purposes.
 func (o *Orderbook) InvalidateOrderbook(p currency.Pair, a asset.Item) error {

@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -253,6 +254,60 @@ func TestAccountsUpdateBalance(t *testing.T) {
 
 	_, err = a.UpdateBalance(ctx, "1b", asset.Spot, currency.BTC, nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "UpdateBalance must reject a nil update callback")
+}
+
+func TestAccountsUpdateBalanceIf(t *testing.T) {
+	t.Parallel()
+
+	_, err := (*Accounts)(nil).UpdateBalanceIf(t.Context(), "", asset.Spot, currency.BTC, func(*Balance) bool { return true })
+	require.ErrorIs(t, err, common.ErrNilPointer, "UpdateBalanceIf must reject a nil Accounts receiver")
+
+	a := accountsFixture(t)
+	require.NoError(t, dispatch.EnsureRunning(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit), "dispatch.EnsureRunning must not error")
+	p, err := a.Subscribe()
+	require.NoError(t, err, "Subscribe must not error")
+	var published atomic.Int32
+	go func() {
+		for v := range p.Channel() {
+			if s, ok := v.(*SubAccount); ok && s.ID == "1b" {
+				published.Add(1)
+			}
+		}
+	}()
+	ctx := DeployCredentialsToContext(t.Context(), creds1)
+	stored, err := a.GetBalance("1b", creds1, asset.Spot, currency.BTC)
+	require.NoError(t, err, "GetBalance must not error")
+
+	kept, err := a.UpdateBalanceIf(ctx, "1b", asset.Spot, currency.BTC, func(balance *Balance) bool {
+		balance.Total = 5
+		return false
+	})
+	require.NoError(t, err, "UpdateBalanceIf must not error leaving a balance alone")
+	assert.Equal(t, stored, kept, "a balance left alone should be returned as stored")
+	unchanged, err := a.GetBalance("1b", creds1, asset.Spot, currency.BTC)
+	require.NoError(t, err, "GetBalance must not error")
+	assert.Equal(t, stored, unchanged, "a balance left alone should keep its values and update time")
+	_, err = a.UpdateBalanceIf(ctx, "1b", asset.Spot, currency.ETH, func(*Balance) bool { return false })
+	require.NoError(t, err, "UpdateBalanceIf must not error leaving a missing balance alone")
+	_, err = a.GetBalance("1b", creds1, asset.Spot, currency.ETH)
+	assert.ErrorIs(t, err, ErrNoBalances, "a missing balance left alone should not be added")
+	assert.Never(t, func() bool { return published.Load() > 0 }, 100*time.Millisecond, time.Millisecond, "a balance left alone should not be published")
+
+	beforeUpdate := time.Now()
+	updated, err := a.UpdateBalanceIf(ctx, "1b", asset.Spot, currency.BTC, func(balance *Balance) bool {
+		balance.Total = 5
+		return true
+	})
+	require.NoError(t, err, "UpdateBalanceIf must update a balance")
+	exp := stored
+	exp.Total = 5
+	exp.UpdatedAt = updated.UpdatedAt
+	assert.Equal(t, exp, updated, "UpdateBalanceIf should return the updated balance")
+	assert.WithinRange(t, updated.UpdatedAt, beforeUpdate, time.Now(), "an updated balance should receive the current arrival timestamp")
+	assert.Eventually(t, func() bool { return published.Load() > 0 }, 5*time.Second, time.Millisecond, "an updated balance should be published")
+
+	_, err = a.UpdateBalanceIf(ctx, "1b", asset.Spot, currency.BTC, nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "UpdateBalanceIf must reject a nil update callback")
 }
 
 func TestAccountsSave(t *testing.T) { //nolint:tparallel // Save's internal tests are sequential
