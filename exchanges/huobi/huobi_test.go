@@ -2069,7 +2069,8 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
 	got := e.Websocket.GetSubscriptions()
@@ -2083,7 +2084,7 @@ func TestSubscribe(t *testing.T) {
 func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
 	subCfg := e.Features.Subscriptions
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := subCfg.ExpandTemplates(h)
 	require.NoError(t, err, "ExpandTemplates must not error")

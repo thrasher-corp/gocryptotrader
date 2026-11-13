@@ -2152,7 +2152,7 @@ func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	channels, err := e.generateSubscriptions() // Note: We grab this before it's overwritten by MockWsInstance below
+	channels, err := e.generateSubscriptions() // Note: We grab this before it's overwritten by MockWebsocketInstance below
 	require.NoError(t, err, "generateSubscriptions must not error")
 	if mockTests {
 		exp := []string{"btcusdt@depth@100ms", "btcusdt@kline_1m", "btcusdt@ticker", "btcusdt@trade", "dogeusdt@depth@100ms", "dogeusdt@kline_1m", "dogeusdt@ticker", "dogeusdt@trade"}
@@ -2163,9 +2163,10 @@ func TestSubscribe(t *testing.T) {
 			require.ElementsMatch(tb, req.Params, exp, "Params must have correct channels")
 			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":"%s"}`, req.ID))
 		}
-		e = testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
+		e = testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
-		testexch.SetupWs(t, e)
+		t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+		testexch.SetupWebsocket(t, e)
 	}
 	err = e.Subscribe(channels)
 	require.NoError(t, err, "Subscribe must not error")
@@ -2185,7 +2186,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		require.NoError(tb, err, "Unmarshal must not error")
 		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":"%s"}`, req.ID))
 	}
-	b := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
+	b := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	err := b.Subscribe(channels)
 	assert.ErrorIs(t, err, common.ErrUnknownError, "Subscribe should error correctly")
 	assert.ErrorContains(t, err, "carrots", "Subscribe should error containing the carrots")
