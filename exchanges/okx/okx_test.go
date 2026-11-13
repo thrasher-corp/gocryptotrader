@@ -3750,112 +3750,1128 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = e.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	arg = &order.Submit{
-		Pair: currency.Pair{
-			Base:  currency.LTC,
-			Quote: currency.BTC,
-		},
-		Exchange:  e.Name,
-		Side:      order.Sell,
-		Type:      order.Limit,
-		Price:     120000,
-		Amount:    1000000000,
-		ClientID:  "yeneOrder",
-		AssetType: asset.Spot,
-	}
-	result, err := e.SubmitOrder(contextGenerate(), arg)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+	t.Run("live", func(t *testing.T) {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		arg = &order.Submit{
+			Pair: currency.Pair{
+				Base:  currency.LTC,
+				Quote: currency.BTC,
+			},
+			Exchange:  e.Name,
+			Side:      order.Sell,
+			Type:      order.Limit,
+			Price:     120000,
+			Amount:    1000000000,
+			ClientID:  "yeneOrder",
+			AssetType: asset.Spot,
+		}
+		result, err := e.SubmitOrder(contextGenerate(), arg)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 
-	arg.Type = order.Trigger
-	arg.TriggerPrice = 11999
-	arg.TriggerPriceType = order.LastPrice
-	result, err = e.SubmitOrder(contextGenerate(), arg)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+		arg.Type = order.Trigger
+		arg.TriggerPrice = 11999
+		arg.TriggerPriceType = order.LastPrice
+		result, err = e.SubmitOrder(contextGenerate(), arg)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 
-	arg.Type = order.ConditionalStop
-	arg.TriggerPrice = 11999
-	arg.TriggerPriceType = order.IndexPrice
-	result, err = e.SubmitOrder(contextGenerate(), arg)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+		arg.Type = order.ConditionalStop
+		arg.TriggerPrice = 11999
+		arg.TriggerPriceType = order.IndexPrice
+		result, err = e.SubmitOrder(contextGenerate(), arg)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 
-	arg.Type = order.Chase
-	_, err = e.SubmitOrder(contextGenerate(), arg)
-	assert.ErrorIs(t, err, order.ErrUnknownTrackingMode)
+		arg.Type = order.Chase
+		_, err = e.SubmitOrder(contextGenerate(), arg)
+		assert.ErrorIs(t, err, order.ErrUnknownTrackingMode)
 
-	arg.TrackingMode = order.Percentage
-	_, err = e.SubmitOrder(contextGenerate(), arg)
-	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
+		arg.TrackingMode = order.Percentage
+		_, err = e.SubmitOrder(contextGenerate(), arg)
+		assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	arg.TrackingValue = .5
-	result, err = e.SubmitOrder(contextGenerate(), arg)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+		arg.TrackingValue = .5
+		result, err = e.SubmitOrder(contextGenerate(), arg)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 
-	arg.Type = order.TWAP
-	result, err = e.SubmitOrder(contextGenerate(), arg)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+		arg.Type = order.TWAP
+		result, err = e.SubmitOrder(contextGenerate(), arg)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 
-	arg.Type = order.TrailingStop
-	result, err = e.SubmitOrder(contextGenerate(), arg)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+		arg.Type = order.TrailingStop
+		result, err = e.SubmitOrder(contextGenerate(), arg)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 
-	arg.Type = order.OCO
-	_, err = e.SubmitOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
+		arg.Type = order.OCO
+		_, err = e.SubmitOrder(contextGenerate(), arg)
+		require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
-	arg.RiskManagementModes = order.RiskManagementModes{
-		TakeProfit: order.RiskManagement{
-			Price:      11999,
-			LimitPrice: 12000,
-		},
-		StopLoss: order.RiskManagement{
-			Price:      10999,
-			LimitPrice: 11000,
-		},
-	}
-	result, err = e.SubmitOrder(contextGenerate(), arg)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+		arg.RiskManagementModes = order.RiskManagementModes{
+			TakeProfit: order.RiskManagement{
+				Price:      11999,
+				LimitPrice: 12000,
+			},
+			StopLoss: order.RiskManagement{
+				Price:      10999,
+				LimitPrice: 11000,
+			},
+		}
+		result, err = e.SubmitOrder(contextGenerate(), arg)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 
-	cp, err := currency.NewPairFromString("BTC-USDT-230630")
-	require.NoError(t, err)
+		cp, err := currency.NewPairFromString("BTC-USDT-230630")
+		require.NoError(t, err)
 
-	arg = &order.Submit{
-		Pair:       cp,
-		Exchange:   e.Name,
-		Side:       order.Long,
-		Type:       order.Market,
-		Amount:     1,
-		ClientID:   "hellomoto",
-		AssetType:  asset.Futures,
-		MarginType: margin.Multi,
-	}
-	result, err = e.SubmitOrder(contextGenerate(), arg)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+		arg = &order.Submit{
+			Pair:       cp,
+			Exchange:   e.Name,
+			Side:       order.Long,
+			Type:       order.Market,
+			Amount:     1,
+			ClientID:   "hellomoto",
+			AssetType:  asset.Futures,
+			MarginType: margin.Multi,
+		}
+		result, err = e.SubmitOrder(contextGenerate(), arg)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 
-	pair, err := currency.NewPairFromString("BTC-USDT-SWAP_BTC-USDT-250328")
-	require.NoError(t, err)
+		pair, err := currency.NewPairFromString("BTC-USDT-SWAP_BTC-USDT-250328")
+		require.NoError(t, err)
 
-	result, err = e.SubmitOrder(contextGenerate(), &order.Submit{
-		Pair:       pair,
-		Exchange:   e.Name,
-		Side:       order.Sell,
-		Type:       order.Limit,
-		Price:      120000,
-		Amount:     1,
-		ClientID:   "hellomoto",
-		AssetType:  asset.Spread,
-		MarginType: margin.Multi,
+		result, err = e.SubmitOrder(contextGenerate(), &order.Submit{
+			Pair:       pair,
+			Exchange:   e.Name,
+			Side:       order.Sell,
+			Type:       order.Limit,
+			Price:      120000,
+			Amount:     1,
+			ClientID:   "hellomoto",
+			AssetType:  asset.Spread,
+			MarginType: margin.Multi,
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, result)
 	})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+
+	// guards the OCO submit path: the stop loss leg
+	// triggers at the stop loss price, not the take profit price.
+	t.Run("oco stop-loss trigger price", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var body []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/order-algo" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the algo order request body should not error")
+			mu.Lock()
+			body = b
+			mu.Unlock()
+			writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0", "sMsg": ""})
+		}))
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:   ex.Name,
+			Pair:       mainPair,
+			AssetType:  asset.Spot,
+			Side:       order.Sell,
+			Type:       order.OCO,
+			Amount:     1,
+			MarginType: margin.NoMargin,
+			RiskManagementModes: order.RiskManagementModes{
+				TakeProfit: order.RiskManagement{Price: 110},
+				StopLoss:   order.RiskManagement{Price: 90},
+			},
+		})
+		require.NoError(t, err, "SubmitOrder must not error")
+		mu.Lock()
+		defer mu.Unlock()
+		var sent AlgoOrderParams
+		require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+		assert.Equal(t, 110.0, sent.TakeProfitTriggerPrice, "the take profit leg should trigger at the take profit price")
+		assert.Equal(t, 90.0, sent.StopLossTriggerPrice, "the stop loss leg should trigger at the stop loss price")
+	})
+	// guards the ordType a limit order
+	// sends for each time in force: post_only, fok and ioc must map to their
+	// documented placement ordTypes instead of a plain resting limit.
+	t.Run("limit time in forces request documented ordTypes", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name      string
+			assetType asset.Item
+			orderType order.Type
+			tif       order.TimeInForce
+			exp       string
+		}{
+			{"plain limit", asset.Spot, order.Limit, order.UnknownTIF, orderLimit},
+			{"post only", asset.Spot, order.Limit, order.PostOnly, orderPostOnly},
+			{"good till cancel post only", asset.Spot, order.Limit, order.GoodTillCancel | order.PostOnly, orderPostOnly},
+			{"fill or kill", asset.Spot, order.Limit, order.FillOrKill, orderFOK},
+			{"immediate or cancel", asset.Spot, order.Limit, order.ImmediateOrCancel, orderIOC},
+			// OKX takes MMP orders for options only.
+			{"market maker protection", asset.Options, order.MarketMakerProtection, order.UnknownTIF, orderMarketMakerProtection},
+			{"market maker protection post only", asset.Options, order.MarketMakerProtection, order.PostOnly, orderMarketMakerProtectionAndPostOnly},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/trade/order" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the place order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:    ex.Name,
+					Pair:        mainPair,
+					AssetType:   tc.assetType,
+					Side:        order.Buy,
+					Type:        tc.orderType,
+					TimeInForce: tc.tif,
+					Amount:      1,
+					Price:       1,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+				assert.Equal(t, tc.exp, sent["ordType"], "the submitted limit order should send the documented ordType")
+				assert.Equal(t, "1", sent["px"], "the submitted order should send its price")
+			})
+		}
+	})
+	// guards the contract order
+	// body: OKX requires side for every instrument, and reduceOnly applies to
+	// MARGIN and FUTURES/SWAP orders only.
+	t.Run("contract sends side and reduce only", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name          string
+			assetType     asset.Item
+			side          order.Side
+			reduceOnly    bool
+			expSide       string
+			expPosSide    any // nil when the field must be absent
+			expReduceOnly any // nil when the field must be absent
+		}{
+			{"perpetual swap reduce only sell", asset.PerpetualSwap, order.Sell, true, "sell", positionSideNet, "true"},
+			{"futures long", asset.Futures, order.Long, false, "buy", positionSideNet, nil},
+			{"margin reduce only", asset.Margin, order.Sell, true, "sell", nil, "true"},
+			{"options send side", asset.Options, order.Buy, false, "buy", nil, nil},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/account/config" {
+						writeOKXData(t, w, []map[string]string{{"posMode": positionModeNet}})
+						return
+					}
+					if r.URL.Path != "/trade/order" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the place order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:    ex.Name,
+					Pair:        mainPair,
+					AssetType:   tc.assetType,
+					Side:        tc.side,
+					Type:        order.Limit,
+					TimeInForce: order.GoodTillCancel,
+					Amount:      1,
+					Price:       1,
+					MarginType:  margin.Multi,
+					ReduceOnly:  tc.reduceOnly,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+				assert.Equal(t, tc.expSide, sent["side"], "the order should send OKX's required side")
+				assert.Equal(t, tc.expPosSide, sent["posSide"], "the order should send the position side")
+				assert.Equal(t, tc.expReduceOnly, sent["reduceOnly"], "reduceOnly should match the documented applicability")
+			})
+		}
+	})
+	// verifies that algo
+	// order placement suppresses reduceOnly for FUTURES/SWAP in long/short mode,
+	// where OKX ignores the flag and the position side carries the close intent.
+	t.Run("algo contract guards reduce only by position mode", func(t *testing.T) {
+		t.Parallel()
+		// Each algo type needs its own fields to place.
+		algoExtras := map[order.Type]func(s *order.Submit){
+			order.Trigger: func(s *order.Submit) {
+				s.TriggerPrice = 100
+				s.Price = -1
+			},
+			order.ConditionalStop: func(s *order.Submit) {
+				s.TriggerPrice = 100
+				s.Price = -1
+			},
+			order.Chase: func(s *order.Submit) {
+				s.TrackingMode = order.Percentage
+				s.TrackingValue = 0.1
+			},
+			order.TrailingStop: func(s *order.Submit) {
+				s.TrackingMode = order.Percentage
+				s.TrackingValue = 0.05
+			},
+			order.TWAP: func(s *order.Submit) {
+				s.TrackingMode = order.Percentage
+				s.TrackingValue = 0.01
+				s.Price = 100
+			},
+			order.OCO: func(s *order.Submit) {
+				s.RiskManagementModes.TakeProfit.Price = 110
+				s.RiskManagementModes.TakeProfit.LimitPrice = -1
+				s.RiskManagementModes.StopLoss.Price = 90
+				s.RiskManagementModes.StopLoss.LimitPrice = -1
+			},
+		}
+		for _, tc := range []struct {
+			name          string
+			orderType     order.Type
+			posMode       string
+			assetType     asset.Item
+			pair          currency.Pair
+			expReduceOnly any // nil when the field must be absent
+		}{
+			{"net mode passes reduceOnly", order.Trigger, positionModeNet, asset.PerpetualSwap, mainPair, true},
+			{"long/short mode suppresses reduceOnly", order.Trigger, positionModeLongShort, asset.PerpetualSwap, mainPair, nil},
+			{"margin passes reduceOnly regardless of mode", order.Trigger, positionModeLongShort, asset.Margin, mainPair, true},
+			{"long/short mode suppresses reduceOnly", order.ConditionalStop, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+			{"long/short mode suppresses reduceOnly", order.Chase, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+			{"long/short mode suppresses reduceOnly", order.TrailingStop, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+			{"long/short mode suppresses reduceOnly", order.TWAP, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+			{"long/short mode suppresses reduceOnly", order.OCO, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+		} {
+			t.Run(tc.orderType.String()+"/"+tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/account/config" {
+						writeOKXData(t, w, []map[string]string{{"posMode": tc.posMode}})
+						return
+					}
+					if r.URL.Path != "/trade/order-algo" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the algo order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0"})
+				}))
+				sub := &order.Submit{
+					Exchange:   ex.Name,
+					Pair:       tc.pair,
+					AssetType:  tc.assetType,
+					Side:       order.Sell,
+					Type:       tc.orderType,
+					Amount:     1,
+					MarginType: margin.Multi,
+					ReduceOnly: true,
+				}
+				algoExtras[tc.orderType](sub)
+				_, err := ex.SubmitOrder(t.Context(), sub)
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+				assert.Equal(t, tc.expReduceOnly, sent["reduceOnly"], "reduceOnly should follow the position mode guard")
+			})
+		}
+	})
+	// guards the placement of perpetual
+	// swap orders against the account's position mode: net mode pairs reduceOnly
+	// with posSide net, and long/short mode pairs the side with the position
+	// side so that a reduce-only sell closes the long position.
+	t.Run("perpetual swap position mode follows account config", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name          string
+			mode          string
+			side          order.Side
+			reduceOnly    bool
+			expPosSide    string
+			expReduceOnly any // nil when the field must be absent
+		}{
+			{"net mode open long", positionModeNet, order.Buy, false, positionSideNet, nil},
+			{"net mode close long", positionModeNet, order.Sell, true, positionSideNet, "true"},
+			{"long short open long", positionModeLongShort, order.Buy, false, positionSideLong, nil},
+			{"long short open short", positionModeLongShort, order.Sell, false, positionSideShort, nil},
+			{"long short close long", positionModeLongShort, order.Sell, true, positionSideLong, nil},
+			{"long short close short", positionModeLongShort, order.Buy, true, positionSideShort, nil},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/account/config" {
+						writeOKXData(t, w, []map[string]string{{"posMode": tc.mode}})
+						return
+					}
+					if r.URL.Path != "/trade/order" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the place order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:   ex.Name,
+					Pair:       mainPair,
+					AssetType:  asset.PerpetualSwap,
+					Side:       tc.side,
+					Type:       order.Limit,
+					Amount:     1,
+					Price:      1,
+					MarginType: margin.Multi,
+					ReduceOnly: tc.reduceOnly,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+				assert.Equal(t, tc.expPosSide, sent["posSide"], "the order should send the position side the account's mode requires")
+				assert.Equal(t, tc.expReduceOnly, sent["reduceOnly"], "reduceOnly should follow the position mode")
+			})
+		}
+		t.Run("unknown mode", func(t *testing.T) {
+			t.Parallel()
+			ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/account/config" {
+					writeOKXData(t, w, []map[string]string{{"posMode": "weird_mode"}})
+					return
+				}
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}))
+			_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:   ex.Name,
+				Pair:       mainPair,
+				AssetType:  asset.PerpetualSwap,
+				Side:       order.Buy,
+				Type:       order.Limit,
+				Amount:     1,
+				Price:      1,
+				MarginType: margin.Multi,
+			})
+			require.ErrorIs(t, err, errInvalidPositionMode, "an undocumented position mode must stop the submit")
+		})
+		t.Run("fetch failure", func(t *testing.T) {
+			t.Parallel()
+			ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/account/config" {
+					http.Error(w, "account config unavailable", http.StatusInternalServerError)
+					return
+				}
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}))
+			_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:   ex.Name,
+				Pair:       mainPair,
+				AssetType:  asset.PerpetualSwap,
+				Side:       order.Buy,
+				Type:       order.Limit,
+				Amount:     1,
+				Price:      1,
+				MarginType: margin.Multi,
+			})
+			require.ErrorIs(t, err, request.ErrAuthRequestFailed, "a failed position mode fetch must stop the submit")
+		})
+		t.Run("empty reply", func(t *testing.T) {
+			t.Parallel()
+			for _, data := range []any{nil, []any{nil}} {
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/account/config" {
+						writeOKXData(t, w, data)
+						return
+					}
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:   ex.Name,
+					Pair:       mainPair,
+					AssetType:  asset.PerpetualSwap,
+					Side:       order.Buy,
+					Type:       order.Limit,
+					Amount:     1,
+					Price:      1,
+					MarginType: margin.Multi,
+				})
+				require.ErrorIsf(t, err, common.ErrNoResponse, "a %v account configuration reply must stop the submit", data)
+			}
+		})
+	})
+	// guards the tdMode default: OKX requires
+	// tdMode on every order, and the zero margin type defaults to cash for spot
+	// and cross for perpetual swap.
+	t.Run("defaults the trade mode", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name      string
+			assetType asset.Item
+			exp       string
+		}{
+			{"spot defaults to cash", asset.Spot, TradeModeCash},
+			{"margin defaults to cross", asset.Margin, TradeModeCross},
+			{"futures defaults to cross", asset.Futures, TradeModeCross},
+			{"perpetual swap defaults to cross", asset.PerpetualSwap, TradeModeCross},
+			{"options defaults to cross", asset.Options, TradeModeCross},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/account/config" {
+						writeOKXData(t, w, []map[string]string{{"posMode": positionModeNet}})
+						return
+					}
+					if r.URL.Path != "/trade/order" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the place order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:  ex.Name,
+					Pair:      mainPair,
+					AssetType: tc.assetType,
+					Side:      order.Buy,
+					Type:      order.Limit,
+					Amount:    1,
+					Price:     1,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+				assert.Equal(t, tc.exp, sent["tdMode"], "the order should send the documented default trade mode")
+			})
+		}
+	})
+	// guards the market order body: px is only
+	// applicable to the limit-style order types, so a market order carries no
+	// price even when the submit set one.
+	t.Run("market omits the price", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var body []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/order" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the place order body should not error")
+			mu.Lock()
+			body = b
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+		}))
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:  ex.Name,
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			Side:      order.Buy,
+			Type:      order.Market,
+			Amount:    1,
+			Price:     999,
+		})
+		require.NoError(t, err, "SubmitOrder must not error")
+		mu.Lock()
+		defer mu.Unlock()
+		var sent map[string]any
+		require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+		_, has := sent["px"]
+		assert.False(t, has, "a market order should not send a price")
+	})
+	// guards the submit price check: an order type that
+	// sends px is refused without a price before any request transmits, while
+	// market and optimal_limit_ioc orders, which OKX places with no px, still go
+	// out, the latter only on the futures and perpetual swaps OKX offers it on.
+	t.Run("guards the price", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name      string
+			assetType asset.Item
+			pair      currency.Pair
+			orderType order.Type
+			price     float64
+			expErr    error
+			expType   string // the ordType sent when the order is placed
+		}{
+			{"limit", asset.Spot, mainPair, order.Limit, 0, limits.ErrPriceBelowMin, ""},
+			{"limit with a negative price", asset.Spot, mainPair, order.Limit, -1, limits.ErrPriceBelowMin, ""},
+			{"limit maker", asset.Spot, mainPair, order.LimitMaker, 0, limits.ErrPriceBelowMin, ""},
+			{"market maker protection", asset.Options, optionsPair, order.MarketMakerProtection, 0, limits.ErrPriceBelowMin, ""},
+			{"optimal limit on spot", asset.Spot, mainPair, order.OptimalLimit, 0, order.ErrUnsupportedOrderType, ""},
+			{"market", asset.Spot, mainPair, order.Market, 0, nil, orderMarket},
+			{"optimal limit", asset.PerpetualSwap, perpetualSwapPair, order.OptimalLimit, 0, nil, orderOptimalLimitIOC},
+			{"optimal limit on futures", asset.Futures, futuresPair, order.OptimalLimit, 0, nil, orderOptimalLimitIOC},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					switch r.URL.Path {
+					case "/account/config":
+						writeOKXData(t, w, []map[string]string{{"posMode": positionModeNet}})
+					case "/trade/order":
+						b, err := io.ReadAll(r.Body)
+						assert.NoError(t, err, "reading the place order body should not error")
+						mu.Lock()
+						body = b
+						mu.Unlock()
+						writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+					default:
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+					}
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:  ex.Name,
+					Pair:      tc.pair,
+					AssetType: tc.assetType,
+					Side:      order.Buy,
+					Type:      tc.orderType,
+					Amount:    1,
+					Price:     tc.price,
+				})
+				mu.Lock()
+				defer mu.Unlock()
+				if tc.expErr != nil {
+					require.ErrorIs(t, err, tc.expErr, "an order OKX cannot place as given must be refused")
+					assert.Nil(t, body, "a refused order should not reach OKX")
+					return
+				}
+				require.NoError(t, err, "an order type OKX places with no px must not need a price")
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+				assert.Equal(t, tc.expType, sent["ordType"], "the order should send its documented ordType")
+				assert.NotContains(t, sent, "px", "the order should not send a price")
+			})
+		}
+	})
+	// guards the trigger order body: OKX
+	// requires orderPx, which the wrapper must take from the submitted price
+	// instead of dropping it.
+	t.Run("trigger sends the order price", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var body []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/account/config" {
+				writeOKXData(t, w, []map[string]string{{"posMode": positionModeNet}})
+				return
+			}
+			if r.URL.Path != "/trade/order-algo" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the algo order body should not error")
+			mu.Lock()
+			body = b
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"algoId": "1", "sCode": "0"}})
+		}))
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:     ex.Name,
+			Pair:         mainPair,
+			AssetType:    asset.PerpetualSwap,
+			Side:         order.Long,
+			Type:         order.Trigger,
+			Amount:       1,
+			Price:        100,
+			TriggerPrice: 110,
+			MarginType:   margin.Multi,
+		})
+		require.NoError(t, err, "SubmitOrder must not error")
+		// Both submits run before the body is read under the mutex, so a second
+		// request cannot deadlock against the handler's own lock.
+		_, err = ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:     ex.Name,
+			Pair:         mainPair,
+			AssetType:    asset.PerpetualSwap,
+			Side:         order.Long,
+			Type:         order.Trigger,
+			Amount:       1,
+			TriggerPrice: 110,
+			MarginType:   margin.Multi,
+		})
+		assert.ErrorIs(t, err, limits.ErrPriceBelowMin, "a trigger order without an order price should be rejected before sending")
+
+		mu.Lock()
+		defer mu.Unlock()
+		var sent map[string]any
+		require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+		assert.Equal(t, "100", sent["orderPx"], "the trigger order should carry the submitted order price")
+		assert.Equal(t, "buy", sent["side"], "the trigger order should send OKX's required side")
+		assert.Equal(t, positionSideNet, sent["posSide"], "the trigger order should send the position side the account's mode requires")
+	})
+	// guards the TWAP interval transport:
+	// OKX documents the field as timeInterval carrying seconds, not interval
+	// carrying a duration code.
+	t.Run("twap sends the time interval", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var body []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/order-algo" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the algo order body should not error")
+			mu.Lock()
+			body = b
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"algoId": "1", "sCode": "0"}})
+		}))
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:      ex.Name,
+			Pair:          mainPair,
+			AssetType:     asset.Spot,
+			Side:          order.Buy,
+			Type:          order.TWAP,
+			Amount:        1,
+			Price:         100,
+			TrackingMode:  order.Percentage,
+			TrackingValue: 0.5,
+			MarginType:    margin.NoMargin,
+		})
+		require.NoError(t, err, "SubmitOrder must not error")
+		mu.Lock()
+		defer mu.Unlock()
+		var sent map[string]any
+		require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+		assert.Equal(t, "900", sent["timeInterval"], "the TWAP order should send its interval as documented seconds")
+		_, has := sent["interval"]
+		assert.False(t, has, "the TWAP order should not send the undocumented interval field")
+	})
+	// guards the chase order
+	// mapping: OKX's maxChaseType accepts distance and ratio, not the percentage
+	// name the tracking mode string carries.
+	t.Run("chase sends the documented max chase type", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name         string
+			trackingMode order.TrackingMode
+			exp          string
+		}{
+			{"percentage maps to ratio", order.Percentage, "ratio"},
+			{"distance maps to distance", order.Distance, "distance"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/account/config" {
+						writeOKXData(t, w, []map[string]string{{"posMode": positionModeNet}})
+						return
+					}
+					if r.URL.Path != "/trade/order-algo" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the algo order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"algoId": "1", "sCode": "0"}})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:      ex.Name,
+					Pair:          mainPair,
+					AssetType:     asset.PerpetualSwap,
+					Side:          order.Long,
+					Type:          order.Chase,
+					Amount:        1,
+					Price:         100,
+					TrackingMode:  tc.trackingMode,
+					TrackingValue: 0.5,
+					MarginType:    margin.Multi,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+				assert.Equal(t, tc.exp, sent["maxChaseType"], "the chase order should send the documented maximum chase type")
+			})
+		}
+	})
+	// guards the position side of
+	// futures and perpetual swap orders, plain and algo: OKX's position mode
+	// covers FUTURES and SWAP alike, and in long/short mode a close is expressed
+	// by the position side, since reduceOnly does not apply there.
+	t.Run("contracts follow the position mode", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
+			for _, oType := range []order.Type{order.Limit, order.ConditionalStop} {
+				for _, tc := range []struct {
+					mode          string
+					side          order.Side
+					reduceOnly    bool
+					expPosSide    string
+					expReduceOnly any // nil when the field must be absent
+				}{
+					{positionModeNet, order.Buy, false, positionSideNet, nil},
+					{positionModeNet, order.Sell, false, positionSideNet, nil},
+					{positionModeNet, order.Sell, true, positionSideNet, "true"},
+					{positionModeNet, order.Buy, true, positionSideNet, "true"},
+					{positionModeLongShort, order.Buy, false, positionSideLong, nil},
+					{positionModeLongShort, order.Sell, false, positionSideShort, nil},
+					{positionModeLongShort, order.Sell, true, positionSideLong, nil},
+					{positionModeLongShort, order.Buy, true, positionSideShort, nil},
+				} {
+					t.Run(fmt.Sprintf("%s %s %s %s reduce only %t", a, oType, tc.mode, tc.side, tc.reduceOnly), func(t *testing.T) {
+						t.Parallel()
+						var mu sync.Mutex
+						var body []byte
+						ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+							switch r.URL.Path {
+							case "/account/config":
+								writeOKXData(t, w, []map[string]string{{"posMode": tc.mode}})
+								return
+							case "/trade/order", "/trade/order-algo":
+							default:
+								t.Errorf("unexpected request path %s", r.URL.Path)
+								http.NotFound(w, r)
+								return
+							}
+							b, err := io.ReadAll(r.Body)
+							assert.NoError(t, err, "reading the order body should not error")
+							mu.Lock()
+							body = b
+							mu.Unlock()
+							writeOKXData(t, w, []map[string]string{{"ordId": "1", "algoId": "1", "sCode": "0"}})
+						}))
+						_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+							Exchange:     ex.Name,
+							Pair:         mainPair,
+							AssetType:    a,
+							Side:         tc.side,
+							Type:         oType,
+							Amount:       1,
+							Price:        1,
+							TriggerPrice: 2,
+							MarginType:   margin.Multi,
+							ReduceOnly:   tc.reduceOnly,
+						})
+						require.NoError(t, err, "SubmitOrder must not error")
+						mu.Lock()
+						defer mu.Unlock()
+						var sent map[string]any
+						require.NoError(t, json.Unmarshal(body, &sent), "the order request body must decode")
+						assert.Equal(t, tc.expPosSide, sent["posSide"], "the order should send the position side the account's mode requires")
+						if oType == order.Limit {
+							assert.Equal(t, tc.expReduceOnly, sent["reduceOnly"], "reduceOnly should follow the position mode")
+						}
+					})
+				}
+			}
+		}
+	})
+	// guards the trade mode default:
+	// only the zero margin type defaults, so an explicit margin type OKX cannot
+	// express fails before any request instead of trading in another mode.
+	t.Run("rejects an unsupported margin type", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}))
+		for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.Futures} {
+			for _, mt := range []margin.Type{
+				margin.Unknown,
+				margin.Isolated | margin.Multi,
+				margin.Isolated | margin.NoMargin,
+				margin.Isolated | margin.SpotIsolated,
+				margin.NoMargin | margin.SpotIsolated,
+				margin.Isolated | margin.NoMargin | margin.SpotIsolated,
+			} {
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: mainPair, AssetType: a, Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1, MarginType: mt})
+				assert.ErrorIsf(t, err, margin.ErrMarginTypeUnsupported, "SubmitOrder should reject margin type %d for %s", mt, a)
+			}
+		}
+	})
+	// guards every placement path against a
+	// success reply without a usable row: data null or a null row leaves the
+	// order's outcome unknown, so placement must report it rather than panic on
+	// the missing response.
+	t.Run("rejects null reply rows", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name   string
+			path   string
+			data   any
+			submit *order.Submit
+		}{
+			{
+				name: "spot reply with data null",
+				path: "/trade/order",
+				data: nil,
+				submit: &order.Submit{
+					Pair: mainPair, AssetType: asset.Spot,
+					Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1,
+				},
+			},
+			{
+				name: "spot reply with a null row",
+				path: "/trade/order",
+				data: []any{nil},
+				submit: &order.Submit{
+					Pair: mainPair, AssetType: asset.Spot,
+					Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1,
+				},
+			},
+			{
+				name: "spread reply with data null",
+				path: "/sprd/order",
+				data: nil,
+				submit: &order.Submit{
+					Pair: spreadPair, AssetType: asset.Spread,
+					Side: order.Buy, Type: order.Limit, Amount: 1, Price: 2,
+				},
+			},
+			{
+				name: "algo reply with a null row",
+				path: "/trade/order-algo",
+				data: []any{nil},
+				submit: &order.Submit{
+					Pair: mainPair, AssetType: asset.Spot,
+					Side: order.Buy, Type: order.Trigger, Amount: 1, Price: 1, TriggerPrice: 1,
+				},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != tc.path {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					writeOKXData(t, w, tc.data)
+				}))
+				var err error
+				require.NotPanics(t, func() {
+					_, err = ex.SubmitOrder(t.Context(), tc.submit)
+				}, "SubmitOrder must not panic on a success reply without a row")
+				require.ErrorIs(t, err, common.ErrInvalidResponse, "SubmitOrder must reject a success reply without a row")
+			})
+		}
+	})
+	// guards OCO placement reading
+	// each leg's own trigger price type: OKX takes independent tpTriggerPxType
+	// and slTriggerPxType parameters, and ModifyOrder already amends each leg by
+	// its own type, so placement must agree with it.
+	t.Run("oco per-leg trigger price types", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name  string
+			modes order.RiskManagementModes
+			expTP string
+			expSL string
+		}{
+			{
+				name: "per leg types",
+				modes: order.RiskManagementModes{
+					TakeProfit: order.RiskManagement{Price: 110, TriggerPriceType: order.IndexPrice},
+					StopLoss:   order.RiskManagement{Price: 90, TriggerPriceType: order.MarkPrice},
+				},
+				expTP: "index",
+				expSL: "mark",
+			},
+			{
+				name: "unset legs default to last",
+				modes: order.RiskManagementModes{
+					TakeProfit: order.RiskManagement{Price: 110},
+					StopLoss:   order.RiskManagement{Price: 90},
+				},
+				expTP: "last",
+				expSL: "last",
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/trade/order-algo" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the algo order request body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0", "sMsg": ""})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Pair: mainPair, AssetType: asset.Spot, Side: order.Sell,
+					Type: order.OCO, Amount: 1, MarginType: margin.NoMargin,
+					RiskManagementModes: tc.modes,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent AlgoOrderParams
+				require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+				assert.Equal(t, tc.expTP, sent.TakeProfitTriggerPriceType, "the take profit leg should use its own trigger price type")
+				assert.Equal(t, tc.expSL, sent.StopLossTriggerPriceType, "the stop loss leg should use its own trigger price type")
+			})
+		}
+	})
+	// guards the algo placement round trip:
+	// ModifyOrder amends and the detail queries look up by algoClOrdId, so
+	// placement must register the client's order ID, while a submit without one
+	// keeps the field off the wire.
+	t.Run("algo sends the client order ID", func(t *testing.T) {
+		t.Parallel()
+		extras := func(t order.Type) *order.Submit {
+			s := &order.Submit{
+				Pair: mainPair, AssetType: asset.Spot, Side: order.Buy, Amount: 1,
+				Type: t, MarginType: margin.NoMargin, ClientOrderID: "my-algo-cl-id",
+			}
+			switch t {
+			case order.Trigger:
+				s.TriggerPrice = 100
+				s.Price = 100
+			case order.ConditionalStop:
+				s.TriggerPrice = 90
+				s.Price = 90
+			case order.Chase, order.TrailingStop:
+				s.TrackingMode = order.Distance
+				s.TrackingValue = 1
+			case order.TWAP:
+				s.TrackingMode = order.Distance
+				s.TrackingValue = 1
+				s.Price = 100
+			case order.OCO:
+				s.RiskManagementModes = order.RiskManagementModes{
+					TakeProfit: order.RiskManagement{Price: 110},
+					StopLoss:   order.RiskManagement{Price: 90},
+				}
+			}
+			return s
+		}
+		for _, oType := range []order.Type{order.Trigger, order.ConditionalStop, order.Chase, order.TrailingStop, order.TWAP, order.OCO} {
+			t.Run(oType.String(), func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/trade/order-algo" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the algo order request body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0", "sMsg": ""})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), extras(oType))
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent AlgoOrderParams
+				require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+				assert.Equal(t, "my-algo-cl-id", sent.AlgoClientOrderID, "algo placement should register the client's order ID as algoClOrdId")
+			})
+		}
+		t.Run("without a client order ID", func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var body []byte
+			ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/trade/order-algo" {
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				b, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "reading the algo order request body should not error")
+				mu.Lock()
+				body = b
+				mu.Unlock()
+				writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0", "sMsg": ""})
+			}))
+			s := extras(order.Trigger)
+			s.ClientOrderID = ""
+			_, err := ex.SubmitOrder(t.Context(), s)
+			require.NoError(t, err, "SubmitOrder must not error")
+			mu.Lock()
+			defer mu.Unlock()
+			var raw map[string]any
+			require.NoError(t, json.Unmarshal(body, &raw), "the algo order request body must decode")
+			assert.NotContains(t, raw, "algoClOrdId", "a submit without a client order ID should keep algoClOrdId off the wire")
+		})
+	})
 }
 
 func TestCancelOrder(t *testing.T) {
