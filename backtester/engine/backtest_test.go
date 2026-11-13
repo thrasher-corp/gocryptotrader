@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"uuid"
@@ -38,6 +39,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -48,6 +51,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
+	"github.com/thrasher-corp/goose"
 )
 
 const testExchange = "binanceus"
@@ -337,6 +341,80 @@ func TestLoadDataDatabase(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "unable to retrieve data from GoCryptoTrader database") {
 		t.Error(err)
 	}
+}
+
+func TestLoadDataDatabaseConcurrently(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewBTCUSDT()
+	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	dbConfig := database.Config{
+		Enabled:  true,
+		Driver:   database.DBSQLite3,
+		Database: "concurrent.db",
+	}
+	dataPath := t.TempDir()
+	seedCandleDatabase(t, dataPath, &dbConfig, cp, start)
+
+	em := engine.NewExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+
+	loads := make(chan error, 16)
+	var wg sync.WaitGroup
+	for range cap(loads) {
+		wg.Go(func() {
+			bt := &BackTest{Reports: &report.Data{}, shutdown: make(chan struct{})}
+			var err error
+			if bt.databaseManager, err = engine.SetupDatabaseConnectionManager(&dbConfig); err != nil {
+				loads <- err
+				return
+			}
+			cfg := &config.Config{
+				DataSettings: config.DataSettings{
+					DataType: common.CandleStr,
+					Interval: gctkline.OneHour,
+					DatabaseData: &config.DatabaseData{
+						Config:    dbConfig,
+						StartDate: start,
+						EndDate:   start.Add(time.Hour),
+						Path:      dataPath,
+					},
+				},
+			}
+			_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
+			loads <- err
+		})
+	}
+	wg.Wait()
+	close(loads)
+	for err := range loads {
+		assert.NoError(t, err, "concurrent database loads should not interfere")
+	}
+}
+
+// seedCandleDatabase migrates the SQLite database cfg names in dataPath and stores one hourly candle at start
+func seedCandleDatabase(t *testing.T, dataPath string, cfg *database.Config, pair currency.Pair, start time.Time) {
+	t.Helper()
+	databaseLoadMu.Lock()
+	defer databaseLoadMu.Unlock()
+	database.DB.DataPath = dataPath
+	require.NoError(t, database.DB.SetConfig(cfg), "SetConfig must not error")
+	m, err := engine.SetupDatabaseConnectionManager(cfg)
+	require.NoError(t, err, "SetupDatabaseConnectionManager must not error")
+	require.NoError(t, m.Start(&sync.WaitGroup{}), "Start must not error")
+	defer func() { assert.NoError(t, m.Stop(), "Stop should not error") }()
+	err = goose.Run("up", database.DB.SQL, repository.GetSQLDialect(), filepath.Join("..", "..", "database", "migrations"), "")
+	require.NoError(t, err, "goose.Run must not error")
+	require.NoError(t, exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}}), "InsertMany must not error")
+	_, err = gctkline.StoreInDatabase(&gctkline.Item{
+		Exchange: testExchange,
+		Pair:     pair,
+		Asset:    asset.Spot,
+		Interval: gctkline.OneHour,
+		Candles:  []gctkline.Candle{{Time: start, Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}},
+	}, true)
+	require.NoError(t, err, "StoreInDatabase must not error")
 }
 
 func TestLoadDataLive(t *testing.T) {
@@ -1388,6 +1466,15 @@ func TestLiveLoop(t *testing.T) {
 	}()
 	close(bt.shutdown)
 	assert.NoError(t, <-liveCheckErr)
+}
+
+func TestLiveCheckStopsDataCheckerWhenRunFails(t *testing.T) {
+	t.Parallel()
+	dc := &dataChecker{eventTimeout: time.Hour, dataCheckInterval: time.Millisecond}
+	bt := &BackTest{shutdown: make(chan struct{}), LiveDataHandler: dc}
+	require.NoError(t, dc.Start(), "Start must not error")
+	require.ErrorIs(t, bt.liveCheck(), errNotSetup, "liveCheck must return Run's error")
+	assert.False(t, dc.IsRunning(), "liveCheck should stop the data checker when Run fails")
 }
 
 func TestSetExchangeCredentials(t *testing.T) {

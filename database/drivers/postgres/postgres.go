@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -37,7 +38,7 @@ func Connect(cfg *database.Config) (*database.Instance, error) {
 	}
 	err = database.DB.SetPostgresConnection(db)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(err, db.Close())
 	}
 	return database.DB, nil
 }

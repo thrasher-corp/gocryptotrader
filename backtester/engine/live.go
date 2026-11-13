@@ -118,7 +118,7 @@ func (d *dataChecker) SignalStopFromError(err error) error {
 		return engine.ErrSubSystemNotStarted
 	}
 	log.Errorln(common.LiveStrategy, err)
-	d.shutdownErr <- true
+	close(d.shutdownErr)
 	return nil
 }
 
@@ -161,7 +161,11 @@ func (d *dataChecker) checkData() error {
 	if !hasDataUpdated {
 		return nil
 	}
-	d.dataUpdated <- hasDataUpdated
+	select {
+	case d.dataUpdated <- hasDataUpdated:
+	case <-d.shutdown:
+		return nil
+	}
 	if d.realOrders {
 		go func() {
 			err = d.UpdateFunding(false)

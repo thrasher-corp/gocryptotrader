@@ -4,9 +4,21 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 )
+
+// startCommunicationManager starts m and stops its run routine when the test ends, whatever the test does to the
+// started flag
+func startCommunicationManager(t *testing.T, m *CommunicationManager) {
+	t.Helper()
+	require.NoError(t, m.Start(), "Start must not error")
+	t.Cleanup(func() {
+		m.started.Store(true)
+		assert.NoError(t, m.Stop(), "Stop should not error")
+	})
+}
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
@@ -37,8 +49,7 @@ func TestIsRunning(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	err = m.Start()
-	assert.NoError(t, err)
+	startCommunicationManager(t, m)
 
 	if !m.IsRunning() {
 		t.Error("expected true")
@@ -62,8 +73,7 @@ func TestStart(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	err = m.Start()
-	assert.NoError(t, err)
+	startCommunicationManager(t, m)
 
 	m.started.Store(true)
 	err = m.Start()
@@ -79,8 +89,7 @@ func TestGetStatus(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	err = m.Start()
-	assert.NoError(t, err)
+	startCommunicationManager(t, m)
 
 	_, err = m.GetStatus()
 	assert.NoError(t, err)
@@ -122,8 +131,7 @@ func TestPushEvent(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	err = m.Start()
-	assert.NoError(t, err)
+	startCommunicationManager(t, m)
 
 	m.PushEvent(base.Event{})
 	m.PushEvent(base.Event{})

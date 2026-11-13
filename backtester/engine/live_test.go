@@ -147,6 +147,25 @@ func TestLiveHandlerStopFromError(t *testing.T) {
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
+func TestLiveHandlerStopFromErrorWithoutReader(t *testing.T) {
+	t.Parallel()
+	dc := &dataChecker{shutdownErr: make(chan bool)}
+	dc.started.Store(true)
+	signalled := make(chan error, 1)
+	go func() { signalled <- dc.SignalStopFromError(errNoCredsNoLive) }()
+	select {
+	case err := <-signalled:
+		require.NoError(t, err, "SignalStopFromError must not error")
+	case <-time.After(time.Second * 5):
+		require.FailNow(t, "SignalStopFromError must not block when nothing waits for the signal")
+	}
+	select {
+	case <-dc.HasShutdownFromError():
+	default:
+		assert.Fail(t, "HasShutdownFromError should report the stop to a later reader")
+	}
+}
+
 func TestDataFetcher(t *testing.T) {
 	t.Parallel()
 	dc := &dataChecker{
@@ -168,6 +187,21 @@ func TestDataFetcher(t *testing.T) {
 	var dh *dataChecker
 	err = dh.DataFetcher()
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+}
+
+func TestCheckDataWhenStopped(t *testing.T) {
+	t.Parallel()
+	dc := &dataChecker{shutdown: make(chan bool), dataUpdated: make(chan bool)}
+	dc.started.Store(true)
+	close(dc.shutdown)
+	checked := make(chan error, 1)
+	go func() { checked <- dc.checkData() }()
+	select {
+	case err := <-checked:
+		assert.NoError(t, err, "checkData should not error once the data checker is stopped")
+	case <-time.After(time.Second * 5):
+		require.FailNow(t, "checkData must not block on an update nothing reads once the data checker is stopped")
+	}
 }
 
 func TestUpdated(t *testing.T) {
