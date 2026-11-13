@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -1054,6 +1055,32 @@ func (s Side) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + s.String() + `"`), nil
 }
 
+// MarshalBSONValue implements bson.ValueMarshaler, storing the Side as its string
+func (s Side) MarshalBSONValue() (typ byte, data []byte, err error) {
+	return bsonwire.TypeString, bsonwire.MarshalString(s.String()), nil
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler. It matches the stored string against Side.String rather than
+// using StringToOrderSide, which accepts only the sides an exchange reports. UnknownSide and any Side without a name of
+// its own are stored as UnknownSide's string, and read back as UnknownSide.
+func (s *Side) UnmarshalBSONValue(typ byte, data []byte) error {
+	str, err := bsonwire.UnmarshalString(typ, data)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrSideIsInvalid, err)
+	}
+	if str == UnknownSide.String() {
+		*s = UnknownSide
+		return nil
+	}
+	for side := Buy; side != 0 && side <= MissingData; side <<= 1 {
+		if side.String() == str {
+			*s = side
+			return nil
+		}
+	}
+	return fmt.Errorf("%q %w", str, ErrSideIsInvalid)
+}
+
 // StringToOrderType for converting case insensitive order type
 // and returning a real Type
 func StringToOrderType(oType string) (Type, error) {
@@ -1106,6 +1133,30 @@ func StringToOrderType(oType string) (Type, error) {
 	}
 }
 
+// MarshalBSONValue implements bson.ValueMarshaler, storing the Type as its string
+func (t Type) MarshalBSONValue() (typ byte, data []byte, err error) {
+	return bsonwire.TypeString, bsonwire.MarshalString(t.String()), nil
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler. UnknownType and any Type without a name of its own are stored as
+// UnknownType's string, which StringToOrderType rejects as exchange input, and read back as UnknownType.
+func (t *Type) UnmarshalBSONValue(typ byte, data []byte) error {
+	str, err := bsonwire.UnmarshalString(typ, data)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrUnrecognisedOrderType, err)
+	}
+	if str == UnknownType.String() {
+		*t = UnknownType
+		return nil
+	}
+	v, err := StringToOrderType(str)
+	if err != nil {
+		return err
+	}
+	*t = v
+	return nil
+}
+
 // StringToOrderStatus for converting case insensitive order status
 // and returning a real Status
 func StringToOrderStatus(status string) (Status, error) {
@@ -1156,6 +1207,30 @@ func StringToOrderStatus(status string) (Status, error) {
 	default:
 		return UnknownStatus, fmt.Errorf("%q %w", status, errUnrecognisedOrderStatus)
 	}
+}
+
+// MarshalBSONValue implements bson.ValueMarshaler, storing the Status as its string
+func (s Status) MarshalBSONValue() (typ byte, data []byte, err error) {
+	return bsonwire.TypeString, bsonwire.MarshalString(s.String()), nil
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler. UnknownStatus and any Status without a name of its own are stored as
+// UnknownStatus's string, which StringToOrderStatus rejects as exchange input, and read back as UnknownStatus.
+func (s *Status) UnmarshalBSONValue(typ byte, data []byte) error {
+	str, err := bsonwire.UnmarshalString(typ, data)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errUnrecognisedOrderStatus, err)
+	}
+	if str == UnknownStatus.String() {
+		*s = UnknownStatus
+		return nil
+	}
+	v, err := StringToOrderStatus(str)
+	if err != nil {
+		return err
+	}
+	*s = v
+	return nil
 }
 
 func (o *ClassificationError) Error() string {
