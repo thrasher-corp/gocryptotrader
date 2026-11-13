@@ -473,7 +473,16 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelInstruments:
 		var response WSInstrumentResponse
-		return e.wsProcessPushData(ctx, respRaw, &response)
+		// The ID code cache updates before the push is relayed to the
+		// DataHandler: a full relay queue must not leave a stale code cached
+		// while the websocket order operations read it, so the cache reflects
+		// every push this handler sees. The relay's delivery error is preserved
+		// for the websocket reader.
+		if err := json.Unmarshal(respRaw, &response); err != nil {
+			return err
+		}
+		e.cacheInstrumentIDCodes(response.Data)
+		return e.Websocket.DataHandler.Send(ctx, &response)
 	case channelOpenInterest:
 		var response WSOpenInterestResponse
 		return e.wsProcessPushData(ctx, respRaw, &response)
@@ -586,12 +595,18 @@ func (e *Exchange) wsProcessSpreadTrades(respRaw []byte) error {
 			Price:        resp.Data[x].FillPrice.Float64(),
 		}
 	}
+	if !e.IsSaveTradeDataEnabled() {
+		return nil
+	}
 	return trade.AddTradesToBuffer(trades...)
 }
 
 // wsProcessSpreadOrders retrieve order information from the sprd-order Websocket channel.
 // Data will not be pushed when first subscribed.
 // Data will only be pushed when triggered by events such as placing/canceling order.
+// No quote amount is reported: a spread's price is the difference between its
+// legs, and OKX sizes inverse spreads in USD, so size times price is not a
+// notional.
 func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) error {
 	resp := &struct {
 		Argument SubscriptionInfo `json:"arg"`
@@ -619,27 +634,33 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 		if err != nil {
 			return err
 		}
-		oType, err := order.StringToOrderType(resp.Data[x].OrderType)
+		oType, tif, err := orderTypeFromString(resp.Data[x].OrderType)
 		if err != nil {
 			return err
 		}
+		spreadAmt := resp.Data[x].Size.Float64()
+		spreadExec := resp.Data[x].AccumulatedFillSize.Float64()
+		spreadRemaining := float64(0)
+		if oStatus != order.Filled && spreadAmt > spreadExec {
+			spreadRemaining = spreadAmt - spreadExec
+		}
 		orderDetails[x] = order.Detail{
 			AssetType:            asset.Spread,
-			Amount:               resp.Data[x].Size.Float64(),
+			Amount:               spreadAmt,
 			AverageExecutedPrice: resp.Data[x].AveragePrice.Float64(),
 			ClientOrderID:        resp.Data[x].ClientOrderID,
 			Date:                 resp.Data[x].CreationTime.Time(),
 			Exchange:             e.Name,
-			ExecutedAmount:       resp.Data[x].FillSize.Float64(),
+			ExecutedAmount:       spreadExec,
 			OrderID:              resp.Data[x].OrderID,
 			Pair:                 pair,
 			Price:                resp.Data[x].Price.Float64(),
-			QuoteAmount:          resp.Data[x].Size.Float64() * resp.Data[x].Price.Float64(),
-			RemainingAmount:      resp.Data[x].Size.Float64() - resp.Data[x].FillSize.Float64(),
+			RemainingAmount:      spreadRemaining,
 			Side:                 oSide,
 			Status:               oStatus,
 			Type:                 oType,
 			LastUpdated:          resp.Data[x].UpdateTime.Time(),
+			TimeInForce:          tif,
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, orderDetails)
@@ -775,22 +796,36 @@ func (e *Exchange) wsProcessPublicSpreadTicker(ctx context.Context, respRaw []by
 // Data will be pushed whenever there is a trade.
 // Every update contains only one trade.
 func (e *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
-	var resp WsSpreadPushData
-	data := []WsSpreadPublicTrade{}
-	resp.Data = data
-	err := json.Unmarshal(respRaw, &resp)
+	trades, err := e.spreadPublicTrades(respRaw)
 	if err != nil {
 		return err
 	}
+	if !e.IsSaveTradeDataEnabled() {
+		return nil
+	}
+	return trade.AddTradesToBuffer(trades...)
+}
+
+// spreadPublicTrades decodes a sprd-public-trades push and converts its
+// trades. resp.Data must point at data: a plain slice value decodes into a
+// copy, leaving the trades empty.
+func (e *Exchange) spreadPublicTrades(respRaw []byte) ([]trade.Data, error) {
+	var resp WsSpreadPushData
+	data := []WsSpreadPublicTrade{}
+	resp.Data = &data
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return nil, err
+	}
 	pair, err := currency.NewPairFromString(resp.Argument.SpreadID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	trades := make([]trade.Data, len(data))
 	for x := range data {
 		oSide, err := order.StringToOrderSide(data[x].Side)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		trades[x] = trade.Data{
 			TID:          data[x].TradeID,
@@ -803,7 +838,7 @@ func (e *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
 			Timestamp:    data[x].Timestamp.Time(),
 		}
 	}
-	return trade.AddTradesToBuffer(trades...)
+	return trades, nil
 }
 
 // wsProcessSpreadOrderbook process spread orderbook data.
@@ -1171,7 +1206,7 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 		return err
 	}
 	for x := range response.Data {
-		orderType, err := order.StringToOrderType(response.Data[x].OrderType)
+		orderType, tif, err := orderTypeFromString(response.Data[x].OrderType)
 		if err != nil {
 			return err
 		}
@@ -1231,6 +1266,7 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 			Side:                 response.Data[x].Side,
 			Status:               orderStatus,
 			Type:                 orderType,
+			TimeInForce:          tif,
 		}
 		if orderStatus == order.Filled {
 			d.CloseTime = response.Data[x].FillTime.Time()

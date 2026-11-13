@@ -480,7 +480,7 @@ var (
 		"50114": errors.New("invalid authorization"),
 		"50115": errors.New("invalid request method"),
 		"1":     errors.New("operation failed"),
-		"2":     errors.New("bulk operation partially succeeded"),
+		"2":     errPartialSuccess,
 		"50000": errors.New("body can not be empty"),
 		"50001": errors.New("service temporarily unavailable, please try again later"),
 		"50002": errors.New("json data format error"),
