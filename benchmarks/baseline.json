@@ -229,11 +229,11 @@
     "allocs": 2,
     "bytes": 28800
   },
-  "exchanges/gateio.BenchmarkMessageID": {
+  "exchanges/gate.BenchmarkMessageID": {
     "allocs": 1,
     "bytes": 32
   },
-  "exchanges/gateio.BenchmarkTimeInForceFromString": {
+  "exchanges/gate.BenchmarkTimeInForceFromString": {
     "allocs": 0,
     "bytes": 0
   },

@@ -84,7 +84,7 @@ type ConnectionSetup struct {
 	Connector func(ctx context.Context, conn Connection) error
 	// GenerateSubscriptions is a function that will be called to generate a
 	// list of subscriptions to be made to the exchange's websocket server.
-	GenerateSubscriptions func() (subscription.List, error)
+	GenerateSubscriptions func(ctx context.Context) (subscription.List, error)
 	// Subscriber is a function that will be called to send subscription
 	// messages based on the exchange's websocket server requirements to
 	// subscribe to specific channels.

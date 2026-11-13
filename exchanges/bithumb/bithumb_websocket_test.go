@@ -99,7 +99,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "KRW", "_"), currency.NewPairWithDelimiter("ETH", "KRW", "_")}
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, p, false))
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, p, true))
-	subs, err := e.generateSubscriptions()
+	subs, err := e.generateSubscriptions(t.Context())
 	require.NoError(t, err)
 	exp := subscription.List{
 		{Asset: asset.Spot, Channel: subscription.AllTradesChannel, Pairs: p, QualifiedChannel: `{"type":"transaction","symbols":["BTC_KRW","ETH_KRW"]}`},

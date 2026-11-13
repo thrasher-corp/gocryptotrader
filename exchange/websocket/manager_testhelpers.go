@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -21,7 +22,7 @@ func (m *Manager) SetSubscriptionsNotRequired() {
 	defer m.m.Unlock()
 
 	if !m.useMultiConnectionManagement {
-		m.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
+		m.GenerateSubs = func(context.Context) (subscription.List, error) { return subscription.List{}, nil }
 		return
 	}
 

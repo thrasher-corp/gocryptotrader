@@ -182,6 +182,8 @@ func TestNew(t *testing.T) {
 		{Input: "spread", Expected: Spread},
 		{Input: "linearContract", Expected: LinearContract},
 		{Input: "DELIVERY", Expected: DeliveryFutures},
+		{Input: "STOCK", Expected: Stock},
+		{Input: "ETF", Expected: ETF},
 		{Input: "all", Expected: All},
 	}
 
@@ -212,6 +214,9 @@ func TestSupported(t *testing.T) {
 	s[0] = Empty
 	if supportedList[0] != Spot {
 		t.Fatal("TestSupported should not return mutable package state")
+	}
+	for a := Spot; a < All; a++ {
+		assert.Truef(t, Supported().Contains(a), "Supported should list %s", a)
 	}
 }
 

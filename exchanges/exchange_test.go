@@ -1158,7 +1158,7 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) { return nil, nil },
 		Subscriber:            func(subscription.List) error { return nil },
 	})
 	require.NoError(t, err, "Websocket.Setup must not error")
@@ -1189,7 +1189,7 @@ func TestShutdownWebsocket(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) { return nil, nil },
 		Subscriber:            func(subscription.List) error { return nil },
 	})
 	require.NoError(t, err, "Websocket.Setup must not error")
@@ -1214,7 +1214,7 @@ func TestShutdownWebsocket(t *testing.T) {
 			DefaultURL:            "ws://something.com",
 			RunningURL:            "ws://something.com",
 			Connector:             func() error { dials.Add(1); return nil },
-			GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+			GenerateSubscriptions: func(context.Context) (subscription.List, error) { return nil, nil },
 			Subscriber:            func(subscription.List) error { return nil },
 		})
 		require.NoError(t, err, "Websocket.Setup must not error")
