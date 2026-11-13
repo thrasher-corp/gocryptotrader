@@ -3860,7 +3860,8 @@ func TestStartRPCRESTProxy(t *testing.T) {
 	require.NoError(t, err, "SplitHostPort must not error")
 	_, proxyPort, err := net.SplitHostPort(proxyListener.Addr().String())
 	require.NoError(t, err, "SplitHostPort must not error")
-	// StartRPCServer binds both addresses itself; closing the listeners only now keeps the two ports distinct
+	// StartRPCServer binds both addresses itself; keeping both listeners open
+	// until this point ensures the two ports are distinct.
 	require.NoError(t, gRPCListener.Close(), "Close must not error")
 	require.NoError(t, proxyListener.Close(), "Close must not error")
 	// The default configuration listens on localhost, which also verifies the TLS certificate's localhost DNS name
