@@ -100,10 +100,10 @@
     "bytes": 184753
   },
   "config.BenchmarkUpdateConfig": {
-    "allocs": 39976,
+    "allocs": 40169,
     "bytes": 9963232,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in October 2026, with MEXC in testdata/configtest.json, gave medians from 39976 to 40013. 0.4% is about 160 allocations either side of the budget, which covers that range with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with Bitfinex's perpetuals in testdata/configtest.json, gave medians from 40147 to 40181. 0.4% is about 160 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,
@@ -144,6 +144,14 @@
   "encoding/json.BenchmarkUnmarshal": {
     "allocs": 18,
     "bytes": 648
+  },
+  "encoding/json.BenchmarkUnmarshalTuple/book_update": {
+    "allocs": 1,
+    "bytes": 32
+  },
+  "encoding/json.BenchmarkUnmarshalTuple/order": {
+    "allocs": 6,
+    "bytes": 248
   },
   "exchange/order/limits.BenchmarkAmountStepCommonBaseIncrement": {
     "allocs": 64,

@@ -750,6 +750,91 @@ func TestSubmitOrderAlreadyInStore(t *testing.T) {
 }
 
 func TestOrderManager_Modify(t *testing.T) {
+	// Parallel, so the scenarios run with the package's parallel tests once this test turns parallel below, as they did
+	// when they were tests of their own, and registered first, so they still run when this test's own cases cannot fetch
+	// Bitstamp's pairs. The failure cases run before the others, so no other modification falls between two of theirs
+	t.Run("scenarios", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("failures", func(t *testing.T) {
+			// The cases share one modification, which Modify fills in from the stored order, so they run in turn
+			ctx := t.Context()
+			stored := func() *order.Detail {
+				return &order.Detail{Exchange: testExchange, AssetType: asset.Spot, Pair: btcusdPair, OrderID: "fake_order_id", Price: 8, Amount: 128}
+			}
+			mod := &order.Modify{Exchange: testExchange, AssetType: asset.Spot, Pair: btcusdPair, OrderID: "fake_order_id"}
+			t.Run("a nil order manager", func(t *testing.T) {
+				var nilManager *OrderManager
+				_, err := nilManager.Modify(ctx, mod)
+				assert.ErrorIs(t, err, ErrNilSubsystem, "Modify should refuse a nil order manager")
+			})
+
+			t.Run("an order manager that has not started", func(t *testing.T) {
+				m := newModifyTestManager(t, stored(), nil)
+				m.started.Store(false)
+				_, err := m.Modify(ctx, mod)
+				assert.ErrorIs(t, err, ErrSubSystemNotStarted, "Modify should refuse an order manager that has not started")
+			})
+
+			t.Run("an order it does not hold", func(t *testing.T) {
+				_, err := newModifyTestManager(t, stored(), nil).Modify(ctx, &order.Modify{Exchange: testExchange, OrderID: "another order"})
+				assert.ErrorIs(t, err, ErrOrderNotFound, "Modify should return that it holds no such order")
+			})
+
+			t.Run("an order whose exchange is not loaded", func(t *testing.T) {
+				_, err := newModifyTestManager(t, stored(), nil).Modify(ctx, mod)
+				assert.ErrorIs(t, err, ErrExchangeNotFound, "Modify should return that the order's exchange is not loaded")
+			})
+
+			exch, err := NewExchangeManager().NewExchangeByName(testExchange)
+			require.NoError(t, err, "NewExchangeByName must not error")
+			exch.SetDefaults()
+			t.Run("an exchange error", func(t *testing.T) {
+				_, err := newModifyTestManager(t, stored(), modifyReplyExchange{IBotExchange: exch, err: errExpectedTestError}).Modify(ctx, mod)
+				assert.ErrorIs(t, err, errExpectedTestError, "Modify should return the exchange's error")
+			})
+
+			t.Run("a modification it cannot store", func(t *testing.T) {
+				resp, err := newModifyTestManager(t, stored(), modifyReplyExchange{IBotExchange: exch, reply: &order.ModifyResponse{Exchange: "another exchange", OrderID: "fake_order_id"}}).Modify(ctx, mod)
+				assert.ErrorIs(t, err, ErrExchangeNotFound, "Modify should return that it could not store the modification")
+				require.NotNil(t, resp, "Modify must return the modified order's ID when it could not store the modification")
+				assert.Equal(t, "fake_order_id", resp.OrderID, "Modify should return the modified order's ID when it could not store the modification")
+			})
+		})
+
+		t.Run("fills from the stored order", func(t *testing.T) {
+			for _, tc := range []struct {
+				name          string
+				stored, given asset.Item
+				exp           asset.Item
+			}{
+				{name: "another asset given", stored: asset.Margin, given: asset.Spot, exp: asset.Margin},
+				{name: "the stored order's asset given", stored: asset.Margin, given: asset.Margin, exp: asset.Margin},
+				{name: "no asset given", stored: asset.Margin, exp: asset.Margin},
+				{name: "a stored order without an asset", given: asset.Spot, exp: asset.Spot},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					exch, err := NewExchangeManager().NewExchangeByName(testExchange)
+					require.NoError(t, err, "NewExchangeByName must not error")
+					exch.SetDefaults()
+					var received order.Modify
+					m := newModifyTestManager(t, &order.Detail{
+						Exchange: testExchange, AssetType: tc.stored, Pair: btcusdPair, Side: order.Sell, TimeInForce: order.PostOnly, OrderID: "fake_order_id", Price: 8, Amount: 128,
+					}, modifyRecordingExchange{IBotExchange: exch, received: &received})
+					_, err = m.Modify(t.Context(), &order.Modify{Exchange: testExchange, AssetType: tc.given, Pair: currency.NewBTCUSDT(), Side: order.Buy, TimeInForce: order.GoodTillCancel, OrderID: "fake_order_id"})
+					require.NoError(t, err, "Modify must not error")
+					assert.Equal(t, order.Modify{
+						Exchange: testExchange, AssetType: tc.exp, Pair: btcusdPair, Side: order.Sell, TimeInForce: order.PostOnly, OrderID: "fake_order_id", Price: 8, Amount: 128,
+					}, received, "Modify should send the exchange what it holds of the stored order, and its asset when it has one")
+					stored, err := m.orderStore.getByExchangeAndID(testExchange, "modified_order_id")
+					require.NoError(t, err, "getByExchangeAndID must not error")
+					assert.Equal(t, tc.exp, stored.AssetType, "Modify should leave the stored order the asset the exchange was sent")
+				})
+			}
+		})
+	})
+
 	pair := currency.Pair{
 		Base:  currency.NewCode("XXXXX"),
 		Quote: currency.NewCode("YYYYY"),
@@ -836,6 +921,45 @@ func TestOrderManager_Modify(t *testing.T) {
 	five.Price = 0
 	five.Amount = 0
 	f(five, false, 8, 128)
+
+	// Parallel only now, so the cases above still run with the package's serial tests
+	t.Parallel()
+}
+
+// modifyReplyExchange answers modifications with a fixed reply and error
+type modifyReplyExchange struct {
+	omfExchange
+	reply *order.ModifyResponse
+	err   error
+}
+
+func (f modifyReplyExchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
+	return f.reply, f.err
+}
+
+// modifyRecordingExchange records each modification as it receives it
+type modifyRecordingExchange struct {
+	omfExchange
+	received *order.Modify
+}
+
+func (f modifyRecordingExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	*f.received = *action
+	return f.omfExchange.ModifyOrder(ctx, action)
+}
+
+// newModifyTestManager returns a started order manager holding the order, whose only exchange is the one given, or none
+func newModifyTestManager(t *testing.T, stored *order.Detail, ex exchange.IBotExchange) *OrderManager {
+	t.Helper()
+	em := NewExchangeManager()
+	if ex != nil {
+		require.NoError(t, em.Add(ex), "Add must not error")
+	}
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &sync.WaitGroup{}, &config.OrderManager{})
+	require.NoError(t, err, "SetupOrderManager must not error")
+	m.started.Store(true)
+	m.orderStore.Orders[strings.ToLower(stored.Exchange)] = []*order.Detail{stored}
+	return m
 }
 
 func TestProcessOrders(t *testing.T) {

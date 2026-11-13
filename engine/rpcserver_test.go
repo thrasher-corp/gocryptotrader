@@ -4088,11 +4088,13 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 type batchCancelRPCFake struct {
 	fExchange
 	cancelsReceived []order.Cancel
+	calls           int
 	resp            *order.CancelBatchResponse
 	err             error
 }
 
 func (f *batchCancelRPCFake) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	f.calls++
 	f.cancelsReceived = append(f.cancelsReceived, o...)
 	return f.resp, f.err
 }
@@ -4154,6 +4156,98 @@ func TestCancelBatchOrders(t *testing.T) {
 		assert.Equal(t, order.Cancelled.String(), status["1"])
 		assert.Equal(t, "failed to cancel", status["2"])
 		assert.Equal(t, order.UnknownStatus.String(), status["3"], "an omitted status is reported as unknown")
+	})
+
+	type batchCancelCase struct {
+		name     string
+		ordersID string
+		modify   func(*gctrpc.CancelBatchOrdersRequest)
+		resp     *order.CancelBatchResponse
+		err      error
+		refusal  error
+		exp      map[string]string
+	}
+	// Built afresh for each parallel run below, so no two runs share a response
+	newCases := func() []batchCancelCase {
+		return []batchCancelCase{
+			{
+				name: "pending, refused and omitted orders", ordersID: "1,2,3",
+				resp: &order.CancelBatchResponse{Status: map[string]string{"1": order.PendingCancel.String(), "2": "refused"}},
+				exp:  map[string]string{"1": order.PendingCancel.String(), "2": "refused", "3": order.UnknownStatus.String()},
+			},
+			{name: "no response", ordersID: "none,2", exp: map[string]string{"none": order.Cancelled.String(), "2": order.Cancelled.String()}},
+			{name: "an exchange error", ordersID: "fail", err: errExpectedTestError},
+			{name: "an unknown asset", ordersID: "1", modify: func(r *gctrpc.CancelBatchOrdersRequest) { r.AssetType = "novel" }, refusal: asset.ErrNotSupported},
+			{name: "an unknown exchange", ordersID: "1", modify: func(r *gctrpc.CancelBatchOrdersRequest) { r.Exchange = "novel" }, refusal: ErrExchangeNotFound},
+			{name: "a pair the exchange does not list", ordersID: "1", modify: func(r *gctrpc.CancelBatchOrdersRequest) { r.Pair.Base = "ETH" }, refusal: errCurrencyPairInvalid},
+			{name: "an unknown side", ordersID: "1", modify: func(r *gctrpc.CancelBatchOrdersRequest) { r.Side = "novel" }, refusal: order.ErrSideIsInvalid},
+		}
+	}
+	check := func(ctx context.Context, t *testing.T, server *RPCServer, fake *batchCancelRPCFake, tc batchCancelCase) {
+		t.Helper()
+		r := &gctrpc.CancelBatchOrdersRequest{Exchange: fakeExchangeName, OrdersId: tc.ordersID, AssetType: "spot", Side: "BUY", Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USDT"}}
+		if tc.modify != nil {
+			tc.modify(r)
+		}
+		fake.resp, fake.err, fake.cancelsReceived, fake.calls = tc.resp, tc.err, nil, 0
+		res, err := server.CancelBatchOrders(ctx, r)
+		if tc.refusal != nil {
+			assert.ErrorIsf(t, err, tc.refusal, "CancelBatchOrders should refuse %s", tc.name)
+			assert.Emptyf(t, fake.cancelsReceived, "CancelBatchOrders should send nothing for %s", tc.name)
+			assert.Zerof(t, fake.calls, "CancelBatchOrders should not call the exchange for %s", tc.name)
+			return
+		}
+		var sent []order.Cancel
+		for id := range strings.SplitSeq(tc.ordersID, ",") {
+			sent = append(sent, order.Cancel{OrderID: id, Side: order.Buy, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot})
+		}
+		assert.Equal(t, sent, fake.cancelsReceived, "CancelBatchOrders should send the exchange each order once, in the order given")
+		assert.Equal(t, 1, fake.calls, "CancelBatchOrders should send the exchange every order in one request")
+		if tc.err != nil {
+			assert.ErrorIs(t, err, tc.err, "CancelBatchOrders should return the exchange's error")
+			return
+		}
+		require.NoError(t, err, "CancelBatchOrders must not error")
+		require.Len(t, res.Orders, 1, "CancelBatchOrders must report the exchange's orders")
+		assert.Equal(t, tc.exp, res.Orders[0].OrderStatus, "CancelBatchOrders should report each order as the exchange did, unknown for one it left out, and cancelled when it returned no response")
+	}
+
+	// Every case also goes to one server in turn, as the test these cases come from sent them, with the two responses
+	// in table order on one server and reversed on another, as that test's map ran them in no fixed order. Serial, so
+	// it runs before the parallel cases and no other request falls between two of a server's
+	t.Run("on one server in turn", func(t *testing.T) {
+		for _, run := range []struct {
+			name  string
+			order []int
+		}{
+			{name: "responses in table order", order: []int{0, 1, 2, 3, 4, 5, 6}},
+			{name: "responses reversed", order: []int{1, 0, 2, 3, 4, 5, 6}},
+		} {
+			t.Run(run.name, func(t *testing.T) {
+				ctx := t.Context()
+				cases := newCases()
+				fake := &batchCancelRPCFake{}
+				server := setupBatchCancelServer(t, fake)
+				for _, i := range run.order {
+					t.Run(cases[i].name, func(t *testing.T) {
+						check(ctx, t, server, fake, cases[i])
+					})
+				}
+			})
+		}
+	})
+
+	t.Run("reports the exchange's response and refuses an invalid request", func(t *testing.T) {
+		t.Parallel()
+
+		for _, tc := range newCases() {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				fake := &batchCancelRPCFake{}
+				check(t.Context(), t, setupBatchCancelServer(t, fake), fake, tc)
+			})
+		}
 	})
 
 	t.Run("defaults when wrapper reports no status", func(t *testing.T) {
