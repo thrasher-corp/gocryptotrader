@@ -9568,18 +9568,75 @@ func TestPlaceSpreadOrder(t *testing.T) {
 	_, err = e.PlaceSpreadOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.PlaceSpreadOrder(contextGenerate(), &SpreadOrderParam{
-		InstrumentID:  spreadPair.String(),
-		SpreadID:      "1234",
-		ClientOrderID: "12354123523",
-		Side:          order.Buy.Lower(),
-		OrderType:     "limit",
-		Size:          1,
-		Price:         12345,
+	// Guards the spread price validation on the
+	// REST helper: the px of a spread is the differential between its legs, which
+	// can be negative, while a price-bearing order without any price is rejected.
+	t.Run("guards the price", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var body []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/sprd/order" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the spread order body should not error")
+			mu.Lock()
+			body = b
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+		}))
+		_, err := ex.PlaceSpreadOrder(t.Context(), &SpreadOrderParam{
+			SpreadID:  spreadPair.String(),
+			Side:      "buy",
+			OrderType: orderLimit,
+			Size:      1,
+			Price:     -41.2,
+		})
+		require.NoError(t, err, "a negative-priced spread order must place")
+		mu.Lock()
+		var sent map[string]any
+		require.NoError(t, json.Unmarshal(body, &sent), "the spread order body must decode")
+		mu.Unlock()
+		assert.Equal(t, "-41.2", sent["px"], "a negative spread price should send verbatim")
+		_, err = ex.PlaceSpreadOrder(t.Context(), &SpreadOrderParam{
+			SpreadID:  spreadPair.String(),
+			Side:      "buy",
+			OrderType: orderLimit,
+			Size:      1,
+		})
+		require.ErrorIs(t, err, limits.ErrPriceBelowMin, "a price-bearing spread order without a price must be rejected")
+		_, err = ex.PlaceSpreadOrder(t.Context(), &SpreadOrderParam{
+			SpreadID:  spreadPair.String(),
+			Side:      "buy",
+			OrderType: "MARKET",
+			Size:      1,
+		})
+		require.NoError(t, err, "a market spread order given in upper case must place without a price")
+		mu.Lock()
+		sent = nil
+		require.NoError(t, json.Unmarshal(body, &sent), "the spread order body must decode")
+		mu.Unlock()
+		assert.Equal(t, orderMarket, sent["ordType"], "the spread order type should be sent in lower case")
 	})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		result, err := e.PlaceSpreadOrder(contextGenerate(), &SpreadOrderParam{
+			InstrumentID:  spreadPair.String(),
+			SpreadID:      "1234",
+			ClientOrderID: "12354123523",
+			Side:          order.Buy.Lower(),
+			OrderType:     "limit",
+			Size:          1,
+			Price:         12345,
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
 }
 
 func TestCancelSpreadOrder(t *testing.T) {
