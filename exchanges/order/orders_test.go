@@ -1330,7 +1330,7 @@ func TestMatchFilter(t *testing.T) {
 	}
 }
 
-func TestIsActive(t *testing.T) {
+func TestDetail_IsActive(t *testing.T) {
 	orders := map[int]Detail{
 		0: {Amount: 0.0, Status: Active},
 		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
@@ -1374,44 +1374,42 @@ func BenchmarkIsActive(b *testing.B) {
 	}
 }
 
-func TestIsInactive(t *testing.T) {
+// TestDetail_IsInactive tests the integration of Status.IsInactive with amount checks
+// See also TestStatus_IsInactive
+func TestDetail_IsInactive(t *testing.T) {
 	t.Parallel()
 
-	t.Run("unknown status is not inactive", func(t *testing.T) {
-		t.Parallel()
-		assert.False(t, UnknownStatus.IsInactive(), "unknown status should not be inactive")
-	})
-
-	orders := map[int]Detail{
-		0: {Amount: 0.0, Status: Active},
-		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
-		2: {Amount: 1.0, ExecutedAmount: 1.0, Status: Active},
-		3: {Amount: 1.0, ExecutedAmount: 1.1, Status: Active},
+	// Inactive if the Amount <= 0 or Amount <= ExecutedAmount or Status.IsInactive
+	for _, d := range []Detail{
+		{Amount: 0.0, Status: Active},
+		{Amount: 1.0, ExecutedAmount: 1.0, Status: Active},
+		{Amount: 1.0, ExecutedAmount: 1.1, Status: Active},
+		{Amount: 1.0, Status: Closed},
+	} {
+		assert.Truef(t, d.IsInactive(), "Amount: %v ExecutedAmount: %v Status: %s", d.Amount, d.ExecutedAmount, d.Status)
 	}
 
-	amountTests := map[int]struct {
-		o              Detail
-		expectedResult bool
-	}{
-		0: {orders[0], true},
-		1: {orders[1], false},
-		2: {orders[2], true},
-		3: {orders[3], true},
+	for _, d := range []Detail{
+		{Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
+		{Amount: 0.0, Status: UnknownStatus},
+		{Amount: 0.0, Status: Closed},
+	} {
+		assert.Falsef(t, d.IsInactive(), "Amount: %v ExecutedAmount: %v Status: %s", d.Amount, d.ExecutedAmount, d.Status)
 	}
-	for num, tt := range amountTests {
-		assert.Equalf(t, tt.expectedResult, tt.o.IsInactive(), "amountTests[%v] failed", num)
-	}
+}
 
+func TestStatus_IsInactive(t *testing.T) {
+	t.Parallel()
 	for _, s := range []Status{
 		New, Open, Pending, Active, PartiallyFilled, PendingCancel, AutoDeleverage, Hidden, UnknownStatus,
 	} {
-		assert.False(t, (&Detail{Amount: 1.0, Status: s}).IsInactive(), s)
+		assert.Falsef(t, s.IsInactive(), "%s should not be inactive", s)
 	}
 
 	for _, s := range []Status{
-		PartiallyCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, Closed,
+		PartiallyCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, Closed, Cancelling, Liquidated,
 	} {
-		assert.True(t, (&Detail{Amount: 1.0, Status: s}).IsInactive(), s)
+		assert.Truef(t, s.IsInactive(), "%s should be inactive", s)
 	}
 }
 
