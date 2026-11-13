@@ -910,13 +910,10 @@ allTrades:
 // submitPrelude carries the validated and formatted values shared by REST and
 // websocket order submission.
 type submitPrelude struct {
-	pairString     string
-	tradeMode      string
-	sideType       string
-	positionSide   string
-	positionMode   string
-	amount         float64
-	targetCurrency string
+	pairString   string
+	tradeMode    string
+	sideType     string
+	positionMode string
 }
 
 // validateSubmitPrelude performs the validation and formatting common to REST
@@ -978,16 +975,14 @@ func (e *Exchange) validateSubmitPrelude(ctx context.Context, s *order.Submit) (
 	p := &submitPrelude{
 		pairString: pairFormat.Format(s.Pair),
 		tradeMode:  tradeMode,
-		amount:     s.Amount,
 	}
 	switch s.AssetType {
 	case asset.Spot, asset.Margin, asset.Spread:
 		p.sideType = s.Side.String()
 	case asset.Futures, asset.PerpetualSwap, asset.Options:
-		// OKX requires side for every instrument type. Contracts derive
-		// posSide separately from the account's position mode in the order
-		// derivation, so the prelude leaves it unset rather than carry a
-		// placeholder a later override might miss.
+		// OKX requires side for every instrument type, and a contract's
+		// posSide comes from the account's position mode in the order
+		// derivation instead, so the prelude carries the side alone.
 		if s.Side.IsLong() {
 			p.sideType = order.Buy.Lower()
 		} else if s.Side.IsShort() {
@@ -1003,13 +998,6 @@ func (e *Exchange) validateSubmitPrelude(ctx context.Context, s *order.Submit) (
 			return nil, err
 		}
 		p.positionMode = mode
-	}
-	if s.AssetType == asset.Spot && s.Type == order.Market {
-		p.targetCurrency = "base_ccy" // Default to base currency
-		if s.QuoteAmount > 0 {
-			p.amount = s.QuoteAmount
-			p.targetCurrency = "quote_ccy"
-		}
 	}
 	return p, nil
 }
@@ -1035,21 +1023,29 @@ func deriveSpreadOrderParam(s *order.Submit, p *submitPrelude) (*SpreadOrderPara
 // request for the supplied OKX order type string.
 func derivePlaceOrderRequest(s *order.Submit, p *submitPrelude, oType string) *PlaceOrderRequestParam {
 	orderRequest := &PlaceOrderRequestParam{
-		InstrumentID:   p.pairString,
-		TradeMode:      p.tradeMode,
-		Side:           p.sideType,
-		PositionSide:   p.positionSide,
-		OrderType:      oType,
-		Amount:         p.amount,
-		ClientOrderID:  s.ClientOrderID,
-		TargetCurrency: p.targetCurrency,
-		AssetType:      s.AssetType,
+		InstrumentID:  p.pairString,
+		TradeMode:     p.tradeMode,
+		Side:          p.sideType,
+		OrderType:     oType,
+		Amount:        s.Amount,
+		ClientOrderID: s.ClientOrderID,
+		AssetType:     s.AssetType,
 	}
 	// The price only applies to the limit-style order types, so a market
 	// order carries no price even when the submit set one.
 	switch oType {
 	case orderLimit, orderPostOnly, orderFOK, orderIOC, orderMarketMakerProtection, orderMarketMakerProtectionAndPostOnly:
 		orderRequest.Price = s.Price
+	case orderMarket:
+		// OKX reads tgtCcy on spot market orders only, so a market submit
+		// placed as ioc or fok keeps its base currency size.
+		if s.AssetType == asset.Spot {
+			orderRequest.TargetCurrency = targetCurrencyBase
+			if s.QuoteAmount > 0 {
+				orderRequest.Amount = s.QuoteAmount
+				orderRequest.TargetCurrency = targetCurrencyQuote
+			}
+		}
 	}
 	// OKX applies reduceOnly to MARGIN orders and FUTURES/SWAP orders in net
 	// mode only.
@@ -1064,6 +1060,23 @@ func derivePlaceOrderRequest(s *order.Submit, p *submitPrelude, oType string) *P
 		orderRequest.ReduceOnly = s.ReduceOnly && p.positionMode == positionModeNet
 	}
 	return orderRequest
+}
+
+// marketOrderPrice is OKX's order price that executes a triggered leg at
+// market, accepted by a trigger order's orderPx and an OCO or conditional
+// order's tpOrdPx and slOrdPx.
+const marketOrderPrice = -1
+
+// spotAlgoTargetCurrency returns the tgtCcy an algo order must send. OKX
+// applies tgtCcy to spot market orders and reads a spot market buy's sz in the
+// quote currency unless it names base_ccy, so a leg executing at market has to
+// state that its size is in the base currency. A leg that keeps its limit
+// price sends no tgtCcy, and neither does any other asset type.
+func spotAlgoTargetCurrency(assetType asset.Item, marketLeg bool) string {
+	if assetType == asset.Spot && marketLeg {
+		return targetCurrencyBase
+	}
+	return ""
 }
 
 // positionSideForMode returns the posSide a futures or perpetual swap order
@@ -1150,6 +1163,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:      positionSide,
 			OrderType:         orderTypeStr,
 			Size:              s.Amount,
+			QuantityType:      spotAlgoTargetCurrency(s.AssetType, s.Price == marketOrderPrice),
 			ReduceOnly:        reduceOnly,
 			TriggerPrice:      s.TriggerPrice,
 			OrderPrice:        s.Price,
@@ -1165,6 +1179,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:             positionSide,
 			OrderType:                orderTypeStr,
 			Size:                     s.Amount,
+			QuantityType:             spotAlgoTargetCurrency(s.AssetType, s.Price == marketOrderPrice),
 			ReduceOnly:               reduceOnly,
 			StopLossTriggerPrice:     s.TriggerPrice,
 			StopLossOrderPrice:       s.Price,
@@ -1256,7 +1271,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:      positionSide,
 			OrderType:         orderTypeStr,
 			Size:              s.Amount,
-			ReduceOnly:        reduceOnly,
+			QuantityType: spotAlgoTargetCurrency(s.AssetType,
+				s.RiskManagementModes.TakeProfit.LimitPrice == marketOrderPrice ||
+					s.RiskManagementModes.StopLoss.LimitPrice == marketOrderPrice),
+			ReduceOnly: reduceOnly,
 
 			TakeProfitTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
 			TakeProfitOrderPrice:       s.RiskManagementModes.TakeProfit.LimitPrice,
@@ -1623,7 +1641,10 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 					continue
 				}
 				if canceledOrders[x].StatusCode == 0 {
-					resp.Status[canceledOrders[x].OrderID] = order.Cancelled.String()
+					// OKX's sCode 0 acknowledges the cancel request only; the
+					// order reaches CANCELED once the exchange settles it, which
+					// the order streams and listings report.
+					resp.Status[canceledOrders[x].OrderID] = order.PendingCancel.String()
 				} else {
 					resp.Status[canceledOrders[x].OrderID] = canceledOrders[x].StatusMessage
 				}
@@ -1638,13 +1659,13 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		if cancelResultsUsable(err) {
 			// OKX reports one result per requested algo order; failed cancels
 			// are reported with their status message instead of a false
-			// Cancelled.
+			// acknowledgement.
 			for x := range algoResults {
 				if algoResults[x].AlgoID == "" {
 					continue
 				}
 				if algoResults[x].StatusCode == 0 {
-					resp.Status[algoResults[x].AlgoID] = order.Cancelled.String()
+					resp.Status[algoResults[x].AlgoID] = order.PendingCancel.String()
 				} else {
 					resp.Status[algoResults[x].AlgoID] = algoResults[x].StatusMessage
 				}
@@ -1947,7 +1968,7 @@ func (e *Exchange) WebsocketCancelBatchOrders(ctx context.Context, o []order.Can
 				continue
 			}
 			if cancelled[x].StatusCode == 0 {
-				resp.Status[cancelled[x].OrderID] = order.Cancelled.String()
+				resp.Status[cancelled[x].OrderID] = order.PendingCancel.String()
 			} else {
 				resp.Status[cancelled[x].OrderID] = cancelled[x].StatusMessage
 			}
@@ -2145,7 +2166,7 @@ func cancelInBatches(ctx context.Context, params []CancelOrderRequestParam, canc
 				continue
 			}
 			if response[y].StatusCode == 0 {
-				cancelAllResponse.Status[response[y].OrderID] = order.Cancelled.String()
+				cancelAllResponse.Status[response[y].OrderID] = order.PendingCancel.String()
 			} else {
 				cancelAllResponse.Status[response[y].OrderID] = response[y].StatusMessage
 			}
@@ -2309,9 +2330,11 @@ func orderCost(a asset.Item, o *OrderDetail, pair currency.Pair) (float64, curre
 	return o.AveragePrice.Float64() * o.AccumulatedFillSize.Float64(), pair.Quote
 }
 
-// targetCurrencyQuote is the tgtCcy value that sizes an order in its quote
-// currency.
-const targetCurrencyQuote = "quote_ccy"
+// tgtCcy values name the currency a spot market order states its size in.
+const (
+	targetCurrencyBase  = "base_ccy"
+	targetCurrencyQuote = "quote_ccy"
+)
 
 // orderAmounts returns an order's size and unfilled size in the base currency,
 // and its size in the quote currency when OKX states it that way: tgtCcy
@@ -2671,13 +2694,12 @@ func (e *Exchange) getSpreadOrderHistoryDetails(ctx context.Context, req *order.
 	// earlier than it, matching the standard history's after semantics;
 	// beginId, which returns records newer than an order ID, is never sent.
 	var spreadOrders []SpreadOrder
-	seen := make(map[string]struct{})
+	seen := make(common.Seen[string])
 	record := func(page []SpreadOrder) {
 		for i := range page {
-			if _, ok := seen[page[i].OrderID]; ok {
+			if seen.CheckAndRecord(page[i].OrderID) {
 				continue
 			}
-			seen[page[i].OrderID] = struct{}{}
 			spreadOrders = append(spreadOrders, page[i])
 		}
 	}
@@ -2829,7 +2851,7 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 	// guards against OKX repeating a row the cursor already passed, and
 	// de-duplicates the rows the two listings share.
 	var resp []order.Detail
-	seen := make(map[string]struct{})
+	seen := make(common.Seen[string])
 	crawl := func(fetch func(after string) ([]OrderDetail, error)) error {
 	allOrders:
 		for after := req.FromOrderID; ; {
@@ -2851,10 +2873,9 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 					// matches begin's inclusive millisecond.
 					break allOrders
 				}
-				if _, ok := seen[orderList[i].OrderID]; ok {
+				if seen.CheckAndRecord(orderList[i].OrderID) {
 					continue
 				}
-				seen[orderList[i].OrderID] = struct{}{}
 				pair, err := currency.NewPairFromString(orderList[i].InstrumentID)
 				if err != nil {
 					return err

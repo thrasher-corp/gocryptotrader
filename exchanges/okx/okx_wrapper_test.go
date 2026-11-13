@@ -1849,7 +1849,7 @@ func TestWebsocketCancelBatchOrders(t *testing.T) {
 		require.ErrorIs(t, err, errPartialSuccess, "WebsocketCancelBatchOrders must return the partial success")
 		require.NotNil(t, resp, "WebsocketCancelBatchOrders must return the results beside the error")
 		assert.Equal(t, map[string]string{
-			"1": order.Cancelled.String(),
+			"1": order.PendingCancel.String(),
 			"2": "Order cancellation failed as the order has been filled, canceled or does not exist",
 		}, resp.Status, "each order should report its own outcome")
 	})

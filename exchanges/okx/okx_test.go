@@ -3905,6 +3905,136 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = e.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
+	// Guards which orders OKX reads tgtCcy on: the field sizes a spot market
+	// order only, so an ioc or fok submit keeps its base currency size and
+	// sends its price, and no other asset type or order type sends tgtCcy.
+	t.Run("only a spot market order is sized by tgtCcy", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name        string
+			assetType   asset.Item
+			marginType  margin.Type
+			orderType   order.Type
+			tif         order.TimeInForce
+			side        order.Side
+			quoteAmount float64
+			expType     string
+			expSize     string
+			expTarget   string // empty when no tgtCcy is sent
+			expPrice    string // empty when no px is sent
+		}{
+			{"quote sized market buy", asset.Spot, margin.Unset, order.Market, order.UnknownTIF, order.Buy, 100, orderMarket, "100", targetCurrencyQuote, ""},
+			{"base sized market buy", asset.Spot, margin.Unset, order.Market, order.UnknownTIF, order.Buy, 0, orderMarket, "0.002", targetCurrencyBase, ""},
+			{"quote sized market sell", asset.Spot, margin.Unset, order.Market, order.UnknownTIF, order.Sell, 100, orderMarket, "100", targetCurrencyQuote, ""},
+			{"quote sized market buy in cross mode", asset.Spot, margin.Multi, order.Market, order.UnknownTIF, order.Buy, 100, orderMarket, "100", targetCurrencyQuote, ""},
+			{"market buy with immediate or cancel", asset.Spot, margin.Unset, order.Market, order.ImmediateOrCancel, order.Buy, 100, orderIOC, "0.002", "", "50000"},
+			{"market sell with immediate or cancel", asset.Spot, margin.Unset, order.Market, order.ImmediateOrCancel, order.Sell, 100, orderIOC, "0.002", "", "50000"},
+			{"market buy with fill or kill", asset.Spot, margin.Unset, order.Market, order.FillOrKill, order.Buy, 100, orderFOK, "0.002", "", "50000"},
+			{"limit buy with immediate or cancel", asset.Spot, margin.Unset, order.Limit, order.ImmediateOrCancel, order.Buy, 100, orderIOC, "0.002", "", "50000"},
+			{"margin market buy", asset.Margin, margin.Unset, order.Market, order.UnknownTIF, order.Buy, 100, orderMarket, "0.002", "", ""},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the place order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange: ex.Name, Pair: mainPair, AssetType: tc.assetType, MarginType: tc.marginType, Side: tc.side,
+					Type: tc.orderType, TimeInForce: tc.tif, Amount: 0.002, QuoteAmount: tc.quoteAmount, Price: 50000,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+				assert.Equal(t, tc.expType, sent["ordType"], "ordType should follow the order type and time in force")
+				assert.Equal(t, tc.expSize, sent["sz"], "sz should be stated in the currency tgtCcy names")
+				if tc.expTarget == "" {
+					assert.NotContains(t, sent, "tgtCcy", "only a spot market order should send tgtCcy")
+				} else {
+					assert.Equal(t, tc.expTarget, sent["tgtCcy"], "tgtCcy should name the size's currency")
+				}
+				if tc.expPrice == "" {
+					assert.NotContains(t, sent, "px", "a market order should send no price")
+				} else {
+					assert.Equal(t, tc.expPrice, sent["px"], "an ioc or fok order should send its price")
+				}
+			})
+		}
+	})
+
+	// Guards the size currency of an algo order whose leg executes at market:
+	// OKX reads a spot market buy's sz in the quote currency unless tgtCcy
+	// names base_ccy, so a spot leg that triggers as a market order has to
+	// state that its size is in the base currency, while a leg keeping its
+	// limit price and a non-spot instrument send no tgtCcy at all.
+	t.Run("an at-market spot algo order states its base currency size", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name       string
+			assetType  asset.Item
+			orderType  order.Type
+			price      float64
+			takeProfit float64
+			stopLoss   float64
+			expTarget  string // empty when no tgtCcy is sent
+		}{
+			{"spot trigger at market", asset.Spot, order.Trigger, marketOrderPrice, 0, 0, targetCurrencyBase},
+			{"spot trigger at a limit price", asset.Spot, order.Trigger, 42000, 0, 0, ""},
+			{"spot conditional at market", asset.Spot, order.ConditionalStop, marketOrderPrice, 0, 0, targetCurrencyBase},
+			{"spot conditional at a limit price", asset.Spot, order.ConditionalStop, 42000, 0, 0, ""},
+			{"margin trigger at market", asset.Margin, order.Trigger, marketOrderPrice, 0, 0, ""},
+			{"oco with a market take profit", asset.Spot, order.OCO, 0, marketOrderPrice, 42000, targetCurrencyBase},
+			{"oco with both legs limited", asset.Spot, order.OCO, 0, 41000, 43000, ""},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the place algo order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"algoId": "ALGO-1", "sCode": "0"}})
+				}))
+				s := &order.Submit{
+					Exchange: ex.Name, Pair: mainPair, AssetType: tc.assetType, Side: order.Buy,
+					Type: tc.orderType, Amount: 0.002, Price: tc.price, TriggerPrice: 41000,
+				}
+				if tc.orderType == order.OCO {
+					// OKX takes an OCO leg's trigger price, and its order price
+					// decides whether that leg executes at market.
+					s.RiskManagementModes = order.RiskManagementModes{
+						TakeProfit: order.RiskManagement{Price: 45000, LimitPrice: tc.takeProfit},
+						StopLoss:   order.RiskManagement{Price: 35000, LimitPrice: tc.stopLoss},
+					}
+				}
+				resp, err := ex.SubmitOrder(t.Context(), s)
+				require.NoError(t, err, "SubmitOrder must not error")
+				assert.Equal(t, "ALGO-1", resp.OrderID, "the algo order must return its ID")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place algo order request body must decode")
+				assert.Equal(t, "0.002", sent["sz"], "sz must stay the base currency amount")
+				if tc.expTarget == "" {
+					assert.NotContains(t, sent, "tgtCcy", "only a spot order with a market leg should send tgtCcy")
+				} else {
+					assert.Equal(t, tc.expTarget, sent["tgtCcy"], "a spot order with a market leg must name its base currency size")
+				}
+			})
+		}
+	})
+
 	t.Run("live", func(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		arg = &order.Submit{
@@ -5359,13 +5489,13 @@ func TestCancelBatchOrders(t *testing.T) {
 				name:    "per-order results",
 				reply:   `{"code":"2","msg":"Bulk operation partially succeeded.","data":[{"ordId":"OK-1","sCode":"0","sMsg":""},{"ordId":"FAIL-1","sCode":"51400","sMsg":"Order does not exist"}]}`,
 				partial: true,
-				status:  map[string]string{"OK-1": order.Cancelled.String(), "FAIL-1": "Order does not exist"},
+				status:  map[string]string{"OK-1": order.PendingCancel.String(), "FAIL-1": "Order does not exist"},
 			},
 			{
 				name:    "null result",
 				reply:   `{"code":"2","msg":"Bulk operation partially succeeded.","data":[null,{"ordId":"OK-1","sCode":"0","sMsg":""}]}`,
 				partial: true,
-				status:  map[string]string{"OK-1": order.Cancelled.String()},
+				status:  map[string]string{"OK-1": order.PendingCancel.String()},
 			},
 			{
 				name:   "undecodable result",
@@ -5449,7 +5579,7 @@ func TestCancelBatchOrders(t *testing.T) {
 			ClientOrderID: "spot-cl",
 		}})
 		require.NoError(t, err, "CancelBatchOrders must accept a client-ID-only spot cancel")
-		assert.Equal(t, map[string]string{spotOrdID: order.Cancelled.String()}, resp.Status,
+		assert.Equal(t, map[string]string{spotOrdID: order.PendingCancel.String()}, resp.Status,
 			"a client-ID-only spot cancel should report the status under the order ID OKX returns")
 	})
 
@@ -5476,7 +5606,7 @@ func TestCancelBatchOrders(t *testing.T) {
 			{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-BAD", Type: order.Trigger},
 		})
 		require.NoError(t, err, "CancelBatchOrders must not error when the batch is accepted")
-		assert.Equal(t, order.Cancelled.String(), resp.Status["ALGO-OK"], "a successfully cancelled algo order should report Cancelled")
+		assert.Equal(t, order.PendingCancel.String(), resp.Status["ALGO-OK"], "an acknowledged algo cancel must report the pending state, as sCode 0 covers the request only")
 		assert.Equal(t, "The algo order does not exist", resp.Status["ALGO-BAD"], "a failed algo cancel should report its status message")
 	})
 
@@ -5504,7 +5634,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		require.ErrorIs(t, err, errPartialSuccess, "a partially successful algo batch must report its error")
 		require.NotNil(t, resp, "CancelBatchOrders must return the partial results")
 		assert.Equal(t, map[string]string{
-			"ALGO-OK":  order.Cancelled.String(),
+			"ALGO-OK":  order.PendingCancel.String(),
 			"ALGO-BAD": "The algo order does not exist",
 		}, resp.Status, "a partially successful algo batch should report every per-order result")
 	})
@@ -5884,7 +6014,7 @@ func TestCancelAllOrders(t *testing.T) {
 		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair})
 		require.ErrorIs(t, err, errPartialSuccess, "a partially successful REST batch must report its error")
 		assert.Equal(t, map[string]string{
-			"OK-1":   order.Cancelled.String(),
+			"OK-1":   order.PendingCancel.String(),
 			"FAIL-1": "Order does not exist",
 		}, resp.Status, "a partially successful REST batch should report every per-order result")
 	})
