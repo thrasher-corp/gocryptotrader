@@ -6,141 +6,132 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var supportedAccountTypes = []WalletAccountType{Funding, UTA, Spot, Contract, Inverse}
-
 var (
-	errUnsupportedAccountType  = errors.New("unsupported account type")
-	errCurrencyCodesEqual      = errors.New("from and to currency codes cannot be equal")
-	errRequestCoinInvalid      = errors.New("request coin must match from coin if provided")
-	errQuoteTransactionIDEmpty = errors.New("quoteTransactionID cannot be empty")
+	errQuoteTransactionIDEmpty = errors.New("quote transaction ID required")
+	errCurrencyCodesEqual      = errors.New("from and to coins cannot be the same")
+	errRequestCoinInvalid      = errors.New("request coin must be the from coin")
 )
 
-// GetConvertCoinList returns a list of coins you can convert to/from
-func (e *Exchange) GetConvertCoinList(ctx context.Context, accountType WalletAccountType, coin currency.Code, isCoinToBuy bool) ([]ConvertCoinResponse, error) {
-	if !slices.Contains(supportedAccountTypes, accountType) {
-		return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, accountType)
+// GetConvertCoinList returns the coins an account can convert from, with their balances, or the coins it can convert
+// to; the API key needs the Exchange permission (Get Convert Coin List)
+func (e *Exchange) GetConvertCoinList(ctx context.Context, arg *ConvertCoinListRequest) (*ConvertCoinListResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
-
+	if arg.AccountType == "" {
+		return nil, errMissingAccountType
+	}
 	params := url.Values{}
-	params.Set("accountType", string(accountType))
-	if isCoinToBuy {
-		if coin.IsEmpty() {
-			return nil, currency.ErrCurrencyCodeEmpty
-		}
-		params.Set("coin", coin.Upper().String())
-		params.Set("side", "1")
-	} else {
-		params.Set("side", "0")
+	params.Set("accountType", arg.AccountType)
+	if !arg.Coin.IsEmpty() {
+		params.Set("coin", arg.Coin.Upper().String())
 	}
-
-	var resp struct {
-		List []ConvertCoinResponse `json:"coins"`
-	}
-
-	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/exchange/query-coin-list", params, nil, &resp, defaultEPL)
+	params.Set("side", strconv.FormatUint(arg.Side, 10))
+	var resp *ConvertCoinListResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/exchange/query-coin-list", params, nil, &resp, getConvertCoinListEPL)
 }
 
-// RequestQuote requests a conversion quote between two coins with the specified parameters.
-func (e *Exchange) RequestQuote(ctx context.Context, params *RequestQuoteRequest) (*RequestQuoteResponse, error) {
-	if !slices.Contains(supportedAccountTypes, params.AccountType) {
-		return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, params.AccountType)
+// RequestQuote requests a quote to convert one coin to another, after checking the balance; confirm it with
+// ConfirmQuote within 15 seconds (Request a Quote)
+func (e *Exchange) RequestQuote(ctx context.Context, arg *RequestQuoteRequest) (*RequestQuoteResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
-	if params.FromCoin.IsEmpty() {
-		return nil, fmt.Errorf("%w: `from` coin", currency.ErrCurrencyCodeEmpty)
+	if arg.AccountType == "" {
+		return nil, errMissingAccountType
 	}
-	if params.ToCoin.IsEmpty() {
-		return nil, fmt.Errorf("%w: `to` coin", currency.ErrCurrencyCodeEmpty)
+	if arg.FromCoin.IsEmpty() {
+		return nil, fmt.Errorf("%w: from coin", currency.ErrCurrencyCodeEmpty)
 	}
-	if params.FromCoin.Equal(params.ToCoin) {
-		return nil, errCurrencyCodesEqual
+	if arg.ToCoin.IsEmpty() {
+		return nil, fmt.Errorf("%w: to coin", currency.ErrCurrencyCodeEmpty)
 	}
-	if !params.RequestCoin.IsEmpty() {
-		if !params.RequestCoin.Equal(params.FromCoin) {
-			return nil, errRequestCoinInvalid
+	if arg.FromCoin.Equal(arg.ToCoin) {
+		return nil, fmt.Errorf("%w: %s", errCurrencyCodesEqual, arg.FromCoin)
+	}
+	requestCoin := arg.RequestCoin
+	if requestCoin.IsEmpty() {
+		requestCoin = arg.FromCoin
+	} else if !requestCoin.Equal(arg.FromCoin) {
+		return nil, fmt.Errorf("%w: %s, from coin %s", errRequestCoinInvalid, requestCoin, arg.FromCoin)
+	}
+	if arg.RequestAmount <= 0 {
+		return nil, order.ErrAmountIsInvalid
+	}
+	body := map[string]any{
+		"accountType":   arg.AccountType,
+		"fromCoin":      arg.FromCoin.Upper().String(),
+		"toCoin":        arg.ToCoin.Upper().String(),
+		"requestCoin":   requestCoin.Upper().String(),
+		"requestAmount": strconv.FormatFloat(arg.RequestAmount, 'f', -1, 64),
+	}
+	for key, value := range map[string]string{
+		"fromCoinType": arg.FromCoinType,
+		"toCoinType":   arg.ToCoinType,
+		"paramType":    arg.ParamType,
+		"paramValue":   arg.ParamValue,
+		"requestId":    arg.RequestID,
+	} {
+		if value != "" {
+			body[key] = value
 		}
-	} else {
-		params.RequestCoin = params.FromCoin
 	}
-	if params.RequestAmount <= 0 {
-		return nil, fmt.Errorf("%w: %v", order.ErrAmountIsInvalid, params.RequestAmount)
-	}
-
-	params.FromCoin = params.FromCoin.Upper()
-	params.ToCoin = params.ToCoin.Upper()
-	params.RequestCoin = params.RequestCoin.Upper()
-
 	var resp *RequestQuoteResponse
-	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/exchange/quote-apply", nil, params, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/exchange/quote-apply", nil, body, &resp, requestQuoteEPL)
 }
 
-// ConfirmQuote confirms a quote transaction and executes the conversion
+// ConfirmQuote confirms a quote before it expires; the conversion completes asynchronously, so GetConvertStatus gives
+// its outcome (Confirm a Quote)
 func (e *Exchange) ConfirmQuote(ctx context.Context, quoteTransactionID string) (*ConfirmQuoteResponse, error) {
 	if quoteTransactionID == "" {
 		return nil, errQuoteTransactionIDEmpty
 	}
-
-	payload := struct {
-		QuoteTransactionID string `json:"quoteTxId"`
-	}{
-		QuoteTransactionID: quoteTransactionID,
-	}
-
+	body := map[string]any{"quoteTxId": quoteTransactionID}
 	var resp *ConfirmQuoteResponse
-	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/exchange/convert-execute", nil, payload, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/exchange/convert-execute", nil, body, &resp, confirmQuoteEPL)
 }
 
-// GetConvertStatus retrieves the status of a conversion transaction
-func (e *Exchange) GetConvertStatus(ctx context.Context, accountType WalletAccountType, quoteTransactionID string) (*ConvertStatusResponse, error) {
-	if !slices.Contains(supportedAccountTypes, accountType) {
-		return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, accountType)
+// GetConvertStatus returns a conversion and its status; accountType must be the wallet the quote was requested for
+// (Get Convert Status)
+func (e *Exchange) GetConvertStatus(ctx context.Context, accountType, quoteTransactionID string) (*ConvertStatusResponse, error) {
+	if accountType == "" {
+		return nil, errMissingAccountType
 	}
 	if quoteTransactionID == "" {
 		return nil, errQuoteTransactionIDEmpty
 	}
-
 	params := url.Values{}
 	params.Set("quoteTxId", quoteTransactionID)
-	params.Set("accountType", string(accountType))
-
-	var resp struct {
-		ConvertStatus *ConvertStatusResponse `json:"result"`
-	}
-	return resp.ConvertStatus, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/exchange/convert-result-query", params, nil, &resp, defaultEPL)
+	params.Set("accountType", accountType)
+	var resp *ConvertStatusResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/exchange/convert-result-query", params, nil, &resp, getConvertStatusEPL)
 }
 
-// GetConvertHistory retrieves the conversion history.
-// All params are optional
-func (e *Exchange) GetConvertHistory(ctx context.Context, accountTypes []WalletAccountType, index, limit uint64) ([]ConvertHistoryResponse, error) {
-	atOut := make([]string, 0, len(accountTypes))
-	for _, accountType := range accountTypes {
-		if !slices.Contains(supportedAccountTypes, accountType) {
-			return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, accountType)
-		}
-		atOut = append(atOut, string(accountType))
+// GetConvertHistory returns confirmed conversions, including those made on the web or app since 10 September 2025,
+// for the listed wallet types or for all of them (Get Convert History)
+func (e *Exchange) GetConvertHistory(ctx context.Context, arg *ConvertHistoryRequest) (*ConvertHistoryResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
-
 	params := url.Values{}
-	if len(atOut) > 0 {
-		params.Add("accountType", strings.Join(atOut, ","))
+	if len(arg.AccountTypes) > 0 {
+		params.Set("accountType", strings.Join(arg.AccountTypes, ","))
 	}
-	if index != 0 {
-		params.Set("index", strconv.FormatUint(index, 10))
+	if arg.Index > 0 {
+		params.Set("index", strconv.FormatUint(arg.Index, 10))
 	}
-	if limit != 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+	if arg.Limit > 0 {
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-
-	var resp struct {
-		List []ConvertHistoryResponse `json:"list"`
-	}
-	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/exchange/query-convert-history", params, nil, &resp, defaultEPL)
+	var resp *ConvertHistoryResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/exchange/query-convert-history", params, nil, &resp, getConvertHistoryEPL)
 }

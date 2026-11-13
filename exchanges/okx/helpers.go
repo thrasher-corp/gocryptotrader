@@ -2,6 +2,7 @@ package okx
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -19,7 +20,9 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 		return order.Limit, order.UnknownTIF, nil
 	case orderPostOnly:
 		return order.Limit, order.PostOnly, nil
-	case orderFOK:
+	case orderRetailPriceImprovement, orderEnhancedLiquidityProgram: // Both rest as maker orders that never cross the book
+		return order.Limit, order.PostOnly, nil
+	case orderFOK, orderSimpleOptionFOK:
 		return order.Limit, order.FillOrKill, nil
 	case orderIOC:
 		return order.Limit, order.ImmediateOrCancel, nil
@@ -40,21 +43,23 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 	}
 }
 
-// orderTypeString returns a string representation of order.Type instance
+// orderTypeString returns the OKX order type for an order type and time in force. OKX carries a limit order's time in
+// force in its order type, so a Limit order that is post only, FOK or IOC is sent as post_only, fok or ioc. A time in
+// force alone selects the OKX order type only for a plain order, given as UnknownType or as a post only LimitMaker
+// order, so that a type with no OKX order type of its own, such as a stop or take profit order, is refused instead of
+// losing its trigger. Post only on a Market order and FOK or IOC on a MarketMakerProtection order are refused for the
+// same reason, as no OKX order type carries them
 func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
 	switch orderType {
 	case order.MarketMakerProtection:
-		if tif == order.PostOnly {
+		if tif.Is(order.PostOnly) {
 			return orderMarketMakerProtectionAndPostOnly, nil
 		}
-		return orderMarketMakerProtection, nil
+		if !tif.Is(order.FillOrKill) && !tif.Is(order.ImmediateOrCancel) {
+			return orderMarketMakerProtection, nil
+		}
 	case order.OptimalLimit:
 		return orderOptimalLimitIOC, nil
-	case order.Limit:
-		if tif == order.PostOnly {
-			return orderPostOnly, nil
-		}
-		return orderLimit, nil
 	case order.Market:
 		switch tif {
 		case order.FillOrKill:
@@ -62,7 +67,9 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		case order.ImmediateOrCancel:
 			return orderIOC, nil
 		}
-		return orderMarket, nil
+		if !tif.Is(order.PostOnly) {
+			return orderMarket, nil
+		}
 	case order.Trigger,
 		order.Chase,
 		order.TWAP,
@@ -72,17 +79,79 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		return orderConditional, nil
 	case order.TrailingStop:
 		return orderMoveOrderStop, nil
-	default:
-		switch tif {
-		case order.PostOnly:
+	case order.Limit, order.UnknownType, order.LimitMaker:
+		switch {
+		case tif.Is(order.PostOnly):
 			return orderPostOnly, nil
-		case order.FillOrKill:
+		case tif.Is(order.FillOrKill):
 			return orderFOK, nil
-		case order.ImmediateOrCancel:
+		case tif.Is(order.ImmediateOrCancel):
 			return orderIOC, nil
+		case orderType == order.Limit:
+			return orderLimit, nil
 		}
-		return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 	}
+	return "", fmt.Errorf("%w: %q with time in force %q", order.ErrUnsupportedOrderType, orderType, tif)
+}
+
+// spreadOrderTypeString returns the OKX order type a spread order listing filters with. Spread orders are only market,
+// limit, post_only or ioc orders, the order types OKX's spread endpoints take, so any other is refused before sending
+func spreadOrderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
+	okxType, err := orderTypeString(orderType, tif)
+	if err != nil {
+		return "", err
+	}
+	switch okxType {
+	case orderMarket, orderLimit, orderPostOnly, orderIOC:
+		return okxType, nil
+	}
+	return "", fmt.Errorf("%w: %q with time in force %q for spread orders", order.ErrUnsupportedOrderType, orderType, tif)
+}
+
+// filterListedOrders narrows a listing to the orders its request asks for. orderTypeString can select an OKX order type
+// that reads back as another type than the one requested, such as ioc for Market or post_only for LimitMaker, so orders
+// are matched on what that OKX order type reads back as, and on its time in force where it has one
+func (e *Exchange) filterListedOrders(req *order.MultiOrderRequest, orders []order.Detail) order.FilteredOrders {
+	filter := *req
+	if okxType, err := orderTypeString(req.Type, req.TimeInForce); err == nil {
+		if orderType, tif, err := orderTypeFromString(okxType); err == nil {
+			filter.Type = orderType
+			if tif != order.UnknownTIF {
+				orders = slices.DeleteFunc(orders, func(d order.Detail) bool { return d.TimeInForce != tif })
+			}
+		}
+	}
+	return filter.Filter(e.Name, orders)
+}
+
+// costCurrency returns the currency an order's cost is counted in: the quote currency for spot and margin, and the
+// settle coin for a derivative. A derivative's pair holds the rest of its instrument ID in Quote, such as USDT-SWAP,
+// USD-261225 or USD_UM-261225, and a contract quoted in plain USD settles in its base coin
+func costCurrency(pair currency.Pair) currency.Code {
+	quote, _, isDerivative := strings.Cut(pair.Quote.String(), currency.DashDelimiter)
+	if !isDerivative {
+		return pair.Quote
+	}
+	if strings.EqualFold(quote, currency.USD.String()) {
+		return pair.Base
+	}
+	quote, _, _ = strings.Cut(quote, currency.UnderscoreDelimiter)
+	return currency.NewCode(quote)
+}
+
+// sizeInQuoteCurrency reports whether OKX gives an order's size in the quote currency, as it does for a margin market
+// buy and for a spot market order whose tgtCcy says so, which a buy defaults to, while its fills are in the base currency
+func sizeInQuoteCurrency(assetType asset.Item, orderType order.Type, side order.Side, targetCurrency string) bool {
+	if orderType != order.Market {
+		return false
+	}
+	switch assetType {
+	case asset.Margin:
+		return side.IsLong()
+	case asset.Spot:
+		return targetCurrency == targetCurrencyQuote || (targetCurrency == "" && side.IsLong())
+	}
+	return false
 }
 
 // getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types

@@ -10,9 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"reflect"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -281,37 +279,19 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 			data = mockData[i].BodyParams
 		}
 
-		mockVals := url.Values{}
+		var mockVals url.Values
+		var err error
 		if data != "" && json.Valid([]byte(data)) {
 			if getJSONBodyShape(data) != jsonBodyObject {
 				continue
 			}
-			dataMap := make(map[string]any)
-			if err := json.Unmarshal([]byte(data), &dataMap); err != nil {
-				return nil, err
-			}
-
-			for k, v := range dataMap {
-				switch val := v.(type) {
-				case string:
-					mockVals.Add(k, val)
-				case bool:
-					mockVals.Add(k, strconv.FormatBool(val))
-				case float64:
-					mockVals.Add(k, strconv.FormatFloat(val, 'f', -1, 64))
-				case map[string]any, []any, nil:
-					mockVals.Add(k, fmt.Sprintf("%v", val))
-				default:
-					log.Println(reflect.TypeOf(val))
-					log.Fatal("unhandled type please add as needed")
-				}
-			}
+			// Convert the recorded body exactly as a request's JSON body is converted, so nested values match too
+			mockVals, err = DeriveURLValsFromJSONMap([]byte(data))
 		} else {
-			var err error
 			mockVals, err = url.ParseQuery(data)
-			if err != nil {
-				return nil, err
-			}
+		}
+		if err != nil {
+			return nil, err
 		}
 
 		if MatchURLVals(mockVals, requestVals) {

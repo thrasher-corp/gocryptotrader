@@ -426,6 +426,133 @@ func TestAccountsSave(t *testing.T) { //nolint:tparallel // Save's internal test
 	}
 }
 
+func TestAccountsSaveSnapshot(t *testing.T) {
+	t.Parallel()
+	ctx := DeployCredentialsToContext(t.Context(), creds1)
+	err := accountsFixture(t).SaveSnapshot(ctx, SubAccounts{{AssetType: asset.Spot, ID: "1a"}}, time.Time{})
+	require.ErrorIs(t, err, errSnapshotRequestTimeUnset, "SaveSnapshot must refuse a snapshot without its request time")
+	err = (*Accounts)(nil).SaveSnapshot(ctx, nil, skynetDate)
+	require.ErrorIs(t, err, common.ErrNilPointer, "SaveSnapshot must error on nil Accounts")
+
+	ltc := Balance{Currency: currency.LTC, Total: 10, UpdatedAt: skynetDate}
+	for _, tc := range []struct {
+		name      string
+		requested time.Time
+		balances  CurrencyBalances
+		exp       CurrencyBalances // What SaveSnapshot stores for the SubAccount and leaves in the snapshot
+	}{
+		{
+			// BTC and LTC were stored at skynetDate, after the snapshot was requested, so they are kept
+			name:      "a snapshot requested before balances were stored",
+			requested: skynetDate.Add(-time.Minute),
+			balances:  CurrencyBalances{currency.BTC: {Total: 5}, currency.DOGE: {Total: 7}},
+			exp: CurrencyBalances{
+				currency.BTC:  {Currency: currency.BTC, Total: 1, UpdatedAt: skynetDate},
+				currency.DOGE: {Currency: currency.DOGE, Total: 7, UpdatedAt: skynetDate.Add(-time.Minute)},
+				currency.LTC:  ltc,
+			},
+		},
+		{
+			name:      "a snapshot requested after balances were stored",
+			requested: skynetDate.Add(time.Minute),
+			balances:  CurrencyBalances{currency.BTC: {Total: 5}},
+			exp:       CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 5, UpdatedAt: skynetDate.Add(time.Minute)}},
+		},
+		{
+			name:      "a snapshot requested as balances were stored",
+			requested: skynetDate,
+			balances:  CurrencyBalances{currency.BTC: {Total: 5}},
+			exp:       CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 5, UpdatedAt: skynetDate}},
+		},
+		{
+			name:      "a balance stamped after the snapshot was requested",
+			requested: skynetDate.Add(-time.Minute),
+			balances:  CurrencyBalances{currency.BTC: {Total: 5, UpdatedAt: skynetDate.Add(time.Minute)}},
+			exp: CurrencyBalances{
+				currency.BTC: {Currency: currency.BTC, Total: 5, UpdatedAt: skynetDate.Add(time.Minute)},
+				currency.LTC: ltc,
+			},
+		},
+		{
+			name:      "an empty snapshot requested before balances were stored",
+			requested: skynetDate.Add(-time.Minute),
+			exp:       CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 1, UpdatedAt: skynetDate}, currency.LTC: ltc},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			a := accountsFixture(t)
+			snapshot := SubAccounts{{AssetType: asset.Spot, ID: "1a", Balances: tc.balances}}
+			require.NoError(t, a.SaveSnapshot(ctx, snapshot, tc.requested), "SaveSnapshot must not error")
+			assert.Equal(t, tc.exp, snapshot[0].Balances, "SaveSnapshot should leave what it stores in the snapshot")
+			stored, err := a.SubAccounts(creds1, asset.Spot)
+			require.NoError(t, err, "SubAccounts must not error")
+			i := slices.IndexFunc(stored, func(s *SubAccount) bool { return s.ID == "1a" })
+			require.GreaterOrEqual(t, i, 0, "SubAccounts must return the saved SubAccount")
+			assert.Equal(t, tc.exp, stored[i].Balances, "SaveSnapshot should store the snapshot's balances, keep those stored after it was requested and remove the rest")
+		})
+	}
+
+	// Save keeps its meaning: a snapshot's balances replace what is stored, and an older balance is refused
+	a := accountsFixture(t)
+	err = a.Save(ctx, SubAccounts{{AssetType: asset.Spot, ID: "1a", Balances: CurrencyBalances{currency.BTC: {Total: 5, UpdatedAt: skynetDate.Add(-time.Minute)}}}}, true)
+	require.ErrorIs(t, err, errOutOfSequence, "Save must refuse a snapshot balance older than the one stored")
+	_, err = a.GetBalance("1a", creds1, asset.Spot, currency.LTC)
+	require.ErrorIs(t, err, ErrNoBalances, "Save must remove a currency its snapshot leaves out")
+}
+
+func TestAccountsPrivateSave(t *testing.T) {
+	t.Parallel()
+	ctx := DeployCredentialsToContext(t.Context(), creds1)
+	assert.ErrorIs(t, (*Accounts)(nil).save(ctx, nil, false, time.Time{}), common.ErrNilPointer, "save should error on nil Accounts")
+	assert.ErrorIs(t, new(Accounts).save(ctx, nil, false, time.Time{}), common.ErrNilPointer, "save should error without SubAccounts storage")
+	a := accountsFixture(t)
+	assert.ErrorIs(t, a.save(t.Context(), SubAccounts{}, false, time.Time{}), errCredentialsEmpty, "save should error without credentials")
+	assert.ErrorIs(t, a.save(context.WithValue(t.Context(), ContextCredentialsFlag, 42), SubAccounts{}, false, time.Time{}), common.ErrTypeAssertFailure, "save should error on bad credentials")
+	assert.ErrorIs(t, a.save(ctx, SubAccounts{{AssetType: asset.All}}, false, time.Time{}), asset.ErrNotSupported, "save should error on an asset it cannot store")
+	assert.ErrorIs(t, a.save(ctx, SubAccounts{{AssetType: asset.Spot, ID: "1a", Balances: CurrencyBalances{currency.BTC: {Currency: currency.DOGE}}}}, false, time.Time{}), errBalanceCurrencyMismatch, "save should error on a balance of another currency")
+	a.mux = nil
+	assert.ErrorIs(t, a.save(ctx, SubAccounts{{AssetType: asset.Spot, ID: "1a", Balances: CurrencyBalances{currency.DOGE: {Total: 1}}}}, false, time.Time{}), errPublish, "save should error when it cannot publish")
+
+	older := skynetDate.Add(-time.Minute)
+	ltc := Balance{Currency: currency.LTC, Total: 10, UpdatedAt: skynetDate}
+	for _, tc := range []struct {
+		name       string
+		isSnapshot bool
+		requested  time.Time
+		err        error
+		exp        CurrencyBalances // What save leaves in the SubAccount it was given
+		expStored  CurrencyBalances // What save stores for the SubAccount
+	}{
+		{name: "a snapshot without a request time", isSnapshot: true, err: errOutOfSequence, exp: CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 5, UpdatedAt: older}}, expStored: CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 1, UpdatedAt: skynetDate}}},
+		{name: "an update without a request time", err: errOutOfSequence, exp: CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 5, UpdatedAt: older}}, expStored: CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 1, UpdatedAt: skynetDate}, currency.LTC: ltc}},
+		{name: "a snapshot with a request time", isSnapshot: true, requested: older, exp: CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 1, UpdatedAt: skynetDate}, currency.LTC: ltc}, expStored: CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 1, UpdatedAt: skynetDate}, currency.LTC: ltc}},
+		{name: "an update with a request time", requested: older, exp: CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 1, UpdatedAt: skynetDate}}, expStored: CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 1, UpdatedAt: skynetDate}, currency.LTC: ltc}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			a := accountsFixture(t)
+			balances := CurrencyBalances{currency.BTC: {Total: 5}}
+			if tc.requested.IsZero() {
+				balances = CurrencyBalances{currency.BTC: {Total: 5, UpdatedAt: older}}
+			}
+			subAccts := SubAccounts{{AssetType: asset.Spot, ID: "1a", Balances: balances}}
+			err := a.save(ctx, subAccts, tc.isSnapshot, tc.requested)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "save must return the expected error")
+			} else {
+				require.NoError(t, err, "save must not error")
+			}
+			assert.Equal(t, tc.exp, subAccts[0].Balances, "save should leave the expected balances in the SubAccount")
+			stored, err := a.SubAccounts(creds1, asset.Spot)
+			require.NoError(t, err, "SubAccounts must not error")
+			i := slices.IndexFunc(stored, func(s *SubAccount) bool { return s.ID == "1a" })
+			require.GreaterOrEqual(t, i, 0, "SubAccounts must return the saved SubAccount")
+			assert.Equal(t, tc.expStored, stored[i].Balances, "save should store the expected balances")
+		})
+	}
+}
+
 var skynetDate = time.Unix(872896440, 0)
 
 // accountsFixture returns an Accounts store with SubAccount IDs per credentials, and a subscription channel for updates

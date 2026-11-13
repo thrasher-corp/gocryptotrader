@@ -962,6 +962,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 				OrderSide: resp[x].Trades[i].Side.String(),
 				Fee:       resp[x].Trades[i].Fee,
 				Total:     resp[x].Trades[i].Total,
+				Fees:      feesToRPC(resp[x].Trades[i].Fees),
 			}
 			if !resp[x].Trades[i].Timestamp.IsZero() {
 				t.CreationTime = s.unixTimestamp(resp[x].Trades[i].Timestamp)
@@ -985,6 +986,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 			FeeCurrency:   resp[x].FeeAsset.String(),
 			Cost:          resp[x].Cost,
 			Trades:        trades,
+			Fees:          feesToRPC(resp[x].Fees),
 		}
 		if !resp[x].Date.IsZero() {
 			o.CreationTime = resp[x].Date.Format(common.SimpleTimeFormatWithTimezone)
@@ -1053,6 +1055,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 				OrderSide: resp[x].Trades[i].Side.String(),
 				Fee:       resp[x].Trades[i].Fee,
 				Total:     resp[x].Trades[i].Total,
+				Fees:      feesToRPC(resp[x].Trades[i].Fees),
 			}
 			if !resp[x].Trades[i].Timestamp.IsZero() {
 				t.CreationTime = s.unixTimestamp(resp[x].Trades[i].Timestamp)
@@ -1076,6 +1079,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 			FeeCurrency:   resp[x].FeeAsset.String(),
 			Cost:          resp[x].Cost,
 			Trades:        trades,
+			Fees:          feesToRPC(resp[x].Fees),
 		}
 		if !resp[x].Date.IsZero() {
 			o.CreationTime = resp[x].Date.Format(common.SimpleTimeFormatWithTimezone)
@@ -1136,6 +1140,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 			OrderSide:    result.Trades[i].Side.String(),
 			Fee:          result.Trades[i].Fee,
 			Total:        result.Trades[i].Total,
+			Fees:         feesToRPC(result.Trades[i].Fees),
 		}
 	}
 
@@ -1166,6 +1171,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 		Trades:        trades,
 		Cost:          result.Cost,
 		UpdateTime:    updateTime,
+		Fees:          feesToRPC(result.Fees),
 	}, err
 }
 
@@ -1236,6 +1242,7 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 			Price:    resp.Trades[i].Price,
 			Fee:      resp.Trades[i].Fee,
 			FeeAsset: resp.Trades[i].FeeAsset,
+			Fees:     feesToRPC(resp.Trades[i].Fees),
 		}
 	}
 
@@ -1243,6 +1250,7 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		OrderId:     resp.OrderID,
 		OrderPlaced: resp.WasOrderPlaced(),
 		Trades:      trades,
+		Fees:        feesToRPC(resp.Fees),
 	}, nil
 }
 
@@ -1392,8 +1400,14 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 	}, nil
 }
 
-// CancelBatchOrders cancels an orders specified by exchange, currency pair and asset type
+// CancelBatchOrders cancels orders specified by exchange, currency pair and asset type, and returns each order's status
+// as the exchange reports it, unknown for an order the exchange's response leaves out, or every order as cancelled when
+// the exchange returns no response for a batch it accepted
 func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatchOrdersRequest) (*gctrpc.CancelBatchOrdersResponse, error) {
+	if r.Pair == nil {
+		return nil, errCurrencyPairUnset
+	}
+
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -3251,6 +3265,23 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 	return fmt.Errorf("%v %w", p, errCurrencyPairInvalid)
 }
 
+// feesToRPC converts fees to their RPC form, which is nil when the exchange did not report them so that clients can
+// tell unreported fees from no fees
+func feesToRPC(f order.Fees) *gctrpc.Fees {
+	if !f.IsReported() {
+		return nil
+	}
+	amounts := f.Amounts()
+	if len(amounts) == 0 {
+		return &gctrpc.Fees{}
+	}
+	resp := &gctrpc.Fees{Amounts: make([]*gctrpc.FeeAmount, len(amounts))}
+	for i := range amounts {
+		resp.Amounts[i] = &gctrpc.FeeAmount{Currency: amounts[i].Currency.String(), Amount: amounts[i].Amount}
+	}
+	return resp
+}
+
 func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExchangeResponse {
 	v := &gctrpc.WithdrawalEventsByExchangeResponse{}
 	for x := range ret {
@@ -3848,6 +3879,7 @@ func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPa
 				Fee:           position.Orders[i].Fee,
 				FeeCurrency:   position.Orders[i].FeeAsset.String(),
 				Cost:          position.Orders[i].Cost,
+				Fees:          feesToRPC(position.Orders[i].Fees),
 			}
 			if !position.Orders[i].LastUpdated.IsZero() {
 				od.UpdateTime = position.Orders[i].LastUpdated.Format(common.SimpleTimeFormatWithTimezone)
@@ -3863,6 +3895,7 @@ func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPa
 					OrderSide:    position.Orders[i].Trades[j].Side.String(),
 					Fee:          position.Orders[i].Trades[j].Fee,
 					Total:        position.Orders[i].Trades[j].Total,
+					Fees:         feesToRPC(position.Orders[i].Trades[j].Fees),
 				})
 			}
 			response.Orders = append(response.Orders, od)
@@ -4190,6 +4223,7 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 				FeeCurrency:    positionDetails[i].Orders[j].FeeAsset.String(),
 				Cost:           positionDetails[i].Orders[j].Cost,
 				ContractAmount: positionDetails[i].Orders[j].ContractAmount,
+				Fees:           feesToRPC(positionDetails[i].Orders[j].Fees),
 			}
 		}
 		positions[i] = details

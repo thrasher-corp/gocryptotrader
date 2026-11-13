@@ -934,10 +934,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	amount := s.Amount
 	var targetCurrency string
 	if s.AssetType == asset.Spot && s.Type == order.Market {
-		targetCurrency = "base_ccy" // Default to base currency
+		targetCurrency = targetCurrencyBase // Default to base currency
 		if s.QuoteAmount > 0 {
 			amount = s.QuoteAmount
-			targetCurrency = "quote_ccy"
+			targetCurrency = targetCurrencyQuote
 		}
 	}
 	// If asset type is spread
@@ -1120,7 +1120,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			TakeProfitOrderPrice:       s.RiskManagementModes.TakeProfit.LimitPrice,
 			TakeProfitTriggerPriceType: priceTypeString(s.TriggerPriceType),
 
-			StopLossTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
+			StopLossTriggerPrice:     s.RiskManagementModes.StopLoss.Price,
 			StopLossOrderPrice:       s.RiskManagementModes.StopLoss.LimitPrice,
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
@@ -1163,9 +1163,6 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 	var err error
-	if math.Trunc(action.Amount) != action.Amount {
-		return nil, errors.New("contract amount can not be decimal")
-	}
 	// When asset type is asset.Spread
 	if action.AssetType == asset.Spread {
 		amendSpreadOrder := &AmendSpreadOrderParam{
@@ -1190,14 +1187,12 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if err != nil {
 		return nil, err
 	}
-	if action.Pair.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
 	switch action.Type {
 	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 		amendRequest := AmendOrderRequestParams{
 			InstrumentID:  pairFormat.Format(action.Pair),
 			NewQuantity:   action.Amount,
+			NewPrice:      action.Price,
 			OrderID:       action.OrderID,
 			ClientOrderID: action.ClientOrderID,
 		}
@@ -1261,7 +1256,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			NewTakeProfitOrderPrice:   action.RiskManagementModes.TakeProfit.LimitPrice,
 
 			NewStopLossTriggerPrice: action.RiskManagementModes.StopLoss.Price,
-			NewStopLossOrderPrice:   action.RiskManagementModes.StopEntry.LimitPrice,
+			NewStopLossOrderPrice:   action.RiskManagementModes.StopLoss.LimitPrice,
 
 			NewTakeProfitTriggerPriceType: priceTypeString(action.RiskManagementModes.TakeProfit.TriggerPriceType),
 			NewStopLossTriggerPriceType:   priceTypeString(action.RiskManagementModes.StopLoss.TriggerPriceType),
@@ -1301,17 +1296,6 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	instrumentID := pairFormat.Format(ord.Pair)
 	switch ord.Type {
-	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
-		req := CancelOrderRequestParam{
-			InstrumentID:  instrumentID,
-			OrderID:       ord.OrderID,
-			ClientOrderID: ord.ClientOrderID,
-		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			_, err = e.WSCancelOrder(ctx, &req)
-		} else {
-			_, err = e.CancelSingleOrder(ctx, &req)
-		}
 	case order.Trigger, order.OCO, order.ConditionalStop, order.TWAP, order.TrailingStop, order.Chase:
 		var response *AlgoOrder
 		response, err = e.CancelAdvanceAlgoOrder(ctx, []AlgoOrderCancelParams{
@@ -1325,7 +1309,18 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		}
 		return getStatusError(response.StatusCode, response.StatusMessage)
 	default:
-		return fmt.Errorf("%w, order type %v", order.ErrUnsupportedOrderType, ord.Type)
+		// Every order that is not an algo order is a regular order, a post only LimitMaker order for instance, and so is
+		// an order a caller tracks under a type SubmitOrder refuses
+		req := CancelOrderRequestParam{
+			InstrumentID:  instrumentID,
+			OrderID:       ord.OrderID,
+			ClientOrderID: ord.ClientOrderID,
+		}
+		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			_, err = e.WSCancelOrder(ctx, &req)
+		} else {
+			_, err = e.CancelSingleOrder(ctx, &req)
+		}
 	}
 	return err
 }
@@ -1355,7 +1350,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		}
 		switch ord.Type {
 		case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
-			if o[x].ClientID == "" && o[x].OrderID == "" {
+			if o[x].ClientOrderID == "" && o[x].OrderID == "" {
 				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
 			}
 			cancelOrderParams = append(cancelOrderParams, CancelOrderRequestParam{
@@ -1541,7 +1536,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		oType, err := order.StringToOrderType(resp.OrderType)
+		oType, tif, err := orderTypeFromString(resp.OrderType)
 		if err != nil {
 			return nil, err
 		}
@@ -1564,15 +1559,15 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Side:                 oSide,
 			Type:                 oType,
 			Pair:                 cp,
-			Cost:                 resp.Price.Float64(),
 			AssetType:            assetType,
 			Status:               oStatus,
 			Price:                resp.Price.Float64(),
-			ExecutedAmount:       resp.FillSize.Float64(),
+			ExecutedAmount:       resp.AccumulatedFillSize.Float64(),
 			Date:                 resp.CreationTime.Time(),
 			LastUpdated:          resp.UpdateTime.Time(),
 			AverageExecutedPrice: resp.AveragePrice.Float64(),
-			RemainingAmount:      resp.Size.Float64() - resp.FillSize.Float64(),
+			RemainingAmount:      resp.PendingFillSize.Float64(),
+			TimeInForce:          tif,
 		}, nil
 	}
 	if pair.IsEmpty() {
@@ -1604,23 +1599,38 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if err != nil {
 		return nil, err
 	}
+	var (
+		remaining, cost float64
+		costAsset       currency.Code
+	)
+	if !sizeInQuoteCurrency(assetType, orderType, orderDetail.Side, orderDetail.QuantityType) {
+		remaining = orderDetail.Size.Float64() - orderDetail.AccumulatedFillSize.Float64()
+	}
+	// A derivative's size is in contracts, so its average price times its filled size is off by the contract value: its
+	// cost is left unset rather than given wrong
+	if assetType == asset.Spot || assetType == asset.Margin {
+		cost, costAsset = orderDetail.AveragePrice.Float64()*orderDetail.AccumulatedFillSize.Float64(), costCurrency(pair)
+	}
 
 	return &order.Detail{
-		Amount:         orderDetail.Size.Float64(),
-		Exchange:       e.Name,
-		OrderID:        orderDetail.OrderID,
-		ClientOrderID:  orderDetail.ClientOrderID,
-		Side:           orderDetail.Side,
-		Type:           orderType,
-		Pair:           pair,
-		Cost:           orderDetail.Price.Float64(),
-		AssetType:      assetType,
-		Status:         status,
-		Price:          orderDetail.Price.Float64(),
-		ExecutedAmount: orderDetail.RebateAmount.Float64(),
-		Date:           orderDetail.CreationTime.Time(),
-		LastUpdated:    orderDetail.UpdateTime.Time(),
-		TimeInForce:    tif,
+		Amount:               orderDetail.Size.Float64(),
+		Exchange:             e.Name,
+		OrderID:              orderDetail.OrderID,
+		ClientOrderID:        orderDetail.ClientOrderID,
+		Side:                 orderDetail.Side,
+		Type:                 orderType,
+		Pair:                 pair,
+		Cost:                 cost,
+		CostAsset:            costAsset,
+		AssetType:            assetType,
+		Status:               status,
+		Price:                orderDetail.Price.Float64(),
+		AverageExecutedPrice: orderDetail.AveragePrice.Float64(),
+		ExecutedAmount:       orderDetail.AccumulatedFillSize.Float64(),
+		RemainingAmount:      remaining,
+		Date:                 orderDetail.CreationTime.Time(),
+		LastUpdated:          orderDetail.UpdateTime.Time(),
+		TimeInForce:          tif,
 	}, nil
 }
 
@@ -1707,11 +1717,22 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)
 	}
 
+	var orderType string
+	if req.Type != order.UnknownType && req.Type != order.AnyType {
+		if req.AssetType == asset.Spread {
+			orderType, err = spreadOrderTypeString(req.Type, req.TimeInForce)
+		} else {
+			orderType, err = orderTypeString(req.Type, req.TimeInForce)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
 	var resp []order.Detail
 	var format currency.PairFormat
 	if req.AssetType == asset.Spread {
 		var spreads []SpreadOrder
-		spreads, err = e.GetActiveSpreadOrders(ctx, "", req.Type.String(), "", req.FromOrderID, "", 0)
+		spreads, err = e.GetActiveSpreadOrders(ctx, "", orderType, "", req.FromOrderID, "", 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1723,6 +1744,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			var (
 				pair    currency.Pair
 				oType   order.Type
+				tif     order.TimeInForce
 				oSide   order.Side
 				oStatus order.Status
 			)
@@ -1731,7 +1753,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			oType, err = order.StringToOrderType(spreads[x].OrderType)
+			oType, tif, err = orderTypeFromString(spreads[x].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -1747,8 +1769,8 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Amount:          spreads[x].Size.Float64(),
 				Pair:            pair,
 				Price:           spreads[x].Price.Float64(),
-				ExecutedAmount:  spreads[x].FillSize.Float64(),
-				RemainingAmount: spreads[x].Size.Float64() - spreads[x].FillSize.Float64(),
+				ExecutedAmount:  spreads[x].AccumulatedFillSize.Float64(),
+				RemainingAmount: spreads[x].PendingFillSize.Float64(),
 				Exchange:        e.Name,
 				OrderID:         spreads[x].OrderID,
 				ClientOrderID:   spreads[x].ClientOrderID,
@@ -1758,19 +1780,13 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				AssetType:       req.AssetType,
 				Date:            spreads[x].CreationTime.Time(),
 				LastUpdated:     spreads[x].UpdateTime.Time(),
+				TimeInForce:     tif,
 			})
 		}
-		return req.Filter(e.Name, resp), nil
+		return e.filterListedOrders(req, resp), nil
 	}
 
 	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
-	var orderType string
-	if req.Type != order.UnknownType && req.Type != order.AnyType {
-		orderType, err = orderTypeString(req.Type, req.TimeInForce)
-		if err != nil {
-			return nil, err
-		}
-	}
 	endTime := req.EndTime
 allOrders:
 	for {
@@ -1818,12 +1834,16 @@ allOrders:
 			if err != nil {
 				return nil, err
 			}
+			var remaining float64
+			if !sizeInQuoteCurrency(req.AssetType, oType, orderSide, orderList[i].QuantityType) {
+				remaining = orderList[i].Size.Float64() - orderList[i].AccumulatedFillSize.Float64()
+			}
 			resp = append(resp, order.Detail{
 				Amount:          orderList[i].Size.Float64(),
 				Pair:            pair,
 				Price:           orderList[i].Price.Float64(),
-				ExecutedAmount:  orderList[i].FillSize.Float64(),
-				RemainingAmount: orderList[i].Size.Float64() - orderList[i].FillSize.Float64(),
+				ExecutedAmount:  orderList[i].AccumulatedFillSize.Float64(),
+				RemainingAmount: remaining,
 				Fee:             orderList[i].TransactionFee.Float64(),
 				FeeAsset:        orderList[i].FeeCurrency,
 				Exchange:        e.Name,
@@ -1846,7 +1866,7 @@ allOrders:
 		}
 		endTime = orderList[len(orderList)-1].CreationTime.Time()
 	}
-	return req.Filter(e.Name, resp), nil
+	return e.filterListedOrders(req, resp), nil
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status
@@ -1863,9 +1883,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	var resp []order.Detail
 	// For Spread orders.
 	if req.AssetType == asset.Spread {
-		oType, err := orderTypeString(req.Type, req.TimeInForce)
-		if err != nil {
-			return nil, err
+		var oType string
+		if req.Type != order.AnyType {
+			var err error
+			if oType, err = spreadOrderTypeString(req.Type, req.TimeInForce); err != nil {
+				return nil, err
+			}
 		}
 		spreadOrders, err := e.GetCompletedSpreadOrdersLast7Days(ctx, "", oType, "", req.FromOrderID, "", req.StartTime, req.EndTime, 0)
 		if err != nil {
@@ -1882,7 +1905,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			oType, err := order.StringToOrderType(spreadOrders[x].OrderType)
+			oType, tif, err := orderTypeFromString(spreadOrders[x].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -1898,7 +1921,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				Price:                spreadOrders[x].Price.Float64(),
 				AverageExecutedPrice: spreadOrders[x].AveragePrice.Float64(),
 				Amount:               spreadOrders[x].Size.Float64(),
-				ExecutedAmount:       spreadOrders[x].FillSize.Float64(),
+				ExecutedAmount:       spreadOrders[x].AccumulatedFillSize.Float64(),
 				RemainingAmount:      spreadOrders[x].PendingFillSize.Float64(),
 				Exchange:             e.Name,
 				OrderID:              spreadOrders[x].OrderID,
@@ -1910,9 +1933,10 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				Date:                 spreadOrders[x].CreationTime.Time(),
 				LastUpdated:          spreadOrders[x].UpdateTime.Time(),
 				Pair:                 pair,
+				TimeInForce:          tif,
 			})
 		}
-		return req.Filter(e.Name, resp), nil
+		return e.filterListedOrders(req, resp), nil
 	}
 
 	if len(req.Pairs) == 0 {
@@ -1959,7 +1983,7 @@ allOrders:
 					return nil, err
 				}
 				orderAmount := orderList[i].Size
-				if orderList[i].QuantityType == "quote_ccy" {
+				if orderList[i].QuantityType == targetCurrencyQuote {
 					// Size is quote amount.
 					orderAmount /= orderList[i].AveragePrice
 				}
@@ -1987,7 +2011,7 @@ allOrders:
 					LastUpdated:          orderList[i].UpdateTime.Time(),
 					Pair:                 pair,
 					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
-					CostAsset:            orderList[i].RebateCurrency,
+					CostAsset:            costCurrency(pair),
 					TimeInForce:          tif,
 				})
 			}
@@ -1997,7 +2021,7 @@ allOrders:
 		}
 		endTime = orderList[len(orderList)-1].CreationTime.Time()
 	}
-	return req.Filter(e.Name, resp), nil
+	return e.filterListedOrders(req, resp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
@@ -2753,7 +2777,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				return nil, err
 			}
 			orderAmount := positions[j].Size
-			if positions[j].QuantityType == "quote_ccy" {
+			if positions[j].QuantityType == targetCurrencyQuote {
 				// Size is quote amount.
 				orderAmount /= positions[j].AveragePrice
 			}
@@ -2786,7 +2810,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				LastUpdated:          positions[j].UpdateTime.Time(),
 				Pair:                 req.Pairs[i],
 				Cost:                 cost,
-				CostAsset:            positions[j].RebateCurrency,
+				CostAsset:            costCurrency(req.Pairs[i]),
 				TimeInForce:          tif,
 			})
 		}

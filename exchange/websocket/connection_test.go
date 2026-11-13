@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -76,6 +78,88 @@ func TestConnectionSubscriptions(t *testing.T) {
 	ws.subscriptions = subscription.NewStore()
 	require.NotNil(t, ws.Subscriptions())
 	testsubs.EqualLists(t, ws.subscriptions.List(), ws.Subscriptions().List())
+}
+
+// sendTimedRequest is a request that carries the time it is sent
+type sendTimedRequest struct {
+	RequestID int64     `json:"reqid"`
+	SentAt    time.Time `json:"sentAt"`
+}
+
+// StampSendTime returns a copy of the request carrying the time it is sent
+func (r *sendTimedRequest) StampSendTime(t time.Time) any {
+	stamped := *r
+	stamped.SentAt = t
+	return &stamped
+}
+
+// unmarshalableSendTimedRequest is a request that carries the time it is sent and cannot be marshalled
+type unmarshalableSendTimedRequest struct {
+	RequestID int64    `json:"reqid"`
+	Updates   chan int `json:"updates"`
+}
+
+// StampSendTime returns the request, which cannot be marshalled whatever its send time
+func (r *unmarshalableSendTimedRequest) StampSendTime(time.Time) any {
+	return r
+}
+
+func TestSendTimeStamper(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+		const wait = time.Second
+		wc := &connection{
+			URL:              "ws" + mock.URL[len("http"):] + "/ws",
+			ResponseMaxLimit: time.Minute,
+			Match:            NewMatch(),
+			RateLimit:        request.NewWeightedRateLimitByDuration(wait),
+		}
+		require.NoError(t, wc.Dial(t.Context(), dialer, http.Header{}, nil), "Dial must not error")
+		// the bubble waits for every goroutine, including the reader below and the mock server's handler, which only
+		// return once the connection closes
+		t.Cleanup(func() { assert.NoError(t, wc.Shutdown(), "Shutdown should not error") })
+		echoes := make(chan sendTimedRequest, 3)
+		go func() {
+			for {
+				resp := wc.ReadMessage()
+				if resp.Raw == nil {
+					return
+				}
+				var echoed sendTimedRequest
+				if assert.NoError(t, json.Unmarshal(resp.Raw, &echoed), "echoed request should decode") {
+					wc.Match.IncomingWithData(echoed.RequestID, resp.Raw)
+					echoes <- echoed
+				}
+			}
+		}()
+
+		// The first request takes the rate limit's only token, so each later one waits a second for the next
+		first := &sendTimedRequest{RequestID: 1}
+		_, err := wc.SendMessageReturnResponse(t.Context(), request.Unset, first.RequestID, first)
+		require.NoError(t, err, "SendMessageReturnResponse must not error")
+		second := &sendTimedRequest{RequestID: 2}
+		_, err = wc.SendMessageReturnResponse(t.Context(), request.Unset, second.RequestID, second)
+		require.NoError(t, err, "SendMessageReturnResponse must not error")
+		third := &sendTimedRequest{RequestID: 3}
+		require.NoError(t, wc.SendJSONMessage(t.Context(), request.Unset, third), "SendJSONMessage must not error")
+
+		// The rate limit has no token to spare, so only a payload refused before its rate limit wait fails to marshal
+		_, err = wc.SendMessageReturnResponse(request.WithDelayNotAllowed(t.Context()), request.Unset, int64(4), &unmarshalableSendTimedRequest{RequestID: 4})
+		assert.ErrorContains(t, err, "error marshaling json", "SendMessageReturnResponse should refuse a payload it cannot marshal before its rate limit wait")
+
+		// Every echo is read before the bubble ends, since the mock server sleeps before each one and the bubble's time
+		// stops once this function returns
+		sent := make(map[int64]time.Time, 3)
+		for range 3 {
+			echoed := <-echoes
+			sent[echoed.RequestID] = echoed.SentAt
+		}
+		assert.WithinDuration(t, sent[1].Add(wait), sent[2], time.Millisecond, "SendMessageReturnResponse should send a payload stamped once its rate limit wait is over")
+		assert.WithinDuration(t, sent[2].Add(wait), sent[3], time.Millisecond, "SendJSONMessage should send a payload stamped once its rate limit wait is over")
+		assert.Equal(t, &sendTimedRequest{RequestID: 2}, second, "SendMessageReturnResponse should leave the payload it was given unchanged")
+		assert.Equal(t, &sendTimedRequest{RequestID: 3}, third, "SendJSONMessage should leave the payload it was given unchanged")
+	})
 }
 
 func TestDialNilDialer(t *testing.T) {

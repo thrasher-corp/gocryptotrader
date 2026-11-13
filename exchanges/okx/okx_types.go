@@ -48,6 +48,7 @@ const (
 	orderMarket                           = "market"
 	orderPostOnly                         = "post_only"
 	orderFOK                              = "fok"
+	orderSimpleOptionFOK                  = "op_fok"
 	orderIOC                              = "ioc"
 	orderOptimalLimitIOC                  = "optimal_limit_ioc"
 	orderConditional                      = "conditional"
@@ -58,10 +59,16 @@ const (
 	orderMarketMakerProtectionAndPostOnly = "mmp_and_post_only"
 	orderMarketMakerProtection            = "mmp"
 	orderOCO                              = "oco"
+	orderRetailPriceImprovement           = "rpi"
+	orderEnhancedLiquidityProgram         = "elp"
 
 	// represents a margin balance type
 	marginBalanceReduce = "reduce"
 	marginBalanceAdd    = "add"
+
+	// the currency a spot market order's size is in, its tgtCcy
+	targetCurrencyBase  = "base_ccy"
+	targetCurrencyQuote = "quote_ccy"
 
 	// Instrument Types ( Asset Types )
 
@@ -840,7 +847,7 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	if arg.Amount <= 0 {
 		return limits.ErrAmountBelowMin
 	}
-	if !slices.Contains([]string{"", "base_ccy", "quote_ccy"}, arg.TargetCurrency) {
+	if !slices.Contains([]string{"", targetCurrencyBase, targetCurrencyQuote}, arg.TargetCurrency) {
 		return errCurrencyQuantityTypeRequired
 	}
 	return nil

@@ -558,8 +558,7 @@ func (e *Exchange) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelPa
 	return resp, nil
 }
 
-// AmendAlgoOrder amend unfilled algo orders (Support stop order only, not including Move_order_stop order, Trigger order, Iceberg order, TWAP order, Trailing Stop order).
-// Only applicable to Futures and Perpetual swap
+// AmendAlgoOrder amend unfilled algo orders (Support Stop order and Trigger order only, not including Move_order_stop order, Iceberg order, TWAP order, Trailing Stop order).
 func (e *Exchange) AmendAlgoOrder(ctx context.Context, arg *AmendAlgoOrderParam) (*AmendAlgoResponse, error) {
 	if arg == nil {
 		return nil, common.ErrEmptyParams
