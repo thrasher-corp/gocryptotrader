@@ -418,23 +418,21 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 // available on the exchange
 func (d *Detail) IsActive() bool {
 	return d.Status != UnknownStatus &&
-		d.Amount > 0 &&
-		d.Amount > d.ExecutedAmount &&
+		d.Amount > max(0, d.ExecutedAmount) &&
 		activeStatuses&d.Status == d.Status
 }
 
 // IsInactive returns true if an order has a status that indicates it is
 // currently not available on the exchange
 func (d *Detail) IsInactive() bool {
-	return d.Amount <= 0 ||
-		d.Amount <= d.ExecutedAmount ||
+	return d.Amount <= max(0, d.ExecutedAmount) ||
 		d.Status.IsInactive()
 }
 
 // IsInactive returns true if the status indicates it is
 // currently not available on the exchange
 func (s Status) IsInactive() bool {
-	return inactiveStatuses&s == s
+	return s != UnknownStatus && inactiveStatuses&s == s
 }
 
 // WasOrderPlaced returns true if an order has a status that indicates that it
