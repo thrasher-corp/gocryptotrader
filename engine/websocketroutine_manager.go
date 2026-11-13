@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -40,6 +43,7 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 		orderManager:    orderManager,
 		syncer:          syncer,
 		currencyConfig:  cfg,
+		dataReceivers:   make(map[string]context.CancelFunc),
 	}
 	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
 }
@@ -67,7 +71,6 @@ func (m *WebsocketRoutineManager) Start(ctx context.Context) error {
 		return ErrSubSystemAlreadyStarted
 	}
 	m.connectionCancel = connectionCancel
-	m.shutdown = make(chan struct{})
 	m.mu.Unlock()
 
 	go func() {
@@ -102,12 +105,15 @@ func (m *WebsocketRoutineManager) Stop() error {
 		m.connectionCancel()
 		m.connectionCancel = nil
 	}
-	shutdown := m.shutdown
-	m.shutdown = nil
 	m.mu.Unlock()
 
-	if shutdown != nil {
-		close(shutdown)
+	m.receiversMu.Lock()
+	receivers := m.dataReceivers
+	m.dataReceivers = nil
+	m.receiversMu.Unlock()
+
+	for _, cancel := range receivers {
+		cancel()
 	}
 	m.wg.Wait()
 
@@ -152,7 +158,7 @@ func (m *WebsocketRoutineManager) websocketRoutine(ctx context.Context) {
 		}
 
 		wg.Go(func() {
-			if err := m.websocketDataReceiver(ws); err != nil {
+			if err := m.websocketDataReceiver(ctx, ws); err != nil {
 				if errors.Is(err, errRoutineManagerNotStarted) && ctx.Err() != nil {
 					return
 				}
@@ -170,9 +176,74 @@ func (m *WebsocketRoutineManager) websocketRoutine(ctx context.Context) {
 	wg.Wait()
 }
 
+// registerExchange attaches an exchange loaded after the routine manager started
+// to websocket data handling and initiates its connection. Exchanges loaded
+// during startup are connected by websocketRoutine instead.
+func (m *WebsocketRoutineManager) registerExchange(ctx context.Context, exch exchange.IBotExchange) error {
+	if m == nil {
+		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
+	}
+
+	if err := common.NilGuard(exch); err != nil {
+		return fmt.Errorf("%w: %w", errExchangeIsNil, err)
+	}
+
+	if m.state.Load() == stoppedState {
+		return nil
+	}
+
+	if !exch.SupportsWebsocket() {
+		return nil
+	}
+
+	ws, err := exch.GetWebsocket()
+	if err != nil {
+		return fmt.Errorf("%s GetWebsocket error: %w", exch.GetName(), err)
+	}
+
+	if ws == nil {
+		return errNilWebsocket
+	}
+
+	if !ws.IsEnabled() {
+		return nil
+	}
+
+	if err := m.websocketDataReceiver(ctx, ws); err != nil {
+		return err
+	}
+
+	if err := ws.Connect(ctx); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s websocket connect error: %v", exch.GetName(), err)
+	}
+	return nil
+}
+
+// unregisterExchange cancels an unloaded exchange's data receiver, which then drains up to the relay depth recorded
+// just before the cancellation. Left registered, the receiver would run until Stop or another registration for the exchange.
+func (m *WebsocketRoutineManager) unregisterExchange(name string) error {
+	if m == nil {
+		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
+	}
+	if name == "" {
+		return common.ErrExchangeNameNotSet
+	}
+
+	key := strings.ToLower(name)
+	m.receiversMu.Lock()
+	cancel := m.dataReceivers[key]
+	delete(m.dataReceivers, key)
+	m.receiversMu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+	return nil
+}
+
 // websocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) error {
+func (m *WebsocketRoutineManager) websocketDataReceiver(ctx context.Context, ws *websocket.Manager) error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
@@ -185,32 +256,67 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 		return errRoutineManagerNotStarted
 	}
 
-	m.mu.RLock()
-	shutdown := m.shutdown
-	m.mu.RUnlock()
-	if shutdown == nil {
-		return errRoutineManagerNotStarted
+	// The receiver ignores ctx being cancelled: Engine.RequestShutdown cancels the runtime context before
+	// Engine.Stop stops the order manager, which still takes updates until then. Stop, unregisterExchange
+	// and a replacement registration cancel it instead.
+	receiverCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	// UnloadExchange shuts the websocket down before cancelling its receiver, so the relay can still hold the
+	// exchange's last updates, such as order fills: stop records how many, and the receiver drains up to that
+	// many before it ends.
+	var pending atomic.Int64
+	stop := func() {
+		pending.Store(int64(len(ws.DataHandler.C)))
+		cancel()
 	}
 
+	m.receiversMu.Lock()
+	if m.state.Load() == stoppedState {
+		m.receiversMu.Unlock()
+		cancel()
+		return errRoutineManagerNotStarted
+	}
+	if m.dataReceivers == nil {
+		m.dataReceivers = make(map[string]context.CancelFunc)
+	}
+	key := strings.ToLower(ws.GetName())
+	if previous := m.dataReceivers[key]; previous != nil {
+		previous()
+	}
+	m.dataReceivers[key] = stop
+
+	deliver := func(data any) {
+		if data == nil {
+			log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
+		}
+		m.mu.RLock()
+		for x := range m.dataHandlers {
+			if err := m.dataHandlers[x](ws.GetName(), data); err != nil {
+				log.Errorln(log.WebsocketMgr, err)
+			}
+		}
+		m.mu.RUnlock()
+	}
+
+	// The receiver is counted in m.wg before releasing receiversMu so Stop
+	// cannot reach wg.Wait ahead of it.
 	m.wg.Go(func() {
-		for {
+		for receiverCtx.Err() == nil {
 			select {
-			case <-shutdown:
-				return
+			case <-receiverCtx.Done():
 			case payload := <-ws.DataHandler.C:
-				if payload.Data == nil {
-					log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
-				}
-				m.mu.RLock()
-				for x := range m.dataHandlers {
-					if err := m.dataHandlers[x](ws.GetName(), payload.Data); err != nil {
-						log.Errorln(log.WebsocketMgr, err)
-					}
-				}
-				m.mu.RUnlock()
+				deliver(payload.Data)
+			}
+		}
+		for range pending.Load() {
+			select {
+			case payload := <-ws.DataHandler.C:
+				deliver(payload.Data)
+			default:
+				return
 			}
 		}
 	})
+	m.receiversMu.Unlock()
 	return nil
 }
 

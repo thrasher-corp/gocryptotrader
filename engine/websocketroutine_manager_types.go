@@ -33,11 +33,14 @@ type WebsocketRoutineManager struct {
 	orderManager     iOrderManager
 	syncer           iCurrencyPairSyncer
 	currencyConfig   *currency.Config
-	shutdown         chan struct{}
 	connectionCancel context.CancelFunc
 	dataHandlers     []WebsocketDataHandler
-	wg               sync.WaitGroup
-	mu               sync.RWMutex
+	dataReceivers    map[string]context.CancelFunc
+	// receiversMu guards dataReceivers registration and cancellation without
+	// waiting on mu, which each receiver holds while running data handlers.
+	receiversMu sync.Mutex
+	wg          sync.WaitGroup
+	mu          sync.RWMutex
 }
 
 // WebsocketDataHandler defines a function signature for a function that handles
