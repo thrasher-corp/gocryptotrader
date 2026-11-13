@@ -2,6 +2,7 @@ package okx
 
 import (
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -70,27 +71,42 @@ func TestWSPlaceMultipleOrders(t *testing.T) {
 	}})
 	require.ErrorIs(t, err, errMissingInstrumentIDCode)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	testexch.SetupWs(t, e)
+		testexch.SetupWs(t, e)
 
-	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
-	require.NoError(t, err)
+		_, err := e.getInstrumentsForAsset(t.Context(), asset.Spot)
+		require.NoError(t, err)
 
-	out := PlaceOrderRequestParam{
-		InstrumentID:     mainPair.String(),
-		InstrumentIDCode: e.getInstrumentIDCode(mainPair.String()),
-		TradeMode:        TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
-		Side:             "Buy",
-		OrderType:        "post_only",
-		Amount:           0.0001,
-		Price:            20000,
-		Currency:         "USDT",
-	}
+		out := PlaceOrderRequestParam{
+			InstrumentID:     mainPair.String(),
+			InstrumentIDCode: e.getInstrumentIDCode(mainPair.String()),
+			TradeMode:        TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
+			Side:             "Buy",
+			OrderType:        "post_only",
+			Amount:           0.0001,
+			Price:            20000,
+			Currency:         "USDT",
+		}
 
-	got, err := e.WSPlaceMultipleOrders(request.WithVerbose(t.Context()), []PlaceOrderRequestParam{out})
-	require.NoError(t, err)
-	require.NotEmpty(t, got)
+		got, err := e.WSPlaceMultipleOrders(request.WithVerbose(t.Context()), []PlaceOrderRequestParam{out})
+		require.NoError(t, err)
+		require.NotEmpty(t, got)
+	})
+
+	// Guards the same documented batch limit on the websocket transport.
+	t.Run("limits the batch size", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}))
+		args := make([]PlaceOrderRequestParam, 21)
+		_, err := ex.WSPlaceMultipleOrders(t.Context(), args)
+		assert.ErrorIs(t, err, errExceedLimit, "an oversized websocket batch should be rejected before transmission")
+	})
 }
 
 func TestWSCancelOrder(t *testing.T) {
