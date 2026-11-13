@@ -237,6 +237,10 @@
     "allocs": 0,
     "bytes": 0
   },
+  "exchanges/kucoin.BenchmarkExpandUTASubscription": {
+    "allocs": 4003,
+    "bytes": 296704
+  },
   "exchanges/kucoin.BenchmarkIntervalToString": {
     "allocs": 0,
     "bytes": 0
