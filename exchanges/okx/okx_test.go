@@ -101,7 +101,7 @@ func syncLeadTraderUniqueID(t *testing.T) error {
 	}
 
 	loadLeadTraderOnce.Do(func() {
-		result, err := e.GetLeadTradersRanks(contextGenerate(), &LeadTraderRanksRequest{
+		result, err := e.GetLeadTradersRanks(request.WithVerbose(contextGenerate()), &LeadTraderRanksRequest{
 			InstrumentType: instTypeSwap,
 			SortType:       "pnl_ratio",
 			HasVacancy:     true,
@@ -3520,6 +3520,12 @@ func TestUpdateTicker(t *testing.T) {
 		result, err := e.UpdateTicker(contextGenerate(), p[0], a)
 		require.NoErrorf(t, err, "UpdateTicker for asset %s and pair %s must not error", a, p[0])
 		assert.NotNilf(t, result, "UpdateTicker for asset %s and pair %s should not return nil", a, p[0])
+		if a == asset.Spread {
+			require.NotNil(t, result, "spread ticker must be returned")
+			assert.Equal(t, result.LastUpdated.Round(0).String(), result.LastUpdated.String(), "spread ticker should use the exchange timestamp rather than the local monotonic clock")
+			subMillisecond := result.LastUpdated.UnixNano() % int64(time.Millisecond)
+			assert.Zero(t, subMillisecond, "spread timestamp should preserve the venue's millisecond precision")
+		}
 	}
 
 	ticks, err := e.GetTickers(contextGenerate(), instTypeSwap, "")
@@ -3569,6 +3575,10 @@ func TestUpdateTickers(t *testing.T) {
 
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(contextGenerate(), a)
+		if a == asset.Spread {
+			require.ErrorIs(t, err, common.ErrFunctionNotSupported, "spread asset must return not supported error")
+			continue
+		}
 		require.NoErrorf(t, err, "UpdateTickers for asset %s must not error", a)
 	}
 
@@ -3611,18 +3621,6 @@ func TestUpdateTickers(t *testing.T) {
 		"UpdateTickers should record the exchange timestamp for spot %s, not the time of the call", mainPair)
 	assert.Zerof(t, spotStored.LastUpdated.UnixNano()%int64(time.Millisecond),
 		"UpdateTickers should record the exchange timestamp for spot %s to the millisecond it was sent in", mainPair)
-
-	// the spread book can move between the store write and a verifying re-fetch, so the same
-	// monotonic check settles this without racing the exchange
-	spreadPairs, err := e.GetEnabledPairs(asset.Spread)
-	require.NoError(t, err, "GetEnabledPairs must not error")
-	require.NotEmpty(t, spreadPairs, "GetEnabledPairs must return spread pairs")
-	spreadStored, err := ticker.GetTicker(e.Name, spreadPairs[0], asset.Spread)
-	require.NoErrorf(t, err, "ticker.GetTicker must not error for spread %s", spreadPairs[0])
-	assert.Equalf(t, spreadStored.LastUpdated.Round(0).String(), spreadStored.LastUpdated.String(),
-		"UpdateTickers should record the exchange timestamp for spread %s, not the time of the call", spreadPairs[0])
-	assert.Zerof(t, spreadStored.LastUpdated.UnixNano()%int64(time.Millisecond),
-		"UpdateTickers should record the exchange timestamp for spread %s to the millisecond it was sent in", spreadPairs[0])
 }
 
 func TestUpdateOrderbook(t *testing.T) {

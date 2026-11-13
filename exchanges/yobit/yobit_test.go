@@ -100,6 +100,7 @@ func TestUpdateTickersMapsEveryField(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.Name = t.Name()
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{testPair}, false), "available pairs must match the fixture")
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{testPair}, true), "StorePairs must not error")
 
 	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -191,12 +192,14 @@ func TestGetTickerResponseHandling(t *testing.T) {
 func TestUpdateTickersResponseHandling(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {
-		name         string
-		body         string
-		errIs        error
-		btcLast      float64
-		btcRefreshed bool
+		name            string
+		body            string
+		errIs           error
+		btcLast         float64
+		btcRefreshed    bool
+		disableEthereum bool
 	}{
+		{name: "omitted disabled pair", body: `{"btc_usd":{"last":80002}}`, btcLast: 80002, btcRefreshed: true, disableEthereum: true},
 		{name: "partial batch", body: `{"btc_usd":{"last":80002}}`, errIs: ticker.ErrTickerNotFound, btcLast: 80002, btcRefreshed: true},
 		{name: "all invalid", body: `{"success":0,"error":"Empty pair list"}`, errIs: errTickerRequestFailed, btcLast: 80001},
 		{name: "failure without error", body: `{"success":0}`, errIs: errTickerRequestFailed, btcLast: 80001},
@@ -219,12 +222,17 @@ func TestUpdateTickersResponseHandling(t *testing.T) {
 			ex.Name = t.Name()
 			bitcoin := currency.NewBTCUSD()
 			ethereum := currency.NewPair(currency.ETH, currency.BTC)
-			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{bitcoin, ethereum}, true), "test pairs must be enabled")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{bitcoin, ethereum}, false), "test pairs must be available")
+			enabled := currency.Pairs{bitcoin, ethereum}
+			if test.disableEthereum {
+				enabled = currency.Pairs{bitcoin}
+			}
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, enabled, true), "test pairs must be enabled")
 			var response atomic.Pointer[string]
 			initialResponse := `{"btc_usd":{"last":80001},"eth_btc":{"last":0.031}}`
 			response.Store(&initialResponse)
 			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				assert.Equal(t, "/3/ticker/btc_usd-eth_btc", req.URL.Path, "ticker request should include both enabled pairs")
+				assert.Equal(t, "/3/ticker/btc_usd-eth_btc", req.URL.Path, "ticker request should include both available pairs")
 				assert.Equal(t, "1", req.URL.Query().Get("ignore_invalid"), "ticker request should allow partial results")
 				_, err := w.Write([]byte(*response.Load()))
 				assert.NoError(t, err, "writing ticker response should not error")
@@ -238,7 +246,11 @@ func TestUpdateTickersResponseHandling(t *testing.T) {
 			require.NoError(t, err, "initial ethereum ticker must be cached")
 			response.Store(&test.body)
 			err = ex.UpdateTickers(t.Context(), asset.Spot)
-			assert.ErrorIs(t, err, test.errIs, "second poll should report omitted pairs or request failure")
+			if test.errIs == nil {
+				require.NoError(t, err, "omitted disabled pairs must not fail the bulk refresh")
+			} else {
+				assert.ErrorIs(t, err, test.errIs, "second poll should report omitted pairs or request failure")
+			}
 			if test.errIs == ticker.ErrTickerNotFound {
 				assert.ErrorContains(t, err, "ETH_BTC", "partial result error should identify the omitted pair")
 			}
@@ -253,7 +265,11 @@ func TestUpdateTickersResponseHandling(t *testing.T) {
 			assert.Equal(t, before.LastUpdated, stale.LastUpdated, "omitted ticker should not be marked fresh")
 			assert.Equal(t, 0.031, stale.Last, "omitted ticker should retain its previous cached value")
 			result, err := ex.UpdateTicker(t.Context(), ethereum, asset.Spot)
-			assert.ErrorIs(t, err, test.errIs, "UpdateTicker should propagate the refresh failure")
+			missingErr := test.errIs
+			if test.disableEthereum {
+				missingErr = ticker.ErrTickerNotFound
+			}
+			assert.ErrorIs(t, err, missingErr, "UpdateTicker should propagate the refresh failure")
 			assert.Nil(t, result, "UpdateTicker should not return the stale cached ticker as a successful refresh")
 			result, err = ex.UpdateTicker(t.Context(), bitcoin, asset.Spot)
 			if test.btcRefreshed {

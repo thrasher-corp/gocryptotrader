@@ -478,54 +478,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	switch assetType {
 	case asset.Spread:
-		format, err := e.GetPairFormat(asset.Spread, true)
-		if err != nil {
-			return err
-		}
-		pairs, err := e.GetEnabledPairs(assetType)
-		if err != nil {
-			return err
-		}
-		for y := range pairs {
-			var spreadTickers []SpreadTicker
-			spreadTickers, err = e.GetPublicSpreadTickers(ctx, format.Format(pairs[y]))
-			if err != nil {
-				return err
-			}
-			for x := range spreadTickers {
-				pair, err := currency.NewPairDelimiter(spreadTickers[x].SpreadID, format.Delimiter)
-				if err != nil {
-					return err
-				}
-				// the store overwrites wholesale, so every field UpdateTicker sets must be set
-				// here too; sprd/ticker sends no 24h figures today but market/sprd-ticker does.
-				// vol24h is deliberately not mapped: OKX reports it in USD on an inverse spread,
-				// so it is not a base volume, and SpreadTicker carries no sprdType to separate them
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         spreadTickers[x].Last.Float64(),
-					Bid:          spreadTickers[x].BidPrice.Float64(),
-					BidSize:      spreadTickers[x].BidSize.Float64(),
-					Ask:          spreadTickers[x].AskPrice.Float64(),
-					AskSize:      spreadTickers[x].AskSize.Float64(),
-					High:         spreadTickers[x].HighestPrice24Hour.Float64(),
-					Low:          spreadTickers[x].LowestPrice24Hour.Float64(),
-					Open:         spreadTickers[x].OpenPrice24Hour.Float64(),
-					LastUpdated:  spreadTickers[x].Timestamp.Time(),
-					Pair:         pair,
-					ExchangeName: e.Name,
-					AssetType:    assetType,
-				})
-				if err != nil {
-					return err
-				}
-			}
-		}
+		return common.ErrFunctionNotSupported
 	case asset.Spot, asset.PerpetualSwap, asset.Futures, asset.Options, asset.Margin:
-		pairs, err := e.GetEnabledPairs(assetType)
-		if err != nil {
-			return err
-		}
-
 		instrumentType := GetInstrumentTypeFromAssetItem(assetType)
 		if assetType == asset.Margin {
 			instrumentType = instTypeSpot
@@ -540,34 +494,25 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if err != nil {
 				return err
 			}
-			for i := range pairs {
-				pairFmt, err := e.FormatExchangeCurrency(pairs[i], assetType)
-				if err != nil {
-					return err
-				}
-				if !pair.Equal(pairFmt) {
-					continue
-				}
-				baseVolume, quoteVolume := tickerVolumes(&ticks[y], assetType)
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         ticks[y].LastTradePrice.Float64(),
-					High:         ticks[y].HighestPrice24Hour.Float64(),
-					Low:          ticks[y].LowestPrice24Hour.Float64(),
-					Bid:          ticks[y].BestBidPrice.Float64(),
-					BidSize:      ticks[y].BestBidSize.Float64(),
-					Ask:          ticks[y].BestAskPrice.Float64(),
-					AskSize:      ticks[y].BestAskSize.Float64(),
-					BaseVolume:   baseVolume,
-					QuoteVolume:  quoteVolume,
-					Open:         ticks[y].OpenPrice24Hour.Float64(),
-					LastUpdated:  ticks[y].TickerDataGenerationTime.Time(),
-					Pair:         pairFmt,
-					ExchangeName: e.Name,
-					AssetType:    assetType,
-				})
-				if err != nil {
-					return err
-				}
+			baseVolume, quoteVolume := tickerVolumes(&ticks[y], assetType)
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         ticks[y].LastTradePrice.Float64(),
+				High:         ticks[y].HighestPrice24Hour.Float64(),
+				Low:          ticks[y].LowestPrice24Hour.Float64(),
+				Bid:          ticks[y].BestBidPrice.Float64(),
+				BidSize:      ticks[y].BestBidSize.Float64(),
+				Ask:          ticks[y].BestAskPrice.Float64(),
+				AskSize:      ticks[y].BestAskSize.Float64(),
+				BaseVolume:   baseVolume,
+				QuoteVolume:  quoteVolume,
+				Open:         ticks[y].OpenPrice24Hour.Float64(),
+				LastUpdated:  ticks[y].TickerDataGenerationTime.Time(),
+				Pair:         pair,
+				ExchangeName: e.Name,
+				AssetType:    assetType,
+			})
+			if err != nil {
+				return err
 			}
 		}
 	default:

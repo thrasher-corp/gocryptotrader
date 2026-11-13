@@ -139,16 +139,28 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 // Returned tickers are cached before reporting any omitted pairs with ticker.ErrTickerNotFound.
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
-	_, err := e.updateTickers(ctx, a)
+	missingPairs, err := e.updateTickers(ctx, a)
+	if errors.Is(err, ticker.ErrTickerNotFound) && len(missingPairs) != 0 {
+		enabled, enabledErr := e.GetEnabledPairs(a)
+		if enabledErr != nil {
+			return enabledErr
+		}
+		for _, pair := range missingPairs {
+			if enabled.Contains(pair, true) {
+				return err
+			}
+		}
+		return nil
+	}
 	return err
 }
 
 func (e *Exchange) updateTickers(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	enabledPairs, err := e.GetEnabledPairs(a)
+	availablePairs, err := e.GetAvailablePairs(a)
 	if err != nil {
 		return nil, err
 	}
-	pairsCollated, err := e.FormatExchangeCurrencies(enabledPairs, a)
+	pairsCollated, err := e.FormatExchangeCurrencies(availablePairs, a)
 	if err != nil {
 		return nil, err
 	}
@@ -159,20 +171,20 @@ func (e *Exchange) updateTickers(ctx context.Context, a asset.Item) (currency.Pa
 	}
 
 	var missingPairs currency.Pairs
-	for i := range enabledPairs {
-		fPair, err := e.FormatExchangeCurrency(enabledPairs[i], a)
+	for i := range availablePairs {
+		fPair, err := e.FormatExchangeCurrency(availablePairs[i], a)
 		if err != nil {
 			return nil, err
 		}
 		curr := fPair.Lower().String()
 		if _, ok := result[curr]; !ok {
-			missingPairs = append(missingPairs, enabledPairs[i])
+			missingPairs = append(missingPairs, availablePairs[i])
 			continue
 		}
 
 		resultCurr := result[curr]
 		err = ticker.ProcessTicker(&ticker.Price{
-			Pair:         enabledPairs[i],
+			Pair:         availablePairs[i],
 			Last:         resultCurr.Last,
 			Ask:          resultCurr.Sell,
 			Bid:          resultCurr.Buy,
