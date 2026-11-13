@@ -1,6 +1,5 @@
-// Package json is an abstraction middleware package to allow switching between json encoder/decoder implementations
-// The default implementation is golang.org/encoding/json/v2.
-// Build with `sonic_on` tag to switch to using github.com/bytedance/sonic
+// Package json provides JSON encoding and decoding, using encoding/json/v2 by default and
+// github.com/bytedance/sonic when built with -tags sonic_on.
 //
 // Neither build is a full v1 *encoding/json, and the gaps are not the same on each. Both drop
 // Token and InputOffset, which sonic's Decoder interface does not expose. The default build
@@ -16,23 +15,25 @@
 // values where v1 skipped it (CallMethodsWithLegacySemantics); currency.Code relies on the map key
 // half, so it carries text methods for the sonic build, which does not.
 //
-// Behaviour differs by build in both directions. The sonic notes below describe its native
-// backend; on the platforms it does not cover it falls back to encoding/json, which restores v1
-// encoding and can return v1 error types. Implementation remains "bytedance/sonic" in either case.
-// The default build is the outlier on a bytes.Buffer that grows between Decode calls, erroring
-// where v1 and sonic both read the next value, and all three disagree on a truncated "{": v1
-// reports io.ErrUnexpectedEOF, the default build a *SyntaxError and sonic io.EOF. sonic is the
-// outlier elsewhere: it ties U+2028 and U+2029 escaping to SetEscapeHTML where v1 escaped them
-// either way, re-attempts a failed write rather than latching it, and with indentation disabled
-// writes each value's trailing newline separately while discarding that write's error, so two
-// values can run together in the stream. Its Decoder parts from v1 where a read ends, in two ways.
-// It ends a top level number there, where v1 reads on to see whether more digits follow, so a
-// number split across reads decodes as two values, even one straddling sonic's own 4096 byte
-// buffer from a reader holding the whole input. And it reads on past bytes it cannot parse rather
-// than reporting them, so malformed input surfaces as the read's failure, or as io.EOF where the
-// stream ends, which is also why it reports io.EOF for a truncated "{". The Decoder is wrapped so
-// that More reports a failed read rather than the end of the stream, sonic reporting the two
-// alike; every other method is its own
+// Behaviour differs by build:
+//
+//   - sonic_on selects encoding/json (v1) outside amd64 and arm64, or on Go 1.28 or later. It does
+//     not compile for 32-bit platforms, nor natively for illumos, Solaris or Plan 9.
+//     Implementation remains "bytedance/sonic".
+//   - Only the default build can resume decoding input supplied after a Decode fails because the
+//     input ended, or after More returns false at its end.
+//   - Native sonic ties U+2028/U+2029 escaping to SetEscapeHTML, where v1 always escapes them, and
+//     does not latch write errors. Without indentation it writes newlines separately, so Encode can
+//     fail after writing a value, and the next value can run into it.
+//   - Native sonic's decoder can split, truncate or reject top level numbers at read boundaries,
+//     including its own buffer's, and can discard valid values after a top level number. It can
+//     read past unrecognised or unterminated input, and the values after it, to EOF or a read
+//     error. A stray "]" or "}" succeeds on every call without consuming input. A truncated "{"
+//     returns io.EOF, where the default build returns a *SyntaxError and v1 io.ErrUnexpectedEOF.
+//     Once a Decode fails, every later Decode returns the same error, where v1 and the default
+//     build decode the next value after one that fails to unmarshal, such as a type mismatch.
+//   - The sonic wrapper makes More report read failures, Decode return the failure the fallback
+//     hides behind io.EOF, and Buffered return an empty reader after a native Decode error.
 package json
 
 import (
