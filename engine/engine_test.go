@@ -968,7 +968,7 @@ func (b *websocketTestExchangeBuilder) NewExchangeByName(name string) (exchange.
 	if !strings.EqualFold(name, websocketTestExchangeName) {
 		return nil, fmt.Errorf("%s, %w", name, ErrExchangeNotFound)
 	}
-	ws, err := testWebsocketManager(websocketTestExchangeName, &b.connects)
+	ws, err := testWebsocketManager(&b.connects)
 	if err != nil {
 		return nil, err
 	}

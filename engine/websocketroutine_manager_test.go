@@ -155,7 +155,7 @@ func TestWebsocketRoutineManagerStop(t *testing.T) {
 			return nil
 		}))
 		var connects atomic.Int32
-		ws, err := testWebsocketManager(websocketTestExchangeName, &connects)
+		ws, err := testWebsocketManager(&connects)
 		require.NoError(t, err)
 		exch := &websocketTestExchange{name: websocketTestExchangeName, ws: ws, supportsWebsocket: true}
 		t.Cleanup(func() { assert.NoError(t, exch.Shutdown(), "Shutdown should not error") })
@@ -552,11 +552,11 @@ func (e *websocketTestExchange) Shutdown() error {
 	return err
 }
 
-func testWebsocketManager(name string, connects *atomic.Int32) (*websocket.Manager, error) {
+func testWebsocketManager(connects *atomic.Int32) (*websocket.Manager, error) {
 	ws := websocket.NewManager()
 	err := ws.Setup(&websocket.ManagerSetup{
 		ExchangeConfig: &config.Exchange{
-			Name: name,
+			Name: websocketTestExchangeName,
 			Features: &config.FeaturesConfig{
 				Enabled: config.FeaturesEnabledConfig{Websocket: true},
 			},
@@ -604,7 +604,7 @@ func TestWebsocketRoutineManagerRegisterExchange(t *testing.T) {
 	require.ErrorIs(t, m.unregisterExchange(""), common.ErrExchangeNameNotSet, "unregisterExchange must reject an empty name")
 
 	var connects atomic.Int32
-	ws, err := testWebsocketManager(websocketTestExchangeName, &connects)
+	ws, err := testWebsocketManager(&connects)
 	require.NoError(t, err)
 	exch := &websocketTestExchange{name: websocketTestExchangeName, ws: ws, supportsWebsocket: true}
 	t.Cleanup(func() { assert.NoError(t, exch.Shutdown(), "Shutdown should not error") })
@@ -639,7 +639,7 @@ func TestWebsocketRoutineManagerRegisterExchange(t *testing.T) {
 	}
 
 	var replacementConnects atomic.Int32
-	replacement, err := testWebsocketManager(websocketTestExchangeName, &replacementConnects)
+	replacement, err := testWebsocketManager(&replacementConnects)
 	require.NoError(t, err)
 	sendReplacement := &websocketTestExchange{name: websocketTestExchangeName, ws: replacement, supportsWebsocket: true}
 	t.Cleanup(func() { assert.NoError(t, sendReplacement.Shutdown(), "Shutdown should not error") })
@@ -670,13 +670,13 @@ func TestWebsocketRoutineManagerRegisterExchange(t *testing.T) {
 	}
 
 	var disabled atomic.Int32
-	disabledWS, err := testWebsocketManager(websocketTestExchangeName, &disabled)
+	disabledWS, err := testWebsocketManager(&disabled)
 	require.NoError(t, err)
 	require.NoError(t, disabledWS.Disable())
 	require.NoError(t, m.registerExchange(t.Context(), &websocketTestExchange{name: websocketTestExchangeName, ws: disabledWS, supportsWebsocket: true}), "registerExchange must ignore a disabled websocket")
 	assert.Zero(t, disabled.Load(), "connector should not be called for a disabled websocket")
 
-	noWebsocket, err := testWebsocketManager(websocketTestExchangeName, &disabled)
+	noWebsocket, err := testWebsocketManager(&disabled)
 	require.NoError(t, err)
 	require.NoError(t, m.registerExchange(t.Context(), &websocketTestExchange{name: websocketTestExchangeName, ws: noWebsocket}), "registerExchange must ignore an exchange without websocket support")
 	assert.Zero(t, disabled.Load(), "connector should not be called without websocket support")
@@ -776,7 +776,7 @@ func TestWebsocketRoutineManagerUnregisterExchange(t *testing.T) {
 			return nil
 		}, false))
 		var connects atomic.Int32
-		ws, err := testWebsocketManager(websocketTestExchangeName, &connects)
+		ws, err := testWebsocketManager(&connects)
 		require.NoError(t, err)
 		exch := &websocketTestExchange{name: websocketTestExchangeName, ws: ws, supportsWebsocket: true}
 		t.Cleanup(func() { assert.NoError(t, exch.Shutdown(), "Shutdown should not error") })
@@ -835,7 +835,7 @@ func TestWebsocketRoutineManagerUnregisterExchange(t *testing.T) {
 				return nil
 			}))
 			var connects atomic.Int32
-			ws, err := testWebsocketManager(websocketTestExchangeName, &connects)
+			ws, err := testWebsocketManager(&connects)
 			require.NoError(t, err)
 			exch := &websocketTestExchange{name: websocketTestExchangeName, ws: ws, supportsWebsocket: true}
 			t.Cleanup(func() { assert.NoError(t, exch.Shutdown(), "Shutdown should not error") })
@@ -862,11 +862,11 @@ func TestWebsocketRoutineManagerUnregisterExchange(t *testing.T) {
 		require.NoError(t, m.Start(t.Context()))
 		t.Cleanup(func() { stopWebsocketRoutineManager(t, m) })
 		var connects atomic.Int32
-		ws, err := testWebsocketManager(websocketTestExchangeName, &connects)
+		ws, err := testWebsocketManager(&connects)
 		require.NoError(t, err)
 		exch := &websocketTestExchange{name: websocketTestExchangeName, ws: ws, supportsWebsocket: true}
 		t.Cleanup(func() { assert.NoError(t, exch.Shutdown(), "Shutdown should not error") })
-		replacementWS, err := testWebsocketManager(websocketTestExchangeName, &connects)
+		replacementWS, err := testWebsocketManager(&connects)
 		require.NoError(t, err)
 		replacement := &websocketTestExchange{name: websocketTestExchangeName, ws: replacementWS, supportsWebsocket: true}
 		t.Cleanup(func() { assert.NoError(t, replacement.Shutdown(), "Shutdown should not error") })
