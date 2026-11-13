@@ -1379,22 +1379,21 @@ func BenchmarkIsActive(b *testing.B) {
 func TestDetail_IsInactive(t *testing.T) {
 	t.Parallel()
 
-	// Inactive if the Amount <= 0 or Amount <= ExecutedAmount or Status.IsInactive
 	for _, d := range []Detail{
-		{Amount: 0.0, Status: Active},
-		{Amount: 1.0, ExecutedAmount: 1.0, Status: Active},
-		{Amount: 1.0, ExecutedAmount: 1.1, Status: Active},
-		{Amount: 1.0, Status: Closed},
+		{Amount: 1.0, Status: Closed, ClientID: "Closed Status"},
+		{Amount: 0.0, Status: Active, ClientID: "Amount = 0"},
+		{Amount: 1.0, ExecutedAmount: 1.0, Status: Active, ClientID: "Amount = ExecutedAmount"},
+		{Amount: 1.0, ExecutedAmount: 1.1, Status: Active, ClientID: "Amount < ExecutedAmount"},
 	} {
-		assert.Truef(t, d.IsInactive(), "Amount: %v ExecutedAmount: %v Status: %s", d.Amount, d.ExecutedAmount, d.Status)
+		assert.True(t, d.IsInactive(), d.ClientID+" should be Inactive")
 	}
 
 	for _, d := range []Detail{
-		{Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
-		{Amount: 0.0, Status: UnknownStatus},
-		{Amount: 0.0, Status: Closed},
+		{Amount: 1.0, Status: Active, ClientID: "Amount > 0"},
+		{Amount: 1.0, ExecutedAmount: 0.9, Status: PartiallyFilled, ClientID: "Amount > ExecutedAmount"},
+		{Amount: 1.0, Status: UnknownStatus, ClientID: "Regression: UnknownStatus"},
 	} {
-		assert.Falsef(t, d.IsInactive(), "Amount: %v ExecutedAmount: %v Status: %s", d.Amount, d.ExecutedAmount, d.Status)
+		assert.False(t, d.IsInactive(), d.ClientID+" should not be Inactive")
 	}
 }
 
