@@ -103,6 +103,8 @@ func TestRequiredCommandFlags(t *testing.T) {
 		{name: "submit side", command: submitOrderCommand, flagName: "side", required: true},
 		{name: "submit amount", command: submitOrderCommand, flagName: "amount", required: true},
 		{name: "submit margin optional", command: submitOrderCommand, flagName: "margintype"},
+		{name: "submit client ID optional", command: submitOrderCommand, flagName: "client_id"},
+		{name: "submit client order ID optional", command: submitOrderCommand, flagName: "client_order_id"},
 		{name: "cancel pair optional", command: cancelOrderCommand, flagName: "pair"},
 		{name: "open interest pair optional", command: futuresCommands.Command("getopeninterest"), flagName: "pair"},
 		{name: "set leverage margin type optional", command: futuresCommands.Command("setleverage"), flagName: "margintype"},

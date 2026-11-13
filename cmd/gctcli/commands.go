@@ -9,7 +9,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
 )
@@ -1032,6 +1031,10 @@ var submitOrderCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:  "client_id",
+			Usage: "the optional exchange client or account ID",
+		},
+		&cli.StringFlag{
+			Name:  "client_order_id",
 			Usage: "the optional client order ID",
 		},
 		requiredAssetFlag,
@@ -1046,75 +1049,19 @@ func submitOrder(c *cli.Context) error {
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-
-	currencyPair := c.String(pairFlagName)
-
-	if !validPair(currencyPair) {
-		return errInvalidPair
-	}
-
-	orderSide := c.String(sideFlagName)
-
-	if orderSide == "" {
-		return errors.New("order side must be set")
-	}
-
-	orderType := c.String("type")
-
-	if orderType == "" {
-		return errors.New("order type must be set")
-	}
-
-	amount := c.Float64(amountFlagName)
-
-	if amount == 0 {
-		return errors.New("amount must be set")
-	}
-
-	assetType := c.String(assetFlagName)
-	marginType := c.String(marginTypeFlagName)
-
-	assetType = strings.ToLower(assetType)
-	if !validAsset(assetType) {
-		return errInvalidAsset
-	}
-
-	marginType = strings.ToLower(marginType)
-	if marginType != "" && !margin.IsValidString(marginType) {
-		return margin.ErrInvalidMarginType
-	}
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	req, err := submitOrderRequest(c)
 	if err != nil {
 		return err
 	}
-
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
 	defer closeConn(conn, cancel)
-
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.SubmitOrder(c.Context, &gctrpc.SubmitOrderRequest{
-		Exchange: c.String(exchangeFlagName),
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: p.Delimiter,
-			Base:      p.Base.String(),
-			Quote:     p.Quote.String(),
-		},
-		Side:       orderSide,
-		OrderType:  orderType,
-		Amount:     amount,
-		Price:      c.Float64(priceFlagName),
-		ClientId:   c.String("client_id"),
-		AssetType:  assetType,
-		MarginType: marginType,
-	})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).SubmitOrder(c.Context, req)
 	if err != nil {
 		return err
 	}
-
 	jsonOutput(result)
 	return nil
 }

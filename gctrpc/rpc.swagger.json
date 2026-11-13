@@ -6964,6 +6964,9 @@
         },
         "marginType": {
           "type": "string"
+        },
+        "clientOrderId": {
+          "type": "string"
         }
       }
     },

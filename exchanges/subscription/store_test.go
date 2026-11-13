@@ -67,9 +67,82 @@ func TestAdd(t *testing.T) {
 	assert.NotNil(t, sub.Key, "Add should call EnsureKeyed")
 }
 
+func TestStoreUnsafeAdd(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, previousChannel, nextChannel string
+		otherOnPrevious, missingIndex      bool
+	}{
+		{name: "assign a default key"},
+		{name: "initialise topic index", nextChannel: "orders.next", missingIndex: true},
+		{name: "replace within one topic", previousChannel: "orders.previous", nextChannel: "orders.previous"},
+		{name: "move the last subscription", previousChannel: "orders.previous", nextChannel: "orders.next"},
+		{name: "preserve other subscriptions", previousChannel: "orders.previous", nextChannel: "orders.next", otherOnPrevious: true},
+		{name: "remove the previous topic", previousChannel: "orders.previous"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := NewStore()
+			var other *Subscription
+			if tc.previousChannel != "" {
+				previous := &Subscription{Key: "replaced", Channel: MyOrdersChannel, QualifiedChannel: tc.previousChannel}
+				s.unsafeAdd(previous)
+				if tc.otherOnPrevious {
+					other = &Subscription{Key: "other", Channel: MyOrdersChannel, QualifiedChannel: tc.previousChannel}
+					s.unsafeAdd(other)
+				}
+			}
+			if tc.missingIndex {
+				s.channels = nil
+			}
+			next := &Subscription{Channel: MyOrdersChannel, QualifiedChannel: tc.nextChannel}
+			if tc.previousChannel != "" {
+				next.Key = "replaced"
+			}
+			s.unsafeAdd(next)
+			require.NotNil(t, next.Key, "unsafeAdd must assign an omitted key")
+			assert.Same(t, next, s.Get(next.Key), "the primary store should retain the replacement")
+			if tc.nextChannel != "" {
+				assert.Same(t, next, s.channels[tc.nextChannel][next.Key], "the topic index should retain the replacement")
+			}
+			if other != nil {
+				assert.Same(t, other, s.Get(other.Key), "replacing one subscription should preserve another identity")
+				assert.Same(t, other, s.channels[tc.previousChannel][other.Key], "the old topic should retain its other subscription")
+				require.Len(t, s.channels[tc.previousChannel], 1, "the old topic must lose the moved subscription")
+			} else if tc.previousChannel != "" && tc.previousChannel != tc.nextChannel {
+				assert.NotContains(t, s.channels, tc.previousChannel, "the emptied topic should be removed from the index")
+			}
+			expected := 1
+			if other != nil {
+				expected++
+			}
+			assert.Len(t, s.List(), expected, "replacement should retain exactly the expected subscriptions")
+		})
+	}
+}
+
 // TestGet exercises Get and get methods
 // Ensures that key's Match is used, but does not exercise subscription.Match; See TestMatch for that coverage
 func TestGet(t *testing.T) {
+	t.Run("qualified topic index lifecycle", func(t *testing.T) {
+		t.Parallel()
+		first := &Subscription{Channel: "orders", QualifiedChannel: "orders.first"}
+		first.SetKey(qualifiedChannelTestKey{ExactKey{Subscription: first}})
+		second := &Subscription{Channel: "orders", QualifiedChannel: "orders.second"}
+		second.SetKey(qualifiedChannelTestKey{ExactKey{Subscription: second}})
+		s := NewStore()
+		require.NoError(t, s.Add(first), "first topic must register")
+		require.NoError(t, s.Add(second), "distinct topic must register despite identical logical settings")
+		assert.Same(t, second, s.Get(second.Key), "topic index should select the requested wire topic")
+		require.NoError(t, s.Remove(first.Key), "first topic must be removable")
+		assert.Nil(t, s.Get(first.Key), "removed topic should not resolve")
+		assert.Same(t, second, s.Get(second.Key), "other topics should survive removal")
+		s.Clear()
+		assert.Nil(t, s.Get(second.Key), "cleared topic should not resolve")
+		require.NoError(t, s.Add(first), "topic must register after clear")
+		assert.Same(t, first, s.Get(first.Key), "new registration should resolve")
+	})
+
 	t.Parallel()
 	assert.Nil(t, (*Store)(nil).Get(&Subscription{}), "Should return nil when called on nil")
 	assert.Nil(t, (&Store{}).Get(&Subscription{}), "Should return nil when called with no subscription map")
@@ -258,4 +331,13 @@ func TestMissing(t *testing.T) {
 
 	unmatched = s.Missing(List{{Channel: TickerChannel}})
 	assert.Nil(t, unmatched)
+}
+
+// qualifiedChannelTestKey exercises the optional exact-topic matching contract.
+type qualifiedChannelTestKey struct{ ExactKey }
+
+func (k qualifiedChannelTestKey) GetQualifiedChannel() string { return k.QualifiedChannel }
+
+func (k qualifiedChannelTestKey) Match(other MatchableKey) bool {
+	return other != nil && other.GetSubscription() != nil && k.QualifiedChannel == other.GetSubscription().QualifiedChannel && k.ExactKey.Match(other)
 }

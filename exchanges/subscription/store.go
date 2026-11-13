@@ -11,14 +11,16 @@ import (
 
 // Store is a container of subscription pointers
 type Store struct {
-	m  map[any]*Subscription
-	mu sync.RWMutex
+	m        map[any]*Subscription
+	channels map[string]map[any]*Subscription
+	mu       sync.RWMutex
 }
 
 // NewStore creates a ready to use store and should always be used
 func NewStore() *Store {
 	return &Store{
-		m: map[any]*Subscription{},
+		m:        map[any]*Subscription{},
+		channels: map[string]map[any]*Subscription{},
 	}
 }
 
@@ -62,7 +64,7 @@ func (s *Store) add(sub *Subscription) error {
 	if found := s.get(key); found != nil {
 		return fmt.Errorf("%w: %s", ErrDuplicate, sub)
 	}
-	s.m[key] = sub
+	s.unsafeAdd(sub)
 	return nil
 }
 
@@ -71,7 +73,22 @@ func (s *Store) add(sub *Subscription) error {
 // This method provides no locking protection
 func (s *Store) unsafeAdd(sub *Subscription) {
 	key := sub.EnsureKeyed()
+	if previous := s.m[key]; previous != nil {
+		delete(s.channels[previous.QualifiedChannel], key)
+		if len(s.channels[previous.QualifiedChannel]) == 0 {
+			delete(s.channels, previous.QualifiedChannel)
+		}
+	}
 	s.m[key] = sub
+	if sub.QualifiedChannel != "" {
+		if s.channels == nil {
+			s.channels = make(map[string]map[any]*Subscription)
+		}
+		if s.channels[sub.QualifiedChannel] == nil {
+			s.channels[sub.QualifiedChannel] = make(map[any]*Subscription)
+		}
+		s.channels[sub.QualifiedChannel][key] = sub
+	}
 }
 
 // Get returns a pointer to a subscription or nil if not found
@@ -124,6 +141,10 @@ func (s *Store) Remove(key any) error {
 
 	if found := s.get(key); found != nil {
 		delete(s.m, found.Key)
+		delete(s.channels[found.QualifiedChannel], found.Key)
+		if len(s.channels[found.QualifiedChannel]) == 0 {
+			delete(s.channels, found.QualifiedChannel)
+		}
 		return nil
 	}
 
@@ -151,6 +172,7 @@ func (s *Store) Clear() {
 		s.m = map[any]*Subscription{}
 	}
 	clear(s.m)
+	clear(s.channels)
 }
 
 // match returns the first subscription which matches the Key's Asset, Channel and Pairs
@@ -159,7 +181,13 @@ func (s *Store) Clear() {
 // 2) >=1 pairs then Subscriptions which contain all the pairs will be considered
 // This method provides no locking protection
 func (s *Store) match(key MatchableKey) *Subscription {
-	for eachKey, sub := range s.m {
+	candidates := s.m
+	if topicKey, ok := key.(QualifiedChannelKey); ok {
+		if channel := topicKey.GetQualifiedChannel(); channel != "" {
+			candidates = s.channels[channel]
+		}
+	}
+	for eachKey, sub := range candidates {
 		if m, ok := eachKey.(MatchableKey); ok {
 			if key.Match(m) {
 				return sub
