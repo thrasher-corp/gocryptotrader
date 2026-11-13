@@ -342,16 +342,13 @@ func ExtractPortOrDefault(host string) int {
 	return portInt
 }
 
-// GetURIPath returns the path of a URL given a URI
+// GetURIPath returns the escaped request path and query of a URI.
 func GetURIPath(uri string) string {
 	urip, err := url.Parse(uri)
 	if err != nil {
 		return ""
 	}
-	if urip.RawQuery != "" {
-		return urip.Path + "?" + urip.RawQuery
-	}
-	return urip.Path
+	return urip.RequestURI()
 }
 
 // GetExecutablePath returns the executables launch path
