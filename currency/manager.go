@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -28,6 +30,24 @@ var (
 	errPairMatcherIsNil    = errors.New("pair matcher is nil")
 	errPairConfigFormatNil = errors.New("pair config format is nil")
 )
+
+const (
+	keyByteChanges  uint8 = 1 << iota // an upper case letter, which a matcher key holds lower cased, or a non-ASCII byte
+	keyByteDelimits                   // punctuation, which a delimited symbol's key drops once
+)
+
+// keyBytes classifies each byte for matching a symbol, so that a symbol already in its key's form is found by one pass
+var keyBytes = func() (classes [256]uint8) {
+	for c := range classes {
+		switch {
+		case c >= utf8.RuneSelf, 'A' <= c && c <= 'Z':
+			classes[c] = keyByteChanges
+		case unicode.IsPunct(rune(c)):
+			classes[c] = keyByteDelimits
+		}
+	}
+	return classes
+}()
 
 // GetAssetTypes returns a list of stored asset types
 func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
@@ -60,20 +80,81 @@ func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
 
 // Match returns a currency pair based on the supplied symbol and asset type
 func (p *PairsManager) Match(symbol string, a asset.Item) (Pair, error) {
+	return p.matchSymbol(symbol, a, false)
+}
+
+// MatchDelimited returns a currency pair based on the supplied symbol and asset type, ignoring the symbol's first
+// punctuation character, which separates its base and quote currencies
+func (p *PairsManager) MatchDelimited(symbol string, a asset.Item) (Pair, error) {
+	return p.matchSymbol(symbol, a, true)
+}
+
+func (p *PairsManager) matchSymbol(symbol string, a asset.Item, hasDelimiter bool) (Pair, error) {
 	if symbol == "" {
 		return EMPTYPAIR, ErrSymbolStringEmpty
 	}
-	symbol = strings.ToLower(symbol)
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 	if p.matcher == nil {
 		return EMPTYPAIR, errPairMatcherIsNil
 	}
-	pair, ok := p.matcher[key{symbol, a}]
-	if !ok {
-		return EMPTYPAIR, fmt.Errorf("%w for %v %v", ErrPairNotFound, symbol, a)
+	symbols := p.matcher[a]
+	mask := keyByteChanges
+	if hasDelimiter {
+		mask |= keyByteDelimits
 	}
-	return *pair, nil
+	for i := range len(symbol) {
+		if keyBytes[symbol[i]]&mask != 0 {
+			return matchKey(symbols, symbol, i, a, hasDelimiter)
+		}
+	}
+	if pair, ok := symbols[symbol]; ok {
+		return *pair, nil
+	}
+	return EMPTYPAIR, fmt.Errorf("%w for %v %v", ErrPairNotFound, symbol, a)
+}
+
+// matchKey matches a symbol whose bytes from i on need lower casing or its delimiter dropping. It builds an ASCII
+// symbol's key on the stack when the key fits in 64 bytes, since a map lookup by string(key) does not allocate
+func matchKey(symbols map[string]*Pair, symbol string, i int, a asset.Item, hasDelimiter bool) (Pair, error) {
+	var buf [64]byte
+	key := append(buf[:0], symbol[:i]...)
+	for skipDelimiter := hasDelimiter; i < len(symbol); i++ {
+		c := symbol[i]
+		switch keyBytes[c] {
+		case keyByteChanges:
+			if c >= utf8.RuneSelf {
+				lower := strings.ToLower(withoutDelimiter(symbol, hasDelimiter))
+				if pair, ok := symbols[lower]; ok {
+					return *pair, nil
+				}
+				return EMPTYPAIR, fmt.Errorf("%w for %v %v", ErrPairNotFound, lower, a)
+			}
+			c += 'a' - 'A'
+		case keyByteDelimits:
+			if skipDelimiter {
+				skipDelimiter = false
+				continue
+			}
+		}
+		key = append(key, c)
+	}
+	if pair, ok := symbols[string(key)]; ok {
+		return *pair, nil
+	}
+	return EMPTYPAIR, fmt.Errorf("%w for %v %v", ErrPairNotFound, string(key), a)
+}
+
+// withoutDelimiter returns symbol without its first punctuation character if hasDelimiter is true
+func withoutDelimiter(symbol string, hasDelimiter bool) string {
+	if hasDelimiter {
+		for x := range symbol {
+			if unicode.IsPunct(rune(symbol[x])) {
+				return symbol[:x] + symbol[x+1:]
+			}
+		}
+	}
+	return symbol
 }
 
 // Store stores a new currency pair config based on its asset type
@@ -90,23 +171,16 @@ func (p *PairsManager) Store(a asset.Item, ps *PairStore) error {
 		p.Pairs = FullStore{}
 	}
 	p.Pairs[a] = ps.clone()
-	p.reindex()
+	p.indexAsset(a)
 	return nil
 }
 
 // Delete deletes a map entry based on the supplied asset type
 func (p *PairsManager) Delete(a asset.Item) {
 	p.mutex.Lock()
-	vals, ok := p.Pairs[a]
-	if !ok {
-		p.mutex.Unlock()
-		return
-	}
-	for x := range vals.Available {
-		delete(p.matcher, key{Symbol: vals.Available[x].Base.Lower().String() + vals.Available[x].Quote.Lower().String(), Asset: a})
-	}
+	defer p.mutex.Unlock()
+	delete(p.matcher, a)
 	delete(p.Pairs, a)
-	p.mutex.Unlock()
 }
 
 // GetPairs gets a list of stored pairs based on the asset type and whether
@@ -205,8 +279,9 @@ func (p *PairsManager) GetFormat(a asset.Item, request bool) (PairFormat, error)
 // StorePairs stores a list of pairs for an asset type
 // If enabled is true:
 // * AssetEnabled is set true if the pair list is not empty
-// * pairs replace the Enabled pairs
-// * pairs are added to Available pairs
+// * pairs replace the Enabled pairs without being added to the Available pairs, so GetPairs reports any enabled pair
+// that is not available
+// If enabled is false, pairs replace the Available pairs
 func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error {
 	if !a.IsValid() {
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
@@ -228,12 +303,11 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 	if enabled {
 		if len(pairs) != 0 {
 			pairStore.AssetEnabled = true
-			pairStore.Available.Add(pairs...)
 		}
 		pairStore.Enabled = slices.Clone(pairs)
 	} else {
 		pairStore.Available = slices.Clone(pairs)
-		p.reindex()
+		p.indexAsset(a)
 	}
 
 	return nil
@@ -437,16 +511,28 @@ func (p *PairsManager) Load(seed *PairsManager) {
 // reindex re-indexes the matcher for Available pairs and all assets
 // This method does not lock for concurrency
 func (p *PairsManager) reindex() {
-	p.matcher = make(map[key]*Pair)
-	for a, fs := range p.Pairs {
-		if fs == nil {
-			continue
-		}
-		for i, pair := range fs.Available {
-			k := key{Symbol: pair.Base.Lower().String() + pair.Quote.Lower().String(), Asset: a}
-			p.matcher[k] = &fs.Available[i]
-		}
+	p.matcher = make(map[asset.Item]map[string]*Pair, len(p.Pairs))
+	for a := range p.Pairs {
+		p.indexAsset(a)
 	}
+}
+
+// indexAsset re-indexes the matcher for one asset's Available pairs, leaving other assets' entries untouched
+// This method does not lock for concurrency
+func (p *PairsManager) indexAsset(a asset.Item) {
+	fs := p.Pairs[a]
+	if fs == nil {
+		delete(p.matcher, a)
+		return
+	}
+	if p.matcher == nil {
+		p.matcher = make(map[asset.Item]map[string]*Pair, len(p.Pairs))
+	}
+	symbols := make(map[string]*Pair, len(fs.Available))
+	for i, pair := range fs.Available {
+		symbols[pair.Base.Lower().String()+pair.Quote.Lower().String()] = &fs.Available[i]
+	}
+	p.matcher[a] = symbols
 }
 
 func (p *PairsManager) getPairStoreRequiresLock(a asset.Item) (*PairStore, error) {
@@ -506,8 +592,7 @@ func (p *PairsManager) SortAvailablePairs() {
 		return strings.Compare(a.Lower().String(), b.Lower().String())
 	}
 
-	needsReindex := false
-	for _, pairStore := range p.Pairs {
+	for a, pairStore := range p.Pairs {
 		if pairStore == nil || len(pairStore.Available) < 2 {
 			continue
 		}
@@ -515,11 +600,7 @@ func (p *PairsManager) SortAvailablePairs() {
 			continue
 		}
 		slices.SortFunc(pairStore.Available, cmp)
-		needsReindex = true
-	}
-
-	if needsReindex {
-		p.reindex()
+		p.indexAsset(a)
 	}
 }
 

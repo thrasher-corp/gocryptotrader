@@ -371,8 +371,11 @@ func TestReadConfigWithPrompt(t *testing.T) {
 	assert.True(t, IsEncrypted(data), "data should be encrypted after prompts")
 }
 
+// TestReadEncryptedConfigFromReader is not parallel, as it restores the production scryptCost that its fixture was encrypted with
 func TestReadEncryptedConfigFromReader(t *testing.T) {
-	t.Parallel()
+	testCost := scryptCost
+	scryptCost = defaultScryptCost
+	t.Cleanup(func() { scryptCost = testCost })
 	c := &Config{
 		EncryptionKeyProvider: func(_ bool) ([]byte, error) { return []byte("pass"), nil },
 	}

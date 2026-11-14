@@ -12,7 +12,6 @@ import (
 	"strings"
 	"text/template"
 	"time"
-	"unicode"
 	"uuid"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1737,12 +1736,7 @@ func (b *Base) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ m
 // will attempt to screen it out.
 func (b *Base) MatchSymbolWithAvailablePairs(symbol string, a asset.Item, hasDelimiter bool) (currency.Pair, error) {
 	if hasDelimiter {
-		for x := range symbol {
-			if unicode.IsPunct(rune(symbol[x])) {
-				symbol = symbol[:x] + symbol[x+1:]
-				break
-			}
-		}
+		return b.CurrencyPairs.MatchDelimited(symbol, a)
 	}
 	return b.CurrencyPairs.Match(symbol, a)
 }

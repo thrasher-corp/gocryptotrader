@@ -494,16 +494,16 @@ func TestRunTestBinary(t *testing.T) {
 	dir := t.TempDir()
 
 	start := time.Now()
-	_, err = runTestBinary(t.Context(), self, dir, args("hang"), 100*time.Millisecond)
+	_, err = runTestBinary(t.Context(), self, dir, args("hang"), 100*time.Millisecond, processOutputWaitDelay)
 	assert.ErrorIs(t, err, errProcessTimeout, "a process running past its limit should be stopped and reported")
 	assert.Less(t, time.Since(start), 30*time.Second, "a process running past its limit should be stopped promptly")
 
-	out, err := runTestBinary(t.Context(), self, dir, args("fail"), time.Minute)
+	out, err := runTestBinary(t.Context(), self, dir, args("fail"), time.Minute, processOutputWaitDelay)
 	require.Error(t, err, "a process exiting non-zero must be an error")
 	assert.NotErrorIs(t, err, errProcessTimeout, "a failing process should not read as a timeout")
 	assert.Contains(t, string(out), "partial output", "a failing process's output should still be returned")
 
-	out, err = runTestBinary(t.Context(), self, dir, args("print"), time.Minute)
+	out, err = runTestBinary(t.Context(), self, dir, args("print"), time.Minute, processOutputWaitDelay)
 	require.NoError(t, err, "a process exiting zero must not error")
 	firstLine, _, _ := strings.Cut(string(out), "\n")
 	wd, ok := strings.CutPrefix(firstLine, "measured in ")
@@ -516,7 +516,7 @@ func TestRunTestBinary(t *testing.T) {
 	assert.True(t, os.SameFile(want, got), "the process should run from the directory given, as go test runs a test binary from its package")
 
 	start = time.Now()
-	out, err = runTestBinary(t.Context(), self, dir, args("spawn"), time.Minute)
+	out, err = runTestBinary(t.Context(), self, dir, args("spawn"), time.Minute, 100*time.Millisecond)
 	assert.ErrorIs(t, err, exec.ErrWaitDelay, "a process that leaves a descendant holding its output should fail")
 	assert.Less(t, time.Since(start), 30*time.Second, "a descendant holding the output should not keep the run waiting")
 	firstLine, _, _ = strings.Cut(string(out), "\n")
