@@ -1826,9 +1826,6 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 	_, err = e.CancelExistingOrderAndSendNewOrder(t.Context(), req)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelExistingOrderAndSendNewOrder must reject a request without the order to cancel")
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
 	for _, tc := range []struct {
 		name string
 		req  *CancelReplaceOrderRequest
@@ -2045,6 +2042,9 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			if !mockTests {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+			}
 			result, err := e.CancelExistingOrderAndSendNewOrder(t.Context(), tc.req)
 			require.NoError(t, err, "CancelExistingOrderAndSendNewOrder must not error")
 			if mockTests {

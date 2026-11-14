@@ -87,14 +87,17 @@ var defaultSubscriptions = subscription.List{
 
 // addDefaultDerivativesSubscriptions streams the default subscriptions of each derivatives asset that the configuration
 // has no subscription of, enabled or not, since configurations from before the derivatives streams list only spot's;
-// an asset with configured subscriptions, all-assets ones included, streams exactly its enabled ones
+// an asset with configured subscriptions, all-assets ones included, streams exactly its enabled ones. A myOrders
+// subscription has no stream of its own, so it leaves an asset's defaults in place
 func (e *Exchange) addDefaultDerivativesSubscriptions(exch *config.Exchange) {
 	var configured subscription.List
 	if exch.Features != nil {
 		configured = exch.Features.Subscriptions
 	}
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
-		if slices.ContainsFunc(configured, func(s *subscription.Subscription) bool { return s.Asset == a || s.Asset == asset.All }) {
+		if slices.ContainsFunc(configured, func(s *subscription.Subscription) bool {
+			return s.Channel != subscription.MyOrdersChannel && (s.Asset == a || s.Asset == asset.All)
+		}) {
 			continue
 		}
 		for _, s := range defaultSubscriptions {

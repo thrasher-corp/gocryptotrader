@@ -765,10 +765,6 @@ func TestGetActiveOrders(t *testing.T) {
 	_, err = e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Margin, MarginType: margin.Isolated, Side: order.AnySide, Type: order.OCO})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "GetActiveOrders must reject isolated margin order lists without pairs")
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	}
-	ensureTradablePairs(t)
 	for _, tc := range []struct {
 		name      string
 		req       *order.MultiOrderRequest
@@ -1154,6 +1150,10 @@ func TestGetActiveOrders(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			if !mockTests {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+			}
+			ensureTradablePairs(t)
 			if !tc.everyPair {
 				tc.req.Pairs = currency.Pairs{assetToTradablePairMap[tc.req.AssetType]}
 			}
@@ -6125,10 +6125,6 @@ func TestGetOrderInfo(t *testing.T) {
 	_, err = e.GetOrderInfo(t.Context(), "1", currency.NewBTCUSDT(), asset.Futures)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetOrderInfo must reject an unsupported asset")
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	}
-	ensureTradablePairs(t)
 	for _, tc := range []struct {
 		name    string
 		orderID string
@@ -6359,6 +6355,10 @@ func TestGetOrderInfo(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			if !mockTests {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+			}
+			ensureTradablePairs(t)
 			resp, err := e.GetOrderInfo(t.Context(), tc.orderID, assetToTradablePairMap[tc.a], tc.a)
 			require.ErrorIs(t, err, tc.err, "GetOrderInfo must return the expected error")
 			if mockTests {

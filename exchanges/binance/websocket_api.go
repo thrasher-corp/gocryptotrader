@@ -669,7 +669,8 @@ func (e *Exchange) processExecutionReport(ctx context.Context, a asset.Item, eve
 
 // processListStatus relays a listStatus event, and an OCO order list as the order GCT tracks it: SubmitOrder returns an
 // OCO order list by its order list ID, tagged as an order list's, which only this event updates, since the legs'
-// executionReport events carry their own order IDs
+// executionReport events carry their own order IDs. A REJECT list order status answers a failed placement or
+// cancellation rather than reporting the list's state, so it updates no order
 func (e *Exchange) processListStatus(ctx context.Context, a asset.Item, event []byte) error {
 	var resp WebsocketListStatus
 	if err := json.Unmarshal(event, &resp); err != nil {
@@ -678,7 +679,7 @@ func (e *Exchange) processListStatus(ctx context.Context, a asset.Item, event []
 	if err := e.Websocket.DataHandler.Send(ctx, &resp); err != nil {
 		return err
 	}
-	if resp.ContingencyType != oneCancelsTheOtherContingencyType {
+	if resp.ContingencyType != oneCancelsTheOtherContingencyType || resp.ListOrderStatus == "REJECT" {
 		return nil
 	}
 	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, a, false)

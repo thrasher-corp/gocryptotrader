@@ -366,9 +366,10 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 			for _, s := range subs {
 				s.Authenticated = auth.flaggedAuthenticated
 			}
-			// Configuring it for every asset, all assets included, keeps the derivatives defaults from being added, so each
-			// generator has only MyOrdersChannel to consider
+			// MyOrdersChannel leaves each asset's defaults in place, so they are taken out again to leave each generator
+			// only MyOrdersChannel to consider
 			myOrdersEx := setup(t, subs)
+			myOrdersEx.Features.Subscriptions = subs
 			myOrdersEx.Websocket.SetCanUseAuthenticatedEndpoints(auth.canUseAuthenticated)
 			for _, tc := range []struct {
 				name     string
@@ -386,6 +387,60 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 					subs, err := tc.generate()
 					require.NoErrorf(t, err, "%s generation must not error with only MyOrdersChannel configured", tc.name)
 					assert.Emptyf(t, subs, "%s generation should generate no streams with only MyOrdersChannel configured", tc.name)
+				})
+			}
+		})
+	}
+
+	// MyOrdersChannel has no stream of its own, so beside it a derivatives asset streams its defaults where nothing else
+	// configures the asset, and exactly what else does where something does
+	spotTicker := &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}
+	for _, tc := range []struct {
+		name string
+		subs subscription.List
+		exp  map[string]int // streams of the generators that do not stream their defaults
+	}{
+		{"my orders of USDⓈ-M", subscription.List{spotTicker, {Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true}}, nil},
+		{"my orders of USDⓈ-M not flagged as authenticated", subscription.List{spotTicker, {Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel}}, nil},
+		{"my orders of COIN-M", subscription.List{spotTicker, {Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true}}, nil},
+		{"my orders of options", subscription.List{spotTicker, {Enabled: true, Asset: asset.Options, Channel: subscription.MyOrdersChannel, Authenticated: true}}, nil},
+		{"my orders of all assets", subscription.List{spotTicker, {Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Authenticated: true}}, nil},
+		{"my orders of all assets not flagged as authenticated", subscription.List{spotTicker, {Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel}}, nil},
+		{"disabled my orders of all assets", subscription.List{spotTicker, {Enabled: false, Asset: asset.All, Channel: subscription.MyOrdersChannel, Authenticated: true}}, nil},
+		{
+			"my orders beside a USDⓈ-M ticker",
+			subscription.List{spotTicker, {Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel}, {Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true}},
+			map[string]int{"USDⓈ-M /public": 0, "USDⓈ-M /market": 1},
+		},
+		{
+			"my orders beside a disabled USDⓈ-M ticker",
+			subscription.List{spotTicker, {Enabled: false, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel}, {Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true}},
+			map[string]int{"USDⓈ-M /public": 0, "USDⓈ-M /market": 0},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := setup(t, tc.subs)
+			for _, g := range []struct {
+				name     string
+				generate func() (subscription.List, error)
+				defaults int
+			}{
+				{"USDⓈ-M /public", ex.generateUSDTMarginedFuturesPublicSubscriptions, 1},
+				{"USDⓈ-M /market", ex.generateUSDTMarginedFuturesMarketSubscriptions, 3},
+				{"COIN-M", ex.generateCoinMarginedFuturesSubscriptions, 4},
+				{"options /public", ex.generateOptionsPublicSubscriptions, 3},
+				{"options /market", ex.generateOptionsMarketSubscriptions, 1},
+			} {
+				t.Run(g.name, func(t *testing.T) {
+					t.Parallel()
+					exp, ok := tc.exp[g.name]
+					if !ok {
+						exp = g.defaults
+					}
+					subs, err := g.generate()
+					require.NoErrorf(t, err, "%s generation must not error", g.name)
+					assert.Lenf(t, subs, exp, "%s should stream its defaults beside MyOrdersChannel, or only what else configures it", g.name)
 				})
 			}
 		})

@@ -2450,27 +2450,30 @@ func TestSpotWebsocketAPIConnectionSetup(t *testing.T) { //nolint:tparallel // T
 	}
 }
 
-func TestWebsocketAuthenticateAPI(t *testing.T) { //nolint:tparallel // The cases take ex's relayed errors in turn
+func TestWebsocketAuthenticateAPI(t *testing.T) {
 	t.Parallel()
-	ex := newTestExchange(t)
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
-	}
-	setup := ex.spotWebsocketAPIConnectionSetup(ex.Config)
-	if mockTests {
-		useMockWebsocket(t, ex, setup, wsAPIMock)
-	} else {
-		useWebsocket(t, ex, setup)
-	}
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-	if mockTests {
-		assert.Equal(t, map[uint64]asset.Item{1: asset.Spot, 2: asset.Margin}, userDataAssets(ex), "Authenticate should subscribe to the spot and margin accounts' User Data Streams")
-	} else {
-		assert.Contains(t, slices.Collect(maps.Values(userDataAssets(ex))), asset.Spot, "Authenticate should subscribe to the spot account's User Data Stream")
-	}
+	t.Run("with credentials", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
+		}
+		setup := ex.spotWebsocketAPIConnectionSetup(ex.Config)
+		if mockTests {
+			useMockWebsocket(t, ex, setup, wsAPIMock)
+		} else {
+			useWebsocket(t, ex, setup)
+		}
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+		if mockTests {
+			assert.Equal(t, map[uint64]asset.Item{1: asset.Spot, 2: asset.Margin}, userDataAssets(ex), "Authenticate should subscribe to the spot and margin accounts' User Data Streams")
+		} else {
+			assert.Contains(t, slices.Collect(maps.Values(userDataAssets(ex))), asset.Spot, "Authenticate should subscribe to the spot account's User Data Stream")
+		}
+	})
 
-	ex = newTestExchange(t)
+	ex := newTestExchange(t)
 	ex.SkipAuthCheck = false
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{})
@@ -3281,43 +3284,98 @@ func TestProcessExecutionReport(t *testing.T) {
 	})
 }
 
-// TestListStatusUpdatesTrackedOrderList feeds the events of an OCO order list whose limit maker leg fills and whose stop
-// leg expires, and applies what is relayed to the order as GCT tracks it after SubmitOrder, by the list's ID
-func TestListStatusUpdatesTrackedOrderList(t *testing.T) {
+// TestProcessListStatus feeds an OCO order list's events and applies what is relayed to the order as GCT tracks it
+// after SubmitOrder, by the list's ID
+func TestProcessListStatus(t *testing.T) {
 	t.Parallel()
-	ex := newTestExchange(t)
-	ex.userData.expect("spot", asset.Spot)
-	ex.userData.recordResponse("spot", []byte(`{"id":"spot","status":200,"result":{"subscriptionId":0}}`))
 	pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-	tracked := &order.Detail{Exchange: ex.Name, OrderID: "list-1930", ClientOrderID: "gct-oco", Type: order.OCO, Status: order.Active, AssetType: asset.Spot, Pair: pair}
-	for _, frame := range []string{
-		`{"subscriptionId":0,"event":{"e":"executionReport","E":1791284900000,"s":"BTCUSDT","c":"leg-stop","S":"SELL","o":"STOP_LOSS_LIMIT","f":"GTC","q":"0.00100000","p":"69000.00000000","P":"70000.00000000","F":"0.00000000","g":1930,"C":"","x":"EXPIRED","X":"EXPIRED","r":"NONE","i":5001,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1791284900000,"t":-1,"I":1,"w":false,"m":false,"M":false,"O":1791284813000,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","V":"NONE","eR":"OCO_TRIGGER"}}`,
-		`{"subscriptionId":0,"event":{"e":"executionReport","E":1791284900000,"s":"BTCUSDT","c":"leg-limit","S":"SELL","o":"LIMIT_MAKER","f":"GTC","q":"0.00100000","p":"90000.00000000","P":"0.00000000","F":"0.00000000","g":1930,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5002,"l":"0.00100000","z":"0.00100000","L":"90000.00000000","n":"0.09","N":"USDT","T":1791284900000,"t":77,"I":2,"w":false,"m":true,"M":true,"O":1791284813000,"Z":"90.00000000","Y":"90.00000000","Q":"0.00000000","V":"NONE"}}`,
-		`{"subscriptionId":0,"event":{"e":"listStatus","E":1791284900000,"s":"BTCUSDT","g":1930,"c":"OCO","l":"ALL_DONE","L":"ALL_DONE","r":"NONE","C":"gct-oco","T":1791284900001,"O":[{"s":"BTCUSDT","i":5001,"c":"leg-stop"},{"s":"BTCUSDT","i":5002,"c":"leg-limit"}]}}`,
+	for _, tc := range []struct {
+		name         string
+		frames       []string
+		listStatuses int
+		updates      int
+		exp          order.Detail
+	}{
+		{
+			name: "limit maker leg fills and stop leg expires",
+			frames: []string{
+				`{"subscriptionId":0,"event":{"e":"executionReport","E":1791284900000,"s":"BTCUSDT","c":"leg-stop","S":"SELL","o":"STOP_LOSS_LIMIT","f":"GTC","q":"0.00100000","p":"69000.00000000","P":"70000.00000000","F":"0.00000000","g":1930,"C":"","x":"EXPIRED","X":"EXPIRED","r":"NONE","i":5001,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1791284900000,"t":-1,"I":1,"w":false,"m":false,"M":false,"O":1791284813000,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","V":"NONE","eR":"OCO_TRIGGER"}}`,
+				`{"subscriptionId":0,"event":{"e":"executionReport","E":1791284900000,"s":"BTCUSDT","c":"leg-limit","S":"SELL","o":"LIMIT_MAKER","f":"GTC","q":"0.00100000","p":"90000.00000000","P":"0.00000000","F":"0.00000000","g":1930,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5002,"l":"0.00100000","z":"0.00100000","L":"90000.00000000","n":"0.09","N":"USDT","T":1791284900000,"t":77,"I":2,"w":false,"m":true,"M":true,"O":1791284813000,"Z":"90.00000000","Y":"90.00000000","Q":"0.00000000","V":"NONE"}}`,
+				`{"subscriptionId":0,"event":{"e":"listStatus","E":1791284900000,"s":"BTCUSDT","g":1930,"c":"OCO","l":"ALL_DONE","L":"ALL_DONE","r":"NONE","C":"gct-oco","T":1791284900001,"O":[{"s":"BTCUSDT","i":5001,"c":"leg-stop"},{"s":"BTCUSDT","i":5002,"c":"leg-limit"}]}}`,
+			},
+			listStatuses: 1,
+			updates:      1,
+			exp: order.Detail{
+				OrderID: "list-1930", ClientOrderID: "gct-oco", Type: order.OCO, Status: order.Closed,
+				LastUpdated: time.UnixMilli(1791284900001), CloseTime: time.UnixMilli(1791284900001), Pair: pair,
+			},
+		},
+		{
+			name: "failed cancellation leaves the list working",
+			frames: []string{
+				`{"subscriptionId":0,"event":{"e":"listStatus","E":1791284900000,"s":"BTCUSDT","g":1930,"c":"OCO","l":"EXEC_STARTED","L":"EXECUTING","r":"NONE","C":"gct-oco","T":1791284900001,"O":[{"s":"BTCUSDT","i":5001,"c":"leg-stop"},{"s":"BTCUSDT","i":5002,"c":"leg-limit"}]}}`,
+				`{"subscriptionId":0,"event":{"e":"listStatus","E":1791284910000,"s":"BTCUSDT","g":1930,"c":"OCO","l":"RESPONSE","L":"REJECT","r":"NONE","C":"gct-oco","T":1791284910001,"O":[{"s":"BTCUSDT","i":5001,"c":"leg-stop"},{"s":"BTCUSDT","i":5002,"c":"leg-limit"}]}}`,
+			},
+			listStatuses: 2,
+			updates:      1,
+			exp:          order.Detail{OrderID: "list-1930", ClientOrderID: "gct-oco", Type: order.OCO, Status: order.Active, Pair: pair},
+		},
+		{
+			name: "leg client order ID change updates the list",
+			frames: []string{
+				`{"subscriptionId":0,"event":{"e":"listStatus","E":1791284900000,"s":"BTCUSDT","g":1930,"c":"OCO","l":"EXEC_STARTED","L":"EXECUTING","r":"NONE","C":"gct-oco","T":1791284900001,"O":[{"s":"BTCUSDT","i":5001,"c":"leg-stop"},{"s":"BTCUSDT","i":5002,"c":"leg-limit"}]}}`,
+				`{"subscriptionId":0,"event":{"e":"listStatus","E":1791284920000,"s":"BTCUSDT","g":1930,"c":"OCO","l":"UPDATED","L":"EXECUTING","r":"NONE","C":"gct-oco","T":1791284920001,"O":[{"s":"BTCUSDT","i":5001,"c":"leg-stop-renamed"},{"s":"BTCUSDT","i":5002,"c":"leg-limit"}]}}`,
+			},
+			listStatuses: 2,
+			updates:      2,
+			exp:          order.Detail{OrderID: "list-1930", ClientOrderID: "gct-oco", Type: order.OCO, Status: order.Active, Pair: pair},
+		},
+		{
+			name: "OTO list with the same ID updates no order",
+			frames: []string{
+				`{"subscriptionId":0,"event":{"e":"listStatus","E":1791284900000,"s":"BTCUSDT","g":1930,"c":"OTO","l":"EXEC_STARTED","L":"EXECUTING","r":"NONE","C":"gct-oto","T":1791284900001,"O":[{"s":"BTCUSDT","i":6001,"c":"working-leg"},{"s":"BTCUSDT","i":6002,"c":"pending-leg"}]}}`,
+				`{"subscriptionId":0,"event":{"e":"listStatus","E":1791284910000,"s":"BTCUSDT","g":1930,"c":"OTO","l":"UPDATED","L":"EXECUTING","r":"NONE","C":"gct-oto","T":1791284910001,"O":[{"s":"BTCUSDT","i":6001,"c":"working-leg-renamed"},{"s":"BTCUSDT","i":6002,"c":"pending-leg"}]}}`,
+				`{"subscriptionId":0,"event":{"e":"listStatus","E":1791284920000,"s":"BTCUSDT","g":1930,"c":"OTO","l":"RESPONSE","L":"REJECT","r":"NONE","C":"gct-oto","T":1791284920001,"O":[{"s":"BTCUSDT","i":6001,"c":"working-leg-renamed"},{"s":"BTCUSDT","i":6002,"c":"pending-leg"}]}}`,
+				`{"subscriptionId":0,"event":{"e":"listStatus","E":1791284930000,"s":"BTCUSDT","g":1930,"c":"OTO","l":"ALL_DONE","L":"ALL_DONE","r":"NONE","C":"gct-oto","T":1791284930001,"O":[{"s":"BTCUSDT","i":6001,"c":"working-leg-renamed"},{"s":"BTCUSDT","i":6002,"c":"pending-leg"}]}}`,
+			},
+			listStatuses: 4,
+			exp:          order.Detail{OrderID: "list-1930", ClientOrderID: "gct-oco", Type: order.OCO, Status: order.Active, Pair: pair},
+		},
 	} {
-		require.NoError(t, ex.wsHandleSpotAPIData(t.Context(), nil, []byte(frame)), "wsHandleSpotAPIData must not error")
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+				t.Run(a.String(), func(t *testing.T) {
+					t.Parallel()
+					ex := newTestExchange(t)
+					ex.userData.expect(a.String(), a)
+					ex.userData.recordResponse(a.String(), []byte(`{"id":"`+a.String()+`","status":200,"result":{"subscriptionId":0}}`))
+					tracked := &order.Detail{Exchange: ex.Name, OrderID: "list-1930", ClientOrderID: "gct-oco", Type: order.OCO, Status: order.Active, AssetType: a, Pair: pair}
+					for _, frame := range tc.frames {
+						require.NoErrorf(t, ex.wsHandleSpotAPIData(t.Context(), nil, []byte(frame)), "wsHandleSpotAPIData must not error for a %s event", a)
+					}
+					var listStatuses, updates int
+					for _, payload := range relayedPayloads(ex) {
+						switch p := payload.(type) {
+						case *WebsocketListStatus:
+							listStatuses++
+						case *order.Detail:
+							// The engine applies an order update to the tracked order with the same ID
+							if p.OrderID == tracked.OrderID {
+								require.NoError(t, tracked.UpdateOrderFromDetail(p), "UpdateOrderFromDetail must not error")
+								updates++
+							}
+						}
+					}
+					assert.Equal(t, tc.listStatuses, listStatuses, "each list status event should be relayed")
+					require.Equal(t, tc.updates, updates, "the order list's events must update the tracked order the expected number of times")
+					exp := tc.exp
+					exp.Exchange, exp.AssetType = ex.Name, a
+					assert.Equal(t, &exp, tracked, "the tracked order list should take its list status")
+				})
+			}
+		})
 	}
-	var updates int
-	for _, payload := range relayedPayloads(ex) {
-		// The engine applies an order update to the tracked order with the same ID
-		if d, ok := payload.(*order.Detail); ok && d.OrderID == tracked.OrderID {
-			require.NoError(t, tracked.UpdateOrderFromDetail(d), "UpdateOrderFromDetail must not error")
-			updates++
-		}
-	}
-	require.Equal(t, 1, updates, "the order list's event must update the tracked order once")
-	exp := &order.Detail{
-		Exchange:      ex.Name,
-		OrderID:       "list-1930",
-		ClientOrderID: "gct-oco",
-		Type:          order.OCO,
-		Status:        order.Closed,
-		AssetType:     asset.Spot,
-		LastUpdated:   time.UnixMilli(1791284900001),
-		CloseTime:     time.UnixMilli(1791284900001),
-		Pair:          pair,
-	}
-	assert.Equal(t, exp, tracked, "the tracked order list should close with its list status")
 }
 
 // keptConnection stands in for a WebSocket API connection whose identity alone matters

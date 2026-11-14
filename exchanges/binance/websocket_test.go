@@ -1349,6 +1349,71 @@ func expectedSpotSubscriptions(tb testing.TB, ex *Exchange, channels ...*subscri
 	return exp
 }
 
+func TestAddDefaultDerivativesSubscriptions(t *testing.T) {
+	t.Parallel()
+	derivatives := []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options}
+	assets := []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options, asset.All}
+	channels := []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel, subscription.MyOrdersChannel}
+	type testCase struct {
+		name     string
+		features *config.FeaturesConfig
+		defaults []asset.Item
+	}
+	tests := make([]testCase, 0, 3+len(assets)*len(channels)*4)
+	tests = append(tests,
+		testCase{"no features", nil, derivatives},
+		testCase{"no subscriptions", &config.FeaturesConfig{}, derivatives},
+		testCase{
+			"my orders beside a USDⓈ-M ticker",
+			&config.FeaturesConfig{Subscriptions: subscription.List{
+				{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel},
+				{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel},
+			}},
+			[]asset.Item{asset.CoinMarginedFutures, asset.Options},
+		},
+	)
+	// A subscription keeps out the defaults of its derivatives asset, or of every one for all assets, whatever its channel
+	// and flags, unless it is a myOrders subscription
+	for _, a := range assets {
+		for _, channel := range channels {
+			defaults := derivatives
+			if channel != subscription.MyOrdersChannel {
+				defaults = slices.DeleteFunc(slices.Clone(derivatives), func(d asset.Item) bool { return a == asset.All || d == a })
+			}
+			for _, enabled := range []bool{true, false} {
+				for _, authenticated := range []bool{false, true} {
+					name := a.String() + " " + channel
+					if !enabled {
+						name = "disabled " + name
+					}
+					if authenticated {
+						name += " flagged as authenticated"
+					}
+					tests = append(tests, testCase{
+						name:     name,
+						features: &config.FeaturesConfig{Subscriptions: subscription.List{{Enabled: enabled, Authenticated: authenticated, Asset: a, Channel: channel}}},
+						defaults: defaults,
+					})
+				}
+			}
+		}
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			ex.addDefaultDerivativesSubscriptions(&config.Exchange{Features: tc.features})
+			exp := subscription.List{}
+			for _, s := range defaultSubscriptions {
+				if slices.Contains(tc.defaults, s.Asset) {
+					exp = append(exp, s.Clone())
+				}
+			}
+			testsubs.EqualLists(t, exp, ex.Features.Subscriptions)
+		})
+	}
+}
+
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
