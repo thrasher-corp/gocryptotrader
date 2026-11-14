@@ -2,10 +2,17 @@ package engine
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"net"
+	"net/http"
+	"os"
 	"path/filepath"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,93 +26,137 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/utils"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var dcaConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
 
-func TestStartRPCServerStopsListenerOnContextCancel(t *testing.T) {
+func TestStartRPCServer(t *testing.T) {
 	t.Parallel()
-	cfg, err := config.GenerateDefaultConfig()
-	require.NoError(t, err, "GenerateDefaultConfig must not error")
 
-	listenConfig := net.ListenConfig{}
-	portListener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err, "Listen must not error")
-	listenAddress := portListener.Addr().String()
-	require.NoError(t, portListener.Close(), "Close must not error")
-
-	cfg.GRPC.ListenAddress = listenAddress
-	cfg.GRPC.TLSDir = t.TempDir()
-	cfg.GRPC.GRPCProxyEnabled = false
-
-	manager := NewTaskManager()
-	server, err := SetupRPCServer(cfg, manager)
-	require.NoError(t, err, "SetupRPCServer must not error")
-
-	rpcCtx, cancel := context.WithCancel(t.Context())
-	require.NoError(t, StartRPCServer(rpcCtx, server), "StartRPCServer must not error")
-
-	canDial := func() bool {
+	// 30000-31999 lies below the default ephemeral ranges and apart from the ports gctrpc/grpcserver's tests reserve in
+	// their own process; the map stops a later reservation picking a port again until its subtest ends
+	var reservedPorts sync.Map
+	reserveAddress := func(t *testing.T) string {
+		t.Helper()
+		listenConfig := net.ListenConfig{}
+		for range 100 {
+			port := 30000 + rand.IntN(2000) //nolint:gosec // a test port needs no cryptographic randomness
+			if _, taken := reservedPorts.LoadOrStore(port, struct{}{}); taken {
+				continue
+			}
+			address := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
+			portListener, err := listenConfig.Listen(t.Context(), "tcp", address)
+			if err != nil {
+				reservedPorts.Delete(port)
+				continue
+			}
+			require.NoError(t, portListener.Close(), "Close must not error")
+			t.Cleanup(func() { reservedPorts.Delete(port) })
+			return address
+		}
+		require.FailNow(t, "reserveAddress must find a free port")
+		return ""
+	}
+	canDial := func(t *testing.T, address string) bool {
+		t.Helper()
 		dialer := net.Dialer{Timeout: 100 * time.Millisecond}
-		conn, dialErr := dialer.DialContext(t.Context(), "tcp", listenAddress)
-		if dialErr != nil {
+		conn, err := dialer.DialContext(t.Context(), "tcp", address)
+		if err != nil {
 			return false
 		}
-		_ = conn.Close()
+		assert.NoError(t, conn.Close(), "Close should not error")
 		return true
 	}
+	newServer := func(t *testing.T) *GRPCServer {
+		t.Helper()
+		cfg, err := config.GenerateDefaultConfig()
+		require.NoError(t, err, "GenerateDefaultConfig must not error")
+		cfg.GRPC.ListenAddress = reserveAddress(t)
+		cfg.GRPC.TLSDir = t.TempDir()
+		cfg.GRPC.GRPCProxyEnabled = false
+		server, err := SetupRPCServer(cfg, NewTaskManager())
+		require.NoError(t, err, "SetupRPCServer must not error")
+		return server
+	}
 
-	assert.Eventually(t, canDial, 5*time.Second, 100*time.Millisecond, "GRPC listener should accept TCP connections after startup")
-	cancel()
-	assert.Eventually(t, func() bool { return !canDial() }, 5*time.Second, 100*time.Millisecond, "GRPC listener should close after context cancellation")
-}
+	t.Run("nil server", func(t *testing.T) {
+		t.Parallel()
+		assert.ErrorIs(t, StartRPCServer(t.Context(), nil), gctcommon.ErrNilPointer, "StartRPCServer should reject a nil server")
+		assert.ErrorIs(t, StartRPCServer(t.Context(), &GRPCServer{}), gctcommon.ErrNilPointer, "StartRPCServer should reject a server without config")
+	})
 
-func TestStartRPCServerProxyFailureStopsListener(t *testing.T) {
-	t.Parallel()
-	cfg, err := config.GenerateDefaultConfig()
-	require.NoError(t, err, "GenerateDefaultConfig must not error")
+	t.Run("stops listener on context cancel", func(t *testing.T) {
+		t.Parallel()
+		server := newServer(t)
+		rpcCtx, cancel := context.WithCancel(t.Context())
+		require.NoError(t, StartRPCServer(rpcCtx, server), "StartRPCServer must not error")
+		assert.Eventually(t, func() bool { return canDial(t, server.config.GRPC.ListenAddress) }, 5*time.Second, 100*time.Millisecond, "gRPC listener should accept TCP connections after startup")
+		cancel()
+		assert.Eventually(t, func() bool { return !canDial(t, server.config.GRPC.ListenAddress) }, 5*time.Second, 100*time.Millisecond, "gRPC listener should close after context cancellation")
+	})
 
-	listenConfig := net.ListenConfig{}
-	portListener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err, "Listen must not error")
-	listenAddress := portListener.Addr().String()
-	require.NoError(t, portListener.Close(), "Close must not error")
+	t.Run("proxy failure stops listener", func(t *testing.T) {
+		t.Parallel()
+		server := newServer(t)
+		listenConfig := net.ListenConfig{}
+		proxyPortListener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
+		require.NoError(t, err, "Listen must not error")
+		t.Cleanup(func() { assert.NoError(t, proxyPortListener.Close(), "Close should not error") })
+		server.config.GRPC.GRPCProxyEnabled = true
+		server.config.GRPC.GRPCProxyListenAddress = proxyPortListener.Addr().String()
 
-	cfg.GRPC.ListenAddress = listenAddress
-	cfg.GRPC.TLSDir = t.TempDir()
-	cfg.GRPC.GRPCProxyEnabled = true
+		err = StartRPCServer(t.Context(), server)
+		assert.ErrorContains(t, err, "gRPC proxy listener failed to bind", "StartRPCServer error should include proxy listener bind context")
+		assert.False(t, canDial(t, server.config.GRPC.ListenAddress), "gRPC listener should be closed when proxy setup fails")
+	})
 
-	proxyPortListener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err, "Listen must not error")
-	defer func() {
-		closeErr := proxyPortListener.Close()
-		require.NoError(t, closeErr, "Close must not error")
-	}()
-	cfg.GRPC.GRPCProxyListenAddress = proxyPortListener.Addr().String()
+	t.Run("REST proxy requires credentials over HTTPS", func(t *testing.T) {
+		t.Parallel()
+		server := newServer(t)
+		server.config.GRPC.GRPCProxyEnabled = true
+		server.config.GRPC.GRPCProxyListenAddress = reserveAddress(t)
+		rpcCtx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(cancel)
+		require.NoError(t, StartRPCServer(rpcCtx, server), "StartRPCServer must not error")
+		proxyAddress := server.config.GRPC.GRPCProxyListenAddress
+		require.Eventually(t, func() bool { return canDial(t, proxyAddress) }, 5*time.Second, 10*time.Millisecond, "proxy must accept TCP connections after startup")
 
-	manager := NewTaskManager()
-	server, err := SetupRPCServer(cfg, manager)
-	require.NoError(t, err, "SetupRPCServer must not error")
-
-	rpcCtx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	err = StartRPCServer(rpcCtx, server)
-	require.Error(t, err, "StartRPCServer must error when proxy setup fails")
-	assert.ErrorContains(t, err, "gRPC proxy listener failed to bind", "StartRPCServer error should include proxy listener bind context")
-
-	dialer := net.Dialer{Timeout: 100 * time.Millisecond}
-	canDial := func() bool {
-		conn, dialErr := dialer.DialContext(t.Context(), "tcp", listenAddress)
-		if dialErr != nil {
-			return false
+		caCert, err := os.ReadFile(filepath.Join(utils.GetTLSDir(server.config.GRPC.TLSDir), "cert.pem"))
+		require.NoError(t, err, "ReadFile must not error")
+		roots := x509.NewCertPool()
+		require.True(t, roots.AppendCertsFromPEM(caCert), "AppendCertsFromPEM must accept the generated certificate")
+		client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}}, Timeout: 10 * time.Second}
+		// Serial and in this order, so the valid request follows the refused ones on the same proxy
+		for _, tc := range []struct {
+			name               string
+			username, password string
+			wantStatus         int
+		}{
+			{name: "no credentials", wantStatus: http.StatusUnauthorized},
+			{name: "wrong password", username: server.config.GRPC.Username, password: "wrong", wantStatus: http.StatusUnauthorized},
+			{name: "valid credentials", username: server.config.GRPC.Username, password: server.config.GRPC.Password, wantStatus: http.StatusOK},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://"+proxyAddress+"/v1/listalltasks", http.NoBody)
+				require.NoError(t, err, "NewRequestWithContext must not error")
+				if tc.username != "" {
+					req.SetBasicAuth(tc.username, tc.password)
+				}
+				resp, err := client.Do(req)
+				require.NoError(t, err, "Do must not error")
+				assert.Equal(t, tc.wantStatus, resp.StatusCode, "HTTP status code should match")
+				assert.NoError(t, resp.Body.Close(), "Close should not error")
+			})
 		}
-		_ = conn.Close()
-		return true
-	}
-	assert.Eventually(t, func() bool { return !canDial() }, time.Second, 100*time.Millisecond, "GRPC listener should close when proxy setup fails")
+	})
 }
 
 func TestExecuteStrategyFromFile(t *testing.T) {
@@ -363,10 +414,18 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		},
 	}
 
+	base := proto.CloneOf(cfg)
+
 	_, err = s.ExecuteStrategyFromConfig(t.Context(), &btrpc.ExecuteStrategyFromConfigRequest{
 		Config: cfg,
 	})
 	require.NoError(t, err, "ExecuteStrategyFromConfig must not error")
+	require.Len(t, s.manager.tasks, 1, "ExecuteStrategyFromConfig must store the task")
+	settings, err := s.manager.tasks[0].Exchange.GetCurrencySettings(defaultConfig.CurrencySettings[0].ExchangeName, defaultConfig.CurrencySettings[0].Asset, currency.NewPair(defaultConfig.CurrencySettings[0].Base, defaultConfig.CurrencySettings[0].Quote))
+	require.NoError(t, err, "GetCurrencySettings must not error")
+	assert.Truef(t, defaultConfig.CurrencySettings[0].MakerFee.Equal(settings.MakerFee), "maker fee should come from the maker fee override, got %s", settings.MakerFee)
+	assert.Truef(t, defaultConfig.CurrencySettings[0].TakerFee.Equal(settings.TakerFee), "taker fee should come from the taker fee override, got %s", settings.TakerFee)
+	assert.NotEmpty(t, s.config.Report.OutputPath, "ExecuteStrategyFromConfig should not clear the shared report path")
 
 	_, err = s.ExecuteStrategyFromConfig(t.Context(), &btrpc.ExecuteStrategyFromConfigRequest{
 		DoNotRunImmediately: true,
@@ -431,6 +490,38 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	})
 	assert.True(t, errors.Is(err, gctcommon.ErrStartEqualsEnd) || errors.Is(err, errAmbiguousDataSource),
 		"ExecuteStrategyFromConfig should error")
+
+	for _, tc := range []struct {
+		name string
+		omit func(*btrpc.Config)
+	}{
+		{name: "statistic settings", omit: func(c *btrpc.Config) { c.StatisticSettings = nil }},
+		{name: "portfolio settings", omit: func(c *btrpc.Config) { c.PortfolioSettings = nil }},
+		{name: "portfolio leverage", omit: func(c *btrpc.Config) { c.PortfolioSettings.Leverage = nil }},
+		{name: "portfolio buy side", omit: func(c *btrpc.Config) { c.PortfolioSettings.BuySide = nil }},
+		{name: "portfolio sell side", omit: func(c *btrpc.Config) { c.PortfolioSettings.SellSide = nil }},
+		{name: "funding settings", omit: func(c *btrpc.Config) { c.FundingSettings = nil }},
+		{name: "strategy settings", omit: func(c *btrpc.Config) { c.StrategySettings = nil }},
+		{name: "currency buy side", omit: func(c *btrpc.Config) { c.CurrencySettings[0].BuySide = nil }},
+		{name: "currency sell side", omit: func(c *btrpc.Config) { c.CurrencySettings[0].SellSide = nil }},
+		{name: "data settings", omit: func(c *btrpc.Config) { c.DataSettings = nil }},
+		{name: "database config", omit: func(c *btrpc.Config) { c.DataSettings.DatabaseData = &btrpc.DatabaseData{} }},
+		{name: "database connection details", omit: func(c *btrpc.Config) {
+			c.DataSettings.DatabaseData = &btrpc.DatabaseData{Config: &btrpc.DatabaseConfig{}}
+		}},
+		{name: "live data credential keys", omit: func(c *btrpc.Config) {
+			c.DataSettings.LiveData = &btrpc.LiveData{Credentials: []*btrpc.Credentials{{Exchange: "test"}}}
+		}},
+	} {
+		t.Run("omitted "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := proto.CloneOf(base)
+			c.DataSettings.Interval = nil // Fails validation before any candle data is fetched
+			tc.omit(c)
+			_, err := s.ExecuteStrategyFromConfig(t.Context(), &btrpc.ExecuteStrategyFromConfigRequest{Config: c, DoNotRunImmediately: true})
+			assert.Error(t, err, "ExecuteStrategyFromConfig should return an error for an incomplete config")
+		})
+	}
 }
 
 func TestListAllTasks(t *testing.T) {
@@ -484,11 +575,13 @@ func TestGRPCStopTask(t *testing.T) {
 	require.Len(t, s.manager.tasks, 1, "StopTask must not remove task")
 
 	s.manager.tasks[0].MetaData.DateStarted = time.Now()
-	_, err = s.StopTask(t.Context(), &btrpc.StopTaskRequest{
+	resp, err := s.StopTask(t.Context(), &btrpc.StopTaskRequest{
 		Id: bt.MetaData.ID.String(),
 	})
 	require.NoError(t, err, "StopTask must not error")
 	assert.False(t, s.manager.tasks[0].MetaData.DateEnded.IsZero(), "DateEnded should not be zero")
+	assert.True(t, resp.StoppedTask.Closed, "response should describe the task after it stopped")
+	assert.NotEmpty(t, resp.StoppedTask.DateEnded, "response should carry the task's end date")
 }
 
 func TestGRPCStopAllTasks(t *testing.T) {
@@ -627,4 +720,65 @@ func TestGRPCClearAllTasks(t *testing.T) {
 	_, err = s.ClearAllTasks(t.Context(), &btrpc.ClearAllTasksRequest{})
 	assert.NoError(t, err, "ClearAllTasks should not error")
 	assert.Empty(t, s.manager.tasks, "tasks should be empty")
+}
+
+func TestRPCStatusCode(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		err  error
+		want codes.Code
+	}{
+		{name: "unmapped error", err: errors.New("unmapped"), want: codes.Unknown},
+		{name: "nil request", err: fmt.Errorf("%w request", gctcommon.ErrNilPointer), want: codes.InvalidArgument},
+		{name: "conflicting request flags", err: errCannotHandleRequest, want: codes.InvalidArgument},
+		{name: "unknown task", err: errTaskNotFound, want: codes.NotFound},
+		{name: "missing strategy file", err: fmt.Errorf("%w %v", common.ErrFileNotFound, "path"), want: codes.NotFound},
+		{name: "task has not ran", err: errTaskHasNotRan, want: codes.FailedPrecondition},
+		{name: "task is running", err: errTaskIsRunning, want: codes.FailedPrecondition},
+		{name: "task already ran", err: errAlreadyRan, want: codes.FailedPrecondition},
+		{name: "task cannot be cleared", err: errCannotClear, want: codes.FailedPrecondition},
+		{name: "live task only", err: errLiveOnly, want: codes.FailedPrecondition},
+		{name: "date unset", err: gctcommon.ErrDateUnset, want: codes.InvalidArgument},
+		{name: "start after end", err: gctcommon.ErrStartAfterEnd, want: codes.InvalidArgument},
+		{name: "start equals end", err: gctcommon.ErrStartEqualsEnd, want: codes.InvalidArgument},
+		{name: "database port", err: errBadPort, want: codes.InvalidArgument},
+		{name: "ambiguous data source", err: errAmbiguousDataSource, want: codes.InvalidArgument},
+		{name: "no data source", err: errNoDataSource, want: codes.InvalidArgument},
+		{name: "interval unset", err: errIntervalUnset, want: codes.InvalidArgument},
+		{name: "invalid interval", err: gctkline.ErrInvalidInterval, want: codes.InvalidArgument},
+		{name: "unsupported asset", err: asset.ErrNotSupported, want: codes.InvalidArgument},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, rpcStatusCode(tc.err), "rpcStatusCode should return the expected code")
+		})
+	}
+}
+
+func TestGRPCServerTaskConfig(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                     string
+		generateReport           bool
+		wantOutput, wantTemplate string
+	}{
+		{name: "report paths left out without a report", generateReport: false},
+		{name: "report paths kept for a report", generateReport: true, wantOutput: "output", wantTemplate: "template"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := &GRPCServer{config: &config.BacktesterConfig{
+				Verbose: true,
+				Report:  config.Report{GenerateReport: tc.generateReport, OutputPath: "output", TemplatePath: "template"},
+			}}
+			taskCfg := s.taskConfig()
+			require.NotSame(t, s.config, taskCfg, "taskConfig must return a copy of the server config")
+			assert.True(t, taskCfg.Verbose, "taskConfig should copy the server config's settings")
+			assert.Equal(t, tc.wantOutput, taskCfg.Report.OutputPath, "taskConfig should set the task's report output path")
+			assert.Equal(t, tc.wantTemplate, taskCfg.Report.TemplatePath, "taskConfig should set the task's report template path")
+			assert.Equal(t, "output", s.config.Report.OutputPath, "taskConfig should leave the server's report output path alone")
+			assert.Equal(t, "template", s.config.Report.TemplatePath, "taskConfig should leave the server's report template path alone")
+		})
+	}
 }

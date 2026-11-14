@@ -2,38 +2,27 @@ package engine
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"math"
-	"net"
-	"net/http"
-	"path/filepath"
-	"strings"
 	"time"
 	"uuid"
 
-	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	gctengine "github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
-	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/gctrpc/grpcserver"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/codes"
 )
-
-const grpcServerGracefulStopTimeout = 5 * time.Second
 
 var (
 	errBadPort             = errors.New("received bad port")
@@ -42,7 +31,7 @@ var (
 
 // GRPCServer struct
 type GRPCServer struct {
-	btrpc.BacktesterServiceServer
+	btrpc.UnimplementedBacktesterServiceServer
 	config  *config.BacktesterConfig
 	manager *TaskManager
 }
@@ -61,162 +50,60 @@ func SetupRPCServer(cfg *config.BacktesterConfig, manager *TaskManager) (*GRPCSe
 	}, nil
 }
 
-// StartRPCServer starts a gRPC server with TLS auth
+// StartRPCServer starts a gRPC server with TLS auth, and the REST proxy when enabled
 func StartRPCServer(ctx context.Context, server *GRPCServer) error {
-	targetDir := utils.GetTLSDir(server.config.GRPC.TLSDir)
-	if err := gctengine.CheckCerts(targetDir); err != nil {
-		return err
+	if server == nil || server.config == nil {
+		return fmt.Errorf("%w gRPC server config", gctcommon.ErrNilPointer)
 	}
-	log.Debugf(log.GRPCSys, "Backtester GRPC server enabled. Starting GRPC server on https://%v.", server.config.GRPC.ListenAddress)
-	listenConfig := net.ListenConfig{}
-	lis, err := listenConfig.Listen(ctx, "tcp", server.config.GRPC.ListenAddress)
-	if err != nil {
-		return err
+	cfg := &grpcserver.Config{
+		ListenAddress: server.config.GRPC.ListenAddress,
+		TLSDir:        utils.GetTLSDir(server.config.GRPC.TLSDir),
+		Username:      server.config.GRPC.Username,
+		Password:      server.config.GRPC.Password,
+		Register: func(r grpc.ServiceRegistrar) {
+			btrpc.RegisterBacktesterServiceServer(r, server)
+		},
+		RegisterProxy: btrpc.RegisterBacktesterServiceHandlerFromEndpoint,
+		StatusCode:    rpcStatusCode,
 	}
-
-	creds, err := credentials.NewServerTLSFromFile(filepath.Join(targetDir, "cert.pem"), filepath.Join(targetDir, "key.pem"))
-	if err != nil {
-		_ = lis.Close()
-		return err
-	}
-
-	opts := []grpc.ServerOption{
-		grpc.Creds(creds),
-		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(server.authenticateClient)),
-		grpc.StreamInterceptor(grpcauth.StreamServerInterceptor(server.authenticateClient)),
-	}
-	s := grpc.NewServer(opts...)
-	btrpc.RegisterBacktesterServiceServer(s, server)
-
 	if server.config.GRPC.GRPCProxyEnabled {
-		err = server.startRPCRESTProxy(ctx)
-		if err != nil {
-			_ = lis.Close()
-			return err
-		}
+		cfg.ProxyListenAddress = server.config.GRPC.GRPCProxyListenAddress
 	}
-
-	shutdownGRPCServer := func() {
-		done := make(chan struct{})
-		go func() {
-			s.GracefulStop()
-			close(done)
-		}()
-
-		select {
-		case <-done:
-		case <-time.After(grpcServerGracefulStopTimeout):
-			s.Stop()
-			<-done
-		}
-
-		_ = lis.Close()
-	}
-
-	context.AfterFunc(ctx, shutdownGRPCServer)
-
-	go func() {
-		if serveErr := s.Serve(lis); serveErr != nil && !errors.Is(serveErr, net.ErrClosed) && !errors.Is(serveErr, grpc.ErrServerStopped) {
-			log.Errorln(log.GRPCSys, serveErr)
-			return
-		}
-	}()
-
-	log.Debugln(log.GRPCSys, "GRPC server started!")
-
-	return nil
+	return grpcserver.Start(ctx, cfg)
 }
 
-func (s *GRPCServer) startRPCRESTProxy(ctx context.Context) error {
-	log.Debugf(log.GRPCSys, "GRPC proxy server support enabled. Starting gRPC proxy server on %v", s.config.GRPC.GRPCProxyListenAddress)
-	listenConfig := net.ListenConfig{}
-	proxyListener, err := listenConfig.Listen(ctx, "tcp", s.config.GRPC.GRPCProxyListenAddress)
-	if err != nil {
-		return fmt.Errorf("gRPC proxy listener failed to bind: %w", err)
-	}
-	closeProxyListenerOnFailure := true
-	defer func() {
-		if closeProxyListenerOnFailure {
-			_ = proxyListener.Close()
+// rpcStatusCode maps a handler error to a gRPC code, so that clients can tell a bad request from a server failure
+func rpcStatusCode(err error) codes.Code {
+	for _, target := range []error{errTaskNotFound, common.ErrFileNotFound} {
+		if errors.Is(err, target) {
+			return codes.NotFound
 		}
-	}()
-
-	targetDir := utils.GetTLSDir(s.config.GRPC.TLSDir)
-	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
-	if err != nil {
-		return fmt.Errorf("unable to start gRPC proxy. Err: %w", err)
 	}
-
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(creds),
-		grpc.WithPerRPCCredentials(auth.BasicAuth{
-			Username: s.config.GRPC.Username,
-			Password: s.config.GRPC.Password,
-		}),
-	}
-	err = btrpc.RegisterBacktesterServiceHandlerFromEndpoint(context.Background(),
-		mux, s.config.GRPC.ListenAddress, opts)
-	if err != nil {
-		return fmt.Errorf("failed to register gRPC proxy. Err: %w", err)
-	}
-
-	server := &http.Server{
-		Addr:              s.config.GRPC.GRPCProxyListenAddress,
-		ReadHeaderTimeout: time.Minute,
-		ReadTimeout:       time.Minute,
-		Handler:           mux,
-	}
-
-	context.AfterFunc(ctx, func() {
-		// Shutdown must outlive ctx, which has just been cancelled
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer cancel()
-		if shutdownErr := server.Shutdown(shutdownCtx); shutdownErr != nil && !errors.Is(shutdownErr, http.ErrServerClosed) {
-			log.Errorf(log.GRPCSys, "GRPC proxy server shutdown failed: %s", shutdownErr)
+	for _, target := range []error{errTaskHasNotRan, errTaskIsRunning, errAlreadyRan, errCannotClear, errLiveOnly} {
+		if errors.Is(err, target) {
+			return codes.FailedPrecondition
 		}
-	})
-
-	go func() {
-		if serveErr := server.Serve(proxyListener); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
-			log.Errorf(log.GRPCSys, "GRPC proxy failed to serve: %s", serveErr)
+	}
+	for _, target := range []error{
+		gctcommon.ErrNilPointer, gctcommon.ErrDateUnset, gctcommon.ErrStartAfterEnd, gctcommon.ErrStartEqualsEnd,
+		errCannotHandleRequest, errBadPort, errAmbiguousDataSource, errNoDataSource, errIntervalUnset,
+		gctkline.ErrInvalidInterval, asset.ErrNotSupported,
+	} {
+		if errors.Is(err, target) {
+			return codes.InvalidArgument
 		}
-	}()
-
-	log.Debugln(log.GRPCSys, "GRPC proxy server started!")
-	closeProxyListenerOnFailure = false
-	return nil
+	}
+	return codes.Unknown
 }
 
-func (s *GRPCServer) authenticateClient(ctx context.Context) (context.Context, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return ctx, errors.New("unable to extract metadata")
+// taskConfig returns a copy of the server config for a new task, so that requests never write to the shared config
+func (s *GRPCServer) taskConfig() *config.BacktesterConfig {
+	taskCfg := *s.config
+	if !taskCfg.Report.GenerateReport {
+		taskCfg.Report.OutputPath = ""
+		taskCfg.Report.TemplatePath = ""
 	}
-
-	authStr, ok := md["authorization"]
-	if !ok {
-		return ctx, errors.New("authorization header missing")
-	}
-
-	if !strings.Contains(authStr[0], "Basic") {
-		return ctx, errors.New("basic not found in authorization header")
-	}
-
-	decoded, err := base64.StdEncoding.DecodeString(strings.Split(authStr[0], " ")[1])
-	if err != nil {
-		return ctx, errors.New("unable to base64 decode authorization header")
-	}
-
-	creds := strings.Split(string(decoded), ":")
-	username := creds[0]
-	password := creds[1]
-
-	if username != s.config.GRPC.Username ||
-		password != s.config.GRPC.Password {
-		return ctx, errors.New("username/password mismatch")
-	}
-	return ctx, nil
+	return &taskCfg
 }
 
 // convertSummary converts a task summary into a RPC format
@@ -286,12 +173,7 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		return nil, err
 	}
 
-	if !s.config.Report.GenerateReport {
-		s.config.Report.OutputPath = ""
-		s.config.Report.TemplatePath = ""
-	}
-
-	bt, err := NewBacktesterFromConfigs(cfg, s.config)
+	bt, err := NewBacktesterFromConfigs(cfg, s.taskConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -335,51 +217,51 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		return nil, fmt.Errorf("%w cannot manage a task with both dnr and dns", errCannotHandleRequest)
 	}
 
-	rfr, err := decimal.NewFromString(request.Config.StatisticSettings.RiskFreeRate)
+	rfr, err := decimal.NewFromString(request.Config.GetStatisticSettings().GetRiskFreeRate())
 	if err != nil {
 		return nil, err
 	}
-	maximumOrdersWithLeverageRatio, err := decimal.NewFromString(request.Config.PortfolioSettings.Leverage.MaximumOrdersWithLeverageRatio)
+	maximumOrdersWithLeverageRatio, err := decimal.NewFromString(request.Config.GetPortfolioSettings().GetLeverage().GetMaximumOrdersWithLeverageRatio())
 	if err != nil {
 		return nil, err
 	}
-	maximumOrderLeverageRate, err := decimal.NewFromString(request.Config.PortfolioSettings.Leverage.MaximumLeverageRate)
+	maximumOrderLeverageRate, err := decimal.NewFromString(request.Config.GetPortfolioSettings().GetLeverage().GetMaximumLeverageRate())
 	if err != nil {
 		return nil, err
 	}
-	maximumCollateralLeverageRate, err := decimal.NewFromString(request.Config.PortfolioSettings.Leverage.MaximumCollateralLeverageRate)
-	if err != nil {
-		return nil, err
-	}
-
-	buySideMinimumSize, err := decimal.NewFromString(request.Config.PortfolioSettings.BuySide.MinimumSize)
-	if err != nil {
-		return nil, err
-	}
-	buySideMaximumSize, err := decimal.NewFromString(request.Config.PortfolioSettings.BuySide.MaximumSize)
-	if err != nil {
-		return nil, err
-	}
-	buySideMaximumTotal, err := decimal.NewFromString(request.Config.PortfolioSettings.BuySide.MaximumTotal)
+	maximumCollateralLeverageRate, err := decimal.NewFromString(request.Config.GetPortfolioSettings().GetLeverage().GetMaximumCollateralLeverageRate())
 	if err != nil {
 		return nil, err
 	}
 
-	sellSideMinimumSize, err := decimal.NewFromString(request.Config.PortfolioSettings.SellSide.MinimumSize)
+	buySideMinimumSize, err := decimal.NewFromString(request.Config.GetPortfolioSettings().GetBuySide().GetMinimumSize())
 	if err != nil {
 		return nil, err
 	}
-	sellSideMaximumSize, err := decimal.NewFromString(request.Config.PortfolioSettings.SellSide.MaximumSize)
+	buySideMaximumSize, err := decimal.NewFromString(request.Config.GetPortfolioSettings().GetBuySide().GetMaximumSize())
 	if err != nil {
 		return nil, err
 	}
-	sellSideMaximumTotal, err := decimal.NewFromString(request.Config.PortfolioSettings.SellSide.MaximumTotal)
+	buySideMaximumTotal, err := decimal.NewFromString(request.Config.GetPortfolioSettings().GetBuySide().GetMaximumTotal())
 	if err != nil {
 		return nil, err
 	}
 
-	fundingSettings := make([]config.ExchangeLevelFunding, len(request.Config.FundingSettings.ExchangeLevelFunding))
-	for i := range request.Config.FundingSettings.ExchangeLevelFunding {
+	sellSideMinimumSize, err := decimal.NewFromString(request.Config.GetPortfolioSettings().GetSellSide().GetMinimumSize())
+	if err != nil {
+		return nil, err
+	}
+	sellSideMaximumSize, err := decimal.NewFromString(request.Config.GetPortfolioSettings().GetSellSide().GetMaximumSize())
+	if err != nil {
+		return nil, err
+	}
+	sellSideMaximumTotal, err := decimal.NewFromString(request.Config.GetPortfolioSettings().GetSellSide().GetMaximumTotal())
+	if err != nil {
+		return nil, err
+	}
+
+	fundingSettings := make([]config.ExchangeLevelFunding, len(request.Config.GetFundingSettings().GetExchangeLevelFunding()))
+	for i := range request.Config.GetFundingSettings().GetExchangeLevelFunding() {
 		var initialFunds, transferFee decimal.Decimal
 		var a asset.Item
 		initialFunds, err = decimal.NewFromString(request.Config.FundingSettings.ExchangeLevelFunding[i].InitialFunds)
@@ -404,8 +286,8 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		}
 	}
 
-	customSettings := make(map[string]any, len(request.Config.StrategySettings.CustomSettings))
-	for i := range request.Config.StrategySettings.CustomSettings {
+	customSettings := make(map[string]any, len(request.Config.GetStrategySettings().GetCustomSettings()))
+	for i := range request.Config.GetStrategySettings().GetCustomSettings() {
 		customSettings[request.Config.StrategySettings.CustomSettings[i].KeyField] = request.Config.StrategySettings.CustomSettings[i].KeyValue
 	}
 
@@ -416,28 +298,28 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			currencySettingSellSideMaximumSize, currencySettingSellSideMaximumTotal,
 			minimumSlippagePercent, maximumSlippagePercent, maximumHoldingsRatio decimal.Decimal
 		var a asset.Item
-		currencySettingBuySideMinimumSize, err = decimal.NewFromString(request.Config.CurrencySettings[i].BuySide.MinimumSize)
+		currencySettingBuySideMinimumSize, err = decimal.NewFromString(request.Config.CurrencySettings[i].GetBuySide().GetMinimumSize())
 		if err != nil {
 			return nil, err
 		}
-		currencySettingBuySideMaximumSize, err = decimal.NewFromString(request.Config.CurrencySettings[i].BuySide.MaximumSize)
+		currencySettingBuySideMaximumSize, err = decimal.NewFromString(request.Config.CurrencySettings[i].GetBuySide().GetMaximumSize())
 		if err != nil {
 			return nil, err
 		}
-		currencySettingBuySideMaximumTotal, err = decimal.NewFromString(request.Config.CurrencySettings[i].BuySide.MaximumTotal)
+		currencySettingBuySideMaximumTotal, err = decimal.NewFromString(request.Config.CurrencySettings[i].GetBuySide().GetMaximumTotal())
 		if err != nil {
 			return nil, err
 		}
 
-		currencySettingSellSideMinimumSize, err = decimal.NewFromString(request.Config.CurrencySettings[i].SellSide.MinimumSize)
+		currencySettingSellSideMinimumSize, err = decimal.NewFromString(request.Config.CurrencySettings[i].GetSellSide().GetMinimumSize())
 		if err != nil {
 			return nil, err
 		}
-		currencySettingSellSideMaximumSize, err = decimal.NewFromString(request.Config.CurrencySettings[i].SellSide.MaximumSize)
+		currencySettingSellSideMaximumSize, err = decimal.NewFromString(request.Config.CurrencySettings[i].GetSellSide().GetMaximumSize())
 		if err != nil {
 			return nil, err
 		}
-		currencySettingSellSideMaximumTotal, err = decimal.NewFromString(request.Config.CurrencySettings[i].SellSide.MaximumTotal)
+		currencySettingSellSideMaximumTotal, err = decimal.NewFromString(request.Config.CurrencySettings[i].GetSellSide().GetMaximumTotal())
 		if err != nil {
 			return nil, err
 		}
@@ -473,7 +355,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		if request.Config.CurrencySettings[i].TakerFeeOverride != "" {
 			// nil is a valid option
 			var t decimal.Decimal
-			t, err = decimal.NewFromString(request.Config.CurrencySettings[i].MakerFeeOverride)
+			t, err = decimal.NewFromString(request.Config.CurrencySettings[i].TakerFeeOverride)
 			if err != nil {
 				return nil, fmt.Errorf("%v %v %v-%v taker fee %w", request.Config.CurrencySettings[i].ExchangeName, request.Config.CurrencySettings[i].Asset, request.Config.CurrencySettings[i].Base, request.Config.CurrencySettings[i].Quote, err)
 			}
@@ -557,7 +439,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 	}
 
 	var apiData *config.APIData
-	if request.Config.DataSettings.ApiData != nil {
+	if request.Config.GetDataSettings().GetApiData() != nil {
 		apiData = &config.APIData{
 			StartDate:        request.Config.DataSettings.ApiData.StartDate.AsTime(),
 			EndDate:          request.Config.DataSettings.ApiData.EndDate.AsTime(),
@@ -565,20 +447,20 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		}
 	}
 	var dbData *config.DatabaseData
-	if request.Config.DataSettings.DatabaseData != nil {
-		if request.Config.DataSettings.DatabaseData.Config.Config.Port > math.MaxUint16 {
-			return nil, fmt.Errorf("%w '%v' cannot exceed '%v'", errBadPort, request.Config.DataSettings.DatabaseData.Config.Config.Port, math.MaxUint16)
+	if request.Config.GetDataSettings().GetDatabaseData() != nil {
+		if request.Config.DataSettings.DatabaseData.GetConfig().GetConfig().GetPort() > math.MaxUint16 {
+			return nil, fmt.Errorf("%w '%v' cannot exceed '%v'", errBadPort, request.Config.DataSettings.DatabaseData.GetConfig().GetConfig().GetPort(), math.MaxUint16)
 		}
 		cfg := database.Config{
-			Enabled:  request.Config.DataSettings.DatabaseData.Config.Enabled,
-			Verbose:  request.Config.DataSettings.DatabaseData.Config.Verbose,
-			Driver:   request.Config.DataSettings.DatabaseData.Config.Driver,
-			Host:     request.Config.DataSettings.DatabaseData.Config.Config.Host,
-			Port:     request.Config.DataSettings.DatabaseData.Config.Config.Port,
-			Username: request.Config.DataSettings.DatabaseData.Config.Config.UserName,
-			Password: request.Config.DataSettings.DatabaseData.Config.Config.Password,
-			Database: request.Config.DataSettings.DatabaseData.Config.Config.Database,
-			SSLMode:  request.Config.DataSettings.DatabaseData.Config.Config.SslMode,
+			Enabled:  request.Config.DataSettings.DatabaseData.GetConfig().GetEnabled(),
+			Verbose:  request.Config.DataSettings.DatabaseData.GetConfig().GetVerbose(),
+			Driver:   request.Config.DataSettings.DatabaseData.GetConfig().GetDriver(),
+			Host:     request.Config.DataSettings.DatabaseData.GetConfig().GetConfig().GetHost(),
+			Port:     request.Config.DataSettings.DatabaseData.GetConfig().GetConfig().GetPort(),
+			Username: request.Config.DataSettings.DatabaseData.GetConfig().GetConfig().GetUserName(),
+			Password: request.Config.DataSettings.DatabaseData.GetConfig().GetConfig().GetPassword(),
+			Database: request.Config.DataSettings.DatabaseData.GetConfig().GetConfig().GetDatabase(),
+			SSLMode:  request.Config.DataSettings.DatabaseData.GetConfig().GetConfig().GetSslMode(),
 		}
 		dbData = &config.DatabaseData{
 			StartDate:        request.Config.DataSettings.DatabaseData.StartDate.AsTime(),
@@ -589,18 +471,18 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		}
 	}
 	var liveData *config.LiveData
-	if request.Config.DataSettings.LiveData != nil {
+	if request.Config.GetDataSettings().GetLiveData() != nil {
 		creds := make([]config.Credentials, len(request.Config.DataSettings.LiveData.Credentials))
 		for i := range request.Config.DataSettings.LiveData.Credentials {
 			creds[i] = config.Credentials{
 				Exchange: request.Config.DataSettings.LiveData.Credentials[i].Exchange,
 				Keys: accounts.Credentials{
-					Key:             request.Config.DataSettings.LiveData.Credentials[i].Keys.Key,
-					Secret:          request.Config.DataSettings.LiveData.Credentials[i].Keys.Secret,
-					ClientID:        request.Config.DataSettings.LiveData.Credentials[i].Keys.ClientId,
-					PEMKey:          request.Config.DataSettings.LiveData.Credentials[i].Keys.PemKey,
-					SubAccount:      request.Config.DataSettings.LiveData.Credentials[i].Keys.SubAccount,
-					OneTimePassword: request.Config.DataSettings.LiveData.Credentials[i].Keys.OneTimePassword,
+					Key:             request.Config.DataSettings.LiveData.Credentials[i].GetKeys().GetKey(),
+					Secret:          request.Config.DataSettings.LiveData.Credentials[i].GetKeys().GetSecret(),
+					ClientID:        request.Config.DataSettings.LiveData.Credentials[i].GetKeys().GetClientId(),
+					PEMKey:          request.Config.DataSettings.LiveData.Credentials[i].GetKeys().GetPemKey(),
+					SubAccount:      request.Config.DataSettings.LiveData.Credentials[i].GetKeys().GetSubAccount(),
+					OneTimePassword: request.Config.DataSettings.LiveData.Credentials[i].GetKeys().GetOneTimePassword(),
 				},
 			}
 		}
@@ -615,7 +497,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		}
 	}
 	var csvData *config.CSVData
-	if request.Config.DataSettings.CsvData != nil {
+	if request.Config.GetDataSettings().GetCsvData() != nil {
 		csvData = &config.CSVData{
 			FullPath: request.Config.DataSettings.CsvData.Path,
 		}
@@ -625,19 +507,19 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		Nickname: request.Config.Nickname,
 		Goal:     request.Config.Goal,
 		StrategySettings: config.StrategySettings{
-			Name:                         request.Config.StrategySettings.Name,
-			SimultaneousSignalProcessing: request.Config.StrategySettings.UseSimultaneousSignalProcessing,
-			DisableUSDTracking:           request.Config.StrategySettings.DisableUsdTracking,
+			Name:                         request.Config.GetStrategySettings().GetName(),
+			SimultaneousSignalProcessing: request.Config.GetStrategySettings().GetUseSimultaneousSignalProcessing(),
+			DisableUSDTracking:           request.Config.GetStrategySettings().GetDisableUsdTracking(),
 			CustomSettings:               customSettings,
 		},
 		FundingSettings: config.FundingSettings{
-			UseExchangeLevelFunding: request.Config.FundingSettings.UseExchangeLevelFunding,
+			UseExchangeLevelFunding: request.Config.GetFundingSettings().GetUseExchangeLevelFunding(),
 			ExchangeLevelFunding:    fundingSettings,
 		},
 		CurrencySettings: configSettings,
 		DataSettings: config.DataSettings{
-			Interval:     gctkline.Interval(request.Config.DataSettings.Interval.AsDuration()),
-			DataType:     request.Config.DataSettings.Datatype,
+			Interval:     gctkline.Interval(request.Config.GetDataSettings().GetInterval().AsDuration()),
+			DataType:     request.Config.GetDataSettings().GetDatatype(),
 			APIData:      apiData,
 			DatabaseData: dbData,
 			LiveData:     liveData,
@@ -645,7 +527,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		},
 		PortfolioSettings: config.PortfolioSettings{
 			Leverage: config.Leverage{
-				CanUseLeverage:                 request.Config.PortfolioSettings.Leverage.CanUseLeverage,
+				CanUseLeverage:                 request.Config.GetPortfolioSettings().GetLeverage().GetCanUseLeverage(),
 				MaximumOrdersWithLeverageRatio: maximumOrdersWithLeverageRatio,
 				MaximumOrderLeverageRate:       maximumOrderLeverageRate,
 				MaximumCollateralLeverageRate:  maximumCollateralLeverageRate,
@@ -666,12 +548,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		},
 	}
 
-	if !s.config.Report.GenerateReport {
-		s.config.Report.OutputPath = ""
-		s.config.Report.TemplatePath = ""
-	}
-
-	bt, err := NewBacktesterFromConfigs(cfg, s.config)
+	bt, err := NewBacktesterFromConfigs(cfg, s.taskConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -728,11 +605,10 @@ func (s *GRPCServer) StopTask(_ context.Context, req *btrpc.StopTaskRequest) (*b
 	if err != nil {
 		return nil, err
 	}
-	task, err := s.manager.GetSummary(id)
-	if err != nil {
+	if err := s.manager.StopTask(id); err != nil {
 		return nil, err
 	}
-	err = s.manager.StopTask(id)
+	task, err := s.manager.GetSummary(id)
 	if err != nil {
 		return nil, err
 	}

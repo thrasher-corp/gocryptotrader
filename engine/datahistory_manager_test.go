@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -420,6 +421,83 @@ func TestValidateJob(t *testing.T) {
 	dhj.Exchange = ""
 	err = m.validateJob(dhj)
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
+
+	newJob := func(dataType dataHistoryDataType) *DataHistoryJob {
+		return &DataHistoryJob{
+			Nickname:  "TestValidateJob",
+			Exchange:  testExchange,
+			Asset:     asset.Spot,
+			Pair:      currency.NewBTCUSD(),
+			StartDate: time.Now().Add(-time.Hour * 60),
+			EndDate:   time.Now().Add(-time.Minute),
+			Interval:  kline.OneHour,
+			DataType:  dataType,
+		}
+	}
+
+	t.Run("convert candles needs a source interval", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryConvertCandlesDataType)
+		job.Interval = 0
+		job.ConversionInterval = kline.OneDay
+		assert.ErrorIs(t, m.validateJob(job), kline.ErrUnsupportedInterval, "validateJob should reject a convert candles job without an interval")
+		job.Interval = kline.OneHour
+		assert.NoError(t, m.validateJob(job), "validateJob should accept a convert candles job with both intervals")
+	})
+
+	t.Run("decimal place comparison limit", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryCandleValidationDataType)
+		job.DecimalPlaceComparison = maxDecimalPlaceComparison
+		assert.NoError(t, m.validateJob(job), "validateJob should accept the largest decimal place comparison")
+		job.DecimalPlaceComparison = maxDecimalPlaceComparison + 1
+		assert.ErrorIs(t, m.validateJob(job), errInvalidDecimalPlaces, "validateJob should reject a decimal place comparison an int64 cannot hold")
+	})
+
+	t.Run("secondary source validation limits", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryCandleValidationSecondarySourceType)
+		job.SecondaryExchangeSource = testExchange
+		job.RequestSizeLimit = defaultDataHistoryRequestSizeLimit + 1
+		require.NoError(t, m.validateJob(job), "validateJob must not error")
+		assert.Equal(t, defaultDataHistoryRequestSizeLimit, job.RequestSizeLimit, "request size limit should be capped")
+		assert.Zero(t, job.DecimalPlaceComparison, "a secondary source job should keep a zero decimal place comparison")
+		job.DecimalPlaceComparison = maxDecimalPlaceComparison + 1
+		assert.ErrorIs(t, m.validateJob(job), errInvalidDecimalPlaces, "validateJob should reject a decimal place comparison an int64 cannot hold")
+	})
+
+	t.Run("primary source decimal place comparison default", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryCandleValidationDataType)
+		require.NoError(t, m.validateJob(job), "validateJob must not error")
+		assert.Equal(t, defaultDecimalPlaceComparison, job.DecimalPlaceComparison, "a primary source job should default a zero decimal place comparison")
+	})
+
+	t.Run("range with too many intervals", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryCandleDataType)
+		job.Interval = kline.OneMin
+		job.StartDate = time.Now().Add(-time.Minute * (maxDataHistoryJobIntervals + 60))
+		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should reject a job spanning too many intervals")
+	})
+
+	t.Run("sub-second range with too many intervals", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryConvertTradesDataType)
+		job.Interval = kline.Interval(time.Nanosecond)
+		job.StartDate = time.Now().Add(-time.Hour).Truncate(time.Second)
+		job.EndDate = job.StartDate.Add(900 * time.Millisecond)
+		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should count the intervals of a range shorter than a second")
+	})
+
+	t.Run("conversion interval with too many intervals", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryConvertCandlesDataType)
+		job.ConversionInterval = kline.Interval(time.Millisecond)
+		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should count the intervals the job's date ranges are built with")
+		job.ConversionInterval = kline.OneDay
+		assert.NoError(t, m.validateJob(job), "validateJob should accept a conversion interval within the limit")
+	})
 }
 
 func TestGetAllJobStatusBetween(t *testing.T) {
@@ -1151,6 +1229,80 @@ func TestUpscaleJobCandleData(t *testing.T) {
 	if r.Status != dataHistoryStatusComplete {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusComplete)
 	}
+
+	t.Run("saves the converted candles", func(t *testing.T) {
+		t.Parallel()
+		m, _ := createDHM(t)
+		var saved *kline.Item
+		m.candleSaver = func(candles *kline.Item, _ bool) (uint64, error) {
+			saved = candles
+			return 0, nil
+		}
+		job := *j
+		_, err := m.convertCandleData(&job, job.StartDate, job.EndDate)
+		require.NoError(t, err, "convertCandleData must not error")
+		require.NotNil(t, saved, "convertCandleData must save candles")
+		assert.Equal(t, kline.OneDay, saved.Interval, "saved candles should be at the conversion interval")
+	})
+}
+
+func TestValidationIntervalLength(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name             string
+		interval         kline.Interval
+		requestSizeLimit uint64
+		want             time.Duration
+		wantErr          error
+	}{
+		{name: "length fits", interval: kline.OneHour, requestSizeLimit: 500, want: 500 * time.Hour},
+		{name: "longest length", interval: 1, requestSizeLimit: math.MaxInt64, want: math.MaxInt64},
+		{name: "longest interval once", interval: math.MaxInt64, requestSizeLimit: 1, want: math.MaxInt64},
+		{name: "largest product that fits", interval: 2, requestSizeLimit: math.MaxInt64 / 2, want: math.MaxInt64 - 1},
+		{name: "one nanosecond too long", interval: 2, requestSizeLimit: math.MaxInt64/2 + 1, wantErr: kline.ErrInvalidInterval},
+		{name: "product wraps to a negative duration", interval: kline.OneHour, requestSizeLimit: 2_562_048, wantErr: kline.ErrInvalidInterval},
+		{name: "product wraps to a positive duration", interval: 1<<62 + 1, requestSizeLimit: 4, wantErr: kline.ErrInvalidInterval},
+		{name: "limit beyond a duration", interval: 1, requestSizeLimit: math.MaxInt64 + 1, wantErr: kline.ErrInvalidInterval},
+		{name: "limit beyond a duration wraps to a positive duration", interval: 2, requestSizeLimit: math.MaxInt64 + 2, wantErr: kline.ErrInvalidInterval},
+		{name: "negative interval with a limit beyond a duration", interval: -kline.OneHour, requestSizeLimit: math.MaxUint64 - 1, wantErr: kline.ErrInvalidInterval},
+		{name: "negative interval", interval: -kline.OneHour, requestSizeLimit: 2, wantErr: kline.ErrInvalidInterval},
+		{name: "zero interval", requestSizeLimit: 2, wantErr: kline.ErrInvalidInterval},
+		{name: "zero limit", interval: kline.OneHour, wantErr: kline.ErrInvalidInterval},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := validationIntervalLength(tc.interval, tc.requestSizeLimit)
+			require.ErrorIs(t, err, tc.wantErr, "validationIntervalLength must return the expected error")
+			assert.Equal(t, tc.want, got, "validationIntervalLength should return the expected length")
+		})
+	}
+}
+
+func TestRunValidationJob(t *testing.T) {
+	t.Parallel()
+	m, _ := createDHM(t)
+	start := time.Now().Add(-time.Hour * 24)
+	for _, tc := range []struct {
+		name             string
+		interval         kline.Interval
+		requestSizeLimit uint64
+	}{
+		{name: "length wraps to a negative duration", interval: kline.OneHour, requestSizeLimit: 2_562_048},
+		{name: "length wraps to a positive duration", interval: 1<<62 + 1, requestSizeLimit: 4},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			job := &DataHistoryJob{
+				Nickname:  "TestRunValidationJob",
+				StartDate: start,
+				// Short enough to step through quickly were a wrapped positive length accepted
+				EndDate:          start.Add(40 * time.Nanosecond),
+				Interval:         tc.interval,
+				RequestSizeLimit: tc.requestSizeLimit,
+			}
+			assert.ErrorIs(t, m.runValidationJob(t.Context(), job, nil), kline.ErrInvalidInterval, "runValidationJob should reject an interval length that overflows")
+		})
+	}
 }
 
 func TestValidateCandles(t *testing.T) {
@@ -1443,6 +1595,112 @@ func (d dataHistoryJobService) GetRelatedUpcomingJobs(_ string) ([]*datahistoryj
 			Status:   int64(dataHistoryStatusPaused),
 		},
 	}, nil
+}
+
+// jobDBLoadingResultsByNickname leaves a job's results out of GetByID and GetByNickName and returns them from
+// GetJobAndAllResults only for the job's nickname, as the database does
+type jobDBLoadingResultsByNickname struct {
+	datahistoryjob.IDBService
+	nickname string
+}
+
+func (j jobDBLoadingResultsByNickname) GetByID(id string) (*datahistoryjob.DataHistoryJob, error) {
+	return withoutJobResults(j.IDBService.GetByID(id))
+}
+
+func (j jobDBLoadingResultsByNickname) GetByNickName(nickname string) (*datahistoryjob.DataHistoryJob, error) {
+	return withoutJobResults(j.IDBService.GetByNickName(nickname))
+}
+
+func (j jobDBLoadingResultsByNickname) GetJobAndAllResults(nickname string) (*datahistoryjob.DataHistoryJob, error) {
+	if !strings.EqualFold(nickname, j.nickname) {
+		return nil, sql.ErrNoRows
+	}
+	return j.IDBService.GetJobAndAllResults(nickname)
+}
+
+func withoutJobResults(job *datahistoryjob.DataHistoryJob, err error) (*datahistoryjob.DataHistoryJob, error) {
+	if err != nil {
+		return nil, err
+	}
+	without := *job
+	without.Results = nil
+	return &without, nil
+}
+
+func TestJobDBLoadingResultsByNickname(t *testing.T) {
+	t.Parallel()
+	newStore := func() (jobDBLoadingResultsByNickname, *datahistoryjob.DataHistoryJob) {
+		job := &datahistoryjob.DataHistoryJob{
+			Nickname: "TestJobDBLoadingResultsByNickname",
+			Results:  []*datahistoryjobresult.DataHistoryJobResult{{ID: jobID, JobID: jobID}},
+		}
+		return jobDBLoadingResultsByNickname{IDBService: dataHistoryJobService{job: job}, nickname: job.Nickname}, job
+	}
+
+	t.Run("lookups by ID and nickname leave the results out", func(t *testing.T) {
+		t.Parallel()
+		store, job := newStore()
+		byID, err := store.GetByID(jobID)
+		require.NoError(t, err, "GetByID must not error")
+		assert.Empty(t, byID.Results, "GetByID should leave the results out")
+		byNickname, err := store.GetByNickName(job.Nickname)
+		require.NoError(t, err, "GetByNickName must not error")
+		assert.Empty(t, byNickname.Results, "GetByNickName should leave the results out")
+		assert.Len(t, job.Results, 1, "the stored job should keep its results")
+	})
+
+	t.Run("full lookup by the job's nickname loads the results", func(t *testing.T) {
+		t.Parallel()
+		store, job := newStore()
+		full, err := store.GetJobAndAllResults(strings.ToUpper(job.Nickname))
+		require.NoError(t, err, "GetJobAndAllResults must not error")
+		assert.Len(t, full.Results, 1, "GetJobAndAllResults should load the job's results")
+	})
+
+	t.Run("full lookup by another nickname finds nothing", func(t *testing.T) {
+		t.Parallel()
+		store, _ := newStore()
+		_, err := store.GetJobAndAllResults("")
+		assert.ErrorIs(t, err, sql.ErrNoRows, "GetJobAndAllResults should find nothing for another nickname")
+	})
+
+	t.Run("lookup errors are returned", func(t *testing.T) {
+		t.Parallel()
+		store := jobDBLoadingResultsByNickname{IDBService: failingJobDB{}, nickname: "failing"}
+		for _, tc := range []struct {
+			name   string
+			lookup func() (*datahistoryjob.DataHistoryJob, error)
+		}{
+			{name: "GetByID", lookup: func() (*datahistoryjob.DataHistoryJob, error) { return store.GetByID(jobID) }},
+			{name: "GetByNickName", lookup: func() (*datahistoryjob.DataHistoryJob, error) { return store.GetByNickName("failing") }},
+			{name: "GetJobAndAllResults", lookup: func() (*datahistoryjob.DataHistoryJob, error) { return store.GetJobAndAllResults("failing") }},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				job, err := tc.lookup()
+				assert.ErrorIs(t, err, errExpectedTestError, "the lookup should return the store's error")
+				assert.Nil(t, job, "the lookup should return no job with the error")
+			})
+		}
+	})
+}
+
+// failingJobDB fails every lookup
+type failingJobDB struct {
+	datahistoryjob.IDBService
+}
+
+func (failingJobDB) GetByID(string) (*datahistoryjob.DataHistoryJob, error) {
+	return nil, errExpectedTestError
+}
+
+func (failingJobDB) GetByNickName(string) (*datahistoryjob.DataHistoryJob, error) {
+	return nil, errExpectedTestError
+}
+
+func (failingJobDB) GetJobAndAllResults(string) (*datahistoryjob.DataHistoryJob, error) {
+	return nil, errExpectedTestError
 }
 
 func (d dataHistoryJobResultService) Upsert(_ ...*datahistoryjobresult.DataHistoryJobResult) error {

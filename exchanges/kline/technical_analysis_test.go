@@ -1,9 +1,12 @@
 package kline
 
 import (
+	"math"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gct-ta/indicators"
 )
 
 func TestGetOHLC(t *testing.T) {
@@ -45,6 +48,15 @@ func TestGetAverageTrueRange(t *testing.T) {
 	wrap := Item{Candles: []Candle{{High: 1337, Low: 1337, Close: 1337}}}
 	_, err = wrap.GetAverageTrueRange(1)
 	require.NoError(t, err)
+
+	t.Run("period equal to the candle count", func(t *testing.T) {
+		t.Parallel()
+		ohlc := &OHLC{High: []float64{3, 4, 5}, Low: []float64{1, 2, 3}, Close: []float64{2, 3, 4}}
+		_, err := ohlc.GetAverageTrueRange(3)
+		assert.ErrorIs(t, err, errInvalidPeriod, "GetAverageTrueRange should reject a period equal to the candle count")
+		_, err = ohlc.GetAverageTrueRange(2)
+		assert.NoError(t, err, "GetAverageTrueRange should accept a period below the candle count")
+	})
 }
 
 func TestGetBollingerBands(t *testing.T) {
@@ -72,10 +84,13 @@ func TestGetBollingerBands(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidPeriod)
 
 	_, err = ohlc.GetBollingerBands(9, 1, 1, 5)
+	require.ErrorIs(t, err, errInvalidMovingAverageType)
+
+	_, err = ohlc.GetBollingerBands(9, 1, 1, indicators.Sma)
 	require.NoError(t, err)
 
 	wrap := Item{Candles: []Candle{{Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}}}
-	_, err = wrap.GetBollingerBands(9, 1, 1, 5)
+	_, err = wrap.GetBollingerBands(9, 1, 1, indicators.Ema)
 	require.NoError(t, err)
 }
 
@@ -201,6 +216,12 @@ func TestGetMovingAverageConvergenceDivergence(t *testing.T) {
 	wrap := Item{Candles: []Candle{{Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}}}
 	_, err = wrap.GetMovingAverageConvergenceDivergenceOnClose(1, 2, 1)
 	require.NoError(t, err)
+
+	t.Run("periods too large to add", func(t *testing.T) {
+		t.Parallel()
+		_, err := (&OHLC{}).GetMovingAverageConvergenceDivergence([]float64{1337, 1337, 1337}, 2, 3, math.MaxInt64)
+		assert.ErrorIs(t, err, errNotEnoughData, "GetMovingAverageConvergenceDivergence should reject periods whose sum overflows")
+	})
 }
 
 func TestGetMoneyFlowIndex(t *testing.T) {
@@ -293,4 +314,10 @@ func TestGetRelativeStrengthIndex(t *testing.T) {
 	wrap := Item{Candles: []Candle{{Close: 1337}, {Close: 1337}, {Close: 1337}}}
 	_, err = wrap.GetRelativeStrengthIndexOnClose(2)
 	require.NoError(t, err)
+
+	t.Run("period equal to the data length", func(t *testing.T) {
+		t.Parallel()
+		_, err := (&OHLC{}).GetRelativeStrengthIndex([]float64{1, 2, 3}, 3)
+		assert.ErrorIs(t, err, errInvalidPeriod, "GetRelativeStrengthIndex should reject a period equal to the data length")
+	})
 }

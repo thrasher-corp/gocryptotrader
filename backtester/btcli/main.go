@@ -14,11 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
+	"github.com/thrasher-corp/gocryptotrader/gctrpc/grpcclient"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 const (
@@ -64,23 +63,14 @@ func jsonOutput(in any) {
 }
 
 func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
-	creds, err := credentials.NewClientTLSFromFile(certPath, "")
+	conn, err := grpcclient.New(host, certPath, username, password)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(creds),
-		grpc.WithPerRPCCredentials(auth.BasicAuth{
-			Username: username,
-			Password: password,
-		}),
-	}
-
 	var cancel context.CancelFunc
 	c.Context, cancel = context.WithTimeout(c.Context, timeout)
-	conn, err := grpc.NewClient(host, opts...)
-	return conn, cancel, err
+	return conn, cancel, nil
 }
 
 func main() {
