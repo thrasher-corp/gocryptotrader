@@ -1,9 +1,11 @@
 package kraken
 
 import (
+	"bytes"
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1121,6 +1123,32 @@ func TestRetrieveDataExport(t *testing.T) {
 
 	_, err = ex.RetrieveDataExport(t.Context(), "ASDF")
 	assert.ErrorIs(t, err, common.ErrNoResponse, "RetrieveDataExport should reject an empty reply")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The recorded responses hold no archive, so a local server answers RetrieveDataExport in mock tests")
+		}
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		_, err := e.RetrieveDataExport(t.Context(), "GCTUNKNOWN")
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "RetrieveDataExport must return Kraken's refusal of a report it does not know")
+		require.Len(t, apiErr.Errors, 1, "Kraken must refuse the request with one error")
+		// Kraken's errors guide reports an invalid value as an invalid argument, which its authentication, rate limit and
+		// service errors are not
+		assert.Truef(t, strings.HasPrefix(apiErr.Errors[0], "EGeneral:Invalid arguments"), "Kraken should refuse the report ID as an invalid argument, not with %s", apiErr.Errors[0])
+		reports, err := e.GetExportReportStatus(t.Context(), "trades")
+		require.NoError(t, err, "GetExportReportStatus must not error")
+		i := slices.IndexFunc(reports, func(r ExportReportStatusResponse) bool {
+			return r.Status == "Processed" && r.Error == "" && !r.PendingDeletion
+		})
+		if i == -1 {
+			t.Skip("The account holds no processed trades export to retrieve")
+		}
+		archive, err := e.RetrieveDataExport(t.Context(), reports[i].ID)
+		require.NoError(t, err, "RetrieveDataExport must not error for a processed report")
+		assert.True(t, bytes.HasPrefix(archive, []byte("PK\x03\x04")), "RetrieveDataExport should return the report as a zip archive")
+	})
 }
 
 func TestDeleteExportReport(t *testing.T) {

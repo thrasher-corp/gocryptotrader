@@ -5622,7 +5622,7 @@ func TestCancelBatchOrders(t *testing.T) {
 			{
 				name:    "a spot order cancelled on its own",
 				cancels: []order.Cancel{{AssetType: asset.Spot, Pair: spotTestPair, OrderID: "OYVGEW-VYV5B-UUEXSK"}},
-				exp:     map[string]string{"OYVGEW-VYV5B-UUEXSK": order.Cancelled.String()},
+				exp:     map[string]string{"OYVGEW-VYV5B-UUEXSK": order.PendingCancel.String()},
 			},
 			{
 				name:    "futures orders",
@@ -5918,6 +5918,26 @@ func TestCancelSpotOrders(t *testing.T) {
 			require.NoError(t, ex.cancelSpotOrders(t.Context(), ids[:2], status), "cancelSpotOrders must not error")
 			require.Eventually(t, func() bool { return len(queriedOrders()) == 3 }, testWaitTimeout, time.Millisecond, "the order cancelled must be read")
 			assert.Equal(t, [][]string{{ids[0]}, {ids[1]}, {ids[0]}}, queriedOrders(), "each order should be looked up, then the one cancelled read alone")
+		})
+
+		t.Run("an order Kraken reported pending cancellation", func(t *testing.T) {
+			t.Parallel()
+			server := &finishedSpotOrdersServer{replies: []string{queryOrdersReply(t, "canceled", 0, 0)}}
+			read := server.handle(t)
+			ex := newRESTCancelTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/0/private/QueryOrders" {
+					read(w, r)
+					return
+				}
+				assert.Equal(t, "/0/private/CancelOrder", r.URL.Path, "cancelSpotOrders should call Cancel Order")
+				assert.JSONEq(t, `{"txid":"`+finishedSpotOrderID+`"}`, tradingRequestBody(t, r), "Cancel Order should cancel the order")
+				_, _ = w.Write([]byte(`{"error":[],"result":{"count":1,"pending":true}}`))
+			})
+			status := make(map[string]string)
+			require.NoError(t, ex.cancelSpotOrders(t.Context(), []string{finishedSpotOrderID}, status), "cancelSpotOrders must not error")
+			assert.Equal(t, map[string]string{finishedSpotOrderID: order.PendingCancel.String()}, status, "cancelSpotOrders should record the order pending cancellation")
+			require.Eventually(t, func() bool { return len(server.readOrders()) != 0 }, testWaitTimeout, time.Millisecond, "the order pending cancellation must be read")
+			assert.Equal(t, [][]string{{finishedSpotOrderID}}, server.readOrders(), "the read should ask for the order pending cancellation")
 		})
 
 		t.Run("a batch cancelled while the websocket is still connecting", func(t *testing.T) {
@@ -9266,14 +9286,27 @@ func TestCancelSpotOrder(t *testing.T) {
 		body, err := io.ReadAll(r.Body)
 		assert.NoError(t, err, "ReadAll should not error")
 		reply := `{"error":["EOrder:Unknown order"]}`
-		if strings.Contains(string(body), "OQCLML-BW3P3-BUCMWZ") {
+		switch {
+		case strings.Contains(string(body), "OQCLML-BW3P3-BUCMWZ"):
 			reply = `{"error":[],"result":{"count":1}}`
+		case strings.Contains(string(body), "OYVGEW-VYV5B-UUEXSK"):
+			reply = `{"error":[],"result":{"count":1,"pending":true}}`
 		}
 		_, err = w.Write([]byte(reply))
 		assert.NoError(t, err, "Write should not error")
 	})
-	assert.Equal(t, order.Cancelled.String(), ex.cancelSpotOrder(t.Context(), "OQCLML-BW3P3-BUCMWZ"), "cancelSpotOrder should report a cancelled order")
-	assert.Contains(t, ex.cancelSpotOrder(t.Context(), "OUNKNO-WN000-000000"), "EOrder:Unknown order", "cancelSpotOrder should report the error Kraken replies with")
+	for _, tc := range []struct {
+		name, orderID, exp string
+	}{
+		{"cancelled", "OQCLML-BW3P3-BUCMWZ", order.Cancelled.String()},
+		{"pending cancellation", "OYVGEW-VYV5B-UUEXSK", order.PendingCancel.String()},
+		{"refused", "OUNKNO-WN000-000000", "API error response: EOrder:Unknown order"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, ex.cancelSpotOrder(t.Context(), tc.orderID), "cancelSpotOrder should report an order %s as Kraken replied", tc.name)
+		})
+	}
 }
 
 func TestReadCancelledSpotOrders(t *testing.T) {

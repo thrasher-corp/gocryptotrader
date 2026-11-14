@@ -1690,10 +1690,11 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	return resp, nil
 }
 
-// cancelSpotOrders cancels spot orders by ID, recording each one's outcome in status: cancelled, or its error. The
-// private websocket connection reports each order's outcome; Cancel Order Batch reports only how many it cancelled, so
-// the orders of a batch it did not cancel in full are each looked up, and cancelled on their own if still open. An
-// order named more than once is cancelled once, as a repeat would fail and record its failure over the cancellation
+// cancelSpotOrders cancels spot orders by ID, recording each one's outcome in status: cancelled, pending cancellation,
+// or its error. The private websocket connection reports each order's outcome; Cancel Order Batch reports only how many
+// it cancelled, so the orders of a batch it did not cancel in full are each looked up, and cancelled on their own if
+// still open. An order named more than once is cancelled once, as a repeat would fail and record its failure over the
+// cancellation
 func (e *Exchange) cancelSpotOrders(ctx context.Context, ids []string, status map[string]string) error {
 	seen := make(map[string]bool, len(ids))
 	ids = slices.DeleteFunc(slices.Clone(ids), func(id string) bool {
@@ -1732,10 +1733,11 @@ func (e *Exchange) cancelSpotOrders(ctx context.Context, ids []string, status ma
 		}
 		return nil
 	}
-	// The orders cancelled are read once the cancellations end, those a batch cancelled before a later one failed too
+	// The orders cancelled or pending cancellation are read once the cancellations end, those a batch cancelled before a
+	// later one failed too
 	defer func() {
 		e.readCancelledSpotOrders(ctx, slices.DeleteFunc(slices.Clone(ids), func(id string) bool {
-			return status[id] != order.Cancelled.String()
+			return status[id] != order.Cancelled.String() && status[id] != order.PendingCancel.String()
 		})...)
 	}()
 	for chunk := range slices.Chunk(ids, 50) {
@@ -1767,10 +1769,14 @@ func (e *Exchange) cancelSpotOrders(ctx context.Context, ids []string, status ma
 	return nil
 }
 
-// cancelSpotOrder cancels a spot order over REST, returning its outcome: cancelled, or its error
+// cancelSpotOrder cancels a spot order over REST, returning its outcome: cancelled, pending cancellation, or its error
 func (e *Exchange) cancelSpotOrder(ctx context.Context, id string) string {
-	if _, err := e.CancelExistingOrder(ctx, &CancelExistingOrderRequest{TransactionID: id}); err != nil {
+	resp, err := e.CancelExistingOrder(ctx, &CancelExistingOrderRequest{TransactionID: id})
+	if err != nil {
 		return err.Error()
+	}
+	if resp.Pending {
+		return order.PendingCancel.String()
 	}
 	return order.Cancelled.String()
 }

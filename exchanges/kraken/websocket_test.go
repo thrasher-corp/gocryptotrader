@@ -1764,7 +1764,7 @@ func TestWebsocketBookChecksumMismatch(t *testing.T) {
 	assert.Error(t, err, "an update failing its checksum should invalidate the book")
 }
 
-func TestResubscribeBook(t *testing.T) {
+func TestResubscribeSpotBook(t *testing.T) {
 	t.Parallel()
 	server := new(mockSubscriptionServer)
 	ex, conn := newSubscriptionTestExchange(t, server)
@@ -2029,7 +2029,7 @@ func level3Order(t *testing.T, event, orderID, price, qty string) WebsocketLevel
 	return WebsocketLevel3Order{Event: event, OrderID: orderID, LimitPrice: p, Quantity: q}
 }
 
-func TestLevel3Checksum(t *testing.T) {
+func TestLevel3BookChecksum(t *testing.T) {
 	t.Parallel()
 	// Kraken's documented example, whose numbers are strings
 	lines := fixtureLines(t, "testdata/wsLevel3.jsonl")
@@ -3097,7 +3097,7 @@ func TestResubscribeOrderbook(t *testing.T) {
 	}, 100*time.Millisecond, 5*time.Millisecond, "resubscribeOrderbook should not resubscribe a book without a subscription")
 }
 
-func TestBookSubscriptionKey(t *testing.T) {
+func TestBookSubscriptionKeyMatch(t *testing.T) {
 	t.Parallel()
 	k := bookSubscriptionKey{&subscription.Subscription{QualifiedChannel: wsChannelBook, Asset: asset.Spot, Levels: 10, Pairs: currency.Pairs{wsTestPair}}}
 	for _, tc := range []struct {
@@ -3118,6 +3118,13 @@ func TestBookSubscriptionKey(t *testing.T) {
 			assert.Equalf(t, tc.match, k.Match(subscription.ExactKey{Subscription: tc.sub}), "Match should return %t for %s", tc.match, tc.name)
 		})
 	}
+}
+
+func TestBookSubscriptionKeyGetSubscription(t *testing.T) {
+	t.Parallel()
+	s := &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: wsChannelBook, Asset: asset.Spot, Levels: 10, Pairs: currency.Pairs{wsTestPair}}
+	assert.Same(t, s, bookSubscriptionKey{s}.GetSubscription(), "GetSubscription should return the key's subscription")
+	assert.Nil(t, bookSubscriptionKey{}.GetSubscription(), "GetSubscription should return nil for a key without a subscription")
 }
 
 // badChecksumBookSnapshot is a BTC/USD book snapshot failing its checksum

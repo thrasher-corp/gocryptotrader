@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // WebsocketOrder holds an order's parameters on add_order and batch_add
@@ -184,6 +185,17 @@ type WebsocketCancelAllOrdersAfterResponse struct {
 	TriggerTime time.Time `json:"triggerTime"`
 	TimeIn      time.Time `json:"-"`
 	TimeOut     time.Time `json:"-"`
+}
+
+// UnmarshalJSON decodes the timer's times as CancelAllOrdersAfterResponse does, reading the trigger time Kraken sends as
+// "0" once the timer is disabled as a zero time
+func (c *WebsocketCancelAllOrdersAfterResponse) UnmarshalJSON(data []byte) error {
+	var times CancelAllOrdersAfterResponse
+	if err := json.Unmarshal(data, &times); err != nil {
+		return err
+	}
+	c.CurrentTime, c.TriggerTime = times.CurrentTime, times.TriggerTime
+	return nil
 }
 
 // WebsocketBatchAddOrdersRequest holds the parameters of batch_add

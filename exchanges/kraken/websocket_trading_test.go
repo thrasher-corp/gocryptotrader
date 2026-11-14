@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"context"
 	"math"
 	"net/http"
 	"reflect"
@@ -19,11 +20,33 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // wsTradingTestToken is the websocket token the trading tests hold
 const wsTradingTestToken = "G38a1tGFzqGiUCmnegBcm8d4nfP3tytiNQz6tkCBYXY"
+
+// liveUnknownOrderID is a made-up order ID in Kraken's format, which live cases ask Kraken to change or cancel,
+// expecting its refusal
+const liveUnknownOrderID = "OAAAAA-AAAAA-AAAAAA"
+
+// newLiveWsTradingTestExchange returns an exchange whose private connection is connected to Kraken with ctx, for a
+// websocket trading method's live case. It skips mock tests, whose local servers answer these methods, and live tests
+// without credentials or permission to manipulate real orders
+func newLiveWsTradingTestExchange(ctx context.Context, t *testing.T) *Exchange {
+	t.Helper()
+	if mockTests {
+		t.Skip("Local servers answer the websocket trading methods in mock tests")
+	}
+	ex := newTestExchange(t)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ex, canManipulateRealOrders)
+	ex.Features.Subscriptions = subscription.List{}
+	useTestWebsocket(t, ex, "", wsPrivateConnection)
+	ex.Websocket.SetSubscriptionsNotRequired()
+	require.NoError(t, ex.Websocket.Connect(ctx), "Connect must not error")
+	return ex
+}
 
 // newWsTradingTestExchange returns an exchange whose private connection is served by a mock server, which checks each
 // request against exp, the expected request without its req_id, and answers with replies, setting their req_id to the
@@ -66,7 +89,7 @@ func wsTestTime(tb testing.TB, s string) time.Time {
 	return v
 }
 
-func TestWebsocketAddOrder(t *testing.T) { //nolint:tparallel // the cases run serially, before the calls after them to the same method
+func TestWebsocketAddOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketAddOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAddOrder must reject a nil request")
@@ -139,9 +162,20 @@ func TestWebsocketAddOrder(t *testing.T) { //nolint:tparallel // the cases run s
 	_, err = ex.WebsocketAddOrder(t.Context(), &WebsocketAddOrderRequest{Pair: spotTestPair, Order: WebsocketOrder{OrderType: "limit", Side: "buy", Quantity: 1.2, LimitPrice: 26500.4, UserReference: 100054}})
 	require.ErrorIs(t, err, errAPIResponse, "WebsocketAddOrder must return a rejection as an API error")
 	assert.ErrorContains(t, err, "EOrder:Insufficient funds", "the error should carry Kraken's reason")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		ex := newLiveWsTradingTestExchange(t.Context(), t)
+		_, err := ex.WebsocketAddOrder(t.Context(), &WebsocketAddOrderRequest{
+			Pair:     spotTestPair,
+			Order:    WebsocketOrder{OrderType: "limit", Side: "buy", Quantity: 0.0001, LimitPrice: 10000},
+			Validate: true,
+		})
+		assert.NoError(t, err, "WebsocketAddOrder should validate the order without placing it")
+	})
 }
 
-func TestWebsocketEditOrder(t *testing.T) { //nolint:tparallel // the cases run serially, before the calls after them to the same method
+func TestWebsocketEditOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketEditOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketEditOrder must reject a nil request")
@@ -194,9 +228,16 @@ func TestWebsocketEditOrder(t *testing.T) { //nolint:tparallel // the cases run 
 		TimeIn:          wsTestTime(t, "2022-07-15T12:56:09.876488Z"),
 		TimeOut:         wsTestTime(t, "2022-07-15T12:56:09.923422Z"),
 	}, result, "WebsocketEditOrder should decode every field")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		ex := newLiveWsTradingTestExchange(t.Context(), t)
+		_, err := ex.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: liveUnknownOrderID, Pair: spotTestPair, Quantity: 0.0001, LimitPrice: 10000})
+		assert.ErrorIs(t, err, order.ErrOrderNotFound, "WebsocketEditOrder should report an order Kraken does not know as not found")
+	})
 }
 
-func TestWebsocketAmendOrder(t *testing.T) { //nolint:tparallel // the cases run serially, before the calls after them to the same method
+func TestWebsocketAmendOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketAmendOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAmendOrder must reject a nil request")
@@ -253,6 +294,13 @@ func TestWebsocketAmendOrder(t *testing.T) { //nolint:tparallel // the cases run
 	)
 	_, err = ex.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{ClientOrderID: "2c6be801-1f53-4f79-a0bb-4ea1c95dfae9", LimitPrice: 490795, Quantity: 1.2})
 	assert.NoError(t, err, "WebsocketAmendOrder should amend by client order ID")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		ex := newLiveWsTradingTestExchange(t.Context(), t)
+		_, err := ex.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: liveUnknownOrderID, LimitPrice: 10000})
+		assert.ErrorIs(t, err, order.ErrOrderNotFound, "WebsocketAmendOrder should report an order Kraken does not know as not found")
+	})
 }
 
 func TestWebsocketCancelOrders(t *testing.T) {
@@ -297,6 +345,15 @@ func TestWebsocketCancelOrders(t *testing.T) {
 			assert.NoErrorf(t, err, "WebsocketCancelOrders should cancel by %s", tc.name)
 		})
 	}
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		ex := newLiveWsTradingTestExchange(t.Context(), t)
+		result, err := ex.WebsocketCancelOrders(t.Context(), &WebsocketCancelOrdersRequest{OrderIDs: []string{liveUnknownOrderID}})
+		require.NoError(t, err, "WebsocketCancelOrders must not error")
+		require.Len(t, result, 1, "WebsocketCancelOrders must return a result for the order")
+		assert.ErrorIs(t, result[0].Error, order.ErrOrderNotFound, "an order Kraken does not know should be reported as not found")
+	})
 }
 
 func TestWebsocketCancelOrderParamsTakeNoUserReferences(t *testing.T) {
@@ -321,9 +378,16 @@ func TestWebsocketCancelAllOrders(t *testing.T) {
 		TimeIn:   wsTestTime(t, "2023-09-26T13:09:48.463201Z"),
 		TimeOut:  wsTestTime(t, "2023-09-26T13:09:48.471419Z"),
 	}, result, "WebsocketCancelAllOrders should decode every field")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		ex := newLiveWsTradingTestExchange(t.Context(), t)
+		_, err := ex.WebsocketCancelAllOrders(t.Context())
+		assert.NoError(t, err, "WebsocketCancelAllOrders should cancel every open order")
+	})
 }
 
-func TestWebsocketCancelAllOrdersAfter(t *testing.T) { //nolint:tparallel // the cases run serially, before the calls after them to the same method
+func TestWebsocketCancelAllOrdersAfter(t *testing.T) {
 	t.Parallel()
 	// Serial, so the cases run before the calls below to the same method
 	for _, timeout := range []time.Duration{-time.Second, time.Millisecond, 24 * time.Hour} {
@@ -351,9 +415,62 @@ func TestWebsocketCancelAllOrdersAfter(t *testing.T) { //nolint:tparallel // the
 	)
 	_, err = ex.WebsocketCancelAllOrdersAfter(t.Context(), 0)
 	assert.NoError(t, err, "WebsocketCancelAllOrdersAfter should send a zero timeout to disable the switch")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		ex := newLiveWsTradingTestExchange(t.Context(), t)
+		// Registered before arming, so the switch is disabled after a failure too. The switch is the account's, so should
+		// this connection fail, a new one disables it
+		t.Cleanup(func() {
+			ctx, cancel := context.WithTimeout(context.Background(), testWaitTimeout)
+			defer cancel()
+			result, err := ex.WebsocketCancelAllOrdersAfter(ctx, 0)
+			if err != nil {
+				result, err = newLiveWsTradingTestExchange(ctx, t).WebsocketCancelAllOrdersAfter(ctx, 0)
+			}
+			require.NoError(t, err, "WebsocketCancelAllOrdersAfter must disable the switch")
+			assert.False(t, result.TriggerTime.After(result.CurrentTime), "the disabled switch should have no trigger time ahead")
+		})
+		result, err := ex.WebsocketCancelAllOrdersAfter(t.Context(), time.Minute)
+		require.NoError(t, err, "WebsocketCancelAllOrdersAfter must not error arming the switch")
+		assert.WithinDuration(t, result.CurrentTime.Add(time.Minute), result.TriggerTime, time.Second, "the switch should trigger a minute after Kraken's current time")
+	})
 }
 
-func TestWebsocketBatchAddOrders(t *testing.T) { //nolint:tparallel // the cases run serially, before the calls after them to the same method
+func TestWebsocketCancelAllOrdersAfterResponseUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	currentTime, inTime, outTime := wsTestTime(t, "2023-09-21T15:49:29Z"), wsTestTime(t, "2023-09-21T15:49:28.6279Z"), wsTestTime(t, "2023-09-21T15:49:28.649057Z")
+	for _, tc := range []struct {
+		name, data string
+		exp        WebsocketCancelAllOrdersAfterResponse
+	}{
+		{
+			name: "armed",
+			data: `{"currentTime":"2023-09-21T15:49:29Z","triggerTime":"2023-09-21T15:51:09Z"}`,
+			exp:  WebsocketCancelAllOrdersAfterResponse{CurrentTime: currentTime, TriggerTime: wsTestTime(t, "2023-09-21T15:51:09Z"), TimeIn: inTime, TimeOut: outTime},
+		},
+		{
+			name: "disabled",
+			data: `{"currentTime":"2023-09-21T15:49:29Z","triggerTime":"0"}`,
+			exp:  WebsocketCancelAllOrdersAfterResponse{CurrentTime: currentTime, TimeIn: inTime, TimeOut: outTime},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			// WebsocketCancelAllOrdersAfter sets the reply's times before decoding, and an earlier trigger time must go
+			got := WebsocketCancelAllOrdersAfterResponse{TriggerTime: wsTestTime(t, "2023-09-21T15:40:00Z"), TimeIn: inTime, TimeOut: outTime}
+			require.NoError(t, got.UnmarshalJSON([]byte(tc.data)), "UnmarshalJSON must not error")
+			assert.Equal(t, tc.exp, got, "UnmarshalJSON should decode the timer's times and keep the reply's")
+		})
+	}
+	t.Run("invalid trigger time", func(t *testing.T) {
+		t.Parallel()
+		var got WebsocketCancelAllOrdersAfterResponse
+		assert.Error(t, got.UnmarshalJSON([]byte(`{"currentTime":"2023-09-21T15:49:29Z","triggerTime":"soon"}`)), "UnmarshalJSON should reject a trigger time that is neither RFC3339 nor 0")
+	})
+}
+
+func TestWebsocketBatchAddOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketBatchAddOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketBatchAddOrders must reject a nil request")
@@ -395,9 +512,24 @@ func TestWebsocketBatchAddOrders(t *testing.T) { //nolint:tparallel // the cases
 		{OrderID: "ORDERX-IDXXX-XXXXX1", OrderUserReference: 1, TimeIn: inTime, TimeOut: outTime},
 		{OrderID: "ORDERX-IDXXX-XXXXX2", OrderUserReference: 2, Warnings: []string{"Self trade prevention applied"}, TimeIn: inTime, TimeOut: outTime},
 	}, result, "WebsocketBatchAddOrders should decode every order's result")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		ex := newLiveWsTradingTestExchange(t.Context(), t)
+		result, err := ex.WebsocketBatchAddOrders(t.Context(), &WebsocketBatchAddOrdersRequest{
+			Pair: spotTestPair,
+			Orders: []WebsocketOrder{
+				{OrderType: "limit", Side: "buy", Quantity: 0.0001, LimitPrice: 10000},
+				{OrderType: "limit", Side: "buy", Quantity: 0.0001, LimitPrice: 10000.1},
+			},
+			Validate: true,
+		})
+		require.NoError(t, err, "WebsocketBatchAddOrders must validate the orders without placing them")
+		assert.Len(t, result, 2, "WebsocketBatchAddOrders should return a result for each order")
+	})
 }
 
-func TestWebsocketBatchCancelOrders(t *testing.T) { //nolint:tparallel // the cases run serially, before the calls after them to the same method
+func TestWebsocketBatchCancelOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketBatchCancelOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketBatchCancelOrders must reject a nil request")
@@ -423,6 +555,18 @@ func TestWebsocketBatchCancelOrders(t *testing.T) { //nolint:tparallel // the ca
 		TimeIn:   wsTestTime(t, "2022-06-13T08:09:10.123456Z"),
 		TimeOut:  wsTestTime(t, "2022-06-13T08:09:10.7890123Z"),
 	}, result, "WebsocketBatchCancelOrders should decode every field")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		ex := newLiveWsTradingTestExchange(t.Context(), t)
+		result, err := ex.WebsocketBatchCancelOrders(t.Context(), &WebsocketBatchCancelOrdersRequest{Orders: []string{liveUnknownOrderID, "OBBBBB-BBBBB-BBBBBB"}})
+		// Kraken may refuse orders it does not know or report none of them cancelled; either way it cancels nothing
+		if err != nil {
+			assert.ErrorIs(t, err, order.ErrOrderNotFound, "WebsocketBatchCancelOrders should report orders Kraken does not know as not found")
+			return
+		}
+		assert.Zero(t, result.Count, "WebsocketBatchCancelOrders should cancel no order Kraken does not know")
+	})
 }
 
 func TestWebsocketOrderParams(t *testing.T) {
