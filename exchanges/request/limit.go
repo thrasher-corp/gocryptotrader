@@ -126,6 +126,12 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 		return ErrRequestSystemIsNil
 	}
 	if r.disableRateLimiter.Load() {
+		// Disabling the limiter skips the wait, not the check that the endpoint has a limiter
+		if r.limiter != nil {
+			if err := common.NilGuard(r.limiter[e]); err != nil {
+				return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
+			}
+		}
 		return WaitForRateLimitBarrier(ctx)
 	}
 	if err := common.NilGuard(r.limiter); err != nil {

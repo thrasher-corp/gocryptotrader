@@ -80,16 +80,16 @@ func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
 
 // Match returns a currency pair based on the supplied symbol and asset type
 func (p *PairsManager) Match(symbol string, a asset.Item) (Pair, error) {
-	return p.match(symbol, a, false)
+	return p.matchSymbol(symbol, a, false)
 }
 
 // MatchDelimited returns a currency pair based on the supplied symbol and asset type, ignoring the symbol's first
 // punctuation character, which separates its base and quote currencies
 func (p *PairsManager) MatchDelimited(symbol string, a asset.Item) (Pair, error) {
-	return p.match(symbol, a, true)
+	return p.matchSymbol(symbol, a, true)
 }
 
-func (p *PairsManager) match(symbol string, a asset.Item, hasDelimiter bool) (Pair, error) {
+func (p *PairsManager) matchSymbol(symbol string, a asset.Item, hasDelimiter bool) (Pair, error) {
 	if symbol == "" {
 		return EMPTYPAIR, ErrSymbolStringEmpty
 	}
@@ -114,8 +114,8 @@ func (p *PairsManager) match(symbol string, a asset.Item, hasDelimiter bool) (Pa
 	return EMPTYPAIR, fmt.Errorf("%w for %v %v", ErrPairNotFound, symbol, a)
 }
 
-// matchKey matches a symbol whose bytes from i on need lower casing or its delimiter dropping. It builds the key on the
-// stack for an ASCII symbol, since a map lookup by string(key) does not allocate
+// matchKey matches a symbol whose bytes from i on need lower casing or its delimiter dropping. It builds an ASCII
+// symbol's key on the stack when the key fits in 64 bytes, since a map lookup by string(key) does not allocate
 func matchKey(symbols map[string]*Pair, symbol string, i int, a asset.Item, hasDelimiter bool) (Pair, error) {
 	var buf [64]byte
 	key := append(buf[:0], symbol[:i]...)
@@ -279,8 +279,8 @@ func (p *PairsManager) GetFormat(a asset.Item, request bool) (PairFormat, error)
 // StorePairs stores a list of pairs for an asset type
 // If enabled is true:
 // * AssetEnabled is set true if the pair list is not empty
-// * pairs replace the Enabled pairs
-// * pairs are added to Available pairs, so that every enabled pair is available
+// * pairs replace the Enabled pairs without being added to the Available pairs, so GetPairs reports any enabled pair
+// that is not available
 // If enabled is false, pairs replace the Available pairs
 func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error {
 	if !a.IsValid() {
@@ -303,10 +303,6 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 	if enabled {
 		if len(pairs) != 0 {
 			pairStore.AssetEnabled = true
-			if slices.ContainsFunc(pairs, func(pair Pair) bool { return !pairStore.Available.Contains(pair, true) }) {
-				pairStore.Available = pairStore.Available.Add(pairs...)
-				p.indexAsset(a)
-			}
 		}
 		pairStore.Enabled = slices.Clone(pairs)
 	} else {
