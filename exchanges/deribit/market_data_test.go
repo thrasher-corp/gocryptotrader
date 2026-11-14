@@ -823,7 +823,7 @@ func TestGetHistoricalVolatility(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetHistoricalVolatility should return the request failure")
 }
 
-func TestHistoricalVolatilityPointUnmarshalJSON(t *testing.T) {
+func TestHistoricalVolatilityPointResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var result HistoricalVolatilityPointResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1549720800000,14.747743607344217]`), &result), "Unmarshal must not error")
@@ -865,7 +865,7 @@ func TestGetIndexChartData(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetIndexChartData should return the request failure")
 }
 
-func TestIndexChartPointUnmarshalJSON(t *testing.T) {
+func TestIndexChartPointResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var result IndexChartPointResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1573228800000,8751.7138636]`), &result), "Unmarshal must not error")
@@ -920,7 +920,7 @@ func TestGetIndexPriceNames(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetIndexPriceNames should return the request failure")
 }
 
-func TestIndexPriceNameUnmarshalJSON(t *testing.T) {
+func TestIndexPriceNameResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		input string
@@ -1054,7 +1054,7 @@ func TestGetInstrument(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetInstrument should return the request failure")
 }
 
-func TestInstrumentUnmarshalJSON(t *testing.T) {
+func TestInstrumentResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var result InstrumentResponse
 	require.NoError(t, json.Unmarshal([]byte(`{"instrument_name":"BTC-PERPETUAL","creation_timestamp":1534242287000,"expiration_timestamp":32503708800000}`), &result), "Unmarshal must not error")
@@ -2049,7 +2049,7 @@ func TestGetMarkPriceHistory(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMarkPriceHistory should return the request failure")
 }
 
-func TestMarkPricePointUnmarshalJSON(t *testing.T) {
+func TestMarkPricePointResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var result MarkPricePointResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1608142381229,0.5165791606037885]`), &result), "Unmarshal must not error")

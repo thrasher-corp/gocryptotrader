@@ -58,7 +58,7 @@ type uniqueTypesHolder struct {
 	SomeString string          `json:"somestring"`
 }
 
-func TestDeriveURLValsFromJSON(t *testing.T) {
+func TestDeriveURLValsFromJSONMap(t *testing.T) {
 	t.Parallel()
 	test1 := uniqueTypesHolder{
 		Things: []string{"hello", "world"},
@@ -104,24 +104,50 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	_, err = DeriveURLValsFromJSONMap([]byte(`{"a":"b",}`))
 	assert.Error(t, err)
 
-	values, err = DeriveURLValsFromJSONMap([]byte(`{"object":{"a":1},"array":[1,"b"],"null":null,"text":"{\"a\":1}"}`))
-	require.NoError(t, err, "DeriveURLValsFromJSONMap must not error for structured values")
-	exp := url.Values{
-		"object": {structuredValuePrefix + `{"a":1}`},
-		"array":  {structuredValuePrefix + `[1,"b"]`},
-		"null":   {structuredValuePrefix + "null"},
-		"text":   {`{"a":1}`},
-	}
-	assert.Equal(t, exp, values, "DeriveURLValsFromJSONMap should mark objects, arrays and null apart from strings")
+	t.Run("structured values", func(t *testing.T) {
+		t.Parallel()
+		values, err := DeriveURLValsFromJSONMap([]byte(`{"object":{"a":1},"array":[1,"b"],"null":null,"text":"{\"a\":1}"}`))
+		require.NoError(t, err, "DeriveURLValsFromJSONMap must not error for structured values")
+		exp := url.Values{
+			"object": {structuredValuePrefix + `{"a":1}`},
+			"array":  {structuredValuePrefix + `[1,"b"]`},
+			"null":   {structuredValuePrefix + "null"},
+			"text":   {`{"a":1}`},
+		}
+		assert.Equal(t, exp, values, "DeriveURLValsFromJSONMap should mark objects, arrays and null apart from strings")
+	})
 
-	marked, err := DeriveURLValsFromJSONMap([]byte(`{"null":null,"text":"json:null","marker":"\u0000json:null","escaped":"\u0000string:\u0000json:null"}`))
-	require.NoError(t, err, "DeriveURLValsFromJSONMap must not error for strings resembling marked values")
-	assert.Equal(t, "json:null", marked.Get("text"), "DeriveURLValsFromJSONMap should keep an ordinary string as sent")
-	assert.Equal(t, escapedStringPrefix+structuredValuePrefix+"null", marked.Get("marker"), "DeriveURLValsFromJSONMap should escape a string starting with the marker byte")
-	assert.Equal(t, escapedStringPrefix+escapedStringPrefix+structuredValuePrefix+"null", marked.Get("escaped"), "DeriveURLValsFromJSONMap should escape a string starting with the escape marker")
-	assert.NotEqual(t, marked.Get("marker"), marked.Get("escaped"), "DeriveURLValsFromJSONMap should never derive two strings as the same value")
-	assert.NotEqual(t, marked.Get("null"), marked.Get("marker"), "DeriveURLValsFromJSONMap should never derive a string as a marked null")
-	assert.NotEqual(t, marked.Get("null"), marked.Get("text"), "DeriveURLValsFromJSONMap should never derive a string as a marked null")
+	t.Run("strings resembling marked values", func(t *testing.T) {
+		t.Parallel()
+		marked, err := DeriveURLValsFromJSONMap([]byte(`{"null":null,"text":"json:null","marker":"\u0000json:null","escaped":"\u0000string:\u0000json:null"}`))
+		require.NoError(t, err, "DeriveURLValsFromJSONMap must not error for strings resembling marked values")
+		assert.Equal(t, "json:null", marked.Get("text"), "DeriveURLValsFromJSONMap should keep an ordinary string as sent")
+		assert.Equal(t, escapedStringPrefix+structuredValuePrefix+"null", marked.Get("marker"), "DeriveURLValsFromJSONMap should escape a string starting with the marker byte")
+		assert.Equal(t, escapedStringPrefix+escapedStringPrefix+structuredValuePrefix+"null", marked.Get("escaped"), "DeriveURLValsFromJSONMap should escape a string starting with the escape marker")
+		assert.NotEqual(t, marked.Get("marker"), marked.Get("escaped"), "DeriveURLValsFromJSONMap should never derive two strings as the same value")
+		assert.NotEqual(t, marked.Get("null"), marked.Get("marker"), "DeriveURLValsFromJSONMap should never derive a string as a marked null")
+		assert.NotEqual(t, marked.Get("null"), marked.Get("text"), "DeriveURLValsFromJSONMap should never derive a string as a marked null")
+	})
+}
+
+func TestStringValue(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, input, exp string
+	}{
+		{name: "ordinary", input: "hello", exp: "hello"},
+		{name: "empty", input: "", exp: ""},
+		{name: "JSON text", input: `{"a":1}`, exp: `{"a":1}`},
+		{name: "marker byte inside", input: "a\x00json:null", exp: "a\x00json:null"},
+		{name: "marker byte alone", input: "\x00", exp: escapedStringPrefix + "\x00"},
+		{name: "structured value marker", input: structuredValuePrefix + "null", exp: escapedStringPrefix + structuredValuePrefix + "null"},
+		{name: "escape marker", input: escapedStringPrefix + "x", exp: escapedStringPrefix + escapedStringPrefix + "x"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, stringValue(tc.input), "stringValue should escape only a string starting with the marker byte")
+		})
+	}
 }
 
 var tcs = []uniqueTypesHolder{
@@ -236,22 +262,28 @@ func TestDeriveURLValsFromJSONArrayAsMap(t *testing.T) {
 	assert.Equal(t, "1.5", value.Get("1"), "float64 should be formatted as string")
 	assert.Equal(t, "hello", value.Get("2"), "string value should be stored correctly")
 
-	value, err = DeriveURLValsFromJSONArrayAsMap([]byte(`[{"a":1}, [2], null, "{\"a\":1}"]`))
-	require.NoError(t, err, "structured types array must not error")
-	exp := url.Values{
-		"0": {structuredValuePrefix + `{"a":1}`},
-		"1": {structuredValuePrefix + "[2]"},
-		"2": {structuredValuePrefix + "null"},
-		"3": {`{"a":1}`},
-	}
-	assert.Equal(t, exp, value, "DeriveURLValsFromJSONArrayAsMap should mark objects, arrays and null apart from strings")
+	t.Run("structured values", func(t *testing.T) {
+		t.Parallel()
+		value, err := DeriveURLValsFromJSONArrayAsMap([]byte(`[{"a":1}, [2], null, "{\"a\":1}"]`))
+		require.NoError(t, err, "structured types array must not error")
+		exp := url.Values{
+			"0": {structuredValuePrefix + `{"a":1}`},
+			"1": {structuredValuePrefix + "[2]"},
+			"2": {structuredValuePrefix + "null"},
+			"3": {`{"a":1}`},
+		}
+		assert.Equal(t, exp, value, "DeriveURLValsFromJSONArrayAsMap should mark objects, arrays and null apart from strings")
+	})
 
-	value, err = DeriveURLValsFromJSONArrayAsMap([]byte(`[null, "\u0000json:null", "\u0000string:\u0000json:null"]`))
-	require.NoError(t, err, "DeriveURLValsFromJSONArrayAsMap must not error for a string resembling a marked value")
-	exp = url.Values{
-		"0": {structuredValuePrefix + "null"},
-		"1": {escapedStringPrefix + structuredValuePrefix + "null"},
-		"2": {escapedStringPrefix + escapedStringPrefix + structuredValuePrefix + "null"},
-	}
-	assert.Equal(t, exp, value, "DeriveURLValsFromJSONArrayAsMap should escape a string starting with the marker byte, the escape marker included")
+	t.Run("strings resembling marked values", func(t *testing.T) {
+		t.Parallel()
+		value, err := DeriveURLValsFromJSONArrayAsMap([]byte(`[null, "\u0000json:null", "\u0000string:\u0000json:null"]`))
+		require.NoError(t, err, "DeriveURLValsFromJSONArrayAsMap must not error for a string resembling a marked value")
+		exp := url.Values{
+			"0": {structuredValuePrefix + "null"},
+			"1": {escapedStringPrefix + structuredValuePrefix + "null"},
+			"2": {escapedStringPrefix + escapedStringPrefix + structuredValuePrefix + "null"},
+		}
+		assert.Equal(t, exp, value, "DeriveURLValsFromJSONArrayAsMap should escape a string starting with the marker byte, the escape marker included")
+	})
 }

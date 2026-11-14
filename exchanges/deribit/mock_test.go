@@ -92,6 +92,13 @@ func newWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
 	return ex, venue
 }
 
+// newDedicatedWebsocketTestExchange returns an authenticated mock exchange connected with the subscriptions given, as
+// each mock exchange has a mock of Deribit's websocket of its own
+func newDedicatedWebsocketTestExchange(t *testing.T, subs subscription.List) (*Exchange, *websocketVenue) {
+	t.Helper()
+	return connectWebsocketTestExchange(t, true, subs)
+}
+
 // newUnauthenticatedWebsocketTestExchange returns a mock exchange named after the test whose websocket is connected to
 // a new mock of Deribit's websocket without authenticated websocket support, so it does not authenticate, and the
 // requests the mock receives

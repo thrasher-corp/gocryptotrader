@@ -50,73 +50,143 @@ func TestWebsocketAPICancelOrderByID(t *testing.T) {
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CancelOrderByID should error without an authenticated connection")
 }
 
+// Not parallel: its live case cancels every open order in its scope, including those other live tests place and then cancel themselves
 func TestWebsocketAPICancelAll(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelAll is not tested live, as " + liveTradingSkipCancelAll)
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CancelAll(t.Context(), &CancelAllRequest{})
-	require.NoError(t, err, "WebsocketAPI.CancelAll must not error")
-	assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "WebsocketAPI.CancelAll should decode the count")
+	t.Run("live API", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		placeLiveTradingOrder(t)
+		result, err := ex.WebsocketAPI().CancelAll(t.Context(), &CancelAllRequest{})
+		require.NoError(t, err, "WebsocketAPI.CancelAll must not error")
+		assert.Positive(t, result.CancelledCount, "WebsocketAPI.CancelAll should cancel the test's order")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().CancelAll(t.Context(), &CancelAllRequest{})
+	t.Run("mocked", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CancelAll(t.Context(), &CancelAllRequest{})
+		require.NoError(t, err, "WebsocketAPI.CancelAll must not error")
+		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "WebsocketAPI.CancelAll should decode the count")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().CancelAll(t.Context(), &CancelAllRequest{})
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CancelAll should error without an authenticated connection")
 }
 
+// Not parallel: its live case cancels every open order in its scope, including those other live tests place and then cancel themselves
 func TestWebsocketAPICancelAllByCurrency(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelAllByCurrency is not tested live, as " + liveTradingSkipCancelAll)
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CancelAllByCurrency(t.Context(), mockCancelAllByCurrencyRequest())
-	require.NoError(t, err, "WebsocketAPI.CancelAllByCurrency must not error")
-	assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "WebsocketAPI.CancelAllByCurrency should decode the count")
+	t.Run("live API", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		placeLiveTradingOrder(t)
+		result, err := ex.WebsocketAPI().CancelAllByCurrency(t.Context(), &CancelAllByCurrencyRequest{Currency: currency.BTC, Kind: KindFuture})
+		require.NoError(t, err, "WebsocketAPI.CancelAllByCurrency must not error")
+		assert.Positive(t, result.CancelledCount, "WebsocketAPI.CancelAllByCurrency should cancel the test's order")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().CancelAllByCurrency(t.Context(), mockCancelAllByCurrencyRequest())
+	t.Run("mocked", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CancelAllByCurrency(t.Context(), mockCancelAllByCurrencyRequest())
+		require.NoError(t, err, "WebsocketAPI.CancelAllByCurrency must not error")
+		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "WebsocketAPI.CancelAllByCurrency should decode the count")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().CancelAllByCurrency(t.Context(), mockCancelAllByCurrencyRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CancelAllByCurrency should error without an authenticated connection")
 }
 
+// Not parallel: its live case cancels every open order in its scope, including those other live tests place and then cancel themselves
 func TestWebsocketAPICancelAllByCurrencyPair(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelAllByCurrencyPair is not tested live, as " + liveTradingSkipCancelAll)
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CancelAllByCurrencyPair(t.Context(), mockCancelAllByCurrencyPairRequest())
-	require.NoError(t, err, "WebsocketAPI.CancelAllByCurrencyPair must not error")
-	assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "WebsocketAPI.CancelAllByCurrencyPair should decode the count")
+	t.Run("live API", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		placeLiveTradingOrder(t)
+		result, err := ex.WebsocketAPI().CancelAllByCurrencyPair(t.Context(), &CancelAllByCurrencyPairRequest{CurrencyPair: liveTradingIndexName, Kind: KindFuture})
+		require.NoError(t, err, "WebsocketAPI.CancelAllByCurrencyPair must not error")
+		assert.Positive(t, result.CancelledCount, "WebsocketAPI.CancelAllByCurrencyPair should cancel the test's order")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().CancelAllByCurrencyPair(t.Context(), mockCancelAllByCurrencyPairRequest())
+	t.Run("mocked", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CancelAllByCurrencyPair(t.Context(), mockCancelAllByCurrencyPairRequest())
+		require.NoError(t, err, "WebsocketAPI.CancelAllByCurrencyPair must not error")
+		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "WebsocketAPI.CancelAllByCurrencyPair should decode the count")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().CancelAllByCurrencyPair(t.Context(), mockCancelAllByCurrencyPairRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CancelAllByCurrencyPair should error without an authenticated connection")
 }
 
+// Not parallel: its live case cancels every open order in its scope, including those other live tests place and then cancel themselves
 func TestWebsocketAPICancelAllByInstrument(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelAllByInstrument is not tested live, as " + liveTradingSkipCancelAll)
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CancelAllByInstrument(t.Context(), mockCancelAllByInstrumentRequest())
-	require.NoError(t, err, "WebsocketAPI.CancelAllByInstrument must not error")
-	assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "WebsocketAPI.CancelAllByInstrument should decode the count")
+	t.Run("live API", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		placeLiveTradingOrder(t)
+		result, err := ex.WebsocketAPI().CancelAllByInstrument(t.Context(), &CancelAllByInstrumentRequest{InstrumentName: liveTradingInstrument})
+		require.NoError(t, err, "WebsocketAPI.CancelAllByInstrument must not error")
+		assert.Positive(t, result.CancelledCount, "WebsocketAPI.CancelAllByInstrument should cancel the test's order")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().CancelAllByInstrument(t.Context(), mockCancelAllByInstrumentRequest())
+	t.Run("mocked", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CancelAllByInstrument(t.Context(), mockCancelAllByInstrumentRequest())
+		require.NoError(t, err, "WebsocketAPI.CancelAllByInstrument must not error")
+		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "WebsocketAPI.CancelAllByInstrument should decode the count")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().CancelAllByInstrument(t.Context(), mockCancelAllByInstrumentRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CancelAllByInstrument should error without an authenticated connection")
 }
 
+// Not parallel: its live case cancels every open order in its scope, including those other live tests place and then cancel themselves
 func TestWebsocketAPICancelAllByKindOrType(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelAllByKindOrType is not tested live, as " + liveTradingSkipCancelAll)
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CancelAllByKindOrType(t.Context(), mockCancelAllByKindOrTypeRequest())
-	require.NoError(t, err, "WebsocketAPI.CancelAllByKindOrType must not error")
-	assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "WebsocketAPI.CancelAllByKindOrType should decode the count")
+	t.Run("live API", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		placeLiveTradingOrder(t)
+		result, err := ex.WebsocketAPI().CancelAllByKindOrType(t.Context(), &CancelAllByKindOrTypeRequest{Currencies: []currency.Code{currency.BTC}, Kind: KindFuture})
+		require.NoError(t, err, "WebsocketAPI.CancelAllByKindOrType must not error")
+		assert.Positive(t, result.CancelledCount, "WebsocketAPI.CancelAllByKindOrType should cancel the test's order")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().CancelAllByKindOrType(t.Context(), mockCancelAllByKindOrTypeRequest())
+	t.Run("mocked", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CancelAllByKindOrType(t.Context(), mockCancelAllByKindOrTypeRequest())
+		require.NoError(t, err, "WebsocketAPI.CancelAllByKindOrType must not error")
+		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "WebsocketAPI.CancelAllByKindOrType should decode the count")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().CancelAllByKindOrType(t.Context(), mockCancelAllByKindOrTypeRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CancelAllByKindOrType should error without an authenticated connection")
 }
 
@@ -143,29 +213,59 @@ func TestWebsocketAPICancelByLabel(t *testing.T) {
 
 func TestWebsocketAPICancelQuotes(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelQuotes is not tested live, as " + liveTradingSkipMassQuotes)
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CancelQuotes(t.Context(), mockCancelQuotesRequest())
-	require.NoError(t, err, "WebsocketAPI.CancelQuotes must not error")
-	assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "WebsocketAPI.CancelQuotes should decode the count")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CancelQuotes(t.Context(), &CancelQuotesRequest{CancelType: "quote_set_id", QuoteSetID: liveForeignName, Currency: currency.BTC})
+		if requireAnsweredOnMerits(t, err, "WebsocketAPI.CancelQuotes") {
+			assert.Zero(t, result.CancelledCount, "WebsocketAPI.CancelQuotes should cancel nothing in a quote set no account has")
+		}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().CancelQuotes(t.Context(), mockCancelQuotesRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CancelQuotes(t.Context(), mockCancelQuotesRequest())
+		require.NoError(t, err, "WebsocketAPI.CancelQuotes must not error")
+		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "WebsocketAPI.CancelQuotes should decode the count")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().CancelQuotes(t.Context(), mockCancelQuotesRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CancelQuotes should error without an authenticated connection")
 }
 
 func TestWebsocketAPIClosePosition(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.ClosePosition needs an open position, which a live test would have to open at market")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().ClosePosition(t.Context(), mockClosePositionRequest())
-	require.NoError(t, err, "WebsocketAPI.ClosePosition must not error")
-	assert.Equal(t, testPlacedOrderResponse(), result, "WebsocketAPI.ClosePosition should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().ClosePosition(t.Context(), newLiveTradingClosePositionRequest(t))
+		requireAnsweredOnMerits(t, err, "WebsocketAPI.ClosePosition")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().ClosePosition(t.Context(), mockClosePositionRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().ClosePosition(t.Context(), mockClosePositionRequest())
+		require.NoError(t, err, "WebsocketAPI.ClosePosition must not error")
+		assert.Equal(t, testPlacedOrderResponse(), result, "WebsocketAPI.ClosePosition should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().ClosePosition(t.Context(), mockClosePositionRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.ClosePosition should error without an authenticated connection")
 }
 
@@ -578,29 +678,58 @@ func TestWebsocketAPIGetUserTradesByOrder(t *testing.T) {
 
 func TestWebsocketAPIMassQuote(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.MassQuote is not tested live, as " + liveTradingSkipMassQuotes)
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().MassQuote(t.Context(), mockMassQuoteRequest())
-	require.NoError(t, err, "WebsocketAPI.MassQuote must not error")
-	assert.Equal(t, testMassQuoteResponse(), result, "WebsocketAPI.MassQuote should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().MassQuote(t.Context(), newLiveTradingMassQuoteRequest())
+		cancelLiveTradingQuoteIfPlaced(t, err)
+		requireRefusedOnMerits(t, err, "WebsocketAPI.MassQuote")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().MassQuote(t.Context(), mockMassQuoteRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().MassQuote(t.Context(), mockMassQuoteRequest())
+		require.NoError(t, err, "WebsocketAPI.MassQuote must not error")
+		assert.Equal(t, testMassQuoteResponse(), result, "WebsocketAPI.MassQuote should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().MassQuote(t.Context(), mockMassQuoteRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.MassQuote should error without an authenticated connection")
 }
 
 func TestWebsocketAPIMovePositions(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.MovePositions needs two subaccounts and a position to move, which live tests do not have")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().MovePositions(t.Context(), mockMovePositionsRequest())
-	require.NoError(t, err, "WebsocketAPI.MovePositions must not error")
-	assert.Equal(t, testPositionMoveTrades(), result, "WebsocketAPI.MovePositions should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().MovePositions(t.Context(), newLiveTradingMovePositionsRequest(t))
+		requireRefusedOnMerits(t, err, "WebsocketAPI.MovePositions")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().MovePositions(t.Context(), mockMovePositionsRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().MovePositions(t.Context(), mockMovePositionsRequest())
+		require.NoError(t, err, "WebsocketAPI.MovePositions must not error")
+		assert.Equal(t, testPositionMoveTrades(), result, "WebsocketAPI.MovePositions should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().MovePositions(t.Context(), mockMovePositionsRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.MovePositions should error without an authenticated connection")
 }
 

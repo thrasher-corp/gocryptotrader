@@ -183,14 +183,28 @@ func TestResubscribeChannel(t *testing.T) {
 	t.Parallel()
 	// Without a held subscription for the channel nothing is sent
 	newTestExchange(t).resubscribeChannel(t.Context(), nil, "book.BTC-PERPETUAL.100ms")
-	if !mockTests {
-		return
-	}
-	ex, venue, conn, sub := newSubscribedTestExchange(t)
-	ex.resubscribeChannel(t.Context(), conn, sub.QualifiedChannel)
-	assert.Eventually(t, func() bool {
-		return len(venue.receivedOn(subscriptionVenueConnection, "public/unsubscribe")) == 1 && len(venue.receivedOn(subscriptionVenueConnection, "public/subscribe")) == 2
-	}, 5*time.Second, 10*time.Millisecond, "resubscribeChannel should unsubscribe and subscribe the channel again on its connection")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked cases below check the recorded replies")
+		}
+		ex, conn, sub := subscribeLivePriceIndex(t)
+		ex.resubscribeChannel(t.Context(), conn, sub.QualifiedChannel)
+		assert.Eventually(t, func() bool {
+			return sub.State() == subscription.SubscribedState && heldSubscription(ex, sub.QualifiedChannel) == sub
+		}, 10*time.Second, 10*time.Millisecond, "resubscribeChannel should subscribe the channel again")
+	})
+
+	// The cases below need the mock's refusals and recordings, so their exchange helpers skip them in live mode
+	t.Run("resubscribed", func(t *testing.T) {
+		t.Parallel()
+		ex, venue, conn, sub := newSubscribedTestExchange(t)
+		ex.resubscribeChannel(t.Context(), conn, sub.QualifiedChannel)
+		assert.Eventually(t, func() bool {
+			return len(venue.receivedOn(subscriptionVenueConnection, "public/unsubscribe")) == 1 && len(venue.receivedOn(subscriptionVenueConnection, "public/subscribe")) == 2
+		}, 5*time.Second, 10*time.Millisecond, "resubscribeChannel should unsubscribe and subscribe the channel again on its connection")
+	})
 
 	t.Run("unsubscribe refused", func(t *testing.T) {
 		t.Parallel()
@@ -219,6 +233,9 @@ func TestResubscribeChannel(t *testing.T) {
 
 	t.Run("change during a resubscription", func(t *testing.T) {
 		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
 		ex, venue := newWebsocketTestExchange(t)
 		conn := subscriptionConnection(t, ex)
 		book := func(base string) *subscription.Subscription {
@@ -308,12 +325,33 @@ func newSubscribedTestExchange(t *testing.T, edits ...func(*config.Exchange)) (*
 	return ex, venue, conn, held[0]
 }
 
+// subscribeLivePriceIndex connects a websocket of the test's own subscribed to the btc_usd price index, a public channel,
+// and returns its subscription connection and the subscription, as newSubscribedTestExchange does with the mock
+func subscribeLivePriceIndex(t *testing.T) (*Exchange, websocket.Connection, *subscription.Subscription) {
+	t.Helper()
+	ex, _ := newDedicatedWebsocketTestExchange(t, subscription.List{{Enabled: true, Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}})
+	held := ex.Websocket.GetSubscriptions()
+	require.Len(t, held, 1, "the manager must hold the subscription")
+	conn := subscriptionConnection(t, ex)
+	require.Same(t, held[0], conn.Subscriptions().Get(held[0]), "the manager must record the subscription against its connection")
+	return ex, conn, held[0]
+}
+
 func TestResubscribe(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("the mock websocket refuses requests on demand; live tests share Deribit's websocket")
-	}
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked cases below check the recorded replies")
+		}
+		ex, conn, sub := subscribeLivePriceIndex(t)
+		require.NoError(t, ex.resubscribe(t.Context(), conn, markedResubscribing(t, ex, sub)), "resubscribe must not error")
+		assert.Equal(t, subscription.SubscribedState, sub.State(), "resubscribe should leave the subscription subscribed")
+		assert.Same(t, sub, heldSubscription(ex, sub.QualifiedChannel), "resubscribe should leave the subscription held")
+		assert.Same(t, sub, conn.Subscriptions().Get(sub), "resubscribe should leave the subscription recorded against its connection")
+	})
 
+	// The cases below need the mock's refusals and recordings, so their exchange helpers skip them in live mode
 	t.Run("resubscribed", func(t *testing.T) {
 		t.Parallel()
 		ex, venue, conn, sub := newSubscribedTestExchange(t)
@@ -443,6 +481,9 @@ func TestResubscribe(t *testing.T) {
 
 	t.Run("private", func(t *testing.T) {
 		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
 		ex, venue := newWebsocketTestExchange(t)
 		conn := subscriptionConnection(t, ex)
 		require.NoError(t, ex.Subscribe(t.Context(), conn, subscription.List{{Channel: subscription.OrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{currency.NewPairWithDelimiter("BTC", "PERPETUAL", currency.DashDelimiter)}, Interval: kline.Raw, Authenticated: true}}), "Subscribe must not error")
@@ -718,6 +759,122 @@ func TestRemoveUnsubscribed(t *testing.T) {
 	require.NoError(t, ex.removeUnsubscribed(conn, held), "removeUnsubscribed must not error for a subscription subscribed meanwhile")
 	assert.Same(t, held, heldSubscription(ex, held.QualifiedChannel), "removeUnsubscribed should not remove a subscription subscribed meanwhile")
 	assert.Equal(t, subscription.SubscribedState, held.State(), "removeUnsubscribed should leave a subscription subscribed meanwhile subscribed")
+}
+
+func TestMarkUnheld(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		state subscription.State
+		held  string
+		mark  subscription.State
+		exp   subscription.State
+		err   error
+	}{
+		{name: "resubscribing and held by no connection", state: subscription.ResubscribingState, mark: subscription.UnsubscribedState, exp: subscription.UnsubscribedState},
+		{name: "resubscribing and left subscribed", state: subscription.ResubscribingState, mark: subscription.SubscribedState, exp: subscription.SubscribedState},
+		{name: "another held in its place", state: subscription.ResubscribingState, held: "another", mark: subscription.UnsubscribedState, exp: subscription.UnsubscribedState},
+		{name: "held again by a later connection", state: subscription.ResubscribingState, held: "itself", mark: subscription.UnsubscribedState, exp: subscription.ResubscribingState},
+		{name: "subscribed meanwhile", state: subscription.SubscribedState, mark: subscription.UnsubscribedState, exp: subscription.SubscribedState},
+		{name: "unsubscribed meanwhile", state: subscription.UnsubscribedState, mark: subscription.SubscribedState, exp: subscription.UnsubscribedState},
+		{name: "the state it is in", state: subscription.ResubscribingState, mark: subscription.ResubscribingState, exp: subscription.ResubscribingState, err: subscription.ErrInStateAlready},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			newSub := func() *subscription.Subscription {
+				sub := &subscription.Subscription{Channel: ChannelPlatformState, QualifiedChannel: ChannelPlatformState}
+				sub.SetKey(qualifiedChannelKey{sub})
+				return sub
+			}
+			sub := newSub()
+			switch tc.held {
+			case "itself":
+				require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(nil, sub), "AddSuccessfulSubscriptions must not error")
+			case "another":
+				require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(nil, newSub()), "AddSuccessfulSubscriptions must not error")
+			}
+			if sub.State() != tc.state {
+				require.NoError(t, sub.SetState(tc.state), "SetState must not error")
+			}
+			assert.ErrorIs(t, ex.markUnheld(sub, tc.mark), tc.err, "markUnheld should return the error of a state the subscription cannot take")
+			assert.Equal(t, tc.exp, sub.State(), "markUnheld should mark only a resubscribing subscription that no connection holds")
+		})
+	}
+}
+
+func TestChangeChannel(t *testing.T) {
+	t.Parallel()
+	priceIndex := func() *subscription.Subscription {
+		sub := &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}, QualifiedChannel: "deribit_price_index.btc_usd"}
+		sub.SetKey(qualifiedChannelKey{sub})
+		return sub
+	}
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		// A websocket of its own, as the shared one's channels belong to the tests that subscribe them
+		ex, _ := newDedicatedWebsocketTestExchange(t, nil)
+		conn, sub := subscriptionConnection(t, ex), priceIndex()
+		require.NoError(t, ex.changeChannel(t.Context(), conn, true, sub), "changeChannel must subscribe the channel")
+		require.NoError(t, ex.changeChannel(t.Context(), conn, false, sub), "changeChannel must unsubscribe the channel")
+		assert.Nil(t, ex.Websocket.GetSubscription(qualifiedChannelKey{sub}), "changeChannel should not store the subscription")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		for _, tc := range []struct {
+			name      string
+			subscribe bool
+			private   bool
+			refused   bool
+			cancelled bool
+			method    string
+			err       error
+		}{
+			{name: "subscribe", subscribe: true, method: "public/subscribe"},
+			{name: "unsubscribe", method: "public/unsubscribe"},
+			{name: "private subscribe", subscribe: true, private: true, method: "private/subscribe"},
+			{name: "private unsubscribe", private: true, method: "private/unsubscribe"},
+			{name: "subscribe refused", subscribe: true, refused: true, method: "public/subscribe", err: errUnacknowledgedSubscription},
+			{name: "unsubscribe refused", refused: true, method: "public/unsubscribe", err: errUnacknowledgedSubscription},
+			{name: "context cancelled", subscribe: true, cancelled: true, method: "public/subscribe"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, venue := newWebsocketTestExchange(t)
+				sub := priceIndex()
+				sub.Authenticated = tc.private
+				if tc.refused {
+					venue.refuse(tc.method, 1)
+				}
+				ctx := t.Context()
+				if tc.cancelled {
+					var cancel context.CancelFunc
+					ctx, cancel = context.WithCancel(ctx)
+					cancel()
+				}
+				assert.ErrorIsf(t, ex.changeChannel(ctx, subscriptionConnection(t, ex), tc.subscribe, sub), tc.err, "changeChannel should return whether Deribit acknowledged the channel for %s", tc.name)
+				requests := venue.received(tc.method)
+				if assert.Lenf(t, requests, 1, "changeChannel should send %s for %s", tc.method, tc.name) {
+					assert.JSONEqf(t, `{"channels":["deribit_price_index.btc_usd"]}`, string(requests[0].Params), "changeChannel should send the subscription's channel for %s", tc.name)
+					assert.Equalf(t, subscriptionVenueConnection, requests[0].connection, "changeChannel should send its request over the connection given for %s", tc.name)
+				}
+				assert.Nilf(t, ex.Websocket.GetSubscription(qualifiedChannelKey{sub}), "changeChannel should neither store nor remove the subscription for %s", tc.name)
+			})
+		}
+
+		ex, venue := newWebsocketTestExchange(t)
+		err := ex.changeChannel(t.Context(), undialledConnection(t, ex), true, priceIndex())
+		assert.ErrorIs(t, err, websocket.ErrNotConnected, "changeChannel should return the failure of a connection that is not connected")
+		assert.Empty(t, venue.received("public/subscribe"), "changeChannel should send nothing over a connection that is not connected")
+	})
 }
 
 func TestOnConnection(t *testing.T) {

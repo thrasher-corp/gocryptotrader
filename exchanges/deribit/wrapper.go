@@ -1009,7 +1009,9 @@ func tradeHistory(exchangeName string, t *UserTradeResponse) (order.TradeHistory
 
 // ModifyOrder edits an open order, identified by its ID or by its label in the pair; an amount left unset keeps the
 // order's amount, as Deribit requires an amount or a contract count with every edit. A take profit or stop loss
-// attached through RiskManagementModes is refused, as Deribit attaches neither with an edit
+// attached through RiskManagementModes is refused, as Deribit attaches neither with an edit. An edit that leaves the
+// order filled or closed reports no status, as the response carries no executed amount, so the order manager reads the
+// order on a later sweep
 func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.ModifyResponse, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
@@ -1091,7 +1093,9 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 	resp.ClientOrderID = detail.ClientOrderID
 	resp.Type = detail.Type
 	resp.Side = detail.Side
-	resp.Status = detail.Status
+	if !detail.Status.IsInactive() {
+		resp.Status = detail.Status
+	}
 	resp.TimeInForce = detail.TimeInForce
 	resp.Price = detail.Price
 	resp.Amount = detail.Amount

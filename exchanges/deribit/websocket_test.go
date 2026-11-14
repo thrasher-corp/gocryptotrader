@@ -18,7 +18,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -179,6 +181,13 @@ func assertNothingRelayed(t *testing.T, ex *Exchange) {
 // notification returns a subscription notification of a channel carrying data
 func notification(channel, data string) []byte {
 	return []byte(`{"jsonrpc":"2.0","method":"subscription","params":{"channel":"` + channel + `","data":` + data + `}}`)
+}
+
+func TestWebsocketAPI(t *testing.T) {
+	t.Parallel()
+	ex, other := newTestExchange(t), new(Exchange)
+	assert.Same(t, ex, ex.WebsocketAPI().e, "WebsocketAPI should call the exchange's methods")
+	assert.Same(t, other, other.WebsocketAPI().e, "WebsocketAPI should call the methods of the exchange it is taken from")
 }
 
 func TestWebsocketConnect(t *testing.T) {
@@ -504,7 +513,9 @@ func TestWebsocketHandleNotification(t *testing.T) { //nolint:tparallel // Its n
 	for _, tc := range []struct {
 		channel string
 		data    string
-		exp     any
+		// relayedFirst holds what the handler relays, in order, before the notification's data
+		relayedFirst []any
+		exp          any
 	}{
 		{
 			channel: "perpetual.BTC-PERPETUAL.100ms",
@@ -662,66 +673,10 @@ func TestWebsocketHandleNotification(t *testing.T) { //nolint:tparallel // Its n
 			exp:     &WebsocketLiquiditySupportProgramEvent{Type: "transfer", InstrumentName: "BTC-PERPETUAL", Currency: currency.BTC, Direction: DirectionSell, Amount: 5000, Price: 63481.75, Success: true, StarbaseMatchID: 987654321, Timestamp: types.Time(time.UnixMilli(1750000400000))},
 		},
 		{
-			channel: "user.changes.BTC-PERPETUAL.raw",
-			data:    `{"trades":[{"trade_seq":866638,"trade_id":"1430914","timestamp":1605780344032,"tick_direction":1,"state":"filled","reduce_only":false,"profit_loss":4.898e-05,"price":17391,"post_only":false,"order_type":"market","order_id":"3398016","matching_id":null,"mark_price":17391,"liquidity":"T","instrument_name":"BTC-PERPETUAL","index_price":17501.88,"fee_currency":"BTC","fee":1.6e-07,"direction":"sell","amount":10}],"positions":[{"total_profit_loss":1.69711368,"size_currency":10.646886321,"size":185160,"settlement_price":16025.83,"realized_profit_loss":0.012454598,"realized_funding":0.01235663,"mark_price":17391,"maintenance_margin":0.234575865,"leverage":33.0,"kind":"future","interest_value":1.7362511643080387,"instrument_name":"BTC-PERPETUAL","initial_margin":0.319750953,"index_price":17501.88,"floating_profit_loss":0.906961435,"direction":"buy","delta":10.646886321,"average_price":15000,"user_id":1234}],"orders":[{"web":true,"time_in_force":"good_til_cancelled","replaced":false,"reduce_only":false,"price":15665.5,"post_only":false,"order_type":"market","order_state":"filled","order_id":"3398016","last_update_timestamp":1605780344032,"label":"","is_rebalance":false,"is_liquidation":false,"instrument_name":"BTC-PERPETUAL","filled_amount":10,"direction":"sell","creation_timestamp":1605780344032,"average_price":17391,"api":false,"amount":10}],"instrument_name":"BTC-PERPETUAL"}`,
-			exp: &WebsocketUserChanges{
-				InstrumentName: "BTC-PERPETUAL",
-				Orders: []OrderResponse{{
-					OrderID:             "3398016",
-					OrderState:          "filled",
-					OrderType:           "market",
-					TimeInForce:         "good_til_cancelled",
-					InstrumentName:      "BTC-PERPETUAL",
-					CreationTimestamp:   types.Time(time.UnixMilli(1605780344032)),
-					LastUpdateTimestamp: types.Time(time.UnixMilli(1605780344032)),
-					Direction:           DirectionSell,
-					Price:               OrderPrice{Value: 15665.5},
-					Web:                 true,
-					Amount:              10,
-					FilledAmount:        10,
-					AveragePrice:        17391,
-				}},
-				Trades: []UserTradeResponse{{
-					TradeID:        "1430914",
-					TradeSequence:  866638,
-					InstrumentName: "BTC-PERPETUAL",
-					Timestamp:      types.Time(time.UnixMilli(1605780344032)),
-					OrderType:      "market",
-					OrderID:        "3398016",
-					Direction:      DirectionSell,
-					TickDirection:  1,
-					IndexPrice:     17501.88,
-					Price:          17391,
-					Amount:         10,
-					Liquidity:      "T",
-					Fee:            1.6e-07,
-					FeeCurrency:    currency.BTC,
-					State:          "filled",
-					ProfitLoss:     4.898e-05,
-					MarkPrice:      17391,
-				}},
-				Positions: []PositionResponse{{
-					InstrumentName:     "BTC-PERPETUAL",
-					Kind:               KindFuture,
-					UserID:             1234,
-					Direction:          DirectionBuy,
-					Size:               185160,
-					SizeCurrency:       10.646886321,
-					AveragePrice:       15000,
-					MarkPrice:          17391,
-					IndexPrice:         17501.88,
-					SettlementPrice:    16025.83,
-					Delta:              10.646886321,
-					InitialMargin:      0.319750953,
-					MaintenanceMargin:  0.234575865,
-					Leverage:           33,
-					TotalProfitLoss:    1.69711368,
-					FloatingProfitLoss: 0.906961435,
-					RealisedProfitLoss: 0.012454598,
-					RealisedFunding:    0.01235663,
-					InterestValue:      1.7362511643080387,
-				}},
-			},
+			channel:      "user.changes.BTC-PERPETUAL.raw",
+			data:         testWebsocketUserChanges,
+			relayedFirst: []any{testUserChangesOrders(ex.Name)},
+			exp:          testUserChanges(),
 		},
 		{
 			channel: "block_trade_confirmations",
@@ -792,6 +747,9 @@ func TestWebsocketHandleNotification(t *testing.T) { //nolint:tparallel // Its n
 	} {
 		t.Run(tc.channel, func(t *testing.T) {
 			require.NoErrorf(t, ex.wsHandleNotification(t.Context(), nil, tc.channel, notification(tc.channel, tc.data)), "wsHandleNotification must not error for %s", tc.channel)
+			for _, exp := range tc.relayedFirst {
+				assert.Equalf(t, exp, relayed(t, ex), "wsHandleNotification should relay what %s carries before its data", tc.channel)
+			}
 			assert.Equalf(t, tc.exp, relayed(t, ex), "wsHandleNotification should relay %s's data", tc.channel)
 			assertNothingRelayed(t, ex)
 		})
@@ -874,6 +832,107 @@ func TestWebsocketRelay(t *testing.T) {
 }
 
 // testWebsocketOrder is an order as a user.orders notification sends it, following Deribit's documented example
+// testWebsocketUserChanges is Deribit's documented user.changes example: a market sell of 10 filled in one trade
+const testWebsocketUserChanges = `{"trades":[{"trade_seq":866638,"trade_id":"1430914","timestamp":1605780344032,"tick_direction":1,"state":"filled","reduce_only":false,"profit_loss":4.898e-05,"price":17391,"post_only":false,"order_type":"market","order_id":"3398016","matching_id":null,"mark_price":17391,"liquidity":"T","instrument_name":"BTC-PERPETUAL","index_price":17501.88,"fee_currency":"BTC","fee":1.6e-07,"direction":"sell","amount":10}],"positions":[{"total_profit_loss":1.69711368,"size_currency":10.646886321,"size":185160,"settlement_price":16025.83,"realized_profit_loss":0.012454598,"realized_funding":0.01235663,"mark_price":17391,"maintenance_margin":0.234575865,"leverage":33.0,"kind":"future","interest_value":1.7362511643080387,"instrument_name":"BTC-PERPETUAL","initial_margin":0.319750953,"index_price":17501.88,"floating_profit_loss":0.906961435,"direction":"buy","delta":10.646886321,"average_price":15000,"user_id":1234}],"orders":[{"web":true,"time_in_force":"good_til_cancelled","replaced":false,"reduce_only":false,"price":15665.5,"post_only":false,"order_type":"market","order_state":"filled","order_id":"3398016","last_update_timestamp":1605780344032,"label":"","is_rebalance":false,"is_liquidation":false,"instrument_name":"BTC-PERPETUAL","filled_amount":10,"direction":"sell","creation_timestamp":1605780344032,"average_price":17391,"api":false,"amount":10}],"instrument_name":"BTC-PERPETUAL"}`
+
+// testUserChanges returns the notification testWebsocketUserChanges decodes to
+func testUserChanges() *WebsocketUserChanges {
+	return &WebsocketUserChanges{
+		InstrumentName: "BTC-PERPETUAL",
+		Orders: []OrderResponse{{
+			OrderID:             "3398016",
+			OrderState:          "filled",
+			OrderType:           "market",
+			TimeInForce:         "good_til_cancelled",
+			InstrumentName:      "BTC-PERPETUAL",
+			CreationTimestamp:   types.Time(time.UnixMilli(1605780344032)),
+			LastUpdateTimestamp: types.Time(time.UnixMilli(1605780344032)),
+			Direction:           DirectionSell,
+			Price:               OrderPrice{Value: 15665.5},
+			Web:                 true,
+			Amount:              10,
+			FilledAmount:        10,
+			AveragePrice:        17391,
+		}},
+		Trades: []UserTradeResponse{{
+			TradeID:        "1430914",
+			TradeSequence:  866638,
+			InstrumentName: "BTC-PERPETUAL",
+			Timestamp:      types.Time(time.UnixMilli(1605780344032)),
+			OrderType:      "market",
+			OrderID:        "3398016",
+			Direction:      DirectionSell,
+			TickDirection:  1,
+			IndexPrice:     17501.88,
+			Price:          17391,
+			Amount:         10,
+			Liquidity:      "T",
+			Fee:            1.6e-07,
+			FeeCurrency:    currency.BTC,
+			State:          "filled",
+			ProfitLoss:     4.898e-05,
+			MarkPrice:      17391,
+		}},
+		Positions: []PositionResponse{{
+			InstrumentName:     "BTC-PERPETUAL",
+			Kind:               KindFuture,
+			UserID:             1234,
+			Direction:          DirectionBuy,
+			Size:               185160,
+			SizeCurrency:       10.646886321,
+			AveragePrice:       15000,
+			MarkPrice:          17391,
+			IndexPrice:         17501.88,
+			SettlementPrice:    16025.83,
+			Delta:              10.646886321,
+			InitialMargin:      0.319750953,
+			MaintenanceMargin:  0.234575865,
+			Leverage:           33,
+			TotalProfitLoss:    1.69711368,
+			FloatingProfitLoss: 0.906961435,
+			RealisedProfitLoss: 0.012454598,
+			RealisedFunding:    0.01235663,
+			InterestValue:      1.7362511643080387,
+		}},
+	}
+}
+
+// testUserChangesOrders returns the order details testWebsocketUserChanges's orders convert to
+func testUserChangesOrders(exchangeName string) []order.Detail {
+	return []order.Detail{{
+		Exchange:             exchangeName,
+		OrderID:              "3398016",
+		Pair:                 currency.NewPairWithDelimiter("BTC", "PERPETUAL", currency.DashDelimiter),
+		AssetType:            asset.Futures,
+		Side:                 order.Sell,
+		Type:                 order.Market,
+		Status:               order.Filled,
+		TimeInForce:          order.GoodTillCancel,
+		Price:                15665.5,
+		Amount:               10,
+		ExecutedAmount:       10,
+		AverageExecutedPrice: 17391,
+		Date:                 time.UnixMilli(1605780344032),
+		LastUpdated:          time.UnixMilli(1605780344032),
+	}}
+}
+
+// testUserChangesFills returns the fills testWebsocketUserChanges's trades convert to
+func testUserChangesFills(exchangeName string) []fill.Data {
+	return []fill.Data{{
+		ID:           "1430914",
+		TradeID:      "1430914",
+		Timestamp:    time.UnixMilli(1605780344032),
+		Exchange:     exchangeName,
+		AssetType:    asset.Futures,
+		CurrencyPair: currency.NewPairWithDelimiter("BTC", "PERPETUAL", currency.DashDelimiter),
+		Side:         order.Sell,
+		OrderID:      "3398016",
+		Price:        17391,
+		Amount:       10,
+	}}
+}
+
 const testWebsocketOrder = `{"time_in_force":"good_til_cancelled","replaced":false,"reduce_only":false,"price":10502.52,"post_only":false,"original_order_type":"market","order_type":"limit","order_state":"open","order_id":"5","max_show":200,"last_update_timestamp":1581507423789,"label":"","is_rebalance":false,"is_liquidation":false,"instrument_name":"BTC-PERPETUAL","filled_amount":0,"direction":"buy","creation_timestamp":1581507423789,"average_price":0,"api":false,"amount":200}`
 
 func TestGenerateSubscriptions(t *testing.T) {
@@ -1630,33 +1689,50 @@ func TestHandleSubscription(t *testing.T) {
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.Subscribe should error without a connection")
 }
 
-func TestSendSubscriptionRequest(t *testing.T) { //nolint:tparallel // Its requests run serially and in order over one connection
+func TestSendSubscriptionRequest(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("the test subscribes channels the live tests do not hold; live tests share Deribit's websocket")
-	}
-	ex, venue := newWebsocketTestExchange(t)
-	// The requests run serially and in order over one connection, so a request that carries state into the next fails
-	for _, tc := range []struct {
-		name               string
-		subscribe, private bool
-		method             string
-	}{
-		{"public subscribe", true, false, "public/subscribe"},
-		{"private subscribe", true, true, "private/subscribe"},
-		{"public unsubscribe", false, false, "public/unsubscribe"},
-		{"private unsubscribe", false, true, "private/unsubscribe"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			acknowledged, err := ex.sendSubscriptionRequest(t.Context(), subscriptionConnection(t, ex), tc.subscribe, tc.private, []string{"user.liquidation"})
-			require.NoErrorf(t, err, "sendSubscriptionRequest must not error for %s", tc.method)
-			assert.Equalf(t, []string{"user.liquidation"}, acknowledged, "sendSubscriptionRequest should return the channels %s acknowledged", tc.method)
-			requests := venue.received(tc.method)
-			require.Lenf(t, requests, 1, "sendSubscriptionRequest must send %s", tc.method)
-			assert.JSONEqf(t, `{"channels":["user.liquidation"]}`, string(requests[0].Params), "sendSubscriptionRequest should send the channels in %s", tc.method)
-			assert.Equalf(t, subscriptionVenueConnection, requests[0].connection, "sendSubscriptionRequest should send %s over the connection given", tc.method)
-		})
-	}
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		// A websocket of its own, as the shared one's channels belong to the tests that subscribe them
+		ex, _ := newDedicatedWebsocketTestExchange(t, nil)
+		for _, subscribe := range []bool{true, false} {
+			acknowledged, err := ex.sendSubscriptionRequest(t.Context(), subscriptionConnection(t, ex), subscribe, false, []string{"deribit_price_index.btc_usd"})
+			require.NoErrorf(t, err, "sendSubscriptionRequest must not error when subscribe is %t", subscribe)
+			assert.Equalf(t, []string{"deribit_price_index.btc_usd"}, acknowledged, "sendSubscriptionRequest should return the channel Deribit acknowledged when subscribe is %t", subscribe)
+		}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		// The requests run serially and in order over one connection, so a request that carries state into the next fails
+		for _, tc := range []struct {
+			name               string
+			subscribe, private bool
+			method             string
+		}{
+			{"public subscribe", true, false, "public/subscribe"},
+			{"private subscribe", true, true, "private/subscribe"},
+			{"public unsubscribe", false, false, "public/unsubscribe"},
+			{"private unsubscribe", false, true, "private/unsubscribe"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				acknowledged, err := ex.sendSubscriptionRequest(t.Context(), subscriptionConnection(t, ex), tc.subscribe, tc.private, []string{"user.liquidation"})
+				require.NoErrorf(t, err, "sendSubscriptionRequest must not error for %s", tc.method)
+				assert.Equalf(t, []string{"user.liquidation"}, acknowledged, "sendSubscriptionRequest should return the channels %s acknowledged", tc.method)
+				requests := venue.received(tc.method)
+				require.Lenf(t, requests, 1, "sendSubscriptionRequest must send %s", tc.method)
+				assert.JSONEqf(t, `{"channels":["user.liquidation"]}`, string(requests[0].Params), "sendSubscriptionRequest should send the channels in %s", tc.method)
+				assert.Equalf(t, subscriptionVenueConnection, requests[0].connection, "sendSubscriptionRequest should send %s over the connection given", tc.method)
+			})
+		}
+	})
 }
 
 func TestRefuseHeldSubscriptions(t *testing.T) {

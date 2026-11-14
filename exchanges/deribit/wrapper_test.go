@@ -697,21 +697,37 @@ func TestWebsocketForWrapper(t *testing.T) {
 
 func TestWrapperOverWebsocket(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("the mock websocket records the requests the wrapper sends; live tests share Deribit's websocket")
-	}
-	ex, venue := newWebsocketTestExchange(t)
-	require.True(t, ex.websocketForWrapper(true), "websocketForWrapper must send private requests over an authenticated connection")
-	_, err := ex.UpdateTicker(t.Context(), wrapperTestPair(t, asset.Futures), asset.Futures)
-	require.NoError(t, err, "UpdateTicker must not error")
-	assert.Len(t, venue.received("public/ticker"), 1, "UpdateTicker should request the ticker over the websocket")
-	_, err = ex.GetOrderInfo(t.Context(), mockWrapperStateOrderID, currency.EMPTYPAIR, asset.Futures)
-	require.NoError(t, err, "GetOrderInfo must not error")
-	assert.Len(t, venue.received("private/get_order_state"), 1, "GetOrderInfo should request the order over the websocket")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		require.True(t, ex.websocketForWrapper(false), "websocketForWrapper must send public requests over the connected websocket")
+		pair := wrapperTestPair(t, asset.Futures)
+		result, err := ex.UpdateTicker(t.Context(), pair, asset.Futures)
+		require.NoError(t, err, "UpdateTicker must not error over the websocket")
+		assert.True(t, result.Pair.Equal(pair), "UpdateTicker should return the pair's ticker")
+	})
 
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	assert.True(t, ex.websocketForWrapper(false), "websocketForWrapper should send public requests over an unauthenticated connection")
-	assert.False(t, ex.websocketForWrapper(true), "websocketForWrapper should send private requests over HTTP without an authenticated connection")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		require.True(t, ex.websocketForWrapper(true), "websocketForWrapper must send private requests over an authenticated connection")
+		_, err := ex.UpdateTicker(t.Context(), wrapperTestPair(t, asset.Futures), asset.Futures)
+		require.NoError(t, err, "UpdateTicker must not error")
+		assert.Len(t, venue.received("public/ticker"), 1, "UpdateTicker should request the ticker over the websocket")
+		_, err = ex.GetOrderInfo(t.Context(), mockWrapperStateOrderID, currency.EMPTYPAIR, asset.Futures)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		assert.Len(t, venue.received("private/get_order_state"), 1, "GetOrderInfo should request the order over the websocket")
+
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		assert.True(t, ex.websocketForWrapper(false), "websocketForWrapper should send public requests over an unauthenticated connection")
+		assert.False(t, ex.websocketForWrapper(true), "websocketForWrapper should send private requests over HTTP without an authenticated connection")
+	})
 }
 
 func TestPairInstrument(t *testing.T) {
@@ -890,6 +906,19 @@ func TestIsUnstreamedSubscription(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equalf(t, tc.exp, ex.isUnstreamedSubscription(tc.sub), "isUnstreamedSubscription should report %s correctly", tc.name)
+		})
+	}
+}
+
+func TestIsCoinbaseRoutedSpot(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	assert.False(t, ex.isCoinbaseRoutedSpot("BTC_USDC"), "isCoinbaseRoutedSpot should report nothing routed before spot is loaded")
+	ex.coinbaseRoutedSpot = map[string]struct{}{"BTC_USDC": {}}
+	for instrument, exp := range map[string]bool{"BTC_USDC": true, "btc_usdc": false, "BTC": false, "USDC": false, "ETH_USDC": false, "BTC-PERPETUAL": false, "": false} {
+		t.Run(subtestName(instrument), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, ex.isCoinbaseRoutedSpot(instrument), "isCoinbaseRoutedSpot should report whether %q is a routed instrument", instrument)
 		})
 	}
 }
@@ -1132,7 +1161,7 @@ func TestTickerResponseTickerPrice(t *testing.T) {
 	assert.Equal(t, exp, data.tickerPrice("Deribit", pair, asset.Options), "tickerPrice should convert the ticker, leaving out an option's USD volume")
 }
 
-func TestBookSummaryTickerPrice(t *testing.T) {
+func TestBookSummaryResponseTickerPrice(t *testing.T) {
 	t.Parallel()
 	pair := currency.NewPairWithDelimiter("BTC", "USDC", currency.UnderscoreDelimiter)
 	summary := &BookSummaryResponse{
@@ -1163,6 +1192,26 @@ func TestBookSummaryTickerPrice(t *testing.T) {
 		MarkPrice:    82007.58,
 	}
 	assert.Equal(t, exp, summary.tickerPrice("Deribit", pair, asset.Spot), "tickerPrice should convert the summary, taking the USD volume without a notional volume")
+
+	option := currency.NewPairWithDelimiter("BTC", "25DEC26-104000-C", currency.DashDelimiter)
+	for _, tc := range []struct {
+		name     string
+		a        asset.Item
+		pair     currency.Pair
+		notional float64
+		exp      float64
+	}{
+		{name: "spot with a notional volume", a: asset.Spot, pair: pair, notional: 12.5, exp: 12.5},
+		{name: "option with a notional volume", a: asset.Options, pair: option, notional: 2.5, exp: 2.5},
+		{name: "option without a notional volume", a: asset.Options, pair: option},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			withNotional := *summary
+			withNotional.VolumeNotional = tc.notional
+			assert.Equalf(t, tc.exp, withNotional.tickerPrice("Deribit", tc.pair, tc.a).QuoteVolume, "tickerPrice should take the notional volume, %v, as the quote volume of the %s summary", tc.notional, tc.a)
+		})
+	}
 }
 
 func TestUpdateOrderbook(t *testing.T) { //nolint:tparallel // Its assets run serially on one exchange before the futures book is fetched again
@@ -1818,6 +1867,95 @@ func riskManagementModesEachField() map[string]order.RiskManagementModes {
 	return modes
 }
 
+func TestTradeData(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	pair := currency.NewPairWithDelimiter("BTC", "PERPETUAL", currency.DashDelimiter)
+	publicTrade := &PublicTrade{TradeID: "48079254", Direction: DirectionSell, Price: 8954, Amount: 20, Timestamp: types.Time(time.UnixMilli(1590484156350))}
+	result, err := ex.tradeData(publicTrade, pair, asset.Futures)
+	require.NoError(t, err, "tradeData must not error")
+	exp := &trade.Data{TID: "48079254", Exchange: ex.Name, CurrencyPair: pair, AssetType: asset.Futures, Side: order.Sell, Price: 8954, Amount: 20, Timestamp: time.UnixMilli(1590484156350)}
+	assert.Equal(t, exp, result, "tradeData should convert the trade under the pair and asset given")
+
+	publicTrade.Direction = "sideways"
+	_, err = ex.tradeData(publicTrade, pair, asset.Futures)
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "tradeData should reject a trade without a valid direction")
+}
+
+func TestOrderTypeParam(t *testing.T) {
+	t.Parallel()
+	for orderType, exp := range map[order.Type]string{
+		order.Limit:            OrderTypeLimit,
+		order.Market:           OrderTypeMarket,
+		order.StopLimit:        OrderTypeStopLimit,
+		order.StopMarket:       OrderTypeStopMarket,
+		order.TakeProfit:       OrderTypeTakeLimit,
+		order.TakeProfitMarket: OrderTypeTakeMarket,
+		order.TrailingStop:     OrderTypeTrailingStop,
+	} {
+		t.Run(orderType.String(), func(t *testing.T) {
+			t.Parallel()
+			result, err := orderTypeParam(orderType)
+			require.NoErrorf(t, err, "orderTypeParam must not error for %s", orderType)
+			assert.Equalf(t, exp, result, "orderTypeParam should place %s as %s", orderType, exp)
+		})
+	}
+	for _, orderType := range []order.Type{order.UnknownType, order.AnyType, order.OCO, order.Liquidation, order.TrailingStopLimit} {
+		t.Run(orderType.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := orderTypeParam(orderType)
+			assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "orderTypeParam should refuse %s", orderType)
+		})
+	}
+}
+
+func TestTimeInForceParam(t *testing.T) {
+	t.Parallel()
+	for tif, exp := range map[order.TimeInForce]string{
+		order.UnknownTIF:                         "",
+		order.PostOnly:                           "",
+		order.GoodTillCancel:                     "good_til_cancelled",
+		order.GoodTillCancel | order.PostOnly:    "good_til_cancelled",
+		order.GoodTillDay:                        "good_til_day",
+		order.GoodTillDay | order.PostOnly:       "good_til_day",
+		order.FillOrKill:                         "fill_or_kill",
+		order.ImmediateOrCancel:                  "immediate_or_cancel",
+		order.ImmediateOrCancel | order.PostOnly: "immediate_or_cancel",
+	} {
+		t.Run(subtestName(tif.String()), func(t *testing.T) {
+			t.Parallel()
+			result, err := timeInForceParam(tif)
+			require.NoErrorf(t, err, "timeInForceParam must not error for %s", tif)
+			assert.Equalf(t, exp, result, "timeInForceParam should place %s as %q, leaving post only to its own param", tif, exp)
+		})
+	}
+	for _, tif := range []order.TimeInForce{order.GoodTillTime, order.GoodTillCrossing, order.FillOrKill | order.ImmediateOrCancel} {
+		t.Run(tif.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := timeInForceParam(tif)
+			assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "timeInForceParam should refuse %s", tif)
+		})
+	}
+}
+
+func TestTriggerParam(t *testing.T) {
+	t.Parallel()
+	for priceType, exp := range map[order.PriceType]string{
+		order.LastPrice:  "last_price",
+		order.IndexPrice: "index_price",
+		order.MarkPrice:  "mark_price",
+	} {
+		t.Run(priceType.String(), func(t *testing.T) {
+			t.Parallel()
+			result, err := triggerParam(priceType)
+			require.NoErrorf(t, err, "triggerParam must not error for %s", priceType)
+			assert.Equalf(t, exp, result, "triggerParam should trigger on %s as %s", priceType, exp)
+		})
+	}
+	_, err := triggerParam(order.PriceType(255))
+	assert.ErrorIs(t, err, order.ErrUnknownPriceType, "triggerParam should refuse an unknown price type")
+}
+
 func TestTradeHistory(t *testing.T) {
 	t.Parallel()
 	userTrade := &UserTradeResponse{TradeID: "ETH-2696097", Direction: DirectionSell, OrderType: "limit", Price: 202.8, Amount: 21, Fee: 7.766e-05, FeeCurrency: currency.ETH, Liquidity: "M", Timestamp: types.Time(time.UnixMilli(1590486335742))}
@@ -1909,6 +2047,46 @@ func TestModifyOrder(t *testing.T) {
 					})
 				}
 			}
+		}
+	})
+	t.Run("status of the edited order", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name       string
+			instrument string
+			state      string
+			amount     float64
+			filled     float64
+			exp        order.Status
+		}{
+			{name: "open", instrument: "BTC-PERPETUAL", state: "open", amount: 10, exp: order.Open},
+			{name: "partly filled", instrument: "BTC-PERPETUAL", state: "open", amount: 10, filled: 4, exp: order.PartiallyFilled},
+			{name: "untriggered", instrument: "BTC-PERPETUAL", state: "untriggered", amount: 10, exp: order.Pending},
+			{name: "filled", instrument: "BTC-PERPETUAL", state: "filled", amount: 10, filled: 10},
+			{name: "spot filled", instrument: "USDC_USDT", state: "filled", amount: 21, filled: 21},
+			{name: "cancelled", instrument: "BTC-PERPETUAL", state: "cancelled", amount: 10},
+			{name: "partly filled then cancelled", instrument: "BTC-PERPETUAL", state: "cancelled", amount: 10, filled: 4},
+			{name: "rejected", instrument: "BTC-PERPETUAL", state: "rejected", amount: 10},
+			{name: "triggered", instrument: "BTC-PERPETUAL", state: "triggered", amount: 10},
+			{name: "archived", instrument: "BTC-PERPETUAL", state: "archive", amount: 10, filled: 10},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				amount := strconv.FormatFloat(tc.amount, 'f', -1, 64)
+				filled := strconv.FormatFloat(tc.filled, 'f', -1, 64)
+				ex := newWrapperServerExchange(t, func(string, json.RawMessage) string {
+					return `{"jsonrpc":"2.0","result":{"order":{"order_id":"1","order_state":"` + tc.state + `","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"` + tc.instrument + `","direction":"sell","amount":` + amount + `,"filled_amount":` + filled + `,"price":30100},"trades":[]}}`
+				})
+				pair, err := currency.NewPairFromString(tc.instrument)
+				require.NoErrorf(t, err, "NewPairFromString must not error for %s", tc.instrument)
+				resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "1", Pair: pair, AssetType: asset.Futures, Amount: tc.amount, Price: 30100})
+				require.NoErrorf(t, err, "ModifyOrder must not error for an order left %s", tc.name)
+				assert.Equalf(t, tc.exp, resp.Status, "ModifyOrder should report the status of an order left %s only while it is active", tc.name)
+
+				stored := &order.Detail{Exchange: ex.Name, OrderID: "1", Pair: pair, Side: order.Sell, Type: order.Limit, Status: order.Open, Amount: tc.amount, Price: 30000}
+				stored.UpdateOrderFromModifyResponse(resp)
+				assert.Falsef(t, stored.IsInactive(), "an open order's details should stay active after an edit leaves it %s, for a later sweep to read", tc.name)
+			})
 		}
 	})
 
@@ -2471,12 +2649,28 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 		})
 	}
 
-	if !mockTests {
-		t.Skip("withdrawals move funds out of the account, so only the mock tests them")
-	}
-	resp, err := e.WithdrawCryptocurrencyFunds(t.Context(), mockWrapperWithdrawRequest())
-	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error")
-	assert.Equal(t, &withdraw.ExchangeResponse{Name: e.Name, ID: "1", Status: "cancelled"}, resp, "WithdrawCryptocurrencyFunds should return the withdrawal")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		req := mockWrapperWithdrawRequest()
+		req.Amount = 0.0001
+		req.Crypto.Address = liveForeignAddress
+		_, err := e.WithdrawCryptocurrencyFunds(t.Context(), req)
+		requireRefusedOnMerits(t, err, "WithdrawCryptocurrencyFunds")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		resp, err := e.WithdrawCryptocurrencyFunds(t.Context(), mockWrapperWithdrawRequest())
+		require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error")
+		assert.Equal(t, &withdraw.ExchangeResponse{Name: e.Name, ID: "1", Status: "cancelled"}, resp, "WithdrawCryptocurrencyFunds should return the withdrawal")
+	})
 }
 
 func TestWithdrawFiatFunds(t *testing.T) {

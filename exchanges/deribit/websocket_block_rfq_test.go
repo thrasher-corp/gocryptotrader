@@ -11,33 +11,61 @@ import (
 
 func TestWebsocketAPIAcceptBlockRFQ(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.AcceptBlockRFQ needs makers' quotes on the account's Block RFQ, which live tests cannot arrange")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().AcceptBlockRFQ(t.Context(), mockAcceptBlockRFQRequest())
-	require.NoError(t, err, "WebsocketAPI.AcceptBlockRFQ must not error")
-	assert.Equal(t, testDocumentedAcceptedBlockRFQ(), result, "WebsocketAPI.AcceptBlockRFQ should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().AcceptBlockRFQ(t.Context(), liveForeignAcceptBlockRFQRequest())
+		requireRefusedOnMerits(t, err, "WebsocketAPI.AcceptBlockRFQ")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().AcceptBlockRFQ(t.Context(), mockAcceptBlockRFQRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().AcceptBlockRFQ(t.Context(), mockAcceptBlockRFQRequest())
+		require.NoError(t, err, "WebsocketAPI.AcceptBlockRFQ must not error")
+		assert.Equal(t, testDocumentedAcceptedBlockRFQ(), result, "WebsocketAPI.AcceptBlockRFQ should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().AcceptBlockRFQ(t.Context(), mockAcceptBlockRFQRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.AcceptBlockRFQ should error without an authenticated connection")
 }
 
 func TestWebsocketAPIAddBlockRFQQuote(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.AddBlockRFQQuote needs another account's open Block RFQ to quote, which live tests cannot arrange")
-	}
-	ex, venue := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().AddBlockRFQQuote(t.Context(), mockAddBlockRFQQuoteRequest())
-	require.NoError(t, err, "WebsocketAPI.AddBlockRFQQuote must not error")
-	assert.Equal(t, testDocumentedBlockRFQQuote(), result, "WebsocketAPI.AddBlockRFQQuote should decode every field")
-	requests := venue.received("private/add_block_rfq_quote")
-	require.Len(t, requests, 1, "WebsocketAPI.AddBlockRFQQuote must send one request")
-	exp := `{"label":"example_quote","block_rfq_id":3,"amount":10000,"direction":"buy","legs":[{"instrument_name":"BTC-15NOV24","price":69600,"ratio":1,"direction":"buy"}],"hedge":{"amount":10,"direction":"buy","price":70000,"instrument_name":"BTC-PERPETUAL"},"execution_instruction":"any_part_of","expires_at":1745312540321}`
-	assert.JSONEq(t, exp, string(requests[0].Params), "WebsocketAPI.AddBlockRFQQuote should send Deribit's documented params, the expiry in milliseconds")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().AddBlockRFQQuote(t.Context(), liveForeignAddBlockRFQQuoteRequest())
+		requireRefusedOnMerits(t, err, "WebsocketAPI.AddBlockRFQQuote")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().AddBlockRFQQuote(t.Context(), mockAddBlockRFQQuoteRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().AddBlockRFQQuote(t.Context(), mockAddBlockRFQQuoteRequest())
+		require.NoError(t, err, "WebsocketAPI.AddBlockRFQQuote must not error")
+		assert.Equal(t, testDocumentedBlockRFQQuote(), result, "WebsocketAPI.AddBlockRFQQuote should decode every field")
+		requests := venue.received("private/add_block_rfq_quote")
+		require.Len(t, requests, 1, "WebsocketAPI.AddBlockRFQQuote must send one request")
+		exp := `{"label":"example_quote","block_rfq_id":3,"amount":10000,"direction":"buy","legs":[{"instrument_name":"BTC-15NOV24","price":69600,"ratio":1,"direction":"buy"}],"hedge":{"amount":10,"direction":"buy","price":70000,"instrument_name":"BTC-PERPETUAL"},"execution_instruction":"any_part_of","expires_at":1745312540321}`
+		assert.JSONEq(t, exp, string(requests[0].Params), "WebsocketAPI.AddBlockRFQQuote should send Deribit's documented params, the expiry in milliseconds")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().AddBlockRFQQuote(t.Context(), mockAddBlockRFQQuoteRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.AddBlockRFQQuote should error without an authenticated connection")
 }
 
@@ -85,29 +113,57 @@ func TestWebsocketAPICancelBlockRFQ(t *testing.T) {
 
 func TestWebsocketAPICancelBlockRFQQuote(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelBlockRFQQuote needs a quote on another account's open Block RFQ, which live tests cannot arrange")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CancelBlockRFQQuote(t.Context(), mockCancelBlockRFQQuoteRequest())
-	require.NoError(t, err, "WebsocketAPI.CancelBlockRFQQuote must not error")
-	assert.Equal(t, testDocumentedCancelledBlockRFQQuote(), result, "WebsocketAPI.CancelBlockRFQQuote should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().CancelBlockRFQQuote(t.Context(), &CancelBlockRFQQuoteRequest{BlockRFQQuoteID: liveForeignID})
+		requireRefusedOnMerits(t, err, "WebsocketAPI.CancelBlockRFQQuote")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().CancelBlockRFQQuote(t.Context(), mockCancelBlockRFQQuoteRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CancelBlockRFQQuote(t.Context(), mockCancelBlockRFQQuoteRequest())
+		require.NoError(t, err, "WebsocketAPI.CancelBlockRFQQuote must not error")
+		assert.Equal(t, testDocumentedCancelledBlockRFQQuote(), result, "WebsocketAPI.CancelBlockRFQQuote should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().CancelBlockRFQQuote(t.Context(), mockCancelBlockRFQQuoteRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CancelBlockRFQQuote should error without an authenticated connection")
 }
 
 func TestWebsocketAPICancelBlockRFQTrigger(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelBlockRFQTrigger needs an active trade trigger, which needs makers' quotes live tests cannot arrange")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CancelBlockRFQTrigger(t.Context(), mockCancelBlockRFQTriggerID)
-	require.NoError(t, err, "WebsocketAPI.CancelBlockRFQTrigger must not error")
-	assert.Equal(t, testDocumentedBlockRFQWithCancelledTrigger(), result, "WebsocketAPI.CancelBlockRFQTrigger should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().CancelBlockRFQTrigger(t.Context(), liveForeignID)
+		requireRefusedOnMerits(t, err, "WebsocketAPI.CancelBlockRFQTrigger")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().CancelBlockRFQTrigger(t.Context(), mockCancelBlockRFQTriggerID)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CancelBlockRFQTrigger(t.Context(), mockCancelBlockRFQTriggerID)
+		require.NoError(t, err, "WebsocketAPI.CancelBlockRFQTrigger must not error")
+		assert.Equal(t, testDocumentedBlockRFQWithCancelledTrigger(), result, "WebsocketAPI.CancelBlockRFQTrigger should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().CancelBlockRFQTrigger(t.Context(), mockCancelBlockRFQTriggerID)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CancelBlockRFQTrigger should error without an authenticated connection")
 }
 
@@ -134,15 +190,29 @@ func TestWebsocketAPICreateBlockRFQ(t *testing.T) {
 
 func TestWebsocketAPIEditBlockRFQQuote(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.EditBlockRFQQuote needs a quote on another account's open Block RFQ, which live tests cannot arrange")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().EditBlockRFQQuote(t.Context(), mockEditBlockRFQQuoteRequest())
-	require.NoError(t, err, "WebsocketAPI.EditBlockRFQQuote must not error")
-	assert.Equal(t, testDocumentedEditedBlockRFQQuote(), result, "WebsocketAPI.EditBlockRFQQuote should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().EditBlockRFQQuote(t.Context(), liveForeignEditBlockRFQQuoteRequest())
+		requireRefusedOnMerits(t, err, "WebsocketAPI.EditBlockRFQQuote")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().EditBlockRFQQuote(t.Context(), mockEditBlockRFQQuoteRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().EditBlockRFQQuote(t.Context(), mockEditBlockRFQQuoteRequest())
+		require.NoError(t, err, "WebsocketAPI.EditBlockRFQQuote must not error")
+		assert.Equal(t, testDocumentedEditedBlockRFQQuote(), result, "WebsocketAPI.EditBlockRFQQuote should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().EditBlockRFQQuote(t.Context(), mockEditBlockRFQQuoteRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.EditBlockRFQQuote should error without an authenticated connection")
 }
 

@@ -9,15 +9,31 @@ import (
 
 func TestWebsocketAPIGetLiquiditySupportProgramParticipantConfig(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.GetLiquiditySupportProgramParticipantConfig is not tested live, as " + liveLiquiditySupportProgramParticipantSkip)
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().GetLiquiditySupportProgramParticipantConfig(t.Context())
-	require.NoError(t, err, "WebsocketAPI.GetLiquiditySupportProgramParticipantConfig must not error")
-	assert.Equal(t, testLiquiditySupportProgramParticipantConfigResponse(), result, "WebsocketAPI.GetLiquiditySupportProgramParticipantConfig should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetLiquiditySupportProgramParticipantConfig(t.Context())
+		if requireAnsweredOnMerits(t, err, "WebsocketAPI.GetLiquiditySupportProgramParticipantConfig") {
+			assert.NotNil(t, result, "WebsocketAPI.GetLiquiditySupportProgramParticipantConfig should return the participant's configuration")
+		}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().GetLiquiditySupportProgramParticipantConfig(t.Context())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetLiquiditySupportProgramParticipantConfig(t.Context())
+		require.NoError(t, err, "WebsocketAPI.GetLiquiditySupportProgramParticipantConfig must not error")
+		assert.Equal(t, testLiquiditySupportProgramParticipantConfigResponse(), result, "WebsocketAPI.GetLiquiditySupportProgramParticipantConfig should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().GetLiquiditySupportProgramParticipantConfig(t.Context())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetLiquiditySupportProgramParticipantConfig should error without an authenticated connection")
 }
 
@@ -57,14 +73,30 @@ func TestWebsocketAPIGetLiquiditySupportProgramParticipantsUsage(t *testing.T) {
 
 func TestWebsocketAPIGetLiquiditySupportProgramUsage(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.GetLiquiditySupportProgramUsage is not tested live, as " + liveLiquiditySupportProgramParticipantSkip)
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().GetLiquiditySupportProgramUsage(t.Context())
-	require.NoError(t, err, "WebsocketAPI.GetLiquiditySupportProgramUsage must not error")
-	assert.Equal(t, &LiquiditySupportProgramUsageResponse{CooldownPeriod: 300000, Groups: testLiquiditySupportProgramGroupUsage()}, result, "WebsocketAPI.GetLiquiditySupportProgramUsage should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetLiquiditySupportProgramUsage(t.Context())
+		if requireAnsweredOnMerits(t, err, "WebsocketAPI.GetLiquiditySupportProgramUsage") {
+			assert.NotNil(t, result, "WebsocketAPI.GetLiquiditySupportProgramUsage should return the participant's usage")
+		}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().GetLiquiditySupportProgramUsage(t.Context())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetLiquiditySupportProgramUsage(t.Context())
+		require.NoError(t, err, "WebsocketAPI.GetLiquiditySupportProgramUsage must not error")
+		assert.Equal(t, &LiquiditySupportProgramUsageResponse{CooldownPeriod: 300000, Groups: testLiquiditySupportProgramGroupUsage()}, result, "WebsocketAPI.GetLiquiditySupportProgramUsage should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().GetLiquiditySupportProgramUsage(t.Context())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetLiquiditySupportProgramUsage should error without an authenticated connection")
 }

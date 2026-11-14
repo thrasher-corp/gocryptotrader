@@ -1013,14 +1013,33 @@ func TestValidateAPIKeyFeatures(t *testing.T) {
 
 func TestCreateSubaccount(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("CreateSubaccount would create a subaccount, which live tests cannot undo")
-	}
-	result, err := e.CreateSubaccount(t.Context())
-	require.NoError(t, err, "CreateSubaccount must not error")
-	assert.Equal(t, testCreatedSubaccount(), result, "CreateSubaccount should decode every field")
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CreateSubaccount(t.Context())
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		result, err := e.CreateSubaccount(t.Context())
+		if requireAnsweredOnMerits(t, err, "CreateSubaccount") {
+			require.NotZero(t, result.ID, "CreateSubaccount must return the new subaccount's ID")
+			t.Cleanup(func() {
+				assert.NoError(t, e.RemoveSubaccount(context.WithoutCancel(t.Context()), result.ID), "RemoveSubaccount should remove the test's subaccount")
+			})
+		}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CreateSubaccount(t.Context())
+		require.NoError(t, err, "CreateSubaccount must not error")
+		assert.Equal(t, testCreatedSubaccount(), result, "CreateSubaccount should decode every field")
+	})
+
+	_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CreateSubaccount(t.Context())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateSubaccount should reject a null result")
 	_, err = newUnavailableServerExchange(t).CreateSubaccount(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateSubaccount should return the request failure")
@@ -1031,12 +1050,25 @@ func TestDeleteMember(t *testing.T) {
 	_, err := e.DeleteMember(t.Context(), 0)
 	require.ErrorIs(t, err, errMemberIDRequired, "DeleteMember must reject an empty member ID")
 
-	if !mockTests {
-		t.Skip("DeleteMember would delete a Direct Access member, which live tests cannot recreate")
-	}
-	result, err := e.DeleteMember(t.Context(), mockMemberID)
-	require.NoError(t, err, "DeleteMember must not error")
-	assert.Equal(t, &MembersResponse{Members: []Member{}, IsDirectAccessAllowed: true}, result, "DeleteMember should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.DeleteMember(t.Context(), liveForeignID)
+		requireRefusedOnMerits(t, err, "DeleteMember")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.DeleteMember(t.Context(), mockMemberID)
+		require.NoError(t, err, "DeleteMember must not error")
+		assert.Equal(t, &MembersResponse{Members: []Member{}, IsDirectAccessAllowed: true}, result, "DeleteMember should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).DeleteMember(t.Context(), mockMemberID)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "DeleteMember should reject a null result")
@@ -1118,10 +1150,28 @@ func TestEditAPIKeyRequestMarshalJSON(t *testing.T) {
 
 func TestEnableAffiliateProgram(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("EnableAffiliateProgram would enable the affiliate program, which live tests cannot disable")
-	}
-	require.NoError(t, e.EnableAffiliateProgram(t.Context()), "EnableAffiliateProgram must not error")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		info, err := e.GetAffiliateProgramInfo(t.Context())
+		require.NoError(t, err, "GetAffiliateProgramInfo must not error")
+		if !info.IsEnabled {
+			t.Skip("enabling the affiliate program cannot be undone, and it is not enabled on the account")
+		}
+		requireAnsweredOnMerits(t, e.EnableAffiliateProgram(t.Context()), "EnableAffiliateProgram")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.EnableAffiliateProgram(t.Context()), "EnableAffiliateProgram must not error")
+	})
 
 	err := newUnavailableServerExchange(t).EnableAffiliateProgram(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "EnableAffiliateProgram should return the request failure")
@@ -1671,10 +1721,22 @@ func TestRemoveSubaccount(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.RemoveSubaccount(t.Context(), 0), errSubaccountIDRequired, "RemoveSubaccount must reject an empty subaccount ID")
 
-	if !mockTests {
-		t.Skip("RemoveSubaccount would remove a subaccount, which live tests cannot recreate")
-	}
-	require.NoError(t, e.RemoveSubaccount(t.Context(), mockAccountSubaccountID), "RemoveSubaccount must not error")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		requireRefusedOnMerits(t, e.RemoveSubaccount(t.Context(), liveForeignID), "RemoveSubaccount")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.RemoveSubaccount(t.Context(), mockAccountSubaccountID), "RemoveSubaccount must not error")
+	})
 
 	err := newUnavailableServerExchange(t).RemoveSubaccount(t.Context(), mockAccountSubaccountID)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "RemoveSubaccount should return the request failure")
@@ -1705,10 +1767,22 @@ func TestSetAnnouncementAsRead(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.SetAnnouncementAsRead(t.Context(), 0), errAnnouncementIDRequired, "SetAnnouncementAsRead must reject an empty announcement ID")
 
-	if !mockTests {
-		t.Skip("SetAnnouncementAsRead would mark an announcement read, which live tests cannot mark unread")
-	}
-	require.NoError(t, e.SetAnnouncementAsRead(t.Context(), mockAnnouncementID), "SetAnnouncementAsRead must not error")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		requireAnsweredOnMerits(t, e.SetAnnouncementAsRead(t.Context(), liveForeignID), "SetAnnouncementAsRead")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.SetAnnouncementAsRead(t.Context(), mockAnnouncementID), "SetAnnouncementAsRead must not error")
+	})
 
 	err := newUnavailableServerExchange(t).SetAnnouncementAsRead(t.Context(), mockAnnouncementID)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "SetAnnouncementAsRead should return the request failure")
@@ -1734,11 +1808,25 @@ func TestSetDisabledTradingProducts(t *testing.T) {
 	}))
 	require.NoError(t, ex.SetDisabledTradingProducts(t.Context(), &SetDisabledTradingProductsRequest{UserID: mockAccountSubaccountID}), "SetDisabledTradingProducts must not error for a nil list")
 
-	if !mockTests {
-		t.Skip("SetDisabledTradingProducts would change a subaccount's products, which live tests cannot read back to restore")
-	}
 	arg := &SetDisabledTradingProductsRequest{UserID: mockAccountSubaccountID, TradingProducts: []string{TradingProductFutures, TradingProductOptions}}
-	require.NoError(t, e.SetDisabledTradingProducts(t.Context(), arg), "SetDisabledTradingProducts must not error")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		err := e.SetDisabledTradingProducts(t.Context(), &SetDisabledTradingProductsRequest{UserID: liveForeignID, TradingProducts: arg.TradingProducts})
+		requireRefusedOnMerits(t, err, "SetDisabledTradingProducts")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.SetDisabledTradingProducts(t.Context(), arg), "SetDisabledTradingProducts must not error")
+	})
 
 	err = newUnavailableServerExchange(t).SetDisabledTradingProducts(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "SetDisabledTradingProducts should return the request failure")
@@ -1753,11 +1841,25 @@ func TestSetEmailForSubaccount(t *testing.T) {
 	err = e.SetEmailForSubaccount(t.Context(), &SetEmailForSubaccountRequest{SubaccountID: mockAccountSubaccountID})
 	require.ErrorIs(t, err, errSubaccountEmailRequired, "SetEmailForSubaccount must reject an empty email")
 
-	if !mockTests {
-		t.Skip("SetEmailForSubaccount would send a confirmation email and replace a subaccount's email, which live tests cannot undo")
-	}
 	arg := &SetEmailForSubaccountRequest{SubaccountID: mockAccountSubaccountID, Email: mockSubaccountEmail}
-	require.NoError(t, e.SetEmailForSubaccount(t.Context(), arg), "SetEmailForSubaccount must not error")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		err := e.SetEmailForSubaccount(t.Context(), &SetEmailForSubaccountRequest{SubaccountID: liveForeignID, Email: "gct-live-test@example.com"})
+		requireRefusedOnMerits(t, err, "SetEmailForSubaccount")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.SetEmailForSubaccount(t.Context(), arg), "SetEmailForSubaccount must not error")
+	})
 
 	err = newUnavailableServerExchange(t).SetEmailForSubaccount(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "SetEmailForSubaccount should return the request failure")
@@ -1858,11 +1960,25 @@ func TestToggleNotificationsFromSubaccount(t *testing.T) {
 	err = e.ToggleNotificationsFromSubaccount(t.Context(), &ToggleNotificationsFromSubaccountRequest{State: true})
 	require.ErrorIs(t, err, errSubaccountIDRequired, "ToggleNotificationsFromSubaccount must reject an empty subaccount ID")
 
-	if !mockTests {
-		t.Skip("ToggleNotificationsFromSubaccount would change a subaccount's notifications, whose state live tests cannot read back to restore")
-	}
 	arg := &ToggleNotificationsFromSubaccountRequest{SubaccountID: mockAccountSubaccountID, State: true}
-	require.NoError(t, e.ToggleNotificationsFromSubaccount(t.Context(), arg), "ToggleNotificationsFromSubaccount must not error")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		err := e.ToggleNotificationsFromSubaccount(t.Context(), &ToggleNotificationsFromSubaccountRequest{SubaccountID: liveForeignID, State: true})
+		requireRefusedOnMerits(t, err, "ToggleNotificationsFromSubaccount")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.ToggleNotificationsFromSubaccount(t.Context(), arg), "ToggleNotificationsFromSubaccount must not error")
+	})
 
 	err = newUnavailableServerExchange(t).ToggleNotificationsFromSubaccount(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ToggleNotificationsFromSubaccount should return the request failure")

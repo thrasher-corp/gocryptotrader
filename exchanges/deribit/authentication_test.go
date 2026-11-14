@@ -157,6 +157,43 @@ func TestAuthenticateParamsMarshalJSON(t *testing.T) {
 	assert.JSONEq(t, `{"grant_type":"client_signature","client_id":"id","timestamp":1700000000000,"signature":"sig","nonce":"nonce"}`, string(encoded), "AuthenticateParams should send the timestamp in Unix milliseconds once")
 }
 
+func TestAuthenticateRequestParams(t *testing.T) {
+	t.Parallel()
+	var nilRequest *AuthenticateRequest
+	_, err := nilRequest.params()
+	require.ErrorIs(t, err, common.ErrNilPointer, "params must reject a nil request")
+	_, err = (&AuthenticateRequest{GrantType: "password"}).params()
+	require.ErrorIs(t, err, errInvalidGrantType, "params must reject a request that fails validation")
+	for _, tc := range []struct {
+		name string
+		arg  *AuthenticateRequest
+		exp  uint64
+	}{
+		{name: "client credentials", arg: &AuthenticateRequest{GrantType: GrantTypeClientCredentials, ClientID: testClientID, ClientSecret: testClientSecret}},
+		{name: "client signature", arg: &AuthenticateRequest{GrantType: GrantTypeClientSignature, ClientID: testClientID, Timestamp: time.UnixMilli(1700000000123), Signature: "signature", Nonce: "nonce"}, exp: 1700000000123},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params, err := tc.arg.params()
+			require.NoErrorf(t, err, "params must not error for %s", tc.name)
+			assert.Samef(t, tc.arg, params.AuthenticateRequest, "params should send the request's fields for %s", tc.name)
+			assert.Equalf(t, tc.exp, params.Timestamp, "params should send the timestamp in Unix milliseconds for %s", tc.name)
+		})
+	}
+}
+
+func TestAccessTokenResult(t *testing.T) {
+	t.Parallel()
+	_, err := accessTokenResult(nil)
+	assert.ErrorIs(t, err, errNoAccessToken, "accessTokenResult should reject a null result")
+	_, err = accessTokenResult(&AccessTokenResponse{RefreshToken: "refresh", TokenType: "bearer"})
+	assert.ErrorIs(t, err, errNoAccessToken, "accessTokenResult should reject a result without an access token")
+	token := testAccessToken("connection mainaccount")
+	result, err := accessTokenResult(token)
+	require.NoError(t, err, "accessTokenResult must not error for a token")
+	assert.Same(t, token, result, "accessTokenResult should return the token")
+}
+
 func TestExchangeToken(t *testing.T) {
 	t.Parallel()
 	_, err := e.ExchangeToken(t.Context(), nil)
@@ -166,14 +203,29 @@ func TestExchangeToken(t *testing.T) {
 	_, err = e.ExchangeToken(t.Context(), &ExchangeTokenRequest{RefreshToken: mockRefreshToken})
 	require.ErrorIs(t, err, errSubjectIDRequired, "ExchangeToken must reject an empty subject ID")
 
-	if !mockTests {
-		t.Skip("ExchangeToken needs a refresh token and a subaccount, which live tests do not have")
-	}
-	result, err := e.ExchangeToken(t.Context(), &ExchangeTokenRequest{RefreshToken: mockRefreshToken, SubjectID: mockSubjectID})
-	require.NoError(t, err, "ExchangeToken must not error")
-	exp := testAccessToken("session:named_session mainaccount")
-	exp.EnabledFeatures = nil
-	assert.Equal(t, exp, result, "ExchangeToken should decode the token")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		auth, err := e.Authenticate(t.Context(), testAuthenticateRequest(t))
+		require.NoError(t, err, "Authenticate must return a refresh token to exchange")
+		_, err = e.ExchangeToken(t.Context(), &ExchangeTokenRequest{RefreshToken: auth.RefreshToken, SubjectID: liveForeignID})
+		requireRefusedOnMerits(t, err, "ExchangeToken", "subject_id")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.ExchangeToken(t.Context(), &ExchangeTokenRequest{RefreshToken: mockRefreshToken, SubjectID: mockSubjectID})
+		require.NoError(t, err, "ExchangeToken must not error")
+		exp := testAccessToken("session:named_session mainaccount")
+		exp.EnabledFeatures = nil
+		assert.Equal(t, exp, result, "ExchangeToken should decode the token")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"access_token":""}}`).ExchangeToken(t.Context(), &ExchangeTokenRequest{RefreshToken: mockRefreshToken, SubjectID: mockSubjectID})
 	assert.ErrorIs(t, err, errNoAccessToken, "ExchangeToken should reject a result without an access token")
@@ -190,14 +242,33 @@ func TestForkToken(t *testing.T) {
 	_, err = e.ForkToken(t.Context(), &ForkTokenRequest{RefreshToken: mockRefreshToken})
 	require.ErrorIs(t, err, errSessionNameRequired, "ForkToken must reject an empty session name")
 
-	if !mockTests {
-		t.Skip("ForkToken needs the refresh token of a session scoped token, which live tests do not have")
-	}
-	result, err := e.ForkToken(t.Context(), &ForkTokenRequest{RefreshToken: mockRefreshToken, SessionName: mockSessionName})
-	require.NoError(t, err, "ForkToken must not error")
-	exp := testAccessToken("session:named_session mainaccount")
-	exp.EnabledFeatures = nil
-	assert.Equal(t, exp, result, "ForkToken should decode the token")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		arg := testAuthenticateRequest(t)
+		arg.Scope = "session:" + liveSessionName
+		auth, err := e.Authenticate(t.Context(), arg)
+		require.NoError(t, err, "Authenticate must return a session scoped refresh token to fork")
+		result, err := e.ForkToken(t.Context(), &ForkTokenRequest{RefreshToken: auth.RefreshToken, SessionName: liveSessionName + "-fork"})
+		if requireAnsweredOnMerits(t, err, "ForkToken") {
+			assert.NotEmpty(t, result.AccessToken, "ForkToken should return the new session's access token")
+		}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.ForkToken(t.Context(), &ForkTokenRequest{RefreshToken: mockRefreshToken, SessionName: mockSessionName})
+		require.NoError(t, err, "ForkToken must not error")
+		exp := testAccessToken("session:named_session mainaccount")
+		exp.EnabledFeatures = nil
+		assert.Equal(t, exp, result, "ForkToken should decode the token")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).ForkToken(t.Context(), &ForkTokenRequest{RefreshToken: mockRefreshToken, SessionName: mockSessionName})
 	assert.ErrorIs(t, err, errNoAccessToken, "ForkToken should reject a null result")

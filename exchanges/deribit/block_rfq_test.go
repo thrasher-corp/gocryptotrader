@@ -106,6 +106,38 @@ func testGetBlockRFQTradesRequest() *GetBlockRFQTradesRequest {
 	return &GetBlockRFQTradesRequest{Currency: currency.BTC, Count: 10}
 }
 
+// liveForeignAcceptBlockRFQRequest returns an acceptance, at a price no quote crosses, of the Block RFQ liveForeignID
+func liveForeignAcceptBlockRFQRequest() *AcceptBlockRFQRequest {
+	return &AcceptBlockRFQRequest{
+		BlockRFQID:  liveForeignID,
+		Legs:        []BlockRFQLeg{{InstrumentName: liveBlockTradeInstrument, Direction: DirectionBuy, Ratio: 1}},
+		Price:       10,
+		Amount:      liveBlockTradeAmount,
+		Direction:   DirectionBuy,
+		TimeInForce: BlockRFQTimeInForceFillOrKill,
+	}
+}
+
+// liveForeignAddBlockRFQQuoteRequest returns a quote, far below the market, on the Block RFQ liveForeignID
+func liveForeignAddBlockRFQQuoteRequest() *AddBlockRFQQuoteRequest {
+	return &AddBlockRFQQuoteRequest{
+		BlockRFQID: liveForeignID,
+		Amount:     liveBlockTradeAmount,
+		Direction:  DirectionBuy,
+		Legs:       []BlockRFQLeg{{InstrumentName: liveBlockTradeInstrument, Direction: DirectionBuy, Ratio: 1, Price: 10}},
+	}
+}
+
+// liveForeignEditBlockRFQQuoteRequest returns an edit, far below the market, of the Block RFQ quote liveForeignID,
+// identified by its ID alone
+func liveForeignEditBlockRFQQuoteRequest() *EditBlockRFQQuoteRequest {
+	return &EditBlockRFQQuoteRequest{
+		BlockRFQQuoteID: liveForeignID,
+		Amount:          liveBlockTradeAmount,
+		Legs:            []BlockRFQLeg{{InstrumentName: liveBlockTradeInstrument, Direction: DirectionBuy, Ratio: 1, Price: 10}},
+	}
+}
+
 // liveCreateBlockRFQRequest returns a Block RFQ of the minimum block trade amount of a perpetual, which live tests
 // create and cancel
 func liveCreateBlockRFQRequest() *CreateBlockRFQRequest {
@@ -430,12 +462,25 @@ func TestAcceptBlockRFQ(t *testing.T) {
 	_, err = e.AcceptBlockRFQ(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidAmount, "AcceptBlockRFQ must reject a hedge without an amount")
 
-	if !mockTests {
-		t.Skip("AcceptBlockRFQ needs makers' quotes on the account's Block RFQ, which live tests cannot arrange")
-	}
-	result, err := e.AcceptBlockRFQ(t.Context(), mockAcceptBlockRFQRequest())
-	require.NoError(t, err, "AcceptBlockRFQ must not error")
-	assert.Equal(t, testDocumentedAcceptedBlockRFQ(), result, "AcceptBlockRFQ should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.AcceptBlockRFQ(t.Context(), liveForeignAcceptBlockRFQRequest())
+		requireRefusedOnMerits(t, err, "AcceptBlockRFQ")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.AcceptBlockRFQ(t.Context(), mockAcceptBlockRFQRequest())
+		require.NoError(t, err, "AcceptBlockRFQ must not error")
+		assert.Equal(t, testDocumentedAcceptedBlockRFQ(), result, "AcceptBlockRFQ should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).AcceptBlockRFQ(t.Context(), mockAcceptBlockRFQRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "AcceptBlockRFQ should reject a null result")
@@ -494,12 +539,25 @@ func TestAddBlockRFQQuote(t *testing.T) {
 	_, err = e.AddBlockRFQQuote(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidBlockRFQExecutionInstruction, "AddBlockRFQQuote must reject an undocumented execution instruction")
 
-	if !mockTests {
-		t.Skip("AddBlockRFQQuote needs another account's open Block RFQ to quote, which live tests cannot arrange")
-	}
-	result, err := e.AddBlockRFQQuote(t.Context(), mockAddBlockRFQQuoteRequest())
-	require.NoError(t, err, "AddBlockRFQQuote must not error")
-	assert.Equal(t, testDocumentedBlockRFQQuote(), result, "AddBlockRFQQuote should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.AddBlockRFQQuote(t.Context(), liveForeignAddBlockRFQQuoteRequest())
+		requireRefusedOnMerits(t, err, "AddBlockRFQQuote")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.AddBlockRFQQuote(t.Context(), mockAddBlockRFQQuoteRequest())
+		require.NoError(t, err, "AddBlockRFQQuote must not error")
+		assert.Equal(t, testDocumentedBlockRFQQuote(), result, "AddBlockRFQQuote should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).AddBlockRFQQuote(t.Context(), mockAddBlockRFQQuoteRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "AddBlockRFQQuote should reject a null result")
@@ -565,12 +623,25 @@ func TestCancelBlockRFQQuote(t *testing.T) {
 	_, err = e.CancelBlockRFQQuote(t.Context(), &CancelBlockRFQQuoteRequest{Label: mockBlockRFQQuoteLabel})
 	require.ErrorIs(t, err, errBlockRFQQuoteIdentifierRequired, "CancelBlockRFQQuote must reject a label without its Block RFQ")
 
-	if !mockTests {
-		t.Skip("CancelBlockRFQQuote needs a quote on another account's open Block RFQ, which live tests cannot arrange")
-	}
-	result, err := e.CancelBlockRFQQuote(t.Context(), mockCancelBlockRFQQuoteRequest())
-	require.NoError(t, err, "CancelBlockRFQQuote must not error")
-	assert.Equal(t, testDocumentedCancelledBlockRFQQuote(), result, "CancelBlockRFQQuote should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.CancelBlockRFQQuote(t.Context(), &CancelBlockRFQQuoteRequest{BlockRFQQuoteID: liveForeignID})
+		requireRefusedOnMerits(t, err, "CancelBlockRFQQuote")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelBlockRFQQuote(t.Context(), mockCancelBlockRFQQuoteRequest())
+		require.NoError(t, err, "CancelBlockRFQQuote must not error")
+		assert.Equal(t, testDocumentedCancelledBlockRFQQuote(), result, "CancelBlockRFQQuote should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelBlockRFQQuote(t.Context(), mockCancelBlockRFQQuoteRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelBlockRFQQuote should reject a null result")
@@ -583,12 +654,25 @@ func TestCancelBlockRFQTrigger(t *testing.T) {
 	_, err := e.CancelBlockRFQTrigger(t.Context(), 0)
 	require.ErrorIs(t, err, errBlockRFQIDRequired, "CancelBlockRFQTrigger must reject an empty Block RFQ ID")
 
-	if !mockTests {
-		t.Skip("CancelBlockRFQTrigger needs an active trade trigger, which needs makers' quotes live tests cannot arrange")
-	}
-	result, err := e.CancelBlockRFQTrigger(t.Context(), mockCancelBlockRFQTriggerID)
-	require.NoError(t, err, "CancelBlockRFQTrigger must not error")
-	assert.Equal(t, testDocumentedBlockRFQWithCancelledTrigger(), result, "CancelBlockRFQTrigger should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.CancelBlockRFQTrigger(t.Context(), liveForeignID)
+		requireRefusedOnMerits(t, err, "CancelBlockRFQTrigger")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelBlockRFQTrigger(t.Context(), mockCancelBlockRFQTriggerID)
+		require.NoError(t, err, "CancelBlockRFQTrigger must not error")
+		assert.Equal(t, testDocumentedBlockRFQWithCancelledTrigger(), result, "CancelBlockRFQTrigger should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelBlockRFQTrigger(t.Context(), mockCancelBlockRFQTriggerID)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelBlockRFQTrigger should reject a null result")
@@ -656,12 +740,25 @@ func TestEditBlockRFQQuote(t *testing.T) {
 	_, err = e.EditBlockRFQQuote(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidAmount, "EditBlockRFQQuote must reject a hedge with a negative amount")
 
-	if !mockTests {
-		t.Skip("EditBlockRFQQuote needs a quote on another account's open Block RFQ, which live tests cannot arrange")
-	}
-	result, err := e.EditBlockRFQQuote(t.Context(), mockEditBlockRFQQuoteRequest())
-	require.NoError(t, err, "EditBlockRFQQuote must not error")
-	assert.Equal(t, testDocumentedEditedBlockRFQQuote(), result, "EditBlockRFQQuote should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.EditBlockRFQQuote(t.Context(), liveForeignEditBlockRFQQuoteRequest())
+		requireRefusedOnMerits(t, err, "EditBlockRFQQuote")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.EditBlockRFQQuote(t.Context(), mockEditBlockRFQQuoteRequest())
+		require.NoError(t, err, "EditBlockRFQQuote must not error")
+		assert.Equal(t, testDocumentedEditedBlockRFQQuote(), result, "EditBlockRFQQuote should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).EditBlockRFQQuote(t.Context(), mockEditBlockRFQQuoteRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "EditBlockRFQQuote should reject a null result")

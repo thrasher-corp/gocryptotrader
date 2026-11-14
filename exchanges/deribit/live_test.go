@@ -13,9 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
@@ -82,6 +84,29 @@ func newWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
 	t.Helper()
 	ex, err := websocketTestExchange()
 	require.NoError(t, err, "connecting to Deribit's websocket must not error")
+	return ex, nil
+}
+
+// newDedicatedWebsocketTestExchange returns an exchange named after the test whose websocket no other test shares,
+// connected with the subscriptions given and, with the credentials above, authenticated, for a test that would disturb
+// the shared one, such as by logging out, unsubscribing everything or changing its channels; it disconnects when the
+// test ends
+func newDedicatedWebsocketTestExchange(t *testing.T, subs subscription.List) (*Exchange, *websocketVenue) {
+	t.Helper()
+	ex := newTestExchange(t)
+	ex.Features.Subscriptions = subs
+	if subs == nil {
+		ex.Features.Subscriptions = subscription.List{}
+		ex.Websocket.SetSubscriptionsNotRequired()
+	}
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(apiCredentials.Key != "")
+	t.Cleanup(func() {
+		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+		if err := ex.Websocket.Shutdown(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the connection monitor has shut the connection down first")
+		}
+	})
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "connecting to Deribit's websocket must not error")
 	return ex, nil
 }
 

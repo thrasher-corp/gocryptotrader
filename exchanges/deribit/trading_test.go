@@ -24,12 +24,8 @@ const (
 	liveTradingInstrument = "BTC-PERPETUAL"
 	// liveTradingOrderAmount is the smallest BTC-PERPETUAL order, in USD
 	liveTradingOrderAmount = 10
-	// liveTradingIndexName is the index live MMP tests configure and query
+	// liveTradingIndexName is liveTradingInstrument's index, which live MMP tests configure and query
 	liveTradingIndexName = "btc_usd"
-
-	// The reasons live tests skip methods no live test can safely or possibly exercise
-	liveTradingSkipCancelAll  = "it would cancel every open order in its scope, not only the test's"
-	liveTradingSkipMassQuotes = "mass quotes need Deribit's approval of the account and an MMP group"
 
 	// mockCancelOrderID, mockOrderStateID and mockUserTradesOrderID are the orders of Deribit's documented examples
 	mockCancelOrderID     = "ETH-SLIS-12"
@@ -588,13 +584,19 @@ func getLiveTradingTicker(t *testing.T) *liveTradingTicker {
 	return ticker
 }
 
+// liveTradingBuyPrice returns half the lowest sell price Deribit accepts for BTC-PERPETUAL, a price far enough below the
+// market that no market move reaches it while the test runs
+func liveTradingBuyPrice(ticker *liveTradingTicker) float64 {
+	return math.Floor(ticker.MinPrice/20) * 10
+}
+
 // newLiveTradingOrderRequest returns a post only limit order of the smallest BTC-PERPETUAL amount, a buy at half the
 // lowest sell price Deribit accepts or a sell at double the highest buy price, so no market move fills it while the
 // test runs; orders with its label are cancelled when the test ends
 func newLiveTradingOrderRequest(t *testing.T, direction string) *OrderRequest {
 	t.Helper()
 	ticker := getLiveTradingTicker(t)
-	price := math.Floor(ticker.MinPrice/20) * 10
+	price := liveTradingBuyPrice(ticker)
 	if direction == DirectionSell {
 		price = math.Ceil(ticker.MaxPrice/5) * 10
 	}
@@ -615,6 +617,54 @@ func placeLiveTradingOrder(t *testing.T) (*OrderRequest, *OrderResponse) {
 	require.NoError(t, err, "Buy must not error")
 	require.Equal(t, "open", result.Order.OrderState, "Buy must leave the order open")
 	return arg, &result.Order
+}
+
+// newLiveTradingClosePositionRequest returns a limit order closing the account's BTC-PERPETUAL position at a price far
+// below the market, and skips the test when the account holds a position there, so the request has nothing to close
+func newLiveTradingClosePositionRequest(t *testing.T) *ClosePositionRequest {
+	t.Helper()
+	position, err := e.GetPosition(t.Context(), liveTradingInstrument)
+	require.NoError(t, err, "GetPosition must not error")
+	if position.Size != 0 {
+		t.Skip("the account holds a position in " + liveTradingInstrument + ", which the live case would close")
+	}
+	return &ClosePositionRequest{InstrumentName: liveTradingInstrument, Type: "limit", Price: liveTradingBuyPrice(getLiveTradingTicker(t))}
+}
+
+// newLiveTradingMassQuoteRequest returns a mass quote in an MMP group of the test run's own name, which the account
+// should not have configured, so that Deribit refuses it; its one quote, in a quote set of the same name, is a post
+// only bid for the smallest BTC-PERPETUAL amount far below the market
+func newLiveTradingMassQuoteRequest() *MassQuoteRequest {
+	return &MassQuoteRequest{
+		QuoteID:                    liveForeignName,
+		MarketMakerProtectionGroup: liveForeignName,
+		Quotes:                     []MassQuoteEntry{{InstrumentName: liveTradingInstrument, QuoteSetID: liveForeignName, Bid: &MassQuoteSide{Price: new(10.0), Amount: new(float64(liveTradingOrderAmount)), PostOnly: true}}},
+	}
+}
+
+// cancelLiveTradingQuoteIfPlaced cancels the live mass quote's quote set when the test ends, should Deribit have taken
+// the quote it is expected to refuse
+func cancelLiveTradingQuoteIfPlaced(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		return
+	}
+	t.Cleanup(func() {
+		_, err := e.CancelQuotes(context.WithoutCancel(t.Context()), &CancelQuotesRequest{CancelType: "quote_set_id", QuoteSetID: liveForeignName, Currency: currency.BTC})
+		assert.NoError(t, err, "CancelQuotes should cancel the quote Deribit took")
+	})
+}
+
+// newLiveTradingMovePositionsRequest returns a position move between the users liveForeignID and liveForeignID+1, so
+// that Deribit refuses it; it moves the smallest BTC-PERPETUAL amount at a price far below the market
+func newLiveTradingMovePositionsRequest(t *testing.T) *MovePositionsRequest {
+	t.Helper()
+	return &MovePositionsRequest{
+		Currency:  currency.BTC,
+		SourceUID: liveForeignID,
+		TargetUID: liveForeignID + 1,
+		Trades:    []PositionMove{{InstrumentName: liveTradingInstrument, Amount: liveTradingOrderAmount, Price: liveTradingBuyPrice(getLiveTradingTicker(t))}},
+	}
 }
 
 // liveTradingMarketMakerProtectionConfigMu serialises the live tests that set the account's MMP configuration, so each
@@ -697,6 +747,72 @@ func TestBuy(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "Buy should return the request failure")
 }
 
+func TestPlaceOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.placeOrder(t.Context(), "private/buy", nil, false)
+	require.ErrorIs(t, err, common.ErrNilPointer, "placeOrder must reject a nil request")
+	arg := &OrderRequest{InstrumentName: "BTC-PERPETUAL", Amount: 10, Type: "limit", Price: 10, ValidUntil: time.UnixMilli(1700000000000)}
+	for _, method := range []string{"private/buy", "private/sell"} {
+		t.Run(method, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var sentMethod string
+			var sentParams map[string]any
+			ex := newWrapperServerExchange(t, func(m string, params json.RawMessage) string {
+				mu.Lock()
+				defer mu.Unlock()
+				sentMethod = m
+				assert.NoError(t, json.Unmarshal(params, &sentParams), "Decoding the order's params should not error")
+				return `{"jsonrpc":"2.0","result":{"order":{"order_id":"1","instrument_name":"BTC-PERPETUAL"},"trades":[]}}`
+			})
+			result, err := ex.placeOrder(t.Context(), method, arg, false)
+			require.NoErrorf(t, err, "placeOrder must not error for %s", method)
+			assert.Equalf(t, "1", result.Order.OrderID, "placeOrder should return the placed order for %s", method)
+			mu.Lock()
+			defer mu.Unlock()
+			assert.Equalf(t, method, sentMethod, "placeOrder should send the method given, %s", method)
+			assert.Equalf(t, "BTC-PERPETUAL", sentParams["instrument_name"], "placeOrder should send the order's instrument for %s", method)
+			assert.InDeltaf(t, 1700000000000, sentParams["valid_until"], 0, "placeOrder should send the order's validity in Unix milliseconds for %s", method)
+		})
+	}
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).placeOrder(t.Context(), "private/buy", arg, false)
+	assert.ErrorIs(t, err, common.ErrNoResponse, "placeOrder should reject a null result")
+	_, err = newUnavailableServerExchange(t).placeOrder(t.Context(), "private/sell", arg, false)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "placeOrder should return the request failure")
+}
+
+func TestGetOrdersByLabel(t *testing.T) {
+	t.Parallel()
+	_, err := e.getOrdersByLabel(t.Context(), "private/get_open_orders_by_label", nil, false)
+	require.ErrorIs(t, err, common.ErrNilPointer, "getOrdersByLabel must reject a nil request")
+	_, err = e.getOrdersByLabel(t.Context(), "private/get_open_orders_by_label", &OrdersByLabelRequest{Label: "label"}, false)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "getOrdersByLabel must reject an empty currency")
+	_, err = e.getOrdersByLabel(t.Context(), "private/get_open_orders_by_label", &OrdersByLabelRequest{Currency: currency.BTC}, false)
+	require.ErrorIs(t, err, errLabelRequired, "getOrdersByLabel must reject an empty label")
+	for _, method := range []string{"private/get_open_orders_by_label", "private/get_order_state_by_label"} {
+		t.Run(method, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var sentMethod, sentParams string
+			ex := newWrapperServerExchange(t, func(m string, params json.RawMessage) string {
+				mu.Lock()
+				sentMethod, sentParams = m, string(params)
+				mu.Unlock()
+				return `{"jsonrpc":"2.0","result":[{"order_id":"1","instrument_name":"BTC-PERPETUAL","label":"label"}]}`
+			})
+			result, err := ex.getOrdersByLabel(t.Context(), method, &OrdersByLabelRequest{Currency: currency.BTC, Label: "label"}, false)
+			require.NoErrorf(t, err, "getOrdersByLabel must not error for %s", method)
+			assert.Equalf(t, []OrderResponse{{OrderID: "1", InstrumentName: "BTC-PERPETUAL", Label: "label"}}, result, "getOrdersByLabel should decode the orders for %s", method)
+			mu.Lock()
+			defer mu.Unlock()
+			assert.Equalf(t, method, sentMethod, "getOrdersByLabel should send the method given, %s", method)
+			assert.JSONEqf(t, `{"currency":"BTC","label":"label"}`, sentParams, "getOrdersByLabel should send the currency and label for %s", method)
+		})
+	}
+	_, err = newUnavailableServerExchange(t).getOrdersByLabel(t.Context(), "private/get_order_state_by_label", &OrdersByLabelRequest{Currency: currency.BTC, Label: "label"}, false)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "getOrdersByLabel should return the request failure")
+}
+
 func TestCancelOrderByID(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelOrderByID(t.Context(), "")
@@ -722,23 +838,36 @@ func TestCancelOrderByID(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelOrderByID should return the request failure")
 }
 
+// Not parallel: its live case cancels every open order in its scope, including those other live tests place and then cancel themselves
 func TestCancelAll(t *testing.T) {
-	t.Parallel()
 	_, err := e.CancelAll(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAll must reject a nil request")
 	_, err = e.CancelAll(t.Context(), &CancelAllRequest{Detailed: true, IncludeStarbaseOrders: true})
 	require.ErrorIs(t, err, errStarbaseOrdersWithDetailed, "CancelAll must reject Starbase orders with a detailed response")
 
-	if !mockTests {
-		t.Skip("CancelAll is not tested live, as " + liveTradingSkipCancelAll)
-	}
-	result, err := e.CancelAll(t.Context(), &CancelAllRequest{})
-	require.NoError(t, err, "CancelAll must not error")
-	assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelAll should decode the count")
+	t.Run("live API", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		placeLiveTradingOrder(t)
+		result, err := e.CancelAll(t.Context(), &CancelAllRequest{})
+		require.NoError(t, err, "CancelAll must not error")
+		assert.Positive(t, result.CancelledCount, "CancelAll should cancel the test's order")
+	})
 
-	result, err = e.CancelAll(t.Context(), &CancelAllRequest{Detailed: true})
-	require.NoError(t, err, "CancelAll must not error with a detailed response")
-	assert.Equal(t, testDetailedCancelAllResponse(), result, "CancelAll should decode every field of the execution reports")
+	t.Run("mocked", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelAll(t.Context(), &CancelAllRequest{})
+		require.NoError(t, err, "CancelAll must not error")
+		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelAll should decode the count")
+
+		result, err = e.CancelAll(t.Context(), &CancelAllRequest{Detailed: true})
+		require.NoError(t, err, "CancelAll must not error with a detailed response")
+		assert.Equal(t, testDetailedCancelAllResponse(), result, "CancelAll should decode every field of the execution reports")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelAll(t.Context(), &CancelAllRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelAll should reject a null result")
@@ -746,8 +875,8 @@ func TestCancelAll(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAll should return the request failure")
 }
 
+// Not parallel: its live case cancels every open order in its scope, including those other live tests place and then cancel themselves
 func TestCancelAllByCurrency(t *testing.T) {
-	t.Parallel()
 	_, err := e.CancelAllByCurrency(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByCurrency must reject a nil request")
 	_, err = e.CancelAllByCurrency(t.Context(), &CancelAllByCurrencyRequest{})
@@ -757,12 +886,25 @@ func TestCancelAllByCurrency(t *testing.T) {
 	_, err = e.CancelAllByCurrency(t.Context(), &CancelAllByCurrencyRequest{Currency: currency.BTC, Type: "market"})
 	require.ErrorIs(t, err, errInvalidCancelOrderType, "CancelAllByCurrency must reject an undocumented order type")
 
-	if !mockTests {
-		t.Skip("CancelAllByCurrency is not tested live, as " + liveTradingSkipCancelAll)
-	}
-	result, err := e.CancelAllByCurrency(t.Context(), mockCancelAllByCurrencyRequest())
-	require.NoError(t, err, "CancelAllByCurrency must not error")
-	assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelAllByCurrency should decode the count")
+	t.Run("live API", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		placeLiveTradingOrder(t)
+		result, err := e.CancelAllByCurrency(t.Context(), &CancelAllByCurrencyRequest{Currency: currency.BTC, Kind: KindFuture})
+		require.NoError(t, err, "CancelAllByCurrency must not error")
+		assert.Positive(t, result.CancelledCount, "CancelAllByCurrency should cancel the test's order")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelAllByCurrency(t.Context(), mockCancelAllByCurrencyRequest())
+		require.NoError(t, err, "CancelAllByCurrency must not error")
+		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelAllByCurrency should decode the count")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelAllByCurrency(t.Context(), mockCancelAllByCurrencyRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelAllByCurrency should reject a null result")
@@ -770,8 +912,8 @@ func TestCancelAllByCurrency(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAllByCurrency should return the request failure")
 }
 
+// Not parallel: its live case cancels every open order in its scope, including those other live tests place and then cancel themselves
 func TestCancelAllByCurrencyPair(t *testing.T) {
-	t.Parallel()
 	_, err := e.CancelAllByCurrencyPair(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByCurrencyPair must reject a nil request")
 	_, err = e.CancelAllByCurrencyPair(t.Context(), &CancelAllByCurrencyPairRequest{})
@@ -781,12 +923,25 @@ func TestCancelAllByCurrencyPair(t *testing.T) {
 	_, err = e.CancelAllByCurrencyPair(t.Context(), &CancelAllByCurrencyPairRequest{CurrencyPair: "btc_usd", Type: "market"})
 	require.ErrorIs(t, err, errInvalidCancelOrderType, "CancelAllByCurrencyPair must reject an undocumented order type")
 
-	if !mockTests {
-		t.Skip("CancelAllByCurrencyPair is not tested live, as " + liveTradingSkipCancelAll)
-	}
-	result, err := e.CancelAllByCurrencyPair(t.Context(), mockCancelAllByCurrencyPairRequest())
-	require.NoError(t, err, "CancelAllByCurrencyPair must not error")
-	assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelAllByCurrencyPair should decode the count")
+	t.Run("live API", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		placeLiveTradingOrder(t)
+		result, err := e.CancelAllByCurrencyPair(t.Context(), &CancelAllByCurrencyPairRequest{CurrencyPair: liveTradingIndexName, Kind: KindFuture})
+		require.NoError(t, err, "CancelAllByCurrencyPair must not error")
+		assert.Positive(t, result.CancelledCount, "CancelAllByCurrencyPair should cancel the test's order")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelAllByCurrencyPair(t.Context(), mockCancelAllByCurrencyPairRequest())
+		require.NoError(t, err, "CancelAllByCurrencyPair must not error")
+		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelAllByCurrencyPair should decode the count")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelAllByCurrencyPair(t.Context(), mockCancelAllByCurrencyPairRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelAllByCurrencyPair should reject a null result")
@@ -794,8 +949,8 @@ func TestCancelAllByCurrencyPair(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAllByCurrencyPair should return the request failure")
 }
 
+// Not parallel: its live case cancels every open order in its scope, including those other live tests place and then cancel themselves
 func TestCancelAllByInstrument(t *testing.T) {
-	t.Parallel()
 	_, err := e.CancelAllByInstrument(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByInstrument must reject a nil request")
 	_, err = e.CancelAllByInstrument(t.Context(), &CancelAllByInstrumentRequest{})
@@ -803,12 +958,25 @@ func TestCancelAllByInstrument(t *testing.T) {
 	_, err = e.CancelAllByInstrument(t.Context(), &CancelAllByInstrumentRequest{InstrumentName: "BTC-PERPETUAL", Type: "market"})
 	require.ErrorIs(t, err, errInvalidCancelOrderType, "CancelAllByInstrument must reject an undocumented order type")
 
-	if !mockTests {
-		t.Skip("CancelAllByInstrument is not tested live, as " + liveTradingSkipCancelAll)
-	}
-	result, err := e.CancelAllByInstrument(t.Context(), mockCancelAllByInstrumentRequest())
-	require.NoError(t, err, "CancelAllByInstrument must not error")
-	assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelAllByInstrument should decode the count")
+	t.Run("live API", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		placeLiveTradingOrder(t)
+		result, err := e.CancelAllByInstrument(t.Context(), &CancelAllByInstrumentRequest{InstrumentName: liveTradingInstrument})
+		require.NoError(t, err, "CancelAllByInstrument must not error")
+		assert.Positive(t, result.CancelledCount, "CancelAllByInstrument should cancel the test's order")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelAllByInstrument(t.Context(), mockCancelAllByInstrumentRequest())
+		require.NoError(t, err, "CancelAllByInstrument must not error")
+		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelAllByInstrument should decode the count")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelAllByInstrument(t.Context(), mockCancelAllByInstrumentRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelAllByInstrument should reject a null result")
@@ -816,8 +984,8 @@ func TestCancelAllByInstrument(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAllByInstrument should return the request failure")
 }
 
-func TestCancelAllByKindOrType(t *testing.T) { //nolint:tparallel // Its currency cases run serially on one exchange, so parameters a request leaves behind reach the next
-	t.Parallel()
+// Not parallel: its live case cancels every open order in its scope, including those other live tests place and then cancel themselves
+func TestCancelAllByKindOrType(t *testing.T) {
 	_, err := e.CancelAllByKindOrType(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByKindOrType must reject a nil request")
 	_, err = e.CancelAllByKindOrType(t.Context(), &CancelAllByKindOrTypeRequest{})
@@ -849,12 +1017,25 @@ func TestCancelAllByKindOrType(t *testing.T) { //nolint:tparallel // Its currenc
 		})
 	}
 
-	if !mockTests {
-		t.Skip("CancelAllByKindOrType is not tested live, as " + liveTradingSkipCancelAll)
-	}
-	result, err := e.CancelAllByKindOrType(t.Context(), mockCancelAllByKindOrTypeRequest())
-	require.NoError(t, err, "CancelAllByKindOrType must not error")
-	assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelAllByKindOrType should decode the count")
+	t.Run("live API", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		placeLiveTradingOrder(t)
+		result, err := e.CancelAllByKindOrType(t.Context(), &CancelAllByKindOrTypeRequest{Currencies: []currency.Code{currency.BTC}, Kind: KindFuture})
+		require.NoError(t, err, "CancelAllByKindOrType must not error")
+		assert.Positive(t, result.CancelledCount, "CancelAllByKindOrType should cancel the test's order")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelAllByKindOrType(t.Context(), mockCancelAllByKindOrTypeRequest())
+		require.NoError(t, err, "CancelAllByKindOrType must not error")
+		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelAllByKindOrType should decode the count")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelAllByKindOrType(t.Context(), mockCancelAllByKindOrTypeRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelAllByKindOrType should reject a null result")
@@ -889,7 +1070,7 @@ func TestCancelByLabel(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelByLabel should return the request failure")
 }
 
-func TestCancelQuotes(t *testing.T) { //nolint:tparallel // Its cancel types run serially on one exchange, so parameters a request leaves behind reach the next
+func TestCancelQuotes(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelQuotes(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelQuotes must reject a nil request")
@@ -912,12 +1093,27 @@ func TestCancelQuotes(t *testing.T) { //nolint:tparallel // Its cancel types run
 		})
 	}
 
-	if !mockTests {
-		t.Skip("CancelQuotes is not tested live, as " + liveTradingSkipMassQuotes)
-	}
-	result, err := e.CancelQuotes(t.Context(), mockCancelQuotesRequest())
-	require.NoError(t, err, "CancelQuotes must not error")
-	assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelQuotes should decode the count")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		result, err := e.CancelQuotes(t.Context(), &CancelQuotesRequest{CancelType: "quote_set_id", QuoteSetID: liveForeignName, Currency: currency.BTC})
+		if requireAnsweredOnMerits(t, err, "CancelQuotes") {
+			assert.Zero(t, result.CancelledCount, "CancelQuotes should cancel nothing in a quote set no account has")
+		}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelQuotes(t.Context(), mockCancelQuotesRequest())
+		require.NoError(t, err, "CancelQuotes must not error")
+		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelQuotes should decode the count")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelQuotes(t.Context(), mockCancelQuotesRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelQuotes should reject a null result")
@@ -934,12 +1130,25 @@ func TestClosePosition(t *testing.T) {
 	_, err = e.ClosePosition(t.Context(), &ClosePositionRequest{InstrumentName: "BTC-PERPETUAL", Type: "stop_market"})
 	require.ErrorIs(t, err, errInvalidOrderType, "ClosePosition must reject an order type other than limit or market")
 
-	if !mockTests {
-		t.Skip("ClosePosition needs an open position, which a live test would have to open at market")
-	}
-	result, err := e.ClosePosition(t.Context(), mockClosePositionRequest())
-	require.NoError(t, err, "ClosePosition must not error")
-	assert.Equal(t, testPlacedOrderResponse(), result, "ClosePosition should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.ClosePosition(t.Context(), newLiveTradingClosePositionRequest(t))
+		requireAnsweredOnMerits(t, err, "ClosePosition")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.ClosePosition(t.Context(), mockClosePositionRequest())
+		require.NoError(t, err, "ClosePosition must not error")
+		assert.Equal(t, testPlacedOrderResponse(), result, "ClosePosition should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).ClosePosition(t.Context(), mockClosePositionRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "ClosePosition should reject a null result")
@@ -1596,12 +1805,26 @@ func TestMassQuote(t *testing.T) {
 	exp := `{"wait_for_response":false,"quote_id":"2","mmp_group":"default","valid_until":1700000000000,"quotes":[{"instrument_name":"BTC-PERPETUAL","bid":{"amount":0},"ask":{"price":43800,"post_only":true}}]}`
 	assert.JSONEq(t, exp, lastParams(), "MassQuote should send a false wait_for_response and a zero amount, which cancels the side, and leave out an unset price")
 
-	if !mockTests {
-		t.Skip("MassQuote is not tested live, as " + liveTradingSkipMassQuotes)
-	}
-	result, err := e.MassQuote(t.Context(), mockMassQuoteRequest())
-	require.NoError(t, err, "MassQuote must not error")
-	assert.Equal(t, testMassQuoteResponse(), result, "MassQuote should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.MassQuote(t.Context(), newLiveTradingMassQuoteRequest())
+		cancelLiveTradingQuoteIfPlaced(t, err)
+		requireRefusedOnMerits(t, err, "MassQuote")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.MassQuote(t.Context(), mockMassQuoteRequest())
+		require.NoError(t, err, "MassQuote must not error")
+		assert.Equal(t, testMassQuoteResponse(), result, "MassQuote should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).MassQuote(t.Context(), mockMassQuoteRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "MassQuote should reject a null result")
@@ -1616,12 +1839,25 @@ func TestMovePositions(t *testing.T) {
 	_, err = e.MovePositions(t.Context(), &MovePositionsRequest{TargetUID: 23})
 	require.ErrorIs(t, err, errSourceUIDRequired, "MovePositions must reject an empty source subaccount")
 
-	if !mockTests {
-		t.Skip("MovePositions needs two subaccounts and a position to move, which live tests do not have")
-	}
-	result, err := e.MovePositions(t.Context(), mockMovePositionsRequest())
-	require.NoError(t, err, "MovePositions must not error")
-	assert.Equal(t, testPositionMoveTrades(), result, "MovePositions should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.MovePositions(t.Context(), newLiveTradingMovePositionsRequest(t))
+		requireRefusedOnMerits(t, err, "MovePositions")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.MovePositions(t.Context(), mockMovePositionsRequest())
+		require.NoError(t, err, "MovePositions must not error")
+		assert.Equal(t, testPositionMoveTrades(), result, "MovePositions should decode every field")
+	})
 
 	_, err = newUnavailableServerExchange(t).MovePositions(t.Context(), mockMovePositionsRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "MovePositions should return the request failure")

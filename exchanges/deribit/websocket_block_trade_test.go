@@ -2,6 +2,7 @@ package deribit
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -9,14 +10,30 @@ import (
 
 func TestWebsocketAPIApproveBlockTrade(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.ApproveBlockTrade needs a block trade pending the account's approval, which only a broker can create")
-	}
-	ex, venue := newWebsocketTestExchange(t)
-	require.NoError(t, ex.WebsocketAPI().ApproveBlockTrade(t.Context(), mockBlockTradeApprovalRequest()), "WebsocketAPI.ApproveBlockTrade must not error")
-	requests := venue.received("private/approve_block_trade")
-	require.Len(t, requests, 1, "WebsocketAPI.ApproveBlockTrade must send one request")
-	assert.JSONEq(t, `{"timestamp":1711468813551,"nonce":"bt-468nha","role":"maker"}`, string(requests[0].Params), "WebsocketAPI.ApproveBlockTrade should send the timestamp in milliseconds, the nonce and the role")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		arg := mockBlockTradeApprovalRequest()
+		arg.Nonce = liveForeignName
+		arg.Timestamp = time.Now()
+		requireRefusedOnMerits(t, ex.WebsocketAPI().ApproveBlockTrade(t.Context(), arg), "WebsocketAPI.ApproveBlockTrade")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().ApproveBlockTrade(t.Context(), mockBlockTradeApprovalRequest()), "WebsocketAPI.ApproveBlockTrade must not error")
+		requests := venue.received("private/approve_block_trade")
+		require.Len(t, requests, 1, "WebsocketAPI.ApproveBlockTrade must send one request")
+		assert.JSONEq(t, `{"timestamp":1711468813551,"nonce":"bt-468nha","role":"maker"}`, string(requests[0].Params), "WebsocketAPI.ApproveBlockTrade should send the timestamp in milliseconds, the nonce and the role")
+	})
 
 	err := newTestExchange(t).WebsocketAPI().ApproveBlockTrade(t.Context(), mockBlockTradeApprovalRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.ApproveBlockTrade should error without an authenticated connection")
@@ -24,19 +41,38 @@ func TestWebsocketAPIApproveBlockTrade(t *testing.T) {
 
 func TestWebsocketAPIExecuteBlockTrade(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.ExecuteBlockTrade needs a counterparty's signature, which live tests do not have")
-	}
-	ex, venue := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().ExecuteBlockTrade(t.Context(), mockExecuteBlockTradeRequest())
-	require.NoError(t, err, "WebsocketAPI.ExecuteBlockTrade must not error")
-	assert.Equal(t, testDocumentedBlockTrade(), result, "WebsocketAPI.ExecuteBlockTrade should decode every field")
-	requests := venue.received("private/execute_block_trade")
-	require.Len(t, requests, 1, "WebsocketAPI.ExecuteBlockTrade must send one request")
-	exp := `{"timestamp":1590485535899,"nonce":"bszyprbq","role":"maker","trades":[{"instrument_name":"BTC-PERPETUAL","direction":"sell","price":8900,"amount":200000},{"instrument_name":"BTC-28MAY20-9000-C","direction":"sell","price":0.0133,"amount":5}],"counterparty_signature":"1590485595899.1Mn52L_Q.lNyNBzXXo-_QBT_wDuMgnhA7uS9tBqdQ5TLN6rxbuoAiQhyaJYGJrm5IV_9enp9niY_x8D60AJLm3yEKPUY1Dv3T0TW0n5-ADPpJF7Fpj0eVDZpZ6QCdX8snBWrSJ0TtqevnO64RCBlN1dIm2T70PP9dlhiqPDAUYI4fpB1vLYI"}`
-	assert.JSONEq(t, exp, string(requests[0].Params), "WebsocketAPI.ExecuteBlockTrade should send Deribit's documented params, the timestamp in milliseconds")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		arg := mockExecuteBlockTradeRequest()
+		arg.Nonce = liveForeignName
+		arg.Timestamp = time.Now()
+		arg.CounterpartySignature = liveForeignName
+		arg.Trades = []BlockTradeLeg{{InstrumentName: liveBlockTradeInstrument, Direction: DirectionSell, Price: 8900, Amount: 10}}
+		_, err := ex.WebsocketAPI().ExecuteBlockTrade(t.Context(), arg)
+		requireRefusedOnMerits(t, err, "WebsocketAPI.ExecuteBlockTrade")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().ExecuteBlockTrade(t.Context(), mockExecuteBlockTradeRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().ExecuteBlockTrade(t.Context(), mockExecuteBlockTradeRequest())
+		require.NoError(t, err, "WebsocketAPI.ExecuteBlockTrade must not error")
+		assert.Equal(t, testDocumentedBlockTrade(), result, "WebsocketAPI.ExecuteBlockTrade should decode every field")
+		requests := venue.received("private/execute_block_trade")
+		require.Len(t, requests, 1, "WebsocketAPI.ExecuteBlockTrade must send one request")
+		exp := `{"timestamp":1590485535899,"nonce":"bszyprbq","role":"maker","trades":[{"instrument_name":"BTC-PERPETUAL","direction":"sell","price":8900,"amount":200000},{"instrument_name":"BTC-28MAY20-9000-C","direction":"sell","price":0.0133,"amount":5}],"counterparty_signature":"1590485595899.1Mn52L_Q.lNyNBzXXo-_QBT_wDuMgnhA7uS9tBqdQ5TLN6rxbuoAiQhyaJYGJrm5IV_9enp9niY_x8D60AJLm3yEKPUY1Dv3T0TW0n5-ADPpJF7Fpj0eVDZpZ6QCdX8snBWrSJ0TtqevnO64RCBlN1dIm2T70PP9dlhiqPDAUYI4fpB1vLYI"}`
+		assert.JSONEq(t, exp, string(requests[0].Params), "WebsocketAPI.ExecuteBlockTrade should send Deribit's documented params, the timestamp in milliseconds")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().ExecuteBlockTrade(t.Context(), mockExecuteBlockTradeRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.ExecuteBlockTrade should error without an authenticated connection")
 }
 
@@ -97,43 +133,91 @@ func TestWebsocketAPIGetBlockTrades(t *testing.T) {
 
 func TestWebsocketAPIGetBrokerClients(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.GetBrokerClients needs a broker account, which live tests do not have")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().GetBrokerClients(t.Context(), &GetBrokerClientsRequest{})
-	require.NoError(t, err, "WebsocketAPI.GetBrokerClients must not error")
-	assert.Equal(t, testDocumentedBrokerClients(), result, "WebsocketAPI.GetBrokerClients should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetBrokerClients(t.Context(), &GetBrokerClientsRequest{})
+		if requireAnsweredOnMerits(t, err, "WebsocketAPI.GetBrokerClients") {
+			assert.NotNil(t, result, "WebsocketAPI.GetBrokerClients should return the clients")
+		}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().GetBrokerClients(t.Context(), &GetBrokerClientsRequest{})
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetBrokerClients(t.Context(), &GetBrokerClientsRequest{})
+		require.NoError(t, err, "WebsocketAPI.GetBrokerClients must not error")
+		assert.Equal(t, testDocumentedBrokerClients(), result, "WebsocketAPI.GetBrokerClients should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().GetBrokerClients(t.Context(), &GetBrokerClientsRequest{})
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetBrokerClients should error without an authenticated connection")
 }
 
 func TestWebsocketAPIGetBrokerTradeRequests(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.GetBrokerTradeRequests needs a broker account, which live tests do not have")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().GetBrokerTradeRequests(t.Context())
-	require.NoError(t, err, "WebsocketAPI.GetBrokerTradeRequests must not error")
-	assert.Equal(t, testDocumentedPendingBrokerTrades(), result, "WebsocketAPI.GetBrokerTradeRequests should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetBrokerTradeRequests(t.Context())
+		if requireAnsweredOnMerits(t, err, "WebsocketAPI.GetBrokerTradeRequests") {
+			assert.NotNil(t, result, "WebsocketAPI.GetBrokerTradeRequests should return the broker's block trade requests")
+		}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().GetBrokerTradeRequests(t.Context())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetBrokerTradeRequests(t.Context())
+		require.NoError(t, err, "WebsocketAPI.GetBrokerTradeRequests must not error")
+		assert.Equal(t, testDocumentedPendingBrokerTrades(), result, "WebsocketAPI.GetBrokerTradeRequests should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().GetBrokerTradeRequests(t.Context())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetBrokerTradeRequests should error without an authenticated connection")
 }
 
 func TestWebsocketAPIGetBrokerTrades(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.GetBrokerTrades needs a broker account, which live tests do not have")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().GetBrokerTrades(t.Context(), mockGetBrokerTradesRequest())
-	require.NoError(t, err, "WebsocketAPI.GetBrokerTrades must not error")
-	assert.Equal(t, testDocumentedBrokerTrades(), result, "WebsocketAPI.GetBrokerTrades should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetBrokerTrades(t.Context(), &GetBrokerTradesRequest{})
+		if requireAnsweredOnMerits(t, err, "WebsocketAPI.GetBrokerTrades") {
+			assert.NotNil(t, result, "WebsocketAPI.GetBrokerTrades should return the broker's block trades")
+		}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().GetBrokerTrades(t.Context(), mockGetBrokerTradesRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetBrokerTrades(t.Context(), mockGetBrokerTradesRequest())
+		require.NoError(t, err, "WebsocketAPI.GetBrokerTrades must not error")
+		assert.Equal(t, testDocumentedBrokerTrades(), result, "WebsocketAPI.GetBrokerTrades should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().GetBrokerTrades(t.Context(), mockGetBrokerTradesRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetBrokerTrades should error without an authenticated connection")
 }
 
@@ -155,14 +239,30 @@ func TestWebsocketAPIInvalidateBlockTradeSignature(t *testing.T) {
 
 func TestWebsocketAPIRejectBlockTrade(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.RejectBlockTrade needs a block trade pending the account's approval, which only a broker can create")
-	}
-	ex, venue := newWebsocketTestExchange(t)
-	require.NoError(t, ex.WebsocketAPI().RejectBlockTrade(t.Context(), mockBlockTradeApprovalRequest()), "WebsocketAPI.RejectBlockTrade must not error")
-	requests := venue.received("private/reject_block_trade")
-	require.Len(t, requests, 1, "WebsocketAPI.RejectBlockTrade must send one request")
-	assert.JSONEq(t, `{"timestamp":1711468813551,"nonce":"bt-468nha","role":"maker"}`, string(requests[0].Params), "WebsocketAPI.RejectBlockTrade should send the timestamp in milliseconds, the nonce and the role")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		arg := mockBlockTradeApprovalRequest()
+		arg.Nonce = liveForeignName
+		arg.Timestamp = time.Now()
+		requireRefusedOnMerits(t, ex.WebsocketAPI().RejectBlockTrade(t.Context(), arg), "WebsocketAPI.RejectBlockTrade")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().RejectBlockTrade(t.Context(), mockBlockTradeApprovalRequest()), "WebsocketAPI.RejectBlockTrade must not error")
+		requests := venue.received("private/reject_block_trade")
+		require.Len(t, requests, 1, "WebsocketAPI.RejectBlockTrade must send one request")
+		assert.JSONEq(t, `{"timestamp":1711468813551,"nonce":"bt-468nha","role":"maker"}`, string(requests[0].Params), "WebsocketAPI.RejectBlockTrade should send the timestamp in milliseconds, the nonce and the role")
+	})
 
 	err := newTestExchange(t).WebsocketAPI().RejectBlockTrade(t.Context(), mockBlockTradeApprovalRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.RejectBlockTrade should error without an authenticated connection")

@@ -111,12 +111,13 @@ func TestWebsocketAPIUnsubscribePrivate(t *testing.T) {
 
 func TestWebsocketAPIUnsubscribeAll(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.UnsubscribeAll would unsubscribe the channels other live tests subscribe on the shared connection")
-	}
-	ex, venue := newWebsocketTestExchange(t)
+	// A websocket of its own, as unsubscribing everything would unsubscribe the channels other live tests subscribe on
+	// the shared one
+	ex, venue := newDedicatedWebsocketTestExchange(t, nil)
 	require.NoError(t, ex.WebsocketAPI().UnsubscribeAll(t.Context()), "WebsocketAPI.UnsubscribeAll must not error")
-	assert.Len(t, venue.received("public/unsubscribe_all"), 1, "WebsocketAPI.UnsubscribeAll should send one request")
+	if mockTests {
+		assert.Len(t, venue.received("public/unsubscribe_all"), 1, "WebsocketAPI.UnsubscribeAll should send one request")
+	}
 
 	err := newTestExchange(t).WebsocketAPI().UnsubscribeAll(t.Context())
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.UnsubscribeAll should error without a websocket connection")
@@ -124,12 +125,27 @@ func TestWebsocketAPIUnsubscribeAll(t *testing.T) {
 
 func TestWebsocketAPIUnsubscribeAllPrivate(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.UnsubscribeAllPrivate would unsubscribe the channels other live tests subscribe on the shared connection")
-	}
-	ex, venue := newWebsocketTestExchange(t)
-	require.NoError(t, ex.WebsocketAPI().UnsubscribeAllPrivate(t.Context()), "WebsocketAPI.UnsubscribeAllPrivate must not error")
-	assert.Len(t, venue.received("private/unsubscribe_all"), 1, "WebsocketAPI.UnsubscribeAllPrivate should send one request")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		// A websocket of its own, as unsubscribing everything would unsubscribe the channels other live tests subscribe
+		// on the shared one
+		ex, _ := newDedicatedWebsocketTestExchange(t, nil)
+		require.NoError(t, ex.WebsocketAPI().UnsubscribeAllPrivate(t.Context()), "WebsocketAPI.UnsubscribeAllPrivate must not error")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().UnsubscribeAllPrivate(t.Context()), "WebsocketAPI.UnsubscribeAllPrivate must not error")
+		assert.Len(t, venue.received("private/unsubscribe_all"), 1, "WebsocketAPI.UnsubscribeAllPrivate should send one request")
+	})
 
 	err := newTestExchange(t).WebsocketAPI().UnsubscribeAllPrivate(t.Context())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.UnsubscribeAllPrivate should error without an authenticated connection")

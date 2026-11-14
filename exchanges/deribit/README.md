@@ -84,7 +84,8 @@ sent this way, and the challenge is returned instead.
 + `ModifyOrder` edits an order identified by its ID, or by its label in a pair. Deribit requires an amount or a
   contract count with every edit, so when the modification leaves the amount unset, the order is fetched first and
   keeps its amount. A take profit or stop loss attached through `RiskManagementModes` is refused, as Deribit
-  attaches neither with an edit.
+  attaches neither with an edit. An edit that leaves the order filled or closed reports no status, as the response
+  carries no executed amount, so the order manager reads the order on a later sweep.
 + `CancelBatchOrders` cancels one order a request, as Deribit cancels no list of orders, and reports each order's state
   or error; it checks every cancel first, so an invalid batch cancels nothing. `CancelAllOrders` cancels a pair's
   orders, or every order of the asset when the pair is empty, on both sides together, so a cancellation of one side's
@@ -140,8 +141,9 @@ out the fees of a combo's legs, as a combo's own commission is zero, and fee tie
 The standard channels use these Deribit channels: tickers `ticker`, orderbooks `book`, candles `chart.trades`, trades
 `trades`, account orders `user.orders`, account trades `user.trades` and account balances `user.portfolio`. Any other
 channel is subscribed by using its name, such as `deribit_price_index` or `user.changes`, as the subscription's
-channel. An instrument's channels are subscribed for each enabled pair of the subscription's asset, and the other
-channels take their options from the subscription's parameters:
+channel; `user.changes` relays its orders and trades as `user.orders` and `user.trades` do, then the notification for
+its positions. An instrument's channels are subscribed for each enabled pair of the subscription's asset, and the
+other channels take their options from the subscription's parameters:
 
 + `kind` and `currency` select the instruments of a channel such as `trades` subscribed without an asset, and default
   to `any`, except that `trades` needs a kind, such as `future`, as Deribit refuses `any`

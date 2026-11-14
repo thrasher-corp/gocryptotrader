@@ -24,6 +24,11 @@ func (e *Exchange) wsHandleOrders(ctx context.Context, channel string, respRaw [
 	} else if err := decodeNotification(respRaw, &orders); err != nil {
 		return err
 	}
+	return e.relayOrders(ctx, orders)
+}
+
+// relayOrders relays the orders it can convert as order details, and returns the errors of those it cannot
+func (e *Exchange) relayOrders(ctx context.Context, orders []OrderResponse) error {
 	details := make([]order.Detail, 0, len(orders))
 	var errs error
 	for i := range orders {
@@ -38,6 +43,18 @@ func (e *Exchange) wsHandleOrders(ctx context.Context, channel string, respRaw [
 		errs = common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, details))
 	}
 	return errs
+}
+
+// wsHandleUserChanges relays a user.changes notification's orders as user.orders does, passes its trades to the fills
+// feed as user.trades does, then relays the notification for its positions
+func (e *Exchange) wsHandleUserChanges(ctx context.Context, respRaw []byte) error {
+	changes := new(WebsocketUserChanges)
+	if err := decodeNotification(respRaw, changes); err != nil {
+		return err
+	}
+	errs := e.relayOrders(ctx, changes.Orders)
+	errs = common.AppendError(errs, e.updateFills(changes.Trades))
+	return common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, changes))
 }
 
 // wsHandlePortfolio saves a user.portfolio notification's balance as UpdateAccountBalances does, under each asset that
@@ -93,6 +110,12 @@ func (e *Exchange) wsHandleUserTrades(_ context.Context, respRaw []byte) error {
 	if err := decodeNotification(respRaw, &trades); err != nil {
 		return err
 	}
+	return e.updateFills(trades)
+}
+
+// updateFills passes the account's trades it can convert to the fills feed when the feed is enabled, and returns the
+// errors of those it cannot
+func (e *Exchange) updateFills(trades []UserTradeResponse) error {
 	if !e.IsFillsFeedEnabled() {
 		return nil
 	}

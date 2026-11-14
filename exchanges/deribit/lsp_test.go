@@ -13,9 +13,6 @@ const (
 	// mockLiquiditySupportProgramParticipantUserID is the participant of Deribit's documented
 	// private/get_lsp_participants_usage example
 	mockLiquiditySupportProgramParticipantUserID = 172345
-	// liveLiquiditySupportProgramParticipantSkip explains why live tests skip the methods only a participant subaccount
-	// can call
-	liveLiquiditySupportProgramParticipantSkip = "it needs the API key of a Liquidity Support Program participant subaccount"
 )
 
 // testLiquiditySupportProgramGroupUsage is the documented usage of each cooldown group the mock usage requests return
@@ -53,14 +50,29 @@ func testLiquiditySupportProgramParticipantsUsageResponse() *LiquiditySupportPro
 
 func TestGetLiquiditySupportProgramParticipantConfig(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("GetLiquiditySupportProgramParticipantConfig is not tested live, as " + liveLiquiditySupportProgramParticipantSkip)
-	}
-	result, err := e.GetLiquiditySupportProgramParticipantConfig(t.Context())
-	require.NoError(t, err, "GetLiquiditySupportProgramParticipantConfig must not error")
-	assert.Equal(t, testLiquiditySupportProgramParticipantConfigResponse(), result, "GetLiquiditySupportProgramParticipantConfig should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetLiquiditySupportProgramParticipantConfig(t.Context())
+		if requireAnsweredOnMerits(t, err, "GetLiquiditySupportProgramParticipantConfig") {
+			assert.NotNil(t, result, "GetLiquiditySupportProgramParticipantConfig should return the participant's configuration")
+		}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLiquiditySupportProgramParticipantConfig(t.Context())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetLiquiditySupportProgramParticipantConfig(t.Context())
+		require.NoError(t, err, "GetLiquiditySupportProgramParticipantConfig must not error")
+		assert.Equal(t, testLiquiditySupportProgramParticipantConfigResponse(), result, "GetLiquiditySupportProgramParticipantConfig should decode every field")
+	})
+
+	_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLiquiditySupportProgramParticipantConfig(t.Context())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLiquiditySupportProgramParticipantConfig should reject a null result")
 	_, err = newUnavailableServerExchange(t).GetLiquiditySupportProgramParticipantConfig(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLiquiditySupportProgramParticipantConfig should return the request failure")
@@ -119,14 +131,29 @@ func TestGetLiquiditySupportProgramParticipantsUsage(t *testing.T) {
 
 func TestGetLiquiditySupportProgramUsage(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("GetLiquiditySupportProgramUsage is not tested live, as " + liveLiquiditySupportProgramParticipantSkip)
-	}
-	result, err := e.GetLiquiditySupportProgramUsage(t.Context())
-	require.NoError(t, err, "GetLiquiditySupportProgramUsage must not error")
-	assert.Equal(t, &LiquiditySupportProgramUsageResponse{CooldownPeriod: 300000, Groups: testLiquiditySupportProgramGroupUsage()}, result, "GetLiquiditySupportProgramUsage should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetLiquiditySupportProgramUsage(t.Context())
+		if requireAnsweredOnMerits(t, err, "GetLiquiditySupportProgramUsage") {
+			assert.NotNil(t, result, "GetLiquiditySupportProgramUsage should return the participant's usage")
+		}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLiquiditySupportProgramUsage(t.Context())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetLiquiditySupportProgramUsage(t.Context())
+		require.NoError(t, err, "GetLiquiditySupportProgramUsage must not error")
+		assert.Equal(t, &LiquiditySupportProgramUsageResponse{CooldownPeriod: 300000, Groups: testLiquiditySupportProgramGroupUsage()}, result, "GetLiquiditySupportProgramUsage should decode every field")
+	})
+
+	_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLiquiditySupportProgramUsage(t.Context())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLiquiditySupportProgramUsage should reject a null result")
 	_, err = newUnavailableServerExchange(t).GetLiquiditySupportProgramUsage(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLiquiditySupportProgramUsage should return the request failure")

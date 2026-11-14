@@ -1,6 +1,7 @@
 package deribit
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -105,29 +106,64 @@ func TestWebsocketAPICreateAPIKey(t *testing.T) {
 
 func TestWebsocketAPICreateSubaccount(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CreateSubaccount would create a subaccount, which live tests cannot undo")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CreateSubaccount(t.Context())
-	require.NoError(t, err, "WebsocketAPI.CreateSubaccount must not error")
-	assert.Equal(t, testCreatedSubaccount(), result, "WebsocketAPI.CreateSubaccount should decode every field")
 
-	_, err = newTestExchange(t).WebsocketAPI().CreateSubaccount(t.Context())
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CreateSubaccount(t.Context())
+		if requireAnsweredOnMerits(t, err, "WebsocketAPI.CreateSubaccount") {
+			require.NotZero(t, result.ID, "WebsocketAPI.CreateSubaccount must return the new subaccount's ID")
+			t.Cleanup(func() {
+				assert.NoError(t, e.RemoveSubaccount(context.WithoutCancel(t.Context()), result.ID), "RemoveSubaccount should remove the test's subaccount")
+			})
+		}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CreateSubaccount(t.Context())
+		require.NoError(t, err, "WebsocketAPI.CreateSubaccount must not error")
+		assert.Equal(t, testCreatedSubaccount(), result, "WebsocketAPI.CreateSubaccount should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().CreateSubaccount(t.Context())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CreateSubaccount should error without an authenticated connection")
 }
 
 func TestWebsocketAPIDeleteMember(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.DeleteMember would delete a Direct Access member, which live tests cannot recreate")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().DeleteMember(t.Context(), mockMemberID)
-	require.NoError(t, err, "WebsocketAPI.DeleteMember must not error")
-	assert.Equal(t, &MembersResponse{Members: []Member{}, IsDirectAccessAllowed: true}, result, "WebsocketAPI.DeleteMember should decode every field")
 
-	_, err = newTestExchange(t).WebsocketAPI().DeleteMember(t.Context(), mockMemberID)
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().DeleteMember(t.Context(), liveForeignID)
+		requireRefusedOnMerits(t, err, "WebsocketAPI.DeleteMember")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().DeleteMember(t.Context(), mockMemberID)
+		require.NoError(t, err, "WebsocketAPI.DeleteMember must not error")
+		assert.Equal(t, &MembersResponse{Members: []Member{}, IsDirectAccessAllowed: true}, result, "WebsocketAPI.DeleteMember should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().DeleteMember(t.Context(), mockMemberID)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.DeleteMember should error without an authenticated connection")
 }
 
@@ -167,11 +203,30 @@ func TestWebsocketAPIEditAPIKey(t *testing.T) {
 
 func TestWebsocketAPIEnableAffiliateProgram(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.EnableAffiliateProgram would enable the affiliate program, which live tests cannot disable")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	require.NoError(t, ex.WebsocketAPI().EnableAffiliateProgram(t.Context()), "WebsocketAPI.EnableAffiliateProgram must not error")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		info, err := ex.WebsocketAPI().GetAffiliateProgramInfo(t.Context())
+		require.NoError(t, err, "WebsocketAPI.GetAffiliateProgramInfo must not error")
+		if !info.IsEnabled {
+			t.Skip("enabling the affiliate program cannot be undone, and it is not enabled on the account")
+		}
+		requireAnsweredOnMerits(t, ex.WebsocketAPI().EnableAffiliateProgram(t.Context()), "WebsocketAPI.EnableAffiliateProgram")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().EnableAffiliateProgram(t.Context()), "WebsocketAPI.EnableAffiliateProgram must not error")
+	})
 
 	err := newTestExchange(t).WebsocketAPI().EnableAffiliateProgram(t.Context())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.EnableAffiliateProgram should error without an authenticated connection")
@@ -493,11 +548,25 @@ func TestWebsocketAPIRemoveAPIKey(t *testing.T) {
 
 func TestWebsocketAPIRemoveSubaccount(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.RemoveSubaccount would remove a subaccount, which live tests cannot recreate")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	require.NoError(t, ex.WebsocketAPI().RemoveSubaccount(t.Context(), mockAccountSubaccountID), "WebsocketAPI.RemoveSubaccount must not error")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		requireRefusedOnMerits(t, ex.WebsocketAPI().RemoveSubaccount(t.Context(), liveForeignID), "WebsocketAPI.RemoveSubaccount")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().RemoveSubaccount(t.Context(), mockAccountSubaccountID), "WebsocketAPI.RemoveSubaccount must not error")
+	})
 
 	err := newTestExchange(t).WebsocketAPI().RemoveSubaccount(t.Context(), mockAccountSubaccountID)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.RemoveSubaccount should error without an authenticated connection")
@@ -522,11 +591,25 @@ func TestWebsocketAPIResetAPIKey(t *testing.T) {
 
 func TestWebsocketAPISetAnnouncementAsRead(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.SetAnnouncementAsRead would mark an announcement read, which live tests cannot mark unread")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	require.NoError(t, ex.WebsocketAPI().SetAnnouncementAsRead(t.Context(), mockAnnouncementID), "WebsocketAPI.SetAnnouncementAsRead must not error")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		requireAnsweredOnMerits(t, ex.WebsocketAPI().SetAnnouncementAsRead(t.Context(), liveForeignID), "WebsocketAPI.SetAnnouncementAsRead")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().SetAnnouncementAsRead(t.Context(), mockAnnouncementID), "WebsocketAPI.SetAnnouncementAsRead must not error")
+	})
 
 	err := newTestExchange(t).WebsocketAPI().SetAnnouncementAsRead(t.Context(), mockAnnouncementID)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SetAnnouncementAsRead should error without an authenticated connection")
@@ -534,12 +617,27 @@ func TestWebsocketAPISetAnnouncementAsRead(t *testing.T) {
 
 func TestWebsocketAPISetDisabledTradingProducts(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.SetDisabledTradingProducts would change a subaccount's products, which live tests cannot read back to restore")
-	}
-	ex, _ := newWebsocketTestExchange(t)
 	arg := &SetDisabledTradingProductsRequest{UserID: mockAccountSubaccountID, TradingProducts: []string{TradingProductFutures, TradingProductOptions}}
-	require.NoError(t, ex.WebsocketAPI().SetDisabledTradingProducts(t.Context(), arg), "WebsocketAPI.SetDisabledTradingProducts must not error")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		err := ex.WebsocketAPI().SetDisabledTradingProducts(t.Context(), &SetDisabledTradingProductsRequest{UserID: liveForeignID, TradingProducts: arg.TradingProducts})
+		requireRefusedOnMerits(t, err, "WebsocketAPI.SetDisabledTradingProducts")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().SetDisabledTradingProducts(t.Context(), arg), "WebsocketAPI.SetDisabledTradingProducts must not error")
+	})
 
 	err := newTestExchange(t).WebsocketAPI().SetDisabledTradingProducts(t.Context(), arg)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SetDisabledTradingProducts should error without an authenticated connection")
@@ -547,12 +645,27 @@ func TestWebsocketAPISetDisabledTradingProducts(t *testing.T) {
 
 func TestWebsocketAPISetEmailForSubaccount(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.SetEmailForSubaccount would send a confirmation email and replace a subaccount's email, which live tests cannot undo")
-	}
-	ex, _ := newWebsocketTestExchange(t)
 	arg := &SetEmailForSubaccountRequest{SubaccountID: mockAccountSubaccountID, Email: mockSubaccountEmail}
-	require.NoError(t, ex.WebsocketAPI().SetEmailForSubaccount(t.Context(), arg), "WebsocketAPI.SetEmailForSubaccount must not error")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		err := ex.WebsocketAPI().SetEmailForSubaccount(t.Context(), &SetEmailForSubaccountRequest{SubaccountID: liveForeignID, Email: "gct-live-test@example.com"})
+		requireRefusedOnMerits(t, err, "WebsocketAPI.SetEmailForSubaccount")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().SetEmailForSubaccount(t.Context(), arg), "WebsocketAPI.SetEmailForSubaccount must not error")
+	})
 
 	err := newTestExchange(t).WebsocketAPI().SetEmailForSubaccount(t.Context(), arg)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SetEmailForSubaccount should error without an authenticated connection")
@@ -615,12 +728,27 @@ func TestWebsocketAPISimulatePortfolio(t *testing.T) {
 
 func TestWebsocketAPIToggleNotificationsFromSubaccount(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.ToggleNotificationsFromSubaccount would change a subaccount's notifications, whose state live tests cannot read back to restore")
-	}
-	ex, _ := newWebsocketTestExchange(t)
 	arg := &ToggleNotificationsFromSubaccountRequest{SubaccountID: mockAccountSubaccountID, State: true}
-	require.NoError(t, ex.WebsocketAPI().ToggleNotificationsFromSubaccount(t.Context(), arg), "WebsocketAPI.ToggleNotificationsFromSubaccount must not error")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		err := ex.WebsocketAPI().ToggleNotificationsFromSubaccount(t.Context(), &ToggleNotificationsFromSubaccountRequest{SubaccountID: liveForeignID, State: true})
+		requireRefusedOnMerits(t, err, "WebsocketAPI.ToggleNotificationsFromSubaccount")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().ToggleNotificationsFromSubaccount(t.Context(), arg), "WebsocketAPI.ToggleNotificationsFromSubaccount must not error")
+	})
 
 	err := newTestExchange(t).WebsocketAPI().ToggleNotificationsFromSubaccount(t.Context(), arg)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.ToggleNotificationsFromSubaccount should error without an authenticated connection")

@@ -1,6 +1,8 @@
 package deribit
 
 import (
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -8,7 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -46,6 +50,195 @@ func TestWebsocketHandleOrders(t *testing.T) {
 	assertNothingRelayed(t, ex)
 	assert.ErrorIs(t, ex.wsHandleOrders(t.Context(), "user.orders.BTC-PERPETUAL.raw", notification("user.orders.BTC-PERPETUAL.raw", `[]`)), errMalformedNotification, "wsHandleOrders should reject a raw channel's list")
 	assert.ErrorIs(t, ex.wsHandleOrders(t.Context(), "user.orders.future.BTC.100ms", notification("user.orders.future.BTC.100ms", `{}`)), errMalformedNotification, "wsHandleOrders should reject an interval channel's single order")
+}
+
+func TestRelayOrders(t *testing.T) {
+	t.Parallel()
+	var placed OrderResponse
+	require.NoError(t, json.Unmarshal([]byte(testWebsocketOrder), &placed), "Unmarshal must not error")
+	second := placed
+	second.OrderID, second.Amount = "7", 20
+	// A sell option order with a lower ID and a price of its own, so a relay that sorts, drops an asset, keeps one order
+	// an asset or copies one order's fields to another fails
+	option := placed
+	option.OrderID, option.InstrumentName, option.Direction, option.Price, option.Amount = "4", "BTC-25DEC26-104000-C", DirectionSell, OrderPrice{Value: 0.0525}, 20
+	unconvertible := OrderResponse{OrderID: "6", InstrumentName: "BTC", Direction: DirectionBuy}
+	for _, tc := range []struct {
+		name    string
+		orders  []OrderResponse
+		relayed []OrderResponse
+		err     error
+	}{
+		{name: "an order converted", orders: []OrderResponse{placed}, relayed: []OrderResponse{placed}},
+		{name: "two orders converted", orders: []OrderResponse{placed, second}, relayed: []OrderResponse{placed, second}},
+		{name: "three orders of two assets converted", orders: []OrderResponse{placed, option, second}, relayed: []OrderResponse{placed, option, second}},
+		{name: "an order it cannot convert", orders: []OrderResponse{unconvertible, placed}, relayed: []OrderResponse{placed}, err: errUnsupportedInstrumentFormat},
+		{name: "an order it cannot convert between two", orders: []OrderResponse{placed, unconvertible, second}, relayed: []OrderResponse{placed, second}, err: errUnsupportedInstrumentFormat},
+		{name: "no order converted", orders: []OrderResponse{unconvertible}, err: errUnsupportedInstrumentFormat},
+		{name: "no orders"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			assert.ErrorIs(t, ex.relayOrders(t.Context(), tc.orders), tc.err, "relayOrders should return the errors of the orders it cannot convert")
+			if len(tc.relayed) > 0 {
+				exp := make([]order.Detail, 0, len(tc.relayed))
+				for i := range tc.relayed {
+					detail, err := ex.orderDetail(&tc.relayed[i])
+					require.NoError(t, err, "orderDetail must not error")
+					exp = append(exp, *detail)
+				}
+				assert.Equal(t, exp, relayed(t, ex), "relayOrders should relay every order it converts, in order, at once")
+			}
+			assertNothingRelayed(t, ex)
+		})
+	}
+
+	t.Run("data handler full", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		var refused error
+		ex.Websocket.DataHandler, refused = fullRelay(t)
+		assert.ErrorIs(t, ex.relayOrders(t.Context(), []OrderResponse{placed}), refused, "relayOrders should return the data handler's failure")
+	})
+}
+
+// fullRelay returns a relay whose buffer is full, so every send to it fails, and the error such a send wraps
+func fullRelay(t *testing.T) (*stream.Relay, error) {
+	t.Helper()
+	full := stream.NewRelay(1)
+	require.NoError(t, full.Send(t.Context(), "filler"), "Send must fill the relay")
+	refused := errors.Unwrap(full.Send(t.Context(), "refused"))
+	require.Error(t, refused, "Send must refuse a message to a full relay")
+	return full, refused
+}
+
+// testWebsocketUserChangesTwice is testWebsocketUserChanges with a second order, filled in a second trade
+var testWebsocketUserChangesTwice = strings.Replace(strings.Replace(testWebsocketUserChanges,
+	`"direction":"sell","amount":10}],"positions"`,
+	`"direction":"sell","amount":10},{"trade_seq":866639,"trade_id":"1430915","timestamp":1605780344032,"tick_direction":1,"state":"filled","reduce_only":false,"price":17391,"post_only":false,"order_type":"market","order_id":"3398017","mark_price":17391,"liquidity":"T","instrument_name":"BTC-PERPETUAL","index_price":17501.88,"fee_currency":"BTC","fee":3.2e-07,"direction":"sell","amount":20}],"positions"`, 1),
+	`"average_price":17391,"api":false,"amount":10}]`,
+	`"average_price":17391,"api":false,"amount":10},{"web":true,"time_in_force":"good_til_cancelled","replaced":false,"reduce_only":false,"price":15665.5,"post_only":false,"order_type":"market","order_state":"filled","order_id":"3398017","last_update_timestamp":1605780344032,"label":"","is_rebalance":false,"is_liquidation":false,"instrument_name":"BTC-PERPETUAL","filled_amount":20,"direction":"sell","creation_timestamp":1605780344032,"average_price":17391,"api":false,"amount":20}]`, 1)
+
+// testWebsocketUserChangesWithOption is testWebsocketUserChangesTwice with a third order, a buy option order with a lower
+// ID and prices of its own, filled in a third trade
+var testWebsocketUserChangesWithOption = strings.Replace(strings.Replace(testWebsocketUserChangesTwice,
+	`"direction":"sell","amount":20}],"positions"`,
+	`"direction":"sell","amount":20},{"trade_seq":1201,"trade_id":"1430913","timestamp":1605780344032,"tick_direction":1,"state":"filled","reduce_only":false,"price":0.0525,"post_only":false,"order_type":"market","order_id":"3398015","mark_price":0.0525,"liquidity":"T","instrument_name":"BTC-25DEC26-104000-C","index_price":17501.88,"fee_currency":"BTC","fee":3.2e-07,"direction":"buy","amount":20}],"positions"`, 1),
+	`"average_price":17391,"api":false,"amount":20}]`,
+	`"average_price":17391,"api":false,"amount":20},{"web":true,"time_in_force":"good_til_cancelled","replaced":false,"reduce_only":false,"price":0.05,"post_only":false,"order_type":"market","order_state":"filled","order_id":"3398015","last_update_timestamp":1605780344032,"label":"","is_rebalance":false,"is_liquidation":false,"instrument_name":"BTC-25DEC26-104000-C","filled_amount":20,"direction":"buy","creation_timestamp":1605780344032,"average_price":0.0525,"api":false,"amount":20}]`, 1)
+
+// testUserChangesAddedOrders returns the orders testWebsocketUserChangesWithOption adds after the documented one, as
+// order details
+func testUserChangesAddedOrders(exchangeName string) []order.Detail {
+	second := testUserChangesOrders(exchangeName)[0]
+	second.OrderID, second.Amount, second.ExecutedAmount = "3398017", 20, 20
+	return []order.Detail{second, {
+		Exchange:             exchangeName,
+		OrderID:              "3398015",
+		Pair:                 currency.NewPairWithDelimiter("BTC", "25DEC26-104000-C", currency.DashDelimiter),
+		AssetType:            asset.Options,
+		Side:                 order.Buy,
+		Type:                 order.Market,
+		Status:               order.Filled,
+		TimeInForce:          order.GoodTillCancel,
+		Price:                0.05,
+		Amount:               20,
+		ExecutedAmount:       20,
+		AverageExecutedPrice: 0.0525,
+		Date:                 time.UnixMilli(1605780344032),
+		LastUpdated:          time.UnixMilli(1605780344032),
+	}}
+}
+
+// testUserChangesAddedFills returns the trades testWebsocketUserChangesWithOption adds after the documented one, as fills
+func testUserChangesAddedFills(exchangeName string) []fill.Data {
+	second := testUserChangesFills(exchangeName)[0]
+	second.ID, second.TradeID, second.OrderID, second.Amount = "1430915", "1430915", "3398017", 20
+	return []fill.Data{second, {
+		ID:           "1430913",
+		TradeID:      "1430913",
+		Timestamp:    time.UnixMilli(1605780344032),
+		Exchange:     exchangeName,
+		AssetType:    asset.Options,
+		CurrencyPair: currency.NewPairWithDelimiter("BTC", "25DEC26-104000-C", currency.DashDelimiter),
+		Side:         order.Buy,
+		OrderID:      "3398015",
+		Price:        0.0525,
+		Amount:       20,
+	}}
+}
+
+func TestWebsocketHandleUserChanges(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		data       string
+		fillsFeed  bool
+		err        error
+		expOrders  bool
+		expFills   bool
+		expChanges bool
+		// added counts the orders and trades the notification adds after the documented ones
+		added int
+	}{
+		{name: "fills feed on", data: testWebsocketUserChanges, fillsFeed: true, expOrders: true, expFills: true, expChanges: true},
+		{name: "fills feed off", data: testWebsocketUserChanges, expOrders: true, expChanges: true},
+		{
+			name:       "an order it cannot convert",
+			data:       strings.Replace(testWebsocketUserChanges, `"orders":[`, `"orders":[{"order_id":"6","instrument_name":"BTC","direction":"sell"},`, 1),
+			fillsFeed:  true,
+			err:        errUnsupportedInstrumentFormat,
+			expOrders:  true,
+			expFills:   true,
+			expChanges: true,
+		},
+		{
+			name:       "a trade it cannot convert",
+			data:       strings.Replace(testWebsocketUserChanges, `"trades":[`, `"trades":[{"trade_id":"7","instrument_name":"BTC","direction":"sell"},`, 1),
+			fillsFeed:  true,
+			err:        errUnsupportedInstrumentFormat,
+			expOrders:  true,
+			expFills:   true,
+			expChanges: true,
+		},
+		{name: "two orders and two trades", data: testWebsocketUserChangesTwice, fillsFeed: true, expOrders: true, expFills: true, expChanges: true, added: 1},
+		{name: "three orders and three trades of two assets", data: testWebsocketUserChangesWithOption, fillsFeed: true, expOrders: true, expFills: true, expChanges: true, added: 2},
+		{name: "no orders or trades", data: `{"instrument_name":"BTC-PERPETUAL","orders":[],"trades":[],"positions":[]}`, fillsFeed: true, expChanges: true},
+		{name: "malformed", data: `[]`, fillsFeed: true, err: errMalformedNotification},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			ex.Features.Enabled.FillsFeed = tc.fillsFeed
+			ex.Websocket.Fills.Setup(tc.fillsFeed, ex.Websocket.DataHandler)
+			err := ex.wsHandleUserChanges(t.Context(), notification("user.changes.BTC-PERPETUAL.raw", tc.data))
+			assert.ErrorIs(t, err, tc.err, "wsHandleUserChanges should return the errors of what it cannot convert or decode")
+			if tc.expOrders {
+				exp := append(testUserChangesOrders(ex.Name), testUserChangesAddedOrders(ex.Name)[:tc.added]...)
+				assert.Equal(t, exp, relayed(t, ex), "wsHandleUserChanges should first relay the orders it converts, in order")
+			}
+			if tc.expFills {
+				exp := append(testUserChangesFills(ex.Name), testUserChangesAddedFills(ex.Name)[:tc.added]...)
+				assert.Equal(t, exp, relayed(t, ex), "wsHandleUserChanges should then pass the trades it converts to the fills feed, in order")
+			}
+			if tc.expChanges {
+				exp := new(WebsocketUserChanges)
+				require.NoError(t, json.Unmarshal([]byte(tc.data), exp), "Unmarshal must not error")
+				assert.Equal(t, exp, relayed(t, ex), "wsHandleUserChanges should relay the notification last")
+			}
+			assertNothingRelayed(t, ex)
+		})
+	}
+
+	t.Run("data handler full", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		var refused error
+		ex.Websocket.DataHandler, refused = fullRelay(t)
+		err := ex.wsHandleUserChanges(t.Context(), notification("user.changes.BTC-PERPETUAL.raw", `{"instrument_name":"BTC-PERPETUAL","orders":[],"trades":[],"positions":[]}`))
+		assert.ErrorIs(t, err, refused, "wsHandleUserChanges should return the data handler's failure to relay the notification")
+	})
 }
 
 // newAccountTestExchange returns a test exchange with placeholder credentials, which its account store saves balances
@@ -239,4 +432,59 @@ func TestWebsocketHandleUserTrades(t *testing.T) {
 	disabled.Features.Enabled.FillsFeed = false
 	require.NoError(t, disabled.wsHandleUserTrades(t.Context(), notification("user.trades.BTC-PERPETUAL.100ms", trades)), "wsHandleUserTrades must not error with the fills feed off")
 	assertNothingRelayed(t, disabled)
+}
+
+func TestUpdateFills(t *testing.T) {
+	t.Parallel()
+	documented := testUserChanges().Trades[0]
+	second := documented
+	second.TradeID, second.TradeSequence, second.Amount = "1430915", 866639, 20
+	// A buy option trade with a lower ID and a price of its own, so a feed that sorts, drops an asset, keeps one trade an
+	// asset or copies one trade's fields to another fails
+	option := documented
+	option.TradeID, option.InstrumentName, option.Direction, option.Price, option.Amount = "1430913", "BTC-25DEC26-104000-C", DirectionBuy, 0.0525, 20
+	unconvertible := UserTradeResponse{TradeID: "7", InstrumentName: "BTC", Direction: DirectionSell}
+	for _, tc := range []struct {
+		name      string
+		trades    []UserTradeResponse
+		fillsFeed bool
+		relayed   []UserTradeResponse
+		err       error
+	}{
+		{name: "a trade converted", trades: []UserTradeResponse{documented}, fillsFeed: true, relayed: []UserTradeResponse{documented}},
+		{name: "two trades converted", trades: []UserTradeResponse{documented, second}, fillsFeed: true, relayed: []UserTradeResponse{documented, second}},
+		{name: "three trades of two assets converted", trades: []UserTradeResponse{documented, option, second}, fillsFeed: true, relayed: []UserTradeResponse{documented, option, second}},
+		{name: "a trade it cannot convert", trades: []UserTradeResponse{unconvertible, documented}, fillsFeed: true, relayed: []UserTradeResponse{documented}, err: errUnsupportedInstrumentFormat},
+		{name: "a trade it cannot convert between two", trades: []UserTradeResponse{documented, unconvertible, second}, fillsFeed: true, relayed: []UserTradeResponse{documented, second}, err: errUnsupportedInstrumentFormat},
+		{name: "no trade converted", trades: []UserTradeResponse{unconvertible}, fillsFeed: true, err: errUnsupportedInstrumentFormat},
+		{name: "no trades", fillsFeed: true},
+		{name: "fills feed off", trades: []UserTradeResponse{unconvertible, documented, second}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			ex.Features.Enabled.FillsFeed = tc.fillsFeed
+			ex.Websocket.Fills.Setup(tc.fillsFeed, ex.Websocket.DataHandler)
+			assert.ErrorIs(t, ex.updateFills(tc.trades), tc.err, "updateFills should return the errors of the trades it cannot convert")
+			if len(tc.relayed) > 0 {
+				exp := make([]fill.Data, 0, len(tc.relayed))
+				for i := range tc.relayed {
+					data, err := ex.userTradeFill(&tc.relayed[i])
+					require.NoError(t, err, "userTradeFill must not error")
+					exp = append(exp, *data)
+				}
+				assert.Equal(t, exp, relayed(t, ex), "updateFills should pass every trade it converts, in order, to the fills feed at once")
+			}
+			assertNothingRelayed(t, ex)
+		})
+	}
+
+	t.Run("fills feed full", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.Features.Enabled.FillsFeed = true
+		full, refused := fullRelay(t)
+		ex.Websocket.Fills.Setup(true, full)
+		assert.ErrorIs(t, ex.updateFills([]UserTradeResponse{documented}), refused, "updateFills should return the fills feed's failure")
+	})
 }

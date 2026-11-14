@@ -439,7 +439,7 @@ func (e *Exchange) wsHandleNotification(ctx context.Context, conn websocket.Conn
 	case ChannelUserPortfolio:
 		return e.wsHandlePortfolio(ctx, respRaw)
 	case ChannelUserChanges:
-		return wsRelay[WebsocketUserChanges](ctx, e, respRaw)
+		return e.wsHandleUserChanges(ctx, respRaw)
 	case ChannelUserAccessLog:
 		return wsRelay[AccessLogEntry](ctx, e, respRaw)
 	case ChannelUserLiquiditySupportProgram:

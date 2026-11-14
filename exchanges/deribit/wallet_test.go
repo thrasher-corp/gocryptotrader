@@ -160,25 +160,37 @@ func TestAddToAddressBook(t *testing.T) {
 	_, err = e.AddToAddressBook(t.Context(), &AddToAddressBookRequest{Type: AddressBookTypeWithdrawal, CounterpartyID: mockCounterpartyID, Label: "label", EntityType: "company"})
 	require.ErrorIs(t, err, errInvalidBeneficiaryEntityType, "AddToAddressBook must reject an undocumented beneficiary entity type")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("Deribit asks for a security key to add a withdrawal address, which live tests cannot give")
-	}
-	result, err := e.AddToAddressBook(t.Context(), testLegacyAddToAddressBookRequest())
-	require.NoError(t, err, "AddToAddressBook must not error")
-	assert.Equal(t, testLegacyAddressBookEntry(), result, "AddToAddressBook should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.AddToAddressBook(t.Context(), &AddToAddressBookRequest{Currency: currency.BTC, Type: AddressBookTypeWithdrawal, Address: liveForeignAddress, Label: "gct live test"})
+		requireRefusedOnMerits(t, err, "AddToAddressBook")
+	})
 
-	result, err = e.AddToAddressBook(t.Context(), testCoinbaseAddToAddressBookRequest())
-	require.NoError(t, err, "AddToAddressBook must not error for a Coinbase wallet type address")
-	assert.Equal(t, testCoinbaseAddressBookEntry(), result, "AddToAddressBook should decode a Coinbase wallet type entry")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.AddToAddressBook(t.Context(), testLegacyAddToAddressBookRequest())
+		require.NoError(t, err, "AddToAddressBook must not error")
+		assert.Equal(t, testLegacyAddressBookEntry(), result, "AddToAddressBook should decode every field")
 
-	// The fixture is recorded without a currency, so it only matches a request leaving the counterparty's currency out
-	result, err = e.AddToAddressBook(t.Context(), testCounterpartyAddToAddressBookRequest())
-	require.NoError(t, err, "AddToAddressBook must not error for a counterparty")
-	assert.Equal(t, testCounterpartyAddressBookEntry(), result, "AddToAddressBook should decode a counterparty entry")
+		result, err = e.AddToAddressBook(t.Context(), testCoinbaseAddToAddressBookRequest())
+		require.NoError(t, err, "AddToAddressBook must not error for a Coinbase wallet type address")
+		assert.Equal(t, testCoinbaseAddressBookEntry(), result, "AddToAddressBook should decode a Coinbase wallet type entry")
+
+		// The fixture is recorded without a currency, so it only matches a request leaving the counterparty's currency out
+		result, err = e.AddToAddressBook(t.Context(), testCounterpartyAddToAddressBookRequest())
+		require.NoError(t, err, "AddToAddressBook must not error for a counterparty")
+		assert.Equal(t, testCounterpartyAddressBookEntry(), result, "AddToAddressBook should decode a counterparty entry")
+	})
 
 	// The fixture recorder blanks name fields, so the documented entry is served whole to show its name decodes
-	result, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"id":"0190a1b2-7c3d-7e5f-8a9b-0c1d2e3f4a5b","currency":"ETH","address":"0x742d35Cc6634C0532925a3b844Bc454e4438f44e","type":"withdrawal","kind":"onchain","label":"Main address","creation_timestamp":1719993033041,"updated_timestamp":1719993033041,"status":"waiting","waiting_timestamp":1720252232860,"requires_confirmation":false,"requires_confirmation_change":false,"requires_security_key":true,"info_required":false,"network":"networks/ethereum-mainnet","network_display_name":"Ethereum","name":"Alice Smith","country":"NL","beneficiary_created":1719993033041,"beneficiary_updated":1719993033041}}`).AddToAddressBook(t.Context(), testCoinbaseAddToAddressBookRequest())
+	result, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"id":"0190a1b2-7c3d-7e5f-8a9b-0c1d2e3f4a5b","currency":"ETH","address":"0x742d35Cc6634C0532925a3b844Bc454e4438f44e","type":"withdrawal","kind":"onchain","label":"Main address","creation_timestamp":1719993033041,"updated_timestamp":1719993033041,"status":"waiting","waiting_timestamp":1720252232860,"requires_confirmation":false,"requires_confirmation_change":false,"requires_security_key":true,"info_required":false,"network":"networks/ethereum-mainnet","network_display_name":"Ethereum","name":"Alice Smith","country":"NL","beneficiary_created":1719993033041,"beneficiary_updated":1719993033041}}`).AddToAddressBook(t.Context(), testCoinbaseAddToAddressBookRequest())
 	require.NoError(t, err, "AddToAddressBook must not error for the documented Coinbase wallet type entry")
 	exp := testCoinbaseAddressBookEntry()
 	exp.Name = "Alice Smith"
@@ -214,14 +226,26 @@ func TestCancelTransferByID(t *testing.T) {
 	_, err = e.CancelTransferByID(t.Context(), &CancelTransferByIDRequest{Currency: currency.BTC})
 	require.ErrorIs(t, err, errTransferIDRequired, "CancelTransferByID must reject an empty transfer ID")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("CancelTransferByID needs a pending transfer, which only a transfer to another user, which live tests cannot undo, leaves")
-	}
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.CancelTransferByID(t.Context(), &CancelTransferByIDRequest{Currency: currency.BTC, ID: liveForeignID})
+		requireRefusedOnMerits(t, err, "CancelTransferByID")
+	})
+
 	arg := &CancelTransferByIDRequest{Currency: currency.BTC, ID: mockTransferID}
-	result, err := e.CancelTransferByID(t.Context(), arg)
-	require.NoError(t, err, "CancelTransferByID must not error")
-	assert.Equal(t, testTransfer(), result, "CancelTransferByID should decode every field")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelTransferByID(t.Context(), arg)
+		require.NoError(t, err, "CancelTransferByID must not error")
+		assert.Equal(t, testTransfer(), result, "CancelTransferByID should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelTransferByID(t.Context(), arg)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelTransferByID should reject a null result")
@@ -253,14 +277,26 @@ func TestCancelWithdrawal(t *testing.T) {
 	_, err = e.CancelWithdrawal(t.Context(), &CancelWithdrawalRequest{Currency: currency.BTC})
 	require.ErrorIs(t, err, errWithdrawalIDRequired, "CancelWithdrawal must reject an empty withdrawal ID")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("CancelWithdrawal needs a pending withdrawal, which only a withdrawal, which live tests cannot undo, leaves")
-	}
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.CancelWithdrawal(t.Context(), &CancelWithdrawalRequest{Currency: currency.BTC, ID: liveForeignID})
+		requireRefusedOnMerits(t, err, "CancelWithdrawal")
+	})
+
 	arg := &CancelWithdrawalRequest{Currency: currency.BTC, ID: mockWithdrawalID}
-	result, err := e.CancelWithdrawal(t.Context(), arg)
-	require.NoError(t, err, "CancelWithdrawal must not error")
-	assert.Equal(t, testLegacyWithdrawal(), result, "CancelWithdrawal should decode every field")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelWithdrawal(t.Context(), arg)
+		require.NoError(t, err, "CancelWithdrawal must not error")
+		assert.Equal(t, testLegacyWithdrawal(), result, "CancelWithdrawal should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelWithdrawal(t.Context(), arg)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelWithdrawal should reject a null result")
@@ -285,16 +321,30 @@ func TestCoinbaseEstimateWithdrawalFee(t *testing.T) {
 	_, err = e.CoinbaseEstimateWithdrawalFee(t.Context(), &CoinbaseEstimateWithdrawalFeeRequest{Currency: currency.BTC})
 	require.ErrorIs(t, err, errNetworkNameRequired, "CoinbaseEstimateWithdrawalFee must reject an empty network name")
 
-	skipLiveWithoutCredentials(t)
-	if !mockTests {
-		t.Skip("CoinbaseEstimateWithdrawalFee needs an institutional Coinbase wallet type account")
-	}
 	arg := &CoinbaseEstimateWithdrawalFeeRequest{Currency: currency.BTC, NetworkName: mockBitcoinNetwork}
-	result, err := e.CoinbaseEstimateWithdrawalFee(t.Context(), arg)
-	require.NoError(t, err, "CoinbaseEstimateWithdrawalFee must not error")
-	assert.Equal(t, testWithdrawalFeeEstimate(t), result, "CoinbaseEstimateWithdrawalFee should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.CoinbaseEstimateWithdrawalFee(t.Context(), arg)
+		if requireAnsweredOnMerits(t, err, "CoinbaseEstimateWithdrawalFee") {
+			assert.NotNil(t, result, "CoinbaseEstimateWithdrawalFee should return the estimate")
+		}
+	})
 
-	result, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"estimated_fee":"0.0005","estimated_fee_before_subsidy":"0.0005","expires_at":null}}`).CoinbaseEstimateWithdrawalFee(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CoinbaseEstimateWithdrawalFee(t.Context(), arg)
+		require.NoError(t, err, "CoinbaseEstimateWithdrawalFee must not error")
+		assert.Equal(t, testWithdrawalFeeEstimate(t), result, "CoinbaseEstimateWithdrawalFee should decode every field")
+	})
+
+	result, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"estimated_fee":"0.0005","estimated_fee_before_subsidy":"0.0005","expires_at":null}}`).CoinbaseEstimateWithdrawalFee(t.Context(), arg)
 	require.NoError(t, err, "CoinbaseEstimateWithdrawalFee must not error without an expiry")
 	assert.Equal(t, &WithdrawalFeeEstimateResponse{EstimatedFee: 0.0005, EstimatedFeeBeforeSubsidy: 0.0005}, result, "CoinbaseEstimateWithdrawalFee should decode a null expiry as the zero time")
 
@@ -371,12 +421,24 @@ func TestDeleteAddressBeneficiary(t *testing.T) {
 	err = e.DeleteAddressBeneficiary(t.Context(), &AddressBeneficiaryRequest{Currency: currency.BTC})
 	require.ErrorIs(t, err, errAddressRequired, "DeleteAddressBeneficiary must reject an empty address")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("DeleteAddressBeneficiary would delete an address's travel rule information, which a live test cannot restore")
-	}
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		err := e.DeleteAddressBeneficiary(t.Context(), &AddressBeneficiaryRequest{Currency: currency.BTC, Address: liveForeignAddress})
+		requireRefusedOnMerits(t, err, "DeleteAddressBeneficiary")
+	})
+
 	arg := &AddressBeneficiaryRequest{Currency: currency.BTC, Address: mockLegacyAddress}
-	require.NoError(t, e.DeleteAddressBeneficiary(t.Context(), arg), "DeleteAddressBeneficiary must not error")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.DeleteAddressBeneficiary(t.Context(), arg), "DeleteAddressBeneficiary must not error")
+	})
 
 	err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"failed"}`).DeleteAddressBeneficiary(t.Context(), arg)
 	assert.ErrorIs(t, err, errUnexpectedResult, "DeleteAddressBeneficiary should reject a result other than ok")
@@ -882,12 +944,24 @@ func TestRemoveFromAddressBook(t *testing.T) {
 	err = e.RemoveFromAddressBook(t.Context(), &RemoveFromAddressBookRequest{Currency: currency.BTC, Type: AddressBookTypeTransfer})
 	require.ErrorIs(t, err, errAddressOrEntryIDRequired, "RemoveFromAddressBook must reject a request without an address or entry ID")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("RemoveFromAddressBook would remove an entry, which adding again restarts the address delay of")
-	}
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		err := e.RemoveFromAddressBook(t.Context(), &RemoveFromAddressBookRequest{Currency: currency.BTC, Type: AddressBookTypeWithdrawal, Address: liveForeignAddress})
+		requireRefusedOnMerits(t, err, "RemoveFromAddressBook")
+	})
+
 	arg := &RemoveFromAddressBookRequest{Currency: currency.BTC, Type: AddressBookTypeTransfer, Address: mockLegacyAddress}
-	require.NoError(t, e.RemoveFromAddressBook(t.Context(), arg), "RemoveFromAddressBook must not error")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.RemoveFromAddressBook(t.Context(), arg), "RemoveFromAddressBook must not error")
+	})
 
 	err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"failed"}`).RemoveFromAddressBook(t.Context(), arg)
 	assert.ErrorIs(t, err, errUnexpectedResult, "RemoveFromAddressBook should reject a result other than ok")
@@ -936,13 +1010,27 @@ func TestSaveAddressBeneficiary(t *testing.T) {
 	_, err = e.SaveAddressBeneficiary(t.Context(), arg)
 	require.ErrorIs(t, err, errBeneficiaryAddressRequired, "SaveAddressBeneficiary must reject an empty beneficiary address")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("SaveAddressBeneficiary would overwrite an address's travel rule information, which a live test cannot restore")
-	}
-	result, err := e.SaveAddressBeneficiary(t.Context(), testSaveAddressBeneficiaryRequest())
-	require.NoError(t, err, "SaveAddressBeneficiary must not error")
-	assert.Equal(t, testAddressBeneficiary(), result, "SaveAddressBeneficiary should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		arg := testSaveAddressBeneficiaryRequest()
+		arg.Address = liveForeignAddress
+		_, err := e.SaveAddressBeneficiary(t.Context(), arg)
+		requireRefusedOnMerits(t, err, "SaveAddressBeneficiary")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.SaveAddressBeneficiary(t.Context(), testSaveAddressBeneficiaryRequest())
+		require.NoError(t, err, "SaveAddressBeneficiary must not error")
+		assert.Equal(t, testAddressBeneficiary(), result, "SaveAddressBeneficiary should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).SaveAddressBeneficiary(t.Context(), testSaveAddressBeneficiaryRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SaveAddressBeneficiary should reject a null result")
@@ -981,31 +1069,43 @@ func TestSetAddressRequiresSecurityKey(t *testing.T) {
 	_, err = e.SetAddressRequiresSecurityKey(t.Context(), &SetAddressRequiresSecurityKeyRequest{Currency: currency.BTC, Type: AddressBookTypeWithdrawal})
 	require.ErrorIs(t, err, errAddressOrEntryIDRequired, "SetAddressRequiresSecurityKey must reject a request without an address or entry ID")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("Deribit asks for a security key to change a withdrawal address, which live tests cannot give")
-	}
-	result, err := e.SetAddressRequiresSecurityKey(t.Context(), testLegacySecurityKeyRequest())
-	require.NoError(t, err, "SetAddressRequiresSecurityKey must not error")
-	assert.Equal(t, testLegacySecurityKeyEntry(), result, "SetAddressRequiresSecurityKey should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.SetAddressRequiresSecurityKey(t.Context(), &SetAddressRequiresSecurityKeyRequest{Currency: currency.BTC, Type: AddressBookTypeWithdrawal, Address: liveForeignAddress, RequiresSecurityKey: true})
+		requireRefusedOnMerits(t, err, "SetAddressRequiresSecurityKey")
+	})
 
-	result, err = e.SetAddressRequiresSecurityKey(t.Context(), &SetAddressRequiresSecurityKeyRequest{Currency: currency.ETH, Type: AddressBookTypeWithdrawal, EntryID: mockAddressBookEntryID, RequiresSecurityKey: true})
-	require.NoError(t, err, "SetAddressRequiresSecurityKey must not error for a Coinbase wallet type entry")
-	exp := &AddressBookEntryResponse{
-		ID:                  mockAddressBookEntryID,
-		Currency:            currency.ETH,
-		Address:             mockCoinbaseAddress,
-		Type:                AddressBookTypeWithdrawal,
-		Kind:                "onchain",
-		Label:               "Main address",
-		CreationTimestamp:   types.Time(time.UnixMilli(1719993033041)),
-		UpdatedTimestamp:    types.Time(time.UnixMilli(1720252232860)),
-		Status:              "ready",
-		RequiresSecurityKey: true,
-		Network:             mockEthereumNetwork,
-		NetworkDisplayName:  "Ethereum",
-	}
-	assert.Equal(t, exp, result, "SetAddressRequiresSecurityKey should decode a Coinbase wallet type entry")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.SetAddressRequiresSecurityKey(t.Context(), testLegacySecurityKeyRequest())
+		require.NoError(t, err, "SetAddressRequiresSecurityKey must not error")
+		assert.Equal(t, testLegacySecurityKeyEntry(), result, "SetAddressRequiresSecurityKey should decode every field")
+
+		result, err = e.SetAddressRequiresSecurityKey(t.Context(), &SetAddressRequiresSecurityKeyRequest{Currency: currency.ETH, Type: AddressBookTypeWithdrawal, EntryID: mockAddressBookEntryID, RequiresSecurityKey: true})
+		require.NoError(t, err, "SetAddressRequiresSecurityKey must not error for a Coinbase wallet type entry")
+		exp := &AddressBookEntryResponse{
+			ID:                  mockAddressBookEntryID,
+			Currency:            currency.ETH,
+			Address:             mockCoinbaseAddress,
+			Type:                AddressBookTypeWithdrawal,
+			Kind:                "onchain",
+			Label:               "Main address",
+			CreationTimestamp:   types.Time(time.UnixMilli(1719993033041)),
+			UpdatedTimestamp:    types.Time(time.UnixMilli(1720252232860)),
+			Status:              "ready",
+			RequiresSecurityKey: true,
+			Network:             mockEthereumNetwork,
+			NetworkDisplayName:  "Ethereum",
+		}
+		assert.Equal(t, exp, result, "SetAddressRequiresSecurityKey should decode a Coinbase wallet type entry")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).SetAddressRequiresSecurityKey(t.Context(), testLegacySecurityKeyRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SetAddressRequiresSecurityKey should reject a null result")
@@ -1069,13 +1169,27 @@ func TestSetClearanceOriginator(t *testing.T) {
 	_, err = e.SetClearanceOriginator(t.Context(), arg)
 	require.ErrorIs(t, err, errTransactionHashRequired, "SetClearanceOriginator must reject a deposit without a transaction hash")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("SetClearanceOriginator needs a deposit awaiting its originator, which live tests do not have")
-	}
-	result, err := e.SetClearanceOriginator(t.Context(), testSetClearanceOriginatorRequest())
-	require.NoError(t, err, "SetClearanceOriginator must not error")
-	assert.Equal(t, testClearedDeposit(), result, "SetClearanceOriginator should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		arg := testSetClearanceOriginatorRequest()
+		arg.Deposit.UserID = liveForeignID
+		_, err := e.SetClearanceOriginator(t.Context(), arg)
+		requireRefusedOnMerits(t, err, "SetClearanceOriginator")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.SetClearanceOriginator(t.Context(), testSetClearanceOriginatorRequest())
+		require.NoError(t, err, "SetClearanceOriginator must not error")
+		assert.Equal(t, testClearedDeposit(), result, "SetClearanceOriginator should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).SetClearanceOriginator(t.Context(), testSetClearanceOriginatorRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SetClearanceOriginator should reject a null result")
@@ -1085,18 +1199,33 @@ func TestSetClearanceOriginator(t *testing.T) {
 
 func TestSetCoinbaseSubaccountWithdrawalsAllowed(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("SetCoinbaseSubaccountWithdrawalsAllowed needs a Coinbase wallet type main account")
-	}
-	result, err := e.SetCoinbaseSubaccountWithdrawalsAllowed(t.Context(), true)
-	require.NoError(t, err, "SetCoinbaseSubaccountWithdrawalsAllowed must not error")
-	assert.Equal(t, &CoinbaseSubaccountWithdrawalsResponse{Enabled: true}, result, "SetCoinbaseSubaccountWithdrawalsAllowed should decode the setting")
-	result, err = e.SetCoinbaseSubaccountWithdrawalsAllowed(t.Context(), false)
-	require.NoError(t, err, "SetCoinbaseSubaccountWithdrawalsAllowed must not error when forbidding withdrawals")
-	assert.Equal(t, &CoinbaseSubaccountWithdrawalsResponse{}, result, "SetCoinbaseSubaccountWithdrawalsAllowed should send and decode a false setting")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		// false is Deribit's default, as nothing reads the setting back to restore
+		result, err := e.SetCoinbaseSubaccountWithdrawalsAllowed(t.Context(), false)
+		if requireAnsweredOnMerits(t, err, "SetCoinbaseSubaccountWithdrawalsAllowed") {
+			assert.False(t, result.Enabled, "SetCoinbaseSubaccountWithdrawalsAllowed should forbid subaccount withdrawals")
+		}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).SetCoinbaseSubaccountWithdrawalsAllowed(t.Context(), true)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.SetCoinbaseSubaccountWithdrawalsAllowed(t.Context(), true)
+		require.NoError(t, err, "SetCoinbaseSubaccountWithdrawalsAllowed must not error")
+		assert.Equal(t, &CoinbaseSubaccountWithdrawalsResponse{Enabled: true}, result, "SetCoinbaseSubaccountWithdrawalsAllowed should decode the setting")
+		result, err = e.SetCoinbaseSubaccountWithdrawalsAllowed(t.Context(), false)
+		require.NoError(t, err, "SetCoinbaseSubaccountWithdrawalsAllowed must not error when forbidding withdrawals")
+		assert.Equal(t, &CoinbaseSubaccountWithdrawalsResponse{}, result, "SetCoinbaseSubaccountWithdrawalsAllowed should send and decode a false setting")
+	})
+
+	_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).SetCoinbaseSubaccountWithdrawalsAllowed(t.Context(), true)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SetCoinbaseSubaccountWithdrawalsAllowed should reject a null result")
 	_, err = newUnavailableServerExchange(t).SetCoinbaseSubaccountWithdrawalsAllowed(t.Context(), true)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "SetCoinbaseSubaccountWithdrawalsAllowed should return the request failure")
@@ -1142,13 +1271,25 @@ func TestSubmitTransferBetweenSubaccounts(t *testing.T) {
 	_, err = e.SubmitTransferBetweenSubaccounts(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidIdempotencyNonce, "SubmitTransferBetweenSubaccounts must reject a nonce under 8 characters")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("SubmitTransferBetweenSubaccounts needs subaccounts, which live tests do not have")
-	}
-	result, err := e.SubmitTransferBetweenSubaccounts(t.Context(), testSubmitTransferBetweenSubaccountsRequest())
-	require.NoError(t, err, "SubmitTransferBetweenSubaccounts must not error")
-	assert.Equal(t, testTransferBetweenSubaccounts(), result, "SubmitTransferBetweenSubaccounts should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.SubmitTransferBetweenSubaccounts(t.Context(), &SubmitTransferBetweenSubaccountsRequest{Currency: currency.BTC, Amount: 0.0001, Destination: liveForeignID})
+		requireRefusedOnMerits(t, err, "SubmitTransferBetweenSubaccounts")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.SubmitTransferBetweenSubaccounts(t.Context(), testSubmitTransferBetweenSubaccountsRequest())
+		require.NoError(t, err, "SubmitTransferBetweenSubaccounts must not error")
+		assert.Equal(t, testTransferBetweenSubaccounts(), result, "SubmitTransferBetweenSubaccounts should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).SubmitTransferBetweenSubaccounts(t.Context(), testSubmitTransferBetweenSubaccountsRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SubmitTransferBetweenSubaccounts should reject a null result")
@@ -1184,13 +1325,25 @@ func TestSubmitTransferToSubaccount(t *testing.T) {
 	_, err = e.SubmitTransferToSubaccount(t.Context(), &SubmitTransferToSubaccountRequest{Currency: currency.ETH, Amount: 1})
 	require.ErrorIs(t, err, errTransferDestinationRequired, "SubmitTransferToSubaccount must reject an empty destination")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("SubmitTransferToSubaccount needs a subaccount, which live tests do not have")
-	}
-	result, err := e.SubmitTransferToSubaccount(t.Context(), testSubmitTransferToSubaccountRequest())
-	require.NoError(t, err, "SubmitTransferToSubaccount must not error")
-	assert.Equal(t, testTransfer(), result, "SubmitTransferToSubaccount should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.SubmitTransferToSubaccount(t.Context(), &SubmitTransferToSubaccountRequest{Currency: currency.BTC, Amount: 0.0001, Destination: liveForeignID})
+		requireRefusedOnMerits(t, err, "SubmitTransferToSubaccount")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.SubmitTransferToSubaccount(t.Context(), testSubmitTransferToSubaccountRequest())
+		require.NoError(t, err, "SubmitTransferToSubaccount must not error")
+		assert.Equal(t, testTransfer(), result, "SubmitTransferToSubaccount should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).SubmitTransferToSubaccount(t.Context(), testSubmitTransferToSubaccountRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SubmitTransferToSubaccount should reject a null result")
@@ -1214,13 +1367,25 @@ func TestSubmitTransferToUser(t *testing.T) {
 	_, err = e.SubmitTransferToUser(t.Context(), &SubmitTransferToUserRequest{Currency: currency.ETH, Amount: 1})
 	require.ErrorIs(t, err, errTransferDestinationRequired, "SubmitTransferToUser must reject an empty destination")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("SubmitTransferToUser moves funds to another user, which a live test cannot undo")
-	}
-	result, err := e.SubmitTransferToUser(t.Context(), testSubmitTransferToUserRequest())
-	require.NoError(t, err, "SubmitTransferToUser must not error")
-	assert.Equal(t, testTransfer(), result, "SubmitTransferToUser should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.SubmitTransferToUser(t.Context(), &SubmitTransferToUserRequest{Currency: currency.BTC, Amount: 0.0001, Destination: liveForeignAddress})
+		requireRefusedOnMerits(t, err, "SubmitTransferToUser")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.SubmitTransferToUser(t.Context(), testSubmitTransferToUserRequest())
+		require.NoError(t, err, "SubmitTransferToUser must not error")
+		assert.Equal(t, testTransfer(), result, "SubmitTransferToUser should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).SubmitTransferToUser(t.Context(), testSubmitTransferToUserRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SubmitTransferToUser should reject a null result")
@@ -1263,23 +1428,37 @@ func TestUpdateInAddressBook(t *testing.T) {
 	_, err = e.UpdateInAddressBook(t.Context(), &UpdateInAddressBookRequest{Currency: currency.ETH, Type: AddressBookTypeWithdrawal, EntryID: mockAddressBookEntryID, WalletType: "custodial"})
 	require.ErrorIs(t, err, errInvalidBeneficiaryWalletType, "UpdateInAddressBook must reject an undocumented beneficiary wallet type")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("Deribit asks for a security key to update a withdrawal address, which live tests cannot give")
-	}
-	result, err := e.UpdateInAddressBook(t.Context(), testLegacyUpdateInAddressBookRequest())
-	require.NoError(t, err, "UpdateInAddressBook must not error")
-	assert.Equal(t, &UpdateInAddressBookResponse{}, result, "UpdateInAddressBook should accept a legacy wallet type acknowledgement")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		arg := testLegacyUpdateInAddressBookRequest()
+		arg.Address = liveForeignAddress
+		_, err := e.UpdateInAddressBook(t.Context(), arg)
+		requireRefusedOnMerits(t, err, "UpdateInAddressBook")
+	})
 
-	result, err = e.UpdateInAddressBook(t.Context(), testCoinbaseUpdateInAddressBookRequest())
-	require.NoError(t, err, "UpdateInAddressBook must not error for a Coinbase wallet type entry")
-	exp := testCoinbaseAddressBookEntry()
-	exp.Label = "Updated label"
-	exp.UpdatedTimestamp = types.Time(time.UnixMilli(1720252232860))
-	exp.Status = "ready"
-	exp.WaitingTimestamp = AddressWaitingTime{}
-	exp.BeneficiaryUpdatedTimestamp = types.Time(time.UnixMilli(1720252232860))
-	assert.Equal(t, &UpdateInAddressBookResponse{Entry: exp}, result, "UpdateInAddressBook should decode a Coinbase wallet type entry")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.UpdateInAddressBook(t.Context(), testLegacyUpdateInAddressBookRequest())
+		require.NoError(t, err, "UpdateInAddressBook must not error")
+		assert.Equal(t, &UpdateInAddressBookResponse{}, result, "UpdateInAddressBook should accept a legacy wallet type acknowledgement")
+
+		result, err = e.UpdateInAddressBook(t.Context(), testCoinbaseUpdateInAddressBookRequest())
+		require.NoError(t, err, "UpdateInAddressBook must not error for a Coinbase wallet type entry")
+		exp := testCoinbaseAddressBookEntry()
+		exp.Label = "Updated label"
+		exp.UpdatedTimestamp = types.Time(time.UnixMilli(1720252232860))
+		exp.Status = "ready"
+		exp.WaitingTimestamp = AddressWaitingTime{}
+		exp.BeneficiaryUpdatedTimestamp = types.Time(time.UnixMilli(1720252232860))
+		assert.Equal(t, &UpdateInAddressBookResponse{Entry: exp}, result, "UpdateInAddressBook should decode a Coinbase wallet type entry")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).UpdateInAddressBook(t.Context(), testLegacyUpdateInAddressBookRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "UpdateInAddressBook should reject a null result")
@@ -1366,29 +1545,45 @@ func TestWithdraw(t *testing.T) {
 	_, err = e.Withdraw(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidIdempotencyNonce, "Withdraw must reject a nonce over 128 characters")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("Withdraw moves funds off Deribit, which a live test cannot undo")
-	}
-	result, err := e.Withdraw(t.Context(), testLegacyWithdrawRequest())
-	require.NoError(t, err, "Withdraw must not error")
-	assert.Equal(t, testRequestedLegacyWithdrawal(), result, "Withdraw should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		arg := testLegacyWithdrawRequest()
+		arg.Address = liveForeignAddress
+		arg.Amount = 0.0001
+		arg.Nonce = ""
+		_, err := e.Withdraw(t.Context(), arg)
+		requireRefusedOnMerits(t, err, "Withdraw")
+	})
 
-	result, err = e.Withdraw(t.Context(), &WithdrawRequest{Currency: currency.ETH, Amount: 0.5, EntryID: mockAddressBookEntryID})
-	require.NoError(t, err, "Withdraw must not error for a Coinbase wallet type entry")
-	exp := &WithdrawalResponse{
-		ID:                     mockAddressBookEntryID,
-		TransferIdempotencyKey: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
-		Currency:               currency.ETH,
-		State:                  "unconfirmed",
-		Amount:                 0.5,
-		Address:                mockCoinbaseAddress,
-		Network:                mockEthereumNetwork,
-		NetworkDisplayName:     "Ethereum",
-		CreatedTimestamp:       types.Time(time.UnixMilli(1719993033041)),
-		UpdatedTimestamp:       types.Time(time.UnixMilli(1719993033041)),
-	}
-	assert.Equal(t, exp, result, "Withdraw should decode a Coinbase wallet type withdrawal")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.Withdraw(t.Context(), testLegacyWithdrawRequest())
+		require.NoError(t, err, "Withdraw must not error")
+		assert.Equal(t, testRequestedLegacyWithdrawal(), result, "Withdraw should decode every field")
+
+		result, err = e.Withdraw(t.Context(), &WithdrawRequest{Currency: currency.ETH, Amount: 0.5, EntryID: mockAddressBookEntryID})
+		require.NoError(t, err, "Withdraw must not error for a Coinbase wallet type entry")
+		exp := &WithdrawalResponse{
+			ID:                     mockAddressBookEntryID,
+			TransferIdempotencyKey: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+			Currency:               currency.ETH,
+			State:                  "unconfirmed",
+			Amount:                 0.5,
+			Address:                mockCoinbaseAddress,
+			Network:                mockEthereumNetwork,
+			NetworkDisplayName:     "Ethereum",
+			CreatedTimestamp:       types.Time(time.UnixMilli(1719993033041)),
+			UpdatedTimestamp:       types.Time(time.UnixMilli(1719993033041)),
+		}
+		assert.Equal(t, exp, result, "Withdraw should decode a Coinbase wallet type withdrawal")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).Withdraw(t.Context(), testLegacyWithdrawRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "Withdraw should reject a null result")
@@ -1484,6 +1679,13 @@ func TestAddressWaitingTimeUnmarshalJSON(t *testing.T) {
 	}
 	var waiting AddressWaitingTime
 	assert.Error(t, json.Unmarshal([]byte(`"soon"`), &waiting), "UnmarshalJSON should reject a value that is not a timestamp or boolean")
+}
+
+func TestAddressWaitingTimeTime(t *testing.T) {
+	t.Parallel()
+	assert.True(t, AddressWaitingTime{}.Time().IsZero(), "Time should return the zero time for an entry not waiting")
+	usable := time.UnixMilli(1720252232860)
+	assert.Equal(t, usable, AddressWaitingTime(types.Time(usable)).Time(), "Time should return when the entry becomes usable")
 }
 
 func TestWithdrawalIDUnmarshalJSON(t *testing.T) {

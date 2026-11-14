@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -31,15 +34,29 @@ import (
 )
 
 const (
-	// canManipulateRealOrders lets live tests with credentials change the account they act for: place, edit and cancel
-	// orders priced away from the market, and change and restore account settings
+	// canManipulateRealOrders lets live tests with credentials change the account they act for, such as placing and
+	// cancelling orders priced away from the market, cancelling every open order or quote in a cancel-all's scope,
+	// creating a deposit address, resetting market maker protection and returning a setting nothing reads back to
+	// Deribit's default
 	canManipulateRealOrders = false
+	// liveForeignID is 2^62, millions of times the largest ID in Deribit's API reference, chosen so that a live case
+	// naming it names no user, member, transfer, withdrawal, Block RFQ, quote or announcement that exists
+	liveForeignID = 1 << 62
+	// liveForeignAddress is no valid address, so no address book can hold it, and a live withdrawal, transfer or
+	// address book change naming it should be refused
+	liveForeignAddress = "gct-live-test-unknown-address"
+	// liveSessionName is the session a live test forks a token from, the same in every run, so the runs share sessions
+	liveSessionName = "gct-live-test"
 	// testClientID and testClientSecret are placeholder credentials, which the mock responses and the test servers accept
 	testClientID     = "mock-client-id"
 	testClientSecret = "mock-client-secret"
 )
 
 var e *Exchange
+
+// liveForeignName is a name of the test run's own, from its start time, for a live case to name a block trade nonce,
+// counterparty signature, quote set or MMP group that no account should hold, so that Deribit refuses it
+var liveForeignName = "gct-live-test-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 
 // testExchangeConfig is Deribit's configuration from testdata/configtest.json, loaded once; testexch.Setup loads every
 // exchange's configuration each time, which serialises the hundreds of exchanges the tests set up on its locks
@@ -192,8 +209,65 @@ func skipLiveUnlessCanManipulate(t *testing.T) {
 	}
 }
 
+// requestRefusalCodes are the codes of Deribit's errors that refuse or fail a request itself rather than answer what it
+// asks for, such as those for a malformed request, an unknown method, refused credentials, a rate limit or an outage.
+// Any other refusal is an answer, as a request naming nothing that exists or another account's user or resource draws
+// one
+var requestRefusalCodes = []int64{
+	-32700, -32602, -32600, -32601, -32000, 10000, 10001, 10019, 10022, 10023, 10024, 10025, 10028, 10030, 10031, 10033,
+	10040, 10041, 10047, 10048, 10066, 11031, 11050, 11051, 11056, 11094, 11095, 11098, 12003, 12004, 12005, 12998, 13004,
+	13005, 13006, 13007, 13008, 13009, 13010, 13011, 13015, 13018, 13025, 13028, 13403, 13503, 13666, 13777, 13778, 13780,
+	13793, 13888, 13903,
+}
+
+// requireAnsweredOnMerits fails a live case unless Deribit answered its request on the merits: the request succeeded,
+// Deribit asked for a security key, or Deribit refused what the request asked for, as when the account lacks what the
+// method needs. It reports whether the request succeeded
+func requireAnsweredOnMerits(t *testing.T, err error, method string) bool {
+	t.Helper()
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, ErrSecurityKeyAuthorisationRequired) {
+		return false
+	}
+	var apiErr *APIError
+	require.ErrorAsf(t, err, &apiErr, "%s must return Deribit's answer", method)
+	require.NotContainsf(t, requestRefusalCodes, apiErr.Code, "%s must be answered on its merits rather than refused as a request", method)
+	return false
+}
+
+// requireRefusedOnMerits fails a live case built to be refused unless its request fails and requireAnsweredOnMerits
+// accepts the error. The case fills selected fields with values no account should hold, and Deribit refuses some such
+// values as invalid params, so an invalid params error naming one of foreignParams, the fields so filled, is accepted
+// too
+func requireRefusedOnMerits(t *testing.T, err error, method string, foreignParams ...string) {
+	t.Helper()
+	require.Errorf(t, err, "%s must be refused, as its request is built to be refused", method)
+	var apiErr *APIError
+	if errors.As(err, &apiErr) && apiErr.Code == -32602 {
+		var data invalidParamsData
+		if json.Unmarshal(apiErr.Data, &data) == nil && slices.Contains(foreignParams, data.Param) {
+			return
+		}
+	}
+	requireAnsweredOnMerits(t, err, method)
+}
+
+// invalidParamsData is the data of Deribit's invalid params error, which names the parameter at fault
+type invalidParamsData struct {
+	Param string `json:"param"`
+}
+
 func TestSendHTTPRequest(t *testing.T) {
 	t.Parallel()
+	t.Run("Deribit's time", func(t *testing.T) {
+		t.Parallel()
+		var result types.Time
+		require.NoError(t, e.SendHTTPRequest(t.Context(), nonMatchingEPL, "public/get_time", nil, &result), "SendHTTPRequest must not error")
+		assert.False(t, result.Time().IsZero(), "SendHTTPRequest should decode Deribit's time")
+	})
+
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method, "SendHTTPRequest should send a POST request")
 		assert.Equal(t, "/api/v2/public/get_time", r.URL.Path, "SendHTTPRequest should request the method's path")
@@ -263,6 +337,15 @@ func TestSendHTTPRequest(t *testing.T) {
 
 func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	t.Parallel()
+	t.Run("account summary", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		var result *AccountSummaryResponse
+		require.NoError(t, e.SendAuthenticatedHTTPRequest(t.Context(), nonMatchingEPL, "private/get_account_summary", map[string]any{"currency": "BTC", "extended": true}, &result), "SendAuthenticatedHTTPRequest must not error")
+		require.NotNil(t, result, "SendAuthenticatedHTTPRequest must decode the summary")
+		assert.Equal(t, currency.BTC, result.Currency, "SendAuthenticatedHTTPRequest should decode the summary's currency")
+	})
+
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method, "SendAuthenticatedHTTPRequest should send a POST request")
 		assert.Equal(t, "/api/v2/private/get_account_summary", r.URL.Path, "SendAuthenticatedHTTPRequest should request the method's path")
@@ -474,6 +557,20 @@ func TestHTTPRequestItem(t *testing.T) {
 
 func TestSendHTTPQueryRequest(t *testing.T) {
 	t.Parallel()
+	t.Run("chart data", func(t *testing.T) {
+		t.Parallel()
+		var result *TradingViewChartDataResponse
+		err := e.sendHTTPQueryRequest(t.Context(), "public/get_tradingview_chart_data", map[string][]string{
+			"instrument_name": {"BTC-PERPETUAL"},
+			"start_timestamp": {"1792022400000"},
+			"end_timestamp":   {"1792036800000"},
+			"resolution":      {"60"},
+		}, &result)
+		require.NoError(t, err, "sendHTTPQueryRequest must not error")
+		require.NotNil(t, result, "sendHTTPQueryRequest must decode the chart data")
+		assert.NotEmpty(t, result.Ticks, "sendHTTPQueryRequest should decode the chart's candles")
+	})
+
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method, "sendHTTPQueryRequest should send a GET request")
 		assert.Equal(t, "/api/v2/public/get_index_price", r.URL.Path, "sendHTTPQueryRequest should request the method's path")
@@ -582,6 +679,36 @@ func TestSendRequestMatchOKResponse(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "sendRequestMatchOKResponse should return the request failure")
 	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":"ok"}`)
 	assert.NoError(t, limited.sendRequestMatchOKResponse(noDelay, false, "private/reset_mmp", nil), "sendRequestMatchOKResponse should send a non-matching engine request")
+}
+
+func TestMatchOKResponse(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		method string
+		resp   string
+		err    error
+	}{
+		{name: "ok", method: "private/reset_mmp", resp: resultOK},
+		{name: "another result", method: "private/reset_mmp", resp: "failed", err: errUnexpectedResult},
+		{name: "public method's other result", method: "public/set_heartbeat", resp: "failed", err: errUnexpectedResult},
+		{name: "empty", method: "private/reset_mmp", resp: "", err: errUnexpectedResult},
+		{name: "upper case", method: "private/reset_mmp", resp: "OK", err: errUnexpectedResult},
+		{name: "leading space", method: "private/reset_mmp", resp: " ok", err: errUnexpectedResult},
+		{name: "trailing space", method: "private/reset_mmp", resp: "ok ", err: errUnexpectedResult},
+		{name: "part of ok", method: "private/reset_mmp", resp: "o", err: errUnexpectedResult},
+		{name: "longer word", method: "private/reset_mmp", resp: "okay", err: errUnexpectedResult},
+		{name: "success", method: "private/reset_mmp", resp: "success", err: errUnexpectedResult},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := matchOKResponse(tc.method, tc.resp)
+			assert.ErrorIs(t, err, tc.err, "matchOKResponse should accept only an ok result")
+			if tc.err != nil {
+				assert.ErrorContains(t, err, tc.method, "matchOKResponse should name the method whose result it refuses")
+			}
+		})
+	}
 }
 
 func TestIsPrivateMethod(t *testing.T) {

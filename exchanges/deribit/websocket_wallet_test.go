@@ -12,64 +12,118 @@ import (
 
 func TestWebsocketAPIAddToAddressBook(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("Deribit asks for a security key to add a withdrawal address, which live tests cannot give")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().AddToAddressBook(t.Context(), testLegacyAddToAddressBookRequest())
-	require.NoError(t, err, "WebsocketAPI.AddToAddressBook must not error")
-	assert.Equal(t, testLegacyAddressBookEntry(), result, "WebsocketAPI.AddToAddressBook should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().AddToAddressBook(t.Context(), &AddToAddressBookRequest{Currency: currency.BTC, Type: AddressBookTypeWithdrawal, Address: liveForeignAddress, Label: "gct live test"})
+		requireRefusedOnMerits(t, err, "WebsocketAPI.AddToAddressBook")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().AddToAddressBook(t.Context(), testLegacyAddToAddressBookRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().AddToAddressBook(t.Context(), testLegacyAddToAddressBookRequest())
+		require.NoError(t, err, "WebsocketAPI.AddToAddressBook must not error")
+		assert.Equal(t, testLegacyAddressBookEntry(), result, "WebsocketAPI.AddToAddressBook should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().AddToAddressBook(t.Context(), testLegacyAddToAddressBookRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.AddToAddressBook should error without an authenticated connection")
 }
 
 func TestWebsocketAPICancelTransferByID(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelTransferByID needs a pending transfer, which only a transfer to another user, which live tests cannot undo, leaves")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	arg := &CancelTransferByIDRequest{Currency: currency.BTC, ID: mockTransferID}
-	result, err := ex.WebsocketAPI().CancelTransferByID(t.Context(), arg)
-	require.NoError(t, err, "WebsocketAPI.CancelTransferByID must not error")
-	assert.Equal(t, testTransfer(), result, "WebsocketAPI.CancelTransferByID should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().CancelTransferByID(t.Context(), &CancelTransferByIDRequest{Currency: currency.BTC, ID: liveForeignID})
+		requireRefusedOnMerits(t, err, "WebsocketAPI.CancelTransferByID")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().CancelTransferByID(t.Context(), arg)
+	arg := &CancelTransferByIDRequest{Currency: currency.BTC, ID: mockTransferID}
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CancelTransferByID(t.Context(), arg)
+		require.NoError(t, err, "WebsocketAPI.CancelTransferByID must not error")
+		assert.Equal(t, testTransfer(), result, "WebsocketAPI.CancelTransferByID should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().CancelTransferByID(t.Context(), arg)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CancelTransferByID should error without an authenticated connection")
 }
 
 func TestWebsocketAPICancelWithdrawal(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelWithdrawal needs a pending withdrawal, which only a withdrawal, which live tests cannot undo, leaves")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	arg := &CancelWithdrawalRequest{Currency: currency.BTC, ID: mockWithdrawalID}
-	result, err := ex.WebsocketAPI().CancelWithdrawal(t.Context(), arg)
-	require.NoError(t, err, "WebsocketAPI.CancelWithdrawal must not error")
-	assert.Equal(t, testLegacyWithdrawal(), result, "WebsocketAPI.CancelWithdrawal should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().CancelWithdrawal(t.Context(), &CancelWithdrawalRequest{Currency: currency.BTC, ID: liveForeignID})
+		requireRefusedOnMerits(t, err, "WebsocketAPI.CancelWithdrawal")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().CancelWithdrawal(t.Context(), arg)
+	arg := &CancelWithdrawalRequest{Currency: currency.BTC, ID: mockWithdrawalID}
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CancelWithdrawal(t.Context(), arg)
+		require.NoError(t, err, "WebsocketAPI.CancelWithdrawal must not error")
+		assert.Equal(t, testLegacyWithdrawal(), result, "WebsocketAPI.CancelWithdrawal should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().CancelWithdrawal(t.Context(), arg)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CancelWithdrawal should error without an authenticated connection")
 }
 
 func TestWebsocketAPICoinbaseEstimateWithdrawalFee(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	if !mockTests {
-		t.Skip("WebsocketAPI.CoinbaseEstimateWithdrawalFee needs an institutional Coinbase wallet type account")
-	}
-	ex, _ := newWebsocketTestExchange(t)
 	arg := &CoinbaseEstimateWithdrawalFeeRequest{Currency: currency.BTC, NetworkName: mockBitcoinNetwork}
-	result, err := ex.WebsocketAPI().CoinbaseEstimateWithdrawalFee(t.Context(), arg)
-	require.NoError(t, err, "WebsocketAPI.CoinbaseEstimateWithdrawalFee must not error")
-	assert.Equal(t, testWithdrawalFeeEstimate(t), result, "WebsocketAPI.CoinbaseEstimateWithdrawalFee should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CoinbaseEstimateWithdrawalFee(t.Context(), arg)
+		if requireAnsweredOnMerits(t, err, "WebsocketAPI.CoinbaseEstimateWithdrawalFee") {
+			assert.NotNil(t, result, "WebsocketAPI.CoinbaseEstimateWithdrawalFee should return the estimate")
+		}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().CoinbaseEstimateWithdrawalFee(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CoinbaseEstimateWithdrawalFee(t.Context(), arg)
+		require.NoError(t, err, "WebsocketAPI.CoinbaseEstimateWithdrawalFee must not error")
+		assert.Equal(t, testWithdrawalFeeEstimate(t), result, "WebsocketAPI.CoinbaseEstimateWithdrawalFee should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().CoinbaseEstimateWithdrawalFee(t.Context(), arg)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CoinbaseEstimateWithdrawalFee should error without an authenticated connection")
 }
 
@@ -95,13 +149,26 @@ func TestWebsocketAPICreateDepositAddress(t *testing.T) {
 
 func TestWebsocketAPIDeleteAddressBeneficiary(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("WebsocketAPI.DeleteAddressBeneficiary would delete an address's travel rule information, which a live test cannot restore")
-	}
-	ex, _ := newWebsocketTestExchange(t)
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		err := ex.WebsocketAPI().DeleteAddressBeneficiary(t.Context(), &AddressBeneficiaryRequest{Currency: currency.BTC, Address: liveForeignAddress})
+		requireRefusedOnMerits(t, err, "WebsocketAPI.DeleteAddressBeneficiary")
+	})
+
 	arg := &AddressBeneficiaryRequest{Currency: currency.BTC, Address: mockLegacyAddress}
-	require.NoError(t, ex.WebsocketAPI().DeleteAddressBeneficiary(t.Context(), arg), "WebsocketAPI.DeleteAddressBeneficiary must not error")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().DeleteAddressBeneficiary(t.Context(), arg), "WebsocketAPI.DeleteAddressBeneficiary must not error")
+	})
 
 	err := newTestExchange(t).WebsocketAPI().DeleteAddressBeneficiary(t.Context(), arg)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.DeleteAddressBeneficiary should error without an authenticated connection")
@@ -245,13 +312,26 @@ func TestWebsocketAPIListAddressBeneficiaries(t *testing.T) {
 
 func TestWebsocketAPIRemoveFromAddressBook(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("WebsocketAPI.RemoveFromAddressBook would remove an entry, which adding again restarts the address delay of")
-	}
-	ex, _ := newWebsocketTestExchange(t)
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		err := ex.WebsocketAPI().RemoveFromAddressBook(t.Context(), &RemoveFromAddressBookRequest{Currency: currency.BTC, Type: AddressBookTypeWithdrawal, Address: liveForeignAddress})
+		requireRefusedOnMerits(t, err, "WebsocketAPI.RemoveFromAddressBook")
+	})
+
 	arg := &RemoveFromAddressBookRequest{Currency: currency.BTC, Type: AddressBookTypeTransfer, Address: mockLegacyAddress}
-	require.NoError(t, ex.WebsocketAPI().RemoveFromAddressBook(t.Context(), arg), "WebsocketAPI.RemoveFromAddressBook must not error")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().RemoveFromAddressBook(t.Context(), arg), "WebsocketAPI.RemoveFromAddressBook must not error")
+	})
 
 	err := newTestExchange(t).WebsocketAPI().RemoveFromAddressBook(t.Context(), arg)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.RemoveFromAddressBook should error without an authenticated connection")
@@ -259,135 +339,265 @@ func TestWebsocketAPIRemoveFromAddressBook(t *testing.T) {
 
 func TestWebsocketAPISaveAddressBeneficiary(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("WebsocketAPI.SaveAddressBeneficiary would overwrite an address's travel rule information, which a live test cannot restore")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().SaveAddressBeneficiary(t.Context(), testSaveAddressBeneficiaryRequest())
-	require.NoError(t, err, "WebsocketAPI.SaveAddressBeneficiary must not error")
-	assert.Equal(t, testAddressBeneficiary(), result, "WebsocketAPI.SaveAddressBeneficiary should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		arg := testSaveAddressBeneficiaryRequest()
+		arg.Address = liveForeignAddress
+		_, err := ex.WebsocketAPI().SaveAddressBeneficiary(t.Context(), arg)
+		requireRefusedOnMerits(t, err, "WebsocketAPI.SaveAddressBeneficiary")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().SaveAddressBeneficiary(t.Context(), testSaveAddressBeneficiaryRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().SaveAddressBeneficiary(t.Context(), testSaveAddressBeneficiaryRequest())
+		require.NoError(t, err, "WebsocketAPI.SaveAddressBeneficiary must not error")
+		assert.Equal(t, testAddressBeneficiary(), result, "WebsocketAPI.SaveAddressBeneficiary should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().SaveAddressBeneficiary(t.Context(), testSaveAddressBeneficiaryRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SaveAddressBeneficiary should error without an authenticated connection")
 }
 
 func TestWebsocketAPISetAddressRequiresSecurityKey(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("Deribit asks for a security key to change a withdrawal address, which live tests cannot give")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().SetAddressRequiresSecurityKey(t.Context(), testLegacySecurityKeyRequest())
-	require.NoError(t, err, "WebsocketAPI.SetAddressRequiresSecurityKey must not error")
-	assert.Equal(t, testLegacySecurityKeyEntry(), result, "WebsocketAPI.SetAddressRequiresSecurityKey should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().SetAddressRequiresSecurityKey(t.Context(), &SetAddressRequiresSecurityKeyRequest{Currency: currency.BTC, Type: AddressBookTypeWithdrawal, Address: liveForeignAddress, RequiresSecurityKey: true})
+		requireRefusedOnMerits(t, err, "WebsocketAPI.SetAddressRequiresSecurityKey")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().SetAddressRequiresSecurityKey(t.Context(), testLegacySecurityKeyRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().SetAddressRequiresSecurityKey(t.Context(), testLegacySecurityKeyRequest())
+		require.NoError(t, err, "WebsocketAPI.SetAddressRequiresSecurityKey must not error")
+		assert.Equal(t, testLegacySecurityKeyEntry(), result, "WebsocketAPI.SetAddressRequiresSecurityKey should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().SetAddressRequiresSecurityKey(t.Context(), testLegacySecurityKeyRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SetAddressRequiresSecurityKey should error without an authenticated connection")
 }
 
 func TestWebsocketAPISetClearanceOriginator(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("WebsocketAPI.SetClearanceOriginator needs a deposit awaiting its originator, which live tests do not have")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().SetClearanceOriginator(t.Context(), testSetClearanceOriginatorRequest())
-	require.NoError(t, err, "WebsocketAPI.SetClearanceOriginator must not error")
-	assert.Equal(t, testClearedDeposit(), result, "WebsocketAPI.SetClearanceOriginator should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		arg := testSetClearanceOriginatorRequest()
+		arg.Deposit.UserID = liveForeignID
+		_, err := ex.WebsocketAPI().SetClearanceOriginator(t.Context(), arg)
+		requireRefusedOnMerits(t, err, "WebsocketAPI.SetClearanceOriginator")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().SetClearanceOriginator(t.Context(), testSetClearanceOriginatorRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().SetClearanceOriginator(t.Context(), testSetClearanceOriginatorRequest())
+		require.NoError(t, err, "WebsocketAPI.SetClearanceOriginator must not error")
+		assert.Equal(t, testClearedDeposit(), result, "WebsocketAPI.SetClearanceOriginator should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().SetClearanceOriginator(t.Context(), testSetClearanceOriginatorRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SetClearanceOriginator should error without an authenticated connection")
 }
 
 func TestWebsocketAPISetCoinbaseSubaccountWithdrawalsAllowed(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("WebsocketAPI.SetCoinbaseSubaccountWithdrawalsAllowed needs a Coinbase wallet type main account")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().SetCoinbaseSubaccountWithdrawalsAllowed(t.Context(), true)
-	require.NoError(t, err, "WebsocketAPI.SetCoinbaseSubaccountWithdrawalsAllowed must not error")
-	assert.Equal(t, &CoinbaseSubaccountWithdrawalsResponse{Enabled: true}, result, "WebsocketAPI.SetCoinbaseSubaccountWithdrawalsAllowed should decode the setting")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		// false is Deribit's default, as nothing reads the setting back to restore
+		result, err := ex.WebsocketAPI().SetCoinbaseSubaccountWithdrawalsAllowed(t.Context(), false)
+		if requireAnsweredOnMerits(t, err, "WebsocketAPI.SetCoinbaseSubaccountWithdrawalsAllowed") {
+			assert.False(t, result.Enabled, "WebsocketAPI.SetCoinbaseSubaccountWithdrawalsAllowed should forbid subaccount withdrawals")
+		}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().SetCoinbaseSubaccountWithdrawalsAllowed(t.Context(), true)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().SetCoinbaseSubaccountWithdrawalsAllowed(t.Context(), true)
+		require.NoError(t, err, "WebsocketAPI.SetCoinbaseSubaccountWithdrawalsAllowed must not error")
+		assert.Equal(t, &CoinbaseSubaccountWithdrawalsResponse{Enabled: true}, result, "WebsocketAPI.SetCoinbaseSubaccountWithdrawalsAllowed should decode the setting")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().SetCoinbaseSubaccountWithdrawalsAllowed(t.Context(), true)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SetCoinbaseSubaccountWithdrawalsAllowed should error without an authenticated connection")
 }
 
 func TestWebsocketAPISubmitTransferBetweenSubaccounts(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("WebsocketAPI.SubmitTransferBetweenSubaccounts needs subaccounts, which live tests do not have")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().SubmitTransferBetweenSubaccounts(t.Context(), testSubmitTransferBetweenSubaccountsRequest())
-	require.NoError(t, err, "WebsocketAPI.SubmitTransferBetweenSubaccounts must not error")
-	assert.Equal(t, testTransferBetweenSubaccounts(), result, "WebsocketAPI.SubmitTransferBetweenSubaccounts should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().SubmitTransferBetweenSubaccounts(t.Context(), &SubmitTransferBetweenSubaccountsRequest{Currency: currency.BTC, Amount: 0.0001, Destination: liveForeignID})
+		requireRefusedOnMerits(t, err, "WebsocketAPI.SubmitTransferBetweenSubaccounts")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().SubmitTransferBetweenSubaccounts(t.Context(), testSubmitTransferBetweenSubaccountsRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().SubmitTransferBetweenSubaccounts(t.Context(), testSubmitTransferBetweenSubaccountsRequest())
+		require.NoError(t, err, "WebsocketAPI.SubmitTransferBetweenSubaccounts must not error")
+		assert.Equal(t, testTransferBetweenSubaccounts(), result, "WebsocketAPI.SubmitTransferBetweenSubaccounts should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().SubmitTransferBetweenSubaccounts(t.Context(), testSubmitTransferBetweenSubaccountsRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SubmitTransferBetweenSubaccounts should error without an authenticated connection")
 }
 
 func TestWebsocketAPISubmitTransferToSubaccount(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("WebsocketAPI.SubmitTransferToSubaccount needs a subaccount, which live tests do not have")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().SubmitTransferToSubaccount(t.Context(), testSubmitTransferToSubaccountRequest())
-	require.NoError(t, err, "WebsocketAPI.SubmitTransferToSubaccount must not error")
-	assert.Equal(t, testTransfer(), result, "WebsocketAPI.SubmitTransferToSubaccount should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().SubmitTransferToSubaccount(t.Context(), &SubmitTransferToSubaccountRequest{Currency: currency.BTC, Amount: 0.0001, Destination: liveForeignID})
+		requireRefusedOnMerits(t, err, "WebsocketAPI.SubmitTransferToSubaccount")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().SubmitTransferToSubaccount(t.Context(), testSubmitTransferToSubaccountRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().SubmitTransferToSubaccount(t.Context(), testSubmitTransferToSubaccountRequest())
+		require.NoError(t, err, "WebsocketAPI.SubmitTransferToSubaccount must not error")
+		assert.Equal(t, testTransfer(), result, "WebsocketAPI.SubmitTransferToSubaccount should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().SubmitTransferToSubaccount(t.Context(), testSubmitTransferToSubaccountRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SubmitTransferToSubaccount should error without an authenticated connection")
 }
 
 func TestWebsocketAPISubmitTransferToUser(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("WebsocketAPI.SubmitTransferToUser moves funds to another user, which a live test cannot undo")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().SubmitTransferToUser(t.Context(), testSubmitTransferToUserRequest())
-	require.NoError(t, err, "WebsocketAPI.SubmitTransferToUser must not error")
-	assert.Equal(t, testTransfer(), result, "WebsocketAPI.SubmitTransferToUser should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().SubmitTransferToUser(t.Context(), &SubmitTransferToUserRequest{Currency: currency.BTC, Amount: 0.0001, Destination: liveForeignAddress})
+		requireRefusedOnMerits(t, err, "WebsocketAPI.SubmitTransferToUser")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().SubmitTransferToUser(t.Context(), testSubmitTransferToUserRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().SubmitTransferToUser(t.Context(), testSubmitTransferToUserRequest())
+		require.NoError(t, err, "WebsocketAPI.SubmitTransferToUser must not error")
+		assert.Equal(t, testTransfer(), result, "WebsocketAPI.SubmitTransferToUser should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().SubmitTransferToUser(t.Context(), testSubmitTransferToUserRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SubmitTransferToUser should error without an authenticated connection")
 }
 
 func TestWebsocketAPIUpdateInAddressBook(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("Deribit asks for a security key to update a withdrawal address, which live tests cannot give")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().UpdateInAddressBook(t.Context(), testLegacyUpdateInAddressBookRequest())
-	require.NoError(t, err, "WebsocketAPI.UpdateInAddressBook must not error")
-	assert.Equal(t, &UpdateInAddressBookResponse{}, result, "WebsocketAPI.UpdateInAddressBook should accept a legacy wallet type acknowledgement")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		arg := testLegacyUpdateInAddressBookRequest()
+		arg.Address = liveForeignAddress
+		_, err := ex.WebsocketAPI().UpdateInAddressBook(t.Context(), arg)
+		requireRefusedOnMerits(t, err, "WebsocketAPI.UpdateInAddressBook")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().UpdateInAddressBook(t.Context(), testLegacyUpdateInAddressBookRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().UpdateInAddressBook(t.Context(), testLegacyUpdateInAddressBookRequest())
+		require.NoError(t, err, "WebsocketAPI.UpdateInAddressBook must not error")
+		assert.Equal(t, &UpdateInAddressBookResponse{}, result, "WebsocketAPI.UpdateInAddressBook should accept a legacy wallet type acknowledgement")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().UpdateInAddressBook(t.Context(), testLegacyUpdateInAddressBookRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.UpdateInAddressBook should error without an authenticated connection")
 }
 
 func TestWebsocketAPIWithdraw(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("WebsocketAPI.Withdraw moves funds off Deribit, which a live test cannot undo")
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().Withdraw(t.Context(), testLegacyWithdrawRequest())
-	require.NoError(t, err, "WebsocketAPI.Withdraw must not error")
-	assert.Equal(t, testRequestedLegacyWithdrawal(), result, "WebsocketAPI.Withdraw should decode every field")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		arg := testLegacyWithdrawRequest()
+		arg.Address = liveForeignAddress
+		arg.Amount = 0.0001
+		arg.Nonce = ""
+		_, err := ex.WebsocketAPI().Withdraw(t.Context(), arg)
+		requireRefusedOnMerits(t, err, "WebsocketAPI.Withdraw")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().Withdraw(t.Context(), testLegacyWithdrawRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().Withdraw(t.Context(), testLegacyWithdrawRequest())
+		require.NoError(t, err, "WebsocketAPI.Withdraw must not error")
+		assert.Equal(t, testRequestedLegacyWithdrawal(), result, "WebsocketAPI.Withdraw should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().Withdraw(t.Context(), testLegacyWithdrawRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.Withdraw should error without an authenticated connection")
 }
