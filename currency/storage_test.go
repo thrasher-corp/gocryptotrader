@@ -1,6 +1,7 @@
 package currency
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -263,4 +264,204 @@ func TestStorageUpdaterTickRefreshesRates(t *testing.T) {
 	mock.fail.Store(true)
 	require.NoError(t, s.Shutdown(), "Shutdown must not error")
 	assert.True(t, s.fxRates.HasData(), "rates should stay cached after Shutdown")
+}
+
+func TestConvertCurrencyDoesNotBlockDuringForexRefresh(t *testing.T) {
+	called := make(chan struct{}, 1)
+	resume := make(chan struct{})
+	initialRates := map[string]float64{
+		"USDEUR": 1.25,
+		"USDAUD": 1.50,
+	}
+	updatedRates := map[string]float64{
+		"USDEUR": 2.00,
+		"USDAUD": 2.50,
+	}
+
+	fxProviders, _ := newChannelControlledMockProvider(called, resume, updatedRates)
+	s := &Storage{
+		baseCurrency:               USD,
+		defaultBaseCurrency:        USD,
+		fiatCurrencies:             Currencies{USD, EUR, AUD},
+		defaultFiatCurrencies:      Currencies{USD, EUR, AUD},
+		fiatExchangeMarkets:        fxProviders,
+		path:                       filepath.Join(t.TempDir(), DefaultStorageFile),
+		currencyFileUpdateDelay:    time.Hour,
+		foreignExchangeUpdateDelay: time.Hour,
+		shutdown:                   make(chan struct{}),
+	}
+	s.SetupConversionRates()
+	s.updaterRunning.Store(true)
+
+	// Populate initial cached rates
+	require.NoError(t, s.updateExchangeRates(initialRates))
+	require.True(t, s.fxRates.HasData())
+
+	// Verify initial conversion rate
+	cVal, err := s.ConvertCurrency(100, USD, EUR)
+	require.NoError(t, err)
+	assert.Equal(t, 125.0, cVal)
+
+	// Start a background refresh that blocks in GetCurrencyData
+	refreshDone := make(chan error, 1)
+	go func() {
+		refreshDone <- s.SeedForeignExchangeRates()
+	}()
+
+	// Wait until provider GetRates is in-flight
+	select {
+	case <-called:
+	case <-time.After(5 * time.Second):
+		t.Fatal("forex provider was not called in time")
+	}
+
+	// While refresh is blocked in network I/O, ConvertCurrency must proceed without blocking
+	convertDone := make(chan struct{})
+	var bgConverted float64
+	var bgErr error
+	go func() {
+		bgConverted, bgErr = s.ConvertCurrency(100, USD, EUR)
+		close(convertDone)
+	}()
+
+	select {
+	case <-convertDone:
+		require.NoError(t, bgErr)
+		assert.Equal(t, 125.0, bgConverted, "cached rates must be used while provider refresh is in-flight")
+	case <-time.After(1 * time.Second):
+		t.Fatal("ConvertCurrency was blocked by in-flight forex provider request")
+	}
+
+	// GetExchangeRates must also return cached rates without blocking
+	rates, err := s.GetExchangeRates()
+	require.NoError(t, err)
+	assert.NotEmpty(t, rates)
+
+	// Unblock provider refresh
+	close(resume)
+	require.NoError(t, <-refreshDone)
+
+	// Once refresh completes, new rates must be returned
+	newVal, err := s.ConvertCurrency(100, USD, EUR)
+	require.NoError(t, err)
+	assert.Equal(t, 200.0, newVal, "updated rates must be used after refresh completes")
+}
+
+func TestSeedForeignExchangeRatesByCurrenciesDoesNotBlock(t *testing.T) {
+	called := make(chan struct{}, 1)
+	resume := make(chan struct{})
+	initialRates := map[string]float64{
+		"USDEUR": 1.25,
+		"USDAUD": 1.50,
+	}
+	updatedRates := map[string]float64{
+		"USDEUR": 3.00,
+		"USDAUD": 3.50,
+	}
+
+	fxProviders, _ := newChannelControlledMockProvider(called, resume, updatedRates)
+	s := &Storage{
+		baseCurrency:               USD,
+		defaultBaseCurrency:        USD,
+		fiatCurrencies:             Currencies{USD, EUR, AUD},
+		defaultFiatCurrencies:      Currencies{USD, EUR, AUD},
+		fiatExchangeMarkets:        fxProviders,
+		path:                       filepath.Join(t.TempDir(), DefaultStorageFile),
+		currencyFileUpdateDelay:    time.Hour,
+		foreignExchangeUpdateDelay: time.Hour,
+		shutdown:                   make(chan struct{}),
+	}
+	s.SetupConversionRates()
+	s.updaterRunning.Store(true)
+
+	require.NoError(t, s.updateExchangeRates(initialRates))
+
+	refreshDone := make(chan error, 1)
+	go func() {
+		refreshDone <- s.SeedForeignExchangeRatesByCurrencies(Currencies{USD, EUR, AUD})
+	}()
+
+	select {
+	case <-called:
+	case <-time.After(5 * time.Second):
+		t.Fatal("forex provider was not called in time")
+	}
+
+	convertDone := make(chan struct{})
+	var bgConverted float64
+	var bgErr error
+	go func() {
+		bgConverted, bgErr = s.ConvertCurrency(100, USD, EUR)
+		close(convertDone)
+	}()
+
+	select {
+	case <-convertDone:
+		require.NoError(t, bgErr)
+		assert.Equal(t, 125.0, bgConverted)
+	case <-time.After(1 * time.Second):
+		t.Fatal("ConvertCurrency was blocked during SeedForeignExchangeRatesByCurrencies")
+	}
+
+	close(resume)
+	require.NoError(t, <-refreshDone)
+
+	newVal, err := s.ConvertCurrency(100, USD, EUR)
+	require.NoError(t, err)
+	assert.Equal(t, 300.0, newVal)
+}
+
+func TestForexRefreshFailurePreservesCache(t *testing.T) {
+	called := make(chan struct{}, 1)
+	resume := make(chan struct{})
+	initialRates := map[string]float64{
+		"USDEUR": 1.25,
+		"USDAUD": 1.50,
+	}
+
+	fxProviders, mock := newChannelControlledMockProvider(called, resume, nil)
+	mock.err = errors.New("simulated forex provider network failure")
+
+	s := &Storage{
+		baseCurrency:               USD,
+		defaultBaseCurrency:        USD,
+		fiatCurrencies:             Currencies{USD, EUR, AUD},
+		defaultFiatCurrencies:      Currencies{USD, EUR, AUD},
+		fiatExchangeMarkets:        fxProviders,
+		path:                       filepath.Join(t.TempDir(), DefaultStorageFile),
+		currencyFileUpdateDelay:    time.Hour,
+		foreignExchangeUpdateDelay: time.Hour,
+		shutdown:                   make(chan struct{}),
+	}
+	s.SetupConversionRates()
+	s.updaterRunning.Store(true)
+
+	// Populate initial cache
+	require.NoError(t, s.updateExchangeRates(initialRates))
+
+	close(resume) // Allow provider call to return immediately with error
+
+	// Refresh fails
+	err := s.SeedForeignExchangeRates()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "simulated forex provider network failure")
+
+	// Cache must be preserved
+	rate, err := s.ConvertCurrency(100, USD, EUR)
+	require.NoError(t, err)
+	assert.Equal(t, 125.0, rate, "previous rates must be preserved when refresh fails")
+
+	// SeedDefaultForeignExchangeRates failure also preserves cache
+	err = s.SeedDefaultForeignExchangeRates()
+	require.Error(t, err)
+	rate, err = s.ConvertCurrency(100, USD, EUR)
+	require.NoError(t, err)
+	assert.Equal(t, 125.0, rate, "previous rates must be preserved when default refresh fails")
+
+	// SeedForeignExchangeRatesByCurrencies failure also preserves cache
+	err = s.SeedForeignExchangeRatesByCurrencies(Currencies{USD, EUR})
+	require.Error(t, err)
+	rate, err = s.ConvertCurrency(100, USD, EUR)
+	require.NoError(t, err)
+	assert.Equal(t, 125.0, rate, "previous rates must be preserved when currencies refresh fails")
 }
