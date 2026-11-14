@@ -77,3 +77,48 @@ func (c *CountingMockProvider) GetRates(baseCurrency, symbols string) (map[strin
 	}
 	return res, nil
 }
+
+type channelControlledMockProvider struct {
+	called chan struct{}
+	resume chan struct{}
+	rates  map[string]float64
+	err    error
+}
+
+func newChannelControlledMockProvider(called, resume chan struct{}, rates map[string]float64) (*forexprovider.ForexProviders, *channelControlledMockProvider) {
+	p := &channelControlledMockProvider{
+		called: called,
+		resume: resume,
+		rates:  rates,
+	}
+	return &forexprovider.ForexProviders{
+		Primary: base.Provider{
+			Provider:            p,
+			SupportedCurrencies: []string{"USD", "EUR", "AUD", "CAD"},
+		},
+	}, p
+}
+
+func (c *channelControlledMockProvider) GetName() string           { return "ChannelControlledMockProvider" }
+func (c *channelControlledMockProvider) Setup(base.Settings) error { return nil }
+func (c *channelControlledMockProvider) IsEnabled() bool           { return true }
+func (c *channelControlledMockProvider) IsPrimaryProvider() bool   { return true }
+func (c *channelControlledMockProvider) GetSupportedCurrencies() ([]string, error) {
+	return []string{"USD", "EUR", "AUD", "CAD"}, nil
+}
+
+func (c *channelControlledMockProvider) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
+	if c.called != nil {
+		select {
+		case c.called <- struct{}{}:
+		default:
+		}
+	}
+	if c.resume != nil {
+		<-c.resume
+	}
+	if c.err != nil {
+		return nil, c.err
+	}
+	return c.rates, nil
+}
