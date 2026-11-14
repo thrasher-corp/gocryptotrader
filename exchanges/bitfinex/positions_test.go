@@ -197,28 +197,38 @@ func TestClaimPosition(t *testing.T) {
 	_, err = e.ClaimPosition(t.Context(), &ClaimPositionRequest{Amount: 0.001})
 	require.ErrorIs(t, err, errPositionIDRequired, "ClaimPosition must require a position ID")
 
-	if !mockTests {
-		t.Skip("ClaimPosition settles a position, which a test cannot undo")
+	// ClaimPosition settles a position, which a test cannot undo, so the live case names a position no account holds
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The mock records no reply to a request built to be refused")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.ClaimPosition(t.Context(), &ClaimPositionRequest{PositionID: liveForeignID, Amount: 0.001})
+		requireRefusedOnMerits(t, err, "ClaimPosition")
+	})
+
+	if mockTests {
+		result, err := e.ClaimPosition(t.Context(), &ClaimPositionRequest{PositionID: 142031891, Amount: 0.001})
+		require.NoError(t, err, "ClaimPosition must not error")
+		exp := &Notification[PositionResponse]{
+			Time: types.Time(time.UnixMilli(1568650414540)),
+			Type: "pm-req",
+			Data: PositionResponse{
+				Symbol:    "tBTCUSD",
+				Status:    "ACTIVE",
+				Amount:    -0.001,
+				BasePrice: 10119,
+				ID:        142031891,
+				CreatedAt: types.Time(time.UnixMilli(1568650294000)),
+				UpdatedAt: types.Time(time.UnixMilli(1568650294000)),
+				// The docs give this endpoint's meta as a string holding JSON, where the others give an object
+				Meta: json.RawMessage(`"{\"reason\": \"TRADE\", \"order_id\": 31089337681, \"liq_stage\": null, \"trade_price\": \"10119.0\", \"trade_amount\": \"-0.001\", \"user_id_oppo\": 183923, \"order_id_oppo\": 31089692490}"`),
+			},
+			Status: NotificationStatusSuccess,
+		}
+		assert.Equal(t, exp, result, "ClaimPosition should decode every field")
 	}
-	result, err := e.ClaimPosition(t.Context(), &ClaimPositionRequest{PositionID: 142031891, Amount: 0.001})
-	require.NoError(t, err, "ClaimPosition must not error")
-	exp := &Notification[PositionResponse]{
-		Time: types.Time(time.UnixMilli(1568650414540)),
-		Type: "pm-req",
-		Data: PositionResponse{
-			Symbol:    "tBTCUSD",
-			Status:    "ACTIVE",
-			Amount:    -0.001,
-			BasePrice: 10119,
-			ID:        142031891,
-			CreatedAt: types.Time(time.UnixMilli(1568650294000)),
-			UpdatedAt: types.Time(time.UnixMilli(1568650294000)),
-			// The docs give this endpoint's meta as a string holding JSON, where the others give an object
-			Meta: json.RawMessage(`"{\"reason\": \"TRADE\", \"order_id\": 31089337681, \"liq_stage\": null, \"trade_price\": \"10119.0\", \"trade_amount\": \"-0.001\", \"user_id_oppo\": 183923, \"order_id_oppo\": 31089692490}"`),
-		},
-		Status: NotificationStatusSuccess,
-	}
-	assert.Equal(t, exp, result, "ClaimPosition should decode every field")
 
 	_, err = newResponseServerExchange(t, `null`).ClaimPosition(t.Context(), &ClaimPositionRequest{PositionID: 142031891})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "ClaimPosition should error for a null response")
@@ -240,19 +250,29 @@ func TestIncreasePosition(t *testing.T) { //nolint:tparallel // The subtests sha
 	_, err = e.IncreasePosition(t.Context(), &IncreasePositionRequest{Symbol: "tBTCUSD"})
 	require.ErrorIs(t, err, errInvalidAmount, "IncreasePosition must refuse a zero amount")
 
-	if !mockTests {
-		t.Skip("IncreasePosition opens or grows a position, which a test cannot undo")
+	// IncreasePosition opens or grows a position, which a test cannot undo, so the live case names a pair Bitfinex lists
+	// nowhere
+	t.Run("live", func(t *testing.T) {
+		if mockTests {
+			t.Skip("The mock records no reply to a request built to be refused")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.IncreasePosition(t.Context(), &IncreasePositionRequest{Symbol: "t" + liveUnlistedCurrency.String() + ":USD", Amount: 1})
+		requireRefusedOnMerits(t, err, "IncreasePosition")
+	})
+
+	if mockTests {
+		result, err := e.IncreasePosition(t.Context(), &IncreasePositionRequest{Symbol: "tBTCUSD", Amount: 1})
+		require.NoError(t, err, "IncreasePosition must not error")
+		exp := &Notification[PositionResponse]{
+			Time:   types.Time(time.UnixMilli(1612447904081)),
+			Type:   "pmi-req",
+			Data:   PositionResponse{Symbol: "tBTCUSD", Amount: 1, BasePrice: 100},
+			Status: NotificationStatusSuccess,
+			Text:   "Submitting position increase.",
+		}
+		assert.Equal(t, exp, result, "IncreasePosition should decode every field")
 	}
-	result, err := e.IncreasePosition(t.Context(), &IncreasePositionRequest{Symbol: "tBTCUSD", Amount: 1})
-	require.NoError(t, err, "IncreasePosition must not error")
-	exp := &Notification[PositionResponse]{
-		Time:   types.Time(time.UnixMilli(1612447904081)),
-		Type:   "pmi-req",
-		Data:   PositionResponse{Symbol: "tBTCUSD", Amount: 1, BasePrice: 100},
-		Status: NotificationStatusSuccess,
-		Text:   "Submitting position increase.",
-	}
-	assert.Equal(t, exp, result, "IncreasePosition should decode every field")
 
 	_, err = newResponseServerExchange(t, `null`).IncreasePosition(t.Context(), &IncreasePositionRequest{Symbol: "tBTCUSD", Amount: 1})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "IncreasePosition should error for a null response")

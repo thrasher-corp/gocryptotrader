@@ -637,19 +637,28 @@ func TestRequestWithdrawal(t *testing.T) { //nolint:tparallel // The subtests sh
 	_, err = newUnavailableServerExchange(t).RequestWithdrawal(t.Context(), testWithdrawalRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "RequestWithdrawal should return the request failure")
 
-	if !mockTests {
-		t.Skip("RequestWithdrawal moves funds irreversibly, so it is not run live")
+	// RequestWithdrawal moves funds irreversibly, so the live case asks for more than any account holds, to no address
+	t.Run("live", func(t *testing.T) {
+		if mockTests {
+			t.Skip("The mock records no reply to a request built to be refused")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.RequestWithdrawal(t.Context(), &WithdrawalRequest{Wallet: WalletTypeExchange, Method: "bitcoin", Amount: liveUnaffordableBitcoin, Address: liveInvalidAddress})
+		requireRefusedOnMerits(t, err, "RequestWithdrawal")
+	})
+
+	if mockTests {
+		result, err := e.RequestWithdrawal(t.Context(), testWithdrawalRequest())
+		require.NoError(t, err, "RequestWithdrawal must not error")
+		exp := &Notification[WithdrawalResponse]{
+			Time:   types.Time(time.UnixMilli(1568742390999)),
+			Type:   "acc_wd-req",
+			Data:   WithdrawalResponse{ID: 13080092, Method: "ethereum", Wallet: WalletTypeExchange, Amount: 0.01, Fee: 0.00135},
+			Status: NotificationStatusSuccess,
+			Text:   "Your withdrawal request has been successfully submitted.",
+		}
+		assert.Equal(t, exp, result, "RequestWithdrawal should decode the withdrawal")
 	}
-	result, err := e.RequestWithdrawal(t.Context(), testWithdrawalRequest())
-	require.NoError(t, err, "RequestWithdrawal must not error")
-	exp := &Notification[WithdrawalResponse]{
-		Time:   types.Time(time.UnixMilli(1568742390999)),
-		Type:   "acc_wd-req",
-		Data:   WithdrawalResponse{ID: 13080092, Method: "ethereum", Wallet: WalletTypeExchange, Amount: 0.01, Fee: 0.00135},
-		Status: NotificationStatusSuccess,
-		Text:   "Your withdrawal request has been successfully submitted.",
-	}
-	assert.Equal(t, exp, result, "RequestWithdrawal should decode the withdrawal")
 }
 
 func TestGetMovements(t *testing.T) {

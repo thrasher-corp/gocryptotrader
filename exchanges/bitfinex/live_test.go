@@ -21,7 +21,8 @@ import (
 var (
 	mockTests = false
 	// apiCredentials holds an API key (Key) and secret (Secret); please supply your own to test the authenticated
-	// endpoints live
+	// endpoints live. A one time password from the account's authenticator (OneTimePassword) also runs a Thalex
+	// transfer case, whose transfer asks for more bitcoin than will ever exist; each password runs one of them
 	apiCredentials = &accounts.Credentials{}
 )
 

@@ -3090,15 +3090,27 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) { //nolint:tparallel // the f
 		})
 	})
 
-	if !mockTests {
-		t.Skip("A withdrawal cannot be undone")
-	}
-	resp, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
-		Exchange: e.Name, Currency: currency.ETH, Amount: 0.01, Description: "test", Type: withdraw.Crypto,
-		Crypto: withdraw.CryptoRequest{Address: "0x6C20eBD2222CE0F80971A5D2C4Da29e70a0B9b23"},
+	// A withdrawal cannot be undone, so the live case asks for more than any account holds, to no address
+	t.Run("live", func(t *testing.T) {
+		if mockTests {
+			t.Skip("The mock records no reply to a request built to be refused")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
+			Exchange: e.Name, Currency: currency.BTC, Amount: liveUnaffordableBitcoin, Type: withdraw.Crypto,
+			Crypto: withdraw.CryptoRequest{Address: liveInvalidAddress},
+		})
+		requireRefusedOnMerits(t, err, "WithdrawCryptocurrencyFunds")
 	})
-	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error")
-	assert.Equal(t, &withdraw.ExchangeResponse{ID: "13080092", Status: NotificationStatusSuccess}, resp, "WithdrawCryptocurrencyFunds should return the withdrawal's ID")
+
+	if mockTests {
+		resp, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
+			Exchange: e.Name, Currency: currency.ETH, Amount: 0.01, Description: "test", Type: withdraw.Crypto,
+			Crypto: withdraw.CryptoRequest{Address: "0x6C20eBD2222CE0F80971A5D2C4Da29e70a0B9b23"},
+		})
+		require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error")
+		assert.Equal(t, &withdraw.ExchangeResponse{ID: "13080092", Status: NotificationStatusSuccess}, resp, "WithdrawCryptocurrencyFunds should return the withdrawal's ID")
+	}
 }
 
 func TestWithdrawalTravelRule(t *testing.T) {
@@ -3124,8 +3136,15 @@ func TestWithdrawalTravelRule(t *testing.T) {
 	}
 }
 
-func TestRequestFiatWithdrawalPayload(t *testing.T) { //nolint:tparallel // serial subtests share ex and the payload it records
+func TestRequestFiatWithdrawal(t *testing.T) { //nolint:tparallel // serial subtests share ex and the payload it records
 	t.Parallel()
+	_, err := e.RequestFiatWithdrawal(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "RequestFiatWithdrawal must reject a nil request")
+	_, err = e.RequestFiatWithdrawal(t.Context(), &FiatWithdrawalRequest{Wallet: "novel", Withdrawal: &withdraw.Request{}})
+	require.ErrorIs(t, err, errInvalidAccountWallet, "RequestFiatWithdrawal must need a wallet")
+	_, err = e.RequestFiatWithdrawal(t.Context(), &FiatWithdrawalRequest{Wallet: WalletTypeExchange, Withdrawal: &withdraw.Request{}})
+	require.ErrorIs(t, err, errInvalidAmount, "RequestFiatWithdrawal must need an amount")
+
 	var payload map[string]any
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v1/withdraw", r.URL.Path, "a wire should be sent to v1's withdraw endpoint")
@@ -3163,7 +3182,7 @@ func TestRequestFiatWithdrawalPayload(t *testing.T) { //nolint:tparallel // seri
 		}
 	}
 	w := newWithdrawal()
-	_, err := ex.RequestFiatWithdrawal(t.Context(), &FiatWithdrawalRequest{Wallet: WalletTypeExchange, Withdrawal: w})
+	_, err = ex.RequestFiatWithdrawal(t.Context(), &FiatWithdrawalRequest{Wallet: WalletTypeExchange, Withdrawal: w})
 	require.NoError(t, err, "RequestFiatWithdrawal must not error")
 	assert.NotContains(t, payload, "account_address", "a wire should send no account holder's address, which GCT does not hold")
 	assert.Equal(t, "33 Liberty Street", payload["bank_address"], "a wire should send the bank's address")
@@ -3205,6 +3224,16 @@ func TestRequestFiatWithdrawalPayload(t *testing.T) { //nolint:tparallel // seri
 			assert.ErrorIsf(t, err, tc.err, "RequestFiatWithdrawal should refuse intermediary account number %v", tc.account)
 		})
 	}
+
+	// A withdrawal cannot be undone, so the live case asks for more than any account holds
+	t.Run("live", func(t *testing.T) {
+		if mockTests {
+			t.Skip("The mock records no reply to a request built to be refused")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.RequestFiatWithdrawal(t.Context(), &FiatWithdrawalRequest{Wallet: WalletTypeExchange, Withdrawal: liveWireWithdrawal()})
+		requireRefusedOnMerits(t, err, "RequestFiatWithdrawal")
+	})
 }
 
 func TestLegacyWallet(t *testing.T) {
@@ -3244,30 +3273,67 @@ func TestIntermediaryBankAccount(t *testing.T) {
 	}
 }
 
-func TestWithdrawFiatFunds(t *testing.T) {
-	t.Parallel()
-	_, err := e.RequestFiatWithdrawal(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "RequestFiatWithdrawal must reject a nil request")
-	_, err = e.RequestFiatWithdrawal(t.Context(), &FiatWithdrawalRequest{Wallet: "novel", Withdrawal: &withdraw.Request{}})
-	require.ErrorIs(t, err, errInvalidAccountWallet, "RequestFiatWithdrawal must need a wallet")
-	_, err = e.RequestFiatWithdrawal(t.Context(), &FiatWithdrawalRequest{Wallet: WalletTypeExchange, Withdrawal: &withdraw.Request{}})
-	require.ErrorIs(t, err, errInvalidAmount, "RequestFiatWithdrawal must need an amount")
-	if !mockTests {
-		t.Skip("A withdrawal cannot be undone")
-	}
-	w := &withdraw.Request{
+// testWireWithdrawal returns the wire withdrawal the recorded replies answer
+func testWireWithdrawal() *withdraw.Request {
+	return &withdraw.Request{
 		Exchange: e.Name, Currency: currency.USD, Amount: 1000, Description: "test", Type: withdraw.Fiat,
 		Fiat: withdraw.FiatRequest{Bank: banking.Account{
 			Enabled: true, AccountName: "Satoshi Nakamoto", AccountNumber: "12345", BankName: "Federal Reserve Bank", BankAddress: "33 Liberty Street",
 			BankPostalCity: "New York", BankCountry: "United States", SWIFTCode: "FRNYUS33", SupportedCurrencies: "USD", SupportedExchanges: e.Name,
 		}},
 	}
-	resp, err := e.WithdrawFiatFunds(t.Context(), w)
-	require.NoError(t, err, "WithdrawFiatFunds must not error")
-	assert.Equal(t, &withdraw.ExchangeResponse{ID: "586829", Status: "success"}, resp, "WithdrawFiatFunds should return the withdrawal's ID")
-	resp, err = e.WithdrawFiatFundsToInternationalBank(t.Context(), w)
-	require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
-	assert.Equal(t, "586829", resp.ID, "WithdrawFiatFundsToInternationalBank should withdraw by wire")
+}
+
+// liveWireWithdrawal returns a wire withdrawal of more dollars than any account holds, to a placeholder bank account, for
+// live cases built to be refused
+func liveWireWithdrawal() *withdraw.Request {
+	return &withdraw.Request{
+		Exchange: e.Name, Currency: currency.USD, Amount: liveUnaffordableDollars, Description: "GCT live test", Type: withdraw.Fiat,
+		Fiat: withdraw.FiatRequest{Bank: banking.Account{
+			Enabled: true, AccountName: "GCT live test", AccountNumber: "0", BankName: "GCT live test", BankAddress: "GCT live test",
+			BankPostalCity: "GCT live test", BankCountry: "GCT live test", SWIFTCode: "GCTTESTXXXX", SupportedCurrencies: "USD", SupportedExchanges: e.Name,
+		}},
+	}
+}
+
+func TestWithdrawFiatFunds(t *testing.T) {
+	t.Parallel()
+	// A withdrawal cannot be undone, so the live case asks for more than any account holds
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The mock records no reply to a request built to be refused")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.WithdrawFiatFunds(t.Context(), liveWireWithdrawal())
+		requireRefusedOnMerits(t, err, "WithdrawFiatFunds")
+	})
+
+	if mockTests {
+		resp, err := e.WithdrawFiatFunds(t.Context(), testWireWithdrawal())
+		require.NoError(t, err, "WithdrawFiatFunds must not error")
+		assert.Equal(t, &withdraw.ExchangeResponse{ID: "586829", Status: "success"}, resp, "WithdrawFiatFunds should return the withdrawal's ID")
+	}
+}
+
+func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
+	t.Parallel()
+	// A withdrawal cannot be undone, so the live case asks for more than any account holds
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The mock records no reply to a request built to be refused")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.WithdrawFiatFundsToInternationalBank(t.Context(), liveWireWithdrawal())
+		requireRefusedOnMerits(t, err, "WithdrawFiatFundsToInternationalBank")
+	})
+
+	if mockTests {
+		resp, err := e.WithdrawFiatFundsToInternationalBank(t.Context(), testWireWithdrawal())
+		require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
+		assert.Equal(t, "586829", resp.ID, "WithdrawFiatFundsToInternationalBank should withdraw by wire")
+	}
 }
 
 func TestWithdrawFiatFundsFailures(t *testing.T) {
@@ -4209,6 +4275,18 @@ func TestGetFuturesPositionOrders(t *testing.T) { //nolint:tparallel // serial s
 	apiErr = nil
 	_, err = newPathResponseServerExchange(t, map[string]string{"/v2/auth/r/orders/tBTCF0:USTF0": `["error",10100,"apikey: invalid"]`}).GetFuturesPositionOrders(t.Context(), req)
 	assert.ErrorAs(t, err, &apiErr, "GetFuturesPositionOrders should return the open orders' refusal")
+
+	t.Run("live", func(t *testing.T) {
+		if mockTests {
+			t.Skip("The mock holds no recorded replies to the requests GetFuturesPositionOrders sends")
+		}
+		skipLiveWithoutCredentials(t)
+		start, end := historyWindow(time.Hour)
+		got, err := e.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair}, StartDate: start, EndDate: end})
+		require.NoError(t, err, "GetFuturesPositionOrders must not error")
+		require.Len(t, got, 1, "GetFuturesPositionOrders must return an entry for the pair")
+		assert.Equal(t, testDerivativePair, got[0].Pair, "GetFuturesPositionOrders should return the pair's entry")
+	})
 }
 
 func TestChangePositionMargin(t *testing.T) { //nolint:tparallel // serial subtests share e in order
@@ -4236,13 +4314,32 @@ func TestChangePositionMargin(t *testing.T) { //nolint:tparallel // serial subte
 	var apiErr *APIError
 	_, err = newResponseServerExchange(t, `["error",10100,"apikey: invalid"]`).ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, MarginType: margin.Isolated, NewAllocatedMargin: 1})
 	assert.ErrorAs(t, err, &apiErr, "ChangePositionMargin should return the error Bitfinex reports")
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("Setting a live position's collateral needs a position, which the tests do not open")
+
+	// Setting a position's own collateral leaves the account unchanged
+	t.Run("live", func(t *testing.T) {
+		if mockTests {
+			t.Skip("The mock records no reply to setting the recorded position's own collateral")
+		}
+		skipLiveUnlessCanManipulate(t)
+		position := activePositionOfType(t, PositionTypeDerivative)
+		if position.Collateral == 0 {
+			t.Skip("The derivative position reports no collateral to set")
+		}
+		pair, err := pairFromSymbol(position.Symbol)
+		require.NoError(t, err, "pairFromSymbol must not error")
+		a := derivativeAsset(pair.Quote)
+		resp, err := e.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Exchange: e.Name, Asset: a, Pair: pair, MarginType: margin.Isolated, NewAllocatedMargin: position.Collateral})
+		require.NoError(t, err, "ChangePositionMargin must not error")
+		assert.Equal(t, &margin.PositionChangeResponse{
+			Exchange: e.Name, Asset: a, Pair: pair, MarginType: margin.Isolated, AllocatedMargin: position.Collateral,
+		}, resp, "ChangePositionMargin should return the position's collateral")
+	})
+
+	if mockTests {
+		resp, err := e.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Exchange: e.Name, Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, MarginType: margin.Isolated, NewAllocatedMargin: 1150.61})
+		require.NoError(t, err, "ChangePositionMargin must not error")
+		assert.Equal(t, &margin.PositionChangeResponse{
+			Exchange: e.Name, Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, MarginType: margin.Isolated, AllocatedMargin: 1150.61,
+		}, resp, "ChangePositionMargin should return the position's new collateral")
 	}
-	resp, err := e.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Exchange: e.Name, Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, MarginType: margin.Isolated, NewAllocatedMargin: 1150.61})
-	require.NoError(t, err, "ChangePositionMargin must not error")
-	assert.Equal(t, &margin.PositionChangeResponse{
-		Exchange: e.Name, Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, MarginType: margin.Isolated, AllocatedMargin: 1150.61,
-	}, resp, "ChangePositionMargin should return the position's new collateral")
 }

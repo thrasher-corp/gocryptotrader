@@ -3,6 +3,7 @@ package bitfinex
 import (
 	"errors"
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,6 +22,53 @@ var testThalexCurrency = currency.NewCode("USE")
 // testThalexTwoFactorToken returns the docs' example one time password, which the recorded Thalex requests hold
 func testThalexTwoFactorToken() *TwoFactorToken {
 	return &TwoFactorToken{Method: TwoFactorMethodOneTimePassword, Token: "123456"}
+}
+
+// liveOneTimePasswordSent records that a live Thalex transfer has sent the credentials' one time password, which
+// Bitfinex may take only once
+var liveOneTimePasswordSent atomic.Bool
+
+// liveThalexTransfer returns a transfer of more bitcoin than will ever exist, so Bitfinex refuses it without moving funds,
+// carrying the one time password the credentials hold, as a Thalex transfer needs a live one. It skips a live test when
+// they hold none, or when another live transfer has sent it
+func liveThalexTransfer(t *testing.T) *ThalexTransferRequest {
+	t.Helper()
+	creds, err := e.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	if creds.OneTimePassword == "" {
+		t.Skip("A Thalex transfer needs a live one time password, which apiCredentials' OneTimePassword supplies")
+	}
+	if !liveOneTimePasswordSent.CompareAndSwap(false, true) {
+		t.Skip("Another live Thalex transfer has sent the one time password, so run this test alone with a fresh one")
+	}
+	return &ThalexTransferRequest{
+		Currency:       currency.BTC,
+		Amount:         liveUnaffordableBitcoin,
+		TwoFactorToken: &TwoFactorToken{Method: TwoFactorMethodOneTimePassword, Token: creds.OneTimePassword},
+	}
+}
+
+// skipWithoutThalexOnboarding skips a live test whose request Bitfinex refused as the account has not completed Thalex
+// onboarding, with the errors the Thalex docs give for it
+func skipWithoutThalexOnboarding(t *testing.T, err error) {
+	t.Helper()
+	var apiErr *APIError
+	if !mockTests && errors.As(err, &apiErr) && (apiErr.Message == "ERR_NOT_FOUND_USER" || apiErr.Message == "ERR_NOT_ALLOWED") {
+		t.Skip("The account has not completed Thalex onboarding")
+	}
+}
+
+// requireThalexAmountRefused requires a live Thalex transfer of more bitcoin than will ever exist to be refused with
+// ERR_WRONG_AMOUNT, the Thalex docs' error for an amount that has not passed validation, skipping when the account has
+// not completed Thalex onboarding. Bitfinex's answer to it is unrecorded, so the refusal is logged
+func requireThalexAmountRefused(t *testing.T, err error, method string) {
+	t.Helper()
+	skipWithoutThalexOnboarding(t, err)
+	require.Errorf(t, err, "%s must be refused, as its live transfer is built to be refused", method)
+	t.Logf("%s was refused: %v", method, err)
+	var apiErr *APIError
+	require.ErrorAsf(t, err, &apiErr, "%s must be refused by Bitfinex rather than fail without its answer", method)
+	assert.Equalf(t, "ERR_WRONG_AMOUNT", apiErr.Message, "%s should be refused for its amount", method)
 }
 
 // newThalexErrorServerExchange returns an exchange whose requests Bitfinex refuses as the Thalex docs show, with an
@@ -51,22 +99,31 @@ func TestRequestThalexDeposit(t *testing.T) {
 	require.ErrorAs(t, err, &apiErr, "RequestThalexDeposit must return the error Bitfinex reports")
 	assert.Equal(t, &APIError{Message: "ERR_WRONG_AMOUNT"}, apiErr, "RequestThalexDeposit should decode the reported error")
 
-	if !mockTests {
-		t.Skip("Thalex transfers need a live one time password, which a test cannot supply")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The mock records no reply to a request built to be refused")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.RequestThalexDeposit(t.Context(), liveThalexTransfer(t))
+		requireThalexAmountRefused(t, err, "RequestThalexDeposit")
+	})
+
+	if mockTests {
+		result, err := e.RequestThalexDeposit(t.Context(), req)
+		require.NoError(t, err, "RequestThalexDeposit must not error")
+		exp := &ThalexTransferResponse{
+			Type:               "deposit",
+			DestinationAddress: "0x1d341cR1512C6s1984da95C15BfF2B9F3A29345e1",
+			Amount:             1000,
+			Currency:           testThalexCurrency,
+			CreatedAt:          types.Time(time.UnixMilli(1732125293487)),
+			UpdatedAt:          types.Time(time.UnixMilli(1732125295060)),
+			ID:                 "f1e86378-d5fb-420f-b429-716b88c64c23",
+			Status:             "PENDING",
+		}
+		assert.Equal(t, exp, result, "RequestThalexDeposit should decode every field")
 	}
-	result, err := e.RequestThalexDeposit(t.Context(), req)
-	require.NoError(t, err, "RequestThalexDeposit must not error")
-	exp := &ThalexTransferResponse{
-		Type:               "deposit",
-		DestinationAddress: "0x1d341cR1512C6s1984da95C15BfF2B9F3A29345e1",
-		Amount:             1000,
-		Currency:           testThalexCurrency,
-		CreatedAt:          types.Time(time.UnixMilli(1732125293487)),
-		UpdatedAt:          types.Time(time.UnixMilli(1732125295060)),
-		ID:                 "f1e86378-d5fb-420f-b429-716b88c64c23",
-		Status:             "PENDING",
-	}
-	assert.Equal(t, exp, result, "RequestThalexDeposit should decode every field")
 }
 
 func TestRequestThalexWithdrawal(t *testing.T) {
@@ -86,32 +143,38 @@ func TestRequestThalexWithdrawal(t *testing.T) {
 	require.ErrorAs(t, err, &apiErr, "RequestThalexWithdrawal must return the error Bitfinex reports")
 	assert.Equal(t, &APIError{Message: "ERR_WRONG_AMOUNT"}, apiErr, "RequestThalexWithdrawal should decode the reported error")
 
-	if !mockTests {
-		t.Skip("Thalex transfers need a live one time password, which a test cannot supply")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The mock records no reply to a request built to be refused")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.RequestThalexWithdrawal(t.Context(), liveThalexTransfer(t))
+		requireThalexAmountRefused(t, err, "RequestThalexWithdrawal")
+	})
+
+	if mockTests {
+		result, err := e.RequestThalexWithdrawal(t.Context(), req)
+		require.NoError(t, err, "RequestThalexWithdrawal must not error")
+		exp := &ThalexTransferResponse{
+			Type:               "withdraw",
+			DestinationAddress: "0x1d341cR1512C6s1984da95C15BfF2B9F3A29345e1",
+			Amount:             90,
+			Currency:           testThalexCurrency,
+			CreatedAt:          types.Time(time.UnixMilli(1732126385718)),
+			UpdatedAt:          types.Time(time.UnixMilli(1732126385718)),
+			ID:                 "f70a4286-6f7c-4af8-931f-3e89f74ebdf3",
+			Status:             "PENDING",
+		}
+		assert.Equal(t, exp, result, "RequestThalexWithdrawal should decode every field")
 	}
-	result, err := e.RequestThalexWithdrawal(t.Context(), req)
-	require.NoError(t, err, "RequestThalexWithdrawal must not error")
-	exp := &ThalexTransferResponse{
-		Type:               "withdraw",
-		DestinationAddress: "0x1d341cR1512C6s1984da95C15BfF2B9F3A29345e1",
-		Amount:             90,
-		Currency:           testThalexCurrency,
-		CreatedAt:          types.Time(time.UnixMilli(1732126385718)),
-		UpdatedAt:          types.Time(time.UnixMilli(1732126385718)),
-		ID:                 "f70a4286-6f7c-4af8-931f-3e89f74ebdf3",
-		Status:             "PENDING",
-	}
-	assert.Equal(t, exp, result, "RequestThalexWithdrawal should decode every field")
 }
 
 func TestGetThalexFreeTransferCount(t *testing.T) {
 	t.Parallel()
 	skipLiveWithoutCredentials(t)
 	result, err := e.GetThalexFreeTransferCount(t.Context())
-	var apiErr *APIError
-	if !mockTests && errors.As(err, &apiErr) && (apiErr.Message == "ERR_NOT_FOUND_USER" || apiErr.Message == "ERR_NOT_ALLOWED") {
-		t.Skip("The account has not completed Thalex onboarding")
-	}
+	skipWithoutThalexOnboarding(t, err)
 	require.NoError(t, err, "GetThalexFreeTransferCount must not error")
 	if mockTests {
 		exp := &ThalexFreeTransferCountResponse{

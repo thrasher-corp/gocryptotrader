@@ -1,8 +1,11 @@
 package bitfinex
 
 import (
+	"context"
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -20,6 +23,17 @@ import (
 // live test holds it
 func liveFundingOffer() *SubmitFundingOfferRequest {
 	return &SubmitFundingOfferRequest{Type: FundingOfferTypeLimit, Symbol: "fUSD", Amount: 150, Rate: 0.01, Period: 2}
+}
+
+// liveFundingOffersMu serialises the live cases holding a liveFundingOffer, as CancelAllFundingOffers' live case cancels
+// every offer in its currency
+var liveFundingOffersMu sync.Mutex
+
+// lockLiveFundingOffers holds liveFundingOffersMu until a live test ends
+func lockLiveFundingOffers(t *testing.T) {
+	t.Helper()
+	liveFundingOffersMu.Lock()
+	t.Cleanup(liveFundingOffersMu.Unlock)
 }
 
 // liveKeepFundingRequest returns a request toggling whether one of the account's taken credits or loans is kept,
@@ -197,6 +211,7 @@ func TestSubmitFundingOffer(t *testing.T) { //nolint:tparallel // The subtests s
 	skipLiveUnlessCanManipulate(t)
 	req := &SubmitFundingOfferRequest{Type: FundingOfferTypeLimit, Symbol: "fUSD", Amount: 50, Rate: 0.00002, Period: 2}
 	if !mockTests {
+		lockLiveFundingOffers(t)
 		req = liveFundingOffer()
 	}
 	result, err := e.SubmitFundingOffer(t.Context(), req)
@@ -241,6 +256,7 @@ func TestCancelFundingOffer(t *testing.T) {
 	skipLiveUnlessCanManipulate(t)
 	offerID := uint64(604393839)
 	if !mockTests {
+		lockLiveFundingOffers(t)
 		submitted, err := e.SubmitFundingOffer(t.Context(), liveFundingOffer())
 		require.NoError(t, err, "SubmitFundingOffer must not error")
 		offerID = submitted.Data.ID
@@ -278,29 +294,60 @@ func TestCancelFundingOffer(t *testing.T) {
 
 func TestCancelAllFundingOffers(t *testing.T) { //nolint:tparallel // The subtests share e in order
 	t.Parallel()
-	if !mockTests {
-		t.Skip("CancelAllFundingOffers would cancel offers the test did not submit")
-	}
-	exp := &Notification[json.RawMessage]{
-		Time:   types.Time(time.UnixMilli(1573911972518)),
-		Type:   "foc_all-req",
-		Status: NotificationStatusSuccess,
-		Text:   "All (8) submitted for cancellation; waiting for confirmation.",
-	}
-	// An empty currency is left out, cancelling the offers in every currency
-	// The cases share e in order, so each also checks that a call keeps nothing from the last
-	for _, c := range []currency.Code{currency.USD, currency.EMPTYCODE} {
-		t.Run(subtestName(c.String()), func(t *testing.T) {
-			result, err := e.CancelAllFundingOffers(t.Context(), c)
-			require.NoErrorf(t, err, "CancelAllFundingOffers must not error for currency %q", c)
-			assert.Equalf(t, exp, result, "CancelAllFundingOffers should decode every field for currency %q", c)
-		})
-	}
-
 	_, err := newResponseServerExchange(t, `null`).CancelAllFundingOffers(t.Context(), currency.USD)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelAllFundingOffers should error for a null response")
 	_, err = newUnavailableServerExchange(t).CancelAllFundingOffers(t.Context(), currency.USD)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAllFundingOffers should return the request failure")
+
+	t.Run("live", func(t *testing.T) {
+		if mockTests {
+			t.Skip("The mock holds no offer of the test's own to cancel")
+		}
+		skipLiveUnlessCanManipulate(t)
+		lockLiveFundingOffers(t)
+		offer := liveFundingOffer()
+		active, err := e.GetActiveFundingOffers(t.Context(), offer.Symbol)
+		require.NoError(t, err, "GetActiveFundingOffers must not error")
+		if len(active) != 0 {
+			t.Skipf("The account has %s offers the test did not submit, which CancelAllFundingOffers would cancel", offer.Symbol)
+		}
+		funding, err := pairFromSymbol(offer.Symbol)
+		require.NoError(t, err, "pairFromSymbol must not error")
+		submitted, err := e.SubmitFundingOffer(t.Context(), offer)
+		require.NoError(t, err, "SubmitFundingOffer must not error")
+		t.Cleanup(func() {
+			_, _ = e.CancelFundingOffer(context.WithoutCancel(t.Context()), submitted.Data.ID)
+		})
+		result, err := e.CancelAllFundingOffers(t.Context(), funding.Base)
+		require.NoError(t, err, "CancelAllFundingOffers must not error")
+		assert.Equal(t, "foc_all-req", result.Type, "CancelAllFundingOffers should return its request's notification")
+		// An offer taken before the cancellation also leaves the active offers, so its history must show it cancelled
+		// with none of it taken
+		assert.Eventually(t, func() bool {
+			history, err := e.GetFundingOffersHistory(t.Context(), &FundingOffersHistoryRequest{Symbol: offer.Symbol})
+			return err == nil && slices.ContainsFunc(history, func(o FundingOfferResponse) bool {
+				return o.ID == submitted.Data.ID && strings.HasPrefix(o.Status, "CANCELED") && o.Amount == o.OriginalAmount
+			})
+		}, 10*time.Second, time.Second, "CancelAllFundingOffers should cancel the offer submitted before any of it is taken")
+	})
+
+	if mockTests {
+		exp := &Notification[json.RawMessage]{
+			Time:   types.Time(time.UnixMilli(1573911972518)),
+			Type:   "foc_all-req",
+			Status: NotificationStatusSuccess,
+			Text:   "All (8) submitted for cancellation; waiting for confirmation.",
+		}
+		// An empty currency is left out, cancelling the offers in every currency
+		// The cases share e in order, so each also checks that a call keeps nothing from the last
+		for _, c := range []currency.Code{currency.USD, currency.EMPTYCODE} {
+			t.Run(subtestName(c.String()), func(t *testing.T) {
+				result, err := e.CancelAllFundingOffers(t.Context(), c)
+				require.NoErrorf(t, err, "CancelAllFundingOffers must not error for currency %q", c)
+				assert.Equalf(t, exp, result, "CancelAllFundingOffers should decode every field for currency %q", c)
+			})
+		}
+	}
 }
 
 func TestFundingClose(t *testing.T) {
@@ -308,17 +355,27 @@ func TestFundingClose(t *testing.T) {
 	_, err := e.FundingClose(t.Context(), 0)
 	require.ErrorIs(t, err, errFundingLoanOrCreditIDRequired, "FundingClose must require a loan or credit ID")
 
-	if !mockTests {
-		t.Skip("FundingClose returns funding taken, which a test cannot undo")
+	// FundingClose returns funding taken, which a test cannot undo, so the live case names funding no account holds
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The mock records no reply to a request built to be refused")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.FundingClose(t.Context(), liveForeignID)
+		requireRefusedOnMerits(t, err, "FundingClose")
+	})
+
+	if mockTests {
+		result, err := e.FundingClose(t.Context(), 2995368)
+		require.NoError(t, err, "FundingClose must not error")
+		exp := &Notification[json.RawMessage]{
+			Time:   types.Time(time.UnixMilli(1574075056449)),
+			Type:   "fr-req",
+			Status: NotificationStatusSuccess,
+		}
+		assert.Equal(t, exp, result, "FundingClose should decode every field")
 	}
-	result, err := e.FundingClose(t.Context(), 2995368)
-	require.NoError(t, err, "FundingClose must not error")
-	exp := &Notification[json.RawMessage]{
-		Time:   types.Time(time.UnixMilli(1574075056449)),
-		Type:   "fr-req",
-		Status: NotificationStatusSuccess,
-	}
-	assert.Equal(t, exp, result, "FundingClose should decode every field")
 
 	_, err = newResponseServerExchange(t, `null`).FundingClose(t.Context(), 2995368)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "FundingClose should error for a null response")
@@ -343,19 +400,38 @@ func TestFundingAutoRenew(t *testing.T) {
 	_, err = ex.FundingAutoRenew(t.Context(), &FundingAutoRenewRequest{Activate: true, Currency: currency.USD.Lower(), Amount: 100, Rate: 0.0002, Period: 30})
 	require.NoError(t, err, "FundingAutoRenew must not error when activating with every setting")
 
-	if !mockTests {
-		t.Skip("FundingAutoRenew changes a setting no endpoint reads back for a test to restore")
+	// FundingAutoRenew changes a setting no endpoint reads back for a test to restore, so the live case names a currency
+	// Bitfinex lists nowhere, which it may refuse, or take and then turn off again
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The mock records no reply to a currency Bitfinex does not list")
+		}
+		skipLiveUnlessCanManipulate(t)
+		result, err := e.FundingAutoRenew(t.Context(), &FundingAutoRenewRequest{Activate: true, Currency: liveUnlistedCurrency, Amount: 50, Period: 2})
+		if err != nil {
+			requireRefusedOnMerits(t, err, "FundingAutoRenew")
+			return
+		}
+		t.Cleanup(func() {
+			_, err := e.FundingAutoRenew(context.WithoutCancel(t.Context()), &FundingAutoRenewRequest{Currency: liveUnlistedCurrency})
+			assert.NoError(t, err, "FundingAutoRenew should turn off the setting it applied")
+		})
+		assert.Equal(t, liveUnlistedCurrency, result.Data.Currency, "FundingAutoRenew should apply the setting to the currency named")
+	})
+
+	if mockTests {
+		result, err := e.FundingAutoRenew(t.Context(), &FundingAutoRenewRequest{Activate: true, Currency: currency.UST, Amount: 350, Period: 2})
+		require.NoError(t, err, "FundingAutoRenew must not error")
+		exp := &Notification[FundingAutoRenewSettingsResponse]{
+			Time:   types.Time(time.UnixMilli(1574075756185)),
+			Type:   "fa-req",
+			Data:   FundingAutoRenewSettingsResponse{Currency: currency.UST, Period: 2, Threshold: 350},
+			Status: NotificationStatusSuccess,
+			Text:   "Auto-renew of UST offers activated at FRR for 2 days periods",
+		}
+		assert.Equal(t, exp, result, "FundingAutoRenew should decode every field")
 	}
-	result, err := e.FundingAutoRenew(t.Context(), &FundingAutoRenewRequest{Activate: true, Currency: currency.UST, Amount: 350, Period: 2})
-	require.NoError(t, err, "FundingAutoRenew must not error")
-	exp := &Notification[FundingAutoRenewSettingsResponse]{
-		Time:   types.Time(time.UnixMilli(1574075756185)),
-		Type:   "fa-req",
-		Data:   FundingAutoRenewSettingsResponse{Currency: currency.UST, Period: 2, Threshold: 350},
-		Status: NotificationStatusSuccess,
-		Text:   "Auto-renew of UST offers activated at FRR for 2 days periods",
-	}
-	assert.Equal(t, exp, result, "FundingAutoRenew should decode every field")
 
 	_, err = newResponseServerExchange(t, `null`).FundingAutoRenew(t.Context(), &FundingAutoRenewRequest{Currency: currency.UST})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "FundingAutoRenew should error for a null response")

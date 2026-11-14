@@ -879,7 +879,7 @@ func TestFundingBookLevelResponseLevel(t *testing.T) {
 	}
 }
 
-func TestWebsocketHandleChecksumMismatch(t *testing.T) {
+func TestWebsocketHandleChecksum(t *testing.T) {
 	t.Parallel()
 	ex, conn := newChannelTestExchange(t)
 	require.Empty(t, replayFixtureChannel(t, ex, conn, "book:fUSD:R0"), "the book's frames must be handled without error")
@@ -940,7 +940,7 @@ func mustPublicFixture(t *testing.T) *wsFixture {
 	return fixture
 }
 
-func TestWebsocketProcessBookErrors(t *testing.T) {
+func TestWebsocketProcessBook(t *testing.T) {
 	t.Parallel()
 	ex, conn := newChannelTestExchange(t)
 	s := subscribeFixtureChannel(t, ex, conn, "book:fUSD:P0")
@@ -2417,7 +2417,7 @@ func TestWebsocketRenewalAfterSubscription(t *testing.T) {
 	assert.Same(t, s, ex.wsChannels.get(conn, 8), "the channel should be renewed once its subscription has settled")
 }
 
-func TestWebsocketUnsubscribeParkedChannel(t *testing.T) {
+func TestWebsocketUnsubscribe(t *testing.T) {
 	t.Parallel()
 	ex, conn := newChannelTestExchange(t)
 	s := subscribeFixtureChannel(t, ex, conn, "ticker:tBTCUSD")

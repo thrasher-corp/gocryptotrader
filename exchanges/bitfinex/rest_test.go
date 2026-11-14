@@ -3,6 +3,7 @@ package bitfinex
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -20,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -31,7 +34,8 @@ import (
 
 const (
 	// canManipulateRealOrders lets live tests with credentials change the account they act for: place, update and
-	// cancel orders priced away from the market, and change and restore account settings
+	// cancel orders priced away from the market, and change and restore account settings. Withdrawals, Thalex
+	// transfers, funding returns and position claims and increases are sent only as requests built to be refused
 	canManipulateRealOrders = false
 	// testAPIKey and testAPISecret are placeholder credentials, which the mock responses and the test servers accept
 	testAPIKey    = "mock-api-key"
@@ -175,6 +179,62 @@ func skipLiveUnlessCanManipulate(t *testing.T) {
 	t.Helper()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
+}
+
+// Live requests built to be refused hold one of these, so Bitfinex can refuse them without changing the account
+const (
+	// liveForeignID is meant to be no account's ID: it is far beyond the IDs in the recorded replies, and within the
+	// integers JavaScript holds exactly
+	liveForeignID uint64 = 1 << 52
+	// liveInvalidAddress is not an address on any network
+	liveInvalidAddress = "gct-live-test-invalid-address"
+	// liveUnaffordableBitcoin is more bitcoin than will ever exist
+	liveUnaffordableBitcoin = 21_000_001
+	// liveUnaffordableDollars is a trillion US dollars, far more than any account holds
+	liveUnaffordableDollars = 1e12
+)
+
+// liveUnlistedCurrency names no currency Bitfinex lists
+var liveUnlistedCurrency = currency.NewCode("GCTLIVETEST")
+
+// requestRefusalCodes are the codes Bitfinex's glossary gives for unknown, concurrency and configuration errors, failed
+// authentication and a server not ready, none of which answers what a request asks
+var requestRefusalCodes = []uint64{10000, 10008, 10050, 10100, 10111, 10112, 10113, 10114, 10200, 11000}
+
+// requestRefusalNames name the same refusals as the glossary does, for an error reported without its code, beside the
+// rate limit's name
+var requestRefusalNames = []string{
+	"ERR_UNK", "ERR_CONCURRENCY", "ERR_CONF_FAIL", "ERR_AUTH_FAIL", "ERR_AUTH_PAYLOAD", "ERR_AUTH_SIG", "ERR_AUTH_HMAC",
+	"ERR_AUTH_NONCE", "ERR_UNAUTH_FAIL", "ERR_READY", "ERR_RATE_LIMIT",
+}
+
+// requestRefusalWords are words, in lower case, of the reasons Bitfinex gives for refusing a request's API key,
+// permissions, nonce or rate, such as "apikey: digest invalid" and its v1 endpoints' "Nonce is too small."
+var requestRefusalWords = []string{"apikey", "api key", "permission", "nonce", "rate limit", "too many requests"}
+
+// requireRefusedOnMerits requires the error a live request built to be refused returns to be Bitfinex refusing what the
+// request asks: a notification or wire reply reporting the request failed, which only the endpoint reading the request
+// sends, or an error Bitfinex reports with a message, whose code is not one of requestRefusalCodes, no part of whose
+// message between colons is one of requestRefusalNames, and whose message holds none of requestRefusalWords. Bitfinex's
+// answers to these requests are unrecorded, so the refusal is logged
+func requireRefusedOnMerits(t *testing.T, err error, method string) {
+	t.Helper()
+	require.Errorf(t, err, "%s must be refused, as its live request is built to be refused", method)
+	t.Logf("%s was refused: %v", method, err)
+	if errors.Is(err, errNotificationFailed) || errors.Is(err, errFiatWithdrawalFailed) {
+		return
+	}
+	var apiErr *APIError
+	require.ErrorAsf(t, err, &apiErr, "%s must be refused by Bitfinex rather than fail without its answer", method)
+	require.NotEmptyf(t, apiErr.Message, "%s must be refused with Bitfinex's reason", method)
+	require.NotContainsf(t, requestRefusalCodes, apiErr.Code, "%s must be refused for what it asks, not for how it was sent", method)
+	for part := range strings.SplitSeq(apiErr.Message, ":") {
+		require.NotContainsf(t, requestRefusalNames, strings.TrimSpace(part), "%s must be refused for what it asks, not for how it was sent or by the rate limit", method)
+	}
+	reason := strings.ToLower(apiErr.Message)
+	for _, word := range requestRefusalWords {
+		require.NotContainsf(t, reason, word, "%s must be refused for what it asks, not for its key, permissions, nonce or rate", method)
 	}
 }
 
