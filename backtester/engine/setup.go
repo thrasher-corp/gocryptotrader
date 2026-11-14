@@ -44,6 +44,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
+// databaseLoadMu serialises loading data from the database, as every backtest's database manager connects, and
+// later closes, the one global database connection
+var databaseLoadMu sync.Mutex
+
 // NewBacktester returns a new BackTest instance
 func NewBacktester() (*BackTest, error) {
 	bt := &BackTest{
@@ -775,6 +779,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if cfg.DataSettings.DatabaseData.Path == "" {
 			cfg.DataSettings.DatabaseData.Path = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
 		}
+		databaseLoadMu.Lock()
+		defer databaseLoadMu.Unlock()
 		gctdatabase.DB.DataPath = cfg.DataSettings.DatabaseData.Path
 		err = gctdatabase.DB.SetConfig(&cfg.DataSettings.DatabaseData.Config)
 		if err != nil {

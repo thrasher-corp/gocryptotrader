@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // SetConfig safely sets the global database instance's config with some
@@ -23,7 +25,8 @@ func (i *Instance) SetConfig(cfg *Config) error {
 }
 
 // SetSQLiteConnection safely sets the global database instance's connection
-// to use SQLite
+// to use SQLite, closing the connection it replaces. On error con is not set
+// and stays the caller's to close
 func (i *Instance) SetSQLiteConnection(con *sql.DB) error {
 	if i == nil {
 		return ErrNilInstance
@@ -31,15 +34,14 @@ func (i *Instance) SetSQLiteConnection(con *sql.DB) error {
 	if con == nil {
 		return errNilSQL
 	}
-	i.m.Lock()
-	defer i.m.Unlock()
-	i.SQL = con
-	i.SQL.SetMaxOpenConns(1)
+	con.SetMaxOpenConns(1)
+	i.replaceSQL(con)
 	return nil
 }
 
 // SetPostgresConnection safely sets the global database instance's connection
-// to use Postgres
+// to use Postgres, closing the connection it replaces. On error con is not set
+// and stays the caller's to close
 func (i *Instance) SetPostgresConnection(con *sql.DB) error {
 	if i == nil {
 		return ErrNilInstance
@@ -50,13 +52,26 @@ func (i *Instance) SetPostgresConnection(con *sql.DB) error {
 	if err := con.PingContext(context.TODO()); err != nil {
 		return fmt.Errorf("%w %s", errFailedPing, err)
 	}
-	i.m.Lock()
-	defer i.m.Unlock()
-	i.SQL = con
-	i.SQL.SetMaxOpenConns(2)
-	i.SQL.SetMaxIdleConns(1)
-	i.SQL.SetConnMaxLifetime(time.Hour)
+	con.SetMaxOpenConns(2)
+	con.SetMaxIdleConns(1)
+	con.SetConnMaxLifetime(time.Hour)
+	i.replaceSQL(con)
 	return nil
+}
+
+// replaceSQL installs con and closes the connection it replaces, whose pool would otherwise keep its connections and
+// opener routine for good. A failed close is only logged, as con is in place either way
+func (i *Instance) replaceSQL(con *sql.DB) {
+	i.m.Lock()
+	replaced := i.SQL
+	i.SQL = con
+	i.m.Unlock()
+	if replaced == nil || replaced == con {
+		return
+	}
+	if err := replaced.Close(); err != nil {
+		log.Errorf(log.DatabaseMgr, "Failed to close replaced database connection: %v", err)
+	}
 }
 
 // SetConnected safely sets the global database instance's connected

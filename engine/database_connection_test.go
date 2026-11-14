@@ -102,6 +102,7 @@ func TestDatabaseConnectionManagerIsRunning(t *testing.T) {
 	if !m.IsRunning() {
 		t.Error("expected true")
 	}
+	assert.NoError(t, m.Stop(), "Stop should not error")
 	m = nil
 	if m.IsRunning() {
 		t.Error("expected false")
@@ -199,6 +200,7 @@ func TestGetInstance(t *testing.T) {
 	if db == nil {
 		t.Error("expected not nil")
 	}
+	assert.NoError(t, m.Stop(), "Stop should not error")
 
 	m = nil
 	db = m.GetInstance()

@@ -620,17 +620,19 @@ func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 	e.Websocket.Wg.Go(func() {
 		for {
 			select {
+			case <-ctx.Done():
 			case <-e.Websocket.ShutdownC:
-				for {
-					select {
-					case <-e.obm.jobs:
-					default:
-						return
-					}
-				}
 			case j := <-e.obm.jobs:
 				if err := e.processJob(ctx, j.Pair); err != nil {
 					log.Errorf(log.WebsocketMgr, "%s processing websocket orderbook error: %v", e.Name, err)
+				}
+				continue
+			}
+			for {
+				select {
+				case <-e.obm.jobs:
+				default:
+					return
 				}
 			}
 		}

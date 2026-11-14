@@ -94,6 +94,7 @@ func TestSubscribe(t *testing.T) {
 
 	err = d.start(0, 0)
 	require.NoError(t, err, "start must not error")
+	t.Cleanup(func() { assert.NoError(t, d.stop(), "stop should not error") })
 
 	id, err := d.getNewID(uuid.NewV4)
 	require.NoError(t, err, "getNewID must not error")
@@ -132,6 +133,7 @@ func TestUnsubscribe(t *testing.T) {
 
 	err = d.start(0, 0)
 	require.NoError(t, err, "start must not error")
+	t.Cleanup(func() { assert.NoError(t, d.stop(), "stop should not error") })
 
 	err = d.unsubscribe(nonEmptyUUID, make(chan any))
 	assert.ErrorIs(t, err, errDispatcherUUIDNotFoundInRouteList, "unsubscribe should error correctly")
@@ -169,6 +171,7 @@ func TestPublish(t *testing.T) {
 
 	err = d.start(2, 10)
 	require.NoError(t, err, "start must not error")
+	t.Cleanup(func() { assert.NoError(t, d.stop(), "stop should not error") })
 
 	err = d.publish(uuid.Nil(), "test")
 	assert.ErrorIs(t, err, errIDNotSet, "publish should error correctly")
@@ -193,6 +196,7 @@ func TestPublishReceive(t *testing.T) {
 	d := NewDispatcher()
 	err := d.start(0, 0)
 	require.NoError(t, err, "start must not error")
+	t.Cleanup(func() { assert.NoError(t, d.stop(), "stop should not error") })
 
 	id, err := d.getNewID(uuid.NewV4)
 	require.NoError(t, err, "getNewID must not error")
@@ -228,6 +232,7 @@ func TestGetNewID(t *testing.T) {
 
 	err = d.start(0, 0)
 	require.NoError(t, err, "start must not error")
+	t.Cleanup(func() { assert.NoError(t, d.stop(), "stop should not error") })
 
 	_, err = d.getNewID(nil)
 	assert.ErrorIs(t, err, errUUIDGeneratorFunctionIsNil, "getNewID should error correctly")
@@ -257,6 +262,7 @@ func TestMux(t *testing.T) {
 	d := NewDispatcher()
 	err = d.start(0, 0)
 	require.NoError(t, err, "start must not error")
+	t.Cleanup(func() { assert.NoError(t, d.stop(), "stop should not error") })
 
 	mux = GetNewMux(d)
 
@@ -309,6 +315,7 @@ func TestMuxSubscribe(t *testing.T) {
 	d := NewDispatcher()
 	err := d.start(0, 0)
 	require.NoError(t, err, "start must not error")
+	t.Cleanup(func() { assert.NoError(t, d.stop(), "stop should not error") })
 	mux := GetNewMux(d)
 	itemID, err := mux.GetID()
 	require.NoError(t, err, "GetID must not error")
