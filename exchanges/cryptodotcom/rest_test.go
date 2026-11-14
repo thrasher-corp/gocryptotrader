@@ -397,6 +397,36 @@ func mockRequestContext(t *testing.T) context.Context {
 	return ctx
 }
 
+// testServerContext returns the test's context, ending after mockRequestTimeout, for a test whose test server calls the
+// exchange back or waits on the test, so a request or wait left blocked fails the test rather than hangs it
+func testServerContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), mockRequestTimeout)
+	t.Cleanup(cancel)
+	return ctx
+}
+
+// callWithin calls call on a goroutine of its own and waits for it until ctx ends, so a call left blocked, as on a lock
+// its caller holds, fails the test rather than hangs it; such a call is left blocked
+func callWithin[T any](ctx context.Context, call func() (T, error)) (T, error) {
+	type result struct {
+		value T
+		err   error
+	}
+	done := make(chan result, 1)
+	go func() {
+		value, err := call()
+		done <- result{value, err}
+	}()
+	select {
+	case r := <-done:
+		return r.value, r.err
+	case <-ctx.Done():
+		var zero T
+		return zero, ctx.Err()
+	}
+}
+
 // skipLiveWithoutCredentials skips a live test of a private method when no credentials are set
 func skipLiveWithoutCredentials(t *testing.T) {
 	t.Helper()

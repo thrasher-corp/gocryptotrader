@@ -125,6 +125,20 @@ func cancelContingencyAfterTest(t *testing.T, listID string, cancel func(*Exchan
 	})
 }
 
+// cancelContingencyIfTestFails tries to cancel an OCO, OTO or OTOCO a live test placed to cancel itself, should the
+// test fail
+func cancelContingencyIfTestFails(t *testing.T, listID string, cancel func(*Exchange, context.Context, string) error) {
+	t.Helper()
+	t.Cleanup(func() {
+		if !t.Failed() {
+			return
+		}
+		if err := cancel(e, context.WithoutCancel(t.Context()), listID); err != nil {
+			t.Logf("Cancelling list %s, which the test placed, failed: %v", listID, err)
+		}
+	})
+}
+
 // triggerOrderRefusals are changes to a trigger order which Crypto.com refuses, and the errors CreateAdvancedOrder,
 // CreateAdvancedOrderList and their websocket forms refuse them with before sending
 var triggerOrderRefusals = []struct {
@@ -590,6 +604,7 @@ func TestCancelOneCancelsTheOtherOrder(t *testing.T) {
 	skipLiveUnlessCanManipulate(t)
 	placed, err := e.CreateOneCancelsTheOtherOrder(t.Context(), contingencyTestOrders(ocoOrders()))
 	require.NoError(t, err, "CreateOneCancelsTheOtherOrder must place the OCO the test cancels")
+	cancelContingencyIfTestFails(t, string(placed.ListID), (*Exchange).CancelOneCancelsTheOtherOrder)
 	require.NoError(t, e.CancelOneCancelsTheOtherOrder(t.Context(), string(placed.ListID)), "CancelOneCancelsTheOtherOrder must not error")
 }
 
@@ -684,6 +699,7 @@ func TestCancelOneTriggersTheOtherOrder(t *testing.T) {
 	skipLiveUnlessCanManipulate(t)
 	placed, err := e.CreateOneTriggersTheOtherOrder(t.Context(), contingencyTestOrders(otoOrders()))
 	require.NoError(t, err, "CreateOneTriggersTheOtherOrder must place the OTO the test cancels")
+	cancelContingencyIfTestFails(t, string(placed.ListID), (*Exchange).CancelOneTriggersTheOtherOrder)
 	require.NoError(t, e.CancelOneTriggersTheOtherOrder(t.Context(), string(placed.ListID)), "CancelOneTriggersTheOtherOrder must not error")
 }
 
@@ -742,6 +758,7 @@ func TestCancelOneTriggersAOneCancelsTheOtherOrder(t *testing.T) {
 	skipLiveUnlessCanManipulate(t)
 	placed, err := e.CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), contingencyTestOrders(otocoOrders()))
 	require.NoError(t, err, "CreateOneTriggersAOneCancelsTheOtherOrder must place the OTOCO the test cancels")
+	cancelContingencyIfTestFails(t, string(placed.ListID), (*Exchange).CancelOneTriggersAOneCancelsTheOtherOrder)
 	require.NoError(t, e.CancelOneTriggersAOneCancelsTheOtherOrder(t.Context(), string(placed.ListID)), "CancelOneTriggersAOneCancelsTheOtherOrder must not error")
 }
 
@@ -775,6 +792,7 @@ func TestCancelAdvancedOrder(t *testing.T) {
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
 		req.OrderID = placeAdvancedTestOrder(t).OrderID
+		cancelAdvancedOrderIfTestFails(t, req.OrderID)
 	}
 	result, err := e.CancelAdvancedOrder(t.Context(), req)
 	require.NoError(t, err, "CancelAdvancedOrder must not error")

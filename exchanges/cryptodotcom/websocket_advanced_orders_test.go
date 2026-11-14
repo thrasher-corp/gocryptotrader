@@ -149,6 +149,7 @@ func TestWebsocketAPICancelOneCancelsTheOtherOrder(t *testing.T) {
 	placed, err := ex.WebsocketAPI().CreateOneCancelsTheOtherOrder(t.Context(), contingencyTestOrders(ocoOrders()))
 	require.NoError(t, err, "CreateOneCancelsTheOtherOrder must place the OCO the test cancels")
 	listID := string(placed.ListID)
+	cancelContingencyIfTestFails(t, listID, (*Exchange).CancelOneCancelsTheOtherOrder)
 	require.NoError(t, ex.WebsocketAPI().CancelOneCancelsTheOtherOrder(t.Context(), listID), "CancelOneCancelsTheOtherOrder must not error")
 	if !mockTests {
 		return
@@ -199,6 +200,7 @@ func TestWebsocketAPICancelOneTriggersTheOtherOrder(t *testing.T) {
 	placed, err := ex.WebsocketAPI().CreateOneTriggersTheOtherOrder(t.Context(), contingencyTestOrders(otoOrders()))
 	require.NoError(t, err, "CreateOneTriggersTheOtherOrder must place the OTO the test cancels")
 	listID := string(placed.ListID)
+	cancelContingencyIfTestFails(t, listID, (*Exchange).CancelOneTriggersTheOtherOrder)
 	require.NoError(t, ex.WebsocketAPI().CancelOneTriggersTheOtherOrder(t.Context(), listID), "CancelOneTriggersTheOtherOrder must not error")
 	if !mockTests {
 		return
@@ -249,6 +251,7 @@ func TestWebsocketAPICancelOneTriggersAOneCancelsTheOtherOrder(t *testing.T) {
 	placed, err := ex.WebsocketAPI().CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), contingencyTestOrders(otocoOrders()))
 	require.NoError(t, err, "CreateOneTriggersAOneCancelsTheOtherOrder must place the OTOCO the test cancels")
 	listID := string(placed.ListID)
+	cancelContingencyIfTestFails(t, listID, (*Exchange).CancelOneTriggersAOneCancelsTheOtherOrder)
 	require.NoError(t, ex.WebsocketAPI().CancelOneTriggersAOneCancelsTheOtherOrder(t.Context(), listID), "CancelOneTriggersAOneCancelsTheOtherOrder must not error")
 	if !mockTests {
 		return
@@ -270,7 +273,9 @@ func TestWebsocketAPICancelAdvancedOrder(t *testing.T) {
 	ex, venue := newWebsocketTestExchange(t)
 	req := &AdvancedOrderIDRequest{ClientOrderID: "c5f682ed-7108-4f1c-b755-972fcdca0f02"}
 	if !mockTests {
-		req.ClientOrderID = placeAdvancedTestOrder(t).ClientOrderID
+		placed := placeAdvancedTestOrder(t)
+		cancelAdvancedOrderIfTestFails(t, placed.OrderID)
+		req.ClientOrderID = placed.ClientOrderID
 	}
 	result, err := ex.WebsocketAPI().CancelAdvancedOrder(t.Context(), req)
 	require.NoError(t, err, "CancelAdvancedOrder must not error")

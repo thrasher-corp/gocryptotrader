@@ -687,6 +687,50 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			}
 		})
 
+		t.Run("authenticated only connection registered first", func(t *testing.T) {
+			var publicSubscribes, authenticatedDials atomic.Int32
+			ws := newConfiguredMultiManager(t, nil)
+			ws.SetCanUseAuthenticatedEndpoints(false)
+			ws.trafficTimeout = time.Minute
+			// Subscriptions of its own, as subscribing changes their state
+			publicSubs := subscription.List{{Channel: "public"}}
+			ws.connectionManager = []*websocket{
+				{setup: &ConnectionSetup{
+					URL:               mockURL,
+					MessageFilter:     "authenticated",
+					AuthenticatedOnly: true,
+					GenerateSubscriptions: func() (subscription.List, error) {
+						return subscription.List{{Channel: "authenticated", Authenticated: true}}, nil
+					},
+					Connector: func(ctx context.Context, conn Connection) error {
+						authenticatedDials.Add(1)
+						return dial(ctx, conn)
+					},
+					Handler: noopHandler,
+					Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+						return ws.AddSuccessfulSubscriptions(conn, subs...)
+					},
+				}, subscriptions: subscription.NewStore()},
+				{setup: &ConnectionSetup{
+					URL:                   mockURL,
+					GenerateSubscriptions: func() (subscription.List, error) { return publicSubs, nil },
+					Connector:             dial,
+					Handler:               noopHandler,
+					Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+						publicSubscribes.Add(1)
+						return ws.AddSuccessfulSubscriptions(conn, subs...)
+					},
+				}, subscriptions: subscription.NewStore()},
+			}
+			require.NoError(t, ws.Connect(t.Context()), "Connect must skip an authenticated only connection without authentication")
+			assert.Equal(t, int32(1), publicSubscribes.Load(), "Connect should subscribe the public connection registered after an authenticated only one")
+			publicSubs = subscription.List{publicSubs[0], {Channel: "another"}}
+			require.NoError(t, ws.FlushChannels(t.Context()), "FlushChannels must not error without authentication")
+			assert.Equal(t, int32(2), publicSubscribes.Load(), "FlushChannels should subscribe the public connection registered after an authenticated only one")
+			assert.Zero(t, authenticatedDials.Load(), "the authenticated only connection should not be dialled")
+			require.NoError(t, ws.Shutdown(), "Shutdown must not error")
+		})
+
 		t.Run("authenticated only connection with subscriptions", func(t *testing.T) {
 			var authenticatedDials atomic.Int32
 			ws := newConfiguredMultiManager(t, nil)
@@ -980,7 +1024,12 @@ func TestConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
 				if err := c.SendJSONMessage(ctx, request.Unset, map[string]string{"load": "book"}); err != nil {
 					return err
 				}
-				<-loaded
+				select {
+				case <-loaded:
+				case <-time.After(5 * time.Second):
+					assert.Fail(t, "the echo should reach the reader while the connection subscribes")
+					return context.DeadlineExceeded
+				}
 				return ws.AddSuccessfulSubscriptions(c, subs...)
 			},
 			Unsubscriber: func(context.Context, Connection, subscription.List) error { return nil },
@@ -1924,13 +1973,13 @@ func TestWaitForResponses(t *testing.T) {
 }
 
 // newEchoTestConnection returns a connection to a local websocket server that echoes each request, routing the first
-// echo with a request ID to its matcher
-func newEchoTestConnection(t *testing.T) *connection {
+// echo with a request ID to its matcher; a wait for responses on it lasts responseMaxLimit for each response expected
+func newEchoTestConnection(t *testing.T, responseMaxLimit time.Duration) *connection {
 	t.Helper()
 	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	wc := &connection{
 		URL:              "ws" + mock.URL[len("http"):] + "/ws",
-		ResponseMaxLimit: 250 * time.Millisecond,
+		ResponseMaxLimit: responseMaxLimit,
 		Match:            NewMatch(),
 	}
 	require.NoError(t, wc.Dial(t.Context(), dialer, http.Header{}, nil), "Dial must not error")
@@ -1942,7 +1991,7 @@ func TestConnectionSendMessageReturnResponses(t *testing.T) {
 	t.Parallel()
 	t.Run("answered", func(t *testing.T) {
 		t.Parallel()
-		wc := newEchoTestConnection(t)
+		wc := newEchoTestConnection(t, 5*time.Second)
 		req := testRequest{Event: "subscribe", RequestID: 12344}
 		got, err := wc.SendMessageReturnResponses(t.Context(), request.Unset, req.RequestID, req, 1)
 		require.NoError(t, err, "SendMessageReturnResponses must not error")
@@ -1951,7 +2000,7 @@ func TestConnectionSendMessageReturnResponses(t *testing.T) {
 	})
 	t.Run("partial responses on a timeout", func(t *testing.T) {
 		t.Parallel()
-		wc := newEchoTestConnection(t)
+		wc := newEchoTestConnection(t, time.Second)
 		req := testRequest{Event: "subscribe", RequestID: 12345}
 		got, err := wc.SendMessageReturnResponses(t.Context(), request.Unset, req.RequestID, req, 2)
 		require.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponses must time out waiting for the second response")
@@ -1964,7 +2013,7 @@ func TestConnectionSendMessageReturnResponsesWithInspector(t *testing.T) {
 	t.Parallel()
 	t.Run("final response", func(t *testing.T) {
 		t.Parallel()
-		wc := newEchoTestConnection(t)
+		wc := newEchoTestConnection(t, 5*time.Second)
 		req := testRequest{Event: "subscribe", RequestID: 12346}
 		got, err := wc.SendMessageReturnResponsesWithInspector(t.Context(), request.Unset, req.RequestID, req, 2, inspection{breakEarly: true})
 		require.NoError(t, err, "SendMessageReturnResponsesWithInspector must not error once the inspector finds the final response")
@@ -1973,7 +2022,7 @@ func TestConnectionSendMessageReturnResponsesWithInspector(t *testing.T) {
 	})
 	t.Run("partial responses on a timeout", func(t *testing.T) {
 		t.Parallel()
-		wc := newEchoTestConnection(t)
+		wc := newEchoTestConnection(t, time.Second)
 		req := testRequest{Event: "subscribe", RequestID: 12347}
 		got, err := wc.SendMessageReturnResponsesWithInspector(t.Context(), request.Unset, req.RequestID, req, 2, nil)
 		require.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponsesWithInspector must time out waiting for the second response")
@@ -2895,6 +2944,39 @@ func TestTeardown(t *testing.T) {
 			}
 		})
 	}
+	t.Run("a snapshot a reader loads while teardown waits for it", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		require.NoError(t, m.Orderbook.Setup(t.Name(), m.DataHandler, false), "Orderbook.Setup must not error")
+		m.invalidateOrderbooksOnShutdown = true
+		m.setState(connectedState)
+		p := currency.NewBTCUSDT()
+		reading := make(chan struct{})
+		release := sync.OnceFunc(func() { close(reading) })
+		t.Cleanup(release)
+		m.Wg.Go(func() {
+			<-reading
+			assert.NoError(t, m.Orderbook.LoadSnapshot(context.Background(), &orderbook.Book{Exchange: t.Name(), Pair: p, Asset: asset.Spot, Bids: orderbook.Levels{{Price: 1, Amount: 1}}, LastUpdated: time.Now()}), "the reader's snapshot should load")
+		})
+		torn := make(chan error, 1)
+		go func() {
+			m.m.Lock()
+			_, err := m.teardown()
+			m.m.Unlock()
+			torn <- err
+		}()
+		// Teardown marks the manager disconnected once it has told its readers to stop, and then waits for them
+		require.Eventually(t, func() bool { return !m.IsConnected() }, 5*time.Second, time.Millisecond, "teardown must disconnect the manager")
+		release()
+		select {
+		case err := <-torn:
+			require.NoError(t, err, "teardown must not error")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "teardown must return once its reader has")
+		}
+		_, err := m.Orderbook.GetOrderbook(p, asset.Spot)
+		assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "teardown should invalidate a snapshot its reader loaded while it waited")
+	})
 }
 
 func TestShutdown(t *testing.T) {

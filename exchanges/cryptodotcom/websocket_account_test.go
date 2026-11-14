@@ -5,6 +5,7 @@ import (
 	"context"
 	"slices"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -579,11 +580,11 @@ func TestTrackMarginOrder(t *testing.T) {
 	assert.False(t, ex.isMarginOrder("103", "shared"), "isMarginOrder should not take an order not known by its order ID for the margin order sharing its client order ID once that order's ID is known")
 
 	ex.trackMarginOrder(asset.Margin, "", "c4")
-	ex.untrackClientOrderID("c4")
+	ex.untrackClientOrderID(asset.Margin, "c4")
 	assert.False(t, ex.isMarginOrder("", "c4"), "untrackClientOrderID should stop tracking a client order ID")
 
 	var untracked Exchange
-	untracked.untrackClientOrderID("c1")
+	untracked.untrackClientOrderID(asset.Margin, "c1")
 	untracked.trackMarginOrder(asset.Margin, "1", "c1")
 	assert.False(t, untracked.isMarginOrder("1", "c1"), "isMarginOrder should report no order without a margin order cache")
 
@@ -595,6 +596,60 @@ func TestTrackMarginOrder(t *testing.T) {
 		ex.trackMarginOrder(asset.Margin, "102", "shared")
 		assert.True(t, ex.isMarginOrder("102", ""), "isMarginOrder should report the margin order by its order ID once known")
 		assert.False(t, ex.isMarginOrder("103", "shared"), "isMarginOrder should not take another order sharing the client order ID for the margin order once its order ID is known")
+	})
+
+	t.Run("margin orders sharing a client order ID", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.trackMarginOrder(asset.Margin, "", "shared")
+		ex.trackMarginOrder(asset.Margin, "", "shared")
+		ex.trackMarginOrder(asset.Margin, "201", "shared")
+		assert.True(t, ex.isMarginOrder("202", "shared"), "trackMarginOrder should go on tracking a client order ID while another margin order sent with it awaits its order ID")
+		ex.untrackClientOrderID(asset.Margin, "shared")
+		assert.False(t, ex.isMarginOrder("202", "shared"), "untrackClientOrderID should stop tracking a client order ID once no margin order sent with it awaits its order ID")
+
+		ex.trackMarginOrder(asset.Margin, "", "reused")
+		ex.trackMarginOrder(asset.Margin, "", "reused")
+		ex.trackMarginOrder(asset.Spot, "", "reused")
+		assert.False(t, ex.isMarginOrder("", "reused"), "trackMarginOrder should stop tracking a client order ID a spot order is sent with, however many margin orders were sent with it")
+		ex.untrackClientOrderID(asset.Margin, "reused")
+		ex.trackMarginOrder(asset.Margin, "", "reused")
+		assert.True(t, ex.isMarginOrder("", "reused"), "trackMarginOrder should track a client order ID a margin order is sent with once a spot order stopped it being tracked")
+
+		// A spot order sent with the ID before a margin order is answered while the margin order awaits its order ID
+		ex.trackMarginOrder(asset.Spot, "", "mixed")
+		ex.trackMarginOrder(asset.Margin, "", "mixed")
+		ex.trackMarginOrder(asset.Spot, "301", "mixed")
+		assert.True(t, ex.isMarginOrder("302", "mixed"), "trackMarginOrder should go on tracking a client order ID a margin order awaiting its order ID was sent with when a spot order sent with it is answered")
+		assert.False(t, ex.isMarginOrder("301", "mixed"), "trackMarginOrder should track the answered spot order as no margin order by its order ID")
+	})
+
+	t.Run("margin orders sharing a client order ID sent and answered concurrently", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		var wg sync.WaitGroup
+		for range 8 {
+			wg.Go(func() {
+				for range 500 {
+					ex.trackMarginOrder(asset.Margin, "", "shared")
+					if !assert.True(t, ex.isMarginOrder("", "shared"), "a client order ID should stay tracked while a margin order sent with it awaits its order ID") {
+						return
+					}
+					ex.untrackClientOrderID(asset.Margin, "shared")
+				}
+			})
+		}
+		done := make(chan struct{})
+		go func() {
+			wg.Wait()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(mockRequestTimeout):
+			require.FailNow(t, "the margin orders must be tracked and untracked")
+		}
+		assert.False(t, ex.isMarginOrder("", "shared"), "the client order ID should not be tracked once every margin order sent with it has its outcome")
 	})
 }
 
@@ -1169,24 +1224,31 @@ func TestUserOrderDetail(t *testing.T) { //nolint:tparallel // the cases share o
 func TestUntrackClientOrderID(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	// Client order IDs c1 and c2 are tracked as margin orders', and c1 is a margin order's order ID too
+	// Client order ID c1 is tracked as a margin order's and c2 as two margin orders', and c1 is a margin order's order ID
+	// too
 	ex.trackMarginOrder(asset.Margin, "", "c1")
+	ex.trackMarginOrder(asset.Margin, "", "c2")
 	ex.trackMarginOrder(asset.Margin, "", "c2")
 	ex.trackMarginOrder(asset.Margin, "c1", "")
 	// The cases untrack the client order IDs ex tracks in order
 	for _, tc := range []struct {
 		name          string
+		a             asset.Item
 		clientOrderID string
 		// tracked are the client order IDs tracked as margin orders' after
 		tracked []string
 	}{
-		{"no client order ID", "", []string{"c1", "c2"}},
-		{"a client order ID not tracked", "c3", []string{"c1", "c2"}},
-		{"a client order ID tracked", "c1", []string{"c2"}},
-		{"a client order ID untracked already", "c1", []string{"c2"}},
+		{"no client order ID", asset.Margin, "", []string{"c1", "c2"}},
+		{"a client order ID not tracked", asset.Margin, "c3", []string{"c1", "c2"}},
+		{"a spot order's client order ID a margin order awaiting its order ID was sent with", asset.Spot, "c1", []string{"c1", "c2"}},
+		{"a derivative order's client order ID a margin order awaiting its order ID was sent with", asset.PerpetualSwap, "c1", []string{"c1", "c2"}},
+		{"a client order ID tracked", asset.Margin, "c1", []string{"c2"}},
+		{"a client order ID untracked already", asset.Margin, "c1", []string{"c2"}},
+		{"a client order ID another margin order awaiting its order ID was sent with", asset.Margin, "c2", []string{"c2"}},
+		{"a client order ID no other margin order awaiting its order ID was sent with", asset.Margin, "c2", nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ex.untrackClientOrderID(tc.clientOrderID)
+			ex.untrackClientOrderID(tc.a, tc.clientOrderID)
 			for _, id := range []string{"c1", "c2", "c3"} {
 				assert.Equalf(t, slices.Contains(tc.tracked, id), ex.isMarginOrder("", id), "untrackClientOrderID should leave client order ID %s tracked as a margin order's or not", id)
 			}
@@ -1197,7 +1259,7 @@ func TestUntrackClientOrderID(t *testing.T) {
 	t.Run("no margin order cache", func(t *testing.T) {
 		t.Parallel()
 		var untracked Exchange
-		assert.NotPanics(t, func() { untracked.untrackClientOrderID("c1") }, "untrackClientOrderID should pass over an exchange tracking no orders")
+		assert.NotPanics(t, func() { untracked.untrackClientOrderID(asset.Margin, "c1") }, "untrackClientOrderID should pass over an exchange tracking no orders")
 	})
 }
 
@@ -1420,6 +1482,15 @@ func countedWalletSaves(ex *Exchange, creds *accounts.Credentials) uint64 {
 	return ex.walletSaves[*creds]
 }
 
+// walletUnlocked reports whether nothing holds an exchange's wallet lock
+func walletUnlocked(ex *Exchange) bool {
+	if !ex.walletMu.TryLock() {
+		return false
+	}
+	ex.walletMu.Unlock()
+	return true
+}
+
 // withoutUpdateTimes returns balances without the times the account store stamps them with as it saves them, having
 // checked those are recent
 func withoutUpdateTimes(t *testing.T, balances accounts.CurrencyBalances) accounts.CurrencyBalances {
@@ -1512,6 +1583,17 @@ func TestWebsocketHandleUserBalance(t *testing.T) {
 		assert.ErrorIs(t, unauthenticated.wsHandleUserBalance(t.Context(), channelPush(t, accountFrame(t, "user.balance", 0))), exchange.ErrCredentialsAreEmpty, "wsHandleUserBalance should report balances it has no credentials to store under")
 		assert.Empty(t, relayedData(unauthenticated), "wsHandleUserBalance should relay no balances it cannot store")
 		assert.Empty(t, unauthenticated.walletSaves, "wsHandleUserBalance should count no save without credentials")
+		assert.True(t, walletUnlocked(unauthenticated), "wsHandleUserBalance should leave the wallet unlocked when it refuses the credentials")
+	})
+
+	t.Run("balances saved under the wallet lock", func(t *testing.T) {
+		t.Parallel()
+		locked := newTestExchange(t)
+		setTestCredentials(locked, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
+		probe := &walletLockProbe{Exchange: locked}
+		locked.Accounts = accounts.MustNewAccounts(probe)
+		require.NoError(t, locked.wsHandleUserBalance(t.Context(), channelPush(t, accountFrame(t, "user.balance", 0))), "wsHandleUserBalance must save the balances")
+		assert.Equal(t, []bool{true}, probe.lockHeld, "wsHandleUserBalance should hold the wallet lock while it saves the balances, so that no snapshot is saved between its save and its count")
 	})
 
 	t.Run("balances the account store refuses", func(t *testing.T) {

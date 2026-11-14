@@ -42,6 +42,9 @@ type Exchange struct {
 	// marginOrders holds the orders on spot instruments known to trade on margin, for their trades, which do not say so,
 	// to be filled as margin
 	marginOrders *cache.LRUCache
+	// clientOrderIDsMu guards the counts marginOrders holds by client order ID, of the margin orders sent with each ID
+	// whose outcome is not yet known
+	clientOrderIDsMu sync.Mutex
 	// walletMu guards walletSaves, which counts the saves of each credentials' wallet, so that a REST snapshot is not
 	// saved over a push or another snapshot saved while it was requested
 	walletMu    sync.Mutex

@@ -502,6 +502,91 @@ func TestWebsocketUnsubscribeBatch(t *testing.T) {
 			assert.ErrorIsf(t, err, errBookUnsubscribed, "wsUnsubscribeBatch should invalidate the %s book, as the unanswered request may have stopped the channel", a)
 		}
 	})
+	for _, tc := range []struct {
+		name string
+		// end returns the request's context and has the mock end it once it has applied the unsubscription
+		end func(t *testing.T, venue *websocketVenue) context.Context
+		err error
+	}{
+		{name: "cancelled", err: context.Canceled, end: func(t *testing.T, venue *websocketVenue) context.Context {
+			t.Helper()
+			ctx, cancel := context.WithCancel(t.Context())
+			t.Cleanup(cancel)
+			venue.beforeAnswering(websocketMethodUnsubscribe, cancel)
+			return ctx
+		}},
+		{name: "past its deadline", err: context.DeadlineExceeded, end: func(t *testing.T, venue *websocketVenue) context.Context {
+			t.Helper()
+			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+			t.Cleanup(cancel)
+			venue.beforeAnswering(websocketMethodUnsubscribe, func() { <-ctx.Done() })
+			return ctx
+		}},
+	} {
+		t.Run("a book channel's books are invalidated when its context ends "+tc.name+" before its unsubscription is answered", func(t *testing.T) {
+			t.Parallel()
+			venue := newMarketDataVenue(t)
+			answerBookSnapshotFirst(t, venue)
+			// The configured response limit of 7 s outlasts the deadline
+			ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+			require.NoError(t, err, "Connect must not error")
+			conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
+			s := conn.Subscriptions().Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}})
+			require.NotNil(t, s, "the book channel must be subscribed")
+			// The mock applies the unsubscription, then ends its context and loses the answer
+			venue.loseAnswers(websocketMethodUnsubscribe, 1)
+			require.ErrorIs(t, ex.wsUnsubscribeBatch(tc.end(t, venue), conn, subscription.List{s}), tc.err, "wsUnsubscribeBatch must return the context's end")
+			for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+				_, err := ex.Websocket.Orderbook.LastUpdateID(spotBTCUSD, a)
+				assert.ErrorIsf(t, err, errBookUnsubscribed, "wsUnsubscribeBatch should invalidate the %s book of a channel Crypto.com may have stopped", a)
+			}
+		})
+	}
+	t.Run("a snapshot loaded while a resubscribing book channel is unsubscribed once more is invalidated", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
+		answerBookSnapshotFirst(t, venue)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription(), withTestResponseMaxLimit(t, venue))
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
+		s := conn.Subscriptions().Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}})
+		require.NotNil(t, s, "the book channel must be subscribed")
+		require.NoError(t, s.SetState(subscription.ResubscribingState), "SetState must not error")
+		// The first unsubscription goes unanswered, and a snapshot arrives as the second is answered
+		venue.loseAnswers(websocketMethodUnsubscribe, 1)
+		snapshot := channelPush(t, marketDataFrame(t, recordedBookChannel, 1))
+		venue.beforeAnswering(websocketMethodUnsubscribe, func() {
+			if len(venue.received(websocketMethodUnsubscribe)) == 2 {
+				assert.NoError(t, ex.wsHandleBook(t.Context(), snapshot), "wsHandleBook should load the snapshot")
+			}
+		})
+		require.NoError(t, ex.wsUnsubscribeBatch(t.Context(), conn, subscription.List{s}), "wsUnsubscribeBatch must not error once the second unsubscription is answered")
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			_, err := ex.Websocket.Orderbook.LastUpdateID(spotBTCUSD, a)
+			assert.ErrorIsf(t, err, errBookUnsubscribed, "wsUnsubscribeBatch should invalidate the %s book loaded before its channel was unsubscribed", a)
+		}
+	})
+	t.Run("a resubscribing book channel's unsubscription is not sent again once its context has ended", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		conn := &cancellingConnection{scriptedConnection: newScriptedConnection(scriptedAnswer{err: websocket.ErrSignatureTimeout}), cancel: cancel}
+		s := &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: recordedBookChannel}
+		require.NoError(t, s.SetState(subscription.ResubscribingState), "SetState must not error")
+		require.ErrorIs(t, newTestExchange(t).wsUnsubscribeBatch(ctx, conn, subscription.List{s}), websocket.ErrSignatureTimeout, "wsUnsubscribeBatch must return the unanswered request's timeout")
+		assert.Len(t, conn.recorded().requests, 1, "wsUnsubscribeBatch should not send the unsubscription again once its context has ended")
+	})
+	t.Run("an ended context sends no unsubscription", func(t *testing.T) {
+		t.Parallel()
+		conn := newScriptedConnection(scriptedAnswer{})
+		s := &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: recordedBookChannel}
+		require.ErrorIs(t, newTestExchange(t).wsUnsubscribeBatch(endedContext(t), conn, subscription.List{s}), context.Canceled, "wsUnsubscribeBatch must return the cancellation")
+		assert.Empty(t, conn.recorded().requests, "wsUnsubscribeBatch should send nothing once its context has ended")
+	})
 	t.Run("a book channel's books stay when its unsubscription fails otherwise", func(t *testing.T) {
 		t.Parallel()
 		venue := newMarketDataVenue(t)
@@ -516,6 +601,132 @@ func TestWebsocketUnsubscribeBatch(t *testing.T) {
 		require.ErrorIs(t, ex.wsUnsubscribeBatch(endedContext(t), conn, subscription.List{s}), context.Canceled, "wsUnsubscribeBatch must return the cancellation")
 		requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
 	})
+	t.Run("a resubscribing book channel's books are invalidated when its context ends once its unsubscription is sent, a snapshot loaded meanwhile included", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
+		answerBookSnapshotFirst(t, venue)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
+		s := conn.Subscriptions().Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}})
+		require.NotNil(t, s, "the book channel must be subscribed")
+		require.NoError(t, s.SetState(subscription.ResubscribingState), "SetState must not error")
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		// The mock applies the unsubscription, a snapshot sent before it is loaded, and the context ends as the answer is lost
+		snapshot := channelPush(t, marketDataFrame(t, recordedBookChannel, 1))
+		venue.loseAnswers(websocketMethodUnsubscribe, 1)
+		venue.beforeAnswering(websocketMethodUnsubscribe, func() {
+			assert.NoError(t, ex.wsHandleBook(t.Context(), snapshot), "wsHandleBook should load the snapshot")
+			cancel()
+		})
+		require.ErrorIs(t, ex.wsUnsubscribeBatch(ctx, conn, subscription.List{s}), context.Canceled, "wsUnsubscribeBatch must return the cancellation")
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			_, err := ex.Websocket.Orderbook.LastUpdateID(spotBTCUSD, a)
+			assert.ErrorIsf(t, err, errBookUnsubscribed, "wsUnsubscribeBatch should invalidate the %s book of a channel Crypto.com may have stopped, though a snapshot was loaded meanwhile", a)
+		}
+	})
+	for _, tc := range []struct {
+		name        string
+		unsubscribe func(ctx context.Context, ex *Exchange, conn websocket.Connection, s *subscription.Subscription) error
+	}{
+		{name: "unsubscribed", unsubscribe: func(ctx context.Context, ex *Exchange, conn websocket.Connection, s *subscription.Subscription) error {
+			return ex.wsUnsubscribeBatch(ctx, conn, subscription.List{s})
+		}},
+		{name: "resubscribing", unsubscribe: func(ctx context.Context, ex *Exchange, conn websocket.Connection, s *subscription.Subscription) error {
+			if err := s.SetState(subscription.ResubscribingState); err != nil {
+				return err
+			}
+			return ex.wsUnsubscribeBatch(ctx, conn, subscription.List{s})
+		}},
+		{name: "resubscribed from its connection", unsubscribe: func(ctx context.Context, ex *Exchange, conn websocket.Connection, s *subscription.Subscription) error {
+			return ex.Websocket.ResubscribeFromConnection(ctx, conn, subscription.List{s})
+		}},
+		{name: "resubscribed to its channel", unsubscribe: func(ctx context.Context, ex *Exchange, conn websocket.Connection, s *subscription.Subscription) error {
+			return ex.Websocket.ResubscribeToChannel(ctx, conn, s)
+		}},
+	} {
+		t.Run("a book channel "+tc.name+" keeps its books when its context ends before its unsubscription is sent", func(t *testing.T) {
+			t.Parallel()
+			venue := newMarketDataVenue(t)
+			answerBookSnapshotFirst(t, venue)
+			ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+			require.NoError(t, err, "Connect must not error")
+			conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
+			s := conn.Subscriptions().Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}})
+			require.NotNil(t, s, "the book channel must be subscribed")
+			// The unsubscription waits at a rate limit barrier for a second request, which never comes, until its context ends
+			ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+			defer cancel()
+			waiting, err := request.NewRateLimitBarrierContexts(ctx, 2)
+			require.NoError(t, err, "NewRateLimitBarrierContexts must not error")
+			defer request.AbortRateLimitBarrier(waiting[1])
+			require.ErrorIs(t, tc.unsubscribe(waiting[0], ex, conn, s), context.DeadlineExceeded, "the unsubscription must return its context's end")
+			require.Empty(t, venue.received(websocketMethodUnsubscribe), "no unsubscribe request must be sent")
+			_, err = ex.Websocket.Orderbook.LastUpdateID(spotBTCUSD, asset.Spot)
+			require.NoError(t, err, "the books must stay valid, as their channel goes on updating them")
+			require.NoError(t, ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 2)), "wsHandleData must handle the book's next update")
+			assert.Eventually(t, func() bool {
+				_, err := ex.Websocket.Orderbook.LastUpdateID(spotBTCUSD, asset.Spot)
+				return err == nil
+			}, 5*time.Second, 10*time.Millisecond, "the book should be valid after its next update, as its channel was never unsubscribed")
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		// prepare has the mock answer the unsubscription as the case says, and returns the request's context
+		prepare func(t *testing.T, venue *websocketVenue) context.Context
+		err     error
+	}{
+		{name: "answered", prepare: func(t *testing.T, _ *websocketVenue) context.Context {
+			t.Helper()
+			return t.Context()
+		}},
+		{name: "unanswered", err: websocket.ErrSignatureTimeout, prepare: func(t *testing.T, venue *websocketVenue) context.Context {
+			t.Helper()
+			venue.loseAnswers(websocketMethodUnsubscribe, 1)
+			return t.Context()
+		}},
+		{name: "ended once sent", err: context.Canceled, prepare: func(t *testing.T, venue *websocketVenue) context.Context {
+			t.Helper()
+			ctx, cancel := context.WithCancel(t.Context())
+			t.Cleanup(cancel)
+			venue.loseAnswers(websocketMethodUnsubscribe, 1)
+			venue.beforeAnswering(websocketMethodUnsubscribe, cancel)
+			return ctx
+		}},
+	} {
+		t.Run("every book channel of a batch has its books invalidated when its unsubscription is "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			venue := newMarketDataVenue(t)
+			pairs := currency.Pairs{spotBTCUSD, spotETHUSD}
+			ex, err := newMarketDataTestExchange(t, venue, subscription.List{
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 10, Pairs: pairs},
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD}},
+			}, withTestResponseMaxLimit(t, venue))
+			require.NoError(t, err, "Connect must not error")
+			conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			for _, p := range pairs {
+				for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+					require.NoError(t, ex.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{Exchange: ex.Name, Pair: p, Asset: a, LastUpdateID: 123, LastUpdated: time.Now(), Bids: orderbook.Levels{{Price: 10, Amount: 1}}, Asks: orderbook.Levels{{Price: 11, Amount: 1}}}), "LoadSnapshot must not error")
+				}
+			}
+			subs := conn.Subscriptions().List()
+			require.Len(t, subs, 3, "both book channels and the ticker channel must be subscribed")
+			require.ErrorIs(t, ex.wsUnsubscribeBatch(tc.prepare(t, venue), conn, subs), tc.err, "wsUnsubscribeBatch must return the expected error")
+			for _, p := range pairs {
+				for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+					_, err := ex.Websocket.Orderbook.LastUpdateID(p, a)
+					assert.ErrorIsf(t, err, errBookUnsubscribed, "wsUnsubscribeBatch should invalidate the %s %s book", a, p)
+				}
+			}
+		})
+	}
 
 	// Only a book channel resubscribing alone is unsubscribed once more, and only when its request times out
 	for _, tc := range []struct {
@@ -1201,6 +1412,18 @@ type scriptedRequest struct {
 type scriptedRouted struct {
 	signature any
 	data      string
+}
+
+// cancellingConnection is a scriptedConnection that ends a context once it has answered a request
+type cancellingConnection struct {
+	*scriptedConnection
+	cancel context.CancelFunc
+}
+
+// SendMessageReturnResponse answers a request as the scriptedConnection does, then ends the context
+func (c *cancellingConnection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, req any) ([]byte, error) {
+	defer c.cancel()
+	return c.scriptedConnection.SendMessageReturnResponse(ctx, epl, signature, req)
 }
 
 // newScriptedConnection returns a scriptedConnection answering requests with answers in turn

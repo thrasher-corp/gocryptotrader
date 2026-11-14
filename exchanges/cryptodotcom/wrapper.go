@@ -1403,7 +1403,7 @@ func (e *Exchange) submitOrderWith(ctx context.Context, s *order.Submit, create 
 	}
 	if err != nil {
 		if _, refused := errors.AsType[*APIError](err); refused {
-			e.untrackClientOrderID(r.clientOrderID)
+			e.untrackClientOrderID(s.AssetType, r.clientOrderID)
 		}
 		return nil, err
 	}
@@ -1457,7 +1457,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		e.trackListSent(orders, requests, list)
 		entries, err := e.WebsocketAPI().CreateOrderList(ctx, creates)
 		if err != nil {
-			e.trackListRefused(requests, list, err)
+			e.trackListRefused(orders, requests, list, err)
 			return responses, err
 		}
 		if err := listSubmitResponses(orders, list, entries, responses); err != nil {
@@ -1473,7 +1473,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		e.trackListSent(orders, requests, list)
 		entries, err := e.WebsocketAPI().CreateAdvancedOrderList(ctx, creates)
 		if err != nil {
-			e.trackListRefused(requests, list, err)
+			e.trackListRefused(orders, requests, list, err)
 			return responses, err
 		}
 		if err := listSubmitResponses(orders, list, entries, responses); err != nil {
@@ -1491,26 +1491,26 @@ func (e *Exchange) trackListSent(orders []*order.Submit, requests []*orderReques
 	}
 }
 
-// trackListRefused stops tracking the client order IDs of a list's orders when Crypto.com refused the list; a list
-// whose request failed otherwise may have been placed
-func (e *Exchange) trackListRefused(requests []*orderRequest, list []int, err error) {
+// trackListRefused counts out the margin orders of a list Crypto.com refused on the client order IDs they were sent
+// with; a list whose request failed otherwise may have been placed
+func (e *Exchange) trackListRefused(orders []*order.Submit, requests []*orderRequest, list []int, err error) {
 	if _, refused := errors.AsType[*APIError](err); !refused {
 		return
 	}
 	for _, i := range list {
-		e.untrackClientOrderID(requests[i].clientOrderID)
+		e.untrackClientOrderID(orders[i].AssetType, requests[i].clientOrderID)
 	}
 }
 
 // trackListAnswered tracks the orders Crypto.com placed from an answered list by their order IDs in place of the client
-// order IDs they were sent with, and stops tracking the client order IDs of those it rejected; an order the answer
-// gives no outcome for may have been placed
+// order IDs they were sent with, and counts out those it rejected on theirs; an order the answer gives no outcome for
+// may have been placed
 func (e *Exchange) trackListAnswered(orders []*order.Submit, requests []*orderRequest, list []int, responses []*order.SubmitResponse) {
 	for _, i := range list {
 		if responses[i].SubmissionError == nil {
 			e.trackMarginOrder(orders[i].AssetType, responses[i].OrderID, requests[i].clientOrderID)
 		} else if _, rejected := errors.AsType[*APIError](responses[i].SubmissionError); rejected {
-			e.untrackClientOrderID(requests[i].clientOrderID)
+			e.untrackClientOrderID(orders[i].AssetType, requests[i].clientOrderID)
 		}
 	}
 }

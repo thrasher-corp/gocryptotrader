@@ -779,19 +779,26 @@ func (e *Exchange) wsUnsubscribe(ctx context.Context, conn websocket.Connection,
 	return errs
 }
 
-// wsUnsubscribeBatch sends an unsubscribe request for channels, which Crypto.com acknowledges once, and removes them. A
-// book channel resubscribing for a new snapshot is unsubscribed once more, on the same connection, when its request
-// times out, as Crypto.com may have applied the request and stopped the channel's deltas, which would leave its books
-// awaiting a snapshot that no delta asks for. The books of its book channels are invalidated once the request is
-// answered, or once it goes unanswered, as Crypto.com may then have stopped them
+// wsUnsubscribeBatch sends an unsubscribe request for channels, which Crypto.com acknowledges once, and removes them;
+// a ctx already ended sends none. A book channel resubscribing for a new snapshot is unsubscribed once more, on the same
+// connection, when its request times out and ctx has not ended, as Crypto.com may have applied the request and stopped
+// the channel's deltas, which would leave its books awaiting a snapshot that no delta asks for. The books of its book
+// channels are invalidated once the request is answered, goes unanswered or has its wait for the answer ended by ctx, as
+// Crypto.com may then have stopped them; ctx ending the wait to send the first request leaves them to the deltas still
+// arriving
 func (e *Exchange) wsUnsubscribeBatch(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	params := &subscriptionRequest{Channels: qualifiedChannels(subs)}
 	err := e.sendConnectionRequest(ctx, conn, websocketMethodUnsubscribe, params, nil)
 	unanswered := errors.Is(err, websocket.ErrSignatureTimeout)
-	if unanswered && len(subs) == 1 && subs[0].Channel == subscription.OrderbookChannel && subs[0].State() == subscription.ResubscribingState {
+	if unanswered && ctx.Err() == nil && len(subs) == 1 && subs[0].Channel == subscription.OrderbookChannel && subs[0].State() == subscription.ResubscribingState {
 		err = e.sendConnectionRequest(ctx, conn, websocketMethodUnsubscribe, params, nil)
 	}
-	if err == nil || unanswered {
+	// The connection returns ctx's own error only once it has sent the request, and wraps one ending the wait to send
+	endedAfterSending := err != nil && err == ctx.Err()
+	if err == nil || unanswered || endedAfterSending {
 		// An unanswered unsubscription may have stopped a book channel, whatever any retry is answered with
 		for _, s := range subs {
 			if s.Channel == subscription.OrderbookChannel {

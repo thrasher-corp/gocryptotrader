@@ -123,6 +123,7 @@ func TestWebsocketAPICancelExistingOrder(t *testing.T) { //nolint:tparallel // t
 	req := &CancelOrderRequest{OrderID: tradingTestOrderID}
 	if !mockTests {
 		req.OrderID = placeTradingTestOrder(t)
+		cancelTradingOrderIfTestFails(t, req.OrderID)
 	}
 	result, err := ex.WebsocketAPI().CancelExistingOrder(t.Context(), req)
 	require.NoError(t, err, "CancelExistingOrder must not error")

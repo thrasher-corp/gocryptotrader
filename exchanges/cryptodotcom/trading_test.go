@@ -489,6 +489,7 @@ func TestCancelExistingOrder(t *testing.T) { //nolint:tparallel // the cases run
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
 		req.OrderID = placeTradingTestOrder(t)
+		cancelTradingOrderIfTestFails(t, req.OrderID)
 	}
 	result, err := e.CancelExistingOrder(t.Context(), req)
 	require.NoError(t, err, "CancelExistingOrder must not error")

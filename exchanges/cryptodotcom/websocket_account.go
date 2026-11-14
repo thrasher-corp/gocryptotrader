@@ -120,28 +120,46 @@ type marginOrderKey struct {
 
 // trackMarginOrder tracks whether an order on a spot instrument trades on margin, for its trades, which name no asset,
 // to be filled as the asset it trades as: by its order ID, and by its client order ID as a margin order's until its
-// order ID is known, as orders can share a client order ID. Either ID may be empty
+// order ID is known, as orders can share a client order ID. A client order ID stays tracked while any margin order
+// sent with it awaits its order ID, and a spot order sent with it stops it being tracked. Either ID may be empty
 func (e *Exchange) trackMarginOrder(a asset.Item, orderID, clientOrderID string) {
 	if e.marginOrders == nil || (a != asset.Spot && a != asset.Margin) {
 		return
 	}
 	if orderID != "" {
 		e.marginOrders.Add(marginOrderKey{id: orderID}, a == asset.Margin)
-		e.untrackClientOrderID(clientOrderID)
+		e.untrackClientOrderID(a, clientOrderID)
 		return
 	}
-	if a == asset.Margin && clientOrderID != "" {
-		e.marginOrders.Add(marginOrderKey{id: clientOrderID, client: true}, true)
+	if clientOrderID == "" {
 		return
 	}
-	e.untrackClientOrderID(clientOrderID)
+	key := marginOrderKey{id: clientOrderID, client: true}
+	e.clientOrderIDsMu.Lock()
+	defer e.clientOrderIDsMu.Unlock()
+	if a == asset.Spot {
+		e.marginOrders.Remove(key)
+		return
+	}
+	awaiting, _ := e.marginOrders.Get(key).(uint64)
+	e.marginOrders.Add(key, awaiting+1)
 }
 
-// untrackClientOrderID stops tracking a client order ID as a margin order's, as when Crypto.com did not place the order
-func (e *Exchange) untrackClientOrderID(clientOrderID string) {
-	if e.marginOrders != nil && clientOrderID != "" {
-		e.marginOrders.Remove(marginOrderKey{id: clientOrderID, client: true})
+// untrackClientOrderID counts out a margin order sent with a client order ID, as when Crypto.com placed or refused it,
+// and stops tracking the ID once no margin order sent with it awaits its order ID; an order of another asset counts
+// nothing out, as only margin orders count on the ID
+func (e *Exchange) untrackClientOrderID(a asset.Item, clientOrderID string) {
+	if e.marginOrders == nil || a != asset.Margin || clientOrderID == "" {
+		return
 	}
+	key := marginOrderKey{id: clientOrderID, client: true}
+	e.clientOrderIDsMu.Lock()
+	defer e.clientOrderIDsMu.Unlock()
+	if awaiting, _ := e.marginOrders.Get(key).(uint64); awaiting > 1 {
+		e.marginOrders.Add(key, awaiting-1)
+		return
+	}
+	e.marginOrders.Remove(key)
 }
 
 // isMarginOrder reports whether an order is tracked as a margin order: by its order ID when that is tracked, else by
