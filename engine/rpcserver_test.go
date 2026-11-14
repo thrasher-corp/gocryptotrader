@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -3844,6 +3846,60 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// reservedPorts holds the ports reserveAddress has handed to tests that are still running
+var reservedPorts sync.Map
+
+// reserveAddress returns an address on host with a free port for a server the test starts
+// Ports below the ephemeral range are never assigned to listeners on port 0 or to outgoing connections. That range starts
+// at 32768 on Linux and 49152 on macOS and Windows by default, so unless a host lowers it, none of those can take this
+// port before the test's server binds it
+func reserveAddress(t *testing.T, host string) string {
+	t.Helper()
+	listenConfig := net.ListenConfig{}
+	for range 100 {
+		port := 10000 + rand.IntN(10000) //nolint:gosec // a test port needs no cryptographic randomness
+		if _, taken := reservedPorts.LoadOrStore(port, struct{}{}); taken {
+			continue
+		}
+		address := net.JoinHostPort(host, strconv.Itoa(port))
+		lis, err := listenConfig.Listen(t.Context(), "tcp", address)
+		if err != nil {
+			reservedPorts.Delete(port)
+			continue
+		}
+		require.NoError(t, lis.Close(), "Close must not error")
+		t.Cleanup(func() { reservedPorts.Delete(port) })
+		return address
+	}
+	require.FailNow(t, "reserveAddress must find a free port")
+	return ""
+}
+
+// Serial, so each release can be checked once its subtest has ended
+func TestReserveAddress(t *testing.T) {
+	for _, host := range []string{"localhost", "127.0.0.1"} {
+		var port int
+		t.Run(host, func(t *testing.T) {
+			address := reserveAddress(t, host)
+			addressHost, portText, err := net.SplitHostPort(address)
+			require.NoError(t, err, "SplitHostPort must not error")
+			assert.Equal(t, host, addressHost, "reserveAddress should keep the host")
+			port, err = strconv.Atoi(portText)
+			require.NoError(t, err, "Atoi must not error")
+			assert.GreaterOrEqual(t, port, 10000, "reserveAddress should pick a port from 10000")
+			assert.Less(t, port, 20000, "reserveAddress should pick a port below 20000")
+			_, held := reservedPorts.Load(port)
+			assert.True(t, held, "reserveAddress should hold the port while its test runs")
+			listenConfig := net.ListenConfig{}
+			lis, err := listenConfig.Listen(t.Context(), "tcp", address)
+			require.NoError(t, err, "the reserved port must be free to listen on")
+			assert.NoError(t, lis.Close(), "Close should not error")
+		})
+		_, held := reservedPorts.Load(port)
+		assert.False(t, held, "reserveAddress should release the port once its test has ended")
+	}
+}
+
 func TestStartRPCRESTProxy(t *testing.T) {
 	t.Parallel()
 
@@ -3851,21 +3907,8 @@ func TestStartRPCRESTProxy(t *testing.T) {
 	tempDirTLS := filepath.Join(tempDir, "tls")
 	require.NoError(t, genCert(tempDirTLS), "genCert must not error")
 
-	listenConfig := net.ListenConfig{}
-	gRPCListener, err := listenConfig.Listen(t.Context(), "tcp", "localhost:0")
-	require.NoError(t, err, "Listen must not error")
-	proxyListener, err := listenConfig.Listen(t.Context(), "tcp", "localhost:0")
-	require.NoError(t, err, "Listen must not error")
-	_, gRPCPort, err := net.SplitHostPort(gRPCListener.Addr().String())
-	require.NoError(t, err, "SplitHostPort must not error")
-	_, proxyPort, err := net.SplitHostPort(proxyListener.Addr().String())
-	require.NoError(t, err, "SplitHostPort must not error")
-	// StartRPCServer binds both addresses itself; keeping both listeners open
-	// until this point ensures the two ports are distinct.
-	require.NoError(t, gRPCListener.Close(), "Close must not error")
-	require.NoError(t, proxyListener.Close(), "Close must not error")
 	// The default configuration listens on localhost, which also verifies the TLS certificate's localhost DNS name
-	gRPCAddress, proxyAddress := "localhost:"+gRPCPort, "localhost:"+proxyPort
+	gRPCAddress, proxyAddress := reserveAddress(t, "localhost"), reserveAddress(t, "localhost")
 
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -3917,6 +3960,7 @@ func TestStartRPCRESTProxy(t *testing.T) {
 	ok := caCertPool.AppendCertsFromPEM(caCert)
 	require.True(t, ok, "AppendCertsFromPEM must return true")
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12}}, Timeout: 5 * time.Second}
+	t.Cleanup(client.CloseIdleConnections)
 
 	for _, creds := range []struct {
 		testDescription string
@@ -4088,11 +4132,7 @@ func TestStartRPCServerStopsListenerOnContextCancel(t *testing.T) {
 	require.NoError(t, os.MkdirAll(tempDirTLS, os.ModePerm), "MkdirAll must not error")
 	require.NoError(t, genCert(tempDirTLS), "genCert must not error")
 
-	listenConfig := net.ListenConfig{}
-	portListener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err, "Listen must not error")
-	listenAddress := portListener.Addr().String()
-	require.NoError(t, portListener.Close(), "Close must not error")
+	listenAddress := reserveAddress(t, "127.0.0.1")
 
 	e := &Engine{
 		Config: &config.Config{RemoteControl: config.RemoteControlConfig{
