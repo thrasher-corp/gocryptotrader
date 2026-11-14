@@ -55,7 +55,8 @@ func (s *store) Update(b *Book) error {
 		}
 	}
 	b.RestSnapshot = true
-	if err := book.Depth.LoadSnapshot(b); err != nil {
+	loaded, err := book.Depth.loadUnlessStreamed(b)
+	if err != nil || !loaded {
 		return err
 	}
 	return s.signalMux.Publish(book.Depth, book.RouterID)
@@ -64,6 +65,11 @@ func (s *store) Update(b *Book) error {
 func (s *store) track(b *Book) (book, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
+	// Another caller may have tracked the book since this one's look-up; replacing its depth would strand whatever it
+	// loads in a depth the store no longer holds
+	if ob, ok := s.orderbooks[key.ExchangeAssetPair{Exchange: b.Exchange, Base: b.Pair.Base.Item, Quote: b.Pair.Quote.Item, Asset: b.Asset}]; ok {
+		return ob, nil
+	}
 	id, ok := s.exchangeRouters[b.Exchange]
 	if !ok {
 		exchangeID, err := s.signalMux.GetID()

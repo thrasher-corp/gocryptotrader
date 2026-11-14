@@ -56,7 +56,7 @@ if err != nil {
 // set and AuthenticatedAPISupport is set to true
 
 // Fetches current account information
-accountInfo, err := b.GetAccountInfo()
+accountInfo, err := b.UpdateAccountBalances(ctx, asset.Spot)
 if err != nil {
     // Handle error
 }
@@ -67,14 +67,8 @@ if err != nil {
 ```go
 // Public calls
 
-// Fetches current ticker information
-ticker, err := b.GetTicker()
-if err != nil {
-    // Handle error
-}
-
-// Fetches current orderbook information
-ob, err := b.GetOrderBook()
+// Fetches the order book
+book, err := e.GetOrderBook(ctx, &binanceus.OrderBookRequest{Symbol: currency.NewBTCUSDT(), Limit: 100})
 if err != nil {
     // Handle error
 }
@@ -82,14 +76,21 @@ if err != nil {
 // Private calls - make sure your APIKEY and APISECRET are set and
 // AuthenticatedAPISupport is set to true
 
-// GetUserInfo returns account info
-accountInfo, err := b.GetUserInfo(...)
+// Fetches the account's information and balances
+account, err := e.GetAccount(ctx)
 if err != nil {
     // Handle error
 }
 
-// Submits an order to the exchange and returns its tradeID
-tradeID, err := b.Trade(...)
+// Places an order
+placed, err := e.NewOrder(ctx, &binanceus.NewOrderRequest{
+    Symbol:      currency.NewBTCUSDT(),
+    Side:        binanceus.SideBuy,
+    Type:        binanceus.OrderTypeLimit,
+    TimeInForce: binanceus.TimeInForceGoodTillCancel,
+    Price:       50000,
+    Quantity:    0.001,
+})
 if err != nil {
     // Handle error
 }
@@ -97,9 +98,19 @@ if err != nil {
 
 ### How to do Websocket public/private calls
 
++ The market data streams connect to the `WebsocketSpotURL` endpoint with the configured subscriptions of tickers,
+trades, candles and order books, whose diff depth streams are kept in sync with REST snapshots.
+
++ The WebSocket API connects to the `WebsocketTradeURL` endpoint when authenticated websocket support is enabled. It
+subscribes the configured account's User Data Stream, which streams balance and order updates, and the wrapper places
+and cancels orders over it while it is connected. Its requests are methods of `WebsocketAPI()`, named after their
+REST forms:
+
 ```go
-    // Exchanges will be abstracted out in further updates and examples will be
-    // supplied then
+book, err := e.WebsocketAPI().GetOrderBook(ctx, &binanceus.OrderBookRequest{Symbol: currency.NewBTCUSDT(), Limit: 5})
+if err != nil {
+    // Handle error
+}
 ```
 
 {{template "donations" .}}

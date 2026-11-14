@@ -396,8 +396,9 @@ func TestProcessOrderbookUpdateWithSnapshotEndsRecovery(t *testing.T) {
 		name      string
 		bids      string
 		fillRelay bool
+		wantErr   bool
 	}{
-		{name: "invalid snapshot", bids: `[["100","1"],["100","1"]]`},
+		{name: "invalid snapshot", bids: `[["100","1"],["100","1"]]`, wantErr: true},
 		{name: "relay full", bids: `[["100","1"],["99","1"]]`, fillRelay: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -416,7 +417,15 @@ func TestProcessOrderbookUpdateWithSnapshotEndsRecovery(t *testing.T) {
 				}
 			}
 			recovery := []byte(`{"t":1757377580046,"full":true,"s":"ob.BTC_USDT.50","u":200,"b":` + tc.bids + `,"a":[["101","1"]]}`)
-			require.Error(t, e.processOrderbookUpdateWithSnapshot(t.Context(), nil, recovery, time.Now(), asset.Spot), "failed recovery snapshot must return an error")
+			err := e.processOrderbookUpdateWithSnapshot(t.Context(), nil, recovery, time.Now(), asset.Spot)
+			if tc.wantErr {
+				require.Error(t, err, "failed recovery snapshot must return an error")
+			} else {
+				require.NoError(t, err, "a recovery snapshot the relay cannot take must still load")
+				book, err := e.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+				require.NoError(t, err, "GetOrderbook must not error after the recovery snapshot")
+				assert.Equal(t, int64(200), book.LastUpdateID, "the recovery snapshot should be loaded when the relay is full")
+			}
 			assert.False(t, e.wsOBResubMgr.IsResubscribing(pair, asset.Spot), "a recovery snapshot should end the resubscription so later updates are not dropped")
 		})
 	}
