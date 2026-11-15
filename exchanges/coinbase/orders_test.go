@@ -154,10 +154,10 @@ func cancelLiveTestOrder(t *testing.T, orderID string) {
 		if err == nil {
 			return
 		}
-		live := []string{OrderStatusOpen, OrderStatusPending, OrderStatusQueued, OrderStatusEditQueued, OrderStatusCancelQueued}
+		final := []string{OrderStatusFilled, OrderStatusCancelled, OrderStatusExpired, OrderStatusFailed}
 		assert.Eventuallyf(t, func() bool {
 			o, getErr := e.GetOrder(ctx, orderID)
-			return getErr == nil && !slices.Contains(live, o.Status)
+			return getErr == nil && slices.Contains(final, o.Status)
 		}, 30*time.Second, time.Second, "live test order %s should reach a final status after its cancel failed: %v", orderID, err)
 	})
 }

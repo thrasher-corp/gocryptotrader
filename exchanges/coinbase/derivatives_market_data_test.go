@@ -650,7 +650,7 @@ func TestGlobalDerivativesGetHistoricalVolatility(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetHistoricalVolatility should return the request failure")
 }
 
-func TestDerivativesHistoricalVolatilityUnmarshalJSON(t *testing.T) {
+func TestDerivativesHistoricalVolatilityResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var resp DerivativesHistoricalVolatilityResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1549720800000,14.747743607344217]`), &resp), "Unmarshal must not error")
@@ -692,7 +692,7 @@ func TestGlobalDerivativesGetIndexChartData(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetIndexChartData should return the request failure")
 }
 
-func TestDerivativesIndexChartPointUnmarshalJSON(t *testing.T) {
+func TestDerivativesIndexChartPointResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var resp DerivativesIndexChartPointResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1573228800000,8751.7138636]`), &resp), "Unmarshal must not error")
@@ -749,7 +749,7 @@ func TestGlobalDerivativesGetIndexPriceNames(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetIndexPriceNames should return the request failure")
 }
 
-func TestDerivativesIndexPriceNameUnmarshalJSON(t *testing.T) {
+func TestDerivativesIndexPriceNameResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name  string
@@ -916,7 +916,7 @@ func TestGlobalDerivativesGetInstrument(t *testing.T) { //nolint:tparallel // th
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetInstrument should return the request failure")
 }
 
-func TestDerivativesInstrumentUnmarshalJSON(t *testing.T) {
+func TestDerivativesInstrumentResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var resp DerivativesInstrumentResponse
 	require.NoError(t, json.Unmarshal([]byte(`{"instrument_name":"BTC_USDC-PERPETUAL","creation_timestamp":1646824342000,"expiration_timestamp":32503708800000}`), &resp), "Unmarshal must not error")
@@ -1749,7 +1749,7 @@ func TestGlobalDerivativesGetMarkPriceHistory(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMarkPriceHistory should return the request failure")
 }
 
-func TestDerivativesMarkPriceUnmarshalJSON(t *testing.T) {
+func TestDerivativesMarkPriceResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var resp DerivativesMarkPriceResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1608142381229,0.5165791606037885]`), &resp), "Unmarshal must not error")
