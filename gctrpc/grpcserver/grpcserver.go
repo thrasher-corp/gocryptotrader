@@ -141,6 +141,8 @@ func startProxy(ctx context.Context, cfg *Config, keyPair *tls.Certificate) erro
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(auth.BasicAuth{Username: cfg.Username, Password: cfg.Password}),
+		// Otherwise gRPC's DNS resolver waits on a TXT query for a service config before it reports the server's addresses
+		grpc.WithDisableServiceConfig(),
 	}
 	if err := cfg.RegisterProxy(connCtx, mux, cfg.ListenAddress, opts); err != nil {
 		closeConn()

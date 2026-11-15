@@ -2911,6 +2911,44 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		})
 		assert.ErrorIs(t, err, errRangeTooLarge, "GetTechnicalAnalysis should reject a range of 100,001 candles")
 	})
+
+	for _, tc := range []struct {
+		name    string
+		req     *gctrpc.GetTechnicalAnalysisRequest
+		wantErr error
+	}{
+		{
+			name:    "BBANDS moving average type is an invalid argument",
+			req:     &gctrpc.GetTechnicalAnalysisRequest{AlgorithmType: "bbands", Period: 9, StandardDeviationUp: 0.5, StandardDeviationDown: 0.5, MovingAverageType: 2},
+			wantErr: kline.ErrInvalidMovingAverageType,
+		},
+		{
+			name:    "ATR period equal to the candle count is an invalid argument",
+			req:     &gctrpc.GetTechnicalAnalysisRequest{AlgorithmType: "atr", Period: 33},
+			wantErr: kline.ErrInvalidPeriod,
+		},
+		{
+			name:    "RSI period equal to the candle count is an invalid argument",
+			req:     &gctrpc.GetTechnicalAnalysisRequest{AlgorithmType: "rsi", Period: 33},
+			wantErr: kline.ErrInvalidPeriod,
+		},
+		{
+			name:    "MACD slow period above the candle count is an invalid argument",
+			req:     &gctrpc.GetTechnicalAnalysisRequest{AlgorithmType: "macd", FastPeriod: 1, SlowPeriod: 34, Period: 1},
+			wantErr: kline.ErrNotEnoughData,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.req.Exchange = fakeExchangeName
+			tc.req.AssetType = asset.Spot.String()
+			tc.req.Pair = &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"}
+			tc.req.Interval = int64(kline.OneDay)
+			_, err := s.GetTechnicalAnalysis(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.wantErr, "GetTechnicalAnalysis should return the indicator's error")
+			assert.Equal(t, codes.InvalidArgument, rpcStatusCode(err), "the indicator's error should map to InvalidArgument")
+		})
+	}
 }
 
 func TestGetMarginRatesHistory(t *testing.T) {
@@ -5444,12 +5482,18 @@ func TestWebsocketSetURL(t *testing.T) {
 
 func TestRPCStatusCode(t *testing.T) {
 	t.Parallel()
+	start := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	ranges, err := kline.CalculateCandleDateRanges(start, start.Add(2*time.Hour), kline.OneHour, 0)
+	require.NoError(t, err, "CalculateCandleDateRanges must not error")
+	candleTimeMismatch := ranges.SetHasDataFromCandles([]kline.Candle{{Time: start.Add(time.Minute)}})
+	require.Error(t, candleTimeMismatch, "SetHasDataFromCandles must reject a candle away from its interval start")
 	for _, tc := range []struct {
 		name string
 		err  error
 		want codes.Code
 	}{
 		{name: "unmapped error", err: errExpectedTestError, want: codes.Unknown},
+		{name: "candle away from its interval start", err: candleTimeMismatch, want: codes.Unknown},
 		{name: "missing pair", err: errCurrencyPairUnset, want: codes.InvalidArgument},
 		{name: "wrapped validation error", err: fmt.Errorf("%w GetOpenInterestRequest", common.ErrNilPointer), want: codes.InvalidArgument},
 		{name: "unknown exchange", err: fmt.Errorf("%s %w", testExchange, ErrExchangeNotFound), want: codes.NotFound},
@@ -5476,11 +5520,12 @@ func TestRPCStatusCode(t *testing.T) {
 		{want: codes.InvalidArgument, errs: []error{
 			errInvalidArguments, errCurrencyPairUnset, errOtherPairUnset, errInvalidTimes, errAssetTypeUnset,
 			errCurrencyNotSpecified, errCurrencyPairInvalid, errNilRequestData, errInvalidStrategy, errDuplicateOrderID,
-			errRangeTooLarge, errNicknameIDUnset, errOnlyNicknameOrID, ErrOrderIDCannotBeEmpty,
+			errRangeTooLarge, errInvalidDecimalPlaces, errNicknameIDUnset, errOnlyNicknameOrID, ErrOrderIDCannotBeEmpty,
 			common.ErrExchangeNameNotSet, common.ErrNilPointer, common.ErrDateUnset, common.ErrStartAfterEnd,
 			common.ErrStartEqualsEnd, common.ErrStartAfterTimeNow, common.ErrAddressIsEmptyOrInvalid,
 			asset.ErrNotSupported, currency.ErrCurrencyPairEmpty, currency.ErrCurrencyCodeEmpty,
 			order.ErrSideIsInvalid, order.ErrTypeIsInvalid, kline.ErrInvalidInterval, kline.ErrUnsupportedInterval,
+			kline.ErrInvalidPeriod, kline.ErrNotEnoughData, kline.ErrInvalidMovingAverageType,
 			futures.ErrNotFuturesAsset, futures.ErrGetFundingDataRequired, withdraw.ErrRequestCannotBeNil,
 		}},
 	} {

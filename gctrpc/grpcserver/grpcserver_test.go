@@ -28,6 +28,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/resolver"
+	"google.golang.org/grpc/resolver/manual"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -512,6 +514,39 @@ func TestStartProxy(t *testing.T) {
 		case <-gatewayDone:
 		default:
 			assert.Fail(t, "gateway context should be cancelled after a registration failure")
+		}
+	})
+
+	t.Run("gateway connection skips the service config lookup", func(t *testing.T) {
+		t.Parallel()
+		var gatewayOptions []grpc.DialOption
+		cfg := &Config{
+			ProxyListenAddress: reserveAddress(t),
+			RegisterProxy: func(_ context.Context, _ *runtime.ServeMux, _ string, opts []grpc.DialOption) error {
+				gatewayOptions = opts
+				return nil
+			},
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(cancel)
+		require.NoError(t, startProxy(ctx, cfg, &keyPair), "startProxy must not error")
+		buildOptions := make(chan resolver.BuildOptions, 1)
+		probe := manual.NewBuilderWithScheme("grpcserver-probe")
+		probe.BuildCallback = func(_ resolver.Target, _ resolver.ClientConn, opts resolver.BuildOptions) {
+			select {
+			case buildOptions <- opts:
+			default:
+			}
+		}
+		conn, err := grpc.NewClient("grpcserver-probe:///localhost:9052", append(gatewayOptions, grpc.WithResolvers(probe))...)
+		require.NoError(t, err, "NewClient must not error")
+		t.Cleanup(func() { assert.NoError(t, conn.Close(), "Close should not error") })
+		conn.Connect()
+		select {
+		case opts := <-buildOptions:
+			assert.True(t, opts.DisableServiceConfig, "the gateway's connection should disable the resolver's service config lookup")
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "the gateway's connection should build its resolver")
 		}
 	})
 

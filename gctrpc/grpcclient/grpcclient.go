@@ -19,5 +19,7 @@ func New(target, certFile, username, password string) (*grpc.ClientConn, error) 
 	return grpc.NewClient(target,
 		grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(auth.BasicAuth{Username: username, Password: password}),
+		// Otherwise gRPC's DNS resolver waits on a TXT query for a service config before it reports the server's addresses
+		grpc.WithDisableServiceConfig(),
 	)
 }

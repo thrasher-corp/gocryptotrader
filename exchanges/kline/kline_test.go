@@ -1390,6 +1390,15 @@ func TestSetHasDataFromCandles(t *testing.T) {
 	if !i.HasDataAtDate(k.Candles[len(k.Candles)-1].Time) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
+
+	t.Run("candle away from its interval start", func(t *testing.T) {
+		t.Parallel()
+		start := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+		ranges, err := CalculateCandleDateRanges(start, start.Add(2*time.Hour), OneHour, 0)
+		require.NoError(t, err, "CalculateCandleDateRanges must not error")
+		err = ranges.SetHasDataFromCandles([]Candle{{Time: start}, {Time: start.Add(OneHour.Duration() + time.Minute)}})
+		assert.ErrorIs(t, err, errCandleTimeMismatch, "SetHasDataFromCandles should reject a candle away from its interval start")
+	})
 }
 
 func TestGetIntervalResultLimit(t *testing.T) {

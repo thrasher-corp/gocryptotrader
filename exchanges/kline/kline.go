@@ -712,7 +712,7 @@ func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) error {
 				return nil
 			}
 			if !h.Ranges[x].Intervals[y].Start.Time.Equal(incoming[offset].Time) {
-				return fmt.Errorf("%w '%v' expected '%v'", errInvalidPeriod, incoming[offset].Time.UTC(), h.Ranges[x].Intervals[y].Start.Time.UTC())
+				return fmt.Errorf("%w '%v' expected '%v'", errCandleTimeMismatch, incoming[offset].Time.UTC(), h.Ranges[x].Intervals[y].Start.Time.UTC())
 			}
 			if incoming[offset].Low <= 0 && incoming[offset].High <= 0 &&
 				incoming[offset].Close <= 0 && incoming[offset].Open <= 0 &&

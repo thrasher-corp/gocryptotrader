@@ -161,11 +161,12 @@ var rpcErrorCodes = []struct {
 	{code: codes.InvalidArgument, errs: []error{
 		errInvalidArguments, errCurrencyPairUnset, errOtherPairUnset, errInvalidTimes, errAssetTypeUnset,
 		errCurrencyNotSpecified, errCurrencyPairInvalid, errNilRequestData, errInvalidStrategy, errDuplicateOrderID,
-		errRangeTooLarge, errNicknameIDUnset, errOnlyNicknameOrID, ErrOrderIDCannotBeEmpty,
+		errRangeTooLarge, errInvalidDecimalPlaces, errNicknameIDUnset, errOnlyNicknameOrID, ErrOrderIDCannotBeEmpty,
 		common.ErrExchangeNameNotSet, common.ErrNilPointer, common.ErrDateUnset, common.ErrStartAfterEnd,
 		common.ErrStartEqualsEnd, common.ErrStartAfterTimeNow, common.ErrAddressIsEmptyOrInvalid,
 		asset.ErrNotSupported, currency.ErrCurrencyPairEmpty, currency.ErrCurrencyCodeEmpty,
 		order.ErrSideIsInvalid, order.ErrTypeIsInvalid, kline.ErrInvalidInterval, kline.ErrUnsupportedInterval,
+		kline.ErrInvalidPeriod, kline.ErrNotEnoughData, kline.ErrInvalidMovingAverageType,
 		futures.ErrNotFuturesAsset, futures.ErrGetFundingDataRequired, withdraw.ErrRequestCannotBeNil,
 	}},
 }
