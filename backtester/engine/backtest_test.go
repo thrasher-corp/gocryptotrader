@@ -128,6 +128,86 @@ func TestSetupFromConfig(t *testing.T) {
 	}
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	assert.NoError(t, err)
+
+	t.Run("a PostgreSQL task's setup does not switch the driver under a SQLite load", func(t *testing.T) {
+		t.Parallel()
+		cp := currency.NewBTCUSDT()
+		start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+		dbConfig := database.Config{
+			Enabled:  true,
+			Driver:   database.DBSQLite3,
+			Database: "setup.db",
+		}
+		dataPath := t.TempDir()
+		seedCandleDatabase(t, dataPath, &dbConfig, cp, start)
+		exch, err := engine.NewExchangeManager().NewExchangeByName("binanceus")
+		require.NoError(t, err, "NewExchangeByName must not error")
+		exch.SetDefaults()
+
+		postgresTask := &config.Config{DataSettings: config.DataSettings{
+			Interval:     gctkline.OneHour,
+			DatabaseData: &config.DatabaseData{Config: database.Config{Enabled: true, Driver: database.DBPostgreSQL}},
+		}}
+		loadsDone := make(chan struct{})
+		setupsDone := make(chan struct{})
+		go func() {
+			defer close(setupsDone)
+			for {
+				select {
+				case <-loadsDone:
+					return
+				default:
+				}
+				task, err := NewBacktester()
+				if !assert.NoError(t, err, "NewBacktester should not error") {
+					return
+				}
+				// The task stops for want of a strategy, after setting up its database manager and starting its order manager
+				assert.ErrorIs(t, task.SetupFromConfig(postgresTask, "", "", false), base.ErrStrategyNotFound, "SetupFromConfig should fail for want of a strategy")
+				assert.NotNil(t, task.databaseManager, "SetupFromConfig should set up the task's database manager")
+				assert.NoError(t, task.orderManager.Stop(), "order manager Stop should not error")
+			}
+		}()
+		t.Cleanup(func() {
+			close(loadsDone)
+			select {
+			case <-setupsDone:
+			case <-time.After(time.Minute):
+				assert.Fail(t, "PostgreSQL task setups should stop")
+			}
+		})
+
+		loadErrs := make(chan []error, 1)
+		go func() {
+			var errs []error
+			for range 200 {
+				loader := &BackTest{Reports: &report.Data{}, shutdown: make(chan struct{})}
+				var err error
+				if loader.databaseManager, err = engine.SetupDatabaseConnectionManager(&dbConfig); err == nil {
+					_, err = loader.loadData(&config.Config{DataSettings: config.DataSettings{
+						DataType: common.CandleStr,
+						Interval: gctkline.OneHour,
+						DatabaseData: &config.DatabaseData{
+							Config:    dbConfig,
+							StartDate: start,
+							EndDate:   start.Add(time.Hour),
+							Path:      dataPath,
+						},
+					}}, exch, cp, asset.Spot, false)
+				}
+				if err != nil {
+					errs = append(errs, err)
+				}
+			}
+			loadErrs <- errs
+		}()
+		select {
+		case errs := <-loadErrs:
+			assert.Empty(t, errs, "SQLite loads should not query with the PostgreSQL task's driver")
+		case <-time.After(time.Minute):
+			require.FailNow(t, "SQLite loads must finish beside the PostgreSQL task's setups")
+		}
+	})
 }
 
 // newMockOKX returns an OKX exchange whose REST requests reach a local server, so that a test does not
@@ -386,7 +466,16 @@ func TestLoadDataDatabaseConcurrently(t *testing.T) {
 			loads <- err
 		})
 	}
-	wg.Wait()
+	loadsFinished := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(loadsFinished)
+	}()
+	select {
+	case <-loadsFinished:
+	case <-time.After(time.Minute):
+		require.FailNow(t, "concurrent database loads must finish")
+	}
 	close(loads)
 	for err := range loads {
 		assert.NoError(t, err, "concurrent database loads should not interfere")
@@ -396,7 +485,16 @@ func TestLoadDataDatabaseConcurrently(t *testing.T) {
 // seedCandleDatabase migrates the SQLite database cfg names in dataPath and stores one hourly candle at start
 func seedCandleDatabase(t *testing.T, dataPath string, cfg *database.Config, pair currency.Pair, start time.Time) {
 	t.Helper()
-	databaseLoadMu.Lock()
+	locked := make(chan struct{})
+	go func() {
+		databaseLoadMu.Lock()
+		close(locked)
+	}()
+	select {
+	case <-locked:
+	case <-time.After(time.Minute):
+		require.FailNow(t, "seedCandleDatabase must take the database load mutex within a minute")
+	}
 	defer databaseLoadMu.Unlock()
 	database.DB.DataPath = dataPath
 	require.NoError(t, database.DB.SetConfig(cfg), "SetConfig must not error")
@@ -1473,7 +1571,14 @@ func TestLiveCheckStopsDataCheckerWhenRunFails(t *testing.T) {
 	dc := &dataChecker{eventTimeout: time.Hour, dataCheckInterval: time.Millisecond}
 	bt := &BackTest{shutdown: make(chan struct{}), LiveDataHandler: dc}
 	require.NoError(t, dc.Start(), "Start must not error")
-	require.ErrorIs(t, bt.liveCheck(), errNotSetup, "liveCheck must return Run's error")
+	checked := make(chan error, 1)
+	go func() { checked <- bt.liveCheck() }()
+	select {
+	case err := <-checked:
+		require.ErrorIs(t, err, errNotSetup, "liveCheck must return Run's error")
+	case <-time.After(time.Second * 5):
+		require.FailNow(t, "liveCheck must return when Run fails")
+	}
 	assert.False(t, dc.IsRunning(), "liveCheck should stop the data checker when Run fails")
 }
 

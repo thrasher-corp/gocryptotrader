@@ -1723,7 +1723,6 @@ func (r *reporter) Latency(name string, payload []byte, t time.Duration) {
 	r.t = t
 }
 
-// readMessages helper func
 // shutdownOnCleanup shuts c down when the test ends, so the mock server's handler stops reading from it
 func shutdownOnCleanup(t *testing.T, c *connection) {
 	t.Helper()
@@ -1740,7 +1739,11 @@ func readUntilShutdown(t *testing.T, wc *connection) {
 	}()
 	t.Cleanup(func() {
 		assert.NoError(t, wc.Shutdown(), "Shutdown should not error")
-		<-readDone
+		select {
+		case <-readDone:
+		case <-time.After(time.Second * 5):
+			assert.Fail(t, "readMessages should return once the connection shuts down")
+		}
 	})
 }
 
