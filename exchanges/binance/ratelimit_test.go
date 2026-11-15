@@ -571,7 +571,7 @@ func endpointLimitNames(t *testing.T) []string {
 	return nil
 }
 
-func TestEndpointLimitsComplete(t *testing.T) {
+func TestGetRateLimits(t *testing.T) {
 	t.Parallel()
 	names := endpointLimitNames(t)
 	require.Equal(t, int(wsConnectionMessageRate-spotDefaultRate)+1, len(names), "the endpoint limits must run from spotDefaultRate to wsConnectionMessageRate")
@@ -752,14 +752,28 @@ func TestWithdrawalHistoryLimit(t *testing.T) {
 	}
 }
 
-func TestEndpointLimitHelpers(t *testing.T) {
+// endpointLimitCase is a request an endpoint limit helper prices, with the pool and weight Binance documents for it
+type endpointLimitCase struct {
+	name   string
+	limit  request.EndpointLimit
+	pool   rateLimitPool
+	weight request.Weight
+}
+
+// testEndpointLimitCases checks that each case's endpoint limit costs its documented weight from its pool
+func testEndpointLimitCases(t *testing.T, cases []endpointLimitCase) {
+	t.Helper()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, endpointCost{tc.pool, tc.weight}, endpointCosts[tc.limit], "%s should cost its documented weight", tc.name)
+		})
+	}
+}
+
+func TestSpotOrderbookLimit(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		name   string
-		limit  request.EndpointLimit
-		pool   rateLimitPool
-		weight request.Weight
-	}{
+	testEndpointLimitCases(t, []endpointLimitCase{
 		{"spot depth by default", spotOrderbookLimit(0), spotIPPool, 5},
 		{"spot depth 1", spotOrderbookLimit(1), spotIPPool, 5},
 		{"spot depth 100", spotOrderbookLimit(100), spotIPPool, 5},
@@ -769,23 +783,57 @@ func TestEndpointLimitHelpers(t *testing.T) {
 		{"spot depth 1000", spotOrderbookLimit(1000), spotIPPool, 50},
 		{"spot depth 1001", spotOrderbookLimit(1001), spotIPPool, 250},
 		{"spot depth 5000", spotOrderbookLimit(5000), spotIPPool, 250},
+	})
+}
+
+func TestSpotTickerSymbolsLimit(t *testing.T) {
+	t.Parallel()
+	testEndpointLimitCases(t, []endpointLimitCase{
 		{"spot ticker for 1 symbol", spotTickerSymbolsLimit(1), spotIPPool, 4},
 		{"spot ticker for 5 symbols", spotTickerSymbolsLimit(5), spotIPPool, 20},
 		{"spot ticker for 50 symbols", spotTickerSymbolsLimit(50), spotIPPool, 200},
 		{"spot ticker for 100 symbols", spotTickerSymbolsLimit(100), spotIPPool, 200},
+	})
+	// The rolling window and trading day tickers cost 4 a symbol up to 200; a tier may round up but never under-charge
+	for symbols := 1; symbols <= 100; symbols++ {
+		assert.GreaterOrEqualf(t, endpointCosts[spotTickerSymbolsLimit(symbols)].weight, request.Weight(min(4*symbols, 200)), "a ticker request for %d symbols should cost at least its documented weight", symbols)
+	}
+}
+
+func TestSpotTicker24HourLimit(t *testing.T) {
+	t.Parallel()
+	testEndpointLimitCases(t, []endpointLimitCase{
 		{"spot 24hr ticker for every symbol", spotTicker24HourLimit(0), spotIPPool, 80},
 		{"spot 24hr ticker for 1 symbol", spotTicker24HourLimit(1), spotIPPool, 2},
 		{"spot 24hr ticker for 20 symbols", spotTicker24HourLimit(20), spotIPPool, 2},
 		{"spot 24hr ticker for 21 symbols", spotTicker24HourLimit(21), spotIPPool, 40},
 		{"spot 24hr ticker for 100 symbols", spotTicker24HourLimit(100), spotIPPool, 40},
 		{"spot 24hr ticker for 101 symbols", spotTicker24HourLimit(101), spotIPPool, 80},
+	})
+}
+
+func TestSpotAccountTradeListLimit(t *testing.T) {
+	t.Parallel()
+	testEndpointLimitCases(t, []endpointLimitCase{
 		{"spot trades without an order ID", spotAccountTradeListLimit(0), spotIPPool, 20},
 		{"spot trades of an order", spotAccountTradeListLimit(12345), spotIPPool, 5},
+	})
+}
+
+func TestMarginNewOrderLimit(t *testing.T) {
+	t.Parallel()
+	testEndpointLimitCases(t, []endpointLimitCase{
 		{"margin order without a side effect", marginNewOrderLimit(""), sapiUIDPool, 6},
 		{"margin order NO_SIDE_EFFECT", marginNewOrderLimit("NO_SIDE_EFFECT"), sapiUIDPool, 6},
 		{"margin order AUTO_REPAY", marginNewOrderLimit("AUTO_REPAY"), sapiUIDPool, 6},
 		{"margin order MARGIN_BUY", marginNewOrderLimit("MARGIN_BUY"), sapiUIDPool, 1500},
 		{"margin order AUTO_BORROW_REPAY", marginNewOrderLimit("AUTO_BORROW_REPAY"), sapiUIDPool, 1500},
+	})
+}
+
+func TestUSDTMarginedFuturesKlineLimit(t *testing.T) {
+	t.Parallel()
+	testEndpointLimitCases(t, []endpointLimitCase{
 		{"USDⓈ-M klines by default", usdtMarginedFuturesKlineLimit(0), derivativesIPPool, 5},
 		{"USDⓈ-M klines 1", usdtMarginedFuturesKlineLimit(1), derivativesIPPool, 1},
 		{"USDⓈ-M klines 99", usdtMarginedFuturesKlineLimit(99), derivativesIPPool, 1},
@@ -795,12 +843,24 @@ func TestEndpointLimitHelpers(t *testing.T) {
 		{"USDⓈ-M klines 1000", usdtMarginedFuturesKlineLimit(1000), derivativesIPPool, 5},
 		{"USDⓈ-M klines 1001", usdtMarginedFuturesKlineLimit(1001), derivativesIPPool, 10},
 		{"USDⓈ-M klines 1500", usdtMarginedFuturesKlineLimit(1500), derivativesIPPool, 10},
+	})
+}
+
+func TestUSDTMarginedFuturesOrderbookLimit(t *testing.T) {
+	t.Parallel()
+	testEndpointLimitCases(t, []endpointLimitCase{
 		{"USDⓈ-M depth by default", usdtMarginedFuturesOrderbookLimit(0), derivativesIPPool, 10},
 		{"USDⓈ-M depth 5", usdtMarginedFuturesOrderbookLimit(5), derivativesIPPool, 2},
 		{"USDⓈ-M depth 50", usdtMarginedFuturesOrderbookLimit(50), derivativesIPPool, 2},
 		{"USDⓈ-M depth 100", usdtMarginedFuturesOrderbookLimit(100), derivativesIPPool, 5},
 		{"USDⓈ-M depth 500", usdtMarginedFuturesOrderbookLimit(500), derivativesIPPool, 10},
 		{"USDⓈ-M depth 1000", usdtMarginedFuturesOrderbookLimit(1000), derivativesIPPool, 20},
+	})
+}
+
+func TestCoinMarginedFuturesKlineLimit(t *testing.T) {
+	t.Parallel()
+	testEndpointLimitCases(t, []endpointLimitCase{
 		{"COIN-M klines by default", coinMarginedFuturesKlineLimit(0), derivativesIPPool, 5},
 		{"COIN-M klines 1", coinMarginedFuturesKlineLimit(1), derivativesIPPool, 1},
 		{"COIN-M klines 99", coinMarginedFuturesKlineLimit(99), derivativesIPPool, 1},
@@ -810,28 +870,31 @@ func TestEndpointLimitHelpers(t *testing.T) {
 		{"COIN-M klines 1000", coinMarginedFuturesKlineLimit(1000), derivativesIPPool, 5},
 		{"COIN-M klines 1001", coinMarginedFuturesKlineLimit(1001), derivativesIPPool, 10},
 		{"COIN-M klines 1500", coinMarginedFuturesKlineLimit(1500), derivativesIPPool, 10},
+	})
+}
+
+func TestCoinMarginedFuturesOrderbookLimit(t *testing.T) {
+	t.Parallel()
+	testEndpointLimitCases(t, []endpointLimitCase{
 		{"COIN-M depth by default", coinMarginedFuturesOrderbookLimit(0), derivativesIPPool, 10},
 		{"COIN-M depth 5", coinMarginedFuturesOrderbookLimit(5), derivativesIPPool, 2},
 		{"COIN-M depth 50", coinMarginedFuturesOrderbookLimit(50), derivativesIPPool, 2},
 		{"COIN-M depth 100", coinMarginedFuturesOrderbookLimit(100), derivativesIPPool, 5},
 		{"COIN-M depth 500", coinMarginedFuturesOrderbookLimit(500), derivativesIPPool, 10},
 		{"COIN-M depth 1000", coinMarginedFuturesOrderbookLimit(1000), derivativesIPPool, 20},
+	})
+}
+
+func TestOptionsOrderbookLimit(t *testing.T) {
+	t.Parallel()
+	testEndpointLimitCases(t, []endpointLimitCase{
 		{"options depth by default", optionsOrderbookLimit(0), optionsIPPool, 5},
 		{"options depth 5", optionsOrderbookLimit(5), optionsIPPool, 2},
 		{"options depth 50", optionsOrderbookLimit(50), optionsIPPool, 2},
 		{"options depth 100", optionsOrderbookLimit(100), optionsIPPool, 5},
 		{"options depth 500", optionsOrderbookLimit(500), optionsIPPool, 10},
 		{"options depth 1000", optionsOrderbookLimit(1000), optionsIPPool, 20},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equalf(t, endpointCost{tc.pool, tc.weight}, endpointCosts[tc.limit], "%s should cost its documented weight", tc.name)
-		})
-	}
-	// The rolling window and trading day tickers cost 4 a symbol up to 200; a tier may round up but never under-charge
-	for symbols := 1; symbols <= 100; symbols++ {
-		assert.GreaterOrEqualf(t, endpointCosts[spotTickerSymbolsLimit(symbols)].weight, request.Weight(min(4*symbols, 200)), "a ticker request for %d symbols should cost at least its documented weight", symbols)
-	}
+	})
 }
 
 func TestEndpointLimitArguments(t *testing.T) {

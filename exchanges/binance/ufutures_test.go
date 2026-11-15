@@ -281,95 +281,103 @@ func TestGetUSDTMarginedFuturesCurrentPositionMode(t *testing.T) {
 	assert.NotNil(t, result, "GetUSDTMarginedFuturesCurrentPositionMode should return the position mode")
 }
 
-func TestUSDTMarginedFuturesDownloadIDs(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name string
-		fn   func(*testing.T, time.Time, time.Time) (*USDTMarginedFuturesDownloadIDResponse, error)
-	}{
-		{"USDTMarginedFuturesOrderHistoryDownloadID", func(t *testing.T, start, end time.Time) (*USDTMarginedFuturesDownloadIDResponse, error) {
-			t.Helper()
-			return e.USDTMarginedFuturesOrderHistoryDownloadID(t.Context(), start, end)
-		}},
-		{"USDTMarginedFuturesTradeHistoryDownloadID", func(t *testing.T, start, end time.Time) (*USDTMarginedFuturesDownloadIDResponse, error) {
-			t.Helper()
-			return e.USDTMarginedFuturesTradeHistoryDownloadID(t.Context(), start, end)
-		}},
-		{"USDTMarginedFuturesTransactionHistoryDownloadID", func(t *testing.T, start, end time.Time) (*USDTMarginedFuturesDownloadIDResponse, error) {
-			t.Helper()
-			return e.USDTMarginedFuturesTransactionHistoryDownloadID(t.Context(), start, end)
-		}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			startTime, endTime := getTime()
-			_, err := tc.fn(t, time.Time{}, endTime)
-			require.ErrorIs(t, err, common.ErrDateUnset, "must reject a missing start time")
-			_, err = tc.fn(t, endTime, startTime)
-			require.ErrorIs(t, err, common.ErrStartAfterEnd, "must reject a start time after the end time")
+// testUSDTMarginedFuturesDownloadID runs the cases of a USDⓈ-M request for a download ID
+func testUSDTMarginedFuturesDownloadID(t *testing.T, fn func(*testing.T, time.Time, time.Time) (*USDTMarginedFuturesDownloadIDResponse, error)) {
+	t.Helper()
+	startTime, endTime := getTime()
+	_, err := fn(t, time.Time{}, endTime)
+	require.ErrorIs(t, err, common.ErrDateUnset, "must reject a missing start time")
+	_, err = fn(t, endTime, startTime)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "must reject a start time after the end time")
 
-			if !mockTests {
-				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-			}
-			result, err := tc.fn(t, startTime, endTime)
-			require.NoError(t, err, "must not error")
-			if mockTests {
-				exp := &USDTMarginedFuturesDownloadIDResponse{
-					AverageDownloadMillisecondsOfLast30Days: 7241837,
-					DownloadID:                              "546975389218332672",
-				}
-				assert.Equal(t, exp, result, "should decode every field")
-				return
-			}
-			assert.NotEmpty(t, result.DownloadID, "should return a download ID")
-		})
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	result, err := fn(t, startTime, endTime)
+	require.NoError(t, err, "must not error")
+	if mockTests {
+		exp := &USDTMarginedFuturesDownloadIDResponse{
+			AverageDownloadMillisecondsOfLast30Days: 7241837,
+			DownloadID:                              "546975389218332672",
+		}
+		assert.Equal(t, exp, result, "should decode every field")
+		return
+	}
+	assert.NotEmpty(t, result.DownloadID, "should return a download ID")
 }
 
-func TestUSDTMarginedFuturesDownloadLinks(t *testing.T) {
+func TestUSDTMarginedFuturesOrderHistoryDownloadID(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		name string
-		fn   func(*testing.T, string) (*USDTMarginedFuturesDownloadLinkResponse, error)
-	}{
-		{"USDTMarginedFuturesOrderHistoryDownloadLink", func(t *testing.T, id string) (*USDTMarginedFuturesDownloadLinkResponse, error) {
-			t.Helper()
-			return e.USDTMarginedFuturesOrderHistoryDownloadLink(t.Context(), id)
-		}},
-		{"USDTMarginedFuturesTradeHistoryDownloadLink", func(t *testing.T, id string) (*USDTMarginedFuturesDownloadLinkResponse, error) {
-			t.Helper()
-			return e.USDTMarginedFuturesTradeHistoryDownloadLink(t.Context(), id)
-		}},
-		{"USDTMarginedFuturesTransactionHistoryDownloadLink", func(t *testing.T, id string) (*USDTMarginedFuturesDownloadLinkResponse, error) {
-			t.Helper()
-			return e.USDTMarginedFuturesTransactionHistoryDownloadLink(t.Context(), id)
-		}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			_, err := tc.fn(t, "")
-			require.ErrorIs(t, err, errDownloadIDRequired, "must reject an empty download ID")
+	testUSDTMarginedFuturesDownloadID(t, func(t *testing.T, start, end time.Time) (*USDTMarginedFuturesDownloadIDResponse, error) {
+		t.Helper()
+		return e.USDTMarginedFuturesOrderHistoryDownloadID(t.Context(), start, end)
+	})
+}
 
-			if !mockTests {
-				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-			}
-			result, err := tc.fn(t, "546975389218332672")
-			require.NoError(t, err, "must not error")
-			if mockTests {
-				exp := &USDTMarginedFuturesDownloadLinkResponse{
-					DownloadID:          "546975389218332672",
-					Status:              "completed",
-					URL:                 "https://bin-prod-user-rebate-bucket.s3.amazonaws.com/future-order-history/example.csv",
-					Notified:            true,
-					ExpirationTimestamp: 1645009771000,
-					IsExpired:           true,
-				}
-				assert.Equal(t, exp, result, "should decode every field")
-				return
-			}
-			assert.NotEmpty(t, result.Status, "should return the download status")
-		})
+func TestUSDTMarginedFuturesTradeHistoryDownloadID(t *testing.T) {
+	t.Parallel()
+	testUSDTMarginedFuturesDownloadID(t, func(t *testing.T, start, end time.Time) (*USDTMarginedFuturesDownloadIDResponse, error) {
+		t.Helper()
+		return e.USDTMarginedFuturesTradeHistoryDownloadID(t.Context(), start, end)
+	})
+}
+
+func TestUSDTMarginedFuturesTransactionHistoryDownloadID(t *testing.T) {
+	t.Parallel()
+	testUSDTMarginedFuturesDownloadID(t, func(t *testing.T, start, end time.Time) (*USDTMarginedFuturesDownloadIDResponse, error) {
+		t.Helper()
+		return e.USDTMarginedFuturesTransactionHistoryDownloadID(t.Context(), start, end)
+	})
+}
+
+// testUSDTMarginedFuturesDownloadLink runs the cases of a USDⓈ-M request for a download link
+func testUSDTMarginedFuturesDownloadLink(t *testing.T, fn func(*testing.T, string) (*USDTMarginedFuturesDownloadLinkResponse, error)) {
+	t.Helper()
+	_, err := fn(t, "")
+	require.ErrorIs(t, err, errDownloadIDRequired, "must reject an empty download ID")
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	result, err := fn(t, "546975389218332672")
+	require.NoError(t, err, "must not error")
+	if mockTests {
+		exp := &USDTMarginedFuturesDownloadLinkResponse{
+			DownloadID:          "546975389218332672",
+			Status:              "completed",
+			URL:                 "https://bin-prod-user-rebate-bucket.s3.amazonaws.com/future-order-history/example.csv",
+			Notified:            true,
+			ExpirationTimestamp: 1645009771000,
+			IsExpired:           true,
+		}
+		assert.Equal(t, exp, result, "should decode every field")
+		return
+	}
+	assert.NotEmpty(t, result.Status, "should return the download status")
+}
+
+func TestUSDTMarginedFuturesOrderHistoryDownloadLink(t *testing.T) {
+	t.Parallel()
+	testUSDTMarginedFuturesDownloadLink(t, func(t *testing.T, id string) (*USDTMarginedFuturesDownloadLinkResponse, error) {
+		t.Helper()
+		return e.USDTMarginedFuturesOrderHistoryDownloadLink(t.Context(), id)
+	})
+}
+
+func TestUSDTMarginedFuturesTradeHistoryDownloadLink(t *testing.T) {
+	t.Parallel()
+	testUSDTMarginedFuturesDownloadLink(t, func(t *testing.T, id string) (*USDTMarginedFuturesDownloadLinkResponse, error) {
+		t.Helper()
+		return e.USDTMarginedFuturesTradeHistoryDownloadLink(t.Context(), id)
+	})
+}
+
+func TestUSDTMarginedFuturesTransactionHistoryDownloadLink(t *testing.T) {
+	t.Parallel()
+	testUSDTMarginedFuturesDownloadLink(t, func(t *testing.T, id string) (*USDTMarginedFuturesDownloadLinkResponse, error) {
+		t.Helper()
+		return e.USDTMarginedFuturesTransactionHistoryDownloadLink(t.Context(), id)
+	})
 }
 
 func TestUSDTMarginedFuturesAccountIncomeHistory(t *testing.T) {
@@ -1970,6 +1978,9 @@ func TestUSDTMarginedFuturesChangePositionMode(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		// The position mode, which COIN-M shares, decides the position side the live COIN-M orders are placed with
+		liveCoinMarginedOrders.Lock()
+		defer liveCoinMarginedOrders.Unlock()
 	}
 	assert.NoError(t, e.USDTMarginedFuturesChangePositionMode(t.Context(), false), "USDTMarginedFuturesChangePositionMode should not error")
 }
@@ -3232,6 +3243,8 @@ func TestCloseUSDTMarginedFuturesUserDataStream(t *testing.T) {
 	if !mockTests {
 		// Closing invalidates the listen key every client of the account shares
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		liveListenKeys.Lock()
+		defer liveListenKeys.Unlock()
 	}
 	assert.NoError(t, e.CloseUSDTMarginedFuturesUserDataStream(t.Context()), "CloseUSDTMarginedFuturesUserDataStream should not error")
 }

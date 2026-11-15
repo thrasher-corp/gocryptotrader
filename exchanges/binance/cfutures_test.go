@@ -1,8 +1,13 @@
 package binance
 
 import (
+	"context"
+	"math"
 	"net/http"
 	"net/url"
+	"slices"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -2124,60 +2129,228 @@ func TestCoinMarginedFuturesChangeMarginType(t *testing.T) {
 	assert.NotNil(t, result, "CoinMarginedFuturesChangeMarginType should return the status")
 }
 
-func TestFuturesAlgoOrders(t *testing.T) {
-	t.Parallel()
-	_, err := e.CoinMarginedFuturesNewAlgoOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "CoinMarginedFuturesNewAlgoOrder must reject a nil request")
-	_, err = e.CoinMarginedFuturesNewAlgoOrder(t.Context(), &USDTMarginedFuturesNewAlgoOrderRequest{AlgoType: "CONDITIONAL"})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CoinMarginedFuturesNewAlgoOrder must reject an empty symbol")
-	_, err = e.CoinMarginedFuturesQueryAlgoOrder(t.Context(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CoinMarginedFuturesQueryAlgoOrder must require an algo ID or a client algo ID")
-	_, err = e.CoinMarginedFuturesCancelAlgoOrder(t.Context(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CoinMarginedFuturesCancelAlgoOrder must require an algo ID or a client algo ID")
-	err = e.CoinMarginedFuturesCancelAllAlgoOpenOrders(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CoinMarginedFuturesCancelAllAlgoOpenOrders must reject an empty symbol")
-	_, err = e.CoinMarginedFuturesQueryAllAlgoOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "CoinMarginedFuturesQueryAllAlgoOrders must reject a nil request")
-	_, err = e.CoinMarginedFuturesQueryAllAlgoOrders(t.Context(), &USDTMarginedFuturesAllAlgoOrdersRequest{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CoinMarginedFuturesQueryAllAlgoOrders must reject an empty symbol")
+// coinMarginedAlgoOrderReply is a COIN-M algo order as Binance replies with it. Binance gives COIN-M the USDⓈ-M algo order
+// endpoints, so the requests and replies match USDⓈ-M's on the COIN-M host
+const coinMarginedAlgoOrderReply = `{"algoId":3100001,"clientAlgoId":"gct-cm-stop","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSD_PERP","side":"SELL","positionSide":"BOTH","timeInForce":"GTE_GTC","quantity":"1","algoStatus":"NEW","triggerPrice":"70000","price":"0","icebergQuantity":"null","selfTradePreventionMode":"EXPIRE_MAKER","workingType":"MARK_PRICE","priceMatch":"NONE","closePosition":false,"priceProtect":false,"reduceOnly":true,"createTime":1744120800000,"updateTime":1744120800000,"triggerTime":0,"goodTillDate":0}`
 
-	// Binance gives COIN-M the USDⓈ-M algo order endpoints, so the requests and replies match USDⓈ-M's on the COIN-M host
-	const algoOrder = `{"algoId":3100001,"clientAlgoId":"gct-cm-stop","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSD_PERP","side":"SELL","positionSide":"BOTH","timeInForce":"GTE_GTC","quantity":"1","algoStatus":"NEW","triggerPrice":"70000","price":"0","icebergQuantity":"null","selfTradePreventionMode":"EXPIRE_MAKER","workingType":"MARK_PRICE","priceMatch":"NONE","closePosition":false,"priceProtect":false,"reduceOnly":true,"createTime":1744120800000,"updateTime":1744120800000,"triggerTime":0,"goodTillDate":0}`
-	pair := currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter)
-	ex, sent := newCancelStepsExchange(t, []cancelStep{
-		{http.MethodPost, "/dapi/v1/algoOrder", map[string]string{"algoType": "CONDITIONAL", "symbol": "BTCUSD_PERP", "side": "SELL", "type": "STOP_MARKET", "quantity": "1", "triggerPrice": "70000", "workingType": "MARK_PRICE", "reduceOnly": "true", "clientAlgoId": "gct-cm-stop"}, algoOrder},
-		{http.MethodGet, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100001", "clientAlgoId": ""}, algoOrder},
-		{http.MethodGet, "/dapi/v1/openAlgoOrders", map[string]string{"symbol": "BTCUSD_PERP", "algoType": "CONDITIONAL"}, "[" + algoOrder + "]"},
-		{http.MethodGet, "/dapi/v1/openAlgoOrders", map[string]string{"symbol": ""}, "[" + algoOrder + "]"},
-		{http.MethodGet, "/dapi/v1/allAlgoOrders", map[string]string{"symbol": "BTCUSD_PERP", "startTime": "1744103854944", "endTime": "1744190254944", "limit": "100"}, "[" + algoOrder + "]"},
-		{http.MethodDelete, "/dapi/v1/algoOrder", map[string]string{"clientAlgoId": "gct-cm-stop", "algoId": ""}, `{"algoId":3100001,"clientAlgoId":"gct-cm-stop","code":"200","msg":"success"}`},
-		{http.MethodDelete, "/dapi/v1/algoOpenOrders", map[string]string{"symbol": "BTCUSD_PERP"}, `{"code":200,"msg":"The operation of cancel all open order is done."}`},
-	})
-	base := USDTMarginedFuturesAlgoOrderBase{
+// coinMarginedAlgoOrder returns coinMarginedAlgoOrderReply decoded
+func coinMarginedAlgoOrder() USDTMarginedFuturesAlgoOrderBase {
+	return USDTMarginedFuturesAlgoOrderBase{
 		AlgoID: 3100001, ClientAlgoID: "gct-cm-stop", AlgoType: "CONDITIONAL", OrderType: "STOP_MARKET", Symbol: "BTCUSD_PERP", Side: "SELL",
 		PositionSide: "BOTH", TimeInForce: "GTE_GTC", Quantity: 1, AlgoStatus: "NEW", TriggerPrice: 70000, IcebergQuantity: "null",
 		SelfTradePreventionMode: "EXPIRE_MAKER", WorkingType: "MARK_PRICE", PriceMatch: "NONE", ReduceOnly: true,
 		CreateTime: types.Time(time.UnixMilli(1744120800000)), UpdateTime: types.Time(time.UnixMilli(1744120800000)),
 	}
+}
+
+// liveAlgoOrderSkip is why the live COIN-M algo order cases skip in the mock build
+const liveAlgoOrderSkip = "the order's trigger price and client algo ID change each run, which recorded responses cannot match"
+
+// liveCoinMarginedOrders is held for reading by the live cases whose COIN-M orders must stay open until they end, and
+// for writing by the live cases cancelling every COIN-M order of the account or changing its position mode, which run
+// in parallel with them
+var liveCoinMarginedOrders sync.RWMutex
+
+// placeLiveCoinMarginedAlgoOrder places a BTCUSD_PERP stop market order selling one contract at half the mark price, so
+// it cannot trigger while the test runs, and cancels it when the test ends unless Binance reports it closed without
+// trading
+func placeLiveCoinMarginedAlgoOrder(t *testing.T) (*USDTMarginedFuturesNewAlgoOrderRequest, *USDTMarginedFuturesNewAlgoOrderResponse) {
+	t.Helper()
+	liveCoinMarginedOrders.RLock()
+	t.Cleanup(liveCoinMarginedOrders.RUnlock)
+	pair := currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter)
+	prices, err := e.GetCoinMarginedFuturesIndexAndMarkPrice(t.Context(), pair, currency.EMPTYCODE)
+	require.NoError(t, err, "GetCoinMarginedFuturesIndexAndMarkPrice must not error")
+	require.Len(t, prices, 1, "GetCoinMarginedFuturesIndexAndMarkPrice must return the symbol's prices")
+	req := &USDTMarginedFuturesNewAlgoOrderRequest{
+		AlgoType:             AlgoTypeConditional,
+		Symbol:               pair,
+		Side:                 SideSell,
+		OrderType:            OrderTypeStopMarket,
+		Quantity:             1,
+		TriggerPrice:         math.Floor(prices[0].MarkPrice.Float64() / 2),
+		WorkingType:          WorkingTypeMarkPrice,
+		ClientAlgoID:         "gct-test-" + strconv.FormatInt(time.Now().UnixNano(), 36),
+		NewOrderResponseType: NewOrderResponseTypeResult,
+	}
+	require.Positive(t, req.TriggerPrice, "the mark price must give a positive trigger price")
+	// An account in Hedge Mode takes an order only for the position of one direction
+	hedgeMode, err := e.positionMode(t.Context())
+	require.NoError(t, err, "positionMode must not error")
+	if hedgeMode {
+		req.PositionSide = "SHORT"
+	}
+	// Registered before placing, as Binance may have placed an order whose reply failed
+	t.Cleanup(func() {
+		ctx := context.WithoutCancel(t.Context())
+		if o, err := e.CoinMarginedFuturesQueryAlgoOrder(ctx, 0, req.ClientAlgoID); err == nil && slices.Contains([]string{"CANCELED", "EXPIRED", "REJECTED"}, o.AlgoStatus) {
+			return
+		}
+		_, err := e.CoinMarginedFuturesCancelAlgoOrder(ctx, 0, req.ClientAlgoID)
+		assert.NoErrorf(t, err, "CoinMarginedFuturesCancelAlgoOrder should cancel the test's stop order %s", req.ClientAlgoID)
+	})
+	placed, err := e.CoinMarginedFuturesNewAlgoOrder(t.Context(), req)
+	require.NoError(t, err, "CoinMarginedFuturesNewAlgoOrder must place the stop order")
+	require.NotNil(t, placed, "CoinMarginedFuturesNewAlgoOrder must return the placed order")
+	return req, placed
+}
+
+// assertLiveCoinMarginedAlgoOrder checks that a live algo order is the one req placed with algoID, in status
+func assertLiveCoinMarginedAlgoOrder(t *testing.T, req *USDTMarginedFuturesNewAlgoOrderRequest, algoID uint64, got *USDTMarginedFuturesAlgoOrderBase, status string) {
+	t.Helper()
+	assert.Equal(t, algoID, got.AlgoID, "the algo order should have the placed order's algo ID")
+	assert.Equal(t, req.ClientAlgoID, got.ClientAlgoID, "the algo order should have the client algo ID sent")
+	assert.Equal(t, req.AlgoType, got.AlgoType, "the algo order should have the algo type sent")
+	assert.Equal(t, req.OrderType, got.OrderType, "the algo order should have the order type sent")
+	assert.Equal(t, "BTCUSD_PERP", got.Symbol, "the algo order should have the symbol sent")
+	assert.Equal(t, req.Side, got.Side, "the algo order should have the side sent")
+	assert.Equal(t, req.Quantity, got.Quantity.Float64(), "the algo order should have the quantity sent")
+	assert.Equal(t, req.TriggerPrice, got.TriggerPrice.Float64(), "the algo order should have the trigger price sent")
+	assert.Equal(t, req.WorkingType, got.WorkingType, "the algo order should have the working type sent")
+	assert.Equal(t, status, got.AlgoStatus, "the algo order should have the expected status")
+}
+
+func TestCoinMarginedFuturesNewAlgoOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.CoinMarginedFuturesNewAlgoOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "CoinMarginedFuturesNewAlgoOrder must reject a nil request")
+	_, err = e.CoinMarginedFuturesNewAlgoOrder(t.Context(), &USDTMarginedFuturesNewAlgoOrderRequest{AlgoType: "CONDITIONAL"})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CoinMarginedFuturesNewAlgoOrder must reject an empty symbol")
+
+	ex, sent := newCancelStepsExchange(t, []cancelStep{
+		{http.MethodPost, "/dapi/v1/algoOrder", map[string]string{"algoType": "CONDITIONAL", "symbol": "BTCUSD_PERP", "side": "SELL", "type": "STOP_MARKET", "quantity": "1", "triggerPrice": "70000", "workingType": "MARK_PRICE", "reduceOnly": "true", "clientAlgoId": "gct-cm-stop"}, coinMarginedAlgoOrderReply},
+	})
+	pair := currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter)
 	placed, err := ex.CoinMarginedFuturesNewAlgoOrder(t.Context(), &USDTMarginedFuturesNewAlgoOrderRequest{AlgoType: "CONDITIONAL", Symbol: pair, Side: "SELL", OrderType: "STOP_MARKET", Quantity: 1, TriggerPrice: 70000, WorkingType: "MARK_PRICE", ReduceOnly: true, ClientAlgoID: "gct-cm-stop"})
 	require.NoError(t, err, "CoinMarginedFuturesNewAlgoOrder must not error")
-	assert.Equal(t, &USDTMarginedFuturesNewAlgoOrderResponse{USDTMarginedFuturesAlgoOrderBase: base}, placed, "CoinMarginedFuturesNewAlgoOrder should decode the placed algo order")
+	assert.Equal(t, &USDTMarginedFuturesNewAlgoOrderResponse{USDTMarginedFuturesAlgoOrderBase: coinMarginedAlgoOrder()}, placed, "CoinMarginedFuturesNewAlgoOrder should decode the placed algo order")
+	assert.Equal(t, 1, sent(), "CoinMarginedFuturesNewAlgoOrder should send one request")
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip(liveAlgoOrderSkip)
+		}
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		req, placed := placeLiveCoinMarginedAlgoOrder(t)
+		assert.NotZero(t, placed.AlgoID, "CoinMarginedFuturesNewAlgoOrder should return the algo ID")
+		assertLiveCoinMarginedAlgoOrder(t, req, placed.AlgoID, &placed.USDTMarginedFuturesAlgoOrderBase, "NEW")
+	})
+}
+
+func TestCoinMarginedFuturesQueryAlgoOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.CoinMarginedFuturesQueryAlgoOrder(t.Context(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CoinMarginedFuturesQueryAlgoOrder must require an algo ID or a client algo ID")
+
+	ex, sent := newCancelStepsExchange(t, []cancelStep{
+		{http.MethodGet, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100001", "clientAlgoId": ""}, coinMarginedAlgoOrderReply},
+	})
 	queried, err := ex.CoinMarginedFuturesQueryAlgoOrder(t.Context(), 3100001, "gct-cm-stop")
 	require.NoError(t, err, "CoinMarginedFuturesQueryAlgoOrder must not error")
-	assert.Equal(t, &USDTMarginedFuturesAlgoOrderResponse{USDTMarginedFuturesAlgoOrderBase: base}, queried, "CoinMarginedFuturesQueryAlgoOrder should decode the algo order")
-	open, err := ex.CoinMarginedFuturesCurrentAllAlgoOpenOrders(t.Context(), "CONDITIONAL", pair, 0)
-	require.NoError(t, err, "CoinMarginedFuturesCurrentAllAlgoOpenOrders must not error")
-	assert.Equal(t, []USDTMarginedFuturesAlgoOrderResponse{{USDTMarginedFuturesAlgoOrderBase: base}}, open, "CoinMarginedFuturesCurrentAllAlgoOpenOrders should decode the open algo orders")
-	_, err = ex.CoinMarginedFuturesCurrentAllAlgoOpenOrders(t.Context(), "", currency.EMPTYPAIR, 0)
-	require.NoError(t, err, "CoinMarginedFuturesCurrentAllAlgoOpenOrders must list every symbol's open algo orders")
-	history, err := ex.CoinMarginedFuturesQueryAllAlgoOrders(t.Context(), &USDTMarginedFuturesAllAlgoOrdersRequest{Symbol: pair, StartTime: time.UnixMilli(1744103854944), EndTime: time.UnixMilli(1744190254944), Limit: 100})
-	require.NoError(t, err, "CoinMarginedFuturesQueryAllAlgoOrders must not error")
-	assert.Equal(t, []USDTMarginedFuturesAlgoOrderResponse{{USDTMarginedFuturesAlgoOrderBase: base}}, history, "CoinMarginedFuturesQueryAllAlgoOrders should decode the algo orders")
+	assert.Equal(t, &USDTMarginedFuturesAlgoOrderResponse{USDTMarginedFuturesAlgoOrderBase: coinMarginedAlgoOrder()}, queried, "CoinMarginedFuturesQueryAlgoOrder should decode the algo order")
+	assert.Equal(t, 1, sent(), "CoinMarginedFuturesQueryAlgoOrder should send one request")
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip(liveAlgoOrderSkip)
+		}
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		req, placed := placeLiveCoinMarginedAlgoOrder(t)
+		for _, tc := range []struct {
+			name         string
+			algoID       uint64
+			clientAlgoID string
+		}{
+			{"by algo ID", placed.AlgoID, ""},
+			{"by client algo ID", 0, req.ClientAlgoID},
+		} {
+			// In order, as parallel subtests could wait for a test slot that a case waiting for liveCoinMarginedOrders, which
+			// this case holds until they end, occupies
+			t.Run(tc.name, func(t *testing.T) {
+				queried, err := e.CoinMarginedFuturesQueryAlgoOrder(t.Context(), tc.algoID, tc.clientAlgoID)
+				require.NoError(t, err, "CoinMarginedFuturesQueryAlgoOrder must find the placed order")
+				assertLiveCoinMarginedAlgoOrder(t, req, placed.AlgoID, &queried.USDTMarginedFuturesAlgoOrderBase, "NEW")
+			})
+		}
+	})
+}
+
+func TestCoinMarginedFuturesCancelAlgoOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.CoinMarginedFuturesCancelAlgoOrder(t.Context(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CoinMarginedFuturesCancelAlgoOrder must require an algo ID or a client algo ID")
+
+	ex, sent := newCancelStepsExchange(t, []cancelStep{
+		{http.MethodDelete, "/dapi/v1/algoOrder", map[string]string{"clientAlgoId": "gct-cm-stop", "algoId": ""}, `{"algoId":3100001,"clientAlgoId":"gct-cm-stop","code":"200","msg":"success"}`},
+	})
 	cancelled, err := ex.CoinMarginedFuturesCancelAlgoOrder(t.Context(), 0, "gct-cm-stop")
 	require.NoError(t, err, "CoinMarginedFuturesCancelAlgoOrder must not error")
 	assert.Equal(t, &USDTMarginedFuturesCancelAlgoOrderResponse{AlgoID: 3100001, ClientAlgoID: "gct-cm-stop", Code: 200, Message: "success"}, cancelled, "CoinMarginedFuturesCancelAlgoOrder should decode the cancellation")
+	assert.Equal(t, 1, sent(), "CoinMarginedFuturesCancelAlgoOrder should send one request")
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip(liveAlgoOrderSkip)
+		}
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		req, placed := placeLiveCoinMarginedAlgoOrder(t)
+		cancelled, err := e.CoinMarginedFuturesCancelAlgoOrder(t.Context(), placed.AlgoID, "")
+		require.NoError(t, err, "CoinMarginedFuturesCancelAlgoOrder must cancel the placed order")
+		assert.Equal(t, placed.AlgoID, cancelled.AlgoID, "CoinMarginedFuturesCancelAlgoOrder should return the cancelled order's algo ID")
+		assert.Equal(t, req.ClientAlgoID, cancelled.ClientAlgoID, "CoinMarginedFuturesCancelAlgoOrder should return the cancelled order's client algo ID")
+		assert.Equal(t, types.Number(200), cancelled.Code, "CoinMarginedFuturesCancelAlgoOrder should report success")
+		queried, err := e.CoinMarginedFuturesQueryAlgoOrder(t.Context(), placed.AlgoID, "")
+		require.NoError(t, err, "CoinMarginedFuturesQueryAlgoOrder must find the cancelled order")
+		assertLiveCoinMarginedAlgoOrder(t, req, placed.AlgoID, &queried.USDTMarginedFuturesAlgoOrderBase, "CANCELED")
+	})
+}
+
+func TestCoinMarginedFuturesCancelAllAlgoOpenOrders(t *testing.T) {
+	t.Parallel()
+	err := e.CoinMarginedFuturesCancelAllAlgoOpenOrders(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CoinMarginedFuturesCancelAllAlgoOpenOrders must reject an empty symbol")
+
+	ex, sent := newCancelStepsExchange(t, []cancelStep{
+		{http.MethodDelete, "/dapi/v1/algoOpenOrders", map[string]string{"symbol": "BTCUSD_PERP"}, `{"code":200,"msg":"The operation of cancel all open order is done."}`},
+	})
+	pair := currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter)
 	require.NoError(t, ex.CoinMarginedFuturesCancelAllAlgoOpenOrders(t.Context(), pair), "CoinMarginedFuturesCancelAllAlgoOpenOrders must not error")
-	assert.Equal(t, 7, sent(), "the COIN-M algo order endpoints should send every expected request")
+	assert.Equal(t, 1, sent(), "CoinMarginedFuturesCancelAllAlgoOpenOrders should send one request")
+}
+
+func TestCoinMarginedFuturesCurrentAllAlgoOpenOrders(t *testing.T) {
+	t.Parallel()
+	ex, sent := newCancelStepsExchange(t, []cancelStep{
+		{http.MethodGet, "/dapi/v1/openAlgoOrders", map[string]string{"symbol": "BTCUSD_PERP", "algoType": "CONDITIONAL"}, "[" + coinMarginedAlgoOrderReply + "]"},
+		{http.MethodGet, "/dapi/v1/openAlgoOrders", map[string]string{"symbol": ""}, "[" + coinMarginedAlgoOrderReply + "]"},
+	})
+	pair := currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter)
+	open, err := ex.CoinMarginedFuturesCurrentAllAlgoOpenOrders(t.Context(), "CONDITIONAL", pair, 0)
+	require.NoError(t, err, "CoinMarginedFuturesCurrentAllAlgoOpenOrders must not error")
+	assert.Equal(t, []USDTMarginedFuturesAlgoOrderResponse{{USDTMarginedFuturesAlgoOrderBase: coinMarginedAlgoOrder()}}, open, "CoinMarginedFuturesCurrentAllAlgoOpenOrders should decode the open algo orders")
+	_, err = ex.CoinMarginedFuturesCurrentAllAlgoOpenOrders(t.Context(), "", currency.EMPTYPAIR, 0)
+	require.NoError(t, err, "CoinMarginedFuturesCurrentAllAlgoOpenOrders must list every symbol's open algo orders")
+	assert.Equal(t, 2, sent(), "CoinMarginedFuturesCurrentAllAlgoOpenOrders should send a request for each listing")
+}
+
+func TestCoinMarginedFuturesQueryAllAlgoOrders(t *testing.T) {
+	t.Parallel()
+	_, err := e.CoinMarginedFuturesQueryAllAlgoOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "CoinMarginedFuturesQueryAllAlgoOrders must reject a nil request")
+	_, err = e.CoinMarginedFuturesQueryAllAlgoOrders(t.Context(), &USDTMarginedFuturesAllAlgoOrdersRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CoinMarginedFuturesQueryAllAlgoOrders must reject an empty symbol")
+
+	ex, sent := newCancelStepsExchange(t, []cancelStep{
+		{http.MethodGet, "/dapi/v1/allAlgoOrders", map[string]string{"symbol": "BTCUSD_PERP", "startTime": "1744103854944", "endTime": "1744190254944", "limit": "100"}, "[" + coinMarginedAlgoOrderReply + "]"},
+	})
+	pair := currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter)
+	history, err := ex.CoinMarginedFuturesQueryAllAlgoOrders(t.Context(), &USDTMarginedFuturesAllAlgoOrdersRequest{Symbol: pair, StartTime: time.UnixMilli(1744103854944), EndTime: time.UnixMilli(1744190254944), Limit: 100})
+	require.NoError(t, err, "CoinMarginedFuturesQueryAllAlgoOrders must not error")
+	assert.Equal(t, []USDTMarginedFuturesAlgoOrderResponse{{USDTMarginedFuturesAlgoOrderBase: coinMarginedAlgoOrder()}}, history, "CoinMarginedFuturesQueryAllAlgoOrders should decode the algo orders")
+	assert.Equal(t, 1, sent(), "CoinMarginedFuturesQueryAllAlgoOrders should send one request")
 }
 
 func TestGetCoinMarginedFuturesAllOpenOrders(t *testing.T) {
@@ -2579,6 +2752,8 @@ func TestCloseCoinMarginedFuturesUserDataStream(t *testing.T) {
 	if !mockTests {
 		// Closing invalidates the listen key every client of the account shares
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		liveListenKeys.Lock()
+		defer liveListenKeys.Unlock()
 	}
 	assert.NoError(t, e.CloseCoinMarginedFuturesUserDataStream(t.Context()), "CloseCoinMarginedFuturesUserDataStream should not error")
 }

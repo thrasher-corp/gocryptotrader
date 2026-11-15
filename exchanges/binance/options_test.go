@@ -1454,6 +1454,8 @@ func TestCloseOptionsUserDataStream(t *testing.T) {
 	if !mockTests {
 		// Closing invalidates the listen key every client of the account shares
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		liveListenKeys.Lock()
+		defer liveListenKeys.Unlock()
 	}
 	assert.NoError(t, e.CloseOptionsUserDataStream(t.Context()), "CloseOptionsUserDataStream should not error")
 }

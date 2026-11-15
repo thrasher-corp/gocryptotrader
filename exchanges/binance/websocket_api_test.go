@@ -3553,7 +3553,7 @@ func TestServerShutdownLeavesReconnectedWebsocket(t *testing.T) {
 	assert.Never(t, func() bool { return !ex.Websocket.IsConnected() }, 500*time.Millisecond, 5*time.Millisecond, "a notice for the connections a reconnection replaced should leave the new ones alone")
 }
 
-func TestWebsocketAPIKeepsResponseLimit(t *testing.T) {
+func TestWebsocketConnectAPI(t *testing.T) {
 	t.Parallel()
 	// A server shutdown waits for the requests in flight on the WebSocket API connection as long as they wait for their
 	// responses, which a configured response limit can lengthen
@@ -3782,7 +3782,7 @@ func TestSendWsAPIRequest(t *testing.T) {
 	})
 }
 
-func TestUserDataStreamRequestGivenUp(t *testing.T) {
+func TestSendUserDataStreamSubscription(t *testing.T) {
 	t.Parallel()
 	// A subscription request whose sender gave up, as one that timed out does, no longer holds a retry back, while a
 	// late response to it is still recorded

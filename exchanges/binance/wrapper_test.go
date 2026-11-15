@@ -2968,6 +2968,10 @@ func TestCancelAllOrders(t *testing.T) {
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
+				if tc.cancel.AssetType == asset.CoinMarginedFutures {
+					liveCoinMarginedOrders.Lock()
+					defer liveCoinMarginedOrders.Unlock()
+				}
 				if !tc.everyPair {
 					tc.cancel.Pair = assetToTradablePairMap[tc.cancel.AssetType]
 				}
@@ -3495,6 +3499,11 @@ func newCancelStepsExchange(t *testing.T, steps []cancelStep) (ex *Exchange, sen
 	t.Helper()
 	var mu sync.Mutex
 	var count int
+	// The test server answers every host, so each futures product's host is given a name of its own, which the requests
+	// to its paths must carry
+	productHosts := map[exchange.URL]string{exchange.RestUSDTMargined: "fapi.example", exchange.RestCoinMargined: "dapi.example", exchange.RestOptions: "eapi.example"}
+	pathHosts := map[string]string{"/fapi/": productHosts[exchange.RestUSDTMargined], "/dapi/": productHosts[exchange.RestCoinMargined], "/eapi/": productHosts[exchange.RestOptions]}
+	var spotHost string
 	ex = newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		i := count
@@ -3506,6 +3515,13 @@ func newCancelStepsExchange(t *testing.T, steps []cancelStep) (ex *Exchange, sen
 		}
 		step := steps[i]
 		assert.Equalf(t, step.method+" "+step.path, r.Method+" "+r.URL.Path, "request %d should be the expected one", i)
+		host := spotHost
+		for prefix, h := range pathHosts {
+			if strings.HasPrefix(r.URL.Path, prefix) {
+				host = h
+			}
+		}
+		assert.Equalf(t, host, r.Host, "request %d should go to the host of its product", i)
 		q := r.URL.Query()
 		for k, v := range step.params {
 			if v == "" {
@@ -3521,10 +3537,11 @@ func newCancelStepsExchange(t *testing.T, steps []cancelStep) (ex *Exchange, sen
 		_, err := w.Write([]byte(step.reply))
 		assert.NoError(t, err, "Write should not error")
 	})
-	url, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+	spotURL, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
 	require.NoError(t, err, "GetURL must not error")
-	for _, u := range []exchange.URL{exchange.RestUSDTMargined, exchange.RestCoinMargined} {
-		require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(u.String(), url), "SetRunningURL must not error for %s", u)
+	_, spotHost, _ = strings.Cut(spotURL, "://")
+	for u, host := range productHosts {
+		require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(u.String(), "http://"+host), "SetRunningURL must not error for %s", u)
 	}
 	return ex, func() int {
 		mu.Lock()
@@ -7542,11 +7559,6 @@ func TestCancelBatchOrders(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				ex, sent := newCancelStepsExchange(t, tc.steps)
-				url, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
-				require.NoError(t, err, "GetURL must not error")
-				for _, u := range []exchange.URL{exchange.RestCoinMargined, exchange.RestOptions} {
-					require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(u.String(), url), "SetRunningURL must not error for %s", u)
-				}
 				entries := slices.Clone(tc.entries)
 				for i := range entries {
 					entries[i].AssetType, entries[i].Pair = tc.a, tc.pair
@@ -7581,9 +7593,6 @@ func TestCancelBatchOrders(t *testing.T) {
 			t.Parallel()
 			// Options orders are cancelled ten at a time whatever their type, so such an ID refuses the whole batch
 			ex, sent := newCancelStepsExchange(t, nil)
-			url, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
-			require.NoError(t, err, "GetURL must not error")
-			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestOptions.String(), url), "SetRunningURL must not error")
 			resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
 				{AssetType: asset.Options, Pair: optionsPair, OrderID: "4611875134427365377"},
 				{AssetType: asset.Options, Pair: optionsPair, Type: order.Stop, OrderID: "broken-id"},
@@ -7785,7 +7794,7 @@ func TestGetAccountFundingHistory(t *testing.T) {
 	assert.Equal(t, exp, result, "GetAccountFundingHistory should return every deposit and withdrawal")
 }
 
-func TestFundingStatusStrings(t *testing.T) {
+func TestDepositStatusString(t *testing.T) {
 	t.Parallel()
 	for status, exp := range map[uint64]string{0: "Pending", 1: "Success", 2: "Rejected", 6: "Credited but cannot withdraw", 7: "Wrong deposit", 8: "Waiting user confirm", 9: "9"} {
 		t.Run("deposit "+strconv.FormatUint(status, 10), func(t *testing.T) {
@@ -7793,6 +7802,10 @@ func TestFundingStatusStrings(t *testing.T) {
 			assert.Equalf(t, exp, depositStatusString(status), "depositStatusString should name status %d", status)
 		})
 	}
+}
+
+func TestWithdrawalStatusString(t *testing.T) {
+	t.Parallel()
 	for status, exp := range map[uint64]string{0: "Email sent", 2: "Awaiting approval", 3: "Rejected", 4: "Processing", 6: "Completed", 9: "9"} {
 		t.Run("withdrawal "+strconv.FormatUint(status, 10), func(t *testing.T) {
 			t.Parallel()
@@ -10042,6 +10055,22 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the requests carry the current time, which recorded responses cannot match")
+		}
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		ensureTradablePairs(t)
+		for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				_, err := e.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: a, Pairs: currency.Pairs{assetToTradablePairMap[a]}, StartDate: time.Now().Add(-24 * time.Hour), RespectOrderHistoryLimits: true})
+				assert.NoErrorf(t, err, "GetFuturesPositionOrders should collect the %s position's orders", a)
+			})
+		}
+	})
 }
 
 func TestSetMarginType(t *testing.T) { //nolint:tparallel // the rejections, then the account's margin type changes, run in order
@@ -10567,9 +10596,13 @@ func TestNewFoundOrderList(t *testing.T) {
 	}
 }
 
-func TestRemainingAmountAndAveragePrice(t *testing.T) {
+func TestRemainingAmount(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, 0.006, remainingAmount(0.01, 0.004), "remainingAmount should subtract exactly")
+}
+
+func TestAveragePrice(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, 79990.0, averagePrice(39.995, 0.0005), "averagePrice should divide exactly")
 	assert.Zero(t, averagePrice(39.995, 0), "averagePrice should be zero without fills")
 }

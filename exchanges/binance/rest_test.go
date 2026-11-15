@@ -433,9 +433,9 @@ func TestGetAggregatedTrades(t *testing.T) { //nolint:tparallel // The limit cas
 	assert.Len(t, result, 5, "GetAggregatedTrades should return the limit of trades")
 }
 
-// TestGetAggregatedTradesBatched covers collecting more trades than one request returns, where each page after the first
+// TestBatchAggregateTrades covers collecting more trades than one request returns, where each page after the first
 // starts at, and so repeats, the last trade collected
-func TestGetAggregatedTradesBatched(t *testing.T) {
+func TestBatchAggregateTrades(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		ensureTradablePairs(t)
@@ -3453,112 +3453,115 @@ func TestSendHTTPRequest(t *testing.T) {
 	assert.Equal(t, exp, result, "SendHTTPRequest should decode the response")
 }
 
-func TestSendRequestErrorResponse(t *testing.T) {
+func TestSendRequest(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		name       string
-		statusCode int
-		body       string
-		errs       []error
-		notErrs    []error
-		msg        string
-	}{
-		{
-			name:       "mapped invalid symbol code",
-			statusCode: http.StatusBadRequest,
-			body:       `{"code":-1121,"msg":"Invalid symbol."}`,
-			errs:       []error{errAPIResponse, currency.ErrPairNotFound, request.ErrBadStatus},
-			msg:        "code -1121 msg Invalid symbol.",
-		},
-		{
-			name:       "mapped unauthorised code",
-			statusCode: http.StatusUnauthorized,
-			body:       `{"code":-1002,"msg":"You are not authorized to execute this request."}`,
-			errs:       []error{errAPIResponse, request.ErrAuthRequestFailed, request.ErrBadStatus},
-			msg:        "code -1002 msg You are not authorized to execute this request.",
-		},
-		{
-			name:       "mapped unknown order code",
-			statusCode: http.StatusBadRequest,
-			body:       `{"code":-2013,"msg":"Order does not exist."}`,
-			errs:       []error{errAPIResponse, order.ErrOrderNotFound, request.ErrBadStatus},
-			msg:        "code -2013 msg Order does not exist.",
-		},
-		{
-			name:       "unmapped code",
-			statusCode: http.StatusBadRequest,
-			body:       `{"code":-1100,"msg":"Illegal characters found in parameter 'symbols'."}`,
-			errs:       []error{errAPIResponse, request.ErrBadStatus},
-			notErrs:    []error{currency.ErrPairNotFound, request.ErrAuthRequestFailed, order.ErrOrderNotFound},
-			msg:        "code -1100 msg Illegal characters found in parameter 'symbols'.",
-		},
-		{
-			name:       "negative code with a success status",
-			statusCode: http.StatusOK,
-			body:       `{"code":-2011,"msg":"Unknown order sent."}`,
-			errs:       []error{errAPIResponse},
-			notErrs:    []error{request.ErrBadStatus},
-			msg:        "code -2011 msg Unknown order sent.",
-		},
-		{
-			name:       "error status without an error object",
-			statusCode: http.StatusInternalServerError,
-			body:       `{"someField":"value"}`,
-			errs:       []error{request.ErrBadStatus},
-			notErrs:    []error{errAPIResponse},
-		},
-		{
-			name:       "error status without a JSON body",
-			statusCode: http.StatusBadGateway,
-			body:       `<html><body>Bad Gateway</body></html>`,
-			errs:       []error{request.ErrBadStatus},
-			notErrs:    []error{errAPIResponse},
-		},
-		{
-			name:       "null body",
-			statusCode: http.StatusOK,
-			body:       `null`,
-			errs:       []error{common.ErrNoResponse},
-			notErrs:    []error{errAPIResponse},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := newTestServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(tc.statusCode)
-				_, err := w.Write([]byte(tc.body))
-				assert.NoError(t, err, "Write should not error")
+	t.Run("error response", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name       string
+			statusCode int
+			body       string
+			errs       []error
+			notErrs    []error
+			msg        string
+		}{
+			{
+				name:       "mapped invalid symbol code",
+				statusCode: http.StatusBadRequest,
+				body:       `{"code":-1121,"msg":"Invalid symbol."}`,
+				errs:       []error{errAPIResponse, currency.ErrPairNotFound, request.ErrBadStatus},
+				msg:        "code -1121 msg Invalid symbol.",
+			},
+			{
+				name:       "mapped unauthorised code",
+				statusCode: http.StatusUnauthorized,
+				body:       `{"code":-1002,"msg":"You are not authorized to execute this request."}`,
+				errs:       []error{errAPIResponse, request.ErrAuthRequestFailed, request.ErrBadStatus},
+				msg:        "code -1002 msg You are not authorized to execute this request.",
+			},
+			{
+				name:       "mapped unknown order code",
+				statusCode: http.StatusBadRequest,
+				body:       `{"code":-2013,"msg":"Order does not exist."}`,
+				errs:       []error{errAPIResponse, order.ErrOrderNotFound, request.ErrBadStatus},
+				msg:        "code -2013 msg Order does not exist.",
+			},
+			{
+				name:       "unmapped code",
+				statusCode: http.StatusBadRequest,
+				body:       `{"code":-1100,"msg":"Illegal characters found in parameter 'symbols'."}`,
+				errs:       []error{errAPIResponse, request.ErrBadStatus},
+				notErrs:    []error{currency.ErrPairNotFound, request.ErrAuthRequestFailed, order.ErrOrderNotFound},
+				msg:        "code -1100 msg Illegal characters found in parameter 'symbols'.",
+			},
+			{
+				name:       "negative code with a success status",
+				statusCode: http.StatusOK,
+				body:       `{"code":-2011,"msg":"Unknown order sent."}`,
+				errs:       []error{errAPIResponse},
+				notErrs:    []error{request.ErrBadStatus},
+				msg:        "code -2011 msg Unknown order sent.",
+			},
+			{
+				name:       "error status without an error object",
+				statusCode: http.StatusInternalServerError,
+				body:       `{"someField":"value"}`,
+				errs:       []error{request.ErrBadStatus},
+				notErrs:    []error{errAPIResponse},
+			},
+			{
+				name:       "error status without a JSON body",
+				statusCode: http.StatusBadGateway,
+				body:       `<html><body>Bad Gateway</body></html>`,
+				errs:       []error{request.ErrBadStatus},
+				notErrs:    []error{errAPIResponse},
+			},
+			{
+				name:       "null body",
+				statusCode: http.StatusOK,
+				body:       `null`,
+				errs:       []error{common.ErrNoResponse},
+				notErrs:    []error{errAPIResponse},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+					w.WriteHeader(tc.statusCode)
+					_, err := w.Write([]byte(tc.body))
+					assert.NoError(t, err, "Write should not error")
+				})
+				var result *ErrResponse
+				err := ex.SendHTTPRequest(t.Context(), exchange.RestSpotSupplementary, "/api/v3/time", spotDefaultRate, &result)
+				for _, want := range tc.errs {
+					require.ErrorIs(t, err, want, "SendHTTPRequest must return the expected error")
+				}
+				for _, unwanted := range tc.notErrs {
+					assert.NotErrorIs(t, err, unwanted, "SendHTTPRequest should not return an unrelated error")
+				}
+				if tc.msg != "" {
+					assert.ErrorContains(t, err, tc.msg, "SendHTTPRequest should report the code and message")
+				}
 			})
-			var result *ErrResponse
-			err := ex.SendHTTPRequest(t.Context(), exchange.RestSpotSupplementary, "/api/v3/time", spotDefaultRate, &result)
-			for _, want := range tc.errs {
-				require.ErrorIs(t, err, want, "SendHTTPRequest must return the expected error")
-			}
-			for _, unwanted := range tc.notErrs {
-				assert.NotErrorIs(t, err, unwanted, "SendHTTPRequest should not return an unrelated error")
-			}
-			if tc.msg != "" {
-				assert.ErrorContains(t, err, tc.msg, "SendHTTPRequest should report the code and message")
-			}
-		})
-	}
-}
+		}
+	})
 
-func TestSendRequestSuccessMessage(t *testing.T) {
-	t.Parallel()
-	for _, body := range []string{`{"code":200,"msg":"success"}`, `{"code":0,"msg":"success"}`} {
-		t.Run(body, func(t *testing.T) {
-			t.Parallel()
-			ex := newTestServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
-				_, err := w.Write([]byte(body))
-				assert.NoError(t, err, "Write should not error")
+	t.Run("success message", func(t *testing.T) {
+		t.Parallel()
+		for _, body := range []string{`{"code":200,"msg":"success"}`, `{"code":0,"msg":"success"}`} {
+			t.Run(body, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "Write should not error")
+				})
+				var result *ErrResponse
+				require.NoError(t, ex.SendHTTPRequest(t.Context(), exchange.RestSpotSupplementary, "/sapi/v1/test", spotDefaultRate, &result), "SendHTTPRequest must not error")
+				require.NotNil(t, result, "SendHTTPRequest must decode the response")
+				assert.Equal(t, "success", result.Message, "SendHTTPRequest should decode the message")
 			})
-			var result *ErrResponse
-			require.NoError(t, ex.SendHTTPRequest(t.Context(), exchange.RestSpotSupplementary, "/sapi/v1/test", spotDefaultRate, &result), "SendHTTPRequest must not error")
-			require.NotNil(t, result, "SendHTTPRequest must decode the response")
-			assert.Equal(t, "success", result.Message, "SendHTTPRequest should decode the message")
-		})
-	}
+		}
+	})
 }
 
 func TestSendAuthHTTPRequest(t *testing.T) {

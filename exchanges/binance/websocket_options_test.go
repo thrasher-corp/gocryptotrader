@@ -26,7 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
-func TestGenerateOptionsSubscriptions(t *testing.T) { //nolint:tparallel // The disabled asset cases share ex, subs and err in order
+func TestGenerateOptionsPublicSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	subs, err := ex.generateOptionsPublicSubscriptions()
@@ -37,27 +37,25 @@ func TestGenerateOptionsSubscriptions(t *testing.T) { //nolint:tparallel // The 
 		{Channel: subscription.OrderbookChannel, Asset: asset.Options, Pairs: currency.Pairs{testOptionsPair}, Interval: kline.HundredMilliseconds, QualifiedChannel: "btc-261030-85000-c@depth@100ms"},
 	}, subs)
 
-	subs, err = ex.generateOptionsMarketSubscriptions()
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Options, false), "SetAssetEnabled must not error")
+	subs, err = ex.generateOptionsPublicSubscriptions()
+	require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
+	assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
+}
+
+func TestGenerateOptionsMarketSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := newDerivativesTestExchange(t)
+	subs, err := ex.generateOptionsMarketSubscriptions()
 	require.NoError(t, err, "generateOptionsMarketSubscriptions must not error")
 	testsubs.EqualLists(t, subscription.List{
 		{Channel: subscription.CandlesChannel, Asset: asset.Options, Pairs: currency.Pairs{testOptionsPair}, Interval: kline.OneMin, QualifiedChannel: "btc-261030-85000-c@kline_1m"},
 	}, subs)
 
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Options, false), "SetAssetEnabled must not error")
-	// The cases share ex, subs and err in order, so each also checks that a generation keeps nothing from the last
-	for _, tc := range []struct {
-		name     string
-		generate func() (subscription.List, error)
-	}{
-		{"public subscriptions with options disabled", ex.generateOptionsPublicSubscriptions},
-		{"market subscriptions with options disabled", ex.generateOptionsMarketSubscriptions},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			subs, err = tc.generate()
-			require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
-			assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
-		})
-	}
+	subs, err = ex.generateOptionsMarketSubscriptions()
+	require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
+	assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
 }
 
 func TestWebsocketHandleOptionsData(t *testing.T) {
@@ -116,7 +114,7 @@ func TestWebsocketHandleOptionsData(t *testing.T) {
 	}, got, "partial depth should load the top levels into the options order book")
 }
 
-func TestOptionsTickerBidAskFromOrderbook(t *testing.T) {
+func TestProcessOptionsTicker(t *testing.T) {
 	t.Parallel()
 	const frame = `{"stream":"btc-261030-85000-c@optionTicker","data":{"e":"24hrTicker","E":1791283461766,"s":"BTC-261030-85000-C","p":"-244.000","P":"-0.0625","w":"3650.092","c":"3660.000","Q":"1.25","o":"3904.000","h":"4085.000","l":"3540.000","v":"175.00","q":"643766.050","O":1791201120000,"C":1791283461766,"F":62,"L":468,"n":407}}`
 	streamBook := func(ctx context.Context, ex *Exchange, book *orderbook.Book) error {
@@ -306,7 +304,7 @@ func TestWebsocketHandleOptionsUserData(t *testing.T) {
 	assert.Equal(t, 10000471.379409, stored.Total, "the balance update should store the account balance")
 }
 
-func TestOptionsOrderTradeUpdateFills(t *testing.T) {
+func TestProcessOptionsOrderTradeUpdate(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	// A limit sell of 0.3 is placed, then filled by two trades, each charged a fee that options report as negative

@@ -3,6 +3,7 @@ package binance
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -456,7 +457,7 @@ func TestWebsocketHandleData(t *testing.T) {
 	ex := newTestExchange(t)
 	ex.Features.Enabled.TradeFeed = true
 	ex.Websocket.Trade.Setup(true, ex.Websocket.DataHandler)
-	// Diff depth frames only wait for a snapshot here; TestSpotOrderbookSync synchronises them
+	// Diff depth frames only wait for a snapshot here; TestProcessDepthUpdate synchronises them
 	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
 		return nil, errTestNoSnapshot
 	})
@@ -617,44 +618,6 @@ func TestHandleServerShutdown(t *testing.T) {
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 	require.NoError(t, ex.wsHandleData(t.Context(), nil, []byte(`{"stream":"!serverShutdown","data":{"e":"serverShutdown","E":1770123456789}}`)), "wsHandleData must not error for serverShutdown")
 	assert.Eventually(t, func() bool { return !ex.Websocket.IsConnected() }, 30*time.Second, 10*time.Millisecond, "serverShutdown should disconnect, so the connection monitor reconnects")
-}
-
-func TestSpotOrderbookSync(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-	// The snapshot falls inside the second frame, so the first frame is dropped and the second applied
-	useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-		return &orderbook.Book{
-			Exchange:     ex.Name,
-			Pair:         p,
-			Asset:        a,
-			Bids:         orderbook.Levels{{Price: 86104.01, Amount: 7.31683}, {Price: 86104, Amount: 0.02991}, {Price: 86103.5, Amount: 0.5}},
-			Asks:         orderbook.Levels{{Price: 86104.02, Amount: 5.55365}, {Price: 86104.03, Amount: 0.00072}},
-			LastUpdateID: 101096708690,
-			LastUpdated:  time.UnixMilli(1791284980650),
-		}, nil
-	})
-	var depthFrames [][]byte
-	for _, line := range fixtureLines(t, "testdata/wsSpot.jsonl") {
-		if name, err := jsonparser.GetString(line, "stream"); err == nil && name == "btcusdt@depth@100ms" {
-			depthFrames = append(depthFrames, line)
-		}
-	}
-	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, depthFrames), "handling all diff depth frames must return")
-	var got *orderbookState
-	require.Eventually(t, func() bool {
-		var err error
-		got, err = storedOrderbookState(ex, pair, asset.Spot)
-		return err == nil && got.LastUpdateID == 101096708778
-	}, 30*time.Second, 10*time.Millisecond, "the order book must synchronise to the last frame")
-	exp := &orderbookState{
-		Bids:         orderbook.Levels{{Price: 86104.01, Amount: 7.31528}, {Price: 86104, Amount: 0.02997}},
-		Asks:         orderbook.Levels{{Price: 86104.02, Amount: 5.48779}, {Price: 86104.03, Amount: 0.00072}, {Price: 86104.05, Amount: 0.12}},
-		LastUpdateID: 101096708778,
-		LastUpdated:  time.UnixMilli(1791284980712),
-	}
-	assert.Equal(t, exp, got, "the book should be the snapshot with the frames after it applied")
 }
 
 func TestProcessOrderbookUpdate(t *testing.T) {
@@ -932,105 +895,146 @@ func syncSpotBook(t *testing.T, ex *Exchange, streams *spotDepthStreams, pair cu
 	}, 30*time.Second, 10*time.Millisecond, "the book must synchronise with its stream")
 }
 
-func TestSpotOrderbookResyncsAfterGap(t *testing.T) {
+func TestProcessDepthUpdate(t *testing.T) {
 	t.Parallel()
-	ex := newTestExchange(t)
-	streams := newSpotDepthStreams()
-	var fetches atomic.Int32
-	resync := make(chan struct{})
-	useTestOrderbookSync(ex, func(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-		if fetches.Add(1) == 2 {
-			// The second snapshot waits, so the test sees the book while it is resynchronised
-			select {
-			case <-resync:
-			case <-ctx.Done():
-				return nil, ctx.Err()
+	t.Run("sync", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+		// The snapshot falls inside the second frame, so the first frame is dropped and the second applied
+		useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			return &orderbook.Book{
+				Exchange:     ex.Name,
+				Pair:         p,
+				Asset:        a,
+				Bids:         orderbook.Levels{{Price: 86104.01, Amount: 7.31683}, {Price: 86104, Amount: 0.02991}, {Price: 86103.5, Amount: 0.5}},
+				Asks:         orderbook.Levels{{Price: 86104.02, Amount: 5.55365}, {Price: 86104.03, Amount: 0.00072}},
+				LastUpdateID: 101096708690,
+				LastUpdated:  time.UnixMilli(1791284980650),
+			}, nil
+		})
+		var depthFrames [][]byte
+		for _, line := range fixtureLines(t, "testdata/wsSpot.jsonl") {
+			if name, err := jsonparser.GetString(line, "stream"); err == nil && name == "btcusdt@depth@100ms" {
+				depthFrames = append(depthFrames, line)
 			}
 		}
-		return streams.snapshotBook(ex, p, a), nil
-	})
-	pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-	syncSpotBook(t, ex, streams, pair)
-	require.Equal(t, int32(1), fetches.Load(), "the first synchronisation must take one snapshot")
-
-	// Frames lost in transit leave a gap in the update IDs
-	streams.skip("BTCUSDT", 10)
-	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{streams.frame("BTCUSDT")}), "wsHandleData must not error for a frame after a gap")
-	_, err := ex.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "a gap should invalidate the book")
-	require.Eventually(t, func() bool { return fetches.Load() == 2 }, 30*time.Second, 10*time.Millisecond, "a gap must start a new synchronisation")
-	close(resync)
-	syncSpotBook(t, ex, streams, pair)
-	assert.Equal(t, int32(2), fetches.Load(), "the gap should take one new snapshot")
-	got, err := storedOrderbookState(ex, pair, asset.Spot)
-	require.NoError(t, err, "the resynchronised book must be stored")
-	assert.Equal(t, streams.expectedState("BTCUSDT"), got, "the resynchronised book should follow its stream")
-}
-
-func TestSpotOrderbookRetriesFailedSnapshot(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	streams := newSpotDepthStreams()
-	var fetches atomic.Int32
-	useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-		if fetches.Add(1) == 1 {
-			return nil, errTestNoSnapshot
+		require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, depthFrames), "handling all diff depth frames must return")
+		var got *orderbookState
+		require.Eventually(t, func() bool {
+			var err error
+			got, err = storedOrderbookState(ex, pair, asset.Spot)
+			return err == nil && got.LastUpdateID == 101096708778
+		}, 30*time.Second, 10*time.Millisecond, "the order book must synchronise to the last frame")
+		exp := &orderbookState{
+			Bids:         orderbook.Levels{{Price: 86104.01, Amount: 7.31528}, {Price: 86104, Amount: 0.02997}},
+			Asks:         orderbook.Levels{{Price: 86104.02, Amount: 5.48779}, {Price: 86104.03, Amount: 0.00072}, {Price: 86104.05, Amount: 0.12}},
+			LastUpdateID: 101096708778,
+			LastUpdated:  time.UnixMilli(1791284980712),
 		}
-		return streams.snapshotBook(ex, p, a), nil
+		assert.Equal(t, exp, got, "the book should be the snapshot with the frames after it applied")
 	})
-	pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-	syncSpotBook(t, ex, streams, pair)
-	assert.Equal(t, int32(2), fetches.Load(), "a failed snapshot should be fetched again for a following frame")
-	got, err := storedOrderbookState(ex, pair, asset.Spot)
-	require.NoError(t, err, "the synchronised book must be stored")
-	assert.Equal(t, streams.expectedState("BTCUSDT"), got, "the book should follow its stream after a failed snapshot")
-}
 
-func TestSpotOrderbookDropsStaleEvents(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	streams := newSpotDepthStreams()
-	var fetches atomic.Int32
-	useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-		fetches.Add(1)
-		return streams.snapshotBook(ex, p, a), nil
-	})
-	pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-	syncSpotBook(t, ex, streams, pair)
-	older, latest := streams.frame("BTCUSDT"), streams.frame("BTCUSDT")
-	// Both frames apply, then arrive again late; a late event ends at or before the book's update ID, and Binance's
-	// procedure ignores it
-	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{older, latest, latest, older}), "handling the events and their late repeats must return")
-	got, err := storedOrderbookState(ex, pair, asset.Spot)
-	require.NoError(t, err, "late events must leave the book valid")
-	assert.Equal(t, streams.expectedState("BTCUSDT"), got, "late events should leave the book as its stream left it")
-	assert.Equal(t, int32(1), fetches.Load(), "late events should not take a new snapshot")
-}
+	t.Run("resyncs after gap", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		streams := newSpotDepthStreams()
+		var fetches atomic.Int32
+		resync := make(chan struct{})
+		useTestOrderbookSync(ex, func(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			if fetches.Add(1) == 2 {
+				// The second snapshot waits, so the test sees the book while it is resynchronised
+				select {
+				case <-resync:
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			}
+			return streams.snapshotBook(ex, p, a), nil
+		})
+		pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+		syncSpotBook(t, ex, streams, pair)
+		require.Equal(t, int32(1), fetches.Load(), "the first synchronisation must take one snapshot")
 
-func TestSpotOrderbookLoadsQuietBook(t *testing.T) {
-	t.Parallel()
-	// One event, then a snapshot newer than it, then nothing for a while: Binance's procedure sets the book to the
-	// snapshot rather than withholding it until an event follows it, and the next event applies to it
-	ex := newTestExchange(t)
-	streams := newSpotDepthStreams()
-	var fetches atomic.Int32
-	useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-		fetches.Add(1)
-		return streams.snapshotBook(ex, p, a), nil
-	})
-	pair := currency.NewPairWithDelimiter("DOGE", "USDT", "-")
-	first := streams.frame("DOGEUSDT")
-	streams.skip("DOGEUSDT", 2)
-	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{first}), "wsHandleData must not error")
-	require.Eventually(t, func() bool {
+		// Frames lost in transit leave a gap in the update IDs
+		streams.skip("BTCUSDT", 10)
+		require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{streams.frame("BTCUSDT")}), "wsHandleData must not error for a frame after a gap")
+		_, err := ex.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+		assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "a gap should invalidate the book")
+		require.Eventually(t, func() bool { return fetches.Load() == 2 }, 30*time.Second, 10*time.Millisecond, "a gap must start a new synchronisation")
+		close(resync)
+		syncSpotBook(t, ex, streams, pair)
+		assert.Equal(t, int32(2), fetches.Load(), "the gap should take one new snapshot")
 		got, err := storedOrderbookState(ex, pair, asset.Spot)
-		return err == nil && got.LastUpdateID == streams.finalUpdateID("DOGEUSDT")
-	}, 30*time.Second, 10*time.Millisecond, "the snapshot must load without an event following it")
-	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{streams.frame("DOGEUSDT")}), "wsHandleData must not error")
-	got, err := storedOrderbookState(ex, pair, asset.Spot)
-	require.NoError(t, err, "the book must stay valid")
-	assert.Equal(t, streams.expectedState("DOGEUSDT"), got, "the event following the snapshot should apply to it")
-	assert.Equal(t, int32(1), fetches.Load(), "the book should load from one snapshot")
+		require.NoError(t, err, "the resynchronised book must be stored")
+		assert.Equal(t, streams.expectedState("BTCUSDT"), got, "the resynchronised book should follow its stream")
+	})
+
+	t.Run("retries failed snapshot", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		streams := newSpotDepthStreams()
+		var fetches atomic.Int32
+		useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			if fetches.Add(1) == 1 {
+				return nil, errTestNoSnapshot
+			}
+			return streams.snapshotBook(ex, p, a), nil
+		})
+		pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+		syncSpotBook(t, ex, streams, pair)
+		assert.Equal(t, int32(2), fetches.Load(), "a failed snapshot should be fetched again for a following frame")
+		got, err := storedOrderbookState(ex, pair, asset.Spot)
+		require.NoError(t, err, "the synchronised book must be stored")
+		assert.Equal(t, streams.expectedState("BTCUSDT"), got, "the book should follow its stream after a failed snapshot")
+	})
+
+	t.Run("drops stale events", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		streams := newSpotDepthStreams()
+		var fetches atomic.Int32
+		useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			fetches.Add(1)
+			return streams.snapshotBook(ex, p, a), nil
+		})
+		pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+		syncSpotBook(t, ex, streams, pair)
+		older, latest := streams.frame("BTCUSDT"), streams.frame("BTCUSDT")
+		// Both frames apply, then arrive again late; a late event ends at or before the book's update ID, and Binance's
+		// procedure ignores it
+		require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{older, latest, latest, older}), "handling the events and their late repeats must return")
+		got, err := storedOrderbookState(ex, pair, asset.Spot)
+		require.NoError(t, err, "late events must leave the book valid")
+		assert.Equal(t, streams.expectedState("BTCUSDT"), got, "late events should leave the book as its stream left it")
+		assert.Equal(t, int32(1), fetches.Load(), "late events should not take a new snapshot")
+	})
+
+	t.Run("loads quiet book", func(t *testing.T) {
+		t.Parallel()
+		// One event, then a snapshot newer than it, then nothing for a while: Binance's procedure sets the book to the
+		// snapshot rather than withholding it until an event follows it, and the next event applies to it
+		ex := newTestExchange(t)
+		streams := newSpotDepthStreams()
+		var fetches atomic.Int32
+		useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			fetches.Add(1)
+			return streams.snapshotBook(ex, p, a), nil
+		})
+		pair := currency.NewPairWithDelimiter("DOGE", "USDT", "-")
+		first := streams.frame("DOGEUSDT")
+		streams.skip("DOGEUSDT", 2)
+		require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{first}), "wsHandleData must not error")
+		require.Eventually(t, func() bool {
+			got, err := storedOrderbookState(ex, pair, asset.Spot)
+			return err == nil && got.LastUpdateID == streams.finalUpdateID("DOGEUSDT")
+		}, 30*time.Second, 10*time.Millisecond, "the snapshot must load without an event following it")
+		require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{streams.frame("DOGEUSDT")}), "wsHandleData must not error")
+		got, err := storedOrderbookState(ex, pair, asset.Spot)
+		require.NoError(t, err, "the book must stay valid")
+		assert.Equal(t, streams.expectedState("DOGEUSDT"), got, "the event following the snapshot should apply to it")
+		assert.Equal(t, int32(1), fetches.Load(), "the book should load from one snapshot")
+	})
 }
 
 // spotDepthServer serves spot diff depth streams over websocket and their snapshots over REST, as Binance does: each
@@ -1352,7 +1356,8 @@ func expectedSpotSubscriptions(tb testing.TB, ex *Exchange, channels ...*subscri
 func TestAddDefaultDerivativesSubscriptions(t *testing.T) {
 	t.Parallel()
 	derivatives := []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options}
-	assets := []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options, asset.All}
+	// A configuration saved before subscriptions had assets has empty ones, which mean spot
+	assets := []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options, asset.All, asset.Empty}
 	channels := []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel, subscription.MyOrdersChannel}
 	type testCase struct {
 		name     string
@@ -1382,7 +1387,7 @@ func TestAddDefaultDerivativesSubscriptions(t *testing.T) {
 			}
 			for _, enabled := range []bool{true, false} {
 				for _, authenticated := range []bool{false, true} {
-					name := a.String() + " " + channel
+					name := cmp.Or(a.String(), "no asset") + " " + channel
 					if !enabled {
 						name = "disabled " + name
 					}

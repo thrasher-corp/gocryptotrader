@@ -109,6 +109,96 @@ func newDerivativesWsTestExchange(t *testing.T, recorder *streamRequestRecorder)
 	return ex
 }
 
+// liveStreamsSkip is why the live derivatives stream cases skip in the mock build
+const liveStreamsSkip = "live websocket streams are only tested with -tags mock_test_off"
+
+// newLiveDerivativesExchange returns an exchange set up from the test configuration with only asset a enabled, so the
+// WebSocket API connection, which the derivatives streams do not use, is not registered, and with the test credentials
+// when they are set
+func newLiveDerivativesExchange(t *testing.T, a asset.Item) *Exchange {
+	t.Helper()
+	root, err := testutils.RootPathFromCWD()
+	require.NoError(t, err, "RootPathFromCWD must not error")
+	cfg := &config.Config{}
+	require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
+	exchCfg, err := cfg.GetExchangeConfig("Binance")
+	require.NoError(t, err, "GetExchangeConfig must not error")
+	for _, other := range exchCfg.CurrencyPairs.GetAssetTypes(false) {
+		if other != a {
+			require.NoErrorf(t, exchCfg.CurrencyPairs.SetAssetEnabled(other, false), "SetAssetEnabled must not error for %s", other)
+		}
+	}
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+	ex.Accounts = accounts.MustNewAccounts(ex)
+	ex.Name = t.Name()
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
+		ex.API.AuthenticatedSupport = true
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials(apiCredentials)
+	}
+	return ex
+}
+
+// connectLiveDerivatives connects ex's websocket to Binance with subs as its configured subscriptions, so the stream
+// connections made are those of the subscriptions and, with authenticated websocket use, the enabled asset's private
+// connection. A pair other than the empty pair becomes a's one pair
+func connectLiveDerivatives(t *testing.T, ex *Exchange, a asset.Item, pair currency.Pair, subs subscription.List) {
+	t.Helper()
+	if !pair.IsEmpty() {
+		require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, false), "StorePairs must not error for %s", a)
+		require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, true), "StorePairs must not error for %s", a)
+	}
+	ex.Features.Subscriptions = subs
+	// Registered before connecting, as a failed connection leaves the connection monitor trying again
+	t.Cleanup(func() {
+		// Disabled first, as the connection monitor would otherwise keep reconnecting after the test; the monitor may
+		// then shut the websocket down itself
+		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+		if err := ex.Websocket.Shutdown(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail once the monitor has shut the websocket down")
+		}
+	})
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+}
+
+// liveTickerSubscriptions returns a's stored ticker subscriptions once connectLiveDerivatives has subscribed them
+func liveTickerSubscriptions(t *testing.T, ex *Exchange, a asset.Item) subscription.List {
+	t.Helper()
+	subs := slices.DeleteFunc(ex.Websocket.GetSubscriptions(), func(s *subscription.Subscription) bool {
+		return s.Asset != a || s.Channel != subscription.TickerChannel
+	})
+	require.Lenf(t, subs, 1, "the %s ticker must be subscribed", a)
+	return subs
+}
+
+// liveListenKeys is held for reading by the live cases whose user data streams need the account's listen keys to stay
+// valid until they end, and for writing by the live cases closing the keys, which run in parallel with them
+var liveListenKeys sync.RWMutex
+
+// liveUserDataConnections are the private connections whose user data streams the live cases subscribe to
+var liveUserDataConnections = []struct {
+	filter string
+	a      asset.Item
+}{
+	{usdtmPrivateFilter, asset.USDTMarginedFutures},
+	{coinmPrivateFilter, asset.CoinMarginedFutures},
+	{optionsPrivateFilter, asset.Options},
+}
+
+// liveUserDataSubscription returns a's stored user data stream subscription once authenticated websocket use has
+// subscribed it
+func liveUserDataSubscription(t *testing.T, ex *Exchange, a asset.Item) *subscription.Subscription {
+	t.Helper()
+	subs := slices.DeleteFunc(ex.Websocket.GetSubscriptions(), func(s *subscription.Subscription) bool {
+		return s.Asset != a || s.Channel != userDataStreamChannel
+	})
+	require.Lenf(t, subs, 1, "the %s user data stream must be subscribed", a)
+	return subs[0]
+}
+
 // failingDialConnection is a connection whose dial fails
 type failingDialConnection struct{ websocket.Connection }
 
@@ -142,7 +232,7 @@ func TestWebsocketDerivativesConnect(t *testing.T) { //nolint:tparallel // the c
 	}
 }
 
-func TestGenerateUSDTMarginedFuturesSubscriptions(t *testing.T) { //nolint:tparallel // the cases share ex, so they run in order while the test runs in parallel
+func TestGenerateUSDTMarginedFuturesPublicSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	subs, err := ex.generateUSDTMarginedFuturesPublicSubscriptions()
@@ -151,7 +241,16 @@ func TestGenerateUSDTMarginedFuturesSubscriptions(t *testing.T) { //nolint:tpara
 		{Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUSDTMarginedFuturesPair}, Interval: kline.HundredMilliseconds, QualifiedChannel: "btcusdt@depth@100ms"},
 	}, subs)
 
-	subs, err = ex.generateUSDTMarginedFuturesMarketSubscriptions()
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
+	subs, err = ex.generateUSDTMarginedFuturesPublicSubscriptions()
+	require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
+	assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
+}
+
+func TestGenerateUSDTMarginedFuturesMarketSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := newDerivativesTestExchange(t)
+	subs, err := ex.generateUSDTMarginedFuturesMarketSubscriptions()
 	require.NoError(t, err, "generateUSDTMarginedFuturesMarketSubscriptions must not error")
 	testsubs.EqualLists(t, subscription.List{
 		{Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUSDTMarginedFuturesPair}, QualifiedChannel: "btcusdt@ticker"},
@@ -160,20 +259,9 @@ func TestGenerateUSDTMarginedFuturesSubscriptions(t *testing.T) { //nolint:tpara
 	}, subs)
 
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
-	// The cases share ex, whose asset is disabled above, so they run in order
-	for _, tc := range []struct {
-		name     string
-		generate func() (subscription.List, error)
-	}{
-		{"public of a disabled asset", ex.generateUSDTMarginedFuturesPublicSubscriptions},
-		{"market of a disabled asset", ex.generateUSDTMarginedFuturesMarketSubscriptions},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			subs, err = tc.generate()
-			require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
-			assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
-		})
-	}
+	subs, err = ex.generateUSDTMarginedFuturesMarketSubscriptions()
+	require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
+	assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
 }
 
 func TestGenerateDerivativesSubscriptions(t *testing.T) {
@@ -560,6 +648,45 @@ func TestSubscribeDerivatives(t *testing.T) {
 	assert.ErrorIs(t, ex.SubscribeDerivatives(t.Context(), conn, unexpected), errUnexpectedStreamResult, "SubscribeDerivatives should reject a result other than null")
 }
 
+func TestUnsubscribeDerivatives(t *testing.T) {
+	t.Parallel()
+	recorder := &streamRequestRecorder{reply: func(req *DerivativesStreamRequest) []byte {
+		if req.Method == wsUnsubscribeMethod {
+			return fmt.Appendf(nil, `{"error":{"code":2,"msg":"Invalid request: unknown variant"},"id":%d}`, req.ID)
+		}
+		return nil
+	}}
+	ex := newDerivativesWsTestExchange(t, recorder)
+	conn, err := ex.Websocket.GetConnection(usdtmMarketFilter)
+	require.NoError(t, err, "GetConnection must not error")
+	subs := subscription.List{{Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures, QualifiedChannel: "btcusdt@ticker"}}
+	require.NoError(t, ex.SubscribeDerivatives(t.Context(), conn, subs), "SubscribeDerivatives must not error")
+	err = ex.UnsubscribeDerivatives(t.Context(), conn, subs)
+	assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "UnsubscribeDerivatives should report a subscription failure")
+	assert.ErrorIs(t, err, errStreamRequestRejected, "UnsubscribeDerivatives should report the rejection")
+	requests := recorder.recorded()
+	require.Len(t, requests, 2, "SubscribeDerivatives and UnsubscribeDerivatives must send one request each")
+	assert.Equal(t, DerivativesStreamRequest{Method: "UNSUBSCRIBE", Params: []any{"btcusdt@ticker"}, ID: requests[1].ID}, requests[1], "UnsubscribeDerivatives should name the stream")
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip(liveStreamsSkip)
+		}
+		ex := newLiveDerivativesExchange(t, asset.USDTMarginedFutures)
+		connectLiveDerivatives(t, ex, asset.USDTMarginedFutures, currency.NewBTCUSDT(), subscription.List{{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures}})
+		conn, err := ex.Websocket.GetConnection(usdtmMarketFilter)
+		require.NoError(t, err, "GetConnection must not error")
+		subs := liveTickerSubscriptions(t, ex, asset.USDTMarginedFutures)
+		require.NoError(t, ex.UnsubscribeDerivatives(t.Context(), conn, subs), "UnsubscribeDerivatives must not error")
+		assert.Equal(t, subscription.UnsubscribedState, subs[0].State(), "the ticker should be unsubscribed")
+		assert.Nil(t, ex.Websocket.GetSubscription(subs[0]), "the ticker should no longer be stored")
+		streams, err := ex.ListSubscriptions(t.Context(), conn)
+		require.NoError(t, err, "ListSubscriptions must not error")
+		assert.Empty(t, streams, "Binance should list no stream after the unsubscription")
+	})
+}
+
 func TestListSubscriptions(t *testing.T) {
 	t.Parallel()
 	recorder := &streamRequestRecorder{reply: func(req *DerivativesStreamRequest) []byte {
@@ -574,6 +701,20 @@ func TestListSubscriptions(t *testing.T) {
 	requests := recorder.recorded()
 	require.Len(t, requests, 1, "ListSubscriptions must send one request")
 	assert.Equal(t, DerivativesStreamRequest{Method: "LIST_SUBSCRIPTIONS", ID: requests[0].ID}, requests[0], "ListSubscriptions should send a request without params")
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip(liveStreamsSkip)
+		}
+		ex := newLiveDerivativesExchange(t, asset.USDTMarginedFutures)
+		connectLiveDerivatives(t, ex, asset.USDTMarginedFutures, currency.NewBTCUSDT(), subscription.List{{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures}})
+		conn, err := ex.Websocket.GetConnection(usdtmMarketFilter)
+		require.NoError(t, err, "GetConnection must not error")
+		streams, err := ex.ListSubscriptions(t.Context(), conn)
+		require.NoError(t, err, "ListSubscriptions must not error")
+		assert.Equal(t, liveTickerSubscriptions(t, ex, asset.USDTMarginedFutures).QualifiedChannels(), streams, "ListSubscriptions should list the subscribed stream")
+	})
 }
 
 func TestSetProperty(t *testing.T) {
@@ -592,6 +733,18 @@ func TestSetProperty(t *testing.T) {
 	require.Len(t, requests, 1, "SetProperty must send one request")
 	assert.Equal(t, DerivativesStreamRequest{Method: "SET_PROPERTY", Params: []any{"combined", true}, ID: requests[0].ID}, requests[0], "SetProperty should send the property and value")
 	assert.ErrorIs(t, ex.SetProperty(t.Context(), conn, "unknown", true), errStreamRequestRejected, "SetProperty should report a rejected property")
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip(liveStreamsSkip)
+		}
+		ex := newLiveDerivativesExchange(t, asset.CoinMarginedFutures)
+		connectLiveDerivatives(t, ex, asset.CoinMarginedFutures, currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), subscription.List{{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.CoinMarginedFutures}})
+		conn, err := ex.Websocket.GetConnection(coinmFilter)
+		require.NoError(t, err, "GetConnection must not error")
+		assert.NoError(t, ex.SetProperty(t.Context(), conn, "combined", true), "SetProperty should keep the connection's streams combined")
+	})
 }
 
 func TestGenerateUserDataSubscriptions(t *testing.T) { //nolint:tparallel // the cases share ex, so they run in order while the test runs in parallel
@@ -631,7 +784,7 @@ func TestGenerateUserDataSubscriptions(t *testing.T) { //nolint:tparallel // the
 	assert.Empty(t, subs, "user data should not be subscribed without usable credentials")
 }
 
-func TestSubscribeUserData(t *testing.T) { //nolint:tparallel // the cases share ex and its recorder, so they run in order while the test runs in parallel
+func TestSubscribeUserData(t *testing.T) {
 	t.Parallel()
 	recorder := &streamRequestRecorder{}
 	ex := newDerivativesWsTestExchange(t, recorder)
@@ -671,9 +824,73 @@ func TestSubscribeUserData(t *testing.T) { //nolint:tparallel // the cases share
 	assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "SubscribeUserData should report a subscription failure")
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "SubscribeUserData should reject an asset without user data streams")
 	assert.Nil(t, ex.Websocket.GetSubscription(spot[0]), "a failed user data subscription should not be stored")
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip(liveStreamsSkip)
+		}
+		for _, tc := range liveUserDataConnections {
+			t.Run(tc.a.String(), func(t *testing.T) {
+				t.Parallel()
+				ex := newLiveDerivativesExchange(t, tc.a)
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
+				liveListenKeys.RLock()
+				t.Cleanup(liveListenKeys.RUnlock)
+				// Connecting with authenticated websocket use subscribes the private connection through SubscribeUserData
+				ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+				connectLiveDerivatives(t, ex, tc.a, currency.EMPTYPAIR, subscription.List{})
+				conn, err := ex.Websocket.GetConnection(tc.filter)
+				require.NoErrorf(t, err, "GetConnection must not error for %s", tc.filter)
+				assert.Equalf(t, subscription.SubscribedState, liveUserDataSubscription(t, ex, tc.a).State(), "%s user data should be subscribed", tc.a)
+				listenKey, err := ex.startUserDataStream(t.Context(), tc.a)
+				require.NoErrorf(t, err, "startUserDataStream must return the %s account's listen key", tc.a)
+				streams, err := ex.ListSubscriptions(t.Context(), conn)
+				require.NoError(t, err, "ListSubscriptions must not error")
+				assert.Equalf(t, []string{listenKey}, streams, "Binance should list the %s account's listen key as the subscribed stream", tc.a)
+			})
+		}
+	})
+}
+
+func TestUnsubscribeUserData(t *testing.T) {
+	t.Parallel()
+	ex := newDerivativesWsTestExchange(t, &streamRequestRecorder{})
+	conn, err := ex.Websocket.GetConnection(usdtmPrivateFilter)
+	require.NoError(t, err, "GetConnection must not error")
+	spot := subscription.List{{Channel: userDataStreamChannel, Asset: asset.Spot, Authenticated: true}}
+	// The unsubscription follows a refused subscription, which leaves the subscription unsubscribed
+	require.ErrorIs(t, ex.SubscribeUserData(t.Context(), conn, spot), asset.ErrNotSupported, "SubscribeUserData must refuse an asset without user data streams")
 	err = ex.UnsubscribeUserData(t.Context(), conn, spot)
 	assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "UnsubscribeUserData should report a subscription failure")
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "UnsubscribeUserData should reject an asset without user data streams")
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip(liveStreamsSkip)
+		}
+		for _, tc := range liveUserDataConnections {
+			t.Run(tc.a.String(), func(t *testing.T) {
+				t.Parallel()
+				ex := newLiveDerivativesExchange(t, tc.a)
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
+				liveListenKeys.RLock()
+				t.Cleanup(liveListenKeys.RUnlock)
+				ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+				connectLiveDerivatives(t, ex, tc.a, currency.EMPTYPAIR, subscription.List{})
+				conn, err := ex.Websocket.GetConnection(tc.filter)
+				require.NoErrorf(t, err, "GetConnection must not error for %s", tc.filter)
+				s := liveUserDataSubscription(t, ex, tc.a)
+				require.NoErrorf(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}), "UnsubscribeUserData must not error for %s", tc.a)
+				assert.Equalf(t, subscription.UnsubscribedState, s.State(), "%s user data should be unsubscribed", tc.a)
+				assert.Nilf(t, ex.Websocket.GetSubscription(s), "%s user data should no longer be stored", tc.a)
+				streams, err := ex.ListSubscriptions(t.Context(), conn)
+				require.NoError(t, err, "ListSubscriptions must not error")
+				assert.Emptyf(t, streams, "Binance should list no stream after the %s unsubscription", tc.a)
+			})
+		}
+	})
 }
 
 func TestSubscribeUserDataRetried(t *testing.T) { //nolint:tparallel // the cases share ex and its recorder, so they run in order while the test runs in parallel
@@ -1334,7 +1551,7 @@ func TestDerivativesOrderbookSync(t *testing.T) {
 	}
 }
 
-func TestFuturesPartialDepth(t *testing.T) {
+func TestProcessFuturesDepth(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	require.NoError(t, ex.wsHandleUSDTMarginedFuturesData(t.Context(), nil, fixtureFrame(t, "testdata/wsUFuturesPublic.jsonl", "btcusdt@depth5@100ms")), "wsHandleUSDTMarginedFuturesData must not error")
@@ -1466,7 +1683,7 @@ func TestDecodeStreamFrame(t *testing.T) {
 	}
 }
 
-func TestDerivativesOrderConversions(t *testing.T) {
+func TestDerivativesOrderType(t *testing.T) {
 	t.Parallel()
 	for in, exp := range map[OrderType]order.Type{
 		"LIMIT": order.Limit, "MARKET": order.Market, "STOP": order.StopLimit, "STOP_MARKET": order.StopMarket, "TAKE_PROFIT": order.TakeProfitLimit,
@@ -1481,7 +1698,10 @@ func TestDerivativesOrderConversions(t *testing.T) {
 	}
 	_, err := derivativesOrderType("ICEBERG")
 	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "derivativesOrderType should reject an unknown type")
+}
 
+func TestDerivativesOrderStatus(t *testing.T) {
+	t.Parallel()
 	for in, exp := range map[string]order.Status{
 		"NEW": order.New, "PARTIALLY_FILLED": order.PartiallyFilled, "FILLED": order.Filled, "CANCELED": order.Cancelled, "EXPIRED": order.Expired,
 		"EXPIRED_IN_MATCH": order.Expired, "NEW_INSURANCE": order.Liquidated, "NEW_ADL": order.AutoDeleverage,
@@ -1493,9 +1713,12 @@ func TestDerivativesOrderConversions(t *testing.T) {
 			assert.Equalf(t, exp, got, "derivativesOrderStatus should convert %s", in)
 		})
 	}
-	_, err = derivativesOrderStatus("SUSPENDED")
+	_, err := derivativesOrderStatus("SUSPENDED")
 	assert.ErrorIs(t, err, errUnknownOrderStatus, "derivativesOrderStatus should reject an unknown status")
+}
 
+func TestDerivativesTimeInForce(t *testing.T) {
+	t.Parallel()
 	for in, exp := range map[TimeInForce]order.TimeInForce{
 		"GTC": order.GoodTillCancel, "IOC": order.ImmediateOrCancel, "FOK": order.FillOrKill, "GTX": order.PostOnly, "GTD": order.GoodTillDay, "RPI": order.PostOnly,
 		"GTE_GTC": order.GoodTillCancel,
@@ -1507,7 +1730,7 @@ func TestDerivativesOrderConversions(t *testing.T) {
 			assert.Equalf(t, exp, got, "derivativesTimeInForce should convert %s", in)
 		})
 	}
-	_, err = derivativesTimeInForce("DAY")
+	_, err := derivativesTimeInForce("DAY")
 	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce, "derivativesTimeInForce should reject an unknown time in force")
 }
 
@@ -1619,7 +1842,7 @@ func TestHandleFuturesStreamErrors(t *testing.T) { //nolint:tparallel // the cas
 	assert.Empty(t, relayedPayloads(ex), "nothing should be relayed for rejected or disabled frames")
 }
 
-func TestHandleFuturesUserDataErrors(t *testing.T) { //nolint:tparallel // the cases share ex and conn, so they run in order while the test runs in parallel
+func TestHandleFuturesUserData(t *testing.T) { //nolint:tparallel // the cases share ex and conn, so they run in order while the test runs in parallel
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	conn := &matchRecordingConnection{}
@@ -2868,93 +3091,115 @@ func TestBalanceRequestsOutsideTheStoreLock(t *testing.T) {
 	}
 }
 
-func TestFuturesOrderTradeUpdateFills(t *testing.T) {
+func TestProcessFuturesOrderTradeUpdate(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		a        asset.Item
-		symbol   string
-		pair     currency.Pair
-		feeAsset currency.Code
-		fees     [2]string
-		expFees  [2]float64
-		expCosts [2]float64
-	}{
-		{asset.USDTMarginedFutures, "BTCUSDT", testUSDTMarginedFuturesPair, currency.USDT, [2]string{"34.4", "68.8"}, [2]float64{34.4, 68.8}, [2]float64{86000, 258000}},
-		{asset.CoinMarginedFutures, "BTCUSD_PERP", testCoinMarginedFuturesPair, currency.BTC, [2]string{"0.00000047", "0.00000093"}, [2]float64{0.00000047, 0.00000093}, [2]float64{}},
-	} {
-		t.Run(tc.a.String(), func(t *testing.T) {
-			t.Parallel()
-			ex := newDerivativesTestExchange(t)
-			// A limit buy of 3 is placed, then filled by two trades
-			for _, u := range []struct {
-				execution, status, last, cumulative, averagePrice, commission string
-				tradeID                                                       uint64
-				tradeTime                                                     int64
-			}{
-				{"NEW", "NEW", "0", "0", "0", "0", 0, 1791300000000},
-				{"TRADE", "PARTIALLY_FILLED", "1", "1", "86000", tc.fees[0], 5001, 1791300000100},
-				{"TRADE", "FILLED", "2", "3", "86000", tc.fees[1], 5002, 1791300000200},
-			} {
-				frame := fmt.Appendf(nil, `{"stream":%q,"data":{"e":"ORDER_TRADE_UPDATE","E":%d,"T":%d,"o":{"s":%q,"c":"two-fills","S":"BUY","o":"LIMIT","f":"GTC","q":"3","p":"86000","ap":%q,"sp":"0","x":%q,"X":%q,"i":4242,"l":%q,"z":%q,"L":"86000","N":%q,"n":%q,"T":%d,"t":%d,"b":"0","a":"0","m":true,"R":false,"wt":"CONTRACT_PRICE","ot":"LIMIT","ps":"BOTH","cp":false,"rp":"0","pP":false,"V":"NONE","pm":"NONE"}}}`,
-					testListenKey, u.tradeTime+1, u.tradeTime, tc.symbol, u.averagePrice, u.execution, u.status, u.last, u.cumulative, tc.feeAsset, u.commission, u.tradeTime, u.tradeID)
-				require.NoErrorf(t, ex.handleFuturesUserData(t.Context(), nil, frame, tc.a), "handleFuturesUserData must not error for the %s update", u.status)
-			}
-			trades := []order.TradeHistory{
-				{
-					Price: 86000, Amount: 1, Fee: tc.expFees[0], Exchange: ex.Name, TID: "5001", Type: order.Limit, Side: order.Buy,
-					Timestamp: time.UnixMilli(1791300000100), IsMaker: true, FeeAsset: tc.feeAsset.String(),
-				},
-				{
-					Price: 86000, Amount: 2, Fee: tc.expFees[1], Exchange: ex.Name, TID: "5002", Type: order.Limit, Side: order.Buy,
-					Timestamp: time.UnixMilli(1791300000200), IsMaker: true, FeeAsset: tc.feeAsset.String(),
-				},
-			}
-			exp := []any{
-				&order.Detail{
-					TimeInForce: order.GoodTillCancel, Price: 86000, Amount: 3, RemainingAmount: 3, FeeAsset: tc.feeAsset, Exchange: ex.Name,
-					OrderID: "4242", ClientOrderID: "two-fills", Type: order.Limit, Side: order.Buy, Status: order.New, AssetType: tc.a,
-					Date: time.UnixMilli(1791300000000), LastUpdated: time.UnixMilli(1791300000000), Pair: tc.pair,
-				},
-				&order.Detail{
-					TimeInForce: order.GoodTillCancel, Price: 86000, Amount: 3, AverageExecutedPrice: 86000, ExecutedAmount: 1, Cost: tc.expCosts[0],
-					RemainingAmount: 2, FeeAsset: tc.feeAsset, Exchange: ex.Name, OrderID: "4242", ClientOrderID: "two-fills", Type: order.Limit, Side: order.Buy,
-					Status: order.PartiallyFilled, AssetType: tc.a, Date: time.UnixMilli(1791300000100), LastUpdated: time.UnixMilli(1791300000100),
-					Pair: tc.pair, Trades: trades[:1],
-				},
-				&order.Detail{
-					TimeInForce: order.GoodTillCancel, Price: 86000, Amount: 3, AverageExecutedPrice: 86000, ExecutedAmount: 3, Cost: tc.expCosts[1],
-					FeeAsset: tc.feeAsset, Exchange: ex.Name, OrderID: "4242", ClientOrderID: "two-fills", Type: order.Limit, Side: order.Buy, Status: order.Filled,
-					AssetType: tc.a, Date: time.UnixMilli(1791300000200), LastUpdated: time.UnixMilli(1791300000200), CloseTime: time.UnixMilli(1791300000200),
-					Pair: tc.pair, Trades: trades[1:],
-				},
-			}
-			payloads := relayedPayloads(ex)
-			require.Equal(t, exp, payloads, "handleFuturesUserData must relay each update with its own fill")
+	t.Run("fills", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			a        asset.Item
+			symbol   string
+			pair     currency.Pair
+			feeAsset currency.Code
+			fees     [2]string
+			expFees  [2]float64
+			expCosts [2]float64
+		}{
+			{asset.USDTMarginedFutures, "BTCUSDT", testUSDTMarginedFuturesPair, currency.USDT, [2]string{"34.4", "68.8"}, [2]float64{34.4, 68.8}, [2]float64{86000, 258000}},
+			{asset.CoinMarginedFutures, "BTCUSD_PERP", testCoinMarginedFuturesPair, currency.BTC, [2]string{"0.00000047", "0.00000093"}, [2]float64{0.00000047, 0.00000093}, [2]float64{}},
+		} {
+			t.Run(tc.a.String(), func(t *testing.T) {
+				t.Parallel()
+				ex := newDerivativesTestExchange(t)
+				// A limit buy of 3 is placed, then filled by two trades
+				for _, u := range []struct {
+					execution, status, last, cumulative, averagePrice, commission string
+					tradeID                                                       uint64
+					tradeTime                                                     int64
+				}{
+					{"NEW", "NEW", "0", "0", "0", "0", 0, 1791300000000},
+					{"TRADE", "PARTIALLY_FILLED", "1", "1", "86000", tc.fees[0], 5001, 1791300000100},
+					{"TRADE", "FILLED", "2", "3", "86000", tc.fees[1], 5002, 1791300000200},
+				} {
+					frame := fmt.Appendf(nil, `{"stream":%q,"data":{"e":"ORDER_TRADE_UPDATE","E":%d,"T":%d,"o":{"s":%q,"c":"two-fills","S":"BUY","o":"LIMIT","f":"GTC","q":"3","p":"86000","ap":%q,"sp":"0","x":%q,"X":%q,"i":4242,"l":%q,"z":%q,"L":"86000","N":%q,"n":%q,"T":%d,"t":%d,"b":"0","a":"0","m":true,"R":false,"wt":"CONTRACT_PRICE","ot":"LIMIT","ps":"BOTH","cp":false,"rp":"0","pP":false,"V":"NONE","pm":"NONE"}}}`,
+						testListenKey, u.tradeTime+1, u.tradeTime, tc.symbol, u.averagePrice, u.execution, u.status, u.last, u.cumulative, tc.feeAsset, u.commission, u.tradeTime, u.tradeID)
+					require.NoErrorf(t, ex.handleFuturesUserData(t.Context(), nil, frame, tc.a), "handleFuturesUserData must not error for the %s update", u.status)
+				}
+				trades := []order.TradeHistory{
+					{
+						Price: 86000, Amount: 1, Fee: tc.expFees[0], Exchange: ex.Name, TID: "5001", Type: order.Limit, Side: order.Buy,
+						Timestamp: time.UnixMilli(1791300000100), IsMaker: true, FeeAsset: tc.feeAsset.String(),
+					},
+					{
+						Price: 86000, Amount: 2, Fee: tc.expFees[1], Exchange: ex.Name, TID: "5002", Type: order.Limit, Side: order.Buy,
+						Timestamp: time.UnixMilli(1791300000200), IsMaker: true, FeeAsset: tc.feeAsset.String(),
+					},
+				}
+				exp := []any{
+					&order.Detail{
+						TimeInForce: order.GoodTillCancel, Price: 86000, Amount: 3, RemainingAmount: 3, FeeAsset: tc.feeAsset, Exchange: ex.Name,
+						OrderID: "4242", ClientOrderID: "two-fills", Type: order.Limit, Side: order.Buy, Status: order.New, AssetType: tc.a,
+						Date: time.UnixMilli(1791300000000), LastUpdated: time.UnixMilli(1791300000000), Pair: tc.pair,
+					},
+					&order.Detail{
+						TimeInForce: order.GoodTillCancel, Price: 86000, Amount: 3, AverageExecutedPrice: 86000, ExecutedAmount: 1, Cost: tc.expCosts[0],
+						RemainingAmount: 2, FeeAsset: tc.feeAsset, Exchange: ex.Name, OrderID: "4242", ClientOrderID: "two-fills", Type: order.Limit, Side: order.Buy,
+						Status: order.PartiallyFilled, AssetType: tc.a, Date: time.UnixMilli(1791300000100), LastUpdated: time.UnixMilli(1791300000100),
+						Pair: tc.pair, Trades: trades[:1],
+					},
+					&order.Detail{
+						TimeInForce: order.GoodTillCancel, Price: 86000, Amount: 3, AverageExecutedPrice: 86000, ExecutedAmount: 3, Cost: tc.expCosts[1],
+						FeeAsset: tc.feeAsset, Exchange: ex.Name, OrderID: "4242", ClientOrderID: "two-fills", Type: order.Limit, Side: order.Buy, Status: order.Filled,
+						AssetType: tc.a, Date: time.UnixMilli(1791300000200), LastUpdated: time.UnixMilli(1791300000200), CloseTime: time.UnixMilli(1791300000200),
+						Pair: tc.pair, Trades: trades[1:],
+					},
+				}
+				payloads := relayedPayloads(ex)
+				require.Equal(t, exp, payloads, "handleFuturesUserData must relay each update with its own fill")
 
-			// The engine stores the first detail of an order, merges later ones into it and tracks the merged order's
-			// position, which needs the order's date
-			details := make([]*order.Detail, len(payloads))
-			for i := range payloads {
-				var ok bool
-				details[i], ok = payloads[i].(*order.Detail)
-				require.True(t, ok, "every payload must be an order detail")
-			}
-			stored := details[0].Copy()
-			controller := futures.SetupPositionController()
-			require.NoError(t, controller.TrackNewOrder(stored.CopyToPointer()), "TrackNewOrder must accept an order first seen on the stream")
-			for _, d := range details[1:] {
-				require.NoError(t, stored.UpdateOrderFromDetail(d), "UpdateOrderFromDetail must not error")
-				require.NoError(t, controller.TrackNewOrder(stored.CopyToPointer()), "TrackNewOrder must accept the order's updates")
-			}
-			assert.Equal(t, trades, stored.Trades, "the stored order should keep every fill with its own commission")
-			assert.Zero(t, stored.Fee, "the stored order should leave the commissions to its trades")
-			assert.Equal(t, tc.expCosts[1], stored.Cost, "the stored order should keep the cost of its latest update")
-			positions, err := controller.GetPositionsForExchange(ex.Name, tc.a, tc.pair)
-			require.NoError(t, err, "GetPositionsForExchange must not error")
-			require.Len(t, positions, 1, "the order must open one position")
-			assert.Equal(t, time.UnixMilli(1791300000000), positions[0].OpeningDate, "the position should open when the order was placed")
-		})
-	}
+				// The engine stores the first detail of an order, merges later ones into it and tracks the merged order's
+				// position, which needs the order's date
+				details := make([]*order.Detail, len(payloads))
+				for i := range payloads {
+					var ok bool
+					details[i], ok = payloads[i].(*order.Detail)
+					require.True(t, ok, "every payload must be an order detail")
+				}
+				stored := details[0].Copy()
+				controller := futures.SetupPositionController()
+				require.NoError(t, controller.TrackNewOrder(stored.CopyToPointer()), "TrackNewOrder must accept an order first seen on the stream")
+				for _, d := range details[1:] {
+					require.NoError(t, stored.UpdateOrderFromDetail(d), "UpdateOrderFromDetail must not error")
+					require.NoError(t, controller.TrackNewOrder(stored.CopyToPointer()), "TrackNewOrder must accept the order's updates")
+				}
+				assert.Equal(t, trades, stored.Trades, "the stored order should keep every fill with its own commission")
+				assert.Zero(t, stored.Fee, "the stored order should leave the commissions to its trades")
+				assert.Equal(t, tc.expCosts[1], stored.Cost, "the stored order should keep the cost of its latest update")
+				positions, err := controller.GetPositionsForExchange(ex.Name, tc.a, tc.pair)
+				require.NoError(t, err, "GetPositionsForExchange must not error")
+				require.Len(t, positions, 1, "the order must open one position")
+				assert.Equal(t, time.UnixMilli(1791300000000), positions[0].OpeningDate, "the position should open when the order was placed")
+			})
+		}
+	})
+
+	t.Run("liquidation", func(t *testing.T) {
+		t.Parallel()
+		ex := newDerivativesTestExchange(t)
+		// A liquidation closes the position with an order of its own, whose execution is CALCULATED rather than TRADE
+		data := `{"e":"ORDER_TRADE_UPDATE","E":1791300000001,"T":1791300000000,"o":{"s":"BTCUSDT","c":"autoclose-1791300000000","S":"SELL","o":"LIQUIDATION","f":"IOC","q":"0.1","p":"84000","ap":"84100","sp":"0","x":"CALCULATED","X":"FILLED","i":8886780,"l":"0.1","z":"0.1","L":"84100","N":"USDT","n":"42.05","T":1791300000000,"t":10200,"b":"0","a":"0","m":false,"R":false,"wt":"CONTRACT_PRICE","ot":"LIQUIDATION","ps":"BOTH","cp":false,"rp":"-190","pP":false,"si":0,"ss":0,"V":"NONE","pm":"NONE","gtd":0,"er":"0"}}`
+		require.NoError(t, ex.wsHandleUSDTMarginedFuturesUserData(t.Context(), nil, []byte(`{"stream":"`+testListenKey+`","data":`+data+`}`)), "wsHandleUSDTMarginedFuturesUserData must not error")
+		exp := []any{&order.Detail{
+			TimeInForce: order.ImmediateOrCancel, Price: 84000, Amount: 0.1, AverageExecutedPrice: 84100, ExecutedAmount: 0.1, Cost: 8410,
+			FeeAsset: currency.USDT, Exchange: ex.Name, OrderID: "8886780", ClientOrderID: "autoclose-1791300000000", Type: order.Liquidation, Side: order.Sell,
+			Status: order.Filled, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791300000000), LastUpdated: time.UnixMilli(1791300000000),
+			CloseTime: time.UnixMilli(1791300000000), Pair: testUSDTMarginedFuturesPair,
+			Trades: []order.TradeHistory{{
+				Price: 84100, Amount: 0.1, Fee: 42.05, Exchange: ex.Name, TID: "10200", Type: order.Liquidation, Side: order.Sell,
+				Timestamp: time.UnixMilli(1791300000000), FeeAsset: "USDT",
+			}},
+		}}
+		assert.Equal(t, exp, relayedPayloads(ex), "wsHandleUSDTMarginedFuturesUserData should relay a liquidation's execution as the order's trade")
+	})
 }
 
 func TestFuturesOrderTradeUpdateTrailingStop(t *testing.T) { //nolint:tparallel // the cases share ex, so they run in order while the test runs in parallel
@@ -3033,25 +3278,6 @@ func TestFuturesOrderTradeUpdateTrailingStop(t *testing.T) { //nolint:tparallel 
 			assert.Equalf(t, []any{tc.exp}, relayedPayloads(ex), "the %s should trigger at its activation price", tc.name)
 		})
 	}
-}
-
-func TestFuturesOrderTradeUpdateLiquidation(t *testing.T) {
-	t.Parallel()
-	ex := newDerivativesTestExchange(t)
-	// A liquidation closes the position with an order of its own, whose execution is CALCULATED rather than TRADE
-	data := `{"e":"ORDER_TRADE_UPDATE","E":1791300000001,"T":1791300000000,"o":{"s":"BTCUSDT","c":"autoclose-1791300000000","S":"SELL","o":"LIQUIDATION","f":"IOC","q":"0.1","p":"84000","ap":"84100","sp":"0","x":"CALCULATED","X":"FILLED","i":8886780,"l":"0.1","z":"0.1","L":"84100","N":"USDT","n":"42.05","T":1791300000000,"t":10200,"b":"0","a":"0","m":false,"R":false,"wt":"CONTRACT_PRICE","ot":"LIQUIDATION","ps":"BOTH","cp":false,"rp":"-190","pP":false,"si":0,"ss":0,"V":"NONE","pm":"NONE","gtd":0,"er":"0"}}`
-	require.NoError(t, ex.wsHandleUSDTMarginedFuturesUserData(t.Context(), nil, []byte(`{"stream":"`+testListenKey+`","data":`+data+`}`)), "wsHandleUSDTMarginedFuturesUserData must not error")
-	exp := []any{&order.Detail{
-		TimeInForce: order.ImmediateOrCancel, Price: 84000, Amount: 0.1, AverageExecutedPrice: 84100, ExecutedAmount: 0.1, Cost: 8410,
-		FeeAsset: currency.USDT, Exchange: ex.Name, OrderID: "8886780", ClientOrderID: "autoclose-1791300000000", Type: order.Liquidation, Side: order.Sell,
-		Status: order.Filled, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791300000000), LastUpdated: time.UnixMilli(1791300000000),
-		CloseTime: time.UnixMilli(1791300000000), Pair: testUSDTMarginedFuturesPair,
-		Trades: []order.TradeHistory{{
-			Price: 84100, Amount: 0.1, Fee: 42.05, Exchange: ex.Name, TID: "10200", Type: order.Liquidation, Side: order.Sell,
-			Timestamp: time.UnixMilli(1791300000000), FeeAsset: "USDT",
-		}},
-	}}
-	assert.Equal(t, exp, relayedPayloads(ex), "wsHandleUSDTMarginedFuturesUserData should relay a liquidation's execution as the order's trade")
 }
 
 func TestProcessFuturesAlgoUpdate(t *testing.T) { //nolint:tparallel // the cases share ex, so they run in order while the test runs in parallel

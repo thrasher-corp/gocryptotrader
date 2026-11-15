@@ -1886,7 +1886,7 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 	}
 }
 
-func TestGetGetURLTypeFromString(t *testing.T) {
+func TestGetURLTypeFromString(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		Endpoint string
