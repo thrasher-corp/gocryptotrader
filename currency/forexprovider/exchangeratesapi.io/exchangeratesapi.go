@@ -88,7 +88,7 @@ func (e *ExchangeRates) GetSymbols() (map[string]string, error) {
 }
 
 // GetLatestRates returns a map of forex rates based on the supplied params
-// baseCurrency - USD	[optional] The base currency to use for forex rates, defaults to EUR
+// baseCurrency - EUR	[optional] The base currency to use for forex rates, defaults to EUR
 // symbols - AUD,USD	[optional] The symbols to query the forex rates for, default is
 // all supported currencies
 func (e *ExchangeRates) GetLatestRates(baseCurrency, symbols string) (*Rates, error) {
