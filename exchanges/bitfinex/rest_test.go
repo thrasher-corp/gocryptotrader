@@ -199,42 +199,47 @@ const (
 var liveUnlistedCurrency = currency.NewCode("GCTLIVETEST")
 
 // requestRefusalCodes are the codes Bitfinex's glossary gives for unknown, concurrency and configuration errors, failed
-// authentication and a server not ready, none of which answers what a request asks
-var requestRefusalCodes = []uint64{10000, 10008, 10050, 10100, 10111, 10112, 10113, 10114, 10200, 11000}
+// authentication and a server not ready, and the maintenance error's 20060, none of which answers what a request asks
+var requestRefusalCodes = []uint64{10000, 10008, 10050, 10100, 10111, 10112, 10113, 10114, 10200, 11000, 20060}
 
 // requestRefusalNames name the same refusals as the glossary does, for an error reported without its code, beside the
-// rate limit's name
+// rate limit's name and an outage's
 var requestRefusalNames = []string{
 	"ERR_UNK", "ERR_CONCURRENCY", "ERR_CONF_FAIL", "ERR_AUTH_FAIL", "ERR_AUTH_PAYLOAD", "ERR_AUTH_SIG", "ERR_AUTH_HMAC",
-	"ERR_AUTH_NONCE", "ERR_UNAUTH_FAIL", "ERR_READY", "ERR_RATE_LIMIT",
+	"ERR_AUTH_NONCE", "ERR_UNAUTH_FAIL", "ERR_READY", "ERR_RATE_LIMIT", "temporarily_unavailable",
 }
 
 // requestRefusalWords are words, in lower case, of the reasons Bitfinex gives for refusing a request's API key,
-// permissions, nonce or rate, such as "apikey: digest invalid" and its v1 endpoints' "Nonce is too small."
-var requestRefusalWords = []string{"apikey", "api key", "permission", "nonce", "rate limit", "too many requests"}
+// permissions, nonce or rate, such as "apikey: digest invalid", "ratelimit: error" and its v1 endpoints' "Nonce is too
+// small.", or for putting a request off, such as "Momentary balance check. Please wait few seconds and try the transfer
+// again." and "Cannot evaluate your available balance, please try again"
+var requestRefusalWords = []string{
+	"apikey", "api key", "permission", "nonce", "ratelimit", "rate limit", "too many requests", "momentary balance check",
+	"cannot evaluate your available balance",
+}
 
 // requireRefusedOnMerits requires the error a live request built to be refused returns to be Bitfinex refusing what the
-// request asks: a notification or wire reply reporting the request failed, which only the endpoint reading the request
-// sends, or an error Bitfinex reports with a message, whose code is not one of requestRefusalCodes, no part of whose
-// message between colons is one of requestRefusalNames, and whose message holds none of requestRefusalWords. Bitfinex's
-// answers to these requests are unrecorded, so the refusal is logged
+// request asks. The error's text must hold none of requestRefusalWords, and the error must be a notification or wire
+// reply reporting the request failed, which only the endpoint reading the request sends, or an error Bitfinex reports
+// with a message, whose code is not one of requestRefusalCodes and no part of whose message between colons is one of
+// requestRefusalNames. Bitfinex's answers to these requests are unrecorded, so the refusal is logged
 func requireRefusedOnMerits(t *testing.T, err error, method string) {
 	t.Helper()
 	require.Errorf(t, err, "%s must be refused, as its live request is built to be refused", method)
 	t.Logf("%s was refused: %v", method, err)
+	reason := strings.ToLower(err.Error())
+	for _, word := range requestRefusalWords {
+		require.NotContainsf(t, reason, word, "%s must be refused for what it asks, not with one of requestRefusalWords", method)
+	}
 	if errors.Is(err, errNotificationFailed) || errors.Is(err, errFiatWithdrawalFailed) {
 		return
 	}
 	var apiErr *APIError
 	require.ErrorAsf(t, err, &apiErr, "%s must be refused by Bitfinex rather than fail without its answer", method)
 	require.NotEmptyf(t, apiErr.Message, "%s must be refused with Bitfinex's reason", method)
-	require.NotContainsf(t, requestRefusalCodes, apiErr.Code, "%s must be refused for what it asks, not for how it was sent", method)
+	require.NotContainsf(t, requestRefusalCodes, apiErr.Code, "%s must be refused for what it asks, not with one of requestRefusalCodes", method)
 	for part := range strings.SplitSeq(apiErr.Message, ":") {
-		require.NotContainsf(t, requestRefusalNames, strings.TrimSpace(part), "%s must be refused for what it asks, not for how it was sent or by the rate limit", method)
-	}
-	reason := strings.ToLower(apiErr.Message)
-	for _, word := range requestRefusalWords {
-		require.NotContainsf(t, reason, word, "%s must be refused for what it asks, not for its key, permissions, nonce or rate", method)
+		require.NotContainsf(t, requestRefusalNames, strings.TrimSpace(part), "%s must be refused for what it asks, not with one of requestRefusalNames", method)
 	}
 }
 

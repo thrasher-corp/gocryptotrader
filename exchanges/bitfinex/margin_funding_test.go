@@ -769,9 +769,9 @@ func TestGetFundingInfo(t *testing.T) { //nolint:tparallel // The subtests share
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetFundingInfo should return the request failure")
 }
 
-// TestMarginFundingRecordsEveryPosition decodes each Margin Funding record from an array with a distinct value at
-// every tagged position, so a field tagged with the wrong position or type cannot pass on a null or zero element
-func TestMarginFundingRecordsEveryPosition(t *testing.T) {
+// TestFundingAutoRenewSettingsResponseUnmarshalJSON decodes an array with a distinct value at every tagged position,
+// so a field tagged with the wrong position or type cannot pass on a null or zero element
+func TestFundingAutoRenewSettingsResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	testTupleDecode(t, `["UST",1001,2.5,3.5]`,
 		FundingAutoRenewSettingsResponse{Currency: currency.UST, Period: 1001, Rate: 2.5, Threshold: 3.5})

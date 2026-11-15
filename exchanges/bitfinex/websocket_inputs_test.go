@@ -40,7 +40,7 @@ func newUnauthenticatedWebsocketExchange(t *testing.T) *Exchange {
 	return ex
 }
 
-func TestWebsocketInput(t *testing.T) {
+func TestWebsocketInputMarshalJSON(t *testing.T) {
 	t.Parallel()
 	out, err := json.Marshal(&wsInput{Type: wsOrderCancel, Data: &cancelOrderBody{ID: 5}})
 	require.NoError(t, err, "Marshal must not error")
