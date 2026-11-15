@@ -150,6 +150,51 @@ func stopWebsocket(t *testing.T, ex *Exchange) {
 	}
 }
 
+// newStreamInstance returns an exchange of its own whose websocket holds only the connection setup returns, registered
+// as Setup registers it, with subs configured
+func newStreamInstance(t *testing.T, setup func(*Exchange) *websocket.ConnectionSetup, subs subscription.List) *Exchange {
+	t.Helper()
+	ex := websocketTestInstance(t)
+	ex.Websocket = websocket.NewManager()
+	require.NoError(t, ex.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:               ex.Config,
+		Features:                     &ex.Features.Supports.WebsocketCapabilities,
+		UseMultiConnectionManagement: true,
+	}), "Websocket.Setup must not error")
+	require.NoError(t, ex.Websocket.SetupNewConnection(setup(ex)), "SetupNewConnection must not error")
+	ex.Features.Subscriptions = subs
+	t.Cleanup(func() { stopWebsocket(t, ex) })
+	return ex
+}
+
+// streamMock answers each subscription request with what reply builds from it, and each ping with a pong, recording
+// the requests it answers
+type streamMock struct {
+	reply    func(*SubscriptionRequest) []byte
+	mu       sync.Mutex
+	requests []SubscriptionRequest
+}
+
+func (m *streamMock) handle(_ testing.TB, msg []byte, c *gws.Conn) error {
+	var req SubscriptionRequest
+	if err := json.Unmarshal(msg, &req); err != nil {
+		return err
+	}
+	if req.Operation == "ping" {
+		return c.WriteMessage(gws.TextMessage, []byte(`{"op":"pong","args":["1791534543114"],"conn_id":"d7k2mock"}`))
+	}
+	m.mu.Lock()
+	m.requests = append(m.requests, req)
+	m.mu.Unlock()
+	return c.WriteMessage(gws.TextMessage, m.reply(&req))
+}
+
+func (m *streamMock) received() []SubscriptionRequest {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return slices.Clone(m.requests)
+}
+
 // fixtureFrames returns the frames a fixture file holds, one per line
 func fixtureFrames(tb testing.TB, path string) [][]byte {
 	tb.Helper()
@@ -337,6 +382,117 @@ func TestAuxiliaryStreamURL(t *testing.T) {
 					}
 					assert.Equalf(t, exp, got, "auxiliaryStreamURL should place %s of %q on %s", path, testnet, exp)
 				})
+			}
+		})
+	}
+}
+
+// TestAuxiliaryStreamSubscriptions connects each stream made only for configured channels, which subscribes through its
+// connection's subscriber, then unsubscribes through its unsubscriber once the channels are no longer configured. Live
+// runs use Bybit's streams, and mock runs a local stream answering as Bybit's does
+func TestAuxiliaryStreamSubscriptions(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		path  string
+		setup func(ex *Exchange, streamURL string) *websocket.ConnectionSetup
+		reply func(testing.TB) func(*SubscriptionRequest) []byte
+		// subscriptions returns the channels to configure and the topics Bybit is asked for
+		subscriptions func(*testing.T) (subscription.List, []string)
+	}{
+		{
+			name: "system status",
+			path: systemStatusPath,
+			setup: func(ex *Exchange, streamURL string) *websocket.ConnectionSetup {
+				return ex.SystemStatusConnectionSetup(streamURL)
+			},
+			reply: func(tb testing.TB) func(*SubscriptionRequest) []byte {
+				tb.Helper()
+				return func(req *SubscriptionRequest) []byte {
+					b, err := optionsReply(req)
+					require.NoError(tb, err, "optionsReply must not error")
+					return b
+				}
+			},
+			subscriptions: func(*testing.T) (subscription.List, []string) {
+				return subscription.List{{Enabled: true, Channel: chanSystemStatus}}, []string{chanSystemStatus}
+			},
+		},
+		{
+			name: "event public",
+			path: eventPublicPath,
+			setup: func(ex *Exchange, streamURL string) *websocket.ConnectionSetup {
+				return ex.EventPublicConnectionSetup(ex.Config, streamURL)
+			},
+			reply: commandReply,
+			subscriptions: func(t *testing.T) (subscription.List, []string) {
+				t.Helper()
+				symbol := eventTestSymbol(t)
+				return subscription.List{
+					{Enabled: true, Channel: ChannelEventOrderbook, Params: map[string]any{"symbol": symbol}},
+					{Enabled: true, Channel: ChannelEventPublicTrade, Params: map[string]any{"symbol": symbol}},
+				}, []string{"orderbook.25." + symbol, "publicTrade." + symbol}
+			},
+		},
+		{
+			name: "RFQ public",
+			path: rfqPublicPath,
+			setup: func(ex *Exchange, streamURL string) *websocket.ConnectionSetup {
+				return ex.RFQPublicConnectionSetup(ex.Config, streamURL)
+			},
+			reply: rfqReply,
+			subscriptions: func(*testing.T) (subscription.List, []string) {
+				return subscription.List{{Enabled: true, Channel: ChannelRFQPublicTrades}}, []string{ChannelRFQPublicTrades}
+			},
+		},
+		{
+			name: "spread public",
+			path: spreadPublicPath,
+			setup: func(ex *Exchange, streamURL string) *websocket.ConnectionSetup {
+				return ex.SpreadPublicConnectionSetup(ex.Config, streamURL)
+			},
+			reply: commandReply,
+			subscriptions: func(*testing.T) (subscription.List, []string) {
+				symbol := map[string]any{"symbol": spreadTestSymbol}
+				return subscription.List{
+					{Enabled: true, Channel: ChannelSpreadOrderbook, Params: symbol},
+					{Enabled: true, Channel: ChannelSpreadPublicTrade, Params: symbol},
+					{Enabled: true, Channel: ChannelSpreadTicker, Params: symbol},
+				}, []string{"orderbook.25." + spreadTestSymbol, "publicTrade." + spreadTestSymbol, "tickers." + spreadTestSymbol}
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			subs, topics := tc.subscriptions(t)
+			streamURL := mainnetStreamOrigin + tc.path
+			mock := &streamMock{reply: tc.reply(t)}
+			if mockTests {
+				server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, mock.handle))
+				server.Start()
+				streamURL = "ws" + strings.TrimPrefix(server.URL, "http")
+			}
+			ex := newStreamInstance(t, func(ex *Exchange) *websocket.ConnectionSetup { return tc.setup(ex, streamURL) }, subs)
+			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+			stored := ex.Websocket.GetSubscriptions()
+			assert.ElementsMatch(t, topics, stored.QualifiedChannels(), "Connect should subscribe to every configured topic")
+			for _, s := range stored {
+				assert.Equalf(t, subscription.SubscribedState, s.State(), "Connect should mark %s subscribed", s.QualifiedChannel)
+			}
+
+			for _, s := range subs {
+				s.Enabled = false
+			}
+			require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "FlushChannels must not error")
+			assert.Empty(t, ex.Websocket.GetSubscriptions(), "FlushChannels should unsubscribe from every topic no longer configured")
+			if !mockTests {
+				return
+			}
+			requests := mock.received()
+			require.Len(t, requests, 2, "the stream must receive a subscribe and an unsubscribe request")
+			for i, operation := range []string{subscribeOperation, unsubscribeOperation} {
+				assert.Equalf(t, operation, requests[i].Operation, "request %d should be a %s request", i, operation)
+				assert.ElementsMatchf(t, topics, requests[i].Arguments, "the %s request should name every configured topic", operation)
 			}
 		})
 	}

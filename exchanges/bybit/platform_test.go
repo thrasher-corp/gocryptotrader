@@ -53,7 +53,16 @@ func TestRequestDemoTradingFunds(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "RequestDemoTradingFunds must reject a nil request")
 
 	if !mockTests {
-		t.Skip("demo trading funds need demo account credentials and the demo trading host")
+		t.Run("live demo account", func(t *testing.T) {
+			t.Parallel()
+			ex := testInstance(t)
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(demoAPICredentials)
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, ex, canManipulateRealOrders)
+			err := ex.RequestDemoTradingFunds(t.Context(), &DemoTradingFundsRequest{UnifiedTradingAccountDemoApplyMoney: []DemoApplyMoney{{Coin: currency.USDT, Amount: 100}}})
+			require.NoError(t, err, "RequestDemoTradingFunds must not error with a demo account's keys")
+		})
+		return
 	}
 	// The mock serves every URL key, the demo trading host's RestSandbox included
 	err = e.RequestDemoTradingFunds(t.Context(), &DemoTradingFundsRequest{

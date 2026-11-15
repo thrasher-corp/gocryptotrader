@@ -117,7 +117,7 @@ func TestWebsocketHandleAuthenticatedData(t *testing.T) { //nolint:tparallel // 
 	}
 }
 
-func TestWebsocketPosition(t *testing.T) {
+func TestWebsocketProcessPosition(t *testing.T) {
 	t.Parallel()
 	t.Run("states", func(t *testing.T) {
 		t.Parallel()
@@ -1166,6 +1166,18 @@ func TestWebsocketProcessOrder(t *testing.T) { //nolint:tparallel // Subtests sh
 	conditional.Type = order.StopMarket
 	assert.Equal(t, []any{[]order.Detail{conditional}}, relayed(ex), "wsProcessOrder should relay a conditional market order as a stop market order")
 
+	// An order from before cumFeeDetail reports its fees in cumExecFee, in the settle coin if linear, and unreported if spot
+	t.Run("orders without cumFeeDetail", func(t *testing.T) {
+		legacyLinear := bytes.Replace(bytes.Replace(frames[0], []byte(`,"cumFeeDetail":{"USDT":"13.629"}`), nil, 1), []byte(`"cumExecFee":"13.629"`), []byte(`"cumExecFee":"13.7"`), 1)
+		require.NoError(t, ex.wsProcessOrder(t.Context(), legacyLinear), "wsProcessOrder must not error for a linear order without cumFeeDetail")
+		legacySpot := bytes.Replace(bytes.Replace(frames[1], []byte(`,"cumFeeDetail":{"BTC":"0.00000035","MNT":"0.00242968"}`), nil, 1), []byte(`"cumExecFee":"0"`), []byte(`"cumExecFee":"0.00000035"`), 1)
+		require.NoError(t, ex.wsProcessOrder(t.Context(), legacySpot), "wsProcessOrder must not error for a spot order without cumFeeDetail")
+		linearCumExecFee, spotUnreported := linear, spot
+		linearCumExecFee.SetFees(mustFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 13.7}))
+		spotUnreported.Fees = order.Fees{}
+		assert.Equal(t, []any{[]order.Detail{linearCumExecFee}, []order.Detail{spotUnreported}}, relayed(ex), "wsProcessOrder should take the fees of an order without cumFeeDetail from cumExecFee only if linear")
+	})
+
 	ctx := t.Context()
 	// Block trade orders, and orders Bybit names no type for, read back as GetOrderHistory reads them. Cases share ex,
 	// which the calls after the loop use too, so they run one at a time
@@ -1419,7 +1431,7 @@ func TestTimeInForceFromString(t *testing.T) { //nolint:tparallel // timeInForce
 	require.ErrorIs(t, err, order.ErrInvalidTimeInForce, "timeInForceFromString must reject an unknown time in force")
 }
 
-func TestWebsocketWallet(t *testing.T) {
+func TestWebsocketProcessWalletPushData(t *testing.T) {
 	t.Parallel()
 	t.Run("replaces REST balances", func(t *testing.T) {
 		t.Parallel()

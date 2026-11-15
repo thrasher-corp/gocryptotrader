@@ -1636,12 +1636,17 @@ func orderCostCurrency(a asset.Item, pair currency.Pair, symbol string) (currenc
 
 // orderFees returns an order's cumulative fees. Linear and spot orders report them per currency in cumFeeDetail,
 // which is absent from orders that predate it and empty when nothing was charged; inverse and option orders report
-// them in cumExecFee, in the settle coin
+// them in cumExecFee, in the settle coin, as linear orders that predate cumFeeDetail did. A spot order without
+// cumFeeDetail leaves its fees unreported, since cumExecFee does not name the coin a spot fee was charged in
 func orderFees(a asset.Item, settle currency.Code, detail map[currency.Code]types.Number, cumExecFee types.Number) (order.Fees, error) {
 	if a == asset.CoinMarginedFutures || a == asset.Options {
 		return order.NewFees(order.FeeAmount{Currency: settle, Amount: cumExecFee.Float64()})
 	}
 	if detail == nil {
+		// A zero cannot tell an order charged nothing from one charged in another coin, which Bybit's docs show for MNT
+		if cumExecFee != 0 && (a == asset.USDTMarginedFutures || a == asset.USDCMarginedFutures) {
+			return order.NewFees(order.FeeAmount{Currency: settle, Amount: cumExecFee.Float64()})
+		}
 		return order.Fees{}, nil
 	}
 	amounts := make([]order.FeeAmount, 0, len(detail))

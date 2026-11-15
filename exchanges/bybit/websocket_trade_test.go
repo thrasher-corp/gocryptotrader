@@ -282,9 +282,8 @@ func TestWebsocketAmendOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ex := getWebsocketInstance(t)
-		got, err := ex.WebsocketAmendOrder(t.Context(), &AmendOrderRequest{Category: cSpot, Symbol: "BTCUSDT", OrderID: "1793353687809485568", Quantity: 0.0002})
-		require.NoError(t, err, "WebsocketAmendOrder must not error")
-		assert.NotEmpty(t, got.OrderID, "WebsocketAmendOrder should return the order ID")
+		_, err = ex.WebsocketAmendOrder(t.Context(), &AmendOrderRequest{Category: cSpot, Symbol: "BTCUSDT", OrderID: "1793353687809485568", Quantity: 0.0002})
+		require.ErrorIs(t, err, order.ErrOrderNotFound, "WebsocketAmendOrder must report an unknown order as not found")
 		return
 	}
 	m := &tradeStreamMock{reply: func(req *mockTradeRequest) (string, string) {
@@ -315,9 +314,8 @@ func TestWebsocketCancelTradeOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ex := getWebsocketInstance(t)
-		got, err := ex.WebsocketCancelTradeOrder(t.Context(), &CancelOrderRequest{Category: cSpot, Symbol: "BTCUSDT", OrderID: "1793353687809485568"})
-		require.NoError(t, err, "WebsocketCancelTradeOrder must not error")
-		assert.NotEmpty(t, got.OrderID, "WebsocketCancelTradeOrder should return the order ID")
+		_, err = ex.WebsocketCancelTradeOrder(t.Context(), &CancelOrderRequest{Category: cSpot, Symbol: "BTCUSDT", OrderID: "1793353687809485568"})
+		require.ErrorIs(t, err, order.ErrOrderNotFound, "WebsocketCancelTradeOrder must report an unknown order as not found")
 		return
 	}
 	m := &tradeStreamMock{reply: func(req *mockTradeRequest) (string, string) {
@@ -844,9 +842,8 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ex := getWebsocketInstance(t)
-		got, err := ex.WebsocketModifyOrder(t.Context(), mod)
-		require.NoError(t, err, "WebsocketModifyOrder must not error")
-		assert.NotEmpty(t, got.OrderID, "WebsocketModifyOrder should return the order ID")
+		_, err = ex.WebsocketModifyOrder(t.Context(), mod)
+		require.ErrorIs(t, err, order.ErrOrderNotFound, "WebsocketModifyOrder must report an unknown order as not found")
 		return
 	}
 	m := &tradeStreamMock{reply: func(req *mockTradeRequest) (string, string) {
@@ -886,7 +883,7 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ex := getWebsocketInstance(t)
-		require.NoError(t, ex.WebsocketCancelOrder(t.Context(), cancel), "WebsocketCancelOrder must not error")
+		require.ErrorIs(t, ex.WebsocketCancelOrder(t.Context(), cancel), order.ErrOrderNotFound, "WebsocketCancelOrder must report an unknown order as not found")
 		return
 	}
 	m := &tradeStreamMock{reply: func(req *mockTradeRequest) (string, string) {

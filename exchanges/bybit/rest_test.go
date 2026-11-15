@@ -38,6 +38,12 @@ var apiCredentials = &accounts.Credentials{
 	Secret: "",
 }
 
+// demoAPICredentials are a demo trading account's keys, which Bybit's demo trading host requires
+var demoAPICredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
+
 var (
 	e *Exchange
 

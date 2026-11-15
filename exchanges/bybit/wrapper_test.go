@@ -3851,7 +3851,7 @@ func TestOrderDetail(t *testing.T) { //nolint:tparallel // The cases share ex an
 			fees: mustFees(t),
 		},
 		{
-			// An order from before cumFeeDetail lacks it, so its fees are not reported; the deprecated cumExecFee is not used
+			// An order from before cumFeeDetail lacks it, and reports its fees in cumExecFee, in the settle coin
 			name:  "USDT margined order without cumFeeDetail",
 			asset: asset.USDTMarginedFutures,
 			order: OpenOrder{
@@ -3865,6 +3865,7 @@ func TestOrderDetail(t *testing.T) { //nolint:tparallel // The cases share ex an
 				AverageExecutedPrice: 26000, ExecutedAmount: 0.02, Cost: 520, CostAsset: currency.USDT, SettlementCurrency: currency.USDT,
 				Date: time.UnixMilli(1693086704010), LastUpdated: time.UnixMilli(1693086704012),
 			},
+			fees: mustFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 0.286}),
 		},
 		{
 			// Bybit documents Block trade-Limit as an order type only unified account block trades return; they trade as limit
@@ -4039,9 +4040,8 @@ func TestOrderCostCurrency(t *testing.T) { //nolint:tparallel // orderCostCurren
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "orderCostCurrency should reject an asset Bybit does not trade")
 }
 
-func TestOrderFees(t *testing.T) { //nolint:tparallel // orderFees is called again after the cases, so they run in order
+func TestOrderFees(t *testing.T) {
 	t.Parallel()
-	// orderFees is called again after these cases, so they run in order
 	for _, tc := range []struct {
 		name       string
 		asset      asset.Item
@@ -4062,14 +4062,50 @@ func TestOrderFees(t *testing.T) { //nolint:tparallel // orderFees is called aga
 		{name: "USDC margined futures", asset: asset.USDCMarginedFutures, settle: currency.USDC, detail: map[currency.Code]types.Number{currency.USDC: 0.61022}, exp: mustFees(t, order.FeeAmount{Currency: currency.USDC, Amount: 0.61022})},
 		// An empty cumFeeDetail reports that nothing was charged
 		{name: "USDT margined futures without fees", asset: asset.USDTMarginedFutures, settle: currency.USDT, detail: map[currency.Code]types.Number{}, exp: mustFees(t)},
-		// Orders from before cumFeeDetail lack it, so their fees are not reported
-		{name: "USDT margined futures before cumFeeDetail", asset: asset.USDTMarginedFutures, settle: currency.USDT, cumExecFee: 0.286},
+		// A spot order without cumFeeDetail leaves its fees unreported, as cumExecFee does not name their coin
+		{name: "spot before cumFeeDetail", asset: asset.Spot, settle: currency.USDT, cumExecFee: 0.00004},
+		{name: "USDC margined futures before cumFeeDetail", asset: asset.USDCMarginedFutures, settle: currency.USDC, cumExecFee: 0.61022, exp: mustFees(t, order.FeeAmount{Currency: currency.USDC, Amount: 0.61022})},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := orderFees(tc.asset, tc.settle, tc.detail, tc.cumExecFee)
 			require.NoErrorf(t, err, "orderFees must not error for %s", tc.name)
 			assert.Equalf(t, tc.exp, got, "orderFees should return the fees of %s", tc.name)
 		})
+	}
+	// A linear order's cumFeeDetail decides its fees whatever its cumExecFee holds, and an order from before
+	// cumFeeDetail reports a non-zero cumExecFee, a rebate included, in the settle coin
+	for _, linear := range []struct {
+		asset  asset.Item
+		settle currency.Code
+	}{
+		{asset: asset.USDTMarginedFutures, settle: currency.USDT},
+		{asset: asset.USDCMarginedFutures, settle: currency.USDC},
+	} {
+		for _, tc := range []struct {
+			name       string
+			detail     map[currency.Code]types.Number
+			cumExecFee types.Number
+			exp        order.Fees
+		}{
+			{name: "charged in MNT", detail: map[currency.Code]types.Number{currency.MNT: 0.00242968}, cumExecFee: 0.286, exp: mustFees(t, order.FeeAmount{Currency: currency.MNT, Amount: 0.00242968})},
+			{name: "charged in MNT beside a rebate", detail: map[currency.Code]types.Number{currency.MNT: 0.00242968}, cumExecFee: -0.052, exp: mustFees(t, order.FeeAmount{Currency: currency.MNT, Amount: 0.00242968})},
+			{name: "without fees beside a cumExecFee", detail: map[currency.Code]types.Number{}, cumExecFee: 0.286, exp: mustFees(t)},
+			{name: "without fees beside a rebate", detail: map[currency.Code]types.Number{}, cumExecFee: -0.052, exp: mustFees(t)},
+			{name: "before cumFeeDetail", cumExecFee: 0.286, exp: mustFees(t, order.FeeAmount{Currency: linear.settle, Amount: 0.286})},
+			{name: "fee of nine significant digits before cumFeeDetail", cumExecFee: 3.43585512, exp: mustFees(t, order.FeeAmount{Currency: linear.settle, Amount: 3.43585512})},
+			{name: "fee under a cent before cumFeeDetail", cumExecFee: 0.00000052, exp: mustFees(t, order.FeeAmount{Currency: linear.settle, Amount: 0.00000052})},
+			{name: "fee under 1e-8 before cumFeeDetail", cumExecFee: 0.000000004, exp: mustFees(t, order.FeeAmount{Currency: linear.settle, Amount: 0.000000004})},
+			{name: "rebate before cumFeeDetail", cumExecFee: -0.052, exp: mustFees(t, order.FeeAmount{Currency: linear.settle, Amount: -0.052})},
+			{name: "zero cumExecFee before cumFeeDetail"},
+		} {
+			t.Run(linear.asset.String()+" "+tc.name, func(t *testing.T) {
+				t.Parallel()
+				got, err := orderFees(linear.asset, linear.settle, tc.detail, tc.cumExecFee)
+				require.NoErrorf(t, err, "orderFees must not error for %s %s", linear.asset, tc.name)
+				assert.Equalf(t, tc.exp, got, "orderFees should return the fees of %s %s", linear.asset, tc.name)
+			})
+		}
 	}
 	_, err := orderFees(asset.Spot, currency.USDT, map[currency.Code]types.Number{currency.EMPTYCODE: 0.1}, 0)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "orderFees should reject a fee without a coin")

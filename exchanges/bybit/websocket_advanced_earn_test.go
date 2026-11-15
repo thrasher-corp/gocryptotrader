@@ -296,21 +296,11 @@ func newAdvancedEarnTestExchange(t *testing.T) *Exchange {
 // registered as Setup registers it but pointed at url, with channels configured
 func newAdvancedEarnStreamInstance(t *testing.T, url string, channels ...string) *Exchange {
 	t.Helper()
-	ex := newAdvancedEarnTestExchange(t)
-	ex.Websocket = websocket.NewManager()
-	require.NoError(t, ex.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:               ex.Config,
-		Features:                     &ex.Features.Supports.WebsocketCapabilities,
-		UseMultiConnectionManagement: true,
-	}), "Websocket.Setup must not error")
-	setup := ex.AdvancedEarnConnectionSetup(ex.Config, url)
-	require.NoError(t, ex.Websocket.SetupNewConnection(setup), "SetupNewConnection must not error")
-	ex.Features.Subscriptions = make(subscription.List, len(channels))
+	subs := make(subscription.List, len(channels))
 	for i, c := range channels {
-		ex.Features.Subscriptions[i] = &subscription.Subscription{Enabled: true, Channel: c}
+		subs[i] = &subscription.Subscription{Enabled: true, Channel: c}
 	}
-	t.Cleanup(func() { stopWebsocket(t, ex) })
-	return ex
+	return newStreamInstance(t, func(ex *Exchange) *websocket.ConnectionSetup { return ex.AdvancedEarnConnectionSetup(ex.Config, url) }, subs)
 }
 
 // advancedEarnMockStream answers like the fp stream: a topic it does not know is rejected with Params Error, a pong
