@@ -313,15 +313,15 @@ func TestWebsocketConnect(t *testing.T) {
 		assert.True(t, websocketConnected(subscriptionConnection(t, ex)), "a refused heartbeat should leave the subscription connection connected")
 	})
 
+	unreachable := newTestExchange(t)
+	require.NoError(t, unreachable.Websocket.SetAllConnectionURLs("ws://127.0.0.1:1"), "SetAllConnectionURLs must not error")
+	assert.Error(t, unreachable.WebsocketConnect(t.Context(), undialledConnection(t, unreachable)), "WebsocketConnect should return a failed dial")
+
 	if !mockTests {
 		return
 	}
 	_, unauthenticatedVenue := newUnauthenticatedWebsocketTestExchange(t)
 	assert.Empty(t, unauthenticatedVenue.received("public/auth"), "the manager should not log connections in without authenticated websocket support")
-
-	unreachable := newTestExchange(t)
-	require.NoError(t, unreachable.Websocket.SetAllConnectionURLs("ws://127.0.0.1:1"), "SetAllConnectionURLs must not error")
-	assert.Error(t, unreachable.WebsocketConnect(t.Context(), undialledConnection(t, unreachable)), "WebsocketConnect should return a failed dial")
 }
 
 func TestConnectRequestConnection(t *testing.T) { //nolint:tparallel // Its cases run serially on one exchange, so the last allows authenticated requests again after one without support
@@ -391,22 +391,34 @@ func TestWebsocketHeartbeatAnswered(t *testing.T) {
 
 func TestWebsocketAuthenticate(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	ex, venue := newWebsocketTestExchange(t)
-	require.NoError(t, ex.websocketAuthenticate(t.Context(), subscriptionConnection(t, ex)), "websocketAuthenticate must not error")
-	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "websocketAuthenticate should leave authenticated requests allowed after a login")
-	if mockTests {
-		assert.Len(t, venue.receivedOn(subscriptionVenueConnection, "public/auth"), 2, "websocketAuthenticate should log the connection given in, which the manager logged in first")
-	}
 
-	if !mockTests {
-		return
-	}
-	rejected, _ := newWebsocketTestExchange(t)
-	rejected.SetCredentials(&accounts.Credentials{Key: "other-client-id", Secret: testClientSecret})
-	require.NoError(t, rejected.websocketAuthenticate(t.Context(), subscriptionConnection(t, rejected)), "websocketAuthenticate must leave a connection whose login fails to serve public channels")
-	assert.False(t, rejected.Websocket.CanUseAuthenticatedEndpoints(), "websocketAuthenticate should stop authenticated requests after a failed login")
-	assert.True(t, websocketConnected(subscriptionConnection(t, rejected)), "websocketAuthenticate should leave a connection whose login fails connected")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		require.NoError(t, ex.websocketAuthenticate(t.Context(), subscriptionConnection(t, ex)), "websocketAuthenticate must not error")
+		assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "websocketAuthenticate should leave authenticated requests allowed after a login")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		require.NoError(t, ex.websocketAuthenticate(t.Context(), subscriptionConnection(t, ex)), "websocketAuthenticate must not error")
+		assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "websocketAuthenticate should leave authenticated requests allowed after a login")
+		assert.Len(t, venue.receivedOn(subscriptionVenueConnection, "public/auth"), 2, "websocketAuthenticate should log the connection given in, which the manager logged in first")
+
+		rejected, _ := newWebsocketTestExchange(t)
+		rejected.SetCredentials(&accounts.Credentials{Key: "other-client-id", Secret: testClientSecret})
+		require.NoError(t, rejected.websocketAuthenticate(t.Context(), subscriptionConnection(t, rejected)), "websocketAuthenticate must leave a connection whose login fails to serve public channels")
+		assert.False(t, rejected.Websocket.CanUseAuthenticatedEndpoints(), "websocketAuthenticate should stop authenticated requests after a failed login")
+		assert.True(t, websocketConnected(subscriptionConnection(t, rejected)), "websocketAuthenticate should leave a connection whose login fails connected")
+	})
 
 	unsupported := newTestExchange(t)
 	unsupported.API.AuthenticatedWebsocketSupport = false
@@ -417,11 +429,26 @@ func TestWebsocketAuthenticate(t *testing.T) {
 
 func TestWebsocketLogin(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	ex, venue := newWebsocketTestExchange(t)
-	require.NoError(t, ex.wsLogin(t.Context(), requestConnection(t, ex)), "wsLogin must not error")
-	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "wsLogin should allow authenticated requests")
-	if mockTests {
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		require.NoError(t, ex.wsLogin(t.Context(), requestConnection(t, ex)), "wsLogin must not error")
+		assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "wsLogin should allow authenticated requests")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		require.NoError(t, ex.wsLogin(t.Context(), requestConnection(t, ex)), "wsLogin must not error")
+		assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "wsLogin should allow authenticated requests")
 		requests := venue.receivedOn(requestVenueConnection, "public/auth")
 		require.Len(t, requests, 2, "the manager and wsLogin must each log the request connection in")
 		var params map[string]any
@@ -429,22 +456,19 @@ func TestWebsocketLogin(t *testing.T) {
 		assert.Equal(t, GrantTypeClientSignature, params["grant_type"], "wsLogin should authenticate with a client signature")
 		assert.Equal(t, testClientID, params["client_id"], "wsLogin should send the client ID")
 		assert.NotContains(t, params, "client_secret", "wsLogin should not send the client secret")
-	}
+
+		// The mock websocket authenticates only the test client ID's signature
+		rejected, _ := newWebsocketTestExchange(t)
+		rejected.SetCredentials(&accounts.Credentials{Key: "other-client-id", Secret: testClientSecret})
+		var apiErr *APIError
+		require.ErrorAs(t, rejected.wsLogin(t.Context(), requestConnection(t, rejected)), &apiErr, "wsLogin must return the authentication failure")
+		assert.Equal(t, int64(13004), apiErr.Code, "wsLogin should return Deribit's invalid credentials error")
+		assert.False(t, rejected.Websocket.CanUseAuthenticatedEndpoints(), "wsLogin should stop authenticated requests after a failure")
+	})
 
 	unsupported := newTestExchange(t)
 	unsupported.API.AuthenticatedWebsocketSupport = false
 	assert.ErrorIs(t, unsupported.wsLogin(t.Context(), undialledConnection(t, unsupported)), exchange.ErrAuthenticationSupportNotEnabled, "wsLogin should need websocket authentication support")
-
-	if !mockTests {
-		return
-	}
-	// The mock websocket authenticates only the test client ID's signature
-	rejected, _ := newWebsocketTestExchange(t)
-	rejected.SetCredentials(&accounts.Credentials{Key: "other-client-id", Secret: testClientSecret})
-	var apiErr *APIError
-	require.ErrorAs(t, rejected.wsLogin(t.Context(), requestConnection(t, rejected)), &apiErr, "wsLogin must return the authentication failure")
-	assert.Equal(t, int64(13004), apiErr.Code, "wsLogin should return Deribit's invalid credentials error")
-	assert.False(t, rejected.Websocket.CanUseAuthenticatedEndpoints(), "wsLogin should stop authenticated requests after a failure")
 
 	uncredentialled := newTestExchange(t)
 	uncredentialled.API.AuthenticatedWebsocketSupport = true
@@ -1636,25 +1660,47 @@ func TestSubscribe(t *testing.T) {
 
 func TestUnsubscribe(t *testing.T) {
 	t.Parallel()
-	ex, venue := newWebsocketTestExchange(t)
-	skipLiveWithoutCredentials(t)
-	conn := subscriptionConnection(t, ex)
 	const channel = "user.liquidation"
-	private := &subscription.Subscription{Channel: ChannelUserLiquidation, Authenticated: true}
-	require.NoError(t, ex.Subscribe(t.Context(), conn, subscription.List{private}), "Subscribe must not error for a private channel")
-	held := heldSubscription(ex, channel)
-	require.NotNil(t, held, "Subscribe must store the private subscription under its qualified channel")
-	require.NoError(t, ex.Unsubscribe(t.Context(), conn, subscription.List{held}), "Unsubscribe must not error for a private channel")
-	assert.Nil(t, heldSubscription(ex, channel), "Unsubscribe should remove the private subscription")
-	if mockTests {
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		conn := subscriptionConnection(t, ex)
+		private := &subscription.Subscription{Channel: ChannelUserLiquidation, Authenticated: true}
+		require.NoError(t, ex.Subscribe(t.Context(), conn, subscription.List{private}), "Subscribe must not error for a private channel")
+		held := heldSubscription(ex, channel)
+		require.NotNil(t, held, "Subscribe must store the private subscription under its qualified channel")
+		require.NoError(t, ex.Unsubscribe(t.Context(), conn, subscription.List{held}), "Unsubscribe must not error for a private channel")
+		assert.Nil(t, heldSubscription(ex, channel), "Unsubscribe should remove the private subscription")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		conn := subscriptionConnection(t, ex)
+		private := &subscription.Subscription{Channel: ChannelUserLiquidation, Authenticated: true}
+		require.NoError(t, ex.Subscribe(t.Context(), conn, subscription.List{private}), "Subscribe must not error for a private channel")
+		held := heldSubscription(ex, channel)
+		require.NotNil(t, held, "Subscribe must store the private subscription under its qualified channel")
+		require.NoError(t, ex.Unsubscribe(t.Context(), conn, subscription.List{held}), "Unsubscribe must not error for a private channel")
+		assert.Nil(t, heldSubscription(ex, channel), "Unsubscribe should remove the private subscription")
 		requests := venue.received("private/subscribe")
 		require.Len(t, requests, 1, "Subscribe must subscribe a private channel through private/subscribe")
 		assert.Equal(t, subscriptionVenueConnection, requests[0].connection, "Subscribe should subscribe the connection given")
 		requests = venue.received("private/unsubscribe")
 		require.Len(t, requests, 1, "Unsubscribe must unsubscribe a private channel through private/unsubscribe")
 		assert.Equal(t, subscriptionVenueConnection, requests[0].connection, "Unsubscribe should unsubscribe the connection given")
-	}
-	assert.ErrorIs(t, ex.Unsubscribe(t.Context(), conn, subscription.List{{Channel: ChannelPriceIndex}}), errChannelParameter, "Unsubscribe should return a qualification failure")
+	})
+
+	unconnected := newTestExchange(t)
+	assert.ErrorIs(t, unconnected.Unsubscribe(t.Context(), undialledConnection(t, unconnected), subscription.List{{Channel: ChannelPriceIndex}}), errChannelParameter, "Unsubscribe should return a qualification failure")
 }
 
 func TestHandleSubscription(t *testing.T) {
@@ -1668,6 +1714,9 @@ func TestHandleSubscription(t *testing.T) {
 	require.NoError(t, err, "expandSubscriptions must not error")
 	err = disconnected.handleSubscription(t.Context(), undialledConnection(t, disconnected), true, false, indexSubs)
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "handleSubscription should return the request failure")
+
+	_, err = newTestExchange(t).WebsocketAPI().Subscribe(t.Context(), []string{"deribit_price_index.btc_usd"})
+	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.Subscribe should error without a connection")
 
 	if !mockTests {
 		return
@@ -1684,9 +1733,6 @@ func TestHandleSubscription(t *testing.T) {
 	assert.Equal(t, "deribit_price_index.btc_usd", held[0].QualifiedChannel, "handleSubscription should store the acknowledged channel")
 	require.NoError(t, ex.handleSubscription(t.Context(), conn, false, false, held), "handleSubscription must not error unsubscribing")
 	assert.Empty(t, ex.Websocket.GetSubscriptions(), "handleSubscription should remove the unsubscribed channel")
-
-	_, err = newTestExchange(t).WebsocketAPI().Subscribe(t.Context(), []string{"deribit_price_index.btc_usd"})
-	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.Subscribe should error without a connection")
 }
 
 func TestSendSubscriptionRequest(t *testing.T) {

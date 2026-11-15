@@ -823,7 +823,8 @@ func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, 
 }
 
 // SubmitOrder places an order; a post only order is rejected rather than repriced when it would take liquidity, which
-// Coinbase-routed spot requires
+// Coinbase-routed spot requires. An order placed filled or closed is reported as new, as the response carries no
+// executed amount, so the order manager keeps it active rather than storing it finished with nothing executed
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
@@ -853,7 +854,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	resp.Status = detail.Status
+	resp.Status = placementStatus(detail.Status)
 	resp.Price = detail.Price
 	resp.AverageExecutedPrice = detail.AverageExecutedPrice
 	resp.RemainingAmount = detail.RemainingAmount
@@ -868,6 +869,15 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		resp.FeeAsset = placed.Trades[i].FeeCurrency
 	}
 	return resp, nil
+}
+
+// placementStatus returns the status SubmitOrder reports for a placed order's status: new for an order filled or closed
+// at placement, and the status itself otherwise, a rejection included
+func placementStatus(s order.Status) order.Status {
+	if s.IsInactive() && s != order.Rejected {
+		return order.New
+	}
+	return s
 }
 
 // submitOrderRequest returns the order request placing an order, but its instrument. Deribit sizes an order by
@@ -1010,8 +1020,8 @@ func tradeHistory(exchangeName string, t *UserTradeResponse) (order.TradeHistory
 // ModifyOrder edits an open order, identified by its ID or by its label in the pair; an amount left unset keeps the
 // order's amount, as Deribit requires an amount or a contract count with every edit. A take profit or stop loss
 // attached through RiskManagementModes is refused, as Deribit attaches neither with an edit. An edit that leaves the
-// order filled or closed reports no status, as the response carries no executed amount, so the order manager reads the
-// order on a later sweep
+// order filled or closed reports no status, as the response carries no executed amount, so the order manager keeps the
+// order active rather than storing it finished with nothing executed
 func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.ModifyResponse, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err

@@ -12,42 +12,68 @@ import (
 
 func TestWebsocketAPICreateCombo(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	ex, venue := newWebsocketTestExchange(t)
-	_, err := ex.WebsocketAPI().CreateCombo(t.Context(), nil)
+	_, err := newTestExchange(t).WebsocketAPI().CreateCombo(t.Context(), nil)
 	require.ErrorIs(t, err, errComboTradesRequired, "WebsocketAPI.CreateCombo must reject an empty trade list")
 
-	result, err := ex.WebsocketAPI().CreateCombo(t.Context(), testComboTrades(t))
-	require.NoError(t, err, "WebsocketAPI.CreateCombo must not error")
-	if mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CreateCombo(t.Context(), testComboTrades(t))
+		require.NoError(t, err, "WebsocketAPI.CreateCombo must not error")
+		assert.Len(t, result.Legs, 2, "WebsocketAPI.CreateCombo should return the combo's legs")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().CreateCombo(t.Context(), testComboTrades(t))
+		require.NoError(t, err, "WebsocketAPI.CreateCombo must not error")
 		assert.Equal(t, testCreatedCombo(), result, "WebsocketAPI.CreateCombo should decode every field")
 		requests := venue.received("private/create_combo")
 		require.Len(t, requests, 1, "WebsocketAPI.CreateCombo must send one request")
 		assert.JSONEq(t, `{"trades":[{"instrument_name":"BTC-29APR22-37500-C","amount":1,"direction":"buy"},{"instrument_name":"BTC-29APR22-37500-P","amount":1,"direction":"sell"}]}`, string(requests[0].Params), "WebsocketAPI.CreateCombo should send the trades")
-	} else {
-		assert.Len(t, result.Legs, 2, "WebsocketAPI.CreateCombo should return the combo's legs")
-	}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().CreateCombo(t.Context(), testComboTrades(t))
+	_, err = newTestExchange(t).WebsocketAPI().CreateCombo(t.Context(), mockComboTrades())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.CreateCombo should error without an authenticated connection")
 }
 
 func TestWebsocketAPIGetLegPrices(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	ex, _ := newWebsocketTestExchange(t)
-	_, err := ex.WebsocketAPI().GetLegPrices(t.Context(), nil)
+	_, err := newTestExchange(t).WebsocketAPI().GetLegPrices(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAPI.GetLegPrices must reject a nil request")
 
-	result, err := ex.WebsocketAPI().GetLegPrices(t.Context(), testLegPricesRequest(t))
-	require.NoError(t, err, "WebsocketAPI.GetLegPrices must not error")
-	if mockTests {
-		assert.Equal(t, testLegPrices(), result, "WebsocketAPI.GetLegPrices should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetLegPrices(t.Context(), testLegPricesRequest(t))
+		require.NoError(t, err, "WebsocketAPI.GetLegPrices must not error")
 		assert.Len(t, result.Legs, 2, "WebsocketAPI.GetLegPrices should return each leg's price")
-	}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().GetLegPrices(t.Context(), testLegPricesRequest(t))
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetLegPrices(t.Context(), testLegPricesRequest(t))
+		require.NoError(t, err, "WebsocketAPI.GetLegPrices must not error")
+		assert.Equal(t, testLegPrices(), result, "WebsocketAPI.GetLegPrices should decode every field")
+	})
+
+	_, err = newTestExchange(t).WebsocketAPI().GetLegPrices(t.Context(), mockLegPricesRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetLegPrices should error without an authenticated connection")
 }
 

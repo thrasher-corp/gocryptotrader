@@ -1107,13 +1107,6 @@ func testFutureInstruments() []InstrumentResponse {
 			TakerMaxCommission:       0.25,
 			LiquidationMaxCommission: 0.25,
 			SettlementMaxCommission:  0.25,
-			MarginParameters: &MarginParameters{
-				InitialIncrement: 0.0175,
-				MarginFee:        0.01,
-				MarginIncrement:  5e-05,
-				MarginInitial:    0.0025,
-				MarginPower:      1,
-			},
 			TradingBandwidthFraction: 0.015,
 			PerpetualDampener:        0.00025,
 			PerpetualMaxFunding:      0.005,
@@ -1156,13 +1149,6 @@ func testFutureInstruments() []InstrumentResponse {
 			TakerMaxCommission:       0.25,
 			LiquidationMaxCommission: 0.25,
 			SettlementMaxCommission:  0.25,
-			MarginParameters: &MarginParameters{
-				InitialIncrement: 0.0275,
-				MarginFee:        0.01,
-				MarginIncrement:  5e-05,
-				MarginInitial:    0.0125,
-				MarginPower:      1,
-			},
 			TradingBandwidthFraction: 0.015,
 			BlockTradeCommission:     0.00025,
 			BlockTradeTickSize:       0.01,
@@ -1203,13 +1189,6 @@ func testFutureInstruments() []InstrumentResponse {
 			TakerMaxCommission:       0.25,
 			LiquidationMaxCommission: 0.25,
 			SettlementMaxCommission:  0.25,
-			MarginParameters: &MarginParameters{
-				InitialIncrement: 0.0275,
-				MarginFee:        0.01,
-				MarginIncrement:  5e-05,
-				MarginInitial:    0.0125,
-				MarginPower:      1,
-			},
 			TradingBandwidthFraction: 0.015,
 			BlockTradeCommission:     0.00025,
 			BlockTradeTickSize:       0.01,
@@ -1250,13 +1229,6 @@ func testFutureInstruments() []InstrumentResponse {
 			TakerMaxCommission:       0.25,
 			LiquidationMaxCommission: 0.25,
 			SettlementMaxCommission:  0.25,
-			MarginParameters: &MarginParameters{
-				InitialIncrement: 0.0275,
-				MarginFee:        0.01,
-				MarginIncrement:  5e-05,
-				MarginInitial:    0.0125,
-				MarginPower:      1,
-			},
 			TradingBandwidthFraction: 0.015,
 			BlockTradeCommission:     0.00025,
 			BlockTradeTickSize:       0.01,
@@ -1297,13 +1269,6 @@ func testFutureInstruments() []InstrumentResponse {
 			TakerMaxCommission:       0.25,
 			LiquidationMaxCommission: 0.25,
 			SettlementMaxCommission:  0.25,
-			MarginParameters: &MarginParameters{
-				InitialIncrement: 0.0275,
-				MarginFee:        0.01,
-				MarginIncrement:  5e-05,
-				MarginInitial:    0.0125,
-				MarginPower:      1,
-			},
 			TradingBandwidthFraction: 0.015,
 			BlockTradeCommission:     0.00025,
 			BlockTradeTickSize:       0.01,
@@ -1331,7 +1296,7 @@ func TestGetInstruments(t *testing.T) {
 	} else {
 		require.NotEmpty(t, result, "GetInstruments must return BTC's futures")
 		assert.Equal(t, marketDataPerpetual, result[0].InstrumentName, "GetInstruments should list the perpetual first")
-		assert.NotNil(t, result[0].MarginParameters, "GetInstruments should return the extended margin parameters")
+		assert.Positive(t, result[0].TradingBandwidthFraction, "GetInstruments should return the extended trading bandwidth fraction")
 	}
 
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

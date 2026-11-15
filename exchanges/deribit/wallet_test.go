@@ -389,24 +389,35 @@ func TestCreateDepositAddress(t *testing.T) {
 	_, err = e.CreateDepositAddress(t.Context(), &CreateDepositAddressRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "CreateDepositAddress must reject an empty currency")
 
-	skipLiveUnlessCanManipulate(t)
 	arg := &CreateDepositAddressRequest{Currency: currency.BTC}
-	result, err := e.CreateDepositAddress(t.Context(), arg)
-	if !mockTests && errors.Is(err, common.ErrNoResponse) {
-		t.Skip("Deribit creates at most one BTC deposit address a day")
-	}
-	require.NoError(t, err, "CreateDepositAddress must not error")
-	if mockTests {
-		assert.Equal(t, testLegacyDepositAddress(), result, "CreateDepositAddress should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		result, err := e.CreateDepositAddress(t.Context(), arg)
+		if errors.Is(err, common.ErrNoResponse) {
+			t.Skip("Deribit creates at most one BTC deposit address a day")
+		}
+		require.NoError(t, err, "CreateDepositAddress must not error")
 		assert.Equal(t, currency.BTC, result.Currency, "CreateDepositAddress should return a BTC address")
 		assert.NotEmpty(t, result.Address, "CreateDepositAddress should return the address")
-		return
-	}
+	})
 
-	result, err = e.CreateDepositAddress(t.Context(), &CreateDepositAddressRequest{Currency: currency.ETH, Network: mockEthereumNetwork})
-	require.NoError(t, err, "CreateDepositAddress must not error for a Coinbase wallet type network")
-	assert.Equal(t, testCoinbaseDepositAddress(), result, "CreateDepositAddress should decode a Coinbase wallet type deposit address")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CreateDepositAddress(t.Context(), arg)
+		require.NoError(t, err, "CreateDepositAddress must not error")
+		assert.Equal(t, testLegacyDepositAddress(), result, "CreateDepositAddress should decode every field")
+
+		result, err = e.CreateDepositAddress(t.Context(), &CreateDepositAddressRequest{Currency: currency.ETH, Network: mockEthereumNetwork})
+		require.NoError(t, err, "CreateDepositAddress must not error for a Coinbase wallet type network")
+		assert.Equal(t, testCoinbaseDepositAddress(), result, "CreateDepositAddress should decode a Coinbase wallet type deposit address")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CreateDepositAddress(t.Context(), arg)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateDepositAddress should report that no address was created")
@@ -487,16 +498,29 @@ func TestGetAddressBeneficiary(t *testing.T) {
 	_, err = e.GetAddressBeneficiary(t.Context(), &AddressBeneficiaryRequest{Currency: currency.BTC})
 	require.ErrorIs(t, err, errAddressRequired, "GetAddressBeneficiary must reject an empty address")
 
-	skipLiveWithoutCredentials(t)
-	arg := testAddressBeneficiaryRequest(t)
-	result, err := e.GetAddressBeneficiary(t.Context(), arg)
-	require.NoError(t, err, "GetAddressBeneficiary must not error")
-	if mockTests {
-		assert.Equal(t, testAddressBeneficiary(), result, "GetAddressBeneficiary should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		arg := testAddressBeneficiaryRequest(t)
+		result, err := e.GetAddressBeneficiary(t.Context(), arg)
+		require.NoError(t, err, "GetAddressBeneficiary must not error")
 		assert.Equal(t, arg.Address, result.Address, "GetAddressBeneficiary should return the address's beneficiary")
-	}
+	})
 
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetAddressBeneficiary(t.Context(), testAddressBeneficiaryRequest(t))
+		require.NoError(t, err, "GetAddressBeneficiary must not error")
+		assert.Equal(t, testAddressBeneficiary(), result, "GetAddressBeneficiary should decode every field")
+	})
+
+	arg := &AddressBeneficiaryRequest{Currency: currency.BTC, Address: mockLegacyAddress}
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetAddressBeneficiary(t.Context(), arg)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetAddressBeneficiary should reject a null result")
 	_, err = newUnavailableServerExchange(t).GetAddressBeneficiary(t.Context(), arg)
@@ -566,21 +590,33 @@ func TestGetAddressBook(t *testing.T) {
 	_, err = e.GetAddressBook(t.Context(), &GetAddressBookRequest{Currency: currency.BTC, Type: "deposits"})
 	require.ErrorIs(t, err, errInvalidAddressBookType, "GetAddressBook must reject an undocumented address book type")
 
-	skipLiveWithoutCredentials(t)
 	arg := &GetAddressBookRequest{Currency: currency.BTC, Type: AddressBookTypeWithdrawal}
-	result, err := e.GetAddressBook(t.Context(), arg)
-	require.NoError(t, err, "GetAddressBook must not error")
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetAddressBook(t.Context(), arg)
+		require.NoError(t, err, "GetAddressBook must not error")
 		for i := range result {
 			assert.Equal(t, AddressBookTypeWithdrawal, result[i].Type, "GetAddressBook should return withdrawal entries")
 		}
-		return
-	}
-	assert.Equal(t, testLegacyAddressBook(), result, "GetAddressBook should decode every field")
+	})
 
-	result, err = e.GetAddressBook(t.Context(), &GetAddressBookRequest{Currency: currency.ETH, Type: AddressBookTypeWithdrawal})
-	require.NoError(t, err, "GetAddressBook must not error for a Coinbase wallet type account")
-	assert.Equal(t, []AddressBookEntryResponse{*testCoinbaseAddressBookEntry(), *testCounterpartyAddressBookEntry()}, result, "GetAddressBook should decode Coinbase wallet type entries and counterparties")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetAddressBook(t.Context(), arg)
+		require.NoError(t, err, "GetAddressBook must not error")
+		assert.Equal(t, testLegacyAddressBook(), result, "GetAddressBook should decode every field")
+
+		result, err = e.GetAddressBook(t.Context(), &GetAddressBookRequest{Currency: currency.ETH, Type: AddressBookTypeWithdrawal})
+		require.NoError(t, err, "GetAddressBook must not error for a Coinbase wallet type account")
+		assert.Equal(t, []AddressBookEntryResponse{*testCoinbaseAddressBookEntry(), *testCounterpartyAddressBookEntry()}, result, "GetAddressBook should decode Coinbase wallet type entries and counterparties")
+	})
 
 	_, err = newUnavailableServerExchange(t).GetAddressBook(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetAddressBook should return the request failure")
@@ -593,22 +629,34 @@ func TestGetCurrentDepositAddress(t *testing.T) {
 	_, err = e.GetCurrentDepositAddress(t.Context(), &GetCurrentDepositAddressRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetCurrentDepositAddress must reject an empty currency")
 
-	skipLiveWithoutCredentials(t)
 	arg := &GetCurrentDepositAddressRequest{Currency: currency.BTC}
-	result, err := e.GetCurrentDepositAddress(t.Context(), arg)
-	if !mockTests && errors.Is(err, common.ErrNoResponse) {
-		t.Skip("the account has no BTC deposit address")
-	}
-	require.NoError(t, err, "GetCurrentDepositAddress must not error")
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetCurrentDepositAddress(t.Context(), arg)
+		if errors.Is(err, common.ErrNoResponse) {
+			t.Skip("the account has no BTC deposit address")
+		}
+		require.NoError(t, err, "GetCurrentDepositAddress must not error")
 		assert.Equal(t, currency.BTC, result.Currency, "GetCurrentDepositAddress should return a BTC address")
-		return
-	}
-	assert.Equal(t, testLegacyDepositAddress(), result, "GetCurrentDepositAddress should decode every field")
+	})
 
-	result, err = e.GetCurrentDepositAddress(t.Context(), &GetCurrentDepositAddressRequest{Currency: currency.ETH, Network: mockEthereumNetwork})
-	require.NoError(t, err, "GetCurrentDepositAddress must not error for a Coinbase wallet type network")
-	assert.Equal(t, testCoinbaseDepositAddress(), result, "GetCurrentDepositAddress should decode a Coinbase wallet type deposit address")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetCurrentDepositAddress(t.Context(), arg)
+		require.NoError(t, err, "GetCurrentDepositAddress must not error")
+		assert.Equal(t, testLegacyDepositAddress(), result, "GetCurrentDepositAddress should decode every field")
+
+		result, err = e.GetCurrentDepositAddress(t.Context(), &GetCurrentDepositAddressRequest{Currency: currency.ETH, Network: mockEthereumNetwork})
+		require.NoError(t, err, "GetCurrentDepositAddress must not error for a Coinbase wallet type network")
+		assert.Equal(t, testCoinbaseDepositAddress(), result, "GetCurrentDepositAddress should decode a Coinbase wallet type deposit address")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetCurrentDepositAddress(t.Context(), arg)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetCurrentDepositAddress should report that no address exists")
@@ -642,17 +690,29 @@ func TestGetDeposits(t *testing.T) {
 	_, err := e.GetDeposits(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetDeposits must reject a nil request")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetDeposits(t.Context(), testWalletHistoryRequest())
-	require.NoError(t, err, "GetDeposits must not error")
-	if mockTests {
-		assert.Equal(t, testDeposits(), result, "GetDeposits should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetDeposits(t.Context(), testWalletHistoryRequest())
+		require.NoError(t, err, "GetDeposits must not error")
 		assert.LessOrEqual(t, len(result.Deposits), 10, "GetDeposits should return at most the requested count")
 		for i := range result.Deposits {
 			assert.Equal(t, currency.BTC, result.Deposits[i].Currency, "GetDeposits should return BTC deposits")
 		}
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetDeposits(t.Context(), testWalletHistoryRequest())
+		require.NoError(t, err, "GetDeposits must not error")
+		assert.Equal(t, testDeposits(), result, "GetDeposits should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetDeposits(t.Context(), testWalletHistoryRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetDeposits should reject a null result")
@@ -692,16 +752,28 @@ func testRewardEligibility() RewardEligibilityResponse {
 
 func TestGetRewardEligibility(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetRewardEligibility(t.Context())
-	require.NoError(t, err, "GetRewardEligibility must not error")
-	if mockTests {
-		assert.Equal(t, testRewardEligibility(), result, "GetRewardEligibility should decode every currency's eligibility")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetRewardEligibility(t.Context())
+		require.NoError(t, err, "GetRewardEligibility must not error")
 		assert.NotEmpty(t, result, "GetRewardEligibility should return the reward bearing currencies")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetRewardEligibility(t.Context())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetRewardEligibility(t.Context())
+		require.NoError(t, err, "GetRewardEligibility must not error")
+		assert.Equal(t, testRewardEligibility(), result, "GetRewardEligibility should decode every currency's eligibility")
+	})
+
+	_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetRewardEligibility(t.Context())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetRewardEligibility should reject a null result")
 	_, err = newUnavailableServerExchange(t).GetRewardEligibility(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetRewardEligibility should return the request failure")
@@ -743,17 +815,29 @@ func TestGetTransfers(t *testing.T) {
 	_, err := e.GetTransfers(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetTransfers must reject a nil request")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetTransfers(t.Context(), testWalletHistoryRequest())
-	require.NoError(t, err, "GetTransfers must not error")
-	if mockTests {
-		assert.Equal(t, testTransfers(), result, "GetTransfers should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetTransfers(t.Context(), testWalletHistoryRequest())
+		require.NoError(t, err, "GetTransfers must not error")
 		assert.LessOrEqual(t, len(result.Transfers), 10, "GetTransfers should return at most the requested count")
 		for i := range result.Transfers {
 			assert.Equal(t, currency.BTC, result.Transfers[i].Currency, "GetTransfers should return BTC transfers")
 		}
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetTransfers(t.Context(), testWalletHistoryRequest())
+		require.NoError(t, err, "GetTransfers must not error")
+		assert.Equal(t, testTransfers(), result, "GetTransfers should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetTransfers(t.Context(), testWalletHistoryRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetTransfers should reject a null result")
@@ -773,17 +857,29 @@ func TestGetWithdrawals(t *testing.T) {
 	_, err := e.GetWithdrawals(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetWithdrawals must reject a nil request")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetWithdrawals(t.Context(), testWalletHistoryRequest())
-	require.NoError(t, err, "GetWithdrawals must not error")
-	if mockTests {
-		assert.Equal(t, testWithdrawals(), result, "GetWithdrawals should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetWithdrawals(t.Context(), testWalletHistoryRequest())
+		require.NoError(t, err, "GetWithdrawals must not error")
 		assert.LessOrEqual(t, len(result.Withdrawals), 10, "GetWithdrawals should return at most the requested count")
 		for i := range result.Withdrawals {
 			assert.Equal(t, currency.BTC, result.Withdrawals[i].Currency, "GetWithdrawals should return BTC withdrawals")
 		}
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetWithdrawals(t.Context(), testWalletHistoryRequest())
+		require.NoError(t, err, "GetWithdrawals must not error")
+		assert.Equal(t, testWithdrawals(), result, "GetWithdrawals should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetWithdrawals(t.Context(), testWalletHistoryRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetWithdrawals should reject a null result")
@@ -892,17 +988,29 @@ func TestListAddressBeneficiaries(t *testing.T) {
 		assert.JSONEq(t, `{"limit":1000}`, lastParams(), "ListAddressBeneficiaries should send a limit of 1000")
 	})
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.ListAddressBeneficiaries(t.Context(), testListAddressBeneficiariesRequest())
-	require.NoError(t, err, "ListAddressBeneficiaries must not error")
-	if mockTests {
-		assert.Equal(t, testAddressBeneficiaries(), result, "ListAddressBeneficiaries should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.ListAddressBeneficiaries(t.Context(), testListAddressBeneficiariesRequest())
+		require.NoError(t, err, "ListAddressBeneficiaries must not error")
 		assert.LessOrEqual(t, len(result.Beneficiaries), 10, "ListAddressBeneficiaries should return at most the requested limit")
 		for i := range result.Beneficiaries {
 			assert.Equal(t, currency.BTC, result.Beneficiaries[i].Currency, "ListAddressBeneficiaries should return BTC beneficiaries")
 		}
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.ListAddressBeneficiaries(t.Context(), testListAddressBeneficiariesRequest())
+		require.NoError(t, err, "ListAddressBeneficiaries must not error")
+		assert.Equal(t, testAddressBeneficiaries(), result, "ListAddressBeneficiaries should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).ListAddressBeneficiaries(t.Context(), testListAddressBeneficiariesRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "ListAddressBeneficiaries should reject a null result")

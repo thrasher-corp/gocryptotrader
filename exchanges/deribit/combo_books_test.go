@@ -34,15 +34,20 @@ var listedComboDatedFuture = sync.OnceValues(func() (string, error) {
 	return "", errNoListedMarketDataInstrument
 })
 
+// mockComboTrades returns the trades of Deribit's documented create combo example
+func mockComboTrades() []ComboTrade {
+	return []ComboTrade{
+		{InstrumentName: "BTC-29APR22-37500-C", Amount: 1, Direction: DirectionBuy},
+		{InstrumentName: "BTC-29APR22-37500-P", Amount: 1, Direction: DirectionSell},
+	}
+}
+
 // testComboTrades returns the trades of Deribit's documented create combo example, or when testing live a spread of a
 // listed future against the perpetual, which Deribit lists as a combo already
 func testComboTrades(t *testing.T) []ComboTrade {
 	t.Helper()
 	if mockTests {
-		return []ComboTrade{
-			{InstrumentName: "BTC-29APR22-37500-C", Amount: 1, Direction: DirectionBuy},
-			{InstrumentName: "BTC-29APR22-37500-P", Amount: 1, Direction: DirectionSell},
-		}
+		return mockComboTrades()
 	}
 	future, err := listedComboDatedFuture()
 	require.NoError(t, err, "listedComboDatedFuture must not error")
@@ -74,22 +79,45 @@ func TestCreateCombo(t *testing.T) {
 	_, err = e.CreateCombo(t.Context(), []ComboTrade{{Amount: 1, Direction: DirectionBuy}})
 	require.ErrorIs(t, err, errInstrumentNameRequired, "CreateCombo must reject a trade without an instrument")
 	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":{"id":"BTC-CS-29APR22-37500_37500"}}`)
-	_, err = limited.CreateCombo(noDelay, []ComboTrade{{InstrumentName: "BTC-29APR22-37500-C", Amount: 1, Direction: DirectionBuy}, {InstrumentName: "BTC-29APR22-37500-P", Amount: 1, Direction: DirectionSell}})
+	_, err = limited.CreateCombo(noDelay, mockComboTrades())
 	assert.NoError(t, err, "CreateCombo should be limited as a non-matching engine request")
 
-	skipLiveUnlessCanManipulate(t)
-	result, err := e.CreateCombo(t.Context(), testComboTrades(t))
-	require.NoError(t, err, "CreateCombo must not error")
-	if mockTests {
-		assert.Equal(t, testCreatedCombo(), result, "CreateCombo should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		result, err := e.CreateCombo(t.Context(), testComboTrades(t))
+		require.NoError(t, err, "CreateCombo must not error")
 		assert.Len(t, result.Legs, 2, "CreateCombo should return the combo's legs")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CreateCombo(t.Context(), testComboTrades(t))
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CreateCombo(t.Context(), testComboTrades(t))
+		require.NoError(t, err, "CreateCombo must not error")
+		assert.Equal(t, testCreatedCombo(), result, "CreateCombo should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CreateCombo(t.Context(), mockComboTrades())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateCombo should reject a null result")
-	_, err = newUnavailableServerExchange(t).CreateCombo(t.Context(), testComboTrades(t))
+	_, err = newUnavailableServerExchange(t).CreateCombo(t.Context(), mockComboTrades())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateCombo should return the request failure")
+}
+
+// mockLegPricesRequest returns Deribit's documented leg prices example
+func mockLegPricesRequest() *LegPricesRequest {
+	return &LegPricesRequest{
+		Legs: []ComboTrade{
+			{InstrumentName: "BTC-1NOV24-67000-C", Amount: 2, Direction: DirectionBuy},
+			{InstrumentName: "BTC-1NOV24-66000-C", Amount: 2, Direction: DirectionSell},
+		},
+		Price: 0.6,
+	}
 }
 
 // testLegPricesRequest returns Deribit's documented leg prices example, or when testing live a spread of a listed
@@ -97,13 +125,7 @@ func TestCreateCombo(t *testing.T) {
 func testLegPricesRequest(t *testing.T) *LegPricesRequest {
 	t.Helper()
 	if mockTests {
-		return &LegPricesRequest{
-			Legs: []ComboTrade{
-				{InstrumentName: "BTC-1NOV24-67000-C", Amount: 2, Direction: DirectionBuy},
-				{InstrumentName: "BTC-1NOV24-66000-C", Amount: 2, Direction: DirectionSell},
-			},
-			Price: 0.6,
-		}
+		return mockLegPricesRequest()
 	}
 	return &LegPricesRequest{Legs: testComboTrades(t), Price: 100}
 }
@@ -138,18 +160,30 @@ func TestGetLegPrices(t *testing.T) {
 	_, err = e.GetLegPrices(t.Context(), &LegPricesRequest{Legs: []ComboTrade{{InstrumentName: mockMarketDataOption, Direction: DirectionBuy}}, Price: 0.6})
 	require.ErrorIs(t, err, errInvalidAmount, "GetLegPrices must reject a leg without an amount")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetLegPrices(t.Context(), testLegPricesRequest(t))
-	require.NoError(t, err, "GetLegPrices must not error")
-	if mockTests {
-		assert.Equal(t, testLegPrices(), result, "GetLegPrices should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetLegPrices(t.Context(), testLegPricesRequest(t))
+		require.NoError(t, err, "GetLegPrices must not error")
 		assert.Len(t, result.Legs, 2, "GetLegPrices should return each leg's price")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLegPrices(t.Context(), testLegPricesRequest(t))
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetLegPrices(t.Context(), testLegPricesRequest(t))
+		require.NoError(t, err, "GetLegPrices must not error")
+		assert.Equal(t, testLegPrices(), result, "GetLegPrices should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLegPrices(t.Context(), mockLegPricesRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLegPrices should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetLegPrices(t.Context(), testLegPricesRequest(t))
+	_, err = newUnavailableServerExchange(t).GetLegPrices(t.Context(), mockLegPricesRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLegPrices should return the request failure")
 }
 

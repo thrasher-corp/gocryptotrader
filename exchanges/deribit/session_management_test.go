@@ -11,16 +11,28 @@ import (
 
 func TestGetCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetCancelOnDisconnect(t.Context())
-	require.NoError(t, err, "GetCancelOnDisconnect must not error")
-	if mockTests {
-		assert.Equal(t, &CancelOnDisconnectResponse{Scope: CancelOnDisconnectScopeAccount}, result, "GetCancelOnDisconnect should decode the account's setting")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetCancelOnDisconnect(t.Context())
+		require.NoError(t, err, "GetCancelOnDisconnect must not error")
 		assert.Equal(t, CancelOnDisconnectScopeAccount, result.Scope, "GetCancelOnDisconnect should return the account scope")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetCancelOnDisconnect(t.Context())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetCancelOnDisconnect(t.Context())
+		require.NoError(t, err, "GetCancelOnDisconnect must not error")
+		assert.Equal(t, &CancelOnDisconnectResponse{Scope: CancelOnDisconnectScopeAccount}, result, "GetCancelOnDisconnect should decode the account's setting")
+	})
+
+	_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetCancelOnDisconnect(t.Context())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetCancelOnDisconnect should reject a null result")
 	_, err = newUnavailableServerExchange(t).GetCancelOnDisconnect(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetCancelOnDisconnect should return the request failure")

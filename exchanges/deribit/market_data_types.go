@@ -401,12 +401,11 @@ type InstrumentResponse struct {
 	TakerMaxCommission       float64 `json:"taker_max_commission"`
 	LiquidationMaxCommission float64 `json:"liquidation_max_commission"`
 	SettlementMaxCommission  float64 `json:"settlement_max_commission"`
-	// MarginParameters and TradingBandwidthFraction are a future's, and PerpetualDampener and PerpetualMaxFunding a
-	// perpetual's, only sent with extended instrument details
-	MarginParameters         *MarginParameters `json:"margin_params"`
-	TradingBandwidthFraction float64           `json:"trading_bandwidth_fraction"`
-	PerpetualDampener        float64           `json:"perpetual_dempener"`
-	PerpetualMaxFunding      float64           `json:"perpetual_max_funding"`
+	// TradingBandwidthFraction is a future's, and PerpetualDampener and PerpetualMaxFunding a perpetual's, only sent with
+	// extended instrument details
+	TradingBandwidthFraction float64 `json:"trading_bandwidth_fraction"`
+	PerpetualDampener        float64 `json:"perpetual_dempener"`
+	PerpetualMaxFunding      float64 `json:"perpetual_max_funding"`
 	// The block trade fields are omitted for Coinbase-routed spot, which does not support block trades
 	BlockTradeCommission     float64 `json:"block_trade_commission"`
 	BlockTradeTickSize       float64 `json:"block_trade_tick_size"`
@@ -448,16 +447,6 @@ type TickSizeStep struct {
 	TickSize   float64 `json:"tick_size"`
 }
 
-// MarginParameters contains a future's margin formula parameters, which Deribit documents only by their abbreviated
-// names
-type MarginParameters struct {
-	InitialIncrement float64 `json:"i_inc"`
-	MarginFee        float64 `json:"m_fee"`
-	MarginIncrement  float64 `json:"m_inc"`
-	MarginInitial    float64 `json:"m_init"`
-	MarginPower      float64 `json:"m_pow"`
-}
-
 // InstrumentsRequest requests the instruments of a settlement currency, sorted with perpetuals first, then by
 // expiration; Deribit caches the list for about a minute
 type InstrumentsRequest struct {
@@ -468,7 +457,7 @@ type InstrumentsRequest struct {
 	Kind string `json:"kind,omitempty"`
 	// Expired selects recently delivered instruments instead of visible and inactive ones
 	Expired bool `json:"expired,omitempty"`
-	// Extended adds the maximum commissions and, for futures, the margin and perpetual funding parameters
+	// Extended adds the maximum commissions and, for futures, the trading bandwidth and perpetual funding parameters
 	Extended bool `json:"extended,omitempty"`
 }
 

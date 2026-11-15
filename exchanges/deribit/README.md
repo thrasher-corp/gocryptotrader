@@ -75,7 +75,9 @@ sent this way, and the challenge is returned instead.
   futures and spot.
 + `SubmitOrder` places limit, market, stop limit, stop market, take profit limit, take profit market and trailing stop
   orders. Trigger orders trigger on the last price unless `TriggerPriceType` selects the index or mark price, and a
-  trailing stop needs a `TrackingMode` of `order.Distance` with its distance as the `TrackingValue`.
+  trailing stop needs a `TrackingMode` of `order.Distance` with its distance as the `TrackingValue`. An order placed
+  filled or closed is reported as new, as the response carries no executed amount, so the order manager keeps it
+  active rather than storing it finished with nothing executed.
 + An order asking for a quote amount, a nonzero leverage other than one, a margin type other than cash for spot, or
   a take profit or stop loss attached through `RiskManagementModes` is refused, as Deribit sizes orders by amount,
   margins them under the account's margin model and attaches a take profit or stop loss only as a linked order.
@@ -85,7 +87,8 @@ sent this way, and the challenge is returned instead.
   contract count with every edit, so when the modification leaves the amount unset, the order is fetched first and
   keeps its amount. A take profit or stop loss attached through `RiskManagementModes` is refused, as Deribit
   attaches neither with an edit. An edit that leaves the order filled or closed reports no status, as the response
-  carries no executed amount, so the order manager reads the order on a later sweep.
+  carries no executed amount, so the order manager keeps the order active rather than storing it finished with nothing
+  executed.
 + `CancelBatchOrders` cancels one order a request, as Deribit cancels no list of orders, and reports each order's state
   or error; it checks every cancel first, so an invalid batch cancels nothing. `CancelAllOrders` cancels a pair's
   orders, or every order of the asset when the pair is empty, on both sides together, so a cancellation of one side's

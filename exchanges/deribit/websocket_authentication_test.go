@@ -15,14 +15,31 @@ import (
 
 func TestWebsocketAPIAuthenticate(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	ex, venue := newWebsocketTestExchange(t)
-	_, err := ex.WebsocketAPI().Authenticate(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAPI.Authenticate must reject a nil request")
 
-	result, err := ex.WebsocketAPI().Authenticate(t.Context(), testAuthenticateRequest(t))
-	require.NoError(t, err, "WebsocketAPI.Authenticate must not error")
-	if mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().Authenticate(t.Context(), nil)
+		require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAPI.Authenticate must reject a nil request")
+		result, err := ex.WebsocketAPI().Authenticate(t.Context(), testAuthenticateRequest(t))
+		require.NoError(t, err, "WebsocketAPI.Authenticate must not error")
+		assert.NotEmpty(t, result.AccessToken, "WebsocketAPI.Authenticate should return an access token")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().Authenticate(t.Context(), nil)
+		require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAPI.Authenticate must reject a nil request")
+		result, err := ex.WebsocketAPI().Authenticate(t.Context(), testAuthenticateRequest(t))
+		require.NoError(t, err, "WebsocketAPI.Authenticate must not error")
 		assert.Equal(t, testAccessToken("connection mainaccount"), result, "WebsocketAPI.Authenticate should decode the token")
 		// The manager logged the request connection in first, with a client signature
 		requests := venue.receivedOn(requestVenueConnection, "public/auth")
@@ -35,11 +52,10 @@ func TestWebsocketAPIAuthenticate(t *testing.T) {
 		venue.answerNext("public/auth", `{"result":{"token_type":"bearer"}}`)
 		_, err = ex.WebsocketAPI().Authenticate(t.Context(), testAuthenticateRequest(t))
 		assert.ErrorIs(t, err, errNoAccessToken, "WebsocketAPI.Authenticate should refuse a result without an access token")
-	} else {
-		assert.NotEmpty(t, result.AccessToken, "WebsocketAPI.Authenticate should return an access token")
-	}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().Authenticate(t.Context(), testAuthenticateRequest(t))
+	arg := &AuthenticateRequest{GrantType: GrantTypeClientCredentials, ClientID: testClientID, ClientSecret: testClientSecret}
+	_, err := newTestExchange(t).WebsocketAPI().Authenticate(t.Context(), arg)
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.Authenticate should error without a websocket connection")
 
 	t.Run("authenticates an unauthenticated connection", func(t *testing.T) {

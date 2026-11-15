@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -590,6 +591,35 @@ func liveTradingBuyPrice(ticker *liveTradingTicker) float64 {
 	return math.Floor(ticker.MinPrice/20) * 10
 }
 
+// liveTradingOrderLabel returns the label of a live test's orders, the time ahead of the test's name, cut at the 64
+// characters Deribit takes, which the longer test names exceed
+func liveTradingOrderLabel(testName string, now time.Time) string {
+	label := "gct-" + strconv.FormatInt(now.UnixNano(), 36) + "-" + testName
+	return label[:min(len(label), 64)]
+}
+
+func TestLiveTradingOrderLabel(t *testing.T) {
+	t.Parallel()
+	now := time.Unix(1700000000, 123456789)
+	timePrefix := "gct-" + strconv.FormatInt(now.UnixNano(), 36) + "-"
+	for _, tc := range []struct {
+		name     string
+		testName string
+		exp      string
+	}{
+		{name: "below the limit", testName: strings.Repeat("a", 63-len(timePrefix)), exp: timePrefix + strings.Repeat("a", 63-len(timePrefix))},
+		{name: "at the limit", testName: strings.Repeat("a", 64-len(timePrefix)), exp: timePrefix + strings.Repeat("a", 64-len(timePrefix))},
+		{name: "above the limit", testName: strings.Repeat("a", 65-len(timePrefix)), exp: timePrefix + strings.Repeat("a", 64-len(timePrefix))},
+		{name: "the longest live test's name", testName: "TestWebsocketAPICancelAllByCurrencyPair/live_API", exp: timePrefix + "TestWebsocketAPICancelAllByCurrencyPair/live_AP"},
+		{name: "a short live test's name", testName: "TestBuy/live_API", exp: timePrefix + "TestBuy/live_API"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, liveTradingOrderLabel(tc.testName, now), "liveTradingOrderLabel should put the time ahead of the test's name and cut the label at 64 characters")
+		})
+	}
+}
+
 // newLiveTradingOrderRequest returns a post only limit order of the smallest BTC-PERPETUAL amount, a buy at half the
 // lowest sell price Deribit accepts or a sell at double the highest buy price, so no market move fills it while the
 // test runs; orders with its label are cancelled when the test ends
@@ -600,7 +630,7 @@ func newLiveTradingOrderRequest(t *testing.T, direction string) *OrderRequest {
 	if direction == DirectionSell {
 		price = math.Ceil(ticker.MaxPrice/5) * 10
 	}
-	label := "gct-" + t.Name() + "-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+	label := liveTradingOrderLabel(t.Name(), time.Now())
 	t.Cleanup(func() {
 		_, err := e.CancelByLabel(context.WithoutCancel(t.Context()), &CancelByLabelRequest{Label: label, Currency: currency.BTC})
 		assert.NoError(t, err, "CancelByLabel should cancel the test's orders")
@@ -712,18 +742,26 @@ func TestBuy(t *testing.T) {
 	_, err = e.Buy(t.Context(), &OrderRequest{Amount: 1})
 	require.ErrorIs(t, err, errInstrumentNameRequired, "Buy must reject an empty instrument name")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := mockBuyRequest()
-	if !mockTests {
-		arg = newLiveTradingOrderRequest(t, DirectionBuy)
-	}
-	result, err := e.Buy(t.Context(), arg)
-	require.NoError(t, err, "Buy must not error")
-	if mockTests {
-		assert.Equal(t, testPlacedOrderResponse(), result, "Buy should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		result, err := e.Buy(t.Context(), newLiveTradingOrderRequest(t, DirectionBuy))
+		require.NoError(t, err, "Buy must not error")
 		assert.Equal(t, "open", result.Order.OrderState, "Buy should place a resting order")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.Buy(t.Context(), mockBuyRequest())
+		require.NoError(t, err, "Buy must not error")
+		assert.Equal(t, testPlacedOrderResponse(), result, "Buy should decode every field")
+	})
 
 	ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"order":{},"trades":[]}}`)
 	_, err = ex.Buy(t.Context(), &OrderRequest{
@@ -741,9 +779,9 @@ func TestBuy(t *testing.T) {
 	exp := `{"instrument_name":"BTC-PERPETUAL","contracts":2,"type":"trailing_stop","post_only":false,"trigger_offset":50,"trigger":"mark_price","valid_until":1700000000000,"linked_order_type":"one_triggers_one_cancels_other","trigger_fill_condition":"incremental","otoco_config":[{"amount":20,"direction":"sell","type":"take_limit","price":90000,"reduce_only":true,"trigger_price":89000,"trigger":"last_price"}]}`
 	assert.JSONEq(t, exp, lastParams(), "Buy should send the documented params, always with post_only, which Deribit defaults to true")
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).Buy(t.Context(), arg)
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).Buy(t.Context(), mockBuyRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "Buy should reject a null result")
-	_, err = newUnavailableServerExchange(t).Buy(t.Context(), arg)
+	_, err = newUnavailableServerExchange(t).Buy(t.Context(), mockBuyRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "Buy should return the request failure")
 }
 
@@ -772,7 +810,7 @@ func TestPlaceOrder(t *testing.T) {
 			defer mu.Unlock()
 			assert.Equalf(t, method, sentMethod, "placeOrder should send the method given, %s", method)
 			assert.Equalf(t, "BTC-PERPETUAL", sentParams["instrument_name"], "placeOrder should send the order's instrument for %s", method)
-			assert.InDeltaf(t, 1700000000000, sentParams["valid_until"], 0, "placeOrder should send the order's validity in Unix milliseconds for %s", method)
+			assert.InDeltaf(t, int64(1700000000000), sentParams["valid_until"], 0, "placeOrder should send the order's validity in Unix milliseconds for %s", method)
 		})
 	}
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).placeOrder(t.Context(), "private/buy", arg, false)
@@ -818,23 +856,31 @@ func TestCancelOrderByID(t *testing.T) {
 	_, err := e.CancelOrderByID(t.Context(), "")
 	require.ErrorIs(t, err, errOrderIDRequired, "CancelOrderByID must reject an empty order ID")
 
-	skipLiveUnlessCanManipulate(t)
-	orderID := mockCancelOrderID
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
 		_, order := placeLiveTradingOrder(t)
-		orderID = order.OrderID
-	}
-	result, err := e.CancelOrderByID(t.Context(), orderID)
-	require.NoError(t, err, "CancelOrderByID must not error")
-	if mockTests {
-		assert.Equal(t, testCancelledOrder(), result, "CancelOrderByID should decode every field")
-	} else {
+		result, err := e.CancelOrderByID(t.Context(), order.OrderID)
+		require.NoError(t, err, "CancelOrderByID must not error")
 		assert.Equal(t, "cancelled", result.OrderState, "CancelOrderByID should cancel the order")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelOrderByID(t.Context(), orderID)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelOrderByID(t.Context(), mockCancelOrderID)
+		require.NoError(t, err, "CancelOrderByID must not error")
+		assert.Equal(t, testCancelledOrder(), result, "CancelOrderByID should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelOrderByID(t.Context(), mockCancelOrderID)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelOrderByID should reject a null result")
-	_, err = newUnavailableServerExchange(t).CancelOrderByID(t.Context(), orderID)
+	_, err = newUnavailableServerExchange(t).CancelOrderByID(t.Context(), mockCancelOrderID)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelOrderByID should return the request failure")
 }
 
@@ -1050,23 +1096,31 @@ func TestCancelByLabel(t *testing.T) {
 	_, err = e.CancelByLabel(t.Context(), &CancelByLabelRequest{})
 	require.ErrorIs(t, err, errLabelRequired, "CancelByLabel must reject an empty label")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := mockCancelByLabelRequest()
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
 		placed, _ := placeLiveTradingOrder(t)
-		arg = &CancelByLabelRequest{Label: placed.Label, Currency: currency.BTC}
-	}
-	result, err := e.CancelByLabel(t.Context(), arg)
-	require.NoError(t, err, "CancelByLabel must not error")
-	if mockTests {
-		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelByLabel should decode the count")
-	} else {
+		result, err := e.CancelByLabel(t.Context(), &CancelByLabelRequest{Label: placed.Label, Currency: currency.BTC})
+		require.NoError(t, err, "CancelByLabel must not error")
 		assert.Equal(t, &CancelAllResponse{CancelledCount: 1}, result, "CancelByLabel should cancel the order with the label")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelByLabel(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelByLabel(t.Context(), mockCancelByLabelRequest())
+		require.NoError(t, err, "CancelByLabel must not error")
+		assert.Equal(t, &CancelAllResponse{CancelledCount: 4}, result, "CancelByLabel should decode the count")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelByLabel(t.Context(), mockCancelByLabelRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelByLabel should reject a null result")
-	_, err = newUnavailableServerExchange(t).CancelByLabel(t.Context(), arg)
+	_, err = newUnavailableServerExchange(t).CancelByLabel(t.Context(), mockCancelByLabelRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelByLabel should return the request failure")
 }
 
@@ -1173,23 +1227,32 @@ func TestEditOrder(t *testing.T) {
 	exp := `{"order_id":"94166","contracts":15,"price":50000,"post_only":false,"trigger_offset":10,"valid_until":1700000000000,"display_amount":5}`
 	assert.JSONEq(t, exp, lastParams(), "EditOrder should always send post_only, and leave out an unset MMP flag, which Deribit rejects changing")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := mockEditOrderRequest()
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
 		placed, order := placeLiveTradingOrder(t)
-		arg = &EditOrderRequest{OrderID: order.OrderID, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: true, RejectPostOnly: true}
-	}
-	result, err := e.EditOrder(t.Context(), arg)
-	require.NoError(t, err, "EditOrder must not error")
-	if mockTests {
-		assert.Equal(t, testEditedOrderResponse(), result, "EditOrder should decode every field")
-	} else {
+		arg := &EditOrderRequest{OrderID: order.OrderID, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: true, RejectPostOnly: true}
+		result, err := e.EditOrder(t.Context(), arg)
+		require.NoError(t, err, "EditOrder must not error")
 		assert.Equal(t, arg.Price, result.Order.Price.Value, "EditOrder should reprice the order")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).EditOrder(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.EditOrder(t.Context(), mockEditOrderRequest())
+		require.NoError(t, err, "EditOrder must not error")
+		assert.Equal(t, testEditedOrderResponse(), result, "EditOrder should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).EditOrder(t.Context(), mockEditOrderRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "EditOrder should reject a null result")
-	_, err = newUnavailableServerExchange(t).EditOrder(t.Context(), arg)
+	_, err = newUnavailableServerExchange(t).EditOrder(t.Context(), mockEditOrderRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "EditOrder should return the request failure")
 }
 
@@ -1209,23 +1272,32 @@ func TestEditOrderByLabel(t *testing.T) {
 	require.NoError(t, err, "EditOrderByLabel must not error")
 	assert.JSONEq(t, `{"instrument_name":"BTC-PERPETUAL","label":"gct","amount":20,"post_only":true,"valid_until":1700000000000}`, lastParams(), "EditOrderByLabel should send the valid until time in Unix milliseconds")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := mockEditOrderByLabelRequest()
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
 		placed, _ := placeLiveTradingOrder(t)
-		arg = &EditOrderByLabelRequest{InstrumentName: placed.InstrumentName, Label: placed.Label, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: true, RejectPostOnly: true}
-	}
-	result, err := e.EditOrderByLabel(t.Context(), arg)
-	require.NoError(t, err, "EditOrderByLabel must not error")
-	if mockTests {
-		assert.Equal(t, testEditedOrderResponse(), result, "EditOrderByLabel should decode every field")
-	} else {
+		arg := &EditOrderByLabelRequest{InstrumentName: placed.InstrumentName, Label: placed.Label, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: true, RejectPostOnly: true}
+		result, err := e.EditOrderByLabel(t.Context(), arg)
+		require.NoError(t, err, "EditOrderByLabel must not error")
 		assert.Equal(t, arg.Price, result.Order.Price.Value, "EditOrderByLabel should reprice the order")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).EditOrderByLabel(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.EditOrderByLabel(t.Context(), mockEditOrderByLabelRequest())
+		require.NoError(t, err, "EditOrderByLabel must not error")
+		assert.Equal(t, testEditedOrderResponse(), result, "EditOrderByLabel should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).EditOrderByLabel(t.Context(), mockEditOrderByLabelRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "EditOrderByLabel should reject a null result")
-	_, err = newUnavailableServerExchange(t).EditOrderByLabel(t.Context(), arg)
+	_, err = newUnavailableServerExchange(t).EditOrderByLabel(t.Context(), mockEditOrderByLabelRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "EditOrderByLabel should return the request failure")
 }
 
@@ -1240,22 +1312,30 @@ func TestGetMargins(t *testing.T) {
 	_, err = e.GetMargins(t.Context(), &MarginsRequest{InstrumentName: "BTC_USDC", Amount: 1, Price: 1, AmountType: "notional"})
 	require.ErrorIs(t, err, errInvalidMarginAmountType, "GetMargins must reject an undocumented amount type")
 
-	skipLiveWithoutCredentials(t)
-	arg := mockMarginsRequest()
-	if !mockTests {
-		arg = &MarginsRequest{InstrumentName: liveTradingInstrument, Amount: liveTradingOrderAmount, Price: getLiveTradingTicker(t).MarkPrice}
-	}
-	result, err := e.GetMargins(t.Context(), arg)
-	require.NoError(t, err, "GetMargins must not error")
-	if mockTests {
-		assert.Equal(t, testMarginsResponse(), result, "GetMargins should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetMargins(t.Context(), &MarginsRequest{InstrumentName: liveTradingInstrument, Amount: liveTradingOrderAmount, Price: getLiveTradingTicker(t).MarkPrice})
+		require.NoError(t, err, "GetMargins must not error")
 		assert.Positive(t, result.MaxPrice, "GetMargins should return the highest buy price")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetMargins(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetMargins(t.Context(), mockMarginsRequest())
+		require.NoError(t, err, "GetMargins must not error")
+		assert.Equal(t, testMarginsResponse(), result, "GetMargins should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetMargins(t.Context(), mockMarginsRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetMargins should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetMargins(t.Context(), arg)
+	_, err = newUnavailableServerExchange(t).GetMargins(t.Context(), mockMarginsRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMargins should return the request failure")
 }
 
@@ -1269,18 +1349,27 @@ func TestGetMarketMakerProtectionConfig(t *testing.T) {
 	_, err = limited.GetMarketMakerProtectionConfig(noDelay, mockMarketMakerProtectionGroupRequest())
 	assert.NoError(t, err, "GetMarketMakerProtectionConfig should be limited as a non-matching engine request")
 
-	skipLiveWithoutCredentials(t)
-	arg := mockMarketMakerProtectionGroupRequest()
-	if !mockTests {
-		arg = &MarketMakerProtectionGroupRequest{}
-	}
-	result, err := e.GetMarketMakerProtectionConfig(t.Context(), arg)
-	require.NoError(t, err, "GetMarketMakerProtectionConfig must not error")
-	if mockTests {
-		assert.Equal(t, testMarketMakerProtectionConfigs(), result, "GetMarketMakerProtectionConfig should decode every field")
-	}
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		_, err := e.GetMarketMakerProtectionConfig(t.Context(), &MarketMakerProtectionGroupRequest{})
+		require.NoError(t, err, "GetMarketMakerProtectionConfig must not error")
+	})
 
-	_, err = newUnavailableServerExchange(t).GetMarketMakerProtectionConfig(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetMarketMakerProtectionConfig(t.Context(), mockMarketMakerProtectionGroupRequest())
+		require.NoError(t, err, "GetMarketMakerProtectionConfig must not error")
+		assert.Equal(t, testMarketMakerProtectionConfigs(), result, "GetMarketMakerProtectionConfig should decode every field")
+	})
+
+	_, err = newUnavailableServerExchange(t).GetMarketMakerProtectionConfig(t.Context(), mockMarketMakerProtectionGroupRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMarketMakerProtectionConfig should return the request failure")
 }
 
@@ -1294,18 +1383,27 @@ func TestGetMarketMakerProtectionStatus(t *testing.T) {
 	_, err = limited.GetMarketMakerProtectionStatus(noDelay, mockMarketMakerProtectionGroupRequest())
 	assert.NoError(t, err, "GetMarketMakerProtectionStatus should be limited as a non-matching engine request")
 
-	skipLiveWithoutCredentials(t)
-	arg := mockMarketMakerProtectionGroupRequest()
-	if !mockTests {
-		arg = &MarketMakerProtectionGroupRequest{}
-	}
-	result, err := e.GetMarketMakerProtectionStatus(t.Context(), arg)
-	require.NoError(t, err, "GetMarketMakerProtectionStatus must not error")
-	if mockTests {
-		assert.Equal(t, testMarketMakerProtectionStatuses(), result, "GetMarketMakerProtectionStatus should decode every field")
-	}
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		_, err := e.GetMarketMakerProtectionStatus(t.Context(), &MarketMakerProtectionGroupRequest{})
+		require.NoError(t, err, "GetMarketMakerProtectionStatus must not error")
+	})
 
-	_, err = newUnavailableServerExchange(t).GetMarketMakerProtectionStatus(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetMarketMakerProtectionStatus(t.Context(), mockMarketMakerProtectionGroupRequest())
+		require.NoError(t, err, "GetMarketMakerProtectionStatus must not error")
+		assert.Equal(t, testMarketMakerProtectionStatuses(), result, "GetMarketMakerProtectionStatus should decode every field")
+	})
+
+	_, err = newUnavailableServerExchange(t).GetMarketMakerProtectionStatus(t.Context(), mockMarketMakerProtectionGroupRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMarketMakerProtectionStatus should return the request failure")
 }
 
@@ -1318,12 +1416,25 @@ func TestGetOpenOrders(t *testing.T) {
 	_, err = e.GetOpenOrders(t.Context(), &OpenOrdersRequest{Type: "stop"})
 	require.ErrorIs(t, err, errInvalidOpenOrderType, "GetOpenOrders must reject an undocumented order type")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetOpenOrders(t.Context(), &OpenOrdersRequest{})
-	require.NoError(t, err, "GetOpenOrders must not error")
-	if mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		_, err := e.GetOpenOrders(t.Context(), &OpenOrdersRequest{})
+		require.NoError(t, err, "GetOpenOrders must not error")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetOpenOrders(t.Context(), &OpenOrdersRequest{})
+		require.NoError(t, err, "GetOpenOrders must not error")
 		assert.Equal(t, testOpenOrders(), result, "GetOpenOrders should decode every field")
-	}
+	})
 
 	_, err = newUnavailableServerExchange(t).GetOpenOrders(t.Context(), &OpenOrdersRequest{})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenOrders should return the request failure")
@@ -1340,12 +1451,25 @@ func TestGetOpenOrdersByCurrency(t *testing.T) {
 	_, err = e.GetOpenOrdersByCurrency(t.Context(), &OpenOrdersByCurrencyRequest{Currency: currency.BTC, Type: "stop"})
 	require.ErrorIs(t, err, errInvalidOpenOrderType, "GetOpenOrdersByCurrency must reject an undocumented order type")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetOpenOrdersByCurrency(t.Context(), mockOpenOrdersByCurrencyRequest())
-	require.NoError(t, err, "GetOpenOrdersByCurrency must not error")
-	if mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		_, err := e.GetOpenOrdersByCurrency(t.Context(), mockOpenOrdersByCurrencyRequest())
+		require.NoError(t, err, "GetOpenOrdersByCurrency must not error")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetOpenOrdersByCurrency(t.Context(), mockOpenOrdersByCurrencyRequest())
+		require.NoError(t, err, "GetOpenOrdersByCurrency must not error")
 		assert.Equal(t, testOpenOrders(), result, "GetOpenOrdersByCurrency should decode every field")
-	}
+	})
 
 	_, err = newUnavailableServerExchange(t).GetOpenOrdersByCurrency(t.Context(), mockOpenOrdersByCurrencyRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenOrdersByCurrency should return the request failure")
@@ -1360,18 +1484,27 @@ func TestGetOpenOrdersByInstrument(t *testing.T) {
 	_, err = e.GetOpenOrdersByInstrument(t.Context(), &OpenOrdersByInstrumentRequest{InstrumentName: "BTC-PERPETUAL", Type: "stop"})
 	require.ErrorIs(t, err, errInvalidOpenOrderType, "GetOpenOrdersByInstrument must reject an undocumented order type")
 
-	skipLiveWithoutCredentials(t)
-	arg := mockOpenOrdersByInstrumentRequest()
-	if !mockTests {
-		arg = &OpenOrdersByInstrumentRequest{InstrumentName: liveTradingInstrument}
-	}
-	result, err := e.GetOpenOrdersByInstrument(t.Context(), arg)
-	require.NoError(t, err, "GetOpenOrdersByInstrument must not error")
-	if mockTests {
-		assert.Equal(t, testOpenOrders(), result, "GetOpenOrdersByInstrument should decode every field")
-	}
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		_, err := e.GetOpenOrdersByInstrument(t.Context(), &OpenOrdersByInstrumentRequest{InstrumentName: liveTradingInstrument})
+		require.NoError(t, err, "GetOpenOrdersByInstrument must not error")
+	})
 
-	_, err = newUnavailableServerExchange(t).GetOpenOrdersByInstrument(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetOpenOrdersByInstrument(t.Context(), mockOpenOrdersByInstrumentRequest())
+		require.NoError(t, err, "GetOpenOrdersByInstrument must not error")
+		assert.Equal(t, testOpenOrders(), result, "GetOpenOrdersByInstrument should decode every field")
+	})
+
+	_, err = newUnavailableServerExchange(t).GetOpenOrdersByInstrument(t.Context(), mockOpenOrdersByInstrumentRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenOrdersByInstrument should return the request failure")
 }
 
@@ -1384,12 +1517,25 @@ func TestGetOpenOrdersByLabel(t *testing.T) {
 	_, err = e.GetOpenOrdersByLabel(t.Context(), &OrdersByLabelRequest{Currency: currency.BTC})
 	require.ErrorIs(t, err, errLabelRequired, "GetOpenOrdersByLabel must reject an empty label")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetOpenOrdersByLabel(t.Context(), mockOpenOrdersByLabelRequest())
-	require.NoError(t, err, "GetOpenOrdersByLabel must not error")
-	if mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		_, err := e.GetOpenOrdersByLabel(t.Context(), mockOpenOrdersByLabelRequest())
+		require.NoError(t, err, "GetOpenOrdersByLabel must not error")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetOpenOrdersByLabel(t.Context(), mockOpenOrdersByLabelRequest())
+		require.NoError(t, err, "GetOpenOrdersByLabel must not error")
 		assert.Equal(t, testOpenOrders(), result, "GetOpenOrdersByLabel should decode every field")
-	}
+	})
 
 	_, err = newUnavailableServerExchange(t).GetOpenOrdersByLabel(t.Context(), mockOpenOrdersByLabelRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenOrdersByLabel should return the request failure")
@@ -1406,14 +1552,26 @@ func TestGetOrderHistoryByCurrency(t *testing.T) {
 	_, err = e.GetOrderHistoryByCurrency(t.Context(), &OrderHistoryByCurrencyRequest{Currency: currency.BTC, Count: 1001})
 	require.ErrorIs(t, err, errInvalidCount, "GetOrderHistoryByCurrency must reject a count over 1000")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetOrderHistoryByCurrency(t.Context(), mockOrderHistoryByCurrencyRequest())
-	require.NoError(t, err, "GetOrderHistoryByCurrency must not error")
-	if mockTests {
-		assert.Equal(t, testOrderHistoryResponse(), result, "GetOrderHistoryByCurrency should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetOrderHistoryByCurrency(t.Context(), mockOrderHistoryByCurrencyRequest())
+		require.NoError(t, err, "GetOrderHistoryByCurrency must not error")
 		assert.LessOrEqual(t, len(result.Orders), 1, "GetOrderHistoryByCurrency should return at most the count of orders")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetOrderHistoryByCurrency(t.Context(), mockOrderHistoryByCurrencyRequest())
+		require.NoError(t, err, "GetOrderHistoryByCurrency must not error")
+		assert.Equal(t, testOrderHistoryResponse(), result, "GetOrderHistoryByCurrency should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetOrderHistoryByCurrency(t.Context(), mockOrderHistoryByCurrencyRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOrderHistoryByCurrency should reject a null result")
@@ -1430,14 +1588,26 @@ func TestGetOrderHistoryByInstrument(t *testing.T) {
 	_, err = e.GetOrderHistoryByInstrument(t.Context(), &OrderHistoryByInstrumentRequest{InstrumentName: "BTC-PERPETUAL", Count: 1001})
 	require.ErrorIs(t, err, errInvalidCount, "GetOrderHistoryByInstrument must reject a count over 1000")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetOrderHistoryByInstrument(t.Context(), mockOrderHistoryByInstrumentRequest())
-	require.NoError(t, err, "GetOrderHistoryByInstrument must not error")
-	if mockTests {
-		assert.Equal(t, testOrderHistoryResponse(), result, "GetOrderHistoryByInstrument should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetOrderHistoryByInstrument(t.Context(), mockOrderHistoryByInstrumentRequest())
+		require.NoError(t, err, "GetOrderHistoryByInstrument must not error")
 		assert.LessOrEqual(t, len(result.Orders), 1, "GetOrderHistoryByInstrument should return at most the count of orders")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetOrderHistoryByInstrument(t.Context(), mockOrderHistoryByInstrumentRequest())
+		require.NoError(t, err, "GetOrderHistoryByInstrument must not error")
+		assert.Equal(t, testOrderHistoryResponse(), result, "GetOrderHistoryByInstrument should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetOrderHistoryByInstrument(t.Context(), mockOrderHistoryByInstrumentRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOrderHistoryByInstrument should reject a null result")
@@ -1452,21 +1622,32 @@ func TestGetOrderMarginByIDs(t *testing.T) {
 	_, err = e.GetOrderMarginByIDs(t.Context(), []string{"ETH-349280", ""})
 	require.ErrorIs(t, err, errOrderIDRequired, "GetOrderMarginByIDs must reject an empty order ID in the list")
 
-	skipLiveUnlessCanManipulate(t)
-	orderIDs := mockOrderMarginIDs
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
 		_, order := placeLiveTradingOrder(t)
-		orderIDs = []string{order.OrderID}
-	}
-	result, err := e.GetOrderMarginByIDs(t.Context(), orderIDs)
-	require.NoError(t, err, "GetOrderMarginByIDs must not error")
-	if mockTests {
-		assert.Equal(t, testOrderMargins(), result, "GetOrderMarginByIDs should decode every field")
-	} else if assert.Len(t, result, 1, "GetOrderMarginByIDs should return the order's margin") {
-		assert.Equal(t, orderIDs[0], result[0].OrderID, "GetOrderMarginByIDs should return the order's margin")
-	}
+		orderIDs := []string{order.OrderID}
+		result, err := e.GetOrderMarginByIDs(t.Context(), orderIDs)
+		require.NoError(t, err, "GetOrderMarginByIDs must not error")
+		if assert.Len(t, result, 1, "GetOrderMarginByIDs should return the order's margin") {
+			assert.Equal(t, orderIDs[0], result[0].OrderID, "GetOrderMarginByIDs should return the order's margin")
+		}
+	})
 
-	_, err = newUnavailableServerExchange(t).GetOrderMarginByIDs(t.Context(), orderIDs)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetOrderMarginByIDs(t.Context(), mockOrderMarginIDs)
+		require.NoError(t, err, "GetOrderMarginByIDs must not error")
+		assert.Equal(t, testOrderMargins(), result, "GetOrderMarginByIDs should decode every field")
+	})
+
+	_, err = newUnavailableServerExchange(t).GetOrderMarginByIDs(t.Context(), mockOrderMarginIDs)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderMarginByIDs should return the request failure")
 }
 
@@ -1475,23 +1656,32 @@ func TestGetOrderState(t *testing.T) {
 	_, err := e.GetOrderState(t.Context(), "")
 	require.ErrorIs(t, err, errOrderIDRequired, "GetOrderState must reject an empty order ID")
 
-	skipLiveUnlessCanManipulate(t)
-	orderID := mockOrderStateID
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
 		_, order := placeLiveTradingOrder(t)
-		orderID = order.OrderID
-	}
-	result, err := e.GetOrderState(t.Context(), orderID)
-	require.NoError(t, err, "GetOrderState must not error")
-	if mockTests {
-		assert.Equal(t, testOrderState(""), result, "GetOrderState should decode every field")
-	} else {
+		orderID := order.OrderID
+		result, err := e.GetOrderState(t.Context(), orderID)
+		require.NoError(t, err, "GetOrderState must not error")
 		assert.Equal(t, orderID, result.OrderID, "GetOrderState should return the order")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetOrderState(t.Context(), orderID)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetOrderState(t.Context(), mockOrderStateID)
+		require.NoError(t, err, "GetOrderState must not error")
+		assert.Equal(t, testOrderState(""), result, "GetOrderState should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetOrderState(t.Context(), mockOrderStateID)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOrderState should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetOrderState(t.Context(), orderID)
+	_, err = newUnavailableServerExchange(t).GetOrderState(t.Context(), mockOrderStateID)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderState should return the request failure")
 }
 
@@ -1504,12 +1694,25 @@ func TestGetOrderStateByLabel(t *testing.T) {
 	_, err = e.GetOrderStateByLabel(t.Context(), &OrdersByLabelRequest{Currency: currency.ETH})
 	require.ErrorIs(t, err, errLabelRequired, "GetOrderStateByLabel must reject an empty label")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetOrderStateByLabel(t.Context(), mockOrderStateByLabelRequest())
-	require.NoError(t, err, "GetOrderStateByLabel must not error")
-	if mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		_, err := e.GetOrderStateByLabel(t.Context(), mockOrderStateByLabelRequest())
+		require.NoError(t, err, "GetOrderStateByLabel must not error")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetOrderStateByLabel(t.Context(), mockOrderStateByLabelRequest())
+		require.NoError(t, err, "GetOrderStateByLabel must not error")
 		assert.Equal(t, []OrderResponse{*testOrderState("fooBar")}, result, "GetOrderStateByLabel should decode every field")
-	}
+	})
 
 	_, err = newUnavailableServerExchange(t).GetOrderStateByLabel(t.Context(), mockOrderStateByLabelRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderStateByLabel should return the request failure")
@@ -1531,22 +1734,30 @@ func TestGetSettlementHistoryByCurrency(t *testing.T) {
 	require.NoError(t, err, "GetSettlementHistoryByCurrency must not error")
 	assert.JSONEq(t, `{"currency":"BTC","search_start_timestamp":1700000000000}`, lastParams(), "GetSettlementHistoryByCurrency should send the search start time in Unix milliseconds")
 
-	skipLiveWithoutCredentials(t)
-	arg := mockSettlementHistoryByCurrencyRequest()
-	if !mockTests {
-		arg = &SettlementHistoryByCurrencyRequest{Currency: currency.BTC, Count: 1}
-	}
-	result, err := e.GetSettlementHistoryByCurrency(t.Context(), arg)
-	require.NoError(t, err, "GetSettlementHistoryByCurrency must not error")
-	if mockTests {
-		assert.Equal(t, testSettlementHistoryResponse(), result, "GetSettlementHistoryByCurrency should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetSettlementHistoryByCurrency(t.Context(), &SettlementHistoryByCurrencyRequest{Currency: currency.BTC, Count: 1})
+		require.NoError(t, err, "GetSettlementHistoryByCurrency must not error")
 		assert.LessOrEqual(t, len(result.Settlements), 1, "GetSettlementHistoryByCurrency should return at most the count of events")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetSettlementHistoryByCurrency(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetSettlementHistoryByCurrency(t.Context(), mockSettlementHistoryByCurrencyRequest())
+		require.NoError(t, err, "GetSettlementHistoryByCurrency must not error")
+		assert.Equal(t, testSettlementHistoryResponse(), result, "GetSettlementHistoryByCurrency should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetSettlementHistoryByCurrency(t.Context(), mockSettlementHistoryByCurrencyRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetSettlementHistoryByCurrency should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetSettlementHistoryByCurrency(t.Context(), arg)
+	_, err = newUnavailableServerExchange(t).GetSettlementHistoryByCurrency(t.Context(), mockSettlementHistoryByCurrencyRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetSettlementHistoryByCurrency should return the request failure")
 }
 
@@ -1566,22 +1777,30 @@ func TestGetSettlementHistoryByInstrument(t *testing.T) {
 	require.NoError(t, err, "GetSettlementHistoryByInstrument must not error")
 	assert.JSONEq(t, `{"instrument_name":"BTC-PERPETUAL","search_start_timestamp":1700000000000}`, lastParams(), "GetSettlementHistoryByInstrument should send the search start time in Unix milliseconds")
 
-	skipLiveWithoutCredentials(t)
-	arg := mockSettlementHistoryByInstrumentRequest()
-	if !mockTests {
-		arg = &SettlementHistoryByInstrumentRequest{InstrumentName: liveTradingInstrument, Count: 1}
-	}
-	result, err := e.GetSettlementHistoryByInstrument(t.Context(), arg)
-	require.NoError(t, err, "GetSettlementHistoryByInstrument must not error")
-	if mockTests {
-		assert.Equal(t, testSettlementHistoryResponse(), result, "GetSettlementHistoryByInstrument should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetSettlementHistoryByInstrument(t.Context(), &SettlementHistoryByInstrumentRequest{InstrumentName: liveTradingInstrument, Count: 1})
+		require.NoError(t, err, "GetSettlementHistoryByInstrument must not error")
 		assert.LessOrEqual(t, len(result.Settlements), 1, "GetSettlementHistoryByInstrument should return at most the count of events")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetSettlementHistoryByInstrument(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetSettlementHistoryByInstrument(t.Context(), mockSettlementHistoryByInstrumentRequest())
+		require.NoError(t, err, "GetSettlementHistoryByInstrument must not error")
+		assert.Equal(t, testSettlementHistoryResponse(), result, "GetSettlementHistoryByInstrument should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetSettlementHistoryByInstrument(t.Context(), mockSettlementHistoryByInstrumentRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetSettlementHistoryByInstrument should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetSettlementHistoryByInstrument(t.Context(), arg)
+	_, err = newUnavailableServerExchange(t).GetSettlementHistoryByInstrument(t.Context(), mockSettlementHistoryByInstrumentRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetSettlementHistoryByInstrument should return the request failure")
 }
 
@@ -1594,22 +1813,30 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 	_, err = e.GetTriggerOrderHistory(t.Context(), &TriggerOrderHistoryRequest{Currency: currency.ETH, Count: 1001})
 	require.ErrorIs(t, err, errInvalidCount, "GetTriggerOrderHistory must reject a count over 1000")
 
-	skipLiveWithoutCredentials(t)
-	arg := mockTriggerOrderHistoryRequest()
-	if !mockTests {
-		arg = &TriggerOrderHistoryRequest{Currency: currency.BTC, Count: 1}
-	}
-	result, err := e.GetTriggerOrderHistory(t.Context(), arg)
-	require.NoError(t, err, "GetTriggerOrderHistory must not error")
-	if mockTests {
-		assert.Equal(t, testTriggerOrderHistoryResponse(), result, "GetTriggerOrderHistory should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetTriggerOrderHistory(t.Context(), &TriggerOrderHistoryRequest{Currency: currency.BTC, Count: 1})
+		require.NoError(t, err, "GetTriggerOrderHistory must not error")
 		assert.LessOrEqual(t, len(result.Entries), 1, "GetTriggerOrderHistory should return at most the count of entries")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetTriggerOrderHistory(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetTriggerOrderHistory(t.Context(), mockTriggerOrderHistoryRequest())
+		require.NoError(t, err, "GetTriggerOrderHistory must not error")
+		assert.Equal(t, testTriggerOrderHistoryResponse(), result, "GetTriggerOrderHistory should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetTriggerOrderHistory(t.Context(), mockTriggerOrderHistoryRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetTriggerOrderHistory should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetTriggerOrderHistory(t.Context(), arg)
+	_, err = newUnavailableServerExchange(t).GetTriggerOrderHistory(t.Context(), mockTriggerOrderHistoryRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetTriggerOrderHistory should return the request failure")
 }
 
@@ -1633,22 +1860,30 @@ func TestGetUserTradesByCurrency(t *testing.T) {
 	require.NoError(t, err, "GetUserTradesByCurrency must not error")
 	assert.JSONEq(t, `{"currency":"BTC","end_timestamp":1700000000000,"historical":true,"subaccount_id":7}`, lastParams(), "GetUserTradesByCurrency should send a set end time alone, in Unix milliseconds")
 
-	skipLiveWithoutCredentials(t)
-	arg := mockUserTradesByCurrencyRequest()
-	if !mockTests {
-		arg = &UserTradesByCurrencyRequest{Currency: currency.BTC, Count: 1}
-	}
-	result, err := e.GetUserTradesByCurrency(t.Context(), arg)
-	require.NoError(t, err, "GetUserTradesByCurrency must not error")
-	if mockTests {
-		assert.Equal(t, testUserTradesResponse(), result, "GetUserTradesByCurrency should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetUserTradesByCurrency(t.Context(), &UserTradesByCurrencyRequest{Currency: currency.BTC, Count: 1})
+		require.NoError(t, err, "GetUserTradesByCurrency must not error")
 		assert.LessOrEqual(t, len(result.Trades), 1, "GetUserTradesByCurrency should return at most the count of trades")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetUserTradesByCurrency(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetUserTradesByCurrency(t.Context(), mockUserTradesByCurrencyRequest())
+		require.NoError(t, err, "GetUserTradesByCurrency must not error")
+		assert.Equal(t, testUserTradesResponse(), result, "GetUserTradesByCurrency should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetUserTradesByCurrency(t.Context(), mockUserTradesByCurrencyRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetUserTradesByCurrency should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetUserTradesByCurrency(t.Context(), arg)
+	_, err = newUnavailableServerExchange(t).GetUserTradesByCurrency(t.Context(), mockUserTradesByCurrencyRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserTradesByCurrency should return the request failure")
 }
 
@@ -1669,22 +1904,30 @@ func TestGetUserTradesByCurrencyAndTime(t *testing.T) {
 	_, err = e.GetUserTradesByCurrencyAndTime(t.Context(), &UserTradesByCurrencyAndTimeRequest{Currency: currency.BTC, StartTime: time.UnixMilli(2), EndTime: time.UnixMilli(1)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUserTradesByCurrencyAndTime must reject a start after the end")
 
-	skipLiveWithoutCredentials(t)
-	arg := mockUserTradesByCurrencyAndTimeRequest()
-	if !mockTests {
-		arg = &UserTradesByCurrencyAndTimeRequest{Currency: currency.BTC, StartTime: time.Now().Add(-24 * time.Hour), EndTime: time.Now(), Count: 1}
-	}
-	result, err := e.GetUserTradesByCurrencyAndTime(t.Context(), arg)
-	require.NoError(t, err, "GetUserTradesByCurrencyAndTime must not error")
-	if mockTests {
-		assert.Equal(t, testUserTradesResponse(), result, "GetUserTradesByCurrencyAndTime should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetUserTradesByCurrencyAndTime(t.Context(), &UserTradesByCurrencyAndTimeRequest{Currency: currency.BTC, StartTime: time.Now().Add(-24 * time.Hour), EndTime: time.Now(), Count: 1})
+		require.NoError(t, err, "GetUserTradesByCurrencyAndTime must not error")
 		assert.LessOrEqual(t, len(result.Trades), 1, "GetUserTradesByCurrencyAndTime should return at most the count of trades")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetUserTradesByCurrencyAndTime(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetUserTradesByCurrencyAndTime(t.Context(), mockUserTradesByCurrencyAndTimeRequest())
+		require.NoError(t, err, "GetUserTradesByCurrencyAndTime must not error")
+		assert.Equal(t, testUserTradesResponse(), result, "GetUserTradesByCurrencyAndTime should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetUserTradesByCurrencyAndTime(t.Context(), mockUserTradesByCurrencyAndTimeRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetUserTradesByCurrencyAndTime should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetUserTradesByCurrencyAndTime(t.Context(), arg)
+	_, err = newUnavailableServerExchange(t).GetUserTradesByCurrencyAndTime(t.Context(), mockUserTradesByCurrencyAndTimeRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserTradesByCurrencyAndTime should return the request failure")
 }
 
@@ -1706,22 +1949,30 @@ func TestGetUserTradesByInstrument(t *testing.T) {
 	require.NoError(t, err, "GetUserTradesByInstrument must not error")
 	assert.JSONEq(t, `{"instrument_name":"BTC-PERPETUAL","end_seq":9,"start_timestamp":1600000000000,"end_timestamp":1700000000000}`, lastParams(), "GetUserTradesByInstrument should send the time range in Unix milliseconds")
 
-	skipLiveWithoutCredentials(t)
-	arg := mockUserTradesByInstrumentRequest()
-	if !mockTests {
-		arg = &UserTradesByInstrumentRequest{InstrumentName: liveTradingInstrument, Count: 1}
-	}
-	result, err := e.GetUserTradesByInstrument(t.Context(), arg)
-	require.NoError(t, err, "GetUserTradesByInstrument must not error")
-	if mockTests {
-		assert.Equal(t, testUserTradesResponse(), result, "GetUserTradesByInstrument should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetUserTradesByInstrument(t.Context(), &UserTradesByInstrumentRequest{InstrumentName: liveTradingInstrument, Count: 1})
+		require.NoError(t, err, "GetUserTradesByInstrument must not error")
 		assert.LessOrEqual(t, len(result.Trades), 1, "GetUserTradesByInstrument should return at most the count of trades")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetUserTradesByInstrument(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetUserTradesByInstrument(t.Context(), mockUserTradesByInstrumentRequest())
+		require.NoError(t, err, "GetUserTradesByInstrument must not error")
+		assert.Equal(t, testUserTradesResponse(), result, "GetUserTradesByInstrument should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetUserTradesByInstrument(t.Context(), mockUserTradesByInstrumentRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetUserTradesByInstrument should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetUserTradesByInstrument(t.Context(), arg)
+	_, err = newUnavailableServerExchange(t).GetUserTradesByInstrument(t.Context(), mockUserTradesByInstrumentRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserTradesByInstrument should return the request failure")
 }
 
@@ -1740,22 +1991,30 @@ func TestGetUserTradesByInstrumentAndTime(t *testing.T) {
 	_, err = e.GetUserTradesByInstrumentAndTime(t.Context(), &UserTradesByInstrumentAndTimeRequest{InstrumentName: "BTC-PERPETUAL", StartTime: time.UnixMilli(2), EndTime: time.UnixMilli(1)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUserTradesByInstrumentAndTime must reject a start after the end")
 
-	skipLiveWithoutCredentials(t)
-	arg := mockUserTradesByInstrumentAndTimeRequest()
-	if !mockTests {
-		arg = &UserTradesByInstrumentAndTimeRequest{InstrumentName: liveTradingInstrument, StartTime: time.Now().Add(-24 * time.Hour), EndTime: time.Now(), Count: 1}
-	}
-	result, err := e.GetUserTradesByInstrumentAndTime(t.Context(), arg)
-	require.NoError(t, err, "GetUserTradesByInstrumentAndTime must not error")
-	if mockTests {
-		assert.Equal(t, testUserTradesResponse(), result, "GetUserTradesByInstrumentAndTime should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetUserTradesByInstrumentAndTime(t.Context(), &UserTradesByInstrumentAndTimeRequest{InstrumentName: liveTradingInstrument, StartTime: time.Now().Add(-24 * time.Hour), EndTime: time.Now(), Count: 1})
+		require.NoError(t, err, "GetUserTradesByInstrumentAndTime must not error")
 		assert.LessOrEqual(t, len(result.Trades), 1, "GetUserTradesByInstrumentAndTime should return at most the count of trades")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetUserTradesByInstrumentAndTime(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetUserTradesByInstrumentAndTime(t.Context(), mockUserTradesByInstrumentAndTimeRequest())
+		require.NoError(t, err, "GetUserTradesByInstrumentAndTime must not error")
+		assert.Equal(t, testUserTradesResponse(), result, "GetUserTradesByInstrumentAndTime should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetUserTradesByInstrumentAndTime(t.Context(), mockUserTradesByInstrumentAndTimeRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetUserTradesByInstrumentAndTime should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetUserTradesByInstrumentAndTime(t.Context(), arg)
+	_, err = newUnavailableServerExchange(t).GetUserTradesByInstrumentAndTime(t.Context(), mockUserTradesByInstrumentAndTimeRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserTradesByInstrumentAndTime should return the request failure")
 }
 
@@ -1768,21 +2027,29 @@ func TestGetUserTradesByOrder(t *testing.T) {
 	_, err = e.GetUserTradesByOrder(t.Context(), &UserTradesByOrderRequest{OrderID: mockUserTradesOrderID, Sorting: "newest"})
 	require.ErrorIs(t, err, errInvalidUserTradesSorting, "GetUserTradesByOrder must reject an undocumented sorting")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := &UserTradesByOrderRequest{OrderID: mockUserTradesOrderID}
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
 		_, order := placeLiveTradingOrder(t)
-		arg = &UserTradesByOrderRequest{OrderID: order.OrderID}
-	}
-	result, err := e.GetUserTradesByOrder(t.Context(), arg)
-	require.NoError(t, err, "GetUserTradesByOrder must not error")
-	if mockTests {
-		assert.Equal(t, testUserTradesByOrder(), result, "GetUserTradesByOrder should decode every field")
-	} else {
+		result, err := e.GetUserTradesByOrder(t.Context(), &UserTradesByOrderRequest{OrderID: order.OrderID})
+		require.NoError(t, err, "GetUserTradesByOrder must not error")
 		assert.Empty(t, result, "GetUserTradesByOrder should return no trades for an unfilled order")
-	}
+	})
 
-	_, err = newUnavailableServerExchange(t).GetUserTradesByOrder(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetUserTradesByOrder(t.Context(), &UserTradesByOrderRequest{OrderID: mockUserTradesOrderID})
+		require.NoError(t, err, "GetUserTradesByOrder must not error")
+		assert.Equal(t, testUserTradesByOrder(), result, "GetUserTradesByOrder should decode every field")
+	})
+
+	_, err = newUnavailableServerExchange(t).GetUserTradesByOrder(t.Context(), &UserTradesByOrderRequest{OrderID: mockUserTradesOrderID})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserTradesByOrder should return the request failure")
 }
 
@@ -1874,17 +2141,29 @@ func TestResetMarketMakerProtection(t *testing.T) {
 	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":"ok"}`)
 	assert.NoError(t, limited.ResetMarketMakerProtection(noDelay, mockMarketMakerProtectionGroupRequest()), "ResetMarketMakerProtection should be limited as a non-matching engine request")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := mockMarketMakerProtectionGroupRequest()
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
 		setLiveTradingMarketMakerProtectionConfig(t, e.SetMarketMakerProtectionConfig)
-		arg = &MarketMakerProtectionGroupRequest{IndexName: liveTradingIndexName}
-	}
-	require.NoError(t, e.ResetMarketMakerProtection(t.Context(), arg), "ResetMarketMakerProtection must not error")
+		arg := &MarketMakerProtectionGroupRequest{IndexName: liveTradingIndexName}
+		require.NoError(t, e.ResetMarketMakerProtection(t.Context(), arg), "ResetMarketMakerProtection must not error")
+	})
 
-	err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"failed"}`).ResetMarketMakerProtection(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		arg := mockMarketMakerProtectionGroupRequest()
+		require.NoError(t, e.ResetMarketMakerProtection(t.Context(), arg), "ResetMarketMakerProtection must not error")
+	})
+
+	err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"failed"}`).ResetMarketMakerProtection(t.Context(), mockMarketMakerProtectionGroupRequest())
 	assert.ErrorIs(t, err, errUnexpectedResult, "ResetMarketMakerProtection should reject a result other than ok")
-	err = newUnavailableServerExchange(t).ResetMarketMakerProtection(t.Context(), arg)
+	err = newUnavailableServerExchange(t).ResetMarketMakerProtection(t.Context(), mockMarketMakerProtectionGroupRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ResetMarketMakerProtection should return the request failure")
 }
 
@@ -1895,22 +2174,30 @@ func TestSell(t *testing.T) {
 	_, err = e.Sell(t.Context(), &OrderRequest{InstrumentName: "ETH-PERPETUAL"})
 	require.ErrorIs(t, err, errInvalidAmount, "Sell must reject an order without a size")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := mockSellRequest()
-	if !mockTests {
-		arg = newLiveTradingOrderRequest(t, DirectionSell)
-	}
-	result, err := e.Sell(t.Context(), arg)
-	require.NoError(t, err, "Sell must not error")
-	if mockTests {
-		assert.Equal(t, testPlacedOrderResponse(), result, "Sell should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		result, err := e.Sell(t.Context(), newLiveTradingOrderRequest(t, DirectionSell))
+		require.NoError(t, err, "Sell must not error")
 		assert.Equal(t, "open", result.Order.OrderState, "Sell should place a resting order")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).Sell(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.Sell(t.Context(), mockSellRequest())
+		require.NoError(t, err, "Sell must not error")
+		assert.Equal(t, testPlacedOrderResponse(), result, "Sell should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).Sell(t.Context(), mockSellRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "Sell should reject a null result")
-	_, err = newUnavailableServerExchange(t).Sell(t.Context(), arg)
+	_, err = newUnavailableServerExchange(t).Sell(t.Context(), mockSellRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "Sell should return the request failure")
 }
 
@@ -1942,15 +2229,25 @@ func TestSetMarketMakerProtectionConfig(t *testing.T) {
 	_, err = limited.SetMarketMakerProtectionConfig(noDelay, mockSetMarketMakerProtectionConfigRequest())
 	assert.NoError(t, err, "SetMarketMakerProtectionConfig should be limited as a non-matching engine request")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
 		result := setLiveTradingMarketMakerProtectionConfig(t, e.SetMarketMakerProtectionConfig)
 		assert.NotEmpty(t, result, "SetMarketMakerProtectionConfig should return the configuration")
-		return
-	}
-	result, err := e.SetMarketMakerProtectionConfig(t.Context(), mockSetMarketMakerProtectionConfigRequest())
-	require.NoError(t, err, "SetMarketMakerProtectionConfig must not error")
-	assert.Equal(t, testSetMarketMakerProtectionConfigs(), result, "SetMarketMakerProtectionConfig should decode every field")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.SetMarketMakerProtectionConfig(t.Context(), mockSetMarketMakerProtectionConfigRequest())
+		require.NoError(t, err, "SetMarketMakerProtectionConfig must not error")
+		assert.Equal(t, testSetMarketMakerProtectionConfigs(), result, "SetMarketMakerProtectionConfig should decode every field")
+	})
 
 	_, err = newUnavailableServerExchange(t).SetMarketMakerProtectionConfig(t.Context(), mockSetMarketMakerProtectionConfigRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "SetMarketMakerProtectionConfig should return the request failure")

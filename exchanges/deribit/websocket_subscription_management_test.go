@@ -33,27 +33,46 @@ func TestWebsocketAPISubscribe(t *testing.T) {
 
 func TestWebsocketAPISubscribePrivate(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	ex, venue := newWebsocketTestExchange(t)
-	_, err := ex.WebsocketAPI().SubscribePrivate(t.Context(), nil)
+	_, err := newTestExchange(t).WebsocketAPI().SubscribePrivate(t.Context(), nil)
 	require.ErrorIs(t, err, errChannelsRequired, "WebsocketAPI.SubscribePrivate must reject a nil request")
-	_, err = ex.WebsocketAPI().SubscribePrivate(t.Context(), &PrivateSubscribeRequest{})
+	_, err = newTestExchange(t).WebsocketAPI().SubscribePrivate(t.Context(), &PrivateSubscribeRequest{})
 	require.ErrorIs(t, err, errChannelsRequired, "WebsocketAPI.SubscribePrivate must reject an empty channel list")
-	_, err = ex.WebsocketAPI().SubscribePrivate(t.Context(), &PrivateSubscribeRequest{Channels: []string{"user.lock"}, Label: strings.Repeat("a", 17)})
+	_, err = newTestExchange(t).WebsocketAPI().SubscribePrivate(t.Context(), &PrivateSubscribeRequest{Channels: []string{"user.lock"}, Label: strings.Repeat("a", 17)})
 	require.ErrorIs(t, err, errSubscriptionLabelTooLong, "WebsocketAPI.SubscribePrivate must reject a label over 16 characters")
 
 	channels := []string{"user.lock"}
-	result, err := ex.WebsocketAPI().SubscribePrivate(t.Context(), &PrivateSubscribeRequest{Channels: channels, Label: "gct"})
-	require.NoError(t, err, "WebsocketAPI.SubscribePrivate must not error")
-	assert.Equal(t, channels, result, "WebsocketAPI.SubscribePrivate should return the subscribed channels")
-	if mockTests {
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().SubscribePrivate(t.Context(), &PrivateSubscribeRequest{Channels: channels, Label: "gct"})
+		require.NoError(t, err, "WebsocketAPI.SubscribePrivate must not error")
+		assert.Equal(t, channels, result, "WebsocketAPI.SubscribePrivate should return the subscribed channels")
+		result, err = ex.WebsocketAPI().UnsubscribePrivate(t.Context(), channels)
+		require.NoError(t, err, "WebsocketAPI.UnsubscribePrivate must not error")
+		assert.Equal(t, channels, result, "WebsocketAPI.UnsubscribePrivate should return the unsubscribed channels")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().SubscribePrivate(t.Context(), &PrivateSubscribeRequest{Channels: channels, Label: "gct"})
+		require.NoError(t, err, "WebsocketAPI.SubscribePrivate must not error")
+		assert.Equal(t, channels, result, "WebsocketAPI.SubscribePrivate should return the subscribed channels")
 		requests := venue.received("private/subscribe")
 		require.Len(t, requests, 1, "WebsocketAPI.SubscribePrivate must send one request")
 		assert.JSONEq(t, `{"channels":["user.lock"],"label":"gct"}`, string(requests[0].Params), "WebsocketAPI.SubscribePrivate should send the channels and label")
-	}
-	result, err = ex.WebsocketAPI().UnsubscribePrivate(t.Context(), channels)
-	require.NoError(t, err, "WebsocketAPI.UnsubscribePrivate must not error")
-	assert.Equal(t, channels, result, "WebsocketAPI.UnsubscribePrivate should return the unsubscribed channels")
+		result, err = ex.WebsocketAPI().UnsubscribePrivate(t.Context(), channels)
+		require.NoError(t, err, "WebsocketAPI.UnsubscribePrivate must not error")
+		assert.Equal(t, channels, result, "WebsocketAPI.UnsubscribePrivate should return the unsubscribed channels")
+	})
 
 	_, err = newTestExchange(t).WebsocketAPI().SubscribePrivate(t.Context(), &PrivateSubscribeRequest{Channels: channels})
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SubscribePrivate should error without an authenticated connection")
@@ -93,17 +112,37 @@ func TestWebsocketAPIUnsubscribe(t *testing.T) {
 
 func TestWebsocketAPIUnsubscribePrivate(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	ex, _ := newWebsocketTestExchange(t)
-	_, err := ex.WebsocketAPI().UnsubscribePrivate(t.Context(), nil)
+	_, err := newTestExchange(t).WebsocketAPI().UnsubscribePrivate(t.Context(), nil)
 	require.ErrorIs(t, err, errChannelsRequired, "WebsocketAPI.UnsubscribePrivate must reject an empty channel list")
 
 	channels := []string{"user.access_log"}
-	_, err = ex.WebsocketAPI().SubscribePrivate(t.Context(), &PrivateSubscribeRequest{Channels: channels})
-	require.NoError(t, err, "WebsocketAPI.SubscribePrivate must not error")
-	result, err := ex.WebsocketAPI().UnsubscribePrivate(t.Context(), channels)
-	require.NoError(t, err, "WebsocketAPI.UnsubscribePrivate must not error")
-	assert.Equal(t, channels, result, "WebsocketAPI.UnsubscribePrivate should return the unsubscribed channels")
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().SubscribePrivate(t.Context(), &PrivateSubscribeRequest{Channels: channels})
+		require.NoError(t, err, "WebsocketAPI.SubscribePrivate must not error")
+		result, err := ex.WebsocketAPI().UnsubscribePrivate(t.Context(), channels)
+		require.NoError(t, err, "WebsocketAPI.UnsubscribePrivate must not error")
+		assert.Equal(t, channels, result, "WebsocketAPI.UnsubscribePrivate should return the unsubscribed channels")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().SubscribePrivate(t.Context(), &PrivateSubscribeRequest{Channels: channels})
+		require.NoError(t, err, "WebsocketAPI.SubscribePrivate must not error")
+		result, err := ex.WebsocketAPI().UnsubscribePrivate(t.Context(), channels)
+		require.NoError(t, err, "WebsocketAPI.UnsubscribePrivate must not error")
+		assert.Equal(t, channels, result, "WebsocketAPI.UnsubscribePrivate should return the unsubscribed channels")
+	})
 
 	_, err = newTestExchange(t).WebsocketAPI().UnsubscribePrivate(t.Context(), channels)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.UnsubscribePrivate should error without an authenticated connection")

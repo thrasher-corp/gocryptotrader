@@ -114,6 +114,17 @@ func testAPIKeyID(t *testing.T) uint64 {
 	return liveTestAPIKey(t).ID
 }
 
+// skipLiveIfSecurityKeysEnabled skips a live case creating a subaccount when the account has security keys enabled, as
+// Deribit then asks for a security key to remove it, which the case's cleanup cannot give
+func skipLiveIfSecurityKeysEnabled(t *testing.T) {
+	t.Helper()
+	summary, err := e.GetAccountSummary(t.Context(), &GetAccountSummaryRequest{Currency: currency.BTC, Extended: true})
+	require.NoError(t, err, "GetAccountSummary must not error")
+	if summary.SecurityKeysEnabled {
+		t.Skip("removing a subaccount needs a security key on this account")
+	}
+}
+
 // liveTestSubaccount returns a subaccount of the live account, skipping the test when it has none
 func liveTestSubaccount(t *testing.T) *SubaccountResponse {
 	t.Helper()
@@ -885,16 +896,29 @@ func TestChangeAPIKeyName(t *testing.T) {
 	_, err = e.ChangeAPIKeyName(t.Context(), &ChangeAPIKeyNameRequest{ID: mockAPIKeyID})
 	require.ErrorIs(t, err, errAPIKeyNameRequired, "ChangeAPIKeyName must reject an empty name")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := testChangeAPIKeyNameRequest(t)
-	result, err := e.ChangeAPIKeyName(t.Context(), arg)
-	require.NoError(t, err, "ChangeAPIKeyName must not error")
-	if mockTests {
-		assert.Equal(t, testAPIKey(), result, "ChangeAPIKeyName should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		arg := testChangeAPIKeyNameRequest(t)
+		result, err := e.ChangeAPIKeyName(t.Context(), arg)
+		require.NoError(t, err, "ChangeAPIKeyName must not error")
 		assert.Equal(t, arg.Name, result.Name, "ChangeAPIKeyName should return the new name")
-	}
+	})
 
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.ChangeAPIKeyName(t.Context(), testChangeAPIKeyNameRequest(t))
+		require.NoError(t, err, "ChangeAPIKeyName must not error")
+		assert.Equal(t, testAPIKey(), result, "ChangeAPIKeyName should decode every field")
+	})
+
+	arg := &ChangeAPIKeyNameRequest{ID: mockAPIKeyID, Name: mockAPIKeyName}
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).ChangeAPIKeyName(t.Context(), arg)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "ChangeAPIKeyName should reject a null result")
 	_, err = newUnavailableServerExchange(t).ChangeAPIKeyName(t.Context(), arg)
@@ -908,15 +932,27 @@ func TestChangeMarginModel(t *testing.T) {
 	_, err = e.ChangeMarginModel(t.Context(), &ChangeMarginModelRequest{MarginModel: "cross"})
 	require.ErrorIs(t, err, errInvalidMarginModel, "ChangeMarginModel must reject an undocumented margin model")
 
-	// The live request is a dry run, which changes nothing, but needs the account write scope
-	skipLiveUnlessCanManipulate(t)
-	result, err := e.ChangeMarginModel(t.Context(), testChangeMarginModelRequest())
-	require.NoError(t, err, "ChangeMarginModel must not error")
-	if mockTests {
-		assert.Equal(t, testMarginModelChanges(), result, "ChangeMarginModel should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		// The live request is a dry run, which changes nothing, but needs the account write scope
+		skipLiveUnlessCanManipulate(t)
+		result, err := e.ChangeMarginModel(t.Context(), testChangeMarginModelRequest())
+		require.NoError(t, err, "ChangeMarginModel must not error")
 		assert.NotEmpty(t, result, "ChangeMarginModel should return the change's effect on each currency")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.ChangeMarginModel(t.Context(), testChangeMarginModelRequest())
+		require.NoError(t, err, "ChangeMarginModel must not error")
+		assert.Equal(t, testMarginModelChanges(), result, "ChangeMarginModel should decode every field")
+	})
 
 	_, err = newUnavailableServerExchange(t).ChangeMarginModel(t.Context(), testChangeMarginModelRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ChangeMarginModel should return the request failure")
@@ -931,16 +967,29 @@ func TestChangeScopeInAPIKey(t *testing.T) {
 	_, err = e.ChangeScopeInAPIKey(t.Context(), &ChangeScopeInAPIKeyRequest{ID: mockAPIKeyID})
 	require.ErrorIs(t, err, errAPIKeyMaxScopeRequired, "ChangeScopeInAPIKey must reject an empty scope")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := testChangeScopeInAPIKeyRequest(t)
-	result, err := e.ChangeScopeInAPIKey(t.Context(), arg)
-	require.NoError(t, err, "ChangeScopeInAPIKey must not error")
-	if mockTests {
-		assert.Equal(t, testAPIKey(), result, "ChangeScopeInAPIKey should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		arg := testChangeScopeInAPIKeyRequest(t)
+		result, err := e.ChangeScopeInAPIKey(t.Context(), arg)
+		require.NoError(t, err, "ChangeScopeInAPIKey must not error")
 		assert.ElementsMatch(t, arg.MaxScope, result.MaxScope, "ChangeScopeInAPIKey should return the new scope")
-	}
+	})
 
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.ChangeScopeInAPIKey(t.Context(), testChangeScopeInAPIKeyRequest(t))
+		require.NoError(t, err, "ChangeScopeInAPIKey must not error")
+		assert.Equal(t, testAPIKey(), result, "ChangeScopeInAPIKey should decode every field")
+	})
+
+	arg := &ChangeScopeInAPIKeyRequest{ID: mockAPIKeyID, MaxScope: testAPIKeyScopes()}
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).ChangeScopeInAPIKey(t.Context(), arg)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "ChangeScopeInAPIKey should reject a null result")
 	_, err = newUnavailableServerExchange(t).ChangeScopeInAPIKey(t.Context(), arg)
@@ -956,10 +1005,25 @@ func TestChangeSubaccountName(t *testing.T) {
 	err = e.ChangeSubaccountName(t.Context(), &ChangeSubaccountNameRequest{SubaccountID: mockAccountSubaccountID})
 	require.ErrorIs(t, err, errSubaccountNameRequired, "ChangeSubaccountName must reject an empty name")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := testChangeSubaccountNameRequest(t)
-	require.NoError(t, e.ChangeSubaccountName(t.Context(), arg), "ChangeSubaccountName must not error")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		arg := testChangeSubaccountNameRequest(t)
+		require.NoError(t, e.ChangeSubaccountName(t.Context(), arg), "ChangeSubaccountName must not error")
+	})
 
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.ChangeSubaccountName(t.Context(), testChangeSubaccountNameRequest(t)), "ChangeSubaccountName must not error")
+	})
+
+	arg := &ChangeSubaccountNameRequest{SubaccountID: mockAccountSubaccountID, Name: mockSubaccountName}
 	err = newUnavailableServerExchange(t).ChangeSubaccountName(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ChangeSubaccountName should return the request failure")
 }
@@ -973,17 +1037,27 @@ func TestCreateAPIKey(t *testing.T) {
 	_, err = e.CreateAPIKey(t.Context(), &CreateAPIKeyRequest{MaxScope: testAPIKeyScopes(), EnabledFeatures: []string{"bogus"}})
 	require.ErrorIs(t, err, errInvalidAPIKeyFeature, "CreateAPIKey must reject an undocumented feature")
 
-	skipLiveUnlessCanManipulate(t)
-	if mockTests {
-		result, err := e.CreateAPIKey(t.Context(), testCreateAPIKeyRequest())
-		require.NoError(t, err, "CreateAPIKey must not error")
-		assert.Equal(t, testAPIKey(), result, "CreateAPIKey should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
 		result, err := e.CreateAPIKey(t.Context(), liveTestAPIKeyRequest())
 		require.NoError(t, err, "CreateAPIKey must not error")
 		assert.NotEmpty(t, result.ClientSecret, "CreateAPIKey should return the key's secret")
 		require.NoError(t, e.RemoveAPIKey(t.Context(), result.ID), "RemoveAPIKey must remove the created API key")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CreateAPIKey(t.Context(), testCreateAPIKeyRequest())
+		require.NoError(t, err, "CreateAPIKey must not error")
+		assert.Equal(t, testAPIKey(), result, "CreateAPIKey should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CreateAPIKey(t.Context(), testCreateAPIKeyRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateAPIKey should reject a null result")
@@ -1020,6 +1094,7 @@ func TestCreateSubaccount(t *testing.T) {
 			t.Skip("the mocked case below checks the recorded replies")
 		}
 		skipLiveUnlessCanManipulate(t)
+		skipLiveIfSecurityKeysEnabled(t)
 		result, err := e.CreateSubaccount(t.Context())
 		if requireAnsweredOnMerits(t, err, "CreateSubaccount") {
 			require.NotZero(t, result.ID, "CreateSubaccount must return the new subaccount's ID")
@@ -1081,19 +1156,31 @@ func TestDisableAPIKey(t *testing.T) {
 	_, err := e.DisableAPIKey(t.Context(), 0)
 	require.ErrorIs(t, err, errAPIKeyIDRequired, "DisableAPIKey must reject an empty API key ID")
 
-	skipLiveUnlessCanManipulate(t)
-	id := testAPIKeyID(t)
-	result, err := e.DisableAPIKey(t.Context(), id)
-	require.NoError(t, err, "DisableAPIKey must not error")
-	if mockTests {
-		assert.Equal(t, testAPIKey(), result, "DisableAPIKey should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		id := testAPIKeyID(t)
+		result, err := e.DisableAPIKey(t.Context(), id)
+		require.NoError(t, err, "DisableAPIKey must not error")
 		assert.False(t, result.Enabled, "DisableAPIKey should return the key disabled")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).DisableAPIKey(t.Context(), id)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.DisableAPIKey(t.Context(), testAPIKeyID(t))
+		require.NoError(t, err, "DisableAPIKey must not error")
+		assert.Equal(t, testAPIKey(), result, "DisableAPIKey should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).DisableAPIKey(t.Context(), mockAPIKeyID)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "DisableAPIKey should reject a null result")
-	_, err = newUnavailableServerExchange(t).DisableAPIKey(t.Context(), id)
+	_, err = newUnavailableServerExchange(t).DisableAPIKey(t.Context(), mockAPIKeyID)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "DisableAPIKey should return the request failure")
 }
 
@@ -1108,16 +1195,29 @@ func TestEditAPIKey(t *testing.T) {
 	_, err = e.EditAPIKey(t.Context(), &EditAPIKeyRequest{ID: mockAPIKeyID, MaxScope: testAPIKeyScopes(), EnabledFeatures: []string{"bogus"}})
 	require.ErrorIs(t, err, errInvalidAPIKeyFeature, "EditAPIKey must reject an undocumented feature")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := testEditAPIKeyRequest(t)
-	result, err := e.EditAPIKey(t.Context(), arg)
-	require.NoError(t, err, "EditAPIKey must not error")
-	if mockTests {
-		assert.Equal(t, testAPIKey(), result, "EditAPIKey should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		arg := testEditAPIKeyRequest(t)
+		result, err := e.EditAPIKey(t.Context(), arg)
+		require.NoError(t, err, "EditAPIKey must not error")
 		assert.Equal(t, arg.Name, result.Name, "EditAPIKey should return the new name")
-	}
+	})
 
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.EditAPIKey(t.Context(), testEditAPIKeyRequest(t))
+		require.NoError(t, err, "EditAPIKey must not error")
+		assert.Equal(t, testAPIKey(), result, "EditAPIKey should decode every field")
+	})
+
+	arg := &EditAPIKeyRequest{ID: mockAPIKeyID, MaxScope: testAPIKeyScopes(), Name: mockEditedAPIKeyName}
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).EditAPIKey(t.Context(), arg)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "EditAPIKey should reject a null result")
 	_, err = newUnavailableServerExchange(t).EditAPIKey(t.Context(), arg)
@@ -1182,19 +1282,31 @@ func TestEnableAPIKey(t *testing.T) {
 	_, err := e.EnableAPIKey(t.Context(), 0)
 	require.ErrorIs(t, err, errAPIKeyIDRequired, "EnableAPIKey must reject an empty API key ID")
 
-	skipLiveUnlessCanManipulate(t)
-	id := testAPIKeyID(t)
-	result, err := e.EnableAPIKey(t.Context(), id)
-	require.NoError(t, err, "EnableAPIKey must not error")
-	if mockTests {
-		assert.Equal(t, testAPIKey(), result, "EnableAPIKey should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		id := testAPIKeyID(t)
+		result, err := e.EnableAPIKey(t.Context(), id)
+		require.NoError(t, err, "EnableAPIKey must not error")
 		assert.True(t, result.Enabled, "EnableAPIKey should return the key enabled")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).EnableAPIKey(t.Context(), id)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.EnableAPIKey(t.Context(), testAPIKeyID(t))
+		require.NoError(t, err, "EnableAPIKey must not error")
+		assert.Equal(t, testAPIKey(), result, "EnableAPIKey should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).EnableAPIKey(t.Context(), mockAPIKeyID)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "EnableAPIKey should reject a null result")
-	_, err = newUnavailableServerExchange(t).EnableAPIKey(t.Context(), id)
+	_, err = newUnavailableServerExchange(t).EnableAPIKey(t.Context(), mockAPIKeyID)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "EnableAPIKey should return the request failure")
 }
 
@@ -1203,14 +1315,26 @@ func TestGetAccessLog(t *testing.T) {
 	_, err := e.GetAccessLog(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetAccessLog must reject a nil request")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetAccessLog(t.Context(), &GetAccessLogRequest{Count: mockAccessLogCount})
-	require.NoError(t, err, "GetAccessLog must not error")
-	if mockTests {
-		assert.Equal(t, testAccessLog(), result, "GetAccessLog should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetAccessLog(t.Context(), &GetAccessLogRequest{Count: mockAccessLogCount})
+		require.NoError(t, err, "GetAccessLog must not error")
 		assert.LessOrEqual(t, len(result.Entries), mockAccessLogCount, "GetAccessLog should return at most the entries asked for")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetAccessLog(t.Context(), &GetAccessLogRequest{Count: mockAccessLogCount})
+		require.NoError(t, err, "GetAccessLog must not error")
+		assert.Equal(t, testAccessLog(), result, "GetAccessLog should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetAccessLog(t.Context(), &GetAccessLogRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetAccessLog should reject a null result")
@@ -1259,14 +1383,26 @@ func TestGetAccountSummaries(t *testing.T) {
 	_, err := e.GetAccountSummaries(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetAccountSummaries must reject a nil request")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetAccountSummaries(t.Context(), &GetAccountSummariesRequest{Extended: true})
-	require.NoError(t, err, "GetAccountSummaries must not error")
-	if mockTests {
-		assert.Equal(t, testAccountSummaries(), result, "GetAccountSummaries should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetAccountSummaries(t.Context(), &GetAccountSummariesRequest{Extended: true})
+		require.NoError(t, err, "GetAccountSummaries must not error")
 		assert.NotEmpty(t, result.Summaries, "GetAccountSummaries should return a summary for each currency the account holds")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetAccountSummaries(t.Context(), &GetAccountSummariesRequest{Extended: true})
+		require.NoError(t, err, "GetAccountSummaries must not error")
+		assert.Equal(t, testAccountSummaries(), result, "GetAccountSummaries should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetAccountSummaries(t.Context(), &GetAccountSummariesRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetAccountSummaries should reject a null result")
@@ -1281,16 +1417,29 @@ func TestGetAccountSummary(t *testing.T) {
 	_, err = e.GetAccountSummary(t.Context(), &GetAccountSummaryRequest{Extended: true})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetAccountSummary must reject an empty currency")
 
-	skipLiveWithoutCredentials(t)
 	arg := &GetAccountSummaryRequest{Currency: currency.BTC, Extended: true}
-	result, err := e.GetAccountSummary(t.Context(), arg)
-	require.NoError(t, err, "GetAccountSummary must not error")
-	if mockTests {
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetAccountSummary(t.Context(), arg)
+		require.NoError(t, err, "GetAccountSummary must not error")
+		assert.Equal(t, currency.BTC, result.Currency, "GetAccountSummary should return the summary in the currency asked for")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetAccountSummary(t.Context(), arg)
+		require.NoError(t, err, "GetAccountSummary must not error")
 		exp := &AccountSummaryResponse{AccountSummary: testBTCAccountSummary(), AccountDetails: testAccountDetails()}
 		assert.Equal(t, exp, result, "GetAccountSummary should decode every field")
-	} else {
-		assert.Equal(t, currency.BTC, result.Currency, "GetAccountSummary should return the summary in the currency asked for")
-	}
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetAccountSummary(t.Context(), arg)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetAccountSummary should reject a null result")
@@ -1370,16 +1519,29 @@ func TestMatchingEngineLimitsUnmarshalJSON(t *testing.T) {
 
 func TestGetAffiliateProgramInfo(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetAffiliateProgramInfo(t.Context())
-	require.NoError(t, err, "GetAffiliateProgramInfo must not error")
-	if mockTests {
-		assert.Equal(t, testAffiliateProgramInfo(), result, "GetAffiliateProgramInfo should decode every field")
-	} else {
-		assert.NotNil(t, result, "GetAffiliateProgramInfo should return the affiliate program information")
-	}
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetAffiliateProgramInfo(t.Context())
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetAffiliateProgramInfo(t.Context())
+		require.NoError(t, err, "GetAffiliateProgramInfo must not error")
+		assert.NotNil(t, result, "GetAffiliateProgramInfo should return the affiliate program information")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetAffiliateProgramInfo(t.Context())
+		require.NoError(t, err, "GetAffiliateProgramInfo must not error")
+		assert.Equal(t, testAffiliateProgramInfo(), result, "GetAffiliateProgramInfo should decode every field")
+	})
+
+	_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetAffiliateProgramInfo(t.Context())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetAffiliateProgramInfo should reject a null result")
 	_, err = newUnavailableServerExchange(t).GetAffiliateProgramInfo(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetAffiliateProgramInfo should return the request failure")
@@ -1387,32 +1549,58 @@ func TestGetAffiliateProgramInfo(t *testing.T) {
 
 func TestGetAccountCurrencies(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetAccountCurrencies(t.Context())
-	require.NoError(t, err, "GetAccountCurrencies must not error")
-	if mockTests {
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetAccountCurrencies(t.Context())
+		require.NoError(t, err, "GetAccountCurrencies must not error")
+		assert.NotEmpty(t, result, "GetAccountCurrencies should return the account's currencies")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetAccountCurrencies(t.Context())
+		require.NoError(t, err, "GetAccountCurrencies must not error")
 		exp := []AccountCurrencyResponse{{Currency: currency.NewCode("btc")}, {Currency: currency.NewCode("eth")}, {Currency: currency.NewCode("usdc")}}
 		assert.Equal(t, exp, result, "GetAccountCurrencies should decode every field")
-	} else {
-		assert.NotEmpty(t, result, "GetAccountCurrencies should return the account's currencies")
-	}
+	})
 
-	_, err = newUnavailableServerExchange(t).GetAccountCurrencies(t.Context())
+	_, err := newUnavailableServerExchange(t).GetAccountCurrencies(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetAccountCurrencies should return the request failure")
 }
 
 func TestGetEmailLanguage(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetEmailLanguage(t.Context())
-	require.NoError(t, err, "GetEmailLanguage must not error")
-	if mockTests {
-		assert.Equal(t, mockEmailLanguage, result, "GetEmailLanguage should decode the language")
-	} else {
-		assert.NotEmpty(t, result, "GetEmailLanguage should return the language")
-	}
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetEmailLanguage(t.Context())
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetEmailLanguage(t.Context())
+		require.NoError(t, err, "GetEmailLanguage must not error")
+		assert.NotEmpty(t, result, "GetEmailLanguage should return the language")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetEmailLanguage(t.Context())
+		require.NoError(t, err, "GetEmailLanguage must not error")
+		assert.Equal(t, mockEmailLanguage, result, "GetEmailLanguage should decode the language")
+	})
+
+	_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetEmailLanguage(t.Context())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetEmailLanguage should reject a null result")
 	_, err = newUnavailableServerExchange(t).GetEmailLanguage(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetEmailLanguage should return the request failure")
@@ -1420,16 +1608,29 @@ func TestGetEmailLanguage(t *testing.T) {
 
 func TestGetMembers(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetMembers(t.Context())
-	require.NoError(t, err, "GetMembers must not error")
-	if mockTests {
-		assert.Equal(t, testMembers(), result, "GetMembers should decode every field")
-	} else {
-		assert.NotNil(t, result, "GetMembers should return the account's members")
-	}
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetMembers(t.Context())
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetMembers(t.Context())
+		require.NoError(t, err, "GetMembers must not error")
+		assert.NotNil(t, result, "GetMembers should return the account's members")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetMembers(t.Context())
+		require.NoError(t, err, "GetMembers must not error")
+		assert.Equal(t, testMembers(), result, "GetMembers should decode every field")
+	})
+
+	_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetMembers(t.Context())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetMembers should reject a null result")
 	_, err = newUnavailableServerExchange(t).GetMembers(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMembers should return the request failure")
@@ -1437,14 +1638,28 @@ func TestGetMembers(t *testing.T) {
 
 func TestGetNewAnnouncements(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetNewAnnouncements(t.Context())
-	require.NoError(t, err, "GetNewAnnouncements must not error")
-	if mockTests {
-		assert.Equal(t, testNewAnnouncements(), result, "GetNewAnnouncements should decode every field")
-	}
 
-	_, err = newUnavailableServerExchange(t).GetNewAnnouncements(t.Context())
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		_, err := e.GetNewAnnouncements(t.Context())
+		require.NoError(t, err, "GetNewAnnouncements must not error")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetNewAnnouncements(t.Context())
+		require.NoError(t, err, "GetNewAnnouncements must not error")
+		assert.Equal(t, testNewAnnouncements(), result, "GetNewAnnouncements should decode every field")
+	})
+
+	_, err := newUnavailableServerExchange(t).GetNewAnnouncements(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetNewAnnouncements should return the request failure")
 }
 
@@ -1453,14 +1668,26 @@ func TestGetPosition(t *testing.T) {
 	_, err := e.GetPosition(t.Context(), "")
 	require.ErrorIs(t, err, errInstrumentNameRequired, "GetPosition must reject an empty instrument name")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetPosition(t.Context(), mockPositionInstrument)
-	require.NoError(t, err, "GetPosition must not error")
-	if mockTests {
-		assert.Equal(t, testPosition(), result, "GetPosition should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetPosition(t.Context(), mockPositionInstrument)
+		require.NoError(t, err, "GetPosition must not error")
 		assert.Equal(t, mockPositionInstrument, result.InstrumentName, "GetPosition should return the position in the instrument asked for")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetPosition(t.Context(), mockPositionInstrument)
+		require.NoError(t, err, "GetPosition must not error")
+		assert.Equal(t, testPosition(), result, "GetPosition should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetPosition(t.Context(), mockPositionInstrument)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetPosition should reject a null result")
@@ -1475,17 +1702,30 @@ func TestGetPositions(t *testing.T) {
 	_, err = e.GetPositions(t.Context(), &GetPositionsRequest{Kind: KindSpot})
 	require.ErrorIs(t, err, errInvalidKind, "GetPositions must reject spot, which holds balances rather than positions")
 
-	skipLiveWithoutCredentials(t)
 	arg := &GetPositionsRequest{Currency: currency.BTC, Kind: KindFuture}
-	result, err := e.GetPositions(t.Context(), arg)
-	require.NoError(t, err, "GetPositions must not error")
-	if mockTests {
-		assert.Equal(t, testPositions(), result, "GetPositions should decode every field")
-	} else {
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetPositions(t.Context(), arg)
+		require.NoError(t, err, "GetPositions must not error")
 		for i := range result {
 			assert.Equal(t, KindFuture, result[i].Kind, "GetPositions should return positions of the kind asked for")
 		}
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetPositions(t.Context(), arg)
+		require.NoError(t, err, "GetPositions must not error")
+		assert.Equal(t, testPositions(), result, "GetPositions should decode every field")
+	})
 
 	_, err = newUnavailableServerExchange(t).GetPositions(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetPositions should return the request failure")
@@ -1493,16 +1733,29 @@ func TestGetPositions(t *testing.T) {
 
 func TestGetSubaccounts(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetSubaccounts(t.Context(), true)
-	require.NoError(t, err, "GetSubaccounts must not error")
-	if mockTests {
-		assert.Equal(t, testSubaccounts(), result, "GetSubaccounts should decode every field")
-	} else {
-		assert.NotEmpty(t, result, "GetSubaccounts should return the main account")
-	}
 
-	_, err = newUnavailableServerExchange(t).GetSubaccounts(t.Context(), true)
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetSubaccounts(t.Context(), true)
+		require.NoError(t, err, "GetSubaccounts must not error")
+		assert.NotEmpty(t, result, "GetSubaccounts should return the main account")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetSubaccounts(t.Context(), true)
+		require.NoError(t, err, "GetSubaccounts must not error")
+		assert.Equal(t, testSubaccounts(), result, "GetSubaccounts should decode every field")
+	})
+
+	_, err := newUnavailableServerExchange(t).GetSubaccounts(t.Context(), true)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetSubaccounts should return the request failure")
 }
 
@@ -1513,17 +1766,30 @@ func TestGetSubaccountsDetails(t *testing.T) {
 	_, err = e.GetSubaccountsDetails(t.Context(), &GetSubaccountsDetailsRequest{WithOpenOrders: true})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetSubaccountsDetails must reject an empty currency")
 
-	skipLiveWithoutCredentials(t)
 	arg := &GetSubaccountsDetailsRequest{Currency: currency.BTC, WithOpenOrders: true}
-	result, err := e.GetSubaccountsDetails(t.Context(), arg)
-	require.NoError(t, err, "GetSubaccountsDetails must not error")
-	if mockTests {
-		assert.Equal(t, testSubaccountsDetails(), result, "GetSubaccountsDetails should decode every field")
-	} else {
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetSubaccountsDetails(t.Context(), arg)
+		require.NoError(t, err, "GetSubaccountsDetails must not error")
 		for i := range result {
 			assert.NotZero(t, result[i].UserID, "GetSubaccountsDetails should identify each account")
 		}
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetSubaccountsDetails(t.Context(), arg)
+		require.NoError(t, err, "GetSubaccountsDetails must not error")
+		assert.Equal(t, testSubaccountsDetails(), result, "GetSubaccountsDetails should decode every field")
+	})
 
 	_, err = newUnavailableServerExchange(t).GetSubaccountsDetails(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetSubaccountsDetails should return the request failure")
@@ -1564,14 +1830,26 @@ func TestGetTransactionLog(t *testing.T) {
 		})
 	}
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetTransactionLog(t.Context(), testTransactionLogRequest())
-	require.NoError(t, err, "GetTransactionLog must not error")
-	if mockTests {
-		assert.Equal(t, testTransactionLog(), result, "GetTransactionLog should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetTransactionLog(t.Context(), testTransactionLogRequest())
+		require.NoError(t, err, "GetTransactionLog must not error")
 		assert.LessOrEqual(t, len(result.Logs), mockTransactionLogCount, "GetTransactionLog should return at most the entries asked for")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetTransactionLog(t.Context(), testTransactionLogRequest())
+		require.NoError(t, err, "GetTransactionLog must not error")
+		assert.Equal(t, testTransactionLog(), result, "GetTransactionLog should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetTransactionLog(t.Context(), testTransactionLogRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetTransactionLog should reject a null result")
@@ -1581,31 +1859,57 @@ func TestGetTransactionLog(t *testing.T) {
 
 func TestGetUserLocks(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetUserLocks(t.Context())
-	require.NoError(t, err, "GetUserLocks must not error")
-	if mockTests {
-		assert.Equal(t, testUserLocks(), result, "GetUserLocks should decode every field")
-	} else {
-		assert.NotEmpty(t, result, "GetUserLocks should return the account's state in each currency")
-	}
 
-	_, err = newUnavailableServerExchange(t).GetUserLocks(t.Context())
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetUserLocks(t.Context())
+		require.NoError(t, err, "GetUserLocks must not error")
+		assert.NotEmpty(t, result, "GetUserLocks should return the account's state in each currency")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetUserLocks(t.Context())
+		require.NoError(t, err, "GetUserLocks must not error")
+		assert.Equal(t, testUserLocks(), result, "GetUserLocks should decode every field")
+	})
+
+	_, err := newUnavailableServerExchange(t).GetUserLocks(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserLocks should return the request failure")
 }
 
 func TestListAPIKeys(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	result, err := e.ListAPIKeys(t.Context())
-	require.NoError(t, err, "ListAPIKeys must not error")
-	if mockTests {
-		assert.Equal(t, testAPIKeys(), result, "ListAPIKeys should decode every field")
-	} else {
-		assert.NotEmpty(t, result, "ListAPIKeys should return the API key in use")
-	}
 
-	_, err = newUnavailableServerExchange(t).ListAPIKeys(t.Context())
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.ListAPIKeys(t.Context())
+		require.NoError(t, err, "ListAPIKeys must not error")
+		assert.NotEmpty(t, result, "ListAPIKeys should return the API key in use")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.ListAPIKeys(t.Context())
+		require.NoError(t, err, "ListAPIKeys must not error")
+		assert.Equal(t, testAPIKeys(), result, "ListAPIKeys should decode every field")
+	})
+
+	_, err := newUnavailableServerExchange(t).ListAPIKeys(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ListAPIKeys should return the request failure")
 }
 
@@ -1662,16 +1966,28 @@ func TestListCustodyAccounts(t *testing.T) {
 	_, err := e.ListCustodyAccounts(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "ListCustodyAccounts must reject an empty currency")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.ListCustodyAccounts(t.Context(), currency.BTC)
-	require.NoError(t, err, "ListCustodyAccounts must not error")
-	if mockTests {
-		assert.Equal(t, testCustodyAccounts(), result, "ListCustodyAccounts should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.ListCustodyAccounts(t.Context(), currency.BTC)
+		require.NoError(t, err, "ListCustodyAccounts must not error")
 		for i := range result {
 			assert.Equal(t, currency.BTC, result[i].Currency, "ListCustodyAccounts should return custody accounts in the currency asked for")
 		}
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.ListCustodyAccounts(t.Context(), currency.BTC)
+		require.NoError(t, err, "ListCustodyAccounts must not error")
+		assert.Equal(t, testCustodyAccounts(), result, "ListCustodyAccounts should decode every field")
+	})
 
 	_, err = newUnavailableServerExchange(t).ListCustodyAccounts(t.Context(), currency.BTC)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ListCustodyAccounts should return the request failure")
@@ -1684,14 +2000,26 @@ func TestPMESimulate(t *testing.T) {
 	_, err = e.PMESimulate(t.Context(), &SimulatePortfolioRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "PMESimulate must reject an empty currency")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.PMESimulate(t.Context(), &SimulatePortfolioRequest{Currency: currency.BTC})
-	require.NoError(t, err, "PMESimulate must not error")
-	if mockTests {
-		assert.Equal(t, testPMESimulation(), result, "PMESimulate should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.PMESimulate(t.Context(), &SimulatePortfolioRequest{Currency: currency.BTC})
+		require.NoError(t, err, "PMESimulate must not error")
 		assert.NotEmpty(t, result.IndexPrices, "PMESimulate should return the index prices simulated")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.PMESimulate(t.Context(), &SimulatePortfolioRequest{Currency: currency.BTC})
+		require.NoError(t, err, "PMESimulate must not error")
+		assert.Equal(t, testPMESimulation(), result, "PMESimulate should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).PMESimulate(t.Context(), &SimulatePortfolioRequest{Currency: currency.BTC})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "PMESimulate should reject a null result")
@@ -1703,15 +2031,27 @@ func TestRemoveAPIKey(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.RemoveAPIKey(t.Context(), 0), errAPIKeyIDRequired, "RemoveAPIKey must reject an empty API key ID")
 
-	skipLiveUnlessCanManipulate(t)
 	id := uint64(mockAPIKeyID)
-	if !mockTests {
+
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
 		// The key is created for the test, so removing it restores the account's keys
 		key, err := e.CreateAPIKey(t.Context(), liveTestAPIKeyRequest())
 		require.NoError(t, err, "CreateAPIKey must create an API key to remove")
-		id = key.ID
-	}
-	require.NoError(t, e.RemoveAPIKey(t.Context(), id), "RemoveAPIKey must not error")
+		require.NoError(t, e.RemoveAPIKey(t.Context(), key.ID), "RemoveAPIKey must not error")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.RemoveAPIKey(t.Context(), id), "RemoveAPIKey must not error")
+	})
 
 	err := newUnavailableServerExchange(t).RemoveAPIKey(t.Context(), id)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "RemoveAPIKey should return the request failure")
@@ -1747,19 +2087,31 @@ func TestResetAPIKey(t *testing.T) {
 	_, err := e.ResetAPIKey(t.Context(), 0)
 	require.ErrorIs(t, err, errAPIKeyIDRequired, "ResetAPIKey must reject an empty API key ID")
 
-	skipLiveUnlessCanManipulate(t)
-	id := testAPIKeyID(t)
-	result, err := e.ResetAPIKey(t.Context(), id)
-	require.NoError(t, err, "ResetAPIKey must not error")
-	if mockTests {
-		assert.Equal(t, testAPIKey(), result, "ResetAPIKey should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		id := testAPIKeyID(t)
+		result, err := e.ResetAPIKey(t.Context(), id)
+		require.NoError(t, err, "ResetAPIKey must not error")
 		assert.NotEmpty(t, result.ClientSecret, "ResetAPIKey should return the key's new secret")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).ResetAPIKey(t.Context(), id)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.ResetAPIKey(t.Context(), testAPIKeyID(t))
+		require.NoError(t, err, "ResetAPIKey must not error")
+		assert.Equal(t, testAPIKey(), result, "ResetAPIKey should decode every field")
+	})
+
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).ResetAPIKey(t.Context(), mockAPIKeyID)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "ResetAPIKey should reject a null result")
-	_, err = newUnavailableServerExchange(t).ResetAPIKey(t.Context(), id)
+	_, err = newUnavailableServerExchange(t).ResetAPIKey(t.Context(), mockAPIKeyID)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ResetAPIKey should return the request failure")
 }
 
@@ -1869,11 +2221,25 @@ func TestSetEmailLanguage(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.SetEmailLanguage(t.Context(), ""), errEmailLanguageRequired, "SetEmailLanguage must reject an empty language")
 
-	skipLiveUnlessCanManipulate(t)
-	language := testEmailLanguage(t)
-	require.NoError(t, e.SetEmailLanguage(t.Context(), language), "SetEmailLanguage must not error")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		language := testEmailLanguage(t)
+		require.NoError(t, e.SetEmailLanguage(t.Context(), language), "SetEmailLanguage must not error")
+	})
 
-	err := newUnavailableServerExchange(t).SetEmailLanguage(t.Context(), language)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.SetEmailLanguage(t.Context(), testEmailLanguage(t)), "SetEmailLanguage must not error")
+	})
+
+	err := newUnavailableServerExchange(t).SetEmailLanguage(t.Context(), mockEmailLanguage)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "SetEmailLanguage should return the request failure")
 }
 
@@ -1889,16 +2255,29 @@ func TestSetMember(t *testing.T) {
 	_, err = e.SetMember(t.Context(), &SetMemberRequest{Name: mockMemberName, IsActive: &inactive, Accounts: []uint64{mockMemberAccountID}})
 	require.ErrorIs(t, err, errMemberCreatedInactive, "SetMember must reject creating an inactive member")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := testSetMemberRequestFor(t)
-	result, err := e.SetMember(t.Context(), arg)
-	require.NoError(t, err, "SetMember must not error")
-	if mockTests {
-		assert.Equal(t, testMembers(), result, "SetMember should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		arg := testSetMemberRequestFor(t)
+		result, err := e.SetMember(t.Context(), arg)
+		require.NoError(t, err, "SetMember must not error")
 		assert.NotEmpty(t, result.Members, "SetMember should return the account's members")
-	}
+	})
 
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.SetMember(t.Context(), testSetMemberRequestFor(t))
+		require.NoError(t, err, "SetMember must not error")
+		assert.Equal(t, testMembers(), result, "SetMember should decode every field")
+	})
+
+	arg := testSetMemberRequest()
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).SetMember(t.Context(), arg)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SetMember should reject a null result")
 	_, err = newUnavailableServerExchange(t).SetMember(t.Context(), arg)
@@ -1912,10 +2291,25 @@ func TestSetSelfTradingConfig(t *testing.T) {
 	err = e.SetSelfTradingConfig(t.Context(), &SetSelfTradingConfigRequest{Mode: "reject_maker"})
 	require.ErrorIs(t, err, errInvalidSelfTradingMode, "SetSelfTradingConfig must reject an undocumented mode")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := testSetSelfTradingConfigRequestFor(t)
-	require.NoError(t, e.SetSelfTradingConfig(t.Context(), arg), "SetSelfTradingConfig must not error")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		arg := testSetSelfTradingConfigRequestFor(t)
+		require.NoError(t, e.SetSelfTradingConfig(t.Context(), arg), "SetSelfTradingConfig must not error")
+	})
 
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.SetSelfTradingConfig(t.Context(), testSetSelfTradingConfigRequestFor(t)), "SetSelfTradingConfig must not error")
+	})
+
+	arg := testSetSelfTradingConfigRequest()
 	err = newUnavailableServerExchange(t).SetSelfTradingConfig(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "SetSelfTradingConfig should return the request failure")
 }
@@ -1927,14 +2321,26 @@ func TestSimulatePortfolio(t *testing.T) {
 	_, err = e.SimulatePortfolio(t.Context(), &SimulatePortfolioRequest{SimulatedPositions: map[string]float64{mockPositionInstrument: 1}})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "SimulatePortfolio must reject an empty currency")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.SimulatePortfolio(t.Context(), testSimulatePortfolioRequest())
-	require.NoError(t, err, "SimulatePortfolio must not error")
-	if mockTests {
-		assert.Equal(t, testSimulatedPortfolio(), result, "SimulatePortfolio should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.SimulatePortfolio(t.Context(), testSimulatePortfolioRequest())
+		require.NoError(t, err, "SimulatePortfolio must not error")
 		assert.Equal(t, currency.BTC, result.Currency, "SimulatePortfolio should simulate the currency asked for")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.SimulatePortfolio(t.Context(), testSimulatePortfolioRequest())
+		require.NoError(t, err, "SimulatePortfolio must not error")
+		assert.Equal(t, testSimulatedPortfolio(), result, "SimulatePortfolio should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).SimulatePortfolio(t.Context(), testSimulatePortfolioRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SimulatePortfolio should reject a null result")
@@ -1993,10 +2399,25 @@ func TestToggleSubaccountLogin(t *testing.T) {
 	err = e.ToggleSubaccountLogin(t.Context(), &ToggleSubaccountLoginRequest{SubaccountID: mockAccountSubaccountID, State: "true"})
 	require.ErrorIs(t, err, errInvalidSubaccountLoginState, "ToggleSubaccountLogin must reject an undocumented state")
 
-	skipLiveUnlessCanManipulate(t)
-	arg := testToggleSubaccountLoginRequest(t)
-	require.NoError(t, e.ToggleSubaccountLogin(t.Context(), arg), "ToggleSubaccountLogin must not error")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		arg := testToggleSubaccountLoginRequest(t)
+		require.NoError(t, e.ToggleSubaccountLogin(t.Context(), arg), "ToggleSubaccountLogin must not error")
+	})
 
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.ToggleSubaccountLogin(t.Context(), testToggleSubaccountLoginRequest(t)), "ToggleSubaccountLogin must not error")
+	})
+
+	arg := &ToggleSubaccountLoginRequest{SubaccountID: mockAccountSubaccountID, State: SubaccountLoginEnable}
 	err = newUnavailableServerExchange(t).ToggleSubaccountLogin(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ToggleSubaccountLogin should return the request failure")
 }

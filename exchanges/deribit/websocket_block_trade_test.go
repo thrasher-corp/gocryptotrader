@@ -78,56 +78,91 @@ func TestWebsocketAPIExecuteBlockTrade(t *testing.T) {
 
 func TestWebsocketAPIGetBlockTrade(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	id := testBlockTradeID(t)
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().GetBlockTrade(t.Context(), id)
-	require.NoError(t, err, "WebsocketAPI.GetBlockTrade must not error")
-	if mockTests {
-		assert.Equal(t, testDocumentedBlockTrade(), result, "WebsocketAPI.GetBlockTrade should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		id := testBlockTradeID(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetBlockTrade(t.Context(), id)
+		require.NoError(t, err, "WebsocketAPI.GetBlockTrade must not error")
 		assert.Equal(t, id, result.ID, "WebsocketAPI.GetBlockTrade should return the block trade requested")
-	}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().GetBlockTrade(t.Context(), id)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetBlockTrade(t.Context(), testBlockTradeID(t))
+		require.NoError(t, err, "WebsocketAPI.GetBlockTrade must not error")
+		assert.Equal(t, testDocumentedBlockTrade(), result, "WebsocketAPI.GetBlockTrade should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().GetBlockTrade(t.Context(), mockBlockTradeID)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetBlockTrade should error without an authenticated connection")
 }
 
 func TestWebsocketAPIGetBlockTradeRequests(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	var brokerCode string
-	if mockTests {
-		brokerCode = mockBlockTradeBrokerCode
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().GetBlockTradeRequests(t.Context(), brokerCode)
-	require.NoError(t, err, "WebsocketAPI.GetBlockTradeRequests must not error")
-	if mockTests {
-		assert.Equal(t, testDocumentedPendingBlockTrades(), result, "WebsocketAPI.GetBlockTradeRequests should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetBlockTradeRequests(t.Context(), "")
+		require.NoError(t, err, "WebsocketAPI.GetBlockTradeRequests must not error")
 		for i := range result {
 			assert.NotEmptyf(t, result[i].Nonce, "WebsocketAPI.GetBlockTradeRequests should return the nonce of block trade request %d", i)
 		}
-	}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().GetBlockTradeRequests(t.Context(), brokerCode)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetBlockTradeRequests(t.Context(), mockBlockTradeBrokerCode)
+		require.NoError(t, err, "WebsocketAPI.GetBlockTradeRequests must not error")
+		assert.Equal(t, testDocumentedPendingBlockTrades(), result, "WebsocketAPI.GetBlockTradeRequests should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().GetBlockTradeRequests(t.Context(), mockBlockTradeBrokerCode)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetBlockTradeRequests should error without an authenticated connection")
 }
 
 func TestWebsocketAPIGetBlockTrades(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().GetBlockTrades(t.Context(), mockGetBlockTradesRequest())
-	require.NoError(t, err, "WebsocketAPI.GetBlockTrades must not error")
-	if mockTests {
-		assert.Equal(t, testDocumentedBlockTrades(), result, "WebsocketAPI.GetBlockTrades should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetBlockTrades(t.Context(), mockGetBlockTradesRequest())
+		require.NoError(t, err, "WebsocketAPI.GetBlockTrades must not error")
 		assert.LessOrEqual(t, len(result), 1, "WebsocketAPI.GetBlockTrades should return at most the count requested")
-	}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().GetBlockTrades(t.Context(), mockGetBlockTradesRequest())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetBlockTrades(t.Context(), mockGetBlockTradesRequest())
+		require.NoError(t, err, "WebsocketAPI.GetBlockTrades must not error")
+		assert.Equal(t, testDocumentedBlockTrades(), result, "WebsocketAPI.GetBlockTrades should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().GetBlockTrades(t.Context(), mockGetBlockTradesRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetBlockTrades should error without an authenticated connection")
 }
 
@@ -223,17 +258,29 @@ func TestWebsocketAPIGetBrokerTrades(t *testing.T) {
 
 func TestWebsocketAPIInvalidateBlockTradeSignature(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	ex, _ := newWebsocketTestExchange(t)
-	signature := mockBlockTradeSignature
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
 		verified, err := ex.WebsocketAPI().VerifyBlockTrade(t.Context(), liveVerifyBlockTradeRequest(t))
 		require.NoError(t, err, "WebsocketAPI.VerifyBlockTrade must sign a block trade to invalidate")
-		signature = verified.Signature
-	}
-	require.NoError(t, ex.WebsocketAPI().InvalidateBlockTradeSignature(t.Context(), signature), "WebsocketAPI.InvalidateBlockTradeSignature must not error")
+		signature := verified.Signature
+		require.NoError(t, ex.WebsocketAPI().InvalidateBlockTradeSignature(t.Context(), signature), "WebsocketAPI.InvalidateBlockTradeSignature must not error")
+	})
 
-	err := newTestExchange(t).WebsocketAPI().InvalidateBlockTradeSignature(t.Context(), signature)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().InvalidateBlockTradeSignature(t.Context(), mockBlockTradeSignature), "WebsocketAPI.InvalidateBlockTradeSignature must not error")
+	})
+
+	err := newTestExchange(t).WebsocketAPI().InvalidateBlockTradeSignature(t.Context(), mockBlockTradeSignature)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.InvalidateBlockTradeSignature should error without an authenticated connection")
 }
 
@@ -270,43 +317,64 @@ func TestWebsocketAPIRejectBlockTrade(t *testing.T) {
 
 func TestWebsocketAPISimulateBlockTrade(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	arg := mockSimulateBlockTradeRequest()
-	if !mockTests {
-		arg = &SimulateBlockTradeRequest{Role: BlockTradeRoleMaker, Trades: liveBlockTradeLegs(t)}
-	}
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().SimulateBlockTrade(t.Context(), arg)
-	require.NoError(t, err, "WebsocketAPI.SimulateBlockTrade must not error")
-	if mockTests {
-		assert.True(t, result, "WebsocketAPI.SimulateBlockTrade should decode that the block trade can be executed")
-	}
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		arg := &SimulateBlockTradeRequest{Role: BlockTradeRoleMaker, Trades: liveBlockTradeLegs(t)}
+		ex, _ := newWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().SimulateBlockTrade(t.Context(), arg)
+		require.NoError(t, err, "WebsocketAPI.SimulateBlockTrade must not error")
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().SimulateBlockTrade(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().SimulateBlockTrade(t.Context(), mockSimulateBlockTradeRequest())
+		require.NoError(t, err, "WebsocketAPI.SimulateBlockTrade must not error")
+		assert.True(t, result, "WebsocketAPI.SimulateBlockTrade should decode that the block trade can be executed")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().SimulateBlockTrade(t.Context(), mockSimulateBlockTradeRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SimulateBlockTrade should error without an authenticated connection")
 }
 
 func TestWebsocketAPIVerifyBlockTrade(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	arg := mockVerifyBlockTradeRequest()
-	if !mockTests {
-		arg = liveVerifyBlockTradeRequest(t)
-	}
-	ex, venue := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().VerifyBlockTrade(t.Context(), arg)
-	require.NoError(t, err, "WebsocketAPI.VerifyBlockTrade must not error")
-	if mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		arg := liveVerifyBlockTradeRequest(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().VerifyBlockTrade(t.Context(), arg)
+		require.NoError(t, err, "WebsocketAPI.VerifyBlockTrade must not error")
+		require.NotEmpty(t, result.Signature, "WebsocketAPI.VerifyBlockTrade must return a signature")
+		require.NoError(t, ex.WebsocketAPI().InvalidateBlockTradeSignature(t.Context(), result.Signature), "WebsocketAPI.InvalidateBlockTradeSignature must cancel the block trade verified")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().VerifyBlockTrade(t.Context(), mockVerifyBlockTradeRequest())
+		require.NoError(t, err, "WebsocketAPI.VerifyBlockTrade must not error")
 		assert.Equal(t, testDocumentedBlockTradeSignature(), result, "WebsocketAPI.VerifyBlockTrade should decode the signature")
 		requests := venue.received("private/verify_block_trade")
 		require.Len(t, requests, 1, "WebsocketAPI.VerifyBlockTrade must send one request")
 		exp := `{"timestamp":1565172650935,"nonce":"okpdjkdo","role":"maker","trades":[{"instrument_name":"BTC-PERPETUAL","direction":"buy","price":11624,"amount":40},{"instrument_name":"BTC-9AUG19-10250-P","direction":"buy","price":0.0707,"amount":1.2}]}`
 		assert.JSONEq(t, exp, string(requests[0].Params), "WebsocketAPI.VerifyBlockTrade should send Deribit's documented params, the timestamp in milliseconds")
-	} else {
-		require.NotEmpty(t, result.Signature, "WebsocketAPI.VerifyBlockTrade must return a signature")
-		require.NoError(t, ex.WebsocketAPI().InvalidateBlockTradeSignature(t.Context(), result.Signature), "WebsocketAPI.InvalidateBlockTradeSignature must cancel the block trade verified")
-	}
+	})
 
-	_, err = newTestExchange(t).WebsocketAPI().VerifyBlockTrade(t.Context(), arg)
+	_, err := newTestExchange(t).WebsocketAPI().VerifyBlockTrade(t.Context(), mockVerifyBlockTradeRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.VerifyBlockTrade should error without an authenticated connection")
 }

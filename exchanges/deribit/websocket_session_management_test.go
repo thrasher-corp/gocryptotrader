@@ -64,19 +64,31 @@ func TestWebsocketAPIDisableHeartbeat(t *testing.T) {
 
 func TestWebsocketAPIEnableCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	ex, venue := newWebsocketTestExchange(t)
-	err := ex.WebsocketAPI().EnableCancelOnDisconnect(t.Context(), "bogus")
+	err := newTestExchange(t).WebsocketAPI().EnableCancelOnDisconnect(t.Context(), "bogus")
 	require.ErrorIs(t, err, errInvalidCancelOnDisconnectScope, "WebsocketAPI.EnableCancelOnDisconnect must reject an undocumented scope")
 
-	require.NoError(t, ex.WebsocketAPI().EnableCancelOnDisconnect(t.Context(), CancelOnDisconnectScopeConnection), "WebsocketAPI.EnableCancelOnDisconnect must not error")
-	if mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().EnableCancelOnDisconnect(t.Context(), CancelOnDisconnectScopeConnection), "WebsocketAPI.EnableCancelOnDisconnect must not error")
+		require.NoError(t, ex.WebsocketAPI().DisableCancelOnDisconnect(t.Context(), CancelOnDisconnectScopeConnection), "WebsocketAPI.DisableCancelOnDisconnect must restore the connection's setting")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().EnableCancelOnDisconnect(t.Context(), CancelOnDisconnectScopeConnection), "WebsocketAPI.EnableCancelOnDisconnect must not error")
 		requests := venue.received("private/enable_cancel_on_disconnect")
 		require.Len(t, requests, 1, "WebsocketAPI.EnableCancelOnDisconnect must send one request")
 		assert.JSONEq(t, `{"scope":"connection"}`, string(requests[0].Params), "WebsocketAPI.EnableCancelOnDisconnect should send the scope")
-	} else {
-		require.NoError(t, ex.WebsocketAPI().DisableCancelOnDisconnect(t.Context(), CancelOnDisconnectScopeConnection), "WebsocketAPI.DisableCancelOnDisconnect must restore the connection's setting")
-	}
+	})
 
 	unauthenticated := newTestExchange(t)
 	err = unauthenticated.WebsocketAPI().EnableCancelOnDisconnect(t.Context(), "")
@@ -85,17 +97,30 @@ func TestWebsocketAPIEnableCancelOnDisconnect(t *testing.T) {
 
 func TestWebsocketAPIDisableCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
-	skipLiveUnlessCanManipulate(t)
-	ex, venue := newWebsocketTestExchange(t)
-	err := ex.WebsocketAPI().DisableCancelOnDisconnect(t.Context(), "bogus")
+	err := newTestExchange(t).WebsocketAPI().DisableCancelOnDisconnect(t.Context(), "bogus")
 	require.ErrorIs(t, err, errInvalidCancelOnDisconnectScope, "WebsocketAPI.DisableCancelOnDisconnect must reject an undocumented scope")
 
-	require.NoError(t, ex.WebsocketAPI().DisableCancelOnDisconnect(t.Context(), ""), "WebsocketAPI.DisableCancelOnDisconnect must not error")
-	if mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().DisableCancelOnDisconnect(t.Context(), ""), "WebsocketAPI.DisableCancelOnDisconnect must not error")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().DisableCancelOnDisconnect(t.Context(), ""), "WebsocketAPI.DisableCancelOnDisconnect must not error")
 		requests := venue.received("private/disable_cancel_on_disconnect")
 		require.Len(t, requests, 1, "WebsocketAPI.DisableCancelOnDisconnect must send one request")
 		assert.JSONEq(t, `{}`, string(requests[0].Params), "WebsocketAPI.DisableCancelOnDisconnect should leave out an empty scope, so Deribit applies the connection scope")
-	}
+	})
 
 	unauthenticated := newTestExchange(t)
 	err = unauthenticated.WebsocketAPI().DisableCancelOnDisconnect(t.Context(), "")
@@ -104,18 +129,31 @@ func TestWebsocketAPIDisableCancelOnDisconnect(t *testing.T) {
 
 func TestWebsocketAPIGetCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	ex, _ := newWebsocketTestExchange(t)
-	_, err := ex.WebsocketAPI().GetCancelOnDisconnect(t.Context(), "bogus")
+	_, err := newTestExchange(t).WebsocketAPI().GetCancelOnDisconnect(t.Context(), "bogus")
 	require.ErrorIs(t, err, errInvalidCancelOnDisconnectScope, "WebsocketAPI.GetCancelOnDisconnect must reject an undocumented scope")
 
-	result, err := ex.WebsocketAPI().GetCancelOnDisconnect(t.Context(), CancelOnDisconnectScopeConnection)
-	require.NoError(t, err, "WebsocketAPI.GetCancelOnDisconnect must not error")
-	if mockTests {
-		assert.Equal(t, &CancelOnDisconnectResponse{Scope: CancelOnDisconnectScopeConnection}, result, "WebsocketAPI.GetCancelOnDisconnect should decode the connection's setting")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetCancelOnDisconnect(t.Context(), CancelOnDisconnectScopeConnection)
+		require.NoError(t, err, "WebsocketAPI.GetCancelOnDisconnect must not error")
 		assert.Equal(t, CancelOnDisconnectScopeConnection, result.Scope, "WebsocketAPI.GetCancelOnDisconnect should return the connection scope")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetCancelOnDisconnect(t.Context(), CancelOnDisconnectScopeConnection)
+		require.NoError(t, err, "WebsocketAPI.GetCancelOnDisconnect must not error")
+		assert.Equal(t, &CancelOnDisconnectResponse{Scope: CancelOnDisconnectScopeConnection}, result, "WebsocketAPI.GetCancelOnDisconnect should decode the connection's setting")
+	})
 
 	_, err = newTestExchange(t).WebsocketAPI().GetCancelOnDisconnect(t.Context(), "")
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetCancelOnDisconnect should error without an authenticated connection")

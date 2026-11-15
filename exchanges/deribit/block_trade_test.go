@@ -393,15 +393,27 @@ func TestGetBlockTrade(t *testing.T) {
 	_, err := e.GetBlockTrade(t.Context(), "")
 	require.ErrorIs(t, err, errBlockTradeIDRequired, "GetBlockTrade must reject an empty block trade ID")
 
-	skipLiveWithoutCredentials(t)
-	id := testBlockTradeID(t)
-	result, err := e.GetBlockTrade(t.Context(), id)
-	require.NoError(t, err, "GetBlockTrade must not error")
-	if mockTests {
-		assert.Equal(t, testDocumentedBlockTrade(), result, "GetBlockTrade should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		id := testBlockTradeID(t)
+		result, err := e.GetBlockTrade(t.Context(), id)
+		require.NoError(t, err, "GetBlockTrade must not error")
 		assert.Equal(t, id, result.ID, "GetBlockTrade should return the block trade requested")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetBlockTrade(t.Context(), testBlockTradeID(t))
+		require.NoError(t, err, "GetBlockTrade must not error")
+		assert.Equal(t, testDocumentedBlockTrade(), result, "GetBlockTrade should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetBlockTrade(t.Context(), mockBlockTradeID)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetBlockTrade should reject a null result")
@@ -411,23 +423,31 @@ func TestGetBlockTrade(t *testing.T) {
 
 func TestGetBlockTradeRequests(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	// Only broker clients can filter by broker code, so live tests request every block trade request
-	var brokerCode string
-	if mockTests {
-		brokerCode = mockBlockTradeBrokerCode
-	}
-	result, err := e.GetBlockTradeRequests(t.Context(), brokerCode)
-	require.NoError(t, err, "GetBlockTradeRequests must not error")
-	if mockTests {
-		assert.Equal(t, testDocumentedPendingBlockTrades(), result, "GetBlockTradeRequests should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		// Only broker clients can filter by broker code, so live tests request every block trade request
+		result, err := e.GetBlockTradeRequests(t.Context(), "")
+		require.NoError(t, err, "GetBlockTradeRequests must not error")
 		for i := range result {
 			assert.NotEmptyf(t, result[i].Nonce, "GetBlockTradeRequests should return the nonce of block trade request %d", i)
 		}
-	}
+	})
 
-	_, err = newUnavailableServerExchange(t).GetBlockTradeRequests(t.Context(), mockBlockTradeBrokerCode)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetBlockTradeRequests(t.Context(), mockBlockTradeBrokerCode)
+		require.NoError(t, err, "GetBlockTradeRequests must not error")
+		assert.Equal(t, testDocumentedPendingBlockTrades(), result, "GetBlockTradeRequests should decode every field")
+	})
+
+	_, err := newUnavailableServerExchange(t).GetBlockTradeRequests(t.Context(), mockBlockTradeBrokerCode)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetBlockTradeRequests should return the request failure")
 }
 
@@ -438,14 +458,26 @@ func TestGetBlockTrades(t *testing.T) {
 	_, err = e.GetBlockTrades(t.Context(), &GetBlockTradesRequest{EndID: "66"})
 	require.ErrorIs(t, err, errBlockTradeStartIDRequired, "GetBlockTrades must reject an end ID without a start ID")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetBlockTrades(t.Context(), mockGetBlockTradesRequest())
-	require.NoError(t, err, "GetBlockTrades must not error")
-	if mockTests {
-		assert.Equal(t, testDocumentedBlockTrades(), result, "GetBlockTrades should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetBlockTrades(t.Context(), mockGetBlockTradesRequest())
+		require.NoError(t, err, "GetBlockTrades must not error")
 		assert.LessOrEqual(t, len(result), 1, "GetBlockTrades should return at most the count requested")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetBlockTrades(t.Context(), mockGetBlockTradesRequest())
+		require.NoError(t, err, "GetBlockTrades must not error")
+		assert.Equal(t, testDocumentedBlockTrades(), result, "GetBlockTrades should decode every field")
+	})
 
 	_, err = newUnavailableServerExchange(t).GetBlockTrades(t.Context(), mockGetBlockTradesRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetBlockTrades should return the request failure")
@@ -550,14 +582,25 @@ func TestInvalidateBlockTradeSignature(t *testing.T) {
 	err := e.InvalidateBlockTradeSignature(t.Context(), "")
 	require.ErrorIs(t, err, errSignatureRequired, "InvalidateBlockTradeSignature must reject an empty signature")
 
-	skipLiveUnlessCanManipulate(t)
-	signature := mockBlockTradeSignature
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
 		verified, err := e.VerifyBlockTrade(t.Context(), liveVerifyBlockTradeRequest(t))
 		require.NoError(t, err, "VerifyBlockTrade must sign a block trade to invalidate")
-		signature = verified.Signature
-	}
-	require.NoError(t, e.InvalidateBlockTradeSignature(t.Context(), signature), "InvalidateBlockTradeSignature must not error")
+		signature := verified.Signature
+		require.NoError(t, e.InvalidateBlockTradeSignature(t.Context(), signature), "InvalidateBlockTradeSignature must not error")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		require.NoError(t, e.InvalidateBlockTradeSignature(t.Context(), mockBlockTradeSignature), "InvalidateBlockTradeSignature must not error")
+	})
 
 	err = newUnavailableServerExchange(t).InvalidateBlockTradeSignature(t.Context(), mockBlockTradeSignature)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "InvalidateBlockTradeSignature should return the request failure")
@@ -606,16 +649,25 @@ func TestSimulateBlockTrade(t *testing.T) {
 	_, err = limited.SimulateBlockTrade(noDelay, mockSimulateBlockTradeRequest())
 	assert.NoError(t, err, "SimulateBlockTrade should be limited as a non-matching engine request")
 
-	skipLiveWithoutCredentials(t)
-	arg := mockSimulateBlockTradeRequest()
-	if !mockTests {
-		arg = &SimulateBlockTradeRequest{Role: BlockTradeRoleMaker, Trades: liveBlockTradeLegs(t)}
-	}
-	result, err := e.SimulateBlockTrade(t.Context(), arg)
-	require.NoError(t, err, "SimulateBlockTrade must not error")
-	if mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		_, err := e.SimulateBlockTrade(t.Context(), &SimulateBlockTradeRequest{Role: BlockTradeRoleMaker, Trades: liveBlockTradeLegs(t)})
+		require.NoError(t, err, "SimulateBlockTrade must not error")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.SimulateBlockTrade(t.Context(), mockSimulateBlockTradeRequest())
+		require.NoError(t, err, "SimulateBlockTrade must not error")
 		assert.True(t, result, "SimulateBlockTrade should decode that the block trade can be executed")
-	}
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).SimulateBlockTrade(t.Context(), mockSimulateBlockTradeRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SimulateBlockTrade should reject a null result")
@@ -636,19 +688,27 @@ func TestVerifyBlockTrade(t *testing.T) {
 	_, err = e.VerifyBlockTrade(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidAmount, "VerifyBlockTrade must reject a leg without an amount")
 
-	skipLiveUnlessCanManipulate(t)
-	arg = mockVerifyBlockTradeRequest()
-	if !mockTests {
-		arg = liveVerifyBlockTradeRequest(t)
-	}
-	result, err := e.VerifyBlockTrade(t.Context(), arg)
-	require.NoError(t, err, "VerifyBlockTrade must not error")
-	if mockTests {
-		assert.Equal(t, testDocumentedBlockTradeSignature(), result, "VerifyBlockTrade should decode the signature")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		result, err := e.VerifyBlockTrade(t.Context(), liveVerifyBlockTradeRequest(t))
+		require.NoError(t, err, "VerifyBlockTrade must not error")
 		require.NotEmpty(t, result.Signature, "VerifyBlockTrade must return a signature")
 		require.NoError(t, e.InvalidateBlockTradeSignature(t.Context(), result.Signature), "InvalidateBlockTradeSignature must cancel the block trade verified")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.VerifyBlockTrade(t.Context(), mockVerifyBlockTradeRequest())
+		require.NoError(t, err, "VerifyBlockTrade must not error")
+		assert.Equal(t, testDocumentedBlockTradeSignature(), result, "VerifyBlockTrade should decode the signature")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).VerifyBlockTrade(t.Context(), mockVerifyBlockTradeRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "VerifyBlockTrade should reject a null result")

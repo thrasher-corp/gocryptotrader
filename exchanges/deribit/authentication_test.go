@@ -57,18 +57,31 @@ func TestAuthenticate(t *testing.T) {
 	require.NoError(t, err, "Authenticate must not error for a client signature")
 	assert.JSONEq(t, `{"grant_type":"client_signature","client_id":"`+testClientID+`","timestamp":1700000000123,"signature":"signature","nonce":"nonce"}`, lastParams(), "Authenticate should send a client signature's timestamp in Unix milliseconds")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.Authenticate(t.Context(), testAuthenticateRequest(t))
-	require.NoError(t, err, "Authenticate must not error")
-	if mockTests {
-		assert.Equal(t, testAccessToken("connection mainaccount"), result, "Authenticate should decode the token")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.Authenticate(t.Context(), testAuthenticateRequest(t))
+		require.NoError(t, err, "Authenticate must not error")
 		assert.NotEmpty(t, result.RefreshToken, "Authenticate should return a refresh token")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"access_token":""}}`).Authenticate(t.Context(), testAuthenticateRequest(t))
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.Authenticate(t.Context(), testAuthenticateRequest(t))
+		require.NoError(t, err, "Authenticate must not error")
+		assert.Equal(t, testAccessToken("connection mainaccount"), result, "Authenticate should decode the token")
+	})
+
+	arg := &AuthenticateRequest{GrantType: GrantTypeClientCredentials, ClientID: testClientID, ClientSecret: testClientSecret}
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"access_token":""}}`).Authenticate(t.Context(), arg)
 	assert.ErrorIs(t, err, errNoAccessToken, "Authenticate should reject a result without an access token")
-	_, err = newUnavailableServerExchange(t).Authenticate(t.Context(), testAuthenticateRequest(t))
+	_, err = newUnavailableServerExchange(t).Authenticate(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "Authenticate should return the request failure")
 }
 

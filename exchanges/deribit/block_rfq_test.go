@@ -570,20 +570,29 @@ func TestCancelAllBlockRFQQuotes(t *testing.T) {
 	_, err := e.CancelAllBlockRFQQuotes(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllBlockRFQQuotes must reject a nil request")
 
-	skipLiveUnlessCanManipulate(t)
-	// Live, the account's open Block RFQ quotes, if any, are cancelled
-	arg := &CancelAllBlockRFQQuotesRequest{}
-	if mockTests {
-		arg.BlockRFQID = 154
-	}
-	result, err := e.CancelAllBlockRFQQuotes(t.Context(), arg)
-	require.NoError(t, err, "CancelAllBlockRFQQuotes must not error")
-	if mockTests {
-		assert.Equal(t, &CancelAllBlockRFQQuotesResponse{CancelledCount: 1}, result, "CancelAllBlockRFQQuotes should decode the count of quotes cancelled")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		// The account's open Block RFQ quotes, if any, are cancelled
+		result, err := e.CancelAllBlockRFQQuotes(t.Context(), &CancelAllBlockRFQQuotesRequest{})
+		require.NoError(t, err, "CancelAllBlockRFQQuotes must not error")
 		assert.Empty(t, result.DetailedReports, "CancelAllBlockRFQQuotes should return a count without a detailed request")
-	}
+	})
 
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelAllBlockRFQQuotes(t.Context(), &CancelAllBlockRFQQuotesRequest{BlockRFQID: 154})
+		require.NoError(t, err, "CancelAllBlockRFQQuotes must not error")
+		assert.Equal(t, &CancelAllBlockRFQQuotesResponse{CancelledCount: 1}, result, "CancelAllBlockRFQQuotes should decode the count of quotes cancelled")
+	})
+
+	arg := &CancelAllBlockRFQQuotesRequest{BlockRFQID: 154}
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelAllBlockRFQQuotes(t.Context(), arg)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelAllBlockRFQQuotes should reject a null result")
 	_, err = newUnavailableServerExchange(t).CancelAllBlockRFQQuotes(t.Context(), arg)
@@ -595,20 +604,28 @@ func TestCancelBlockRFQ(t *testing.T) {
 	_, err := e.CancelBlockRFQ(t.Context(), 0)
 	require.ErrorIs(t, err, errBlockRFQIDRequired, "CancelBlockRFQ must reject an empty Block RFQ ID")
 
-	skipLiveUnlessCanManipulate(t)
-	blockRFQID := uint64(mockCancelBlockRFQID)
-	if !mockTests {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
 		created, err := e.CreateBlockRFQ(t.Context(), liveCreateBlockRFQRequest())
 		require.NoError(t, err, "CreateBlockRFQ must create a Block RFQ to cancel")
-		blockRFQID = created.BlockRFQID
-	}
-	result, err := e.CancelBlockRFQ(t.Context(), blockRFQID)
-	require.NoError(t, err, "CancelBlockRFQ must not error")
-	if mockTests {
-		assert.Equal(t, testDocumentedCancelledBlockRFQ(), result, "CancelBlockRFQ should decode every field")
-	} else {
+		result, err := e.CancelBlockRFQ(t.Context(), created.BlockRFQID)
+		require.NoError(t, err, "CancelBlockRFQ must not error")
 		assert.Equal(t, BlockRFQStateCancelled, result.State, "CancelBlockRFQ should cancel the Block RFQ")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CancelBlockRFQ(t.Context(), mockCancelBlockRFQID)
+		require.NoError(t, err, "CancelBlockRFQ must not error")
+		assert.Equal(t, testDocumentedCancelledBlockRFQ(), result, "CancelBlockRFQ should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CancelBlockRFQ(t.Context(), mockCancelBlockRFQID)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelBlockRFQ should reject a null result")
@@ -699,19 +716,27 @@ func TestCreateBlockRFQ(t *testing.T) {
 	_, err = e.CreateBlockRFQ(t.Context(), arg)
 	require.ErrorIs(t, err, errBlockRFQLabelTooLong, "CreateBlockRFQ must reject a label over 64 characters")
 
-	skipLiveUnlessCanManipulate(t)
-	arg = mockCreateBlockRFQRequest()
-	if !mockTests {
-		arg = liveCreateBlockRFQRequest()
-	}
-	result, err := e.CreateBlockRFQ(t.Context(), arg)
-	require.NoError(t, err, "CreateBlockRFQ must not error")
-	if mockTests {
-		assert.Equal(t, testDocumentedCreatedBlockRFQ(), result, "CreateBlockRFQ should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveUnlessCanManipulate(t)
+		result, err := e.CreateBlockRFQ(t.Context(), liveCreateBlockRFQRequest())
+		require.NoError(t, err, "CreateBlockRFQ must not error")
 		_, err = e.CancelBlockRFQ(t.Context(), result.BlockRFQID)
 		require.NoError(t, err, "CancelBlockRFQ must cancel the Block RFQ created")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.CreateBlockRFQ(t.Context(), mockCreateBlockRFQRequest())
+		require.NoError(t, err, "CreateBlockRFQ must not error")
+		assert.Equal(t, testDocumentedCreatedBlockRFQ(), result, "CreateBlockRFQ should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).CreateBlockRFQ(t.Context(), mockCreateBlockRFQRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateBlockRFQ should reject a null result")
@@ -768,16 +793,28 @@ func TestEditBlockRFQQuote(t *testing.T) {
 
 func TestGetBlockRFQMakers(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetBlockRFQMakers(t.Context())
-	require.NoError(t, err, "GetBlockRFQMakers must not error")
-	if mockTests {
-		assert.Equal(t, []string{"MAKER1", "MAKER2", "MAKER3"}, result, "GetBlockRFQMakers should decode the makers' aliases")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetBlockRFQMakers(t.Context())
+		require.NoError(t, err, "GetBlockRFQMakers must not error")
 		assert.NotEmpty(t, result, "GetBlockRFQMakers should return the makers' aliases")
-	}
+	})
 
-	_, err = newUnavailableServerExchange(t).GetBlockRFQMakers(t.Context())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetBlockRFQMakers(t.Context())
+		require.NoError(t, err, "GetBlockRFQMakers must not error")
+		assert.Equal(t, []string{"MAKER1", "MAKER2", "MAKER3"}, result, "GetBlockRFQMakers should decode the makers' aliases")
+	})
+
+	_, err := newUnavailableServerExchange(t).GetBlockRFQMakers(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetBlockRFQMakers should return the request failure")
 }
 
@@ -786,37 +823,57 @@ func TestGetBlockRFQQuotes(t *testing.T) {
 	_, err := e.GetBlockRFQQuotes(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetBlockRFQQuotes must reject a nil request")
 
-	skipLiveWithoutCredentials(t)
-	arg := &GetBlockRFQQuotesRequest{}
-	if mockTests {
-		arg.BlockRFQID = 1
-	}
-	result, err := e.GetBlockRFQQuotes(t.Context(), arg)
-	require.NoError(t, err, "GetBlockRFQQuotes must not error")
-	if mockTests {
-		assert.Equal(t, testDocumentedBlockRFQQuotes(), result, "GetBlockRFQQuotes should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetBlockRFQQuotes(t.Context(), &GetBlockRFQQuotesRequest{})
+		require.NoError(t, err, "GetBlockRFQQuotes must not error")
 		for i := range result {
 			assert.NotZerof(t, result[i].BlockRFQQuoteID, "GetBlockRFQQuotes should return the ID of quote %d", i)
 		}
-	}
+	})
 
-	_, err = newUnavailableServerExchange(t).GetBlockRFQQuotes(t.Context(), arg)
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetBlockRFQQuotes(t.Context(), &GetBlockRFQQuotesRequest{BlockRFQID: 1})
+		require.NoError(t, err, "GetBlockRFQQuotes must not error")
+		assert.Equal(t, testDocumentedBlockRFQQuotes(), result, "GetBlockRFQQuotes should decode every field")
+	})
+
+	_, err = newUnavailableServerExchange(t).GetBlockRFQQuotes(t.Context(), &GetBlockRFQQuotesRequest{BlockRFQID: 1})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetBlockRFQQuotes should return the request failure")
 }
 
 func TestGetBlockRFQUserInfo(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetBlockRFQUserInfo(t.Context())
-	require.NoError(t, err, "GetBlockRFQUserInfo must not error")
-	if mockTests {
-		assert.Equal(t, testDocumentedBlockRFQUserInfo(), result, "GetBlockRFQUserInfo should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetBlockRFQUserInfo(t.Context())
+		require.NoError(t, err, "GetBlockRFQUserInfo must not error")
 		assert.NotEmpty(t, result.Users, "GetBlockRFQUserInfo should return the account's users")
-	}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetBlockRFQUserInfo(t.Context())
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetBlockRFQUserInfo(t.Context())
+		require.NoError(t, err, "GetBlockRFQUserInfo must not error")
+		assert.Equal(t, testDocumentedBlockRFQUserInfo(), result, "GetBlockRFQUserInfo should decode every field")
+	})
+
+	_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetBlockRFQUserInfo(t.Context())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetBlockRFQUserInfo should reject a null result")
 	_, err = newUnavailableServerExchange(t).GetBlockRFQUserInfo(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetBlockRFQUserInfo should return the request failure")
@@ -831,16 +888,28 @@ func TestGetBlockRFQs(t *testing.T) {
 	_, err = e.GetBlockRFQs(t.Context(), &GetBlockRFQsRequest{Role: "Maker"})
 	require.ErrorIs(t, err, errInvalidBlockRFQRole, "GetBlockRFQs must reject an undocumented role")
 
-	skipLiveWithoutCredentials(t)
-	result, err := e.GetBlockRFQs(t.Context(), mockGetBlockRFQsRequest())
-	require.NoError(t, err, "GetBlockRFQs must not error")
-	if mockTests {
-		assert.Equal(t, testDocumentedBlockRFQs(), result, "GetBlockRFQs should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		skipLiveWithoutCredentials(t)
+		result, err := e.GetBlockRFQs(t.Context(), mockGetBlockRFQsRequest())
+		require.NoError(t, err, "GetBlockRFQs must not error")
 		for i := range result.BlockRFQs {
 			assert.Equalf(t, BlockRFQRoleMaker, result.BlockRFQs[i].Role, "GetBlockRFQs should return Block RFQ %d in the role requested", i)
 		}
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetBlockRFQs(t.Context(), mockGetBlockRFQsRequest())
+		require.NoError(t, err, "GetBlockRFQs must not error")
+		assert.Equal(t, testDocumentedBlockRFQs(), result, "GetBlockRFQs should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetBlockRFQs(t.Context(), mockGetBlockRFQsRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetBlockRFQs should reject a null result")
