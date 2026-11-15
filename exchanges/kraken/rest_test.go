@@ -97,13 +97,17 @@ func setupTestExchange(ex *Exchange) error {
 
 // configureTestExchange serves an exchange from the recorded responses in testdata/http.json in mock tests, signing
 // with placeholder credentials so authenticated endpoints run against their recorded responses too. Live tests use
-// authenticated endpoints when credentials are supplied
+// authenticated endpoints when credentials are supplied, and every exchange holding them signs through e's requester,
+// as Kraken expects each key's nonces to increase
 func configureTestExchange(ex *Exchange) error {
 	if !mockTests {
 		if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 			ex.API.AuthenticatedSupport = true
 			ex.API.AuthenticatedWebsocketSupport = true
 			ex.SetCredentials(apiCredentials)
+			if ex != e {
+				return ex.SetRequester(e.Requester)
+			}
 		}
 		return nil
 	}
@@ -178,6 +182,21 @@ func TestSetupTestExchange(t *testing.T) {
 	require.NoError(t, err, "Marshal must not error")
 	assert.JSONEq(t, string(expConfig), string(otherConfig), "setupTestExchange should give each exchange a configuration of its own")
 	assert.Equal(t, exp.Features, other.Features, "setupTestExchange should give each exchange subscriptions of its own")
+}
+
+func TestConfigureTestExchange(t *testing.T) {
+	t.Parallel()
+	shared := e.Requester
+	first, second := newTestExchange(t), newTestExchange(t)
+	assert.Same(t, shared, e.Requester, "configureTestExchange should leave the shared exchange's requester in place")
+	if !mockTests && apiCredentials.Key != "" && apiCredentials.Secret != "" {
+		assert.Same(t, shared, first.Requester, "configureTestExchange should have an exchange holding the test credentials sign through the shared exchange's requester")
+		assert.Same(t, shared, second.Requester, "configureTestExchange should have every exchange holding the test credentials sign through the shared exchange's requester")
+		return
+	}
+	assert.NotSame(t, shared, first.Requester, "configureTestExchange should leave an exchange without the test credentials its own requester")
+	assert.NotSame(t, shared, second.Requester, "configureTestExchange should leave every exchange without the test credentials its own requester")
+	assert.NotSame(t, first.Requester, second.Requester, "configureTestExchange should give each exchange without the test credentials a requester of its own")
 }
 
 // testSecret is the private key of Kraken's documented signature example

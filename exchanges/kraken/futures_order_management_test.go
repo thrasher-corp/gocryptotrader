@@ -481,10 +481,9 @@ func TestCancelFuturesOrder(t *testing.T) {
 }
 
 func TestCancelAllFuturesOrders(t *testing.T) {
-	t.Parallel()
+	// Serial, the cases included, so cancelling every futures order cannot cancel one that a parallel test placed
 	for _, pair := range partialTestPairs {
 		t.Run(pair.String(), func(t *testing.T) {
-			t.Parallel()
 			_, err := e.CancelAllFuturesOrders(t.Context(), &FuturesCancelAllOrdersRequest{Symbol: pair})
 			require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "CancelAllFuturesOrders must reject %q, which lacks a base or a quote", pair)
 		})
@@ -548,7 +547,6 @@ func TestCancelAllFuturesOrders(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			result, err := e.CancelAllFuturesOrders(t.Context(), tc.req)
 			require.NoError(t, err, "CancelAllFuturesOrders must not error")
 			if mockTests {
@@ -561,7 +559,7 @@ func TestCancelAllFuturesOrders(t *testing.T) {
 }
 
 func TestCancelAllFuturesOrdersAfter(t *testing.T) {
-	t.Parallel()
+	// Serial, so the parallel tests' requests cannot delay disabling the switch past the minute it is armed for
 	_, err := e.CancelAllFuturesOrdersAfter(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllFuturesOrdersAfter must reject a nil request")
 	// The cases share e and run in turn, so the requests after them also catch a refusal leaving state behind
@@ -575,6 +573,7 @@ func TestCancelAllFuturesOrdersAfter(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
+	// The cases run in order, as disabling the switch last leaves it off after a live run
 	for _, tc := range []struct {
 		name string
 		req  *FuturesCancelAllOrdersAfterRequest
@@ -598,7 +597,6 @@ func TestCancelAllFuturesOrdersAfter(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			result, err := e.CancelAllFuturesOrdersAfter(t.Context(), tc.req)
 			require.NoError(t, err, "CancelAllFuturesOrdersAfter must not error")
 			if mockTests {

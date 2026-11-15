@@ -365,7 +365,7 @@ func TestWebsocketCancelOrderParamsTakeNoUserReferences(t *testing.T) {
 }
 
 func TestWebsocketCancelAllOrders(t *testing.T) {
-	t.Parallel()
+	// Serial, the live case included, so cancelling every open order cannot cancel one that a parallel test placed
 	ex := newWsTradingTestExchange(t,
 		`{"method":"cancel_all","params":{"token":"`+wsTradingTestToken+`"}}`,
 		`{"method":"cancel_all","result":{"count":1,"warnings":["Untriggered orders cancelled"]},"success":true,"time_in":"2023-09-26T13:09:48.463201Z","time_out":"2023-09-26T13:09:48.471419Z"}`,
@@ -380,7 +380,6 @@ func TestWebsocketCancelAllOrders(t *testing.T) {
 	}, result, "WebsocketCancelAllOrders should decode every field")
 
 	t.Run("live API", func(t *testing.T) {
-		t.Parallel()
 		ex := newLiveWsTradingTestExchange(t.Context(), t)
 		_, err := ex.WebsocketCancelAllOrders(t.Context())
 		assert.NoError(t, err, "WebsocketCancelAllOrders should cancel every open order")
@@ -388,8 +387,8 @@ func TestWebsocketCancelAllOrders(t *testing.T) {
 }
 
 func TestWebsocketCancelAllOrdersAfter(t *testing.T) {
-	t.Parallel()
-	// Serial, so the cases run before the calls below to the same method
+	// Serial, the live case included, so the parallel tests' requests cannot delay disabling the switch past the minute
+	// it is armed for
 	for _, timeout := range []time.Duration{-time.Second, time.Millisecond, 24 * time.Hour} {
 		t.Run(timeout.String(), func(t *testing.T) {
 			_, err := e.WebsocketCancelAllOrdersAfter(t.Context(), timeout)
@@ -417,7 +416,6 @@ func TestWebsocketCancelAllOrdersAfter(t *testing.T) {
 	assert.NoError(t, err, "WebsocketCancelAllOrdersAfter should send a zero timeout to disable the switch")
 
 	t.Run("live API", func(t *testing.T) {
-		t.Parallel()
 		ex := newLiveWsTradingTestExchange(t.Context(), t)
 		// Registered before arming, so the switch is disabled after a failure too. The switch is the account's, so should
 		// this connection fail, a new one disables it

@@ -6050,8 +6050,7 @@ func TestCancelSpotOrders(t *testing.T) {
 	})
 }
 
-func TestCancelAllOrders(t *testing.T) {
-	t.Parallel()
+func TestCancelAllOrders(t *testing.T) { //nolint:tparallel // serial, so cancelling every order cannot cancel one that a parallel test placed
 	_, err := e.CancelAllOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelAllOrders must reject a nil cancellation")
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{Exchange: e.Name, AssetType: asset.Margin})

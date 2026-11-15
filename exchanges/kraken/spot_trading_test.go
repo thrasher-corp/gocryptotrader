@@ -432,7 +432,7 @@ func TestCancelExistingOrder(t *testing.T) {
 }
 
 func TestCancelAllOpenOrders(t *testing.T) {
-	t.Parallel()
+	// Serial, so cancelling every open order cannot cancel one that a parallel test placed
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
@@ -445,9 +445,8 @@ func TestCancelAllOpenOrders(t *testing.T) {
 	assert.NotNil(t, result, "CancelAllOpenOrders should return a result")
 }
 
-func TestCancelAllOrdersAfter(t *testing.T) { //nolint:tparallel // the cases run in order, disabling the switch last
-	t.Parallel()
-	// Serial, as the CancelAllOrdersAfter cases below would otherwise run before these
+func TestCancelAllOrdersAfter(t *testing.T) {
+	// Serial, so the parallel tests' requests cannot delay disabling the switch past the minute it is armed for
 	for _, timeout := range []time.Duration{-time.Second, time.Second - time.Nanosecond, 24 * time.Hour} {
 		t.Run(timeout.String(), func(t *testing.T) {
 			_, err := e.CancelAllOrdersAfter(t.Context(), timeout)
