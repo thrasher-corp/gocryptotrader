@@ -180,7 +180,7 @@ func requireNothingRelayed(t *testing.T, ex *Exchange) {
 	}
 }
 
-func TestWebsocketFuturesHandleTicker(t *testing.T) {
+func TestProcessFuturesTicker(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
 	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresTickerFrame)), "WebsocketFuturesHandleData must not error")
@@ -193,7 +193,7 @@ func TestWebsocketFuturesHandleTicker(t *testing.T) {
 	assert.Equal(t, futuresTickerFramePrice(ex.Name), tick, "the ticker should be mapped")
 }
 
-func TestWebsocketFuturesHandleOrderbook(t *testing.T) {
+func TestProcessFuturesOrderbook(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
 	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDepthFrame)), "WebsocketFuturesHandleData must not error")
@@ -217,7 +217,7 @@ func TestWebsocketFuturesHandleOrderbook(t *testing.T) {
 	assert.Equal(t, exp, book, "the snapshot should be loaded")
 }
 
-func TestWebsocketFuturesHandleOrder(t *testing.T) {
+func TestProcessFuturesOrder(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
 	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresOrderFrame)), "WebsocketFuturesHandleData must not error")
@@ -236,7 +236,7 @@ func TestWebsocketFuturesHandleOrder(t *testing.T) {
 	assert.InDelta(t, 0.2025, stored.Fee, 1e-12, "the stored order should carry the fees so far")
 }
 
-func TestWebsocketFuturesHandleAsset(t *testing.T) {
+func TestProcessFuturesAsset(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
 	// Balances are stored by the account's credentials
@@ -265,6 +265,134 @@ func TestWebsocketFuturesHandleAsset(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "a balance without a currency should be refused")
 }
 
+func TestProcessFuturesTrades(t *testing.T) {
+	t.Parallel()
+	ex := newFuturesWebsocketTestExchange(t)
+	ex.SetSaveTradeDataStatus(false)
+	ex.SetTradeFeedStatus(false)
+	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealsFrame)), "WebsocketFuturesHandleData must not error")
+	requireNothingRelayed(t, ex)
+
+	ex.SetTradeFeedStatus(true)
+	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealsFrame)), "WebsocketFuturesHandleData must not error")
+	trades, ok := relayed(t, ex).([]trade.Data)
+	require.True(t, ok, "trades must be relayed")
+	// A taker sell is a sell and a taker buy a buy, and the amounts are in contracts
+	exp := []trade.Data{
+		{TID: "16745103311", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Sell, Price: 80585.5, Amount: 7739, Timestamp: time.UnixMilli(1792842498973)},
+		{TID: "16745103221", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Buy, Price: 80590.1, Amount: 4, Timestamp: time.UnixMilli(1792842498334)},
+	}
+	assert.Equal(t, exp, trades, "every merged trade should be relayed")
+
+	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealFrame)), "WebsocketFuturesHandleData must not error for an unmerged trade")
+	trades, ok = relayed(t, ex).([]trade.Data)
+	require.True(t, ok, "an unmerged trade must be relayed")
+	exp = []trade.Data{{TID: "16745103083", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Sell, Price: 80590, Amount: 5, Timestamp: time.UnixMilli(1792842497333)}}
+	assert.Equal(t, exp, trades, "the unmerged trade should be relayed")
+}
+
+func TestProcessFuturesCandle(t *testing.T) {
+	t.Parallel()
+	ex := newFuturesWebsocketTestExchange(t)
+	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresKlineFrame)), "WebsocketFuturesHandleData must not error")
+
+	item, ok := relayed(t, ex).(kline.Item)
+	require.True(t, ok, "a candle must be relayed")
+	// The candle is stamped with its open in seconds, an inverse contract's base volume is its turnover, and a candle
+	// still forming is marked partial
+	exp := kline.Item{
+		Exchange: ex.Name,
+		Pair:     futuresInversePair,
+		Asset:    asset.Futures,
+		Interval: kline.FifteenMin,
+		Candles: []kline.Candle{{
+			Time:             time.Unix(1792842300, 0),
+			Open:             80479.5,
+			High:             80490.8,
+			Low:              80479.4,
+			Close:            80490.8,
+			Volume:           0.0708234966710365,
+			ValidationIssues: kline.PartialCandle,
+		}},
+	}
+	assert.Equal(t, exp, item, "the candle should be relayed")
+
+	err := ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(strings.Replace(futuresKlineFrame, `"interval":"Min15"`, `"interval":"Min3"`, 1)))
+	assert.ErrorIs(t, err, kline.ErrInvalidInterval, "an unknown interval should be refused")
+}
+
+func TestProcessFuturesFill(t *testing.T) {
+	t.Parallel()
+	ex := newFuturesWebsocketTestExchange(t)
+	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresFillFrame)), "WebsocketFuturesHandleData must not error")
+	requireNothingRelayed(t, ex)
+
+	subscribeFuturesPrivate(t, ex, subscription.MyTradesChannel)
+	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresFillFrame)), "WebsocketFuturesHandleData must not error")
+	fills, ok := relayed(t, ex).([]fill.Data)
+	require.True(t, ok, "fills must be relayed")
+	// Closing a long is a sell, and the amount is in contracts
+	exp := []fill.Data{{
+		ID:            "987654321",
+		Timestamp:     time.UnixMilli(1760942212000),
+		Exchange:      ex.Name,
+		AssetType:     asset.Futures,
+		CurrencyPair:  futuresTradablePair,
+		Side:          order.Sell,
+		OrderID:       "123456789",
+		ClientOrderID: "ext_001",
+		TradeID:       "987654321",
+		Price:         45000.5,
+		Amount:        10,
+	}}
+	assert.Equal(t, exp, fills, "the fill should be relayed")
+}
+
+func TestProcessFuturesPosition(t *testing.T) {
+	t.Parallel()
+	ex := newFuturesWebsocketTestExchange(t)
+	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresPositionFrame)), "WebsocketFuturesHandleData must not error")
+	requireNothingRelayed(t, ex)
+
+	subscribeFuturesPrivate(t, ex, FuturesPositionsChannel)
+	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresPositionFrame)), "WebsocketFuturesHandleData must not error")
+	positions, ok := relayed(t, ex).([]futures.Position)
+	require.True(t, ok, "the position must be relayed")
+	// A held short position is open and short, its size is in contracts, its unrealised PNL is read from the push's
+	// pnl, its version is the update ID and its collateral the settlement currency
+	exp := []futures.Position{{
+		Exchange:                  ex.Name,
+		Asset:                     asset.Futures,
+		Pair:                      futuresTradablePair,
+		Underlying:                currency.BTC,
+		CollateralCurrency:        currency.USDT,
+		Leverage:                  decimal.NewFromInt(20),
+		PositionMargin:            decimal.MustFromFloat(2250.025),
+		InitialMarginRequirement:  decimal.MustFromFloat(2250.025),
+		EstimatedLiquidationPrice: decimal.MustFromFloat(50000),
+		UpdateID:                  3,
+		RealisedPNL:               decimal.MustFromFloat(-0.1125),
+		UnrealisedPNL:             decimal.MustFromFloat(100.5),
+		Status:                    order.Open,
+		OpeningDate:               time.UnixMilli(1760942212000),
+		OpeningPrice:              decimal.MustFromFloat(45000.5),
+		OpeningDirection:          order.Short,
+		LatestSize:                decimal.MustFromFloat(10),
+		LatestDirection:           order.Short,
+		LastUpdated:               time.UnixMilli(1760942213000),
+	}}
+	assert.Equal(t, exp, positions, "the open position should be relayed")
+
+	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(strings.Replace(futuresPositionFrame, `"state":1`, `"state":3`, 1))),
+		"WebsocketFuturesHandleData must not error for a closed position")
+	positions, ok = relayed(t, ex).([]futures.Position)
+	require.True(t, ok, "the closed position must be relayed")
+	// A closed position closes at its update
+	exp[0].Status, exp[0].CloseDate = order.Closed, time.UnixMilli(1760942213000)
+	assert.Equal(t, exp, positions, "the closed position should be relayed")
+}
+
+//nolint:tparallel // the cases share ex in order
 func TestWebsocketFuturesHandleData(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
@@ -295,133 +423,6 @@ func TestWebsocketFuturesHandleData(t *testing.T) {
 	err := ex.WebsocketFuturesHandleData(t.Context(), &futuresReplyConnection{}, []byte(`{"channel":"rs.error","data":"Contract [FOO_BAR] not exists"}`))
 	assert.ErrorIs(t, err, errFuturesWebsocketRejected, "a refusal no request waits for should be reported")
 	assert.Error(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(`{"channel":`)), "a malformed frame should be refused")
-
-	t.Run("trades", func(t *testing.T) {
-		t.Parallel()
-		ex := newFuturesWebsocketTestExchange(t)
-		ex.SetSaveTradeDataStatus(false)
-		ex.SetTradeFeedStatus(false)
-		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealsFrame)), "WebsocketFuturesHandleData must not error")
-		requireNothingRelayed(t, ex)
-
-		ex.SetTradeFeedStatus(true)
-		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealsFrame)), "WebsocketFuturesHandleData must not error")
-		trades, ok := relayed(t, ex).([]trade.Data)
-		require.True(t, ok, "trades must be relayed")
-		// A taker sell is a sell and a taker buy a buy, and the amounts are in contracts
-		exp := []trade.Data{
-			{TID: "16745103311", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Sell, Price: 80585.5, Amount: 7739, Timestamp: time.UnixMilli(1792842498973)},
-			{TID: "16745103221", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Buy, Price: 80590.1, Amount: 4, Timestamp: time.UnixMilli(1792842498334)},
-		}
-		assert.Equal(t, exp, trades, "every merged trade should be relayed")
-
-		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealFrame)), "WebsocketFuturesHandleData must not error for an unmerged trade")
-		trades, ok = relayed(t, ex).([]trade.Data)
-		require.True(t, ok, "an unmerged trade must be relayed")
-		exp = []trade.Data{{TID: "16745103083", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Sell, Price: 80590, Amount: 5, Timestamp: time.UnixMilli(1792842497333)}}
-		assert.Equal(t, exp, trades, "the unmerged trade should be relayed")
-	})
-
-	t.Run("candle", func(t *testing.T) {
-		t.Parallel()
-		ex := newFuturesWebsocketTestExchange(t)
-		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresKlineFrame)), "WebsocketFuturesHandleData must not error")
-
-		item, ok := relayed(t, ex).(kline.Item)
-		require.True(t, ok, "a candle must be relayed")
-		// The candle is stamped with its open in seconds, an inverse contract's base volume is its turnover, and a candle
-		// still forming is marked partial
-		exp := kline.Item{
-			Exchange: ex.Name,
-			Pair:     futuresInversePair,
-			Asset:    asset.Futures,
-			Interval: kline.FifteenMin,
-			Candles: []kline.Candle{{
-				Time:             time.Unix(1792842300, 0),
-				Open:             80479.5,
-				High:             80490.8,
-				Low:              80479.4,
-				Close:            80490.8,
-				Volume:           0.0708234966710365,
-				ValidationIssues: kline.PartialCandle,
-			}},
-		}
-		assert.Equal(t, exp, item, "the candle should be relayed")
-
-		err := ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(strings.Replace(futuresKlineFrame, `"interval":"Min15"`, `"interval":"Min3"`, 1)))
-		assert.ErrorIs(t, err, kline.ErrInvalidInterval, "an unknown interval should be refused")
-	})
-
-	t.Run("fill", func(t *testing.T) {
-		t.Parallel()
-		ex := newFuturesWebsocketTestExchange(t)
-		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresFillFrame)), "WebsocketFuturesHandleData must not error")
-		requireNothingRelayed(t, ex)
-
-		subscribeFuturesPrivate(t, ex, subscription.MyTradesChannel)
-		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresFillFrame)), "WebsocketFuturesHandleData must not error")
-		fills, ok := relayed(t, ex).([]fill.Data)
-		require.True(t, ok, "fills must be relayed")
-		// Closing a long is a sell, and the amount is in contracts
-		exp := []fill.Data{{
-			ID:            "987654321",
-			Timestamp:     time.UnixMilli(1760942212000),
-			Exchange:      ex.Name,
-			AssetType:     asset.Futures,
-			CurrencyPair:  futuresTradablePair,
-			Side:          order.Sell,
-			OrderID:       "123456789",
-			ClientOrderID: "ext_001",
-			TradeID:       "987654321",
-			Price:         45000.5,
-			Amount:        10,
-		}}
-		assert.Equal(t, exp, fills, "the fill should be relayed")
-	})
-
-	t.Run("position", func(t *testing.T) {
-		t.Parallel()
-		ex := newFuturesWebsocketTestExchange(t)
-		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresPositionFrame)), "WebsocketFuturesHandleData must not error")
-		requireNothingRelayed(t, ex)
-
-		subscribeFuturesPrivate(t, ex, FuturesPositionsChannel)
-		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresPositionFrame)), "WebsocketFuturesHandleData must not error")
-		positions, ok := relayed(t, ex).([]futures.Position)
-		require.True(t, ok, "the position must be relayed")
-		// A held short position is open and short, its size is in contracts, its unrealised PNL is read from the push's
-		// pnl, its version is the update ID and its collateral the settlement currency
-		exp := []futures.Position{{
-			Exchange:                  ex.Name,
-			Asset:                     asset.Futures,
-			Pair:                      futuresTradablePair,
-			Underlying:                currency.BTC,
-			CollateralCurrency:        currency.USDT,
-			Leverage:                  decimal.NewFromInt(20),
-			PositionMargin:            decimal.MustFromFloat(2250.025),
-			InitialMarginRequirement:  decimal.MustFromFloat(2250.025),
-			EstimatedLiquidationPrice: decimal.MustFromFloat(50000),
-			UpdateID:                  3,
-			RealisedPNL:               decimal.MustFromFloat(-0.1125),
-			UnrealisedPNL:             decimal.MustFromFloat(100.5),
-			Status:                    order.Open,
-			OpeningDate:               time.UnixMilli(1760942212000),
-			OpeningPrice:              decimal.MustFromFloat(45000.5),
-			OpeningDirection:          order.Short,
-			LatestSize:                decimal.MustFromFloat(10),
-			LatestDirection:           order.Short,
-			LastUpdated:               time.UnixMilli(1760942213000),
-		}}
-		assert.Equal(t, exp, positions, "the open position should be relayed")
-
-		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(strings.Replace(futuresPositionFrame, `"state":1`, `"state":3`, 1))),
-			"WebsocketFuturesHandleData must not error for a closed position")
-		positions, ok = relayed(t, ex).([]futures.Position)
-		require.True(t, ok, "the closed position must be relayed")
-		// A closed position closes at its update
-		exp[0].Status, exp[0].CloseDate = order.Closed, time.UnixMilli(1760942213000)
-		assert.Equal(t, exp, positions, "the closed position should be relayed")
-	})
 }
 
 // futuresReplyConnection answers each futures websocket request with a recorded reply, or fails to send it with err,
@@ -1850,6 +1851,10 @@ func connectFuturesVenue(t *testing.T, ex *Exchange, venue *futuresVenue, subs s
 	return ex.Websocket.Connect(context.WithoutCancel(t.Context()))
 }
 
+// liveFuturesPublicMu serialises the live cases which subscribe on the live exchange's futures public connection, as
+// one of them checks the replies that connection still owes
+var liveFuturesPublicMu sync.Mutex
+
 func TestWebsocketFuturesSubscribe(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
@@ -1885,6 +1890,20 @@ func TestWebsocketFuturesSubscribe(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return slices.Contains(venue.methods(), futuresUnsubscribePrefix+method)
 	}, 5*time.Second, 10*time.Millisecond, "the unsubscription must reach the venue")
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		live := liveExchange(t, livePublic)
+		liveFuturesPublicMu.Lock()
+		defer liveFuturesPublicMu.Unlock()
+		testexch.SetupWs(t, live)
+		conn, err := live.Websocket.GetConnection(futuresPublicConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		sub := &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel, Pairs: currency.Pairs{futuresTradablePair}, QualifiedChannel: "ticker@BTC_USDT"}
+		require.NoError(t, live.WebsocketFuturesSubscribe(t.Context(), conn, subscription.List{sub}), "WebsocketFuturesSubscribe must subscribe on the venue")
+		assert.Equal(t, subscription.SubscribedState, sub.State(), "the subscription should be subscribed once the venue acknowledges it")
+		require.NoError(t, live.WebsocketFuturesUnsubscribe(t.Context(), conn, subscription.List{sub}), "WebsocketFuturesUnsubscribe must not error")
+	})
 }
 
 func TestWebsocketFuturesSubscribeRefused(t *testing.T) {
@@ -1983,6 +2002,21 @@ func TestWebsocketFuturesUnsubscribe(t *testing.T) {
 			}
 	}
 	const refusal = `{"channel":"rs.error","data":"Contract [BTC_USDT] not exists","ts":1792842495741}`
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		live := liveExchange(t, livePublic)
+		liveFuturesPublicMu.Lock()
+		defer liveFuturesPublicMu.Unlock()
+		testexch.SetupWs(t, live)
+		conn, err := live.Websocket.GetConnection(futuresPublicConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		sub := tickerSubscription("ETH_USDT")
+		require.NoError(t, live.WebsocketFuturesSubscribe(t.Context(), conn, subscription.List{sub}), "WebsocketFuturesSubscribe must subscribe on the venue")
+		require.NoError(t, live.WebsocketFuturesUnsubscribe(t.Context(), conn, subscription.List{sub}), "WebsocketFuturesUnsubscribe must not error")
+		assert.Nil(t, live.Websocket.GetSubscription(sub), "the unsubscribed channel should be removed")
+		assert.NotContains(t, futuresRepliesOwed(live), conn, "the venue should answer the unsubscription's marker, so the connection owes no reply")
+	})
 
 	t.Run("nothing to send", func(t *testing.T) {
 		t.Parallel()
@@ -2253,4 +2287,39 @@ func TestWebsocketFuturesSubscribePrivate(t *testing.T) {
 			assert.Equalf(t, subscription.TickerChannel, s.Channel, "%s should not be recorded after a refused login", s.QualifiedChannel)
 		}
 	})
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		live := liveExchange(t, liveReadOnly)
+		testexch.SetupWs(t, live)
+		conn, err := live.Websocket.GetConnection(futuresPrivateConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		sub := &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.MyAccountChannel, Authenticated: true, QualifiedChannel: futuresChannelAsset}
+		require.NoError(t, live.websocketFuturesSubscribePrivate(t.Context(), conn, subscription.List{sub}), "websocketFuturesSubscribePrivate must log in on the venue")
+		assert.Equal(t, subscription.SubscribedState, sub.State(), "the private subscription should be subscribed once the venue accepts the login")
+		assert.NoError(t, live.websocketFuturesUnsubscribePrivate(t.Context(), conn, subscription.List{sub}), "websocketFuturesUnsubscribePrivate should not error")
+		assert.Nil(t, live.Websocket.GetSubscription(sub), "the private subscription should be removed")
+	})
+}
+
+func TestWebsocketFuturesUnsubscribePrivate(t *testing.T) {
+	t.Parallel()
+	ex := newFuturesWebsocketTestExchange(t)
+	venue := new(futuresVenue)
+	conn := dialFuturesTestVenue(t, ex, venue.handle)
+	orders := &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true, QualifiedChannel: futuresChannelOrder}
+	account := &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.MyAccountChannel, Authenticated: true, QualifiedChannel: futuresChannelAsset}
+	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, orders, account), "AddSuccessfulSubscriptions must not error")
+
+	require.NoError(t, ex.websocketFuturesUnsubscribePrivate(t.Context(), conn, subscription.List{orders}), "websocketFuturesUnsubscribePrivate must not error")
+	assert.Equal(t, subscription.UnsubscribedState, orders.State(), "the unsubscribed channel should be unsubscribed")
+	assert.Nil(t, ex.Websocket.GetSubscription(orders), "the unsubscribed channel should be removed")
+	assert.Same(t, account, ex.Websocket.GetSubscription(account), "the channel still subscribed should be kept")
+	assert.Empty(t, venue.methods(), "nothing should be sent, as the venue has no private unsubscription")
+
+	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), conn, []byte(futuresOrderFrame)), "WebsocketFuturesHandleData must not error")
+	requireNothingRelayed(t, ex)
+
+	err := ex.websocketFuturesUnsubscribePrivate(t.Context(), conn, subscription.List{orders})
+	assert.ErrorIs(t, err, subscription.ErrNotFound, "a channel no longer subscribed should not be unsubscribed again")
 }

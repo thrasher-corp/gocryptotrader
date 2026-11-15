@@ -1804,7 +1804,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	assert.Equal(t, c.ContractSize, lms.MultiplierDecimal, "the multiplier should be the contract size")
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	t.Run("futures", func(t *testing.T) {
 		t.Parallel()
@@ -2217,6 +2217,48 @@ func eachSideAndTypeAlone(pair currency.Pair) map[string]order.Cancel {
 	}
 	for _, oType := range []order.Type{order.StopLimit, order.StopMarket, order.TakeProfitMarket, order.TrailingStopLimit, order.Bracket} {
 		add(oType.String(), order.Cancel{Type: oType})
+	}
+	return cancellations
+}
+
+// eachNarrowingMarginTypeOrTimeInForce returns cancellations naming a margin type or a time in force, of the pair and
+// of every pair: each bit of either type alone, but a spot cancellation's cash margin type, which names every spot
+// order, and a few with any side or type, both fields, two flags, every supported margin type at once, cash with
+// another margin type or every other field set, so that a check of only some of them, or one another field turns off,
+// fails a case
+func eachNarrowingMarginTypeOrTimeInForce(a asset.Item, pair currency.Pair) map[string]order.Cancel {
+	cancellations := make(map[string]order.Cancel)
+	add := func(name string, c order.Cancel) {
+		c.AssetType = a
+		c.Pair = pair
+		cancellations[name+" orders"] = c
+		c.Pair = currency.EMPTYPAIR
+		cancellations[name+" orders of every pair"] = c
+	}
+	for marginType := margin.Type(1); marginType != 0; marginType <<= 1 {
+		if a != asset.Spot || marginType != margin.NoMargin {
+			add("margin type "+strconv.FormatUint(uint64(marginType), 10), order.Cancel{MarginType: marginType})
+		}
+	}
+	for tif := order.TimeInForce(1); tif != 0; tif <<= 1 {
+		add("time in force "+strconv.FormatUint(uint64(tif), 10), order.Cancel{TimeInForce: tif})
+	}
+	add("isolated, any side", order.Cancel{MarginType: margin.Isolated, Side: order.AnySide})
+	add("cross, any type", order.Cancel{MarginType: margin.Multi, Type: order.AnyType})
+	add("post-only, any side and type", order.Cancel{TimeInForce: order.PostOnly, Side: order.AnySide, Type: order.AnyType})
+	add("isolated post-only", order.Cancel{MarginType: margin.Isolated, TimeInForce: order.PostOnly})
+	add("GTC and post-only", order.Cancel{TimeInForce: order.GoodTillCancel | order.PostOnly})
+	add("every supported margin type at once", order.Cancel{MarginType: margin.Isolated | margin.Multi | margin.NoMargin | margin.SpotIsolated})
+	everyOtherFieldSet := func(c order.Cancel) order.Cancel {
+		c.Exchange, c.OrderID, c.ClientOrderID, c.AccountID, c.ClientID = "MEXC", "42", "client-42", "1", "1"
+		c.Side, c.Type = order.AnySide, order.AnyType
+		return c
+	}
+	add("isolated, every other field set", everyOtherFieldSet(order.Cancel{MarginType: margin.Isolated}))
+	add("post-only, every other field set", everyOtherFieldSet(order.Cancel{TimeInForce: order.PostOnly}))
+	if a == asset.Spot {
+		add("cash post-only", order.Cancel{MarginType: margin.NoMargin, TimeInForce: order.PostOnly})
+		add("cash and isolated", order.Cancel{MarginType: margin.NoMargin | margin.Isolated})
 	}
 	return cancellations
 }
@@ -2818,6 +2860,15 @@ func TestCancelAllOrders(t *testing.T) {
 				assert.Zero(t, requests.Load(), "nothing should be sent to the venue")
 			})
 		}
+		for name, c := range eachNarrowingMarginTypeOrTimeInForce(asset.Futures, futuresTradablePair) {
+			t.Run(name+" refused", func(t *testing.T) {
+				t.Parallel()
+				ex, requests := newRefusingTestExchange(t)
+				_, err := ex.CancelAllOrders(t.Context(), &c)
+				require.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders must refuse to cancel futures orders of one margin type or time in force")
+				assert.Zero(t, requests.Load(), "nothing should be sent to the venue")
+			})
+		}
 	})
 	t.Run("spot", func(t *testing.T) {
 		t.Parallel()
@@ -2832,6 +2883,9 @@ func TestCancelAllOrders(t *testing.T) {
 			"any type":               {cancel: order.Cancel{Type: order.AnyType, Pair: spotTradablePair}, sent: "DELETE /api/v3/openOrders BTCUSDT", exp: map[string]string{"9": "cancelled"}},
 			"any side, every symbol": {cancel: order.Cancel{Side: order.AnySide}, sent: "DELETE /api/v3/order/all ", exp: map[string]string{}},
 			"any type, every symbol": {cancel: order.Cancel{Type: order.AnyType}, sent: "DELETE /api/v3/order/all ", exp: map[string]string{}},
+			"cash orders":            {cancel: order.Cancel{MarginType: margin.NoMargin, Pair: spotTradablePair}, sent: "DELETE /api/v3/openOrders BTCUSDT", exp: map[string]string{"9": "cancelled"}},
+			"cash, every symbol":     {cancel: order.Cancel{MarginType: margin.NoMargin}, sent: "DELETE /api/v3/order/all ", exp: map[string]string{}},
+			"cash, any side & type":  {cancel: order.Cancel{MarginType: margin.NoMargin, Side: order.AnySide, Type: order.AnyType, Pair: spotTradablePair}, sent: "DELETE /api/v3/openOrders BTCUSDT", exp: map[string]string{"9": "cancelled"}},
 		} {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
@@ -2858,6 +2912,8 @@ func TestCancelAllOrders(t *testing.T) {
 			"every symbol's sells":      {Side: order.Sell},
 			"every symbol's limits":     {Type: order.Limit},
 			"every symbol's ask orders": {Side: order.Ask, Type: order.AnyType},
+			"cash buy orders":           {MarginType: margin.NoMargin, Side: order.Buy, Pair: spotTradablePair},
+			"cash limits, every symbol": {MarginType: margin.NoMargin, Type: order.Limit},
 		}
 		maps.Copy(refusals, eachSideAndTypeAlone(spotTradablePair))
 		for name, c := range refusals {
@@ -2867,6 +2923,15 @@ func TestCancelAllOrders(t *testing.T) {
 				c.AssetType = asset.Spot
 				_, err := ex.CancelAllOrders(t.Context(), &c)
 				require.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders must refuse to cancel spot orders of one side or type")
+				assert.Zero(t, requests.Load(), "nothing should be sent to the venue")
+			})
+		}
+		for name, c := range eachNarrowingMarginTypeOrTimeInForce(asset.Spot, spotTradablePair) {
+			t.Run(name+" refused", func(t *testing.T) {
+				t.Parallel()
+				ex, requests := newRefusingTestExchange(t)
+				_, err := ex.CancelAllOrders(t.Context(), &c)
+				require.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders must refuse to cancel spot orders of one margin type or time in force")
 				assert.Zero(t, requests.Load(), "nothing should be sent to the venue")
 			})
 		}

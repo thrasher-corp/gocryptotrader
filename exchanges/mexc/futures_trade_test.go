@@ -865,7 +865,7 @@ func TestGetFuturesOrderDeals(t *testing.T) {
 	assert.Equal(t, exp, result, "GetFuturesOrderDeals should decode every field")
 }
 
-func TestFuturesOrderDealWasTaker(t *testing.T) {
+func TestFuturesOrderDealResponseWasTaker(t *testing.T) {
 	t.Parallel()
 	assert.True(t, (&FuturesOrderDealResponse{IsTaker: true}).WasTaker(), "a fill sent as isTaker should be a taker's")
 	assert.True(t, (&FuturesOrderDealResponse{Taker: true}).WasTaker(), "a fill sent as taker should be a taker's")

@@ -333,23 +333,33 @@ func TestGetFuturesFundingRates(t *testing.T) {
 	}
 }
 
-func TestFuturesIntervals(t *testing.T) {
+func TestFuturesIntervalString(t *testing.T) {
 	t.Parallel()
 	for _, i := range futuresIntervals {
 		t.Run(i.interval.Short(), func(t *testing.T) {
 			t.Parallel()
 			value, err := futuresIntervalString(i.interval)
 			require.NoErrorf(t, err, "futuresIntervalString must not error for %s", i.interval)
-			interval, err := futuresIntervalFromString(value)
-			require.NoErrorf(t, err, "futuresIntervalFromString must not error for %s", value)
-			assert.Equalf(t, i.interval, interval, "%s should round trip", value)
+			assert.Equalf(t, i.value, value, "%s should be named %s", i.interval, i.value)
 		})
 	}
 	_, err := futuresIntervalString(kline.TenMin)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 	_, err = futuresIntervalString(kline.HundredMilliseconds)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "a spot websocket interval should not be a futures interval")
-	_, err = futuresIntervalFromString("Min3")
+}
+
+func TestFuturesIntervalFromString(t *testing.T) {
+	t.Parallel()
+	for _, i := range futuresIntervals {
+		t.Run(i.value, func(t *testing.T) {
+			t.Parallel()
+			interval, err := futuresIntervalFromString(i.value)
+			require.NoErrorf(t, err, "futuresIntervalFromString must not error for %s", i.value)
+			assert.Equalf(t, i.interval, interval, "%s should name %s", i.value, i.interval)
+		})
+	}
+	_, err := futuresIntervalFromString("Min3")
 	assert.ErrorIs(t, err, kline.ErrInvalidInterval)
 }
 

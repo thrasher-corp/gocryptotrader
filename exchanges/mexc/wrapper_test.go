@@ -669,7 +669,7 @@ func TestFuturesCurrentLeverage(t *testing.T) {
 	assert.ErrorIs(t, err, errFuturesRequestFailed, "futuresCurrentLeverage should return a refused leverage request")
 }
 
-func TestFuturesContractIsInverse(t *testing.T) {
+func TestFuturesContractResponseIsInverse(t *testing.T) {
 	t.Parallel()
 	assert.False(t, (&FuturesContractResponse{BaseCoin: currency.BTC, QuoteCoin: currency.USDT, SettleCoin: currency.USDT}).IsInverse(), "a contract settled in its quote currency should be linear")
 	assert.True(t, (&FuturesContractResponse{BaseCoin: currency.BTC, QuoteCoin: currency.USD, SettleCoin: currency.BTC}).IsInverse(), "a contract settled in its base currency should be inverse")
@@ -746,9 +746,28 @@ func TestFuturesOrderSide(t *testing.T) {
 	}
 	_, err := futuresOrderSide(order.AnySide, false)
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
-	side, reduceOnly := orderSideFromFuturesSide(9)
-	assert.Equal(t, order.UnknownSide, side, "an unknown side should not be guessed")
-	assert.False(t, reduceOnly, "an unknown side should not reduce")
+}
+
+func TestOrderSideFromFuturesSide(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		futuresSide uint8
+		side        order.Side
+		reduceOnly  bool
+	}{
+		"open long":    {FuturesSideOpenLong, order.Buy, false},
+		"close short":  {FuturesSideCloseShort, order.Buy, true},
+		"open short":   {FuturesSideOpenShort, order.Sell, false},
+		"close long":   {FuturesSideCloseLong, order.Sell, true},
+		"unknown side": {9, order.UnknownSide, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			side, reduceOnly := orderSideFromFuturesSide(tc.futuresSide)
+			assert.Equalf(t, tc.side, side, "side %d should map to %s", tc.futuresSide, tc.side)
+			assert.Equalf(t, tc.reduceOnly, reduceOnly, "side %d should map to reducing %t", tc.futuresSide, tc.reduceOnly)
+		})
+	}
 }
 
 func TestFuturesSideType(t *testing.T) {
@@ -896,10 +915,23 @@ func TestFuturesOpenTypeFromMarginType(t *testing.T) {
 	}
 	_, err := futuresOpenTypeFromMarginType(margin.SpotIsolated)
 	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+}
 
-	assert.Equal(t, margin.Isolated, futuresMarginType(FuturesOpenTypeIsolated), "an isolated open type should be isolated")
-	assert.Equal(t, margin.Multi, futuresMarginType(FuturesOpenTypeCross), "a cross open type should be multi")
-	assert.Equal(t, margin.Unset, futuresMarginType(0), "an unknown open type should not be guessed")
+func TestFuturesMarginType(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		openType uint8
+		exp      margin.Type
+	}{
+		"isolated":          {FuturesOpenTypeIsolated, margin.Isolated},
+		"cross":             {FuturesOpenTypeCross, margin.Multi},
+		"unknown open type": {0, margin.Unset},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, futuresMarginType(tc.openType), "open type %d should map to margin type %q", tc.openType, tc.exp)
+		})
+	}
 }
 
 func TestFuturesBalance(t *testing.T) {

@@ -1358,8 +1358,9 @@ func recordFuturesCancelOutcomes(resp *order.CancelBatchResponse, requested []or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair, or every open order of the
-// account when no pair is given. A cancellation naming one side or order type is refused: neither the spot nor the
-// futures cancel-all can narrow to one, so it would cancel orders not asked for
+// account when no pair is given. A cancellation naming one side, order type, margin type or time in force is refused:
+// neither the spot nor the futures cancel-all can narrow to one, so it would cancel orders not asked for. A spot one
+// naming cash orders goes ahead, as every spot order is a cash order
 func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	// This is a symbol-wide cancel: it cancels every open order for the pair and takes no order id,
 	// so StandardCancel() (which requires an OrderID) must not gate it - it rejected a valid
@@ -1370,6 +1371,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if (orderCancellation.Side != order.UnknownSide && orderCancellation.Side != order.AnySide) ||
 		(orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType) {
 		return order.CancelAllResponse{}, fmt.Errorf("%w: cancelling only the orders of one side or type (side %s, type %s)", common.ErrFunctionNotSupported, orderCancellation.Side, orderCancellation.Type)
+	}
+	if orderCancellation.TimeInForce != order.UnknownTIF ||
+		(orderCancellation.MarginType != margin.Unset && (orderCancellation.AssetType != asset.Spot || orderCancellation.MarginType != margin.NoMargin)) {
+		return order.CancelAllResponse{}, fmt.Errorf("%w: cancelling only the orders of one margin type or time in force (margin type %s, time in force %s)", common.ErrFunctionNotSupported, orderCancellation.MarginType, orderCancellation.TimeInForce)
 	}
 	resp := order.CancelAllResponse{
 		Status: make(map[string]string),

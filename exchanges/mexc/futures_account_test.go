@@ -453,7 +453,7 @@ func TestGetFuturesOpenPositions(t *testing.T) {
 	assert.Equal(t, exp, result, "GetFuturesOpenPositions should decode every field")
 }
 
-func TestFuturesPositionUnrealisedPNL(t *testing.T) {
+func TestFuturesPositionResponseUnrealisedPNL(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, 1.5, (&FuturesPositionResponse{UnrealisedPNL: 1.5, PushedUnrealisedPNL: 2}).unrealisedPNL(), "a REST reply's unrealised PNL should be preferred")
 	assert.Equal(t, 2.0, (&FuturesPositionResponse{PushedUnrealisedPNL: 2}).unrealisedPNL(), "a push's unrealised PNL should be read without a REST one")
