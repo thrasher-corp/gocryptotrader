@@ -1255,6 +1255,76 @@ func TestUpdateAccountBalances(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestAccountBalanceResp(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	subAccts := accounts.SubAccounts{
+		{
+			ID: "sub1",
+			Balances: accounts.CurrencyBalances{
+				currency.BTC: {
+					Total:     1.5,
+					Free:      1.0,
+					Hold:      0.5,
+					UpdatedAt: now,
+				},
+				currency.ETH: {
+					Total:                  0,
+					Hold:                   0,
+					Free:                   0,
+					AvailableWithoutBorrow: 0,
+					Borrowed:               0,
+					UpdatedAt:              now,
+				},
+				currency.USDT: {
+					Borrowed:  50,
+					UpdatedAt: now,
+				},
+				currency.DOGE: {
+					AvailableWithoutBorrow: 10,
+					UpdatedAt:              now,
+				},
+			},
+		},
+		{
+			ID: "sub2",
+			Balances: accounts.CurrencyBalances{
+				currency.LTC: {
+					Total: 0,
+				},
+			},
+		},
+	}
+
+	resp := accountBalanceResp("Binance", subAccts)
+	require.NotNil(t, resp)
+	assert.Equal(t, "Binance", resp.Exchange)
+	require.Len(t, resp.Accounts, 2)
+
+	assert.Equal(t, "sub1", resp.Accounts[0].Id)
+	require.Len(t, resp.Accounts[0].Currencies, 3)
+	currencies := make(map[string]*gctrpc.AccountCurrencyInfo)
+	for _, c := range resp.Accounts[0].Currencies {
+		currencies[c.Currency] = c
+	}
+	assert.Contains(t, currencies, "BTC")
+	assert.Equal(t, 1.5, currencies["BTC"].TotalValue)
+	assert.Equal(t, 1.0, currencies["BTC"].Free)
+	assert.Equal(t, 0.5, currencies["BTC"].Hold)
+
+	assert.Contains(t, currencies, "USDT")
+	assert.Equal(t, 50.0, currencies["USDT"].Borrowed)
+
+	assert.Contains(t, currencies, "DOGE")
+	assert.Equal(t, 10.0, currencies["DOGE"].FreeWithoutBorrow)
+
+	assert.NotContains(t, currencies, "ETH")
+
+	assert.Equal(t, "sub2", resp.Accounts[1].Id)
+	assert.Empty(t, resp.Accounts[1].Currencies)
+}
+
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
 	exchName := "Binance"
