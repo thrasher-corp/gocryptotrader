@@ -2,6 +2,7 @@ package gate
 
 import (
 	"net/http"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -59,14 +60,18 @@ func TestListSubAccounts(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, subAccountType := range []int64{-1, 1} {
-		result, err := e.ListSubAccounts(t.Context(), subAccountType)
-		require.NoErrorf(t, err, "ListSubAccounts must not error for type %d", subAccountType)
-		if mockTests {
-			assert.Equalf(t, []*SubAccountResponse{recordedSubAccount}, result, "ListSubAccounts should decode every field for type %d", subAccountType)
-			continue
-		}
-		assert.NotNilf(t, result, "ListSubAccounts should return sub-accounts for type %d", subAccountType)
+		t.Run("type "+strconv.FormatInt(subAccountType, 10), func(t *testing.T) {
+			result, err := e.ListSubAccounts(ctx, subAccountType)
+			require.NoErrorf(t, err, "ListSubAccounts must not error for type %d", subAccountType)
+			if mockTests {
+				assert.Equalf(t, []*SubAccountResponse{recordedSubAccount}, result, "ListSubAccounts should decode every field for type %d", subAccountType)
+				return
+			}
+			assert.NotNilf(t, result, "ListSubAccounts should return sub-accounts for type %d", subAccountType)
+		})
 	}
 }
 

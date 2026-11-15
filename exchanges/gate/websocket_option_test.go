@@ -2,6 +2,7 @@ package gate
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -101,60 +102,65 @@ func TestProcessResponse(t *testing.T) {
 	}
 }
 
-func TestWebsocketHandleOptionsDataRelaysResult(t *testing.T) {
+func TestProcessOptionsCandlestickPushData(t *testing.T) {
 	t.Parallel()
-	contract := currency.NewPairWithDelimiter("BTC", "USDT-20211130-50000-P", currency.UnderscoreDelimiter)
-	// The envelope's times differ from the result's, so relaying the envelope instead of the result shows
+
+	t.Run("malformed push", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		assert.Error(t, ex.processOptionsCandlestickPushData(t.Context(), []byte(`{`)), "processOptionsCandlestickPushData should reject malformed JSON")
+		assert.Empty(t, ex.Websocket.DataHandler.C, "processOptionsCandlestickPushData should not relay a malformed push")
+	})
+
 	for _, tc := range []struct {
-		channel string
-		result  string
-		exp     any
+		name        string
+		subscribed  string
+		err         error
+		errContains string
 	}{
-		{
-			channel: optionsUnderlyingTickersChannel,
-			result:  `{"trade_put":800,"trade_call":41700,"index_price":"50695.43","name":"BTC_USDT"}`,
-			exp:     &WebsocketOptionUnderlyingTicker{TradePut: 800, TradeCall: 41700, IndexPrice: 50695.43, Name: "BTC_USDT"},
-		},
-		{
-			channel: optionsUnderlyingPriceChannel,
-			result:  `{"underlying":"BTC_USDT","price":49653.24,"time":1639143988,"time_ms":1639143988931}`,
-			exp:     &WebsocketOptionsUnderlyingPrice{Underlying: "BTC_USDT", Price: 49653.24, UpdateTime: types.Time(time.UnixMilli(1639143988931))},
-		},
-		{
-			channel: optionsMarkPriceChannel,
-			result:  `{"contract":"BTC_USDT-20211130-50000-P","price":11021.27,"time":1639143401,"time_ms":1639143401676}`,
-			exp:     &WebsocketOptionsMarkPrice{Contract: contract, Price: 11021.27, UpdateTime: types.Time(time.UnixMilli(1639143401676))},
-		},
-		{
-			channel: optionsSettlementChannel,
-			result:  `{"contract":"BTC_USDT-20211130-50000-P","orderbook_id":2,"position_size":1,"profit":0.5,"settle_price":70000,"strike_price":65000,"tag":"WEEK","trade_id":3,"trade_size":4,"underlying":"BTC_USDT","time":1639051907,"time_ms":1639051907000}`,
-			exp:     &WebsocketOptionsSettlement{Contract: contract, OrderbookID: 2, PositionSize: 1, Profit: 0.5, SettlePrice: 70000, StrikePrice: 65000, Tag: "WEEK", TradeID: 3, TradeSize: 4, Underlying: "BTC_USDT", UpdateTime: types.Time(time.UnixMilli(1639051907000))},
-		},
-		{
-			channel: optionsContractsChannel,
-			result:  `{"contract":"BTC_USDT-20211130-50000-P","create_time":1637917026,"expiration_time":1638230400,"init_margin_high":0.15,"init_margin_low":0.1,"is_call":true,"maint_margin_base":0.075,"maker_fee_rate":0.0004,"mark_price_round":0.1,"min_balance_short":0.5,"min_order_margin":0.1,"multiplier":0.0001,"order_price_deviate":0.2,"order_price_round":0.1,"order_size_max":1,"order_size_min":10,"orders_limit":100000,"ref_discount_rate":0.1,"ref_rebate_rate":0.3,"strike_price":50000,"tag":"WEEK","taker_fee_rate":0.0004,"underlying":"BTC_USDT","time":1639051907,"time_ms":1639051907000}`,
-			exp: &WebsocketOptionsContract{
-				Contract: contract, CreateTime: types.Time(time.Unix(1637917026, 0)), ExpirationTime: types.Time(time.Unix(1638230400, 0)),
-				InitMarginHigh: 0.15, InitMarginLow: 0.1, IsCall: true, MaintMarginBase: 0.075, MakerFeeRate: 0.0004, MarkPriceRound: 0.1,
-				MinBalanceShort: 0.5, MinOrderMargin: 0.1, Multiplier: 0.0001, OrderPriceDeviate: 0.2, OrderPriceRound: 0.1, OrderSizeMax: 1,
-				OrderSizeMin: 10, OrdersLimit: 100000, RefDiscountRate: 0.1, RefRebateRate: 0.3, StrikePrice: 50000, Tag: "WEEK",
-				TakerFeeRate: 0.0004, Underlying: "BTC_USDT", Time: types.Time(time.UnixMilli(1639051907000)),
-			},
-		},
-		{
-			channel: optionsOrderbookTickerChannel,
-			result:  `{"t":1615366379123,"u":2517661076,"s":"BTC_USDT-20211130-50000-C","b":"54696.6","B":37000,"a":"54696.7","A":47061}`,
-			exp:     &WebsocketOptionsOrderbookTicker{UpdateTimestamp: types.Time(time.UnixMilli(1615366379123)), UpdateID: 2517661076, ContractName: "BTC_USDT-20211130-50000-C", BidPrice: 54696.6, BidSize: 37000, AskPrice: 54696.7, AskSize: 47061},
-		},
+		{name: "name without a contract", subscribed: "10s", errContains: "malformed options candlestick websocket push data"},
+		{name: "unknown interval", subscribed: "9x_BTC_USDT-20211231-59800-C", err: kline.ErrInvalidInterval},
+		{name: "invalid contract", subscribed: "10s__", err: currency.ErrCreatingPair},
 	} {
-		t.Run(tc.channel, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Setup must not error")
-			push := `{"time":1630576300,"time_ms":1630576300123,"channel":"` + tc.channel + `","event":"update","result":` + tc.result + `}`
-			require.NoError(t, ex.WebsocketHandleOptionsData(t.Context(), nil, []byte(push)), "WebsocketHandleOptionsData must not error")
-			require.Len(t, ex.Websocket.DataHandler.C, 1, "WebsocketHandleOptionsData must relay the push")
-			assert.Equal(t, tc.exp, (<-ex.Websocket.DataHandler.C).Data, "WebsocketHandleOptionsData should relay the decoded result")
+			err := ex.processOptionsCandlestickPushData(t.Context(), []byte(`{"time":1630650451,"channel":"options.contract_candlesticks","event":"update","result":[{"t":1639039260,"v":100,"c":"1042.5","h":"1043","l":"1040","o":"1041.4","a":"2.5","n":"`+tc.subscribed+`"}]}`))
+			if tc.errContains != "" {
+				assert.ErrorContains(t, err, tc.errContains, "processOptionsCandlestickPushData should reject a name it cannot split")
+			} else {
+				assert.ErrorIs(t, err, tc.err, "processOptionsCandlestickPushData should return the expected error")
+			}
+			assert.Empty(t, ex.Websocket.DataHandler.C, "processOptionsCandlestickPushData should not relay a rejected candle")
+		})
+	}
+
+	for _, tc := range []struct {
+		name    string
+		channel string
+		subject string
+		pair    currency.Pair
+	}{
+		{name: "contract candle", channel: optionsContractCandlesticksChannel, subject: "BTC_USDT-20211231-59800-C", pair: currency.NewPairWithDelimiter("BTC", "USDT-20211231-59800-C", currency.UnderscoreDelimiter)},
+		{name: "underlying candle", channel: optionsUnderlyingCandlesticksChannel, subject: "BTC_USDT", pair: currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			push := `{"time":1630650451,"channel":"` + tc.channel + `","event":"update","result":[{"t":1639039260,"v":100,"c":"1042.5","h":"1043","l":"1040","o":"1041.4","a":"2.5","n":"10s_` + tc.subject + `"}]}`
+			require.NoError(t, ex.processOptionsCandlestickPushData(t.Context(), []byte(push)), "processOptionsCandlestickPushData must not error")
+			require.Len(t, ex.Websocket.DataHandler.C, 1, "processOptionsCandlestickPushData must relay the candle")
+			exp := []kline.Item{{
+				Pair:     tc.pair,
+				Asset:    asset.Options,
+				Exchange: ex.Name,
+				Interval: kline.TenSecond,
+				Candles:  []kline.Candle{{Time: time.Unix(1639039260, 0), Open: 1041.4, Close: 1042.5, High: 1043, Low: 1040, Volume: 2.5}},
+			}}
+			assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processOptionsCandlestickPushData should relay the candle with its amount as the volume")
 		})
 	}
 }
@@ -240,6 +246,21 @@ func TestGenerateOptionsPayload(t *testing.T) {
 
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
+
+	t.Run("disabled asset skipped before authentication", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+		require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Options, false), "SetAssetEnabled must not error")
+		got, err := ex.GenerateOptionsDefaultSubscriptions(t.Context())
+		require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error for disabled asset")
+		require.Empty(t, got, "disabled options asset must not generate subscriptions")
+		require.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "authenticated endpoints must not be changed when disabled options are skipped before auth")
+	})
+
 	ex := newIsolatedExchange(t)
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
@@ -267,35 +288,6 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	assert.ErrorIs(t, err, context.Canceled, "GenerateOptionsDefaultSubscriptions should request the options account under the context it is given")
 }
 
-func TestWebsocketHandleOptionsDataNullResult(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		channel     string
-		event       string
-		err         error
-		errContains string
-	}{
-		{channel: optionsContractTickersChannel, event: "update", errContains: "currency pair not set"},
-		{channel: optionsOrderbookUpdateChannel, event: "update", err: currency.ErrCurrencyPairEmpty},
-		{channel: optionsOrderbookChannel, event: "all", errContains: "currency pair not set"},
-	} {
-		t.Run(tc.channel, func(t *testing.T) {
-			t.Parallel()
-			ex := new(Exchange)
-			require.NoError(t, testexch.Setup(ex), "Setup must not error")
-			var err error
-			require.NotPanics(t, func() {
-				err = ex.WebsocketHandleOptionsData(t.Context(), nil, []byte(`{"time":1,"channel":"`+tc.channel+`","event":"`+tc.event+`","result":null}`))
-			}, "WebsocketHandleOptionsData must not panic on a null result")
-			if tc.errContains != "" {
-				assert.ErrorContains(t, err, tc.errContains, "WebsocketHandleOptionsData should reject a null result")
-				return
-			}
-			assert.ErrorIs(t, err, tc.err, "WebsocketHandleOptionsData should return the expected error for a null result")
-		})
-	}
-}
-
 func TestProcessOptionsTradesPushData(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
@@ -319,12 +311,138 @@ func TestProcessOptionsTradesPushData(t *testing.T) {
 
 func TestProcessOptionsOrderPushData(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		size float64
+		side order.Side
+	}{
+		{name: "a bid filled over three pushes keeps no remainder in the order store", size: 10, side: order.Long},
+		{name: "an ask filled over three pushes keeps no remainder in the order store", size: -10, side: order.Short},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			var stored order.Detail
+			// Gate signs an ask's remainder as it signs its size
+			for i, push := range []struct {
+				left             float64
+				status, finishAs string
+				executed         float64
+			}{
+				{left: tc.size, status: "open"},
+				{left: tc.size * 0.4, status: "open", executed: 6},
+				{status: "finished", finishAs: "filled", executed: 10},
+			} {
+				data := fmt.Sprintf(`{"time":1630654851,"channel":"options.orders","event":"update","result":[{"contract":"BTC_USDT-20211130-65000-C","create_time":1637897000,"id":106,"price":100,"size":%v,"left":%v,"status":%q,"finish_as":%q,"user":"9xxx","time_ms":1637897000123}]}`, tc.size, push.left, push.status, push.finishAs)
+				require.NoErrorf(t, ex.processOptionsOrderPushData(t.Context(), []byte(data)), "processOptionsOrderPushData must not error for push %d", i)
+				require.Lenf(t, ex.Websocket.DataHandler.C, 1, "processOptionsOrderPushData must relay push %d", i)
+				details, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
+				require.Truef(t, ok, "processOptionsOrderPushData must relay order details for push %d", i)
+				require.Lenf(t, details, 1, "processOptionsOrderPushData must relay one order for push %d", i)
+				assert.Equalf(t, tc.side, details[0].Side, "processOptionsOrderPushData should relay the side of push %d", i)
+				assert.Equalf(t, push.executed, details[0].ExecutedAmount, "processOptionsOrderPushData should relay the executed amount of push %d", i)
+				assert.Zerof(t, details[0].RemainingAmount, "processOptionsOrderPushData should relay no remainder for push %d", i)
+				if i == 0 {
+					stored = details[0]
+					continue
+				}
+				require.NoErrorf(t, stored.UpdateOrderFromDetail(&details[0]), "UpdateOrderFromDetail must not error for push %d", i)
+			}
+			assert.Equal(t, order.Filled, stored.Status, "the stored order should be filled")
+			assert.Equal(t, 10.0, stored.ExecutedAmount, "the stored order should be fully executed")
+			assert.Zero(t, stored.RemainingAmount, "the stored order should keep no remainder")
+		})
+	}
+	t.Run("order fields", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		push := func(fields string) []byte {
+			return []byte(`{"time":1630654851,"channel":"options.orders","event":"update","result":[{"contract":"BTC_USDT-20211130-65000-C","create_time":1637897000,"id":106,"size":10,"left":4,"status":"open","user":"9xxx","time_ms":1637897000123,` + fields + `}]}`)
+		}
+		// The orders in one push differ in every field read from the push and take every status and time in force
+		// branch after the first, so each is read from its own order
+		orders := []byte(`{"time":1630654851,"channel":"options.orders","event":"update","result":[` +
+			`{"contract":"BTC_USDT-20211130-65000-C","create_time":1637897000,"id":106,"size":10,"left":4,"status":"finished","finish_as":"","user":"9xxx","time_ms":1637897000123,"price":100,"fill_price":90,"is_reduce_only":true,"text":"t-probe"},` +
+			`{"contract":"BTC_USDT-20211130-75000-P","create_time":1637897001,"id":107,"size":-5,"left":-2,"status":"open","user":"9yyy","time_ms":1637897001123,"price":0,"fill_price":110,"tif":"ioc","is_reduce_only":false,"text":"t-other"},` +
+			`{"contract":"BTC_USDT-20211130-70000-C","create_time":1637897002,"id":108,"size":3,"left":0,"status":"finished","finish_as":"filled","user":"9zzz","time_ms":1637897002123,"price":50,"fill_price":45,"tif":"poc","is_reduce_only":true,"text":"web"}]}`)
+		require.NoError(t, ex.processOptionsOrderPushData(t.Context(), orders), "processOptionsOrderPushData must not error")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "processOptionsOrderPushData must relay the orders")
+		exp := []order.Detail{{
+			Amount:               10,
+			Exchange:             ex.Name,
+			OrderID:              "106",
+			ClientOrderID:        "t-probe",
+			Side:                 order.Long,
+			Type:                 order.Limit,
+			TimeInForce:          order.GoodTillCancel,
+			ReduceOnly:           true,
+			Status:               order.Cancelled,
+			Pair:                 currency.NewPairWithDelimiter("BTC", "USDT-20211130-65000-C", currency.UnderscoreDelimiter),
+			Date:                 time.Unix(1637897000, 0),
+			LastUpdated:          time.UnixMilli(1637897000123),
+			ExecutedAmount:       6,
+			Price:                100,
+			AverageExecutedPrice: 90,
+			AssetType:            asset.Options,
+			AccountID:            "9xxx",
+		}, {
+			Amount:               5,
+			Exchange:             ex.Name,
+			OrderID:              "107",
+			ClientOrderID:        "t-other",
+			Side:                 order.Short,
+			Type:                 order.Market,
+			TimeInForce:          order.ImmediateOrCancel,
+			Status:               order.Open,
+			Pair:                 currency.NewPairWithDelimiter("BTC", "USDT-20211130-75000-P", currency.UnderscoreDelimiter),
+			Date:                 time.Unix(1637897001, 0),
+			LastUpdated:          time.UnixMilli(1637897001123),
+			ExecutedAmount:       3,
+			AverageExecutedPrice: 110,
+			AssetType:            asset.Options,
+			AccountID:            "9yyy",
+		}, {
+			Amount:               3,
+			Exchange:             ex.Name,
+			OrderID:              "108",
+			Side:                 order.Long,
+			Type:                 order.Limit,
+			TimeInForce:          order.PostOnly,
+			ReduceOnly:           true,
+			Status:               order.Filled,
+			Pair:                 currency.NewPairWithDelimiter("BTC", "USDT-20211130-70000-C", currency.UnderscoreDelimiter),
+			Date:                 time.Unix(1637897002, 0),
+			LastUpdated:          time.UnixMilli(1637897002123),
+			ExecutedAmount:       3,
+			Price:                50,
+			AverageExecutedPrice: 45,
+			AssetType:            asset.Options,
+			AccountID:            "9zzz",
+		}}
+		assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processOptionsOrderPushData should relay each order's fill price, type, time in force, reduce-only flag and client order ID")
+
+		require.NoError(t, ex.processOptionsOrderPushData(t.Context(), push(`"price":100,"text":"web"`)), "processOptionsOrderPushData must not error without a time in force")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "processOptionsOrderPushData must relay the order without a time in force")
+		details, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
+		require.True(t, ok, "processOptionsOrderPushData must relay order details")
+		require.Len(t, details, 1, "processOptionsOrderPushData must relay one order")
+		assert.Equal(t, order.GoodTillCancel, details[0].TimeInForce, "processOptionsOrderPushData should default a missing time in force to good till cancel")
+		assert.Equal(t, order.Limit, details[0].Type, "processOptionsOrderPushData should relay a priced order as a limit order")
+		assert.Empty(t, details[0].ClientOrderID, "processOptionsOrderPushData should relay no client order ID for text Gate set")
+
+		assert.ErrorIs(t, ex.processOptionsOrderPushData(t.Context(), push(`"price":100,"tif":"bogus"`)), order.ErrUnsupportedTimeInForce, "processOptionsOrderPushData should reject an unknown time in force")
+		assert.Empty(t, ex.Websocket.DataHandler.C, "processOptionsOrderPushData should not relay a rejected push")
+	})
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	assert.Error(t, ex.processOptionsOrderPushData(t.Context(), []byte(`{`)), "processOptionsOrderPushData should reject malformed JSON")
 	assert.ErrorContains(t, ex.processOptionsOrderPushData(t.Context(), []byte(`{"time":1630654851,"channel":"options.orders","event":"update","result":[{"id":106,"status":"bogus"}]}`)), "unrecognised order status", "processOptionsOrderPushData should reject an unknown status")
 	require.Empty(t, ex.Websocket.DataHandler.C, "processOptionsOrderPushData must not relay a rejected push")
 	contract := currency.NewPairWithDelimiter("BTC", "USDT-20211130-65000-C", currency.UnderscoreDelimiter)
+	ctx := t.Context()
+	// Cases share ex's relay and run in order
 	for _, tc := range []struct {
 		name     string
 		order    string
@@ -339,28 +457,31 @@ func TestProcessOptionsOrderPushData(t *testing.T) {
 		{name: "finished without finish_as", order: `"size":5,"left":5,"status":"finished","finish_as":""`, status: order.Cancelled, side: order.Long},
 	} {
 		push := `{"time":1630654851,"channel":"options.orders","event":"update","result":[{"contract":"BTC_USDT-20211130-65000-C","create_time":1637897000,"fill_price":0,"id":106,"is_close":false,"is_liq":false,"is_reduce_only":false,"price":100,"text":"-","tif":"gtc","underlying":"BTC_USDT","user":"9xxx","time_ms":1637897000123,` + tc.order + `}]}`
-		require.NoErrorf(t, ex.processOptionsOrderPushData(t.Context(), []byte(push)), "processOptionsOrderPushData must not error for %s", tc.name)
-		require.Lenf(t, ex.Websocket.DataHandler.C, 1, "processOptionsOrderPushData must relay the %s order", tc.name)
-		amount := 10.0
-		if tc.name == "market maker protection" || tc.name == "finished without finish_as" {
-			amount = 5
-		}
-		exp := []order.Detail{{
-			Amount:          amount,
-			Exchange:        ex.Name,
-			OrderID:         "106",
-			Side:            tc.side,
-			Status:          tc.status,
-			Pair:            contract,
-			Date:            time.Unix(1637897000, 0),
-			LastUpdated:     time.UnixMilli(1637897000123),
-			ExecutedAmount:  tc.executed,
-			RemainingAmount: amount - tc.executed,
-			Price:           100,
-			AssetType:       asset.Options,
-			AccountID:       "9xxx",
-		}}
-		assert.Equalf(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processOptionsOrderPushData should relay the %s order", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoErrorf(t, ex.processOptionsOrderPushData(ctx, []byte(push)), "processOptionsOrderPushData must not error for %s", tc.name)
+			require.Lenf(t, ex.Websocket.DataHandler.C, 1, "processOptionsOrderPushData must relay the %s order", tc.name)
+			amount := 10.0
+			if tc.name == "market maker protection" || tc.name == "finished without finish_as" {
+				amount = 5
+			}
+			exp := []order.Detail{{
+				Amount:         amount,
+				Exchange:       ex.Name,
+				OrderID:        "106",
+				Side:           tc.side,
+				Type:           order.Limit,
+				TimeInForce:    order.GoodTillCancel,
+				Status:         tc.status,
+				Pair:           contract,
+				Date:           time.Unix(1637897000, 0),
+				LastUpdated:    time.UnixMilli(1637897000123),
+				ExecutedAmount: tc.executed,
+				Price:          100,
+				AssetType:      asset.Options,
+				AccountID:      "9xxx",
+			}}
+			assert.Equalf(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processOptionsOrderPushData should relay the %s order", tc.name)
+		})
 	}
 }
 
@@ -394,19 +515,6 @@ type matchRecorderConnection struct {
 func (c *matchRecorderConnection) RequireMatchWithData(signature any, data []byte) error {
 	c.signature, c.data = signature, data
 	return nil
-}
-
-func TestWebsocketHandleOptionsDataErrors(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	assert.ErrorIs(t, ex.WebsocketHandleOptionsData(t.Context(), nil, []byte(`{"time_ms":"x","channel":"options.ul_price"}`)), strconv.ErrSyntax, "WebsocketHandleOptionsData should reject an invalid header")
-
-	conn := &matchRecorderConnection{}
-	reply := []byte(`{"time":1630576352,"id":7,"channel":"options.ul_price","event":"subscribe","result":{"status":"success"}}`)
-	require.NoError(t, ex.WebsocketHandleOptionsData(t.Context(), conn, reply), "WebsocketHandleOptionsData must route a subscription reply")
-	assert.Equal(t, int64(7), conn.signature, "WebsocketHandleOptionsData should route the reply by its ID")
-	assert.Equal(t, reply, conn.data, "WebsocketHandleOptionsData should route the whole reply")
 }
 
 func TestProcessOptionsOrderbookSnapshotPushData(t *testing.T) {
@@ -476,6 +584,119 @@ var wsOptionsPushDataHandler = map[string]string{
 
 func TestWebsocketHandleOptionsData(t *testing.T) {
 	t.Parallel()
+
+	t.Run("relays the decoded result", func(t *testing.T) {
+		t.Parallel()
+		contract := currency.NewPairWithDelimiter("BTC", "USDT-20211130-50000-P", currency.UnderscoreDelimiter)
+		// The envelope's times differ from the result's, so relaying the envelope instead of the result shows
+		for _, tc := range []struct {
+			channel string
+			result  string
+			exp     any
+		}{
+			{
+				channel: optionsUnderlyingTickersChannel,
+				result:  `{"trade_put":800,"trade_call":41700,"index_price":"50695.43","name":"BTC_USDT"}`,
+				exp:     &WebsocketOptionUnderlyingTicker{TradePut: 800, TradeCall: 41700, IndexPrice: 50695.43, Name: "BTC_USDT"},
+			},
+			{
+				channel: optionsUnderlyingPriceChannel,
+				result:  `{"underlying":"BTC_USDT","price":49653.24,"time":1639143988,"time_ms":1639143988931}`,
+				exp:     &WebsocketOptionsUnderlyingPrice{Underlying: "BTC_USDT", Price: 49653.24, UpdateTime: types.Time(time.UnixMilli(1639143988931))},
+			},
+			{
+				channel: optionsMarkPriceChannel,
+				result:  `{"contract":"BTC_USDT-20211130-50000-P","price":11021.27,"time":1639143401,"time_ms":1639143401676}`,
+				exp:     &WebsocketOptionsMarkPrice{Contract: contract, Price: 11021.27, UpdateTime: types.Time(time.UnixMilli(1639143401676))},
+			},
+			{
+				channel: optionsSettlementChannel,
+				result:  `{"contract":"BTC_USDT-20211130-50000-P","orderbook_id":2,"position_size":1,"profit":0.5,"settle_price":70000,"strike_price":65000,"tag":"WEEK","trade_id":3,"trade_size":4,"underlying":"BTC_USDT","time":1639051907,"time_ms":1639051907000}`,
+				exp:     &WebsocketOptionsSettlement{Contract: contract, OrderbookID: 2, PositionSize: 1, Profit: 0.5, SettlePrice: 70000, StrikePrice: 65000, Tag: "WEEK", TradeID: 3, TradeSize: 4, Underlying: "BTC_USDT", UpdateTime: types.Time(time.UnixMilli(1639051907000))},
+			},
+			{
+				channel: optionsContractsChannel,
+				result:  `{"contract":"BTC_USDT-20211130-50000-P","create_time":1637917026,"expiration_time":1638230400,"init_margin_high":0.15,"init_margin_low":0.1,"is_call":true,"maint_margin_base":0.075,"maker_fee_rate":0.0004,"mark_price_round":0.1,"min_balance_short":0.5,"min_order_margin":0.1,"multiplier":0.0001,"order_price_deviate":0.2,"order_price_round":0.1,"order_size_max":1,"order_size_min":10,"orders_limit":100000,"ref_discount_rate":0.1,"ref_rebate_rate":0.3,"strike_price":50000,"tag":"WEEK","taker_fee_rate":0.0004,"underlying":"BTC_USDT","time":1639051907,"time_ms":1639051907000}`,
+				exp: &WebsocketOptionsContract{
+					Contract: contract, CreateTime: types.Time(time.Unix(1637917026, 0)), ExpirationTime: types.Time(time.Unix(1638230400, 0)),
+					InitMarginHigh: 0.15, InitMarginLow: 0.1, IsCall: true, MaintMarginBase: 0.075, MakerFeeRate: 0.0004, MarkPriceRound: 0.1,
+					MinBalanceShort: 0.5, MinOrderMargin: 0.1, Multiplier: 0.0001, OrderPriceDeviate: 0.2, OrderPriceRound: 0.1, OrderSizeMax: 1,
+					OrderSizeMin: 10, OrdersLimit: 100000, RefDiscountRate: 0.1, RefRebateRate: 0.3, StrikePrice: 50000, Tag: "WEEK",
+					TakerFeeRate: 0.0004, Underlying: "BTC_USDT", Time: types.Time(time.UnixMilli(1639051907000)),
+				},
+			},
+			{
+				channel: optionsOrderbookTickerChannel,
+				result:  `{"t":1615366379123,"u":2517661076,"s":"BTC_USDT-20211130-50000-C","b":"54696.6","B":37000,"a":"54696.7","A":47061}`,
+				exp:     &WebsocketOptionsOrderbookTicker{UpdateTimestamp: types.Time(time.UnixMilli(1615366379123)), UpdateID: 2517661076, ContractName: "BTC_USDT-20211130-50000-C", BidPrice: 54696.6, BidSize: 37000, AskPrice: 54696.7, AskSize: 47061},
+			},
+		} {
+			t.Run(tc.channel, func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				push := `{"time":1630576300,"time_ms":1630576300123,"channel":"` + tc.channel + `","event":"update","result":` + tc.result + `}`
+				require.NoError(t, ex.WebsocketHandleOptionsData(t.Context(), nil, []byte(push)), "WebsocketHandleOptionsData must not error")
+				require.Len(t, ex.Websocket.DataHandler.C, 1, "WebsocketHandleOptionsData must relay the push")
+				assert.Equal(t, tc.exp, (<-ex.Websocket.DataHandler.C).Data, "WebsocketHandleOptionsData should relay the decoded result")
+			})
+		}
+	})
+
+	t.Run("null result", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			channel     string
+			event       string
+			err         error
+			errContains string
+		}{
+			{channel: optionsContractTickersChannel, event: "update", errContains: "currency pair not set"},
+			{channel: optionsOrderbookUpdateChannel, event: "update", err: currency.ErrCurrencyPairEmpty},
+			{channel: optionsOrderbookChannel, event: "all", errContains: "currency pair not set"},
+		} {
+			t.Run(tc.channel, func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				var err error
+				require.NotPanics(t, func() {
+					err = ex.WebsocketHandleOptionsData(t.Context(), nil, []byte(`{"time":1,"channel":"`+tc.channel+`","event":"`+tc.event+`","result":null}`))
+				}, "WebsocketHandleOptionsData must not panic on a null result")
+				if tc.errContains != "" {
+					assert.ErrorContains(t, err, tc.errContains, "WebsocketHandleOptionsData should reject a null result")
+					return
+				}
+				assert.ErrorIs(t, err, tc.err, "WebsocketHandleOptionsData should return the expected error for a null result")
+			})
+		}
+	})
+
+	t.Run("invalid header and subscription reply", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		assert.ErrorIs(t, ex.WebsocketHandleOptionsData(t.Context(), nil, []byte(`{"time_ms":"x","channel":"options.ul_price"}`)), strconv.ErrSyntax, "WebsocketHandleOptionsData should reject an invalid header")
+
+		conn := &matchRecorderConnection{}
+		reply := []byte(`{"time":1630576352,"id":7,"channel":"options.ul_price","event":"subscribe","result":{"status":"success"}}`)
+		require.NoError(t, ex.WebsocketHandleOptionsData(t.Context(), conn, reply), "WebsocketHandleOptionsData must route a subscription reply")
+		assert.Equal(t, int64(7), conn.signature, "WebsocketHandleOptionsData should route the reply by its ID")
+		assert.Equal(t, reply, conn.data, "WebsocketHandleOptionsData should route the whole reply")
+	})
+
+	// Private pushes share e with the public ones below, so run first
+	t.Run("private pushes", func(t *testing.T) {
+		for k, v := range wsOptionsAuthenticatedDataHandler {
+			t.Run(k, func(t *testing.T) {
+				t.Parallel()
+				ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
+				err := e.WebsocketHandleOptionsData(ctx, nil, []byte(v))
+				require.NoError(t, err)
+			})
+		}
+	})
+
 	for k, v := range wsOptionsPushDataHandler {
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
@@ -493,29 +714,30 @@ var wsOptionsAuthenticatedDataHandler = map[string]string{
 	"options.balances":         `{"channel": "options.balances",	"event": "update",	"time": 1630654851,	"result": [{"balance": 60.79009,"change": -0.5,"text": "BTC_USDT-20211130-55000-P","type": "set","user": "11xxxx","time": 1639051907,"time_ms": 1639051907000}]}`,
 }
 
-func TestPrivateWebsocketHandleOptionsData(t *testing.T) {
+func TestWebsocketOptionsConnect(t *testing.T) {
 	t.Parallel()
-	for k, v := range wsOptionsAuthenticatedDataHandler {
-		t.Run(k, func(t *testing.T) {
-			t.Parallel()
-			ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
-			err := e.WebsocketHandleOptionsData(ctx, nil, []byte(v))
-			require.NoError(t, err)
-		})
-	}
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mock build serves no Gate websocket")
+		}
+		ex, _ := newLiveWebsocketConnection(t, asset.Options)
+		assert.True(t, ex.Websocket.IsConnected(), "WebsocketOptionsConnect should connect")
+	})
 }
 
-func TestGenerateOptionsDefaultSubscriptionsSkipsDisabledAssetBeforeAuth(t *testing.T) {
+func TestOptionsSubscribe(t *testing.T) {
 	t.Parallel()
+	t.Run("live channel subscribed again", func(t *testing.T) {
+		t.Parallel()
+		liveSubscriptionCase(t, asset.Options, (*Exchange).OptionsUnsubscribe, (*Exchange).OptionsSubscribe)
+	})
+}
 
-	ex := new(Exchange)
-	ex.SetDefaults()
-	ex.API.AuthenticatedWebsocketSupport = true
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-
-	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Options, false), "SetAssetEnabled must not error")
-	got, err := ex.GenerateOptionsDefaultSubscriptions(t.Context())
-	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error for disabled asset")
-	require.Empty(t, got, "disabled options asset must not generate subscriptions")
-	require.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "authenticated endpoints must not be changed when disabled options are skipped before auth")
+func TestOptionsUnsubscribe(t *testing.T) {
+	t.Parallel()
+	t.Run("live channel", func(t *testing.T) {
+		t.Parallel()
+		liveSubscriptionCase(t, asset.Options, (*Exchange).OptionsUnsubscribe, nil)
+	})
 }

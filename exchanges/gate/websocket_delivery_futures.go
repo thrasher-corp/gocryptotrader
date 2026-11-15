@@ -138,7 +138,7 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event str
 					params = append([]string{value}, params...)
 				}
 				var sigTemp string
-				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, unixSeconds(timestamp))
+				sigTemp, err = e.generateWebsocketSignature(creds.Secret, event, channelsToSubscribe[i].Channel, unixSeconds(timestamp))
 				if err != nil {
 					return nil, err
 				}

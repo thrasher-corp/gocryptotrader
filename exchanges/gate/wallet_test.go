@@ -1,6 +1,7 @@
 package gate
 
 import (
+	"cmp"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -141,22 +142,6 @@ func TestGetDepositRecords(t *testing.T) {
 		return
 	}
 	assert.NotNil(t, result, "GetDepositRecords should return records")
-}
-
-func TestTransferCurrencyParamMarshalJSON(t *testing.T) {
-	t.Parallel()
-	payload, err := json.Marshal(&TransferCurrencyRequest{
-		Currency: currency.USDT,
-		From:     asset.CoinMarginedFutures,
-		To:       asset.DeliveryFutures,
-		Amount:   12.5,
-		Settle:   currency.USDT,
-	})
-	require.NoError(t, err, "Marshal must not error")
-	assert.JSONEq(t, `{"currency":"USDT","from":"futures","to":"delivery","amount":"12.5","currency_pair":"","settle":"usdt"}`, string(payload), "TransferCurrencyRequest should send Gate account names")
-
-	_, err = json.Marshal(&TransferCurrencyRequest{From: asset.Spot, To: asset.CrossMargin})
-	assert.ErrorIs(t, err, asset.ErrNotSupported, "TransferCurrencyRequest should reject an account Gate does not support")
 }
 
 func TestTransferCurrency(t *testing.T) {
@@ -450,21 +435,36 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 	})
 }
 
-func TestInterSubAccountTransferParamsMarshalJSON(t *testing.T) {
+func TestInterSubAccountTransferRequestMarshalJSON(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases run in order, the encoding before the refusals
 	t.Parallel()
-	payload, err := json.Marshal(&InterSubAccountTransferRequest{
-		Currency:                currency.USDT,
-		SubAccountFromUserID:    "1234",
-		SubAccountFromAssetType: asset.USDTMarginedFutures,
-		SubAccountToUserID:      "4567",
-		SubAccountToAssetType:   asset.DeliveryFutures,
-		Amount:                  3,
+	// Cases run in order, the encoding before the refusals
+	t.Run("futures to delivery", func(t *testing.T) {
+		payload, err := json.Marshal(&InterSubAccountTransferRequest{
+			Currency:                currency.USDT,
+			SubAccountFromUserID:    "1234",
+			SubAccountFromAssetType: asset.USDTMarginedFutures,
+			SubAccountToUserID:      "4567",
+			SubAccountToAssetType:   asset.DeliveryFutures,
+			Amount:                  3,
+		})
+		require.NoError(t, err, "Marshal must not error")
+		assert.JSONEq(t, `{"currency":"USDT","sub_account_from":"1234","sub_account_from_type":"futures","sub_account_to":"4567","sub_account_to_type":"delivery","amount":"3"}`, string(payload), "InterSubAccountTransferRequest should send Gate account names")
 	})
-	require.NoError(t, err, "Marshal must not error")
-	assert.JSONEq(t, `{"currency":"USDT","sub_account_from":"1234","sub_account_from_type":"futures","sub_account_to":"4567","sub_account_to_type":"delivery","amount":"3"}`, string(payload), "InterSubAccountTransferRequest should send Gate account names")
 
-	_, err = json.Marshal(&InterSubAccountTransferRequest{SubAccountFromAssetType: asset.Spot})
-	assert.ErrorIs(t, err, asset.ErrInvalidAsset, "InterSubAccountTransferRequest should reject an empty account type")
+	t.Run("empty destination account type", func(t *testing.T) {
+		_, err := json.Marshal(&InterSubAccountTransferRequest{SubAccountFromAssetType: asset.Spot})
+		assert.ErrorIs(t, err, asset.ErrInvalidAsset, "InterSubAccountTransferRequest should reject an empty account type")
+	})
+
+	t.Run("empty source account type", func(t *testing.T) {
+		_, err := json.Marshal(&InterSubAccountTransferRequest{SubAccountToAssetType: asset.Spot})
+		assert.ErrorIs(t, err, asset.ErrInvalidAsset, "InterSubAccountTransferRequest should reject an empty source account type")
+	})
+
+	t.Run("source account type without a Gate account", func(t *testing.T) {
+		_, err := json.Marshal(&InterSubAccountTransferRequest{SubAccountFromAssetType: asset.CrossMargin, SubAccountToAssetType: asset.Spot})
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "InterSubAccountTransferRequest should reject an account type without a Gate account name")
+	})
 }
 
 func TestCheckSubAccountTransferAccountType(t *testing.T) {
@@ -482,7 +482,10 @@ func TestCheckSubAccountTransferAccountType(t *testing.T) {
 		{asset: asset.CrossMargin, expectedErr: asset.ErrNotSupported},
 		{asset: asset.Empty, expectedErr: asset.ErrInvalidAsset},
 	} {
-		assert.ErrorIsf(t, checkSubAccountTransferAccountType(tc.asset), tc.expectedErr, "checkSubAccountTransferAccountType should return the expected error for %q", tc.asset)
+		t.Run(cmp.Or(tc.asset.String(), "empty"), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, checkSubAccountTransferAccountType(tc.asset), tc.expectedErr, "checkSubAccountTransferAccountType should return the expected error for %q", tc.asset)
+		})
 	}
 }
 

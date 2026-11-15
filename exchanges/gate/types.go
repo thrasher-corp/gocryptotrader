@@ -1611,15 +1611,15 @@ type WebsocketOptionsOrder struct {
 	IsLiquidation   bool          `json:"is_liq"`
 	IsReduceOnly    bool          `json:"is_reduce_only"`
 	RemainingAmount types.Number  `json:"left"`
-	Mkfr            types.Number  `json:"mkfr"`
+	MakerFeeRate    types.Number  `json:"mkfr"`
 	Price           types.Number  `json:"price"`
-	Refr            types.Number  `json:"refr"`
-	Refu            types.Number  `json:"refu"`
+	ReferrerRebate  types.Number  `json:"refr"`
+	ReferenceUserID types.Number  `json:"refu"`
 	Size            types.Number  `json:"size"`
 	Status          string        `json:"status"`
 	Text            string        `json:"text"`
-	Tif             string        `json:"tif"`
-	Tkfr            types.Number  `json:"tkfr"`
+	TimeInForce     string        `json:"tif"`
+	TakerFeeRate    types.Number  `json:"tkfr"`
 	Underlying      string        `json:"underlying"`
 	User            string        `json:"user"`
 	MessageTime     types.Time    `json:"time_ms"`

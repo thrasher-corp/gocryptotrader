@@ -25,7 +25,7 @@ func TestFetchWebsocketOrderbookSnapshot(t *testing.T) {
 	require.NotEmpty(t, got)
 }
 
-func TestExtractOrderbookLimit(t *testing.T) {
+func TestExtractOrderbookLimit(t *testing.T) { //nolint:tparallel // Cases read the subscription added to e above and run in order
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
@@ -48,6 +48,7 @@ func TestExtractOrderbookLimit(t *testing.T) {
 	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
 	require.NoError(t, err)
 
+	// Cases read the subscription added to e above and run in order
 	for _, tc := range []struct {
 		asset asset.Item
 		exp   uint64
@@ -58,9 +59,11 @@ func TestExtractOrderbookLimit(t *testing.T) {
 		{asset: asset.DeliveryFutures, exp: deliveryFuturesUpdateLimit},
 		{asset: asset.Options, exp: optionOrderbookUpdateLimit},
 	} {
-		limit, err := e.extractOrderbookLimit(tc.asset)
-		require.NoError(t, err)
-		require.Equal(t, tc.exp, limit)
+		t.Run(tc.asset.String(), func(t *testing.T) {
+			limit, err := e.extractOrderbookLimit(tc.asset)
+			require.NoError(t, err)
+			require.Equal(t, tc.exp, limit)
+		})
 	}
 }
 

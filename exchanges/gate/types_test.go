@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -22,8 +23,51 @@ func TestGateAPIResponseAsError(t *testing.T) {
 	assert.Equal(t, "error code: 1001 message: quote expired", err.Error(), "error should carry the code and message")
 }
 
+func TestTransferCurrencyRequestMarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		request    *TransferCurrencyRequest
+		expected   string
+		err        error
+		errAccount string
+	}{
+		{
+			name:     "futures accounts",
+			request:  &TransferCurrencyRequest{Currency: currency.USDT, From: asset.USDTMarginedFutures, To: asset.DeliveryFutures, Amount: 12.5, Settle: currency.USDT},
+			expected: `{"currency":"USDT","from":"futures","to":"delivery","amount":"12.5","currency_pair":"","settle":"usdt"}`,
+		},
+		{
+			name:     "coin-margined futures to delivery",
+			request:  &TransferCurrencyRequest{Currency: currency.USDT, From: asset.CoinMarginedFutures, To: asset.DeliveryFutures, Amount: 12.5, Settle: currency.USDT},
+			expected: `{"currency":"USDT","from":"futures","to":"delivery","amount":"12.5","currency_pair":"","settle":"usdt"}`,
+		},
+		{
+			name:     "margin account with its pair",
+			request:  &TransferCurrencyRequest{Currency: currency.BTC, From: asset.Spot, To: asset.Margin, Amount: 1, CurrencyPair: currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)},
+			expected: `{"currency":"BTC","from":"spot","to":"margin","amount":"1","currency_pair":"BTC_USDT","settle":""}`,
+		},
+		{name: "unset source account", request: &TransferCurrencyRequest{To: asset.Spot}, err: asset.ErrInvalidAsset, errAccount: "source account"},
+		{name: "unsupported source account", request: &TransferCurrencyRequest{From: asset.CrossMargin, To: asset.Spot}, err: asset.ErrNotSupported, errAccount: "source account"},
+		{name: "unsupported destination account", request: &TransferCurrencyRequest{From: asset.Spot, To: asset.CrossMargin}, err: asset.ErrNotSupported, errAccount: "destination account"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			payload, err := tc.request.MarshalJSON()
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "MarshalJSON must return the expected error")
+				assert.ErrorContains(t, err, tc.errAccount, "MarshalJSON should name the refused account")
+				return
+			}
+			require.NoError(t, err, "MarshalJSON must not error")
+			assert.JSONEq(t, tc.expected, string(payload), "MarshalJSON should send Gate account names and a lower-case settlement currency")
+		})
+	}
+}
+
 func TestNumericStringUnmarshalJSON(t *testing.T) {
 	t.Parallel()
+	// Cases run in order, so the refusals below follow the decodes
 	for _, tc := range []struct {
 		payload string
 		exp     NumericString
@@ -34,14 +78,37 @@ func TestNumericStringUnmarshalJSON(t *testing.T) {
 		{payload: `-12`, exp: "-12"},
 		{payload: `null`, exp: ""},
 	} {
-		var n NumericString
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.payload), &n), "Unmarshal must not error for %s", tc.payload)
-		assert.Equalf(t, tc.exp, n, "NumericString should keep the text of %s", tc.payload)
-		assert.Equalf(t, string(tc.exp), n.String(), "NumericString.String should return the text of %s", tc.payload)
+		t.Run(tc.payload, func(t *testing.T) {
+			var n NumericString
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.payload), &n), "Unmarshal must not error for %s", tc.payload)
+			assert.Equalf(t, tc.exp, n, "NumericString should keep the text of %s", tc.payload)
+			assert.Equalf(t, string(tc.exp), n.String(), "NumericString.String should return the text of %s", tc.payload)
+		})
 	}
 	for _, payload := range []string{`1.5`, `true`} {
-		var n NumericString
-		assert.ErrorIsf(t, json.Unmarshal([]byte(payload), &n), errInvalidNumericString, "NumericString should reject %s", payload)
+		t.Run(payload, func(t *testing.T) {
+			t.Parallel()
+			var n NumericString
+			assert.ErrorIsf(t, json.Unmarshal([]byte(payload), &n), errInvalidNumericString, "NumericString should reject %s", payload)
+		})
+	}
+}
+
+func TestNumericStringString(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		value NumericString
+		exp   string
+	}{
+		{name: "unset"},
+		{name: "masked identifier", value: "110xxxxx", exp: "110xxxxx"},
+		{name: "identifier beyond float64 precision", value: "94294117233225616", exp: "94294117233225616"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, tc.value.String(), "String should return the value's text unchanged")
+		})
 	}
 }
 
@@ -140,28 +207,74 @@ func TestDisplayNumber(t *testing.T) {
 		})
 	}
 	for _, input := range []string{`true`, `{}`, `[1]`, `"unterminated`, `1.2.3`} {
-		var got DisplayNumber
-		assert.ErrorIsf(t, got.UnmarshalJSON([]byte(input)), errInvalidDisplayNumber, "UnmarshalJSON should error for %s", input)
+		t.Run(input, func(t *testing.T) {
+			t.Parallel()
+			var got DisplayNumber
+			assert.ErrorIsf(t, got.UnmarshalJSON([]byte(input)), errInvalidDisplayNumber, "UnmarshalJSON should error for %s", input)
+		})
 	}
 	assert.Equal(t, "0.04", DisplayNumber{Value: 0.04}.String(), "String should write the bare number when there is no text")
 }
 
+func TestDisplayValue(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		text string
+		exp  float64
+	}{
+		{name: "empty"},
+		{name: "no number", text: "--"},
+		{name: "lone decimal point", text: "."},
+		{name: "several decimal points", text: "1.2.3%"},
+		{name: "currency sign", text: "$0.04", exp: 0.04},
+		{name: "thousands separators", text: "$1,234.56", exp: 1234.56},
+		{name: "percentage", text: "50%", exp: 50},
+		{name: "leading decimal point", text: ".5%", exp: 0.5},
+		{name: "label before the number", text: "APR:1.5", exp: 1.5},
+		{name: "unit after the number", text: "0.04 USDT", exp: 0.04},
+		{name: "minus before the sign", text: "-$0.04", exp: -0.04},
+		{name: "minus after the sign", text: "$-1.5", exp: -1.5},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, displayValue(tc.text), "displayValue should return the number without its signs and separators")
+		})
+	}
+}
+
 func TestDate(t *testing.T) {
 	t.Parallel()
-	for input, exp := range map[string]time.Time{
-		`"2025/11/19"`: time.Date(2025, 11, 19, 0, 0, 0, 0, time.UTC),
-		`"2026-10-21"`: time.Date(2026, 10, 21, 0, 0, 0, 0, time.UTC),
-		`""`:           {},
-		`null`:         {},
+	// Cases run in order, so the refusals below follow the decodes
+	for _, tc := range []struct {
+		name  string
+		input string
+		exp   time.Time
+	}{
+		{name: "slash separated", input: `"2025/11/19"`, exp: time.Date(2025, 11, 19, 0, 0, 0, 0, time.UTC)},
+		{name: "dash separated", input: `"2026-10-21"`, exp: time.Date(2026, 10, 21, 0, 0, 0, 0, time.UTC)},
+		{name: "empty", input: `""`},
+		{name: "null", input: `null`},
 	} {
-		got := Date(time.Now())
-		require.NoErrorf(t, got.UnmarshalJSON([]byte(input)), "UnmarshalJSON must not error for %s", input)
-		assert.Truef(t, exp.Equal(got.Time()), "UnmarshalJSON should decode %s as %s, not %s", input, exp, got.Time())
-		assert.Equalf(t, time.UTC, got.Time().Location(), "UnmarshalJSON should hold %s in UTC", input)
+		t.Run(tc.name, func(t *testing.T) {
+			got := Date(time.Now())
+			require.NoErrorf(t, got.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must not error for %s", tc.input)
+			assert.Truef(t, tc.exp.Equal(got.Time()), "UnmarshalJSON should decode %s as %s, not %s", tc.input, tc.exp, got.Time())
+			assert.Equalf(t, time.UTC, got.Time().Location(), "UnmarshalJSON should hold %s in UTC", tc.input)
+		})
 	}
-	for _, input := range []string{`"19/11/2025"`, `"2025-11-19 10:00:00"`, `"today"`, `20251119`, `true`} {
-		var got Date
-		assert.ErrorIsf(t, got.UnmarshalJSON([]byte(input)), errInvalidDate, "UnmarshalJSON should error for %s", input)
+	for _, tc := range []struct{ name, input string }{
+		{"day first", `"19/11/2025"`},
+		{"date with a time", `"2025-11-19 10:00:00"`},
+		{"word", `"today"`},
+		{"bare number", `20251119`},
+		{"boolean", `true`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var got Date
+			assert.ErrorIsf(t, got.UnmarshalJSON([]byte(tc.input)), errInvalidDate, "UnmarshalJSON should error for %s", tc.input)
+		})
 	}
 	payload, err := json.Marshal(Date(time.Date(2025, 11, 19, 0, 0, 0, 0, time.UTC)))
 	require.NoError(t, err, "Marshal must not error for a date")

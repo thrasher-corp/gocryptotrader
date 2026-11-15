@@ -83,6 +83,94 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 	assert.Equal(t, exp, result, "PlaceDeliveryOrder should decode a filled market order")
 }
 
+func TestDeliveryOrderCreateRequestMarshalJSON(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewPairWithDelimiter("BTC", "USDT_20260626", currency.UnderscoreDelimiter)
+	for _, tc := range []struct {
+		name   string
+		params *DeliveryOrderCreateRequest
+		exp    string
+	}{
+		{
+			name:   "market order",
+			params: &DeliveryOrderCreateRequest{Contract: pair, Size: -1, TimeInForce: iocTIF, Settle: currency.USDT},
+			exp:    `{"contract":"BTC_USDT_20260626","size":-1,"iceberg":0,"price":"0","tif":"ioc"}`,
+		},
+		{
+			name:   "close position",
+			params: &DeliveryOrderCreateRequest{Contract: pair, ClosePosition: true, TimeInForce: iocTIF, Settle: currency.USDT},
+			exp:    `{"contract":"BTC_USDT_20260626","size":0,"iceberg":0,"price":"0","tif":"ioc","close":true}`,
+		},
+		{
+			name:   "close hedge mode side",
+			params: &DeliveryOrderCreateRequest{Contract: pair, AutoSize: "close_long", TimeInForce: iocTIF, Settle: currency.USDT},
+			exp:    `{"contract":"BTC_USDT_20260626","size":0,"iceberg":0,"price":"0","tif":"ioc","auto_size":"close_long"}`,
+		},
+		{
+			name: "limit order",
+			params: &DeliveryOrderCreateRequest{
+				Contract:                  pair,
+				Size:                      6024,
+				Iceberg:                   10,
+				Price:                     3765.5,
+				TimeInForce:               gtcTIF,
+				Text:                      "t-my-custom-id",
+				ReduceOnly:                true,
+				Settle:                    currency.USDT,
+				SelfTradePreventionAction: "cn",
+			},
+			exp: `{"contract":"BTC_USDT_20260626","size":6024,"iceberg":10,"price":"3765.5","tif":"gtc","text":"t-my-custom-id","reduce_only":true,"stp_act":"cn"}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := json.Marshal(tc.params)
+			require.NoError(t, err, "Marshal must not error")
+			assert.JSONEq(t, tc.exp, string(got), "Marshal should send the documented encoding")
+		})
+	}
+}
+
+func TestDeliveryOrderCreateRequestValidate(t *testing.T) {
+	t.Parallel()
+	t.Run("nil request", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, (*DeliveryOrderCreateRequest)(nil).validate(true), common.ErrNilPointer, "validate must reject a nil request")
+	})
+
+	// Gate documents closing a position in single position mode as close with a size of 0
+	contract := currency.NewPairWithDelimiter("BTC", "USDT_20260626", currency.UnderscoreDelimiter)
+	for _, tc := range []struct {
+		name      string
+		close     bool
+		autoSize  string
+		size      types.Number
+		expectErr error
+	}{
+		{name: "close with a zero size", close: true},
+		{name: "close one side of a dual mode position", autoSize: "close_long"},
+		{name: "close with a size", close: true, size: 1, expectErr: errInvalidOrderSize},
+		{name: "zero size without closing", expectErr: errInvalidOrderSize},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			for _, mode := range []struct {
+				name   string
+				isRest bool
+			}{
+				{name: "REST", isRest: true},
+				{name: "websocket", isRest: false},
+			} {
+				t.Run(mode.name, func(t *testing.T) {
+					t.Parallel()
+					delivery := &DeliveryOrderCreateRequest{Contract: contract, Size: tc.size, TimeInForce: iocTIF, ClosePosition: tc.close, AutoSize: tc.autoSize, ReduceOnly: true, Settle: currency.USDT}
+					assert.ErrorIsf(t, delivery.validate(mode.isRest), tc.expectErr, "delivery validate should return the expected error when isRest is %t", mode.isRest)
+				})
+			}
+		})
+	}
+}
+
 func TestGetDeliveryOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDeliveryOrders(t.Context(), currency.EMPTYPAIR, statusOpen, currency.EMPTYCODE, "", 0, 0, true)
@@ -325,7 +413,7 @@ func TestGetDeliverySettlementHistory(t *testing.T) {
 	assert.NotNil(t, result, "GetDeliverySettlementHistory should return a list")
 }
 
-func TestCreatePriceTriggeredDeliveryOrder(t *testing.T) {
+func TestCreatePriceTriggeredDeliveryOrder(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	_, err := e.CreatePriceTriggeredDeliveryOrder(t.Context(), currency.USDT, nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreatePriceTriggeredDeliveryOrder must reject a nil request")
@@ -338,6 +426,8 @@ func TestCreatePriceTriggeredDeliveryOrder(t *testing.T) {
 			OrderType: "close-short-position",
 		}
 	}
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
 		name   string
 		settle currency.Code
@@ -356,10 +446,12 @@ func TestCreatePriceTriggeredDeliveryOrder(t *testing.T) {
 		{name: "negative trigger expiry", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.ExpireAfter = negativeSeconds }, err: errNotWholeSeconds},
 		{name: "read only order type", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "close-long-order" }, err: errInvalidAutoOrderType},
 	} {
-		arg := newRequest()
-		tc.modify(arg)
-		_, err = e.CreatePriceTriggeredDeliveryOrder(t.Context(), tc.settle, arg)
-		require.ErrorIsf(t, err, tc.err, "CreatePriceTriggeredDeliveryOrder must reject an invalid %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			arg := newRequest()
+			tc.modify(arg)
+			_, err := e.CreatePriceTriggeredDeliveryOrder(ctx, tc.settle, arg)
+			require.ErrorIsf(t, err, tc.err, "CreatePriceTriggeredDeliveryOrder must reject an invalid %s", tc.name)
+		})
 	}
 
 	if !mockTests {

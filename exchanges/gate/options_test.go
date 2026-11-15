@@ -636,14 +636,18 @@ func optionsCancelledOrderFixture() *OptionOrderResponse {
 	}
 }
 
-func TestCountdownCancelOptionOrders(t *testing.T) {
+func TestCountdownCancelOptionOrders(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	_, err := e.CountdownCancelOptionOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CountdownCancelOptionOrders must reject a nil request")
 
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, timeout := range []time.Duration{-time.Second, 4 * time.Second, 5500 * time.Millisecond} {
-		_, err = e.CountdownCancelOptionOrders(t.Context(), &CountdownCancelOptionOrdersRequest{Countdown: types.DurationSeconds(timeout)})
-		require.ErrorIsf(t, err, errInvalidTimeout, "CountdownCancelOptionOrders must reject a timeout of %s", timeout)
+		t.Run(timeout.String(), func(t *testing.T) {
+			_, err := e.CountdownCancelOptionOrders(ctx, &CountdownCancelOptionOrdersRequest{Countdown: types.DurationSeconds(timeout)})
+			require.ErrorIsf(t, err, errInvalidTimeout, "CountdownCancelOptionOrders must reject a timeout of %s", timeout)
+		})
 	}
 
 	if !mockTests {
@@ -707,6 +711,8 @@ func TestSetOptionsMarketMakerProtection(t *testing.T) {
 			DeltaLimit:    10,
 		}
 	}
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
 		name   string
 		modify func(*OptionsMarketMakerProtectionRequest)
@@ -721,10 +727,12 @@ func TestSetOptionsMarketMakerProtection(t *testing.T) {
 		{name: "quantity limit", modify: func(r *OptionsMarketMakerProtectionRequest) { r.QuantityLimit = 0 }, err: errInvalidMarketMakerProtectionLimit},
 		{name: "delta limit", modify: func(r *OptionsMarketMakerProtectionRequest) { r.DeltaLimit = -1 }, err: errInvalidMarketMakerProtectionLimit},
 	} {
-		arg := newRequest()
-		tc.modify(arg)
-		_, err = e.SetOptionsMarketMakerProtection(t.Context(), arg)
-		require.ErrorIsf(t, err, tc.err, "SetOptionsMarketMakerProtection must reject an invalid %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			arg := newRequest()
+			tc.modify(arg)
+			_, err := e.SetOptionsMarketMakerProtection(ctx, arg)
+			require.ErrorIsf(t, err, tc.err, "SetOptionsMarketMakerProtection must reject an invalid %s", tc.name)
+		})
 	}
 
 	for _, tc := range []struct {

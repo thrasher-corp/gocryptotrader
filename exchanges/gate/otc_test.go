@@ -20,6 +20,7 @@ import (
 
 const (
 	otcTestBankID          = "72"
+	otcTestRejectedBankID  = "73"
 	otcTestOrderID         = "203"
 	otcTestQuoteToken      = "quote-token-1"
 	otcTestPreUploadedFile = "b3RjX3RlbXAvMTIzNDU2Nzg5MC9iYW5rLzIwMjYwODMxMDc1MTI1MjgyMjMzOTQ1OS5wbmc="
@@ -31,27 +32,6 @@ func TestOTCActionResponseAsError(t *testing.T) {
 	err := (&OTCActionResponse{Code: 10010400, Message: "parameter error"}).AsError()
 	require.Error(t, err, "a non-zero code must error")
 	assert.ErrorContains(t, err, "parameter error", "error should carry the message")
-}
-
-// TestOTCActionResponseErrors ensures a business error carried in a 200 response is returned rather than dropped
-func TestOTCActionResponseErrors(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("the rejected requests are only recorded as fixtures")
-	}
-	const rejectedBankID = "73"
-	for name, call := range map[string]func() error{
-		"DeleteBankCard":     func() error { return e.DeleteBankCard(t.Context(), rejectedBankID) },
-		"SetDefaultBankCard": func() error { return e.SetDefaultBankCard(t.Context(), rejectedBankID) },
-		"SubmitBankCardSupplementMaterials": func() error {
-			return e.SubmitBankCardSupplementMaterials(t.Context(), &OTCBankPersonalSupplementMultipartRequest{BankID: rejectedBankID, AddressProof: "YWRkcmVzcw=="})
-		},
-		"SubmitEnterpriseBankCardSupplementMaterials": func() error {
-			return e.SubmitEnterpriseBankCardSupplementMaterials(t.Context(), &OTCBankEnterpriseSupplementMultipartRequest{BankID: rejectedBankID, Certificate: "Y2VydGlmaWNhdGU="})
-		},
-	} {
-		assert.ErrorContainsf(t, call(), "parameter error", "%s should return the response's business error", name)
-	}
 }
 
 func TestGetFiatStablecoinQuote(t *testing.T) {
@@ -218,6 +198,25 @@ func TestCreateStablecoinOrder(t *testing.T) {
 
 func TestGetUserBankCardList(t *testing.T) {
 	t.Parallel()
+	t.Run("response without data returns an error", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.Name = t.Name()
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/v4/otc/bank/list", r.URL.Path, "request path should be the bank card list")
+			_, err := w.Write([]byte(`{"code":0,"message":"success","data":null,"timestamp":1752051076}`))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		_, err := ex.GetUserBankCardList(t.Context())
+		assert.ErrorIs(t, err, common.ErrNoResults, "GetUserBankCardList should report a response without data")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -244,25 +243,6 @@ func TestGetUserBankCardList(t *testing.T) {
 		return
 	}
 	assert.NotNil(t, result, "GetUserBankCardList should return bank cards")
-}
-
-func TestGetUserBankCardListWithoutData(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.Name = t.Name()
-	ex.API.AuthenticatedSupport = true
-	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v4/otc/bank/list", r.URL.Path, "request path should be the bank card list")
-		_, err := w.Write([]byte(`{"code":0,"message":"success","data":null,"timestamp":1752051076}`))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	_, err := ex.GetUserBankCardList(t.Context())
-	assert.ErrorIs(t, err, common.ErrNoResults, "GetUserBankCardList should report a response without data")
 }
 
 func TestCreateBankCard(t *testing.T) {
@@ -312,8 +292,16 @@ func TestCreateBankCard(t *testing.T) {
 	assert.NotNil(t, result, "CreateBankCard should return the bank card")
 }
 
-func TestDeleteBankCard(t *testing.T) {
+func TestDeleteBankCard(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the subtest shares e with the test's own calls
 	t.Parallel()
+	// Serial, as it shares e with the calls below
+	t.Run("business error in a 200 response is returned", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the rejected request is only recorded as a fixture")
+		}
+		assert.ErrorContains(t, e.DeleteBankCard(t.Context(), otcTestRejectedBankID), "parameter error", "DeleteBankCard should return the response's business error")
+	})
+
 	err := e.DeleteBankCard(t.Context(), "")
 	require.ErrorIs(t, err, errOTCBankIDRequired, "DeleteBankCard must require a bank ID")
 
@@ -323,8 +311,16 @@ func TestDeleteBankCard(t *testing.T) {
 	assert.NoError(t, e.DeleteBankCard(t.Context(), otcTestBankID), "DeleteBankCard should not error")
 }
 
-func TestSetDefaultBankCard(t *testing.T) {
+func TestSetDefaultBankCard(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the subtest shares e with the test's own calls
 	t.Parallel()
+	// Serial, as it shares e with the calls below
+	t.Run("business error in a 200 response is returned", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the rejected request is only recorded as a fixture")
+		}
+		assert.ErrorContains(t, e.SetDefaultBankCard(t.Context(), otcTestRejectedBankID), "parameter error", "SetDefaultBankCard should return the response's business error")
+	})
+
 	err := e.SetDefaultBankCard(t.Context(), "")
 	require.ErrorIs(t, err, errOTCBankIDRequired, "SetDefaultBankCard must require a bank ID")
 
@@ -358,8 +354,17 @@ func TestGetCheckListOfMaterialsToSupplementForBankCard(t *testing.T) {
 	assert.NotNil(t, result, "GetCheckListOfMaterialsToSupplementForBankCard should return a checklist")
 }
 
-func TestSubmitBankCardSupplementMaterials(t *testing.T) {
+func TestSubmitBankCardSupplementMaterials(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the subtest shares e with the test's own calls
 	t.Parallel()
+	// Serial, as it shares e with the calls below
+	t.Run("business error in a 200 response is returned", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the rejected request is only recorded as a fixture")
+		}
+		err := e.SubmitBankCardSupplementMaterials(t.Context(), &OTCBankPersonalSupplementMultipartRequest{BankID: otcTestRejectedBankID, AddressProof: "YWRkcmVzcw=="})
+		assert.ErrorContains(t, err, "parameter error", "SubmitBankCardSupplementMaterials should return the response's business error")
+	})
+
 	err := e.SubmitBankCardSupplementMaterials(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SubmitBankCardSupplementMaterials must reject a nil request")
 	err = e.SubmitBankCardSupplementMaterials(t.Context(), &OTCBankPersonalSupplementMultipartRequest{})
@@ -379,8 +384,17 @@ func TestSubmitBankCardSupplementMaterials(t *testing.T) {
 	assert.NoError(t, err, "SubmitBankCardSupplementMaterials should not error")
 }
 
-func TestSubmitEnterpriseBankCardSupplementMaterials(t *testing.T) {
+func TestSubmitEnterpriseBankCardSupplementMaterials(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the subtest shares e with the test's own calls
 	t.Parallel()
+	// Serial, as it shares e with the calls below
+	t.Run("business error in a 200 response is returned", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("the rejected request is only recorded as a fixture")
+		}
+		err := e.SubmitEnterpriseBankCardSupplementMaterials(t.Context(), &OTCBankEnterpriseSupplementMultipartRequest{BankID: otcTestRejectedBankID, Certificate: "Y2VydGlmaWNhdGU="})
+		assert.ErrorContains(t, err, "parameter error", "SubmitEnterpriseBankCardSupplementMaterials should return the response's business error")
+	})
+
 	err := e.SubmitEnterpriseBankCardSupplementMaterials(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SubmitEnterpriseBankCardSupplementMaterials must reject a nil request")
 	err = e.SubmitEnterpriseBankCardSupplementMaterials(t.Context(), &OTCBankEnterpriseSupplementMultipartRequest{})
@@ -521,15 +535,20 @@ func TestGetFiatOrderList(t *testing.T) {
 	assert.Equal(t, &OTCOrderListResponse{PageNumber: 1, PageSize: 10, List: []*OTCOrderListItem{}}, result, "GetFiatOrderList should decode the recorded live response")
 }
 
-func TestOTCOrderListDataUnmarshalJSON(t *testing.T) {
+func TestOTCOrderListResponseUnmarshalJSON(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the cases run in order so the invalid page number follows them
 	t.Parallel()
+	// Cases run in order, so the invalid page number follows the decodes
 	for _, key := range []string{"list", "lists"} {
-		var got OTCOrderListResponse
-		require.NoErrorf(t, got.UnmarshalJSON([]byte(`{"pn":2,"`+key+`":[{"order_id":"41"}]}`)), "UnmarshalJSON must not error for %s", key)
-		assert.Equalf(t, OTCOrderListResponse{PageNumber: 2, List: []*OTCOrderListItem{{OrderID: "41"}}}, got, "orders should decode from %s", key)
+		t.Run(key, func(t *testing.T) {
+			var got OTCOrderListResponse
+			require.NoErrorf(t, got.UnmarshalJSON([]byte(`{"pn":2,"`+key+`":[{"order_id":"41"}]}`)), "UnmarshalJSON must not error for %s", key)
+			assert.Equalf(t, OTCOrderListResponse{PageNumber: 2, List: []*OTCOrderListItem{{OrderID: "41"}}}, got, "orders should decode from %s", key)
+		})
 	}
-	var got OTCOrderListResponse
-	assert.Error(t, got.UnmarshalJSON([]byte(`{"pn":"x"}`)), "UnmarshalJSON should error on an invalid page number")
+	t.Run("invalid page number", func(t *testing.T) {
+		var got OTCOrderListResponse
+		assert.Error(t, got.UnmarshalJSON([]byte(`{"pn":"x"}`)), "UnmarshalJSON should error on an invalid page number")
+	})
 }
 
 func TestGetStablecoinOrderList(t *testing.T) {

@@ -53,6 +53,52 @@ func wsAPISpotOrder(changes func(*WebsocketOrderResponse)) *WebsocketOrderRespon
 
 func TestWebsocketLogin(t *testing.T) {
 	t.Parallel()
+
+	t.Run("failed login replies", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.API.AuthenticatedSupport = true
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+
+		// Gate's documented reply to a login with an invalid key
+		reply := `{"request_id":"xxxx","header":{"response_time":"1677816784084","status":"401","channel":"spot.login","event":"api","client_id":"::1-0x14002ba2300"},"data":{"errs":{"label":"INVALID_KEY","message":"Invalid key provided"}}}`
+		err := ex.websocketLogin(t.Context(), &replyConnection{reply: []byte(reply)}, "spot.login")
+		assert.EqualError(t, err, "INVALID_KEY: Invalid key provided", "websocketLogin should return Gate's error label and message")
+
+		err = ex.websocketLogin(t.Context(), &replyConnection{reply: []byte(`null`)}, "spot.login")
+		assert.ErrorIs(t, err, common.ErrNoResponse, "websocketLogin should reject a null reply")
+
+		ctx := t.Context()
+		// The cases below share the exchange and run in order
+		for data, exp := range map[string]string{
+			`{"errs":{"label":"INVALID_KEY"}}`:            "INVALID_KEY",
+			`{"errs":{"message":"Invalid key provided"}}`: "Invalid key provided",
+		} {
+			t.Run(exp, func(t *testing.T) {
+				reply := `{"request_id":"xxxx","header":{"response_time":"1677816784084","status":"401","channel":"spot.login","event":"api"},"data":` + data + `}`
+				err := ex.websocketLogin(ctx, &replyConnection{reply: []byte(reply)}, "spot.login")
+				assert.ErrorContainsf(t, err, exp, "websocketLogin should return what Gate sends of its error for data %s", data)
+			})
+		}
+		for _, tc := range []struct {
+			name string
+			data string
+		}{
+			{name: "null data", data: `null`},
+			{name: "empty data", data: `{}`},
+			{name: "null errs", data: `{"errs":null}`},
+			{name: "empty errs", data: `{"errs":{}}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				reply := `{"request_id":"xxxx","header":{"response_time":"1677816784084","status":"401","channel":"spot.login","event":"api"},"data":` + tc.data + `}`
+				err := ex.websocketLogin(ctx, &replyConnection{reply: []byte(reply)}, "spot.login")
+				assert.ErrorIsf(t, err, common.ErrNoResponse, "websocketLogin should reject a failed reply whose data is %s", tc.data)
+			})
+		}
+	})
+
 	err := e.websocketLogin(t.Context(), nil, "")
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
@@ -76,40 +122,11 @@ func (c *replyConnection) SendMessageReturnResponse(context.Context, request.End
 	return c.reply, nil
 }
 
-func TestWebsocketLoginFailure(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.API.AuthenticatedSupport = true
-	ex.API.AuthenticatedWebsocketSupport = true
-	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
-
-	// Gate's documented reply to a login with an invalid key
-	reply := `{"request_id":"xxxx","header":{"response_time":"1677816784084","status":"401","channel":"spot.login","event":"api","client_id":"::1-0x14002ba2300"},"data":{"errs":{"label":"INVALID_KEY","message":"Invalid key provided"}}}`
-	err := ex.websocketLogin(t.Context(), &replyConnection{reply: []byte(reply)}, "spot.login")
-	assert.EqualError(t, err, "INVALID_KEY: Invalid key provided", "websocketLogin should return Gate's error label and message")
-
-	err = ex.websocketLogin(t.Context(), &replyConnection{reply: []byte(`null`)}, "spot.login")
-	assert.ErrorIs(t, err, common.ErrNoResponse, "websocketLogin should reject a null reply")
-
-	for data, exp := range map[string]string{
-		`{"errs":{"label":"INVALID_KEY"}}`:            "INVALID_KEY",
-		`{"errs":{"message":"Invalid key provided"}}`: "Invalid key provided",
-	} {
-		reply = `{"request_id":"xxxx","header":{"response_time":"1677816784084","status":"401","channel":"spot.login","event":"api"},"data":` + data + `}`
-		err = ex.websocketLogin(t.Context(), &replyConnection{reply: []byte(reply)}, "spot.login")
-		assert.ErrorContainsf(t, err, exp, "websocketLogin should return what Gate sends of its error for data %s", data)
-	}
-	for _, data := range []string{`null`, `{}`, `{"errs":null}`, `{"errs":{}}`} {
-		reply = `{"request_id":"xxxx","header":{"response_time":"1677816784084","status":"401","channel":"spot.login","event":"api"},"data":` + data + `}`
-		err = ex.websocketLogin(t.Context(), &replyConnection{reply: []byte(reply)}, "spot.login")
-		assert.ErrorIsf(t, err, common.ErrNoResponse, "websocketLogin should reject a failed reply whose data is %s", data)
-	}
-}
-
 func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WebsocketSpotSubmitOrder(t.Context(), &CreateOrderRequest{})
+	_, err := e.WebsocketSpotSubmitOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketSpotSubmitOrder must reject a nil order")
+	_, err = e.WebsocketSpotSubmitOrder(t.Context(), &CreateOrderRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	out := &CreateOrderRequest{}
@@ -144,7 +161,9 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 
 func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.WebsocketSpotSubmitOrders(t.Context())
+	_, err := e.WebsocketSpotSubmitOrders(t.Context(), &CreateOrderRequest{CurrencyPair: currency.NewBTCUSDT(), Side: "buy", Amount: 1, Type: "market"}, nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketSpotSubmitOrders must reject a nil order in a batch")
+	_, err = e.WebsocketSpotSubmitOrders(t.Context())
 	require.ErrorIs(t, err, errOrdersEmpty)
 
 	out := &CreateOrderRequest{}
@@ -207,6 +226,15 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 
 func TestWebsocketSpotCancelOrder(t *testing.T) {
 	t.Parallel()
+
+	t.Run("unconnected websocket", func(t *testing.T) {
+		t.Parallel()
+		unconnected := new(Exchange)
+		require.NoError(t, testexch.Setup(unconnected), "Setup must not error")
+		_, err := unconnected.WebsocketSpotCancelOrder(t.Context(), "1", currency.NewBTCUSDT(), "spot")
+		assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketSpotCancelOrder should return the error of a cancellation it cannot send")
+	})
+
 	_, err := e.WebsocketSpotCancelOrder(t.Context(), "", currency.EMPTYPAIR, "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 

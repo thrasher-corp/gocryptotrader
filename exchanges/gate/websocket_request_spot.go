@@ -45,6 +45,9 @@ func (e *Exchange) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*Cre
 
 	pairs := make(currency.Pairs, len(orders))
 	for i := range orders {
+		if orders[i] == nil {
+			return nil, fmt.Errorf("%w: order %d", common.ErrNilPointer, i)
+		}
 		if orders[i].Text == "" {
 			// API requires Text field, or it will be rejected
 			orders[i].Text = "t-" + strconv.FormatInt(e.messageIDSeq.IncrementAndGet(), 10)

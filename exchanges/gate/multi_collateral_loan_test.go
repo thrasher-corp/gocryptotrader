@@ -76,19 +76,27 @@ func multiCollateralLoanOrderFixture() *MultiCollateralLoanOrderDetailResponse {
 	}
 }
 
-func TestGetMultiCollateralLoanOrders(t *testing.T) {
+func TestGetMultiCollateralLoanOrders(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	for _, tc := range []struct{ sortType, orderType string }{{"", "current"}, {"time_desc", ""}, {"time_desc", "current"}} {
-		result, err := e.GetMultiCollateralLoanOrders(t.Context(), 1, 100, tc.sortType, tc.orderType)
-		require.NoErrorf(t, err, "GetMultiCollateralLoanOrders must not error for sort %q and order type %q", tc.sortType, tc.orderType)
-		if mockTests {
-			assert.Equalf(t, []*MultiCollateralLoanOrderDetailResponse{multiCollateralLoanOrderFixture()}, result, "GetMultiCollateralLoanOrders should decode every field for sort %q and order type %q", tc.sortType, tc.orderType)
-			continue
-		}
-		assert.NotNilf(t, result, "GetMultiCollateralLoanOrders should return a result for sort %q and order type %q", tc.sortType, tc.orderType)
+	ctx := t.Context()
+	// Cases share e and run in order
+	for _, tc := range []struct{ name, sortType, orderType string }{
+		{"current orders", "", "current"},
+		{"sorted by time", "time_desc", ""},
+		{"current orders sorted by time", "time_desc", "current"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.GetMultiCollateralLoanOrders(ctx, 1, 100, tc.sortType, tc.orderType)
+			require.NoErrorf(t, err, "GetMultiCollateralLoanOrders must not error for sort %q and order type %q", tc.sortType, tc.orderType)
+			if mockTests {
+				assert.Equalf(t, []*MultiCollateralLoanOrderDetailResponse{multiCollateralLoanOrderFixture()}, result, "GetMultiCollateralLoanOrders should decode every field for sort %q and order type %q", tc.sortType, tc.orderType)
+				return
+			}
+			assert.NotNilf(t, result, "GetMultiCollateralLoanOrders should return a result for sort %q and order type %q", tc.sortType, tc.orderType)
+		})
 	}
 }
 

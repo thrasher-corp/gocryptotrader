@@ -374,21 +374,25 @@ func TestGetUnifiedAccountEstimatedInterestRate(t *testing.T) {
 	assert.NotEmpty(t, result, "GetUnifiedAccountEstimatedInterestRate should return rates")
 }
 
-func TestTierUpperLimit(t *testing.T) {
+func TestTierUpperLimit(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases run in order, before the refusal below
 	t.Parallel()
+	// Cases run in order, before the refusal below
 	for _, tc := range []struct {
+		name  string
 		input string
 		exp   TierUpperLimit
 	}{
-		{input: `"+"`, exp: TierUpperLimit(math.Inf(1))},
-		{input: `""`, exp: TierUpperLimit(math.Inf(1))},
-		{input: `"100000"`, exp: 100000},
-		{input: `500000.5`, exp: 500000.5},
+		{name: "plus sign", input: `"+"`, exp: TierUpperLimit(math.Inf(1))},
+		{name: "empty string", input: `""`, exp: TierUpperLimit(math.Inf(1))},
+		{name: "quoted number", input: `"100000"`, exp: 100000},
+		{name: "bare number", input: `500000.5`, exp: 500000.5},
 	} {
-		var got TierUpperLimit
-		require.NoErrorf(t, got.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must not error for %s", tc.input)
-		assert.Equalf(t, tc.exp, got, "UnmarshalJSON should decode %s", tc.input)
-		assert.Equalf(t, float64(tc.exp), got.Float64(), "Float64 should return the decoded boundary for %s", tc.input)
+		t.Run(tc.name, func(t *testing.T) {
+			var got TierUpperLimit
+			require.NoErrorf(t, got.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must not error for %s", tc.input)
+			assert.Equalf(t, tc.exp, got, "UnmarshalJSON should decode %s", tc.input)
+			assert.Equalf(t, float64(tc.exp), got.Float64(), "Float64 should return the decoded boundary for %s", tc.input)
+		})
 	}
 
 	var got TierUpperLimit
@@ -455,9 +459,11 @@ func TestGetUnifiedAccountTieredLoanMargin(t *testing.T) {
 	assert.NotEmpty(t, result, "GetUnifiedAccountTieredLoanMargin should return tiers")
 }
 
-func TestCalculatePortfolioMargin(t *testing.T) {
+func TestCalculatePortfolioMargin(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	spotPair, futuresPair, optionsPair := getPair(t, asset.Spot), getPair(t, asset.USDTMarginedFutures), getPair(t, asset.Options)
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
 		name string
 		arg  *PortfolioMarginCalculatorRequest
@@ -487,8 +493,10 @@ func TestCalculatePortfolioMargin(t *testing.T) {
 		{name: "options order without size", arg: &PortfolioMarginCalculatorRequest{OptionsOrders: []*OptionsOrderInfo{{OptionsName: optionsPair, Left: 0.5}}}, err: errInvalidOrderSize},
 		{name: "options order without unfilled quantity", arg: &PortfolioMarginCalculatorRequest{OptionsOrders: []*OptionsOrderInfo{{OptionsName: optionsPair, Size: 1}}}, err: errInvalidOrderSize},
 	} {
-		_, err := e.CalculatePortfolioMargin(t.Context(), tc.arg)
-		require.ErrorIsf(t, err, tc.err, "CalculatePortfolioMargin must reject a request with a %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.CalculatePortfolioMargin(ctx, tc.arg)
+			require.ErrorIsf(t, err, tc.err, "CalculatePortfolioMargin must reject a request with a %s", tc.name)
+		})
 	}
 
 	// Short positions and sell orders carry negative sizes

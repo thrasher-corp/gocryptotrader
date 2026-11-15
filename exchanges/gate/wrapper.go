@@ -3,6 +3,7 @@ package gate
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"maps"
 	"math"
@@ -1110,6 +1111,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		response.Status = status
 		response.Fee = sOrder.FeeDeducted.Float64()
 		response.FeeAsset = sOrder.FeeCurrency
+		response.AverageExecutedPrice = sOrder.AverageFillPrice.Float64()
+		response.Cost, response.Purchased = spotFillTotals(side, sOrder.FilledTotal, sOrder.AverageFillPrice, sOrder.FilledAmount)
 		response.Pair = s.Pair
 		response.ClientOrderID = getClientOrderIDFromText(sOrder.Text)
 		response.Date = sOrder.CreateTime.Time()
@@ -1558,6 +1561,10 @@ func (e *Exchange) spotOrderDetail(o *SpotOrderResponse, pair currency.Pair, a a
 	if err != nil {
 		return nil, err
 	}
+	tif, err := order.StringToTimeInForce(o.TimeInForce)
+	if err != nil {
+		return nil, err
+	}
 	// A unified account order may trade in a quote currency other than the pair's, which Gate reports as trade_quote
 	costAsset := o.TradeQuote
 	if costAsset.IsEmpty() {
@@ -1570,6 +1577,7 @@ func (e *Exchange) spotOrderDetail(o *SpotOrderResponse, pair currency.Pair, a a
 		Side:                 side,
 		Type:                 oType,
 		Status:               status,
+		TimeInForce:          tif,
 		Pair:                 pair,
 		AssetType:            a,
 		Price:                o.Price.Float64(),
@@ -1843,7 +1851,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				return nil, err
 			}
 			for _, sTradeDetail := range o {
-				fp, err = e.MatchSymbolWithAvailablePairs(sTradeDetail.CurrencyPair.String(), req.AssetType, true)
+				fp, err = e.historyPair(sTradeDetail.CurrencyPair.String(), req.AssetType)
 				if err != nil {
 					return nil, err
 				}
@@ -1863,6 +1871,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					AssetType:      req.AssetType,
 					Fee:            sTradeDetail.Fee.Float64(),
 					FeeAsset:       sTradeDetail.FeeCurrency,
+					CostAsset:      sTradeDetail.TradeQuote, // The pair's quote is inferred when Gate names no other
 					Trades: []order.TradeHistory{{
 						TID:       sTradeDetail.TradeID,
 						Price:     sTradeDetail.Price.Float64(),
@@ -1908,7 +1917,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				return nil, err
 			}
 			for _, fill := range o {
-				fp, err = e.MatchSymbolWithAvailablePairs(fill.Contract, req.AssetType, true)
+				fp, err = e.historyPair(fill.Contract, req.AssetType)
 				if err != nil {
 					return nil, err
 				}
@@ -2018,6 +2027,16 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, req.AssetType)
 	}
 	return req.Filter(e.Name, resp), nil
+}
+
+// historyPair returns the pair of a fill's symbol, parsing the symbol when its pair has left the available pairs, as an
+// expired delivery contract or a delisted pair does while its fills stay in Gate's trade history
+func (e *Exchange) historyPair(symbol string, a asset.Item) (currency.Pair, error) {
+	p, err := e.MatchSymbolWithAvailablePairs(symbol, a, true)
+	if errors.Is(err, currency.ErrPairNotFound) {
+		return currency.NewPairFromString(symbol)
+	}
+	return p, err
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
@@ -3148,17 +3167,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 			return nil, err
 		}
 
-		var cost float64
-		var purchased float64
-		if resp.AverageDealPrice != 0 {
-			// The cost is the quote total filled on either side, as GetOrderInfo and the spot.orders finish push give it
-			cost = resp.FilledTotal.Float64()
-			if side.IsLong() {
-				purchased = resp.FilledTotal.Decimal().Div(resp.AverageDealPrice.Decimal()).InexactFloat64()
-			} else {
-				purchased = resp.FilledTotal.Float64()
-			}
-		}
+		cost, purchased := spotFillTotals(side, resp.FilledTotal, resp.AverageDealPrice, resp.FilledAmount)
 		tif, err := order.StringToTimeInForce(resp.TimeInForce)
 		if err != nil {
 			return nil, err
@@ -3166,9 +3175,6 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		a, err := spotOrderAsset(resp.Account)
 		if err != nil {
 			return nil, err
-		}
-		if side.IsLong() && resp.FilledAmount != 0 {
-			purchased = resp.FilledAmount.Float64() // Exact, where dividing by the rounded average price is not
 		}
 		out[i] = &order.SubmitResponse{
 			Exchange:             e.Name,
@@ -3193,6 +3199,23 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		}
 	}
 	return out, nil
+}
+
+// spotFillTotals returns the quote cost of a spot order's fills, which Gate gives as the quote total filled on either
+// side, and what they purchased: the base bought, or the quote a sale received
+func spotFillTotals(side order.Side, filledTotal, averagePrice, filledAmount types.Number) (cost, purchased float64) {
+	if averagePrice != 0 {
+		cost = filledTotal.Float64()
+		if side.IsLong() {
+			purchased = filledTotal.Decimal().Div(averagePrice.Decimal()).InexactFloat64()
+		} else {
+			purchased = filledTotal.Float64()
+		}
+	}
+	if side.IsLong() && filledAmount != 0 {
+		purchased = filledAmount.Float64() // Exact, where dividing by the rounded average price is not
+	}
+	return cost, purchased
 }
 
 func (e *Exchange) deriveFuturesWebsocketOrderResponse(responses *WebsocketFuturesOrderResponse, a asset.Item) (*order.SubmitResponse, error) {

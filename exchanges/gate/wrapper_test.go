@@ -41,6 +41,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -54,6 +55,22 @@ import (
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+
+	t.Run("failed requests and pairs without an underlying", func(t *testing.T) {
+		t.Parallel()
+		failing := newRoutedExchange(t, nil)
+		ctx := t.Context()
+		// Cases share the failing exchange and run in order
+		for _, a := range failing.GetAssetTypes(false) {
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := failing.CancelAllOrders(ctx, &order.Cancel{AssetType: a, Pair: getPair(t, a)})
+				assert.ErrorIsf(t, err, request.ErrBadStatus, "CancelAllOrders should return a failed request for %s", a)
+			})
+		}
+		// The options underlying is read from the pair as given, so a pair without a delimiter has none
+		_, err := failing.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Options, Pair: currency.NewBTCUSDT()})
+		assert.ErrorContains(t, err, "invalid currency pair", "CancelAllOrders should reject an options pair it cannot read an underlying from")
+	})
 
 	_, err := e.CancelAllOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelAllOrders must reject a nil cancellation")
@@ -71,18 +88,24 @@ func TestCancelAllOrders(t *testing.T) {
 	})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "CancelAllOrders must reject a side it cannot cancel by")
 
+	ctx := t.Context()
+	// The cases below share e and run in order
 	for _, side := range []order.Side{order.Long, order.Short, order.AnySide} {
-		_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
-			Pair:      currency.NewPair(currency.BTC, currency.EMPTYCODE),
-			AssetType: asset.USDTMarginedFutures,
-			Side:      side,
+		t.Run("unsettled pair "+side.String(), func(t *testing.T) {
+			_, err := e.CancelAllOrders(ctx, &order.Cancel{
+				Pair:      currency.NewPair(currency.BTC, currency.EMPTYCODE),
+				AssetType: asset.USDTMarginedFutures,
+				Side:      side,
+			})
+			require.ErrorIsf(t, err, errInvalidSettlementQuote, "CancelAllOrders must reject a pair the asset does not settle for side %s", side)
 		})
-		require.ErrorIsf(t, err, errInvalidSettlementQuote, "CancelAllOrders must reject a pair the asset does not settle for side %s", side)
 	}
 
 	for _, a := range e.GetAssetTypes(false) {
-		_, err = e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a})
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "CancelAllOrders must reject an empty pair for %s", a)
+		t.Run("empty pair "+a.String(), func(t *testing.T) {
+			_, err := e.CancelAllOrders(ctx, &order.Cancel{AssetType: a})
+			require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "CancelAllOrders must reject an empty pair for %s", a)
+		})
 	}
 
 	if !mockTests {
@@ -175,60 +198,6 @@ func TestFuturesContractOpenInterestFromResponse(t *testing.T) {
 	assert.Equal(t, 6542499.0, c.openInterest(), "openInterest should report the position size for an inverse contract")
 }
 
-// TestGetOpenInterestIndependentOfRequestShape pins a contract reporting the same open interest
-// however many pairs are asked for, contract_stats having summed both sides of the book
-func TestGetOpenInterestIndependentOfRequestShape(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-
-	// Trimmed from GET /api/v4/futures/usdt/contracts, which serves one object for a named contract
-	// and an array for all of them
-	const btcContract = `{"name":"BTC_USDT","type":"direct","quanto_multiplier":"0.0001","index_price":"50000","position_size":1000}`
-	const ethContract = `{"name":"ETH_USDT","type":"direct","quanto_multiplier":"0.01","index_price":"2000","position_size":500}`
-
-	var requests atomic.Int64
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests.Add(1)
-		assert.NotContains(t, r.URL.Path, "contract_stats", "open interest should not reach the contract stats endpoint")
-		body := "[" + btcContract + "," + ethContract + "]"
-		if strings.HasSuffix(r.URL.Path, "/BTC_USDT") {
-			body = btcContract
-		}
-		_, err := fmt.Fprint(w, body)
-		assert.NoError(t, err, "writing the contracts response should not error")
-	}))
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	btcPair := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
-	ethPair := currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)
-	pairs := currency.Pairs{btcPair, ethPair}
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, pairs, false), "StorePairs must not error for available pairs")
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, pairs, true), "StorePairs must not error for enabled pairs")
-
-	btc := key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.USDTMarginedFutures}
-	eth := key.PairAsset{Base: currency.ETH.Item, Quote: currency.USDT.Item, Asset: asset.USDTMarginedFutures}
-
-	single, err := ex.GetOpenInterest(t.Context(), btc)
-	require.NoError(t, err, "GetOpenInterest must not error for a single pair")
-	require.Len(t, single, 1, "GetOpenInterest must report the one pair asked for")
-	singleRequests := requests.Load()
-
-	multi, err := ex.GetOpenInterest(t.Context(), btc, eth)
-	require.NoError(t, err, "GetOpenInterest must not error for several pairs")
-	require.Len(t, multi, 2, "GetOpenInterest must report both pairs asked for")
-
-	assert.Equal(t, 5000.0, single[0].OpenInterest, "a single pair should report the position sized in its quote currency")
-	for _, oi := range multi {
-		if oi.Key.Base == currency.BTC.Item {
-			assert.Equal(t, single[0].OpenInterest, oi.OpenInterest, "the same contract should report the same open interest however many pairs are asked for")
-		}
-	}
-	assert.Equal(t, int64(1), singleRequests, "a single pair should cost one request rather than a second for contract stats")
-}
-
 func TestContractStatUnmarshalLastFundingRate(t *testing.T) {
 	t.Parallel()
 
@@ -236,39 +205,6 @@ func TestContractStatUnmarshalLastFundingRate(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`[{"last_funding_rate":"0.00125"}]`), &stats))
 	require.Len(t, stats, 1)
 	assert.Equal(t, 0.00125, stats[0].LastFundingRate.Float64())
-}
-
-func TestGetSupportedFlashSwapCurrencyPairsResponse(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
-		assert.Equal(t, "/api/v4/flash_swap/currency_pairs", r.URL.Path, "request path should be flash swap currency pairs")
-		assert.Equal(t, "BTC", r.URL.Query().Get("currency"), "currency query should match")
-		assert.Equal(t, "10", r.URL.Query().Get("limit"), "limit query should match")
-		assert.Equal(t, "2", r.URL.Query().Get("page"), "page query should match")
-		_, err := fmt.Fprint(w, `[{"currency_pair":"BTC_USDT","sell_currency":"BTC","buy_currency":"USDT","sell_min_amount":"0.001","sell_max_amount":"1","buy_min_amount":"1","buy_max_amount":"100000"}]`)
-		assert.NoError(t, err, "writing flash swap currency pairs should not error")
-	}))
-
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	pairs, err := ex.GetSupportedFlashSwapCurrencyPairs(t.Context(), currency.BTC, 10, 2)
-	require.NoError(t, err, "GetSupportedFlashSwapCurrencyPairs must not error")
-	exp := []*FlashSwapCurrencyPairResponse{{
-		CurrencyPair:  currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
-		SellCurrency:  currency.BTC,
-		BuyCurrency:   currency.USDT,
-		SellMinAmount: 0.001,
-		SellMaxAmount: 1,
-		BuyMinAmount:  1,
-		BuyMaxAmount:  100000,
-	}}
-	assert.Equal(t, exp, pairs, "GetSupportedFlashSwapCurrencyPairs should decode every field")
 }
 
 func TestGetCrossMarginMinimums(t *testing.T) {
@@ -281,87 +217,6 @@ func TestGetCrossMarginMinimums(t *testing.T) {
 		assert.Falsef(t, ccy.IsEmpty(), "currency should not be empty for minimum %f", minimum)
 		assert.Positivef(t, minimum, "minimum should be positive for %s", ccy)
 	}
-}
-
-func TestUpdateOrderExecutionLimitsUsesProductBorrowMinimums(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.Name = "GateProductBorrowMinimums"
-
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
-		switch r.URL.Path {
-		case "/api/v4/spot/currency_pairs":
-			_, err := fmt.Fprint(w, `[{"id":"BTC_USDT","base":"BTC","quote":"USDT","min_base_amount":"0.001","min_quote_amount":"1","amount_precision":3,"precision":2,"trade_status":"tradable"}]`)
-			assert.NoError(t, err, "writing spot currency pairs should not error")
-		case "/api/v4/margin/uni/currency_pairs":
-			_, err := fmt.Fprint(w, `[{"currency_pair":"BTC_USDT","base_min_borrow_amount":"0.01","quote_min_borrow_amount":"2","status":"enabled","delisted_time":0}]`)
-			assert.NoError(t, err, "writing isolated margin lending markets should not error")
-		case "/api/v4/margin/cross/currencies":
-			_, err := fmt.Fprint(w, `[{"name":"BTC","min_borrow_amount":"0.03","loanable":true,"status":1},{"name":"USDT","min_borrow_amount":"4","loanable":true,"status":1}]`)
-			assert.NoError(t, err, "writing cross-margin currencies should not error")
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	pair := currency.NewBTCUSDT()
-	require.NoError(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.Margin), "UpdateOrderExecutionLimits must not error for margin")
-	isolatedLimits, err := ex.GetOrderExecutionLimits(asset.Margin, pair)
-	require.NoError(t, err, "GetOrderExecutionLimits must not error for margin")
-	assert.Equal(t, 0.01, isolatedLimits.MinimumBorrowAmountBase, "margin base borrow minimum should use the isolated pair value")
-	assert.Equal(t, 2.0, isolatedLimits.MinimumBorrowAmountQuote, "margin quote borrow minimum should use the isolated pair value")
-
-	require.NoError(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.CrossMargin), "UpdateOrderExecutionLimits must not error for cross margin")
-	crossLimits, err := ex.GetOrderExecutionLimits(asset.CrossMargin, pair)
-	require.NoError(t, err, "GetOrderExecutionLimits must not error for cross margin")
-	assert.Equal(t, 0.03, crossLimits.MinimumBorrowAmountBase, "cross-margin base borrow minimum should use the currency value")
-	assert.Equal(t, 4.0, crossLimits.MinimumBorrowAmountQuote, "cross-margin quote borrow minimum should use the currency value")
-}
-
-func TestFetchTradablePairsUsesMarginProductSources(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.Name = "GateTradableMarginPairs"
-
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
-		switch r.URL.Path {
-		case "/api/v4/spot/currency_pairs":
-			_, err := fmt.Fprint(w, `[{"id":"BTC_USDT","base":"BTC","quote":"USDT","trade_status":"tradable"},{"id":"ETH_USDT","base":"ETH","quote":"USDT","trade_status":"tradable"},{"id":"DOGE_USDT","base":"DOGE","quote":"USDT","trade_status":"untradable"}]`)
-			assert.NoError(t, err, "writing spot currency pairs should not error")
-		case "/api/v4/margin/uni/currency_pairs":
-			_, err := fmt.Fprint(w, `[{"currency_pair":"BTC_USDT","base_min_borrow_amount":"0.01","status":"enabled","delisted_time":0},{"currency_pair":"ETH_USDT","base_min_borrow_amount":"0.02","status":"enabled","delisted_time":0},{"currency_pair":"DOGE_USDT","base_min_borrow_amount":"1","status":"disabled","delisted_time":0},{"currency_pair":"SOL_USDT","base_min_borrow_amount":"0.1","status":"enabled","delisted_time":1700000000},{"currency_pair":"XRP_USDT","base_min_borrow_amount":"1","status":"enabled","delisted_time":4102444800}]`)
-			assert.NoError(t, err, "writing isolated margin lending markets should not error")
-		case "/api/v4/margin/cross/currencies":
-			_, err := fmt.Fprint(w, `[{"name":"BTC","min_borrow_amount":"0.03","loanable":true,"status":1},{"name":"USDT","min_borrow_amount":"4","loanable":true,"status":1},{"name":"ETH","min_borrow_amount":"0.05","loanable":true,"status":0},{"name":"DOGE","min_borrow_amount":"1","loanable":true,"status":1}]`)
-			assert.NoError(t, err, "writing cross-margin currencies should not error")
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	marginPairs, err := ex.FetchTradablePairs(t.Context(), asset.Margin)
-	require.NoError(t, err, "FetchTradablePairs must not error for margin")
-	require.Len(t, marginPairs, 3, "margin must return enabled pairs that are not yet delisted")
-	assert.True(t, marginPairs[0].Equal(currency.NewBTCUSDT()), "margin should include the first isolated-margin pair")
-	assert.True(t, marginPairs[1].Equal(currency.NewPair(currency.ETH, currency.USDT)), "margin should include the second isolated-margin pair")
-	assert.True(t, marginPairs[2].Equal(currency.NewPair(currency.XRP, currency.USDT)), "margin should include a pair with a future delisting time")
-
-	crossPairs, err := ex.FetchTradablePairs(t.Context(), asset.CrossMargin)
-	require.NoError(t, err, "FetchTradablePairs must not error for cross margin")
-	require.Len(t, crossPairs, 1, "cross margin must return one enabled tradable pair")
-	assert.True(t, crossPairs[0].Equal(currency.NewBTCUSDT()), "cross margin should use enabled currencies and tradable spot pairs")
 }
 
 func TestGetRequestedOpenInterestPair(t *testing.T) {
@@ -389,17 +244,22 @@ func TestGetRequestedOpenInterestPair(t *testing.T) {
 	assert.Equal(t, currency.EMPTYPAIR, requested)
 }
 
-func TestIsPerpetualFutureCurrency(t *testing.T) {
+func TestIsPerpetualFutureCurrency(t *testing.T) { //nolint:tparallel // top-level parallel is safe; cases share e and run in order
 	t.Parallel()
+	// The cases below share e and run in order
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
-		is, err := e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
-		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
-		assert.Truef(t, is, "%s should be a perpetual future currency", a)
+		t.Run(a.String(), func(t *testing.T) {
+			is, err := e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
+			require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
+			assert.Truef(t, is, "%s should be a perpetual future currency", a)
+		})
 	}
 	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin, asset.DeliveryFutures, asset.Options} {
-		is, err := e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
-		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
-		assert.Falsef(t, is, "%s should not be a perpetual future currency", a)
+		t.Run(a.String(), func(t *testing.T) {
+			is, err := e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
+			require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
+			assert.Falsef(t, is, "%s should not be a perpetual future currency", a)
+		})
 	}
 }
 
@@ -519,6 +379,13 @@ func BenchmarkMessageID(b *testing.B) {
 func TestFetchOrderbook(t *testing.T) {
 	t.Parallel()
 
+	// Serial, as it shares e with the cases below and runs before them
+	t.Run("margin pair without a spot instrument", func(t *testing.T) {
+		fakePair := currency.NewPair(currency.NewCode("ZZFAKE"), currency.USDT)
+		_, err := e.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)
+		require.ErrorIs(t, err, errNoSpotInstrument)
+	})
+
 	ensureTestPairs(t)
 
 	availMargin, err := e.GetAvailablePairs(asset.Margin)
@@ -592,14 +459,6 @@ func TestFetchOrderbook(t *testing.T) {
 			assert.LessOrEqual(t, got.LastUpdated, got.LastPushed, "Last updated timestamp should be before last pushed timestamp")
 		})
 	}
-}
-
-func TestFetchOrderbookNoSpotInstrument(t *testing.T) {
-	t.Parallel()
-
-	fakePair := currency.NewPair(currency.NewCode("ZZFAKE"), currency.USDT)
-	_, err := e.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)
-	require.ErrorIs(t, err, errNoSpotInstrument)
 }
 
 func TestSetCrossMarginAccountBalances(t *testing.T) {
@@ -710,21 +569,25 @@ func TestSetIsolatedMarginAccountBalances(t *testing.T) {
 	assert.InDelta(t, 11, eth.AvailableWithoutBorrow, 0.00000001, "ETH available without borrow should subtract borrowed principal")
 }
 
-func TestAddIsolatedMarginAccountBalanceWithNegativeAvailable(t *testing.T) {
+func TestAddIsolatedMarginAccountBalance(t *testing.T) {
 	t.Parallel()
-	balances := accounts.CurrencyBalances{}
-	err := addIsolatedMarginAccountBalance(&balances, AccountBalanceInformation{
-		Currency:  currency.LRC,
-		Available: types.Number(-0.01462404),
-		Borrowed:  types.Number(4.85),
-	})
-	require.NoError(t, err, "addIsolatedMarginAccountBalance must add a valid isolated margin balance")
 
-	lrc := balances[currency.LRC]
-	assert.InDelta(t, -0.01462404, lrc.Total, 0.00000001, "total should preserve the exchange-reported negative available balance")
-	assert.InDelta(t, -0.01462404, lrc.Free, 0.00000001, "free should preserve the exchange-reported negative available balance")
-	assert.InDelta(t, 4.85, lrc.Borrowed, 0.00000001, "borrowed should include the outstanding principal")
-	assert.InDelta(t, -4.86462404, lrc.AvailableWithoutBorrow, 0.00000001, "available without borrow should account for the outstanding principal")
+	t.Run("negative available balance", func(t *testing.T) {
+		t.Parallel()
+		balances := accounts.CurrencyBalances{}
+		err := addIsolatedMarginAccountBalance(&balances, AccountBalanceInformation{
+			Currency:  currency.LRC,
+			Available: types.Number(-0.01462404),
+			Borrowed:  types.Number(4.85),
+		})
+		require.NoError(t, err, "addIsolatedMarginAccountBalance must add a valid isolated margin balance")
+
+		lrc := balances[currency.LRC]
+		assert.InDelta(t, -0.01462404, lrc.Total, 0.00000001, "total should preserve the exchange-reported negative available balance")
+		assert.InDelta(t, -0.01462404, lrc.Free, 0.00000001, "free should preserve the exchange-reported negative available balance")
+		assert.InDelta(t, 4.85, lrc.Borrowed, 0.00000001, "borrowed should include the outstanding principal")
+		assert.InDelta(t, -4.86462404, lrc.AvailableWithoutBorrow, 0.00000001, "available without borrow should account for the outstanding principal")
+	})
 }
 
 // TestSetupUpgradesLegacyRESTEndpoints loads a config saved before the REST endpoints dropped their version prefix
@@ -800,47 +663,12 @@ func TestSpotOrderAsset(t *testing.T) {
 		{account: "options", exp: asset.Options},
 		{account: "bogus", err: asset.ErrNotSupported},
 	} {
-		a, err := spotOrderAsset(tc.account)
-		require.ErrorIsf(t, err, tc.err, "spotOrderAsset must return the expected error for %q", tc.account)
-		assert.Equalf(t, tc.exp, a, "spotOrderAsset should return the expected asset for %q", tc.account)
-	}
-}
-
-func TestGetActiveOrdersUnifiedAccount(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.API.AuthenticatedSupport = true
-	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
-	ex.SkipAuthCheck = true
-	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v4/spot/open_orders", r.URL.Path, "request path should be the open orders endpoint")
-		assert.Empty(t, r.URL.Query().Get("account"), "request should list every account's open orders")
-		labels := []string{"spot", "unified", "margin", "cross_margin", "", "bogus"}
-		orders := make([]string, 0, len(labels))
-		for id, account := range labels {
-			orders = append(orders, fmt.Sprintf(`{"id":"%d","text":"t-%d","create_time_ms":1744150200123,"update_time_ms":1744150300123,"currency_pair":"BTC_USDT","status":"open","type":"limit","account":%q,"side":"sell","amount":"2","price":"6","left":"2","fee_currency":"USDT"}`, id, id, account))
-		}
-		_, err := fmt.Fprintf(w, `[{"currency_pair":"BTC_USDT","total":%d,"orders":[%s]}]`, len(orders), strings.Join(orders, ","))
-		assert.NoError(t, err, "writing open orders should not error")
-	}))
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	for a, exp := range map[asset.Item][]string{
-		asset.Spot:        {"0", "1", "4"},
-		asset.Margin:      {"2"},
-		asset.CrossMargin: {"3"},
-	} {
-		result, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
-		require.NoErrorf(t, err, "GetActiveOrders must not error for %s", a)
-		ids := make([]string, len(result))
-		for i := range result {
-			ids[i] = result[i].OrderID
-			assert.Equalf(t, a, result[i].AssetType, "GetActiveOrders should report order %s as %s", result[i].OrderID, a)
-		}
-		assert.Equalf(t, exp, ids, "GetActiveOrders should report the %s orders, counting unified and unlabelled orders as spot", a)
+		t.Run(cmp.Or(tc.account, "unlabelled"), func(t *testing.T) {
+			t.Parallel()
+			a, err := spotOrderAsset(tc.account)
+			require.ErrorIsf(t, err, tc.err, "spotOrderAsset must return the expected error for %q", tc.account)
+			assert.Equalf(t, tc.exp, a, "spotOrderAsset should return the expected asset for %q", tc.account)
+		})
 	}
 }
 
@@ -859,37 +687,6 @@ func TestSetDefaultsMarginWebsocketSupport(t *testing.T) {
 	require.NotEmpty(t, subs, "generateSubscriptionsSpot must generate subscriptions")
 	for _, s := range subs {
 		assert.NotContainsf(t, []string{marginBalancesChannel, crossMarginBalanceChannel}, s.Channel, "generateSubscriptionsSpot should not subscribe to %s", s.Channel)
-	}
-}
-
-func TestFetchTradablePairsPerpetualContractTypes(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Each settlement lists a contract of the other margin type, which the asset must leave out
-		var err error
-		switch r.URL.Path {
-		case "/api/v4/futures/usdt/contracts":
-			_, err = fmt.Fprint(w, `[{"name":"BTC_USDT","type":"direct"},{"name":"ETH_USD","type":"inverse"}]`)
-		case "/api/v4/futures/btc/contracts":
-			_, err = fmt.Fprint(w, `[{"name":"BTC_USD","type":"inverse"},{"name":"ETH_USDT","type":"direct"}]`)
-		default:
-			http.NotFound(w, r)
-		}
-		assert.NoError(t, err, "writing contracts should not error")
-	}))
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	for a, exp := range map[asset.Item]string{
-		asset.USDTMarginedFutures: "BTC_USDT",
-		asset.CoinMarginedFutures: "BTC_USD",
-	} {
-		pairs, err := ex.FetchTradablePairs(t.Context(), a)
-		require.NoErrorf(t, err, "FetchTradablePairs must not error for %s", a)
-		require.Lenf(t, pairs, 1, "FetchTradablePairs must return only %s's own contract type", a)
-		assert.Equalf(t, exp, pairs[0].String(), "FetchTradablePairs should return the %s contract", a)
 	}
 }
 
@@ -935,8 +732,9 @@ func TestGetSpotOrderRequest(t *testing.T) {
 	}
 }
 
-func TestSpotOrderType(t *testing.T) {
+func TestSpotOrderType(t *testing.T) { //nolint:tparallel // top-level parallel is safe; cases run before the refusal below
 	t.Parallel()
+	// Cases run before the refusal below, which calls spotOrderType too
 	for in, exp := range map[string]order.Type{
 		"limit":               order.Limit,
 		"market":              order.Market,
@@ -947,9 +745,11 @@ func TestSpotOrderType(t *testing.T) {
 		"market_borrow":       order.Market,
 		"market_borrow_repay": order.Market,
 	} {
-		got, err := spotOrderType(in)
-		require.NoErrorf(t, err, "spotOrderType must not error for %q", in)
-		assert.Equalf(t, exp, got, "spotOrderType should read %q as a %s order", in, exp)
+		t.Run(in, func(t *testing.T) {
+			got, err := spotOrderType(in)
+			require.NoErrorf(t, err, "spotOrderType must not error for %q", in)
+			assert.Equalf(t, exp, got, "spotOrderType should read %q as a %s order", in, exp)
+		})
 	}
 	_, err := spotOrderType("iceberg")
 	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "spotOrderType should reject an unknown type")
@@ -978,10 +778,13 @@ func TestOrderPriceAndTIF(t *testing.T) {
 		{name: "take profit", orderType: order.TakeProfit, err: order.ErrUnsupportedOrderType},
 		{name: "trailing stop", orderType: order.TrailingStop, err: order.ErrUnsupportedOrderType},
 	} {
-		price, tif, err := orderPriceAndTIF(&order.Submit{Type: tc.orderType, TimeInForce: tc.tif, Price: 3000, TriggerPrice: 2900})
-		require.ErrorIsf(t, err, tc.err, "orderPriceAndTIF must return the expected error for a %s order", tc.name)
-		assert.Equalf(t, tc.price, price, "orderPriceAndTIF should return the price to send for a %s order", tc.name)
-		assert.Equalf(t, tc.exchTIF, tif, "orderPriceAndTIF should return the time in force to send for a %s order", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			price, tif, err := orderPriceAndTIF(&order.Submit{Type: tc.orderType, TimeInForce: tc.tif, Price: 3000, TriggerPrice: 2900})
+			require.ErrorIsf(t, err, tc.err, "orderPriceAndTIF must return the expected error for a %s order", tc.name)
+			assert.Equalf(t, tc.price, price, "orderPriceAndTIF should return the price to send for a %s order", tc.name)
+			assert.Equalf(t, tc.exchTIF, tif, "orderPriceAndTIF should return the time in force to send for a %s order", tc.name)
+		})
 	}
 }
 
@@ -1013,452 +816,42 @@ func TestGetDeliveryOrderRequest(t *testing.T) {
 	assert.Equal(t, exp, req, "getDeliveryOrderRequest should send a limit order at its price with GTC")
 }
 
-func TestSetupWebsocketConnections(t *testing.T) {
+func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
-	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
-	// Gate lists no BTC-settled delivery contracts, so there is no BTC delivery connection
-	assert.ElementsMatch(t, []string{gateWebsocketEndpoint, usdtFuturesWebsocketURL, btcFuturesWebsocketURL, deliveryRealUSDTTradingURL, optionsWebsocketURL}, urls, "Setup should connect spot, both perpetual settlements, USDT delivery and options")
-	deliveryURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketFutures)
-	require.NoError(t, err, "GetURL must not error")
-	assert.Equal(t, deliveryRealUSDTTradingURL, deliveryURL, "SetDefaults should default the futures websocket endpoint to USDT delivery")
-}
-
-func TestDeriveSpotWebsocketOrderResponseAccount(t *testing.T) {
-	t.Parallel()
-	for account, exp := range map[string]asset.Item{
-		"spot":         asset.Spot,
-		"unified":      asset.Spot,
-		"":             asset.Spot,
-		"margin":       asset.Margin,
-		"cross_margin": asset.CrossMargin,
-	} {
-		var resp *WebsocketOrderResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(`{"left":"0","amount":"0.0001","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"`+account+`","side":"sell","text":"t-1","id":"766075454481","update_time_ms":1735720637188,"create_time_ms":1735720637188}`), &resp), "Unmarshal must decode account %q", account)
-		got, err := e.deriveSpotWebsocketOrderResponse(resp)
-		require.NoErrorf(t, err, "deriveSpotWebsocketOrderResponse must not error for account %q", account)
-		assert.Equalf(t, exp, got.AssetType, "deriveSpotWebsocketOrderResponse should report account %q as %s", account, exp)
+	ex.SetDefaults()
+	assert.Equal(t, "Gate", ex.Name, "SetDefaults should name the exchange")
+	assert.True(t, ex.API.CredentialsValidator.RequiresKey, "SetDefaults should require an API key")
+	assert.True(t, ex.API.CredentialsValidator.RequiresSecret, "SetDefaults should require an API secret")
+	assert.ElementsMatch(t, asset.Items{asset.Spot, asset.Margin, asset.CrossMargin, asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures, asset.Options}, ex.GetAssetTypes(false), "SetDefaults should support every asset Gate trades")
+	pairFormat := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
+	assert.True(t, ex.CurrencyPairs.UseGlobalFormat, "SetDefaults should format every asset's pairs alike")
+	assert.Equal(t, pairFormat, ex.CurrencyPairs.RequestFormat, "SetDefaults should request pairs in upper case with an underscore")
+	assert.Equal(t, pairFormat, ex.CurrencyPairs.ConfigFormat, "SetDefaults should store pairs in upper case with an underscore")
+	assert.Equal(t, protocol.TradingRequirements{SpotMarketBuyQuotation: true, SpotMarketSellBase: true}, ex.GetTradingRequirements(), "SetDefaults should size spot market buys in the quote and sells in the base currency")
+	assert.Equal(t, uint64(1000), ex.Features.Enabled.Kline.GlobalResultLimit, "SetDefaults should limit each candle request to 1000 candles")
+	assert.Equal(t, defaultSubscriptions, ex.Features.Subscriptions, "SetDefaults should use the default subscriptions")
+	assert.Equal(t, map[string]string{
+		exchange.RestSpot.String():              "https://api.gateio.ws",
+		exchange.RestFutures.String():           "https://fx-api.gateio.ws",
+		exchange.RestSpotSupplementary.String(): "https://fx-api-testnet.gateio.ws",
+		exchange.WebsocketSpot.String():         "wss://api.gateio.ws/ws/v4/",
+		exchange.WebsocketUSDTMargined.String(): "wss://fx-ws.gateio.ws/v4/ws/usdt",
+		exchange.WebsocketCoinMargined.String(): "wss://fx-ws.gateio.ws/v4/ws/btc",
+		exchange.WebsocketFutures.String():      "wss://fx-ws.gateio.ws/v4/ws/delivery/usdt",
+		exchange.WebsocketOptions.String():      "wss://op-ws.gateio.live/v4/ws",
+		exchange.EdgeCase1.String():             "https://www.gate.com/apiw/v2/",
+	}, ex.API.Endpoints.GetURLMap(), "SetDefaults should set every default endpoint")
+	assert.NotNil(t, ex.Requester, "SetDefaults should set up the requester")
+	assert.NotNil(t, ex.Websocket, "SetDefaults should set up the websocket manager")
+	assert.Equal(t, exchange.DefaultWebsocketResponseMaxLimit, ex.WebsocketResponseMaxLimit, "SetDefaults should use the default websocket response limit")
+	assert.Equal(t, exchange.DefaultWebsocketResponseCheckTimeout, ex.WebsocketResponseCheckTimeout, "SetDefaults should use the default websocket response check timeout")
+	assert.NotNil(t, ex.wsOBResubMgr, "SetDefaults should set up the orderbook resubscription manager")
+	assert.NotNil(t, ex.wsOBUpdateMgr, "SetDefaults should set up the orderbook update manager")
+	assert.True(t, ex.IsAssetWebsocketSupported(asset.Spot), "SetDefaults should keep spot websocket support")
+	for _, a := range []asset.Item{asset.Margin, asset.CrossMargin} {
+		assert.Falsef(t, ex.IsAssetWebsocketSupported(a), "SetDefaults should leave %s balances to REST", a)
 	}
-	_, err := e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Account: "bogus", Side: "sell", Type: "market", TimeInForce: "ioc", FinishAs: "filled"})
-	assert.ErrorIs(t, err, asset.ErrNotSupported, "deriveSpotWebsocketOrderResponse should reject an unknown account")
-	_, err = e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Side: "bogus", Type: "market", TimeInForce: "ioc", FinishAs: "filled"})
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "deriveSpotWebsocketOrderResponse should reject an unknown side")
-	_, err = e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Side: "sell", Type: "market", TimeInForce: "ioc", FinishAs: "bogus"})
-	assert.ErrorContains(t, err, "unrecognised order status", "deriveSpotWebsocketOrderResponse should reject an unknown finish")
-	_, err = e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Side: "sell", Type: "iceberg", TimeInForce: "ioc", FinishAs: "filled"})
-	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "deriveSpotWebsocketOrderResponse should reject an unknown order type")
-	_, err = e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Side: "sell", Type: "market", TimeInForce: "bogus", FinishAs: "filled"})
-	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce, "deriveSpotWebsocketOrderResponse should reject an unknown time in force")
-}
-
-func TestFetchTradablePairsErrors(t *testing.T) {
-	t.Parallel()
-	_, err := e.FetchTradablePairs(t.Context(), asset.Binary)
-	require.ErrorIs(t, err, asset.ErrNotSupported, "FetchTradablePairs must reject an unsupported asset")
-
-	failing := newRoutedExchange(t, nil)
-	for _, a := range failing.GetAssetTypes(false) {
-		_, err := failing.FetchTradablePairs(t.Context(), a)
-		assert.ErrorContainsf(t, err, "SERVER_ERROR", "FetchTradablePairs should return a failed request for %s", a)
-	}
-
-	ex := newRoutedExchange(t, map[string]string{
-		"/api/v4/spot/currency_pairs":     `[{"id":"BTC_USDT","base":"BTC","quote":"USDT","trade_status":"untradable"},{"id":"ETH_USDT","base":"ETH","quote":"USDT","trade_status":"tradable"}]`,
-		"/api/v4/margin/cross/currencies": `[{"name":"BTC","min_borrow_amount":"1","loanable":true,"status":1}]`,
-		"/api/v4/delivery/usdt/contracts": `[{"name":"BTC_USDT_20261225","in_delisting":true},{"name":""},{"name":"ETH_USDT_20261225"}]`,
-		"/api/v4/options/underlyings":     `[{"name":"BTC_USDT"}]`,
-	})
-	pairs, err := ex.FetchTradablePairs(t.Context(), asset.Spot)
-	require.NoError(t, err, "FetchTradablePairs must not error for spot")
-	assert.Equal(t, currency.Pairs{currency.NewPair(currency.ETH, currency.USDT)}, pairs, "FetchTradablePairs should leave out untradable spot pairs")
-	pairs, err = ex.FetchTradablePairs(t.Context(), asset.DeliveryFutures)
-	require.NoError(t, err, "FetchTradablePairs must not error for delivery")
-	assert.Equal(t, currency.Pairs{currency.NewPairWithDelimiter("ETH", "USDT_20261225", currency.UnderscoreDelimiter)}, pairs, "FetchTradablePairs should leave out delisting and unnamed delivery contracts")
-	_, err = ex.FetchTradablePairs(t.Context(), asset.Options)
-	assert.ErrorContains(t, err, "SERVER_ERROR", "FetchTradablePairs should return a failed contracts request")
-
-	ex = newRoutedExchange(t, map[string]string{
-		"/api/v4/margin/cross/currencies": `[{"name":"BTC","min_borrow_amount":"1","loanable":true,"status":1}]`,
-		"/api/v4/options/underlyings":     `[{"name":"BTC_USDT"}]`,
-		"/api/v4/options/contracts":       `[{"name":"_"}]`,
-		"/api/v4/delivery/usdt/contracts": `[{"name":"_"}]`,
-	})
-	_, err = ex.FetchTradablePairs(t.Context(), asset.CrossMargin)
-	assert.ErrorContains(t, err, "SERVER_ERROR", "FetchTradablePairs should return a failed spot pairs request for cross margin")
-	_, err = ex.FetchTradablePairs(t.Context(), asset.Options)
-	assert.ErrorIs(t, err, currency.ErrCreatingPair, "FetchTradablePairs should reject an invalid options contract")
-	_, err = ex.FetchTradablePairs(t.Context(), asset.DeliveryFutures)
-	assert.ErrorIs(t, err, currency.ErrCreatingPair, "FetchTradablePairs should reject an invalid delivery contract")
-}
-
-func TestGetActiveOrdersErrors(t *testing.T) {
-	t.Parallel()
-	failing := newRoutedExchange(t, nil)
-	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.DeliveryFutures, asset.Options} {
-		_, err := failing.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
-		assert.ErrorContainsf(t, err, "SERVER_ERROR", "GetActiveOrders should return a failed request for %s", a)
-	}
-
-	ex := newRoutedExchange(t, map[string]string{
-		"/api/v4/spot/open_orders":    `[{"currency_pair":"BTC_USDT","total":2,"orders":[{"id":"1","status":"open","account":"spot","side":"bogus","type":"limit"}]}]`,
-		"/api/v4/futures/usdt/orders": `[{"id":3,"contract":"BTC_USDT","status":"open","finish_as":"","size":1,"tif":"bogus"}]`,
-		"/api/v4/options/orders":      `[{"id":4,"contract":"_","status":"open","size":1,"tif":"gtc"}]`,
-	})
-	_, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "GetActiveOrders should reject an open spot order it cannot read")
-
-	// A closed order the listing still carries is skipped before it is read
-	closedOrders := newFixedResponseExchange(t, "/api/v4/spot/open_orders", `[{"currency_pair":"BTC_USDT","total":2,"orders":[{"id":"1","status":"closed","account":"spot","side":"bogus","type":"limit"},{"id":"2","status":"open","account":"spot","side":"buy","type":"limit","amount":"1","price":"2"}]}]`)
-	result, err := closedOrders.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
-	require.NoError(t, err, "GetActiveOrders must skip a closed order")
-	require.Len(t, result, 1, "GetActiveOrders must report only the open order")
-	assert.Equal(t, "2", result[0].OrderID, "GetActiveOrders should report the open order")
-	_, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType})
-	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "GetActiveOrders should reject a futures order it cannot read")
-	_, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Options, Side: order.AnySide, Type: order.AnyType})
-	assert.ErrorIs(t, err, currency.ErrCreatingPair, "GetActiveOrders should reject an options order it cannot read")
-}
-
-func TestSubmitOrderErrors(t *testing.T) {
-	t.Parallel()
-	failing := newRoutedExchange(t, nil)
-	for _, s := range []*order.Submit{
-		{AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1},
-		{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1},
-		{AssetType: asset.DeliveryFutures, Pair: getPair(t, asset.DeliveryFutures), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1},
-		{AssetType: asset.Options, Pair: getPair(t, asset.Options), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1},
-	} {
-		s.Exchange = failing.Name
-		_, err := failing.SubmitOrder(t.Context(), s)
-		assert.ErrorContainsf(t, err, "SERVER_ERROR", "SubmitOrder should return a failed request for %s", s.AssetType)
-	}
-
-	// A side that is valid for submission but neither long nor short
-	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.DeliveryFutures, asset.Options} {
-		_, err := failing.SubmitOrder(t.Context(), &order.Submit{Exchange: failing.Name, AssetType: a, Pair: getPair(t, a), Type: order.Limit, Side: order.Buy | order.Sell, Price: 1, Amount: 1})
-		assert.ErrorIsf(t, err, order.ErrSideIsInvalid, "SubmitOrder should reject a side that is neither long nor short for %s", a)
-	}
-	_, err := failing.SubmitOrder(t.Context(), &order.Submit{Exchange: failing.Name, AssetType: asset.Options, Pair: getPair(t, asset.Options), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1, TimeInForce: order.GoodTillTime})
-	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "SubmitOrder should reject an options time in force Gate does not support")
-
-	submit := func(ex *Exchange, a asset.Item) error {
-		_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: a, Pair: getPair(t, a), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1})
-		return err
-	}
-	assert.ErrorIs(t, submit(newFixedResponseExchange(t, "/api/v4/spot/orders", `{"id":""}`), asset.Spot), order.ErrOrderIDNotSet, "SubmitOrder should reject a spot order without an ID")
-	assert.ErrorIs(t, submit(newFixedResponseExchange(t, "/api/v4/spot/orders", `{"id":"1","side":"bogus"}`), asset.Spot), order.ErrSideIsInvalid, "SubmitOrder should reject a spot order with an unknown side")
-	assert.ErrorContains(t, submit(newFixedResponseExchange(t, "/api/v4/spot/orders", `{"id":"1","side":"buy","status":"bogus"}`), asset.Spot), "unrecognised order status", "SubmitOrder should reject a spot order with an unknown status")
-	assert.ErrorContains(t, submit(newFixedResponseExchange(t, "/api/v4/options/orders", `{"id":5,"status":"finished","finish_as":"bogus"}`), asset.Options), "unrecognised order status", "SubmitOrder should reject an options order with an unknown finish")
-}
-
-func TestUpdateAccountBalancesErrors(t *testing.T) {
-	t.Parallel()
-	// A failure must leave the stored balances alone, as saving what was read before it would replace them
-	storeBTC := func(ex *Exchange, a asset.Item) {
-		stored := accounts.NewSubAccount(a, "")
-		stored.Balances.Set(currency.BTC, accounts.Balance{Total: 3, Free: 3})
-		require.NoErrorf(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{stored}, true), "Accounts.Save must store a %s balance", a)
-	}
-	storedBTC := func(ex *Exchange, a asset.Item) float64 {
-		creds, err := ex.GetCredentials(t.Context())
-		require.NoError(t, err, "GetCredentials must not error")
-		balance, err := ex.Accounts.GetBalance("", creds, a, currency.BTC)
-		require.NoErrorf(t, err, "GetBalance must return the stored %s balance", a)
-		return balance.Total
-	}
-	failing := newRoutedExchange(t, nil)
-	for _, a := range failing.GetAssetTypes(false) {
-		storeBTC(failing, a)
-		got, err := failing.UpdateAccountBalances(t.Context(), a)
-		assert.ErrorIsf(t, err, request.ErrBadStatus, "UpdateAccountBalances should return a failed request for %s", a)
-		assert.Emptyf(t, got, "UpdateAccountBalances should return no %s balances alongside the error", a)
-		assert.Equalf(t, 3.0, storedBTC(failing, a), "UpdateAccountBalances should keep the stored %s balance when its request fails", a)
-	}
-	// The market whose base or quote has no currency follows a complete one
-	complete := `{"currency_pair":"BTC_USDT","base":{"currency":"BTC","available":"1"},"quote":{"currency":"USDT","available":"1"}}`
-	for side, market := range map[string]string{
-		"base":  `{"currency_pair":"ETH_USDT","base":{"available":"1"},"quote":{"currency":"USDT","available":"1"}}`,
-		"quote": `{"currency_pair":"ETH_USDT","base":{"currency":"ETH","available":"1"},"quote":{"available":"1"}}`,
-	} {
-		ex := newFixedResponseExchange(t, "/api/v4/margin/user/account", "["+complete+","+market+"]")
-		storeBTC(ex, asset.Margin)
-		got, err := ex.UpdateAccountBalances(t.Context(), asset.Margin)
-		assert.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "UpdateAccountBalances should reject an isolated margin market whose %s has no currency", side)
-		assert.Emptyf(t, got, "UpdateAccountBalances should return no margin balances alongside the error for a %s without a currency", side)
-		assert.Equalf(t, 3.0, storedBTC(ex, asset.Margin), "UpdateAccountBalances should keep the stored margin balance when it rejects a %s without a currency", side)
-	}
-}
-
-func TestCancelAllOrdersErrors(t *testing.T) {
-	t.Parallel()
-	failing := newRoutedExchange(t, nil)
-	for _, a := range failing.GetAssetTypes(false) {
-		_, err := failing.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a, Pair: getPair(t, a)})
-		assert.ErrorIsf(t, err, request.ErrBadStatus, "CancelAllOrders should return a failed request for %s", a)
-	}
-	// The options underlying is read from the pair as given, so a pair without a delimiter has none
-	_, err := failing.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Options, Pair: currency.NewBTCUSDT()})
-	assert.ErrorContains(t, err, "invalid currency pair", "CancelAllOrders should reject an options pair it cannot read an underlying from")
-}
-
-func TestGetOrderInfoErrors(t *testing.T) {
-	t.Parallel()
-	failing := newRoutedExchange(t, nil)
-	for _, a := range failing.GetAssetTypes(false) {
-		_, err := failing.GetOrderInfo(t.Context(), "1", getPair(t, a), a)
-		assert.ErrorIsf(t, err, request.ErrBadStatus, "GetOrderInfo should return a failed request for %s", a)
-	}
-	_, err := failing.GetOrderInfo(t.Context(), "1", currency.NewBTCUSD(), asset.USDTMarginedFutures)
-	assert.ErrorIs(t, err, errInvalidSettlementQuote, "GetOrderInfo should reject a USDT-margined pair quoted in another currency")
-}
-
-func TestGetOrderHistoryErrors(t *testing.T) {
-	t.Parallel()
-	failing := newRoutedExchange(t, nil)
-	for _, a := range failing.GetAssetTypes(false) {
-		_, err := failing.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{getPair(t, a)}})
-		assert.ErrorIsf(t, err, request.ErrBadStatus, "GetOrderHistory should return a failed request for %s", a)
-	}
-
-	// The server refuses the ETH pair's request and would answer the BTC pair's, so whether ETH's comes first or last,
-	// the error must come back with no history
-	ex := newRefusingRoutedExchange(t, "ETH", map[string]string{
-		"/api/v4/spot/my_trades":         `[{"id":"1","currency_pair":"BTC_USDT","side":"buy","amount":"1","price":"1"}]`,
-		"/api/v4/futures/usdt/my_trades": `[{"id":1,"contract":"BTC_USDT","size":1,"price":"1"}]`,
-		"/api/v4/options/my_trades":      `[{"id":1,"order_id":1,"contract":"BTC_USDT-20261225-100000-C","size":1,"price":"1"}]`,
-	})
-	ethUSDT := currency.NewPair(currency.ETH, currency.USDT)
-	for a, pairs := range map[asset.Item]currency.Pairs{
-		asset.Spot:                {currency.NewBTCUSDT(), ethUSDT},
-		asset.USDTMarginedFutures: {currency.NewBTCUSDT(), ethUSDT},
-		asset.Options: {
-			currency.NewPairWithDelimiter("BTC", "USDT-20261225-100000-C", currency.UnderscoreDelimiter),
-			currency.NewPairWithDelimiter("ETH", "USDT-20261225-4000-C", currency.UnderscoreDelimiter),
-		},
-	} {
-		for _, ordered := range []currency.Pairs{pairs, {pairs[1], pairs[0]}} {
-			got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType, Pairs: ordered})
-			assert.ErrorIsf(t, err, request.ErrBadStatus, "GetOrderHistory should return the failed %s request for %s", a, ordered)
-			assert.Emptyf(t, got, "GetOrderHistory should return no %s history alongside the error for %s", a, ordered)
-		}
-	}
-	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{currency.NewBTCUSDT(), currency.NewBTCUSD()}})
-	assert.ErrorIs(t, err, errInvalidSettlementQuote, "GetOrderHistory should reject a USDT-margined pair quoted in another currency")
-	assert.Empty(t, got, "GetOrderHistory should return no history alongside a refused pair")
-
-	// A fill that cannot be read follows one that can, which must not come back alongside the error
-	ex = newRoutedExchange(t, map[string]string{
-		"/api/v4/spot/my_trades":         `[{"id":"1","currency_pair":"BTC_USDT","side":"buy","amount":"1","price":"1"},{"id":"2","currency_pair":"ZZZ_USDT","side":"buy","amount":"1","price":"1"}]`,
-		"/api/v4/futures/usdt/my_trades": `[{"id":1,"contract":"BTC_USDT","size":1,"price":"1"},{"id":2,"contract":"ZZZ_USDT","size":1,"price":"1"}]`,
-	})
-	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
-		got, err = ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
-		assert.ErrorIsf(t, err, currency.ErrPairNotFound, "GetOrderHistory should reject a %s fill on a pair Gate does not list", a)
-		assert.Emptyf(t, got, "GetOrderHistory should return no %s history alongside the error", a)
-	}
-	got, err = newFixedResponseExchange(t, "/api/v4/spot/my_trades", `[{"id":"1","currency_pair":"BTC_USDT","side":"buy","amount":"1","price":"1"},{"id":"2","currency_pair":"BTC_USDT","side":"bogus","amount":"1","price":"1"}]`).GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "GetOrderHistory should reject a spot fill with an unknown side")
-	assert.Empty(t, got, "GetOrderHistory should return no history alongside a fill with an unknown side")
-}
-
-func TestWalletRequestErrors(t *testing.T) {
-	t.Parallel()
-	failing := newRoutedExchange(t, nil)
-	// Each exchange refuses one request while the server would return a record for the other, which must not come back
-	// alongside the error
-	got, err := newFixedResponseExchange(t, "/api/v4/wallet/withdrawals", `[{"id":"2","currency":"BTC","amount":"1"}]`).GetAccountFundingHistory(t.Context())
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetAccountFundingHistory should return a failed deposits request")
-	assert.Empty(t, got, "GetAccountFundingHistory should return no history alongside a failed deposits request")
-	got, err = newFixedResponseExchange(t, "/api/v4/wallet/deposits", `[{"id":"1","currency":"BTC","amount":"1"}]`).GetAccountFundingHistory(t.Context())
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetAccountFundingHistory should return a failed withdrawals request")
-	assert.Empty(t, got, "GetAccountFundingHistory should return no history alongside a failed withdrawals request")
-	_, err = failing.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetWithdrawalsHistory should return a failed request")
-	_, err = failing.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{Exchange: failing.Name, Amount: 1, Currency: currency.BTC, Type: withdraw.Crypto, Crypto: withdraw.CryptoRequest{Address: core.BitcoinDonationAddress, Chain: "BTC"}})
-	assert.ErrorIs(t, err, request.ErrBadStatus, "WithdrawCryptocurrencyFunds should return a failed request")
-}
-
-func TestOrderSettlementErrors(t *testing.T) {
-	t.Parallel()
-	failing := newRoutedExchange(t, nil)
-	_, err := failing.SubmitOrder(t.Context(), &order.Submit{Exchange: failing.Name, AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1})
-	assert.ErrorIs(t, err, errInvalidSettlementQuote, "SubmitOrder should reject a USDT-margined pair quoted in another currency")
-	_, err = failing.SubmitOrder(t.Context(), &order.Submit{Exchange: failing.Name, AssetType: asset.CoinMarginedFutures, Pair: currency.NewBTCUSDT(), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1})
-	assert.ErrorIs(t, err, errInvalidSettlementQuote, "SubmitOrder should reject a coin-margined pair not quoted in USD")
-	err = failing.SetLeverage(t.Context(), asset.USDTMarginedFutures, currency.NewBTCUSD(), margin.Isolated, 2, order.UnknownSide)
-	assert.ErrorIs(t, err, errInvalidSettlementQuote, "SetLeverage should reject a USDT-margined pair quoted in another currency")
-}
-
-func TestUpdateOrderExecutionLimitsErrors(t *testing.T) {
-	t.Parallel()
-	failing := newRoutedExchange(t, nil)
-	for _, a := range failing.GetAssetTypes(false) {
-		assert.ErrorIsf(t, failing.UpdateOrderExecutionLimits(t.Context(), a), request.ErrBadStatus, "UpdateOrderExecutionLimits should return a failed request for %s", a)
-	}
-	// The first routes refuse margin's, cross margin's and options' first request but answer margin's and cross
-	// margin's next one, so an ignored refusal cannot hide behind a later failure; the second routes answer the first
-	// request with a market, currency or underlying, so the refusal of the one that follows cannot hide behind an empty
-	// listing
-	for _, routes := range []map[string]string{
-		{"/api/v4/spot/currency_pairs": `[]`},
-		{
-			"/api/v4/margin/uni/currency_pairs": `[{"currency_pair":"BTC_USDT","base_min_borrow_amount":"0.00001","quote_min_borrow_amount":"1","status":"enabled"}]`,
-			"/api/v4/margin/cross/currencies":   `[{"name":"BTC","min_borrow_amount":"0.01","loanable":true,"status":1}]`,
-			"/api/v4/options/underlyings":       `[{"name":"BTC_USDT"}]`,
-		},
-	} {
-		ex := newRoutedExchange(t, routes)
-		for _, a := range []asset.Item{asset.Margin, asset.CrossMargin, asset.Options} {
-			assert.ErrorIsf(t, ex.UpdateOrderExecutionLimits(t.Context(), a), request.ErrBadStatus, "UpdateOrderExecutionLimits should return the refused request for %s", a)
-		}
-	}
-	// Delivery futures read BTC's contracts and then USDT's, and options read each underlying's in turn, so a failure
-	// must come back whether its request comes first or last, and leave the stored limits of any contract read before it
-	// alone
-	stored := []limits.MinMaxLevel{
-		{Key: key.NewExchangeAssetPair(t.Name(), asset.DeliveryFutures, currency.NewPairWithDelimiter("BTC", "USD_20261225", currency.UnderscoreDelimiter)), MinimumBaseAmount: 7},
-		{Key: key.NewExchangeAssetPair(t.Name(), asset.Options, currency.NewPairWithDelimiter("BTC", "USDT-20261225-100000-C", currency.UnderscoreDelimiter)), MinimumBaseAmount: 7},
-	}
-	require.NoError(t, limits.Load(stored), "limits.Load must store the limits")
-	for _, tc := range []struct {
-		name    string
-		refused string
-		routes  map[string]string
-		err     error
-	}{
-		{
-			name:    "USDT delivery and ETH options contracts refused after BTC's are read",
-			refused: "ETH",
-			routes: map[string]string{
-				"/api/v4/delivery/btc/contracts": `[{"name":"BTC_USD_20261225"}]`,
-				"/api/v4/options/underlyings":    `[{"name":"BTC_USDT"},{"name":"ETH_USDT"}]`,
-				"/api/v4/options/contracts":      `[{"name":"BTC_USDT-20261225-100000-C"}]`,
-			},
-			err: request.ErrBadStatus,
-		},
-		{
-			name:    "BTC delivery and options contracts refused ahead of USDT's and ETH's",
-			refused: "BTC",
-			routes: map[string]string{
-				"/api/v4/delivery/usdt/contracts": `[{"name":"BTC_USDT_20261225"}]`,
-				"/api/v4/options/underlyings":     `[{"name":"BTC_USDT"},{"name":"ETH_USDT"}]`,
-				"/api/v4/options/contracts":       `[{"name":"ETH_USDT-20261225-4000-C"}]`,
-			},
-			err: request.ErrBadStatus,
-		},
-		{
-			name: "a contract without a name read after one with a name",
-			routes: map[string]string{
-				"/api/v4/delivery/btc/contracts": `[{"name":"BTC_USD_20261225"},{"name":""}]`,
-				"/api/v4/options/underlyings":    `[{"name":"BTC_USDT"}]`,
-				"/api/v4/options/contracts":      `[{"name":"BTC_USDT-20261225-100000-C"},{"name":""}]`,
-			},
-			err: currency.ErrCreatingPair,
-		},
-	} {
-		ex := newRefusingRoutedExchange(t, tc.refused, tc.routes)
-		ex.Name = t.Name()
-		for _, a := range []asset.Item{asset.DeliveryFutures, asset.Options} {
-			assert.ErrorIsf(t, ex.UpdateOrderExecutionLimits(t.Context(), a), tc.err, "UpdateOrderExecutionLimits should return the %s error with %s", a, tc.name)
-		}
-	}
-	for _, level := range stored {
-		got, err := limits.GetOrderExecutionLimits(level.Key)
-		require.NoErrorf(t, err, "GetOrderExecutionLimits must return the stored %s limits", level.Key.Asset)
-		assert.Equalf(t, 7.0, got.MinimumBaseAmount, "UpdateOrderExecutionLimits should keep the stored %s limits when it fails", level.Key.Asset)
-	}
-}
-
-func TestWebsocketOrderRequestErrors(t *testing.T) {
-	t.Parallel()
-	unconnected := new(Exchange)
-	require.NoError(t, testexch.Setup(unconnected), "Setup must not error")
-	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
-		_, err := unconnected.WebsocketSubmitOrder(t.Context(), &order.Submit{Exchange: unconnected.Name, AssetType: a, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1})
-		assert.ErrorIsf(t, err, websocket.ErrNotConnected, "WebsocketSubmitOrder should return the error of a %s order it cannot send", a)
-		_, err = unconnected.WebsocketSubmitOrder(t.Context(), &order.Submit{Exchange: unconnected.Name, AssetType: a, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1, TimeInForce: order.GoodTillTime})
-		assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "WebsocketSubmitOrder should refuse a %s order whose time in force Gate does not take", a)
-	}
-	_, err := unconnected.WebsocketSpotCancelOrder(t.Context(), "1", currency.NewBTCUSDT(), "spot")
-	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketSpotCancelOrder should return the error of a cancellation it cannot send")
-	_, err = unconnected.WebsocketFuturesCancelOrder(t.Context(), "1", currency.NewBTCUSDT(), asset.USDTMarginedFutures)
-	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketFuturesCancelOrder should return the error of a cancellation it cannot send")
-
-	_, err = e.deriveFuturesWebsocketOrderResponse(&WebsocketFuturesOrderResponse{FinishAs: "bogus", TimeInForce: "gtc"}, asset.USDTMarginedFutures)
-	assert.ErrorContains(t, err, "unrecognised order status", "deriveFuturesWebsocketOrderResponse should reject an unknown finish")
-	_, err = e.deriveFuturesWebsocketOrderResponse(&WebsocketFuturesOrderResponse{FinishAs: "filled", TimeInForce: "bogus"}, asset.USDTMarginedFutures)
-	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce, "deriveFuturesWebsocketOrderResponse should reject an unknown time in force")
-
-	// Each bad reply follows a good one, so the batch's error must come back with no responses
-	filled := &WebsocketFuturesOrderResponse{ID: 1, FinishAs: "filled", TimeInForce: "gtc"}
-	got, err := e.deriveFuturesWebsocketOrderResponses([]*WebsocketFuturesOrderResponse{filled, {ID: 2, FinishAs: "bogus", TimeInForce: "gtc"}}, asset.USDTMarginedFutures)
-	assert.ErrorContains(t, err, "unrecognised order status", "deriveFuturesWebsocketOrderResponses should reject a batch reply with an unknown finish")
-	assert.Empty(t, got, "deriveFuturesWebsocketOrderResponses should return no responses alongside an unknown finish")
-	got, err = e.deriveFuturesWebsocketOrderResponses([]*WebsocketFuturesOrderResponse{filled, {ID: 2, FinishAs: "filled", TimeInForce: "bogus"}}, asset.USDTMarginedFutures)
-	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce, "deriveFuturesWebsocketOrderResponses should reject a batch reply with an unknown time in force")
-	assert.Empty(t, got, "deriveFuturesWebsocketOrderResponses should return no responses alongside an unknown time in force")
-
-	// A rejected order's reply stands in its place, whether alone in the batch, first or between accepted orders
-	futuresRejected := &WebsocketFuturesOrderResponse{Succeeded: new(bool), Label: "INSUFFICIENT_AVAILABLE"}
-	for _, batch := range [][]*WebsocketFuturesOrderResponse{
-		{futuresRejected},
-		{futuresRejected, filled},
-		{filled, futuresRejected, {ID: 3, FinishAs: "filled", TimeInForce: "gtc"}},
-	} {
-		got, err = e.deriveFuturesWebsocketOrderResponses(batch, asset.USDTMarginedFutures)
-		require.NoErrorf(t, err, "deriveFuturesWebsocketOrderResponses must not error for a batch of %d with a rejected order", len(batch))
-		require.Lenf(t, got, len(batch), "deriveFuturesWebsocketOrderResponses must return a response for each of %d orders", len(batch))
-		for i, reply := range batch {
-			if reply == futuresRejected {
-				assert.ErrorIsf(t, got[i].SubmissionError, order.ErrUnableToPlaceOrder, "deriveFuturesWebsocketOrderResponses should return the rejection in its place among %d orders", len(batch))
-				continue
-			}
-			assert.Equalf(t, strconv.FormatUint(reply.ID, 10), got[i].OrderID, "deriveFuturesWebsocketOrderResponses should return order %d in its place", reply.ID)
-		}
-	}
-	spotRejected := &WebsocketOrderResponse{Label: "BALANCE_NOT_ENOUGH"}
-	for _, batch := range [][]*WebsocketOrderResponse{
-		{spotRejected},
-		{spotRejected, {ID: "2", Side: "buy", Type: "limit", TimeInForce: "gtc"}},
-		{{ID: "1", Side: "buy", Type: "limit", TimeInForce: "gtc"}, spotRejected, {ID: "3", Side: "sell", Type: "limit", TimeInForce: "gtc"}},
-	} {
-		spotResponses, err := e.deriveSpotWebsocketOrderResponses(batch)
-		require.NoErrorf(t, err, "deriveSpotWebsocketOrderResponses must not error for a batch of %d with a rejected order", len(batch))
-		require.Lenf(t, spotResponses, len(batch), "deriveSpotWebsocketOrderResponses must return a response for each of %d orders", len(batch))
-		for i, reply := range batch {
-			require.NotNilf(t, spotResponses[i], "deriveSpotWebsocketOrderResponses must return a response for each of %d orders", len(batch))
-			if reply == spotRejected {
-				assert.ErrorIsf(t, spotResponses[i].SubmissionError, order.ErrUnableToPlaceOrder, "deriveSpotWebsocketOrderResponses should return the rejection in its place among %d orders", len(batch))
-				continue
-			}
-			assert.Equalf(t, reply.ID, spotResponses[i].OrderID, "deriveSpotWebsocketOrderResponses should return order %s in its place", reply.ID)
-		}
-	}
-}
-
-func TestWebsocketPrivatePushErrors(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	malformed := []byte(`{`)
-	ex.SetFillsFeedStatus(false)
-	require.NoError(t, ex.processUserPersonalTrades(malformed), "processUserPersonalTrades must ignore pushes while the fills feed is off")
-	require.NoError(t, ex.processFuturesUserTrades(malformed, asset.USDTMarginedFutures), "processFuturesUserTrades must ignore pushes while the fills feed is off")
-	ex.SetFillsFeedStatus(true)
-	// A malformed push must fail with the error decoding it into the handler's type gives, not another of its errors
-	assert.Equal(t, json.Unmarshal(malformed, new(WebsocketPush[[]*WebsocketUserPersonalTrade])), ex.processUserPersonalTrades(malformed), "processUserPersonalTrades should return the decode error of malformed JSON")
-	assert.Equal(t, json.Unmarshal(malformed, new(WebsocketPush[[]WebsocketFuturesUserTrade])), ex.processFuturesUserTrades(malformed, asset.USDTMarginedFutures), "processFuturesUserTrades should return the decode error of malformed JSON")
-	assert.ErrorIs(t, ex.processUserPersonalTrades([]byte(`{"channel":"spot.usertrades","event":"update","result":[{"id":1,"currency_pair":"BTC_USDT","side":"bogus"}]}`)), order.ErrSideIsInvalid, "processUserPersonalTrades should reject a fill with an unknown side")
-
-	assert.Equal(t, json.Unmarshal(malformed, new(websocketResponse[[]WebsocketPositionClose])), ex.processPositionCloseData(t.Context(), malformed, asset.CoinMarginedFutures), "processPositionCloseData should return the decode error of malformed JSON")
-	assert.ErrorIs(t, ex.processPositionCloseData(t.Context(), []byte(`{"channel":"futures.position_closes","event":"update","result":[{"contract":"ZZZ_USD","side":"long"}]}`), asset.CoinMarginedFutures), currency.ErrPairNotFound, "processPositionCloseData should reject a contract Gate does not list")
-	assert.ErrorIs(t, ex.processPositionCloseData(t.Context(), []byte(`{"channel":"futures.position_closes","event":"update","result":[{"contract":"BTC_USD","side":"bogus"}]}`), asset.CoinMarginedFutures), order.ErrSideIsInvalid, "processPositionCloseData should reject an unknown side")
-	assert.Equal(t, json.Unmarshal(malformed, new(websocketResponse[[]WebsocketFuturesPosition])), ex.processFuturesPositionsNotification(t.Context(), malformed, asset.USDTMarginedFutures), "processFuturesPositionsNotification should return the decode error of malformed JSON")
-	assert.ErrorIs(t, ex.processFuturesPositionsNotification(t.Context(), []byte(`{"channel":"futures.positions","event":"update","result":[{"contract":"ZZZ_USDT","size":"1"}]}`), asset.USDTMarginedFutures), currency.ErrPairNotFound, "processFuturesPositionsNotification should reject a contract Gate does not list")
-	assert.Equal(t, json.Unmarshal(malformed, new([]*WebsocketBalance)), ex.processBalancePushData(t.Context(), malformed, asset.USDTMarginedFutures), "processBalancePushData should return the decode error of malformed JSON")
-	assert.Equal(t, json.Unmarshal(malformed, new(WebsocketPush[[]*WebsocketFundingBalance])), ex.processFundingBalances(t.Context(), malformed), "processFundingBalances should return the decode error of malformed JSON")
 }
 
 func TestSetupConfiguredWebsocketConnections(t *testing.T) {
@@ -1525,6 +918,81 @@ func TestSetupConfiguredWebsocketConnections(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
+
+	t.Run("websocket connections", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+		require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+		// Gate lists no BTC-settled delivery contracts, so there is no BTC delivery connection
+		assert.ElementsMatch(t, []string{gateWebsocketEndpoint, usdtFuturesWebsocketURL, btcFuturesWebsocketURL, deliveryRealUSDTTradingURL, optionsWebsocketURL}, urls, "Setup should connect spot, both perpetual settlements, USDT delivery and options")
+		deliveryURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketFutures)
+		require.NoError(t, err, "GetURL must not error")
+		assert.Equal(t, deliveryRealUSDTTradingURL, deliveryURL, "SetDefaults should default the futures websocket endpoint to USDT delivery")
+	})
+
+	t.Run("sandbox endpoints", func(t *testing.T) {
+		t.Parallel()
+		testnet := map[exchange.URL]string{
+			exchange.RestSpot:              "https://api-testnet.gateapi.io",
+			exchange.RestFutures:           "https://api-testnet.gateapi.io",
+			exchange.WebsocketSpot:         "wss://ws-testnet.gate.com/v4/ws/spot",
+			exchange.WebsocketUSDTMargined: "wss://ws-testnet.gate.com/v4/ws/futures/usdt",
+			exchange.WebsocketCoinMargined: "wss://fx-ws-testnet.gateio.ws/v4/ws/btc",
+			exchange.WebsocketFutures:      "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/usdt",
+			exchange.WebsocketOptions:      "wss://ws-testnet.gate.com/v4/ws/options",
+			// Neither has a testnet form, so useSandbox leaves both as they are
+			exchange.RestSpotSupplementary: "https://fx-api-testnet.gateio.ws",
+			exchange.EdgeCase1:             "https://www.gate.com/apiw/v2/",
+		}
+		ex := new(Exchange)
+		require.NoError(t, testexch.SetupWithConfig(ex, func(c *config.Exchange) { c.UseSandbox = true }), "SetupWithConfig must not error")
+		for kind, exp := range testnet {
+			got, err := ex.API.Endpoints.GetURL(kind)
+			require.NoErrorf(t, err, "GetURL must not error for %s", kind)
+			assert.Equalf(t, exp, got, "Setup should move %s to Gate's testnet when useSandbox is set", kind)
+		}
+		urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+		require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+		assert.ElementsMatch(t, []string{
+			testnet[exchange.WebsocketSpot], testnet[exchange.WebsocketUSDTMargined], testnet[exchange.WebsocketCoinMargined],
+			testnet[exchange.WebsocketFutures], testnet[exchange.WebsocketOptions],
+		}, urls, "Setup should connect every websocket to Gate's testnet when useSandbox is set")
+
+		// An endpoint the config sets keeps its value, so a proxy or a hand-set testnet URL still works
+		const proxy = "https://gate-proxy.example.com"
+		ex = new(Exchange)
+		require.NoError(t, testexch.SetupWithConfig(ex, func(c *config.Exchange) {
+			c.UseSandbox = true
+			c.API.Endpoints = map[string]string{exchange.RestSpot.String(): proxy}
+		}), "SetupWithConfig must not error")
+		got, err := ex.API.Endpoints.GetURL(exchange.RestSpot)
+		require.NoError(t, err, "GetURL must not error")
+		assert.Equal(t, proxy, got, "Setup should keep a configured endpoint when useSandbox is set")
+		got, err = ex.API.Endpoints.GetURL(exchange.RestFutures)
+		require.NoError(t, err, "GetURL must not error")
+		assert.Equal(t, testnet[exchange.RestFutures], got, "Setup should still move the default endpoints when another is configured")
+
+		// A configured endpoint that differs from the default only by a trailing slash is still the default
+		ex = new(Exchange)
+		require.NoError(t, testexch.SetupWithConfig(ex, func(c *config.Exchange) {
+			c.UseSandbox = true
+			c.API.Endpoints = map[string]string{exchange.RestSpot.String(): gateTradeURL + "/", exchange.WebsocketSpot.String(): "wss://api.gateio.ws/ws/v4"}
+		}), "SetupWithConfig must not error")
+		for _, kind := range []exchange.URL{exchange.RestSpot, exchange.WebsocketSpot} {
+			got, err = ex.API.Endpoints.GetURL(kind)
+			require.NoErrorf(t, err, "GetURL must not error for %s", kind)
+			assert.Equalf(t, testnet[kind], got, "Setup should move %s to the testnet when it differs from the default only by a trailing slash", kind)
+		}
+
+		ex = new(Exchange)
+		require.NoError(t, testexch.SetupWithConfig(ex, func(c *config.Exchange) { c.UseSandbox = false }), "SetupWithConfig must not error")
+		got, err = ex.API.Endpoints.GetURL(exchange.RestSpot)
+		require.NoError(t, err, "GetURL must not error")
+		assert.Equal(t, gateTradeURL, got, "Setup should keep live trading endpoints when useSandbox is not set")
+	})
+
 	ex := new(Exchange)
 	ex.SetDefaults()
 	assert.Error(t, ex.Setup(nil), "Setup should reject a nil config")
@@ -1542,65 +1010,58 @@ func TestSetup(t *testing.T) {
 	assert.False(t, ex.IsEnabled(), "Setup should leave a disabled exchange disabled")
 }
 
-func TestSetupSandbox(t *testing.T) {
+func TestUseTestnetEndpoints(t *testing.T) {
 	t.Parallel()
-	testnet := map[exchange.URL]string{
-		exchange.RestSpot:              "https://api-testnet.gateapi.io",
-		exchange.RestFutures:           "https://api-testnet.gateapi.io",
-		exchange.WebsocketSpot:         "wss://ws-testnet.gate.com/v4/ws/spot",
-		exchange.WebsocketUSDTMargined: "wss://ws-testnet.gate.com/v4/ws/futures/usdt",
-		exchange.WebsocketCoinMargined: "wss://fx-ws-testnet.gateio.ws/v4/ws/btc",
-		exchange.WebsocketFutures:      "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/usdt",
-		exchange.WebsocketOptions:      "wss://ws-testnet.gate.com/v4/ws/options",
-		// Neither has a testnet form, so useSandbox leaves both as they are
-		exchange.RestSpotSupplementary: "https://fx-api-testnet.gateio.ws",
-		exchange.EdgeCase1:             "https://www.gate.com/apiw/v2/",
+	testnet := map[string]string{
+		exchange.RestSpot.String():              "https://api-testnet.gateapi.io",
+		exchange.RestFutures.String():           "https://api-testnet.gateapi.io",
+		exchange.WebsocketSpot.String():         "wss://ws-testnet.gate.com/v4/ws/spot",
+		exchange.WebsocketUSDTMargined.String(): "wss://ws-testnet.gate.com/v4/ws/futures/usdt",
+		exchange.WebsocketCoinMargined.String(): "wss://fx-ws-testnet.gateio.ws/v4/ws/btc",
+		exchange.WebsocketFutures.String():      "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/usdt",
+		exchange.WebsocketOptions.String():      "wss://ws-testnet.gate.com/v4/ws/options",
+		// Neither has a testnet form, so both keep their default
+		exchange.RestSpotSupplementary.String(): "https://fx-api-testnet.gateio.ws",
+		exchange.EdgeCase1.String():             "https://www.gate.com/apiw/v2/",
 	}
-	ex := new(Exchange)
-	require.NoError(t, testexch.SetupWithConfig(ex, func(c *config.Exchange) { c.UseSandbox = true }), "SetupWithConfig must not error")
-	for kind, exp := range testnet {
-		got, err := ex.API.Endpoints.GetURL(kind)
-		require.NoErrorf(t, err, "GetURL must not error for %s", kind)
-		assert.Equalf(t, exp, got, "Setup should move %s to Gate's testnet when useSandbox is set", kind)
-	}
-	urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
-	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
-	assert.ElementsMatch(t, []string{
-		testnet[exchange.WebsocketSpot], testnet[exchange.WebsocketUSDTMargined], testnet[exchange.WebsocketCoinMargined],
-		testnet[exchange.WebsocketFutures], testnet[exchange.WebsocketOptions],
-	}, urls, "Setup should connect every websocket to Gate's testnet when useSandbox is set")
-
-	// An endpoint the config sets keeps its value, so a proxy or a hand-set testnet URL still works
-	const proxy = "https://gate-proxy.example.com"
-	ex = new(Exchange)
-	require.NoError(t, testexch.SetupWithConfig(ex, func(c *config.Exchange) {
-		c.UseSandbox = true
-		c.API.Endpoints = map[string]string{exchange.RestSpot.String(): proxy}
-	}), "SetupWithConfig must not error")
-	got, err := ex.API.Endpoints.GetURL(exchange.RestSpot)
-	require.NoError(t, err, "GetURL must not error")
-	assert.Equal(t, proxy, got, "Setup should keep a configured endpoint when useSandbox is set")
-	got, err = ex.API.Endpoints.GetURL(exchange.RestFutures)
-	require.NoError(t, err, "GetURL must not error")
-	assert.Equal(t, testnet[exchange.RestFutures], got, "Setup should still move the default endpoints when another is configured")
-
-	// A configured endpoint that differs from the default only by a trailing slash is still the default
-	ex = new(Exchange)
-	require.NoError(t, testexch.SetupWithConfig(ex, func(c *config.Exchange) {
-		c.UseSandbox = true
-		c.API.Endpoints = map[string]string{exchange.RestSpot.String(): gateTradeURL + "/", exchange.WebsocketSpot.String(): "wss://api.gateio.ws/ws/v4"}
-	}), "SetupWithConfig must not error")
-	for _, kind := range []exchange.URL{exchange.RestSpot, exchange.WebsocketSpot} {
-		got, err = ex.API.Endpoints.GetURL(kind)
-		require.NoErrorf(t, err, "GetURL must not error for %s", kind)
-		assert.Equalf(t, testnet[kind], got, "Setup should move %s to the testnet when it differs from the default only by a trailing slash", kind)
+	for _, tc := range []struct {
+		name       string
+		configured map[exchange.URL]string
+		kept       map[exchange.URL]string
+	}{
+		{name: "defaults move to the testnet"},
+		{
+			name:       "a configured endpoint is kept",
+			configured: map[exchange.URL]string{exchange.RestSpot: "https://gate-proxy.example.com"},
+			kept:       map[exchange.URL]string{exchange.RestSpot: "https://gate-proxy.example.com"},
+		},
+		{
+			name:       "a default differing only by a trailing slash moves",
+			configured: map[exchange.URL]string{exchange.RestSpot: gateTradeURL + "/", exchange.WebsocketSpot: "wss://api.gateio.ws/ws/v4"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			ex.SetDefaults()
+			for kind, u := range tc.configured {
+				require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(kind.String(), u), "SetRunningURL must not error for %s", kind)
+			}
+			require.NoError(t, ex.useTestnetEndpoints(), "useTestnetEndpoints must not error")
+			exp := maps.Clone(testnet)
+			for kind, u := range tc.kept {
+				exp[kind.String()] = u
+			}
+			assert.Equal(t, exp, ex.API.Endpoints.GetURLMap(), "useTestnetEndpoints should move every endpoint still at its default to the testnet")
+		})
 	}
 
-	ex = new(Exchange)
-	require.NoError(t, testexch.SetupWithConfig(ex, func(c *config.Exchange) { c.UseSandbox = false }), "SetupWithConfig must not error")
-	got, err = ex.API.Endpoints.GetURL(exchange.RestSpot)
-	require.NoError(t, err, "GetURL must not error")
-	assert.Equal(t, gateTradeURL, got, "Setup should keep live trading endpoints when useSandbox is not set")
+	t.Run("missing endpoint", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		ex.API.Endpoints = ex.NewEndpoints()
+		assert.ErrorIs(t, ex.useTestnetEndpoints(), exchange.ErrEndpointPathNotFound, "useTestnetEndpoints should return the error of an endpoint it cannot read")
+	})
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
@@ -1616,6 +1077,53 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestGetAccountBalances(t *testing.T) {
 	t.Parallel()
+
+	t.Run("failed or rejected reads keep the stored balances", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		// A failure must leave the stored balances alone, as saving what was read before it would replace them
+		storeBTC := func(t *testing.T, ex *Exchange, a asset.Item) {
+			t.Helper()
+			stored := accounts.NewSubAccount(a, "")
+			stored.Balances.Set(currency.BTC, accounts.Balance{Total: 3, Free: 3})
+			require.NoErrorf(t, ex.Accounts.Save(ctx, accounts.SubAccounts{stored}, true), "Accounts.Save must store a %s balance", a)
+		}
+		storedBTC := func(t *testing.T, ex *Exchange, a asset.Item) float64 {
+			t.Helper()
+			creds, err := ex.GetCredentials(ctx)
+			require.NoError(t, err, "GetCredentials must not error")
+			balance, err := ex.Accounts.GetBalance("", creds, a, currency.BTC)
+			require.NoErrorf(t, err, "GetBalance must return the stored %s balance", a)
+			return balance.Total
+		}
+		failing := newRoutedExchange(t, nil)
+		// Cases share the failing exchange and run in order
+		for _, a := range failing.GetAssetTypes(false) {
+			t.Run("failed request "+a.String(), func(t *testing.T) {
+				storeBTC(t, failing, a)
+				got, err := failing.UpdateAccountBalances(ctx, a)
+				assert.ErrorIsf(t, err, request.ErrBadStatus, "UpdateAccountBalances should return a failed request for %s", a)
+				assert.Emptyf(t, got, "UpdateAccountBalances should return no %s balances alongside the error", a)
+				assert.Equalf(t, 3.0, storedBTC(t, failing, a), "UpdateAccountBalances should keep the stored %s balance when its request fails", a)
+			})
+		}
+		// The market whose base or quote has no currency follows a complete one. Cases share the context and run in order
+		complete := `{"currency_pair":"BTC_USDT","base":{"currency":"BTC","available":"1"},"quote":{"currency":"USDT","available":"1"}}`
+		for side, market := range map[string]string{
+			"base":  `{"currency_pair":"ETH_USDT","base":{"available":"1"},"quote":{"currency":"USDT","available":"1"}}`,
+			"quote": `{"currency_pair":"ETH_USDT","base":{"currency":"ETH","available":"1"},"quote":{"available":"1"}}`,
+		} {
+			ex := newFixedResponseExchange(t, "/api/v4/margin/user/account", "["+complete+","+market+"]")
+			t.Run(side+" without a currency", func(t *testing.T) {
+				storeBTC(t, ex, asset.Margin)
+				got, err := ex.UpdateAccountBalances(ctx, asset.Margin)
+				assert.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "UpdateAccountBalances should reject an isolated margin market whose %s has no currency", side)
+				assert.Emptyf(t, got, "UpdateAccountBalances should return no margin balances alongside the error for a %s without a currency", side)
+				assert.Equalf(t, 3.0, storedBTC(t, ex, asset.Margin), "UpdateAccountBalances should keep the stored margin balance when it rejects a %s without a currency", side)
+			})
+		}
+	})
+
 	ex := newIsolatedExchange(t)
 	_, err := ex.UpdateAccountBalances(t.Context(), asset.Binary)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "UpdateAccountBalances must reject an unsupported asset")
@@ -1701,6 +1209,14 @@ func TestValidateAPICredentials(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
+
+	t.Run("failed request", func(t *testing.T) {
+		t.Parallel()
+		failing := newRoutedExchange(t, nil)
+		_, err := failing.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{Exchange: failing.Name, Amount: 1, Currency: currency.BTC, Type: withdraw.Crypto, Crypto: withdraw.CryptoRequest{Address: core.BitcoinDonationAddress, Chain: "BTC"}})
+		assert.ErrorIs(t, err, request.ErrBadStatus, "WithdrawCryptocurrencyFunds should return a failed request")
+	})
+
 	_, err := e.WithdrawCryptocurrencyFunds(t.Context(), nil)
 	require.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil)
 
@@ -1810,6 +1326,47 @@ func TestGetFeeByType(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
+
+	t.Run("spot time in force", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			tif string
+			exp order.TimeInForce
+			err error
+		}{
+			{tif: "poc", exp: order.PostOnly},
+			{tif: "ioc", exp: order.ImmediateOrCancel},
+			{tif: "fok", exp: order.FillOrKill},
+			{tif: "", exp: order.UnknownTIF},
+			{tif: "bogus", err: order.ErrInvalidTimeInForce},
+		} {
+			t.Run(cmp.Or(tc.tif, "none"), func(t *testing.T) {
+				t.Parallel()
+				ex := newFixedResponseExchange(t, "/api/v4/spot/orders/1234", `{"id":"1234","currency_pair":"BTC_USDT","status":"open","type":"limit","account":"spot","side":"buy","amount":"1","price":"60000","time_in_force":"`+tc.tif+`","left":"1"}`)
+				got, err := ex.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSDT(), asset.Spot)
+				require.ErrorIs(t, err, tc.err, "GetOrderInfo must return the expected error")
+				if tc.err == nil {
+					assert.Equal(t, tc.exp, got.TimeInForce, "GetOrderInfo should return the order's time in force")
+				}
+			})
+		}
+	})
+
+	t.Run("failed requests and unsettled pairs", func(t *testing.T) {
+		t.Parallel()
+		failing := newRoutedExchange(t, nil)
+		ctx := t.Context()
+		// Cases share the failing exchange and run in order
+		for _, a := range failing.GetAssetTypes(false) {
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := failing.GetOrderInfo(ctx, "1", getPair(t, a), a)
+				assert.ErrorIsf(t, err, request.ErrBadStatus, "GetOrderInfo should return a failed request for %s", a)
+			})
+		}
+		_, err := failing.GetOrderInfo(t.Context(), "1", currency.NewBTCUSD(), asset.USDTMarginedFutures)
+		assert.ErrorIs(t, err, errInvalidSettlementQuote, "GetOrderInfo should reject a USDT-margined pair quoted in another currency")
+	})
+
 	_, err := e.GetOrderInfo(t.Context(), "1234", currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetOrderInfo must reject an empty pair")
 	_, err = e.GetOrderInfo(t.Context(), "", currency.NewBTCUSDT(), asset.Spot)
@@ -1835,6 +1392,7 @@ func TestGetOrderInfo(t *testing.T) {
 				Side:                 order.Buy,
 				Type:                 order.Limit,
 				Status:               order.Closed,
+				TimeInForce:          order.GoodTillCancel,
 				Pair:                 getPair(t, asset.Spot),
 				AssetType:            asset.Spot,
 				Price:                65000,
@@ -1859,6 +1417,7 @@ func TestGetOrderInfo(t *testing.T) {
 				Side:                 order.Sell,
 				Type:                 order.Limit,
 				Status:               order.Open,
+				TimeInForce:          order.GoodTillCancel,
 				Pair:                 getPair(t, asset.Margin),
 				AssetType:            asset.Margin,
 				Price:                70000,
@@ -1883,6 +1442,7 @@ func TestGetOrderInfo(t *testing.T) {
 				Side:            order.Buy,
 				Type:            order.Limit,
 				Status:          order.Cancelled,
+				TimeInForce:     order.GoodTillCancel,
 				Pair:            getPair(t, asset.CrossMargin),
 				AssetType:       asset.CrossMargin,
 				Price:           60000,
@@ -2033,20 +1593,30 @@ var mockedTickerTestCases = []struct {
 func TestNewTestExchange(t *testing.T) {
 	useSandbox := e.Config.UseSandbox
 	t.Cleanup(func() { e.Config.UseSandbox = useSandbox })
-	for _, sandbox := range []bool{true, false} {
-		e.Config.UseSandbox = sandbox
+	// Cases switch the shared exchange's sandbox setting in turn
+	for _, tc := range []struct {
+		name    string
+		sandbox bool
+	}{
+		{name: "sandbox", sandbox: true},
+		{name: "production", sandbox: false},
+	} {
+		e.Config.UseSandbox = tc.sandbox
 		ex := newTestExchange(t)
-		assert.Equalf(t, sandbox, ex.Config.UseSandbox, "newTestExchange should follow the shared exchange's sandbox setting of %t", sandbox)
-		assert.Equalf(t, sandbox, newIsolatedExchange(t).Config.UseSandbox, "newIsolatedExchange should follow the shared exchange's sandbox setting of %t", sandbox)
-		for _, endpoint := range testnetEndpoints {
-			exp := endpoint.production
-			if sandbox {
-				exp = endpoint.testnet
+		isolated := newIsolatedExchange(t)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equalf(t, tc.sandbox, ex.Config.UseSandbox, "newTestExchange should follow the shared exchange's sandbox setting of %t", tc.sandbox)
+			assert.Equalf(t, tc.sandbox, isolated.Config.UseSandbox, "newIsolatedExchange should follow the shared exchange's sandbox setting of %t", tc.sandbox)
+			for _, endpoint := range testnetEndpoints {
+				exp := endpoint.production
+				if tc.sandbox {
+					exp = endpoint.testnet
+				}
+				got, err := ex.API.Endpoints.GetURL(endpoint.kind)
+				require.NoErrorf(t, err, "GetURL must not error for %s", endpoint.kind)
+				assert.Equalf(t, exp, got, "newTestExchange should set %s for a sandbox setting of %t", endpoint.kind, tc.sandbox)
 			}
-			got, err := ex.API.Endpoints.GetURL(endpoint.kind)
-			require.NoErrorf(t, err, "GetURL must not error for %s", endpoint.kind)
-			assert.Equalf(t, exp, got, "newTestExchange should set %s for a sandbox setting of %t", endpoint.kind, sandbox)
-		}
+		})
 	}
 }
 
@@ -2240,6 +1810,62 @@ func TestFuturesBaseVolume(t *testing.T) {
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 
+	// The mock fixtures cannot tell apart the leverage each margin type sends, since they match a POST by its empty body
+	t.Run("leverage each margin type sends", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		require.NoError(t, storeTestPairs(ex), "storeTestPairs must not error")
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "test-api-key", Secret: "test-api-secret"})
+		var mu sync.Mutex
+		var gotPath string
+		var gotQuery url.Values
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodPost, r.Method, "leverage request method should be POST")
+			mu.Lock()
+			gotPath, gotQuery = r.URL.Path, r.URL.Query()
+			mu.Unlock()
+			_, err := fmt.Fprint(w, `{"contract":"BTC_USDT","leverage":"0"}`)
+			assert.NoError(t, err, "writing the position should not error")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		pairs := mockTestPairs()
+		ctx := t.Context()
+		// Cases share the exchange and the request it last received, and run in order
+		for _, tc := range []struct {
+			name     string
+			a        asset.Item
+			mt       margin.Type
+			expPath  string
+			expQuery url.Values
+		}{
+			// Isolated margin sets the leverage itself, and cross margin a zero leverage capped by the cross leverage limit
+			{name: "USDT-margined isolated", a: asset.USDTMarginedFutures, mt: margin.Isolated, expPath: "/api/v4/futures/usdt/positions/BTC_USDT/leverage", expQuery: url.Values{"leverage": {"5"}}},
+			{name: "USDT-margined unset", a: asset.USDTMarginedFutures, mt: margin.Unset, expPath: "/api/v4/futures/usdt/positions/BTC_USDT/leverage", expQuery: url.Values{"leverage": {"5"}}},
+			{name: "USDT-margined multi", a: asset.USDTMarginedFutures, mt: margin.Multi, expPath: "/api/v4/futures/usdt/positions/BTC_USDT/leverage", expQuery: url.Values{"leverage": {"0"}, "cross_leverage_limit": {"5"}}},
+			{name: "coin-margined multi", a: asset.CoinMarginedFutures, mt: margin.Multi, expPath: "/api/v4/futures/btc/positions/BTC_USD/leverage", expQuery: url.Values{"leverage": {"0"}, "cross_leverage_limit": {"5"}}},
+			{name: "delivery isolated", a: asset.DeliveryFutures, mt: margin.Isolated, expPath: "/api/v4/delivery/usdt/positions/BTC_USDT_20260626/leverage", expQuery: url.Values{"leverage": {"5"}}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				require.NoErrorf(t, ex.SetLeverage(ctx, tc.a, pairs[tc.a], tc.mt, 5, order.UnknownSide), "SetLeverage must not error for %s %s", tc.a, tc.mt)
+				mu.Lock()
+				assert.Equalf(t, tc.expPath, gotPath, "SetLeverage should set the %s %s leverage of the contract", tc.a, tc.mt)
+				assert.Equalf(t, tc.expQuery, gotQuery, "SetLeverage should send the %s %s leverage", tc.a, tc.mt)
+				mu.Unlock()
+			})
+		}
+	})
+
+	t.Run("pair the asset does not settle", func(t *testing.T) {
+		t.Parallel()
+		failing := newRoutedExchange(t, nil)
+		err := failing.SetLeverage(t.Context(), asset.USDTMarginedFutures, currency.NewBTCUSD(), margin.Isolated, 2, order.UnknownSide)
+		assert.ErrorIs(t, err, errInvalidSettlementQuote, "SetLeverage should reject a USDT-margined pair quoted in another currency")
+	})
+
 	err := e.SetLeverage(t.Context(), asset.Spot, getPair(t, asset.Spot), margin.Isolated, 1, order.UnknownSide)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "SetLeverage must reject spot")
 
@@ -2261,62 +1887,22 @@ func TestSetLeverage(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
+		name     string
 		a        asset.Item
 		mt       margin.Type
 		leverage float64
 	}{
-		{a: asset.CoinMarginedFutures, mt: margin.Isolated, leverage: 1},
-		{a: asset.USDTMarginedFutures, mt: margin.Multi, leverage: 5},
-		{a: asset.DeliveryFutures, mt: margin.Isolated, leverage: 1},
+		{name: "coin-margined isolated", a: asset.CoinMarginedFutures, mt: margin.Isolated, leverage: 1},
+		{name: "USDT-margined multi", a: asset.USDTMarginedFutures, mt: margin.Multi, leverage: 5},
+		{name: "delivery isolated", a: asset.DeliveryFutures, mt: margin.Isolated, leverage: 1},
 	} {
-		err = e.SetLeverage(t.Context(), tc.a, getPair(t, tc.a), tc.mt, tc.leverage, order.UnknownSide)
-		assert.NoErrorf(t, err, "SetLeverage should not error for %s %s", tc.a, tc.mt)
-	}
-}
-
-// TestSetLeverageRequests checks the leverage each margin type sends, which the mock fixtures cannot tell apart since
-// they match a POST by its empty body
-func TestSetLeverageRequests(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	require.NoError(t, storeTestPairs(ex), "storeTestPairs must not error")
-	ex.API.AuthenticatedSupport = true
-	ex.SetCredentials(&accounts.Credentials{Key: "test-api-key", Secret: "test-api-secret"})
-	var mu sync.Mutex
-	var gotPath string
-	var gotQuery url.Values
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method, "leverage request method should be POST")
-		mu.Lock()
-		gotPath, gotQuery = r.URL.Path, r.URL.Query()
-		mu.Unlock()
-		_, err := fmt.Fprint(w, `{"contract":"BTC_USDT","leverage":"0"}`)
-		assert.NoError(t, err, "writing the position should not error")
-	}))
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	pairs := mockTestPairs()
-	for _, tc := range []struct {
-		a        asset.Item
-		mt       margin.Type
-		expPath  string
-		expQuery url.Values
-	}{
-		// Isolated margin sets the leverage itself, and cross margin a zero leverage capped by the cross leverage limit
-		{a: asset.USDTMarginedFutures, mt: margin.Isolated, expPath: "/api/v4/futures/usdt/positions/BTC_USDT/leverage", expQuery: url.Values{"leverage": {"5"}}},
-		{a: asset.USDTMarginedFutures, mt: margin.Unset, expPath: "/api/v4/futures/usdt/positions/BTC_USDT/leverage", expQuery: url.Values{"leverage": {"5"}}},
-		{a: asset.USDTMarginedFutures, mt: margin.Multi, expPath: "/api/v4/futures/usdt/positions/BTC_USDT/leverage", expQuery: url.Values{"leverage": {"0"}, "cross_leverage_limit": {"5"}}},
-		{a: asset.CoinMarginedFutures, mt: margin.Multi, expPath: "/api/v4/futures/btc/positions/BTC_USD/leverage", expQuery: url.Values{"leverage": {"0"}, "cross_leverage_limit": {"5"}}},
-		{a: asset.DeliveryFutures, mt: margin.Isolated, expPath: "/api/v4/delivery/usdt/positions/BTC_USDT_20260626/leverage", expQuery: url.Values{"leverage": {"5"}}},
-	} {
-		require.NoErrorf(t, ex.SetLeverage(t.Context(), tc.a, pairs[tc.a], tc.mt, 5, order.UnknownSide), "SetLeverage must not error for %s %s", tc.a, tc.mt)
-		mu.Lock()
-		assert.Equalf(t, tc.expPath, gotPath, "SetLeverage should set the %s %s leverage of the contract", tc.a, tc.mt)
-		assert.Equalf(t, tc.expQuery, gotQuery, "SetLeverage should send the %s %s leverage", tc.a, tc.mt)
-		mu.Unlock()
+		t.Run(tc.name, func(t *testing.T) {
+			err := e.SetLeverage(ctx, tc.a, getPair(t, tc.a), tc.mt, tc.leverage, order.UnknownSide)
+			assert.NoErrorf(t, err, "SetLeverage should not error for %s %s", tc.a, tc.mt)
+		})
 	}
 }
 
@@ -2324,22 +1910,176 @@ func TestSetLeverageRequests(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	for _, a := range e.GetAssetTypes(false) {
-		pairs, err := e.FetchTradablePairs(t.Context(), a)
-		require.NoErrorf(t, err, "FetchTradablePairs must not error for %s", a)
-		require.NotEmptyf(t, pairs, "FetchTradablePairs must return some pairs for %s", a)
 
-		if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
-			for _, p := range pairs {
-				_, err := getSettlementCurrency(p, a)
-				require.NoErrorf(t, err, "Fetched pair %s %s must not error on getSettlementCurrency", a, p)
+	t.Run("margin product sources", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.Name = "GateTradableMarginPairs"
+
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
+			switch r.URL.Path {
+			case "/api/v4/spot/currency_pairs":
+				_, err := fmt.Fprint(w, `[{"id":"BTC_USDT","base":"BTC","quote":"USDT","trade_status":"tradable"},{"id":"ETH_USDT","base":"ETH","quote":"USDT","trade_status":"tradable"},{"id":"DOGE_USDT","base":"DOGE","quote":"USDT","trade_status":"untradable"}]`)
+				assert.NoError(t, err, "writing spot currency pairs should not error")
+			case "/api/v4/margin/uni/currency_pairs":
+				_, err := fmt.Fprint(w, `[{"currency_pair":"BTC_USDT","base_min_borrow_amount":"0.01","status":"enabled","delisted_time":0},{"currency_pair":"ETH_USDT","base_min_borrow_amount":"0.02","status":"enabled","delisted_time":0},{"currency_pair":"DOGE_USDT","base_min_borrow_amount":"1","status":"disabled","delisted_time":0},{"currency_pair":"SOL_USDT","base_min_borrow_amount":"0.1","status":"enabled","delisted_time":1700000000},{"currency_pair":"XRP_USDT","base_min_borrow_amount":"1","status":"enabled","delisted_time":4102444800}]`)
+				assert.NoError(t, err, "writing isolated margin lending markets should not error")
+			case "/api/v4/margin/cross/currencies":
+				_, err := fmt.Fprint(w, `[{"name":"BTC","min_borrow_amount":"0.03","loanable":true,"status":1},{"name":"USDT","min_borrow_amount":"4","loanable":true,"status":1},{"name":"ETH","min_borrow_amount":"0.05","loanable":true,"status":0},{"name":"DOGE","min_borrow_amount":"1","loanable":true,"status":1}]`)
+				assert.NoError(t, err, "writing cross-margin currencies should not error")
+			default:
+				http.NotFound(w, r)
 			}
+		}))
+
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		marginPairs, err := ex.FetchTradablePairs(t.Context(), asset.Margin)
+		require.NoError(t, err, "FetchTradablePairs must not error for margin")
+		require.Len(t, marginPairs, 3, "margin must return enabled pairs that are not yet delisted")
+		assert.True(t, marginPairs[0].Equal(currency.NewBTCUSDT()), "margin should include the first isolated-margin pair")
+		assert.True(t, marginPairs[1].Equal(currency.NewPair(currency.ETH, currency.USDT)), "margin should include the second isolated-margin pair")
+		assert.True(t, marginPairs[2].Equal(currency.NewPair(currency.XRP, currency.USDT)), "margin should include a pair with a future delisting time")
+
+		crossPairs, err := ex.FetchTradablePairs(t.Context(), asset.CrossMargin)
+		require.NoError(t, err, "FetchTradablePairs must not error for cross margin")
+		require.Len(t, crossPairs, 1, "cross margin must return one enabled tradable pair")
+		assert.True(t, crossPairs[0].Equal(currency.NewBTCUSDT()), "cross margin should use enabled currencies and tradable spot pairs")
+	})
+
+	t.Run("perpetual contract types", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Each settlement lists a contract of the other margin type, which the asset must leave out
+			var err error
+			switch r.URL.Path {
+			case "/api/v4/futures/usdt/contracts":
+				_, err = fmt.Fprint(w, `[{"name":"BTC_USDT","type":"direct"},{"name":"ETH_USD","type":"inverse"}]`)
+			case "/api/v4/futures/btc/contracts":
+				_, err = fmt.Fprint(w, `[{"name":"BTC_USD","type":"inverse"},{"name":"ETH_USDT","type":"direct"}]`)
+			default:
+				http.NotFound(w, r)
+			}
+			assert.NoError(t, err, "writing contracts should not error")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		ctx := t.Context()
+		// Cases share the exchange and run in order
+		for a, exp := range map[asset.Item]string{
+			asset.USDTMarginedFutures: "BTC_USDT",
+			asset.CoinMarginedFutures: "BTC_USD",
+		} {
+			t.Run(a.String(), func(t *testing.T) {
+				pairs, err := ex.FetchTradablePairs(ctx, a)
+				require.NoErrorf(t, err, "FetchTradablePairs must not error for %s", a)
+				require.Lenf(t, pairs, 1, "FetchTradablePairs must return only %s's own contract type", a)
+				assert.Equalf(t, exp, pairs[0].String(), "FetchTradablePairs should return the %s contract", a)
+			})
 		}
+	})
+
+	// Serial, as it shares e with the cases below and runs before them
+	t.Run("unsupported asset and failed or malformed listings", func(t *testing.T) {
+		_, err := e.FetchTradablePairs(t.Context(), asset.Binary)
+		require.ErrorIs(t, err, asset.ErrNotSupported, "FetchTradablePairs must reject an unsupported asset")
+
+		failing := newRoutedExchange(t, nil)
+		ctx := t.Context()
+		// Cases share the failing exchange and run in order
+		for _, a := range failing.GetAssetTypes(false) {
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := failing.FetchTradablePairs(ctx, a)
+				assert.ErrorContainsf(t, err, "SERVER_ERROR", "FetchTradablePairs should return a failed request for %s", a)
+			})
+		}
+
+		ex := newRoutedExchange(t, map[string]string{
+			"/api/v4/spot/currency_pairs":     `[{"id":"BTC_USDT","base":"BTC","quote":"USDT","trade_status":"untradable"},{"id":"ETH_USDT","base":"ETH","quote":"USDT","trade_status":"tradable"}]`,
+			"/api/v4/margin/cross/currencies": `[{"name":"BTC","min_borrow_amount":"1","loanable":true,"status":1}]`,
+			"/api/v4/delivery/usdt/contracts": `[{"name":"BTC_USDT_20261225","in_delisting":true},{"name":""},{"name":"ETH_USDT_20261225"}]`,
+			"/api/v4/options/underlyings":     `[{"name":"BTC_USDT"}]`,
+		})
+		pairs, err := ex.FetchTradablePairs(t.Context(), asset.Spot)
+		require.NoError(t, err, "FetchTradablePairs must not error for spot")
+		assert.Equal(t, currency.Pairs{currency.NewPair(currency.ETH, currency.USDT)}, pairs, "FetchTradablePairs should leave out untradable spot pairs")
+		pairs, err = ex.FetchTradablePairs(t.Context(), asset.DeliveryFutures)
+		require.NoError(t, err, "FetchTradablePairs must not error for delivery")
+		assert.Equal(t, currency.Pairs{currency.NewPairWithDelimiter("ETH", "USDT_20261225", currency.UnderscoreDelimiter)}, pairs, "FetchTradablePairs should leave out delisting and unnamed delivery contracts")
+		_, err = ex.FetchTradablePairs(t.Context(), asset.Options)
+		assert.ErrorContains(t, err, "SERVER_ERROR", "FetchTradablePairs should return a failed contracts request")
+
+		ex = newRoutedExchange(t, map[string]string{
+			"/api/v4/margin/cross/currencies": `[{"name":"BTC","min_borrow_amount":"1","loanable":true,"status":1}]`,
+			"/api/v4/options/underlyings":     `[{"name":"BTC_USDT"}]`,
+			"/api/v4/options/contracts":       `[{"name":"_"}]`,
+			"/api/v4/delivery/usdt/contracts": `[{"name":"_"}]`,
+		})
+		_, err = ex.FetchTradablePairs(t.Context(), asset.CrossMargin)
+		assert.ErrorContains(t, err, "SERVER_ERROR", "FetchTradablePairs should return a failed spot pairs request for cross margin")
+		_, err = ex.FetchTradablePairs(t.Context(), asset.Options)
+		assert.ErrorIs(t, err, currency.ErrCreatingPair, "FetchTradablePairs should reject an invalid options contract")
+		_, err = ex.FetchTradablePairs(t.Context(), asset.DeliveryFutures)
+		assert.ErrorIs(t, err, currency.ErrCreatingPair, "FetchTradablePairs should reject an invalid delivery contract")
+	})
+
+	ctx := t.Context()
+	// Cases share e and run in order
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			pairs, err := e.FetchTradablePairs(ctx, a)
+			require.NoErrorf(t, err, "FetchTradablePairs must not error for %s", a)
+			require.NotEmptyf(t, pairs, "FetchTradablePairs must return some pairs for %s", a)
+
+			if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
+				for _, p := range pairs {
+					_, err := getSettlementCurrency(p, a)
+					require.NoErrorf(t, err, "Fetched pair %s %s must not error on getSettlementCurrency", a, p)
+				}
+			}
+		})
 	}
 }
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+
+	// Each request returns every contract of the underlying however many of them are enabled
+	t.Run("options tickers requested once per underlying", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.Name = t.Name()
+		put := currency.NewPairWithDelimiter("BTC", "USDT-20261225-100000-P", currency.UnderscoreDelimiter)
+		call := currency.NewPairWithDelimiter("BTC", "USDT-20261225-100000-C", currency.UnderscoreDelimiter)
+		require.NoError(t, ex.UpdatePairs(currency.Pairs{put, call}, asset.Options, true), "UpdatePairs must not error")
+
+		var requests atomic.Int64
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			assert.Equal(t, "/api/v4/options/tickers", r.URL.Path, "request should reach the options tickers endpoint")
+			assert.Equal(t, "BTC_USDT", r.URL.Query().Get("underlying"), "request should name the underlying")
+			_, err := fmt.Fprintf(w, `[{"name":%q,"mark_price":"118.35","index_price":"100000.25"},{"name":%q,"mark_price":"7.5","index_price":"100000.25"}]`, put, call)
+			assert.NoError(t, err, "writing the tickers should not error")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		require.NoError(t, ex.UpdateTickers(t.Context(), asset.Options), "UpdateTickers must not error")
+		assert.Equal(t, int64(1), requests.Load(), "UpdateTickers should request the tickers of an underlying once")
+		for _, p := range []currency.Pair{put, call} {
+			_, err := ticker.GetTicker(ex.Name, p, asset.Options)
+			assert.NoErrorf(t, err, "UpdateTickers should store the %s ticker", p)
+		}
+	})
+
 	require.ErrorIs(t, e.UpdateTickers(t.Context(), asset.Binary), asset.ErrNotSupported, "UpdateTickers must reject an unsupported asset")
 
 	t.Run("all supported assets", func(t *testing.T) {
@@ -2490,36 +2230,6 @@ func TestUpdateTickers(t *testing.T) {
 	require.True(t, checked, "must find a futures contract whose base volume and contract count differ")
 }
 
-// TestUpdateTickersRequestsEachOptionsUnderlyingOnce checks the options tickers are requested once per underlying,
-// since each request returns every contract of the underlying however many of them are enabled
-func TestUpdateTickersRequestsEachOptionsUnderlyingOnce(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.Name = t.Name()
-	put := currency.NewPairWithDelimiter("BTC", "USDT-20261225-100000-P", currency.UnderscoreDelimiter)
-	call := currency.NewPairWithDelimiter("BTC", "USDT-20261225-100000-C", currency.UnderscoreDelimiter)
-	require.NoError(t, ex.UpdatePairs(currency.Pairs{put, call}, asset.Options, true), "UpdatePairs must not error")
-
-	var requests atomic.Int64
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests.Add(1)
-		assert.Equal(t, "/api/v4/options/tickers", r.URL.Path, "request should reach the options tickers endpoint")
-		assert.Equal(t, "BTC_USDT", r.URL.Query().Get("underlying"), "request should name the underlying")
-		_, err := fmt.Fprintf(w, `[{"name":%q,"mark_price":"118.35","index_price":"100000.25"},{"name":%q,"mark_price":"7.5","index_price":"100000.25"}]`, put, call)
-		assert.NoError(t, err, "writing the tickers should not error")
-	}))
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	require.NoError(t, ex.UpdateTickers(t.Context(), asset.Options), "UpdateTickers must not error")
-	assert.Equal(t, int64(1), requests.Load(), "UpdateTickers should request the tickers of an underlying once")
-	for _, p := range []currency.Pair{put, call} {
-		_, err := ticker.GetTicker(ex.Name, p, asset.Options)
-		assert.NoErrorf(t, err, "UpdateTickers should store the %s ticker", p)
-	}
-}
-
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	ex := newIsolatedExchange(t)
@@ -2640,6 +2350,14 @@ func TestUpdateOrderbookWithLimit(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
+
+	t.Run("failed request", func(t *testing.T) {
+		t.Parallel()
+		failing := newRoutedExchange(t, nil)
+		_, err := failing.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
+		assert.ErrorIs(t, err, request.ErrBadStatus, "GetWithdrawalsHistory should return a failed request")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -2680,6 +2398,19 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
+
+	// Each exchange refuses one request while the server would return a record for the other, which must not come back
+	// alongside the error
+	t.Run("failed deposits or withdrawals request", func(t *testing.T) {
+		t.Parallel()
+		got, err := newFixedResponseExchange(t, "/api/v4/wallet/withdrawals", `[{"id":"2","currency":"BTC","amount":"1"}]`).GetAccountFundingHistory(t.Context())
+		assert.ErrorIs(t, err, request.ErrBadStatus, "GetAccountFundingHistory should return a failed deposits request")
+		assert.Empty(t, got, "GetAccountFundingHistory should return no history alongside a failed deposits request")
+		got, err = newFixedResponseExchange(t, "/api/v4/wallet/deposits", `[{"id":"1","currency":"BTC","amount":"1"}]`).GetAccountFundingHistory(t.Context())
+		assert.ErrorIs(t, err, request.ErrBadStatus, "GetAccountFundingHistory should return a failed withdrawals request")
+		assert.Empty(t, got, "GetAccountFundingHistory should return no history alongside a failed withdrawals request")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -2831,6 +2562,65 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+
+	t.Run("a spot placement reports its fills", func(t *testing.T) {
+		t.Parallel()
+		ex := newFixedResponseExchange(t, "/api/v4/spot/orders", `{"id":"1852454425","text":"t-spot","create_time_ms":"1744150000073","update_time_ms":"1744150000074","currency_pair":"BTC_USDT","status":"open","type":"limit","account":"spot","side":"buy","amount":"1","price":"60000","time_in_force":"gtc","left":"0.5","filled_amount":"0.5","filled_total":"29500","avg_deal_price":"59000","fee":"0.001","fee_currency":"BTC"}`)
+		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), Type: order.Limit, Side: order.Buy, Price: 60000, Amount: 1, ClientOrderID: "spot"})
+		require.NoError(t, err, "SubmitOrder must not error")
+		assert.Equal(t, 59000.0, resp.AverageExecutedPrice, "SubmitOrder should return the average fill price")
+		assert.Equal(t, 29500.0, resp.Cost, "SubmitOrder should return the quote total filled")
+		assert.Equal(t, 0.5, resp.Purchased, "SubmitOrder should return the base bought")
+		assert.Equal(t, 0.001, resp.Fee, "SubmitOrder should return the fee")
+	})
+
+	t.Run("refused orders and failed or unreadable replies", func(t *testing.T) {
+		t.Parallel()
+		failing := newRoutedExchange(t, nil)
+		ctx := t.Context()
+		// The cases below share the failing exchange and run in order
+		for _, s := range []*order.Submit{
+			{AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1},
+			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1},
+			{AssetType: asset.DeliveryFutures, Pair: getPair(t, asset.DeliveryFutures), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1},
+			{AssetType: asset.Options, Pair: getPair(t, asset.Options), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1},
+		} {
+			t.Run("failed request "+s.AssetType.String(), func(t *testing.T) {
+				s.Exchange = failing.Name
+				_, err := failing.SubmitOrder(ctx, s)
+				assert.ErrorContainsf(t, err, "SERVER_ERROR", "SubmitOrder should return a failed request for %s", s.AssetType)
+			})
+		}
+
+		// A side that is valid for submission but neither long nor short
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.DeliveryFutures, asset.Options} {
+			t.Run("neither long nor short "+a.String(), func(t *testing.T) {
+				_, err := failing.SubmitOrder(ctx, &order.Submit{Exchange: failing.Name, AssetType: a, Pair: getPair(t, a), Type: order.Limit, Side: order.Buy | order.Sell, Price: 1, Amount: 1})
+				assert.ErrorIsf(t, err, order.ErrSideIsInvalid, "SubmitOrder should reject a side that is neither long nor short for %s", a)
+			})
+		}
+		_, err := failing.SubmitOrder(t.Context(), &order.Submit{Exchange: failing.Name, AssetType: asset.Options, Pair: getPair(t, asset.Options), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1, TimeInForce: order.GoodTillTime})
+		assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "SubmitOrder should reject an options time in force Gate does not support")
+
+		submit := func(ex *Exchange, a asset.Item) error {
+			_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: a, Pair: getPair(t, a), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1})
+			return err
+		}
+		assert.ErrorIs(t, submit(newFixedResponseExchange(t, "/api/v4/spot/orders", `{"id":""}`), asset.Spot), order.ErrOrderIDNotSet, "SubmitOrder should reject a spot order without an ID")
+		assert.ErrorIs(t, submit(newFixedResponseExchange(t, "/api/v4/spot/orders", `{"id":"1","side":"bogus"}`), asset.Spot), order.ErrSideIsInvalid, "SubmitOrder should reject a spot order with an unknown side")
+		assert.ErrorContains(t, submit(newFixedResponseExchange(t, "/api/v4/spot/orders", `{"id":"1","side":"buy","status":"bogus"}`), asset.Spot), "unrecognised order status", "SubmitOrder should reject a spot order with an unknown status")
+		assert.ErrorContains(t, submit(newFixedResponseExchange(t, "/api/v4/options/orders", `{"id":5,"status":"finished","finish_as":"bogus"}`), asset.Options), "unrecognised order status", "SubmitOrder should reject an options order with an unknown finish")
+	})
+
+	t.Run("pairs the asset does not settle", func(t *testing.T) {
+		t.Parallel()
+		failing := newRoutedExchange(t, nil)
+		_, err := failing.SubmitOrder(t.Context(), &order.Submit{Exchange: failing.Name, AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1})
+		assert.ErrorIs(t, err, errInvalidSettlementQuote, "SubmitOrder should reject a USDT-margined pair quoted in another currency")
+		_, err = failing.SubmitOrder(t.Context(), &order.Submit{Exchange: failing.Name, AssetType: asset.CoinMarginedFutures, Pair: currency.NewBTCUSDT(), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1})
+		assert.ErrorIs(t, err, errInvalidSettlementQuote, "SubmitOrder should reject a coin-margined pair not quoted in USD")
+	})
+
 	_, err := e.SubmitOrder(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil, "SubmitOrder must reject a nil submission")
 	for _, tc := range []struct {
@@ -3045,7 +2835,7 @@ func TestModifyOrder(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "ModifyOrder should report that it is not supported")
 }
 
-func TestCancelExchangeOrder(t *testing.T) {
+func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.CancelOrder(t.Context(), nil), order.ErrCancelOrderIsNil, "CancelOrder must reject a nil cancellation")
 	cancel := &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT()}
@@ -3054,6 +2844,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 	require.ErrorIs(t, e.CancelOrder(t.Context(), cancel), currency.ErrCurrencyPairEmpty, "CancelOrder must reject a cancellation without a pair")
 	cancel.Pair, cancel.AssetType = currency.NewBTCUSDT(), asset.Binary
 	require.ErrorIs(t, e.CancelOrder(t.Context(), cancel), asset.ErrNotSupported, "CancelOrder must reject an unsupported asset")
+	cancel.Pair, cancel.AssetType = currency.NewBTCUSD(), asset.USDTMarginedFutures
+	require.ErrorIs(t, e.CancelOrder(t.Context(), cancel), errInvalidSettlementQuote, "CancelOrder must reject a USDT-margined pair quoted in another currency")
+	cancel.Pair, cancel.AssetType = currency.NewPair(currency.ETH, currency.USD), asset.CoinMarginedFutures
+	require.ErrorIs(t, e.CancelOrder(t.Context(), cancel), errInvalidSettlementBase, "CancelOrder must reject a coin-margined pair not based on BTC")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -3093,9 +2887,13 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSD(), OrderID: "1"}})
 	require.ErrorIs(t, err, errInvalidSettlementQuote, "CancelBatchOrders must reject a pair the asset does not settle")
 
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, a := range []asset.Item{asset.DeliveryFutures, asset.Options} {
-		_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: a, Pair: currency.NewBTCUSDT(), OrderID: "1"}})
-		require.ErrorIsf(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders must refuse %s orders, which Gate cannot cancel in a batch", a)
+		t.Run(a.String()+" refused", func(t *testing.T) {
+			_, err := e.CancelBatchOrders(ctx, []order.Cancel{{AssetType: a, Pair: currency.NewBTCUSDT(), OrderID: "1"}})
+			require.ErrorIsf(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders must refuse %s orders, which Gate cannot cancel in a batch", a)
+		})
 	}
 
 	t.Run("one request", func(t *testing.T) {
@@ -3215,7 +3013,7 @@ func TestJoinNonEmpty(t *testing.T) {
 	assert.Empty(t, joinNonEmpty("", ""), "joinNonEmpty should return nothing for nothing")
 }
 
-func TestGetDepositAddress(t *testing.T) {
+func TestGetDepositAddress(t *testing.T) { //nolint:tparallel // top-level parallel is safe; cases share e and run in order
 	t.Parallel()
 	_, err := e.GetDepositAddress(t.Context(), currency.EMPTYCODE, "", "")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetDepositAddress must reject an empty currency")
@@ -3225,37 +3023,120 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 	_, err = e.GetDepositAddress(t.Context(), currency.BTC, "", "GCTNOTACHAIN")
 	require.ErrorIs(t, err, deposit.ErrAddressNotFound, "GetDepositAddress must reject a chain without an address")
+	ctx := t.Context()
 	if !mockTests {
 		chains, err := e.GetAvailableTransferChains(t.Context(), currency.BTC)
 		require.NoError(t, err, "GetAvailableTransferChains must not error")
+		// Cases share e and run in order
 		for _, chain := range chains {
-			result, err := e.GetDepositAddress(t.Context(), currency.BTC, "", chain)
-			require.NoErrorf(t, err, "GetDepositAddress must not error for chain %s", chain)
-			assert.NotEmptyf(t, result.Address, "GetDepositAddress should return an address for chain %s", chain)
+			t.Run(chain, func(t *testing.T) {
+				result, err := e.GetDepositAddress(ctx, currency.BTC, "", chain)
+				require.NoErrorf(t, err, "GetDepositAddress must not error for chain %s", chain)
+				assert.NotEmptyf(t, result.Address, "GetDepositAddress should return an address for chain %s", chain)
+			})
 		}
 		return
 	}
 	// The fixture records an XLM address Gate failed to obtain
 	_, err = e.GetDepositAddress(t.Context(), currency.BTC, "", "XLM")
 	require.ErrorIs(t, err, deposit.ErrAddressNotFound, "GetDepositAddress must reject a chain whose address Gate failed to obtain")
+	// Cases share e and run in order
 	for _, tc := range []struct {
+		name  string
 		ccy   currency.Code
 		chain string
 		exp   *deposit.Address
 	}{
-		{ccy: currency.BTC, exp: &deposit.Address{Address: "1HkxtBAMrA3tP5ENnYY2CZortjZvFDH5Cs"}},
-		{ccy: currency.BTC, chain: "BSC", exp: &deposit.Address{Address: "0x1234567890abcdef1234567890abcdef12345678", Chain: "BSC"}},
+		{name: "BTC default chain", ccy: currency.BTC, exp: &deposit.Address{Address: "1HkxtBAMrA3tP5ENnYY2CZortjZvFDH5Cs"}},
+		{name: "BTC on BSC", ccy: currency.BTC, chain: "BSC", exp: &deposit.Address{Address: "0x1234567890abcdef1234567890abcdef12345678", Chain: "BSC"}},
 		// The tag is the memo a deposit must carry, not the name of its kind
-		{ccy: currency.XRP, chain: "XRP", exp: &deposit.Address{Address: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh", Tag: "100156837", Chain: "XRP"}},
+		{name: "XRP with a tag", ccy: currency.XRP, chain: "XRP", exp: &deposit.Address{Address: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh", Tag: "100156837", Chain: "XRP"}},
 	} {
-		result, err := e.GetDepositAddress(t.Context(), tc.ccy, "", tc.chain)
-		require.NoErrorf(t, err, "GetDepositAddress must not error for %s chain %q", tc.ccy, tc.chain)
-		assert.Equalf(t, tc.exp, result, "GetDepositAddress should return the %s address of chain %q", tc.ccy, tc.chain)
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.GetDepositAddress(ctx, tc.ccy, "", tc.chain)
+			require.NoErrorf(t, err, "GetDepositAddress must not error for %s chain %q", tc.ccy, tc.chain)
+			assert.Equalf(t, tc.exp, result, "GetDepositAddress should return the %s address of chain %q", tc.ccy, tc.chain)
+		})
 	}
 }
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+
+	t.Run("unified and unlabelled orders count as spot", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+		ex.SkipAuthCheck = true
+		require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/v4/spot/open_orders", r.URL.Path, "request path should be the open orders endpoint")
+			assert.Empty(t, r.URL.Query().Get("account"), "request should list every account's open orders")
+			labels := []string{"spot", "unified", "margin", "cross_margin", "", "bogus"}
+			orders := make([]string, 0, len(labels))
+			for id, account := range labels {
+				orders = append(orders, fmt.Sprintf(`{"id":"%d","text":"t-%d","create_time_ms":1744150200123,"update_time_ms":1744150300123,"currency_pair":"BTC_USDT","status":"open","type":"limit","account":%q,"side":"sell","amount":"2","price":"6","left":"2","fee_currency":"USDT"}`, id, id, account))
+			}
+			_, err := fmt.Fprintf(w, `[{"currency_pair":"BTC_USDT","total":%d,"orders":[%s]}]`, len(orders), strings.Join(orders, ","))
+			assert.NoError(t, err, "writing open orders should not error")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		ctx := t.Context()
+		// Cases share the exchange and run in order
+		for a, exp := range map[asset.Item][]string{
+			asset.Spot:        {"0", "1", "4"},
+			asset.Margin:      {"2"},
+			asset.CrossMargin: {"3"},
+		} {
+			t.Run(a.String(), func(t *testing.T) {
+				result, err := ex.GetActiveOrders(ctx, &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
+				require.NoErrorf(t, err, "GetActiveOrders must not error for %s", a)
+				ids := make([]string, len(result))
+				for i := range result {
+					ids[i] = result[i].OrderID
+					assert.Equalf(t, a, result[i].AssetType, "GetActiveOrders should report order %s as %s", result[i].OrderID, a)
+				}
+				assert.Equalf(t, exp, ids, "GetActiveOrders should report the %s orders, counting unified and unlabelled orders as spot", a)
+			})
+		}
+	})
+
+	t.Run("failed requests and unreadable orders", func(t *testing.T) {
+		t.Parallel()
+		failing := newRoutedExchange(t, nil)
+		ctx := t.Context()
+		// Cases share the failing exchange and run in order
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.DeliveryFutures, asset.Options} {
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := failing.GetActiveOrders(ctx, &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
+				assert.ErrorContainsf(t, err, "SERVER_ERROR", "GetActiveOrders should return a failed request for %s", a)
+			})
+		}
+
+		ex := newRoutedExchange(t, map[string]string{
+			"/api/v4/spot/open_orders":    `[{"currency_pair":"BTC_USDT","total":2,"orders":[{"id":"1","status":"open","account":"spot","side":"bogus","type":"limit"}]}]`,
+			"/api/v4/futures/usdt/orders": `[{"id":3,"contract":"BTC_USDT","status":"open","finish_as":"","size":1,"tif":"bogus"}]`,
+			"/api/v4/options/orders":      `[{"id":4,"contract":"_","status":"open","size":1,"tif":"gtc"}]`,
+		})
+		_, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+		assert.ErrorIs(t, err, order.ErrSideIsInvalid, "GetActiveOrders should reject an open spot order it cannot read")
+
+		// A closed order the listing still carries is skipped before it is read
+		closedOrders := newFixedResponseExchange(t, "/api/v4/spot/open_orders", `[{"currency_pair":"BTC_USDT","total":2,"orders":[{"id":"1","status":"closed","account":"spot","side":"bogus","type":"limit"},{"id":"2","status":"open","account":"spot","side":"buy","type":"limit","amount":"1","price":"2"}]}]`)
+		result, err := closedOrders.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+		require.NoError(t, err, "GetActiveOrders must skip a closed order")
+		require.Len(t, result, 1, "GetActiveOrders must report only the open order")
+		assert.Equal(t, "2", result[0].OrderID, "GetActiveOrders should report the open order")
+		_, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType})
+		assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "GetActiveOrders should reject a futures order it cannot read")
+		_, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Options, Side: order.AnySide, Type: order.AnyType})
+		assert.ErrorIs(t, err, currency.ErrCreatingPair, "GetActiveOrders should reject an options order it cannot read")
+	})
+
 	_, err := e.GetActiveOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrGetOrdersRequestIsNil, "GetActiveOrders must reject a nil request")
 	_, err = e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Binary, Side: order.AnySide, Type: order.AnyType})
@@ -3277,6 +3158,7 @@ func TestGetActiveOrders(t *testing.T) {
 				Side:                 order.Buy,
 				Type:                 order.Limit,
 				Status:               order.Open,
+				TimeInForce:          order.GoodTillCancel,
 				Pair:                 getPair(t, asset.Spot),
 				AssetType:            asset.Spot,
 				Price:                5.00032,
@@ -3403,6 +3285,287 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
+
+	t.Run("failed requests and unreadable fills return no history", func(t *testing.T) {
+		t.Parallel()
+		failing := newRoutedExchange(t, nil)
+		ctx := t.Context()
+		// Cases share the failing exchange and run in order
+		for _, a := range failing.GetAssetTypes(false) {
+			t.Run("failed request "+a.String(), func(t *testing.T) {
+				_, err := failing.GetOrderHistory(ctx, &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{getPair(t, a)}})
+				assert.ErrorIsf(t, err, request.ErrBadStatus, "GetOrderHistory should return a failed request for %s", a)
+			})
+		}
+
+		// The server refuses the ETH pair's request and would answer the BTC pair's, so whether ETH's comes first or last,
+		// the error must come back with no history
+		ex := newRefusingRoutedExchange(t, "ETH", map[string]string{
+			"/api/v4/spot/my_trades":         `[{"id":"1","currency_pair":"BTC_USDT","side":"buy","amount":"1","price":"1"}]`,
+			"/api/v4/futures/usdt/my_trades": `[{"id":1,"contract":"BTC_USDT","size":1,"price":"1"}]`,
+			"/api/v4/options/my_trades":      `[{"id":1,"order_id":1,"contract":"BTC_USDT-20261225-100000-C","size":1,"price":"1"}]`,
+		})
+		ethUSDT := currency.NewPair(currency.ETH, currency.USDT)
+		// Cases share the refusing exchange and run in order
+		for a, pairs := range map[asset.Item]currency.Pairs{
+			asset.Spot:                {currency.NewBTCUSDT(), ethUSDT},
+			asset.USDTMarginedFutures: {currency.NewBTCUSDT(), ethUSDT},
+			asset.Options: {
+				currency.NewPairWithDelimiter("BTC", "USDT-20261225-100000-C", currency.UnderscoreDelimiter),
+				currency.NewPairWithDelimiter("ETH", "USDT-20261225-4000-C", currency.UnderscoreDelimiter),
+			},
+		} {
+			t.Run("refused pair "+a.String(), func(t *testing.T) {
+				for _, tc := range []struct {
+					name    string
+					ordered currency.Pairs
+				}{
+					{name: "ETH last", ordered: pairs},
+					{name: "ETH first", ordered: currency.Pairs{pairs[1], pairs[0]}},
+				} {
+					t.Run(tc.name, func(t *testing.T) {
+						got, err := ex.GetOrderHistory(ctx, &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType, Pairs: tc.ordered})
+						assert.ErrorIsf(t, err, request.ErrBadStatus, "GetOrderHistory should return the failed %s request for %s", a, tc.ordered)
+						assert.Emptyf(t, got, "GetOrderHistory should return no %s history alongside the error for %s", a, tc.ordered)
+					})
+				}
+			})
+		}
+		got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{currency.NewBTCUSDT(), currency.NewBTCUSD()}})
+		assert.ErrorIs(t, err, errInvalidSettlementQuote, "GetOrderHistory should reject a USDT-margined pair quoted in another currency")
+		assert.Empty(t, got, "GetOrderHistory should return no history alongside a refused pair")
+
+		// A fill that cannot be read follows one that can, which must not come back alongside the error
+		ex = newRoutedExchange(t, map[string]string{
+			"/api/v4/spot/my_trades":         `[{"id":"1","currency_pair":"BTC_USDT","side":"buy","amount":"1","price":"1"},{"id":"2","currency_pair":"","side":"buy","amount":"1","price":"1"}]`,
+			"/api/v4/futures/usdt/my_trades": `[{"id":1,"contract":"BTC_USDT","size":1,"price":"1"},{"id":2,"contract":"Z","size":1,"price":"1"}]`,
+		})
+		// Cases share the exchange and run in order
+		for _, tc := range []struct {
+			a   asset.Item
+			err error
+		}{
+			{a: asset.Spot, err: currency.ErrSymbolStringEmpty},
+			{a: asset.USDTMarginedFutures, err: currency.ErrCreatingPair},
+		} {
+			t.Run("unreadable symbol "+tc.a.String(), func(t *testing.T) {
+				got, err = ex.GetOrderHistory(ctx, &order.MultiOrderRequest{AssetType: tc.a, Side: order.AnySide, Type: order.AnyType})
+				assert.ErrorIsf(t, err, tc.err, "GetOrderHistory should reject a %s fill whose symbol is no pair", tc.a)
+				assert.Emptyf(t, got, "GetOrderHistory should return no %s history alongside the error", tc.a)
+			})
+		}
+		got, err = newFixedResponseExchange(t, "/api/v4/spot/my_trades", `[{"id":"1","currency_pair":"BTC_USDT","side":"buy","amount":"1","price":"1"},{"id":"2","currency_pair":"BTC_USDT","side":"bogus","amount":"1","price":"1"}]`).GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+		assert.ErrorIs(t, err, order.ErrSideIsInvalid, "GetOrderHistory should reject a spot fill with an unknown side")
+		assert.Empty(t, got, "GetOrderHistory should return no history alongside a fill with an unknown side")
+	})
+
+	// Serial, as it shares e with the statements below and runs before them
+	t.Run("request pairs left unchanged", func(t *testing.T) {
+		if !mockTests {
+			testexch.UpdatePairsOnce(t, e)
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		}
+		enabledPairs := getPairs(t, asset.Spot)
+		enabledPairs = enabledPairs[:min(2, len(enabledPairs))]
+
+		type testCase struct {
+			name    string
+			request order.MultiOrderRequest
+		}
+
+		testCases := []testCase{
+			{
+				name: "nil_pairs",
+				request: order.MultiOrderRequest{
+					Type:      order.AnyType,
+					Side:      order.Buy,
+					AssetType: asset.Spot,
+				},
+			},
+			{
+				name: "provided_pairs",
+				request: order.MultiOrderRequest{
+					Type:      order.AnyType,
+					Side:      order.Buy,
+					Pairs:     slices.Clone(enabledPairs),
+					AssetType: asset.Spot,
+				},
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				expectedPairs := slices.Clone(tc.request.Pairs)
+				_, err := e.GetOrderHistory(t.Context(), &tc.request)
+				require.NoError(t, err)
+				assert.Equal(t, expectedPairs, tc.request.Pairs)
+			})
+		}
+	})
+
+	// The routed rows use fixed pairs and their own servers, so they run in either test mode
+	routedPairs := mockTestPairs()
+	usdtPair, coinPair := routedPairs[asset.USDTMarginedFutures].String(), routedPairs[asset.CoinMarginedFutures].String()
+	deliveryPair, optionsPair := routedPairs[asset.DeliveryFutures].String(), routedPairs[asset.Options].String()
+	usdtFills := `[{"id":1,"create_time":1744150000,"contract":"` + usdtPair + `","order_id":"11","size":"-4","price":"30000","fee":"0.25","role":"maker"},` +
+		`{"id":2,"create_time":1744150001,"contract":"` + usdtPair + `","order_id":"12","size":"2","price":"30000","fee":"0.125","role":"taker"}]`
+	for _, tc := range []struct {
+		name   string
+		a      asset.Item
+		routes map[string]string
+		costs  []float64
+	}{
+		{name: "a linear contract is valued by its multiplier", a: asset.USDTMarginedFutures, routes: map[string]string{
+			"/api/v4/futures/usdt/my_trades":             usdtFills,
+			"/api/v4/futures/usdt/contracts/" + usdtPair: `{"name":"` + usdtPair + `","type":"direct","quanto_multiplier":"0.25"}`,
+		}, costs: []float64{30000, 15000}},
+		{name: "an inverse contract is worth a dollar a contract", a: asset.CoinMarginedFutures, routes: map[string]string{
+			"/api/v4/futures/btc/my_trades":             `[{"id":3,"create_time":1744150000,"contract":"` + coinPair + `","order_id":"13","size":"100","price":"25000","fee":"0.0000002","role":"taker"}]`,
+			"/api/v4/futures/btc/contracts/" + coinPair: `{"name":"` + coinPair + `","type":"inverse","quanto_multiplier":"0"}`,
+		}, costs: []float64{0.004}},
+		{name: "a delivery contract is valued by its multiplier", a: asset.DeliveryFutures, routes: map[string]string{
+			"/api/v4/delivery/usdt/my_trades":                 `[{"id":4,"create_time":1744150000,"contract":"` + deliveryPair + `","order_id":"14","size":"-2","price":"30000","fee":"0.5","role":"maker"}]`,
+			"/api/v4/delivery/usdt/contracts/" + deliveryPair: `{"name":"` + deliveryPair + `","type":"direct","quanto_multiplier":"0.5"}`,
+		}, costs: []float64{30000}},
+		{name: "an options contract is valued by its multiplier", a: asset.Options, routes: map[string]string{
+			"/api/v4/options/my_trades":                `[{"id":5,"create_time":1744150000,"contract":"` + optionsPair + `","order_id":15,"size":-2,"price":"100","role":"taker"}]`,
+			"/api/v4/options/contracts/" + optionsPair: `{"name":"` + optionsPair + `","multiplier":"0.25"}`,
+		}, costs: []float64{50}},
+		{name: "a contract Gate does not describe leaves the cost unset", a: asset.USDTMarginedFutures, routes: map[string]string{
+			"/api/v4/futures/usdt/my_trades": usdtFills,
+		}, costs: []float64{0, 0}},
+		{name: "a contract with no multiplier leaves the cost unset", a: asset.USDTMarginedFutures, routes: map[string]string{
+			"/api/v4/futures/usdt/my_trades":             usdtFills,
+			"/api/v4/futures/usdt/contracts/" + usdtPair: `{"name":"` + usdtPair + `","type":"direct","quanto_multiplier":"0"}`,
+		}, costs: []float64{0, 0}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := &order.MultiOrderRequest{Type: order.AnyType, Side: order.AnySide, AssetType: tc.a}
+			if tc.a == asset.Options {
+				req.Pairs = currency.Pairs{routedPairs[tc.a]}
+			}
+			got, err := newRoutedExchange(t, tc.routes).GetOrderHistory(t.Context(), req)
+			require.NoError(t, err, "GetOrderHistory must not error")
+			require.Len(t, got, len(tc.costs), "GetOrderHistory must return every fill")
+			settle, err := getSettlementCurrency(currency.EMPTYPAIR, tc.a)
+			require.NoError(t, err, "getSettlementCurrency must not error")
+			for i := range got {
+				assert.Equalf(t, tc.costs[i], got[i].Cost, "GetOrderHistory should value fill %d in the settlement currency", i)
+				assert.Equalf(t, settle, got[i].CostAsset, "GetOrderHistory should keep fill %d's cost in the settlement currency", i)
+				assert.Equalf(t, got[i].Amount, got[i].ExecutedAmount, "GetOrderHistory should report fill %d as fully executed", i)
+				assert.Equalf(t, got[i].Price, got[i].AverageExecutedPrice, "GetOrderHistory should report fill %d's price as its average", i)
+				assert.Equalf(t, got[i].Date, got[i].LastUpdated, "GetOrderHistory should date fill %d's last update by the fill", i)
+			}
+		})
+	}
+
+	t.Run("each contract is looked up once", func(t *testing.T) {
+		t.Parallel()
+		var lookups atomic.Int32
+		ex := newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			body := usdtFills
+			if strings.Contains(r.URL.Path, "/contracts/") {
+				lookups.Add(1)
+				body = `{"type":"direct","quanto_multiplier":"0.25"}`
+			}
+			_, err := fmt.Fprint(w, body)
+			assert.NoError(t, err, "writing the response should not error")
+		})
+		got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{Type: order.AnyType, Side: order.AnySide, AssetType: asset.USDTMarginedFutures})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		require.Len(t, got, 2, "GetOrderHistory must return both fills")
+		assert.Equal(t, int32(1), lookups.Load(), "GetOrderHistory should look up a contract once for all its fills")
+	})
+
+	for _, tc := range []struct {
+		name           string
+		a              asset.Item
+		fillsPath      string
+		fills          string
+		withOptionPair bool
+	}{
+		{name: "a futures contract lookup ended by the context", a: asset.USDTMarginedFutures, fillsPath: "/api/v4/futures/usdt/my_trades", fills: usdtFills},
+		{
+			name: "an options contract lookup ended by the context", a: asset.Options, fillsPath: "/api/v4/options/my_trades", withOptionPair: true,
+			fills: `[{"id":5,"create_time":1744150000,"contract":"` + optionsPair + `","order_id":15,"size":-2,"price":"100","role":"taker"}]`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancel := context.WithCancel(t.Context())
+			t.Cleanup(cancel)
+			ex := newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == tc.fillsPath {
+					_, err := fmt.Fprint(w, tc.fills)
+					assert.NoError(t, err, "writing the response should not error")
+					return
+				}
+				cancel()
+				w.WriteHeader(http.StatusInternalServerError)
+			})
+			req := &order.MultiOrderRequest{Type: order.AnyType, Side: order.AnySide, AssetType: tc.a}
+			if tc.withOptionPair {
+				req.Pairs = currency.Pairs{routedPairs[tc.a]}
+			}
+			_, err := ex.GetOrderHistory(ctx, req)
+			assert.ErrorIs(t, err, context.Canceled, "GetOrderHistory should return the context's error rather than fills without their cost")
+		})
+	}
+
+	t.Run("fills on pairs that have left the available pairs", func(t *testing.T) {
+		t.Parallel()
+		ex := newRoutedExchange(t, map[string]string{
+			"/api/v4/spot/my_trades":                  `[{"id":"1","order_id":"11","currency_pair":"ZZZ_USDT","side":"buy","amount":"2","price":"3","fee":"0.1","fee_currency":"ZZZ","role":"maker","trade_quote":"USDC"}]`,
+			"/api/v4/delivery/usdt/my_trades":         `[{"id":4,"create_time":1744150000,"contract":"BTC_USDT_20200925","order_id":"14","size":-2,"price":"30000","fee":"0.5","role":"maker"}]`,
+			"/api/v4/futures/usdt/my_trades":          `[{"id":5,"create_time":1744150000,"contract":"ZZZ_USDT","order_id":"15","size":3,"price":"2","fee":"0.1","role":"taker"}]`,
+			"/api/v4/futures/usdt/contracts/ZZZ_USDT": `{"name":"ZZZ_USDT","type":"direct","quanto_multiplier":"10"}`,
+		})
+		ctx := t.Context()
+		// Cases share the exchange and run in order
+		for _, tc := range []struct {
+			name string
+			a    asset.Item
+			pair currency.Pair
+			side order.Side
+			cost float64
+		}{
+			{name: "a delisted spot pair", a: asset.Spot, pair: currency.NewPairWithDelimiter("ZZZ", "USDT", currency.UnderscoreDelimiter), side: order.Buy, cost: 6},
+			{name: "an expired delivery contract", a: asset.DeliveryFutures, pair: currency.NewPairWithDelimiter("BTC", "USDT_20200925", currency.UnderscoreDelimiter), side: order.Short},
+			{name: "a delisted perpetual contract", a: asset.USDTMarginedFutures, pair: currency.NewPairWithDelimiter("ZZZ", "USDT", currency.UnderscoreDelimiter), side: order.Long, cost: 60},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				got, err := ex.GetOrderHistory(ctx, &order.MultiOrderRequest{AssetType: tc.a, Side: order.AnySide, Type: order.AnyType})
+				require.NoError(t, err, "GetOrderHistory must not error")
+				require.Len(t, got, 1, "GetOrderHistory must return the fill")
+				assert.Equal(t, tc.pair, got[0].Pair, "GetOrderHistory should parse the fill's symbol")
+				assert.Equal(t, tc.side, got[0].Side, "GetOrderHistory should return the fill's side")
+				assert.Equal(t, tc.cost, got[0].Cost, "GetOrderHistory should value the fill, or leave an expired contract's unknown size unvalued")
+			})
+		}
+	})
+
+	t.Run("a spot fill's cost is in its trade quote", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, quote string
+			exp         currency.Code
+		}{
+			{name: "trade quote", quote: `,"trade_quote":"USDC"`, exp: currency.USDC},
+			{name: "pair quote without a trade quote", exp: currency.USDT},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				got, err := newFixedResponseExchange(t, "/api/v4/spot/my_trades", `[{"id":"1","currency_pair":"BTC_USDT","side":"buy","amount":"1","price":"2"`+tc.quote+`}]`).GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+				require.NoError(t, err, "GetOrderHistory must not error")
+				require.Len(t, got, 1, "GetOrderHistory must return the fill")
+				assert.Equal(t, tc.exp, got[0].CostAsset, "GetOrderHistory should give the fill's cost asset")
+				assert.Equal(t, 2.0, got[0].Cost, "GetOrderHistory should value the fill at its price")
+			})
+		}
+	})
+
 	_, err := e.GetOrderHistory(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrGetOrdersRequestIsNil, "GetOrderHistory must reject a nil request")
 	_, err = e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Binary, Side: order.AnySide, Type: order.AnyType})
@@ -3535,112 +3698,30 @@ func TestGetOrderHistory(t *testing.T) {
 			}
 		})
 	}
+}
 
-	usdtPair, coinPair := getPair(t, asset.USDTMarginedFutures).String(), getPair(t, asset.CoinMarginedFutures).String()
-	deliveryPair, optionsPair := getPair(t, asset.DeliveryFutures).String(), getPair(t, asset.Options).String()
-	usdtFills := `[{"id":1,"create_time":1744150000,"contract":"` + usdtPair + `","order_id":"11","size":"-4","price":"30000","fee":"0.25","role":"maker"},` +
-		`{"id":2,"create_time":1744150001,"contract":"` + usdtPair + `","order_id":"12","size":"2","price":"30000","fee":"0.125","role":"taker"}]`
+func TestHistoryPair(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	listed := currency.NewPairWithDelimiter("BTC", "USDT_20991231", currency.UnderscoreDelimiter)
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.DeliveryFutures, currency.Pairs{listed}, false), "StorePairs must not error")
 	for _, tc := range []struct {
 		name   string
-		a      asset.Item
-		routes map[string]string
-		costs  []float64
+		symbol string
+		exp    currency.Pair
+		err    error
 	}{
-		{name: "a linear contract is valued by its multiplier", a: asset.USDTMarginedFutures, routes: map[string]string{
-			"/api/v4/futures/usdt/my_trades":             usdtFills,
-			"/api/v4/futures/usdt/contracts/" + usdtPair: `{"name":"` + usdtPair + `","type":"direct","quanto_multiplier":"0.25"}`,
-		}, costs: []float64{30000, 15000}},
-		{name: "an inverse contract is worth a dollar a contract", a: asset.CoinMarginedFutures, routes: map[string]string{
-			"/api/v4/futures/btc/my_trades":             `[{"id":3,"create_time":1744150000,"contract":"` + coinPair + `","order_id":"13","size":"100","price":"25000","fee":"0.0000002","role":"taker"}]`,
-			"/api/v4/futures/btc/contracts/" + coinPair: `{"name":"` + coinPair + `","type":"inverse","quanto_multiplier":"0"}`,
-		}, costs: []float64{0.004}},
-		{name: "a delivery contract is valued by its multiplier", a: asset.DeliveryFutures, routes: map[string]string{
-			"/api/v4/delivery/usdt/my_trades":                 `[{"id":4,"create_time":1744150000,"contract":"` + deliveryPair + `","order_id":"14","size":"-2","price":"30000","fee":"0.5","role":"maker"}]`,
-			"/api/v4/delivery/usdt/contracts/" + deliveryPair: `{"name":"` + deliveryPair + `","type":"direct","quanto_multiplier":"0.5"}`,
-		}, costs: []float64{30000}},
-		{name: "an options contract is valued by its multiplier", a: asset.Options, routes: map[string]string{
-			"/api/v4/options/my_trades":                `[{"id":5,"create_time":1744150000,"contract":"` + optionsPair + `","order_id":15,"size":-2,"price":"100","role":"taker"}]`,
-			"/api/v4/options/contracts/" + optionsPair: `{"name":"` + optionsPair + `","multiplier":"0.25"}`,
-		}, costs: []float64{50}},
-		{name: "a contract Gate does not describe leaves the cost unset", a: asset.USDTMarginedFutures, routes: map[string]string{
-			"/api/v4/futures/usdt/my_trades": usdtFills,
-		}, costs: []float64{0, 0}},
-		{name: "a contract with no multiplier leaves the cost unset", a: asset.USDTMarginedFutures, routes: map[string]string{
-			"/api/v4/futures/usdt/my_trades":             usdtFills,
-			"/api/v4/futures/usdt/contracts/" + usdtPair: `{"name":"` + usdtPair + `","type":"direct","quanto_multiplier":"0"}`,
-		}, costs: []float64{0, 0}},
+		{name: "listed contract", symbol: "BTC_USDT_20991231", exp: listed},
+		{name: "expired contract", symbol: "BTC_USDT_20200925", exp: currency.NewPairWithDelimiter("BTC", "USDT_20200925", currency.UnderscoreDelimiter)},
+		{name: "unparsable symbol", symbol: "Z", err: currency.ErrCreatingPair},
+		{name: "empty symbol", err: currency.ErrSymbolStringEmpty},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			req := &order.MultiOrderRequest{Type: order.AnyType, Side: order.AnySide, AssetType: tc.a}
-			if tc.a == asset.Options {
-				req.Pairs = currency.Pairs{getPair(t, tc.a)}
-			}
-			got, err := newRoutedExchange(t, tc.routes).GetOrderHistory(t.Context(), req)
-			require.NoError(t, err, "GetOrderHistory must not error")
-			require.Len(t, got, len(tc.costs), "GetOrderHistory must return every fill")
-			settle, err := getSettlementCurrency(currency.EMPTYPAIR, tc.a)
-			require.NoError(t, err, "getSettlementCurrency must not error")
-			for i := range got {
-				assert.Equalf(t, tc.costs[i], got[i].Cost, "GetOrderHistory should value fill %d in the settlement currency", i)
-				assert.Equalf(t, settle, got[i].CostAsset, "GetOrderHistory should keep fill %d's cost in the settlement currency", i)
-				assert.Equalf(t, got[i].Amount, got[i].ExecutedAmount, "GetOrderHistory should report fill %d as fully executed", i)
-				assert.Equalf(t, got[i].Price, got[i].AverageExecutedPrice, "GetOrderHistory should report fill %d's price as its average", i)
-				assert.Equalf(t, got[i].Date, got[i].LastUpdated, "GetOrderHistory should date fill %d's last update by the fill", i)
-			}
-		})
-	}
-
-	t.Run("each contract is looked up once", func(t *testing.T) {
-		t.Parallel()
-		var lookups atomic.Int32
-		ex := newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
-			body := usdtFills
-			if strings.Contains(r.URL.Path, "/contracts/") {
-				lookups.Add(1)
-				body = `{"type":"direct","quanto_multiplier":"0.25"}`
-			}
-			_, err := fmt.Fprint(w, body)
-			assert.NoError(t, err, "writing the response should not error")
-		})
-		got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{Type: order.AnyType, Side: order.AnySide, AssetType: asset.USDTMarginedFutures})
-		require.NoError(t, err, "GetOrderHistory must not error")
-		require.Len(t, got, 2, "GetOrderHistory must return both fills")
-		assert.Equal(t, int32(1), lookups.Load(), "GetOrderHistory should look up a contract once for all its fills")
-	})
-
-	for _, tc := range []struct {
-		name           string
-		a              asset.Item
-		fillsPath      string
-		fills          string
-		withOptionPair bool
-	}{
-		{name: "a futures contract lookup ended by the context", a: asset.USDTMarginedFutures, fillsPath: "/api/v4/futures/usdt/my_trades", fills: usdtFills},
-		{
-			name: "an options contract lookup ended by the context", a: asset.Options, fillsPath: "/api/v4/options/my_trades", withOptionPair: true,
-			fills: `[{"id":5,"create_time":1744150000,"contract":"` + optionsPair + `","order_id":15,"size":-2,"price":"100","role":"taker"}]`,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ctx, cancel := context.WithCancel(t.Context())
-			t.Cleanup(cancel)
-			ex := newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == tc.fillsPath {
-					_, err := fmt.Fprint(w, tc.fills)
-					assert.NoError(t, err, "writing the response should not error")
-					return
-				}
-				cancel()
-				w.WriteHeader(http.StatusInternalServerError)
-			})
-			req := &order.MultiOrderRequest{Type: order.AnyType, Side: order.AnySide, AssetType: tc.a}
-			if tc.withOptionPair {
-				req.Pairs = currency.Pairs{getPair(t, tc.a)}
-			}
-			_, err := ex.GetOrderHistory(ctx, req)
-			assert.ErrorIs(t, err, context.Canceled, "GetOrderHistory should return the context's error rather than fills without their cost")
+			p, err := ex.historyPair(tc.symbol, asset.DeliveryFutures)
+			require.ErrorIs(t, err, tc.err, "historyPair must return the expected error")
+			assert.Equal(t, tc.exp, p, "historyPair should return the expected pair")
 		})
 	}
 }
@@ -3695,53 +3776,37 @@ func TestContractSizeSettledValue(t *testing.T) {
 	}
 }
 
-func TestGetOrderHistoryRequestImmutability(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		testexch.UpdatePairsOnce(t, e)
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	}
-	enabledPairs := getPairs(t, asset.Spot)
-	enabledPairs = enabledPairs[:min(2, len(enabledPairs))]
-
-	type testCase struct {
-		name    string
-		request order.MultiOrderRequest
-	}
-
-	testCases := []testCase{
-		{
-			name: "nil_pairs",
-			request: order.MultiOrderRequest{
-				Type:      order.AnyType,
-				Side:      order.Buy,
-				AssetType: asset.Spot,
-			},
-		},
-		{
-			name: "provided_pairs",
-			request: order.MultiOrderRequest{
-				Type:      order.AnyType,
-				Side:      order.Buy,
-				Pairs:     slices.Clone(enabledPairs),
-				AssetType: asset.Spot,
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			expectedPairs := slices.Clone(tc.request.Pairs)
-			_, err := e.GetOrderHistory(t.Context(), &tc.request)
-			require.NoError(t, err)
-			assert.Equal(t, expectedPairs, tc.request.Pairs)
-		})
-	}
-}
-
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
+
+	// An interval Gate does not serve is built from the candles of a shorter one it does, requested over whole periods
+	// of the interval asked for
+	t.Run("unserved interval built from a shorter one", func(t *testing.T) {
+		t.Parallel()
+		ex := newHourlyCandleExchange(t)
+		start, end := time.Unix(1744099200, 0), time.Unix(1744113600, 0)
+		ctx := t.Context()
+		// Cases share the exchange and run in order
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.DeliveryFutures} {
+			t.Run(a.String(), func(t *testing.T) {
+				pair := mockTestPairs()[a]
+				exp := &kline.Item{
+					Exchange: ex.Name,
+					Pair:     pair,
+					Asset:    a,
+					Interval: kline.ThreeHour,
+					Candles: []kline.Candle{
+						{Time: time.Unix(1744092000, 0), Open: 100, High: 120, Low: 90, Close: 92, Volume: 6},
+						{Time: time.Unix(1744102800, 0), Open: 92, High: 130, Low: 91, Close: 111, Volume: 15},
+					},
+				}
+				result, err := ex.GetHistoricCandles(ctx, pair, a, kline.ThreeHour, start, end)
+				require.NoErrorf(t, err, "GetHistoricCandles must not error for %s", a)
+				assert.Equalf(t, exp, result, "GetHistoricCandles should build the %s candles from hourly ones", a)
+			})
+		}
+	})
+
 	startTime, endTime := getTime()
 	_, err := e.GetHistoricCandles(t.Context(), getPair(t, asset.Options), asset.Options, kline.OneDay, startTime, endTime)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandles must reject options")
@@ -3801,6 +3866,35 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
+
+	// An interval Gate does not serve is built from the candles of a shorter one it does, requested over whole periods
+	// of the interval asked for
+	t.Run("unserved interval built from a shorter one", func(t *testing.T) {
+		t.Parallel()
+		ex := newHourlyCandleExchange(t)
+		start, end := time.Unix(1744099200, 0), time.Unix(1744113600, 0)
+		ctx := t.Context()
+		// Cases share the exchange and run in order
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.DeliveryFutures} {
+			t.Run(a.String(), func(t *testing.T) {
+				pair := mockTestPairs()[a]
+				exp := &kline.Item{
+					Exchange: ex.Name,
+					Pair:     pair,
+					Asset:    a,
+					Interval: kline.ThreeHour,
+					Candles: []kline.Candle{
+						{Time: time.Unix(1744092000, 0), Open: 100, High: 120, Low: 90, Close: 92, Volume: 6},
+						{Time: time.Unix(1744102800, 0), Open: 92, High: 130, Low: 91, Close: 111, Volume: 15},
+					},
+				}
+				result, err := ex.GetHistoricCandlesExtended(ctx, pair, a, kline.ThreeHour, start, end)
+				require.NoErrorf(t, err, "GetHistoricCandlesExtended must not error for %s", a)
+				assert.Equalf(t, exp, result, "GetHistoricCandlesExtended should build the %s candles from hourly ones", a)
+			})
+		}
+	})
+
 	startTime, endTime := getTime()
 	_, err := e.GetHistoricCandlesExtended(t.Context(), getPair(t, asset.Options), asset.Options, kline.FourHour, startTime, endTime)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandlesExtended must reject options")
@@ -3885,10 +3979,10 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	})
 }
 
-// TestGetHistoricCandlesBuildsUnservedIntervals checks an interval Gate does not serve is built from the candles of a
-// shorter one it does, requested over whole periods of the interval asked for
-func TestGetHistoricCandlesBuildsUnservedIntervals(t *testing.T) {
-	t.Parallel()
+// newHourlyCandleExchange returns an exchange whose candle requests reach a server returning hourly candles, which
+// checks each request asks for the hourly candles of the three hour periods the window from 08:00 to 12:00 falls in
+func newHourlyCandleExchange(t *testing.T) *Exchange {
+	t.Helper()
 	type hourlyCandle struct {
 		time                                time.Time
 		open, high, low, closePrice, volume float64
@@ -3925,31 +4019,153 @@ func TestGetHistoricCandlesBuildsUnservedIntervals(t *testing.T) {
 	}))
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	start, end := time.Unix(1744099200, 0), time.Unix(1744113600, 0)
-	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.DeliveryFutures} {
-		pair := mockTestPairs()[a]
-		exp := &kline.Item{
-			Exchange: ex.Name,
-			Pair:     pair,
-			Asset:    a,
-			Interval: kline.ThreeHour,
-			Candles: []kline.Candle{
-				{Time: time.Unix(1744092000, 0), Open: 100, High: 120, Low: 90, Close: 92, Volume: 6},
-				{Time: time.Unix(1744102800, 0), Open: 92, High: 130, Low: 91, Close: 111, Volume: 15},
-			},
-		}
-		result, err := ex.GetHistoricCandles(t.Context(), pair, a, kline.ThreeHour, start, end)
-		require.NoErrorf(t, err, "GetHistoricCandles must not error for %s", a)
-		assert.Equalf(t, exp, result, "GetHistoricCandles should build the %s candles from hourly ones", a)
-		result, err = ex.GetHistoricCandlesExtended(t.Context(), pair, a, kline.ThreeHour, start, end)
-		require.NoErrorf(t, err, "GetHistoricCandlesExtended must not error for %s", a)
-		assert.Equalf(t, exp, result, "GetHistoricCandlesExtended should build the %s candles from hourly ones", a)
-	}
+	return ex
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+
+	t.Run("product borrow minimums", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.Name = "GateProductBorrowMinimums"
+
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
+			switch r.URL.Path {
+			case "/api/v4/spot/currency_pairs":
+				_, err := fmt.Fprint(w, `[{"id":"BTC_USDT","base":"BTC","quote":"USDT","min_base_amount":"0.001","min_quote_amount":"1","amount_precision":3,"precision":2,"trade_status":"tradable"}]`)
+				assert.NoError(t, err, "writing spot currency pairs should not error")
+			case "/api/v4/margin/uni/currency_pairs":
+				_, err := fmt.Fprint(w, `[{"currency_pair":"BTC_USDT","base_min_borrow_amount":"0.01","quote_min_borrow_amount":"2","status":"enabled","delisted_time":0}]`)
+				assert.NoError(t, err, "writing isolated margin lending markets should not error")
+			case "/api/v4/margin/cross/currencies":
+				_, err := fmt.Fprint(w, `[{"name":"BTC","min_borrow_amount":"0.03","loanable":true,"status":1},{"name":"USDT","min_borrow_amount":"4","loanable":true,"status":1}]`)
+				assert.NoError(t, err, "writing cross-margin currencies should not error")
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		pair := currency.NewBTCUSDT()
+		require.NoError(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.Margin), "UpdateOrderExecutionLimits must not error for margin")
+		isolatedLimits, err := ex.GetOrderExecutionLimits(asset.Margin, pair)
+		require.NoError(t, err, "GetOrderExecutionLimits must not error for margin")
+		assert.Equal(t, 0.01, isolatedLimits.MinimumBorrowAmountBase, "margin base borrow minimum should use the isolated pair value")
+		assert.Equal(t, 2.0, isolatedLimits.MinimumBorrowAmountQuote, "margin quote borrow minimum should use the isolated pair value")
+
+		require.NoError(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.CrossMargin), "UpdateOrderExecutionLimits must not error for cross margin")
+		crossLimits, err := ex.GetOrderExecutionLimits(asset.CrossMargin, pair)
+		require.NoError(t, err, "GetOrderExecutionLimits must not error for cross margin")
+		assert.Equal(t, 0.03, crossLimits.MinimumBorrowAmountBase, "cross-margin base borrow minimum should use the currency value")
+		assert.Equal(t, 4.0, crossLimits.MinimumBorrowAmountQuote, "cross-margin quote borrow minimum should use the currency value")
+	})
+
+	t.Run("failed requests keep the stored limits", func(t *testing.T) {
+		t.Parallel()
+		failing := newRoutedExchange(t, nil)
+		ctx := t.Context()
+		// Cases share the failing exchange and run in order
+		for _, a := range failing.GetAssetTypes(false) {
+			t.Run("failed request "+a.String(), func(t *testing.T) {
+				assert.ErrorIsf(t, failing.UpdateOrderExecutionLimits(ctx, a), request.ErrBadStatus, "UpdateOrderExecutionLimits should return a failed request for %s", a)
+			})
+		}
+		// The first routes refuse margin's, cross margin's and options' first request but answer margin's and cross
+		// margin's next one, so an ignored refusal cannot hide behind a later failure; the second routes answer the first
+		// request with a market, currency or underlying, so the refusal of the one that follows cannot hide behind an empty
+		// listing
+		// Each routes' cases share their exchange and run in order
+		for _, tc := range []struct {
+			name   string
+			routes map[string]string
+		}{
+			{name: "first request refused", routes: map[string]string{"/api/v4/spot/currency_pairs": `[]`}},
+			{
+				name: "second request refused",
+				routes: map[string]string{
+					"/api/v4/margin/uni/currency_pairs": `[{"currency_pair":"BTC_USDT","base_min_borrow_amount":"0.00001","quote_min_borrow_amount":"1","status":"enabled"}]`,
+					"/api/v4/margin/cross/currencies":   `[{"name":"BTC","min_borrow_amount":"0.01","loanable":true,"status":1}]`,
+					"/api/v4/options/underlyings":       `[{"name":"BTC_USDT"}]`,
+				},
+			},
+		} {
+			ex := newRoutedExchange(t, tc.routes)
+			t.Run(tc.name, func(t *testing.T) {
+				for _, a := range []asset.Item{asset.Margin, asset.CrossMargin, asset.Options} {
+					t.Run(a.String(), func(t *testing.T) {
+						assert.ErrorIsf(t, ex.UpdateOrderExecutionLimits(ctx, a), request.ErrBadStatus, "UpdateOrderExecutionLimits should return the refused request for %s", a)
+					})
+				}
+			})
+		}
+		// Delivery futures read BTC's contracts and then USDT's, and options read each underlying's in turn, so a failure
+		// must come back whether its request comes first or last, and leave the stored limits of any contract read before it
+		// alone
+		// Cases share the limits stored under the test's name and run in order before they are checked
+		stored := []limits.MinMaxLevel{
+			{Key: key.NewExchangeAssetPair(t.Name(), asset.DeliveryFutures, currency.NewPairWithDelimiter("BTC", "USD_20261225", currency.UnderscoreDelimiter)), MinimumBaseAmount: 7},
+			{Key: key.NewExchangeAssetPair(t.Name(), asset.Options, currency.NewPairWithDelimiter("BTC", "USDT-20261225-100000-C", currency.UnderscoreDelimiter)), MinimumBaseAmount: 7},
+		}
+		require.NoError(t, limits.Load(stored), "limits.Load must store the limits")
+		for _, tc := range []struct {
+			name    string
+			refused string
+			routes  map[string]string
+			err     error
+		}{
+			{
+				name:    "USDT delivery and ETH options contracts refused after BTC's are read",
+				refused: "ETH",
+				routes: map[string]string{
+					"/api/v4/delivery/btc/contracts": `[{"name":"BTC_USD_20261225"}]`,
+					"/api/v4/options/underlyings":    `[{"name":"BTC_USDT"},{"name":"ETH_USDT"}]`,
+					"/api/v4/options/contracts":      `[{"name":"BTC_USDT-20261225-100000-C"}]`,
+				},
+				err: request.ErrBadStatus,
+			},
+			{
+				name:    "BTC delivery and options contracts refused ahead of USDT's and ETH's",
+				refused: "BTC",
+				routes: map[string]string{
+					"/api/v4/delivery/usdt/contracts": `[{"name":"BTC_USDT_20261225"}]`,
+					"/api/v4/options/underlyings":     `[{"name":"BTC_USDT"},{"name":"ETH_USDT"}]`,
+					"/api/v4/options/contracts":       `[{"name":"ETH_USDT-20261225-4000-C"}]`,
+				},
+				err: request.ErrBadStatus,
+			},
+			{
+				name: "a contract without a name read after one with a name",
+				routes: map[string]string{
+					"/api/v4/delivery/btc/contracts": `[{"name":"BTC_USD_20261225"},{"name":""}]`,
+					"/api/v4/options/underlyings":    `[{"name":"BTC_USDT"}]`,
+					"/api/v4/options/contracts":      `[{"name":"BTC_USDT-20261225-100000-C"},{"name":""}]`,
+				},
+				err: currency.ErrCreatingPair,
+			},
+		} {
+			ex := newRefusingRoutedExchange(t, tc.refused, tc.routes)
+			ex.Name = t.Name()
+			t.Run(tc.name, func(t *testing.T) {
+				for _, a := range []asset.Item{asset.DeliveryFutures, asset.Options} {
+					t.Run(a.String(), func(t *testing.T) {
+						assert.ErrorIsf(t, ex.UpdateOrderExecutionLimits(ctx, a), tc.err, "UpdateOrderExecutionLimits should return the %s error with %s", a, tc.name)
+					})
+				}
+			})
+		}
+		for _, level := range stored {
+			got, err := limits.GetOrderExecutionLimits(level.Key)
+			require.NoErrorf(t, err, "GetOrderExecutionLimits must return the stored %s limits", level.Key.Asset)
+			assert.Equalf(t, 7.0, got.MinimumBaseAmount, "UpdateOrderExecutionLimits should keep the stored %s limits when it fails", level.Key.Asset)
+		}
+	})
+
 	ex := newIsolatedExchange(t)
 	require.ErrorIs(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported, "UpdateOrderExecutionLimits must reject an unsupported asset")
 
@@ -4263,6 +4479,47 @@ func TestGetLatestFundingRates(t *testing.T) {
 	}
 }
 
+func TestContractToFundingRate(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
+	newContract := func() *FuturesContractResponse {
+		return &FuturesContractResponse{
+			Name:                  pair,
+			FundingRate:           0.0001,
+			FundingRateIndicative: 0.000083,
+			FundingInterval:       types.DurationSeconds(8 * time.Hour),
+			FundingNextApply:      types.Time(time.Unix(1775433600, 0)),
+		}
+	}
+	// The latest rate applies from one funding interval before the next funding time
+	latest := fundingrate.LatestRateResponse{
+		Exchange:       "Gate",
+		Asset:          asset.USDTMarginedFutures,
+		Pair:           pair,
+		LatestRate:     fundingrate.Rate{Time: time.Unix(1775404800, 0), Rate: decimal.MustFromFloat(0.0001)},
+		TimeOfNextRate: time.Unix(1775433600, 0),
+	}
+	predicted := latest
+	predicted.PredictedUpcomingRate = fundingrate.Rate{Time: time.Unix(1775433600, 0), Rate: decimal.MustFromFloat(0.000083)}
+	for _, tc := range []struct {
+		name                string
+		includeUpcomingRate bool
+		exp                 fundingrate.LatestRateResponse
+	}{
+		{name: "latest rate", exp: latest},
+		{name: "with the predicted rate", includeUpcomingRate: true, exp: predicted},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			started := time.Now()
+			got := contractToFundingRate("Gate", asset.USDTMarginedFutures, pair, newContract(), tc.includeUpcomingRate)
+			assert.WithinRange(t, got.TimeChecked, started, time.Now(), "contractToFundingRate should stamp the time the rate is checked")
+			tc.exp.TimeChecked = got.TimeChecked
+			assert.Equal(t, tc.exp, got, "contractToFundingRate should return the contract's rates")
+		})
+	}
+}
+
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetHistoricalFundingRates(t.Context(), nil)
@@ -4401,15 +4658,69 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := e.getOpenInterestContracts(t.Context(), asset.Options, currency.EMPTYPAIR)
-	assert.ErrorIs(t, err, asset.ErrNotSupported, "options should remain unsupported by futures open interest endpoints")
-	_, err = e.GetOpenInterest(t.Context(), key.PairAsset{
+
+	// contract_stats summed both sides of the book, so a contract must report the same open interest however many
+	// pairs are asked for
+	t.Run("same open interest however many pairs are asked for", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+		// Trimmed from GET /api/v4/futures/usdt/contracts, which serves one object for a named contract
+		// and an array for all of them
+		const btcContract = `{"name":"BTC_USDT","type":"direct","quanto_multiplier":"0.0001","index_price":"50000","position_size":1000}`
+		const ethContract = `{"name":"ETH_USDT","type":"direct","quanto_multiplier":"0.01","index_price":"2000","position_size":500}`
+
+		var requests atomic.Int64
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			assert.NotContains(t, r.URL.Path, "contract_stats", "open interest should not reach the contract stats endpoint")
+			body := "[" + btcContract + "," + ethContract + "]"
+			if strings.HasSuffix(r.URL.Path, "/BTC_USDT") {
+				body = btcContract
+			}
+			_, err := fmt.Fprint(w, body)
+			assert.NoError(t, err, "writing the contracts response should not error")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		btcPair := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
+		ethPair := currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)
+		pairs := currency.Pairs{btcPair, ethPair}
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, pairs, false), "StorePairs must not error for available pairs")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, pairs, true), "StorePairs must not error for enabled pairs")
+
+		btc := key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.USDTMarginedFutures}
+		eth := key.PairAsset{Base: currency.ETH.Item, Quote: currency.USDT.Item, Asset: asset.USDTMarginedFutures}
+
+		single, err := ex.GetOpenInterest(t.Context(), btc)
+		require.NoError(t, err, "GetOpenInterest must not error for a single pair")
+		require.Len(t, single, 1, "GetOpenInterest must report the one pair asked for")
+		singleRequests := requests.Load()
+
+		multi, err := ex.GetOpenInterest(t.Context(), btc, eth)
+		require.NoError(t, err, "GetOpenInterest must not error for several pairs")
+		require.Len(t, multi, 2, "GetOpenInterest must report both pairs asked for")
+
+		assert.Equal(t, 5000.0, single[0].OpenInterest, "a single pair should report the position sized in its quote currency")
+		for _, oi := range multi {
+			if oi.Key.Base == currency.BTC.Item {
+				assert.Equal(t, single[0].OpenInterest, oi.OpenInterest, "the same contract should report the same open interest however many pairs are asked for")
+			}
+		}
+		assert.Equal(t, int64(1), singleRequests, "a single pair should cost one request rather than a second for contract stats")
+	})
+
+	_, err := e.GetOpenInterest(t.Context(), key.PairAsset{
 		Base:  currency.NewCode("GOLDFISH").Item,
 		Quote: currency.USDT.Item,
 		Asset: asset.USDTMarginedFutures,
 	})
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "GetOpenInterest should error correctly")
 
+	ctx := t.Context()
 	if mockTests {
 		pairKey := func(a asset.Item) key.PairAsset {
 			p := getPair(t, a)
@@ -4421,6 +4732,7 @@ func TestGetOpenInterest(t *testing.T) {
 		// A pair asked for on its own is read from its contract and several from the contract list, which the fixtures
 		// record at different times. Open interest is sized in the quote currency, which an inverse contract's
 		// position already is
+		// Cases share e and run in order
 		for _, tc := range []struct {
 			name string
 			keys []key.PairAsset
@@ -4451,26 +4763,31 @@ func TestGetOpenInterest(t *testing.T) {
 				exp:  []futures.OpenInterest{openInterest(asset.DeliveryFutures, 95.8187), openInterest(asset.CoinMarginedFutures, 8701256), openInterest(asset.USDTMarginedFutures, 118106.768)},
 			},
 		} {
-			result, err := e.GetOpenInterest(t.Context(), tc.keys...)
-			require.NoErrorf(t, err, "GetOpenInterest must not error for %s", tc.name)
-			assert.Equalf(t, tc.exp, result, "GetOpenInterest should return the open interest of %s", tc.name)
+			t.Run(tc.name, func(t *testing.T) {
+				result, err := e.GetOpenInterest(ctx, tc.keys...)
+				require.NoErrorf(t, err, "GetOpenInterest must not error for %s", tc.name)
+				assert.Equalf(t, tc.exp, result, "GetOpenInterest should return the open interest of %s", tc.name)
+			})
 		}
 		return
 	}
 	var resp []futures.OpenInterest
 	validPairs := make(map[asset.Item]key.PairAsset, 3)
+	// Cases share e and run in order, as the pairs they find are asked for together below
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures} {
-		pairs := getPairs(t, a)
-		if a == asset.DeliveryFutures {
-			// The enabled delivery contract is picked at random and may have no open positions
-			pairs, err = e.GetAvailablePairs(a)
-			require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
-		}
-		pair, response := getPairWithOpenInterest(t, a, pairs)
-		validPairs[a] = pair
-		resp = response
-		require.Lenf(t, resp, 1, "GetOpenInterest must return 1 item for %s asset", a)
-		assert.Positivef(t, resp[0].OpenInterest, "GetOpenInterest should return positive open interest for %s asset", a)
+		t.Run(a.String(), func(t *testing.T) {
+			pairs := getPairs(t, a)
+			if a == asset.DeliveryFutures {
+				// The enabled delivery contract is picked at random and may have no open positions
+				pairs, err = e.GetAvailablePairs(a)
+				require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
+			}
+			pair, response := getPairWithOpenInterest(ctx, t, a, pairs)
+			validPairs[a] = pair
+			resp = response
+			require.Lenf(t, resp, 1, "GetOpenInterest must return 1 item for %s asset", a)
+			assert.Positivef(t, resp[0].OpenInterest, "GetOpenInterest should return positive open interest for %s asset", a)
+		})
 	}
 
 	coinPair := validPairs[asset.CoinMarginedFutures]
@@ -4502,6 +4819,66 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NotEmpty(t, resp, "GetOpenInterest should return some items")
 }
 
+func TestGetOpenInterestContracts(t *testing.T) { //nolint:tparallel // top-level parallel is safe; cases share e and run in order
+	t.Parallel()
+	ctx := t.Context()
+	// The cases below share e and run in order
+	t.Run("options", func(t *testing.T) {
+		_, err := e.getOpenInterestContracts(ctx, asset.Options, currency.EMPTYPAIR)
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "options should remain unsupported by futures open interest endpoints")
+	})
+	for _, tc := range []struct {
+		name string
+		a    asset.Item
+		pair currency.Pair
+		err  error
+	}{
+		{name: "USDT-margined pair quoted in USD", a: asset.USDTMarginedFutures, pair: currency.NewBTCUSD(), err: errInvalidSettlementQuote},
+		{name: "coin-margined pair not based on BTC", a: asset.CoinMarginedFutures, pair: currency.NewPair(currency.ETH, currency.USD), err: errInvalidSettlementBase},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.getOpenInterestContracts(ctx, tc.a, tc.pair)
+			assert.ErrorIs(t, err, tc.err, "getOpenInterestContracts should reject a pair the asset does not settle")
+		})
+	}
+	for _, tc := range []struct {
+		name      string
+		a         asset.Item
+		pair      currency.Pair
+		contracts []string
+	}{
+		{name: "USDT-margined pair", a: asset.USDTMarginedFutures, pair: getPair(t, asset.USDTMarginedFutures), contracts: []string{"BTC_USDT"}},
+		{name: "USDT-margined contracts", a: asset.USDTMarginedFutures, contracts: []string{"BTC_USDT", "BABA_USDT", "ZEC_USDT", "GRASS_USDT", "ICX_USDT", "JDON_USDT"}},
+		{name: "coin-margined pair", a: asset.CoinMarginedFutures, pair: getPair(t, asset.CoinMarginedFutures), contracts: []string{"BTC_USD"}},
+		{name: "coin-margined contracts", a: asset.CoinMarginedFutures, contracts: []string{"BTC_USD"}},
+		{name: "delivery pair", a: asset.DeliveryFutures, pair: getPair(t, asset.DeliveryFutures), contracts: []string{"BTC_USDT_20260626"}},
+		{name: "delivery contracts", a: asset.DeliveryFutures, contracts: []string{"BTC_USDT_20260626", "DOGE_USDT_20260410", "ADA_USDT_20260410", "ETH_USDT_20260410", "DOGE_USDT_20260417", "ADA_USDT_20260417"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := e.getOpenInterestContracts(ctx, tc.a, tc.pair)
+			require.NoError(t, err, "getOpenInterestContracts must not error")
+			names := make([]string, len(got))
+			for i, c := range got {
+				if tc.a == asset.DeliveryFutures {
+					assert.IsTypef(t, &DeliveryContractResponse{}, c, "getOpenInterestContracts should return contract %d as a delivery contract", i)
+				} else {
+					assert.IsTypef(t, &FuturesContractResponse{}, c, "getOpenInterestContracts should return contract %d as a perpetual contract", i)
+				}
+				names[i] = c.contractName()
+			}
+			if mockTests {
+				assert.Equal(t, tc.contracts, names, "getOpenInterestContracts should return the recorded contracts of the asset's settlement")
+				return
+			}
+			if tc.pair.IsEmpty() {
+				assert.NotEmpty(t, names, "getOpenInterestContracts should return the settlement's contracts")
+				return
+			}
+			assert.Equal(t, []string{tc.pair.String()}, names, "getOpenInterestContracts should return the pair's contract")
+		})
+	}
+}
+
 func TestGetClientOrderIDFromText(t *testing.T) {
 	t.Parallel()
 	assert.Empty(t, getClientOrderIDFromText("api"), "should not return anything")
@@ -4530,16 +4907,21 @@ func TestGetSideAndAmountFromSize(t *testing.T) {
 
 func TestTradeSideAndAmount(t *testing.T) {
 	t.Parallel()
-	for size, exp := range map[float64]struct {
+	for _, tc := range []struct {
+		name   string
+		size   float64
 		side   order.Side
 		amount float64
 	}{
-		4:  {side: order.Buy, amount: 4},
-		-4: {side: order.Sell, amount: 4},
+		{name: "taker buy", size: 4, side: order.Buy, amount: 4},
+		{name: "taker sell", size: -4, side: order.Sell, amount: 4},
 	} {
-		side, amount := tradeSideAndAmount(size)
-		assert.Equalf(t, exp.side, side, "tradeSideAndAmount should return the taker side of size %v", size)
-		assert.Equalf(t, exp.amount, amount, "tradeSideAndAmount should return the unsigned amount of size %v", size)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			side, amount := tradeSideAndAmount(tc.size)
+			assert.Equalf(t, tc.side, side, "tradeSideAndAmount should return the taker side of size %v", tc.size)
+			assert.Equalf(t, tc.amount, amount, "tradeSideAndAmount should return the unsigned amount of size %v", tc.size)
+		})
 	}
 }
 
@@ -4557,11 +4939,13 @@ func TestGetFutureOrderSize(t *testing.T) {
 	assert.Equal(t, -1.0, ret)
 }
 
-func TestGetCurrencyTradeURL(t *testing.T) {
+func TestGetCurrencyTradeURL(t *testing.T) { //nolint:tparallel // top-level parallel is safe; cases share e and run in order
 	t.Parallel()
 	if !mockTests {
 		testexch.UpdatePairsOnce(t, e)
 	}
+	ctx := t.Context()
+	// Cases share e and run before the refusals below
 	for a, page := range map[asset.Item]string{
 		asset.Spot:                "trade/",
 		asset.Margin:              "trade/",
@@ -4570,11 +4954,13 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		asset.CoinMarginedFutures: "futures/BTC/",
 		asset.DeliveryFutures:     "futures-delivery/USDT/",
 	} {
-		p := getPair(t, a)
-		resp, err := e.GetCurrencyTradeURL(t.Context(), a, p)
-		require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s", a)
-		p.Delimiter = currency.UnderscoreDelimiter
-		assert.Equalf(t, "https://www.gate.io/"+page+p.Upper().String(), resp, "GetCurrencyTradeURL should return the %s trade page", a)
+		t.Run(a.String(), func(t *testing.T) {
+			p := getPair(t, a)
+			resp, err := e.GetCurrencyTradeURL(ctx, a, p)
+			require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s", a)
+			p.Delimiter = currency.UnderscoreDelimiter
+			assert.Equalf(t, "https://www.gate.io/"+page+p.Upper().String(), resp, "GetCurrencyTradeURL should return the %s trade page", a)
+		})
 	}
 	_, err := e.GetCurrencyTradeURL(t.Context(), asset.Options, getPair(t, asset.Options))
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetCurrencyTradeURL should reject options")
@@ -4623,8 +5009,39 @@ func TestGetSettlementCurrency(t *testing.T) {
 	}
 }
 
-func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
+func TestDeriveSpotWebsocketOrderResponse(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the subtest shares e with the conversion below
 	t.Parallel()
+
+	// Serial, as it shares e with the conversion below and runs before it
+	t.Run("accounts and unrecognised values", func(t *testing.T) {
+		// Cases share e and run in order
+		for account, exp := range map[string]asset.Item{
+			"spot":         asset.Spot,
+			"unified":      asset.Spot,
+			"":             asset.Spot,
+			"margin":       asset.Margin,
+			"cross_margin": asset.CrossMargin,
+		} {
+			t.Run(cmp.Or(account, "unlabelled"), func(t *testing.T) {
+				var resp *WebsocketOrderResponse
+				require.NoErrorf(t, json.Unmarshal([]byte(`{"left":"0","amount":"0.0001","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"`+account+`","side":"sell","text":"t-1","id":"766075454481","update_time_ms":1735720637188,"create_time_ms":1735720637188}`), &resp), "Unmarshal must decode account %q", account)
+				got, err := e.deriveSpotWebsocketOrderResponse(resp)
+				require.NoErrorf(t, err, "deriveSpotWebsocketOrderResponse must not error for account %q", account)
+				assert.Equalf(t, exp, got.AssetType, "deriveSpotWebsocketOrderResponse should report account %q as %s", account, exp)
+			})
+		}
+		_, err := e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Account: "bogus", Side: "sell", Type: "market", TimeInForce: "ioc", FinishAs: "filled"})
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "deriveSpotWebsocketOrderResponse should reject an unknown account")
+		_, err = e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Side: "bogus", Type: "market", TimeInForce: "ioc", FinishAs: "filled"})
+		assert.ErrorIs(t, err, order.ErrSideIsInvalid, "deriveSpotWebsocketOrderResponse should reject an unknown side")
+		_, err = e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Side: "sell", Type: "market", TimeInForce: "ioc", FinishAs: "bogus"})
+		assert.ErrorContains(t, err, "unrecognised order status", "deriveSpotWebsocketOrderResponse should reject an unknown finish")
+		_, err = e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Side: "sell", Type: "iceberg", TimeInForce: "ioc", FinishAs: "filled"})
+		assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "deriveSpotWebsocketOrderResponse should reject an unknown order type")
+		_, err = e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{Side: "sell", Type: "market", TimeInForce: "bogus", FinishAs: "filled"})
+		assert.ErrorIs(t, err, order.ErrInvalidTimeInForce, "deriveSpotWebsocketOrderResponse should reject an unknown time in force")
+	})
+
 	var resp *WebsocketOrderResponse
 	require.NoError(t, json.Unmarshal([]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","stp_id":"123456","update_time_ms":1735720637188,"create_time_ms":1735720637188}`), &resp), "unmarshal must not error")
 
@@ -4651,6 +5068,35 @@ func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 
 func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 	t.Parallel()
+
+	// Serial, as it shares e with the cases below and runs before them
+	t.Run("rejected orders in place", func(t *testing.T) {
+		spotRejected := &WebsocketOrderResponse{Label: "BALANCE_NOT_ENOUGH"}
+		// Cases share e and the rejected reply, and run in order
+		for _, tc := range []struct {
+			name  string
+			batch []*WebsocketOrderResponse
+		}{
+			{name: "rejection alone", batch: []*WebsocketOrderResponse{spotRejected}},
+			{name: "rejection first", batch: []*WebsocketOrderResponse{spotRejected, {ID: "2", Side: "buy", Type: "limit", TimeInForce: "gtc"}}},
+			{name: "rejection between accepted orders", batch: []*WebsocketOrderResponse{{ID: "1", Side: "buy", Type: "limit", TimeInForce: "gtc"}, spotRejected, {ID: "3", Side: "sell", Type: "limit", TimeInForce: "gtc"}}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				spotResponses, err := e.deriveSpotWebsocketOrderResponses(tc.batch)
+				require.NoErrorf(t, err, "deriveSpotWebsocketOrderResponses must not error for a batch of %d with a rejected order", len(tc.batch))
+				require.Lenf(t, spotResponses, len(tc.batch), "deriveSpotWebsocketOrderResponses must return a response for each of %d orders", len(tc.batch))
+				for i, reply := range tc.batch {
+					require.NotNilf(t, spotResponses[i], "deriveSpotWebsocketOrderResponses must return a response for each of %d orders", len(tc.batch))
+					if reply == spotRejected {
+						assert.ErrorIsf(t, spotResponses[i].SubmissionError, order.ErrUnableToPlaceOrder, "deriveSpotWebsocketOrderResponses should return the rejection in its place among %d orders", len(tc.batch))
+						continue
+					}
+					assert.Equalf(t, reply.ID, spotResponses[i].OrderID, "deriveSpotWebsocketOrderResponses should return order %s in its place", reply.ID)
+				}
+			})
+		}
+	})
+
 	testCases := []struct {
 		name     string
 		orders   [][]byte
@@ -4886,8 +5332,39 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 	}
 }
 
-func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) {
+func TestSpotFillTotals(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name                                    string
+		side                                    order.Side
+		filledTotal, averagePrice, filledAmount types.Number
+		cost, purchased                         float64
+	}{
+		{name: "unfilled", side: order.Buy},
+		{name: "buy with a filled amount", side: order.Buy, filledTotal: 29500, averagePrice: 59000, filledAmount: 0.5, cost: 29500, purchased: 0.5},
+		{name: "buy without a filled amount", side: order.Buy, filledTotal: 30, averagePrice: 4, cost: 30, purchased: 7.5},
+		{name: "sell", side: order.Sell, filledTotal: 29500, averagePrice: 59000, filledAmount: 0.5, cost: 29500, purchased: 29500},
+		{name: "buy with a filled amount and no average price", side: order.Buy, filledTotal: 29500, filledAmount: 0.5, purchased: 0.5},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cost, purchased := spotFillTotals(tc.side, tc.filledTotal, tc.averagePrice, tc.filledAmount)
+			assert.Equal(t, tc.cost, cost, "spotFillTotals should return the cost")
+			assert.Equal(t, tc.purchased, purchased, "spotFillTotals should return the purchased amount")
+		})
+	}
+}
+
+func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the subtest shares e with the conversions below
+	t.Parallel()
+
+	// Serial, as it shares e with the conversions below and runs before them
+	t.Run("unknown finish and time in force", func(t *testing.T) {
+		_, err := e.deriveFuturesWebsocketOrderResponse(&WebsocketFuturesOrderResponse{FinishAs: "bogus", TimeInForce: "gtc"}, asset.USDTMarginedFutures)
+		assert.ErrorContains(t, err, "unrecognised order status", "deriveFuturesWebsocketOrderResponse should reject an unknown finish")
+		_, err = e.deriveFuturesWebsocketOrderResponse(&WebsocketFuturesOrderResponse{FinishAs: "filled", TimeInForce: "bogus"}, asset.USDTMarginedFutures)
+		assert.ErrorIs(t, err, order.ErrInvalidTimeInForce, "deriveFuturesWebsocketOrderResponse should reject an unknown time in force")
+	})
 
 	var resp *WebsocketFuturesOrderResponse
 	require.NoError(t, json.Unmarshal([]byte(`{"text":"t-1337","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"CWIF_USDT","stp_act":"-","stp_id":"123456","finish_as":"filled","fill_price":"0.0000002625","id":596729318437,"create_time":1735787107.449,"size":2,"finish_time":1735787107.45,"update_time":1735787107.45,"left":0,"user":12870774,"is_reduce_only":true}`), &resp), "unmarshal must not error")
@@ -4920,6 +5397,43 @@ func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) {
 
 func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 	t.Parallel()
+
+	// Serial, as it shares e with the cases below and runs before them
+	t.Run("bad and rejected replies in a batch", func(t *testing.T) {
+		// Each bad reply follows a good one, so the batch's error must come back with no responses
+		filled := &WebsocketFuturesOrderResponse{ID: 1, FinishAs: "filled", TimeInForce: "gtc"}
+		got, err := e.deriveFuturesWebsocketOrderResponses([]*WebsocketFuturesOrderResponse{filled, {ID: 2, FinishAs: "bogus", TimeInForce: "gtc"}}, asset.USDTMarginedFutures)
+		assert.ErrorContains(t, err, "unrecognised order status", "deriveFuturesWebsocketOrderResponses should reject a batch reply with an unknown finish")
+		assert.Empty(t, got, "deriveFuturesWebsocketOrderResponses should return no responses alongside an unknown finish")
+		got, err = e.deriveFuturesWebsocketOrderResponses([]*WebsocketFuturesOrderResponse{filled, {ID: 2, FinishAs: "filled", TimeInForce: "bogus"}}, asset.USDTMarginedFutures)
+		assert.ErrorIs(t, err, order.ErrInvalidTimeInForce, "deriveFuturesWebsocketOrderResponses should reject a batch reply with an unknown time in force")
+		assert.Empty(t, got, "deriveFuturesWebsocketOrderResponses should return no responses alongside an unknown time in force")
+
+		// A rejected order's reply stands in its place, whether alone in the batch, first or between accepted orders
+		futuresRejected := &WebsocketFuturesOrderResponse{Succeeded: new(bool), Label: "INSUFFICIENT_AVAILABLE"}
+		// Cases share e and the replies, and run in order
+		for _, tc := range []struct {
+			name  string
+			batch []*WebsocketFuturesOrderResponse
+		}{
+			{name: "rejection alone", batch: []*WebsocketFuturesOrderResponse{futuresRejected}},
+			{name: "rejection first", batch: []*WebsocketFuturesOrderResponse{futuresRejected, filled}},
+			{name: "rejection between accepted orders", batch: []*WebsocketFuturesOrderResponse{filled, futuresRejected, {ID: 3, FinishAs: "filled", TimeInForce: "gtc"}}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				got, err := e.deriveFuturesWebsocketOrderResponses(tc.batch, asset.USDTMarginedFutures)
+				require.NoErrorf(t, err, "deriveFuturesWebsocketOrderResponses must not error for a batch of %d with a rejected order", len(tc.batch))
+				require.Lenf(t, got, len(tc.batch), "deriveFuturesWebsocketOrderResponses must return a response for each of %d orders", len(tc.batch))
+				for i, reply := range tc.batch {
+					if reply == futuresRejected {
+						assert.ErrorIsf(t, got[i].SubmissionError, order.ErrUnableToPlaceOrder, "deriveFuturesWebsocketOrderResponses should return the rejection in its place among %d orders", len(tc.batch))
+						continue
+					}
+					assert.Equalf(t, strconv.FormatUint(reply.ID, 10), got[i].OrderID, "deriveFuturesWebsocketOrderResponses should return order %d in its place", reply.ID)
+				}
+			})
+		}
+	})
 
 	testCases := []struct {
 		name     string
@@ -5094,13 +5608,13 @@ var (
 	pairsGuard sync.RWMutex
 )
 
-func getPairWithOpenInterest(t *testing.T, a asset.Item, pairs currency.Pairs) (key.PairAsset, []futures.OpenInterest) {
+func getPairWithOpenInterest(ctx context.Context, t *testing.T, a asset.Item, pairs currency.Pairs) (key.PairAsset, []futures.OpenInterest) {
 	t.Helper()
 	var lastErr error
 	var receivedResponse bool
 	for _, pair := range pairs {
 		pairAsset := key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a}
-		response, err := e.GetOpenInterest(t.Context(), pairAsset)
+		response, err := e.GetOpenInterest(ctx, pairAsset)
 		if err != nil {
 			lastErr = err
 			continue
@@ -5236,8 +5750,9 @@ func TestGetTypeFromTimeInForce(t *testing.T) {
 }
 
 // TestOrderStatusFromFinishAs covers every finish_as value Gate documents for spot, futures, delivery and options orders
-func TestOrderStatusFromFinishAs(t *testing.T) {
+func TestOrderStatusFromFinishAs(t *testing.T) { //nolint:tparallel // top-level parallel is safe; cases run before the refusal below
 	t.Parallel()
+	// Cases run before the refusal below, which calls orderStatusFromFinishAs too
 	for finishAs, exp := range map[string]order.Status{
 		"":                        order.Open,
 		"open":                    order.Open,
@@ -5264,9 +5779,11 @@ func TestOrderStatusFromFinishAs(t *testing.T) {
 		"mmp_cancelled":           order.Cancelled,
 		"unknown":                 order.UnknownStatus,
 	} {
-		got, err := orderStatusFromFinishAs(finishAs)
-		require.NoErrorf(t, err, "orderStatusFromFinishAs must not error for %q", finishAs)
-		assert.Equalf(t, exp, got, "orderStatusFromFinishAs should return the status for %q", finishAs)
+		t.Run(cmp.Or(finishAs, "empty"), func(t *testing.T) {
+			got, err := orderStatusFromFinishAs(finishAs)
+			require.NoErrorf(t, err, "orderStatusFromFinishAs must not error for %q", finishAs)
+			assert.Equalf(t, exp, got, "orderStatusFromFinishAs should return the status for %q", finishAs)
+		})
 	}
 	_, err := orderStatusFromFinishAs("stopped")
 	assert.ErrorContains(t, err, "STOPPED", "orderStatusFromFinishAs should reject an undocumented value")
@@ -5689,19 +6206,26 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{futuresStop})
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "WebsocketSubmitOrders must refuse a futures order type it cannot build")
 
+	ctx := t.Context()
 	unformattable := new(Exchange)
 	require.NoError(t, testexch.Setup(unformattable), "Setup must not error")
 	unformattable.CurrencyPairs.RequestFormat = nil
+	// Cases share the unformattable exchange and run in order
 	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
-		_, err = unformattable.WebsocketSubmitOrders(t.Context(), []*order.Submit{{Exchange: unformattable.Name, AssetType: a, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1}})
-		require.ErrorIsf(t, err, currency.ErrPairFormatIsNil, "WebsocketSubmitOrders must refuse a %s batch whose pair it cannot format", a)
+		t.Run("unformattable "+a.String(), func(t *testing.T) {
+			_, err := unformattable.WebsocketSubmitOrders(ctx, []*order.Submit{{Exchange: unformattable.Name, AssetType: a, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1}})
+			require.ErrorIsf(t, err, currency.ErrPairFormatIsNil, "WebsocketSubmitOrders must refuse a %s batch whose pair it cannot format", a)
+		})
 	}
 
 	unconnected := new(Exchange)
 	require.NoError(t, testexch.Setup(unconnected), "Setup must not error")
+	// Cases share the unconnected exchange and run before its use below
 	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
-		_, err = unconnected.WebsocketSubmitOrders(t.Context(), []*order.Submit{{Exchange: unconnected.Name, AssetType: a, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1}})
-		require.ErrorIsf(t, err, websocket.ErrNotConnected, "WebsocketSubmitOrders must return the error of a %s batch it cannot send", a)
+		t.Run("unconnected "+a.String(), func(t *testing.T) {
+			_, err := unconnected.WebsocketSubmitOrders(ctx, []*order.Submit{{Exchange: unconnected.Name, AssetType: a, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1}})
+			require.ErrorIsf(t, err, websocket.ErrNotConnected, "WebsocketSubmitOrders must return the error of a %s batch it cannot send", a)
+		})
 	}
 
 	// A pair stored for an asset Gate does not trade makes it supported without giving it a batch path
@@ -5934,6 +6458,23 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 
 func TestWebsocketSubmitOrder(t *testing.T) {
 	t.Parallel()
+
+	t.Run("orders it cannot send or Gate does not take", func(t *testing.T) {
+		t.Parallel()
+		unconnected := new(Exchange)
+		require.NoError(t, testexch.Setup(unconnected), "Setup must not error")
+		ctx := t.Context()
+		// Cases share the unconnected exchange and run in order
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := unconnected.WebsocketSubmitOrder(ctx, &order.Submit{Exchange: unconnected.Name, AssetType: a, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1})
+				assert.ErrorIsf(t, err, websocket.ErrNotConnected, "WebsocketSubmitOrder should return the error of a %s order it cannot send", a)
+				_, err = unconnected.WebsocketSubmitOrder(ctx, &order.Submit{Exchange: unconnected.Name, AssetType: a, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1, TimeInForce: order.GoodTillTime})
+				assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "WebsocketSubmitOrder should refuse a %s order whose time in force Gate does not take", a)
+			})
+		}
+	})
+
 	_, err := e.WebsocketSubmitOrder(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil, "WebsocketSubmitOrder must reject a nil submission")
 	_, err = e.WebsocketSubmitOrder(t.Context(), &order.Submit{Exchange: e.Name, AssetType: asset.DeliveryFutures, Pair: currency.NewBTCUSDT(), Type: order.Limit, Side: order.Buy, Price: 1, Amount: 1})
@@ -6029,11 +6570,13 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	}
 }
 
-func TestGetAvailableTransferChains(t *testing.T) {
+func TestGetAvailableTransferChains(t *testing.T) { //nolint:tparallel // top-level parallel is safe; cases share e and run in order
 	t.Parallel()
 	_, err := e.GetAvailableTransferChains(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetAvailableTransferChains must reject an empty currency")
 
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
 		ccy currency.Code
 		exp []string
@@ -6042,12 +6585,14 @@ func TestGetAvailableTransferChains(t *testing.T) {
 		{ccy: currency.USDT, exp: []string{"ETH", "APT", "ARBEVM"}},
 		{ccy: currency.ETH, exp: []string{"ETH", "ABS", "ARBEVM", "ARBNOVA", "BASEEVM"}},
 	} {
-		result, err := e.GetAvailableTransferChains(t.Context(), tc.ccy)
-		require.NoErrorf(t, err, "GetAvailableTransferChains must not error for %s", tc.ccy)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "GetAvailableTransferChains should return every enabled %s chain", tc.ccy)
-			continue
-		}
-		assert.NotEmptyf(t, result, "GetAvailableTransferChains should return %s chains", tc.ccy)
+		t.Run(tc.ccy.String(), func(t *testing.T) {
+			result, err := e.GetAvailableTransferChains(ctx, tc.ccy)
+			require.NoErrorf(t, err, "GetAvailableTransferChains must not error for %s", tc.ccy)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "GetAvailableTransferChains should return every enabled %s chain", tc.ccy)
+				return
+			}
+			assert.NotEmptyf(t, result, "GetAvailableTransferChains should return %s chains", tc.ccy)
+		})
 	}
 }

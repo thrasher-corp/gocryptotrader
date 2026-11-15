@@ -328,8 +328,11 @@ func TestAlphaCurrencyQuoteInfoRequestMarshalJSON(t *testing.T) {
 		{order.Buy, "buy"},
 		{order.Sell, "sell"},
 	} {
-		got, err := (&AlphaCurrencyQuoteInfoRequest{Currency: alphaTestCurrency, Side: tc.side, Amount: 1, GasMode: "speed"}).MarshalJSON()
-		require.NoErrorf(t, err, "MarshalJSON must not error for %s", tc.side)
-		assert.JSONEqf(t, `{"currency":"memeboxELON","side":"`+tc.exp+`","amount":"1","gas_mode":"speed"}`, string(got), "side should be sent lower-case and the currency unchanged for %s", tc.side)
+		t.Run(tc.side.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := (&AlphaCurrencyQuoteInfoRequest{Currency: alphaTestCurrency, Side: tc.side, Amount: 1, GasMode: "speed"}).MarshalJSON()
+			require.NoErrorf(t, err, "MarshalJSON must not error for %s", tc.side)
+			assert.JSONEqf(t, `{"currency":"memeboxELON","side":"`+tc.exp+`","amount":"1","gas_mode":"speed"}`, string(got), "side should be sent lower-case and the currency unchanged for %s", tc.side)
+		})
 	}
 }

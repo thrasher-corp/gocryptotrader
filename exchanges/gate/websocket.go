@@ -164,7 +164,7 @@ func parseWebsocketAPIResponse(raw []byte) (*WebsocketAPIResponse, error) {
 	return nil, fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
 }
 
-func (e *Exchange) generateWsSignature(secret, event, channel string, t uint64) (string, error) {
+func (e *Exchange) generateWebsocketSignature(secret, event, channel string, t uint64) (string, error) {
 	mac := hmac.New(sha512.New, []byte(secret))
 	if _, err := mac.Write([]byte("channel=" + channel + "&event=" + event + "&time=" + strconv.FormatUint(t, 10))); err != nil {
 		return "", err
@@ -721,7 +721,7 @@ func (e *Exchange) manageSubReq(ctx context.Context, event string, s *subscripti
 		if err != nil {
 			return nil, err
 		}
-		sig, err := e.generateWsSignature(creds.Secret, event, req.Channel, req.Time)
+		sig, err := e.generateWebsocketSignature(creds.Secret, event, req.Channel, req.Time)
 		if err != nil {
 			return nil, err
 		}

@@ -166,6 +166,15 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 
 func TestWebsocketFuturesCancelOrder(t *testing.T) {
 	t.Parallel()
+
+	t.Run("unconnected websocket", func(t *testing.T) {
+		t.Parallel()
+		unconnected := new(Exchange)
+		require.NoError(t, testexch.Setup(unconnected), "Setup must not error")
+		_, err := unconnected.WebsocketFuturesCancelOrder(t.Context(), "1", currency.NewBTCUSDT(), asset.USDTMarginedFutures)
+		assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketFuturesCancelOrder should return the error of a cancellation it cannot send")
+	})
+
 	_, err := e.WebsocketFuturesCancelOrder(t.Context(), "", currency.EMPTYPAIR, asset.Empty)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 

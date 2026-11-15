@@ -31,8 +31,9 @@ func TestTradFiResponseAsError(t *testing.T) {
 	assert.ErrorContains(t, responseError(&resp), "INVALID_ARGUMENT", "responseError should surface the label")
 }
 
-func TestKlineIntervalToTypeString(t *testing.T) {
+func TestKlineIntervalToTypeString(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the cases run in order so the unsupported interval follows them
 	t.Parallel()
+	// Cases run in order, so the unsupported interval follows the conversions
 	for _, tc := range []struct {
 		interval kline.Interval
 		exp      string
@@ -45,9 +46,11 @@ func TestKlineIntervalToTypeString(t *testing.T) {
 		{kline.OneWeek, "7d"},
 		{kline.OneMonth, "30d"},
 	} {
-		klineType, err := klineIntervalToTypeString(tc.interval)
-		require.NoErrorf(t, err, "klineIntervalToTypeString must not error for %s", tc.interval)
-		assert.Equalf(t, tc.exp, klineType, "klineIntervalToTypeString should convert %s", tc.interval)
+		t.Run(tc.interval.Word(), func(t *testing.T) {
+			klineType, err := klineIntervalToTypeString(tc.interval)
+			require.NoErrorf(t, err, "klineIntervalToTypeString must not error for %s", tc.interval)
+			assert.Equalf(t, tc.exp, klineType, "klineIntervalToTypeString should convert %s", tc.interval)
+		})
 	}
 	_, err := klineIntervalToTypeString(kline.FiveMin)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "klineIntervalToTypeString should reject an unsupported interval")
@@ -64,8 +67,11 @@ func TestTradFiSideCode(t *testing.T) {
 	assert.Equal(t, uint8(2), side, "tradFiSideCode should convert a buy to 2")
 
 	for _, s := range []order.Side{order.UnknownSide, order.Long, order.Short, order.Bid} {
-		_, err = tradFiSideCode(s)
-		assert.ErrorIsf(t, err, order.ErrSideIsInvalid, "tradFiSideCode should reject %s", s)
+		t.Run(s.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := tradFiSideCode(s)
+			assert.ErrorIsf(t, err, order.ErrSideIsInvalid, "tradFiSideCode should reject %s", s)
+		})
 	}
 }
 

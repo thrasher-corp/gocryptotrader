@@ -226,15 +226,36 @@ func futuresFixturePriceTriggeredOrder() *PriceTriggeredOrderResponse {
 	}
 }
 
-func TestGetAllFutureContracts(t *testing.T) {
+// emptyFuturesReplyExchange returns an exchange whose futures requests receive empty replies: null for a position
+// leverage update and a trail order stop, a null data envelope for a trail order detail and an empty object otherwise
+func emptyFuturesReplyExchange(t *testing.T) *Exchange {
+	t.Helper()
+	return futuresLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		reply := `{}`
+		switch r.URL.Path {
+		case "/api/v4/futures/btc/positions/BTC_USD/leverage", "/api/v4/futures/usdt/autoorder/v1/trail/stop":
+			reply = `null`
+		case "/api/v4/futures/usdt/autoorder/v1/trail/detail":
+			reply = `{"code":0,"message":"ok","data":null,"timestamp":1769584936814}`
+		}
+		_, err := w.Write([]byte(reply))
+		assert.NoError(t, err, "writing the empty reply should not error")
+	})
+}
+
+func TestGetAllFutureContracts(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	_, err := e.GetAllFutureContracts(t.Context(), currency.EMPTYCODE, 0, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetAllFutureContracts must reject an empty settlement currency")
 
+	ctx := t.Context()
+	// Cases share e and run in order, before the paged request below
 	for _, c := range []currency.Code{currency.BTC, currency.USDT} {
-		result, err := e.GetAllFutureContracts(t.Context(), c, 0, 0)
-		require.NoErrorf(t, err, "GetAllFutureContracts must not error for %s", c)
-		assert.NotEmptyf(t, result, "GetAllFutureContracts should return contracts for %s", c)
+		t.Run(c.String(), func(t *testing.T) {
+			result, err := e.GetAllFutureContracts(ctx, c, 0, 0)
+			require.NoErrorf(t, err, "GetAllFutureContracts must not error for %s", c)
+			assert.NotEmptyf(t, result, "GetAllFutureContracts should return contracts for %s", c)
+		})
 	}
 
 	result, err := e.GetAllFutureContracts(t.Context(), currency.USDT, 1, 1)
@@ -633,6 +654,76 @@ func TestPremiumIndexKline(t *testing.T) {
 		return
 	}
 	assert.NotEmpty(t, result, "PremiumIndexKline should return data points")
+}
+
+func TestGetFuturesTickers(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetFuturesTickers(t.Context(), currency.EMPTYCODE, getPair(t, asset.CoinMarginedFutures))
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetFuturesTickers must reject an empty settlement currency")
+
+	result, err := e.GetFuturesTickers(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures))
+	require.NoError(t, err, "GetFuturesTickers must not error for a BTC contract")
+	assert.Len(t, result, 1, "GetFuturesTickers should return the BTC contract's ticker")
+
+	result, err = e.GetFuturesTickers(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures))
+	require.NoError(t, err, "GetFuturesTickers must not error for a USDT contract")
+	require.Len(t, result, 1, "GetFuturesTickers must return the USDT contract's ticker")
+	if mockTests {
+		exp := &FuturesTickerResponse{
+			Contract:              currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+			ChangePercentage:      0.37,
+			Last:                  67477.9,
+			Low24Hour:             66580.1,
+			High24Hour:            67815.7,
+			TotalSize:             577702480,
+			Volume24Hour:          327232988,
+			Volume24HourBase:      32723,
+			Volume24HourQuote:     2196541426,
+			Volume24HourSettle:    2196541426,
+			QuantoMultiplier:      0.0001,
+			MarkPrice:             67478,
+			FundingRate:           0.000083,
+			FundingRateIndicative: 0.000083,
+			IndexPrice:            67503.92,
+			LowestAsk:             67478,
+			LowestAskSize:         57437,
+			HighestBid:            67477.9,
+			HighestBidSize:        95272,
+			ChangePrice:           248.1,
+		}
+		assert.Equal(t, exp, result[0], "GetFuturesTickers should decode every field")
+	}
+
+	result, err = e.GetFuturesTickers(t.Context(), currency.BTC, currency.EMPTYPAIR)
+	require.NoError(t, err, "GetFuturesTickers must not error for every BTC settled contract")
+	if mockTests {
+		exp := []*FuturesTickerResponse{{
+			Contract:              currency.NewPairWithDelimiter("BTC", "USD", "_"),
+			ChangePercentage:      0.18,
+			Last:                  67295.7,
+			Low24Hour:             66490.4,
+			High24Hour:            67691.7,
+			TotalSize:             17402512,
+			Volume24Hour:          964612,
+			Volume24HourBTC:       14,
+			Volume24HourUSD:       964612,
+			Volume24HourBase:      14,
+			Volume24HourQuote:     964612,
+			Volume24HourSettle:    14,
+			MarkPrice:             67501.33,
+			FundingRate:           0.0001,
+			FundingRateIndicative: 0.0001,
+			IndexPrice:            67499.05,
+			LowestAsk:             67438,
+			LowestAskSize:         5247,
+			HighestBid:            67296.7,
+			HighestBidSize:        810,
+			ChangePrice:           121.6,
+		}}
+		assert.Equal(t, exp, result, "GetFuturesTickers should decode every BTC settled contract's ticker")
+		return
+	}
+	assert.NotEmpty(t, result, "GetFuturesTickers should return every BTC settled contract's ticker")
 }
 
 func TestGetFutureFundingRates(t *testing.T) {
@@ -1057,6 +1148,12 @@ func TestUpdateFuturesPositionMargin(t *testing.T) {
 
 func TestUpdateFuturesPositionLeverage(t *testing.T) {
 	t.Parallel()
+	t.Run("null reply returns an error", func(t *testing.T) {
+		t.Parallel()
+		_, err := emptyFuturesReplyExchange(t).UpdateFuturesPositionLeverage(t.Context(), currency.BTC, currency.NewPairWithDelimiter("BTC", "USD", currency.UnderscoreDelimiter), 1, 0, 0)
+		assert.ErrorIs(t, err, common.ErrNoResponse, "UpdateFuturesPositionLeverage should report an empty reply")
+	})
+
 	_, err := e.UpdateFuturesPositionLeverage(t.Context(), currency.EMPTYCODE, getPair(t, asset.CoinMarginedFutures), 1, 0, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "UpdateFuturesPositionLeverage must reject an empty settlement currency")
 
@@ -1082,17 +1179,32 @@ func TestUpdateFuturesPositionLeverage(t *testing.T) {
 func TestPositionReplyUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	exp := &PositionResponse{Contract: currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), Size: 5, Mode: "single"}
-	for _, payload := range []string{
-		`{"contract":"BTC_USDT","size":"5","mode":"single"}`,
-		`[{"contract":"BTC_USDT","size":"5","mode":"single"}]`,
+	// Cases run in order, before the refusals below
+	for _, tc := range []struct {
+		name    string
+		payload string
+	}{
+		{name: "object", payload: `{"contract":"BTC_USDT","size":"5","mode":"single"}`},
+		{name: "single element array", payload: `[{"contract":"BTC_USDT","size":"5","mode":"single"}]`},
 	} {
-		var reply positionReply
-		require.NoErrorf(t, json.Unmarshal([]byte(payload), &reply), "Unmarshal must not error for %s", payload)
-		assert.Equalf(t, exp, reply.Position, "positionReply should decode the position from %s", payload)
+		t.Run(tc.name, func(t *testing.T) {
+			var reply positionReply
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.payload), &reply), "Unmarshal must not error for %s", tc.payload)
+			assert.Equalf(t, exp, reply.Position, "positionReply should decode the position from %s", tc.payload)
+		})
 	}
-	for _, payload := range []string{`[]`, `[{"contract":"BTC_USDT"},{"contract":"ETH_USDT"}]`} {
-		var reply positionReply
-		assert.ErrorIsf(t, json.Unmarshal([]byte(payload), &reply), common.ErrInvalidResponse, "positionReply should reject %s, which does not hold exactly one position", payload)
+	for _, tc := range []struct {
+		name    string
+		payload string
+	}{
+		{name: "empty array", payload: `[]`},
+		{name: "two positions", payload: `[{"contract":"BTC_USDT"},{"contract":"ETH_USDT"}]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var reply positionReply
+			assert.ErrorIsf(t, json.Unmarshal([]byte(tc.payload), &reply), common.ErrInvalidResponse, "positionReply should reject %s, which does not hold exactly one position", tc.payload)
+		})
 	}
 }
 
@@ -1184,7 +1296,10 @@ func TestFuturesPositionMarginModeRequestValidate(t *testing.T) {
 	assert.ErrorIs(t, (&FuturesPositionMarginModeRequest{Mode: "cross", Contract: currency.NewBTCUSDT()}).validate(), errInvalidPositionMarginMode, "validate should reject a margin mode in the wrong case")
 	assert.ErrorIs(t, (&FuturesPositionMarginModeRequest{Mode: "CROSS"}).validate(), currency.ErrCurrencyPairEmpty, "validate should reject an empty contract")
 	for _, mode := range []string{"ISOLATED", "CROSS"} {
-		assert.NoErrorf(t, (&FuturesPositionMarginModeRequest{Mode: mode, Contract: currency.NewBTCUSDT()}).validate(), "validate should accept the %s margin mode", mode)
+		t.Run(mode, func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, (&FuturesPositionMarginModeRequest{Mode: mode, Contract: currency.NewBTCUSDT()}).validate(), "validate should accept the %s margin mode", mode)
+		})
 	}
 }
 
@@ -1386,6 +1501,86 @@ func TestPlaceFuturesOrder(t *testing.T) {
 		return
 	}
 	assert.NotNil(t, result, "PlaceFuturesOrder should return the order")
+}
+
+func TestFuturesOrderCreateRequestMarshalJSON(t *testing.T) {
+	t.Parallel()
+	contract := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
+	for _, tc := range []struct {
+		name string
+		arg  FuturesOrderCreateRequest
+		exp  string
+	}{
+		{
+			name: "market order sends a zero price and iceberg",
+			arg:  FuturesOrderCreateRequest{Contract: contract, Size: 10, TimeInForce: iocTIF, Text: "t-x"},
+			exp:  `{"contract":"BTC_USDT","size":"10","iceberg":"0","price":"0","tif":"ioc","text":"t-x"}`,
+		},
+		{
+			name: "close order sends a zero size",
+			arg:  FuturesOrderCreateRequest{Contract: contract, TimeInForce: iocTIF, ClosePosition: true, ReduceOnly: true},
+			exp:  `{"contract":"BTC_USDT","size":"0","iceberg":"0","price":"0","tif":"ioc","close":true,"reduce_only":true}`,
+		},
+		{
+			name: "limit order sends every optional field",
+			arg: FuturesOrderCreateRequest{
+				Contract: contract, Size: -1.5, Iceberg: 0.5, Price: 31503.3, TimeInForce: gtcTIF, Text: "t-y", AutoSize: "close_long",
+				Settle: currency.USDT, SelfTradePreventionAction: "cn", PositionID: 7, MarketOrderSlipRatio: 0.03, PositionMarginMode: "isolated",
+				ActionMode: "ACK", TakeProfitTriggerPrice: 32000, StopLossTriggerPrice: 31000,
+			},
+			exp: `{"contract":"BTC_USDT","size":"-1.5","iceberg":"0.5","price":"31503.3","tif":"gtc","text":"t-y","auto_size":"close_long","stp_act":"cn","pid":7,"market_order_slip_ratio":"0.03","pos_margin_mode":"isolated","action_mode":"ACK","tpsl_tp_trigger_price":"32000","tpsl_sl_trigger_price":"31000"}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			payload, err := json.Marshal(tc.arg)
+			require.NoError(t, err, "Marshal must not error")
+			assert.Equal(t, tc.exp, string(payload), "FuturesOrderCreateRequest should marshal to the documented body")
+			pointerPayload, err := json.Marshal(&tc.arg)
+			require.NoError(t, err, "Marshal must not error for a pointer")
+			assert.Equal(t, tc.exp, string(pointerPayload), "a FuturesOrderCreateRequest pointer should marshal like a value")
+		})
+	}
+}
+
+func TestFuturesOrderCreateRequestValidate(t *testing.T) {
+	t.Parallel()
+	t.Run("nil request", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, (*FuturesOrderCreateRequest)(nil).validate(true), common.ErrNilPointer, "validate must reject a nil request")
+	})
+
+	// Gate documents closing a position in single position mode as close with a size of 0
+	contract := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
+	for _, tc := range []struct {
+		name      string
+		close     bool
+		autoSize  string
+		size      types.Number
+		expectErr error
+	}{
+		{name: "close with a zero size", close: true},
+		{name: "close one side of a dual mode position", autoSize: "close_long"},
+		{name: "close with a size", close: true, size: 1, expectErr: errInvalidOrderSize},
+		{name: "zero size without closing", expectErr: errInvalidOrderSize},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			for _, mode := range []struct {
+				name   string
+				isRest bool
+			}{
+				{name: "REST", isRest: true},
+				{name: "websocket", isRest: false},
+			} {
+				t.Run(mode.name, func(t *testing.T) {
+					t.Parallel()
+					perpetual := &FuturesOrderCreateRequest{Contract: contract, Size: tc.size, TimeInForce: iocTIF, ClosePosition: tc.close, AutoSize: tc.autoSize, ReduceOnly: true, Settle: currency.USDT}
+					assert.ErrorIsf(t, perpetual.validate(mode.isRest), tc.expectErr, "futures validate should return the expected error when isRest is %t", mode.isRest)
+				})
+			}
+		})
+	}
 }
 
 func TestGetFuturesOrders(t *testing.T) {
@@ -1798,7 +1993,7 @@ func TestGetFuturesAutoDeleverages(t *testing.T) {
 	}
 }
 
-func TestCountdownCancelFuturesOrders(t *testing.T) {
+func TestCountdownCancelFuturesOrders(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	_, err := e.CountdownCancelFuturesOrders(t.Context(), currency.EMPTYCODE, &CountdownRequest{Countdown: types.DurationSeconds(8 * time.Second)})
 	require.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency, "CountdownCancelFuturesOrders must reject an empty settlement currency")
@@ -1806,9 +2001,13 @@ func TestCountdownCancelFuturesOrders(t *testing.T) {
 	_, err = e.CountdownCancelFuturesOrders(t.Context(), currency.BTC, nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CountdownCancelFuturesOrders must reject a nil request")
 
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, timeout := range []time.Duration{-time.Second, time.Second, 4 * time.Second, 4999 * time.Millisecond, 5500 * time.Millisecond} {
-		_, err = e.CountdownCancelFuturesOrders(t.Context(), currency.BTC, &CountdownRequest{Countdown: types.DurationSeconds(timeout)})
-		require.ErrorIsf(t, err, errInvalidTimeout, "CountdownCancelFuturesOrders must reject a timeout of %s", timeout)
+		t.Run(timeout.String(), func(t *testing.T) {
+			_, err := e.CountdownCancelFuturesOrders(ctx, currency.BTC, &CountdownRequest{Countdown: types.DurationSeconds(timeout)})
+			require.ErrorIsf(t, err, errInvalidTimeout, "CountdownCancelFuturesOrders must reject a timeout of %s", timeout)
+		})
 	}
 
 	if !mockTests {
@@ -1978,9 +2177,13 @@ func TestPlaceFuturesBestBidOfferOrder(t *testing.T) {
 	_, err = e.PlaceFuturesBestBidOfferOrder(t.Context(), currency.USDT, &FuturesBestBidOfferOrderRequest{Contract: contract, Size: 1, Direction: "ask", Level: 8})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "PlaceFuturesBestBidOfferOrder must reject a direction other than buy or sell")
 
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, level := range []uint64{0, 21} {
-		_, err = e.PlaceFuturesBestBidOfferOrder(t.Context(), currency.USDT, &FuturesBestBidOfferOrderRequest{Contract: contract, Size: 1, Direction: "sell", Level: level})
-		require.ErrorIsf(t, err, errInvalidOrderBookLevel, "PlaceFuturesBestBidOfferOrder must reject order book level %d", level)
+		t.Run("level "+strconv.FormatUint(level, 10)+" is rejected", func(t *testing.T) {
+			_, err := e.PlaceFuturesBestBidOfferOrder(ctx, currency.USDT, &FuturesBestBidOfferOrderRequest{Contract: contract, Size: 1, Direction: "sell", Level: level})
+			require.ErrorIsf(t, err, errInvalidOrderBookLevel, "PlaceFuturesBestBidOfferOrder must reject order book level %d", level)
+		})
 	}
 	for _, level := range []uint64{1, 20} {
 		t.Run("level "+strconv.FormatUint(level, 10)+" is allowed", func(t *testing.T) {
@@ -2056,6 +2259,12 @@ func TestCreateTrailOrder(t *testing.T) {
 
 func TestStopTrailOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("null reply returns an error", func(t *testing.T) {
+		t.Parallel()
+		_, err := emptyFuturesReplyExchange(t).StopTrailOrder(t.Context(), currency.USDT, &StopTrailOrderRequest{ID: 63585})
+		assert.ErrorIs(t, err, common.ErrNoResponse, "StopTrailOrder should report an empty reply")
+	})
+
 	_, err := e.StopTrailOrder(t.Context(), currency.EMPTYCODE, &StopTrailOrderRequest{ID: 63585})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "StopTrailOrder must reject an empty settlement currency")
 
@@ -2116,9 +2325,21 @@ func TestGetTrailOrders(t *testing.T) {
 	_, err = e.GetTrailOrders(t.Context(), currency.USDT, nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetTrailOrders must reject a nil request")
 
-	for _, arg := range []*GetTrailOrdersRequest{{SortBy: 3}, {RelatedPosition: 3}, {ReduceOnly: 3}, {Side: 3}} {
-		_, err = e.GetTrailOrders(t.Context(), currency.USDT, arg)
-		require.ErrorIsf(t, err, errInvalidTrailOrderFilter, "GetTrailOrders must reject the filter %+v", arg)
+	ctx := t.Context()
+	// Cases share e and run in order
+	for _, tc := range []struct {
+		name string
+		arg  *GetTrailOrdersRequest
+	}{
+		{name: "unknown sort field is rejected", arg: &GetTrailOrdersRequest{SortBy: 3}},
+		{name: "unknown related position is rejected", arg: &GetTrailOrdersRequest{RelatedPosition: 3}},
+		{name: "unknown reduce only filter is rejected", arg: &GetTrailOrdersRequest{ReduceOnly: 3}},
+		{name: "unknown side is rejected", arg: &GetTrailOrdersRequest{Side: 3}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetTrailOrders(ctx, currency.USDT, tc.arg)
+			require.ErrorIsf(t, err, errInvalidTrailOrderFilter, "GetTrailOrders must reject the filter %+v", tc.arg)
+		})
 	}
 	for _, tc := range []struct {
 		name string
@@ -2153,6 +2374,12 @@ func TestGetTrailOrders(t *testing.T) {
 
 func TestGetTrailOrderDetail(t *testing.T) {
 	t.Parallel()
+	t.Run("null data returns an error", func(t *testing.T) {
+		t.Parallel()
+		_, err := emptyFuturesReplyExchange(t).GetTrailOrderDetail(t.Context(), currency.USDT, 63585)
+		assert.ErrorIs(t, err, common.ErrNoResponse, "GetTrailOrderDetail should report an empty reply")
+	})
+
 	_, err := e.GetTrailOrderDetail(t.Context(), currency.EMPTYCODE, 63585)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetTrailOrderDetail must reject an empty settlement currency")
 
@@ -2250,44 +2477,19 @@ func TestGetTrailOrderChangeLog(t *testing.T) {
 func TestTrailOrderReplyUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	exp := &TrailOrderResponse{ID: "63585", Contract: currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), Amount: 10}
-	for _, payload := range []string{
-		`{"order":{"id":"63585","contract":"BTC_USDT","amount":"10"}}`,
-		`{"id":63585,"contract":"BTC_USDT","amount":"10"}`,
+	for _, tc := range []struct {
+		name    string
+		payload string
+	}{
+		{name: "order nested under order", payload: `{"order":{"id":"63585","contract":"BTC_USDT","amount":"10"}}`},
+		{name: "order at the top level", payload: `{"id":63585,"contract":"BTC_USDT","amount":"10"}`},
 	} {
-		var reply trailOrderReply
-		require.NoErrorf(t, json.Unmarshal([]byte(payload), &reply), "Unmarshal must not error for %s", payload)
-		assert.Equalf(t, exp, reply.Order, "trailOrderReply should decode the order from %s", payload)
-	}
-}
-
-func TestFuturesEmptyOrderReplies(t *testing.T) {
-	t.Parallel()
-	ex := futuresLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		reply := `{}`
-		switch r.URL.Path {
-		case "/api/v4/futures/btc/positions/BTC_USD/leverage", "/api/v4/futures/usdt/autoorder/v1/trail/stop":
-			reply = `null`
-		case "/api/v4/futures/usdt/autoorder/v1/trail/detail":
-			reply = `{"code":0,"message":"ok","data":null,"timestamp":1769584936814}`
-		}
-		_, err := w.Write([]byte(reply))
-		assert.NoError(t, err, "writing the empty reply should not error")
-	})
-	for name, call := range map[string]func() (any, error){
-		"UpdateFuturesPositionLeverage": func() (any, error) {
-			return ex.UpdateFuturesPositionLeverage(t.Context(), currency.BTC, currency.NewPairWithDelimiter("BTC", "USD", currency.UnderscoreDelimiter), 1, 0, 0)
-		},
-		"StopTrailOrder": func() (any, error) {
-			return ex.StopTrailOrder(t.Context(), currency.USDT, &StopTrailOrderRequest{ID: 63585})
-		},
-		"GetTrailOrderDetail": func() (any, error) { return ex.GetTrailOrderDetail(t.Context(), currency.USDT, 63585) },
-		"StopChaseOrder": func() (any, error) {
-			return ex.StopChaseOrder(t.Context(), currency.USDT, &StopChaseOrderRequest{ID: "1001"})
-		},
-		"GetChaseOrderDetail": func() (any, error) { return ex.GetChaseOrderDetail(t.Context(), currency.USDT, "1001") },
-	} {
-		_, err := call()
-		assert.ErrorIsf(t, err, common.ErrNoResponse, "%s should report an empty reply", name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var reply trailOrderReply
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.payload), &reply), "Unmarshal must not error for %s", tc.payload)
+			assert.Equalf(t, exp, reply.Order, "trailOrderReply should decode the order from %s", tc.payload)
+		})
 	}
 }
 
@@ -2339,6 +2541,12 @@ func TestCreateChaseOrderRequestMarshalJSON(t *testing.T) {
 
 func TestStopChaseOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("empty reply returns an error", func(t *testing.T) {
+		t.Parallel()
+		_, err := emptyFuturesReplyExchange(t).StopChaseOrder(t.Context(), currency.USDT, &StopChaseOrderRequest{ID: "1001"})
+		assert.ErrorIs(t, err, common.ErrNoResponse, "StopChaseOrder should report an empty reply")
+	})
+
 	_, err := e.StopChaseOrder(t.Context(), currency.EMPTYCODE, &StopChaseOrderRequest{ID: "1001"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "StopChaseOrder must reject an empty settlement currency")
 
@@ -2384,16 +2592,20 @@ func TestStopAllChaseOrders(t *testing.T) {
 func TestStopAllChaseOrdersRequestMarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		arg StopAllChaseOrdersRequest
-		exp string
+		name string
+		arg  StopAllChaseOrdersRequest
+		exp  string
 	}{
-		{arg: StopAllChaseOrdersRequest{}, exp: `{}`},
-		{arg: StopAllChaseOrdersRequest{PositionMarginMode: "cross"}, exp: `{"pos_margin_mode":"cross"}`},
-		{arg: StopAllChaseOrdersRequest{Contract: currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), PositionMarginMode: "isolated"}, exp: `{"contract":"BTC_USDT","pos_margin_mode":"isolated"}`},
+		{name: "empty request", arg: StopAllChaseOrdersRequest{}, exp: `{}`},
+		{name: "margin mode only", arg: StopAllChaseOrdersRequest{PositionMarginMode: "cross"}, exp: `{"pos_margin_mode":"cross"}`},
+		{name: "contract and margin mode", arg: StopAllChaseOrdersRequest{Contract: currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), PositionMarginMode: "isolated"}, exp: `{"contract":"BTC_USDT","pos_margin_mode":"isolated"}`},
 	} {
-		payload, err := json.Marshal(&tc.arg)
-		require.NoError(t, err, "Marshal must not error")
-		assert.Equal(t, tc.exp, string(payload), "StopAllChaseOrdersRequest should omit an empty contract and margin mode")
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			payload, err := json.Marshal(&tc.arg)
+			require.NoError(t, err, "Marshal must not error")
+			assert.Equal(t, tc.exp, string(payload), "StopAllChaseOrdersRequest should omit an empty contract and margin mode")
+		})
 	}
 }
 
@@ -2419,9 +2631,19 @@ func TestGetChaseOrders(t *testing.T) {
 	_, err = e.GetChaseOrders(t.Context(), currency.USDT, &GetChaseOrdersRequest{SortBy: 1, PageSize: 101})
 	require.ErrorIs(t, err, errInvalidLimit, "GetChaseOrders must reject a page size above 100")
 
-	for _, arg := range []*GetChaseOrdersRequest{{SortBy: 1, ReduceOnly: 3}, {SortBy: 1, Side: 3}} {
-		_, err = e.GetChaseOrders(t.Context(), currency.USDT, arg)
-		require.ErrorIsf(t, err, errInvalidChaseOrderFilter, "GetChaseOrders must reject the filter %+v", arg)
+	ctx := t.Context()
+	// Cases share e and run in order
+	for _, tc := range []struct {
+		name string
+		arg  *GetChaseOrdersRequest
+	}{
+		{name: "unknown reduce only filter is rejected", arg: &GetChaseOrdersRequest{SortBy: 1, ReduceOnly: 3}},
+		{name: "unknown side is rejected", arg: &GetChaseOrdersRequest{SortBy: 1, Side: 3}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetChaseOrders(ctx, currency.USDT, tc.arg)
+			require.ErrorIsf(t, err, errInvalidChaseOrderFilter, "GetChaseOrders must reject the filter %+v", tc.arg)
+		})
 	}
 	for _, tc := range []struct {
 		name string
@@ -2450,6 +2672,12 @@ func TestGetChaseOrders(t *testing.T) {
 
 func TestGetChaseOrderDetail(t *testing.T) {
 	t.Parallel()
+	t.Run("empty reply returns an error", func(t *testing.T) {
+		t.Parallel()
+		_, err := emptyFuturesReplyExchange(t).GetChaseOrderDetail(t.Context(), currency.USDT, "1001")
+		assert.ErrorIs(t, err, common.ErrNoResponse, "GetChaseOrderDetail should report an empty reply")
+	})
+
 	_, err := e.GetChaseOrderDetail(t.Context(), currency.EMPTYCODE, "1001")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetChaseOrderDetail must reject an empty settlement currency")
 
@@ -2469,7 +2697,7 @@ func TestGetChaseOrderDetail(t *testing.T) {
 	assert.NotNil(t, result, "GetChaseOrderDetail should return the order")
 }
 
-func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
+func TestCreatePriceTriggeredFuturesOrder(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	arg := &FuturesPriceTriggeredOrderRequest{
 		Initial: FuturesInitial{Price: 1234, Size: 2, Contract: getPair(t, asset.USDTMarginedFutures)},
@@ -2481,6 +2709,8 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 	_, err = e.CreatePriceTriggeredFuturesOrder(t.Context(), currency.USDT, nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreatePriceTriggeredFuturesOrder must reject a nil order")
 
+	ctx := t.Context()
+	// Cases share e and arg, and run in order
 	for _, tc := range []struct {
 		name        string
 		mutate      func(*FuturesPriceTriggeredOrderRequest)
@@ -2497,10 +2727,12 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 		{"negative trigger expiry", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.ExpireAfter = negativeSeconds }, errNotWholeSeconds},
 		{"unknown order type", func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "close-all" }, errInvalidAutoOrderType},
 	} {
-		invalid := *arg
-		tc.mutate(&invalid)
-		_, err = e.CreatePriceTriggeredFuturesOrder(t.Context(), currency.USDT, &invalid)
-		require.ErrorIsf(t, err, tc.expectedErr, "CreatePriceTriggeredFuturesOrder must reject an order with a %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			invalid := *arg
+			tc.mutate(&invalid)
+			_, err := e.CreatePriceTriggeredFuturesOrder(ctx, currency.USDT, &invalid)
+			require.ErrorIsf(t, err, tc.expectedErr, "CreatePriceTriggeredFuturesOrder must reject an order with a %s", tc.name)
+		})
 	}
 
 	ex := e
@@ -2692,9 +2924,12 @@ func TestAmendFuturesPriceTriggeredOrderRequestMarshalJSON(t *testing.T) {
 		{name: "unset fields are left unchanged", arg: AmendFuturesPriceTriggeredOrderRequest{OrderID: 1, TriggerPrice: 3100}, exp: `{"order_id":1,"trigger_price":"3100"}`},
 		{name: "set fields are sent even when zero", arg: AmendFuturesPriceTriggeredOrderRequest{OrderID: 1, Price: &price, PriceType: &priceType, Amount: 1.5, AutoSize: "close_short", Close: true}, exp: `{"order_id":1,"amount":"1.5","price":"3050.5","price_type":0,"auto_size":"close_short","close":true}`},
 	} {
-		payload, err := json.Marshal(&tc.arg)
-		require.NoErrorf(t, err, "Marshal must not error when %s", tc.name)
-		assert.Equalf(t, tc.exp, string(payload), "AmendFuturesPriceTriggeredOrderRequest should marshal as documented when %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			payload, err := json.Marshal(&tc.arg)
+			require.NoErrorf(t, err, "Marshal must not error when %s", tc.name)
+			assert.Equalf(t, tc.exp, string(payload), "AmendFuturesPriceTriggeredOrderRequest should marshal as documented when %s", tc.name)
+		})
 	}
 }
 

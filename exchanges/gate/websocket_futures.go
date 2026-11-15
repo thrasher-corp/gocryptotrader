@@ -399,7 +399,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 					params = append([]string{userID}, params...)
 				}
 				var sigTemp string
-				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, unixSeconds(timestamp))
+				sigTemp, err = e.generateWebsocketSignature(creds.Secret, event, channelsToSubscribe[i].Channel, unixSeconds(timestamp))
 				if err != nil {
 					return nil, err
 				}
@@ -689,6 +689,8 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			}
 		}
 
+		// A push without an update or finish time is dated by the push, as the order's creation time would move a
+		// stored order's last update back
 		orderDetails[x] = order.Detail{
 			Amount:               amount,
 			ContractAmount:       amount,
@@ -697,7 +699,7 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			ClientOrderID:        getClientOrderIDFromText(resp.Result[x].Text),
 			Status:               status,
 			Pair:                 resp.Result[x].Contract,
-			LastUpdated:          resp.Result[x].FinishTime.Time(),
+			LastUpdated:          orderLastUpdated(resp.Result[x].UpdateTime, resp.Result[x].FinishTime, resp.Time),
 			Date:                 resp.Result[x].CreateTime.Time(),
 			ExecutedAmount:       amount - remaining,
 			RemainingAmount:      remaining,

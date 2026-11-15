@@ -92,6 +92,45 @@ func TestRebateBrokerHistoryRequestParams(t *testing.T) {
 	assert.Equal(t, exp, params, "Params should set every parameter")
 }
 
+func TestRebateHistoryParams(t *testing.T) {
+	t.Parallel()
+	from := time.Unix(1710000000, 0)
+	to := from.Add(time.Hour)
+	future := time.Now().Add(time.Hour)
+	for _, tc := range []struct {
+		name          string
+		userID        uint64
+		from, to      time.Time
+		limit, offset uint64
+		exp           url.Values
+		err           error
+	}{
+		{name: "no filters", exp: url.Values{}},
+		{
+			name:   "every filter",
+			userID: 10000001,
+			from:   from,
+			to:     to,
+			limit:  10,
+			offset: 5,
+			exp:    url.Values{"user_id": {"10000001"}, "from": {"1710000000"}, "to": {"1710003600"}, "limit": {"10"}, "offset": {"5"}},
+		},
+		{name: "start only", from: from, exp: url.Values{"from": {"1710000000"}}},
+		{name: "end only", to: to, exp: url.Values{"to": {"1710003600"}}},
+		{name: "start after end", from: to, to: from, err: common.ErrStartAfterEnd},
+		{name: "start equal to end", from: from, to: from, err: common.ErrStartEqualsEnd},
+		{name: "start in the future", from: future, to: future.Add(time.Hour), err: common.ErrStartAfterTimeNow},
+		{name: "start at the Unix epoch", from: time.Unix(0, 0), to: to, err: common.ErrDateUnset},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params, err := rebateHistoryParams(tc.userID, tc.from, tc.to, tc.limit, tc.offset)
+			require.ErrorIs(t, err, tc.err, "rebateHistoryParams must return the expected error")
+			assert.Equal(t, tc.exp, params, "rebateHistoryParams should return the expected parameters")
+		})
+	}
+}
+
 func TestGetAgencyTransactionHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()

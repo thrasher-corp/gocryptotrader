@@ -24,6 +24,14 @@ func newCrossExchangeSymbol(exchangeName string, assetType asset.Item, pair curr
 
 func TestCrossExchangeSymbolIdentifier(t *testing.T) {
 	t.Parallel()
+	t.Run("nil identifier", func(t *testing.T) {
+		t.Parallel()
+		var symbol *CrossExchangeSymbolIdentifierRequest
+		require.ErrorIs(t, symbol.Validate(), currency.ErrSymbolStringEmpty, "Validate must reject a nil identifier")
+		_, err := symbol.Format()
+		require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "Format must reject a nil identifier")
+	})
+
 	for _, tc := range []struct {
 		name     string
 		symbol   CrossExchangeSymbolIdentifierRequest
@@ -93,16 +101,6 @@ func TestCrossExchangeSymbolIdentifier(t *testing.T) {
 			assert.Equal(t, tc.rendered, tc.symbol.String(), "String should render the fields that are set rather than hide them")
 		})
 	}
-}
-
-func TestCrossExchangeSymbolIdentifierNil(t *testing.T) {
-	t.Parallel()
-	var symbol *CrossExchangeSymbolIdentifierRequest
-	require.ErrorIs(t, symbol.Validate(), currency.ErrSymbolStringEmpty, "Validate must reject a nil identifier")
-	_, err := symbol.Format()
-	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "Format must reject a nil identifier")
-	_, err = e.GetCrossExchangeAutoDeleveragingRank(t.Context(), nil)
-	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetCrossExchangeAutoDeleveragingRank should reject a nil identifier")
 }
 
 func TestCrossExchangeSymbolIdentifierMarshalJSON(t *testing.T) {
@@ -245,8 +243,20 @@ func TestGetCrossExchangeSymbols(t *testing.T) {
 	assert.NotEmpty(t, result, "GetCrossExchangeSymbols should return symbols")
 }
 
-func TestGetCrossExchangeRiskLimits(t *testing.T) {
+func TestGetCrossExchangeRiskLimits(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the subtest shares e with the test's own calls
 	t.Parallel()
+	// Serial, as it shares e with the calls below
+	t.Run("mixed-case symbol", func(t *testing.T) {
+		result, err := e.GetCrossExchangeRiskLimits(t.Context(), []CrossExchangeSymbolIdentifierRequest{{Symbol: "HYPERLIQUID_FUTURE_kPEPE_USDC"}})
+		require.NoError(t, err, "GetCrossExchangeRiskLimits must accept a mixed-case symbol")
+		require.Len(t, result, 1, "GetCrossExchangeRiskLimits must return the mixed-case symbol's limits")
+		assert.Equal(t, "HYPERLIQUID_FUTURE_kPEPE_USDC", result[0].Symbol, "GetCrossExchangeRiskLimits should return the symbol in Gate's case")
+		if mockTests {
+			exp := []*CrossExchangeRiskLimitTier{{MaxRiskLimitValue: 20000000, LeverageMax: 10, MaintenanceRate: 0.05, Tier: "1"}}
+			assert.Equal(t, exp, result[0].Tiers, "GetCrossExchangeRiskLimits should decode every tier field")
+		}
+	})
+
 	_, err := e.GetCrossExchangeRiskLimits(t.Context(), nil)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetCrossExchangeRiskLimits must require a symbol")
 	_, err = e.GetCrossExchangeRiskLimits(t.Context(), []CrossExchangeSymbolIdentifierRequest{
@@ -275,18 +285,6 @@ func TestGetCrossExchangeRiskLimits(t *testing.T) {
 		},
 	}
 	assert.Equal(t, exp, result[0], "GetCrossExchangeRiskLimits should decode every field")
-}
-
-func TestGetCrossExchangeRiskLimitsMixedCaseSymbol(t *testing.T) {
-	t.Parallel()
-	result, err := e.GetCrossExchangeRiskLimits(t.Context(), []CrossExchangeSymbolIdentifierRequest{{Symbol: "HYPERLIQUID_FUTURE_kPEPE_USDC"}})
-	require.NoError(t, err, "GetCrossExchangeRiskLimits must accept a mixed-case symbol")
-	require.Len(t, result, 1, "GetCrossExchangeRiskLimits must return the mixed-case symbol's limits")
-	assert.Equal(t, "HYPERLIQUID_FUTURE_kPEPE_USDC", result[0].Symbol, "GetCrossExchangeRiskLimits should return the symbol in Gate's case")
-	if mockTests {
-		exp := []*CrossExchangeRiskLimitTier{{MaxRiskLimitValue: 20000000, LeverageMax: 10, MaintenanceRate: 0.05, Tier: "1"}}
-		assert.Equal(t, exp, result[0].Tiers, "GetCrossExchangeRiskLimits should decode every tier field")
-	}
 }
 
 func TestGetCrossExchangeTransferCoins(t *testing.T) {
@@ -803,7 +801,7 @@ func TestSetCrossExchangeContractLeverage(t *testing.T) {
 	assert.NotEmpty(t, result.Symbol, "SetCrossExchangeContractLeverage should return the symbol")
 }
 
-func TestGetCrossExchangeContractLeverage(t *testing.T) {
+func TestGetCrossExchangeContractLeverage(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	_, err := e.GetCrossExchangeContractLeverage(t.Context(), []CrossExchangeSymbolIdentifierRequest{{Exchange: "BINANCE", Asset: asset.Futures}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeContractLeverage must reject a symbol it cannot format")
@@ -811,18 +809,23 @@ func TestGetCrossExchangeContractLeverage(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
+		name    string
 		symbols []CrossExchangeSymbolIdentifierRequest
 		exp     map[string]types.Number
 	}{
-		{exp: map[string]types.Number{"BINANCE_FUTURE_BTC_USDT": 10, "OKX_FUTURE_BTC_USDT": 10}},
-		{symbols: []CrossExchangeSymbolIdentifierRequest{newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT())}, exp: map[string]types.Number{"BINANCE_FUTURE_BTC_USDT": 10}},
+		{name: "all symbols", exp: map[string]types.Number{"BINANCE_FUTURE_BTC_USDT": 10, "OKX_FUTURE_BTC_USDT": 10}},
+		{name: "one symbol", symbols: []CrossExchangeSymbolIdentifierRequest{newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT())}, exp: map[string]types.Number{"BINANCE_FUTURE_BTC_USDT": 10}},
 	} {
-		result, err := e.GetCrossExchangeContractLeverage(t.Context(), tc.symbols)
-		require.NoError(t, err, "GetCrossExchangeContractLeverage must not error")
-		if mockTests {
-			assert.Equal(t, tc.exp, result, "GetCrossExchangeContractLeverage should decode every symbol")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.GetCrossExchangeContractLeverage(ctx, tc.symbols)
+			require.NoError(t, err, "GetCrossExchangeContractLeverage must not error")
+			if mockTests {
+				assert.Equal(t, tc.exp, result, "GetCrossExchangeContractLeverage should decode every symbol")
+			}
+		})
 	}
 }
 
@@ -852,7 +855,7 @@ func TestSetCrossExchangeMarginLeverage(t *testing.T) {
 	assert.NotEmpty(t, result.Symbol, "SetCrossExchangeMarginLeverage should return the symbol")
 }
 
-func TestGetCrossExchangeMarginLeverage(t *testing.T) {
+func TestGetCrossExchangeMarginLeverage(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	_, err := e.GetCrossExchangeMarginLeverage(t.Context(), []CrossExchangeSymbolIdentifierRequest{{Exchange: "BINANCE", Asset: asset.Margin}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeMarginLeverage must reject a symbol it cannot format")
@@ -860,18 +863,23 @@ func TestGetCrossExchangeMarginLeverage(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
+		name    string
 		symbols []CrossExchangeSymbolIdentifierRequest
 		exp     map[string]types.Number
 	}{
-		{exp: map[string]types.Number{"BINANCE_MARGIN_BTC_USDT": 5, "OKX_MARGIN_BTC_USDT": 5}},
-		{symbols: []CrossExchangeSymbolIdentifierRequest{newCrossExchangeSymbol("BINANCE", asset.Margin, currency.NewBTCUSDT())}, exp: map[string]types.Number{"BINANCE_MARGIN_BTC_USDT": 5}},
+		{name: "all symbols", exp: map[string]types.Number{"BINANCE_MARGIN_BTC_USDT": 5, "OKX_MARGIN_BTC_USDT": 5}},
+		{name: "one symbol", symbols: []CrossExchangeSymbolIdentifierRequest{newCrossExchangeSymbol("BINANCE", asset.Margin, currency.NewBTCUSDT())}, exp: map[string]types.Number{"BINANCE_MARGIN_BTC_USDT": 5}},
 	} {
-		result, err := e.GetCrossExchangeMarginLeverage(t.Context(), tc.symbols)
-		require.NoError(t, err, "GetCrossExchangeMarginLeverage must not error")
-		if mockTests {
-			assert.Equal(t, tc.exp, result, "GetCrossExchangeMarginLeverage should decode every symbol")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.GetCrossExchangeMarginLeverage(ctx, tc.symbols)
+			require.NoError(t, err, "GetCrossExchangeMarginLeverage must not error")
+			if mockTests {
+				assert.Equal(t, tc.exp, result, "GetCrossExchangeMarginLeverage should decode every symbol")
+			}
+		})
 	}
 }
 
@@ -964,25 +972,30 @@ func TestUpdateCrossExchangeIsolatedMargin(t *testing.T) {
 	assert.NotNil(t, result, "UpdateCrossExchangeIsolatedMargin should return the adjustment")
 }
 
-func TestGetCrossExchangeInterestRates(t *testing.T) {
+func TestGetCrossExchangeInterestRates(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	bch := &CrossExchangeInterestRateResponse{Coin: currency.BCH, ExchangeType: "GATE", HourInterestRate: 0.00000465, Time: types.Time(time.UnixMilli(1763371200000))}
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
+		name         string
 		coin         currency.Code
 		exchangeType string
 		exp          []*CrossExchangeInterestRateResponse
 	}{
-		{exp: []*CrossExchangeInterestRateResponse{bch, {Coin: currency.ADA, ExchangeType: "BINANCE", HourInterestRate: 0.0000036558334, Time: types.Time(time.UnixMilli(1763371200000))}}},
-		{coin: currency.BCH, exchangeType: "GATE", exp: []*CrossExchangeInterestRateResponse{bch}},
+		{name: "all currencies", exp: []*CrossExchangeInterestRateResponse{bch, {Coin: currency.ADA, ExchangeType: "BINANCE", HourInterestRate: 0.0000036558334, Time: types.Time(time.UnixMilli(1763371200000))}}},
+		{name: "one currency on one exchange", coin: currency.BCH, exchangeType: "GATE", exp: []*CrossExchangeInterestRateResponse{bch}},
 	} {
-		result, err := e.GetCrossExchangeInterestRates(t.Context(), tc.coin, tc.exchangeType)
-		require.NoError(t, err, "GetCrossExchangeInterestRates must not error")
-		if mockTests {
-			assert.Equal(t, tc.exp, result, "GetCrossExchangeInterestRates should decode every field")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.GetCrossExchangeInterestRates(ctx, tc.coin, tc.exchangeType)
+			require.NoError(t, err, "GetCrossExchangeInterestRates must not error")
+			if mockTests {
+				assert.Equal(t, tc.exp, result, "GetCrossExchangeInterestRates should decode every field")
+			}
+		})
 	}
 }
 
@@ -1020,7 +1033,7 @@ func TestGetCrossExchangeUserFeeRates(t *testing.T) {
 	assert.NotEmpty(t, result, "GetCrossExchangeUserFeeRates should return fee rates")
 }
 
-func TestGetCrossExchangeContractPositions(t *testing.T) {
+func TestGetCrossExchangeContractPositions(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	_, err := e.GetCrossExchangeContractPositions(t.Context(), &CrossExchangeSymbolIdentifierRequest{Exchange: "BINANCE", Asset: asset.Futures}, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeContractPositions must reject a symbol it cannot format")
@@ -1052,22 +1065,27 @@ func TestGetCrossExchangeContractPositions(t *testing.T) {
 		UpdateTime:            types.Time(time.UnixMilli(1750730699867)),
 		ClosedPNL:             12,
 	}}
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
+		name         string
 		symbol       CrossExchangeSymbolIdentifierRequest
 		exchangeType string
 	}{
-		{},
-		{symbol: newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT()), exchangeType: "BINANCE"},
+		{name: "unfiltered"},
+		{name: "one symbol on one exchange", symbol: newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT()), exchangeType: "BINANCE"},
 	} {
-		result, err := e.GetCrossExchangeContractPositions(t.Context(), &tc.symbol, tc.exchangeType)
-		require.NoError(t, err, "GetCrossExchangeContractPositions must not error")
-		if mockTests {
-			assert.Equal(t, exp, result, "GetCrossExchangeContractPositions should decode every field")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.GetCrossExchangeContractPositions(ctx, &tc.symbol, tc.exchangeType)
+			require.NoError(t, err, "GetCrossExchangeContractPositions must not error")
+			if mockTests {
+				assert.Equal(t, exp, result, "GetCrossExchangeContractPositions should decode every field")
+			}
+		})
 	}
 }
 
-func TestGetCrossExchangeMarginPositions(t *testing.T) {
+func TestGetCrossExchangeMarginPositions(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	_, err := e.GetCrossExchangeMarginPositions(t.Context(), &CrossExchangeSymbolIdentifierRequest{Exchange: "BINANCE", Asset: asset.Margin}, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeMarginPositions must reject a symbol it cannot format")
@@ -1098,23 +1116,34 @@ func TestGetCrossExchangeMarginPositions(t *testing.T) {
 		CreateTime:          types.Time(time.UnixMilli(1765794740152)),
 		UpdateTime:          types.Time(time.UnixMilli(1766716075010)),
 	}}
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
+		name         string
 		symbol       CrossExchangeSymbolIdentifierRequest
 		exchangeType string
 	}{
-		{},
-		{symbol: newCrossExchangeSymbol("BINANCE", asset.Margin, currency.NewBTCUSDT()), exchangeType: "BINANCE"},
+		{name: "unfiltered"},
+		{name: "one symbol on one exchange", symbol: newCrossExchangeSymbol("BINANCE", asset.Margin, currency.NewBTCUSDT()), exchangeType: "BINANCE"},
 	} {
-		result, err := e.GetCrossExchangeMarginPositions(t.Context(), &tc.symbol, tc.exchangeType)
-		require.NoError(t, err, "GetCrossExchangeMarginPositions must not error")
-		if mockTests {
-			assert.Equal(t, exp, result, "GetCrossExchangeMarginPositions should decode every field")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.GetCrossExchangeMarginPositions(ctx, &tc.symbol, tc.exchangeType)
+			require.NoError(t, err, "GetCrossExchangeMarginPositions must not error")
+			if mockTests {
+				assert.Equal(t, exp, result, "GetCrossExchangeMarginPositions should decode every field")
+			}
+		})
 	}
 }
 
-func TestGetCrossExchangeAutoDeleveragingRank(t *testing.T) {
+func TestGetCrossExchangeAutoDeleveragingRank(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the subtest shares e with the test's own calls
 	t.Parallel()
+	// Serial, as it shares e with the calls below
+	t.Run("nil identifier", func(t *testing.T) {
+		_, err := e.GetCrossExchangeAutoDeleveragingRank(t.Context(), nil)
+		assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetCrossExchangeAutoDeleveragingRank should reject a nil identifier")
+	})
+
 	_, err := e.GetCrossExchangeAutoDeleveragingRank(t.Context(), &CrossExchangeSymbolIdentifierRequest{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetCrossExchangeAutoDeleveragingRank must require a symbol")
 	_, err = e.GetCrossExchangeAutoDeleveragingRank(t.Context(), &CrossExchangeSymbolIdentifierRequest{Exchange: "BINANCE", Asset: asset.Futures})
@@ -1457,31 +1486,38 @@ func TestGetCrossExchangeAccountBook(t *testing.T) {
 	assert.NotNil(t, result, "GetCrossExchangeAccountBook should return account book records")
 }
 
-func TestGetCrossExchangeCoinDiscountRates(t *testing.T) {
+func TestGetCrossExchangeCoinDiscountRates(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
+		name         string
 		exchangeType string
 		exp          []*CrossExchangeCoinDiscountRateResponse
 	}{
 		{
+			name: "all exchanges",
 			exp: []*CrossExchangeCoinDiscountRateResponse{
 				{Coin: currency.SOL, ExchangeType: "GATE", Tier: "1", MaxValue: 10000, DiscountRate: 0.95},
 				{Coin: currency.SOL, ExchangeType: "GATE", Tier: "2", MinValue: 10000, MaxValue: 20000, DiscountRate: 0.93},
 			},
 		},
 		{
+			name:         "one exchange",
 			exchangeType: "BINANCE",
 			exp:          []*CrossExchangeCoinDiscountRateResponse{{Coin: currency.ETH, ExchangeType: "BINANCE", Tier: "1", MaxValue: 10000, DiscountRate: 0.95}},
 		},
 	} {
-		result, err := e.GetCrossExchangeCoinDiscountRates(t.Context(), currency.ETH, tc.exchangeType)
-		require.NoError(t, err, "GetCrossExchangeCoinDiscountRates must not error")
-		if mockTests {
-			assert.Equal(t, tc.exp, result, "GetCrossExchangeCoinDiscountRates should decode every field")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.GetCrossExchangeCoinDiscountRates(ctx, currency.ETH, tc.exchangeType)
+			require.NoError(t, err, "GetCrossExchangeCoinDiscountRates must not error")
+			if mockTests {
+				assert.Equal(t, tc.exp, result, "GetCrossExchangeCoinDiscountRates should decode every field")
+			}
+		})
 	}
 }
 

@@ -182,7 +182,7 @@ func TestGetIsolatedMarginUserAutoRepaymentSetting(t *testing.T) {
 	assert.Contains(t, []string{"on", "off"}, result.Status, "GetIsolatedMarginUserAutoRepaymentSetting should return on or off")
 }
 
-func TestGetIsolatedMarginMaxTransferableAmount(t *testing.T) {
+func TestGetIsolatedMarginMaxTransferableAmount(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	_, err := e.GetIsolatedMarginMaxTransferableAmount(t.Context(), currency.EMPTYCODE, BTCUSDT)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetIsolatedMarginMaxTransferableAmount must reject an empty currency")
@@ -190,12 +190,19 @@ func TestGetIsolatedMarginMaxTransferableAmount(t *testing.T) {
 	_, err = e.GetIsolatedMarginMaxTransferableAmount(t.Context(), currency.USDT, currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetIsolatedMarginMaxTransferableAmount must require a pair for USDT")
 
-	for _, pair := range []currency.Pair{
-		currency.NewPair(currency.BTC, currency.BTC),
-		currency.NewPair(currency.BTC, currency.EMPTYCODE),
+	ctx := t.Context()
+	// Cases share e and run in order
+	for _, tc := range []struct {
+		name string
+		pair currency.Pair
+	}{
+		{name: "same base and quote", pair: currency.NewPair(currency.BTC, currency.BTC)},
+		{name: "empty quote", pair: currency.NewPair(currency.BTC, currency.EMPTYCODE)},
 	} {
-		_, err = e.GetIsolatedMarginMaxTransferableAmount(t.Context(), currency.BTC, pair)
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "GetIsolatedMarginMaxTransferableAmount must reject malformed pair %s", pair)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetIsolatedMarginMaxTransferableAmount(ctx, currency.BTC, tc.pair)
+			require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "GetIsolatedMarginMaxTransferableAmount must reject malformed pair %s", tc.pair)
+		})
 	}
 
 	if !mockTests {
@@ -301,9 +308,11 @@ func TestGetIsolatedMarginEstimatedInterestRate(t *testing.T) {
 	assert.Contains(t, result, "BTC", "GetIsolatedMarginEstimatedInterestRate should return the requested currencies")
 }
 
-func TestIsolatedMarginBorrowOrRepay(t *testing.T) {
+func TestIsolatedMarginBorrowOrRepay(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	pair := getPair(t, asset.Margin)
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
 		name string
 		arg  *IsolatedBorrowRepayRequest
@@ -318,7 +327,9 @@ func TestIsolatedMarginBorrowOrRepay(t *testing.T) {
 		{name: "negative amount with full repayment", arg: &IsolatedBorrowRepayRequest{CurrencyPair: pair, Currency: currency.BTC, Type: "repay", Amount: -1, RepaidAll: true}, err: errAmountOverriddenByRepaidAll},
 		{name: "full repayment on a borrow", arg: &IsolatedBorrowRepayRequest{CurrencyPair: pair, Currency: currency.BTC, Type: "borrow", RepaidAll: true}, err: errInvalidRepaidAllOperation},
 	} {
-		assert.ErrorIsf(t, e.IsolatedMarginBorrowOrRepay(t.Context(), tc.arg), tc.err, "IsolatedMarginBorrowOrRepay should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, e.IsolatedMarginBorrowOrRepay(ctx, tc.arg), tc.err, "IsolatedMarginBorrowOrRepay should reject a request with %s", tc.name)
+		})
 	}
 
 	if !mockTests {

@@ -214,7 +214,7 @@ func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, cha
 				return nil, err
 			}
 			var sigTemp string
-			sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, unixSeconds(timestamp))
+			sigTemp, err = e.generateWebsocketSignature(creds.Secret, event, channelsToSubscribe[i].Channel, unixSeconds(timestamp))
 			if err != nil {
 				return nil, err
 			}
@@ -551,21 +551,33 @@ func (e *Exchange) processOptionsOrderPushData(ctx context.Context, data []byte)
 		if err != nil {
 			return err
 		}
+		tif := order.GoodTillCancel // Gate documents tif as optional and defaults it to gtc.
+		if resp.Result[x].TimeInForce != "" {
+			if tif, err = timeInForceFromString(resp.Result[x].TimeInForce); err != nil {
+				return err
+			}
+		}
 		side, amount, remaining := getSideAndAmountFromSize(resp.Result[x].Size.Float64(), resp.Result[x].RemainingAmount.Float64())
+		// The remaining amount is left out, as the order store ignores a zero and a filled order would keep the
+		// remainder of its last partial fill
 		orderDetails[x] = order.Detail{
-			Amount:          amount,
-			Exchange:        e.Name,
-			OrderID:         strconv.FormatUint(resp.Result[x].ID, 10),
-			Side:            side,
-			Status:          status,
-			Pair:            resp.Result[x].Contract,
-			Date:            resp.Result[x].CreateTime.Time(),
-			LastUpdated:     resp.Result[x].MessageTime.Time(),
-			ExecutedAmount:  amount - remaining,
-			RemainingAmount: remaining,
-			Price:           resp.Result[x].Price.Float64(),
-			AssetType:       asset.Options,
-			AccountID:       resp.Result[x].User,
+			Amount:               amount,
+			Exchange:             e.Name,
+			OrderID:              strconv.FormatUint(resp.Result[x].ID, 10),
+			ClientOrderID:        getClientOrderIDFromText(resp.Result[x].Text),
+			Side:                 side,
+			Type:                 getTypeFromTimeInForce(resp.Result[x].TimeInForce, resp.Result[x].Price.Float64()),
+			TimeInForce:          tif,
+			ReduceOnly:           resp.Result[x].IsReduceOnly,
+			Status:               status,
+			Pair:                 resp.Result[x].Contract,
+			Date:                 resp.Result[x].CreateTime.Time(),
+			LastUpdated:          resp.Result[x].MessageTime.Time(),
+			ExecutedAmount:       amount - remaining,
+			Price:                resp.Result[x].Price.Float64(),
+			AverageExecutedPrice: resp.Result[x].FillPrice.Float64(),
+			AssetType:            asset.Options,
+			AccountID:            resp.Result[x].User,
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, orderDetails)

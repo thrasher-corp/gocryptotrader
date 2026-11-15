@@ -1,7 +1,6 @@
 package gate
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -24,13 +23,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
-	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const canManipulateRealOrders = false
@@ -186,7 +183,7 @@ func TestUnixSeconds(t *testing.T) {
 	assert.Zero(t, unixSeconds(time.Time{}), "unixSeconds should return 0 for a zero time")
 }
 
-func TestSendUnversionedHTTPRequest(t *testing.T) {
+func TestSendUnversionedHTTPRequest(t *testing.T) { //nolint:tparallel // Coded error cases share ex's server and decode target and run in order
 	t.Parallel()
 
 	ex := new(Exchange)
@@ -221,10 +218,20 @@ func TestSendUnversionedHTTPRequest(t *testing.T) {
 
 	assert.NoError(t, ex.sendUnversionedHTTPRequest(t.Context(), exchange.EdgeCase1, publicIsolatedMarginPoolLoansEPL, "/apiw/v2/ok", nil), "sendUnversionedHTTPRequest should not error without a result")
 
-	for _, res := range []any{&result, nil} {
-		err := ex.sendUnversionedHTTPRequest(t.Context(), exchange.EdgeCase1, publicIsolatedMarginPoolLoansEPL, "/apiw/v2/coded", res)
-		require.Error(t, err, "sendUnversionedHTTPRequest must error on a coded error body")
-		assert.Contains(t, err.Error(), "label: INVALID_KEY code: 10001", "error should carry the error label and code")
+	ctx := t.Context()
+	// Cases share ex's server and the result decoded above, and run in order
+	for _, tc := range []struct {
+		name   string
+		result any
+	}{
+		{name: "coded error with a result", result: &result},
+		{name: "coded error without a result", result: nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ex.sendUnversionedHTTPRequest(ctx, exchange.EdgeCase1, publicIsolatedMarginPoolLoansEPL, "/apiw/v2/coded", tc.result)
+			require.Error(t, err, "sendUnversionedHTTPRequest must error on a coded error body")
+			assert.Contains(t, err.Error(), "label: INVALID_KEY code: 10001", "error should carry the error label and code")
+		})
 	}
 
 	var list []struct {
@@ -244,6 +251,36 @@ func TestSendUnversionedHTTPRequest(t *testing.T) {
 
 	err = ex.sendUnversionedHTTPRequest(t.Context(), exchange.RestUSDCMargined, publicIsolatedMarginPoolLoansEPL, "/apiw/v2/ok", &result)
 	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound, "sendUnversionedHTTPRequest should error on an endpoint the exchange has no URL for")
+}
+
+func TestSendHTTPRequest(t *testing.T) {
+	t.Parallel()
+
+	t.Run("versioned path", func(t *testing.T) {
+		t.Parallel()
+		ex := newRoutedExchange(t, map[string]string{"/api/v4/spot/time": `{"server_time":1774386128160}`})
+		var resp serverTimeReply
+		require.NoError(t, ex.SendHTTPRequest(t.Context(), exchange.RestSpot, publicGetServerTimeEPL, "spot/time", &resp), "SendHTTPRequest must not error")
+		assert.Equal(t, time.UnixMilli(1774386128160), resp.ServerTime.Time(), "SendHTTPRequest should decode the reply to the path under the API version")
+	})
+
+	t.Run("endpoint without a URL", func(t *testing.T) {
+		t.Parallel()
+		ex := newRoutedExchange(t, nil)
+		err := ex.SendHTTPRequest(t.Context(), exchange.RestUSDCMargined, publicGetServerTimeEPL, "spot/time", new(serverTimeReply))
+		assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound, "SendHTTPRequest should error on an endpoint the exchange has no URL for")
+	})
+
+	t.Run("server time from the API", func(t *testing.T) {
+		t.Parallel()
+		var resp serverTimeReply
+		require.NoError(t, e.SendHTTPRequest(t.Context(), exchange.RestSpot, publicGetServerTimeEPL, "spot/time", &resp), "SendHTTPRequest must not error")
+		if mockTests {
+			assert.Equal(t, time.UnixMilli(1774386128160), resp.ServerTime.Time(), "SendHTTPRequest should decode the recorded server time")
+			return
+		}
+		assert.WithinDuration(t, time.Now(), resp.ServerTime.Time(), time.Minute, "SendHTTPRequest should decode the current server time")
+	})
 }
 
 func TestSendPublicPostRequest(t *testing.T) {
@@ -412,8 +449,17 @@ func TestDecodeReply(t *testing.T) {
 	require.Error(t, err, "decodeReply must error on a malformed error reply")
 	assert.NotContains(t, err.Error(), "label:", "decodeReply should not add the label of an error reply that does not decode")
 
-	for _, unlabelled := range []string{`{"value":1}`, `{"label":"BAD_REQUEST","message":1}`} {
-		assert.ErrorIsf(t, decodeReply(json.RawMessage(unlabelled), new(refusingDecoder)), errRefusedDecode, "decodeReply should keep the decode error of %s", unlabelled)
+	for _, tc := range []struct {
+		name       string
+		unlabelled string
+	}{
+		{name: "reply without a label", unlabelled: `{"value":1}`},
+		{name: "error reply with a numeric message", unlabelled: `{"label":"BAD_REQUEST","message":1}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, decodeReply(json.RawMessage(tc.unlabelled), new(refusingDecoder)), errRefusedDecode, "decodeReply should keep the decode error of %s", tc.unlabelled)
+		})
 	}
 }
 
@@ -520,32 +566,37 @@ func TestFuturesTickerUnmarshal(t *testing.T) {
 	assert.Equal(t, 8819700.0, futuresBaseVolume(&tk), "futuresBaseVolume should keep the explicit base volume when volume_24h dropped a part contract")
 }
 
-func TestGenerateSignature(t *testing.T) {
+func TestGenerateSignature(t *testing.T) { //nolint:tparallel // Cases call the shared exchange and run in order
 	t.Parallel()
 	// Expected values follow Gate's documented scheme: HMAC-SHA512 over method, path, query, the SHA512 of the body and
 	// the Unix timestamp, each separated by a newline
 	ts := time.Unix(1700000000, 0)
+	// Cases call the shared exchange, so run in order
 	for _, tc := range []struct {
-		method, path, query string
-		body                any
-		exp                 string
+		name, method, path, query string
+		body                      any
+		exp                       string
 	}{
 		{
+			name:   "GET with a query",
 			method: http.MethodGet,
 			path:   "/api/v4/spot/orders",
 			query:  "currency_pair=BTC_USDT&status=open",
 			exp:    "777f9b7385b58e88af6ce1aaae82f217f3e3dd0b9406e98522498001de299a9636bc797e3291aa1c49df79d8decf51eca463bd6082937c4c8742175c938eee56",
 		},
 		{
+			name:   "POST with a body",
 			method: http.MethodPost,
 			path:   "/api/v4/spot/orders",
 			body:   map[string]string{"currency_pair": "BTC_USDT"},
 			exp:    "dac4c0d44277469bbb4d2dd7297111b89ce2039ebc9b4cebfaa8cd8a361738ca6904a75ebc28df1a1c041af50c104884dddeeae9bbbe89064513a3837363c886",
 		},
 	} {
-		sig, err := e.GenerateSignature("mock-api-secret", tc.method, tc.path, tc.query, tc.body, ts)
-		require.NoErrorf(t, err, "GenerateSignature must not error for %s %s", tc.method, tc.path)
-		assert.Equalf(t, tc.exp, sig, "GenerateSignature should sign %s %s as documented", tc.method, tc.path)
+		t.Run(tc.name, func(t *testing.T) {
+			sig, err := e.GenerateSignature("mock-api-secret", tc.method, tc.path, tc.query, tc.body, ts)
+			require.NoErrorf(t, err, "GenerateSignature must not error for %s %s", tc.method, tc.path)
+			assert.Equalf(t, tc.exp, sig, "GenerateSignature should sign %s %s as documented", tc.method, tc.path)
+		})
 	}
 }
 
@@ -635,133 +686,6 @@ func futuresFixturePosition(contract currency.Pair, mode string, size types.Numb
 	}
 }
 
-func TestGetFutureTickers(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetFuturesTickers(t.Context(), currency.EMPTYCODE, getPair(t, asset.CoinMarginedFutures))
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetFuturesTickers must reject an empty settlement currency")
-
-	result, err := e.GetFuturesTickers(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures))
-	require.NoError(t, err, "GetFuturesTickers must not error for a BTC contract")
-	assert.Len(t, result, 1, "GetFuturesTickers should return the BTC contract's ticker")
-
-	result, err = e.GetFuturesTickers(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures))
-	require.NoError(t, err, "GetFuturesTickers must not error for a USDT contract")
-	require.Len(t, result, 1, "GetFuturesTickers must return the USDT contract's ticker")
-	if mockTests {
-		exp := &FuturesTickerResponse{
-			Contract:              currency.NewPairWithDelimiter("BTC", "USDT", "_"),
-			ChangePercentage:      0.37,
-			Last:                  67477.9,
-			Low24Hour:             66580.1,
-			High24Hour:            67815.7,
-			TotalSize:             577702480,
-			Volume24Hour:          327232988,
-			Volume24HourBase:      32723,
-			Volume24HourQuote:     2196541426,
-			Volume24HourSettle:    2196541426,
-			QuantoMultiplier:      0.0001,
-			MarkPrice:             67478,
-			FundingRate:           0.000083,
-			FundingRateIndicative: 0.000083,
-			IndexPrice:            67503.92,
-			LowestAsk:             67478,
-			LowestAskSize:         57437,
-			HighestBid:            67477.9,
-			HighestBidSize:        95272,
-			ChangePrice:           248.1,
-		}
-		assert.Equal(t, exp, result[0], "GetFuturesTickers should decode every field")
-	}
-}
-
-func TestDeliveryOrderCreateParamsMarshalJSON(t *testing.T) {
-	t.Parallel()
-	pair := currency.NewPairWithDelimiter("BTC", "USDT_20260626", currency.UnderscoreDelimiter)
-	for _, tc := range []struct {
-		name   string
-		params *DeliveryOrderCreateRequest
-		exp    string
-	}{
-		{
-			name:   "market order",
-			params: &DeliveryOrderCreateRequest{Contract: pair, Size: -1, TimeInForce: iocTIF, Settle: currency.USDT},
-			exp:    `{"contract":"BTC_USDT_20260626","size":-1,"iceberg":0,"price":"0","tif":"ioc"}`,
-		},
-		{
-			name:   "close position",
-			params: &DeliveryOrderCreateRequest{Contract: pair, ClosePosition: true, TimeInForce: iocTIF, Settle: currency.USDT},
-			exp:    `{"contract":"BTC_USDT_20260626","size":0,"iceberg":0,"price":"0","tif":"ioc","close":true}`,
-		},
-		{
-			name:   "close hedge mode side",
-			params: &DeliveryOrderCreateRequest{Contract: pair, AutoSize: "close_long", TimeInForce: iocTIF, Settle: currency.USDT},
-			exp:    `{"contract":"BTC_USDT_20260626","size":0,"iceberg":0,"price":"0","tif":"ioc","auto_size":"close_long"}`,
-		},
-		{
-			name: "limit order",
-			params: &DeliveryOrderCreateRequest{
-				Contract:                  pair,
-				Size:                      6024,
-				Iceberg:                   10,
-				Price:                     3765.5,
-				TimeInForce:               gtcTIF,
-				Text:                      "t-my-custom-id",
-				ReduceOnly:                true,
-				Settle:                    currency.USDT,
-				SelfTradePreventionAction: "cn",
-			},
-			exp: `{"contract":"BTC_USDT_20260626","size":6024,"iceberg":10,"price":"3765.5","tif":"gtc","text":"t-my-custom-id","reduce_only":true,"stp_act":"cn"}`,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			got, err := json.Marshal(tc.params)
-			require.NoError(t, err, "Marshal must not error")
-			assert.JSONEq(t, tc.exp, string(got), "Marshal should send the documented encoding")
-		})
-	}
-}
-
-func TestFuturesOrderCreateParamsMarshalJSON(t *testing.T) {
-	t.Parallel()
-	contract := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
-	for _, tc := range []struct {
-		name string
-		arg  FuturesOrderCreateRequest
-		exp  string
-	}{
-		{
-			name: "market order sends a zero price and iceberg",
-			arg:  FuturesOrderCreateRequest{Contract: contract, Size: 10, TimeInForce: iocTIF, Text: "t-x"},
-			exp:  `{"contract":"BTC_USDT","size":"10","iceberg":"0","price":"0","tif":"ioc","text":"t-x"}`,
-		},
-		{
-			name: "close order sends a zero size",
-			arg:  FuturesOrderCreateRequest{Contract: contract, TimeInForce: iocTIF, ClosePosition: true, ReduceOnly: true},
-			exp:  `{"contract":"BTC_USDT","size":"0","iceberg":"0","price":"0","tif":"ioc","close":true,"reduce_only":true}`,
-		},
-		{
-			name: "limit order sends every optional field",
-			arg: FuturesOrderCreateRequest{
-				Contract: contract, Size: -1.5, Iceberg: 0.5, Price: 31503.3, TimeInForce: gtcTIF, Text: "t-y", AutoSize: "close_long",
-				Settle: currency.USDT, SelfTradePreventionAction: "cn", PositionID: 7, MarketOrderSlipRatio: 0.03, PositionMarginMode: "isolated",
-				ActionMode: "ACK", TakeProfitTriggerPrice: 32000, StopLossTriggerPrice: 31000,
-			},
-			exp: `{"contract":"BTC_USDT","size":"-1.5","iceberg":"0.5","price":"31503.3","tif":"gtc","text":"t-y","auto_size":"close_long","stp_act":"cn","pid":7,"market_order_slip_ratio":"0.03","pos_margin_mode":"isolated","action_mode":"ACK","tpsl_tp_trigger_price":"32000","tpsl_sl_trigger_price":"31000"}`,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			payload, err := json.Marshal(tc.arg)
-			require.NoError(t, err, "Marshal must not error")
-			assert.Equal(t, tc.exp, string(payload), "FuturesOrderCreateRequest should marshal to the documented body")
-			pointerPayload, err := json.Marshal(&tc.arg)
-			require.NoError(t, err, "Marshal must not error for a pointer")
-			assert.Equal(t, tc.exp, string(pointerPayload), "a FuturesOrderCreateRequest pointer should marshal like a value")
-		})
-	}
-}
-
 // deliveryPositionFixture returns the delivery position recorded in testdata/http.json
 func deliveryPositionFixture(contract currency.Pair) *PositionResponse {
 	return &PositionResponse{
@@ -800,21 +724,76 @@ func deliveryPositionFixture(contract currency.Pair) *PositionResponse {
 
 func TestValidateCountdownTimeout(t *testing.T) {
 	t.Parallel()
+	// Serial, as the refusals below call validateCountdownTimeout after these
 	for _, timeout := range []time.Duration{0, 5 * time.Second, time.Hour} {
-		assert.NoErrorf(t, validateCountdownTimeout(timeout), "validateCountdownTimeout should accept %s", timeout)
+		t.Run("accepts "+timeout.String(), func(t *testing.T) {
+			assert.NoErrorf(t, validateCountdownTimeout(timeout), "validateCountdownTimeout should accept %s", timeout)
+		})
 	}
 	for _, timeout := range []time.Duration{-time.Second, time.Nanosecond, 4999 * time.Millisecond, 5500 * time.Millisecond} {
-		assert.ErrorIsf(t, validateCountdownTimeout(timeout), errInvalidTimeout, "validateCountdownTimeout should reject %s", timeout)
+		t.Run("rejects "+timeout.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateCountdownTimeout(timeout), errInvalidTimeout, "validateCountdownTimeout should reject %s", timeout)
+		})
 	}
 }
 
 func TestCheckWholeSeconds(t *testing.T) {
 	t.Parallel()
+	// Serial, as the refusals below call checkWholeSeconds after these
 	for _, d := range []time.Duration{0, time.Second, 24 * time.Hour} {
-		assert.NoErrorf(t, checkWholeSeconds(types.DurationSeconds(d), "expiry"), "checkWholeSeconds should accept %s", d)
+		t.Run("accepts "+d.String(), func(t *testing.T) {
+			assert.NoErrorf(t, checkWholeSeconds(types.DurationSeconds(d), "expiry"), "checkWholeSeconds should accept %s", d)
+		})
 	}
 	for _, d := range []time.Duration{time.Nanosecond, 1500 * time.Millisecond, -time.Nanosecond, -time.Second, -1500 * time.Millisecond} {
-		assert.ErrorIsf(t, checkWholeSeconds(types.DurationSeconds(d), "expiry"), errNotWholeSeconds, "checkWholeSeconds should reject %s", d)
+		t.Run("rejects "+d.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, checkWholeSeconds(types.DurationSeconds(d), "expiry"), errNotWholeSeconds, "checkWholeSeconds should reject %s", d)
+		})
+	}
+}
+
+func TestValidateOrderCreateParams(t *testing.T) {
+	t.Parallel()
+	contract := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
+	for _, tc := range []struct {
+		name          string
+		contract      currency.Pair
+		size          types.Number
+		price         types.Number
+		closePosition bool
+		autoSize      string
+		timeInForce   string
+		text          string
+		settle        currency.Code
+		isRest        bool
+		err           error
+	}{
+		{name: "REST market order", contract: contract, size: 1, timeInForce: iocTIF, settle: currency.USDT, isRest: true},
+		{name: "REST limit order settled in any currency", contract: contract, size: -1, price: 100, timeInForce: gtcTIF, text: "t-1", settle: currency.ETH, isRest: true},
+		{name: "websocket order without a settlement currency", contract: contract, size: 1, timeInForce: fokTIF},
+		{name: "websocket order settled in BTC", contract: contract, size: 1, timeInForce: iocTIF, settle: currency.BTC},
+		{name: "websocket order settled in USDT", contract: contract, size: 1, timeInForce: iocTIF, settle: currency.USDT},
+		{name: "close with a zero size", contract: contract, closePosition: true, timeInForce: iocTIF, settle: currency.USDT, isRest: true},
+		{name: "auto size closing one side", contract: contract, autoSize: "close_short", timeInForce: iocTIF, settle: currency.USDT, isRest: true},
+		{name: "empty contract", size: 1, timeInForce: iocTIF, settle: currency.USDT, isRest: true, err: currency.ErrCurrencyPairEmpty},
+		{name: "zero size without closing", contract: contract, timeInForce: iocTIF, settle: currency.USDT, isRest: true, err: errInvalidOrderSize},
+		{name: "close with a size", contract: contract, size: 1, closePosition: true, timeInForce: iocTIF, settle: currency.USDT, isRest: true, err: errInvalidOrderSize},
+		{name: "unknown time in force", contract: contract, size: 1, price: 100, timeInForce: "gtd", settle: currency.USDT, isRest: true, err: order.ErrUnsupportedTimeInForce},
+		{name: "market order neither ioc nor fok", contract: contract, size: 1, timeInForce: gtcTIF, settle: currency.USDT, isRest: true, err: order.ErrUnsupportedTimeInForce},
+		{name: "market order without a time in force", contract: contract, size: 1, settle: currency.USDT, isRest: true, err: order.ErrUnsupportedTimeInForce},
+		{name: "text without the t- prefix", contract: contract, size: 1, timeInForce: iocTIF, text: "custom", settle: currency.USDT, isRest: true, err: errInvalidTextPrefix},
+		{name: "unknown auto size", contract: contract, autoSize: "close_both", timeInForce: iocTIF, settle: currency.USDT, isRest: true, err: errInvalidAutoSize},
+		{name: "auto size with a size", contract: contract, size: 1, autoSize: "close_long", timeInForce: iocTIF, settle: currency.USDT, isRest: true, err: order.ErrAmountIsInvalid},
+		{name: "REST order without a settlement currency", contract: contract, size: 1, timeInForce: iocTIF, isRest: true, err: currency.ErrCurrencyCodeEmpty},
+		{name: "websocket order settled in another currency", contract: contract, size: 1, timeInForce: iocTIF, settle: currency.ETH, err: currency.ErrCurrencyCodeEmpty},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateOrderCreateParams(tc.contract, tc.size, tc.price, tc.closePosition, tc.autoSize, tc.timeInForce, tc.text, tc.settle, tc.isRest)
+			assert.ErrorIs(t, err, tc.err, "validateOrderCreateParams should return the expected error")
+		})
 	}
 }
 
@@ -829,178 +808,6 @@ func TestGetUnderlyingFromCurrencyPair(t *testing.T) {
 		uly, err := e.GetUnderlyingFromCurrencyPair(currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter))
 		require.NoError(t, err, "GetUnderlyingFromCurrencyPair must allow a pair of two currencies")
 		assert.True(t, uly.Equal(currency.NewBTCUSDT()), "GetUnderlyingFromCurrencyPair should return the pair itself")
-	})
-}
-
-func TestTickerHandlersSkipEmptyBatches(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.Name = t.Name()
-	require.NoError(t, ex.processTicker(t.Context(), []byte(`{"currency_pair":"UNTRACKED_USDT","last":"1"}`), time.Now()), "processTicker must not error for an untracked pair")
-	require.NoError(t, ex.processFuturesTickers(t.Context(), []byte(`{"time":1541659086,"channel":"futures.tickers","event":"update","result":[]}`), asset.USDTMarginedFutures), "processFuturesTickers must not error for an empty result")
-	assert.Empty(t, ex.Websocket.DataHandler.C, "ticker handlers should not relay an empty batch")
-}
-
-func TestFuturesPositionBOBCapturedPayloads(t *testing.T) {
-	t.Parallel()
-	payloads := [][]byte{
-		[]byte(`{"time":1788148634,"time_ms":1788148634648,"channel":"futures.positions","event":"update","result":[{"time":1788148634,"time_ms":1788148634648,"size":"112","user":"12870774","leverage_max":10,"mode":"single","update_id":2498,"cross_leverage_limit":20,"liq_price":0,"maintenance_rate":0.9,"risk_limit":2500000,"last_close_pnl":-0.2543647646,"entry_price":0.005032,"leverage":1,"realised_pnl":-0.027052032,"contract":"BOB_USDT","history_point":0,"margin":56.4006688,"realised_point":0,"history_pnl":-274.6956184238,"pos_margin_mode":"isolated","lever":"1"}]}`),
-		[]byte(`{"time":1788148634,"time_ms":1788148634648,"channel":"futures.positions","event":"update","result":[{"time":1788148634,"time_ms":1788148634648,"size":"126","user":"12870774","leverage_max":10,"mode":"single","update_id":2499,"cross_leverage_limit":20,"liq_price":0,"maintenance_rate":0.9,"risk_limit":2500000,"last_close_pnl":-0.2543647646,"entry_price":0.005032444444,"leverage":1,"realised_pnl":-0.030436224,"contract":"BOB_USDT","history_point":0,"margin":63.4563566,"realised_point":0,"history_pnl":-274.6956184238,"pos_margin_mode":"isolated","lever":"1"}]}`),
-	}
-	wantSizes := []string{"112", "126"}
-	wantUpdateIDs := []int64{2498, 2499}
-	wantMargins := []float64{56.4006688, 63.4563566}
-	wantOpeningPrices := []float64{0.005032, 0.005032444444}
-	wantRealisedPNLs := []float64{-0.027052032, -0.030436224}
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures,
-		currency.Pairs{currency.NewPair(currency.NewCode("BOB"), currency.USDT)}, false),
-		"StorePairs must register the captured contract")
-	for i := range payloads {
-		response := struct {
-			Time      types.Time                 `json:"time"`
-			TimeMilli types.Time                 `json:"time_ms"`
-			Channel   string                     `json:"channel"`
-			Event     string                     `json:"event"`
-			Result    []WebsocketFuturesPosition `json:"result"`
-		}{}
-		decoder := json.NewDecoder(bytes.NewReader(payloads[i]))
-		decoder.DisallowUnknownFields()
-		require.NoError(t, decoder.Decode(&response), "captured BOB position payload must unmarshal without unknown fields")
-		require.Len(t, response.Result, 1, "captured BOB payload must contain one position")
-		assert.Equal(t, "BOB_USDT", response.Result[0].Contract, "captured contract should be preserved")
-
-		require.NoError(t, ex.WebsocketHandleFuturesData(t.Context(), nil, payloads[i], asset.USDTMarginedFutures),
-			"WebsocketHandleFuturesData must process the captured position update")
-		require.Len(t, ex.Websocket.DataHandler.C, 1, "WebsocketHandleFuturesData must relay the captured position update")
-		message := <-ex.Websocket.DataHandler.C
-		positions, ok := message.Data.([]futures.Position)
-		require.True(t, ok, "captured payload must emit canonical futures positions")
-		require.Len(t, positions, 1, "captured payload must emit one position")
-		position := positions[0]
-		assert.Equal(t, order.Open, position.Status, "position status should be open")
-		assert.Equal(t, order.Long, position.LatestDirection, "positive position size should be long")
-		assert.Equal(t, wantSizes[i], position.LatestSize.String(), "position size should be preserved")
-		assert.Equal(t, "1", position.Leverage.String(), "isolated position should use the quoted lever field")
-		assert.Equal(t, wantUpdateIDs[i], position.UpdateID, "position update ID should be preserved")
-		assert.Equal(t, time.UnixMilli(1788148634648), position.LastUpdated, "position update time should preserve milliseconds")
-		assert.True(t, position.OpeningPrice.Equal(decimal.MustFromFloat(wantOpeningPrices[i])), "position opening price should be correct")
-		assert.True(t, position.PositionMargin.Equal(decimal.MustFromFloat(wantMargins[i])), "position margin should be correct")
-		assert.True(t, position.RealisedPNL.Equal(decimal.MustFromFloat(wantRealisedPNLs[i])), "position realised PNL should be correct")
-	}
-}
-
-func TestFuturesPositionCapturedPayload(t *testing.T) {
-	t.Parallel()
-	payload := []byte(`{"time":1787206135,"time_ms":1787206135040,"channel":"futures.positions","event":"update","result":[{"time":1787206135,"time_ms":1787206135038,"size":"-55","user":"12870774","leverage_max":25,"mode":"single","update_id":267,"cross_leverage_limit":40,"liq_price":0.023554,"maintenance_rate":0.9,"risk_limit":2500000,"last_close_pnl":-0.802254544,"entry_price":0.012071295652,"leverage":1,"realised_pnl":0.079661896,"contract":"GPS_USDT","history_point":0,"margin":66.491714276087,"realised_point":0,"history_pnl":17.1379873471,"pos_margin_mode":"isolated","lever":"1"}]}`)
-	response := struct {
-		Time      types.Time                 `json:"time"`
-		TimeMilli types.Time                 `json:"time_ms"`
-		Channel   string                     `json:"channel"`
-		Event     string                     `json:"event"`
-		Result    []WebsocketFuturesPosition `json:"result"`
-	}{}
-	decoder := json.NewDecoder(bytes.NewReader(payload))
-	decoder.DisallowUnknownFields()
-	require.NoError(t, decoder.Decode(&response), "captured position payload must unmarshal without unknown fields")
-	require.Len(t, response.Result, 1, "captured payload must contain one position")
-	assert.Equal(t, time.UnixMilli(1787206135038), response.Result[0].Time.Time(), "position timestamp should preserve millisecond precision")
-
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), payload, asset.USDTMarginedFutures))
-	require.Len(t, e.Websocket.DataHandler.C, 1, "processFuturesPositionsNotification must relay the captured position")
-	message := <-e.Websocket.DataHandler.C
-	positions, ok := message.Data.([]futures.Position)
-	require.True(t, ok, "captured payload must emit canonical futures positions")
-	require.Len(t, positions, 1, "captured payload must emit one position")
-	position := positions[0]
-	assert.Equal(t, "GPS_USDT", position.Pair.String(), "position pair should be normalised")
-	assert.Equal(t, order.Open, position.Status, "position status should be open")
-	assert.Equal(t, order.Short, position.LatestDirection, "position direction should be short")
-	assert.Equal(t, "55", position.LatestSize.String(), "position size should be absolute")
-	assert.Equal(t, "1", position.Leverage.String(), "position leverage should use the isolated leverage field")
-	assert.Equal(t, int64(267), position.UpdateID, "position update ID should be preserved")
-	assert.Equal(t, time.UnixMilli(1787206135038), position.LastUpdated, "position update time should be preserved")
-	assert.True(t, position.OpeningPrice.Equal(decimal.MustFromFloat(0.012071295652)), "position opening price should be correct")
-	assert.True(t, position.PositionMargin.Equal(decimal.MustFromFloat(66.491714276087)), "position margin should be correct")
-	assert.True(t, position.MaintenanceMarginFraction.Equal(decimal.MustFromFloat(0.9)), "position maintenance rate should be correct")
-	assert.True(t, position.EstimatedLiquidationPrice.Equal(decimal.MustFromFloat(0.023554)), "position liquidation price should be correct")
-	assert.True(t, position.RealisedPNL.Equal(decimal.MustFromFloat(0.079661896)), "position realised PNL should be correct")
-
-	classicCrossPayload := []byte(strings.NewReplacer(
-		`"leverage":1`, `"leverage":0`,
-		`"pos_margin_mode":"isolated"`, `"pos_margin_mode":""`,
-		`"lever":"1"`, `"lever":"0"`,
-	).Replace(string(payload)))
-	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), classicCrossPayload, asset.USDTMarginedFutures),
-		"processFuturesPositionsNotification must process classic cross margin")
-	require.Len(t, e.Websocket.DataHandler.C, 1, "processFuturesPositionsNotification must relay the classic cross margin position")
-	message = <-e.Websocket.DataHandler.C
-	positions, ok = message.Data.([]futures.Position)
-	require.True(t, ok, "classic cross-margin payload must emit canonical futures positions")
-	require.Len(t, positions, 1, "classic cross-margin payload must emit one position")
-	assert.Equal(t, "40", positions[0].Leverage.String(),
-		"classic cross-margin leverage should use the cross leverage limit")
-
-	closedPayload := []byte(strings.Replace(string(payload), `"size":"-55"`, `"size":"0"`, 1))
-	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), closedPayload, asset.USDTMarginedFutures),
-		"processFuturesPositionsNotification must process a zero-size update")
-	require.Len(t, e.Websocket.DataHandler.C, 1, "processFuturesPositionsNotification must relay the zero-size update")
-	message = <-e.Websocket.DataHandler.C
-	positions, ok = message.Data.([]futures.Position)
-	require.True(t, ok, "zero-size update must emit canonical futures positions")
-	require.Len(t, positions, 1, "zero-size update must emit one position")
-	assert.Equal(t, order.Closed, positions[0].Status, "zero-size position status should be closed")
-	assert.Equal(t, order.UnknownSide, positions[0].LatestDirection, "zero-size single-mode direction should be unknown")
-	assert.Equal(t, time.UnixMilli(1787206135038), positions[0].CloseDate, "zero-size position close time should be preserved")
-
-	for _, tt := range []struct {
-		mode      string
-		direction order.Side
-	}{
-		{mode: "dual_long", direction: order.Long},
-		{mode: "dual_short", direction: order.Short},
-	} {
-		t.Run(tt.mode, func(t *testing.T) {
-			t.Parallel()
-			ex := new(Exchange)
-			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-			dualPayload := []byte(strings.Replace(string(closedPayload), `"mode":"single"`, `"mode":"`+tt.mode+`"`, 1))
-			require.NoError(t, ex.processFuturesPositionsNotification(t.Context(), dualPayload, asset.USDTMarginedFutures),
-				"processFuturesPositionsNotification must process a zero-size dual-mode update")
-			require.Len(t, ex.Websocket.DataHandler.C, 1, "processFuturesPositionsNotification must relay the zero-size dual-mode update")
-			message := <-ex.Websocket.DataHandler.C
-			positions, ok := message.Data.([]futures.Position)
-			require.True(t, ok, "zero-size dual-mode update must emit canonical futures positions")
-			require.Len(t, positions, 1, "zero-size dual-mode update must emit one position")
-			assert.Equal(t, tt.direction, positions[0].LatestDirection, "zero-size dual-mode direction should be preserved")
-		})
-	}
-
-	t.Run("delivery collateral", func(t *testing.T) {
-		t.Parallel()
-		ex := new(Exchange)
-		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-		deliveryPairs, err := ex.GetEnabledPairs(asset.DeliveryFutures)
-		require.NoError(t, err, "GetEnabledPairs must return delivery pairs")
-		require.NotEmpty(t, deliveryPairs, "delivery pairs must not be empty")
-		deliveryPair := deliveryPairs[0]
-		formattedPair, err := ex.FormatExchangeCurrency(deliveryPair, asset.DeliveryFutures)
-		require.NoError(t, err, "FormatExchangeCurrency must format the delivery pair")
-		deliveryPayload := []byte(strings.Replace(string(payload), "GPS_USDT", formattedPair.String(), 1))
-		require.NoError(t, ex.processFuturesPositionsNotification(t.Context(), deliveryPayload, asset.DeliveryFutures),
-			"processFuturesPositionsNotification must process a delivery position")
-		require.Len(t, ex.Websocket.DataHandler.C, 1, "processFuturesPositionsNotification must relay the delivery position")
-		message := <-ex.Websocket.DataHandler.C
-		positions, ok := message.Data.([]futures.Position)
-		require.True(t, ok, "delivery update must emit canonical futures positions")
-		require.Len(t, positions, 1, "delivery update must emit one position")
-		assert.Equal(t, currency.USDT, positions[0].CollateralCurrency,
-			"delivery collateral currency should exclude the dated contract suffix")
 	})
 }
 
@@ -1118,42 +925,6 @@ func TestTimeInForceFromString(t *testing.T) {
 			tif, err := timeInForceFromString(k)
 			require.NoError(t, err)
 			assert.Equal(t, v, tif)
-		})
-	}
-}
-
-func TestOrderCreateParamsValidateNilGuard(t *testing.T) {
-	t.Parallel()
-	require.ErrorIs(t, (*FuturesOrderCreateRequest)(nil).validate(true), common.ErrNilPointer)
-	require.ErrorIs(t, (*DeliveryOrderCreateRequest)(nil).validate(true), common.ErrNilPointer)
-}
-
-// TestOrderCreateParamsValidateClosePosition checks that a futures order may close a position with a zero size,
-// which Gate documents for single position mode as close with a size of 0
-func TestOrderCreateParamsValidateClosePosition(t *testing.T) {
-	t.Parallel()
-	futuresContract := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
-	deliveryContract := currency.NewPairWithDelimiter("BTC", "USDT_20260626", currency.UnderscoreDelimiter)
-	for _, tc := range []struct {
-		name      string
-		close     bool
-		autoSize  string
-		size      types.Number
-		expectErr error
-	}{
-		{name: "close with a zero size", close: true},
-		{name: "close one side of a dual mode position", autoSize: "close_long"},
-		{name: "close with a size", close: true, size: 1, expectErr: errInvalidOrderSize},
-		{name: "zero size without closing", expectErr: errInvalidOrderSize},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			for _, isRest := range []bool{true, false} {
-				perpetual := &FuturesOrderCreateRequest{Contract: futuresContract, Size: tc.size, TimeInForce: iocTIF, ClosePosition: tc.close, AutoSize: tc.autoSize, ReduceOnly: true, Settle: currency.USDT}
-				assert.ErrorIsf(t, perpetual.validate(isRest), tc.expectErr, "futures validate should return the expected error when isRest is %t", isRest)
-				delivery := &DeliveryOrderCreateRequest{Contract: deliveryContract, Size: tc.size, TimeInForce: iocTIF, ClosePosition: tc.close, AutoSize: tc.autoSize, ReduceOnly: true, Settle: currency.USDT}
-				assert.ErrorIsf(t, delivery.validate(isRest), tc.expectErr, "delivery validate should return the expected error when isRest is %t", isRest)
-			}
 		})
 	}
 }

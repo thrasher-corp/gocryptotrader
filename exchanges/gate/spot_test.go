@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -320,6 +321,48 @@ func TestGetOrderbook(t *testing.T) {
 		return
 	}
 	assert.NotEmpty(t, result.Asks, "GetOrderbook should return asks")
+}
+
+func TestSpotOrderbookResponseMakeOrderbook(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		book *SpotOrderbookResponse
+		exp  *OrderbookResponse
+	}{
+		{
+			name: "levels on both sides",
+			book: &SpotOrderbookResponse{
+				ID:           11223344,
+				ResponseTime: types.Time(time.UnixMilli(1774968317360)),
+				UpdateTime:   types.Time(time.UnixMilli(1774968317359)),
+				Asks:         orderbook.LevelsArrayPriceAmount{{Price: 67197.1, Amount: 0.485259}, {Price: 67197.9, Amount: 0.016632}},
+				Bids:         orderbook.LevelsArrayPriceAmount{{Price: 67197, Amount: 0.442669}},
+			},
+			exp: &OrderbookResponse{
+				ID:           11223344,
+				ResponseTime: types.Time(time.UnixMilli(1774968317360)),
+				UpdateTime:   types.Time(time.UnixMilli(1774968317359)),
+				Asks:         OrderbookLevels{{Price: 67197.1, Amount: 0.485259}, {Price: 67197.9, Amount: 0.016632}},
+				Bids:         OrderbookLevels{{Price: 67197, Amount: 0.442669}},
+			},
+		},
+		{
+			name: "asks only",
+			book: &SpotOrderbookResponse{ID: 1, Asks: orderbook.LevelsArrayPriceAmount{{Price: 67197.1, Amount: 0.485259}}},
+			exp:  &OrderbookResponse{ID: 1, Asks: OrderbookLevels{{Price: 67197.1, Amount: 0.485259}}},
+		},
+		{
+			name: "empty book",
+			book: &SpotOrderbookResponse{},
+			exp:  &OrderbookResponse{},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, tc.book.MakeOrderbook(), "MakeOrderbook should carry the book's ID, times and levels")
+		})
+	}
 }
 
 func TestGetMarketTrades(t *testing.T) {
@@ -644,25 +687,57 @@ func TestCreateBatchOrders(t *testing.T) {
 	assert.NotEmpty(t, result, "CreateBatchOrders should return order results")
 }
 
+func TestCheckSpotBatchLimits(t *testing.T) {
+	t.Parallel()
+	btc := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
+	eth := currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)
+	ltc := currency.NewPairWithDelimiter("LTC", "USDT", currency.UnderscoreDelimiter)
+	xrp := currency.NewPairWithDelimiter("XRP", "USDT", currency.UnderscoreDelimiter)
+	sol := currency.NewPairWithDelimiter("SOL", "USDT", currency.UnderscoreDelimiter)
+	for _, tc := range []struct {
+		name  string
+		pairs currency.Pairs
+		err   error
+	}{
+		{name: "empty batch"},
+		{name: "one order", pairs: currency.Pairs{btc}},
+		{name: "ten orders on one currency pair", pairs: slices.Repeat(currency.Pairs{btc}, 10)},
+		{name: "eleven orders on one currency pair", pairs: slices.Repeat(currency.Pairs{btc}, 11), err: errTooManyBatchOrders},
+		{name: "ten orders on each of four currency pairs", pairs: slices.Repeat(currency.Pairs{btc, eth, ltc, xrp}, 10)},
+		{name: "unequal orders on four currency pairs", pairs: slices.Concat(slices.Repeat(currency.Pairs{btc}, 10), currency.Pairs{eth}, slices.Repeat(currency.Pairs{ltc}, 3), slices.Repeat(currency.Pairs{xrp}, 7))},
+		{name: "eleven orders on a later currency pair", pairs: slices.Concat(currency.Pairs{btc}, slices.Repeat(currency.Pairs{eth}, 11)), err: errTooManyBatchOrders},
+		{name: "five currency pairs", pairs: currency.Pairs{btc, eth, ltc, xrp, sol}, err: errTooManyBatchOrders},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIs(t, checkSpotBatchLimits(tc.pairs), tc.err, "checkSpotBatchLimits should return the expected error")
+		})
+	}
+}
+
 func TestValidateSpotOrderPrice(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name      string
 		orderType string
 		price     float64
 		err       error
 	}{
-		{orderType: "limit", price: 1},
-		{orderType: "limit", err: limits.ErrPriceBelowMin},
-		{err: limits.ErrPriceBelowMin}, // Gate defaults to a limit order
-		{orderType: "market"},
-		{orderType: "market", price: -1, err: limits.ErrPriceBelowMin},
+		{name: "limit order with a price", orderType: "limit", price: 1},
+		{name: "limit order without a price", orderType: "limit", err: limits.ErrPriceBelowMin},
+		{name: "default order type without a price", err: limits.ErrPriceBelowMin}, // Gate defaults to a limit order
+		{name: "market order without a price", orderType: "market"},
+		{name: "market order with a negative price", orderType: "market", price: -1, err: limits.ErrPriceBelowMin},
 	} {
-		err := validateSpotOrderPrice(tc.orderType, tc.price)
-		if tc.err != nil {
-			assert.ErrorIsf(t, err, tc.err, "validateSpotOrderPrice should reject %q orders priced %v", tc.orderType, tc.price)
-			continue
-		}
-		assert.NoErrorf(t, err, "validateSpotOrderPrice should accept %q orders priced %v", tc.orderType, tc.price)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateSpotOrderPrice(tc.orderType, tc.price)
+			if tc.err != nil {
+				assert.ErrorIsf(t, err, tc.err, "validateSpotOrderPrice should reject %q orders priced %v", tc.orderType, tc.price)
+				return
+			}
+			assert.NoErrorf(t, err, "validateSpotOrderPrice should accept %q orders priced %v", tc.orderType, tc.price)
+		})
 	}
 }
 
@@ -885,7 +960,7 @@ func TestGetSpotOrders(t *testing.T) {
 	assert.NotNil(t, result, "GetSpotOrders should return a result")
 }
 
-func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
+func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	_, err := e.CancelAllOpenOrdersSpecifiedCurrencyPair(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllOpenOrdersSpecifiedCurrencyPair must reject a nil request")
@@ -919,6 +994,8 @@ func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
 		FinishAs:           "cancelled",
 	}}
 	unifiedMarket := currency.NewBTCUSD().Format(currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter})
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
 		name string
 		arg  *CancelAllSpotOrdersRequest
@@ -935,11 +1012,13 @@ func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
 			exp:  []*SpotOrderResponse{{OrderID: "1852454421", Text: "t-abc124", AmendText: "-", Succeeded: true}},
 		},
 	} {
-		result, err := e.CancelAllOpenOrdersSpecifiedCurrencyPair(t.Context(), tc.arg)
-		require.NoErrorf(t, err, "CancelAllOpenOrdersSpecifiedCurrencyPair must not error for %s", tc.name)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "CancelAllOpenOrdersSpecifiedCurrencyPair should decode every field for %s", tc.name)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.CancelAllOpenOrdersSpecifiedCurrencyPair(ctx, tc.arg)
+			require.NoErrorf(t, err, "CancelAllOpenOrdersSpecifiedCurrencyPair must not error for %s", tc.name)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "CancelAllOpenOrdersSpecifiedCurrencyPair should decode every field for %s", tc.name)
+			}
+		})
 	}
 }
 
@@ -1241,19 +1320,25 @@ func TestGetServerTime(t *testing.T) {
 	assert.WithinDuration(t, time.Now(), result, time.Minute, "GetServerTime should return the current time")
 }
 
-func TestCountdownCancelSpotOrders(t *testing.T) {
+func TestCountdownCancelSpotOrders(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	_, err := e.CountdownCancelSpotOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CountdownCancelSpotOrders must reject a nil request")
 
+	ctx := t.Context()
+	// Cases share e and run in order, before the countdowns below
 	for _, timeout := range []time.Duration{-time.Second, 4 * time.Second, 5500 * time.Millisecond} {
-		_, err = e.CountdownCancelSpotOrders(t.Context(), &CountdownCancelOrderRequest{Countdown: types.DurationSeconds(timeout), CurrencyPair: getPair(t, asset.Spot)})
-		require.ErrorIsf(t, err, errInvalidTimeout, "CountdownCancelSpotOrders must reject a countdown of %s", timeout)
+		pair := getPair(t, asset.Spot)
+		t.Run(timeout.String(), func(t *testing.T) {
+			_, err := e.CountdownCancelSpotOrders(ctx, &CountdownCancelOrderRequest{Countdown: types.DurationSeconds(timeout), CurrencyPair: pair})
+			require.ErrorIsf(t, err, errInvalidTimeout, "CountdownCancelSpotOrders must reject a countdown of %s", timeout)
+		})
 	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
+	// Cases share e and run in order, starting the countdown before stopping it
 	for _, tc := range []struct {
 		name string
 		arg  *CountdownCancelOrderRequest
@@ -1271,11 +1356,13 @@ func TestCountdownCancelSpotOrders(t *testing.T) {
 			exp:  &TriggerTimeResponse{},
 		},
 	} {
-		result, err := e.CountdownCancelSpotOrders(t.Context(), tc.arg)
-		require.NoErrorf(t, err, "CountdownCancelSpotOrders must not error for %s", tc.name)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "CountdownCancelSpotOrders should decode the trigger time for %s", tc.name)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.CountdownCancelSpotOrders(ctx, tc.arg)
+			require.NoErrorf(t, err, "CountdownCancelSpotOrders must not error for %s", tc.name)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "CountdownCancelSpotOrders should decode the trigger time for %s", tc.name)
+			}
+		})
 	}
 }
 

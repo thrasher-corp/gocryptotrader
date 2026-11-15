@@ -27,14 +27,20 @@ func TestCurrenciesUnmarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, unmarshalHere, 5)
 
-	for input, expected := range map[string][]string{
-		`"GT"`:            {"GT"},
-		`" GT , USDT ,,"`: {"GT", "USDT"},
-		`""`:              {},
+	// Cases run in order, as Unmarshal adds the codes it reads to the package's shared currency storage
+	for _, tc := range []struct {
+		name, input string
+		expected    []string
+	}{
+		{name: "single code", input: `"GT"`, expected: []string{"GT"}},
+		{name: "spaced codes and empty entries", input: `" GT , USDT ,,"`, expected: []string{"GT", "USDT"}},
+		{name: "empty string", input: `""`, expected: []string{}},
 	} {
-		var c Currencies
-		require.NoErrorf(t, json.Unmarshal([]byte(input), &c), "Unmarshal must not error for %s", input)
-		assert.Equalf(t, expected, c.Strings(), "Unmarshal should read %s as its comma separated codes", input)
+		t.Run(tc.name, func(t *testing.T) {
+			var c Currencies
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &c), "Unmarshal must not error for %s", tc.input)
+			assert.Equalf(t, tc.expected, c.Strings(), "Unmarshal should read %s as its comma separated codes", tc.input)
+		})
 	}
 
 	var c Currencies

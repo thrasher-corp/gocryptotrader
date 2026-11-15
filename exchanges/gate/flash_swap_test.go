@@ -1,6 +1,9 @@
 package gate
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -12,17 +15,55 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestGetSupportedFlashSwapCurrencyPairs(t *testing.T) {
 	t.Parallel()
+
+	t.Run("request and every decoded field", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
+			assert.Equal(t, "/api/v4/flash_swap/currency_pairs", r.URL.Path, "request path should be flash swap currency pairs")
+			assert.Equal(t, "BTC", r.URL.Query().Get("currency"), "currency query should match")
+			assert.Equal(t, "10", r.URL.Query().Get("limit"), "limit query should match")
+			assert.Equal(t, "2", r.URL.Query().Get("page"), "page query should match")
+			_, err := fmt.Fprint(w, `[{"currency_pair":"BTC_USDT","sell_currency":"BTC","buy_currency":"USDT","sell_min_amount":"0.001","sell_max_amount":"1","buy_min_amount":"1","buy_max_amount":"100000"}]`)
+			assert.NoError(t, err, "writing flash swap currency pairs should not error")
+		}))
+
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		pairs, err := ex.GetSupportedFlashSwapCurrencyPairs(t.Context(), currency.BTC, 10, 2)
+		require.NoError(t, err, "GetSupportedFlashSwapCurrencyPairs must not error")
+		exp := []*FlashSwapCurrencyPairResponse{{
+			CurrencyPair:  currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
+			SellCurrency:  currency.BTC,
+			BuyCurrency:   currency.USDT,
+			SellMinAmount: 0.001,
+			SellMaxAmount: 1,
+			BuyMinAmount:  1,
+			BuyMaxAmount:  100000,
+		}}
+		assert.Equal(t, exp, pairs, "GetSupportedFlashSwapCurrencyPairs should decode every field")
+	})
+
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
+		name        string
 		ccy         currency.Code
 		limit, page uint64
 		exp         *FlashSwapCurrencyPairResponse
 	}{
 		{
+			name:  "BTC",
 			ccy:   currency.BTC,
 			limit: 10,
 			exp: &FlashSwapCurrencyPairResponse{
@@ -36,6 +77,7 @@ func TestGetSupportedFlashSwapCurrencyPairs(t *testing.T) {
 			},
 		},
 		{
+			name:  "every currency on page 1",
 			limit: 10,
 			page:  1,
 			exp: &FlashSwapCurrencyPairResponse{
@@ -49,14 +91,16 @@ func TestGetSupportedFlashSwapCurrencyPairs(t *testing.T) {
 			},
 		},
 	} {
-		result, err := e.GetSupportedFlashSwapCurrencyPairs(t.Context(), tc.ccy, tc.limit, tc.page)
-		require.NoErrorf(t, err, "GetSupportedFlashSwapCurrencyPairs must not error for currency %q", tc.ccy)
-		if mockTests {
-			require.Lenf(t, result, 5, "GetSupportedFlashSwapCurrencyPairs must return every recorded pair for currency %q", tc.ccy)
-			assert.Equalf(t, tc.exp, result[0], "GetSupportedFlashSwapCurrencyPairs should decode every field for currency %q", tc.ccy)
-			continue
-		}
-		assert.NotEmptyf(t, result, "GetSupportedFlashSwapCurrencyPairs should return pairs for currency %q", tc.ccy)
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.GetSupportedFlashSwapCurrencyPairs(ctx, tc.ccy, tc.limit, tc.page)
+			require.NoErrorf(t, err, "GetSupportedFlashSwapCurrencyPairs must not error for currency %q", tc.ccy)
+			if mockTests {
+				require.Lenf(t, result, 5, "GetSupportedFlashSwapCurrencyPairs must return every recorded pair for currency %q", tc.ccy)
+				assert.Equalf(t, tc.exp, result[0], "GetSupportedFlashSwapCurrencyPairs should decode every field for currency %q", tc.ccy)
+				return
+			}
+			assert.NotEmptyf(t, result, "GetSupportedFlashSwapCurrencyPairs should return pairs for currency %q", tc.ccy)
+		})
 	}
 }
 

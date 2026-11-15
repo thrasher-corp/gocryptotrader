@@ -1,8 +1,6 @@
 package gate
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -10,11 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -28,70 +25,74 @@ func TestBotResponseError(t *testing.T) {
 	assert.ErrorContains(t, err, "trace_011", "error should carry the trace ID")
 }
 
-func TestBotResponsesAsError(t *testing.T) {
+func TestBotDiscoverResponseAsError(t *testing.T) {
 	t.Parallel()
-	for name, tc := range map[string]struct {
-		ok, failed func() error
-	}{
-		"BotDiscoverResponse":         {ok: (&BotDiscoverResponse{Code: 200}).AsError, failed: (&BotDiscoverResponse{Code: 4, TraceID: "trace-1"}).AsError},
-		"BotCreateResponse":           {ok: (&BotCreateResponse{Code: 200}).AsError, failed: (&BotCreateResponse{Code: 4, TraceID: "trace-1"}).AsError},
-		"BotPortfolioRunningResponse": {ok: (&BotPortfolioRunningResponse{Code: 200}).AsError, failed: (&BotPortfolioRunningResponse{Code: 4, TraceID: "trace-1"}).AsError},
-		"BotPortfolioDetailResponse":  {ok: (&BotPortfolioDetailResponse{Code: 200}).AsError, failed: (&BotPortfolioDetailResponse{Code: 4, TraceID: "trace-1"}).AsError},
-		"BotPortfolioStopResponse":    {ok: (&BotPortfolioStopResponse{Code: 200}).AsError, failed: (&BotPortfolioStopResponse{Code: 4, TraceID: "trace-1"}).AsError},
-	} {
-		assert.NoErrorf(t, tc.ok(), "%s should not error on success", name)
-		assert.ErrorContainsf(t, tc.failed(), "trace-1", "%s should error with the trace ID on failure", name)
-	}
+	t.Run("success code", func(t *testing.T) {
+		t.Parallel()
+		assert.NoError(t, (&BotDiscoverResponse{Code: 200}).AsError(), "AsError should not error on success")
+	})
+	t.Run("failure code", func(t *testing.T) {
+		t.Parallel()
+		assert.EqualError(t, (&BotDiscoverResponse{Code: 4, TraceID: "trace-1"}).AsError(), "bot api error code: 4 message:  trace id: trace-1", "AsError should error with the code and trace ID on failure")
+	})
 }
 
-func TestBotNullReplies(t *testing.T) {
+func TestBotCreateResponseAsError(t *testing.T) {
 	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.Name = t.Name()
-	ex.API.AuthenticatedSupport = true
-	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`null`))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+	t.Run("success code", func(t *testing.T) {
+		t.Parallel()
+		assert.NoError(t, (&BotCreateResponse{Code: 200}).AsError(), "AsError should not error on success")
+	})
+	t.Run("failure code", func(t *testing.T) {
+		t.Parallel()
+		assert.EqualError(t, (&BotCreateResponse{Code: 4, TraceID: "trace-1"}).AsError(), "bot api error code: 4 message:  trace id: trace-1", "AsError should error with the code and trace ID on failure")
+	})
+}
 
-	spotGrid := &SpotGridCreateRequest{Market: "BTC_USDT"}
-	spotGrid.CreateParams.Money = 1000
-	spotGrid.CreateParams.LowPrice = 90000
-	spotGrid.CreateParams.HighPrice = 110000
-	spotGrid.CreateParams.GridNumber = 20
-	spotGrid.CreateParams.PriceType = BotPriceTypeGeometric
-	for name, call := range map[string]func() error{
-		"GetBotStrategyRecommendations": func() error {
-			_, err := ex.GetBotStrategyRecommendations(t.Context(), nil)
-			return err
-		},
-		"CreateSpotGridBot": func() error {
-			_, err := ex.CreateSpotGridBot(t.Context(), spotGrid)
-			return err
-		},
-		"GetBotRunningStrategies": func() error {
-			_, err := ex.GetBotRunningStrategies(t.Context(), BotStrategySpotGrid, "BTC_USDT", 1, 10)
-			return err
-		},
-		"GetBotStrategyDetail": func() error {
-			_, err := ex.GetBotStrategyDetail(t.Context(), "sg_001", BotStrategySpotGrid)
-			return err
-		},
-		"StopBotStrategy": func() error {
-			_, err := ex.StopBotStrategy(t.Context(), "sg_001", BotStrategySpotGrid)
-			return err
-		},
-	} {
-		assert.ErrorIsf(t, call(), common.ErrNoResponse, "%s should report a null reply", name)
-	}
+func TestBotPortfolioRunningResponseAsError(t *testing.T) {
+	t.Parallel()
+	t.Run("success code", func(t *testing.T) {
+		t.Parallel()
+		assert.NoError(t, (&BotPortfolioRunningResponse{Code: 200}).AsError(), "AsError should not error on success")
+	})
+	t.Run("failure code", func(t *testing.T) {
+		t.Parallel()
+		assert.EqualError(t, (&BotPortfolioRunningResponse{Code: 4, TraceID: "trace-1"}).AsError(), "bot api error code: 4 message:  trace id: trace-1", "AsError should error with the code and trace ID on failure")
+	})
+}
+
+func TestBotPortfolioDetailResponseAsError(t *testing.T) {
+	t.Parallel()
+	t.Run("success code", func(t *testing.T) {
+		t.Parallel()
+		assert.NoError(t, (&BotPortfolioDetailResponse{Code: 200}).AsError(), "AsError should not error on success")
+	})
+	t.Run("failure code", func(t *testing.T) {
+		t.Parallel()
+		assert.EqualError(t, (&BotPortfolioDetailResponse{Code: 4, TraceID: "trace-1"}).AsError(), "bot api error code: 4 message:  trace id: trace-1", "AsError should error with the code and trace ID on failure")
+	})
+}
+
+func TestBotPortfolioStopResponseAsError(t *testing.T) {
+	t.Parallel()
+	t.Run("success code", func(t *testing.T) {
+		t.Parallel()
+		assert.NoError(t, (&BotPortfolioStopResponse{Code: 200}).AsError(), "AsError should not error on success")
+	})
+	t.Run("failure code", func(t *testing.T) {
+		t.Parallel()
+		assert.EqualError(t, (&BotPortfolioStopResponse{Code: 4, TraceID: "trace-1"}).AsError(), "bot api error code: 4 message:  trace id: trace-1", "AsError should error with the code and trace ID on failure")
+	})
 }
 
 func TestGetBotStrategyRecommendations(t *testing.T) {
 	t.Parallel()
+	t.Run("null reply returns an error", func(t *testing.T) {
+		t.Parallel()
+		_, err := newFixedResponseExchange(t, "/api/v4/bot/strategy/recommend", `null`).GetBotStrategyRecommendations(t.Context(), nil)
+		assert.ErrorIs(t, err, common.ErrNoResponse, "GetBotStrategyRecommendations should report a null reply")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -129,6 +130,16 @@ func TestGetBotStrategyRecommendations(t *testing.T) {
 
 func TestCreateSpotGridBot(t *testing.T) {
 	t.Parallel()
+	t.Run("null reply returns an error", func(t *testing.T) {
+		t.Parallel()
+		arg := &SpotGridCreateRequest{
+			Market:       "BTC_USDT",
+			CreateParams: SpotGridCreateParams{Money: 1000, LowPrice: 90000, HighPrice: 110000, GridNumber: 20, PriceType: BotPriceTypeGeometric},
+		}
+		_, err := newFixedResponseExchange(t, "/api/v4/bot/spot-grid/create", `null`).CreateSpotGridBot(t.Context(), arg)
+		assert.ErrorIs(t, err, common.ErrNoResponse, "CreateSpotGridBot should report a null reply")
+	})
+
 	_, err := e.CreateSpotGridBot(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateSpotGridBot must reject a nil request")
 	_, err = e.CreateSpotGridBot(t.Context(), &SpotGridCreateRequest{})
@@ -163,6 +174,52 @@ func TestCreateSpotGridBot(t *testing.T) {
 		return
 	}
 	assert.NotEmpty(t, result.StrategyID, "CreateSpotGridBot should return a strategy ID")
+}
+
+func TestCreateBot(t *testing.T) {
+	t.Parallel()
+	newRequest := func() *SpotGridCreateRequest {
+		return &SpotGridCreateRequest{
+			StrategyType: BotStrategySpotGrid,
+			Market:       "BTC_USDT",
+			CreateParams: SpotGridCreateParams{Money: 1000, LowPrice: 90000, HighPrice: 110000, GridNumber: 20, PriceType: BotPriceTypeGeometric},
+		}
+	}
+
+	// Serial, as it calls the shared e
+	t.Run("creates the strategy", func(t *testing.T) {
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		}
+		result, err := e.createBot(t.Context(), botSpotGridCreateEPL, "bot/spot-grid/create", newRequest())
+		require.NoError(t, err, "createBot must not error")
+		if mockTests {
+			exp := &BotCreateData{StrategyID: "sg_001", StrategyType: BotStrategySpotGrid, Market: "BTC_USDT", Status: "running", JumpURL: "https://www.gate.com/bot/spot-grid/sg_001"}
+			assert.Equal(t, exp, result, "createBot should decode every field")
+			return
+		}
+		assert.NotEmpty(t, result.StrategyID, "createBot should return a strategy ID")
+	})
+
+	t.Run("request error is returned", func(t *testing.T) {
+		t.Parallel()
+		_, err := unsignedExchange(t).createBot(t.Context(), botSpotGridCreateEPL, "bot/spot-grid/create", newRequest())
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "createBot should return the request's error")
+	})
+
+	t.Run("failure code returns the bot error", func(t *testing.T) {
+		t.Parallel()
+		ex := newFixedResponseExchange(t, "/api/v4/bot/spot-grid/create", `{"code":40001,"message":"strategy not found","data":null,"trace_id":"trace_011"}`)
+		_, err := ex.createBot(t.Context(), botSpotGridCreateEPL, "bot/spot-grid/create", newRequest())
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "createBot must return a failed request")
+		assert.ErrorContains(t, err, "bot api error code: 40001 message: strategy not found trace id: trace_011", "createBot should return the bot error with its trace ID")
+	})
+
+	t.Run("null reply returns an error", func(t *testing.T) {
+		t.Parallel()
+		_, err := newFixedResponseExchange(t, "/api/v4/bot/spot-grid/create", `null`).createBot(t.Context(), botSpotGridCreateEPL, "bot/spot-grid/create", newRequest())
+		assert.ErrorIs(t, err, common.ErrNoResponse, "createBot should report a null reply")
+	})
 }
 
 func TestCreateMarginGridBot(t *testing.T) {
@@ -426,6 +483,12 @@ func TestCreateContractMartingaleBot(t *testing.T) {
 
 func TestGetBotRunningStrategies(t *testing.T) {
 	t.Parallel()
+	t.Run("null reply returns an error", func(t *testing.T) {
+		t.Parallel()
+		_, err := newFixedResponseExchange(t, "/api/v4/bot/portfolio/running", `null`).GetBotRunningStrategies(t.Context(), BotStrategySpotGrid, "BTC_USDT", 1, 10)
+		assert.ErrorIs(t, err, common.ErrNoResponse, "GetBotRunningStrategies should report a null reply")
+	})
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -456,6 +519,12 @@ func TestGetBotRunningStrategies(t *testing.T) {
 
 func TestGetBotStrategyDetail(t *testing.T) {
 	t.Parallel()
+	t.Run("null reply returns an error", func(t *testing.T) {
+		t.Parallel()
+		_, err := newFixedResponseExchange(t, "/api/v4/bot/portfolio/detail", `null`).GetBotStrategyDetail(t.Context(), "sg_001", BotStrategySpotGrid)
+		assert.ErrorIs(t, err, common.ErrNoResponse, "GetBotStrategyDetail should report a null reply")
+	})
+
 	_, err := e.GetBotStrategyDetail(t.Context(), "", BotStrategySpotGrid)
 	require.ErrorIs(t, err, errBotStrategyIDRequired, "GetBotStrategyDetail must require a strategy ID")
 	_, err = e.GetBotStrategyDetail(t.Context(), "sg_001", "")
@@ -513,6 +582,12 @@ func TestGetBotStrategyDetail(t *testing.T) {
 
 func TestStopBotStrategy(t *testing.T) {
 	t.Parallel()
+	t.Run("null reply returns an error", func(t *testing.T) {
+		t.Parallel()
+		_, err := newFixedResponseExchange(t, "/api/v4/bot/portfolio/stop", `null`).StopBotStrategy(t.Context(), "sg_001", BotStrategySpotGrid)
+		assert.ErrorIs(t, err, common.ErrNoResponse, "StopBotStrategy should report a null reply")
+	})
+
 	_, err := e.StopBotStrategy(t.Context(), "", BotStrategySpotGrid)
 	require.ErrorIs(t, err, errBotStrategyIDRequired, "StopBotStrategy must require a strategy ID")
 	_, err = e.StopBotStrategy(t.Context(), "sg_001", "")

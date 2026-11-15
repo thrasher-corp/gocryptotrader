@@ -13,38 +13,34 @@ func TestExchanges(t *testing.T) {
 	assert.Equal(t, []string{"*"}, new(v19.Version).Exchanges(), "Exchanges should return every exchange, so GateIO matches in any case")
 }
 
-func TestMatchesGateIOInAnyCase(t *testing.T) {
-	t.Parallel()
-	const (
-		oldDefaults = `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/"}`
-		newDefaults = `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws"}`
-	)
-	for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
-		in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
-		out, err := new(v19.Version).UpgradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
-		assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
-
-		in = []byte(`{"name":"` + name + `","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate"}}}`)
-		out, err = new(v19.Version).DowngradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
-		assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/api/v4/"}}}`, string(out), "DowngradeExchange should migrate %s", name)
-	}
-	for _, name := range []string{"Gate", "Binance", "GateIOX"} {
-		in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
-		out, err := new(v19.Version).UpgradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
-		assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
-
-		in = []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + newDefaults + `}}`)
-		out, err = new(v19.Version).DowngradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
-		assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
-	}
-}
-
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
+
+	const oldDefaults = `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/"}`
+	t.Run("migrates GateIO named in any case", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
+				out, err := new(v19.Version).UpgradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
+			})
+		}
+	})
+	t.Run("leaves other exchanges unchanged", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"Gate", "Binance", "GateIOX"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
+				out, err := new(v19.Version).UpgradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+				assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
+			})
+		}
+	})
 
 	for _, tc := range []struct {
 		name string
@@ -91,6 +87,32 @@ func TestUpgradeExchange(t *testing.T) {
 
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
+
+	t.Run("migrates GateIO named in any case", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate"}}}`)
+				out, err := new(v19.Version).DowngradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/api/v4/"}}}`, string(out), "DowngradeExchange should migrate %s", name)
+			})
+		}
+	})
+	t.Run("leaves other exchanges unchanged", func(t *testing.T) {
+		t.Parallel()
+		const newDefaults = `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws"}`
+		for _, name := range []string{"Gate", "Binance", "GateIOX"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + newDefaults + `}}`)
+				out, err := new(v19.Version).DowngradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+				assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
+			})
+		}
+	})
 
 	for _, tc := range []struct {
 		name string

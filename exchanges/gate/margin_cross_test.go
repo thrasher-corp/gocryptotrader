@@ -124,27 +124,27 @@ func TestGetCrossMarginAccountChangeHistory(t *testing.T) {
 	assert.NotNil(t, result, "GetCrossMarginAccountChangeHistory should return a result")
 }
 
-func TestCreateCrossMarginBorrowLoanNullReply(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.Name = t.Name()
-	ex.API.AuthenticatedSupport = true
-	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v4/margin/cross/loans", r.URL.Path, "request path should be the cross margin loans")
-		_, err := w.Write([]byte(`null`))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	_, err := ex.CreateCrossMarginBorrowLoan(t.Context(), &CrossMarginBorrowLoanRequest{Currency: currency.BTC, Amount: 3})
-	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateCrossMarginBorrowLoan should reject a null reply")
-}
-
 func TestCreateCrossMarginBorrowLoan(t *testing.T) {
 	t.Parallel()
+	t.Run("null reply returns an error", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.Name = t.Name()
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/v4/margin/cross/loans", r.URL.Path, "request path should be the cross margin loans")
+			_, err := w.Write([]byte(`null`))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		_, err := ex.CreateCrossMarginBorrowLoan(t.Context(), &CrossMarginBorrowLoanRequest{Currency: currency.BTC, Amount: 3})
+		assert.ErrorIs(t, err, common.ErrNoResponse, "CreateCrossMarginBorrowLoan should reject a null reply")
+	})
+
 	_, err := e.CreateCrossMarginBorrowLoan(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateCrossMarginBorrowLoan must reject a nil request")
 

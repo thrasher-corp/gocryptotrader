@@ -22,7 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestGetDualInvestmentProductList(t *testing.T) {
+func TestGetDualInvestmentProductList(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	_, err := e.GetDualInvestmentProductList(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetDualInvestmentProductList must reject a nil request")
@@ -48,21 +48,26 @@ func TestGetDualInvestmentProductList(t *testing.T) {
 	callPlan.ExercisePrice = 81500.5
 	callPlan.APYDisplay = 8.3846
 	callPlan.MinAmount = 0.00002435
+	ctx := t.Context()
+	// Cases share e and run in order
 	for _, tc := range []struct {
+		name    string
 		request *DualInvestmentProductListRequest
 		exp     *DualInvestmentPlanResponse
 	}{
-		{&DualInvestmentProductListRequest{Sort: "apy", Type: "put", QuoteCurrency: currency.USDT, PlanID: 123123412341, Page: 1, PageSize: 1000}, putPlan},
-		{&DualInvestmentProductListRequest{Sort: "short-period", Type: "put", Coin: currency.BTC, QuoteCurrency: currency.USDT, PlanID: 123123412341, Page: 1, PageSize: 1000}, putPlan},
-		{&DualInvestmentProductListRequest{Sort: "apy", Type: "call", QuoteCurrency: currency.USDT, PlanID: 123123412341, Page: 1, PageSize: 1000}, &callPlan},
+		{"puts by APY", &DualInvestmentProductListRequest{Sort: "apy", Type: "put", QuoteCurrency: currency.USDT, PlanID: 123123412341, Page: 1, PageSize: 1000}, putPlan},
+		{"BTC puts by short period", &DualInvestmentProductListRequest{Sort: "short-period", Type: "put", Coin: currency.BTC, QuoteCurrency: currency.USDT, PlanID: 123123412341, Page: 1, PageSize: 1000}, putPlan},
+		{"calls by APY", &DualInvestmentProductListRequest{Sort: "apy", Type: "call", QuoteCurrency: currency.USDT, PlanID: 123123412341, Page: 1, PageSize: 1000}, &callPlan},
 	} {
-		result, err := e.GetDualInvestmentProductList(t.Context(), tc.request)
-		require.NoErrorf(t, err, "GetDualInvestmentProductList must not error for sort %s type %s", tc.request.Sort, tc.request.Type)
-		if mockTests {
-			assert.Equalf(t, []*DualInvestmentPlanResponse{tc.exp}, result, "GetDualInvestmentProductList should decode every field for sort %s type %s", tc.request.Sort, tc.request.Type)
-			continue
-		}
-		assert.NotNilf(t, result, "GetDualInvestmentProductList should return a result for sort %s type %s", tc.request.Sort, tc.request.Type)
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.GetDualInvestmentProductList(ctx, tc.request)
+			require.NoErrorf(t, err, "GetDualInvestmentProductList must not error for sort %s type %s", tc.request.Sort, tc.request.Type)
+			if mockTests {
+				assert.Equalf(t, []*DualInvestmentPlanResponse{tc.exp}, result, "GetDualInvestmentProductList should decode every field for sort %s type %s", tc.request.Sort, tc.request.Type)
+				return
+			}
+			assert.NotNilf(t, result, "GetDualInvestmentProductList should return a result for sort %s type %s", tc.request.Sort, tc.request.Type)
+		})
 	}
 }
 
@@ -93,6 +98,8 @@ func TestGetDualInvestmentOrderList(t *testing.T) {
 		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 		from, to := time.Now().Add(time.Hour*24), time.Now().Add(time.Hour*24*30)
+		ctx := t.Context()
+		// Cases share ex and its server's captured query, so they run in order
 		for _, tc := range []struct {
 			name     string
 			from, to time.Time
@@ -100,10 +107,12 @@ func TestGetDualInvestmentOrderList(t *testing.T) {
 			{name: "future window", from: from, to: to},
 			{name: "single settlement time", from: to, to: to},
 		} {
-			result, err := ex.GetDualInvestmentOrderList(t.Context(), &DualInvestmentOrderListRequest{From: tc.from, To: tc.to, Page: 2})
-			require.NoErrorf(t, err, "GetDualInvestmentOrderList must accept a %s", tc.name)
-			assert.Emptyf(t, result, "GetDualInvestmentOrderList should return the empty listing for a %s", tc.name)
-			assert.Equalf(t, url.Values{"from": {strconv.FormatInt(tc.from.Unix(), 10)}, "to": {strconv.FormatInt(tc.to.Unix(), 10)}, "page": {"2"}}, query, "GetDualInvestmentOrderList should send the %s", tc.name)
+			t.Run(tc.name, func(t *testing.T) {
+				result, err := ex.GetDualInvestmentOrderList(ctx, &DualInvestmentOrderListRequest{From: tc.from, To: tc.to, Page: 2})
+				require.NoErrorf(t, err, "GetDualInvestmentOrderList must accept a %s", tc.name)
+				assert.Emptyf(t, result, "GetDualInvestmentOrderList should return the empty listing for a %s", tc.name)
+				assert.Equalf(t, url.Values{"from": {strconv.FormatInt(tc.from.Unix(), 10)}, "to": {strconv.FormatInt(tc.to.Unix(), 10)}, "page": {"2"}}, query, "GetDualInvestmentOrderList should send the %s", tc.name)
+			})
 		}
 	})
 
@@ -239,7 +248,7 @@ func TestRedeemDualCurrencyOrder(t *testing.T) {
 	assert.NoError(t, err, "RedeemDualCurrencyOrder should not error")
 }
 
-func TestModifyDualCurrencyOrderReinvest(t *testing.T) {
+func TestModifyDualCurrencyOrderReinvest(t *testing.T) { //nolint:tparallel // Top-level parallel is safe; the cases share e and run in order
 	t.Parallel()
 	err := e.ModifyDualCurrencyOrderReinvest(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "ModifyDualCurrencyOrderReinvest must reject a nil request")
@@ -259,10 +268,14 @@ func TestModifyDualCurrencyOrderReinvest(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
+	ctx := t.Context()
 	// Status 0 switches reinvestment off, so it must reach the API rather than be dropped as empty
+	// Cases share e and run in order
 	for _, status := range []uint8{1, 0} {
-		err = e.ModifyDualCurrencyOrderReinvest(t.Context(), &DualModifyOrderReinvestRequest{OrderID: 9497, Status: status})
-		assert.NoErrorf(t, err, "ModifyDualCurrencyOrderReinvest should not error for status %d", status)
+		t.Run("status "+strconv.FormatUint(uint64(status), 10), func(t *testing.T) {
+			err := e.ModifyDualCurrencyOrderReinvest(ctx, &DualModifyOrderReinvestRequest{OrderID: 9497, Status: status})
+			assert.NoErrorf(t, err, "ModifyDualCurrencyOrderReinvest should not error for status %d", status)
+		})
 	}
 }
 
@@ -670,6 +683,23 @@ func TestGetAutoInvestPlanList(t *testing.T) {
 
 func TestGetFixedTermProducts(t *testing.T) {
 	t.Parallel()
+	t.Run("error envelope is returned", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		// Fixed-term endpoints report failures inside a 200 response envelope
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/v4/earn/fixed-term/product", r.URL.Path, "request path should be the fixed-term product list")
+			_, err := fmt.Fprint(w, `{"code":-1,"message":"Service is busy. Please try again later.","data":null,"timestamp":1791854276}`)
+			assert.NoError(t, err, "writing the fixed-term error envelope should not error")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		_, err := ex.GetFixedTermProducts(t.Context(), currency.EMPTYCODE, 0, 1, 10)
+		assert.ErrorContains(t, err, "Service is busy", "GetFixedTermProducts should surface the envelope error")
+	})
+
 	_, err := e.GetFixedTermProducts(t.Context(), currency.EMPTYCODE, 0, 0, 10)
 	require.ErrorIs(t, err, errPageRequired, "GetFixedTermProducts must require a page")
 
@@ -730,23 +760,6 @@ func TestGetFixedTermProducts(t *testing.T) {
 		return
 	}
 	assert.NotNil(t, result, "GetFixedTermProducts should return a result for VIP products")
-}
-
-func TestGetFixedTermProductsAPIError(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	// Fixed-term endpoints report failures inside a 200 response envelope
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v4/earn/fixed-term/product", r.URL.Path, "request path should be the fixed-term product list")
-		_, err := fmt.Fprint(w, `{"code":-1,"message":"Service is busy. Please try again later.","data":null,"timestamp":1791854276}`)
-		assert.NoError(t, err, "writing the fixed-term error envelope should not error")
-	}))
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	_, err := ex.GetFixedTermProducts(t.Context(), currency.EMPTYCODE, 0, 1, 10)
-	assert.ErrorContains(t, err, "Service is busy", "GetFixedTermProducts should surface the envelope error")
 }
 
 func TestGetFixedTermProductsByAsset(t *testing.T) {
