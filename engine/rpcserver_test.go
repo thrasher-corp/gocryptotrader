@@ -910,6 +910,33 @@ func TestGetHistoricCandles(t *testing.T) {
 		})
 		assert.ErrorIs(t, err, errRangeTooLarge, "GetHistoricCandles should reject a range with too many candles")
 	})
+
+	limitStart := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	t.Run("range at the request limit", func(t *testing.T) {
+		_, err := s.GetHistoricCandles(t.Context(), &gctrpc.GetHistoricCandlesRequest{
+			Exchange:     testExchange,
+			Pair:         &gctrpc.CurrencyPair{Base: currency.BTC.String(), Quote: currency.USD.String()},
+			AssetType:    asset.Spot.String(),
+			Start:        limitStart.Format(common.SimpleTimeFormatWithTimezone),
+			End:          limitStart.Add(100_000 * time.Hour).Format(common.SimpleTimeFormatWithTimezone),
+			TimeInterval: int64(kline.OneHour),
+			UseDb:        true,
+		})
+		assert.NotErrorIs(t, err, errRangeTooLarge, "GetHistoricCandles should accept a range of 100,000 candles")
+	})
+
+	t.Run("range one candle over the request limit", func(t *testing.T) {
+		_, err := s.GetHistoricCandles(t.Context(), &gctrpc.GetHistoricCandlesRequest{
+			Exchange:     testExchange,
+			Pair:         &gctrpc.CurrencyPair{Base: currency.BTC.String(), Quote: currency.USD.String()},
+			AssetType:    asset.Spot.String(),
+			Start:        limitStart.Format(common.SimpleTimeFormatWithTimezone),
+			End:          limitStart.Add(100_001 * 5 * time.Minute).Format(common.SimpleTimeFormatWithTimezone),
+			TimeInterval: int64(kline.FiveMin),
+			UseDb:        true,
+		})
+		assert.ErrorIs(t, err, errRangeTooLarge, "GetHistoricCandles should reject a range of 100,001 candles")
+	})
 }
 
 func TestFindMissingSavedTradeIntervals(t *testing.T) {
@@ -1019,6 +1046,30 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 			End:          time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 		})
 		assert.ErrorIs(t, err, errRangeTooLarge, "FindMissingSavedTradeIntervals should reject a range with too many intervals")
+	})
+
+	// The handler counts the hours between the range's ends truncated to whole hours, so these ranges start past the half hour
+	limitStart := time.Date(2000, 1, 1, 0, 31, 0, 0, time.UTC)
+	t.Run("range at the request limit", func(t *testing.T) {
+		_, err := s.FindMissingSavedTradeIntervals(t.Context(), &gctrpc.FindMissingTradePeriodsRequest{
+			ExchangeName: testExchange,
+			AssetType:    asset.Spot.String(),
+			Pair:         &gctrpc.CurrencyPair{Base: currency.BTC.String(), Quote: currency.USD.String()},
+			Start:        limitStart.Format(common.SimpleTimeFormatWithTimezone),
+			End:          limitStart.Add(100_000*time.Hour + 28*time.Minute).Format(common.SimpleTimeFormatWithTimezone),
+		})
+		assert.NotErrorIs(t, err, errRangeTooLarge, "FindMissingSavedTradeIntervals should accept a range of 100,000 whole hours")
+	})
+
+	t.Run("range one interval over the request limit", func(t *testing.T) {
+		_, err := s.FindMissingSavedTradeIntervals(t.Context(), &gctrpc.FindMissingTradePeriodsRequest{
+			ExchangeName: testExchange,
+			AssetType:    asset.Spot.String(),
+			Pair:         &gctrpc.CurrencyPair{Base: currency.BTC.String(), Quote: currency.USD.String()},
+			Start:        limitStart.Format(common.SimpleTimeFormatWithTimezone),
+			End:          limitStart.Add(100_001*time.Hour - 30*time.Minute).Format(common.SimpleTimeFormatWithTimezone),
+		})
+		assert.ErrorIs(t, err, errRangeTooLarge, "FindMissingSavedTradeIntervals should reject a range of 100,001 whole hours")
 	})
 }
 
@@ -1141,6 +1192,31 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 			End:          time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 		})
 		assert.ErrorIs(t, err, errRangeTooLarge, "FindMissingSavedCandleIntervals should reject a range with too many candles")
+	})
+
+	limitStart := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	t.Run("range at the request limit", func(t *testing.T) {
+		_, err := s.FindMissingSavedCandleIntervals(t.Context(), &gctrpc.FindMissingCandlePeriodsRequest{
+			ExchangeName: testExchange,
+			AssetType:    asset.Spot.String(),
+			Pair:         &gctrpc.CurrencyPair{Base: currency.BTC.String(), Quote: currency.USD.String()},
+			Interval:     int64(time.Hour),
+			Start:        limitStart.Format(common.SimpleTimeFormatWithTimezone),
+			End:          limitStart.Add(100_000 * time.Hour).Format(common.SimpleTimeFormatWithTimezone),
+		})
+		assert.NotErrorIs(t, err, errRangeTooLarge, "FindMissingSavedCandleIntervals should accept a range of 100,000 candles")
+	})
+
+	t.Run("range one candle over the request limit", func(t *testing.T) {
+		_, err := s.FindMissingSavedCandleIntervals(t.Context(), &gctrpc.FindMissingCandlePeriodsRequest{
+			ExchangeName: testExchange,
+			AssetType:    asset.Spot.String(),
+			Pair:         &gctrpc.CurrencyPair{Base: currency.BTC.String(), Quote: currency.USD.String()},
+			Interval:     int64(5 * time.Minute),
+			Start:        limitStart.Format(common.SimpleTimeFormatWithTimezone),
+			End:          limitStart.Add(100_001 * 5 * time.Minute).Format(common.SimpleTimeFormatWithTimezone),
+		})
+		assert.ErrorIs(t, err, errRangeTooLarge, "FindMissingSavedCandleIntervals should reject a range of 100,001 candles")
 	})
 }
 
@@ -2803,6 +2879,37 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 			Period:        9,
 		})
 		assert.ErrorIs(t, err, errRangeTooLarge, "GetTechnicalAnalysis should reject a range with too many candles")
+	})
+
+	limitStart := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	t.Run("range at the request limit", func(t *testing.T) {
+		t.Parallel()
+		_, err := s.GetTechnicalAnalysis(t.Context(), &gctrpc.GetTechnicalAnalysisRequest{
+			Exchange:      fakeExchangeName,
+			AssetType:     asset.Spot.String(),
+			Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+			Interval:      int64(kline.OneHour),
+			Start:         timestamppb.New(limitStart),
+			End:           timestamppb.New(limitStart.Add(100_000 * time.Hour)),
+			AlgorithmType: "sma",
+			Period:        9,
+		})
+		assert.NoError(t, err, "GetTechnicalAnalysis should accept a range of 100,000 candles")
+	})
+
+	t.Run("range one candle over the request limit", func(t *testing.T) {
+		t.Parallel()
+		_, err := s.GetTechnicalAnalysis(t.Context(), &gctrpc.GetTechnicalAnalysisRequest{
+			Exchange:      fakeExchangeName,
+			AssetType:     asset.Spot.String(),
+			Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+			Interval:      int64(kline.FiveMin),
+			Start:         timestamppb.New(limitStart),
+			End:           timestamppb.New(limitStart.Add(100_001 * 5 * time.Minute)),
+			AlgorithmType: "sma",
+			Period:        9,
+		})
+		assert.ErrorIs(t, err, errRangeTooLarge, "GetTechnicalAnalysis should reject a range of 100,001 candles")
 	})
 }
 

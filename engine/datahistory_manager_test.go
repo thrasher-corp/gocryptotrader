@@ -253,6 +253,40 @@ func TestGetByNickname(t *testing.T) {
 	_, err = m.GetByNickname(dhj.Nickname, false)
 	assert.NoError(t, err)
 
+	t.Run("missing job is not found", func(t *testing.T) {
+		t.Parallel()
+		missing, _ := createDHM(t)
+		missing.jobDB = missingJobDB{}
+		_, err := missing.GetByNickname("missing", false)
+		assert.ErrorIs(t, err, errJobNotFound, "GetByNickname should report a missing job as not found")
+	})
+
+	t.Run("missing job with full details is not found", func(t *testing.T) {
+		t.Parallel()
+		missing, _ := createDHM(t)
+		missing.jobDB = missingJobDB{}
+		_, err := missing.GetByNickname("missing", true)
+		assert.ErrorIs(t, err, errJobNotFound, "GetByNickname should report a missing job as not found")
+	})
+
+	t.Run("database failure is not a missing job", func(t *testing.T) {
+		t.Parallel()
+		failing, _ := createDHM(t)
+		failing.jobDB = failingJobDB{}
+		_, err := failing.GetByNickname("failing", false)
+		assert.ErrorIs(t, err, errExpectedTestError, "GetByNickname should return the database's error")
+		assert.NotErrorIs(t, err, errJobNotFound, "GetByNickname should not report a database failure as a missing job")
+	})
+
+	t.Run("database failure with full details is not a missing job", func(t *testing.T) {
+		t.Parallel()
+		failing, _ := createDHM(t)
+		failing.jobDB = failingJobDB{}
+		_, err := failing.GetByNickname("failing", true)
+		assert.ErrorIs(t, err, errExpectedTestError, "GetByNickname should return the database's error")
+		assert.NotErrorIs(t, err, errJobNotFound, "GetByNickname should not report a database failure as a missing job")
+	})
+
 	m.started.Store(false)
 	_, err = m.GetByNickname("test123", false)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
@@ -285,6 +319,23 @@ func TestGetByID(t *testing.T) {
 
 	_, err = m.GetByID(dhj.ID)
 	assert.NoError(t, err)
+
+	t.Run("missing job is not found", func(t *testing.T) {
+		t.Parallel()
+		missing, _ := createDHM(t)
+		missing.jobDB = missingJobDB{}
+		_, err := missing.GetByID(dhj.ID)
+		assert.ErrorIs(t, err, errJobNotFound, "GetByID should report a missing job as not found")
+	})
+
+	t.Run("database failure is not a missing job", func(t *testing.T) {
+		t.Parallel()
+		failing, _ := createDHM(t)
+		failing.jobDB = failingJobDB{}
+		_, err := failing.GetByID(dhj.ID)
+		assert.ErrorIs(t, err, errExpectedTestError, "GetByID should return the database's error")
+		assert.NotErrorIs(t, err, errJobNotFound, "GetByID should not report a database failure as a missing job")
+	})
 
 	m.started.Store(false)
 	_, err = m.GetByID(dhj.ID)
@@ -445,13 +496,15 @@ func TestValidateJob(t *testing.T) {
 		assert.NoError(t, m.validateJob(job), "validateJob should accept a convert candles job with both intervals")
 	})
 
-	t.Run("decimal place comparison limit", func(t *testing.T) {
+	t.Run("decimal place comparison limit is 18", func(t *testing.T) {
 		t.Parallel()
 		job := newJob(dataHistoryCandleValidationDataType)
-		job.DecimalPlaceComparison = maxDecimalPlaceComparison
-		assert.NoError(t, m.validateJob(job), "validateJob should accept the largest decimal place comparison")
-		job.DecimalPlaceComparison = maxDecimalPlaceComparison + 1
-		assert.ErrorIs(t, m.validateJob(job), errInvalidDecimalPlaces, "validateJob should reject a decimal place comparison an int64 cannot hold")
+		job.DecimalPlaceComparison = 18
+		assert.NoError(t, m.validateJob(job), "validateJob should accept 18 decimal places")
+		job.DecimalPlaceComparison = 19
+		assert.ErrorIs(t, m.validateJob(job), errInvalidDecimalPlaces, "validateJob should reject 19 decimal places, as ten to that power overflows an int64")
+		job.DecimalPlaceComparison = 20
+		assert.ErrorIs(t, m.validateJob(job), errInvalidDecimalPlaces, "validateJob should reject 20 decimal places")
 	})
 
 	t.Run("secondary source validation limits", func(t *testing.T) {
@@ -479,6 +532,30 @@ func TestValidateJob(t *testing.T) {
 		job.Interval = kline.OneMin
 		job.StartDate = time.Now().Add(-time.Minute * (maxDataHistoryJobIntervals + 60))
 		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should reject a job spanning too many intervals")
+	})
+
+	t.Run("range at the job limit", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryCandleDataType)
+		job.Interval = kline.FiveMin
+		job.EndDate = time.Now().Add(-time.Hour).Truncate(time.Minute)
+		job.StartDate = job.EndDate.Add(-1_000_000 * 5 * time.Minute)
+		assert.NoError(t, m.validateJob(job), "validateJob should accept a job of 1,000,000 intervals")
+		job.StartDate = job.StartDate.Add(-5 * time.Minute)
+		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should reject a job of 1,000,001 intervals")
+	})
+
+	t.Run("conversion range at the job limit", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryConvertCandlesDataType)
+		job.Interval = kline.FiveMin
+		job.ConversionInterval = kline.OneMin
+		job.EndDate = time.Now().Add(-time.Hour).Truncate(time.Minute)
+		job.StartDate = job.EndDate.Add(-1_000_000 * time.Minute)
+		assert.NoError(t, m.validateJob(job), "validateJob should accept a job of 1,000,000 conversion intervals")
+		// validateJob rounds the dates to the five-minute interval, so the range can only grow by five conversion intervals
+		job.StartDate = job.StartDate.Add(-5 * time.Minute)
+		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should reject a job of 1,000,005 conversion intervals")
 	})
 
 	t.Run("sub-second range with too many intervals", func(t *testing.T) {
@@ -1701,6 +1778,23 @@ func (failingJobDB) GetByNickName(string) (*datahistoryjob.DataHistoryJob, error
 
 func (failingJobDB) GetJobAndAllResults(string) (*datahistoryjob.DataHistoryJob, error) {
 	return nil, errExpectedTestError
+}
+
+// missingJobDB finds no job, as the database answers a lookup for a nickname or ID it does not hold
+type missingJobDB struct {
+	datahistoryjob.IDBService
+}
+
+func (missingJobDB) GetByID(string) (*datahistoryjob.DataHistoryJob, error) {
+	return nil, sql.ErrNoRows
+}
+
+func (missingJobDB) GetByNickName(string) (*datahistoryjob.DataHistoryJob, error) {
+	return nil, sql.ErrNoRows
+}
+
+func (missingJobDB) GetJobAndAllResults(string) (*datahistoryjob.DataHistoryJob, error) {
+	return nil, sql.ErrNoRows
 }
 
 func (d dataHistoryJobResultService) Upsert(_ ...*datahistoryjobresult.DataHistoryJobResult) error {

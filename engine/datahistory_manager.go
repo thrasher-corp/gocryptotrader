@@ -1315,7 +1315,10 @@ func (m *DataHistoryManager) GetByID(id uuid.UUID) (*DataHistoryJob, error) {
 	}
 	dbJ, err := m.jobDB.GetByID(id.String())
 	if err != nil {
-		return nil, fmt.Errorf("%w with id %s %s", errJobNotFound, id, err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("%w with id %s", errJobNotFound, id)
+		}
+		return nil, fmt.Errorf("could not load job with id %s: %w", id, err)
 	}
 	result, err := m.convertDBModelToJob(dbJ)
 	if err != nil {
@@ -1337,6 +1340,9 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 	if fullDetails {
 		dbJ, err := m.jobDB.GetJobAndAllResults(nickname)
 		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, errJobNotFound
+			}
 			return nil, fmt.Errorf("job %s could not load job from database: %w", nickname, err)
 		}
 		result, err := m.convertDBModelToJob(dbJ)
@@ -1347,11 +1353,11 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 	}
 	j, err := m.jobDB.GetByNickName(nickname)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			// no need to display normal sql err to user
 			return nil, errJobNotFound
 		}
-		return nil, fmt.Errorf("job %s %w, %s", nickname, errJobNotFound, err)
+		return nil, fmt.Errorf("job %s could not load job from database: %w", nickname, err)
 	}
 	job, err := m.convertDBModelToJob(j)
 	if err != nil {
