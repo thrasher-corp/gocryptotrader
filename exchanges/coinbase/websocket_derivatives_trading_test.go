@@ -1,11 +1,13 @@
 package coinbase
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 func TestWebsocketAPIBuy(t *testing.T) {
@@ -52,77 +54,112 @@ func TestWebsocketAPICancelOrderByID(t *testing.T) {
 }
 
 func TestWebsocketAPICancelAll(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelAll is not tested live, as " + derivativesTradingSkipCancelAll)
-	}
-	ex, _ := newDerivativesWebsocketTestExchange(t)
-	resp, err := ex.WebsocketAPI().CancelAll(t.Context(), mockDerivativesCancelAllRequest())
-	require.NoError(t, err, "WebsocketAPI.CancelAll must not error")
-	assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "WebsocketAPI.CancelAll should decode the count")
+	// Serial, as the live case cancels every open order in its scope, which would cancel the live orders of the tests
+	// running beside it
+	t.Run("cancels every order", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newDerivativesWebsocketTestExchange(t)
+		if !mockTests {
+			testDerivativesTradingLiveCancelAll(t, func(ctx context.Context) (*DerivativesCancelAllResponse, error) {
+				return ex.WebsocketAPI().CancelAll(ctx, &DerivativesCancelAllRequest{})
+			})
+			return
+		}
+		resp, err := ex.WebsocketAPI().CancelAll(t.Context(), mockDerivativesCancelAllRequest())
+		require.NoError(t, err, "WebsocketAPI.CancelAll must not error")
+		assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "WebsocketAPI.CancelAll should decode the count")
+	})
 
 	unauthenticated, _ := newUnauthenticatedDerivativesWebsocketTestExchange(t)
-	_, err = unauthenticated.WebsocketAPI().CancelAll(t.Context(), mockDerivativesCancelAllRequest())
+	_, err := unauthenticated.WebsocketAPI().CancelAll(t.Context(), mockDerivativesCancelAllRequest())
 	assert.ErrorIs(t, err, errDerivativesWebsocketNotAuthenticated, "WebsocketAPI.CancelAll should refuse an unauthenticated connection")
 }
 
 func TestWebsocketAPICancelAllByCurrency(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelAllByCurrency is not tested live, as " + derivativesTradingSkipCancelAll)
-	}
-	ex, _ := newDerivativesWebsocketTestExchange(t)
-	resp, err := ex.WebsocketAPI().CancelAllByCurrency(t.Context(), mockDerivativesCancelAllByCurrencyRequest())
-	require.NoError(t, err, "WebsocketAPI.CancelAllByCurrency must not error")
-	assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "WebsocketAPI.CancelAllByCurrency should decode the count")
+	// Serial, as the live case cancels every open order in its scope, which would cancel the live orders of the tests
+	// running beside it
+	t.Run("cancels the currency's orders", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newDerivativesWebsocketTestExchange(t)
+		if !mockTests {
+			testDerivativesTradingLiveCancelAll(t, func(ctx context.Context) (*DerivativesCancelAllResponse, error) {
+				return ex.WebsocketAPI().CancelAllByCurrency(ctx, &DerivativesCancelAllByCurrencyRequest{Currency: derivativesTradingLiveCurrency, Kind: DerivativesKindFuture, Type: DerivativesCancelOrderTypeLimit})
+			})
+			return
+		}
+		resp, err := ex.WebsocketAPI().CancelAllByCurrency(t.Context(), mockDerivativesCancelAllByCurrencyRequest())
+		require.NoError(t, err, "WebsocketAPI.CancelAllByCurrency must not error")
+		assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "WebsocketAPI.CancelAllByCurrency should decode the count")
+	})
 
 	unauthenticated, _ := newUnauthenticatedDerivativesWebsocketTestExchange(t)
-	_, err = unauthenticated.WebsocketAPI().CancelAllByCurrency(t.Context(), mockDerivativesCancelAllByCurrencyRequest())
+	_, err := unauthenticated.WebsocketAPI().CancelAllByCurrency(t.Context(), mockDerivativesCancelAllByCurrencyRequest())
 	assert.ErrorIs(t, err, errDerivativesWebsocketNotAuthenticated, "WebsocketAPI.CancelAllByCurrency should refuse an unauthenticated connection")
 }
 
 func TestWebsocketAPICancelAllByCurrencyPair(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelAllByCurrencyPair is not tested live, as " + derivativesTradingSkipCancelAll)
-	}
-	ex, _ := newDerivativesWebsocketTestExchange(t)
-	resp, err := ex.WebsocketAPI().CancelAllByCurrencyPair(t.Context(), mockDerivativesCancelAllByCurrencyPairRequest())
-	require.NoError(t, err, "WebsocketAPI.CancelAllByCurrencyPair must not error")
-	assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "WebsocketAPI.CancelAllByCurrencyPair should decode the count")
+	// Serial, as the live case cancels every open order in its scope, which would cancel the live orders of the tests
+	// running beside it
+	t.Run("cancels the currency pair's orders", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newDerivativesWebsocketTestExchange(t)
+		if !mockTests {
+			testDerivativesTradingLiveCancelAll(t, func(ctx context.Context) (*DerivativesCancelAllResponse, error) {
+				return ex.WebsocketAPI().CancelAllByCurrencyPair(ctx, &DerivativesCancelAllByCurrencyPairRequest{CurrencyPair: derivativesTradingLiveCurrencyPair, Kind: DerivativesKindFuture, Type: DerivativesCancelOrderTypeLimit})
+			})
+			return
+		}
+		resp, err := ex.WebsocketAPI().CancelAllByCurrencyPair(t.Context(), mockDerivativesCancelAllByCurrencyPairRequest())
+		require.NoError(t, err, "WebsocketAPI.CancelAllByCurrencyPair must not error")
+		assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "WebsocketAPI.CancelAllByCurrencyPair should decode the count")
+	})
 
 	unauthenticated, _ := newUnauthenticatedDerivativesWebsocketTestExchange(t)
-	_, err = unauthenticated.WebsocketAPI().CancelAllByCurrencyPair(t.Context(), mockDerivativesCancelAllByCurrencyPairRequest())
+	_, err := unauthenticated.WebsocketAPI().CancelAllByCurrencyPair(t.Context(), mockDerivativesCancelAllByCurrencyPairRequest())
 	assert.ErrorIs(t, err, errDerivativesWebsocketNotAuthenticated, "WebsocketAPI.CancelAllByCurrencyPair should refuse an unauthenticated connection")
 }
 
 func TestWebsocketAPICancelAllByInstrument(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelAllByInstrument is not tested live, as " + derivativesTradingSkipCancelAll)
-	}
-	ex, _ := newDerivativesWebsocketTestExchange(t)
-	resp, err := ex.WebsocketAPI().CancelAllByInstrument(t.Context(), mockDerivativesCancelAllByInstrumentRequest())
-	require.NoError(t, err, "WebsocketAPI.CancelAllByInstrument must not error")
-	assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "WebsocketAPI.CancelAllByInstrument should decode the count")
+	// Serial, as the live case cancels every open order in its scope, which would cancel the live orders of the tests
+	// running beside it
+	t.Run("cancels the instrument's orders", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newDerivativesWebsocketTestExchange(t)
+		if !mockTests {
+			testDerivativesTradingLiveCancelAll(t, func(ctx context.Context) (*DerivativesCancelAllResponse, error) {
+				return ex.WebsocketAPI().CancelAllByInstrument(ctx, &DerivativesCancelAllByInstrumentRequest{InstrumentName: derivativesTradingLiveInstrument, Type: DerivativesCancelOrderTypeLimit})
+			})
+			return
+		}
+		resp, err := ex.WebsocketAPI().CancelAllByInstrument(t.Context(), mockDerivativesCancelAllByInstrumentRequest())
+		require.NoError(t, err, "WebsocketAPI.CancelAllByInstrument must not error")
+		assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "WebsocketAPI.CancelAllByInstrument should decode the count")
+	})
 
 	unauthenticated, _ := newUnauthenticatedDerivativesWebsocketTestExchange(t)
-	_, err = unauthenticated.WebsocketAPI().CancelAllByInstrument(t.Context(), mockDerivativesCancelAllByInstrumentRequest())
+	_, err := unauthenticated.WebsocketAPI().CancelAllByInstrument(t.Context(), mockDerivativesCancelAllByInstrumentRequest())
 	assert.ErrorIs(t, err, errDerivativesWebsocketNotAuthenticated, "WebsocketAPI.CancelAllByInstrument should refuse an unauthenticated connection")
 }
 
 func TestWebsocketAPICancelAllByKindOrType(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.CancelAllByKindOrType is not tested live, as " + derivativesTradingSkipCancelAll)
-	}
-	ex, _ := newDerivativesWebsocketTestExchange(t)
-	resp, err := ex.WebsocketAPI().CancelAllByKindOrType(t.Context(), mockDerivativesCancelAllByKindOrTypeRequest())
-	require.NoError(t, err, "WebsocketAPI.CancelAllByKindOrType must not error")
-	assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "WebsocketAPI.CancelAllByKindOrType should decode the count")
+	// Serial, as the live case cancels every open order in its scope, which would cancel the live orders of the tests
+	// running beside it
+	t.Run("cancels orders by kind or type", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newDerivativesWebsocketTestExchange(t)
+		if !mockTests {
+			testDerivativesTradingLiveCancelAll(t, func(ctx context.Context) (*DerivativesCancelAllResponse, error) {
+				return ex.WebsocketAPI().CancelAllByKindOrType(ctx, &DerivativesCancelAllByKindOrTypeRequest{Currencies: []currency.Code{derivativesTradingLiveCurrency}, Kind: DerivativesKindFuture, Type: DerivativesCancelOrderTypeLimit})
+			})
+			return
+		}
+		resp, err := ex.WebsocketAPI().CancelAllByKindOrType(t.Context(), mockDerivativesCancelAllByKindOrTypeRequest())
+		require.NoError(t, err, "WebsocketAPI.CancelAllByKindOrType must not error")
+		assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "WebsocketAPI.CancelAllByKindOrType should decode the count")
+	})
 
 	unauthenticated, _ := newUnauthenticatedDerivativesWebsocketTestExchange(t)
-	_, err = unauthenticated.WebsocketAPI().CancelAllByKindOrType(t.Context(), mockDerivativesCancelAllByKindOrTypeRequest())
+	_, err := unauthenticated.WebsocketAPI().CancelAllByKindOrType(t.Context(), mockDerivativesCancelAllByKindOrTypeRequest())
 	assert.ErrorIs(t, err, errDerivativesWebsocketNotAuthenticated, "WebsocketAPI.CancelAllByKindOrType should refuse an unauthenticated connection")
 }
 
@@ -150,16 +187,30 @@ func TestWebsocketAPICancelByLabel(t *testing.T) {
 
 func TestWebsocketAPIClosePosition(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("WebsocketAPI.ClosePosition is not tested live, as " + derivativesTradingSkipClosePosition)
-	}
-	ex, _ := newDerivativesWebsocketTestExchange(t)
-	resp, err := ex.WebsocketAPI().ClosePosition(t.Context(), mockDerivativesClosePositionRequest())
-	require.NoError(t, err, "WebsocketAPI.ClosePosition must not error")
-	assert.Equal(t, testDerivativesPlacedOrderResponse(), resp, "WebsocketAPI.ClosePosition should decode every field")
+	t.Run("closes nothing without a position", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mock records the close of a position the account holds, which the next case checks")
+		}
+		skipLiveUnlessCanManipulate(t)
+		ex, _ := newDerivativesWebsocketTestExchange(t)
+		testDerivativesTradingLiveClosePosition(t, func(ctx context.Context, req *DerivativesClosePositionRequest) (*DerivativesOrderTradesResponse, error) {
+			return ex.WebsocketAPI().ClosePosition(ctx, req)
+		})
+	})
+	t.Run("closes the position", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("live tests close no position the account holds, so the case before runs live instead")
+		}
+		ex, _ := newDerivativesWebsocketTestExchange(t)
+		resp, err := ex.WebsocketAPI().ClosePosition(t.Context(), mockDerivativesClosePositionRequest())
+		require.NoError(t, err, "WebsocketAPI.ClosePosition must not error")
+		assert.Equal(t, testDerivativesPlacedOrderResponse(), resp, "WebsocketAPI.ClosePosition should decode every field")
+	})
 
 	unauthenticated, _ := newUnauthenticatedDerivativesWebsocketTestExchange(t)
-	_, err = unauthenticated.WebsocketAPI().ClosePosition(t.Context(), mockDerivativesClosePositionRequest())
+	_, err := unauthenticated.WebsocketAPI().ClosePosition(t.Context(), mockDerivativesClosePositionRequest())
 	assert.ErrorIs(t, err, errDerivativesWebsocketNotAuthenticated, "WebsocketAPI.ClosePosition should refuse an unauthenticated connection")
 }
 

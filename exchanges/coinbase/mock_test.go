@@ -84,6 +84,14 @@ func newDerivativesWebsocketTestExchange(t *testing.T) (*Exchange, *derivativesV
 	return ex, venue
 }
 
+// newDedicatedDerivativesWebsocketTestExchange returns a mock exchange of the test's own, as
+// newDerivativesWebsocketTestExchange does for every mock test, connected and authenticated to a new mock of the
+// gateway's websocket, and the mock
+func newDedicatedDerivativesWebsocketTestExchange(t *testing.T) (*Exchange, *derivativesVenue) {
+	t.Helper()
+	return newDerivativesWebsocketTestExchange(t)
+}
+
 // newUnauthenticatedDerivativesWebsocketTestExchange returns a mock exchange named after the test whose gateway
 // private websocket connection is connected to a new mock of the gateway's websocket without authenticating
 func newUnauthenticatedDerivativesWebsocketTestExchange(t *testing.T) (*Exchange, *derivativesVenue) {

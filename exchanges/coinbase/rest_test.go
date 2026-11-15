@@ -39,7 +39,10 @@ import (
 
 const (
 	// canManipulateRealOrders lets live tests with credentials change the account they act for: place, edit and
-	// cancel orders priced away from the market, move funds and change settings, restoring them afterwards
+	// cancel orders priced away from the market, move funds and change settings, restoring them afterwards. The cases
+	// that cancel every order in a scope or close a position go ahead only once the account holds no other order or
+	// position there, so one it opens between that check and the request, or a retry the gateway asks for, is
+	// cancelled or closed with them
 	canManipulateRealOrders = false
 	// testAPIKey is a placeholder CDP API key name, which the mock responses and the test servers accept
 	testAPIKey = "organizations/mock-organisation/apiKeys/mock-key"

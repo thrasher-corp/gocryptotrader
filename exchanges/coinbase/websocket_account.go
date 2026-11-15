@@ -431,8 +431,9 @@ func (e *Exchange) websocketOrderDetail(o *WebsocketUserOrder, envelope *Websock
 		case amount > 0 && quoteAmount == 0:
 			remaining = o.LeavesQuantity.Float64()
 			// A report while an edit is queued, or one older than an edit's response, can give what remains of the size,
-			// or in the currency, the order had before the edit, so neither relays a remainder
-			if o.Status == OrderStatusEditQueued {
+			// or in the currency, the order had before the edit, so neither relays a remainder; a pending, queued or
+			// closed report whose quantities give another size than the one recorded is taken to be older
+			if reported, ok := reportedOrderSize(o); o.Status == OrderStatusEditQueued || o.Status != OrderStatusOpen && ok && !sameOrderSize(reported, amount) {
 				remaining = 0
 			}
 			// An edit made elsewhere, or one reported before its response, changes the size an open order's
@@ -506,14 +507,23 @@ func resizableOrderType(orderType string) bool {
 	return false
 }
 
-// openOrderSize returns the size an order sized in the base currency has by a user channel report of it open: its
-// executed and remaining quantities, which the channel gives in its base currency. It reports false for an order type
-// an edit cannot resize, whose quantities need not give its size, for a report of any other status, as a pending
-// order's or a queued edit's remaining quantity can predate the order's size, and for one with nothing remaining.
-// Summing the quantities as decimals gives the size Coinbase holds, where their floats' sum can be off by its rounding
+// openOrderSize returns the size an order sized in the base currency has by a user channel report of it open, as
+// reportedOrderSize gives it. It reports false for a report of any other status, as a pending order's or a queued
+// edit's remaining quantity can predate the order's size
 func openOrderSize(o *WebsocketUserOrder) (float64, bool) {
+	if o.Status != OrderStatusOpen {
+		return 0, false
+	}
+	return reportedOrderSize(o)
+}
+
+// reportedOrderSize returns the size an order sized in the base currency has by a user channel report: its executed
+// and remaining quantities, which the channel gives in its base currency. It reports false for an order type an edit
+// cannot resize, whose quantities need not give its size, and for a report with nothing remaining. Summing the
+// quantities as decimals gives the size Coinbase holds, where their floats' sum can be off by its rounding
+func reportedOrderSize(o *WebsocketUserOrder) (float64, bool) {
 	executed, remaining := o.CumulativeQuantity.Float64(), o.LeavesQuantity.Float64()
-	if !resizableOrderType(o.OrderType) || o.Status != OrderStatusOpen || !(remaining > 0) || !(executed >= 0) || math.IsInf(remaining, 0) || math.IsInf(executed, 0) {
+	if !resizableOrderType(o.OrderType) || !(remaining > 0) || !(executed >= 0) || math.IsInf(remaining, 0) || math.IsInf(executed, 0) {
 		return 0, false
 	}
 	return decimal.MustFromFloat(executed).Add(decimal.MustFromFloat(remaining)).InexactFloat64(), true

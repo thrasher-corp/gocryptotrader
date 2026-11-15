@@ -60,10 +60,18 @@ func TestAppWithdrawFunds(t *testing.T) {
 	t.Parallel()
 	testAppFiatTransferRequestErrors(t, "WithdrawFunds", e.App().WithdrawFunds)
 
-	// The live case runs first, as the cases on local servers after it call the same method
+	// The live cases run first, as the cases on local servers after them call the same method
+	t.Run("refuses a withdrawal to a payment method the account lacks", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mock records the documented withdrawal, which the next case checks")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.App().WithdrawFunds(t.Context(), &AppFiatTransferRequest{AccountID: testAppAccount(t), Amount: 1e12, Currency: currency.USD, PaymentMethodID: testAppLiveUnknownID})
+		requireAppRefusedOnMerits(t, err, "WithdrawFunds")
+	})
 	t.Run("withdraws funds", func(t *testing.T) {
 		if !mockTests {
-			t.Skip("a withdrawal needs a payment method's ID, which Advanced Trade's List Payment Methods returns, so WithdrawFunds is tested against its documented response only")
+			t.Skip("a withdrawal needs one of the account's payment methods, so the case before runs live instead")
 		}
 		resp, err := e.App().WithdrawFunds(t.Context(), &AppFiatTransferRequest{AccountID: testAppAccountID, Amount: 10, Currency: currency.USD, PaymentMethodID: testAppPaymentMethodID})
 		require.NoError(t, err, "WithdrawFunds must not error")
@@ -81,10 +89,18 @@ func TestAppCommitWithdrawal(t *testing.T) { //nolint:tparallel // the live case
 	t.Parallel()
 	testAppFiatTransferIDRequestErrors(t, "CommitWithdrawal", e.App().CommitWithdrawal)
 
-	// The live case runs first, as the cases on local servers after it call the same method
+	// The live cases run first, as the cases on local servers after them call the same method
+	t.Run("refuses to commit a withdrawal the account lacks", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mock records the documented withdrawal commit, which the next case checks")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.App().CommitWithdrawal(t.Context(), &AppFiatTransferIDRequest{AccountID: testAppAccount(t), TransferID: testAppLiveUnknownID})
+		requireAppRefusedOnMerits(t, err, "CommitWithdrawal")
+	})
 	t.Run("commits a withdrawal", func(t *testing.T) {
 		if !mockTests {
-			t.Skip("a committed withdrawal cannot be undone, so CommitWithdrawal is tested against its documented response only")
+			t.Skip("a committed withdrawal cannot be undone, so the case before runs live instead")
 		}
 		resp, err := e.App().CommitWithdrawal(t.Context(), &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppUncommittedTransferID})
 		require.NoError(t, err, "CommitWithdrawal must not error")

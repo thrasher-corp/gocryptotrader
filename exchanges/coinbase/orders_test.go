@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -37,6 +38,50 @@ const (
 	// testOrderNotFoundBody is Coinbase's answer to a request for an order it does not know
 	testOrderNotFoundBody = `{"error":"NOT_FOUND","error_details":"order with this orderID was not found","message":"order with this orderID was not found"}`
 )
+
+// advancedTradeRequestRefusalErrors name the Advanced Trade errors, gRPC status names, that refuse or fail a request
+// itself rather than answer what it asks for: refused credentials, a rate limit or an outage. Any other error, such as
+// NOT_FOUND, INVALID_ARGUMENT or PERMISSION_DENIED for a product the account cannot trade, is an answer
+var advancedTradeRequestRefusalErrors = []string{"UNAUTHENTICATED", "RESOURCE_EXHAUSTED", "INTERNAL", "UNAVAILABLE", "DEADLINE_EXCEEDED", "UNIMPLEMENTED"}
+
+// requireAdvancedTradeAnsweredOnMerits fails a live case unless Advanced Trade answered its request on the merits: the
+// request succeeded, Coinbase created no order for a reason it gave, or it refused what the request asked for. It
+// reports whether the request succeeded
+func requireAdvancedTradeAnsweredOnMerits(t *testing.T, err error, method string) bool {
+	t.Helper()
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, errOrderNotCreated) {
+		return false
+	}
+	apiErr, ok := errors.AsType[*APIError](err)
+	require.Truef(t, ok, "%s must return Advanced Trade's answer, not %v", method, err)
+	require.NotContainsf(t, advancedTradeRequestRefusalErrors, apiErr.ErrorType, "%s must be answered on its merits rather than refused as a request", method)
+	return false
+}
+
+// skipLiveUnlessNoFuturesPosition skips a live case that closes a US derivative's position unless Advanced Trade shows
+// the account holds none in it: no position, one without contracts, or NOT_FOUND, as Coinbase documents no answer for
+// a product the account holds no position in. Any other answer leaves the position unknown, and a live test must not
+// close one the account holds
+func skipLiveUnlessNoFuturesPosition(t *testing.T, productID string) {
+	t.Helper()
+	position, err := e.GetFuturesPosition(t.Context(), productID)
+	if errors.Is(err, common.ErrNoResponse) {
+		return
+	}
+	if requireAdvancedTradeAnsweredOnMerits(t, err, "GetFuturesPosition") {
+		if position.NumberOfContracts.Float64() != 0 {
+			t.Skip("the account holds a position in the live future, which a live test must not close")
+		}
+		return
+	}
+	if apiErr, ok := errors.AsType[*APIError](err); ok && apiErr.ErrorType == "NOT_FOUND" {
+		return
+	}
+	t.Skipf("the account's position in the live future cannot be read, so it may hold one a live test must not close: %v", err)
+}
 
 // testCreateOrderRequest is the order the sandbox's create order response confirms
 func testCreateOrderRequest() *CreateOrderRequest {
@@ -98,14 +143,22 @@ func newLiveTestOrder(t *testing.T) string {
 	return resp.SuccessResponse.OrderID
 }
 
-// cancelLiveTestOrder cancels a live test order when the test ends; an order the test cancelled itself cannot be
-// cancelled again, which is only logged
+// cancelLiveTestOrder cancels a live test order when the test ends. An order the test closed itself cannot be
+// cancelled again, so after a refused cancel the order must reach a final status, as one whose cancellation is queued
+// does shortly
 func cancelLiveTestOrder(t *testing.T, orderID string) {
 	t.Helper()
 	t.Cleanup(func() {
-		if _, err := e.CancelOrders(context.WithoutCancel(t.Context()), []string{orderID}); err != nil {
-			t.Logf("Cancelling live test order %s: %v", orderID, err)
+		ctx := context.WithoutCancel(t.Context())
+		_, err := e.CancelOrders(ctx, []string{orderID})
+		if err == nil {
+			return
 		}
+		live := []string{OrderStatusOpen, OrderStatusPending, OrderStatusQueued, OrderStatusEditQueued, OrderStatusCancelQueued}
+		assert.Eventuallyf(t, func() bool {
+			o, getErr := e.GetOrder(ctx, orderID)
+			return getErr == nil && !slices.Contains(live, o.Status)
+		}, 30*time.Second, time.Second, "live test order %s should reach a final status after its cancel failed: %v", orderID, err)
 	})
 }
 
@@ -188,10 +241,24 @@ func TestClosePosition(t *testing.T) { //nolint:tparallel // the live case runs 
 	_, err = e.ClosePosition(t.Context(), &ClosePositionRequest{ClientOrderID: "close", ProductID: testSandboxFuturesProductID, Size: -1})
 	require.ErrorIs(t, err, errInvalidAmount, "ClosePosition must refuse a negative size")
 
-	// The live case runs first, as the cases on local servers after it call the same method
+	// The live cases run first, as the cases on local servers after them call the same method
+	t.Run("refuses to close a position the account does not hold", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mock records the documented close, which the next case checks")
+		}
+		skipLiveUnlessCanManipulate(t)
+		future, err := liveDatedFuture()
+		require.NoError(t, err, "liveDatedFuture must not error")
+		skipLiveUnlessNoFuturesPosition(t, future.String())
+		resp, err := e.ClosePosition(t.Context(), &ClosePositionRequest{ClientOrderID: "gct-test-" + strconv.FormatInt(time.Now().UnixNano(), 10), ProductID: future.String()})
+		require.NotNilf(t, resp, "ClosePosition must return Coinbase's answer, not %v", err)
+		require.NotNil(t, resp.ErrorResponse, "ClosePosition must report why Coinbase created no order")
+		assert.Equal(t, "CANNOT_CLOSE_ZERO_POSITION", resp.ErrorResponse.NewOrderFailureReason, "ClosePosition should be refused for the position the account does not hold")
+		assert.ErrorIs(t, err, errOrderNotCreated, "ClosePosition should report that Coinbase created no order")
+	})
 	t.Run("closes the position", func(t *testing.T) {
 		if !mockTests {
-			t.Skip("closing a position cannot be undone, and needs an open position to close")
+			t.Skip("closing a position cannot be undone, so the case before runs live instead")
 		}
 		resp, err := e.ClosePosition(t.Context(), testClosePositionRequest())
 		require.NoError(t, err, "ClosePosition must not error")

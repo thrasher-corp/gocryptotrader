@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,10 +28,8 @@ const (
 	derivativesTradingLiveAmount = 0.0001
 	// derivativesTradingLiveLabelLength is the longest label the gateway accepts
 	derivativesTradingLiveLabelLength = 64
-
-	// The reasons live tests skip methods no live test can safely or possibly exercise
-	derivativesTradingSkipCancelAll     = "it would cancel every open order in its scope, not only the test's"
-	derivativesTradingSkipClosePosition = "it needs an open position, which a live test would have to open at market"
+	// derivativesTradingLiveCurrencyPair is the live instrument's price index, which names its currency pair
+	derivativesTradingLiveCurrencyPair = "btc_usdc"
 
 	// derivativesTradingNullResult is a gateway response holding no result
 	derivativesTradingNullResult = `{"jsonrpc":"2.0","result":null}`
@@ -573,6 +572,61 @@ func placeDerivativesTradingLiveOrder(t *testing.T) (*DerivativesOrderRequest, *
 	return req, &resp.Order
 }
 
+// testDerivativesTradingLiveCancelAll places a live order and cancels with cancel the open orders of a scope holding
+// it, which must cancel that order alone. Just before the cancel, skipDerivativesTradingLiveCancelUnlessAlone checks
+// the account holds no other open gateway order; the tests running the case run serially, so no other test's live
+// order is open meanwhile
+func testDerivativesTradingLiveCancelAll(t *testing.T, cancel func(context.Context) (*DerivativesCancelAllResponse, error)) {
+	t.Helper()
+	skipLiveUnlessCanManipulate(t)
+	_, placed := placeDerivativesTradingLiveOrder(t)
+	skipDerivativesTradingLiveCancelUnlessAlone(t, e, placed.OrderID)
+	resp, err := cancel(t.Context())
+	require.NoError(t, err, "the cancel must not error")
+	assert.Equal(t, uint64(1), resp.CancelledCount, "the cancel should cancel the live order alone")
+	state, err := e.GlobalDerivatives().GetOrderState(t.Context(), &DerivativesOrderStateRequest{OrderID: placed.OrderID})
+	require.NoError(t, err, "GetOrderState must not error")
+	assert.Equal(t, DerivativesOrderStateCancelled, state.OrderState, "the cancel should cancel the live order")
+}
+
+// skipDerivativesTradingLiveCancelUnlessAlone requires a live gateway order listed open, and skips a live case about to
+// cancel every open gateway order in a scope while the account holds any other, which the cancel could cancel too
+func skipDerivativesTradingLiveCancelUnlessAlone(t *testing.T, ex *Exchange, orderID string) {
+	t.Helper()
+	open, err := ex.GlobalDerivatives().GetOpenOrders(t.Context(), &DerivativesOpenOrdersRequest{IncludeIsolated: true})
+	require.NoError(t, err, "GetOpenOrders must not error")
+	others := slices.DeleteFunc(slices.Clone(open), func(o DerivativesOrderResponse) bool { return o.OrderID == orderID })
+	require.Lessf(t, len(others), len(open), "GetOpenOrders must list live order %s", orderID)
+	if len(others) != 0 {
+		t.Skipf("the account holds %d other open gateway orders, which the cancel could cancel too", len(others))
+	}
+}
+
+// testDerivativesTradingLiveClosePosition closes the live instrument's position at market with closePosition while the
+// account holds none, so the gateway must answer on the merits and fill nothing. The case skips while the account holds
+// a position in the instrument, which a live test must not close
+func testDerivativesTradingLiveClosePosition(t *testing.T, closePosition func(context.Context, *DerivativesClosePositionRequest) (*DerivativesOrderTradesResponse, error)) {
+	t.Helper()
+	skipLiveUnlessCanManipulate(t)
+	position, err := e.GlobalDerivatives().GetPosition(t.Context(), &DerivativesGetPositionRequest{InstrumentName: derivativesTradingLiveInstrument})
+	require.NoError(t, err, "GetPosition must not error")
+	if position.Size != 0 {
+		t.Skip("the account holds a position in the live instrument, which a live test must not close")
+	}
+	resp, err := closePosition(t.Context(), &DerivativesClosePositionRequest{InstrumentName: derivativesTradingLiveInstrument, Type: DerivativesOrderTypeMarket})
+	if !requireDerivativesAnsweredOnMerits(t, err, "ClosePosition") {
+		return
+	}
+	if resp.Order.OrderState == DerivativesOrderStateOpen {
+		t.Cleanup(func() {
+			_, err := e.GlobalDerivatives().CancelOrderByID(context.WithoutCancel(t.Context()), &DerivativesCancelOrderByIDRequest{OrderID: resp.Order.OrderID})
+			assert.NoError(t, err, "CancelOrderByID should cancel the order the close left open")
+		})
+	}
+	assert.Zero(t, resp.Order.FilledAmount, "ClosePosition should fill nothing for a position the account does not hold")
+	assert.Empty(t, resp.Trades, "ClosePosition should trade nothing for a position the account does not hold")
+}
+
 // derivativesTradingLiveLeverage is the live instrument's custom leverage, nil when it uses the default
 type derivativesTradingLiveLeverage struct {
 	Leverage *float64 `json:"leverage"`
@@ -690,15 +744,19 @@ func TestGlobalDerivativesCancelOrderByID(t *testing.T) { //nolint:tparallel // 
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelOrderByID should return the request failure")
 }
 
-func TestGlobalDerivativesCancelAll(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
-	t.Parallel()
+func TestGlobalDerivativesCancelAll(t *testing.T) {
+	// Serial, as the live case cancels every open order in its scope, which would cancel the live orders of the tests
+	// running beside it
 	_, err := e.GlobalDerivatives().CancelAll(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAll must reject a nil request")
 
 	// The live case runs first, as the cases on local servers after it call the same method
 	t.Run("cancels every order", func(t *testing.T) {
 		if !mockTests {
-			t.Skip("CancelAll is not tested live, as " + derivativesTradingSkipCancelAll)
+			testDerivativesTradingLiveCancelAll(t, func(ctx context.Context) (*DerivativesCancelAllResponse, error) {
+				return e.GlobalDerivatives().CancelAll(ctx, &DerivativesCancelAllRequest{})
+			})
+			return
 		}
 		resp, err := e.GlobalDerivatives().CancelAll(t.Context(), mockDerivativesCancelAllRequest())
 		require.NoError(t, err, "CancelAll must not error")
@@ -711,8 +769,9 @@ func TestGlobalDerivativesCancelAll(t *testing.T) { //nolint:tparallel // the li
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAll should return the request failure")
 }
 
-func TestGlobalDerivativesCancelAllByCurrency(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
-	t.Parallel()
+func TestGlobalDerivativesCancelAllByCurrency(t *testing.T) {
+	// Serial, as the live case cancels every open order in its scope, which would cancel the live orders of the tests
+	// running beside it
 	_, err := e.GlobalDerivatives().CancelAllByCurrency(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByCurrency must reject a nil request")
 	_, err = e.GlobalDerivatives().CancelAllByCurrency(t.Context(), &DerivativesCancelAllByCurrencyRequest{})
@@ -730,7 +789,10 @@ func TestGlobalDerivativesCancelAllByCurrency(t *testing.T) { //nolint:tparallel
 	// The live case runs first, as the cases on local servers after it call the same method
 	t.Run("cancels the currency's orders", func(t *testing.T) {
 		if !mockTests {
-			t.Skip("CancelAllByCurrency is not tested live, as " + derivativesTradingSkipCancelAll)
+			testDerivativesTradingLiveCancelAll(t, func(ctx context.Context) (*DerivativesCancelAllResponse, error) {
+				return e.GlobalDerivatives().CancelAllByCurrency(ctx, &DerivativesCancelAllByCurrencyRequest{Currency: derivativesTradingLiveCurrency, Kind: DerivativesKindFuture, Type: DerivativesCancelOrderTypeLimit})
+			})
+			return
 		}
 		resp, err := e.GlobalDerivatives().CancelAllByCurrency(t.Context(), mockDerivativesCancelAllByCurrencyRequest())
 		require.NoError(t, err, "CancelAllByCurrency must not error")
@@ -743,8 +805,9 @@ func TestGlobalDerivativesCancelAllByCurrency(t *testing.T) { //nolint:tparallel
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAllByCurrency should return the request failure")
 }
 
-func TestGlobalDerivativesCancelAllByCurrencyPair(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
-	t.Parallel()
+func TestGlobalDerivativesCancelAllByCurrencyPair(t *testing.T) {
+	// Serial, as the live case cancels every open order in its scope, which would cancel the live orders of the tests
+	// running beside it
 	_, err := e.GlobalDerivatives().CancelAllByCurrencyPair(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByCurrencyPair must reject a nil request")
 	_, err = e.GlobalDerivatives().CancelAllByCurrencyPair(t.Context(), &DerivativesCancelAllByCurrencyPairRequest{Kind: DerivativesKindFuture})
@@ -757,7 +820,10 @@ func TestGlobalDerivativesCancelAllByCurrencyPair(t *testing.T) { //nolint:tpara
 	// The live case runs first, as the cases on local servers after it call the same method
 	t.Run("cancels the currency pair's orders", func(t *testing.T) {
 		if !mockTests {
-			t.Skip("CancelAllByCurrencyPair is not tested live, as " + derivativesTradingSkipCancelAll)
+			testDerivativesTradingLiveCancelAll(t, func(ctx context.Context) (*DerivativesCancelAllResponse, error) {
+				return e.GlobalDerivatives().CancelAllByCurrencyPair(ctx, &DerivativesCancelAllByCurrencyPairRequest{CurrencyPair: derivativesTradingLiveCurrencyPair, Kind: DerivativesKindFuture, Type: DerivativesCancelOrderTypeLimit})
+			})
+			return
 		}
 		resp, err := e.GlobalDerivatives().CancelAllByCurrencyPair(t.Context(), mockDerivativesCancelAllByCurrencyPairRequest())
 		require.NoError(t, err, "CancelAllByCurrencyPair must not error")
@@ -770,8 +836,9 @@ func TestGlobalDerivativesCancelAllByCurrencyPair(t *testing.T) { //nolint:tpara
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAllByCurrencyPair should return the request failure")
 }
 
-func TestGlobalDerivativesCancelAllByInstrument(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
-	t.Parallel()
+func TestGlobalDerivativesCancelAllByInstrument(t *testing.T) {
+	// Serial, as the live case cancels every open order in its scope, which would cancel the live orders of the tests
+	// running beside it
 	_, err := e.GlobalDerivatives().CancelAllByInstrument(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByInstrument must reject a nil request")
 	_, err = e.GlobalDerivatives().CancelAllByInstrument(t.Context(), &DerivativesCancelAllByInstrumentRequest{IncludeIsolated: true})
@@ -782,7 +849,10 @@ func TestGlobalDerivativesCancelAllByInstrument(t *testing.T) { //nolint:tparall
 	// The live case runs first, as the cases on local servers after it call the same method
 	t.Run("cancels the instrument's orders", func(t *testing.T) {
 		if !mockTests {
-			t.Skip("CancelAllByInstrument is not tested live, as " + derivativesTradingSkipCancelAll)
+			testDerivativesTradingLiveCancelAll(t, func(ctx context.Context) (*DerivativesCancelAllResponse, error) {
+				return e.GlobalDerivatives().CancelAllByInstrument(ctx, &DerivativesCancelAllByInstrumentRequest{InstrumentName: derivativesTradingLiveInstrument, Type: DerivativesCancelOrderTypeLimit})
+			})
+			return
 		}
 		resp, err := e.GlobalDerivatives().CancelAllByInstrument(t.Context(), mockDerivativesCancelAllByInstrumentRequest())
 		require.NoError(t, err, "CancelAllByInstrument must not error")
@@ -795,8 +865,9 @@ func TestGlobalDerivativesCancelAllByInstrument(t *testing.T) { //nolint:tparall
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAllByInstrument should return the request failure")
 }
 
-func TestGlobalDerivativesCancelAllByKindOrType(t *testing.T) { //nolint:tparallel // the cases share ex and its recording server in order, and the live case runs before the cases on local servers
-	t.Parallel()
+func TestGlobalDerivativesCancelAllByKindOrType(t *testing.T) {
+	// Serial, as the live case cancels every open order in its scope, which would cancel the live orders of the tests
+	// running beside it
 	_, err := e.GlobalDerivatives().CancelAllByKindOrType(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByKindOrType must reject a nil request")
 	_, err = e.GlobalDerivatives().CancelAllByKindOrType(t.Context(), &DerivativesCancelAllByKindOrTypeRequest{Kind: DerivativesKindFuture})
@@ -827,7 +898,10 @@ func TestGlobalDerivativesCancelAllByKindOrType(t *testing.T) { //nolint:tparall
 	// The live case runs first, as the cases on local servers after it call the same method
 	t.Run("cancels orders by kind or type", func(t *testing.T) {
 		if !mockTests {
-			t.Skip("CancelAllByKindOrType is not tested live, as " + derivativesTradingSkipCancelAll)
+			testDerivativesTradingLiveCancelAll(t, func(ctx context.Context) (*DerivativesCancelAllResponse, error) {
+				return e.GlobalDerivatives().CancelAllByKindOrType(ctx, &DerivativesCancelAllByKindOrTypeRequest{Currencies: []currency.Code{derivativesTradingLiveCurrency}, Kind: DerivativesKindFuture, Type: DerivativesCancelOrderTypeLimit})
+			})
+			return
 		}
 		resp, err := e.GlobalDerivatives().CancelAllByKindOrType(t.Context(), mockDerivativesCancelAllByKindOrTypeRequest())
 		require.NoError(t, err, "CancelAllByKindOrType must not error")
@@ -890,9 +964,17 @@ func TestGlobalDerivativesClosePosition(t *testing.T) { //nolint:tparallel // th
 	require.ErrorIs(t, err, errDerivativesInvalidOrderType, "ClosePosition must refuse an order type other than limit or market")
 
 	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("closes nothing without a position", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mock records the close of a position the account holds, which the next case checks")
+		}
+		testDerivativesTradingLiveClosePosition(t, func(ctx context.Context, req *DerivativesClosePositionRequest) (*DerivativesOrderTradesResponse, error) {
+			return e.GlobalDerivatives().ClosePosition(ctx, req)
+		})
+	})
 	t.Run("closes the position", func(t *testing.T) {
 		if !mockTests {
-			t.Skip("ClosePosition is not tested live, as " + derivativesTradingSkipClosePosition)
+			t.Skip("live tests close no position the account holds, so the case before runs live instead")
 		}
 		resp, err := e.GlobalDerivatives().ClosePosition(t.Context(), mockDerivativesClosePositionRequest())
 		require.NoError(t, err, "ClosePosition must not error")

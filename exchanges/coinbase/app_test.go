@@ -1,11 +1,41 @@
 package coinbase
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// testAppLiveUnknownID is the nil UUID, which RFC 9562 sets apart from every generated UUID, so no payment method or
+// transfer has it and a live request naming it is refused
+const testAppLiveUnknownID = "00000000-0000-0000-0000-000000000000"
+
+// appRequestRefusalIDs are the ids of the Coinbase App's errors that refuse or fail a request itself rather than answer
+// what it asks for, by the App API's error reference: a missing parameter or a malformed request, refused credentials
+// or scopes, an account verification not completed, a rate limit or an outage. Any other error is an answer, such as
+// not_found for a resource no account holds, validation_error for a value the App refuses, or two_factor_required for
+// a transfer over the account's limit
+var appRequestRefusalIDs = []string{
+	"param_required", "invalid_request", "personal_details_required", "identity_verification_required",
+	"jumio_verification_required", "jumio_face_match_verification_required", "unverified_email", "authentication_error",
+	"invalid_token", "revoked_token", "expired_token", "invalid_scope", "unauthorized", "rate_limit_exceeded",
+	"resource_exhausted", "internal_server_error",
+}
+
+// requireAppRefusedOnMerits fails a live case built to be refused unless the Coinbase App refused its request with
+// errors that answer it on its merits
+func requireAppRefusedOnMerits(t *testing.T, err error, method string) {
+	t.Helper()
+	require.Errorf(t, err, "%s must be refused, as its request is built to be refused", method)
+	appErrs, ok := errors.AsType[AppErrors](err)
+	require.Truef(t, ok, "%s must return the Coinbase App's errors, not %v", method, err)
+	require.NotEmptyf(t, appErrs, "%s must return the Coinbase App's errors", method)
+	for i := range appErrs {
+		require.NotContainsf(t, appRequestRefusalIDs, appErrs[i].ID, "%s must be refused on its merits rather than as a request", method)
+	}
+}
 
 func TestAppPageRequestParams(t *testing.T) {
 	t.Parallel()

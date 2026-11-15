@@ -6,6 +6,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -992,6 +993,7 @@ func TestWebsocketOrderDetail(t *testing.T) {
 	for _, tc := range []struct {
 		name                           string
 		status                         string
+		orderType                      string
 		productID, productType         string
 		base, quote                    float64
 		executed, leaves               string
@@ -1003,6 +1005,18 @@ func TestWebsocketOrderDetail(t *testing.T) {
 		{name: "an order whose report gives it a larger base size", status: OrderStatusOpen, base: 0.02, executed: "0", leaves: "1000", amount: 0.02, disputed: true},
 		{name: "an order whose report gives it a smaller base size", status: OrderStatusOpen, base: 0.5, executed: "0.1", leaves: "0.2", amount: 0.5, disputed: true},
 		{name: "a pending order reported with its base size", status: OrderStatusPending, base: 0.5, executed: "0", leaves: "0.5", amount: 0.5, remaining: 0.5},
+		{name: "a pending order whose report gives it a larger base size", status: OrderStatusPending, base: 0.02, executed: "0", leaves: "1000", amount: 0.02},
+		{name: "a pending order whose report gives it a smaller base size", status: OrderStatusPending, base: 0.5, executed: "0.1", leaves: "0.2", amount: 0.5},
+		{name: "a pending order whose quantities sum to its base size but for their floats' rounding", status: OrderStatusPending, base: 0.3, executed: "0.1", leaves: "0.2", amount: 0.3, remaining: 0.2},
+		{name: "a pending order whose report gives it a base size a ten-thousandth larger", status: OrderStatusPending, base: 0.5, executed: "0.1", leaves: "0.4001", amount: 0.5},
+		{name: "a pending order whose quantities, summed as decimals, are within the tolerance of its base size", status: OrderStatusPending, base: 10000.31468768, executed: "8441.40769293", leaves: "1558.90699476", amount: 10000.31468768, remaining: 1558.90699476},
+		{name: "a queued order reported with its base size", status: OrderStatusQueued, base: 0.5, executed: "0", leaves: "0.5", amount: 0.5, remaining: 0.5},
+		{name: "a queued order whose report gives it a larger base size", status: OrderStatusQueued, base: 0.02, executed: "0", leaves: "1000", amount: 0.02},
+		{name: "a partly filled order reported with its base size while its cancel is queued", status: OrderStatusCancelQueued, base: 0.5, executed: "0.1", leaves: "0.4", amount: 0.5, remaining: 0.4},
+		{name: "an order whose report gives it a larger base size while its cancel is queued", status: OrderStatusCancelQueued, base: 0.02, executed: "0", leaves: "1000", amount: 0.02},
+		{name: "a partly filled order reported cancelled with its base size", status: OrderStatusCancelled, base: 0.5, executed: "0.1", leaves: "0.4", amount: 0.5, remaining: 0.4},
+		{name: "a cancelled order whose report gives it a larger base size", status: OrderStatusCancelled, base: 0.02, executed: "0", leaves: "1000", amount: 0.02},
+		{name: "a pending market order, whose quantities need not give its size", status: OrderStatusPending, orderType: OrderTypeMarket, base: 0.5, executed: "0", leaves: "0.4", amount: 0.5, remaining: 0.4},
 		{name: "an order reported while an edit is queued", status: OrderStatusEditQueued, base: 0.02, executed: "0", leaves: "1000", amount: 0.02},
 		{name: "an order reported at its recorded size while an edit is queued", status: OrderStatusEditQueued, base: 0.5, executed: "0", leaves: "0.5", amount: 0.5},
 		{name: "a partly filled order reported while an edit is queued", status: OrderStatusEditQueued, base: 0.5, executed: "0.1", leaves: "0.2", amount: 0.5},
@@ -1021,7 +1035,7 @@ func TestWebsocketOrderDetail(t *testing.T) {
 				ex.orderSizes.set(orderID, tc.base, tc.quote)
 			}
 			var o WebsocketUserOrder
-			require.NoError(t, json.Unmarshal([]byte(`{"order_id":"`+orderID+`","order_side":"SELL","order_type":"LIMIT","status":"`+tc.status+`","product_id":"`+productID+`","product_type":"`+productType+`","time_in_force":"GOOD_UNTIL_CANCELLED","limit_price":"90000","cumulative_quantity":"`+tc.executed+`","leaves_quantity":"`+tc.leaves+`"}`), &o), "unmarshalling the order must not error")
+			require.NoError(t, json.Unmarshal([]byte(`{"order_id":"`+orderID+`","order_side":"SELL","order_type":"`+cmp.Or(tc.orderType, OrderTypeLimit)+`","status":"`+tc.status+`","product_id":"`+productID+`","product_type":"`+productType+`","time_in_force":"GOOD_UNTIL_CANCELLED","limit_price":"90000","cumulative_quantity":"`+tc.executed+`","leaves_quantity":"`+tc.leaves+`"}`), &o), "unmarshalling the order must not error")
 			d, err := ex.websocketOrderDetail(&o, envelope)
 			require.NoErrorf(t, err, "websocketOrderDetail must not error for %s", tc.name)
 			assert.Equalf(t, tc.amount, d.Amount, "websocketOrderDetail should relay the size of %s", tc.name)
@@ -1036,6 +1050,61 @@ func TestWebsocketOrderDetail(t *testing.T) {
 		_, err := newTestExchange(t).websocketOrderDetail(&WebsocketUserOrder{OrderID: "1", ProductType: "TELEPORT"}, envelope)
 		assert.ErrorIs(t, err, errUnknownProductType, "websocketOrderDetail should error for an unknown product type")
 	})
+}
+
+func TestReportedOrderSize(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name             string
+		orderType        string
+		status           string
+		executed, leaves types.Number
+		size             float64
+		sized            bool
+	}{
+		{name: "an open limit order", orderType: OrderTypeLimit, status: OrderStatusOpen, executed: 0.1, leaves: 0.4, size: 0.5, sized: true},
+		{name: "a pending limit order", orderType: OrderTypeLimit, status: OrderStatusPending, leaves: 0.5, size: 0.5, sized: true},
+		{name: "a cancelled stop limit order", orderType: OrderTypeStopLimit, status: OrderStatusCancelled, executed: 0.2, leaves: 0.3, size: 0.5, sized: true},
+		{name: "a bracket order", orderType: OrderTypeBracket, status: OrderStatusQueued, executed: 1, leaves: 2, size: 3, sized: true},
+		{name: "a take profit/stop loss order", orderType: OrderTypeTakeProfitStopLoss, status: OrderStatusCancelQueued, executed: 1, leaves: 1, size: 2, sized: true},
+		{name: "quantities whose floats' sum is off by its rounding", orderType: OrderTypeLimit, status: OrderStatusOpen, executed: 0.1, leaves: 0.2, size: 0.3, sized: true},
+		{name: "eight decimal quantities near ten thousand", orderType: OrderTypeLimit, status: OrderStatusOpen, executed: 8441.40769293, leaves: 1558.90699476, size: 10000.31468769, sized: true},
+		{name: "a market order, whose quantities need not give its size", orderType: OrderTypeMarket, status: OrderStatusOpen, executed: 0.1, leaves: 0.4},
+		{name: "nothing remaining", orderType: OrderTypeLimit, status: OrderStatusFilled, executed: 0.5},
+		{name: "a negative executed quantity", orderType: OrderTypeLimit, status: OrderStatusOpen, executed: -0.1, leaves: 0.4},
+		{name: "an infinite remaining quantity", orderType: OrderTypeLimit, status: OrderStatusOpen, executed: 0.1, leaves: types.Number(math.Inf(1))},
+		{name: "an infinite executed quantity", orderType: OrderTypeLimit, status: OrderStatusOpen, executed: types.Number(math.Inf(1)), leaves: 0.4},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			size, sized := reportedOrderSize(&WebsocketUserOrder{OrderType: tc.orderType, Status: tc.status, CumulativeQuantity: tc.executed, LeavesQuantity: tc.leaves})
+			assert.Equal(t, tc.sized, sized, "reportedOrderSize should report whether the quantities give a size")
+			assert.Equal(t, tc.size, size, "reportedOrderSize should sum the quantities as decimals")
+		})
+	}
+}
+
+func TestOpenOrderSize(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		status string
+		size   float64
+		sized  bool
+	}{
+		{status: OrderStatusOpen, size: 0.5, sized: true},
+		{status: OrderStatusPending},
+		{status: OrderStatusQueued},
+		{status: OrderStatusEditQueued},
+		{status: OrderStatusCancelQueued},
+		{status: OrderStatusCancelled},
+	} {
+		t.Run(tc.status, func(t *testing.T) {
+			t.Parallel()
+			size, sized := openOrderSize(&WebsocketUserOrder{OrderType: OrderTypeLimit, Status: tc.status, CumulativeQuantity: 0.1, LeavesQuantity: 0.4})
+			assert.Equalf(t, tc.sized, sized, "openOrderSize should give a size only for a report of an open order, not %s", tc.status)
+			assert.Equalf(t, tc.size, size, "openOrderSize should give the size of an open order's report, not of a %s one", tc.status)
+		})
+	}
 }
 
 // userOrderEnvelope returns a user channel message reporting an order

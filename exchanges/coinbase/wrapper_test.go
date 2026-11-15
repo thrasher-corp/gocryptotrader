@@ -3,6 +3,7 @@ package coinbase
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -2222,21 +2223,23 @@ func TestModifyOrder(t *testing.T) {
 		require.ErrorIs(t, err, errOrderIDRequired, "ModifyOrder must refuse an Advanced Trade order without an ID")
 		_, err = ex.ModifyOrder(t.Context(), &order.Modify{Pair: currency.NewBTCUSD(), AssetType: asset.Options, OrderID: "1"})
 		require.ErrorIs(t, err, asset.ErrNotSupported, "ModifyOrder must refuse an asset Coinbase does not trade")
+		skipLiveUnlessCanManipulate(t)
+		spot := &order.Modify{OrderID: testSandboxOrderID, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 68000.44, Amount: 1}
+		gateway := &order.Modify{OrderID: testWrapperDerivativesOrderID, Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures, Price: 50100, Amount: 0.001}
 		if !mockTests {
-			sharedTestCredentials(t, ex)
-			if !canManipulateRealOrders {
-				t.Skip("canManipulateRealOrders is not set")
-			}
+			spot.OrderID, spot.Price, spot.Amount = newLiveTestOrder(t), 1100, liveTestOrderSize
+			placed, placedOrder := placeDerivativesTradingLiveOrder(t)
+			gateway.OrderID, gateway.Price, gateway.Amount = placedOrder.OrderID, placed.Price-10, placed.Amount
 		}
-		resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: testSandboxOrderID, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 68000.44, Amount: 1})
+		resp, err := ex.ModifyOrder(t.Context(), spot)
 		require.NoError(t, err, "ModifyOrder must not error for a spot order")
-		assert.Equal(t, 68000.44, resp.Price, "ModifyOrder should return the spot order's price")
+		assert.Equal(t, spot.Price, resp.Price, "ModifyOrder should return the spot order's price")
 		_, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: testUnknownOrderID, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 68000.44, Amount: 1})
 		assert.ErrorIs(t, err, order.ErrOrderNotFound, "ModifyOrder should report an order Coinbase does not know")
 
-		resp, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: testWrapperDerivativesOrderID, Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures, Price: 50100, Amount: 0.001})
+		resp, err = ex.ModifyOrder(t.Context(), gateway)
 		require.NoError(t, err, "ModifyOrder must not error for a gateway order")
-		assert.Equal(t, testWrapperDerivativesOrderID, resp.OrderID, "ModifyOrder should return the gateway order's ID")
+		assert.Equal(t, gateway.OrderID, resp.OrderID, "ModifyOrder should return the gateway order's ID")
 	})
 
 	t.Run("reports the asset and pair of the order it edits", func(t *testing.T) {
@@ -3411,15 +3414,16 @@ func TestCancelOrder(t *testing.T) {
 	ex := newWrapperTestExchange(t)
 	require.ErrorIs(t, ex.CancelOrder(t.Context(), &order.Cancel{}), order.ErrOrderIDNotSet, "CancelOrder must refuse an order without an ID")
 	require.ErrorIs(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: "1", AssetType: asset.Options}), asset.ErrNotSupported, "CancelOrder must refuse an asset Coinbase does not trade")
+	skipLiveUnlessCanManipulate(t)
+	spotID, gatewayID := testSandboxOrderID, testWrapperDerivativesOrderID
 	if !mockTests {
-		sharedTestCredentials(t, ex)
-		if !canManipulateRealOrders {
-			t.Skip("canManipulateRealOrders is not set")
-		}
+		spotID = newLiveTestOrder(t)
+		_, placed := placeDerivativesTradingLiveOrder(t)
+		gatewayID = placed.OrderID
 	}
-	require.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: testSandboxOrderID, AssetType: asset.Spot}), "CancelOrder must not error for a spot order")
+	require.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: spotID, AssetType: asset.Spot}), "CancelOrder must not error for a spot order")
 	assert.ErrorIs(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: testUnknownOrderID, AssetType: asset.Spot}), order.ErrOrderNotFound, "CancelOrder should report an order Coinbase does not know")
-	assert.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: testWrapperDerivativesOrderID, AssetType: asset.USDCMarginedFutures}), "CancelOrder should not error for a gateway order")
+	assert.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: gatewayID, AssetType: asset.USDCMarginedFutures}), "CancelOrder should not error for a gateway order")
 }
 
 func TestCancelBatchOrders(t *testing.T) {
@@ -3433,20 +3437,21 @@ func TestCancelBatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelBatchOrders must refuse an order without an ID")
 	t.Run("cancels an Advanced Trade and a gateway order", func(t *testing.T) {
 		t.Parallel()
+		skipLiveUnlessCanManipulate(t)
+		spotID, gatewayID := testSandboxOrderID, testWrapperDerivativesOrderID
 		if !mockTests {
-			sharedTestCredentials(t, ex)
-			if !canManipulateRealOrders {
-				t.Skip("canManipulateRealOrders is not set")
-			}
+			spotID = newLiveTestOrder(t)
+			_, placed := placeDerivativesTradingLiveOrder(t)
+			gatewayID = placed.OrderID
 		}
 		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
-			{OrderID: testSandboxOrderID, AssetType: asset.Spot},
-			{OrderID: testWrapperDerivativesOrderID, AssetType: asset.USDCMarginedFutures},
+			{OrderID: spotID, AssetType: asset.Spot},
+			{OrderID: gatewayID, AssetType: asset.USDCMarginedFutures},
 		})
 		require.NoError(t, err, "CancelBatchOrders must not error")
 		assert.Equal(t, map[string]string{
-			testSandboxOrderID:            order.PendingCancel.String(),
-			testWrapperDerivativesOrderID: order.Cancelled.String(),
+			spotID:    order.PendingCancel.String(),
+			gatewayID: order.Cancelled.String(),
 		}, resp.Status, "CancelBatchOrders should report the Advanced Trade order pending cancellation, and the gateway order cancelled")
 	})
 	t.Run("reports an Advanced Trade order named twice pending cancellation", func(t *testing.T) {
@@ -3526,6 +3531,33 @@ func TestCancelBatchOrders(t *testing.T) {
 			})
 		}
 	})
+	t.Run("cancels each gateway order it names", func(t *testing.T) {
+		t.Parallel()
+		// The orders share an asset, a pair and an empty client order ID, so only their IDs tell them apart, and the repeat's
+		// isolated margin type changes only which scope the gateway looks it up in first
+		ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+			var params DerivativesCancelOrderByIDRequest
+			if req.Method != "private/cancel" || !assert.NoError(t, json.Unmarshal(req.Params, &params), "the cancel's params should decode") {
+				assert.Failf(t, "CancelBatchOrders should only cancel orders", "sent %s", req.Method)
+				return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+			}
+			switch params.OrderID {
+			case "USDC-1":
+				return `{"jsonrpc":"2.0","result":{"order_id":"USDC-1","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}}`
+			case "USDC-2":
+				return `{"jsonrpc":"2.0","result":{"order_id":"USDC-2","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":90000,"amount":0.002}}`
+			}
+			return `{"jsonrpc":"2.0","error":{"code":11044,"message":"not_open_order"}}`
+		})
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures},
+			{OrderID: "USDC-2", AssetType: asset.USDCMarginedFutures},
+			{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures, MarginType: margin.Isolated},
+		})
+		require.NoError(t, err, "CancelBatchOrders must not error")
+		assert.Equal(t, map[string]string{"USDC-1": order.Cancelled.String(), "USDC-2": order.Cancelled.String()}, resp.Status, "CancelBatchOrders should report each gateway order cancelled")
+		assert.Len(t, sent(), 2, "CancelBatchOrders should cancel each gateway order once")
+	})
 	t.Run("reports the batch answered before a later one fails", func(t *testing.T) {
 		t.Parallel()
 		var batches atomic.Int32
@@ -3587,8 +3619,27 @@ func TestCancelBatchOrders(t *testing.T) {
 	})
 }
 
-func TestCancelAllOrders(t *testing.T) {
-	t.Parallel()
+// skipLiveSpotCancelUnlessAlone waits for a live spot order to be listed active, as a listing can lag a placement, and
+// skips a live case about to cancel every active order of its pair while the account holds any other, which the cancel
+// could cancel too
+func skipLiveSpotCancelUnlessAlone(t *testing.T, ex *Exchange, pair currency.Pair, orderID string) {
+	t.Helper()
+	req := &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{pair}, Type: order.AnyType, Side: order.AnySide}
+	isLiveOrder := func(d order.Detail) bool { return d.OrderID == orderID }
+	require.Eventuallyf(t, func() bool {
+		active, err := ex.GetActiveOrders(t.Context(), req)
+		return err == nil && slices.ContainsFunc(active, isLiveOrder)
+	}, 30*time.Second, time.Second, "GetActiveOrders must list live order %s", orderID)
+	active, err := ex.GetActiveOrders(t.Context(), req)
+	require.NoError(t, err, "GetActiveOrders must not error")
+	if others := slices.DeleteFunc(active, isLiveOrder); len(others) != 0 {
+		t.Skipf("the account holds %d other active %s orders, which the cancel could cancel too", len(others), pair)
+	}
+}
+
+func TestCancelAllOrders(t *testing.T) { //nolint:tparallel // the live case runs serially, and the cases on local servers in parallel
+	// Serial, as the live case cancels every open order in its scope, which would cancel the live orders of the tests
+	// running beside it
 	ex := newWrapperTestExchange(t)
 	_, err := ex.CancelAllOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllOrders must refuse a nil request")
@@ -3597,19 +3648,32 @@ func TestCancelAllOrders(t *testing.T) {
 	_, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Type: order.Bracket})
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "CancelAllOrders must refuse to cancel an order type the gateway does not place")
 	t.Run("cancels spot and gateway orders", func(t *testing.T) {
-		t.Parallel()
+		skipLiveUnlessCanManipulate(t)
+		spot := &order.Cancel{AssetType: asset.Spot}
+		gateway := &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual}
+		var spotID, gatewayID string
 		if !mockTests {
-			sharedTestCredentials(t, ex)
-			if !canManipulateRealOrders {
-				t.Skip("canManipulateRealOrders is not set")
-			}
+			spot.Pair = currency.NewBTCUSD()
+			spotID = newLiveTestOrder(t)
+			_, placed := placeDerivativesTradingLiveOrder(t)
+			gatewayID = placed.OrderID
+			skipLiveSpotCancelUnlessAlone(t, ex, spot.Pair, spotID)
 		}
-		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+		resp, err := ex.CancelAllOrders(t.Context(), spot)
 		require.NoError(t, err, "CancelAllOrders must not error for spot")
-		assert.NotEmpty(t, resp.Status, "CancelAllOrders should report the spot orders it cancelled")
-		resp, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual})
+		if mockTests {
+			assert.NotEmpty(t, resp.Status, "CancelAllOrders should report the spot orders it cancelled")
+		} else {
+			assert.Equal(t, map[string]string{spotID: order.PendingCancel.String()}, resp.Status, "CancelAllOrders should cancel the live spot order alone")
+			skipDerivativesTradingLiveCancelUnlessAlone(t, ex, gatewayID)
+		}
+		resp, err = ex.CancelAllOrders(t.Context(), gateway)
 		require.NoError(t, err, "CancelAllOrders must not error for a gateway instrument")
-		assert.NotEmpty(t, resp.Status, "CancelAllOrders should report the gateway orders it cancelled")
+		if mockTests {
+			assert.NotEmpty(t, resp.Status, "CancelAllOrders should report the gateway orders it cancelled")
+		} else {
+			assert.Equal(t, map[string]string{gatewayID: order.Cancelled.String()}, resp.Status, "CancelAllOrders should cancel the live gateway order alone")
+		}
 	})
 	t.Run("cancels the gateway orders a filter matches", func(t *testing.T) {
 		t.Parallel()
@@ -3986,6 +4050,23 @@ func TestGetOrderInfo(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOrderInfo must refuse an empty order ID")
 	_, err = ex.GetOrderInfo(t.Context(), "1", currency.NewBTCUSD(), asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetOrderInfo must refuse an asset Coinbase does not trade")
+	t.Run("returns the live test orders", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mock holds no replies for the orders the live case places")
+		}
+		skipLiveUnlessCanManipulate(t)
+		spotID := newLiveTestOrder(t)
+		d, err := ex.GetOrderInfo(t.Context(), spotID, currency.NewBTCUSD(), asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error for the live spot order")
+		assert.Equal(t, spotID, d.OrderID, "GetOrderInfo should return the live spot order")
+		assert.Equal(t, liveTestOrderSize, d.Amount, "GetOrderInfo should return the live spot order's size")
+		_, placed := placeDerivativesTradingLiveOrder(t)
+		d, err = ex.GetOrderInfo(t.Context(), placed.OrderID, testUSDCPerpetual, asset.USDCMarginedFutures)
+		require.NoError(t, err, "GetOrderInfo must not error for the live gateway order")
+		assert.Equal(t, placed.OrderID, d.OrderID, "GetOrderInfo should return the live gateway order")
+		assert.Equal(t, derivativesTradingLiveAmount, d.Amount, "GetOrderInfo should return the live gateway order's amount")
+	})
 	t.Run("returns the recorded orders", func(t *testing.T) {
 		t.Parallel()
 		if !mockTests {
@@ -5331,19 +5412,10 @@ func TestGetDepositAddress(t *testing.T) {
 	})
 }
 
-func TestWithdrawCryptocurrencyFunds(t *testing.T) {
-	t.Parallel()
-	ex := newWrapperTestExchange(t)
-	_, err := ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{})
-	require.Error(t, err, "WithdrawCryptocurrencyFunds must validate the request")
-	if !mockTests {
-		sharedTestCredentials(t, ex)
-		if !canManipulateRealOrders {
-			t.Skip("canManipulateRealOrders is not set")
-		}
-	}
-	resp, err := ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
-		Exchange:         ex.Name,
+// testCryptoWithdrawalRequest returns the documented send of 0.1 BTC, from the mock's recorded account
+func testCryptoWithdrawalRequest(exchangeName string) *withdraw.Request {
+	return &withdraw.Request{
+		Exchange:         exchangeName,
 		Currency:         currency.BTC,
 		Amount:           0.1,
 		Type:             withdraw.Crypto,
@@ -5351,9 +5423,36 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 		IdempotencyToken: "df087dce-92a8-45cf-b112-60aad22c0976",
 		Crypto:           withdraw.CryptoRequest{Address: "1AUJ8z5RuHRTqD1eikyfUUetzGmdWLGkpT", Chain: "bitcoin"},
 		Travel:           withdraw.TravelRule{IsSelf: true, BeneficiaryWalletType: AppTravelRuleWalletTypeExchange},
+	}
+}
+
+func TestWithdrawCryptocurrencyFunds(t *testing.T) {
+	t.Parallel()
+	ex := newWrapperTestExchange(t)
+	_, err := ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{})
+	require.Error(t, err, "WithdrawCryptocurrencyFunds must validate the request")
+	t.Run("refuses a send of more bitcoin than will ever exist", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mock records the documented send, which the next case checks")
+		}
+		skipLiveUnlessCanManipulate(t)
+		// The send is built to be refused, so a live test sends nothing: 21,000,001 BTC, from the account's own bitcoin
+		// account, to a string that is no bitcoin address
+		req := testCryptoWithdrawalRequest(ex.Name)
+		req.Amount, req.WalletID, req.IdempotencyToken, req.Crypto.Address = 21_000_001, "", "", "gct-test-invalid-address"
+		_, err := ex.WithdrawCryptocurrencyFunds(t.Context(), req)
+		requireAppRefusedOnMerits(t, err, "WithdrawCryptocurrencyFunds")
 	})
-	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error")
-	assert.NotEmpty(t, resp.ID, "WithdrawCryptocurrencyFunds should return the send's ID")
+	t.Run("sends the withdrawal", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("live tests send nothing, so the case before runs live instead")
+		}
+		resp, err := ex.WithdrawCryptocurrencyFunds(t.Context(), testCryptoWithdrawalRequest(ex.Name))
+		require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error")
+		assert.NotEmpty(t, resp.ID, "WithdrawCryptocurrencyFunds should return the send's ID")
+	})
 }
 
 func TestWithdrawalTravelRule(t *testing.T) {
@@ -5377,37 +5476,84 @@ func TestWithdrawalTravelRule(t *testing.T) {
 	}, got, "withdrawalTravelRule should send a beneficiary's details")
 }
 
-func TestWithdrawFiatFunds(t *testing.T) {
-	t.Parallel()
-	ex := newWrapperTestExchange(t)
-	_, err := ex.WithdrawFiatFunds(t.Context(), &withdraw.Request{})
-	require.Error(t, err, "WithdrawFiatFunds must validate the request")
-	req := &withdraw.Request{
-		Exchange: ex.Name,
+// testFiatWithdrawalRequest returns a withdrawal of 10 USD, from the mock's recorded account, to a bank named bankName
+func testFiatWithdrawalRequest(exchangeName, bankName string) *withdraw.Request {
+	return &withdraw.Request{
+		Exchange: exchangeName,
 		Currency: currency.USD,
 		Amount:   10,
 		Type:     withdraw.Fiat,
 		WalletID: testAppAccountID,
 		Fiat: withdraw.FiatRequest{Bank: banking.Account{
-			Enabled: true, AccountName: "Satoshi Nakamoto", AccountNumber: "12345", BankName: "Unknown bank", BankAddress: "33 Liberty Street",
-			BankPostalCity: "New York", BankCountry: "United States", SWIFTCode: "FRNYUS33", SupportedCurrencies: "USD", SupportedExchanges: ex.Name,
+			Enabled: true, AccountName: "Satoshi Nakamoto", AccountNumber: "12345", BankName: bankName, BankAddress: "33 Liberty Street",
+			BankPostalCity: "New York", BankCountry: "United States", SWIFTCode: "FRNYUS33", SupportedCurrencies: "USD", SupportedExchanges: exchangeName,
 		}},
 	}
-	if !mockTests {
-		sharedTestCredentials(t, ex)
-		if !canManipulateRealOrders {
-			t.Skip("canManipulateRealOrders is not set")
+}
+
+// testWithdrawFiat runs the cases of a fiat withdrawal method, which withdrawFiat calls on ex;
+// WithdrawFiatFundsToInternationalBank withdraws as WithdrawFiatFunds does, so both take the same cases
+func testWithdrawFiat(t *testing.T, ex *Exchange, method string, withdrawFiat func(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error)) {
+	t.Helper()
+	_, err := withdrawFiat(t.Context(), &withdraw.Request{})
+	require.Errorf(t, err, "%s must validate the request", method)
+	t.Run("refuses a bank the account has no payment method for", func(t *testing.T) {
+		t.Parallel()
+		skipLiveUnlessCanManipulate(t)
+		_, err := withdrawFiat(t.Context(), testFiatWithdrawalRequest(ex.Name, "Unknown bank"))
+		assert.ErrorIsf(t, err, errPaymentMethodNotFound, "%s should refuse a bank without a payment method", method)
+	})
+	t.Run("refuses a withdrawal of more than the account holds", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mock records the documented withdrawal, which the next case checks")
 		}
-	}
-	_, err = ex.WithdrawFiatFunds(t.Context(), req)
-	require.ErrorIs(t, err, errPaymentMethodNotFound, "WithdrawFiatFunds must refuse a bank without a payment method")
-	if !mockTests {
-		return
-	}
-	req.Fiat.Bank.BankName = "ALLY BANK ******1234"
-	resp, err := ex.WithdrawFiatFundsToInternationalBank(t.Context(), req)
-	require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
-	assert.NotEmpty(t, resp.ID, "WithdrawFiatFundsToInternationalBank should return the withdrawal's ID")
+		skipLiveUnlessCanManipulate(t)
+		methods, err := ex.ListPaymentMethods(t.Context())
+		require.NoError(t, err, "ListPaymentMethods must not error")
+		i := slices.IndexFunc(methods, func(m PaymentMethod) bool { return m.AllowWithdraw && m.Currency.IsFiatCurrency() })
+		if i == -1 {
+			t.Skip("the account has no payment method to withdraw fiat to")
+		}
+		accountID, err := ex.appAccountID(t.Context(), methods[i].Currency, "")
+		if errors.Is(err, errAccountNotFound) {
+			t.Skipf("the account holds no %s account to withdraw from", methods[i].Currency)
+		}
+		require.NoError(t, err, "appAccountID must not error")
+		account, err := e.App().GetAccount(t.Context(), &AppGetAccountRequest{AccountID: accountID})
+		require.NoError(t, err, "GetAccount must not error")
+		// The withdrawal is built to be refused, so a live test withdraws nothing: twice what the account holds and a
+		// trillion more, which stays above any balance a float can hold
+		req := testFiatWithdrawalRequest(ex.Name, methods[i].Name)
+		req.Amount, req.Currency, req.WalletID, req.Fiat.Bank.SupportedCurrencies = 2*account.Balance.Amount.Float64()+1e12, methods[i].Currency, accountID, methods[i].Currency.String()
+		_, err = withdrawFiat(t.Context(), req)
+		requireAppRefusedOnMerits(t, err, method)
+	})
+	t.Run("withdraws to the payment method its bank names", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("live tests withdraw nothing, so the cases before run live instead")
+		}
+		resp, err := withdrawFiat(t.Context(), testFiatWithdrawalRequest(ex.Name, "ALLY BANK ******1234"))
+		require.NoErrorf(t, err, "%s must not error", method)
+		assert.NotEmptyf(t, resp.ID, "%s should return the withdrawal's ID", method)
+	})
+}
+
+func TestWithdrawFiatFunds(t *testing.T) {
+	t.Parallel()
+	ex := newWrapperTestExchange(t)
+	testWithdrawFiat(t, ex, "WithdrawFiatFunds", func(ctx context.Context, w *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+		return ex.WithdrawFiatFunds(ctx, w)
+	})
+}
+
+func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
+	t.Parallel()
+	ex := newWrapperTestExchange(t)
+	testWithdrawFiat(t, ex, "WithdrawFiatFundsToInternationalBank", func(ctx context.Context, w *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+		return ex.WithdrawFiatFundsToInternationalBank(ctx, w)
+	})
 }
 
 func TestGetFeeByType(t *testing.T) { //nolint:tparallel // the cases share ex and unloaded in order
@@ -6247,11 +6393,36 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFuturesPositionSummary must refuse a nil request")
 	_, err = ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Spot})
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset, "GetFuturesPositionSummary must refuse spot")
+	t.Run("returns a gateway perpetual's position", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mock records positions the account holds, which the next case checks")
+		}
+		skipLiveWithoutCredentials(t)
+		// The gateway answers a position the account does not hold with a zero position, so the case holds whatever the
+		// account does
+		for _, tc := range []struct {
+			a          asset.Item
+			pair       currency.Pair
+			settlement futures.ContractSettlementType
+		}{
+			{a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, settlement: futures.Linear},
+			{a: asset.CoinMarginedFutures, pair: testCoinPerpetual, settlement: futures.Inverse},
+		} {
+			t.Run(tc.a.String(), func(t *testing.T) {
+				t.Parallel()
+				summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: tc.a, Pair: tc.pair})
+				require.NoErrorf(t, err, "GetFuturesPositionSummary must not error for %s", tc.a)
+				assert.Equalf(t, tc.pair, summary.Pair, "GetFuturesPositionSummary should return the %s position's pair", tc.a)
+				assert.Equalf(t, tc.settlement, summary.ContractSettlementType, "GetFuturesPositionSummary should return how the %s perpetual settles", tc.a)
+				assert.Truef(t, summary.ContractMultiplier.IsPositive(), "GetFuturesPositionSummary should return the %s perpetual's contract size", tc.a)
+			})
+		}
+	})
 	t.Run("returns the recorded positions", func(t *testing.T) {
 		t.Parallel()
 		if !mockTests {
-			sharedTestCredentials(t, ex)
-			t.Skip("live positions are the account's own")
+			t.Skip("live positions are the account's own, so the case before reads a gateway perpetual's live instead")
 		}
 		summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: testDatedFuture})
 		require.NoError(t, err, "GetFuturesPositionSummary must not error for a US derivative")
@@ -6782,10 +6953,14 @@ func TestAuthenticateWebsocket(t *testing.T) {
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	assert.Error(t, ex.AuthenticateWebsocket(t.Context()), "AuthenticateWebsocket should error without a gateway connection")
-	if !mockTests {
-		t.Skip("the live tests share the gateway's websocket connections")
-	}
-	connected, venue := newDerivativesWebsocketTestExchange(t)
-	require.NoError(t, connected.AuthenticateWebsocket(t.Context()), "AuthenticateWebsocket must not error")
-	assert.Len(t, venue.requestsFor(derivativesAuthMethod), 2, "AuthenticateWebsocket should authenticate the gateway connection again")
+	t.Run("authenticates the gateway connection again", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		connected, venue := newDedicatedDerivativesWebsocketTestExchange(t)
+		require.NoError(t, connected.AuthenticateWebsocket(t.Context()), "AuthenticateWebsocket must not error")
+		assert.True(t, connected.Websocket.CanUseAuthenticatedEndpoints(), "AuthenticateWebsocket should leave the gateway connection authenticated")
+		if mockTests {
+			assert.Len(t, venue.requestsFor(derivativesAuthMethod), 2, "AuthenticateWebsocket should authenticate the gateway connection again")
+		}
+	})
 }

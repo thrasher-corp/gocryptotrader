@@ -24,6 +24,12 @@ const (
 	testDerivativesTransferNonce = "bF1_gfgcsd"
 )
 
+// derivativesWalletLiveRefusedTransfer is a transfer live tests send for the gateway to refuse, as they have no
+// subaccounts to transfer between: more USDC than any account holds, to user 2^62
+func derivativesWalletLiveRefusedTransfer() *DerivativesSubmitTransferBetweenSubaccountsRequest {
+	return &DerivativesSubmitTransferBetweenSubaccountsRequest{Currency: currency.USDC, Amount: 1e12, Destination: 1 << 62}
+}
+
 // testDerivativesTransferRequest is the documented transfer between subaccounts, with the documented nonce
 func testDerivativesTransferRequest() *DerivativesSubmitTransferBetweenSubaccountsRequest {
 	return &DerivativesSubmitTransferBetweenSubaccountsRequest{
@@ -79,10 +85,17 @@ func TestGlobalDerivativesSubmitTransferBetweenSubaccounts(t *testing.T) { //nol
 	require.ErrorIs(t, err, errDerivativesInvalidTransferNonce, "SubmitTransferBetweenSubaccounts must refuse a nonce under 8 characters")
 
 	// The live case runs first, as the cases on local servers after it call the same method
-	t.Run("transfers between subaccounts", func(t *testing.T) {
+	t.Run("refuses a transfer of more than the account holds", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mock records a transfer between the account's subaccounts, which the next case checks")
+		}
 		skipLiveUnlessCanManipulate(t)
+		_, err := e.GlobalDerivatives().SubmitTransferBetweenSubaccounts(t.Context(), derivativesWalletLiveRefusedTransfer())
+		requireDerivativesRefusedOnMerits(t, err, "SubmitTransferBetweenSubaccounts", "destination", "amount")
+	})
+	t.Run("transfers between subaccounts", func(t *testing.T) {
 		if !mockTests {
-			t.Skip("SubmitTransferBetweenSubaccounts needs subaccounts, which live tests do not have")
+			t.Skip("live tests have no subaccounts to transfer between, so the case before runs live instead")
 		}
 		resp, err := e.GlobalDerivatives().SubmitTransferBetweenSubaccounts(t.Context(), testDerivativesTransferRequest())
 		require.NoError(t, err, "SubmitTransferBetweenSubaccounts must not error")

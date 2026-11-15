@@ -85,16 +85,14 @@ func TestWebsocketAPIUnsubscribePrivate(t *testing.T) {
 
 func TestWebsocketAPIUnsubscribeAll(t *testing.T) {
 	t.Parallel()
-	t.Run("sends on each gateway connection", func(t *testing.T) {
+	t.Run("sends on the gateway's streams", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
-			t.Skip("the live tests share the gateway's connections, whose other tests' channels unsubscribing all would drop")
-		}
-		ex, venue := newDerivativesWebsocketTestExchange(t)
+		ex, venue := newDedicatedDerivativesWebsocketTestExchange(t)
 		require.NoError(t, ex.WebsocketAPI().UnsubscribeAll(t.Context()), "WebsocketAPI.UnsubscribeAll must not error")
-		assert.Len(t, venue.requestsFor("public/unsubscribe_all"), 1, "WebsocketAPI.UnsubscribeAll should be sent on the gateway's streams")
-		require.NoError(t, ex.WebsocketAPI().UnsubscribeAllPrivate(t.Context()), "WebsocketAPI.UnsubscribeAllPrivate must not error")
-		assert.Len(t, venue.requestsFor("private/unsubscribe_all"), 1, "WebsocketAPI.UnsubscribeAllPrivate should be sent on the gateway's private connection")
+		if mockTests {
+			assert.Len(t, venue.requestsFor("public/unsubscribe_all"), 1, "WebsocketAPI.UnsubscribeAll should be sent on the gateway's streams")
+			assert.Empty(t, venue.requestsFor("private/unsubscribe_all"), "WebsocketAPI.UnsubscribeAll should leave the gateway's private connection alone")
+		}
 	})
 	t.Run("errors for a result other than ok", func(t *testing.T) {
 		t.Parallel()
@@ -103,8 +101,34 @@ func TestWebsocketAPIUnsubscribeAll(t *testing.T) {
 		}
 		ex, venue := newDerivativesWebsocketTestExchange(t)
 		venue.override("public/unsubscribe_all", json.RawMessage(`{"result":"not ok"}`))
-		venue.override("private/unsubscribe_all", json.RawMessage(`{"result":"not ok"}`))
 		assert.ErrorIs(t, ex.WebsocketAPI().UnsubscribeAll(t.Context()), errDerivativesUnexpectedResult, "WebsocketAPI.UnsubscribeAll should error for a result other than ok")
+	})
+}
+
+func TestWebsocketAPIUnsubscribeAllPrivate(t *testing.T) {
+	t.Parallel()
+	t.Run("sends on the gateway's private connection", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		ex, venue := newDedicatedDerivativesWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketAPI().UnsubscribeAllPrivate(t.Context()), "WebsocketAPI.UnsubscribeAllPrivate must not error")
+		if mockTests {
+			assert.Len(t, venue.requestsFor("private/unsubscribe_all"), 1, "WebsocketAPI.UnsubscribeAllPrivate should be sent on the gateway's private connection")
+			assert.Empty(t, venue.requestsFor("public/unsubscribe_all"), "WebsocketAPI.UnsubscribeAllPrivate should leave the gateway's streams alone")
+		}
+	})
+	t.Run("errors for a result other than ok", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the mock gateway websocket answers with the result this test needs")
+		}
+		ex, venue := newDerivativesWebsocketTestExchange(t)
+		venue.override("private/unsubscribe_all", json.RawMessage(`{"result":"not ok"}`))
 		assert.ErrorIs(t, ex.WebsocketAPI().UnsubscribeAllPrivate(t.Context()), errDerivativesUnexpectedResult, "WebsocketAPI.UnsubscribeAllPrivate should error for a result other than ok")
+	})
+	t.Run("refuses an unauthenticated connection", func(t *testing.T) {
+		t.Parallel()
+		unauthenticated, _ := newUnauthenticatedDerivativesWebsocketTestExchange(t)
+		assert.ErrorIs(t, unauthenticated.WebsocketAPI().UnsubscribeAllPrivate(t.Context()), errDerivativesWebsocketNotAuthenticated, "WebsocketAPI.UnsubscribeAllPrivate should refuse an unauthenticated connection")
 	})
 }

@@ -91,6 +91,21 @@ func newDerivativesWebsocketTestExchange(t *testing.T) (*Exchange, *derivativesV
 	return ex, nil
 }
 
+// newDedicatedDerivativesWebsocketTestExchange returns a live exchange of the test's own connected to the gateway's
+// websocket, authenticated when the credentials above are set, for the session calls that would end, unsubscribe or
+// authenticate again the connections the other live tests share. It is shut down when the test ends; nothing records
+// the requests sent live, so the venue is nil
+func newDedicatedDerivativesWebsocketTestExchange(t *testing.T) (*Exchange, *derivativesVenue) {
+	t.Helper()
+	ex := newTestExchange(t)
+	require.NoError(t, setupDerivativesWebsocket(ex), "setupDerivativesWebsocket must not error")
+	ex.Websocket.SetSubscriptionsNotRequired()
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(apiCredentials.Key != "")
+	t.Cleanup(func() { stopWebsocketTestExchange(t, ex) })
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must connect to the gateway's websocket")
+	return ex, nil
+}
+
 // newUnauthenticatedDerivativesWebsocketTestExchange skips the test, as the live tests share the gateway's
 // connections, whose private connection authenticates when it connects with credentials set
 func newUnauthenticatedDerivativesWebsocketTestExchange(t *testing.T) (*Exchange, *derivativesVenue) {

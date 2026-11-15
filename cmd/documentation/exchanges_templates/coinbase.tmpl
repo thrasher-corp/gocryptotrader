@@ -180,7 +180,9 @@ that times out on one connection resubscribes every channel. The standard channe
   cancelled, expired or failed has none, as its report doesn't say which currency its remaining quantity is in. An open
   order sized in the base currency that an edit can resize, a limit, stop limit, bracket or take profit/stop loss
   order, is looked up too when its filled and remaining quantities give another size, so an edit made elsewhere is
-  followed, and takes what it filled as its size when it fills beyond it. An order Coinbase marks filled leaving dust
+  followed, and takes what it filled as its size when it fills beyond it. A report of such an order, whatever its
+  status, relays no remaining amount while an edit is queued, or when its quantities give another size, as the report
+  can predate an edit. An order Coinbase marks filled leaving dust
   keeps its size. The record keeps the size an order it held closed with for at least an hour, and a later report of
   the order's close with no size recorded for it, such as a repeated one, or one after a list read it closed, takes
   that size, or for a filled order what it executed where that is larger. `ModifyOrder` records the size it gives an

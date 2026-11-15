@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -56,6 +57,57 @@ func readJSONRPC(t *testing.T, r *http.Request) (receivedJSONRPC, bool) {
 func testDerivativesAuthHandler(t *testing.T, w http.ResponseWriter, token string) {
 	t.Helper()
 	writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"`+token+`","expires_in":900,"scope":"trade view","token_type":"bearer"}}`)
+}
+
+// derivativesRequestRefusalCodes are the codes of the gateway's errors that refuse or fail a request itself rather than
+// answer what it asks for, such as those for a malformed request, invalid input or an invalid instrument, an unknown
+// method, refused credentials or permissions, an account verification not completed or a subaccount restriction, a
+// rate limit or an outage, from the error list of Deribit's API, which the gateway runs. Any other refusal is an
+// answer, as a request naming nothing that exists, or another account's user, draws one
+var derivativesRequestRefusalCodes = []int64{
+	-32700, -32602, -32600, -32601, -32000, 10000, 10001, 10019, 10020, 10022, 10023, 10024, 10025, 10026, 10027, 10028,
+	10030, 10031, 10033, 10040, 10041, 10043, 10044, 10047, 10048, 10066, 11029, 11031, 11042, 11043, 11047, 11049, 11050,
+	11051, 11056, 11094, 11095, 11098, 12003, 12004, 12005, 12998, 13004, 13005, 13006, 13007, 13008, 13009, 13010, 13011,
+	13012, 13015, 13016, 13018, 13020, 13021, 13025, 13028, 13031, 13037, 13403, 13503, 13666, 13777, 13778, 13780, 13792,
+	13793, 13888, 13903, 13904,
+}
+
+// derivativesInvalidInputCodes are the request refusal codes for invalid input, whose data can name the parameter at
+// fault
+var derivativesInvalidInputCodes = []int64{-32602, 11029, 11043, 11049, 13016}
+
+// derivativesInvalidParamsData is the data of the gateway's invalid input errors, which can name the parameter at fault
+type derivativesInvalidParamsData struct {
+	Param string `json:"param"`
+}
+
+// requireDerivativesAnsweredOnMerits fails a live case unless the gateway answered its request on the merits: the
+// request succeeded, or the gateway refused what it asked for, as when the account lacks what the method needs. It
+// reports whether the request succeeded
+func requireDerivativesAnsweredOnMerits(t *testing.T, err error, method string) bool {
+	t.Helper()
+	if err == nil {
+		return true
+	}
+	derivativesErr, ok := errors.AsType[*DerivativesError](err)
+	require.Truef(t, ok, "%s must return the gateway's answer, not %v", method, err)
+	require.NotContainsf(t, derivativesRequestRefusalCodes, derivativesErr.Code, "%s must be answered on its merits rather than refused as a request", method)
+	return false
+}
+
+// requireDerivativesRefusedOnMerits fails a live case built to be refused unless its request fails and
+// requireDerivativesAnsweredOnMerits accepts the error. The case fills foreignParams with values no account holds,
+// which the gateway can refuse as invalid input, so an invalid input error naming one of them is accepted too
+func requireDerivativesRefusedOnMerits(t *testing.T, err error, method string, foreignParams ...string) {
+	t.Helper()
+	require.Errorf(t, err, "%s must be refused, as its request is built to be refused", method)
+	if derivativesErr, ok := errors.AsType[*DerivativesError](err); ok && slices.Contains(derivativesInvalidInputCodes, derivativesErr.Code) {
+		var data derivativesInvalidParamsData
+		if json.Unmarshal(derivativesErr.Data, &data) == nil && slices.Contains(foreignParams, data.Param) {
+			return
+		}
+	}
+	requireDerivativesAnsweredOnMerits(t, err, method)
 }
 
 func TestGlobalDerivativesAuthenticate(t *testing.T) {
@@ -235,6 +287,11 @@ func TestDerivativesRetry(t *testing.T) {
 	attempts = 0
 	err = derivativesRetry(t.Context(), func() error {
 		attempts++
+		// Past the attempts the request succeeds, so a retry that loses its limit fails the checks below rather than
+		// retrying until go test's timeout
+		if attempts > derivativesMaximumRequestAttempts {
+			return nil
+		}
 		return retry
 	})
 	assert.ErrorIs(t, err, retry, "derivativesRetry should return the last refusal")
@@ -569,7 +626,7 @@ func TestDerivativesTokenLifetime(t *testing.T) {
 	assert.Equal(t, longest, derivativesTokenLifetime(math.MaxUint64), "derivativesTokenLifetime should cap the largest lifetime")
 }
 
-func TestDerivativesRequestIDs(t *testing.T) {
+func TestDerivativesRequestID(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	first, second := ex.derivativesRequestID(), ex.derivativesRequestID()

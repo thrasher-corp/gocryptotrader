@@ -178,10 +178,18 @@ func TestAppDepositFunds(t *testing.T) {
 	t.Parallel()
 	testAppFiatTransferRequestErrors(t, "DepositFunds", e.App().DepositFunds)
 
-	// The live case runs first, as the cases on local servers after it call the same method
+	// The live cases run first, as the cases on local servers after them call the same method
+	t.Run("refuses a deposit from a payment method the account lacks", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mock records the documented deposit, which the next case checks")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.App().DepositFunds(t.Context(), &AppFiatTransferRequest{AccountID: testAppAccount(t), Amount: 1e12, Currency: currency.USD, PaymentMethodID: testAppLiveUnknownID})
+		requireAppRefusedOnMerits(t, err, "DepositFunds")
+	})
 	t.Run("deposits funds", func(t *testing.T) {
 		if !mockTests {
-			t.Skip("a deposit needs a payment method's ID, which Advanced Trade's List Payment Methods returns, so DepositFunds is tested against its documented response only")
+			t.Skip("a deposit needs one of the account's payment methods, so the case before runs live instead")
 		}
 		resp, err := e.App().DepositFunds(t.Context(), &AppFiatTransferRequest{AccountID: testAppAccountID, Amount: 10, Currency: currency.USD, PaymentMethodID: testAppPaymentMethodID})
 		require.NoError(t, err, "DepositFunds must not error")
@@ -200,10 +208,18 @@ func TestAppCommitDeposit(t *testing.T) { //nolint:tparallel // the live case ru
 	t.Parallel()
 	testAppFiatTransferIDRequestErrors(t, "CommitDeposit", e.App().CommitDeposit)
 
-	// The live case runs first, as the cases on local servers after it call the same method
+	// The live cases run first, as the cases on local servers after them call the same method
+	t.Run("refuses to commit a deposit the account lacks", func(t *testing.T) {
+		if mockTests {
+			t.Skip("the mock records the documented deposit commit, which the next case checks")
+		}
+		skipLiveUnlessCanManipulate(t)
+		_, err := e.App().CommitDeposit(t.Context(), &AppFiatTransferIDRequest{AccountID: testAppAccount(t), TransferID: testAppLiveUnknownID})
+		requireAppRefusedOnMerits(t, err, "CommitDeposit")
+	})
 	t.Run("commits a deposit", func(t *testing.T) {
 		if !mockTests {
-			t.Skip("a committed deposit cannot be undone, so CommitDeposit is tested against its documented response only")
+			t.Skip("a committed deposit cannot be undone, so the case before runs live instead")
 		}
 		resp, err := e.App().CommitDeposit(t.Context(), &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppUncommittedTransferID})
 		require.NoError(t, err, "CommitDeposit must not error")
