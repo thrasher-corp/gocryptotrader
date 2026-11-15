@@ -168,12 +168,15 @@ func (e *Exchange) isMarginOrder(orderID, clientOrderID string) bool {
 	if e.marginOrders == nil {
 		return false
 	}
+	// The client order ID is read first, as an answer tracks the order ID before it counts the client order ID out, so a
+	// read during the answer finds the order by one or the other
+	clientTracked := clientOrderID != "" && e.marginOrders.Contains(marginOrderKey{id: clientOrderID, client: true})
 	if orderID != "" {
 		if isMargin, ok := e.marginOrders.Get(marginOrderKey{id: orderID}).(bool); ok {
 			return isMargin
 		}
 	}
-	return clientOrderID != "" && e.marginOrders.Contains(marginOrderKey{id: clientOrderID, client: true})
+	return clientTracked
 }
 
 // wsHandleUserTrades relays the account's trades through the fills feed when it is enabled, else to the data handler as

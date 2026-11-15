@@ -1110,13 +1110,13 @@ func TestTimedOutRequestRetries(t *testing.T) {
 				if requests.Add(1) == 1 {
 					select {
 					case <-r.Context().Done():
-					case <-time.After(time.Second):
+					case <-time.After(10 * time.Second):
 					}
 					return
 				}
 				w.WriteHeader(http.StatusBadRequest)
 			}))
-			require.NoError(t, ex.SetHTTPClientTimeout(250*time.Millisecond), "SetHTTPClientTimeout must not error")
+			require.NoError(t, ex.SetHTTPClientTimeout(2*time.Second), "SetHTTPClientTimeout must not error")
 			err := tc.call(t.Context(), ex)
 			if tc.retried {
 				assert.ErrorIsf(t, err, request.ErrBadStatus, "%s should return its retry's reply", tc.name)

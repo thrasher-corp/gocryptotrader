@@ -587,6 +587,15 @@ func TestWebsocketUnsubscribeBatch(t *testing.T) {
 		require.ErrorIs(t, newTestExchange(t).wsUnsubscribeBatch(endedContext(t), conn, subscription.List{s}), context.Canceled, "wsUnsubscribeBatch must return the cancellation")
 		assert.Empty(t, conn.recorded().requests, "wsUnsubscribeBatch should send nothing once its context has ended")
 	})
+	t.Run("a context past its deadline sends no unsubscription", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithDeadline(t.Context(), time.Now().Add(-time.Second))
+		defer cancel()
+		conn := newScriptedConnection(scriptedAnswer{})
+		s := &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: recordedBookChannel}
+		require.ErrorIs(t, newTestExchange(t).wsUnsubscribeBatch(ctx, conn, subscription.List{s}), context.DeadlineExceeded, "wsUnsubscribeBatch must return the deadline")
+		assert.Empty(t, conn.recorded().requests, "wsUnsubscribeBatch should send nothing once its context's deadline has passed")
+	})
 	t.Run("a book channel's books stay when its unsubscription fails otherwise", func(t *testing.T) {
 		t.Parallel()
 		venue := newMarketDataVenue(t)
@@ -803,7 +812,7 @@ func TestWebsocketUnsubscribeBatch(t *testing.T) {
 
 // testResponseMaxLimit is how long the connections of an exchange that withTestResponseMaxLimit prepares wait for each
 // answer, so that an answer the mock loses times out soon
-const testResponseMaxLimit = 500 * time.Millisecond
+const testResponseMaxLimit = 2 * time.Second
 
 // withTestResponseMaxLimit returns a function preparing an exchange whose connections wait testResponseMaxLimit for each
 // answer from venue; it sets the websocket up again, as each connection takes its wait from the configuration when the

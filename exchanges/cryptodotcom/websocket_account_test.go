@@ -3,9 +3,11 @@ package cryptodotcom
 import (
 	"bytes"
 	"context"
+	"runtime"
 	"slices"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1296,6 +1298,33 @@ func TestIsMarginOrder(t *testing.T) {
 		t.Parallel()
 		var untracked Exchange
 		assert.False(t, untracked.isMarginOrder("m1", "c1"), "isMarginOrder should report no margin order without a margin order cache")
+	})
+
+	t.Run("a margin order read while its answer replaces its client order ID", func(t *testing.T) {
+		t.Parallel()
+		answering := newTestExchange(t)
+		// Each round reads a margin order as fast as it can while another goroutine answers it, so that with more than one
+		// CPU some reads land between the answer tracking the order ID and counting the client order ID out
+		for range 200 {
+			answering.marginOrders.Clear()
+			answering.trackMarginOrder(asset.Margin, "", "c1")
+			var answered atomic.Bool
+			go func() {
+				answering.trackMarginOrder(asset.Margin, "m1", "c1")
+				answered.Store(true)
+			}()
+			deadline := time.Now().Add(mockRequestTimeout)
+			for reads := 1; !answered.Load(); reads++ {
+				if !answering.isMarginOrder("m1", "c1") {
+					require.FailNow(t, "isMarginOrder must report a margin order read while its answer replaces its client order ID")
+				}
+				if reads%1024 == 0 {
+					require.False(t, time.Now().After(deadline), "the answer must be tracked")
+					// Lets the answer run on a single CPU too
+					runtime.Gosched()
+				}
+			}
+		}
 	})
 }
 
