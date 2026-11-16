@@ -538,7 +538,13 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 	if err != nil {
 		return nil, err
 	}
+	// Perpetuals accounts share this endpoint, so only a listed spot symbol identifies a spot order.
+	assetType := asset.Empty
+	if _, err = e.MatchSymbolWithAvailablePairs(resp.Symbol, asset.Spot, false); err == nil {
+		assetType = asset.Spot
+	}
 	return &order.Detail{
+		AssetType:       assetType,
 		OrderID:         strconv.FormatInt(resp.OrderID, 10),
 		Amount:          resp.OriginalAmount,
 		RemainingAmount: resp.RemainingAmount,

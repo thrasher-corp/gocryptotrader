@@ -557,6 +557,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		return nil, err
 	}
 	return &order.Detail{
+		// GetOrderStatus queries the spot API by ID, independently of the incoming asset.
+		AssetType:       asset.Spot,
 		RemainingAmount: o.AmountRemaining,
 		OrderID:         o.ID,
 		Date:            o.DateTime.Time(),

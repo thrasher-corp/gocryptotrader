@@ -1638,7 +1638,7 @@ func (e *Exchange) GetInactiveOrders(ctx context.Context, symbol string, ids ...
 	req := make(map[string]any)
 	req["limit"] = 2500
 	if len(ids) > 0 {
-		req["ids"] = ids
+		req["id"] = ids
 	}
 	return response, e.SendAuthenticatedHTTPRequestV2(
 		ctx,

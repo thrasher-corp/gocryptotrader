@@ -569,6 +569,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 				err)
 		}
 		od.Exchange = e.Name
+		// GetOrders and TradeHistory both query the spot API, even if the caller requested futures.
+		od.AssetType = asset.Spot
 		od.Amount = o[i].Size
 		od.OrderID = o[i].OrderID
 		od.Date = o[i].Timestamp.Time()
@@ -728,6 +730,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			}
 
 			openOrder := order.Detail{
+				AssetType:       asset.Spot,
 				Pair:            p,
 				Exchange:        e.Name,
 				Amount:          resp[i].Size,

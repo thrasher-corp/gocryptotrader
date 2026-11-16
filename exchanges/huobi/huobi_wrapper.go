@@ -1299,6 +1299,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
+		// The queried swap endpoint establishes this market, not merely the incoming asset label.
+		orderDetail.AssetType = asset.CoinMarginedFutures
 		var orderVars OrderVars
 		for x := range orderInfo.Data {
 			orderVars, err = compatibleVars(orderInfo.Data[x].Direction, orderInfo.Data[x].OrderPriceType, orderInfo.Data[x].Status)
@@ -1329,6 +1331,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
+		// The queried contract endpoint establishes this market, not merely the incoming asset label.
+		orderDetail.AssetType = asset.Futures
 		var orderVars OrderVars
 		for x := range orderInfo.Data {
 			orderVars, err = compatibleVars(orderInfo.Data[x].Direction, orderInfo.Data[x].OrderPriceType, orderInfo.Data[x].Status)
