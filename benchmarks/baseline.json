@@ -237,6 +237,30 @@
     "allocs": 0,
     "bytes": 0
   },
+  "exchanges/htx.BenchmarkWebsocketSubscriptionKeyLookup/subscriptions=16/indexed=false": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/htx.BenchmarkWebsocketSubscriptionKeyLookup/subscriptions=16/indexed=true": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/htx.BenchmarkWebsocketSubscriptionKeyLookup/subscriptions=2660/indexed=false": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/htx.BenchmarkWebsocketSubscriptionKeyLookup/subscriptions=2660/indexed=true": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/htx.BenchmarkWebsocketSubscriptionKeyLookup/subscriptions=400/indexed=false": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/htx.BenchmarkWebsocketSubscriptionKeyLookup/subscriptions=400/indexed=true": {
+    "allocs": 0,
+    "bytes": 0
+  },
   "exchanges/kucoin.BenchmarkIntervalToString": {
     "allocs": 0,
     "bytes": 0
