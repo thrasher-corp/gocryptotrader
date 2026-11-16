@@ -1,88 +1,155 @@
 package v19
 
 import (
+	"strings"
 	"testing"
-	"time"
 
-	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-func TestKeepGeneratable(t *testing.T) {
+func TestAddUSDTMarginedPair(t *testing.T) {
 	t.Parallel()
-	exchange := []byte(`{"features":{"subscriptions":[{"enabled":true,"channel":"ticker"},{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"},{"enabled":true,"channel":"allTrades","asset":"spot"}]}}`)
-	t.Run("updates the changed entries in place", func(t *testing.T) {
-		t.Parallel()
-		entries, err := subscriptions(exchange)
-		require.NoError(t, err, "subscriptions must not error")
-		got, saved, err := keepGeneratable(exchange, entries)
-		require.NoError(t, err, "keepGeneratable must not error")
-		exp := `{"features":{"subscriptions":[{"enabled":false,"channel":"ticker"},{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"},{"enabled":true,"channel":"allTrades","asset":"spot"}]}}`
-		assert.JSONEq(t, exp, string(got), "keepGeneratable should disable the ticker without an asset and give the candles five minutes")
-		updated, err := subscriptions(got)
-		require.NoError(t, err, "subscriptions must not error for the updated configuration")
-		assert.Equal(t, updated, entries, "keepGeneratable should update the changed entries in place")
-		decoded, err := decodeEntries(updated)
-		require.NoError(t, err, "decodeEntries must not error for the updated entries")
-		assert.Equal(t, decoded, saved, "keepGeneratable should return the subscriptions as updated")
-	})
-
-	t.Run("an entry it cannot decode", func(t *testing.T) {
-		t.Parallel()
-		malformed, err := subscriptions([]byte(`{"features":{"subscriptions":[{"enabled":"true","channel":"ticker"}]}}`))
-		require.NoError(t, err, "subscriptions must not error for a malformed entry")
-		got, saved, err := keepGeneratable(exchange, malformed)
-		var typeErr *json.UnmarshalTypeError
-		assert.ErrorAs(t, err, &typeErr, "keepGeneratable should wrap the decoding error")
-		assert.ErrorContains(t, err, "error decoding Coinbase subscriptions", "keepGeneratable should report a subscription it cannot decode")
-		assert.Nil(t, got, "keepGeneratable should return no configuration when it cannot decode a subscription")
-		assert.Nil(t, saved, "keepGeneratable should return no subscriptions when it cannot decode one")
-	})
-
-	t.Run("an entry it cannot update", func(t *testing.T) {
-		t.Parallel()
-		// Only the second of three entries changes, so the failed update names index 1
-		unwritable, err := subscriptions([]byte(`{"features":{"subscriptions":[{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"ticker"},{"enabled":true,"channel":"orderbook","asset":"spot"}]}}`))
-		require.NoError(t, err, "subscriptions must not error")
-		got, saved, err := keepGeneratable([]byte(`"Coinbase"`), unwritable)
-		assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError, "keepGeneratable should report a subscription it cannot update")
-		assert.ErrorContains(t, err, "error updating Coinbase subscription 1:", "keepGeneratable should name the subscription it cannot update")
-		assert.Nil(t, got, "keepGeneratable should return no configuration when it cannot update a subscription")
-		assert.Nil(t, saved, "keepGeneratable should return no subscriptions when it cannot update one")
-	})
+	for _, tc := range []struct {
+		name     string
+		config   map[string]any
+		expected bool
+	}{
+		{name: "missing currency pairs", config: map[string]any{}},
+		{name: "missing pairs", config: map[string]any{"currencyPairs": map[string]any{}}},
+		{
+			name: "existing pair",
+			config: map[string]any{
+				"currencyPairs": map[string]any{
+					"pairs": map[string]any{"usdtmarginedfutures": "existing"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "add pair",
+			config: map[string]any{
+				"currencyPairs": map[string]any{"pairs": map[string]any{}},
+			},
+			expected: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			addUSDTMarginedPair(tc.config)
+			currencyPairs, ok := tc.config["currencyPairs"].(map[string]any)
+			if !tc.expected {
+				if ok {
+					pairs, _ := currencyPairs["pairs"].(map[string]any)
+					assert.NotContains(t, pairs, "usdtmarginedfutures", "pair should not be added without the required parent configuration")
+				}
+				return
+			}
+			require.True(t, ok, "currency-pair configuration must exist")
+			pairs, ok := currencyPairs["pairs"].(map[string]any)
+			require.True(t, ok, "pair configuration must exist")
+			pair, found := pairs["usdtmarginedfutures"]
+			require.True(t, found, "USDT-margined pair configuration must exist")
+			if tc.name == "existing pair" {
+				assert.Equal(t, "existing", pair, "existing pair configuration should be preserved")
+				return
+			}
+			pairConfig, ok := pair.(map[string]any)
+			require.True(t, ok, "added pair configuration must use an object")
+			assert.Equal(t, "BTC-USDT", pairConfig["enabled"], "enabled pair should match")
+			assert.Equal(t, "BTC-USDT", pairConfig["available"], "available pair should match")
+		})
+	}
+	for _, key := range []string{"usdtmarginedfutures", "USDTMarginedFutures", "USDTMARGINEDFUTURES"} {
+		t.Run("preserve "+key, func(t *testing.T) {
+			t.Parallel()
+			pairs := map[string]any{key: "existing"}
+			addUSDTMarginedPair(map[string]any{"currencyPairs": map[string]any{"pairs": pairs}})
+			assert.Equal(t, map[string]any{key: "existing"}, pairs, "equivalent asset keys should preserve existing settings without adding defaults")
+		})
+	}
 }
 
-func TestParseInterval(t *testing.T) {
+func TestAddDerivativeSubscriptions(t *testing.T) {
 	t.Parallel()
-	for name, tc := range map[string]struct {
-		saved    []byte
-		interval time.Duration
-		ok       bool
-	}{
-		"absent":         {nil, 0, true},
-		"null":           {[]byte(`null`), 0, false},
-		"nanoseconds":    {[]byte(`60000000000`), time.Minute, true},
-		"raw":            {[]byte(`"raw"`), -1, true},
-		"raw as -1":      {[]byte(`-1`), -1, true},
-		"upper case raw": {[]byte(`"RAW"`), 0, false},
-		"duration":       {[]byte(`"5m0s"`), 5 * time.Minute, true},
-		"minutes":        {[]byte(`"15min"`), 15 * time.Minute, true},
-		"month":          {[]byte(`"1M"`), 30 * 24 * time.Hour, true},
-		"unknown unit":   {[]byte(`"1y"`), 0, false},
-		"seconds":        {[]byte(`"30sec"`), 30 * time.Second, true},
-		"days":           {[]byte(`"2d"`), 48 * time.Hour, true},
-		"weeks":          {[]byte(`"1wk"`), 7 * 24 * time.Hour, true},
-		"overflow":       {[]byte(`"9223372036854775807h"`), 0, false},
-		"count overflow": {[]byte(`"99999999999999999999min"`), 0, false},
-		"boolean":        {[]byte(`true`), 0, false},
-	} {
-		t.Run(name, func(t *testing.T) {
+	t.Run("missing features", func(t *testing.T) {
+		t.Parallel()
+		config := map[string]any{}
+		addDerivativeSubscriptions(config)
+		assert.NotContains(t, config, "features", "missing feature configuration should remain unchanged")
+	})
+
+	t.Run("add and preserve subscriptions", func(t *testing.T) {
+		t.Parallel()
+		config := map[string]any{
+			"features": map[string]any{
+				"subscriptions": []any{
+					nil,
+					map[string]any{"enabled": true, "channel": "myAccount", "authenticated": true},
+					map[string]any{"enabled": true, "channel": "ticker", "asset": "futures"},
+					map[string]any{"enabled": true, "channel": "myOrders", "asset": "futures", "authenticated": true},
+				},
+			},
+		}
+		addDerivativeSubscriptions(config)
+		features, ok := config["features"].(map[string]any)
+		require.True(t, ok, "features must remain an object")
+		subscriptions, ok := features["subscriptions"].([]any)
+		require.True(t, ok, "subscriptions must remain a list")
+		require.Len(t, subscriptions, 31, "existing entries and missing derivative defaults must be retained")
+		spotAccount, ok := subscriptions[1].(map[string]any)
+		require.True(t, ok, "spot account subscription must remain an object")
+		assert.Equal(t, "spot", spotAccount["asset"], "spot account subscription should gain its asset")
+		privateCount := 0
+		for _, sub := range subscriptions {
+			entry, ok := sub.(map[string]any)
+			if !ok {
+				continue
+			}
+			assetName, _ := entry["asset"].(string)
+			authenticated, _ := entry["authenticated"].(bool)
+			if authenticated && assetName != "spot" {
+				privateCount++
+			}
+		}
+		assert.Equal(t, 17, privateCount, "all derivative private subscriptions should exist")
+
+		addDerivativeSubscriptions(config)
+		assert.Len(t, features["subscriptions"], 31, "repeated migration should not duplicate subscriptions")
+	})
+	for _, scope := range []string{"", "all", "All", "ALL"} {
+		for _, channel := range []string{"ticker", "orderbook", "candles", "allTrades", "myOrders", "myTrades", "myAccount", "orders#*"} {
+			t.Run(scope+"/"+channel, func(t *testing.T) {
+				t.Parallel()
+				entry := map[string]any{"enabled": false, "asset": scope, "channel": channel}
+				cfg := map[string]any{"features": map[string]any{"subscriptions": []any{entry}}}
+				addDerivativeSubscriptions(cfg)
+				assert.Equal(t, "spot", entry["asset"], "legacy wildcard scope should preserve spot coverage on every channel")
+				assert.Equal(t, false, entry["enabled"], "disabled user choices should remain disabled")
+			})
+		}
+	}
+
+	for _, scope := range []string{"futures", "Futures", "FUTURES"} {
+		t.Run("preserve disabled "+scope, func(t *testing.T) {
 			t.Parallel()
-			interval, ok := parseInterval(tc.saved)
-			assert.Equalf(t, tc.ok, ok, "parseInterval should report whether the loader reads the %s interval", name)
-			assert.Equalf(t, tc.interval, interval, "parseInterval should read the %s interval as the loader does", name)
+			entry := map[string]any{"enabled": false, "asset": scope, "channel": "ticker"}
+			cfg := map[string]any{"features": map[string]any{"subscriptions": []any{entry}}}
+			addDerivativeSubscriptions(cfg)
+			features, ok := cfg["features"].(map[string]any)
+			require.True(t, ok, "features must remain an object")
+			subs, ok := features["subscriptions"].([]any)
+			require.True(t, ok, "subscriptions must remain a list")
+			count := 0
+			for _, sub := range subs {
+				item, ok := sub.(map[string]any)
+				require.True(t, ok, "subscription must remain an object")
+				if name, _ := item["asset"].(string); strings.EqualFold(name, "futures") && item["channel"] == "ticker" {
+					count++
+					assert.Equal(t, false, item["enabled"], "capitalised asset scopes should preserve explicit disabled choices")
+				}
+			}
+			assert.Equal(t, 1, count, "equivalent asset spelling should not create a duplicate default")
 		})
 	}
 }
