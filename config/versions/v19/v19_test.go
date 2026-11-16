@@ -1,378 +1,394 @@
 package v19_test
 
 import (
-	"strings"
+	"fmt"
 	"testing"
+	"text/template"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v19 "github.com/thrasher-corp/gocryptotrader/config/versions/v19"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
-
-// The v18 and v19 default subscriptions as the config saves them
-const (
-	previousOrderbook = `{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"}`
-	previousTrades    = `{"enabled":true,"channel":"allTrades","asset":"spot"}`
-	previousOrders    = `{"enabled":true,"channel":"myOrders","asset":"spot","authenticated":true}`
-	previousMyTrades  = `{"enabled":true,"channel":"myTrades","asset":"spot","authenticated":true}`
-	currentOrderbook  = `{"enabled":true,"channel":"orderbook","asset":"all","interval":"100ms"}`
-	currentTrades     = `{"enabled":true,"channel":"allTrades","asset":"all"}`
-	currentFunding    = `{"enabled":true,"channel":"funding_rate","asset":"perpetualcontract"}`
-	currentOrders     = `{"enabled":true,"channel":"myOrders","asset":"all","authenticated":true}`
-	currentMyTrades   = `{"enabled":true,"channel":"myTrades","asset":"all","authenticated":true}`
-)
-
-var (
-	previousDefaults = []string{previousOrderbook, previousTrades, previousOrders, previousMyTrades}
-	currentDefaults  = []string{currentOrderbook, currentTrades, currentFunding, currentOrders, currentMyTrades}
-)
-
-// subscriptions returns a Bitstamp config holding the subscription entries
-func subscriptions(entries ...string) string {
-	return `{"name":"Bitstamp","features":{"subscriptions":[` + strings.Join(entries, ",") + `]}}`
-}
-
-// with returns entries with the entry at index i replaced
-func with(entries []string, i int, entry string) []string {
-	out := append([]string(nil), entries...)
-	out[i] = entry
-	return out
-}
-
-// field returns an entry with a field added before its closing brace
-func field(entry, f string) string {
-	return strings.TrimSuffix(entry, "}") + "," + f + "}"
-}
-
-// replaced returns entries with each pair of old and new strings replaced
-func replaced(entries []string, oldnew ...string) []string {
-	r := strings.NewReplacer(oldnew...)
-	out := make([]string, len(entries))
-	for i := range entries {
-		out[i] = r.Replace(entries[i])
-	}
-	return out
-}
 
 func TestExchanges(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"Bitstamp"}, new(v19.Version).Exchanges(), "Exchanges should only list Bitstamp")
+	assert.Equal(t, []string{"*"}, new(v19.Version).Exchanges(), "Exchanges should allow case-insensitive name matching within the migration")
 }
 
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
-	t.Run("previous defaults", func(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "legacy", in: "Huobi", want: "HTX"},
+		{name: "lowercase legacy", in: "huobi", want: "HTX"},
+		{name: "uppercase legacy", in: "HUOBI", want: "HTX"},
+		{name: "mixed-case legacy", in: "hUoBi", want: "HTX"},
+		{name: "unrelated", in: "Kraken", want: "Kraken"},
+		{name: "current", in: "HTX", want: "HTX"},
+		{name: "lowercase current", in: "htx", want: "HTX"},
+		{name: "mixed-case current", in: "hTx", want: "HTX"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			out, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(`{"name":"`+tt.in+`"}`))
+			require.NoError(t, err, "UpgradeExchange must not error")
+			require.NotEmpty(t, out, "UpgradeExchange must return output")
+			var config struct {
+				Name string `json:"name"`
+			}
+			require.NoError(t, json.Unmarshal(out, &config), "upgraded exchange must decode")
+			assert.Equalf(t, tt.want, config.Name, "exchange name %s should migrate correctly", tt.in)
+		})
+	}
+	t.Run("unrelated exchange bytes", func(t *testing.T) {
 		t.Parallel()
-		for name, entries := range map[string][]string{
-			"previous defaults":         previousDefaults,
-			"reordered":                 {previousMyTrades, previousOrderbook, previousOrders, previousTrades},
-			"upper case assets":         replaced(previousDefaults, `"spot"`, `"SPOT"`),
-			"title case assets":         replaced(previousDefaults, `"spot"`, `"Spot"`),
-			"nanosecond interval":       with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `100000000`, 1)),
-			"seconds interval":          with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `"0.1s"`, 1)),
-			"zero trades interval":      with(previousDefaults, 1, field(previousTrades, `"interval":"0s"`)),
-			"explicit unauthenticated":  with(with(previousDefaults, 0, field(previousOrderbook, `"authenticated":false`)), 1, field(previousTrades, `"authenticated":false`)),
-			"null authenticated":        with(previousDefaults, 1, field(previousTrades, `"authenticated":null`)),
-			"repeated key last applies": with(previousDefaults, 0, strings.Replace(previousOrderbook, `"asset":"spot"`, `"asset":"margin","asset":"spot"`, 1)),
-		} {
-			t.Run(name, func(t *testing.T) {
+		input := []byte(`{"name":"Kraken", "z":9007199254740993,"features":{"subscriptions":[{"enabled":true,"channel":"ticker"}]},"currencyPairs":{"pairs":{}}, "a":1e3}`)
+		out, err := new(v19.Version).UpgradeExchange(t.Context(), input)
+		require.NoError(t, err, "unrelated exchanges must pass through wildcard dispatch")
+		assert.Equal(t, input, out, "unrelated exchanges should remain byte-identical")
+	})
+
+	for _, key := range []string{"usdtmarginedfutures", "USDTMarginedFutures", "USDTMARGINEDFUTURES"} {
+		for _, enabled := range []bool{false, true} {
+			t.Run(fmt.Sprintf("existing %s enabled %t", key, enabled), func(t *testing.T) {
 				t.Parallel()
-				version := new(v19.Version)
-				got, err := version.UpgradeExchange(t.Context(), []byte(subscriptions(entries...)))
-				require.NoError(t, err, "UpgradeExchange must not error")
-				assert.JSONEq(t, subscriptions(currentDefaults...), string(got), "UpgradeExchange should replace the previous defaults with the current defaults")
-				again, err := version.UpgradeExchange(t.Context(), got)
-				require.NoError(t, err, "repeated UpgradeExchange must not error")
-				assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
+				input := fmt.Appendf(nil, `{"name":"Huobi","currencyPairs":{"pairs":{%q:{"assetEnabled":%t,"enabled":"ETH-USDT","available":"ETH-USDT"}}}}`, key, enabled)
+				out, err := new(v19.Version).UpgradeExchange(t.Context(), input)
+				require.NoError(t, err, "existing pair settings must migrate")
+				var raw struct {
+					CurrencyPairs struct {
+						Pairs map[string]json.RawMessage `json:"pairs"`
+					} `json:"currencyPairs"`
+				}
+				require.NoError(t, json.Unmarshal(out, &raw), "migrated pair keys must decode")
+				require.Len(t, raw.CurrencyPairs.Pairs, 1, "migration must not add a duplicate asset key")
+				assert.Contains(t, raw.CurrencyPairs.Pairs, key, "existing asset key spelling should be preserved")
+				var loaded struct {
+					CurrencyPairs currency.PairsManager `json:"currencyPairs"`
+				}
+				require.NoError(t, json.Unmarshal(out, &loaded), "runtime pair manager must decode migrated settings")
+				store := loaded.CurrencyPairs.Pairs[asset.USDTMarginedFutures]
+				require.NotNil(t, store, "runtime must recognise the existing asset key")
+				assert.Equal(t, enabled, store.AssetEnabled, "migration should preserve the user's asset selection")
+				expected := currency.Pairs{currency.NewPairWithDelimiter("ETH", "USDT", "-")}
+				assert.Equal(t, expected, store.Enabled, "migration should preserve enabled pairs")
+				assert.Equal(t, expected, store.Available, "migration should preserve available pairs")
+				second, err := new(v19.Version).UpgradeExchange(t.Context(), out)
+				require.NoError(t, err, "existing pair settings must support repeated migration")
+				assert.JSONEq(t, string(out), string(second), "repeated migration should preserve existing settings")
 			})
 		}
-	})
-	t.Run("customised subscriptions", func(t *testing.T) {
+	}
+
+	t.Run("preserve unrelated bytes", func(t *testing.T) {
 		t.Parallel()
-		for name, entries := range map[string][]string{
-			"empty":                      {},
-			"missing entry":              previousDefaults[:3],
-			"extra entry":                append(append([]string(nil), previousDefaults...), `{"enabled":true,"channel":"detail_order_book","asset":"spot"}`),
-			"repeated entry":             with(previousDefaults, 3, previousOrders),
-			"exchange specific channel":  with(previousDefaults, 0, strings.Replace(previousOrderbook, `"orderbook"`, `"order_book"`, 1)),
-			"disabled":                   with(previousDefaults, 0, strings.Replace(previousOrderbook, `"enabled":true`, `"enabled":false`, 1)),
-			"enabled omitted":            with(previousDefaults, 1, strings.Replace(previousTrades, `"enabled":true,`, ``, 1)),
-			"enabled null":               with(previousDefaults, 2, strings.Replace(previousOrders, `"enabled":true`, `"enabled":null`, 1)),
-			"custom interval":            with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `"10ms"`, 1)),
-			"null interval":              with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `null`, 1)),
-			"interval omitted":           with(previousDefaults, 0, strings.Replace(previousOrderbook, `,"interval":"100ms"`, ``, 1)),
-			"trades interval":            with(previousDefaults, 1, field(previousTrades, `"interval":"100ms"`)),
-			"quoted nanosecond interval": with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `"100000000"`, 1)),
-			"wildcard asset":             with(previousDefaults, 0, strings.Replace(previousOrderbook, `"spot"`, `"all"`, 1)),
-			"other asset":                with(previousDefaults, 1, strings.Replace(previousTrades, `"spot"`, `"margin"`, 1)),
-			"authenticated public":       with(previousDefaults, 0, field(previousOrderbook, `"authenticated":true`)),
-			"unauthenticated private":    with(previousDefaults, 2, strings.Replace(previousOrders, `,"authenticated":true`, ``, 1)),
-			"private explicitly public":  with(previousDefaults, 3, strings.Replace(previousMyTrades, `"authenticated":true`, `"authenticated":false`, 1)),
-			"pairs":                      with(previousDefaults, 0, field(previousOrderbook, `"pairs":"BTC/USD"`)),
-			"empty pairs":                with(previousDefaults, 1, field(previousTrades, `"pairs":""`)),
-			"levels":                     with(previousDefaults, 0, field(previousOrderbook, `"levels":10`)),
-			"params":                     with(previousDefaults, 2, field(previousOrders, `"params":{}`)),
-			"unknown field":              with(previousDefaults, 3, field(previousMyTrades, `"custom":"retained"`)),
-			"capitalised field":          with(previousDefaults, 1, strings.Replace(previousTrades, `"enabled"`, `"Enabled"`, 1)),
-			"current defaults":           currentDefaults,
+		input := []byte(`{"name":"Huobi", "z":9007199254740993, "nested":{"z":1,"a":2}, "currencyPairs":{"pairs":{}}, "features":{"subscriptions":[]}, "a":1e3}`)
+		out, err := new(v19.Version).UpgradeExchange(t.Context(), input)
+		require.NoError(t, err, "migration must succeed")
+		assert.Contains(t, string(out), `"name":"HTX", "z":9007199254740993, "nested":{"z":1,"a":2}`, "unrelated keys and integer precision should be preserved")
+		assert.Contains(t, string(out), `, "a":1e3}`, "unrelated number formatting should be preserved")
+	})
+	t.Run("derivative configuration", func(t *testing.T) {
+		t.Parallel()
+		const defaults = `{"enabled":true,"channel":"ticker","asset":"futures"},
+{"enabled":true,"channel":"candles","asset":"futures","interval":"1m"},
+{"enabled":true,"channel":"orderbook","asset":"futures"},
+{"enabled":true,"channel":"allTrades","asset":"futures"},
+{"enabled":false,"channel":"myOrders","asset":"futures","authenticated":true},
+{"enabled":false,"channel":"myTrades","asset":"futures","authenticated":true},
+{"enabled":false,"channel":"myAccount","asset":"futures","authenticated":true},
+{"enabled":false,"channel":"positions","asset":"futures","authenticated":true},
+{"enabled":false,"channel":"triggerOrders","asset":"futures","authenticated":true},
+{"enabled":true,"channel":"ticker","asset":"coinmarginedfutures"},
+{"enabled":true,"channel":"candles","asset":"coinmarginedfutures","interval":"1m"},
+{"enabled":true,"channel":"orderbook","asset":"coinmarginedfutures"},
+{"enabled":true,"channel":"allTrades","asset":"coinmarginedfutures"},
+{"enabled":false,"channel":"myOrders","asset":"coinmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"myTrades","asset":"coinmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"myAccount","asset":"coinmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"positions","asset":"coinmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"triggerOrders","asset":"coinmarginedfutures","authenticated":true},
+{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures"},
+{"enabled":true,"channel":"candles","asset":"usdtmarginedfutures","interval":"1m"},
+{"enabled":true,"channel":"orderbook","asset":"usdtmarginedfutures"},
+{"enabled":true,"channel":"allTrades","asset":"usdtmarginedfutures"},
+{"enabled":false,"channel":"myOrders","asset":"usdtmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"tradeUpdates","asset":"usdtmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"executionDetails","asset":"usdtmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"myAccount","asset":"usdtmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"positions","asset":"usdtmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"myTrades","asset":"usdtmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"triggerOrders","asset":"usdtmarginedfutures","authenticated":true}`
+		for _, tc := range []struct{ name, subscriptions, preserved string }{
+			{name: "defaults", subscriptions: `{"enabled":true,"channel":"myAccount","authenticated":true}`, preserved: `{"enabled":true,"channel":"myAccount","authenticated":true,"asset":"spot"}`},
+			{name: "unauthenticated private channel", subscriptions: `{"enabled":true,"channel":"myOrders","asset":"futures"}`, preserved: `{"enabled":true,"channel":"myOrders","asset":"futures"}`},
+			{name: "mixed-case funding defaults", subscriptions: `{"enabled":true,"channel":"myAccount","authenticated":true},{"enabled":true,"channel":"fundingRate","asset":"USDTMarginedFutures"},{"enabled":true,"channel":"fundingRate","asset":"COINMARGINEDFUTURES"}`, preserved: `{"enabled":true,"channel":"myAccount","authenticated":true,"asset":"spot"}`},
 		} {
-			t.Run(name, func(t *testing.T) {
+			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
-				input := subscriptions(entries...)
-				got, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(input))
-				require.NoError(t, err, "UpgradeExchange must accept customised subscriptions")
-				assert.Equal(t, input, string(got), "UpgradeExchange should preserve customised subscriptions byte-for-byte")
+				input := []byte(`{"name":"HTX","currencyPairs":{"pairs":{}},"features":{"subscriptions":[` + tc.subscriptions + `]}}`)
+				out, err := new(v19.Version).UpgradeExchange(t.Context(), input)
+				require.NoError(t, err, "derivative configuration must migrate")
+				var cfg struct {
+					CurrencyPairs currency.PairsManager `json:"currencyPairs"`
+					Features      struct {
+						Subscriptions json.RawMessage `json:"subscriptions"`
+					} `json:"features"`
+				}
+				require.NoError(t, json.Unmarshal(out, &cfg), "runtime pair manager and subscriptions must decode")
+				assert.Contains(t, cfg.CurrencyPairs.Pairs, asset.USDTMarginedFutures, "USDT-margined pairs should be added")
+				assert.JSONEq(t, `[`+tc.preserved+`,`+defaults+`]`, string(cfg.Features.Subscriptions), "complete subscription defaults should retain intervals, authentication and asset scope")
+				second, err := new(v19.Version).UpgradeExchange(t.Context(), out)
+				require.NoError(t, err, "repeated migration must succeed")
+				assert.JSONEq(t, string(out), string(second), "derivative migration should be idempotent")
 			})
 		}
 	})
-	t.Run("without subscriptions", func(t *testing.T) {
+	t.Run("implicit defaults", func(t *testing.T) {
 		t.Parallel()
-		for _, input := range withoutSubscriptions {
-			// Serial and in order, as each input goes through the same migration
-			t.Run(input, func(t *testing.T) {
-				got, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(input))
-				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", input)
-				assert.Equalf(t, input, string(got), "UpgradeExchange should leave %s unchanged", input)
-			})
-		}
-	})
-	t.Run("client ID requirement", func(t *testing.T) {
-		t.Parallel()
-		for name, tc := range map[string]struct{ input, exp string }{
-			"required": {
-				input: `{"name":"Bitstamp","api":{"credentials":{"key":"Key","secret":"Secret","clientID":"ClientID"},"credentialsValidator":{"requiresKey":true,"requiresSecret":true,"requiresClientID":true}}}`,
-				exp:   `{"name":"Bitstamp","api":{"credentials":{"key":"Key","secret":"Secret","clientID":"ClientID"},"credentialsValidator":{"requiresKey":true,"requiresSecret":true}}}`,
-			},
-			"not required": {
-				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresClientID":false}}}`,
-				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true}}}`,
-			},
-			"only requirement": {
-				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresClientID":true}}}`,
-				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{}}}`,
-			},
-			"capitalised key": {
-				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"RequiresClientID":true}}}`,
-				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true}}}`,
-			},
-			"repeated key": {
-				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresClientID":false,"requiresKey":true,"requiresClientID":true}}}`,
-				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true}}}`,
-			},
-		} {
-			t.Run(name, func(t *testing.T) {
+		for _, field := range []string{"", `"subscriptions":null`, `"subscriptions":[]`} {
+			t.Run(field, func(t *testing.T) {
 				t.Parallel()
-				version := new(v19.Version)
-				got, err := version.UpgradeExchange(t.Context(), []byte(tc.input))
-				require.NoError(t, err, "UpgradeExchange must not error")
-				assert.JSONEq(t, tc.exp, string(got), "UpgradeExchange should remove the client ID requirement and keep the other settings")
-				again, err := version.UpgradeExchange(t.Context(), got)
-				require.NoError(t, err, "repeated UpgradeExchange must not error")
-				assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
+				input := `{"name":"HTX","features":{` + field + `}}`
+				out, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(input))
+				require.NoError(t, err, "implicit defaults must migrate")
+				assert.JSONEq(t, input, string(out), "implicit defaults should remain unchanged")
 			})
 		}
 	})
-	t.Run("without a client ID requirement", func(t *testing.T) {
+	t.Run("custom funding choices", func(t *testing.T) {
 		t.Parallel()
-		for _, input := range []string{
-			`{"name":"Bitstamp","api":{}}`,
-			`{"name":"Bitstamp","api":{"credentialsValidator":null}}`,
-			`{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresSecret":true}}}`,
-		} {
-			// Serial and in order, as each input goes through the same migration
-			t.Run(input, func(t *testing.T) {
-				got, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(input))
-				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", input)
-				assert.Equalf(t, input, string(got), "UpgradeExchange should leave %s unchanged", input)
-			})
+		input := []byte(`{"name":"HTX","features":{"subscriptions":[{"enabled":false,"channel":"fundingRate","asset":"coinmarginedfutures"},{"enabled":true,"channel":"fundingRate","asset":"usdtmarginedfutures","pairs":["ETH-USDT"]},{"enabled":true,"channel":"fundingRate","asset":"coinmarginedfutures"},{"enabled":true,"channel":"fundingRate","asset":"usdtmarginedfutures"}]}}`)
+		out, err := new(v19.Version).UpgradeExchange(t.Context(), input)
+		require.NoError(t, err, "custom funding choices must migrate")
+		var cfg struct {
+			Features struct {
+				Subscriptions []map[string]any `json:"subscriptions"`
+			} `json:"features"`
 		}
-	})
-	t.Run("malformed subscriptions", func(t *testing.T) {
-		t.Parallel()
-		for name, tc := range malformedSubscriptions {
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
-				got, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(tc.input))
-				require.ErrorContains(t, err, tc.errContains, "migration must report the failing operation")
-				assert.Equal(t, tc.input, string(got), "failed migration should preserve the input")
-			})
+		require.NoError(t, json.Unmarshal(out, &cfg), "subscriptions must decode")
+		var funding []map[string]any
+		for _, sub := range cfg.Features.Subscriptions {
+			if sub["channel"] == "fundingRate" {
+				funding = append(funding, sub)
+			}
 		}
-	})
-	t.Run("malformed validator", func(t *testing.T) {
-		t.Parallel()
-		for _, input := range []string{`{"api":{"credentialsValidator":}}`, `{"api":{"credentialsValidator":{"requiresClientID":}}}`} {
-			// Serial and in order, as each input goes through the same migration
-			t.Run(input, func(t *testing.T) {
-				_, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(input))
-				assert.ErrorContainsf(t, err, "Bitstamp credentials validator", "UpgradeExchange should report a malformed validator in %s", input)
-			})
-		}
+		assert.Equal(t, []map[string]any{{"enabled": false, "channel": "fundingRate", "asset": "coinmarginedfutures"}, {"enabled": true, "channel": "fundingRate", "asset": "usdtmarginedfutures", "pairs": []any{"ETH-USDT"}}}, funding, "only exact unsupported defaults should be removed")
 	})
 }
 
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
-	t.Run("current defaults", func(t *testing.T) {
-		t.Parallel()
-		for name, entries := range map[string][]string{
-			"current defaults":  currentDefaults,
-			"reordered":         {currentFunding, currentMyTrades, currentOrderbook, currentOrders, currentTrades},
-			"upper case assets": replaced(currentDefaults, `"all"`, `"ALL"`, `"perpetualcontract"`, `"PERPETUALCONTRACT"`),
-			"mixed case assets": replaced(currentDefaults, `"all"`, `"All"`, `"perpetualcontract"`, `"PerpetualContract"`),
-		} {
-			t.Run(name, func(t *testing.T) {
+	for _, scope := range []string{"spot", "Spot", "SPOT", "all", "All", "ALL"} {
+		for _, enabled := range []bool{false, true} {
+			t.Run(fmt.Sprintf("account scope %s enabled %t", scope, enabled), func(t *testing.T) {
 				t.Parallel()
-				version := new(v19.Version)
-				got, err := version.DowngradeExchange(t.Context(), []byte(subscriptions(entries...)))
-				require.NoError(t, err, "DowngradeExchange must not error")
-				assert.JSONEq(t, subscriptions(previousDefaults...), string(got), "DowngradeExchange should replace the current defaults with the previous defaults")
-				again, err := version.DowngradeExchange(t.Context(), got)
-				require.NoError(t, err, "repeated DowngradeExchange must not error")
-				assert.Equal(t, got, again, "DowngradeExchange should be idempotent")
+				const unrelated = `{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"myAccount","asset":"futures"},{"enabled":true,"channel":"accounts.update#2","asset":"spot"}`
+				input := fmt.Appendf(nil, `{"name":"HTX","features":{"subscriptions":[{"enabled":%t,"channel":"myAccount","asset":%q,"authenticated":true,"pairs":["BTC-USDT"],"custom":9007199254740993},%s]}}`, enabled, scope, unrelated)
+				got, err := new(v19.Version).DowngradeExchange(t.Context(), input)
+				require.NoError(t, err, "spot account scope must downgrade")
+				want := fmt.Sprintf(`{"name":"Huobi","features":{"subscriptions":[{"enabled":%t,"channel":"myAccount","authenticated":true,"pairs":["BTC-USDT"],"custom":9007199254740993},%s]}}`, enabled, unrelated)
+				assert.JSONEq(t, want, string(got), "downgrade should remove only the logical spot account scope and preserve every other field")
 			})
 		}
-	})
-	t.Run("customised subscriptions", func(t *testing.T) {
+	}
+	t.Run("account scopes after other subscriptions", func(t *testing.T) {
 		t.Parallel()
-		for name, entries := range map[string][]string{
-			"missing funding rate":    with(currentDefaults, 2, currentOrders),
-			"disabled funding rate":   with(currentDefaults, 2, strings.Replace(currentFunding, `"enabled":true`, `"enabled":false`, 1)),
-			"spot orderbook":          with(currentDefaults, 0, strings.Replace(currentOrderbook, `"all"`, `"spot"`, 1)),
-			"funding rate pairs":      with(currentDefaults, 2, field(currentFunding, `"pairs":"BTC/USD-PERP"`)),
-			"custom current interval": with(currentDefaults, 0, strings.Replace(currentOrderbook, `"100ms"`, `"1s"`, 1)),
-			"previous defaults":       previousDefaults,
-		} {
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
-				input := subscriptions(entries...)
-				got, err := new(v19.Version).DowngradeExchange(t.Context(), []byte(input))
-				require.NoError(t, err, "DowngradeExchange must accept customised subscriptions")
-				assert.Equal(t, input, string(got), "DowngradeExchange should preserve customised subscriptions byte-for-byte")
-			})
-		}
+		const before = `{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":false,"channel":"myTrades","asset":"spot","authenticated":true},{"enabled":true,"channel":"myOrders","asset":"futures","authenticated":true},{"enabled":true,"channel":"orderbook"}`
+		const after = `{"enabled":false,"channel":"myAccount","asset":"futures","authenticated":true},{"enabled":false,"channel":"myAccount","asset":"coinmarginedfutures","authenticated":true}`
+		input := []byte(`{"name":"HTX","features":{"subscriptions":[` + before + `,{"enabled":true,"channel":"myAccount","asset":"spot","authenticated":true},{"enabled":false,"channel":"myAccount","asset":"all","authenticated":true},` + after + `]}}`)
+		got, err := new(v19.Version).DowngradeExchange(t.Context(), input)
+		require.NoError(t, err, "account scopes after other subscriptions must downgrade")
+		assert.JSONEq(t, `{"name":"Huobi","features":{"subscriptions":[`+before+`,{"enabled":true,"channel":"myAccount","authenticated":true},{"enabled":false,"channel":"myAccount","authenticated":true},`+after+`]}}`, string(got), "downgrade should remove the scope from every account subscription wherever it sits")
 	})
-	t.Run("unsupported channels", func(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "current", in: "HTX", want: "Huobi"},
+		{name: "lowercase current", in: "htx", want: "Huobi"},
+		{name: "mixed-case current", in: "hTx", want: "Huobi"},
+		{name: "unrelated", in: "Kraken", want: "Kraken"},
+		{name: "legacy", in: "Huobi", want: "Huobi"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			out, err := new(v19.Version).DowngradeExchange(t.Context(), []byte(`{"name":"`+tt.in+`"}`))
+			require.NoError(t, err, "DowngradeExchange must not error")
+			require.NotEmpty(t, out, "DowngradeExchange must return output")
+			assert.Equalf(t, `{"name":"`+tt.want+`"}`, string(out), "exchange name %s should migrate correctly", tt.in)
+		})
+	}
+	t.Run("unrelated exchange bytes", func(t *testing.T) {
 		t.Parallel()
-		for name, tc := range map[string]struct{ entries, exp []string }{
-			"wildcard funding rate": {
-				entries: with(currentDefaults, 2, strings.Replace(currentFunding, `"perpetualcontract"`, `"all"`, 1)),
-				exp:     with(currentDefaults, 2, strings.Replace(strings.Replace(currentFunding, `"perpetualcontract"`, `"all"`, 1), `"enabled":true`, `"enabled":false`, 1)),
-			},
-			"extra current entry": {
-				entries: append(append([]string(nil), currentDefaults...), `{"enabled":true,"channel":"announcements"}`),
-				exp:     append(append([]string(nil), currentDefaults...), `{"enabled":false,"channel":"announcements"}`),
-			},
-		} {
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
-				got, err := new(v19.Version).DowngradeExchange(t.Context(), []byte(subscriptions(tc.entries...)))
-				require.NoError(t, err, "DowngradeExchange must not error")
-				assert.JSONEq(t, subscriptions(tc.exp...), string(got), "DowngradeExchange should disable the channels the previous version cannot subscribe to")
-			})
-		}
+		input := []byte(`{"name":"Kraken", "api":{"urlEndpoints":{"WebsocketUSDTMarginedPrivateURL":"wss://custom.example"}}, "a":1e3}`)
+		out, err := new(v19.Version).DowngradeExchange(t.Context(), input)
+		require.NoError(t, err, "unrelated exchanges must pass through wildcard dispatch")
+		assert.Equal(t, input, out, "unrelated endpoint settings and bytes should remain unchanged")
 	})
-	t.Run("without subscriptions", func(t *testing.T) {
+	t.Run("persisted endpoints", func(t *testing.T) {
 		t.Parallel()
-		for _, input := range withoutSubscriptions {
-			// Serial and in order, as each input goes through the same migration
-			t.Run(input, func(t *testing.T) {
-				got, err := new(v19.Version).DowngradeExchange(t.Context(), []byte(input))
-				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", input)
-				assert.Equalf(t, input, string(got), "DowngradeExchange should leave %s unchanged", input)
-			})
-		}
+		input := []byte(`{"name":"HTX","api":{"urlEndpoints":{"WebsocketCoinMarginedPrivateURL":"wss://coin.example","WebsocketUSDTMarginedPrivateURL":"wss://usdt.example","RestSpotURL":"https://custom.example","WebsocketPrivateURL":"wss://spot.example"}}}`)
+		out, err := new(v19.Version).DowngradeExchange(t.Context(), input)
+		require.NoError(t, err, "persisted endpoints must downgrade")
+		assert.JSONEq(t, `{"name":"Huobi","api":{"urlEndpoints":{"RestSpotURL":"https://custom.example","WebsocketPrivateURL":"wss://spot.example"}}}`, string(out), "downgrade should remove only endpoints unavailable in version 18")
 	})
-	t.Run("client ID requirement", func(t *testing.T) {
-		t.Parallel()
-		for name, tc := range map[string]struct{ input, exp string }{
-			"absent": {
-				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresSecret":true}}}`,
-				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresSecret":true,"requiresClientID":true}}}`,
-			},
-			"not required": {
-				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresClientID":false}}}`,
-				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresClientID":true}}}`,
-			},
-			"no validator": {
-				input: `{"name":"Bitstamp","api":{}}`,
-				exp:   `{"name":"Bitstamp","api":{}}`,
-			},
-			"null validator": {
-				input: `{"name":"Bitstamp","api":{"credentialsValidator":null}}`,
-				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":null}}`,
-			},
-		} {
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
-				version := new(v19.Version)
-				got, err := version.DowngradeExchange(t.Context(), []byte(tc.input))
-				require.NoError(t, err, "DowngradeExchange must not error")
-				assert.JSONEq(t, tc.exp, string(got), "DowngradeExchange should restore the client ID requirement of a saved validator")
-				again, err := version.DowngradeExchange(t.Context(), got)
-				require.NoError(t, err, "repeated DowngradeExchange must not error")
-				assert.Equal(t, got, again, "DowngradeExchange should be idempotent")
-			})
-		}
-	})
-	t.Run("malformed subscriptions", func(t *testing.T) {
-		t.Parallel()
-		for name, tc := range malformedSubscriptions {
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
-				input := tc.input
-				if name == "enabled string" {
-					input = subscriptions(with(currentDefaults, 0, strings.Replace(currentOrderbook, `"enabled":true`, `"enabled":"true"`, 1))...)
-				}
-				got, err := new(v19.Version).DowngradeExchange(t.Context(), []byte(input))
-				require.ErrorContains(t, err, tc.errContains, "migration must report the failing operation")
-				assert.Equal(t, input, string(got), "failed migration should preserve the input")
-			})
-		}
-	})
-	t.Run("malformed validator", func(t *testing.T) {
-		t.Parallel()
-		_, err := new(v19.Version).DowngradeExchange(t.Context(), []byte(`{"api":{"credentialsValidator":}}`))
-		assert.ErrorContains(t, err, "Bitstamp credentials validator", "DowngradeExchange should report a malformed validator")
-	})
-}
-
-// withoutSubscriptions are configurations which hold no subscriptions to migrate
-var withoutSubscriptions = []string{
-	`{"name":"Bitstamp"}`,
-	`{"name":"Bitstamp","features":{}}`,
-	`{"name":"Bitstamp","features":{"subscriptions":null}}`,
-}
-
-// malformedSubscriptions are configurations whose subscriptions cannot be migrated, with the error each reports
-var malformedSubscriptions = map[string]struct{ input, errContains string }{
-	"subscriptions object":  {input: `{"features":{"subscriptions":{}}}`, errContains: "error decoding Bitstamp subscriptions"},
-	"subscription string":   {input: `{"features":{"subscriptions":["orderbook","allTrades","myOrders","myTrades"]}}`, errContains: "error decoding Bitstamp subscriptions"},
-	"enabled string":        {input: subscriptions(with(previousDefaults, 0, strings.Replace(previousOrderbook, `"enabled":true`, `"enabled":"true"`, 1))...), errContains: "error decoding Bitstamp subscriptions"},
-	"subscriptions missing": {input: `{"features":{"subscriptions":}}`, errContains: "error getting Bitstamp subscriptions"},
 }
 
 func TestRegisteredMigration(t *testing.T) {
 	t.Parallel()
-	previous := `{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"},{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"myOrders","asset":"spot","authenticated":true},{"enabled":true,"channel":"myTrades","asset":"spot","authenticated":true}`
-	current := strings.Join(currentDefaults, ",")
-	validator := `{"requiresKey":true,"requiresSecret":true,"requiresClientID":true}`
-	// Other exchanges with the same settings are not migrated
-	input := []byte(`{"version":18,"exchanges":[{"name":"Bitstamp","api":{"credentialsValidator":` + validator + `},"features":{"subscriptions":[` + previous + `]}},{"name":"Kraken","api":{"credentialsValidator":` + validator + `},"features":{"subscriptions":[` + previous + `]}}]}`)
-	unchanged, err := versions.Manager.Deploy(t.Context(), input, 18)
-	require.NoError(t, err, "Deploy must leave an existing v18 configuration valid")
-	assert.Equal(t, input, unchanged, "Deploy should retain v18 Bitstamp settings until the v19 upgrade")
+	t.Run("upstream version round trip account subscription", func(t *testing.T) {
+		t.Parallel()
+		input := []byte(`{"version":18,"exchanges":[{"name":"Huobi","features":{"subscriptions":[{"enabled":true,"channel":"myAccount","authenticated":true}]}},{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}]}`)
+		upgraded, err := versions.Manager.Deploy(t.Context(), input, 19)
+		require.NoError(t, err, "upstream configuration must upgrade to the HTX version")
+		downgraded, err := versions.Manager.Deploy(t.Context(), upgraded, 18)
+		require.NoError(t, err, "HTX configuration must downgrade to the upstream version")
+		var cfg struct {
+			Version   int `json:"version"`
+			Exchanges []struct {
+				Name     string `json:"name"`
+				Features struct {
+					Subscriptions subscription.List `json:"subscriptions"`
+				} `json:"features"`
+				API struct {
+					Endpoints map[string]string `json:"urlEndpoints"`
+				} `json:"api"`
+			} `json:"exchanges"`
+		}
+		require.NoError(t, json.Unmarshal(downgraded, &cfg), "downgraded configuration must decode through runtime subscription types")
+		assert.Equal(t, 18, cfg.Version, "downgrade should return to the upstream version")
+		require.Len(t, cfg.Exchanges, 2, "both exchanges must survive the round trip")
+		assert.Equal(t, "Huobi", cfg.Exchanges[0].Name, "downgrade should restore the legacy exchange name")
+		assert.Equal(t, "wss://ws.okx.com/ws/v5/public", cfg.Exchanges[1].API.Endpoints["WebsocketSpotURL"], "round trip should preserve upstream's OKX migration")
 
-	out, err := versions.Manager.Deploy(t.Context(), input, 19)
-	require.NoError(t, err, "Deploy must apply the registered v19 upgrade")
-	expected := `{"version":19,"exchanges":[{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresSecret":true}},"features":{"subscriptions":[` + current + `]}},{"name":"Kraken","api":{"credentialsValidator":` + validator + `},"features":{"subscriptions":[` + previous + `]}}]}`
-	assert.JSONEq(t, expected, string(out), "Deploy should only migrate Bitstamp and advance to v19")
+		legacy := &legacyAccountExchange{}
+		legacy.Websocket = new(websocket.Manager)
+		legacy.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		for _, enabled := range []bool{false, true} {
+			require.NoError(t, legacy.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, enabled), "legacy exchange must have two available and enabled spot pairs")
+		}
+		for _, configFormat := range []bool{false, true} {
+			require.NoError(t, legacy.CurrencyPairs.StoreFormat(asset.Spot, &currency.PairFormat{}, configFormat), "legacy pair formats must be available")
+		}
+		expanded, err := cfg.Exchanges[0].Features.Subscriptions.Enabled().ExpandTemplates(legacy)
+		require.NoError(t, err, "downgraded subscriptions must expand with the legacy account template")
+		require.Len(t, expanded, 1, "account updates must remain a single subscription across both pairs")
+		assert.Equal(t, "accounts.update#2", expanded[0].QualifiedChannel, "account channel should remain unchanged")
+		assert.True(t, expanded[0].Authenticated, "account authentication should remain enabled")
+		assert.True(t, expanded[0].Enabled, "account subscription should remain enabled")
+		expanded[0].Key = expanded[0].QualifiedChannel
+		_, err = subscription.NewStoreFromList(expanded)
+		assert.NoError(t, err, "legacy wire-channel registration should succeed without duplicates")
+	})
+	for _, tc := range []struct {
+		name  string
+		input string
+	}{
+		{name: "earlier migrations", input: `{"version":11,"gctscript":{"enabled":true},"exchanges":[{"name":"EXMO"},{"name":"BitMEX"},{"name":"Huobi","enabled":true},{"name":"Kraken","enabled":true}]}`},
+		{name: "upstream version 18", input: `{"version":18,"exchanges":[{"name":"Huobi","enabled":true},{"name":"Kraken","enabled":true}]}`},
+		{name: "upstream version 17", input: `{"version":17,"exchanges":[{"name":"Huobi","enabled":true},{"name":"Kraken","enabled":true}]}`},
+		{name: "upstream version 16", input: `{"version":16,"exchanges":[{"name":"Huobi","enabled":true},{"name":"Kraken","enabled":true}]}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			out, err := versions.Manager.Deploy(t.Context(), []byte(tc.input), 19)
+			require.NoError(t, err, "Deploy must apply the registered upgrades")
+			var config struct {
+				Version   uint64 `json:"version"`
+				Exchanges []struct {
+					Name string `json:"name"`
+				} `json:"exchanges"`
+			}
+			require.NoError(t, json.Unmarshal(out, &config), "deployed config must decode")
+			assert.Equal(t, uint64(19), config.Version, "Deploy should update the config version")
+			require.Len(t, config.Exchanges, 2, "Deploy must retain only the supported exchanges")
+			assert.Equal(t, "HTX", config.Exchanges[0].Name, "Deploy should rename Huobi to HTX")
+			assert.Equal(t, "Kraken", config.Exchanges[1].Name, "Deploy should preserve unrelated exchanges")
+			assert.NotContains(t, string(out), `"gctscript"`, "Deploy should retain upstream's GCTScript removal")
+		})
+	}
+	for _, transition := range []struct {
+		name    string
+		from    uint16
+		to      uint16
+		names   []string
+		want    string
+		wantURL bool
+	}{
+		{name: "upgrade", from: 18, to: 19, names: []string{"Huobi", "huobi", "HUOBI", "hUoBi", "HTX", "htx", "hTx"}, want: "HTX", wantURL: true},
+		{name: "downgrade", from: 19, to: 18, names: []string{"HTX", "htx", "hTx"}, want: "Huobi"},
+	} {
+		for _, name := range transition.names {
+			t.Run(transition.name+" "+name, func(t *testing.T) {
+				t.Parallel()
+				const unrelated = `{"name":"Kraken","currencyPairs":{"pairs":{}},"features":{"subscriptions":[{"enabled":true,"channel":"ticker"}]},"api":{"urlEndpoints":{"WebsocketUSDTMarginedPrivateURL":"wss://unrelated.example"}},"precision":9007199254740993}`
+				input := fmt.Appendf(nil, `{"version":%d,"exchanges":[{"name":%q,"currencyPairs":{"pairs":{}},"features":{"subscriptions":[{"enabled":true,"channel":"ticker"}]},"api":{"urlEndpoints":{"WebsocketUSDTMarginedPrivateURL":"wss://usdt.example","RestSpotURL":"https://custom.example"}}},%s]}`, transition.from, name, unrelated)
+				out, err := versions.Manager.Deploy(t.Context(), input, transition.to)
+				require.NoError(t, err, "registered migration must handle every accepted exchange name")
+				var cfg struct {
+					Version   uint16 `json:"version"`
+					Exchanges []struct {
+						Name          string `json:"name"`
+						CurrencyPairs struct {
+							Pairs map[string]json.RawMessage `json:"pairs"`
+						} `json:"currencyPairs"`
+						API struct {
+							URLEndpoints map[string]string `json:"urlEndpoints"`
+						} `json:"api"`
+					} `json:"exchanges"`
+				}
+				require.NoError(t, json.Unmarshal(out, &cfg), "migrated configuration must decode")
+				assert.Equal(t, transition.to, cfg.Version, "migration should advance to the requested version")
+				require.Len(t, cfg.Exchanges, 2, "migration must retain both exchanges")
+				assert.Equal(t, transition.want, cfg.Exchanges[0].Name, "migration should canonicalise the exchange name")
+				assert.Equal(t, "https://custom.example", cfg.Exchanges[0].API.URLEndpoints["RestSpotURL"], "existing spot endpoint should remain unchanged")
+				if transition.wantURL {
+					assert.Contains(t, cfg.Exchanges[0].API.URLEndpoints, "WebsocketUSDTMarginedPrivateURL", "upgrade should preserve the private endpoint")
+					assert.Contains(t, cfg.Exchanges[0].CurrencyPairs.Pairs, "usdtmarginedfutures", "upgrade should apply derivative defaults to every accepted name")
+				} else {
+					assert.NotContains(t, cfg.Exchanges[0].API.URLEndpoints, "WebsocketUSDTMarginedPrivateURL", "downgrade should remove the unsupported private endpoint")
+				}
+				var raw struct {
+					Exchanges []json.RawMessage `json:"exchanges"`
+				}
+				require.NoError(t, json.Unmarshal(out, &raw), "unrelated exchange must decode")
+				assert.JSONEq(t, unrelated, string(raw.Exchanges[1]), "wildcard dispatch should preserve unrelated exchange settings")
+				assert.Contains(t, string(raw.Exchanges[1]), "9007199254740993", "unrelated integer precision should be preserved")
+			})
+		}
+	}
+}
 
-	downgraded, err := versions.Manager.Deploy(t.Context(), out, 18)
-	require.NoError(t, err, "Deploy must downgrade from v19")
-	assert.JSONEq(t, string(input), string(downgraded), "Downgrade should restore the v18 Bitstamp settings")
+// legacyAccountExchange freezes the account branch of the upstream v18 Huobi template.
+// Unlike HTX, it expands scoped account channels once for every enabled pair.
+type legacyAccountExchange struct {
+	exchange.Base
+}
 
-	reupgraded, err := versions.Manager.Deploy(t.Context(), downgraded, 19)
-	require.NoError(t, err, "Deploy must reapply v19")
-	assert.JSONEq(t, expected, string(reupgraded), "Reapplying v19 should reproduce the upgraded configuration")
+func (*legacyAccountExchange) GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error) {
+	return template.New("legacy-account").Parse(`
+{{- if $.S.Asset }}
+	{{ range $asset, $pairs := $.AssetPairs }}
+		{{- range $p := $pairs }}
+			accounts.update#2
+			{{ $.PairSeparator }}
+		{{- end }}
+		{{ $.AssetSeparator }}
+	{{- end }}
+{{- else -}}
+	accounts.update#2
+{{- end }}
+`)
 }

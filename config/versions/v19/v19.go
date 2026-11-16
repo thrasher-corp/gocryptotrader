@@ -1,262 +1,230 @@
-// Package v19 migrates Bitstamp configurations to its v2 API, whose authentication needs no client ID and whose default
-// websocket subscriptions cover perpetual contracts.
+// Package v19 migrates Huobi exchange configurations to HTX and adds derivative defaults.
 package v19
 
 import (
 	"bytes"
 	"context"
-	"encoding/json" //nolint:depguard // Used instead of gct encoding/json so that we can ensure consistent library functionality between versions
+	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
 	"errors"
-	"fmt"
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/buger/jsonparser"
 )
 
-const clientIDRequirement = "requiresClientID"
-
-// subscriptionKeys are the saved subscription fields the defaults use; an entry with any other field is customised
-var subscriptionKeys = []string{"enabled", "channel", "asset", "interval", "authenticated"}
-
-// defaultSubscription is an enabled default subscription
-type defaultSubscription struct {
-	channel       string
-	asset         string
-	interval      time.Duration
-	authenticated bool
-}
-
-// previousDefaults are the v18 default subscriptions, which only cover spot
-var previousDefaults = []defaultSubscription{
-	{channel: "orderbook", asset: "spot", interval: 100 * time.Millisecond},
-	{channel: "allTrades", asset: "spot"},
-	{channel: "myOrders", asset: "spot", authenticated: true},
-	{channel: "myTrades", asset: "spot", authenticated: true},
-}
-
-// currentDefaults are the v19 default subscriptions, which cover every enabled asset and perpetual funding rates
-var currentDefaults = []defaultSubscription{
-	{channel: "orderbook", asset: "all", interval: 100 * time.Millisecond},
-	{channel: "allTrades", asset: "all"},
-	{channel: "funding_rate", asset: "perpetualcontract"},
-	{channel: "myOrders", asset: "all", authenticated: true},
-	{channel: "myTrades", asset: "all", authenticated: true},
-}
-
-// savedSubscription holds the saved subscription fields the config loader decodes
-type savedSubscription struct {
-	Enabled       *bool           `json:"enabled"`
-	Channel       string          `json:"channel"`
-	Asset         string          `json:"asset"`
-	Interval      json.RawMessage `json:"interval"`
-	Authenticated *bool           `json:"authenticated"`
-}
-
-// savedDefault is a default subscription in the form the config saves it
-type savedDefault struct {
-	Enabled       bool   `json:"enabled"`
-	Channel       string `json:"channel"`
-	Asset         string `json:"asset"`
-	Interval      string `json:"interval,omitempty"`
-	Authenticated bool   `json:"authenticated,omitempty"`
-}
-
-// Version implements ExchangeVersion for Bitstamp's v2 API update
+// Version implements ExchangeVersion to migrate Huobi configurations to HTX.
 type Version struct{}
 
-// Exchanges returns just Bitstamp
-func (*Version) Exchanges() []string { return []string{"Bitstamp"} }
+// Exchanges uses wildcard dispatch because exchange names are case-insensitive at runtime.
+func (*Version) Exchanges() []string { return []string{"*"} }
 
-// UpgradeExchange removes the client ID requirement and replaces the previous default subscriptions with the current
-// defaults; subscriptions which differ from the previous defaults are the user's choice and are left unchanged
+// UpgradeExchange changes the legacy Huobi exchange name to HTX and adds its derivative configuration.
 func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
-	// The exchange overwrites the saved credentials validator during setup, but the config loader checks the saved
-	// validator first, so a client ID requirement would disable authentication for credentials without a client ID
-	keys, err := clientIDRequirementKeys(exchange)
+	name, err := jsonparser.GetString(exchange, "name")
 	if err != nil {
 		return exchange, err
 	}
-	for _, key := range keys {
-		exchange = jsonparser.Delete(exchange, "api", "credentialsValidator", key)
-	}
-	return replaceSubscriptions(exchange, previousDefaults, currentDefaults)
-}
-
-// DowngradeExchange restores the client ID requirement and replaces the current default subscriptions with the
-// previous defaults
-func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
-	_, valueType, _, err := jsonparser.Get(exchange, "api", "credentialsValidator")
-	switch {
-	case errors.Is(err, jsonparser.KeyPathNotFoundError):
-	case err != nil:
-		return exchange, fmt.Errorf("error getting Bitstamp credentials validator: %w", err)
-	case valueType == jsonparser.Object:
-		if exchange, err = jsonparser.Set(exchange, []byte("true"), "api", "credentialsValidator", clientIDRequirement); err != nil {
-			return exchange, fmt.Errorf("error setting Bitstamp client ID requirement: %w", err)
-		}
-	}
-	if exchange, err = replaceSubscriptions(exchange, currentDefaults, previousDefaults); err != nil {
-		return exchange, err
-	}
-	return disableUnsupportedChannels(exchange)
-}
-
-// previousChannels are the only channels the previous version can subscribe to; it fails to generate any subscription
-// when an enabled entry names another channel
-var previousChannels = []string{"orderbook", "allTrades", "myOrders", "myTrades"}
-
-// disableUnsupportedChannels disables the subscriptions to channels the previous version does not support
-func disableUnsupportedChannels(exchange []byte) ([]byte, error) {
-	raw, valueType, _, err := jsonparser.Get(exchange, "features", "subscriptions")
-	if err != nil || valueType != jsonparser.Array {
-		return exchange, nil //nolint:nilerr // replaceSubscriptions has already reported malformed subscriptions
-	}
-	var i int
-	var errs error
-	// Set returns a new document, so the entries are read from a copy of the original
-	if _, err := jsonparser.ArrayEach(bytes.Clone(raw), func(entry []byte, _ jsonparser.ValueType, _ int, _ error) {
-		defer func() { i++ }()
-		channel, _ := jsonparser.GetString(entry, "channel")
-		a, _ := jsonparser.GetString(entry, "asset")
-		// The previous version has no perpetual contracts, so it never expands a subscription for them
-		if enabled, err := jsonparser.GetBoolean(entry, "enabled"); err != nil || !enabled || slices.Contains(previousChannels, channel) || strings.EqualFold(a, "perpetualcontract") {
-			return
-		}
-		var setErr error
-		if exchange, setErr = jsonparser.Set(exchange, []byte("false"), "features", "subscriptions", "["+strconv.Itoa(i)+"]", "enabled"); setErr != nil {
-			errs = setErr
-		}
-	}); err != nil {
-		return exchange, err
-	}
-	return exchange, errs
-}
-
-// clientIDRequirementKeys returns each credentials validator key the config loader decodes as the client ID
-// requirement, since it matches keys case insensitively; a key repeated in the validator is returned for each repeat
-func clientIDRequirementKeys(exchange []byte) ([]string, error) {
-	validator, valueType, _, err := jsonparser.Get(exchange, "api", "credentialsValidator")
-	switch {
-	case errors.Is(err, jsonparser.KeyPathNotFoundError):
-		return nil, nil
-	case err != nil:
-		return nil, fmt.Errorf("error getting Bitstamp credentials validator: %w", err)
-	case valueType != jsonparser.Object:
-		return nil, nil
-	}
-	var keys []string
-	if err := jsonparser.ObjectEach(validator, func(key, _ []byte, _ jsonparser.ValueType, _ int) error {
-		if strings.EqualFold(string(key), clientIDRequirement) {
-			keys = append(keys, string(key))
-		}
-		return nil
-	}); err != nil {
-		return nil, fmt.Errorf("error decoding Bitstamp credentials validator: %w", err)
-	}
-	return keys, nil
-}
-
-// replaceSubscriptions replaces saved subscriptions which match one set of defaults, in any order, with another
-func replaceSubscriptions(exchange []byte, from, to []defaultSubscription) ([]byte, error) {
-	raw, valueType, _, err := jsonparser.Get(exchange, "features", "subscriptions")
-	switch {
-	case errors.Is(err, jsonparser.KeyPathNotFoundError), err == nil && valueType == jsonparser.Null:
-		return exchange, nil
-	case err != nil:
-		return exchange, fmt.Errorf("error getting Bitstamp subscriptions: %w", err)
-	}
-	var entries []json.RawMessage
-	if err := json.Unmarshal(raw, &entries); err != nil {
-		return exchange, fmt.Errorf("error decoding Bitstamp subscriptions: %w", err)
-	}
-	matched, err := matchDefaults(entries, from)
-	if err != nil {
-		return exchange, fmt.Errorf("error decoding Bitstamp subscriptions: %w", err)
-	}
-	if !matched {
+	if !strings.EqualFold(name, "Huobi") && !strings.EqualFold(name, "HTX") {
 		return exchange, nil
 	}
-	saved := make([]savedDefault, len(to))
-	for i := range to {
-		saved[i] = savedDefault{Enabled: true, Channel: to[i].channel, Asset: to[i].asset, Authenticated: to[i].authenticated}
-		if to[i].interval != 0 {
-			saved[i].Interval = to[i].interval.String()
-		}
-	}
-	updated, err := json.Marshal(saved)
+	exchange, err = jsonparser.Set(exchange, []byte(`"HTX"`), "name")
 	if err != nil {
-		return exchange, fmt.Errorf("error encoding Bitstamp subscriptions: %w", err)
+		return exchange, err
 	}
-	if exchange, err = jsonparser.Set(exchange, updated, "features", "subscriptions"); err != nil {
-		return exchange, fmt.Errorf("error setting Bitstamp subscriptions: %w", err)
+
+	var config map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(exchange))
+	decoder.UseNumber()
+	if err := decoder.Decode(&config); err != nil {
+		return exchange, err
+	}
+	addUSDTMarginedPair(config)
+	addDerivativeSubscriptions(config)
+	// Patch only the changed subtrees, preserving unrelated key order and numeric text.
+	for _, path := range [][]string{{"currencyPairs", "pairs", "usdtmarginedfutures"}, {"features", "subscriptions"}} {
+		var value any = config
+		for _, key := range path {
+			object, ok := value.(map[string]any)
+			if !ok {
+				value = nil
+				break
+			}
+			value = object[key]
+		}
+		if value == nil {
+			continue
+		}
+		raw, err := json.Marshal(value)
+		if err != nil {
+			return exchange, err
+		}
+		exchange, err = jsonparser.Set(exchange, raw, path...)
+		if err != nil {
+			return exchange, err
+		}
 	}
 	return exchange, nil
 }
 
-// matchDefaults reports whether each saved subscription resolves to a different one of the defaults
-// Every entry is decoded first, so that a malformed entry is reported whichever defaults are matched
-func matchDefaults(entries []json.RawMessage, defaults []defaultSubscription) (bool, error) {
-	saved := make([]savedSubscription, len(entries))
-	var customised bool
-	for i, entry := range entries {
-		var fields map[string]json.RawMessage
-		if err := json.Unmarshal(entry, &fields); err != nil {
-			return false, err
+// addUSDTMarginedPair adds the pair configuration required by the V5 wrapper without replacing user settings.
+func addUSDTMarginedPair(config map[string]any) {
+	currencyPairs, ok := config["currencyPairs"].(map[string]any)
+	if !ok {
+		return
+	}
+	pairs, ok := currencyPairs["pairs"].(map[string]any)
+	if !ok {
+		return
+	}
+	for key := range pairs {
+		if strings.EqualFold(key, "usdtmarginedfutures") {
+			return
 		}
-		for key := range fields {
-			if !slices.Contains(subscriptionKeys, key) {
-				customised = true
+	}
+	pairs["usdtmarginedfutures"] = map[string]any{
+		"assetEnabled": true,
+		"enabled":      "BTC-USDT",
+		"available":    "BTC-USDT",
+		"requestFormat": map[string]any{
+			"uppercase": true,
+			"delimiter": "-",
+		},
+		"configFormat": map[string]any{
+			"uppercase": true,
+			"delimiter": "-",
+		},
+	}
+}
+
+// addDerivativeSubscriptions adds public defaults, leaves private defaults disabled and preserves user entries.
+func addDerivativeSubscriptions(config map[string]any) {
+	features, hasFeatures := config["features"].(map[string]any)
+	if !hasFeatures {
+		return
+	}
+	subscriptions, _ := features["subscriptions"].([]any)
+	if len(subscriptions) == 0 {
+		// Missing, null and empty selections use runtime defaults, including spot.
+		return
+	}
+	// V18 ignored derivative funding defaults; the market sockets still cannot deliver them.
+	subscriptions = slices.DeleteFunc(subscriptions, func(sub any) bool {
+		entry, ok := sub.(map[string]any)
+		assetName, _ := entry["asset"].(string)
+		return ok && len(entry) == 3 && entry["enabled"] == true && entry["channel"] == "fundingRate" &&
+			(strings.EqualFold(assetName, "coinmarginedfutures") || strings.EqualFold(assetName, "usdtmarginedfutures"))
+	})
+	for _, sub := range subscriptions {
+		entry, ok := sub.(map[string]any)
+		if !ok {
+			continue
+		}
+		assetName, _ := entry["asset"].(string)
+		// V18 served only spot, so wildcard scope meant spot for every channel.
+		if assetName == "" || strings.EqualFold(assetName, "all") {
+			entry["asset"] = "spot"
+		}
+	}
+	for _, item := range []struct {
+		asset           string
+		publicChannels  []string
+		privateChannels []string
+	}{
+		{
+			asset:           "futures",
+			publicChannels:  []string{"ticker", "candles", "orderbook", "allTrades"},
+			privateChannels: []string{"myOrders", "myTrades", "myAccount", "positions", "triggerOrders"},
+		},
+		{
+			asset:           "coinmarginedfutures",
+			publicChannels:  []string{"ticker", "candles", "orderbook", "allTrades"},
+			privateChannels: []string{"myOrders", "myTrades", "myAccount", "positions", "triggerOrders"},
+		},
+		{
+			asset:          "usdtmarginedfutures",
+			publicChannels: []string{"ticker", "candles", "orderbook", "allTrades"},
+			privateChannels: []string{
+				"myOrders",
+				"tradeUpdates",
+				"executionDetails",
+				"myAccount",
+				"positions",
+				"myTrades",
+				"triggerOrders",
+			},
+		},
+	} {
+		for _, group := range []struct {
+			channels      []string
+			enabled       bool
+			authenticated bool
+		}{
+			{channels: item.publicChannels, enabled: true},
+			{channels: item.privateChannels, authenticated: true},
+		} {
+			for _, channel := range group.channels {
+				found := false
+				for _, sub := range subscriptions {
+					entry, ok := sub.(map[string]any)
+					if !ok {
+						continue
+					}
+					assetName, _ := entry["asset"].(string)
+					channelName, _ := entry["channel"].(string)
+					authenticated, _ := entry["authenticated"].(bool)
+					if strings.EqualFold(assetName, item.asset) && channelName == channel && authenticated == group.authenticated {
+						found = true
+						break
+					}
+				}
+				if found {
+					continue
+				}
+				sub := map[string]any{
+					"enabled": group.enabled,
+					"channel": channel,
+					"asset":   item.asset,
+				}
+				if group.authenticated {
+					sub["authenticated"] = true
+				}
+				if channel == "candles" {
+					sub["interval"] = "1m"
+				}
+				subscriptions = append(subscriptions, sub)
 			}
 		}
-		if err := json.Unmarshal(entry, &saved[i]); err != nil {
-			return false, err
-		}
 	}
-	if customised || len(saved) != len(defaults) {
-		return false, nil
-	}
-	matched := make([]bool, len(defaults))
-	for i := range saved {
-		j := slices.IndexFunc(defaults, func(d defaultSubscription) bool { return d.channel == saved[i].Channel })
-		if j == -1 || matched[j] || !defaults[j].matches(&saved[i]) {
-			return false, nil
-		}
-		matched[j] = true
-	}
-	return true, nil
+	features["subscriptions"] = subscriptions
 }
 
-// matches reports whether a saved subscription resolves to the default; assets match case insensitively as the loader
-// parses them, and an absent, false or null authenticated field are all unauthenticated
-func (d *defaultSubscription) matches(s *savedSubscription) bool {
-	interval, ok := parseInterval(s.Interval)
-	return ok &&
-		s.Enabled != nil && *s.Enabled &&
-		strings.EqualFold(s.Asset, d.asset) &&
-		interval == d.interval &&
-		(s.Authenticated != nil && *s.Authenticated) == d.authenticated
-}
-
-// parseInterval returns a saved interval as the config loader parses it, either as nanoseconds or as a duration such
-// as "100ms"; an absent interval is zero, and null is rejected as the loader rejects it
-func parseInterval(raw json.RawMessage) (time.Duration, bool) {
-	if raw == nil {
-		return 0, true
+// DowngradeExchange changes the HTX exchange name back to Huobi.
+func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	if name, err := jsonparser.GetString(exchange, "name"); err == nil && strings.EqualFold(name, "HTX") {
+		subscriptions, kind, _, err := jsonparser.Get(exchange, "features", "subscriptions")
+		if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			return exchange, err
+		}
+		if kind == jsonparser.Array {
+			var index int
+			if _, err := jsonparser.ArrayEach(bytes.Clone(subscriptions), func(sub []byte, _ jsonparser.ValueType, _ int, _ error) {
+				channel, _ := jsonparser.GetString(sub, "channel")
+				scope, _ := jsonparser.GetString(sub, "asset")
+				if channel == "myAccount" && (strings.EqualFold(scope, "spot") || strings.EqualFold(scope, "all")) {
+					// Huobi expands scoped account channels once per pair, duplicating the global wire channel.
+					exchange = jsonparser.Delete(exchange, "features", "subscriptions", "["+strconv.Itoa(index)+"]", "asset")
+				}
+				index++
+			}); err != nil {
+				return exchange, err
+			}
+		}
+		// Setup persists new endpoint keys that version 18 cannot load.
+		for _, key := range []string{"WebsocketCoinMarginedPrivateURL", "WebsocketUSDTMarginedPrivateURL"} {
+			exchange = jsonparser.Delete(exchange, "api", "urlEndpoints", key)
+		}
+		return jsonparser.Set(exchange, []byte(`"Huobi"`), "name")
 	}
-	if bytes.Equal(raw, []byte("null")) {
-		return 0, false
-	}
-	var nanoseconds int64
-	if err := json.Unmarshal(raw, &nanoseconds); err == nil {
-		return time.Duration(nanoseconds), true
-	}
-	var text string
-	if err := json.Unmarshal(raw, &text); err != nil {
-		return 0, false
-	}
-	d, err := time.ParseDuration(text)
-	return d, err == nil
+	return exchange, nil
 }
