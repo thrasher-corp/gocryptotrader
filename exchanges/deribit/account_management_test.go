@@ -98,6 +98,7 @@ func liveTestAPIKeyRequest() *CreateAPIKeyRequest {
 func liveTestAPIKey(t *testing.T) *APIKeyResponse {
 	t.Helper()
 	key, err := e.CreateAPIKey(t.Context(), liveTestAPIKeyRequest())
+	skipLiveIfSecurityKeyChallenged(t, err)
 	require.NoError(t, err, "CreateAPIKey must create an API key to test with")
 	t.Cleanup(func() {
 		assert.NoError(t, e.RemoveAPIKey(context.WithoutCancel(t.Context()), key.ID), "RemoveAPIKey should remove the test's API key")
@@ -114,8 +115,9 @@ func testAPIKeyID(t *testing.T) uint64 {
 	return liveTestAPIKey(t).ID
 }
 
-// skipLiveIfSecurityKeysEnabled skips a live case creating a subaccount when the account has security keys enabled, as
-// Deribit then asks for a security key to remove it, which the case's cleanup cannot give
+// skipLiveIfSecurityKeysEnabled skips a live case creating a subaccount when Deribit would ask for a security key to
+// remove it, which the case's cleanup cannot give: when the account has security keys enabled, or when Deribit
+// challenges listing the API keys, which it marks TFA required like removing a subaccount
 func skipLiveIfSecurityKeysEnabled(t *testing.T) {
 	t.Helper()
 	summary, err := e.GetAccountSummary(t.Context(), &GetAccountSummaryRequest{Currency: currency.BTC, Extended: true})
@@ -123,6 +125,9 @@ func skipLiveIfSecurityKeysEnabled(t *testing.T) {
 	if summary.SecurityKeysEnabled {
 		t.Skip("removing a subaccount needs a security key on this account")
 	}
+	_, err = e.ListAPIKeys(t.Context())
+	skipLiveIfSecurityKeyChallenged(t, err)
+	requireAnsweredOnMerits(t, err, "ListAPIKeys")
 }
 
 // liveTestSubaccount returns a subaccount of the live account, skipping the test when it has none
@@ -975,6 +980,7 @@ func TestChangeScopeInAPIKey(t *testing.T) {
 		skipLiveUnlessCanManipulate(t)
 		arg := testChangeScopeInAPIKeyRequest(t)
 		result, err := e.ChangeScopeInAPIKey(t.Context(), arg)
+		skipLiveIfSecurityKeyChallenged(t, err)
 		require.NoError(t, err, "ChangeScopeInAPIKey must not error")
 		assert.ElementsMatch(t, arg.MaxScope, result.MaxScope, "ChangeScopeInAPIKey should return the new scope")
 	})
@@ -1044,6 +1050,7 @@ func TestCreateAPIKey(t *testing.T) {
 		}
 		skipLiveUnlessCanManipulate(t)
 		result, err := e.CreateAPIKey(t.Context(), liveTestAPIKeyRequest())
+		skipLiveIfSecurityKeyChallenged(t, err)
 		require.NoError(t, err, "CreateAPIKey must not error")
 		assert.NotEmpty(t, result.ClientSecret, "CreateAPIKey should return the key's secret")
 		require.NoError(t, e.RemoveAPIKey(t.Context(), result.ID), "RemoveAPIKey must remove the created API key")
@@ -1164,6 +1171,7 @@ func TestDisableAPIKey(t *testing.T) {
 		skipLiveUnlessCanManipulate(t)
 		id := testAPIKeyID(t)
 		result, err := e.DisableAPIKey(t.Context(), id)
+		skipLiveIfSecurityKeyChallenged(t, err)
 		require.NoError(t, err, "DisableAPIKey must not error")
 		assert.False(t, result.Enabled, "DisableAPIKey should return the key disabled")
 	})
@@ -1203,6 +1211,7 @@ func TestEditAPIKey(t *testing.T) {
 		skipLiveUnlessCanManipulate(t)
 		arg := testEditAPIKeyRequest(t)
 		result, err := e.EditAPIKey(t.Context(), arg)
+		skipLiveIfSecurityKeyChallenged(t, err)
 		require.NoError(t, err, "EditAPIKey must not error")
 		assert.Equal(t, arg.Name, result.Name, "EditAPIKey should return the new name")
 	})
@@ -1895,6 +1904,7 @@ func TestListAPIKeys(t *testing.T) {
 		}
 		skipLiveWithoutCredentials(t)
 		result, err := e.ListAPIKeys(t.Context())
+		skipLiveIfSecurityKeyChallenged(t, err)
 		require.NoError(t, err, "ListAPIKeys must not error")
 		assert.NotEmpty(t, result, "ListAPIKeys should return the API key in use")
 	})
@@ -2041,6 +2051,7 @@ func TestRemoveAPIKey(t *testing.T) {
 		skipLiveUnlessCanManipulate(t)
 		// The key is created for the test, so removing it restores the account's keys
 		key, err := e.CreateAPIKey(t.Context(), liveTestAPIKeyRequest())
+		skipLiveIfSecurityKeyChallenged(t, err)
 		require.NoError(t, err, "CreateAPIKey must create an API key to remove")
 		require.NoError(t, e.RemoveAPIKey(t.Context(), key.ID), "RemoveAPIKey must not error")
 	})
@@ -2406,7 +2417,9 @@ func TestToggleSubaccountLogin(t *testing.T) {
 		}
 		skipLiveUnlessCanManipulate(t)
 		arg := testToggleSubaccountLoginRequest(t)
-		require.NoError(t, e.ToggleSubaccountLogin(t.Context(), arg), "ToggleSubaccountLogin must not error")
+		err := e.ToggleSubaccountLogin(t.Context(), arg)
+		skipLiveIfSecurityKeyChallenged(t, err)
+		require.NoError(t, err, "ToggleSubaccountLogin must not error")
 	})
 
 	t.Run("mocked", func(t *testing.T) {

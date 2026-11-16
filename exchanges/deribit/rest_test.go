@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -206,6 +208,59 @@ func skipLiveUnlessCanManipulate(t *testing.T) {
 	t.Helper()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
+}
+
+// skipLiveIfSecurityKeyChallenged skips a live case that Deribit answered with a security key challenge, as it does for
+// the methods it marks TFA required when the account has two-factor authentication, which the case cannot confirm
+func skipLiveIfSecurityKeyChallenged(t *testing.T, err error) {
+	t.Helper()
+	if errors.Is(err, ErrSecurityKeyAuthorisationRequired) {
+		t.Skip("Deribit asks this account for two-factor authentication, which the live case cannot give")
+	}
+}
+
+func TestSkipLiveIfSecurityKeyChallenged(t *testing.T) {
+	t.Parallel()
+	forbidden := &APIError{Code: 13021, Message: "forbidden"}
+	unauthorised := &APIError{Code: 13009, Message: "unauthorized"}
+	rateLimited := &APIError{Code: 10028, Message: "too_many_requests"}
+	codeRefused := &APIError{Code: 13668, Message: "security_key_authorization_error", Data: json.RawMessage(`{"reason":"tfa_code_not_matched"}`)}
+	setupRequired := &APIError{Code: 13904, Message: "security_key_setup_required"}
+	badStatus := fmt.Errorf("Deribit %w: 503 raw response: unavailable", request.ErrBadStatus)
+	for _, tc := range []struct {
+		name    string
+		err     error
+		skipped bool
+	}{
+		{name: "answered"},
+		{name: "security key challenge", err: testSecurityKeyChallengeError(), skipped: true},
+		{name: "security key challenge after another error", err: common.AppendError(&APIError{Code: 10004, Message: "order_not_found"}, testSecurityKeyChallengeError()), skipped: true},
+		{name: "security key challenge carrying only its flag", err: &SecurityKeyChallengeError{AuthorisationRequired: true}, skipped: true},
+		{name: "security key challenge for a hardware key", err: &SecurityKeyChallengeError{AuthorisationRequired: true, Challenge: testSecurityKeyChallenge, RelyingPartyID: "www.deribit.com", SecurityKeys: []SecurityKey{{Type: "webauthn", Name: "hardware key"}}}, skipped: true},
+		{name: "security key authorisation sentinel", err: ErrSecurityKeyAuthorisationRequired, skipped: true},
+		{name: "refused over REST", err: fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, forbidden)},
+		{name: "refused over the websocket", err: forbidden},
+		{name: "unauthorised over REST", err: fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, unauthorised)},
+		{name: "unauthorised over the websocket", err: unauthorised},
+		{name: "rate limited over REST", err: fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, rateLimited)},
+		{name: "rate limited over the websocket", err: rateLimited},
+		{name: "security key code refused over REST", err: fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, codeRefused)},
+		{name: "security key code refused over the websocket", err: codeRefused},
+		{name: "security key setup required over REST", err: fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, setupRequired)},
+		{name: "security key setup required over the websocket", err: setupRequired},
+		{name: "public request failure", err: badStatus},
+		{name: "authenticated request failure", err: common.AppendError(badStatus, request.ErrAuthRequestFailed)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var skipped bool
+			t.Run("live case", func(t *testing.T) {
+				defer func() { skipped = t.Skipped() }()
+				skipLiveIfSecurityKeyChallenged(t, tc.err)
+			})
+			assert.Equal(t, tc.skipped, skipped, "skipLiveIfSecurityKeyChallenged should skip a live case only when Deribit challenges it")
+		})
 	}
 }
 
