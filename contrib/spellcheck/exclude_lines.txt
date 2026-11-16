@@ -15,6 +15,7 @@
 		TotalIn        int64  `json:"totalIn"`
   behavior: default
 	// unimplemented method is ever invoked, so we test this at initialization
+[V5 API](https://www.htx.com/en-us/opend/newApiPages/) references.
 // GetSpotUsersCustomisedID calls Get User’s Customize Id (Spot) (USER_DATA), returning the customer ID the account set
 // CustomiseSpotOwnClientID calls Customize Id For Spot Client (USER_DATA), letting a referred user set the unique
 // GetSpotClientEmailCustomisedID calls Get Client Email Customized Id (USER_DATA), filtering by customer ID or email,
