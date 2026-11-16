@@ -1,112 +1,230 @@
-// Package v19 moves GateIO's REST API version prefix out of its configured endpoints and into its request paths.
+// Package v19 migrates Huobi exchange configurations to HTX and adds derivative defaults.
 package v19
 
 import (
+	"bytes"
 	"context"
-	"encoding/json" //nolint:depguard // Used instead of gct encoding/json so that we can ensure consistent library functionality between versions
+	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
 	"errors"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/buger/jsonparser"
 )
 
-// Version is an ExchangeVersion for GateIO REST endpoints, which no longer carry the API version prefix
+// Version implements ExchangeVersion to migrate Huobi configurations to HTX.
 type Version struct{}
 
-const (
-	apiVersionPrefix = "/api/v4"
-	// nonDefaultPlaceholder marks an endpoint the user has not configured, which the exchange skips
-	nonDefaultPlaceholder = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
-)
-
-// endpoint is a GateIO REST endpoint key with its default before and after this version
-type endpoint struct {
-	key        string
-	oldDefault string
-	newDefault string
-}
-
-// endpoints lists the REST endpoints GateIO prefixes with the API version. The testnet default never carried the
-// prefix and is unchanged, so only a custom testnet endpoint changes.
-var endpoints = []endpoint{
-	{key: "RestSpotURL", oldDefault: "https://api.gateio.ws/api/v4/", newDefault: "https://api.gateio.ws"},
-	{key: "RestFuturesURL", oldDefault: "https://fx-api.gateio.ws/api/v4/", newDefault: "https://fx-api.gateio.ws"},
-	{key: "RestSpotSupplementaryURL", oldDefault: "https://fx-api-testnet.gateio.ws", newDefault: "https://fx-api-testnet.gateio.ws"},
-}
-
-// Exchanges returns every exchange, as the version manager matches names exactly while the engine accepts GateIO's in
-// any case; UpgradeExchange and DowngradeExchange pick out GateIO themselves
+// Exchanges uses wildcard dispatch because exchange names are case-insensitive at runtime.
 func (*Version) Exchanges() []string { return []string{"*"} }
 
-// UpgradeExchange removes the old default endpoints, so the new defaults apply, and strips the version prefix from
-// custom endpoints, since GateIO now adds it to every request path
-func (*Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
-	if !isGateIO(e) {
-		return e, nil
-	}
-	for _, ep := range endpoints {
-		url, err := jsonparser.GetString(e, "api", "urlEndpoints", ep.key)
-		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-			continue
-		}
-		if err != nil {
-			return e, err
-		}
-		if url == ep.oldDefault {
-			if ep.oldDefault != ep.newDefault {
-				e = jsonparser.Delete(e, "api", "urlEndpoints", ep.key)
-			}
-			continue
-		}
-		if base := strings.TrimSuffix(url, "/"); strings.HasSuffix(base, apiVersionPrefix) {
-			if e, err = setEndpoint(e, ep.key, strings.TrimSuffix(base, apiVersionPrefix)); err != nil {
-				return e, err
-			}
-		}
-	}
-	return e, nil
-}
-
-// DowngradeExchange removes the new default endpoints, so the old defaults apply, and restores the version prefix to
-// custom endpoints, since earlier versions expect each endpoint to carry it
-func (*Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
-	if !isGateIO(e) {
-		return e, nil
-	}
-	for _, ep := range endpoints {
-		url, err := jsonparser.GetString(e, "api", "urlEndpoints", ep.key)
-		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-			continue
-		}
-		if err != nil {
-			return e, err
-		}
-		if url == ep.newDefault {
-			if ep.oldDefault != ep.newDefault {
-				e = jsonparser.Delete(e, "api", "urlEndpoints", ep.key)
-			}
-			continue
-		}
-		if url == "" || url == nonDefaultPlaceholder || strings.HasSuffix(strings.TrimSuffix(url, "/"), apiVersionPrefix) {
-			continue
-		}
-		if e, err = setEndpoint(e, ep.key, strings.TrimSuffix(url, "/")+apiVersionPrefix+"/"); err != nil {
-			return e, err
-		}
-	}
-	return e, nil
-}
-
-// isGateIO reports whether an exchange config is GateIO's, matching its name in any case
-func isGateIO(e []byte) bool {
-	name, err := jsonparser.GetString(e, "name")
-	return err == nil && strings.EqualFold(name, "GateIO")
-}
-
-func setEndpoint(e []byte, key, url string) ([]byte, error) {
-	v, err := json.Marshal(url)
+// UpgradeExchange changes the legacy Huobi exchange name to HTX and adds its derivative configuration.
+func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	name, err := jsonparser.GetString(exchange, "name")
 	if err != nil {
-		return e, err
+		return exchange, err
 	}
-	return jsonparser.Set(e, v, "api", "urlEndpoints", key)
+	if !strings.EqualFold(name, "Huobi") && !strings.EqualFold(name, "HTX") {
+		return exchange, nil
+	}
+	exchange, err = jsonparser.Set(exchange, []byte(`"HTX"`), "name")
+	if err != nil {
+		return exchange, err
+	}
+
+	var config map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(exchange))
+	decoder.UseNumber()
+	if err := decoder.Decode(&config); err != nil {
+		return exchange, err
+	}
+	addUSDTMarginedPair(config)
+	addDerivativeSubscriptions(config)
+	// Patch only the changed subtrees, preserving unrelated key order and numeric text.
+	for _, path := range [][]string{{"currencyPairs", "pairs", "usdtmarginedfutures"}, {"features", "subscriptions"}} {
+		var value any = config
+		for _, key := range path {
+			object, ok := value.(map[string]any)
+			if !ok {
+				value = nil
+				break
+			}
+			value = object[key]
+		}
+		if value == nil {
+			continue
+		}
+		raw, err := json.Marshal(value)
+		if err != nil {
+			return exchange, err
+		}
+		exchange, err = jsonparser.Set(exchange, raw, path...)
+		if err != nil {
+			return exchange, err
+		}
+	}
+	return exchange, nil
+}
+
+// addUSDTMarginedPair adds the pair configuration required by the V5 wrapper without replacing user settings.
+func addUSDTMarginedPair(config map[string]any) {
+	currencyPairs, ok := config["currencyPairs"].(map[string]any)
+	if !ok {
+		return
+	}
+	pairs, ok := currencyPairs["pairs"].(map[string]any)
+	if !ok {
+		return
+	}
+	for key := range pairs {
+		if strings.EqualFold(key, "usdtmarginedfutures") {
+			return
+		}
+	}
+	pairs["usdtmarginedfutures"] = map[string]any{
+		"assetEnabled": true,
+		"enabled":      "BTC-USDT",
+		"available":    "BTC-USDT",
+		"requestFormat": map[string]any{
+			"uppercase": true,
+			"delimiter": "-",
+		},
+		"configFormat": map[string]any{
+			"uppercase": true,
+			"delimiter": "-",
+		},
+	}
+}
+
+// addDerivativeSubscriptions adds public defaults, leaves private defaults disabled and preserves user entries.
+func addDerivativeSubscriptions(config map[string]any) {
+	features, hasFeatures := config["features"].(map[string]any)
+	if !hasFeatures {
+		return
+	}
+	subscriptions, _ := features["subscriptions"].([]any)
+	if len(subscriptions) == 0 {
+		// Missing, null and empty selections use runtime defaults, including spot.
+		return
+	}
+	// V18 ignored derivative funding defaults; the market sockets still cannot deliver them.
+	subscriptions = slices.DeleteFunc(subscriptions, func(sub any) bool {
+		entry, ok := sub.(map[string]any)
+		assetName, _ := entry["asset"].(string)
+		return ok && len(entry) == 3 && entry["enabled"] == true && entry["channel"] == "fundingRate" &&
+			(strings.EqualFold(assetName, "coinmarginedfutures") || strings.EqualFold(assetName, "usdtmarginedfutures"))
+	})
+	for _, sub := range subscriptions {
+		entry, ok := sub.(map[string]any)
+		if !ok {
+			continue
+		}
+		assetName, _ := entry["asset"].(string)
+		// V18 served only spot, so wildcard scope meant spot for every channel.
+		if assetName == "" || strings.EqualFold(assetName, "all") {
+			entry["asset"] = "spot"
+		}
+	}
+	for _, item := range []struct {
+		asset           string
+		publicChannels  []string
+		privateChannels []string
+	}{
+		{
+			asset:           "futures",
+			publicChannels:  []string{"ticker", "candles", "orderbook", "allTrades"},
+			privateChannels: []string{"myOrders", "myTrades", "myAccount", "positions", "triggerOrders"},
+		},
+		{
+			asset:           "coinmarginedfutures",
+			publicChannels:  []string{"ticker", "candles", "orderbook", "allTrades"},
+			privateChannels: []string{"myOrders", "myTrades", "myAccount", "positions", "triggerOrders"},
+		},
+		{
+			asset:          "usdtmarginedfutures",
+			publicChannels: []string{"ticker", "candles", "orderbook", "allTrades"},
+			privateChannels: []string{
+				"myOrders",
+				"tradeUpdates",
+				"executionDetails",
+				"myAccount",
+				"positions",
+				"myTrades",
+				"triggerOrders",
+			},
+		},
+	} {
+		for _, group := range []struct {
+			channels      []string
+			enabled       bool
+			authenticated bool
+		}{
+			{channels: item.publicChannels, enabled: true},
+			{channels: item.privateChannels, authenticated: true},
+		} {
+			for _, channel := range group.channels {
+				found := false
+				for _, sub := range subscriptions {
+					entry, ok := sub.(map[string]any)
+					if !ok {
+						continue
+					}
+					assetName, _ := entry["asset"].(string)
+					channelName, _ := entry["channel"].(string)
+					authenticated, _ := entry["authenticated"].(bool)
+					if strings.EqualFold(assetName, item.asset) && channelName == channel && authenticated == group.authenticated {
+						found = true
+						break
+					}
+				}
+				if found {
+					continue
+				}
+				sub := map[string]any{
+					"enabled": group.enabled,
+					"channel": channel,
+					"asset":   item.asset,
+				}
+				if group.authenticated {
+					sub["authenticated"] = true
+				}
+				if channel == "candles" {
+					sub["interval"] = "1m"
+				}
+				subscriptions = append(subscriptions, sub)
+			}
+		}
+	}
+	features["subscriptions"] = subscriptions
+}
+
+// DowngradeExchange changes the HTX exchange name back to Huobi.
+func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	if name, err := jsonparser.GetString(exchange, "name"); err == nil && strings.EqualFold(name, "HTX") {
+		subscriptions, kind, _, err := jsonparser.Get(exchange, "features", "subscriptions")
+		if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			return exchange, err
+		}
+		if kind == jsonparser.Array {
+			var index int
+			if _, err := jsonparser.ArrayEach(bytes.Clone(subscriptions), func(sub []byte, _ jsonparser.ValueType, _ int, _ error) {
+				channel, _ := jsonparser.GetString(sub, "channel")
+				scope, _ := jsonparser.GetString(sub, "asset")
+				if channel == "myAccount" && (strings.EqualFold(scope, "spot") || strings.EqualFold(scope, "all")) {
+					// Huobi expands scoped account channels once per pair, duplicating the global wire channel.
+					exchange = jsonparser.Delete(exchange, "features", "subscriptions", "["+strconv.Itoa(index)+"]", "asset")
+				}
+				index++
+			}); err != nil {
+				return exchange, err
+			}
+		}
+		// Setup persists new endpoint keys that version 18 cannot load.
+		for _, key := range []string{"WebsocketCoinMarginedPrivateURL", "WebsocketUSDTMarginedPrivateURL"} {
+			exchange = jsonparser.Delete(exchange, "api", "urlEndpoints", key)
+		}
+		return jsonparser.Set(exchange, []byte(`"Huobi"`), "name")
+	}
+	return exchange, nil
 }

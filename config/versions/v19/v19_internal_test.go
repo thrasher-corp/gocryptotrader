@@ -1,42 +1,155 @@
 package v19
 
 import (
+	"strings"
 	"testing"
 
-	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestIsGateIO(t *testing.T) {
+func TestAddUSDTMarginedPair(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name, config string
-		expected     bool
+		name     string
+		config   map[string]any
+		expected bool
 	}{
-		{name: "GateIO", config: `{"name":"GateIO"}`, expected: true},
-		{name: "lower case", config: `{"name":"gateio"}`, expected: true},
-		{name: "upper case", config: `{"name":"GATEIO"}`, expected: true},
-		{name: "mixed case", config: `{"name":"gAtEiO"}`, expected: true},
-		{name: "Gate", config: `{"name":"Gate"}`},
-		{name: "longer name", config: `{"name":"GateIOX"}`},
-		{name: "other exchange", config: `{"name":"Binance"}`},
-		{name: "missing name", config: `{"enabled":true}`},
-		{name: "non-string name", config: `{"name":42}`},
+		{name: "missing currency pairs", config: map[string]any{}},
+		{name: "missing pairs", config: map[string]any{"currencyPairs": map[string]any{}}},
+		{
+			name: "existing pair",
+			config: map[string]any{
+				"currencyPairs": map[string]any{
+					"pairs": map[string]any{"usdtmarginedfutures": "existing"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "add pair",
+			config: map[string]any{
+				"currencyPairs": map[string]any{"pairs": map[string]any{}},
+			},
+			expected: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.expected, isGateIO([]byte(tc.config)), "isGateIO should match only GateIO's name, in any case")
+			addUSDTMarginedPair(tc.config)
+			currencyPairs, ok := tc.config["currencyPairs"].(map[string]any)
+			if !tc.expected {
+				if ok {
+					pairs, _ := currencyPairs["pairs"].(map[string]any)
+					assert.NotContains(t, pairs, "usdtmarginedfutures", "pair should not be added without the required parent configuration")
+				}
+				return
+			}
+			require.True(t, ok, "currency-pair configuration must exist")
+			pairs, ok := currencyPairs["pairs"].(map[string]any)
+			require.True(t, ok, "pair configuration must exist")
+			pair, found := pairs["usdtmarginedfutures"]
+			require.True(t, found, "USDT-margined pair configuration must exist")
+			if tc.name == "existing pair" {
+				assert.Equal(t, "existing", pair, "existing pair configuration should be preserved")
+				return
+			}
+			pairConfig, ok := pair.(map[string]any)
+			require.True(t, ok, "added pair configuration must use an object")
+			assert.Equal(t, "BTC-USDT", pairConfig["enabled"], "enabled pair should match")
+			assert.Equal(t, "BTC-USDT", pairConfig["available"], "available pair should match")
+		})
+	}
+	for _, key := range []string{"usdtmarginedfutures", "USDTMarginedFutures", "USDTMARGINEDFUTURES"} {
+		t.Run("preserve "+key, func(t *testing.T) {
+			t.Parallel()
+			pairs := map[string]any{key: "existing"}
+			addUSDTMarginedPair(map[string]any{"currencyPairs": map[string]any{"pairs": pairs}})
+			assert.Equal(t, map[string]any{key: "existing"}, pairs, "equivalent asset keys should preserve existing settings without adding defaults")
 		})
 	}
 }
 
-func TestSetEndpoint(t *testing.T) {
+func TestAddDerivativeSubscriptions(t *testing.T) {
 	t.Parallel()
-	got, err := setEndpoint([]byte(`{"api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}}}`), "RestSpotURL", `https://proxy.example/"gate"`)
-	require.NoError(t, err, "setEndpoint must not error")
-	assert.JSONEq(t, `{"api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/\"gate\"","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}}}`, string(got), "setEndpoint should replace only the endpoint, encoded as a JSON string")
+	t.Run("missing features", func(t *testing.T) {
+		t.Parallel()
+		config := map[string]any{}
+		addDerivativeSubscriptions(config)
+		assert.NotContains(t, config, "features", "missing feature configuration should remain unchanged")
+	})
 
-	_, err = setEndpoint([]byte(`not json`), "RestSpotURL", "https://proxy.example")
-	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError, "setEndpoint should reject a document it cannot set the endpoint in")
+	t.Run("add and preserve subscriptions", func(t *testing.T) {
+		t.Parallel()
+		config := map[string]any{
+			"features": map[string]any{
+				"subscriptions": []any{
+					nil,
+					map[string]any{"enabled": true, "channel": "myAccount", "authenticated": true},
+					map[string]any{"enabled": true, "channel": "ticker", "asset": "futures"},
+					map[string]any{"enabled": true, "channel": "myOrders", "asset": "futures", "authenticated": true},
+				},
+			},
+		}
+		addDerivativeSubscriptions(config)
+		features, ok := config["features"].(map[string]any)
+		require.True(t, ok, "features must remain an object")
+		subscriptions, ok := features["subscriptions"].([]any)
+		require.True(t, ok, "subscriptions must remain a list")
+		require.Len(t, subscriptions, 31, "existing entries and missing derivative defaults must be retained")
+		spotAccount, ok := subscriptions[1].(map[string]any)
+		require.True(t, ok, "spot account subscription must remain an object")
+		assert.Equal(t, "spot", spotAccount["asset"], "spot account subscription should gain its asset")
+		privateCount := 0
+		for _, sub := range subscriptions {
+			entry, ok := sub.(map[string]any)
+			if !ok {
+				continue
+			}
+			assetName, _ := entry["asset"].(string)
+			authenticated, _ := entry["authenticated"].(bool)
+			if authenticated && assetName != "spot" {
+				privateCount++
+			}
+		}
+		assert.Equal(t, 17, privateCount, "all derivative private subscriptions should exist")
+
+		addDerivativeSubscriptions(config)
+		assert.Len(t, features["subscriptions"], 31, "repeated migration should not duplicate subscriptions")
+	})
+	for _, scope := range []string{"", "all", "All", "ALL"} {
+		for _, channel := range []string{"ticker", "orderbook", "candles", "allTrades", "myOrders", "myTrades", "myAccount", "orders#*"} {
+			t.Run(scope+"/"+channel, func(t *testing.T) {
+				t.Parallel()
+				entry := map[string]any{"enabled": false, "asset": scope, "channel": channel}
+				cfg := map[string]any{"features": map[string]any{"subscriptions": []any{entry}}}
+				addDerivativeSubscriptions(cfg)
+				assert.Equal(t, "spot", entry["asset"], "legacy wildcard scope should preserve spot coverage on every channel")
+				assert.Equal(t, false, entry["enabled"], "disabled user choices should remain disabled")
+			})
+		}
+	}
+
+	for _, scope := range []string{"futures", "Futures", "FUTURES"} {
+		t.Run("preserve disabled "+scope, func(t *testing.T) {
+			t.Parallel()
+			entry := map[string]any{"enabled": false, "asset": scope, "channel": "ticker"}
+			cfg := map[string]any{"features": map[string]any{"subscriptions": []any{entry}}}
+			addDerivativeSubscriptions(cfg)
+			features, ok := cfg["features"].(map[string]any)
+			require.True(t, ok, "features must remain an object")
+			subs, ok := features["subscriptions"].([]any)
+			require.True(t, ok, "subscriptions must remain a list")
+			count := 0
+			for _, sub := range subs {
+				item, ok := sub.(map[string]any)
+				require.True(t, ok, "subscription must remain an object")
+				if name, _ := item["asset"].(string); strings.EqualFold(name, "futures") && item["channel"] == "ticker" {
+					count++
+					assert.Equal(t, false, item["enabled"], "capitalised asset scopes should preserve explicit disabled choices")
+				}
+			}
+			assert.Equal(t, 1, count, "equivalent asset spelling should not create a duplicate default")
+		})
+	}
 }

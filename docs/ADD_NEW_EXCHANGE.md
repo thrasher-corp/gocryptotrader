@@ -132,7 +132,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | Gate | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
-| Huobi.Pro | Yes | Yes | NA |
+| HTX | Yes | Yes | NA |
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | No |
 | Lbank | Yes | No | NA |
@@ -160,7 +160,7 @@ var Exchanges = []string{
     "gate",
     "gemini",
     "hitbtc",
-    "huobi",
+    "htx",
     "kraken",
     "kucoin",
     "lbank",
