@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -172,6 +173,53 @@ func TestWebsocketRoutineManagerStop(t *testing.T) {
 		stopWebsocketRoutineManager(t, manager)
 		require.EqualValues(t, queued, delivered.Load(), "Stop must deliver the updates queued when it stopped the receiver")
 	})
+
+	for _, tc := range []struct {
+		name    string
+		startup bool
+	}{
+		{name: "start-up receiver runs until Stop once the runtime context ends", startup: true},
+		{name: "runtime-loaded receiver runs until Stop once the runtime context ends"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var connects atomic.Int32
+			ws, err := testWebsocketManager(&connects)
+			require.NoError(t, err)
+			exch := &websocketTestExchange{name: websocketTestExchangeName, ws: ws, supportsWebsocket: true}
+			t.Cleanup(func() { assert.NoError(t, exch.Shutdown(), "Shutdown should not error") })
+			exchangeManager := NewExchangeManager()
+			if tc.startup {
+				require.NoError(t, exchangeManager.Add(exch), "Add must not error")
+			}
+			manager, err := setupWebsocketRoutineManager(exchangeManager, &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+			require.NoError(t, err)
+			received := make(chan any, 1)
+			require.NoError(t, manager.registerWebsocketDataHandler(func(_ string, data any) error {
+				received <- data
+				return nil
+			}, false))
+			runtimeCtx, requestShutdown := context.WithCancel(t.Context())
+			require.NoError(t, manager.Start(runtimeCtx))
+			t.Cleanup(func() { stopWebsocketRoutineManager(t, manager) })
+			require.Eventually(t, manager.IsRunning, time.Second, 10*time.Millisecond, "routine manager must reach the ready state")
+			if !tc.startup {
+				require.NoError(t, manager.registerExchange(runtimeCtx, exch), "registerExchange must attach the exchange")
+			}
+
+			requestShutdown()
+			for i := range 5 {
+				require.NoError(t, ws.DataHandler.Send(t.Context(), i), "Send must not error")
+				select {
+				case data := <-received:
+					assert.Equal(t, i, data, "receiver should deliver until Stop")
+				case <-time.After(time.Second):
+					require.FailNowf(t, "receiver stopped early", "update %d must be delivered after the runtime context is cancelled", i)
+				}
+				// Gives anything reacting to the cancellation asynchronously time to act before the next update.
+				time.Sleep(20 * time.Millisecond)
+			}
+		})
+	}
 }
 
 func TestWebsocketRoutineManagerConcurrentStartStop(t *testing.T) {
@@ -734,7 +782,7 @@ func TestWebsocketRoutineManagerRegisterExchangeConnectError(t *testing.T) {
 			exch := &websocketTestExchange{name: websocketTestExchangeName, ws: ws, supportsWebsocket: true}
 			t.Cleanup(func() { _ = exch.Shutdown() })
 
-			require.NoError(t, m.registerExchange(t.Context(), exch), "registerExchange must keep the receiver after a connect error")
+			require.ErrorIs(t, m.registerExchange(t.Context(), exch), errRefused, "registerExchange must return the connect error")
 			assert.Equal(t, tc.connected, ws.IsConnected(), "connection state should match the failure")
 			require.NoError(t, ws.DataHandler.Send(t.Context(), tc.name))
 			select {

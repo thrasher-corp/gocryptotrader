@@ -214,7 +214,7 @@ func (m *WebsocketRoutineManager) registerExchange(ctx context.Context, exch exc
 	}
 
 	if err := ws.Connect(ctx); err != nil {
-		log.Errorf(log.WebsocketMgr, "%s websocket connect error: %v", exch.GetName(), err)
+		return fmt.Errorf("%s websocket connect error: %w", exch.GetName(), err)
 	}
 	return nil
 }
