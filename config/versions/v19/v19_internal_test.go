@@ -1,179 +1,155 @@
 package v19
 
 import (
-	"cmp"
-	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
-	"slices"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseInterval(t *testing.T) {
+func TestAddUSDTMarginedPair(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		raw string
-		exp time.Duration
-		ok  bool
+		name     string
+		config   map[string]any
+		expected bool
 	}{
-		{raw: "", ok: true},
-		{raw: `0`, ok: true},
-		{raw: `60000000000`, exp: time.Minute, ok: true},
-		{raw: `"1m"`, exp: time.Minute, ok: true},
-		{raw: `"60s"`, exp: time.Minute, ok: true},
-		{raw: `"1m0s"`, exp: time.Minute, ok: true},
-		{raw: `"1MIN"`, exp: time.Minute, ok: true},
-		{raw: `"60S"`, exp: time.Minute, ok: true},
-		{raw: `"1minute"`, exp: time.Minute, ok: true},
-		{raw: `"2w"`, exp: 14 * 24 * time.Hour, ok: true},
-		{raw: `"1M"`, exp: 30 * 24 * time.Hour, ok: true},
-		{raw: `"1mo"`, exp: 30 * 24 * time.Hour, ok: true},
-		{raw: `"0d"`, ok: true},
-		{raw: `"raw"`},
-		{raw: `null`},
-		{raw: `"1 minute"`},
-		{raw: `"m"`},
-		{raw: `"5x"`},
-		{raw: `"99999999999999999999m"`},
-		{raw: `"9007199254740993m"`},
-	} {
-		t.Run(cmp.Or(tc.raw, "omitted"), func(t *testing.T) {
-			t.Parallel()
-			interval, ok := parseInterval(json.RawMessage(tc.raw))
-			assert.Equalf(t, tc.ok, ok, "parseInterval should report whether %q has a duration", tc.raw)
-			assert.Equalf(t, tc.exp, interval, "parseInterval should parse %q as the runtime does", tc.raw)
-		})
-	}
-}
-
-func TestSubscriptionMatches(t *testing.T) {
-	t.Parallel()
-	candles := subscription{channel: "candles", asset: "spot", interval: time.Minute}
-	minute := json.RawMessage(`"1m"`)
-	for _, tc := range []struct {
-		name  string
-		saved savedSubscription
-		exp   bool
-	}{
-		{name: "as saved", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: minute}, exp: true},
-		{name: "with the asset in upper case", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "SPOT", Interval: minute}, exp: true},
-		{name: "with the interval in seconds", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: json.RawMessage(`"60s"`)}, exp: true},
-		{name: "with empty parameters", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: minute, Params: map[string]any{}}, exp: true},
-		{name: "disabled", saved: savedSubscription{Channel: "candles", Asset: "spot", Interval: minute}},
-		{name: "with a capitalised channel", saved: savedSubscription{Enabled: true, Channel: "Candles", Asset: "spot", Interval: minute}},
-		{name: "for another asset", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "futures", Interval: minute}},
-		{name: "with pairs", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: minute, Pairs: "XBT/USD"}},
-		{name: "with parameters", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: minute, Params: map[string]any{"snapshot": false}}},
-		{name: "with levels", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: minute, Levels: 10}},
-		{name: "authenticated", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: minute, Authenticated: true}},
-		{name: "with another interval", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: json.RawMessage(`"5m"`)}},
-		{name: "with an interval without a duration", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: json.RawMessage(`"raw"`)}},
+		{name: "missing currency pairs", config: map[string]any{}},
+		{name: "missing pairs", config: map[string]any{"currencyPairs": map[string]any{}}},
+		{
+			name: "existing pair",
+			config: map[string]any{
+				"currencyPairs": map[string]any{
+					"pairs": map[string]any{"usdtmarginedfutures": "existing"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "add pair",
+			config: map[string]any{
+				"currencyPairs": map[string]any{"pairs": map[string]any{}},
+			},
+			expected: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equalf(t, tc.exp, candles.matches(&tc.saved), "matches should report whether the subscription %s is the default", tc.name)
+			addUSDTMarginedPair(tc.config)
+			currencyPairs, ok := tc.config["currencyPairs"].(map[string]any)
+			if !tc.expected {
+				if ok {
+					pairs, _ := currencyPairs["pairs"].(map[string]any)
+					assert.NotContains(t, pairs, "usdtmarginedfutures", "pair should not be added without the required parent configuration")
+				}
+				return
+			}
+			require.True(t, ok, "currency-pair configuration must exist")
+			pairs, ok := currencyPairs["pairs"].(map[string]any)
+			require.True(t, ok, "pair configuration must exist")
+			pair, found := pairs["usdtmarginedfutures"]
+			require.True(t, found, "USDT-margined pair configuration must exist")
+			if tc.name == "existing pair" {
+				assert.Equal(t, "existing", pair, "existing pair configuration should be preserved")
+				return
+			}
+			pairConfig, ok := pair.(map[string]any)
+			require.True(t, ok, "added pair configuration must use an object")
+			assert.Equal(t, "BTC-USDT", pairConfig["enabled"], "enabled pair should match")
+			assert.Equal(t, "BTC-USDT", pairConfig["available"], "available pair should match")
+		})
+	}
+	for _, key := range []string{"usdtmarginedfutures", "USDTMarginedFutures", "USDTMARGINEDFUTURES"} {
+		t.Run("preserve "+key, func(t *testing.T) {
+			t.Parallel()
+			pairs := map[string]any{key: "existing"}
+			addUSDTMarginedPair(map[string]any{"currencyPairs": map[string]any{"pairs": pairs}})
+			assert.Equal(t, map[string]any{key: "existing"}, pairs, "equivalent asset keys should preserve existing settings without adding defaults")
 		})
 	}
 }
 
-func TestMatchDefaults(t *testing.T) {
+func TestAddDerivativeSubscriptions(t *testing.T) {
 	t.Parallel()
-	saved := func(defaults ...subscription) []savedSubscription {
-		subs := make([]savedSubscription, len(defaults))
-		for i, d := range defaults {
-			subs[i] = savedSubscription{Enabled: true, Channel: d.channel, Asset: d.asset, Levels: d.levels, Authenticated: d.authenticated}
-			if d.interval != 0 {
-				subs[i].Interval = json.RawMessage(`"` + d.interval.String() + `"`)
+	t.Run("missing features", func(t *testing.T) {
+		t.Parallel()
+		config := map[string]any{}
+		addDerivativeSubscriptions(config)
+		assert.NotContains(t, config, "features", "missing feature configuration should remain unchanged")
+	})
+
+	t.Run("add and preserve subscriptions", func(t *testing.T) {
+		t.Parallel()
+		config := map[string]any{
+			"features": map[string]any{
+				"subscriptions": []any{
+					nil,
+					map[string]any{"enabled": true, "channel": "myAccount", "authenticated": true},
+					map[string]any{"enabled": true, "channel": "ticker", "asset": "futures"},
+					map[string]any{"enabled": true, "channel": "myOrders", "asset": "futures", "authenticated": true},
+				},
+			},
+		}
+		addDerivativeSubscriptions(config)
+		features, ok := config["features"].(map[string]any)
+		require.True(t, ok, "features must remain an object")
+		subscriptions, ok := features["subscriptions"].([]any)
+		require.True(t, ok, "subscriptions must remain a list")
+		require.Len(t, subscriptions, 31, "existing entries and missing derivative defaults must be retained")
+		spotAccount, ok := subscriptions[1].(map[string]any)
+		require.True(t, ok, "spot account subscription must remain an object")
+		assert.Equal(t, "spot", spotAccount["asset"], "spot account subscription should gain its asset")
+		privateCount := 0
+		for _, sub := range subscriptions {
+			entry, ok := sub.(map[string]any)
+			if !ok {
+				continue
+			}
+			assetName, _ := entry["asset"].(string)
+			authenticated, _ := entry["authenticated"].(bool)
+			if authenticated && assetName != "spot" {
+				privateCount++
 			}
 		}
-		return subs
+		assert.Equal(t, 17, privateCount, "all derivative private subscriptions should exist")
+
+		addDerivativeSubscriptions(config)
+		assert.Len(t, features["subscriptions"], 31, "repeated migration should not duplicate subscriptions")
+	})
+	for _, scope := range []string{"", "all", "All", "ALL"} {
+		for _, channel := range []string{"ticker", "orderbook", "candles", "allTrades", "myOrders", "myTrades", "myAccount", "orders#*"} {
+			t.Run(scope+"/"+channel, func(t *testing.T) {
+				t.Parallel()
+				entry := map[string]any{"enabled": false, "asset": scope, "channel": channel}
+				cfg := map[string]any{"features": map[string]any{"subscriptions": []any{entry}}}
+				addDerivativeSubscriptions(cfg)
+				assert.Equal(t, "spot", entry["asset"], "legacy wildcard scope should preserve spot coverage on every channel")
+				assert.Equal(t, false, entry["enabled"], "disabled user choices should remain disabled")
+			})
+		}
 	}
-	previous := previousSubscriptions
-	matched, ok := matchDefaults(saved(previous[5], previous[4], previous[3], previous[2], previous[1], previous[0]), previous)
-	require.True(t, ok, "matchDefaults must match the defaults in another order")
-	assert.Equal(t, []int{5, 4, 3, 2, 1, 0}, matched, "matchDefaults should return the index of each saved subscription's default")
 
-	current := slices.Concat(previousSubscriptions, futuresSubscriptions)
-	matched, ok = matchDefaults(saved(current...), current)
-	require.True(t, ok, "matchDefaults must match the current defaults")
-	assert.Equal(t, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, matched, "matchDefaults should tell the futures defaults from the spot ones")
-
-	for name, subs := range map[string][]savedSubscription{
-		"a default missing":    saved(previous[1:]...),
-		"a default duplicated": saved(previous[0], previous[0], previous[2], previous[3], previous[4], previous[5]),
-		"another subscription": saved(slices.Concat(previous, futuresSubscriptions[:1])...),
-		"no subscriptions":     nil,
-	} {
-		t.Run(name, func(t *testing.T) {
+	for _, scope := range []string{"futures", "Futures", "FUTURES"} {
+		t.Run("preserve disabled "+scope, func(t *testing.T) {
 			t.Parallel()
-			_, ok := matchDefaults(subs, previous)
-			assert.Falsef(t, ok, "matchDefaults should not match %s", name)
+			entry := map[string]any{"enabled": false, "asset": scope, "channel": "ticker"}
+			cfg := map[string]any{"features": map[string]any{"subscriptions": []any{entry}}}
+			addDerivativeSubscriptions(cfg)
+			features, ok := cfg["features"].(map[string]any)
+			require.True(t, ok, "features must remain an object")
+			subs, ok := features["subscriptions"].([]any)
+			require.True(t, ok, "subscriptions must remain a list")
+			count := 0
+			for _, sub := range subs {
+				item, ok := sub.(map[string]any)
+				require.True(t, ok, "subscription must remain an object")
+				if name, _ := item["asset"].(string); strings.EqualFold(name, "futures") && item["channel"] == "ticker" {
+					count++
+					assert.Equal(t, false, item["enabled"], "capitalised asset scopes should preserve explicit disabled choices")
+				}
+			}
+			assert.Equal(t, 1, count, "equivalent asset spelling should not create a duplicate default")
 		})
 	}
-}
-
-func TestMigrateEndpoints(t *testing.T) {
-	t.Parallel()
-	var offered []string
-	migrate := func(endpoint string) (string, bool) {
-		offered = append(offered, endpoint)
-		return endpoint + "/next", endpoint == "wss://a"
-	}
-	got, err := migrateEndpoints([]byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://a","WebsocketSpotSupplementaryURL":"wss://b","RestSpotURL":"wss://a"}}}`), migrate)
-	require.NoError(t, err, "migrateEndpoints must not error")
-	assert.JSONEq(t, `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://a/next","WebsocketSpotSupplementaryURL":"wss://b","RestSpotURL":"wss://a"}}}`, string(got), "migrateEndpoints should replace only the websocket endpoints migrate replaces")
-	assert.Equal(t, []string{"wss://a", "wss://b"}, offered, "migrateEndpoints should offer migrate each websocket endpoint")
-
-	offered = nil
-	got, err = migrateEndpoints([]byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":5}}}`), migrate)
-	require.NoError(t, err, "migrateEndpoints must not error for an endpoint that is not a string")
-	assert.JSONEq(t, `{"api":{"urlEndpoints":{"WebsocketSpotURL":5}}}`, string(got), "migrateEndpoints should keep an endpoint that is not a string")
-	assert.Empty(t, offered, "migrateEndpoints should not offer migrate an endpoint that is not a string")
-
-	_, err = migrateEndpoints([]byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://a`), migrate)
-	assert.ErrorIs(t, err, jsonparser.MalformedStringError, "migrateEndpoints should reject an unterminated endpoint")
-	_, err = migrateEndpoints([]byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\q"}}}`), migrate)
-	assert.ErrorIs(t, err, jsonparser.MalformedValueError, "migrateEndpoints should reject an endpoint with an invalid escape")
-}
-
-func TestMigrateSubscriptions(t *testing.T) {
-	t.Parallel()
-	previous := `{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"allTrades","asset":"spot"},` +
-		`{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"},{"enabled":true,"channel":"orderbook","asset":"spot","levels":1000},` +
-		`{"enabled":true,"channel":"myOrders","authenticated":true},{"enabled":true,"channel":"myTrades","authenticated":true}`
-	futures := `{"enabled":true,"channel":"ticker","asset":"futures"},{"enabled":true,"channel":"allTrades","asset":"futures"},` +
-		`{"enabled":true,"channel":"orderbook","asset":"futures"},{"enabled":true,"channel":"myOrders","asset":"futures","authenticated":true},` +
-		`{"enabled":true,"channel":"myTrades","asset":"futures","authenticated":true},{"enabled":true,"channel":"myWallet","asset":"futures","authenticated":true}`
-	features := func(subs ...string) string {
-		return `{"features":{"subscriptions":[` + strings.Join(subs, ",") + `]}}`
-	}
-	for _, tc := range []struct {
-		name, in, exp string
-		upgrade       bool
-	}{
-		{name: "upgrading the previous defaults", in: features(previous), exp: features(previous, futures), upgrade: true},
-		{name: "upgrading the current defaults", in: features(previous, futures), exp: features(previous, futures), upgrade: true},
-		{name: "downgrading the current defaults", in: features(previous, futures), exp: features(previous)},
-		{name: "downgrading the previous defaults", in: features(previous), exp: features(previous)},
-		{name: "upgrading without subscriptions", in: `{"features":{}}`, exp: `{"features":{}}`, upgrade: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			got, err := migrateSubscriptions([]byte(tc.in), tc.upgrade)
-			require.NoErrorf(t, err, "migrateSubscriptions must not error %s", tc.name)
-			assert.JSONEqf(t, tc.exp, string(got), "migrateSubscriptions should give the expected subscriptions %s", tc.name)
-		})
-	}
-
-	_, err := migrateSubscriptions([]byte(`{"features":{"subscriptions":[}}`), true)
-	assert.ErrorIs(t, err, jsonparser.MalformedArrayError, "migrateSubscriptions should reject unterminated subscriptions")
-	var typeErr *json.UnmarshalTypeError
-	_, err = migrateSubscriptions([]byte(`{"features":{"subscriptions":{}}}`), true)
-	assert.ErrorAs(t, err, &typeErr, "migrateSubscriptions should reject subscriptions that are not an array")
-	_, err = migrateSubscriptions([]byte(`{"features":{"subscriptions":[1]}}`), false)
-	assert.ErrorAs(t, err, &typeErr, "migrateSubscriptions should reject a subscription that is not an object")
 }
