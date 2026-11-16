@@ -86,9 +86,6 @@ func (m *WithdrawManager) SubmitWithdrawal(ctx context.Context, req *withdraw.Re
 		}
 	}
 	dbwithdraw.Event(resp)
-	if err == nil {
-		withdraw.Cache.Add(resp.ID, resp)
-	}
 	return resp, err
 }
 

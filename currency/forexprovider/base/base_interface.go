@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -77,12 +76,6 @@ func (p Provider) CheckCurrencies(currencies []string) []string {
 
 // GetCurrencyData returns currency data from enabled FX providers
 func (f *FXHandler) GetCurrencyData(baseCurrency string, currencies []string) (map[string]float64, error) {
-	fullRange := currencies
-
-	if !common.StringSliceCompareInsensitive(currencies, baseCurrency) {
-		fullRange = append(fullRange, baseCurrency)
-	}
-
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 
@@ -90,25 +83,20 @@ func (f *FXHandler) GetCurrencyData(baseCurrency string, currencies []string) (m
 		return nil, errors.New("primary foreign exchange provider details not set")
 	}
 
-	shunt := f.Primary.CheckCurrencies(fullRange)
 	rates, err := f.Primary.GetNewRate(baseCurrency, currencies)
 	if err != nil {
-		return f.backupGetRate(baseCurrency, currencies)
+		backupRates, backupErr := f.backupGetRate(baseCurrency, currencies)
+		if backupErr != nil {
+			return nil, fmt.Errorf("primary provider %s failed: %w; fallback providers failed: %w",
+				f.Primary.Provider.GetName(),
+				err,
+				backupErr)
+		}
+		return backupRates, nil
 	}
 
-	if len(shunt) != 0 {
-		return rates, nil
-	}
-
-	rateNew, err := f.backupGetRate(baseCurrency, shunt)
-	if err != nil {
-		log.Warnf(log.Global, "%s and subsequent providers, failed to update rate map for currencies %v %v",
-			f.Primary.Provider.GetName(),
-			shunt,
-			err)
-	}
-
-	maps.Copy(rates, rateNew)
+	// Spillover stays with the primary: support results cannot be merged safely yet, as a provider sent an empty list
+	// answers with every rate it has and would overwrite the primary's quotes.
 	return rates, nil
 }
 

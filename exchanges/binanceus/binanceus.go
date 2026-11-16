@@ -750,7 +750,7 @@ func (e *Exchange) GetSubaccountInformation(ctx context.Context, page, limit uin
 		subaccountsInformation,
 		params,
 		spotDefaultRate,
-		resp)
+		&resp)
 }
 
 // GetSubaccountTransferHistory to fetch sub-account asset transfer history.
@@ -789,7 +789,7 @@ func (e *Exchange) GetSubaccountTransferHistory(ctx context.Context, email strin
 		subaccountTransferHistory,
 		params,
 		spotDefaultRate,
-		resp)
+		&resp)
 }
 
 // ExecuteSubAccountTransfer to execute sub-account asset transfers.
@@ -1028,7 +1028,7 @@ func (e *Exchange) CancelOpenOrdersForSymbol(ctx context.Context, symbol string)
 	var response []Order
 	return response, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodDelete, openOrders,
-		params, spotOrderRate, response)
+		params, spotOrderRate, &response)
 }
 
 // GetTrades to get trade data for a specific account and token symbol.
