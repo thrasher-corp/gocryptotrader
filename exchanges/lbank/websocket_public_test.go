@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -89,35 +88,19 @@ func TestWebsocketPublicHandlers(t *testing.T) {
 	assert.Empty(t, conn.messages(), "the handlers should send nothing back")
 }
 
-func TestWebsocketPublicHandlerErrors(t *testing.T) {
-	t.Parallel()
-	ex := newChannelTestExchange(t)
-	conn := &recordingConnection{}
-	for _, tc := range []struct {
-		name  string
-		frame string
-		err   error
-	}{
-		{name: "unknown pair ticker", frame: `{"tick":{"latest":1},"type":"tick","pair":"nope_usdt","TS":"2026-10-25T08:23:20.879"}`, err: currency.ErrPairNotFound},
-		{name: "unknown pair depth", frame: `{"depth":{"asks":[],"bids":[]},"type":"depth","pair":"nope_usdt","TS":"2026-10-25T08:23:20.879"}`, err: currency.ErrPairNotFound},
-		{name: "unknown pair trade", frame: `{"trade":{"price":1,"volume":1,"direction":"buy"},"type":"trade","pair":"nope_usdt"}`, err: currency.ErrPairNotFound},
-		{name: "unknown pair candle", frame: `{"kbar":{"slot":"1min"},"type":"kbar","pair":"nope_usdt"}`, err: currency.ErrPairNotFound},
-		{name: "unknown trade direction", frame: `{"trade":{"price":1,"volume":1,"direction":"hold"},"type":"trade","pair":"btc_usdt"}`, err: order.ErrSideIsInvalid},
-		{name: "unknown candle slot", frame: `{"kbar":{"slot":"2min"},"type":"kbar","pair":"btc_usdt"}`, err: kline.ErrUnsupportedInterval},
-	} {
-		err := ex.wsHandleData(t.Context(), conn, []byte(tc.frame))
-		assert.ErrorIsf(t, err, tc.err, "wsHandleData should reject the %s", tc.name)
-	}
-	assert.Empty(t, relayedPayloads(ex), "wsHandleData should relay nothing it rejected")
-}
-
 func TestIntervalFromKlineSlot(t *testing.T) {
 	t.Parallel()
 	for interval, slot := range websocketKlineSlots {
-		got, err := intervalFromKlineSlot(slot)
-		require.NoErrorf(t, err, "intervalFromKlineSlot must not error for %s", slot)
-		assert.Equalf(t, interval, got, "intervalFromKlineSlot should map %s back to its interval", slot)
+		t.Run(slot, func(t *testing.T) {
+			t.Parallel()
+			got, err := intervalFromKlineSlot(slot)
+			require.NoErrorf(t, err, "intervalFromKlineSlot must not error for %s", slot)
+			assert.Equalf(t, interval, got, "intervalFromKlineSlot should map %s back to its interval", slot)
+		})
 	}
-	_, err := intervalFromKlineSlot("year")
-	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "intervalFromKlineSlot should reject a slot without an interval")
+	t.Run("slot without an interval", func(t *testing.T) {
+		t.Parallel()
+		_, err := intervalFromKlineSlot("year")
+		assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "intervalFromKlineSlot should reject a slot without an interval")
+	})
 }

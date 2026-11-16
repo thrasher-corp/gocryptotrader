@@ -176,20 +176,48 @@ func TestCreateSubscribeKey(t *testing.T) {
 
 func TestRefreshSubscribeKey(t *testing.T) {
 	t.Parallel()
-	require.ErrorIs(t, e.RefreshSubscribeKey(t.Context(), ""), errSubscribeKeyRequired, "RefreshSubscribeKey must require a key")
-	if !mockTests {
-		t.Skip("RefreshSubscribeKey needs a key the account created")
-	}
-	assert.NoError(t, e.RefreshSubscribeKey(t.Context(), testSubscribeKey), "RefreshSubscribeKey should not error")
+	t.Run("no key", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.RefreshSubscribeKey(t.Context(), ""), errSubscribeKeyRequired, "RefreshSubscribeKey must require a key")
+	})
+	t.Run("a key the account created", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		key := testSubscribeKey
+		if !mockTests {
+			key = createLiveSubscribeKey(t)
+			t.Cleanup(func() {
+				assert.NoError(t, e.CloseSubscribeKey(context.WithoutCancel(t.Context()), key), "CloseSubscribeKey should close the key")
+			})
+		}
+		assert.NoError(t, e.RefreshSubscribeKey(t.Context(), key), "RefreshSubscribeKey should not error")
+	})
 }
 
 func TestCloseSubscribeKey(t *testing.T) {
 	t.Parallel()
-	require.ErrorIs(t, e.CloseSubscribeKey(t.Context(), ""), errSubscribeKeyRequired, "CloseSubscribeKey must require a key")
-	if !mockTests {
-		t.Skip("CloseSubscribeKey needs a key the account created")
-	}
-	assert.NoError(t, e.CloseSubscribeKey(t.Context(), testSubscribeKey), "CloseSubscribeKey should not error")
+	t.Run("no key", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.CloseSubscribeKey(t.Context(), ""), errSubscribeKeyRequired, "CloseSubscribeKey must require a key")
+	})
+	t.Run("a key the account created", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		key := testSubscribeKey
+		if !mockTests {
+			key = createLiveSubscribeKey(t)
+		}
+		assert.NoError(t, e.CloseSubscribeKey(t.Context(), key), "CloseSubscribeKey should not error")
+	})
+}
+
+// createLiveSubscribeKey creates a subscribe key for the account live
+func createLiveSubscribeKey(t *testing.T) string {
+	t.Helper()
+	key, err := e.CreateSubscribeKey(t.Context())
+	require.NoError(t, err, "CreateSubscribeKey must not error")
+	require.NotEmpty(t, key, "CreateSubscribeKey must return a key")
+	return key
 }
 
 func TestSubscribeKeyStore(t *testing.T) {
@@ -230,55 +258,80 @@ func TestSubscribeKeyStore(t *testing.T) {
 
 func TestConnectionGone(t *testing.T) {
 	t.Parallel()
-	assert.False(t, connectionGone(&recordingConnection{connected: true}), "connectionGone should report a connected connection as live")
-	assert.True(t, connectionGone(&recordingConnection{}), "connectionGone should report a shut down connection as gone")
-	assert.False(t, connectionGone(struct{ websocket.Connection }{}), "connectionGone should take a connection that can't tell as live")
+	t.Run("connected", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, connectionGone(&recordingConnection{connected: true}), "connectionGone should report a connected connection as live")
+	})
+	t.Run("shut down", func(t *testing.T) {
+		t.Parallel()
+		assert.True(t, connectionGone(&recordingConnection{}), "connectionGone should report a shut down connection as gone")
+	})
+	t.Run("connection that can't tell", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, connectionGone(struct{ websocket.Connection }{}), "connectionGone should take a connection that can't tell as live")
+	})
 }
 
 func TestSubscribeKeyTimingsNextRenewal(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, subscribeKeyRefreshInterval, defaultSubscribeKeyTimings.nextRenewal(nil), "nextRenewal should wait the refresh interval after a renewal")
-	assert.Equal(t, subscribeKeyRetryInterval, defaultSubscribeKeyTimings.nextRenewal(errRequestFailed), "nextRenewal should retry sooner after a failed renewal")
-	short := subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: time.Minute, lifetime: time.Hour}
-	assert.Equal(t, 10*time.Millisecond, short.nextRenewal(errRequestFailed), "nextRenewal should never wait longer than the refresh interval")
+	t.Run("after a renewal", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, subscribeKeyRefreshInterval, defaultSubscribeKeyTimings.nextRenewal(nil), "nextRenewal should wait the refresh interval after a renewal")
+	})
+	t.Run("after a failed renewal", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, subscribeKeyRetryInterval, defaultSubscribeKeyTimings.nextRenewal(errRequestFailed), "nextRenewal should retry sooner after a failed renewal")
+	})
+	t.Run("retry interval longer than the refresh interval", func(t *testing.T) {
+		t.Parallel()
+		short := subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: time.Minute, lifetime: time.Hour}
+		assert.Equal(t, 10*time.Millisecond, short.nextRenewal(errRequestFailed), "nextRenewal should never wait longer than the refresh interval")
+	})
 }
 
 func TestStartSubscribeKey(t *testing.T) {
 	t.Parallel()
-	server := &subscribeKeyServer{}
-	ex := newTestServerExchange(t, server.handler(t))
-	conn := &recordingConnection{connected: true}
-	ctx, cancel := context.WithCancel(t.Context())
-	timings := subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: 10 * time.Millisecond, lifetime: time.Hour}
-	require.NoError(t, ex.startSubscribeKey(ctx, conn, timings), "startSubscribeKey must not error")
-	assert.Equal(t, testSubscribeKey, ex.subscribeKeys.get(conn), "startSubscribeKey should give the connection its key")
-	assert.Equal(t, []string{""}, server.sent("/v2/subscribe/get_key.do"), "startSubscribeKey should create one key")
-	cancel()
-	refreshed := len(server.sent("/v2/subscribe/refresh_key.do"))
-	require.Eventually(t, func() bool {
-		return len(server.sent("/v2/subscribe/refresh_key.do")) >= refreshed+2
-	}, 5*time.Second, 5*time.Millisecond, "the renewer must go on refreshing the key once the request that created it is done")
-	assert.Equal(t, testSubscribeKey, ex.subscribeKeys.get(conn), "the renewer should keep the connection's key once the request that created it is done")
-	assert.Empty(t, relayedPayloads(ex), "the renewer's refreshes should succeed once the request that created the key is done")
-	close(ex.Websocket.ShutdownC)
-	waitForRenewers(t, ex)
-	assert.Equal(t, []string{testSubscribeKey}, server.sent("/v2/subscribe/destroy_key.do"), "the renewer should close the key when the websocket shuts down")
-	assert.Empty(t, ex.subscribeKeys.get(conn), "the renewer should forget the closed key")
-
-	refused := &subscribeKeyServer{failGet: true}
-	ex = newTestServerExchange(t, refused.handler(t))
-	conn = &recordingConnection{connected: true}
-	require.ErrorIs(t, ex.startSubscribeKey(t.Context(), conn, defaultSubscribeKeyTimings), request.ErrAuthRequestFailed, "startSubscribeKey must report a key it couldn't create")
-	assert.Empty(t, ex.subscribeKeys.get(conn), "startSubscribeKey should give the connection no key it couldn't create")
-	waitForRenewers(t, ex)
-
-	server = &subscribeKeyServer{}
-	ex = newTestServerExchange(t, server.handler(t))
-	gone := &recordingConnection{}
-	require.ErrorIs(t, ex.startSubscribeKey(t.Context(), gone, defaultSubscribeKeyTimings), websocket.ErrNotConnected, "startSubscribeKey must report a connection shut down while its key was created")
-	assert.Equal(t, []string{testSubscribeKey}, server.sent("/v2/subscribe/destroy_key.do"), "startSubscribeKey should close the key of a connection shut down meanwhile")
-	assert.Empty(t, ex.subscribeKeys.get(gone), "startSubscribeKey should give a connection shut down meanwhile no key")
-	waitForRenewers(t, ex)
+	t.Run("created and renewed", func(t *testing.T) {
+		t.Parallel()
+		server := &subscribeKeyServer{}
+		ex := newTestServerExchange(t, server.handler(t))
+		conn := &recordingConnection{connected: true}
+		ctx, cancel := context.WithCancel(t.Context())
+		timings := subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: 10 * time.Millisecond, lifetime: time.Hour}
+		require.NoError(t, ex.startSubscribeKey(ctx, conn, timings), "startSubscribeKey must not error")
+		assert.Equal(t, testSubscribeKey, ex.subscribeKeys.get(conn), "startSubscribeKey should give the connection its key")
+		assert.Equal(t, []string{""}, server.sent("/v2/subscribe/get_key.do"), "startSubscribeKey should create one key")
+		cancel()
+		refreshed := len(server.sent("/v2/subscribe/refresh_key.do"))
+		require.Eventually(t, func() bool {
+			return len(server.sent("/v2/subscribe/refresh_key.do")) >= refreshed+2
+		}, 5*time.Second, 5*time.Millisecond, "the renewer must go on refreshing the key once the request that created it is done")
+		assert.Equal(t, testSubscribeKey, ex.subscribeKeys.get(conn), "the renewer should keep the connection's key once the request that created it is done")
+		assert.Empty(t, relayedPayloads(ex), "the renewer's refreshes should succeed once the request that created the key is done")
+		close(ex.Websocket.ShutdownC)
+		waitForRenewers(t, ex)
+		assert.Equal(t, []string{testSubscribeKey}, server.sent("/v2/subscribe/destroy_key.do"), "the renewer should close the key when the websocket shuts down")
+		assert.Empty(t, ex.subscribeKeys.get(conn), "the renewer should forget the closed key")
+	})
+	t.Run("refused", func(t *testing.T) {
+		t.Parallel()
+		refused := &subscribeKeyServer{failGet: true}
+		ex := newTestServerExchange(t, refused.handler(t))
+		conn := &recordingConnection{connected: true}
+		require.ErrorIs(t, ex.startSubscribeKey(t.Context(), conn, defaultSubscribeKeyTimings), request.ErrAuthRequestFailed, "startSubscribeKey must report a key it couldn't create")
+		assert.Empty(t, ex.subscribeKeys.get(conn), "startSubscribeKey should give the connection no key it couldn't create")
+		waitForRenewers(t, ex)
+	})
+	t.Run("connection shut down meanwhile", func(t *testing.T) {
+		t.Parallel()
+		server := &subscribeKeyServer{}
+		ex := newTestServerExchange(t, server.handler(t))
+		gone := &recordingConnection{}
+		require.ErrorIs(t, ex.startSubscribeKey(t.Context(), gone, defaultSubscribeKeyTimings), websocket.ErrNotConnected, "startSubscribeKey must report a connection shut down while its key was created")
+		assert.Equal(t, []string{testSubscribeKey}, server.sent("/v2/subscribe/destroy_key.do"), "startSubscribeKey should close the key of a connection shut down meanwhile")
+		assert.Empty(t, ex.subscribeKeys.get(gone), "startSubscribeKey should give a connection shut down meanwhile no key")
+		waitForRenewers(t, ex)
+	})
 }
 
 func TestWebsocketSubscribeAccountKey(t *testing.T) {
@@ -366,144 +419,142 @@ func TestWebsocketSubscribeAccountKey(t *testing.T) {
 
 func TestKeepSubscribeKeyAlive(t *testing.T) {
 	t.Parallel()
-	// On the fake clock a stalled runner can't hold the renewer up for the key's lifetime, which would rightly replace it
-	synctest.Test(t, func(t *testing.T) {
-		server := &subscribeKeyServer{}
-		handler := server.handler(t)
-		conn := &recordingConnection{connected: true}
-		var requests atomic.Int64
-		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// The fake clock stands still while a renewer runs without waiting, so one that does is stopped at the
-			// server's request limit rather than left to hang the test
-			if requests.Add(1) == testServerRequestLimit {
-				conn.setConnected(false)
-			}
-			handler.ServeHTTP(w, r)
-		}))
-		timings := subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: 10 * time.Millisecond, lifetime: 200 * time.Millisecond}
-		shutdown := make(chan struct{})
-		// A renewer left running by a failed assertion would panic the bubble as it ends, aborting the package
-		defer func() {
-			close(shutdown)
+	t.Run("refreshed until the connection goes", func(t *testing.T) {
+		t.Parallel()
+		// On the fake clock a stalled runner can't hold the renewer up for the key's lifetime, which would rightly replace it
+		synctest.Test(t, func(t *testing.T) {
+			server := &subscribeKeyServer{}
+			handler := server.handler(t)
+			conn := &recordingConnection{connected: true}
+			var requests atomic.Int64
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// The fake clock stands still while a renewer runs without waiting, so one that does is stopped at the
+				// server's request limit rather than left to hang the test
+				if requests.Add(1) == testServerRequestLimit {
+					conn.setConnected(false)
+				}
+				handler.ServeHTTP(w, r)
+			}))
+			timings := subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: 10 * time.Millisecond, lifetime: 200 * time.Millisecond}
+			shutdown := make(chan struct{})
+			// A renewer left running by a failed assertion would panic the bubble as it ends, aborting the package
+			defer func() {
+				close(shutdown)
+				waitForRenewers(t, ex)
+			}()
+			// The fake clock starts at midnight, where truncating a renewal time to the key's lifetime, or to the second,
+			// minute or hour, changes nothing, so the renewer starts a millisecond short of a whole second
+			time.Sleep(time.Second - time.Millisecond)
+			ex.subscribeKeys.set(conn, testSubscribeKey)
+			ex.Websocket.Wg.Add(1)
+			go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, timings)
+			// The connection outlives the key's lifetime, which each refresh extends
+			synctest.Sleep(5 * timings.lifetime / 2)
+			conn.setConnected(false)
 			waitForRenewers(t, ex)
-		}()
-		// The fake clock starts at midnight, where truncating a renewal time to the key's lifetime, or to the second,
-		// minute or hour, changes nothing, so the renewer starts a millisecond short of a whole second
-		time.Sleep(time.Second - time.Millisecond)
+			refreshed := server.sent("/v2/subscribe/refresh_key.do")
+			assert.GreaterOrEqual(t, len(refreshed), 2, "the renewer should refresh the key while the connection lives")
+			for _, key := range refreshed {
+				assert.Equal(t, testSubscribeKey, key, "the renewer should refresh the connection's own key")
+			}
+			assert.Equal(t, []string{testSubscribeKey}, server.sent("/v2/subscribe/destroy_key.do"), "the renewer should close the key once the connection has gone")
+			assert.Empty(t, ex.subscribeKeys.get(conn), "the renewer should forget the closed key")
+			assert.Empty(t, server.sent("/v2/subscribe/get_key.do"), "the renewer should not replace a key its refreshes keep alive")
+		})
+	})
+	t.Run("websocket shut down", func(t *testing.T) {
+		t.Parallel()
+		server := &subscribeKeyServer{}
+		ex := newTestServerExchange(t, server.handler(t))
+		conn := &recordingConnection{connected: true}
+		shutdown := make(chan struct{})
 		ex.subscribeKeys.set(conn, testSubscribeKey)
 		ex.Websocket.Wg.Add(1)
-		go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, timings)
-		// The connection outlives the key's lifetime, which each refresh extends
-		synctest.Sleep(5 * timings.lifetime / 2)
-		conn.setConnected(false)
+		go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, defaultSubscribeKeyTimings)
+		close(shutdown)
 		waitForRenewers(t, ex)
-		refreshed := server.sent("/v2/subscribe/refresh_key.do")
-		assert.GreaterOrEqual(t, len(refreshed), 2, "the renewer should refresh the key while the connection lives")
-		for _, key := range refreshed {
-			assert.Equal(t, testSubscribeKey, key, "the renewer should refresh the connection's own key")
-		}
-		assert.Equal(t, []string{testSubscribeKey}, server.sent("/v2/subscribe/destroy_key.do"), "the renewer should close the key once the connection has gone")
+		assert.Equal(t, []string{testSubscribeKey}, server.sent("/v2/subscribe/destroy_key.do"), "the renewer should close the key when the websocket shuts down")
 		assert.Empty(t, ex.subscribeKeys.get(conn), "the renewer should forget the closed key")
-		assert.Empty(t, server.sent("/v2/subscribe/get_key.do"), "the renewer should not replace a key its refreshes keep alive")
 	})
-}
-
-func TestKeepSubscribeKeyAliveShutdown(t *testing.T) {
-	t.Parallel()
-	server := &subscribeKeyServer{}
-	ex := newTestServerExchange(t, server.handler(t))
-	conn := &recordingConnection{connected: true}
-	shutdown := make(chan struct{})
-	ex.subscribeKeys.set(conn, testSubscribeKey)
-	ex.Websocket.Wg.Add(1)
-	go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, defaultSubscribeKeyTimings)
-	close(shutdown)
-	waitForRenewers(t, ex)
-	assert.Equal(t, []string{testSubscribeKey}, server.sent("/v2/subscribe/destroy_key.do"), "the renewer should close the key when the websocket shuts down")
-	assert.Empty(t, ex.subscribeKeys.get(conn), "the renewer should forget the closed key")
-}
-
-func TestKeepSubscribeKeyAliveRefreshFailure(t *testing.T) {
-	t.Parallel()
-	server := &subscribeKeyServer{expired: testSubscribeKey}
-	ex := newTestServerExchange(t, server.handler(t))
-	conn := &recordingConnection{connected: true}
-	shutdown := make(chan struct{})
-	ex.subscribeKeys.set(conn, testSubscribeKey)
-	ex.Websocket.Wg.Add(1)
-	go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: 10 * time.Millisecond, lifetime: time.Hour})
-	var relayed []error
-	require.Eventually(t, func() bool {
-		for len(ex.Websocket.DataHandler.C) > 0 {
-			if err, ok := (<-ex.Websocket.DataHandler.C).Data.(error); ok {
-				relayed = append(relayed, err)
+	t.Run("refresh refused", func(t *testing.T) {
+		t.Parallel()
+		server := &subscribeKeyServer{expired: testSubscribeKey}
+		ex := newTestServerExchange(t, server.handler(t))
+		conn := &recordingConnection{connected: true}
+		shutdown := make(chan struct{})
+		ex.subscribeKeys.set(conn, testSubscribeKey)
+		ex.Websocket.Wg.Add(1)
+		go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: 10 * time.Millisecond, lifetime: time.Hour})
+		var relayed []error
+		require.Eventually(t, func() bool {
+			for len(ex.Websocket.DataHandler.C) > 0 {
+				if err, ok := (<-ex.Websocket.DataHandler.C).Data.(error); ok {
+					relayed = append(relayed, err)
+				}
 			}
-		}
-		return len(relayed) >= 2
-	}, 5*time.Second, 5*time.Millisecond, "the renewer must keep retrying a refresh it couldn't make, relaying each failure")
-	close(shutdown)
-	waitForRenewers(t, ex)
-	assert.ErrorIs(t, relayed[0], errRequestFailed, "the renewer should relay LBank's refusal")
-	assert.Empty(t, server.sent("/v2/subscribe/get_key.do"), "the renewer should not replace a key before it expires")
-}
-
-func TestKeepSubscribeKeyAliveRelayFailure(t *testing.T) {
-	t.Parallel()
-	server := &subscribeKeyServer{expired: testSubscribeKey}
-	ex := newTestServerExchange(t, server.handler(t))
-	conn := &recordingConnection{connected: true}
-	// A full data handler refuses the failures the renewer relays, which it logs instead
-	ex.Websocket.DataHandler = stream.NewRelay(1)
-	require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "filler"), "Send must fill the data handler")
-	shutdown := make(chan struct{})
-	ex.subscribeKeys.set(conn, testSubscribeKey)
-	ex.Websocket.Wg.Add(1)
-	go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: 10 * time.Millisecond, lifetime: time.Hour})
-	require.Eventually(t, func() bool {
-		return len(server.sent("/v2/subscribe/refresh_key.do")) >= 2
-	}, 5*time.Second, 5*time.Millisecond, "the renewer must keep retrying a refresh it couldn't relay the failure of")
-	close(shutdown)
-	waitForRenewers(t, ex)
-}
-
-func TestKeepSubscribeKeyAliveReplacesExpiredKey(t *testing.T) {
-	t.Parallel()
-	server := &subscribeKeyServer{key: replacementSubscribeKey, expired: testSubscribeKey}
-	ex := newTestServerExchange(t, server.handler(t))
-	conn := &recordingConnection{connected: true}
-	subscribeAccountChannels(t, ex, conn)
-	shutdown := make(chan struct{})
-	ex.Websocket.Wg.Add(1)
-	go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, subscribeKeyTimings{refresh: 20 * time.Millisecond, retry: 20 * time.Millisecond, lifetime: 200 * time.Millisecond})
-	exp := accountSubscribeRequests(replacementSubscribeKey)
-	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.Subset(c, conn.messages(), exp, "the renewer should subscribe the account channels again under the new key")
-		assert.Contains(c, server.sent("/v2/subscribe/refresh_key.do"), replacementSubscribeKey, "the renewer should go on to refresh the new key")
-	}, 5*time.Second, 10*time.Millisecond, "the renewer must replace a key it couldn't refresh for as long as the key lasts")
-	assert.Subset(t, exp, conn.messages(), "the renewer should send only the account subscriptions under the new key")
-	assert.Equal(t, replacementSubscribeKey, ex.subscribeKeys.get(conn), "the renewer should give the connection the new key")
-	close(shutdown)
-	waitForRenewers(t, ex)
-	assert.Equal(t, []string{replacementSubscribeKey}, server.sent("/v2/subscribe/destroy_key.do"), "the renewer should close the new key when the websocket shuts down")
-	assert.Empty(t, ex.subscribeKeys.get(conn), "the renewer should forget the closed key")
-}
-
-func TestKeepSubscribeKeyAliveReplacementFailure(t *testing.T) {
-	t.Parallel()
-	server := &subscribeKeyServer{failGet: true, expired: testSubscribeKey}
-	ex := newTestServerExchange(t, server.handler(t))
-	conn := &recordingConnection{connected: true}
-	subscribeAccountChannels(t, ex, conn)
-	shutdown := make(chan struct{})
-	ex.Websocket.Wg.Add(1)
-	go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: 10 * time.Millisecond, lifetime: 30 * time.Millisecond})
-	require.Eventually(t, func() bool {
-		return len(server.sent("/v2/subscribe/get_key.do")) >= 2
-	}, 5*time.Second, 5*time.Millisecond, "the renewer must keep retrying a replacement it couldn't create")
-	assert.Equal(t, testSubscribeKey, ex.subscribeKeys.get(conn), "the renewer should keep the connection's key until it creates another")
-	assert.Empty(t, conn.messages(), "the renewer should subscribe nothing without a new key")
-	close(shutdown)
-	waitForRenewers(t, ex)
+			return len(relayed) >= 2
+		}, 5*time.Second, 5*time.Millisecond, "the renewer must keep retrying a refresh it couldn't make, relaying each failure")
+		close(shutdown)
+		waitForRenewers(t, ex)
+		assert.ErrorIs(t, relayed[0], errRequestFailed, "the renewer should relay LBank's refusal")
+		assert.Empty(t, server.sent("/v2/subscribe/get_key.do"), "the renewer should not replace a key before it expires")
+	})
+	t.Run("refusal it couldn't relay", func(t *testing.T) {
+		t.Parallel()
+		server := &subscribeKeyServer{expired: testSubscribeKey}
+		ex := newTestServerExchange(t, server.handler(t))
+		conn := &recordingConnection{connected: true}
+		// A full data handler refuses the failures the renewer relays, which it logs instead
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "filler"), "Send must fill the data handler")
+		shutdown := make(chan struct{})
+		ex.subscribeKeys.set(conn, testSubscribeKey)
+		ex.Websocket.Wg.Add(1)
+		go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: 10 * time.Millisecond, lifetime: time.Hour})
+		require.Eventually(t, func() bool {
+			return len(server.sent("/v2/subscribe/refresh_key.do")) >= 2
+		}, 5*time.Second, 5*time.Millisecond, "the renewer must keep retrying a refresh it couldn't relay the failure of")
+		close(shutdown)
+		waitForRenewers(t, ex)
+	})
+	t.Run("expired key replaced", func(t *testing.T) {
+		t.Parallel()
+		server := &subscribeKeyServer{key: replacementSubscribeKey, expired: testSubscribeKey}
+		ex := newTestServerExchange(t, server.handler(t))
+		conn := &recordingConnection{connected: true}
+		subscribeAccountChannels(t, ex, conn)
+		shutdown := make(chan struct{})
+		ex.Websocket.Wg.Add(1)
+		go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, subscribeKeyTimings{refresh: 20 * time.Millisecond, retry: 20 * time.Millisecond, lifetime: 200 * time.Millisecond})
+		exp := accountSubscribeRequests(replacementSubscribeKey)
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
+			assert.Subset(c, conn.messages(), exp, "the renewer should subscribe the account channels again under the new key")
+			assert.Contains(c, server.sent("/v2/subscribe/refresh_key.do"), replacementSubscribeKey, "the renewer should go on to refresh the new key")
+		}, 5*time.Second, 10*time.Millisecond, "the renewer must replace a key it couldn't refresh for as long as the key lasts")
+		assert.Subset(t, exp, conn.messages(), "the renewer should send only the account subscriptions under the new key")
+		assert.Equal(t, replacementSubscribeKey, ex.subscribeKeys.get(conn), "the renewer should give the connection the new key")
+		close(shutdown)
+		waitForRenewers(t, ex)
+		assert.Equal(t, []string{replacementSubscribeKey}, server.sent("/v2/subscribe/destroy_key.do"), "the renewer should close the new key when the websocket shuts down")
+		assert.Empty(t, ex.subscribeKeys.get(conn), "the renewer should forget the closed key")
+	})
+	t.Run("replacement refused", func(t *testing.T) {
+		t.Parallel()
+		server := &subscribeKeyServer{failGet: true, expired: testSubscribeKey}
+		ex := newTestServerExchange(t, server.handler(t))
+		conn := &recordingConnection{connected: true}
+		subscribeAccountChannels(t, ex, conn)
+		shutdown := make(chan struct{})
+		ex.Websocket.Wg.Add(1)
+		go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: 10 * time.Millisecond, lifetime: 30 * time.Millisecond})
+		require.Eventually(t, func() bool {
+			return len(server.sent("/v2/subscribe/get_key.do")) >= 2
+		}, 5*time.Second, 5*time.Millisecond, "the renewer must keep retrying a replacement it couldn't create")
+		assert.Equal(t, testSubscribeKey, ex.subscribeKeys.get(conn), "the renewer should keep the connection's key until it creates another")
+		assert.Empty(t, conn.messages(), "the renewer should subscribe nothing without a new key")
+		close(shutdown)
+		waitForRenewers(t, ex)
+	})
 }
 
 func TestRenewSubscribeKey(t *testing.T) {
@@ -831,148 +882,128 @@ func TestWebsocketAccountHandlers(t *testing.T) {
 	assert.Equal(t, 114548.31881315, stored[currency.USDT].Total, "the asset handler should store the balance it relays")
 }
 
-// TestWebsocketOrderUpdateType checks order updates are relayed with the type LBank pushes, as in a market buy's update
-// ccxt recorded live
-func TestWebsocketOrderUpdateType(t *testing.T) {
+func TestWebsocketProcessOrderUpdate(t *testing.T) {
 	t.Parallel()
-	ex := newChannelTestExchange(t)
-	lbk := currency.NewPairWithDelimiter("lbk", "usdt", currency.UnderscoreDelimiter)
-	available, err := ex.CurrencyPairs.GetPairs(asset.Spot, false)
-	require.NoError(t, err, "GetPairs must not error")
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, append(available, lbk), false), "StorePairs must not error")
-	captured := `{"SERVER":"V2","orderUpdate":{"accAmt":"0","amount":"0","avgPrice":"0","customerID":"","orderAmt":"5","orderPrice":"0.009834","orderStatus":0,"price":"0.009834","remainAmt":"5","role":"taker","symbol":"lbk_usdt","type":"buy_market","updateTime":1705676718532,"uuid":"9b94ab2d-a510-4abe-a784-44a9d9c38ec7","volumePrice":"0"},"type":"orderUpdate","pair":"lbk_usdt","TS":"2024-01-19T23:05:18.548"}`
-	require.NoError(t, ex.wsProcessOrderUpdate(t.Context(), orderUpdateMessage(t, captured)), "wsProcessOrderUpdate must relay a market buy's update")
-	exp := []any{&order.Detail{
-		Exchange: ex.Name, OrderID: "9b94ab2d-a510-4abe-a784-44a9d9c38ec7", Pair: lbk, AssetType: asset.Spot, Side: order.Buy, Type: order.Market,
-		Status: order.Active, Price: 0.009834, QuoteAmount: 5, LastUpdated: time.UnixMilli(1705676718532),
-	}}
-	assert.Equal(t, exp, relayedPayloads(ex), "wsProcessOrderUpdate should relay the market buy with its quote amount")
+	t.Run("order type", func(t *testing.T) {
+		t.Parallel()
+		ex := newChannelTestExchange(t)
+		lbk := currency.NewPairWithDelimiter("lbk", "usdt", currency.UnderscoreDelimiter)
+		available, err := ex.CurrencyPairs.GetPairs(asset.Spot, false)
+		require.NoError(t, err, "GetPairs must not error")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, append(available, lbk), false), "StorePairs must not error")
+		// The cases share the exchange, each draining what it relays, so they run serially
+		t.Run("recorded market buy", func(t *testing.T) {
+			// ccxt recorded this market buy's update live
+			captured := `{"SERVER":"V2","orderUpdate":{"accAmt":"0","amount":"0","avgPrice":"0","customerID":"","orderAmt":"5","orderPrice":"0.009834","orderStatus":0,"price":"0.009834","remainAmt":"5","role":"taker","symbol":"lbk_usdt","type":"buy_market","updateTime":1705676718532,"uuid":"9b94ab2d-a510-4abe-a784-44a9d9c38ec7","volumePrice":"0"},"type":"orderUpdate","pair":"lbk_usdt","TS":"2024-01-19T23:05:18.548"}`
+			require.NoError(t, ex.wsProcessOrderUpdate(t.Context(), orderUpdateMessage(t, captured)), "wsProcessOrderUpdate must relay a market buy's update")
+			exp := []any{&order.Detail{
+				Exchange: ex.Name, OrderID: "9b94ab2d-a510-4abe-a784-44a9d9c38ec7", Pair: lbk, AssetType: asset.Spot, Side: order.Buy, Type: order.Market,
+				Status: order.Active, Price: 0.009834, QuoteAmount: 5, LastUpdated: time.UnixMilli(1705676718532),
+			}}
+			assert.Equal(t, exp, relayedPayloads(ex), "wsProcessOrderUpdate should relay the market buy with its quote amount")
+		})
 
-	pair, err := ex.MatchSymbolWithAvailablePairs("btc_usdt", asset.Spot, true)
-	require.NoError(t, err, "MatchSymbolWithAvailablePairs must find btc_usdt")
-	partial := `{"orderUpdate":{"accAmt":"0.003","amount":"0.002","avgPrice":"80000.5","symbol":"btc_usdt","type":"sell","orderAmt":"0.005","orderStatus":1,"orderPrice":"80000","price":"80000.75","role":"maker","remainAmt":"0.002","updateTime":1792888874775,"uuid":"d0db191d-1a2b-4418-9c3d-fbb1aa2c2ea9","txUuid":"da88f354d5e04c4ea12128aa5bdcb301","volumePrice":"160.0015","customerID":"gct-sell"},"pair":"btc_usdt","type":"orderUpdate","SERVER":"V2","TS":"2026-10-25T08:41:14.816"}`
-	for orderType, tc := range map[string]struct {
-		side      order.Side
-		orderType order.Type
-		tif       order.TimeInForce
-	}{
-		"buy_market":  {side: order.Buy, orderType: order.Market},
-		"sell_market": {side: order.Sell, orderType: order.Market},
-		"buy_maker":   {side: order.Buy, orderType: order.Limit, tif: order.PostOnly},
-		"sell_maker":  {side: order.Sell, orderType: order.Limit, tif: order.PostOnly},
-		"buy_ioc":     {side: order.Buy, orderType: order.Limit, tif: order.ImmediateOrCancel},
-		"sell_ioc":    {side: order.Sell, orderType: order.Limit, tif: order.ImmediateOrCancel},
-		"buy_fok":     {side: order.Buy, orderType: order.Limit, tif: order.FillOrKill},
-		"sell_fok":    {side: order.Sell, orderType: order.Limit, tif: order.FillOrKill},
-	} {
-		frame := strings.Replace(partial, `"type":"sell"`, `"type":"`+orderType+`"`, 1)
-		require.NoErrorf(t, ex.wsProcessOrderUpdate(t.Context(), orderUpdateMessage(t, frame)), "wsProcessOrderUpdate must relay a %s update", orderType)
-		detail := &order.Detail{
-			Exchange: ex.Name, OrderID: "d0db191d-1a2b-4418-9c3d-fbb1aa2c2ea9", ClientOrderID: "gct-sell", Pair: pair, AssetType: asset.Spot,
-			Side: tc.side, Type: tc.orderType, TimeInForce: tc.tif, Status: order.PartiallyFilled, Price: 80000, Amount: 0.005,
-			ExecutedAmount: 0.003, RemainingAmount: 0.002, AverageExecutedPrice: 80000.5, Cost: 240.0015, LastUpdated: time.UnixMilli(1792888874775),
+		pair, err := ex.MatchSymbolWithAvailablePairs("btc_usdt", asset.Spot, true)
+		require.NoError(t, err, "MatchSymbolWithAvailablePairs must find btc_usdt")
+		partial := `{"orderUpdate":{"accAmt":"0.003","amount":"0.002","avgPrice":"80000.5","symbol":"btc_usdt","type":"sell","orderAmt":"0.005","orderStatus":1,"orderPrice":"80000","price":"80000.75","role":"maker","remainAmt":"0.002","updateTime":1792888874775,"uuid":"d0db191d-1a2b-4418-9c3d-fbb1aa2c2ea9","txUuid":"da88f354d5e04c4ea12128aa5bdcb301","volumePrice":"160.0015","customerID":"gct-sell"},"pair":"btc_usdt","type":"orderUpdate","SERVER":"V2","TS":"2026-10-25T08:41:14.816"}`
+		for orderType, tc := range map[string]struct {
+			side      order.Side
+			orderType order.Type
+			tif       order.TimeInForce
+		}{
+			"buy_market":  {side: order.Buy, orderType: order.Market},
+			"sell_market": {side: order.Sell, orderType: order.Market},
+			"buy_maker":   {side: order.Buy, orderType: order.Limit, tif: order.PostOnly},
+			"sell_maker":  {side: order.Sell, orderType: order.Limit, tif: order.PostOnly},
+			"buy_ioc":     {side: order.Buy, orderType: order.Limit, tif: order.ImmediateOrCancel},
+			"sell_ioc":    {side: order.Sell, orderType: order.Limit, tif: order.ImmediateOrCancel},
+			"buy_fok":     {side: order.Buy, orderType: order.Limit, tif: order.FillOrKill},
+			"sell_fok":    {side: order.Sell, orderType: order.Limit, tif: order.FillOrKill},
+		} {
+			t.Run(orderType, func(t *testing.T) {
+				frame := strings.Replace(partial, `"type":"sell"`, `"type":"`+orderType+`"`, 1)
+				require.NoErrorf(t, ex.wsProcessOrderUpdate(t.Context(), orderUpdateMessage(t, frame)), "wsProcessOrderUpdate must relay a %s update", orderType)
+				detail := &order.Detail{
+					Exchange: ex.Name, OrderID: "d0db191d-1a2b-4418-9c3d-fbb1aa2c2ea9", ClientOrderID: "gct-sell", Pair: pair, AssetType: asset.Spot,
+					Side: tc.side, Type: tc.orderType, TimeInForce: tc.tif, Status: order.PartiallyFilled, Price: 80000, Amount: 0.005,
+					ExecutedAmount: 0.003, RemainingAmount: 0.002, AverageExecutedPrice: 80000.5, Cost: 240.0015, LastUpdated: time.UnixMilli(1792888874775),
+				}
+				// A market buy's order amount is the quote amount it spends, which leaves its remaining amount unknown
+				if orderType == "buy_market" {
+					detail.Amount, detail.QuoteAmount, detail.RemainingAmount = 0, 0.005, 0
+				}
+				fills := []fill.Data{{
+					ID: "da88f354d5e04c4ea12128aa5bdcb301", TradeID: "da88f354d5e04c4ea12128aa5bdcb301", Exchange: ex.Name, AssetType: asset.Spot,
+					CurrencyPair: pair, Side: tc.side, OrderID: "d0db191d-1a2b-4418-9c3d-fbb1aa2c2ea9", ClientOrderID: "gct-sell",
+					Price: 80000.75, Amount: 0.002, Timestamp: time.UnixMilli(1792888874775),
+				}}
+				assert.Equalf(t, []any{detail, fills}, relayedPayloads(ex), "wsProcessOrderUpdate should relay the %s order and its fill", orderType)
+			})
 		}
-		// A market buy's order amount is the quote amount it spends, which leaves its remaining amount unknown
-		if orderType == "buy_market" {
-			detail.Amount, detail.QuoteAmount, detail.RemainingAmount = 0, 0.005, 0
+	})
+	t.Run("limit buy updates", func(t *testing.T) {
+		t.Parallel()
+		ex := newChannelTestExchange(t)
+		pair, err := ex.MatchSymbolWithAvailablePairs("btc_usdt", asset.Spot, true)
+		require.NoError(t, err, "MatchSymbolWithAvailablePairs must find btc_usdt")
+		frames := []string{
+			`{"orderUpdate":{"accAmt":"0.003","amount":"0.003","avgPrice":"80000.5","symbol":"btc_usdt","type":"buy","orderAmt":"0.005","orderStatus":1,"orderPrice":"80001","price":"80000.5","role":"maker","remainAmt":"160.002","updateTime":1792888874775,"uuid":"o1","txUuid":"t1","volumePrice":"240.0015"},"pair":"btc_usdt","type":"orderUpdate","SERVER":"V2","TS":"2026-10-25T08:41:14.816"}`,
+			`{"orderUpdate":{"accAmt":"0.005","amount":"0.002","avgPrice":"80000.3","symbol":"btc_usdt","type":"buy","orderAmt":"0.005","orderStatus":2,"orderPrice":"80001","price":"80000","role":"maker","remainAmt":"0","updateTime":1792888875775,"uuid":"o1","txUuid":"t2","volumePrice":"160"},"pair":"btc_usdt","type":"orderUpdate","SERVER":"V2","TS":"2026-10-25T08:41:15.816"}`,
 		}
-		fills := []fill.Data{{
-			ID: "da88f354d5e04c4ea12128aa5bdcb301", TradeID: "da88f354d5e04c4ea12128aa5bdcb301", Exchange: ex.Name, AssetType: asset.Spot,
-			CurrencyPair: pair, Side: tc.side, OrderID: "d0db191d-1a2b-4418-9c3d-fbb1aa2c2ea9", ClientOrderID: "gct-sell",
-			Price: 80000.75, Amount: 0.002, Timestamp: time.UnixMilli(1792888874775),
-		}}
-		assert.Equalf(t, []any{detail, fills}, relayedPayloads(ex), "wsProcessOrderUpdate should relay the %s order and its fill", orderType)
-	}
-}
-
-// TestWebsocketOrderUpdateExecution checks a limit buy's updates, from partly filled to filled, carry its remaining
-// amount and cumulative cost
-func TestWebsocketOrderUpdateExecution(t *testing.T) {
-	t.Parallel()
-	ex := newChannelTestExchange(t)
-	pair, err := ex.MatchSymbolWithAvailablePairs("btc_usdt", asset.Spot, true)
-	require.NoError(t, err, "MatchSymbolWithAvailablePairs must find btc_usdt")
-	frames := []string{
-		`{"orderUpdate":{"accAmt":"0.003","amount":"0.003","avgPrice":"80000.5","symbol":"btc_usdt","type":"buy","orderAmt":"0.005","orderStatus":1,"orderPrice":"80001","price":"80000.5","role":"maker","remainAmt":"160.002","updateTime":1792888874775,"uuid":"o1","txUuid":"t1","volumePrice":"240.0015"},"pair":"btc_usdt","type":"orderUpdate","SERVER":"V2","TS":"2026-10-25T08:41:14.816"}`,
-		`{"orderUpdate":{"accAmt":"0.005","amount":"0.002","avgPrice":"80000.3","symbol":"btc_usdt","type":"buy","orderAmt":"0.005","orderStatus":2,"orderPrice":"80001","price":"80000","role":"maker","remainAmt":"0","updateTime":1792888875775,"uuid":"o1","txUuid":"t2","volumePrice":"160"},"pair":"btc_usdt","type":"orderUpdate","SERVER":"V2","TS":"2026-10-25T08:41:15.816"}`,
-	}
-	for _, frame := range frames {
+		// The cases share the exchange, whose data handler the first drains and the last replaces, so they run serially
+		// in order
+		t.Run("partly filled then filled", func(t *testing.T) {
+			for _, frame := range frames {
+				require.NoError(t, ex.wsProcessOrderUpdate(t.Context(), orderUpdateMessage(t, frame)), "wsProcessOrderUpdate must relay the order's update")
+			}
+			exp := []any{
+				&order.Detail{
+					Exchange: ex.Name, OrderID: "o1", Pair: pair, AssetType: asset.Spot, Side: order.Buy, Status: order.PartiallyFilled, Price: 80001,
+					Amount: 0.005, ExecutedAmount: 0.003, RemainingAmount: 0.002, AverageExecutedPrice: 80000.5, Cost: 240.0015,
+					LastUpdated: time.UnixMilli(1792888874775),
+				},
+				[]fill.Data{{
+					ID: "t1", TradeID: "t1", Exchange: ex.Name, AssetType: asset.Spot, CurrencyPair: pair, Side: order.Buy, OrderID: "o1",
+					Price: 80000.5, Amount: 0.003, Timestamp: time.UnixMilli(1792888874775),
+				}},
+				&order.Detail{
+					Exchange: ex.Name, OrderID: "o1", Pair: pair, AssetType: asset.Spot, Side: order.Buy, Status: order.Filled, Price: 80001,
+					Amount: 0.005, ExecutedAmount: 0.005, AverageExecutedPrice: 80000.3, Cost: 400.0015, LastUpdated: time.UnixMilli(1792888875775),
+				},
+				[]fill.Data{{
+					ID: "t2", TradeID: "t2", Exchange: ex.Name, AssetType: asset.Spot, CurrencyPair: pair, Side: order.Buy, OrderID: "o1",
+					Price: 80000, Amount: 0.002, Timestamp: time.UnixMilli(1792888875775),
+				}},
+			}
+			assert.Equal(t, exp, relayedPayloads(ex), "wsProcessOrderUpdate should relay each update with the order's remaining amount and cost")
+		})
+		t.Run("frame without its update", func(t *testing.T) {
+			require.ErrorIs(t, ex.wsProcessOrderUpdate(t.Context(), &websocketMessage{}), common.ErrNoResponse, "wsProcessOrderUpdate must report a frame without its update")
+		})
+		t.Run("update it couldn't relay", func(t *testing.T) {
+			ex.Websocket.DataHandler = stream.NewRelay(1)
+			require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "filler"), "Send must fill the data handler")
+			assert.Error(t, ex.wsProcessOrderUpdate(t.Context(), orderUpdateMessage(t, frames[0])), "wsProcessOrderUpdate should report an update it couldn't relay")
+		})
+	})
+	t.Run("sell remaining amount", func(t *testing.T) {
+		t.Parallel()
+		ex := newChannelTestExchange(t)
+		pair, err := ex.MatchSymbolWithAvailablePairs("btc_usdt", asset.Spot, true)
+		require.NoError(t, err, "MatchSymbolWithAvailablePairs must find btc_usdt")
+		// The remaining amount LBank pushes for a sell differs from its latest trade's amount
+		frame := `{"orderUpdate":{"accAmt":"4","amount":"1","avgPrice":"21.75","symbol":"btc_usdt","type":"sell","orderAmt":"10","orderStatus":1,"orderPrice":"20","price":"21","role":"taker","remainAmt":"6","updateTime":1792888874775,"uuid":"o2","txUuid":"t3","volumePrice":"21"},"pair":"btc_usdt","type":"orderUpdate","SERVER":"V2","TS":"2026-10-25T08:41:14.816"}`
 		require.NoError(t, ex.wsProcessOrderUpdate(t.Context(), orderUpdateMessage(t, frame)), "wsProcessOrderUpdate must relay the order's update")
-	}
-	exp := []any{
-		&order.Detail{
-			Exchange: ex.Name, OrderID: "o1", Pair: pair, AssetType: asset.Spot, Side: order.Buy, Status: order.PartiallyFilled, Price: 80001,
-			Amount: 0.005, ExecutedAmount: 0.003, RemainingAmount: 0.002, AverageExecutedPrice: 80000.5, Cost: 240.0015,
-			LastUpdated: time.UnixMilli(1792888874775),
-		},
-		[]fill.Data{{
-			ID: "t1", TradeID: "t1", Exchange: ex.Name, AssetType: asset.Spot, CurrencyPair: pair, Side: order.Buy, OrderID: "o1",
-			Price: 80000.5, Amount: 0.003, Timestamp: time.UnixMilli(1792888874775),
-		}},
-		&order.Detail{
-			Exchange: ex.Name, OrderID: "o1", Pair: pair, AssetType: asset.Spot, Side: order.Buy, Status: order.Filled, Price: 80001,
-			Amount: 0.005, ExecutedAmount: 0.005, AverageExecutedPrice: 80000.3, Cost: 400.0015, LastUpdated: time.UnixMilli(1792888875775),
-		},
-		[]fill.Data{{
-			ID: "t2", TradeID: "t2", Exchange: ex.Name, AssetType: asset.Spot, CurrencyPair: pair, Side: order.Buy, OrderID: "o1",
-			Price: 80000, Amount: 0.002, Timestamp: time.UnixMilli(1792888875775),
-		}},
-	}
-	assert.Equal(t, exp, relayedPayloads(ex), "wsProcessOrderUpdate should relay each update with the order's remaining amount and cost")
-
-	require.ErrorIs(t, ex.wsProcessOrderUpdate(t.Context(), &websocketMessage{}), common.ErrNoResponse, "wsProcessOrderUpdate must report a frame without its update")
-	ex.Websocket.DataHandler = stream.NewRelay(1)
-	require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "filler"), "Send must fill the data handler")
-	assert.Error(t, ex.wsProcessOrderUpdate(t.Context(), orderUpdateMessage(t, frames[0])), "wsProcessOrderUpdate should report an update it couldn't relay")
-}
-
-// TestWebsocketOrderUpdateSellRemaining checks a sell's update carries the remaining amount LBank pushes, which differs
-// from its latest trade's amount
-func TestWebsocketOrderUpdateSellRemaining(t *testing.T) {
-	t.Parallel()
-	ex := newChannelTestExchange(t)
-	pair, err := ex.MatchSymbolWithAvailablePairs("btc_usdt", asset.Spot, true)
-	require.NoError(t, err, "MatchSymbolWithAvailablePairs must find btc_usdt")
-	frame := `{"orderUpdate":{"accAmt":"4","amount":"1","avgPrice":"21.75","symbol":"btc_usdt","type":"sell","orderAmt":"10","orderStatus":1,"orderPrice":"20","price":"21","role":"taker","remainAmt":"6","updateTime":1792888874775,"uuid":"o2","txUuid":"t3","volumePrice":"21"},"pair":"btc_usdt","type":"orderUpdate","SERVER":"V2","TS":"2026-10-25T08:41:14.816"}`
-	require.NoError(t, ex.wsProcessOrderUpdate(t.Context(), orderUpdateMessage(t, frame)), "wsProcessOrderUpdate must relay the order's update")
-	exp := []any{
-		&order.Detail{
-			Exchange: ex.Name, OrderID: "o2", Pair: pair, AssetType: asset.Spot, Side: order.Sell, Status: order.PartiallyFilled, Price: 20,
-			Amount: 10, ExecutedAmount: 4, RemainingAmount: 6, AverageExecutedPrice: 21.75, Cost: 87, LastUpdated: time.UnixMilli(1792888874775),
-		},
-		[]fill.Data{{
-			ID: "t3", TradeID: "t3", Exchange: ex.Name, AssetType: asset.Spot, CurrencyPair: pair, Side: order.Sell, OrderID: "o2",
-			Price: 21, Amount: 1, Timestamp: time.UnixMilli(1792888874775),
-		}},
-	}
-	assert.Equal(t, exp, relayedPayloads(ex), "wsProcessOrderUpdate should relay the sell's remaining amount and its fill")
-}
-
-func TestWebsocketAccountHandlerErrors(t *testing.T) {
-	t.Parallel()
-	ex := newChannelTestExchange(t)
-	conn := &recordingConnection{}
-	for _, tc := range []struct {
-		name  string
-		frame string
-		err   error
-	}{
-		{name: "unknown pair", frame: `{"orderUpdate":{"symbol":"nope_usdt","type":"buy","orderStatus":0},"type":"orderUpdate"}`, err: currency.ErrPairNotFound},
-		{name: "unknown side", frame: `{"orderUpdate":{"symbol":"btc_usdt","type":"hold","orderStatus":0},"type":"orderUpdate"}`, err: order.ErrSideIsInvalid},
-		{name: "unknown side and type", frame: `{"orderUpdate":{"symbol":"btc_usdt","type":"hold_market","orderStatus":0},"type":"orderUpdate"}`, err: order.ErrSideIsInvalid},
-		{name: "unknown type", frame: `{"orderUpdate":{"symbol":"btc_usdt","type":"buy_stop","orderStatus":0},"type":"orderUpdate"}`, err: order.ErrUnsupportedOrderType},
-		{name: "unknown status", frame: `{"orderUpdate":{"symbol":"btc_usdt","type":"buy","orderStatus":9},"type":"orderUpdate"}`, err: order.ErrUnsupportedStatusType},
-		{name: "balance without a coin", frame: `{"data":{"asset":"1","free":"1","freeze":"0"},"type":"assetUpdate"}`, err: currency.ErrCurrencyCodeEmpty},
-	} {
-		err := ex.wsHandleData(t.Context(), conn, []byte(tc.frame))
-		assert.ErrorIsf(t, err, tc.err, "wsHandleData should reject an update with an %s", tc.name)
-	}
-	assert.Empty(t, relayedPayloads(ex), "wsHandleData should relay nothing it rejected")
-
-	ex.Websocket.Fills.Setup(false, ex.Websocket.DataHandler)
-	frame := `{"orderUpdate":{"accAmt":"1","amount":"1","symbol":"btc_usdt","type":"buy","orderStatus":2,"price":"1","txUuid":"t1","uuid":"o1","updateTime":1792888874775},"type":"orderUpdate"}`
-	require.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(frame)), "wsHandleData must relay an order's trade without the fills feed")
-	payloads := relayedPayloads(ex)
-	require.Len(t, payloads, 1, "wsHandleData must relay only the order without the fills feed")
-	assert.IsType(t, &order.Detail{}, payloads[0], "wsHandleData should relay the order")
+		exp := []any{
+			&order.Detail{
+				Exchange: ex.Name, OrderID: "o2", Pair: pair, AssetType: asset.Spot, Side: order.Sell, Status: order.PartiallyFilled, Price: 20,
+				Amount: 10, ExecutedAmount: 4, RemainingAmount: 6, AverageExecutedPrice: 21.75, Cost: 87, LastUpdated: time.UnixMilli(1792888874775),
+			},
+			[]fill.Data{{
+				ID: "t3", TradeID: "t3", Exchange: ex.Name, AssetType: asset.Spot, CurrencyPair: pair, Side: order.Sell, OrderID: "o2",
+				Price: 21, Amount: 1, Timestamp: time.UnixMilli(1792888874775),
+			}},
+		}
+		assert.Equal(t, exp, relayedPayloads(ex), "wsProcessOrderUpdate should relay the sell's remaining amount and its fill")
+	})
 }

@@ -16,14 +16,12 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
@@ -268,22 +266,3 @@ var recordedFrames = sync.OnceValues(func() (map[string][][]byte, error) {
 	}
 	return frames, nil
 })
-
-// stopWebsocketTestExchange disables an exchange's websocket, so its connection monitor stops, then shuts it down.
-// Shutdown waits for every routine the websocket started, so one that ignores it fails the test rather than hanging it
-func stopWebsocketTestExchange(t *testing.T, ex *Exchange) {
-	t.Helper()
-	if ex.Websocket.IsEnabled() {
-		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
-	}
-	stopped := make(chan error, 1)
-	go func() { stopped <- ex.Websocket.Shutdown() }()
-	select {
-	case err := <-stopped:
-		if err != nil {
-			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the connection monitor has shut the connection down first")
-		}
-	case <-time.After(30 * time.Second):
-		assert.Fail(t, "Shutdown should stop every routine the websocket started")
-	}
-}

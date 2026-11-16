@@ -51,10 +51,11 @@ support off when the exchange is set up.
   LBank's spot orders take no margin, leverage, take profit, stop loss or stop entry, so an order with a margin type
   other than unset or cash, a leverage other than 0 or 1, or any take profit, stop loss or stop entry is refused.
 + `ModifyOrder` isn't supported, as LBank doesn't amend orders.
-+ `CancelOrder` cancels an order by its ID or client order ID, and `CancelAllOrders` cancels a pair's open orders.
-  LBank cancels a pair's orders whatever their side or type, so when a side or type is named, the pair's open orders
-  of that side and type are cancelled one at a time. LBank's current API cancels no list of orders, so
-  `CancelBatchOrders` isn't supported.
++ `CancelOrder` cancels an order by its ID or client order ID, and `CancelAllOrders` cancels a pair's open orders. LBank
+  cancels a pair's orders whatever their side or type, so when a side or type is named, the pair's open orders of that
+  side and type are cancelled one at a time. `CancelAllOrders` reports an order whose cancellation LBank accepts as
+  pending cancellation unless LBank's reply gives it a status ending the order, as LBank's documented replies show the
+  orders still open. LBank's current API cancels no list of orders, so `CancelBatchOrders` isn't supported.
 + `GetOrderInfo` returns an order in any state, and needs the order's pair.
 + `GetActiveOrders` and `GetOrderHistory` return the orders of the requested pairs, or of the enabled spot pairs when
   none are requested. LBank's history holds the cancelled and filled orders placed in the last 24 hours.

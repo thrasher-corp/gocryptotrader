@@ -9,10 +9,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
@@ -90,13 +88,6 @@ func dialWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.Lis
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(ex.API.AuthenticatedWebsocketSupport)
 	startRelayRecorder(t, ex)
 	err := ex.Websocket.Connect(t.Context())
-	t.Cleanup(func() {
-		if ex.Websocket.IsEnabled() {
-			assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
-		}
-		if err := ex.Websocket.Shutdown(); err != nil {
-			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the connection monitor has shut the connection down first")
-		}
-	})
+	t.Cleanup(func() { stopWebsocketTestExchange(t, ex) })
 	return nil, err
 }

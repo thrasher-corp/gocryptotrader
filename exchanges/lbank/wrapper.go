@@ -783,6 +783,15 @@ func orderStatus(status int64) (order.Status, error) {
 	return order.UnknownStatus, fmt.Errorf("%w: %d", order.ErrUnsupportedStatusType, status)
 }
 
+// cancellationStatus returns the status of an order whose cancellation LBank accepted. LBank's documented cancellation
+// replies give the order as still open, so the cancellation is pending unless the reply's status ends the order
+func cancellationStatus(status int64) order.Status {
+	if s, err := orderStatus(status); err == nil && s.IsInactive() {
+		return s
+	}
+	return order.PendingCancel
+}
+
 // orderDetail returns the order detail of an order on a spot pair
 func (e *Exchange) orderDetail(o *OrderResponse, pair currency.Pair) (*order.Detail, error) {
 	side, orderType, tif, err := parseOrderType(o.Type)
@@ -872,7 +881,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 		}
 		resp := order.CancelAllResponse{Status: make(map[string]string, len(cancelled))}
 		for i := range cancelled {
-			resp.Status[cancelled[i].OrderID] = order.Cancelled.String()
+			resp.Status[cancelled[i].OrderID] = cancellationStatus(cancelled[i].Status).String()
 		}
 		return resp, nil
 	}
@@ -888,14 +897,15 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 		if err := ctx.Err(); err != nil {
 			return resp, err
 		}
-		if _, err := e.CancelExistingOrder(ctx, &OrderReferenceRequest{Pair: o.Pair, OrderID: open[i].OrderID}); err != nil {
+		cancelled, err := e.CancelExistingOrder(ctx, &OrderReferenceRequest{Pair: o.Pair, OrderID: open[i].OrderID})
+		if err != nil {
 			resp.Status[open[i].OrderID] = err.Error()
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return resp, ctxErr
 			}
 			continue
 		}
-		resp.Status[open[i].OrderID] = order.Cancelled.String()
+		resp.Status[open[i].OrderID] = cancellationStatus(cancelled.Status).String()
 	}
 	return resp, nil
 }

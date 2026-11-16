@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-func TestMatchURLVals(t *testing.T) {
+func TestMatchURLVals(t *testing.T) { //nolint:tparallel // Cases share their url.Values inputs and run in order
 	t.Parallel()
 	testVal, testVal2, testVal3, emptyVal := url.Values{}, url.Values{}, url.Values{}, url.Values{}
 	testVal.Add("test", "test")
@@ -30,27 +30,30 @@ func TestMatchURLVals(t *testing.T) {
 	apiKeyVal2.Add("api_key", "mock-api-key")
 
 	tests := []struct {
-		a   url.Values
-		b   url.Values
-		exp bool
+		name string
+		a    url.Values
+		b    url.Values
+		exp  bool
 	}{
-		{testVal, emptyVal, false},
-		{emptyVal, testVal, false},
-		{testVal, testVal2, false},
-		{testVal2, testVal, false},
-		{testVal, testVal3, false},
-		{nonceVal1, testVal2, false},
-		{emptyVal, emptyVal, true},
-		{testVal, testVal, true},
-		{nonceVal1, nonceVal2, true},
-		{signVal1, testVal, false},
-		{signVal1, signVal2, true},
-		{apiKeyVal1, testVal, false},
-		{apiKeyVal1, apiKeyVal2, true},
+		{"values against no values", testVal, emptyVal, false},
+		{"no values against values", emptyVal, testVal, false},
+		{"different keys", testVal, testVal2, false},
+		{"different keys reversed", testVal2, testVal, false},
+		{"different values for a key", testVal, testVal3, false},
+		{"nonce against another key", nonceVal1, testVal2, false},
+		{"no values against no values", emptyVal, emptyVal, true},
+		{"same values", testVal, testVal, true},
+		{"different nonces", nonceVal1, nonceVal2, true},
+		{"sign against another key", signVal1, testVal, false},
+		{"different signs", signVal1, signVal2, true},
+		{"blank api_key against another key", apiKeyVal1, testVal, false},
+		{"blank api_key against a set one", apiKeyVal1, apiKeyVal2, true},
 	}
 	for _, tc := range tests {
-		got := MatchURLVals(tc.a, tc.b)
-		assert.Equalf(t, tc.exp, got, "MatchURLVals should return correctly for (%q, %q)", tc.a, tc.b)
+		t.Run(tc.name, func(t *testing.T) {
+			got := MatchURLVals(tc.a, tc.b)
+			assert.Equalf(t, tc.exp, got, "MatchURLVals should return correctly for (%q, %q)", tc.a, tc.b)
+		})
 	}
 }
 

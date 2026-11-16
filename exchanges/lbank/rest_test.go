@@ -42,7 +42,8 @@ import (
 
 const (
 	// canManipulateRealOrders lets live tests with credentials change the account they act for: place and cancel orders
-	// priced away from the market, and withdraw
+	// priced away from the market, cancel every open BTC/USDT order, and send withdrawals and deposit address requests
+	// built for LBank to refuse
 	canManipulateRealOrders = false
 	// testAPIKey and testAPISecret are placeholder credentials, which the mock responses and the test servers accept
 	testAPIKey    = "mock-api-key"
@@ -50,7 +51,22 @@ const (
 	// testServerRequestLimit is the most requests a test server answers, several times as many as any test sends one,
 	// so a pager no longer advancing fails its test rather than hangs it
 	testServerRequestLimit = 100
+	// liveMalformedAddress is no address on any network, for live withdrawals built to be refused
+	liveMalformedAddress = "gct-live-test-not-an-address"
+	// liveWithdrawalAmount of USDT is far below LBank's minimum USDT withdrawal on TRC20, for live withdrawals built to
+	// be refused
+	liveWithdrawalAmount = 0.0001
+	// liveUnlistedNetwork is no network LBank lists, for live deposit address requests built to be refused
+	liveUnlistedNetwork = "gct-live-test-unlisted"
 )
+
+// withdrawalRefusalCodes are LBank's error codes refusing a withdrawal for what it asks: its parameters, coin, address,
+// chain, amount or fee, or the balance or daily limit it would exceed
+var withdrawalRefusalCodes = []int64{10002, 10003, 10014, 10016, 10034, 10035, 10066, 10101, 10102, 10103, 10109, 10110, 10111, 10112, 10114, 10120, 10801}
+
+// depositAddressRefusalCodes are LBank's error codes refusing a deposit address for what it asks: its parameters, coin
+// or network, or the account's address limit, which LBank documents for this endpoint
+var depositAddressRefusalCodes = []int64{10002, 10003, 10066, 10701, 10703}
 
 var (
 	e               *Exchange
@@ -182,6 +198,18 @@ func skipLiveUnlessCanManipulate(t *testing.T) {
 	}
 }
 
+// requireRefusedOnMerits requires a live request built to be refused to be refused by LBank with one of codes, which
+// refuse what it asks, rather than for its credentials, permissions, rate or LBank's state. LBank's answers to these
+// requests are unrecorded, so the refusal is logged
+func requireRefusedOnMerits(t *testing.T, err error, method string, codes []int64) {
+	t.Helper()
+	require.Errorf(t, err, "%s must be refused, as its live request is built to be refused", method)
+	t.Logf("%s was refused: %v", method, err)
+	var refusal *requestError
+	require.ErrorAsf(t, err, &refusal, "%s must be refused by LBank rather than fail without its answer", method)
+	require.Containsf(t, codes, refusal.code, "%s must be refused for what it asks", method)
+}
+
 // writeResponse writes a reply in a test server's handler
 func writeResponse(t *testing.T, w http.ResponseWriter, body string) {
 	t.Helper()
@@ -214,7 +242,7 @@ func pkcs8Secret(t *testing.T, key any) string {
 	return base64.StdEncoding.EncodeToString(der)
 }
 
-func TestSendHTTPRequest(t *testing.T) {
+func TestSendHTTPRequest(t *testing.T) { //nolint:tparallel // Cases share one test server and its record of requests, which the last case checks, and run in order
 	t.Parallel()
 	var requested []string
 	var mu sync.Mutex
@@ -236,28 +264,36 @@ func TestSendHTTPRequest(t *testing.T) {
 		}
 	}))
 
-	params := url.Values{}
-	params.Set("symbol", "btc_usdt")
-	var result *LatestPriceResponse
-	require.NoError(t, ex.SendHTTPRequest(t.Context(), exchange.RestSpot, defaultEPL, http.MethodGet, "/envelope", params, &result), "SendHTTPRequest must not error")
-	assert.Equal(t, &LatestPriceResponse{Symbol: "btc_usdt", Price: 1.5}, result, "SendHTTPRequest should decode the data the envelope carries")
+	t.Run("data in an envelope", func(t *testing.T) {
+		params := url.Values{}
+		params.Set("symbol", "btc_usdt")
+		var result *LatestPriceResponse
+		require.NoError(t, ex.SendHTTPRequest(t.Context(), exchange.RestSpot, defaultEPL, http.MethodGet, "/envelope", params, &result), "SendHTTPRequest must not error")
+		assert.Equal(t, &LatestPriceResponse{Symbol: "btc_usdt", Price: 1.5}, result, "SendHTTPRequest should decode the data the envelope carries")
+	})
 
 	var bare []LatestPriceResponse
-	require.NoError(t, ex.SendHTTPRequest(t.Context(), exchange.RestSpot, defaultEPL, http.MethodGet, "/bare", nil, &bare), "SendHTTPRequest must not error")
-	assert.Equal(t, []LatestPriceResponse{{Symbol: "btc_usdt", Price: 2.5}}, bare, "SendHTTPRequest should decode a reply without an envelope")
-
-	err := ex.SendHTTPRequest(t.Context(), exchange.RestSpot, defaultEPL, http.MethodGet, "/failed", nil, &bare)
-	require.ErrorIs(t, err, errRequestFailed, "SendHTTPRequest must report a failed reply")
-	assert.ErrorContains(t, err, ex.Name+": request failed: Invalid parameter (error_code 10003)", "SendHTTPRequest should report the exchange, message and code")
-	assert.NotErrorIs(t, err, request.ErrAuthRequestFailed, "SendHTTPRequest should not report an unauthenticated failure as an authentication failure")
-
-	err = ex.SendHTTPRequest(t.Context(), exchange.RestSpot, defaultEPL, http.MethodGet, "/malformed", nil, &bare)
-	assert.ErrorContains(t, err, "decoding response envelope", "SendHTTPRequest should report an envelope it cannot decode")
-
-	err = ex.SendHTTPRequest(t.Context(), exchange.URL(255), defaultEPL, http.MethodGet, "/envelope", nil, &bare)
-	assert.Error(t, err, "SendHTTPRequest should error for an endpoint the exchange has no URL for")
-
-	assert.Equal(t, []string{"GET /envelope?symbol=btc_usdt", "GET /bare", "GET /failed", "GET /malformed"}, requested, "SendHTTPRequest should send each request once to its path")
+	t.Run("reply without an envelope", func(t *testing.T) {
+		require.NoError(t, ex.SendHTTPRequest(t.Context(), exchange.RestSpot, defaultEPL, http.MethodGet, "/bare", nil, &bare), "SendHTTPRequest must not error")
+		assert.Equal(t, []LatestPriceResponse{{Symbol: "btc_usdt", Price: 2.5}}, bare, "SendHTTPRequest should decode a reply without an envelope")
+	})
+	t.Run("failed reply", func(t *testing.T) {
+		err := ex.SendHTTPRequest(t.Context(), exchange.RestSpot, defaultEPL, http.MethodGet, "/failed", nil, &bare)
+		require.ErrorIs(t, err, errRequestFailed, "SendHTTPRequest must report a failed reply")
+		assert.ErrorContains(t, err, ex.Name+": request failed: Invalid parameter (error_code 10003)", "SendHTTPRequest should report the exchange, message and code")
+		assert.NotErrorIs(t, err, request.ErrAuthRequestFailed, "SendHTTPRequest should not report an unauthenticated failure as an authentication failure")
+	})
+	t.Run("malformed envelope", func(t *testing.T) {
+		err := ex.SendHTTPRequest(t.Context(), exchange.RestSpot, defaultEPL, http.MethodGet, "/malformed", nil, &bare)
+		assert.ErrorContains(t, err, "decoding response envelope", "SendHTTPRequest should report an envelope it cannot decode")
+	})
+	t.Run("endpoint without a URL", func(t *testing.T) {
+		err := ex.SendHTTPRequest(t.Context(), exchange.URL(255), defaultEPL, http.MethodGet, "/envelope", nil, &bare)
+		assert.Error(t, err, "SendHTTPRequest should error for an endpoint the exchange has no URL for")
+	})
+	t.Run("each request sent once", func(t *testing.T) {
+		assert.Equal(t, []string{"GET /envelope?symbol=btc_usdt", "GET /bare", "GET /failed", "GET /malformed"}, requested, "SendHTTPRequest should send each request once to its path")
+	})
 }
 
 func TestSendAuthHTTPRequest(t *testing.T) {
@@ -305,60 +341,68 @@ func TestSendAuthHTTPRequest(t *testing.T) {
 			writeResponse(t, w, `{"result":true,"data":{"symbol":7},"error_code":0,"ts":1}`)
 		}
 	}))
+	// These cases share one test server, its record of timestamps, the parameters and the result, and run in order
 	params := url.Values{}
 	params.Set("symbol", "a b&c")
-	called := time.Now().UnixMilli()
 	var result *LatestPriceResponse
-	require.NoError(t, ex.SendAuthHTTPRequest(t.Context(), defaultEPL, "/ok", params, &result), "SendAuthHTTPRequest must not error")
-	returned := time.Now().UnixMilli()
-	assert.Equal(t, &LatestPriceResponse{Symbol: "btc_usdt", Price: 3}, result, "SendAuthHTTPRequest should decode the data the reply carries")
-	assert.Equal(t, url.Values{"symbol": {"a b&c"}}, params, "SendAuthHTTPRequest should not change the caller's parameters")
-	require.Len(t, timestamps, 1, "SendAuthHTTPRequest must send one request")
-	assert.True(t, timestamps[0] >= called && timestamps[0] <= returned, "the timestamp should be the time of the request")
+	t.Run("accepted request", func(t *testing.T) {
+		called := time.Now().UnixMilli()
+		require.NoError(t, ex.SendAuthHTTPRequest(t.Context(), defaultEPL, "/ok", params, &result), "SendAuthHTTPRequest must not error")
+		returned := time.Now().UnixMilli()
+		assert.Equal(t, &LatestPriceResponse{Symbol: "btc_usdt", Price: 3}, result, "SendAuthHTTPRequest should decode the data the reply carries")
+		assert.Equal(t, url.Values{"symbol": {"a b&c"}}, params, "SendAuthHTTPRequest should not change the caller's parameters")
+		require.Len(t, timestamps, 1, "SendAuthHTTPRequest must send one request")
+		assert.True(t, timestamps[0] >= called && timestamps[0] <= returned, "the timestamp should be the time of the request")
+	})
+	t.Run("refused request", func(t *testing.T) {
+		err := ex.SendAuthHTTPRequest(t.Context(), defaultEPL, "/refused", params, &result)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthHTTPRequest must report a refused request as an authentication failure")
+		assert.ErrorIs(t, err, errRequestFailed, "SendAuthHTTPRequest should report the reply's failure")
+	})
+	t.Run("undecodable reply", func(t *testing.T) {
+		err := ex.SendAuthHTTPRequest(t.Context(), defaultEPL, "/undecodable", params, &result)
+		require.Error(t, err, "SendAuthHTTPRequest must report a reply it cannot decode")
+		assert.NotErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthHTTPRequest should not report a decoding failure as an authentication failure")
+	})
 
-	err := ex.SendAuthHTTPRequest(t.Context(), defaultEPL, "/refused", params, &result)
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthHTTPRequest must report a refused request as an authentication failure")
-	assert.ErrorIs(t, err, errRequestFailed, "SendAuthHTTPRequest should report the reply's failure")
+	t.Run("no credentials", func(t *testing.T) {
+		t.Parallel()
+		noCreds := newTestServerExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+			assert.Fail(t, "a request without credentials should not be sent")
+		}))
+		noCreds.SkipAuthCheck = false
+		noCreds.SetCredentials(&accounts.Credentials{})
+		assert.ErrorIs(t, noCreds.SendAuthHTTPRequest(t.Context(), defaultEPL, "/ok", nil, nil), exchange.ErrCredentialsAreEmpty, "SendAuthHTTPRequest should require credentials")
+	})
 
-	err = ex.SendAuthHTTPRequest(t.Context(), defaultEPL, "/undecodable", params, &result)
-	require.Error(t, err, "SendAuthHTTPRequest must report a reply it cannot decode")
-	assert.NotErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthHTTPRequest should not report a decoding failure as an authentication failure")
-
-	noCreds := newTestServerExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		assert.Fail(t, "a request without credentials should not be sent")
-	}))
-	noCreds.SkipAuthCheck = false
-	noCreds.SetCredentials(&accounts.Credentials{})
-	assert.ErrorIs(t, noCreds.SendAuthHTTPRequest(t.Context(), defaultEPL, "/ok", nil, nil), exchange.ErrCredentialsAreEmpty, "SendAuthHTTPRequest should require credentials")
-}
-
-func TestSendAuthHTTPRequestRSA(t *testing.T) {
-	t.Parallel()
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err, "GenerateKey must not error")
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !assert.NoError(t, r.ParseForm(), "the request body should parse as a form") {
-			return
-		}
-		assert.Equal(t, signatureMethodRSA, r.Header.Get("signature_method"), "an RSA signed request should name its signature method")
-		signed := url.Values{"api_key": {testAPIKey}, "symbol": {"btc_usdt"}}
-		signed.Set("timestamp", r.Header.Get("timestamp"))
-		signed.Set("echostr", r.Header.Get("echostr"))
-		signed.Set("signature_method", signatureMethodRSA)
-		signature, err := base64.StdEncoding.DecodeString(r.PostForm.Get("sign"))
-		if assert.NoError(t, err, "the RSA signature should be base64") {
-			digest := md5.Sum([]byte(parameterString(signed))) //nolint:gosec // LBank's signature scheme signs an MD5 digest of the request parameters
-			hashed := sha256.Sum256([]byte(strings.ToUpper(hex.EncodeToString(digest[:]))))
-			assert.NoError(t, rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, hashed[:], signature), "the RSA signature should verify against the key")
-		}
-		writeResponse(t, w, `{"result":"true","data":{"status":"1"},"error_code":0,"ts":1}`)
-	}))
-	ex.SetCredentials(&accounts.Credentials{Key: testAPIKey, Secret: pkcs8Secret(t, key)})
-	params := url.Values{}
-	params.Set("symbol", "btc_usdt")
-	var result *SystemStatusResponse
-	require.NoError(t, ex.SendAuthHTTPRequest(t.Context(), defaultEPL, "/rsa", params, &result), "SendAuthHTTPRequest must not error")
-	assert.Equal(t, &SystemStatusResponse{Status: "1"}, result, "SendAuthHTTPRequest should decode the reply")
+	t.Run("RSA secret", func(t *testing.T) {
+		t.Parallel()
+		key, err := rsa.GenerateKey(rand.Reader, 2048)
+		require.NoError(t, err, "GenerateKey must not error")
+		rsaEx := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !assert.NoError(t, r.ParseForm(), "the request body should parse as a form") {
+				return
+			}
+			assert.Equal(t, signatureMethodRSA, r.Header.Get("signature_method"), "an RSA signed request should name its signature method")
+			signed := url.Values{"api_key": {testAPIKey}, "symbol": {"btc_usdt"}}
+			signed.Set("timestamp", r.Header.Get("timestamp"))
+			signed.Set("echostr", r.Header.Get("echostr"))
+			signed.Set("signature_method", signatureMethodRSA)
+			signature, err := base64.StdEncoding.DecodeString(r.PostForm.Get("sign"))
+			if assert.NoError(t, err, "the RSA signature should be base64") {
+				digest := md5.Sum([]byte(parameterString(signed))) //nolint:gosec // LBank's signature scheme signs an MD5 digest of the request parameters
+				hashed := sha256.Sum256([]byte(strings.ToUpper(hex.EncodeToString(digest[:]))))
+				assert.NoError(t, rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, hashed[:], signature), "the RSA signature should verify against the key")
+			}
+			writeResponse(t, w, `{"result":"true","data":{"status":"1"},"error_code":0,"ts":1}`)
+		}))
+		rsaEx.SetCredentials(&accounts.Credentials{Key: testAPIKey, Secret: pkcs8Secret(t, key)})
+		rsaParams := url.Values{}
+		rsaParams.Set("symbol", "btc_usdt")
+		var status *SystemStatusResponse
+		require.NoError(t, rsaEx.SendAuthHTTPRequest(t.Context(), defaultEPL, "/rsa", rsaParams, &status), "SendAuthHTTPRequest must not error")
+		assert.Equal(t, &SystemStatusResponse{Status: "1"}, status, "SendAuthHTTPRequest should decode the reply")
+	})
 }
 
 func TestSignRequest(t *testing.T) {
@@ -383,32 +427,43 @@ func TestSignRequest(t *testing.T) {
 
 func TestParameterString(t *testing.T) {
 	t.Parallel()
-	params := url.Values{"timestamp": {"1"}, "api_key": {"k"}, "echostr": {"e"}, "amount": {"0.1"}, "custom_id": {"a&b=c d"}}
-	assert.Equal(t, "amount=0.1&api_key=k&custom_id=a&b=c d&echostr=e&timestamp=1", parameterString(params), "parameterString should sort the parameters and keep their raw values")
-	assert.Empty(t, parameterString(url.Values{}), "parameterString should return nothing for no parameters")
+	t.Run("sorted with raw values", func(t *testing.T) {
+		t.Parallel()
+		params := url.Values{"timestamp": {"1"}, "api_key": {"k"}, "echostr": {"e"}, "amount": {"0.1"}, "custom_id": {"a&b=c d"}}
+		assert.Equal(t, "amount=0.1&api_key=k&custom_id=a&b=c d&echostr=e&timestamp=1", parameterString(params), "parameterString should sort the parameters and keep their raw values")
+	})
+	t.Run("no parameters", func(t *testing.T) {
+		t.Parallel()
+		assert.Empty(t, parameterString(url.Values{}), "parameterString should return nothing for no parameters")
+	})
 }
 
 func TestRequestSignerSign(t *testing.T) {
 	t.Parallel()
-	// The test account and the signature LBank's contract docs give for their example request
-	signer := &requestSigner{method: signatureMethodHMAC, secret: []byte("093F44F700FC48F17DDB67390C895CE5")}
-	sign, err := signer.sign("api_key=fb4e39e5-6a06-4291-9f80-d10176a0badd&asset=USDT&echostr=echostr123456789012345678901234567890&productGroup=SwapU&signature_method=HmacSHA256&timestamp=1665990154559")
-	require.NoError(t, err, "sign must not error")
-	assert.Equal(t, "809133cb69a17beba0be076b99b4d90de872476e36da87978ab2889970ccd06d", sign, "sign should reproduce LBank's documented HmacSHA256 signature")
-
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err, "GenerateKey must not error")
-	rsaSigner := &requestSigner{method: signatureMethodRSA, rsaKey: key}
-	sign, err = rsaSigner.sign("hello123")
-	require.NoError(t, err, "sign must not error")
-	signature, err := base64.StdEncoding.DecodeString(sign)
-	require.NoError(t, err, "the RSA signature must be base64")
-	digest := md5.Sum([]byte("hello123")) //nolint:gosec // LBank's signature scheme signs an MD5 digest of the request parameters
-	hashed := sha256.Sum256([]byte(strings.ToUpper(hex.EncodeToString(digest[:]))))
-	assert.NoError(t, rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, hashed[:], signature), "sign should sign the upper case MD5 digest with SHA256withRSA")
+	t.Run("HmacSHA256", func(t *testing.T) {
+		t.Parallel()
+		// The test account and the signature LBank's contract docs give for their example request
+		signer := &requestSigner{method: signatureMethodHMAC, secret: []byte("093F44F700FC48F17DDB67390C895CE5")}
+		sign, err := signer.sign("api_key=fb4e39e5-6a06-4291-9f80-d10176a0badd&asset=USDT&echostr=echostr123456789012345678901234567890&productGroup=SwapU&signature_method=HmacSHA256&timestamp=1665990154559")
+		require.NoError(t, err, "sign must not error")
+		assert.Equal(t, "809133cb69a17beba0be076b99b4d90de872476e36da87978ab2889970ccd06d", sign, "sign should reproduce LBank's documented HmacSHA256 signature")
+	})
+	t.Run("SHA256withRSA", func(t *testing.T) {
+		t.Parallel()
+		key, err := rsa.GenerateKey(rand.Reader, 2048)
+		require.NoError(t, err, "GenerateKey must not error")
+		rsaSigner := &requestSigner{method: signatureMethodRSA, rsaKey: key}
+		sign, err := rsaSigner.sign("hello123")
+		require.NoError(t, err, "sign must not error")
+		signature, err := base64.StdEncoding.DecodeString(sign)
+		require.NoError(t, err, "the RSA signature must be base64")
+		digest := md5.Sum([]byte("hello123")) //nolint:gosec // LBank's signature scheme signs an MD5 digest of the request parameters
+		hashed := sha256.Sum256([]byte(strings.ToUpper(hex.EncodeToString(digest[:]))))
+		assert.NoError(t, rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, hashed[:], signature), "sign should sign the upper case MD5 digest with SHA256withRSA")
+	})
 }
 
-func TestGetSigner(t *testing.T) {
+func TestGetSigner(t *testing.T) { //nolint:tparallel // Cases share one exchange and its cache of RSA keys, which a later case checks, and run in order
 	t.Parallel()
 	rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err, "GenerateKey must not error")
@@ -421,21 +476,27 @@ func TestGetSigner(t *testing.T) {
 	pkcs1 := base64.StdEncoding.EncodeToString(x509.MarshalPKCS1PrivateKey(rsaKey))
 
 	ex := new(Exchange)
-	hmacSigner, err := ex.getSigner("093F44F700FC48F17DDB67390C895CE5")
-	require.NoError(t, err, "getSigner must not error for a hexadecimal secret")
-	assert.Equal(t, &requestSigner{method: signatureMethodHMAC, secret: []byte("093F44F700FC48F17DDB67390C895CE5")}, hmacSigner, "getSigner should sign a hexadecimal secret with HmacSHA256")
+	t.Run("hexadecimal secret", func(t *testing.T) {
+		hmacSigner, err := ex.getSigner("093F44F700FC48F17DDB67390C895CE5")
+		require.NoError(t, err, "getSigner must not error for a hexadecimal secret")
+		assert.Equal(t, &requestSigner{method: signatureMethodHMAC, secret: []byte("093F44F700FC48F17DDB67390C895CE5")}, hmacSigner, "getSigner should sign a hexadecimal secret with HmacSHA256")
+	})
 
 	for name, s := range map[string]string{"base64 PKCS #8 key": secret, "PEM PKCS #8 key": pemSecret} {
-		signer, err := ex.getSigner(s)
-		require.NoErrorf(t, err, "getSigner must not error for a %s", name)
-		assert.Equalf(t, signatureMethodRSA, signer.method, "getSigner should sign a %s with RSA", name)
-		assert.Truef(t, rsaKey.Equal(signer.rsaKey), "getSigner should parse the %s", name)
+		t.Run(name, func(t *testing.T) {
+			signer, err := ex.getSigner(s)
+			require.NoErrorf(t, err, "getSigner must not error for a %s", name)
+			assert.Equalf(t, signatureMethodRSA, signer.method, "getSigner should sign a %s with RSA", name)
+			assert.Truef(t, rsaKey.Equal(signer.rsaKey), "getSigner should parse the %s", name)
+		})
 	}
-	cached, ok := ex.rsaKeys.Load(secret)
-	require.True(t, ok, "getSigner must cache a parsed RSA key")
-	again, err := ex.getSigner(secret)
-	require.NoError(t, err, "getSigner must not error for a cached key")
-	assert.Same(t, cached, again.rsaKey, "getSigner should reuse the key it cached")
+	t.Run("cached RSA key", func(t *testing.T) {
+		cached, ok := ex.rsaKeys.Load(secret)
+		require.True(t, ok, "getSigner must cache a parsed RSA key")
+		again, err := ex.getSigner(secret)
+		require.NoError(t, err, "getSigner must not error for a cached key")
+		assert.Same(t, cached, again.rsaKey, "getSigner should reuse the key it cached")
+	})
 
 	for _, tc := range []struct {
 		name   string
@@ -446,8 +507,10 @@ func TestGetSigner(t *testing.T) {
 		{name: "PKCS #1 key", secret: pkcs1, err: errUnableToParsePrivateKey},
 		{name: "ECDSA key", secret: pkcs8Secret(t, ecdsaKey), err: common.ErrTypeAssertFailure},
 	} {
-		_, err := ex.getSigner(tc.secret)
-		assert.ErrorIsf(t, err, tc.err, "getSigner should reject a %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ex.getSigner(tc.secret)
+			assert.ErrorIsf(t, err, tc.err, "getSigner should reject a %s", tc.name)
+		})
 	}
 }
 
@@ -500,18 +563,43 @@ func TestUnwrapV2Response(t *testing.T) {
 
 func TestDecodeResponse(t *testing.T) {
 	t.Parallel()
-	require.NoError(t, decodeResponse([]byte(`{"result":"true"}`), nil), "decodeResponse must accept a nil result")
+	t.Run("nil result without data", func(t *testing.T) {
+		t.Parallel()
+		require.NoError(t, decodeResponse([]byte(`{"result":"true"}`), nil), "decodeResponse must accept a nil result")
+	})
+
+	// These cases decode into one result and run in order
 	var resp *SystemStatusResponse
-	require.NoError(t, decodeResponse([]byte(`{"result":"true","data":{"status":"0"}}`), &resp), "decodeResponse must not error")
-	assert.Equal(t, &SystemStatusResponse{Status: "0"}, resp, "decodeResponse should decode the reply's data")
-	assert.Error(t, decodeResponse([]byte(`[{]`), &resp), "decodeResponse should report a payload it cannot decode")
-	assert.ErrorIs(t, decodeResponse([]byte(`{"result":"true","data":{"status":"0"}}`), nil), errUnexpectedData, "decodeResponse should report data a nil result would drop")
-	assert.ErrorIs(t, decodeResponse([]byte(`{"result":"false","msg":"Invalid parameter","error_code":10003,"data":{"status":"0"}}`), nil), errRequestFailed, "decodeResponse should report a failed reply ahead of its data")
-	assert.NoError(t, decodeResponse(nil, nil), "decodeResponse should accept an empty reply for a nil result")
-	var cased *SystemStatusResponse
-	require.NoError(t, decodeResponse([]byte(`{"result":"true","Data":{"status":"1"}}`), &cased), "decodeResponse must not error")
-	assert.Equal(t, &SystemStatusResponse{Status: "1"}, cased, "decodeResponse should decode data whose key differs in case")
-	assert.ErrorIs(t, decodeResponse([]byte(`{"result":"true","Data":{"status":"1"}}`), nil), errUnexpectedData, "decodeResponse should report data whose key differs in case for a nil result")
+	t.Run("data in the reply", func(t *testing.T) {
+		require.NoError(t, decodeResponse([]byte(`{"result":"true","data":{"status":"0"}}`), &resp), "decodeResponse must not error")
+		assert.Equal(t, &SystemStatusResponse{Status: "0"}, resp, "decodeResponse should decode the reply's data")
+	})
+	t.Run("undecodable payload", func(t *testing.T) {
+		assert.Error(t, decodeResponse([]byte(`[{]`), &resp), "decodeResponse should report a payload it cannot decode")
+	})
+
+	t.Run("nil result with data", func(t *testing.T) {
+		t.Parallel()
+		assert.ErrorIs(t, decodeResponse([]byte(`{"result":"true","data":{"status":"0"}}`), nil), errUnexpectedData, "decodeResponse should report data a nil result would drop")
+	})
+	t.Run("failed reply carrying data", func(t *testing.T) {
+		t.Parallel()
+		assert.ErrorIs(t, decodeResponse([]byte(`{"result":"false","msg":"Invalid parameter","error_code":10003,"data":{"status":"0"}}`), nil), errRequestFailed, "decodeResponse should report a failed reply ahead of its data")
+	})
+	t.Run("empty reply", func(t *testing.T) {
+		t.Parallel()
+		assert.NoError(t, decodeResponse(nil, nil), "decodeResponse should accept an empty reply for a nil result")
+	})
+	t.Run("data under a key differing in case", func(t *testing.T) {
+		t.Parallel()
+		var cased *SystemStatusResponse
+		require.NoError(t, decodeResponse([]byte(`{"result":"true","Data":{"status":"1"}}`), &cased), "decodeResponse must not error")
+		assert.Equal(t, &SystemStatusResponse{Status: "1"}, cased, "decodeResponse should decode data whose key differs in case")
+	})
+	t.Run("nil result with data under a key differing in case", func(t *testing.T) {
+		t.Parallel()
+		assert.ErrorIs(t, decodeResponse([]byte(`{"result":"true","Data":{"status":"1"}}`), nil), errUnexpectedData, "decodeResponse should report data whose key differs in case for a nil result")
+	})
 }
 
 func TestCheckNoData(t *testing.T) {

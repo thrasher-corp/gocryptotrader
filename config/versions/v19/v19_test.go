@@ -18,34 +18,27 @@ func TestExchanges(t *testing.T) {
 	assert.Equal(t, []string{"*"}, new(v19.Version).Exchanges(), "Exchanges should return every exchange, so LBank matches in any case")
 }
 
-func TestMatchesLBankInAnyCase(t *testing.T) {
-	t.Parallel()
-	for _, name := range []string{"Lbank", "lbank", "LBANK", "LBank"} {
-		in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + previousDefaults + `}}`)
-		out, err := new(v19.Version).UpgradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
-		assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
-
-		in = []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + currentDefaults + `}}`)
-		out, err = new(v19.Version).DowngradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
-		assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "DowngradeExchange should migrate %s", name)
-	}
-	for _, name := range []string{"Bitstamp", "Lbankx", "L bank"} {
-		in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + previousDefaults + `}}`)
-		out, err := new(v19.Version).UpgradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
-		assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
-
-		in = []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + currentDefaults + `}}`)
-		out, err = new(v19.Version).DowngradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
-		assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
-	}
-}
-
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
+	// Cases outside the table run serially and in order, so a migration keeping state between calls fails them
+	ctx := t.Context()
+	for _, name := range []string{"Lbank", "lbank", "LBANK", "LBank"} {
+		t.Run("LBank named "+name+" is migrated", func(t *testing.T) {
+			in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + previousDefaults + `}}`)
+			out, err := new(v19.Version).UpgradeExchange(ctx, in)
+			require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+			assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
+		})
+	}
+	for _, name := range []string{"Bitstamp", "Lbankx", "L bank"} {
+		t.Run("exchange named "+name+" is left unchanged", func(t *testing.T) {
+			in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + previousDefaults + `}}`)
+			out, err := new(v19.Version).UpgradeExchange(ctx, in)
+			require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+			assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
+		})
+	}
+
 	for _, tc := range []struct {
 		name string
 		in   string
@@ -85,17 +78,39 @@ func TestUpgradeExchange(t *testing.T) {
 		})
 	}
 
-	in := []byte(`{"name":"Lbank","api":{}}`)
-	out, err := new(v19.Version).UpgradeExchange(t.Context(), in)
-	require.NoError(t, err, "UpgradeExchange must not error when urlEndpoints is missing")
-	assert.Equal(t, string(in), string(out), "UpgradeExchange should not change a config without urlEndpoints")
-
-	_, err = new(v19.Version).UpgradeExchange(t.Context(), []byte(`{"name":"Lbank","api":{"urlEndpoints":{"RestSpotURL":42}}}`))
-	assert.ErrorContains(t, err, "Value is not a string", "UpgradeExchange should error on a non-string endpoint")
+	t.Run("no urlEndpoints", func(t *testing.T) {
+		in := []byte(`{"name":"Lbank","api":{}}`)
+		out, err := new(v19.Version).UpgradeExchange(ctx, in)
+		require.NoError(t, err, "UpgradeExchange must not error when urlEndpoints is missing")
+		assert.Equal(t, string(in), string(out), "UpgradeExchange should not change a config without urlEndpoints")
+	})
+	t.Run("non-string endpoint", func(t *testing.T) {
+		_, err := new(v19.Version).UpgradeExchange(ctx, []byte(`{"name":"Lbank","api":{"urlEndpoints":{"RestSpotURL":42}}}`))
+		assert.ErrorContains(t, err, "Value is not a string", "UpgradeExchange should error on a non-string endpoint")
+	})
 }
 
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
+	// Cases outside the table run serially and in order, so a migration keeping state between calls fails them
+	ctx := t.Context()
+	for _, name := range []string{"Lbank", "lbank", "LBANK", "LBank"} {
+		t.Run("LBank named "+name+" is migrated", func(t *testing.T) {
+			in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + currentDefaults + `}}`)
+			out, err := new(v19.Version).DowngradeExchange(ctx, in)
+			require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+			assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "DowngradeExchange should migrate %s", name)
+		})
+	}
+	for _, name := range []string{"Bitstamp", "Lbankx", "L bank"} {
+		t.Run("exchange named "+name+" is left unchanged", func(t *testing.T) {
+			in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + currentDefaults + `}}`)
+			out, err := new(v19.Version).DowngradeExchange(ctx, in)
+			require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+			assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
+		})
+	}
+
 	for _, tc := range []struct {
 		name string
 		in   string
@@ -125,27 +140,37 @@ func TestDowngradeExchange(t *testing.T) {
 		})
 	}
 
-	in := []byte(`{"name":"Lbank"}`)
-	out, err := new(v19.Version).DowngradeExchange(t.Context(), in)
-	require.NoError(t, err, "DowngradeExchange must not error when api is missing")
-	assert.Equal(t, string(in), string(out), "DowngradeExchange should not change a config without endpoints")
-
-	_, err = new(v19.Version).DowngradeExchange(t.Context(), []byte(`{"name":"Lbank","api":{"urlEndpoints":{"WebsocketSpotURL":true}}}`))
-	assert.ErrorContains(t, err, "Value is not a string", "DowngradeExchange should error on a non-string endpoint")
+	t.Run("no api", func(t *testing.T) {
+		in := []byte(`{"name":"Lbank"}`)
+		out, err := new(v19.Version).DowngradeExchange(ctx, in)
+		require.NoError(t, err, "DowngradeExchange must not error when api is missing")
+		assert.Equal(t, string(in), string(out), "DowngradeExchange should not change a config without endpoints")
+	})
+	t.Run("non-string endpoint", func(t *testing.T) {
+		_, err := new(v19.Version).DowngradeExchange(ctx, []byte(`{"name":"Lbank","api":{"urlEndpoints":{"WebsocketSpotURL":true}}}`))
+		assert.ErrorContains(t, err, "Value is not a string", "DowngradeExchange should error on a non-string endpoint")
+	})
 }
 
 // TestRoundTrip checks a custom endpoint survives an upgrade and downgrade unchanged, and the previous default comes back
 // as the previous version's default
 func TestRoundTrip(t *testing.T) {
 	t.Parallel()
-	for _, in := range []string{
-		`{"name":"Lbank","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/lbank"}}}`,
-		`{"name":"Lbank","api":{"urlEndpoints":{}}}`,
+	ctx := t.Context()
+	for _, tc := range []struct {
+		name string
+		in   string
+	}{
+		{"custom endpoint", `{"name":"Lbank","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/lbank"}}}`},
+		{"default endpoint", `{"name":"Lbank","api":{"urlEndpoints":{}}}`},
 	} {
-		up, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(in))
-		require.NoError(t, err, "UpgradeExchange must not error")
-		down, err := new(v19.Version).DowngradeExchange(t.Context(), up)
-		require.NoError(t, err, "DowngradeExchange must not error")
-		assert.JSONEq(t, in, string(down), "a config should round trip unchanged")
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			up, err := new(v19.Version).UpgradeExchange(ctx, []byte(tc.in))
+			require.NoError(t, err, "UpgradeExchange must not error")
+			down, err := new(v19.Version).DowngradeExchange(ctx, up)
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, tc.in, string(down), "a config should round trip unchanged")
+		})
 	}
 }
