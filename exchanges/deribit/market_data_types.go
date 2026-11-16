@@ -820,8 +820,8 @@ type TickerResponse struct {
 	InterestRate          float64 `json:"interest_rate"`
 	UnderlyingIndex       string  `json:"underlying_index"`
 	UnderlyingPrice       float64 `json:"underlying_price"`
-	// ComboState, active or inactive, ImpliedBid and ImpliedAsk are a combo's; the implied prices are those its legs'
-	// books imply
+	// ComboState, ImpliedBid and ImpliedAsk are a combo's; the state is active or inactive, though Deribit at times leaves
+	// it out, and the implied prices are those its legs' books imply
 	ComboState string  `json:"combo_state"`
 	ImpliedBid float64 `json:"implied_bid"`
 	ImpliedAsk float64 `json:"implied_ask"`

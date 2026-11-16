@@ -587,7 +587,7 @@ func mockWrapperWithdrawRequest() *withdraw.Request {
 	}
 }
 
-var listedWrapperOptionCombo = sync.OnceValues(func() (string, error) { return listedMarketDataInstrument(KindOptionCombo) })
+var listedWrapperOptionCombo = sync.OnceValues(func() (string, error) { return listedMarketDataInstrument(e, KindOptionCombo) })
 
 // wrapperTestPair returns the pair of an asset the wrapper tests use: BTC_USDC, BTC-PERPETUAL and the mock option and
 // combos, or listed ones live
@@ -631,7 +631,8 @@ func wrapperHistoricTradesWindow() (start, end time.Time) {
 	if mockTests {
 		return time.UnixMilli(mockHistoricTradesStart), time.UnixMilli(mockHistoricTradesEnd)
 	}
-	end = time.Now()
+	// Deribit includes trades timestamped at the start's millisecond, so the start must not fall part way through one
+	end = time.Now().Truncate(time.Millisecond)
 	return end.Add(-time.Minute), end
 }
 

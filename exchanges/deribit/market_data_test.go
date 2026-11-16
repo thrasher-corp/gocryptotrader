@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -69,13 +71,14 @@ func marketDataNano(timestamp int64) types.Time {
 
 // listedMarketDataInstrument returns the first open instrument of a kind settled in BTC that expires at least a day
 // from now, which live tests use in place of the mock instruments
-func listedMarketDataInstrument(kind string) (string, error) {
-	instruments, err := e.GetInstruments(context.Background(), &InstrumentsRequest{Currency: currency.BTC, Kind: kind})
+func listedMarketDataInstrument(ex *Exchange, kind string) (string, error) {
+	instruments, err := ex.GetInstruments(context.Background(), &InstrumentsRequest{Currency: currency.BTC, Kind: kind})
 	if err != nil {
 		return "", err
 	}
 	for i := range instruments {
-		if instruments[i].State == "open" && time.Until(instruments[i].ExpirationTimestamp.Time()) > 24*time.Hour {
+		// The kind is checked as well as requested, as TestGetTicker's combo case accepts a ticker without a combo state
+		if instruments[i].Kind == kind && instruments[i].State == "open" && time.Until(instruments[i].ExpirationTimestamp.Time()) > 24*time.Hour {
 			return instruments[i].InstrumentName, nil
 		}
 	}
@@ -83,9 +86,53 @@ func listedMarketDataInstrument(kind string) (string, error) {
 }
 
 var (
-	listedMarketDataOption      = sync.OnceValues(func() (string, error) { return listedMarketDataInstrument(KindOption) })
-	listedMarketDataFutureCombo = sync.OnceValues(func() (string, error) { return listedMarketDataInstrument(KindFutureCombo) })
+	listedMarketDataOption      = sync.OnceValues(func() (string, error) { return listedMarketDataInstrument(e, KindOption) })
+	listedMarketDataFutureCombo = sync.OnceValues(func() (string, error) { return listedMarketDataInstrument(e, KindFutureCombo) })
 )
+
+func TestListedMarketDataInstrument(t *testing.T) {
+	t.Parallel()
+	listed := func(name, kind, state string, expiresIn time.Duration) string {
+		return `{"instrument_name":"` + name + `","kind":"` + kind + `","state":"` + state + `","expiration_timestamp":` + strconv.FormatInt(time.Now().Add(expiresIn).UnixMilli(), 10) + `}`
+	}
+	perpetual := listed(marketDataPerpetual, KindFuture, "open", 1000*24*time.Hour)
+	combo := listed(mockMarketDataFutureCombo, KindFutureCombo, "open", 10*24*time.Hour)
+	option := listed(mockMarketDataOption, KindOption, "open", 10*24*time.Hour)
+	optionCombo := listed(mockWrapperOptionCombo, KindOptionCombo, "open", 10*24*time.Hour)
+	for _, tc := range []struct {
+		name    string
+		kind    string
+		listing []string
+		exp     string
+		err     error
+	}{
+		{name: "combo listed after a perpetual and before one expiring sooner", kind: KindFutureCombo, listing: []string{perpetual, combo, listed("BTC-FS-21NOV26_PERP", KindFutureCombo, "open", 5*24*time.Hour)}, exp: mockMarketDataFutureCombo},
+		{name: "option listed after a combo", kind: KindOption, listing: []string{combo, option}, exp: mockMarketDataOption},
+		{name: "option listed after an option combo", kind: KindOption, listing: []string{optionCombo, option}, exp: mockMarketDataOption},
+		{name: "option combo listed after an option", kind: KindOptionCombo, listing: []string{option, optionCombo}, exp: mockWrapperOptionCombo},
+		{name: "only another kind listed", kind: KindFutureCombo, listing: []string{perpetual, option}, err: errNoListedMarketDataInstrument},
+		{name: "combo whose book is not open", kind: KindFutureCombo, listing: []string{listed("BTC-FS-20NOV26_PERP", KindFutureCombo, "settlement", 10*24*time.Hour), combo}, exp: mockMarketDataFutureCombo},
+		{name: "combo expiring within a day", kind: KindFutureCombo, listing: []string{listed("BTC-FS-17NOV26_PERP", KindFutureCombo, "open", 23*time.Hour), combo}, exp: mockMarketDataFutureCombo},
+		{name: "combo expiring after a day", kind: KindFutureCombo, listing: []string{listed("BTC-FS-18NOV26_PERP", KindFutureCombo, "open", 36*time.Hour), combo}, exp: "BTC-FS-18NOV26_PERP"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body, err := io.ReadAll(r.Body)
+				if assert.NoError(t, err, "Reading the request body should not error") {
+					assert.JSONEq(t, `{"jsonrpc":"2.0","method":"public/get_instruments","params":{"currency":"BTC","kind":"`+tc.kind+`"}}`, string(body), "listedMarketDataInstrument should list BTC's instruments of the kind")
+				}
+				_, err = w.Write([]byte(`{"jsonrpc":"2.0","result":[` + strings.Join(tc.listing, ",") + `]}`))
+				assert.NoError(t, err, "Writing the response should not error")
+			}))
+			name, err := listedMarketDataInstrument(ex, tc.kind)
+			require.ErrorIs(t, err, tc.err, "listedMarketDataInstrument must return the expected error")
+			assert.Equal(t, tc.exp, name, "listedMarketDataInstrument should return the first open instrument of the kind expiring after a day")
+		})
+	}
+	_, err := listedMarketDataInstrument(newUnavailableServerExchange(t), KindFutureCombo)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "listedMarketDataInstrument should return the request failure")
+}
 
 // marketDataOption returns mockMarketDataOption, or a listed option when testing live
 func marketDataOption(t *testing.T) string {
@@ -2551,7 +2598,12 @@ func TestGetTicker(t *testing.T) {
 			}
 			assert.Equalf(t, instrument, result.InstrumentName, "GetTicker should return %s", instrument)
 			assert.Equalf(t, exp.Greeks != nil, result.Greeks != nil, "GetTicker should return greeks for %s only if it is an option", instrument)
-			assert.Equalf(t, exp.ComboState, result.ComboState, "GetTicker should return a combo state for %s only if it is a combo", instrument)
+			if exp.ComboState == "" {
+				assert.Emptyf(t, result.ComboState, "GetTicker should return a combo state for %s only if it is a combo", instrument)
+			} else {
+				// Deribit's ticker can report a combo as active or inactive from one reply to the next, and at times leaves its state out
+				assert.Containsf(t, []string{"", ComboStateActive, ComboStateInactive}, result.ComboState, "GetTicker should return no combo state or an active or inactive one for %s", instrument)
+			}
 		})
 	}
 
