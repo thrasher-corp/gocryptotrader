@@ -163,6 +163,7 @@ func MockWebsocketInstance[T any, PT interface {
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
+	// Mock sockets exercise authenticated requests on both legacy and managed connections.
 	b.API.AuthenticatedWebsocketSupport = true
 	err := b.API.Endpoints.SetRunningURL("RestSpotURL", s.URL)
 	require.NoError(tb, err, "Endpoints.SetRunningURL must not error for RestSpotURL")

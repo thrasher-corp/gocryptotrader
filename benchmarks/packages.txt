@@ -22,6 +22,7 @@ exchanges/alert
 exchanges/binance
 exchanges/currencystate
 exchanges/gateio
+exchanges/htx
 exchanges/kucoin
 exchanges/okx
 exchanges/order
