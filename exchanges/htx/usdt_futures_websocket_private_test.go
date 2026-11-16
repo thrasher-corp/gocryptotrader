@@ -212,22 +212,40 @@ func TestSendV5TradeRequest(t *testing.T) {
 
 func TestWebsocketPlaceV5Order(t *testing.T) {
 	t.Parallel()
-	t.Run("live", func(t *testing.T) {
-		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
-		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
-		connectHTXLiveWebsocket(t, h, nil)
-		response, err := h.WebsocketPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT", MarginMode: "cross", PositionSide: "long", Side: "invalid", Type: "post_only", Price: 1, Volume: 1})
-		if err != nil {
-			require.ErrorIs(t, err, request.ErrAuthRequestFailed, "live venue rejection must report an authenticated request failure")
-		} else {
-			require.NotNil(t, response, "live rejection acknowledgement must decode")
-			assert.NotContains(t, []uint64{0, 200}, response.Acknowledgement.Code, "invalid side should be rejected")
-			assert.Empty(t, response.Acknowledgement.OrderID, "invalid side should never create an order")
-		}
-	})
+	for _, tc := range []struct{ name, response string }{
+		{name: "live"},
+		{name: "top-level rejection", response: `"code":1001,"message":"invalid request"`},
+		{name: "per-order rejection", response: `"code":200,"data":{"code":1001,"message":"invalid request"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var h *Exchange
+			if tc.response == "" {
+				if mockTests {
+					t.Skip("Live testing requires the mock_test_off build tag")
+				}
+				h = newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
+				connectHTXLiveWebsocket(t, h, nil)
+			} else {
+				h = newV5TradeWebsocketTestExchange(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+					tb.Helper()
+					cid, err := jsonparser.GetString(message, "cid")
+					if err != nil {
+						return err
+					}
+					return conn.WriteMessage(gws.TextMessage, []byte(`{"cid":"`+cid+`",`+tc.response+`}`))
+				})
+			}
+			response, err := h.WebsocketPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT", MarginMode: "cross", PositionSide: "long", Side: "invalid", Type: "post_only", Price: 1, Volume: 1})
+			if err != nil {
+				require.ErrorIs(t, err, errAPIResponse, "venue rejection must report an API error")
+			} else {
+				require.NotNil(t, response, "live rejection acknowledgement must decode")
+				assert.NotContains(t, []uint64{0, 200}, response.Acknowledgement.Code, "invalid side should be rejected")
+				assert.Empty(t, response.Acknowledgement.OrderID, "invalid side should never create an order")
+			}
+		})
+	}
 	for _, quoted := range []bool{false, true} {
 		t.Run(map[bool]string{false: "object acknowledgement", true: "string acknowledgement"}[quoted], func(t *testing.T) {
 			t.Parallel()
@@ -269,23 +287,41 @@ func TestWebsocketPlaceV5Order(t *testing.T) {
 
 func TestWebsocketPlaceV5BatchOrders(t *testing.T) {
 	t.Parallel()
-	t.Run("live", func(t *testing.T) {
-		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
-		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
-		connectHTXLiveWebsocket(t, h, nil)
-		response, err := h.WebsocketPlaceV5BatchOrders(t.Context(), []*V5OrderRequest{{ContractCode: "BTC-USDT", MarginMode: "cross", PositionSide: "long", Side: "invalid", Type: "post_only", Price: 1, Volume: 1}})
-		if err != nil {
-			require.ErrorIs(t, err, request.ErrAuthRequestFailed, "live venue rejection must report an authenticated request failure")
-		} else {
-			require.NotNil(t, response, "live batch rejection response must decode")
-			require.Len(t, response.Acknowledgements, 1, "test order must have a rejection acknowledgement")
-			assert.NotContains(t, []uint64{0, 200}, response.Acknowledgements[0].Code, "invalid side should be rejected")
-			assert.Empty(t, response.Acknowledgements[0].OrderID, "invalid side should never create an order")
-		}
-	})
+	for _, tc := range []struct{ name, response string }{
+		{name: "live"},
+		{name: "top-level rejection", response: `"code":1001,"message":"invalid request"`},
+		{name: "per-order rejection", response: `"code":200,"data":[{"code":1001,"message":"invalid request"}]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var h *Exchange
+			if tc.response == "" {
+				if mockTests {
+					t.Skip("Live testing requires the mock_test_off build tag")
+				}
+				h = newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
+				connectHTXLiveWebsocket(t, h, nil)
+			} else {
+				h = newV5TradeWebsocketTestExchange(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+					tb.Helper()
+					cid, err := jsonparser.GetString(message, "cid")
+					if err != nil {
+						return err
+					}
+					return conn.WriteMessage(gws.TextMessage, []byte(`{"cid":"`+cid+`",`+tc.response+`}`))
+				})
+			}
+			response, err := h.WebsocketPlaceV5BatchOrders(t.Context(), []*V5OrderRequest{{ContractCode: "BTC-USDT", MarginMode: "cross", PositionSide: "long", Side: "invalid", Type: "post_only", Price: 1, Volume: 1}})
+			if err != nil {
+				require.ErrorIs(t, err, errAPIResponse, "venue rejection must report an API error")
+			} else {
+				require.NotNil(t, response, "live batch rejection response must decode")
+				require.Len(t, response.Acknowledgements, 1, "test order must have a rejection acknowledgement")
+				assert.NotContains(t, []uint64{0, 200}, response.Acknowledgements[0].Code, "invalid side should be rejected")
+				assert.Empty(t, response.Acknowledgements[0].OrderID, "invalid side should never create an order")
+			}
+		})
+	}
 	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	_, err := h.WebsocketPlaceV5BatchOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrEmptyParams, "WebsocketPlaceV5BatchOrders must reject empty request")
@@ -301,22 +337,40 @@ func TestWebsocketPlaceV5BatchOrders(t *testing.T) {
 
 func TestWebsocketCancelV5Order(t *testing.T) {
 	t.Parallel()
-	t.Run("live", func(t *testing.T) {
-		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
-		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
-		const fabricatedOrderID = "9223372036854775807"
-		connectHTXLiveWebsocket(t, h, nil)
-		response, err := h.WebsocketCancelV5Order(t.Context(), &V5CancelOrderRequest{ContractCode: "BTC-USDT", OrderID: fabricatedOrderID})
-		if err != nil {
-			require.ErrorIs(t, err, request.ErrAuthRequestFailed, "live venue rejection must report an authenticated request failure")
-		} else {
-			require.NotNil(t, response, "live cancellation rejection must decode")
-			assert.NotContains(t, []uint64{0, 200}, response.Acknowledgement.Code, "fabricated order ID should be rejected")
-		}
-	})
+	for _, tc := range []struct{ name, response string }{
+		{name: "live"},
+		{name: "top-level rejection", response: `"code":1001,"message":"invalid request"`},
+		{name: "per-order rejection", response: `"code":200,"data":{"code":1001,"message":"invalid request"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var h *Exchange
+			if tc.response == "" {
+				if mockTests {
+					t.Skip("Live testing requires the mock_test_off build tag")
+				}
+				h = newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
+				connectHTXLiveWebsocket(t, h, nil)
+			} else {
+				h = newV5TradeWebsocketTestExchange(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+					tb.Helper()
+					cid, err := jsonparser.GetString(message, "cid")
+					if err != nil {
+						return err
+					}
+					return conn.WriteMessage(gws.TextMessage, []byte(`{"cid":"`+cid+`",`+tc.response+`}`))
+				})
+			}
+			const fabricatedOrderID = "9223372036854775807"
+			response, err := h.WebsocketCancelV5Order(t.Context(), &V5CancelOrderRequest{ContractCode: "BTC-USDT", OrderID: fabricatedOrderID})
+			if err != nil {
+				require.ErrorIs(t, err, errAPIResponse, "venue rejection must report an API error")
+			} else {
+				require.NotNil(t, response, "live cancellation rejection must decode")
+				assert.NotContains(t, []uint64{0, 200}, response.Acknowledgement.Code, "fabricated order ID should be rejected")
+			}
+		})
+	}
 	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	_, err := h.WebsocketCancelV5Order(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelV5Order must reject nil request")
@@ -331,23 +385,41 @@ func TestWebsocketCancelV5Order(t *testing.T) {
 
 func TestWebsocketCancelV5BatchOrders(t *testing.T) {
 	t.Parallel()
-	t.Run("live", func(t *testing.T) {
-		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
-		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
-		const fabricatedOrderID = "9223372036854775807"
-		connectHTXLiveWebsocket(t, h, nil)
-		response, err := h.WebsocketCancelV5BatchOrders(t.Context(), &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{fabricatedOrderID}})
-		if err != nil {
-			require.ErrorIs(t, err, request.ErrAuthRequestFailed, "live venue rejection must report an authenticated request failure")
-		} else {
-			require.NotNil(t, response, "live batch rejection response must decode")
-			require.Len(t, response.Acknowledgements, 1, "fabricated cancellation must have a rejection acknowledgement")
-			assert.NotContains(t, []uint64{0, 200}, response.Acknowledgements[0].Code, "fabricated order ID should be rejected")
-		}
-	})
+	for _, tc := range []struct{ name, response string }{
+		{name: "live"},
+		{name: "top-level rejection", response: `"code":1001,"message":"invalid request"`},
+		{name: "per-order rejection", response: `"code":200,"data":[{"code":1001,"message":"invalid request"}]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var h *Exchange
+			if tc.response == "" {
+				if mockTests {
+					t.Skip("Live testing requires the mock_test_off build tag")
+				}
+				h = newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
+				connectHTXLiveWebsocket(t, h, nil)
+			} else {
+				h = newV5TradeWebsocketTestExchange(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+					tb.Helper()
+					cid, err := jsonparser.GetString(message, "cid")
+					if err != nil {
+						return err
+					}
+					return conn.WriteMessage(gws.TextMessage, []byte(`{"cid":"`+cid+`",`+tc.response+`}`))
+				})
+			}
+			const fabricatedOrderID = "9223372036854775807"
+			response, err := h.WebsocketCancelV5BatchOrders(t.Context(), &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{fabricatedOrderID}})
+			if err != nil {
+				require.ErrorIs(t, err, errAPIResponse, "venue rejection must report an API error")
+			} else {
+				require.NotNil(t, response, "live batch rejection response must decode")
+				require.Len(t, response.Acknowledgements, 1, "fabricated cancellation must have a rejection acknowledgement")
+				assert.NotContains(t, []uint64{0, 200}, response.Acknowledgements[0].Code, "fabricated order ID should be rejected")
+			}
+		})
+	}
 	eleven := []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"}
 	type testCase struct {
 		name    string
@@ -403,24 +475,42 @@ func TestWebsocketCancelV5BatchOrders(t *testing.T) {
 
 func TestWebsocketCancelAllV5Orders(t *testing.T) {
 	t.Parallel()
-	t.Run("live", func(t *testing.T) {
-		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
-		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
-		connectHTXLiveWebsocket(t, h, nil)
-		response, err := h.WebsocketCancelAllV5Orders(t.Context(), &V5CancelAllOrdersRequest{ContractCode: "INVALID-USDT", Side: "buy", PositionSide: "long"})
-		if err != nil {
-			require.ErrorIs(t, err, request.ErrAuthRequestFailed, "live venue rejection must report an authenticated request failure")
-		} else {
-			require.NotNil(t, response, "live cancel-all rejection must decode")
-			require.NotEmpty(t, response.Acknowledgements, "invalid contract must have a rejection acknowledgement")
-			for _, ack := range response.Acknowledgements {
-				assert.NotContains(t, []uint64{0, 200}, ack.Code, "fabricated contract should be rejected")
+	for _, tc := range []struct{ name, response string }{
+		{name: "live"},
+		{name: "top-level rejection", response: `"code":1001,"message":"invalid request"`},
+		{name: "per-order rejection", response: `"code":200,"data":[{"code":1001,"message":"invalid request"}]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var h *Exchange
+			if tc.response == "" {
+				if mockTests {
+					t.Skip("Live testing requires the mock_test_off build tag")
+				}
+				h = newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
+				connectHTXLiveWebsocket(t, h, nil)
+			} else {
+				h = newV5TradeWebsocketTestExchange(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+					tb.Helper()
+					cid, err := jsonparser.GetString(message, "cid")
+					if err != nil {
+						return err
+					}
+					return conn.WriteMessage(gws.TextMessage, []byte(`{"cid":"`+cid+`",`+tc.response+`}`))
+				})
 			}
-		}
-	})
+			response, err := h.WebsocketCancelAllV5Orders(t.Context(), &V5CancelAllOrdersRequest{ContractCode: "INVALID-USDT", Side: "buy", PositionSide: "long"})
+			if err != nil {
+				require.ErrorIs(t, err, errAPIResponse, "venue rejection must report an API error")
+			} else {
+				require.NotNil(t, response, "live cancel-all rejection must decode")
+				require.NotEmpty(t, response.Acknowledgements, "invalid contract must have a rejection acknowledgement")
+				for _, ack := range response.Acknowledgements {
+					assert.NotContains(t, []uint64{0, 200}, ack.Code, "fabricated contract should be rejected")
+				}
+			}
+		})
+	}
 	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	_, err := h.WebsocketCancelAllV5Orders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelAllV5Orders must reject nil request")

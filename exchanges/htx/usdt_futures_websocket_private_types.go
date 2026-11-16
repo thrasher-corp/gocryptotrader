@@ -94,6 +94,7 @@ type V5WebsocketOrder struct {
 	FeeCurrency          string       `json:"fee_currency"` // HTX may send a comma-separated list of fee currencies.
 	Fee                  types.Number `json:"fee"`
 	Profit               types.Number `json:"profit"`
+	PriceProtect         V5Boolean    `json:"price_protect"`
 	ContractType         string       `json:"contract_type"`
 	TakeProfitPrice      types.Number `json:"tp_trigger_price"`
 	TakeProfitOrderPrice types.Number `json:"tp_order_price"`
@@ -144,11 +145,13 @@ type V5WebsocketPositionUpdate struct {
 
 // V5WebsocketAccountUpdate contains an authenticated V5 USDT-margined account update.
 type V5WebsocketAccountUpdate struct {
-	Operation string           `json:"op"`
-	Topic     string           `json:"topic"`
-	Timestamp types.Time       `json:"ts"`
-	UID       string           `json:"uid"`
-	Balance   V5AccountBalance `json:"data"`
+	ContractCode string           `json:"contract_code"`
+	Event        string           `json:"event"`
+	Operation    string           `json:"op"`
+	Topic        string           `json:"topic"`
+	Timestamp    types.Time       `json:"ts"`
+	UID          string           `json:"uid"`
+	Balance      V5AccountBalance `json:"data"`
 }
 
 // V5WebsocketMatchOrderUpdate contains an authenticated V5 USDT-margined match-order update.
@@ -177,6 +180,7 @@ type V5WebsocketExecution struct {
 	FeeCurrency    currency.Code       `json:"fee_currency"`
 	DeductionPrice types.Number        `json:"deduction_price"`
 	ContractCode   string              `json:"contract_code"`
+	ContractType   string              `json:"contract_type"`
 	ID             string              `json:"id"`
 	OrderID        types.PreciseNumber `json:"order_id"`
 	TradeID        types.PreciseNumber `json:"trade_id"`
@@ -200,6 +204,9 @@ type V5WebsocketMatchOrder struct {
 	TotalTradeVolume types.Number `json:"total_trade_volume"`
 	TradePrice       types.Number `json:"trade_price"`
 	MatchTime        types.Time   `json:"match_time"`
+	TradeID          string       `json:"trade_id"`
+	Role             string       `json:"role"`
+	InTime           types.Time   `json:"in_time"`
 }
 
 // V5WebsocketPosition contains the fields published by the V5 position channel.

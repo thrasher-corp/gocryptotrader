@@ -306,9 +306,8 @@ type FuturesBatchOrderRequest struct {
 
 // FuturesBatchOrderResponse stores batch order data
 type FuturesBatchOrderResponse struct {
-	Orders    []FuturesOrderResponse `json:"orders_data"`
-	Results   SwapBatchOrderResult   `json:"data"`
-	Timestamp types.Time             `json:"ts"`
+	Results   SwapBatchOrderResult `json:"data"`
+	Timestamp types.Time           `json:"ts"`
 }
 
 // FuturesCancelOrderResponse stores cancel order data

@@ -392,9 +392,6 @@ func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true, websocket: true})
 		pair, err := h.FormatExchangeCurrency(btcusdtPair, asset.Spot)
 		require.NoError(t, err, "live subscription pair must use the spot wire format")
@@ -504,9 +501,6 @@ func TestUnsubscribe(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true, websocket: true})
 		pair, err := h.FormatExchangeCurrency(btcusdtPair, asset.Spot)
 		require.NoError(t, err, "live subscription pair must use the spot wire format")

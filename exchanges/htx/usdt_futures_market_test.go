@@ -18,9 +18,6 @@ func TestGetV5AssetsDeductionCurrencies(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
@@ -42,9 +39,6 @@ func TestGetV5MultiAssetsMarginCurrencies(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
@@ -62,9 +56,6 @@ func TestGetV5EliteAccountRatio(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
@@ -86,9 +77,6 @@ func TestGetV5ElitePositionRatio(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
@@ -107,9 +95,6 @@ func TestGetV5EstimatedSettlementPrice(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
@@ -128,9 +113,6 @@ func TestGetV5FundingRates(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
@@ -160,11 +142,18 @@ func TestGetV5FundingRates(t *testing.T) {
 
 func TestGetV5FundingRateHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("documented response fields", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate_history", `{"code":200,"data":[{"id":"9566","contract_code":"BTC-USDT","funding_rate":"-0.00375","funding_time":"1721887200000","funding_fee_type":"normal"}]}`, nil)
+		response, err := h.GetV5FundingRateHistory(t.Context(), &V5FundingRateHistoryRequest{ContractCode: "BTC-USDT"})
+		require.NoError(t, err, "documented response must decode")
+		require.NotNil(t, response, "documented response must be returned")
+		require.Len(t, response.FundingRates, 1, "funding history must retain the rate")
+		assert.Equal(t, "normal", response.FundingRates[0].FundingFeeType, "funding fee type should be retained")
+		assert.Equal(t, types.Number(-0.00375), response.FundingRates[0].FundingRate, "funding rate should retain its sign")
+	})
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
@@ -197,9 +186,6 @@ func TestGetV5PriceLimits(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
@@ -221,9 +207,6 @@ func TestGetV5LiquidationOrders(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
@@ -255,9 +238,6 @@ func TestGetV5MarketRiskLimit(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
@@ -276,9 +256,6 @@ func TestGetV5SettlementHistory(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
@@ -308,9 +285,6 @@ func TestGetV5OpenInterest(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()

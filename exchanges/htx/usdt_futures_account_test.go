@@ -207,6 +207,20 @@ func TestV5UniversalTransfer(t *testing.T) {
 
 func TestGetV5UniversalTransferRecords(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct{ name, raw string }{
+		{name: "large quoted identifier", raw: `"9223372036854775807"`},
+		{name: "large numeric identifier", raw: `9223372036854775807`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v5/account/universal_transfer_records", `{"code":200,"data":[{"transfer_id":`+tc.raw+`}]}`, nil)
+			response, err := h.GetV5UniversalTransferRecords(t.Context(), &V5UniversalTransferRecordsRequest{})
+			require.NoError(t, err, "large identifier must decode")
+			require.NotNil(t, response, "response must be returned")
+			require.Len(t, response.Transfers, 1, "response must retain its record")
+			assert.Equal(t, "9223372036854775807", response.Transfers[0].TransferID.String(), "identifier should retain all digits")
+		})
+	}
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		if mockTests {
@@ -238,7 +252,7 @@ func TestGetV5UniversalTransferRecords(t *testing.T) {
 	})
 	require.NoError(t, err, "GetV5UniversalTransferRecords must not error")
 	require.Len(t, resp.Transfers, 1, "one transfer record must decode")
-	assert.Equal(t, types.Number(123), resp.Transfers[0].TransferID, "transfer ID should decode")
+	assert.Equal(t, "123", resp.Transfers[0].TransferID.String(), "transfer ID should decode")
 }
 
 func TestGetV5AccountBalance(t *testing.T) {

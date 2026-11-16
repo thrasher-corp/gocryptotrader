@@ -186,9 +186,6 @@ func TestFuturesGetContractInfo(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesGetContractInfo(t.Context(), "", "", currency.EMPTYPAIR)
 		require.NoError(t, err, "live FuturesGetContractInfo request must succeed")
@@ -200,9 +197,6 @@ func TestFuturesIndexPriceInfo(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesIndexPriceInfo(t.Context(), currency.BTC)
 		require.NoError(t, err, "live FuturesIndexPriceInfo request must succeed")
@@ -214,9 +208,6 @@ func TestFuturesContractPriceLimitations(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesContractPriceLimitations(t.Context(), "BTC", "this_week", currency.EMPTYPAIR)
 		require.NoError(t, err, "live FuturesContractPriceLimitations request must succeed")
@@ -228,9 +219,6 @@ func TestFuturesContractOpenInterest(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesContractOpenInterest(t.Context(), "BTC", "this_week", currency.EMPTYPAIR)
 		require.NoError(t, err, "live FuturesContractOpenInterest request must succeed")
@@ -242,9 +230,6 @@ func TestFuturesGetEstimatedDeliveryPrice(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesGetEstimatedDeliveryPrice(t.Context(), currency.BTC)
 		require.NoError(t, err, "live FuturesGetEstimatedDeliveryPrice request must succeed")
@@ -256,9 +241,6 @@ func TestFuturesGetMarketDepth(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesGetMarketDepth(t.Context(), btccwPair, "step5")
 		require.NoError(t, err, "live FuturesGetMarketDepth request must succeed")
@@ -270,9 +252,6 @@ func TestFuturesGetKline(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesGetKline(t.Context(), btccwPair, "5min", 5, time.Now().UTC().Add(-time.Hour), time.Now().UTC())
 		require.NoError(t, err, "live FuturesGetKline request must succeed")
@@ -288,9 +267,6 @@ func TestFuturesGetMarketOverview(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesGetMarketOverview(t.Context(), btccwPair)
 		require.NoError(t, err, "live FuturesGetMarketOverview request must succeed")
@@ -306,9 +282,6 @@ func TestFuturesLastTrade(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesLastTrade(t.Context(), btccwPair)
 		require.NoError(t, err, "live FuturesLastTrade request must succeed")
@@ -320,9 +293,6 @@ func TestFuturesRequestPublicBatchTrades(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesRequestPublicBatchTrades(t.Context(), btccwPair, 50)
 		require.NoError(t, err, "live FuturesRequestPublicBatchTrades request must succeed")
@@ -334,9 +304,6 @@ func TestFuturesQueryTieredAdjustmentFactor(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesQueryTieredAdjustmentFactor(t.Context(), currency.BTC)
 		require.NoError(t, err, "live FuturesQueryTieredAdjustmentFactor request must succeed")
@@ -348,9 +315,6 @@ func TestFuturesQueryHisOpenInterest(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesQueryHisOpenInterest(t.Context(), "BTC", "this_week", "60min", "cont", 3)
 		require.NoError(t, err, "live FuturesQueryHisOpenInterest request must succeed")
@@ -369,9 +333,6 @@ func TestFuturesQuerySystemStatus(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesQuerySystemStatus(t.Context(), currency.BTC)
 		require.NoError(t, err, "live FuturesQuerySystemStatus request must succeed")
@@ -383,9 +344,6 @@ func TestFuturesQueryTopAccountsRatio(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesQueryTopAccountsRatio(t.Context(), "BTC", "5min")
 		require.NoError(t, err, "live FuturesQueryTopAccountsRatio request must succeed")
@@ -397,9 +355,6 @@ func TestFuturesQueryTopPositionsRatio(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesQueryTopPositionsRatio(t.Context(), "BTC", "5min")
 		require.NoError(t, err, "live FuturesQueryTopPositionsRatio request must succeed")
@@ -411,9 +366,6 @@ func TestFuturesLiquidationOrders(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesLiquidationOrders(t.Context(), currency.BTC, "filled", 0, 0, "", 0)
 		require.NoError(t, err, "live FuturesLiquidationOrders request must succeed")
@@ -450,9 +402,6 @@ func TestFuturesIndexKline(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesIndexKline(t.Context(), btccwPair, "5min", 5)
 		require.NoError(t, err, "live FuturesIndexKline request must succeed")
@@ -464,9 +413,6 @@ func TestFuturesGetBasis(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.FuturesGetBasis(t.Context(), btccwPair, "5min", "open", 3)
 		require.NoError(t, err, "live FuturesGetBasis request must succeed")

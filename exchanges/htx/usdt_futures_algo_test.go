@@ -95,6 +95,20 @@ func TestCancelV5AlgoOrders(t *testing.T) {
 
 func TestGetV5AlgoOrder(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct{ name, raw string }{
+		{name: "large quoted identifier", raw: `"9223372036854775807"`},
+		{name: "large numeric identifier", raw: `9223372036854775807`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/algo/order", `{"code":200,"data":[{"id":`+tc.raw+`}]}`, nil)
+			response, err := h.GetV5AlgoOrder(t.Context(), "1", "", "trigger")
+			require.NoError(t, err, "large identifier must decode")
+			require.NotNil(t, response, "response must be returned")
+			require.Len(t, response.Orders, 1, "response must retain its record")
+			assert.Equal(t, "9223372036854775807", response.Orders[0].ID.String(), "identifier should retain all digits")
+		})
+	}
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		if mockTests {

@@ -27,9 +27,6 @@ func TestQuerySwapIndexPriceInfo(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.QuerySwapIndexPriceInfo(t.Context(), btcusdPair)
 		require.NoError(t, err, "live QuerySwapIndexPriceInfo request must succeed")
@@ -41,9 +38,6 @@ func TestSwapOpenInterestInformation(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.SwapOpenInterestInformation(t.Context(), btcusdPair)
 		require.NoError(t, err, "live SwapOpenInterestInformation request must succeed")
@@ -55,9 +49,6 @@ func TestGetSwapMarketDepth(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetSwapMarketDepth(t.Context(), btcusdPair, "step0")
 		require.NoError(t, err, "live GetSwapMarketDepth request must succeed")
@@ -69,9 +60,6 @@ func TestGetSwapKlineData(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetSwapKlineData(t.Context(), btcusdPair, "5min", 5, time.Now().UTC().Add(-time.Hour), time.Now().UTC())
 		require.NoError(t, err, "live GetSwapKlineData request must succeed")
@@ -103,9 +91,6 @@ func TestGetSwapMarketOverview(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetSwapMarketOverview(t.Context(), btcusdPair)
 		require.NoError(t, err, "live GetSwapMarketOverview request must succeed")
@@ -117,9 +102,6 @@ func TestGetLastTrade(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetLastTrade(t.Context(), btcusdPair)
 		require.NoError(t, err, "live GetLastTrade request must succeed")
@@ -131,9 +113,6 @@ func TestGetBatchTrades(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetBatchTrades(t.Context(), btcusdPair, 5)
 		require.NoError(t, err, "live GetBatchTrades request must succeed")
@@ -145,9 +124,6 @@ func TestGetTieredAjustmentFactorInfo(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetTieredAjustmentFactorInfo(t.Context(), btcusdPair)
 		require.NoError(t, err, "live GetTieredAjustmentFactorInfo request must succeed")
@@ -159,9 +135,6 @@ func TestGetOpenInterestInfo(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetOpenInterestInfo(t.Context(), btcusdPair, "5min", "cryptocurrency", 50)
 		require.NoError(t, err, "live GetOpenInterestInfo request must succeed")
@@ -184,9 +157,6 @@ func TestGetTraderSentimentIndexAccount(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetTraderSentimentIndexAccount(t.Context(), btcusdPair, "5min")
 		require.NoError(t, err, "live GetTraderSentimentIndexAccount request must succeed")
@@ -203,9 +173,6 @@ func TestGetTraderSentimentIndexPosition(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetTraderSentimentIndexPosition(t.Context(), btcusdPair, "5min")
 		require.NoError(t, err, "live GetTraderSentimentIndexPosition request must succeed")
@@ -222,9 +189,6 @@ func TestGetLiquidationOrders(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetLiquidationOrders(t.Context(), btcusdPair, "closed", time.Now().UTC().Add(-24*time.Hour), time.Now().UTC(), "", 0)
 		require.NoError(t, err, "live GetLiquidationOrders request must succeed")
@@ -238,9 +202,6 @@ func TestGetPremiumIndexKlineData(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetPremiumIndexKlineData(t.Context(), btcusdPair, "5min", 15)
 		require.NoError(t, err, "live GetPremiumIndexKlineData request must succeed")
@@ -261,9 +222,6 @@ func TestGetEstimatedFundingRates(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetEstimatedFundingRates(t.Context(), btcusdPair, "5min", 15)
 		require.NoError(t, err, "live GetEstimatedFundingRates request must succeed")
@@ -285,9 +243,6 @@ func TestGetBasisData(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetBasisData(t.Context(), btcusdPair, "5min", "close", 5)
 		require.NoError(t, err, "live GetBasisData request must succeed")
@@ -310,9 +265,6 @@ func TestGetSystemStatusInfo(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetSystemStatusInfo(t.Context(), btcusdPair)
 		require.NoError(t, err, "live GetSystemStatusInfo request must succeed")
@@ -324,9 +276,6 @@ func TestGetSwapPriceLimits(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetSwapPriceLimits(t.Context(), btcusdPair)
 		require.NoError(t, err, "live GetSwapPriceLimits request must succeed")
@@ -1084,9 +1033,6 @@ func TestGetSwapMarkets(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetSwapMarkets(t.Context(), btcusdPair)
 		require.NoError(t, err, "live GetSwapMarkets request must succeed")
@@ -1104,9 +1050,6 @@ func TestGetSwapFundingRates(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetSwapFundingRates(t.Context())
 		require.NoError(t, err, "live GetSwapFundingRates request must succeed")
@@ -1118,9 +1061,6 @@ func TestGetSwapFundingRate(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetSwapFundingRate(t.Context(), btcusdPair)
 		require.NoError(t, err, "live GetSwapFundingRate request must succeed")
@@ -1139,9 +1079,6 @@ func TestGetHistoricalFundingRatesForPair(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		response, err := h.GetHistoricalFundingRatesForPair(t.Context(), btcusdPair, 20, 1)
 		require.NoError(t, err, "live GetHistoricalFundingRatesForPair request must succeed")

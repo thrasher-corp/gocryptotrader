@@ -54,6 +54,20 @@ func TestV5WebsocketRateLimitUnmarshalJSON(t *testing.T) {
 
 func TestV5WebsocketOrder(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name, raw string
+		want      bool
+	}{
+		{name: "enabled price protection", raw: `true`, want: true},
+		{name: "disabled price protection", raw: `false`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var response V5WebsocketOrderUpdate
+			require.NoError(t, json.Unmarshal([]byte(`{"op":"notify","topic":"orders","data":{"price_protect":`+tc.raw+`}}`), &response), "order notification must decode")
+			assert.Equal(t, tc.want, response.Order.PriceProtect.Bool(), "price protection should retain the venue setting")
+		})
+	}
 	type testCase struct {
 		name, raw string
 		want      time.Time
@@ -77,6 +91,15 @@ func TestV5WebsocketOrder(t *testing.T) {
 
 func TestV5WebsocketMatchOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("documented execution metadata", func(t *testing.T) {
+		t.Parallel()
+		var response V5WebsocketMatchOrderUpdate
+		require.NoError(t, json.Unmarshal([]byte(`{"op":"notify","topic":"match_orders","contract_code":"BTC-USDT","data":[{"trade_id":"9223372036854775807","role":"taker","in_time":"1755076981493"}]}`), &response), "matching-engine notification must decode")
+		require.Len(t, response.Orders, 1, "notification must retain its order")
+		assert.Equal(t, "9223372036854775807", response.Orders[0].TradeID, "trade ID should retain its precision")
+		assert.Equal(t, "taker", response.Orders[0].Role, "execution role should be retained")
+		assert.Equal(t, time.UnixMilli(1755076981493), response.Orders[0].InTime.Time(), "matching-engine entry time should retain milliseconds")
+	})
 	type testCase struct {
 		name, raw string
 		want      time.Time
@@ -136,4 +159,37 @@ func TestV5WebsocketAlgoOrderUpdate(t *testing.T) {
 	assert.True(t, algo.ReduceOnly.Bool(), "reduce-only flag should decode")
 	assert.Equal(t, time.UnixMilli(1767600751565), algo.CreatedTime.Time(), "quoted timestamp should retain milliseconds")
 	assert.True(t, algo.UpdatedTime.Time().IsZero(), "empty timestamp should remain unset")
+}
+
+func TestV5WebsocketAccountUpdate(t *testing.T) {
+	t.Parallel()
+	var response V5WebsocketAccountUpdate
+	require.NoError(t, json.Unmarshal([]byte(`{"op":"notify","topic":"account","contract_code":"BTC-USDT","event":"snapshot","data":{"equity":"1.5","version":5232372}}`), &response), "account notification must decode")
+	assert.Equal(t, "BTC-USDT", response.ContractCode, "account event contract should be retained")
+	assert.Equal(t, "snapshot", response.Event, "account event type should be retained")
+	assert.Equal(t, uint64(5232372), response.Balance.Version, "version should decode from the balance payload")
+	assert.Equal(t, types.Number(1.5), response.Balance.Equity, "balance should remain available")
+}
+
+func TestV5WebsocketExecution(t *testing.T) {
+	t.Parallel()
+	for _, topic := range []string{"trade", "trade_detail"} {
+		t.Run(topic, func(t *testing.T) {
+			t.Parallel()
+			payload := []byte(`{"op":"notify","topic":"` + topic + `","data":[{"contract_code":"SHIB-USDT","contract_type":"swap","trade_id":100005308993680}]}`)
+			var executions []V5WebsocketExecution
+			if topic == "trade" {
+				var response V5WebsocketTradeUpdate
+				require.NoError(t, json.Unmarshal(payload, &response), "trade notification must decode")
+				executions = response.Executions
+			} else {
+				var response V5WebsocketTradeDetailUpdate
+				require.NoError(t, json.Unmarshal(payload, &response), "execution-detail notification must decode")
+				executions = response.Executions
+			}
+			require.Len(t, executions, 1, "notification must retain its execution")
+			assert.Equal(t, "SHIB-USDT", executions[0].ContractCode, "execution contract should be retained")
+			assert.Equal(t, "swap", executions[0].ContractType, "execution contract type should be retained")
+		})
+	}
 }

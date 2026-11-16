@@ -76,9 +76,6 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		end := time.Now().UTC()
 		rates, err := h.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: btcusdtPair, StartDate: end.Add(-24 * time.Hour), EndDate: end})

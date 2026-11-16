@@ -118,6 +118,7 @@ type V5AccountBalance struct {
 	CreatedTime           types.Time          `json:"created_time"`
 	UpdatedTime           types.Time          `json:"updated_time"`
 	CurrencyBalances      []V5CurrencyBalance `json:"details"`
+	Version               uint64              `json:"version"`
 }
 
 // V5OpenInterestResponse stores the current USDT-margined contract open interest.
@@ -251,11 +252,13 @@ type V5Order struct {
 	StopLossPriceType   string       `json:"sl_trigger_price_type"`
 	TradeAveragePrice   types.Number `json:"trade_avg_price"`
 	TradeVolume         types.Number `json:"trade_volume"`
+	CancelVolume        types.Number `json:"cancel_volume"`
 	TradeTurnover       types.Number `json:"trade_turnover"`
 	FeeCurrency         string       `json:"fee_currency"` // HTX may send a comma-separated list of fee currencies.
 	Fee                 types.Number `json:"fee"`
 	PriceProtect        V5Boolean    `json:"price_protect"`
 	Profit              types.Number `json:"profit"`
+	RealisedProfit      types.Number `json:"real_profit"`
 	ContractType        string       `json:"contract_type"`
 	CreatedTime         types.Time   `json:"created_time"`
 	UpdatedTime         types.Time   `json:"updated_time"`

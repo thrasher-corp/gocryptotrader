@@ -294,6 +294,15 @@ func TestAcquirePositionModeForSubmission(t *testing.T) {
 
 func TestGetV5PositionRiskLimit(t *testing.T) {
 	t.Parallel()
+	t.Run("documented response fields", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/risk/limit", `{"code":200,"data":[{"contract_code":"BTC-USDT","contract_type":"swap"}]}`, nil)
+		response, err := h.GetV5PositionRiskLimit(t.Context(), btcusdtPair, "cross", "long")
+		require.NoError(t, err, "documented response must decode")
+		require.NotNil(t, response, "documented response must be returned")
+		require.Len(t, response.RiskLimits, 1, "risk limits must retain the contract")
+		assert.Equal(t, "swap", response.RiskLimits[0].ContractType, "contract type should be retained")
+	})
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		if mockTests {

@@ -136,6 +136,15 @@ func TestCloseAllV5Positions(t *testing.T) {
 
 func TestGetV5OrderHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("documented response fields", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/order/history", `{"code":200,"data":[{"order_id":"123","cancel_volume":"2.5"}]}`, nil)
+		response, err := h.GetV5OrderHistory(t.Context(), &V5OrderHistoryRequest{ContractCode: "BTC-USDT"})
+		require.NoError(t, err, "documented response must decode")
+		require.NotNil(t, response, "documented response must be returned")
+		require.Len(t, response.Orders, 1, "history must retain the order")
+		assert.Equal(t, types.Number(2.5), response.Orders[0].CancelVolume, "cancelled volume should be retained")
+	})
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		if mockTests {
@@ -195,6 +204,15 @@ func TestGetV5OrderHistory(t *testing.T) {
 
 func TestGetV5OrderDetails(t *testing.T) {
 	t.Parallel()
+	t.Run("documented response fields", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/order/details", `{"code":200,"data":[{"order_id":"123","client_order_id":"9223372036854775807"}]}`, nil)
+		response, err := h.GetV5OrderDetails(t.Context(), &V5OrderDetailsRequest{ContractCode: "BTC-USDT", OrderID: "123"})
+		require.NoError(t, err, "documented response must decode")
+		require.NotNil(t, response, "documented response must be returned")
+		require.Len(t, response.Orders, 1, "execution details must retain the order")
+		assert.Equal(t, "9223372036854775807", response.Orders[0].ClientOrderID, "client order ID should retain its precision")
+	})
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		if mockTests {
@@ -346,6 +364,15 @@ func TestCancelAllV5Orders(t *testing.T) {
 
 func TestGetV5Order(t *testing.T) {
 	t.Parallel()
+	t.Run("documented response fields", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/order", `{"code":200,"data":{"order_id":"123","cancel_volume":"2.5","real_profit":"-1.25"}}`, nil)
+		response, err := h.GetV5Order(t.Context(), btcusdtPair, "cross", "123", "")
+		require.NoError(t, err, "documented response must decode")
+		require.NotNil(t, response, "documented response must be returned")
+		assert.Equal(t, types.Number(2.5), response.Order.CancelVolume, "cancelled volume should be retained")
+		assert.Equal(t, types.Number(-1.25), response.Order.RealisedProfit, "realised profit should retain its sign")
+	})
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		if mockTests {

@@ -212,9 +212,6 @@ func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		_, err := e.FetchTradablePairs(t.Context(), asset.Futures)
 		require.NoError(t, err)
 	})
@@ -224,9 +221,6 @@ func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := new(Exchange)
 		require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 		require.NoError(t, h.UpdateTradablePairs(t.Context()), "UpdateTradablePairs must not error")
@@ -237,9 +231,6 @@ func TestUpdateCurrencyStates(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		require.NoError(t, h.UpdateCurrencyStates(t.Context(), asset.Spot), "live currency states must update")
 	})
@@ -270,9 +261,6 @@ func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		type testCase struct {
 			name           string
 			asset          asset.Item
@@ -409,9 +397,6 @@ func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		type testCase struct {
 			name        string
 			asset       asset.Item
@@ -438,9 +423,6 @@ func TestUpdateOrderbookWithLimit(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{public: true})
 		book, err := h.UpdateOrderbookWithLimit(t.Context(), btcusdtPair, asset.Spot, 5)
 		require.NoError(t, err, "live capped orderbook must be readable")
@@ -1338,9 +1320,6 @@ func TestGetHistoricCandles(t *testing.T) {
 
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		e := new(Exchange)
 		require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 		updatePairsOnce(t, e)
@@ -1429,9 +1408,6 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		e := new(Exchange)
 		require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 		updatePairsOnce(t, e)
@@ -1459,9 +1435,6 @@ func TestGetServerTime(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		st, err := e.GetServerTime(t.Context(), asset.Spot)
 		require.NoError(t, err)
 		assert.NotEmpty(t, st, "GetServerTime should return a time")
@@ -2768,6 +2741,22 @@ func TestFormatV5OrderDetail(t *testing.T) {
 			})
 		}
 	}
+	for _, contract := range []string{"BTC-USDT", "BTC-USDT-261113"} {
+		for _, state := range []string{"submitted", "partially_filled", "filled"} {
+			for _, feeCurrency := range []string{"", "USDT", "HTX", "USDT,HTX"} {
+				t.Run("cost currency/"+contract+"/"+state+"/"+feeCurrency, func(t *testing.T) {
+					t.Parallel()
+					h := new(Exchange)
+					h.SetDefaults()
+					detail, err := h.formatV5OrderDetail(&V5Order{ContractCode: contract, Side: "buy", Type: "limit", State: V5OrderState(state), TimeInForce: "gtc", MarginMode: "cross", Price: 3100, Volume: 2, TradeVolume: 1, TradeTurnover: 3.1, FeeCurrency: feeCurrency}, asset.USDTMarginedFutures)
+					require.NoError(t, err, "linear contract order must decode")
+					assert.Equal(t, 3.1, detail.Cost, "turnover should remain the order cost")
+					assert.Equal(t, currency.USDT, detail.CostAsset, "linear contract turnover should be denominated in USDT regardless of expiry or fee currency")
+				})
+			}
+		}
+	}
+
 	h := new(Exchange)
 	h.SetDefaults()
 	_, err := h.formatV5OrderDetail(nil, asset.USDTMarginedFutures)
@@ -3188,9 +3177,6 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		_, err := e.GetRecentTrades(t.Context(), btcusdtPair, asset.Spot)
 		require.NoError(t, err)
 		_, err = e.GetRecentTrades(t.Context(), btccwPair, asset.Futures)
@@ -3440,6 +3426,62 @@ func TestFormatV5OrderRequest(t *testing.T) {
 
 func TestWebsocketSubmitOrder(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name, response string
+		wantErr        error
+	}{
+		{name: "live", wantErr: errAPIResponse},
+		{name: "acknowledgement without a code", response: `"code":200,"data":{"order_id":"1","client_order_id":"2"}`},
+		{name: "acknowledgement with code zero", response: `"code":200,"data":{"code":0,"order_id":"1","client_order_id":"2"}`},
+		{name: "acknowledgement with code 200", response: `"code":200,"data":{"code":200,"order_id":"1","client_order_id":"2"}`},
+		{name: "top-level rejection", response: `"code":1001,"message":"invalid request"`, wantErr: errAPIResponse},
+		{name: "per-order rejection", response: `"code":200,"data":{"code":1001,"message":"invalid request"}`, wantErr: errAPIResponse},
+		{name: "rejection with an order ID", response: `"code":200,"data":{"code":1001,"message":"invalid request","order_id":"1"}`, wantErr: errAPIResponse},
+		{name: "acknowledgement without an order ID", response: `"code":200,"data":{"code":200}`, wantErr: order.ErrOrderIDNotSet},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var h *Exchange
+			pair := btcusdtPair
+			if tc.response == "" {
+				if mockTests {
+					t.Skip("Live testing requires the mock_test_off build tag")
+				}
+				h = newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
+				connectHTXLiveWebsocket(t, h, nil)
+				pair = currency.NewPairWithDelimiter("INVALID", "USDT", "-")
+			} else {
+				h = newV5TradeWebsocketTestExchange(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+					tb.Helper()
+					var req V5WebsocketTradeRequest
+					if err := json.Unmarshal(message, &req); err != nil {
+						return err
+					}
+					return conn.WriteMessage(gws.TextMessage, []byte(`{"cid":"`+req.CID+`",`+tc.response+`}`))
+				})
+				setV5PositionModeEndpoint(t, h, "single_side")
+			}
+			response, err := h.WebsocketSubmitOrder(t.Context(), &order.Submit{
+				Exchange: h.Name, Pair: pair, AssetType: asset.USDTMarginedFutures,
+				Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1,
+			})
+			assert.Zero(t, h.positionModeState.Load(), "acknowledgement processing should release the position mode guard")
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "submission must preserve the rejection reason")
+				assert.Nil(t, response, "rejected submission should not return an accepted order")
+				if tc.wantErr == errAPIResponse && tc.response != "" {
+					assert.ErrorContains(t, err, "1001", "venue rejection should retain the code")
+					assert.ErrorContains(t, err, "invalid request", "venue rejection should retain the message")
+				}
+				return
+			}
+			require.NoError(t, err, "successful acknowledgement must be accepted")
+			require.NotNil(t, response, "accepted submission must return an order")
+			assert.Equal(t, "1", response.OrderID, "order ID should match")
+			assert.Equal(t, "2", response.ClientOrderID, "client order ID should match")
+			assert.Equal(t, order.New, response.Status, "accepted order should be new")
+		})
+	}
 	t.Run("protect mode until submission completes", func(t *testing.T) {
 		t.Parallel()
 		started, release := make(chan struct{}), make(chan struct{})
@@ -3547,39 +3589,50 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 			assert.Equal(t, tc.initialState, h.positionModeState.Load(), "refused submission should preserve the guard state")
 		})
 	}
-	h := newV5TradeWebsocketTestExchange(t, wsFixture)
-	setV5PositionModeEndpoint(t, h, "single_side")
-	submission := &order.Submit{
-		Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures,
-		Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1,
-	}
-	resp, err := h.WebsocketSubmitOrder(t.Context(), submission)
-	require.NoError(t, err, "WebsocketSubmitOrder must not error")
-	assert.Equal(t, "1", resp.OrderID, "order ID should match")
-	assert.Equal(t, "2", resp.ClientOrderID, "client order ID should match")
-	assert.Equal(t, order.New, resp.Status, "order status should be new")
-
-	submission.AssetType = asset.Spot
-	_, err = h.WebsocketSubmitOrder(t.Context(), submission)
-	require.ErrorIs(t, err, asset.ErrNotSupported, "WebsocketSubmitOrder must reject unsupported assets")
 }
 
 func TestWebsocketSubmitOrders(t *testing.T) {
 	t.Parallel()
-	t.Run("live", func(t *testing.T) {
-		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
-		h := newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
-		connectHTXLiveWebsocket(t, h, nil)
-		_, err := h.WebsocketSubmitOrders(t.Context(), []*order.Submit{{
-			Exchange: h.Name, AssetType: asset.USDTMarginedFutures,
-			Pair: currency.NewPairWithDelimiter("INVALID", "USDT", "-"), Side: order.Buy,
-			Type: order.Limit, Price: 1, Amount: 1,
-		}})
-		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "live venue must reject submission for the fabricated contract")
-	})
+	for _, tc := range []struct{ name, response string }{
+		{name: "live"},
+		{name: "top-level rejection", response: `"code":1001,"message":"invalid contract"`},
+		{name: "per-order rejection", response: `"code":200,"data":[{"code":1001,"message":"invalid contract"}]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var h *Exchange
+			if tc.response == "" {
+				if mockTests {
+					t.Skip("Live testing requires the mock_test_off build tag")
+				}
+				h = newHTXLiveExchange(t, apiCredentials, htxLiveOptions{websocket: true, changesAccount: true})
+				connectHTXLiveWebsocket(t, h, nil)
+			} else {
+				h = newV5TradeWebsocketTestExchange(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+					tb.Helper()
+					var req V5WebsocketTradeRequest
+					if err := json.Unmarshal(message, &req); err != nil {
+						return err
+					}
+					return conn.WriteMessage(gws.TextMessage, []byte(`{"cid":"`+req.CID+`",`+tc.response+`}`))
+				})
+				setV5PositionModeEndpoint(t, h, "single_side")
+			}
+			responses, err := h.WebsocketSubmitOrders(t.Context(), []*order.Submit{{
+				Exchange: h.Name, AssetType: asset.USDTMarginedFutures,
+				Pair: currency.NewPairWithDelimiter("INVALID", "USDT", "-"), Side: order.Buy,
+				Type: order.Limit, Price: 1, Amount: 1,
+			}})
+			if err != nil {
+				require.ErrorIs(t, err, errAPIResponse, "venue must reject submission for the fabricated contract")
+			} else {
+				require.Len(t, responses, 1, "batch must report the fabricated order")
+				require.NotNil(t, responses[0], "rejected order must have a response")
+				assert.ErrorIs(t, responses[0].SubmissionError, errAPIResponse, "fabricated contract should be rejected")
+				assert.Empty(t, responses[0].OrderID, "fabricated contract should never create an order")
+			}
+		})
+	}
 	t.Run("protect mode until submission completes", func(t *testing.T) {
 		t.Parallel()
 		started, release := make(chan struct{}), make(chan struct{})
@@ -3799,9 +3852,6 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	})
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		c, err := e.GetAvailableTransferChains(t.Context(), currency.USDT)
 		require.NoError(t, err)
 		require.Greater(t, len(c), 2, "Must get more than 2 chains")
@@ -3959,9 +4009,6 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		resp, err := e.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
@@ -4008,9 +4055,6 @@ func TestGetLatestFundingRates(t *testing.T) {
 	}
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		e := new(Exchange)
 		require.NoError(t, testexch.Setup(e), "Test Instance Setup must not fail")
 		updatePairsOnce(t, e)
@@ -4262,9 +4306,6 @@ func TestGetOpenInterest(t *testing.T) {
 	}
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		updatePairsOnce(t, e)
 
 		resp, err := e.GetOpenInterest(t.Context(), key.PairAsset{
@@ -4313,9 +4354,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		updatePairsOnce(t, e)
 		for _, a := range e.GetAssetTypes(false) {
 			t.Run(a.String(), func(t *testing.T) {
@@ -4344,9 +4382,6 @@ func TestBootstrap(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		if mockTests {
-			t.Skip("Live testing requires the mock_test_off build tag")
-		}
 		e := new(Exchange)
 		require.NoError(t, testexch.Setup(e), "Test Instance Setup must not fail")
 

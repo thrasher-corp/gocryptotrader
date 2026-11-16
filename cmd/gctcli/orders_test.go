@@ -56,9 +56,8 @@ func TestSubmitOrder(t *testing.T) {
 			server.EnableHTTP2 = true
 			server.StartTLS()
 			t.Cleanup(server.Close)
-			cert, err := os.CreateTemp(".", "gctcli-test-cert-*.pem")
+			cert, err := os.CreateTemp(t.TempDir(), "gctcli-test-cert-*.pem")
 			require.NoError(t, err, "test certificate file must be created")
-			t.Cleanup(func() { assert.NoError(t, os.Remove(cert.Name()), "test certificate should be removed") })
 			require.NoError(t, pem.Encode(cert, &pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), "server certificate must be written")
 			require.NoError(t, cert.Close(), "test certificate must close")
 			host, certPath = strings.TrimPrefix(server.URL, "https://"), cert.Name()

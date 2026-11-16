@@ -101,16 +101,16 @@ type V5UniversalTransferRecordsResponse struct {
 
 // V5UniversalTransferRecord stores a universal-transfer record.
 type V5UniversalTransferRecord struct {
-	ID              uint64        `json:"id"`
-	TransferID      types.Number  `json:"transfer_id"`
-	Amount          types.Number  `json:"amount"`
-	Currency        currency.Code `json:"currency"`
-	Status          string        `json:"status"`
-	FromAccountType string        `json:"from_account_type"`
-	ToAccountType   string        `json:"to_account_type"`
-	FromAssetType   string        `json:"from_asset_type"`
-	ToAssetType     string        `json:"to_asset_type"`
-	TransferTime    types.Time    `json:"transfer_time"`
+	ID              uint64              `json:"id"`
+	TransferID      types.PreciseNumber `json:"transfer_id"`
+	Amount          types.Number        `json:"amount"`
+	Currency        currency.Code       `json:"currency"`
+	Status          string              `json:"status"`
+	FromAccountType string              `json:"from_account_type"`
+	ToAccountType   string              `json:"to_account_type"`
+	FromAssetType   string              `json:"from_asset_type"`
+	ToAssetType     string              `json:"to_asset_type"`
+	TransferTime    types.Time          `json:"transfer_time"`
 }
 
 // V5AssetMode identifies whether a V5 account uses single-asset or multi-asset collateral.

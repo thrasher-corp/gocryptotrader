@@ -85,10 +85,11 @@ type V5FundingRateHistoryResponse struct {
 
 // V5HistoricalFundingRate stores one historical contract funding rate.
 type V5HistoricalFundingRate struct {
-	ID           string       `json:"id"`
-	ContractCode string       `json:"contract_code"`
-	FundingRate  types.Number `json:"funding_rate"`
-	FundingTime  types.Time   `json:"funding_time"`
+	ID             string       `json:"id"`
+	ContractCode   string       `json:"contract_code"`
+	FundingRate    types.Number `json:"funding_rate"`
+	FundingTime    types.Time   `json:"funding_time"`
+	FundingFeeType string       `json:"funding_fee_type"`
 }
 
 // V5PriceLimitsResponse stores current contract price limits.
@@ -143,6 +144,7 @@ type V5RiskLimitResponse struct {
 // V5RiskLimit stores one contract risk-limit tier.
 type V5RiskLimit struct {
 	ContractCode          string       `json:"contract_code"`
+	ContractType          string       `json:"contract_type"`
 	MarginMode            string       `json:"margin_mode"`
 	PositionSide          string       `json:"position_side"`
 	Tier                  types.Number `json:"tier"`

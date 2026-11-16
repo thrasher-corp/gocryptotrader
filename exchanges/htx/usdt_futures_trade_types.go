@@ -82,6 +82,7 @@ type V5OrderDetail struct {
 	ContractCode   string        `json:"contract_code"`
 	OrderID        string        `json:"order_id"`
 	TradeID        string        `json:"trade_id"`
+	ClientOrderID  string        `json:"client_order_id"`
 	Side           string        `json:"side"`
 	PositionSide   string        `json:"position_side"`
 	OrderType      string        `json:"order_type"`

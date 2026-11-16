@@ -1580,6 +1580,9 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if orderResp == nil {
 		return nil, errEmptyResult
 	}
+	if orderResp.Acknowledgement.Code != 0 && orderResp.Acknowledgement.Code != 200 {
+		return nil, fmt.Errorf("%d: %w: %s", orderResp.Acknowledgement.Code, errAPIResponse, orderResp.Acknowledgement.Message)
+	}
 	resp, err := s.DeriveSubmitResponse(orderResp.Acknowledgement.OrderID)
 	if err != nil {
 		return nil, err
@@ -2112,6 +2115,7 @@ func (e *Exchange) formatV5OrderDetail(data *V5Order, item asset.Item) (order.De
 		ExecutedAmount:       data.TradeVolume.Float64(),
 		RemainingAmount:      data.Volume.Float64() - data.TradeVolume.Float64(),
 		Cost:                 data.TradeTurnover.Float64(),
+		CostAsset:            currency.USDT,
 		AverageExecutedPrice: data.TradeAveragePrice.Float64(),
 		Fee:                  -data.Fee.Float64(),
 		FeeAsset:             currency.USDT,
