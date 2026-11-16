@@ -324,6 +324,8 @@ func BenchmarkAmountStepCommonBaseIncrement(b *testing.B) {
 	second := AmountStep{Increment: decimal.MustFromString("0.03"), ContractMultiplier: decimal.NewFromInt(1)}
 	b.ReportAllocs()
 	for b.Loop() {
-		_, _ = first.CommonBaseIncrement(second)
+		if _, err := first.CommonBaseIncrement(second); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

@@ -440,6 +440,7 @@ type NewOrderResponse struct {
 		Qty             float64 `json:"qty,string"`
 		Commission      float64 `json:"commission,string"`
 		CommissionAsset string  `json:"commissionAsset"`
+		TradeID         uint64  `json:"tradeId"`
 	} `json:"fills"`
 }
 

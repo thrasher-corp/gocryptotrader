@@ -8,7 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// 705985	      1856 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkReverse(b *testing.B) {
 	lvls := levelsFixture()
 	if len(lvls) != 1000 {
@@ -160,8 +159,6 @@ func BenchmarkSortBidsDescending(b *testing.B) {
 	}
 }
 
-// 5572401	       210.9 ns/op	       0 B/op	       0 allocs/op (current)
-// 3748009	       312.7 ns/op	      32 B/op	       1 allocs/op (previous)
 func BenchmarkProcess(b *testing.B) {
 	book := &Book{
 		Pair:     currency.NewBTCUSD(),

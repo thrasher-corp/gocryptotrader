@@ -448,10 +448,6 @@ var filterOrdersByTypeBenchmark = &[]Detail{
 	{Type: Limit},
 }
 
-// BenchmarkFilterOrdersByType benchmark
-//
-// 392455	      3226 ns/op	   15840 B/op	       5 allocs/op // PREV
-// 9486490	       109.5 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByType(b *testing.B) {
 	for b.Loop() {
 		FilterOrdersByType(filterOrdersByTypeBenchmark, Limit)
@@ -494,10 +490,6 @@ var filterOrdersBySideBenchmark = &[]Detail{
 	{Side: Ask},
 }
 
-// BenchmarkFilterOrdersBySide benchmark
-//
-// 372594	      3049 ns/op	   15840 B/op	       5 allocs/op // PREV
-// 7412187	       148.8 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersBySide(b *testing.B) {
 	for b.Loop() {
 		FilterOrdersBySide(filterOrdersBySideBenchmark, Ask)
@@ -560,10 +552,6 @@ var filterOrdersByTimeRangeBenchmark = &[]Detail{
 	{Date: time.Unix(100, 0)},
 }
 
-// BenchmarkFilterOrdersByTimeRange benchmark
-//
-// 390822	      3335 ns/op	   15840 B/op	       5 allocs/op // PREV
-// 6201034	       172.1 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByTimeRange(b *testing.B) {
 	for b.Loop() {
 		err := FilterOrdersByTimeRange(filterOrdersByTimeRangeBenchmark, time.Unix(50, 0), time.Unix(150, 0))
@@ -632,10 +620,6 @@ var filterOrdersByPairsBenchmark = &[]Detail{
 	{Pair: currency.NewBTCUSD()},
 }
 
-// BenchmarkFilterOrdersByPairs benchmark
-//
-// 400032	      2977 ns/op	   15840 B/op	       5 allocs/op // PREV
-// 6977242	       172.8 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByPairs(b *testing.B) {
 	pairs := []currency.Pair{currency.NewBTCUSD()}
 	for b.Loop() {
@@ -796,8 +780,6 @@ func TestStringToOrderSide(t *testing.T) {
 
 var sideBenchmark Side
 
-// 9756914	       126.7 ns/op	       0 B/op	       0 allocs/op // PREV
-// 25200660	        57.63 ns/op	       3 B/op	       1 allocs/op // CURRENT
 func BenchmarkStringToOrderSide(b *testing.B) {
 	for b.Loop() {
 		sideBenchmark, _ = StringToOrderSide("any")
@@ -871,8 +853,6 @@ func TestStringToOrderType(t *testing.T) {
 
 var typeBenchmark Type
 
-// 5703705	       299.9 ns/op	       0 B/op	       0 allocs/op // PREV
-// 16353608	        81.23 ns/op	       8 B/op	       1 allocs/op // CURRENT
 func BenchmarkStringToOrderType(b *testing.B) {
 	for b.Loop() {
 		typeBenchmark, _ = StringToOrderType("trigger")
@@ -946,8 +926,6 @@ func TestStringToOrderStatus(t *testing.T) {
 
 var statusBenchmark Status
 
-// 3569052	       351.8 ns/op	       0 B/op	       0 allocs/op // PREV
-// 11126791	       101.9 ns/op	      24 B/op	       1 allocs/op // CURRENT
 func BenchmarkStringToOrderStatus(b *testing.B) {
 	for b.Loop() {
 		statusBenchmark, _ = StringToOrderStatus("market_unavailable")
@@ -1352,7 +1330,7 @@ func TestMatchFilter(t *testing.T) {
 	}
 }
 
-func TestIsActive(t *testing.T) {
+func TestDetail_IsActive(t *testing.T) {
 	orders := map[int]Detail{
 		0: {Amount: 0.0, Status: Active},
 		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
@@ -1369,46 +1347,25 @@ func TestIsActive(t *testing.T) {
 		2: {orders[2], false},
 		3: {orders[3], false},
 	}
-	// specific tests
 	for num, tt := range amountTests {
 		assert.Equalf(t, tt.expectedResult, tt.o.IsActive(), "amountTests[%v] failed", num)
 	}
 
-	statusTests := map[int]struct {
-		o              Detail
-		expectedResult bool
-	}{
-		// For now force inactive on any status
-		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, false},
-		1:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: New}, true},
-		2:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Active}, true},
-		3:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyCancelled}, false},
-		4:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyFilled}, true},
-		5:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Filled}, false},
-		6:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Cancelled}, false},
-		7:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PendingCancel}, true},
-		8:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: InsufficientBalance}, false},
-		9:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: MarketUnavailable}, false},
-		10: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Rejected}, false},
-		11: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Expired}, false},
-		12: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Hidden}, true},
-		// For now force inactive on unknown status
-		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, false},
-		14: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Open}, true},
-		15: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AutoDeleverage}, true},
-		16: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Closed}, false},
-		17: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Pending}, true},
+	for _, s := range []Status{
+		New, Open, Pending, Active, PartiallyFilled, PendingCancel, AutoDeleverage, Hidden,
+	} {
+		assert.True(t, (&Detail{Amount: 1.0, Status: s}).IsActive(), s)
 	}
-	// specific tests
-	for num, tt := range statusTests {
-		require.Equalf(t, tt.expectedResult, tt.o.IsActive(), "statusTests[%v] failed", num)
+
+	for _, s := range []Status{
+		PartiallyCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, UnknownStatus, Closed,
+	} {
+		assert.False(t, (&Detail{Amount: 1.0, Status: s}).IsActive(), s)
 	}
 }
 
 var activeBenchmark = Detail{Status: Pending, Amount: 1}
 
-// 610732089	         2.414 ns/op	       0 B/op	       0 allocs/op // PREV
-// 1000000000	         1.188 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkIsActive(b *testing.B) {
 	for b.Loop() {
 		if !activeBenchmark.IsActive() {
@@ -1417,62 +1374,46 @@ func BenchmarkIsActive(b *testing.B) {
 	}
 }
 
-func TestIsInactive(t *testing.T) {
-	orders := map[int]Detail{
-		0: {Amount: 0.0, Status: Active},
-		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
-		2: {Amount: 1.0, ExecutedAmount: 1.0, Status: Active},
-		3: {Amount: 1.0, ExecutedAmount: 1.1, Status: Active},
+// TestDetail_IsInactive tests the integration of Status.IsInactive with amount checks
+// See also TestStatus_IsInactive
+func TestDetail_IsInactive(t *testing.T) {
+	t.Parallel()
+
+	for _, d := range []Detail{
+		{Amount: 1.0, Status: Closed, ClientID: "Closed Status"},
+		{Amount: 0.0, Status: Active, ClientID: "Amount = 0"},
+		{Amount: 1.0, ExecutedAmount: 1.0, Status: Active, ClientID: "Amount = ExecutedAmount"},
+		{Amount: 1.0, ExecutedAmount: 1.1, Status: Active, ClientID: "Amount < ExecutedAmount"},
+	} {
+		assert.True(t, d.IsInactive(), d.ClientID+" should be Inactive")
 	}
 
-	amountTests := map[int]struct {
-		o              Detail
-		expectedResult bool
-	}{
-		0: {orders[0], true},
-		1: {orders[1], false},
-		2: {orders[2], true},
-		3: {orders[3], true},
+	for _, d := range []Detail{
+		{Amount: 1.0, Status: Active, ClientID: "Amount > 0"},
+		{Amount: 1.0, ExecutedAmount: 0.9, Status: PartiallyFilled, ClientID: "Amount > ExecutedAmount"},
+		{Amount: 1.0, Status: UnknownStatus, ClientID: "Regression: UnknownStatus"},
+	} {
+		assert.False(t, d.IsInactive(), d.ClientID+" should not be Inactive")
 	}
-	// specific tests
-	for num, tt := range amountTests {
-		assert.Equalf(t, tt.expectedResult, tt.o.IsInactive(), "amountTests[%v] failed", num)
+}
+
+func TestStatus_IsInactive(t *testing.T) {
+	t.Parallel()
+	for _, s := range []Status{
+		New, Open, Pending, Active, PartiallyFilled, PendingCancel, AutoDeleverage, Hidden, UnknownStatus,
+	} {
+		assert.Falsef(t, s.IsInactive(), "%s should not be inactive", s)
 	}
 
-	statusTests := map[int]struct {
-		o              Detail
-		expectedResult bool
-	}{
-		// For now force inactive on any status
-		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, true},
-		1:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: New}, false},
-		2:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Active}, false},
-		3:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyCancelled}, true},
-		4:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyFilled}, false},
-		5:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Filled}, true},
-		6:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Cancelled}, true},
-		7:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PendingCancel}, false},
-		8:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: InsufficientBalance}, true},
-		9:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: MarketUnavailable}, true},
-		10: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Rejected}, true},
-		11: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Expired}, true},
-		12: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Hidden}, false},
-		// For now force inactive on unknown status
-		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, true},
-		14: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Open}, false},
-		15: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AutoDeleverage}, false},
-		16: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Closed}, true},
-		17: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Pending}, false},
-	}
-	// specific tests
-	for num, tt := range statusTests {
-		assert.Equalf(t, tt.expectedResult, tt.o.IsInactive(), "statusTests[%v] failed", num)
+	for _, s := range []Status{
+		PartiallyCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, Closed, Cancelling, Liquidated,
+	} {
+		assert.Truef(t, s.IsInactive(), "%s should be inactive", s)
 	}
 }
 
 var inactiveBenchmark = Detail{Status: Closed, Amount: 1}
 
-// 1000000000	         1.043 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkIsInactive(b *testing.B) {
 	for b.Loop() {
 		require.True(b, inactiveBenchmark.IsInactive())

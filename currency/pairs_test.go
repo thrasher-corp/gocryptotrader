@@ -406,8 +406,6 @@ codes:
 	}
 }
 
-// Current: 6176922	       260.0 ns/op	      48 B/op	       1 allocs/op
-// Prior: 2575473	       474.2 ns/op	     112 B/op	       3 allocs/op
 func BenchmarkGetCrypto(b *testing.B) {
 	pairs := Pairs{
 		NewBTCUSD(),
@@ -498,8 +496,6 @@ func TestGetStablesMatch(t *testing.T) {
 	}
 }
 
-// Current: 5594431	       217.4 ns/op	     168 B/op	       8 allocs/op
-// Prev:  3490366	       373.4 ns/op	     296 B/op	      11 allocs/op
 func BenchmarkPairsString(b *testing.B) {
 	pairs := Pairs{
 		NewBTCUSD(),
@@ -516,9 +512,6 @@ func BenchmarkPairsString(b *testing.B) {
 	}
 }
 
-// Benchstat medians (10 alternating samples per revision):
-// Before: 477.8 ns/op  232 B/op  9 allocs/op
-// After:  135.9 ns/op   64 B/op  1 alloc/op
 func BenchmarkPairsJoin(b *testing.B) {
 	pairs := Pairs{
 		NewBTCUSD(),
@@ -535,8 +528,6 @@ func BenchmarkPairsJoin(b *testing.B) {
 	}
 }
 
-// Current:  6691011	       184.6 ns/op	     352 B/op	       1 allocs/op
-// Prev:  3746151	       317.1 ns/op	     720 B/op	       4 allocs/op
 func BenchmarkPairsFormat(b *testing.B) {
 	pairs := Pairs{
 		NewBTCUSD(),
@@ -555,8 +546,6 @@ func BenchmarkPairsFormat(b *testing.B) {
 	}
 }
 
-// current: 13075897	       100.4 ns/op	     352 B/op	       1 allocs/o
-// prev: 8188616	       148.0 ns/op	     336 B/op	       3 allocs/op
 func BenchmarkRemovePairsByFilter(b *testing.B) {
 	pairs := Pairs{
 		NewBTCUSD(),
@@ -891,9 +880,6 @@ func TestFindPairDifferences(t *testing.T) {
 	require.False(t, diff.FormatDifference)
 }
 
-// 2208139	       509.3 ns/op	     288 B/op	       2 allocs/op (current)
-//
-// 1614865	       712.5 ns/op	     336 B/op	       8 allocs/op (prev)
 func BenchmarkFindDifferences(b *testing.B) {
 	original, err := NewPairsFromStrings([]string{"ETH-USD", "LTC-USD", "ETH-USD"})
 	require.NoError(b, err)

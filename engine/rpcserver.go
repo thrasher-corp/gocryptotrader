@@ -75,6 +75,7 @@ var (
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 	errInvalidStrategy         = errors.New("invalid strategy")
 	errSpecificPairNotEnabled  = errors.New("specified pair is not enabled")
+	errDuplicateOrderID        = errors.New("duplicate order id received")
 )
 
 // RPCServer struct
@@ -200,7 +201,7 @@ func (s *RPCServer) startRPCRESTProxy(ctx context.Context) {
 		return
 	}
 
-	mux := runtime.NewServeMux()
+	mux := runtime.NewServeMux(runtime.WithIncomingHeaderMatcher(rpcProxyHeaderMatcher))
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(auth.BasicAuth{
@@ -251,6 +252,20 @@ func (s *RPCServer) authClient(handler http.Handler) http.Handler {
 		}
 		handler.ServeHTTP(w, r)
 	})
+}
+
+// rpcProxyHeaderMatcher forwards the Grpc-Metadata- headers that authenticateClient reads, which grpc-gateway no longer
+// forwards by default, so REST clients keep their per-request credential and verbose overrides. Other Grpc-Metadata-
+// headers are dropped, so REST clients cannot set gRPC metadata that the server does not read from them
+func rpcProxyHeaderMatcher(header string) (string, bool) {
+	if mdKey, ok := strings.CutPrefix(strings.ToLower(header), strings.ToLower(runtime.MetadataHeaderPrefix)); ok {
+		switch mdKey {
+		case string(accounts.ContextCredentialsFlag), "verbose":
+			return mdKey, true
+		}
+		return "", false
+	}
+	return runtime.DefaultHeaderMatcher(header)
 }
 
 // GetInfo returns info about the current GoCryptoTrader session
@@ -1416,15 +1431,28 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 		return nil, err
 	}
 
-	status := make(map[string]string)
-	orders := strings.Split(r.OrdersId, ",")
+	if r.OrdersId == "" {
+		return nil, order.ErrCancelOrderIsNil
+	}
+
+	rawOrders := strings.Split(r.OrdersId, ",")
+	orders := make([]string, 0, len(rawOrders))
+	seen := make(common.Seen[string], len(rawOrders))
+	for _, id := range rawOrders {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return nil, ErrOrderIDCannotBeEmpty
+		}
+		if seen.CheckAndRecord(id) {
+			return nil, fmt.Errorf("%w: %s", errDuplicateOrderID, id)
+		}
+		orders = append(orders, id)
+	}
 	req := make([]order.Cancel, len(orders))
 	for x := range orders {
-		orderID := orders[x]
-		status[orderID] = order.Cancelled.String()
 		req[x] = order.Cancel{
 			AccountID: r.AccountId,
-			OrderID:   orderID,
+			OrderID:   orders[x],
 			Side:      side,
 			Pair:      pair,
 			AssetType: assetType,
@@ -1432,9 +1460,23 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}
 
 	// TODO: Change to order manager
-	_, err = exch.CancelBatchOrders(ctx, req)
+	resp, err := exch.CancelBatchOrders(ctx, req)
 	if err != nil {
 		return nil, err
+	}
+
+	status := make(map[string]string, len(orders))
+	for _, id := range orders {
+		if resp == nil {
+			// A wrapper that returns no response reports any failed cancel through its error
+			status[id] = order.Cancelled.String()
+			continue
+		}
+		reported, ok := resp.Status[id]
+		if !ok {
+			reported = order.UnknownStatus.String()
+		}
+		status[id] = reported
 	}
 
 	return &gctrpc.CancelBatchOrdersResponse{

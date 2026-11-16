@@ -5,57 +5,62 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var errUnhandledCurrency = errors.New("unhandled currency")
 
-// ChainAnalysisBlock holds block information from the bitcoin network
-type ChainAnalysisBlock struct {
-	BlockHash     string    `json:"block_hash"`
-	Height        int64     `json:"height"`
-	IsMain        bool      `json:"is_main"`
-	Version       float64   `json:"version"`
-	PreviousBlock string    `json:"prev_block"`
-	MerkleRoot    string    `json:"merkle_root"`
-	Timestamp     time.Time `json:"timestamp"`
-	Bits          int64     `json:"bits"`
-	Nonce         int64     `json:"nonce"`
-	TxNum         int64     `json:"txnum"`
-	TotalFees     float64   `json:"total_fees"`
-	TxHashes      []string  `json:"tx_hashes"`
+// ChainAnalysisBlockResponse holds block information from the bitcoin network
+type ChainAnalysisBlockResponse struct {
+	BlockHash          string    `json:"block_hash"`
+	Height             uint64    `json:"height"`
+	IsMain             bool      `json:"is_main"`
+	Version            int64     `json:"version"` // Signed 32-bit in the Bitcoin protocol
+	PreviousBlock      string    `json:"prev_block"`
+	MerkleRoot         string    `json:"merkle_root"`
+	Timestamp          time.Time `json:"timestamp"`
+	Bits               uint64    `json:"bits"`
+	Nonce              uint64    `json:"nonce"`
+	TransactionNumber  uint64    `json:"txnum"` // Number of transactions in the block
+	TotalFeesInSatoshi uint64    `json:"total_fees"`
+	TransactionHashes  []string  `json:"tx_hashes"`
 }
 
-// ChainAnalysisTransaction holds transaction data from the bitcoin network
-type ChainAnalysisTransaction struct {
-	TxHash        string     `json:"tx_hash"`
-	BlockHeight   int64      `json:"block_height"`
-	Confirmations int64      `json:"confirmed"`
-	Fees          float64    `json:"fees"`
-	Size          int64      `json:"size"`
-	ReceivedDate  string     `json:"received_date"`
-	Version       float64    `json:"version"`
-	LockTime      types.Time `json:"lock_time"`
-	Inputs        []struct {
-		PrevHash  string `json:"prev_hash"`
-		PrevIndex int64  `json:"prev_index"` // Signed because a coinbase input reports -1
-		Value     int64  `json:"value"`
-		Script    string `json:"script"`
-		Address   string `json:"address"`
-		Sequence  int64  `json:"sequence"`
-	} `json:"inputs"`
-	Outputs []struct {
-		Value   int64  `json:"value"`
-		Script  string `json:"script"`
-		Address string `json:"address"`
-	} `json:"outputs"`
+// ChainAnalysisTransactionResponse holds transaction data from the bitcoin network
+type ChainAnalysisTransactionResponse struct {
+	TransactionHash string                           `json:"tx_hash"`
+	BlockHeight     int64                            `json:"block_height"` // -1 when the transaction is not in a block
+	Confirmed       uint64                           `json:"confirmed"`    // Number of confirmations
+	FeesInSatoshi   uint64                           `json:"fees"`
+	SizeInBytes     uint64                           `json:"size"`
+	ReceivedDate    string                           `json:"received_date"` // UTC, without a zone designator
+	Version         int64                            `json:"version"`       // Signed 32-bit in the Bitcoin protocol
+	LockTime        uint64                           `json:"lock_time"`     // A block height below 500000000, otherwise a Unix time
+	Inputs          []ChainAnalysisTransactionInput  `json:"inputs"`
+	Outputs         []ChainAnalysisTransactionOutput `json:"outputs"`
 }
 
-// ChainAnalysisAddress holds address information from the bitcoin network
-type ChainAnalysisAddress struct {
-	Address            string  `json:"address"`
-	UnconfirmedBalance float64 `json:"unconfirmed_balance"`
-	ConfirmedBalance   float64 `json:"confirmed_balance"`
+// ChainAnalysisTransactionInput holds a transaction input from the bitcoin network
+type ChainAnalysisTransactionInput struct {
+	PreviousHash   string `json:"prev_hash"`
+	PreviousIndex  int64  `json:"prev_index"` // Signed because a coinbase input reports -1
+	ValueInSatoshi uint64 `json:"value"`
+	Script         string `json:"script"`
+	Address        string `json:"address"`
+	Sequence       uint64 `json:"sequence"`
+}
+
+// ChainAnalysisTransactionOutput holds a transaction output from the bitcoin network
+type ChainAnalysisTransactionOutput struct {
+	ValueInSatoshi uint64 `json:"value"`
+	Script         string `json:"script"`
+	Address        string `json:"address"`
+}
+
+// ChainAnalysisAddressResponse holds address information from the bitcoin network
+type ChainAnalysisAddressResponse struct {
+	Address            string `json:"address"`
+	UnconfirmedBalance uint64 `json:"unconfirmed_balance"` // Estimated balance
+	ConfirmedBalance   uint64 `json:"confirmed_balance"`
 }
 
 // MarketInfo holds market information returned from bitflyer

@@ -1,0 +1,49 @@
+name: benchmarks
+on:
+  push:
+    branches: [master]
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  # Each master push gets its own group, so a later merge cannot cancel an earlier one's run
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/master' && github.run_id || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: allocation gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Keeps this job's build cache separate, as merge-check.yml does
+      - name: Record Go cache key
+        run: echo "benchmarks" > .go-cache-key
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            .go-cache-key
+
+      - name: Check allocations against baseline
+        # go test's -timeout does not cover benchmarks. A timed-out step fails rather than cancelling
+        # the job, so the output is still uploaded.
+        timeout-minutes: 20
+        run: make bench BENCH_OUT=bench-output.txt
+
+      # Uploaded whatever the result, for 'make bench_apply' away from linux/amd64
+      - name: Upload benchmark output
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-output
+          path: bench-output.txt
+          if-no-files-found: ignore
