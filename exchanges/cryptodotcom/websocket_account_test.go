@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -491,6 +492,50 @@ func TestWebsocketUserTrades(t *testing.T) { //nolint:tparallel // the cases sha
 	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, accountFrame(t, "user.trade", 1)), "wsHandleChannelData must not error for a margin order's trade")
 	marginOrderFill.AssetType = asset.Margin
 	assert.Equal(t, []any{[]fill.Data{marginOrderFill}}, relayedData(ex), "the trade of an order tracked as a margin order should be filled as margin")
+
+	// The advanced order channel reports legs sent as margin orders, each with the exchange order ID Crypto.com assigned
+	// it once accepted: the filled SPOT_ATTACH legs of the documented advanced order history, the documented open leg
+	// partly filled, and a leg like it cancelled after a partial fill, before its trade arrives
+	for _, tc := range []struct {
+		name  string
+		leg   string
+		trade string
+		exp   fill.Data
+	}{
+		{
+			name:  "a filled leg's trade, naming its exchange order ID",
+			leg:   `{"account_id":"5207a638-b79a-4c13-9d41-323be7556c17","order_id":"5755600460443880501","client_oid":"1792746942215","order_type":"LIMIT","time_in_force":"GOOD_TILL_CANCEL","side":"BUY","exec_inst":["MARGIN_ORDER"],"quantity":"0.0100","limit_price":"81500.0","order_value":"815.000000","maker_fee_rate":"0.000250","taker_fee_rate":"0.000400","avg_price":"81500.0","cumulative_quantity":"0.0100","cumulative_value":"815.000000","cumulative_fee":"0.203750","status":"FILLED","update_user_id":"5207a638-b79a-4c13-9d41-323be7556c17","order_date":"2026-10-23","instrument_name":"BTC_USD","fee_instrument_name":"USD","list_id":"6498090546073120152","contingency_type":"SPOT_ATTACH","leg_id":"1","exchange_order_id":"5755600460443880577","create_time":"1792746942217","create_time_ns":"1792746942217123456","update_time":"1792753328904"}`,
+			trade: `{"trade_id":"38554672","order_id":"5755600460443880577","traded_quantity":"0.0100","traded_price":"81500.0","side":"BUY","instrument_name":"BTC_USD","create_time":1792753328904}`,
+			exp:   fill.Data{Timestamp: time.UnixMilli(1792753328904), Exchange: ex.Name, AssetType: asset.Margin, CurrencyPair: spotBTCUSD, Side: order.Buy, OrderID: "5755600460443880577", TradeID: "38554672", Price: 81500, Amount: 0.01},
+		},
+		{
+			name:  "a filled stop loss leg's trade, naming its exchange order ID",
+			leg:   `{"account_id":"5207a638-b79a-4c13-9d41-323be7556c17","order_id":"5755600460443880502","client_oid":"1792746942216","order_type":"STOP_LOSS","time_in_force":"GOOD_TILL_CANCEL","side":"SELL","exec_inst":["MARGIN_ORDER"],"quantity":"0.0100","ref_price":"79000.00","ref_price_type":"MARK_PRICE","maker_fee_rate":"0.000250","taker_fee_rate":"0.000400","avg_price":"78990.0","cumulative_quantity":"0.0100","cumulative_value":"789.900000","cumulative_fee":"0.315960","status":"FILLED","update_user_id":"5207a638-b79a-4c13-9d41-323be7556c17","order_date":"2026-10-23","instrument_name":"BTC_USD","fee_instrument_name":"USD","list_id":"6498090546073120152","contingency_type":"SPOT_ATTACH","leg_id":"2","exchange_order_id":"5755600460443880578","create_time":"1792746942217","create_time_ns":"1792746942217123456","update_time":"1792766851560"}`,
+			trade: `{"trade_id":"38554673","order_id":"5755600460443880578","traded_quantity":"0.0100","traded_price":"78990.0","side":"SELL","instrument_name":"BTC_USD","create_time":1792766851560}`,
+			exp:   fill.Data{Timestamp: time.UnixMilli(1792766851560), Exchange: ex.Name, AssetType: asset.Margin, CurrencyPair: spotBTCUSD, Side: order.Sell, OrderID: "5755600460443880578", TradeID: "38554673", Price: 78990, Amount: 0.01},
+		},
+		{
+			name:  "an active leg's trade, naming its exchange order ID",
+			leg:   `{"account_id":"5207a638-b79a-4c13-9d41-323be7556c17","order_id":"5755600460443890101","client_oid":"1792836351900","order_type":"LIMIT","time_in_force":"GOOD_TILL_CANCEL","side":"BUY","exec_inst":["MARGIN_ORDER"],"quantity":"0.0100","limit_price":"78000.0","order_value":"780.000000","maker_fee_rate":"0.000250","taker_fee_rate":"0.000400","avg_price":"78000.0","cumulative_quantity":"0.0040","cumulative_value":"312.000000","cumulative_fee":"0.078000","status":"ACTIVE","update_user_id":"5207a638-b79a-4c13-9d41-323be7556c17","order_date":"2026-10-24","instrument_name":"BTC_USD","fee_instrument_name":"USD","list_id":"6498090546073120187","contingency_type":"SPOT_ATTACH","leg_id":"1","exchange_order_id":"5755600460443890177","create_time":"1792836351902","create_time_ns":"1792836351902118356","update_time":"1792836405000"}`,
+			trade: `{"trade_id":"38554674","order_id":"5755600460443890177","traded_quantity":"0.0040","traded_price":"78000.0","side":"BUY","instrument_name":"BTC_USD","create_time":1792836405000}`,
+			exp:   fill.Data{Timestamp: time.UnixMilli(1792836405000), Exchange: ex.Name, AssetType: asset.Margin, CurrencyPair: spotBTCUSD, Side: order.Buy, OrderID: "5755600460443890177", TradeID: "38554674", Price: 78000, Amount: 0.004},
+		},
+		{
+			name:  "a cancelled leg's trade arriving after the cancellation, naming its exchange order ID",
+			leg:   `{"account_id":"5207a638-b79a-4c13-9d41-323be7556c17","order_id":"5755600460443890201","client_oid":"1792836351910","order_type":"LIMIT","time_in_force":"GOOD_TILL_CANCEL","side":"BUY","exec_inst":["MARGIN_ORDER"],"quantity":"0.0100","limit_price":"78000.0","order_value":"780.000000","maker_fee_rate":"0.000250","taker_fee_rate":"0.000400","avg_price":"78000.0","cumulative_quantity":"0.0040","cumulative_value":"312.000000","cumulative_fee":"0.078000","status":"CANCELED","update_user_id":"5207a638-b79a-4c13-9d41-323be7556c17","order_date":"2026-10-24","instrument_name":"BTC_USD","fee_instrument_name":"USD","list_id":"6498090546073120190","contingency_type":"SPOT_ATTACH","leg_id":"1","exchange_order_id":"5755600460443890277","create_time":"1792836351912","create_time_ns":"1792836351912118356","update_time":"1792836410000"}`,
+			trade: `{"trade_id":"38554675","order_id":"5755600460443890277","traded_quantity":"0.0040","traded_price":"78000.0","side":"BUY","instrument_name":"BTC_USD","create_time":1792836406000}`,
+			exp:   fill.Data{Timestamp: time.UnixMilli(1792836406000), Exchange: ex.Name, AssetType: asset.Margin, CurrencyPair: spotBTCUSD, Side: order.Buy, OrderID: "5755600460443890277", TradeID: "38554675", Price: 78000, Amount: 0.004},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			legPush := `{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.advance.order","channel":"user.advance.order","data":[` + tc.leg + `]}}`
+			require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(legPush)), "wsHandleChannelData must not error for an advanced order's margin leg")
+			require.Len(t, relayedData(ex), 1, "the margin leg's details must be relayed")
+			tradePush := `{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.trade","channel":"user.trade","data":[` + tc.trade + `]}}`
+			require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(tradePush)), "wsHandleChannelData must not error for a margin leg's trade")
+			assert.Equal(t, []any{[]fill.Data{tc.exp}}, relayedData(ex), "a margin leg's trade naming its exchange order ID should be filled as margin")
+		})
+	}
 
 	// A trade whose fill cannot be told is reported, and the others filled
 	push := `{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.trade","channel":"user.trade","data":[{"trade_id":"1","side":"NOPE","instrument_name":"BTC_USD"},{"trade_id":"2","side":"BUY","instrument_name":"BTCUSD"},{"trade_id":"3","traded_quantity":"0.0010","traded_price":"51000.00","side":"BUY","instrument_name":"BTC_USD","create_time":1613575617290}]}}`
@@ -1183,6 +1228,24 @@ func TestUserOrderDetail(t *testing.T) { //nolint:tparallel // the cases share o
 	unnamedOrder.InstrumentName = "BTC"
 	untypedOrder := spotOrder
 	untypedOrder.OrderType = "NOPE"
+	marginLeg := marginOrder
+	marginLeg.OrderID, marginLeg.ExchangeOrderID = "5755600460443890101", "5755600460443890177"
+	marginLeg.ListID, marginLeg.ContingencyType, marginLeg.LegID = "6498090546073120187", ContingencyTypeSpotAttach, "1"
+	marginLegDetail := marginDetail
+	marginLegDetail.OrderID = marginLeg.OrderID
+	spotLeg := spotOrder
+	spotLeg.OrderID, spotLeg.ExchangeOrderID = "5755600460443890102", "5755600460443890178"
+	spotLeg.ListID, spotLeg.ContingencyType, spotLeg.LegID = "6498090546073120188", ContingencyTypeSpotAttach, "1"
+	spotLegDetail := spotDetail
+	spotLegDetail.OrderID = spotLeg.OrderID
+	triggerLeg := marginOrder
+	triggerLeg.OrderID, triggerLeg.ExchangeOrderID = "5755600460443890104", "5755600460443890180"
+	triggerLeg.ListID, triggerLeg.ContingencyType, triggerLeg.LegID = "6498090546073120189", ContingencyTypeOneCancelsTheOther, "2"
+	triggerLeg.OrderType, triggerLeg.TimeInForce, triggerLeg.ReferencePrice = OrderTypeStopLoss, TimeInForceGoodTillCancel, preciseNumber("51250.00")
+	triggerLegDetail := marginDetail
+	triggerLegDetail.OrderID, triggerLegDetail.Type, triggerLegDetail.TimeInForce, triggerLegDetail.TriggerPrice = triggerLeg.OrderID, order.Stop, order.GoodTillCancel, 51250
+	untypedLeg := marginLeg
+	untypedLeg.OrderID, untypedLeg.ExchangeOrderID, untypedLeg.OrderType = "5755600460443890103", "5755600460443890179", "NOPE"
 	// trackedOrder is an order's IDs, and whether it is tracked as a margin order
 	type trackedOrder struct {
 		orderID, clientOrderID string
@@ -1207,10 +1270,26 @@ func TestUserOrderDetail(t *testing.T) { //nolint:tparallel // the cases share o
 			name: "the order trading as spot, its client order ID left to the submission that sent it", response: &spotOrder, exp: &spotDetail,
 			tracked: []trackedOrder{{orderID: spotOrder.OrderID}, {clientOrderID: spotOrder.ClientOrderID, isMargin: true}, {orderID: spotOrder.OrderID, clientOrderID: spotOrder.ClientOrderID}},
 		},
+		{
+			name: "an advanced order's accepted leg trading on margin, by its order ID and its exchange order ID", response: &marginLeg, exp: &marginLegDetail,
+			tracked: []trackedOrder{{orderID: marginLeg.OrderID, isMargin: true}, {orderID: marginLeg.ExchangeOrderID, isMargin: true}},
+		},
+		{
+			name: "an advanced order's accepted leg trading as spot, by its order ID and its exchange order ID", response: &spotLeg, exp: &spotLegDetail,
+			tracked: []trackedOrder{{clientOrderID: spotLeg.ClientOrderID, isMargin: true}, {orderID: spotLeg.OrderID, clientOrderID: spotLeg.ClientOrderID}, {orderID: spotLeg.ExchangeOrderID, clientOrderID: spotLeg.ClientOrderID}},
+		},
+		{
+			name: "an OCO's triggered stop loss trading on margin, by its order ID and its exchange order ID", response: &triggerLeg, exp: &triggerLegDetail,
+			tracked: []trackedOrder{{orderID: triggerLeg.OrderID, isMargin: true}, {orderID: triggerLeg.ExchangeOrderID, isMargin: true}},
+		},
 		{name: "a future's order", response: &futureOrder, exp: &futureDetail, tracked: []trackedOrder{{orderID: futureOrder.OrderID}}},
 		{name: "a derivative's order naming margin, which trades as the derivative", response: &marginPerpetualOrder, exp: &perpetualDetail, tracked: []trackedOrder{{orderID: marginPerpetualOrder.OrderID}}},
 		{name: "an order of an instrument that cannot be named", response: &unnamedOrder, err: errMalformedInstrumentName},
 		{name: "an order of a type Crypto.com does not name", response: &untypedOrder, err: order.ErrUnrecognisedOrderType},
+		{
+			name: "an accepted margin leg of a type Crypto.com does not name, tracked for its trades all the same", response: &untypedLeg, err: order.ErrUnrecognisedOrderType,
+			tracked: []trackedOrder{{orderID: untypedLeg.OrderID, isMargin: true}, {orderID: untypedLeg.ExchangeOrderID, isMargin: true}},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := ex.userOrderDetail(tc.response)
@@ -1221,6 +1300,21 @@ func TestUserOrderDetail(t *testing.T) { //nolint:tparallel // the cases share o
 			}
 		})
 	}
+
+	t.Run("an accepted leg pushed again is kept over an order tracked before that push", func(t *testing.T) {
+		ex := newTestExchange(t)
+		// Room for the leg's two IDs and one other order
+		ex.marginOrders = cache.New(3)
+		_, err := ex.userOrderDetail(&marginLeg)
+		require.NoError(t, err, "userOrderDetail must not error")
+		ex.trackMarginOrder(asset.Margin, "19848600", "")
+		_, err = ex.userOrderDetail(&marginLeg)
+		require.NoError(t, err, "userOrderDetail must not error for the leg pushed again")
+		ex.trackMarginOrder(asset.Margin, "19848601", "")
+		assert.True(t, ex.isMarginOrder(marginLeg.OrderID, ""), "userOrderDetail should keep a leg pushed again tracked by its order ID")
+		assert.True(t, ex.isMarginOrder(marginLeg.ExchangeOrderID, ""), "userOrderDetail should keep a leg pushed again tracked by its exchange order ID")
+		assert.False(t, ex.isMarginOrder("19848600", ""), "the order tracked least recently should be forgotten")
+	})
 }
 
 func TestUntrackClientOrderID(t *testing.T) {

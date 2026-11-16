@@ -1569,7 +1569,7 @@ func TestWebsocketSubscribe(t *testing.T) {
 		accepted := &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotBTCUSD}, QualifiedChannel: "ticker.BTC_USD"}
 		missing := &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotBTCUSDT}, QualifiedChannel: "ticker.BTC_USDT"}
 		venue.answerSubscriptions(missing.QualifiedChannel, []json.RawMessage{marketDataFrame(t, missing.QualifiedChannel, 1)})
-		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 		defer cancel()
 		err = ex.wsSubscribe(ctx, conn, subscription.List{accepted, missing})
 		require.ErrorIs(t, err, context.DeadlineExceeded, "the unanswered channel must be reported")

@@ -95,12 +95,15 @@ func (e *Exchange) wsHandleUserOrders(ctx context.Context, push *websocketChanne
 }
 
 // userOrderDetail returns an order as the detail of the asset it trades as, which a spot instrument's order names in its
-// execution instructions when it trades on margin, and tracks it as a margin order or not for its trades
+// execution instructions when it trades on margin, and tracks it as a margin order or not for its trades, by its order
+// ID and by the exchange order ID of an advanced order's accepted leg
 func (e *Exchange) userOrderDetail(o *OrderResponse) (*order.Detail, error) {
 	a := orderAsset(o.InstrumentName, o.ExecutionInstructions)
 	// A client order ID is tracked only until the submission that sent it learns its outcome, as another order sharing
 	// the ID may be in flight
 	e.trackMarginOrder(a, o.OrderID, "")
+	// An accepted leg's trades may name the exchange order ID Crypto.com assigns it rather than the leg's order ID
+	e.trackMarginOrder(a, o.ExchangeOrderID, "")
 	p, err := pairFromInstrument(a, o.InstrumentName)
 	if err != nil {
 		return nil, err
@@ -108,8 +111,8 @@ func (e *Exchange) userOrderDetail(o *OrderResponse) (*order.Detail, error) {
 	return e.orderDetail(o, a, p)
 }
 
-// marginOrdersCapacity is how many orders the margin order cache tracks, by order ID and client order ID, before it
-// forgets those least recently used
+// marginOrdersCapacity is how many order IDs and client order IDs the margin order cache tracks before it forgets those
+// least recently used
 const marginOrdersCapacity = 10000
 
 // marginOrderKey is an order's key in the margin order cache: its order ID, or its client order ID when client is set
@@ -181,8 +184,8 @@ func (e *Exchange) isMarginOrder(orderID, clientOrderID string) bool {
 
 // wsHandleUserTrades relays the account's trades through the fills feed when it is enabled, else to the data handler as
 // Crypto.com reports them. A trade carries no execution instructions, so a trade on a spot instrument is filled as margin
-// when its order is tracked as a margin order, from the order channel or from placing it, and otherwise as spot; a
-// trade whose fill cannot be told is reported, and the others filled
+// when its order is tracked as a margin order, from the order and advanced order channels or from placing it, and
+// otherwise as spot; a trade whose fill cannot be told is reported, and the others filled
 func (e *Exchange) wsHandleUserTrades(ctx context.Context, push *websocketChannelPush) error {
 	var trades []WebsocketUserTrade
 	if err := decodePushData(push, &trades); err != nil {
