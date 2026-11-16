@@ -3,6 +3,7 @@ package bitstamp
 import (
 	"testing"
 	"time"
+	"uuid"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,48 +47,84 @@ func TestCreateContact(t *testing.T) {
 	_, err = e.CreateContact(t.Context(), &ContactRequest{})
 	assert.ErrorIs(t, err, errContactInfoRequired, "CreateContact should error without contact information")
 
-	if !mockTests {
-		t.Skip("CreateContact is not tested live to avoid creating contacts")
-	}
-	contact, err := e.CreateContact(t.Context(), &ContactRequest{RetailInfo: testContact.RetailInfo, Description: testContact.Description})
-	require.NoError(t, err, "CreateContact must not error")
-	assert.Equal(t, &testContact, contact, "CreateContact should return the contact")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("The mocked contact is not created live, as the API has no endpoint to delete it")
+		}
+		contact, err := e.CreateContact(t.Context(), &ContactRequest{RetailInfo: testContact.RetailInfo, Description: testContact.Description})
+		require.NoError(t, err, "CreateContact must not error")
+		assert.Equal(t, &testContact, contact, "CreateContact should return the contact")
+	})
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The request is built for the live API to refuse")
+		}
+		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		_, err := e.CreateContact(t.Context(), &ContactRequest{
+			RetailInfo:  &RetailInfo{FirstName: "John", LastName: "Doe", IDType: "unlisted", IDNumber: "PA1234567"},
+			Description: testContact.Description,
+		})
+		requireRefusedOnMerits(t, err)
+	})
 }
 
 func TestSubmitCounterpartyInfo(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		req *CounterpartyAddressRequest
-		err error
+		name string
+		req  *CounterpartyAddressRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &CounterpartyAddressRequest{}, err: common.ErrAddressIsEmptyOrInvalid},
-		{req: &CounterpartyAddressRequest{Address: core.BitcoinDonationAddress}, err: errNetworkRequired},
-		{req: &CounterpartyAddressRequest{Address: core.BitcoinDonationAddress, Network: "bitcoin", ContactThirdParty: true}, err: errContactUUIDRequired},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "without an address", req: &CounterpartyAddressRequest{}, err: common.ErrAddressIsEmptyOrInvalid},
+		{name: "without a network", req: &CounterpartyAddressRequest{Address: core.BitcoinDonationAddress}, err: errNetworkRequired},
+		{name: "third party without a contact", req: &CounterpartyAddressRequest{Address: core.BitcoinDonationAddress, Network: "bitcoin", ContactThirdParty: true}, err: errContactUUIDRequired},
 	} {
-		_, err := e.SubmitCounterpartyInfo(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "SubmitCounterpartyInfo should return the correct error")
+		// Serial and in order, as the requests below go through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.SubmitCounterpartyInfo(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.err, "SubmitCounterpartyInfo should return the correct error")
+		})
 	}
-
-	if !mockTests {
-		t.Skip("SubmitCounterpartyInfo is not tested live to avoid registering addresses")
-	}
-	resp, err := e.SubmitCounterpartyInfo(t.Context(), &CounterpartyAddressRequest{
-		Address:                         core.BitcoinDonationAddress,
-		Network:                         "bitcoin",
-		ContactThirdParty:               true,
-		ContactUUID:                     testContact.ID,
-		VirtualAssetServiceProviderUUID: "48feffe5-a5d0-44fe-bf4c-734e7d721249",
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("The mocked address is not registered live, as the API would keep its counterparty")
+		}
+		resp, err := e.SubmitCounterpartyInfo(t.Context(), &CounterpartyAddressRequest{
+			Address:                         core.BitcoinDonationAddress,
+			Network:                         "bitcoin",
+			ContactThirdParty:               true,
+			ContactUUID:                     testContact.ID,
+			VirtualAssetServiceProviderUUID: "48feffe5-a5d0-44fe-bf4c-734e7d721249",
+		})
+		require.NoError(t, err, "SubmitCounterpartyInfo must not error")
+		exp := &CounterpartyAddressResponse{
+			Address:                         core.BitcoinDonationAddress,
+			Network:                         "bitcoin",
+			ContactThirdParty:               true,
+			ContactUUID:                     testContact.ID,
+			VirtualAssetServiceProviderUUID: "48feffe5-a5d0-44fe-bf4c-734e7d721249",
+		}
+		assert.Equal(t, exp, resp, "SubmitCounterpartyInfo should return the address")
 	})
-	require.NoError(t, err, "SubmitCounterpartyInfo must not error")
-	exp := &CounterpartyAddressResponse{
-		Address:                         core.BitcoinDonationAddress,
-		Network:                         "bitcoin",
-		ContactThirdParty:               true,
-		ContactUUID:                     testContact.ID,
-		VirtualAssetServiceProviderUUID: "48feffe5-a5d0-44fe-bf4c-734e7d721249",
-	}
-	assert.Equal(t, exp, resp, "SubmitCounterpartyInfo should return the address")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The request is built for the live API to refuse")
+		}
+		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		_, err := e.SubmitCounterpartyInfo(t.Context(), &CounterpartyAddressRequest{
+			Address:                         core.BitcoinDonationAddress,
+			Network:                         "unlisted",
+			ContactThirdParty:               true,
+			ContactUUID:                     uuid.Nil().String(),
+			VirtualAssetServiceProviderUUID: uuid.Nil().String(),
+		})
+		requireRefusedOnMerits(t, err)
+	})
 }
 
 func TestGetSatoshiTests(t *testing.T) {
@@ -106,24 +143,39 @@ func TestGetSatoshiTests(t *testing.T) {
 func TestCreateSatoshiTest(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		req *SatoshiTestRequest
-		err error
+		name string
+		req  *SatoshiTestRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &SatoshiTestRequest{}, err: common.ErrAddressIsEmptyOrInvalid},
-		{req: &SatoshiTestRequest{Address: core.BitcoinDonationAddress}, err: errNetworkRequired},
-		{req: &SatoshiTestRequest{Address: core.BitcoinDonationAddress, Network: "bitcoin"}, err: currency.ErrCurrencyCodeEmpty},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "without an address", req: &SatoshiTestRequest{}, err: common.ErrAddressIsEmptyOrInvalid},
+		{name: "without a network", req: &SatoshiTestRequest{Address: core.BitcoinDonationAddress}, err: errNetworkRequired},
+		{name: "without a currency", req: &SatoshiTestRequest{Address: core.BitcoinDonationAddress, Network: "bitcoin"}, err: currency.ErrCurrencyCodeEmpty},
 	} {
-		_, err := e.CreateSatoshiTest(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "CreateSatoshiTest should return the correct error")
+		// Serial and in order, as the requests below go through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.CreateSatoshiTest(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.err, "CreateSatoshiTest should return the correct error")
+		})
 	}
-
-	if !mockTests {
-		t.Skip("CreateSatoshiTest is not tested live to avoid creating tests")
-	}
-	resp, err := e.CreateSatoshiTest(t.Context(), &SatoshiTestRequest{Address: core.BitcoinDonationAddress, Network: "bitcoin", Currency: currency.BTC})
-	require.NoError(t, err, "CreateSatoshiTest must not error")
-	assert.Equal(t, &testSatoshiTest, resp, "CreateSatoshiTest should return the test")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("The mocked test is not created live, as the API would keep it")
+		}
+		resp, err := e.CreateSatoshiTest(t.Context(), &SatoshiTestRequest{Address: core.BitcoinDonationAddress, Network: "bitcoin", Currency: currency.BTC})
+		require.NoError(t, err, "CreateSatoshiTest must not error")
+		assert.Equal(t, &testSatoshiTest, resp, "CreateSatoshiTest should return the test")
+	})
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The request is built for the live API to refuse")
+		}
+		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		_, err := e.CreateSatoshiTest(t.Context(), &SatoshiTestRequest{Address: core.BitcoinDonationAddress, Network: "unlisted", Currency: unlistedCurrency})
+		requireRefusedOnMerits(t, err)
+	})
 }
 
 func TestGetSatoshiTest(t *testing.T) {
@@ -168,48 +220,74 @@ func TestGetExtendedPublicKeyRegistrations(t *testing.T) {
 func TestCreateExtendedPublicKeyRegistration(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		req *ExtendedPublicKeyRegistrationRequest
-		err error
+		name string
+		req  *ExtendedPublicKeyRegistrationRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &ExtendedPublicKeyRegistrationRequest{}, err: errNetworkRequired},
-		{req: &ExtendedPublicKeyRegistrationRequest{Network: "bitcoin"}, err: errPublicKeyRequired},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "without a network", req: &ExtendedPublicKeyRegistrationRequest{}, err: errNetworkRequired},
+		{name: "without a key", req: &ExtendedPublicKeyRegistrationRequest{Network: "bitcoin"}, err: errPublicKeyRequired},
 	} {
-		_, err := e.CreateExtendedPublicKeyRegistration(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "CreateExtendedPublicKeyRegistration should return the correct error")
+		// Serial and in order, as the requests below go through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.CreateExtendedPublicKeyRegistration(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.err, "CreateExtendedPublicKeyRegistration should return the correct error")
+		})
 	}
-
-	if !mockTests {
-		t.Skip("CreateExtendedPublicKeyRegistration is not tested live to avoid registering keys")
-	}
-	resp, err := e.CreateExtendedPublicKeyRegistration(t.Context(), &ExtendedPublicKeyRegistrationRequest{
-		Network:           "bitcoin",
-		ExtendedPublicKey: "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz",
-		Label:             "btc cold wallet",
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("The mocked key is not registered live, as the API would keep the registration")
+		}
+		resp, err := e.CreateExtendedPublicKeyRegistration(t.Context(), &ExtendedPublicKeyRegistrationRequest{
+			Network:           "bitcoin",
+			ExtendedPublicKey: "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz",
+			Label:             "btc cold wallet",
+		})
+		require.NoError(t, err, "CreateExtendedPublicKeyRegistration must not error")
+		exp := &ExtendedPublicKeyRegistrationResponse{
+			ID:        testExtendedPublicKeyRegistrationID,
+			Network:   "bitcoin",
+			Label:     "btc cold wallet",
+			Status:    ExtendedPublicKeyRegistrationStatusPending,
+			Proof:     ExtendedPublicKeyRegistrationProof{ID: testSatoshiTest.ID, Method: "satoshi_test"},
+			CreatedAt: DateTime(time.Date(2026, 5, 13, 10, 0, 0, 0, time.UTC)),
+		}
+		assert.Equal(t, exp, resp, "CreateExtendedPublicKeyRegistration should return the registration")
 	})
-	require.NoError(t, err, "CreateExtendedPublicKeyRegistration must not error")
-	exp := &ExtendedPublicKeyRegistrationResponse{
-		ID:        testExtendedPublicKeyRegistrationID,
-		Network:   "bitcoin",
-		Label:     "btc cold wallet",
-		Status:    ExtendedPublicKeyRegistrationStatusPending,
-		Proof:     ExtendedPublicKeyRegistrationProof{ID: testSatoshiTest.ID, Method: "satoshi_test"},
-		CreatedAt: DateTime(time.Date(2026, 5, 13, 10, 0, 0, 0, time.UTC)),
-	}
-	assert.Equal(t, exp, resp, "CreateExtendedPublicKeyRegistration should return the registration")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The request is built for the live API to refuse")
+		}
+		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		// The API documents extended public keys as base58 strings beginning with a key type such as xpub
+		_, err := e.CreateExtendedPublicKeyRegistration(t.Context(), &ExtendedPublicKeyRegistrationRequest{Network: "bitcoin", ExtendedPublicKey: "unlisted-key"})
+		requireRefusedOnMerits(t, err)
+	})
 }
 
 func TestRevokeExtendedPublicKeyRegistration(t *testing.T) {
 	t.Parallel()
 	_, err := e.RevokeExtendedPublicKeyRegistration(t.Context(), "")
 	assert.ErrorIs(t, err, errRegistrationIDRequired, "RevokeExtendedPublicKeyRegistration should error without an ID")
-
-	if !mockTests {
-		t.Skip("RevokeExtendedPublicKeyRegistration is not tested live to avoid revoking registrations")
-	}
-	resp, err := e.RevokeExtendedPublicKeyRegistration(t.Context(), testExtendedPublicKeyRegistrationID)
-	require.NoError(t, err, "RevokeExtendedPublicKeyRegistration must not error")
-	assert.Equal(t, &ExtendedPublicKeyRevocationResponse{ID: testExtendedPublicKeyRegistrationID, Status: "REVOKED"}, resp, "RevokeExtendedPublicKeyRegistration should return the revocation")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("The mocked registration is not revoked live, as it needs a registration to revoke")
+		}
+		resp, err := e.RevokeExtendedPublicKeyRegistration(t.Context(), testExtendedPublicKeyRegistrationID)
+		require.NoError(t, err, "RevokeExtendedPublicKeyRegistration must not error")
+		assert.Equal(t, &ExtendedPublicKeyRevocationResponse{ID: testExtendedPublicKeyRegistrationID, Status: "REVOKED"}, resp, "RevokeExtendedPublicKeyRegistration should return the revocation")
+	})
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The placeholder API key is refused only by the live API")
+		}
+		_, err := newPlaceholderCredentialsTestInstance(t).RevokeExtendedPublicKeyRegistration(t.Context(), testExtendedPublicKeyRegistrationID)
+		requireUnknownAPIKey(t, err)
+	})
 }
 
 func TestGetExtendedPublicKeyRegistration(t *testing.T) {

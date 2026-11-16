@@ -22,9 +22,16 @@ func TestGetAccountBalances(t *testing.T) {
 		}
 		assert.Equal(t, exp, balances, "GetAccountBalances should decode the balances")
 	}
+}
 
-	_, err = e.GetAccountBalance(t.Context(), currency.EMPTYCODE)
+func TestGetAccountBalance(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetAccountBalance(t.Context(), currency.EMPTYCODE)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetAccountBalance should error on an empty currency")
+
+	skipIfLiveWithoutCredentials(t)
+	// The API sends lower case currency codes
+	btc := AccountBalanceResponse{Currency: currency.NewCode("btc"), Total: 1.5, Available: 1.25, Reserved: 0.25}
 	balance, err := e.GetAccountBalance(t.Context(), currency.BTC)
 	require.NoError(t, err, "GetAccountBalance must not error")
 	if mockTests {

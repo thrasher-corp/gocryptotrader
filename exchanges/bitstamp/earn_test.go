@@ -14,67 +14,120 @@ import (
 
 func TestEarnSubscription(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		req *EarnSubscriptionRequest
-		err error
-	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &EarnSubscriptionRequest{}, err: currency.ErrCurrencyCodeEmpty},
-		{req: &EarnSubscriptionRequest{Currency: currency.ETH}, err: errEarnTypeRequired},
-		{req: &EarnSubscriptionRequest{Currency: currency.ETH, EarnType: EarnTypeStaking}, err: errEarnTermRequired},
-		{req: &EarnSubscriptionRequest{Currency: currency.ETH, EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible}, err: order.ErrAmountIsInvalid},
-	} {
-		_, err := earnSubscription(tc.req)
-		assert.ErrorIs(t, err, tc.err, "earnSubscription should return the correct error")
+	for _, tc := range earnSubscriptionRequestErrors {
+		// Serial and in order, as the valid request below goes to the same function
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := earnSubscription(tc.req)
+			assert.ErrorIs(t, err, tc.err, "earnSubscription should return the correct error")
+		})
 	}
-	body, err := earnSubscription(&EarnSubscriptionRequest{Currency: currency.NewCode("eth"), EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible, Amount: 10})
-	require.NoError(t, err, "earnSubscription must not error")
-	assert.Equal(t, &earnSubscriptionBody{Currency: "ETH", EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible, Amount: 10}, body, "earnSubscription should upper case the currency")
+	t.Run("valid request", func(t *testing.T) {
+		t.Parallel()
+		body, err := earnSubscription(&EarnSubscriptionRequest{Currency: currency.NewCode("eth"), EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible, Amount: 10})
+		require.NoError(t, err, "earnSubscription must not error")
+		assert.Equal(t, &earnSubscriptionBody{Currency: "ETH", EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible, Amount: 10}, body, "earnSubscription should upper case the currency")
+	})
 }
 
-func TestEarnSubscribeUnsubscribe(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		req *EarnSubscriptionRequest
-		err error
-	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &EarnSubscriptionRequest{}, err: currency.ErrCurrencyCodeEmpty},
-		{req: &EarnSubscriptionRequest{Currency: currency.ETH}, err: errEarnTypeRequired},
-		{req: &EarnSubscriptionRequest{Currency: currency.ETH, EarnType: EarnTypeStaking}, err: errEarnTermRequired},
-		{req: &EarnSubscriptionRequest{Currency: currency.ETH, EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible}, err: order.ErrAmountIsInvalid},
-	} {
-		assert.ErrorIs(t, e.EarnSubscribe(t.Context(), tc.req), tc.err, "EarnSubscribe should return the correct error")
-		assert.ErrorIs(t, e.EarnUnsubscribe(t.Context(), tc.req), tc.err, "EarnUnsubscribe should return the correct error")
-	}
+// earnSubscriptionRequestErrors are the Earn subscription requests refused before they are sent
+var earnSubscriptionRequestErrors = []struct {
+	name string
+	req  *EarnSubscriptionRequest
+	err  error
+}{
+	{name: "nil request", req: nil, err: common.ErrNilPointer},
+	{name: "without a currency", req: &EarnSubscriptionRequest{}, err: currency.ErrCurrencyCodeEmpty},
+	{name: "without an earn type", req: &EarnSubscriptionRequest{Currency: currency.ETH}, err: errEarnTypeRequired},
+	{name: "without an earn term", req: &EarnSubscriptionRequest{Currency: currency.ETH, EarnType: EarnTypeStaking}, err: errEarnTermRequired},
+	{name: "without an amount", req: &EarnSubscriptionRequest{Currency: currency.ETH, EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible}, err: order.ErrAmountIsInvalid},
+}
 
-	if !mockTests {
-		t.Skip("Earn subscriptions are not tested live to avoid moving funds")
+func TestEarnSubscribe(t *testing.T) {
+	t.Parallel()
+	for _, tc := range earnSubscriptionRequestErrors {
+		// Serial and in order, as the requests below go through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIs(t, e.EarnSubscribe(t.Context(), tc.req), tc.err, "EarnSubscribe should return the correct error")
+		})
 	}
-	req := &EarnSubscriptionRequest{Currency: currency.ETH, EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible, Amount: 10}
-	assert.NoError(t, e.EarnSubscribe(t.Context(), req), "EarnSubscribe should not error")
-	assert.NoError(t, e.EarnUnsubscribe(t.Context(), req), "EarnUnsubscribe should not error")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("The mocked subscription is not sent live, to avoid moving funds")
+		}
+		assert.NoError(t, e.EarnSubscribe(t.Context(), &EarnSubscriptionRequest{Currency: currency.ETH, EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible, Amount: 10}), "EarnSubscribe should not error")
+	})
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The request is built for the live API to refuse")
+		}
+		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		err := e.EarnSubscribe(t.Context(), &EarnSubscriptionRequest{Currency: unlistedCurrency, EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible, Amount: 10})
+		requireRefusedOnMerits(t, err)
+	})
+}
+
+func TestEarnUnsubscribe(t *testing.T) {
+	t.Parallel()
+	for _, tc := range earnSubscriptionRequestErrors {
+		// Serial and in order, as the requests below go through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIs(t, e.EarnUnsubscribe(t.Context(), tc.req), tc.err, "EarnUnsubscribe should return the correct error")
+		})
+	}
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("The mocked unsubscription is not sent live, to avoid moving funds")
+		}
+		assert.NoError(t, e.EarnUnsubscribe(t.Context(), &EarnSubscriptionRequest{Currency: currency.ETH, EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible, Amount: 10}), "EarnUnsubscribe should not error")
+	})
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The request is built for the live API to refuse")
+		}
+		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		err := e.EarnUnsubscribe(t.Context(), &EarnSubscriptionRequest{Currency: unlistedCurrency, EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible, Amount: 10})
+		requireRefusedOnMerits(t, err)
+	})
 }
 
 func TestSetEarnSubscriptionSetting(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		req *EarnSubscriptionSettingRequest
-		err error
+		name string
+		req  *EarnSubscriptionSettingRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &EarnSubscriptionSettingRequest{}, err: errEarnSettingRequired},
-		{req: &EarnSubscriptionSettingRequest{Setting: EarnSettingOptIn}, err: currency.ErrCurrencyCodeEmpty},
-		{req: &EarnSubscriptionSettingRequest{Setting: EarnSettingOptIn, Currency: currency.ADA}, err: errEarnTypeRequired},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "without a setting", req: &EarnSubscriptionSettingRequest{}, err: errEarnSettingRequired},
+		{name: "without a currency", req: &EarnSubscriptionSettingRequest{Setting: EarnSettingOptIn}, err: currency.ErrCurrencyCodeEmpty},
+		{name: "without an earn type", req: &EarnSubscriptionSettingRequest{Setting: EarnSettingOptIn, Currency: currency.ADA}, err: errEarnTypeRequired},
 	} {
-		assert.ErrorIs(t, e.SetEarnSubscriptionSetting(t.Context(), tc.req), tc.err, "SetEarnSubscriptionSetting should return the correct error")
+		// Serial and in order, as the requests below go through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIs(t, e.SetEarnSubscriptionSetting(t.Context(), tc.req), tc.err, "SetEarnSubscriptionSetting should return the correct error")
+		})
 	}
-
-	if !mockTests {
-		t.Skip("SetEarnSubscriptionSetting is not tested live to avoid changing settings")
-	}
-	err := e.SetEarnSubscriptionSetting(t.Context(), &EarnSubscriptionSettingRequest{Setting: EarnSettingOptIn, Currency: currency.ADA, EarnType: EarnTypeStaking})
-	assert.NoError(t, err, "SetEarnSubscriptionSetting should not error")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("The mocked setting is not sent live, to avoid changing the account's settings")
+		}
+		err := e.SetEarnSubscriptionSetting(t.Context(), &EarnSubscriptionSettingRequest{Setting: EarnSettingOptIn, Currency: currency.ADA, EarnType: EarnTypeStaking})
+		assert.NoError(t, err, "SetEarnSubscriptionSetting should not error")
+	})
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The request is built for the live API to refuse")
+		}
+		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		err := e.SetEarnSubscriptionSetting(t.Context(), &EarnSubscriptionSettingRequest{Setting: EarnSettingOptIn, Currency: unlistedCurrency, EarnType: EarnTypeStaking})
+		requireRefusedOnMerits(t, err)
+	})
 }
 
 func TestGetEarnTransactions(t *testing.T) {

@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -14,53 +15,66 @@ import (
 func TestGetUserTransactions(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		req *UserTransactionsRequest
-		err error
+		name string
+		req  *UserTransactionsRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &UserTransactionsRequest{Limit: 1001}, err: errInvalidLimit},
-		{req: &UserTransactionsRequest{Since: time.Unix(2, 0), Until: time.Unix(1, 0)}, err: common.ErrStartAfterEnd},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "limit above the maximum", req: &UserTransactionsRequest{Limit: 1001}, err: errInvalidLimit},
+		{name: "start after end", req: &UserTransactionsRequest{Since: time.Unix(2, 0), Until: time.Unix(1, 0)}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetUserTransactions(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "GetUserTransactions should return the correct error")
+		// Serial and in order, as the request below goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetUserTransactions(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.err, "GetUserTransactions should return the correct error")
+		})
 	}
-
-	skipIfLiveWithoutCredentials(t)
-	transactions, err := e.GetUserTransactions(t.Context(), &UserTransactionsRequest{Pair: spotPair, Limit: 10, Sort: SortDescending})
-	require.NoError(t, err, "GetUserTransactions must not error")
-	if mockTests {
-		require.Len(t, transactions, 2, "GetUserTransactions must return the transactions")
-		exp := UserTransactionResponse{
-			ID:            50197021,
-			DateTime:      time.Date(2022, 3, 1, 10, 55, 53, 0, time.UTC),
-			Type:          TransactionTypeMarketTrade,
-			Fee:           8.04,
-			OrderID:       1458532827766784,
-			Amounts:       map[currency.Code]float64{currency.USD: -2010, currency.BTC: 0.1, currency.EUR: 0},
-			ExchangeRates: map[currency.Pair]float64{spotPair: 20100},
+	t.Run("valid request", func(t *testing.T) {
+		t.Parallel()
+		skipIfLiveWithoutCredentials(t)
+		transactions, err := e.GetUserTransactions(t.Context(), &UserTransactionsRequest{Pair: spotPair, Limit: 10, Sort: SortDescending})
+		require.NoError(t, err, "GetUserTransactions must not error")
+		if mockTests {
+			require.Len(t, transactions, 2, "GetUserTransactions must return the transactions")
+			exp := UserTransactionResponse{
+				ID:            50197021,
+				DateTime:      time.Date(2022, 3, 1, 10, 55, 53, 0, time.UTC),
+				Type:          TransactionTypeMarketTrade,
+				Fee:           8.04,
+				OrderID:       1458532827766784,
+				Amounts:       map[currency.Code]float64{currency.USD: -2010, currency.BTC: 0.1, currency.EUR: 0},
+				ExchangeRates: map[currency.Pair]float64{spotPair: 20100},
+			}
+			assert.Equal(t, exp, transactions[1], "GetUserTransactions should return the transaction")
 		}
-		assert.Equal(t, exp, transactions[1], "GetUserTransactions should return the transaction")
-	}
+	})
 }
 
 func TestGetCryptoTransactions(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		req *CryptoTransactionsRequest
-		err error
+		name string
+		req  *CryptoTransactionsRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &CryptoTransactionsRequest{Limit: 1001}, err: errInvalidLimit},
-		{req: &CryptoTransactionsRequest{Since: time.Unix(2, 0), Until: time.Unix(1, 0)}, err: common.ErrStartAfterEnd},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "limit above the maximum", req: &CryptoTransactionsRequest{Limit: 1001}, err: errInvalidLimit},
+		{name: "start after end", req: &CryptoTransactionsRequest{Since: time.Unix(2, 0), Until: time.Unix(1, 0)}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetCryptoTransactions(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "GetCryptoTransactions should return the correct error")
+		// Serial and in order, as the request below goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetCryptoTransactions(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.err, "GetCryptoTransactions should return the correct error")
+		})
 	}
-
-	skipIfLiveWithoutCredentials(t)
-	txs, err := e.GetCryptoTransactions(t.Context(), &CryptoTransactionsRequest{Limit: 10, IncludeIOUs: true})
-	require.NoError(t, err, "GetCryptoTransactions must not error")
-	if mockTests {
+	t.Run("valid request", func(t *testing.T) {
+		t.Parallel()
+		skipIfLiveWithoutCredentials(t)
+		txs, err := e.GetCryptoTransactions(t.Context(), &CryptoTransactionsRequest{Limit: 10, IncludeIOUs: true})
+		require.NoError(t, err, "GetCryptoTransactions must not error")
+		if !mockTests {
+			return
+		}
 		exp := &CryptoTransactionsResponse{
 			RippleIOUTransactions: []CryptoTransaction{},
 			Deposits: []CryptoDeposit{{
@@ -84,27 +98,34 @@ func TestGetCryptoTransactions(t *testing.T) {
 			}},
 		}
 		assert.Equal(t, exp, txs, "GetCryptoTransactions should decode the transactions")
-	}
+	})
 }
 
 func TestGetCryptoDeposits(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		req *CryptoDepositsRequest
-		err error
+		name string
+		req  *CryptoDepositsRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &CryptoDepositsRequest{Limit: 1001}, err: errInvalidLimit},
-		{req: &CryptoDepositsRequest{Since: time.Unix(2, 0), Until: time.Unix(1, 0)}, err: common.ErrStartAfterEnd},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "limit above the maximum", req: &CryptoDepositsRequest{Limit: 1001}, err: errInvalidLimit},
+		{name: "start after end", req: &CryptoDepositsRequest{Since: time.Unix(2, 0), Until: time.Unix(1, 0)}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetCryptoDeposits(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "GetCryptoDeposits should return the correct error")
+		// Serial and in order, as the request below goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetCryptoDeposits(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.err, "GetCryptoDeposits should return the correct error")
+		})
 	}
-
-	skipIfLiveWithoutCredentials(t)
-	deposits, err := e.GetCryptoDeposits(t.Context(), &CryptoDepositsRequest{Limit: 10, Status: "PENDING"})
-	require.NoError(t, err, "GetCryptoDeposits must not error")
-	if mockTests {
+	t.Run("valid request", func(t *testing.T) {
+		t.Parallel()
+		skipIfLiveWithoutCredentials(t)
+		deposits, err := e.GetCryptoDeposits(t.Context(), &CryptoDepositsRequest{Limit: 10, Status: "PENDING"})
+		require.NoError(t, err, "GetCryptoDeposits must not error")
+		if !mockTests {
+			return
+		}
 		require.Len(t, deposits, 1, "GetCryptoDeposits must return the deposits")
 		exp := CryptoDepositResponse{
 			ID:                 1,
@@ -119,7 +140,7 @@ func TestGetCryptoDeposits(t *testing.T) {
 			PendingReason:      "ADDRESS_VERIFICATION_NEEDED",
 		}
 		assert.Equal(t, exp, deposits[0], "GetCryptoDeposits should return the deposit")
-	}
+	})
 }
 
 func TestUpdateCryptoDepositOriginator(t *testing.T) {
@@ -130,22 +151,41 @@ func TestUpdateCryptoDepositOriginator(t *testing.T) {
 	assert.ErrorIs(t, e.UpdateCryptoDepositOriginator(t.Context(), 1, &DepositOriginatorRequest{OriginatorInfo: &CustomerInfo{CorporateInfo: &CorporateInfo{}}}), errCompanyNameRequired, "UpdateCryptoDepositOriginator should error on an unnamed originator")
 	assert.ErrorIs(t, e.UpdateCryptoDepositOriginator(t.Context(), 1, &DepositOriginatorRequest{BeneficiaryInfo: &CustomerInfo{RetailInfo: &RetailInfo{FirstName: "John", LastName: "Doe"}}}), errIdentificationRequired, "UpdateCryptoDepositOriginator should error on an unidentified beneficiary")
 
-	if !mockTests {
-		t.Skip("UpdateCryptoDepositOriginator is not tested live as it requires a pending deposit")
-	}
-	err := e.UpdateCryptoDepositOriginator(t.Context(), 1, &DepositOriginatorRequest{
+	req := &DepositOriginatorRequest{
 		OriginatorThirdParty: new(true),
 		OriginatorInfo:       &CustomerInfo{RetailInfo: &RetailInfo{FirstName: "John", LastName: "Doe"}},
+	}
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("The mocked update is not sent live, as it needs a pending deposit")
+		}
+		assert.NoError(t, e.UpdateCryptoDepositOriginator(t.Context(), 1, req), "UpdateCryptoDepositOriginator should not error")
 	})
-	assert.NoError(t, err, "UpdateCryptoDepositOriginator should not error")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The placeholder API key is refused only by the live API")
+		}
+		requireUnknownAPIKey(t, newPlaceholderCredentialsTestInstance(t).UpdateCryptoDepositOriginator(t.Context(), math.MaxInt64, req))
+	})
 }
 
 func TestRejectCryptoDeposit(t *testing.T) {
 	t.Parallel()
 	assert.ErrorIs(t, e.RejectCryptoDeposit(t.Context(), 0), errDepositIDRequired, "RejectCryptoDeposit should error without a deposit ID")
-
-	if !mockTests {
-		t.Skip("RejectCryptoDeposit is not tested live as it requires a pending deposit")
-	}
-	assert.NoError(t, e.RejectCryptoDeposit(t.Context(), 1), "RejectCryptoDeposit should not error")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("The mocked rejection is not sent live, as it needs a pending deposit")
+		}
+		assert.NoError(t, e.RejectCryptoDeposit(t.Context(), 1), "RejectCryptoDeposit should not error")
+	})
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The placeholder API key is refused only by the live API")
+		}
+		requireUnknownAPIKey(t, newPlaceholderCredentialsTestInstance(t).RejectCryptoDeposit(t.Context(), math.MaxInt64))
+	})
 }

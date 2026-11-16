@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"net/http"
 	"slices"
 	"testing"
 	"time"
@@ -100,121 +101,158 @@ func TestGetTickers(t *testing.T) {
 	assert.True(t, marketTypes[MarketTypePerpetual], "GetTickers should return perpetual markets")
 }
 
-func TestGetTicker(t *testing.T) {
+func TestGetTicker(t *testing.T) { //nolint:tparallel // Cases run serially through the shared exchange
 	t.Parallel()
 	_, err := e.GetTicker(t.Context(), currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetTicker should error on an empty pair")
-	_, err = e.GetHourlyTicker(t.Context(), currency.EMPTYPAIR)
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetHourlyTicker should error on an empty pair")
 
 	for _, tc := range []struct {
+		name       string
 		pair       currency.Pair
 		marketType string
-		exp        map[string]*TickerResponse
+		exp        *TickerResponse
 	}{
 		{
+			name:       "spot market",
 			pair:       spotPair,
 			marketType: MarketTypeSpot,
-			exp: map[string]*TickerResponse{
-				"GetTicker": {
-					Last:                       84246.67,
-					High:                       84900,
-					Low:                        82873.04,
-					VolumeWeightedAveragePrice: 84052.46,
-					Volume:                     1588.01336151,
-					BestBid:                    84250.32,
-					BestAsk:                    84250.33,
-					Timestamp:                  types.Time(time.Unix(1790317268, 0)),
-					Open:                       84383.03,
-					Open24Hour:                 84118.33,
-					PercentChange24Hour:        0.15,
-					Side:                       OrderSide(order.Sell),
-					MarketType:                 MarketTypeSpot,
-				},
-				"GetHourlyTicker": {
-					Last:                       84246.67,
-					High:                       84263.32,
-					Low:                        83966.76,
-					VolumeWeightedAveragePrice: 84056.79,
-					Volume:                     14.90884959,
-					BestBid:                    84250.32,
-					BestAsk:                    84250.33,
-					Timestamp:                  types.Time(time.Unix(1790317270, 0)),
-					Open:                       84175.39,
-					Side:                       OrderSide(order.Sell),
-					MarketType:                 MarketTypeSpot,
-				},
+			exp: &TickerResponse{
+				Last:                       84246.67,
+				High:                       84900,
+				Low:                        82873.04,
+				VolumeWeightedAveragePrice: 84052.46,
+				Volume:                     1588.01336151,
+				BestBid:                    84250.32,
+				BestAsk:                    84250.33,
+				Timestamp:                  types.Time(time.Unix(1790317268, 0)),
+				Open:                       84383.03,
+				Open24Hour:                 84118.33,
+				PercentChange24Hour:        0.15,
+				Side:                       OrderSide(order.Sell),
+				MarketType:                 MarketTypeSpot,
 			},
 		},
 		{
+			name:       "perpetual market",
 			pair:       perpetualPair,
 			marketType: MarketTypePerpetual,
-			exp: map[string]*TickerResponse{
-				"GetTicker": {
-					Last:                       84055,
-					High:                       84922,
-					Low:                        82895,
-					VolumeWeightedAveragePrice: 84071,
-					Volume:                     64.26666,
-					BestBid:                    84260,
-					BestAsk:                    84261,
-					Timestamp:                  types.Time(time.Unix(1790317270, 0)),
-					Open:                       84431,
-					Open24Hour:                 84221,
-					PercentChange24Hour:        -0.2,
-					Side:                       OrderSide(order.Buy),
-					MarketType:                 MarketTypePerpetual,
-					MarkPrice:                  84249.73980309,
-					IndexPrice:                 84240.324,
-					OpenInterest:               48.09714,
-					OpenInterestValue:          4052171.530272792,
-				},
-				"GetHourlyTicker": {
-					Last:                       84055,
-					High:                       84114,
-					Low:                        84055,
-					VolumeWeightedAveragePrice: 84107,
-					Volume:                     0.54543,
-					BestBid:                    84260,
-					BestAsk:                    84261,
-					Timestamp:                  types.Time(time.Unix(1790317270, 0)),
-					Open:                       84114,
-					Side:                       OrderSide(order.Buy),
-					MarketType:                 MarketTypePerpetual,
-					MarkPrice:                  84249.73980309,
-					IndexPrice:                 84240.324,
-					OpenInterest:               48.09714,
-					OpenInterestValue:          4052171.530272792,
-				},
+			exp: &TickerResponse{
+				Last:                       84055,
+				High:                       84922,
+				Low:                        82895,
+				VolumeWeightedAveragePrice: 84071,
+				Volume:                     64.26666,
+				BestBid:                    84260,
+				BestAsk:                    84261,
+				Timestamp:                  types.Time(time.Unix(1790317270, 0)),
+				Open:                       84431,
+				Open24Hour:                 84221,
+				PercentChange24Hour:        -0.2,
+				Side:                       OrderSide(order.Buy),
+				MarketType:                 MarketTypePerpetual,
+				MarkPrice:                  84249.73980309,
+				IndexPrice:                 84240.324,
+				OpenInterest:               48.09714,
+				OpenInterestValue:          4052171.530272792,
 			},
 		},
 	} {
-		for name, get := range map[string]func() (*TickerResponse, error){
-			"GetTicker":       func() (*TickerResponse, error) { return e.GetTicker(t.Context(), tc.pair) },
-			"GetHourlyTicker": func() (*TickerResponse, error) { return e.GetHourlyTicker(t.Context(), tc.pair) },
-		} {
-			tick, err := get()
-			require.NoErrorf(t, err, "%s must not error for %s", name, tc.pair)
-			require.NotNilf(t, tick, "%s must return a ticker for %s", name, tc.pair)
+		// Serial and in order, as every case goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			tick, err := e.GetTicker(t.Context(), tc.pair)
+			require.NoErrorf(t, err, "GetTicker must not error for %s", tc.pair)
+			require.NotNilf(t, tick, "GetTicker must return a ticker for %s", tc.pair)
 			if mockTests {
-				assert.Equalf(t, tc.exp[name], tick, "%s should decode the ticker for %s", name, tc.pair)
-				continue
+				assert.Equalf(t, tc.exp, tick, "GetTicker should decode the ticker for %s", tc.pair)
+				return
 			}
-			assert.Positivef(t, tick.Last.Float64(), "%s Last should be positive for %s", name, tc.pair)
-			assert.Positivef(t, tick.BestBid.Float64(), "%s BestBid should be positive for %s", name, tc.pair)
-			assert.Positivef(t, tick.BestAsk.Float64(), "%s BestAsk should be positive for %s", name, tc.pair)
-			assert.NotZerof(t, tick.Timestamp.Time(), "%s Timestamp should be set for %s", name, tc.pair)
-			assert.Containsf(t, []order.Side{order.Buy, order.Sell}, tick.Side.Side(), "%s Side should be valid for %s", name, tc.pair)
-			assert.Equalf(t, tc.marketType, tick.MarketType, "%s MarketType should be correct for %s", name, tc.pair)
-			if tc.marketType == MarketTypePerpetual {
-				assert.Positivef(t, tick.MarkPrice.Float64(), "%s MarkPrice should be positive for %s", name, tc.pair)
-				assert.Positivef(t, tick.IndexPrice.Float64(), "%s IndexPrice should be positive for %s", name, tc.pair)
-			}
-		}
+			assertLiveTicker(t, "GetTicker", tc.pair, tc.marketType, tick)
+		})
 	}
 }
 
-func TestGetOrderbook(t *testing.T) {
+func TestGetHourlyTicker(t *testing.T) { //nolint:tparallel // Cases run serially through the shared exchange
+	t.Parallel()
+	_, err := e.GetHourlyTicker(t.Context(), currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetHourlyTicker should error on an empty pair")
+
+	for _, tc := range []struct {
+		name       string
+		pair       currency.Pair
+		marketType string
+		exp        *TickerResponse
+	}{
+		{
+			name:       "spot market",
+			pair:       spotPair,
+			marketType: MarketTypeSpot,
+			exp: &TickerResponse{
+				Last:                       84246.67,
+				High:                       84263.32,
+				Low:                        83966.76,
+				VolumeWeightedAveragePrice: 84056.79,
+				Volume:                     14.90884959,
+				BestBid:                    84250.32,
+				BestAsk:                    84250.33,
+				Timestamp:                  types.Time(time.Unix(1790317270, 0)),
+				Open:                       84175.39,
+				Side:                       OrderSide(order.Sell),
+				MarketType:                 MarketTypeSpot,
+			},
+		},
+		{
+			name:       "perpetual market",
+			pair:       perpetualPair,
+			marketType: MarketTypePerpetual,
+			exp: &TickerResponse{
+				Last:                       84055,
+				High:                       84114,
+				Low:                        84055,
+				VolumeWeightedAveragePrice: 84107,
+				Volume:                     0.54543,
+				BestBid:                    84260,
+				BestAsk:                    84261,
+				Timestamp:                  types.Time(time.Unix(1790317270, 0)),
+				Open:                       84114,
+				Side:                       OrderSide(order.Buy),
+				MarketType:                 MarketTypePerpetual,
+				MarkPrice:                  84249.73980309,
+				IndexPrice:                 84240.324,
+				OpenInterest:               48.09714,
+				OpenInterestValue:          4052171.530272792,
+			},
+		},
+	} {
+		// Serial and in order, as every case goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			tick, err := e.GetHourlyTicker(t.Context(), tc.pair)
+			require.NoErrorf(t, err, "GetHourlyTicker must not error for %s", tc.pair)
+			require.NotNilf(t, tick, "GetHourlyTicker must return a ticker for %s", tc.pair)
+			if mockTests {
+				assert.Equalf(t, tc.exp, tick, "GetHourlyTicker should decode the ticker for %s", tc.pair)
+				return
+			}
+			assertLiveTicker(t, "GetHourlyTicker", tc.pair, tc.marketType, tick)
+		})
+	}
+}
+
+// assertLiveTicker checks the fields which a live ticker of the market type always sets
+func assertLiveTicker(t *testing.T, name string, pair currency.Pair, marketType string, tick *TickerResponse) {
+	t.Helper()
+	assert.Positivef(t, tick.Last.Float64(), "%s Last should be positive for %s", name, pair)
+	assert.Positivef(t, tick.BestBid.Float64(), "%s BestBid should be positive for %s", name, pair)
+	assert.Positivef(t, tick.BestAsk.Float64(), "%s BestAsk should be positive for %s", name, pair)
+	assert.NotZerof(t, tick.Timestamp.Time(), "%s Timestamp should be set for %s", name, pair)
+	assert.Containsf(t, []order.Side{order.Buy, order.Sell}, tick.Side.Side(), "%s Side should be valid for %s", name, pair)
+	assert.Equalf(t, marketType, tick.MarketType, "%s MarketType should be correct for %s", name, pair)
+	if marketType == MarketTypePerpetual {
+		assert.Positivef(t, tick.MarkPrice.Float64(), "%s MarkPrice should be positive for %s", name, pair)
+		assert.Positivef(t, tick.IndexPrice.Float64(), "%s IndexPrice should be positive for %s", name, pair)
+	}
+}
+
+func TestGetOrderbook(t *testing.T) { //nolint:tparallel // Cases run serially through the shared exchange
 	t.Parallel()
 	_, err := e.GetOrderbook(t.Context(), currency.EMPTYPAIR, OrderbookGroupedByPrice)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetOrderbook should error on an empty pair")
@@ -222,11 +260,13 @@ func TestGetOrderbook(t *testing.T) {
 	assert.ErrorIs(t, err, errInvalidOrderbookGrouping, "GetOrderbook should error on an invalid grouping")
 
 	for _, tc := range []struct {
+		name     string
 		pair     currency.Pair
 		grouping OrderbookGrouping
 		exp      *OrderbookResponse // The mock book's timestamps and best levels
 	}{
 		{
+			name:     "spot ungrouped",
 			pair:     spotPair,
 			grouping: OrderbookUngrouped,
 			exp: &OrderbookResponse{
@@ -237,6 +277,7 @@ func TestGetOrderbook(t *testing.T) {
 			},
 		},
 		{
+			name:     "spot grouped by price",
 			pair:     spotPair,
 			grouping: OrderbookGroupedByPrice,
 			exp: &OrderbookResponse{
@@ -247,6 +288,7 @@ func TestGetOrderbook(t *testing.T) {
 			},
 		},
 		{
+			name:     "spot ungrouped with order IDs",
 			pair:     spotPair,
 			grouping: OrderbookUngroupedWithOrderIDs,
 			exp: &OrderbookResponse{
@@ -257,6 +299,7 @@ func TestGetOrderbook(t *testing.T) {
 			},
 		},
 		{
+			name:     "perpetual grouped by price",
 			pair:     perpetualPair,
 			grouping: OrderbookGroupedByPrice,
 			exp: &OrderbookResponse{
@@ -267,130 +310,160 @@ func TestGetOrderbook(t *testing.T) {
 			},
 		},
 	} {
-		ob, err := e.GetOrderbook(t.Context(), tc.pair, tc.grouping)
-		require.NoErrorf(t, err, "GetOrderbook must not error for %s grouping %d", tc.pair, tc.grouping)
-		if mockTests {
-			require.Lenf(t, ob.Bids, 10, "GetOrderbook must return every bid for %s grouping %d", tc.pair, tc.grouping)
-			require.Lenf(t, ob.Asks, 10, "GetOrderbook must return every ask for %s grouping %d", tc.pair, tc.grouping)
-			top := &OrderbookResponse{Timestamp: ob.Timestamp, Microtimestamp: ob.Microtimestamp, Bids: ob.Bids[:1], Asks: ob.Asks[:1]}
-			assert.Equalf(t, tc.exp, top, "GetOrderbook should decode the book for %s grouping %d", tc.pair, tc.grouping)
-		}
-		assert.NotZerof(t, ob.Microtimestamp.Time(), "Microtimestamp should be set for %s grouping %d", tc.pair, tc.grouping)
-		for _, levels := range [][]OrderbookLevel{ob.Bids, ob.Asks} {
-			require.NotEmptyf(t, levels, "levels must not be empty for %s grouping %d", tc.pair, tc.grouping)
-			assert.Positivef(t, levels[0].Price, "Price should be positive for %s grouping %d", tc.pair, tc.grouping)
-			assert.Positivef(t, levels[0].Amount, "Amount should be positive for %s grouping %d", tc.pair, tc.grouping)
-			if tc.grouping == OrderbookUngroupedWithOrderIDs {
-				assert.NotZerof(t, levels[0].OrderID, "OrderID should be set for %s grouping %d", tc.pair, tc.grouping)
-			} else {
-				assert.Zerof(t, levels[0].OrderID, "OrderID should not be set for %s grouping %d", tc.pair, tc.grouping)
+		// Serial and in order, as every case goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			ob, err := e.GetOrderbook(t.Context(), tc.pair, tc.grouping)
+			require.NoErrorf(t, err, "GetOrderbook must not error for %s grouping %d", tc.pair, tc.grouping)
+			if mockTests {
+				require.Lenf(t, ob.Bids, 10, "GetOrderbook must return every bid for %s grouping %d", tc.pair, tc.grouping)
+				require.Lenf(t, ob.Asks, 10, "GetOrderbook must return every ask for %s grouping %d", tc.pair, tc.grouping)
+				top := &OrderbookResponse{Timestamp: ob.Timestamp, Microtimestamp: ob.Microtimestamp, Bids: ob.Bids[:1], Asks: ob.Asks[:1]}
+				assert.Equalf(t, tc.exp, top, "GetOrderbook should decode the book for %s grouping %d", tc.pair, tc.grouping)
 			}
-		}
+			assert.NotZerof(t, ob.Microtimestamp.Time(), "Microtimestamp should be set for %s grouping %d", tc.pair, tc.grouping)
+			for _, bookSide := range []struct {
+				name   string
+				levels []OrderbookLevel
+			}{
+				{name: "bids", levels: ob.Bids},
+				{name: "asks", levels: ob.Asks},
+			} {
+				t.Run(bookSide.name, func(t *testing.T) {
+					t.Parallel()
+					require.NotEmptyf(t, bookSide.levels, "levels must not be empty for %s grouping %d", tc.pair, tc.grouping)
+					assert.Positivef(t, bookSide.levels[0].Price, "Price should be positive for %s grouping %d", tc.pair, tc.grouping)
+					assert.Positivef(t, bookSide.levels[0].Amount, "Amount should be positive for %s grouping %d", tc.pair, tc.grouping)
+					if tc.grouping == OrderbookUngroupedWithOrderIDs {
+						assert.NotZerof(t, bookSide.levels[0].OrderID, "OrderID should be set for %s grouping %d", tc.pair, tc.grouping)
+					} else {
+						assert.Zerof(t, bookSide.levels[0].OrderID, "OrderID should not be set for %s grouping %d", tc.pair, tc.grouping)
+					}
+				})
+			}
+		})
 	}
 }
 
-func TestGetTransactions(t *testing.T) {
+func TestGetTransactions(t *testing.T) { //nolint:tparallel // Cases run serially through the shared exchange
 	t.Parallel()
 	_, err := e.GetTransactions(t.Context(), currency.EMPTYPAIR, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetTransactions should error on an empty pair")
 	_, err = e.GetTransactions(t.Context(), spotPair, "week")
 	assert.ErrorIs(t, err, errInvalidTransactionPeriod, "GetTransactions should error on an invalid time period")
 
-	for _, period := range []string{"", TransactionPeriodHour} {
-		transactions, err := e.GetTransactions(t.Context(), spotPair, period)
-		require.NoErrorf(t, err, "GetTransactions must not error for period %q", period)
-		require.NotEmptyf(t, transactions, "GetTransactions must return transactions for period %q", period)
-		if mockTests {
-			exp := TransactionResponse{
-				Date:    types.Time(time.Unix(1790317257, 0)),
-				TradeID: 642950935,
-				Price:   84246.67,
-				Side:    OrderSide(order.Sell),
-				Amount:  0.05934952,
+	for _, tc := range []struct {
+		name   string
+		period string
+	}{
+		{name: "without a time period", period: ""},
+		{name: "hour time period", period: TransactionPeriodHour},
+	} {
+		// Serial and in order, as every case goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			transactions, err := e.GetTransactions(t.Context(), spotPair, tc.period)
+			require.NoErrorf(t, err, "GetTransactions must not error for period %q", tc.period)
+			require.NotEmptyf(t, transactions, "GetTransactions must return transactions for period %q", tc.period)
+			if mockTests {
+				exp := TransactionResponse{
+					Date:    types.Time(time.Unix(1790317257, 0)),
+					TradeID: 642950935,
+					Price:   84246.67,
+					Side:    OrderSide(order.Sell),
+					Amount:  0.05934952,
+				}
+				assert.Equalf(t, exp, transactions[0], "GetTransactions should decode the latest transaction for period %q", tc.period)
 			}
-			assert.Equalf(t, exp, transactions[0], "GetTransactions should decode the latest transaction for period %q", period)
-		}
-		for _, tr := range transactions {
-			assert.NotZero(t, tr.Date.Time(), "Date should be set")
-			assert.NotZero(t, tr.TradeID, "TradeID should be set")
-			assert.Positive(t, tr.Price.Float64(), "Price should be positive")
-			assert.Positive(t, tr.Amount.Float64(), "Amount should be positive")
-			assert.Contains(t, []order.Side{order.Buy, order.Sell}, tr.Side.Side(), "Side should be valid")
-		}
+			for _, tr := range transactions {
+				assert.NotZero(t, tr.Date.Time(), "Date should be set")
+				assert.NotZero(t, tr.TradeID, "TradeID should be set")
+				assert.Positive(t, tr.Price.Float64(), "Price should be positive")
+				assert.Positive(t, tr.Amount.Float64(), "Amount should be positive")
+				assert.Contains(t, []order.Side{order.Buy, order.Sell}, tr.Side.Side(), "Side should be valid")
+			}
+		})
 	}
 }
 
-func TestGetMarkets(t *testing.T) {
+func TestGetMarkets(t *testing.T) { //nolint:tparallel // Cases run serially through the shared exchange
 	t.Parallel()
-	for _, entity := range []string{"", "EUROPE_SA"} {
-		markets, err := e.GetMarkets(t.Context(), entity)
-		require.NoErrorf(t, err, "GetMarkets must not error for entity %q", entity)
-		if mockTests {
-			i := slices.IndexFunc(markets, func(m MarketResponse) bool { return m.Name == "BTC/USD" })
-			require.NotEqualf(t, -1, i, "GetMarkets must list BTC/USD for entity %q", entity)
-			exp := MarketResponse{
-				Name:                          "BTC/USD",
-				MarketSymbol:                  "btcusd",
-				BaseCurrency:                  currency.BTC,
-				BaseDecimals:                  8,
-				CounterCurrency:               currency.USD,
-				CounterDecimals:               2,
-				MinimumOrderValue:             10,
-				TradingEnabled:                true,
-				InstantOrderCounterDecimals:   2,
-				InstantAndMarketOrdersEnabled: true,
-				Description:                   "Bitcoin / U.S. dollar",
-				MarketType:                    MarketTypeSpot,
+	for _, tc := range []struct {
+		name   string
+		entity string
+	}{
+		{name: "without an entity", entity: ""},
+		{name: "with an entity", entity: "EUROPE_SA"},
+	} {
+		// Serial and in order, as every case goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			markets, err := e.GetMarkets(t.Context(), tc.entity)
+			require.NoErrorf(t, err, "GetMarkets must not error for entity %q", tc.entity)
+			if mockTests {
+				i := slices.IndexFunc(markets, func(m MarketResponse) bool { return m.Name == "BTC/USD" })
+				require.NotEqualf(t, -1, i, "GetMarkets must list BTC/USD for entity %q", tc.entity)
+				exp := MarketResponse{
+					Name:                          "BTC/USD",
+					MarketSymbol:                  "btcusd",
+					BaseCurrency:                  currency.BTC,
+					BaseDecimals:                  8,
+					CounterCurrency:               currency.USD,
+					CounterDecimals:               2,
+					MinimumOrderValue:             10,
+					TradingEnabled:                true,
+					InstantOrderCounterDecimals:   2,
+					InstantAndMarketOrdersEnabled: true,
+					Description:                   "Bitcoin / U.S. dollar",
+					MarketType:                    MarketTypeSpot,
+				}
+				assert.Equalf(t, exp, markets[i], "GetMarkets should decode a spot market for entity %q", tc.entity)
 			}
-			assert.Equalf(t, exp, markets[i], "GetMarkets should decode a spot market for entity %q", entity)
-		}
-		marketTypes := make(map[string]bool)
-		for i := range markets {
-			m := &markets[i]
-			marketTypes[m.MarketType] = true
-			assert.NotEmpty(t, m.Name, "Name should be set")
-			assert.NotEmpty(t, m.MarketSymbol, "MarketSymbol should be set")
-			assert.False(t, m.BaseCurrency.IsEmpty(), "BaseCurrency should be set")
-			assert.False(t, m.CounterCurrency.IsEmpty(), "CounterCurrency should be set")
-			assert.Positive(t, m.MinimumOrderValue.Float64(), "MinimumOrderValue should be positive")
-			if m.MarketType == MarketTypePerpetual {
-				assert.Positive(t, m.MaxLeverage.Float64(), "MaxLeverage should be positive")
-				assert.Positive(t, m.ContractSize.Float64(), "ContractSize should be positive")
-				assert.Equal(t, "Linear", m.PayoffType, "PayoffType should be correct")
+			marketTypes := make(map[string]bool)
+			for i := range markets {
+				m := &markets[i]
+				marketTypes[m.MarketType] = true
+				assert.NotEmpty(t, m.Name, "Name should be set")
+				assert.NotEmpty(t, m.MarketSymbol, "MarketSymbol should be set")
+				assert.False(t, m.BaseCurrency.IsEmpty(), "BaseCurrency should be set")
+				assert.False(t, m.CounterCurrency.IsEmpty(), "CounterCurrency should be set")
+				assert.Positive(t, m.MinimumOrderValue.Float64(), "MinimumOrderValue should be positive")
+				if m.MarketType == MarketTypePerpetual {
+					assert.Positive(t, m.MaxLeverage.Float64(), "MaxLeverage should be positive")
+					assert.Positive(t, m.ContractSize.Float64(), "ContractSize should be positive")
+					assert.Equal(t, "Linear", m.PayoffType, "PayoffType should be correct")
+				}
 			}
-		}
-		assert.Truef(t, marketTypes[MarketTypeSpot], "GetMarkets should return spot markets for entity %q", entity)
-		if entity != "" {
-			continue
-		}
-		assert.True(t, marketTypes[MarketTypePerpetual], "GetMarkets should return perpetual markets")
-		if mockTests {
-			i := slices.IndexFunc(markets, func(m MarketResponse) bool { return m.Name == "BTC/USD-PERP" })
-			require.NotEqual(t, -1, i, "GetMarkets must list BTC/USD-PERP")
-			exp := MarketResponse{
-				Name:                          "BTC/USD-PERP",
-				MarketSymbol:                  "btcusd-perp",
-				BaseCurrency:                  currency.BTC,
-				BaseDecimals:                  5,
-				CounterCurrency:               currency.USD,
-				MinimumOrderValue:             10,
-				MaximumOrderValue:             1000000,
-				MinimumOrderAmount:            0.00001,
-				MaximumOrderAmount:            20,
-				TradingEnabled:                true,
-				InstantOrderCounterDecimals:   2,
-				InstantAndMarketOrdersEnabled: true,
-				Description:                   "Bitcoin / U.S. dollar Perpetual",
-				MarketType:                    MarketTypePerpetual,
-				UnderlyingAsset:               "Kaiko BTC Benchmark Reference Rate",
-				PayoffType:                    "Linear",
-				ContractSize:                  1,
-				MaxLeverage:                   10,
-				ISIN:                          "EZHKD4DNKHY3",
-				AssetClass:                    AssetClassCrypto,
+			assert.Truef(t, marketTypes[MarketTypeSpot], "GetMarkets should return spot markets for entity %q", tc.entity)
+			if tc.entity != "" {
+				return
 			}
-			assert.Equal(t, exp, markets[i], "GetMarkets should decode a perpetual market")
-		}
+			assert.True(t, marketTypes[MarketTypePerpetual], "GetMarkets should return perpetual markets")
+			if mockTests {
+				i := slices.IndexFunc(markets, func(m MarketResponse) bool { return m.Name == "BTC/USD-PERP" })
+				require.NotEqual(t, -1, i, "GetMarkets must list BTC/USD-PERP")
+				exp := MarketResponse{
+					Name:                          "BTC/USD-PERP",
+					MarketSymbol:                  "btcusd-perp",
+					BaseCurrency:                  currency.BTC,
+					BaseDecimals:                  5,
+					CounterCurrency:               currency.USD,
+					MinimumOrderValue:             10,
+					MaximumOrderValue:             1000000,
+					MinimumOrderAmount:            0.00001,
+					MaximumOrderAmount:            20,
+					TradingEnabled:                true,
+					InstantOrderCounterDecimals:   2,
+					InstantAndMarketOrdersEnabled: true,
+					Description:                   "Bitcoin / U.S. dollar Perpetual",
+					MarketType:                    MarketTypePerpetual,
+					UnderlyingAsset:               "Kaiko BTC Benchmark Reference Rate",
+					PayoffType:                    "Linear",
+					ContractSize:                  1,
+					MaxLeverage:                   10,
+					ISIN:                          "EZHKD4DNKHY3",
+					AssetClass:                    AssetClassCrypto,
+				}
+				assert.Equal(t, exp, markets[i], "GetMarkets should decode a perpetual market")
+			}
+		})
 	}
 }
 
@@ -399,43 +472,62 @@ func TestGetOHLC(t *testing.T) {
 	start := time.Unix(1735689600, 0)
 	end := time.Unix(1735693200, 0)
 	for _, tc := range []struct {
-		req *OHLCRequest
-		err error
+		name string
+		req  *OHLCRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &OHLCRequest{}, err: currency.ErrCurrencyPairEmpty},
-		{req: &OHLCRequest{Pair: spotPair}, err: errInvalidInterval},
-		{req: &OHLCRequest{Pair: spotPair, Step: kline.OneMin}, err: errInvalidLimit},
-		{req: &OHLCRequest{Pair: spotPair, Step: kline.OneMin, Limit: 1001}, err: errInvalidLimit},
-		{req: &OHLCRequest{Pair: spotPair, Step: kline.OneMin, Limit: 10, Start: end, End: start}, err: common.ErrStartAfterEnd},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "without a pair", req: &OHLCRequest{}, err: currency.ErrCurrencyPairEmpty},
+		{name: "without a step", req: &OHLCRequest{Pair: spotPair}, err: errInvalidInterval},
+		{name: "without a limit", req: &OHLCRequest{Pair: spotPair, Step: kline.OneMin}, err: errInvalidLimit},
+		{name: "limit above the maximum", req: &OHLCRequest{Pair: spotPair, Step: kline.OneMin, Limit: 1001}, err: errInvalidLimit},
+		{name: "start after end", req: &OHLCRequest{Pair: spotPair, Step: kline.OneMin, Limit: 10, Start: end, End: start}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetOHLC(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "GetOHLC should return the correct error")
+		// Serial and in order, as the requests below go through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetOHLC(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.err, "GetOHLC should return the correct error")
+		})
 	}
+	t.Run("limit at the maximum", func(t *testing.T) {
+		t.Parallel()
+		ex := newResponseTestExchange(t, http.StatusOK, `{"data":{"pair":"BTC/USD","ohlc":[]}}`)
+		_, err := ex.GetOHLC(t.Context(), &OHLCRequest{Pair: spotPair, Step: kline.OneMin, Limit: maxResultLimit})
+		require.NoError(t, err, "GetOHLC must accept the maximum limit")
+	})
 
-	for _, exclude := range []bool{false, true} {
-		resp, err := e.GetOHLC(t.Context(), &OHLCRequest{Pair: spotPair, Step: kline.OneMin, Limit: 10, Start: start, End: end, ExcludeCurrentCandle: exclude})
-		require.NoError(t, err, "GetOHLC must not error")
-		assert.Equal(t, "BTC/USD", resp.Data.Pair, "Pair should be correct")
-		require.Len(t, resp.Data.OHLC, 10, "GetOHLC must return the requested candles")
-		if mockTests {
-			exp := Candle{
-				Timestamp: types.Time(time.Unix(1735692660, 0)),
-				Open:      93888,
-				High:      93917,
-				Low:       93885,
-				Close:     93917,
-				Volume:    0.98096975,
+	for _, tc := range []struct {
+		name    string
+		exclude bool
+	}{
+		{name: "including the current candle", exclude: false},
+		{name: "excluding the current candle", exclude: true},
+	} {
+		// Serial and in order, as every case goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := e.GetOHLC(t.Context(), &OHLCRequest{Pair: spotPair, Step: kline.OneMin, Limit: 10, Start: start, End: end, ExcludeCurrentCandle: tc.exclude})
+			require.NoError(t, err, "GetOHLC must not error")
+			assert.Equal(t, "BTC/USD", resp.Data.Pair, "Pair should be correct")
+			require.Len(t, resp.Data.OHLC, 10, "GetOHLC must return the requested candles")
+			if mockTests {
+				exp := Candle{
+					Timestamp: types.Time(time.Unix(1735692660, 0)),
+					Open:      93888,
+					High:      93917,
+					Low:       93885,
+					Close:     93917,
+					Volume:    0.98096975,
+				}
+				assert.Equal(t, exp, resp.Data.OHLC[0], "GetOHLC should decode the first candle")
 			}
-			assert.Equal(t, exp, resp.Data.OHLC[0], "GetOHLC should decode the first candle")
-		}
-		for _, c := range resp.Data.OHLC {
-			assert.False(t, c.Timestamp.Time().Before(start), "Timestamp should not be before the start")
-			assert.Positive(t, c.Open.Float64(), "Open should be positive")
-			assert.Positive(t, c.High.Float64(), "High should be positive")
-			assert.Positive(t, c.Low.Float64(), "Low should be positive")
-			assert.Positive(t, c.Close.Float64(), "Close should be positive")
-		}
+			for _, c := range resp.Data.OHLC {
+				assert.False(t, c.Timestamp.Time().Before(start), "Timestamp should not be before the start")
+				assert.Positive(t, c.Open.Float64(), "Open should be positive")
+				assert.Positive(t, c.High.Float64(), "High should be positive")
+				assert.Positive(t, c.Low.Float64(), "Low should be positive")
+				assert.Positive(t, c.Close.Float64(), "Close should be positive")
+			}
+		})
 	}
 }
 
@@ -476,37 +568,43 @@ func TestGetFundingRate(t *testing.T) {
 func TestGetFundingRateHistory(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		req *FundingRateHistoryRequest
-		err error
+		name string
+		req  *FundingRateHistoryRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &FundingRateHistoryRequest{}, err: currency.ErrCurrencyPairEmpty},
-		{req: &FundingRateHistoryRequest{Pair: perpetualPair, Limit: 101}, err: errInvalidLimit},
-		{req: &FundingRateHistoryRequest{Pair: perpetualPair, Since: time.Unix(2, 0), Until: time.Unix(1, 0)}, err: common.ErrStartAfterEnd},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "without a pair", req: &FundingRateHistoryRequest{}, err: currency.ErrCurrencyPairEmpty},
+		{name: "limit above the maximum", req: &FundingRateHistoryRequest{Pair: perpetualPair, Limit: 101}, err: errInvalidLimit},
+		{name: "start after end", req: &FundingRateHistoryRequest{Pair: perpetualPair, Since: time.Unix(2, 0), Until: time.Unix(1, 0)}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetFundingRateHistory(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "GetFundingRateHistory should return the correct error")
+		// Serial and in order, as the request below goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetFundingRateHistory(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.err, "GetFundingRateHistory should return the correct error")
+		})
 	}
-
-	history, err := e.GetFundingRateHistory(t.Context(), &FundingRateHistoryRequest{Pair: perpetualPair, Limit: 3})
-	require.NoError(t, err, "GetFundingRateHistory must not error")
-	if mockTests {
-		exp := &FundingRateHistoryResponse{
-			Market: "BTC/USD-PERP",
-			FundingRateHistory: []FundingRate{
-				{FundingRate: 0.000019, Timestamp: types.Time(time.Unix(1790236800, 0))},
-				{Timestamp: types.Time(time.Unix(1790265600, 0))},
-				{Timestamp: types.Time(time.Unix(1790294400, 0))},
-			},
+	t.Run("valid request", func(t *testing.T) {
+		t.Parallel()
+		history, err := e.GetFundingRateHistory(t.Context(), &FundingRateHistoryRequest{Pair: perpetualPair, Limit: 3})
+		require.NoError(t, err, "GetFundingRateHistory must not error")
+		if mockTests {
+			exp := &FundingRateHistoryResponse{
+				Market: "BTC/USD-PERP",
+				FundingRateHistory: []FundingRate{
+					{FundingRate: 0.000019, Timestamp: types.Time(time.Unix(1790236800, 0))},
+					{Timestamp: types.Time(time.Unix(1790265600, 0))},
+					{Timestamp: types.Time(time.Unix(1790294400, 0))},
+				},
+			}
+			assert.Equal(t, exp, history, "GetFundingRateHistory should decode the rates")
+			return
 		}
-		assert.Equal(t, exp, history, "GetFundingRateHistory should decode the rates")
-		return
-	}
-	assert.Equal(t, "BTC/USD-PERP", history.Market, "Market should be correct")
-	require.Len(t, history.FundingRateHistory, 3, "GetFundingRateHistory must return the requested rates")
-	for i := 1; i < len(history.FundingRateHistory); i++ {
-		assert.True(t, history.FundingRateHistory[i].Timestamp.Time().After(history.FundingRateHistory[i-1].Timestamp.Time()), "rates should be in ascending order")
-	}
+		assert.Equal(t, "BTC/USD-PERP", history.Market, "Market should be correct")
+		require.Len(t, history.FundingRateHistory, 3, "GetFundingRateHistory must return the requested rates")
+		for i := 1; i < len(history.FundingRateHistory); i++ {
+			assert.True(t, history.FundingRateHistory[i].Timestamp.Time().After(history.FundingRateHistory[i-1].Timestamp.Time()), "rates should be in ascending order")
+		}
+	})
 }
 
 func TestGetVirtualAssetServiceProviders(t *testing.T) {

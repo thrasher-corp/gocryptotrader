@@ -9,26 +9,30 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-func TestGetCryptoDepositAddress(t *testing.T) {
+func TestGetCryptoDepositAddress(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases send their requests through the package exchange in order
 	t.Parallel()
 	_, err := e.GetCryptoDepositAddress(t.Context(), currency.EMPTYCODE, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetCryptoDepositAddress should error on an empty currency")
 
-	skipIfLiveWithoutCredentials(t)
 	for _, tc := range []struct {
+		name    string
 		c       currency.Code
 		network string
 		exp     DepositAddressResponse
 	}{
-		{c: currency.BTC, exp: DepositAddressResponse{Address: core.BitcoinDonationAddress}},
-		{c: currency.ETH, network: "ethereum", exp: DepositAddressResponse{Address: "0x6a56f5b80f04b4fd70d64d72e1396698635e5436"}},
-		{c: currency.XRP, exp: DepositAddressResponse{Address: "rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B", DestinationTag: 89473951}},
+		{name: "bitcoin", c: currency.BTC, exp: DepositAddressResponse{Address: core.BitcoinDonationAddress}},
+		{name: "ether on the ethereum network", c: currency.ETH, network: "ethereum", exp: DepositAddressResponse{Address: "0x6a56f5b80f04b4fd70d64d72e1396698635e5436"}},
+		{name: "ripple with a destination tag", c: currency.XRP, exp: DepositAddressResponse{Address: "rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B", DestinationTag: 89473951}},
 	} {
-		addr, err := e.GetCryptoDepositAddress(t.Context(), tc.c, tc.network)
-		require.NoErrorf(t, err, "GetCryptoDepositAddress must not error for %s", tc.c)
-		if mockTests {
-			assert.Equalf(t, tc.exp, *addr, "GetCryptoDepositAddress should return the address for %s", tc.c)
-		}
+		// Serial and in order, as each request goes through the package exchange
+		t.Run(tc.name, func(t *testing.T) {
+			skipIfLiveWithoutCredentials(t)
+			addr, err := e.GetCryptoDepositAddress(t.Context(), tc.c, tc.network)
+			require.NoErrorf(t, err, "GetCryptoDepositAddress must not error for %s", tc.c)
+			if mockTests {
+				assert.Equalf(t, tc.exp, *addr, "GetCryptoDepositAddress should return the address for %s", tc.c)
+			}
+		})
 	}
 }
 

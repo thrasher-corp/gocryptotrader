@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -72,7 +73,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
-func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+func TestGetFeeByType(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFeeByType(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "GetFeeByType should error on a nil fee builder")
@@ -88,7 +89,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	}
 }
 
-func TestGetFee(t *testing.T) {
+func TestGetFee(t *testing.T) { //nolint:tparallel // The fee types' cases go through the package exchange the calls above use, so they run in order
 	t.Parallel()
 	_, err := e.GetFee(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "GetFee should error on a nil fee builder")
@@ -122,25 +123,37 @@ func TestGetFee(t *testing.T) {
 		assert.Equal(t, 0.001, fee, "withdrawal fee should be correct")
 	}
 
-	for feeType, exp := range map[exchange.FeeType]float64{
-		exchange.CryptocurrencyDepositFee:       0,
-		exchange.InternationalBankDepositFee:    7.5,
-		exchange.InternationalBankWithdrawalFee: 15,
-		exchange.OfflineTradeFee:                0.0025 * 1800 * 5,
+	ctx := t.Context()
+	for _, tc := range []struct {
+		name    string
+		feeType exchange.FeeType
+		exp     float64
+	}{
+		{name: "cryptocurrency deposit", feeType: exchange.CryptocurrencyDepositFee, exp: 0},
+		{name: "international bank deposit", feeType: exchange.InternationalBankDepositFee, exp: 7.5},
+		{name: "international bank withdrawal", feeType: exchange.InternationalBankWithdrawalFee, exp: 15},
+		{name: "offline trade", feeType: exchange.OfflineTradeFee, exp: 0.0025 * 1800 * 5},
 	} {
-		feeBuilder = setFeeBuilder()
-		feeBuilder.FeeType = feeType
-		fee, err = e.GetFee(t.Context(), feeBuilder)
-		require.NoErrorf(t, err, "GetFee must not error for %v", feeType)
-		assert.InDeltaf(t, exp, fee, 1e-9, "GetFee should return the fee for %v", feeType)
+		// Serial and in order, as the fees go through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			feeBuilder := setFeeBuilder()
+			feeBuilder.FeeType = tc.feeType
+			fee, err := e.GetFee(ctx, feeBuilder)
+			require.NoErrorf(t, err, "GetFee must not error for %v", tc.feeType)
+			assert.InDeltaf(t, tc.exp, fee, 1e-9, "GetFee should return the fee for %v", tc.feeType)
+		})
 	}
 }
 
-func TestGetInternationalBankFees(t *testing.T) {
+func TestGetInternationalBankDepositFee(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, 7.5, getInternationalBankDepositFee(1000), "deposit fee should have a minimum")
 	assert.Equal(t, 10.0, getInternationalBankDepositFee(20000), "deposit fee should be a percentage")
 	assert.Equal(t, 300.0, getInternationalBankDepositFee(1000000), "deposit fee should have a maximum")
+}
+
+func TestGetInternationalBankWithdrawalFee(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, 15.0, getInternationalBankWithdrawalFee(1000), "withdrawal fee should have a minimum")
 	assert.Equal(t, 18.0, getInternationalBankWithdrawalFee(20000), "withdrawal fee should be a percentage")
 }
@@ -151,29 +164,12 @@ func TestGetOfflineTradeFee(t *testing.T) {
 	assert.Zero(t, getOfflineTradeFee(1800, 0), "getOfflineTradeFee should be zero without an amount")
 }
 
-func TestGetTradingFeeFromFeeBuilder(t *testing.T) {
-	t.Parallel()
-	_, err := e.getTradingFee(t.Context(), &exchange.FeeBuilder{})
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "getTradingFee should error without a pair")
-
-	skipIfLiveWithoutCredentials(t)
-	for isMaker, exp := range map[bool]float64{false: 0.4 / 100 * 1800 * 5, true: 0.3 / 100 * 1800 * 5} {
-		feeBuilder := setFeeBuilder()
-		feeBuilder.IsMaker = isMaker
-		fee, err := e.getTradingFee(t.Context(), feeBuilder)
-		require.NoErrorf(t, err, "getTradingFee must not error for maker %t", isMaker)
-		if mockTests {
-			assert.InDeltaf(t, exp, fee, 1e-9, "getTradingFee should apply the fee percentage for maker %t", isMaker)
-		}
-	}
-}
-
 func TestFormatWithdrawPermissions(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, exchange.AutoWithdrawCryptoText+" & "+exchange.AutoWithdrawFiatText, e.FormatWithdrawPermissions(), "FormatWithdrawPermissions should be correct")
 }
 
-func TestSetDefaults(t *testing.T) {
+func TestSetDefaults(t *testing.T) { //nolint:tparallel // The URL cases read the exchange the checks below read, so they run in order
 	t.Parallel()
 	ex := new(Exchange)
 	ex.SetDefaults()
@@ -182,9 +178,12 @@ func TestSetDefaults(t *testing.T) {
 	assert.Equal(t, config.APICredentialsValidatorConfig{RequiresKey: true, RequiresSecret: true}, ex.API.CredentialsValidator, "only a key and secret should be required")
 	assert.ElementsMatch(t, asset.Items{asset.Spot, asset.PerpetualContract}, ex.GetAssetTypes(false), "spot and perpetual contracts should be supported")
 	for u, exp := range map[exchange.URL]string{exchange.RestSpot: bitstampAPIURL, exchange.WebsocketSpot: bitstampWSURL} {
-		got, err := ex.API.Endpoints.GetURL(u)
-		require.NoErrorf(t, err, "GetURL must not error for %s", u)
-		assert.Equalf(t, exp, got, "%s should be the default URL", u)
+		// Serial and in order, as the checks below read the same exchange
+		t.Run(u.String(), func(t *testing.T) {
+			got, err := ex.API.Endpoints.GetURL(u)
+			require.NoErrorf(t, err, "GetURL must not error for %s", u)
+			assert.Equalf(t, exp, got, "%s should be the default URL", u)
+		})
 	}
 	expREST := protocol.Features{
 		TickerBatching:        true,
@@ -385,18 +384,22 @@ func TestLoadPreviousVersionConfig(t *testing.T) {
 	}
 }
 
-func TestFetchTradablePairs(t *testing.T) {
+func TestFetchTradablePairs(t *testing.T) { //nolint:tparallel // The assets' cases go through the package exchange the call above uses, so they run in order
 	t.Parallel()
 	_, err := e.FetchTradablePairs(t.Context(), asset.Futures)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "FetchTradablePairs should error on an unsupported asset")
 
+	ctx := t.Context()
 	for a, exp := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		pairs, err := e.FetchTradablePairs(t.Context(), a)
-		require.NoErrorf(t, err, "FetchTradablePairs must not error for %s", a)
-		assert.Truef(t, pairs.Contains(exp, true), "FetchTradablePairs should return %s for %s", exp, a)
-		for _, p := range pairs {
-			assert.Equalf(t, a == asset.PerpetualContract, p.Quote.Upper().String() == "USD-PERP" || len(p.Quote.String()) > 5 && p.Quote.Upper().String()[len(p.Quote.String())-5:] == "-PERP", "pair %s should belong to %s", p, a)
-		}
+		// Serial and in order, as the pairs are fetched through the same exchange
+		t.Run(a.String(), func(t *testing.T) {
+			pairs, err := e.FetchTradablePairs(ctx, a)
+			require.NoErrorf(t, err, "FetchTradablePairs must not error for %s", a)
+			assert.Truef(t, pairs.Contains(exp, true), "FetchTradablePairs should return %s for %s", exp, a)
+			for _, p := range pairs {
+				assert.Equalf(t, a == asset.PerpetualContract, p.Quote.Upper().String() == "USD-PERP" || len(p.Quote.String()) > 5 && p.Quote.Upper().String()[len(p.Quote.String())-5:] == "-PERP", "pair %s should belong to %s", p, a)
+			}
+		})
 	}
 }
 
@@ -415,22 +418,26 @@ func TestTradablePairs(t *testing.T) {
 	assert.Error(t, err, "tradablePairs should error on a malformed market name")
 }
 
-func TestUpdateTradablePairs(t *testing.T) {
+func TestUpdateTradablePairs(t *testing.T) { //nolint:tparallel // The assets' cases read the exchange the pairs were updated on, so they run in order
 	t.Parallel()
 	ex := newTestInstance(t)
 	require.NoError(t, ex.UpdateTradablePairs(t.Context()), "UpdateTradablePairs must not error")
 	for a, exp := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		pairs, err := ex.GetAvailablePairs(a)
-		require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
-		assert.Truef(t, pairs.Contains(exp, true), "available pairs should contain %s for %s", exp, a)
-		assert.Equalf(t, a == asset.PerpetualContract, pairs.Contains(perpetualPair, true), "perpetual contracts should only be available for %s", asset.PerpetualContract)
+		// Serial and in order, as each asset's pairs are read from the same exchange
+		t.Run(a.String(), func(t *testing.T) {
+			pairs, err := ex.GetAvailablePairs(a)
+			require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
+			assert.Truef(t, pairs.Contains(exp, true), "available pairs should contain %s for %s", exp, a)
+			assert.Equalf(t, a == asset.PerpetualContract, pairs.Contains(perpetualPair, true), "perpetual contracts should only be available for %s", asset.PerpetualContract)
+		})
 	}
 }
 
-func TestUpdateOrderExecutionLimits(t *testing.T) {
+func TestUpdateOrderExecutionLimits(t *testing.T) { //nolint:tparallel // The assets' cases go through the package exchange the call above uses, so they run in order
 	t.Parallel()
 	assert.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported, "UpdateOrderExecutionLimits should error on an unsupported asset")
 
+	ctx := t.Context()
 	for _, tc := range []struct {
 		a    asset.Item
 		pair currency.Pair
@@ -460,29 +467,89 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			},
 		},
 	} {
-		a, pair := tc.a, tc.pair
-		require.NoErrorf(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error for %s", a)
-		l, err := e.GetOrderExecutionLimits(a, pair)
-		require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", pair)
-		if mockTests {
-			assert.NotZerof(t, l.UpdatedAt, "UpdatedAt should be set for %s", pair)
-			l.UpdatedAt = time.Time{}
-			assert.Equalf(t, tc.exp, l, "GetOrderExecutionLimits should return the market's limits for %s", pair)
-			continue
-		}
-		assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", pair)
-		assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", pair)
-		assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", pair)
-		if a == asset.PerpetualContract {
-			assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
-			assert.Greaterf(t, l.MaximumBaseAmount, l.MinimumBaseAmount, "MaximumBaseAmount should exceed MinimumBaseAmount for %s", pair)
-			assert.Positivef(t, l.MaximumQuoteAmount, "MaximumQuoteAmount should be positive for %s", pair)
-		}
+		// Serial and in order, as the limits are updated and read through the same exchange
+		t.Run(tc.a.String(), func(t *testing.T) {
+			a, pair := tc.a, tc.pair
+			require.NoErrorf(t, e.UpdateOrderExecutionLimits(ctx, a), "UpdateOrderExecutionLimits must not error for %s", a)
+			l, err := e.GetOrderExecutionLimits(a, pair)
+			require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", pair)
+			if mockTests {
+				assert.NotZerof(t, l.UpdatedAt, "UpdatedAt should be set for %s", pair)
+				l.UpdatedAt = time.Time{}
+				assert.Equalf(t, tc.exp, l, "GetOrderExecutionLimits should return the market's limits for %s", pair)
+				return
+			}
+			assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", pair)
+			assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", pair)
+			assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", pair)
+			if a == asset.PerpetualContract {
+				assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
+				assert.Greaterf(t, l.MaximumBaseAmount, l.MinimumBaseAmount, "MaximumBaseAmount should exceed MinimumBaseAmount for %s", pair)
+				assert.Positivef(t, l.MaximumQuoteAmount, "MaximumQuoteAmount should be positive for %s", pair)
+			}
+		})
 	}
 }
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+	t.Run("market selection", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/v2/ticker/", r.URL.Path, "path should be correct")
+			_, err := w.Write([]byte(`[
+				{"market":"XRP/EUR","market_type":"SPOT","bid":"0.50","ask":"0.50","last":"0.50","side":"0","timestamp":"1790338043"},
+				{"market":"BTC/USD","market_type":"SPOT","bid":"84250.32","ask":"84250.33","last":"84246.67","high":"84900.00","low":"82873.04","vwap":"84052.46","volume":"1588.01930719","open":"84383.03","open_24":"84110.88","percent_change_24":"","side":"1","timestamp":"1790317267"},
+				{"market":"BTC/USD-PERP","market_type":"PERPETUAL","bid":"84260","ask":"84261","last":"84055","mark_price":"84250.99780466","index_price":"84241.79066666667","open_interest":"48.09714","open_interest_value":"4052232.0365504246724","side":"0","timestamp":"1790317267"},
+				{"market":"ZRX/USD","market_type":"SPOT","bid":"1.00","ask":"1.10","last":"1.05","side":"0","timestamp":"1790338043"}
+			]`))
+			assert.NoError(t, err, "Write should not error")
+		})
+
+		err := ex.UpdateTickers(t.Context(), asset.Spot)
+		assert.ErrorIs(t, err, ticker.ErrBidEqualsAsk, "UpdateTickers should report a locked enabled market")
+		got, err := ticker.GetTicker(ex.Name, spotPair, asset.Spot)
+		require.NoError(t, err, "UpdateTickers must store markets listed after a locked market")
+		assert.Equal(t, &ticker.Price{
+			Last:                       84246.67,
+			VolumeWeightedAveragePrice: 84052.46,
+			High:                       84900,
+			Low:                        82873.04,
+			Bid:                        84250.32,
+			Ask:                        84250.33,
+			BaseVolume:                 1588.01930719,
+			Open:                       84383.03,
+			Open24Hour:                 84110.88,
+			Pair:                       currency.NewBTCUSD().Lower(),
+			ExchangeName:               ex.Name,
+			AssetType:                  asset.Spot,
+			LastUpdated:                time.Unix(1790317267, 0),
+		}, got, "UpdateTickers should store every ticker field, decoding an empty percentage change as zero")
+		_, err = ticker.GetTicker(ex.Name, currency.NewPair(currency.ZRX, currency.USD), asset.Spot)
+		assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "UpdateTickers should not store disabled markets")
+		_, err = ticker.GetTicker(ex.Name, perpetualPair, asset.Spot)
+		assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "UpdateTickers should not store perpetual markets as spot")
+
+		require.NoError(t, ex.UpdateTickers(t.Context(), asset.PerpetualContract), "UpdateTickers must not error for perpetual contracts")
+		got, err = ticker.GetTicker(ex.Name, perpetualPair, asset.PerpetualContract)
+		require.NoError(t, err, "UpdateTickers must store enabled perpetual markets")
+		assert.Equal(t, &ticker.Price{
+			Last:              84055,
+			Bid:               84260,
+			Ask:               84261,
+			MarkPrice:         84250.99780466,
+			IndexPrice:        84241.79066666667,
+			OpenInterest:      48.09714,
+			OpenInterestValue: 4052232.0365504246724,
+			Pair:              currency.NewPairWithDelimiter("btc", "usd-perp", ""),
+			ExchangeName:      ex.Name,
+			AssetType:         asset.PerpetualContract,
+			LastUpdated:       time.Unix(1790317267, 0),
+		}, got, "UpdateTickers should store every perpetual ticker field")
+		_, err = ticker.GetTicker(ex.Name, spotPair, asset.PerpetualContract)
+		assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "UpdateTickers should not store spot markets as perpetual contracts")
+	})
+
 	ex := newTestInstance(t)
 	assert.ErrorIs(t, ex.UpdateTickers(t.Context(), asset.Futures), asset.ErrNotSupported, "UpdateTickers should error on an unsupported asset")
 
@@ -525,84 +592,31 @@ func TestUpdateTickers(t *testing.T) {
 			LastUpdated:                time.Unix(1790317267, 0),
 		},
 	}
+	ctx := t.Context()
 	for a, pair := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		require.NoErrorf(t, ex.UpdateTickers(t.Context(), a), "UpdateTickers must not error for %s", a)
-		tick, err := ticker.GetTicker(ex.Name, pair, a)
-		require.NoErrorf(t, err, "GetTicker must not error for %s", pair)
-		if mockTests {
-			assert.Equalf(t, exp[a], tick, "UpdateTickers should store the ticker for %s", pair)
-			continue
-		}
-		assert.Positivef(t, tick.Last, "Last should be positive for %s", pair)
-		assert.NotZerof(t, tick.LastUpdated, "LastUpdated should be set for %s", pair)
-		if a == asset.PerpetualContract {
-			assert.Positivef(t, tick.MarkPrice, "MarkPrice should be positive for %s", pair)
-			assert.Positivef(t, tick.IndexPrice, "IndexPrice should be positive for %s", pair)
-			assert.Positivef(t, tick.OpenInterest, "OpenInterest should be positive for %s", pair)
-		}
+		// Serial and in order, as the tickers are stored for the same exchange the check below reads
+		t.Run(a.String(), func(t *testing.T) {
+			require.NoErrorf(t, ex.UpdateTickers(ctx, a), "UpdateTickers must not error for %s", a)
+			tick, err := ticker.GetTicker(ex.Name, pair, a)
+			require.NoErrorf(t, err, "GetTicker must not error for %s", pair)
+			if mockTests {
+				assert.Equalf(t, exp[a], tick, "UpdateTickers should store the ticker for %s", pair)
+				return
+			}
+			assert.Positivef(t, tick.Last, "Last should be positive for %s", pair)
+			assert.NotZerof(t, tick.LastUpdated, "LastUpdated should be set for %s", pair)
+			if a == asset.PerpetualContract {
+				assert.Positivef(t, tick.MarkPrice, "MarkPrice should be positive for %s", pair)
+				assert.Positivef(t, tick.IndexPrice, "IndexPrice should be positive for %s", pair)
+				assert.Positivef(t, tick.OpenInterest, "OpenInterest should be positive for %s", pair)
+			}
+		})
 	}
 	_, err := ticker.GetTicker(ex.Name, perpetualPair, asset.Spot)
 	assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "UpdateTickers should not store perpetual tickers as spot")
 }
 
-func TestUpdateTickersMarketSelection(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v2/ticker/", r.URL.Path, "path should be correct")
-		_, err := w.Write([]byte(`[
-			{"market":"XRP/EUR","market_type":"SPOT","bid":"0.50","ask":"0.50","last":"0.50","side":"0","timestamp":"1790338043"},
-			{"market":"BTC/USD","market_type":"SPOT","bid":"84250.32","ask":"84250.33","last":"84246.67","high":"84900.00","low":"82873.04","vwap":"84052.46","volume":"1588.01930719","open":"84383.03","open_24":"84110.88","percent_change_24":"","side":"1","timestamp":"1790317267"},
-			{"market":"BTC/USD-PERP","market_type":"PERPETUAL","bid":"84260","ask":"84261","last":"84055","mark_price":"84250.99780466","index_price":"84241.79066666667","open_interest":"48.09714","open_interest_value":"4052232.0365504246724","side":"0","timestamp":"1790317267"},
-			{"market":"ZRX/USD","market_type":"SPOT","bid":"1.00","ask":"1.10","last":"1.05","side":"0","timestamp":"1790338043"}
-		]`))
-		assert.NoError(t, err, "Write should not error")
-	})
-
-	err := ex.UpdateTickers(t.Context(), asset.Spot)
-	assert.ErrorIs(t, err, ticker.ErrBidEqualsAsk, "UpdateTickers should report a locked enabled market")
-	got, err := ticker.GetTicker(ex.Name, spotPair, asset.Spot)
-	require.NoError(t, err, "UpdateTickers must store markets listed after a locked market")
-	assert.Equal(t, &ticker.Price{
-		Last:                       84246.67,
-		VolumeWeightedAveragePrice: 84052.46,
-		High:                       84900,
-		Low:                        82873.04,
-		Bid:                        84250.32,
-		Ask:                        84250.33,
-		BaseVolume:                 1588.01930719,
-		Open:                       84383.03,
-		Open24Hour:                 84110.88,
-		Pair:                       currency.NewBTCUSD().Lower(),
-		ExchangeName:               ex.Name,
-		AssetType:                  asset.Spot,
-		LastUpdated:                time.Unix(1790317267, 0),
-	}, got, "UpdateTickers should store every ticker field, decoding an empty percentage change as zero")
-	_, err = ticker.GetTicker(ex.Name, currency.NewPair(currency.ZRX, currency.USD), asset.Spot)
-	assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "UpdateTickers should not store disabled markets")
-	_, err = ticker.GetTicker(ex.Name, perpetualPair, asset.Spot)
-	assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "UpdateTickers should not store perpetual markets as spot")
-
-	require.NoError(t, ex.UpdateTickers(t.Context(), asset.PerpetualContract), "UpdateTickers must not error for perpetual contracts")
-	got, err = ticker.GetTicker(ex.Name, perpetualPair, asset.PerpetualContract)
-	require.NoError(t, err, "UpdateTickers must store enabled perpetual markets")
-	assert.Equal(t, &ticker.Price{
-		Last:              84055,
-		Bid:               84260,
-		Ask:               84261,
-		MarkPrice:         84250.99780466,
-		IndexPrice:        84241.79066666667,
-		OpenInterest:      48.09714,
-		OpenInterestValue: 4052232.0365504246724,
-		Pair:              currency.NewPairWithDelimiter("btc", "usd-perp", ""),
-		ExchangeName:      ex.Name,
-		AssetType:         asset.PerpetualContract,
-		LastUpdated:       time.Unix(1790317267, 0),
-	}, got, "UpdateTickers should store every perpetual ticker field")
-	_, err = ticker.GetTicker(ex.Name, spotPair, asset.PerpetualContract)
-	assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "UpdateTickers should not store spot markets as perpetual contracts")
-}
-
-func TestUpdateTicker(t *testing.T) {
+func TestUpdateTicker(t *testing.T) { //nolint:tparallel // The assets' cases go through the exchange the calls above use, so they run in order
 	t.Parallel()
 	ex := newTestInstance(t)
 	_, err := ex.UpdateTicker(t.Context(), currency.EMPTYPAIR, asset.Spot)
@@ -648,17 +662,21 @@ func TestUpdateTicker(t *testing.T) {
 			LastUpdated:                time.Unix(1790317270, 0),
 		},
 	}
+	ctx := t.Context()
 	for a, pair := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		tick, err := ex.UpdateTicker(t.Context(), pair, a)
-		require.NoErrorf(t, err, "UpdateTicker must not error for %s", pair)
-		if mockTests {
-			assert.Equalf(t, exp[a], tick, "UpdateTicker should return the ticker for %s", pair)
-			continue
-		}
-		assert.Truef(t, tick.Pair.Equal(pair), "Pair should be correct for %s", pair)
-		assert.Equalf(t, a, tick.AssetType, "AssetType should be correct for %s", pair)
-		assert.Positivef(t, tick.Last, "Last should be positive for %s", pair)
-		assert.Positivef(t, tick.BaseVolume, "BaseVolume should be positive for %s", pair)
+		// Serial and in order, as the tickers are fetched through the same exchange
+		t.Run(a.String(), func(t *testing.T) {
+			tick, err := ex.UpdateTicker(ctx, pair, a)
+			require.NoErrorf(t, err, "UpdateTicker must not error for %s", pair)
+			if mockTests {
+				assert.Equalf(t, exp[a], tick, "UpdateTicker should return the ticker for %s", pair)
+				return
+			}
+			assert.Truef(t, tick.Pair.Equal(pair), "Pair should be correct for %s", pair)
+			assert.Equalf(t, a, tick.AssetType, "AssetType should be correct for %s", pair)
+			assert.Positivef(t, tick.Last, "Last should be positive for %s", pair)
+			assert.Positivef(t, tick.BaseVolume, "BaseVolume should be positive for %s", pair)
+		})
 	}
 }
 
@@ -703,7 +721,7 @@ func TestTickerPrice(t *testing.T) {
 	}, e.tickerPrice(tick, perpetualPair, asset.PerpetualContract), "tickerPrice should convert the ticker")
 }
 
-func TestUpdateOrderbook(t *testing.T) {
+func TestUpdateOrderbook(t *testing.T) { //nolint:tparallel // The assets' cases go through the exchange the calls above use, so they run in order
 	t.Parallel()
 	ex := newTestInstance(t)
 	_, err := ex.UpdateOrderbook(t.Context(), currency.EMPTYPAIR, asset.Spot)
@@ -734,22 +752,26 @@ func TestUpdateOrderbook(t *testing.T) {
 			RestSnapshot:      true,
 		},
 	}
+	ctx := t.Context()
 	for a, pair := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		ob, err := ex.UpdateOrderbook(t.Context(), pair, a)
-		require.NoErrorf(t, err, "UpdateOrderbook must not error for %s", pair)
-		require.NotEmptyf(t, ob.Bids, "Bids must not be empty for %s", pair)
-		require.NotEmptyf(t, ob.Asks, "Asks must not be empty for %s", pair)
-		if mockTests {
-			require.Lenf(t, ob.Bids, 10, "UpdateOrderbook must store every bid for %s", pair)
-			require.Lenf(t, ob.Asks, 10, "UpdateOrderbook must store every ask for %s", pair)
-			assert.NotZerof(t, ob.InsertedAt, "InsertedAt should be set for %s", pair)
-			top := *ob
-			top.Bids, top.Asks, top.InsertedAt = top.Bids[:1], top.Asks[:1], time.Time{}
-			assert.Equalf(t, exp[a], top, "UpdateOrderbook should store the book for %s", pair)
-			continue
-		}
-		assert.Greaterf(t, ob.Asks[0].Price, ob.Bids[0].Price, "best ask should exceed the best bid for %s", pair)
-		assert.NotZerof(t, ob.LastUpdated, "LastUpdated should be set for %s", pair)
+		// Serial and in order, as the books are fetched through the same exchange
+		t.Run(a.String(), func(t *testing.T) {
+			ob, err := ex.UpdateOrderbook(ctx, pair, a)
+			require.NoErrorf(t, err, "UpdateOrderbook must not error for %s", pair)
+			require.NotEmptyf(t, ob.Bids, "Bids must not be empty for %s", pair)
+			require.NotEmptyf(t, ob.Asks, "Asks must not be empty for %s", pair)
+			if mockTests {
+				require.Lenf(t, ob.Bids, 10, "UpdateOrderbook must store every bid for %s", pair)
+				require.Lenf(t, ob.Asks, 10, "UpdateOrderbook must store every ask for %s", pair)
+				assert.NotZerof(t, ob.InsertedAt, "InsertedAt should be set for %s", pair)
+				top := *ob
+				top.Bids, top.Asks, top.InsertedAt = top.Bids[:1], top.Asks[:1], time.Time{}
+				assert.Equalf(t, exp[a], top, "UpdateOrderbook should store the book for %s", pair)
+				return
+			}
+			assert.Greaterf(t, ob.Asks[0].Price, ob.Bids[0].Price, "best ask should exceed the best bid for %s", pair)
+			assert.NotZerof(t, ob.LastUpdated, "LastUpdated should be set for %s", pair)
+		})
 	}
 }
 
@@ -775,7 +797,7 @@ func TestFilterOrderbookZeroBidPrice(t *testing.T) {
 	assert.Equal(t, orderbook.Levels{{Price: 59, Amount: 1337}, {Price: 42, Amount: 8595}}, ob.Bids, "priced bids should be retained")
 }
 
-func TestUpdateAccountBalances(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) { //nolint:tparallel // The assets' cases go through the package exchange the call above uses, so they run in order
 	t.Parallel()
 	_, err := e.UpdateAccountBalances(t.Context(), asset.Futures)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "UpdateAccountBalances should error on an unsupported asset")
@@ -797,23 +819,26 @@ func TestUpdateAccountBalances(t *testing.T) {
 			currency.USD: {Currency: currency.USD, Total: 15000, Hold: 1500, Free: 13500},
 		},
 	} {
-		subAccts, err := e.UpdateAccountBalances(ctx, a)
-		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", a)
-		require.Lenf(t, subAccts, 1, "UpdateAccountBalances must return a sub account for %s", a)
-		assert.Equalf(t, a, subAccts[0].AssetType, "AssetType should be correct for %s", a)
-		if !mockTests {
-			continue
-		}
-		for c, balance := range subAccts[0].Balances {
-			assert.NotZerof(t, balance.UpdatedAt, "UpdatedAt should be set for %s %s", a, c)
-			balance.UpdatedAt = time.Time{}
-			subAccts[0].Balances[c] = balance
-		}
-		assert.Equalf(t, accounts.SubAccounts{{AssetType: a, Balances: exp}}, subAccts, "UpdateAccountBalances should return the balances for %s", a)
+		// Serial and in order, as the balances are fetched through the same exchange
+		t.Run(a.String(), func(t *testing.T) {
+			subAccts, err := e.UpdateAccountBalances(ctx, a)
+			require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", a)
+			require.Lenf(t, subAccts, 1, "UpdateAccountBalances must return a sub account for %s", a)
+			assert.Equalf(t, a, subAccts[0].AssetType, "AssetType should be correct for %s", a)
+			if !mockTests {
+				return
+			}
+			for c, balance := range subAccts[0].Balances {
+				assert.NotZerof(t, balance.UpdatedAt, "UpdatedAt should be set for %s %s", a, c)
+				balance.UpdatedAt = time.Time{}
+				subAccts[0].Balances[c] = balance
+			}
+			assert.Equalf(t, accounts.SubAccounts{{AssetType: a, Balances: exp}}, subAccts, "UpdateAccountBalances should return the balances for %s", a)
+		})
 	}
 }
 
-func TestValidateAPICredentials(t *testing.T) {
+func TestValidateAPICredentials(t *testing.T) { //nolint:tparallel // Each asset's balances are read through the package exchange in turn
 	t.Parallel()
 	assert.ErrorIs(t, e.ValidateAPICredentials(t.Context(), asset.Futures), asset.ErrNotSupported, "ValidateAPICredentials should error on an unsupported asset")
 
@@ -824,12 +849,32 @@ func TestValidateAPICredentials(t *testing.T) {
 		ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "key", Secret: "secret"})
 	}
 	for _, a := range e.GetAssetTypes(false) {
-		assert.NoErrorf(t, e.ValidateAPICredentials(ctx, a), "ValidateAPICredentials should not error for %s", a)
+		// Serial and in order, as each asset's balances are read through the same exchange
+		t.Run(a.String(), func(t *testing.T) {
+			assert.NoErrorf(t, e.ValidateAPICredentials(ctx, a), "ValidateAPICredentials should not error for %s", a)
+		})
 	}
 }
 
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("withdrawal transaction", func(t *testing.T) {
+		t.Parallel()
+		ex := newResponseTestExchange(t, http.StatusOK, `{"deposits":[],"withdrawals":[{"currency":"BTC","network":"bitcoin","destinationAddress":"3FiKkjgZ6Sj4RWp3ZsCjYh5Pt7ZCBsL7uF","txid":"8d3c0a2e1d","amount":0.00012,"datetime":1642665114}],"ripple_iou_transactions":[]}`)
+		history, err := ex.GetAccountFundingHistory(t.Context())
+		require.NoError(t, err, "GetAccountFundingHistory must not error")
+		assert.Equal(t, []exchange.FundingHistory{{
+			ExchangeName:    ex.Name,
+			Timestamp:       time.Unix(1642665114, 0),
+			Currency:        "BTC",
+			Amount:          0.00012,
+			TransferType:    "withdrawal",
+			CryptoToAddress: "3FiKkjgZ6Sj4RWp3ZsCjYh5Pt7ZCBsL7uF",
+			CryptoTxID:      "8d3c0a2e1d",
+			CryptoChain:     "bitcoin",
+		}}, history, "GetAccountFundingHistory should return a processed withdrawal's transaction hash")
+	})
+
 	skipIfLiveWithoutCredentials(t)
 	history, err := e.GetAccountFundingHistory(t.Context())
 	require.NoError(t, err, "GetAccountFundingHistory must not error")
@@ -862,112 +907,187 @@ func TestGetAccountFundingHistory(t *testing.T) {
 	}
 }
 
-func TestGetAccountFundingHistoryWithdrawalTransaction(t *testing.T) {
-	t.Parallel()
-	ex := newResponseTestExchange(t, http.StatusOK, `{"deposits":[],"withdrawals":[{"currency":"BTC","network":"bitcoin","destinationAddress":"3FiKkjgZ6Sj4RWp3ZsCjYh5Pt7ZCBsL7uF","txid":"8d3c0a2e1d","amount":0.00012,"datetime":1642665114}],"ripple_iou_transactions":[]}`)
-	history, err := ex.GetAccountFundingHistory(t.Context())
-	require.NoError(t, err, "GetAccountFundingHistory must not error")
-	assert.Equal(t, []exchange.FundingHistory{{
-		ExchangeName:    ex.Name,
-		Timestamp:       time.Unix(1642665114, 0),
-		Currency:        "BTC",
-		Amount:          0.00012,
-		TransferType:    "withdrawal",
-		CryptoToAddress: "3FiKkjgZ6Sj4RWp3ZsCjYh5Pt7ZCBsL7uF",
-		CryptoTxID:      "8d3c0a2e1d",
-		CryptoChain:     "bitcoin",
-	}}, history, "GetAccountFundingHistory should return a processed withdrawal's transaction hash")
-}
-
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
-	for c, exp := range map[currency.Code]int{currency.EMPTYCODE: 2, currency.BTC: 1} {
-		history, err := e.GetWithdrawalsHistory(t.Context(), c, asset.Spot)
-		require.NoErrorf(t, err, "GetWithdrawalsHistory must not error for %q", c)
-		if !mockTests {
-			continue
+	t.Run("paging", func(t *testing.T) {
+		t.Parallel()
+		ex, requests := pagedTestExchange(t, "/api/v2/withdrawal-requests/", func(params url.Values) string {
+			offset := pageOffset(t, params)
+			return idList(`{"id":%d,"currency":"BTC","status":2,"type":1}`, offset+1, min(offset+maxResultLimit, 1500))
+		})
+		history, err := ex.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
+		require.NoError(t, err, "GetWithdrawalsHistory must not error")
+		require.Len(t, history, 1500, "GetWithdrawalsHistory must return every withdrawal")
+		assert.Equal(t, "1500", history[1499].TransferID, "GetWithdrawalsHistory should return the withdrawals in order")
+		assert.Equal(t, []url.Values{
+			{"limit": {"1000"}, "offset": {"0"}, "timedelta": {"50000000"}},
+			{"limit": {"1000"}, "offset": {"1000"}, "timedelta": {"50000000"}},
+		}, requests(), "GetWithdrawalsHistory should request each page by offset over the longest time delta")
+
+		ex, requests = pagedTestExchange(t, "/api/v2/withdrawal-requests/", func(url.Values) string {
+			return idList(`{"id":%d,"currency":"BTC"}`, 1, maxResultLimit)
+		})
+		history, err = ex.GetWithdrawalsHistory(t.Context(), currency.EMPTYCODE, asset.Spot)
+		require.NoError(t, err, "GetWithdrawalsHistory must not error when the offset is not applied")
+		assert.Len(t, history, maxResultLimit, "GetWithdrawalsHistory should not repeat withdrawals")
+		assert.Len(t, requests(), 2, "GetWithdrawalsHistory should stop at a page without new withdrawals")
+
+		ex, _ = pagedTestExchange(t, "/api/v2/withdrawal-requests/", func(params url.Values) string {
+			offset := pageOffset(t, params)
+			return idList(`{"id":%d,"currency":"BTC"}`, offset+1, offset+maxResultLimit)
+		})
+		_, err = ex.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
+		assert.ErrorIs(t, err, errInvalidOffset, "GetWithdrawalsHistory should error when the withdrawals exceed the maximum offset")
+	})
+	t.Run("last page of one withdrawal at the maximum offset", func(t *testing.T) {
+		t.Parallel()
+		ex, requests := pagedTestExchange(t, "/api/v2/withdrawal-requests/", func(params url.Values) string {
+			offset := pageOffset(t, params)
+			if offset < maxResultOffset {
+				return idList(`{"id":%d,"currency":"BTC"}`, offset+1, offset+maxResultLimit)
+			}
+			return idList(`{"id":%d,"currency":"BTC"}`, offset+1, offset+1)
+		})
+		history, err := ex.GetWithdrawalsHistory(t.Context(), currency.EMPTYCODE, asset.Spot)
+		require.NoError(t, err, "GetWithdrawalsHistory must read the page at the maximum offset")
+		require.Len(t, history, maxResultOffset+1, "GetWithdrawalsHistory must return the page at the maximum offset")
+		for i := range history {
+			if id := strconv.Itoa(i + 1); history[i].TransferID != id {
+				assert.Failf(t, "GetWithdrawalsHistory should return every withdrawal in order", "withdrawal %s is %s", id, history[i].TransferID)
+				break
+			}
 		}
-		require.Lenf(t, history, exp, "GetWithdrawalsHistory must return the withdrawals for %q", c)
-		assert.Equal(t, exchange.WithdrawalHistory{
-			Status:          "Finished",
-			TransferID:      "1",
-			Timestamp:       time.Date(2022, 1, 31, 16, 7, 32, 0, time.UTC),
-			Currency:        "BTC",
-			Amount:          0.00006,
-			TransferType:    "Cryptocurrency",
-			CryptoToAddress: core.BitcoinDonationAddress,
-			CryptoTxID:      "NsOeFbQhRnpGzNIThWGBTkQwRJqTNOGPVhYavrVyMfkAyMUmIlUpFIwGTzSvpeOP",
-			CryptoChain:     "bitcoin",
-		}, history[0], "withdrawal should be correct")
-	}
-}
+		received := requests()
+		require.Len(t, received, maxResultOffset/maxResultLimit+1, "GetWithdrawalsHistory must request each page once")
+		assert.Equal(t, strconv.Itoa(maxResultOffset), received[len(received)-1].Get("offset"), "GetWithdrawalsHistory should request the last page at the maximum offset")
+	})
 
-func TestWithdrawalStatusAndType(t *testing.T) {
-	t.Parallel()
-	for status, exp := range map[WithdrawalStatus]string{
-		WithdrawalStatusOpen:      "Open",
-		WithdrawalStatusInProcess: "In process",
-		WithdrawalStatusFinished:  "Finished",
-		WithdrawalStatusCancelled: "Cancelled",
-		WithdrawalStatusFailed:    "Failed",
-		WithdrawalStatusReversed:  "Reversed",
-		7:                         "7",
+	skipIfLiveWithoutCredentials(t)
+	ctx := t.Context()
+	for _, tc := range []struct {
+		name string
+		c    currency.Code
+		exp  int
+	}{
+		{name: "every currency", c: currency.EMPTYCODE, exp: 2},
+		{name: "BTC", c: currency.BTC, exp: 1},
 	} {
-		assert.Equalf(t, exp, withdrawalStatus(status), "withdrawalStatus should describe %d", status)
-	}
-	for withdrawalTypeID, exp := range map[WithdrawalType]string{WithdrawalTypeSEPA: "SEPA", WithdrawalTypeWire: "Wire transfer", 1: "Cryptocurrency", 22: "Cryptocurrency"} {
-		assert.Equalf(t, exp, withdrawalType(withdrawalTypeID), "withdrawalType should describe %d", withdrawalTypeID)
+		// Serial and in order, as the withdrawals are fetched through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			c, exp := tc.c, tc.exp
+			history, err := e.GetWithdrawalsHistory(ctx, c, asset.Spot)
+			require.NoErrorf(t, err, "GetWithdrawalsHistory must not error for %q", c)
+			if !mockTests {
+				return
+			}
+			require.Lenf(t, history, exp, "GetWithdrawalsHistory must return the withdrawals for %q", c)
+			assert.Equal(t, exchange.WithdrawalHistory{
+				Status:          "Finished",
+				TransferID:      "1",
+				Timestamp:       time.Date(2022, 1, 31, 16, 7, 32, 0, time.UTC),
+				Currency:        "BTC",
+				Amount:          0.00006,
+				TransferType:    "Cryptocurrency",
+				CryptoToAddress: core.BitcoinDonationAddress,
+				CryptoTxID:      "NsOeFbQhRnpGzNIThWGBTkQwRJqTNOGPVhYavrVyMfkAyMUmIlUpFIwGTzSvpeOP",
+				CryptoChain:     "bitcoin",
+			}, history[0], "withdrawal should be correct")
+		})
 	}
 }
 
-func TestGetRecentTrades(t *testing.T) {
+func TestWithdrawalStatus(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		status WithdrawalStatus
+		exp    string
+	}{
+		{name: "open", status: WithdrawalStatusOpen, exp: "Open"},
+		{name: "in process", status: WithdrawalStatusInProcess, exp: "In process"},
+		{name: "finished", status: WithdrawalStatusFinished, exp: "Finished"},
+		{name: "cancelled", status: WithdrawalStatusCancelled, exp: "Cancelled"},
+		{name: "failed", status: WithdrawalStatusFailed, exp: "Failed"},
+		{name: "reversed", status: WithdrawalStatusReversed, exp: "Reversed"},
+		{name: "other status", status: 7, exp: "7"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, withdrawalStatus(tc.status), "withdrawalStatus should describe %d", tc.status)
+		})
+	}
+}
+
+func TestWithdrawalType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name             string
+		withdrawalTypeID WithdrawalType
+		exp              string
+	}{
+		{name: "SEPA", withdrawalTypeID: WithdrawalTypeSEPA, exp: "SEPA"},
+		{name: "wire transfer", withdrawalTypeID: WithdrawalTypeWire, exp: "Wire transfer"},
+		{name: "cryptocurrency type 1", withdrawalTypeID: 1, exp: "Cryptocurrency"},
+		{name: "cryptocurrency type 22", withdrawalTypeID: 22, exp: "Cryptocurrency"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, withdrawalType(tc.withdrawalTypeID), "withdrawalType should describe %d", tc.withdrawalTypeID)
+		})
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) { //nolint:tparallel // The assets' cases go through the package exchange the calls above use, so they run in order
 	t.Parallel()
 	_, err := e.GetRecentTrades(t.Context(), currency.EMPTYPAIR, asset.Spot)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetRecentTrades should error on an empty pair")
 	_, err = e.GetRecentTrades(t.Context(), spotPair, asset.Futures)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetRecentTrades should error on an unsupported asset")
 
+	ctx := t.Context()
 	for a, pair := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		trades, err := e.GetRecentTrades(t.Context(), pair, a)
-		require.NoErrorf(t, err, "GetRecentTrades must not error for %s", pair)
-		require.NotEmptyf(t, trades, "GetRecentTrades must return trades for %s", pair)
-		if mockTests {
-			// Trades are returned oldest first with the request formatted pair
-			exp := map[asset.Item]trade.Data{
-				asset.Spot: {
-					TID:          "642950919",
-					Exchange:     e.Name,
-					CurrencyPair: currency.NewPair(currency.NewCode("btc"), currency.NewCode("usd")),
-					AssetType:    asset.Spot,
-					Side:         order.Sell,
-					Price:        84250.32,
-					Amount:       0.00108,
-					Timestamp:    time.Unix(1790317248, 0),
-				},
-				asset.PerpetualContract: {
-					TID:          "2005537666656911360",
-					Exchange:     e.Name,
-					CurrencyPair: currency.NewPair(currency.NewCode("btc"), currency.NewCode("usd-perp")),
-					AssetType:    asset.PerpetualContract,
-					Side:         order.Sell,
-					Price:        84153,
-					Amount:       0.00023,
-					Timestamp:    time.Unix(1790314240, 0),
-				},
-			}[a]
-			assert.Equalf(t, exp, trades[0], "GetRecentTrades should return the oldest trade first for %s", pair)
-		}
-		for i := range trades {
-			assert.Equalf(t, a, trades[i].AssetType, "AssetType should be correct for %s", pair)
-			assert.Truef(t, trades[i].CurrencyPair.Equal(pair), "CurrencyPair should be correct for %s", pair)
-			assert.NotEmptyf(t, trades[i].TID, "TID should be set for %s", pair)
-			assert.Positivef(t, trades[i].Price, "Price should be positive for %s", pair)
-			assert.Positivef(t, trades[i].Amount, "Amount should be positive for %s", pair)
-			if i > 0 {
-				assert.Falsef(t, trades[i].Timestamp.Before(trades[i-1].Timestamp), "trades should be sorted by date for %s", pair)
+		// Serial and in order, as the trades are fetched through the same exchange
+		t.Run(a.String(), func(t *testing.T) {
+			trades, err := e.GetRecentTrades(ctx, pair, a)
+			require.NoErrorf(t, err, "GetRecentTrades must not error for %s", pair)
+			require.NotEmptyf(t, trades, "GetRecentTrades must return trades for %s", pair)
+			if mockTests {
+				// Trades are returned oldest first with the request formatted pair
+				exp := map[asset.Item]trade.Data{
+					asset.Spot: {
+						TID:          "642950919",
+						Exchange:     e.Name,
+						CurrencyPair: currency.NewPair(currency.NewCode("btc"), currency.NewCode("usd")),
+						AssetType:    asset.Spot,
+						Side:         order.Sell,
+						Price:        84250.32,
+						Amount:       0.00108,
+						Timestamp:    time.Unix(1790317248, 0),
+					},
+					asset.PerpetualContract: {
+						TID:          "2005537666656911360",
+						Exchange:     e.Name,
+						CurrencyPair: currency.NewPair(currency.NewCode("btc"), currency.NewCode("usd-perp")),
+						AssetType:    asset.PerpetualContract,
+						Side:         order.Sell,
+						Price:        84153,
+						Amount:       0.00023,
+						Timestamp:    time.Unix(1790314240, 0),
+					},
+				}[a]
+				assert.Equalf(t, exp, trades[0], "GetRecentTrades should return the oldest trade first for %s", pair)
 			}
-		}
+			for i := range trades {
+				assert.Equalf(t, a, trades[i].AssetType, "AssetType should be correct for %s", pair)
+				assert.Truef(t, trades[i].CurrencyPair.Equal(pair), "CurrencyPair should be correct for %s", pair)
+				assert.NotEmptyf(t, trades[i].TID, "TID should be set for %s", pair)
+				assert.Positivef(t, trades[i].Price, "Price should be positive for %s", pair)
+				assert.Positivef(t, trades[i].Amount, "Amount should be positive for %s", pair)
+				if i > 0 {
+					assert.Falsef(t, trades[i].Timestamp.Before(trades[i-1].Timestamp), "trades should be sorted by date for %s", pair)
+				}
+			}
+		})
 	}
 }
 
@@ -979,6 +1099,51 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("requests", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name string
+			s    *order.Submit
+			path string
+			exp  url.Values
+		}{
+			{
+				name: "market sell sized by a quote amount",
+				s:    &order.Submit{Pair: spotPair, AssetType: asset.Spot, Side: order.Sell, Type: order.Market, QuoteAmount: 100},
+				path: "/api/v2/sell/instant/btcusd/",
+				exp:  url.Values{"amount": {"100"}, "amount_in_counter": {"True"}},
+			},
+			{
+				name: "perpetual take profit",
+				s:    &order.Submit{Pair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.Sell, Type: order.TakeProfitMarket, Amount: 0.01, TriggerPrice: 21000, Leverage: 2},
+				path: "/api/v2/sell/market/btcusd-perp/",
+				exp:  url.Values{"amount": {"0.01"}, "subtype": {"TAKE_PROFIT"}, "stop_price": {"21000"}, "margin_mode": {"CROSS"}, "leverage": {"2"}, "trigger": {"LAST_TRADED_PRICE"}},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				requests := make(chan url.Values, 1)
+				ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, tc.path, r.URL.Path, "path should be correct")
+					assert.NoError(t, r.ParseForm(), "ParseForm should not error")
+					select {
+					case requests <- r.PostForm:
+					default:
+						assert.Fail(t, "SubmitOrder should send only one request")
+					}
+					_, err := w.Write([]byte(`{"id":"1"}`))
+					assert.NoError(t, err, "Write should not error")
+				})
+				tc.s.Exchange = ex.Name
+				resp, err := ex.SubmitOrder(t.Context(), tc.s)
+				require.NoError(t, err, "SubmitOrder must not error")
+				assert.Equal(t, "1", resp.OrderID, "OrderID should be correct")
+				require.Len(t, requests, 1, "SubmitOrder must send a request")
+				assert.Equal(t, tc.exp, <-requests, "SubmitOrder should send the order's parameters")
+			})
+		}
+	})
+
 	_, err := e.SubmitOrder(t.Context(), nil)
 	assert.ErrorIs(t, err, order.ErrSubmissionIsNil, "SubmitOrder should error on a nil submission")
 	_, err = e.SubmitOrder(t.Context(), &order.Submit{Exchange: e.Name, Pair: spotPair, AssetType: asset.Futures, Side: order.Buy, Type: order.Market, Amount: 1})
@@ -1025,143 +1190,120 @@ func TestSubmitOrder(t *testing.T) {
 	}
 }
 
-func TestSubmitOrderRequests(t *testing.T) {
+func TestSubmitConditionalOrder(t *testing.T) { //nolint:tparallel // Every case goes through the package exchange, so they run in order
 	t.Parallel()
+	ctx := t.Context()
 	for _, tc := range []struct {
 		name string
 		s    *order.Submit
-		path string
-		exp  url.Values
+		err  error
 	}{
-		{
-			name: "market sell sized by a quote amount",
-			s:    &order.Submit{Pair: spotPair, AssetType: asset.Spot, Side: order.Sell, Type: order.Market, QuoteAmount: 100},
-			path: "/api/v2/sell/instant/btcusd/",
-			exp:  url.Values{"amount": {"100"}, "amount_in_counter": {"True"}},
-		},
-		{
-			name: "perpetual take profit",
-			s:    &order.Submit{Pair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.Sell, Type: order.TakeProfitMarket, Amount: 0.01, TriggerPrice: 21000, Leverage: 2},
-			path: "/api/v2/sell/market/btcusd-perp/",
-			exp:  url.Values{"amount": {"0.01"}, "subtype": {"TAKE_PROFIT"}, "stop_price": {"21000"}, "margin_mode": {"CROSS"}, "leverage": {"2"}, "trigger": {"LAST_TRADED_PRICE"}},
-		},
+		{name: "stop limit good till crossing", s: &order.Submit{Type: order.StopLimit, TriggerPrice: 1, TimeInForce: order.GoodTillCrossing}, err: order.ErrUnsupportedTimeInForce},
+		{name: "trailing stop limit post only", s: &order.Submit{Type: order.TrailingStopLimit, TriggerPrice: 1, TimeInForce: order.PostOnly}, err: order.ErrUnsupportedTimeInForce},
+		{name: "one cancels the other", s: &order.Submit{Type: order.OCO}, err: order.ErrUnsupportedOrderType},
 	} {
+		// Serial and in order, as the orders below go to the same function
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			requests := make(chan url.Values, 1)
-			ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, tc.path, r.URL.Path, "path should be correct")
-				assert.NoError(t, r.ParseForm(), "ParseForm should not error")
-				select {
-				case requests <- r.PostForm:
-				default:
-					assert.Fail(t, "SubmitOrder should send only one request")
-				}
-				_, err := w.Write([]byte(`{"id":"1"}`))
-				assert.NoError(t, err, "Write should not error")
-			})
-			tc.s.Exchange = ex.Name
-			resp, err := ex.SubmitOrder(t.Context(), tc.s)
-			require.NoError(t, err, "SubmitOrder must not error")
-			assert.Equal(t, "1", resp.OrderID, "OrderID should be correct")
-			require.Len(t, requests, 1, "SubmitOrder must send a request")
-			assert.Equal(t, tc.exp, <-requests, "SubmitOrder should send the order's parameters")
+			_, err := e.submitConditionalOrder(ctx, tc.s, perpetualPair, &derivativesOrderParams{})
+			assert.ErrorIsf(t, err, tc.err, "submitConditionalOrder should error for %s", tc.s.Type)
 		})
-	}
-}
-
-func TestSubmitConditionalOrder(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		s   *order.Submit
-		err error
-	}{
-		{s: &order.Submit{Type: order.StopLimit, TriggerPrice: 1, TimeInForce: order.GoodTillCrossing}, err: order.ErrUnsupportedTimeInForce},
-		{s: &order.Submit{Type: order.TrailingStopLimit, TriggerPrice: 1, TimeInForce: order.PostOnly}, err: order.ErrUnsupportedTimeInForce},
-		{s: &order.Submit{Type: order.OCO}, err: order.ErrUnsupportedOrderType},
-	} {
-		_, err := e.submitConditionalOrder(t.Context(), tc.s, perpetualPair, &derivativesOrderParams{})
-		assert.ErrorIsf(t, err, tc.err, "submitConditionalOrder should error for %s", tc.s.Type)
 	}
 
 	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
 	for _, tc := range []struct {
-		s   *order.Submit
-		p   *derivativesOrderParams
-		exp uint64
+		name string
+		s    *order.Submit
+		p    *derivativesOrderParams
+		exp  uint64
 	}{
 		{
-			s:   &order.Submit{Side: order.Sell, Type: order.StopMarket, Amount: 0.01, TriggerPrice: 19000},
-			p:   &derivativesOrderParams{MarginMode: MarginModeCross, Leverage: 2, Trigger: TriggerMarkPrice, ReduceOnly: true},
-			exp: 1234123412341243,
+			name: "stop market",
+			s:    &order.Submit{Side: order.Sell, Type: order.StopMarket, Amount: 0.01, TriggerPrice: 19000},
+			p:    &derivativesOrderParams{MarginMode: MarginModeCross, Leverage: 2, Trigger: TriggerMarkPrice, ReduceOnly: true},
+			exp:  1234123412341243,
 		},
 		{
-			s:   &order.Submit{Side: order.Buy, Type: order.TakeProfit | order.Limit, Amount: 0.01, Price: 21000, TriggerPrice: 20500},
-			p:   &derivativesOrderParams{MarginMode: MarginModeCross, Leverage: 2, Trigger: TriggerLastTradedPrice},
-			exp: 1234123412341244,
+			name: "take profit limit",
+			s:    &order.Submit{Side: order.Buy, Type: order.TakeProfit | order.Limit, Amount: 0.01, Price: 21000, TriggerPrice: 20500},
+			p:    &derivativesOrderParams{MarginMode: MarginModeCross, Leverage: 2, Trigger: TriggerLastTradedPrice},
+			exp:  1234123412341244,
 		},
 	} {
-		resp, err := e.submitConditionalOrder(t.Context(), tc.s, perpetualPair, tc.p)
-		require.NoErrorf(t, err, "submitConditionalOrder must not error for %s", tc.s.Type)
-		if mockTests {
-			assert.Equalf(t, tc.exp, resp.ID, "ID should be correct for %s", tc.s.Type)
-		}
+		// Serial and in order, as the orders are placed through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := e.submitConditionalOrder(ctx, tc.s, perpetualPair, tc.p)
+			require.NoErrorf(t, err, "submitConditionalOrder must not error for %s", tc.s.Type)
+			if mockTests {
+				assert.Equalf(t, tc.exp, resp.ID, "ID should be correct for %s", tc.s.Type)
+			}
+		})
 	}
 }
 
 func TestValidateOrderSubmission(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		s   *order.Submit
-		err error
+		name string
+		s    *order.Submit
+		err  error
 	}{
-		{s: &order.Submit{AssetType: asset.Spot, Type: order.Limit}},
-		{s: &order.Submit{AssetType: asset.Spot, Type: order.Market, QuoteAmount: 1}},
-		{s: &order.Submit{AssetType: asset.Spot, Type: order.StopLimit, TriggerPrice: 1}, err: order.ErrUnsupportedOrderType},
-		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.OCO}, err: order.ErrUnsupportedOrderType},
-		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.StopMarket}, err: errTriggerPriceRequired},
-		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.TakeProfit | order.Limit, TriggerPrice: 1}},
-		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.TrailingStop, TriggerPrice: 1, TrackingMode: order.Distance, TrackingValue: 1}, err: order.ErrUnknownTrackingMode},
-		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.TrailingStopLimit, TriggerPrice: 1, TrackingMode: order.Percentage}, err: errTrackingValueRequired},
-		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.TrailingStop, TriggerPrice: 1, TrackingMode: order.Percentage, TrackingValue: 5}},
-		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.Market, QuoteAmount: 1, ReduceOnly: true}, err: errReduceOnlyUnsupported},
-		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.Market, Amount: 1, ReduceOnly: true}},
-		{s: &order.Submit{AssetType: asset.Spot, Type: order.Limit, QuoteAmount: 1}, err: order.ErrAmountIsInvalid},
-		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.StopMarket, TriggerPrice: 1, QuoteAmount: 1}, err: order.ErrAmountIsInvalid},
-		{s: &order.Submit{AssetType: asset.Spot, Type: order.Market, Amount: 1, TimeInForce: order.FillOrKill}, err: order.ErrUnsupportedTimeInForce},
-		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.StopMarket, TriggerPrice: 1, Amount: 1, TimeInForce: order.PostOnly}, err: order.ErrUnsupportedTimeInForce},
-		{s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.TrailingStop, TriggerPrice: 1, TrackingMode: order.Percentage, TrackingValue: 5, Amount: 1, TimeInForce: order.GoodTillTime}, err: order.ErrUnsupportedTimeInForce},
-		{s: &order.Submit{AssetType: asset.Spot, Type: order.Market, Amount: 1, TimeInForce: order.ImmediateOrCancel}},
+		{name: "spot limit", s: &order.Submit{AssetType: asset.Spot, Type: order.Limit}},
+		{name: "spot market sized by a quote amount", s: &order.Submit{AssetType: asset.Spot, Type: order.Market, QuoteAmount: 1}},
+		{name: "spot stop limit", s: &order.Submit{AssetType: asset.Spot, Type: order.StopLimit, TriggerPrice: 1}, err: order.ErrUnsupportedOrderType},
+		{name: "perpetual one cancels the other", s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.OCO}, err: order.ErrUnsupportedOrderType},
+		{name: "perpetual stop market without a trigger price", s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.StopMarket}, err: errTriggerPriceRequired},
+		{name: "perpetual take profit limit", s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.TakeProfit | order.Limit, TriggerPrice: 1}},
+		{name: "perpetual trailing stop tracking a distance", s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.TrailingStop, TriggerPrice: 1, TrackingMode: order.Distance, TrackingValue: 1}, err: order.ErrUnknownTrackingMode},
+		{name: "perpetual trailing stop limit without a tracking value", s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.TrailingStopLimit, TriggerPrice: 1, TrackingMode: order.Percentage}, err: errTrackingValueRequired},
+		{name: "perpetual trailing stop tracking a percentage", s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.TrailingStop, TriggerPrice: 1, TrackingMode: order.Percentage, TrackingValue: 5}},
+		{name: "perpetual reduce only market sized by a quote amount", s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.Market, QuoteAmount: 1, ReduceOnly: true}, err: errReduceOnlyUnsupported},
+		{name: "perpetual reduce only market", s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.Market, Amount: 1, ReduceOnly: true}},
+		{name: "spot limit sized by a quote amount", s: &order.Submit{AssetType: asset.Spot, Type: order.Limit, QuoteAmount: 1}, err: order.ErrAmountIsInvalid},
+		{name: "perpetual stop market sized by a quote amount", s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.StopMarket, TriggerPrice: 1, QuoteAmount: 1}, err: order.ErrAmountIsInvalid},
+		{name: "spot market fill or kill", s: &order.Submit{AssetType: asset.Spot, Type: order.Market, Amount: 1, TimeInForce: order.FillOrKill}, err: order.ErrUnsupportedTimeInForce},
+		{name: "perpetual stop market post only", s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.StopMarket, TriggerPrice: 1, Amount: 1, TimeInForce: order.PostOnly}, err: order.ErrUnsupportedTimeInForce},
+		{name: "perpetual trailing stop good till time", s: &order.Submit{AssetType: asset.PerpetualContract, Type: order.TrailingStop, TriggerPrice: 1, TrackingMode: order.Percentage, TrackingValue: 5, Amount: 1, TimeInForce: order.GoodTillTime}, err: order.ErrUnsupportedTimeInForce},
+		{name: "spot market immediate or cancel", s: &order.Submit{AssetType: asset.Spot, Type: order.Market, Amount: 1, TimeInForce: order.ImmediateOrCancel}},
 	} {
-		assert.ErrorIsf(t, validateOrderSubmission(tc.s), tc.err, "validateOrderSubmission should return the correct error for a %s %s order", tc.s.AssetType, tc.s.Type)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateOrderSubmission(tc.s), tc.err, "validateOrderSubmission should return the correct error for a %s %s order", tc.s.AssetType, tc.s.Type)
+		})
 	}
 }
 
 func TestTrailingDeltaBasisPoints(t *testing.T) {
 	t.Parallel()
 	for percentage, exp := range map[float64]uint64{0.01: 1, 0.123: 12, 0.29: 29, 2.5: 250, 5: 500, 20: 2000} {
-		assert.Equalf(t, exp, trailingDeltaBasisPoints(percentage), "trailingDeltaBasisPoints should convert %v percent", percentage)
+		t.Run(strconv.FormatFloat(percentage, 'f', -1, 64)+" percent", func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, trailingDeltaBasisPoints(percentage), "trailingDeltaBasisPoints should convert %v percent", percentage)
+		})
 	}
 }
 
 func TestSetConditionalOrderTimeInForce(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		tif order.TimeInForce
-		exp LimitOrderRequest
-		err error
+		name string
+		tif  order.TimeInForce
+		exp  LimitOrderRequest
+		err  error
 	}{
-		{tif: order.UnknownTIF},
-		{tif: order.GoodTillCancel},
-		{tif: order.ImmediateOrCancel, exp: LimitOrderRequest{ImmediateOrCancel: true}},
-		{tif: order.FillOrKill, exp: LimitOrderRequest{FillOrKill: true}},
-		{tif: order.PostOnly, err: order.ErrUnsupportedTimeInForce},
-		{tif: order.GoodTillDay, err: order.ErrUnsupportedTimeInForce},
-		{tif: order.GoodTillTime, err: order.ErrUnsupportedTimeInForce},
+		{name: "unset", tif: order.UnknownTIF},
+		{name: "good till cancelled", tif: order.GoodTillCancel},
+		{name: "immediate or cancel", tif: order.ImmediateOrCancel, exp: LimitOrderRequest{ImmediateOrCancel: true}},
+		{name: "fill or kill", tif: order.FillOrKill, exp: LimitOrderRequest{FillOrKill: true}},
+		{name: "post only", tif: order.PostOnly, err: order.ErrUnsupportedTimeInForce},
+		{name: "good till day", tif: order.GoodTillDay, err: order.ErrUnsupportedTimeInForce},
+		{name: "good till time", tif: order.GoodTillTime, err: order.ErrUnsupportedTimeInForce},
 	} {
-		var req LimitOrderRequest
-		assert.ErrorIsf(t, setConditionalOrderTimeInForce(&req, tc.tif), tc.err, "setConditionalOrderTimeInForce should return the correct error for %s", tc.tif)
-		assert.Equalf(t, tc.exp, req, "setConditionalOrderTimeInForce should set the flags for %s", tc.tif)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var req LimitOrderRequest
+			assert.ErrorIsf(t, setConditionalOrderTimeInForce(&req, tc.tif), tc.err, "setConditionalOrderTimeInForce should return the correct error for %s", tc.tif)
+			assert.Equalf(t, tc.exp, req, "setConditionalOrderTimeInForce should set the flags for %s", tc.tif)
+		})
 	}
 }
 
@@ -1169,32 +1311,40 @@ func TestSetLimitOrderTimeInForce(t *testing.T) {
 	t.Parallel()
 	endTime := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
-		tif order.TimeInForce
-		exp LimitOrderRequest
-		err error
+		name string
+		tif  order.TimeInForce
+		exp  LimitOrderRequest
+		err  error
 	}{
-		{tif: order.UnknownTIF},
-		{tif: order.GoodTillCancel},
-		{tif: order.ImmediateOrCancel, exp: LimitOrderRequest{ImmediateOrCancel: true}},
-		{tif: order.FillOrKill, exp: LimitOrderRequest{FillOrKill: true}},
-		{tif: order.GoodTillCancel | order.PostOnly, exp: LimitOrderRequest{MakerOrCancel: true}},
-		{tif: order.GoodTillDay, exp: LimitOrderRequest{DailyOrder: true}},
-		{tif: order.GoodTillTime, exp: LimitOrderRequest{GoodTillDate: true, ExpireTime: endTime}},
-		{tif: order.GoodTillCrossing, err: order.ErrUnsupportedTimeInForce},
-		{tif: order.StopOrReduce, err: order.ErrUnsupportedTimeInForce},
-		{tif: order.ImmediateOrCancel | order.PostOnly, err: order.ErrUnsupportedTimeInForce},
-		{tif: order.GoodTillTime | order.PostOnly, err: order.ErrUnsupportedTimeInForce},
+		{name: "unset", tif: order.UnknownTIF},
+		{name: "good till cancelled", tif: order.GoodTillCancel},
+		{name: "immediate or cancel", tif: order.ImmediateOrCancel, exp: LimitOrderRequest{ImmediateOrCancel: true}},
+		{name: "fill or kill", tif: order.FillOrKill, exp: LimitOrderRequest{FillOrKill: true}},
+		{name: "good till cancelled post only", tif: order.GoodTillCancel | order.PostOnly, exp: LimitOrderRequest{MakerOrCancel: true}},
+		{name: "good till day", tif: order.GoodTillDay, exp: LimitOrderRequest{DailyOrder: true}},
+		{name: "good till time", tif: order.GoodTillTime, exp: LimitOrderRequest{GoodTillDate: true, ExpireTime: endTime}},
+		{name: "good till crossing", tif: order.GoodTillCrossing, err: order.ErrUnsupportedTimeInForce},
+		{name: "stop or reduce", tif: order.StopOrReduce, err: order.ErrUnsupportedTimeInForce},
+		{name: "immediate or cancel post only", tif: order.ImmediateOrCancel | order.PostOnly, err: order.ErrUnsupportedTimeInForce},
+		{name: "good till time post only", tif: order.GoodTillTime | order.PostOnly, err: order.ErrUnsupportedTimeInForce},
 	} {
-		var req LimitOrderRequest
-		err := setLimitOrderTimeInForce(&req, tc.tif, endTime)
-		if tc.err != nil {
-			assert.ErrorIsf(t, err, tc.err, "setLimitOrderTimeInForce should error for %s", tc.tif)
-			continue
-		}
-		require.NoErrorf(t, err, "setLimitOrderTimeInForce must not error for %s", tc.tif)
-		assert.Equalf(t, tc.exp, req, "setLimitOrderTimeInForce should set the flags for %s", tc.tif)
+		// Serial and in order, as the request without an end time below goes to the same function
+		t.Run(tc.name, func(t *testing.T) {
+			var req LimitOrderRequest
+			err := setLimitOrderTimeInForce(&req, tc.tif, endTime)
+			if tc.err != nil {
+				assert.ErrorIsf(t, err, tc.err, "setLimitOrderTimeInForce should error for %s", tc.tif)
+				return
+			}
+			require.NoErrorf(t, err, "setLimitOrderTimeInForce must not error for %s", tc.tif)
+			assert.Equalf(t, tc.exp, req, "setLimitOrderTimeInForce should set the flags for %s", tc.tif)
+		})
 	}
-	assert.ErrorIs(t, setLimitOrderTimeInForce(&LimitOrderRequest{}, order.GoodTillTime, time.Time{}), common.ErrDateUnset, "setLimitOrderTimeInForce should error without an end time")
+	// A parallel subtest starts once its parent returns, so this follows the cases above
+	t.Run("good till time without an end time", func(t *testing.T) {
+		t.Parallel()
+		assert.ErrorIs(t, setLimitOrderTimeInForce(&LimitOrderRequest{}, order.GoodTillTime, time.Time{}), common.ErrDateUnset, "setLimitOrderTimeInForce should error without an end time")
+	})
 }
 
 func TestModifyOrder(t *testing.T) {
@@ -1222,20 +1372,39 @@ func TestExecutedAmount(t *testing.T) {
 
 func TestOpenExecutedAmount(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct{ executed, amount, remaining, exp float64 }{
-		{executed: 0.3, amount: 1, remaining: 0.7, exp: 0.3},
+	for _, tc := range []struct {
+		name                             string
+		executed, amount, remaining, exp float64
+	}{
+		{name: "partly executed", executed: 0.3, amount: 1, remaining: 0.7, exp: 0.3},
 		// A float of 67110000.00000001 is the float of 67110000.00000002
-		{executed: 67110000.00000001, amount: 67110000.00000002, remaining: 0.00000001, exp: 67110000},
-		{executed: 92233720368, amount: 92233720368, remaining: 0.000005, exp: 92233720367.99998},
+		{name: "executed amount with the float of the amount", executed: 67110000.00000001, amount: 67110000.00000002, remaining: 0.00000001, exp: 67110000},
+		{name: "large amount with a small remainder", executed: 92233720368, amount: 92233720368, remaining: 0.000005, exp: 92233720367.99998},
 		// An order with nothing left executed its amount
-		{executed: 1, amount: 1, exp: 1},
+		{name: "nothing left", executed: 1, amount: 1, exp: 1},
 	} {
-		assert.Equalf(t, tc.exp, openExecutedAmount(tc.executed, tc.amount, tc.remaining), "openExecutedAmount should return %v for %v executed of %v with %v left", tc.exp, tc.executed, tc.amount, tc.remaining)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, openExecutedAmount(tc.executed, tc.amount, tc.remaining), "openExecutedAmount should return %v for %v executed of %v with %v left", tc.exp, tc.executed, tc.amount, tc.remaining)
+		})
 	}
 }
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("prefers the order ID", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/v2/cancel_order/", r.URL.Path, "path should be correct")
+			assert.NoError(t, r.ParseForm(), "ParseForm should not error")
+			assert.Equal(t, url.Values{"id": {"1453282316578816"}}, r.PostForm, "only the order ID should be sent")
+			_, err := w.Write([]byte(`{"id":1453282316578816,"amount":0.02035278,"price":2100.45,"type":0,"market":"BTC/USD","status":"Canceled"}`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		err := ex.CancelOrder(t.Context(), &order.Cancel{OrderID: "1453282316578816", ClientOrderID: "my-order-123"})
+		assert.NoError(t, err, "CancelOrder should not error with both IDs")
+	})
+
 	assert.ErrorIs(t, e.CancelOrder(t.Context(), nil), order.ErrCancelOrderIsNil, "CancelOrder should error on a nil request")
 	assert.ErrorIs(t, e.CancelOrder(t.Context(), &order.Cancel{OrderID: "nope"}), order.ErrOrderIDNotSet, "CancelOrder should error on an invalid order ID")
 	assert.ErrorIs(t, e.CancelOrder(t.Context(), &order.Cancel{}), order.ErrOrderIDNotSet, "CancelOrder should error without an order ID")
@@ -1250,19 +1419,6 @@ func TestCancelOrder(t *testing.T) {
 	assert.NoError(t, e.CancelOrder(t.Context(), &order.Cancel{ClientOrderID: "my-order-123"}), "CancelOrder should not error with a client order ID")
 }
 
-func TestCancelOrderPrefersOrderID(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v2/cancel_order/", r.URL.Path, "path should be correct")
-		assert.NoError(t, r.ParseForm(), "ParseForm should not error")
-		assert.Equal(t, url.Values{"id": {"1453282316578816"}}, r.PostForm, "only the order ID should be sent")
-		_, err := w.Write([]byte(`{"id":1453282316578816,"amount":0.02035278,"price":2100.45,"type":0,"market":"BTC/USD","status":"Canceled"}`))
-		assert.NoError(t, err, "Write should not error")
-	})
-	err := ex.CancelOrder(t.Context(), &order.Cancel{OrderID: "1453282316578816", ClientOrderID: "my-order-123"})
-	assert.NoError(t, err, "CancelOrder should not error with both IDs")
-}
-
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelBatchOrders(t.Context(), nil)
@@ -1271,62 +1427,73 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("open order markets", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var cancelled []string
+		ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			body := `{"canceled":[],"success":true}`
+			switch {
+			case r.URL.Path == "/api/v2/open_orders/":
+				// ZRX/EUR is not enabled, as for an order placed outside GoCryptoTrader
+				body = `[{"id":"5","datetime":"2025-06-16 10:00:00","type":"0","price":"1","amount":"1","amount_at_create":"1","market":"ZRX/EUR"},{"id":"6","datetime":"2025-06-16 10:00:00","type":"0","price":"1","amount":"1","amount_at_create":"1","market":"ETH/USD-PERP"}]`
+			case strings.HasPrefix(r.URL.Path, "/api/v2/cancel_all_orders/"):
+				mu.Lock()
+				cancelled = append(cancelled, r.URL.Path)
+				mu.Unlock()
+			default:
+				assert.Failf(t, "unexpected request", "%s should not be requested", r.URL.Path)
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "Write should not error")
+		})
+		_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+		require.NoError(t, err, "CancelAllOrders must not error")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.ElementsMatch(t, []string{
+			"/api/v2/cancel_all_orders/btcusd/",
+			"/api/v2/cancel_all_orders/btceur/",
+			"/api/v2/cancel_all_orders/eurusd/",
+			"/api/v2/cancel_all_orders/xrpusd/",
+			"/api/v2/cancel_all_orders/xrpeur/",
+			"/api/v2/cancel_all_orders/zrxeur/",
+		}, cancelled, "CancelAllOrders should cancel the enabled markets and the spot markets of the open orders")
+	})
+
 	_, err := e.CancelAllOrders(t.Context(), nil)
 	assert.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelAllOrders should error on a nil request")
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Futures})
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders should error on an unsupported asset")
 
 	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
-	for _, req := range []*order.Cancel{{AssetType: asset.Spot, Pair: spotPair}, {AssetType: asset.Spot}} {
-		resp, err := e.CancelAllOrders(t.Context(), req)
-		require.NoErrorf(t, err, "CancelAllOrders must not error for %q", req.Pair)
-		if mockTests {
-			assert.Equalf(t, map[string]string{"1234123412341234": order.Cancelled.String()}, resp.Status, "CancelAllOrders should only cancel spot orders for %q", req.Pair)
-		}
+	ctx := t.Context()
+	for _, tc := range []struct {
+		name string
+		req  *order.Cancel
+	}{
+		{name: "spot pair", req: &order.Cancel{AssetType: asset.Spot, Pair: spotPair}},
+		{name: "every spot pair", req: &order.Cancel{AssetType: asset.Spot}},
+	} {
+		// Serial and in order, as the orders are cancelled through the same exchange as the perpetual orders below
+		t.Run(tc.name, func(t *testing.T) {
+			req := tc.req
+			resp, err := e.CancelAllOrders(ctx, req)
+			require.NoErrorf(t, err, "CancelAllOrders must not error for %q", req.Pair)
+			if mockTests {
+				assert.Equalf(t, map[string]string{"1234123412341234": order.Cancelled.String()}, resp.Status, "CancelAllOrders should only cancel spot orders for %q", req.Pair)
+			}
+		})
 	}
 	if !mockTests {
 		return
 	}
-	resp, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.PerpetualContract})
+	resp, err := e.CancelAllOrders(ctx, &order.Cancel{AssetType: asset.PerpetualContract})
 	assert.ErrorIs(t, err, errCancelAllOrdersFailed, "CancelAllOrders should error when not all orders are cancelled")
 	assert.Equal(t, map[string]string{"1234123412341235": order.Cancelled.String()}, resp.Status, "CancelAllOrders should report the cancelled perpetual orders")
 }
 
-func TestCancelAllOrdersOpenOrderMarkets(t *testing.T) {
-	t.Parallel()
-	var mu sync.Mutex
-	var cancelled []string
-	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		body := `{"canceled":[],"success":true}`
-		switch {
-		case r.URL.Path == "/api/v2/open_orders/":
-			// ZRX/EUR is not enabled, as for an order placed outside GoCryptoTrader
-			body = `[{"id":"5","datetime":"2025-06-16 10:00:00","type":"0","price":"1","amount":"1","amount_at_create":"1","market":"ZRX/EUR"},{"id":"6","datetime":"2025-06-16 10:00:00","type":"0","price":"1","amount":"1","amount_at_create":"1","market":"ETH/USD-PERP"}]`
-		case strings.HasPrefix(r.URL.Path, "/api/v2/cancel_all_orders/"):
-			mu.Lock()
-			cancelled = append(cancelled, r.URL.Path)
-			mu.Unlock()
-		default:
-			assert.Failf(t, "unexpected request", "%s should not be requested", r.URL.Path)
-		}
-		_, err := w.Write([]byte(body))
-		assert.NoError(t, err, "Write should not error")
-	})
-	_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
-	require.NoError(t, err, "CancelAllOrders must not error")
-	mu.Lock()
-	defer mu.Unlock()
-	assert.ElementsMatch(t, []string{
-		"/api/v2/cancel_all_orders/btcusd/",
-		"/api/v2/cancel_all_orders/btceur/",
-		"/api/v2/cancel_all_orders/eurusd/",
-		"/api/v2/cancel_all_orders/xrpusd/",
-		"/api/v2/cancel_all_orders/xrpeur/",
-		"/api/v2/cancel_all_orders/zrxeur/",
-	}, cancelled, "CancelAllOrders should cancel the enabled markets and the spot markets of the open orders")
-}
-
-func TestGetOrderInfo(t *testing.T) {
+func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Every case goes to the function the calls around them use, so they run in order
 	t.Parallel()
 	_, err := e.GetOrderInfo(t.Context(), "nope", spotPair, asset.Spot)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOrderInfo should error on an invalid order ID")
@@ -1372,11 +1539,24 @@ func TestGetOrderInfo(t *testing.T) {
 	assert.Equal(t, "100000000.1", strconv.FormatFloat(large.ExecutedAmount, 'f', -1, 64), "GetOrderInfo should return the executed amount")
 	// Floats of 67110000.00000001 and 67110000.00000002 are equal, so an open order with 0.00000001 left executed the
 	// float below its amount, while a cancelled one, not active either way, keeps the float of what it executed
-	for status, executed := range map[string]float64{"Open": 67110000, "Canceled": 67110000.00000001} {
-		d, err := newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"`+status+`","market":"GRT/USD","transactions":[{"tid":7,"price":"0.02263","grt":"67110000.00000001","usd":"-1518699.3","fee":"1","datetime":"2025-06-16 10:00:01","type":2}],"amount_remaining":"0.00000001"}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
-		require.NoErrorf(t, err, "GetOrderInfo must not error for a %s order with 0.00000001 left", status)
-		assert.Equalf(t, executed, d.ExecutedAmount, "GetOrderInfo should return the executed amount of a %s order with 0.00000001 left", status)
-		assert.Equalf(t, status == "Open", d.IsActive(), "GetOrderInfo should return an order with 0.00000001 left as active only while it is open, for a %s order", status)
+	ctx := t.Context()
+	for _, tc := range []struct {
+		name     string
+		status   string
+		executed float64
+	}{
+		{name: "open", status: "Open", executed: 67110000},
+		{name: "cancelled", status: "Canceled", executed: 67110000.00000001},
+	} {
+		status, executed := tc.status, tc.executed
+		ex := newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"`+status+`","market":"GRT/USD","transactions":[{"tid":7,"price":"0.02263","grt":"67110000.00000001","usd":"-1518699.3","fee":"1","datetime":"2025-06-16 10:00:01","type":2}],"amount_remaining":"0.00000001"}`)
+		// Serial and in order, as the orders below go to the same function
+		t.Run(tc.name, func(t *testing.T) {
+			d, err := ex.GetOrderInfo(ctx, "1", spotPair, asset.Spot)
+			require.NoErrorf(t, err, "GetOrderInfo must not error for a %s order with 0.00000001 left", status)
+			assert.Equalf(t, executed, d.ExecutedAmount, "GetOrderInfo should return the executed amount of a %s order with 0.00000001 left", status)
+			assert.Equalf(t, status == "Open", d.IsActive(), "GetOrderInfo should return an order with 0.00000001 left as active only while it is open, for a %s order", status)
+		})
 	}
 	// Float sums of these transactions carry a residue into the cost, fee and average price
 	for name, tc := range map[string]struct {
@@ -1386,9 +1566,13 @@ func TestGetOrderInfo(t *testing.T) {
 		"one transaction":   {transactions: []string{`{"tid":1,"price":"101","btc":"0.3","usd":"-30.3","fee":"0.1","datetime":"2025-06-16 10:00:01","type":2}`}, exp: [4]float64{0.3, 30.3, 0.1, 101}},
 		"1000 transactions": {transactions: slices.Repeat([]string{`{"tid":1,"price":"100","btc":"0.001","usd":"-0.1","fee":"0.01","datetime":"2025-06-16 10:00:01","type":2}`}, 1000), exp: [4]float64{1, 100, 10, 100}},
 	} {
-		d, err := newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Finished","market":"BTC/USD","transactions":[`+strings.Join(tc.transactions, ",")+`],"amount_remaining":"0"}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
-		require.NoErrorf(t, err, "GetOrderInfo must not error with %s", name)
-		assert.Equalf(t, tc.exp, [4]float64{d.ExecutedAmount, d.Cost, d.Fee, d.AverageExecutedPrice}, "GetOrderInfo should sum the executed amount, cost and fee exactly and average them with %s", name)
+		ex := newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Finished","market":"BTC/USD","transactions":[`+strings.Join(tc.transactions, ",")+`],"amount_remaining":"0"}`)
+		// Serial and in order, as the orders below go to the same function
+		t.Run(name, func(t *testing.T) {
+			d, err := ex.GetOrderInfo(ctx, "1", spotPair, asset.Spot)
+			require.NoErrorf(t, err, "GetOrderInfo must not error with %s", name)
+			assert.Equalf(t, tc.exp, [4]float64{d.ExecutedAmount, d.Cost, d.Fee, d.AverageExecutedPrice}, "GetOrderInfo should sum the executed amount, cost and fee exactly and average them with %s", name)
+		})
 	}
 	_, err = newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Finished","market":"BTC/USD","transactions":[{"tid":7,"price":"NaN","btc":"0.3","usd":"-30.3","fee":"0.1","datetime":"2025-06-16 10:00:01","type":2}],"amount_remaining":"0"}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
 	assert.ErrorIs(t, err, errMalformedTransaction, "GetOrderInfo should error on a transaction price which is not a number")
@@ -1465,25 +1649,42 @@ func TestTriggerPrice(t *testing.T) {
 func TestOrderStatus(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name              string
 		status            string
 		partiallyExecuted bool
 		exp               order.Status
 	}{
-		{status: "Open", exp: order.Open},
-		{status: "Open", partiallyExecuted: true, exp: order.PartiallyFilled},
-		{status: "Finished", exp: order.Filled},
-		{status: "Canceled", exp: order.Cancelled},
-		{status: "Canceled", partiallyExecuted: true, exp: order.PartiallyCancelled},
-		{status: "Expired", exp: order.Expired},
-		{status: "Unknown", exp: order.UnknownStatus},
+		{name: "open", status: "Open", exp: order.Open},
+		{name: "open partially executed", status: "Open", partiallyExecuted: true, exp: order.PartiallyFilled},
+		{name: "finished", status: "Finished", exp: order.Filled},
+		{name: "cancelled", status: "Canceled", exp: order.Cancelled},
+		{name: "cancelled partially executed", status: "Canceled", partiallyExecuted: true, exp: order.PartiallyCancelled},
+		{name: "expired", status: "Expired", exp: order.Expired},
+		{name: "unknown", status: "Unknown", exp: order.UnknownStatus},
 	} {
-		assert.Equalf(t, tc.exp, orderStatus(tc.status, tc.partiallyExecuted), "orderStatus should convert %q", tc.status)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, orderStatus(tc.status, tc.partiallyExecuted), "orderStatus should convert %q", tc.status)
+		})
 	}
 }
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
+	t.Run("transfer ID", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/v2/cspr_address/", r.URL.Path, "path should be the Casper deposit address")
+			_, err := w.Write([]byte(`{"address":"01abc","transfer_id":12345}`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		addr, err := ex.GetDepositAddress(t.Context(), currency.CSPR, "", "casper")
+		require.NoError(t, err, "GetDepositAddress must not error")
+		assert.Equal(t, &deposit.Address{Address: "01abc", Tag: "12345", Chain: "casper"}, addr, "GetDepositAddress should return a Casper address's transfer ID as its tag")
+	})
+
 	skipIfLiveWithoutCredentials(t)
+	ctx := t.Context()
 	for _, tc := range []struct {
 		c     currency.Code
 		chain string
@@ -1494,24 +1695,15 @@ func TestGetDepositAddress(t *testing.T) {
 		{c: currency.XRP, exp: &deposit.Address{Address: "rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B", Tag: "89473951"}},
 		{c: currency.XLM, exp: &deposit.Address{Address: "GAHK7EEG2WWHVKDNT4CEQFZGKF2LGDSW2IVM4S5DP42RBW3K6BTODB4A", Tag: "299576079"}},
 	} {
-		addr, err := e.GetDepositAddress(t.Context(), tc.c, "", tc.chain)
-		require.NoErrorf(t, err, "GetDepositAddress must not error for %s", tc.c)
-		if mockTests {
-			assert.Equalf(t, tc.exp, addr, "GetDepositAddress should return the address for %s", tc.c)
-		}
+		// Serial and in order, as the addresses are fetched through the same exchange
+		t.Run(tc.c.String(), func(t *testing.T) {
+			addr, err := e.GetDepositAddress(ctx, tc.c, "", tc.chain)
+			require.NoErrorf(t, err, "GetDepositAddress must not error for %s", tc.c)
+			if mockTests {
+				assert.Equalf(t, tc.exp, addr, "GetDepositAddress should return the address for %s", tc.c)
+			}
+		})
 	}
-}
-
-func TestGetDepositAddressTransferID(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v2/cspr_address/", r.URL.Path, "path should be the Casper deposit address")
-		_, err := w.Write([]byte(`{"address":"01abc","transfer_id":12345}`))
-		assert.NoError(t, err, "Write should not error")
-	})
-	addr, err := ex.GetDepositAddress(t.Context(), currency.CSPR, "", "casper")
-	require.NoError(t, err, "GetDepositAddress must not error")
-	assert.Equal(t, &deposit.Address{Address: "01abc", Tag: "12345", Chain: "casper"}, addr, "GetDepositAddress should return a Casper address's transfer ID as its tag")
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
@@ -1533,12 +1725,87 @@ func TestGetAvailableTransferChains(t *testing.T) {
 
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
+	t.Run("tags", func(t *testing.T) {
+		t.Parallel()
+		requests := make(chan url.Values, 1)
+		ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.NoError(t, r.ParseForm(), "ParseForm should not error")
+			select {
+			case requests <- r.PostForm:
+			default:
+				assert.Fail(t, "WithdrawCryptocurrencyFunds should send only one request")
+			}
+			_, err := w.Write([]byte(`{"id":1}`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		ctx := t.Context()
+		for _, tc := range []struct {
+			name   string
+			c      currency.Code
+			chain  string
+			tag    string
+			isSelf bool
+			exp    url.Values
+		}{
+			{name: "XRP destination tag", c: currency.XRP, tag: "12345", exp: url.Values{"destination_tag": {"12345"}}},
+			{name: "XRPL network destination tag", c: currency.USDC, chain: "XRPL", tag: "12345", exp: url.Values{"network": {"XRPL"}, "destination_tag": {"12345"}}},
+			{name: "Casper transfer ID", c: currency.CSPR, tag: "67890", exp: url.Values{"transfer_id": {"67890"}}},
+			{name: "Stellar memo", c: currency.XLM, tag: "memo", exp: url.Values{"memo_id": {"memo"}}},
+			{name: "withdrawal to self", c: currency.BTC, chain: "bitcoin", isSelf: true, exp: url.Values{"network": {"bitcoin"}, "beneficiary_thirdparty": {"False"}}},
+		} {
+			// Serial and in order, as each withdrawal's request is read from the same channel
+			t.Run(tc.name, func(t *testing.T) {
+				resp, err := ex.WithdrawCryptocurrencyFunds(ctx, &withdraw.Request{
+					Exchange: ex.Name,
+					Type:     withdraw.Crypto,
+					Currency: tc.c,
+					Amount:   1,
+					Crypto:   withdraw.CryptoRequest{Address: "address", AddressTag: tc.tag, Chain: tc.chain},
+					Travel:   withdraw.TravelRule{IsSelf: tc.isSelf},
+				})
+				require.NoErrorf(t, err, "WithdrawCryptocurrencyFunds must not error for %s", tc.c)
+				assert.Equalf(t, "1", resp.ID, "ID should be correct for %s", tc.c)
+				tc.exp.Set("amount", "1")
+				tc.exp.Set("address", "address")
+				require.Lenf(t, requests, 1, "WithdrawCryptocurrencyFunds must send a request for %s", tc.c)
+				assert.Equalf(t, tc.exp, <-requests, "WithdrawCryptocurrencyFunds should send the tag in the field for the %s network", tc.c)
+			})
+		}
+
+		_, err := ex.WithdrawCryptocurrencyFunds(ctx, &withdraw.Request{
+			Exchange: ex.Name,
+			Type:     withdraw.Crypto,
+			Currency: currency.CSPR,
+			Amount:   1,
+			Crypto:   withdraw.CryptoRequest{Address: "address", AddressTag: "memo"},
+		})
+		assert.ErrorIs(t, err, errInvalidTransferID, "WithdrawCryptocurrencyFunds should error on a Casper transfer ID which is not a number")
+		for _, tc := range []struct {
+			name  string
+			chain string
+		}{
+			{name: "default network", chain: ""},
+			{name: "casper network", chain: "casper"},
+		} {
+			// Serial and in order, as no request may reach the channel checked below
+			t.Run("zero Casper transfer ID on the "+tc.name, func(t *testing.T) {
+				chain := tc.chain
+				_, err := ex.WithdrawCryptocurrencyFunds(ctx, &withdraw.Request{
+					Exchange: ex.Name,
+					Type:     withdraw.Crypto,
+					Currency: currency.CSPR,
+					Amount:   1,
+					Crypto:   withdraw.CryptoRequest{Address: "address", AddressTag: "0", Chain: chain},
+				})
+				assert.ErrorIsf(t, err, errZeroTransferID, "WithdrawCryptocurrencyFunds should error on a Casper transfer ID of zero on the %q network", chain)
+			})
+		}
+		assert.Empty(t, requests, "WithdrawCryptocurrencyFunds should not send a withdrawal with an invalid Casper transfer ID")
+	})
+
 	_, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{})
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet, "WithdrawCryptocurrencyFunds should validate the request")
 
-	if !mockTests {
-		t.Skip("WithdrawCryptocurrencyFunds is not tested live to avoid withdrawing funds")
-	}
 	for _, tc := range []struct {
 		c       currency.Code
 		amount  float64
@@ -1551,16 +1818,38 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 		{c: currency.XRP, amount: 20, address: "rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B", tag: "12345", exp: "4"},
 		{c: currency.XLM, amount: 20, address: "GAHK7EEG2WWHVKDNT4CEQFZGKF2LGDSW2IVM4S5DP42RBW3K6BTODB4A", tag: "12345", exp: "5"},
 	} {
-		resp, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
+		// Serial and in order, as each withdrawal goes through the same exchange
+		t.Run("mocked "+tc.c.String(), func(t *testing.T) {
+			if !mockTests {
+				t.Skip("The mocked withdrawal is not sent live, to avoid withdrawing funds")
+			}
+			resp, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
+				Exchange: e.Name,
+				Type:     withdraw.Crypto,
+				Currency: tc.c,
+				Amount:   tc.amount,
+				Crypto:   withdraw.CryptoRequest{Address: tc.address, AddressTag: tc.tag, Chain: tc.chain},
+			})
+			require.NoErrorf(t, err, "WithdrawCryptocurrencyFunds must not error for %s", tc.c)
+			assert.Equalf(t, tc.exp, resp.ID, "ID should be correct for %s", tc.c)
+		})
+	}
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The request is built for the live API to refuse")
+		}
+		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		// More bitcoin than will ever exist, so no account holds it
+		_, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
 			Exchange: e.Name,
 			Type:     withdraw.Crypto,
-			Currency: tc.c,
-			Amount:   tc.amount,
-			Crypto:   withdraw.CryptoRequest{Address: tc.address, AddressTag: tc.tag, Chain: tc.chain},
+			Currency: currency.BTC,
+			Amount:   21000001,
+			Crypto:   withdraw.CryptoRequest{Address: core.BitcoinDonationAddress, Chain: "bitcoin"},
 		})
-		require.NoErrorf(t, err, "WithdrawCryptocurrencyFunds must not error for %s", tc.c)
-		assert.Equalf(t, tc.exp, resp.ID, "ID should be correct for %s", tc.c)
-	}
+		requireRefusedOnMerits(t, err)
+	})
 }
 
 func testBankWithdrawalRequest(c currency.Code, amount float64) *withdraw.Request {
@@ -1600,71 +1889,99 @@ func TestWithdrawFiatFunds(t *testing.T) {
 	_, err := e.WithdrawFiatFunds(t.Context(), &withdraw.Request{})
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet, "WithdrawFiatFunds should validate the request")
 
-	if !mockTests {
-		t.Skip("WithdrawFiatFunds is not tested live to avoid withdrawing funds")
-	}
-	resp, err := e.WithdrawFiatFunds(t.Context(), testBankWithdrawalRequest(currency.EUR, 10))
-	require.NoError(t, err, "WithdrawFiatFunds must not error")
-	assert.Equal(t, "1", resp.ID, "ID should be correct")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("The mocked withdrawal is not sent live, to avoid withdrawing funds")
+		}
+		resp, err := e.WithdrawFiatFunds(t.Context(), testBankWithdrawalRequest(currency.EUR, 10))
+		require.NoError(t, err, "WithdrawFiatFunds must not error")
+		assert.Equal(t, "1", resp.ID, "ID should be correct")
+	})
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The request is built for the live API to refuse")
+		}
+		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		req := testBankWithdrawalRequest(currency.EUR, 1e12)
+		req.Fiat.Bank.IBAN = invalidIBAN
+		_, err := e.WithdrawFiatFunds(t.Context(), req)
+		requireRefusedOnMerits(t, err)
+	})
 }
 
 func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
 	t.Parallel()
+	t.Run("request", func(t *testing.T) {
+		t.Parallel()
+		requests := make(chan url.Values, 1)
+		ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/v2/withdrawal/open/", r.URL.Path, "path should be the bank withdrawal")
+			assert.NoError(t, r.ParseForm(), "ParseForm should not error")
+			select {
+			case requests <- r.PostForm:
+			default:
+				assert.Fail(t, "WithdrawFiatFundsToInternationalBank should send only one request")
+			}
+			_, err := w.Write([]byte(`{"withdrawal_id":2}`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		req := testBankWithdrawalRequest(currency.USD, 50)
+		req.Exchange, req.Fiat.Bank.SupportedExchanges = ex.Name, ex.Name
+		req.Fiat.IntermediarySwiftCode = "CHASUS33"
+		resp, err := ex.WithdrawFiatFundsToInternationalBank(t.Context(), req)
+		require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
+		assert.Equal(t, "2", resp.ID, "ID should be correct")
+		require.Len(t, requests, 1, "WithdrawFiatFundsToInternationalBank must send a request")
+		assert.Equal(t, url.Values{
+			"amount":                      {"50"},
+			"account_currency":            {"USD"},
+			"name":                        {"Satoshi Nakamoto"},
+			"iban":                        {"IT60X0542811101000000123456"},
+			"bic":                         {"CTBAAU2S"},
+			"address":                     {"123 Fake St"},
+			"postal_code":                 {"2088"},
+			"city":                        {"Tarry Town"},
+			"country":                     {"AU"},
+			"type":                        {"international"},
+			"comment":                     {"WITHDRAW IT ALL"},
+			"bank_name":                   {"Federal Reserve Bank"},
+			"bank_address":                {"123 Fake St"},
+			"bank_postal_code":            {"2088"},
+			"bank_city":                   {"Tarry Town"},
+			"bank_country":                {"AU"},
+			"currency":                    {"USD"},
+			"intermed_routing_num_or_bic": {"CHASUS33"},
+		}, <-requests, "WithdrawFiatFundsToInternationalBank should send the beneficiary, bank and intermediary bank details")
+	})
+
 	_, err := e.WithdrawFiatFundsToInternationalBank(t.Context(), &withdraw.Request{})
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet, "WithdrawFiatFundsToInternationalBank should validate the request")
 
-	if !mockTests {
-		t.Skip("WithdrawFiatFundsToInternationalBank is not tested live to avoid withdrawing funds")
-	}
-	resp, err := e.WithdrawFiatFundsToInternationalBank(t.Context(), testBankWithdrawalRequest(currency.USD, 50))
-	require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
-	assert.Equal(t, "2", resp.ID, "ID should be correct")
-}
-
-func TestWithdrawFiatFundsToInternationalBankRequest(t *testing.T) {
-	t.Parallel()
-	requests := make(chan url.Values, 1)
-	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v2/withdrawal/open/", r.URL.Path, "path should be the bank withdrawal")
-		assert.NoError(t, r.ParseForm(), "ParseForm should not error")
-		select {
-		case requests <- r.PostForm:
-		default:
-			assert.Fail(t, "WithdrawFiatFundsToInternationalBank should send only one request")
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("The mocked withdrawal is not sent live, to avoid withdrawing funds")
 		}
-		_, err := w.Write([]byte(`{"withdrawal_id":2}`))
-		assert.NoError(t, err, "Write should not error")
+		resp, err := e.WithdrawFiatFundsToInternationalBank(t.Context(), testBankWithdrawalRequest(currency.USD, 50))
+		require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
+		assert.Equal(t, "2", resp.ID, "ID should be correct")
 	})
-	req := testBankWithdrawalRequest(currency.USD, 50)
-	req.Exchange, req.Fiat.Bank.SupportedExchanges = ex.Name, ex.Name
-	req.Fiat.IntermediarySwiftCode = "CHASUS33"
-	resp, err := ex.WithdrawFiatFundsToInternationalBank(t.Context(), req)
-	require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
-	assert.Equal(t, "2", resp.ID, "ID should be correct")
-	require.Len(t, requests, 1, "WithdrawFiatFundsToInternationalBank must send a request")
-	assert.Equal(t, url.Values{
-		"amount":                      {"50"},
-		"account_currency":            {"USD"},
-		"name":                        {"Satoshi Nakamoto"},
-		"iban":                        {"IT60X0542811101000000123456"},
-		"bic":                         {"CTBAAU2S"},
-		"address":                     {"123 Fake St"},
-		"postal_code":                 {"2088"},
-		"city":                        {"Tarry Town"},
-		"country":                     {"AU"},
-		"type":                        {"international"},
-		"comment":                     {"WITHDRAW IT ALL"},
-		"bank_name":                   {"Federal Reserve Bank"},
-		"bank_address":                {"123 Fake St"},
-		"bank_postal_code":            {"2088"},
-		"bank_city":                   {"Tarry Town"},
-		"bank_country":                {"AU"},
-		"currency":                    {"USD"},
-		"intermed_routing_num_or_bic": {"CHASUS33"},
-	}, <-requests, "WithdrawFiatFundsToInternationalBank should send the beneficiary, bank and intermediary bank details")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The request is built for the live API to refuse")
+		}
+		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		req := testBankWithdrawalRequest(currency.USD, 1e12)
+		req.Fiat.Bank.IBAN = invalidIBAN
+		_, err := e.WithdrawFiatFundsToInternationalBank(t.Context(), req)
+		requireRefusedOnMerits(t, err)
+	})
 }
 
-func TestGetActiveOrders(t *testing.T) {
+func TestGetActiveOrders(t *testing.T) { //nolint:tparallel // Every case goes to the function the calls around them use, so they run in order
 	t.Parallel()
 	_, err := e.GetActiveOrders(t.Context(), nil)
 	assert.ErrorIs(t, err, order.ErrGetOrdersRequestIsNil, "GetActiveOrders should error on a nil request")
@@ -1702,36 +2019,53 @@ func TestGetActiveOrders(t *testing.T) {
 	assert.ErrorIs(t, err, errAPIResponse, "GetActiveOrders should error when the open orders cannot be fetched")
 	_, err = newResponseTestExchange(t, http.StatusOK, `[{"id":"1","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"84000","amount":"0.40000000","market":"BTCUSD"}]`).GetActiveOrders(t.Context(), spotOrders)
 	assert.ErrorContains(t, err, "BTCUSD", "GetActiveOrders should error on a malformed market")
-	for _, amounts := range []string{`"amount":"NaN"`, `"amount":"NaN","amount_at_create":"0.40000000"`} {
-		_, err = newResponseTestExchange(t, http.StatusOK, `[{"id":"1","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"84000",`+amounts+`,"market":"BTC/USD"}]`).GetActiveOrders(t.Context(), spotOrders)
-		assert.ErrorContainsf(t, err, "NaN", "GetActiveOrders should error on a remaining amount which is not a number with %s", amounts)
+	ctx := t.Context()
+	for _, tc := range []struct {
+		name    string
+		amounts string
+	}{
+		{name: "remaining amount not a number", amounts: `"amount":"NaN"`},
+		{name: "remaining amount not a number with an amount at creation", amounts: `"amount":"NaN","amount_at_create":"0.40000000"`},
+	} {
+		amounts := tc.amounts
+		nanEx := newResponseTestExchange(t, http.StatusOK, `[{"id":"1","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"84000",`+amounts+`,"market":"BTC/USD"}]`)
+		// Serial and in order, as the requests below go to the same function with the same request
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := nanEx.GetActiveOrders(ctx, spotOrders)
+			assert.ErrorContainsf(t, err, "NaN", "GetActiveOrders should error on a remaining amount which is not a number with %s", amounts)
+		})
 	}
 	// As floats, 67110000.00000002 and 67109999.00000002 lose their last digit, so subtracting floats leaves 1, 0 and 1
 	for _, tc := range []struct {
+		name                string
 		atCreate, remaining string
 		executed            float64
 		status              order.Status
 	}{
-		{atCreate: "67110000.00000002", remaining: "67109999.00000001", executed: 1.00000001, status: order.PartiallyFilled},
-		{atCreate: "67110000.00000002", remaining: "67110000.00000001", executed: 0.00000001, status: order.PartiallyFilled},
-		{atCreate: "67110000.00000001", remaining: "67109999.00000002", executed: 0.99999999, status: order.PartiallyFilled},
+		{name: "1.00000001 executed", atCreate: "67110000.00000002", remaining: "67109999.00000001", executed: 1.00000001, status: order.PartiallyFilled},
+		{name: "0.00000001 executed", atCreate: "67110000.00000002", remaining: "67110000.00000001", executed: 0.00000001, status: order.PartiallyFilled},
+		{name: "0.99999999 executed", atCreate: "67110000.00000001", remaining: "67109999.00000002", executed: 0.99999999, status: order.PartiallyFilled},
 		// Without its amount at creation, the order's amount is its remaining amount
-		{remaining: "67110000.00000002", status: order.Open},
+		{name: "without an amount at creation", remaining: "67110000.00000002", status: order.Open},
 		// Floats of 67110000.00000001 and 67110000.00000002 are equal, as are floats of 92233720367.999995 and
 		// 92233720368, so an order with that little left executed the float below its amount
-		{atCreate: "67110000.00000002", remaining: "0.00000001", executed: 67110000, status: order.PartiallyFilled},
-		{atCreate: "92233720368", remaining: "0.000005", executed: 92233720367.99998, status: order.PartiallyFilled},
+		{name: "0.00000001 left", atCreate: "67110000.00000002", remaining: "0.00000001", executed: 67110000, status: order.PartiallyFilled},
+		{name: "0.000005 left of a large amount", atCreate: "92233720368", remaining: "0.000005", executed: 92233720367.99998, status: order.PartiallyFilled},
 	} {
 		amounts := `"amount":"` + tc.remaining + `"`
 		if tc.atCreate != "" {
 			amounts += `,"amount_at_create":"` + tc.atCreate + `"`
 		}
-		large, err := newResponseTestExchange(t, http.StatusOK, `[{"id":"1","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"0.02263",`+amounts+`,"market":"GRT/USD"}]`).GetActiveOrders(t.Context(), spotOrders)
-		require.NoErrorf(t, err, "GetActiveOrders must not error for %s", amounts)
-		require.Lenf(t, large, 1, "GetActiveOrders must return the order for %s", amounts)
-		assert.Equalf(t, tc.executed, large[0].ExecutedAmount, "GetActiveOrders should subtract the exact amounts for %s", amounts)
-		assert.Equalf(t, tc.status, large[0].Status, "GetActiveOrders should report the order's status for %s", amounts)
-		assert.Truef(t, large[0].IsActive(), "GetActiveOrders should return an open order as active for %s", amounts)
+		largeEx := newResponseTestExchange(t, http.StatusOK, `[{"id":"1","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"0.02263",`+amounts+`,"market":"GRT/USD"}]`)
+		// Serial and in order, as the requests below go to the same function with the same request
+		t.Run(tc.name, func(t *testing.T) {
+			large, err := largeEx.GetActiveOrders(ctx, spotOrders)
+			require.NoErrorf(t, err, "GetActiveOrders must not error for %s", amounts)
+			require.Lenf(t, large, 1, "GetActiveOrders must return the order for %s", amounts)
+			assert.Equalf(t, tc.executed, large[0].ExecutedAmount, "GetActiveOrders should subtract the exact amounts for %s", amounts)
+			assert.Equalf(t, tc.status, large[0].Status, "GetActiveOrders should report the order's status for %s", amounts)
+			assert.Truef(t, large[0].IsActive(), "GetActiveOrders should return an open order as active for %s", amounts)
+		})
 	}
 
 	ex = newResponseTestExchange(t, http.StatusOK, `[{"id":"1234123412341237","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"84000","amount":"0.40000000","market":"BTC/USD"}]`)
@@ -1752,58 +2086,65 @@ func TestGetActiveOrders(t *testing.T) {
 	}}, withoutAmountAtCreate, "GetActiveOrders should use the remaining amount as the amount of an order without its amount at creation")
 
 	skipIfLiveWithoutCredentials(t)
-	for _, req := range []*order.MultiOrderRequest{
-		{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType},
-		{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{spotPair}},
-		{AssetType: asset.PerpetualContract, Side: order.AnySide, Type: order.AnyType},
+	for _, tc := range []struct {
+		name string
+		req  *order.MultiOrderRequest
+	}{
+		{name: "spot", req: &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType}},
+		{name: "spot pair", req: &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{spotPair}}},
+		{name: "perpetual contracts", req: &order.MultiOrderRequest{AssetType: asset.PerpetualContract, Side: order.AnySide, Type: order.AnyType}},
 	} {
-		orders, err := e.GetActiveOrders(t.Context(), req)
-		require.NoErrorf(t, err, "GetActiveOrders must not error for %s %s", req.AssetType, req.Pairs)
-		if !mockTests {
-			continue
-		}
-		require.Lenf(t, orders, 1, "GetActiveOrders must only return orders for %s", req.AssetType)
-		o := orders[0]
-		assert.Equal(t, req.AssetType, o.AssetType, "AssetType should be correct")
-		if req.AssetType == asset.Spot {
+		// Serial and in order, as the orders are fetched through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			req := tc.req
+			orders, err := e.GetActiveOrders(ctx, req)
+			require.NoErrorf(t, err, "GetActiveOrders must not error for %s %s", req.AssetType, req.Pairs)
+			if !mockTests {
+				return
+			}
+			require.Lenf(t, orders, 1, "GetActiveOrders must only return orders for %s", req.AssetType)
+			o := orders[0]
+			assert.Equal(t, req.AssetType, o.AssetType, "AssetType should be correct")
+			if req.AssetType == asset.Spot {
+				assert.Equal(t, order.Detail{
+					Exchange:        e.Name,
+					OrderID:         "1234123412341234",
+					ClientOrderID:   "my-order-123",
+					Type:            order.Limit,
+					Side:            order.Buy,
+					Status:          order.PartiallyFilled,
+					AssetType:       asset.Spot,
+					Pair:            currency.NewPairWithDelimiter("BTC", "USD", "/"),
+					Date:            time.Date(2022, 1, 31, 14, 43, 15, 0, time.UTC),
+					Price:           100,
+					Amount:          0.5,
+					ExecutedAmount:  0.1,
+					RemainingAmount: 0.4,
+				}, o, "spot order should be correct")
+				return
+			}
 			assert.Equal(t, order.Detail{
 				Exchange:        e.Name,
-				OrderID:         "1234123412341234",
-				ClientOrderID:   "my-order-123",
-				Type:            order.Limit,
-				Side:            order.Buy,
-				Status:          order.PartiallyFilled,
-				AssetType:       asset.Spot,
-				Pair:            currency.NewPairWithDelimiter("BTC", "USD", "/"),
-				Date:            time.Date(2022, 1, 31, 14, 43, 15, 0, time.UTC),
-				Price:           100,
-				Amount:          0.5,
-				ExecutedAmount:  0.1,
-				RemainingAmount: 0.4,
-			}, o, "spot order should be correct")
-			continue
-		}
-		assert.Equal(t, order.Detail{
-			Exchange:        e.Name,
-			OrderID:         "1234123412341235",
-			Type:            order.StopLimit,
-			Side:            order.Sell,
-			Status:          order.Open,
-			AssetType:       asset.PerpetualContract,
-			Pair:            currency.NewPairWithDelimiter("BTC", "USD-PERP", "/"),
-			MarginType:      margin.Multi,
-			Leverage:        3,
-			ReduceOnly:      true,
-			Date:            time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
-			Price:           85000,
-			TriggerPrice:    84500,
-			Amount:          0.01,
-			RemainingAmount: 0.01,
-		}, o, "perpetual order should be correct")
+				OrderID:         "1234123412341235",
+				Type:            order.StopLimit,
+				Side:            order.Sell,
+				Status:          order.Open,
+				AssetType:       asset.PerpetualContract,
+				Pair:            currency.NewPairWithDelimiter("BTC", "USD-PERP", "/"),
+				MarginType:      margin.Multi,
+				Leverage:        3,
+				ReduceOnly:      true,
+				Date:            time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
+				Price:           85000,
+				TriggerPrice:    84500,
+				Amount:          0.01,
+				RemainingAmount: 0.01,
+			}, o, "perpetual order should be correct")
+		})
 	}
 }
 
-func TestGetOrderHistory(t *testing.T) {
+func TestGetOrderHistory(t *testing.T) { //nolint:tparallel // The cases go through the package exchange the calls above use, so they run in order
 	t.Parallel()
 	_, err := e.GetOrderHistory(t.Context(), nil)
 	assert.ErrorIs(t, err, order.ErrGetOrdersRequestIsNil, "GetOrderHistory should error on a nil request")
@@ -1813,24 +2154,28 @@ func TestGetOrderHistory(t *testing.T) {
 	skipIfLiveWithoutCredentials(t)
 	ctx := recordedPagerContext(t)
 	for _, tc := range []struct {
-		req *order.MultiOrderRequest
-		exp []string
+		name string
+		req  *order.MultiOrderRequest
+		exp  []string
 	}{
-		{req: &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType}, exp: []string{"1458532827766784", "1458532827766790"}},
-		{req: &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.Sell, Type: order.AnyType}, exp: []string{"1458532827766790"}},
-		{req: &order.MultiOrderRequest{AssetType: asset.PerpetualContract, Side: order.AnySide, Type: order.AnyType}, exp: []string{"1234123412341241", "1234123412341235"}},
+		{name: "spot", req: &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType}, exp: []string{"1458532827766784", "1458532827766790"}},
+		{name: "spot sells", req: &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.Sell, Type: order.AnyType}, exp: []string{"1458532827766790"}},
+		{name: "perpetual contracts", req: &order.MultiOrderRequest{AssetType: asset.PerpetualContract, Side: order.AnySide, Type: order.AnyType}, exp: []string{"1234123412341241", "1234123412341235"}},
 	} {
-		orders, err := e.GetOrderHistory(ctx, tc.req)
-		require.NoErrorf(t, err, "GetOrderHistory must not error for %s %s orders", tc.req.AssetType, tc.req.Side)
-		if !mockTests {
-			continue
-		}
-		orderIDs := make([]string, len(orders))
-		for i := range orders {
-			orderIDs[i] = orders[i].OrderID
-			assert.Equalf(t, tc.req.AssetType, orders[i].AssetType, "AssetType should be correct for %s", tc.req.AssetType)
-		}
-		assert.Equalf(t, tc.exp, orderIDs, "GetOrderHistory should return the filtered %s %s orders", tc.req.AssetType, tc.req.Side)
+		// Serial and in order, as the orders are fetched through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			orders, err := e.GetOrderHistory(ctx, tc.req)
+			require.NoErrorf(t, err, "GetOrderHistory must not error for %s %s orders", tc.req.AssetType, tc.req.Side)
+			if !mockTests {
+				return
+			}
+			orderIDs := make([]string, len(orders))
+			for i := range orders {
+				orderIDs[i] = orders[i].OrderID
+				assert.Equalf(t, tc.req.AssetType, orders[i].AssetType, "AssetType should be correct for %s", tc.req.AssetType)
+			}
+			assert.Equalf(t, tc.exp, orderIDs, "GetOrderHistory should return the filtered %s %s orders", tc.req.AssetType, tc.req.Side)
+		})
 	}
 }
 
@@ -1909,28 +2254,110 @@ func TestSpotOrderHistory(t *testing.T) {
 
 func TestDerivativesOrderHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("self trades", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := pagedTestExchange(t, "/api/v2/trade_history/btcusd-perp/", func(url.Values) string {
+			return `[
+				{"trade_id":"1","order_id":"10","self_trade_order_id":"11","datetime":"2025-06-16 10:00:00","fee":"0.5","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"SELF","type":"TRADE","price":"80000","amount":"0.01"},
+				{"trade_id":"2","order_id":"11","datetime":"2025-06-16 10:01:00","fee":"0.4","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"SELL","type":"TRADE","price":"81000","amount":"0.02"}
+			]`
+		})
+		orders, err := ex.derivativesOrderHistory(t.Context(), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
+		require.NoError(t, err, "derivativesOrderHistory must not error")
+		perpetual := currency.NewPairWithDelimiter("BTC", "USD-PERP", "/")
+		selfTrade := order.TradeHistory{TID: "1", Price: 80000, Amount: 0.01, Fee: 0.5, Exchange: ex.Name, Timestamp: time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC), FeeAsset: "USD"}
+		complementary := selfTrade
+		complementary.Fee = 0
+		// The self trade is added to both orders, with its fee only counted once; an order only seen through a self trade
+		// has an unknown side, and the other order's side is revealed by its own trade
+		assert.Equal(t, []order.Detail{
+			{
+				Exchange:             ex.Name,
+				OrderID:              "10",
+				Side:                 order.UnknownSide,
+				AssetType:            asset.PerpetualContract,
+				Pair:                 perpetual,
+				MarginType:           margin.Multi,
+				Leverage:             2,
+				Date:                 time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
+				LastUpdated:          time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
+				Price:                80000,
+				Amount:               0.01,
+				ExecutedAmount:       0.01,
+				AverageExecutedPrice: 80000,
+				Cost:                 800,
+				CostAsset:            currency.USD,
+				Fee:                  0.5,
+				FeeAsset:             currency.USD,
+				Trades:               []order.TradeHistory{selfTrade},
+			},
+			{
+				Exchange:             ex.Name,
+				OrderID:              "11",
+				Side:                 order.Sell,
+				AssetType:            asset.PerpetualContract,
+				Pair:                 perpetual,
+				MarginType:           margin.Multi,
+				Leverage:             2,
+				Date:                 time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
+				LastUpdated:          time.Date(2025, 6, 16, 10, 1, 0, 0, time.UTC),
+				Price:                2420 / 0.03,
+				Amount:               0.03,
+				ExecutedAmount:       0.03,
+				AverageExecutedPrice: 2420 / 0.03,
+				Cost:                 2420,
+				CostAsset:            currency.USD,
+				Fee:                  0.4,
+				FeeAsset:             currency.USD,
+				Trades: []order.TradeHistory{
+					complementary,
+					{TID: "2", Price: 81000, Amount: 0.02, Fee: 0.4, Exchange: ex.Name, Side: order.Sell, Timestamp: time.Date(2025, 6, 16, 10, 1, 0, 0, time.UTC), FeeAsset: "USD"},
+				},
+			},
+		}, orders, "derivativesOrderHistory should return both orders of a self trade")
+
+		ex, _ = pagedTestExchange(t, "/api/v2/trade_history/btcusd-perp/", func(url.Values) string {
+			return `[{"trade_id":"1","order_id":"10","self_trade_order_id":"wibble","datetime":"2025-06-16 10:00:00","market":"BTC/USD-PERP","side":"SELF","price":"80000","amount":"0.01"}]`
+		})
+		_, err = ex.derivativesOrderHistory(t.Context(), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
+		assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "derivativesOrderHistory should error on a malformed self trade order ID")
+	})
+
 	ex := newTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
 		_, err := w.Write([]byte(`[{"trade_id":"1","order_id":"2","datetime":"2025-06-16 10:01:00","side":"WIBBLE","price":"84000","amount":"0.01"}]`))
 		assert.NoError(t, err, "Write should not error")
 	})
 	_, err := ex.derivativesOrderHistory(t.Context(), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "derivativesOrderHistory should error on an invalid side")
-	for liquidationFee, expErr := range map[string]error{"0.2": nil, "NaN": errMalformedTransaction} {
+	ctx := t.Context()
+	for _, tc := range []struct {
+		name           string
+		liquidationFee string
+		expErr         error
+	}{
+		{name: "liquidation fee", liquidationFee: "0.2", expErr: nil},
+		{name: "liquidation fee not a number", liquidationFee: "NaN", expErr: errMalformedTransaction},
+	} {
+		liquidationFee, expErr := tc.liquidationFee, tc.expErr
 		ex = newTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
 			_, err := w.Write(fmt.Appendf(nil, `[{"trade_id":"1","order_id":"2","datetime":"2025-06-16 10:01:00","side":"buy","price":"100","amount":"1","fee":"0.1","liquidation_fee":%q,"fee_currency":"USD","market":"BTC/USD-PERP"}]`, liquidationFee))
 			assert.NoError(t, err, "Write should not error")
 		})
-		orders, err := ex.derivativesOrderHistory(t.Context(), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
-		if expErr != nil {
-			assert.ErrorIs(t, err, expErr, "derivativesOrderHistory should error on a liquidation fee which is not a number")
-			continue
-		}
-		require.NoError(t, err, "derivativesOrderHistory must not error with a liquidation fee")
-		require.Len(t, orders, 1, "derivativesOrderHistory must return the trade's order")
-		require.Len(t, orders[0].Trades, 1, "the order must hold its trade")
-		// A float sum of 0.1 and 0.2 is 0.30000000000000004
-		assert.Equal(t, 0.3, orders[0].Trades[0].Fee, "the trade's fee should include its liquidation fee without a float residue")
-		assert.Equal(t, 0.3, orders[0].Fee, "the order's fee should include the liquidation fee without a float residue")
+		feeEx := ex
+		// Serial and in order, as the calls below go to the same function
+		t.Run(tc.name, func(t *testing.T) {
+			orders, err := feeEx.derivativesOrderHistory(ctx, currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
+			if expErr != nil {
+				assert.ErrorIs(t, err, expErr, "derivativesOrderHistory should error on a liquidation fee which is not a number")
+				return
+			}
+			require.NoError(t, err, "derivativesOrderHistory must not error with a liquidation fee")
+			require.Len(t, orders, 1, "derivativesOrderHistory must return the trade's order")
+			require.Len(t, orders[0].Trades, 1, "the order must hold its trade")
+			// A float sum of 0.1 and 0.2 is 0.30000000000000004
+			assert.Equal(t, 0.3, orders[0].Trades[0].Fee, "the trade's fee should include its liquidation fee without a float residue")
+			assert.Equal(t, 0.3, orders[0].Fee, "the order's fee should include the liquidation fee without a float residue")
+		})
 	}
 
 	_, err = ex.derivativesOrderHistory(t.Context(), currency.Pairs{currency.EMPTYPAIR}, time.Time{}, time.Time{})
@@ -2013,8 +2440,11 @@ func TestTradedPair(t *testing.T) {
 		"zero rate":        {Amounts: map[currency.Code]float64{currency.BTC: 0.1}, ExchangeRates: map[currency.Pair]float64{currency.NewBTCUSD(): 0}},
 		"no base amount":   {Amounts: map[currency.Code]float64{currency.USD: 1000}, ExchangeRates: map[currency.Pair]float64{currency.NewBTCUSD(): 20000}},
 	} {
-		_, _, ok := tradedPair(tx)
-		assert.Falsef(t, ok, "tradedPair should not find a traded pair with %s", name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, _, ok := tradedPair(tx)
+			assert.Falsef(t, ok, "tradedPair should not find a traded pair with %s", name)
+		})
 	}
 }
 
@@ -2030,6 +2460,62 @@ func TestAddTrade(t *testing.T) {
 		LastUpdated: time.Unix(300, 0),
 		Trades:      []order.TradeHistory{first, second},
 	}, d, "addTrade should add the trades and widen the order's dates")
+}
+
+func TestAggregatedOrder(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewPairWithDelimiter("BTC", "USD-PERP", "/")
+	traded := time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC)
+	newOrder := func(side order.Side) *order.Detail {
+		return &order.Detail{
+			Exchange:   "Bitstamp",
+			OrderID:    "10",
+			Side:       side,
+			AssetType:  asset.PerpetualContract,
+			Pair:       pair,
+			FeeAsset:   currency.USD,
+			CostAsset:  currency.USD,
+			Leverage:   2,
+			MarginType: margin.Multi,
+			Date:       traded,
+		}
+	}
+	for _, tc := range []struct {
+		name     string
+		existing *order.Detail
+		side     order.Side
+		exp      *order.Detail
+	}{
+		{name: "new order", side: order.Buy, exp: newOrder(order.Buy)},
+		{name: "new order seen through a self trade", side: order.UnknownSide, exp: newOrder(order.UnknownSide)},
+		{name: "known order with an unknown side", existing: &order.Detail{OrderID: "10", Side: order.UnknownSide, Leverage: 3}, side: order.Sell, exp: &order.Detail{OrderID: "10", Side: order.Sell, Leverage: 3}},
+		{name: "known order with a side", existing: &order.Detail{OrderID: "10", Side: order.Sell, Leverage: 3}, side: order.Buy, exp: &order.Detail{OrderID: "10", Side: order.Sell, Leverage: 3}},
+		{name: "known order seen through a self trade", existing: &order.Detail{OrderID: "10", Side: order.Sell, Leverage: 3}, side: order.UnknownSide, exp: &order.Detail{OrderID: "10", Side: order.Sell, Leverage: 3}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			aggregated := make(map[uint64]*order.Detail)
+			if tc.existing != nil {
+				aggregated[10] = tc.existing
+			}
+			// The trade's own order ID differs from the one requested, as for the other order of a self trade
+			derivativesTrade := &DerivativesTradeResponse{
+				TradeID:     1,
+				OrderID:     20,
+				DateTime:    types.DateTime(traded),
+				FeeCurrency: currency.NewCode("usd"),
+				Market:      "BTC/USD-PERP",
+				MarginMode:  MarginModeCross,
+				Leverage:    2,
+			}
+			d := aggregatedOrder(aggregated, "Bitstamp", derivativesTrade, 10, pair, tc.side)
+			assert.Equal(t, tc.exp, d, "aggregatedOrder should return the trade's order")
+			if tc.existing != nil {
+				assert.Same(t, tc.existing, d, "aggregatedOrder should return the order already held for the ID")
+			}
+			assert.Equal(t, map[uint64]*order.Detail{10: d}, aggregated, "aggregatedOrder should hold the order by its ID")
+		})
+	}
 }
 
 func TestAggregatedOrders(t *testing.T) {
@@ -2062,28 +2548,92 @@ func TestAggregatedOrders(t *testing.T) {
 		{name: "a small amount", trades: []order.TradeHistory{{TID: "1", Price: 7, Amount: 0.00000003}}, exp: order.Detail{Amount: 0.00000003, ExecutedAmount: 0.00000003, Cost: 0.00000021, AverageExecutedPrice: 7, Price: 7}},
 		{name: "an inexact average", trades: []order.TradeHistory{{TID: "1", Price: 0.00000003, Amount: 0.2}, {TID: "2", Price: 101, Amount: 0.00000001}}, exp: order.Detail{Amount: 0.20000001, ExecutedAmount: 0.20000001, Cost: 0.000001016, AverageExecutedPrice: 5.079999746000013e-06, Price: 5.079999746000013e-06}},
 	} {
-		got, err := aggregatedOrders(map[uint64]*order.Detail{1: {Trades: tc.trades}})
-		require.NoErrorf(t, err, "aggregatedOrders must not error with %s", tc.name)
-		require.Lenf(t, got, 1, "aggregatedOrders must return one order with %s", tc.name)
-		got[0].Trades = nil
-		assert.Equalf(t, tc.exp, got[0], "aggregatedOrders should sum %s exactly", tc.name)
+		// Serial and in order, as the orders below go to the same function
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := aggregatedOrders(map[uint64]*order.Detail{1: {Trades: tc.trades}})
+			require.NoErrorf(t, err, "aggregatedOrders must not error with %s", tc.name)
+			require.Lenf(t, got, 1, "aggregatedOrders must return one order with %s", tc.name)
+			got[0].Trades = nil
+			assert.Equalf(t, tc.exp, got[0], "aggregatedOrders should sum %s exactly", tc.name)
+		})
 	}
 	_, err = aggregatedOrders(map[uint64]*order.Detail{1: {Trades: []order.TradeHistory{{TID: "7", Price: 1, Amount: math.NaN()}}}})
 	assert.ErrorIs(t, err, errMalformedTransaction, "aggregatedOrders should error on a trade amount which is not a number")
 
-	sameDate := make(map[uint64]*order.Detail)
-	var expIDs []string
-	for id := uint64(1); id <= 12; id++ {
-		sameDate[id] = &order.Detail{OrderID: strconv.FormatUint(id, 10), Date: time.Unix(100, 0)}
-		expIDs = append(expIDs, strconv.FormatUint(id, 10))
+	// A parallel subtest starts once its parent returns, so this follows the checks above
+	t.Run("equal dates", func(t *testing.T) {
+		t.Parallel()
+		sameDate := make(map[uint64]*order.Detail)
+		var expIDs []string
+		for id := uint64(1); id <= 12; id++ {
+			sameDate[id] = &order.Detail{OrderID: strconv.FormatUint(id, 10), Date: time.Unix(100, 0)}
+			expIDs = append(expIDs, strconv.FormatUint(id, 10))
+		}
+		orders, err := aggregatedOrders(sameDate)
+		require.NoError(t, err, "aggregatedOrders must not error with equal dates")
+		orderIDs := make([]string, len(orders))
+		for i := range orders {
+			orderIDs[i] = orders[i].OrderID
+		}
+		assert.Equal(t, expIDs, orderIDs, "aggregatedOrders should sort orders with equal dates by order ID")
+	})
+}
+
+func TestTradeTotalsAdd(t *testing.T) {
+	t.Parallel()
+	// Each case adds its trade to totals already holding 2 at 100 with a fee of 0.5
+	for _, tc := range []struct {
+		name                       string
+		amount, price, fee         float64
+		expAmount, expCost, expFee string
+		expErr                     bool
+	}{
+		{name: "trade", amount: 0.3, price: 101, fee: 0.1, expAmount: "2.3", expCost: "230.3", expFee: "0.6"},
+		{name: "trade without a fee", amount: 0.00000001, price: 84000.01, expAmount: "2.00000001", expCost: "200.0008400001", expFee: "0.5"},
+		{name: "amount not a number", amount: math.NaN(), price: 101, fee: 0.1, expAmount: "2", expCost: "200", expFee: "0.5", expErr: true},
+		{name: "infinite price", amount: 0.3, price: math.Inf(1), fee: 0.1, expAmount: "2", expCost: "200", expFee: "0.5", expErr: true},
+		{name: "fee not a number", amount: 0.3, price: 101, fee: math.NaN(), expAmount: "2", expCost: "200", expFee: "0.5", expErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var totals tradeTotals
+			require.NoError(t, totals.add(2, 100, 0.5), "add must not error for the first trade")
+			err := totals.add(tc.amount, tc.price, tc.fee)
+			if tc.expErr {
+				assert.Error(t, err, "add should error on a value which is not finite")
+			} else {
+				require.NoError(t, err, "add must not error")
+			}
+			assert.Equal(t, tc.expAmount, totals.amount.String(), "add should sum the amounts exactly")
+			assert.Equal(t, tc.expCost, totals.cost.String(), "add should sum each amount times its price exactly")
+			assert.Equal(t, tc.expFee, totals.fee.String(), "add should sum the fees exactly")
+		})
 	}
-	orders, err = aggregatedOrders(sameDate)
-	require.NoError(t, err, "aggregatedOrders must not error with equal dates")
-	orderIDs := make([]string, len(orders))
-	for i := range orders {
-		orderIDs[i] = orders[i].OrderID
+}
+
+func TestTradeTotalsAveragePrice(t *testing.T) {
+	t.Parallel()
+	type tradeValues struct{ amount, price, fee float64 }
+	for _, tc := range []struct {
+		name   string
+		trades []tradeValues
+		exp    float64
+	}{
+		{name: "no trades", exp: 0},
+		{name: "nothing executed", trades: []tradeValues{{amount: 0, price: 100, fee: 0.1}}, exp: 0},
+		{name: "one trade", trades: []tradeValues{{amount: 0.3, price: 101, fee: 0.1}}, exp: 101},
+		{name: "inexact average", trades: []tradeValues{{amount: 2, price: 100, fee: 0.5}, {amount: 1, price: 110, fee: 0.25}}, exp: 310.0 / 3},
+		{name: "small amounts", trades: []tradeValues{{amount: 0.2, price: 0.00000003}, {amount: 0.00000001, price: 101}}, exp: 5.079999746000013e-06},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var totals tradeTotals
+			for _, v := range tc.trades {
+				require.NoError(t, totals.add(v.amount, v.price, v.fee), "add must not error")
+			}
+			assert.Equal(t, tc.exp, totals.averagePrice(), "averagePrice should return the float nearest the cost divided by the amount")
+		})
 	}
-	assert.Equal(t, expIDs, orderIDs, "aggregatedOrders should sort orders with equal dates by order ID")
 }
 
 func TestWithinTimeRange(t *testing.T) {
@@ -2095,61 +2645,175 @@ func TestWithinTimeRange(t *testing.T) {
 		{OrderID: "4", Date: time.Unix(201, 0), LastUpdated: time.Unix(260, 0)},
 	}
 	for _, tc := range []struct {
+		name       string
 		start, end time.Time
 		exp        []string
 	}{
-		{exp: []string{"1", "2", "3", "4"}},
-		{start: time.Unix(100, 0), exp: []string{"2", "3", "4"}},
-		{end: time.Unix(200, 0), exp: []string{"1", "2", "3"}},
-		{start: time.Unix(100, 0), end: time.Unix(200, 0), exp: []string{"2", "3"}},
+		{name: "no bounds", exp: []string{"1", "2", "3", "4"}},
+		{name: "start", start: time.Unix(100, 0), exp: []string{"2", "3", "4"}},
+		{name: "end", end: time.Unix(200, 0), exp: []string{"1", "2", "3"}},
+		{name: "start and end", start: time.Unix(100, 0), end: time.Unix(200, 0), exp: []string{"2", "3"}},
 	} {
-		filtered := withinTimeRange(slices.Clone(orders), tc.start, tc.end)
-		ids := make([]string, len(filtered))
-		for i := range filtered {
-			ids[i] = filtered[i].OrderID
-		}
-		assert.Equalf(t, tc.exp, ids, "withinTimeRange should return the orders active between %s and %s", tc.start, tc.end)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			filtered := withinTimeRange(slices.Clone(orders), tc.start, tc.end)
+			ids := make([]string, len(filtered))
+			for i := range filtered {
+				ids[i] = filtered[i].OrderID
+			}
+			assert.Equalf(t, tc.exp, ids, "withinTimeRange should return the orders active between %s and %s", tc.start, tc.end)
+		})
 	}
 }
 
-func TestGetHistoricCandles(t *testing.T) {
+func TestGetHistoricCandles(t *testing.T) { //nolint:tparallel // Every case goes through the package exchange, so they run in order
 	t.Parallel()
 	start := time.Date(2025, 9, 1, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2025, 9, 30, 0, 0, 0, 0, time.UTC)
+	ctx := t.Context()
 	for a, pair := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		for name, get := range map[string]func() (*kline.Item, error){
-			"GetHistoricCandles": func() (*kline.Item, error) {
-				return e.GetHistoricCandles(t.Context(), pair, a, kline.OneDay, start, end)
-			},
-			"GetHistoricCandlesExtended": func() (*kline.Item, error) {
-				return e.GetHistoricCandlesExtended(t.Context(), pair, a, kline.OneDay, start, end)
-			},
-		} {
-			candles, err := get()
-			require.NoErrorf(t, err, "%s must not error for %s", name, pair)
-			if mockTests {
-				require.Lenf(t, candles.Candles, 29, "%s must return a candle per day for %s", name, pair)
-				exp := kline.Item{
-					Exchange: e.Name,
-					Pair:     pair,
-					Asset:    a,
-					Interval: kline.OneDay,
-					Candles: map[asset.Item][]kline.Candle{
-						asset.Spot:              {{Time: time.Unix(1756684800, 0), Open: 108268, High: 109907, Low: 107270, Close: 109244, Volume: 1584.06180608}},
-						asset.PerpetualContract: {{Time: time.Unix(1756684800, 0), Open: 108095, High: 109852, Low: 107378, Close: 109226, Volume: 9.93507}},
-					}[a],
+		// Serial and in order, as the candles are fetched through the same exchange
+		t.Run(a.String(), func(t *testing.T) {
+			for name, get := range map[string]func() (*kline.Item, error){
+				"GetHistoricCandles": func() (*kline.Item, error) {
+					return e.GetHistoricCandles(ctx, pair, a, kline.OneDay, start, end)
+				},
+				"GetHistoricCandlesExtended": func() (*kline.Item, error) {
+					return e.GetHistoricCandlesExtended(ctx, pair, a, kline.OneDay, start, end)
+				},
+			} {
+				// Serial and in order, as the candles are fetched through the same exchange
+				t.Run(name, func(t *testing.T) {
+					candles, err := get()
+					require.NoErrorf(t, err, "%s must not error for %s", name, pair)
+					if mockTests {
+						require.Lenf(t, candles.Candles, 29, "%s must return a candle per day for %s", name, pair)
+						exp := kline.Item{
+							Exchange: e.Name,
+							Pair:     pair,
+							Asset:    a,
+							Interval: kline.OneDay,
+							Candles: map[asset.Item][]kline.Candle{
+								asset.Spot:              {{Time: time.Unix(1756684800, 0), Open: 108268, High: 109907, Low: 107270, Close: 109244, Volume: 1584.06180608}},
+								asset.PerpetualContract: {{Time: time.Unix(1756684800, 0), Open: 108095, High: 109852, Low: 107378, Close: 109226, Volume: 9.93507}},
+							}[a],
+						}
+						first := *candles
+						first.Candles = first.Candles[:1]
+						assert.Equalf(t, exp, first, "%s should return the first candle of the range for %s", name, pair)
+					}
+					assert.Truef(t, candles.Pair.Equal(pair), "%s Pair should be correct for %s", name, pair)
+					require.NotEmptyf(t, candles.Candles, "%s must return candles for %s", name, pair)
+					for _, c := range candles.Candles {
+						assert.Falsef(t, c.Time.Before(start) || c.Time.After(end), "%s candles should be within the requested range for %s", name, pair)
+						assert.Positivef(t, c.Close, "%s Close should be positive for %s", name, pair)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2025, 9, 1, 0, 0, 0, 0, time.UTC)
+	ohlcRequest := func(from time.Time, limit string, step time.Duration) url.Values {
+		return url.Values{"limit": {limit}, "start": {strconv.FormatInt(from.Unix(), 10)}, "step": {strconv.FormatInt(int64(step/time.Second), 10)}}
+	}
+	for _, tc := range []struct {
+		name     string
+		pair     currency.Pair
+		a        asset.Item
+		interval kline.Interval
+		path     string
+		end      time.Time
+		refuse   int
+		requests []url.Values
+		err      error
+	}{
+		{name: "empty pair", pair: currency.EMPTYPAIR, a: asset.Spot, interval: kline.OneHour, end: start.Add(24 * time.Hour), err: currency.ErrCurrencyPairEmpty},
+		{name: "one request", pair: spotPair, a: asset.Spot, interval: kline.OneHour, path: "/api/v2/ohlc/btcusd/", end: start.Add(24 * time.Hour), requests: []url.Values{ohlcRequest(start, "24", time.Hour)}},
+		{
+			name:     "requests of at most the result limit",
+			pair:     spotPair,
+			a:        asset.Spot,
+			interval: kline.OneHour,
+			path:     "/api/v2/ohlc/btcusd/",
+			end:      start.Add(1500 * time.Hour),
+			requests: []url.Values{ohlcRequest(start, "1000", time.Hour), ohlcRequest(start.Add(1000*time.Hour), "500", time.Hour)},
+		},
+		{
+			name:     "refused request",
+			pair:     spotPair,
+			a:        asset.Spot,
+			interval: kline.OneHour,
+			path:     "/api/v2/ohlc/btcusd/",
+			end:      start.Add(1500 * time.Hour),
+			refuse:   2,
+			requests: []url.Values{ohlcRequest(start, "1000", time.Hour), ohlcRequest(start.Add(1000*time.Hour), "500", time.Hour)},
+			err:      errAPIResponse,
+		},
+		{
+			name:     "perpetual contract every 15 minutes",
+			pair:     perpetualPair,
+			a:        asset.PerpetualContract,
+			interval: kline.FifteenMin,
+			path:     "/api/v2/ohlc/btcusd-perp/",
+			end:      start.Add(12 * time.Hour),
+			requests: []url.Values{ohlcRequest(start, "48", 15*time.Minute)},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var requests []url.Values
+			ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, tc.path, r.URL.Path, "path should be the market's candles")
+				q := r.URL.Query()
+				mu.Lock()
+				requests = append(requests, q)
+				n := len(requests)
+				mu.Unlock()
+				if n == tc.refuse {
+					http.Error(w, `{"message": "Invalid request"}`, http.StatusBadRequest)
+					return
 				}
-				first := *candles
-				first.Candles = first.Candles[:1]
-				assert.Equalf(t, exp, first, "%s should return the first candle of the range for %s", name, pair)
+				from, err := strconv.ParseInt(q.Get("start"), 10, 64)
+				assert.NoError(t, err, "start should be a number")
+				limit, err := strconv.ParseInt(q.Get("limit"), 10, 64)
+				assert.NoError(t, err, "limit should be a number")
+				step, err := strconv.ParseInt(q.Get("step"), 10, 64)
+				assert.NoError(t, err, "step should be a number")
+				ohlc := make([]string, limit)
+				for i := range ohlc {
+					ohlc[i] = fmt.Sprintf(`{"timestamp":"%d","open":"%d","high":"%d","low":"%d","close":"%d","volume":"1.5"}`, from+int64(i)*step, 100+i, 102+i, 99+i, 101+i)
+				}
+				_, err = fmt.Fprintf(w, `{"data":{"pair":"BTC/USD","ohlc":[%s]}}`, strings.Join(ohlc, ","))
+				assert.NoError(t, err, "Write should not error")
+			})
+			candles, err := ex.GetHistoricCandlesExtended(t.Context(), tc.pair, tc.a, tc.interval, start, tc.end)
+			mu.Lock()
+			assert.Equal(t, tc.requests, requests, "GetHistoricCandlesExtended should request each part of the range from its start, with at most the result limit of candles")
+			mu.Unlock()
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "GetHistoricCandlesExtended should return the correct error")
+				assert.Nil(t, candles, "GetHistoricCandlesExtended should not return candles with an error")
+				return
 			}
-			assert.Truef(t, candles.Pair.Equal(pair), "%s Pair should be correct for %s", name, pair)
-			require.NotEmptyf(t, candles.Candles, "%s must return candles for %s", name, pair)
-			for _, c := range candles.Candles {
-				assert.Falsef(t, c.Time.Before(start) || c.Time.After(end), "%s candles should be within the requested range for %s", name, pair)
-				assert.Positivef(t, c.Close, "%s Close should be positive for %s", name, pair)
+			require.NoError(t, err, "GetHistoricCandlesExtended must not error")
+			assert.Equal(t, ex.Name, candles.Exchange, "Exchange should be correct")
+			assert.True(t, candles.Pair.Equal(tc.pair), "Pair should be correct")
+			assert.Equal(t, tc.a, candles.Asset, "Asset should be correct")
+			assert.Equal(t, tc.interval, candles.Interval, "Interval should be correct")
+			step := tc.interval.Duration()
+			require.Len(t, candles.Candles, int(tc.end.Sub(start)/step), "GetHistoricCandlesExtended must return a candle per interval of the range")
+			for i := range candles.Candles {
+				exp := kline.Candle{Time: time.Unix(start.Unix()+int64(i)*int64(step/time.Second), 0), Open: float64(100 + i%1000), High: float64(102 + i%1000), Low: float64(99 + i%1000), Close: float64(101 + i%1000), Volume: 1.5}
+				if !assert.Equalf(t, exp, candles.Candles[i], "candle %d should be the range's candle %d in order", i, i) {
+					break
+				}
 			}
-		}
+		})
 	}
 }
 
@@ -2180,6 +2844,18 @@ func TestGetServerTime(t *testing.T) {
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
+	t.Run("trading status", func(t *testing.T) {
+		t.Parallel()
+		ex := newResponseTestExchange(t, http.StatusOK, `[{"name":"BTC/USD-PERP","market_type":"PERPETUAL","trading":"Disabled"},{"name":"ETH/USD-PERP","market_type":"PERPETUAL","trading":"Enabled"}]`)
+		contracts, err := ex.GetFuturesContractDetails(t.Context(), asset.PerpetualContract)
+		require.NoError(t, err, "GetFuturesContractDetails must not error")
+		require.Len(t, contracts, 2, "GetFuturesContractDetails must return every perpetual market")
+		assert.False(t, contracts[0].IsActive, "a market whose trading is disabled should not be active")
+		assert.Equal(t, "Disabled", contracts[0].Status, "a market whose trading is disabled should have the API's status")
+		assert.True(t, contracts[1].IsActive, "a market whose trading is enabled should be active")
+		assert.Equal(t, "Enabled", contracts[1].Status, "a market whose trading is enabled should have the API's status")
+	})
+
 	_, err := e.GetFuturesContractDetails(t.Context(), asset.Spot)
 	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset, "GetFuturesContractDetails should error on a spot asset")
 	_, err = e.GetFuturesContractDetails(t.Context(), asset.Futures)
@@ -2216,80 +2892,357 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	assert.Equal(t, exp, c, "GetFuturesContractDetails should return the contract")
 }
 
-func TestGetFuturesContractDetailsTradingStatus(t *testing.T) {
-	t.Parallel()
-	ex := newResponseTestExchange(t, http.StatusOK, `[{"name":"BTC/USD-PERP","market_type":"PERPETUAL","trading":"Disabled"},{"name":"ETH/USD-PERP","market_type":"PERPETUAL","trading":"Enabled"}]`)
-	contracts, err := ex.GetFuturesContractDetails(t.Context(), asset.PerpetualContract)
-	require.NoError(t, err, "GetFuturesContractDetails must not error")
-	require.Len(t, contracts, 2, "GetFuturesContractDetails must return every perpetual market")
-	assert.False(t, contracts[0].IsActive, "a market whose trading is disabled should not be active")
-	assert.Equal(t, "Disabled", contracts[0].Status, "a market whose trading is disabled should have the API's status")
-	assert.True(t, contracts[1].IsActive, "a market whose trading is enabled should be active")
-	assert.Equal(t, "Enabled", contracts[1].Status, "a market whose trading is enabled should have the API's status")
-}
-
-func TestGetLatestFundingRates(t *testing.T) {
+func TestGetLatestFundingRates(t *testing.T) { //nolint:tparallel // The cases go through the package exchange the calls above use, so they run in order
 	t.Parallel()
 	_, err := e.GetLatestFundingRates(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "GetLatestFundingRates should error on a nil request")
 	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.Spot, Pair: spotPair})
 	assert.ErrorIs(t, err, futures.ErrNotPerpetualFuture, "GetLatestFundingRates should error on a spot asset")
 
-	for _, req := range []*fundingrate.LatestRateRequest{
-		{Asset: asset.PerpetualContract, Pair: perpetualPair, IncludePredictedRate: true},
-		{Asset: asset.PerpetualContract},
+	ctx := t.Context()
+	for _, tc := range []struct {
+		name string
+		req  *fundingrate.LatestRateRequest
+	}{
+		{name: "pair with the predicted rate", req: &fundingrate.LatestRateRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, IncludePredictedRate: true}},
+		{name: "enabled pairs", req: &fundingrate.LatestRateRequest{Asset: asset.PerpetualContract}},
 	} {
-		rates, err := e.GetLatestFundingRates(t.Context(), req)
-		require.NoError(t, err, "GetLatestFundingRates must not error")
-		require.NotEmpty(t, rates, "GetLatestFundingRates must return rates")
-		if mockTests {
-			// The latest rate is the last settled rate rather than the current rate, which is the predicted rate
-			exp := fundingrate.LatestRateResponse{
-				Exchange:       e.Name,
-				Asset:          asset.PerpetualContract,
-				Pair:           currency.NewPair(currency.NewCode("btc"), currency.NewCode("usd-perp")),
-				LatestRate:     fundingrate.Rate{Time: time.Unix(1790294400, 0), Rate: decimal.MustFromFloat(0)},
-				TimeOfNextRate: time.Unix(1790323200, 0),
+		// Serial and in order, as the rates are fetched through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			req := tc.req
+			rates, err := e.GetLatestFundingRates(ctx, req)
+			require.NoError(t, err, "GetLatestFundingRates must not error")
+			require.NotEmpty(t, rates, "GetLatestFundingRates must return rates")
+			if mockTests {
+				// The latest rate is the last settled rate rather than the current rate, which is the predicted rate
+				exp := fundingrate.LatestRateResponse{
+					Exchange:       e.Name,
+					Asset:          asset.PerpetualContract,
+					Pair:           currency.NewPair(currency.NewCode("btc"), currency.NewCode("usd-perp")),
+					LatestRate:     fundingrate.Rate{Time: time.Unix(1790294400, 0), Rate: decimal.MustFromFloat(0)},
+					TimeOfNextRate: time.Unix(1790323200, 0),
+				}
+				if req.IncludePredictedRate {
+					exp.PredictedUpcomingRate = fundingrate.Rate{Time: time.Unix(1790323200, 0), Rate: decimal.MustFromFloat(0.000002)}
+				}
+				require.Len(t, rates, 1, "GetLatestFundingRates must return the enabled pair's rate")
+				assert.NotZero(t, rates[0].TimeChecked, "TimeChecked should be set")
+				rates[0].TimeChecked = time.Time{}
+				assert.Equal(t, []fundingrate.LatestRateResponse{exp}, rates, "GetLatestFundingRates should return the latest rate")
+				return
 			}
-			if req.IncludePredictedRate {
-				exp.PredictedUpcomingRate = fundingrate.Rate{Time: time.Unix(1790323200, 0), Rate: decimal.MustFromFloat(0.000002)}
+			r := rates[0]
+			assert.True(t, r.Pair.Equal(perpetualPair), "Pair should be correct")
+			assert.Equal(t, asset.PerpetualContract, r.Asset, "Asset should be correct")
+			assert.NotZero(t, r.LatestRate.Time, "LatestRate Time should be set")
+			assert.True(t, r.TimeOfNextRate.After(r.LatestRate.Time), "TimeOfNextRate should be after the latest rate")
+			if !req.IncludePredictedRate {
+				assert.Zero(t, r.PredictedUpcomingRate, "PredictedUpcomingRate should not be set")
+				return
 			}
-			require.Len(t, rates, 1, "GetLatestFundingRates must return the enabled pair's rate")
-			assert.NotZero(t, rates[0].TimeChecked, "TimeChecked should be set")
-			rates[0].TimeChecked = time.Time{}
-			assert.Equal(t, []fundingrate.LatestRateResponse{exp}, rates, "GetLatestFundingRates should return the latest rate")
-			continue
-		}
-		r := rates[0]
-		assert.True(t, r.Pair.Equal(perpetualPair), "Pair should be correct")
-		assert.Equal(t, asset.PerpetualContract, r.Asset, "Asset should be correct")
-		assert.NotZero(t, r.LatestRate.Time, "LatestRate Time should be set")
-		assert.True(t, r.TimeOfNextRate.After(r.LatestRate.Time), "TimeOfNextRate should be after the latest rate")
-		if !req.IncludePredictedRate {
-			assert.Zero(t, r.PredictedUpcomingRate, "PredictedUpcomingRate should not be set")
-			continue
-		}
-		assert.Equal(t, r.TimeOfNextRate, r.PredictedUpcomingRate.Time, "PredictedUpcomingRate should apply at the next funding time")
+			assert.Equal(t, r.TimeOfNextRate, r.PredictedUpcomingRate.Time, "PredictedUpcomingRate should apply at the next funding time")
+		})
 	}
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
+	t.Run("range", func(t *testing.T) {
+		t.Parallel()
+		// The test venue settles a rate every 8 hours for 433 days and, as the API does, returns the latest 100 rates of a
+		// range whose bounds are both inclusive, oldest first, and refuses a range which holds no rate
+		const first, settlements = int64(1756684800), 1300
+		settled := func(i int64) time.Time { return time.Unix(first+i*28800, 0) }
+		rate := func(i int64) float64 { return float64(i) / 1e6 }
+		unix := func(t time.Time) string { return strconv.FormatInt(t.Unix(), 10) }
+		for _, tc := range []struct {
+			name       string
+			start, end time.Time
+			ignoreEnd  bool
+			predicted  bool
+			from, to   int64
+			pageEnds   []string
+		}{
+			{name: "three pages", start: settled(1000), end: settled(1200), from: 1000, to: 1200, pageEnds: []string{unix(settled(1200)), unix(settled(1101)), unix(settled(1002))}},
+			{name: "start after a settlement", start: settled(1000).Add(time.Second), end: settled(1199), from: 1001, to: 1199, pageEnds: []string{unix(settled(1199)), unix(settled(1100)), unix(settled(1001))}},
+			// A full page whose oldest rate is the first one after the start leaves a range without a rate before it
+			{name: "start before a full page", start: settled(1001).Add(-time.Hour), end: settled(1200), from: 1001, to: 1200, pageEnds: []string{unix(settled(1200)), unix(settled(1101)), unix(settled(1002))}},
+			{name: "one page from the start", start: settled(1101), end: settled(1200), from: 1101, to: 1200, pageEnds: []string{unix(settled(1200))}},
+			{name: "no end", start: settled(1250), from: 1250, to: settlements - 1, pageEnds: []string{""}},
+			{name: "no start", from: settlements - 100, to: settlements - 1, pageEnds: []string{""}},
+			{name: "no start with an end", end: settled(1200), from: 1101, to: 1200, pageEnds: []string{unix(settled(1200))}},
+			// The API takes whole seconds, so it returns the rate settled in the second the start falls in
+			{name: "fractional start", start: settled(1250).Add(500 * time.Millisecond), from: 1251, to: settlements - 1, pageEnds: []string{""}},
+			{name: "fractional start with an end", start: settled(1000).Add(500 * time.Millisecond), end: settled(1200), from: 1001, to: 1200, pageEnds: []string{unix(settled(1200)), unix(settled(1101)), unix(settled(1002))}},
+			{name: "end ignored by the venue", start: settled(1000), end: settled(1250), ignoreEnd: true, from: settlements - 100, to: 1250, pageEnds: []string{unix(settled(1250)), unix(settled(settlements - 100))}},
+			{name: "end ignored by the venue without a start", end: settled(1250).Add(-time.Second), ignoreEnd: true, from: settlements - 100, to: 1249, pageEnds: []string{unix(settled(1250).Add(-time.Second))}},
+			{name: "predicted rate", start: settled(1250), predicted: true, from: 1250, to: settlements - 1, pageEnds: []string{""}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var requests []url.Values
+				ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/api/v2/funding_rate/btcusd-perp/" {
+						_, err := fmt.Fprintf(w, `{"funding_rate":"0.0001","timestamp":"%d","market":"BTC/USD-PERP","next_funding_time":"%d"}`, settled(settlements-1).Unix()+600, settled(settlements).Unix())
+						assert.NoError(t, err, "Write should not error")
+						return
+					}
+					if !assert.Equal(t, "/api/v2/funding_rate_history/btcusd-perp/", r.URL.Path, "path should be the funding rate history") {
+						http.Error(w, "unexpected path", http.StatusNotFound)
+						return
+					}
+					q := r.URL.Query()
+					mu.Lock()
+					// A repeated range would be served again for ever, so it fails the request rather than hanging the test
+					repeated := slices.ContainsFunc(requests, func(v url.Values) bool { return v.Encode() == q.Encode() })
+					requests = append(requests, q)
+					mu.Unlock()
+					if !assert.False(t, repeated, "a range should not be requested twice") {
+						http.Error(w, "repeated range", http.StatusBadRequest)
+						return
+					}
+					limit, err := strconv.ParseInt(q.Get("limit"), 10, 64)
+					if !assert.NoError(t, err, "limit should be a number") || limit > 100 {
+						http.Error(w, "invalid limit", http.StatusBadRequest)
+						return
+					}
+					since, until := int64(math.MinInt64), int64(math.MaxInt64)
+					if v := q.Get("since_timestamp"); v != "" {
+						since, err = strconv.ParseInt(v, 10, 64)
+						assert.NoError(t, err, "since_timestamp should be a number")
+					}
+					if v := q.Get("until_timestamp"); v != "" && !tc.ignoreEnd {
+						until, err = strconv.ParseInt(v, 10, 64)
+						assert.NoError(t, err, "until_timestamp should be a number")
+					}
+					var page []string
+					for i := int64(settlements - 1); i >= 0 && int64(len(page)) < limit; i-- {
+						if ts := settled(i).Unix(); ts >= since && ts <= until {
+							page = append(page, fmt.Sprintf(`{"funding_rate":%q,"timestamp":"%d"}`, strconv.FormatFloat(rate(i), 'f', -1, 64), ts))
+						}
+					}
+					if len(page) == 0 {
+						http.Error(w, `{"message": "Cannot fetch funding rate history for market BTC/USD-PERP"}`, http.StatusBadRequest)
+						return
+					}
+					slices.Reverse(page)
+					_, err = fmt.Fprintf(w, `{"market":"BTC/USD-PERP","funding_rate_history":[%s]}`, strings.Join(page, ","))
+					assert.NoError(t, err, "Write should not error")
+				})
+				resp, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+					Asset:                asset.PerpetualContract,
+					Pair:                 perpetualPair,
+					StartDate:            tc.start,
+					EndDate:              tc.end,
+					IncludePredictedRate: tc.predicted,
+				})
+				require.NoError(t, err, "GetHistoricalFundingRates must not error")
+				exp := &fundingrate.HistoricalRates{
+					Exchange:  ex.Name,
+					Asset:     asset.PerpetualContract,
+					Pair:      currency.NewPair(currency.NewCode("btc"), currency.NewCode("usd-perp")),
+					StartDate: settled(tc.from),
+					EndDate:   settled(tc.to),
+				}
+				for i := tc.from; i <= tc.to; i++ {
+					exp.FundingRates = append(exp.FundingRates, fundingrate.Rate{Time: settled(i), Rate: decimal.MustFromFloat(rate(i))})
+				}
+				exp.LatestRate = exp.FundingRates[len(exp.FundingRates)-1]
+				if tc.predicted {
+					exp.TimeOfNextRate = settled(settlements)
+					exp.PredictedUpcomingRate = fundingrate.Rate{Time: settled(settlements), Rate: decimal.MustFromFloat(0.0001)}
+				}
+				assert.Equal(t, exp, resp, "GetHistoricalFundingRates should return every rate in the range, oldest first")
+				mu.Lock()
+				defer mu.Unlock()
+				since := ""
+				if !tc.start.IsZero() {
+					since = unix(tc.start)
+				}
+				pageEnds := make([]string, len(requests))
+				for i, q := range requests {
+					pageEnds[i] = q.Get("until_timestamp")
+					assert.Equalf(t, "100", q.Get("limit"), "request %d should ask for the most rates a page holds", i)
+					assert.Equalf(t, since, q.Get("since_timestamp"), "request %d should start at the start date", i)
+				}
+				assert.Equal(t, tc.pageEnds, pageEnds, "each page should end at the oldest rate of the page before")
+			})
+		}
+	})
+
+	t.Run("none in range", func(t *testing.T) {
+		t.Parallel()
+		const refusal = `{"message": "Cannot fetch funding rate history for market BTC/USD-PERP"}`
+		fullPage := make([]string, maxFundingRateHistoryLimit)
+		for i := range fullPage {
+			fullPage[i] = fmt.Sprintf(`{"funding_rate":"0.0001","timestamp":"%d"}`, 1790294400+int64(i)*28800)
+		}
+		ethPerpetualPair := currency.NewPair(currency.ETH, currency.NewCode("USD-PERP"))
+		type reply struct {
+			status int
+			body   string
+		}
+		for _, tc := range []struct {
+			name       string
+			pair       currency.Pair
+			start, end time.Time
+			replies    []reply
+			errs       []error
+			notErr     error
+		}{
+			{
+				// The API takes whole seconds, so a start within the second of a settlement returns that rate, which is before
+				// the start
+				name:    "rate before a fractional start",
+				start:   time.Unix(1790294400, 0).Add(500 * time.Millisecond),
+				replies: []reply{{http.StatusOK, `{"market":"BTC/USD-PERP","funding_rate_history":[{"funding_rate":"0.0001","timestamp":"1790294400"}]}`}},
+				errs:    []error{fundingrate.ErrNoFundingRatesFound},
+			},
+			{
+				name:    "range refused",
+				start:   time.Unix(1790294401, 0),
+				replies: []reply{{http.StatusBadRequest, refusal}},
+				errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
+			},
+			{
+				name:    "bounded range refused",
+				start:   time.Unix(1790294401, 0),
+				end:     time.Unix(1790316000, 0),
+				replies: []reply{{http.StatusBadRequest, refusal}},
+				errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
+			},
+			{
+				// Without a start only the latest rates are requested, which the API is assumed to refuse for a market yet to
+				// settle a rate, as it does an empty range
+				name:    "latest rates refused",
+				replies: []reply{{http.StatusBadRequest, refusal}},
+				errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
+			},
+			{
+				name:    "latest rates before the end refused",
+				end:     time.Unix(1790294399, 0),
+				replies: []reply{{http.StatusBadRequest, refusal}},
+				errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
+			},
+			{
+				name:    "another market's range refused",
+				pair:    ethPerpetualPair,
+				start:   time.Unix(1790294401, 0),
+				replies: []reply{{http.StatusBadRequest, `{"message": "Cannot fetch funding rate history for market ETH/USD-PERP"}`}},
+				errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
+			},
+			{
+				name:    "refusal naming another market",
+				start:   time.Unix(1790294401, 0),
+				replies: []reply{{http.StatusBadRequest, `{"message": "Cannot fetch funding rate history for market ETH/USD-PERP"}`}},
+				errs:    []error{errAPIResponse},
+				notErr:  fundingrate.ErrNoFundingRatesFound,
+			},
+			{
+				name:    "another error naming the market",
+				start:   time.Unix(1790294401, 0),
+				replies: []reply{{http.StatusBadRequest, `{"message": "Market BTC/USD-PERP is temporarily unavailable"}`}},
+				errs:    []error{errAPIResponse},
+				notErr:  fundingrate.ErrNoFundingRatesFound,
+			},
+			{
+				name:    "other refusal",
+				start:   time.Unix(1790294401, 0),
+				replies: []reply{{http.StatusBadRequest, `{"code": "validation-error", "errors": [{"code": "validation-error", "message": "since_timestamp is after until_timestamp", "field": "_schema"}]}`}},
+				errs:    []error{errAPIResponse},
+				notErr:  fundingrate.ErrNoFundingRatesFound,
+			},
+			{
+				// A later page ends at the oldest rate of the page before, so refusing it does not mean the range holds no rate
+				name:    "later page refused",
+				start:   time.Unix(1700000000, 0),
+				replies: []reply{{http.StatusOK, `{"market":"BTC/USD-PERP","funding_rate_history":[` + strings.Join(fullPage, ",") + `]}`}, {http.StatusBadRequest, refusal}},
+				errs:    []error{errAPIResponse},
+				notErr:  fundingrate.ErrNoFundingRatesFound,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				pair := perpetualPair
+				if !tc.pair.IsEmpty() {
+					pair = tc.pair
+				}
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				var mu sync.Mutex
+				var paths []string
+				ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					mu.Lock()
+					paths = append(paths, r.URL.Path)
+					n := len(paths)
+					mu.Unlock()
+					if !assert.LessOrEqual(t, n, len(tc.replies), "GetHistoricalFundingRates should not request more pages than there are") {
+						// Cancel the call, so a pager which retries errors stops reaching the server
+						cancel()
+						http.Error(w, "unexpected request", http.StatusNotFound)
+						return
+					}
+					w.WriteHeader(tc.replies[n-1].status)
+					_, err := w.Write([]byte(tc.replies[n-1].body))
+					assert.NoError(t, err, "Write should not error")
+				})
+				var err error
+				waitForCall(t, func() {
+					_, err = ex.GetHistoricalFundingRates(ctx, &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: pair, StartDate: tc.start, EndDate: tc.end})
+				})
+				for _, exp := range tc.errs {
+					assert.ErrorIs(t, err, exp, "GetHistoricalFundingRates should return the correct error")
+				}
+				if tc.notErr != nil {
+					assert.NotErrorIs(t, err, tc.notErr, "GetHistoricalFundingRates should not report the range as holding no rate")
+				}
+				mu.Lock()
+				defer mu.Unlock()
+				assert.Len(t, paths, len(tc.replies), "GetHistoricalFundingRates should request each page once")
+				for i, p := range paths {
+					assert.Equalf(t, "/api/v2/funding_rate_history/"+formatMarketSymbol(pair)+"/", p, "request %d should be for the market's funding rate history", i)
+				}
+			})
+		}
+
+		// Only the API's own error response is its refusal, whatever another error's text holds
+		t.Run("refusal text in a transport error", func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t, func(http.ResponseWriter, *http.Request) {
+				assert.Fail(t, "the test server should not be reached")
+			})
+			transportErr := errors.New("dial tcp: Cannot fetch funding rate history for market BTC/USD-PERP")
+			require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: failingTransport{err: transportErr}}), "SetHTTPClient must not error")
+			var err error
+			waitForCall(t, func() {
+				_, err = ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, StartDate: time.Unix(1790294401, 0)})
+			})
+			assert.ErrorIs(t, err, transportErr, "GetHistoricalFundingRates should return the transport error")
+			assert.NotErrorIs(t, err, fundingrate.ErrNoFundingRatesFound, "GetHistoricalFundingRates should not report a transport error as a range without rates")
+		})
+	})
+
+	ctx := t.Context()
 	for _, tc := range []struct {
-		req *fundingrate.HistoricalRatesRequest
-		err error
+		name string
+		req  *fundingrate.HistoricalRatesRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &fundingrate.HistoricalRatesRequest{Asset: asset.Spot, Pair: spotPair}, err: futures.ErrNotPerpetualFuture},
-		{req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract}, err: currency.ErrCurrencyPairEmpty},
-		{req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, IncludePayments: true}, err: common.ErrFunctionNotSupported},
-		{req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, StartDate: time.Now(), EndDate: time.Now().Add(-time.Hour)}, err: common.ErrStartAfterEnd},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "spot asset", req: &fundingrate.HistoricalRatesRequest{Asset: asset.Spot, Pair: spotPair}, err: futures.ErrNotPerpetualFuture},
+		{name: "empty pair", req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract}, err: currency.ErrCurrencyPairEmpty},
+		{name: "funding payments", req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, IncludePayments: true}, err: common.ErrFunctionNotSupported},
+		{name: "start after the end", req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, StartDate: time.Now(), EndDate: time.Now().Add(-time.Hour)}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetHistoricalFundingRates(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "GetHistoricalFundingRates should return the correct error")
+		// Serial and in order, as the request below goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetHistoricalFundingRates(ctx, tc.req)
+			assert.ErrorIs(t, err, tc.err, "GetHistoricalFundingRates should return the correct error")
+		})
 	}
 
-	rates, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair})
+	rates, err := e.GetHistoricalFundingRates(ctx, &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair})
 	require.NoError(t, err, "GetHistoricalFundingRates must not error")
 	require.NotEmpty(t, rates.FundingRates, "GetHistoricalFundingRates must return rates")
 	if mockTests {
@@ -2318,113 +3271,117 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	}
 }
 
-func TestGetHistoricalFundingRatesRange(t *testing.T) {
+func TestFundingRatesInRange(t *testing.T) {
 	t.Parallel()
-	// The test venue settles a rate every 8 hours for 433 days and, as the API does, returns the latest 100 rates of a
-	// range whose bounds are both inclusive, oldest first, and refuses a range which holds no rate
-	const first, settlements = int64(1756684800), 1300
+	// Rate i settles 8 hours after rate i-1 at a rate of i millionths
+	const first = int64(1756684800)
 	settled := func(i int64) time.Time { return time.Unix(first+i*28800, 0) }
-	rate := func(i int64) float64 { return float64(i) / 1e6 }
-	unix := func(t time.Time) string { return strconv.FormatInt(t.Unix(), 10) }
+	unix := func(tm time.Time) string { return strconv.FormatInt(tm.Unix(), 10) }
+	page := func(settlements ...int64) string {
+		rates := make([]string, len(settlements))
+		for j, i := range settlements {
+			rates[j] = fmt.Sprintf(`{"funding_rate":%q,"timestamp":"%d"}`, strconv.FormatFloat(float64(i)/1e6, 'f', -1, 64), settled(i).Unix())
+		}
+		return `{"market":"BTC/USD-PERP","funding_rate_history":[` + strings.Join(rates, ",") + `]}`
+	}
+	span := func(oldest, newest int64) []int64 {
+		settlements := make([]int64, 0, newest-oldest+1)
+		for i := oldest; i <= newest; i++ {
+			settlements = append(settlements, i)
+		}
+		return settlements
+	}
+	type reply struct {
+		status int
+		body   string
+	}
+	const refusal = `{"message": "Cannot fetch funding rate history for market BTC/USD-PERP"}`
 	for _, tc := range []struct {
 		name       string
 		start, end time.Time
-		ignoreEnd  bool
-		predicted  bool
-		from, to   int64
+		replies    []reply
 		pageEnds   []string
+		rates      []int64
+		errs       []error
+		notErr     error
 	}{
-		{name: "three pages", start: settled(1000), end: settled(1200), from: 1000, to: 1200, pageEnds: []string{unix(settled(1200)), unix(settled(1101)), unix(settled(1002))}},
-		{name: "start after a settlement", start: settled(1000).Add(time.Second), end: settled(1199), from: 1001, to: 1199, pageEnds: []string{unix(settled(1199)), unix(settled(1100)), unix(settled(1001))}},
-		// A full page whose oldest rate is the first one after the start leaves a range without a rate before it
-		{name: "start before a full page", start: settled(1001).Add(-time.Hour), end: settled(1200), from: 1001, to: 1200, pageEnds: []string{unix(settled(1200)), unix(settled(1101)), unix(settled(1002))}},
-		{name: "one page from the start", start: settled(1101), end: settled(1200), from: 1101, to: 1200, pageEnds: []string{unix(settled(1200))}},
-		{name: "no end", start: settled(1250), from: 1250, to: settlements - 1, pageEnds: []string{""}},
-		{name: "no start", from: settlements - 100, to: settlements - 1, pageEnds: []string{""}},
-		{name: "no start with an end", end: settled(1200), from: 1101, to: 1200, pageEnds: []string{unix(settled(1200))}},
-		// The API takes whole seconds, so it returns the rate settled in the second the start falls in
-		{name: "fractional start", start: settled(1250).Add(500 * time.Millisecond), from: 1251, to: settlements - 1, pageEnds: []string{""}},
-		{name: "fractional start with an end", start: settled(1000).Add(500 * time.Millisecond), end: settled(1200), from: 1001, to: 1200, pageEnds: []string{unix(settled(1200)), unix(settled(1101)), unix(settled(1002))}},
-		{name: "end ignored by the venue", start: settled(1000), end: settled(1250), ignoreEnd: true, from: settlements - 100, to: 1250, pageEnds: []string{unix(settled(1250)), unix(settled(settlements - 100))}},
-		{name: "end ignored by the venue without a start", end: settled(1250).Add(-time.Second), ignoreEnd: true, from: settlements - 100, to: 1249, pageEnds: []string{unix(settled(1250).Add(-time.Second))}},
-		{name: "predicted rate", start: settled(1250), predicted: true, from: 1250, to: settlements - 1, pageEnds: []string{""}},
+		{name: "latest page without a start", replies: []reply{{http.StatusOK, page(span(1, 100)...)}}, pageEnds: []string{""}, rates: span(1, 100)},
+		{name: "latest page before the end without a start", end: settled(100), replies: []reply{{http.StatusOK, page(span(1, 100)...)}}, pageEnds: []string{unix(settled(100))}, rates: span(1, 100)},
+		{
+			// Each later page ends at the oldest rate of the page before, which it returns again
+			name:     "pages until one is not full",
+			start:    settled(1),
+			end:      settled(250),
+			replies:  []reply{{http.StatusOK, page(span(151, 250)...)}, {http.StatusOK, page(span(52, 151)...)}, {http.StatusOK, page(span(1, 52)...)}},
+			pageEnds: []string{unix(settled(250)), unix(settled(151)), unix(settled(52))},
+			rates:    span(1, 250),
+		},
+		{name: "full page from the start", start: settled(101), replies: []reply{{http.StatusOK, page(span(101, 200)...)}}, pageEnds: []string{""}, rates: span(101, 200)},
+		{name: "page of known rates", start: settled(1), replies: []reply{{http.StatusOK, page(span(101, 200)...)}, {http.StatusOK, page(span(101, 200)...)}}, pageEnds: []string{"", unix(settled(101))}, rates: span(101, 200)},
+		{
+			// The API's bounds are whole seconds, so it also returns the rate settled in the second of a fractional start
+			name:     "rates outside the range",
+			start:    settled(10).Add(500 * time.Millisecond),
+			end:      settled(20).Add(time.Hour),
+			replies:  []reply{{http.StatusOK, page(span(10, 22)...)}},
+			pageEnds: []string{unix(settled(20).Add(time.Hour))},
+			rates:    span(11, 20),
+		},
+		{name: "rates out of order", start: settled(1), replies: []reply{{http.StatusOK, page(3, 1, 2)}}, pageEnds: []string{""}, rates: span(1, 3)},
+		{name: "range refused", start: settled(1), replies: []reply{{http.StatusBadRequest, refusal}}, pageEnds: []string{""}, errs: []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse}},
+		{
+			name:     "later page refused",
+			start:    settled(1),
+			replies:  []reply{{http.StatusOK, page(span(101, 200)...)}, {http.StatusBadRequest, refusal}},
+			pageEnds: []string{"", unix(settled(101))},
+			errs:     []error{errAPIResponse},
+			notErr:   fundingrate.ErrNoFundingRatesFound,
+		},
+		{
+			name:     "refusal naming another market",
+			start:    settled(1),
+			replies:  []reply{{http.StatusBadRequest, `{"message": "Cannot fetch funding rate history for market ETH/USD-PERP"}`}},
+			pageEnds: []string{""},
+			errs:     []error{errAPIResponse},
+			notErr:   fundingrate.ErrNoFundingRatesFound,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var mu sync.Mutex
 			var requests []url.Values
 			ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == "/api/v2/funding_rate/btcusd-perp/" {
-					_, err := fmt.Fprintf(w, `{"funding_rate":"0.0001","timestamp":"%d","market":"BTC/USD-PERP","next_funding_time":"%d"}`, settled(settlements-1).Unix()+600, settled(settlements).Unix())
-					assert.NoError(t, err, "Write should not error")
-					return
-				}
-				if !assert.Equal(t, "/api/v2/funding_rate_history/btcusd-perp/", r.URL.Path, "path should be the funding rate history") {
-					http.Error(w, "unexpected path", http.StatusNotFound)
-					return
-				}
-				q := r.URL.Query()
+				assert.Equal(t, "/api/v2/funding_rate_history/btcusd-perp/", r.URL.Path, "path should be the market's funding rate history")
 				mu.Lock()
-				// A repeated range would be served again for ever, so it fails the request rather than hanging the test
-				repeated := slices.ContainsFunc(requests, func(v url.Values) bool { return v.Encode() == q.Encode() })
-				requests = append(requests, q)
+				requests = append(requests, r.URL.Query())
+				n := len(requests)
 				mu.Unlock()
-				if !assert.False(t, repeated, "a range should not be requested twice") {
-					http.Error(w, "repeated range", http.StatusBadRequest)
+				if !assert.LessOrEqual(t, n, len(tc.replies), "fundingRatesInRange should not request more pages than there are") {
+					http.Error(w, "unexpected request", http.StatusNotFound)
 					return
 				}
-				limit, err := strconv.ParseInt(q.Get("limit"), 10, 64)
-				if !assert.NoError(t, err, "limit should be a number") || limit > 100 {
-					http.Error(w, "invalid limit", http.StatusBadRequest)
-					return
-				}
-				since, until := int64(math.MinInt64), int64(math.MaxInt64)
-				if v := q.Get("since_timestamp"); v != "" {
-					since, err = strconv.ParseInt(v, 10, 64)
-					assert.NoError(t, err, "since_timestamp should be a number")
-				}
-				if v := q.Get("until_timestamp"); v != "" && !tc.ignoreEnd {
-					until, err = strconv.ParseInt(v, 10, 64)
-					assert.NoError(t, err, "until_timestamp should be a number")
-				}
-				var page []string
-				for i := int64(settlements - 1); i >= 0 && int64(len(page)) < limit; i-- {
-					if ts := settled(i).Unix(); ts >= since && ts <= until {
-						page = append(page, fmt.Sprintf(`{"funding_rate":%q,"timestamp":"%d"}`, strconv.FormatFloat(rate(i), 'f', -1, 64), ts))
-					}
-				}
-				if len(page) == 0 {
-					http.Error(w, `{"message": "Cannot fetch funding rate history for market BTC/USD-PERP"}`, http.StatusBadRequest)
-					return
-				}
-				slices.Reverse(page)
-				_, err = fmt.Fprintf(w, `{"market":"BTC/USD-PERP","funding_rate_history":[%s]}`, strings.Join(page, ","))
+				w.WriteHeader(tc.replies[n-1].status)
+				_, err := w.Write([]byte(tc.replies[n-1].body))
 				assert.NoError(t, err, "Write should not error")
 			})
-			resp, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
-				Asset:                asset.PerpetualContract,
-				Pair:                 perpetualPair,
-				StartDate:            tc.start,
-				EndDate:              tc.end,
-				IncludePredictedRate: tc.predicted,
-			})
-			require.NoError(t, err, "GetHistoricalFundingRates must not error")
-			exp := &fundingrate.HistoricalRates{
-				Exchange:  ex.Name,
-				Asset:     asset.PerpetualContract,
-				Pair:      currency.NewPair(currency.NewCode("btc"), currency.NewCode("usd-perp")),
-				StartDate: settled(tc.from),
-				EndDate:   settled(tc.to),
+			rates, err := ex.fundingRatesInRange(t.Context(), perpetualPair, tc.start, tc.end)
+			if len(tc.errs) == 0 {
+				require.NoError(t, err, "fundingRatesInRange must not error")
+				exp := make([]fundingrate.Rate, len(tc.rates))
+				for j, i := range tc.rates {
+					exp[j] = fundingrate.Rate{Time: settled(i), Rate: decimal.MustFromFloat(float64(i) / 1e6)}
+				}
+				assert.Equal(t, exp, rates, "fundingRatesInRange should return each rate in the range once, oldest first")
 			}
-			for i := tc.from; i <= tc.to; i++ {
-				exp.FundingRates = append(exp.FundingRates, fundingrate.Rate{Time: settled(i), Rate: decimal.MustFromFloat(rate(i))})
+			for _, exp := range tc.errs {
+				assert.ErrorIs(t, err, exp, "fundingRatesInRange should return the correct error")
 			}
-			exp.LatestRate = exp.FundingRates[len(exp.FundingRates)-1]
-			if tc.predicted {
-				exp.TimeOfNextRate = settled(settlements)
-				exp.PredictedUpcomingRate = fundingrate.Rate{Time: settled(settlements), Rate: decimal.MustFromFloat(0.0001)}
+			if tc.notErr != nil {
+				assert.NotErrorIs(t, err, tc.notErr, "fundingRatesInRange should not report the range as holding no rate")
 			}
-			assert.Equal(t, exp, resp, "GetHistoricalFundingRates should return every rate in the range, oldest first")
+			if len(tc.errs) > 0 {
+				assert.Nil(t, rates, "fundingRatesInRange should not return rates with an error")
+			}
 			mu.Lock()
 			defer mu.Unlock()
 			since := ""
@@ -2440,158 +3397,6 @@ func TestGetHistoricalFundingRatesRange(t *testing.T) {
 			assert.Equal(t, tc.pageEnds, pageEnds, "each page should end at the oldest rate of the page before")
 		})
 	}
-}
-
-func TestGetHistoricalFundingRatesNoneInRange(t *testing.T) {
-	t.Parallel()
-	const refusal = `{"message": "Cannot fetch funding rate history for market BTC/USD-PERP"}`
-	fullPage := make([]string, maxFundingRateHistoryLimit)
-	for i := range fullPage {
-		fullPage[i] = fmt.Sprintf(`{"funding_rate":"0.0001","timestamp":"%d"}`, 1790294400+int64(i)*28800)
-	}
-	ethPerpetualPair := currency.NewPair(currency.ETH, currency.NewCode("USD-PERP"))
-	type reply struct {
-		status int
-		body   string
-	}
-	for _, tc := range []struct {
-		name       string
-		pair       currency.Pair
-		start, end time.Time
-		replies    []reply
-		errs       []error
-		notErr     error
-	}{
-		{
-			// The API takes whole seconds, so a start within the second of a settlement returns that rate, which is before
-			// the start
-			name:    "rate before a fractional start",
-			start:   time.Unix(1790294400, 0).Add(500 * time.Millisecond),
-			replies: []reply{{http.StatusOK, `{"market":"BTC/USD-PERP","funding_rate_history":[{"funding_rate":"0.0001","timestamp":"1790294400"}]}`}},
-			errs:    []error{fundingrate.ErrNoFundingRatesFound},
-		},
-		{
-			name:    "range refused",
-			start:   time.Unix(1790294401, 0),
-			replies: []reply{{http.StatusBadRequest, refusal}},
-			errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
-		},
-		{
-			name:    "bounded range refused",
-			start:   time.Unix(1790294401, 0),
-			end:     time.Unix(1790316000, 0),
-			replies: []reply{{http.StatusBadRequest, refusal}},
-			errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
-		},
-		{
-			// Without a start only the latest rates are requested, which the API is assumed to refuse for a market yet to
-			// settle a rate, as it does an empty range
-			name:    "latest rates refused",
-			replies: []reply{{http.StatusBadRequest, refusal}},
-			errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
-		},
-		{
-			name:    "latest rates before the end refused",
-			end:     time.Unix(1790294399, 0),
-			replies: []reply{{http.StatusBadRequest, refusal}},
-			errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
-		},
-		{
-			name:    "another market's range refused",
-			pair:    ethPerpetualPair,
-			start:   time.Unix(1790294401, 0),
-			replies: []reply{{http.StatusBadRequest, `{"message": "Cannot fetch funding rate history for market ETH/USD-PERP"}`}},
-			errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
-		},
-		{
-			name:    "refusal naming another market",
-			start:   time.Unix(1790294401, 0),
-			replies: []reply{{http.StatusBadRequest, `{"message": "Cannot fetch funding rate history for market ETH/USD-PERP"}`}},
-			errs:    []error{errAPIResponse},
-			notErr:  fundingrate.ErrNoFundingRatesFound,
-		},
-		{
-			name:    "another error naming the market",
-			start:   time.Unix(1790294401, 0),
-			replies: []reply{{http.StatusBadRequest, `{"message": "Market BTC/USD-PERP is temporarily unavailable"}`}},
-			errs:    []error{errAPIResponse},
-			notErr:  fundingrate.ErrNoFundingRatesFound,
-		},
-		{
-			name:    "other refusal",
-			start:   time.Unix(1790294401, 0),
-			replies: []reply{{http.StatusBadRequest, `{"code": "validation-error", "errors": [{"code": "validation-error", "message": "since_timestamp is after until_timestamp", "field": "_schema"}]}`}},
-			errs:    []error{errAPIResponse},
-			notErr:  fundingrate.ErrNoFundingRatesFound,
-		},
-		{
-			// A later page ends at the oldest rate of the page before, so refusing it does not mean the range holds no rate
-			name:    "later page refused",
-			start:   time.Unix(1700000000, 0),
-			replies: []reply{{http.StatusOK, `{"market":"BTC/USD-PERP","funding_rate_history":[` + strings.Join(fullPage, ",") + `]}`}, {http.StatusBadRequest, refusal}},
-			errs:    []error{errAPIResponse},
-			notErr:  fundingrate.ErrNoFundingRatesFound,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			pair := perpetualPair
-			if !tc.pair.IsEmpty() {
-				pair = tc.pair
-			}
-			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
-			var mu sync.Mutex
-			var paths []string
-			ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				mu.Lock()
-				paths = append(paths, r.URL.Path)
-				n := len(paths)
-				mu.Unlock()
-				if !assert.LessOrEqual(t, n, len(tc.replies), "GetHistoricalFundingRates should not request more pages than there are") {
-					// Cancel the call, so a pager which retries errors stops reaching the server
-					cancel()
-					http.Error(w, "unexpected request", http.StatusNotFound)
-					return
-				}
-				w.WriteHeader(tc.replies[n-1].status)
-				_, err := w.Write([]byte(tc.replies[n-1].body))
-				assert.NoError(t, err, "Write should not error")
-			})
-			var err error
-			waitForCall(t, func() {
-				_, err = ex.GetHistoricalFundingRates(ctx, &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: pair, StartDate: tc.start, EndDate: tc.end})
-			})
-			for _, exp := range tc.errs {
-				assert.ErrorIs(t, err, exp, "GetHistoricalFundingRates should return the correct error")
-			}
-			if tc.notErr != nil {
-				assert.NotErrorIs(t, err, tc.notErr, "GetHistoricalFundingRates should not report the range as holding no rate")
-			}
-			mu.Lock()
-			defer mu.Unlock()
-			assert.Len(t, paths, len(tc.replies), "GetHistoricalFundingRates should request each page once")
-			for i, p := range paths {
-				assert.Equalf(t, "/api/v2/funding_rate_history/"+formatMarketSymbol(pair)+"/", p, "request %d should be for the market's funding rate history", i)
-			}
-		})
-	}
-
-	// Only the API's own error response is its refusal, whatever another error's text holds
-	t.Run("refusal text in a transport error", func(t *testing.T) {
-		t.Parallel()
-		ex := newTestExchange(t, func(http.ResponseWriter, *http.Request) {
-			assert.Fail(t, "the test server should not be reached")
-		})
-		transportErr := errors.New("dial tcp: Cannot fetch funding rate history for market BTC/USD-PERP")
-		require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: failingTransport{err: transportErr}}), "SetHTTPClient must not error")
-		var err error
-		waitForCall(t, func() {
-			_, err = ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, StartDate: time.Unix(1790294401, 0)})
-		})
-		assert.ErrorIs(t, err, transportErr, "GetHistoricalFundingRates should return the transport error")
-		assert.NotErrorIs(t, err, fundingrate.ErrNoFundingRatesFound, "GetHistoricalFundingRates should not report a transport error as a range without rates")
-	})
 }
 
 // waitForCall runs call, failing rather than hanging when it does not return, as a pager which retries every error
@@ -2620,12 +3425,15 @@ func (f failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
 	return nil, f.err
 }
 
-func TestIsPerpetualFutureCurrency(t *testing.T) {
+func TestIsPerpetualFutureCurrency(t *testing.T) { //nolint:tparallel // Every case goes through the package exchange, so they run in order
 	t.Parallel()
 	for a, exp := range map[asset.Item]bool{asset.Spot: false, asset.PerpetualContract: true, asset.Futures: false} {
-		is, err := e.IsPerpetualFutureCurrency(a, perpetualPair)
-		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
-		assert.Equalf(t, exp, is, "IsPerpetualFutureCurrency should be correct for %s", a)
+		// Serial and in order, as each asset goes through the same exchange
+		t.Run(a.String(), func(t *testing.T) {
+			is, err := e.IsPerpetualFutureCurrency(a, perpetualPair)
+			require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
+			assert.Equalf(t, exp, is, "IsPerpetualFutureCurrency should be correct for %s", a)
+		})
 	}
 }
 
@@ -2690,6 +3498,15 @@ func TestSetLeverage(t *testing.T) {
 
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
+	t.Run("setting not found", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := pagedTestExchange(t, "/api/v2/leverage_settings/", func(url.Values) string {
+			return `[{"margin_mode":"CROSS","market":"ETH/USD-PERP","leverage_current":"3.00","leverage_max":"10.00"}]`
+		})
+		_, err := ex.GetLeverage(t.Context(), asset.PerpetualContract, perpetualPair, margin.Multi, order.Buy)
+		assert.ErrorIs(t, err, errLeverageSettingNotFound, "GetLeverage should error when no setting matches the market and margin mode")
+	})
+
 	_, err := e.GetLeverage(t.Context(), asset.Spot, spotPair, margin.Isolated, order.Buy)
 	assert.ErrorIs(t, err, futures.ErrNotPerpetualFuture, "GetLeverage should error on a spot asset")
 	_, err = e.GetLeverage(t.Context(), asset.PerpetualContract, currency.EMPTYPAIR, margin.Isolated, order.Buy)
@@ -2698,31 +3515,40 @@ func TestGetLeverage(t *testing.T) {
 	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported, "GetLeverage should error on an unsupported margin type")
 
 	skipIfLiveWithoutCredentials(t)
+	ctx := t.Context()
 	for marginType, exp := range map[margin.Type]float64{margin.Isolated: 5, margin.Multi: 3, margin.Unset: 3} {
-		leverage, err := e.GetLeverage(t.Context(), asset.PerpetualContract, perpetualPair, marginType, order.Buy)
-		require.NoErrorf(t, err, "GetLeverage must not error for %s", marginType)
-		if mockTests {
-			assert.Equalf(t, exp, leverage, "GetLeverage should return the leverage for %s", marginType)
-		}
+		// Serial and in order, as the leverage is fetched through the same exchange
+		t.Run(cmp.Or(marginType.String(), "unset"), func(t *testing.T) {
+			leverage, err := e.GetLeverage(ctx, asset.PerpetualContract, perpetualPair, marginType, order.Buy)
+			require.NoErrorf(t, err, "GetLeverage must not error for %s", marginType)
+			if mockTests {
+				assert.Equalf(t, exp, leverage, "GetLeverage should return the leverage for %s", marginType)
+			}
+		})
 	}
 }
 
-func TestGetFuturesPositionSummary(t *testing.T) {
+func TestGetFuturesPositionSummary(t *testing.T) { //nolint:tparallel // The cases go through the package exchange the summary below uses, so they run in order
 	t.Parallel()
+	ctx := t.Context()
 	for _, tc := range []struct {
-		req *futures.PositionSummaryRequest
-		err error
+		name string
+		req  *futures.PositionSummaryRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &futures.PositionSummaryRequest{Asset: asset.Spot, Pair: spotPair}, err: futures.ErrNotPerpetualFuture},
-		{req: &futures.PositionSummaryRequest{Asset: asset.PerpetualContract}, err: currency.ErrCurrencyPairEmpty},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "spot asset", req: &futures.PositionSummaryRequest{Asset: asset.Spot, Pair: spotPair}, err: futures.ErrNotPerpetualFuture},
+		{name: "empty pair", req: &futures.PositionSummaryRequest{Asset: asset.PerpetualContract}, err: currency.ErrCurrencyPairEmpty},
 	} {
-		_, err := e.GetFuturesPositionSummary(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "GetFuturesPositionSummary should return the correct error")
+		// Serial and in order, as the request below goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetFuturesPositionSummary(ctx, tc.req)
+			assert.ErrorIs(t, err, tc.err, "GetFuturesPositionSummary should return the correct error")
+		})
 	}
 
 	skipIfLiveWithoutCredentials(t)
-	summary, err := e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.PerpetualContract, Pair: perpetualPair})
+	summary, err := e.GetFuturesPositionSummary(ctx, &futures.PositionSummaryRequest{Asset: asset.PerpetualContract, Pair: perpetualPair})
 	if !mockTests {
 		assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "GetFuturesPositionSummary should error without a position")
 		return
@@ -2767,20 +3593,65 @@ func TestSelectPosition(t *testing.T) {
 
 func TestGetFuturesPositionOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("fractional start", func(t *testing.T) {
+		t.Parallel()
+		// The request's time bounds are whole seconds, so a fractional start can also return trades earlier in its second;
+		// this start is a nanosecond after the earlier trade, so truncating the start to microseconds or coarser lets that trade in
+		start := time.Now().Add(-24 * time.Hour).Truncate(time.Second).Add(900*time.Millisecond + time.Nanosecond)
+		before := start.Add(-time.Nanosecond).UTC().Format("2006-01-02 15:04:05.000000")
+		after := start.Add(time.Hour).UTC().Format(time.DateTime)
+		ex := newTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+			_, err := w.Write([]byte(`[{"trade_id":"1","order_id":"2","datetime":"` + before + `","fee":"0.1","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"BUY","type":"TRADE","price":"84000","amount":"0.01"},` +
+				`{"trade_id":"3","order_id":"4","datetime":"` + after + `","fee":"0.1","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"BUY","type":"TRADE","price":"84000","amount":"0.01"}]`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, StartDate: start, EndDate: start.Add(12 * time.Hour)})
+		require.NoError(t, err, "GetFuturesPositionOrders must not error")
+		require.Len(t, resp, 1, "GetFuturesPositionOrders must return the pair's position")
+		orderIDs := make([]string, len(resp[0].Orders))
+		for i := range resp[0].Orders {
+			orderIDs[i] = resp[0].Orders[i].OrderID
+		}
+		assert.Equal(t, []string{"4"}, orderIDs, "GetFuturesPositionOrders should leave out an order traded before a fractional start")
+	})
+
 	start := time.Now().Add(-24 * time.Hour).Truncate(time.Second)
 	end := start.Add(12 * time.Hour)
+	ctx := t.Context()
 	for _, tc := range []struct {
-		req *futures.PositionsRequest
-		err error
+		name string
+		req  *futures.PositionsRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &futures.PositionsRequest{Asset: asset.Spot}, err: futures.ErrNotPerpetualFuture},
-		{req: &futures.PositionsRequest{Asset: asset.PerpetualContract}, err: currency.ErrCurrencyPairsEmpty},
-		{req: &futures.PositionsRequest{Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}}, err: common.ErrDateUnset},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "spot asset", req: &futures.PositionsRequest{Asset: asset.Spot}, err: futures.ErrNotPerpetualFuture},
+		{name: "no pairs", req: &futures.PositionsRequest{Asset: asset.PerpetualContract}, err: currency.ErrCurrencyPairsEmpty},
+		{name: "no dates", req: &futures.PositionsRequest{Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}}, err: common.ErrDateUnset},
 	} {
-		_, err := e.GetFuturesPositionOrders(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "GetFuturesPositionOrders should return the correct error")
+		// Serial and in order, as the requests below go through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetFuturesPositionOrders(ctx, tc.req)
+			assert.ErrorIs(t, err, tc.err, "GetFuturesPositionOrders should return the correct error")
+		})
 	}
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("The recorded trade history has no reply for a time range, so this case only runs live")
+		}
+		skipIfLiveWithoutCredentials(t)
+		ex, api := newAuthenticatedTestInstance(t)
+		resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, StartDate: start, EndDate: end})
+		require.NoError(t, err, "GetFuturesPositionOrders must not error")
+		require.Len(t, resp, 1, "GetFuturesPositionOrders must return a position for the requested pair")
+		assert.Equal(t, perpetualPair, resp[0].Pair, "GetFuturesPositionOrders should return the requested pair")
+		reads := api.requestsTo("/v2/trade_history/btcusd-perp/")
+		require.NotEmpty(t, reads, "the market's trade history must be read")
+		var trades []json.RawMessage
+		assert.NoError(t, json.Unmarshal([]byte(reads[len(reads)-1].response), &trades), "the API should answer the last read with JSON")
+		assert.NotNil(t, trades, "the API should answer the last read with a list of the market's trades")
+	})
 
 	old := time.Now().Add(-45 * 24 * time.Hour).Truncate(time.Second)
 	for _, tc := range []struct {
@@ -2836,30 +3707,9 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	}
 }
 
-func TestGetFuturesPositionOrdersFractionalStart(t *testing.T) {
+func TestOrderHistoryTimeRange(t *testing.T) { //nolint:tparallel // Each case's test exchange is named after this test, so the cases run in order
 	t.Parallel()
-	// The request's time bounds are whole seconds, so a fractional start can also return trades earlier in its second;
-	// this start is a nanosecond after the earlier trade, so truncating the start to microseconds or coarser lets that trade in
-	start := time.Now().Add(-24 * time.Hour).Truncate(time.Second).Add(900*time.Millisecond + time.Nanosecond)
-	before := start.Add(-time.Nanosecond).UTC().Format("2006-01-02 15:04:05.000000")
-	after := start.Add(time.Hour).UTC().Format(time.DateTime)
-	ex := newTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`[{"trade_id":"1","order_id":"2","datetime":"` + before + `","fee":"0.1","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"BUY","type":"TRADE","price":"84000","amount":"0.01"},` +
-			`{"trade_id":"3","order_id":"4","datetime":"` + after + `","fee":"0.1","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"BUY","type":"TRADE","price":"84000","amount":"0.01"}]`))
-		assert.NoError(t, err, "Write should not error")
-	})
-	resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, StartDate: start, EndDate: start.Add(12 * time.Hour)})
-	require.NoError(t, err, "GetFuturesPositionOrders must not error")
-	require.Len(t, resp, 1, "GetFuturesPositionOrders must return the pair's position")
-	orderIDs := make([]string, len(resp[0].Orders))
-	for i := range resp[0].Orders {
-		orderIDs[i] = resp[0].Orders[i].OrderID
-	}
-	assert.Equal(t, []string{"4"}, orderIDs, "GetFuturesPositionOrders should leave out an order traded before a fractional start")
-}
-
-func TestOrderHistoryTimeRange(t *testing.T) {
-	t.Parallel()
+	ctx := t.Context()
 	// The request's time bounds are whole seconds, so the API can also return trades from earlier in a fractional start's
 	// second; an order counts only its trades within the range, and is dated by the first of them
 	second := time.Now().Add(-24 * time.Hour).UTC().Truncate(time.Second)
@@ -2952,55 +3802,63 @@ func TestOrderHistoryTimeRange(t *testing.T) {
 					_, err := w.Write([]byte("[" + strings.Join(rows, ",") + "]"))
 					assert.NoError(t, err, "Write should not error")
 				})
-				var orders []order.Detail
-				if positions {
-					resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: a, Pairs: currency.Pairs{perpetualPair}, StartDate: tc.start, EndDate: tc.end})
-					require.NoErrorf(t, err, "%s must not error for %s", name, tc.name)
-					require.Lenf(t, resp, 1, "%s must return the pair's position for %s", name, tc.name)
-					orders = resp[0].Orders
-				} else {
-					var err error
-					orders, err = ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType, StartTime: tc.start, EndTime: tc.end})
-					require.NoErrorf(t, err, "%s must not error for %s", name, tc.name)
-				}
-				mu.Lock()
-				executed := make(map[string]time.Time, len(sent))
-				for _, tr := range sent {
-					executed[strconv.FormatUint(tr.id, 10)] = tr.at
-				}
-				mu.Unlock()
-				require.Lenf(t, orders, len(tc.exp), "%s must return each order with a trade in the range for %s", name, tc.name)
-				for i := range orders {
-					exp, ok := tc.exp[orders[i].OrderID]
-					require.Truef(t, ok, "%s must not return order %s for %s", name, orders[i].OrderID, tc.name)
-					tradeIDs := make([]string, len(orders[i].Trades))
-					for j := range orders[i].Trades {
-						tradeIDs[j] = orders[i].Trades[j].TID
+				// Serial and in order, as each case's test exchange is named after this test
+				t.Run(tc.name+", "+name, func(t *testing.T) {
+					var orders []order.Detail
+					if positions {
+						resp, err := ex.GetFuturesPositionOrders(ctx, &futures.PositionsRequest{Asset: a, Pairs: currency.Pairs{perpetualPair}, StartDate: tc.start, EndDate: tc.end})
+						require.NoErrorf(t, err, "%s must not error for %s", name, tc.name)
+						require.Lenf(t, resp, 1, "%s must return the pair's position for %s", name, tc.name)
+						orders = resp[0].Orders
+					} else {
+						var err error
+						orders, err = ex.GetOrderHistory(ctx, &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType, StartTime: tc.start, EndTime: tc.end})
+						require.NoErrorf(t, err, "%s must not error for %s", name, tc.name)
 					}
-					assert.Equalf(t, exp, tradeIDs, "%s should keep only order %s's trades in the range for %s", name, orders[i].OrderID, tc.name)
-					assert.Equalf(t, float64(len(exp))/100, orders[i].ExecutedAmount, "%s should count only order %s's trades in the range for %s", name, orders[i].OrderID, tc.name)
-					assert.Truef(t, orders[i].Date.Equal(executed[exp[0]]), "%s should date order %s by its first trade in the range for %s", name, orders[i].OrderID, tc.name)
-					assert.Truef(t, orders[i].LastUpdated.Equal(executed[exp[len(exp)-1]]), "%s should update order %s by its last trade in the range for %s", name, orders[i].OrderID, tc.name)
-				}
+					mu.Lock()
+					executed := make(map[string]time.Time, len(sent))
+					for _, tr := range sent {
+						executed[strconv.FormatUint(tr.id, 10)] = tr.at
+					}
+					mu.Unlock()
+					require.Lenf(t, orders, len(tc.exp), "%s must return each order with a trade in the range for %s", name, tc.name)
+					for i := range orders {
+						exp, ok := tc.exp[orders[i].OrderID]
+						require.Truef(t, ok, "%s must not return order %s for %s", name, orders[i].OrderID, tc.name)
+						tradeIDs := make([]string, len(orders[i].Trades))
+						for j := range orders[i].Trades {
+							tradeIDs[j] = orders[i].Trades[j].TID
+						}
+						assert.Equalf(t, exp, tradeIDs, "%s should keep only order %s's trades in the range for %s", name, orders[i].OrderID, tc.name)
+						assert.Equalf(t, float64(len(exp))/100, orders[i].ExecutedAmount, "%s should count only order %s's trades in the range for %s", name, orders[i].OrderID, tc.name)
+						assert.Truef(t, orders[i].Date.Equal(executed[exp[0]]), "%s should date order %s by its first trade in the range for %s", name, orders[i].OrderID, tc.name)
+						assert.Truef(t, orders[i].LastUpdated.Equal(executed[exp[len(exp)-1]]), "%s should update order %s by its last trade in the range for %s", name, orders[i].OrderID, tc.name)
+					}
+				})
 			}
 		}
 	}
 }
 
-func TestChangePositionMargin(t *testing.T) {
+func TestChangePositionMargin(t *testing.T) { //nolint:tparallel // Every case calls the function the request below calls, so they run in order
 	t.Parallel()
+	ctx := t.Context()
 	for _, tc := range []struct {
-		req *margin.PositionChangeRequest
-		err error
+		name string
+		req  *margin.PositionChangeRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &margin.PositionChangeRequest{Asset: asset.Spot}, err: futures.ErrNotPerpetualFuture},
-		{req: &margin.PositionChangeRequest{Asset: asset.PerpetualContract}, err: currency.ErrCurrencyPairEmpty},
-		{req: &margin.PositionChangeRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, MarginType: margin.Multi}, err: margin.ErrMarginTypeUnsupported},
-		{req: &margin.PositionChangeRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, MarginType: margin.Isolated}, err: margin.ErrNewAllocatedMarginRequired},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "spot asset", req: &margin.PositionChangeRequest{Asset: asset.Spot}, err: futures.ErrNotPerpetualFuture},
+		{name: "empty pair", req: &margin.PositionChangeRequest{Asset: asset.PerpetualContract}, err: currency.ErrCurrencyPairEmpty},
+		{name: "cross margin", req: &margin.PositionChangeRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, MarginType: margin.Multi}, err: margin.ErrMarginTypeUnsupported},
+		{name: "no allocated margin", req: &margin.PositionChangeRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, MarginType: margin.Isolated}, err: margin.ErrNewAllocatedMarginRequired},
 	} {
-		_, err := e.ChangePositionMargin(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "ChangePositionMargin should return the correct error")
+		// Serial and in order, as the requests below go through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.ChangePositionMargin(ctx, tc.req)
+			assert.ErrorIs(t, err, tc.err, "ChangePositionMargin should return the correct error")
+		})
 	}
 
 	// Only an isolated position's collateral can be set, so a market without one is refused before any change is sent,
@@ -3029,16 +3887,19 @@ func TestChangePositionMargin(t *testing.T) {
 			_, err := w.Write([]byte(body))
 			assert.NoError(t, err, "Write should not error")
 		})
-		_, err := ex.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, MarginType: margin.Isolated, NewAllocatedMargin: 12.5})
-		assert.ErrorIsf(t, err, futures.ErrNoPositionsFound, "ChangePositionMargin should error with %s for the market", tc.name)
-		mu.Lock()
-		assert.Truef(t, slices.ContainsFunc(paths, func(p string) bool { return strings.HasPrefix(p, "/api/v2/open_positions/") }), "ChangePositionMargin should read the open positions with %s", tc.name)
-		assert.NotContainsf(t, paths, "/api/v2/adjust_position_collateral/", "ChangePositionMargin should not change any collateral with %s", tc.name)
-		mu.Unlock()
+		// Serial and in order, as the change below goes to the same function
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ex.ChangePositionMargin(ctx, &margin.PositionChangeRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, MarginType: margin.Isolated, NewAllocatedMargin: 12.5})
+			assert.ErrorIsf(t, err, futures.ErrNoPositionsFound, "ChangePositionMargin should error with %s for the market", tc.name)
+			mu.Lock()
+			assert.Truef(t, slices.ContainsFunc(paths, func(p string) bool { return strings.HasPrefix(p, "/api/v2/open_positions/") }), "ChangePositionMargin should read the open positions with %s", tc.name)
+			assert.NotContainsf(t, paths, "/api/v2/adjust_position_collateral/", "ChangePositionMargin should not change any collateral with %s", tc.name)
+			mu.Unlock()
+		})
 	}
 
 	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
-	resp, err := e.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, MarginType: margin.Isolated, NewAllocatedMargin: 12.5})
+	resp, err := e.ChangePositionMargin(ctx, &margin.PositionChangeRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, MarginType: margin.Isolated, NewAllocatedMargin: 12.5})
 	if !mockTests {
 		assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "ChangePositionMargin should error without a position")
 		return
@@ -3051,59 +3912,125 @@ func TestChangePositionMargin(t *testing.T) {
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	for _, a := range e.GetAssetTypes(false) {
-		pairs, err := e.CurrencyPairs.GetPairs(a, true)
-		require.NoErrorf(t, err, "GetPairs must not error for %s", a)
-		require.NotEmptyf(t, pairs, "enabled pairs must not be empty for %s", a)
-		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
-		require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s", a)
-		assert.Equalf(t, tradeBaseURL+formatMarketSymbol(pairs[0])+"/", resp, "GetCurrencyTradeURL should return the market's URL for %s", a)
+		// Serial and in order, as the unsupported asset below goes to the same function
+		t.Run(a.String(), func(t *testing.T) {
+			pairs, err := e.CurrencyPairs.GetPairs(a, true)
+			require.NoErrorf(t, err, "GetPairs must not error for %s", a)
+			require.NotEmptyf(t, pairs, "enabled pairs must not be empty for %s", a)
+			resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
+			require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s", a)
+			assert.Equalf(t, tradeBaseURL+formatMarketSymbol(pairs[0])+"/", resp, "GetCurrencyTradeURL should return the market's URL for %s", a)
+		})
 	}
-	_, err := e.GetCurrencyTradeURL(t.Context(), asset.Futures, spotPair)
-	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetCurrencyTradeURL should error on an unsupported asset")
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetCurrencyTradeURL(t.Context(), asset.Futures, spotPair)
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "GetCurrencyTradeURL should error on an unsupported asset")
+	})
 }
 
 func TestMarketTypeForAsset(t *testing.T) {
 	t.Parallel()
 	for a, exp := range map[asset.Item]string{asset.Spot: MarketTypeSpot, asset.PerpetualContract: MarketTypePerpetual} {
-		marketType, err := marketTypeForAsset(a)
-		require.NoErrorf(t, err, "marketTypeForAsset must not error for %s", a)
-		assert.Equalf(t, exp, marketType, "marketTypeForAsset should be correct for %s", a)
+		// Serial and in order, as the unsupported asset below goes to the same function
+		t.Run(a.String(), func(t *testing.T) {
+			marketType, err := marketTypeForAsset(a)
+			require.NoErrorf(t, err, "marketTypeForAsset must not error for %s", a)
+			assert.Equalf(t, exp, marketType, "marketTypeForAsset should be correct for %s", a)
+		})
 	}
-	_, err := marketTypeForAsset(asset.Futures)
-	assert.ErrorIs(t, err, asset.ErrNotSupported, "marketTypeForAsset should error on an unsupported asset")
+	// A parallel subtest starts once its parent returns, so this follows the cases above
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		_, err := marketTypeForAsset(asset.Futures)
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "marketTypeForAsset should error on an unsupported asset")
+	})
+}
+
+func TestSettlementCurrency(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		pair currency.Pair
+		a    asset.Item
+		exp  string
+	}{
+		{name: "spot", pair: currency.NewPairWithDelimiter("BTC", "USD", "/"), a: asset.Spot, exp: "USD"},
+		{name: "lower case spot", pair: currency.NewPairWithDelimiter("btc", "eur", "/"), a: asset.Spot, exp: "EUR"},
+		{name: "perpetual contract", pair: currency.NewPairWithDelimiter("BTC", "USD-PERP", "/"), a: asset.PerpetualContract, exp: "USD"},
+		{name: "lower case perpetual contract", pair: currency.NewPairWithDelimiter("eth", "usd-perp", "/"), a: asset.PerpetualContract, exp: "USD"},
+		{name: "spot quote with the perpetual suffix", pair: currency.NewPairWithDelimiter("BTC", "USD-PERP", "/"), a: asset.Spot, exp: "USD-PERP"},
+		{name: "perpetual quote ending in letters of the suffix", pair: currency.NewPairWithDelimiter("BTC", "EUR-PERP", "/"), a: asset.PerpetualContract, exp: "EUR"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, settlementCurrency(tc.pair, tc.a).String(), "settlementCurrency should return the upper case currency fees and costs are paid in")
+		})
+	}
 }
 
 func TestMarketPairAsset(t *testing.T) {
 	t.Parallel()
 	for market, exp := range map[string]asset.Item{"BTC/USD": asset.Spot, "BTC/USD-PERP": asset.PerpetualContract} {
-		pair, a, err := marketPairAsset(market)
-		require.NoErrorf(t, err, "marketPairAsset must not error for %s", market)
-		assert.Equalf(t, exp, a, "marketPairAsset should return the asset for %s", market)
-		assert.Equalf(t, market, pair.String(), "marketPairAsset should return the pair for %s", market)
+		// Serial and in order, as the malformed market below goes to the same function
+		t.Run(market, func(t *testing.T) {
+			pair, a, err := marketPairAsset(market)
+			require.NoErrorf(t, err, "marketPairAsset must not error for %s", market)
+			assert.Equalf(t, exp, a, "marketPairAsset should return the asset for %s", market)
+			assert.Equalf(t, market, pair.String(), "marketPairAsset should return the pair for %s", market)
+		})
 	}
-	_, _, err := marketPairAsset("BTCUSD")
-	assert.Error(t, err, "marketPairAsset should error on a malformed market")
+	// A parallel subtest starts once its parent returns, so this follows the cases above
+	t.Run("malformed market", func(t *testing.T) {
+		t.Parallel()
+		_, _, err := marketPairAsset("BTCUSD")
+		assert.Error(t, err, "marketPairAsset should error on a malformed market")
+	})
 }
 
-func TestMarginModes(t *testing.T) {
+func TestFormatMarginMode(t *testing.T) {
 	t.Parallel()
 	for marginType, exp := range map[margin.Type]string{margin.Unset: MarginModeCross, margin.Multi: MarginModeCross, margin.Isolated: MarginModeIsolated} {
-		mode, err := formatMarginMode(marginType)
-		require.NoErrorf(t, err, "formatMarginMode must not error for %s", marginType)
-		assert.Equalf(t, exp, mode, "formatMarginMode should be correct for %s", marginType)
+		// Serial and in order, as the unsupported margin type below goes to the same function
+		t.Run(cmp.Or(marginType.String(), "unset"), func(t *testing.T) {
+			mode, err := formatMarginMode(marginType)
+			require.NoErrorf(t, err, "formatMarginMode must not error for %s", marginType)
+			assert.Equalf(t, exp, mode, "formatMarginMode should be correct for %s", marginType)
+		})
 	}
-	_, err := formatMarginMode(margin.NoMargin)
-	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported, "formatMarginMode should error on an unsupported margin type")
+	// A parallel subtest starts once its parent returns, so this follows the cases above
+	t.Run("unsupported margin type", func(t *testing.T) {
+		t.Parallel()
+		_, err := formatMarginMode(margin.NoMargin)
+		assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported, "formatMarginMode should error on an unsupported margin type")
+	})
+}
 
-	for mode, exp := range map[string]margin.Type{MarginModeCross: margin.Multi, MarginModeIsolated: margin.Isolated, "": margin.Unset} {
-		assert.Equalf(t, exp, marginTypeFromMode(mode), "marginTypeFromMode should be correct for %q", mode)
+func TestMarginTypeFromMode(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		mode string
+		exp  margin.Type
+	}{
+		{name: "cross", mode: MarginModeCross, exp: margin.Multi},
+		{name: "isolated", mode: MarginModeIsolated, exp: margin.Isolated},
+		{name: "no margin mode", mode: "", exp: margin.Unset},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, marginTypeFromMode(tc.mode), "marginTypeFromMode should be correct for %q", tc.mode)
+		})
 	}
 }
 
 func TestFormatTrigger(t *testing.T) {
 	t.Parallel()
 	for priceType, exp := range map[order.PriceType]string{order.LastPrice: TriggerLastTradedPrice, order.IndexPrice: TriggerIndexPrice, order.MarkPrice: TriggerMarkPrice} {
-		assert.Equalf(t, exp, formatTrigger(priceType), "formatTrigger should be correct for %s", priceType)
+		t.Run(priceType.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, formatTrigger(priceType), "formatTrigger should be correct for %s", priceType)
+		})
 	}
 }
 
@@ -3127,7 +4054,10 @@ func TestOrderTypeFromSubtype(t *testing.T) {
 		OrderSubtypeTrailingTakeProfitLimit: order.TrailingStopLimit,
 		"UNKNOWN":                           order.UnknownType,
 	} {
-		assert.Equalf(t, exp, orderTypeFromSubtype(subtype), "orderTypeFromSubtype should be correct for %q", subtype)
+		t.Run(cmp.Or(subtype, "no subtype"), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, orderTypeFromSubtype(subtype), "orderTypeFromSubtype should be correct for %q", subtype)
+		})
 	}
 }
 
@@ -3258,37 +4188,6 @@ func TestAllUserTransactions(t *testing.T) {
 	}
 }
 
-func TestGetWithdrawalsHistoryPaging(t *testing.T) {
-	t.Parallel()
-	ex, requests := pagedTestExchange(t, "/api/v2/withdrawal-requests/", func(params url.Values) string {
-		offset := pageOffset(t, params)
-		return idList(`{"id":%d,"currency":"BTC","status":2,"type":1}`, offset+1, min(offset+maxResultLimit, 1500))
-	})
-	history, err := ex.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
-	require.NoError(t, err, "GetWithdrawalsHistory must not error")
-	require.Len(t, history, 1500, "GetWithdrawalsHistory must return every withdrawal")
-	assert.Equal(t, "1500", history[1499].TransferID, "GetWithdrawalsHistory should return the withdrawals in order")
-	assert.Equal(t, []url.Values{
-		{"limit": {"1000"}, "offset": {"0"}, "timedelta": {"50000000"}},
-		{"limit": {"1000"}, "offset": {"1000"}, "timedelta": {"50000000"}},
-	}, requests(), "GetWithdrawalsHistory should request each page by offset over the longest time delta")
-
-	ex, requests = pagedTestExchange(t, "/api/v2/withdrawal-requests/", func(url.Values) string {
-		return idList(`{"id":%d,"currency":"BTC"}`, 1, maxResultLimit)
-	})
-	history, err = ex.GetWithdrawalsHistory(t.Context(), currency.EMPTYCODE, asset.Spot)
-	require.NoError(t, err, "GetWithdrawalsHistory must not error when the offset is not applied")
-	assert.Len(t, history, maxResultLimit, "GetWithdrawalsHistory should not repeat withdrawals")
-	assert.Len(t, requests(), 2, "GetWithdrawalsHistory should stop at a page without new withdrawals")
-
-	ex, _ = pagedTestExchange(t, "/api/v2/withdrawal-requests/", func(params url.Values) string {
-		offset := pageOffset(t, params)
-		return idList(`{"id":%d,"currency":"BTC"}`, offset+1, offset+maxResultLimit)
-	})
-	_, err = ex.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
-	assert.ErrorIs(t, err, errInvalidOffset, "GetWithdrawalsHistory should error when the withdrawals exceed the maximum offset")
-}
-
 func TestAllCryptoTransactions(t *testing.T) {
 	t.Parallel()
 	ex, requests := pagedTestExchange(t, "/api/v2/crypto-transactions/", func(params url.Values) string {
@@ -3310,6 +4209,32 @@ func TestAllCryptoTransactions(t *testing.T) {
 	})
 	_, err = ex.allCryptoTransactions(t.Context())
 	assert.ErrorIs(t, err, errInvalidOffset, "allCryptoTransactions should error when the transactions exceed the maximum offset")
+
+	t.Run("last page of one deposit at the maximum offset", func(t *testing.T) {
+		t.Parallel()
+		ex, requests := pagedTestExchange(t, "/api/v2/crypto-transactions/", func(params url.Values) string {
+			offset := pageOffset(t, params)
+			last := offset + maxResultLimit
+			if offset >= maxResultOffset {
+				last = offset + 1
+			}
+			return `{"deposits":` + idList(`{"id":%d}`, offset+1, last) + `,"withdrawals":[],"ripple_iou_transactions":[]}`
+		})
+		all, err := ex.allCryptoTransactions(t.Context())
+		require.NoError(t, err, "allCryptoTransactions must read the page at the maximum offset")
+		require.Len(t, all.Deposits, maxResultOffset+1, "allCryptoTransactions must return the page at the maximum offset")
+		for i := range all.Deposits {
+			if id := uint64(i + 1); all.Deposits[i].ID != id {
+				assert.Failf(t, "allCryptoTransactions should return every deposit in order", "deposit %d is %d", id, all.Deposits[i].ID)
+				break
+			}
+		}
+		assert.Empty(t, all.Withdrawals, "allCryptoTransactions should return no withdrawals")
+		assert.Empty(t, all.RippleIOUTransactions, "allCryptoTransactions should return no Ripple IOU transactions")
+		received := requests()
+		require.Len(t, received, maxResultOffset/maxResultLimit+1, "allCryptoTransactions must request each page once")
+		assert.Equal(t, strconv.Itoa(maxResultOffset), received[len(received)-1].Get("offset"), "allCryptoTransactions should request the last page at the maximum offset")
+	})
 }
 
 func TestAllDerivativesTrades(t *testing.T) {
@@ -3340,145 +4265,4 @@ func TestAllDerivativesTrades(t *testing.T) {
 	require.NoError(t, err, "allDerivativesTrades must not error when the trade ID is not applied")
 	assert.Len(t, trades, maxResultLimit, "allDerivativesTrades should not repeat trades")
 	assert.Len(t, requests(), 2, "allDerivativesTrades should stop at a page without new trades")
-}
-
-func TestDerivativesOrderHistorySelfTrades(t *testing.T) {
-	t.Parallel()
-	ex, _ := pagedTestExchange(t, "/api/v2/trade_history/btcusd-perp/", func(url.Values) string {
-		return `[
-			{"trade_id":"1","order_id":"10","self_trade_order_id":"11","datetime":"2025-06-16 10:00:00","fee":"0.5","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"SELF","type":"TRADE","price":"80000","amount":"0.01"},
-			{"trade_id":"2","order_id":"11","datetime":"2025-06-16 10:01:00","fee":"0.4","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"SELL","type":"TRADE","price":"81000","amount":"0.02"}
-		]`
-	})
-	orders, err := ex.derivativesOrderHistory(t.Context(), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
-	require.NoError(t, err, "derivativesOrderHistory must not error")
-	perpetual := currency.NewPairWithDelimiter("BTC", "USD-PERP", "/")
-	selfTrade := order.TradeHistory{TID: "1", Price: 80000, Amount: 0.01, Fee: 0.5, Exchange: ex.Name, Timestamp: time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC), FeeAsset: "USD"}
-	complementary := selfTrade
-	complementary.Fee = 0
-	// The self trade is added to both orders, with its fee only counted once; an order only seen through a self trade
-	// has an unknown side, and the other order's side is revealed by its own trade
-	assert.Equal(t, []order.Detail{
-		{
-			Exchange:             ex.Name,
-			OrderID:              "10",
-			Side:                 order.UnknownSide,
-			AssetType:            asset.PerpetualContract,
-			Pair:                 perpetual,
-			MarginType:           margin.Multi,
-			Leverage:             2,
-			Date:                 time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
-			LastUpdated:          time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
-			Price:                80000,
-			Amount:               0.01,
-			ExecutedAmount:       0.01,
-			AverageExecutedPrice: 80000,
-			Cost:                 800,
-			CostAsset:            currency.USD,
-			Fee:                  0.5,
-			FeeAsset:             currency.USD,
-			Trades:               []order.TradeHistory{selfTrade},
-		},
-		{
-			Exchange:             ex.Name,
-			OrderID:              "11",
-			Side:                 order.Sell,
-			AssetType:            asset.PerpetualContract,
-			Pair:                 perpetual,
-			MarginType:           margin.Multi,
-			Leverage:             2,
-			Date:                 time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
-			LastUpdated:          time.Date(2025, 6, 16, 10, 1, 0, 0, time.UTC),
-			Price:                2420 / 0.03,
-			Amount:               0.03,
-			ExecutedAmount:       0.03,
-			AverageExecutedPrice: 2420 / 0.03,
-			Cost:                 2420,
-			CostAsset:            currency.USD,
-			Fee:                  0.4,
-			FeeAsset:             currency.USD,
-			Trades: []order.TradeHistory{
-				complementary,
-				{TID: "2", Price: 81000, Amount: 0.02, Fee: 0.4, Exchange: ex.Name, Side: order.Sell, Timestamp: time.Date(2025, 6, 16, 10, 1, 0, 0, time.UTC), FeeAsset: "USD"},
-			},
-		},
-	}, orders, "derivativesOrderHistory should return both orders of a self trade")
-
-	ex, _ = pagedTestExchange(t, "/api/v2/trade_history/btcusd-perp/", func(url.Values) string {
-		return `[{"trade_id":"1","order_id":"10","self_trade_order_id":"wibble","datetime":"2025-06-16 10:00:00","market":"BTC/USD-PERP","side":"SELF","price":"80000","amount":"0.01"}]`
-	})
-	_, err = ex.derivativesOrderHistory(t.Context(), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
-	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "derivativesOrderHistory should error on a malformed self trade order ID")
-}
-
-func TestWithdrawCryptocurrencyFundsTags(t *testing.T) {
-	t.Parallel()
-	requests := make(chan url.Values, 1)
-	ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.NoError(t, r.ParseForm(), "ParseForm should not error")
-		select {
-		case requests <- r.PostForm:
-		default:
-			assert.Fail(t, "WithdrawCryptocurrencyFunds should send only one request")
-		}
-		_, err := w.Write([]byte(`{"id":1}`))
-		assert.NoError(t, err, "Write should not error")
-	})
-	for _, tc := range []struct {
-		c      currency.Code
-		chain  string
-		tag    string
-		isSelf bool
-		exp    url.Values
-	}{
-		{c: currency.XRP, tag: "12345", exp: url.Values{"destination_tag": {"12345"}}},
-		{c: currency.USDC, chain: "XRPL", tag: "12345", exp: url.Values{"network": {"XRPL"}, "destination_tag": {"12345"}}},
-		{c: currency.CSPR, tag: "67890", exp: url.Values{"transfer_id": {"67890"}}},
-		{c: currency.XLM, tag: "memo", exp: url.Values{"memo_id": {"memo"}}},
-		{c: currency.BTC, chain: "bitcoin", isSelf: true, exp: url.Values{"network": {"bitcoin"}, "beneficiary_thirdparty": {"False"}}},
-	} {
-		resp, err := ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
-			Exchange: ex.Name,
-			Type:     withdraw.Crypto,
-			Currency: tc.c,
-			Amount:   1,
-			Crypto:   withdraw.CryptoRequest{Address: "address", AddressTag: tc.tag, Chain: tc.chain},
-			Travel:   withdraw.TravelRule{IsSelf: tc.isSelf},
-		})
-		require.NoErrorf(t, err, "WithdrawCryptocurrencyFunds must not error for %s", tc.c)
-		assert.Equalf(t, "1", resp.ID, "ID should be correct for %s", tc.c)
-		tc.exp.Set("amount", "1")
-		tc.exp.Set("address", "address")
-		require.Lenf(t, requests, 1, "WithdrawCryptocurrencyFunds must send a request for %s", tc.c)
-		assert.Equalf(t, tc.exp, <-requests, "WithdrawCryptocurrencyFunds should send the tag in the field for the %s network", tc.c)
-	}
-
-	_, err := ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
-		Exchange: ex.Name,
-		Type:     withdraw.Crypto,
-		Currency: currency.CSPR,
-		Amount:   1,
-		Crypto:   withdraw.CryptoRequest{Address: "address", AddressTag: "memo"},
-	})
-	assert.ErrorIs(t, err, errInvalidTransferID, "WithdrawCryptocurrencyFunds should error on a Casper transfer ID which is not a number")
-	for _, chain := range []string{"", "casper"} {
-		_, err = ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
-			Exchange: ex.Name,
-			Type:     withdraw.Crypto,
-			Currency: currency.CSPR,
-			Amount:   1,
-			Crypto:   withdraw.CryptoRequest{Address: "address", AddressTag: "0", Chain: chain},
-		})
-		assert.ErrorIsf(t, err, errZeroTransferID, "WithdrawCryptocurrencyFunds should error on a Casper transfer ID of zero on the %q network", chain)
-	}
-	assert.Empty(t, requests, "WithdrawCryptocurrencyFunds should not send a withdrawal with an invalid Casper transfer ID")
-}
-
-func TestGetLeverageSettingNotFound(t *testing.T) {
-	t.Parallel()
-	ex, _ := pagedTestExchange(t, "/api/v2/leverage_settings/", func(url.Values) string {
-		return `[{"margin_mode":"CROSS","market":"ETH/USD-PERP","leverage_current":"3.00","leverage_max":"10.00"}]`
-	})
-	_, err := ex.GetLeverage(t.Context(), asset.PerpetualContract, perpetualPair, margin.Multi, order.Buy)
-	assert.ErrorIs(t, err, errLeverageSettingNotFound, "GetLeverage should error when no setting matches the market and margin mode")
 }

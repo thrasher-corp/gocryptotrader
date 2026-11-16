@@ -56,7 +56,37 @@ func TestGetMarketHours(t *testing.T) {
 	hours, err := e.GetMarketHours(t.Context())
 	require.NoError(t, err, "GetMarketHours must not error")
 	require.NotEmpty(t, hours, "GetMarketHours must return schedules")
-	exp := MarketHoursResponse{
+	if mockTests {
+		require.Len(t, hours, 2, "GetMarketHours must return every market's schedule")
+		assert.Equal(t, goldMarketHours(t), hours[0], "GetMarketHours should decode the schedule")
+	}
+	for _, h := range hours {
+		assert.NotEmpty(t, h.Market, "Market should be set")
+		assert.NotEmpty(t, h.TradingHours, "TradingHours should be set")
+		require.NotEmpty(t, h.ReferenceIndexPublishingHours.Schedule, "Schedule must not be empty")
+		assert.True(t, h.ReferenceIndexPublishingHours.Schedule[0].End.After(h.ReferenceIndexPublishingHours.Schedule[0].Start), "schedule entries should end after they start")
+	}
+}
+
+func TestGetMarketHoursForMarket(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetMarketHoursForMarket(t.Context(), currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetMarketHoursForMarket should error on an empty pair")
+	gold, err := e.GetMarketHoursForMarket(t.Context(), currency.NewPair(currency.NewCode("GOLD"), currency.NewCode("USD-PERP")))
+	require.NoError(t, err, "GetMarketHoursForMarket must not error")
+	if mockTests {
+		exp := goldMarketHours(t)
+		assert.Equal(t, &exp, gold, "GetMarketHoursForMarket should decode the schedule")
+		return
+	}
+	assert.Equal(t, "GOLD/USD-PERP", gold.Market, "Market should be correct")
+	assert.NotZero(t, gold.ReferenceIndexPublishingHours.NextOpen, "NextOpen should be set")
+}
+
+// goldMarketHours returns the mock GOLD/USD-PERP reference index publishing schedule
+func goldMarketHours(t *testing.T) MarketHoursResponse {
+	t.Helper()
+	return MarketHoursResponse{
 		Market:       "GOLD/USD-PERP",
 		TradingHours: "24/7",
 		ReferenceIndexPublishingHours: ReferenceIndexPublishingHours{
@@ -73,27 +103,6 @@ func TestGetMarketHours(t *testing.T) {
 			},
 		},
 	}
-	if mockTests {
-		require.Len(t, hours, 2, "GetMarketHours must return every market's schedule")
-		assert.Equal(t, exp, hours[0], "GetMarketHours should decode the schedule")
-	}
-	for _, h := range hours {
-		assert.NotEmpty(t, h.Market, "Market should be set")
-		assert.NotEmpty(t, h.TradingHours, "TradingHours should be set")
-		require.NotEmpty(t, h.ReferenceIndexPublishingHours.Schedule, "Schedule must not be empty")
-		assert.True(t, h.ReferenceIndexPublishingHours.Schedule[0].End.After(h.ReferenceIndexPublishingHours.Schedule[0].Start), "schedule entries should end after they start")
-	}
-
-	_, err = e.GetMarketHoursForMarket(t.Context(), currency.EMPTYPAIR)
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetMarketHoursForMarket should error on an empty pair")
-	gold, err := e.GetMarketHoursForMarket(t.Context(), currency.NewPair(currency.NewCode("GOLD"), currency.NewCode("USD-PERP")))
-	require.NoError(t, err, "GetMarketHoursForMarket must not error")
-	if mockTests {
-		assert.Equal(t, &exp, gold, "GetMarketHoursForMarket should decode the schedule")
-		return
-	}
-	assert.Equal(t, "GOLD/USD-PERP", gold.Market, "Market should be correct")
-	assert.NotZero(t, gold.ReferenceIndexPublishingHours.NextOpen, "NextOpen should be set")
 }
 
 func TestGetOpenPositions(t *testing.T) {
@@ -133,7 +142,7 @@ func TestGetPositionStatus(t *testing.T) {
 	assert.Equal(t, exp, status, "GetPositionStatus should decode the open position")
 }
 
-func TestGetPositionHistory(t *testing.T) {
+func TestGetPositionHistory(t *testing.T) { //nolint:tparallel // Cases run serially through the shared exchange
 	t.Parallel()
 	_, err := e.GetPositionHistory(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "GetPositionHistory should error on a nil request")
@@ -141,41 +150,61 @@ func TestGetPositionHistory(t *testing.T) {
 	assert.ErrorIs(t, err, errInvalidLimit, "GetPositionHistory should error on an invalid limit")
 
 	skipIfLiveWithoutCredentials(t)
-	for _, req := range []*PositionHistoryRequest{{Limit: 10, Sort: SortDescending}, {Pair: perpetualPair, SinceID: "1234567870"}} {
-		history, err := e.GetPositionHistory(t.Context(), req)
-		require.NoError(t, err, "GetPositionHistory must not error")
-		if mockTests {
-			require.Len(t, history, 1, "GetPositionHistory must return the positions")
-			exp := PositionHistoryResponse{
-				ID:                       "1234567880",
-				Market:                   "BTC/USD-PERP",
-				MarketType:               MarketTypePerpetual,
-				MarginMode:               MarginModeIsolated,
-				PNLCurrency:              currency.USD,
-				EntryPrice:               80000,
-				PNLPercentage:            5,
-				PNLRealised:              40,
-				PNLSettled:               40,
-				Leverage:                 3,
-				PNL:                      40,
-				CumulativePricePNL:       42,
-				CumulativeTradingFees:    1.6,
-				CumulativeFunding:        -0.4,
-				AmountDelta:              0.01,
-				TimeOpened:               types.Time(time.UnixMicro(1750068000000000)),
-				TimeClosed:               types.Time(time.UnixMicro(1750154400000000)),
-				Status:                   PositionStatusSettled,
-				ExitPrice:                84000,
-				SettlementPrice:          84000,
-				CumulativeSocialisedLoss: 0,
+	for _, tc := range []struct {
+		name string
+		req  *PositionHistoryRequest
+	}{
+		{name: "descending with a limit", req: &PositionHistoryRequest{Limit: 10, Sort: SortDescending}},
+		{name: "market since a position ID", req: &PositionHistoryRequest{Pair: perpetualPair, SinceID: "1234567870"}},
+	} {
+		// Serial and in order, as every case goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			history, err := e.GetPositionHistory(t.Context(), tc.req)
+			require.NoError(t, err, "GetPositionHistory must not error")
+			if mockTests {
+				require.Len(t, history, 1, "GetPositionHistory must return the positions")
+				exp := PositionHistoryResponse{
+					ID:                       "1234567880",
+					Market:                   "BTC/USD-PERP",
+					MarketType:               MarketTypePerpetual,
+					MarginMode:               MarginModeIsolated,
+					PNLCurrency:              currency.USD,
+					EntryPrice:               80000,
+					PNLPercentage:            5,
+					PNLRealised:              40,
+					PNLSettled:               40,
+					Leverage:                 3,
+					PNL:                      40,
+					CumulativePricePNL:       42,
+					CumulativeTradingFees:    1.6,
+					CumulativeFunding:        -0.4,
+					AmountDelta:              0.01,
+					TimeOpened:               types.Time(time.UnixMicro(1750068000000000)),
+					TimeClosed:               types.Time(time.UnixMicro(1750154400000000)),
+					Status:                   PositionStatusSettled,
+					ExitPrice:                84000,
+					SettlementPrice:          84000,
+					CumulativeSocialisedLoss: 0,
+				}
+				assert.Equal(t, exp, history[0], "GetPositionHistory should return the position")
 			}
-			assert.Equal(t, exp, history[0], "GetPositionHistory should return the position")
-		}
+		})
 	}
 }
 
 func TestClosePositions(t *testing.T) {
 	t.Parallel()
+	t.Run("without positions", func(t *testing.T) {
+		t.Parallel()
+		// The API answers HTTP 200 with response code 400.043 when there is no position to close
+		ex := newResponseTestExchange(t, http.StatusOK, `{"response_code":"400.043","response_explanation":"No positions present."}`)
+		closed, err := ex.ClosePosition(t.Context(), "1234567890")
+		assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "ClosePosition should report that there is no position to close")
+		assert.Nil(t, closed, "ClosePosition should not return a closed position")
+		closedAll, err := ex.ClosePositions(t.Context(), &ClosePositionsRequest{Pair: perpetualPair})
+		assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "ClosePositions should report that there are no positions to close")
+		assert.Nil(t, closedAll, "ClosePositions should not return closed positions")
+	})
 	_, err := e.ClosePositions(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "ClosePositions should error on a nil request")
 
@@ -192,6 +221,14 @@ func TestClosePositions(t *testing.T) {
 
 func TestClosePosition(t *testing.T) {
 	t.Parallel()
+	t.Run("without positions", func(t *testing.T) {
+		t.Parallel()
+		// The API answers HTTP 200 with response code 400.043 when there is no position to close
+		ex := newResponseTestExchange(t, http.StatusOK, `{"response_code":"400.043","response_explanation":"No positions present."}`)
+		closed, err := ex.ClosePosition(t.Context(), "1234567890")
+		assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "ClosePosition should report that there is no position to close")
+		assert.Nil(t, closed, "ClosePosition should not return a closed position")
+	})
 	_, err := e.ClosePosition(t.Context(), "")
 	assert.ErrorIs(t, err, errPositionIDRequired, "ClosePosition should error without a position ID")
 
@@ -205,104 +242,111 @@ func TestClosePosition(t *testing.T) {
 	assert.Equal(t, &testClosedPosition, resp, "ClosePosition should decode the closed position")
 }
 
-func TestClosePositionsWithoutPositions(t *testing.T) {
-	t.Parallel()
-	// The API answers HTTP 200 with response code 400.043 when there is no position to close
-	ex := newResponseTestExchange(t, http.StatusOK, `{"response_code":"400.043","response_explanation":"No positions present."}`)
-	closed, err := ex.ClosePosition(t.Context(), "1234567890")
-	assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "ClosePosition should report that there is no position to close")
-	assert.Nil(t, closed, "ClosePosition should not return a closed position")
-	closedAll, err := ex.ClosePositions(t.Context(), &ClosePositionsRequest{Pair: perpetualPair})
-	assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "ClosePositions should report that there are no positions to close")
-	assert.Nil(t, closedAll, "ClosePositions should not return closed positions")
-}
-
-func TestGetPositionSettlementTransactions(t *testing.T) {
+func TestGetPositionSettlementTransactions(t *testing.T) { //nolint:tparallel // Cases run serially through the shared exchange
 	t.Parallel()
 	for _, tc := range []struct {
-		req *SettlementTransactionsRequest
-		err error
+		name string
+		req  *SettlementTransactionsRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &SettlementTransactionsRequest{Limit: 1001}, err: errInvalidLimit},
-		{req: &SettlementTransactionsRequest{Since: time.Unix(2, 0), Until: time.Unix(1, 0)}, err: common.ErrStartAfterEnd},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "limit above the maximum", req: &SettlementTransactionsRequest{Limit: 1001}, err: errInvalidLimit},
+		{name: "start after end", req: &SettlementTransactionsRequest{Since: time.Unix(2, 0), Until: time.Unix(1, 0)}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetPositionSettlementTransactions(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "GetPositionSettlementTransactions should return the correct error")
+		// Serial and in order, as the requests below go through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetPositionSettlementTransactions(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.err, "GetPositionSettlementTransactions should return the correct error")
+		})
 	}
 
 	skipIfLiveWithoutCredentials(t)
-	for _, req := range []*SettlementTransactionsRequest{{Limit: 10}, {TransactionID: "123123"}} {
-		txs, err := e.GetPositionSettlementTransactions(t.Context(), req)
-		if req.TransactionID != "" && !mockTests {
-			assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetPositionSettlementTransactions should error for an unknown transaction")
-			continue
-		}
-		require.NoError(t, err, "GetPositionSettlementTransactions must not error")
-		if mockTests {
-			require.Len(t, txs, 1, "GetPositionSettlementTransactions must return the transactions")
-			exp := SettlementTransactionResponse{
-				TransactionID:            "123123",
-				PositionID:               "1234567890",
-				SettlementTime:           types.Time(time.Unix(1750089600, 0)),
-				SettlementType:           "PERIODIC",
-				SettlementPrice:          84000,
-				Market:                   "BTC/USD-PERP",
-				MarketType:               MarketTypePerpetual,
-				PNLCurrency:              currency.USD,
-				PNLSettled:               12.12,
-				PNLComponentPrice:        12.5,
-				PNLComponentFees:         -0.34,
-				PNLComponentFunding:      -0.04,
-				MarginMode:               MarginModeIsolated,
-				Size:                     0.01,
-				StrikePrice:              84000,
-				FeesComponentTrading:     0.34,
-				FeesComponentLiquidation: 0,
+	for _, tc := range []struct {
+		name string
+		req  *SettlementTransactionsRequest
+	}{
+		{name: "with a limit", req: &SettlementTransactionsRequest{Limit: 10}},
+		{name: "by transaction ID", req: &SettlementTransactionsRequest{TransactionID: "123123"}},
+	} {
+		// Serial and in order, as every case goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			txs, err := e.GetPositionSettlementTransactions(t.Context(), tc.req)
+			if tc.req.TransactionID != "" && !mockTests {
+				assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetPositionSettlementTransactions should error for an unknown transaction")
+				return
 			}
-			assert.Equal(t, exp, txs[0], "GetPositionSettlementTransactions should return the transaction")
-		}
+			require.NoError(t, err, "GetPositionSettlementTransactions must not error")
+			if mockTests {
+				require.Len(t, txs, 1, "GetPositionSettlementTransactions must return the transactions")
+				exp := SettlementTransactionResponse{
+					TransactionID:            "123123",
+					PositionID:               "1234567890",
+					SettlementTime:           types.Time(time.Unix(1750089600, 0)),
+					SettlementType:           "PERIODIC",
+					SettlementPrice:          84000,
+					Market:                   "BTC/USD-PERP",
+					MarketType:               MarketTypePerpetual,
+					PNLCurrency:              currency.USD,
+					PNLSettled:               12.12,
+					PNLComponentPrice:        12.5,
+					PNLComponentFees:         -0.34,
+					PNLComponentFunding:      -0.04,
+					MarginMode:               MarginModeIsolated,
+					Size:                     0.01,
+					StrikePrice:              84000,
+					FeesComponentTrading:     0.34,
+					FeesComponentLiquidation: 0,
+				}
+				assert.Equal(t, exp, txs[0], "GetPositionSettlementTransactions should return the transaction")
+			}
+		})
 	}
 }
 
 func TestGetDerivativesTradeHistory(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		req *DerivativesTradeHistoryRequest
-		err error
+		name string
+		req  *DerivativesTradeHistoryRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &DerivativesTradeHistoryRequest{}, err: errPairOrOrderIDRequired},
-		{req: &DerivativesTradeHistoryRequest{Pair: perpetualPair, Limit: 1001}, err: errInvalidLimit},
-		{req: &DerivativesTradeHistoryRequest{Pair: perpetualPair, Since: time.Unix(2, 0), Until: time.Unix(1, 0)}, err: common.ErrStartAfterEnd},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "without a pair or order ID", req: &DerivativesTradeHistoryRequest{}, err: errPairOrOrderIDRequired},
+		{name: "limit above the maximum", req: &DerivativesTradeHistoryRequest{Pair: perpetualPair, Limit: 1001}, err: errInvalidLimit},
+		{name: "start after end", req: &DerivativesTradeHistoryRequest{Pair: perpetualPair, Since: time.Unix(2, 0), Until: time.Unix(1, 0)}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetDerivativesTradeHistory(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "GetDerivativesTradeHistory should return the correct error")
+		// Serial and in order, as the request below goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetDerivativesTradeHistory(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.err, "GetDerivativesTradeHistory should return the correct error")
+		})
 	}
-
-	skipIfLiveWithoutCredentials(t)
-	trades, err := e.GetDerivativesTradeHistory(t.Context(), &DerivativesTradeHistoryRequest{OrderID: 1234123412341235, Limit: 10, Sort: SortAscending})
-	require.NoError(t, err, "GetDerivativesTradeHistory must not error")
-	if mockTests {
-		require.Len(t, trades, 2, "GetDerivativesTradeHistory must return the trades")
-		exp := DerivativesTradeResponse{
-			TradeID:     1234123412341300,
-			OrderID:     1234123412341235,
-			PositionID:  "1234567890",
-			DateTime:    types.DateTime(time.Date(2025, 6, 16, 10, 1, 0, 849000000, time.UTC)),
-			Fee:         0.1344,
-			FeeCurrency: currency.USD,
-			Market:      "BTC/USD-PERP",
-			MarginMode:  MarginModeIsolated,
-			Leverage:    3,
-			Side:        "SELL",
-			Type:        "TRADE",
-			Price:       84000,
-			Amount:      0.004,
-			TradeUTI:    "4851007IRIW87EC5H6978f171f98ee8973c09fecb910a08d173f",
+	t.Run("valid request", func(t *testing.T) {
+		t.Parallel()
+		skipIfLiveWithoutCredentials(t)
+		trades, err := e.GetDerivativesTradeHistory(t.Context(), &DerivativesTradeHistoryRequest{OrderID: 1234123412341235, Limit: 10, Sort: SortAscending})
+		require.NoError(t, err, "GetDerivativesTradeHistory must not error")
+		if mockTests {
+			require.Len(t, trades, 2, "GetDerivativesTradeHistory must return the trades")
+			exp := DerivativesTradeResponse{
+				TradeID:     1234123412341300,
+				OrderID:     1234123412341235,
+				PositionID:  "1234567890",
+				DateTime:    types.DateTime(time.Date(2025, 6, 16, 10, 1, 0, 849000000, time.UTC)),
+				Fee:         0.1344,
+				FeeCurrency: currency.USD,
+				Market:      "BTC/USD-PERP",
+				MarginMode:  MarginModeIsolated,
+				Leverage:    3,
+				Side:        "SELL",
+				Type:        "TRADE",
+				Price:       84000,
+				Amount:      0.004,
+				TradeUTI:    "4851007IRIW87EC5H6978f171f98ee8973c09fecb910a08d173f",
+			}
+			assert.Equal(t, exp, trades[0], "GetDerivativesTradeHistory should return the trade")
 		}
-		assert.Equal(t, exp, trades[0], "GetDerivativesTradeHistory should return the trade")
-	}
+	})
 }
 
 func TestGetMarginInfo(t *testing.T) {
@@ -331,67 +375,79 @@ func TestGetMarginInfo(t *testing.T) {
 func TestGetEstimatedOrderImpact(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		req *OrderImpactRequest
-		err error
+		name string
+		req  *OrderImpactRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &OrderImpactRequest{}, err: currency.ErrCurrencyPairEmpty},
-		{req: &OrderImpactRequest{Pair: perpetualPair}, err: errOrderTypeRequired},
-		{req: &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeMarket}, err: order.ErrAmountIsInvalid},
-		{req: &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeMarket, Amount: 1}, err: order.ErrSideIsInvalid},
-		{req: &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeMarket, Amount: 1, Side: order.Sell}, err: errMarginModeRequired},
-		{req: &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeMarket, Amount: 1, Side: order.Sell, MarginMode: MarginModeCross}, err: errLeverageRequired},
-		{req: &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeLimit, Amount: 1, Side: order.Sell, MarginMode: MarginModeCross, Leverage: 3, Price: -1}, err: errInvalidPrice},
-		{req: &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeMarket, Amount: 1, Side: order.Sell, MarginMode: MarginModeCross, Leverage: 3, AdditionalCollateral: map[currency.Code]float64{currency.USD: -1}}, err: errInvalidCollateral},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "without a pair", req: &OrderImpactRequest{}, err: currency.ErrCurrencyPairEmpty},
+		{name: "without an order type", req: &OrderImpactRequest{Pair: perpetualPair}, err: errOrderTypeRequired},
+		{name: "without an amount", req: &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeMarket}, err: order.ErrAmountIsInvalid},
+		{name: "without a side", req: &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeMarket, Amount: 1}, err: order.ErrSideIsInvalid},
+		{name: "without a margin mode", req: &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeMarket, Amount: 1, Side: order.Sell}, err: errMarginModeRequired},
+		{name: "without a leverage", req: &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeMarket, Amount: 1, Side: order.Sell, MarginMode: MarginModeCross}, err: errLeverageRequired},
+		{name: "negative price", req: &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeLimit, Amount: 1, Side: order.Sell, MarginMode: MarginModeCross, Leverage: 3, Price: -1}, err: errInvalidPrice},
+		{name: "negative collateral", req: &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeMarket, Amount: 1, Side: order.Sell, MarginMode: MarginModeCross, Leverage: 3, AdditionalCollateral: map[currency.Code]float64{currency.USD: -1}}, err: errInvalidCollateral},
 	} {
-		_, err := e.GetEstimatedOrderImpact(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "GetEstimatedOrderImpact should return the correct error")
+		// Serial and in order, as the request below goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetEstimatedOrderImpact(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.err, "GetEstimatedOrderImpact should return the correct error")
+		})
 	}
-
-	skipIfLiveWithoutCredentials(t)
-	resp, err := e.GetEstimatedOrderImpact(t.Context(), &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeMarket, Amount: 0.01, Side: order.Sell, MarginMode: MarginModeCross, Leverage: 3, ReduceOnly: true})
-	require.NoError(t, err, "GetEstimatedOrderImpact must not error")
-	if mockTests {
-		exp := &OrderImpactResponse{
-			MarginCurrency:             currency.USD,
-			AdditionalRequiredMargin:   100,
-			EstimatedLiquidationPrices: map[string]types.Number{"BTC/USD-PERP": 90000, "ETH/USD-PERP": 900},
-			EstimatedFee:               0.61,
-			IsOrderPlaceable:           OrderPlaceableYes,
-			MarginTier:                 OrderImpactMarginTier{Breakdown: []MarginTierExposure{{Tier: 1, Exposure: 1000, Leverage: 5}}},
+	t.Run("valid request", func(t *testing.T) {
+		t.Parallel()
+		skipIfLiveWithoutCredentials(t)
+		resp, err := e.GetEstimatedOrderImpact(t.Context(), &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeMarket, Amount: 0.01, Side: order.Sell, MarginMode: MarginModeCross, Leverage: 3, ReduceOnly: true})
+		require.NoError(t, err, "GetEstimatedOrderImpact must not error")
+		if mockTests {
+			exp := &OrderImpactResponse{
+				MarginCurrency:             currency.USD,
+				AdditionalRequiredMargin:   100,
+				EstimatedLiquidationPrices: map[string]types.Number{"BTC/USD-PERP": 90000, "ETH/USD-PERP": 900},
+				EstimatedFee:               0.61,
+				IsOrderPlaceable:           OrderPlaceableYes,
+				MarginTier:                 OrderImpactMarginTier{Breakdown: []MarginTierExposure{{Tier: 1, Exposure: 1000, Leverage: 5}}},
+			}
+			assert.Equal(t, exp, resp, "GetEstimatedOrderImpact should decode the impact")
 		}
-		assert.Equal(t, exp, resp, "GetEstimatedOrderImpact should decode the impact")
-	}
+	})
 }
 
 func TestGetCollateralChangeImpact(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		req *CollateralChangeImpactRequest
-		err error
+		name string
+		req  *CollateralChangeImpactRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &CollateralChangeImpactRequest{}, err: errMarginModeRequired},
-		{req: &CollateralChangeImpactRequest{MarginMode: MarginModeCross}, err: errCollateralRequired},
-		{req: &CollateralChangeImpactRequest{MarginMode: MarginModeCross, TargetCollateral: map[currency.Code]float64{currency.USD: 1}, CollateralDeltas: map[currency.Code]float64{currency.USD: 1}}, err: errCollateralRequired},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "without a margin mode", req: &CollateralChangeImpactRequest{}, err: errMarginModeRequired},
+		{name: "without collateral", req: &CollateralChangeImpactRequest{MarginMode: MarginModeCross}, err: errCollateralRequired},
+		{name: "target collateral with collateral deltas", req: &CollateralChangeImpactRequest{MarginMode: MarginModeCross, TargetCollateral: map[currency.Code]float64{currency.USD: 1}, CollateralDeltas: map[currency.Code]float64{currency.USD: 1}}, err: errCollateralRequired},
 	} {
-		_, err := e.GetCollateralChangeImpact(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "GetCollateralChangeImpact should return the correct error")
+		// Serial and in order, as the request below goes through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetCollateralChangeImpact(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.err, "GetCollateralChangeImpact should return the correct error")
+		})
 	}
-
-	skipIfLiveWithoutCredentials(t)
-	resp, err := e.GetCollateralChangeImpact(t.Context(), &CollateralChangeImpactRequest{MarginMode: MarginModeCross, CollateralDeltas: map[currency.Code]float64{currency.BTC: -0.01, currency.USD: 120}})
-	require.NoError(t, err, "GetCollateralChangeImpact must not error")
-	if mockTests {
-		exp := &CollateralChangeImpactResponse{
-			MarginCurrency:                  currency.USD,
-			EstimatedInitialMarginRatio:     50,
-			EstimatedMaintenanceMarginRatio: 25,
-			EstimatedLiquidationPrices:      map[string]types.Number{"1234567890": 9000},
-			TotalEstimatedMargin:            1200.61,
+	t.Run("valid request", func(t *testing.T) {
+		t.Parallel()
+		skipIfLiveWithoutCredentials(t)
+		resp, err := e.GetCollateralChangeImpact(t.Context(), &CollateralChangeImpactRequest{MarginMode: MarginModeCross, CollateralDeltas: map[currency.Code]float64{currency.BTC: -0.01, currency.USD: 120}})
+		require.NoError(t, err, "GetCollateralChangeImpact must not error")
+		if mockTests {
+			exp := &CollateralChangeImpactResponse{
+				MarginCurrency:                  currency.USD,
+				EstimatedInitialMarginRatio:     50,
+				EstimatedMaintenanceMarginRatio: 25,
+				EstimatedLiquidationPrices:      map[string]types.Number{"1234567890": 9000},
+				TotalEstimatedMargin:            1200.61,
+			}
+			assert.Equal(t, exp, resp, "GetCollateralChangeImpact should return the impact")
 		}
-		assert.Equal(t, exp, resp, "GetCollateralChangeImpact should return the impact")
-	}
+	})
 }
 
 func TestGetCollateralCurrencies(t *testing.T) {
@@ -443,29 +499,35 @@ func TestGetLeverageSettings(t *testing.T) {
 func TestUpdateLeverageSetting(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		req *LeverageSettingRequest
-		err error
+		name string
+		req  *LeverageSettingRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &LeverageSettingRequest{}, err: currency.ErrCurrencyPairEmpty},
-		{req: &LeverageSettingRequest{Pair: perpetualPair}, err: errMarginModeRequired},
-		{req: &LeverageSettingRequest{Pair: perpetualPair, MarginMode: MarginModeIsolated, Leverage: 0.5}, err: errInvalidLeverage},
-		{req: &LeverageSettingRequest{Pair: perpetualPair, MarginMode: MarginModeIsolated, Leverage: 26}, err: errInvalidLeverage},
+		{name: "nil request", req: nil, err: common.ErrNilPointer},
+		{name: "without a pair", req: &LeverageSettingRequest{}, err: currency.ErrCurrencyPairEmpty},
+		{name: "without a margin mode", req: &LeverageSettingRequest{Pair: perpetualPair}, err: errMarginModeRequired},
+		{name: "leverage below the minimum", req: &LeverageSettingRequest{Pair: perpetualPair, MarginMode: MarginModeIsolated, Leverage: 0.5}, err: errInvalidLeverage},
+		{name: "leverage above the maximum", req: &LeverageSettingRequest{Pair: perpetualPair, MarginMode: MarginModeIsolated, Leverage: 26}, err: errInvalidLeverage},
 	} {
-		_, err := e.UpdateLeverageSetting(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "UpdateLeverageSetting should return the correct error")
+		// Serial and in order, as the requests below go through the same exchange
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.UpdateLeverageSetting(t.Context(), tc.req)
+			assert.ErrorIs(t, err, tc.err, "UpdateLeverageSetting should return the correct error")
+		})
 	}
-
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
-	resp, err := e.UpdateLeverageSetting(t.Context(), &LeverageSettingRequest{Pair: perpetualPair, MarginMode: MarginModeIsolated, Leverage: 5})
-	require.NoError(t, err, "UpdateLeverageSetting must not error")
-	if !mockTests {
-		return
-	}
-	exp := &LeverageSettingResponse{MarginMode: MarginModeIsolated, Market: "BTC/USD-PERP", LeverageCurrent: 5, LeverageMax: 10}
-	assert.Equal(t, exp, resp, "UpdateLeverageSetting should return the setting")
-	// The leverage is optional, so the margin mode can be changed without it
-	resp, err = e.UpdateLeverageSetting(t.Context(), &LeverageSettingRequest{Pair: perpetualPair, MarginMode: MarginModeIsolated})
-	require.NoError(t, err, "UpdateLeverageSetting must not error without a leverage")
-	assert.Equal(t, exp, resp, "UpdateLeverageSetting should return the setting without a leverage")
+	t.Run("valid request", func(t *testing.T) {
+		t.Parallel()
+		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		resp, err := e.UpdateLeverageSetting(t.Context(), &LeverageSettingRequest{Pair: perpetualPair, MarginMode: MarginModeIsolated, Leverage: 5})
+		require.NoError(t, err, "UpdateLeverageSetting must not error")
+		if !mockTests {
+			return
+		}
+		exp := &LeverageSettingResponse{MarginMode: MarginModeIsolated, Market: "BTC/USD-PERP", LeverageCurrent: 5, LeverageMax: 10}
+		assert.Equal(t, exp, resp, "UpdateLeverageSetting should return the setting")
+		// The leverage is optional, so the margin mode can be changed without it
+		resp, err = e.UpdateLeverageSetting(t.Context(), &LeverageSettingRequest{Pair: perpetualPair, MarginMode: MarginModeIsolated})
+		require.NoError(t, err, "UpdateLeverageSetting must not error without a leverage")
+		assert.Equal(t, exp, resp, "UpdateLeverageSetting should return the setting without a leverage")
+	})
 }
