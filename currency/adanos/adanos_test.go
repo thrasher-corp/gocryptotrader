@@ -99,7 +99,7 @@ func TestShutdown(t *testing.T) {
 	require.NoError(t, err, "client must construct without HTTP")
 	transport, ok := c.httpClient.Transport.(*http.Transport)
 	require.True(t, ok, "native client must use an HTTP transport")
-	// Exercise idle cleanup even though production requests disable keep-alives.
+	// Exercise idle cleanup even though production requests disable keep-alive.
 	transport.DisableKeepAlives = false
 	transport.Proxy = nil
 	closed := make(chan struct{}, 1)

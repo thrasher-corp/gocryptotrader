@@ -62,7 +62,7 @@ Symbols accept an optional leading `$` and one to twenty ASCII letters or digits
 one request, including on HTTP 429. Requests have a 30-second timeout and honour
 context cancellation and earlier deadlines. Redirects are rejected to protect
 the key. The client does not manage account quotas or schedule retries.
-The client's private transport uses HTTP/1 only with keep-alives disabled. This
+The client's private transport uses HTTP/1 only with keep-alive disabled. This
 prevents transparent GET replay after a reused connection closes or an HTTP/2
 stream is refused, at the cost of HTTP/2 support and connection reuse. Each
 request opens a new connection.
