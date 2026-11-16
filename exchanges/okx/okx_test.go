@@ -3674,6 +3674,62 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("market quantity units", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name                string
+			asset               asset.Item
+			side                order.Side
+			typ                 order.Type
+			amount, quote, size float64
+			target              string
+			err                 error
+		}{
+			{name: "margin quote buy", asset: asset.Margin, side: order.Buy, typ: order.Market, quote: 180, size: 180},
+			{name: "margin quote overrides base", asset: asset.Margin, side: order.Buy, typ: order.Market, amount: 2, quote: 180, size: 180},
+			{name: "margin buy missing quote", asset: asset.Margin, side: order.Buy, typ: order.Market, amount: 2, err: order.ErrAmountMustBeSet},
+			{name: "margin market sell", asset: asset.Margin, side: order.Sell, typ: order.Market, amount: 2, quote: 180, size: 2},
+			{name: "margin limit buy", asset: asset.Margin, side: order.Buy, typ: order.Limit, amount: 2, quote: 180, size: 2},
+			{name: "spot quote buy", asset: asset.Spot, side: order.Buy, typ: order.Market, quote: 180, size: 180, target: quantityTypeQuoteCurrency},
+			{name: "spot quote sell", asset: asset.Spot, side: order.Sell, typ: order.Market, quote: 180, size: 180, target: quantityTypeQuoteCurrency},
+			{name: "spot base buy", asset: asset.Spot, side: order.Buy, typ: order.Market, amount: 2, size: 2, target: "base_ccy"},
+			{name: "perpetual market buy", asset: asset.PerpetualSwap, side: order.Long, typ: order.Market, amount: 2, quote: 180, size: 2},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				ex.SkipAuthCheck = true
+				ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
+				require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, "/api/v5/trade/order", r.URL.Path, "request should place an order")
+					var request PlaceOrderRequestParam
+					if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&request), "request should decode") {
+						return
+					}
+					assert.Equal(t, tc.size, request.Amount, "request size should use the documented currency")
+					assert.Equal(t, tc.target, request.TargetCurrency, "tgtCcy should apply only to spot market orders")
+					_, err := w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"42","sCode":"0","sMsg":""}]}`))
+					assert.NoError(t, err, "mock response should be written")
+				}))
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+				pair := mainPair
+				if tc.asset == asset.PerpetualSwap {
+					pair = perpetualSwapPair
+				}
+				got, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: pair, AssetType: tc.asset, Side: tc.side, Type: tc.typ, Amount: tc.amount, QuoteAmount: tc.quote, Price: 60})
+				if tc.err != nil {
+					require.ErrorIs(t, err, tc.err, "SubmitOrder must reject an unspecified quote budget")
+					return
+				}
+				require.NoError(t, err, "SubmitOrder must accept valid quantities")
+				require.NotNil(t, got, "SubmitOrder must return the accepted order")
+				assert.Equal(t, "42", got.OrderID, "SubmitOrder should preserve the order ID")
+			})
+		}
+	})
 	var resp []PlaceOrderRequestParam
 	err := json.Unmarshal([]byte(placeOrderArgs), &resp)
 	require.NoError(t, err)
@@ -4011,16 +4067,210 @@ func TestModifyOrder(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestRESTOrderExecutionMappings(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		instID, instType := "BTC-USDT", "SPOT"
+		if r.URL.Query().Get("instType") == "SWAP" {
+			instID, instType = "BTC-USDT-SWAP", "SWAP"
+		}
+		row := func(orderID, fee string) string {
+			limitPrice := "60000"
+			if orderID == "3" {
+				limitPrice = "61000" // Order 3 filled below its limit, so its average and limit prices differ.
+			}
+			return `{"accFillSz":"0.0015","avgPx":"60000","cTime":"1654084334977","fee":"` + fee + `","feeCcy":"USDT","fillSz":"0.0005","instId":"` + instID + `","instType":"` + instType + `","ordId":"` + orderID + `","ordType":"limit","px":"` + limitPrice + `","rebate":"0.0012","side":"buy","state":"partially_filled","sz":"0.002","uTime":"1654084353264"}`
+		}
+		data := row("1", "-0.06") + "," + row("2", "0.02")
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/public/instruments"):
+			data = `{"instType":"SWAP","instId":"BTC-USDT-SWAP","uly":"BTC-USDT","settleCcy":"USDT","ctVal":"0.01","state":"live"}`
+		case strings.HasSuffix(r.URL.Path, "/trade/order") && r.URL.Query().Get("ordId") == "3":
+			data = row("3", "-0.06")
+		case strings.HasSuffix(r.URL.Path, "/trade/order"):
+			data = row("1", "-0.06")
+		case strings.HasSuffix(r.URL.Path, "/trade/orders-pending"):
+			data += "," + row("3", "-0.06")
+		}
+		_, err := w.Write([]byte(`{"code":"0","msg":"","data":[` + data + `]}`))
+		assert.NoError(t, err, "mock response should be written")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
+
+	req := &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{mainPair}}
+	active, err := ex.GetActiveOrders(t.Context(), req)
+	require.NoError(t, err, "GetActiveOrders must not error")
+	require.Len(t, active, 3, "GetActiveOrders must return all three mocked orders")
+	assert.Equal(t, 0.06, active[0].Fee, "GetActiveOrders should report a charge as positive")
+	assert.Equal(t, -0.02, active[1].Fee, "GetActiveOrders should report a rebate as negative")
+	assert.Equal(t, 0.0015, active[0].ExecutedAmount, "GetActiveOrders should report the accumulated fill size")
+	assert.Equal(t, 0.0005, active[0].RemainingAmount, "GetActiveOrders should report the unfilled size")
+	assert.Equal(t, 60000.0, active[0].AverageExecutedPrice, "GetActiveOrders should report the average fill price")
+	assert.Equal(t, 60000.0, active[2].AverageExecutedPrice, "GetActiveOrders should report the average fill price, not the limit price")
+
+	info, err := ex.GetOrderInfo(t.Context(), "1", mainPair, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	assert.Equal(t, 0.0015, info.ExecutedAmount, "GetOrderInfo should report the accumulated fill size")
+	assert.Equal(t, 60000.0, info.AverageExecutedPrice, "GetOrderInfo should report the average fill price")
+	info, err = ex.GetOrderInfo(t.Context(), "3", mainPair, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error for an order filled below its limit")
+	assert.Equal(t, 60000.0, info.AverageExecutedPrice, "GetOrderInfo should report the average fill price, not the limit price")
+
+	history, err := ex.GetOrderHistory(t.Context(), req)
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, history, 2, "GetOrderHistory must return both mocked orders")
+	assert.Equal(t, 0.06, history[0].Fee, "GetOrderHistory should report a charge as positive")
+	assert.Equal(t, -0.02, history[1].Fee, "GetOrderHistory should report a rebate as negative")
+
+	positions, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.PerpetualSwap, Pairs: currency.Pairs{perpetualSwapPair}, StartDate: time.Now().Add(-time.Hour), EndDate: time.Now()})
+	require.NoError(t, err, "GetFuturesPositionOrders must not error")
+	require.Len(t, positions, 1, "GetFuturesPositionOrders must return one position")
+	require.Len(t, positions[0].Orders, 2, "GetFuturesPositionOrders must return both mocked orders")
+	assert.Equal(t, 0.06, positions[0].Orders[0].Fee, "GetFuturesPositionOrders should report a charge as positive")
+	assert.Equal(t, -0.02, positions[0].Orders[1].Fee, "GetFuturesPositionOrders should report a rebate as negative")
+}
+
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetOrderInfo(contextGenerate(), "123", perpetualSwapPair, asset.PerpetualSwap)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+	t.Run("remaining quantity and fee", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.PerpetualSwap} {
+			for _, tc := range []struct {
+				name, state, feeCurrency string
+				filled, fee, remaining   float64
+				orderType, quantityType  string
+				side                     order.Side
+				size, quoteAmount        float64
+				assetType                asset.Item
+			}{
+				{name: "partial fill charge", state: "partially_filled", feeCurrency: "USDC", filled: 2, fee: -0.06, remaining: 1},
+				{name: "partial fill rebate", state: "partially_filled", feeCurrency: "BTC", filled: 2, fee: 0.02, remaining: 1},
+				{name: "unfilled", state: "live", remaining: 3},
+				{name: "filled", state: "filled", feeCurrency: "USDT", filled: 3, fee: -0.09},
+				{name: "quote market buy", state: "partially_filled", filled: 2, orderType: "market", quantityType: "quote_ccy", side: order.Buy, size: 180, quoteAmount: 180},
+				{name: "quote market sell", state: "partially_filled", filled: 2, orderType: "market", quantityType: "quote_ccy", side: order.Sell, size: 180, quoteAmount: 180},
+				{name: "default market buy", state: "partially_filled", filled: 2, orderType: "market", side: order.Buy, size: 180, quoteAmount: 180},
+				{name: "base market buy", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", quantityType: "base_ccy", side: order.Buy},
+				{name: "default market sell", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", side: order.Sell},
+				{name: "unfilled quote market buy", state: "live", orderType: "market", quantityType: "quote_ccy", side: order.Buy, size: 180, quoteAmount: 180},
+				{name: "cancelled quote market buy", state: "canceled", filled: 2, orderType: "market", quantityType: "quote_ccy", side: order.Buy, size: 180, quoteAmount: 180},
+				{name: "filled quote market buy", state: "filled", filled: 3, orderType: "market", quantityType: "quote_ccy", side: order.Buy, size: 180, quoteAmount: 180},
+				{name: "unfilled market buy", state: "live", orderType: "market", side: order.Buy, size: 180, quoteAmount: 180, assetType: asset.Margin},
+				{name: "filled market buy", state: "filled", filled: 3, orderType: "market", side: order.Buy, size: 180, quoteAmount: 180, assetType: asset.Margin},
+				{name: "partially filled market buy", state: "partially_filled", filled: 2, orderType: "market", side: order.Buy, size: 180, quoteAmount: 180, assetType: asset.Margin},
+				{name: "market sell", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", side: order.Sell, assetType: asset.Margin},
+				{name: "market buy", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", side: order.Buy, assetType: asset.PerpetualSwap},
+			} {
+				if (tc.assetType == asset.Empty && a != asset.Spot && tc.orderType == "market") || (tc.assetType != asset.Empty && tc.assetType != a) {
+					continue
+				}
+				t.Run(a.String()+"/"+tc.name, func(t *testing.T) {
+					t.Parallel()
+					orderType, side, size := tc.orderType, tc.side, tc.size
+					if orderType == "" {
+						orderType = "limit"
+					}
+					if side == order.UnknownSide {
+						side = order.Buy
+					}
+					if size == 0 {
+						size = 3
+					}
+					pair := mainPair
+					if a == asset.PerpetualSwap {
+						pair = perpetualSwapPair
+					}
+					average, reportedAverage := 0.0, ""
+					if tc.filled > 0 {
+						average, reportedAverage = 60, "60"
+					}
+					payload := fmt.Sprintf(`{"code":"0","msg":"","arg":{"channel":"orders","instType":%q},"data":[{"instId":%q,"ordId":"42","clOrdId":"client","side":%q,"ordType":%q,"tgtCcy":%q,"state":%q,"sz":"%v","accFillSz":"%v","px":"61","avgPx":%q,"fee":"%v","feeCcy":%q,"cTime":"1700000000000","uTime":"1700000001000"}]}`, GetInstrumentTypeFromAssetItem(a), pair.String(), side.String(), orderType, tc.quantityType, tc.state, size, tc.filled, reportedAverage, tc.fee, tc.feeCurrency)
+					server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						assert.Contains(t, []string{"/api/v5/trade/order", "/api/v5/trade/orders-pending", "/api/v5/trade/orders-history-archive"}, r.URL.Path, "request should query an order endpoint")
+						_, err := w.Write([]byte(payload))
+						assert.NoError(t, err, "writing the order response should not error")
+					}))
+					ex := new(Exchange)
+					require.NoError(t, testexch.Setup(ex), "Setup must not error")
+					sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ex, a, pair)
+					ex.SkipAuthCheck = true
+					ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
+					require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
+					require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+					require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+					got, err := ex.GetOrderInfo(t.Context(), "42", pair, a)
+					require.NoError(t, err, "GetOrderInfo must not error")
+					status, err := order.StringToOrderStatus(tc.state)
+					require.NoError(t, err, "fixture status must be valid")
+					expectedType := order.Limit
+					if orderType == "market" {
+						expectedType = order.Market
+					}
+					amount := size
+					if tc.quoteAmount != 0 {
+						amount = 0
+					}
+					expected := &order.Detail{
+						Exchange: ex.Name, OrderID: "42", ClientOrderID: "client", Pair: pair, AssetType: a,
+						Side: side, Type: expectedType, Status: status, Price: 61, AverageExecutedPrice: average,
+						Amount: amount, QuoteAmount: tc.quoteAmount, ExecutedAmount: tc.filled, RemainingAmount: tc.remaining,
+						Fee: -tc.fee, FeeAsset: currency.NewCode(tc.feeCurrency),
+						Date: time.UnixMilli(1700000000000), LastUpdated: time.UnixMilli(1700000001000),
+					}
+					assert.Equal(t, expected, got, "GetOrderInfo should map all reported order fields")
+					for name, fetch := range map[string]func(context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error){
+						"active orders": ex.GetActiveOrders, "order history": ex.GetOrderHistory,
+					} {
+						t.Run(name, func(t *testing.T) {
+							t.Parallel()
+							orders, err := fetch(t.Context(), &order.MultiOrderRequest{Pairs: currency.Pairs{pair}, AssetType: a, Side: order.AnySide, Type: order.AnyType})
+							require.NoError(t, err, "order list must not error")
+							if name == "order history" && status == order.Active {
+								assert.Empty(t, orders, "history should exclude live orders")
+								return
+							}
+							require.Len(t, orders, 1, "order list must return the fixture order")
+							assert.Equal(t, *expected, orders[0], "order list should preserve identity, quantities, fees and timestamps")
+						})
+					}
+					t.Run("websocket", func(t *testing.T) {
+						t.Parallel()
+						require.NoError(t, ex.wsProcessOrders(t.Context(), []byte(payload)), "wsProcessOrders must accept the fixture")
+						select {
+						case event := <-ex.Websocket.DataHandler.C:
+							detail, ok := event.Data.(*order.Detail)
+							require.True(t, ok, "websocket event must contain order details")
+							amount := expected.Amount
+							if status == order.Filled && amount == 0 {
+								amount = expected.ExecutedAmount
+							}
+							assert.Equal(t, amount, detail.Amount, "websocket should preserve base sizing, using the final fill for completed orders")
+							assert.Equal(t, expected.QuoteAmount, detail.QuoteAmount, "websocket should preserve quote sizing")
+							assert.Equal(t, expected.RemainingAmount, detail.RemainingAmount, "websocket should preserve base remainder")
+							assert.Equal(t, expected.ExecutedAmount, detail.ExecutedAmount, "websocket should preserve base fills")
+						case <-time.After(time.Second):
+							t.Fatal("websocket order must reach DataHandler")
+						}
+					})
+				})
+			}
+		}
+	})
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		result, err := e.GetOrderInfo(contextGenerate(), "123", perpetualSwapPair, asset.PerpetualSwap)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 
-	result, err = e.GetOrderInfo(contextGenerate(), "123", spreadPair, asset.Spread)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+		result, err = e.GetOrderInfo(contextGenerate(), "123", spreadPair, asset.Spread)
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
 }
 
 func TestGetDepositAddress(t *testing.T) {
@@ -4529,7 +4779,7 @@ func TestOrderPushData(t *testing.T) {
 			case 1:
 				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
 				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-				assert.Equal(t, 0.00038127046945832905, v.Amount, "Amount")
+				assert.Zero(t, v.Amount, "Amount should remain unknown for a quote-sized partial fill")
 				assert.Equal(t, 0.010000249968, v.Fee, "Fee")
 				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
 				assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")

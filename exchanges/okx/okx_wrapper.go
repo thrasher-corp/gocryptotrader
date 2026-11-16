@@ -909,8 +909,12 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if !e.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
-	if s.Amount <= 0 {
+	quoteSizedMarket := s.Type == order.Market && (s.AssetType == asset.Spot || (s.AssetType == asset.Margin && s.Side == order.Buy)) && s.QuoteAmount > 0
+	if s.Amount < 0 || (s.Amount == 0 && !quoteSizedMarket) {
 		return nil, limits.ErrAmountBelowMin
+	}
+	if s.AssetType == asset.Margin && s.Type == order.Market && s.Side == order.Buy && s.QuoteAmount <= 0 {
+		return nil, fmt.Errorf("%w: margin market buys require QuoteAmount", order.ErrAmountMustBeSet)
 	}
 	pairFormat, err := e.GetPairFormat(s.AssetType, true)
 	if err != nil {
@@ -937,8 +941,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		targetCurrency = "base_ccy" // Default to base currency
 		if s.QuoteAmount > 0 {
 			amount = s.QuoteAmount
-			targetCurrency = "quote_ccy"
+			targetCurrency = quantityTypeQuoteCurrency
 		}
+	}
+	if s.AssetType == asset.Margin && s.Type == order.Market && s.Side == order.Buy {
+		amount = s.QuoteAmount
 	}
 	// If asset type is spread
 	if s.AssetType == asset.Spread {
@@ -1564,15 +1571,14 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Side:                 oSide,
 			Type:                 oType,
 			Pair:                 cp,
-			Cost:                 resp.Price.Float64(),
 			AssetType:            assetType,
 			Status:               oStatus,
 			Price:                resp.Price.Float64(),
-			ExecutedAmount:       resp.FillSize.Float64(),
+			ExecutedAmount:       resp.AccumulatedFillSize.Float64(),
 			Date:                 resp.CreationTime.Time(),
 			LastUpdated:          resp.UpdateTime.Time(),
 			AverageExecutedPrice: resp.AveragePrice.Float64(),
-			RemainingAmount:      resp.Size.Float64() - resp.FillSize.Float64(),
+			RemainingAmount:      resp.Size.Float64() - resp.AccumulatedFillSize.Float64(),
 		}, nil
 	}
 	if pair.IsEmpty() {
@@ -1605,23 +1611,38 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 
-	return &order.Detail{
-		Amount:         orderDetail.Size.Float64(),
-		Exchange:       e.Name,
-		OrderID:        orderDetail.OrderID,
-		ClientOrderID:  orderDetail.ClientOrderID,
-		Side:           orderDetail.Side,
-		Type:           orderType,
-		Pair:           pair,
-		Cost:           orderDetail.Price.Float64(),
-		AssetType:      assetType,
-		Status:         status,
-		Price:          orderDetail.Price.Float64(),
-		ExecutedAmount: orderDetail.RebateAmount.Float64(),
-		Date:           orderDetail.CreationTime.Time(),
-		LastUpdated:    orderDetail.UpdateTime.Time(),
-		TimeInForce:    tif,
-	}, nil
+	detail := &order.Detail{
+		Amount:               orderDetail.Size.Float64(),
+		Exchange:             e.Name,
+		OrderID:              orderDetail.OrderID,
+		ClientOrderID:        orderDetail.ClientOrderID,
+		Side:                 orderDetail.Side,
+		Type:                 orderType,
+		Pair:                 pair,
+		AssetType:            assetType,
+		Status:               status,
+		Price:                orderDetail.Price.Float64(),
+		ExecutedAmount:       orderDetail.AccumulatedFillSize.Float64(),
+		RemainingAmount:      orderDetail.Size.Float64() - orderDetail.AccumulatedFillSize.Float64(),
+		Fee:                  -orderDetail.TransactionFee.Float64(),
+		FeeAsset:             orderDetail.FeeCurrency,
+		AverageExecutedPrice: orderDetail.AveragePrice.Float64(),
+		Date:                 orderDetail.CreationTime.Time(),
+		LastUpdated:          orderDetail.UpdateTime.Time(),
+		TimeInForce:          tif,
+	}
+	setOrderAmounts(detail, orderDetail.QuantityType)
+	return detail, nil
+}
+
+// setOrderAmounts keeps quote budgets separate from base fills across REST and websocket orders.
+func setOrderAmounts(detail *order.Detail, quantityType string) {
+	spotQuoteSized := detail.AssetType == asset.Spot && (quantityType == quantityTypeQuoteCurrency || (quantityType == "" && detail.Side == order.Buy))
+	marginQuoteSized := detail.AssetType == asset.Margin && detail.Side == order.Buy
+	if detail.Type == order.Market && (spotQuoteSized || marginQuoteSized) {
+		detail.QuoteAmount = detail.Amount
+		detail.Amount, detail.RemainingAmount = 0, 0
+	}
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -1747,8 +1768,8 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Amount:          spreads[x].Size.Float64(),
 				Pair:            pair,
 				Price:           spreads[x].Price.Float64(),
-				ExecutedAmount:  spreads[x].FillSize.Float64(),
-				RemainingAmount: spreads[x].Size.Float64() - spreads[x].FillSize.Float64(),
+				ExecutedAmount:  spreads[x].AccumulatedFillSize.Float64(),
+				RemainingAmount: spreads[x].Size.Float64() - spreads[x].AccumulatedFillSize.Float64(),
 				Exchange:        e.Name,
 				OrderID:         spreads[x].OrderID,
 				ClientOrderID:   spreads[x].ClientOrderID,
@@ -1819,24 +1840,26 @@ allOrders:
 				return nil, err
 			}
 			resp = append(resp, order.Detail{
-				Amount:          orderList[i].Size.Float64(),
-				Pair:            pair,
-				Price:           orderList[i].Price.Float64(),
-				ExecutedAmount:  orderList[i].FillSize.Float64(),
-				RemainingAmount: orderList[i].Size.Float64() - orderList[i].FillSize.Float64(),
-				Fee:             orderList[i].TransactionFee.Float64(),
-				FeeAsset:        orderList[i].FeeCurrency,
-				Exchange:        e.Name,
-				OrderID:         orderList[i].OrderID,
-				ClientOrderID:   orderList[i].ClientOrderID,
-				Type:            oType,
-				Side:            orderSide,
-				Status:          orderStatus,
-				AssetType:       req.AssetType,
-				Date:            orderList[i].CreationTime.Time(),
-				LastUpdated:     orderList[i].UpdateTime.Time(),
-				TimeInForce:     tif,
+				Amount:               orderList[i].Size.Float64(),
+				Pair:                 pair,
+				Price:                orderList[i].Price.Float64(),
+				ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
+				RemainingAmount:      orderList[i].Size.Float64() - orderList[i].AccumulatedFillSize.Float64(),
+				AverageExecutedPrice: orderList[i].AveragePrice.Float64(),
+				Fee:                  0 - orderList[i].TransactionFee.Float64(),
+				FeeAsset:             orderList[i].FeeCurrency,
+				Exchange:             e.Name,
+				OrderID:              orderList[i].OrderID,
+				ClientOrderID:        orderList[i].ClientOrderID,
+				Type:                 oType,
+				Side:                 orderSide,
+				Status:               orderStatus,
+				AssetType:            req.AssetType,
+				Date:                 orderList[i].CreationTime.Time(),
+				LastUpdated:          orderList[i].UpdateTime.Time(),
+				TimeInForce:          tif,
 			})
+			setOrderAmounts(&resp[len(resp)-1], orderList[i].QuantityType)
 		}
 		if len(orderList) < 100 {
 			// Since the we passed a limit of 0 to the method GetOrderList,
@@ -1898,8 +1921,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				Price:                spreadOrders[x].Price.Float64(),
 				AverageExecutedPrice: spreadOrders[x].AveragePrice.Float64(),
 				Amount:               spreadOrders[x].Size.Float64(),
-				ExecutedAmount:       spreadOrders[x].FillSize.Float64(),
-				RemainingAmount:      spreadOrders[x].PendingFillSize.Float64(),
+				ExecutedAmount:       spreadOrders[x].AccumulatedFillSize.Float64(),
+				RemainingAmount:      spreadOrders[x].Size.Float64() - spreadOrders[x].AccumulatedFillSize.Float64(),
 				Exchange:             e.Name,
 				OrderID:              spreadOrders[x].OrderID,
 				ClientOrderID:        spreadOrders[x].ClientOrderID,
@@ -1959,10 +1982,6 @@ allOrders:
 					return nil, err
 				}
 				orderAmount := orderList[i].Size
-				if orderList[i].QuantityType == "quote_ccy" {
-					// Size is quote amount.
-					orderAmount /= orderList[i].AveragePrice
-				}
 
 				remainingAmount := float64(0)
 				if orderStatus != order.Filled {
@@ -1974,7 +1993,7 @@ allOrders:
 					Amount:               orderAmount.Float64(),
 					ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
 					RemainingAmount:      remainingAmount,
-					Fee:                  orderList[i].TransactionFee.Float64(),
+					Fee:                  0 - orderList[i].TransactionFee.Float64(),
 					FeeAsset:             orderList[i].FeeCurrency,
 					Exchange:             e.Name,
 					OrderID:              orderList[i].OrderID,
@@ -1986,10 +2005,9 @@ allOrders:
 					Date:                 orderList[i].CreationTime.Time(),
 					LastUpdated:          orderList[i].UpdateTime.Time(),
 					Pair:                 pair,
-					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
-					CostAsset:            orderList[i].RebateCurrency,
 					TimeInForce:          tif,
 				})
+				setOrderAmounts(&resp[len(resp)-1], orderList[i].QuantityType)
 			}
 		}
 		if len(orderList) < 100 {
@@ -2753,7 +2771,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				return nil, err
 			}
 			orderAmount := positions[j].Size
-			if positions[j].QuantityType == "quote_ccy" {
+			if positions[j].QuantityType == quantityTypeQuoteCurrency {
 				// Size is quote amount.
 				orderAmount /= positions[j].AveragePrice
 			}
@@ -2762,10 +2780,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 			if orderStatus != order.Filled {
 				remainingAmount = orderAmount.Float64() - positions[j].AccumulatedFillSize.Float64()
 			}
-			cost := positions[j].AveragePrice.Float64() * positions[j].AccumulatedFillSize.Float64()
-			if multiplier != 1 {
-				cost *= multiplier
-			}
 			resp[i].Orders = append(resp[i].Orders, order.Detail{
 				Price:                positions[j].Price.Float64(),
 				AverageExecutedPrice: positions[j].AveragePrice.Float64(),
@@ -2773,7 +2787,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				ContractAmount:       orderAmount.Float64(),
 				ExecutedAmount:       positions[j].AccumulatedFillSize.Float64(),
 				RemainingAmount:      remainingAmount,
-				Fee:                  positions[j].TransactionFee.Float64(),
+				Fee:                  0 - positions[j].TransactionFee.Float64(),
 				FeeAsset:             positions[j].FeeCurrency,
 				Exchange:             e.Name,
 				OrderID:              positions[j].OrderID,
@@ -2785,8 +2799,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				Date:                 positions[j].CreationTime.Time(),
 				LastUpdated:          positions[j].UpdateTime.Time(),
 				Pair:                 req.Pairs[i],
-				Cost:                 cost,
-				CostAsset:            positions[j].RebateCurrency,
 				TimeInForce:          tif,
 			})
 		}

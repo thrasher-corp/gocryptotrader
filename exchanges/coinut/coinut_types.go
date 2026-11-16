@@ -113,15 +113,15 @@ type Order struct {
 
 // OrderResponse is a response for orders
 type OrderResponse struct {
-	OrderID       int64      `json:"order_id"`
-	OpenQuantity  float64    `json:"open_qty,string"`
-	Price         float64    `json:"price,string"`
-	Quantity      float64    `json:"qty,string"`
-	InstrumentID  int64      `json:"inst_id"`
-	ClientOrderID int64      `json:"client_ord_id"`
-	Timestamp     types.Time `json:"timestamp"`
-	OrderPrice    float64    `json:"order_price,string"`
-	Side          string     `json:"side"`
+	OrderID       int64               `json:"order_id"`
+	OpenQuantity  types.PreciseNumber `json:"open_qty"`
+	Price         types.Number        `json:"price"`
+	Quantity      types.PreciseNumber `json:"qty"`
+	InstrumentID  int64               `json:"inst_id"`
+	ClientOrderID int64               `json:"client_ord_id"`
+	Timestamp     types.Time          `json:"timestamp"`
+	OrderPrice    types.Number        `json:"order_price"`
+	Side          string              `json:"side"`
 }
 
 // Commission holds trade commission structure
@@ -133,10 +133,11 @@ type Commission struct {
 // OrderFilledResponse contains order filled response
 type OrderFilledResponse struct {
 	GenericResponse
-	Commission   Commission    `json:"commission"`
-	FillPrice    float64       `json:"fill_price,string"`
-	FillQuantity float64       `json:"fill_qty,string"`
-	Order        OrderResponse `json:"order"`
+	Commission   Commission          `json:"commission"`
+	FillPrice    types.Number        `json:"fill_price"`
+	FillQuantity types.PreciseNumber `json:"fill_qty"`
+	Order        OrderResponse       `json:"order"`
+	Timestamp    types.Time          `json:"timestamp"`
 }
 
 // OrdersBase contains generic response and order responses
@@ -473,15 +474,15 @@ type WsUserBalanceResponse struct {
 
 // WsOrderData ws response data
 type WsOrderData struct {
-	ClientOrderID int64      `json:"client_ord_id"`
-	InstrumentID  int64      `json:"inst_id"`
-	OpenQuantity  float64    `json:"open_qty,string"`
-	OrderID       int64      `json:"order_id"`
-	Price         float64    `json:"price,string"`
-	Quantity      float64    `json:"qty,string"`
-	Side          string     `json:"side"`
-	Timestamp     types.Time `json:"timestamp"`
-	Status        []string   `json:"status"`
+	ClientOrderID int64               `json:"client_ord_id"`
+	InstrumentID  int64               `json:"inst_id"`
+	OpenQuantity  types.PreciseNumber `json:"open_qty"`
+	OrderID       int64               `json:"order_id"`
+	Price         types.Number        `json:"price"`
+	Quantity      types.PreciseNumber `json:"qty"`
+	Side          string              `json:"side"`
+	Timestamp     types.Time          `json:"timestamp"`
+	Status        []string            `json:"status"`
 }
 
 type wsInstList struct {
@@ -503,11 +504,11 @@ type WsUserOpenOrdersResponse struct {
 
 // WsTradeHistoryResponse ws response
 type WsTradeHistoryResponse struct {
-	Nonce       int64         `json:"nonce"`
-	Reply       string        `json:"reply"`
-	Status      []string      `json:"status"`
-	TotalNumber int64         `json:"total_number"`
-	Trades      []WsOrderData `json:"trades"`
+	Nonce       int64                 `json:"nonce"`
+	Reply       string                `json:"reply"`
+	Status      []string              `json:"status"`
+	TotalNumber int64                 `json:"total_number"`
+	Trades      []OrderFilledResponse `json:"trades"`
 }
 
 // WsLoginReq Login request message
@@ -526,33 +527,24 @@ type instrumentMap struct {
 }
 
 type wsOrderContainer struct {
-	OrderID       int64      `json:"order_id"`
-	ClientOrderID int64      `json:"client_ord_id"`
-	InstrumentID  int64      `json:"inst_id"`
-	Nonce         int64      `json:"nonce"`
-	Timestamp     types.Time `json:"timestamp"`
-	TransactionID int64      `json:"trans_id"`
-	OpenQuantity  float64    `json:"open_qty,string"`
-	OrderPrice    float64    `json:"order_price,string"`
-	Quantity      float64    `json:"qty,string"`
-	FillPrice     float64    `json:"fill_price,string"`
-	FillQuantity  float64    `json:"fill_qty,string"`
-	Price         float64    `json:"price,string"`
-	Reply         string     `json:"reply"`
-	Side          string     `json:"side"`
-	Status        []string   `json:"status"`
-	Reasons       []string   `json:"reasons"`
-	Order         struct {
-		ClientOrderID int64      `json:"client_ord_id"`
-		InstrumentID  int64      `json:"inst_id"`
-		OrderID       int64      `json:"order_id"`
-		Timestamp     types.Time `json:"timestamp"`
-		Price         float64    `json:"price,string"`
-		Quantity      float64    `json:"qty,string"`
-		OpenQuantity  float64    `json:"open_qty,string"`
-		Side          string     `json:"side"`
-	} `json:"order"`
-	Commission struct {
+	OrderID       int64         `json:"order_id"`
+	ClientOrderID int64         `json:"client_ord_id"`
+	InstrumentID  int64         `json:"inst_id"`
+	Nonce         int64         `json:"nonce"`
+	Timestamp     types.Time    `json:"timestamp"`
+	TransactionID int64         `json:"trans_id"`
+	OpenQuantity  float64       `json:"open_qty,string"`
+	OrderPrice    float64       `json:"order_price,string"`
+	Quantity      float64       `json:"qty,string"`
+	FillPrice     float64       `json:"fill_price,string"`
+	FillQuantity  float64       `json:"fill_qty,string"`
+	Price         float64       `json:"price,string"`
+	Reply         string        `json:"reply"`
+	Side          string        `json:"side"`
+	Status        []string      `json:"status"`
+	Reasons       []string      `json:"reasons"`
+	Order         OrderResponse `json:"order"`
+	Commission    struct {
 		Amount   float64 `json:"amount,string"`
 		Currency string  `json:"currency"`
 	} `json:"commission"`

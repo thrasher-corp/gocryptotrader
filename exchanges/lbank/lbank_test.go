@@ -17,6 +17,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -351,6 +352,15 @@ func TestCancelOrder(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
+	t.Run("response identity", func(t *testing.T) {
+		t.Parallel()
+		ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("buy")))
+		require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
+		got, err := ex.GetOrderInfo(t.Context(), "1", testPair, asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must return the fixture order")
+		assert.Equal(t, "1", got.OrderID, "GetOrderInfo should preserve the response order ID")
+		assert.Equal(t, time.UnixMilli(1758499200000), got.Date, "GetOrderInfo should preserve the creation timestamp")
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetOrderInfo(t.Context(), "9ead39f5-701a-400b-b635-d7349eb0f6b", currency.EMPTYPAIR, asset.Spot)
@@ -433,6 +443,16 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("response identity", func(t *testing.T) {
+		t.Parallel()
+		ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("buy")))
+		require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
+		got, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{Pairs: currency.Pairs{testPair}, Side: order.AnySide, Type: order.AnyType, AssetType: asset.Spot})
+		require.NoError(t, err, "GetActiveOrders must return the fixture order")
+		require.Len(t, got, 1, "GetActiveOrders must return one order")
+		assert.Equal(t, "1", got[0].OrderID, "GetActiveOrders should preserve the response order ID")
+		assert.Equal(t, time.UnixMilli(1758499200000), got[0].Date, "GetActiveOrders should preserve the creation timestamp")
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
@@ -445,14 +465,67 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-
-	_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
-		Side:      order.AnySide,
-		AssetType: asset.Spot,
-		Type:      order.AnyType,
+	t.Run("pagination and order identity", func(t *testing.T) {
+		t.Parallel()
+		for _, pages := range [][]int{{0}, {200, 1, 0}, {200, 200, 0}} {
+			t.Run(fmt.Sprint(pages), func(t *testing.T) {
+				t.Parallel()
+				var requests atomic.Int32
+				ex := setupOrderGuard(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if !assert.NoError(t, r.ParseForm(), "request form should parse") {
+						http.Error(w, "invalid form", http.StatusBadRequest)
+						return
+					}
+					page := int(requests.Add(1))
+					if page > len(pages) || r.Form.Get("current_page") != strconv.Itoa(page) {
+						assert.Fail(t, "history should request each page once in sequence")
+						http.Error(w, "unexpected page", http.StatusBadRequest)
+						return
+					}
+					assert.True(t, strings.HasSuffix(r.URL.Path, lbankQueryHistoryOrder), "request should query order history")
+					assert.Equal(t, "200", r.Form.Get("page_length"), "request should use the supported page size")
+					rows := make([]string, pages[page-1])
+					for i := range rows {
+						id := (page-1)*200 + i + 1
+						rows[i] = fmt.Sprintf(`{"order_id":"%d","symbol":"btc_usdt","type":"buy","price":12.5,"amount":5,"deal_amount":2,"avg_price":10,"status":1,"created_time":%d}`, id, int64(1758499200000)+int64(id))
+					}
+					_, err := fmt.Fprintf(w, `{"result":"true","error_code":0,"page_length":200,"current_page":%d,"orders":[%s]}`, page, strings.Join(rows, ","))
+					assert.NoError(t, err, "writing the history page should not error")
+				}))
+				require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
+				got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{Pairs: currency.Pairs{testPair}, Side: order.AnySide, AssetType: asset.Spot, Type: order.AnyType})
+				require.NoError(t, err, "GetOrderHistory must not error")
+				assert.EqualValues(t, len(pages), requests.Load(), "GetOrderHistory should fetch each page once")
+				expected := order.FilteredOrders{}
+				for page, count := range pages {
+					for i := range count {
+						expected = append(expected, order.Detail{
+							Exchange: ex.Name, OrderID: strconv.Itoa(page*200 + i + 1), Pair: testPair, Side: order.Buy, Status: order.PartiallyFilled,
+							Price: 12.5, AverageExecutedPrice: 10, Amount: 5, ExecutedAmount: 2, RemainingAmount: 3, Fee: 0.125,
+							Date: time.UnixMilli(1758499200000 + int64(page*200+i+1)), LastUpdated: time.UnixMilli(1758499200000 + int64(page*200+i+1)),
+						})
+					}
+				}
+				require.Equal(t, len(expected), len(got), "GetOrderHistory must return every page's orders")
+				for i := range expected {
+					if !assert.Equalf(t, expected[i], got[i], "GetOrderHistory should retain order %d complete with its own ID and timestamps", i) {
+						break
+					}
+				}
+			})
+		}
 	})
-	assert.NoError(t, err, "GetOrderHistory should not error")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+
+		_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			Side:      order.AnySide,
+			AssetType: asset.Spot,
+			Type:      order.AnyType,
+		})
+		assert.NoError(t, err, "GetOrderHistory should not error")
+	})
 }
 
 // TestGetActiveOrdersEmptyResponse ensures an order the exchange no longer
@@ -582,6 +655,9 @@ func TestGetOrderHistoryCompoundOrderType(t *testing.T) {
 	require.NoError(t, err, "GetOrderHistory must not error for a compound order type")
 	require.Len(t, got, 3, "GetOrderHistory must keep every order on the page")
 	assert.Equal(t, order.Buy, got[0].Side, "GetOrderHistory should map the leading plain order to the buy side")
+	assert.Equal(t, 1.0, got[0].ExecutedAmount, "GetOrderHistory should retain the reported filled quantity")
+	assert.Equal(t, 10.0, got[0].AverageExecutedPrice, "GetOrderHistory should retain the reported average fill price")
+	assert.Zero(t, got[0].ExecutedQuoteAmount, "GetOrderHistory should not invent an unavailable executed quote total")
 	assert.Equal(t, order.Buy, got[1].Side, "GetOrderHistory should map buy_market to the buy side")
 	assert.Equal(t, order.Sell, got[2].Side, "GetOrderHistory should map sell_market to the sell side")
 }

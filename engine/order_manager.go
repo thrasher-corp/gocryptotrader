@@ -242,6 +242,7 @@ func (m *OrderManager) cancel(ctx context.Context, cancel *order.Cancel, require
 		return err
 	}
 	od.Status = order.Cancelled
+	od.LastUpdated = time.Now()
 	err = m.orderStore.updateExisting(od)
 	if err != nil {
 		err = fmt.Errorf("%v - Failed to update existing order when cancelled: %w", cancel.Exchange, err)

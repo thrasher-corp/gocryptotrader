@@ -982,6 +982,30 @@ func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 	return nil, common.ErrFunctionNotSupported
 }
 
+// futuresFinishStatus converts Gate-specific completion reasons that the generic
+// status parser rejects or reads as another status, as with position_closed.
+func futuresFinishStatus(finishAs string) (order.Status, error) {
+	switch finishAs {
+	case "ioc", "reduce_only", "reduce_out", "position_close", "position_closed":
+		return order.Cancelled, nil
+	case "auto_deleveraging":
+		return order.AutoDeleverage, nil
+	}
+	return order.StringToOrderStatus(finishAs)
+}
+
+// spotFinishStatus converts the spot completion reasons order.StringToOrderStatus
+// does not recognise. Gate documents "unknown" and "-" as unknown reasons.
+func spotFinishStatus(finishAs string) (order.Status, error) {
+	switch finishAs {
+	case "ioc", "fok", "poc", "small", "depth_not_enough", "trader_not_enough", "liquidate_cancelled", "unified_check_failed", "price_protect_cancelled":
+		return order.Cancelled, nil
+	case "unknown", "-":
+		return order.UnknownStatus, nil
+	}
+	return order.StringToOrderStatus(finishAs)
+}
+
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
@@ -1017,12 +1041,24 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, err
 		}
 		response.Status = status
+		if isQuoteDenominatedMarketBuy(s.AssetType, s.Side, s.Type) {
+			// Gate reports market-buy amount and left in quote units. The
+			// generic RemainingAmount is base-denominated, so leave it unset.
+			response.QuoteAmount = sOrder.Amount.Float64()
+			response.Amount = 0
+			response.RemainingAmount = 0
+			response.ExecutedAmount = sOrder.FilledAmount.Float64()
+		} else {
+			response.RemainingAmount = sOrder.RemainingAmount.Float64()
+			response.ExecutedAmount = sOrder.Amount.Float64() - sOrder.RemainingAmount.Float64()
+		}
+		response.AverageExecutedPrice = sOrder.AverageFillPrice.Float64()
+		response.ExecutedQuoteAmount = sOrder.FilledTotal.Float64()
 		response.Fee = sOrder.FeeDeducted.Float64()
 		response.FeeAsset = currency.NewCode(sOrder.FeeCurrency)
 		response.Pair = s.Pair
 		response.Date = sOrder.CreateTime.Time()
-		response.ClientOrderID = sOrder.Text
-		response.Date = sOrder.CreateTime.Time()
+		response.ClientOrderID = getClientOrderIDFromText(sOrder.Text)
 		response.LastUpdated = sOrder.UpdateTime.Time()
 		return response, nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
@@ -1048,13 +1084,15 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		resp.Status = order.Open
 		if o.Status != statusOpen {
-			if resp.Status, err = order.StringToOrderStatus(o.FinishAs); err != nil {
+			if resp.Status, err = futuresFinishStatus(o.FinishAs); err != nil {
 				return nil, err
 			}
 		}
 		resp.Date = o.CreateTime.Time()
 		resp.ClientOrderID = getClientOrderIDFromText(o.Text)
 		resp.Amount = math.Abs(o.Size.Float64())
+		resp.RemainingAmount = math.Abs(o.RemainingAmount.Float64())
+		resp.ExecutedAmount = resp.Amount - resp.RemainingAmount
 		resp.Price = o.Price.Float64()
 		resp.AverageExecutedPrice = o.FillPrice.Float64()
 		return resp, nil
@@ -1078,13 +1116,15 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		resp.Status = order.Open
 		if o.Status != statusOpen {
-			if resp.Status, err = order.StringToOrderStatus(o.FinishAs); err != nil {
+			if resp.Status, err = futuresFinishStatus(o.FinishAs); err != nil {
 				return nil, err
 			}
 		}
 		resp.Date = o.CreateTime.Time()
 		resp.ClientOrderID = getClientOrderIDFromText(o.Text)
 		resp.Amount = math.Abs(o.Size.Float64())
+		resp.RemainingAmount = math.Abs(o.RemainingAmount.Float64())
+		resp.ExecutedAmount = resp.Amount - resp.RemainingAmount
 		resp.Price = o.Price.Float64()
 		resp.AverageExecutedPrice = o.FillPrice.Float64()
 		return resp, nil
@@ -1110,7 +1150,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		response.Status = status
 		response.Pair = s.Pair
 		response.Date = optionOrder.CreateTime.Time()
-		response.ClientOrderID = optionOrder.Text
+		response.ClientOrderID = getClientOrderIDFromText(optionOrder.Text)
 		return response, nil
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, s.AssetType)
@@ -1340,26 +1380,53 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
+		var tif order.TimeInForce
+		if spotOrder.TimeInForce != "" {
+			if tif, err = timeInForceFromString(spotOrder.TimeInForce); err != nil {
+				return nil, err
+			}
+		}
 		var orderStatus order.Status
 		orderStatus, err = order.StringToOrderStatus(spotOrder.Status)
 		if err != nil {
 			return nil, err
 		}
-		return &order.Detail{
-			Amount:         spotOrder.Amount.Float64(),
-			Exchange:       e.Name,
-			OrderID:        spotOrder.OrderID,
-			Side:           side,
-			Type:           orderType,
-			Pair:           pair,
-			Cost:           spotOrder.FeeDeducted.Float64(),
-			AssetType:      a,
-			Status:         orderStatus,
-			Price:          spotOrder.Price.Float64(),
-			ExecutedAmount: spotOrder.Amount.Float64() - spotOrder.RemainingAmount.Float64(),
-			Date:           spotOrder.CreateTime.Time(),
-			LastUpdated:    spotOrder.UpdateTime.Time(),
-		}, nil
+		amount := spotOrder.Amount.Float64()
+		quoteAmount := 0.0
+		executedAmount := amount - spotOrder.RemainingAmount.Float64()
+		remainingAmount := spotOrder.RemainingAmount.Float64()
+		if isQuoteDenominatedMarketBuy(a, side, orderType) {
+			// Gate's spot-style market-buy amount is quote-denominated. Preserve it
+			// as requested quote and leave unavailable requested and remaining
+			// base quantities unset. The filled base amount is authoritative.
+			quoteAmount = amount
+			amount = 0
+			executedAmount = spotOrder.FilledAmount.Float64()
+			remainingAmount = 0
+		}
+		detail := &order.Detail{
+			Amount:               amount,
+			Exchange:             e.Name,
+			OrderID:              spotOrder.OrderID,
+			ClientOrderID:        getClientOrderIDFromText(spotOrder.Text),
+			TimeInForce:          tif,
+			Side:                 side,
+			Type:                 orderType,
+			Pair:                 pair,
+			AssetType:            a,
+			Status:               orderStatus,
+			Price:                spotOrder.Price.Float64(),
+			AverageExecutedPrice: spotOrder.AverageFillPrice.Float64(),
+			QuoteAmount:          quoteAmount,
+			ExecutedAmount:       executedAmount,
+			RemainingAmount:      remainingAmount,
+			ExecutedQuoteAmount:  spotOrder.FilledTotal.Float64(),
+			Fee:                  spotOrder.FeeDeducted.Float64(),
+			FeeAsset:             currency.NewCode(spotOrder.FeeCurrency),
+			Date:                 spotOrder.CreateTime.Time(),
+			LastUpdated:          spotOrder.UpdateTime.Time(),
+		}
+		return detail, nil
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures:
 		settle, err := getSettlementCurrency(pair, a)
 		if err != nil {
@@ -1376,7 +1443,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		orderStatus := order.Open
 		if fOrder.Status != statusOpen {
-			orderStatus, err = order.StringToOrderStatus(fOrder.FinishAs)
+			orderStatus, err = futuresFinishStatus(fOrder.FinishAs)
 			if err != nil {
 				return nil, err
 			}
@@ -1541,9 +1608,25 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				if err != nil {
 					return nil, err
 				}
+				var tif order.TimeInForce
+				if spotOrders[x].Orders[y].TimeInForce != "" {
+					if tif, err = timeInForceFromString(spotOrders[x].Orders[y].TimeInForce); err != nil {
+						return nil, err
+					}
+				}
 				status, err := order.StringToOrderStatus(spotOrders[x].Orders[y].Status)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
+				}
+				amount := spotOrders[x].Orders[y].Amount.Float64()
+				quoteAmount := 0.0
+				executedAmount := amount - spotOrders[x].Orders[y].RemainingAmount.Float64()
+				remainingAmount := spotOrders[x].Orders[y].RemainingAmount.Float64()
+				if isQuoteDenominatedMarketBuy(req.AssetType, side, oType) {
+					quoteAmount = amount
+					amount = 0
+					executedAmount = spotOrders[x].Orders[y].FilledAmount.Float64()
+					remainingAmount = 0
 				}
 				orders = append(orders, order.Detail{
 					Side:                 side,
@@ -1551,16 +1634,20 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 					Status:               status,
 					Pair:                 symbol,
 					OrderID:              spotOrders[x].Orders[y].OrderID,
-					Amount:               spotOrders[x].Orders[y].Amount.Float64(),
-					ExecutedAmount:       spotOrders[x].Orders[y].Amount.Float64() - spotOrders[x].Orders[y].RemainingAmount.Float64(),
-					RemainingAmount:      spotOrders[x].Orders[y].RemainingAmount.Float64(),
+					Amount:               amount,
+					QuoteAmount:          quoteAmount,
+					ExecutedAmount:       executedAmount,
+					ExecutedQuoteAmount:  spotOrders[x].Orders[y].FilledTotal.Float64(),
+					RemainingAmount:      remainingAmount,
 					Price:                spotOrders[x].Orders[y].Price.Float64(),
 					AverageExecutedPrice: spotOrders[x].Orders[y].AverageFillPrice.Float64(),
+					Fee:                  spotOrders[x].Orders[y].FeeDeducted.Float64(),
 					Date:                 spotOrders[x].Orders[y].CreateTime.Time(),
 					LastUpdated:          spotOrders[x].Orders[y].UpdateTime.Time(),
 					Exchange:             e.Name,
 					AssetType:            req.AssetType,
-					ClientOrderID:        spotOrders[x].Orders[y].Text,
+					ClientOrderID:        getClientOrderIDFromText(spotOrders[x].Orders[y].Text),
+					TimeInForce:          tif,
 					FeeAsset:             currency.NewCode(spotOrders[x].Orders[y].FeeCurrency),
 				})
 			}
@@ -1639,7 +1726,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Date:            optionsOrders[i].CreateTime.Time(),
 				Exchange:        e.Name,
 				AssetType:       req.AssetType,
-				ClientOrderID:   optionsOrders[i].Text,
+				ClientOrderID:   getClientOrderIDFromText(optionsOrders[i].Text),
 			})
 		}
 	default:
@@ -1685,19 +1772,21 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					return nil, err
 				}
 				od := order.Detail{
-					OrderID:        o[j].OrderID,
-					Amount:         o[j].Amount.Float64(),
-					ExecutedAmount: o[j].Amount.Float64(),
-					Price:          o[j].Price.Float64(),
-					Date:           o[j].CreateTime.Time(),
-					Side:           side,
-					Exchange:       e.Name,
-					Pair:           fp,
-					AssetType:      req.AssetType,
-					Fee:            o[j].Fee.Float64(),
-					FeeAsset:       o[j].FeeCurrency,
+					OrderID: o[j].OrderID,
+					// A trade row does not report order-wide quantities, status,
+					// limit price, average or fee; preserve only the individual fill.
+					Date:      o[j].CreateTime.Time(),
+					Side:      side,
+					Exchange:  e.Name,
+					Pair:      fp,
+					AssetType: req.AssetType,
+					Trades: []order.TradeHistory{{
+						TID: o[j].TradeID, Price: o[j].Price.Float64(), Amount: o[j].Amount.Float64(),
+						Fee: o[j].Fee.Float64(), FeeAsset: o[j].FeeCurrency.String(),
+						Side: side, Timestamp: o[j].CreateTime.Time(), Exchange: e.Name,
+					}},
 				}
-				od.InferCostsAndTimes()
+				od.InferExecutionAndTimes()
 				resp = append(resp, od)
 			}
 		}
@@ -1734,15 +1823,25 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					return nil, err
 				}
 				od := order.Detail{
-					OrderID:   strconv.FormatInt(o[j].ID, 10),
-					Amount:    o[j].Size.Float64(),
-					Price:     o[j].Price.Float64(),
-					Date:      o[j].CreateTime.Time(),
+					OrderID:   o[j].OrderID,
+					Date:      o[j].FillTime.Time(),
+					Side:      order.Buy,
 					Exchange:  e.Name,
 					Pair:      fp,
 					AssetType: req.AssetType,
+					Trades: []order.TradeHistory{{
+						TID: strconv.FormatInt(o[j].ID, 10), Amount: math.Abs(o[j].Size.Float64()), Price: o[j].Price.Float64(),
+						Timestamp: o[j].FillTime.Time(), Exchange: e.Name, Side: order.Buy, IsMaker: o[j].Role == "maker",
+						Fee: o[j].Fee.Float64(), FeeAsset: settle.String(),
+					}},
 				}
-				od.InferCostsAndTimes()
+				if o[j].Size.Float64() < 0 {
+					od.Side, od.Trades[0].Side = order.Sell, order.Sell
+				}
+				// TODO: #2456 represent fees in multiple currencies. PointFee is in
+				// Gate points, not settlement currency; obtain it separately through
+				// GetMyFuturesTradingHistory or GetMyDeliveryTradingHistory.
+				od.InferExecutionAndTimes()
 				resp = append(resp, od)
 			}
 		}
@@ -1763,14 +1862,20 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			for j := range o {
 				od := order.Detail{
 					OrderID:   strconv.FormatInt(o[j].OrderID, 10),
-					Amount:    o[j].Size.Float64(),
-					Price:     o[j].Price.Float64(),
 					Date:      o[j].CreateTime.Time(),
+					Side:      order.Buy,
 					Exchange:  e.Name,
 					Pair:      fp,
 					AssetType: req.AssetType,
+					Trades: []order.TradeHistory{{
+						TID: strconv.FormatInt(o[j].ID, 10), Amount: math.Abs(o[j].Size.Float64()), Price: o[j].Price.Float64(),
+						Timestamp: o[j].CreateTime.Time(), Exchange: e.Name, Side: order.Buy, IsMaker: o[j].TradeRole == "maker",
+					}},
 				}
-				od.InferCostsAndTimes()
+				if o[j].Size.Float64() < 0 {
+					od.Side, od.Trades[0].Side = order.Sell, order.Sell
+				}
+				od.InferExecutionAndTimes()
 				resp = append(resp, od)
 			}
 		}
@@ -2644,6 +2749,13 @@ func getSideAndAmountFromSize(size, left float64) (side order.Side, amount, rema
 	return order.Long, size, left
 }
 
+// isQuoteDenominatedMarketBuy reports whether Gate denominates the order's
+// amount and remaining quantity in the quote currency.
+func isQuoteDenominatedMarketBuy(a asset.Item, side order.Side, t order.Type) bool {
+	return t == order.Market && side.IsLong() &&
+		(a == asset.Spot || a == asset.Margin || a == asset.CrossMargin)
+}
+
 // getFutureOrderSize sets the amount to a negative value if shorting.
 func getFutureOrderSize(s *order.Submit) (float64, error) {
 	switch {
@@ -2703,7 +2815,12 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		if err != nil {
 			return nil, err
 		}
-		return e.deriveSpotWebsocketOrderResponse(resp)
+		response, err := e.deriveSpotWebsocketOrderResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+		applySpotSubmitRequest(response, s)
+		return response, nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
 		req, err := getFuturesOrderRequest(s)
 		if err != nil {
@@ -2815,7 +2932,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		if resp.Label != "" { // batch only, denotes error type in string format
 			out[i] = &order.SubmitResponse{
 				Exchange:        e.Name,
-				ClientOrderID:   resp.Text,
+				ClientOrderID:   getClientOrderIDFromText(resp.Text),
 				SubmissionError: fmt.Errorf("%w reason label:%q message:%q", order.ErrUnableToPlaceOrder, resp.Label, resp.Message),
 			}
 			continue
@@ -2827,7 +2944,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		}
 		status := order.Open
 		if resp.FinishAs != "" && resp.FinishAs != statusOpen {
-			status, err = order.StringToOrderStatus(resp.FinishAs)
+			status, err = spotFinishStatus(resp.FinishAs)
 			if err != nil {
 				return nil, err
 			}
@@ -2837,39 +2954,41 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 			return nil, err
 		}
 
-		var cost float64
-		var purchased float64
-		if resp.AverageDealPrice != 0 {
-			if side.IsLong() {
-				cost = resp.FilledTotal.Float64()
-				purchased = resp.FilledTotal.Decimal().Div(resp.AverageDealPrice.Decimal()).InexactFloat64()
-			} else {
-				cost = resp.Amount.Float64()
-				purchased = resp.FilledTotal.Float64()
-			}
-		}
 		tif, err := order.StringToTimeInForce(resp.TimeInForce)
 		if err != nil {
 			return nil, err
+		}
+		amount := resp.Amount.Float64()
+		quoteAmount := 0.0
+		remainingAmount := resp.Left.Float64()
+		executedAmount := amount - remainingAmount
+		if isQuoteDenominatedMarketBuy(resp.Account, side, oType) {
+			// Gate's spot-style market-buy amount is quote-denominated. Preserve it
+			// in the matching generic request field.
+			quoteAmount = amount
+			amount = 0
+			remainingAmount = 0
+			executedAmount = resp.FilledAmount.Float64()
 		}
 		out[i] = &order.SubmitResponse{
 			Exchange:             e.Name,
 			OrderID:              resp.ID,
 			AssetType:            resp.Account,
 			Pair:                 resp.CurrencyPair,
-			ClientOrderID:        resp.Text,
+			ClientOrderID:        getClientOrderIDFromText(resp.Text),
 			Date:                 resp.CreateTimeMs.Time(),
 			LastUpdated:          resp.UpdateTimeMs.Time(),
-			RemainingAmount:      resp.Left.Float64(),
-			Amount:               resp.Amount.Float64(),
+			RemainingAmount:      remainingAmount,
+			Amount:               amount,
+			QuoteAmount:          quoteAmount,
+			ExecutedAmount:       executedAmount,
+			ExecutedQuoteAmount:  resp.FilledTotal.Float64(),
 			Price:                resp.Price.Float64(),
 			Type:                 oType,
 			Side:                 side,
 			Fee:                  resp.Fee.Float64(),
 			FeeAsset:             resp.FeeCurrency,
 			TimeInForce:          tif,
-			Cost:                 cost,
-			Purchased:            purchased,
 			Status:               status,
 			AverageExecutedPrice: resp.AverageDealPrice.Float64(),
 		}
@@ -2896,7 +3015,7 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 		status := order.Open
 		if resp.FinishAs != "" && resp.FinishAs != statusOpen {
 			var err error
-			status, err = order.StringToOrderStatus(resp.FinishAs)
+			status, err = futuresFinishStatus(resp.FinishAs)
 			if err != nil {
 				return nil, err
 			}
@@ -2930,6 +3049,7 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 			LastUpdated:          resp.UpdateTime.Time(),
 			RemainingAmount:      math.Abs(resp.Left.Float64()),
 			Amount:               math.Abs(resp.Size.Float64()),
+			ExecutedAmount:       math.Abs(resp.Size.Float64()) - math.Abs(resp.Left.Float64()),
 			Price:                resp.Price.Float64(),
 			AverageExecutedPrice: resp.FillPrice.Float64(),
 			Type:                 oType,
@@ -3062,6 +3182,19 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	default:
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}
+}
+
+func applySpotSubmitRequest(response *order.SubmitResponse, submitted *order.Submit) {
+	if isQuoteDenominatedMarketBuy(submitted.AssetType, submitted.Side, submitted.Type) {
+		// Gate transports spot-style market-buy amount and left in quote units.
+		// RemainingAmount is base-denominated in the generic response, so
+		// no lossless mapping is available for this request form.
+		response.Amount = 0
+		response.RemainingAmount = 0
+		return
+	}
+	response.Amount = submitted.Amount
+	response.QuoteAmount = submitted.QuoteAmount
 }
 
 // MessageID returns a unique ID conforming to Gate's max length of 32 bytes for request IDs

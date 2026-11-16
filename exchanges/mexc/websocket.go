@@ -903,12 +903,10 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			AverageExecutedPrice: nums.avgPrice,
 			TriggerPrice:         nums.triggerPrice,
 			QuoteAmount:          nums.amount,
-			// cumulativeAmount is the quote actually spent; without it a filled order reports a zero cost.
-			Cost:            nums.cumulativeAmount,
-			CostAsset:       cp.Quote,
-			ExecutedAmount:  nums.cumulativeQuantity,
-			RemainingAmount: nums.remainQuantity,
-			OrderID:         body.Id,
+			ExecutedQuoteAmount:  nums.cumulativeAmount,
+			ExecutedAmount:       nums.cumulativeQuantity,
+			RemainingAmount:      nums.remainQuantity,
+			OrderID:              body.Id,
 			// clientId on the order push is the caller's own client order id; ClientID is the
 			// account-level identifier and does not belong here.
 			ClientOrderID: body.ClientId,

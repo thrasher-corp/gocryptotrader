@@ -117,6 +117,7 @@ type TradeHistoryResponse struct {
 
 // TradeHistory stores trade history
 type TradeHistory struct {
+	TradeID   string     `json:"-"` // The response map key identifies the fill.
 	Pair      string     `json:"pair"`
 	Type      string     `json:"type"`
 	Amount    float64    `json:"amount"`

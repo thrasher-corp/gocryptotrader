@@ -6,9 +6,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// FeeDetail contains cumulative fees keyed by currency.
-type FeeDetail map[string]types.Number
-
 // WebsocketOrderDetails is the order details from the websocket response.
 type WebsocketOrderDetails struct {
 	Category                              string        `json:"category"`
