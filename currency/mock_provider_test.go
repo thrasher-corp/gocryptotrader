@@ -2,6 +2,7 @@ package currency
 
 import (
 	"errors"
+	"fmt"
 	"math/rand/v2"
 	"strings"
 	"sync/atomic"
@@ -107,7 +108,7 @@ func (c *channelControlledMockProvider) GetSupportedCurrencies() ([]string, erro
 	return []string{"USD", "EUR", "AUD", "CAD"}, nil
 }
 
-func (c *channelControlledMockProvider) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
+func (c *channelControlledMockProvider) GetRates(_, _ string) (map[string]float64, error) {
 	if c.called != nil {
 		select {
 		case c.called <- struct{}{}:
@@ -121,4 +122,30 @@ func (c *channelControlledMockProvider) GetRates(baseCurrency, symbols string) (
 		return nil, c.err
 	}
 	return c.rates, nil
+}
+
+// freshCodeMockProvider answers each request with a fiat code storage has not listed yet, as a provider answering with
+// more than it was asked for does
+type freshCodeMockProvider struct {
+	calls atomic.Int64
+}
+
+func newFreshCodeMockProvider() *forexprovider.ForexProviders {
+	return &forexprovider.ForexProviders{
+		Primary: base.Provider{Provider: &freshCodeMockProvider{}},
+	}
+}
+
+func (f *freshCodeMockProvider) GetName() string                           { return "FreshCodeMockProvider" }
+func (f *freshCodeMockProvider) Setup(base.Settings) error                 { return nil }
+func (f *freshCodeMockProvider) IsEnabled() bool                           { return true }
+func (f *freshCodeMockProvider) IsPrimaryProvider() bool                   { return true }
+func (f *freshCodeMockProvider) GetSupportedCurrencies() ([]string, error) { return nil, nil }
+
+func (f *freshCodeMockProvider) GetRates(baseCurrency, _ string) (map[string]float64, error) {
+	n := f.calls.Add(1)
+	return map[string]float64{
+		baseCurrency + "EUR":                    0.9,
+		baseCurrency + fmt.Sprintf("QQ%02d", n): 2,
+	}, nil
 }
