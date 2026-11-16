@@ -220,7 +220,7 @@ func TestOpenBankWithdrawal(t *testing.T) {
 			Country:         "AU",
 			Type:            BankWithdrawalTypeSEPA,
 		})
-		requireRefusedOnMerits(t, err)
+		requireRefusedOnMerits(t, err, invalidChoice, unsupportedBankWithdrawalType)
 	})
 }
 
@@ -298,7 +298,7 @@ func TestCryptoWithdrawal(t *testing.T) {
 		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
 		// More bitcoin than will ever exist, so no account holds it
 		_, err := e.CryptoWithdrawal(t.Context(), &CryptoWithdrawalRequest{Currency: currency.BTC, Network: "bitcoin", Amount: 21000001, Address: core.BitcoinDonationAddress})
-		requireRefusedOnMerits(t, err)
+		requireRefusedOnMerits(t, err, invalidAddressLength, belowMinimumAmount)
 	})
 }
 
@@ -336,6 +336,6 @@ func TestRippleIOUWithdrawal(t *testing.T) {
 		}
 		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
 		_, err := e.RippleIOUWithdrawal(t.Context(), &RippleIOUWithdrawalRequest{Currency: currency.USD, Amount: 1e12, Address: "unlisted"})
-		requireRefusedOnMerits(t, err)
+		requireRefusedOnMerits(t, err, belowMinimumAmount)
 	})
 }

@@ -74,12 +74,30 @@ var refusedRegardlessOfRequest = regexp.MustCompile(`(?i)\bAPI(?:00\d\d|500[5-7]
 // parameter it cannot read or an amount with more decimal places than it takes
 var malformedRequest = regexp.MustCompile(`(?i)\bmissing\b[^;]*\bparam|parameter\(s\) is (?:missing|malformed)|this field is required|parameter is required|must set this field|enter a number|decimal places`)
 
-// requireRefusedOnMerits checks that the API refused a live request which was built to be refused for what it asks
-func requireRefusedOnMerits(t *testing.T, err error) {
+// The replies the API documents for refusing a parameter which a live request sends a valid value for
+var (
+	// invalidAddressFormat refuses an instant convert address format
+	invalidAddressFormat = regexp.MustCompile(`(?i)invalid address format`)
+	// invalidChoice refuses a currency, withdrawal type or country which a form does not list
+	invalidChoice = regexp.MustCompile(`(?i)select a valid choice`)
+	// invalidAddressLength refuses an address which is too short or too long for its currency
+	invalidAddressLength = regexp.MustCompile(`(?i)ensure this value has at (?:least|most)`)
+	// belowMinimumAmount refuses a withdrawal amount below the currency's minimum
+	belowMinimumAmount = regexp.MustCompile(`(?i)ensure this value is greater than or equal to`)
+	// unsupportedBankWithdrawalType refuses a bank withdrawal type
+	unsupportedBankWithdrawalType = regexp.MustCompile(`(?i)unsupported withdrawal type`)
+)
+
+// requireRefusedOnMerits checks that the API refused a live request which was built to be refused for what it asks,
+// and not for a parameter it sends a valid value for, which validParameterRefusals match
+func requireRefusedOnMerits(t *testing.T, err error, validParameterRefusals ...*regexp.Regexp) {
 	t.Helper()
 	require.ErrorIs(t, err, errAPIResponse, "the API must refuse the request")
 	assert.NotRegexp(t, refusedRegardlessOfRequest, err.Error(), "the API should refuse the request for what it asks")
 	assert.NotRegexp(t, malformedRequest, err.Error(), "the request should carry every parameter the API requires in a form it reads")
+	for _, r := range validParameterRefusals {
+		assert.NotRegexp(t, r, err.Error(), "the API should take the parameters the request sends valid values for")
+	}
 }
 
 // newLiveTestInstance returns an exchange which sends its REST requests where the package exchange does

@@ -1350,7 +1350,16 @@ func TestKeepOrderEvent(t *testing.T) {
 			}
 			return ids
 		}
-		ex.orderEventsKept = map[string][]keptOrderEvent{orderEventsKey: {{eventID: "event-2"}, {eventID: "event-4"}, {eventID: "event-5"}}}
+		// The events are kept and removed through their functions, not set directly, so anything else those functions track is exercised too
+		ex.keepOrderEvent(orderEventsKey, &keptOrderEvent{eventID: "event-4"})
+		ex.keepOrderEvent(orderEventsKey, &keptOrderEvent{eventID: "event-5"})
+		ex.keepOrderEvent(orderEventsKey, &keptOrderEvent{eventID: "event-4"})
+		require.Equal(t, []string{"event-4", "event-5"}, keptIDs(), "keepOrderEvent must keep live events once each, in the order they arrive")
+		ex.keepRecoveredOrderEvents(orderEventsKey, []keptOrderEvent{{eventID: "event-2"}, {eventID: "event-3"}, {eventID: "event-4"}})
+		require.Equal(t, []string{"event-2", "event-3", "event-4", "event-5"}, keptIDs(), "keepRecoveredOrderEvents must keep recovered events ahead of the events kept, once each")
+		ex.removeKeptOrderEvent(orderEventsKey, "event-3")
+		ex.removeKeptOrderEvent(orderEventsKey, "event-9")
+		require.Equal(t, []string{"event-2", "event-4", "event-5"}, keptIDs(), "removeKeptOrderEvent must remove only a kept event")
 		for i := range maxKeptOrderEvents {
 			ex.keepOrderEvent(orderEventsKey, &keptOrderEvent{eventID: "event-" + strconv.Itoa(10+i)})
 		}
@@ -1892,6 +1901,7 @@ func TestHandleWebsocketSettlement(t *testing.T) { //nolint:tparallel // The set
 	ex := newWebsocketTestInstance(t)
 	assert.Error(t, ex.handleWSSettlement(t.Context(), "settlement", []byte(`{"as":[]}`)), "handleWSSettlement should error on malformed data")
 	ctx := t.Context()
+	var expected, relayed []any
 	// Serial and in order, as the settlements go through the same exchange; each checks the settlement it relays
 	for _, tc := range []struct {
 		event, data string
@@ -1929,7 +1939,11 @@ func TestHandleWebsocketSettlement(t *testing.T) { //nolint:tparallel // The set
 	} {
 		t.Run(tc.event, func(t *testing.T) {
 			require.NoErrorf(t, ex.handleWSSettlement(ctx, tc.event, []byte(tc.data)), "handleWSSettlement must not error for %s", tc.event)
-			assert.Equal(t, []any{tc.exp}, relayedPayloads(t, ex), "settlements should be sent to the data handler")
+			payloads := relayedPayloads(t, ex)
+			assert.Equal(t, []any{tc.exp}, payloads, "settlements should be sent to the data handler")
+			expected, relayed = append(expected, tc.exp), append(relayed, payloads...)
 		})
 	}
+	// Settlements are relayed by pointer, so each must keep its values once a later one is relayed
+	assert.Equal(t, expected, relayed, "relayed settlements should keep their values")
 }

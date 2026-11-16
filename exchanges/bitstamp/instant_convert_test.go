@@ -30,7 +30,7 @@ func TestCreateInstantConvertAddress(t *testing.T) {
 		}
 		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
 		_, err := e.CreateInstantConvertAddress(t.Context(), unlistedCurrency, "BECH32")
-		requireRefusedOnMerits(t, err)
+		requireRefusedOnMerits(t, err, invalidAddressFormat)
 	})
 }
 

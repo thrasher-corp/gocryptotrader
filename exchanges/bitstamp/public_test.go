@@ -101,12 +101,12 @@ func TestGetTickers(t *testing.T) {
 	assert.True(t, marketTypes[MarketTypePerpetual], "GetTickers should return perpetual markets")
 }
 
-func TestGetTicker(t *testing.T) { //nolint:tparallel // Cases run serially through the shared exchange
+func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTicker(t.Context(), currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetTicker should error on an empty pair")
 
-	for _, tc := range []struct {
+	cases := []struct {
 		name       string
 		pair       currency.Pair
 		marketType string
@@ -156,7 +156,8 @@ func TestGetTicker(t *testing.T) { //nolint:tparallel // Cases run serially thro
 				OpenInterestValue:          4052171.530272792,
 			},
 		},
-	} {
+	}
+	for _, tc := range cases {
 		// Serial and in order, as every case goes through the same exchange
 		t.Run(tc.name, func(t *testing.T) {
 			tick, err := e.GetTicker(t.Context(), tc.pair)
@@ -169,6 +170,29 @@ func TestGetTicker(t *testing.T) { //nolint:tparallel // Cases run serially thro
 			assertLiveTicker(t, "GetTicker", tc.pair, tc.marketType, tick)
 		})
 	}
+	// Parallel, so it runs after the tests already waiting at -parallel 1, leaving the package's first hourly reads to
+	// TestGetHourlyTicker's own cases
+	t.Run("after its hourly ticker", func(t *testing.T) {
+		t.Parallel()
+		// An exchange of its own, as reading the hourly ticker first through the package exchange would change what its
+		// other reads check
+		ex := newTestInstance(t)
+		for _, tc := range cases {
+			// Serial and in order, as every case goes through the same exchange
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := ex.GetHourlyTicker(t.Context(), tc.pair)
+				require.NoErrorf(t, err, "GetHourlyTicker must not error for %s", tc.pair)
+				tick, err := ex.GetTicker(t.Context(), tc.pair)
+				require.NoErrorf(t, err, "GetTicker must not error for %s", tc.pair)
+				require.NotNilf(t, tick, "GetTicker must return a ticker for %s", tc.pair)
+				if mockTests {
+					assert.Equalf(t, tc.exp, tick, "GetTicker should decode the ticker for %s after its hourly ticker", tc.pair)
+					return
+				}
+				assertLiveTicker(t, "GetTicker", tc.pair, tc.marketType, tick)
+			})
+		}
+	})
 }
 
 func TestGetHourlyTicker(t *testing.T) { //nolint:tparallel // Cases run serially through the shared exchange
@@ -176,7 +200,7 @@ func TestGetHourlyTicker(t *testing.T) { //nolint:tparallel // Cases run seriall
 	_, err := e.GetHourlyTicker(t.Context(), currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetHourlyTicker should error on an empty pair")
 
-	for _, tc := range []struct {
+	cases := []struct {
 		name       string
 		pair       currency.Pair
 		marketType string
@@ -222,7 +246,8 @@ func TestGetHourlyTicker(t *testing.T) { //nolint:tparallel // Cases run seriall
 				OpenInterestValue:          4052171.530272792,
 			},
 		},
-	} {
+	}
+	for _, tc := range cases {
 		// Serial and in order, as every case goes through the same exchange
 		t.Run(tc.name, func(t *testing.T) {
 			tick, err := e.GetHourlyTicker(t.Context(), tc.pair)
@@ -235,6 +260,26 @@ func TestGetHourlyTicker(t *testing.T) { //nolint:tparallel // Cases run seriall
 			assertLiveTicker(t, "GetHourlyTicker", tc.pair, tc.marketType, tick)
 		})
 	}
+	t.Run("after its daily ticker", func(t *testing.T) {
+		// An exchange of its own, as reading the daily ticker first through the package exchange would change what its
+		// other reads check
+		ex := newTestInstance(t)
+		for _, tc := range cases {
+			// Serial and in order, as every case goes through the same exchange
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := ex.GetTicker(t.Context(), tc.pair)
+				require.NoErrorf(t, err, "GetTicker must not error for %s", tc.pair)
+				tick, err := ex.GetHourlyTicker(t.Context(), tc.pair)
+				require.NoErrorf(t, err, "GetHourlyTicker must not error for %s", tc.pair)
+				require.NotNilf(t, tick, "GetHourlyTicker must return a ticker for %s", tc.pair)
+				if mockTests {
+					assert.Equalf(t, tc.exp, tick, "GetHourlyTicker should decode the ticker for %s after its daily ticker", tc.pair)
+					return
+				}
+				assertLiveTicker(t, "GetHourlyTicker", tc.pair, tc.marketType, tick)
+			})
+		}
+	})
 }
 
 // assertLiveTicker checks the fields which a live ticker of the market type always sets

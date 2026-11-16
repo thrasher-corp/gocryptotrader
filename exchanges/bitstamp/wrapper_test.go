@@ -51,16 +51,18 @@ import (
 )
 
 // newTestInstance returns an exchange instance named after the test, so tests which process tickers and orderbooks do
-// not share global state
+// not share global state. Mocked, it has a mock server of its own; live, it sends its REST requests where the package
+// exchange does
 func newTestInstance(t *testing.T) *Exchange {
 	t.Helper()
+	if !mockTests {
+		return newLiveTestInstance(t)
+	}
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.Name = t.Name()
-	if mockTests {
-		require.NoError(t, testexch.MockHTTPInstance(ex, "api"), "MockHTTPInstance must not error")
-		require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
-	}
+	require.NoError(t, testexch.MockHTTPInstance(ex, "api"), "MockHTTPInstance must not error")
+	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 	return ex
 }
 
@@ -169,7 +171,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	assert.Equal(t, exchange.AutoWithdrawCryptoText+" & "+exchange.AutoWithdrawFiatText, e.FormatWithdrawPermissions(), "FormatWithdrawPermissions should be correct")
 }
 
-func TestSetDefaults(t *testing.T) { //nolint:tparallel // The URL cases read the exchange the checks below read, so they run in order
+func TestSetDefaults(t *testing.T) { //nolint:tparallel // The URL cases read the exchange the checks below read, so they run serially
 	t.Parallel()
 	ex := new(Exchange)
 	ex.SetDefaults()
@@ -178,7 +180,7 @@ func TestSetDefaults(t *testing.T) { //nolint:tparallel // The URL cases read th
 	assert.Equal(t, config.APICredentialsValidatorConfig{RequiresKey: true, RequiresSecret: true}, ex.API.CredentialsValidator, "only a key and secret should be required")
 	assert.ElementsMatch(t, asset.Items{asset.Spot, asset.PerpetualContract}, ex.GetAssetTypes(false), "spot and perpetual contracts should be supported")
 	for u, exp := range map[exchange.URL]string{exchange.RestSpot: bitstampAPIURL, exchange.WebsocketSpot: bitstampWSURL} {
-		// Serial and in order, as the checks below read the same exchange
+		// Serial, as the checks below read the same exchange
 		t.Run(u.String(), func(t *testing.T) {
 			got, err := ex.API.Endpoints.GetURL(u)
 			require.NoErrorf(t, err, "GetURL must not error for %s", u)
@@ -384,14 +386,14 @@ func TestLoadPreviousVersionConfig(t *testing.T) {
 	}
 }
 
-func TestFetchTradablePairs(t *testing.T) { //nolint:tparallel // The assets' cases go through the package exchange the call above uses, so they run in order
+func TestFetchTradablePairs(t *testing.T) { //nolint:tparallel // The assets' cases go through the package exchange the call above uses, so they run serially
 	t.Parallel()
 	_, err := e.FetchTradablePairs(t.Context(), asset.Futures)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "FetchTradablePairs should error on an unsupported asset")
 
 	ctx := t.Context()
 	for a, exp := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		// Serial and in order, as the pairs are fetched through the same exchange
+		// Serial, as the pairs are fetched through the same exchange
 		t.Run(a.String(), func(t *testing.T) {
 			pairs, err := e.FetchTradablePairs(ctx, a)
 			require.NoErrorf(t, err, "FetchTradablePairs must not error for %s", a)
@@ -418,12 +420,12 @@ func TestTradablePairs(t *testing.T) {
 	assert.Error(t, err, "tradablePairs should error on a malformed market name")
 }
 
-func TestUpdateTradablePairs(t *testing.T) { //nolint:tparallel // The assets' cases read the exchange the pairs were updated on, so they run in order
+func TestUpdateTradablePairs(t *testing.T) { //nolint:tparallel // The assets' cases read the exchange the pairs were updated on, so they run serially
 	t.Parallel()
 	ex := newTestInstance(t)
 	require.NoError(t, ex.UpdateTradablePairs(t.Context()), "UpdateTradablePairs must not error")
 	for a, exp := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		// Serial and in order, as each asset's pairs are read from the same exchange
+		// Serial, as each asset's pairs are read from the same exchange
 		t.Run(a.String(), func(t *testing.T) {
 			pairs, err := ex.GetAvailablePairs(a)
 			require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
@@ -594,7 +596,7 @@ func TestUpdateTickers(t *testing.T) {
 	}
 	ctx := t.Context()
 	for a, pair := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		// Serial and in order, as the tickers are stored for the same exchange the check below reads
+		// Serial, as the tickers are stored for the same exchange the check below reads
 		t.Run(a.String(), func(t *testing.T) {
 			require.NoErrorf(t, ex.UpdateTickers(ctx, a), "UpdateTickers must not error for %s", a)
 			tick, err := ticker.GetTicker(ex.Name, pair, a)
@@ -616,7 +618,7 @@ func TestUpdateTickers(t *testing.T) {
 	assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "UpdateTickers should not store perpetual tickers as spot")
 }
 
-func TestUpdateTicker(t *testing.T) { //nolint:tparallel // The assets' cases go through the exchange the calls above use, so they run in order
+func TestUpdateTicker(t *testing.T) { //nolint:tparallel // The assets' cases go through the exchange the calls above use, so they run serially
 	t.Parallel()
 	ex := newTestInstance(t)
 	_, err := ex.UpdateTicker(t.Context(), currency.EMPTYPAIR, asset.Spot)
@@ -664,7 +666,7 @@ func TestUpdateTicker(t *testing.T) { //nolint:tparallel // The assets' cases go
 	}
 	ctx := t.Context()
 	for a, pair := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		// Serial and in order, as the tickers are fetched through the same exchange
+		// Serial, as the tickers are fetched through the same exchange
 		t.Run(a.String(), func(t *testing.T) {
 			tick, err := ex.UpdateTicker(ctx, pair, a)
 			require.NoErrorf(t, err, "UpdateTicker must not error for %s", pair)
@@ -721,7 +723,7 @@ func TestTickerPrice(t *testing.T) {
 	}, e.tickerPrice(tick, perpetualPair, asset.PerpetualContract), "tickerPrice should convert the ticker")
 }
 
-func TestUpdateOrderbook(t *testing.T) { //nolint:tparallel // The assets' cases go through the exchange the calls above use, so they run in order
+func TestUpdateOrderbook(t *testing.T) { //nolint:tparallel // The assets' cases go through the exchange the calls above use, so they run serially
 	t.Parallel()
 	ex := newTestInstance(t)
 	_, err := ex.UpdateOrderbook(t.Context(), currency.EMPTYPAIR, asset.Spot)
@@ -754,7 +756,7 @@ func TestUpdateOrderbook(t *testing.T) { //nolint:tparallel // The assets' cases
 	}
 	ctx := t.Context()
 	for a, pair := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		// Serial and in order, as the books are fetched through the same exchange
+		// Serial, as the books are fetched through the same exchange
 		t.Run(a.String(), func(t *testing.T) {
 			ob, err := ex.UpdateOrderbook(ctx, pair, a)
 			require.NoErrorf(t, err, "UpdateOrderbook must not error for %s", pair)
@@ -797,7 +799,7 @@ func TestFilterOrderbookZeroBidPrice(t *testing.T) {
 	assert.Equal(t, orderbook.Levels{{Price: 59, Amount: 1337}, {Price: 42, Amount: 8595}}, ob.Bids, "priced bids should be retained")
 }
 
-func TestUpdateAccountBalances(t *testing.T) { //nolint:tparallel // The assets' cases go through the package exchange the call above uses, so they run in order
+func TestUpdateAccountBalances(t *testing.T) { //nolint:tparallel // The assets' cases go through the package exchange the call above uses, so they run serially
 	t.Parallel()
 	_, err := e.UpdateAccountBalances(t.Context(), asset.Futures)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "UpdateAccountBalances should error on an unsupported asset")
@@ -819,7 +821,7 @@ func TestUpdateAccountBalances(t *testing.T) { //nolint:tparallel // The assets'
 			currency.USD: {Currency: currency.USD, Total: 15000, Hold: 1500, Free: 13500},
 		},
 	} {
-		// Serial and in order, as the balances are fetched through the same exchange
+		// Serial, as the balances are fetched through the same exchange
 		t.Run(a.String(), func(t *testing.T) {
 			subAccts, err := e.UpdateAccountBalances(ctx, a)
 			require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", a)
@@ -849,7 +851,7 @@ func TestValidateAPICredentials(t *testing.T) { //nolint:tparallel // Each asset
 		ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "key", Secret: "secret"})
 	}
 	for _, a := range e.GetAssetTypes(false) {
-		// Serial and in order, as each asset's balances are read through the same exchange
+		// Serial, as each asset's balances are read through the same exchange
 		t.Run(a.String(), func(t *testing.T) {
 			assert.NoErrorf(t, e.ValidateAPICredentials(ctx, a), "ValidateAPICredentials should not error for %s", a)
 		})
@@ -1037,7 +1039,7 @@ func TestWithdrawalType(t *testing.T) {
 	}
 }
 
-func TestGetRecentTrades(t *testing.T) { //nolint:tparallel // The assets' cases go through the package exchange the calls above use, so they run in order
+func TestGetRecentTrades(t *testing.T) { //nolint:tparallel // The assets' cases go through the package exchange the calls above use, so they run serially
 	t.Parallel()
 	_, err := e.GetRecentTrades(t.Context(), currency.EMPTYPAIR, asset.Spot)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetRecentTrades should error on an empty pair")
@@ -1046,7 +1048,7 @@ func TestGetRecentTrades(t *testing.T) { //nolint:tparallel // The assets' cases
 
 	ctx := t.Context()
 	for a, pair := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		// Serial and in order, as the trades are fetched through the same exchange
+		// Serial, as the trades are fetched through the same exchange
 		t.Run(a.String(), func(t *testing.T) {
 			trades, err := e.GetRecentTrades(ctx, pair, a)
 			require.NoErrorf(t, err, "GetRecentTrades must not error for %s", pair)
@@ -1493,7 +1495,7 @@ func TestCancelAllOrders(t *testing.T) {
 	assert.Equal(t, map[string]string{"1234123412341235": order.Cancelled.String()}, resp.Status, "CancelAllOrders should report the cancelled perpetual orders")
 }
 
-func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Every case goes to the function the calls around them use, so they run in order
+func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Every case goes to the function the calls around them use, so they run serially
 	t.Parallel()
 	_, err := e.GetOrderInfo(t.Context(), "nope", spotPair, asset.Spot)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOrderInfo should error on an invalid order ID")
@@ -1567,7 +1569,7 @@ func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Every case goes to t
 		"1000 transactions": {transactions: slices.Repeat([]string{`{"tid":1,"price":"100","btc":"0.001","usd":"-0.1","fee":"0.01","datetime":"2025-06-16 10:00:01","type":2}`}, 1000), exp: [4]float64{1, 100, 10, 100}},
 	} {
 		ex := newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Finished","market":"BTC/USD","transactions":[`+strings.Join(tc.transactions, ",")+`],"amount_remaining":"0"}`)
-		// Serial and in order, as the orders below go to the same function
+		// Serial, as the orders below go to the same function
 		t.Run(name, func(t *testing.T) {
 			d, err := ex.GetOrderInfo(ctx, "1", spotPair, asset.Spot)
 			require.NoErrorf(t, err, "GetOrderInfo must not error with %s", name)
@@ -1848,7 +1850,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 			Amount:   21000001,
 			Crypto:   withdraw.CryptoRequest{Address: core.BitcoinDonationAddress, Chain: "bitcoin"},
 		})
-		requireRefusedOnMerits(t, err)
+		requireRefusedOnMerits(t, err, invalidAddressLength, belowMinimumAmount)
 	})
 }
 
@@ -1907,7 +1909,7 @@ func TestWithdrawFiatFunds(t *testing.T) {
 		req := testBankWithdrawalRequest(currency.EUR, 1e12)
 		req.Fiat.Bank.IBAN = invalidIBAN
 		_, err := e.WithdrawFiatFunds(t.Context(), req)
-		requireRefusedOnMerits(t, err)
+		requireRefusedOnMerits(t, err, invalidChoice, unsupportedBankWithdrawalType)
 	})
 }
 
@@ -1977,7 +1979,7 @@ func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
 		req := testBankWithdrawalRequest(currency.USD, 1e12)
 		req.Fiat.Bank.IBAN = invalidIBAN
 		_, err := e.WithdrawFiatFundsToInternationalBank(t.Context(), req)
-		requireRefusedOnMerits(t, err)
+		requireRefusedOnMerits(t, err, invalidChoice, unsupportedBankWithdrawalType)
 	})
 }
 
@@ -2666,13 +2668,13 @@ func TestWithinTimeRange(t *testing.T) {
 	}
 }
 
-func TestGetHistoricCandles(t *testing.T) { //nolint:tparallel // Every case goes through the package exchange, so they run in order
+func TestGetHistoricCandles(t *testing.T) { //nolint:tparallel // Every case goes through the package exchange, so they run serially
 	t.Parallel()
 	start := time.Date(2025, 9, 1, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2025, 9, 30, 0, 0, 0, 0, time.UTC)
 	ctx := t.Context()
 	for a, pair := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
-		// Serial and in order, as the candles are fetched through the same exchange
+		// Serial, as the candles are fetched through the same exchange
 		t.Run(a.String(), func(t *testing.T) {
 			for name, get := range map[string]func() (*kline.Item, error){
 				"GetHistoricCandles": func() (*kline.Item, error) {
@@ -2682,7 +2684,7 @@ func TestGetHistoricCandles(t *testing.T) { //nolint:tparallel // Every case goe
 					return e.GetHistoricCandlesExtended(ctx, pair, a, kline.OneDay, start, end)
 				},
 			} {
-				// Serial and in order, as the candles are fetched through the same exchange
+				// Serial, as the candles are fetched through the same exchange
 				t.Run(name, func(t *testing.T) {
 					candles, err := get()
 					require.NoErrorf(t, err, "%s must not error for %s", name, pair)
@@ -3425,10 +3427,10 @@ func (f failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
 	return nil, f.err
 }
 
-func TestIsPerpetualFutureCurrency(t *testing.T) { //nolint:tparallel // Every case goes through the package exchange, so they run in order
+func TestIsPerpetualFutureCurrency(t *testing.T) { //nolint:tparallel // Every case goes through the package exchange, so they run serially
 	t.Parallel()
 	for a, exp := range map[asset.Item]bool{asset.Spot: false, asset.PerpetualContract: true, asset.Futures: false} {
-		// Serial and in order, as each asset goes through the same exchange
+		// Serial, as each asset goes through the same exchange
 		t.Run(a.String(), func(t *testing.T) {
 			is, err := e.IsPerpetualFutureCurrency(a, perpetualPair)
 			require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
@@ -3517,7 +3519,7 @@ func TestGetLeverage(t *testing.T) {
 	skipIfLiveWithoutCredentials(t)
 	ctx := t.Context()
 	for marginType, exp := range map[margin.Type]float64{margin.Isolated: 5, margin.Multi: 3, margin.Unset: 3} {
-		// Serial and in order, as the leverage is fetched through the same exchange
+		// Serial, as the leverage is fetched through the same exchange
 		t.Run(cmp.Or(marginType.String(), "unset"), func(t *testing.T) {
 			leverage, err := e.GetLeverage(ctx, asset.PerpetualContract, perpetualPair, marginType, order.Buy)
 			require.NoErrorf(t, err, "GetLeverage must not error for %s", marginType)
@@ -3912,7 +3914,7 @@ func TestChangePositionMargin(t *testing.T) { //nolint:tparallel // Every case c
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	for _, a := range e.GetAssetTypes(false) {
-		// Serial and in order, as the unsupported asset below goes to the same function
+		// Serial, as the unsupported asset below goes to the same function
 		t.Run(a.String(), func(t *testing.T) {
 			pairs, err := e.CurrencyPairs.GetPairs(a, true)
 			require.NoErrorf(t, err, "GetPairs must not error for %s", a)
@@ -3932,7 +3934,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestMarketTypeForAsset(t *testing.T) {
 	t.Parallel()
 	for a, exp := range map[asset.Item]string{asset.Spot: MarketTypeSpot, asset.PerpetualContract: MarketTypePerpetual} {
-		// Serial and in order, as the unsupported asset below goes to the same function
+		// Serial, as the unsupported asset below goes to the same function
 		t.Run(a.String(), func(t *testing.T) {
 			marketType, err := marketTypeForAsset(a)
 			require.NoErrorf(t, err, "marketTypeForAsset must not error for %s", a)
@@ -3972,7 +3974,7 @@ func TestSettlementCurrency(t *testing.T) {
 func TestMarketPairAsset(t *testing.T) {
 	t.Parallel()
 	for market, exp := range map[string]asset.Item{"BTC/USD": asset.Spot, "BTC/USD-PERP": asset.PerpetualContract} {
-		// Serial and in order, as the malformed market below goes to the same function
+		// Serial, as the malformed market below goes to the same function
 		t.Run(market, func(t *testing.T) {
 			pair, a, err := marketPairAsset(market)
 			require.NoErrorf(t, err, "marketPairAsset must not error for %s", market)
@@ -3991,7 +3993,7 @@ func TestMarketPairAsset(t *testing.T) {
 func TestFormatMarginMode(t *testing.T) {
 	t.Parallel()
 	for marginType, exp := range map[margin.Type]string{margin.Unset: MarginModeCross, margin.Multi: MarginModeCross, margin.Isolated: MarginModeIsolated} {
-		// Serial and in order, as the unsupported margin type below goes to the same function
+		// Serial, as the unsupported margin type below goes to the same function
 		t.Run(cmp.Or(marginType.String(), "unset"), func(t *testing.T) {
 			mode, err := formatMarginMode(marginType)
 			require.NoErrorf(t, err, "formatMarginMode must not error for %s", marginType)

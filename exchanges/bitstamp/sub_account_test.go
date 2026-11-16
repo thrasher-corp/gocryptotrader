@@ -90,6 +90,6 @@ func TestTransferFromMainAccount(t *testing.T) {
 		}
 		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
 		// More bitcoin than will ever exist, so no account holds it
-		requireRefusedOnMerits(t, e.TransferFromMainAccount(t.Context(), &TransferRequest{Amount: 21000001, Currency: currency.BTC, SubAccount: 1234567}))
+		requireRefusedOnMerits(t, e.TransferFromMainAccount(t.Context(), &TransferRequest{Amount: 21000001, Currency: currency.BTC, SubAccount: 1234567}), invalidChoice)
 	})
 }
