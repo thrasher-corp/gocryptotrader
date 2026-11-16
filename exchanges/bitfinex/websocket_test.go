@@ -1593,7 +1593,7 @@ func TestGenerateSubscriptionsFromMigratedConfig(t *testing.T) {
 	require.NoError(t, err, "testExchangeConfig must not error")
 	withPerpetualPairs, err := jsonparser.Set(raw, []byte(version18Subscriptions), "features", "subscriptions")
 	require.NoError(t, err, "jsonparser.Set must not error")
-	// A configuration saved before perpetual contracts holds no perpetual pairs, and one downgraded from version 19 keeps them
+	// A configuration saved before perpetual contracts holds no perpetual pairs, and one downgraded from version 20 keeps them
 	withoutPerpetualPairs := withPerpetualPairs
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
 		withoutPerpetualPairs = jsonparser.Delete(withoutPerpetualPairs, "currencyPairs", "pairs", a.String())
@@ -1613,10 +1613,10 @@ func TestGenerateSubscriptionsFromMigratedConfig(t *testing.T) {
 				saved, err := jsonparser.Set(tc.saved, []byte(strconv.Quote(name)), "name")
 				require.NoError(t, err, "jsonparser.Set must not error")
 				path := filepath.Join(t.TempDir(), "config.json")
-				require.NoError(t, os.WriteFile(path, []byte(`{"version":18,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must not error")
+				require.NoError(t, os.WriteFile(path, []byte(`{"version":19,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must not error")
 				var cfg config.Config
-				require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 18 configuration")
-				assert.Equal(t, 19, cfg.Version, "ReadConfigFromFile should advance the configuration to version 19")
+				require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 19 configuration")
+				assert.Equal(t, 20, cfg.Version, "ReadConfigFromFile should advance the configuration to version 20")
 				require.NoError(t, cfg.CheckExchangeConfigValues(), "CheckExchangeConfigValues must accept the upgraded configuration")
 				exchCfg, err := cfg.GetExchangeConfig("Bitfinex")
 				require.NoError(t, err, "GetExchangeConfig must not error")
