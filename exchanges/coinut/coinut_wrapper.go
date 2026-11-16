@@ -396,13 +396,13 @@ func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
-	err := o.Validate(e.GetTradingRequirements())
-	if err != nil {
+	if err := o.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 
-	if _, err = strconv.Atoi(o.ClientID); err != nil {
-		return nil, fmt.Errorf("%s - ClientID must be a number, received: %s", e.Name, o.ClientID)
+	clientOrderID, err := strconv.ParseUint(o.ClientOrderID, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errInvalidClientOrderID, err)
 	}
 
 	var orderID string
@@ -411,6 +411,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 		var response *order.Detail
 		response, err = e.wsSubmitOrder(ctx, &WsSubmitOrderParameters{
 			Currency: o.Pair,
+			OrderID:  int64(clientOrderID),
 			Side:     o.Side,
 			Amount:   o.Amount,
 			Price:    o.Price,
@@ -420,8 +421,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 		}
 		orderID = response.OrderID
 	} else {
-		err = e.loadInstrumentsIfNotLoaded(ctx)
-		if err != nil {
+		if err := e.loadInstrumentsIfNotLoaded(ctx); err != nil {
 			return nil, err
 		}
 
@@ -437,17 +437,12 @@ func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 		}
 
 		var APIResponse any
-		var clientIDInt uint64
-		clientIDInt, err = strconv.ParseUint(o.ClientID, 10, 32)
-		if err != nil {
-			return nil, err
-		}
 		APIResponse, err = e.NewOrder(ctx,
 			currencyID,
 			o.Amount,
 			o.Price,
 			o.Side.IsLong(),
-			uint32(clientIDInt))
+			uint32(clientOrderID))
 		if err != nil {
 			return nil, err
 		}
@@ -461,7 +456,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 		}
 		switch orderType {
 		case "order_rejected":
-			return nil, fmt.Errorf("clientOrderID: %v was rejected: %v", o.ClientID, responseMap["reasons"])
+			return nil, fmt.Errorf("%w: client order ID %s rejected: %s", request.ErrAuthRequestFailed, o.ClientOrderID, fmt.Sprint(responseMap["reasons"]))
 		case "order_filled":
 			orderIDResp, ok := responseMap["order_id"].(float64)
 			if !ok {
