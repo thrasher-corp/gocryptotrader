@@ -436,7 +436,7 @@ func (e *Exchange) Unsubscribe(subs subscription.List) error {
 // manageSubs subscribes or unsubscribes from a list of websocket channels
 func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	var errs error
-	subs, errs = subs.ExpandTemplates(e)
+	subs, errs = subs.ExpandTemplatesIfNeeded(e)
 	for _, s := range subs {
 		r := &WebsocketRequest{
 			Type:       op,
