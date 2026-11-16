@@ -481,6 +481,7 @@ func TestForexRefreshFailurePreservesCache(t *testing.T) {
 }
 
 func TestSeedForeignExchangeRates(t *testing.T) {
+	t.Parallel()
 	t.Run("overlapping refreshes registering new fiat codes", func(t *testing.T) {
 		t.Parallel()
 		// Use the package storage, as the fiat list a refresh reads is the one ConversionRates.Update appends to
