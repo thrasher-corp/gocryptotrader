@@ -76,7 +76,7 @@ _b in this context is an `IBotExchange` implemented struct_
 | GateIO | Yes | Yes | No |
 | Gemini | Yes | Yes | Yes |
 | HitBTC | Yes | Yes | Yes |
-| Huobi.Pro | Yes | Yes | No |
+| HTX | Yes | Yes | No |
 | Kraken | Yes | Yes | No |
 | Kucoin | Yes | No | Yes |
 | Lbank | Yes | No | Yes |
