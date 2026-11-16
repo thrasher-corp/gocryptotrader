@@ -3210,6 +3210,9 @@ func TestKeepaliveUSDTMarginedFuturesUserDataStream(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		// Keeps the close tests from invalidating the listen key between its start and keepalive
+		liveListenKeys.RLock()
+		defer liveListenKeys.RUnlock()
 		_, err := e.StartUSDTMarginedFuturesUserDataStream(t.Context())
 		require.NoError(t, err, "StartUSDTMarginedFuturesUserDataStream must not error")
 	}

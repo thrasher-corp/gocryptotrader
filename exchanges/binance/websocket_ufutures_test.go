@@ -174,8 +174,8 @@ func liveTickerSubscriptions(t *testing.T, ex *Exchange, a asset.Item) subscript
 	return subs
 }
 
-// liveListenKeys is held for reading by the live cases whose user data streams need the account's listen keys to stay
-// valid until they end, and for writing by the live cases closing the keys, which run in parallel with them
+// liveListenKeys is held for reading by the live cases that need the account's listen keys to stay valid until they
+// end, and for writing by the live cases closing the keys, which run in parallel with them
 var liveListenKeys sync.RWMutex
 
 // liveUserDataConnections are the private connections whose user data streams the live cases subscribe to

@@ -3566,9 +3566,9 @@ func marginAccountType(isIsolated bool) margin.Type {
 	return margin.Multi
 }
 
-// timeIfClosed returns t if status is known and IsInactive, otherwise returns an empty time
+// timeIfClosed returns t if status IsInactive, otherwise returns an empty time
 func timeIfClosed(status order.Status, t time.Time) time.Time {
-	if status != order.UnknownStatus && status.IsInactive() {
+	if status.IsInactive() {
 		return t
 	}
 	return time.Time{}
