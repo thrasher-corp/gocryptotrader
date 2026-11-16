@@ -1570,7 +1570,7 @@ func TestMatchFilter(t *testing.T) {
 	}
 }
 
-func TestIsActive(t *testing.T) {
+func TestDetail_IsActive(t *testing.T) {
 	orders := map[int]Detail{
 		0: {Amount: 0.0, Status: Active},
 		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
@@ -1611,34 +1611,16 @@ func TestIsActive(t *testing.T) {
 		})
 	}
 
-	statusTests := map[int]struct {
-		o              Detail
-		expectedResult bool
-	}{
-		// For now force inactive on any status
-		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, false},
-		1:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: New}, true},
-		2:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Active}, true},
-		3:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyCancelled}, false},
-		4:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyFilled}, true},
-		5:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Filled}, false},
-		6:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Cancelled}, false},
-		7:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PendingCancel}, true},
-		8:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: InsufficientBalance}, false},
-		9:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: MarketUnavailable}, false},
-		10: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Rejected}, false},
-		11: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Expired}, false},
-		12: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Hidden}, true},
-		// For now force inactive on unknown status
-		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, false},
-		14: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Open}, true},
-		15: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AutoDeleverage}, true},
-		16: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Closed}, false},
-		17: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Pending}, true},
+	for _, s := range []Status{
+		New, Open, Pending, Active, PartiallyFilled, PendingCancel, AutoDeleverage, Hidden,
+	} {
+		assert.True(t, (&Detail{Amount: 1.0, Status: s}).IsActive(), s)
 	}
-	// specific tests
-	for num, tt := range statusTests {
-		require.Equalf(t, tt.expectedResult, tt.o.IsActive(), "statusTests[%v] failed", num)
+
+	for _, s := range []Status{
+		PartiallyCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, UnknownStatus, Closed,
+	} {
+		assert.False(t, (&Detail{Amount: 1.0, Status: s}).IsActive(), s)
 	}
 }
 
@@ -1652,75 +1634,48 @@ func BenchmarkIsActive(b *testing.B) {
 	}
 }
 
-func TestIsInactive(t *testing.T) {
-	orders := map[int]Detail{
-		0: {Amount: 0.0, Status: Active},
-		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
-		2: {Amount: 1.0, ExecutedAmount: 1.0, Status: Active},
-		3: {Amount: 1.0, ExecutedAmount: 1.1, Status: Active},
-	}
+// TestDetail_IsInactive tests the integration of Status.IsInactive with amount checks
+// See also TestStatus_IsInactive
+func TestDetail_IsInactive(t *testing.T) {
+	t.Parallel()
 
-	amountTests := []struct {
-		name           string
-		o              Detail
-		expectedResult bool
-	}{
-		{"no amount", orders[0], true},
-		{"part of the amount executed", orders[1], false},
-		{"the whole amount executed", orders[2], true},
-		{"more than the amount executed", orders[3], true},
+	for _, d := range []Detail{
+		{Amount: 1.0, Status: Closed, ClientID: "Closed Status"},
+		{Amount: 0.0, Status: Active, ClientID: "Amount = 0"},
+		{Amount: 1.0, ExecutedAmount: 1.0, Status: Active, ClientID: "Amount = ExecutedAmount"},
+		{Amount: 1.0, ExecutedAmount: 1.1, Status: Active, ClientID: "Amount < ExecutedAmount"},
 		// An order sized by its quote amount, such as a market buy by value, has a base amount only of what it has bought
-		{"a quote amount with nothing bought", Detail{QuoteAmount: 100, Status: Pending}, false},
-		{"a quote amount partly spent", Detail{Amount: 0.4, ExecutedAmount: 0.4, QuoteAmount: 100, Cost: 40, Status: PartiallyFilled}, false},
-		{"a quote amount wholly spent", Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 100, Cost: 100, Status: PartiallyFilled}, true},
-		{"a quote amount on a filled order", Detail{QuoteAmount: 100, Status: Filled}, true},
+		{Amount: 1, ExecutedAmount: 1, QuoteAmount: 100, Cost: 100, Status: PartiallyFilled, ClientID: "QuoteAmount = Cost"},
+		{QuoteAmount: 100, Status: Filled, ClientID: "QuoteAmount > Cost with Filled Status"},
 		// An order without a quote amount is judged by its base amount alone, whatever its cost
-		{"no quote amount with the whole amount executed", Detail{Amount: 1, ExecutedAmount: 1, Cost: -1, Status: PartiallyFilled}, true},
-	}
-	// The rows run in table order and then in reverse, as the map they replace ran them in no fixed order
-	for _, reverse := range []bool{false, true} {
-		rows, run := slices.Clone(amountTests), "in table order"
-		if reverse {
-			slices.Reverse(rows)
-			run = "in reverse order"
-		}
-		t.Run(run, func(t *testing.T) {
-			for _, tt := range rows {
-				t.Run(tt.name, func(t *testing.T) {
-					assert.Equalf(t, tt.expectedResult, tt.o.IsInactive(), "IsInactive should be %t for an order with %s", tt.expectedResult, tt.name)
-				})
-			}
-		})
+		{Amount: 1, ExecutedAmount: 1, Cost: -1, Status: PartiallyFilled, ClientID: "Amount = ExecutedAmount, no QuoteAmount, Cost < 0"},
+	} {
+		assert.True(t, d.IsInactive(), d.ClientID+" should be Inactive")
 	}
 
-	statusTests := map[int]struct {
-		o              Detail
-		expectedResult bool
-	}{
-		// For now force inactive on any status
-		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, true},
-		1:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: New}, false},
-		2:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Active}, false},
-		3:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyCancelled}, true},
-		4:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyFilled}, false},
-		5:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Filled}, true},
-		6:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Cancelled}, true},
-		7:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PendingCancel}, false},
-		8:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: InsufficientBalance}, true},
-		9:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: MarketUnavailable}, true},
-		10: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Rejected}, true},
-		11: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Expired}, true},
-		12: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Hidden}, false},
-		// For now force inactive on unknown status
-		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, true},
-		14: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Open}, false},
-		15: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AutoDeleverage}, false},
-		16: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Closed}, true},
-		17: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Pending}, false},
+	for _, d := range []Detail{
+		{Amount: 1.0, Status: Active, ClientID: "Amount > 0"},
+		{Amount: 1.0, ExecutedAmount: 0.9, Status: PartiallyFilled, ClientID: "Amount > ExecutedAmount"},
+		{Amount: 1.0, Status: UnknownStatus, ClientID: "Regression: UnknownStatus"},
+		{QuoteAmount: 100, Status: Pending, ClientID: "QuoteAmount > 0"},
+		{Amount: 0.4, ExecutedAmount: 0.4, QuoteAmount: 100, Cost: 40, Status: PartiallyFilled, ClientID: "QuoteAmount > Cost"},
+	} {
+		assert.False(t, d.IsInactive(), d.ClientID+" should not be Inactive")
 	}
-	// specific tests
-	for num, tt := range statusTests {
-		assert.Equalf(t, tt.expectedResult, tt.o.IsInactive(), "statusTests[%v] failed", num)
+}
+
+func TestStatus_IsInactive(t *testing.T) {
+	t.Parallel()
+	for _, s := range []Status{
+		New, Open, Pending, Active, PartiallyFilled, PendingCancel, AutoDeleverage, Hidden, UnknownStatus,
+	} {
+		assert.Falsef(t, s.IsInactive(), "%s should not be inactive", s)
+	}
+
+	for _, s := range []Status{
+		PartiallyCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, Closed, Cancelling, Liquidated,
+	} {
+		assert.Truef(t, s.IsInactive(), "%s should be inactive", s)
 	}
 }
 
