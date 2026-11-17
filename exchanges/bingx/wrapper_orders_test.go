@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -486,6 +489,59 @@ func TestSubmitOrder(t *testing.T) {
 		}
 	})
 
+	t.Run("margin types and reduce only", func(t *testing.T) {
+		t.Parallel()
+		replies := map[asset.Item]map[string][]string{
+			asset.Spot: {"POST /openApi/spot/v1/trade/order": {`{"code":0,"data":{"symbol":"BTC-USDT","orderId":1,"transactTime":1700000000000,"origQty":"1","executedQty":"0","status":"NEW","type":"LIMIT","side":"BUY"}}`}},
+			asset.USDTMarginedFutures: {
+				"GET /openApi/swap/v1/positionSide/dual": {wrapperHedgeModeReply},
+				"POST /openApi/swap/v2/trade/order":      {`{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":2,"side":"BUY","positionSide":"LONG","type":"LIMIT","status":"NEW"}}}`},
+			},
+			asset.CoinMarginedFutures: {"POST /openApi/cswap/v2/trade/order": {`{"code":0,"data":{"order":{"orderId":"3","symbol":"BTC-USD","side":"BUY","type":"LIMIT","quantity":1}}}`}},
+		}
+		pairs := map[asset.Item]currency.Pair{asset.Spot: currency.NewBTCUSDT(), asset.USDTMarginedFutures: currency.NewBTCUSDT(), asset.CoinMarginedFutures: currency.NewBTCUSD()}
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+			for _, mt := range []margin.Type{margin.Unset, margin.Isolated, margin.Multi, margin.NoMargin, margin.SpotIsolated, margin.Unknown} {
+				for _, reduceOnly := range []bool{false, true} {
+					for _, orderType := range []order.Type{order.Limit, order.Market, order.StopLimit} {
+						for _, side := range []order.Side{order.Buy, order.Sell} {
+							t.Run(fmt.Sprintf("%s %s %s %s reduce only %t", a, side, orderType, mt, reduceOnly), func(t *testing.T) {
+								t.Parallel()
+								var exp error
+								switch {
+								case mt != margin.Unset && (a != asset.Spot || mt != margin.NoMargin):
+									exp = margin.ErrMarginTypeUnsupported
+								case reduceOnly && a == asset.Spot:
+									exp = errSpotReduceOnly
+								}
+								routes := make(map[string][]string)
+								if exp == nil {
+									maps.Copy(routes, replies[a])
+								}
+								ex, requests := wrapperTestServer(t, routes)
+								s := &order.Submit{Exchange: ex.Name, Pair: pairs[a], AssetType: a, Side: side, Type: orderType, Price: 10, TriggerPrice: 9, Amount: 1, MarginType: mt, ReduceOnly: reduceOnly}
+								if orderType == order.Market {
+									s.Price, s.TriggerPrice = 0, 0
+									if a == asset.Spot && side == order.Buy {
+										s.Amount, s.QuoteAmount = 0, 10
+									}
+								}
+								_, err := ex.SubmitOrder(t.Context(), s)
+								if exp != nil {
+									assert.ErrorIs(t, err, exp, "SubmitOrder should refuse what the order cannot carry")
+									assert.Empty(t, requests(), "SubmitOrder should send nothing for an order it refuses")
+									return
+								}
+								require.NoError(t, err, "SubmitOrder must place the order")
+								assert.NotEmpty(t, requests(), "SubmitOrder should place the order")
+							})
+						}
+					}
+				}
+			}
+		}
+	})
+
 	t.Run("perpetual order without credentials", func(t *testing.T) {
 		t.Parallel()
 		ex, requests := wrapperTestServer(t, map[string][]string{})
@@ -565,6 +621,26 @@ func TestSubmitSpotOrder(t *testing.T) {
 	assert.ErrorIs(t, err, errAPIResponse, "submitSpotOrder should return the request's error")
 	_, err = ex.submitSpotOrder(t.Context(), &order.Submit{Pair: currency.NewBTCUSDT(), Side: order.AnySide, Type: order.Limit, Price: 1, Amount: 2})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "submitSpotOrder should return the order's error")
+
+	t.Run("market order statuses", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, fields string
+			exp          order.Status
+		}{
+			{"no status", `,"executedQty":"0"`, order.New},
+			{"an unrecognised status", `,"executedQty":"0","status":"WAITING"`, order.New},
+			{"a partial fill", `,"executedQty":"1","status":"PARTIALLY_FILLED"`, order.PartiallyFilled},
+			{"a cancellation", `,"executedQty":"0","status":"CANCELED"`, order.Cancelled},
+		} {
+			ex, _ := wrapperTestServer(t, map[string][]string{
+				"POST /openApi/spot/v1/trade/order": {`{"code":0,"data":{"symbol":"BTC-USDT","orderId":13,"transactTime":1700000000000,"origQty":"2","type":"MARKET","side":"SELL"` + tc.fields + `}}`},
+			})
+			resp, err := ex.submitSpotOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Sell, Type: order.Market, Amount: 2})
+			require.NoErrorf(t, err, "submitSpotOrder must not error for a reply with %s", tc.name)
+			assert.Equalf(t, tc.exp, resp.Status, "submitSpotOrder should report a market order's status for a reply with %s", tc.name)
+		}
+	})
 
 	t.Run("sized in the quote currency", func(t *testing.T) {
 		t.Parallel()
@@ -758,6 +834,27 @@ func TestSubmitSwapOrder(t *testing.T) {
 	assert.Equal(t, 21.0, resp.Cost, "submitSwapOrder should report the cost")
 	assert.Zero(t, resp.RemainingAmount, "submitSwapOrder should report nothing left of a filled order")
 
+	t.Run("reply statuses", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, field string
+			exp         order.Status
+		}{
+			{"no status", "", order.New},
+			{"an unrecognised status", `,"status":"WAITING"`, order.New},
+			{"a partial fill", `,"status":"PARTIALLY_FILLED","executedQty":"1"`, order.PartiallyFilled},
+			{"a cancellation", `,"status":"CANCELED"`, order.Cancelled},
+		} {
+			ex, _ := wrapperTestServer(t, map[string][]string{
+				"GET /openApi/swap/v1/positionSide/dual": {wrapperHedgeModeReply},
+				"POST /openApi/swap/v2/trade/order":      {`{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":8,"side":"BUY","positionSide":"LONG","type":"MARKET","clientOrderId":"","workingType":"MARK_PRICE"` + tc.field + `}}}`},
+			})
+			resp, err := ex.submitSwapOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Market, Amount: 2})
+			require.NoErrorf(t, err, "submitSwapOrder must not error for a reply with %s", tc.name)
+			assert.Equalf(t, tc.exp, resp.Status, "submitSwapOrder should report a market order's status for a reply with %s", tc.name)
+		}
+	})
+
 	t.Run("errors", func(t *testing.T) {
 		t.Parallel()
 		ex, requests := wrapperTestServer(t, map[string][]string{
@@ -829,7 +926,7 @@ func TestSubmitCoinMarginedOrder(t *testing.T) {
 	require.NoError(t, err, "submitCoinMarginedOrder must not error")
 	assert.Equal(t, "5", resp.OrderID, "submitCoinMarginedOrder should return the order ID")
 	assert.Equal(t, "c5", resp.ClientOrderID, "submitCoinMarginedOrder should return the client order ID")
-	assert.Equal(t, order.Filled, resp.Status, "submitCoinMarginedOrder should report the submission's status, as the reply has none")
+	assert.Equal(t, order.New, resp.Status, "submitCoinMarginedOrder should report a market order as new, as the reply has no status")
 	assert.Equal(t, url.Values{"symbol": {"BTC-USD"}, "type": {"MARKET"}, "side": {"BUY"}, "positionSide": {"LONG"}, "quantity": {"2"}, "clientOrderId": {"c5"}}, requests()[0].params, "submitCoinMarginedOrder should place the order on the hedge mode side")
 	_, err = ex.submitCoinMarginedOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: pair, AssetType: asset.CoinMarginedFutures, Side: order.Buy, Type: order.Market, Amount: 2})
 	assert.ErrorIs(t, err, errAPIResponse, "submitCoinMarginedOrder should return the request's error")
@@ -949,6 +1046,33 @@ func TestModifyOrder(t *testing.T) {
 	require.NoError(t, err, "ModifyOrder must not error")
 	assert.Equal(t, 3.0, resp.Amount, "ModifyOrder should amend a USDT-M order's amount")
 	assert.Len(t, requests(), 5, "ModifyOrder should fetch and then change each order")
+
+	t.Run("invalid prices", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
+			for _, tc := range []struct {
+				name                string
+				price, triggerPrice float64
+			}{
+				{"negative price", -1, 0},
+				{"NaN price", math.NaN(), 0},
+				{"infinite price", math.Inf(1), 0},
+				{"negative infinite price", math.Inf(-1), 0},
+				{"negative trigger price", 10, -1},
+				{"NaN trigger price", 10, math.NaN()},
+				{"infinite trigger price", 10, math.Inf(1)},
+				{"negative infinite trigger price", 10, math.Inf(-1)},
+			} {
+				t.Run(a.String()+" "+tc.name, func(t *testing.T) {
+					t.Parallel()
+					ex, requests := wrapperTestServer(t, map[string][]string{})
+					_, err := ex.ModifyOrder(t.Context(), &order.Modify{Pair: currency.NewBTCUSDT(), AssetType: a, OrderID: "11", Amount: 2, Price: tc.price, TriggerPrice: tc.triggerPrice})
+					assert.ErrorIs(t, err, errInvalidPrice, "ModifyOrder should refuse an invalid price")
+					assert.Empty(t, requests(), "ModifyOrder should send nothing for a price it refuses")
+				})
+			}
+		}
+	})
 
 	t.Run("errors before the lookup", func(t *testing.T) {
 		t.Parallel()
@@ -2125,6 +2249,57 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 		assert.Equal(t, order.PartiallyFilled, resp.Status, "amendOrReplaceSwapOrder should keep the status")
 	})
 
+	t.Run("trigger price type", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name                             string
+			orderType, existing, workingType string
+			priceType                        order.PriceType
+			triggerPrice                     float64
+			err                              error
+		}{
+			{"unset keeps the order's", "STOP", "INDEX_PRICE", "INDEX_PRICE", order.LastPrice, 8, nil},
+			{"mark price", "STOP", "INDEX_PRICE", "MARK_PRICE", order.MarkPrice, 8, nil},
+			{"index price", "STOP", "MARK_PRICE", "INDEX_PRICE", order.IndexPrice, 8, nil},
+			{"price type alone", "STOP", "INDEX_PRICE", "MARK_PRICE", order.MarkPrice, 0, nil},
+			{"price type with the same trigger price", "STOP", "INDEX_PRICE", "MARK_PRICE", order.MarkPrice, 9, nil},
+			{"unknown", "STOP", "MARK_PRICE", "", order.UnknownPriceType, 8, order.ErrUnknownPriceType},
+			{"trailing stop", "TRAILING_STOP_MARKET", "INDEX_PRICE", "MARK_PRICE", order.MarkPrice, 8, nil},
+			{"stop market", "STOP_MARKET", "INDEX_PRICE", "MARK_PRICE", order.MarkPrice, 8, nil},
+			{"take profit", "TAKE_PROFIT", "INDEX_PRICE", "MARK_PRICE", order.MarkPrice, 8, nil},
+			{"take profit market", "TAKE_PROFIT_MARKET", "INDEX_PRICE", "MARK_PRICE", order.MarkPrice, 8, nil},
+			{"trigger limit", "TRIGGER_LIMIT", "INDEX_PRICE", "MARK_PRICE", order.MarkPrice, 8, nil},
+			{"trigger market", "TRIGGER_MARKET", "INDEX_PRICE", "MARK_PRICE", order.MarkPrice, 8, nil},
+			{"trailing take profit or stop loss", "TRAILING_TP_SL", "INDEX_PRICE", "MARK_PRICE", order.MarkPrice, 8, nil},
+			{"limit order keeps the order's", "LIMIT", "INDEX_PRICE", "INDEX_PRICE", order.MarkPrice, 8, nil},
+			{"limit order ignores an unknown type", "LIMIT", "INDEX_PRICE", "INDEX_PRICE", order.UnknownPriceType, 8, nil},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				existing := `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":21,"side":"BUY","positionSide":"LONG","type":"` + tc.orderType + `","origQty":"2","price":"10","stopPrice":"9","executedQty":"0","status":"NEW","workingType":"` + tc.existing + `"}}}`
+				routes := map[string][]string{"GET /openApi/swap/v2/trade/order": {existing}}
+				if tc.err == nil {
+					routes["DELETE /openApi/swap/v2/trade/order"] = []string{wrapperSwapCancelledReply(21, "0")}
+					routes["POST /openApi/swap/v2/trade/order"] = []string{wrapperSwapPlacedReply(tc.orderType, "")}
+				}
+				ex, requests := wrapperTestServer(t, routes)
+				_, err := ex.amendOrReplaceSwapOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "21", TriggerPrice: tc.triggerPrice, TriggerPriceType: tc.priceType}, 21)
+				got := requests()
+				if tc.err != nil {
+					assert.ErrorIs(t, err, tc.err, "amendOrReplaceSwapOrder should refuse a price type BingX does not take")
+					assert.Len(t, got, 1, "amendOrReplaceSwapOrder should cancel nothing for a price type it refuses")
+					return
+				}
+				require.NoError(t, err, "amendOrReplaceSwapOrder must not error")
+				require.Len(t, got, 3, "amendOrReplaceSwapOrder must fetch the order, cancel it and place its replacement")
+				assert.Equal(t, tc.workingType, got[2].params.Get("workingType"), "amendOrReplaceSwapOrder should trigger the replacement on the price type asked for")
+				if tc.triggerPrice == 0 {
+					assert.Equal(t, "9", got[2].params.Get("stopPrice"), "amendOrReplaceSwapOrder should keep the order's trigger price when the modification sets none")
+				}
+			})
+		}
+	})
+
 	t.Run("replace", func(t *testing.T) {
 		t.Parallel()
 		ex, requests := wrapperTestServer(t, map[string][]string{
@@ -2747,6 +2922,8 @@ func TestCancelAllOrders(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelAllOrders must reject a nil cancellation")
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Futures})
 	require.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders must reject an unsupported asset")
+	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Futures, Side: order.Buy})
+	require.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders must reject an unsupported asset for a side")
 
 	t.Run("recorded", func(t *testing.T) {
 		t.Parallel()
@@ -2772,6 +2949,225 @@ func TestCancelAllOrders(t *testing.T) {
 			require.NoErrorf(t, err, "CancelAllOrders must not error for %s", tc.c.AssetType)
 			assert.Equalf(t, tc.exp, resp.Status, "CancelAllOrders should report each %s order's outcome", tc.c.AssetType)
 		}
+	})
+
+	t.Run("side and type", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+			for _, tc := range []struct {
+				name       string
+				side       order.Side
+				orderType  order.Type
+				everyPair  bool
+				listFails  bool
+				cancelFail string
+				exp        []string
+			}{
+				{name: "buy limit", side: order.Buy, orderType: order.Limit, exp: []string{"1"}},
+				{name: "sell", side: order.Sell, exp: []string{"2"}},
+				{name: "sell of any type", side: order.Sell, orderType: order.AnyType, exp: []string{"2"}},
+				{name: "limit", orderType: order.Limit, exp: []string{"1", "2", "5"}},
+				{name: "limit of any side", side: order.AnySide, orderType: order.Limit, exp: []string{"1", "2", "5"}},
+				{name: "buy", side: order.Buy, exp: []string{"1", "3", "4"}},
+				{name: "stop limit", orderType: order.StopLimit, exp: []string{"3"}},
+				{name: "buy limit on every symbol", side: order.Buy, orderType: order.Limit, everyPair: true, exp: []string{"1", "6"}},
+				{name: "nothing matching", orderType: order.Market},
+				{name: "listing error", side: order.Buy, listFails: true},
+				{name: "cancellation failure", side: order.Sell, cancelFail: "2", exp: []string{"2"}},
+			} {
+				t.Run(a.String()+" "+tc.name, func(t *testing.T) {
+					t.Parallel()
+					symbols := [2]string{"BTC-USDT", "ETH-USDT"}
+					listRoute, cancelRoute := "/openApi/spot/v1/trade/openOrders", "/openApi/spot/v1/trade/cancelOrders"
+					switch a {
+					case asset.USDTMarginedFutures:
+						listRoute, cancelRoute = "/openApi/swap/v2/trade/openOrders", "/openApi/swap/v2/trade/batchOrders"
+					case asset.CoinMarginedFutures:
+						symbols = [2]string{"BTC-USD", "ETH-USD"}
+						listRoute, cancelRoute = "/openApi/cswap/v1/trade/openOrders", "/openApi/cswap/v1/trade/cancelOrder"
+					}
+					var mu sync.Mutex
+					var listed []url.Values
+					cancelled := make(map[string]string)
+					ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+						params := swapTradeBusinessParams(r)
+						mu.Lock()
+						defer mu.Unlock()
+						switch r.URL.Path {
+						case listRoute:
+							listed = append(listed, params)
+							if tc.listFails {
+								_, _ = io.WriteString(w, `{"code":100500,"msg":"busy"}`)
+								return
+							}
+							orders := []string{
+								`{"symbol":"` + symbols[0] + `","orderId":1,"side":"BUY","type":"LIMIT","status":"NEW"}`,
+								`{"symbol":"` + symbols[0] + `","orderId":2,"side":"SELL","type":"LIMIT","status":"NEW"}`,
+								`{"symbol":"` + symbols[0] + `","orderId":3,"side":"BUY","type":"TRIGGER_LIMIT","status":"NEW"}`,
+								`{"symbol":"` + symbols[0] + `","orderId":4,"side":"BUY","type":"NEW_TYPE","status":"NEW"}`,
+								`{"symbol":"` + symbols[0] + `","orderId":5,"side":"NEW_SIDE","type":"LIMIT","status":"NEW"}`,
+							}
+							if !params.Has("symbol") {
+								orders = append(orders, `{"symbol":"`+symbols[1]+`","orderId":6,"side":"BUY","type":"LIMIT","status":"NEW"}`)
+							}
+							_, _ = io.WriteString(w, `{"code":0,"data":{"orders":[`+strings.Join(orders, ",")+`]}}`)
+						case cancelRoute:
+							var ids []string
+							switch a {
+							case asset.Spot:
+								ids = strings.Split(params.Get("orderIds"), ",")
+							case asset.USDTMarginedFutures:
+								ids = strings.Split(strings.Trim(params.Get("orderIdList"), "[]"), ",")
+							default:
+								ids = []string{params.Get("orderId")}
+							}
+							for _, id := range ids {
+								cancelled[id] = params.Get("symbol")
+							}
+							var replies []string
+							for _, id := range []string{"1", "2", "3", "4", "5", "6"} {
+								if slices.Contains(ids, id) {
+									replies = append(replies, `{"orderId":`+id+`,"status":"CANCELED"}`)
+								}
+							}
+							switch {
+							case len(ids) == 1 && ids[0] == tc.cancelFail:
+								_, _ = io.WriteString(w, `{"code":100500,"msg":"busy"}`)
+							case a == asset.Spot:
+								_, _ = io.WriteString(w, `{"code":0,"data":{"fails":[],"orders":[`+strings.Join(replies, ",")+`]}}`)
+							case a == asset.USDTMarginedFutures:
+								_, _ = io.WriteString(w, `{"code":0,"data":{"success":[`+strings.Join(replies, ",")+`],"failed":null}}`)
+							default:
+								_, _ = io.WriteString(w, `{"code":0,"data":{"order":`+replies[0]+`}}`)
+							}
+						default:
+							assert.Failf(t, "unexpected request", "%s %s should not be requested", r.Method, r.URL.Path)
+							w.WriteHeader(http.StatusNotFound)
+						}
+					})
+					req := &order.Cancel{AssetType: a, Side: tc.side, Type: tc.orderType}
+					if !tc.everyPair {
+						req.Pair = currency.NewPairWithDelimiter(strings.Split(symbols[0], "-")[0], strings.Split(symbols[0], "-")[1], currency.DashDelimiter)
+					}
+					resp, err := ex.CancelAllOrders(t.Context(), req)
+					mu.Lock()
+					defer mu.Unlock()
+					require.Len(t, listed, 1, "CancelAllOrders must list the open orders once")
+					if tc.everyPair {
+						assert.Empty(t, listed[0], "CancelAllOrders should list every symbol's open orders without a pair")
+					} else {
+						assert.Equal(t, url.Values{"symbol": {symbols[0]}}, listed[0], "CancelAllOrders should list the pair's open orders")
+					}
+					if tc.listFails {
+						assert.ErrorIs(t, err, errAPIResponse, "CancelAllOrders should return the listing's error")
+						assert.Empty(t, cancelled, "CancelAllOrders should cancel nothing when the listing fails")
+						return
+					}
+					expCancelled := make(map[string]string, len(tc.exp))
+					expStatus := make(map[string]string, len(tc.exp))
+					for _, id := range tc.exp {
+						expCancelled[id] = symbols[0]
+						expStatus[id] = "CANCELED"
+					}
+					if tc.everyPair {
+						expCancelled["6"] = symbols[1]
+					}
+					assert.Equal(t, expCancelled, cancelled, "CancelAllOrders should cancel the matching orders alone, each on its own symbol")
+					if tc.cancelFail != "" {
+						require.ErrorIs(t, err, errAPIResponse, "CancelAllOrders must return a failed cancellation's error")
+						assert.Contains(t, resp.Status[tc.cancelFail], "code 100500", "CancelAllOrders should report why an order was not cancelled")
+						return
+					}
+					require.NoError(t, err, "CancelAllOrders must not error")
+					assert.Equal(t, expStatus, resp.Status, "CancelAllOrders should report each matching order's outcome")
+				})
+			}
+		}
+	})
+
+	t.Run("credentials changing during a narrowed cancellation", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			a      asset.Item
+			pair   currency.Pair
+			routes map[string][]string
+		}{
+			{asset.Spot, currency.NewBTCUSDT(), map[string][]string{
+				"GET /openApi/spot/v1/trade/openOrders":    {wrapperCredentialsChange + `{"code":0,"data":{"orders":[{"symbol":"BTC-USDT","orderId":1,"side":"BUY","type":"LIMIT","status":"NEW"}]}}`},
+				"POST /openApi/spot/v1/trade/cancelOrders": {`{"code":0,"data":{"fails":[],"orders":[{"orderId":1,"status":"CANCELED"}]}}`},
+			}},
+			{asset.USDTMarginedFutures, currency.NewBTCUSDT(), map[string][]string{
+				"GET /openApi/swap/v2/trade/openOrders":     {wrapperCredentialsChange + `{"code":0,"data":{"orders":[{"symbol":"BTC-USDT","orderId":1,"side":"BUY","type":"LIMIT","status":"NEW"}]}}`},
+				"DELETE /openApi/swap/v2/trade/batchOrders": {`{"code":0,"data":{"success":[{"orderId":1,"status":"CANCELLED"}],"failed":null}}`},
+			}},
+			{asset.CoinMarginedFutures, currency.NewBTCUSD(), map[string][]string{
+				"GET /openApi/cswap/v1/trade/openOrders":     {wrapperCredentialsChange + `{"code":0,"data":{"orders":[{"symbol":"BTC-USD","orderId":1,"side":"BUY","type":"LIMIT","status":"NEW"}]}}`},
+				"DELETE /openApi/cswap/v1/trade/cancelOrder": {`{"code":0,"data":{"order":{"orderId":1,"status":"CANCELLED"}}}`},
+			}},
+		} {
+			for _, c := range []order.Cancel{{Side: order.Buy}, {Type: order.Limit}} {
+				t.Run(tc.a.String()+" side "+c.Side.String()+" type "+c.Type.String(), func(t *testing.T) {
+					t.Parallel()
+					ex, requests := wrapperTestServer(t, maps.Clone(tc.routes))
+					c.Pair, c.AssetType = tc.pair, tc.a
+					_, err := ex.CancelAllOrders(t.Context(), &c)
+					require.NoError(t, err, "CancelAllOrders must not error")
+					got := requests()
+					require.Len(t, got, 2, "CancelAllOrders must list the open orders and cancel the matching one")
+					for _, r := range got {
+						assert.Equalf(t, testAPIKey, r.apiKey, "CancelAllOrders should send %s %s for the account it started with", r.method, r.path)
+					}
+				})
+			}
+		}
+		_, err := new(Exchange).CancelAllOrders(t.Context(), &order.Cancel{Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy})
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "CancelAllOrders should return the credentials error")
+	})
+
+	t.Run("context credentials replaced during a narrowed cancellation", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var keys []string
+		var store *accounts.ContextCredentialsStore
+		ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			defer mu.Unlock()
+			keys = append(keys, r.Header.Get(keyHeader))
+			if r.URL.Path == "/openApi/spot/v1/trade/openOrders" {
+				store.Load(&accounts.Credentials{Key: wrapperOtherAPIKey, Secret: "other-secret"})
+				_, _ = io.WriteString(w, `{"code":0,"data":{"orders":[{"symbol":"BTC-USDT","orderId":1,"side":"BUY","type":"LIMIT","status":"NEW"}]}}`)
+				return
+			}
+			_, _ = io.WriteString(w, `{"code":0,"data":{"fails":[],"orders":[{"orderId":1,"status":"CANCELED"}]}}`)
+		})
+		ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "context-key", Secret: "context-secret"})
+		mu.Lock()
+		store, _ = ctx.Value(accounts.ContextCredentialsFlag).(*accounts.ContextCredentialsStore)
+		mu.Unlock()
+		require.NotNil(t, store, "the context must hold a credentials store")
+		_, err := ex.CancelAllOrders(ctx, &order.Cancel{Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy})
+		require.NoError(t, err, "CancelAllOrders must not error")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, []string{"context-key", "context-key"}, keys, "CancelAllOrders should list and cancel for the account the context named when it started")
+	})
+
+	t.Run("any side and type", func(t *testing.T) {
+		t.Parallel()
+		busy := []string{`{"code":100500,"msg":"busy"}`, `{"code":100500,"msg":"busy"}`, `{"code":100500,"msg":"busy"}`}
+		ex, requests := wrapperTestServer(t, map[string][]string{
+			"POST /openApi/spot/v1/trade/cancelOpenOrders": slices.Clone(busy),
+			"DELETE /openApi/swap/v2/trade/allOpenOrders":  slices.Clone(busy),
+			"DELETE /openApi/cswap/v1/trade/allOpenOrders": slices.Clone(busy),
+		})
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+			for _, c := range []order.Cancel{{Side: order.AnySide, Type: order.AnyType}, {Side: order.AnySide}, {Type: order.AnyType}} {
+				c.AssetType = a
+				_, err := ex.CancelAllOrders(t.Context(), &c)
+				assert.ErrorIsf(t, err, errAPIResponse, "CancelAllOrders should cancel every %s order with side %s and type %s through the cancel-all endpoint", a, c.Side, c.Type)
+			}
+		}
+		assert.Len(t, requests(), 9, "CancelAllOrders should send one cancel-all request for each and list nothing")
 	})
 
 	t.Run("request errors", func(t *testing.T) {

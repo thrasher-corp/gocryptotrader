@@ -39,6 +39,19 @@ const (
 	testAPISecret = "test-api-secret"
 )
 
+// livePositionStateCodes are the codes BingX documents for a margin adjustment the account's positions or balances
+// cannot take: no position on the symbol (109420), a position not in isolated margin mode (101479), and too little
+// margin or balance (101204, 101206, 101212, 101253)
+var livePositionStateCodes = []int64{109420, 101479, 101204, 101206, 101212, 101253}
+
+// requireAPIErrorCode requires err to be a BingX API error with one of codes
+func requireAPIErrorCode(tb testing.TB, err error, codes ...int64) {
+	tb.Helper()
+	var apiErr *APIError
+	require.ErrorAs(tb, err, &apiErr, "error must be a BingX API error")
+	require.Containsf(tb, codes, apiErr.Code, "BingX must answer with one of codes %v", codes)
+}
+
 // newTestServerExchange returns an exchange named after the test whose REST endpoints are served by handler, with test
 // credentials and no rate limiting
 func newTestServerExchange(tb testing.TB, handler http.HandlerFunc) *Exchange {
@@ -411,6 +424,30 @@ func TestTimedOutRequestRetries(t *testing.T) {
 		}},
 		{name: "CancelSwapOrder", route: "DELETE /openApi/swap/v2/trade/order", call: func(ctx context.Context, ex *Exchange) error {
 			_, err := ex.CancelSwapOrder(ctx, currency.NewBTCUSDT(), 1, "")
+			return err
+		}},
+		{name: "CancelSwapBatchOrders", route: "DELETE /openApi/swap/v2/trade/batchOrders", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CancelSwapBatchOrders(ctx, currency.NewBTCUSDT(), []uint64{1}, nil)
+			return err
+		}},
+		{name: "CancelSwapBatchOrders by client order ID", route: "DELETE /openApi/swap/v2/trade/batchOrders", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CancelSwapBatchOrders(ctx, currency.NewBTCUSDT(), nil, []string{"c1"})
+			return err
+		}},
+		{name: "CancelSwapBatchOrders of several orders", route: "DELETE /openApi/swap/v2/trade/batchOrders", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CancelSwapBatchOrders(ctx, currency.NewBTCUSDT(), []uint64{1, 2}, []string{"c1", "c2"})
+			return err
+		}},
+		{name: "CancelSwapBatchOrders of several order IDs", route: "DELETE /openApi/swap/v2/trade/batchOrders", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CancelSwapBatchOrders(ctx, currency.NewBTCUSDT(), []uint64{1, 2}, nil)
+			return err
+		}},
+		{name: "CancelSwapBatchOrders of several client order IDs", route: "DELETE /openApi/swap/v2/trade/batchOrders", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CancelSwapBatchOrders(ctx, currency.NewBTCUSDT(), nil, []string{"c1", "c2"})
+			return err
+		}},
+		{name: "CancelSwapTWAPOrder", route: "POST /openApi/swap/v1/twap/cancelOrder", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.CancelSwapTWAPOrder(ctx, "1")
 			return err
 		}},
 		{name: "CancelAllSwapOpenOrders", route: "DELETE /openApi/swap/v2/trade/allOpenOrders", call: func(ctx context.Context, ex *Exchange) error {
@@ -849,6 +886,9 @@ func TestDecodeResponse(t *testing.T) {
 		assert.ErrorIs(t, decodeResponse(nil, &resp), common.ErrNoResponse, "decodeResponse should error for an empty body")
 		assert.ErrorIs(t, decodeResponse(json.RawMessage(`null`), &resp), common.ErrNoResponse, "decodeResponse should error for a null body")
 		assert.ErrorIs(t, decodeResponse(json.RawMessage(`{"code":0,"data":null}`), &resp), common.ErrNoResponse, "decodeResponse should error for null data")
+		assert.ErrorIs(t, decodeResponse(json.RawMessage(`{"code":0,"data":null}`), &resp), errNullData, "decodeResponse should say the data is null")
+		assert.NotErrorIs(t, decodeResponse(nil, &resp), errNullData, "decodeResponse should not report an empty body as null data")
+		assert.NotErrorIs(t, decodeResponse(json.RawMessage(`null`), &resp), errNullData, "decodeResponse should not report a null body as null data")
 	})
 	t.Run("malformed envelope", func(t *testing.T) {
 		t.Parallel()

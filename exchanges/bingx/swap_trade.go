@@ -357,7 +357,8 @@ func (e *Exchange) swapTradeOrderReply(ctx context.Context, method, path string,
 }
 
 // CancelSwapBatchOrders cancels up to ten of a symbol's orders by order ID and up to ten by client order ID with Cancel
-// Multiple Orders, which reports the orders it cancelled and those it could not
+// Multiple Orders, which reports the orders it cancelled and those it could not. Like CancelSwapOrder, a cancellation
+// whose reply times out is not sent again
 func (e *Exchange) CancelSwapBatchOrders(ctx context.Context, symbol currency.Pair, orderIDs []uint64, clientOrderIDs []string) (*SwapCancelOrdersResponse, error) {
 	params, err := e.swapTradeSymbolParams(symbol)
 	if err != nil {
@@ -387,7 +388,7 @@ func (e *Exchange) CancelSwapBatchOrders(ctx context.Context, symbol currency.Pa
 		params.Set("clientOrderIdList", string(ids))
 	}
 	var resp *SwapCancelOrdersResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodDelete, "/openApi/swap/v2/trade/batchOrders", params, swapCancelBatchOrdersRate, &resp)
+	return resp, e.SendAuthHTTPRequest(request.WithRetryNotAllowed(ctx), exchange.RestUSDTMargined, http.MethodDelete, "/openApi/swap/v2/trade/batchOrders", params, swapCancelBatchOrdersRate, &resp)
 }
 
 // CancelAllSwapOpenOrders cancels the open orders of a symbol, or of every symbol when symbol is empty, with Cancel All
@@ -982,7 +983,8 @@ func (e *Exchange) GetSwapTWAPOrderDetails(ctx context.Context, mainOrderID stri
 	return resp, nil
 }
 
-// CancelSwapTWAPOrder cancels a TWAP order with Cancel TWAP Order
+// CancelSwapTWAPOrder cancels a TWAP order with Cancel TWAP Order. Like CancelSwapOrder, a cancellation whose reply
+// times out is not sent again
 func (e *Exchange) CancelSwapTWAPOrder(ctx context.Context, mainOrderID string) (*SwapTWAPOrderResponse, error) {
 	if mainOrderID == "" {
 		return nil, errSwapMainOrderIDRequired
@@ -990,7 +992,7 @@ func (e *Exchange) CancelSwapTWAPOrder(ctx context.Context, mainOrderID string) 
 	params := url.Values{}
 	params.Set("mainOrderId", mainOrderID)
 	var resp *SwapTWAPOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/openApi/swap/v1/twap/cancelOrder", params, swapCancelTWAPOrderRate, &resp)
+	return resp, e.SendAuthHTTPRequest(request.WithRetryNotAllowed(ctx), exchange.RestUSDTMargined, http.MethodPost, "/openApi/swap/v1/twap/cancelOrder", params, swapCancelTWAPOrderRate, &resp)
 }
 
 // SwitchSwapMultiAssetsMode switches the account between single asset and multi-assets mode with Switch Multi-Assets

@@ -1,8 +1,10 @@
 package bingx
 
 import (
+	"errors"
 	"math"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -25,6 +27,28 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
+
+// wrapperPerpetualAssets are the perpetual assets BingX offers
+var wrapperPerpetualAssets = []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures}
+
+// wrapperLiveMarginType returns the margin type of a perpetual asset's live test pair
+func wrapperLiveMarginType(t *testing.T, ex *Exchange, a asset.Item) margin.Type {
+	t.Helper()
+	var mt MarginType
+	if a == asset.USDTMarginedFutures {
+		resp, err := ex.GetSwapMarginType(t.Context(), assetToTradablePairMap[a])
+		require.NoError(t, err, "GetSwapMarginType must not error")
+		mt = resp.MarginType
+	} else {
+		resp, err := ex.GetCoinMarginedMarginType(t.Context(), assetToTradablePairMap[a])
+		require.NoError(t, err, "GetCoinMarginedMarginType must not error")
+		require.NotEmpty(t, resp, "GetCoinMarginedMarginType must return the pair's margin type")
+		mt = resp[0].MarginType
+	}
+	converted, err := convertMarginType(mt)
+	require.NoError(t, err, "convertMarginType must not error")
+	return converted
+}
 
 // wrapperNextFundingTime is the next funding time the recorded mark price and funding rate replies report
 var wrapperNextFundingTime = time.UnixMilli(1794441600000)
@@ -342,8 +366,11 @@ func TestLatestFundingRate(t *testing.T) {
 }
 
 // wrapperFundingRatePage returns a funding rate history reply holding a rate at each time, newest first as BingX sends
-// them
+// them, or BingX's null data without any
 func wrapperFundingRatePage(times ...time.Time) string {
+	if len(times) == 0 {
+		return `{"code":0,"msg":"","data":null}`
+	}
 	rows := make([]string, len(times))
 	for i := range times {
 		rows[len(times)-1-i] = `{"symbol":"BTC-USDT","fundingRate":"0.0001","fundingTime":` + wrapperMilliseconds(times[i]) + `}`
@@ -389,13 +416,32 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		assert.True(t, rates.PaymentCurrency.IsEmpty(), "GetHistoricalFundingRates should leave out payments not requested")
 	})
 
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the recorded rates are a past window; the live case fetches the latest")
+		}
+		ex := newWrapperTestExchange(t)
+		pair := assetToTradablePairMap[asset.USDTMarginedFutures]
+		end := time.Now().UTC().Truncate(time.Hour)
+		start := end.Add(-72 * time.Hour)
+		rates, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: pair, StartDate: start, EndDate: end})
+		require.NoError(t, err, "GetHistoricalFundingRates must not error")
+		require.NotEmpty(t, rates.FundingRates, "GetHistoricalFundingRates must return the range's rates")
+		assert.True(t, slices.IsSortedFunc(rates.FundingRates, func(a, b fundingrate.Rate) int { return a.Time.Compare(b.Time) }), "GetHistoricalFundingRates should return the rates in ascending time")
+		for i := range rates.FundingRates {
+			assert.WithinRangef(t, rates.FundingRates[i].Time, start, end, "GetHistoricalFundingRates should return rate %d within the range", i)
+		}
+		assert.False(t, rates.LatestRate.Time.IsZero(), "GetHistoricalFundingRates should report the latest rate")
+	})
+
 	start := time.Now().UTC().Truncate(time.Hour).Add(-72 * time.Hour)
 	end := start.Add(24 * time.Hour)
 	premium := `{"code":0,"data":{"symbol":"BTC-USDT","lastFundingRate":"0.0002","nextFundingTime":` + wrapperMilliseconds(end.Add(8*time.Hour)) + `,"fundingIntervalHours":8}}`
 	t.Run("payments", func(t *testing.T) {
 		t.Parallel()
 		ex, requests := wrapperTestServer(t, map[string][]string{
-			"GET /openApi/swap/v2/quote/fundingRate":  {wrapperFundingRatePage(start.Add(8*time.Hour), start.Add(16*time.Hour), end)},
+			"GET /openApi/swap/v2/quote/fundingRate":  {wrapperFundingRatePage(start.Add(8*time.Hour), start.Add(16*time.Hour), end), wrapperFundingRatePage()},
 			"GET /openApi/swap/v2/quote/premiumIndex": {premium},
 			"GET /openApi/swap/v2/user/income": {`{"code":0,"data":[
 				{"symbol":"BTC-USDT","incomeType":"FUNDING_FEE","income":"-0.5","asset":"USDT","time":` + wrapperMilliseconds(start.Add(8*time.Hour+time.Second)) + `},
@@ -410,8 +456,8 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		assert.Equal(t, currency.USDT, rates.PaymentCurrency, "GetHistoricalFundingRates should report payments in the settlement currency")
 		assert.True(t, rates.PredictedUpcomingRate.Time.IsZero(), "GetHistoricalFundingRates should leave out a predicted rate not requested")
 		got := requests()
-		require.Len(t, got, 3, "GetHistoricalFundingRates must request the rates, the current rate and the payments")
-		assert.Equal(t, url.Values{"symbol": {"BTC-USDT"}, "currency": {"USDT"}, "incomeType": {"FUNDING_FEE"}, "startTime": {wrapperMilliseconds(start)}, "endTime": {wrapperMilliseconds(end)}, "limit": {"1000"}}, got[2].params, "GetHistoricalFundingRates should request the range's funding fees")
+		require.Len(t, got, 4, "GetHistoricalFundingRates must request the rates back to the range's start, the current rate and the payments")
+		assert.Equal(t, url.Values{"symbol": {"BTC-USDT"}, "currency": {"USDT"}, "incomeType": {"FUNDING_FEE"}, "startTime": {wrapperMilliseconds(start)}, "endTime": {wrapperMilliseconds(end)}, "limit": {"1000"}}, got[3].params, "GetHistoricalFundingRates should request the range's funding fees")
 	})
 
 	t.Run("payment retention", func(t *testing.T) {
@@ -482,6 +528,70 @@ func TestSwapFundingRates(t *testing.T) {
 	assert.Equal(t, wrapperMilliseconds(full[0].Add(-time.Millisecond)), got[1].params.Get("endTime"), "swapFundingRates should page back from before the oldest rate fetched")
 	_, err = ex.swapFundingRates(t.Context(), currency.NewBTCUSDT(), start, end)
 	assert.ErrorIs(t, err, errAPIResponse, "swapFundingRates should return a page's error")
+
+	t.Run("pages back to the range's start", func(t *testing.T) {
+		t.Parallel()
+		at := func(hours ...int) []time.Time {
+			times := make([]time.Time, len(hours))
+			for i, h := range hours {
+				times[i] = start.Add(time.Duration(h) * time.Hour)
+			}
+			return times
+		}
+		for _, tc := range []struct {
+			name     string
+			end      time.Time
+			pages    [][]time.Time
+			expected []time.Time
+		}{
+			{"short page then an older page", start.Add(12 * time.Hour), [][]time.Time{at(10, 11, 12), at(0, 1)}, at(0, 1, 10, 11, 12)},
+			{"short page then an empty page", start.Add(12 * time.Hour), [][]time.Time{at(10, 12), {}}, at(10, 12)},
+			{"four-hourly settlements", start.Add(8 * time.Hour), [][]time.Time{at(4, 8), at(0)}, at(0, 4, 8)},
+			{"three pages ending with a single rate", start.Add(5 * time.Hour), [][]time.Time{at(4, 5), at(2, 3), at(0)}, at(0, 2, 3, 4, 5)},
+			{"a single rate before older pages", start.Add(5 * time.Hour), [][]time.Time{at(5), at(2, 3), at(0)}, at(0, 2, 3, 5)},
+			{"a page that cannot move the cursor", start.Add(2 * time.Hour), [][]time.Time{{start.Add(2*time.Hour + time.Millisecond)}}, []time.Time{start.Add(2*time.Hour + time.Millisecond)}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				replies := make([]string, len(tc.pages))
+				for i := range tc.pages {
+					replies[i] = wrapperFundingRatePage(tc.pages[i]...)
+				}
+				ex, requests := wrapperTestServer(t, map[string][]string{"GET /openApi/swap/v2/quote/fundingRate": replies})
+				rates, err := ex.swapFundingRates(t.Context(), currency.NewBTCUSDT(), start, tc.end)
+				require.NoError(t, err, "swapFundingRates must not error")
+				got := make([]time.Time, len(rates))
+				for i := range rates {
+					got[i] = rates[i].Time.UTC()
+				}
+				assert.Equal(t, tc.expected, got, "swapFundingRates should return each rate of every page once, in ascending time")
+				sent := requests()
+				require.Len(t, sent, len(tc.pages), "swapFundingRates must request each page once")
+				for i := 1; i < len(sent); i++ {
+					oldest := slices.MinFunc(tc.pages[i-1], func(a, b time.Time) int { return a.Compare(b) })
+					assert.Equalf(t, wrapperMilliseconds(oldest.Add(-time.Millisecond)), sent[i].params.Get("endTime"), "request %d should page back from before the oldest rate fetched", i)
+				}
+			})
+		}
+	})
+
+	t.Run("a later page's error", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, body string
+			err        error
+		}{
+			{"an error", `{"code":100500,"msg":"busy"}`, errAPIResponse},
+			{"a null body", `null`, common.ErrNoResponse},
+		} {
+			ex, requests := wrapperTestServer(t, map[string][]string{
+				"GET /openApi/swap/v2/quote/fundingRate": {wrapperFundingRatePage(start.Add(8*time.Hour), start.Add(16*time.Hour)), tc.body},
+			})
+			_, err := ex.swapFundingRates(t.Context(), currency.NewBTCUSDT(), start, start.Add(16*time.Hour))
+			assert.ErrorIsf(t, err, tc.err, "swapFundingRates should return a later page's error rather than the rates before it, for %s", tc.name)
+			assert.Lenf(t, requests(), 2, "swapFundingRates should stop paging at %s", tc.name)
+		}
+	})
 
 	t.Run("no progress", func(t *testing.T) {
 		t.Parallel()
@@ -658,6 +768,20 @@ func TestSetLeverage(t *testing.T) {
 		}
 		require.NoError(t, ex.SetLeverage(t.Context(), asset.USDTMarginedFutures, currency.NewPairWithDelimiter("ETH", "USDT", currency.DashDelimiter), margin.Multi, 8, order.Short), "SetLeverage must not error for USDT-M")
 		require.NoError(t, ex.SetLeverage(t.Context(), asset.CoinMarginedFutures, currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter), margin.Isolated, 4, order.Long), "SetLeverage must not error for coin-M")
+	})
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the recorded leverage changes are documented examples; the live case sets the live pairs' current leverage")
+		}
+		ex := newWrapperTestExchange(t)
+		wrapperSkipIfCannotManipulateOrders(t, ex)
+		for _, a := range wrapperPerpetualAssets {
+			leverage, err := ex.GetLeverage(t.Context(), a, assetToTradablePairMap[a], margin.Unset, order.Long)
+			require.NoErrorf(t, err, "GetLeverage must not error for %s", a)
+			require.NoErrorf(t, ex.SetLeverage(t.Context(), a, assetToTradablePairMap[a], margin.Unset, leverage, order.Long), "SetLeverage must not error for %s", a)
+		}
 	})
 
 	t.Run("sides", func(t *testing.T) {
@@ -853,6 +977,25 @@ func TestSetMarginType(t *testing.T) {
 		require.NoError(t, ex.SetMarginType(t.Context(), asset.CoinMarginedFutures, currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter), margin.Isolated), "SetMarginType must not error for coin-M")
 	})
 
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the recorded margin type changes are documented examples; the live case switches the live pairs' margin type and back")
+		}
+		ex := newWrapperTestExchange(t)
+		wrapperSkipIfCannotManipulateOrders(t, ex)
+		for _, a := range wrapperPerpetualAssets {
+			current := wrapperLiveMarginType(t, ex, a)
+			other := margin.Isolated
+			if current == margin.Isolated {
+				other = margin.Multi
+			}
+			require.NoErrorf(t, ex.SetMarginType(t.Context(), a, assetToTradablePairMap[a], other), "SetMarginType must not error for %s %s", a, other)
+			assert.Equalf(t, other, wrapperLiveMarginType(t, ex, a), "SetMarginType should set the %s margin type", a)
+			require.NoErrorf(t, ex.SetMarginType(t.Context(), a, assetToTradablePairMap[a], current), "SetMarginType must not error for %s %s", a, current)
+		}
+	})
+
 	t.Run("request errors", func(t *testing.T) {
 		t.Parallel()
 		ex, _ := wrapperTestServer(t, map[string][]string{
@@ -903,6 +1046,31 @@ func TestChangePositionMargin(t *testing.T) {
 			resp, err := ex.ChangePositionMargin(t.Context(), req)
 			require.NoErrorf(t, err, "ChangePositionMargin must not error for %s", req.Asset)
 			assert.Equalf(t, &margin.PositionChangeResponse{Exchange: ex.Name, Pair: req.Pair, Asset: req.Asset, MarginType: margin.Isolated, AllocatedMargin: req.NewAllocatedMargin}, resp, "ChangePositionMargin should report the %s position's new margin", req.Asset)
+		}
+	})
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the recorded margin changes are documented examples; the live case adds margin to the live pairs' long position, if any")
+		}
+		ex := newWrapperTestExchange(t)
+		wrapperSkipIfCannotManipulateOrders(t, ex)
+		for _, tc := range []struct {
+			a      asset.Item
+			margin float64
+		}{
+			{asset.USDTMarginedFutures, 10.1},
+			{asset.CoinMarginedFutures, 1.0001},
+		} {
+			sides, err := ex.leveragePositionSides(t.Context(), tc.a, order.Long)
+			require.NoErrorf(t, err, "leveragePositionSides must not error for %s", tc.a)
+			resp, err := ex.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Exchange: ex.Name, Asset: tc.a, Pair: assetToTradablePairMap[tc.a], MarginType: margin.Isolated, OriginalAllocatedMargin: math.Trunc(tc.margin), NewAllocatedMargin: tc.margin, MarginSide: string(sides[0])})
+			if err != nil {
+				requireAPIErrorCode(t, err, livePositionStateCodes...)
+				continue
+			}
+			assert.Equalf(t, tc.margin, resp.AllocatedMargin, "ChangePositionMargin should report the %s position's new margin", tc.a)
 		}
 	})
 
@@ -980,6 +1148,24 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 		// The recorded USDT-M balances hold no USDC, the recorded position's settlement currency
 		_, err = ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.USDTMarginedFutures, Pair: currency.NewPairWithDelimiter("BTC", "USDC", currency.DashDelimiter)})
 		assert.ErrorIs(t, err, currency.ErrCurrencyNotFound, "GetFuturesPositionSummary should report a position without collateral")
+	})
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the recorded positions are documented examples; the live case summarises the live pairs' positions, if any")
+		}
+		ex := newWrapperTestExchange(t)
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
+		for _, a := range wrapperPerpetualAssets {
+			summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: a, Pair: assetToTradablePairMap[a]})
+			if errors.Is(err, futures.ErrNoPositionsFound) || errors.Is(err, errPositionDirectionRequired) {
+				continue
+			}
+			require.NoErrorf(t, err, "GetFuturesPositionSummary must not error for %s", a)
+			assert.Equalf(t, assetToTradablePairMap[a], summary.Pair, "GetFuturesPositionSummary should summarise the %s pair", a)
+			assert.Equalf(t, a, summary.Asset, "GetFuturesPositionSummary should summarise the %s position", a)
+		}
 	})
 }
 
@@ -1105,6 +1291,25 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 		require.Len(t, resp[0].Orders, 1, "GetFuturesPositionOrders must return the position's order")
 		assert.Equal(t, margin.Isolated, resp[0].Orders[0].MarginType, "GetFuturesPositionOrders should give each order the pair's margin type")
 		assert.Equal(t, 0.002585, resp[0].Orders[0].Fee, "GetFuturesPositionOrders should convert each order")
+	})
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the recorded orders are documented examples in a past window; the live case fetches the live pairs' last day")
+		}
+		ex := newWrapperTestExchange(t)
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
+		settlement := map[asset.Item]futures.ContractSettlementType{asset.USDTMarginedFutures: futures.Linear, asset.CoinMarginedFutures: futures.Inverse}
+		for _, a := range wrapperPerpetualAssets {
+			pair := assetToTradablePairMap[a]
+			resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: a, Pairs: currency.Pairs{pair}, StartDate: time.Now().Add(-24 * time.Hour)})
+			require.NoErrorf(t, err, "GetFuturesPositionOrders must not error for %s", a)
+			require.Lenf(t, resp, 1, "GetFuturesPositionOrders must return the %s pair's position", a)
+			assert.Equalf(t, pair, resp[0].Pair, "GetFuturesPositionOrders should return the %s pair's position", a)
+			assert.Equalf(t, a, resp[0].Asset, "GetFuturesPositionOrders should return the %s position", a)
+			assert.Equalf(t, settlement[a], resp[0].ContractSettlementType, "GetFuturesPositionOrders should report the %s contract's settlement", a)
+		}
 	})
 
 	t.Run("windows and margin types", func(t *testing.T) {

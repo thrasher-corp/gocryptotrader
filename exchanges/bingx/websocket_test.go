@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1535,6 +1536,67 @@ func TestWebsocketSubscribeOne(t *testing.T) {
 	assert.Len(t, ex.wsState.books, 1, "a refused order book subscription should release its book")
 	ex.wsState.booksMu.Unlock()
 	assert.Len(t, ex.Websocket.GetSubscriptions(), 1, "a refused subscription should be removed from the store")
+	ex.wsState.mu.Lock()
+	recovering := ex.wsState.recovering
+	ex.wsState.mu.Unlock()
+	assert.Nil(t, recovering, "wsSubscribeOne should keep the connection after a refusal")
+
+	for _, tc := range []struct {
+		name    string
+		a       asset.Item
+		pair    currency.Pair
+		err     error
+		expired bool
+	}{
+		{"spot signature timeout", asset.Spot, testSpotPair, websocket.ErrSignatureTimeout, false},
+		{"spot cancellation", asset.Spot, testSpotPair, context.Canceled, false},
+		{"USDT-M deadline", asset.USDTMarginedFutures, testSwapPair, context.DeadlineExceeded, true},
+		{"USDT-M network write timeout", asset.USDTMarginedFutures, testSwapPair, &net.OpError{Op: "write", Net: "tcp", Err: os.ErrDeadlineExceeded}, false},
+		{"spot network write failure", asset.Spot, testSpotPair, &net.OpError{Op: "write", Net: "tcp", Err: errors.New("broken pipe")}, false},
+	} {
+		for _, s := range []*subscription.Subscription{
+			testOrderbookSubscription(tc.pair, tc.a, 20),
+			{Channel: subscription.TickerChannel, Asset: tc.a, Pairs: currency.Pairs{tc.pair}, QualifiedChannel: tc.pair.String() + "@ticker"},
+		} {
+			t.Run(s.Channel+" unanswered after "+tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newWebsocketTestExchange(t)
+				conn := &testWebsocketConnection{}
+				_, session := trackTestConnection(t, ex, conn, false)
+				conn.reply = func([]byte) ([]byte, error) { return nil, tc.err }
+				ctx := t.Context()
+				if tc.expired {
+					ctx = testExpiredContext(t)
+				}
+				err := ex.wsSubscribeOne(ctx, conn, s)
+				assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "wsSubscribeOne should report the failed subscription")
+				assert.ErrorIs(t, err, tc.err, "wsSubscribeOne should return why the subscription failed")
+				assert.Empty(t, ex.Websocket.GetSubscriptions(), "wsSubscribeOne should remove the unanswered subscription from the store")
+				ex.wsState.mu.Lock()
+				recovering := ex.wsState.recovering
+				ex.wsState.mu.Unlock()
+				assert.Equal(t, session.token(), recovering, "wsSubscribeOne should retire the connection, so the websocket reconnects")
+				testWaitBackground(t, ex)
+			})
+		}
+	}
+
+	t.Run("refused by the rate limiter before sending", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		conn := &testWebsocketConnection{}
+		trackTestConnection(t, ex, conn, false)
+		conn.reply = func([]byte) ([]byte, error) { return nil, errTestRateLimitRefusal }
+		s := &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{testSpotPair}, QualifiedChannel: testSpotPair.String() + "@ticker"}
+		err := ex.wsSubscribeOne(testDeadlineContext(t), conn, s)
+		assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "wsSubscribeOne should report the failed subscription")
+		assert.ErrorIs(t, err, context.DeadlineExceeded, "wsSubscribeOne should return why the subscription failed")
+		assert.Empty(t, ex.Websocket.GetSubscriptions(), "wsSubscribeOne should remove a subscription it never sent")
+		ex.wsState.mu.Lock()
+		recovering := ex.wsState.recovering
+		ex.wsState.mu.Unlock()
+		assert.Nil(t, recovering, "wsSubscribeOne should keep the connection after a request it never sent")
+	})
 }
 
 func TestWebsocketReleaseBookClaim(t *testing.T) {
@@ -1643,14 +1705,17 @@ func TestWebsocketUnsubscribeOne(t *testing.T) {
 	})
 
 	for _, tc := range []struct {
-		name string
-		a    asset.Item
-		pair currency.Pair
-		err  error
+		name    string
+		a       asset.Item
+		pair    currency.Pair
+		err     error
+		expired bool
 	}{
-		{"spot signature timeout", asset.Spot, testSpotPair, websocket.ErrSignatureTimeout},
-		{"spot cancellation", asset.Spot, testSpotPair, context.Canceled},
-		{"USDT-M deadline", asset.USDTMarginedFutures, testSwapPair, context.DeadlineExceeded},
+		{"spot signature timeout", asset.Spot, testSpotPair, websocket.ErrSignatureTimeout, false},
+		{"spot cancellation", asset.Spot, testSpotPair, context.Canceled, false},
+		{"USDT-M deadline", asset.USDTMarginedFutures, testSwapPair, context.DeadlineExceeded, true},
+		{"USDT-M network write timeout", asset.USDTMarginedFutures, testSwapPair, &net.OpError{Op: "write", Net: "tcp", Err: os.ErrDeadlineExceeded}, false},
+		{"spot network write failure", asset.Spot, testSpotPair, &net.OpError{Op: "write", Net: "tcp", Err: errors.New("broken pipe")}, false},
 	} {
 		t.Run("unanswered after "+tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1661,7 +1726,11 @@ func TestWebsocketUnsubscribeOne(t *testing.T) {
 			book := testOrderbookSubscription(tc.pair, tc.a, 20)
 			require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, book), "AddSuccessfulSubscriptions must not error")
 			claimAndLoadBook(t, ex, conn, book)
-			err := ex.wsUnsubscribeOne(t.Context(), conn, book)
+			ctx := t.Context()
+			if tc.expired {
+				ctx = testExpiredContext(t)
+			}
+			err := ex.wsUnsubscribeOne(ctx, conn, book)
 			assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "wsUnsubscribeOne should report the failed unsubscription")
 			assert.ErrorIs(t, err, tc.err, "wsUnsubscribeOne should return why the unsubscription failed")
 			assert.Equal(t, subscription.SubscribedState, book.State(), "wsUnsubscribeOne should leave an unanswered subscription subscribed until the reconnection")
@@ -1676,6 +1745,26 @@ func TestWebsocketUnsubscribeOne(t *testing.T) {
 			testWaitBackground(t, ex)
 		})
 	}
+
+	t.Run("refused by the rate limiter before sending", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		conn := &testWebsocketConnection{}
+		trackTestConnection(t, ex, conn, false)
+		conn.reply = func([]byte) ([]byte, error) { return nil, errTestRateLimitRefusal }
+		book := testOrderbookSubscription(testSpotPair, asset.Spot, 20)
+		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, book), "AddSuccessfulSubscriptions must not error")
+		claimAndLoadBook(t, ex, conn, book)
+		err := ex.wsUnsubscribeOne(testDeadlineContext(t), conn, book)
+		assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "wsUnsubscribeOne should report the failed unsubscription")
+		assert.ErrorIs(t, err, context.DeadlineExceeded, "wsUnsubscribeOne should return why the unsubscription failed")
+		assert.Equal(t, subscription.SubscribedState, book.State(), "wsUnsubscribeOne should leave a subscription it never unsubscribed subscribed")
+		assert.NoError(t, bookError(ex, testSpotPair, asset.Spot), "wsUnsubscribeOne should keep the book of a stream it never stopped")
+		ex.wsState.mu.Lock()
+		recovering := ex.wsState.recovering
+		ex.wsState.mu.Unlock()
+		assert.Nil(t, recovering, "wsUnsubscribeOne should keep the connection after a request it never sent")
+	})
 
 	t.Run("refusal through the manager", func(t *testing.T) {
 		t.Parallel()
@@ -1903,6 +1992,44 @@ func TestWebsocketSendSerialRequest(t *testing.T) {
 		assert.False(t, state.retired, "a request that never went out should not retire the connection")
 		state.mu.Unlock()
 	})
+
+	t.Run("sent request ending at its context's deadline", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		conn := &testWebsocketConnection{}
+		state, session := trackTestConnection(t, ex, conn, true)
+		ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+		defer cancel()
+		conn.reply = func([]byte) ([]byte, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		_, err := ex.wsSendSerialRequest(ctx, conn, state, &WebsocketSubscriptionRequest{ID: "1", RequestType: WebsocketRequestTypeSubscribe, DataType: "BTC-USD@trade"})
+		assert.ErrorIs(t, err, context.DeadlineExceeded, "a sent request should end with its context's deadline")
+		state.mu.Lock()
+		assert.True(t, state.retired, "a sent request left without a reply should retire the connection")
+		state.mu.Unlock()
+		ex.wsState.mu.Lock()
+		assert.Equal(t, session.token(), ex.wsState.recovering, "a sent request left without a reply should reconnect its session")
+		ex.wsState.mu.Unlock()
+		testWaitBackground(t, ex)
+	})
+
+	t.Run("refused by the rate limiter before sending", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		conn := &testWebsocketConnection{}
+		state, _ := trackTestConnection(t, ex, conn, true)
+		conn.reply = func([]byte) ([]byte, error) { return nil, errTestRateLimitRefusal }
+		_, err := ex.wsSendSerialRequest(testDeadlineContext(t), conn, state, &WebsocketSubscriptionRequest{ID: "1", RequestType: WebsocketRequestTypeSubscribe, DataType: "BTC-USD@trade"})
+		assert.ErrorIs(t, err, context.DeadlineExceeded, "a refused request should return the rate limiter's error")
+		state.mu.Lock()
+		assert.False(t, state.retired, "a request the rate limiter refused should not retire the connection")
+		state.mu.Unlock()
+		ex.wsState.mu.Lock()
+		assert.Nil(t, ex.wsState.recovering, "a request the rate limiter refused should not reconnect its session")
+		ex.wsState.mu.Unlock()
+	})
 }
 
 func TestWebsocketRouteCoinMarginedError(t *testing.T) {
@@ -1951,20 +2078,49 @@ func TestWebsocketErrorNamesRequest(t *testing.T) {
 	}
 }
 
+// testExpiredContext returns a context whose deadline has passed, as a request's has once its wait for a reply ends at
+// the deadline
+func testExpiredContext(tb testing.TB) context.Context {
+	tb.Helper()
+	ctx, cancel := context.WithDeadline(tb.Context(), time.Now().Add(-time.Second))
+	tb.Cleanup(cancel)
+	return ctx
+}
+
+// testDeadlineContext returns a context whose deadline is an hour away, as a request's is when the rate limiter refuses
+// to wait past it
+func testDeadlineContext(tb testing.TB) context.Context {
+	tb.Helper()
+	ctx, cancel := context.WithTimeout(tb.Context(), time.Hour)
+	tb.Cleanup(cancel)
+	return ctx
+}
+
+// errTestRateLimitRefusal is the error the shared connection returns when its rate limiter refuses, before sending, to
+// wait past the request's deadline
+var errTestRateLimitRefusal = fmt.Errorf("BingX websocket connection: rate limit error: %w", fmt.Errorf("rate limit delay of 1s will exceed deadline: %w", context.DeadlineExceeded))
+
 func TestWebsocketRequestUnanswered(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name string
-		err  error
+		name    string
+		err     error
+		expired bool
 	}{
-		{"signature timeout", websocket.ErrSignatureTimeout},
-		{"cancelled", context.Canceled},
-		{"deadline exceeded", context.DeadlineExceeded},
-		{"wrapped signature timeout", fmt.Errorf("%w: BTC-USDT@depth20", websocket.ErrSignatureTimeout)},
+		{"signature timeout", websocket.ErrSignatureTimeout, false},
+		{"cancelled", context.Canceled, false},
+		{"deadline exceeded", context.DeadlineExceeded, true},
+		{"wrapped signature timeout", fmt.Errorf("%w: BTC-USDT@depth20", websocket.ErrSignatureTimeout), false},
+		{"network write timeout", &net.OpError{Op: "write", Net: "tcp", Err: os.ErrDeadlineExceeded}, false},
+		{"wrapped network write failure", fmt.Errorf("sending: %w", &net.OpError{Op: "write", Net: "tcp", Err: errors.New("broken pipe")}), false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Truef(t, wsRequestUnanswered(tc.err), "wsRequestUnanswered should report a request ending with %v as unanswered", tc.err)
+			ctx := t.Context()
+			if tc.expired {
+				ctx = testExpiredContext(t)
+			}
+			assert.Truef(t, wsRequestUnanswered(ctx, tc.err), "wsRequestUnanswered should report a request ending with %v as unanswered", tc.err)
 		})
 	}
 	for _, tc := range []struct {
@@ -1974,10 +2130,12 @@ func TestWebsocketRequestUnanswered(t *testing.T) {
 		{"no error", nil},
 		{"rejected", errWebsocketRequestRejected},
 		{"connection retired", errWebsocketConnectionRetired},
+		{"not connected", websocket.ErrNotConnected},
+		{"rate limiter refusal before sending", errTestRateLimitRefusal},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Falsef(t, wsRequestUnanswered(tc.err), "wsRequestUnanswered should not report a request ending with %v as unanswered", tc.err)
+			assert.Falsef(t, wsRequestUnanswered(testDeadlineContext(t), tc.err), "wsRequestUnanswered should not report a request ending with %v as unanswered", tc.err)
 		})
 	}
 }

@@ -17,10 +17,36 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // spotDocumentedOrderSkip is why a live test skips a request for an order the documentation's example names
 const spotDocumentedOrderSkip = "live accounts hold no order with the documented example's ID"
+
+// spotLiveOrderSkip is why a test server run skips a live case naming an order the live account does not hold
+const spotLiveOrderSkip = "a live account's answer for an order it does not hold; the test server cases cover the mapping"
+
+// spotLiveRestingBuy returns a price and quantity for a limit buy of the live spot test pair that rests without filling:
+// half the best bid, on the pair's tick size, for twice its minimum notional or its minimum quantity if larger, on its
+// step size
+func spotLiveRestingBuy(t *testing.T) (price, quantity float64) {
+	t.Helper()
+	ensureTradablePairs(t)
+	symbols, err := e.GetSpotSymbols(t.Context(), spotTradablePair)
+	require.NoError(t, err, "GetSpotSymbols must not error")
+	require.Len(t, symbols, 1, "GetSpotSymbols must return the pair's symbol")
+	tickers, err := e.GetSpotTicker(t.Context(), spotTradablePair)
+	require.NoError(t, err, "GetSpotTicker must not error")
+	require.Len(t, tickers, 1, "GetSpotTicker must return the pair's ticker")
+	tick, step := decimal.MustFromFloat(symbols[0].TickSize), decimal.MustFromFloat(symbols[0].StepSize)
+	p := decimal.MustFromFloat(tickers[0].BidPrice).Div(decimal.NewFromInt(2)).Div(tick).Floor().Mul(tick)
+	q := decimal.MustFromFloat(symbols[0].MinNotional).Mul(decimal.NewFromInt(2)).Div(p)
+	if minimum := decimal.MustFromFloat(symbols[0].MinQuantity); minimum.GreaterThan(q) {
+		q = minimum
+	}
+	q = q.Div(step).Ceil().Mul(step)
+	return p.InexactFloat64(), q.InexactFloat64()
+}
 
 func TestPlaceSpotOrder(t *testing.T) {
 	t.Parallel()
@@ -463,6 +489,30 @@ func TestCancelReplaceSpotOrder(t *testing.T) {
 		req := valid
 		_, err := ex.CancelReplaceSpotOrder(t.Context(), &req)
 		assert.ErrorIs(t, err, order.ErrOrderNotFound, "CancelReplaceSpotOrder should map code 100404 to ErrOrderNotFound")
+	})
+
+	t.Run("order the account does not hold", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip(spotLiveOrderSkip)
+		}
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
+		price, quantity := spotLiveRestingBuy(t)
+		result, err := e.CancelReplaceSpotOrder(t.Context(), &CancelReplaceSpotOrderRequest{
+			Symbol:            spotTradablePair,
+			CancelOrderID:     1,
+			CancelReplaceMode: CancelReplaceModeStopOnFailure,
+			Side:              SideBuy,
+			Type:              OrderTypeLimit,
+			Quantity:          quantity,
+			Price:             price,
+		})
+		requireAPIErrorCode(t, err, 100400, 100404)
+		if result != nil {
+			assert.False(t, result.CancelResult.Result, "CancelReplaceSpotOrder should report the cancellation failed")
+			assert.False(t, result.OpenResult.Result, "CancelReplaceSpotOrder should place nothing once the cancellation fails")
+		}
 	})
 
 	t.Run("documented example", func(t *testing.T) {
@@ -956,6 +1006,18 @@ func TestCancelSpotOCOOrderList(t *testing.T) {
 		assert.ErrorIs(t, err, order.ErrOrderNotFound, "CancelSpotOCOOrderList should map code 100404 to ErrOrderNotFound")
 	})
 
+	t.Run("order the account does not hold", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip(spotLiveOrderSkip)
+		}
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
+		_, err := e.CancelSpotOCOOrderList(t.Context(), 1, "")
+		requireAPIErrorCode(t, err, 100404)
+		assert.ErrorIs(t, err, order.ErrOrderNotFound, "CancelSpotOCOOrderList should report an order the account does not hold")
+	})
+
 	t.Run("documented example", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -990,6 +1052,20 @@ func TestGetSpotOCOOrderList(t *testing.T) {
 		ex, _ := spotTestServer(t, `{"code":100404,"msg":"order not exist"}`)
 		_, err := ex.GetSpotOCOOrderList(t.Context(), 1, "")
 		assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetSpotOCOOrderList should map code 100404 to ErrOrderNotFound")
+	})
+
+	t.Run("order the account does not hold", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip(spotLiveOrderSkip)
+		}
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		result, err := e.GetSpotOCOOrderList(t.Context(), 1, "")
+		if err != nil {
+			assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetSpotOCOOrderList should report an order the account does not hold")
+			return
+		}
+		assert.Empty(t, result, "GetSpotOCOOrderList should list nothing for an order the account does not hold")
 	})
 
 	t.Run("documented example", func(t *testing.T) {

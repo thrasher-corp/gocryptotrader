@@ -448,6 +448,20 @@ func TestGetCoinMarginedOrderTradeDetail(t *testing.T) {
 		assert.Empty(t, result, "GetCoinMarginedOrderTradeDetail should return no trades")
 	})
 
+	t.Run("order the account does not hold", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("a live account's answer for an order it does not hold; the test server case covers decoding")
+		}
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		result, err := e.GetCoinMarginedOrderTradeDetail(t.Context(), &CoinMarginedOrderTradeDetailRequest{OrderID: 1})
+		if err != nil {
+			assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetCoinMarginedOrderTradeDetail should report an order the account does not hold")
+			return
+		}
+		assert.Empty(t, result, "GetCoinMarginedOrderTradeDetail should return no trades for an order the account does not hold")
+	})
+
 	t.Run("order trades", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -813,8 +827,14 @@ func TestAdjustCoinMarginedIsolatedMargin(t *testing.T) {
 	assert.ErrorIs(t, new(Exchange).AdjustCoinMarginedIsolatedMargin(t.Context(), req), currency.ErrPairManagerNotInitialised, "AdjustCoinMarginedIsolatedMargin should return the symbol formatting error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if !mockTests {
-		t.Skip("adjusting margin live needs an isolated position the account holds")
+	if mockTests {
+		assert.NoError(t, e.AdjustCoinMarginedIsolatedMargin(t.Context(), req), "AdjustCoinMarginedIsolatedMargin should not error")
+		return
 	}
-	assert.NoError(t, e.AdjustCoinMarginedIsolatedMargin(t.Context(), req), "AdjustCoinMarginedIsolatedMargin should not error")
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
+	ensureTradablePairs(t)
+	err := e.AdjustCoinMarginedIsolatedMargin(t.Context(), &AdjustCoinMarginedIsolatedMarginRequest{Symbol: coinMarginedTradablePair, Amount: 0.0001, Type: CoinMarginedMarginAdjustmentTypeIncrease, PositionSide: PositionSideLong})
+	if err != nil {
+		requireAPIErrorCode(t, err, livePositionStateCodes...)
+	}
 }

@@ -40,6 +40,8 @@ type Exchange struct {
 	// balances orders the stream's balance writes against REST balance snapshots and runs the refreshes perpetual
 	// balance events ask for
 	balances balanceState
+	// perpetualOrderFees totals the fees of each open perpetual order's fills, which order events report one at a time
+	perpetualOrderFees perpetualOrderFeeTotals
 }
 
 const (
@@ -62,6 +64,7 @@ var (
 	errUnexpectedEnvelope   = errors.New("unexpected response envelope")
 	errSigningPayloadObject = errors.New("signed request body must encode as a JSON object")
 	errPositionSideRequired = errors.New("position side required")
+	errNullData             = errors.New("null data")
 )
 
 // GetSystemTime returns the server time
@@ -427,7 +430,7 @@ func decodeResponse(raw json.RawMessage, result any) error {
 		data, dataType, _, err := jsonparser.Get(raw, "data")
 		switch {
 		case err == nil && dataType == jsonparser.Null:
-			return common.ErrNoResponse
+			return fmt.Errorf("%w: %w", common.ErrNoResponse, errNullData)
 		case err == nil:
 			return json.Unmarshal(data, result)
 		case !errors.Is(err, jsonparser.KeyPathNotFoundError):

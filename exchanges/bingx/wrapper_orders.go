@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net/http"
 	"strconv"
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -36,6 +38,7 @@ const (
 
 var (
 	errInvalidOrderID               = errors.New("invalid order ID")
+	errInvalidPrice                 = errors.New("invalid price")
 	errTriggerPriceRequired         = errors.New("trigger price required")
 	errTrailingValueRequired        = errors.New("trailing stops need a positive tracking value")
 	errCancelReplaceFailed          = errors.New("cancel-replace failed")
@@ -49,6 +52,7 @@ var (
 	errOrderHistoryTruncated        = errors.New("order history truncated at the furthest page BingX serves")
 	errInvalidOrderLeverage         = errors.New("invalid order leverage")
 	errCoinMarginedReduceOnlyOneWay = errors.New("coin-M orders cannot be reduce only in one-way mode")
+	errSpotReduceOnly               = errors.New("spot orders cannot be reduce only")
 )
 
 // positionModeCache holds the position mode of each USDT-M or coin-M account orders were placed for, keyed by the
@@ -317,13 +321,24 @@ func (e *Exchange) logOrderIssue(a asset.Item, orderID string, err error) {
 // on the hedge mode side it closes whichever mode the account is taken to be in: BingX accepting it shows hedge mode,
 // and refusing it for its position side shows one-way mode, which cannot mark it reduce only, and returns an error. A
 // perpetual order's position mode lookup and placements all go to the account of the credentials ctx names when it is
-// submitted
+// submitted. Orders carry no margin type, so a MarginType is refused other than a spot order's NoMargin, as is a reduce
+// only spot order
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	if s.Leverage != 0 && s.Leverage != 1 {
 		return nil, fmt.Errorf("%w: received %v, set it with SetLeverage", order.ErrSubmitLeverageNotSupported, s.Leverage)
+	}
+	switch {
+	case s.MarginType == margin.Unset, s.AssetType == asset.Spot && s.MarginType == margin.NoMargin:
+	case s.AssetType == asset.Spot:
+		return nil, fmt.Errorf("%w: spot orders are not margined, received %s", margin.ErrMarginTypeUnsupported, s.MarginType)
+	default:
+		return nil, fmt.Errorf("%w: received %s, set it with SetMarginType", margin.ErrMarginTypeUnsupported, s.MarginType)
+	}
+	if s.ReduceOnly && s.AssetType == asset.Spot {
+		return nil, errSpotReduceOnly
 	}
 	if t := resolveOrderType(s.Type, s.Price); t != s.Type {
 		// The response reports the type placed, which later reads of the order report
@@ -413,6 +428,7 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit) (*order
 	resp.ClientOrderID = placed.ClientOrderID
 	resp.Date = placed.TransactTime.Time()
 	resp.LastUpdated = resp.Date
+	resp.Status = order.New
 	e.setPlacedOrderStatus(&resp.Status, resp.AssetType, resp.OrderID, string(placed.Status))
 	if req.Quantity == 0 {
 		// An order sized in the quote currency has the base amount the reply reports, which the order store settles it by
@@ -547,6 +563,7 @@ func (e *Exchange) submitSwapOrder(ctx context.Context, s *order.Submit) (*order
 		return nil, err
 	}
 	resp.ClientOrderID = placed.ClientOrderID
+	resp.Status = order.New
 	e.setPlacedOrderStatus(&resp.Status, resp.AssetType, resp.OrderID, placed.Status)
 	resp.RemainingAmount = max(resp.Amount-placed.ExecutedQuantity.Float64(), 0)
 	if placed.ExecutedQuantity > 0 {
@@ -592,11 +609,11 @@ func (e *Exchange) coinMarginedOrderRequest(ctx context.Context, s *order.Submit
 	return req, nil
 }
 
-// submitCoinMarginedOrder places a coin-M order, whose reply carries no status, so the order is reported as its
-// submission's. An order BingX refuses for its position side shows the account is in the other position mode, which
-// it is taken to be in from then on: an ordinary order is placed once more for that mode, and a reduce only order,
-// placed on its hedge mode side, returns errCoinMarginedReduceOnlyOneWay. A reduce only order BingX accepts shows hedge
-// mode
+// submitCoinMarginedOrder places a coin-M order, whose reply carries no status, so the order is reported as new until
+// an order event or query reports its fills. An order BingX refuses for its position side shows the account is in the
+// other position mode, which it is taken to be in from then on: an ordinary order is placed once more for that mode,
+// and a reduce only order, placed on its hedge mode side, returns errCoinMarginedReduceOnlyOneWay. A reduce only order
+// BingX accepts shows hedge mode
 func (e *Exchange) submitCoinMarginedOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	req, err := e.coinMarginedOrderRequest(ctx, s)
 	if err != nil {
@@ -626,6 +643,7 @@ func (e *Exchange) submitCoinMarginedOrder(ctx context.Context, s *order.Submit)
 		return nil, err
 	}
 	resp.ClientOrderID = placed.ClientOrderID
+	resp.Status = order.New
 	return resp, nil
 }
 
@@ -658,6 +676,12 @@ func (e *Exchange) submitCoinMarginedOrder(ctx context.Context, s *order.Submit)
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
+	}
+	// Refused before anything is cancelled, as a replacement BingX refuses for its price leaves the order cancelled
+	for _, price := range []float64{action.Price, action.TriggerPrice} {
+		if price < 0 || math.IsNaN(price) || math.IsInf(price, 0) {
+			return nil, fmt.Errorf("%w: %v", errInvalidPrice, price)
+		}
 	}
 	var ePath exchange.URL
 	switch action.AssetType {
@@ -1008,6 +1032,13 @@ func (e *Exchange) amendOrReplaceSwapOrder(ctx context.Context, action *order.Mo
 			return nil, fmt.Errorf("%w: order %s closes a separate isolated position its lookup did not name", errSwapPositionIDRequired, existing.OrderID)
 		}
 	}
+	workingType := existing.WorkingType
+	// LastPrice is the price type's zero value, so only another price type shows the modification asks for a change
+	if action.TriggerPriceType != order.LastPrice && (orderTypeTakesTrigger(existing.Type) || orderTypeTrails(existing.Type)) {
+		if workingType, err = formatWorkingType(action.TriggerPriceType); err != nil {
+			return nil, err
+		}
+	}
 	closePosition := existing.ClosePosition.Bool()
 	req := &SwapOrderRequest{
 		Symbol:       action.Pair,
@@ -1019,7 +1050,7 @@ func (e *Exchange) amendOrReplaceSwapOrder(ctx context.Context, action *order.Mo
 		Price:           cmp.Or(action.Price, existing.Price.Float64()),
 		StopPrice:       cmp.Or(action.TriggerPrice, existing.StopPrice.Float64()),
 		PriceRate:       existing.PriceRate.Float64(),
-		WorkingType:     existing.WorkingType,
+		WorkingType:     workingType,
 		StopLoss:        swapAttachedOrder(&existing.StopLoss),
 		TakeProfit:      swapAttachedOrder(&existing.TakeProfit),
 		ClientOrderID:   action.NewClientOrderID,
@@ -1289,11 +1320,44 @@ func recordCoinMarginedCancel(resp *order.CancelBatchResponse, key, status strin
 	return nil
 }
 
-// CancelAllOrders cancels the open orders of a pair, or of every symbol when the pair is empty. Each order's status is
-// its cancelled status or why its cancellation failed
+// CancelAllOrders cancels the open orders of a pair, or of every symbol when the pair is empty. A Side or Type narrows it
+// to the open orders GetActiveOrders reports with that side and type, which are cancelled by order ID, as BingX's
+// cancel-all endpoints take no side; the listing and its cancellations go to the account of the credentials ctx names
+// when it starts. Each order's status is its cancelled status or why its cancellation failed
 func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
 	if err := req.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
+	}
+	if (req.Side != order.UnknownSide && req.Side != order.AnySide) || (req.Type != order.UnknownType && req.Type != order.AnyType) {
+		var err error
+		if ctx, err = e.credentialsContext(ctx); err != nil {
+			return order.CancelAllResponse{}, err
+		}
+		listing := &order.MultiOrderRequest{AssetType: req.AssetType, Side: order.AnySide, Type: order.AnyType}
+		if !req.Pair.IsEmpty() {
+			listing.Pairs = currency.Pairs{req.Pair}
+		}
+		open, err := e.GetActiveOrders(ctx, listing)
+		if err != nil {
+			return order.CancelAllResponse{}, err
+		}
+		// GetActiveOrders' own filters keep orders whose side or type is unknown, which a narrowed cancellation leaves open
+		filter := &order.Filter{Side: req.Side, Type: req.Type}
+		var cancels []order.Cancel
+		for i := range open {
+			if open[i].MatchFilter(filter) {
+				cancels = append(cancels, order.Cancel{Exchange: e.Name, OrderID: open[i].OrderID, Pair: open[i].Pair, AssetType: req.AssetType})
+			}
+		}
+		resp := order.CancelAllResponse{Status: make(map[string]string, len(cancels))}
+		if len(cancels) == 0 {
+			return resp, nil
+		}
+		cancelled, err := e.CancelBatchOrders(ctx, cancels)
+		if cancelled != nil {
+			maps.Copy(resp.Status, cancelled.Status)
+		}
+		return resp, err
 	}
 	resp := order.CancelAllResponse{Status: make(map[string]string)}
 	switch req.AssetType {

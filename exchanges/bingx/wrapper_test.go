@@ -2123,6 +2123,15 @@ func wrapperExpectedCandles(a asset.Item) []kline.Candle {
 	}
 }
 
+// wrapperMinuteCandles returns a perpetual candle reply holding n one-minute candles from start
+func wrapperMinuteCandles(start time.Time, n int) string {
+	rows := make([]string, n)
+	for i := range n {
+		rows[i] = `{"open":"1","close":"1","high":"1","low":"1","volume":"1","time":` + wrapperMilliseconds(start.Add(time.Duration(i)*time.Minute)) + `}`
+	}
+	return `{"code":0,"data":[` + strings.Join(rows, ",") + `]}`
+}
+
 // wrapperHourCandles returns a perpetual candle reply holding n hourly candles from start
 func wrapperHourCandles(start time.Time, n int) string {
 	rows := make([]string, n)
@@ -2173,9 +2182,43 @@ func TestGetHistoricCandles(t *testing.T) {
 
 	t.Run("range starts before the candles held", func(t *testing.T) {
 		t.Parallel()
-		ex, _ := wrapperTestServer(t, map[string][]string{"GET /openApi/swap/v3/quote/klines": {wrapperHourCandles(wrapperFixtureStart.Add(time.Hour), 2)}})
+		ex, _ := wrapperTestServer(t, map[string][]string{
+			"GET /openApi/swap/v3/quote/klines":          {wrapperHourCandles(wrapperFixtureStart.Add(time.Hour), 2)},
+			"GET /openApi/swap/v1/quote/tradingSchedule": {wrapperNoScheduleReply},
+		})
 		_, err := ex.GetHistoricCandles(t.Context(), currency.NewBTCUSDT(), asset.USDTMarginedFutures, kline.OneHour, wrapperFixtureStart, wrapperFixtureStart.Add(3*time.Hour))
 		assert.ErrorIs(t, err, errCandlesBeforeHistory, "GetHistoricCandles should report a range starting before the candles BingX holds")
+	})
+
+	t.Run("range starts while the market is closed", func(t *testing.T) {
+		t.Parallel()
+		ex, requests := wrapperTestServer(t, map[string][]string{
+			"GET /openApi/swap/v3/quote/klines":          {wrapperHourCandles(wrapperFixtureStart.Add(time.Hour), 2), wrapperHourCandles(wrapperFixtureStart, 1)},
+			"GET /openApi/swap/v1/quote/tradingSchedule": {wrapperForexScheduleReply},
+			"GET /openApi/swap/v2/quote/contracts":       {wrapperForexContractReply},
+		})
+		wrapperEnableForexPair(t, ex)
+		result, err := ex.GetHistoricCandles(t.Context(), wrapperForexPair, asset.USDTMarginedFutures, kline.OneHour, wrapperFixtureStart, wrapperFixtureStart.Add(3*time.Hour))
+		require.NoError(t, err, "GetHistoricCandles must not error")
+		require.Len(t, result.Candles, 3, "GetHistoricCandles must return a candle for each period")
+		assert.Equal(t, kline.Candle{Time: wrapperFixtureStart}, result.Candles[0], "GetHistoricCandles should pad the period the market was closed")
+		assert.Equal(t, wrapperFixtureStart.Add(time.Hour), result.Candles[1].Time, "GetHistoricCandles should keep the candles BingX sent")
+		assert.Len(t, requests(), 4, "GetHistoricCandles should request the candles, the contract's trading schedule and launch, and whether BingX holds the interval")
+	})
+
+	t.Run("minute range starting before BingX holds minutes", func(t *testing.T) {
+		t.Parallel()
+		ex, requests := wrapperTestServer(t, map[string][]string{
+			"GET /openApi/swap/v3/quote/klines":          {wrapperMinuteCandles(wrapperFixtureStart.Add(time.Minute), 2), `{"code":0,"msg":"","data":[]}`},
+			"GET /openApi/swap/v1/quote/tradingSchedule": {wrapperForexScheduleReply},
+			"GET /openApi/swap/v2/quote/contracts":       {wrapperForexContractReply},
+		})
+		wrapperEnableForexPair(t, ex)
+		_, err := ex.GetHistoricCandles(t.Context(), wrapperForexPair, asset.USDTMarginedFutures, kline.OneMin, wrapperFixtureStart, wrapperFixtureStart.Add(3*time.Minute))
+		assert.ErrorIs(t, err, errCandlesBeforeHistory, "GetHistoricCandles should report a minute range starting before BingX holds minutes")
+		got := requests()
+		require.Len(t, got, 4, "GetHistoricCandles must request the candles, the contract's trading schedule and launch, and whether BingX holds the interval")
+		assert.Equal(t, url.Values{"symbol": {"BTC-USDT"}, "interval": {"1m"}, "startTime": {wrapperMilliseconds(wrapperFixtureStart)}, "endTime": {wrapperMilliseconds(wrapperFixtureStart.Add(time.Minute))}, "limit": {"1"}}, got[3].params, "GetHistoricCandles should check BingX holds the range's interval at its start")
 	})
 
 	t.Run("request error", func(t *testing.T) {
@@ -2234,6 +2277,36 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		assert.ErrorIs(t, err, errCandlesBeforeHistory, "GetHistoricCandlesExtended should report a range starting before the candles BingX holds")
 	})
 
+	t.Run("range starts while the market is closed", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := wrapperTestServer(t, map[string][]string{
+			"GET /openApi/swap/v3/quote/klines":          {wrapperHourCandles(wrapperFixtureStart.Add(2*time.Hour), 1), wrapperHourCandles(wrapperFixtureStart, 1)},
+			"GET /openApi/swap/v1/quote/tradingSchedule": {wrapperForexScheduleReply},
+			"GET /openApi/swap/v2/quote/contracts":       {wrapperForexContractReply},
+		})
+		wrapperEnableForexPair(t, ex)
+		result, err := ex.GetHistoricCandlesExtended(t.Context(), wrapperForexPair, asset.USDTMarginedFutures, kline.OneHour, wrapperFixtureStart, wrapperFixtureStart.Add(3*time.Hour))
+		require.NoError(t, err, "GetHistoricCandlesExtended must not error")
+		require.Len(t, result.Candles, 3, "GetHistoricCandlesExtended must return a candle for each period")
+		assert.Equal(t, []kline.Candle{{Time: wrapperFixtureStart}, {Time: wrapperFixtureStart.Add(time.Hour)}}, result.Candles[:2], "GetHistoricCandlesExtended should pad the periods the market was closed")
+		assert.Equal(t, wrapperFixtureStart.Add(2*time.Hour), result.Candles[2].Time, "GetHistoricCandlesExtended should keep the candle BingX sent")
+	})
+
+	t.Run("minute range starting before BingX holds minutes", func(t *testing.T) {
+		t.Parallel()
+		ex, requests := wrapperTestServer(t, map[string][]string{
+			"GET /openApi/swap/v3/quote/klines":          {wrapperMinuteCandles(wrapperFixtureStart.Add(time.Minute), 2), `{"code":0,"msg":"","data":[]}`},
+			"GET /openApi/swap/v1/quote/tradingSchedule": {wrapperForexScheduleReply},
+			"GET /openApi/swap/v2/quote/contracts":       {wrapperForexContractReply},
+		})
+		wrapperEnableForexPair(t, ex)
+		_, err := ex.GetHistoricCandlesExtended(t.Context(), wrapperForexPair, asset.USDTMarginedFutures, kline.OneMin, wrapperFixtureStart, wrapperFixtureStart.Add(3*time.Minute))
+		assert.ErrorIs(t, err, errCandlesBeforeHistory, "GetHistoricCandlesExtended should report a minute range starting before BingX holds minutes")
+		got := requests()
+		require.Len(t, got, 4, "GetHistoricCandlesExtended must request the candles, the contract's trading schedule and launch, and whether BingX holds the interval")
+		assert.Equal(t, url.Values{"symbol": {"BTC-USDT"}, "interval": {"1m"}, "startTime": {wrapperMilliseconds(wrapperFixtureStart)}, "endTime": {wrapperMilliseconds(wrapperFixtureStart.Add(time.Minute))}, "limit": {"1"}}, got[3].params, "GetHistoricCandlesExtended should check BingX holds the range's interval at its start")
+	})
+
 	t.Run("request error", func(t *testing.T) {
 		t.Parallel()
 		ex, _ := wrapperTestServer(t, map[string][]string{"GET /openApi/spot/v2/quote/klines": {`{"code":100204,"msg":"no data"}`}})
@@ -2284,12 +2357,105 @@ func TestCandles(t *testing.T) {
 	assert.Equal(t, url.Values{"symbol": {"BTC-USDT"}, "interval": {"1d"}, "startTime": {"1794096000000"}, "endTime": {"1794355200000"}, "limit": {"7"}}, got[4].params, "candles should request coin-M candles ending at end, which is exclusive")
 }
 
+// wrapperForexScheduleReply and wrapperForexContractReply are BingX's trading schedule and contract replies for its
+// AUDUSD forex contract, listed in 2025, and wrapperNoScheduleReply its schedule reply for a crypto contract, which has
+// none
+const (
+	wrapperForexScheduleReply = `{"code":0,"msg":"","data":[{"symbol":"NCFXAUD2USD-USDT","contractType":"nonCryptoForex","marketStatus":"open","timeZone":"UTC+08:00","updateTime":1793415291000,"sessions":[{"startTime":1794931200000,"endTime":1795211999000,"type":"REGULAR"},{"startTime":1795211999000,"endTime":1795371000000,"type":"NO_TRADING"},{"startTime":1795371000000,"endTime":1795536000000,"type":"REGULAR"}]}]}`
+	wrapperForexContractReply = `{"code":0,"msg":"","data":[{"contractId":"101554","symbol":"NCFXAUD2USD-USDT","size":"0.01","quantityPrecision":2,"pricePrecision":5,"feeRate":0.0005,"makerFeeRate":0.0002,"takerFeeRate":0.0005,"tradeMinLimit":0,"tradeMinQuantity":2.97,"tradeMinUSDT":2,"currency":"USDT","asset":"NCFXAUD2USD","status":1,"apiStateOpen":"true","apiStateClose":"true","ensureTrigger":false,"triggerFeeRate":"0.00200000","brokerState":false,"launchTime":1756370400000,"maintainTime":0,"offTime":0,"displayName":"AUDUSD-USDT"}]}`
+	wrapperNoScheduleReply    = `{"code":109419,"msg":"trading schedules are only available for online or paused non-crypto symbols supported in open api","data":[]}`
+)
+
+// wrapperForexPair is BingX's AUDUSD forex contract, whose market closes over weekends
+var wrapperForexPair = currency.NewPairWithDelimiter("NCFXAUD2USD", "USDT", currency.DashDelimiter)
+
+// wrapperEnableForexPair enables wrapperForexPair on a test exchange
+func wrapperEnableForexPair(t *testing.T, ex *Exchange) {
+	t.Helper()
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{wrapperForexPair}, false), "StorePairs must not error")
+	require.NoError(t, ex.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, wrapperForexPair), "EnablePair must not error")
+}
+
 func TestCheckCandleHistory(t *testing.T) {
 	t.Parallel()
 	start := wrapperFixtureStart
-	assert.NoError(t, checkCandleHistory(nil, start), "checkCandleHistory should leave an empty series to the request processing")
-	assert.NoError(t, checkCandleHistory([]kline.Candle{{Time: start.Add(time.Hour)}, {Time: start}}, start), "checkCandleHistory should accept candles from the range's start, in any order")
-	assert.ErrorIs(t, checkCandleHistory([]kline.Candle{{Time: start.Add(2 * time.Hour)}, {Time: start.Add(time.Hour)}}, start), errCandlesBeforeHistory, "checkCandleHistory should report candles starting after the range")
+	late := []kline.Candle{{Time: start.Add(2 * time.Hour)}, {Time: start.Add(time.Hour)}}
+	// BingX's replies for its ITA stock contract, launched on 9 November 2026 at 15:00 UTC, after start
+	ita := currency.NewPairWithDelimiter("NCSKITA2USD", "USDT", currency.DashDelimiter)
+	itaSchedule := `{"code":0,"msg":"","data":[{"symbol":"NCSKITA2USD-USDT","contractType":"nonCryptoStock","marketStatus":"open","timeZone":"UTC+08:00","updateTime":1794257998000,"sessions":[{"startTime":1794931200000,"endTime":1794949200000,"type":"REGULAR"},{"startTime":1794949200000,"endTime":1795012200000,"type":"NO_TRADING"},{"startTime":1795012200000,"endTime":1795035600000,"type":"REGULAR"},{"startTime":1795035600000,"endTime":1795098600000,"type":"NO_TRADING"},{"startTime":1795098600000,"endTime":1795122000000,"type":"REGULAR"},{"startTime":1795122000000,"endTime":1795185000000,"type":"NO_TRADING"},{"startTime":1795185000000,"endTime":1795208400000,"type":"REGULAR"},{"startTime":1795208400000,"endTime":1795444200000,"type":"NO_TRADING"},{"startTime":1795444200000,"endTime":1795467600000,"type":"REGULAR"},{"startTime":1795467600000,"endTime":1795530600000,"type":"NO_TRADING"},{"startTime":1795530600000,"endTime":1795536000000,"type":"REGULAR"}]}]}`
+	itaContract := `{"code":0,"msg":"","data":[{"contractId":"104322","symbol":"NCSKITA2USD-USDT","size":"0.00001","quantityPrecision":5,"pricePrecision":2,"feeRate":0.0005,"makerFeeRate":0.0002,"takerFeeRate":0.0005,"tradeMinLimit":0,"tradeMinQuantity":0.02864,"tradeMinUSDT":2,"currency":"USDT","asset":"NCSKITA2USD","status":1,"apiStateOpen":"true","apiStateClose":"true","ensureTrigger":false,"triggerFeeRate":"0.00050000","brokerState":false,"launchTime":1794236400000,"maintainTime":0,"offTime":0,"displayName":"ITA-USDT"}]}`
+	itaLaunch := time.UnixMilli(1794236400000).UTC()
+	btcContract := `{"code":0,"msg":"","data":[{"contractId":"100","symbol":"BTC-USDT","size":"0.0001","quantityPrecision":4,"pricePrecision":1,"feeRate":0.0005,"makerFeeRate":0.0002,"takerFeeRate":0.0005,"tradeMinLimit":0,"tradeMinQuantity":0.0001,"tradeMinUSDT":2,"currency":"USDT","asset":"BTC","status":1,"apiStateOpen":"true","apiStateClose":"true","ensureTrigger":true,"triggerFeeRate":"0.00050000","brokerState":false,"launchTime":1586275200000,"maintainTime":0,"offTime":0,"displayName":"BTC-USDT"}]}`
+	forexWithoutLaunch := strings.Replace(wrapperForexContractReply, `"launchTime":1756370400000`, `"launchTime":0`, 1)
+	forexLaunchedAtStart := strings.Replace(wrapperForexContractReply, `"launchTime":1756370400000`, `"launchTime":`+wrapperMilliseconds(start), 1)
+	held := `{"code":0,"msg":"","data":[{"open":"108013.6","close":"107882.3","high":"108109.5","low":"107830.2","volume":"24.5085","time":` + wrapperMilliseconds(start) + `}]}`
+	notHeld := `{"code":0,"msg":"","data":[]}`
+	heldMinute := `{"code":0,"msg":"","data":[{"open":"108013.6","close":"107882.3","high":"108109.5","low":"107830.2","volume":"24.5085","time":` + wrapperMilliseconds(start) + `}]}`
+	lateMinutes := []kline.Candle{{Time: start.Add(2 * time.Minute)}, {Time: start.Add(time.Minute)}}
+	for _, tc := range []struct {
+		name                           string
+		a                              asset.Item
+		pair                           currency.Pair
+		interval                       kline.Interval
+		start                          time.Time
+		candles                        []kline.Candle
+		schedule, contracts, reference string
+		err                            error
+	}{
+		{name: "empty series", a: asset.USDTMarginedFutures, pair: wrapperForexPair, start: start},
+		{name: "candles from the range's start, in any order", a: asset.USDTMarginedFutures, pair: wrapperForexPair, start: start, candles: []kline.Candle{{Time: start.Add(time.Hour)}, {Time: start}}},
+		{name: "late spot candles", a: asset.Spot, pair: currency.NewBTCUSDT(), start: start, candles: late, err: errCandlesBeforeHistory},
+		{name: "late coin-M candles", a: asset.CoinMarginedFutures, pair: currency.NewBTCUSD(), start: start, candles: late, err: errCandlesBeforeHistory},
+		{name: "scheduled contract launched before the range, interval held", a: asset.USDTMarginedFutures, pair: wrapperForexPair, start: start, candles: late, schedule: wrapperForexScheduleReply, contracts: wrapperForexContractReply, reference: held},
+		{name: "scheduled contract launched before the range, interval not held", a: asset.USDTMarginedFutures, pair: wrapperForexPair, start: start, candles: late, schedule: wrapperForexScheduleReply, contracts: wrapperForexContractReply, reference: notHeld, err: errCandlesBeforeHistory},
+		{name: "interval lookup error", a: asset.USDTMarginedFutures, pair: wrapperForexPair, start: start, candles: late, schedule: wrapperForexScheduleReply, contracts: wrapperForexContractReply, reference: `{"code":100500,"msg":"busy"}`, err: errAPIResponse},
+		{name: "one-minute interval held", a: asset.USDTMarginedFutures, pair: wrapperForexPair, interval: kline.OneMin, start: start, candles: lateMinutes, schedule: wrapperForexScheduleReply, contracts: wrapperForexContractReply, reference: heldMinute},
+		{name: "one-minute interval not held", a: asset.USDTMarginedFutures, pair: wrapperForexPair, interval: kline.OneMin, start: start, candles: lateMinutes, schedule: wrapperForexScheduleReply, contracts: wrapperForexContractReply, reference: notHeld, err: errCandlesBeforeHistory},
+		{name: "scheduled contract launched at the range's start", a: asset.USDTMarginedFutures, pair: wrapperForexPair, start: start, candles: late, schedule: wrapperForexScheduleReply, contracts: forexLaunchedAtStart, reference: held},
+		{name: "scheduled contract launched after the range's start", a: asset.USDTMarginedFutures, pair: ita, start: start, candles: late, schedule: itaSchedule, contracts: itaContract, err: errCandlesBeforeHistory},
+		{name: "range starting on the launch day before the launch", a: asset.USDTMarginedFutures, pair: ita, start: itaLaunch.Add(-3 * time.Hour), candles: []kline.Candle{{Time: itaLaunch}, {Time: itaLaunch.Add(time.Hour)}}, schedule: itaSchedule, contracts: itaContract, err: errCandlesBeforeHistory},
+		{name: "scheduled contract without a launch time", a: asset.USDTMarginedFutures, pair: wrapperForexPair, start: start, candles: late, schedule: wrapperForexScheduleReply, contracts: forexWithoutLaunch, err: errCandlesBeforeHistory},
+		{name: "another contract's launch", a: asset.USDTMarginedFutures, pair: wrapperForexPair, start: start, candles: late, schedule: wrapperForexScheduleReply, contracts: btcContract, err: errCandlesBeforeHistory},
+		{name: "contract lookup error", a: asset.USDTMarginedFutures, pair: wrapperForexPair, start: start, candles: late, schedule: wrapperForexScheduleReply, contracts: `{"code":100500,"msg":"busy"}`, err: errAPIResponse},
+		{name: "contract without a schedule", a: asset.USDTMarginedFutures, pair: currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter), start: start, candles: late, schedule: wrapperNoScheduleReply, err: errCandlesBeforeHistory},
+		{name: "empty schedule", a: asset.USDTMarginedFutures, pair: wrapperForexPair, start: start, candles: late, schedule: `{"code":0,"msg":"","data":[]}`, err: errCandlesBeforeHistory},
+		{name: "schedule lookup error", a: asset.USDTMarginedFutures, pair: wrapperForexPair, start: start, candles: late, schedule: `{"code":100500,"msg":"busy"}`, err: errAPIResponse},
+		{name: "schedule refused for another reason", a: asset.USDTMarginedFutures, pair: wrapperForexPair, start: start, candles: late, schedule: `{"code":109400,"msg":"invalid parameters"}`, err: errAPIResponse},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			interval, intervalParam := kline.OneHour, "1h"
+			if tc.interval == kline.OneMin {
+				interval, intervalParam = kline.OneMin, "1m"
+			}
+			routes := make(map[string][]string)
+			want := []url.Values(nil)
+			symbol := url.Values{"symbol": {tc.pair.Upper().String()}}
+			if tc.schedule != "" {
+				routes["GET /openApi/swap/v1/quote/tradingSchedule"] = []string{tc.schedule}
+				want = append(want, symbol)
+			}
+			if tc.contracts != "" {
+				routes["GET /openApi/swap/v2/quote/contracts"] = []string{tc.contracts}
+				want = append(want, symbol)
+			}
+			if tc.reference != "" {
+				routes["GET /openApi/swap/v3/quote/klines"] = []string{tc.reference}
+				want = append(want, url.Values{"symbol": {"BTC-USDT"}, "interval": {intervalParam}, "startTime": {wrapperMilliseconds(tc.start)}, "endTime": {wrapperMilliseconds(tc.start.Add(interval.Duration()))}, "limit": {"1"}})
+			}
+			ex, requests := wrapperTestServer(t, routes)
+			err := ex.checkCandleHistory(t.Context(), tc.a, tc.pair, interval, tc.candles, tc.start)
+			assert.ErrorIs(t, err, tc.err, "checkCandleHistory should return the expected error")
+			if tc.err == errAPIResponse {
+				assert.NotErrorIs(t, err, errCandlesBeforeHistory, "checkCandleHistory should return a failed lookup's error alone")
+			}
+			got := requests()
+			require.Len(t, got, len(want), "checkCandleHistory must make the lookups the case needs")
+			for i := range got {
+				assert.Equalf(t, want[i], got[i].params, "checkCandleHistory should send lookup %s with the expected parameters", got[i].path)
+			}
+		})
+	}
 }
 
 func TestGetFeeByType(t *testing.T) {

@@ -2,6 +2,8 @@ package bingx
 
 import (
 	"context"
+	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"testing"
@@ -24,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 func TestWebsocketHandleSwapData(t *testing.T) {
@@ -309,6 +312,90 @@ func TestWebsocketProcessPerpetualOrderUpdate(t *testing.T) {
 		assert.Equal(t, "1", classification.OrderID, "the classification error should name the order")
 	}
 	assert.Error(t, ex.wsProcessPerpetualOrderUpdate(t.Context(), asset.USDTMarginedFutures, []byte(`{"o":{"sg":1}}`)), "wsProcessPerpetualOrderUpdate should error for an event that does not decode")
+
+	t.Run("fees over several fills", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		stored := map[asset.Item]*order.Detail{
+			asset.USDTMarginedFutures: {Exchange: ex.Name, OrderID: "42", AssetType: asset.USDTMarginedFutures, Amount: 3, Status: order.New},
+			asset.CoinMarginedFutures: {Exchange: ex.Name, OrderID: "42", AssetType: asset.CoinMarginedFutures, Amount: 3, Status: order.New},
+		}
+		for i, step := range []struct {
+			a                                        asset.Item
+			orderID                                  uint64
+			executionType, status, executed, feeSent string
+			fee                                      float64
+		}{
+			{asset.USDTMarginedFutures, 42, "NEW", "NEW", "0", "0", 0},
+			{asset.USDTMarginedFutures, 42, "TRADE", "PARTIALLY_FILLED", "1", "-0.1", 0.1},
+			{asset.CoinMarginedFutures, 42, "TRADE", "PARTIALLY_FILLED", "1", "-0.01", 0.01},
+			{asset.USDTMarginedFutures, 43, "TRADE", "PARTIALLY_FILLED", "1", "-5", 5},
+			{asset.USDTMarginedFutures, 42, "NEW", "NEW", "0", "0", 0},
+			{asset.USDTMarginedFutures, 42, "TRADE", "PARTIALLY_FILLED", "2", "0.05", 0.05},
+			{asset.USDTMarginedFutures, 42, "TRADE", "PARTIALLY_FILLED", "2", "0.05", 0.05},
+			{asset.CoinMarginedFutures, 42, "TRADE", "PARTIALLY_FILLED", "2", "-0.02", 0.03},
+			{asset.USDTMarginedFutures, 42, "CALCULATED", "FILLED", "3", "-0.3", 0.35},
+			{asset.CoinMarginedFutures, 42, "TRADE", "Unknown", "3", "-0.03", 0.06},
+			{asset.USDTMarginedFutures, 43, "CANCELED", "CANCELED", "1", "0", 0},
+			{asset.USDTMarginedFutures, 44, "TRADE", "PARTIALLY_FILLED", "1", "-0.4", 0.4},
+			{asset.USDTMarginedFutures, 44, "EXPIRED", "EXPIRED", "1", "0", 0},
+		} {
+			symbol := "BTC-USDT"
+			if step.a == asset.CoinMarginedFutures {
+				symbol = "BTC-USD"
+			}
+			event := fmt.Appendf(nil, `{"e":"ORDER_TRADE_UPDATE","E":1758608899001,"o":{"s":%q,"i":%d,"S":"BUY","o":"LIMIT","q":"3","p":"10","ap":"10","z":%q,"x":%q,"X":%q,"N":"USDT","n":%q,"T":1758608899001}}`, symbol, step.orderID, step.executed, step.executionType, step.status, step.feeSent)
+			require.NoErrorf(t, ex.wsProcessPerpetualOrderUpdate(t.Context(), step.a, event), "wsProcessPerpetualOrderUpdate must not error for event %d", i)
+			d := waitForWebsocketPayload[*order.Detail](t, ex, nil)
+			assert.InDeltaf(t, step.fee, d.Fee, 1e-12, "event %d should carry the order's fee so far", i)
+			if step.orderID == 42 {
+				require.NoErrorf(t, stored[step.a].UpdateOrderFromDetail(d), "UpdateOrderFromDetail must not error for event %d", i)
+			}
+		}
+		assert.InDelta(t, 0.35, stored[asset.USDTMarginedFutures].Fee, 1e-12, "the stored USDT-M order should hold the fees of all its fills, less the rebate")
+		assert.InDelta(t, 0.06, stored[asset.CoinMarginedFutures].Fee, 1e-12, "the stored coin-M order should hold the fees of all its fills")
+		ex.perpetualOrderFees.mu.Lock()
+		assert.Empty(t, ex.perpetualOrderFees.orders, "orders no longer open should be forgotten")
+		ex.perpetualOrderFees.mu.Unlock()
+	})
+}
+
+func TestPerpetualOrderFeeTotalsAdd(t *testing.T) {
+	t.Parallel()
+	var totals perpetualOrderFeeTotals
+	usdtMargined := perpetualOrderFeeKey{asset: asset.USDTMarginedFutures, orderID: "1"}
+	coinMargined := perpetualOrderFeeKey{asset: asset.CoinMarginedFutures, orderID: "1"}
+	for i, step := range []struct {
+		name                string
+		k                   perpetualOrderFeeKey
+		executed, fee, want string
+	}{
+		{"nothing executed", usdtMargined, "0", "0.5", "0"},
+		{"first fill", usdtMargined, "1", "0.1", "0.1"},
+		{"repeated event", usdtMargined, "1", "0.1", "0.1"},
+		{"another asset's order with the same ID", coinMargined, "1", "0.01", "0.01"},
+		{"less executed than before", usdtMargined, "0.5", "0.3", "0.1"},
+		{"rebate", usdtMargined, "2", "-0.05", "0.05"},
+		{"later fill", usdtMargined, "3", "0.2", "0.25"},
+	} {
+		got := totals.add(step.k, decimal.MustFromString(step.executed), decimal.MustFromString(step.fee))
+		assert.Truef(t, decimal.MustFromString(step.want).Equal(got), "add should return %s after step %d, %s, not %s", step.want, i, step.name, got)
+	}
+}
+
+func TestPerpetualOrderFeeTotalsForget(t *testing.T) {
+	t.Parallel()
+	var totals perpetualOrderFeeTotals
+	totals.forget(perpetualOrderFeeKey{asset: asset.USDTMarginedFutures, orderID: "1"})
+	assert.Empty(t, totals.orders, "forget should leave totals that hold nothing empty")
+	k := perpetualOrderFeeKey{asset: asset.USDTMarginedFutures, orderID: "1"}
+	other := perpetualOrderFeeKey{asset: asset.USDTMarginedFutures, orderID: "2"}
+	totals.add(k, decimal.NewFromInt(1), decimal.MustFromString("0.1"))
+	totals.add(other, decimal.NewFromInt(1), decimal.MustFromString("0.2"))
+	totals.forget(k)
+	assert.Equal(t, []perpetualOrderFeeKey{other}, slices.Collect(maps.Keys(totals.orders)), "forget should drop the order's total alone")
+	got := totals.add(k, decimal.NewFromInt(1), decimal.MustFromString("0.3"))
+	assert.Truef(t, decimal.MustFromString("0.3").Equal(got), "add should start a forgotten order's total afresh, not return %s", got)
 }
 
 func TestWebsocketProcessPerpetualAccountUpdate(t *testing.T) {

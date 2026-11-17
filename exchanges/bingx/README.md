@@ -46,7 +46,9 @@ Default subscriptions, for each enabled asset:
 + My orders and my account, when authenticated websocket support is enabled
 
 The `lastPrice` and `bookTicker` channels, and `markPrice` for perpetuals, can be subscribed as exchange-specific
-channels. BingX allows 200 topics on a connection, and further topics open further connections.
+channels. BingX allows 200 topics on a connection, and further topics open further connections. A subscription or
+unsubscription BingX leaves unanswered retires its connection, as BingX may still hold the topic, and the websocket
+reconnects and subscribes to what is wanted.
 
 Account streams connect with a listen key, which is created through REST, extended every 30 minutes and never deleted,
 as other clients of the account may use it. While listen key requests are failing the public streams connect without
@@ -69,6 +71,8 @@ over REST follow UTC periods.
   so a `ReduceOnly` coin-M order is refused in one-way mode.
 + USDT-M orders take a `ClientOrderID` only as limit or market orders, as BingX documents, so a USDT-M order of another
   type carrying one is refused before anything is sent.
++ Orders carry no margin type: a perpetual order takes its symbol's, which `SetMarginType` sets. `SubmitOrder` refuses a
+  `MarginType` other than unset, or `NoMargin` on spot, and a `ReduceOnly` spot order, before anything is sent.
 + `ModifyOrder` takes `Amount` as the order's desired total quantity, as the order manager fills it in. A USDT-M limit
   order whose amount alone changes is amended in place. Other USDT-M orders and spot orders are cancelled, and a
   replacement is placed only once the order is cancelled; its order ID is returned. The cancellation is sent once, and
@@ -83,10 +87,14 @@ over REST follow UTC periods.
   error saying the outcome is unknown, as the cancellation may still land. A failed lookup returns both errors.
   Modifications of one order run one at a time, whether they name it by its order ID or its client order ID, so one made
   while another replaces the order finds it closed. The replacement is for the desired total less what the cancelled
-  order had executed by its cancellation, so fills landing before it are subtracted. An order its lookup shows closed, a
-  total not above what the lookup reports executed, and a `NewClientOrderID` for a USDT-M order other than a limit or
-  market order are refused before anything is cancelled, and a total the cancelled order had executed places nothing and
-  returns an error saying the order was cancelled. Coin-M orders cannot be modified.
+  order had executed by its cancellation, so fills landing before it are subtracted. A negative, NaN or infinite price
+  or trigger price, an order its lookup shows closed, a total not above what the lookup reports executed, and a
+  `NewClientOrderID` for a USDT-M order other than a limit or market order are refused before anything is cancelled, and
+  a total the cancelled order had executed places nothing and returns an error saying the order was cancelled. A USDT-M
+  replacement of an order that triggers or trails triggers on the modification's `TriggerPriceType` when it names one
+  other than the last price, and on the order's otherwise. Coin-M orders cannot be modified.
++ `CancelAllOrders` cancels every open order of the pair, or of every symbol without one. With a `Side` or `Type` it
+  cancels, by order ID, the open orders `GetActiveOrders` reports with that side and type.
 + `GetHistoricTrades` is supported for spot only: BingX's USDT-M trade endpoints return their latest 1000 trades
   whatever is asked, and coin-M has no trade endpoints.
 + `GetFeeByType` uses the account's commission rates when credentials are set, and BingX's standard spot rate otherwise.

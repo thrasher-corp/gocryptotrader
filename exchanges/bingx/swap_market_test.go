@@ -322,6 +322,32 @@ func TestGetSwapFundingRateHistory(t *testing.T) {
 	_, err = e.GetSwapFundingRateHistory(t.Context(), &SwapFundingRateHistoryRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetSwapFundingRateHistory must reject a start time after the end time")
 
+	t.Run("range without settlements", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct{ name, body string }{{"null data", `{"code":0,"msg":"","data":null}`}, {"an empty list", `{"code":0,"msg":"","data":[]}`}} {
+			ex, requests := wrapperTestServer(t, map[string][]string{"GET /openApi/swap/v2/quote/fundingRate": {tc.body}})
+			result, err := ex.GetSwapFundingRateHistory(t.Context(), &SwapFundingRateHistoryRequest{Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: startTime.Add(time.Hour)})
+			require.NoErrorf(t, err, "GetSwapFundingRateHistory must not error for %s", tc.name)
+			assert.Emptyf(t, result, "GetSwapFundingRateHistory should return no settlements for %s", tc.name)
+			assert.Lenf(t, requests(), 1, "GetSwapFundingRateHistory should make one request for %s", tc.name)
+		}
+		for _, tc := range []struct {
+			name, body string
+			err        error
+		}{
+			{"an error", `{"code":100500,"msg":"busy"}`, errAPIResponse},
+			{"a null body", `null`, common.ErrNoResponse},
+			{"an empty body", ``, nil},
+		} {
+			ex, _ := wrapperTestServer(t, map[string][]string{"GET /openApi/swap/v2/quote/fundingRate": {tc.body}})
+			_, err := ex.GetSwapFundingRateHistory(t.Context(), &SwapFundingRateHistoryRequest{Symbol: currency.NewBTCUSDT()})
+			require.Errorf(t, err, "GetSwapFundingRateHistory must return the error of a reply with %s", tc.name)
+			if tc.err != nil {
+				assert.ErrorIsf(t, err, tc.err, "GetSwapFundingRateHistory should return the error of a reply with %s", tc.name)
+			}
+		}
+	})
+
 	result, err := e.GetSwapFundingRateHistory(t.Context(), &SwapFundingRateHistoryRequest{Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: endTime, Limit: 3})
 	require.NoError(t, err, "GetSwapFundingRateHistory must not error")
 	if mockTests {

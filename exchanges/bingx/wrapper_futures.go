@@ -373,7 +373,8 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 }
 
 // swapFundingRates returns a USDT-M perpetual's funding rates from start to end in ascending time. BingX returns the
-// latest records of a range, newest first and both bounds included, so pages are requested back from end
+// latest records of a range, newest first and both bounds included, so pages are requested back from end until one
+// is empty or reaches start, as a page can come back short of the limit with older records still in the range
 func (e *Exchange) swapFundingRates(ctx context.Context, pair currency.Pair, start, end time.Time) ([]fundingrate.Rate, error) {
 	var rates []fundingrate.Rate
 	for pageEnd := end; !pageEnd.Before(start); {
@@ -381,11 +382,11 @@ func (e *Exchange) swapFundingRates(ctx context.Context, pair currency.Pair, sta
 		if err != nil {
 			return nil, err
 		}
+		if len(page) == 0 {
+			break
+		}
 		for i := range page {
 			rates = append(rates, fundingrate.Rate{Time: page[i].FundingTime.Time(), Rate: page[i].FundingRate.Decimal()})
-		}
-		if len(page) < fundingRateHistoryLimit {
-			break
 		}
 		oldest := slices.MinFunc(page, func(a, b SwapFundingRateHistoryResponse) int {
 			return a.FundingTime.Time().Compare(b.FundingTime.Time())

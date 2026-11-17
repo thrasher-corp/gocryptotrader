@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"slices"
@@ -697,7 +698,9 @@ func (e *Exchange) wsSubscribe(ctx context.Context, conn websocket.Connection, s
 	}, 1)
 }
 
-// wsSubscribeOne subscribes to a stream and records the outcome in the subscription store
+// wsSubscribeOne subscribes to a stream and records the outcome in the subscription store. An unanswered subscription
+// may still have subscribed the stream, which the stores no longer hold, so the connection is retired, as it is for an
+// unanswered unsubscription: the websocket reconnects and subscribes again to what is wanted
 func (e *Exchange) wsSubscribeOne(ctx context.Context, conn websocket.Connection, s *subscription.Subscription) error {
 	state, err := e.wsConnection(conn)
 	if err != nil {
@@ -715,6 +718,9 @@ func (e *Exchange) wsSubscribeOne(ctx context.Context, conn websocket.Connection
 	}
 	if err := e.wsSendRequest(ctx, conn, state, WebsocketRequestTypeSubscribe, s.QualifiedChannel); err != nil {
 		e.wsReleaseBookClaim(conn, s)
+		if wsRequestUnanswered(ctx, err) {
+			e.wsRequestRecovery(state.session, fmt.Errorf("%w: %s: %w", errWebsocketConnectionRetired, s.QualifiedChannel, err))
+		}
 		return common.AppendError(fmt.Errorf("%w: %s: %w", websocket.ErrSubscriptionFailure, s.QualifiedChannel, err), e.Websocket.RemoveSubscriptions(conn, s))
 	}
 	return s.SetState(subscription.SubscribedState)
@@ -749,7 +755,7 @@ func (e *Exchange) wsUnsubscribeOne(ctx context.Context, conn websocket.Connecti
 		return err
 	}
 	if err := e.wsSendRequest(ctx, conn, state, WebsocketRequestTypeUnsubscribe, s.QualifiedChannel); err != nil {
-		if wsRequestUnanswered(err) {
+		if wsRequestUnanswered(ctx, err) {
 			e.wsReleaseBookClaim(conn, s)
 			e.wsRequestRecovery(state.session, fmt.Errorf("%w: %s: %w", errWebsocketConnectionRetired, s.QualifiedChannel, err))
 		}
@@ -820,7 +826,7 @@ func (e *Exchange) wsSendSerialRequest(ctx context.Context, conn websocket.Conne
 
 	state.mu.Lock()
 	state.inFlightID, state.inFlightDataType = "", ""
-	unanswered := wsRequestUnanswered(err)
+	unanswered := wsRequestUnanswered(ctx, err)
 	if unanswered {
 		state.retired = true
 	}
@@ -831,10 +837,15 @@ func (e *Exchange) wsSendSerialRequest(ctx context.Context, conn websocket.Conne
 	return respRaw, err
 }
 
-// wsRequestUnanswered reports whether a request was left without a reply, by timing out or by its context ending, which
-// leaves unknown whether BingX acted on it
-func wsRequestUnanswered(err error) bool {
-	return errors.Is(err, websocket.ErrSignatureTimeout) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+// wsRequestUnanswered reports whether a request sent with ctx was left without a reply, by timing out, by ctx ending or
+// by its write failing on the network, which leaves unknown whether BingX acted on it. A deadline error while ctx is
+// still live is the rate limiter refusing to wait past the deadline, before anything was sent
+func wsRequestUnanswered(ctx context.Context, err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil {
+		return false
+	}
+	var netErr net.Error
+	return errors.Is(err, websocket.ErrSignatureTimeout) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || errors.As(err, &netErr)
 }
 
 // wsRouteCoinMarginedError routes a coin-M error reply, which carries no id, to the request in flight when its message

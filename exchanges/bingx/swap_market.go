@@ -2,6 +2,7 @@ package bingx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -71,7 +72,8 @@ func (e *Exchange) GetSwapMarkPriceAndFundingRate(ctx context.Context, symbol cu
 }
 
 // GetSwapFundingRateHistory returns a perpetual contract's completed funding settlements from Get Funding Rate History,
-// newest first: the latest of a time range, which includes both of its bounds, or without one the latest of all
+// newest first: the latest of a time range, which includes both of its bounds, or without one the latest of all. BingX
+// answers a range without settlements with null data, returned as no settlements
 func (e *Exchange) GetSwapFundingRateHistory(ctx context.Context, arg *SwapFundingRateHistoryRequest) ([]SwapFundingRateHistoryResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
@@ -90,7 +92,10 @@ func (e *Exchange) GetSwapFundingRateHistory(ctx context.Context, arg *SwapFundi
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	var resp []SwapFundingRateHistoryResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/openApi/swap/v2/quote/fundingRate", params), swapFundingRateHistoryRate, &resp)
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/openApi/swap/v2/quote/fundingRate", params), swapFundingRateHistoryRate, &resp); err != nil && !errors.Is(err, errNullData) {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // GetSwapKlines returns a perpetual contract's candles from Kline/Candlestick Data, newest first. A time range includes

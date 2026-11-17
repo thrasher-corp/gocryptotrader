@@ -1489,8 +1489,31 @@ func TestApplySwapVST(t *testing.T) {
 	require.NoError(t, err, "ApplySwapVST must not error")
 	assert.Equal(t, &ApplySwapVSTResponse{AdjustType: VSTAdjustTypeDecrease, Amount: 1}, result, "ApplySwapVST should decode the reply")
 
+	t.Run("adjustment", func(t *testing.T) {
+		t.Parallel()
+		for _, adjustType := range []VSTAdjustType{VSTAdjustTypeIncrease, VSTAdjustTypeDecrease} {
+			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method, "method should be POST")
+				assert.Equal(t, "/openApi/swap/v2/trade/getVst", r.URL.Path, "path should be the Apply VST path")
+				assert.Equalf(t, url.Values{"adjustType": {string(adjustType)}, "amount": {"1000"}}, swapTradeBusinessParams(r), "adjustment %s and its amount should be sent", adjustType)
+				_, _ = io.WriteString(w, `{"code":0,"msg":"","data":{"adjustType":"`+string(adjustType)+`","amount":"1000"}}`)
+			})
+			got, err := ex.ApplySwapVST(t.Context(), adjustType, 1000)
+			require.NoErrorf(t, err, "ApplySwapVST must not error for adjustment %s", adjustType)
+			assert.Equalf(t, &ApplySwapVSTResponse{AdjustType: adjustType, Amount: 1000}, got, "ApplySwapVST should decode adjustment %s", adjustType)
+		}
+	})
+
 	if !mockTests {
-		t.Skip("Apply VST is served by the demo trading host only")
+		ex := newWrapperTestExchange(t)
+		wrapperSkipIfCannotManipulateOrders(t, ex)
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), "https://open-api-vst.bingx.com"), "SetRunningURL must not error")
+		for _, adjustType := range []VSTAdjustType{VSTAdjustTypeIncrease, VSTAdjustTypeDecrease} {
+			result, err = ex.ApplySwapVST(t.Context(), adjustType, 1000)
+			require.NoErrorf(t, err, "ApplySwapVST must not error for adjustment %s", adjustType)
+			assert.Equalf(t, &ApplySwapVSTResponse{AdjustType: adjustType, Amount: 1000}, result, "ApplySwapVST should make adjustment %s on the demo trading host", adjustType)
+		}
+		return
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err = e.ApplySwapVST(t.Context(), VSTAdjustTypeIncrease, 500000)

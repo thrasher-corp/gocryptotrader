@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // wsHandleSwapData routes a USDT-M perpetual market data frame
@@ -214,8 +216,9 @@ func (e *Exchange) wsHandlePerpetualAccountData(ctx context.Context, conn websoc
 //   - a USDT-M order's cost is ap times z in the quote currency; a coin-M order's cost needs the contract size the event
 //     lacks
 //
-// The event reports a fill's fee but not the fill's own quantity or price, so the fee of a TRADE or CALCULATED fill is
-// the detail's fee, the last fill's, as order details carry it. BingX reports a charged fee as a negative amount
+// The event reports a fill's fee alone, while an order detail carries the order's fee, so the fee of a TRADE or
+// CALCULATED fill is added to the order's running total, which the detail carries. BingX reports a charged fee as a
+// negative amount
 func (e *Exchange) wsProcessPerpetualOrderUpdate(ctx context.Context, a asset.Item, data []byte) error {
 	var resp WebsocketPerpetualOrderUpdate
 	if err := json.Unmarshal(data, &resp); err != nil {
@@ -267,10 +270,57 @@ func (e *Exchange) wsProcessPerpetualOrderUpdate(ctx context.Context, a asset.It
 	if a == asset.USDTMarginedFutures {
 		d.Cost = o.AverageFilled.Decimal().Mul(executed).InexactFloat64()
 	}
+	k := perpetualOrderFeeKey{asset: a, orderID: orderID}
 	if o.ExecutionType == ExecutionTypeTrade || o.ExecutionType == ExecutionTypeCalculated {
-		d.Fee = -o.Fee.Float64()
+		d.Fee = e.perpetualOrderFees.add(k, executed, o.Fee.Decimal().Neg()).InexactFloat64()
+	}
+	if d.IsInactive() {
+		e.perpetualOrderFees.forget(k)
 	}
 	return e.Websocket.DataHandler.Send(ctx, d)
+}
+
+// perpetualOrderFeeTotals keeps the fee of each open perpetual order's fills that the account streams have reported
+type perpetualOrderFeeTotals struct {
+	mu     sync.Mutex
+	orders map[perpetualOrderFeeKey]perpetualOrderFeeTotal
+}
+
+// perpetualOrderFeeKey names a perpetual order by its asset and order ID
+type perpetualOrderFeeKey struct {
+	asset   asset.Item
+	orderID string
+}
+
+// perpetualOrderFeeTotal is the fee of an order's fills up to its executed quantity
+type perpetualOrderFeeTotal struct {
+	executed decimal.Decimal
+	fee      decimal.Decimal
+}
+
+// add counts a fill's fee once, when its event raises the order's executed quantity, which a repeated event does not,
+// and returns the order's fee so far
+func (t *perpetualOrderFeeTotals) add(k perpetualOrderFeeKey, executed, fee decimal.Decimal) decimal.Decimal {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	total := t.orders[k]
+	if !executed.GreaterThan(total.executed) {
+		return total.fee
+	}
+	total.executed = executed
+	total.fee = total.fee.Add(fee)
+	if t.orders == nil {
+		t.orders = make(map[perpetualOrderFeeKey]perpetualOrderFeeTotal)
+	}
+	t.orders[k] = total
+	return total.fee
+}
+
+// forget drops the total of an order that is no longer open
+func (t *perpetualOrderFeeTotals) forget(k perpetualOrderFeeKey) {
+	t.mu.Lock()
+	delete(t.orders, k)
+	t.mu.Unlock()
 }
 
 // wsProcessPerpetualAccountUpdate relays a perpetual ACCOUNT_UPDATE event's balances and positions. A balance's wb is

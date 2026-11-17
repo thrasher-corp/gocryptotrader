@@ -1137,7 +1137,8 @@ func (e *Exchange) GetServerTime(ctx context.Context, a asset.Item) (time.Time, 
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval, in UTC periods. A range starting
-// before the candles BingX holds is reported, rather than padded
+// before the candles BingX holds is reported, rather than padded: for a USDT-M contract with a trading schedule, whose
+// candles stop while its market is closed, a range starting before its launch
 func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := e.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
@@ -1147,7 +1148,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	if err != nil {
 		return nil, err
 	}
-	if err := checkCandleHistory(candles, req.Start); err != nil {
+	if err := e.checkCandleHistory(ctx, a, req.RequestFormatted, req.ExchangeInterval, candles, req.Start); err != nil {
 		return nil, err
 	}
 	return req.ProcessResponse(candles)
@@ -1155,7 +1156,8 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval, in UTC periods, paging by
 // the most candles each product's endpoint returns a request. A range starting before the candles BingX holds is
-// reported, rather than padded
+// reported, rather than padded: for a USDT-M contract with a trading schedule, whose candles stop while its market is
+// closed, a range starting before its launch
 func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	limit, err := candleLimit(a)
 	if err != nil {
@@ -1176,7 +1178,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 		timeSeries = append(timeSeries, candles...)
 	}
-	if err := checkCandleHistory(timeSeries, req.Start); err != nil {
+	if err := e.checkCandleHistory(ctx, a, req.RequestFormatted, req.ExchangeInterval, timeSeries, req.Start); err != nil {
 		return nil, err
 	}
 	return req.ProcessResponse(timeSeries)
@@ -1277,18 +1279,46 @@ func (e *Exchange) candles(ctx context.Context, a asset.Item, pair currency.Pair
 }
 
 // checkCandleHistory returns errCandlesBeforeHistory when a range's candles start after the range does. BingX sends a
-// candle for every period of a listed symbol, traded or not, so a late first candle means it holds none before it:
-// its retention for the interval ends there, or the symbol was listed later. An empty series is left for the request
-// processing to report
-func checkCandleHistory(candles []kline.Candle, start time.Time) error {
+// candle for every period of a crypto symbol, traded or not, so a late first candle means it holds none before it: its
+// retention for the interval ends there, or the symbol was listed later. A USDT-M contract with a trading schedule, such
+// as a forex contract, has no candles while its market is closed, so its late first candle is left for the request
+// processing to pad when the contract launched by the range's start and BingX holds the interval that far back, which
+// BTC-USDT's candle at the start shows, as BingX keeps each interval for the same span on every contract. An empty
+// series is left for the request processing to report
+func (e *Exchange) checkCandleHistory(ctx context.Context, a asset.Item, pair currency.Pair, interval kline.Interval, candles []kline.Candle, start time.Time) error {
 	if len(candles) == 0 {
 		return nil
 	}
-	first := slices.MinFunc(candles, func(a, b kline.Candle) int { return a.Time.Compare(b.Time) }).Time
-	if first.After(start) {
-		return fmt.Errorf("%w: the first candle opens at %s, after the requested start %s", errCandlesBeforeHistory, first.UTC(), start.UTC())
+	first := slices.MinFunc(candles, func(x, y kline.Candle) int { return x.Time.Compare(y.Time) }).Time
+	if !first.After(start) {
+		return nil
 	}
-	return nil
+	if a == asset.USDTMarginedFutures {
+		schedules, err := e.GetSwapTradingSchedule(ctx, pair)
+		var apiErr *APIError
+		switch {
+		case err == nil && len(schedules) != 0:
+			contracts, err := e.GetSwapContracts(ctx, pair)
+			if err != nil {
+				return fmt.Errorf("error checking %s launch: %w", pair, err)
+			}
+			i := slices.IndexFunc(contracts, func(c SwapContractResponse) bool {
+				return slices.ContainsFunc(schedules, func(s SwapTradingScheduleResponse) bool { return s.Symbol == c.Symbol })
+			})
+			if i >= 0 && !contracts[i].LaunchTime.Time().IsZero() && !start.Before(contracts[i].LaunchTime.Time()) {
+				held, err := e.candles(ctx, a, currency.NewBTCUSDT(), interval, start, start.Add(interval.Duration()), 1)
+				if err != nil {
+					return fmt.Errorf("error checking %s candle history: %w", interval, err)
+				}
+				if len(held) != 0 {
+					return nil
+				}
+			}
+		case err != nil && (!errors.As(err, &apiErr) || apiErr.Code != 109419):
+			return fmt.Errorf("error checking %s trading schedule: %w", pair, err)
+		}
+	}
+	return fmt.Errorf("%w: the first candle opens at %s, after the requested start %s", errCandlesBeforeHistory, first.UTC(), start.UTC())
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction. Trade fees are spot fees at the account's
