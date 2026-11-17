@@ -709,3 +709,27 @@ func TestLevelsArrayPriceAmountUnmarshalJSON(t *testing.T) {
 	err = asks.UnmarshalJSON([]byte(`invalid`))
 	assert.Error(t, err)
 }
+
+func TestStoreUpdatePublication(t *testing.T) {
+	// Not parallel: a subscriber queues every publication on the global dispatcher
+	name, p := t.Name(), currency.NewBTCUSDT()
+	d, err := DeployDepth(name, p, asset.Spot)
+	require.NoError(t, err, "DeployDepth must not error")
+	d.AssignOptions(&Book{Exchange: name, Pair: p, Asset: asset.Spot})
+	require.NoError(t, d.LoadSnapshot(&Book{Bids: Levels{{Price: 1, Amount: 1}}, Asks: Levels{{Price: 4, Amount: 1}}, LastUpdated: time.Now(), LastUpdateID: 7}), "LoadSnapshot must load the websocket book")
+	pipe, err := SubscribeToExchangeOrderbooks(name)
+	require.NoError(t, err, "SubscribeToExchangeOrderbooks must not error")
+	t.Cleanup(func() { assert.NoError(t, pipe.Release(), "Release should not error") })
+	d.Publish()
+	select {
+	case <-pipe.Channel():
+	case <-time.After(time.Second):
+		require.FailNow(t, "the websocket book's publication must reach the subscriber")
+	}
+	require.NoError(t, s.Update(&Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 2, Amount: 1}}, Asks: Levels{{Price: 5, Amount: 1}}, LastUpdated: time.Now(), DeferToWebsocketWithin: time.Minute}), "Update must not error")
+	select {
+	case <-pipe.Channel():
+		assert.Fail(t, "Update should not publish a REST snapshot it leaves unloaded")
+	case <-time.After(100 * time.Millisecond):
+	}
+}
