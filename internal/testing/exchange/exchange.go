@@ -116,7 +116,16 @@ func MockWsInstance[T any, PT interface {
 	s.Start()
 
 	b := e.GetBase()
+	tb.Cleanup(func() {
+		if err := b.Websocket.Disable(); err != nil {
+			assert.ErrorIs(tb, err, websocket.ErrAlreadyDisabled, "Disable should not error")
+		}
+		if err := b.Websocket.Shutdown(); err != nil {
+			assert.ErrorIs(tb, err, websocket.ErrNotConnected, "Shutdown should not error")
+		}
+	})
 	b.SkipAuthCheck = true
+	// Mock sockets exercise authenticated requests on both legacy and managed connections.
 	b.API.AuthenticatedWebsocketSupport = true
 	err := b.API.Endpoints.SetRunningURL("RestSpotURL", s.URL)
 	require.NoError(tb, err, "Endpoints.SetRunningURL must not error for RestSpotURL")
