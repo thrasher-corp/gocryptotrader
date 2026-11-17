@@ -88,3 +88,22 @@ supplied meet the requirements to make an authenticated request.
     }
     fmt.Println(resp.OrderID)
 ```
+
+## Managed websocket authentication recovery
+
+Managed connections retry failed private login and connection attempts without
+reconnecting healthy public streams. A failed login remains visible through
+`CanUseAuthenticatedEndpoints`; it does not permanently disable future attempts.
+
+Use `SetAuthenticatedWebsocketSupport(false)` to disable authenticated websocket
+access deliberately, including after credential validation fails.
+`SetCanUseAuthenticatedEndpoints` records runtime login status separately from
+that permission. Runtime availability stays false while authentication is pending,
+even if a callback reports success before returning. Connectors use
+`CanAttemptAuthentication` for permission to log in; subscription generators use
+`CanGenerateAuthenticatedSubscriptions` to include eligible private channels.
+Neither eligibility check indicates that authenticated requests are ready to send.
+
+Channel refreshes report an authentication error for a setup awaiting recovery.
+After authentication succeeds, the manager regenerates its current subscriptions
+so that recovery does not restore channels removed while authentication was down.

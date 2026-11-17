@@ -4008,7 +4008,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	e.Websocket.SetAuthenticatedWebsocketSupport(true)
 	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
@@ -4076,7 +4076,7 @@ func TestAuthSubscribe(t *testing.T) {
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	require.Empty(t, authsubs, "generateAuthSubscriptions must not return subs")
 
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	e.Websocket.SetAuthenticatedWebsocketSupport(true)
 	authsubs, err = e.generateAuthSubscriptions()
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	require.NotEmpty(t, authsubs, "generateAuthSubscriptions must return subs")
@@ -4097,7 +4097,7 @@ func TestDirectSubscriptionPayloadPrivateChannels(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	e.Websocket.SetAuthenticatedWebsocketSupport(true)
 	subs, err := e.generateAuthSubscriptions()
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	repeated := &subscription.Subscription{Channel: chanOrder, Asset: asset.Spot}
@@ -4374,4 +4374,25 @@ func TestUpdateTickersInverseVolumesReachTheStore(t *testing.T) {
 	require.NoError(t, err, "GetTicker must not error")
 	assert.Equal(t, 1873.7925, tick.BaseVolume, "the inverse ticker's turnover24h should reach the store as base volume")
 	assert.Equal(t, 147122986.0, tick.QuoteVolume, "the inverse ticker's volume24h should reach the store as quote volume")
+}
+
+func TestGenerateAuthSubscriptions(t *testing.T) {
+	t.Parallel()
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("configured=%t", enabled), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			ex.Websocket.SetAuthenticatedWebsocketSupport(enabled)
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			subs, err := ex.generateAuthSubscriptions()
+			require.NoError(t, err, "subscriptions must generate before login completes")
+			if enabled {
+				assert.Len(t, subs, 4, "configured authentication should generate account channels")
+			} else {
+				assert.Empty(t, subs, "disabled authentication should omit account channels")
+			}
+			assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "generation should not mark authentication ready")
+		})
+	}
 }

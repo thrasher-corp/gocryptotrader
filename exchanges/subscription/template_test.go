@@ -13,9 +13,30 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+type mockAuthenticatedSubscriptionGenerator struct {
+	*mockEx
+	eligible bool
+}
+
+func (m *mockAuthenticatedSubscriptionGenerator) CanGenerateAuthenticatedSubscriptions() bool {
+	return m.eligible
+}
+
 // TestExpandTemplates exercises ExpandTemplates
 func TestExpandTemplates(t *testing.T) {
 	t.Parallel()
+
+	t.Run("configured eligibility is independent of runtime readiness", func(t *testing.T) {
+		t.Parallel()
+		for _, eligible := range []bool{false, true} {
+			e := newMockEx()
+			e.tpl = "subscriptions.tmpl"
+			e.auth = !eligible
+			got, err := (List{{Channel: "single-channel", Authenticated: true}}).ExpandTemplates(&mockAuthenticatedSubscriptionGenerator{mockEx: e, eligible: eligible})
+			require.NoError(t, err, "configured eligibility expansion must succeed")
+			assert.Equal(t, eligible, len(got) != 0, "configured eligibility should control private generation independently of runtime readiness")
+		}
+	})
 
 	e := newMockEx()
 	e.tpl = "subscriptions.tmpl"

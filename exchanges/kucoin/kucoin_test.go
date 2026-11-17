@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 		e.API.AuthenticatedWebsocketSupport = true
 		e.API.CredentialsValidator.RequiresBase64DecodeSecret = false
 		e.SetCredentials(apiCredentials)
-		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		e.Websocket.SetAuthenticatedWebsocketSupport(true)
 	}
 
 	os.Exit(m.Run())

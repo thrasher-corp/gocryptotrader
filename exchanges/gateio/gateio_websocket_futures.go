@@ -106,7 +106,7 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 // putting REST requests in subscription generation. A failed lookup leaves the cache cold so
 // generation can retain public and user-ID-independent channels.
 func (e *Exchange) prepareFuturesUserIDs(ctx context.Context) {
-	if !e.Websocket.IsEnabled() || !e.Websocket.CanUseAuthenticatedEndpoints() {
+	if !e.Websocket.IsEnabled() || !e.Websocket.CanAttemptAuthentication() {
 		return
 	}
 	creds, err := e.GetCredentials(ctx)
@@ -155,7 +155,7 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a as
 	}
 
 	var userID string
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.Websocket.CanGenerateAuthenticatedSubscriptions() {
 		creds, err := e.GetCredentials(ctx)
 		if err != nil {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -204,7 +204,7 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a as
 			subscriptions = append(subscriptions, sub)
 		}
 	}
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.Websocket.CanGenerateAuthenticatedSubscriptions() && userID != "" {
 	channels:
 		for _, channel := range []string{
 			futuresOrdersChannel,
@@ -360,7 +360,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 
 	var creds *accounts.Credentials
 	var err error
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.Websocket.CanAttemptAuthentication() {
 		creds, err = e.GetCredentials(ctx)
 		if err != nil {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -380,7 +380,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 		} else if contractOverride, ok := channelsToSubscribe[i].Params[contractPayloadOverrideParam].(string); ok {
 			params[0] = contractOverride
 		}
-		if e.Websocket.CanUseAuthenticatedEndpoints() {
+		if creds != nil {
 			switch channelsToSubscribe[i].Channel {
 			case futuresOrdersChannel, futuresUserTradesChannel,
 				futuresLiquidatesChannel, futuresAutoDeleveragesChannel,

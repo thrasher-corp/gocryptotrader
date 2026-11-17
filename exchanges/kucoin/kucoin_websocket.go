@@ -105,7 +105,7 @@ var defaultSubscriptions = subscription.List{
 func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
 	var instances *WSInstanceServers
 	var err error
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.Websocket.CanAttemptAuthentication() {
 		instances, err = e.GetAuthenticatedInstanceServers(ctx)
 	} else {
 		instances, err = e.GetInstanceServers(ctx)
@@ -1093,7 +1093,7 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 			}
 		}
 	}
-	if !e.Websocket.CanUseAuthenticatedEndpoints() {
+	if !e.Websocket.CanGenerateAuthenticatedSubscriptions() {
 		// KuCoin keeps one subscription per topic, so a generic orderbook on an explicit depth channel's topic would
 		// silence it when the realtime upgrade unsubscribes the generic; the explicit channel carries that topic alone.
 		return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool {
@@ -1389,7 +1389,7 @@ func (e *Exchange) filterAssetFeedPairs(s *subscription.Subscription, assetType 
 	score := e.sharedFeedPriority(s)
 	claimed := make(map[[2]*currency.Item]struct{})
 	for _, other := range e.Features.Subscriptions {
-		if other == s || other.QualifiedChannel != "" || other.Authenticated && !e.Websocket.CanUseAuthenticatedEndpoints() ||
+		if other == s || other.QualifiedChannel != "" || other.Authenticated && !e.Websocket.CanGenerateAuthenticatedSubscriptions() ||
 			(other.Asset != asset.All && other.Asset != assetType) || !sameSharedFeed(other, s) {
 			continue
 		}
@@ -1436,7 +1436,7 @@ func (e *Exchange) filterSharedFeedPairs(s *subscription.Subscription, pairs cur
 }
 
 func (e *Exchange) sharedFeedCandidate(candidate, reference *subscription.Subscription) bool {
-	if candidate.QualifiedChannel != "" || candidate.Authenticated && !e.Websocket.CanUseAuthenticatedEndpoints() ||
+	if candidate.QualifiedChannel != "" || candidate.Authenticated && !e.Websocket.CanGenerateAuthenticatedSubscriptions() ||
 		(candidate.Asset != asset.All && candidate.Asset != asset.Spot && candidate.Asset != asset.Margin) || !sameSharedFeed(candidate, reference) {
 		return false
 	}
@@ -1480,7 +1480,7 @@ func (e *Exchange) sharedFeedPriority(s *subscription.Subscription) int {
 	}
 	// A public orderbook topic keeps any candle suffix, where KuCoin sends nothing, so that entry ranks below every entry
 	// with a served topic and yields the pairs they share; the realtime rewrite drops the suffix, so auth leaves ranks alone.
-	if s.Channel == subscription.OrderbookChannel && !e.Websocket.CanUseAuthenticatedEndpoints() {
+	if s.Channel == subscription.OrderbookChannel && !e.Websocket.CanGenerateAuthenticatedSubscriptions() {
 		if _, err := IntervalToString(s.Interval); err == nil {
 			priority -= 4
 		}

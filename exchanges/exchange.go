@@ -1112,6 +1112,11 @@ func (b *Base) CanUseAuthenticatedWebsocketEndpoints() bool {
 	return b.Websocket != nil && b.Websocket.CanUseAuthenticatedEndpoints()
 }
 
+// CanGenerateAuthenticatedSubscriptions separates subscription expansion from runtime login readiness.
+func (b *Base) CanGenerateAuthenticatedSubscriptions() bool {
+	return b.Websocket != nil && b.Websocket.CanGenerateAuthenticatedSubscriptions()
+}
+
 // klineIntervalEnabled returns if requested interval is enabled on exchange
 func (b *Base) klineIntervalEnabled(in kline.Interval) bool {
 	// TODO: Add in the ability to use custom klines

@@ -54,12 +54,12 @@ func (e *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.
 // TODO: Update to use the new subscription template system
 func (e *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
 	ctx := context.TODO()
-	_, err := e.GetCredentials(ctx)
-	if err != nil {
+	_, credentialErr := e.GetCredentials(ctx)
+	if credentialErr != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	channelsToSubscribe := defaultDeliveryFuturesSubscriptions
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.Websocket.CanGenerateAuthenticatedSubscriptions() && credentialErr == nil {
 		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
 
@@ -116,7 +116,7 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event str
 	}
 	var creds *accounts.Credentials
 	var err error
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.Websocket.CanAttemptAuthentication() {
 		creds, err = e.GetCredentials(ctx)
 		if err != nil {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -131,7 +131,7 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event str
 		timestamp := time.Now()
 		var params []string
 		params = []string{channelsToSubscribe[i].Pairs[0].String()}
-		if e.Websocket.CanUseAuthenticatedEndpoints() {
+		if creds != nil {
 			switch channelsToSubscribe[i].Channel {
 			case futuresOrdersChannel, futuresUserTradesChannel,
 				futuresLiquidatesChannel, futuresAutoDeleveragesChannel,

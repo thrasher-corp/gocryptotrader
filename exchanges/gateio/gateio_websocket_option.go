@@ -87,7 +87,7 @@ func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, err
 	ctx := context.TODO()
 	channelsToSubscribe := defaultOptionsSubscriptions
 	var userID int64
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.Websocket.CanGenerateAuthenticatedSubscriptions() {
 		var err error
 		_, err = e.GetCredentials(ctx)
 		if err != nil {

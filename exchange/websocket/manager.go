@@ -84,6 +84,9 @@ type Manager struct {
 	state                         atomic.Uint32
 	verbose                       bool
 	canUseAuthenticatedEndpoints  atomic.Bool
+	authenticatedWebsocketSupport atomic.Bool
+	authenticationPending         atomic.Bool
+	publicOnlyGeneration          atomic.Bool
 	connectionMonitorRunning      atomic.Bool
 	trafficTimeout                time.Duration
 	connectionMonitorDelay        time.Duration
@@ -161,9 +164,11 @@ type ManagerSetup struct {
 // knows of all subscriptions for each connection. Each connection will have its own subscription
 // store to track subscriptions made on that specific connection.
 type websocket struct {
-	setup         *ConnectionSetup
-	subscriptions *subscription.Store
-	connections   []Connection
+	setup                 *ConnectionSetup
+	subscriptions         *subscription.Store
+	connections           []Connection
+	retryAuthentication   bool
+	pendingAuthentication map[Connection]bool
 }
 
 var globalReporter Reporter
@@ -282,7 +287,7 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	}
 	m.trafficTimeout = s.ExchangeConfig.WebsocketTrafficTimeout
 
-	m.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
+	m.SetAuthenticatedWebsocketSupport(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
 	if err := m.Orderbook.Setup(s.ExchangeConfig.Name, m.DataHandler, s.ExchangeConfig.Verbose); err != nil {
 		return err
@@ -549,7 +554,13 @@ func (m *Manager) connect(ctx context.Context) error {
 	var subscriptionError error
 
 	// TODO: Implement concurrency below.
+	m.authenticationPending.Store(true)
+	defer m.updateAuthenticationStatus()
 	for i, ws := range connectionManager {
+		ws.retryAuthentication = false
+		if ws.setup.Authenticated && !m.CanAttemptAuthentication() {
+			continue
+		}
 		var subs subscription.List
 		if !ws.setup.SubscriptionsNotRequired {
 			if ws.setup.GenerateSubscriptions == nil {
@@ -557,8 +568,14 @@ func (m *Manager) connect(ctx context.Context) error {
 				break
 			}
 
+			authenticationAllowed := m.CanAttemptAuthentication()
 			var err error
 			subs, err = ws.setup.GenerateSubscriptions() // regenerate state on new connection
+			if authenticationAllowed && !m.CanAttemptAuthentication() {
+				ws.retryAuthentication = true
+				subscriptionError = common.AppendError(subscriptionError, common.AppendError(errFailedToAuthenticate, err))
+				continue
+			}
 			var generationError error
 			if err != nil {
 				generationError = fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
@@ -594,8 +611,12 @@ func (m *Manager) connect(ctx context.Context) error {
 
 		if ws.setup.SubscriptionsNotRequired && len(subs) == 0 {
 			if err := m.createConnectAndSubscribe(ctx, ws, nil); err != nil {
-				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
-				break
+				if errors.Is(err, common.ErrFatal) {
+					multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
+					break
+				}
+				subscriptionError = common.AppendError(subscriptionError, err)
+				continue
 			}
 			if m.verbose {
 				log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] connected", m.exchangeName, ws.setup.URL)
@@ -646,6 +667,15 @@ func (m *Manager) connect(ctx context.Context) error {
 		}
 	}
 
+	if multiConnectFatalError == nil && subscriptionError != nil {
+		m.connectionManagerMu.RLock()
+		noConnections := len(m.connections) == 0
+		m.connectionManagerMu.RUnlock()
+		if noConnections {
+			multiConnectFatalError = subscriptionError
+		}
+	}
+
 	if multiConnectFatalError != nil {
 		// Roll back any successful connections and flush subscriptions
 		connectionManager = m.snapshotConnectionManager()
@@ -658,6 +688,7 @@ func (m *Manager) connect(ctx context.Context) error {
 				conn.Subscriptions().Clear()
 			}
 			ws.connections = nil
+			clear(ws.pendingAuthentication)
 			ws.subscriptions.Clear()
 		}
 		clear(m.connections)
@@ -690,16 +721,30 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
 	}
 
+	if ws.setup.Authenticated && !m.CanAttemptAuthentication() {
+		return errFailedToAuthenticate
+	}
+
 	conn := m.createConnectionFromSetup(ws.setup)
 
 	// The connection is only tracked once connected, so a rollback cannot reach it; close it here in case the
 	// connector dialled before failing.
 	if err := ws.setup.Connector(ctx, conn); err != nil {
-		return fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(err, conn.Shutdown()))
+		// A private-only connection failure must not tear down healthy public streams.
+		err = common.AppendError(err, conn.Shutdown())
+		if ws.setup.Authenticated {
+			ws.retryAuthentication = true
+			return fmt.Errorf("%w: %w", ErrNotConnected, err)
+		}
+		return fmt.Errorf("%w: %w", common.ErrFatal, err)
 	}
 
 	if !conn.IsConnected() {
 		return fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(ErrNotConnected, conn.Shutdown()))
+	}
+	if ws.setup.Authenticated && !m.CanAttemptAuthentication() {
+		ws.retryAuthentication = true
+		return common.AppendError(errFailedToAuthenticate, conn.Shutdown())
 	}
 
 	m.trackConnection(conn, ws)
@@ -707,9 +752,46 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 	m.Wg.Add(1)
 	go m.Reader(ctx, conn, ws.setup.Handler)
 
-	if ws.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
-		if err := ws.setup.Authenticate(ctx, conn); err != nil {
-			return fmt.Errorf("%w %w: %w", common.ErrFatal, errFailedToAuthenticate, err)
+	var authenticationError error
+	if ws.setup.Authenticate != nil && m.CanAttemptAuthentication() {
+		err := ws.setup.Authenticate(ctx, conn)
+		if err == nil && !m.CanAttemptAuthentication() {
+			err = errFailedToAuthenticate
+		}
+		if err != nil {
+			m.SetCanUseAuthenticatedEndpoints(false)
+			ws.retryAuthentication = true
+			if ws.pendingAuthentication == nil {
+				ws.pendingAuthentication = make(map[Connection]bool)
+			}
+			ws.pendingAuthentication[conn] = true
+			authenticationError = fmt.Errorf("%w: %w", errFailedToAuthenticate, err)
+		}
+	}
+	if ws.setup.Authenticate != nil && (authenticationError != nil || !m.CanAttemptAuthentication()) {
+		subs = subs.Public()
+		if !ws.setup.Authenticated && len(subs) != 0 && ws.setup.GenerateSubscriptions != nil {
+			// Some generators select private channels from eligibility rather than
+			// tagging subscriptions. Regenerate with authentication unavailable, retaining
+			// only this batch's original subscription instances.
+			m.publicOnlyGeneration.Store(true)
+			publicSubs, err := ws.setup.GenerateSubscriptions()
+			m.publicOnlyGeneration.Store(false)
+			if err != nil {
+				return common.AppendError(authenticationError, common.AppendError(err, m.removeFailedAuthenticationConnection(ws, conn)))
+			}
+			batch, err := subscription.NewStoreFromList(subs)
+			if err != nil {
+				return common.AppendError(authenticationError, common.AppendError(err, m.removeFailedAuthenticationConnection(ws, conn)))
+			}
+			subs = batch.Contained(publicSubs.Public())
+		}
+		if ws.setup.Authenticated || (len(subs) == 0 && !ws.setup.SubscriptionsNotRequired) {
+			if authenticationError == nil {
+				authenticationError = errFailedToAuthenticate
+			}
+			authenticationError = common.AppendError(authenticationError, m.removeFailedAuthenticationConnection(ws, conn))
+			return authenticationError
 		}
 	}
 
@@ -717,14 +799,13 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 		if len(subs) != 0 {
 			return fmt.Errorf("%w %w: subscriptions were provided but not required", common.ErrFatal, ErrSubscriptionFailure)
 		}
-		return nil
+		return authenticationError
 	}
-
 	if err := ws.setup.Subscriber(ctx, conn, subs); err != nil {
-		return common.AppendError(fmt.Errorf("%w: %w", ErrSubscriptionFailure, err), recordConnectionSubscriptions(conn.Subscriptions(), ws.subscriptions, subs))
+		return common.AppendError(authenticationError, common.AppendError(fmt.Errorf("%w: %w", ErrSubscriptionFailure, err), recordConnectionSubscriptions(conn.Subscriptions(), ws.subscriptions, subs)))
 	}
 	if missing := ws.subscriptions.Missing(subs); len(missing) > 0 {
-		return common.AppendError(fmt.Errorf("%w: %w %q", ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing), recordConnectionSubscriptions(conn.Subscriptions(), ws.subscriptions, subs))
+		return common.AppendError(authenticationError, common.AppendError(fmt.Errorf("%w: %w %q", ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing), recordConnectionSubscriptions(conn.Subscriptions(), ws.subscriptions, subs)))
 	}
 
 	connSubsStore := conn.Subscriptions()
@@ -735,7 +816,7 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 		}
 	}
 
-	return nil
+	return authenticationError
 }
 
 // Disable disables the exchange websocket protocol
@@ -816,6 +897,8 @@ func (m *Manager) teardown() (nonFatalCloseConnectionErrors, err error) {
 			conn.Subscriptions().Clear()
 		}
 		ws.connections = nil
+		clear(ws.pendingAuthentication)
+		ws.retryAuthentication = false
 		// Flush any subscriptions from last connection across any managed connections
 		ws.subscriptions.Clear()
 	}
@@ -1044,6 +1127,13 @@ func (m *Manager) GetName() string {
 	return m.exchangeName
 }
 
+// SetAuthenticatedWebsocketSupport sets configured permission independently of a failed login.
+// Credential validation must use this setter to prevent subsequent authentication retries.
+func (m *Manager) SetAuthenticatedWebsocketSupport(enabled bool) {
+	m.authenticatedWebsocketSupport.Store(enabled)
+	m.SetCanUseAuthenticatedEndpoints(enabled)
+}
+
 // SetCanUseAuthenticatedEndpoints sets canUseAuthenticatedEndpoints val in a thread safe manner
 func (m *Manager) SetCanUseAuthenticatedEndpoints(b bool) {
 	m.canUseAuthenticatedEndpoints.Store(b)
@@ -1051,7 +1141,23 @@ func (m *Manager) SetCanUseAuthenticatedEndpoints(b bool) {
 
 // CanUseAuthenticatedEndpoints gets canUseAuthenticatedEndpoints val in a thread safe manner
 func (m *Manager) CanUseAuthenticatedEndpoints() bool {
+	return m.canUseAuthenticatedEndpoints.Load() && (!m.useMultiConnectionManagement ||
+		(m.authenticatedWebsocketSupport.Load() && !m.authenticationPending.Load()))
+}
+
+// CanAttemptAuthentication reports configured permission, independently of login readiness.
+// Authentication callbacks must use this instead of granting runtime access before login succeeds.
+func (m *Manager) CanAttemptAuthentication() bool {
+	if m.useMultiConnectionManagement {
+		return m.authenticatedWebsocketSupport.Load()
+	}
 	return m.canUseAuthenticatedEndpoints.Load()
+}
+
+// CanGenerateAuthenticatedSubscriptions reports whether a generator should include private channels.
+// It does not grant permission to send authenticated requests.
+func (m *Manager) CanGenerateAuthenticatedSubscriptions() bool {
+	return m.CanAttemptAuthentication() && !m.publicOnlyGeneration.Load()
 }
 
 // checkWebsocketURL checks for a valid websocket url
@@ -1121,7 +1227,26 @@ func (m *Manager) monitorConnection(ctx context.Context) func() bool {
 func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bool) {
 	select {
 	case err := <-m.ReadMessageErrors:
-		if errors.Is(err, errConnectionFault) {
+		staleAuthenticationFault := false
+		var readError *connectionReadError
+		if m.useMultiConnectionManagement && errors.As(err, &readError) {
+			m.m.Lock()
+			staleAuthenticationFault = true
+			for _, ws := range m.snapshotConnectionManager() {
+				for _, conn := range m.snapshotManagedConnections(ws) {
+					if conn.Subscriptions() != readError.subscriptions {
+						continue
+					}
+					staleAuthenticationFault = ws.pendingAuthentication[conn]
+					if staleAuthenticationFault {
+						err = common.AppendError(err, m.removeFailedAuthenticationConnection(ws, conn))
+					}
+					break
+				}
+			}
+			m.m.Unlock()
+		}
+		if errors.Is(err, errConnectionFault) && !staleAuthenticationFault {
 			log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", m.exchangeName, err)
 			if m.IsConnected() {
 				if shutdownErr := m.Shutdown(); shutdownErr != nil {
@@ -1166,9 +1291,111 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 				log.Errorln(log.WebsocketMgr, err)
 			}
 		}
+		if m.IsConnected() && m.useMultiConnectionManagement {
+			if err := m.retryAuthentication(ctx); err != nil {
+				log.Errorf(log.WebsocketMgr, "%s websocket: authentication recovery: %v", m.exchangeName, err)
+			}
+		}
 		t.Reset(m.connectionMonitorDelay)
 	}
 	return false
+}
+
+// removeFailedAuthenticationConnection releases only the failed socket's subscriptions.
+// The caller holds m.m; the setup remains pending for the next recovery attempt.
+func (m *Manager) removeFailedAuthenticationConnection(ws *websocket, conn Connection) error {
+	err := conn.Shutdown()
+	for _, sub := range conn.Subscriptions().List() {
+		err = common.AppendError(err, ws.subscriptions.Remove(sub))
+	}
+	conn.Subscriptions().Clear()
+	m.connectionManagerMu.Lock()
+	delete(m.connections, conn)
+	delete(ws.pendingAuthentication, conn)
+	ws.connections = slices.DeleteFunc(ws.connections, func(c Connection) bool { return c == conn })
+	m.connectionManagerMu.Unlock()
+	return err
+}
+
+// updateAuthenticationStatus keeps the legacy aggregate status conservative while
+// configured support remains available to retry individual failed connections.
+func (m *Manager) updateAuthenticationStatus() {
+	pending := false
+	for _, ws := range m.snapshotConnectionManager() {
+		if ws.retryAuthentication {
+			pending = true
+			break
+		}
+	}
+	m.SetCanUseAuthenticatedEndpoints(m.authenticatedWebsocketSupport.Load() && !pending)
+	m.authenticationPending.Store(pending)
+}
+
+// retryAuthentication restores failed private work without reconnecting healthy public streams.
+// Subscription generation is repeated so a pending retry cannot restore removed channels.
+func (m *Manager) retryAuthentication(ctx context.Context) error {
+	m.m.Lock()
+	defer m.m.Unlock()
+	if !m.IsConnected() || !m.authenticatedWebsocketSupport.Load() {
+		return nil
+	}
+	defer m.updateAuthenticationStatus()
+	var errs error
+	for _, ws := range m.snapshotConnectionManager() {
+		if !ws.retryAuthentication {
+			continue
+		}
+		m.authenticationPending.Store(true)
+		var authenticationError error
+		for conn := range ws.pendingAuthentication {
+			if _, managed := m.managedWebsocket(conn); !managed {
+				delete(ws.pendingAuthentication, conn)
+				continue
+			}
+			if !m.CanAttemptAuthentication() {
+				authenticationError = common.AppendError(authenticationError, errFailedToAuthenticate)
+				break
+			}
+			err := ws.setup.Authenticate(ctx, conn)
+			if err == nil && !m.CanAttemptAuthentication() {
+				err = errFailedToAuthenticate
+			}
+			if err != nil {
+				authenticationError = common.AppendError(authenticationError, fmt.Errorf("%w: %w", errFailedToAuthenticate, err))
+				continue
+			}
+			delete(ws.pendingAuthentication, conn)
+		}
+		if authenticationError != nil {
+			errs = common.AppendError(errs, authenticationError)
+			continue
+		}
+		if !m.CanAttemptAuthentication() {
+			errs = common.AppendError(errs, errFailedToAuthenticate)
+			break
+		}
+		var err error
+		if ws.setup.SubscriptionsNotRequired {
+			if len(m.snapshotManagedConnections(ws)) == 0 {
+				err = m.createConnectAndSubscribe(ctx, ws, nil)
+			}
+		} else {
+			var subs subscription.List
+			subs, err = ws.setup.GenerateSubscriptions()
+			if err == nil && !m.CanAttemptAuthentication() {
+				err = errFailedToAuthenticate
+			}
+			if err == nil {
+				err = m.scaleConnectionsToSubscriptions(ctx, ws, subs)
+			}
+		}
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		ws.retryAuthentication = false
+	}
+	return errs
 }
 
 // monitorTraffic monitors to see if there has been traffic within the trafficTimeout time window. If there is no traffic

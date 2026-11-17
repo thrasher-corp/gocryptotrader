@@ -2690,6 +2690,16 @@ func TestCanUseAuthenticatedWebsocketEndpoints(t *testing.T) {
 	assert.True(t, e.CanUseAuthenticatedWebsocketEndpoints())
 }
 
+func TestCanGenerateAuthenticatedSubscriptions(t *testing.T) {
+	t.Parallel()
+	e := &FakeBase{}
+	assert.False(t, e.CanGenerateAuthenticatedSubscriptions(), "nil websocket should not allow authenticated subscriptions")
+	e.Websocket = websocket.NewManager()
+	assert.False(t, e.CanGenerateAuthenticatedSubscriptions(), "disabled websocket authentication should exclude private subscriptions")
+	e.Websocket.SetAuthenticatedWebsocketSupport(true)
+	assert.True(t, e.CanGenerateAuthenticatedSubscriptions(), "base should forward websocket generation eligibility")
+}
+
 func TestGetCachedTicker(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}

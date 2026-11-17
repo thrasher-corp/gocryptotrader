@@ -3431,7 +3431,7 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	e.Websocket.SetAuthenticatedWebsocketSupport(true)
 	subs, err := e.generateSubscriptionsSpot()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	var spotV2Count int
@@ -3542,7 +3542,7 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
 	e.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	e.Websocket.SetAuthenticatedWebsocketSupport(true)
 	e.setFuturesUserID("key", currency.USDT, "20011")
 	continueBootstrap, err := e.Bootstrap(t.Context())
 	require.NoError(t, err, "Bootstrap must not error")
@@ -3649,7 +3649,7 @@ func TestPrepareFuturesUserIDsLookupFailure(t *testing.T) {
 	ex.API.AuthenticatedSupport = true
 	ex.API.AuthenticatedWebsocketSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 
 	ex.prepareFuturesUserIDs(t.Context())
 
@@ -3694,7 +3694,7 @@ func TestPreConnectWiring(t *testing.T) {
 	ex.API.AuthenticatedSupport = true
 	ex.API.AuthenticatedWebsocketSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 
 	require.Error(t, ex.Websocket.Connect(t.Context()), "Connect must fail against the rejecting mock")
 	assert.Equal(t, int64(2), accountRequests.Load(), "Connect should run futures account preparation for both settlement accounts")
@@ -3716,7 +3716,7 @@ func TestGenerateFuturesDefaultSubscriptionsMissingCredentials(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	ex.API.AuthenticatedSupport = true
 	ex.API.AuthenticatedWebsocketSupport = true
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 
 	subs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
 	require.NoError(t, err, "Missing credentials must degrade to public futures subscriptions")
@@ -3754,7 +3754,9 @@ func TestGenerateFuturesDefaultSubscriptionsColdCache(t *testing.T) {
 	ex.API.AuthenticatedSupport = true
 	ex.API.AuthenticatedWebsocketSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetAuthenticatedWebsocketSupport(true)
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "subscription planning should not require authenticated runtime readiness")
 
 	subs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
 	require.NoError(t, err, "Missing cached account ID must not prevent futures subscription generation")
@@ -3802,7 +3804,7 @@ func TestGenerateFuturesDefaultSubscriptionsAccountIDCache(t *testing.T) {
 	ex.API.AuthenticatedSupport = true
 	ex.API.AuthenticatedWebsocketSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 
 	err := ex.cacheFuturesUserID(t.Context(), "key", currency.USDT)
 	require.NoError(t, err, "Initial account lookup must populate the futures user ID cache")

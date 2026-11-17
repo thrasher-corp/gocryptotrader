@@ -46,6 +46,7 @@ func testInstance() *Exchange {
 	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
+		e.Websocket.SetAuthenticatedWebsocketSupport(true)
 		e.SetCredentials(apiCredentials)
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}

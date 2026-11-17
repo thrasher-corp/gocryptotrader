@@ -44,7 +44,7 @@ func (e *Exchange) GenerateDefaultBusinessSubscriptions() (subscription.List, er
 	var subs []string
 	var subscriptions []*subscription.Subscription
 	subs = append(subs, defaultBusinessSubscribedChannels...)
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.Websocket.CanGenerateAuthenticatedSubscriptions() {
 		subs = append(subs, defaultBusinessAuthChannels...)
 	}
 next:
