@@ -273,7 +273,9 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 
 // GetMockConn returns an isolated websocket connection for handler tests without
 // connecting to a real websocket server.
-func GetMockConn(tb testing.TB, e exchange.IBotExchange, u string) websocket.Connection {
+func GetMockConn(tb testing.TB, e exchange.IBotExchange, messageFilter any) websocket.Connection {
 	tb.Helper()
-	return e.GetBase().Websocket.CreateUnmanagedTestConnection(u)
+	conn, err := e.GetBase().Websocket.CreateTestConnection(messageFilter)
+	require.NoError(tb, err, "CreateTestConnection must resolve the configured connection")
+	return conn
 }

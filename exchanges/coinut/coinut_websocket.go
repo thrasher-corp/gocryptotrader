@@ -393,10 +393,6 @@ func (e *Exchange) WsGetInstruments(ctx context.Context) (Instruments, error) {
 	if err != nil {
 		return Instruments{}, err
 	}
-	return e.wsGetInstruments(ctx, conn)
-}
-
-func (e *Exchange) wsGetInstruments(ctx context.Context, conn websocket.Connection) (Instruments, error) {
 	var list Instruments
 	req := wsRequest{
 		Request:      "inst_list",

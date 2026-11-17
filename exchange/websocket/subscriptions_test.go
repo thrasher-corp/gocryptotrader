@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
@@ -1052,6 +1053,11 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 			t.Cleanup(func() { cleanupManagerMonitors(t, m) })
 			var pending subscription.List
 			ws.setup.KeepAliveWithoutSubscriptions = keepAlive
+			ws.setup.MessageFilter = "requests"
+			ws.setup.ResponseMaxLimit = time.Second
+			ws.setup.Handler = func(_ context.Context, conn Connection, data []byte) error {
+				return conn.RequireMatchWithData("request", data)
+			}
 			ws.setup.GenerateSubscriptions = func() (subscription.List, error) { return pending, nil }
 			require.NoError(t, m.SetupNewConnection(ws.setup), "managed setup must register")
 			ws = m.snapshotConnectionManager()[0]
@@ -1064,7 +1070,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 			require.Len(t, connections, 1, "keepalive must dial exactly one empty connection")
 			original := connections[0]
 			assert.True(t, m.IsConnected(), "keepalive manager should be connected without subscriptions")
-			for _, next := range []subscription.List{{{Channel: "A"}}, nil, {{Channel: "B"}}} {
+			for _, next := range []subscription.List{nil, {{Channel: "A"}}, nil, {{Channel: "B"}}} {
 				pending = next
 				require.NoError(t, m.FlushChannels(t.Context()), "subscription changes must preserve the keepalive connection")
 				connections = m.snapshotManagedConnections(ws)
@@ -1072,6 +1078,11 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 				assert.Same(t, original, connections[0], "subscription transitions should reuse the original socket")
 				assert.Equal(t, len(next), original.Subscriptions().Len(), "connection ownership should match current subscriptions")
 				assert.Equal(t, len(next), len(m.GetSubscriptions()), "manager ownership should match current subscriptions")
+				routed, err := m.GetConnection("requests")
+				require.NoError(t, err, "direct requests must still find their connection")
+				response, err := routed.SendMessageReturnResponse(t.Context(), request.Unset, "request", map[string]string{"request": "still available"})
+				require.NoError(t, err, "direct requests must receive responses with or without subscriptions")
+				assert.JSONEq(t, `{"request":"still available"}`, string(response), "response should come through the retained socket")
 			}
 		})
 	}

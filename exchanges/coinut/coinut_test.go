@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -1119,7 +1120,7 @@ func TestWsOrderbook(t *testing.T) {
   "reply": "inst_order_book",
   "status": [ "OK" ]
 }`)
-	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1133,14 +1134,14 @@ func TestWsOrderbook(t *testing.T) {
   "side": "BUY",
   "trans_id": 169384
 }`)
-	err = e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err = e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsTicker(t *testing.T) {
-	e := newHandlerTestExchange(t)
+	t.Parallel()
 	pressXToJSON := []byte(`{
   "highest_buy": "750.58100000",
   "inst_id": 1,
@@ -1152,9 +1153,46 @@ func TestWsTicker(t *testing.T) {
   "volume": "0.07650000",
   "volume24": "56.07650000"
 }`)
-	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	for _, tc := range []struct {
+		name     string
+		rejected bool
+	}{
+		{name: "stored ticker is relayed"},
+		{name: "rejected ticker is not relayed", rejected: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newHandlerTestExchange(t)
+			ex.Name = t.Name()
+			payload := pressXToJSON
+			if tc.rejected {
+				payload = []byte(strings.Replace(string(payload), `"highest_buy": "750.58100000"`, `"highest_buy": "752.00000000"`, 1))
+			}
+			conn := testexch.GetMockConn(t, ex, coinutConnection)
+			err := ex.wsHandleMessage(t.Context(), conn, payload)
+			if tc.rejected {
+				require.ErrorIs(t, err, ticker.ErrBidEqualsAsk, "invalid ticker must fail processing")
+				select {
+				case <-ex.Websocket.DataHandler.C:
+					t.Fatal("rejected ticker must not be relayed")
+				default:
+				}
+				_, err = ticker.GetTicker(ex.Name, currency.NewPair(currency.LTC, currency.BTC), asset.Spot)
+				assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "rejected ticker should not enter the shared store")
+				return
+			}
+			require.NoError(t, err, "ticker handler must succeed")
+			select {
+			case message := <-ex.Websocket.DataHandler.C:
+				price, ok := message.Data.(*ticker.Price)
+				require.True(t, ok, "handler must relay a ticker")
+				stored, err := ticker.GetTicker(ex.Name, currency.NewPair(currency.LTC, currency.BTC), asset.Spot)
+				require.NoError(t, err, "relayed ticker must already exist in the shared store")
+				assert.Equal(t, stored, price, "relay should contain the processed ticker")
+			default:
+				t.Fatal("processed ticker must be relayed")
+			}
+		})
 	}
 }
 
@@ -1185,7 +1223,7 @@ func TestWsGetInstruments(t *testing.T) {
       "OK"
    ]
 }`)
-	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1233,7 +1271,7 @@ func TestWsTrades(t *testing.T) {
       "trans_id": 169502
     }]
 }`)
-	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1246,7 +1284,7 @@ func TestWsTrades(t *testing.T) {
   "timestamp": 0,
   "trans_id": 169478
 }`)
-	err = e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err = e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1279,7 +1317,7 @@ func TestWsLogin(t *testing.T) {
 }`)
 	ctx := accounts.DeployCredentialsToContext(t.Context(),
 		&accounts.Credentials{Key: "b46e658f-d4c4-433c-b032-093423b1aaa4", ClientID: "dummy"})
-	err := e.wsHandleMessage(ctx, testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err := e.wsHandleMessage(ctx, testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1304,7 +1342,7 @@ func TestWsAccountBalance(t *testing.T) {
   "reply": "user_balance",
   "trans_id": 15159032
 }`)
-	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1327,7 +1365,7 @@ func TestWsOrder(t *testing.T) {
       "side":"SELL",
       "trans_id":127303
    }`)
-	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1357,7 +1395,7 @@ func TestWsOrder(t *testing.T) {
     "timestamp": 1482903034617491,
     "trans_id": 20859252
   }`)
-	err = e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err = e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1381,7 +1419,7 @@ func TestWsOrder(t *testing.T) {
     "side": "BUY",
     "trans_id": 3282993
 }`)
-	err = e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err = e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err == nil {
 		t.Error("Expected not enough balance error")
 	}
@@ -1423,7 +1461,7 @@ func TestWsOrders(t *testing.T) {
     "trans_id": 15155497
   }
 ]`)
-	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1460,7 +1498,7 @@ func TestWsOpenOrders(t *testing.T) {
         }
     ]
 }`)
-	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1477,7 +1515,7 @@ func TestWsCancelOrder(t *testing.T) {
       "OK"
     ]
   }`)
-	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1507,7 +1545,7 @@ func TestWsCancelOrders(t *testing.T) {
   ],
   "trans_id": 15166063
 }`)
-	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1565,7 +1603,7 @@ func TestWsOrderHistory(t *testing.T) {
     }
   ]
 }`)
-	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutConnection), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1666,13 +1704,16 @@ func TestNewOrder(t *testing.T) {
 
 func TestWsHandleMessage(t *testing.T) {
 	t.Parallel()
-	for _, batch := range []bool{false, true} {
-		t.Run(strconv.FormatBool(batch), func(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		batch bool
+	}{{name: "single reply"}, {name: "batched reply", batch: true}} {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
-			first := testexch.GetMockConn(t, ex, coinutWebsocketURL)
-			second := testexch.GetMockConn(t, ex, coinutWebsocketURL)
+			first := testexch.GetMockConn(t, ex, coinutConnection)
+			second := testexch.GetMockConn(t, ex, coinutConnection)
 			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 			defer cancel()
 			firstResponse, err := first.MatchReturnResponses(ctx, int64(7), 1)
@@ -1680,7 +1721,7 @@ func TestWsHandleMessage(t *testing.T) {
 			secondResponse, err := second.MatchReturnResponses(ctx, int64(7), 1)
 			require.NoError(t, err, "second connection must register the same nonce independently")
 			raw := []byte(`{"nonce":7,"reply":"login","api_key":"placeholder"}`)
-			if batch {
+			if tc.batch {
 				raw = append(append([]byte{'['}, raw...), ']')
 			}
 			require.NoError(t, ex.wsHandleMessage(ctx, second, raw), "reply must match the receiving connection")
@@ -1709,7 +1750,7 @@ func TestWsHandleMessage(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "exchange must initialise")
-		conn := testexch.GetMockConn(t, ex, coinutWebsocketURL)
+		conn := testexch.GetMockConn(t, ex, coinutConnection)
 		for range 3 {
 			require.NoError(t, ex.wsHandleMessage(t.Context(), conn, []byte(`{"reply":"hb"}`)), "heartbeats must not block the reader")
 		}
@@ -1720,8 +1761,11 @@ func TestWsConnect(t *testing.T) {
 	t.Parallel()
 	t.Run("cold discovery completes before dialling", func(t *testing.T) {
 		t.Parallel()
-		for _, fail := range []bool{false, true} {
-			t.Run(strconv.FormatBool(fail), func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			fail bool
+		}{{name: "successful discovery"}, {name: "failed discovery", fail: true}} {
+			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				ex := new(Exchange)
 				require.NoError(t, testexch.Setup(ex), "exchange must initialise")
@@ -1737,7 +1781,7 @@ func TestWsConnect(t *testing.T) {
 					var payload map[string]any
 					require.NoError(t, json.NewDecoder(req.Body).Decode(&payload), "instrument request must decode")
 					assert.Equal(t, "inst_list", payload["request"], "cold startup should use existing REST discovery")
-					if fail {
+					if tc.fail {
 						return nil, io.ErrUnexpectedEOF
 					}
 					return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"status":["OK"],"SPOT":{"BTCUSDT":[{"base":"BTC","quote":"USDT","inst_id":123}]}}`))}, nil
@@ -1749,7 +1793,7 @@ func TestWsConnect(t *testing.T) {
 					return nil
 				}}
 				err := ex.wsConnect(t.Context(), conn)
-				if fail {
+				if tc.fail {
 					require.ErrorIs(t, err, io.ErrUnexpectedEOF, "discovery error must propagate")
 					assert.False(t, dialled, "discovery failure should prevent dialling")
 					return

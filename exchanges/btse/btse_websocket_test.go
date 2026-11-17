@@ -60,29 +60,32 @@ func TestWsAuthenticate(t *testing.T) {
 	}
 }
 
-func TestWsHandleDataConnectionMatching(t *testing.T) {
+func TestWsHandleData(t *testing.T) {
 	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
-	other := testexch.GetMockConn(t, ex, "wss://other.example")
-	conn := testexch.GetMockConn(t, ex, "wss://target.example")
-	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
-	defer cancel()
-	otherResponses, err := other.MatchReturnResponses(ctx, "login", 1)
-	require.NoError(t, err, "competing matcher must register first")
-	responses, err := conn.MatchReturnResponses(ctx, "login", 1)
-	require.NoError(t, err, "target matcher must register")
-	require.NoError(t, ex.wsHandleData(ctx, conn, []byte(`{"event":"login","success":true}`)), "login response must be handled")
-	select {
-	case <-responses:
-	case <-ctx.Done():
-		t.Fatal("response must reach its physical connection")
-	}
-	select {
-	case <-otherResponses:
-		t.Fatal("response must not reach a different connection")
-	default:
-	}
+	t.Run("connection-specific login matching", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+		other := testexch.GetMockConn(t, ex, asset.Spot)
+		conn := testexch.GetMockConn(t, ex, asset.Spot)
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		otherResponses, err := other.MatchReturnResponses(ctx, "login", 1)
+		require.NoError(t, err, "competing matcher must register first")
+		responses, err := conn.MatchReturnResponses(ctx, "login", 1)
+		require.NoError(t, err, "target matcher must register")
+		require.NoError(t, ex.wsHandleData(ctx, conn, []byte(`{"event":"login","success":true}`)), "login response must be handled")
+		select {
+		case <-responses:
+		case <-ctx.Done():
+			t.Fatal("response must reach its physical connection")
+		}
+		select {
+		case <-otherResponses:
+			t.Fatal("response must not reach a different connection")
+		default:
+		}
+	})
 }
 
 func TestWsConnect(t *testing.T) {

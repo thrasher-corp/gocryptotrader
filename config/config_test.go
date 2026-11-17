@@ -1717,6 +1717,30 @@ func TestReadConfigFromReader(t *testing.T) {
 			})
 		}
 	})
+	t.Run("Gemini saved endpoint migration", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"Gemini", "gemini", "GEMINI"} {
+			for _, tc := range []struct {
+				name, endpoint, want string
+			}{
+				{name: "old default", endpoint: "wss://api.gemini.com", want: "wss://api.gemini.com/v2/marketdata"},
+				{name: "current default", endpoint: "wss://api.gemini.com/v2/marketdata", want: "wss://api.gemini.com/v2/marketdata"},
+				{name: "custom", endpoint: "wss://example.com/marketdata", want: "wss://example.com/marketdata"},
+			} {
+				t.Run(name+"/"+tc.name, func(t *testing.T) {
+					t.Parallel()
+					input := `{"version":19,"exchanges":[{"name":"` + name + `","api":{"urlEndpoints":{"WebsocketSpotURL":"` + tc.endpoint + `","WebsocketSpotSupplementaryURL":"wss://example.com/private"}}},{"name":"Other","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://api.gemini.com"}}}]}`
+					var cfg Config
+					require.NoError(t, cfg.readConfig(strings.NewReader(input)), "saved configuration must load through the version migration")
+					assert.Equal(t, 20, cfg.Version, "configuration should advance from upstream version 19")
+					require.Len(t, cfg.Exchanges, 2, "loader must retain both exchanges")
+					assert.Equal(t, tc.want, cfg.Exchanges[0].API.Endpoints["WebsocketSpotURL"], "public endpoint should migrate only the old default")
+					assert.Equal(t, "wss://example.com/private", cfg.Exchanges[0].API.Endpoints["WebsocketSpotSupplementaryURL"], "custom private endpoint should be preserved")
+					assert.Equal(t, "wss://api.gemini.com", cfg.Exchanges[1].API.Endpoints["WebsocketSpotURL"], "unrelated exchange should be preserved")
+				})
+			}
+		}
+	})
 }
 
 func TestLoadConfig(t *testing.T) {

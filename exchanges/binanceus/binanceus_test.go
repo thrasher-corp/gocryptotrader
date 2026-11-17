@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -1477,7 +1478,7 @@ func TestWebsocketSubscriptionHandling(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	rawData := []byte(subscriptionRequestString)
-	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), rawData)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), rawData)
 	if err != nil {
 		t.Error("Binanceus wsHandleData() error", err)
 	}
@@ -1491,7 +1492,7 @@ func TestWebsocketUnsubscriptionHandling(t *testing.T) {
 	],
 	"id": 312
 	}`)
-	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1535,8 +1536,38 @@ var ticker24hourChangeStream = `{
 
 func TestWebsocketTickerUpdate(t *testing.T) {
 	t.Parallel()
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), []byte(ticker24hourChangeStream)); err != nil {
-		t.Error("Binanceus wsHandleData() for Ticker 24h Change Stream", err)
+	for _, invalid := range []bool{false, true} {
+		name := "processed ticker is cached and relayed"
+		if invalid {
+			name = "invalid ticker is not relayed"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+			ex.Name = t.Name()
+			payload := ticker24hourChangeStream
+			if invalid {
+				payload = strings.Replace(payload, `"a": "0.0026"`, `"a": "0.0024"`, 1)
+			}
+			err := ex.wsHandleData(t.Context(), testexch.GetMockConn(t, ex, asset.Spot), []byte(payload))
+			if invalid {
+				require.ErrorIs(t, err, ticker.ErrBidEqualsAsk, "locked ticker must fail processing")
+				assert.Empty(t, ex.Websocket.DataHandler.C, "invalid ticker should not be relayed")
+				return
+			}
+			require.NoError(t, err, "valid ticker must process")
+			select {
+			case message := <-ex.Websocket.DataHandler.C:
+				price, ok := message.Data.(*ticker.Price)
+				require.True(t, ok, "relayed data must be a ticker")
+				cached, err := ticker.GetTicker(ex.Name, price.Pair, asset.Spot)
+				require.NoError(t, err, "relayed ticker must already be cached")
+				assert.Equal(t, price.Last, cached.Last, "cache should contain the relayed price")
+			default:
+				t.Fatal("processed ticker must be relayed")
+			}
+		})
 	}
 }
 
@@ -1570,7 +1601,7 @@ func TestWebsocketKlineUpdate(t *testing.T) {
 	  			}
 			}
 		}`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), pressXToJSON); err != nil {
 		t.Error("Binanceus wsHandleData() btcusdt@kline_1m stream data conversion ", err)
 	}
 }
@@ -1590,7 +1621,7 @@ func TestWebsocketStreamTradeUpdate(t *testing.T) {
 	  "m": true,        
 	  "M": true         
 	}}`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), pressXToJSON); err != nil {
 		t.Error("Binanceus wsHandleData() error", err)
 	}
 }
@@ -1598,7 +1629,7 @@ func TestWebsocketStreamTradeUpdate(t *testing.T) {
 func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	binanceusOrderBookLock.Lock()
 	defer binanceusOrderBookLock.Unlock()
-	e.setupOrderbookManager(t.Context())
+	e.prepareOrderbookManager()
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
 		Asks: []orderbook.Level{
@@ -1645,7 +1676,7 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	if err := e.SeedLocalCacheWithBook(t.Context(), p, &book); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), update1); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), update1); err != nil {
 		t.Fatal(err)
 	}
 	e.obm.state[currency.BTC][currency.USDT][asset.Spot].fetchingBook = false
@@ -1678,7 +1709,7 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 			]
 		}
 	}`)
-	if err = e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), update2); err != nil {
+	if err = e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), update2); err != nil {
 		t.Error("Binanceus wshandlerData error", err)
 	}
 	ob, err = e.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
@@ -1720,7 +1751,7 @@ func TestWebsocketPartialOrderBookDepthStream(t *testing.T) {
 		]
 	  }}`)
 	var err error
-	err = e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), update1)
+	err = e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), update1)
 	require.NoError(t, err, "wsHandleData for partial orderbook update1 must not error")
 	update2 := []byte(`{
 		"stream":"btcusdt@depth10",
@@ -1740,7 +1771,7 @@ func TestWebsocketPartialOrderBookDepthStream(t *testing.T) {
 			]
 		}
 	  }`)
-	err = e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), update2)
+	err = e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), update2)
 	require.NoError(t, err, "wsHandleData for partial orderbook update2 must not error")
 }
 
@@ -1759,7 +1790,7 @@ func TestWebsocketBookTicker(t *testing.T) {
 		}
 	  }`,
 	)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), bookTickerJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), bookTickerJSON); err != nil {
 		t.Error("Binanceus Book Ticker error", err)
 	}
 	bookTickerForAllSymbols := []byte(`
@@ -1774,7 +1805,7 @@ func TestWebsocketBookTicker(t *testing.T) {
 			"A":"40.66000000" 
 		}
 	}`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), bookTickerForAllSymbols); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), bookTickerForAllSymbols); err != nil {
 		t.Error("Binanceus Web socket Book ticker for all symbols error", err)
 	}
 }
@@ -1799,7 +1830,7 @@ func TestWebsocketAggTrade(t *testing.T) {
 			}
 	   }`,
 	)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), aggTradejson); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), aggTradejson); err != nil {
 		t.Error("Binanceus Aggregated Trade Order Json() error", err)
 	}
 }
@@ -1873,7 +1904,7 @@ var balanceUpdateInputJSON = `
 func TestWebsocketBalanceUpdate(t *testing.T) {
 	t.Parallel()
 	thejson := []byte(balanceUpdateInputJSON)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), thejson); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), thejson); err != nil {
 		t.Error(err)
 	}
 }
@@ -1909,7 +1940,7 @@ var listStatusUserDataStreamPayload = `
 
 func TestWebsocketListStatus(t *testing.T) {
 	t.Parallel()
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), []byte(listStatusUserDataStreamPayload)); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), []byte(listStatusUserDataStreamPayload)); err != nil {
 		t.Error(err)
 	}
 }
@@ -1964,7 +1995,7 @@ func TestProcessUpdate(t *testing.T) {
 	t.Parallel()
 	binanceusOrderBookLock.Lock()
 	defer binanceusOrderBookLock.Unlock()
-	e.setupOrderbookManager(t.Context())
+	e.prepareOrderbookManager()
 	p := currency.NewBTCUSDT()
 	var depth WebsocketDepthStream
 	err := json.Unmarshal(websocketDepthUpdate, &depth)
@@ -2008,7 +2039,7 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 	for ch := e.Websocket.DataHandler.C; len(ch) > 0; {
 		<-ch
 	}
-	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), payload)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2022,7 +2053,7 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 		t.Fatalf("Binanceus expected type order.Detail, found %T", res)
 	}
 	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041556,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Mob","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028600","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5341783271,"l":"0.00028600","z":"0.00028600","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041555,"t":726946523,"I":11390206312,"w":false,"m":false,"M":true,"O":1616633041555,"Z":"14.99693910","Y":"14.99693910","Q":"0.00000000"}}`)
-	err = e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), payload)
+	err = e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), payload)
 	if err != nil {
 		t.Fatal("Binanceus OrderExecutionReport json conversion error", err)
 	}
@@ -2031,7 +2062,7 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 func TestWebsocketOutboundAccountPosition(t *testing.T) {
 	t.Parallel()
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), payload); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, asset.Spot), payload); err != nil {
 		t.Fatal("Binanceus testing \"outboundAccountPosition\" data conversion error", err)
 	}
 }

@@ -31,8 +31,9 @@ const (
 	pingDelay                    = time.Minute * 9
 )
 
-var (
-	errWebsocketSessionActive = errors.New("binanceus combined websocket already has an active session")
+var errWebsocketSessionActive = errors.New("binanceus combined websocket already has an active session")
+
+const (
 	// maxWSUpdateBuffer defines max websocket updates to apply when an
 	// orderbook is initially fetched
 	maxWSUpdateBuffer = 150
@@ -43,12 +44,6 @@ var (
 	// jobs from the job channel
 	maxWSOrderbookWorkers = 10
 )
-
-// websocketSession owns background work for one physical connection.
-type websocketSession struct {
-	cancel context.CancelFunc
-	done   chan struct{}
-}
 
 // WsConnect starts the managed websocket lifecycle, including subscriptions and monitoring.
 // Use Websocket.Connect when the caller needs to supply a lifecycle context.
@@ -64,7 +59,7 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 	defer e.wsSessionMu.Unlock()
 	// The combined stream shares a listen key and orderbook workers. Do not split
 	// it into sockets until those resources support independent ownership.
-	if e.wsSession != nil {
+	if e.wsSessionActive {
 		return errWebsocketSessionActive
 	}
 	dialer := gws.Dialer{HandshakeTimeout: e.Config.HTTPTimeout, Proxy: http.ProxyFromEnvironment}
@@ -92,16 +87,14 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 		UseGorillaHandler: true, MessageType: gws.PongMessage, Delay: pingDelay,
 	})
 	sessionCtx, cancel := context.WithCancel(ctx)
-	session := &websocketSession{cancel: cancel, done: make(chan struct{})}
-	e.wsSession = session
+	e.wsSessionActive = true
 	shutdown := e.Websocket.ShutdownC
 	e.prepareOrderbookManager()
 	e.Websocket.Wg.Go(func() {
 		defer func() {
 			cancel()
 			e.wsSessionMu.Lock()
-			e.wsSession = nil
-			close(session.done)
+			e.wsSessionActive = false
 			e.wsSessionMu.Unlock()
 		}()
 		var workers sync.WaitGroup
@@ -558,7 +551,8 @@ subs:
 	return subscriptions, nil
 }
 
-func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
+// Subscribe registers channels on their owning managed connection.
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
 	payload := WebsocketPayload{
 		Method: "SUBSCRIBE",
 	}
@@ -581,7 +575,8 @@ func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Co
 	return e.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe...)
 }
 
-func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+// Unsubscribe removes channels from their owning managed connection.
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	payload := WebsocketPayload{
 		Method: "UNSUBSCRIBE",
 	}
@@ -623,14 +618,6 @@ func (e *Exchange) prepareOrderbookManager() {
 				}
 			}
 		}
-	}
-}
-
-func (e *Exchange) setupOrderbookManager(ctx context.Context) {
-	e.prepareOrderbookManager()
-	for range maxWSOrderbookWorkers {
-		// 10 workers for synchronising book
-		e.SynchroniseWebsocketOrderbook(ctx)
 	}
 }
 

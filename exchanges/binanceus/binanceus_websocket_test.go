@@ -76,7 +76,7 @@ func TestWsConnect(t *testing.T) {
 				require.NoError(t, ex.Websocket.Disable(), "websocket must disable")
 			}
 			assert.ErrorIs(t, ex.WsConnect(), websocket.ErrWebsocketNotEnabled, "exported wrapper should preserve the disabled error")
-			assert.Nil(t, ex.wsSession, "disabled connection should not start a session")
+			assert.False(t, ex.wsSessionActive, "disabled connection should not start a session")
 		})
 	}
 
@@ -88,29 +88,19 @@ func TestWsConnect(t *testing.T) {
 		require.NoError(t, ex.wsConnect(t.Context(), conn), "connector must succeed")
 		assert.True(t, conn.ping.UseGorillaHandler, "server ping handler should be installed")
 		require.NotNil(t, ex.obm, "orderbook workers must have state before reader starts")
-		session := ex.wsSession
 		competing := newWebsocketTestConnection(t, ex)
 		assert.ErrorIs(t, ex.wsConnect(t.Context(), competing), errWebsocketSessionActive, "second combined stream should be rejected without resetting workers")
-		assert.Same(t, session, ex.wsSession, "rejected stream should preserve the active session")
+		assert.True(t, ex.wsSessionActive, "rejected stream should preserve the active session")
 		shutdown := ex.Websocket.ShutdownC
 		ex.Websocket.ShutdownC = make(chan struct{})
 		close(shutdown)
-		select {
-		case <-session.done:
-		case <-time.After(time.Second):
-			t.Fatal("disconnect must stop workers")
-		}
-		select {
-		case <-session.done:
-		default:
-			t.Fatal("disconnect must join background workers")
-		}
-		assert.Empty(t, ex.wsSession, "disconnect should remove the session")
-		require.NoError(t, ex.wsConnect(t.Context(), competing), "replacement stream must start after prior workers stop")
-		replacement := ex.wsSession
-		replacement.cancel()
-		<-replacement.done
-		ex.Websocket.Wg.Wait()
+		waitWebsocketWorkers(t, ex)
+		assert.False(t, ex.wsSessionActive, "disconnect should remove the session")
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		require.NoError(t, ex.wsConnect(ctx, competing), "replacement stream must start after prior workers stop")
+		cancel()
+		waitWebsocketWorkers(t, ex)
 	})
 	t.Run("dial failure", func(t *testing.T) {
 		t.Parallel()
@@ -119,7 +109,7 @@ func TestWsConnect(t *testing.T) {
 		conn := newWebsocketTestConnection(t, ex)
 		conn.dialErr = errors.New("dial failed")
 		assert.ErrorIs(t, ex.wsConnect(t.Context(), conn), conn.dialErr, "connector should preserve the dial error")
-		assert.Empty(t, ex.wsSession, "failed dial should not start workers")
+		assert.False(t, ex.wsSessionActive, "failed dial should not start workers")
 	})
 	t.Run("listen keys remain with their exchange", func(t *testing.T) {
 		t.Parallel()
@@ -148,7 +138,7 @@ func TestWsConnect(t *testing.T) {
 				if key == "failed-key" {
 					conn.dialErr = errors.New("dial failed")
 					assert.ErrorIs(t, ex.wsConnect(t.Context(), conn), conn.dialErr, "authenticated dial should preserve its error")
-					assert.Empty(t, ex.wsSession, "failed authenticated dial should not start workers")
+					assert.False(t, ex.wsSessionActive, "failed authenticated dial should not start workers")
 					assert.Empty(t, ex.listenKey, "failed dial cleanup should clear the closed key")
 					require.NoError(t, ex.MaintainWsAuthStreamKey(t.Context()), "maintenance must acquire a fresh key after failed dial cleanup")
 					mu.Lock()
@@ -156,13 +146,13 @@ func TestWsConnect(t *testing.T) {
 					mu.Unlock()
 					return
 				}
-				require.NoError(t, ex.wsConnect(t.Context(), conn), "authenticated connector must succeed")
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				require.NoError(t, ex.wsConnect(ctx, conn), "authenticated connector must succeed")
 				assert.Equal(t, binanceusDefaultWebsocketURL+"?streams="+key, conn.GetURL(), "only this connection should receive its listen key")
 				require.NoError(t, ex.MaintainWsAuthStreamKey(t.Context()), "renewal must succeed")
-				session := ex.wsSession
-				session.cancel()
-				<-session.done
-				ex.Websocket.Wg.Wait()
+				cancel()
+				waitWebsocketWorkers(t, ex)
 				assert.Empty(t, ex.listenKey, "disconnect should clear the closed key")
 				mu.Lock()
 				assert.Equal(t, []string{"POST:", "PUT:" + key, "DELETE:" + key}, requests, "creation, renewal and cleanup should use this exchange's key")
@@ -172,7 +162,7 @@ func TestWsConnect(t *testing.T) {
 	})
 }
 
-func TestSubscribeForConnection(t *testing.T) {
+func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
@@ -181,12 +171,23 @@ func TestSubscribeForConnection(t *testing.T) {
 	require.NoError(t, ex.Websocket.TrackTestConnection(asset.Spot, first), "first route must register")
 	require.NoError(t, ex.Websocket.TrackTestConnection(asset.Spot, second), "second route must register")
 	sub := &subscription.Subscription{Channel: "btcusdt@ticker", Asset: asset.Spot}
-	require.NoError(t, ex.subscribeForConnection(t.Context(), second, subscription.List{sub}), "subscription must succeed")
+	require.NoError(t, ex.Subscribe(t.Context(), second, subscription.List{sub}), "subscription must succeed")
 	assert.Empty(t, first.sent, "other socket should not send the request")
 	require.Len(t, second.sent, 1, "target socket must send one request")
 	assert.Equal(t, "SUBSCRIBE", second.sent[0].Method, "wire operation should remain unchanged")
 	assert.Same(t, sub, ex.Websocket.GetSubscription(sub), "successful subscription should be tracked")
-	require.NoError(t, ex.unsubscribeForConnection(t.Context(), second, subscription.List{sub}), "unsubscription must succeed")
+	require.NoError(t, ex.Unsubscribe(t.Context(), second, subscription.List{sub}), "unsubscription must succeed")
 	assert.Equal(t, "UNSUBSCRIBE", second.sent[1].Method, "unsubscription should use the target socket")
 	assert.Nil(t, ex.Websocket.GetSubscription(sub), "unsubscribed channel should be removed")
+}
+
+func waitWebsocketWorkers(t *testing.T, ex *Exchange) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() { ex.Websocket.Wg.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("disconnect must join background workers")
+	}
 }

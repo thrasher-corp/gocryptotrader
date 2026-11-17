@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -86,14 +85,6 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	}).Parse(subTplText)
 }
 
-func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return e.manageSubs(ctx, conn, subs, wsSubscribeOp)
-}
-
-func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return e.manageSubs(ctx, conn, subs, wsUnsubscribeOp)
-}
-
 func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, subs subscription.List, op wsSubOp) error {
 	req := wsSubscribeRequest{
 		Type:          op,
@@ -133,11 +124,7 @@ func (e *Exchange) wsAuthConnect(ctx context.Context, conn websocket.Connection)
 	}
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("%v sendAuthenticatedHTTPRequest: Unable to JSON request", e.Name)
-	}
-	endpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-	if err != nil {
-		return err
+		return fmt.Errorf("%s websocket authentication payload: %w", e.Name, err)
 	}
 	payloadB64 := base64.StdEncoding.EncodeToString(payloadJSON)
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(payloadB64), []byte(creds.Secret))
@@ -155,7 +142,7 @@ func (e *Exchange) wsAuthConnect(ctx context.Context, conn websocket.Connection)
 
 	err = conn.Dial(ctx, &gws.Dialer{}, headers, nil)
 	if err != nil {
-		return fmt.Errorf("%s websocket connection %s: %w", e.Name, endpoint, err)
+		return fmt.Errorf("%s websocket connection %s: %w", e.Name, conn.GetURL(), err)
 	}
 	return nil
 }

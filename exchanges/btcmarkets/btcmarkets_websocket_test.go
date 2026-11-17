@@ -79,7 +79,7 @@ func TestSubscribe(t *testing.T) {
 		e := new(Exchange)
 		require.NoError(t, testexch.Setup(e), "exchange must initialise")
 		e.SkipAuthCheck = true
-		e.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "mock-secret"})
+		e.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "bW9jay1zZWNyZXQ="})
 		conn := newSubscriptionConnection(t, e)
 		require.NoError(t, e.Subscribe(t.Context(), conn, subscription.List{{Channel: subscription.MyOrdersChannel, QualifiedChannel: orderChange, Authenticated: true}}), "private subscription must succeed")
 		require.Len(t, conn.messages, 1, "private request must be sent once")

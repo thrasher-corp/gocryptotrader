@@ -543,6 +543,15 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			require.ErrorIs(t, err, errDastardlyReason)
 		})
 
+		t.Run("disabled private connection does not dial", func(t *testing.T) {
+			t.Parallel()
+			manager := NewManager()
+			ws := &websocket{setup: &ConnectionSetup{Authenticated: true}}
+			err := manager.createConnectAndSubscribe(t.Context(), ws, nil)
+			assert.ErrorIs(t, err, errFailedToAuthenticate, "disabled authentication should prevent a private connection")
+			assert.Empty(t, manager.connections, "disabled authentication should not register a socket")
+		})
+
 		t.Run("private-only mixed connection closes after failed authentication", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, nil)
 			private := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, Authenticate: func(context.Context, Connection) error { return errDastardlyReason }, GenerateSubscriptions: func() (subscription.List, error) {
@@ -627,6 +636,9 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			assert.True(t, ws.IsConnected(), "mixed connection should remain usable for public data")
 			assert.Same(t, public, ws.GetSubscription(public), "public subscription should remain stored")
 			assert.Nil(t, ws.GetSubscription(private), "private subscription should not be stored")
+			connections := ws.snapshotManagedConnections(ws.connectionManager[0])
+			require.Len(t, connections, 1, "mixed stream must retain its physical connection")
+			assert.Equal(t, subscription.List{public}, connections[0].Subscriptions().List(), "physical ownership should contain only the accepted public subscription")
 			require.NoError(t, ws.Shutdown(), "Shutdown must succeed")
 		})
 
@@ -2744,32 +2756,6 @@ func TestShutdown(t *testing.T) {
 
 	require.Equal(t, m.ShutdownC, authConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 	require.Equal(t, m.ShutdownC, unauthConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
-}
-
-func TestCreateUnmanagedTestConnection(t *testing.T) {
-	t.Parallel()
-
-	m := NewManager()
-	first := m.CreateUnmanagedTestConnection("wss://first.example/ws")
-	second := m.CreateUnmanagedTestConnection("wss://second.example/ws")
-
-	assert.Equal(t, "wss://first.example/ws", first.GetURL(), "first connection should retain its URL")
-	assert.Equal(t, "wss://second.example/ws", second.GetURL(), "second connection should retain its URL")
-	require.NotNil(t, first.Subscriptions(), "first connection must have a subscription store")
-	require.NotNil(t, second.Subscriptions(), "second connection must have a subscription store")
-	sub := &subscription.Subscription{Channel: "ticker"}
-	require.NoError(t, m.AddSubscriptions(first, sub), "adding a first-connection subscription must not error")
-	assert.Same(t, sub, first.Subscriptions().Get(sub), "first connection should own its subscription")
-	assert.Nil(t, second.Subscriptions().Get(sub), "second connection should not receive first connection subscriptions")
-	assert.Nil(t, m.subscriptions.Get(sub), "manager-global store should not receive connection subscriptions")
-
-	responses, err := first.MatchReturnResponses(t.Context(), "request", 1)
-	require.NoError(t, err, "first connection matcher setup must not error")
-	assert.False(t, second.IncomingWithData("request", []byte("wrong connection")), "second connection should not share first connection matcher state")
-	require.NoError(t, first.RequireMatchWithData("request", []byte("expected")), "first connection must match its own response")
-	matched := <-responses
-	require.NoError(t, matched.Err, "matched response must not error")
-	assert.Equal(t, [][]byte{[]byte("expected")}, matched.Responses, "first connection should receive its own response")
 }
 
 func TestCreateConnectAndSubscribeRecordsPartialSubscriptions(t *testing.T) {

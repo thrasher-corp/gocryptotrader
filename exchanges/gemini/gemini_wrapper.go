@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -150,10 +151,14 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   wsPublicURL,
-		Connector:             e.wsConnect,
-		Subscriber:            e.subscribeForConnection,
-		Unsubscriber:          e.unsubscribeForConnection,
+		URL:       wsPublicURL,
+		Connector: e.wsConnect,
+		Subscriber: func(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+			return e.manageSubs(ctx, conn, subs, wsSubscribeOp)
+		},
+		Unsubscriber: func(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+			return e.manageSubs(ctx, conn, subs, wsUnsubscribeOp)
+		},
 		GenerateSubscriptions: e.generatePublicSubscriptions,
 		Handler:               e.wsHandleData,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,

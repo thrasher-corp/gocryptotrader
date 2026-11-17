@@ -161,9 +161,8 @@ func TestSetupWsSupportsMultiConnectionManagement(t *testing.T) {
 func TestGetMockConn(t *testing.T) {
 	t.Parallel()
 
-	e := new(multiConnectionSetupExchange)
-	e.Base.Websocket = websocket.NewManager()
-	conn := GetMockConn(t, e, "wss://isolated.example/ws")
+	e := newMultiConnectionSetupExchange(t, "wss://isolated.example/ws", nil)
+	conn := GetMockConn(t, e, multiConnectionFilter)
 
 	assert.Equal(t, "wss://isolated.example/ws", conn.GetURL(), "connection should retain the requested URL")
 	require.NotNil(t, conn.Subscriptions(), "connection must have an isolated subscription store")

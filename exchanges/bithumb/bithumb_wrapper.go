@@ -166,7 +166,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   ePoint,
 		Connector:             e.wsConnect,
-		Subscriber:            e.subscribeForConnection,
+		Subscriber:            e.Subscribe,
 		GenerateSubscriptions: e.generateSubscriptions,
 		Handler:               e.wsHandleData,
 		MessageFilter:         asset.Spot,

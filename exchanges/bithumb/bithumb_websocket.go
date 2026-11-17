@@ -163,7 +163,8 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{"subToReq": subToReq}).Parse(subTplText)
 }
 
-func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+// Subscribe sends subscriptions on the managed connection selected by the manager.
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	var errs error
 	for _, s := range subs {
 		err := conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(s.QualifiedChannel))
@@ -178,7 +179,7 @@ func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Co
 }
 
 // subToReq returns the subscription as a map to populate WsSubscribe
-func subToReq(s *subscription.Subscription, p currency.Pairs) *WsSubscribe {
+func subToReq(s *subscription.Subscription, p currency.Pairs) (*WsSubscribe, error) {
 	req := &WsSubscribe{
 		Type:    s.Channel,
 		Symbols: common.SortStrings(p),
@@ -191,12 +192,12 @@ func subToReq(s *subscription.Subscription, p currency.Pairs) *WsSubscribe {
 	case subscription.AllTradesChannel:
 		req.Type = "transaction"
 	default:
-		panic(fmt.Errorf("%w: %s", subscription.ErrNotSupported, s.Channel))
+		return nil, fmt.Errorf("%w: %s", subscription.ErrNotSupported, s.Channel)
 	}
 	if s.Interval > 0 {
 		req.TickTypes = []string{strings.ToUpper(s.Interval.Short())}
 	}
-	return req
+	return req, nil
 }
 
 const subTplText = `

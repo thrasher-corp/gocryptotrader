@@ -374,7 +374,8 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	}).Parse(subTplText)
 }
 
-func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+// Subscribe subscribes to channels on the supplied managed connection.
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	req := wsSub{Operation: "subscribe"}
 	for _, s := range subs {
 		req.Arguments = append(req.Arguments, s.QualifiedChannel)
@@ -386,7 +387,8 @@ func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Co
 	return err
 }
 
-func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+// Unsubscribe removes channels from the supplied managed connection.
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	req := wsSub{Operation: "unsubscribe"}
 	for _, s := range subs {
 		req.Arguments = append(req.Arguments, s.QualifiedChannel)

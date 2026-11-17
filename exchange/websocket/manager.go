@@ -737,29 +737,20 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 		if err := ws.setup.Authenticate(ctx, conn); err != nil {
 			m.SetCanUseAuthenticatedEndpoints(false)
 			authenticationError = fmt.Errorf("%w: %w", errFailedToAuthenticate, err)
-			if ws.setup.Authenticated {
-				if closeErr := conn.Shutdown(); closeErr != nil {
-					err = common.AppendError(err, closeErr)
-				}
-				m.connectionManagerMu.Lock()
-				delete(m.connections, conn)
-				ws.connections = slices.DeleteFunc(ws.connections, func(c Connection) bool { return c == conn })
-				m.connectionManagerMu.Unlock()
-				return fmt.Errorf("%w: %w", errFailedToAuthenticate, err)
-			}
 		}
 	}
 	if ws.setup.Authenticate != nil && !m.CanUseAuthenticatedEndpoints() {
 		subs = subs.Public()
-		if len(subs) == 0 && !ws.setup.SubscriptionsNotRequired && !ws.setup.KeepAliveWithoutSubscriptions {
-			if closeErr := conn.Shutdown(); closeErr != nil {
-				authenticationError = common.AppendError(authenticationError, closeErr)
+		if ws.setup.Authenticated || (len(subs) == 0 && !ws.setup.SubscriptionsNotRequired && !ws.setup.KeepAliveWithoutSubscriptions) {
+			if authenticationError == nil {
+				authenticationError = errFailedToAuthenticate
 			}
+			authenticationError = common.AppendError(authenticationError, conn.Shutdown())
 			m.connectionManagerMu.Lock()
 			delete(m.connections, conn)
 			ws.connections = slices.DeleteFunc(ws.connections, func(c Connection) bool { return c == conn })
 			m.connectionManagerMu.Unlock()
-			return common.AppendError(errFailedToAuthenticate, authenticationError)
+			return authenticationError
 		}
 	}
 

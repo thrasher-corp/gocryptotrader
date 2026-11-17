@@ -27,11 +27,11 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Binanceus
 type Exchange struct {
 	exchange.Base
-	obm         *orderbookManager
-	wsSessionMu sync.Mutex
-	wsSession   *websocketSession
-	listenKeyMu sync.Mutex
-	listenKey   string
+	obm             *orderbookManager
+	wsSessionMu     sync.Mutex
+	wsSessionActive bool
+	listenKeyMu     sync.Mutex
+	listenKey       string
 }
 
 const (

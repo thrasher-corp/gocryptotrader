@@ -85,21 +85,24 @@ func TestWsHandleData(t *testing.T) {
 func TestSubToReq(t *testing.T) {
 	t.Parallel()
 	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "KRW", "_"), currency.NewPairWithDelimiter("ETH", "KRW", "_")}
-	r := subToReq(&subscription.Subscription{Channel: subscription.AllTradesChannel}, p)
+	r, err := subToReq(&subscription.Subscription{Channel: subscription.AllTradesChannel}, p)
+	require.NoError(t, err, "trade request must be supported")
 	assert.Equal(t, "transaction", r.Type)
 	assert.True(t, p.Equal(r.Symbols))
-	r = subToReq(&subscription.Subscription{Channel: subscription.OrderbookChannel}, p)
+	r, err = subToReq(&subscription.Subscription{Channel: subscription.OrderbookChannel}, p)
+	require.NoError(t, err, "orderbook request must be supported")
 	assert.Equal(t, "orderbookdepth", r.Type)
 	assert.True(t, p.Equal(r.Symbols))
-	r = subToReq(&subscription.Subscription{Channel: subscription.TickerChannel, Interval: kline.OneHour}, p)
+	r, err = subToReq(&subscription.Subscription{Channel: subscription.TickerChannel, Interval: kline.OneHour}, p)
+	require.NoError(t, err, "ticker request must be supported")
 	assert.Equal(t, "ticker", r.Type)
 	assert.True(t, p.Equal(r.Symbols))
 	assert.Equal(t, []string{"1H"}, r.TickTypes)
-	assert.PanicsWithError(t,
-		"subscription channel not supported: myTrades",
-		func() { subToReq(&subscription.Subscription{Channel: subscription.MyTradesChannel}, p) },
-		"should panic on invalid channel",
-	)
+	t.Run("unsupported channel", func(t *testing.T) {
+		t.Parallel()
+		_, err := subToReq(&subscription.Subscription{Channel: subscription.MyTradesChannel}, p)
+		assert.ErrorIs(t, err, subscription.ErrNotSupported, "unsupported channel should return its sentinel")
+	})
 }
 
 func TestGenerateSubscriptions(t *testing.T) {
@@ -120,6 +123,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 		},
 	}
 	testsubs.EqualLists(t, exp, subs)
+	t.Run("unsupported channel", func(t *testing.T) {
+		t.Parallel()
+		_, err := subscription.List{{Channel: subscription.MyTradesChannel, Asset: asset.Spot, Pairs: p}}.ExpandTemplates(e)
+		assert.ErrorIs(t, err, subscription.ErrNotSupported, "template expansion should preserve the unsupported channel error")
+	})
 }
 
 type migrationTestConnection struct {
@@ -137,7 +145,7 @@ func (c *migrationTestConnection) SendJSONMessage(_ context.Context, _ request.E
 	return c.err
 }
 
-func TestSubscribeForConnection(t *testing.T) {
+func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	for _, fail := range []bool{false, true} {
 		name := "success"
@@ -156,7 +164,7 @@ func TestSubscribeForConnection(t *testing.T) {
 				conn.err = errors.New("send failed")
 			}
 			sub := &subscription.Subscription{Asset: asset.Spot, Channel: subscription.TickerChannel, QualifiedChannel: `{"type":"ticker","symbols":["BTC_KRW"],"tickTypes":["30M"]}`}
-			err = ex.subscribeForConnection(t.Context(), conn, subscription.List{sub})
+			err = ex.Subscribe(t.Context(), conn, subscription.List{sub})
 			assert.JSONEq(t, sub.QualifiedChannel, string(conn.payload), "wire request should retain the qualified payload")
 			if fail {
 				assert.ErrorIs(t, err, conn.err, "send failure should propagate")

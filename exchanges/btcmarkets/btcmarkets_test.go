@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -546,9 +547,35 @@ func TestWsTicker(t *testing.T) {
     "volume24h": "299.12936654",
     "messageType": "tick"
   }`)
-	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	for _, tc := range []struct {
+		name    string
+		payload []byte
+		invalid bool
+	}{
+		{name: "stores ticker before relay", payload: pressXToJSON},
+		{name: "rejects invalid ticker without relay", payload: []byte(strings.ReplaceAll(string(pressXToJSON), "7309.12", "7326.88")), invalid: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			err := ex.wsHandleData(t.Context(), nil, tc.payload)
+			if tc.invalid {
+				require.ErrorIs(t, err, ticker.ErrBidEqualsAsk, "crossed ticker must fail processing")
+				assert.Empty(t, ex.Websocket.DataHandler.C, "invalid ticker should not be relayed")
+				return
+			}
+			require.NoError(t, err, "valid ticker must be processed")
+			select {
+			case data := <-ex.Websocket.DataHandler.C:
+				relayed, ok := data.Data.(*ticker.Price)
+				require.True(t, ok, "relay must receive a ticker")
+				stored, err := ticker.GetTicker(ex.Name, spotTestPair, asset.Spot)
+				require.NoError(t, err, "ticker must already exist in the shared store when relayed")
+				assert.Equal(t, stored.Last, relayed.Last, "relay should match the processed ticker")
+			default:
+				t.Fatal("valid ticker must be relayed")
+			}
+		})
 	}
 }
 

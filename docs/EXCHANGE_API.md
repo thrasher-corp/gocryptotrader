@@ -97,12 +97,14 @@ connections do not support `gctcli websocket seturl` at runtime. Their legacy
 `Websocket.Conn` field is not populated. Use the manager's connection lifecycle
 and connection routing instead.
 
-`WsConnect()` remains available and delegates to the manager. The former
-BinanceUS, Bithumb, BTSE and Gemini `Subscribe` and `Unsubscribe` methods, where
-previously provided, are replaced by managed callbacks. BTCMarkets, Coinut and
-HitBTC subscription callbacks now take a context and connection. Update
-configured subscriptions through the manager so that it records connection
-ownership; invoking wire callbacks directly does not complete that bookkeeping.
+`WsConnect()` remains available and delegates to the manager. Subscription
+callbacks now take a context and connection; Gemini's former `Subscribe` and
+`Unsubscribe` methods are internal setup callbacks. Update configured
+subscriptions and call `FlushWebsocketChannels()` so that the manager records
+connection ownership. Invoking wire callbacks directly does not complete that
+bookkeeping. The inherited `SubscribeToWebsocketChannels` and
+`UnsubscribeToWebsocketChannels` methods require the legacy `Websocket.Conn`
+and cannot be used for these managed exchanges.
 BTCMarkets retains `ReSubscribeSpecificOrderbook(pair)` and resolves its managed
 connection internally. BinanceUS's renewal worker `KeepAuthKeyAlive` is managed
 internally, and Gemini's former `WsAuth` dial method is replaced by its managed
