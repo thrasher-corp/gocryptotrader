@@ -1,6 +1,7 @@
 package btcmarkets
 
 import (
+	"context"
 	"encoding/base64"
 	"io"
 	"log"
@@ -545,7 +546,7 @@ func TestWsTicker(t *testing.T) {
     "volume24h": "299.12936654",
     "messageType": "tick"
   }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -556,7 +557,7 @@ func TestWSTrade(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAllTrades.jsonl", e.wsHandleData)
+	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAllTrades.jsonl", func(ctx context.Context, raw []byte) error { return e.wsHandleData(ctx, nil, raw) })
 	require.Equal(t, 2, len(fErrs), "Must get correct number of errors from wsHandleData")
 	assert.ErrorIs(t, fErrs[0].Err, order.ErrSideIsInvalid, "Side.UnmarshalJSON errors should propagate correctly")
 	assert.ErrorContains(t, fErrs[0].Err, "WRONG", "Side.UnmarshalJSON errors should propagate correctly")
@@ -612,7 +613,7 @@ func TestWsFundChange(t *testing.T) {
   "fee": "0",
   "messageType": "fundChange"
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -634,7 +635,7 @@ func TestWsOrderbookUpdate(t *testing.T) {
           [ "101", "6.32", 2 ] ],
       "messageType": "orderbookUpdate"
   }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -647,7 +648,7 @@ func TestWsOrderbookUpdate(t *testing.T) {
     "messageType": "orderbookUpdate",
 	"checksum": "2513007604"
   }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -659,7 +660,7 @@ func TestWsHeartbeats(t *testing.T) {
   "code": 3,
   "message": "invalid channel names"
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -669,7 +670,7 @@ func TestWsHeartbeats(t *testing.T) {
 "code": 3,
 "message": "invalid marketIds"
 }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -679,7 +680,7 @@ func TestWsHeartbeats(t *testing.T) {
 "code": 1,
 "message": "authentication failed. invalid key"
 }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -702,7 +703,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:19.339Z",
     "messageType": "orderChange"
   }`)
-	err := e.wsHandleData(ctx, pressXToJSON)
+	err := e.wsHandleData(ctx, nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -725,7 +726,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:50:39.658Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(ctx, pressXToJSON)
+	err = e.wsHandleData(ctx, nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -742,7 +743,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(ctx, pressXToJSON)
+	err = e.wsHandleData(ctx, nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -765,7 +766,7 @@ func TestWsOrders(t *testing.T) {
 	"timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(ctx, pressXToJSON)
+	err = e.wsHandleData(ctx, nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -782,7 +783,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(ctx, pressXToJSON)
+	err = e.wsHandleData(ctx, nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}

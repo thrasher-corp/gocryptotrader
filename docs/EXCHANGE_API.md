@@ -89,8 +89,29 @@ supplied meet the requirements to make an authenticated request.
     fmt.Println(resp.OrderID)
 ```
 
-## Managed websocket URL configuration
+## Managed websocket connections
 
-Gemini now uses managed connections, which cannot change their URLs at runtime.
-`gctcli websocket seturl` returns an error for Gemini; configure its
-`urlEndpoints` instead.
+BinanceUS, Bithumb, BTCMarkets, BTSE, Coinut, Gemini and HitBTC use managed
+connections. Configure their existing `urlEndpoints` before setup; managed
+connections do not support `gctcli websocket seturl` at runtime. Their legacy
+`Websocket.Conn` field is not populated. Use the manager's connection lifecycle
+and connection routing instead.
+
+The former BinanceUS, Bithumb and BTSE `WsConnect`, `Subscribe` and `Unsubscribe`
+methods, where previously provided, are replaced by managed callbacks.
+BinanceUS's renewal worker `KeepAuthKeyAlive` is also managed internally.
+BTCMarkets and HitBTC expose connection-aware callbacks taking a context and
+connection; BTCMarkets orderbook resubscription also requires the owning
+connection. Coinut retains its exported wrappers and routes them through its
+managed connection.
+
+BinanceUS retains one combined public/account connection and its existing
+subscription limit. It rejects a second active connection so that closing one
+socket cannot invalidate another socket's listen key or orderbook workers.
+Coinut and HitBTC retain a connection for direct requests when market
+subscriptions are empty; BinanceUS retains its account-event connection.
+
+BTSE waits for a login acknowledgement before subscribing to private channels.
+Coinut fills its instrument cache through the existing REST discovery path
+before dialling when the cache has not already been populated. Authentication
+then uses the connection's response matcher.

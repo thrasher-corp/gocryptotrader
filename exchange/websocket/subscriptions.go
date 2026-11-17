@@ -371,7 +371,7 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		}
 
 		// Case if there is nothing to unsubscribe from and the connection is nil
-		if len(newSubs) == 0 && len(m.snapshotManagedConnections(ws)) == 0 {
+		if len(newSubs) == 0 && len(m.snapshotManagedConnections(ws)) == 0 && !ws.setup.KeepAliveWithoutSubscriptions {
 			continue
 		}
 
@@ -500,6 +500,9 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 	if err := common.NilGuard(ws); err != nil {
 		return err
 	}
+	if ws.setup.KeepAliveWithoutSubscriptions && len(incoming) == 0 && len(m.snapshotManagedConnections(ws)) == 0 {
+		return m.createConnectAndSubscribe(ctx, ws, nil)
+	}
 	subs, unsubs := ws.subscriptions.Diff(incoming)
 	if len(unsubs) != 0 {
 		currentUnsubs := slices.Clone(unsubs)
@@ -577,6 +580,10 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 			continue
 		}
 		stale = append(stale, conn)
+	}
+	if ws.setup.KeepAliveWithoutSubscriptions && len(clean) == 0 && len(stale) != 0 {
+		clean = append(clean, stale[0])
+		stale = stale[1:]
 	}
 	if len(stale) == 0 {
 		return nil

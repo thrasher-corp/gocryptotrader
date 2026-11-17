@@ -29,6 +29,8 @@ const (
 	btseWebsocketTimer = time.Second * 57
 )
 
+var errWebsocketAuthenticationFailed = errors.New("websocket authentication failed")
+
 var subscriptionNames = map[string]string{
 	subscription.MyTradesChannel:  "notificationApi",
 	subscription.AllTradesChannel: "tradeHistoryApi",
@@ -39,38 +41,27 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true},
 }
 
-// WsConnect connects the websocket client
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
-	if err != nil {
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return err
 	}
-	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.PingMessage,
 		Delay:       btseWebsocketTimer,
 	})
-
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx)
-
-	if e.IsWebsocketAuthenticationSupported() {
-		err = e.WsAuthenticate(ctx)
-		if err != nil {
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			return err
-		}
-	}
-
 	return nil
 }
 
 // WsAuthenticate Send an authentication message to receive auth data
 func (e *Exchange) WsAuthenticate(ctx context.Context) error {
+	conn, err := e.Websocket.GetConnection(asset.Spot)
+	if err != nil {
+		return err
+	}
+	return e.wsAuthenticate(ctx, conn)
+}
+
+func (e *Exchange) wsAuthenticate(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -87,7 +78,18 @@ func (e *Exchange) WsAuthenticate(ctx context.Context) error {
 		Operation: "authKeyExpires",
 		Arguments: []string{creds.Key, nonce, hex.EncodeToString(hmac)},
 	}
-	return e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
+	response, err := conn.SendMessageReturnResponse(ctx, request.Unset, "login", req)
+	if err != nil {
+		return err
+	}
+	var login WsLoginAcknowledgement
+	if err := json.Unmarshal(response, &login); err != nil {
+		return err
+	}
+	if !login.Success {
+		return errWebsocketAuthenticationFailed
+	}
+	return nil
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {
@@ -111,24 +113,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 	}
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-			}
-		}
-	}
-}
-
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	type Result map[string]any
 	var result Result
 	err := json.Unmarshal(respRaw, &result)
@@ -164,6 +149,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				return err
 			}
 			e.Websocket.SetCanUseAuthenticatedEndpoints(login.Success)
+			conn.IncomingWithData("login", respRaw)
 			if e.Verbose {
 				log.Infof(log.WebsocketMgr, "%v websocket authenticated: %v", e.Name, login.Success)
 			}
@@ -380,30 +366,26 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	}).Parse(subTplText)
 }
 
-// Subscribe sends a websocket message to receive data from a list of channels
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	ctx := context.TODO()
+func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	req := wsSub{Operation: "subscribe"}
 	for _, s := range subs {
 		req.Arguments = append(req.Arguments, s.QualifiedChannel)
 	}
-	err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
+	err := conn.SendJSONMessage(ctx, request.Unset, req)
 	if err == nil {
-		err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subs...)
+		err = e.Websocket.AddSuccessfulSubscriptions(conn, subs...)
 	}
 	return err
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from a list of channels
-func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	ctx := context.TODO()
+func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	req := wsSub{Operation: "unsubscribe"}
 	for _, s := range subs {
 		req.Arguments = append(req.Arguments, s.QualifiedChannel)
 	}
-	err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
+	err := conn.SendJSONMessage(ctx, request.Unset, req)
 	if err == nil {
-		err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subs...)
+		err = e.Websocket.RemoveSubscriptions(conn, subs...)
 	}
 	return err
 }

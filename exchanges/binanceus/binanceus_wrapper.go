@@ -165,24 +165,26 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            binanceusDefaultWebsocketURL,
-		RunningURL:            ePoint,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.GenerateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
-		TradeFeed:             e.Features.Enabled.TradeFeed,
+		ExchangeConfig:               exch,
+		UseMultiConnectionManagement: true,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
+		TradeFeed:                    e.Features.Enabled.TradeFeed,
 	})
 	if err != nil {
 		return err
 	}
-
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            request.NewWeightedRateLimitByDuration(300 * time.Millisecond),
+		KeepAliveWithoutSubscriptions: true,
+		URL:                           ePoint,
+		Connector:                     e.wsConnect,
+		Handler:                       e.wsHandleData,
+		Subscriber:                    e.subscribeForConnection,
+		Unsubscriber:                  e.unsubscribeForConnection,
+		GenerateSubscriptions:         e.GenerateSubscriptions,
+		MessageFilter:                 asset.Spot,
+		ResponseCheckTimeout:          exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:              exch.WebsocketResponseMaxLimit,
+		RateLimit:                     request.NewWeightedRateLimitByDuration(300 * time.Millisecond),
 	})
 }
 

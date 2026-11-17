@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -35,52 +34,20 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
 }
 
-// WsConnect initiates a websocket connection
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	var dialer gws.Dialer
 	dialer.HandshakeTimeout = e.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
-	if err != nil {
+	if err := conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %w", e.Name, err)
 	}
-
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx)
 
 	e.setupOrderbookManager(ctx)
 	return nil
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-
-	for {
-		select {
-		case <-e.Websocket.ShutdownC:
-			return
-		default:
-			resp := e.Websocket.Conn.ReadMessage()
-			if resp.Raw == nil {
-				return
-			}
-			if err := e.wsHandleData(ctx, resp.Raw); err != nil {
-				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-				}
-			}
-		}
-	}
-}
-
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
 	var resp WsResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -188,14 +155,12 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{"subToReq": subToReq}).Parse(subTplText)
 }
 
-// Subscribe subscribes to a set of channels
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	ctx := context.TODO()
+func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	var errs error
 	for _, s := range subs {
-		err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(s.QualifiedChannel))
+		err := conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(s.QualifiedChannel))
 		if err == nil {
-			err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s)
+			err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)

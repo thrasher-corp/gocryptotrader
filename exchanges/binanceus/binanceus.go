@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -26,7 +27,11 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Binanceus
 type Exchange struct {
 	exchange.Base
-	obm *orderbookManager
+	obm         *orderbookManager
+	wsSessionMu sync.Mutex
+	wsSession   *websocketSession
+	listenKeyMu sync.Mutex
+	listenKey   string
 }
 
 const (
@@ -1800,12 +1805,19 @@ func (e *Exchange) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 // User data streams will close after 60 minutes.
 // It's recommended to send a ping about every 30 minutes.
 func (e *Exchange) MaintainWsAuthStreamKey(ctx context.Context) error {
-	endpointPath, err := e.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
-	if err != nil {
+	e.listenKeyMu.Lock()
+	defer e.listenKeyMu.Unlock()
+	if e.listenKey == "" {
+		var err error
+		e.listenKey, err = e.GetWsAuthStreamKey(ctx)
 		return err
 	}
-	if listenKey == "" {
-		listenKey, err = e.GetWsAuthStreamKey(ctx)
+	return e.maintainWsAuthStreamKey(ctx, e.listenKey)
+}
+
+func (e *Exchange) maintainWsAuthStreamKey(ctx context.Context, listenKey string) error {
+	endpointPath, err := e.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+	if err != nil {
 		return err
 	}
 
@@ -1837,12 +1849,19 @@ func (e *Exchange) MaintainWsAuthStreamKey(ctx context.Context) error {
 
 // CloseUserDataStream Close out a user data websocket.
 func (e *Exchange) CloseUserDataStream(ctx context.Context) error {
-	endpointPath, err := e.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
-	if err != nil {
+	e.listenKeyMu.Lock()
+	defer e.listenKeyMu.Unlock()
+	if e.listenKey == "" {
+		var err error
+		e.listenKey, err = e.GetWsAuthStreamKey(ctx)
 		return err
 	}
-	if listenKey == "" {
-		listenKey, err = e.GetWsAuthStreamKey(ctx)
+	return e.closeUserDataStream(ctx, e.listenKey)
+}
+
+func (e *Exchange) closeUserDataStream(ctx context.Context, listenKey string) error {
+	endpointPath, err := e.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+	if err != nil {
 		return err
 	}
 

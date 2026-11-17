@@ -2459,9 +2459,9 @@ func TestConnectionShutdownWaitsForWriteInProgress(t *testing.T) {
 				require.FailNow(t, "Shutdown must close the connection without waiting for writeControl")
 			}
 			select {
-			case <-shutdownErr:
+			case err := <-shutdownErr:
 				wc.writeControl.Unlock()
-				require.FailNow(t, "Shutdown must not return while a write holds writeControl")
+				require.FailNowf(t, "Shutdown must not return while a write holds writeControl", "returned error: %v", err)
 			case <-time.After(100 * time.Millisecond):
 			}
 			wc.writeControl.Unlock()

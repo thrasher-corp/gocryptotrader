@@ -24,128 +24,67 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
 	coinutWebsocketURL       = "wss://wsapi.coinut.com"
 	coinutWebsocketRateLimit = 30
+	coinutConnection         = "coinut"
 )
-
-var channels map[string]chan []byte
 
 // NOTE for speed considerations
 // wss://wsapi-as.coinut.com
 // wss://wsapi-na.coinut.com
 // wss://wsapi-eu.coinut.com
 
-// WsConnect initiates a websocket connection
+// WsConnect initiates the managed websocket lifecycle.
 func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
+	return e.Websocket.Connect(context.TODO())
+}
+
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
-	if err != nil {
+	// Instrument discovery normally runs during pair bootstrap. A cold standalone
+	// websocket uses the same REST discovery before the manager starts its reader.
+	if err := e.loadInstrumentsIfNotLoaded(ctx); err != nil {
 		return err
 	}
-
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx)
-
-	if !e.instrumentMap.IsLoaded() {
-		_, err = e.WsGetInstruments(ctx)
-		if err != nil {
-			return err
-		}
-	}
-
-	if e.IsWebsocketAuthenticationSupported() {
-		if err = e.wsAuthenticate(ctx); err != nil {
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorln(log.WebsocketMgr, e.Name+" "+err.Error())
-		}
-	}
-
-	// define bi-directional communication
-	channels = make(map[string]chan []byte)
-	channels["hb"] = make(chan []byte, 1)
-
-	return nil
+	return conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil)
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-
-		if strings.HasPrefix(string(resp.Raw), "[") {
-			var incoming []wsResponse
-			if err := json.Unmarshal(resp.Raw, &incoming); err != nil {
-				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-				}
-				continue
-			}
-			for i := range incoming {
-				if incoming[i].Nonce > 0 {
-					if e.Websocket.Match.IncomingWithData(incoming[i].Nonce, resp.Raw) {
-						break
-					}
-				}
-				individualJSON, err := json.Marshal(incoming[i])
-				if err != nil {
-					if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-						log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-					}
-					continue
-				}
-				if err := e.wsHandleData(ctx, individualJSON); err != nil {
-					if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-						log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-					}
-				}
-			}
-		} else {
-			if err := e.wsHandleData(ctx, resp.Raw); err != nil {
-				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-				}
-			}
-		}
+// wsHandleMessage matches batched replies on the connection which sent the request.
+func (e *Exchange) wsHandleMessage(ctx context.Context, conn websocket.Connection, raw []byte) error {
+	if !strings.HasPrefix(string(raw), "[") {
+		return e.wsHandleData(ctx, conn, raw)
 	}
+	var incoming []json.RawMessage
+	if err := json.Unmarshal(raw, &incoming); err != nil {
+		return err
+	}
+	var errs error
+	for _, payload := range incoming {
+		var response wsResponse
+		if err := json.Unmarshal(payload, &response); err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		if response.Nonce > 0 && conn.IncomingWithData(response.Nonce, raw) {
+			return errs
+		}
+		errs = common.AppendError(errs, e.wsHandleData(ctx, conn, payload))
+	}
+	return errs
 }
 
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
-	if strings.HasPrefix(string(respRaw), "[") {
-		var orders []wsOrderContainer
-		if err := json.Unmarshal(respRaw, &orders); err != nil {
-			return err
-		}
-		for i := range orders {
-			o, err := e.parseOrderContainer(&orders[i])
-			if err != nil {
-				return err
-			}
-			if err := e.Websocket.DataHandler.Send(ctx, o); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var incoming wsResponse
 	err := json.Unmarshal(respRaw, &incoming)
 	if err != nil {
 		return err
 	}
-	if e.Websocket.Match.IncomingWithData(incoming.Nonce, respRaw) {
+	if conn.IncomingWithData(incoming.Nonce, respRaw) {
 		return nil
 	}
 
@@ -156,7 +95,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 
 	switch incoming.Reply {
 	case "hb":
-		channels["hb"] <- respRaw
+		// Heartbeats have no consumer; the manager accounts for incoming traffic.
+		return nil
 	case "user_balance":
 		var userBalance WsUserBalanceResponse
 		err := json.Unmarshal(respRaw, &userBalance)
@@ -449,13 +389,21 @@ func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Det
 
 // WsGetInstruments fetches instrument list and propagates a local cache
 func (e *Exchange) WsGetInstruments(ctx context.Context) (Instruments, error) {
+	conn, err := e.Websocket.GetConnection(coinutConnection)
+	if err != nil {
+		return Instruments{}, err
+	}
+	return e.wsGetInstruments(ctx, conn)
+}
+
+func (e *Exchange) wsGetInstruments(ctx context.Context, conn websocket.Connection) (Instruments, error) {
 	var list Instruments
 	req := wsRequest{
 		Request:      "inst_list",
 		SecurityType: strings.ToUpper(asset.Spot.String()),
 		Nonce:        getNonce(),
 	}
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.Nonce, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.Nonce, req)
 	if err != nil {
 		return list, err
 	}
@@ -576,7 +524,14 @@ func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (e *Exchange) Subscribe(subs subscription.List) error {
-	ctx := context.TODO()
+	conn, err := e.Websocket.GetConnection(coinutConnection)
+	if err != nil {
+		return err
+	}
+	return e.wsSubscribe(context.TODO(), conn, subs)
+}
+
+func (e *Exchange) wsSubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	var errs error
 	for _, s := range subs {
 		if len(s.Pairs) != 1 {
@@ -594,9 +549,9 @@ func (e *Exchange) Subscribe(subs subscription.List) error {
 			Subscribe:    true,
 			Nonce:        getNonce(),
 		}
-		err = e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, subscribe)
+		err = conn.SendJSONMessage(ctx, request.Unset, subscribe)
 		if err == nil {
-			err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s)
+			err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -606,8 +561,15 @@ func (e *Exchange) Subscribe(subs subscription.List) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) Unsubscribe(channelToUnsubscribe subscription.List) error {
-	ctx := context.TODO()
+func (e *Exchange) Unsubscribe(subs subscription.List) error {
+	conn, err := e.Websocket.GetConnection(coinutConnection)
+	if err != nil {
+		return err
+	}
+	return e.wsUnsubscribe(context.TODO(), conn, subs)
+}
+
+func (e *Exchange) wsUnsubscribe(ctx context.Context, conn websocket.Connection, channelToUnsubscribe subscription.List) error {
 	var errs error
 	for _, s := range channelToUnsubscribe {
 		if len(s.Pairs) != 1 {
@@ -625,7 +587,7 @@ func (e *Exchange) Unsubscribe(channelToUnsubscribe subscription.List) error {
 			Subscribe:    false,
 			Nonce:        getNonce(),
 		}
-		resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, subscribe.Nonce, subscribe)
+		resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, subscribe.Nonce, subscribe)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -640,7 +602,7 @@ func (e *Exchange) Unsubscribe(channelToUnsubscribe subscription.List) error {
 			case len(val) == 0, val[0] != "OK":
 				err = common.AppendError(errs, fmt.Errorf("%v unsubscribe failed for channel %v", e.Name, s.Channel))
 			default:
-				err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s)
+				err = e.Websocket.RemoveSubscriptions(conn, s)
 			}
 		}
 		if err != nil {
@@ -650,7 +612,7 @@ func (e *Exchange) Unsubscribe(channelToUnsubscribe subscription.List) error {
 	return errs
 }
 
-func (e *Exchange) wsAuthenticate(ctx context.Context) error {
+func (e *Exchange) wsAuthenticate(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -668,7 +630,7 @@ func (e *Exchange) wsAuthenticate(ctx context.Context) error {
 	}
 	r.Hmac = hex.EncodeToString(hmac)
 
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, r.Nonce, r)
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, r.Nonce, r)
 	if err != nil {
 		return err
 	}
@@ -691,7 +653,7 @@ func (e *Exchange) wsGetAccountBalance(ctx context.Context) (*UserBalance, error
 		Request: "user_balance",
 		Nonce:   getNonce(),
 	}
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, accBalance.Nonce, accBalance)
+	resp, err := e.wsSendRequest(ctx, accBalance.Nonce, accBalance)
 	if err != nil {
 		return nil, err
 	}
@@ -727,7 +689,7 @@ func (e *Exchange) wsSubmitOrder(ctx context.Context, o *WsSubmitOrderParameters
 	if o.OrderID > 0 {
 		orderSubmissionRequest.OrderID = o.OrderID
 	}
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, orderSubmissionRequest.Nonce, orderSubmissionRequest)
+	resp, err := e.wsSendRequest(ctx, orderSubmissionRequest.Nonce, orderSubmissionRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -770,7 +732,7 @@ func (e *Exchange) wsSubmitOrders(ctx context.Context, orders []WsSubmitOrderPar
 
 	orderRequest.Nonce = getNonce()
 	orderRequest.Request = "new_orders"
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, orderRequest.Nonce, orderRequest)
+	resp, err := e.wsSendRequest(ctx, orderRequest.Nonce, orderRequest)
 	if err != nil {
 		errs = append(errs, err)
 		return nil, errs
@@ -806,7 +768,7 @@ func (e *Exchange) wsGetOpenOrders(ctx context.Context, curr string) (*WsUserOpe
 	openOrdersRequest.Nonce = getNonce()
 	openOrdersRequest.InstrumentID = e.instrumentMap.LookupID(curr)
 
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, openOrdersRequest.Nonce, openOrdersRequest)
+	resp, err := e.wsSendRequest(ctx, openOrdersRequest.Nonce, openOrdersRequest)
 	if err != nil {
 		return response, err
 	}
@@ -839,7 +801,7 @@ func (e *Exchange) wsCancelOrder(ctx context.Context, cancellation *WsCancelOrde
 	cancellationRequest.OrderID = cancellation.OrderID
 	cancellationRequest.Nonce = getNonce()
 
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, cancellationRequest.Nonce, cancellationRequest)
+	resp, err := e.wsSendRequest(ctx, cancellationRequest.Nonce, cancellationRequest)
 	if err != nil {
 		return response, err
 	}
@@ -880,7 +842,7 @@ func (e *Exchange) wsCancelOrders(ctx context.Context, cancellations []WsCancelO
 
 	cancelOrderRequest.Request = "cancel_orders"
 	cancelOrderRequest.Nonce = getNonce()
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, cancelOrderRequest.Nonce, cancelOrderRequest)
+	resp, err := e.wsSendRequest(ctx, cancelOrderRequest.Nonce, cancelOrderRequest)
 	if err != nil {
 		return response, err
 	}
@@ -910,7 +872,7 @@ func (e *Exchange) wsGetTradeHistory(ctx context.Context, p currency.Pair, start
 	req.Start = start
 	req.Limit = limit
 
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.Nonce, req)
+	resp, err := e.wsSendRequest(ctx, req.Nonce, req)
 	if err != nil {
 		return response, err
 	}
@@ -922,4 +884,13 @@ func (e *Exchange) wsGetTradeHistory(ctx context.Context, p currency.Pair, start
 		return response, fmt.Errorf("%v get trade history failed for %v", e.Name, req)
 	}
 	return response, nil
+}
+
+// wsSendRequest routes an API request through the managed connection and its matcher.
+func (e *Exchange) wsSendRequest(ctx context.Context, nonce int64, payload any) ([]byte, error) {
+	conn, err := e.Websocket.GetConnection(coinutConnection)
+	if err != nil {
+		return nil, err
+	}
+	return conn.SendMessageReturnResponse(ctx, request.Unset, nonce, payload)
 }

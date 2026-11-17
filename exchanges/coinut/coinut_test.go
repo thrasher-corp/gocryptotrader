@@ -2,10 +2,12 @@ package coinut
 
 import (
 	"context"
+	"io"
 	"log"
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"slices"
 	"sort"
@@ -19,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -34,10 +37,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-var (
-	e          *Exchange
-	wsSetupRan bool
-)
+var e *Exchange
 
 // Please supply your own keys here to do better tests
 const canManipulateRealOrders = false
@@ -60,37 +60,19 @@ func TestMain(m *testing.M) {
 		e.SetCredentials(apiCredentials)
 	}
 
-	if err := e.SeedInstruments(context.Background()); err != nil {
-		log.Fatalf("Coinut SeedInstruments error: %s", err)
-	}
-
 	os.Exit(m.Run())
 }
 
 func setupWSTestAuth(t *testing.T) {
 	t.Helper()
-	if wsSetupRan {
+	if e.Websocket.IsConnected() {
 		return
 	}
 
 	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
-	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	go e.wsReadData(t.Context())
-	err = e.wsAuthenticate(t.Context())
-	if err != nil {
-		t.Error(err)
-	}
-	wsSetupRan = true
-	_, err = e.WsGetInstruments(t.Context())
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, e.Websocket.Connect(t.Context()), "managed websocket must connect")
 }
 
 func TestGetInstruments(t *testing.T) {
@@ -181,6 +163,7 @@ func TestGetTradeHistoryPagination(t *testing.T) {
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		require.NoError(t, e.SeedInstruments(t.Context()), "live instruments must load")
 		instrumentIDs := e.instrumentMap.GetInstrumentIDs()
 		require.NotEmpty(t, instrumentIDs, "instrumentIDs must contain a live instrument")
 		slices.Sort(instrumentIDs)
@@ -746,7 +729,7 @@ func TestSubmitOrder(t *testing.T) {
 		{name: "maximum identifier", clientOrderID: math.MaxUint32},
 	} {
 		t.Run("client order identifier over the websocket "+tc.name, func(t *testing.T) {
-			// Do not run these cases in parallel because each connection writes to Coinut's shared channels map.
+			// These cases exercise isolated websocket connections.
 			// WebSockets start with an HTTP upgrade; the handler below inspects the order frame.
 			server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, payload []byte, conn *gws.Conn) error {
 				var req WsSubmitOrderRequest
@@ -1119,6 +1102,7 @@ func TestGetNonce(t *testing.T) {
 }
 
 func TestWsOrderbook(t *testing.T) {
+	e := newHandlerTestExchange(t)
 	pressXToJSON := []byte(`{
   "buy":
    [ { "count": 1, "price": "751.34500000", "qty": "0.01000000" },
@@ -1135,7 +1119,7 @@ func TestWsOrderbook(t *testing.T) {
   "reply": "inst_order_book",
   "status": [ "OK" ]
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1149,13 +1133,14 @@ func TestWsOrderbook(t *testing.T) {
   "side": "BUY",
   "trans_id": 169384
 }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsTicker(t *testing.T) {
+	e := newHandlerTestExchange(t)
 	pressXToJSON := []byte(`{
   "highest_buy": "750.58100000",
   "inst_id": 1,
@@ -1167,13 +1152,14 @@ func TestWsTicker(t *testing.T) {
   "volume": "0.07650000",
   "volume24": "56.07650000"
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsGetInstruments(t *testing.T) {
+	e := newHandlerTestExchange(t)
 	pressXToJSON := []byte(`{
    "SPOT":{
       "LTCBTC":[
@@ -1199,7 +1185,7 @@ func TestWsGetInstruments(t *testing.T) {
       "OK"
    ]
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1209,6 +1195,7 @@ func TestWsGetInstruments(t *testing.T) {
 }
 
 func TestWsTrades(t *testing.T) {
+	e := newHandlerTestExchange(t)
 	pressXToJSON := []byte(`{
   "inst_id": 1,
   "nonce": 450319,
@@ -1246,7 +1233,7 @@ func TestWsTrades(t *testing.T) {
       "trans_id": 169502
     }]
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1259,13 +1246,14 @@ func TestWsTrades(t *testing.T) {
   "timestamp": 0,
   "trans_id": 169478
 }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsLogin(t *testing.T) {
+	e := newHandlerTestExchange(t)
 	pressXToJSON := []byte(`{
    "api_key":"b46e658f-d4c4-433c-b032-093423b1aaa4",
    "country":"NA",
@@ -1291,13 +1279,14 @@ func TestWsLogin(t *testing.T) {
 }`)
 	ctx := accounts.DeployCredentialsToContext(t.Context(),
 		&accounts.Credentials{Key: "b46e658f-d4c4-433c-b032-093423b1aaa4", ClientID: "dummy"})
-	err := e.wsHandleData(ctx, pressXToJSON)
+	err := e.wsHandleMessage(ctx, testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsAccountBalance(t *testing.T) {
+	e := newHandlerTestExchange(t)
 	pressXToJSON := []byte(`{
   "nonce": 306254,
   "status": [
@@ -1315,13 +1304,14 @@ func TestWsAccountBalance(t *testing.T) {
   "reply": "user_balance",
   "trans_id": 15159032
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsOrder(t *testing.T) {
+	e := newHandlerTestExchange(t)
 	pressXToJSON := []byte(`{
       "nonce":956475,
       "status":[
@@ -1337,7 +1327,7 @@ func TestWsOrder(t *testing.T) {
       "side":"SELL",
       "trans_id":127303
    }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1367,7 +1357,7 @@ func TestWsOrder(t *testing.T) {
     "timestamp": 1482903034617491,
     "trans_id": 20859252
   }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1391,13 +1381,14 @@ func TestWsOrder(t *testing.T) {
     "side": "BUY",
     "trans_id": 3282993
 }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err == nil {
 		t.Error("Expected not enough balance error")
 	}
 }
 
 func TestWsOrders(t *testing.T) {
+	e := newHandlerTestExchange(t)
 	pressXToJSON := []byte(`[
   {
     "nonce": 621701,
@@ -1432,13 +1423,14 @@ func TestWsOrders(t *testing.T) {
     "trans_id": 15155497
   }
 ]`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsOpenOrders(t *testing.T) {
+	e := newHandlerTestExchange(t)
 	pressXToJSON := []byte(`{
     "nonce": 1234,
     "reply": "user_open_orders",
@@ -1468,13 +1460,14 @@ func TestWsOpenOrders(t *testing.T) {
         }
     ]
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsCancelOrder(t *testing.T) {
+	e := newHandlerTestExchange(t)
 	pressXToJSON := []byte(` {
     "nonce": 547201,
     "reply": "cancel_order",
@@ -1484,13 +1477,14 @@ func TestWsCancelOrder(t *testing.T) {
       "OK"
     ]
   }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsCancelOrders(t *testing.T) {
+	e := newHandlerTestExchange(t)
 	pressXToJSON := []byte(`{
   "nonce": 547201,
   "reply": "cancel_orders",
@@ -1513,13 +1507,14 @@ func TestWsCancelOrders(t *testing.T) {
   ],
   "trans_id": 15166063
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsOrderHistory(t *testing.T) {
+	e := newHandlerTestExchange(t)
 	pressXToJSON := []byte(`{
   "nonce": 326181,
   "reply": "trade_history",
@@ -1570,7 +1565,7 @@ func TestWsOrderHistory(t *testing.T) {
     }
   ]
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleMessage(t.Context(), testexch.GetMockConn(t, e, coinutWebsocketURL), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1599,6 +1594,7 @@ func TestStringToStatus(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
+	require.NoError(t, e.SeedInstruments(t.Context()), "live instruments must load")
 	currencyPair, err := currency.NewPairFromString("LTC-USDT")
 	if err != nil {
 		t.Fatal(err)
@@ -1666,4 +1662,176 @@ func TestNewOrder(t *testing.T) {
 	response, err := h.NewOrder(t.Context(), 1, 1, 100, true, 4242)
 	require.NoError(t, err, "successful order must decode")
 	require.NotNil(t, response, "decoded response must be returned after the request finishes")
+}
+
+func TestWsHandleMessage(t *testing.T) {
+	t.Parallel()
+	for _, batch := range []bool{false, true} {
+		t.Run(strconv.FormatBool(batch), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			first := testexch.GetMockConn(t, ex, coinutWebsocketURL)
+			second := testexch.GetMockConn(t, ex, coinutWebsocketURL)
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			firstResponse, err := first.MatchReturnResponses(ctx, int64(7), 1)
+			require.NoError(t, err, "first connection must register the nonce")
+			secondResponse, err := second.MatchReturnResponses(ctx, int64(7), 1)
+			require.NoError(t, err, "second connection must register the same nonce independently")
+			raw := []byte(`{"nonce":7,"reply":"login","api_key":"placeholder"}`)
+			if batch {
+				raw = append(append([]byte{'['}, raw...), ']')
+			}
+			require.NoError(t, ex.wsHandleMessage(ctx, second, raw), "reply must match the receiving connection")
+			select {
+			case result := <-secondResponse:
+				require.NoError(t, result.Err, "second connection must receive its reply")
+				assert.Equal(t, [][]byte{raw}, result.Responses, "matcher should preserve the complete reply")
+			case <-ctx.Done():
+				t.Fatal("second connection must receive its reply before timeout")
+			}
+			select {
+			case <-firstResponse:
+				t.Fatal("first connection must not receive the second connection's reply")
+			default:
+			}
+			require.NoError(t, ex.wsHandleMessage(ctx, first, raw), "first reply must still have its own matcher")
+			select {
+			case result := <-firstResponse:
+				require.NoError(t, result.Err, "first connection must receive its reply")
+			case <-ctx.Done():
+				t.Fatal("first connection must receive its reply before timeout")
+			}
+		})
+	}
+	t.Run("heartbeats do not wait on an exchange-global channel", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+		conn := testexch.GetMockConn(t, ex, coinutWebsocketURL)
+		for range 3 {
+			require.NoError(t, ex.wsHandleMessage(t.Context(), conn, []byte(`{"reply":"hb"}`)), "heartbeats must not block the reader")
+		}
+	})
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	t.Run("cold discovery completes before dialling", func(t *testing.T) {
+		t.Parallel()
+		for _, fail := range []bool{false, true} {
+			t.Run(strconv.FormatBool(fail), func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+				ex.Websocket = websocket.NewManager()
+				require.NoError(t, ex.Websocket.Setup(&websocket.ManagerSetup{
+					ExchangeConfig:               &config.Exchange{Name: ex.Name, WebsocketTrafficTimeout: time.Second, Features: &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}}},
+					Features:                     &ex.Features.Supports.WebsocketCapabilities,
+					UseMultiConnectionManagement: true,
+				}), "connector manager must enable websockets")
+				var requested, dialled bool
+				require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: coinutTestTransport(func(req *http.Request) (*http.Response, error) {
+					requested = true
+					var payload map[string]any
+					require.NoError(t, json.NewDecoder(req.Body).Decode(&payload), "instrument request must decode")
+					assert.Equal(t, "inst_list", payload["request"], "cold startup should use existing REST discovery")
+					if fail {
+						return nil, io.ErrUnexpectedEOF
+					}
+					return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"status":["OK"],"SPOT":{"BTCUSDT":[{"base":"BTC","quote":"USDT","inst_id":123}]}}`))}, nil
+				})}), "mock transport must install")
+				conn := &coinutDialConnection{dial: func() error {
+					dialled = true
+					assert.True(t, requested, "REST discovery should precede the websocket dial")
+					assert.Equal(t, int64(123), ex.instrumentMap.LookupID("BTCUSDT"), "instrument cache should be ready before dialling")
+					return nil
+				}}
+				err := ex.wsConnect(t.Context(), conn)
+				if fail {
+					require.ErrorIs(t, err, io.ErrUnexpectedEOF, "discovery error must propagate")
+					assert.False(t, dialled, "discovery failure should prevent dialling")
+					return
+				}
+				require.NoError(t, err, "connector must discover before dialling")
+				assert.True(t, dialled, "connector should dial after discovery")
+				requested = false
+				conn.dial = func() error { return nil }
+				require.NoError(t, ex.wsConnect(t.Context(), conn), "cached connector must dial")
+				assert.False(t, requested, "cached startup should not repeat discovery")
+			})
+		}
+	})
+	t.Run("cached discovery precedes authentication and subscriptions", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+		ex.instrumentMap.Seed("BTCUSDT", 123)
+		ex.SkipAuthCheck = true
+		ex.SetCredentials(&accounts.Credentials{Key: "placeholder", ClientID: "placeholder"})
+		ex.Websocket.SetAuthenticatedSupport(true)
+		requests := make(chan string, 10)
+		server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, payload []byte, conn *gws.Conn) error {
+			var req wsRequest
+			if err := json.Unmarshal(payload, &req); err != nil {
+				return err
+			}
+			requests <- req.Request
+			switch req.Request {
+			case "login":
+				return conn.WriteJSON(map[string]any{"nonce": req.Nonce, "reply": "login", "api_key": "placeholder"})
+			default:
+				assert.Equal(t, int64(123), req.InstrumentID, "subscriptions should use the discovered instrument")
+				return nil
+			}
+		}))
+		server.Start()
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true), "enabled pairs must be set")
+		require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "configured endpoint must be used")
+		t.Cleanup(func() {
+			assert.NoError(t, ex.Websocket.Disable(), "websocket should disable")
+			assert.NoError(t, ex.Websocket.Shutdown(), "websocket should shut down")
+		})
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		require.NoError(t, ex.Websocket.Enable(ctx), "managed websocket must connect")
+		assert.Nil(t, ex.Websocket.Conn, "managed lifecycle should not expose a legacy connection")
+		conn, err := ex.Websocket.GetConnection(coinutConnection)
+		require.NoError(t, err, "request connection must be routable")
+		assert.Len(t, conn.Subscriptions().List(), 3, "all subscriptions should belong to the managed connection")
+		for _, want := range []string{"login", "inst_tick", "inst_order_book", "inst_trade"} {
+			select {
+			case got := <-requests:
+				assert.Equal(t, want, got, "wire requests should authenticate before subscribing with cached instruments")
+			case <-ctx.Done():
+				t.Fatal("all expected requests must arrive before timeout")
+			}
+		}
+	})
+}
+
+func newHandlerTestExchange(t *testing.T) *Exchange {
+	t.Helper()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "handler exchange must initialise")
+	pairs := currency.Pairs{currency.NewPair(currency.LTC, currency.BTC), currency.NewPair(currency.ETH, currency.BTC), currency.NewBTCUSD()}
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, false), "fixture pairs must be available")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, true), "fixture pairs must be enabled")
+	ex.instrumentMap.Seed("LTCBTC", 1)
+	ex.instrumentMap.Seed("BTCUSD", 490590)
+	return ex
+}
+
+type coinutTestTransport func(*http.Request) (*http.Response, error)
+
+func (f coinutTestTransport) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
+
+type coinutDialConnection struct {
+	websocket.Connection
+	dial func() error
+}
+
+func (c *coinutDialConnection) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
+	return c.dial()
 }

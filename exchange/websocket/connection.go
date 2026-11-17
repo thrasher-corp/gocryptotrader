@@ -74,7 +74,10 @@ type ConnectionSetup struct {
 	ConnectionRateLimiter    func() *request.RateLimiterWithWeight
 	Authenticated            bool // Private-only connection; authentication failure must not affect public connections.
 	SubscriptionsNotRequired bool
-	ConnectionLevelReporter  Reporter
+	// KeepAliveWithoutSubscriptions retains one connection for direct requests or
+	// unsolicited account events even when no market subscriptions are configured.
+	KeepAliveWithoutSubscriptions bool
+	ConnectionLevelReporter       Reporter
 
 	// URL defines the websocket server URL to connect to
 	URL string

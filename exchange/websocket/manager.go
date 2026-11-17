@@ -601,7 +601,7 @@ func (m *Manager) connect(ctx context.Context) (connectErr error) {
 				break
 			}
 
-			if len(subs) == 0 {
+			if len(subs) == 0 && !ws.setup.KeepAliveWithoutSubscriptions {
 				if m.verbose {
 					log.Warnf(log.WebsocketMgr, "%s websocket: no subscriptions generated for [conn:%d] [URL:%s]", m.exchangeName, i+1, ws.setup.URL)
 				}
@@ -622,7 +622,7 @@ func (m *Manager) connect(ctx context.Context) (connectErr error) {
 			break
 		}
 
-		if ws.setup.SubscriptionsNotRequired && len(subs) == 0 {
+		if len(subs) == 0 && (ws.setup.SubscriptionsNotRequired || ws.setup.KeepAliveWithoutSubscriptions) {
 			if err := m.createConnectAndSubscribe(ctx, ws, nil); err != nil {
 				if errors.Is(err, common.ErrFatal) {
 					multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w", i+1, ws.setup.URL, err)
@@ -788,7 +788,7 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 	}
 	if ws.setup.Authenticate != nil && !m.CanUseAuthenticatedEndpoints() {
 		subs = subs.Public()
-		if len(subs) == 0 && !ws.setup.SubscriptionsNotRequired {
+		if len(subs) == 0 && !ws.setup.SubscriptionsNotRequired && !ws.setup.KeepAliveWithoutSubscriptions {
 			if closeErr := conn.Shutdown(); closeErr != nil {
 				authenticationError = common.AppendError(authenticationError, closeErr)
 			}
@@ -1199,7 +1199,7 @@ func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx 
 func drain(ch <-chan error) {
 	for {
 		select {
-		case <-ch:
+		case <-ch: //nolint:errcheck // Stale read errors are intentionally discarded before reconnecting.
 		default:
 			return
 		}

@@ -151,23 +151,27 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            hitbtcWebsocketAddress,
-		RunningURL:            wsRunningURL,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:               exch,
+		UseMultiConnectionManagement: true,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		KeepAliveWithoutSubscriptions: true,
+		URL:                           wsRunningURL,
+		Connector:                     e.WsConnect,
+		Subscriber:                    e.Subscribe,
+		Unsubscriber:                  e.Unsubscribe,
+		GenerateSubscriptions:         e.generateSubscriptions,
+		Handler:                       e.wsHandleData,
+		Authenticate:                  e.wsLogin,
+		MessageFilter:                 hitbtcWebsocketAddress,
+		RateLimit:                     request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
+		ResponseCheckTimeout:          exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:              exch.WebsocketResponseMaxLimit,
 	})
 }
 
@@ -713,7 +717,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	return e.wsLogin(ctx)
+	conn, err := e.Websocket.GetConnection(hitbtcWebsocketAddress)
+	if err != nil {
+		return err
+	}
+	return e.wsLogin(ctx, conn)
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper functionality
