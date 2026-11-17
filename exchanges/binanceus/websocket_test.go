@@ -516,13 +516,15 @@ func TestProcessPartialDepth(t *testing.T) {
 	assert.Error(t, ex.processPartialDepth(t.Context(), "btcusdt", []byte(`{"bids":1}`)), "processPartialDepth should error for a payload that does not decode")
 }
 
+var orderStatuses = map[string]order.Status{
+	"NEW": order.New, "PENDING_NEW": order.Pending, "PARTIALLY_FILLED": order.PartiallyFilled, "FILLED": order.Filled,
+	"CANCELED": order.Cancelled, "PENDING_CANCEL": order.PendingCancel, "REJECTED": order.Rejected,
+	"EXPIRED": order.Expired, "EXPIRED_IN_MATCH": order.Expired,
+}
+
 func TestStringToOrderStatus(t *testing.T) {
 	t.Parallel()
-	for status, exp := range map[string]order.Status{
-		"NEW": order.New, "PENDING_NEW": order.Pending, "PARTIALLY_FILLED": order.PartiallyFilled, "FILLED": order.Filled,
-		"CANCELED": order.Cancelled, "PENDING_CANCEL": order.PendingCancel, "REJECTED": order.Rejected,
-		"EXPIRED": order.Expired, "EXPIRED_IN_MATCH": order.Expired,
-	} {
+	for status, exp := range orderStatuses {
 		got, err := stringToOrderStatus(status)
 		require.NoErrorf(t, err, "stringToOrderStatus must not error for %s", status)
 		assert.Equalf(t, exp, got, "stringToOrderStatus should convert %s", status)

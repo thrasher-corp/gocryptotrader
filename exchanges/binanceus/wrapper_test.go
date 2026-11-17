@@ -240,17 +240,25 @@ func TestSpotOrderTypeString(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "spotOrderTypeString should reject an unsupported type")
 }
 
+var spotOrderTypes = map[OrderType]order.Type{
+	OrderTypeLimit:           order.Limit,
+	OrderTypeMarket:          order.Market,
+	OrderTypeStopLoss:        order.StopMarket,
+	OrderTypeStopLossLimit:   order.StopLimit,
+	OrderTypeTakeProfit:      order.TakeProfitMarket,
+	OrderTypeTakeProfitLimit: order.TakeProfitLimit,
+	OrderTypeLimitMaker:      order.LimitMaker,
+}
+
+var spotTimesInForce = map[TimeInForce]order.TimeInForce{
+	TimeInForceGoodTillCancel:    order.GoodTillCancel,
+	TimeInForceImmediateOrCancel: order.ImmediateOrCancel,
+	TimeInForceFillOrKill:        order.FillOrKill,
+}
+
 func TestStringToSpotOrderType(t *testing.T) {
 	t.Parallel()
-	for orderType, exp := range map[OrderType]order.Type{
-		OrderTypeLimit:           order.Limit,
-		OrderTypeMarket:          order.Market,
-		OrderTypeStopLoss:        order.StopMarket,
-		OrderTypeStopLossLimit:   order.StopLimit,
-		OrderTypeTakeProfit:      order.TakeProfitMarket,
-		OrderTypeTakeProfitLimit: order.TakeProfitLimit,
-		OrderTypeLimitMaker:      order.LimitMaker,
-	} {
+	for orderType, exp := range spotOrderTypes {
 		got, err := stringToSpotOrderType(orderType)
 		require.NoErrorf(t, err, "stringToSpotOrderType must not error for %s", orderType)
 		assert.Equalf(t, exp, got, "stringToSpotOrderType should convert %s", orderType)
@@ -263,6 +271,19 @@ func TestSpotTimeInForce(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, order.PostOnly, spotTimeInForce(order.LimitMaker, order.GoodTillCancel), "a LIMIT_MAKER order should read as post only")
 	assert.Equal(t, order.ImmediateOrCancel, spotTimeInForce(order.Limit, order.ImmediateOrCancel), "another type should keep its time in force")
+
+	for _, typ := range spotOrderTypes {
+		t.Run(typ.String(), func(t *testing.T) {
+			t.Parallel()
+			for _, tif := range spotTimesInForce {
+				exp := tif
+				if typ == order.LimitMaker {
+					exp = order.PostOnly
+				}
+				assert.Equalf(t, exp, spotTimeInForce(typ, tif), "spotTimeInForce should return %s for a %s order reported as %s", exp, typ, tif)
+			}
+		})
+	}
 }
 
 func TestOrderListStatus(t *testing.T) {
@@ -295,6 +316,17 @@ func TestOrderListDetail(t *testing.T) {
 	}, d, "orderListDetail should convert the order list")
 	_, err = ex.orderListDetail(5, "", "UNKNOWN", at, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errUnknownOrderStatus, "orderListDetail should return an unknown status")
+
+	t.Run("an order list on another pair that is all done", func(t *testing.T) {
+		t.Parallel()
+		done := time.UnixMilli(1794466395190)
+		d, err := ex.orderListDetail(12569099453, "other", "ALL_DONE", done, currency.NewPair(currency.ETH, currency.BTC))
+		require.NoError(t, err, "orderListDetail must not error")
+		assert.Equal(t, order.Detail{
+			Exchange: "test", OrderID: "list-12569099453", ClientOrderID: "other", Type: order.OCO, Status: order.Closed,
+			AssetType: asset.Spot, Date: done, LastUpdated: done, Pair: currency.NewPair(currency.ETH, currency.BTC),
+		}, d, "orderListDetail should convert an order list's pair, status and order list ID")
+	})
 }
 
 func TestFetchTradablePairs(t *testing.T) {
@@ -1741,12 +1773,12 @@ func TestCancelAllOrders(t *testing.T) {
 		refused := []order.Cancel{{Side: order.Buy | order.Sell}}
 		for s := order.Side(1); s != 0; s <<= 1 {
 			if s != order.AnySide {
-				refused = append(refused, order.Cancel{Side: s}, order.Cancel{Side: s | order.AnySide})
+				refused = append(refused, order.Cancel{Side: s}, order.Cancel{Side: s | order.AnySide}, order.Cancel{Side: s, Type: order.AnyType})
 			}
 		}
 		for typ := order.Type(1); typ != 0; typ <<= 1 {
 			if typ != order.AnyType {
-				refused = append(refused, order.Cancel{Type: typ}, order.Cancel{Type: typ | order.AnyType})
+				refused = append(refused, order.Cancel{Type: typ}, order.Cancel{Type: typ | order.AnyType}, order.Cancel{Side: order.AnySide, Type: typ})
 			}
 		}
 		for _, typ := range []order.Type{order.StopLimit, order.StopMarket, order.TakeProfitMarket, order.TakeProfitLimit, order.TrailingStopLimit, order.Bracket} {
@@ -1956,6 +1988,22 @@ func TestSpotOrderVars(t *testing.T) {
 	_, err = spotOrderVars("X", "X", "X", "X")
 	assert.ErrorIs(t, err, errUnknownOrderStatus, "spotOrderVars should join the conversion errors")
 	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "spotOrderVars should join the conversion errors")
+
+	for orderType, expType := range spotOrderTypes {
+		t.Run(string(orderType), func(t *testing.T) {
+			t.Parallel()
+			for side, expSide := range map[Side]order.Side{SideBuy: order.Buy, SideSell: order.Sell} {
+				for status, expStatus := range orderStatuses {
+					for tif, expTIF := range spotTimesInForce {
+						vars, err := spotOrderVars(side, status, orderType, tif)
+						require.NoErrorf(t, err, "spotOrderVars must not error for %s %s %s %s", side, status, orderType, tif)
+						assert.Equalf(t, orderVars{side: expSide, status: expStatus, orderType: expType, timeInForce: expTIF}, vars,
+							"spotOrderVars should convert %s %s %s %s", side, status, orderType, tif)
+					}
+				}
+			}
+		})
+	}
 }
 
 func TestSetFilledCost(t *testing.T) {
@@ -1986,6 +2034,141 @@ func TestSpotOrderDetail(t *testing.T) {
 		Type: order.LimitMaker, Side: order.Buy, Status: order.PartiallyFilled, AssetType: asset.Spot,
 		Date: time.UnixMilli(1794466395184), LastUpdated: time.UnixMilli(1794466395185), Pair: currency.NewBTCUSDT(),
 	}, d, "spotOrderDetail should convert every field, the remaining amount included")
+
+	t.Run("an IOC stop limit sell that expired after a partial fill above its limit price", func(t *testing.T) {
+		t.Parallel()
+		stopLimit := &TradeOrderResponse{
+			OrderID: 12569099453, ClientOrderID: "s", Price: 66000.01, StopPrice: 67500.03, OriginalQuantity: 0.001, ExecutedQuantity: 0.0004,
+			CumulativeQuoteQuantity: 26.800421, Status: "EXPIRED", TimeInForce: TimeInForceImmediateOrCancel, Type: OrderTypeStopLossLimit,
+			Side: SideSell, Time: types.Time(time.UnixMilli(1794466395184)), UpdateTime: types.Time(time.UnixMilli(1794466395186)),
+		}
+		d, err := ex.spotOrderDetail(stopLimit, currency.NewBTCUSDT())
+		require.NoError(t, err, "spotOrderDetail must not error")
+		assert.Equal(t, order.Detail{
+			TimeInForce: order.ImmediateOrCancel, Price: 66000.01, Amount: 0.001, TriggerPrice: 67500.03, ExecutedAmount: 0.0004, RemainingAmount: 0.0006,
+			Cost: 26.800421, CostAsset: currency.USDT, AverageExecutedPrice: 67001.0525, Exchange: "test", OrderID: "12569099453", ClientOrderID: "s",
+			Type: order.StopLimit, Side: order.Sell, Status: order.Expired, AssetType: asset.Spot,
+			Date: time.UnixMilli(1794466395184), LastUpdated: time.UnixMilli(1794466395186), Pair: currency.NewBTCUSDT(),
+		}, d, "spotOrderDetail should convert a stop limit sell's trigger price, side, time in force, remaining amount and average price")
+	})
+
+	t.Run("a quote sized market buy", func(t *testing.T) {
+		t.Parallel()
+		market := &TradeOrderResponse{
+			OrderID: 7, ClientOrderID: "q", OriginalQuantity: 0.0015, ExecutedQuantity: 0.0015, CumulativeQuoteQuantity: 99.75, OriginalQuoteOrderQuantity: 100.05,
+			Status: "FILLED", TimeInForce: TimeInForceGoodTillCancel, Type: OrderTypeMarket, Side: SideBuy,
+			Time: types.Time(time.UnixMilli(1794466395184)), UpdateTime: types.Time(time.UnixMilli(1794466395184)),
+		}
+		d, err := ex.spotOrderDetail(market, currency.NewBTCUSD())
+		require.NoError(t, err, "spotOrderDetail must not error")
+		assert.Equal(t, order.Detail{
+			TimeInForce: order.GoodTillCancel, Amount: 0.0015, QuoteAmount: 100.05, ExecutedAmount: 0.0015, Cost: 99.75, CostAsset: currency.USD,
+			AverageExecutedPrice: 66500, Exchange: "test", OrderID: "7", ClientOrderID: "q", Type: order.Market, Side: order.Buy,
+			Status: order.Filled, AssetType: asset.Spot, Date: time.UnixMilli(1794466395184), LastUpdated: time.UnixMilli(1794466395184),
+			Pair: currency.NewBTCUSD(),
+		}, d, "spotOrderDetail should convert a quote sized market order's quote amount and cost asset")
+	})
+
+	t.Run("a fill or kill limit buy that expired with nothing filled", func(t *testing.T) {
+		t.Parallel()
+		unfilled := &TradeOrderResponse{
+			OrderID: 8, ClientOrderID: "o", Price: 69000, OriginalQuantity: 0.5, Status: "EXPIRED", TimeInForce: TimeInForceFillOrKill,
+			Type: OrderTypeLimit, Side: SideBuy, Time: types.Time(time.UnixMilli(1794466395184)), UpdateTime: types.Time(time.UnixMilli(1794466395184)),
+		}
+		d, err := ex.spotOrderDetail(unfilled, currency.NewBTCUSDT())
+		require.NoError(t, err, "spotOrderDetail must not error")
+		assert.Equal(t, order.Detail{
+			TimeInForce: order.FillOrKill, Price: 69000, Amount: 0.5, RemainingAmount: 0.5, Exchange: "test", OrderID: "8", ClientOrderID: "o",
+			Type: order.Limit, Side: order.Buy, Status: order.Expired, AssetType: asset.Spot, Date: time.UnixMilli(1794466395184),
+			LastUpdated: time.UnixMilli(1794466395184), Pair: currency.NewBTCUSDT(),
+		}, d, "spotOrderDetail should convert an unfilled order's time in force and leave its cost, cost asset and average price unset")
+	})
+
+	t.Run("a take profit limit buy priced to eight decimals and partly filled for under one USDT", func(t *testing.T) {
+		t.Parallel()
+		takeProfit := &TradeOrderResponse{
+			OrderID: 9, ClientOrderID: "p", Price: 0.00000387, StopPrice: 0.00000383, OriginalQuantity: 400000, ExecutedQuantity: 160000,
+			CumulativeQuoteQuantity: 0.61366784, Status: "PARTIALLY_FILLED", TimeInForce: TimeInForceGoodTillCancel, Type: OrderTypeTakeProfitLimit,
+			Side: SideBuy, Time: types.Time(time.UnixMilli(1794466395184)), UpdateTime: types.Time(time.UnixMilli(1794466395187)),
+		}
+		d, err := ex.spotOrderDetail(takeProfit, currency.NewPair(currency.SHIB, currency.USDT))
+		require.NoError(t, err, "spotOrderDetail must not error")
+		assert.Equal(t, order.Detail{
+			TimeInForce: order.GoodTillCancel, Price: 0.00000387, Amount: 400000, TriggerPrice: 0.00000383, ExecutedAmount: 160000, RemainingAmount: 240000,
+			Cost: 0.61366784, CostAsset: currency.USDT, AverageExecutedPrice: 0.000003835424, Exchange: "test", OrderID: "9", ClientOrderID: "p",
+			Type: order.TakeProfitLimit, Side: order.Buy, Status: order.PartiallyFilled, AssetType: asset.Spot,
+			Date: time.UnixMilli(1794466395184), LastUpdated: time.UnixMilli(1794466395187), Pair: currency.NewPair(currency.SHIB, currency.USDT),
+		}, d, "spotOrderDetail should keep the prices, cost and average price of a fill costing under one USDT to their last decimal")
+	})
+
+	t.Run("a limit sell cancelled after a partial fill in quantities to five decimals", func(t *testing.T) {
+		t.Parallel()
+		cancelled := &TradeOrderResponse{
+			OrderID: 10, ClientOrderID: "b", Price: 64821.44, OriginalQuantity: 0.00123, ExecutedQuantity: 0.00011, CumulativeQuoteQuantity: 7.1303585,
+			Status: "CANCELED", TimeInForce: TimeInForceGoodTillCancel, Type: OrderTypeLimit, Side: SideSell,
+			Time: types.Time(time.UnixMilli(1794466395184)), UpdateTime: types.Time(time.UnixMilli(1794466395188)),
+		}
+		d, err := ex.spotOrderDetail(cancelled, currency.NewBTCUSDT())
+		require.NoError(t, err, "spotOrderDetail must not error")
+		assert.Equal(t, order.Detail{
+			TimeInForce: order.GoodTillCancel, Price: 64821.44, Amount: 0.00123, ExecutedAmount: 0.00011, RemainingAmount: 0.00112, Cost: 7.1303585,
+			CostAsset: currency.USDT, AverageExecutedPrice: 64821.44090909091, Exchange: "test", OrderID: "10", ClientOrderID: "b", Type: order.Limit,
+			Side: order.Sell, Status: order.Cancelled, AssetType: asset.Spot, Date: time.UnixMilli(1794466395184),
+			LastUpdated: time.UnixMilli(1794466395188), Pair: currency.NewBTCUSDT(),
+		}, d, "spotOrderDetail should keep the amounts and cost of a partial fill to their last decimal")
+	})
+
+	t.Run("a quote sized market buy whose budget runs to eight decimals", func(t *testing.T) {
+		t.Parallel()
+		market := &TradeOrderResponse{
+			OrderID: 11, ClientOrderID: "m", OriginalQuantity: 1327320, ExecutedQuantity: 1327320, CumulativeQuoteQuantity: 5.1234552,
+			OriginalQuoteOrderQuantity: 5.12345678, Status: "FILLED", TimeInForce: TimeInForceGoodTillCancel, Type: OrderTypeMarket, Side: SideBuy,
+			Time: types.Time(time.UnixMilli(1794466395184)), UpdateTime: types.Time(time.UnixMilli(1794466395184)),
+		}
+		d, err := ex.spotOrderDetail(market, currency.NewPair(currency.SHIB, currency.USDT))
+		require.NoError(t, err, "spotOrderDetail must not error")
+		assert.Equal(t, order.Detail{
+			TimeInForce: order.GoodTillCancel, Amount: 1327320, QuoteAmount: 5.12345678, ExecutedAmount: 1327320, Cost: 5.1234552,
+			CostAsset: currency.USDT, AverageExecutedPrice: 0.00000386, Exchange: "test", OrderID: "11", ClientOrderID: "m", Type: order.Market,
+			Side: order.Buy, Status: order.Filled, AssetType: asset.Spot, Date: time.UnixMilli(1794466395184),
+			LastUpdated: time.UnixMilli(1794466395184), Pair: currency.NewPair(currency.SHIB, currency.USDT),
+		}, d, "spotOrderDetail should keep a quote sized order's quote amount to its last decimal")
+	})
+
+	t.Run("a limit buy that self-trade prevention expired after a partial fill", func(t *testing.T) {
+		t.Parallel()
+		binanceUS := &Exchange{Name: "Binanceus"}
+		prevented := &TradeOrderResponse{
+			OrderID: 12, ClientOrderID: "GCTstpTakerExpiry-7Kq2Wm9Zr4Lt8Vx", Price: 64821.45, OriginalQuantity: 0.00389, ExecutedQuantity: 0.00071,
+			CumulativeQuoteQuantity: 46.0232225, Status: "EXPIRED_IN_MATCH", TimeInForce: TimeInForceGoodTillCancel, Type: OrderTypeLimit, Side: SideBuy,
+			Time: types.Time(time.UnixMilli(1794466395184)), UpdateTime: types.Time(time.UnixMilli(1794466395189)),
+			SelfTradePreventionMode: SelfTradePreventionModeExpireTaker, PreventedMatchID: 1, PreventedQuantity: 0.00045,
+		}
+		d, err := binanceUS.spotOrderDetail(prevented, currency.NewBTCUSDT())
+		require.NoError(t, err, "spotOrderDetail must not error")
+		assert.Equal(t, order.Detail{
+			TimeInForce: order.GoodTillCancel, Price: 64821.45, Amount: 0.00389, ExecutedAmount: 0.00071, RemainingAmount: 0.00318, Cost: 46.0232225,
+			CostAsset: currency.USDT, AverageExecutedPrice: 64821.44014084507, Exchange: "Binanceus", OrderID: "12",
+			ClientOrderID: "GCTstpTakerExpiry-7Kq2Wm9Zr4Lt8Vx", Type: order.Limit, Side: order.Buy, Status: order.Expired, AssetType: asset.Spot,
+			Date: time.UnixMilli(1794466395184), LastUpdated: time.UnixMilli(1794466395189), Pair: currency.NewBTCUSDT(),
+		}, d, "spotOrderDetail should keep the exchange name and client order ID as sent and leave the prevented quantity out of the executed and remaining amounts")
+	})
+
+	t.Run("a filled historical order whose quote total Binance.US reports as negative", func(t *testing.T) {
+		t.Parallel()
+		historical := &TradeOrderResponse{
+			OrderID: 13, ClientOrderID: "h", Price: 10250.5, OriginalQuantity: 0.5, ExecutedQuantity: 0.5, CumulativeQuoteQuantity: -1,
+			Status: "FILLED", TimeInForce: TimeInForceGoodTillCancel, Type: OrderTypeLimit, Side: SideSell,
+			Time: types.Time(time.UnixMilli(1568937600000)), UpdateTime: types.Time(time.UnixMilli(1568937600000)),
+		}
+		d, err := ex.spotOrderDetail(historical, currency.NewBTCUSDT())
+		require.NoError(t, err, "spotOrderDetail must not error")
+		assert.Equal(t, order.Detail{
+			TimeInForce: order.GoodTillCancel, Price: 10250.5, Amount: 0.5, ExecutedAmount: 0.5, Exchange: "test", OrderID: "13", ClientOrderID: "h",
+			Type: order.Limit, Side: order.Sell, Status: order.Filled, AssetType: asset.Spot, Date: time.UnixMilli(1568937600000),
+			LastUpdated: time.UnixMilli(1568937600000), Pair: currency.NewBTCUSDT(),
+		}, d, "spotOrderDetail should leave the cost, cost asset and average price of an order without a quote total unset")
+	})
 }
 
 func TestGetActiveOrders(t *testing.T) {
