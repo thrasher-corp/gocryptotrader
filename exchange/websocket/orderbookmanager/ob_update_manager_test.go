@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 )
 
 func newTestParams() UpdateManagerParams {
@@ -635,6 +637,76 @@ func TestApplyFirstUpdate(t *testing.T) {
 			}
 			require.NoError(t, err, "LastUpdateID must not error")
 			assert.Equal(t, tc.lastUpdateID, lastUpdateID, "ProcessOrderbookUpdate should apply only an update following the snapshot")
+		})
+	}
+}
+
+func TestLogLastUpdateIDError(t *testing.T) {
+	// Not parallel: the log hook and log config are process-wide
+	logged := captureLogs(t)
+	headers := gctlog.GenDefaultSettings().AdvancedSettings.Headers
+	warn, errorHeader := headers.Warn, headers.Error
+	for _, tc := range []struct {
+		name        string
+		state       cacheState
+		invalidated bool
+		verbose     bool
+		header      string
+	}{
+		{name: "synchronised book invalidated", state: cacheStateSynced, invalidated: true},
+		{name: "synchronised book invalidated when verbose", state: cacheStateSynced, invalidated: true, verbose: true, header: warn},
+		{name: "loaded snapshot invalidated", state: cacheStateSnapshotLoaded, invalidated: true},
+		{name: "loaded snapshot invalidated when verbose", state: cacheStateSnapshotLoaded, invalidated: true, verbose: true, header: warn},
+		{name: "synchronised book missing", state: cacheStateSynced, header: errorHeader},
+		{name: "synchronised book missing when verbose", state: cacheStateSynced, verbose: true, header: errorHeader},
+		{name: "loaded snapshot missing", state: cacheStateSnapshotLoaded, header: errorHeader},
+		{name: "loaded snapshot missing when verbose", state: cacheStateSnapshotLoaded, verbose: true, header: errorHeader},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			name, p := t.Name(), currency.NewBTCUSDT()
+			ob := new(Orderbook)
+			require.NoError(t, ob.Setup(name, stream.NewRelay(20), tc.verbose), "Setup must not error")
+			if tc.invalidated {
+				require.NoError(t, ob.LoadSnapshot(t.Context(), &orderbook.Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: orderbook.Levels{{Price: 1, Amount: 1}}, Asks: orderbook.Levels{{Price: 2, Amount: 1}}, LastUpdated: time.Now(), LastUpdateID: 1}), "LoadSnapshot must not error")
+				ob.InvalidateWebsocketOrderbooks()
+			}
+			m := NewUpdateManager(&UpdateManagerParams{
+				Orderbook:     ob,
+				FetchDeadline: time.Second,
+				FetchDelay:    time.Hour,
+				FetchOrderbook: func(ctx context.Context, _ currency.Pair, _ asset.Item) (*orderbook.Book, error) {
+					return nil, ctx.Err()
+				},
+				CheckPendingUpdate: func(int64, int64, *orderbook.Update) (bool, error) { return false, nil },
+			})
+			cache, err := m.loadCache(p, asset.Spot)
+			require.NoError(t, err, "loadCache must not error")
+			cache.m.Lock()
+			cache.state = tc.state
+			cache.m.Unlock()
+			logged()
+			// A cancelled context stops the snapshot fetch the invalidation starts
+			ctx, cancel := context.WithCancel(t.Context())
+			cancel()
+			err = m.ProcessOrderbookUpdate(ctx, 2, &orderbook.Update{Pair: p, Asset: asset.Spot, UpdateID: 2, UpdateTime: time.Now(), AllowEmpty: true})
+			if tc.invalidated {
+				require.NoError(t, err, "ProcessOrderbookUpdate must not error for an invalidated book")
+			} else {
+				require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "ProcessOrderbookUpdate must error for a book never loaded")
+			}
+			// The synchronisation the update starts logs its own failure once the cancelled context stops it
+			var failures []logLine
+			for _, line := range logged() {
+				if strings.Contains(line.message, name+" websocket orderbook manager: failed to sync orderbook") && !strings.Contains(line.message, context.Canceled.Error()) {
+					failures = append(failures, line)
+				}
+			}
+			if tc.header == "" {
+				assert.Empty(t, failures, "a book invalidated meanwhile should not be logged unless verbose")
+				return
+			}
+			require.Len(t, failures, 1, "the book's failed update ID must be logged once")
+			assert.Equal(t, tc.header, failures[0].header, "the book's failed update ID should be logged at its level")
 		})
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"slices"
@@ -32,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -128,6 +130,41 @@ func TestSetup(t *testing.T) {
 	require.NoError(t, ex.Setup(cfg), "Setup must not error")
 	assert.NotNil(t, ex.orderbookSync, "Setup should set up the order book synchronisation")
 	assert.Nil(t, ex.wsAPI.kept(), "Setup should forget a WebSocket API connection of an earlier setup")
+
+	t.Run("a previous version's configuration", func(t *testing.T) {
+		t.Parallel()
+		// The configuration a previous version saved, from upstream's test configuration, holds neither the WebSocket API
+		// endpoint nor subscriptions, as that version had no WebSocket API connection and ignored configured subscriptions
+		raw, err := os.ReadFile("testdata/previous_config.json")
+		require.NoError(t, err, "ReadFile must not error")
+		for _, tc := range []struct {
+			name          string
+			authenticated bool
+		}{
+			{name: "without authenticated websocket support"},
+			{name: "with authenticated websocket support", authenticated: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var exch config.Exchange
+				require.NoError(t, json.Unmarshal(raw, &exch), "the previous configuration must decode")
+				exch.API.AuthenticatedWebsocketSupport = tc.authenticated
+				ex := new(Exchange)
+				ex.SetDefaults()
+				require.NoError(t, ex.Setup(&exch), "Setup must not error")
+				u, err := ex.API.Endpoints.GetURL(exchange.WebsocketTrade)
+				require.NoError(t, err, "GetURL must not error")
+				assert.Equal(t, websocketAPIURL, u, "a previous configuration should take the WebSocket API's default endpoint")
+				assert.Equal(t, websocketAPIURL, exch.API.Endpoints[exchange.WebsocketTrade.String()], "Setup should save the WebSocket API endpoint to the configuration")
+				channels := make([]string, len(exch.Features.Subscriptions))
+				for i, s := range exch.Features.Subscriptions {
+					channels[i] = s.Channel
+				}
+				assert.Equal(t, []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel}, channels,
+					"a previous configuration should take the default subscriptions, the streams the previous version subscribed")
+			})
+		}
+	})
 }
 
 func TestParseOrderID(t *testing.T) {
@@ -504,9 +541,8 @@ func TestUpdateOrderbook(t *testing.T) {
 			p := currency.NewBTCUSDT()
 			handling, release := make(chan struct{}), make(chan struct{})
 			handlingOnce, releaseOnce := sync.OnceFunc(func() { close(handling) }), sync.OnceFunc(func() { close(release) })
-			t.Cleanup(releaseOnce)
 			setup := ex.streamConnectionSetup(ex.Config)
-			setup.ResponseMaxLimit = 100 * time.Millisecond
+			setup.ResponseMaxLimit = 2 * time.Second
 			setup.GenerateSubscriptions = func() (subscription.List, error) {
 				return subscription.List{{Channel: "keepalive", QualifiedChannel: "btcusdt@trade", Asset: asset.Spot, Pairs: currency.Pairs{p}}}, nil
 			}
@@ -529,6 +565,8 @@ func TestUpdateOrderbook(t *testing.T) {
 				}
 				return streamsMock(tb, msg, w)
 			})
+			// Registered after the websocket's shutdown cleanup so it runs first: the shutdown waits for the stalled reader
+			t.Cleanup(releaseOnce)
 			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 			conn, err := ex.Websocket.GetConnection(asset.Spot)
 			require.NoError(t, err, "GetConnection must not error")
@@ -542,7 +580,7 @@ func TestUpdateOrderbook(t *testing.T) {
 			require.ErrorIs(t, ex.manageSubs(t.Context(), conn, wsUnsubscribeMethod, subs), websocket.ErrSignatureTimeout, "manageSubs must time out behind the stalled reader")
 			select {
 			case <-handling:
-			default:
+			case <-time.After(5 * time.Second):
 				require.FailNow(t, "the reader must be handling the stream's last frame")
 			}
 			releaseOnce()
@@ -817,22 +855,113 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestCanUseWebsocketAPIForOrders(t *testing.T) {
 	t.Parallel()
-	assert.False(t, newWebsocketTestExchange(t).canUseWebsocketAPIForOrders(), "orders should not go over a disconnected WebSocket API")
+	assert.False(t, newWebsocketTestExchange(t).canUseWebsocketAPIForOrders(t.Context()), "orders should not go over a disconnected WebSocket API")
 	ex := newWebsocketAPITestExchange(t, false)
-	assert.False(t, ex.canUseWebsocketAPIForOrders(), "orders should not go over the WebSocket API without authenticated websocket use")
+	assert.False(t, ex.canUseWebsocketAPIForOrders(t.Context()), "orders should not go over the WebSocket API without authenticated websocket use")
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	assert.True(t, ex.canUseWebsocketAPIForOrders(), "orders should go over a connected WebSocket API with authenticated websocket use")
+	assert.True(t, ex.canUseWebsocketAPIForOrders(t.Context()), "orders should go over a connected WebSocket API with authenticated websocket use")
+	other := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "other-api-key", Secret: "other-api-secret"})
+	assert.False(t, ex.canUseWebsocketAPIForOrders(other), "orders carrying other credentials should not go over the WebSocket API, whose connection a refusal closes")
+	otherSecret := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: ex.GetDefaultCredentials().Key, Secret: "other-api-secret"})
+	assert.False(t, ex.canUseWebsocketAPIForOrders(otherSecret), "orders carrying another secret for the configured key should not go over the WebSocket API")
 	ex.websocketAPIKeyRejected.Store(true)
-	assert.False(t, ex.canUseWebsocketAPIForOrders(), "orders should not go over the WebSocket API once it refused the configured account's key")
+	assert.False(t, ex.canUseWebsocketAPIForOrders(t.Context()), "orders should not go over the WebSocket API once it refused the configured account's key")
+
+	t.Run("requests carrying other credentials go over REST", func(t *testing.T) {
+		t.Parallel()
+		placed := `{"symbol":"BTCUSDT","orderId":1,"clientOrderId":"c","transactTime":1794466395184,"price":"70000","origQty":"0.5","executedQty":"0","cummulativeQuoteQty":"0","status":"NEW","timeInForce":"GTC","type":"LIMIT","side":"BUY"}`
+		list := `{"orderListId":7,"contingencyType":"OCO","listStatusType":"EXEC_STARTED","listOrderStatus":"EXECUTING","listClientOrderId":"l","transactionTime":1794466395184,"symbol":"BTCUSDT"}`
+		p := currency.NewBTCUSDT()
+		for _, tc := range []struct {
+			name string
+			call func(context.Context, *Exchange) error
+		}{
+			{name: "order submission", call: func(ctx context.Context, ex *Exchange) error {
+				_, err := ex.SubmitOrder(ctx, &order.Submit{Exchange: ex.Name, Pair: p, AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 70000, Amount: 0.5})
+				return err
+			}},
+			{name: "order list submission", call: func(ctx context.Context, ex *Exchange) error {
+				_, err := ex.SubmitOrder(ctx, &order.Submit{Exchange: ex.Name, Pair: p, AssetType: asset.Spot, Side: order.Sell, Type: order.OCO, Price: 80000, TriggerPrice: 69000, Amount: 0.5})
+				return err
+			}},
+			{name: "order cancellation", call: func(ctx context.Context, ex *Exchange) error {
+				return ex.CancelOrder(ctx, &order.Cancel{OrderID: "1", Pair: p, AssetType: asset.Spot})
+			}},
+			{name: "order list cancellation", call: func(ctx context.Context, ex *Exchange) error {
+				return ex.CancelOrder(ctx, &order.Cancel{OrderID: formatOrderListID(7), Pair: p, AssetType: asset.Spot})
+			}},
+			{name: "order lookup", call: func(ctx context.Context, ex *Exchange) error {
+				_, err := ex.GetOrderInfo(ctx, "1", p, asset.Spot)
+				return err
+			}},
+			{name: "open orders", call: func(ctx context.Context, ex *Exchange) error {
+				_, err := ex.GetActiveOrders(ctx, &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{p}})
+				return err
+			}},
+			{name: "open order lists", call: func(ctx context.Context, ex *Exchange) error {
+				_, err := ex.GetActiveOrders(ctx, &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.OCO, Pairs: currency.Pairs{p}})
+				return err
+			}},
+			{name: "pair cancellation", call: func(ctx context.Context, ex *Exchange) error {
+				_, err := ex.CancelAllOrders(ctx, &order.Cancel{AssetType: asset.Spot, Pair: p})
+				return err
+			}},
+			{name: "every symbol's cancellation", call: func(ctx context.Context, ex *Exchange) error {
+				_, err := ex.CancelAllOrders(ctx, &order.Cancel{AssetType: asset.Spot})
+				return err
+			}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var wsRequests atomic.Int32
+				ex, streamDials, _ := newTwoServerTestExchange(t, func(tb testing.TB, msg []byte, w *gws.Conn) error {
+					tb.Helper()
+					var req WebsocketAPIRequest
+					require.NoError(tb, json.Unmarshal(msg, &req), "request must decode")
+					if req.Method == "userDataStream.subscribe.signature" {
+						return w.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","status":200,"result":{"subscriptionId":0}}`))
+					}
+					wsRequests.Add(1)
+					return rejectKey(tb, msg, w)
+				}, true)
+				server := httptest.NewTestServer(t, capRequests(t, func(w http.ResponseWriter, r *http.Request) {
+					switch r.Method + " " + r.URL.Path {
+					case "GET /api/v3/orderList":
+						w.WriteHeader(http.StatusBadRequest)
+						writeResponse(t, w, `{"code":-2011,"msg":"Order list does not exist."}`)
+					case "GET /api/v3/openOrders":
+						writeResponse(t, w, `[`+placed+`]`)
+					case "GET /api/v3/openOrderList":
+						writeResponse(t, w, `[`+list+`]`)
+					case "DELETE /api/v3/openOrders":
+						writeResponse(t, w, `[{"orderId":1,"status":"CANCELED"}]`)
+					case "POST /api/v3/order/oco", "DELETE /api/v3/orderList":
+						writeResponse(t, w, list)
+					default:
+						writeResponse(t, w, placed)
+					}
+				}))
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
+				require.True(t, ex.canUseWebsocketAPIForOrders(t.Context()), "the configured account's requests must go over the WebSocket API")
+				other := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "other-api-key", Secret: "other-api-secret"})
+				assert.NoError(t, tc.call(other, ex), "the request should be sent over REST")
+				assert.Zero(t, wsRequests.Load(), "a request carrying other credentials should not reach the WebSocket API")
+				assert.Equal(t, int32(1), streamDials.Load(), "the market data streams should stay connected")
+			})
+		}
+	})
 }
 
 func TestOverWebsocketAPI(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketAPITestExchange(t, false)
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	assert.True(t, ex.overWebsocketAPI(true, false), "a request naming an order ID alone should go over the WebSocket API")
-	assert.True(t, ex.overWebsocketAPI(false, true), "a request naming a client order ID alone should go over the WebSocket API")
-	assert.False(t, ex.overWebsocketAPI(true, true), "a request naming both IDs should go over REST, which checks both")
+	assert.True(t, ex.overWebsocketAPI(t.Context(), true, false), "a request naming an order ID alone should go over the WebSocket API")
+	assert.True(t, ex.overWebsocketAPI(t.Context(), false, true), "a request naming a client order ID alone should go over the WebSocket API")
+	assert.False(t, ex.overWebsocketAPI(t.Context(), true, true), "a request naming both IDs should go over REST, which checks both")
+	other := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "other-api-key", Secret: "other-api-secret"})
+	assert.False(t, ex.overWebsocketAPI(other, true, false), "a request carrying other credentials should go over REST")
 }
 
 func TestLogOrderIssue(t *testing.T) {
@@ -916,6 +1045,148 @@ func TestCheckUntimedSpotTimeInForce(t *testing.T) {
 	assert.ErrorIs(t, checkUntimedSpotTimeInForce(OrderTypeStopLoss, order.ImmediateOrCancel), order.ErrUnsupportedTimeInForce, "a STOP_LOSS order should refuse IOC")
 }
 
+// The order types Binance.US places, by how a stop direction applies to them, some it does not place, and each side
+// family's aliases, alone and combined
+var (
+	untriggeredOrderTypes = []order.Type{order.Limit, order.LimitMaker, order.Market}
+	stopLossOrderTypes    = []order.Type{order.Stop, order.StopLimit, order.StopMarket, order.OCO}
+	takeProfitOrderTypes  = []order.Type{order.TakeProfit, order.TakeProfitLimit, order.TakeProfitMarket}
+	unplacedOrderTypes    = []order.Type{order.TrailingStop, order.TrailingStopLimit, order.ConditionalStop, order.Trigger, order.Bracket}
+	longSides             = []order.Side{order.Buy, order.Bid, order.Long, order.Buy | order.Bid, order.Bid | order.Long, order.Buy | order.Bid | order.Long}
+	shortSides            = []order.Side{order.Sell, order.Ask, order.Short, order.Sell | order.Ask, order.Ask | order.Short, order.Sell | order.Ask | order.Short}
+)
+
+func TestCheckSpotSubmitOptions(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		modify func(*order.Submit)
+		err    error
+		option string
+	}{
+		{name: "limit order", modify: func(*order.Submit) {}},
+		{name: "cash", modify: func(s *order.Submit) { s.MarginType = margin.NoMargin }},
+		{name: "market order with a quote amount alone", modify: func(s *order.Submit) { s.Type, s.Price, s.Amount, s.QuoteAmount = order.Market, 0, 0, 100 }},
+		{name: "stop limit on the last price", modify: func(s *order.Submit) {
+			s.Type, s.TriggerPrice, s.TriggerPriceType = order.StopLimit, 69000, order.LastPrice
+		}},
+		{name: "OCO order list with an enabled stop limit price", modify: func(s *order.Submit) {
+			s.Type, s.Side, s.Price, s.TriggerPrice = order.OCO, order.Sell, 80000, 69000
+			s.RiskManagementModes.StopLoss.Enabled, s.RiskManagementModes.StopLoss.LimitPrice = true, 68000
+		}},
+		{name: "isolated margin", modify: func(s *order.Submit) { s.MarginType = margin.Isolated }, err: margin.ErrMarginTypeUnsupported, option: "isolated"},
+		{name: "base and quote amount", modify: func(s *order.Submit) { s.QuoteAmount = 100 }, err: errQuoteAmountWithAmount},
+		{name: "reduce only", modify: func(s *order.Submit) { s.ReduceOnly = true }, err: errOrderOptionUnsupported, option: "reduce only"},
+		{name: "auto borrow", modify: func(s *order.Submit) { s.AutoBorrow = true }, err: errOrderOptionUnsupported, option: "borrowing"},
+		{name: "auto repay", modify: func(s *order.Submit) { s.AutoRepay = true }, err: errOrderOptionUnsupported, option: "borrowing"},
+		{name: "end time", modify: func(s *order.Submit) { s.EndTime = time.Now().Add(time.Hour) }, err: errOrderOptionUnsupported, option: "an end time"},
+		{name: "mark price trigger", modify: func(s *order.Submit) {
+			s.Type, s.TriggerPrice, s.TriggerPriceType = order.StopLimit, 69000, order.MarkPrice
+		}, err: errOrderOptionUnsupported, option: "trigger price type"},
+		{name: "tracking mode", modify: func(s *order.Submit) { s.TrackingMode = order.Percentage }, err: errOrderOptionUnsupported, option: "price tracking"},
+		{name: "tracking value", modify: func(s *order.Submit) { s.TrackingValue = 1 }, err: errOrderOptionUnsupported, option: "price tracking"},
+		{name: "limit tracking mode", modify: func(s *order.Submit) { s.LimitTrackingMode = order.Distance }, err: errOrderOptionUnsupported, option: "price tracking"},
+		{name: "limit tracking value", modify: func(s *order.Submit) { s.LimitTrackingValue = 1 }, err: errOrderOptionUnsupported, option: "price tracking"},
+		{name: "slippage tolerance", modify: func(s *order.Submit) { s.SlippageTolerance = 0.01 }, err: errOrderOptionUnsupported, option: "slippage tolerance"},
+		{name: "risk management mode", modify: func(s *order.Submit) { s.RiskManagementModes.Mode = "full" }, err: errOrderOptionUnsupported, option: "take profit or stop loss"},
+		{name: "take profit", modify: func(s *order.Submit) { s.RiskManagementModes.TakeProfit.Price = 80000 }, err: errOrderOptionUnsupported, option: "take profit or stop loss"},
+		{name: "stop loss limit price on a limit order", modify: func(s *order.Submit) { s.RiskManagementModes.StopLoss.LimitPrice = 68000 }, err: errOrderOptionUnsupported, option: "take profit or stop loss"},
+		{name: "OCO order list with a stop loss price", modify: func(s *order.Submit) {
+			s.Type, s.Side, s.Price, s.TriggerPrice = order.OCO, order.Sell, 80000, 69000
+			s.RiskManagementModes.StopLoss.Price = 68000
+		}, err: errOrderOptionUnsupported, option: "take profit or stop loss"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := &order.Submit{Exchange: "test", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 70000, Amount: 0.5}
+			tc.modify(s)
+			err := checkSpotSubmitOptions(s)
+			if tc.err == nil {
+				assert.NoError(t, err, "checkSpotSubmitOptions should accept what a spot order can carry")
+				return
+			}
+			require.ErrorIs(t, err, tc.err, "checkSpotSubmitOptions must refuse what a spot order cannot carry")
+			assert.ErrorContains(t, err, tc.option, "checkSpotSubmitOptions should name what it refuses")
+		})
+	}
+
+	t.Run("trigger price", func(t *testing.T) {
+		t.Parallel()
+		for _, orderType := range slices.Concat(untriggeredOrderTypes, stopLossOrderTypes, takeProfitOrderTypes, unplacedOrderTypes) {
+			for _, triggerPrice := range []float64{-1, -0.5, 0, 0.5, 69000} {
+				t.Run(orderType.String()+" "+strconv.FormatFloat(triggerPrice, 'f', -1, 64), func(t *testing.T) {
+					t.Parallel()
+					err := checkSpotSubmitOptions(&order.Submit{Type: orderType, Side: order.Buy, TriggerPrice: triggerPrice})
+					if triggerPrice != 0 && slices.Contains(untriggeredOrderTypes, orderType) {
+						require.ErrorIs(t, err, errOrderOptionUnsupported, "checkSpotSubmitOptions must refuse a trigger price on a type placed without one")
+						assert.ErrorContains(t, err, "a trigger price", "checkSpotSubmitOptions should name the trigger price it refuses")
+						return
+					}
+					assert.NoError(t, err, "checkSpotSubmitOptions should leave a trigger price to the types that take one, and an unsupported type to its own refusal")
+				})
+			}
+		}
+	})
+
+	t.Run("rising trigger", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			types []order.Type
+			rises []order.Side
+		}{
+			{types: stopLossOrderTypes, rises: longSides},
+			{types: takeProfitOrderTypes, rises: shortSides},
+			{types: untriggeredOrderTypes},
+		} {
+			for _, orderType := range tc.types {
+				for _, side := range slices.Concat(longSides, shortSides) {
+					t.Run(orderType.String()+" side "+strconv.FormatUint(uint64(side), 10), func(t *testing.T) {
+						t.Parallel()
+						err := checkSpotSubmitOptions(&order.Submit{Type: orderType, Side: side, StopDirection: order.StopUp})
+						if slices.Contains(tc.rises, side) {
+							assert.NoError(t, err, "checkSpotSubmitOptions should take a rising trigger where Binance.US triggers as the price rises")
+							return
+						}
+						require.ErrorIs(t, err, errOrderOptionUnsupported, "checkSpotSubmitOptions must refuse a rising trigger where Binance.US triggers as the price falls, or not at all")
+						assert.ErrorContains(t, err, "a trigger on a rising price", "checkSpotSubmitOptions should name the rising trigger it refuses")
+					})
+				}
+			}
+		}
+		for _, orderType := range unplacedOrderTypes {
+			for _, side := range slices.Concat(longSides, shortSides) {
+				t.Run("unplaced "+orderType.String()+" side "+strconv.FormatUint(uint64(side), 10), func(t *testing.T) {
+					t.Parallel()
+					assert.NoError(t, checkSpotSubmitOptions(&order.Submit{Type: orderType, Side: side, StopDirection: order.StopUp}), "checkSpotSubmitOptions should leave a type Binance.US does not place to its own refusal")
+				})
+			}
+		}
+	})
+}
+
+func TestRisingTriggerUnsupported(t *testing.T) {
+	t.Parallel()
+	neither := []order.Side{order.UnknownSide, order.Buy | order.Sell}
+	for _, tc := range []struct {
+		orderTypes  []order.Type
+		unsupported []order.Side
+	}{
+		{orderTypes: stopLossOrderTypes, unsupported: slices.Concat(shortSides, neither)},
+		{orderTypes: takeProfitOrderTypes, unsupported: slices.Concat(longSides, neither)},
+		{orderTypes: untriggeredOrderTypes, unsupported: slices.Concat(longSides, shortSides, neither)},
+		{orderTypes: unplacedOrderTypes},
+	} {
+		for _, orderType := range tc.orderTypes {
+			for _, side := range slices.Concat(longSides, shortSides, neither) {
+				t.Run(orderType.String()+" side "+strconv.FormatUint(uint64(side), 10), func(t *testing.T) {
+					t.Parallel()
+					assert.Equal(t, slices.Contains(tc.unsupported, side), risingTriggerUnsupported(&order.Submit{Type: orderType, Side: side}), "risingTriggerUnsupported should report whether the order cannot trigger as the price rises")
+				})
+			}
+		}
+	}
+}
+
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	t.Run("live", func(t *testing.T) {
@@ -976,6 +1247,145 @@ func TestSubmitOrder(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported, "SubmitOrder should reject leverage")
 	_, err = ex.SubmitOrder(t.Context(), nil)
 	assert.ErrorIs(t, err, order.ErrSubmissionIsNil, "SubmitOrder should reject a nil submission")
+
+	limit := func(name string) order.Submit {
+		return order.Submit{Exchange: name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 70000, Amount: 0.5}
+	}
+	riskFields := []struct {
+		name string
+		set  func(*order.RiskManagement)
+	}{
+		{name: "enabled", set: func(r *order.RiskManagement) { r.Enabled = true }},
+		{name: "trigger price type", set: func(r *order.RiskManagement) { r.TriggerPriceType = order.MarkPrice }},
+		{name: "price", set: func(r *order.RiskManagement) { r.Price = 60000 }},
+		{name: "limit price", set: func(r *order.RiskManagement) { r.LimitPrice = 59000 }},
+		{name: "order type", set: func(r *order.RiskManagement) { r.OrderType = order.Limit }},
+	}
+	riskModes := []struct {
+		name string
+		mode func(*order.RiskManagementModes) *order.RiskManagement
+	}{
+		{name: "take profit", mode: func(r *order.RiskManagementModes) *order.RiskManagement { return &r.TakeProfit }},
+		{name: "stop loss", mode: func(r *order.RiskManagementModes) *order.RiskManagement { return &r.StopLoss }},
+		{name: "stop entry", mode: func(r *order.RiskManagementModes) *order.RiskManagement { return &r.StopEntry }},
+	}
+
+	t.Run("an option a spot order cannot carry is refused", func(t *testing.T) {
+		t.Parallel()
+		refusing := routedTestExchange(t, nil)
+		type refusal struct {
+			name   string
+			modify func(*order.Submit)
+			err    error
+		}
+		refusals := []refusal{
+			{name: "isolated margin", modify: func(s *order.Submit) { s.MarginType = margin.Isolated }, err: margin.ErrMarginTypeUnsupported},
+			{name: "cross margin", modify: func(s *order.Submit) { s.MarginType = margin.Multi }, err: margin.ErrMarginTypeUnsupported},
+			{name: "spot isolated margin", modify: func(s *order.Submit) { s.MarginType = margin.SpotIsolated }, err: margin.ErrMarginTypeUnsupported},
+			{name: "unknown margin", modify: func(s *order.Submit) { s.MarginType = margin.Unknown }, err: margin.ErrMarginTypeUnsupported},
+			{name: "market order with a base and a quote amount", modify: func(s *order.Submit) { s.Type, s.Price, s.QuoteAmount = order.Market, 0, 100 }, err: errQuoteAmountWithAmount},
+			{name: "limit order with a base and a quote amount", modify: func(s *order.Submit) { s.QuoteAmount = 100 }, err: errQuoteAmountWithAmount},
+			{name: "reduce only", modify: func(s *order.Submit) { s.ReduceOnly = true }, err: errOrderOptionUnsupported},
+			{name: "auto borrow", modify: func(s *order.Submit) { s.AutoBorrow = true }, err: errOrderOptionUnsupported},
+			{name: "auto repay", modify: func(s *order.Submit) { s.AutoRepay = true }, err: errOrderOptionUnsupported},
+			{name: "end time", modify: func(s *order.Submit) { s.EndTime = time.Now().Add(time.Hour) }, err: errOrderOptionUnsupported},
+			{name: "index price trigger", modify: func(s *order.Submit) {
+				s.Type, s.TriggerPrice, s.TriggerPriceType = order.StopLimit, 69000, order.IndexPrice
+			}, err: errOrderOptionUnsupported},
+			{name: "mark price trigger", modify: func(s *order.Submit) {
+				s.Type, s.TriggerPrice, s.TriggerPriceType = order.StopLimit, 69000, order.MarkPrice
+			}, err: errOrderOptionUnsupported},
+			{name: "unknown price trigger", modify: func(s *order.Submit) {
+				s.Type, s.TriggerPrice, s.TriggerPriceType = order.StopLimit, 69000, order.UnknownPriceType
+			}, err: errOrderOptionUnsupported},
+			{name: "tracking mode", modify: func(s *order.Submit) { s.TrackingMode = order.Percentage }, err: errOrderOptionUnsupported},
+			{name: "tracking value", modify: func(s *order.Submit) { s.TrackingValue = 1 }, err: errOrderOptionUnsupported},
+			{name: "limit tracking mode", modify: func(s *order.Submit) { s.LimitTrackingMode = order.Distance }, err: errOrderOptionUnsupported},
+			{name: "limit tracking value", modify: func(s *order.Submit) { s.LimitTrackingValue = 1 }, err: errOrderOptionUnsupported},
+			{name: "slippage tolerance", modify: func(s *order.Submit) { s.SlippageTolerance = 0.01 }, err: errOrderOptionUnsupported},
+			{name: "trigger price on a limit order", modify: func(s *order.Submit) { s.TriggerPrice = 69000 }, err: errOrderOptionUnsupported},
+			{name: "trigger price on a market order", modify: func(s *order.Submit) { s.Type, s.Price, s.TriggerPrice = order.Market, 0, 69000 }, err: errOrderOptionUnsupported},
+			{name: "rising trigger on a stop loss sell", modify: func(s *order.Submit) {
+				s.Type, s.Side, s.TriggerPrice, s.StopDirection = order.StopLimit, order.Sell, 69000, order.StopUp
+			}, err: errOrderOptionUnsupported},
+			{name: "rising trigger on an OCO order list sell", modify: func(s *order.Submit) {
+				s.Type, s.Side, s.Price, s.TriggerPrice, s.StopDirection = order.OCO, order.Sell, 80000, 69000, order.StopUp
+			}, err: errOrderOptionUnsupported},
+			{name: "unsupported type with a rising trigger", modify: func(s *order.Submit) {
+				s.Type, s.TriggerPrice, s.StopDirection = order.TrailingStop, 69000, order.StopUp
+			}, err: order.ErrUnsupportedOrderType},
+			{name: "OCO order list with a negative stop limit price", modify: func(s *order.Submit) {
+				s.Type, s.Side, s.Price, s.TriggerPrice = order.OCO, order.Sell, 80000, 69000
+				s.RiskManagementModes.StopLoss.Enabled, s.RiskManagementModes.StopLoss.LimitPrice = true, -1
+			}, err: errNegativeStopLimitPrice},
+			{name: "risk management mode", modify: func(s *order.Submit) { s.RiskManagementModes.Mode = "full" }, err: errOrderOptionUnsupported},
+		}
+		for _, m := range riskModes {
+			for _, f := range riskFields {
+				refusals = append(refusals, refusal{name: m.name + " " + f.name, modify: func(s *order.Submit) { f.set(m.mode(&s.RiskManagementModes)) }, err: errOrderOptionUnsupported})
+				if m.name == "stop loss" && (f.name == "enabled" || f.name == "limit price") {
+					continue
+				}
+				refusals = append(refusals, refusal{name: "OCO order list with a " + m.name + " " + f.name, modify: func(s *order.Submit) {
+					s.Type, s.TriggerPrice = order.OCO, 69000
+					f.set(m.mode(&s.RiskManagementModes))
+				}, err: errOrderOptionUnsupported})
+			}
+		}
+		for _, tc := range refusals {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				s := limit(refusing.Name)
+				tc.modify(&s)
+				_, err := refusing.SubmitOrder(t.Context(), &s)
+				assert.ErrorIs(t, err, tc.err, "SubmitOrder should refuse an option it cannot send")
+			})
+		}
+	})
+
+	t.Run("options a spot order can carry are placed", func(t *testing.T) {
+		t.Parallel()
+		placing := routedTestExchange(t, map[string]http.HandlerFunc{
+			"POST /api/v3/order": reply(t, nil, placed),
+			"POST /api/v3/order/oco": func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "68000", r.URL.Query().Get("stopLimitPrice"), "SubmitOrder should send an OCO order list's stop limit price")
+				writeResponse(t, w, `{"orderListId":7,"contingencyType":"OCO","listStatusType":"EXEC_STARTED","listOrderStatus":"EXECUTING","listClientOrderId":"gct-2","transactionTime":1794466395184,"symbol":"BTCUSDT"}`)
+			},
+		})
+		for _, tc := range []struct {
+			name   string
+			modify func(*order.Submit)
+		}{
+			{name: "no margin type", modify: func(*order.Submit) {}},
+			{name: "cash", modify: func(s *order.Submit) { s.MarginType = margin.NoMargin }},
+			{name: "stop limit on the last price", modify: func(s *order.Submit) {
+				s.Type, s.TriggerPrice, s.TriggerPriceType = order.StopLimit, 69000, order.LastPrice
+			}},
+			{name: "market order with a quote amount", modify: func(s *order.Submit) { s.Type, s.Price, s.Amount, s.QuoteAmount = order.Market, 0, 0, 100 }},
+			{name: "OCO order list with a stop limit price", modify: func(s *order.Submit) {
+				s.Type, s.Side, s.Price, s.TriggerPrice, s.RiskManagementModes.StopLoss.LimitPrice = order.OCO, order.Sell, 80000, 69000, 68000
+			}},
+			{name: "OCO order list with an enabled stop limit price", modify: func(s *order.Submit) {
+				s.Type, s.Side, s.Price, s.TriggerPrice = order.OCO, order.Sell, 80000, 69000
+				s.RiskManagementModes.StopLoss.Enabled, s.RiskManagementModes.StopLoss.LimitPrice = true, 68000
+			}},
+			{name: "rising trigger on a stop loss buy", modify: func(s *order.Submit) {
+				s.Type, s.TriggerPrice, s.StopDirection = order.StopLimit, 71000, order.StopUp
+			}},
+			{name: "rising trigger on an OCO order list buy", modify: func(s *order.Submit) {
+				s.Type, s.Price, s.TriggerPrice, s.StopDirection = order.OCO, 60000, 75000, order.StopUp
+				s.RiskManagementModes.StopLoss.LimitPrice = 68000
+			}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				s := limit(placing.Name)
+				tc.modify(&s)
+				_, err := placing.SubmitOrder(t.Context(), &s)
+				assert.NoError(t, err, "SubmitOrder should place the order")
+			})
+		}
+	})
 }
 
 func TestSubmitSpotOrder(t *testing.T) {
@@ -986,6 +1396,14 @@ func TestSubmitSpotOrder(t *testing.T) {
 	resp, err := ex.submitSpotOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Sell, Type: order.Market, QuoteAmount: 25})
 	require.NoError(t, err, "submitSpotOrder must not error")
 	assert.Equal(t, order.Filled, resp.Status, "a quote sized market order should keep Binance.US's status")
+	t.Run("a quote sized market order expired after a partial fill keeps its status", func(t *testing.T) {
+		t.Parallel()
+		expiring := routedTestExchange(t, map[string]http.HandlerFunc{"POST /api/v3/order": reply(t, nil, `{"orderId":32,"transactTime":1794466395184,"origQty":"0.0005","executedQty":"0.0003","cummulativeQuoteQty":"25","status":"EXPIRED"}`)})
+		resp, err := expiring.submitSpotOrder(t.Context(), &order.Submit{Exchange: expiring.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Sell, Type: order.Market, QuoteAmount: 40})
+		require.NoError(t, err, "submitSpotOrder must not error")
+		assert.Equal(t, order.Expired, resp.Status, "a quote sized market order should keep Binance.US's status, as the order manager cannot settle an order without an amount")
+		assert.Equal(t, 0.0002, resp.RemainingAmount, "a quote sized market order should report the quantity Binance.US left unfilled")
+	})
 	_, err = ex.submitSpotOrder(t.Context(), &order.Submit{Side: order.Sell, Type: order.Market})
 	assert.ErrorIs(t, err, order.ErrAmountIsInvalid, "submitSpotOrder should reject an order without an amount")
 }
@@ -1004,6 +1422,8 @@ func TestSpotSubmitResponse(t *testing.T) {
 	})
 	require.NoError(t, err, "spotSubmitResponse must not error")
 	assert.Equal(t, order.New, resp.Status, "an order finished after a partial execution should be reported New for the order manager to settle")
+	assert.Equal(t, "c", resp.ClientOrderID, "spotSubmitResponse should report the client order ID Binance.US gave the order")
+	assert.Equal(t, time.UnixMilli(1794466395184), resp.LastUpdated, "spotSubmitResponse should report the placement as the order's last update")
 	assert.Equal(t, 0.6, resp.RemainingAmount, "spotSubmitResponse should report the remaining amount")
 	assert.Equal(t, 28000.0, resp.Cost, "spotSubmitResponse should report the cost")
 	assert.Equal(t, 70000.0, resp.AverageExecutedPrice, "spotSubmitResponse should report the average price")
@@ -1020,6 +1440,27 @@ func TestSpotSubmitResponse(t *testing.T) {
 	resp, err = ex.spotSubmitResponse(s, &NewOrderResponse{OrderID: 31, Status: "UNKNOWN"})
 	require.NoError(t, err, "spotSubmitResponse must not error for an unknown status")
 	assert.Equal(t, order.UnknownStatus, resp.Status, "an unknown status should be left unset")
+
+	t.Run("a market order's fills report their own prices, fee assets and the order's totals", func(t *testing.T) {
+		t.Parallel()
+		buy := &order.Submit{Exchange: "test", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Market, Amount: 1.1}
+		resp, err := ex.spotSubmitResponse(buy, &NewOrderResponse{
+			OrderID: 32, TransactTime: types.Time(time.UnixMilli(1794466395184)), OriginalQuantity: 1.1,
+			ExecutedQuantity: 0.5, CumulativeQuoteQuantity: 33300, Status: "EXPIRED",
+			Fills: []OrderFill{
+				{Price: 66500, Quantity: 0.25, Commission: 0.0001, CommissionAsset: currency.BNB, TradeID: 79},
+				{Price: 66700, Quantity: 0.25, Commission: 0.0001, CommissionAsset: currency.BNB, TradeID: 80},
+			},
+		})
+		require.NoError(t, err, "spotSubmitResponse must not error")
+		assert.Equal(t, 66600.0, resp.AverageExecutedPrice, "spotSubmitResponse should report the average price the order executed at")
+		assert.Equal(t, 33300.0, resp.Cost, "spotSubmitResponse should report the quote amount the fills cost")
+		assert.Equal(t, 0.6, resp.RemainingAmount, "spotSubmitResponse should report the quantity left to fill")
+		assert.Equal(t, []order.TradeHistory{
+			{Price: 66500, Amount: 0.25, Fee: 0.0001, Exchange: "test", TID: "79", Type: order.Market, Side: order.Buy, Timestamp: time.UnixMilli(1794466395184), FeeAsset: "BNB"},
+			{Price: 66700, Amount: 0.25, Fee: 0.0001, Exchange: "test", TID: "80", Type: order.Market, Side: order.Buy, Timestamp: time.UnixMilli(1794466395184), FeeAsset: "BNB"},
+		}, resp.Trades, "spotSubmitResponse should report each fill at its own price, with the asset its fee was taken in")
+	})
 }
 
 func TestNewOneCancelsTheOtherOrderRequest(t *testing.T) {
@@ -1048,6 +1489,16 @@ func TestNewOneCancelsTheOtherOrderRequest(t *testing.T) {
 		_, err := newOneCancelsTheOtherOrderRequest(&invalid)
 		assert.Errorf(t, err, "newOneCancelsTheOtherOrderRequest should reject a list with %s", name)
 	}
+
+	for _, limitPrice := range []float64{-1, -0.5, -math.SmallestNonzeroFloat64} {
+		t.Run("negative stop limit price "+strconv.FormatFloat(limitPrice, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			negative := s
+			negative.RiskManagementModes.StopLoss.LimitPrice = limitPrice
+			_, err := newOneCancelsTheOtherOrderRequest(&negative)
+			assert.ErrorIs(t, err, errNegativeStopLimitPrice, "newOneCancelsTheOtherOrderRequest should refuse a negative stop limit price")
+		})
+	}
 }
 
 func TestSubmitOneCancelsTheOtherOrder(t *testing.T) {
@@ -1072,6 +1523,19 @@ func TestSubmitOneCancelsTheOtherOrder(t *testing.T) {
 	})
 	require.NoError(t, err, "SubmitOrder must not report a placed order list as failed for a status it cannot read")
 	assert.Equal(t, "list-9", resp.OrderID, "SubmitOrder should return the placed order list")
+
+	t.Run("reports the list client order ID Binance.US generated", func(t *testing.T) {
+		t.Parallel()
+		ex := routedTestExchange(t, map[string]http.HandlerFunc{"POST /api/v3/order/oco": reply(t, nil, `{"orderListId":9,"contingencyType":"OCO","listOrderStatus":"EXECUTING","listClientOrderId":"JYVpp3F0f5CAG15DhtrqLp","transactionTime":1794466395184,"symbol":"BTCUSDT"}`)})
+		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange: ex.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Sell, Type: order.OCO,
+			Amount: 0.002, Price: 80000, TriggerPrice: 70000,
+		})
+		require.NoError(t, err, "SubmitOrder must not error")
+		assert.Equal(t, "JYVpp3F0f5CAG15DhtrqLp", resp.ClientOrderID, "SubmitOrder should report the list client order ID Binance.US generated")
+		assert.Equal(t, time.UnixMilli(1794466395184), resp.Date, "SubmitOrder should report the order list's transaction time as its date")
+		assert.Equal(t, time.UnixMilli(1794466395184), resp.LastUpdated, "SubmitOrder should report the order list's transaction time as its last update")
+	})
 }
 
 func TestModifyOrder(t *testing.T) {
@@ -1270,6 +1734,54 @@ func TestCancelAllOrders(t *testing.T) {
 	failing := routedTestExchange(t, map[string]http.HandlerFunc{"DELETE /api/v3/openOrders": replyError(t, -1021, "Timestamp for this request is outside of the recvWindow.")})
 	_, err = failing.CancelAllOrders(t.Context(), &order.Cancel{Exchange: failing.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSDT()})
 	assert.ErrorIs(t, err, errAPIResponse, "CancelAllOrders should return a pair's failed cancellation")
+
+	t.Run("one side or type is refused", func(t *testing.T) {
+		t.Parallel()
+		refusing := routedTestExchange(t, nil)
+		refused := []order.Cancel{{Side: order.Buy | order.Sell}}
+		for s := order.Side(1); s != 0; s <<= 1 {
+			if s != order.AnySide {
+				refused = append(refused, order.Cancel{Side: s}, order.Cancel{Side: s | order.AnySide})
+			}
+		}
+		for typ := order.Type(1); typ != 0; typ <<= 1 {
+			if typ != order.AnyType {
+				refused = append(refused, order.Cancel{Type: typ}, order.Cancel{Type: typ | order.AnyType})
+			}
+		}
+		for _, typ := range []order.Type{order.StopLimit, order.StopMarket, order.TakeProfitMarket, order.TakeProfitLimit, order.TrailingStopLimit, order.Bracket} {
+			refused = append(refused, order.Cancel{Type: typ})
+		}
+		for _, c := range refused {
+			for _, p := range []currency.Pair{currency.NewBTCUSDT(), currency.EMPTYPAIR} {
+				t.Run("side "+strconv.FormatUint(uint64(c.Side), 10)+" type "+strconv.FormatUint(uint64(c.Type), 10)+" pair "+p.String(), func(t *testing.T) {
+					t.Parallel()
+					_, err := refusing.CancelAllOrders(t.Context(), &order.Cancel{Exchange: refusing.Name, AssetType: asset.Spot, Pair: p, Side: c.Side, Type: c.Type})
+					assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders should refuse cancelling one side's or type's orders")
+				})
+			}
+		}
+	})
+
+	t.Run("any side and type", func(t *testing.T) {
+		t.Parallel()
+		cancelling := routedTestExchange(t, map[string]http.HandlerFunc{
+			"GET /api/v3/openOrders":    reply(t, url.Values{}, `[{"symbol":"BTCUSDT","orderId":1}]`),
+			"DELETE /api/v3/openOrders": reply(t, url.Values{"symbol": {"BTCUSDT"}}, `[{"orderId":1,"status":"CANCELED"}]`),
+		})
+		for _, side := range []order.Side{order.UnknownSide, order.AnySide} {
+			for _, typ := range []order.Type{order.UnknownType, order.AnyType} {
+				for _, p := range []currency.Pair{currency.NewBTCUSDT(), currency.EMPTYPAIR} {
+					t.Run(side.String()+" "+typ.String()+" pair "+p.String(), func(t *testing.T) {
+						t.Parallel()
+						resp, err := cancelling.CancelAllOrders(t.Context(), &order.Cancel{Exchange: cancelling.Name, AssetType: asset.Spot, Pair: p, Side: side, Type: typ})
+						require.NoError(t, err, "CancelAllOrders must not error")
+						assert.Equal(t, map[string]string{"1": "CANCELED"}, resp.Status, "CancelAllOrders should cancel the orders")
+					})
+				}
+			}
+		}
+	})
 }
 
 func TestSymbolPairs(t *testing.T) {
@@ -1600,6 +2112,15 @@ func TestPagedOrderHistory(t *testing.T) {
 	}
 	timeOf := func(r *record) time.Time { return r.at }
 	idOf := func(r *record) uint64 { return r.id }
+	// capped fails a pager that keeps requesting pages, as capRequests does for the HTTP tests
+	capped := func(fetchPage func(start, end time.Time) ([]record, error)) func(start, end time.Time) ([]record, error) {
+		var calls int
+		return func(start, end time.Time) ([]record, error) {
+			calls++
+			require.LessOrEqual(t, calls, 100, "pagedOrderHistory must not request more pages than any case needs")
+			return fetchPage(start, end)
+		}
+	}
 
 	var windows [][2]time.Time
 	fetch := func(records []record) func(start, end time.Time) ([]record, error) {
@@ -1617,45 +2138,45 @@ func TestPagedOrderHistory(t *testing.T) {
 	base := time.UnixMilli(1794380000000)
 	records := []record{{1, base}, {2, base.Add(time.Hour)}, {3, base.Add(2 * time.Hour)}, {4, base.Add(25 * time.Hour)}}
 
-	got, err := pagedOrderHistory(base, base.Add(30*time.Hour), 0, 24*time.Hour, 2, fetch(records), timeOf, idOf)
+	got, err := pagedOrderHistory(base, base.Add(30*time.Hour), 0, 24*time.Hour, 2, capped(fetch(records)), timeOf, idOf)
 	require.NoError(t, err, "pagedOrderHistory must not error")
 	assert.Equal(t, records, got, "pagedOrderHistory should collect every record over spans and full pages once each")
 	assert.Greater(t, len(windows), 2, "pagedOrderHistory should page within spans and across them")
 
 	windows = nil
-	got, err = pagedOrderHistory(base.Add(time.Hour), base.Add(2*time.Hour), 1, 24*time.Hour, 2, func(start, end time.Time) ([]record, error) {
+	got, err = pagedOrderHistory(base.Add(time.Hour), base.Add(2*time.Hour), 1, 24*time.Hour, 2, capped(func(start, end time.Time) ([]record, error) {
 		assert.True(t, start.IsZero() && end.IsZero(), "a request from an order ID should send no window")
 		return slices.Clone(records), nil
-	}, timeOf, idOf)
+	}), timeOf, idOf)
 	require.NoError(t, err, "pagedOrderHistory must not error from an order ID")
 	assert.Equal(t, []record{records[1], records[2]}, got, "a request from an order ID should apply the window to the records returned")
 
-	_, err = pagedOrderHistory(base.Add(time.Hour), base, 1, 24*time.Hour, 2, fetch(records), timeOf, idOf)
+	_, err = pagedOrderHistory(base.Add(time.Hour), base, 1, 24*time.Hour, 2, capped(fetch(records)), timeOf, idOf)
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd, "pagedOrderHistory should reject a reversed window")
 
 	// The order list history lists its most recent order lists first
 	windows = nil
 	descending := fetch(records)
-	got, err = pagedOrderHistory(base, base.Add(30*time.Hour), 0, 24*time.Hour, 2, func(start, end time.Time) ([]record, error) {
+	got, err = pagedOrderHistory(base, base.Add(30*time.Hour), 0, 24*time.Hour, 2, capped(func(start, end time.Time) ([]record, error) {
 		page, err := descending(start, end)
 		slices.Reverse(page)
 		return page, err
-	}, timeOf, idOf)
+	}), timeOf, idOf)
 	require.NoError(t, err, "pagedOrderHistory must not error for pages in descending order")
 	assert.Equal(t, records, got, "pagedOrderHistory should collect every record of pages in descending order once each, in time order")
 	assert.LessOrEqual(t, len(windows), 8, "pagedOrderHistory should page descending records as few times as ascending ones")
 
 	calls := 0
-	_, err = pagedOrderHistory(time.Time{}, time.Time{}, 0, 24*time.Hour, 2, func(time.Time, time.Time) ([]record, error) {
+	_, err = pagedOrderHistory(time.Time{}, time.Time{}, 0, 24*time.Hour, 2, capped(func(time.Time, time.Time) ([]record, error) {
 		calls++
 		return nil, nil
-	}, timeOf, idOf)
+	}), timeOf, idOf)
 	require.NoError(t, err, "pagedOrderHistory must not error without a window")
 	assert.Equal(t, 1, calls, "a request without a window should be one request")
 
 	windows = nil
 	within := base.Add(500 * time.Microsecond)
-	_, err = pagedOrderHistory(base, within, 0, 24*time.Hour, 2, fetch(records), timeOf, idOf)
+	_, err = pagedOrderHistory(base, within, 0, 24*time.Hour, 2, capped(fetch(records)), timeOf, idOf)
 	require.NoError(t, err, "pagedOrderHistory must not error for a window within one millisecond")
 	assert.Equal(t, [][2]time.Time{{base, within}}, windows, "a window within one millisecond should be one request for the window")
 
@@ -1675,18 +2196,18 @@ func TestPagedOrderHistory(t *testing.T) {
 	for i := range hourly {
 		hourly[i] = record{uint64(i + 1), base.Add(time.Duration(i) * time.Hour)}
 	}
-	got, err = pagedOrderHistory(base, base.Add(30*time.Hour), 0, 24*time.Hour, 2, newest(hourly), timeOf, idOf)
+	got, err = pagedOrderHistory(base, base.Add(30*time.Hour), 0, 24*time.Hour, 2, capped(newest(hourly)), timeOf, idOf)
 	require.NoError(t, err, "pagedOrderHistory must not error for a venue returning a window's most recent records")
 	assert.Equal(t, hourly, got, "pagedOrderHistory should page back through a span from its full first page's earliest record")
 
 	crowded := []record{{1, base}, {2, base.Add(5 * time.Hour)}, {3, base.Add(5 * time.Hour)}, {4, base.Add(5 * time.Hour)}}
-	got, err = pagedOrderHistory(base, base.Add(24*time.Hour), 0, 24*time.Hour, 2, newest(crowded), timeOf, idOf)
+	got, err = pagedOrderHistory(base, base.Add(24*time.Hour), 0, 24*time.Hour, 2, capped(newest(crowded)), timeOf, idOf)
 	require.NoError(t, err, "pagedOrderHistory must not error for a millisecond holding more records than a page")
 	assert.Equal(t, []record{crowded[0], crowded[3], crowded[2]}, got, "pagedOrderHistory should page past a millisecond holding more records than a page, forward and back")
 
 	edge := []record{{1, base}, {2, base.Add(2 * time.Hour)}, {3, base.Add(2 * time.Hour)}}
 	windows = nil
-	got, err = pagedOrderHistory(base, base.Add(2*time.Hour), 0, 24*time.Hour, 2, fetch(edge), timeOf, idOf)
+	got, err = pagedOrderHistory(base, base.Add(2*time.Hour), 0, 24*time.Hour, 2, capped(fetch(edge)), timeOf, idOf)
 	require.NoError(t, err, "pagedOrderHistory must not error for records in a span's last millisecond")
 	assert.Equal(t, edge, got, "pagedOrderHistory should page the span's last millisecond from the millisecond before it")
 	assert.Contains(t, windows, [2]time.Time{base.Add(2*time.Hour - time.Millisecond), base.Add(2 * time.Hour)}, "the span's last millisecond should be paged from the millisecond before it")
@@ -2090,30 +2611,4 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	assert.Equal(t, []string{"BTC"}, chains, "GetAvailableTransferChains should return the networks deposits are enabled on")
 	_, err = ex.GetAvailableTransferChains(t.Context(), currency.EMPTYCODE)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetAvailableTransferChains should reject an empty coin")
-}
-
-func TestSetupWithPreviousConfig(t *testing.T) {
-	t.Parallel()
-	// The configuration a previous version saved, from upstream's test configuration, holds neither the WebSocket API
-	// endpoint nor subscriptions, as that version had no WebSocket API connection and ignored configured subscriptions
-	raw, err := os.ReadFile("testdata/previous_config.json")
-	require.NoError(t, err, "ReadFile must not error")
-	for _, authenticated := range []bool{false, true} {
-		var exch config.Exchange
-		require.NoError(t, json.Unmarshal(raw, &exch), "the previous configuration must decode")
-		exch.API.AuthenticatedWebsocketSupport = authenticated
-		ex := new(Exchange)
-		ex.SetDefaults()
-		require.NoErrorf(t, ex.Setup(&exch), "Setup must not error with authenticated websocket support %t", authenticated)
-		u, err := ex.API.Endpoints.GetURL(exchange.WebsocketTrade)
-		require.NoError(t, err, "GetURL must not error")
-		assert.Equal(t, websocketAPIURL, u, "a previous configuration should take the WebSocket API's default endpoint")
-		assert.Equal(t, websocketAPIURL, exch.API.Endpoints[exchange.WebsocketTrade.String()], "Setup should save the WebSocket API endpoint to the configuration")
-		channels := make([]string, len(exch.Features.Subscriptions))
-		for i, s := range exch.Features.Subscriptions {
-			channels[i] = s.Channel
-		}
-		assert.Equal(t, []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel}, channels,
-			"a previous configuration should take the default subscriptions, the streams the previous version subscribed")
-	}
 }

@@ -265,6 +265,7 @@ type fakeConnection struct {
 	response  []byte
 	sendErr   error
 	sent      []any
+	limits    []request.EndpointLimit
 	matched   map[string][]byte
 	shutdowns int
 }
@@ -279,10 +280,11 @@ func (f *fakeConnection) IsConnected() bool {
 	return f.connected
 }
 
-func (f *fakeConnection) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, payload any) ([]byte, error) {
+func (f *fakeConnection) SendMessageReturnResponse(_ context.Context, epl request.EndpointLimit, _, payload any) ([]byte, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.sent = append(f.sent, payload)
+	f.limits = append(f.limits, epl)
 	return f.response, f.sendErr
 }
 
@@ -656,7 +658,7 @@ func TestSendSignedWebsocketAPIRequest(t *testing.T) {
 			}
 			return websocketAPIMock(tb, msg, w)
 		}, true)
-		require.True(t, ex.canUseWebsocketAPIForOrders(), "orders must go over the WebSocket API before a refusal")
+		require.True(t, ex.canUseWebsocketAPIForOrders(t.Context()), "orders must go over the WebSocket API before a refusal")
 		err := ex.SendSignedWebsocketAPIRequest(t.Context(), accountInformationRate, "account.status", nil, nil)
 		assert.ErrorIs(t, err, errAPIResponse, "SendSignedWebsocketAPIRequest should return the refusal")
 		require.Eventually(t, func() bool {
@@ -664,7 +666,7 @@ func TestSendSignedWebsocketAPIRequest(t *testing.T) {
 			return streamDials.Load() == 2 && ok && ex.WebsocketAPI().IsConnected()
 		}, 10*time.Second, 10*time.Millisecond, "the websocket must connect again and subscribe the User Data Stream")
 		assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "a refused request should leave authenticated websocket use on")
-		assert.False(t, ex.canUseWebsocketAPIForOrders(), "orders should go over REST once the WebSocket API refused the configured account's key")
+		assert.False(t, ex.canUseWebsocketAPIForOrders(t.Context()), "orders should go over REST once the WebSocket API refused the configured account's key")
 	})
 }
 

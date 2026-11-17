@@ -107,14 +107,14 @@ func TestSymbolsTickerLimit(t *testing.T) {
 		exp     request.EndpointLimit
 		weight  request.Weight
 	}{
-		{symbols: 0, exp: symbolsTickerAllRate, weight: 2},
-		{symbols: 1, exp: defaultRate, weight: 1},
-		{symbols: 2, exp: symbolsTickerAllRate, weight: 2},
-		{symbols: 100, exp: symbolsTickerAllRate, weight: 2},
+		{symbols: 0, exp: symbolsTickerAllRate, weight: 4},
+		{symbols: 1, exp: symbolsTickerOneRate, weight: 2},
+		{symbols: 2, exp: symbolsTickerAllRate, weight: 4},
+		{symbols: 100, exp: symbolsTickerAllRate, weight: 4},
 	} {
 		got := symbolsTickerLimit(tc.symbols)
 		assert.Equalf(t, tc.exp, got, "symbolsTickerLimit should pick the tier of %d symbols", tc.symbols)
-		assert.Equalf(t, tc.weight, endpointCosts[got].weight, "symbolsTickerLimit should charge %d symbols their documented weight", tc.symbols)
+		assert.Equalf(t, tc.weight, endpointCosts[got].weight, "symbolsTickerLimit should charge %d symbols the weight Binance.US charges", tc.symbols)
 	}
 }
 
@@ -125,16 +125,16 @@ func TestTicker24HourLimit(t *testing.T) {
 		exp     request.EndpointLimit
 		weight  request.Weight
 	}{
-		{symbols: 0, exp: ticker24HourAllRate, weight: 40},
-		{symbols: 1, exp: ticker24Hour20Rate, weight: 1},
-		{symbols: 20, exp: ticker24Hour20Rate, weight: 1},
-		{symbols: 21, exp: ticker24Hour100Rate, weight: 20},
-		{symbols: 100, exp: ticker24Hour100Rate, weight: 20},
-		{symbols: 101, exp: ticker24HourAllRate, weight: 40},
+		{symbols: 0, exp: ticker24HourAllRate, weight: 80},
+		{symbols: 1, exp: ticker24Hour20Rate, weight: 2},
+		{symbols: 20, exp: ticker24Hour20Rate, weight: 2},
+		{symbols: 21, exp: ticker24Hour100Rate, weight: 40},
+		{symbols: 100, exp: ticker24Hour100Rate, weight: 40},
+		{symbols: 101, exp: ticker24HourAllRate, weight: 80},
 	} {
 		got := ticker24HourLimit(tc.symbols)
 		assert.Equalf(t, tc.exp, got, "ticker24HourLimit should pick the tier of %d symbols", tc.symbols)
-		assert.Equalf(t, tc.weight, endpointCosts[got].weight, "ticker24HourLimit should charge %d symbols their documented weight", tc.symbols)
+		assert.Equalf(t, tc.weight, endpointCosts[got].weight, "ticker24HourLimit should charge %d symbols the weight Binance.US charges", tc.symbols)
 	}
 }
 
@@ -145,26 +145,26 @@ func TestRollingWindowTickerLimit(t *testing.T) {
 		exp     request.EndpointLimit
 		weight  request.Weight
 	}{
-		{symbols: 0, exp: rollingWindowTicker1Rate, weight: 2},
-		{symbols: 1, exp: rollingWindowTicker1Rate, weight: 2},
-		{symbols: 2, exp: rollingWindowTicker5Rate, weight: 10},
-		{symbols: 5, exp: rollingWindowTicker5Rate, weight: 10},
-		{symbols: 6, exp: rollingWindowTicker10Rate, weight: 20},
-		{symbols: 10, exp: rollingWindowTicker10Rate, weight: 20},
-		{symbols: 11, exp: rollingWindowTicker25Rate, weight: 50},
-		{symbols: 25, exp: rollingWindowTicker25Rate, weight: 50},
-		{symbols: 26, exp: rollingWindowTickerMaxRate, weight: 100},
-		{symbols: 50, exp: rollingWindowTickerMaxRate, weight: 100},
-		{symbols: 100, exp: rollingWindowTickerMaxRate, weight: 100},
-		{symbols: 101, exp: rollingWindowTickerMaxRate, weight: 100},
+		{symbols: 0, exp: rollingWindowTicker1Rate, weight: 4},
+		{symbols: 1, exp: rollingWindowTicker1Rate, weight: 4},
+		{symbols: 2, exp: rollingWindowTicker5Rate, weight: 20},
+		{symbols: 5, exp: rollingWindowTicker5Rate, weight: 20},
+		{symbols: 6, exp: rollingWindowTicker10Rate, weight: 40},
+		{symbols: 10, exp: rollingWindowTicker10Rate, weight: 40},
+		{symbols: 11, exp: rollingWindowTicker25Rate, weight: 100},
+		{symbols: 25, exp: rollingWindowTicker25Rate, weight: 100},
+		{symbols: 26, exp: rollingWindowTickerMaxRate, weight: 200},
+		{symbols: 50, exp: rollingWindowTickerMaxRate, weight: 200},
+		{symbols: 100, exp: rollingWindowTickerMaxRate, weight: 200},
+		{symbols: 101, exp: rollingWindowTickerMaxRate, weight: 200},
 	} {
 		got := rollingWindowTickerLimit(tc.symbols)
 		assert.Equalf(t, tc.exp, got, "rollingWindowTickerLimit should pick the tier of %d symbols", tc.symbols)
 		assert.Equalf(t, tc.weight, endpointCosts[got].weight, "rollingWindowTickerLimit should charge %d symbols the weight of their tier's largest count", tc.symbols)
 	}
 	for symbols := 1; symbols <= 100; symbols++ {
-		documented := min(2*symbols, 100)
-		assert.GreaterOrEqualf(t, int(endpointCosts[rollingWindowTickerLimit(symbols)].weight), documented, "rollingWindowTickerLimit should charge %d symbols at least their documented weight", symbols)
+		charged := min(4*symbols, 200)
+		assert.GreaterOrEqualf(t, int(endpointCosts[rollingWindowTickerLimit(symbols)].weight), charged, "rollingWindowTickerLimit should charge %d symbols at least the weight Binance.US charges", symbols)
 	}
 }
 

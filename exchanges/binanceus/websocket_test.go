@@ -161,6 +161,15 @@ func TestNewOrderbookSync(t *testing.T) {
 
 func TestWebsocketConnect(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("mock tests serve the market data streams from a local server")
+		}
+		ex, _ := newLiveStreamTestExchange(t)
+		assert.True(t, ex.Websocket.IsConnected(), "the market data streams should connect")
+	})
+
 	ex := newWebsocketTestExchange(t)
 	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}}
 	setup := ex.streamConnectionSetup(ex.Config)
@@ -183,13 +192,13 @@ func TestWebsocketHandleData(t *testing.T) {
 	assert.Contains(t, conn.matched, "7", "a subscription response should be matched to its request")
 
 	require.NoError(t, ex.wsHandleData(t.Context(), conn, streamFramesOf(t, "btcusdt@trade")[0]), "a trade frame must not error")
-	_, ok := (<-ex.Websocket.DataHandler.C).Data.([]trade.Data)
+	_, ok := relayed(t, ex).([]trade.Data)
 	assert.True(t, ok, "a trade frame should relay trades")
 	require.NoError(t, ex.wsHandleData(t.Context(), conn, streamFramesOf(t, "btcusdt@ticker")[0]), "a ticker frame must not error")
-	_, ok = (<-ex.Websocket.DataHandler.C).Data.(*ticker.Price)
+	_, ok = relayed(t, ex).(*ticker.Price)
 	assert.True(t, ok, "a ticker frame should relay a ticker")
 	require.NoError(t, ex.wsHandleData(t.Context(), conn, streamFramesOf(t, "btcusdt@kline_1m")[0]), "a kline frame must not error")
-	_, ok = (<-ex.Websocket.DataHandler.C).Data.(kline.Item)
+	_, ok = relayed(t, ex).(kline.Item)
 	assert.True(t, ok, "a kline frame should relay candles")
 	require.NoError(t, ex.wsHandleData(t.Context(), conn, streamFramesOf(t, "btcusdt@depth5@100ms")[0]), "a partial depth frame must not error")
 	book, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Spot)
@@ -272,7 +281,7 @@ func TestProcessTrade(t *testing.T) {
 	t.Parallel()
 	ex := newStreamTestExchange(t)
 	require.NoError(t, ex.processTrade(streamData(t, streamFramesOf(t, "btcusdt@trade")[0])), "processTrade must not error")
-	trades, ok := (<-ex.Websocket.DataHandler.C).Data.([]trade.Data)
+	trades, ok := relayed(t, ex).([]trade.Data)
 	require.True(t, ok, "processTrade must relay trades")
 	require.Len(t, trades, 1, "processTrade must relay the trade")
 	assert.Equal(t, "32183726", trades[0].TID, "processTrade should relay the trade ID")
@@ -285,7 +294,7 @@ func TestProcessTrade(t *testing.T) {
 	assert.Error(t, ex.processTrade([]byte(`{"t":"x"}`)), "processTrade should error for a payload that does not decode")
 
 	require.NoError(t, ex.processTrade([]byte(`{"e":"trade","E":1794465804511,"s":"BTCUSDT","t":32183727,"p":"73564.09","q":"0.001","T":1794465804510,"m":true}`)), "processTrade must not error for a trade the buyer made")
-	trades, ok = (<-ex.Websocket.DataHandler.C).Data.([]trade.Data)
+	trades, ok = relayed(t, ex).([]trade.Data)
 	require.True(t, ok, "processTrade must relay trades")
 	require.Len(t, trades, 1, "processTrade must relay the trade")
 	assert.Equal(t, order.Sell, trades[0].Side, "a trade whose buyer made the market should be a sell")
@@ -298,7 +307,7 @@ func TestProcessTicker(t *testing.T) {
 	t.Parallel()
 	ex := newStreamTestExchange(t)
 	require.NoError(t, ex.processTicker(t.Context(), streamData(t, streamFramesOf(t, "btcusdt@ticker")[0])), "processTicker must not error")
-	tick, ok := (<-ex.Websocket.DataHandler.C).Data.(*ticker.Price)
+	tick, ok := relayed(t, ex).(*ticker.Price)
 	require.True(t, ok, "processTicker must relay a ticker")
 	assert.Equal(t, 73711.61, tick.Close, "processTicker should report the previous close as the close, as the REST ticker does")
 	stored, err := ticker.GetTicker(ex.Name, currency.NewBTCUSDT(), asset.Spot)
@@ -317,7 +326,7 @@ func TestProcessKline(t *testing.T) {
 	require.Len(t, frames, 2, "the fixture must hold a closed and an open candle")
 	for i, partial := range []string{"", kline.PartialCandle} {
 		require.NoErrorf(t, ex.processKline(t.Context(), streamData(t, frames[i])), "processKline must not error for frame %d", i)
-		item, ok := (<-ex.Websocket.DataHandler.C).Data.(kline.Item)
+		item, ok := relayed(t, ex).(kline.Item)
 		require.Truef(t, ok, "processKline must relay candles for frame %d", i)
 		require.Lenf(t, item.Candles, 1, "processKline must relay one candle for frame %d", i)
 		assert.Equalf(t, partial, item.Candles[0].ValidationIssues, "processKline should flag an open candle as partial for frame %d", i)
@@ -429,6 +438,19 @@ func TestFetchOrderbookSnapshot(t *testing.T) {
 	stream := func() *subscription.Subscription {
 		return &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{p}}
 	}
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("mock tests serve the order book snapshots from a local server")
+		}
+		live := newWebsocketTestExchange(t)
+		require.NoError(t, live.Websocket.AddSuccessfulSubscriptions(nil, stream()), "AddSuccessfulSubscriptions must not error")
+		book, err := live.fetchOrderbookSnapshot(t.Context(), p, asset.Spot)
+		require.NoError(t, err, "fetchOrderbookSnapshot must not error")
+		assert.Positive(t, book.LastUpdateID, "fetchOrderbookSnapshot should return the snapshot's update ID")
+		assert.NotEmpty(t, book.Bids, "fetchOrderbookSnapshot should return the bids")
+	})
+
 	ex := routedTestExchange(t, map[string]http.HandlerFunc{
 		"GET /api/v3/depth": reply(t, url.Values{"symbol": {"BTCUSDT"}, "limit": {"1000"}}, `{"lastUpdateId":42,"bids":[["1","2"]],"asks":[["3","4"]]}`),
 	})
@@ -615,8 +637,36 @@ func newSubscriptionTestExchange(t *testing.T, modify ...func(*websocket.Connect
 	return ex, conn
 }
 
+// newLiveStreamTestExchange returns an exchange connected to Binance.US's market data streams with one trade stream
+func newLiveStreamTestExchange(t *testing.T) (*Exchange, websocket.Connection) {
+	t.Helper()
+	ex := newWebsocketTestExchange(t)
+	ex.Features.Subscriptions = subscription.List{}
+	setup := ex.streamConnectionSetup(ex.Config)
+	setup.GenerateSubscriptions = func() (subscription.List, error) {
+		return subscription.List{{Channel: subscription.AllTradesChannel, QualifiedChannel: "btcusdt@trade", Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}}}, nil
+	}
+	useWebsocket(t, ex, setup)
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	conn, err := ex.Websocket.GetConnection(asset.Spot)
+	require.NoError(t, err, "GetConnection must not error")
+	require.Equal(t, websocketStreamsURL, conn.GetURL(), "the market data streams must be Binance.US's")
+	return ex, conn
+}
+
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("mock tests serve the market data streams from a local server")
+		}
+		ex, conn := newLiveStreamTestExchange(t)
+		sub := &subscription.Subscription{Channel: subscription.TickerChannel, QualifiedChannel: "btcusdt@ticker", Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}}
+		require.NoError(t, ex.Subscribe(t.Context(), conn, subscription.List{sub}), "Subscribe must not error")
+		assert.Equal(t, subscription.SubscribedState, sub.State(), "Subscribe should mark the subscription subscribed")
+	})
+
 	ex, conn := newSubscriptionTestExchange(t)
 	sub := &subscription.Subscription{Channel: subscription.TickerChannel, QualifiedChannel: "btcusdt@ticker", Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}}
 	require.NoError(t, ex.Subscribe(t.Context(), conn, subscription.List{sub}), "Subscribe must not error")
@@ -625,6 +675,18 @@ func TestSubscribe(t *testing.T) {
 
 func TestUnsubscribe(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("mock tests serve the market data streams from a local server")
+		}
+		ex, conn := newLiveStreamTestExchange(t)
+		sub := &subscription.Subscription{Channel: subscription.TickerChannel, QualifiedChannel: "btcusdt@ticker", Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}}
+		require.NoError(t, ex.Subscribe(t.Context(), conn, subscription.List{sub}), "Subscribe must not error")
+		require.NoError(t, ex.Unsubscribe(t.Context(), conn, subscription.List{sub}), "Unsubscribe must not error")
+		assert.Nil(t, ex.Websocket.GetSubscription(sub), "Unsubscribe should remove the subscription")
+	})
+
 	ex, conn := newSubscriptionTestExchange(t)
 	sub := &subscription.Subscription{Channel: subscription.TickerChannel, QualifiedChannel: "btcusdt@ticker", Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}}
 	require.NoError(t, ex.Subscribe(t.Context(), conn, subscription.List{sub}), "Subscribe must not error")
@@ -659,7 +721,7 @@ func TestManageSubs(t *testing.T) {
 		}{
 			{name: "answered", stream: "btcusdt@depth@100ms", invalidated: true},
 			{name: "refused", stream: "fail@depth@100ms", err: websocket.ErrSubscriptionFailure},
-			{name: "unanswered", stream: "silent@depth@100ms", setup: func(s *websocket.ConnectionSetup) { s.ResponseMaxLimit = 100 * time.Millisecond }, err: websocket.ErrSignatureTimeout, invalidated: true},
+			{name: "unanswered", stream: "silent@depth@100ms", setup: func(s *websocket.ConnectionSetup) { s.ResponseMaxLimit = 2 * time.Second }, err: websocket.ErrSignatureTimeout, invalidated: true},
 			{name: "wait for the answer ended", stream: "silent@depth@100ms", setup: func(s *websocket.ConnectionSetup) { s.ResponseMaxLimit = time.Minute }, ctxTimeout: time.Second, err: context.DeadlineExceeded, invalidated: true},
 			{name: "wait to send refused for its deadline", stream: "btcusdt@depth@100ms", setup: hourLimit, ctxTimeout: time.Minute, err: context.DeadlineExceeded},
 			{name: "cancelled before sending", stream: "btcusdt@depth@100ms", setup: hourLimit, cancelled: true, err: context.Canceled},

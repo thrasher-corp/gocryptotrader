@@ -106,8 +106,8 @@ func (o *Orderbook) updateDepth(ctx context.Context, depth *orderbook.Depth, u *
 // takes it, so a data handler too full to take it is logged rather than returned: callers treat a returned error as the
 // book being out of sync, and would invalidate it and fetch it again for every update while the data handler stays full
 func (o *Orderbook) relay(ctx context.Context, depth *orderbook.Depth) {
-	if err := o.dataHandler.Send(ctx, depth); err != nil && o.verbose {
-		log.Warnf(log.WebsocketMgr, "%s websocket orderbook manager: %v", o.exchangeName, err)
+	if err := o.dataHandler.Send(ctx, depth); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s websocket orderbook manager: %v", o.exchangeName, err)
 	}
 }
 

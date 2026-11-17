@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -625,19 +626,23 @@ var (
 	errOrderListIDRequiresOCOType = errors.New("an order list ID pages order lists, which only the OCO type lists")
 	errTriggerPriceRequired       = errors.New("trigger price is required")
 	errTradeFeeNotFound           = errors.New("trade fee not found")
+	errQuoteAmountWithAmount      = errors.New("an order takes a base amount or a quote amount, not both")
+	errOrderOptionUnsupported     = errors.New("order option not supported")
+	errNegativeStopLimitPrice     = errors.New("stop limit price cannot be negative")
 )
 
 // canUseWebsocketAPIForOrders reports whether authenticated order requests can go through the WebSocket API: not once it
-// refused the configured account's key
-func (e *Exchange) canUseWebsocketAPIForOrders() bool {
-	return !e.websocketAPIKeyRejected.Load() && e.WebsocketAPI().IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper()
+// refused the configured account's key, nor for other credentials, as a refusal closes the connection all requests share
+func (e *Exchange) canUseWebsocketAPIForOrders(ctx context.Context) bool {
+	creds, err := e.GetCredentials(ctx)
+	return err == nil && e.isConfiguredAccount(creds) && !e.websocketAPIKeyRejected.Load() && e.WebsocketAPI().IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper()
 }
 
 // overWebsocketAPI reports whether a request naming an order or order list by its ID, byID, or by its client ID,
 // byClientID, goes through the WebSocket API. The WebSocket API uses one ID and ignores the other when both are set,
 // while REST checks that they name the same order, so such a request goes over REST
-func (e *Exchange) overWebsocketAPI(byID, byClientID bool) bool {
-	return (!byID || !byClientID) && e.canUseWebsocketAPIForOrders()
+func (e *Exchange) overWebsocketAPI(ctx context.Context, byID, byClientID bool) bool {
+	return (!byID || !byClientID) && e.canUseWebsocketAPIForOrders(ctx)
 }
 
 // logOrderIssue logs a value of an order that could not be converted, which leaves that value unset: a listing still
@@ -775,6 +780,62 @@ func checkUntimedSpotTimeInForce(orderType OrderType, tif order.TimeInForce) err
 	return nil
 }
 
+// checkSpotSubmitOptions refuses what a Binance.US spot order cannot carry, rather than placing the order without it: a
+// margin type other than cash, a quote amount beside a base amount, a trigger price on a type placed without one, a
+// trigger on a rising price where the order cannot take one, and options none of its order types take. An OCO order
+// list's stop loss limit price is the price of its stop limit order. A falling trigger cannot be refused, as it is
+// StopDirection's zero value
+func checkSpotSubmitOptions(s *order.Submit) error {
+	if s.MarginType != margin.Unset && s.MarginType != margin.NoMargin {
+		return fmt.Errorf("%w: %s for a %s order", margin.ErrMarginTypeUnsupported, s.MarginType, s.AssetType)
+	}
+	if s.Amount > 0 && s.QuoteAmount > 0 {
+		return errQuoteAmountWithAmount
+	}
+	risk := s.RiskManagementModes
+	if s.Type == order.OCO {
+		risk.StopLoss.Enabled, risk.StopLoss.LimitPrice = false, 0
+	}
+	switch {
+	case s.ReduceOnly:
+		return fmt.Errorf("%w: reduce only", errOrderOptionUnsupported)
+	case s.AutoBorrow, s.AutoRepay:
+		return fmt.Errorf("%w: borrowing", errOrderOptionUnsupported)
+	case !s.EndTime.IsZero():
+		return fmt.Errorf("%w: an end time", errOrderOptionUnsupported)
+	case s.TriggerPriceType != order.LastPrice:
+		return fmt.Errorf("%w: trigger price type %s", errOrderOptionUnsupported, s.TriggerPriceType)
+	case s.TrackingMode != order.UnknownTrackingMode, s.TrackingValue != 0, s.LimitTrackingMode != order.UnknownTrackingMode, s.LimitTrackingValue != 0:
+		return fmt.Errorf("%w: price tracking", errOrderOptionUnsupported)
+	case s.SlippageTolerance != 0:
+		return fmt.Errorf("%w: slippage tolerance", errOrderOptionUnsupported)
+	case s.TriggerPrice != 0 && (s.Type == order.Limit || s.Type == order.LimitMaker || s.Type == order.Market):
+		return fmt.Errorf("%w: a trigger price on a %s order", errOrderOptionUnsupported, s.Type)
+	case s.StopDirection == order.StopUp && risingTriggerUnsupported(s):
+		return fmt.Errorf("%w: a trigger on a rising price for a %s %s order", errOrderOptionUnsupported, s.Side, s.Type)
+	case risk != (order.RiskManagementModes{}):
+		return fmt.Errorf("%w: take profit or stop loss", errOrderOptionUnsupported)
+	}
+	return nil
+}
+
+// risingTriggerUnsupported reports whether an order of s's type and side cannot trigger as the price rises to its stop
+// price. Binance.US takes a stop price above the market price, and so triggers as the price rises, for a stop loss buy,
+// an OCO order list buy's stop loss and a take profit sell; other stop and take profit orders trigger as it falls, and
+// limit, limit maker and market orders have no trigger. A type Binance.US does not place is refused as such later
+func risingTriggerUnsupported(s *order.Submit) bool {
+	switch s.Type {
+	case order.Stop, order.StopLimit, order.StopMarket, order.OCO:
+		return !s.Side.IsLong()
+	case order.TakeProfit, order.TakeProfitLimit, order.TakeProfitMarket:
+		return !s.Side.IsShort()
+	case order.Limit, order.LimitMaker, order.Market:
+		return true
+	default:
+		return false
+	}
+}
+
 // SubmitOrder submits a new order through the WebSocket API when it can be used for orders and REST otherwise, asking
 // for the FULL reply, which reports the order's status and fills. A bare Stop or TakeProfit order is placed as the limit
 // type when Price is set and the market type otherwise, and a post only limit order as LIMIT_MAKER. An OCO order list is
@@ -789,6 +850,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 	if s.Leverage != 0 && s.Leverage != 1 {
 		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, s.Leverage)
+	}
+	if err := checkSpotSubmitOptions(s); err != nil {
+		return nil, err
 	}
 	if t := submittedOrderType(s); t != s.Type {
 		// The response reports the type placed, which the order store and type filters match exactly
@@ -830,7 +894,7 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit) (*order
 		NewClientOrderID:     s.ClientOrderID,
 		StopPrice:            v.stopPrice,
 		NewOrderResponseType: NewOrderResponseTypeFull,
-	}, e.canUseWebsocketAPIForOrders())
+	}, e.canUseWebsocketAPIForOrders(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -902,7 +966,11 @@ func newOneCancelsTheOtherOrderRequest(s *order.Submit) (*OneCancelsTheOtherOrde
 		Price:             s.Price,
 		StopPrice:         s.TriggerPrice,
 	}
-	if limitPrice := s.RiskManagementModes.StopLoss.LimitPrice; limitPrice > 0 {
+	limitPrice := s.RiskManagementModes.StopLoss.LimitPrice
+	if limitPrice < 0 {
+		return nil, errNegativeStopLimitPrice
+	}
+	if limitPrice > 0 {
 		req.StopLimitPrice = limitPrice
 		// The limit maker order is post only by type, so the time in force can only be the stop limit order's
 		if req.StopLimitTimeInForce, err = timeInForceString(s.TimeInForce &^ order.PostOnly); err != nil {
@@ -922,7 +990,7 @@ func (e *Exchange) submitOneCancelsTheOtherOrder(ctx context.Context, s *order.S
 	if err != nil {
 		return nil, err
 	}
-	list, err := e.newOneCancelsTheOtherOrder(ctx, req, e.canUseWebsocketAPIForOrders())
+	list, err := e.newOneCancelsTheOtherOrder(ctx, req, e.canUseWebsocketAPIForOrders(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -963,7 +1031,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 	cancelList := func(orderListID *uint64, listClientOrderID string) error {
-		_, err := e.cancelOneCancelsTheOtherOrder(ctx, &CancelOrderListRequest{Symbol: o.Pair, OrderListID: orderListID, ListClientOrderID: listClientOrderID}, e.overWebsocketAPI(orderListID != nil, listClientOrderID != ""))
+		_, err := e.cancelOneCancelsTheOtherOrder(ctx, &CancelOrderListRequest{Symbol: o.Pair, OrderListID: orderListID, ListClientOrderID: listClientOrderID}, e.overWebsocketAPI(ctx, orderListID != nil, listClientOrderID != ""))
 		return cancelError(err)
 	}
 	if isList {
@@ -984,7 +1052,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return nil
 		}
 	}
-	_, err = e.cancelExistingOrder(ctx, &CancelOrderRequest{Symbol: o.Pair, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID}, e.overWebsocketAPI(orderID != 0, o.ClientOrderID != ""))
+	_, err = e.cancelExistingOrder(ctx, &CancelOrderRequest{Symbol: o.Pair, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID}, e.overWebsocketAPI(ctx, orderID != 0, o.ClientOrderID != ""))
 	return cancelError(err)
 }
 
@@ -1070,16 +1138,24 @@ func (e *Exchange) CancelBatchOrders(context.Context, []order.Cancel) (*order.Ca
 
 // CancelAllOrders cancels the open orders and order lists of the request's pair, or of every symbol with open orders,
 // reporting each cancelled order's status; errors of individual symbols are returned together after every symbol has
-// been tried. The listing and cancellations draw on the cancel pool, so they do not wait on market data
+// been tried. Binance.US cancels a symbol's orders of every side and type together, so a cancellation of one side's or
+// one type's orders is refused. The listing and cancellations draw on the cancel pool, so they do not wait on market
+// data
 func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
 	if err := req.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
 	resp := order.CancelAllResponse{Status: make(map[string]string)}
+	if req.Side != order.UnknownSide && req.Side != order.AnySide {
+		return resp, fmt.Errorf("%w: cancelling the orders of one side, %s", common.ErrFunctionNotSupported, req.Side)
+	}
+	if req.Type != order.UnknownType && req.Type != order.AnyType {
+		return resp, fmt.Errorf("%w: cancelling the orders of one type, %s", common.ErrFunctionNotSupported, req.Type)
+	}
 	if req.AssetType != asset.Spot {
 		return resp, fmt.Errorf("%w: %s", asset.ErrNotSupported, req.AssetType)
 	}
-	useWebsocket := e.canUseWebsocketAPIForOrders()
+	useWebsocket := e.canUseWebsocketAPIForOrders(ctx)
 	pairs := currency.Pairs{req.Pair}
 	if req.Pair.IsEmpty() {
 		open, err := e.openOrders(ctx, currency.EMPTYPAIR, cancelAllListingRate, useWebsocket)
@@ -1188,14 +1264,14 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 
 // spotOrder returns pair's order orderID or, when orderID is 0, clientOrderID, drawing on f
 func (e *Exchange) spotOrder(ctx context.Context, pair currency.Pair, orderID uint64, clientOrderID string, f request.EndpointLimit) (*TradeOrderResponse, error) {
-	o, err := e.queryOrder(ctx, pair, clientOrderID, orderID, f, e.overWebsocketAPI(orderID != 0, clientOrderID != ""))
+	o, err := e.queryOrder(ctx, pair, clientOrderID, orderID, f, e.overWebsocketAPI(ctx, orderID != 0, clientOrderID != ""))
 	return o, cancelError(err)
 }
 
 // spotOrderList returns pair's OCO order list with orderListID, unless it is nil, and listClientOrderID, unless it is
 // empty, drawing on f. order.ErrOrderNotFound is returned when pair has no such OCO order list
 func (e *Exchange) spotOrderList(ctx context.Context, orderListID *uint64, listClientOrderID string, pair currency.Pair, f request.EndpointLimit) (*OneCancelsTheOtherOrderResponse, error) {
-	list, err := e.getOneCancelsTheOtherOrders(ctx, &QueryOrderListRequest{OrderListID: orderListID, OriginalClientOrderID: listClientOrderID}, f, e.overWebsocketAPI(orderListID != nil, listClientOrderID != ""))
+	list, err := e.getOneCancelsTheOtherOrders(ctx, &QueryOrderListRequest{OrderListID: orderListID, OriginalClientOrderID: listClientOrderID}, f, e.overWebsocketAPI(ctx, orderListID != nil, listClientOrderID != ""))
 	if err != nil {
 		return nil, cancelError(fmt.Errorf("error fetching order list: %w", err))
 	}
@@ -1337,7 +1413,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	if req.AssetType != asset.Spot {
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, req.AssetType)
 	}
-	useWebsocket := e.canUseWebsocketAPIForOrders()
+	useWebsocket := e.canUseWebsocketAPIForOrders(ctx)
 	var orders []order.Detail
 	if req.Type == order.OCO {
 		lists, err := e.getOpenOneCancelsTheOtherList(ctx, useWebsocket)

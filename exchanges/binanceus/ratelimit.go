@@ -66,11 +66,14 @@ const (
 	// General and market data
 	exchangeInfoRate
 	tradesRate
+	klinesRate
+	averagePriceRate
 	aggregatedTradesRate
 	orderbookDepth100Rate
 	orderbookDepth500Rate
 	orderbookDepth1000Rate
 	orderbookDepth5000Rate
+	symbolsTickerOneRate
 	symbolsTickerAllRate
 	ticker24Hour20Rate
 	ticker24Hour100Rate
@@ -127,29 +130,33 @@ type endpointCost struct {
 	weight request.Weight
 }
 
-// endpointCosts holds the documented weight of every endpoint limit except wsConnectionMessageRate. Order placements
-// cost their order count on the order pool, which binds before their request weight of 1 does; an OCO counts as two
-// orders
+// endpointCosts holds the weight Binance.US charges for every endpoint limit except wsConnectionMessageRate: the
+// documented weight, or twice it for klines, the average price and the price, book, 24hr and rolling window tickers.
+// Order placements cost their order count on the order pool, which binds before their request weight of 1 does; an OCO
+// counts as two orders
 var endpointCosts = map[request.EndpointLimit]endpointCost{
 	defaultRate: {ipPool, 1},
 	cancelRate:  {cancelPool, 1},
 
 	exchangeInfoRate:           {ipPool, 20},
 	tradesRate:                 {ipPool, 25},
+	klinesRate:                 {ipPool, 2},
+	averagePriceRate:           {ipPool, 2},
 	aggregatedTradesRate:       {ipPool, 4},
 	orderbookDepth100Rate:      {ipPool, 5},
 	orderbookDepth500Rate:      {ipPool, 25},
 	orderbookDepth1000Rate:     {ipPool, 50},
 	orderbookDepth5000Rate:     {ipPool, 250},
-	symbolsTickerAllRate:       {ipPool, 2},
-	ticker24Hour20Rate:         {ipPool, 1},
-	ticker24Hour100Rate:        {ipPool, 20},
-	ticker24HourAllRate:        {ipPool, 40},
-	rollingWindowTicker1Rate:   {ipPool, 2},
-	rollingWindowTicker5Rate:   {ipPool, 10},
-	rollingWindowTicker10Rate:  {ipPool, 20},
-	rollingWindowTicker25Rate:  {ipPool, 50},
-	rollingWindowTickerMaxRate: {ipPool, 100},
+	symbolsTickerOneRate:       {ipPool, 2},
+	symbolsTickerAllRate:       {ipPool, 4},
+	ticker24Hour20Rate:         {ipPool, 2},
+	ticker24Hour100Rate:        {ipPool, 40},
+	ticker24HourAllRate:        {ipPool, 80},
+	rollingWindowTicker1Rate:   {ipPool, 4},
+	rollingWindowTicker5Rate:   {ipPool, 20},
+	rollingWindowTicker10Rate:  {ipPool, 40},
+	rollingWindowTicker25Rate:  {ipPool, 100},
+	rollingWindowTickerMaxRate: {ipPool, 200},
 	tradingDayTicker1Rate:      {ipPool, 4},
 	tradingDayTicker5Rate:      {ipPool, 20},
 	tradingDayTicker10Rate:     {ipPool, 40},
@@ -213,11 +220,11 @@ func orderbookLimit(depth uint64) request.EndpointLimit {
 	}
 }
 
-// symbolsTickerLimit returns the limit of a price or book ticker request, which costs 1 for one symbol and 2 for several
+// symbolsTickerLimit returns the limit of a price or book ticker request, which costs 2 for one symbol and 4 for several
 // or every symbol
 func symbolsTickerLimit(symbols int) request.EndpointLimit {
 	if symbols == 1 {
-		return defaultRate
+		return symbolsTickerOneRate
 	}
 	return symbolsTickerAllRate
 }
@@ -234,7 +241,7 @@ func ticker24HourLimit(symbols int) request.EndpointLimit {
 	}
 }
 
-// rollingWindowTickerLimit returns the limit of a rolling window ticker request, which costs 2 for each symbol and 100
+// rollingWindowTickerLimit returns the limit of a rolling window ticker request, which costs 4 for each symbol and 200
 // from 50 symbols on. A limit has a fixed weight, so each tier charges for its largest symbol count
 func rollingWindowTickerLimit(symbols int) request.EndpointLimit {
 	switch {

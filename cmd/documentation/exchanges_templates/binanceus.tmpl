@@ -103,8 +103,8 @@ trades, candles and order books, whose diff depth streams are kept in sync with 
 
 + The WebSocket API connects to the `WebsocketTradeURL` endpoint when authenticated websocket support is enabled. It
 subscribes the configured account's User Data Stream, which streams balance and order updates, and the wrapper places
-and cancels orders over it while it is connected. Its requests are methods of `WebsocketAPI()`, named after their
-REST forms:
+and cancels that account's orders over it while it is connected, sending requests carrying other credentials over
+REST. Its requests are methods of `WebsocketAPI()`, named after their REST forms:
 
 ```go
 book, err := e.WebsocketAPI().GetOrderBook(ctx, &binanceus.OrderBookRequest{Symbol: currency.NewBTCUSDT(), Limit: 5})

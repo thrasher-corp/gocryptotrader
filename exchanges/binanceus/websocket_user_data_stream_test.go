@@ -228,6 +228,18 @@ func TestUserDataStreamsIsWanted(t *testing.T) {
 
 func TestWebsocketAuthenticateAPI(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("mock tests serve the User Data Stream from a local venue")
+		}
+		ex := newWebsocketAPITestExchange(t, true)
+		require.NoError(t, ex.WebsocketAuthenticateAPI(t.Context(), ex.wsAPI.get()), "WebsocketAuthenticateAPI must not error")
+		subs, err := ex.WebsocketAPI().GetUserDataStreamSubscriptions(t.Context())
+		require.NoError(t, err, "GetUserDataStreamSubscriptions must not error")
+		assert.Len(t, subs, 1, "WebsocketAuthenticateAPI should subscribe the configured account's stream")
+	})
+
 	venue := new(userDataStreamVenue)
 	ex := newUserDataTestExchange(t, venue)
 	conn := ex.wsAPI.get()
@@ -257,6 +269,20 @@ func TestWebsocketAuthenticateAPI(t *testing.T) {
 
 func TestSubscribeUserDataStream(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("mock tests serve the User Data Stream from a local venue")
+		}
+		ex := newWebsocketAPITestExchange(t, true)
+		resp, err := ex.subscribeUserDataStream(t.Context(), ex.wsAPI.get())
+		require.NoError(t, err, "subscribeUserDataStream must not error")
+		require.NotNil(t, resp, "subscribeUserDataStream must return the subscription")
+		creds, ok := ex.userData.credentials(resp.SubscriptionID)
+		require.True(t, ok, "subscribeUserDataStream must record the subscription")
+		assert.True(t, ex.isConfiguredAccount(creds), "the subscription should be recorded under the configured account")
+	})
+
 	venue := new(userDataStreamVenue)
 	ex := newUserDataTestExchange(t, venue)
 	conn := ex.wsAPI.get()
@@ -382,6 +408,21 @@ func TestIsConfiguredAccount(t *testing.T) {
 
 func TestWebsocketAPISubscribeUserDataStream(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("mock tests serve the User Data Stream from a local venue")
+		}
+		ex := newWebsocketAPITestExchange(t, true)
+		resp, err := ex.WebsocketAPI().SubscribeUserDataStream(t.Context())
+		require.NoError(t, err, "SubscribeUserDataStream must not error")
+		require.NotNil(t, resp, "SubscribeUserDataStream must return the subscription")
+		subs, err := ex.WebsocketAPI().GetUserDataStreamSubscriptions(t.Context())
+		require.NoError(t, err, "GetUserDataStreamSubscriptions must not error")
+		assert.Contains(t, subs, *resp, "GetUserDataStreamSubscriptions should list the subscription")
+		assert.NoError(t, ex.WebsocketAPI().UnsubscribeUserDataStream(t.Context(), resp.SubscriptionID), "UnsubscribeUserDataStream should not error")
+	})
+
 	_, err := newWebsocketTestExchange(t).WebsocketAPI().SubscribeUserDataStream(t.Context())
 	require.ErrorIs(t, err, websocket.ErrNotConnected, "SubscribeUserDataStream must error while disconnected")
 
@@ -396,6 +437,17 @@ func TestWebsocketAPISubscribeUserDataStream(t *testing.T) {
 
 func TestWebsocketAPIUnsubscribeUserDataStream(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("mock tests serve the User Data Stream from a local venue")
+		}
+		err := newWebsocketAPITestExchange(t, false).WebsocketAPI().UnsubscribeUserDataStream(t.Context(), 0)
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "UnsubscribeUserDataStream must return Binance.US's refusal on a connection without subscriptions")
+		assert.Equal(t, int64(userDataStreamNotActiveCode), apiErr.Code, "UnsubscribeUserDataStream should be refused as the subscription is not active")
+	})
+
 	venue := new(userDataStreamVenue)
 	ex := newUserDataTestExchange(t, venue)
 	resp, err := ex.WebsocketAPI().SubscribeUserDataStream(t.Context())
@@ -407,6 +459,17 @@ func TestWebsocketAPIUnsubscribeUserDataStream(t *testing.T) {
 
 func TestWebsocketAPIUnsubscribeAllUserDataStreams(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("mock tests serve the User Data Stream from a local venue")
+		}
+		err := newWebsocketAPITestExchange(t, false).WebsocketAPI().UnsubscribeAllUserDataStreams(t.Context())
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "UnsubscribeAllUserDataStreams must return Binance.US's refusal on a connection without subscriptions")
+		assert.Equal(t, int64(userDataStreamNotActiveCode), apiErr.Code, "UnsubscribeAllUserDataStreams should be refused as no subscription is active")
+	})
+
 	venue := new(userDataStreamVenue)
 	ex := newUserDataTestExchange(t, venue)
 	require.NoError(t, ex.WebsocketAPI().UnsubscribeAllUserDataStreams(t.Context()), "UnsubscribeAllUserDataStreams must not error")
@@ -417,6 +480,16 @@ func TestWebsocketAPIUnsubscribeAllUserDataStreams(t *testing.T) {
 
 func TestWebsocketAPIGetUserDataStreamSubscriptions(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("mock tests serve the User Data Stream from a local venue")
+		}
+		resp, err := newWebsocketAPITestExchange(t, false).WebsocketAPI().GetUserDataStreamSubscriptions(t.Context())
+		require.NoError(t, err, "GetUserDataStreamSubscriptions must not error")
+		assert.Empty(t, resp, "a new connection should have no User Data Stream subscription")
+	})
+
 	venue := new(userDataStreamVenue)
 	ex := newUserDataTestExchange(t, venue)
 	resp, err := ex.WebsocketAPI().GetUserDataStreamSubscriptions(t.Context())
@@ -717,6 +790,7 @@ func TestProcessExecutionReport(t *testing.T) {
 		detail, ok = relayed(t, ex).(*order.Detail)
 		require.Truef(t, ok, "a %s order must be relayed as an order detail", orderType)
 		assert.Equalf(t, exp, detail.Type, "a %s order should be relayed with its type", orderType)
+		assert.Equalf(t, 69900.0, detail.TriggerPrice, "a %s order should be relayed with its stop price", orderType)
 	}
 
 	for name, frame := range map[string]string{
@@ -733,6 +807,47 @@ func TestProcessExecutionReport(t *testing.T) {
 
 	assert.ErrorIs(t, ex.processExecutionReport(ctx, []byte(`{"s":"NOTAPAIR"}`)), currency.ErrPairNotFound, "processExecutionReport should error for an unknown symbol")
 	assert.Error(t, ex.processExecutionReport(ctx, []byte(`{"s":1}`)), "processExecutionReport should error for an event that does not decode")
+
+	t.Run("a later fill reports the order's totals and the fill's own amounts", func(t *testing.T) {
+		t.Parallel()
+		ex := subscribedUserDataTestExchange(t)
+		frame := `{"e":"executionReport","E":1499405658801,"s":"BTCUSDT","c":"mUvoqJxFIILMdfAW5iGSOW","S":"SELL","o":"LIMIT_MAKER","f":"GTC","q":"1.10000000","p":"2.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":4293153,"l":"0.25000000","z":"0.50000000","L":"2.10000000","n":"0.002","N":"BNB","T":1499405658800,"t":78,"I":8641986,"w":true,"m":true,"M":false,"O":1499405658657,"Z":"1.02500000","Y":"0.52500000","Q":"0.00000000","V":"EXPIRE_MAKER","W":1499405658657}`
+		require.NoError(t, ex.processExecutionReport(t.Context(), []byte(frame)), "processExecutionReport must not error for a later fill")
+		assert.Equal(t, &order.Detail{
+			Price: 2, Amount: 1.1, AverageExecutedPrice: 2.05, ExecutedAmount: 0.5, RemainingAmount: 0.6, Cost: 1.025,
+			CostAsset: currency.USDT, FeeAsset: currency.BNB, Exchange: ex.Name, OrderID: "4293153", ClientOrderID: "mUvoqJxFIILMdfAW5iGSOW",
+			Type: order.LimitMaker, Side: order.Sell, Status: order.PartiallyFilled, AssetType: asset.Spot,
+			Date: time.UnixMilli(1499405658657), LastUpdated: time.UnixMilli(1499405658800), Pair: currency.NewBTCUSDT(), TimeInForce: order.PostOnly,
+			Trades: []order.TradeHistory{{
+				Price: 2.1, Amount: 0.25, Fee: 0.002, FeeAsset: "BNB", Exchange: ex.Name, TID: "78", Type: order.LimitMaker,
+				Side: order.Sell, Timestamp: time.UnixMilli(1499405658800), IsMaker: true, Total: 0.525,
+			}},
+		}, relayed(t, ex), "a later fill should report the order's cumulative amounts and the fill's own")
+	})
+
+	t.Run("a maker fill completing its order is reported as made", func(t *testing.T) {
+		t.Parallel()
+		ex := subscribedUserDataTestExchange(t)
+		frame := `{"e":"executionReport","E":1499405658901,"s":"BTCUSDT","c":"completedMakerOrder","S":"BUY","o":"LIMIT","f":"GTC","q":"0.50000000","p":"2.00000000","x":"TRADE","X":"FILLED","i":4293155,"l":"0.50000000","z":"0.50000000","L":"2.00000000","n":"0.001","N":"BNB","T":1499405658900,"t":81,"w":false,"m":true,"O":1499405658657,"Z":"1.00000000","Y":"1.00000000"}`
+		require.NoError(t, ex.processExecutionReport(t.Context(), []byte(frame)), "processExecutionReport must not error for a filled order")
+		detail, ok := relayed(t, ex).(*order.Detail)
+		require.True(t, ok, "a filled order must be relayed as an order detail")
+		require.Len(t, detail.Trades, 1, "a filled order must be relayed with its fill")
+		assert.True(t, detail.Trades[0].IsMaker, "a fill the order made should be reported as the maker's, whether or not the order stays on the book")
+	})
+
+	t.Run("a quote sized market order reports its quote amount", func(t *testing.T) {
+		t.Parallel()
+		ex := subscribedUserDataTestExchange(t)
+		frame := `{"e":"executionReport","E":1499405658801,"s":"BTCUSDT","c":"quoteSizedOrder","S":"BUY","o":"MARKET","f":"GTC","q":"0.00150000","p":"0.00000000","P":"0.00000000","x":"TRADE","X":"FILLED","i":4293154,"l":"0.00150000","z":"0.00150000","L":"66600.00000000","n":"0","N":"BTC","T":1499405658800,"t":79,"O":1499405658800,"Z":"99.90000000","Y":"99.90000000","Q":"100.00000000","m":false,"w":false}`
+		require.NoError(t, ex.processExecutionReport(t.Context(), []byte(frame)), "processExecutionReport must not error for a quote sized market order")
+		detail, ok := relayed(t, ex).(*order.Detail)
+		require.True(t, ok, "a quote sized market order must be relayed as an order detail")
+		assert.Equal(t, 100.0, detail.QuoteAmount, "a quote sized market order should report the quote amount it was placed for")
+		require.Len(t, detail.Trades, 1, "a filled market order must relay its fill")
+		assert.False(t, detail.Trades[0].IsMaker, "a market order's fill should be reported as the taker's")
+		assert.Equal(t, time.UnixMilli(1499405658800), detail.Date, "a quote sized market order should report when it was created")
+	})
 }
 
 func TestProcessListStatus(t *testing.T) {

@@ -833,7 +833,8 @@ func (m *Manager) teardown() (nonFatalCloseConnectionErrors, err error) {
 	m.Wg.Wait()
 	m.ShutdownC = make(chan struct{})
 	if m.invalidateOrderbooksOnShutdown {
-		// The readers have stopped, so no snapshot the websocket loads can follow the invalidation
+		// The readers have stopped, so no frame they handle loads a book after the invalidation; a snapshot fetch still
+		// in flight can, so an exchange opting in has to defer REST snapshots only to books its streams still maintain
 		m.Orderbook.InvalidateWebsocketOrderbooks()
 	}
 

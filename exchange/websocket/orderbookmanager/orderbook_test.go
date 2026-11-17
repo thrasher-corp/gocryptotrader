@@ -2,8 +2,10 @@ package orderbookmanager
 
 import (
 	"context"
+	"fmt"
 	"math/rand/v2"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -16,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -458,8 +461,43 @@ func TestLoadSnapshot(t *testing.T) {
 	assert.Equal(t, int64(2), lastUpdateID, "LoadSnapshot should load the snapshot when the relay is full")
 }
 
+// logLine is a line the global logger was given, with its level's header
+type logLine struct {
+	header, message string
+}
+
+// captureLogs sets the global logger up with its default headers and hands every line it is given to the returned
+// function, which returns and forgets the lines given so far, until the test ends. The logger and its hook are
+// process-wide, so a caller must not run in parallel
+func captureLogs(t *testing.T) func() []logLine {
+	t.Helper()
+	var mu sync.Mutex
+	var logged []logLine
+	require.NoError(t, gctlog.SetGlobalLogConfig(gctlog.GenDefaultSettings()), "SetGlobalLogConfig must not error")
+	require.NoError(t, gctlog.SetupGlobalLogger(t.Name(), false), "SetupGlobalLogger must not error")
+	gctlog.SetCustomLogHook(func(header, _ string, a ...any) bool {
+		mu.Lock()
+		logged = append(logged, logLine{header: header, message: fmt.Sprint(a...)})
+		mu.Unlock()
+		return true
+	})
+	t.Cleanup(func() {
+		gctlog.SetCustomLogHook(nil)
+		assert.NoError(t, gctlog.SetGlobalLogConfig(&gctlog.Config{}), "SetGlobalLogConfig should not error")
+	})
+	return func() []logLine {
+		mu.Lock()
+		defer mu.Unlock()
+		lines := logged
+		logged = nil
+		return lines
+	}
+}
+
 func TestRelay(t *testing.T) {
-	t.Parallel()
+	// Not parallel: the log hook and log config are process-wide
+	logged := captureLogs(t)
+	errorHeader := gctlog.GenDefaultSettings().AdvancedSettings.Headers.Error
 	cp, err := getExclusivePair()
 	require.NoError(t, err, "getExclusivePair must not error")
 	depth, err := orderbook.DeployDepth("TestRelay", cp, asset.Spot)
@@ -472,10 +510,19 @@ func TestRelay(t *testing.T) {
 		assert.Same(t, depth, payload.Data, "relay should send the depth")
 
 		require.NoError(t, obl.dataHandler.Send(t.Context(), "full"), "Send must not error while filling the relay")
+		logged()
 		obl.relay(t.Context(), depth)
 		require.Len(t, obl.dataHandler.C, 1, "relay must leave a full relay as it was")
 		payload = <-obl.dataHandler.C
 		assert.Equal(t, "full", payload.Data, "relay should not replace what a full relay holds")
+		var dropped []logLine
+		for _, line := range logged() {
+			if strings.Contains(line.message, "TestRelay websocket orderbook manager") {
+				dropped = append(dropped, line)
+			}
+		}
+		require.Lenf(t, dropped, 1, "relay must log the book a full relay drops when verbose is %v", verbose)
+		assert.Equalf(t, errorHeader, dropped[0].header, "relay should log the book a full relay drops at ERROR when verbose is %v", verbose)
 	}
 }
 

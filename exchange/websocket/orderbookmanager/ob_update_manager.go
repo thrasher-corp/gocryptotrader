@@ -178,7 +178,7 @@ func (m *UpdateManager) loadCache(p currency.Pair, a asset.Item) (*updateCache, 
 func (m *UpdateManager) applyUpdate(ctx context.Context, cache *updateCache, firstUpdateID int64, update *orderbook.Update) error {
 	lastUpdateID, err := m.ob.LastUpdateID(update.Pair, update.Asset)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
+		m.logLastUpdateIDError(update, err)
 		return m.invalidateCache(ctx, firstUpdateID, update, cache, 0)
 	}
 	if lastUpdateID+1 != firstUpdateID {
@@ -201,7 +201,7 @@ func (m *UpdateManager) applyUpdate(ctx context.Context, cache *updateCache, fir
 func (m *UpdateManager) applyFirstUpdate(ctx context.Context, cache *updateCache, firstUpdateID int64, update *orderbook.Update) error {
 	lastUpdateID, err := m.ob.LastUpdateID(update.Pair, update.Asset)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
+		m.logLastUpdateIDError(update, err)
 		return m.invalidateCache(ctx, firstUpdateID, update, cache, 0)
 	}
 	skip, err := m.checkPendingUpdate(lastUpdateID, firstUpdateID, update)
@@ -220,6 +220,16 @@ func (m *UpdateManager) applyFirstUpdate(ctx context.Context, cache *updateCache
 	}
 	cache.state = cacheStateSynced
 	return nil
+}
+
+// logLastUpdateIDError logs a failure to read the book's update ID; a book invalidated meanwhile, as when the websocket
+// shut down, synchronises again as a desynchronised one does
+func (m *UpdateManager) logLastUpdateIDError(update *orderbook.Update, err error) {
+	if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
+		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
+	} else if m.ob.verbose {
+		log.Warnf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
+	}
 }
 
 // initialiseOrderbookCache sets the cache state to queuing, appends the update to the cache and spawns a goroutine

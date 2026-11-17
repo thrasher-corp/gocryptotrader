@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -76,6 +77,18 @@ func TestWebsocketAPIGetOrderBook(t *testing.T) {
 
 func TestWebsocketAPIGetSpotKline(t *testing.T) {
 	t.Parallel()
+	t.Run("draws on the weight Binance.US charges", func(t *testing.T) {
+		t.Parallel()
+		ex, _, _ := newTwoServerTestExchange(t, websocketAPIMock, false)
+		conn := newFakeConnection()
+		conn.response = []byte(`{"status":200,"result":[]}`)
+		ex.wsAPI.set(conn, time.Second)
+		_, err := ex.WebsocketAPI().GetSpotKline(t.Context(), &KlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneHour})
+		require.NoError(t, err, "GetSpotKline must not error")
+		require.Len(t, conn.limits, 1, "GetSpotKline must send one request")
+		assert.Equal(t, request.Weight(2), endpointCosts[conn.limits[0]].weight, "GetSpotKline should draw on the weight Binance.US charges for klines")
+	})
+
 	ex := newWebsocketAPITestExchange(t, false)
 	result, err := ex.WebsocketAPI().GetSpotKline(t.Context(), &KlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneHour, StartTime: time.UnixMilli(1794459600000), EndTime: time.UnixMilli(1794466799999), Limit: 2})
 	require.NoError(t, err, "GetSpotKline must not error")
@@ -112,6 +125,18 @@ func TestWebsocketAPIGetLatestSpotPrice(t *testing.T) {
 
 func TestWebsocketAPIGetAveragePrice(t *testing.T) {
 	t.Parallel()
+	t.Run("draws on the weight Binance.US charges", func(t *testing.T) {
+		t.Parallel()
+		ex, _, _ := newTwoServerTestExchange(t, websocketAPIMock, false)
+		conn := newFakeConnection()
+		conn.response = []byte(`{"status":200,"result":{"mins":5,"price":"1","closeTime":1794478351810}}`)
+		ex.wsAPI.set(conn, time.Second)
+		_, err := ex.WebsocketAPI().GetAveragePrice(t.Context(), currency.NewBTCUSDT())
+		require.NoError(t, err, "GetAveragePrice must not error")
+		require.Len(t, conn.limits, 1, "GetAveragePrice must send one request")
+		assert.Equal(t, request.Weight(2), endpointCosts[conn.limits[0]].weight, "GetAveragePrice should draw on the weight Binance.US charges for the average price")
+	})
+
 	ex := newWebsocketAPITestExchange(t, false)
 	result, err := ex.WebsocketAPI().GetAveragePrice(t.Context(), currency.NewBTCUSDT())
 	require.NoError(t, err, "GetAveragePrice must not error")

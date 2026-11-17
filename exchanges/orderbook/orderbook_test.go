@@ -225,8 +225,7 @@ func TestBookGetDepth(t *testing.T) {
 	assert.True(t, result.pair.Equal(pair))
 }
 
-func TestStoreUpdate(t *testing.T) {
-	t.Parallel()
+func TestStoreUpdate(t *testing.T) { //nolint:tparallel // The publication case is serial: while a subscriber exists, every publication in the package queues on the global dispatcher
 	websocketBook := func(t *testing.T, name string, p currency.Pair) {
 		t.Helper()
 		d, err := DeployDepth(name, p, asset.Spot)
@@ -288,6 +287,28 @@ func TestStoreUpdate(t *testing.T) {
 			assert.Equal(t, int64(7), got.LastUpdateID, "Update should leave the websocket book's last update")
 		})
 	}
+
+	t.Run("a REST snapshot left unloaded is not published", func(t *testing.T) {
+		name, p := t.Name(), currency.NewBTCUSDT()
+		websocketBook(t, name, p)
+		pipe, err := SubscribeToExchangeOrderbooks(name)
+		require.NoError(t, err, "SubscribeToExchangeOrderbooks must not error")
+		t.Cleanup(func() { assert.NoError(t, pipe.Release(), "Release should not error") })
+		d, err := GetDepth(name, p, asset.Spot)
+		require.NoError(t, err, "GetDepth must not error")
+		d.Publish()
+		select {
+		case <-pipe.Channel():
+		case <-time.After(time.Second):
+			require.FailNow(t, "the websocket book's publication must reach the subscriber")
+		}
+		require.NoError(t, s.Update(&Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 2, Amount: 1}}, Asks: Levels{{Price: 5, Amount: 1}}, LastUpdated: time.Now(), DeferToWebsocketWithin: time.Minute}), "Update must not error")
+		select {
+		case <-pipe.Channel():
+			assert.Fail(t, "Update should not publish a REST snapshot it leaves unloaded")
+		case <-time.After(100 * time.Millisecond):
+		}
+	})
 }
 
 func TestStoreTrack(t *testing.T) {

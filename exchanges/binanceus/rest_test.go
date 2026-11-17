@@ -328,27 +328,27 @@ func TestSendAuthHTTPRequest(t *testing.T) {
 		require.NotNil(t, resp, "SendAuthHTTPRequest must decode the response")
 		assert.NotEmpty(t, resp.AccountType, "SendAuthHTTPRequest should decode the account")
 	})
-}
 
-func TestSendAuthHTTPRequestRenewsTimestamp(t *testing.T) {
-	t.Parallel()
-	var attempts atomic.Int32
-	var timestamps [2]string
-	ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		n := attempts.Add(1)
-		if n <= 2 {
-			timestamps[n-1] = r.URL.Query().Get("timestamp")
-		}
-		if n == 1 {
-			time.Sleep(2 * time.Millisecond)
-			w.WriteHeader(http.StatusTooManyRequests)
-			return
-		}
-		writeResponse(t, w, `{}`)
+	t.Run("a retry is signed with a new timestamp", func(t *testing.T) {
+		t.Parallel()
+		var attempts atomic.Int32
+		var timestamps [2]string
+		ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			n := attempts.Add(1)
+			if n <= 2 {
+				timestamps[n-1] = r.URL.Query().Get("timestamp")
+			}
+			if n == 1 {
+				time.Sleep(2 * time.Millisecond)
+				w.WriteHeader(http.StatusTooManyRequests)
+				return
+			}
+			writeResponse(t, w, `{}`)
+		})
+		require.NoError(t, ex.SendAuthHTTPRequest(t.Context(), exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/account", nil, defaultRate, nil), "SendAuthHTTPRequest must not error once a retry succeeds")
+		require.Equal(t, int32(2), attempts.Load(), "SendAuthHTTPRequest must retry the rate limited request once")
+		assert.NotEqual(t, timestamps[0], timestamps[1], "SendAuthHTTPRequest should sign a retry with a new timestamp")
 	})
-	require.NoError(t, ex.SendAuthHTTPRequest(t.Context(), exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/account", nil, defaultRate, nil), "SendAuthHTTPRequest must not error once a retry succeeds")
-	require.Equal(t, int32(2), attempts.Load(), "SendAuthHTTPRequest must retry the rate limited request once")
-	assert.NotEqual(t, timestamps[0], timestamps[1], "SendAuthHTTPRequest should sign a retry with a new timestamp")
 }
 
 func TestSendAPIKeyHTTPRequest(t *testing.T) {

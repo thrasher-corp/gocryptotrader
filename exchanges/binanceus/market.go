@@ -209,7 +209,7 @@ func (e *Exchange) getSpotKline(ctx context.Context, req *KlinesRequest, useWebs
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
 	var resp []CandleStickResponse
-	return resp, e.sendPublicRequest(ctx, useWebsocket, "/api/v3/klines", "klines", params, defaultRate, &resp)
+	return resp, e.sendPublicRequest(ctx, useWebsocket, "/api/v3/klines", "klines", params, klinesRate, &resp)
 }
 
 // GetLatestSpotPrice returns the symbol price ticker: the latest price of each symbol, or of every symbol when none are
@@ -243,7 +243,7 @@ func (e *Exchange) getAveragePrice(ctx context.Context, symbol currency.Pair, us
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	var resp *AveragePriceResponse
-	return resp, e.sendPublicRequest(ctx, useWebsocket, "/api/v3/avgPrice", "avgPrice", params, defaultRate, &resp)
+	return resp, e.sendPublicRequest(ctx, useWebsocket, "/api/v3/avgPrice", "avgPrice", params, averagePriceRate, &resp)
 }
 
 // GetBestPrice returns the symbol order book ticker: the best bid and ask price and quantity of each symbol, or of
