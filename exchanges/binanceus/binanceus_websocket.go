@@ -628,7 +628,7 @@ func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 				}
 				continue
 			}
-			for {
+			for { // Discard pending jobs on cancellation or websocket shutdown.
 				select {
 				case <-e.obm.jobs:
 				default:
