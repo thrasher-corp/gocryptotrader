@@ -723,7 +723,7 @@ func TestStoreUpdatePublication(t *testing.T) {
 	d.Publish()
 	select {
 	case <-pipe.Channel():
-	case <-time.After(time.Second):
+	case <-time.After(5 * time.Second):
 		require.FailNow(t, "the websocket book's publication must reach the subscriber")
 	}
 	require.NoError(t, s.Update(&Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 2, Amount: 1}}, Asks: Levels{{Price: 5, Amount: 1}}, LastUpdated: time.Now(), DeferToWebsocketWithin: time.Minute}), "Update must not error")
@@ -732,4 +732,35 @@ func TestStoreUpdatePublication(t *testing.T) {
 		assert.Fail(t, "Update should not publish a REST snapshot it leaves unloaded")
 	case <-time.After(100 * time.Millisecond):
 	}
+	published := func(t *testing.T, msg string) {
+		t.Helper()
+		select {
+		case <-pipe.Channel():
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, msg)
+		}
+	}
+	t.Run("deferring snapshot over an invalidated websocket book", func(t *testing.T) {
+		d.InvalidateWebsocketSnapshot(errors.New("test"))
+		require.NoError(t, s.Update(&Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 2, Amount: 1}}, Asks: Levels{{Price: 5, Amount: 1}}, LastUpdated: time.Now(), DeferToWebsocketWithin: time.Minute}), "Update must not error")
+		published(t, "Update must publish a REST snapshot it loads")
+	})
+	t.Run("deferring snapshot over a websocket book not updated within the window", func(t *testing.T) {
+		require.NoError(t, d.LoadSnapshot(&Book{Bids: Levels{{Price: 1, Amount: 1}}, Asks: Levels{{Price: 4, Amount: 1}}, LastUpdated: time.Now(), LastUpdateID: 8}), "LoadSnapshot must load the websocket book")
+		d.m.Lock()
+		d.insertedAt = time.Now().Add(-2 * time.Minute)
+		d.m.Unlock()
+		require.NoError(t, s.Update(&Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 2, Amount: 1}}, Asks: Levels{{Price: 5, Amount: 1}}, LastUpdated: time.Now(), DeferToWebsocketWithin: time.Minute}), "Update must not error")
+		published(t, "Update must publish a REST snapshot it loads")
+	})
+	t.Run("deferring snapshot over a REST snapshot", func(t *testing.T) {
+		require.NoError(t, s.Update(&Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 3, Amount: 1}}, Asks: Levels{{Price: 6, Amount: 1}}, LastUpdated: time.Now()}), "Update must not error for a snapshot without deferring")
+		published(t, "Update must publish a REST snapshot without deferring")
+		require.NoError(t, s.Update(&Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 2, Amount: 1}}, Asks: Levels{{Price: 5, Amount: 1}}, LastUpdated: time.Now(), DeferToWebsocketWithin: time.Minute}), "Update must not error")
+		published(t, "Update must publish a REST snapshot it loads")
+	})
+	t.Run("deferring snapshot with no book yet", func(t *testing.T) {
+		require.NoError(t, s.Update(&Book{Exchange: name, Pair: currency.NewBTCUSD(), Asset: asset.Spot, Bids: Levels{{Price: 2, Amount: 1}}, Asks: Levels{{Price: 5, Amount: 1}}, LastUpdated: time.Now(), DeferToWebsocketWithin: time.Minute}), "Update must not error")
+		published(t, "Update must publish a REST snapshot it loads")
+	})
 }
