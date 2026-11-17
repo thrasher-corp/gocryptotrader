@@ -1,0 +1,7399 @@
+{
+ "routes": {
+  "/openApi/account/transfer/v1/subAccount/asset/transferHistory": {
+   "GET": [
+    {
+     "data": {
+      "total": 1,
+      "rows": [
+       {
+        "asset": "VST",
+        "amount": "100000.00000000000000000000",
+        "type": "MAIN_CAPITAL_TO_SUB_CAPITAL",
+        "status": "CONFIRMED",
+        "tranId": "1051323896482406240336",
+        "timestamp": 1702252271000,
+        "fromUid": 2332424,
+        "toUid": 123244
+       }
+      ]
+     },
+     "queryString": "endTime=1719596046943&pageId=1&pagingSize=10&recvWindow=5000&signature=x&startTime=1719496046943&timestamp=1&tranId=1051323896482406240336&type=MAIN_CAPITAL_TO_SUB_CAPITAL&uid=213342",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/account/transfer/v1/subAccount/transferAsset": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1719494258281,
+      "data": {
+       "code": 0,
+       "timestamp": 1719495091669,
+       "data": {
+        "tranId": "1051323892566796963873"
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "assetName=USDT&fromAccountType=2&fromType=2&fromUid=25472377&recvWindow=5000&remark=rebalance&signature=x&timestamp=1&toAccountType=1&toType=1&toUid=25316652&transferAmount=1.1",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/account/transfer/v1/subAccount/transferAsset/supportCoins": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1719498078761,
+      "data": {
+       "coins": [
+        {
+         "id": 4,
+         "name": "USDT",
+         "showName": "Tether",
+         "icon": {
+          "id": 4,
+          "uri": "https://static-app.teststar.cc/icon/USDT.png"
+         },
+         "type": 0,
+         "fiatSymbol": "$",
+         "availableAmount": "79.02345678",
+         "usdtRate": "1"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "fromAccountType=2&fromUid=25472377&recvWindow=5000&signature=x&timestamp=1&toAccountType=1&toUid=25316652",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/account/v1/allAccountBalance": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1719494258281,
+      "data": {
+       "result": [
+        {
+         "accountType": "sopt",
+         "usdtBalance": "100"
+        }
+       ],
+       "pageId": 1,
+       "total": 1
+      }
+     },
+     "queryString": "accountType=sopt&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/account/v1/apiKey/query": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702351994615,
+      "data": {
+       "apiInfos": [
+        {
+         "apiKey": "zF*******zQ",
+         "note": "note****",
+         "permissions": [
+          1,
+          2,
+          3,
+          4,
+          7
+         ],
+         "ipAddresses": [
+          ""
+         ],
+         "status": 0,
+         "createTime": 1702289687211,
+         "updateTime": 1702289687000
+        }
+       ]
+      }
+     },
+     "queryString": "apiKey=zF%2A%2A%2A%2A%2A%2A%2AzQ&recvWindow=5000&signature=x&timestamp=1&uid=16789999",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/account/v1/innerTransfer/authorizeSubAccount": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702520269455,
+      "data": true
+     },
+     "queryString": "recvWindow=5000&signature=x&subUids=16789999%2C16789998&timestamp=1&transferable=true",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/account/v1/uid": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702558965648,
+      "data": {
+       "uid": 16844999,
+       "accountStatus": 0
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/activity/v1/getActivityList": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1792425600000,
+      "data": {
+       "total": 1,
+       "activityCenterInfoVos": [
+        {
+         "activityId": 12345,
+         "activityUrl": "https://bingx.com/en/events/",
+         "title": "Trading Competition",
+         "tags": [
+          {
+           "name": "Trading"
+          }
+         ],
+         "beginTime": "2026-10-13T10:00:00.000+08:00",
+         "endTime": "2026-10-31T23:59:59.000+08:00",
+         "activityCenterPcImg": null,
+         "activityCenterAppImg": null
+        }
+       ]
+      }
+     },
+     "queryString": "pageIndex=1&pageSize=10&recvWindow=5000&signature=x&status=2&tagUrlKey=trading_tournament&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/activity/v1/getPublicActivityList": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794424722345,
+      "data": {
+       "total": 1,
+       "activityCenterInfoVos": [
+        {
+         "activityId": 154,
+         "activityUrl": "https://bingx.com/zh-tc/activity/novsuperx?ch=bingx_Eventcenter",
+         "title": "Black Friday! Register for an airdrop and share $6,000,000!",
+         "tags": [
+          {
+           "name": "Trading Tournament"
+          },
+          {
+           "name": "High Rewards"
+          }
+         ],
+         "beginTime": "2026-11-11T10:00:00.000+08:00",
+         "endTime": "2026-12-01T23:59:59.000+08:00",
+         "activityCenterPcImg": "https://static-app.bb-os.com/social_feed_pictures/20261106/ad33167ff8d0538cad2fbee57838ce494705f299952b8d959a16280b77e8ba61.png",
+         "activityCenterAppImg": "https://static-app.bb-os.com/social_feed_pictures/20261106/a6a6fe4055340b773d5385e60b6915f82cc9d4cb2909c94a4d222fcc14bc5268.png"
+        }
+       ]
+      }
+     },
+     "queryString": "pageIndex=1&pageSize=10&status=2&tagUrlKey=trading_tournament",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/agent/v1/account/inviteAccountList": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1690428366803,
+      "data": {
+       "list": [
+        {
+         "uid": 24828902,
+         "ownInviteCode": "LYA1453",
+         "superiorsUid": 2293934,
+         "InvitationCode": "LYA2023",
+         "registerDateTime": 1688992720000,
+         "directInvitation": false,
+         "kycResult": "false",
+         "deposit": false,
+         "trade": false,
+         "userLevel": 0,
+         "commissionRatio": 3,
+         "currentBenefit": 0,
+         "benefitRatio": 0,
+         "benefitExpiration": 0
+        }
+       ],
+       "total": 1,
+       "currentAgentUid": 1115195195666423800
+      }
+     },
+     "queryString": "pageIndex=1&pageSize=2&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/agent/v1/account/inviteRelationCheck": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "SUCCESS",
+      "timestamp": 1689579799063,
+      "data": {
+       "uid": 2489544,
+       "existInviter": "true",
+       "inviteResult": true,
+       "registerDateTime": 1656208955000,
+       "directInvitation": false,
+       "superiorsUid": 2293934,
+       "deposit": true,
+       "kycResult": "false",
+       "trade": true,
+       "userLevel": 2,
+       "commissionRatio": 20,
+       "currentBenefit": 0,
+       "benefitRatio": 0,
+       "benefitExpiration": 0
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1&uid=1645382",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/agent/v1/account/superiorCheck": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "SUCCESS",
+      "timestamp": 1689579799063,
+      "data": {
+       "inviteResult": true,
+       "directInvitation": false
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1&uid=1645382",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/agent/v1/asset/depositDetailList": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "SUCCESS",
+      "timestamp": 1689579799063,
+      "data": {
+       "list": [
+        {
+         "uid": 2489544,
+         "inviteResult": true,
+         "directInvitation": true,
+         "bizType": 1,
+         "bizTime": 1673674073000,
+         "assetType": 30,
+         "assetTypeName": "Deposit",
+         "currencyName": "USDT",
+         "currencyAmountVolume": "1000"
+        }
+       ],
+       "total": 1
+      }
+     },
+     "queryString": "bizType=1&endTime=1699269426000&pageIndex=1&pageSize=10&recvWindow=5000&signature=x&startTime=1699183026000&timestamp=1&uid=1645382",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/agent/v1/asset/partnerData": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1718441614690,
+      "data": {
+       "list": [
+        {
+         "uid": 25414560,
+         "email": "jo***@gmail.com",
+         "phone": "*******7294",
+         "referralType": 1,
+         "remarks": "123",
+         "referrerUid": 24186664,
+         "language": "en",
+         "newReferees": 0,
+         "firstTrade": 0,
+         "branchDeposits": "24534.446799999998",
+         "branchTrading": 4,
+         "branchTradingVol": "98434310.99579316",
+         "level": 0,
+         "commissionRatio": 0.04
+        }
+       ],
+       "total": 1
+      }
+     },
+     "queryString": "endTime=1699269426000&pageIndex=1&pageSize=100&recvWindow=5000&signature=x&startTime=1699183026000&timestamp=1&uid=25414560",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/agent/v1/commissionDataList/referralCode": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1718441614690,
+      "data": {
+       "list": [
+        {
+         "referralCode": "LYA2025",
+         "commissionRatio": "50",
+         "friendEarn": "45",
+         "swapFeeDiscount": "30",
+         "referralNum": "8",
+         "deposited": "3",
+         "traded": "6",
+         "tradingVolume": "24534.446799999998",
+         "fee": "120.492",
+         "offsetTradingFees": "120.492",
+         "payableTradingFees": "120.492",
+         "commission": "10.040000"
+        }
+       ]
+      }
+     },
+     "queryString": "directInvitation=true&endTime=1699269426000&pageIndex=1&pageSize=100&recvWindow=5000&referralCode=LYA2025&signature=x&startTime=1699183026000&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/agent/v1/reward/channelCommissionList": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1792425600000,
+      "data": {
+       "list": [
+        {
+         "uid": 24391361,
+         "tradingVolume": "10000",
+         "expectedTradingFees": "10",
+         "offsetTradingFees": "2",
+         "collectedTradingFees": "8",
+         "commission": "1.6",
+         "partnerCommissionRate": "0.2"
+        }
+       ],
+       "total": 1,
+       "currentAgentUid": 12345678
+      }
+     },
+     "queryString": "assetType=1&businessType=perpetualFutures&endTime=1792425600000&pageIndex=1&pageSize=20&recvWindow=5000&signature=x&startTime=1791820800000&timestamp=1&uid=24391361",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/agent/v1/reward/third/commissionDataList": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "SUCCESS",
+      "timestamp": 1689579799063,
+      "data": {
+       "list": [
+        {
+         "uid": 25053735,
+         "commissionTime": 1700759104737,
+         "tradeVolume": "10.234",
+         "commissionVolume": "0.02663866",
+         "commissionBizType": 81
+        }
+       ],
+       "total": 3
+      }
+     },
+     "queryString": "commissionBizType=81&endTime=1699269426000&pageIndex=1&pageSize=10&recvWindow=5000&signature=x&startTime=1699183026000&timestamp=1&uid=1645382",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/agent/v2/reward/commissionDataList": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1690428196386,
+      "data": {
+       "list": [
+        {
+         "uid": 24391361,
+         "commissionTime": 1689350400000,
+         "tradingVolume": "6660.05",
+         "commission": "2.37932209",
+         "expectedTradingFees": "10.00000000",
+         "offsetTradingFees": "2.00000000",
+         "collectedTradingFees": "8.00000000",
+         "rebateRatio": "0.2",
+         "tradingRebate": "1.60000000"
+        }
+       ],
+       "total": 43,
+       "currentAgentUid": 1115195195666423800
+      }
+     },
+     "queryString": "businessType=tradFi&distanceType=1&endTime=1689426920000&invitationCode=LYA2025&pageIndex=1&pageSize=2&recvWindow=5000&signature=x&startTime=1688992720000&timestamp=1&uid=24391361",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/api/asset/v1/transfer": {
+   "POST": [
+    {
+     "data": {
+      "transferId": "17********28"
+     },
+     "queryString": "amount=1095&asset=USDT&fromAccount=fund&recvWindow=5000&signature=x&timestamp=1&toAccount=spot",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/api/asset/v1/transfer/supportCoins": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "coins": [
+        {
+         "asset": "USDT",
+         "amount": "566773.193402631"
+        },
+        {
+         "asset": "CHEEMS",
+         "amount": "24324.21"
+        }
+       ]
+      }
+     },
+     "queryString": "fromAccount=spot&recvWindow=5000&signature=x&timestamp=1&toAccount=fund",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/api/v3/asset/transfer": {
+   "GET": [
+    {
+     "data": {
+      "total": 2,
+      "rows": [
+       {
+        "asset": "VST",
+        "amount": "100000.00000000000000000000",
+        "type": "FUND_PFUTURES",
+        "status": "CONFIRMED",
+        "tranId": 37600111,
+        "timestamp": 1702252271000
+       },
+       {
+        "asset": "USDT",
+        "amount": "2218.72352626000000000000",
+        "type": "FUND_PFUTURES",
+        "status": "CONFIRMED",
+        "tranId": 37600222,
+        "timestamp": 1702351131000
+       }
+      ]
+     },
+     "queryString": "current=1&endTime=1702351131000&recvWindow=5000&signature=x&size=100&startTime=1702252271000&timestamp=1&tranId=37600111&type=FUND_PFUTURES",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/api/v3/asset/transferRecord": {
+   "GET": [
+    {
+     "data": {
+      "total": 2,
+      "rows": [
+       {
+        "asset": "VST",
+        "amount": "100000.00000000000000000000",
+        "status": "CONFIRMED",
+        "transferId": "37600111",
+        "timestamp": 1702252271000,
+        "fromAccount": "fund",
+        "toAccount": "spot"
+       }
+      ]
+     },
+     "queryString": "endTime=1702351131000&fromAccount=fund&pageIndex=1&pageSize=10&recvWindow=5000&signature=x&startTime=1702252271000&timestamp=1&toAccount=spot&tranId=37600111",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/api/v3/capital/deposit/hisrec": {
+   "GET": [
+    {
+     "data": [
+      {
+       "amount": "49999.00000000000000000000",
+       "coin": "USDTTRC20",
+       "network": "TRC20",
+       "status": 1,
+       "address": "TP******B4v",
+       "addressTag": "",
+       "txId": "60*****1d",
+       "insertTime": 1701557778000,
+       "unlockConfirm": "2/2",
+       "confirmTimes": "2/2"
+      }
+     ],
+     "queryString": "coin=USDTTRC20&endTime=1702622588000&limit=1000&offset=1&recvWindow=5000&signature=x&startTime=1700894588000&status=1&timestamp=1&txId=60%2A%2A%2A%2A%2A1d",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "amount": "49999.00000000000000000000",
+       "coin": "USDTTRC20",
+       "network": "TRC20",
+       "status": 1,
+       "address": "TP******B4v",
+       "addressTag": "",
+       "txId": "60*****1d",
+       "insertTime": 1701557778000,
+       "unlockConfirm": "2/2",
+       "confirmTimes": "2/2"
+      }
+     ],
+     "queryString": "limit=1000&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/api/v3/capital/withdraw/history": {
+   "GET": [
+    {
+     "data": [
+      {
+       "address": "TR****zc",
+       "amount": "3500.00000000000000000000",
+       "applyTime": "2023-12-14T04:05:02.000+08:00",
+       "coin": "USDTTRC20",
+       "id": "125*****98",
+       "network": "TRC20",
+       "transferType": 1,
+       "transactionFee": "1.00000000000000000000",
+       "confirmNo": 2,
+       "info": "",
+       "txId": "b9***********b67"
+      }
+     ],
+     "queryString": "coin=USDTTRC20&endTime=1702536564000&id=125%2A%2A%2A%2A%2A98&limit=1000&offset=1&recvWindow=5000&signature=x&startTime=1702450164000&status=6&timestamp=1&txId=b9%2A%2A%2A%2A%2A%2A%2A%2A%2A%2A%2Ab67&withdrawOrderId=abc123",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "address": "TR****zc",
+       "amount": "3500.00000000000000000000",
+       "applyTime": "2023-12-14T04:05:02.000+08:00",
+       "coin": "USDTTRC20",
+       "id": "125*****98",
+       "network": "TRC20",
+       "transferType": 1,
+       "transactionFee": "1.00000000000000000000",
+       "confirmNo": 2,
+       "info": "",
+       "txId": "b9***********b67"
+      }
+     ],
+     "queryString": "limit=1000&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "address": "TR****zc",
+       "amount": "3500.00000000000000000000",
+       "applyTime": "2023-12-14T04:05:02.000+08:00",
+       "coin": "USDTTRC20",
+       "id": "125*****98",
+       "network": "TRC20",
+       "transferType": 1,
+       "transactionFee": "1.00000000000000000000",
+       "confirmNo": 2,
+       "info": "",
+       "txId": "b9***********b67"
+      }
+     ],
+     "queryString": "coin=USDT&limit=1000&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/copyTrading/v1/PFutures/profitDetail": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1711619555065,
+      "data": [
+       {
+        "contractType": "PFUTURES",
+        "commissionTime": 1711600000,
+        "CopiersUid": "987654321",
+        "profitShare": "12.35"
+       },
+       {
+        "contractType": "PFUTURES",
+        "commissionTime": 1711500000,
+        "CopiersUid": "123456789",
+        "profitShare": "8.77"
+       }
+      ]
+     },
+     "queryString": "endTime=1711619555000&pageIndex=1&pageSize=20&recvWindow=5000&signature=x&startTime=1711000000000&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/copyTrading/v1/PFutures/profitHistorySummarys": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1711619555065,
+      "data": {
+       "contractType": "PFUTURES",
+       "earn": "158.32",
+       "settled": "10253.55",
+       "profitRatio": "12.5"
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/copyTrading/v1/PFutures/setCommission": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1711619555065,
+      "data": {
+       "newCommission": "16%"
+      }
+     },
+     "queryString": "newCommission=16%25&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/copyTrading/v1/PFutures/traderDetail": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1711619555065,
+      "data": {
+       "contractType": "PFUTURES",
+       "traderId": "123456",
+       "status": "true",
+       "accountLevel": "Gold",
+       "ratio": "5.32",
+       "accountAssets": "10000.25",
+       "copierProfit": "125.67",
+       "copiersNum": 154,
+       "riskLevel": 3,
+       "winRatio": "68.2",
+       "tradeNum": 325,
+       "winNum": 221,
+       "loseNum": 104,
+       "averageProfit": "75.25",
+       "averageLosses": "45.12",
+       "PnlRatio": "1.67",
+       "averageTime": 3.8,
+       "marginMedian": 250,
+       "leverageMedian": 10,
+       "tradeFrequency": 4.2,
+       "tradeDays": 85,
+       "lastTrade": 1711619555065
+      }
+     },
+     "queryString": "daySize=7&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/copyTrading/v1/PFutures/tradingPairs": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1711619555065,
+      "data": [
+       {
+        "contractType": "PFUTURES",
+        "symbol": "BTCUSDT",
+        "openTrader": "yes",
+        "minOpenCount": "1",
+        "maxLeverage": "125",
+        "stopSurplusRatio": "50",
+        "stopLossRatio": "30"
+       }
+      ]
+     },
+     "queryString": "contractType=PFUTURES&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/copyTrading/v1/spot/historyOrder": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1711619555065,
+      "data": [
+       {
+        "openOrderId": "123456",
+        "closeOrderId": "123457",
+        "symbol": "BTCUSDT",
+        "quantity": "0.5",
+        "Amount": "35000",
+        "profit": "500",
+        "openPrice": "70000",
+        "closeTime": 1711619555065,
+        "closePrice": "71000"
+       }
+      ]
+     },
+     "queryString": "pageIndex=1&pageSize=50&recvWindow=5000&signature=x&symbol=BTC-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/copyTrading/v1/spot/profitDetail": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1711619555065,
+      "data": [
+       {
+        "commissionTime": 1711619555,
+        "CopiersUid": "123456",
+        "profitShare": "10.0"
+       }
+      ]
+     },
+     "queryString": "pageIndex=1&pageSize=20&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/copyTrading/v1/spot/profitHistorySummarys": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1711619555065,
+      "data": {
+       "earn": "100.0",
+       "settled": "500.0",
+       "profitRatio": 0.2
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/copyTrading/v1/spot/trader/sellOrder": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1711619555065,
+      "data": {
+       "orderNo": 1773285851363541000,
+       "coinName": "BTC",
+       "valuationCoinName": "USDT",
+       "side": 2,
+       "price": "70850",
+       "dealPrice": "70612.7438655",
+       "delegatePrice": "70613.45",
+       "status": 30
+      }
+     },
+     "queryString": "orderId=1253517936071234567&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/copyTrading/v1/spot/traderDetail": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1711619555065,
+      "data": {
+       "traderId": "123456",
+       "status": "true",
+       "ratio": "12.5",
+       "accountAssets": "10500",
+       "PnL": "500",
+       "copierProfit": "150",
+       "copiersNum": 10,
+       "winRatio": "0.65",
+       "tradeNum": 20,
+       "tradeFrequency": "4",
+       "tradeDays": 5,
+       "tradingPairs": [
+        "BTCUSDT",
+        "ETHUSDT"
+       ],
+       "lastTrade": 1711619555065
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/copyTrading/v1/swap/trace/setTPSL": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702731523011,
+      "data": {
+       "positionId": 1253517936071234600,
+       "stopLossMarkPrice": 105.38
+      }
+     },
+     "queryString": "positionId=1253517936071234567&recvWindow=5000&signature=x&stopLossMarkPrice=105.38&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/market/contracts": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1794423758746,
+      "data": [
+       {
+        "symbol": "BNB-USD",
+        "pricePrecision": 2,
+        "minTickSize": "10",
+        "minTradeValue": "10",
+        "minQty": "1.00000000",
+        "status": 1,
+        "timeOnline": 1713175200000,
+        "displayName": "BNB-USD"
+       },
+       {
+        "symbol": "SUI-USD",
+        "pricePrecision": 4,
+        "minTickSize": "10",
+        "minTradeValue": "10",
+        "minQty": "1.00000000",
+        "status": 1,
+        "timeOnline": 1741921200000,
+        "displayName": "SUI-USD"
+       },
+       {
+        "symbol": "UNI-USD",
+        "pricePrecision": 3,
+        "minTickSize": "10",
+        "minTradeValue": "10",
+        "minQty": "1.00000000",
+        "status": 1,
+        "timeOnline": 1710907200000,
+        "displayName": "UNI-USD"
+       }
+      ]
+     },
+     "queryString": "timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1794423760052,
+      "data": [
+       {
+        "symbol": "BTC-USD",
+        "pricePrecision": 1,
+        "minTickSize": "100",
+        "minTradeValue": "100",
+        "minQty": "1.00000000",
+        "status": 1,
+        "timeOnline": 1710738000000,
+        "displayName": "BTC-USD"
+       }
+      ]
+     },
+     "queryString": "symbol=BTC-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/market/depth": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1794423768217,
+      "data": {
+       "T": 1794423767928,
+       "bids": [
+        [
+         "74348.6",
+         "3124.0"
+        ],
+        [
+         "74348.5",
+         "1.0"
+        ],
+        [
+         "74343.0",
+         "3261.0"
+        ],
+        [
+         "74342.4",
+         "2379.0"
+        ],
+        [
+         "74341.8",
+         "6793.0"
+        ]
+       ],
+       "asks": [
+        [
+         "74354.6",
+         "3887.0"
+        ],
+        [
+         "74354.0",
+         "2325.0"
+        ],
+        [
+         "74350.6",
+         "1165.0"
+        ],
+        [
+         "74348.8",
+         "16.0"
+        ],
+        [
+         "74348.7",
+         "2380.0"
+        ]
+       ]
+      }
+     },
+     "queryString": "limit=5&symbol=BTC-USD",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1794478487629,
+      "data": {
+       "T": 1794478487121,
+       "bids": [
+        [
+         "73313.2",
+         "1542.0"
+        ],
+        [
+         "73313.1",
+         "1.0"
+        ],
+        [
+         "73308.9",
+         "1155.0"
+        ]
+       ],
+       "asks": [
+        [
+         "250000.0",
+         "10.0"
+        ],
+        [
+         "195000.0",
+         "1.0"
+        ],
+        [
+         "189000.0",
+         "1.0"
+        ]
+       ]
+      }
+     },
+     "queryString": "limit=1000&symbol=BTC-USD",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/market/klines": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1794423766883,
+      "data": [
+       {
+        "open": "74393.1",
+        "close": "74339.4",
+        "high": "74411.1",
+        "low": "74329.8",
+        "volume": "895.00",
+        "time": 1794423600000
+       },
+       {
+        "open": "74419.9",
+        "close": "74393.1",
+        "high": "74543.1",
+        "low": "74294.4",
+        "volume": "16849.00",
+        "time": 1794420000000
+       },
+       {
+        "open": "74153.7",
+        "close": "74419.9",
+        "high": "74674.4",
+        "low": "74054.3",
+        "volume": "37794.00",
+        "time": 1794416400000
+       }
+      ]
+     },
+     "queryString": "interval=1h&limit=3&symbol=BTC-USD",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1794478503749,
+      "data": [
+       {
+        "open": "75236.2",
+        "close": "73683.9",
+        "high": "75310.2",
+        "low": "72634.3",
+        "volume": "837231.00",
+        "time": 1794268800000
+       },
+       {
+        "open": "74727.5",
+        "close": "75236.2",
+        "high": "75480.5",
+        "low": "73628.2",
+        "volume": "677715.00",
+        "time": 1794182400000
+       },
+       {
+        "open": "75741.5",
+        "close": "74727.5",
+        "high": "76069.6",
+        "low": "73387.1",
+        "volume": "752371.00",
+        "time": 1794096000000
+       }
+      ]
+     },
+     "queryString": "endTime=1794355200000&interval=1d&limit=1000&startTime=1794096000000&symbol=BTC-USD",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/market/openInterest": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1794423764151,
+      "data": [
+       {
+        "symbol": "BTC-USD",
+        "openInterest": "698.8058",
+        "timestamp": 1794441600000
+       }
+      ]
+     },
+     "queryString": "symbol=BTC-USD",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1794423765512,
+      "data": [
+       {
+        "symbol": "BTC-USD",
+        "openInterest": "698.8058",
+        "timestamp": 1794441600000
+       },
+       {
+        "symbol": "DOT-USD",
+        "openInterest": "408573.5186",
+        "timestamp": 1794441600000
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/market/premiumIndex": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1794423761337,
+      "data": [
+       {
+        "symbol": "BTC-USD",
+        "lastFundingRate": "0.0001",
+        "markPrice": "74341.3",
+        "indexPrice": "74372.1",
+        "nextFundingTime": 1794441600000
+       }
+      ]
+     },
+     "queryString": "symbol=BTC-USD",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1794423762738,
+      "data": [
+       {
+        "symbol": "BNB-USD",
+        "lastFundingRate": "0.000009",
+        "markPrice": "686.38",
+        "indexPrice": "685.95",
+        "nextFundingTime": 1794441600000
+       },
+       {
+        "symbol": "SOL-USD",
+        "lastFundingRate": "0.000003",
+        "markPrice": "84.801",
+        "indexPrice": "84.855",
+        "nextFundingTime": 1794441600000
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/market/ticker": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1794423769496,
+      "data": [
+       {
+        "symbol": "BTC-USD",
+        "priceChange": "972.7",
+        "priceChangePercent": "1.3300%",
+        "lastPrice": "74348.6",
+        "lastQty": "9",
+        "highPrice": "74674.4",
+        "lowPrice": "73100.4",
+        "volume": "604402.00",
+        "quoteVolume": "819.60",
+        "openPrice": "73375.9",
+        "closeTime": "1794423768967",
+        "bidPrice": "74348.6",
+        "bidQty": "3480",
+        "askPrice": "74348.7",
+        "askQty": "2670"
+       }
+      ]
+     },
+     "queryString": "symbol=BTC-USD",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1794423771104,
+      "data": [
+       {
+        "symbol": "SUI-USD",
+        "priceChange": "0.0222",
+        "priceChangePercent": "2.7200%",
+        "lastPrice": "0.8371",
+        "lastQty": "3",
+        "highPrice": "0.8524",
+        "lowPrice": "0.8121",
+        "volume": "409824.00",
+        "quoteVolume": "4950589.62",
+        "openPrice": "0.8147",
+        "closeTime": "1794423770805",
+        "bidPrice": "0.8371",
+        "bidQty": "16",
+        "askPrice": "0.8372",
+        "askQty": "13"
+       },
+       {
+        "symbol": "BCH-USD",
+        "priceChange": "2.87",
+        "priceChangePercent": "1.2600%",
+        "lastPrice": "231.31",
+        "lastQty": "2",
+        "highPrice": "233.47",
+        "lowPrice": "227.18",
+        "volume": "84473.00",
+        "quoteVolume": "3675.02",
+        "openPrice": "228.35",
+        "closeTime": "1794423766549",
+        "bidPrice": "231.31",
+        "bidQty": "725",
+        "askPrice": "231.32",
+        "askQty": "1092"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/trade/allFillOrders": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1718423719019,
+      "data": [
+       {
+        "orderId": "1796163365782945792",
+        "symbol": "ETH-USD",
+        "type": "MARKET",
+        "side": "BUY",
+        "positionSide": "LONG",
+        "tradeId": "20789331",
+        "volume": "376",
+        "baseQty": 0,
+        "tradePrice": "3761.12",
+        "amount": "3760.00000000",
+        "realizedPnl": "0.00000000",
+        "commission": "-0.00039988",
+        "currency": "ETH",
+        "buyer": true,
+        "maker": false,
+        "tradeTime": 1717073692000
+       }
+      ]
+     },
+     "queryString": "orderId=1796163365782945792&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/trade/allOpenOrders": {
+   "DELETE": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1718372477371,
+      "data": {
+       "success": [
+        {
+         "symbol": "BTC-USD",
+         "orderId": "1801610628516806656",
+         "side": "BUY",
+         "positionSide": "LONG",
+         "type": "LIMIT",
+         "quantity": 2,
+         "origQty": "0",
+         "price": "27173",
+         "executedQty": "0",
+         "avgPrice": "0",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0.0000",
+         "commission": "0.000000",
+         "status": "CANCELLED",
+         "time": 1718372420802,
+         "updateTime": 1718372420820,
+         "clientOrderId": "",
+         "leverage": "",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "stopGuaranteed": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "stopGuaranteed": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "workingType": ""
+        }
+       ],
+       "failed": [
+        {
+         "orderId": "1801610628516806656",
+         "code": 123,
+         "msg": ""
+        },
+        {
+         "orderId": "1801610628516806656",
+         "code": 123,
+         "msg": ""
+        }
+       ]
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BTC-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/trade/cancelOrder": {
+   "DELETE": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "order": {
+        "symbol": "BTC-USDT",
+        "orderId": 1736011869418901200,
+        "side": "BUY",
+        "positionSide": "LONG",
+        "type": "LIMIT",
+        "origQty": "3",
+        "price": "4.5081",
+        "executedQty": "0",
+        "avgPrice": "0.0000",
+        "cumQuote": "0",
+        "stopPrice": "",
+        "profit": "0.0000",
+        "commission": "0.000000",
+        "status": "CANCELLED",
+        "time": 1702732457867,
+        "updateTime": 1702732457888,
+        "leverage": "",
+        "takeProfit": {
+         "type": "",
+         "quantity": 0,
+         "stopPrice": 0,
+         "price": 0,
+         "workingType": ""
+        },
+        "stopLoss": {
+         "type": "",
+         "quantity": 0,
+         "stopPrice": 0,
+         "price": 0,
+         "workingType": ""
+        },
+        "advanceAttr": 0,
+        "positionID": 0,
+        "takeProfitEntrustPrice": 0,
+        "stopLossEntrustPrice": 0,
+        "orderType": "",
+        "workingType": ""
+       }
+      }
+     },
+     "queryString": "orderId=1736011869418901234&recvWindow=5000&signature=x&symbol=BTC-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/trade/closeAllPositions": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1718434280880,
+      "data": {
+       "success": [
+        "1801870087554072576"
+       ],
+       "failed": [
+        {
+         "positionId": "12345678910111234",
+         "errCode": 123,
+         "errorMsg": "balabala"
+        }
+       ]
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BTC-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/trade/leverage": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1718354677397,
+      "data": {
+       "symbol": "BTC-USD",
+       "longLeverage": 4,
+       "shortLeverage": 8,
+       "maxLongLeverage": 150,
+       "maxShortLeverage": 150,
+       "availableLongVol": "15000000",
+       "availableShortVol": "15000000"
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BTC-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1718354677397,
+      "data": {
+       "symbol": "BTC-USD",
+       "longLeverage": 4,
+       "shortLeverage": 8,
+       "maxLongLeverage": 150,
+       "maxShortLeverage": 150,
+       "availableLongVol": "15000000",
+       "availableShortVol": "15000000"
+      }
+     },
+     "queryString": "leverage=4&recvWindow=5000&side=LONG&signature=x&symbol=BTC-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/trade/marginType": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1716388317402,
+      "data": [
+       {
+        "symbol": "BTC-USD",
+        "marginType": "ISOLATED"
+       }
+      ]
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BTC-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1716388317402,
+      "data": []
+     },
+     "queryString": "marginType=ISOLATED&recvWindow=5000&signature=x&symbol=BTC-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/trade/openOrders": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "BTC-USD",
+         "orderId": 1733405587011123500,
+         "side": "SELL",
+         "positionSide": "LONG",
+         "type": "LIMIT",
+         "origQty": "0.0030",
+         "price": "44459.6",
+         "executedQty": "0.0000",
+         "avgPrice": "0.0",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0.0",
+         "commission": "0.0",
+         "status": "PENDING",
+         "time": 1702256915574,
+         "updateTime": 1702256915610,
+         "clientOrderId": "",
+         "leverage": "",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "StopGuaranteed": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "StopGuaranteed": ""
+         },
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "postOnly": false,
+         "workingType": "MARK_PRICE"
+        },
+        {
+         "symbol": "BTC-USDT",
+         "orderId": 1733405587011123500,
+         "side": "SELL",
+         "positionSide": "LONG",
+         "type": "LIMIT",
+         "origQty": "0.0030",
+         "price": "44454.6",
+         "executedQty": "0.0000",
+         "avgPrice": "0.0",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0.0",
+         "commission": "0.0",
+         "status": "PENDING",
+         "time": 1702111071719,
+         "updateTime": 1702111071735,
+         "clientOrderId": "",
+         "leverage": "",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "StopGuaranteed": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "StopGuaranteed": ""
+         },
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "postOnly": false,
+         "workingType": "MARK_PRICE"
+        }
+       ]
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BTC-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/trade/orderDetail": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "order": {
+        "symbol": "OP-USD",
+        "orderId": 1736012449498123500,
+        "side": "SELL",
+        "positionSide": "LONG",
+        "type": "LIMIT",
+        "origQty": "1.0",
+        "price": "2.1710",
+        "executedQty": "0.0",
+        "avgPrice": "0.0000",
+        "cumQuote": "0",
+        "stopPrice": "",
+        "profit": "0.0000",
+        "commission": "0.000000",
+        "status": "PENDING",
+        "time": 1702732596168,
+        "updateTime": 1702732596188,
+        "leverage": "",
+        "takeProfit": {
+         "type": "",
+         "quantity": 0,
+         "stopPrice": 0,
+         "price": 0,
+         "workingType": ""
+        },
+        "stopLoss": {
+         "type": "",
+         "quantity": 0,
+         "stopPrice": 0,
+         "price": 0,
+         "workingType": ""
+        },
+        "advanceAttr": 0,
+        "positionID": 0,
+        "takeProfitEntrustPrice": 0,
+        "stopLossEntrustPrice": 0,
+        "orderType": "",
+        "workingType": "MARK_PRICE"
+       }
+      }
+     },
+     "queryString": "orderId=1736012449498123456&recvWindow=5000&signature=x&symbol=OP-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/trade/orderHistory": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "PYTH-USD",
+         "orderId": 1736007506620112100,
+         "side": "SELL",
+         "positionSide": "SHORT",
+         "type": "LIMIT",
+         "origQty": "33",
+         "price": "0.3916",
+         "executedQty": "33",
+         "avgPrice": "0.3916",
+         "cumQuote": "13",
+         "stopPrice": "",
+         "profit": "0.0000",
+         "commission": "-0.002585",
+         "status": "FILLED",
+         "time": 1702731418000,
+         "updateTime": 1702731470000,
+         "clientOrderId": "",
+         "leverage": "15X",
+         "takeProfit": {
+          "type": "TAKE_PROFIT",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "stopLoss": {
+          "type": "STOP",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "workingType": "MARK_PRICE"
+        }
+       ]
+      }
+     },
+     "queryString": "limit=500&recvWindow=5000&signature=x&symbol=BTC-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "PYTH-USD",
+         "orderId": 1736007506620112100,
+         "side": "SELL",
+         "positionSide": "SHORT",
+         "type": "LIMIT",
+         "origQty": "33",
+         "price": "0.3916",
+         "executedQty": "33",
+         "avgPrice": "0.3916",
+         "cumQuote": "13",
+         "stopPrice": "",
+         "profit": "0.0000",
+         "commission": "-0.002585",
+         "status": "FILLED",
+         "time": 1702731418000,
+         "updateTime": 1702731470000,
+         "clientOrderId": "",
+         "leverage": "15X",
+         "takeProfit": {
+          "type": "TAKE_PROFIT",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "stopLoss": {
+          "type": "STOP",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "workingType": "MARK_PRICE"
+        }
+       ]
+      }
+     },
+     "queryString": "endTime=1786021625603&limit=1000&recvWindow=5000&signature=x&startTime=1785503625603&symbol=BTC-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/trade/positionMargin": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": ""
+     },
+     "queryString": "amount=0.01&positionSide=LONG&recvWindow=5000&signature=x&symbol=BTC-USD&timestamp=1&type=Increase",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/user/balance": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1718421301887,
+      "data": [
+       {
+        "asset": "BTC",
+        "balance": "0.14438227",
+        "equity": "0.14428116",
+        "unrealizedProfit": "-0.0001011",
+        "availableMargin": "0.14317271",
+        "usedMargin": "0.00110845",
+        "freezedMargin": "0",
+        "shortUid": "12345678"
+       }
+      ]
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BTC-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1718421301887,
+      "data": [
+       {
+        "asset": "BTC",
+        "balance": "0.14438227",
+        "equity": "0.14428116",
+        "unrealizedProfit": "-0.0001011",
+        "availableMargin": "0.14317271",
+        "usedMargin": "0.00110845",
+        "freezedMargin": "0",
+        "shortUid": "12345678"
+       }
+      ]
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/user/commissionRate": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1718353924453,
+      "data": {
+       "takerCommissionRate": "0.0004",
+       "makerCommissionRate": "0.00013999"
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v1/user/positions": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "symbol": "BTC-USD",
+        "positionId": 1801165371278884900,
+        "positionSide": "LONG",
+        "isolated": false,
+        "positionAmt": "3",
+        "availableAmt": "3",
+        "unrealizedProfit": "-0.00010485",
+        "initialMargin": "0.00110845",
+        "liquidationPrice": 2024.7812708419876,
+        "avgPrice": "67662",
+        "leverage": 4,
+        "markPrice": "66098.9",
+        "riskRate": "0.00013841",
+        "maxMarginReduction": "0",
+        "updateTime": 1718409600901
+       },
+       {
+        "symbol": "ETH-USD",
+        "positionId": 1796163366063964200,
+        "positionSide": "LONG",
+        "isolated": false,
+        "positionAmt": "376",
+        "availableAmt": "376",
+        "unrealizedProfit": "-0.08051938",
+        "initialMargin": "0.19994044",
+        "liquidationPrice": 630.4805786791729,
+        "avgPrice": "3761.12",
+        "leverage": 5,
+        "markPrice": "3480.77",
+        "riskRate": "0.00096807",
+        "maxMarginReduction": "0",
+        "updateTime": 1718409600705
+       }
+      ]
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BTC-USD&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/cswap/v2/trade/order": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "order": {
+        "orderId": "1802706634360750000",
+        "symbol": "ETH-USD",
+        "positionSide": "SHORT",
+        "side": "SELL",
+        "type": "LIMIT",
+        "price": 3777,
+        "quantity": 20,
+        "stopPrice": 0,
+        "workingType": "",
+        "clientOrderId": "",
+        "timeInForce": "GTC"
+       }
+      }
+     },
+     "queryString": "positionSide=LONG&price=10000&quantity=1&recvWindow=5000&side=BUY&signature=x&symbol=BTC-USD&timeInForce=PostOnly&timestamp=1&type=LIMIT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/fund/v1/account/balance": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "balances": [
+        {
+         "asset": "USDT",
+         "free": "566773.193402631",
+         "locked": "244.18616265388994"
+        },
+        {
+         "asset": "CHEEMS",
+         "free": "294854132046232",
+         "locked": "18350553840"
+        },
+        {
+         "asset": "VST",
+         "free": "0",
+         "locked": "0"
+        }
+       ]
+      }
+     },
+     "queryString": "asset=USDT&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/social/v1/swap/signal": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1786690121277,
+      "data": {
+       "signalId": "decabcb948154187be32d412e9ce0963",
+       "shortUrl": "https://bingx.com/signalclone/0H4Gzz"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "entryPrice=65000&leverage=20&orderType=LIMIT&recvWindow=5000&side=long&signature=x&sizePct=10&slPrice=62000&symbol=BTC-USDT&timestamp=1&tpPrice=68000",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/account/balance": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "balances": [
+        {
+         "asset": "USDT",
+         "free": "566773.193402631",
+         "locked": "244.18616265388994"
+        },
+        {
+         "asset": "CHEEMS",
+         "free": "294854132046232",
+         "locked": "18350553840"
+        },
+        {
+         "asset": "VST",
+         "free": "0",
+         "locked": "0"
+        }
+       ]
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/common/symbols": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "retryable": 0,
+      "data": {
+       "symbols": [
+        {
+         "symbol": "BTC-USDT",
+         "minQty": 0.0001826,
+         "maxQty": 18.2663756,
+         "minNotional": 0.5,
+         "maxNotional": 7588825.16352942,
+         "maxMarketNotional": 7588825.16352942,
+         "status": 1,
+         "tickSize": 0.01,
+         "stepSize": 0.000001,
+         "apiStateSell": true,
+         "apiStateBuy": true,
+         "timeOnline": 0,
+         "offTime": 0,
+         "maintainTime": 0,
+         "displayName": "BTC-USDT"
+        }
+       ]
+      }
+     },
+     "queryString": "symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "retryable": 0,
+      "data": {
+       "symbols": [
+        {
+         "symbol": "EDGEX-USDT",
+         "minQty": 1.9,
+         "maxQty": 18960.95,
+         "minNotional": 1,
+         "maxNotional": 3801,
+         "maxMarketNotional": 3801,
+         "status": 0,
+         "tickSize": 0.0001,
+         "stepSize": 0.01,
+         "apiStateSell": false,
+         "apiStateBuy": false,
+         "timeOnline": 1774960200000,
+         "offTime": 1787281200000,
+         "maintainTime": 1787281200000,
+         "displayName": "EDGEX-USDT"
+        },
+        {
+         "symbol": "GPT-OLD-USDT",
+         "minQty": 211.9,
+         "maxQty": 847816.9,
+         "minNotional": 5,
+         "maxNotional": 20000,
+         "maxMarketNotional": -1,
+         "status": 0,
+         "tickSize": 0.00001,
+         "stepSize": 0.1,
+         "apiStateSell": true,
+         "apiStateBuy": true,
+         "timeOnline": 1678446300000,
+         "offTime": 0,
+         "maintainTime": 0,
+         "displayName": "GPT-OLD"
+        },
+        {
+         "symbol": "ATOR-USDT",
+         "minQty": 10.08,
+         "maxQty": 20155.49,
+         "minNotional": 1,
+         "maxNotional": 30000,
+         "maxMarketNotional": -1,
+         "status": 0,
+         "tickSize": 0.0001,
+         "stepSize": 0.01,
+         "apiStateSell": true,
+         "apiStateBuy": true,
+         "timeOnline": 1701331200000,
+         "offTime": 0,
+         "maintainTime": 0,
+         "displayName": "ATOR-USDT"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "retryable": 0,
+      "data": {
+       "symbols": null
+      }
+     },
+     "queryString": "symbol=NOPE-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/market/depth": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794423746568,
+      "data": {
+       "bids": [
+        [
+         "74452.00",
+         "0.005314"
+        ],
+        [
+         "74447.96",
+         "0.174095"
+        ],
+        [
+         "74447.19",
+         "0.000383"
+        ],
+        [
+         "74447.11",
+         "0.000129"
+        ],
+        [
+         "74446.80",
+         "0.030268"
+        ]
+       ],
+       "asks": [
+        [
+         "74456.96",
+         "0.001785"
+        ],
+        [
+         "74456.51",
+         "0.013364"
+        ],
+        [
+         "74456.06",
+         "0.105006"
+        ],
+        [
+         "74456.05",
+         "7.875292"
+        ],
+        [
+         "74452.02",
+         "0.001846"
+        ]
+       ],
+       "ts": 1794423746568,
+       "lastUpdateId": 16556488842
+      }
+     },
+     "queryString": "limit=5&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794478485449,
+      "data": {
+       "bids": [
+        [
+         "73426.32",
+         "0.003692"
+        ],
+        [
+         "73423.15",
+         "0.038286"
+        ],
+        [
+         "73422.86",
+         "0.000399"
+        ]
+       ],
+       "asks": [
+        [
+         "74392.81",
+         "0.000062"
+        ],
+        [
+         "74392.54",
+         "0.000107"
+        ],
+        [
+         "74391.41",
+         "0.000024"
+        ]
+       ],
+       "ts": 1794478485449,
+       "lastUpdateId": 16558843338
+      }
+     },
+     "queryString": "limit=1000&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/oco/cancel": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "orderId": "1827980248763858944",
+       "clientOrderId": "123456789"
+      }
+     },
+     "queryString": "clientOrderId=123456789&orderId=1735964079647111280&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/oco/historyOrderList": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": [
+       {
+        "transactionTime": 1724297880000,
+        "orderId": "1826458150027395073",
+        "clientOrderId": "",
+        "symbol": "BTC-USDT",
+        "orderType": "ocoTps",
+        "side": "BUY",
+        "triggerPrice": 64000,
+        "price": 65000,
+        "quantity": 0.001,
+        "orderListId": "1826458148019142656",
+        "status": "FAILED"
+       },
+       {
+        "transactionTime": 1724297880000,
+        "orderId": "1826458150027395072",
+        "clientOrderId": "",
+        "symbol": "BTC-USDT",
+        "orderType": "ocoLimit",
+        "side": "BUY",
+        "triggerPrice": 0,
+        "price": 48000,
+        "quantity": 0.001,
+        "orderListId": "1826458148019142656",
+        "status": "CANCELED"
+       }
+      ]
+     },
+     "queryString": "endTime=1724342400000&pageIndex=1&pageSize=100&recvWindow=5000&signature=x&startTime=1724256000000&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/oco/openOrderList": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": [
+       {
+        "transactionTime": 1724656554890,
+        "orderId": "1827968197060460545",
+        "clientOrderId": "",
+        "symbol": "BTC-USDT",
+        "orderType": "ocoTps",
+        "side": "BUY",
+        "triggerPrice": 87000,
+        "price": 88000,
+        "quantity": 0.001,
+        "orderListId": "1827968196914479104",
+        "status": "NEW"
+       },
+       {
+        "transactionTime": 1724656554890,
+        "orderId": "1827968197060460544",
+        "clientOrderId": "",
+        "symbol": "BTC-USDT",
+        "orderType": "ocoLimit",
+        "side": "BUY",
+        "triggerPrice": 0,
+        "price": 48000,
+        "quantity": 0.001,
+        "orderListId": "1827968196914479104",
+        "status": "PENDING"
+       }
+      ]
+     },
+     "queryString": "pageIndex=1&pageSize=100&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/oco/order": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": [
+       {
+        "transactionTime": 0,
+        "orderId": "1827963624962916352",
+        "clientOrderId": "12345610034",
+        "symbol": "BTC-USDT",
+        "orderType": "ocoLimit",
+        "side": "BUY",
+        "triggerPrice": 0,
+        "price": 48000,
+        "quantity": 0.001,
+        "orderListId": "12345610033",
+        "status": ""
+       },
+       {
+        "transactionTime": 0,
+        "orderId": "1827963624962916353",
+        "clientOrderId": "12345610035",
+        "symbol": "BTC-USDT",
+        "orderType": "ocoTps",
+        "side": "BUY",
+        "triggerPrice": 87000,
+        "price": 88000,
+        "quantity": 0.001,
+        "orderListId": "12345610033",
+        "status": ""
+       }
+      ]
+     },
+     "queryString": "aboveClientOrderId=12345610031&belowClientOrderId=12345610031&limitPrice=48000&listClientOrderId=12345610030&orderPrice=88000&quantity=0.001&recvWindow=5000&side=BUY&signature=x&symbol=BTC-USDT&timestamp=1&triggerPrice=87000",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/oco/orderList": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": [
+       {
+        "transactionTime": 1724656554890,
+        "orderId": "1827968197060460545",
+        "clientOrderId": "",
+        "symbol": "BTC-USDT",
+        "orderType": "ocoTps",
+        "side": "BUY",
+        "triggerPrice": 87000,
+        "price": 88000,
+        "quantity": 0.001,
+        "orderListId": "1827968196914479104"
+       }
+      ]
+     },
+     "queryString": "clientOrderId=12345610027&orderId=1827968197060460545&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/trade/batchOrders": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "ETH-USDT",
+         "orderId": 1735967859282101200,
+         "transactTime": 1702721965033,
+         "price": "12.479",
+         "origQty": "7.663",
+         "executedQty": "0",
+         "cummulativeQuoteQty": "0",
+         "status": "PENDING",
+         "type": "LIMIT",
+         "side": "BUY",
+         "clientOrderID": ""
+        }
+       ]
+      }
+     },
+     "queryString": "data=%5B%7B%22symbol%22%3A%22ETH-USDT%22%2C%22side%22%3A%22BUY%22%2C%22type%22%3A%22LIMIT%22%2C%22quantity%22%3A7.663%2C%22price%22%3A12.479%7D%5D&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/trade/cancel": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "symbol": "NEMS-USDT",
+       "orderId": 1735964079647111200,
+       "price": "0.1532",
+       "stopPrice": "0.1532",
+       "origQty": "126",
+       "executedQty": "0",
+       "cummulativeQuoteQty": "0",
+       "status": "CANCELED",
+       "type": "LIMIT",
+       "side": "SELL"
+      }
+     },
+     "queryString": "orderId=1735964079647111280&recvWindow=5000&signature=x&symbol=NEMS-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/trade/cancelAllAfter": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "triggerTime": 1710389137,
+       "status": "ACTIVATED",
+       "note": "All your spot pending orders will be closed automatically at 2024-03-14 04:05:37 UTC(+0),before that you can cancel the timer, or extend triggerTime time by this request"
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&timeOut=10&timestamp=1&type=ACTIVATE",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/trade/cancelOpenOrders": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "GM-USDT",
+         "orderId": 1735964997957275600,
+         "transactTime": 1702721242701,
+         "price": "0.00000398",
+         "stopPrice": "0.00000398",
+         "origQty": "8061558",
+         "executedQty": "0",
+         "cummulativeQuoteQty": "0",
+         "status": "CANCELED",
+         "type": "LIMIT",
+         "side": "SELL",
+         "clientOrderID": "2most51702721242645506402"
+        },
+        {
+         "symbol": "GM-USDT",
+         "orderId": 1735965127519326200,
+         "transactTime": 1702721249787,
+         "price": "0.00000398",
+         "stopPrice": "0.00000398",
+         "origQty": "5806281",
+         "executedQty": "0",
+         "cummulativeQuoteQty": "0",
+         "status": "CANCELED",
+         "type": "LIMIT",
+         "side": "SELL",
+         "clientOrderID": "2most51702721249647382871"
+        }
+       ]
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=GM-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/trade/cancelOrders": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "fails": [
+        {
+         "orderId": "1874730962584076288",
+         "error": "the  orderId:1874730962584076288 order status :CANCELED,can not delete, please verify and retry later"
+        }
+       ],
+       "orders": [
+        {
+         "symbol": "GM-USDT",
+         "orderId": 1735964997957275600,
+         "transactTime": 1702721242701,
+         "price": "0.00000398",
+         "stopPrice": "0.00000398",
+         "origQty": "8061558",
+         "executedQty": "0",
+         "cummulativeQuoteQty": "0",
+         "status": "CANCELED",
+         "type": "LIMIT",
+         "side": "SELL",
+         "clientOrderID": "2most51702721242645506402"
+        },
+        {
+         "symbol": "GM-USDT",
+         "orderId": 1735965127519326200,
+         "transactTime": 1702721249787,
+         "price": "0.00000398",
+         "stopPrice": "0.00000398",
+         "origQty": "5806281",
+         "executedQty": "0",
+         "cummulativeQuoteQty": "0",
+         "status": "CANCELED",
+         "type": "LIMIT",
+         "side": "SELL",
+         "clientOrderID": "2most51702721249647382871"
+        }
+       ]
+      }
+     },
+     "queryString": "orderIds=1735964997957275648%2C1735965127519326208&recvWindow=5000&signature=x&symbol=GM-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "fails": [
+        {
+         "orderId": "1874730962584076288",
+         "error": "the  orderId:1874730962584076288 order status :CANCELED,can not delete, please verify and retry later"
+        }
+       ],
+       "orders": [
+        {
+         "symbol": "GM-USDT",
+         "orderId": 1735964997957275600,
+         "transactTime": 1702721242701,
+         "price": "0.00000398",
+         "stopPrice": "0.00000398",
+         "origQty": "8061558",
+         "executedQty": "0",
+         "cummulativeQuoteQty": "0",
+         "status": "CANCELED",
+         "type": "LIMIT",
+         "side": "SELL",
+         "clientOrderID": "2most51702721242645506402"
+        },
+        {
+         "symbol": "GM-USDT",
+         "orderId": 1735965127519326200,
+         "transactTime": 1702721249787,
+         "price": "0.00000398",
+         "stopPrice": "0.00000398",
+         "origQty": "5806281",
+         "executedQty": "0",
+         "cummulativeQuoteQty": "0",
+         "status": "CANCELED",
+         "type": "LIMIT",
+         "side": "SELL",
+         "clientOrderID": "2most51702721249647382871"
+        }
+       ]
+      }
+     },
+     "queryString": "orderIds=1735964997957275648%2C1735965127519326208&process=1&recvWindow=5000&signature=x&symbol=GM-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/trade/historyOrders": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "SWCH-USDT",
+         "orderId": 1735966927102231300,
+         "price": "0.8548",
+         "StopPrice": "0",
+         "origQty": "5.9",
+         "executedQty": "1.1",
+         "cummulativeQuoteQty": "0.9402800000000001",
+         "status": "CANCELED",
+         "type": "LIMIT",
+         "side": "SELL",
+         "time": 1702721743000,
+         "updateTime": 1702721743000,
+         "origQuoteOrderQty": "0",
+         "fee": 0,
+         "avgPrice": "0.8881"
+        }
+       ]
+      }
+     },
+     "queryString": "endTime=1702721825418&pageIndex=1&pageSize=100&recvWindow=5000&signature=x&startTime=1702720925417&symbol=SWCH-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/trade/myTrades": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "fills": [
+        {
+         "symbol": "BTC-USDT",
+         "id": 36767057,
+         "orderId": 1745362930595004400,
+         "price": "46820.155",
+         "qty": "0.1430254",
+         "quoteQty": "6696.471396937",
+         "commission": -0.000046483255,
+         "commissionAsset": "BTC",
+         "time": 1704961925000,
+         "isBuyer": true,
+         "isMaker": false
+        },
+        {
+         "symbol": "BTC-USDT",
+         "id": 36767058,
+         "orderId": 1745362930595004400,
+         "price": "46820.155",
+         "qty": "0.0003844",
+         "quoteQty": "17.997667582000002",
+         "commission": -1.2493e-7,
+         "commissionAsset": "BTC",
+         "time": 1704961925000,
+         "isBuyer": true,
+         "isMaker": false
+        }
+       ]
+      }
+     },
+     "queryString": "limit=10&orderId=1745362930595004400&recvWindow=5000&signature=x&symbol=BTC-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/trade/openOrders": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "BNB-USDC",
+         "orderId": 1735930294290081300,
+         "price": "255.27",
+         "StopPrice": "0",
+         "origQty": "0.16261",
+         "executedQty": "0",
+         "cummulativeQuoteQty": "0",
+         "status": "PENDING",
+         "type": "LIMIT",
+         "side": "SELL",
+         "time": 1702713008841,
+         "updateTime": 1702713008841,
+         "origQuoteOrderQty": "0",
+         "fee": 0
+        }
+       ]
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BNB-USDC&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/trade/order": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "symbol": "NEMS-USDT",
+       "orderId": 1735963671248581000,
+       "transactTime": 1702720966528,
+       "price": "0.1557",
+       "origQty": "115",
+       "executedQty": "0",
+       "cummulativeQuoteQty": "0",
+       "status": "PENDING",
+       "type": "LIMIT",
+       "side": "SELL"
+      }
+     },
+     "queryString": "price=0.1557&quantity=115&recvWindow=5000&side=SELL&signature=x&symbol=NEMS-USDT&timeInForce=GTC&timestamp=1&type=LIMIT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/trade/order/cancelReplace": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "cancelResult": {
+        "code": 100400,
+        "msg": " order not exist",
+        "result": false
+       },
+       "openResult": {
+        "code": 0,
+        "msg": "",
+        "result": true
+       },
+       "orderOpenResponse": {
+        "symbol": "BTC-USDT",
+        "orderId": 1754389353909452800,
+        "transactTime": 1707113991607,
+        "price": "40000",
+        "stopPrice": "0",
+        "origQty": "1",
+        "executedQty": "0",
+        "cummulativeQuoteQty": "0",
+        "status": "PENDING",
+        "type": "LIMIT",
+        "side": "BUY",
+        "clientOrderID": ""
+       },
+       "orderCancelResponse": {
+        "symbol": "",
+        "orderId": 0,
+        "price": "0",
+        "stopPrice": "0",
+        "origQty": "0",
+        "executedQty": "0",
+        "cummulativeQuoteQty": "0",
+        "status": "",
+        "type": "",
+        "side": ""
+       }
+      }
+     },
+     "queryString": "cancelOrderId=17543893539094511234&cancelReplaceMode=ALLOW_FAILURE&price=40000&quantity=1&recvWindow=5000&side=BUY&signature=x&symbol=BTC-USDT&timestamp=1&type=LIMIT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/trade/query": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "symbol": "BRG-USDT",
+       "orderId": 1735965009395131100,
+       "price": "0.0005027",
+       "StopPrice": "0",
+       "origQty": "4038",
+       "executedQty": "0",
+       "cummulativeQuoteQty": "0",
+       "status": "PENDING",
+       "type": "LIMIT",
+       "side": "BUY",
+       "time": 1702721285567,
+       "updateTime": 1702721285567,
+       "origQuoteOrderQty": "0",
+       "fee": "0",
+       "feeAsset": "BRG",
+       "avgPrice": "0.0005028"
+      }
+     },
+     "queryString": "orderId=1735965009395131234&recvWindow=5000&signature=x&symbol=BRG-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v1/user/commissionRate": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "takerCommissionRate": 0.000325,
+       "makerCommissionRate": 0.0001
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BTC-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v2/quote/bookTicker": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794423750958,
+      "data": [
+       {
+        "time": 1794423750451,
+        "symbol": "BTC-USDT",
+        "bidPrice": "74444.01",
+        "bidQty": "0.001884",
+        "askPrice": "74444.03",
+        "askQty": "0.003724"
+       }
+      ]
+     },
+     "queryString": "symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v2/quote/depth": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794423749322,
+      "data": {
+       "bids": [
+        [
+         "74450.00",
+         "0.00512"
+        ],
+        [
+         "74445.90",
+         "0.137560"
+        ],
+        [
+         "74445.20",
+         "0.000054"
+        ],
+        [
+         "74444.90",
+         "0.000057"
+        ],
+        [
+         "74444.80",
+         "0.000311"
+        ]
+       ],
+       "asks": [
+        [
+         "74450.10",
+         "0.002431"
+        ],
+        [
+         "74454.10",
+         "8.110311"
+        ],
+        [
+         "74454.40",
+         "0.877327"
+        ],
+        [
+         "74454.50",
+         "0.015863"
+        ],
+        [
+         "74455.00",
+         "3.649691"
+        ]
+       ],
+       "ts": 1794423749322
+      }
+     },
+     "queryString": "limit=5&symbol=BTC-USDT&type=step1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v2/quote/historicalKlines": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794423751914,
+      "data": [
+       [
+        1794336480000,
+        73474.01400000001,
+        73477.68,
+        73418.87,
+        73438.98,
+        0.916659,
+        1794336539999,
+        67315.312376
+       ],
+       [
+        1794336420000,
+        73514.342,
+        73514.35,
+        73474.0,
+        73474.01400000001,
+        0.469901,
+        1794336479999,
+        34534.130438
+       ]
+      ]
+     },
+     "queryString": "interval=1m&limit=2&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v2/quote/historicalTrades": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794423752716,
+      "data": [
+       {
+        "tid": "1794423749861247152084",
+        "t": 1794423749861,
+        "ms": 1,
+        "s": "BTC-USDT",
+        "p": 74450.01,
+        "v": 0.000445
+       },
+       {
+        "tid": "1794423749397247152083",
+        "t": 1794423749397,
+        "ms": 2,
+        "s": "BTC-USDT",
+        "p": 74450.01,
+        "v": 0.005195
+       },
+       {
+        "tid": "1794423748861247152082",
+        "t": 1794423748861,
+        "ms": 1,
+        "s": "BTC-USDT",
+        "p": 74450.01,
+        "v": 0.015760
+       },
+       {
+        "tid": "1794423747869247152081",
+        "t": 1794423747869,
+        "ms": 1,
+        "s": "BTC-USDT",
+        "p": 74452.02,
+        "v": 0.011148
+       },
+       {
+        "tid": "1794423747865247152080",
+        "t": 1794423747865,
+        "ms": 1,
+        "s": "BTC-USDT",
+        "p": 74452.02,
+        "v": 0.024674
+       }
+      ]
+     },
+     "queryString": "limit=5&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v2/quote/klines": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794423747623,
+      "data": [
+       [
+        1794423720000,
+        74436.01,
+        74455.48,
+        74436.00,
+        74452.00,
+        0.472368,
+        1794423779999,
+        35165.37
+       ],
+       [
+        1794423660000,
+        74441.71,
+        74456.01,
+        74434.74,
+        74436.00,
+        1.404755,
+        1794423719999,
+        104577.06
+       ]
+      ]
+     },
+     "queryString": "interval=1m&limit=2&symbol=BTC-USDT&timeZone=0",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794478499921,
+      "data": [
+       [
+        1794268800000,
+        75362.07,
+        75430.94,
+        72735.17,
+        73796.05,
+        1980.566582,
+        1794355199999,
+        146537856.26
+       ],
+       [
+        1794182400000,
+        74851.44,
+        75592.79,
+        73748.91,
+        75372.41,
+        2024.512451,
+        1794268799999,
+        151241359.06
+       ],
+       [
+        1794096000000,
+        75867.60,
+        76198.59,
+        73650.61,
+        74851.42,
+        928.381643,
+        1794182399999,
+        69983685.91
+       ]
+      ]
+     },
+     "queryString": "endTime=1794355199999&interval=1d&limit=1000&startTime=1794096000000&symbol=BTC-USDT&timeZone=0",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794478500894,
+      "data": [
+       [
+        1794268800000,
+        75362.07,
+        75430.94,
+        72735.17,
+        73796.05,
+        1980.566582,
+        1794355199999,
+        146537856.26
+       ],
+       [
+        1794182400000,
+        74851.44,
+        75592.79,
+        73748.91,
+        75372.41,
+        2024.512451,
+        1794268799999,
+        151241359.06
+       ],
+       [
+        1794096000000,
+        75867.60,
+        76198.59,
+        73650.61,
+        74851.42,
+        928.381643,
+        1794182399999,
+        69983685.91
+       ]
+      ]
+     },
+     "queryString": "endTime=1794355199999&interval=1d&limit=1440&startTime=1794096000000&symbol=BTC-USDT&timeZone=0",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v2/quote/price": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794423750115,
+      "data": [
+       {
+        "symbol": "BTC-USDT",
+        "timestamp": 1794423749861,
+        "price": "74450.00"
+       }
+      ]
+     },
+     "queryString": "symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v2/quote/ticker": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794423748498,
+      "data": [
+       {
+        "symbol": "BTC-USDT",
+        "openPrice": 73488.69,
+        "highPrice": 74772.59,
+        "lowPrice": 73221.50,
+        "lastPrice": 74452.02,
+        "priceChange": 963.33,
+        "priceChangePercent": "1.31%",
+        "volume": 1804.96,
+        "quoteVolume": 133296362.38,
+        "openTime": 1794337348498,
+        "closeTime": 1794423748498,
+        "askPrice": 74452.02,
+        "askQty": 0.001442,
+        "bidPrice": 74452.00,
+        "bidQty": 0.005314
+       }
+      ]
+     },
+     "queryString": "symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794478484304,
+      "data": [
+       {
+        "symbol": "BTC-USDT",
+        "openPrice": 73735.00,
+        "highPrice": 74789.77,
+        "lowPrice": 73267.04,
+        "lastPrice": 73426.33,
+        "priceChange": -308.67,
+        "priceChangePercent": "-0.42%",
+        "volume": 1481.23,
+        "quoteVolume": 109617355.67,
+        "openTime": 1794392084303,
+        "closeTime": 1794478484303,
+        "askPrice": 73426.34,
+        "askQty": 0.005115,
+        "bidPrice": 73426.32,
+        "bidQty": 0.003692
+       },
+       {
+        "symbol": "ETH-USDT",
+        "openPrice": 2055.59,
+        "highPrice": 2103.52,
+        "lowPrice": 2036.11,
+        "lastPrice": 2043.66,
+        "priceChange": -11.93,
+        "priceChangePercent": "-0.58%",
+        "volume": 20107.95,
+        "quoteVolume": 41496619.18,
+        "openTime": 1794392084303,
+        "closeTime": 1794478484303,
+        "askPrice": 2043.67,
+        "askQty": 0.1886,
+        "bidPrice": 2043.66,
+        "bidQty": 0.024
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/spot/v2/quote/trades": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794423766106,
+      "data": [
+       {
+        "id": 247152115,
+        "price": 74450.01,
+        "qty": 0.002331,
+        "time": 1794423765865,
+        "buyerMaker": true
+       },
+       {
+        "id": 247152114,
+        "price": 74450.01,
+        "qty": 0.007322,
+        "time": 1794423765861,
+        "buyerMaker": true
+       },
+       {
+        "id": 247152113,
+        "price": 74450.00,
+        "qty": 0.010658,
+        "time": 1794423764862,
+        "buyerMaker": true
+       },
+       {
+        "id": 247152112,
+        "price": 74445.41,
+        "qty": 0.013460,
+        "time": 1794423763861,
+        "buyerMaker": false
+       },
+       {
+        "id": 247152111,
+        "price": 74445.40,
+        "qty": 0.001686,
+        "time": 1794423763370,
+        "buyerMaker": true
+       }
+      ]
+     },
+     "queryString": "limit=5&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1794478488719,
+      "data": [
+       {
+        "id": 247268254,
+        "price": 73426.32,
+        "qty": 0.003215,
+        "time": 1794478488594,
+        "buyerMaker": false
+       },
+       {
+        "id": 247268253,
+        "price": 73426.33,
+        "qty": 0.003899,
+        "time": 1794478488590,
+        "buyerMaker": true
+       },
+       {
+        "id": 247268252,
+        "price": 73426.33,
+        "qty": 0.000900,
+        "time": 1794478487590,
+        "buyerMaker": true
+       }
+      ]
+     },
+     "queryString": "limit=500&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/subAccount/v1/allAccountBalance": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1719494258281,
+      "data": {
+       "result": [
+        {
+         "subUid": "16477999",
+         "accountBalances": [
+          {
+           "accountType": "sopt",
+           "usdtBalance": "100"
+          }
+         ]
+        }
+       ],
+       "pageId": 1,
+       "total": 1
+      }
+     },
+     "queryString": "accountType=sopt&pageIndex=1&pageSize=10&recvWindow=5000&signature=x&subUid=25316652&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/subAccount/v1/apiKey/create": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1701526872165,
+      "data": {
+       "note": "abc6798",
+       "apiKey": "kRaent****jg",
+       "apiSecret": "2b****Og",
+       "permissions": [],
+       "ipAddresses": []
+      }
+     },
+     "queryString": "",
+     "bodyParams": "ipAddresses=%5B%228.8.8.8%22%5D&note=abc6798&permissions=%5B3%5D&recvWindow=5000&signature=x&subUid=14189999&timestamp=1",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/subAccount/v1/apiKey/del": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702021810315
+     },
+     "queryString": "",
+     "bodyParams": "apiKey=2W%2A%2A%2A%2AmA&recvWindow=5000&signature=x&subUid=14189999&timestamp=1",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/subAccount/v1/apiKey/edit": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1699785925994,
+      "data": {
+       "note": "note",
+       "permissions": [
+        1,
+        2,
+        3,
+        4,
+        6,
+        7
+       ],
+       "ipAddresses": [
+        "51.**.**.172",
+        "51.**.**.135"
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "apiKey=CK%2A%2A%2Ag&ipAddresses=%5B%2251.%2A%2A.%2A%2A.172%22%2C%2251.%2A%2A.%2A%2A.135%22%5D&note=note&permissions=%5B1%2C2%2C3%2C4%2C6%2C7%5D&recvWindow=5000&signature=x&subUid=16259999&timestamp=1",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/subAccount/v1/assets": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1701077668349,
+      "data": {
+       "balances": [
+        {
+         "asset": "ETH",
+         "free": 0.0068,
+         "locked": 0
+        }
+       ]
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&subUid=16477999&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/subAccount/v1/create": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702288510557,
+      "data": {
+       "subUid": "16777654",
+       "subAccountString": "abc123456"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "note=demo&recvWindow=5000&signature=x&subAccountString=abc123456&timestamp=1",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/subAccount/v1/list": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1701088491202,
+      "data": {
+       "result": [
+        {
+         "subUid": "16477999",
+         "subAccountString": "abc123456",
+         "note": "",
+         "freeze": false,
+         "createTime": 1700847351000
+        }
+       ],
+       "pageId": 1,
+       "total": 1
+      }
+     },
+     "queryString": "isFeeze=false&limit=100&page=1&recvWindow=5000&signature=x&subAccountString=abc123456&subUid=16477999&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/subAccount/v1/updateStatus": {
+   "POST": [
+    {
+     "data": "",
+     "queryString": "",
+     "bodyParams": "freeze=true&recvWindow=5000&signature=x&subUid=16477999&timestamp=1",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/maintMarginRatio": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1716388317402,
+      "data": [
+       {
+        "tier": "Tier 1",
+        "symbol": "BTC-USDT",
+        "minPositionVal": "0",
+        "maxPositionVal": "150000",
+        "maintMarginRatio": "0.003800",
+        "maintAmount": "0.000000"
+       },
+       {
+        "tier": "Tier 2",
+        "symbol": "BTC-USDT",
+        "minPositionVal": "150000",
+        "maxPositionVal": "900000",
+        "maintMarginRatio": "0.004000",
+        "maintAmount": "30.000000"
+       }
+      ]
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BTC-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/market/historicalTrades": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "time": 1794423539030,
+        "isBuyerMaker": false,
+        "price": "74491.6",
+        "qty": "0.0001",
+        "quoteQty": "7.45",
+        "id": "759282370"
+       },
+       {
+        "time": 1794423539110,
+        "isBuyerMaker": false,
+        "price": "74491.6",
+        "qty": "0.1341",
+        "quoteQty": "9989.32",
+        "id": "759282371"
+       },
+       {
+        "time": 1794423539133,
+        "isBuyerMaker": true,
+        "price": "74491.5",
+        "qty": "0.0007",
+        "quoteQty": "52.14",
+        "id": "759282372"
+       }
+      ]
+     },
+     "queryString": "limit=3&symbol=BTC-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/market/markPriceKlines": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "open": "73439.2",
+        "close": "73754.2",
+        "high": "73845.1",
+        "low": "73281.6",
+        "volume": "0.0000",
+        "openTime": 1794337200000,
+        "closeTime": 1794340800000
+       },
+       {
+        "open": "73455.7",
+        "close": "73439.2",
+        "high": "73566.7",
+        "low": "73296.4",
+        "volume": "0.0000",
+        "openTime": 1794333600000,
+        "closeTime": 1794337200000
+       },
+       {
+        "open": "73257.6",
+        "close": "73455.7",
+        "high": "73644.9",
+        "low": "73079.9",
+        "volume": "0.0000",
+        "openTime": 1794330000000,
+        "closeTime": 1794333600000
+       },
+       {
+        "open": "72856.4",
+        "close": "73257.6",
+        "high": "73262.6",
+        "low": "72754.3",
+        "volume": "0.0000",
+        "openTime": 1794326400000,
+        "closeTime": 1794330000000
+       },
+       {
+        "open": "73185.2",
+        "close": "72856.4",
+        "high": "73532.9",
+        "low": "72715.6",
+        "volume": "0.0000",
+        "openTime": 1794322800000,
+        "closeTime": 1794326400000
+       }
+      ]
+     },
+     "queryString": "endTime=1794340800000&interval=1h&startTime=1794326400000&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/positionMargin/history": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1702731661854,
+      "data": {
+       "records": [
+        {
+         "symbol": "BTC-USDT",
+         "positionId": "1847596444958068736",
+         "changeReason": "OpenPosition",
+         "marginChange": "7586.46841066",
+         "marginAfterChange": "7586.46841066",
+         "time": 1729336294000
+        }
+       ],
+       "total": 4
+      }
+     },
+     "queryString": "endTime=1729336359406&pageIndex=1&pageSize=2&positionId=1847596444958068736&recvWindow=5000&signature=x&startTime=1728722649000&symbol=BNB-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/positionSide/dual": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "dualSidePosition": "true"
+      }
+     },
+     "queryString": "dualSidePosition=true&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "dualSidePosition": "true"
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/quote/tradingSchedule": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "symbol": "NCSKMSFT2USD-USDT",
+        "contractType": "nonCryptoStock",
+        "marketStatus": "open",
+        "timeZone": "UTC+08:00",
+        "updateTime": 1792045615000,
+        "sessions": [
+         {
+          "startTime": 1794412800000,
+          "endTime": 1795017600000,
+          "type": "REGULAR"
+         }
+        ]
+       }
+      ]
+     },
+     "queryString": "symbol=NCSKMSFT2USD-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "symbol": "NCCO1OILBRENT2USD-USDT",
+        "contractType": "nonCryptoCommodity",
+        "marketStatus": "open",
+        "timeZone": "UTC+08:00",
+        "updateTime": 1792124235000,
+        "sessions": [
+         {
+          "startTime": 1794412800000,
+          "endTime": 1795017600000,
+          "type": "REGULAR"
+         }
+        ]
+       },
+       {
+        "symbol": "NCCO1OILWTI2USD-USDT",
+        "contractType": "nonCryptoCommodity",
+        "marketStatus": "open",
+        "timeZone": "UTC+08:00",
+        "updateTime": 1792124220000,
+        "sessions": [
+         {
+          "startTime": 1794412800000,
+          "endTime": 1795017600000,
+          "type": "REGULAR"
+         }
+        ]
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/ticker/price": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "symbol": "BTC-USDT",
+       "price": "74457.1",
+       "time": 1794423593133
+      }
+     },
+     "queryString": "symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "symbol": "0G-USDT",
+        "price": "0.1543",
+        "time": 1794423592444
+       },
+       {
+        "symbol": "1000000BABYDOGE-USDT",
+        "price": "0.0002945",
+        "time": 1794423593881
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/trade/amend": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "orderId": 1989246372640981000,
+       "clientOrderId": "",
+       "symbol": "BTC-USDT",
+       "quantity": 0.00009
+      },
+      "timestamp": 0
+     },
+     "queryString": "orderId=1989246372640980993&quantity=0.00009&recvWindow=5000&signature=x&symbol=BTC-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/trade/assetMode": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "assetMode": "multiAssetsMode"
+      }
+     },
+     "queryString": "assetMode=multiAssetsMode&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "assetMode": "multiAssetsMode"
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/trade/autoAddMargin": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "amount": 3,
+      "type": 1
+     },
+     "queryString": "amount=130&functionSwitch=true&positionId=1868671302923976704&recvWindow=5000&signature=x&symbol=BTC-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/trade/batchCancelReplace": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "cancelResult": "true",
+        "cancelMsg": "",
+        "cancelResponse": {
+         "cancelClientOrderId": "",
+         "cancelOrderId": 1753337028434464800,
+         "symbol": "BTC-USDT",
+         "orderId": 1753337028434464800,
+         "side": "BUY",
+         "positionSide": "LONG",
+         "type": "LIMIT",
+         "origQty": "10.0000",
+         "price": "38000.0",
+         "executedQty": "0.0000",
+         "avgPrice": "0.0",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0.0000",
+         "commission": "0.000000",
+         "status": "PENDING",
+         "time": 1706863098000,
+         "updateTime": 1706863097000,
+         "clientOrderId": "",
+         "leverage": "15X",
+         "workingType": "MARK_PRICE",
+         "onlyOnePosition": false,
+         "reduceOnly": false
+        },
+        "replaceResult": "true",
+        "ReplaceMsg": "",
+        "newOrderResponse": {
+         "orderId": 1753337098747777000,
+         "symbol": "BTC-USDT",
+         "positionSide": "LONG",
+         "side": "BUY",
+         "type": "LIMIT",
+         "price": 38000,
+         "quantity": 1,
+         "stopPrice": 0,
+         "workingType": "MARK_PRICE",
+         "clientOrderId": "",
+         "timeInForce": "GTC",
+         "priceRate": 0,
+         "stopLoss": "{\"type\": \"STOP\", \"quantity\": 1, \"stopPrice\": 37000, \"price\": 37000}",
+         "takeProfit": "{\"type\": \"TAKE_PROFIT\", \"quantity\": 1, \"stopPrice\": 45000, \"price\": 45000}",
+         "reduceOnly": false
+        }
+       }
+      ]
+     },
+     "queryString": "batchOrders=%5B%7B%22cancelReplaceMode%22%3A%22ALLOW_FAILURE%22%2C%22cancelOrderId%22%3A1753337028434464768%2C%22symbol%22%3A%22BTC-USDT%22%2C%22type%22%3A%22LIMIT%22%2C%22side%22%3A%22BUY%22%2C%22positionSide%22%3A%22LONG%22%2C%22price%22%3A38000%2C%22quantity%22%3A1%2C%22stopLoss%22%3A%22%7B%5C%22type%5C%22%3A%5C%22STOP%5C%22%2C%5C%22stopPrice%5C%22%3A37000%2C%5C%22price%5C%22%3A37000%2C%5C%22quantity%5C%22%3A1%7D%22%2C%22takeProfit%22%3A%22%7B%5C%22type%5C%22%3A%5C%22TAKE_PROFIT%5C%22%2C%5C%22stopPrice%5C%22%3A45000%2C%5C%22price%5C%22%3A45000%2C%5C%22quantity%5C%22%3A1%7D%22%7D%5D&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/trade/cancelReplace": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "cancelResult": "true",
+       "cancelMsg": "",
+       "cancelResponse": {
+        "cancelClientOrderId": "",
+        "cancelOrderId": 123456789,
+        "symbol": "BTC-USDT",
+        "orderId": 123456789,
+        "side": "BUY",
+        "positionSide": "LONG",
+        "type": "LIMIT",
+        "origQty": "1.0000",
+        "price": "38000.0",
+        "executedQty": "0.0000",
+        "avgPrice": "0.0",
+        "cumQuote": "0",
+        "stopPrice": "",
+        "profit": "0.0000",
+        "commission": "0.000000",
+        "status": "PENDING",
+        "time": 1706858471000,
+        "updateTime": 1706858471000,
+        "clientOrderId": "",
+        "leverage": "15X",
+        "workingType": "MARK_PRICE",
+        "onlyOnePosition": false,
+        "reduceOnly": false
+       },
+       "replaceResult": "true",
+       "replaceMsg": "",
+       "newOrderResponse": {
+        "orderId": 987654321,
+        "symbol": "BTC-USDT",
+        "positionSide": "LONG",
+        "side": "BUY",
+        "type": "LIMIT",
+        "price": 38000,
+        "quantity": 1,
+        "stopPrice": 0,
+        "workingType": "MARK_PRICE",
+        "clientOrderId": "",
+        "timeInForce": "GTC",
+        "priceRate": 0,
+        "stopLoss": "{\"type\": \"STOP\", \"stopPrice\": 37000, \"price\": 37000}",
+        "takeProfit": "{\"type\": \"TAKE_PROFIT\", \"stopPrice\": 45000, \"price\": 45000}",
+        "reduceOnly": false
+       }
+      }
+     },
+     "queryString": "cancelClientOrderId=abc123test&cancelOrderId=123456789&cancelReplaceMode=STOP_ON_FAILURE&cancelRestrictions=ONLY_NEW&positionSide=LONG&quantity=5&recvWindow=5000&side=BUY&signature=x&symbol=BTC-USDT&takeProfit=%7B%22type%22%3A%22TAKE_PROFIT_MARKET%22%2C%22stopPrice%22%3A31968%2C%22price%22%3A31968%2C%22workingType%22%3A%22MARK_PRICE%22%7D&timestamp=1&type=MARKET",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/trade/closePosition": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 0,
+      "data": {
+       "orderId": 1769649628749234200,
+       "positionId": "1769649551460794368",
+       "symbol": "BTC-USDT",
+       "side": "Ask",
+       "type": "Market",
+       "positionSide": "BOTH",
+       "origQty": "1.0000"
+      }
+     },
+     "queryString": "positionId=1769649551460794368&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/trade/fullOrder": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "PYTH-USDT",
+         "orderId": 1736007506620112100,
+         "side": "SELL",
+         "positionSide": "SHORT",
+         "type": "LIMIT",
+         "origQty": "33",
+         "price": "0.3916",
+         "executedQty": "33",
+         "avgPrice": "0.3916",
+         "cumQuote": "13",
+         "stopPrice": "",
+         "profit": "0.0000",
+         "commission": "-0.002585",
+         "status": "FILLED",
+         "time": 1702731418000,
+         "updateTime": 1702731470000,
+         "clientOrderId": "",
+         "leverage": "15X",
+         "takeProfit": {
+          "type": "TAKE_PROFIT",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "stopLoss": {
+          "type": "STOP",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "workingType": "MARK_PRICE",
+         "stopGuaranteed": false,
+         "triggerOrderId": 1736012449498123500,
+         "isTwap": true,
+         "mainOrderId": "21312431241234"
+        }
+       ]
+      }
+     },
+     "queryString": "endTime=1702731995000&limit=500&recvWindow=5000&signature=x&startTime=1702688795000&symbol=PYTH-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/trade/multiAssetsRules": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "marginAssets": "USDT",
+        "ltv": "99.99%",
+        "collateralValueRatio": "99.99%",
+        "maxTransfer": "",
+        "indexPrice": "1.0006981800"
+       },
+       {
+        "marginAssets": "USDC",
+        "ltv": "99.99%",
+        "collateralValueRatio": "99.99%",
+        "maxTransfer": "",
+        "indexPrice": "0.9998772499"
+       },
+       {
+        "marginAssets": "TRX",
+        "ltv": "85.00%",
+        "collateralValueRatio": "95.00%",
+        "maxTransfer": "300000",
+        "indexPrice": "0.1778813333"
+       },
+       {
+        "marginAssets": "DOGE",
+        "ltv": "95.00%",
+        "collateralValueRatio": "95.00%",
+        "maxTransfer": "300000",
+        "indexPrice": "0.3891840533"
+       },
+       {
+        "marginAssets": "BNB",
+        "ltv": "90.00%",
+        "collateralValueRatio": "95.00%",
+        "maxTransfer": "160",
+        "indexPrice": "622.9584792100"
+       },
+       {
+        "marginAssets": "DOT",
+        "ltv": "90.00%",
+        "collateralValueRatio": "95.00%",
+        "maxTransfer": "12000",
+        "indexPrice": "5.0431331628"
+       },
+       {
+        "marginAssets": "BTC",
+        "ltv": "95.00%",
+        "collateralValueRatio": "95.00%",
+        "maxTransfer": "10",
+        "indexPrice": "90230.3058075903"
+       },
+       {
+        "marginAssets": "ETH",
+        "ltv": "95.00%",
+        "collateralValueRatio": "95.00%",
+        "maxTransfer": "100",
+        "indexPrice": "3214.4279682820"
+       }
+      ]
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/trade/reverse": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 0,
+      "data": {
+       "type": "Reverse",
+       "positionId": "1858503955839975424",
+       "newPositionId": "1858504148832485376",
+       "symbol": "BTC-USDT",
+       "positionSide": "Long",
+       "isolated": false,
+       "positionAmt": "10000",
+       "availableAmt": "10000",
+       "unrealizedProfit": "4.8768",
+       "realizedProfit": "-26.9683",
+       "initialMargin": "8989.4302",
+       "margin": "8994.3070",
+       "liquidationPrice": "98138.33",
+       "avgPrice": "89894.30",
+       "leverage": "10X",
+       "positionValue": "89899.18",
+       "markPrice": "89899.1784855",
+       "riskRate": "100",
+       "maxMarginReduction": "0.0000",
+       "pnlRatio": "0.05",
+       "updateTime": "1731936893082"
+      }
+     },
+     "queryString": "positionId=1858503955839975424&recvWindow=5000&signature=x&symbol=BTC-USDT&timestamp=1&type=Reverse",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/tradingRules": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1794423595359,
+      "data": {
+       "minSizeCoin": "0.0001",
+       "minSizeUsd": "2.0",
+       "maxNumOrder": "200",
+       "protectionThreshold": "0.05",
+       "buyMaxPrice": "1.1",
+       "buyMinPrice": "0.2",
+       "sellMaxPrice": "5",
+       "sellMinPrice": "0.9",
+       "marketRatio": "0.005"
+      }
+     },
+     "queryString": "symbol=BTC-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/twap/cancelOrder": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1702731661854,
+      "data": {
+       "symbol": "BNB-USDT",
+       "side": "BUY",
+       "positionSide": "LONG",
+       "priceType": "constant",
+       "priceVariance": "2000",
+       "triggerPrice": "68000",
+       "interval": 8,
+       "amountPerOrder": "0.111",
+       "totalAmount": "0.511",
+       "orderStatus": "Running",
+       "executedQty": "0.1",
+       "duration": 800,
+       "maxDuration": 9000,
+       "createdTime": 1702731661854,
+       "updateTime": 1702731661854
+      }
+     },
+     "queryString": "mainOrderId=12312435134&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/twap/historyOrders": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1702731661854,
+      "data": {
+       "list": [
+        {
+         "symbol": "BNB-USDT",
+         "side": "BUY",
+         "positionSide": "LONG",
+         "priceType": "constant",
+         "priceVariance": "2000",
+         "triggerPrice": "68000",
+         "interval": 8,
+         "amountPerOrder": "0.111",
+         "totalAmount": "0.511",
+         "orderStatus": "Running",
+         "executedQty": "0.1",
+         "duration": 800,
+         "maxDuration": 9000,
+         "createdTime": 1702731661854,
+         "updateTime": 1702731661854
+        }
+       ],
+       "total": 1
+      }
+     },
+     "queryString": "endTime=1702738661854&pageIndex=1&pageSize=100&recvWindow=5000&signature=x&startTime=1702731661854&symbol=BNB-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/twap/openOrders": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1702731661854,
+      "data": {
+       "list": [
+        {
+         "symbol": "BNB-USDT",
+         "side": "BUY",
+         "positionSide": "LONG",
+         "priceType": "constant",
+         "priceVariance": "2000",
+         "triggerPrice": "68000",
+         "interval": 8,
+         "amountPerOrder": "0.111",
+         "totalAmount": "0.511",
+         "orderStatus": "Running",
+         "executedQty": "0.1",
+         "duration": 800,
+         "maxDuration": 9000,
+         "createdTime": 1702731661854,
+         "updateTime": 1702731661854
+        }
+       ],
+       "total": 1
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BNB-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/twap/order": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1702731661854,
+      "data": {
+       "records": [
+        {
+         "symbol": "BTC-USDT",
+         "positionId": "1847596444958068736",
+         "changeReason": "OpenPosition",
+         "marginChange": "7586.46841066",
+         "marginAfterChange": "7586.46841066",
+         "time": 1729336294000
+        }
+       ],
+       "total": 4
+      }
+     },
+     "queryString": "amountPerOrder=0.111&interval=8&positionSide=LONG&priceType=constant&priceVariance=2000&recvWindow=5000&side=BUY&signature=x&symbol=BNB-USDT&timestamp=1&totalAmount=0.511&triggerPrice=68000",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/twap/orderDetail": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1702731661854,
+      "data": {
+       "symbol": "BNB-USDT",
+       "side": "BUY",
+       "positionSide": "LONG",
+       "priceType": "constant",
+       "priceVariance": "2000",
+       "triggerPrice": "68000",
+       "interval": 8,
+       "amountPerOrder": "0.111",
+       "totalAmount": "0.511",
+       "orderStatus": "Running",
+       "executedQty": "0.1",
+       "duration": 800,
+       "maxDuration": 9000,
+       "createdTime": 1702731661854,
+       "updateTime": 1702731661854
+      }
+     },
+     "queryString": "mainOrderId=12312435134&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v1/user/marginAssets": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "currency": "USDC",
+        "totalAmount": "0.00000000",
+        "availableTransfer": "0.00000000",
+        "latestMortgageAmount": "0.00000000"
+       },
+       {
+        "currency": "USDT",
+        "totalAmount": "6.89886320",
+        "availableTransfer": "6.89886320",
+        "latestMortgageAmount": "6.89886320"
+       },
+       {
+        "currency": "BTC",
+        "totalAmount": "6.89886320",
+        "availableTransfer": "6.89886320",
+        "latestMortgageAmount": "6.89886320"
+       },
+       {
+        "currency": "ETH",
+        "totalAmount": "6.89886320",
+        "availableTransfer": "6.89886320",
+        "latestMortgageAmount": "6.89886320"
+       }
+      ]
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/quote/bookTicker": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "book_ticker": {
+        "symbol": "BTC-USDT",
+        "bid_price": 74466.8,
+        "bid_qty": 6.6915,
+        "ask_price": 74466.9,
+        "ask_qty": 27.1585,
+        "lastUpdateId": 759282669,
+        "time": 1794423591333
+       }
+      }
+     },
+     "queryString": "symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/quote/contracts": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "contractId": "100",
+        "symbol": "BTC-USDT",
+        "size": "0.0001",
+        "quantityPrecision": 4,
+        "pricePrecision": 1,
+        "feeRate": 0.0005,
+        "makerFeeRate": 0.0002,
+        "takerFeeRate": 0.0005,
+        "tradeMinLimit": 0,
+        "tradeMinQuantity": 0.0001,
+        "tradeMinUSDT": 2,
+        "currency": "USDT",
+        "asset": "BTC",
+        "status": 1,
+        "apiStateOpen": "true",
+        "apiStateClose": "true",
+        "ensureTrigger": true,
+        "triggerFeeRate": "0.00050000",
+        "brokerState": false,
+        "launchTime": 1586275200000,
+        "maintainTime": 0,
+        "offTime": 0,
+        "displayName": "BTC-USDT"
+       }
+      ]
+     },
+     "queryString": "symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "contractId": "101885",
+        "symbol": "NCSKMSFT2USD-USDT",
+        "size": "0.001",
+        "quantityPrecision": 3,
+        "pricePrecision": 2,
+        "feeRate": 0.0005,
+        "makerFeeRate": 0.0002,
+        "takerFeeRate": 0.0005,
+        "tradeMinLimit": 0,
+        "tradeMinQuantity": 0.004,
+        "tradeMinUSDT": 2,
+        "currency": "USDT",
+        "asset": "NCSKMSFT2USD",
+        "status": 1,
+        "apiStateOpen": "true",
+        "apiStateClose": "true",
+        "ensureTrigger": false,
+        "triggerFeeRate": "0.00200000",
+        "brokerState": false,
+        "launchTime": 1762161300000,
+        "maintainTime": 0,
+        "offTime": 0,
+        "displayName": "MSFT-USDT"
+       }
+      ]
+     },
+     "queryString": "symbol=NCSKMSFT2USD-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "contractId": "100410",
+        "symbol": "BTC-USDC",
+        "size": "0.0001",
+        "quantityPrecision": 4,
+        "pricePrecision": 1,
+        "feeRate": 0.0005,
+        "makerFeeRate": 0.0002,
+        "takerFeeRate": 0.0005,
+        "tradeMinLimit": 0,
+        "tradeMinQuantity": 0.0001,
+        "tradeMinUSDT": 2,
+        "currency": "USDC",
+        "asset": "BTC",
+        "status": 1,
+        "apiStateOpen": "true",
+        "apiStateClose": "true",
+        "ensureTrigger": true,
+        "triggerFeeRate": "0.00060000",
+        "brokerState": false,
+        "launchTime": 1719134881000,
+        "maintainTime": 0,
+        "offTime": 0,
+        "displayName": "BTC-USDC"
+       }
+      ]
+     },
+     "queryString": "symbol=BTC-USDC",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "contractId": "100",
+        "symbol": "BTC-USDT",
+        "size": "0.0001",
+        "quantityPrecision": 4,
+        "pricePrecision": 1,
+        "feeRate": 0.0005,
+        "makerFeeRate": 0.0002,
+        "takerFeeRate": 0.0005,
+        "tradeMinLimit": 0,
+        "tradeMinQuantity": 0.0001,
+        "tradeMinUSDT": 2,
+        "currency": "USDT",
+        "asset": "BTC",
+        "status": 1,
+        "apiStateOpen": "true",
+        "apiStateClose": "true",
+        "ensureTrigger": true,
+        "triggerFeeRate": "0.00050000",
+        "brokerState": false,
+        "launchTime": 1586275200000,
+        "maintainTime": 0,
+        "offTime": 0,
+        "displayName": "BTC-USDT"
+       },
+       {
+        "contractId": "101",
+        "symbol": "ETH-USDT",
+        "size": "0.01",
+        "quantityPrecision": 2,
+        "pricePrecision": 2,
+        "feeRate": 0.0005,
+        "makerFeeRate": 0.0002,
+        "takerFeeRate": 0.0005,
+        "tradeMinLimit": 0,
+        "tradeMinQuantity": 0.01,
+        "tradeMinUSDT": 2,
+        "currency": "USDT",
+        "asset": "ETH",
+        "status": 1,
+        "apiStateOpen": "true",
+        "apiStateClose": "true",
+        "ensureTrigger": true,
+        "triggerFeeRate": "0.00050000",
+        "brokerState": false,
+        "launchTime": 1586275200000,
+        "maintainTime": 0,
+        "offTime": 0,
+        "displayName": "ETH-USDT"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/quote/depth": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "T": 1794423579205,
+       "bids": [
+        [
+         "74476.3",
+         "5.5749"
+        ],
+        [
+         "74476.2",
+         "0.0248"
+        ],
+        [
+         "74475.9",
+         "0.0165"
+        ],
+        [
+         "74475.6",
+         "0.0899"
+        ],
+        [
+         "74475.5",
+         "0.0183"
+        ]
+       ],
+       "asks": [
+        [
+         "74476.5",
+         "1.3373"
+        ],
+        [
+         "74476.6",
+         "0.0211"
+        ],
+        [
+         "74476.9",
+         "0.0884"
+        ],
+        [
+         "74477.0",
+         "0.0245"
+        ],
+        [
+         "74477.1",
+         "0.0079"
+        ]
+       ],
+       "bidsCoin": [
+        [
+         "74476.3",
+         "5.5749"
+        ],
+        [
+         "74476.2",
+         "0.0248"
+        ],
+        [
+         "74475.9",
+         "0.0165"
+        ],
+        [
+         "74475.6",
+         "0.0899"
+        ],
+        [
+         "74475.5",
+         "0.0183"
+        ]
+       ],
+       "asksCoin": [
+        [
+         "74476.5",
+         "1.3373"
+        ],
+        [
+         "74476.6",
+         "0.0211"
+        ],
+        [
+         "74476.9",
+         "0.0884"
+        ],
+        [
+         "74477.0",
+         "0.0245"
+        ],
+        [
+         "74477.1",
+         "0.0079"
+        ]
+       ]
+      }
+     },
+     "queryString": "limit=5&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "T": 1794478486417,
+       "bids": [
+        [
+         "73391.2",
+         "10.0368"
+        ],
+        [
+         "73391.0",
+         "0.4030"
+        ],
+        [
+         "73390.7",
+         "0.3472"
+        ]
+       ],
+       "asks": [
+        [
+         "73391.5",
+         "3.2317"
+        ],
+        [
+         "73391.6",
+         "0.0134"
+        ],
+        [
+         "73391.8",
+         "1.0809"
+        ]
+       ],
+       "bidsCoin": [
+        [
+         "73391.2",
+         "10.0368"
+        ],
+        [
+         "73391.0",
+         "0.4030"
+        ],
+        [
+         "73390.7",
+         "0.3472"
+        ]
+       ],
+       "asksCoin": [
+        [
+         "73391.5",
+         "3.2317"
+        ],
+        [
+         "73391.6",
+         "0.0134"
+        ],
+        [
+         "73391.8",
+         "1.0809"
+        ]
+       ]
+      }
+     },
+     "queryString": "limit=1000&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/quote/fundingRate": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "symbol": "BTC-USDT",
+        "fundingRate": "0.00009700",
+        "fundingTime": 1794384000000,
+        "markPrice": "74062.1"
+       },
+       {
+        "symbol": "BTC-USDT",
+        "fundingRate": "0.00010000",
+        "fundingTime": 1794355200000,
+        "markPrice": "73767.1"
+       },
+       {
+        "symbol": "BTC-USDT",
+        "fundingRate": "0.00010000",
+        "fundingTime": 1794326400000,
+        "markPrice": "73185.9"
+       }
+      ]
+     },
+     "queryString": "endTime=1794384000000&limit=3&startTime=1794211200000&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "symbol": "BTC-USDT",
+        "fundingRate": "0.00010000",
+        "fundingTime": 1794355200000,
+        "markPrice": "73767.1"
+       },
+       {
+        "symbol": "BTC-USDT",
+        "fundingRate": "0.00010000",
+        "fundingTime": 1794326400000,
+        "markPrice": "73185.9"
+       },
+       {
+        "symbol": "BTC-USDT",
+        "fundingRate": "0.00010000",
+        "fundingTime": 1794297600000,
+        "markPrice": "74812.5"
+       },
+       {
+        "symbol": "BTC-USDT",
+        "fundingRate": "0.00010000",
+        "fundingTime": 1794268800000,
+        "markPrice": "75326.6"
+       },
+       {
+        "symbol": "BTC-USDT",
+        "fundingRate": "0.00010000",
+        "fundingTime": 1794240000000,
+        "markPrice": "75498.5"
+       },
+       {
+        "symbol": "BTC-USDT",
+        "fundingRate": "0.00010000",
+        "fundingTime": 1794211200000,
+        "markPrice": "73836.3"
+       },
+       {
+        "symbol": "BTC-USDT",
+        "fundingRate": "0.00005800",
+        "fundingTime": 1794182400000,
+        "markPrice": "74809.0"
+       },
+       {
+        "symbol": "BTC-USDT",
+        "fundingRate": "0.00008700",
+        "fundingTime": 1794153600000,
+        "markPrice": "76038.1"
+       },
+       {
+        "symbol": "BTC-USDT",
+        "fundingRate": "0.00010000",
+        "fundingTime": 1794124800000,
+        "markPrice": "75940.2"
+       },
+       {
+        "symbol": "BTC-USDT",
+        "fundingRate": "0.00010000",
+        "fundingTime": 1794096000000,
+        "markPrice": "75836.1"
+       }
+      ]
+     },
+     "queryString": "endTime=1794355200000&limit=1000&startTime=1794096000000&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/quote/openInterest": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "openInterest": "634048539.6",
+       "symbol": "BTC-USDT",
+       "time": 1794423586343
+      }
+     },
+     "queryString": "symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/quote/premiumIndex": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "symbol": "BTC-USDT",
+       "markPrice": "74475.8",
+       "indexPrice": "74512.4",
+       "lastFundingRate": "0.00005600",
+       "nextFundingTime": 1794441600000,
+       "fundingIntervalHours": 8,
+       "minFundingRate": "-0.003000",
+       "maxFundingRate": "0.003000",
+       "updateTime": 1794412800000
+      }
+     },
+     "queryString": "symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "symbol": "BTC-USDT",
+        "markPrice": "74475.7",
+        "indexPrice": "74512.4",
+        "lastFundingRate": "0.00005600",
+        "nextFundingTime": 1794441600000,
+        "fundingIntervalHours": 8,
+        "minFundingRate": "-0.003000",
+        "maxFundingRate": "0.003000",
+        "updateTime": 1794412800000
+       },
+       {
+        "symbol": "ETH-USDT",
+        "markPrice": "2083.12",
+        "indexPrice": "2084.15",
+        "lastFundingRate": "0.00010000",
+        "nextFundingTime": 1794441600000,
+        "fundingIntervalHours": 8,
+        "minFundingRate": "-0.003000",
+        "maxFundingRate": "0.003000",
+        "updateTime": 1794412800000
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/quote/ticker": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "symbol": "BTC-USDT",
+       "priceChange": "934.9",
+       "priceChangePercent": "1.27",
+       "lastPrice": "74466.8",
+       "lastQty": "0.0009",
+       "highPrice": "74748.0",
+       "lowPrice": "73187.5",
+       "volume": "10092.8100",
+       "quoteVolume": "745120024.59",
+       "openPrice": "73531.9",
+       "openTime": 1794337185000,
+       "closeTime": 1794423585000,
+       "askPrice": "74467.3",
+       "askQty": "23.4100",
+       "bidPrice": "74467.2",
+       "bidQty": "15.9549"
+      }
+     },
+     "queryString": "symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "symbol": "NCCOGOLD2USD-USDT",
+        "priceChange": "-40.54",
+        "priceChangePercent": "-1.00",
+        "lastPrice": "3994.73",
+        "lastQty": "0.0019",
+        "highPrice": "4073.86",
+        "lowPrice": "3993.78",
+        "volume": "213983.5900",
+        "quoteVolume": "863995029.39",
+        "openPrice": "4035.27",
+        "openTime": 1794337187000,
+        "closeTime": 1794423587000,
+        "askPrice": "3994.73",
+        "askQty": "266.1873",
+        "bidPrice": "3994.72",
+        "bidQty": "84.0512"
+       },
+       {
+        "symbol": "BTC-USDT",
+        "priceChange": "934.9",
+        "priceChangePercent": "1.27",
+        "lastPrice": "74466.8",
+        "lastQty": "0.0002",
+        "highPrice": "74748.0",
+        "lowPrice": "73187.5",
+        "volume": "10092.8800",
+        "quoteVolume": "745124902.80",
+        "openPrice": "73531.9",
+        "openTime": 1794337187000,
+        "closeTime": 1794423587000,
+        "askPrice": "74469.6",
+        "askQty": "9.2170",
+        "bidPrice": "74469.5",
+        "bidQty": "43.7142"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/quote/trades": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "time": 1794423409678,
+        "isBuyerMaker": true,
+        "price": "74429.8",
+        "qty": "0.0152",
+        "quoteQty": "1131.33",
+        "fillId": "759281606",
+        "ts": 1794423409678
+       },
+       {
+        "time": 1794423409734,
+        "isBuyerMaker": false,
+        "price": "74429.9",
+        "qty": "0.0011",
+        "quoteQty": "81.87",
+        "fillId": "759281607",
+        "ts": 1794423409734
+       },
+       {
+        "time": 1794423409933,
+        "isBuyerMaker": false,
+        "price": "74429.9",
+        "qty": "0.0007",
+        "quoteQty": "52.10",
+        "fillId": "759281608",
+        "ts": 1794423409933
+       }
+      ]
+     },
+     "queryString": "limit=3&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "time": 1794478306531,
+        "isBuyerMaker": true,
+        "price": "73403.3",
+        "qty": "0.0014",
+        "quoteQty": "102.76",
+        "fillId": "759616927",
+        "ts": 1794478306531
+       },
+       {
+        "time": 1794478306533,
+        "isBuyerMaker": false,
+        "price": "73403.4",
+        "qty": "0.0006",
+        "quoteQty": "44.04",
+        "fillId": "759616928",
+        "ts": 1794478306533
+       },
+       {
+        "time": 1794478306647,
+        "isBuyerMaker": false,
+        "price": "73403.4",
+        "qty": "0.0014",
+        "quoteQty": "102.76",
+        "fillId": "759616929",
+        "ts": 1794478306647
+       }
+      ]
+     },
+     "queryString": "limit=1000&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/server/time": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "serverTime": 1794406598194
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/allFillOrders": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "fill_orders": [
+        {
+         "filledTm": "2026-08-06T15:32:23.000Z",
+         "volume": "0.0001",
+         "price": "75586.05",
+         "amount": "7.5586",
+         "commission": "-0.003779",
+         "currency": "USDC",
+         "orderId": "2085388523196895233",
+         "liquidatedPrice": "",
+         "liquidatedMarginRatio": "",
+         "filledTime": "2026-08-06T23:32:23.000+08:00",
+         "clientOrderID": "",
+         "symbol": "BTC-USDC"
+        }
+       ]
+      }
+     },
+     "queryString": "currency=USDC&endTs=1786108427542&recvWindow=5000&signature=x&startTs=1785503627542&symbol=BTC-USDC&timestamp=1&tradingUnit=COIN",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/allOpenOrders": {
+   "DELETE": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "success": [
+        {
+         "symbol": "ATOM-USDT",
+         "orderId": 1736013373487123500,
+         "side": "SELL",
+         "positionSide": "SHORT",
+         "type": "LIMIT",
+         "origQty": "3.00",
+         "price": "13.044",
+         "executedQty": "0.00",
+         "avgPrice": "0.000",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0",
+         "commission": "0",
+         "status": "CANCELLED",
+         "time": 1702732816465,
+         "updateTime": 1702732816488,
+         "clientOrderId": "",
+         "leverage": "",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "workingType": ""
+        },
+        {
+         "symbol": "ATOM-USDT",
+         "orderId": 1736013373487123500,
+         "side": "BUY",
+         "positionSide": "SHORT",
+         "type": "LIMIT",
+         "origQty": "3.00",
+         "price": "11.292",
+         "executedQty": "0.00",
+         "avgPrice": "0.000",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0",
+         "commission": "0",
+         "status": "CANCELLED",
+         "time": 1702732816820,
+         "updateTime": 1702732816839,
+         "clientOrderId": "",
+         "leverage": "",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "workingType": ""
+        }
+       ],
+       "failed": [
+        {
+         "orderId": 111111,
+         "clientOrderId": "111111",
+         "errorCode": 80012,
+         "errorMessage": "cancel order failed"
+        },
+        {
+         "orderId": 222222,
+         "clientOrderId": "222222",
+         "errorCode": 80012,
+         "errorMessage": "cancel order failed"
+        }
+       ]
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=ATOM-USDT&timestamp=1&type=LIMIT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "success": [
+        {
+         "symbol": "ATOM-USDT",
+         "orderId": 1736013373487123500,
+         "side": "SELL",
+         "positionSide": "SHORT",
+         "type": "LIMIT",
+         "origQty": "3.00",
+         "price": "13.044",
+         "executedQty": "0.00",
+         "avgPrice": "0.000",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0",
+         "commission": "0",
+         "status": "CANCELLED",
+         "time": 1702732816465,
+         "updateTime": 1702732816488,
+         "clientOrderId": "",
+         "leverage": "",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "workingType": ""
+        },
+        {
+         "symbol": "ATOM-USDT",
+         "orderId": 1736013373487123500,
+         "side": "BUY",
+         "positionSide": "SHORT",
+         "type": "LIMIT",
+         "origQty": "3.00",
+         "price": "11.292",
+         "executedQty": "0.00",
+         "avgPrice": "0.000",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0",
+         "commission": "0",
+         "status": "CANCELLED",
+         "time": 1702732816820,
+         "updateTime": 1702732816839,
+         "clientOrderId": "",
+         "leverage": "",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "workingType": ""
+        }
+       ],
+       "failed": [
+        {
+         "orderId": 111111,
+         "clientOrderId": "111111",
+         "errorCode": 80012,
+         "errorMessage": "cancel order failed"
+        },
+        {
+         "orderId": 222222,
+         "clientOrderId": "222222",
+         "errorCode": 80012,
+         "errorMessage": "cancel order failed"
+        }
+       ]
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=ATOM-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/allOrders": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "BTC-USDC",
+         "orderId": 2085388523196895200,
+         "side": "BUY",
+         "positionSide": "LONG",
+         "type": "MARKET",
+         "origQty": "0.0001",
+         "price": "0",
+         "executedQty": "0.0001",
+         "avgPrice": "75586.05",
+         "cumQuote": "8",
+         "stopPrice": "",
+         "profit": "0.0000",
+         "commission": "-0.003779",
+         "status": "FILLED",
+         "time": 1786030343000,
+         "updateTime": 1786030343000,
+         "clientOrderId": "",
+         "leverage": "20X",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 2085388523545022500,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "workingType": "MARK_PRICE",
+         "stopGuaranteed": false,
+         "triggerOrderId": 0
+        }
+       ]
+      }
+     },
+     "queryString": "currency=USDC&endTime=1786108425603&limit=100&recvWindow=5000&signature=x&startTime=1785503625603&symbol=BTC-USDC&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "BTC-USDC",
+         "orderId": 2085388523196895200,
+         "side": "BUY",
+         "positionSide": "LONG",
+         "type": "MARKET",
+         "origQty": "0.0001",
+         "price": "0",
+         "executedQty": "0.0001",
+         "avgPrice": "75586.05",
+         "cumQuote": "8",
+         "stopPrice": "",
+         "profit": "0.0000",
+         "commission": "-0.003779",
+         "status": "FILLED",
+         "time": 1786030343000,
+         "updateTime": 1786030343000,
+         "clientOrderId": "",
+         "leverage": "20X",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 2085388523545022500,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "workingType": "MARK_PRICE",
+         "stopGuaranteed": false,
+         "triggerOrderId": 0
+        }
+       ]
+      }
+     },
+     "queryString": "currency=USDC&endTime=1786021625603&limit=1000&recvWindow=5000&signature=x&startTime=1785503625603&symbol=BTC-USDC&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/batchOrders": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "ID-USDT",
+         "orderId": 1736010300483712300,
+         "side": "SELL",
+         "positionSide": "LONG",
+         "type": "MARKET",
+         "clientOrderId": "",
+         "workingType": ""
+        }
+       ]
+      }
+     },
+     "queryString": "batchOrders=%5B%7B%22symbol%22%3A%22ETH-USDT%22%2C%22type%22%3A%22MARKET%22%2C%22side%22%3A%22BUY%22%2C%22positionSide%22%3A%22LONG%22%2C%22quantity%22%3A1%7D%2C%7B%22symbol%22%3A%22BTC-USDT%22%2C%22type%22%3A%22MARKET%22%2C%22side%22%3A%22BUY%22%2C%22positionSide%22%3A%22LONG%22%2C%22quantity%22%3A0.001%7D%5D&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "DELETE": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "success": [
+        {
+         "symbol": "BTC-USDT",
+         "orderId": 1735924831603391200,
+         "side": "BUY",
+         "positionSide": "LONG",
+         "type": "LIMIT",
+         "origQty": "0.0032",
+         "price": "41682.9",
+         "executedQty": "0.0000",
+         "avgPrice": "0.0",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0.0000",
+         "commission": "0.000000",
+         "status": "CANCELLED",
+         "time": 1702711706435,
+         "updateTime": 1702711706453,
+         "clientOrderId": "",
+         "leverage": "",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "workingType": ""
+        },
+        {
+         "symbol": "BTC-USDT",
+         "orderId": 1735924833239172400,
+         "side": "BUY",
+         "positionSide": "LONG",
+         "type": "LIMIT",
+         "origQty": "0.0033",
+         "price": "41182.9",
+         "executedQty": "0.0000",
+         "avgPrice": "0.0",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0.0000",
+         "commission": "0.000000",
+         "status": "CANCELLED",
+         "time": 1702711706825,
+         "updateTime": 1702711706838,
+         "clientOrderId": "",
+         "leverage": "",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "workingType": ""
+        }
+       ],
+       "failed": null
+      }
+     },
+     "queryString": "orderIdList=%5B1735924831603391122%2C1735924833239172233%5D&recvWindow=5000&signature=x&symbol=BTC-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/cancelAllAfter": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "debugMsg": "",
+      "data": {
+       "triggerTime": 1710389137,
+       "status": "ACTIVATED",
+       "note": "All your spot pending orders will be closed automatically at 2024-03-14 04:05:37 UTC(+0),before that you can cancel the timer, or extend triggerTime time by this request"
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&timeOut=10&timestamp=1&type=ACTIVATE",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/closeAllPositions": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "success": [
+        1736008778921491200
+       ],
+       "failed": null
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BTC-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/fillHistory": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "fill_history_orders": [
+        {
+         "symbol": "BTC-USDC",
+         "qty": "0.0001",
+         "quoteQty": "7.5586",
+         "role": "taker",
+         "commission": "-0.003779",
+         "commissionAsset": "USDC",
+         "price": "75586.05",
+         "orderId": "2085388523196895233",
+         "tradeId": "1110873278",
+         "filledTime": "2026-08-06T23:32:23.000+08:00",
+         "clientOrderID": "",
+         "realisedPNL": "0.00000000",
+         "side": "BUY",
+         "positionSide": "LONG"
+        }
+       ],
+       "total": 17
+      }
+     },
+     "queryString": "currency=USDC&endTs=1786108422606&pageIndex=1&pageSize=50&recvWindow=5000&signature=x&startTs=1785503622606&symbol=BTC-USDC&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/forceOrders": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "ATOM-USDT",
+         "orderId": 172264854643022330000,
+         "side": "SELL",
+         "positionSide": "LONG",
+         "type": "LIMIT",
+         "origQty": "2.36",
+         "price": "8.096",
+         "executedQty": "2.36",
+         "avgPrice": "8.095",
+         "cumQuote": "19",
+         "stopPrice": "",
+         "profit": "-0.9346",
+         "commission": "-0.009553",
+         "status": "FILLED",
+         "time": 1699546393000,
+         "updateTime": 1699546393000,
+         "clientOrderId": "",
+         "leverage": "21X",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "workingType": "MARK_PRICE"
+        }
+       ]
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&startTime=1696291200000&symbol=ATOM-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/getVst": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "timestamp": 1730863321895,
+      "data": {
+       "adjustType": "0",
+       "amount": "500000"
+      }
+     },
+     "queryString": "adjustType=0&amount=500000&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/leverage": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "longLeverage": 50,
+       "shortLeverage": 50,
+       "maxLongLeverage": 75,
+       "maxShortLeverage": 75
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BCH-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "leverage": 8,
+       "symbol": "ETH-USDT"
+      }
+     },
+     "queryString": "leverage=8&recvWindow=5000&side=SHORT&signature=x&symbol=ETH-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/marginType": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "marginType": "CROSSED"
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=WOO-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": ""
+     },
+     "queryString": "marginType=CROSSED&recvWindow=5000&signature=x&symbol=MINA-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/openOrder": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "order": {
+        "symbol": "OP-USDT",
+        "orderId": 1736012449498123500,
+        "side": "SELL",
+        "positionSide": "LONG",
+        "type": "LIMIT",
+        "origQty": "1.0",
+        "price": "2.1710",
+        "executedQty": "0.0",
+        "avgPrice": "0.0000",
+        "cumQuote": "0",
+        "stopPrice": "",
+        "profit": "0.0000",
+        "commission": "0.000000",
+        "status": "PENDING",
+        "time": 1702732596168,
+        "updateTime": 1702732596188,
+        "clientOrderId": "l*****e",
+        "leverage": "",
+        "takeProfit": {
+         "type": "",
+         "quantity": 0,
+         "stopPrice": 0,
+         "price": 0,
+         "workingType": ""
+        },
+        "stopLoss": {
+         "type": "",
+         "quantity": 0,
+         "stopPrice": 0,
+         "price": 0,
+         "workingType": ""
+        },
+        "advanceAttr": 0,
+        "positionID": 0,
+        "takeProfitEntrustPrice": 0,
+        "stopLossEntrustPrice": 0,
+        "orderType": "",
+        "workingType": "MARK_PRICE"
+       }
+      }
+     },
+     "queryString": "orderId=1736012449498123456&recvWindow=5000&signature=x&symbol=OP-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/openOrders": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "BTC-USDT",
+         "orderId": 1733405587011123500,
+         "side": "SELL",
+         "positionSide": "LONG",
+         "type": "LIMIT",
+         "origQty": "0.0030",
+         "price": "44459.6",
+         "executedQty": "0.0000",
+         "avgPrice": "0.0",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0.0",
+         "commission": "0.0",
+         "status": "PENDING",
+         "time": 1702256915574,
+         "updateTime": 1702256915610,
+         "clientOrderId": "",
+         "leverage": "",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "StopGuaranteed": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "StopGuaranteed": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "trailingStopRate": 0,
+         "trailingStopDistance": 0,
+         "postOnly": false,
+         "workingType": "MARK_PRICE"
+        },
+        {
+         "symbol": "BTC-USDT",
+         "orderId": 1733405587011123500,
+         "side": "SELL",
+         "positionSide": "LONG",
+         "type": "LIMIT",
+         "origQty": "0.0030",
+         "price": "44454.6",
+         "executedQty": "0.0000",
+         "avgPrice": "0.0",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0.0",
+         "commission": "0.0",
+         "status": "PENDING",
+         "time": 1702111071719,
+         "updateTime": 1702111071735,
+         "clientOrderId": "",
+         "leverage": "",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "StopGuaranteed": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "StopGuaranteed": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "trailingStopRate": 0,
+         "trailingStopDistance": 0,
+         "postOnly": false,
+         "workingType": "MARK_PRICE"
+        }
+       ]
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BTC-USDT&timestamp=1&type=LIMIT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "orders": [
+        {
+         "symbol": "BTC-USDT",
+         "orderId": 1733405587011123500,
+         "side": "SELL",
+         "positionSide": "LONG",
+         "type": "LIMIT",
+         "origQty": "0.0030",
+         "price": "44459.6",
+         "executedQty": "0.0000",
+         "avgPrice": "0.0",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0.0",
+         "commission": "0.0",
+         "status": "PENDING",
+         "time": 1702256915574,
+         "updateTime": 1702256915610,
+         "clientOrderId": "",
+         "leverage": "",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "StopGuaranteed": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "StopGuaranteed": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "trailingStopRate": 0,
+         "trailingStopDistance": 0,
+         "postOnly": false,
+         "workingType": "MARK_PRICE"
+        },
+        {
+         "symbol": "BTC-USDT",
+         "orderId": 1733405587011123500,
+         "side": "SELL",
+         "positionSide": "LONG",
+         "type": "LIMIT",
+         "origQty": "0.0030",
+         "price": "44454.6",
+         "executedQty": "0.0000",
+         "avgPrice": "0.0",
+         "cumQuote": "0",
+         "stopPrice": "",
+         "profit": "0.0",
+         "commission": "0.0",
+         "status": "PENDING",
+         "time": 1702111071719,
+         "updateTime": 1702111071735,
+         "clientOrderId": "",
+         "leverage": "",
+         "takeProfit": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "StopGuaranteed": ""
+         },
+         "stopLoss": {
+          "type": "",
+          "quantity": 0,
+          "stopPrice": 0,
+          "price": 0,
+          "workingType": "",
+          "StopGuaranteed": ""
+         },
+         "advanceAttr": 0,
+         "positionID": 0,
+         "takeProfitEntrustPrice": 0,
+         "stopLossEntrustPrice": 0,
+         "orderType": "",
+         "trailingStopRate": 0,
+         "trailingStopDistance": 0,
+         "postOnly": false,
+         "workingType": "MARK_PRICE"
+        }
+       ]
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&symbol=BTC-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/order": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "order": {
+        "symbol": "BTC-USDT",
+        "orderId": 1735950529123455000,
+        "side": "BUY",
+        "positionSide": "LONG",
+        "type": "MARKET",
+        "clientOrderId": "",
+        "workingType": "MARK_PRICE"
+       }
+      }
+     },
+     "queryString": "positionSide=LONG&quantity=5&recvWindow=5000&side=BUY&signature=x&symbol=BTC-USDT&takeProfit=%7B%22type%22%3A%22TAKE_PROFIT_MARKET%22%2C%22stopPrice%22%3A31968%2C%22price%22%3A31968%2C%22workingType%22%3A%22MARK_PRICE%22%7D&timestamp=1&type=MARKET",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "order": {
+        "symbol": "BTC-USDT",
+        "orderId": 1735950529123455000,
+        "side": "BUY",
+        "positionSide": "LONG",
+        "type": "MARKET",
+        "clientOrderId": "",
+        "workingType": "MARK_PRICE"
+       }
+      }
+     },
+     "queryString": "closePosition=true&positionSide=LONG&quantity=0.002&recvWindow=5000&side=SELL&signature=x&stopPrice=50000&symbol=BTC-USDT&timeInForce=GTC&timestamp=1&type=STOP_MARKET",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "order": {
+        "symbol": "BTC-USDT",
+        "orderId": 1735950529123455000,
+        "side": "BUY",
+        "positionSide": "LONG",
+        "type": "MARKET",
+        "clientOrderId": "",
+        "workingType": "MARK_PRICE"
+       }
+      }
+     },
+     "queryString": "positionSide=LONG&price=50000&quantity=0.001&recvWindow=5000&side=BUY&signature=x&symbol=BTC-USDT&timeInForce=GTC&timestamp=1&type=LIMIT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "DELETE": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "order": {
+        "symbol": "RNDR-USDT",
+        "orderId": 1736011869418901200,
+        "side": "BUY",
+        "positionSide": "LONG",
+        "type": "LIMIT",
+        "origQty": "3",
+        "price": "4.5081",
+        "executedQty": "0",
+        "avgPrice": "0.0000",
+        "cumQuote": "0",
+        "stopPrice": "",
+        "profit": "0.0000",
+        "commission": "0.000000",
+        "status": "CANCELLED",
+        "time": 1702732457867,
+        "updateTime": 1702732457888,
+        "clientOrderId": "lo******7",
+        "leverage": "",
+        "takeProfit": {
+         "type": "",
+         "quantity": 0,
+         "stopPrice": 0,
+         "price": 0,
+         "workingType": ""
+        },
+        "stopLoss": {
+         "type": "",
+         "quantity": 0,
+         "stopPrice": 0,
+         "price": 0,
+         "workingType": ""
+        },
+        "advanceAttr": 0,
+        "positionID": 0,
+        "takeProfitEntrustPrice": 0,
+        "stopLossEntrustPrice": 0,
+        "orderType": "",
+        "workingType": ""
+       }
+      }
+     },
+     "queryString": "orderId=1736011869418901234&recvWindow=5000&signature=x&symbol=RNDR-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "order": {
+        "symbol": "OP-USDT",
+        "orderId": 1736012449498123500,
+        "side": "SELL",
+        "positionSide": "LONG",
+        "type": "LIMIT",
+        "origQty": "1.0",
+        "price": "2.1710",
+        "executedQty": "0.0",
+        "avgPrice": "0.0000",
+        "cumQuote": "0",
+        "stopPrice": "",
+        "profit": "0.0000",
+        "commission": "0.000000",
+        "status": "PENDING",
+        "time": 1702732596168,
+        "updateTime": 1702732596188,
+        "clientOrderId": "l*****e",
+        "leverage": "",
+        "takeProfit": {
+         "type": "",
+         "quantity": 0,
+         "stopPrice": 0,
+         "price": 0,
+         "workingType": ""
+        },
+        "stopLoss": {
+         "type": "",
+         "quantity": 0,
+         "stopPrice": 0,
+         "price": 0,
+         "workingType": ""
+        },
+        "advanceAttr": 0,
+        "positionID": 0,
+        "takeProfitEntrustPrice": 0,
+        "stopLossEntrustPrice": 0,
+        "orderType": "",
+        "workingType": "MARK_PRICE",
+        "stopGuaranteed": false,
+        "triggerOrderId": 1736012449498123500
+       }
+      }
+     },
+     "queryString": "orderId=1736012449498123456&recvWindow=5000&signature=x&symbol=OP-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/order/test": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "order": {
+        "symbol": "BTC-USDT",
+        "orderId": 1735950529123455000,
+        "side": "BUY",
+        "positionSide": "LONG",
+        "type": "MARKET",
+        "clientOrderId": "",
+        "workingType": "MARK_PRICE"
+       }
+      }
+     },
+     "queryString": "positionSide=LONG&quantity=5&recvWindow=5000&side=BUY&signature=x&symbol=BTC-USDT&takeProfit=%7B%22type%22%3A%22TAKE_PROFIT_MARKET%22%2C%22stopPrice%22%3A31968%2C%22price%22%3A31968%2C%22workingType%22%3A%22MARK_PRICE%22%7D&timestamp=1&type=MARKET",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/positionHistory": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "positionId": "180870089***590996",
+        "symbol": "BTC-USDC",
+        "isolated": false,
+        "positionSide": "LONG",
+        "openTime": 1720062873000,
+        "updateTime": 1720062878000,
+        "avgPrice": "58942.31",
+        "avgClosePrice": "58930.00",
+        "realizedProfit": "-0.04",
+        "netProfit": "-0.16",
+        "positionAmt": "33.0000",
+        "closePositionAmt": "33.0000",
+        "leverage": 20,
+        "closeAllPositions": true,
+        "positionCommission": "-0.11669358690000001",
+        "totalFunding": "0.00000000000000001388"
+       }
+      ]
+     },
+     "queryString": "currency=USDC&endTime=1703001599000&pageSize=20&recvWindow=5000&signature=x&startTime=1700409600000&symbol=BTC-USDC&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/trade/positionMargin": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "amount": 3,
+      "type": 1
+     },
+     "queryString": "amount=3&positionSide=LONG&recvWindow=5000&signature=x&symbol=BTC-USDT&timestamp=1&type=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/user/commissionRate": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "commission": {
+        "takerCommissionRate": 0.0005,
+        "makerCommissionRate": 0.0002
+       }
+      }
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/user/income": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "symbol": "LDO-USDT",
+        "incomeType": "FUNDING_FEE",
+        "income": "-0.0292",
+        "asset": "USDT",
+        "info": "Funding Fee",
+        "time": 1702713615000,
+        "tranId": "170***6*2_3*9_20***97",
+        "tradeId": "170***6*2_3*9_20***97"
+       }
+      ]
+     },
+     "queryString": "currency=USDT&endTime=1702731787011&incomeType=FUNDING_FEE&limit=1000&recvWindow=5000&signature=x&startTime=1702713615001&symbol=LDO-USDT&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v2/user/positions": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "positionId": "1735*****52",
+        "symbol": "BTC-USDC",
+        "currency": "USDC",
+        "positionAmt": "0.0314",
+        "availableAmt": "0.0314",
+        "positionSide": "LONG",
+        "isolated": true,
+        "avgPrice": "75586.05",
+        "initialMargin": "118.6701",
+        "leverage": 20,
+        "unrealizedProfit": "-0.0003",
+        "realisedProfit": "-4.0346",
+        "liquidationPrice": 72162.04
+       }
+      ]
+     },
+     "queryString": "currency=USDC&recvWindow=5000&signature=x&symbol=BTC-USDC&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v3/quote/klines": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "open": "73455.5",
+        "close": "73440.2",
+        "high": "73566.6",
+        "low": "73292.5",
+        "volume": "296.1055",
+        "time": 1794337200000
+       },
+       {
+        "open": "73257.6",
+        "close": "73455.5",
+        "high": "73645.1",
+        "low": "73078.0",
+        "volume": "807.2174",
+        "time": 1794333600000
+       },
+       {
+        "open": "72850.7",
+        "close": "73257.6",
+        "high": "73262.4",
+        "low": "72751.9",
+        "volume": "855.8179",
+        "time": 1794330000000
+       },
+       {
+        "open": "73180.1",
+        "close": "72850.7",
+        "high": "73532.9",
+        "low": "72705.9",
+        "volume": "1768.5875",
+        "time": 1794326400000
+       }
+      ]
+     },
+     "queryString": "endTime=1794340800000&interval=1h&startTime=1794326400000&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "open": "73953.1",
+        "close": "74476.4",
+        "high": "74748.0",
+        "low": "73885.2",
+        "volume": "1222.8595",
+        "time": 1794412800000
+       },
+       {
+        "open": "73180.1",
+        "close": "73953.1",
+        "high": "74449.0",
+        "low": "72705.9",
+        "volume": "12276.0978",
+        "time": 1794326400000
+       }
+      ]
+     },
+     "queryString": "interval=1d&limit=2&symbol=BTC-USDT&timeZone=8",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "open": "75322.2",
+        "close": "73763.5",
+        "high": "75400.7",
+        "low": "72705.9",
+        "volume": "16904.9886",
+        "time": 1794268800000
+       },
+       {
+        "open": "74817.6",
+        "close": "75322.2",
+        "high": "75570.2",
+        "low": "73715.0",
+        "volume": "17808.1481",
+        "time": 1794182400000
+       },
+       {
+        "open": "75836.2",
+        "close": "74817.6",
+        "high": "76166.5",
+        "low": "73400.0",
+        "volume": "8960.1759",
+        "time": 1794096000000
+       }
+      ]
+     },
+     "queryString": "endTime=1794355200000&interval=1d&limit=1000&startTime=1794096000000&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "open": "75322.2",
+        "close": "73763.5",
+        "high": "75400.7",
+        "low": "72705.9",
+        "volume": "16904.9886",
+        "time": 1794268800000
+       },
+       {
+        "open": "74817.6",
+        "close": "75322.2",
+        "high": "75570.2",
+        "low": "73715.0",
+        "volume": "17808.1481",
+        "time": 1794182400000
+       },
+       {
+        "open": "75836.2",
+        "close": "74817.6",
+        "high": "76166.5",
+        "low": "73400.0",
+        "volume": "8960.1759",
+        "time": 1794096000000
+       }
+      ]
+     },
+     "queryString": "endTime=1794355200000&interval=1d&limit=1440&startTime=1794096000000&symbol=BTC-USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/swap/v3/user/balance": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": [
+       {
+        "userId": "116***295",
+        "asset": "USDT",
+        "balance": "194.8212",
+        "equity": "196.7431",
+        "unrealizedProfit": "1.9219",
+        "realisedProfit": "-109.2504",
+        "availableMargin": "193.7609",
+        "usedMargin": "1.0602",
+        "freezedMargin": "0.0000"
+       }
+      ]
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/user/auth/userDataStream": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {
+       "listenKey": "YOUR_LISTEN_KEY"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "PUT": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {}
+     },
+     "queryString": "listenKey=YOUR_LISTEN_KEY",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "DELETE": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "",
+      "data": {}
+     },
+     "queryString": "listenKey=YOUR_LISTEN_KEY",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/v1/account/apiPermissions": {
+   "GET": [
+    {
+     "data": {
+      "apiKey": "",
+      "permissions": [
+       1,
+       2
+      ],
+      "ipAddresses": [],
+      "note": "demo"
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wallets/v1/capital/config/getall": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702623271477,
+      "data": [
+       {
+        "coin": "BTC",
+        "name": "BTC",
+        "networkList": [
+         {
+          "name": "BTC",
+          "network": "BTC",
+          "isDefault": true,
+          "minConfirm": 2,
+          "withdrawEnable": true,
+          "depositEnable": true,
+          "withdrawFee": "0.0006",
+          "withdrawMax": "1.17522",
+          "withdrawMin": "0.0005",
+          "depositMin": "0.0002"
+         },
+         {
+          "name": "BTC",
+          "network": "BEP20",
+          "isDefault": false,
+          "minConfirm": 15,
+          "withdrawEnable": true,
+          "depositEnable": true,
+          "withdrawFee": "0.0000066",
+          "withdrawMax": "1.17522",
+          "withdrawMin": "0.0000066",
+          "depositMin": "0.0002"
+         }
+        ]
+       }
+      ]
+     },
+     "queryString": "coin=BTC&displayName=BTC&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702623271477,
+      "data": [
+       {
+        "coin": "BTC",
+        "name": "BTC",
+        "networkList": [
+         {
+          "name": "BTC",
+          "network": "BTC",
+          "isDefault": true,
+          "minConfirm": 2,
+          "withdrawEnable": true,
+          "depositEnable": true,
+          "withdrawFee": "0.0006",
+          "withdrawMax": "1.17522",
+          "withdrawMin": "0.0005",
+          "depositMin": "0.0002"
+         },
+         {
+          "name": "BTC",
+          "network": "BEP20",
+          "isDefault": false,
+          "minConfirm": 15,
+          "withdrawEnable": true,
+          "depositEnable": true,
+          "withdrawFee": "0.0000066",
+          "withdrawMax": "1.17522",
+          "withdrawMin": "0.0000066",
+          "depositMin": "0.0002"
+         }
+        ]
+       }
+      ]
+     },
+     "queryString": "coin=BTC&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702623271477,
+      "data": [
+       {
+        "coin": "BTC",
+        "name": "BTC",
+        "networkList": [
+         {
+          "name": "BTC",
+          "network": "BTC",
+          "isDefault": true,
+          "minConfirm": 2,
+          "withdrawEnable": true,
+          "depositEnable": true,
+          "withdrawFee": "0.0006",
+          "withdrawMax": "1.17522",
+          "withdrawMin": "0.0005",
+          "depositMin": "0.0002"
+         },
+         {
+          "name": "BTC",
+          "network": "BEP20",
+          "isDefault": false,
+          "minConfirm": 15,
+          "withdrawEnable": true,
+          "depositEnable": true,
+          "withdrawFee": "0.0000066",
+          "withdrawMax": "1.17522",
+          "withdrawMin": "0.0000066",
+          "depositMin": "0.0002"
+         }
+        ]
+       }
+      ]
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wallets/v1/capital/deposit/address": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702623918163,
+      "data": {
+       "data": [
+        {
+         "coinId": 760,
+         "coin": "USDT",
+         "network": "ERC20",
+         "address": "40e*****95",
+         "tag": ""
+        },
+        {
+         "coinId": 780,
+         "coin": "USDT",
+         "network": "TRC20",
+         "address": "40e*****95",
+         "tag": ""
+        },
+        {
+         "coinId": 799,
+         "coin": "USDT",
+         "network": "BEP20",
+         "address": "40e*****95",
+         "tag": ""
+        },
+        {
+         "coinId": 857,
+         "coin": "USDT",
+         "network": "SOL",
+         "address": "40e*****95",
+         "tag": ""
+        },
+        {
+         "coinId": 1192,
+         "coin": "USDT",
+         "network": "POLYGON",
+         "address": "40e*****95",
+         "tag": ""
+        },
+        {
+         "coinId": 1367,
+         "coin": "USDT",
+         "network": "ARBITRUM",
+         "address": "40e*****95",
+         "tag": ""
+        },
+        {
+         "coinId": 1371,
+         "coin": "USDT",
+         "network": "OPTIMISM",
+         "address": "40e*****95",
+         "tag": ""
+        }
+       ],
+       "total": 7
+      }
+     },
+     "queryString": "coin=USDT&limit=1000&offset=1&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702623918163,
+      "data": {
+       "data": [
+        {
+         "coinId": 760,
+         "coin": "USDT",
+         "network": "ERC20",
+         "address": "40e*****95",
+         "tag": ""
+        },
+        {
+         "coinId": 780,
+         "coin": "USDT",
+         "network": "TRC20",
+         "address": "40e*****95",
+         "tag": ""
+        },
+        {
+         "coinId": 799,
+         "coin": "USDT",
+         "network": "BEP20",
+         "address": "40e*****95",
+         "tag": ""
+        },
+        {
+         "coinId": 857,
+         "coin": "USDT",
+         "network": "SOL",
+         "address": "40e*****95",
+         "tag": ""
+        },
+        {
+         "coinId": 1192,
+         "coin": "USDT",
+         "network": "POLYGON",
+         "address": "40e*****95",
+         "tag": ""
+        },
+        {
+         "coinId": 1367,
+         "coin": "USDT",
+         "network": "ARBITRUM",
+         "address": "40e*****95",
+         "tag": ""
+        },
+        {
+         "coinId": 1371,
+         "coin": "USDT",
+         "network": "OPTIMISM",
+         "address": "40e*****95",
+         "tag": ""
+        }
+       ],
+       "total": 7
+      }
+     },
+     "queryString": "coin=USDT&limit=1000&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wallets/v1/capital/deposit/querySubAddress": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702520565000,
+      "data": {
+       "coin": "USDT",
+       "address": "T********D",
+       "network": "TRC20",
+       "addressTag": "",
+       "status": 0,
+       "ts": 1702520565000
+      }
+     },
+     "queryString": "coin=USDT&network=TRC20&recvWindow=5000&signature=x&subUid=16769999&timestamp=1&walletType=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wallets/v1/capital/deposit/riskRecords": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1706839654997,
+      "data": [
+       {
+        "uid": "",
+        "coin": "",
+        "amount": "",
+        "sourceAddress": "",
+        "address": "",
+        "insetTime": ""
+       }
+      ]
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wallets/v1/capital/deposit/subHisrec": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702436064748,
+      "data": {
+       "total": 0,
+       "data": []
+      }
+     },
+     "queryString": "coin=USDT&endTime=1702436064748&limit=100&offset=1&recvWindow=5000&signature=x&startTime=1702350000000&status=1&subUid=16789999&timestamp=1&txId=abc123",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wallets/v1/capital/innerTransfer/apply": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702558152381,
+      "data": {
+       "id": "12******1"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "amount=10&coin=USDT&recvWindow=5000&signature=x&timestamp=1&transferClientId=abc123&userAccount=16779999&userAccountType=1&walletType=1",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wallets/v1/capital/innerTransfer/records": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702383898844,
+      "data": {
+       "data": [
+        {
+         "id": 1251111922229444400,
+         "coin": "BTC",
+         "receiver": 1128763679,
+         "amount": 0.0072366,
+         "status": 6,
+         "fromUid": 1128763678,
+         "recordType": "out"
+        }
+       ],
+       "total": 1
+      }
+     },
+     "queryString": "coin=BTC&endTime=1702383898118&id=1251111922229444400&limit=1000&offset=1&recvWindow=5000&signature=x&startTime=1701519898118&timestamp=1&transferClientId=abc123",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wallets/v1/capital/subAccount/deposit/address": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1700741585439,
+      "data": {
+       "data": [],
+       "total": 0
+      }
+     },
+     "queryString": "coin=USDT&limit=100&offset=1&recvWindow=5000&signature=x&subUid=16239999&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wallets/v1/capital/subAccount/innerTransfer/records": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702383898844,
+      "data": {
+       "data": [
+        {
+         "id": 1251111922229444400,
+         "coin": "BTC",
+         "receiver": 1128763679,
+         "amount": 0.0072366,
+         "status": 6,
+         "fromUid": 1128763678,
+         "recordType": "out"
+        }
+       ],
+       "total": 1
+      }
+     },
+     "queryString": "coin=BTC&endTime=1702383898118&limit=100&offset=1&recvWindow=5000&signature=x&startTime=1701519898118&timestamp=1&transferClientId=abc123",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wallets/v1/capital/subAccountInnerTransfer/apply": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702520425652,
+      "data": {
+       "id": "12*******12"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "amount=20&coin=USDT&recvWindow=5000&signature=x&timestamp=1&transferClientId=abc123&userAccount=16689999&userAccountType=1&walletType=1",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wallets/v1/capital/withdraw/apply": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "timestamp": 1702619168218,
+      "data": {
+       "id": "125*****4"
+      }
+     },
+     "queryString": "address=0x8%2A%2A%2A%2A11&amount=4998&coin=USDT&network=BEP20&recvWindow=5000&signature=x&timestamp=1&walletType=1&withdrawOrderId=abc123",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wealth/v1/product/dual-currency/invest-asset-list": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1702731523011,
+      "data": {
+       "dualTitle": "",
+       "investmentAsset": "BTC",
+       "exerciseAsset": "USDT",
+       "direction": "CALL",
+       "recommendVo": {
+        "sku": "",
+        "productId": 0,
+        "duration": 1,
+        "timeDesc": "",
+        "strikePrice": "",
+        "apy": ""
+       },
+       "subVos": [
+        {
+         "duration": 1,
+         "desc": "",
+         "timeDesc": "",
+         "expiryTime": "",
+         "items": [
+          {
+           "sku": "",
+           "productId": 0,
+           "duration": 1,
+           "strikePrice": "",
+           "targetDeviationPct": "",
+           "apy": "",
+           "soldOut": 0
+          }
+         ]
+        }
+       ],
+       "durationRangeList": [
+        {
+         "lowerLimit": 0,
+         "upperLimit": 7,
+         "desc": ""
+        }
+       ]
+      }
+     },
+     "queryString": "direction=CALL&exerciseAsset=USDT&investmentAsset=BTC&pageSize=10&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wealth/v1/product/dual-currency/order": {
+   "POST": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1702731523011,
+      "data": {
+       "dualTitle": "",
+       "investmentAsset": "",
+       "linkedAsset": "",
+       "exerciseAsset": "",
+       "amount": "",
+       "sku": "",
+       "productId": 0,
+       "quoteId": "",
+       "direction": "",
+       "expiryTime": "",
+       "settledTime": "",
+       "msg": "",
+       "bizCode": 0,
+       "orderNo": "",
+       "startCloseTime": "",
+       "apy": "",
+       "strikePrice": "",
+       "quotaAsset": ""
+      }
+     },
+     "queryString": "amount=0.01&exerciseAsset=USDT&investmentAsset=BTC&productId=1234567890&quoteId=quote_id_from_pre_order&recvWindow=5000&selectAccounts=%5B%22FUND%22%5D&settleTargetAccount=FUND&signature=x&sku=DUAL-BTC-USDT-CALL-8H&strikePrice=77900&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wealth/v1/product/dual-currency/order-records": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1702731523011,
+      "data": {
+       "total": 0,
+       "pages": 0,
+       "current": 1,
+       "size": 10,
+       "records": [
+        {
+         "orderNo": "",
+         "uid": 0,
+         "status": 7,
+         "investmentAsset": "",
+         "exerciseAsset": "",
+         "direction": "",
+         "amount": 0,
+         "apy": 0,
+         "strikePrice": 0,
+         "settlePrice": 0,
+         "settleAmount": 0,
+         "settleAssetName": "",
+         "expiryTime": "",
+         "settledTime": "",
+         "createTime": "",
+         "duration": 1,
+         "sku": "",
+         "productId": 0
+        }
+       ]
+      }
+     },
+     "queryString": "pageId=1&pageSize=10&recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wealth/v1/product/dual-currency/position": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1702731523011,
+      "data": [
+       {
+        "orderNo": "",
+        "uid": 0,
+        "investmentAsset": "",
+        "exerciseAsset": "",
+        "direction": "",
+        "strikePrice": 0,
+        "amount": 0,
+        "apy": 0,
+        "status": 5,
+        "expiryTime": "",
+        "createTime": "",
+        "dualTitle": "",
+        "quotaAsset": ""
+       }
+      ]
+     },
+     "queryString": "recvWindow=5000&signature=x&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/openApi/wealth/v1/product/dual-currency/pre-order": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "msg": "success",
+      "timestamp": 1702731523011,
+      "data": {
+       "dualTitle": "",
+       "timeDesc": "",
+       "sku": "",
+       "productId": 0,
+       "investmentAsset": "",
+       "quotaAsset": "",
+       "investPrecision": 0,
+       "exercisePrecision": 0,
+       "expiryPrecision": 0,
+       "exerciseAsset": "",
+       "direction": "",
+       "duration": 0,
+       "purchaseEndTime": "",
+       "earnRate": "",
+       "apy": "",
+       "strikePrice": "",
+       "targetDeviationPct": "",
+       "minAmount": "",
+       "maxAmount": "",
+       "expiryTime": "",
+       "settledTime": "",
+       "startCloseTime": "",
+       "wealthUserLimit": "",
+       "userLimitLeft": "",
+       "productLeftQuota": "",
+       "availableAmount": "",
+       "fundAvailable": "",
+       "spotAvailable": "",
+       "quoteId": "",
+       "msg": "",
+       "bizCode": 0
+      }
+     },
+     "queryString": "productId=1234567890&recvWindow=5000&signature=x&sku=DUAL-BTC-USDT-CALL-8H&strikePrice=77900&timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  }
+ }
+}
