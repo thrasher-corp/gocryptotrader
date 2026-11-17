@@ -166,7 +166,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  wsURL,
+		URL:                  e.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})

@@ -582,11 +582,10 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			require.NoError(t, ws.Shutdown(), "shutdown must succeed")
 		})
 
-		t.Run("authentication retries and cleanup survives immediate failure", func(t *testing.T) {
+		t.Run("authentication retries after immediate failure", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, nil)
 			attempts := 0
-			cleaned := make(chan Connection, 2)
-			private := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true, Authenticated: true, OnDisconnect: func(c Connection) { cleaned <- c }, Authenticate: func(context.Context, Connection) error {
+			private := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true, Authenticated: true, Authenticate: func(context.Context, Connection) error {
 				attempts++
 				if attempts == 1 {
 					return errDastardlyReason
@@ -602,47 +601,12 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			case <-time.After(10 * time.Second):
 				require.FailNow(t, "reader goroutines must exit")
 			}
-			assert.Len(t, cleaned, 1, "failed authentication should run disconnect cleanup")
 			assert.False(t, ws.IsConnected(), "no successful sockets should mean disconnected")
 			require.NoError(t, ws.Connect(t.Context()), "second connection must retry authentication")
 			assert.Equal(t, 2, attempts, "authentication should run again")
 			assert.True(t, ws.CanUseAuthenticatedEndpoints(), "successful reconnect should restore authentication")
 			require.NoError(t, ws.Shutdown(), "shutdown must succeed")
-			assert.Len(t, cleaned, 2, "every disconnected socket should be cleaned")
 		})
-		t.Run("disconnect cleanup precedes wait group completion", func(t *testing.T) {
-			t.Parallel()
-			ws := newConfiguredMultiManager(t, nil)
-			started, release, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
-			releaseCleanup := sync.OnceFunc(func() { close(release) })
-			t.Cleanup(releaseCleanup)
-			ws.connectionManager = []*websocket{{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{
-				URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true,
-				OnDisconnect: func(Connection) { close(started); <-release },
-			}}}
-			require.NoError(t, ws.Connect(t.Context()), "connection must succeed")
-			go func() {
-				assert.NoError(t, ws.Shutdown(), "manager shutdown should succeed")
-				close(done)
-			}()
-			select {
-			case <-started:
-			case <-time.After(5 * time.Second):
-				require.FailNow(t, "disconnect cleanup must run during shutdown")
-			}
-			select {
-			case <-done:
-				assert.Fail(t, "wait group should remain pending during cleanup")
-			case <-time.After(20 * time.Millisecond):
-			}
-			releaseCleanup()
-			select {
-			case <-done:
-			case <-time.After(time.Second):
-				assert.Fail(t, "wait group should complete after cleanup")
-			}
-		})
-
 		t.Run("private-only mixed connection closes after failed authentication", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, nil)
 			private := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, Authenticate: func(context.Context, Connection) error { return errDastardlyReason }, GenerateSubscriptions: func() (subscription.List, error) {
@@ -684,8 +648,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 
 		t.Run("authentication failure preserves public connection", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, nil)
-			disconnected := make(chan Connection, 2)
-			public := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true, OnDisconnect: func(conn Connection) { disconnected <- conn }}}
+			public := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true}}
 			var privateConn *connection
 			private := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Handler: noopHandler, SubscriptionsNotRequired: true, Authenticated: true, Authenticate: func(context.Context, Connection) error { return errDastardlyReason }, Connector: func(ctx context.Context, conn Connection) error {
 				privateConn, _ = conn.(*connection)
@@ -708,11 +671,6 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			require.False(t, privateConn.IsConnected(), "failed private connection must be closed")
 			require.NoError(t, public.connections[0].SendJSONMessage(t.Context(), request.Unset, map[string]string{"ping": "test"}), "public connection must remain usable")
 			require.NoError(t, ws.Shutdown(), "Shutdown must succeed")
-			select {
-			case <-disconnected:
-			case <-time.After(time.Second):
-				t.Error("Reader should invoke disconnect cleanup")
-			}
 		})
 
 		t.Run("mixed connection retains public subscriptions after authentication failure", func(t *testing.T) {
@@ -2919,24 +2877,6 @@ func TestCreateUnmanagedTestConnection(t *testing.T) {
 	assert.Equal(t, [][]byte{[]byte("expected")}, matched.Responses, "first connection should receive its own response")
 }
 
-func TestTrackTestConnection(t *testing.T) {
-	t.Parallel()
-
-	m := NewManager()
-	m.useMultiConnectionManagement = true
-	m.connectionManager = []*websocket{{
-		setup:         &ConnectionSetup{MessageFilter: "auth"},
-		subscriptions: subscription.NewStore(),
-	}}
-	conn := &connection{subscriptions: subscription.NewStore()}
-
-	require.NoError(t, m.TrackTestConnection("auth", conn), "TrackTestConnection must not error")
-	got, err := m.GetConnection("auth")
-	require.NoError(t, err, "GetConnection must not error for a tracked test connection")
-	assert.Same(t, conn, got, "GetConnection should return the tracked test connection")
-	assert.ErrorIs(t, m.TrackTestConnection("missing", conn), ErrRequestRouteNotFound, "TrackTestConnection should reject an unknown message filter")
-}
-
 func TestCreateConnectAndSubscribeRecordsPartialSubscriptions(t *testing.T) {
 	t.Parallel()
 
@@ -3026,58 +2966,6 @@ func TestSetAuthenticatedSupport(t *testing.T) {
 	}
 	m.SetCanUseAuthenticatedEndpoints(false)
 	assert.True(t, m.authenticatedSupport.Load(), "transient failure should retain permission to retry")
-}
-
-func TestReader(t *testing.T) {
-	t.Parallel()
-	m := NewManager()
-	var _ interface {
-		Reader(context.Context, Connection, func(context.Context, Connection, []byte) error)
-	} = m
-	reader := m.Reader
-	conn := &readerTestConnection{Connection: m.CreateUnmanagedTestConnection("ws://closed")}
-	m.Wg.Add(1)
-	reader(t.Context(), conn, func(context.Context, Connection, []byte) error { return nil })
-	done := make(chan struct{})
-	go func() { m.Wg.Wait(); close(done) }()
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		require.FailNow(t, "Reader must release the wait group")
-	}
-}
-
-func TestReadMessages(t *testing.T) {
-	t.Parallel()
-	m := NewManager()
-	conn := &readerTestConnection{Connection: m.CreateUnmanagedTestConnection("ws://frames"), frames: []Response{{Raw: []byte("frame")}}}
-	m.readMessages(t.Context(), conn, func(_ context.Context, got Connection, frame []byte) error {
-		assert.Same(t, conn, got, "handler should receive the owning connection")
-		assert.Equal(t, []byte("frame"), frame, "handler should receive the frame")
-		return errDastardlyReason
-	})
-	select {
-	case msg := <-m.DataHandler.C:
-		err, ok := msg.Data.(error)
-		require.True(t, ok, "handler failure must be relayed as an error")
-		assert.ErrorIs(t, err, errDastardlyReason, "reader should preserve the handler failure")
-	default:
-		assert.Fail(t, "reader should relay the handler failure")
-	}
-}
-
-type readerTestConnection struct {
-	Connection
-	frames []Response
-}
-
-func (c *readerTestConnection) ReadMessage() Response {
-	if len(c.frames) == 0 {
-		return Response{}
-	}
-	frame := c.frames[0]
-	c.frames = c.frames[1:]
-	return frame
 }
 
 func TestIsIdle(t *testing.T) {

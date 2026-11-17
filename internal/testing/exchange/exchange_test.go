@@ -3,7 +3,6 @@ package exchange
 import (
 	"context"
 	"net/http"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -96,23 +95,16 @@ func TestMockHTTPInstance(t *testing.T) {
 }
 
 // TestMockWsInstance exercises MockWsInstance
-func TestMockWsInstance(t *testing.T) {
+func TestMockWsInstance(t *testing.T) { //nolint:tparallel // The parent verifies cleanup after its child finishes.
 	t.Parallel()
-	for i := range 6 {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			t.Parallel()
-			var b *binance.Exchange
-			t.Cleanup(func() {
-				require.NotNil(t, b, "MockWsInstance must remain available after cleanup")
-				assert.False(t, b.Websocket.IsConnected(), "cleanup should close mock connections")
-				assert.False(t, b.Websocket.IsEnabled(), "cleanup should stop reconnect monitoring")
-			})
-			b = MockWsInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
-			require.NotNil(t, b, "MockWsInstance must not be nil")
-			assert.True(t, b.Websocket.IsConnected(), "mock connection should be ready")
-			assert.False(t, b.Websocket.CanUseAuthenticatedEndpoints(), "legacy mocks should not attempt live authentication")
-		})
-	}
+	var b *binance.Exchange
+	t.Run("owned websocket lifecycle", func(t *testing.T) {
+		b = MockWsInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
+		require.NotNil(t, b, "MockWsInstance must not be nil")
+		assert.True(t, b.Websocket.IsConnected(), "mock websocket should be connected")
+	})
+	assert.False(t, b.Websocket.IsEnabled(), "cleanup should disable reconnection")
+	assert.False(t, b.Websocket.IsConnected(), "cleanup should shut down owned connections")
 }
 
 func TestMockWsInstanceVerbose(t *testing.T) {

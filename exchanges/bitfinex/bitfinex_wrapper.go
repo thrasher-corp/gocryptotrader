@@ -160,9 +160,8 @@ func (e *Exchange) SetDefaults() {
 	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:                   bitfinexAPIURLBase,
-		exchange.WebsocketSpot:              publicBitfinexWebsocketEndpoint,
-		exchange.WebsocketSpotSupplementary: authenticatedBitfinexWebsocketEndpoint,
+		exchange.RestSpot:      bitfinexAPIURLBase,
+		exchange.WebsocketSpot: publicBitfinexWebsocketEndpoint,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -187,53 +186,39 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	wsEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:                         exch,
-		Features:                               &e.Features.Supports.WebsocketCapabilities,
-		UseMultiConnectionManagement:           true,
-		MaxWebsocketSubscriptionsPerConnection: 25, // https://docs.bitfinex.com/docs/requirements-and-limitations
+		ExchangeConfig:        exch,
+		DefaultURL:            publicBitfinexWebsocketEndpoint,
+		RunningURL:            wsEndpoint,
+		Connector:             e.WsConnect,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		GenerateSubscriptions: e.generateSubscriptions,
+		Features:              &e.Features.Supports.WebsocketCapabilities,
 	})
-	if err != nil {
-		return err
-	}
-	wsPublicURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-	wsAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	if err != nil {
 		return err
 	}
 
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		Connector:             e.wsConnect,
-		Subscriber:            e.subscribeForConnection,
-		Unsubscriber:          e.unsubscribeForConnection,
-		GenerateSubscriptions: e.generatePublicSubscriptions,
-		Handler:               e.wsHandleData,
-		OnDisconnect:          e.wsDisconnected,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		URL:                   wsPublicURL,
-		MessageFilter:         asset.Spot,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                  publicBitfinexWebsocketEndpoint,
 	})
 	if err != nil {
 		return err
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		Connector:                e.wsConnect,
-		Authenticate:             e.wsSendAuthConn,
-		Subscriber:               e.subscribeForConnection,
-		Unsubscriber:             e.unsubscribeForConnection,
-		SubscriptionsNotRequired: true,
-		Handler:                  e.wsHandleData,
-		OnDisconnect:             e.wsDisconnected,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		URL:                      wsAuthURL,
-		Authenticated:            true,
-		MessageFilter:            "auth",
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                  authenticatedBitfinexWebsocketEndpoint,
+		Authenticated:        true,
 	})
 }
 
@@ -325,8 +310,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			continue
 		}
 
-		// The optional FIRST_TRADE field describes market history, so
-		// ProcessTicker stamps receipt time instead of using it for freshness.
 		err = ticker.ProcessTicker(&ticker.Price{
 			Last:         val.Last,
 			High:         val.High,
@@ -335,6 +318,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Ask:          val.Ask,
 			BaseVolume:   val.Volume,
 			Pair:         pair,
+			LastUpdated:  val.Timestamp.Time(),
 			AssetType:    a,
 			ExchangeName: e.Name,
 		})
@@ -547,16 +531,6 @@ allTrades:
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
-// canUseWebsocketOrders requires the private request route before selecting
-// websocket submission over the REST fallback.
-func (e *Exchange) canUseWebsocketOrders() bool {
-	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return false
-	}
-	_, err := e.Websocket.GetConnection("auth")
-	return err == nil
-}
-
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
 	if err := o.Validate(e.GetTradingRequirements()); err != nil {
@@ -570,7 +544,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 
 	var orderID string
 	status := order.New
-	if e.canUseWebsocketOrders() {
+	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var symbolStr string
 		if symbolStr, err = e.fixCasing(fPair, o.AssetType); err != nil {
 			return nil, err
@@ -630,7 +604,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 
-	if e.Websocket.IsEnabled() && e.canUseWebsocketOrders() {
+	if e.Websocket.IsEnabled() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		orderIDInt, err := strconv.ParseInt(action.OrderID, 10, 64)
 		if err != nil {
 			return &order.ModifyResponse{OrderID: action.OrderID}, err
@@ -668,7 +642,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	if e.canUseWebsocketOrders() {
+	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		err = e.WsCancelOrder(ctx, orderIDInt)
 	} else {
 		_, err = e.CancelExistingOrder(ctx, orderIDInt)
@@ -687,7 +661,7 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 // CancelAllOrders cancels all orders associated with a currency pair
 func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	var err error
-	if e.canUseWebsocketOrders() {
+	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		err = e.WsCancelAllOrders(ctx)
 	} else {
 		_, err = e.CancelAllExistingOrders(ctx)
@@ -987,6 +961,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 
 	return req.Filter(e.Name, orders), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
+	return e.WsSendAuth(ctx)
 }
 
 // appendOptionalDelimiter ensures that a delimiter is present for long character currencies

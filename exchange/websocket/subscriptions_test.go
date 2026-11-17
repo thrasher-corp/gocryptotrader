@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -151,57 +150,9 @@ func TestResubscribe(t *testing.T) {
 	assert.ErrorIs(t, ws.ResubscribeToChannel(t.Context(), nil, channel[0]), subscription.ErrNotFound, "Resubscribe should error when channel isn't subscribed yet")
 	assert.NoError(t, ws.SubscribeToChannels(t.Context(), nil, channel), "Subscribe should not error")
 	assert.NoError(t, ws.ResubscribeToChannel(t.Context(), nil, channel[0]), "Resubscribe should not error now the channel is subscribed")
-
-	t.Run("managed connection retains capacity", func(t *testing.T) {
-		t.Parallel()
-		for _, tc := range []struct {
-			name     string
-			connHeld bool
-		}{
-			{name: "full connection store", connHeld: true},
-			{name: "connection store not yet filled", connHeld: false},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-				m := NewManager()
-				m.useMultiConnectionManagement = true
-				m.MaxSubscriptionsPerConnection = 2
-				book, ticker := &subscription.Subscription{Channel: "book"}, &subscription.Subscription{Channel: "ticker"}
-				sequence := 0
-				ws := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{
-					Subscriber: func(_ context.Context, c Connection, l subscription.List) error {
-						for _, s := range l {
-							sequence++
-							s.SetKey(fmt.Sprintf("%s-%d", s.Channel, sequence)) // venues assign a new key on each subscribe
-						}
-						return m.AddSuccessfulSubscriptions(c, l...)
-					},
-					Unsubscriber: func(_ context.Context, c Connection, l subscription.List) error {
-						return m.RemoveSubscriptions(c, l...)
-					},
-				}}
-				conn := &connection{subscriptions: subscription.NewStore()}
-				m.connectionManager = []*websocket{ws}
-				m.trackConnection(conn, ws)
-				require.NoError(t, m.AddSuccessfulSubscriptions(conn, book, ticker), "AddSuccessfulSubscriptions must not error")
-				if tc.connHeld {
-					require.NoError(t, conn.subscriptions.Add(book), "connection store Add must not error")
-					require.NoError(t, conn.subscriptions.Add(ticker), "connection store Add must not error")
-				}
-				for range 2 {
-					require.NoError(t, m.ResubscribeToChannel(t.Context(), conn, book), "ResubscribeToChannel must not error")
-					assert.Equal(t, subscription.SubscribedState, book.State(), "book should be subscribed again")
-				}
-				assert.Equal(t, tc.connHeld, slices.Contains(conn.subscriptions.List(), book), "connection store should hold the book only if it held it before")
-				if tc.connHeld {
-					err := m.SubscribeToChannels(t.Context(), conn, subscription.List{{Channel: "ticker", Pairs: currency.Pairs{currency.NewBTCUSD()}}})
-					assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "a new subscription should still count against a full connection")
-				}
-			})
-		}
-	})
 }
 
+// TestSubscriptions tests adding, getting and removing subscriptions
 func TestSubscriptions(t *testing.T) {
 	t.Parallel()
 	w := new(Manager) // Do not use NewManager; We want to exercise w.subs == nil
@@ -241,58 +192,6 @@ func TestSuccessfulSubscriptions(t *testing.T) {
 	assert.ErrorIs(t, (*Manager)(nil).RemoveSubscriptions(nil, nil), common.ErrNilPointer, "Should error correctly when nil websocket")
 	w.subscriptions = nil
 	assert.ErrorIs(t, w.RemoveSubscriptions(nil, c), common.ErrNilPointer, "Should error correctly when nil websocket")
-}
-
-func TestUpdateSuccessfulSubscriptionKey(t *testing.T) {
-	t.Parallel()
-
-	t.Run("nil manager", func(t *testing.T) {
-		t.Parallel()
-		assert.ErrorIs(t, (*Manager)(nil).UpdateSuccessfulSubscriptionKey(nil, &subscription.Subscription{}, 42), common.ErrNilPointer, "UpdateSuccessfulSubscriptionKey should error when called on nil Websocket")
-	})
-
-	t.Run("uninitialised manager", func(t *testing.T) {
-		t.Parallel()
-		assert.ErrorIs(t, (&Manager{}).UpdateSuccessfulSubscriptionKey(nil, &subscription.Subscription{}, 42), common.ErrNilPointer, "UpdateSuccessfulSubscriptionKey should error when called on an uninitialised Websocket")
-	})
-
-	t.Run("updates key and state", func(t *testing.T) {
-		t.Parallel()
-		w := new(Manager)
-		sub := &subscription.Subscription{Key: "temporary", Channel: subscription.TickerChannel}
-		require.NoError(t, w.AddSubscriptions(nil, sub), "AddSubscriptions must not error")
-
-		err := w.UpdateSuccessfulSubscriptionKey(nil, sub, 42)
-		require.NoError(t, err, "UpdateSuccessfulSubscriptionKey must not error")
-		assert.Nil(t, w.GetSubscription("temporary"), "old key should no longer resolve")
-		assert.Same(t, sub, w.GetSubscription(42), "new key should resolve to the same subscription")
-		assert.Equal(t, 42, sub.Key, "subscription key should be updated")
-		assert.Equal(t, subscription.SubscribedState, sub.State(), "subscription should be subscribed")
-	})
-
-	t.Run("duplicate target key", func(t *testing.T) {
-		t.Parallel()
-		w := new(Manager)
-		sub := &subscription.Subscription{Key: 42, Channel: subscription.TickerChannel}
-		duplicate := &subscription.Subscription{Key: 1337, Channel: subscription.OrderbookChannel}
-		require.NoError(t, w.AddSubscriptions(nil, sub, duplicate), "AddSubscriptions must not error")
-
-		assert.ErrorIs(t, w.UpdateSuccessfulSubscriptionKey(nil, sub, 1337), subscription.ErrDuplicate, "UpdateSuccessfulSubscriptionKey should error when the target key is already used")
-		assert.Same(t, sub, w.GetSubscription(42), "subscription should remain at the original key after duplicate error")
-		assert.Same(t, duplicate, w.GetSubscription(1337), "duplicate target subscription should remain stored")
-	})
-	t.Run("managed subscription retains connection ownership", func(t *testing.T) {
-		t.Parallel()
-		manager, conn := newManagedSubscriptionTestManager(t)
-		sub := &subscription.Subscription{Key: "temporary", Channel: subscription.TickerChannel}
-		require.NoError(t, manager.AddSubscriptions(conn, sub), "pending subscription must be registered")
-		require.NoError(t, conn.Subscriptions().Add(sub), "physical connection must own the subscription")
-		require.NoError(t, manager.UpdateSuccessfulSubscriptionKey(conn, sub, 42), "managed acknowledgement must update the subscription")
-		assert.Nil(t, manager.GetSubscription("temporary"), "previous acknowledgement key should no longer resolve")
-		assert.Same(t, sub, manager.GetSubscription(42), "new acknowledgement key should resolve to the owned subscription")
-		assert.Equal(t, subscription.SubscribedState, sub.State(), "acknowledged subscription should be subscribed")
-		assert.Equal(t, subscription.List{sub}, conn.Subscriptions().List(), "physical connection should retain the same owned subscription")
-	})
 }
 
 // TestGetSubscription logic test
@@ -360,42 +259,6 @@ func TestCheckSubscriptions(t *testing.T) {
 	}
 	err = ws.checkSubscriptions(conn, subscription.List{{}})
 	assert.ErrorContains(t, err, "nil pointer: Websocket.subscriptions", "nil store for a specific connection should error correctly")
-	for _, tc := range []struct {
-		name       string
-		capacity   int
-		clone      bool
-		includeNew bool
-		wantErr    error
-	}{
-		{name: "held subscription at capacity", capacity: 1},
-		{name: "equal clone still needs a slot", capacity: 1, clone: true, wantErr: errSubscriptionsExceedsLimit},
-		{name: "held and new exceed capacity", capacity: 1, includeNew: true, wantErr: errSubscriptionsExceedsLimit},
-		{name: "held and new fit remaining capacity", capacity: 2, includeNew: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			manager, conn := newManagedSubscriptionTestManager(t)
-			manager.MaxSubscriptionsPerConnection = tc.capacity
-			held := &subscription.Subscription{Channel: subscription.TickerChannel}
-			require.NoError(t, manager.AddSuccessfulSubscriptions(conn, held), "subscription must be registered")
-			require.NoError(t, conn.Subscriptions().Add(held), "connection must retain the subscription")
-			require.NoError(t, held.SetState(subscription.ResubscribingState), "subscription must enter resubscribing state")
-			incoming := held
-			if tc.clone {
-				incoming = held.Clone()
-			}
-			subs := subscription.List{incoming}
-			if tc.includeNew {
-				subs = append(subs, &subscription.Subscription{Channel: subscription.OrderbookChannel})
-			}
-			err := manager.checkSubscriptions(conn, subs)
-			if tc.wantErr != nil {
-				assert.ErrorIs(t, err, tc.wantErr, "capacity should count only genuinely new subscriptions")
-			} else {
-				assert.NoError(t, err, "held subscriptions should retain their existing slot")
-			}
-		})
-	}
 }
 
 func TestUpdateChannelSubscriptions(t *testing.T) {

@@ -496,8 +496,6 @@ func (m *Manager) connect(ctx context.Context) (connectErr error) {
 	}()
 
 	if !m.useMultiConnectionManagement {
-		m.Wg.Add(1)
-		go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
 		if m.connector == nil {
 			return fmt.Errorf("%v %w", m.exchangeName, errNoConnectFunc)
 		}
@@ -768,12 +766,8 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 
 	m.trackConnection(conn, ws)
 
-	m.Wg.Go(func() {
-		if ws.setup.OnDisconnect != nil {
-			defer ws.setup.OnDisconnect(conn)
-		}
-		m.readMessages(ctx, conn, ws.setup.Handler)
-	})
+	m.Wg.Add(1)
+	go m.Reader(ctx, conn, ws.setup.Handler)
 
 	var authenticationError error
 	if ws.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
@@ -1185,14 +1179,9 @@ func checkWebsocketURL(s string) error {
 	return nil
 }
 
-// Reader reads and handles data from a specific connection.
-func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(context.Context, Connection, []byte) error) {
+// Reader reads and handles data from a specific connection
+func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, conn Connection, message []byte) error) {
 	defer m.Wg.Done()
-	m.readMessages(ctx, conn, handler)
-}
-
-// readMessages processes frames until the connection closes; callers own reader lifecycle cleanup.
-func (m *Manager) readMessages(ctx context.Context, conn Connection, handler func(context.Context, Connection, []byte) error) {
 	for {
 		resp := conn.ReadMessage()
 		if resp.Raw == nil {

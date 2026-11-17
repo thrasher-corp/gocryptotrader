@@ -85,8 +85,7 @@ func (m *Manager) CreateUnmanagedTestConnection(u string) Connection {
 //
 // This exported helper exists for cross-package test harnesses only. It is
 // intended for tests that wrap a manager-created connection with custom
-// send/receive behaviour while still needing multi-connection bookkeeping and
-// GetConnection routing without starting a live connection lifecycle.
+// send/receive behaviour while still needing multi-connection bookkeeping.
 func (m *Manager) TrackTestConnection(messageFilter any, conn Connection) error {
 	if err := common.NilGuard(conn); err != nil {
 		return err
@@ -96,7 +95,6 @@ func (m *Manager) TrackTestConnection(messageFilter any, conn Connection) error 
 		return err
 	}
 	m.trackConnection(conn, ws)
-	m.setState(connectedState)
 	return nil
 }
 

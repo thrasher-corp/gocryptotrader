@@ -101,8 +101,6 @@ type ConnectionSetup struct {
 	// received from the exchange's websocket server. This function should
 	// handle the incoming message and pass it to the appropriate data handler.
 	Handler func(ctx context.Context, conn Connection, incoming []byte) error
-	// OnDisconnect releases exchange state after the connection reader exits.
-	OnDisconnect func(Connection)
 	// Authenticate will be called to authenticate the connection
 	Authenticate func(ctx context.Context, conn Connection) error
 	// MessageFilter defines the criteria used to match messages to a specific connection.

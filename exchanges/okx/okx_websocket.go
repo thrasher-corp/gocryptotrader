@@ -99,8 +99,6 @@ const (
 	liquidationOrders           = "liquidation-orders"
 	adlWarning                  = "adl-warning"
 	economicCalendar            = "economic-calendar"
-	wsPrivateConnectionFilter   = "private"
-	wsBusinessConnectionFilter  = "business"
 
 	// Public channels
 	channelInstruments     = "instruments"

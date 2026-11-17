@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -2723,7 +2722,11 @@ func (e *Exchange) sendWsPayload(ctx context.Context, ep request.EndpointLimit, 
 	}
 	deadline := time.Now().Add(websocketRequestTimeout)
 	ctx, cancelFunc := context.WithDeadline(ctx, deadline)
-	defer cancelFunc()
+	defer func() {
+		if time.Now().After(deadline) {
+			cancelFunc()
+		}
+	}()
 	for attempt := 1; ; attempt++ {
 		// Initiate a rate limit reservation and sleep on requested endpoint
 		err := e.Requester.InitiateRateLimit(ctx, ep)
@@ -2734,17 +2737,11 @@ func (e *Exchange) sendWsPayload(ctx context.Context, ep request.EndpointLimit, 
 		if e.Verbose {
 			log.Debugf(log.RequestSys, "%s attempt %d", e.Name, attempt)
 		}
-		conn, err := e.Websocket.GetConnection(asset.All)
-		if err != nil {
-			return err
-		}
 		var payload []byte
-		payload, err = conn.SendMessageReturnResponse(ctx, request.Unset, input.ID, input)
+		payload, err = e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, input.ID, input)
 		if err != nil {
 			return err
 		}
-		// A successful retry omits error fields; discard the previous attempt's error.
-		*response = wsResponse{Result: response.Result}
 		err = json.Unmarshal(payload, response)
 		if err != nil {
 			return err

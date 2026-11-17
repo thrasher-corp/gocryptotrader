@@ -16,6 +16,8 @@ import (
 const (
 	// okxBusinessWebsocketURL
 	okxBusinessWebsocketURL = "wss://ws.okx.com/ws/v5/business"
+
+	businessConnection = "business"
 )
 
 var (

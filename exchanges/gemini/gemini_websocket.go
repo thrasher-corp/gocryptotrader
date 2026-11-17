@@ -41,12 +41,6 @@ const (
 	candlesChannel   = "candles"
 )
 
-var (
-	errUnrecognisedOrderStatus = errors.New("unrecognised order status")
-	errUnrecognisedOrderType   = errors.New("unrecognised order type")
-	errWebsocketAuthResponse   = errors.New("gemini websocket auth response error")
-)
-
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneDay},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
@@ -353,9 +347,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, _ websocket.Connection, res
 				if msg, ok := result["message"].(string); ok {
 					reason += " - " + msg
 				}
-				return fmt.Errorf("%w: %s", errWebsocketAuthResponse, reason)
+				return errors.New(reason)
 			}
-			return fmt.Errorf("%w: %v Unhandled websocket error %s", errWebsocketAuthResponse, e.Name, respRaw)
+			return fmt.Errorf("%v Unhandled websocket error %s", e.Name, respRaw)
 		default:
 			return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 		}
@@ -378,7 +372,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 	case "closed":
 		return order.Filled, nil
 	default:
-		return order.UnknownStatus, fmt.Errorf("%w: %s", errUnrecognisedOrderStatus, status)
+		return order.UnknownStatus, errors.New(status + " not recognised as order status")
 	}
 }
 
@@ -391,7 +385,7 @@ func stringToOrderType(oType string) (order.Type, error) {
 		// but would be considered a hidden trade
 		return order.Market, nil
 	default:
-		return order.UnknownType, fmt.Errorf("%w: %s", errUnrecognisedOrderType, oType)
+		return order.UnknownType, errors.New(oType + " not recognised as order type")
 	}
 }
 

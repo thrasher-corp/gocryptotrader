@@ -32,8 +32,6 @@ type Exchange struct {
 	// data handler's consumer writes it behind the reader, so it can hold an older state
 	incrementalTickers    map[string]*WsIncrementalTicker
 	incrementalTickersMtx sync.Mutex
-	spotRoutingMtx        sync.RWMutex
-	routedSpotPairs       map[[2]*currency.Item]bool
 }
 
 const (
@@ -1422,7 +1420,7 @@ func (e *Exchange) SubmitBuy(ctx context.Context, arg *OrderBuyAndSellParams) (*
 		params.Set("type", arg.OrderType)
 	}
 	if arg.Price != 0 {
-		params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
+		params.Set("price", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	}
 	if arg.Label != "" {
 		params.Set("label", arg.Label)
