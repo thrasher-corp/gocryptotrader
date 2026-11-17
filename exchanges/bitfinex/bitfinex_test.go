@@ -1422,14 +1422,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
 
-	seenChannels := make(map[string]struct{}, len(subs))
+	seenChannels := make(common.Seen[string], len(subs))
 	spotChannelPairs := make(map[string]struct{})
 	for _, sub := range subs {
 		assert.NotEmpty(t, sub.QualifiedChannel, "QualifiedChannel should not be empty")
-
-		_, found := seenChannels[sub.QualifiedChannel]
-		assert.Falsef(t, found, "QualifiedChannel should be unique, got duplicate %q", sub.QualifiedChannel)
-		seenChannels[sub.QualifiedChannel] = struct{}{}
+		assert.Falsef(t, seenChannels.CheckAndRecord(sub.QualifiedChannel), "QualifiedChannel should be unique, got duplicate %q", sub.QualifiedChannel)
 
 		if len(sub.Pairs) != 1 {
 			continue
@@ -1810,7 +1807,7 @@ func TestWSAllTrades(t *testing.T) {
 	require.NoError(t, e.Websocket.TrackTestConnection(asset.Spot, conn), "connection must be tracked")
 	err := e.Websocket.AddSubscriptions(conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.AllTradesChannel, Key: websocketChannelKey{conn, 18788}})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.jsonl", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 	e.Websocket.DataHandler.Close()
 	expJSON := []string{
 		`{"TID":"412685577","AssetType":"spot","Side":"BUY","Price":176.3,"Amount":11.1998,"Timestamp":"2020-01-29T03:27:24.802Z"}`,
@@ -2572,7 +2569,7 @@ func TestCancelMultipleOrdersV2(t *testing.T) {
 // TestGetErrResp unit tests the helper func getErrResp
 func TestGetErrResp(t *testing.T) {
 	t.Parallel()
-	fixture, err := os.Open("testdata/getErrResp.json")
+	fixture, err := os.Open("testdata/getErrResp.jsonl")
 	if !assert.NoError(t, err, "Opening fixture should not error") {
 		t.FailNow()
 	}

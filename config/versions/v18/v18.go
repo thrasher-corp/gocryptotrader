@@ -1,35 +1,55 @@
-// Package v18 corrects Gemini's legacy public websocket endpoint override.
+// Package v18 migrates the legacy OKX websocket defaults to TLS port 443.
 package v18
 
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
 
 	"github.com/buger/jsonparser"
 )
 
-// Version migrates the bare Gemini host which cannot serve market-data upgrades.
+// Version implements ExchangeVersion for the retirement of OKX port 8443.
 type Version struct{}
 
-// Exchanges limits the migration to Gemini configurations.
-func (*Version) Exchanges() []string { return []string{"Gemini"} }
+// Exchanges limits the endpoint migration to OKX.
+func (*Version) Exchanges() []string { return []string{"Okx"} }
 
-// UpgradeExchange preserves custom endpoints and updates only the old default.
-func (*Version) UpgradeExchange(_ context.Context, data []byte) ([]byte, error) {
-	url, err := jsonparser.GetString(data, "api", "urlEndpoints", "WebsocketSpotURL")
-	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		return data, nil
+// UpgradeExchange replaces only the previous defaults, preserving custom endpoints.
+func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	for _, endpoint := range []struct{ key, channel string }{
+		{"WebsocketSpotURL", "public"},
+		{"WebsocketPrivateURL", "private"},
+		{"WebsocketSpotSupplementaryURL", "business"},
+	} {
+		value, kind, _, err := jsonparser.Get(exchange, "api", "urlEndpoints", endpoint.key)
+		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("getting OKX endpoint %s: %w", endpoint.key, err)
+		}
+		if kind != jsonparser.String {
+			continue
+		}
+		decoded, err := jsonparser.ParseString(value)
+		if err != nil {
+			return nil, fmt.Errorf("decoding OKX endpoint %s: %w", endpoint.key, err)
+		}
+		if decoded != "wss://ws.okx.com:8443/ws/v5/"+endpoint.channel {
+			continue
+		}
+		exchange, err = jsonparser.Set(exchange, []byte(strconv.Quote("wss://ws.okx.com/ws/v5/"+endpoint.channel)), "api", "urlEndpoints", endpoint.key)
+		if err != nil {
+			return nil, fmt.Errorf("setting OKX endpoint %s: %w", endpoint.key, err)
+		}
 	}
-	if err != nil {
-		return data, err
-	}
-	if url != "wss://api.gemini.com" {
-		return data, nil
-	}
-	return jsonparser.Set(data, []byte(`"wss://api.gemini.com/v2/marketdata"`), "api", "urlEndpoints", "WebsocketSpotURL")
+	return exchange, nil
 }
 
-// DowngradeExchange retains the working URL because the bare host is unusable.
-func (*Version) DowngradeExchange(_ context.Context, data []byte) ([]byte, error) {
-	return data, nil
+// DowngradeExchange retains port 443, which is also supported by older clients.
+// Restoring the retired port would make an otherwise compatible configuration fail.
+func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	return exchange, nil
 }

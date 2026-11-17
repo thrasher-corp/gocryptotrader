@@ -3,6 +3,7 @@ package v18_test
 import (
 	"testing"
 
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
@@ -11,54 +12,100 @@ import (
 
 func TestExchanges(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"Gemini"}, new(v18.Version).Exchanges(), "Exchanges should target Gemini")
+	assert.Equal(t, []string{"Okx"}, new(v18.Version).Exchanges(), "migration should apply only to OKX")
 }
 
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		name, input, want string
-		invalid           bool
-	}{
-		{name: "legacy", input: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://api.gemini.com"}}}`, want: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://api.gemini.com/v2/marketdata"}}}`},
-		{name: "custom", input: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"ws://localhost/custom"}}}`},
-		{name: "current", input: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://api.gemini.com/v2/marketdata"}}}`},
-		{name: "missing", input: `{}`},
-		{name: "invalid type", input: `{"api":{"urlEndpoints":{"WebsocketSpotURL":42}}}`, invalid: true},
+	for _, tc := range []struct{ name, input, expected string }{
+		{
+			name:     "defaults",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`,
+		},
+		{
+			name:     "escaped default",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\/\/ws.okx.com:8443\/ws\/v5\/public"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
+		},
+		{
+			name:     "missing",
+			input:    `{}`,
+			expected: `{}`,
+		},
+		{
+			name:     "null",
+			input:    `{"api":{"urlEndpoints":null}}`,
+			expected: `{"api":{"urlEndpoints":null}}`,
+		},
+		{
+			name:     "custom",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`,
+		},
+		{
+			name:     "current",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
+		},
+		{
+			name:     "mixed custom and legacy endpoints",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com/ws/v5/business"}}}`,
+		},
+		{
+			name:     "missing public endpoint",
+			input:    `{"api":{"urlEndpoints":{"WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private"}}}`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			out, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(tc.input))
-			if tc.invalid {
-				require.Error(t, err, "UpgradeExchange must reject an invalid URL type")
-				return
-			}
-			require.NoError(t, err, "UpgradeExchange must not error")
-			want := tc.want
-			if want == "" {
-				want = tc.input
-			}
-			assert.JSONEq(t, want, string(out), "UpgradeExchange should preserve custom settings")
+			got, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+			require.NoError(t, err, "migration must succeed")
+			assert.JSONEq(t, tc.expected, string(got), "migration should replace only legacy defaults")
+		})
+	}
+	for _, tc := range []struct {
+		name, input string
+		expected    error
+	}{
+		{
+			name:     "invalid endpoint value",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":}}}`,
+			expected: jsonparser.UnknownValueTypeError,
+		},
+		{
+			name:     "invalid endpoint escape",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\z"}}}`,
+			expected: jsonparser.MalformedValueError,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+			require.ErrorIs(t, err, tc.expected, "invalid JSON must fail with its parser error")
 		})
 	}
 }
 
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
-	input := []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://api.gemini.com/v2/marketdata"}}}`)
-	out, err := new(v18.Version).DowngradeExchange(t.Context(), input)
-	require.NoError(t, err, "DowngradeExchange must not error")
-	assert.Equal(t, input, out, "DowngradeExchange should retain a working endpoint")
+	input := []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`)
+	got, err := new(v18.Version).DowngradeExchange(t.Context(), input)
+	require.NoError(t, err, "downgrade must succeed")
+	assert.Equal(t, input, got, "downgrade should retain the compatible port")
 }
 
-func TestRegisteredUpgrade(t *testing.T) {
+func TestRegisteredMigration(t *testing.T) {
 	t.Parallel()
-	for _, version := range []string{"13", "16", "17"} {
-		t.Run("version "+version, func(t *testing.T) {
-			t.Parallel()
-			out, err := versions.Manager.Deploy(t.Context(), []byte(`{"version":`+version+`,"exchanges":[{"name":"Gemini","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://api.gemini.com"}}}]}`), 18)
-			require.NoError(t, err, "Deploy must apply the registered upgrade")
-			assert.JSONEq(t, `{"version":18,"exchanges":[{"name":"Gemini","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://api.gemini.com/v2/marketdata"}}}]}`, string(out), "Deploy should update the legacy endpoint")
-		})
-	}
+	input := []byte(`{"version":17,"exchanges":[{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public"}}},{"name":"Other","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public"}}}]}`)
+	got, err := versions.Manager.Deploy(t.Context(), input, 18)
+	require.NoError(t, err, "registered upgrade must succeed")
+	assert.JSONEq(t, `{"version":18,"exchanges":[{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}},{"name":"Other","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public"}}}]}`, string(got), "only OKX defaults should migrate")
+	down, err := versions.Manager.Deploy(t.Context(), got, 17)
+	require.NoError(t, err, "registered downgrade must succeed")
+	again, err := versions.Manager.Deploy(t.Context(), down, 18)
+	require.NoError(t, err, "repeated upgrade must succeed")
+	assert.JSONEq(t, string(got), string(again), "migration round trip should preserve usable endpoints")
 }

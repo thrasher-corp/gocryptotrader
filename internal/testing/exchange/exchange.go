@@ -118,6 +118,7 @@ func MockWsInstance[T any, PT interface {
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
+	// Mock sockets exercise authenticated requests on both legacy and managed connections.
 	b.API.AuthenticatedWebsocketSupport = true
 	// Managed private setups need this flag; legacy connectors must not try
 	// authenticating against endpoints outside the mock server.

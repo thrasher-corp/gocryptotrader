@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -875,6 +876,27 @@ func TestSetPairs(t *testing.T) {
 	}
 }
 
+func TestUpdatePairsRemovesDuplicateEnabledPairs(t *testing.T) {
+	t.Parallel()
+	pFmt := currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	b := Base{
+		Name: "test",
+		CurrencyPairs: currency.PairsManager{
+			Pairs:           map[asset.Item]*currency.PairStore{asset.Spot: {AssetEnabled: true}},
+			ConfigFormat:    &pFmt,
+			UseGlobalFormat: true,
+		},
+		Config: &config.Exchange{CurrencyPairs: &currency.PairsManager{}},
+	}
+	available := currency.Pairs{currency.NewBTCUSD().Format(pFmt), currency.NewBTCUSDT().Format(pFmt)}
+	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, available, false), "StorePairs must not error")
+	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{available[0], currency.NewBTCUSD(), available[1]}, true), "StorePairs must not error")
+	require.NoError(t, b.UpdatePairs(available, asset.Spot, false), "UpdatePairs must not error")
+	enabled, err := b.CurrencyPairs.GetPairs(asset.Spot, true)
+	require.NoError(t, err, "GetPairs must not error")
+	assert.Equal(t, available, enabled, "UpdatePairs should keep one enabled pair per unformatted symbol")
+}
+
 func TestUpdatePairs(t *testing.T) {
 	t.Parallel()
 	cfg := &config.Config{
@@ -1143,6 +1165,76 @@ func TestIsWebsocketEnabled(t *testing.T) {
 	assert.True(t, b.IsWebsocketEnabled(), "websocket should be enabled")
 	require.NoError(t, b.Websocket.Disable(), "Websocket.Disable must not error")
 	assert.False(t, b.IsWebsocketEnabled(), "websocket should not be enabled")
+}
+
+func TestShutdownWebsocket(t *testing.T) {
+	t.Parallel()
+
+	disabled := Base{Websocket: websocket.NewManager()}
+	var err error
+	disabled.Requester, err = request.New("testShutdownDisabled", common.NewHTTPClientWithTimeout(0))
+	require.NoError(t, err, "request.New must not error")
+	require.NoError(t, disabled.Shutdown(), "Shutdown must not error when the websocket is already disabled")
+
+	notConnected := Base{Websocket: websocket.NewManager()}
+	notConnected.Requester, err = request.New("testShutdownNotConnected", common.NewHTTPClientWithTimeout(0))
+	require.NoError(t, err, "request.New must not error")
+	err = notConnected.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig: &config.Exchange{
+			Name:                    "test",
+			WebsocketTrafficTimeout: time.Minute,
+			Features:                &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}},
+		},
+		Features:              &protocol.Features{},
+		DefaultURL:            "ws://something.com",
+		RunningURL:            "ws://something.com",
+		Connector:             func() error { return nil },
+		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		Subscriber:            func(subscription.List) error { return nil },
+	})
+	require.NoError(t, err, "Websocket.Setup must not error")
+	require.True(t, notConnected.Websocket.IsEnabled(), "Websocket must be enabled before Shutdown")
+	require.False(t, notConnected.Websocket.IsConnected(), "Websocket must not be connected before Shutdown")
+	require.NoError(t, notConnected.Shutdown(), "Shutdown must not error when the websocket is not connected")
+	assert.False(t, notConnected.Websocket.IsEnabled(), "Shutdown should disable an enabled websocket even when it is not connected")
+
+	synctest.Test(t, func(t *testing.T) {
+		var dials atomic.Int64
+		b := Base{Websocket: websocket.NewManager()}
+		b.Requester, err = request.New("testShutdown", common.NewHTTPClientWithTimeout(0))
+		require.NoError(t, err, "request.New must not error")
+		err = b.Websocket.Setup(&websocket.ManagerSetup{
+			ExchangeConfig: &config.Exchange{
+				Name:                    "test",
+				ConnectionMonitorDelay:  time.Second,
+				WebsocketTrafficTimeout: time.Minute,
+				Features:                &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}},
+			},
+			Features:              &protocol.Features{},
+			DefaultURL:            "ws://something.com",
+			RunningURL:            "ws://something.com",
+			Connector:             func() error { dials.Add(1); return nil },
+			GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+			Subscriber:            func(subscription.List) error { return nil },
+		})
+		require.NoError(t, err, "Websocket.Setup must not error")
+		require.NoError(t, b.Websocket.Connect(t.Context()), "Websocket.Connect must not error")
+		defer func() { // Stop leaked monitors on regression so the synctest bubble can finish.
+			_ = b.Websocket.Disable()
+			synctest.Sleep(time.Second)
+		}()
+
+		shutdownC := b.Websocket.ShutdownC
+		b.Websocket.Wg.Go(func() {
+			<-shutdownC
+			assert.False(t, b.Websocket.IsEnabled(), "Shutdown should disable the websocket before closing it, or the monitor can redial in between")
+		})
+
+		require.NoError(t, b.Shutdown(), "Shutdown must not error")
+		assert.False(t, b.Websocket.IsConnected(), "Shutdown should disconnect the websocket")
+		synctest.Sleep(3 * time.Second)
+		assert.Equal(t, int64(1), dials.Load(), "Shutdown should stop the connection monitor redialling")
+	})
 }
 
 func TestSupportsWithdrawPermissions(t *testing.T) {
@@ -1819,6 +1911,8 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		{Endpoint: websocketSpotSupplementaryURL, Expected: WebsocketSpotSupplementary},
 		{Endpoint: websocketFuturesURL, Expected: WebsocketFutures},
 		{Endpoint: websocketFuturesPrivateURL, Expected: WebsocketFuturesPrivate},
+		{Endpoint: websocketCoinMarginedPrivateURL, Expected: WebsocketCoinMarginedPrivate},
+		{Endpoint: websocketUSDTMarginedPrivateURL, Expected: WebsocketUSDTMarginedPrivate},
 		{Endpoint: chainAnalysisURL, Expected: ChainAnalysis},
 		{Endpoint: edgeCase1URL, Expected: EdgeCase1},
 		{Endpoint: edgeCase2URL, Expected: EdgeCase2},

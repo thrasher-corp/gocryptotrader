@@ -451,7 +451,11 @@ func (m *Manager) trackConnection(conn Connection, ws *websocket) {
 }
 
 // Connect initiates a websocket connection by using a package defined connection
-// function
+// function. Once running, the connection monitor retries a disconnected websocket while it is enabled, so callers
+// should not retry it themselves. It is not started when there is nothing to connect (no connector in single
+// connection mode, no connection setups in multi connection mode) or when a multi connection attempt leaves the
+// websocket disconnected after ctx has ended. The monitor reuses the ctx of the attempt that started it for every
+// retry and reconnection, even after it ends, so pass a ctx that stays live for as long as the websocket is wanted.
 func (m *Manager) Connect(ctx context.Context) error {
 	if m.IsEnabled() && !m.IsConnecting() && !m.IsConnected() && m.preConnect != nil {
 		m.preConnect(ctx)
@@ -497,17 +501,35 @@ func (m *Manager) connect(ctx context.Context) (connectErr error) {
 		if m.connector == nil {
 			return fmt.Errorf("%v %w", m.exchangeName, errNoConnectFunc)
 		}
+
+		// Started once this attempt has finished, whatever its outcome, so that a failed initial connection is retried
+		// without the monitor acting on a connection that is still being set up.
+		defer func() {
+			if m.connectionMonitorRunning.CompareAndSwap(false, true) {
+				// This oversees all connections and does not need to be part of wait group management.
+				monitorCtx := ctx
+				if ctx.Err() != nil {
+					// The connector does not use this context. Retain retries when it ended during the attempt.
+					monitorCtx = context.WithoutCancel(ctx)
+				}
+				go m.monitorFrame(monitorCtx, nil, m.monitorConnection)
+			}
+		}()
+
 		err := m.connector()
 		if err != nil {
-			m.setState(disconnectedState)
+			// The connector may have dialled and started readers before failing. Release them so the next attempt does
+			// not stack another socket and reader on top. Close errors are expected here for sockets closed by an
+			// earlier shutdown, so only teardown failures are reported.
+			if _, teardownErr := m.teardown(); teardownErr != nil {
+				err = common.AppendError(err, teardownErr)
+			}
 			return fmt.Errorf("%v Error connecting %w", m.exchangeName, err)
 		}
 		m.setState(connectedState)
 
-		if m.connectionMonitorRunning.CompareAndSwap(false, true) {
-			// This oversees all connections and does not need to be part of wait group management.
-			go m.monitorFrame(ctx, nil, m.monitorConnection)
-		}
+		m.Wg.Add(1)
+		go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
 
 		subs, err := m.GenerateSubs() // regenerate state on new connection
 		if err != nil {
@@ -534,6 +556,20 @@ func (m *Manager) connect(ctx context.Context) (connectErr error) {
 	if m.authenticatedSupport.Load() {
 		m.SetCanUseAuthenticatedEndpoints(true)
 	}
+	// Started once this attempt has finished, so that a failed initial connection is retried without the monitor acting
+	// on connections that are still being set up, unless the attempt failed after its context ended: every retry would
+	// dial with that context.
+	defer func() {
+		if (m.IsConnected() || ctx.Err() == nil) && m.connectionMonitorRunning.CompareAndSwap(false, true) {
+			// This oversees all connections and does not need to be part of wait group management.
+			monitorCtx := ctx
+			if ctx.Err() != nil {
+				// A completed connection still needs the monitor to observe a later Disable.
+				monitorCtx = context.WithoutCancel(ctx)
+			}
+			go m.monitorFrame(monitorCtx, nil, m.monitorConnection)
+		}
+	}()
 
 	// multiConnectFatalError is a fatal error that will cause all connections to
 	// be shutdown and the websocket to be disconnected.
@@ -687,25 +723,16 @@ func (m *Manager) connect(ctx context.Context) (connectErr error) {
 	if !connected {
 		m.idle.Store(true)
 		m.setState(disconnectedState)
-		if m.connectionMonitorRunning.CompareAndSwap(false, true) {
-			go m.monitorFrame(ctx, nil, m.monitorConnection)
-		}
 		return subscriptionError
 	}
-
-	// Idle connects must not leave a monitor competing for later traffic alerts.
-	m.Wg.Add(1)
-	go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
 
 	// Assume connected state here. All connections have been established.
 	// All subscriptions have been sent and stored. All data received is being
 	// handled by the appropriate data handler.
 	m.setState(connectedState)
 
-	if m.connectionMonitorRunning.CompareAndSwap(false, true) {
-		// This oversees all connections and does not need to be part of wait group management.
-		go m.monitorFrame(ctx, nil, m.monitorConnection)
-	}
+	m.Wg.Add(1)
+	go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
 
 	return subscriptionError
 }
@@ -723,10 +750,12 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 
 	conn := m.createConnectionFromSetup(ws.setup)
 
+	// The connection is only tracked once connected, so a rollback cannot reach it; close it here in case the
+	// connector dialled before failing.
 	if err := ws.setup.Connector(ctx, conn); err != nil {
-		if conn.IsConnected() {
-			err = common.AppendError(err, conn.Shutdown())
-		}
+		// A failed authenticated connection can retry after credentials are corrected.
+		// The connection is not yet tracked, so close it here before returning.
+		err = common.AppendError(err, conn.Shutdown())
 		if ws.setup.Authenticated {
 			return fmt.Errorf("%w: %w", ErrNotConnected, err)
 		}
@@ -734,7 +763,7 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 	}
 
 	if !conn.IsConnected() {
-		return fmt.Errorf("%w: %w", common.ErrFatal, ErrNotConnected)
+		return fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(ErrNotConnected, conn.Shutdown()))
 	}
 
 	m.trackConnection(conn, ws)
@@ -843,13 +872,32 @@ func (m *Manager) shutdown() error {
 		log.Debugf(log.WebsocketMgr, "%v websocket: shutting down websocket", m.exchangeName)
 	}
 
+	nonFatalCloseConnectionErrors, err := m.teardown()
+	if err != nil {
+		return err
+	}
+
+	if m.verbose {
+		log.Debugf(log.WebsocketMgr, "%v websocket: completed websocket shutdown", m.exchangeName)
+	}
+
+	if nonFatalCloseConnectionErrors != nil {
+		log.Warnf(log.WebsocketMgr, "%v websocket: shutdown error: %v", m.exchangeName, nonFatalCloseConnectionErrors)
+	}
+
+	return nil
+}
+
+// teardown closes every connection, waits for the routines tracked by Wg and renews ShutdownC, leaving the manager
+// disconnected and ready for a fresh connection attempt. It is shared by shutdown and a failed connect, which can leave
+// sockets and readers behind. Close errors are returned separately as they are non-fatal. The caller must hold m.m.
+func (m *Manager) teardown() (nonFatalCloseConnectionErrors, err error) {
 	// During the shutdown process, all errors are treated as non-fatal to avoid issues when the connection has already
 	// been closed. In such cases, attempting to close the connection may result in a
 	// "failed to send closeNotify alert (but connection was closed anyway)" error. Treating these errors as non-fatal
 	// prevents the shutdown process from being interrupted, which could otherwise trigger a continuous traffic monitor
 	// cycle and potentially block the initiation of a new connection.
-	var nonFatalCloseConnectionErrors error
-
+	//
 	// Shutdown managed connections
 	m.connectionManagerMu.Lock()
 	for _, ws := range m.connectionManager {
@@ -891,13 +939,9 @@ func (m *Manager) shutdown() error {
 		}
 		conn, ok := conn.(*connection)
 		if !ok {
-			return fmt.Errorf("%s websocket: %w", m.exchangeName, common.GetTypeAssertError("*connection", conn))
+			return nonFatalCloseConnectionErrors, fmt.Errorf("%s websocket: %w", m.exchangeName, common.GetTypeAssertError("*connection", conn))
 		}
 		conn.shutdown = m.ShutdownC
-	}
-
-	if m.verbose {
-		log.Debugf(log.WebsocketMgr, "%v websocket: completed websocket shutdown", m.exchangeName)
 	}
 
 	// Drain residual error in the single buffered channel, this mitigates
@@ -905,11 +949,7 @@ func (m *Manager) shutdown() error {
 	// starts but there is an old error in the channel.
 	drain(m.ReadMessageErrors)
 
-	if nonFatalCloseConnectionErrors != nil {
-		log.Warnf(log.WebsocketMgr, "%v websocket: shutdown error: %v", m.exchangeName, nonFatalCloseConnectionErrors)
-	}
-
-	return nil
+	return nonFatalCloseConnectionErrors, nil
 }
 
 func (m *Manager) setState(s uint32) {
@@ -1041,15 +1081,14 @@ func (m *Manager) GetConfiguredWebsocketURLs() ([]string, error) {
 		m.connectionManagerMu.RLock()
 		defer m.connectionManagerMu.RUnlock()
 		urls := make([]string, 0, len(m.connectionManager))
-		seen := make(map[string]struct{}, len(m.connectionManager))
+		seen := make(common.Seen[string], len(m.connectionManager))
 		for _, ws := range m.connectionManager {
 			if ws == nil || ws.setup.URL == "" {
 				continue
 			}
-			if _, ok := seen[ws.setup.URL]; ok {
+			if seen.CheckAndRecord(ws.setup.URL) {
 				continue
 			}
-			seen[ws.setup.URL] = struct{}{}
 			urls = append(urls, ws.setup.URL)
 		}
 		return urls, nil

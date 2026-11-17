@@ -132,7 +132,7 @@ func TestPushData(t *testing.T) {
 		},
 	})
 
-	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsHandleData.json", func(ctx context.Context, r []byte) error {
+	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsHandleData.jsonl", func(ctx context.Context, r []byte) error {
 		if bytes.Contains(r, []byte("FANGLE-ACCOUNTS")) {
 			hold := e.Accounts
 			e.Accounts = nil
@@ -616,13 +616,12 @@ func TestGenerateSharedSpotMarginFeeds(t *testing.T) {
 					wantCount = test.authCount
 				}
 				assert.Len(t, got, wantCount, "shared feeds should retain the expected pair coverage")
-				seen := make(map[string]bool, len(got))
+				seen := make(common.Seen[string], len(got))
 				for _, sub := range got {
-					assert.Falsef(t, seen[sub.QualifiedChannel], "topic %s should only be generated once", sub.QualifiedChannel)
+					assert.Falsef(t, seen.CheckAndRecord(sub.QualifiedChannel), "topic %s should only be generated once", sub.QualifiedChannel)
 					if test.threshold {
 						assert.NotEqual(t, marketTickerChannel+":all", sub.QualifiedChannel, "restricted ticker subscriptions should not widen to ticker:all")
 					}
-					seen[sub.QualifiedChannel] = true
 				}
 				_, err = subscription.NewStoreFromList(got)
 				require.NoError(t, err, "shared feeds must fit the subscription store")
@@ -991,7 +990,7 @@ func TestCheckSubscriptionsPreservesRealtimeOrderbooks(t *testing.T) {
 					subs, err := instance.generateSubscriptions()
 					require.NoError(t, err, "migrated subscriptions must generate before and after restart")
 					generatedAssets := make(map[asset.Item]bool)
-					topics := make(map[string]bool)
+					topics := make(common.Seen[string])
 					var generatedSymbols []string
 					for _, sub := range subs {
 						if sub.Channel != subscription.OrderbookChannel && sub.Channel != marketOrderbookChannel && sub.Channel != futuresOrderbookChannel {
@@ -1002,8 +1001,7 @@ func TestCheckSubscriptionsPreservesRealtimeOrderbooks(t *testing.T) {
 							generatedAsset = asset.Spot
 						}
 						generatedAssets[generatedAsset] = true
-						assert.Falsef(t, topics[sub.QualifiedChannel], "orderbook topic %s should not be duplicated", sub.QualifiedChannel)
-						topics[sub.QualifiedChannel] = true
+						assert.Falsef(t, topics.CheckAndRecord(sub.QualifiedChannel), "orderbook topic %s should not be duplicated", sub.QualifiedChannel)
 						_, symbols, ok := strings.Cut(sub.QualifiedChannel, ":")
 						require.True(t, ok, "orderbook topic must contain symbols")
 						generatedSymbols = append(generatedSymbols, strings.Split(symbols, ",")...)
@@ -1209,10 +1207,9 @@ func TestCheckSubscriptionsOverlappingCoverage(t *testing.T) {
 					wantCount = test.authCount
 				}
 				assert.Len(t, got, wantCount, "migration should retain all covered pairs")
-				seen := make(map[string]bool, len(got))
+				seen := make(common.Seen[string], len(got))
 				for _, sub := range got {
-					assert.Falsef(t, seen[sub.QualifiedChannel], "topic %s should only be generated once", sub.QualifiedChannel)
-					seen[sub.QualifiedChannel] = true
+					assert.Falsef(t, seen.CheckAndRecord(sub.QualifiedChannel), "topic %s should only be generated once", sub.QualifiedChannel)
 				}
 				_, err = subscription.NewStoreFromList(got)
 				require.NoError(t, err, "migrated coverage must fit the subscription store")
@@ -1411,14 +1408,14 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 		t.Parallel()
 		ku := testInstance(t)
 		ku.Name += "-TestProcessFuturesOrderbookLevel2"
-		require.False(t, futuresTradablePair.IsEmpty(), "futuresTradablePair must be initialised")
+		require.False(t, futuresTradablePair(t).IsEmpty(), "futuresTradablePair must be initialised")
 
 		const updateID = int64(18)
 		ku.wsOBUpdateMgr = orderbookmanager.NewUpdateManager(&orderbookmanager.UpdateManagerParams{
 			FetchDelay:    0,
 			FetchDeadline: orderbookmanager.DefaultWSOrderbookUpdateDeadline,
 			FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-				if !p.Equal(futuresTradablePair) {
+				if !p.Equal(futuresTradablePair(t)) {
 					return nil, fmt.Errorf("unexpected pair %s", p)
 				}
 				if a != asset.Futures {
@@ -1426,7 +1423,7 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 				}
 				return &orderbook.Book{
 					Exchange:     ku.Name,
-					Pair:         futuresTradablePair,
+					Pair:         futuresTradablePair(t),
 					Asset:        asset.Futures,
 					Bids:         orderbook.Levels{{Price: 4990, Amount: 1, ID: updateID - 1}},
 					Asks:         orderbook.Levels{{Price: 5010, Amount: 1, ID: updateID - 1}},
@@ -1439,15 +1436,15 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 			Orderbook:          &ku.Websocket.Orderbook,
 		})
 
-		err := ku.processFuturesOrderbookLevel2(t.Context(), validPayload, futuresTradablePair.String())
+		err := ku.processFuturesOrderbookLevel2(t.Context(), validPayload, futuresTradablePair(t).String())
 		require.NoError(t, err, "processFuturesOrderbookLevel2 must not error for buy updates")
 
 		require.Eventually(t, func() bool {
-			id, err := ku.Websocket.Orderbook.LastUpdateID(futuresTradablePair, asset.Futures)
+			id, err := ku.Websocket.Orderbook.LastUpdateID(futuresTradablePair(t), asset.Futures)
 			return err == nil && id == updateID
 		}, time.Second*5, time.Millisecond*50, "futures orderbook buy update must eventually sync")
 
-		book, err := ku.Websocket.Orderbook.GetOrderbook(futuresTradablePair, asset.Futures)
+		book, err := ku.Websocket.Orderbook.GetOrderbook(futuresTradablePair(t), asset.Futures)
 		require.NoError(t, err, "GetOrderbook must not error for futures buy updates")
 		require.NotEmpty(t, book.Bids, "bids must not be empty after processing a buy update")
 		assert.Equal(t, updateID, book.LastUpdateID, "LastUpdateID should be updated from the websocket sequence")
@@ -1459,14 +1456,14 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 		t.Parallel()
 		ku := testInstance(t)
 		ku.Name += "-TestProcessFuturesOrderbookLevel2Sell"
-		require.False(t, futuresTradablePair.IsEmpty(), "futuresTradablePair must be initialised")
+		require.False(t, futuresTradablePair(t).IsEmpty(), "futuresTradablePair must be initialised")
 
 		const updateID = int64(18)
 		ku.wsOBUpdateMgr = orderbookmanager.NewUpdateManager(&orderbookmanager.UpdateManagerParams{
 			FetchDelay:    0,
 			FetchDeadline: orderbookmanager.DefaultWSOrderbookUpdateDeadline,
 			FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-				if !p.Equal(futuresTradablePair) {
+				if !p.Equal(futuresTradablePair(t)) {
 					return nil, fmt.Errorf("unexpected pair %s", p)
 				}
 				if a != asset.Futures {
@@ -1474,7 +1471,7 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 				}
 				return &orderbook.Book{
 					Exchange:     ku.Name,
-					Pair:         futuresTradablePair,
+					Pair:         futuresTradablePair(t),
 					Asset:        asset.Futures,
 					Bids:         orderbook.Levels{{Price: 4990, Amount: 1, ID: updateID - 1}},
 					Asks:         orderbook.Levels{{Price: 5010, Amount: 1, ID: updateID - 1}},
@@ -1487,15 +1484,15 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 			Orderbook:          &ku.Websocket.Orderbook,
 		})
 
-		err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,sell,83","timestamp":1551770400000}`), futuresTradablePair.String())
+		err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,sell,83","timestamp":1551770400000}`), futuresTradablePair(t).String())
 		require.NoError(t, err, "processFuturesOrderbookLevel2 must not error for sell updates")
 
 		require.Eventually(t, func() bool {
-			id, err := ku.Websocket.Orderbook.LastUpdateID(futuresTradablePair, asset.Futures)
+			id, err := ku.Websocket.Orderbook.LastUpdateID(futuresTradablePair(t), asset.Futures)
 			return err == nil && id == updateID
 		}, time.Second*5, time.Millisecond*50, "futures orderbook sell update must eventually sync")
 
-		book, err := ku.Websocket.Orderbook.GetOrderbook(futuresTradablePair, asset.Futures)
+		book, err := ku.Websocket.Orderbook.GetOrderbook(futuresTradablePair(t), asset.Futures)
 		require.NoError(t, err, "GetOrderbook must not error for futures sell updates")
 		require.NotEmpty(t, book.Asks, "asks must not be empty after processing a sell update")
 		assert.Equal(t, updateID, book.LastUpdateID, "LastUpdateID should be updated from the websocket sequence")
@@ -1515,35 +1512,35 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 		t.Run("invalid_json", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":`), futuresTradablePair.String())
+			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":`), futuresTradablePair(t).String())
 			require.Error(t, err)
 		})
 
 		t.Run("invalid_change_format", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,buy","timestamp":1551770400000}`), futuresTradablePair.String())
+			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,buy","timestamp":1551770400000}`), futuresTradablePair(t).String())
 			require.ErrorContains(t, err, "unexpected orderbook change format")
 		})
 
 		t.Run("invalid_price", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"bad,buy,83","timestamp":1551770400000}`), futuresTradablePair.String())
+			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"bad,buy,83","timestamp":1551770400000}`), futuresTradablePair(t).String())
 			require.ErrorContains(t, err, "invalid syntax")
 		})
 
 		t.Run("invalid_amount", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,buy,bad","timestamp":1551770400000}`), futuresTradablePair.String())
+			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,buy,bad","timestamp":1551770400000}`), futuresTradablePair(t).String())
 			require.ErrorContains(t, err, "invalid syntax")
 		})
 
 		t.Run("invalid_side", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,hold,83","timestamp":1551770400000}`), futuresTradablePair.String())
+			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,hold,83","timestamp":1551770400000}`), futuresTradablePair(t).String())
 			require.ErrorContains(t, err, "unexpected orderbook side")
 		})
 	})
@@ -1738,7 +1735,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
 	ku.Name = t.Name()
-	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", func(ctx context.Context, b []byte) error { return ku.wsHandleData(ctx, nil, b) })
+	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.jsonl", func(ctx context.Context, b []byte) error { return ku.wsHandleData(ctx, nil, b) })
 	ku.Websocket.DataHandler.Close()
 	var tickers []ticker.Price
 	for resp := range ku.Websocket.DataHandler.C {
@@ -2019,7 +2016,7 @@ func TestProcessFuturesKline(t *testing.T) {
 	ku := new(Exchange)
 	require.NoError(t, testexch.Setup(ku), "Test instance Setup must not error")
 
-	data := fmt.Sprintf(`{"symbol":%q,"candles":["1714964400","63815.1","63890.8","63928.5","63797.8","17553.0","17553"],"time":1714964823722}`, futuresTradablePair.String())
+	data := fmt.Sprintf(`{"symbol":%q,"candles":["1714964400","63815.1","63890.8","63928.5","63797.8","17553.0","17553"],"time":1714964823722}`, futuresTradablePair(t).String())
 	err := ku.processFuturesKline(t.Context(), []byte(data), "1hour")
 	require.NoError(t, err)
 
@@ -2030,7 +2027,7 @@ func TestProcessFuturesKline(t *testing.T) {
 		assert.Equal(t, &kline.Item{
 			Asset:    asset.Futures,
 			Exchange: ku.Name,
-			Pair:     futuresTradablePair,
+			Pair:     futuresTradablePair(t),
 			Interval: kline.OneHour,
 			Candles: []kline.Candle{{
 				Time:   time.Unix(1714964400, 0),

@@ -316,23 +316,40 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) err
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return err
 	}
-	subAcct := accounts.NewSubAccount(asset.Spot, "")
+	subAccts := make(accounts.SubAccounts, 0, len(result.Data))
 	for x := range result.Data {
-		for y := range result.Data[x].Coin {
-			coin := result.Data[x].Coin[y]
-			balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Spot, coin.Coin, func(balance *accounts.Balance) {
-				balance.Total = coin.WalletBalance.Float64()
-				// Unified wallet pushes cannot refresh spendable funds because availableToWithdraw
-				// is deprecated; preserve the REST-derived Free, Hold, and Borrowed values.
-				balance.AvailableWithoutBorrow = coin.AvailableToWithdraw.Float64()
-			})
-			if err != nil {
-				return err
+		assetTypes := []asset.Item{asset.Spot}
+		if strings.EqualFold(result.Data[x].AccountType, "CONTRACT") {
+			// UTA 1.0 uses CONTRACT only for inverse derivatives. Classic accounts
+			// share CONTRACT across the derivative assets REST caches separately.
+			assetTypes = []asset.Item{asset.CoinMarginedFutures}
+			e.account.m.Lock()
+			if e.account.accountType == accountTypeNormal {
+				assetTypes = append(assetTypes, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.Options)
 			}
-			subAcct.Balances.Set(coin.Coin, balance)
+			e.account.m.Unlock()
+		}
+		for _, assetType := range assetTypes {
+			subAcct := accounts.NewSubAccount(assetType, "")
+			for y := range result.Data[x].Coin {
+				coin := result.Data[x].Coin[y]
+				balance, err := e.Accounts.UpdateBalance(ctx, "", assetType, coin.Coin, func(balance *accounts.Balance) {
+					balance.Total = coin.WalletBalance.Float64()
+					// UNIFIED's availableToWithdraw is deprecated in both REST and websocket
+					// responses; do not replace cached availability with this field.
+					if !strings.EqualFold(result.Data[x].AccountType, "UNIFIED") {
+						balance.AvailableWithoutBorrow = coin.AvailableToWithdraw.Float64()
+					}
+				})
+				if err != nil {
+					return err
+				}
+				subAcct.Balances.Set(coin.Coin, balance)
+			}
+			subAccts = append(subAccts, subAcct)
 		}
 	}
-	return e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAcct})
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.
@@ -874,7 +891,7 @@ func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation str
 		Arguments: []string{},
 	}
 
-	chanMap := map[string]bool{}
+	chanMap := make(common.Seen[string])
 	pairFmt, err := e.GetPairFormat(assetType, true)
 	if err != nil {
 		return nil, err
@@ -902,12 +919,10 @@ func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation str
 			arg.Arguments = append(arg.Arguments, s.Channel+"."+interval+"."+pairFmt.Format(pair))
 			arg.associatedSubs = append(arg.associatedSubs, s)
 		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks:
-			if chanMap[s.Channel] {
+			if chanMap.CheckAndRecord(s.Channel) {
 				continue
 			}
 			authArg.Arguments = append(authArg.Arguments, s.Channel)
-			// add channel name to map so we only subscribe to channel once
-			chanMap[s.Channel] = true
 			authArg.associatedSubs = append(authArg.associatedSubs, s)
 		}
 

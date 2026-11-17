@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -528,7 +530,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 		if assetType == asset.Margin {
 			instrumentType = instTypeSpot
 		}
-		ticks, err := e.GetTickers(ctx, instrumentType, "", "")
+		ticks, err := e.GetTickers(ctx, instrumentType, "")
 		if err != nil {
 			return err
 		}
@@ -721,7 +723,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			ExchangeName:    e.Name,
 			Status:          strconv.FormatInt(depositHistories[x].State.Int64(), 10),
 			Timestamp:       depositHistories[x].Timestamp.Time(),
-			Currency:        depositHistories[x].Currency,
+			Currency:        depositHistories[x].Currency.String(),
 			Amount:          depositHistories[x].Amount.Float64(),
 			TransferType:    "deposit",
 			CryptoToAddress: depositHistories[x].ToDepositAddress,
@@ -733,7 +735,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			ExchangeName:    e.Name,
 			Status:          withdrawalHistories[x].StateOfWithdrawal,
 			Timestamp:       withdrawalHistories[x].Timestamp.Time(),
-			Currency:        withdrawalHistories[x].Currency,
+			Currency:        withdrawalHistories[x].Currency.String(),
 			Amount:          withdrawalHistories[x].Amount.Float64(),
 			TransferType:    "withdrawal",
 			CryptoToAddress: withdrawalHistories[x].ToReceivingAddress,
@@ -757,7 +759,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:          withdrawals[x].StateOfWithdrawal,
 			Timestamp:       withdrawals[x].Timestamp.Time(),
-			Currency:        withdrawals[x].Currency,
+			Currency:        withdrawals[x].Currency.String(),
 			Amount:          withdrawals[x].Amount.Float64(),
 			TransferType:    "withdrawal",
 			CryptoToAddress: withdrawals[x].ToReceivingAddress,
@@ -1823,7 +1825,7 @@ allOrders:
 				ExecutedAmount:  orderList[i].FillSize.Float64(),
 				RemainingAmount: orderList[i].Size.Float64() - orderList[i].FillSize.Float64(),
 				Fee:             orderList[i].TransactionFee.Float64(),
-				FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
+				FeeAsset:        orderList[i].FeeCurrency,
 				Exchange:        e.Name,
 				OrderID:         orderList[i].OrderID,
 				ClientOrderID:   orderList[i].ClientOrderID,
@@ -1973,7 +1975,7 @@ allOrders:
 					ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
 					RemainingAmount:      remainingAmount,
 					Fee:                  orderList[i].TransactionFee.Float64(),
-					FeeAsset:             currency.NewCode(orderList[i].FeeCurrency),
+					FeeAsset:             orderList[i].FeeCurrency,
 					Exchange:             e.Name,
 					OrderID:              orderList[i].OrderID,
 					ClientOrderID:        orderList[i].ClientOrderID,
@@ -1985,7 +1987,7 @@ allOrders:
 					LastUpdated:          orderList[i].UpdateTime.Time(),
 					Pair:                 pair,
 					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
-					CostAsset:            currency.NewCode(orderList[i].RebateCurrency),
+					CostAsset:            orderList[i].RebateCurrency,
 					TimeInForce:          tif,
 				})
 			}
@@ -2247,24 +2249,15 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if err != nil {
 		return nil, err
 	}
-	var fri time.Duration
-	if len(e.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
-		// can infer funding rate interval from the only funding rate frequency defined
-		for k := range e.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
-			fri = k.Duration()
-		}
+	if fr == nil {
+		return nil, fmt.Errorf("%w GetSingleFundingRate", common.ErrNilPointer)
 	}
-	pairRate.LatestRate = fundingrate.Rate{
-		// okx funding rate is settlement time, not when it started
-		Time: fr.FundingTime.Time().Add(-fri),
-		Rate: fr.FundingRate.Decimal(),
-	}
+	// ts is the observation time; fundingTime is the imminent settlement.
+	// nextFundingTime refers to the following period, not this indicative rate.
+	pairRate.LatestRate = fundingrate.Rate{Time: fr.Timestamp.Time(), Rate: fr.FundingRate.Decimal()}
+	pairRate.TimeOfNextRate = fr.FundingTime.Time()
 	if r.IncludePredictedRate {
-		pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
-		pairRate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fr.NextFundingTime.Time().Add(-fri),
-			Rate: fr.NextFundingRate.Decimal(),
-		}
+		pairRate.PredictedUpcomingRate = fundingrate.Rate{Time: fr.FundingTime.Time(), Rate: fr.FundingRate.Decimal()}
 	}
 	return []fundingrate.LatestRateResponse{pairRate}, nil
 }
@@ -2274,8 +2267,20 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if r == nil {
 		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
 	}
+	// OKX publishes funding history for perpetual swaps and X-Perps futures
+	if r.Asset != asset.PerpetualSwap && r.Asset != asset.Futures {
+		return nil, futures.ErrNotPerpetualFuture
+	}
+	if r.Pair.IsEmpty() {
+		return nil, fmt.Errorf("%w, pair required", currency.ErrCurrencyPairEmpty)
+	}
+	if r.EndDate.IsZero() {
+		// An unset end reads as open-ended, spanning up to now; a before-only
+		// query would make OKX answer with the oldest page after the start
+		// date, silently truncating the history.
+		r.EndDate = time.Now()
+	}
 	requestLimit := 100
-	sd := r.StartDate
 	maxLookback := time.Now().Add(-e.Features.Supports.FuturesCapabilities.MaximumFundingRateHistory)
 	if r.StartDate.Before(maxLookback) {
 		if r.RespectHistoryLimits {
@@ -2286,7 +2291,6 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		if r.EndDate.Before(maxLookback) {
 			return nil, futures.ErrGetFundingDataRequired
 		}
-		r.StartDate = maxLookback
 	}
 	format, err := e.GetPairFormat(r.Asset, true)
 	if err != nil {
@@ -2300,30 +2304,51 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		StartDate: r.StartDate,
 		EndDate:   r.EndDate,
 	}
-	// map of time indexes, allowing for easy lookup of slice index from unix time data
-	mti := make(map[int64]int)
-	for sd.Before(r.EndDate) {
-		var frh []FundingRateResponse
-		frh, err = e.GetFundingRateHistory(ctx, fPair.String(), sd, r.EndDate, int64(requestLimit))
+	// The history arrives newest first, so after is the documented cursor for
+	// records earlier than the page's oldest funding time, while before holds
+	// the requested window floor.
+	sd := r.StartDate
+	historyCursor := r.EndDate
+	seen := make(common.Seen[int64])
+	for {
+		var history []FundingRateResponse
+		history, err = e.GetFundingRateHistory(ctx, fPair.String(), sd, historyCursor, int64(requestLimit))
 		if err != nil {
 			return nil, err
 		}
-		if len(frh) == 0 {
+		if len(history) == 0 {
 			break
 		}
-		for i := range frh {
-			if r.IncludePayments {
-				mti[frh[i].FundingTime.Time().Unix()] = i
+		for i := range history {
+			settledRate := &history[i]
+			settlementTime := settledRate.FundingTime.Time()
+			if settlementTime.Before(r.StartDate) || settlementTime.After(r.EndDate) {
+				continue
+			}
+			if seen.CheckAndRecord(settlementTime.Unix()) {
+				continue
+			}
+			if settledRate.RealisedRate == nil {
+				return nil, fmt.Errorf("%w: realised funding rate missing", common.ErrNoResponse)
 			}
 			pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
-				Time: frh[i].FundingTime.Time(),
-				Rate: frh[i].FundingRate.Decimal(),
+				Time: settlementTime,
+				Rate: settledRate.RealisedRate.Decimal(),
 			})
 		}
-		if len(frh) < requestLimit {
+		if len(history) < requestLimit {
 			break
 		}
-		sd = frh[len(frh)-1].FundingTime.Time()
+		oldest := history[len(history)-1].FundingTime.Time()
+		if !sd.Before(oldest) {
+			break
+		}
+		// A full page above the requested start still needs an older cursor.
+		// Repeated or newer timestamps cannot establish that history is complete.
+		if !oldest.Before(historyCursor) {
+			return nil, fmt.Errorf("%w: funding history page did not advance before %s", common.ErrNoResponse, historyCursor)
+		}
+		historyCursor = oldest
 	}
 	var fr *FundingRateResponse
 	fr, err = e.GetSingleFundingRate(ctx, fPair.String())
@@ -2334,56 +2359,87 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		return nil, fmt.Errorf("%w GetSingleFundingRate", common.ErrNilPointer)
 	}
 	pairRate.LatestRate = fundingrate.Rate{
-		Time: fr.FundingTime.Time(),
+		Time: fr.Timestamp.Time(),
 		Rate: fr.FundingRate.Decimal(),
 	}
-	pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
+	pairRate.TimeOfNextRate = fr.FundingTime.Time()
 	if r.IncludePredictedRate {
 		pairRate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fr.NextFundingTime.Time(),
-			Rate: fr.NextFundingRate.Decimal(),
+			Time: fr.FundingTime.Time(),
+			Rate: fr.FundingRate.Decimal(),
 		}
 	}
 	if r.IncludePayments {
-		pairRate.PaymentCurrency = r.Pair.Base
-		if !r.PaymentCurrency.IsEmpty() {
-			pairRate.PaymentCurrency = r.PaymentCurrency
+		pairRate.PaymentCurrency = r.PaymentCurrency
+		if pairRate.PaymentCurrency.IsEmpty() {
+			// Linear and inverse swaps settle in different currencies; the pair
+			// name alone does not identify the account bills' payment currency.
+			instType := GetInstrumentTypeFromAssetItem(r.Asset)
+			instruments, err := e.GetInstruments(ctx, &InstrumentsFetchParams{InstrumentType: instType, InstrumentID: fPair.String()})
+			if err != nil {
+				return nil, err
+			}
+			if len(instruments) != 1 || instruments[0].InstrumentID.String() != fPair.String() || instruments[0].InstrumentType != instType || instruments[0].SettlementCurrency.IsEmpty() {
+				return nil, fmt.Errorf("%w: settlement currency unavailable for %s", common.ErrNoResponse, fPair)
+			}
+			pairRate.PaymentCurrency = instruments[0].SettlementCurrency
 		}
-		sd = r.StartDate
+		slices.SortFunc(pairRate.FundingRates, func(a, b fundingrate.Rate) int { return b.Time.Compare(a.Time) })
 		billDetailsFunc := e.GetBillsDetail3Months
 		if time.Since(r.StartDate) < kline.OneWeek.Duration() {
 			billDetailsFunc = e.GetBillsDetailLast7Days
 		}
-		for sd.Before(r.EndDate) {
-			var fri time.Duration
-			if len(e.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
-				// can infer funding rate interval from the only funding rate frequency defined
-				for k := range e.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
-					fri = k.Duration()
-				}
-			}
+		var after string
+		seenBills := make(map[string]struct{})
+		seenCursors := make(map[string]struct{})
+		for {
 			var billDetails []BillsDetailResponse
 			billDetails, err = billDetailsFunc(ctx, &BillsDetailQueryParameter{
 				InstrumentType: GetInstrumentTypeFromAssetItem(r.Asset),
+				InstrumentID:   fPair.String(),
 				Currency:       pairRate.PaymentCurrency,
-				BillType:       137,
-				BeginTime:      sd,
+				BillType:       billTypeFundingFee,
+				BeginTime:      r.StartDate,
 				EndTime:        r.EndDate,
+				After:          after,
 				Limit:          int64(requestLimit),
 			})
 			if err != nil {
 				return nil, err
 			}
 			for i := range billDetails {
-				if index, okay := mti[billDetails[i].Timestamp.Time().Truncate(fri).Unix()]; okay {
-					pairRate.FundingRates[index].Payment = billDetails[i].ProfitAndLoss.Decimal()
+				bill := &billDetails[i]
+				billTime := bill.Timestamp.Time()
+				if billTime.Before(r.StartDate) || billTime.After(r.EndDate) {
 					continue
+				}
+				if bill.BillID == "" {
+					return nil, fmt.Errorf("%w: funding bill ID missing", common.ErrNoResponse)
+				}
+				if _, duplicate := seenBills[bill.BillID]; duplicate {
+					continue
+				}
+				seenBills[bill.BillID] = struct{}{}
+				// Bills report the balance update time, which can follow settlement.
+				// Match the latest actual settlement at or before that update, so
+				// changes in funding frequency do not shift payments into another period.
+				index := sort.Search(len(pairRate.FundingRates), func(i int) bool {
+					return !pairRate.FundingRates[i].Time.After(billTime)
+				})
+				if index < len(pairRate.FundingRates) {
+					pairRate.FundingRates[index].Payment = pairRate.FundingRates[index].Payment.Add(bill.ProfitAndLoss.Decimal())
 				}
 			}
 			if len(billDetails) < requestLimit {
 				break
 			}
-			sd = billDetails[len(billDetails)-1].Timestamp.Time()
+			// Use the bill ID rather than its timestamp: multiple payments can
+			// share the same balance update time.
+			after = billDetails[len(billDetails)-1].BillID
+			if _, repeated := seenCursors[after]; repeated || after == "" {
+				return nil, fmt.Errorf("%w: funding bills pagination did not advance", common.ErrNoResponse)
+			}
+			seenCursors[after] = struct{}{}
 		}
 
 		for i := range pairRate.FundingRates {
@@ -2571,7 +2627,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		totalEquity = acc[0].Details[i].TotalEquity.Decimal()
 		isolatedEquity = acc[0].Details[i].IsoEquity.Decimal()
 		isolatedLiabilities = acc[0].Details[i].IsolatedLiabilities.Decimal()
-		isolatedUnrealisedProfit = acc[0].Details[i].IsoUpl.Decimal()
+		isolatedUnrealisedProfit = acc[0].Details[i].IsolatedUnrealisedProfitAndLoss.Decimal()
 		notionalLeverage = acc[0].Details[i].NotionalLever.Decimal()
 		strategyEquity = acc[0].Details[i].StrategyEquity.Decimal()
 
@@ -2599,7 +2655,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		TotalEquity:                  totalEquity,
 		StrategyEquity:               strategyEquity,
 		IsolatedMargin:               positionSummary.Margin.Decimal(),
-		NotionalSize:                 positionSummary.NotionalUsd.Decimal(),
+		NotionalSize:                 positionSummary.NotionalUSD.Decimal(),
 		Leverage:                     positionSummary.Leverage.Decimal(),
 		MaintenanceMarginRequirement: positionSummary.MaintenanceMarginRequirement.Decimal(),
 		InitialMarginRequirement:     positionSummary.InitialMarginRequirement.Decimal(),
@@ -2611,7 +2667,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		ContractMultiplier:           decimal.MustFromFloat(multiplier),
 		ContractSettlementType:       contractSettlementType,
 		AverageOpenPrice:             positionSummary.AveragePrice.Decimal(),
-		UnrealisedPNL:                positionSummary.UPNL.Decimal(),
+		UnrealisedPNL:                positionSummary.UnrealisedProfitAndLoss.Decimal(),
 		MaintenanceMarginFraction:    positionSummary.MarginRatio.Decimal(),
 		FreeCollateral:               freeCollateral,
 		TotalCollateral:              totalCollateral,
@@ -2718,7 +2774,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				ExecutedAmount:       positions[j].AccumulatedFillSize.Float64(),
 				RemainingAmount:      remainingAmount,
 				Fee:                  positions[j].TransactionFee.Float64(),
-				FeeAsset:             currency.NewCode(positions[j].FeeCurrency),
+				FeeAsset:             positions[j].FeeCurrency,
 				Exchange:             e.Name,
 				OrderID:              positions[j].OrderID,
 				ClientOrderID:        positions[j].ClientOrderID,
@@ -2730,7 +2786,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				LastUpdated:          positions[j].UpdateTime.Time(),
 				Pair:                 req.Pairs[i],
 				Cost:                 cost,
-				CostAsset:            currency.NewCode(positions[j].RebateCurrency),
+				CostAsset:            positions[j].RebateCurrency,
 				TimeInForce:          tif,
 			})
 		}
@@ -2835,56 +2891,58 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		resp := make([]futures.Contract, len(result))
 		for i := range result {
-			var (
-				underlying             currency.Pair
-				settleCurr             currency.Code
-				contractSettlementType futures.ContractSettlementType
-			)
-
-			if result[i].State == "live" {
-				underlying, err = currency.NewPairFromString(result[i].Underlying)
+			instrument := &result[i]
+			if instrument.InstrumentType != "" && !strings.EqualFold(instrument.InstrumentType, instType) {
+				return nil, fmt.Errorf("%w: instrument type %s", asset.ErrNotSupported, instrument.InstrumentType)
+			}
+			var underlying currency.Pair
+			// Inactive instruments still have settlement terms needed to value open positions.
+			// Only active instruments require an underlying; preserve it whenever supplied.
+			if instrument.Underlying != "" || instrument.State == "live" {
+				underlying, err = currency.NewPairFromString(instrument.Underlying)
 				if err != nil {
 					return nil, err
 				}
-
-				settleCurr = currency.NewCode(result[i].SettlementCurrency)
-
-				contractSettlementType = futures.Linear
-				if result[i].SettlementCurrency == result[i].BaseCurrency {
-					contractSettlementType = futures.Inverse
+			}
+			settlementType, err := futures.StringToContractSettlementType(instrument.ContractType)
+			if err != nil {
+				return nil, err
+			}
+			if settlementType == futures.UnsetSettlementType {
+				settlementType = futures.Linear
+				// Derivative baseCcy is often empty; use the underlying only as a fallback.
+				if !instrument.SettlementCurrency.IsEmpty() && instrument.SettlementCurrency.Equal(underlying.Base) {
+					settlementType = futures.Inverse
 				}
 			}
 
-			var ct futures.ContractType
+			var contractType futures.ContractType
 			if item == asset.PerpetualSwap {
-				ct = futures.Perpetual
+				contractType = futures.Perpetual
 			} else {
-				switch result[i].Alias {
+				switch instrument.Alias {
 				case "this_week", "next_week":
-					ct = futures.Weekly
+					contractType = futures.Weekly
 				case "quarter", "next_quarter":
-					ct = futures.Quarterly
+					contractType = futures.Quarterly
 				}
 			}
 
 			resp[i] = futures.Contract{
-				Exchange:       e.Name,
-				Name:           result[i].InstrumentID,
-				Underlying:     underlying,
-				Asset:          item,
-				StartDate:      result[i].ListTime.Time(),
-				EndDate:        result[i].ExpTime.Time(),
-				IsActive:       result[i].State == "live",
-				Status:         result[i].State,
-				Type:           ct,
-				SettlementType: contractSettlementType,
-				MarginCurrency: settleCurr,
-				Multiplier:     result[i].ContractValue.Float64(),
-				MaxLeverage:    result[i].MaxLeverage.Float64(),
-			}
-
-			if !settleCurr.IsEmpty() {
-				resp[i].SettlementCurrency = settleCurr
+				Exchange:           e.Name,
+				Name:               instrument.InstrumentID,
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          instrument.ListTime.Time(),
+				EndDate:            instrument.ExpTime.Time(),
+				IsActive:           instrument.State == "live",
+				Status:             instrument.State,
+				Type:               contractType,
+				SettlementType:     settlementType,
+				MarginCurrency:     instrument.SettlementCurrency,
+				SettlementCurrency: instrument.SettlementCurrency,
+				Multiplier:         instrument.ContractValue.Float64(),
+				MaxLeverage:        instrument.MaxLeverage.Float64(),
 			}
 		}
 		return resp, nil
@@ -2918,6 +2976,33 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	}
 }
 
+// optionInstrumentFamilies lists the option families on OKX's instrument
+// tick bands table, which the open interest queries iterate: instFamily is
+// the documented filter and an underlying spans several families (BTC-USD
+// spans BTC-USD and BTC-USD_UM), so it cannot stand in for one.
+func (e *Exchange) optionInstrumentFamilies(ctx context.Context) ([]string, error) {
+	tickBands, err := e.GetOptionsTickBands(ctx, instTypeOption, "")
+	if err != nil {
+		return nil, err
+	}
+	seen := make(common.Seen[string], len(tickBands))
+	families := make([]string, 0, len(tickBands))
+	for i := range tickBands {
+		family := tickBands[i].InstrumentFamily
+		if family == "" {
+			continue
+		}
+		if seen.CheckAndRecord(family) {
+			continue
+		}
+		families = append(families, family)
+	}
+	if len(families) == 0 {
+		return nil, common.ErrNoResponse
+	}
+	return families, nil
+}
+
 // GetOpenInterest returns the open interest rate for a given asset pair
 func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
 	for i := range k {
@@ -2930,7 +3015,6 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	}
 	if len(k) != 1 {
 		var resp []futures.OpenInterest
-		// TODO: Options support
 		instTypes := map[string]asset.Item{
 			instTypeSwap:    asset.PerpetualSwap,
 			instTypeFutures: asset.Futures,
@@ -2941,22 +3025,21 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			var err error
 			switch instType {
 			case instTypeOption:
-				var underlyings []string
-				underlyings, err = e.GetPublicUnderlyings(ctx, instTypeOption)
+				var families []string
+				families, err = e.optionInstrumentFamilies(ctx)
 				if err != nil {
 					return nil, err
 				}
-				for u := range underlyings {
+				for u := range families {
 					var incOID []OpenInterest
-					incOID, err = e.GetOpenInterestData(ctx, instType, underlyings[u], "", "")
+					incOID, err = e.GetOpenInterestData(ctx, instType, families[u], "")
 					if err != nil {
 						return nil, err
 					}
 					oid = append(oid, incOID...)
 				}
-			case instTypeSwap,
-				instTypeFutures:
-				oid, err = e.GetOpenInterestData(ctx, instType, "", "", "")
+			case instTypeSwap, instTypeFutures:
+				oid, err = e.GetOpenInterestData(ctx, instType, "", "")
 				if err != nil {
 					return nil, err
 				}
@@ -2993,6 +3076,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	instTypes := map[asset.Item]string{
 		asset.PerpetualSwap: "SWAP",
 		asset.Futures:       "FUTURES",
+		asset.Options:       instTypeOption,
 	}
 	pFmt, err := e.FormatSymbol(k[0].Pair(), k[0].Asset)
 	if err != nil {
@@ -3001,21 +3085,29 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	var oid []OpenInterest
 	switch instTypes[k[0].Asset] {
 	case instTypeOption:
-		var underlyings []string
-		underlyings, err = e.GetPublicUnderlyings(ctx, instTypeOption)
+		// OKX rejects a family that doesn't match the instrument with 51002, so
+		// only the instrument's own family, the prefix of its ID, is queried
+		var families []string
+		families, err = e.optionInstrumentFamilies(ctx)
 		if err != nil {
 			return nil, err
 		}
-		for u := range underlyings {
-			var incOID []OpenInterest
-			incOID, err = e.GetOpenInterestData(ctx, instTypes[k[0].Asset], underlyings[u], "", "")
-			if err != nil {
-				return nil, err
+		var family string
+		for _, f := range families {
+			if strings.HasPrefix(pFmt, f+currency.DashDelimiter) {
+				family = f
+				break
 			}
-			oid = append(oid, incOID...)
+		}
+		if family == "" {
+			return nil, fmt.Errorf("%w for %s", errInstrumentFamilyRequired, pFmt)
+		}
+		oid, err = e.GetOpenInterestData(ctx, instTypeOption, family, pFmt)
+		if err != nil {
+			return nil, err
 		}
 	case instTypeSwap, instTypeFutures:
-		oid, err = e.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", "", pFmt)
+		oid, err = e.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", pFmt)
 		if err != nil {
 			return nil, err
 		}

@@ -7,6 +7,7 @@ config:
       - img
   MD041: false
   MD060: false
+gitignore: true
 ignores:
   - cmd/documentation/sub_templates/contributors.tmpl
   - vendor/**

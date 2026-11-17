@@ -2,6 +2,7 @@ package currency
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
@@ -47,6 +48,6 @@ type Storage struct {
 	mtx                        sync.Mutex
 	wg                         sync.WaitGroup
 	shutdown                   chan struct{}
-	updaterRunning             bool
+	updaterRunning             atomic.Bool
 	Verbose                    bool
 }

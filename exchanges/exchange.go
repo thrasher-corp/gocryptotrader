@@ -740,15 +740,14 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) 
 		return err
 	}
 
-	check := make(map[string]bool)
+	check := make(common.Seen[string])
 	var target int
 	for x := range enabledPairs {
 		pairNoFmt := currency.EMPTYFORMAT.Format(enabledPairs[x])
-		if check[pairNoFmt] {
+		if check.CheckAndRecord(pairNoFmt) {
 			diff.Remove = diff.Remove.Add(enabledPairs[x])
 			continue
 		}
-		check[pairNoFmt] = true
 
 		if !diff.Remove.Contains(enabledPairs[x], true) {
 			enabledPairs[target] = enabledPairs[x].Format(pFmt)
@@ -1363,6 +1362,10 @@ func (u URL) String() string {
 		return websocketFuturesURL
 	case WebsocketFuturesPrivate:
 		return websocketFuturesPrivateURL
+	case WebsocketCoinMarginedPrivate:
+		return websocketCoinMarginedPrivateURL
+	case WebsocketUSDTMarginedPrivate:
+		return websocketUSDTMarginedPrivateURL
 	case ChainAnalysis:
 		return chainAnalysisURL
 	case EdgeCase1:
@@ -1417,6 +1420,10 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return WebsocketFutures, nil
 	case websocketFuturesPrivateURL:
 		return WebsocketFuturesPrivate, nil
+	case websocketCoinMarginedPrivateURL:
+		return WebsocketCoinMarginedPrivate, nil
+	case websocketUSDTMarginedPrivateURL:
+		return WebsocketUSDTMarginedPrivate, nil
 	case chainAnalysisURL:
 		return ChainAnalysis, nil
 	case edgeCase1URL:
@@ -1595,9 +1602,13 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 }
 
 // Shutdown closes active websocket connections if available and then cleans up
-// a REST requester instance.
+// a REST requester instance. It disables the websocket first, because the
+// connection monitor keeps reconnecting it until it is disabled.
 func (b *Base) Shutdown() error {
 	if b.Websocket != nil {
+		if err := b.Websocket.Disable(); err != nil && !errors.Is(err, websocket.ErrAlreadyDisabled) {
+			return err
+		}
 		err := b.Websocket.Shutdown()
 		if err != nil && !errors.Is(err, websocket.ErrNotConnected) {
 			return err
