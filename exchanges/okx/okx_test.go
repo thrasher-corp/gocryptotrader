@@ -4020,16 +4020,16 @@ func TestSubmitOrder(t *testing.T) {
 				}
 				resp, err := ex.SubmitOrder(t.Context(), s)
 				require.NoError(t, err, "SubmitOrder must not error")
-				assert.Equal(t, "ALGO-1", resp.OrderID, "the algo order must return its ID")
+				assert.Equal(t, "ALGO-1", resp.OrderID, "the algo order should return its ID")
 				mu.Lock()
 				defer mu.Unlock()
 				var sent map[string]any
 				require.NoError(t, json.Unmarshal(body, &sent), "the place algo order request body must decode")
-				assert.Equal(t, "0.002", sent["sz"], "sz must stay the base currency amount")
+				assert.Equal(t, "0.002", sent["sz"], "sz should stay the base currency amount")
 				if tc.expTarget == "" {
 					assert.NotContains(t, sent, "tgtCcy", "only a spot order with a market leg should send tgtCcy")
 				} else {
-					assert.Equal(t, tc.expTarget, sent["tgtCcy"], "a spot order with a market leg must name its base currency size")
+					assert.Equal(t, tc.expTarget, sent["tgtCcy"], "a spot order with a market leg should name its base currency size")
 				}
 			})
 		}
@@ -5606,7 +5606,7 @@ func TestCancelBatchOrders(t *testing.T) {
 			{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-BAD", Type: order.Trigger},
 		})
 		require.NoError(t, err, "CancelBatchOrders must not error when the batch is accepted")
-		assert.Equal(t, order.PendingCancel.String(), resp.Status["ALGO-OK"], "an acknowledged algo cancel must report the pending state, as sCode 0 covers the request only")
+		assert.Equal(t, order.PendingCancel.String(), resp.Status["ALGO-OK"], "an acknowledged algo cancel should report the pending state, as sCode 0 covers the request only")
 		assert.Equal(t, "The algo order does not exist", resp.Status["ALGO-BAD"], "a failed algo cancel should report its status message")
 	})
 
