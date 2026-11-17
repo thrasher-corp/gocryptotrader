@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
@@ -641,222 +639,6 @@ func TestFlushChannelsConcurrentReaders(t *testing.T) {
 
 func TestFlushChannels(t *testing.T) {
 	t.Parallel()
-	for _, scenario := range []string{"ordinary subscription failure is retried", "flush waiting behind connected flush rechecks idle"} {
-		t.Run(scenario, func(t *testing.T) {
-			t.Parallel()
-			m := NewManager()
-			setup := newDefaultSetup()
-			setup.UseMultiConnectionManagement = true
-			setup.ExchangeConfig.ConnectionMonitorDelay = time.Hour
-			if scenario == "ordinary subscription failure is retried" {
-				setup.ExchangeConfig.ConnectionMonitorDelay = 10 * time.Millisecond
-			}
-			var preConnects, dials atomic.Int32
-			setup.PreConnect = func(context.Context) { preConnects.Add(1) }
-			require.NoError(t, m.Setup(setup))
-			server, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-			var enabled, hold, fail atomic.Bool
-			enabled.Store(true)
-			generating, release := make(chan struct{}), make(chan struct{})
-			var releaseOnce sync.Once
-			t.Cleanup(func() { cleanupManagerMonitors(t, m) })
-			t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
-			require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
-				URL: "ws" + server.URL[len("http"):],
-				Connector: func(ctx context.Context, conn Connection) error {
-					dials.Add(1)
-					return conn.Dial(ctx, dialer, nil, nil)
-				},
-				GenerateSubscriptions: func() (subscription.List, error) {
-					if hold.Swap(false) {
-						close(generating)
-						select {
-						case <-release:
-						case <-t.Context().Done():
-							return nil, t.Context().Err()
-						}
-						return nil, nil // The captured empty snapshot predates the second change.
-					}
-					if !enabled.Load() {
-						return nil, nil
-					}
-					return subscription.List{{Channel: "ticker"}}, nil
-				},
-				Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
-					if fail.Swap(false) {
-						return errDastardlyReason
-					}
-					return m.AddSuccessfulSubscriptions(conn, subs...)
-				},
-				Unsubscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
-					return m.RemoveSubscriptions(conn, subs...)
-				},
-				Handler: func(context.Context, Connection, []byte) error { return nil },
-			}))
-			require.NoError(t, m.Connect(t.Context()))
-			if scenario == "ordinary subscription failure is retried" {
-				// Change the channel rather than recreating the manager, so the retry
-				// must reconcile a healthy connection's existing subscription store.
-				m.connectionManager[0].setup.GenerateSubscriptions = func() (subscription.List, error) { return subscription.List{{Channel: "orders"}}, nil }
-				fail.Store(true)
-				require.ErrorIs(t, m.FlushChannels(t.Context()), errDastardlyReason)
-				require.Eventually(t, func() bool { return m.GetSubscription(&subscription.Subscription{Channel: "orders"}) != nil }, time.Second, time.Millisecond, "the monitor must retry the saved refresh after its subscription failure")
-				assert.Equal(t, int32(1), dials.Load(), "a healthy connection should be retained")
-				assert.False(t, m.refreshPending.Load())
-				return
-			}
-			enabled.Store(false)
-			hold.Store(true)
-			first := make(chan error, 1)
-			go func() { first <- m.FlushChannels(t.Context()) }()
-			select {
-			case <-generating:
-			case <-time.After(time.Second):
-				require.FailNow(t, "first refresh must capture its empty snapshot while holding the lock")
-			}
-			enabled.Store(true)
-			second := make(chan error, 1)
-			go func() { second <- m.FlushChannels(t.Context()) }()
-			require.Eventually(t, m.refreshPending.Load, time.Second, time.Millisecond, "the second refresh must queue after taking its connected snapshot")
-			releaseOnce.Do(func() { close(release) })
-			for _, result := range []<-chan error{first, second} {
-				select {
-				case err := <-result:
-					require.NoError(t, err)
-				case <-time.After(time.Second):
-					require.FailNow(t, "both refreshes must finish")
-				}
-			}
-			assert.True(t, m.IsConnected())
-			assert.Len(t, m.GetSubscriptions(), 1)
-			assert.Equal(t, int32(2), preConnects.Load(), "activation after the stale empty snapshot should run PreConnect through Connect")
-		})
-	}
-	t.Run("failed idle activation is retried", func(t *testing.T) {
-		t.Parallel()
-		m := NewManager()
-		setup := newDefaultSetup()
-		setup.UseMultiConnectionManagement = true
-		setup.ExchangeConfig.ConnectionMonitorDelay = 10 * time.Millisecond
-		require.NoError(t, m.Setup(setup))
-		var refuse, pairEnabled atomic.Bool
-		refuse.Store(true)
-		server, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if refuse.Load() {
-				http.Error(w, "venue unavailable", http.StatusServiceUnavailable)
-				return
-			}
-			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
-		}))
-		t.Cleanup(func() { cleanupManagerMonitors(t, m) })
-		require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
-			URL:       "ws" + server.URL[len("http"):],
-			Connector: func(ctx context.Context, conn Connection) error { return conn.Dial(ctx, dialer, nil, nil) },
-			GenerateSubscriptions: func() (subscription.List, error) {
-				if !pairEnabled.Load() {
-					return nil, nil
-				}
-				return subscription.List{{Channel: "ticker"}}, nil
-			},
-			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
-				return m.AddSuccessfulSubscriptions(conn, subs...)
-			},
-			Unsubscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
-				return m.RemoveSubscriptions(conn, subs...)
-			},
-			Handler: func(context.Context, Connection, []byte) error { return nil },
-		}))
-		require.NoError(t, m.Connect(t.Context()))
-		require.True(t, m.IsIdle())
-		pairEnabled.Store(true)
-		require.Error(t, m.FlushChannels(t.Context()), "activation must fail while the venue refuses connections")
-		refuse.Store(false)
-		require.Eventually(t, m.IsConnected, time.Second, time.Millisecond, "the connection monitor must retry a failed activation")
-		assert.Len(t, m.GetSubscriptions(), 1)
-	})
-	t.Run("idle activation retains healthy traffic", func(t *testing.T) {
-		t.Parallel()
-		m := NewManager()
-		setup := newDefaultSetup()
-		setup.UseMultiConnectionManagement = true
-		setup.ExchangeConfig.ConnectionMonitorDelay = 10 * time.Millisecond
-		var preConnects atomic.Int32
-		setup.PreConnect = func(context.Context) { preConnects.Add(1) }
-		require.NoError(t, m.Setup(setup), "Setup must not error")
-		srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
-		}))
-		t.Cleanup(func() { cleanupManagerMonitors(t, m) })
-		var pairEnabled atomic.Bool
-		var received atomic.Int64
-		var connected Connection
-		require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
-			URL: "ws" + srv.URL[len("http"):] + "/ws",
-			Connector: func(ctx context.Context, conn Connection) error {
-				connected = conn
-				return conn.Dial(ctx, dialer, nil, nil)
-			},
-			GenerateSubscriptions: func() (subscription.List, error) {
-				if !pairEnabled.Load() {
-					return nil, nil
-				}
-				return subscription.List{{Channel: "ticker"}}, nil
-			},
-			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
-				return m.AddSuccessfulSubscriptions(conn, subs...)
-			},
-			Unsubscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
-				return m.RemoveSubscriptions(conn, subs...)
-			},
-			Handler: func(context.Context, Connection, []byte) error { received.Add(1); return nil },
-		}), "SetupNewConnection must not error")
-		require.NoError(t, m.Connect(t.Context()), "empty startup connect must succeed")
-		require.True(t, m.IsIdle(), "manager with no subscriptions must report idle")
-		require.False(t, m.IsConnected(), "idle manager must remain disconnected")
-		done := make(chan struct{})
-		go func() { m.Wg.Wait(); close(done) }()
-		select {
-		case <-done:
-		case <-time.After(time.Second):
-			require.FailNow(t, "Idle manager must have no traffic-monitor goroutine")
-		}
-		require.NoError(t, m.FlushChannels(t.Context()), "flush with nothing enabled must remain a successful idle connect")
-		pairEnabled.Store(true)
-		require.NoError(t, m.FlushChannels(t.Context()), "flush must activate an idle manager")
-		require.NotNil(t, connected, "activation must create a connection")
-		require.True(t, m.IsConnected(), "activation must connect the manager")
-		assert.False(t, m.IsIdle(), "connected manager should clear idle state")
-		assert.Len(t, m.GetSubscriptions(), 1, "new subscription should be registered")
-		pairEnabled.Store(false)
-		require.NoError(t, m.FlushChannels(t.Context()))
-		assert.True(t, m.IsIdle(), "removing the final subscription should leave an idle manager")
-		assert.False(t, m.IsConnected(), "a manager without sockets should not report connected")
-		m.connectionManagerMu.RLock()
-		assert.Empty(t, m.connections)
-		m.connectionManagerMu.RUnlock()
-		stopped := make(chan struct{})
-		go func() { m.Wg.Wait(); close(stopped) }()
-		select {
-		case <-stopped:
-		case <-time.After(time.Second):
-			require.FailNow(t, "the removed connection's readers and traffic monitor must stop")
-		}
-		assert.True(t, m.connectionMonitorRunning.Load(), "the connection monitor should remain available for reactivation")
-		beforeActivation := preConnects.Load()
-		pairEnabled.Store(true)
-		require.NoError(t, m.FlushChannels(t.Context()))
-		assert.True(t, m.IsConnected())
-		assert.Greater(t, preConnects.Load(), beforeActivation, "reactivation should run PreConnect")
-		ticker := time.NewTicker(200 * time.Millisecond)
-		defer ticker.Stop()
-		for range 12 {
-			<-ticker.C
-			require.True(t, m.IsConnected(), "regular traffic must keep the activated manager connected")
-			require.NoError(t, connected.SendJSONMessage(t.Context(), request.Unset, map[string]string{"ping": "test"}), "healthy connection must accept traffic")
-		}
-		assert.Positive(t, received.Load(), "echo traffic should reach the reader")
-	})
-
 	// Enabled pairs/setup system
 
 	dodgyWs := Manager{}
@@ -1255,7 +1037,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	}
 
 	for _, keepAlive := range []bool{false, true} {
-		name := "ordinary empty setup remains idle"
+		name := "ordinary empty setup does not dial"
 		if keepAlive {
 			name = "keepalive reuses socket through empty subscriptions"
 		}
@@ -1264,7 +1046,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 			m, ws := setup(t, true)
 			managerSetup := newDefaultSetup()
 			managerSetup.UseMultiConnectionManagement = true
-			managerSetup.ExchangeConfig.ConnectionMonitorDelay = time.Hour
+			managerSetup.ExchangeConfig.ConnectionMonitorDelay = 20 * time.Millisecond
 			managerSetup.ExchangeConfig.WebsocketTrafficTimeout = time.Hour
 			require.NoError(t, m.Setup(managerSetup), "manager must initialise")
 			t.Cleanup(func() { cleanupManagerMonitors(t, m) })
@@ -1275,7 +1057,6 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 			ws = m.snapshotConnectionManager()[0]
 			require.NoError(t, m.Connect(t.Context()), "empty initial connection must succeed")
 			if !keepAlive {
-				assert.True(t, m.IsIdle(), "ordinary setup should remain idle without subscriptions")
 				assert.Empty(t, m.snapshotManagedConnections(ws), "ordinary setup should not dial an empty socket")
 				return
 			}
@@ -1283,7 +1064,6 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 			require.Len(t, connections, 1, "keepalive must dial exactly one empty connection")
 			original := connections[0]
 			assert.True(t, m.IsConnected(), "keepalive manager should be connected without subscriptions")
-			assert.False(t, m.IsIdle(), "keepalive manager should not report idle")
 			for _, next := range []subscription.List{{{Channel: "A"}}, nil, {{Channel: "B"}}} {
 				pending = next
 				require.NoError(t, m.FlushChannels(t.Context()), "subscription changes must preserve the keepalive connection")

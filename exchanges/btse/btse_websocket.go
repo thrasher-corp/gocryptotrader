@@ -41,6 +41,14 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true},
 }
 
+// WsConnect starts the managed websocket lifecycle.
+func (e *Exchange) WsConnect() error {
+	if !e.IsEnabled() {
+		return websocket.ErrWebsocketNotEnabled
+	}
+	return e.Websocket.Connect(context.TODO())
+}
+
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return err

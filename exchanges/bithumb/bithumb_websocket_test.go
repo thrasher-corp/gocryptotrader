@@ -172,6 +172,22 @@ func TestSubscribeForConnection(t *testing.T) {
 
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
+	t.Run("disabled exchange", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		ex.SetEnabled(false)
+		assert.ErrorIs(t, ex.WsConnect(), websocket.ErrWebsocketNotEnabled, "disabled exchange should not start a connection")
+	})
+	t.Run("disabled websocket", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		if ex.Websocket.IsEnabled() {
+			require.NoError(t, ex.Websocket.Disable(), "websocket must be disabled")
+		}
+		assert.ErrorIs(t, ex.WsConnect(), websocket.ErrWebsocketNotEnabled, "disabled websocket should not start a connection")
+	})
 	t.Run("dial failure", func(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)
@@ -215,7 +231,7 @@ func TestWsConnect(t *testing.T) {
 		ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.ThirtyMin}}
 		t.Cleanup(func() { _ = ex.Websocket.Disable(); _ = ex.Websocket.Shutdown() })
 		for i := range 2 {
-			require.NoError(t, ex.Websocket.Connect(t.Context()), "managed connection must connect")
+			require.NoError(t, ex.WsConnect(), "managed connection must connect")
 			conn, err := ex.Websocket.GetConnection(asset.Spot)
 			require.NoError(t, err, "spot route must exist")
 			assert.Equal(t, websocketURL, conn.GetURL(), "managed route should use configured endpoint")

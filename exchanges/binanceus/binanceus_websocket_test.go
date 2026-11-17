@@ -61,6 +61,25 @@ func newWebsocketTestConnection(t *testing.T, ex *Exchange) *websocketTestConnec
 
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
+	for _, disableExchange := range []bool{false, true} {
+		name := "websocket disabled"
+		if disableExchange {
+			name = "exchange disabled"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+			if disableExchange {
+				ex.SetEnabled(false)
+			} else {
+				require.NoError(t, ex.Websocket.Disable(), "websocket must disable")
+			}
+			assert.ErrorIs(t, ex.WsConnect(), websocket.ErrWebsocketNotEnabled, "exported wrapper should preserve the disabled error")
+			assert.Nil(t, ex.wsSession, "disabled connection should not start a session")
+		})
+	}
+
 	t.Run("public lifecycle", func(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)

@@ -522,16 +522,8 @@ func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 	return subscriptions, nil
 }
 
-// Subscribe sends a websocket message to receive data from the channel
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	conn, err := e.Websocket.GetConnection(coinutConnection)
-	if err != nil {
-		return err
-	}
-	return e.wsSubscribe(context.TODO(), conn, subs)
-}
-
-func (e *Exchange) wsSubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+// Subscribe sends subscriptions on their owning managed connection.
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	var errs error
 	for _, s := range subs {
 		if len(s.Pairs) != 1 {
@@ -560,16 +552,8 @@ func (e *Exchange) wsSubscribe(ctx context.Context, conn websocket.Connection, s
 	return errs
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	conn, err := e.Websocket.GetConnection(coinutConnection)
-	if err != nil {
-		return err
-	}
-	return e.wsUnsubscribe(context.TODO(), conn, subs)
-}
-
-func (e *Exchange) wsUnsubscribe(ctx context.Context, conn websocket.Connection, channelToUnsubscribe subscription.List) error {
+// Unsubscribe removes subscriptions from their owning managed connection.
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, channelToUnsubscribe subscription.List) error {
 	var errs error
 	for _, s := range channelToUnsubscribe {
 		if len(s.Pairs) != 1 {

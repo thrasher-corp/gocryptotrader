@@ -162,7 +162,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                   wsURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Connector:             e.WsConnect,
+		Connector:             e.wsConnect,
 		GenerateSubscriptions: e.generateSubscriptions,
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,

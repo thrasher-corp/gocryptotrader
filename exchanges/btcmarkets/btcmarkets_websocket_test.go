@@ -2,10 +2,13 @@ package btcmarkets
 
 import (
 	"context"
+	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -14,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
 type subscriptionConnection struct {
@@ -100,13 +104,50 @@ func TestUnsubscribe(t *testing.T) {
 
 func TestReSubscribeSpecificOrderbook(t *testing.T) {
 	t.Parallel()
+	t.Run("legacy entry point resolves the managed connection", func(t *testing.T) {
+		t.Parallel()
+		e := new(Exchange)
+		require.NoError(t, testexch.Setup(e), "exchange must initialise")
+		require.ErrorIs(t, e.ReSubscribeSpecificOrderbook(spotTestPair), websocket.ErrNotConnected, "legacy entry point must reject disconnected use")
+
+		server, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		e.Websocket = websocket.NewManager()
+		require.NoError(t, e.Websocket.Setup(&websocket.ManagerSetup{
+			UseMultiConnectionManagement: true,
+			ExchangeConfig:               &config.Exchange{Name: e.Name, Features: &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}}, WebsocketTrafficTimeout: time.Hour},
+			Features:                     &e.Features.Supports.WebsocketCapabilities,
+		}), "test manager must initialise")
+		sub := &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: wsOrderbookUpdate, Asset: asset.Spot, Pairs: currency.Pairs{spotTestPair}}
+		require.NoError(t, e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+			URL:                   "ws" + server.URL[len("http"):],
+			MessageFilter:         asset.Spot,
+			Connector:             func(ctx context.Context, conn websocket.Connection) error { return conn.Dial(ctx, dialer, nil, nil) },
+			GenerateSubscriptions: func() (subscription.List, error) { return subscription.List{sub}, nil },
+			Subscriber:            e.Subscribe,
+			Unsubscriber:          e.Unsubscribe,
+			Handler:               func(context.Context, websocket.Connection, []byte) error { return nil },
+		}), "test connection must register")
+		t.Cleanup(func() {
+			assert.NoError(t, e.Websocket.Disable(), "manager should disable")
+			assert.NoError(t, e.Websocket.Shutdown(), "manager should close the socket")
+		})
+		require.NoError(t, e.WsConnect(), "legacy connect entry point must start managed lifecycle")
+		conn, err := e.Websocket.GetConnection(asset.Spot)
+		require.NoError(t, err, "managed connection must be available")
+		require.NoError(t, e.ReSubscribeSpecificOrderbook(spotTestPair), "legacy entry point must resolve the owning connection")
+		assert.Same(t, sub, conn.Subscriptions().Get(sub), "legacy recovery should preserve ownership")
+		require.ErrorIs(t, e.ReSubscribeSpecificOrderbook(currency.NewPair(currency.ETH, currency.AUD)), subscription.ErrNotFound, "legacy entry point must not refresh an unowned book")
+	})
+
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "exchange must initialise")
 	other, owner := newSubscriptionConnection(t, e), newSubscriptionConnection(t, e)
 	sub := &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: wsOrderbookUpdate, Asset: asset.Spot, Pairs: currency.Pairs{spotTestPair, currency.NewPair(currency.ETH, currency.AUD)}}
 	require.NoError(t, e.Websocket.AddSuccessfulSubscriptions(owner, sub), "grouped subscription must register")
 	require.NoError(t, owner.Subscriptions().Add(sub), "connection must own its grouped subscription")
-	require.NoError(t, e.ReSubscribeSpecificOrderbook(t.Context(), owner, spotTestPair), "owning connection must refresh the book")
+	require.NoError(t, e.reSubscribeSpecificOrderbook(t.Context(), owner, spotTestPair), "owning connection must refresh the book")
 	require.Len(t, owner.messages, 2, "refresh must remove then add the affected pair")
 	assert.Equal(t, removeSubscription, owner.messages[0].MessageType, "refresh should unsubscribe first")
 	assert.Equal(t, addSubscription, owner.messages[1].MessageType, "refresh should add to the existing session")
@@ -125,7 +166,7 @@ func TestReSubscribeSpecificOrderbook(t *testing.T) {
 		sub := &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: wsOrderbookUpdate, Asset: asset.Spot, Pairs: currency.Pairs{spotTestPair}}
 		conn.onSend = func() error {
 			assert.Empty(t, conn.Subscriptions().List(), "response should arrive before ownership is copied")
-			return e.ReSubscribeSpecificOrderbook(t.Context(), conn, spotTestPair)
+			return e.reSubscribeSpecificOrderbook(t.Context(), conn, spotTestPair)
 		}
 		require.NoError(t, e.Subscribe(t.Context(), conn, subscription.List{sub}), "early orderbook recovery must not depend on ownership bookkeeping")
 		require.Len(t, conn.messages, 3, "initial subscription must be followed by removal and recovery")
@@ -135,4 +176,12 @@ func TestReSubscribeSpecificOrderbook(t *testing.T) {
 		assert.Empty(t, conn.Subscriptions().List(), "recovery should not create premature connection ownership")
 		require.NoError(t, conn.Subscriptions().Add(sub), "manager must still be able to copy ownership without duplicates")
 	})
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "exchange must initialise")
+	require.False(t, e.Websocket.IsEnabled(), "test setup must leave websocket disabled")
+	require.ErrorIs(t, e.WsConnect(), websocket.ErrWebsocketNotEnabled, "legacy connector must use the manager lifecycle")
 }

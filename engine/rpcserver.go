@@ -2083,7 +2083,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		pass = true
 	}
 
-	if exch.IsWebsocketEnabled() && pass && base.Websocket.CanFlushChannels() {
+	if exch.IsWebsocketEnabled() && pass && base.Websocket.IsConnected() {
 		err = exch.FlushWebsocketChannels()
 		if err != nil {
 			newErrors = common.AppendError(newErrors, err)
@@ -2527,7 +2527,7 @@ func (s *RPCServer) SetExchangeAsset(_ context.Context, r *gctrpc.SetExchangeAss
 		return nil, err
 	}
 
-	if base.IsWebsocketEnabled() && base.Websocket.CanFlushChannels() {
+	if base.IsWebsocketEnabled() && base.Websocket.IsConnected() {
 		if err := exch.FlushWebsocketChannels(); err != nil {
 			return nil, err
 		}
@@ -2580,7 +2580,7 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 		}
 	}
 
-	if exch.IsWebsocketEnabled() && base.Websocket.CanFlushChannels() {
+	if exch.IsWebsocketEnabled() && base.Websocket.IsConnected() {
 		if err := exch.FlushWebsocketChannels(); err != nil {
 			return nil, err
 		}

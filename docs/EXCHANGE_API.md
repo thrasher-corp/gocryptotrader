@@ -97,19 +97,26 @@ connections do not support `gctcli websocket seturl` at runtime. Their legacy
 `Websocket.Conn` field is not populated. Use the manager's connection lifecycle
 and connection routing instead.
 
-The former BinanceUS, Bithumb and BTSE `WsConnect`, `Subscribe` and `Unsubscribe`
-methods, where previously provided, are replaced by managed callbacks.
-BinanceUS's renewal worker `KeepAuthKeyAlive` is also managed internally.
-BTCMarkets and HitBTC expose connection-aware callbacks taking a context and
-connection; BTCMarkets orderbook resubscription also requires the owning
-connection. Coinut retains its exported wrappers and routes them through its
-managed connection.
+`WsConnect()` remains available and delegates to the manager. The former
+BinanceUS, Bithumb, BTSE and Gemini `Subscribe` and `Unsubscribe` methods, where
+previously provided, are replaced by managed callbacks. BTCMarkets, Coinut and
+HitBTC subscription callbacks now take a context and connection. Update
+configured subscriptions through the manager so that it records connection
+ownership; invoking wire callbacks directly does not complete that bookkeeping.
+BTCMarkets retains `ReSubscribeSpecificOrderbook(pair)` and resolves its managed
+connection internally. BinanceUS's renewal worker `KeepAuthKeyAlive` is managed
+internally, and Gemini's former `WsAuth` dial method is replaced by its managed
+private connector.
 
 BinanceUS retains one combined public/account connection and its existing
 subscription limit. It rejects a second active connection so that closing one
 socket cannot invalidate another socket's listen key or orderbook workers.
 Coinut and HitBTC retain a connection for direct requests when market
 subscriptions are empty; BinanceUS retains its account-event connection.
+These use `KeepAliveWithoutSubscriptions`: subscriptions are still generated
+and updated, but the last empty socket remains open. `SubscriptionsNotRequired`
+instead describes a connection with no subscription management at all, such as
+Gemini's private order-event stream.
 
 BTSE waits for a login acknowledgement before subscribing to private channels.
 Coinut fills its instrument cache through the existing REST discovery path

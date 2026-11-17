@@ -50,6 +50,15 @@ type websocketSession struct {
 	done   chan struct{}
 }
 
+// WsConnect starts the managed websocket lifecycle, including subscriptions and monitoring.
+// Use Websocket.Connect when the caller needs to supply a lifecycle context.
+func (e *Exchange) WsConnect() error {
+	if !e.IsEnabled() {
+		return websocket.ErrWebsocketNotEnabled
+	}
+	return e.Websocket.Connect(context.Background())
+}
+
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	e.wsSessionMu.Lock()
 	defer e.wsSessionMu.Unlock()

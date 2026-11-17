@@ -53,6 +53,14 @@ var subscriptionNames = map[string]string{
 	subscription.OrderbookChannel: marketDataLevel2,
 }
 
+// WsConnect connects the websocket manager and its configured streams.
+func (e *Exchange) WsConnect() error {
+	if !e.IsEnabled() {
+		return websocket.ErrWebsocketNotEnabled
+	}
+	return e.Websocket.Connect(context.Background())
+}
+
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	return conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil)
 }

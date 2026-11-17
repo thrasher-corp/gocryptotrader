@@ -1770,7 +1770,7 @@ func TestWsConnect(t *testing.T) {
 		ex.instrumentMap.Seed("BTCUSDT", 123)
 		ex.SkipAuthCheck = true
 		ex.SetCredentials(&accounts.Credentials{Key: "placeholder", ClientID: "placeholder"})
-		ex.Websocket.SetAuthenticatedSupport(true)
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		requests := make(chan string, 10)
 		server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, payload []byte, conn *gws.Conn) error {
 			var req wsRequest

@@ -49,8 +49,12 @@ var subscriptionNames = map[string]string{
 	subscription.HeartbeatChannel: heartbeat,
 }
 
-// WsConnect connects to a websocket feed. The manager owns its reader and subscriptions.
-func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
+// WsConnect starts the managed websocket lifecycle.
+func (e *Exchange) WsConnect() error {
+	return e.Websocket.Connect(context.TODO())
+}
+
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -117,7 +121,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		}
 		if err != nil {
 			if errors.Is(err, orderbook.ErrOrderbookInvalid) {
-				err2 := e.ReSubscribeSpecificOrderbook(ctx, conn, ob.Currency)
+				err2 := e.reSubscribeSpecificOrderbook(ctx, conn, ob.Currency)
 				if err2 != nil {
 					return err2
 				}
@@ -363,8 +367,21 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, s
 	return errs
 }
 
-// ReSubscribeSpecificOrderbook requests a new snapshot on the connection owning the book.
-func (e *Exchange) ReSubscribeSpecificOrderbook(ctx context.Context, conn websocket.Connection, pair currency.Pair) error {
+// ReSubscribeSpecificOrderbook requests a new snapshot for a subscribed orderbook.
+func (e *Exchange) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
+	conn, err := e.Websocket.GetConnection(asset.Spot)
+	if err != nil {
+		return err
+	}
+	for _, sub := range conn.Subscriptions().List() {
+		if sub.QualifiedChannel == wsOrderbookUpdate && sub.Pairs.Contains(pair, true) {
+			return e.reSubscribeSpecificOrderbook(context.TODO(), conn, pair)
+		}
+	}
+	return fmt.Errorf("%w: orderbook %s", subscription.ErrNotFound, pair)
+}
+
+func (e *Exchange) reSubscribeSpecificOrderbook(ctx context.Context, conn websocket.Connection, pair currency.Pair) error {
 	// The incoming frame identifies its connection before the manager has copied
 	// subscription ownership. Refresh that pair without changing grouped tracking.
 	req := &WsSubscribe{

@@ -50,8 +50,12 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true},
 }
 
-// WsConnect starts a new connection with the websocket API
-func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
+// WsConnect starts the managed websocket lifecycle.
+func (e *Exchange) WsConnect() error {
+	return e.Websocket.Connect(context.TODO())
+}
+
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}

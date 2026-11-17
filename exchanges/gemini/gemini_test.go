@@ -623,6 +623,12 @@ func TestWsAuthConnect(t *testing.T) {
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
 
+	t.Run("disabled exchange", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		assert.ErrorIs(t, ex.WsConnect(), websocket.ErrWebsocketNotEnabled, "disabled exchange should reject connection")
+	})
+
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)

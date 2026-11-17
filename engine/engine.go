@@ -882,7 +882,7 @@ func (bot *Engine) LoadExchange(name string) error {
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false
 			if b.Websocket != nil {
-				b.Websocket.SetAuthenticatedSupport(false)
+				b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			}
 		}
 	}

@@ -87,6 +87,13 @@ func TestWsHandleDataConnectionMatching(t *testing.T) {
 
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
+	t.Run("disabled exchange", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+		ex.SetEnabled(false)
+		assert.ErrorIs(t, ex.WsConnect(), websocket.ErrWebsocketNotEnabled, "disabled exchange should not connect")
+	})
 	t.Run("managed lifecycle", func(t *testing.T) {
 		t.Parallel()
 		operations := make(chan string, 8)
@@ -115,7 +122,7 @@ func TestWsConnect(t *testing.T) {
 		ex.SkipAuthCheck = true
 		ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
 		ex.API.AuthenticatedWebsocketSupport = true
-		ex.Websocket.SetAuthenticatedSupport(true)
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyTradesChannel, Asset: asset.Spot, Authenticated: true}}
 		require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "mock endpoint must be configured")
 		t.Cleanup(func() {

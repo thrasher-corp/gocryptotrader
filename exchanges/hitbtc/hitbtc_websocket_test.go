@@ -21,6 +21,13 @@ import (
 )
 
 func TestWsConnect(t *testing.T) {
+	t.Run("public entry uses manager lifecycle", func(t *testing.T) {
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+		require.False(t, ex.Websocket.IsEnabled(), "fixture websocket must start disabled")
+		assert.ErrorIs(t, ex.WsConnect(), websocket.ErrWebsocketNotEnabled, "public entry should return manager lifecycle errors")
+		assert.Nil(t, ex.Websocket.Conn, "public entry should not allocate a legacy connection")
+	})
 	t.Run("managed lifecycle", func(t *testing.T) {
 		methods := make(chan string, 20)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +63,7 @@ func TestWsConnect(t *testing.T) {
 		require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
 		ex.API.AuthenticatedWebsocketSupport = true
 		ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
-		ex.Websocket.SetAuthenticatedSupport(true)
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "mock URL must be configured")
 		public := &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}}
 		private := &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true}
@@ -103,7 +110,7 @@ func TestWsConnect(t *testing.T) {
 		nextMethod("unsubscribeReports")
 		assert.Len(t, conn.Subscriptions().List(), 1, "connection should retain only the public subscription")
 		require.NoError(t, ex.Websocket.Shutdown(), "manager must shut down its socket and reader")
-		require.NoError(t, ex.Websocket.Connect(t.Context()), "manager must reconnect")
+		require.NoError(t, ex.WsConnect(), "public entry must reconnect through the manager")
 		nextMethod("login")
 		nextMethod("subscribeTicker")
 		replacement, err := ex.Websocket.GetConnection(hitbtcWebsocketAddress)

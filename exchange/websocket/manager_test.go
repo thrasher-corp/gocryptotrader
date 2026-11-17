@@ -543,70 +543,6 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			require.ErrorIs(t, err, errDastardlyReason)
 		})
 
-		t.Run("no streams remain disconnected and retryable", func(t *testing.T) {
-			t.Parallel()
-			ws := newConfiguredMultiManager(t, &ConnectionSetup{
-				URL:                   mockURL,
-				GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
-				Connector: func(context.Context, Connection) error {
-					assert.Fail(t, "empty streams should not dial")
-					return nil
-				},
-				Handler: noopHandler,
-			})
-			for range 2 {
-				require.NoError(t, ws.Connect(t.Context()), "empty configuration must permit repeated connect attempts")
-				assert.False(t, ws.IsConnected(), "manager should remain disconnected without sockets")
-			}
-		})
-
-		t.Run("persistent authentication disable survives reconnect", func(t *testing.T) {
-			t.Parallel()
-			ws := newConfiguredMultiManager(t, nil)
-			attempts := 0
-			ws.connectionManager = []*websocket{
-				{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true}},
-				{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true, Authenticated: true, Authenticate: func(context.Context, Connection) error { attempts++; return nil }}},
-			}
-			ws.SetAuthenticatedSupport(false)
-			for range 2 {
-				require.NoError(t, ws.Connect(t.Context()), "public connection must remain available")
-				assert.True(t, ws.IsConnected(), "public connection should stay connected")
-				assert.False(t, ws.CanUseAuthenticatedEndpoints(), "explicit disable should survive connect")
-				assert.Zero(t, attempts, "explicit disable should prevent authentication attempts")
-				require.NoError(t, ws.Shutdown(), "shutdown must succeed")
-			}
-			ws.SetAuthenticatedSupport(true)
-			require.NoError(t, ws.Connect(t.Context()), "explicit re-enable must allow authentication")
-			assert.Equal(t, 1, attempts, "authentication should resume after explicit re-enable")
-			require.NoError(t, ws.Shutdown(), "shutdown must succeed")
-		})
-
-		t.Run("authentication retries after immediate failure", func(t *testing.T) {
-			ws := newConfiguredMultiManager(t, nil)
-			attempts := 0
-			private := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true, Authenticated: true, Authenticate: func(context.Context, Connection) error {
-				attempts++
-				if attempts == 1 {
-					return errDastardlyReason
-				}
-				return nil
-			}}}
-			ws.connectionManager = []*websocket{private}
-			require.ErrorIs(t, ws.Connect(t.Context()), errFailedToAuthenticate, "first authentication must fail")
-			readersDone := make(chan struct{})
-			go func() { ws.Wg.Wait(); close(readersDone) }()
-			select {
-			case <-readersDone:
-			case <-time.After(10 * time.Second):
-				require.FailNow(t, "reader goroutines must exit")
-			}
-			assert.False(t, ws.IsConnected(), "no successful sockets should mean disconnected")
-			require.NoError(t, ws.Connect(t.Context()), "second connection must retry authentication")
-			assert.Equal(t, 2, attempts, "authentication should run again")
-			assert.True(t, ws.CanUseAuthenticatedEndpoints(), "successful reconnect should restore authentication")
-			require.NoError(t, ws.Shutdown(), "shutdown must succeed")
-		})
 		t.Run("private-only mixed connection closes after failed authentication", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, nil)
 			private := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, Authenticate: func(context.Context, Connection) error { return errDastardlyReason }, GenerateSubscriptions: func() (subscription.List, error) {
@@ -2610,47 +2546,6 @@ func TestMonitorFrame(t *testing.T) {
 	ws.Wg.Wait()
 }
 
-func TestObserveConnection(t *testing.T) {
-	t.Parallel()
-	for _, state := range []uint32{disconnectedState, connectingState, connectedState} {
-		t.Run(strconv.FormatUint(uint64(state), 10), func(t *testing.T) {
-			t.Parallel()
-			m := NewManager()
-			m.useMultiConnectionManagement = true
-			m.setEnabled(true)
-			m.setState(state)
-			m.connectionMonitorRunning.Store(true)
-			ctx, cancel := context.WithCancel(t.Context())
-			cancel()
-			timer := time.NewTimer(time.Hour)
-			defer timer.Stop()
-			result := make(chan bool, 1)
-			go func() { result <- m.observeConnection(ctx, timer) }()
-			finished := false
-			defer func() {
-				if !finished {
-					// Release the original timer-only observer if a regression ignores cancellation.
-					timer.Reset(0)
-					select {
-					case <-result:
-					case <-time.After(time.Second):
-						assert.Fail(t, "observer fixture should finish during cleanup")
-					}
-				}
-			}()
-			select {
-			case stopped := <-result:
-				finished = true
-				require.True(t, stopped, "cancelled monitor context must stop the observer without waiting for its timer")
-			case <-time.After(time.Second):
-				require.FailNow(t, "cancelled monitor context must stop the observer promptly")
-			}
-			assert.False(t, m.connectionMonitorRunning.Load())
-			assert.Equal(t, state, m.state.Load(), "monitor cancellation should leave explicit socket shutdown to the lifecycle owner")
-		})
-	}
-}
-
 func TestMonitorConnection(t *testing.T) {
 	t.Parallel()
 	ws := Manager{verbose: true, ReadMessageErrors: make(chan error, 1), ShutdownC: make(chan struct{})}
@@ -2952,59 +2847,6 @@ func TestCreateConnectAndSubscribeRecordsPartialSubscriptions(t *testing.T) {
 			connStore = ws.connections[0].Subscriptions()
 			assert.NotNil(t, connStore.Get(accepted), "accepted subscription should be recorded against the connection")
 			assert.Nil(t, connStore.Get(rejected), "missing subscription should not be recorded against the connection")
-		})
-	}
-}
-
-func TestSetAuthenticatedSupport(t *testing.T) {
-	t.Parallel()
-	m := NewManager()
-	for _, enabled := range []bool{true, false, true} {
-		m.SetAuthenticatedSupport(enabled)
-		assert.Equal(t, enabled, m.authenticatedSupport.Load(), "persistent support should follow explicit permission")
-		assert.Equal(t, enabled, m.CanUseAuthenticatedEndpoints(), "runtime permission should follow explicit permission")
-	}
-	m.SetCanUseAuthenticatedEndpoints(false)
-	assert.True(t, m.authenticatedSupport.Load(), "transient failure should retain permission to retry")
-}
-
-func TestIsIdle(t *testing.T) {
-	t.Parallel()
-	for _, idle := range []bool{false, true} {
-		t.Run(strconv.FormatBool(idle), func(t *testing.T) {
-			t.Parallel()
-			m := NewManager()
-			m.idle.Store(idle)
-			assert.Equal(t, idle, m.IsIdle(), "idle state should reflect the last connection attempt")
-		})
-	}
-}
-
-func TestCanFlushChannels(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name    string
-		state   uint32
-		idle    bool
-		enabled bool
-		want    bool
-	}{
-		{name: "uninitialised", enabled: true},
-		{name: "offline", state: disconnectedState, enabled: true},
-		{name: "idle", state: disconnectedState, idle: true, enabled: true, want: true},
-		{name: "connecting", state: connectingState, enabled: true, want: true},
-		{name: "connected", state: connectedState, enabled: true, want: true},
-		{name: "idle activation transition", state: connectingState, idle: true, enabled: true, want: true},
-		{name: "disabled idle", state: disconnectedState, idle: true},
-		{name: "disabled connected", state: connectedState},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			m := NewManager()
-			m.setEnabled(tc.enabled)
-			m.setState(tc.state)
-			m.idle.Store(tc.idle)
-			assert.Equal(t, tc.want, m.CanFlushChannels(), "flush eligibility should reflect one state snapshot and idle activation")
 		})
 	}
 }
