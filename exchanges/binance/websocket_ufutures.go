@@ -347,6 +347,9 @@ func (e *Exchange) resubscribeUserData(ctx, keepAliveCtx context.Context, conn w
 	if err := e.subscribeUserDataKeptAlive(ctx, keepAliveCtx, conn, s); err != nil {
 		return false, err
 	}
+	if !isSubscribedUserDataStream(s) {
+		return true, nil
+	}
 	// Connecting records the subscriptions it makes against the connection, which tells a flush the connection is in use
 	return true, conn.Subscriptions().Add(s)
 }
@@ -355,12 +358,27 @@ func (e *Exchange) subscribeUserData(ctx context.Context, conn websocket.Connect
 	return e.subscribeUserDataKeptAlive(ctx, ctx, conn, s)
 }
 
-// subscribeUserDataKeptAlive subscribes under ctx and keeps the listen key alive under keepAliveCtx
+// subscribeUserDataKeptAlive subscribes under ctx and keeps the listen key alive under keepAliveCtx. A subscription
+// unsubscribed while its listen key is requested, through it or an equivalent subscription, is left as it is, as
+// subscribing then would undo the unsubscription, while one an earlier unsubscription left unsubscribing or unsubscribed
+// and no longer registered, such as the websocket manager's resubscription passes, is subscribed afresh
 func (e *Exchange) subscribeUserDataKeptAlive(ctx, keepAliveCtx context.Context, conn websocket.Connection, s *subscription.Subscription) error {
+	unsubscribed := func() bool {
+		state := s.State()
+		return state == subscription.UnsubscribingState || state == subscription.UnsubscribedState
+	}
+	if unsubscribed() && e.Websocket.GetSubscription(s) != s {
+		// SetState refuses only the state the subscription is in already, which is the one wanted here
+		_ = s.SetState(subscription.SubscribingState)
+	}
 	if err := e.Websocket.AddSubscriptions(conn, s); err != nil {
 		return err
 	}
 	listenKey, err := e.startUserDataStream(ctx, s.Asset)
+	// An unsubscription removes the registered subscription matching the one it is given, which may be another object
+	if err == nil && (unsubscribed() || e.Websocket.GetSubscription(s) != s) {
+		return nil
+	}
 	if err == nil {
 		err = e.sendDerivativesStreamCommand(ctx, conn, wsSubscribeMethod, []any{listenKey})
 	}
@@ -484,16 +502,16 @@ func (e *Exchange) keepaliveUserDataSubscription(ctx context.Context, conn webso
 // connection is up and the asset's user data stream is subscribed. Renewals are tracked apart from subscription retries,
 // as a subscription retry that finds the stream subscribed ends without renewing it
 func (e *Exchange) renewUserDataStream(ctx context.Context, conn websocket.Connection, a asset.Item, reason error) {
-	err := e.renewListenKey(ctx, conn, a, reason, func() bool { return true })
+	subscribed := func() bool {
+		s := e.Websocket.GetSubscription(&subscription.Subscription{Channel: userDataStreamChannel, Asset: a})
+		return s != nil && isSubscribedUserDataStream(s)
+	}
+	err := e.renewListenKey(ctx, conn, a, reason, subscribed)
 	if err == nil {
 		return
 	}
 	if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
 		log.Errorf(log.WebsocketMgr, "%s %s: %s", e.Name, errSend, err)
-	}
-	subscribed := func() bool {
-		s := e.Websocket.GetSubscription(&subscription.Subscription{Channel: userDataStreamChannel, Asset: a})
-		return s != nil && isSubscribedUserDataStream(s)
 	}
 	e.retryUserData(ctx, conn, a, false, true, func(ctx context.Context) (bool, error) {
 		if !subscribed() {
@@ -1327,6 +1345,11 @@ type balanceRefresher struct {
 	// eventTimes holds, by asset and currency, the transaction time of the latest stream event to report the
 	// currency's balance, which a REST snapshot must not predate
 	eventTimes map[asset.Item]map[*currency.Item]time.Time
+	// recordedEvents counts the stream balance events recorded, and eventNumbers holds, by asset and currency, the count
+	// the latest event to report the currency brought it to. A REST poll tells an event recorded since its request by
+	// the count rather than the time, as the clock advances in steps on Windows and can read the same for both
+	recordedEvents uint64
+	eventNumbers   map[asset.Item]map[*currency.Item]uint64
 	// snapshotTimes holds, by asset, the account update time of the latest REST snapshot stored for the configured
 	// account where Binance gives one for the whole account, which an older REST reply must not replace, and which a
 	// spot stream event, carrying an account update time of its own, must not predate
@@ -1384,7 +1407,7 @@ func (e *Exchange) storeBalanceEvent(ctx context.Context, a asset.Item, transact
 }
 
 // recordBalanceEvent records when a user data stream balance event changed an asset's balances, which a REST snapshot
-// of them must not predate
+// of them must not predate, and numbers it as the latest event of each of its currencies
 func (e *Exchange) recordBalanceEvent(a asset.Item, transactionTime time.Time, codes ...currency.Code) {
 	r := &e.balanceRefresh
 	r.mu.Lock()
@@ -1395,11 +1418,27 @@ func (e *Exchange) recordBalanceEvent(a asset.Item, transactionTime time.Time, c
 	if r.eventTimes[a] == nil {
 		r.eventTimes[a] = make(map[*currency.Item]time.Time)
 	}
+	if r.eventNumbers == nil {
+		r.eventNumbers = make(map[asset.Item]map[*currency.Item]uint64)
+	}
+	if r.eventNumbers[a] == nil {
+		r.eventNumbers[a] = make(map[*currency.Item]uint64)
+	}
+	r.recordedEvents++
 	for _, c := range codes {
 		if transactionTime.After(r.eventTimes[a][c.Item]) {
 			r.eventTimes[a][c.Item] = transactionTime
 		}
+		r.eventNumbers[a][c.Item] = r.recordedEvents
 	}
+}
+
+// balanceEventsRecorded returns the count of user data stream balance events recorded, which each later event exceeds
+func (e *Exchange) balanceEventsRecorded() uint64 {
+	r := &e.balanceRefresh
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.recordedEvents
 }
 
 // recordBalanceSnapshot records accepted REST update times only for the account whose events the stream delivers.
@@ -1590,10 +1629,14 @@ func (e *Exchange) refreshAvailableBalances(ctx context.Context, a asset.Item) (
 // update time, which refreshes requested before the poll compare against. A currency the snapshot leaves out keeps its
 // stored balance while its latest event is newer than every update the snapshot shows and than the snapshot's own time,
 // asOf, where Binance gives one, rather than being removed by a snapshot that may predate it; a snapshot showing no
-// update or time therefore removes none. The user data streams are the configured account's, so a poll of another
-// account's credentials is left as it is. The caller holds the balance store lock until the snapshot is stored
-func (e *Exchange) keepStreamedBalances(ctx context.Context, a asset.Item, subAccount *accounts.SubAccount, updated map[*currency.Item]time.Time, asOf time.Time) {
-	latestTimes := e.balanceEventTimes(a)
+// update or time therefore removes none. Transactions can share a millisecond, so a snapshot showing a currency at its
+// latest event's time may predate the event: when that event was recorded since the poll's request, after eventsBefore
+// events, its stored balance stands too, for a later poll to reconcile. The user data streams are the configured
+// account's, so a poll of another account's credentials is left as it is. The caller holds the balance store lock
+// until the snapshot is stored
+func (e *Exchange) keepStreamedBalances(ctx context.Context, a asset.Item, subAccount *accounts.SubAccount, updated map[*currency.Item]time.Time, asOf time.Time, eventsBefore uint64) {
+	eventTimes := e.balanceEventTimes(a)
+	latestTimes := maps.Clone(eventTimes)
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return
@@ -1612,6 +1655,7 @@ func (e *Exchange) keepStreamedBalances(ctx context.Context, a asset.Item, subAc
 		}
 	}
 	snapshotTime := r.snapshotTimes[a]
+	eventNumbers := maps.Clone(r.eventNumbers[a])
 	r.mu.Unlock()
 	newest := asOf
 	reported := make(map[*currency.Item]currency.Code, len(subAccount.Balances))
@@ -1626,6 +1670,18 @@ func (e *Exchange) keepStreamedBalances(ctx context.Context, a asset.Item, subAc
 	}
 	for item, latestTime := range latestTimes {
 		c, ok := reported[item]
+		shown := newest
+		if ok {
+			shown = updated[item]
+		} else {
+			c = item.Currency()
+		}
+		if eventTime, streamed := eventTimes[item]; streamed && eventTime.Equal(shown) && eventNumbers[item] > eventsBefore {
+			if stored, err := e.Accounts.GetBalance("", creds, a, c); err == nil {
+				subAccount.Balances.Set(c, stored)
+				continue
+			}
+		}
 		switch {
 		case ok && !updated[item].Before(latestTime):
 			continue
@@ -1634,8 +1690,6 @@ func (e *Exchange) keepStreamedBalances(ctx context.Context, a asset.Item, subAc
 			// older reply that still lists it cannot bring it back
 			updated[item] = newest
 			continue
-		case !ok:
-			c = item.Currency()
 		}
 		if stored, err := e.Accounts.GetBalance("", creds, a, c); err == nil {
 			subAccount.Balances.Set(c, stored)

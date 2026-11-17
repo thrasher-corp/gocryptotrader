@@ -3241,6 +3241,70 @@ func TestUpdateAccountBalances(t *testing.T) {
 		}
 	})
 
+	t.Run("keeps a balance streamed during its request", func(t *testing.T) {
+		t.Parallel()
+		// Transactions can share a millisecond, so a snapshot showing a stream event's time may predate the event: a
+		// balance the event stores while the poll's request is under way stands, whether the snapshot reports its currency
+		// or leaves it out, while a snapshot showing the currency after the event is stored as REST reports it
+		const eventTime int64 = 1791300000000
+		for _, tc := range balanceEvents {
+			for _, c := range []struct {
+				name  string
+				reply string
+				newer bool
+			}{
+				// Where currencies show update times of their own, another currency's is the snapshot's latest
+				{name: "reported", reply: strings.ReplaceAll(balanceRefreshReplies[tc.path], "1791200000000", strconv.FormatInt(eventTime+1, 10))},
+				{name: "left out", reply: fmt.Sprintf(tc.restOnlyReply, eventTime)},
+				{name: "reported after the event", reply: strings.ReplaceAll(balanceRefreshReplies[tc.path], strconv.FormatInt(eventTime, 10), strconv.FormatInt(eventTime+1, 10)), newer: true},
+			} {
+				t.Run(tc.a.String()+" "+c.name, func(t *testing.T) {
+					t.Parallel()
+					requested, release := make(chan struct{}), make(chan struct{})
+					ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+						if !assert.Equal(t, tc.path, r.URL.Path, "only the balance endpoint should be requested") {
+							return
+						}
+						close(requested)
+						select {
+						case <-release:
+						case <-r.Context().Done():
+							return
+						}
+						_, err := w.Write([]byte(c.reply))
+						assert.NoError(t, err, "Write should not error")
+					})
+					polled := make(chan error, 1)
+					go func() {
+						_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
+						polled <- err
+					}()
+					select {
+					case <-requested:
+					case <-time.After(30 * time.Second):
+						require.FailNow(t, "the poll must request its snapshot")
+					}
+					require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
+					streamed := storedBalance(t, ex, tc.a, tc.code)
+					close(release)
+					select {
+					case err := <-polled:
+						require.NoError(t, err, "UpdateAccountBalances must not error")
+					case <-time.After(30 * time.Second):
+						require.FailNow(t, "the poll must return")
+					}
+					got := storedBalance(t, ex, tc.a, tc.code)
+					if c.newer {
+						assert.Equal(t, tc.restTotal, got.Total, "a snapshot showing the currency after the event should store the wallet balance REST reports")
+						assert.Equal(t, tc.restFree, got.Free, "a snapshot showing the currency after the event should store the available balance REST reports")
+						return
+					}
+					assert.Equal(t, streamed, got, "a balance streamed during the poll's request should stand")
+				})
+			}
+		}
+	})
+
 	t.Run("checks under the store lock", func(t *testing.T) {
 		t.Parallel()
 		// A poll checks its snapshot against the stream's events under the balance store lock, as it stores it, so no event

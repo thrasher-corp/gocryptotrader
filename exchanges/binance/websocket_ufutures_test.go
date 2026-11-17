@@ -825,6 +825,42 @@ func TestSubscribeUserData(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "SubscribeUserData should reject an asset without user data streams")
 	assert.Nil(t, ex.Websocket.GetSubscription(spot[0]), "a failed user data subscription should not be stored")
 
+	t.Run("resubscribed by the websocket manager", func(t *testing.T) {
+		t.Parallel()
+		ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			if !assert.Equal(t, "/fapi/v1/listenKey", r.URL.Path, "only listen keys should be requested") {
+				return
+			}
+			_, err := fmt.Fprintf(w, `{"listenKey":%q}`, testListenKey)
+			assert.NoError(t, err, "Write should not error")
+		})
+		recorder := &streamRequestRecorder{}
+		useMockWebsocket(t, ex, &websocket.ConnectionSetup{
+			MessageFilter:            usdtmPrivateFilter,
+			Connector:                ex.WebsocketDerivativesConnect,
+			Subscriber:               ex.SubscribeUserData,
+			Unsubscriber:             ex.UnsubscribeUserData,
+			Handler:                  ex.wsHandleUSDTMarginedFuturesUserData,
+			ResponseCheckTimeout:     ex.Config.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:         ex.Config.WebsocketResponseMaxLimit,
+			SubscriptionsNotRequired: true,
+		}, recorder.handle)
+		require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(usdtmPrivateFilter)
+		require.NoError(t, err, "GetConnection must not error")
+		s := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+		require.NoError(t, ex.SubscribeUserData(t.Context(), conn, subscription.List{s}), "SubscribeUserData must not error")
+		// The manager unsubscribes the subscription and subscribes the same one again
+		require.NoError(t, ex.Websocket.ResubscribeToChannel(t.Context(), conn, s), "ResubscribeToChannel must not error")
+		recorded := recorder.recorded()
+		methods := make([]string, 0, len(recorded))
+		for _, req := range recorded {
+			methods = append(methods, req.Method)
+		}
+		assert.Equal(t, []string{"SUBSCRIBE", "UNSUBSCRIBE", "SUBSCRIBE"}, methods, "the resubscription should subscribe the stream again")
+		assert.Equal(t, subscription.SubscribedState, s.State(), "the resubscribed stream should be subscribed")
+	})
+
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		if mockTests {
@@ -904,7 +940,12 @@ func TestSubscribeUserDataRetried(t *testing.T) { //nolint:tparallel // the case
 			return
 		}
 		if r.Method == http.MethodPut {
-			keepalives.Add(1)
+			// Keepalives after the first wait for the test to end, so the test server's request allowance holds however
+			// long the test is held up
+			if keepalives.Add(1) > 1 {
+				<-r.Context().Done()
+				return
+			}
 		} else if listenKeys.Add(1) == 1 {
 			w.WriteHeader(http.StatusBadRequest)
 			_, err := w.Write([]byte(`{"code":-1001,"msg":"Internal error; unable to process your request. Please try again."}`))
@@ -985,6 +1026,449 @@ func TestSubscribeUserDataRetried(t *testing.T) { //nolint:tparallel // the case
 	_, retrying := ex.userDataRetry.running[asset.Spot]
 	ex.userDataRetry.mu.Unlock()
 	assert.False(t, retrying, "an asset without user data streams should not be tried again")
+}
+
+func TestResubscribeUserData(t *testing.T) {
+	t.Parallel()
+	// A retry of a refused subscription whose stream is unsubscribed, or is being unsubscribed, by the time the retry's
+	// listen key arrives leaves the stream unsubscribed
+	for _, tc := range []struct {
+		name string
+		// held keeps the unsubscription's own listen key request waiting until the retry's request is answered, and
+		// refused unsubscribes through the refused subscription, the one its caller holds, rather than the retry's
+		held, refused bool
+	}{
+		{name: "unsubscribed"},
+		{name: "being unsubscribed", held: true},
+		{name: "unsubscribed through the refused subscription", refused: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			retryRequested, releaseRetry := make(chan struct{}), make(chan struct{})
+			unsubscriptionRequested, releaseUnsubscription := make(chan struct{}), make(chan struct{})
+			var listenKeys atomic.Int32
+			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if !assert.Equal(t, "/fapi/v1/listenKey", r.URL.Path, "only listen keys should be requested") {
+					return
+				}
+				var release chan struct{}
+				switch listenKeys.Add(1) {
+				case 1:
+					w.WriteHeader(http.StatusBadRequest)
+					_, err := w.Write([]byte(`{"code":-1001,"msg":"Internal error; unable to process your request. Please try again."}`))
+					assert.NoError(t, err, "Write should not error")
+					return
+				case 2:
+					close(retryRequested)
+					release = releaseRetry
+				case 3:
+					if tc.held {
+						close(unsubscriptionRequested)
+						release = releaseUnsubscription
+					}
+				}
+				if release != nil {
+					select {
+					case <-release:
+					case <-r.Context().Done():
+						return
+					}
+				}
+				_, err := fmt.Fprintf(w, `{"listenKey":%q}`, testListenKey)
+				assert.NoError(t, err, "Write should not error")
+			})
+			ex.userDataRetry.delay = time.Millisecond
+			recorder := &streamRequestRecorder{}
+			useMockWebsocket(t, ex, &websocket.ConnectionSetup{
+				MessageFilter:            usdtmPrivateFilter,
+				Connector:                ex.WebsocketDerivativesConnect,
+				Handler:                  ex.wsHandleUSDTMarginedFuturesUserData,
+				ResponseCheckTimeout:     ex.Config.WebsocketResponseCheckTimeout,
+				ResponseMaxLimit:         ex.Config.WebsocketResponseMaxLimit,
+				SubscriptionsNotRequired: true,
+			}, recorder.handle)
+			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			conn, err := ex.Websocket.GetConnection(usdtmPrivateFilter)
+			require.NoError(t, err, "GetConnection must not error")
+			failed := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+			require.ErrorIs(t, ex.SubscribeUserData(t.Context(), conn, subscription.List{failed}), websocket.ErrSubscriptionFailure, "SubscribeUserData must report the refused subscription")
+			select {
+			case <-retryRequested:
+			case <-time.After(30 * time.Second):
+				require.FailNow(t, "the retry must request a listen key")
+			}
+			retried := ex.Websocket.GetSubscription(failed)
+			require.NotNil(t, retried, "the retry's subscription must be registered during its request")
+			unsubscribing := retried
+			if tc.refused {
+				unsubscribing = failed
+			}
+			unsubscribed := make(chan error, 1)
+			go func() { unsubscribed <- ex.UnsubscribeUserData(t.Context(), conn, subscription.List{unsubscribing}) }()
+			waitUnsubscribed := func() {
+				t.Helper()
+				select {
+				case err := <-unsubscribed:
+					require.NoError(t, err, "UnsubscribeUserData must not error")
+				case <-time.After(30 * time.Second):
+					require.FailNow(t, "the unsubscription must return")
+				}
+			}
+			if tc.held {
+				select {
+				case <-unsubscriptionRequested:
+				case <-time.After(30 * time.Second):
+					require.FailNow(t, "the unsubscription must request a listen key")
+				}
+			} else {
+				waitUnsubscribed()
+			}
+			close(releaseRetry)
+			require.Eventually(t, func() bool {
+				ex.userDataRetry.mu.Lock()
+				defer ex.userDataRetry.mu.Unlock()
+				_, retrying := ex.userDataRetry.running[asset.USDTMarginedFutures]
+				return !retrying
+			}, 30*time.Second, time.Millisecond, "the retry must stop")
+			if tc.held {
+				close(releaseUnsubscription)
+				waitUnsubscribed()
+			}
+			recorded := recorder.recorded()
+			methods := make([]string, 0, len(recorded))
+			for _, req := range recorded {
+				methods = append(methods, req.Method)
+			}
+			assert.Equal(t, []string{"UNSUBSCRIBE"}, methods, "the retry should not subscribe the stream unsubscribed during its request")
+			assert.Nil(t, ex.Websocket.GetSubscription(failed), "the stream should stay unsubscribed")
+			assert.Nil(t, conn.Subscriptions().Get(failed), "the retry should not record the stream against its connection")
+		})
+	}
+}
+
+func TestSubscribeUserDataKeptAlive(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		// unsubscribe unsubscribes the stream while the subscription's listen key request waits, held keeps the
+		// unsubscription's own listen key request waiting until the subscription has returned, and equivalent unsubscribes
+		// through another subscription to the same stream, as a caller holding its own may
+		unsubscribe, held, equivalent bool
+	}{
+		{name: "subscribes and keeps the listen key alive after its context ends"},
+		{name: "an unsubscription during the listen key request is not undone", unsubscribe: true},
+		{name: "an unsubscription under way when the listen key arrives is not undone", unsubscribe: true, held: true},
+		{name: "an unsubscription through an equivalent subscription during the listen key request is not undone", unsubscribe: true, equivalent: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			subscriptionRequested, releaseSubscription := make(chan struct{}), make(chan struct{})
+			unsubscriptionRequested, releaseUnsubscription := make(chan struct{}), make(chan struct{})
+			// Keepalives wait for the subscription's context to end, and those after the fourth for the case to end, so the
+			// test server's request allowance holds however long the case is held up
+			subscriptionEnded := make(chan struct{})
+			var listenKeys, keepalives atomic.Int32
+			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if !assert.Equal(t, "/fapi/v1/listenKey", r.URL.Path, "only listen keys should be requested") {
+					return
+				}
+				var release chan struct{}
+				if r.Method == http.MethodPut {
+					select {
+					case <-subscriptionEnded:
+					case <-r.Context().Done():
+						return
+					}
+					if keepalives.Add(1) > 4 {
+						<-r.Context().Done()
+						return
+					}
+				} else {
+					switch listenKeys.Add(1) {
+					case 1:
+						close(subscriptionRequested)
+						release = releaseSubscription
+					case 2:
+						if tc.held {
+							close(unsubscriptionRequested)
+							release = releaseUnsubscription
+						}
+					}
+				}
+				if release != nil {
+					select {
+					case <-release:
+					case <-r.Context().Done():
+						return
+					}
+				}
+				_, err := fmt.Fprintf(w, `{"listenKey":%q}`, testListenKey)
+				assert.NoError(t, err, "Write should not error")
+			})
+			ex.userDataRetry.keepalive = 20 * time.Millisecond
+			recorder := &streamRequestRecorder{}
+			useMockWebsocket(t, ex, &websocket.ConnectionSetup{
+				MessageFilter:            usdtmPrivateFilter,
+				Connector:                ex.WebsocketDerivativesConnect,
+				Handler:                  ex.wsHandleUSDTMarginedFuturesUserData,
+				ResponseCheckTimeout:     ex.Config.WebsocketResponseCheckTimeout,
+				ResponseMaxLimit:         ex.Config.WebsocketResponseMaxLimit,
+				SubscriptionsNotRequired: true,
+			}, recorder.handle)
+			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			conn, err := ex.Websocket.GetConnection(usdtmPrivateFilter)
+			require.NoError(t, err, "GetConnection must not error")
+			s := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+			// The subscription is made under a context that ends once it returns, as a retry's attempt is, and its listen key
+			// is kept alive under one that ends with the case
+			subscribeCtx, endSubscription := context.WithCancel(t.Context())
+			defer endSubscription()
+			keepAliveCtx, endKeepalives := context.WithCancel(t.Context())
+			defer endKeepalives()
+			subscribed := make(chan error, 1)
+			go func() { subscribed <- ex.subscribeUserDataKeptAlive(subscribeCtx, keepAliveCtx, conn, s) }()
+			select {
+			case <-subscriptionRequested:
+			case <-time.After(30 * time.Second):
+				require.FailNow(t, "the subscription must request a listen key")
+			}
+			unsubscribed := make(chan error, 1)
+			waitUnsubscribed := func() {
+				t.Helper()
+				select {
+				case err := <-unsubscribed:
+					require.NoError(t, err, "UnsubscribeUserData must not error")
+				case <-time.After(30 * time.Second):
+					require.FailNow(t, "the unsubscription must return")
+				}
+			}
+			if tc.unsubscribe {
+				unsubscribing := s
+				if tc.equivalent {
+					unsubscribing = &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+				}
+				go func() { unsubscribed <- ex.UnsubscribeUserData(t.Context(), conn, subscription.List{unsubscribing}) }()
+				if tc.held {
+					select {
+					case <-unsubscriptionRequested:
+					case <-time.After(30 * time.Second):
+						require.FailNow(t, "the unsubscription must request a listen key")
+					}
+				} else {
+					waitUnsubscribed()
+				}
+			}
+			close(releaseSubscription)
+			select {
+			case err := <-subscribed:
+				require.NoError(t, err, "subscribeUserDataKeptAlive must not error")
+			case <-time.After(30 * time.Second):
+				require.FailNow(t, "the subscription must return")
+			}
+			endSubscription()
+			close(subscriptionEnded)
+			if tc.held {
+				close(releaseUnsubscription)
+				waitUnsubscribed()
+			}
+			recorded := recorder.recorded()
+			methods := make([]string, 0, len(recorded))
+			for _, req := range recorded {
+				methods = append(methods, req.Method)
+			}
+			if !tc.unsubscribe {
+				assert.Equal(t, []string{"SUBSCRIBE"}, methods, "the subscription should subscribe the listen key")
+				assert.Equal(t, subscription.SubscribedState, s.State(), "the stream should be subscribed")
+				assert.Eventually(t, func() bool { return keepalives.Load() >= 4 }, 30*time.Second, time.Millisecond, "the listen key should be kept alive after the subscription's context ends")
+				return
+			}
+			assert.Equal(t, []string{"UNSUBSCRIBE"}, methods, "the subscription should not subscribe the stream unsubscribed during its listen key request")
+			assert.False(t, isSubscribedUserDataStream(s), "the stream should not be subscribed")
+			if !tc.equivalent {
+				assert.Equal(t, subscription.UnsubscribedState, s.State(), "the stream should stay unsubscribed")
+			}
+			assert.Nil(t, ex.Websocket.GetSubscription(s), "the stream should not be stored")
+		})
+	}
+
+	for _, tc := range []struct {
+		name string
+		// failedUnsubscription has a further unsubscription fail its listen key request, which leaves the subscription
+		// unsubscribing, registered has that unsubscription follow the subscription directly, so it stays registered, and
+		// replaced registers another subscription to the stream before the subscription is subscribed again
+		failedUnsubscription, registered, replaced bool
+	}{
+		{name: "subscribes afresh a subscription unsubscribed before"},
+		{name: "subscribes afresh a subscription a failed unsubscription left unsubscribing", failedUnsubscription: true},
+		{name: "refuses a subscription still registered and leaves it unsubscribing", failedUnsubscription: true, registered: true},
+		{name: "refuses a subscription another has replaced and lets it unsubscribe the replacement", failedUnsubscription: true, replaced: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var listenKeys atomic.Int32
+			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if !assert.Equal(t, "/fapi/v1/listenKey", r.URL.Path, "only listen keys should be requested") {
+					return
+				}
+				// The failing listen key request is the further unsubscription's
+				failing := int32(3)
+				if tc.registered {
+					failing = 2
+				}
+				writeListenKeyReply(t, w, tc.failedUnsubscription && listenKeys.Add(1) == failing)
+			})
+			recorder := &streamRequestRecorder{}
+			useMockWebsocket(t, ex, &websocket.ConnectionSetup{
+				MessageFilter:            usdtmPrivateFilter,
+				Connector:                ex.WebsocketDerivativesConnect,
+				Handler:                  ex.wsHandleUSDTMarginedFuturesUserData,
+				ResponseCheckTimeout:     ex.Config.WebsocketResponseCheckTimeout,
+				ResponseMaxLimit:         ex.Config.WebsocketResponseMaxLimit,
+				SubscriptionsNotRequired: true,
+			}, recorder.handle)
+			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+			conn, err := ex.Websocket.GetConnection(usdtmPrivateFilter)
+			require.NoError(t, err, "GetConnection must not error")
+			s := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+			require.NoError(t, ex.subscribeUserDataKeptAlive(t.Context(), t.Context(), conn, s), "subscribeUserDataKeptAlive must not error")
+			if !tc.registered {
+				require.NoError(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}), "UnsubscribeUserData must not error")
+			}
+			if tc.failedUnsubscription {
+				require.Error(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}), "UnsubscribeUserData must report its failed request")
+				require.Equal(t, subscription.UnsubscribingState, s.State(), "the failed unsubscription must leave the stream unsubscribing")
+			} else {
+				require.Equal(t, subscription.UnsubscribedState, s.State(), "the stream must be unsubscribed")
+			}
+			if tc.replaced {
+				replacement := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+				require.NoError(t, ex.subscribeUserDataKeptAlive(t.Context(), t.Context(), conn, replacement), "subscribeUserDataKeptAlive must not error for the replacement")
+			}
+			err = ex.subscribeUserDataKeptAlive(t.Context(), t.Context(), conn, s)
+			if tc.replaced {
+				assert.ErrorIs(t, err, subscription.ErrDuplicate, "subscribeUserDataKeptAlive should refuse a subscription another has replaced")
+				require.NoError(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}), "UnsubscribeUserData must not error for the replaced subscription")
+				assert.Nil(t, ex.Websocket.GetSubscription(s), "unsubscribing through the replaced subscription should remove its replacement")
+			}
+			recorded := recorder.recorded()
+			methods := make([]string, 0, len(recorded))
+			for _, req := range recorded {
+				methods = append(methods, req.Method)
+			}
+			if tc.replaced {
+				assert.Equal(t, []string{"SUBSCRIBE", "UNSUBSCRIBE", "SUBSCRIBE", "UNSUBSCRIBE"}, methods, "only the replacement should be subscribed and then unsubscribed")
+				return
+			}
+			if tc.registered {
+				assert.ErrorIs(t, err, subscription.ErrDuplicate, "subscribeUserDataKeptAlive should refuse a subscription still registered")
+				assert.Equal(t, []string{"SUBSCRIBE"}, methods, "the refused subscription should send nothing")
+				assert.Equal(t, subscription.UnsubscribingState, s.State(), "the refused subscription should keep its state")
+				return
+			}
+			require.NoError(t, err, "subscribeUserDataKeptAlive must not error for the subscription unsubscribed before")
+			assert.Equal(t, []string{"SUBSCRIBE", "UNSUBSCRIBE", "SUBSCRIBE"}, methods, "the subscription unsubscribed before should be subscribed again")
+			assert.Equal(t, subscription.SubscribedState, s.State(), "the stream should be subscribed again")
+			assert.Same(t, s, ex.Websocket.GetSubscription(s), "the stream should be stored again")
+		})
+	}
+
+	// heldListenKeys returns an exchange whose listen key request numbered heldRequest is answered only once release is
+	// closed, and the others at once
+	heldListenKeys := func(t *testing.T, heldRequest int32) (ex *Exchange, conn websocket.Connection, recorder *streamRequestRecorder, entered, release chan struct{}) {
+		t.Helper()
+		entered, release = make(chan struct{}), make(chan struct{})
+		var listenKeys atomic.Int32
+		ex = newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			if !assert.Equal(t, "/fapi/v1/listenKey", r.URL.Path, "only listen keys should be requested") {
+				return
+			}
+			if listenKeys.Add(1) == heldRequest {
+				close(entered)
+				select {
+				case <-release:
+				case <-r.Context().Done():
+					return
+				}
+			}
+			writeListenKeyReply(t, w, false)
+		})
+		recorder = &streamRequestRecorder{}
+		useMockWebsocket(t, ex, &websocket.ConnectionSetup{
+			MessageFilter:            usdtmPrivateFilter,
+			Connector:                ex.WebsocketDerivativesConnect,
+			Handler:                  ex.wsHandleUSDTMarginedFuturesUserData,
+			ResponseCheckTimeout:     ex.Config.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:         ex.Config.WebsocketResponseMaxLimit,
+			SubscriptionsNotRequired: true,
+		}, recorder.handle)
+		require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+		var err error
+		conn, err = ex.Websocket.GetConnection(usdtmPrivateFilter)
+		require.NoError(t, err, "GetConnection must not error")
+		return ex, conn, recorder, entered, release
+	}
+	requestMethods := func(recorder *streamRequestRecorder) []string {
+		recorded := recorder.recorded()
+		methods := make([]string, 0, len(recorded))
+		for _, req := range recorded {
+			methods = append(methods, req.Method)
+		}
+		return methods
+	}
+	waitFor := func(t *testing.T, c <-chan struct{}, msg string) {
+		t.Helper()
+		select {
+		case <-c:
+		case <-time.After(30 * time.Second):
+			require.FailNow(t, msg)
+		}
+	}
+	waitResult := func(t *testing.T, c <-chan error, msg string) error {
+		t.Helper()
+		select {
+		case err := <-c:
+			return err
+		case <-time.After(30 * time.Second):
+			require.FailNow(t, msg)
+			return nil
+		}
+	}
+
+	t.Run("a subscription replaced during its listen key request leaves the stream to its replacement", func(t *testing.T) {
+		t.Parallel()
+		ex, conn, recorder, entered, release := heldListenKeys(t, 1)
+		s := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+		subscribed := make(chan error, 1)
+		go func() { subscribed <- ex.subscribeUserDataKeptAlive(t.Context(), t.Context(), conn, s) }()
+		waitFor(t, entered, "the subscription must request a listen key")
+		equivalent := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+		require.NoError(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{equivalent}), "UnsubscribeUserData must not error")
+		replacement := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+		require.NoError(t, ex.subscribeUserDataKeptAlive(t.Context(), t.Context(), conn, replacement), "subscribeUserDataKeptAlive must not error for the replacement")
+		close(release)
+		require.NoError(t, waitResult(t, subscribed, "the subscription must return"), "subscribeUserDataKeptAlive must not error")
+		assert.Equal(t, []string{"UNSUBSCRIBE", "SUBSCRIBE"}, requestMethods(recorder), "only the replacement should subscribe the stream")
+		assert.Same(t, replacement, ex.Websocket.GetSubscription(s), "the replacement should stay registered")
+	})
+
+	t.Run("a renewal during a fresh subscription's listen key request leaves the subscription to it", func(t *testing.T) {
+		t.Parallel()
+		// The second subscription's listen key request is the third
+		ex, conn, recorder, entered, release := heldListenKeys(t, 3)
+		s := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+		require.NoError(t, ex.subscribeUserDataKeptAlive(t.Context(), t.Context(), conn, s), "subscribeUserDataKeptAlive must not error")
+		require.NoError(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}), "UnsubscribeUserData must not error")
+		subscribed := make(chan error, 1)
+		go func() { subscribed <- ex.subscribeUserDataKeptAlive(t.Context(), t.Context(), conn, s) }()
+		waitFor(t, entered, "the fresh subscription must request a listen key")
+		ex.renewUserDataStream(t.Context(), conn, asset.USDTMarginedFutures, errListenKeyExpired)
+		assert.Equal(t, []string{"SUBSCRIBE", "UNSUBSCRIBE"}, requestMethods(recorder), "the renewal should not subscribe a stream being subscribed afresh")
+		close(release)
+		require.NoError(t, waitResult(t, subscribed, "the fresh subscription must return"), "subscribeUserDataKeptAlive must not error for the fresh subscription")
+		assert.Equal(t, []string{"SUBSCRIBE", "UNSUBSCRIBE", "SUBSCRIBE"}, requestMethods(recorder), "the fresh subscription should subscribe the stream")
+	})
 }
 
 func TestUserDataRetryReportsOnlyBinanceRefusal(t *testing.T) {
@@ -1119,14 +1603,27 @@ func TestProcessListenKeyExpired(t *testing.T) { //nolint:tparallel // the cases
 	recorder := &streamRequestRecorder{}
 	ex := newDerivativesWsTestExchange(t, recorder)
 	expiries := []struct {
+		a       asset.Item
 		filter  string
 		fixture string
 		handle  func(context.Context, websocket.Connection, []byte) error
 		exp     *ListenKeyExpired
 	}{
-		{usdtmPrivateFilter, "testdata/wsUFuturesUserData.jsonl", ex.wsHandleUSDTMarginedFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey}},
-		{coinmPrivateFilter, "testdata/wsCFuturesUserData.jsonl", ex.wsHandleCoinMarginedFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1576653824250), ListenKey: testListenKey}},
-		{optionsPrivateFilter, "testdata/wsOptionsUserData.jsonl", ex.wsHandleOptionsUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey}},
+		{asset.USDTMarginedFutures, usdtmPrivateFilter, "testdata/wsUFuturesUserData.jsonl", ex.wsHandleUSDTMarginedFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey}},
+		{asset.CoinMarginedFutures, coinmPrivateFilter, "testdata/wsCFuturesUserData.jsonl", ex.wsHandleCoinMarginedFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1576653824250), ListenKey: testListenKey}},
+		{asset.Options, optionsPrivateFilter, "testdata/wsOptionsUserData.jsonl", ex.wsHandleOptionsUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey}},
+	}
+	// A listen key expires on a connection subscribed to its user data stream. A failed renewal of a subscribed stream is
+	// tried again, which the test's counts leave out by waiting longer than the test lasts
+	ex.userDataRetry.mu.Lock()
+	ex.userDataRetry.delay = time.Hour
+	ex.userDataRetry.mu.Unlock()
+	for _, tc := range expiries {
+		conn, err := ex.Websocket.GetConnection(tc.filter)
+		require.NoErrorf(t, err, "GetConnection must not error for %s", tc.filter)
+		s := &subscription.Subscription{Channel: userDataStreamChannel, Asset: tc.a, Authenticated: true}
+		require.NoErrorf(t, ex.Websocket.AddSubscriptions(conn, s), "AddSubscriptions must not error for %s", tc.a)
+		require.NoErrorf(t, s.SetState(subscription.SubscribedState), "SetState must not error for %s", tc.a)
 	}
 	// Each expiry starts a renewal that outlives its case, so the cases give the handlers the test's context
 	ctx := t.Context()
@@ -1225,11 +1722,11 @@ func writeListenKeyReply(t *testing.T, w http.ResponseWriter, fail bool) {
 	assert.NoError(t, err, "Write should not error")
 }
 
-// TestRenewUserDataStreamRetry ensures that a failed renewal of an expired listen key is tried again while the stream is
+// TestRenewUserDataStream ensures that a failed renewal of an expired listen key is tried again while the stream is
 // subscribed, as no user data arrives until one succeeds, beside any subscription retry of the asset, and that the
 // retries end once one has succeeded or the stream is no longer subscribed, without undoing an unsubscription made
-// during a retry's request
-func TestRenewUserDataStreamRetry(t *testing.T) {
+// during the renewal's or a retry's request
+func TestRenewUserDataStream(t *testing.T) {
 	t.Parallel()
 	renewing := func(ex *Exchange) bool {
 		ex.userDataRetry.mu.Lock()
@@ -1257,6 +1754,11 @@ func TestRenewUserDataStreamRetry(t *testing.T) {
 			// The unsubscription's own listen key request fails, which leaves the stream registered as unsubscribing
 			require.Error(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}), "UnsubscribeUserData must report its failed request")
 			require.Equal(t, subscription.UnsubscribingState, s.State(), "the stream must be left unsubscribing")
+		}},
+		{"given up while subscribed afresh", func(n int32) bool { return n > 1 }, func(t *testing.T, _ *Exchange, _ websocket.Connection, s *subscription.Subscription) {
+			t.Helper()
+			// A subscription of the stream under way subscribes its own listen key
+			require.NoError(t, s.SetState(subscription.SubscribingState), "SetState must not error")
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1309,37 +1811,92 @@ func TestRenewUserDataStreamRetry(t *testing.T) {
 		assert.Equal(t, int32(3), requests.Load(), "the renewal should be tried until it succeeds, and no more")
 	})
 
-	t.Run("an unsubscription during a retry's request is not undone", func(t *testing.T) {
-		t.Parallel()
-		entered, release := make(chan struct{}), make(chan struct{})
-		ex, conn, s, recorder, _ := newRenewalTestExchange(t, func(n int32, w http.ResponseWriter, r *http.Request) {
-			if n == 3 {
-				// The first retry's request is answered only once the stream has been unsubscribed
-				close(entered)
+	for _, tc := range []struct {
+		name string
+		// held is the listen key request answered only once the stream has been, or is being, unsubscribed: the
+		// renewal's own, or the first retry's after the renewal's request fails
+		held int32
+		// unsubscribing keeps the unsubscription's own listen key request waiting until the renewal has returned
+		unsubscribing bool
+	}{
+		{name: "an unsubscription during the renewal's request is not undone", held: 2},
+		{name: "an unsubscription under way when the renewal's key arrives is not undone", held: 2, unsubscribing: true},
+		{name: "an unsubscription during a retry's request is not undone", held: 3},
+		{name: "an unsubscription under way when a retry's key arrives is not undone", held: 3, unsubscribing: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			entered, releaseRenewal := make(chan struct{}), make(chan struct{})
+			unsubscriptionRequested, releaseUnsubscription := make(chan struct{}), make(chan struct{})
+			ex, conn, s, recorder, _ := newRenewalTestExchange(t, func(n int32, w http.ResponseWriter, r *http.Request) {
+				var release chan struct{}
+				switch {
+				case n == tc.held:
+					close(entered)
+					release = releaseRenewal
+				case n == tc.held+1 && tc.unsubscribing:
+					close(unsubscriptionRequested)
+					release = releaseUnsubscription
+				}
+				if release != nil {
+					select {
+					case <-release:
+					case <-r.Context().Done():
+						return
+					}
+				}
+				writeListenKeyReply(t, w, n > 1 && n < tc.held)
+			})
+			// The renewal is run here rather than from an expiry, so that the test can wait for it to return
+			renewed := make(chan struct{})
+			go func() {
+				defer close(renewed)
+				ex.renewUserDataStream(t.Context(), conn, asset.USDTMarginedFutures, errListenKeyExpired)
+			}()
+			select {
+			case <-entered:
+			case <-time.After(30 * time.Second):
+				require.FailNow(t, "the held listen key request must be made")
+			}
+			unsubscribed := make(chan error, 1)
+			go func() { unsubscribed <- ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}) }()
+			waitUnsubscribed := func() {
+				t.Helper()
 				select {
-				case <-release:
-				case <-r.Context().Done():
-					return
+				case err := <-unsubscribed:
+					require.NoError(t, err, "UnsubscribeUserData must not error")
+				case <-time.After(30 * time.Second):
+					require.FailNow(t, "the unsubscription must return")
 				}
 			}
-			writeListenKeyReply(t, w, n == 2)
+			if tc.unsubscribing {
+				select {
+				case <-unsubscriptionRequested:
+				case <-time.After(30 * time.Second):
+					require.FailNow(t, "the unsubscription must request a listen key")
+				}
+			} else {
+				waitUnsubscribed()
+			}
+			close(releaseRenewal)
+			select {
+			case <-renewed:
+			case <-time.After(30 * time.Second):
+				require.FailNow(t, "the renewal must return")
+			}
+			require.Eventually(t, func() bool { return !renewing(ex) }, 30*time.Second, time.Millisecond, "the renewal must stop being tried")
+			if tc.unsubscribing {
+				close(releaseUnsubscription)
+				waitUnsubscribed()
+			}
+			recorded := recorder.recorded()
+			methods := make([]string, 0, len(recorded))
+			for _, req := range recorded {
+				methods = append(methods, req.Method)
+			}
+			assert.Equal(t, []string{"SUBSCRIBE", "UNSUBSCRIBE"}, methods, "the renewal should not subscribe the stream unsubscribed during its request")
 		})
-		expire(t, ex, conn)
-		select {
-		case <-entered:
-		case <-time.After(30 * time.Second):
-			require.Fail(t, "the failed renewal must be tried again")
-		}
-		require.NoError(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}), "UnsubscribeUserData must not error")
-		close(release)
-		require.Eventually(t, func() bool { return !renewing(ex) }, 30*time.Second, time.Millisecond, "the renewal must stop being tried")
-		recorded := recorder.recorded()
-		methods := make([]string, 0, len(recorded))
-		for _, req := range recorded {
-			methods = append(methods, req.Method)
-		}
-		assert.Equal(t, []string{"SUBSCRIBE", "UNSUBSCRIBE"}, methods, "the retry should not subscribe the stream unsubscribed during its request")
-	})
+	}
 }
 
 func TestFetchDerivativesOrderbook(t *testing.T) { //nolint:tparallel // the cases share ex and its server, so they run in order while the test runs in parallel
@@ -3723,6 +4280,77 @@ func TestStoreBalanceEvent(t *testing.T) {
 	}
 }
 
+func TestRecordBalanceEvent(t *testing.T) { //nolint:tparallel // the cases record events on one exchange, so they run in order while the test runs in parallel
+	t.Parallel()
+	base := time.UnixMilli(1791300000000)
+	ex := new(Exchange)
+	usdtMargined := map[*currency.Item]time.Time{currency.BTC.Item: base, currency.ETH.Item: base.Add(time.Millisecond)}
+	usdtMarginedNumbers := map[*currency.Item]uint64{currency.BTC.Item: 2, currency.ETH.Item: 3}
+	for _, tc := range []struct {
+		name    string
+		a       asset.Item
+		time    time.Time
+		codes   []currency.Code
+		times   map[*currency.Item]time.Time
+		numbers map[*currency.Item]uint64
+	}{
+		{
+			name: "first event", a: asset.USDTMarginedFutures, time: base, codes: []currency.Code{currency.BTC, currency.ETH},
+			times:   map[*currency.Item]time.Time{currency.BTC.Item: base, currency.ETH.Item: base},
+			numbers: map[*currency.Item]uint64{currency.BTC.Item: 1, currency.ETH.Item: 1},
+		},
+		// A second event in a currency's latest millisecond leaves its time as it is but numbers it again, so that a poll
+		// can tell the two events apart
+		{
+			name: "second event in the same millisecond", a: asset.USDTMarginedFutures, time: base, codes: []currency.Code{currency.BTC},
+			times:   map[*currency.Item]time.Time{currency.BTC.Item: base, currency.ETH.Item: base},
+			numbers: map[*currency.Item]uint64{currency.BTC.Item: 2, currency.ETH.Item: 1},
+		},
+		{
+			name: "later event of one currency", a: asset.USDTMarginedFutures, time: base.Add(time.Millisecond), codes: []currency.Code{currency.ETH},
+			times: usdtMargined, numbers: usdtMarginedNumbers,
+		},
+		{
+			name: "another asset's event", a: asset.Options, time: base, codes: []currency.Code{currency.USDT},
+			times:   map[*currency.Item]time.Time{currency.USDT.Item: base},
+			numbers: map[*currency.Item]uint64{currency.USDT.Item: 4},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ex.recordBalanceEvent(tc.a, tc.time, tc.codes...)
+			assert.Equal(t, tc.times, ex.balanceEventTimes(tc.a), "each currency should keep its latest event time")
+			assert.Equal(t, tc.numbers, ex.balanceRefresh.eventNumbers[tc.a], "each currency the event reports should take its number")
+		})
+	}
+	assert.Equal(t, usdtMargined, ex.balanceEventTimes(asset.USDTMarginedFutures), "another asset's event should leave the first asset's times alone")
+	assert.Equal(t, usdtMarginedNumbers, ex.balanceRefresh.eventNumbers[asset.USDTMarginedFutures], "another asset's event should leave the first asset's numbers alone")
+}
+
+func TestBalanceEventsRecorded(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	assert.Zero(t, ex.balanceEventsRecorded(), "no event should be counted before one is recorded")
+	ex.recordBalanceEvent(asset.USDTMarginedFutures, time.UnixMilli(1791300000000), currency.USDT, currency.BNB)
+	assert.Equal(t, uint64(1), ex.balanceEventsRecorded(), "an event reporting two currencies should count once")
+	ex.recordBalanceEvent(asset.CoinMarginedFutures, time.UnixMilli(1791300000000), currency.BTC)
+	assert.Equal(t, uint64(2), ex.balanceEventsRecorded(), "each asset's events should count towards the one total")
+	// A poll reads the count while the user data streams record events
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Go(func() {
+			var last uint64
+			for range 50 {
+				ex.recordBalanceEvent(asset.Options, time.UnixMilli(1791300000000), currency.USDT)
+				count := ex.balanceEventsRecorded()
+				assert.Greater(t, count, last, "the count should rise with each event recorded")
+				last = count
+			}
+		})
+	}
+	wg.Wait()
+	assert.Equal(t, uint64(202), ex.balanceEventsRecorded(), "every event recorded beside the reads should be counted")
+}
+
 func TestRecordBalanceSnapshot(t *testing.T) {
 	t.Parallel()
 	base := time.UnixMilli(1791300000000)
@@ -3822,6 +4450,88 @@ func balanceReply(tc *balanceEvent, total, free float64, updateTime int64) strin
 		return fmt.Sprintf(`{"assets":[{"asset":%q,"walletBalance":%q,"availableBalance":%q,"updateTime":%d}]}`, tc.code, totalValue, freeValue, updateTime)
 	default:
 		return fmt.Sprintf(`{"asset":[{"asset":%q,"marginBalance":%q,"available":%q}],"time":%d}`, tc.code, totalValue, freeValue, updateTime)
+	}
+}
+
+func TestKeepStreamedBalances(t *testing.T) {
+	t.Parallel()
+	// Transactions can share a millisecond, so a snapshot showing a currency at its latest event's time may predate the
+	// event: the stored balance stands when that event was recorded since the poll's request, and otherwise the snapshot
+	// is taken to include the event
+	event := balanceEvents[0]
+	eventTime := time.UnixMilli(1791300000000)
+	rest := accounts.Balance{Total: event.restTotal, Hold: event.restTotal - event.restFree, Free: event.restFree}
+	for _, tc := range []struct {
+		name string
+		// shown is the snapshot's time for the event's currency: its update time where the snapshot reports it, and
+		// otherwise the newest time the snapshot shows, another currency's update time or, with asOf, its own
+		shown    time.Time
+		reported bool
+		asOf     bool
+		// sinceRequest records the event after the poll has counted the events recorded before its request, and repeated
+		// records an earlier event of the same millisecond before the count
+		sinceRequest, repeated bool
+		kept                   bool
+	}{
+		{name: "reported at the event's time, recorded since the request", shown: eventTime, reported: true, sinceRequest: true, kept: true},
+		{name: "reported at the event's time, recorded before the request", shown: eventTime, reported: true},
+		{name: "reported at the event's time, its millisecond's second event recorded since the request", shown: eventTime, reported: true, sinceRequest: true, repeated: true, kept: true},
+		{name: "reported after the event, recorded since the request", shown: eventTime.Add(time.Millisecond), reported: true, sinceRequest: true},
+		{name: "left out at the event's time, recorded since the request", shown: eventTime, sinceRequest: true, kept: true},
+		{name: "left out at the event's time, recorded before the request", shown: eventTime},
+		{name: "left out after the event, recorded since the request", shown: eventTime.Add(time.Millisecond), sinceRequest: true},
+		{name: "left out of a snapshot timed at the event, recorded since the request", shown: eventTime, asOf: true, sinceRequest: true, kept: true},
+		{name: "left out of a snapshot timed at the event, recorded before the request", shown: eventTime, asOf: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTradingTestExchange(t, func(_ http.ResponseWriter, _ *http.Request) {
+				assert.Fail(t, "no REST request should be made")
+			})
+			if tc.repeated {
+				require.NoError(t, event.processedBy(ex)(t.Context(), event.walletEvent(event.eventTotal-1)), "processing the first balance event must not error")
+			}
+			eventsBefore := ex.balanceEventsRecorded()
+			require.NoError(t, event.processedBy(ex)(t.Context(), event.walletEvent(event.eventTotal)), "processing the balance event must not error")
+			if !tc.sinceRequest {
+				eventsBefore = ex.balanceEventsRecorded()
+			}
+			streamed := storedBalance(t, ex, event.a, event.code)
+			require.Equal(t, event.eventTotal, streamed.Total, "the event must store its wallet balance")
+			subAccount := accounts.NewSubAccount(event.a, "")
+			updated := make(map[*currency.Item]time.Time)
+			var asOf time.Time
+			var snapshotBalance accounts.Balance
+			switch {
+			case tc.reported:
+				subAccount.Balances.Set(event.code, rest)
+				snapshotBalance = subAccount.Balances[event.code]
+				updated[event.code.Item] = tc.shown
+				// Another currency updated later is the snapshot's newest, apart from the reported currency's own time
+				subAccount.Balances.Set(event.restOnly, accounts.Balance{Total: event.restOnlyTotal, Free: event.restOnlyTotal})
+				updated[event.restOnly.Item] = tc.shown.Add(time.Millisecond)
+			case tc.asOf:
+				asOf = tc.shown
+			default:
+				subAccount.Balances.Set(event.restOnly, accounts.Balance{Total: event.restOnlyTotal, Free: event.restOnlyTotal})
+				updated[event.restOnly.Item] = tc.shown
+			}
+			require.NoError(t, ex.withBalanceStore(func() error {
+				ex.keepStreamedBalances(t.Context(), event.a, subAccount, updated, asOf, eventsBefore)
+				return nil
+			}), "withBalanceStore must not error")
+			got, ok := subAccount.Balances[event.code]
+			switch {
+			case tc.kept:
+				require.True(t, ok, "the snapshot must hold the event's currency")
+				assert.Equal(t, streamed, got, "the balance of an event recorded since the request should stand")
+			case tc.reported:
+				assert.Equal(t, snapshotBalance, got, "the balance the snapshot reports should stand")
+			default:
+				assert.False(t, ok, "the currency the snapshot leaves out should stay out")
+				assert.Equal(t, tc.shown, updated[event.code.Item], "the currency the snapshot leaves out should take its newest time")
+			}
+		})
 	}
 }
 
