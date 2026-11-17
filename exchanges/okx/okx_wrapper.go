@@ -1067,13 +1067,13 @@ func derivePlaceOrderRequest(s *order.Submit, p *submitPrelude, oType string) *P
 // order's tpOrdPx and slOrdPx.
 const marketOrderPrice = -1
 
-// spotAlgoTargetCurrency returns the tgtCcy an algo order must send. OKX
-// applies tgtCcy to spot market orders and reads a spot market buy's sz in the
-// quote currency unless it names base_ccy, so a leg executing at market has to
-// state that its size is in the base currency. A leg that keeps its limit
-// price sends no tgtCcy, and neither does any other asset type.
-func spotAlgoTargetCurrency(assetType asset.Item, marketLeg bool) string {
-	if assetType == asset.Spot && marketLeg {
+// spotAlgoTargetCurrency returns the tgtCcy an algo order sends. OKX reads a
+// spot market buy's sz in the quote currency unless tgtCcy names base_ccy, so a
+// buy leg executing at market names base_ccy. A sell's sz is in the base
+// currency already, and OKX has refused a conditional sell carrying tgtCcy, so
+// a sell sends none, as do a leg keeping its limit price and other assets.
+func spotAlgoTargetCurrency(assetType asset.Item, side order.Side, marketLeg bool) string {
+	if assetType == asset.Spot && side.IsLong() && marketLeg {
 		return targetCurrencyBase
 	}
 	return ""
@@ -1163,7 +1163,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:      positionSide,
 			OrderType:         orderTypeStr,
 			Size:              s.Amount,
-			QuantityType:      spotAlgoTargetCurrency(s.AssetType, s.Price == marketOrderPrice),
+			QuantityType:      spotAlgoTargetCurrency(s.AssetType, s.Side, s.Price == marketOrderPrice),
 			ReduceOnly:        reduceOnly,
 			TriggerPrice:      s.TriggerPrice,
 			OrderPrice:        s.Price,
@@ -1179,7 +1179,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:             positionSide,
 			OrderType:                orderTypeStr,
 			Size:                     s.Amount,
-			QuantityType:             spotAlgoTargetCurrency(s.AssetType, s.Price == marketOrderPrice),
+			QuantityType:             spotAlgoTargetCurrency(s.AssetType, s.Side, s.Price == marketOrderPrice),
 			ReduceOnly:               reduceOnly,
 			StopLossTriggerPrice:     s.TriggerPrice,
 			StopLossOrderPrice:       s.Price,
@@ -1271,7 +1271,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:      positionSide,
 			OrderType:         orderTypeStr,
 			Size:              s.Amount,
-			QuantityType: spotAlgoTargetCurrency(s.AssetType,
+			QuantityType: spotAlgoTargetCurrency(s.AssetType, s.Side,
 				s.RiskManagementModes.TakeProfit.LimitPrice == marketOrderPrice ||
 					s.RiskManagementModes.StopLoss.LimitPrice == marketOrderPrice),
 			ReduceOnly: reduceOnly,

@@ -3972,27 +3972,36 @@ func TestSubmitOrder(t *testing.T) {
 
 	// Guards the size currency of an algo order whose leg executes at market:
 	// OKX reads a spot market buy's sz in the quote currency unless tgtCcy
-	// names base_ccy, so a spot leg that triggers as a market order has to
-	// state that its size is in the base currency, while a leg keeping its
+	// names base_ccy, so a spot buy leg that triggers as a market order states
+	// that its size is in the base currency, while a sell, a leg keeping its
 	// limit price and a non-spot instrument send no tgtCcy at all.
-	t.Run("an at-market spot algo order states its base currency size", func(t *testing.T) {
+	t.Run("an at-market spot algo buy states its base currency size", func(t *testing.T) {
 		t.Parallel()
 		for _, tc := range []struct {
 			name       string
 			assetType  asset.Item
 			orderType  order.Type
+			side       order.Side
 			price      float64
 			takeProfit float64
 			stopLoss   float64
 			expTarget  string // empty when no tgtCcy is sent
 		}{
-			{"spot trigger at market", asset.Spot, order.Trigger, marketOrderPrice, 0, 0, targetCurrencyBase},
-			{"spot trigger at a limit price", asset.Spot, order.Trigger, 42000, 0, 0, ""},
-			{"spot conditional at market", asset.Spot, order.ConditionalStop, marketOrderPrice, 0, 0, targetCurrencyBase},
-			{"spot conditional at a limit price", asset.Spot, order.ConditionalStop, 42000, 0, 0, ""},
-			{"margin trigger at market", asset.Margin, order.Trigger, marketOrderPrice, 0, 0, ""},
-			{"oco with a market take profit", asset.Spot, order.OCO, 0, marketOrderPrice, 42000, targetCurrencyBase},
-			{"oco with both legs limited", asset.Spot, order.OCO, 0, 41000, 43000, ""},
+			{"spot trigger at market", asset.Spot, order.Trigger, order.Buy, marketOrderPrice, 0, 0, targetCurrencyBase},
+			{"spot trigger sell at market", asset.Spot, order.Trigger, order.Sell, marketOrderPrice, 0, 0, ""},
+			{"spot trigger at a limit price", asset.Spot, order.Trigger, order.Buy, 42000, 0, 0, ""},
+			{"spot conditional at market", asset.Spot, order.ConditionalStop, order.Buy, marketOrderPrice, 0, 0, targetCurrencyBase},
+			{"spot conditional sell at market", asset.Spot, order.ConditionalStop, order.Sell, marketOrderPrice, 0, 0, ""},
+			{"spot conditional at a limit price", asset.Spot, order.ConditionalStop, order.Buy, 42000, 0, 0, ""},
+			{"margin trigger at market", asset.Margin, order.Trigger, order.Buy, marketOrderPrice, 0, 0, ""},
+			{"margin conditional at market", asset.Margin, order.ConditionalStop, order.Buy, marketOrderPrice, 0, 0, ""},
+			{"oco with a market take profit", asset.Spot, order.OCO, order.Buy, 0, marketOrderPrice, 42000, targetCurrencyBase},
+			{"oco with a market stop loss", asset.Spot, order.OCO, order.Buy, 0, 41000, marketOrderPrice, targetCurrencyBase},
+			{"oco sell with a market stop loss", asset.Spot, order.OCO, order.Sell, 0, 41000, marketOrderPrice, ""},
+			{"oco sell with a market take profit", asset.Spot, order.OCO, order.Sell, 0, marketOrderPrice, 42000, ""},
+			{"margin oco with a market stop loss", asset.Margin, order.OCO, order.Buy, 0, 41000, marketOrderPrice, ""},
+			{"margin oco with a market take profit", asset.Margin, order.OCO, order.Buy, 0, marketOrderPrice, 42000, ""},
+			{"oco with both legs limited", asset.Spot, order.OCO, order.Buy, 0, 41000, 43000, ""},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
@@ -4007,7 +4016,7 @@ func TestSubmitOrder(t *testing.T) {
 					writeOKXData(t, w, []map[string]string{{"algoId": "ALGO-1", "sCode": "0"}})
 				}))
 				s := &order.Submit{
-					Exchange: ex.Name, Pair: mainPair, AssetType: tc.assetType, Side: order.Buy,
+					Exchange: ex.Name, Pair: mainPair, AssetType: tc.assetType, Side: tc.side,
 					Type: tc.orderType, Amount: 0.002, Price: tc.price, TriggerPrice: 41000,
 				}
 				if tc.orderType == order.OCO {
@@ -4027,9 +4036,9 @@ func TestSubmitOrder(t *testing.T) {
 				require.NoError(t, json.Unmarshal(body, &sent), "the place algo order request body must decode")
 				assert.Equal(t, "0.002", sent["sz"], "sz should stay the base currency amount")
 				if tc.expTarget == "" {
-					assert.NotContains(t, sent, "tgtCcy", "only a spot order with a market leg should send tgtCcy")
+					assert.NotContains(t, sent, "tgtCcy", "only a spot buy with a market leg should send tgtCcy")
 				} else {
-					assert.Equal(t, tc.expTarget, sent["tgtCcy"], "a spot order with a market leg should name its base currency size")
+					assert.Equal(t, tc.expTarget, sent["tgtCcy"], "a spot buy with a market leg should name its base currency size")
 				}
 			})
 		}
