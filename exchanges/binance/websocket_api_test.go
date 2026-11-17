@@ -485,8 +485,15 @@ func TestUserDataStreams(t *testing.T) {
 	assert.Empty(t, u.pending, "reset should end requests still waiting for their responses")
 }
 
-func TestSendWebsocketAPIRequest(t *testing.T) { //nolint:tparallel // The error cases share ex and its mock connection in order
+func TestSendWebsocketAPIRequest(t *testing.T) {
 	t.Parallel()
+	t.Run("fails a null response", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		err := ex.sendWsAPIRequest(t.Context(), nullResponseConnection{}, spotDefaultRate, &WebsocketAPIRequest{ID: "1", Method: "session.status"}, nil)
+		assert.ErrorIs(t, err, errWebsocketAPIRequestFailed, "sendWsAPIRequest should fail a null response")
+		assert.ErrorIs(t, err, common.ErrNoResponse, "sendWsAPIRequest should report a null response as no response")
+	})
 	ex := newTestExchange(t)
 	err := ex.SendWebsocketAPIRequest(t.Context(), spotDefaultRate, "session.status", nil, nil)
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "SendWebsocketAPIRequest should error without a connection")
@@ -3769,17 +3776,6 @@ type nullResponseConnection struct{ websocket.Connection }
 
 func (nullResponseConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
 	return []byte("null"), nil
-}
-
-func TestSendWsAPIRequest(t *testing.T) {
-	t.Parallel()
-	t.Run("fails a null response", func(t *testing.T) {
-		t.Parallel()
-		ex := newTestExchange(t)
-		err := ex.sendWsAPIRequest(t.Context(), nullResponseConnection{}, spotDefaultRate, &WebsocketAPIRequest{ID: "1", Method: "session.status"}, nil)
-		assert.ErrorIs(t, err, errWebsocketAPIRequestFailed, "sendWsAPIRequest should fail a null response")
-		assert.ErrorIs(t, err, common.ErrNoResponse, "sendWsAPIRequest should report a null response as no response")
-	})
 }
 
 func TestSendUserDataStreamSubscription(t *testing.T) {
