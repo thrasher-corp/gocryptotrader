@@ -326,6 +326,9 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		if m.subscriptionFilter != nil {
+			newSubs = m.subscriptionFilter(m.Conn.GetURL(), newSubs)
+		}
 		return m.updateChannelSubscriptions(ctx, m.subscriptions, newSubs)
 	}
 
@@ -340,6 +343,10 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, err)
 		if fatalErr != nil {
 			return fatalErr
+		}
+
+		if m.subscriptionFilter != nil {
+			newSubs = m.subscriptionFilter(ws.setup.URL, newSubs)
 		}
 
 		// Case if there is nothing to unsubscribe from and the connection is nil
