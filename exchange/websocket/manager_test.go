@@ -1570,6 +1570,7 @@ func TestDial(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
+		shutdownOnCleanup(t, &testCases[i].WC)
 	}
 }
 
@@ -1621,6 +1622,7 @@ func TestSendMessage(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
+		shutdownOnCleanup(t, &testCases[x].WC)
 		err = testCases[x].WC.SendJSONMessage(t.Context(), request.Unset, Ping)
 		require.NoError(t, err)
 		err = testCases[x].WC.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte(Ping))
@@ -1648,7 +1650,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	go readMessages(t, wc)
+	readUntilShutdown(t, wc)
 
 	req := testRequest{
 		Event: "subscribe",
@@ -1722,7 +1724,30 @@ func (r *reporter) Latency(name string, payload []byte, t time.Duration) {
 	r.t = t
 }
 
-// readMessages helper func
+// shutdownOnCleanup shuts c down when the test ends, so the mock server's handler stops reading from it
+func shutdownOnCleanup(t *testing.T, c *connection) {
+	t.Helper()
+	t.Cleanup(func() { assert.NoError(t, c.Shutdown(), "Shutdown should not error") })
+}
+
+// readUntilShutdown runs readMessages, then shuts wc down when the test ends and waits for the reader to return
+func readUntilShutdown(t *testing.T, wc *connection) {
+	t.Helper()
+	readDone := make(chan struct{})
+	go func() {
+		defer close(readDone)
+		readMessages(t, wc)
+	}()
+	t.Cleanup(func() {
+		assert.NoError(t, wc.Shutdown(), "Shutdown should not error")
+		select {
+		case <-readDone:
+		case <-time.After(time.Second * 5):
+			assert.Fail(t, "readMessages should return once the connection shuts down")
+		}
+	})
+}
+
 func readMessages(t *testing.T, wc *connection) {
 	t.Helper()
 	timer := time.NewTimer(20 * time.Second)
@@ -2420,7 +2445,7 @@ func TestLatency(t *testing.T) {
 	err := wc.Dial(t.Context(), dialer, http.Header{}, nil)
 	require.NoError(t, err)
 
-	go readMessages(t, wc)
+	readUntilShutdown(t, wc)
 
 	req := testRequest{
 		Event:        "subscribe",
