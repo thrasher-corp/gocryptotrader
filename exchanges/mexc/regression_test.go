@@ -1074,11 +1074,13 @@ type listenKeyTestConn struct {
 	websocket.Connection
 	url    string
 	closed atomic.Bool
+	dials  atomic.Int64
 }
 
 func (c *listenKeyTestConn) SetURL(u string) { c.url = u }
 func (c *listenKeyTestConn) GetURL() string  { return c.url }
 func (c *listenKeyTestConn) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
+	c.dials.Add(1)
 	return nil
 }
 func (c *listenKeyTestConn) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {}
@@ -1127,7 +1129,7 @@ func TestGenerateSubscriptionsExpandsConfiguredList(t *testing.T) {
 	t.Parallel()
 	ex := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	ex.Features.Subscriptions = subscription.List{}
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(nil)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	assert.Empty(t, subs, "an empty configured list should expand to no subscriptions, not the hardcoded defaults")
 }
@@ -1622,20 +1624,28 @@ func TestGenerateSubscriptionsSplitsPrivateChannels(t *testing.T) {
 	t.Parallel()
 	ex := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	all, err := ex.generateSubscriptions()
+	all, err := ex.generateSubscriptions(nil)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	public, err := ex.generatePublicSubscriptions()
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	private, err := ex.generatePrivateSubscriptions()
 	require.NoError(t, err, "generatePrivateSubscriptions must not error")
+	futuresPublic, err := ex.generateFuturesPublicSubscriptions()
+	require.NoError(t, err, "generateFuturesPublicSubscriptions must not error")
+	futuresPrivate, err := ex.generateFuturesPrivateSubscriptions()
+	require.NoError(t, err, "generateFuturesPrivateSubscriptions must not error")
 	require.NotEmpty(t, public, "the public channels must be subscribed")
 	require.NotEmpty(t, private, "the private channels must be subscribed")
-	assert.Len(t, all, len(public)+len(private), "every channel should be on one connection or the other")
+	require.NotEmpty(t, futuresPublic, "the public futures channels must be subscribed")
+	require.NotEmpty(t, futuresPrivate, "the private futures channels must be subscribed")
+	assert.Len(t, all, len(public)+len(private)+len(futuresPublic)+len(futuresPrivate), "every channel should be on one connection")
 	for _, s := range public {
 		assert.Falsef(t, isPrivateChannel(s), "%s should be public to go on a public connection", s.QualifiedChannel)
+		assert.Equalf(t, asset.Spot, s.Asset, "%s should be spot to go on a spot connection", s.QualifiedChannel)
 	}
 	for _, s := range private {
 		assert.Truef(t, isPrivateChannel(s), "%s should be private to go on the private connection", s.QualifiedChannel)
+		assert.Equalf(t, asset.Spot, s.Asset, "%s should be spot to go on a spot connection", s.QualifiedChannel)
 	}
 
 	// A private channel is only served with the key, however it is configured: by its generic name or the venue's,
@@ -1738,7 +1748,7 @@ func TestWebsocketTakesOneListenKeyForThePrivateChannels(t *testing.T) {
 		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
 	})
 
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(nil)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	want := make(map[string][]bool, len(subs))
 	for _, s := range subs {
@@ -1861,6 +1871,8 @@ func TestAPIKeyInfoCreateTime(t *testing.T) {
 type subscriptionTestConn struct {
 	websocket.Connection
 	replies map[string]string
+	mu      sync.Mutex
+	sent    []string
 }
 
 func (c *subscriptionTestConn) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, req any) ([]byte, error) {
@@ -1868,6 +1880,9 @@ func (c *subscriptionTestConn) SendMessageReturnResponse(_ context.Context, _ re
 	if !ok || len(p.Params) != 1 {
 		return nil, errors.New("unexpected subscription payload")
 	}
+	c.mu.Lock()
+	c.sent = append(c.sent, p.Params[0])
+	c.mu.Unlock()
 	return []byte(c.replies[p.Params[0]]), nil
 }
 
@@ -2378,10 +2393,11 @@ func TestSubmitOrderReadsBackAMarketOrderWithoutAQuantity(t *testing.T) {
 // the manager rolls them back when a later one fails, so the market data must not depend on the key.
 func TestWebsocketKeepsMarketDataWhenNoListenKeyCanBeMinted(t *testing.T) {
 	t.Parallel()
-	var publicSubscribed atomic.Int64
+	var publicSubscribed, listenKeyRequests atomic.Int64
 	var upgrader gws.Upgrader
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "userDataStream") {
+			listenKeyRequests.Add(1)
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write([]byte(`{"code":700003,"msg":"listen key limit reached"}`))
 			return
@@ -2440,7 +2456,15 @@ func TestWebsocketKeepsMarketDataWhenNoListenKeyCanBeMinted(t *testing.T) {
 	public, err := ex.generatePublicSubscriptions()
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	assert.Equal(t, int64(len(public)), publicSubscribed.Load(), "every public channel should be subscribed")
-	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "the private channels should be left out of later connects")
+	private, err := ex.generatePrivateSubscriptions()
+	require.NoError(t, err, "generatePrivateSubscriptions must not error")
+	assert.Empty(t, private, "the private channels should be left out of later connects")
+
+	// A flush reconnects under the manager's lock, where the connection monitor can't redial first as it can between a
+	// Shutdown and a Connect
+	require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "FlushChannels must not error, as it leaves the private channels out")
+	assert.Equal(t, 2*int64(len(public)), publicSubscribed.Load(), "every public channel should be subscribed again")
+	assert.Equal(t, int64(1), listenKeyRequests.Load(), "a refused listen key should not be asked for again")
 }
 
 // TestGetAnnouncementsReportsRejectedParameters reports the error MEXC answers a rejected parameter with. A language it

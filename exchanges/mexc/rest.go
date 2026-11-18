@@ -1,6 +1,7 @@
 package mexc
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -19,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -33,11 +36,31 @@ type Exchange struct {
 	// wsTickerMu serialises the read-merge-write of the cached spot ticker: bookTicker and miniTicker
 	// for one pair can arrive on different connections once subscriptions span more than one.
 	wsTickerMu sync.Mutex
+
+	// futuresContracts holds the last contract details read, by symbol. Tickers, trades and positions are
+	// counted in contracts, and turning them into currency amounts needs each contract's size.
+	futuresContractsMu sync.RWMutex
+	futuresContracts   map[string]*FuturesContractResponse
+
+	// futuresConnections holds each futures connection's request lock and the replies it may still owe
+	futuresConnectionsMu sync.Mutex
+	futuresConnections   map[websocket.Connection]*futuresConnection
+	// futuresResyncMarkers numbers the marker requests which bring a connection owing a reply back in step
+	futuresResyncMarkers atomic.Uint64
+
+	// futuresLoginConn is the futures connection last logged in; the private futures channels share one connection
+	futuresLoginMu   sync.Mutex
+	futuresLoginConn websocket.Connection
+
+	// spotListenKeyRefused records that the venue refused a listen key, which only the private spot channels need,
+	// so that they are left out from then on while the private futures channels, which log in with the API key, are not
+	spotListenKeyRefused atomic.Bool
 }
 
 const (
-	spotAPIURL   = "https://api.mexc.com"
-	tradeBaseURL = "https://www.mexc.com/"
+	spotAPIURL    = "https://api.mexc.com"
+	futuresAPIURL = "https://api.mexc.com"
+	tradeBaseURL  = "https://www.mexc.com/"
 )
 
 var (
@@ -63,6 +86,44 @@ var (
 	errTradesExceedPage                     = errors.New("more aggregated trades share one second than a page holds")
 	errTooManyDustAssets                    = errors.New("at most 15 assets can be converted in one dust transfer")
 	errAnnouncementsRejected                = errors.New("announcements request rejected")
+	errFuturesRequestFailed                 = errors.New("futures request failed")
+	errInvalidLimit                         = errors.New("invalid limit")
+	errTooManyOrders                        = errors.New("too many orders in one request")
+	errPositionIDRequired                   = errors.New("position id is required")
+	errExternalOrderIDRequired              = errors.New("external order id is required")
+	errExternalOrderIDTooLong               = errors.New("external order id is longer than 32 characters")
+	errInvalidLeverage                      = errors.New("leverage must be positive")
+	errInvalidOpenType                      = errors.New("invalid open type")
+	errInvalidOrderSide                     = errors.New("invalid futures order side")
+	errInvalidSideType                      = errors.New("invalid futures order side type")
+	errInvalidPositionType                  = errors.New("invalid position type")
+	errInvalidPositionMode                  = errors.New("invalid position mode")
+	errInvalidPriceType                     = errors.New("invalid trigger price type")
+	errInvalidTriggerType                   = errors.New("invalid trigger type")
+	errInvalidExecutionCycle                = errors.New("invalid execution cycle")
+	errInvalidMarginChangeType              = errors.New("invalid margin change type")
+	errInvalidProfitRateType                = errors.New("invalid profit rate type")
+	errInvalidCallbackType                  = errors.New("invalid callback type")
+	errInvalidSelfTradePrevention           = errors.New("invalid self-trade prevention mode")
+	errInvalidTakeProfitStopLoss            = errors.New("a take-profit or stop-loss price is required")
+	errOrderStatesRequired                  = errors.New("at least one order state is required")
+	errTrailingOrderIDRequired              = errors.New("trailing order id is required")
+	errStopPlanOrderIDRequired              = errors.New("take-profit and stop-loss order id is required")
+	errSelfTradePreventionUIDsShort         = errors.New("a self-trade prevention group needs at least two sub-account uids")
+	errContractNotFound                     = errors.New("futures contract not found")
+	errInvalidFairPrice                     = errors.New("invalid futures fair price")
+	errFuturesWebsocketRejected             = errors.New("futures websocket request rejected")
+	errFuturesWebsocketOutOfStep            = errors.New("futures websocket replies out of step with requests")
+	errInvalidFuturesID                     = errors.New("invalid futures id")
+	errInvalidOrderbookLevel                = errors.New("invalid order book level")
+	errHistoryWindowTooWide                 = errors.New("the history window spans more than 90 days")
+	errCancelOutcomeMissing                 = errors.New("cancellation outcome missing")
+	errMarginTypeAmbiguous                  = errors.New("margin type ambiguous")
+	errMalformedCandles                     = errors.New("malformed candles")
+	errRiskManagementUnsupported            = errors.New("take-profit, stop-loss and stop entry settings are not supported")
+	errSlippageToleranceUnsupported         = errors.New("a slippage tolerance is not supported")
+	errTriggerPriceUnsupported              = errors.New("a trigger price is not supported")
+	errEndTimeUnsupported                   = errors.New("an end time is not supported")
 )
 
 // GetSymbols retrieves current exchange trading rules and symbol information
@@ -1712,4 +1773,95 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 			HTTPRecording: e.HTTPRecording,
 		}, nil
 	}, authType)
+}
+
+// futuresResponse is the envelope of every futures REST reply; Data decodes into the caller's result. Success is nil
+// when a reply leaves it out
+type futuresResponse struct {
+	Success *bool  `json:"success"`
+	Code    uint64 `json:"code"`
+	Message string `json:"message"`
+	Msg     string `json:"msg"`
+	Data    any    `json:"data"`
+}
+
+// encodeFuturesValues renders query values as the futures API signs them: sorted by key and URL encoded, with a
+// space as %20 rather than url.Values' +
+func encodeFuturesValues(values url.Values) string {
+	return strings.ReplaceAll(values.Encode(), "+", "%20")
+}
+
+// SendFuturesHTTPRequest sends a request to the futures REST API. GET and DELETE requests carry values in the query
+// and POST requests carry body as JSON; an authenticated request signs whichever of the two it carries
+func (e *Exchange) SendFuturesHTTPRequest(ctx context.Context, epl request.EndpointLimit, method, requestPath string, values url.Values, body, result any, authenticated bool) error {
+	return e.sendFuturesHTTPRequest(ctx, epl, method, requestPath, "application/json", values, body, result, authenticated)
+}
+
+func (e *Exchange) sendFuturesHTTPRequest(ctx context.Context, epl request.EndpointLimit, method, requestPath, contentType string, values url.Values, body, result any, authenticated bool) error {
+	ePoint, err := e.API.Endpoints.GetURL(exchange.RestFutures)
+	if err != nil {
+		return err
+	}
+	var payload []byte
+	if body != nil {
+		if payload, err = json.Marshal(body); err != nil {
+			return err
+		}
+	}
+	query := encodeFuturesValues(values)
+	path := ePoint + "/api/v1/" + requestPath
+	if query != "" {
+		path += "?" + query
+	}
+	var authType request.AuthType = request.UnauthenticatedRequest
+	var creds *accounts.Credentials
+	if authenticated {
+		authType = request.AuthenticatedRequest
+		if creds, err = e.GetCredentials(ctx); err != nil {
+			return err
+		}
+	}
+	resp := &futuresResponse{Data: result}
+	if err := e.SendPayload(ctx, epl, func() (*request.Item, error) {
+		headers := map[string]string{"Content-Type": contentType}
+		if authenticated {
+			// Signed on every attempt, since a retry would otherwise send a Request-Time outside the venue's window
+			requestTime := strconv.FormatInt(time.Now().UnixMilli(), 10)
+			signed := query
+			if method == http.MethodPost {
+				signed = string(payload)
+			}
+			mac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(creds.Key+requestTime+signed), []byte(creds.Secret))
+			if err != nil {
+				return nil, err
+			}
+			headers["ApiKey"] = creds.Key
+			headers["Request-Time"] = requestTime
+			headers["Signature"] = hex.EncodeToString(mac)
+		}
+		return &request.Item{
+			Method:        method,
+			Path:          path,
+			Headers:       headers,
+			Body:          bytes.NewReader(payload),
+			Result:        resp,
+			NonceEnabled:  true,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
+		}, nil
+	}, authType); err != nil {
+		return err
+	}
+	// A refused request is answered with HTTP 200, success false and its error code, so success false is a refusal
+	// whatever the code. Some endpoints report success with code 200 rather than 0, so a reply without success is
+	// refused only when its code is neither
+	if (resp.Success != nil && !*resp.Success) || (resp.Success == nil && resp.Code != 0 && resp.Code != 200) {
+		message := resp.Message
+		if message == "" {
+			message = resp.Msg
+		}
+		return fmt.Errorf("%w: code %d: %s", errFuturesRequestFailed, resp.Code, message)
+	}
+	return nil
 }
