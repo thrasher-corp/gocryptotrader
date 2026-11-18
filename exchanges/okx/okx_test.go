@@ -7736,7 +7736,7 @@ func TestOrderPushData(t *testing.T) {
 func TestWebsocketProcessOrders(t *testing.T) {
 	t.Parallel()
 	const push = `{"arg":{"channel":"orders","instType":"SPOT","uid":"614488474791936"},"data":[{"instType":"SPOT","instId":"BTC-USDT","ordId":"1001","clOrdId":"client1001","ordType":"limit","side":"buy","state":"partially_filled","sz":"2","px":"100","accFillSz":"0.5","avgPx":"99","fee":"-0.01","feeCcy":"USDT","tgtCcy":"","cTime":"1761700000000","fillTime":"1761700000500","uTime":"1761700001000"}]}`
-	quoteSized := []string{`"tgtCcy":""`, `"tgtCcy":"quote_ccy"`, `"sz":"2"`, `"sz":"200"`, `"avgPx":"99"`, `"avgPx":"100"`}
+	quoteSized := []string{`"ordType":"limit"`, `"ordType":"market"`, `"tgtCcy":""`, `"tgtCcy":"quote_ccy"`, `"sz":"2"`, `"sz":"200"`, `"avgPx":"99"`, `"avgPx":"100"`}
 	for _, tc := range []struct {
 		name      string
 		replace   []string            // Pairs of old and new text applied to the push in turn
@@ -7746,7 +7746,7 @@ func TestWebsocketProcessOrders(t *testing.T) {
 		err       error
 		errText   string
 	}{
-		{name: "market", replace: []string{`"ordType":"limit"`, `"ordType":"market"`}, edit: func(d *order.Detail) { d.Type = order.Market }},
+		{name: "market", replace: []string{`"ordType":"limit"`, `"ordType":"market"`, `"tgtCcy":""`, `"tgtCcy":"base_ccy"`}, edit: func(d *order.Detail) { d.Type = order.Market }},
 		{name: "limit"},
 		{name: "post_only", replace: []string{`"ordType":"limit"`, `"ordType":"post_only"`}, edit: func(d *order.Detail) { d.TimeInForce = order.PostOnly }},
 		{name: "fok", replace: []string{`"ordType":"limit"`, `"ordType":"fok"`}, edit: func(d *order.Detail) { d.TimeInForce = order.FillOrKill }},
@@ -7767,23 +7767,36 @@ func TestWebsocketProcessOrders(t *testing.T) {
 		{name: "unrecognised state", replace: []string{`"state":"partially_filled"`, `"state":"mystery"`}, errText: "unrecognised order status"},
 		{name: "unparsable instrument ID", replace: []string{`"instId":"BTC-USDT"`, `"instId":"BT"`}, err: currency.ErrCreatingPair},
 		{name: "quote sized order", replace: quoteSized, edit: func(d *order.Detail) {
-			d.Amount, d.QuoteAmount, d.AverageExecutedPrice = 2, 200, 100
+			d.Type, d.Amount, d.QuoteAmount, d.AverageExecutedPrice, d.Cost = order.Market, 2, 200, 100, 50
 		}},
 		{name: "quote sized order without an average price", replace: append(slices.Clone(quoteSized), `"avgPx":"100"`, `"avgPx":""`), edit: func(d *order.Detail) {
-			d.Amount, d.QuoteAmount, d.AverageExecutedPrice, d.RemainingAmount = 0, 200, 0, 0
+			d.Type, d.Amount, d.QuoteAmount, d.AverageExecutedPrice, d.RemainingAmount, d.Cost = order.Market, 0, 200, 0, 0, 0
 		}},
 		{name: "filled quote sized order", replace: append(slices.Clone(quoteSized), `"state":"partially_filled"`, `"state":"filled"`), edit: func(d *order.Detail) {
-			d.Amount, d.QuoteAmount, d.AverageExecutedPrice, d.RemainingAmount = 0.5, 200, 100, 0
+			d.Type, d.Amount, d.QuoteAmount, d.AverageExecutedPrice, d.RemainingAmount, d.Cost = order.Market, 0.5, 200, 100, 0, 50
 			d.Status, d.CloseTime = order.Filled, time.UnixMilli(1761700000500)
+		}},
+		{name: "perpetual swap market buy", replace: []string{`"instType":"SPOT","uid"`, `"instType":"SWAP","uid"`, `"instType":"SPOT","instId"`, `"instType":"SWAP","instId"`, `"instId":"BTC-USDT"`, `"instId":"BTC-USDT-SWAP"`, `"ordType":"limit"`, `"ordType":"market"`}, edit: func(d *order.Detail) {
+			d.AssetType, d.Pair, d.Type, d.Cost, d.CostAsset = asset.PerpetualSwap, perpetualSwapPair, order.Market, 0, currency.EMPTYCODE
+		}},
+		{name: "market buy without a target currency", replace: []string{`"ordType":"limit"`, `"ordType":"market"`, `"sz":"2"`, `"sz":"200"`, `"avgPx":"99"`, `"avgPx":"100"`}, edit: func(d *order.Detail) {
+			d.Type, d.Amount, d.QuoteAmount, d.AverageExecutedPrice, d.Cost = order.Market, 2, 200, 100, 50
+		}},
+		{name: "margin market buy", replace: []string{`"instType":"SPOT","uid"`, `"instType":"MARGIN","uid"`, `"instType":"SPOT","instId"`, `"instType":"MARGIN","instId"`, `"ordType":"limit"`, `"ordType":"market"`, `"sz":"2"`, `"sz":"200"`, `"avgPx":"99"`, `"avgPx":"100"`}, edit: func(d *order.Detail) {
+			d.AssetType, d.Type, d.Amount, d.QuoteAmount, d.AverageExecutedPrice, d.Cost = asset.Margin, order.Market, 2, 200, 100, 50
+		}},
+		{name: "market sell without a target currency", replace: []string{`"ordType":"limit"`, `"ordType":"market"`, `"side":"buy"`, `"side":"sell"`}, edit: func(d *order.Detail) {
+			d.Type, d.Side = order.Market, order.Sell
 		}},
 		{name: "filled order without a size", replace: []string{`"state":"partially_filled"`, `"state":"filled"`, `"sz":"2"`, `"sz":"0"`}, edit: func(d *order.Detail) {
 			d.Amount, d.RemainingAmount, d.Status, d.CloseTime = 0.5, 0, order.Filled, time.UnixMilli(1761700000500)
 		}},
 		{name: "option order", replace: []string{`"instType":"SPOT","uid"`, `"instType":"OPTION","uid"`, `"instId":"BTC-USDT"`, `"instId":"BTC-USD-261225-100000-C"`}, edit: func(d *order.Detail) {
-			d.AssetType, d.Pair = asset.Options, currency.NewPairWithDelimiter("BTC", "USD-261225-100000-C", "-")
+			d.AssetType, d.Pair, d.Cost, d.CostAsset = asset.Options, currency.NewPairWithDelimiter("BTC", "USD-261225-100000-C", "-"), 0, currency.EMPTYCODE
 		}},
 		{name: "option order cancelled by market maker protection", replace: []string{`"instType":"SPOT","uid"`, `"instType":"OPTION","uid"`, `"instId":"BTC-USDT"`, `"instId":"BTC-USD-261225-100000-C"`, `"ordType":"limit"`, `"ordType":"mmp"`, `"state":"partially_filled"`, `"state":"mmp_canceled"`}, edit: func(d *order.Detail) {
 			d.AssetType, d.Pair, d.Type, d.Status = asset.Options, currency.NewPairWithDelimiter("BTC", "USD-261225-100000-C", "-"), order.MarketMakerProtection, order.Cancelled
+			d.Cost, d.CostAsset = 0, currency.EMPTYCODE
 		}},
 		{name: "relay full", fullRelay: true, errText: "channel buffer is full"},
 	} {
@@ -7821,6 +7834,8 @@ func TestWebsocketProcessOrders(t *testing.T) {
 				AssetType:            asset.Spot,
 				AverageExecutedPrice: 99,
 				ClientOrderID:        "client1001",
+				Cost:                 49.5,
+				CostAsset:            currency.USDT,
 				Date:                 time.UnixMilli(1761700000000),
 				Exchange:             ex.Name,
 				ExecutedAmount:       0.5,
@@ -7855,6 +7870,8 @@ func TestWebsocketProcessOrders(t *testing.T) {
 				AssetType:            asset.Spot,
 				AverageExecutedPrice: 99,
 				ClientOrderID:        "client" + id,
+				Cost:                 49.5,
+				CostAsset:            currency.USDT,
 				Date:                 time.UnixMilli(1761700000000),
 				Exchange:             ex.Name,
 				ExecutedAmount:       0.5,

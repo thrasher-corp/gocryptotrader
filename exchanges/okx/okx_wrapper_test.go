@@ -2052,25 +2052,27 @@ func TestOrderAmounts(t *testing.T) {
 	for _, tc := range []struct {
 		name                                     string
 		a                                        asset.Item
+		pair                                     currency.Pair
 		instType, ordType, side, sz, tgtCcy      string
 		amount, executed, remaining, quoteAmount float64
 	}{
-		{"margin market buy", asset.Margin, instTypeMargin, orderMarket, "buy", "100", "", 0.004, 0.002, 0.002, 100},
-		{"margin market buy without instType", asset.Margin, "", orderMarket, "buy", "100", "", 0.004, 0.002, 0.002, 100},
-		{"spot market buy without tgtCcy", asset.Spot, instTypeSpot, orderMarket, "buy", "100", "", 0.004, 0.002, 0.002, 100},
-		{"spot market sell without tgtCcy", asset.Spot, instTypeSpot, orderMarket, "sell", "0.004", "", 0.004, 0.002, 0.002, 0},
-		{"margin market sell", asset.Margin, instTypeMargin, orderMarket, "sell", "0.004", "", 0.004, 0.002, 0.002, 0},
-		{"margin limit buy", asset.Margin, instTypeMargin, orderLimit, "buy", "0.004", "", 0.004, 0.002, 0.002, 0},
+		{"margin market buy", asset.Margin, mainPair, instTypeMargin, orderMarket, "buy", "100", "", 0.004, 0.002, 0.002, 100},
+		{"margin market buy without instType", asset.Margin, mainPair, "", orderMarket, "buy", "100", "", 0.004, 0.002, 0.002, 100},
+		{"spot market buy without tgtCcy", asset.Spot, mainPair, instTypeSpot, orderMarket, "buy", "100", "", 0.004, 0.002, 0.002, 100},
+		{"spot market sell without tgtCcy", asset.Spot, mainPair, instTypeSpot, orderMarket, "sell", "0.004", "", 0.004, 0.002, 0.002, 0},
+		{"margin market sell", asset.Margin, mainPair, instTypeMargin, orderMarket, "sell", "0.004", "", 0.004, 0.002, 0.002, 0},
+		{"margin limit buy", asset.Margin, mainPair, instTypeMargin, orderLimit, "buy", "0.004", "", 0.004, 0.002, 0.002, 0},
+		{"perpetual swap market buy", asset.PerpetualSwap, perpetualSwapPair, instTypeSwap, orderMarket, "buy", "0.004", "", 0.004, 0.002, 0.002, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				writeOKXData(t, w, []map[string]string{{
-					"instType": tc.instType, "instId": mainPair.String(), "ordId": "1", "ordType": tc.ordType, "side": tc.side,
+					"instType": tc.instType, "instId": tc.pair.String(), "ordId": "1", "ordType": tc.ordType, "side": tc.side,
 					"cTime": "1694153250532", "sz": tc.sz, "tgtCcy": tc.tgtCcy, "accFillSz": "0.002", "avgPx": "25000", "state": "partially_filled",
 				}})
 			}))
-			detail, err := e.GetOrderInfo(t.Context(), "1", mainPair, tc.a)
+			detail, err := e.GetOrderInfo(t.Context(), "1", tc.pair, tc.a)
 			require.NoError(t, err, "GetOrderInfo must not error")
 			assert.Equal(t, tc.amount, detail.Amount, "Amount should be in the base currency")
 			assert.Equal(t, tc.executed, detail.ExecutedAmount, "ExecutedAmount should match accFillSz")
@@ -2600,7 +2602,6 @@ func TestContractPositionModeErrorsWhenAFetchOverlapsASwitch(t *testing.T) {
 // unset.
 func TestOrderCost(t *testing.T) {
 	t.Parallel()
-	o := &OrderDetail{AveragePrice: 41000, AccumulatedFillSize: 1.5}
 	for _, tc := range []struct {
 		assetType asset.Item
 		cost      float64
@@ -2612,7 +2613,7 @@ func TestOrderCost(t *testing.T) {
 		{asset.PerpetualSwap, 0, currency.EMPTYCODE},
 		{asset.Options, 0, currency.EMPTYCODE},
 	} {
-		cost, costAsset := orderCost(tc.assetType, o, currency.NewBTCUSDT())
+		cost, costAsset := orderCost(tc.assetType, 41000, 1.5, currency.NewBTCUSDT())
 		assert.Equalf(t, tc.cost, cost, "orderCost should report the expected cost for %s", tc.assetType)
 		assert.Equalf(t, tc.costAsset, costAsset, "orderCost should report the expected cost asset for %s", tc.assetType)
 	}

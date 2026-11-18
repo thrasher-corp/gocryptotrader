@@ -2280,7 +2280,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	}
 
 	amount, remaining, quoteAmount := orderAmounts(orderDetail, status, assetType)
-	cost, costAsset := orderCost(assetType, orderDetail, pair)
+	cost, costAsset := orderCost(assetType, orderDetail.AveragePrice.Float64(), orderDetail.AccumulatedFillSize.Float64(), pair)
 	return &order.Detail{
 		Amount:               amount,
 		Exchange:             e.Name,
@@ -2320,11 +2320,11 @@ func okxFee(fee types.Number) float64 {
 // average price times it is a cost in the quote currency; futures, perpetual
 // swap and option orders fill in contracts, whose cost needs each contract's
 // value, so theirs is left unset rather than reported in contracts.
-func orderCost(a asset.Item, o *OrderDetail, pair currency.Pair) (float64, currency.Code) {
+func orderCost(a asset.Item, averagePrice, accumulatedFillSize float64, pair currency.Pair) (float64, currency.Code) {
 	if a != asset.Spot && a != asset.Margin {
 		return 0, currency.EMPTYCODE
 	}
-	return o.AveragePrice.Float64() * o.AccumulatedFillSize.Float64(), pair.Quote
+	return averagePrice * accumulatedFillSize, pair.Quote
 }
 
 // tgtCcy values name the currency a spot market order states its size in.
@@ -2604,7 +2604,7 @@ allOrders:
 				return nil, err
 			}
 			amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus, req.AssetType)
-			cost, costAsset := orderCost(req.AssetType, &orderList[i], pair)
+			cost, costAsset := orderCost(req.AssetType, orderList[i].AveragePrice.Float64(), orderList[i].AccumulatedFillSize.Float64(), pair)
 			resp = append(resp, order.Detail{
 				Amount:               amount,
 				Pair:                 pair,
@@ -2900,7 +2900,7 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 					return err
 				}
 				amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus, req.AssetType)
-				cost, costAsset := orderCost(req.AssetType, &orderList[i], pair)
+				cost, costAsset := orderCost(req.AssetType, orderList[i].AveragePrice.Float64(), orderList[i].AccumulatedFillSize.Float64(), pair)
 				resp = append(resp, order.Detail{
 					Price:                orderList[i].Price.Float64(),
 					AverageExecutedPrice: orderList[i].AveragePrice.Float64(),
