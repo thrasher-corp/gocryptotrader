@@ -482,7 +482,8 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WebsocketSubmitOrder(generateContext(t), &order.Submit{
 		Exchange:    e.Name,
 		Pair:        spotTradablePair,
@@ -527,7 +528,8 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	err = e.WebsocketCancelOrder(t.Context(), &order.Cancel{OrderID: "2312", ClientOrderID: "23123121231"})
 	assert.NoError(t, err)
 }
@@ -582,7 +584,7 @@ func TestCancelAllOrders(t *testing.T) {
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		testexch.SetupWs(t, e)
+		testexch.SetupWebsocket(t, e)
 	}
 	arg := &order.Cancel{
 		OrderID:   "1",
@@ -2498,7 +2500,8 @@ func TestWsSpotPrivateHandleData(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	conn, err := e.Websocket.GetConnection(connSpotPrivate)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
@@ -2546,7 +2549,8 @@ func TestWsCreateOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WsCreateOrder(generateContext(t), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
 		Side:          order.Buy,
@@ -2577,7 +2581,8 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WsCancelMultipleOrdersByIDs(t.Context(), []string{"1234"}, []string{"5678"})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2595,7 +2600,8 @@ func TestWsCancelTradeOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WsCancelTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []AccountType{AccountType(asset.Spot)})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2735,7 +2741,8 @@ func TestWsFuturesPrivateHandleData(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	conn, err := e.Websocket.GetConnection(connFuturesPrivate)
 	require.NoError(t, err)
 	require.NotNil(t, conn)

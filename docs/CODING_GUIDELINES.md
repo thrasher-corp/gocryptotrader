@@ -119,12 +119,17 @@ Never relay an empty batch.
 
 ### Batch Operations
 
-- Wrapper methods that act on several items at once, such as `CancelBatchOrders`
-    and `WebsocketSubmitOrders`, send one batch request. Return an error when
-    more items are supplied than the venue accepts in one request rather than
-    splitting them across requests, so callers decide how to batch.
-- Return `common.ErrFunctionNotSupported` when the venue has no batch endpoint
-    for an asset, rather than sending one request per item.
+- Batch endpoints carry a documented maximum number of entries per request.
+    Wrapper methods over such endpoints, such as `CancelBatchOrders` and
+    `WebsocketSubmitOrders`, send one batch request and must enforce that
+    maximum, rejecting a longer list with an error rather than silently
+    chunking it: the caller is responsible for supplying a batch within the
+    maximum.
+- An asset or order kind the endpoint cannot batch at all is rejected as
+    unsupported. Return `common.ErrFunctionNotSupported` when the venue has no
+    batch endpoint for an asset, rather than sending one request per item.
+- Flows that legitimately exceed the maximum, such as a cancel-all crawling
+    every open order, dispatch explicitly sized batches at the call site.
 
 ### Path Construction
 

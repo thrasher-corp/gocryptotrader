@@ -112,6 +112,24 @@ func TestNumericStringString(t *testing.T) {
 	}
 }
 
+func TestFuturesOrderResponseUserUnmarshal(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		payload string
+	}{
+		{"REST sends a bare number", `{"id":123,"user":110110110}`},
+		{"websocket sends a quoted string", `{"id":123,"user":"110110110"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var resp FuturesOrderResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.payload), &resp), "Unmarshal must not error for %s", tc.payload)
+			assert.Equal(t, FuturesOrderResponse{ID: 123, User: "110110110"}, resp, "FuturesOrderResponse should decode User from both shapes")
+		})
+	}
+}
+
 func TestFuturesPriceTriggeredOrderParamValidate(t *testing.T) {
 	t.Parallel()
 	assert.ErrorIs(t, (*FuturesPriceTriggeredOrderRequest)(nil).validate(), common.ErrNilPointer, "validate should reject a nil order")
