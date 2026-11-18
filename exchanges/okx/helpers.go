@@ -20,9 +20,7 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 		return order.Limit, order.UnknownTIF, nil
 	case orderPostOnly:
 		return order.Limit, order.PostOnly, nil
-	case orderRetailPriceImprovement, orderEnhancedLiquidityProgram: // Both rest as maker orders that never cross the book
-		return order.Limit, order.PostOnly, nil
-	case orderFOK, orderSimpleOptionFOK:
+	case orderFOK:
 		return order.Limit, order.FillOrKill, nil
 	case orderIOC:
 		return order.Limit, order.ImmediateOrCancel, nil
@@ -38,28 +36,46 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 		return order.TrailingStop, order.UnknownTIF, nil
 	case orderChase:
 		return order.Chase, order.UnknownTIF, nil
+	case orderRPI:
+		return order.Limit, order.UnknownTIF, nil
+	case orderELP:
+		return order.Limit, order.UnknownTIF, nil
+	case orderOptionFOK:
+		return order.Limit, order.FillOrKill, nil
 	default:
 		return order.UnknownType, order.UnknownTIF, fmt.Errorf("%w %q", order.ErrTypeIsInvalid, orderType)
 	}
 }
 
-// orderTypeString returns the OKX order type for an order type and time in force. OKX carries a limit order's time in
-// force in its order type, so a Limit order that is post only, FOK or IOC is sent as post_only, fok or ioc. A time in
-// force alone selects the OKX order type only for a plain order, given as UnknownType or as a post only LimitMaker
-// order, so that a type with no OKX order type of its own, such as a stop or take profit order, is refused instead of
-// losing its trigger. Post only on a Market order and FOK or IOC on a MarketMakerProtection order are refused for the
-// same reason, as no OKX order type carries them
+// orderTypeString returns the OKX order type for an order type and time in force. A time in force alone selects the OKX
+// order type only for an order of no type, so a type with no OKX order type of its own is refused rather than placed as
+// a plain order, and post only on a Market order and FOK or IOC on a MarketMakerProtection order are refused, as no OKX
+// order type carries them
 func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
 	switch orderType {
 	case order.MarketMakerProtection:
 		if tif.Is(order.PostOnly) {
 			return orderMarketMakerProtectionAndPostOnly, nil
 		}
-		if !tif.Is(order.FillOrKill) && !tif.Is(order.ImmediateOrCancel) {
-			return orderMarketMakerProtection, nil
+		if tif == order.FillOrKill || tif == order.ImmediateOrCancel {
+			return "", fmt.Errorf("%w: %q with %q", order.ErrUnsupportedOrderType, orderType, tif)
 		}
+		return orderMarketMakerProtection, nil
 	case order.OptimalLimit:
 		return orderOptimalLimitIOC, nil
+	case order.Limit:
+		// TimeInForce.IsValid lets PostOnly combine with flags such as
+		// GoodTillCancel, and the order must still place as post-only.
+		if tif.Is(order.PostOnly) {
+			return orderPostOnly, nil
+		}
+		switch tif {
+		case order.FillOrKill:
+			return orderFOK, nil
+		case order.ImmediateOrCancel:
+			return orderIOC, nil
+		}
+		return orderLimit, nil
 	case order.Market:
 		switch tif {
 		case order.FillOrKill:
@@ -67,91 +83,152 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		case order.ImmediateOrCancel:
 			return orderIOC, nil
 		}
-		if !tif.Is(order.PostOnly) {
-			return orderMarket, nil
+		if tif.Is(order.PostOnly) {
+			return "", fmt.Errorf("%w: %q with %q", order.ErrUnsupportedOrderType, orderType, tif)
 		}
+		return orderMarket, nil
 	case order.Trigger,
 		order.Chase,
 		order.TWAP,
 		order.OCO:
 		return orderType.Lower(), nil
+	case order.LimitMaker:
+		// A LimitMaker order must never take liquidity, so a time in force
+		// that fills immediately contradicts it.
+		if tif == order.ImmediateOrCancel || tif == order.FillOrKill {
+			return "", fmt.Errorf("%w: %q with %q", order.ErrUnsupportedOrderType, orderType, tif)
+		}
+		return orderPostOnly, nil
 	case order.ConditionalStop:
 		return orderConditional, nil
 	case order.TrailingStop:
 		return orderMoveOrderStop, nil
-	case order.Limit, order.UnknownType, order.LimitMaker:
+	case order.UnknownType:
 		switch {
 		case tif.Is(order.PostOnly):
 			return orderPostOnly, nil
-		case tif.Is(order.FillOrKill):
+		case tif == order.FillOrKill:
 			return orderFOK, nil
-		case tif.Is(order.ImmediateOrCancel):
+		case tif == order.ImmediateOrCancel:
 			return orderIOC, nil
-		case orderType == order.Limit:
+		}
+	}
+	return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
+}
+
+// spreadOrderTypeString returns the ordType a spread order places for the
+// order type and time in force. The spread endpoints document only market,
+// limit, post_only and ioc: fok is rejected outright rather than silently
+// downgraded to a resting limit order, and order types the spread book does
+// not list, such as trigger-style orders, are rejected too.
+func spreadOrderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
+	switch orderType {
+	case order.Market:
+		if tif == order.FillOrKill || tif.Is(order.PostOnly) {
+			return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
+		}
+		return orderMarket, nil // an ioc market order is already immediate
+	case order.LimitMaker:
+		// A LimitMaker order must never take liquidity, so it places as
+		// post_only, and a time in force that fills immediately is refused.
+		if tif.IsValid() && tif.Is(order.PostOnly) {
+			return orderPostOnly, nil
+		}
+		switch tif {
+		case order.UnknownTIF, order.GoodTillCancel, order.GoodTillDay:
+			return orderPostOnly, nil
+		}
+	case order.Limit:
+		// TimeInForce.IsValid lets PostOnly combine with flags such as
+		// GoodTillCancel, and the order must still place as post-only.
+		if tif.IsValid() && tif.Is(order.PostOnly) {
+			return orderPostOnly, nil
+		}
+		switch tif {
+		case order.ImmediateOrCancel:
+			return orderIOC, nil
+		case order.FillOrKill:
+			return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
+		case order.UnknownTIF, order.GoodTillCancel, order.GoodTillDay:
 			return orderLimit, nil
 		}
 	}
-	return "", fmt.Errorf("%w: %q with time in force %q", order.ErrUnsupportedOrderType, orderType, tif)
+	return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 }
 
-// spreadOrderTypeString returns the OKX order type a spread order listing filters with. Spread orders are only market,
-// limit, post_only or ioc orders, the order types OKX's spread endpoints take, so any other is refused before sending
-func spreadOrderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
-	okxType, err := orderTypeString(orderType, tif)
-	if err != nil {
-		return "", err
-	}
-	switch okxType {
-	case orderMarket, orderLimit, orderPostOnly, orderIOC:
-		return okxType, nil
-	}
-	return "", fmt.Errorf("%w: %q with time in force %q for spread orders", order.ErrUnsupportedOrderType, orderType, tif)
-}
-
-// filterListedOrders narrows a listing to the orders its request asks for. orderTypeString can select an OKX order type
-// that reads back as another type than the one requested, such as ioc for Market or post_only for LimitMaker, so orders
-// are matched on what that OKX order type reads back as, and on its time in force where it has one
-func (e *Exchange) filterListedOrders(req *order.MultiOrderRequest, orders []order.Detail) order.FilteredOrders {
-	filter := *req
-	if okxType, err := orderTypeString(req.Type, req.TimeInForce); err == nil {
-		if orderType, tif, err := orderTypeFromString(okxType); err == nil {
-			filter.Type = orderType
-			if tif != order.UnknownTIF {
-				orders = slices.DeleteFunc(orders, func(d order.Detail) bool { return d.TimeInForce != tif })
-			}
+// orderTypeFilter returns the ordType filter for the OKX order types that
+// orderTypeFromString reads back as orderType, and as tif when one is set, as
+// the comma-separated list OKX accepts: a limit order without a time in force
+// spans limit, post_only, fok, ioc, op_fok and rpi. A pair no OKX order type
+// reads back as, such as a limit order with GoodTillCancel, falls back to
+// orderTypeString. elp is left out: OKX retires it on 31 October 2026 as the
+// old name of rpi.
+func orderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error) {
+	var oTypes []string
+	for _, oType := range []string{orderMarket, orderLimit, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, orderMarketMakerProtection, orderMarketMakerProtectionAndPostOnly, orderOptionFOK, orderRPI} {
+		if t, f, _ := orderTypeFromString(oType); t == orderType && (tif == order.UnknownTIF || f == tif) {
+			oTypes = append(oTypes, oType)
 		}
 	}
-	return filter.Filter(e.Name, orders)
+	if len(oTypes) > 0 {
+		return strings.Join(oTypes, ","), nil
+	}
+	return orderTypeString(orderType, tif)
 }
 
-// costCurrency returns the currency an order's cost is counted in: the quote currency for spot and margin, and the
-// settle coin for a derivative. A derivative's pair holds the rest of its instrument ID in Quote, such as USDT-SWAP,
-// USD-261225 or USD_UM-261225, and a contract quoted in plain USD settles in its base coin
-func costCurrency(pair currency.Pair) currency.Code {
-	quote, _, isDerivative := strings.Cut(pair.Quote.String(), currency.DashDelimiter)
-	if !isDerivative {
-		return pair.Quote
+// listingOrderTypeFilter returns the ordType filter an order listing sends:
+// orderTypeFilter's, except that a market listing keeps to market orders
+// whatever its time in force. orderTypeFilter falls back to the ioc or fok such
+// an order places as, which read back as Limit, so the request's type filter
+// would drop every row.
+func listingOrderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error) {
+	if orderType == order.Market {
+		return orderMarket, nil
 	}
-	if strings.EqualFold(quote, currency.USD.String()) {
-		return pair.Base
-	}
-	quote, _, _ = strings.Cut(quote, currency.UnderscoreDelimiter)
-	return currency.NewCode(quote)
+	return orderTypeFilter(orderType, tif)
 }
 
-// sizeInQuoteCurrency reports whether OKX gives an order's size in the quote currency, as it does for a margin market
-// buy and for a spot market order whose tgtCcy says so, which a buy defaults to, while its fills are in the base currency
-func sizeInQuoteCurrency(assetType asset.Item, orderType order.Type, side order.Side, targetCurrency string) bool {
-	if orderType != order.Market {
-		return false
+// spreadOrderTypeFilter returns the ordType filter for the spread order
+// endpoints, which document only market, limit, post_only and ioc as single
+// values: the comma-separated lists the ordinary order endpoints accept are
+// rejected with 51000 there. One matching type is sent as-is; several matches
+// (limit, post_only and ioc all read back as Limit) send no filter and leave
+// the request filter to narrow by type. No match filters on the type spread
+// placement uses when it accepts the request, as a market order with
+// ImmediateOrCancel places as market, and otherwise falls back to
+// orderTypeString and rejects values outside the four spread types, such as
+// the fok a market or limit order with FillOrKill maps to: spread orders
+// cannot be fill-or-kill.
+func spreadOrderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error) {
+	spreadTypes := []string{orderMarket, orderLimit, orderPostOnly, orderIOC}
+	var oTypes []string
+	for _, oType := range spreadTypes {
+		if t, f, _ := orderTypeFromString(oType); t == orderType && (tif == order.UnknownTIF || f == tif) {
+			oTypes = append(oTypes, oType)
+		}
 	}
-	switch assetType {
-	case asset.Margin:
-		return side.IsLong()
-	case asset.Spot:
-		return targetCurrency == targetCurrencyQuote || (targetCurrency == "" && side.IsLong())
+	switch len(oTypes) {
+	case 0:
+		if placed, err := spreadOrderTypeString(orderType, tif); err == nil {
+			return placed, nil
+		}
+		fallback, err := orderTypeString(orderType, tif)
+		if err != nil {
+			return "", err
+		}
+		if !slices.Contains(spreadTypes, fallback) {
+			return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, fallback)
+		}
+		return fallback, nil
+	case 1:
+		return oTypes[0], nil
+	default:
+		// The case is reachable: limit, post_only and ioc all read back as
+		// Limit, so a query without a time in force cannot narrow to one wire
+		// type. No filter is sent, leaving the request filter to narrow by
+		// type, which keeps every matching row.
+		return "", nil
 	}
-	return false
 }
 
 // getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types

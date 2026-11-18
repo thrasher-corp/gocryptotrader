@@ -911,6 +911,7 @@ var stringsToOrderStatus = []struct {
 	{"CANCELlED", Cancelled, nil},
 	{"cAnCellEd", Cancelled, nil},
 	{"mmp_canceled", Cancelled, nil},
+	{"MMP_CANCELED", Cancelled, nil},
 	{"pending_cancel", PendingCancel, nil},
 	{"PENDING_CANCEL", PendingCancel, nil},
 	{"pENdInG_cAnCeL", PendingCancel, nil},

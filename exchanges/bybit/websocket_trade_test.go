@@ -462,43 +462,43 @@ func TestWebsocketAmendBatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, errBatchOutcomeMismatch, "WebsocketAmendBatchOrders must reject a reply for more orders than it sent")
 }
 
-func TestWebsocketCancelBatchOrders(t *testing.T) {
+func TestWebsocketCancelBatchTradeOrders(t *testing.T) {
 	t.Parallel()
 	item := BatchCancelOrderItem{Symbol: "BTCUSDT", OrderLinkID: "batch-000"}
-	_, err := e.WebsocketCancelBatchOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelBatchOrders must reject a nil request")
-	_, err = e.WebsocketCancelBatchOrders(t.Context(), &BatchCancelOrderRequest{})
-	require.ErrorIs(t, err, errCategoryNotSet, "WebsocketCancelBatchOrders must require a category")
-	_, err = e.WebsocketCancelBatchOrders(t.Context(), &BatchCancelOrderRequest{Category: "spread"})
-	require.ErrorIs(t, err, common.ErrFunctionNotSupported, "WebsocketCancelBatchOrders must refuse a category websocket order entry does not support")
-	_, err = e.WebsocketCancelBatchOrders(t.Context(), &BatchCancelOrderRequest{Category: cLinear})
-	require.ErrorIs(t, err, errNoOrderPassed, "WebsocketCancelBatchOrders must require orders")
-	_, err = e.WebsocketCancelBatchOrders(t.Context(), &BatchCancelOrderRequest{Category: cLinear, Request: []BatchCancelOrderItem{item, {OrderID: "1"}}})
-	require.ErrorIs(t, err, errSymbolMissing, "WebsocketCancelBatchOrders must require each order's symbol")
-	_, err = e.WebsocketCancelBatchOrders(t.Context(), &BatchCancelOrderRequest{Category: cLinear, Request: []BatchCancelOrderItem{item, {Symbol: "BTCUSDT"}}})
-	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired, "WebsocketCancelBatchOrders must require each order's ID")
+	_, err := e.WebsocketCancelBatchTradeOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelBatchTradeOrders must reject a nil request")
+	_, err = e.WebsocketCancelBatchTradeOrders(t.Context(), &BatchCancelOrderRequest{})
+	require.ErrorIs(t, err, errCategoryNotSet, "WebsocketCancelBatchTradeOrders must require a category")
+	_, err = e.WebsocketCancelBatchTradeOrders(t.Context(), &BatchCancelOrderRequest{Category: "spread"})
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported, "WebsocketCancelBatchTradeOrders must refuse a category websocket order entry does not support")
+	_, err = e.WebsocketCancelBatchTradeOrders(t.Context(), &BatchCancelOrderRequest{Category: cLinear})
+	require.ErrorIs(t, err, errNoOrderPassed, "WebsocketCancelBatchTradeOrders must require orders")
+	_, err = e.WebsocketCancelBatchTradeOrders(t.Context(), &BatchCancelOrderRequest{Category: cLinear, Request: []BatchCancelOrderItem{item, {OrderID: "1"}}})
+	require.ErrorIs(t, err, errSymbolMissing, "WebsocketCancelBatchTradeOrders must require each order's symbol")
+	_, err = e.WebsocketCancelBatchTradeOrders(t.Context(), &BatchCancelOrderRequest{Category: cLinear, Request: []BatchCancelOrderItem{item, {Symbol: "BTCUSDT"}}})
+	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired, "WebsocketCancelBatchTradeOrders must require each order's ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ex := getWebsocketInstance(t)
-		got, err := ex.WebsocketCancelBatchOrders(t.Context(), &BatchCancelOrderRequest{Category: cLinear, Request: []BatchCancelOrderItem{item}})
-		require.NoError(t, err, "WebsocketCancelBatchOrders must not error")
-		assert.Len(t, got, 1, "WebsocketCancelBatchOrders should return each order's result")
+		got, err := ex.WebsocketCancelBatchTradeOrders(t.Context(), &BatchCancelOrderRequest{Category: cLinear, Request: []BatchCancelOrderItem{item}})
+		require.NoError(t, err, "WebsocketCancelBatchTradeOrders must not error")
+		assert.Len(t, got, 1, "WebsocketCancelBatchTradeOrders should return each order's result")
 		return
 	}
 	m := &tradeStreamMock{reply: func(req *mockTradeRequest) (string, string) { return batchReply(req, ""), "" }}
 	ex := newTradeStreamExchange(t, m)
 	second := item
 	second.OrderLinkID = "batch-001"
-	got, err := ex.WebsocketCancelBatchOrders(t.Context(), &BatchCancelOrderRequest{Category: cLinear, Request: []BatchCancelOrderItem{item, second}})
-	require.NoError(t, err, "WebsocketCancelBatchOrders must not error")
-	assert.Equal(t, batchResults(time.Time{}), got, "WebsocketCancelBatchOrders should return each order's result and outcome")
+	got, err := ex.WebsocketCancelBatchTradeOrders(t.Context(), &BatchCancelOrderRequest{Category: cLinear, Request: []BatchCancelOrderItem{item, second}})
+	require.NoError(t, err, "WebsocketCancelBatchTradeOrders must not error")
+	assert.Equal(t, batchResults(time.Time{}), got, "WebsocketCancelBatchTradeOrders should return each order's result and outcome")
 	requests := m.received()
-	require.Len(t, requests, 1, "WebsocketCancelBatchOrders must send one request")
+	require.Len(t, requests, 1, "WebsocketCancelBatchTradeOrders must send one request")
 	assert.Equal(t, "order.cancel-batch", requests[0].Operation, "request operation should be order.cancel-batch")
 	// The reply holds two orders' results, which cannot be matched to a batch of one
-	_, err = ex.WebsocketCancelBatchOrders(t.Context(), &BatchCancelOrderRequest{Category: cLinear, Request: []BatchCancelOrderItem{item}})
-	require.ErrorIs(t, err, errBatchOutcomeMismatch, "WebsocketCancelBatchOrders must reject a reply for more orders than it sent")
+	_, err = ex.WebsocketCancelBatchTradeOrders(t.Context(), &BatchCancelOrderRequest{Category: cLinear, Request: []BatchCancelOrderItem{item}})
+	require.ErrorIs(t, err, errBatchOutcomeMismatch, "WebsocketCancelBatchTradeOrders must reject a reply for more orders than it sent")
 }
 
 func TestWebsocketOrderEPL(t *testing.T) { //nolint:tparallel // websocketOrderEPL is called again after the subtests, so they run one at a time

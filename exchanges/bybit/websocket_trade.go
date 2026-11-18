@@ -154,10 +154,10 @@ func (e *Exchange) WebsocketAmendBatchOrders(ctx context.Context, r *BatchAmendO
 	return e.sendWebsocketBatchOrderRequest(ctx, "order.amend-batch", r.Category, len(r.Request), payload, epl)
 }
 
-// WebsocketCancelBatchOrders cancels a batch of orders over the trade connection (Websocket Trade Guideline: Batch Cancel
+// WebsocketCancelBatchTradeOrders cancels a batch of orders over the trade connection (Websocket Trade Guideline: Batch Cancel
 // Order). Each result reports the outcome of its order; a rejected order has a non-zero Code. The orders' updates
 // follow on the private order stream
-func (e *Exchange) WebsocketCancelBatchOrders(ctx context.Context, r *BatchCancelOrderRequest) ([]WebsocketBatchOrderResult, error) {
+func (e *Exchange) WebsocketCancelBatchTradeOrders(ctx context.Context, r *BatchCancelOrderRequest) ([]WebsocketBatchOrderResult, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}

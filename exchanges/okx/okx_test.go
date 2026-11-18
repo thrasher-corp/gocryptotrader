@@ -1,7 +1,6 @@
 package okx
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -19,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -29,7 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -46,7 +43,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
-	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -78,7 +74,7 @@ var (
 	optionsPair       = currency.NewPairWithDelimiter("BTC", "USD", "-")
 	futuresPair       = currency.NewPairWithDelimiter("BTC", "USD", "-") // OKX lists no delivery futures for BTC-USDT
 	perpetualSwapPair = currency.NewPairWithDelimiter("BTC", "USDT-SWAP", "-")
-	spreadPair        = currency.NewPairWithDelimiter("BTC-USDT", "BTC-USDT-SWAP", "_")
+	spreadPair        = currency.NewPairWithDelimiter("BTC", "USDT_BTC-USDT-SWAP", currency.DashDelimiter)
 )
 
 func TestMain(m *testing.M) {
@@ -1019,6 +1015,7 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "reverse"
 	_, err = e.PlaceOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -1099,6 +1096,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "reverse"
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -1106,10 +1104,26 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.PlaceMultipleOrders(contextGenerate(), params)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		result, err := e.PlaceMultipleOrders(contextGenerate(), params)
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+
+	// Guards the documented batch limit: a maximum of 20 orders can be placed
+	// per request.
+	t.Run("limits the batch size", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}))
+		args := make([]PlaceOrderRequestParam, 21)
+		_, err := ex.PlaceMultipleOrders(t.Context(), args)
+		assert.ErrorIs(t, err, errExceedLimit, "an oversized REST batch should be rejected before transmission")
+	})
 }
 
 func TestCancelSingleOrder(t *testing.T) {
@@ -1218,6 +1232,41 @@ func TestClosePositions(t *testing.T) {
 	require.ErrorIs(t, err, errMissingInstrumentID)
 	_, err = e.ClosePositions(contextGenerate(), &ClosePositionsRequestParams{InstrumentID: mainPair.String(), MarginMode: "abc"})
 	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+	_, err = e.ClosePositions(contextGenerate(), &ClosePositionsRequestParams{InstrumentID: mainPair.String()})
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+	_, err = e.ClosePositions(contextGenerate(), &ClosePositionsRequestParams{InstrumentID: mainPair.String(), MarginMode: "cross", PositionSide: "invalid"})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	t.Run("position side is sent in lower case", func(t *testing.T) {
+		t.Parallel()
+		for in, want := range map[string]string{"LONG": positionSideLong, "Short": positionSideShort} {
+			t.Run(in, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/trade/close-position" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the close position body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"instId": perpetualSwapPair.String(), "posSide": want, "clOrdId": "", "tag": ""}})
+				}))
+				_, err := ex.ClosePositions(t.Context(), &ClosePositionsRequestParams{InstrumentID: perpetualSwapPair.String(), MarginMode: TradeModeCross, PositionSide: in})
+				require.NoErrorf(t, err, "ClosePositions must accept position side %q", in)
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the close position body must decode")
+				assert.Equal(t, want, sent["posSide"], "the position side should be sent in lower case")
+			})
+		}
+	})
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.ClosePositions(contextGenerate(), &ClosePositionsRequestParams{
@@ -1481,7 +1530,7 @@ func TestPlaceTWAPOrder(t *testing.T) {
 		TradeMode:         "cross",
 		Side:              order.Sell.Lower(),
 		Size:              6,
-		TimeInterval:      kline.ThreeDay,
+		TimeInterval:      strconv.FormatInt(int64(kline.ThreeDay.Duration().Seconds()), 10),
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1516,7 +1565,7 @@ func TestPlaceTakeProfitStopLossOrder(t *testing.T) {
 		TradeMode:                "cross",
 		Side:                     order.Sell.Lower(),
 		Size:                     6,
-		TimeInterval:             kline.ThreeDay,
+		TimeInterval:             strconv.FormatInt(int64(kline.ThreeDay.Duration().Seconds()), 10),
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1644,26 +1693,6 @@ func TestCancelAlgoOrder(t *testing.T) {
 			AlgoOrderID:  "90994943",
 		},
 	})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestCancelAdvanceAlgoOrder(t *testing.T) {
-	t.Parallel()
-	_, err := e.CancelAdvanceAlgoOrder(contextGenerate(), nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.CancelAdvanceAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{{}})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.CancelAdvanceAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{{InstrumentID: "90994943"}})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = e.CancelAdvanceAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{{AlgoOrderID: "90994943"}})
-	require.ErrorIs(t, err, errMissingInstrumentID)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelAdvanceAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{{
-		InstrumentID: mainPair.String(),
-		AlgoOrderID:  "90994943",
-	}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2514,10 +2543,86 @@ func TestSetPositionMode(t *testing.T) {
 	_, err := e.SetPositionMode(contextGenerate(), "")
 	require.ErrorIs(t, err, errInvalidPositionMode)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.SetPositionMode(contextGenerate(), "net_mode")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		result, err := e.SetPositionMode(contextGenerate(), "net_mode")
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+
+	// Guards the position mode cache refresh: a successful switch steers later
+	// contract order placement without another account configuration fetch, and
+	// an empty or unrecognised success reply reports an error rather than caching
+	// an unconfirmed mode.
+	t.Run("refreshes order placement", func(t *testing.T) {
+		t.Parallel()
+		t.Run("placement follows the confirmed mode", func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var body []byte
+			ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/account/set-position-mode":
+					writeOKXData(t, w, []map[string]string{{"posMode": positionModeLongShort}})
+					return
+				case "/trade/order":
+				default:
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				b, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "reading the order body should not error")
+				mu.Lock()
+				body = b
+				mu.Unlock()
+				writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+			}))
+			_, err := ex.SetPositionMode(t.Context(), positionModeLongShort)
+			require.NoError(t, err, "SetPositionMode must not error")
+			_, err = ex.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:   ex.Name,
+				Pair:       mainPair,
+				AssetType:  asset.Futures,
+				Side:       order.Buy,
+				Type:       order.Limit,
+				Amount:     1,
+				Price:      1,
+				MarginType: margin.Multi,
+			})
+			require.NoError(t, err, "SubmitOrder must not error")
+			mu.Lock()
+			defer mu.Unlock()
+			var sent map[string]any
+			require.NoError(t, json.Unmarshal(body, &sent), "the order request body must decode")
+			assert.Equal(t, positionSideLong, sent["posSide"], "the order should follow the confirmed position mode without refetching it")
+		})
+		for _, tc := range []struct {
+			name string
+			data any
+			err  error
+		}{
+			{"empty reply", nil, common.ErrNoResponse},
+			{"null row", []any{nil}, common.ErrNoResponse},
+			{"unrecognised mode", []map[string]string{{"posMode": "reverse"}}, errInvalidPositionMode},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/account/set-position-mode" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					writeOKXData(t, w, tc.data)
+				}))
+				_, err := ex.SetPositionMode(t.Context(), positionModeLongShort)
+				require.ErrorIsf(t, err, tc.err, "SetPositionMode must report a %s", tc.name)
+				assert.Empty(t, ex.accountPositionModes, "an unconfirmed mode switch should not refresh the cache")
+			})
+		}
+	})
 }
 
 func TestSetLeverageRate(t *testing.T) {
@@ -2528,22 +2633,74 @@ func TestSetLeverageRate(t *testing.T) {
 	require.ErrorIs(t, err, errEitherInstIDOrCcyIsRequired)
 
 	_, err = e.SetLeverageRate(contextGenerate(), &SetLeverageInput{
-		Currency:     currency.USDT,
+		Leverage:     5,
+		MarginMode:   "cash",
+		InstrumentID: perpetualSwapPair.String(),
+		AssetType:    asset.PerpetualSwap,
+	})
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	_, err = e.SetLeverageRate(contextGenerate(), &SetLeverageInput{
+		Currency:   currency.USDT,
+		Leverage:   5,
+		MarginMode: "isolated",
+		AssetType:  asset.Margin,
+	})
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	_, err = e.SetLeverageRate(contextGenerate(), &SetLeverageInput{
 		Leverage:     5,
 		MarginMode:   "isolated",
 		InstrumentID: perpetualSwapPair.String(),
+		PositionSide: "reverse",
 		AssetType:    asset.PerpetualSwap,
 	})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.SetLeverageRate(contextGenerate(), &SetLeverageInput{
-		Currency:     currency.USDT,
-		Leverage:     5,
-		MarginMode:   "cross",
-		InstrumentID: perpetualSwapPair.String(),
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		_, err := e.SetLeverageRate(contextGenerate(), &SetLeverageInput{
+			Currency:     currency.USDT,
+			Leverage:     5,
+			MarginMode:   "cross",
+			InstrumentID: perpetualSwapPair.String(),
+		})
+		assert.Truef(t, err == nil || errors.Is(err, common.ErrNoResponse), "SetLeverageRate should not error: %s", err)
 	})
-	assert.Truef(t, err == nil || errors.Is(err, common.ErrNoResponse), "SetLeverageRate should not error: %s", err)
+
+	// Guards the posSide case normalisation: any case is accepted and sent
+	// lower case, as OKX requires.
+	t.Run("normalises the position side", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var body []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/account/set-leverage" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the set leverage body should not error")
+			mu.Lock()
+			body = b
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"lever": "5", "mgnMode": TradeModeIsolated, "posSide": positionSideLong, "instId": perpetualSwapPair.String()}})
+		}))
+		_, err := ex.SetLeverageRate(t.Context(), &SetLeverageInput{Leverage: 5, MarginMode: TradeModeIsolated, InstrumentID: perpetualSwapPair.String(), PositionSide: "LONG"})
+		require.NoError(t, err, "SetLeverageRate must accept an upper-case position side")
+		mu.Lock()
+		var sent map[string]any
+		err = json.Unmarshal(body, &sent)
+		mu.Unlock()
+		require.NoError(t, err, "the set leverage body must decode")
+		assert.Equal(t, positionSideLong, sent["posSide"], "the position side should be sent in lower case")
+
+		_, err = ex.SetLeverageRate(t.Context(), &SetLeverageInput{Leverage: 5, MarginMode: TradeModeIsolated, Currency: currency.USDT})
+		require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported, "a currency-scoped isolated leverage must be rejected")
+		assert.ErrorContains(t, err, `requires "cross" margin`, "the error should name the margin mode a currency-scoped leverage requires")
+	})
 }
 
 func TestGetMaximumBuySellAmountOrOpenAmount(t *testing.T) {
@@ -2612,10 +2769,37 @@ func TestGetLeverageRate(t *testing.T) {
 	_, err = e.GetLeverageRate(contextGenerate(), mainPair.String(), "", currency.EMPTYCODE)
 	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetLeverageRate(contextGenerate(), mainPair.String(), "cross", currency.EMPTYCODE)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		result, err := e.GetLeverageRate(contextGenerate(), mainPair.String(), "cross", currency.EMPTYCODE)
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+
+	// Guards the optional ccy parameter: a set currency must be forwarded to
+	// the leverage-info endpoint.
+	t.Run("sends the currency", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var gotCcy string
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/account/leverage-info" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			mu.Lock()
+			gotCcy = r.URL.Query().Get("ccy")
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{})
+		}))
+		_, err := ex.GetLeverageRate(t.Context(), mainPair.String(), TradeModeCross, currency.BTC)
+		require.NoError(t, err, "GetLeverageRate must not error with a currency set")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, "BTC", gotCcy, "the currency should be sent as the ccy parameter")
+	})
 }
 
 func TestGetMaximumLoanOfInstrument(t *testing.T) {
@@ -3450,6 +3634,7 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 			State:            instrumentStateLive,
 			TickSize:         types.Number(0.1),
 			MinimumOrderSize: types.Number(1),
+			LotSize:          types.Number(0.01),
 		},
 		{
 			InstrumentID:     inactivePair,
@@ -3469,6 +3654,7 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err, "GetOrderExecutionLimits must not error for live instrument")
 	assert.Equal(t, 0.1, loadedLimit.PriceStepIncrementSize, "PriceStepIncrementSize should be set from live instrument")
 	assert.Equal(t, 1.0, loadedLimit.MinimumBaseAmount, "MinimumBaseAmount should be set from live instrument")
+	assert.Equal(t, 0.01, loadedLimit.AmountStepIncrementSize, "AmountStepIncrementSize should be set from live instrument")
 
 	_, err = exch.GetOrderExecutionLimits(asset.Futures, inactivePair)
 	require.ErrorIs(t, err, limits.ErrOrderLimitNotFound, "inactive instruments must not be loaded")
@@ -3480,6 +3666,15 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 
 	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, nil),
 		common.ErrNoResponse, "empty instrument slice must return no response")
+
+	// One OKX contract is ctVal times ctMult: ctMult is 1 on swaps and futures
+	// but 0.01 on a BTC-USD option, so one option contract is 0.01 BTC.
+	require.NoError(t, exch.loadInstrumentOrderExecutionLimits(asset.Options, []Instrument{
+		{InstrumentID: optionsPair, State: instrumentStateLive, ContractValue: types.Number(1), ContractMultiplier: types.Number(0.01)},
+	}), "loadInstrumentOrderExecutionLimits must load a live option")
+	optionLimit, err := exch.GetOrderExecutionLimits(asset.Options, optionsPair)
+	require.NoError(t, err, "GetOrderExecutionLimits must not error for a live option")
+	assert.Equal(t, 0.01, optionLimit.MultiplierDecimal, "MultiplierDecimal should be the size of one option contract")
 }
 
 func TestTickerVolumes(t *testing.T) {
@@ -3678,180 +3873,6 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	// Checks that SubmitOrder refuses a type with no OKX order type of its own, such as a stop or take profit order
-	// with a trigger price, before sending anything whatever its time in force, and a time in force no OKX order type
-	// carries for the type, such as post only on a market order, while a post only LimitMaker order is still placed as
-	// a post_only order and a FOK or IOC Limit order as a fok or ioc order
-	t.Run("by order type", func(t *testing.T) {
-		t.Parallel()
-		for _, tc := range []struct {
-			orderType    order.Type
-			tif          order.TimeInForce
-			triggerPrice float64
-			exp          []string
-		}{
-			{orderType: order.Stop, tif: order.ImmediateOrCancel, triggerPrice: 90},
-			{orderType: order.Stop, tif: order.PostOnly, triggerPrice: 90},
-			{orderType: order.Stop, tif: order.FillOrKill, triggerPrice: 90},
-			{orderType: order.TakeProfit, tif: order.ImmediateOrCancel, triggerPrice: 110},
-			{orderType: order.TakeProfit, tif: order.PostOnly, triggerPrice: 110},
-			{orderType: order.TakeProfit, tif: order.FillOrKill, triggerPrice: 110},
-			{orderType: order.Market, tif: order.PostOnly},
-			{orderType: order.Market, tif: order.GoodTillCancel | order.PostOnly},
-			{orderType: order.MarketMakerProtection, tif: order.FillOrKill},
-			{orderType: order.MarketMakerProtection, tif: order.ImmediateOrCancel},
-			{orderType: order.LimitMaker, tif: order.PostOnly, exp: []string{`/trade/order {"instId":"BTC-USDT","tdMode":"cash","side":"buy","ordType":"post_only","sz":"1","px":"100"}`}},
-			{orderType: order.Limit, tif: order.FillOrKill, exp: []string{`/trade/order {"instId":"BTC-USDT","tdMode":"cash","side":"buy","ordType":"fok","sz":"1","px":"100"}`}},
-			{orderType: order.Limit, tif: order.ImmediateOrCancel, exp: []string{`/trade/order {"instId":"BTC-USDT","tdMode":"cash","side":"buy","ordType":"ioc","sz":"1","px":"100"}`}},
-			{orderType: order.Limit, tif: order.GoodTillCancel | order.PostOnly, exp: []string{`/trade/order {"instId":"BTC-USDT","tdMode":"cash","side":"buy","ordType":"post_only","sz":"1","px":"100"}`}},
-		} {
-			t.Run(tc.orderType.String()+"/"+tc.tif.String(), func(t *testing.T) {
-				t.Parallel()
-				var (
-					mutex    sync.Mutex
-					requests []string
-				)
-				ex := newMockServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-					body, err := io.ReadAll(r.Body)
-					assert.NoError(t, err, "reading the request body should not error")
-					mutex.Lock()
-					requests = append(requests, r.URL.Path+" "+string(body))
-					mutex.Unlock()
-					w.Header().Set("Content-Type", "application/json")
-					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"123","clOrdId":"","tag":"","sCode":"0","sMsg":""}]}`))
-				})
-				resp, err := ex.SubmitOrder(t.Context(), &order.Submit{
-					Exchange:     ex.Name,
-					Pair:         mainPair,
-					AssetType:    asset.Spot,
-					MarginType:   margin.NoMargin,
-					Side:         order.Buy,
-					Type:         tc.orderType,
-					TimeInForce:  tc.tif,
-					Amount:       1,
-					Price:        100,
-					TriggerPrice: tc.triggerPrice,
-				})
-				mutex.Lock()
-				defer mutex.Unlock()
-				assert.Equal(t, tc.exp, requests, "SubmitOrder should send only the expected requests")
-				if tc.exp == nil {
-					assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "SubmitOrder should refuse a type with no OKX order type")
-					assert.Nil(t, resp, "SubmitOrder should not return a response for a refused order")
-					return
-				}
-				require.NoError(t, err, "SubmitOrder must not error")
-				require.NotNil(t, resp, "SubmitOrder must return a response")
-				assert.Equal(t, "123", resp.OrderID, "SubmitOrder should return the placed order's ID")
-			})
-		}
-		t.Run("authenticated websocket", func(t *testing.T) {
-			t.Parallel()
-			ex, requests := newRecordingExchange(t, true, true, `"code":"0","msg":"","data":[{"ordId":"123","clOrdId":"","tag":"","sCode":"0","sMsg":""}]}`)
-			ctx := t.Context()
-			// Cases share ex's websocket and its request recorder, so they run in order
-			for _, tc := range []struct {
-				orderType order.Type
-				tif       order.TimeInForce
-				exp       []string
-			}{
-				{orderType: order.Limit, tif: order.FillOrKill, exp: []string{`websocket order [{"instId":"BTC-USDT","tdMode":"cash","side":"buy","ordType":"fok","sz":"1","px":"100"}]`}},
-				{orderType: order.Market, tif: order.PostOnly},
-				{orderType: order.Market, tif: order.GoodTillCancel | order.PostOnly},
-				{orderType: order.MarketMakerProtection, tif: order.FillOrKill},
-				{orderType: order.MarketMakerProtection, tif: order.ImmediateOrCancel},
-			} {
-				t.Run(tc.orderType.String()+"/"+tc.tif.String(), func(t *testing.T) {
-					resp, err := ex.SubmitOrder(ctx, &order.Submit{
-						Exchange:    ex.Name,
-						Pair:        mainPair,
-						AssetType:   asset.Spot,
-						MarginType:  margin.NoMargin,
-						Side:        order.Buy,
-						Type:        tc.orderType,
-						TimeInForce: tc.tif,
-						Amount:      1,
-						Price:       100,
-					})
-					assert.Equalf(t, tc.exp, requests(), "SubmitOrder should send only the expected requests for %s with time in force %s", tc.orderType, tc.tif)
-					if tc.exp == nil {
-						assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "SubmitOrder should refuse %s with time in force %s", tc.orderType, tc.tif)
-						assert.Nilf(t, resp, "SubmitOrder should not return a response for %s with time in force %s", tc.orderType, tc.tif)
-						return
-					}
-					require.NoErrorf(t, err, "SubmitOrder must not error for %s with time in force %s", tc.orderType, tc.tif)
-					require.NotNilf(t, resp, "SubmitOrder must return a response for %s with time in force %s", tc.orderType, tc.tif)
-					assert.Equal(t, "123", resp.OrderID, "SubmitOrder should return the placed order's ID")
-				})
-			}
-		})
-	})
-
-	// Checks that SubmitOrder sends a spot market order's amount with tgtCcy base_ccy, or its quote amount, when it has
-	// one, with tgtCcy quote_ccy, since OKX reads tgtCcy only on spot market orders and takes a market buy sent without
-	// it as sized in the quote currency
-	t.Run("target currency", func(t *testing.T) {
-		t.Parallel()
-		ex, requests := newRecordingExchange(t, false, false, `"code":"0","msg":"","data":[{"ordId":"123","clOrdId":"","tag":"","sCode":"0","sMsg":""}]}`)
-		ctx := t.Context()
-		// Cases share ex and its request recorder, so they run in order
-		for _, tc := range []struct {
-			orderType   order.Type
-			side        order.Side
-			price       float64
-			quoteAmount float64
-			exp         string
-		}{
-			{orderType: order.Market, side: order.Buy, exp: `REST /trade/order {"instId":"BTC-USDT","tdMode":"cash","side":"buy","ordType":"market","sz":"1","tgtCcy":"base_ccy"}`},
-			{orderType: order.Market, side: order.Buy, quoteAmount: 100, exp: `REST /trade/order {"instId":"BTC-USDT","tdMode":"cash","side":"buy","ordType":"market","sz":"100","tgtCcy":"quote_ccy"}`},
-			{orderType: order.Market, side: order.Sell, quoteAmount: 100, exp: `REST /trade/order {"instId":"BTC-USDT","tdMode":"cash","side":"sell","ordType":"market","sz":"100","tgtCcy":"quote_ccy"}`},
-			{orderType: order.Limit, side: order.Buy, price: 100, quoteAmount: 100, exp: `REST /trade/order {"instId":"BTC-USDT","tdMode":"cash","side":"buy","ordType":"limit","sz":"1","px":"100"}`},
-		} {
-			t.Run(fmt.Sprintf("%s %s quote amount %v", tc.side, tc.orderType, tc.quoteAmount), func(t *testing.T) {
-				resp, err := ex.SubmitOrder(ctx, &order.Submit{
-					Exchange:    ex.Name,
-					Pair:        mainPair,
-					AssetType:   asset.Spot,
-					MarginType:  margin.NoMargin,
-					Side:        tc.side,
-					Type:        tc.orderType,
-					Amount:      1,
-					QuoteAmount: tc.quoteAmount,
-					Price:       tc.price,
-				})
-				assert.Equalf(t, []string{tc.exp}, requests(), "SubmitOrder should send a %s %s order with quote amount %v sized as expected", tc.side, tc.orderType, tc.quoteAmount)
-				require.NoErrorf(t, err, "SubmitOrder must not error for a %s %s order with quote amount %v", tc.side, tc.orderType, tc.quoteAmount)
-				require.NotNilf(t, resp, "SubmitOrder must return a response for a %s %s order with quote amount %v", tc.side, tc.orderType, tc.quoteAmount)
-				assert.Equal(t, "123", resp.OrderID, "SubmitOrder should return the placed order's ID")
-			})
-		}
-	})
-
-	// Checks that SubmitOrder sends an OCO order's take profit and stop loss legs each with its own trigger and order
-	// prices
-	t.Run("OCO", func(t *testing.T) {
-		t.Parallel()
-		ex, requests := newRecordingExchange(t, false, false, `"code":"0","msg":"","data":[{"algoId":"123","clOrdId":"","algoClOrdId":"","tag":"","sCode":"0","sMsg":""}]}`)
-		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{
-			Exchange:         ex.Name,
-			Pair:             mainPair,
-			AssetType:        asset.Spot,
-			MarginType:       margin.NoMargin,
-			Side:             order.Sell,
-			Type:             order.OCO,
-			Amount:           1,
-			TriggerPriceType: order.LastPrice,
-			RiskManagementModes: order.RiskManagementModes{
-				TakeProfit: order.RiskManagement{Price: 120, LimitPrice: 119},
-				StopLoss:   order.RiskManagement{Price: 80, LimitPrice: 79},
-			},
-		})
-		assert.Equal(t, []string{`REST /trade/order-algo {"instId":"BTC-USDT","tdMode":"cash","side":"sell","ordType":"oco","sz":"1","tpOrdPx":"119","tpTriggerPx":"120","tpTriggerPxType":"last","slTriggerPx":"80","slOrdPx":"79","slTriggerPxType":"last"}`}, requests(), "SubmitOrder should send each leg with its own prices")
-		require.NoError(t, err, "SubmitOrder must not error")
-		require.NotNil(t, resp, "SubmitOrder must return a response")
-		assert.Equal(t, "123", resp.OrderID, "SubmitOrder should return the algo order's ID")
-	})
-
 	var resp []PlaceOrderRequestParam
 	err := json.Unmarshal([]byte(placeOrderArgs), &resp)
 	require.NoError(t, err)
@@ -3884,10 +3905,148 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = e.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
-	t.Run("live", func(t *testing.T) {
+	// Guards which orders OKX reads tgtCcy on: the field sizes a spot market
+	// order only, so an ioc or fok submit keeps its base currency size and
+	// sends its price, and no other asset type or order type sends tgtCcy.
+	t.Run("only a spot market order is sized by tgtCcy", func(t *testing.T) {
 		t.Parallel()
+		for _, tc := range []struct {
+			name        string
+			assetType   asset.Item
+			marginType  margin.Type
+			orderType   order.Type
+			tif         order.TimeInForce
+			side        order.Side
+			quoteAmount float64
+			expType     string
+			expSize     string
+			expTarget   string // empty when no tgtCcy is sent
+			expPrice    string // empty when no px is sent
+		}{
+			{"quote sized market buy", asset.Spot, margin.Unset, order.Market, order.UnknownTIF, order.Buy, 100, orderMarket, "100", targetCurrencyQuote, ""},
+			{"base sized market buy", asset.Spot, margin.Unset, order.Market, order.UnknownTIF, order.Buy, 0, orderMarket, "0.002", targetCurrencyBase, ""},
+			{"quote sized market sell", asset.Spot, margin.Unset, order.Market, order.UnknownTIF, order.Sell, 100, orderMarket, "100", targetCurrencyQuote, ""},
+			{"quote sized market buy in cross mode", asset.Spot, margin.Multi, order.Market, order.UnknownTIF, order.Buy, 100, orderMarket, "100", targetCurrencyQuote, ""},
+			{"market buy with immediate or cancel", asset.Spot, margin.Unset, order.Market, order.ImmediateOrCancel, order.Buy, 100, orderIOC, "0.002", "", "50000"},
+			{"market sell with immediate or cancel", asset.Spot, margin.Unset, order.Market, order.ImmediateOrCancel, order.Sell, 100, orderIOC, "0.002", "", "50000"},
+			{"market buy with fill or kill", asset.Spot, margin.Unset, order.Market, order.FillOrKill, order.Buy, 100, orderFOK, "0.002", "", "50000"},
+			{"limit buy with immediate or cancel", asset.Spot, margin.Unset, order.Limit, order.ImmediateOrCancel, order.Buy, 100, orderIOC, "0.002", "", "50000"},
+			{"margin market buy", asset.Margin, margin.Unset, order.Market, order.UnknownTIF, order.Buy, 100, orderMarket, "0.002", "", ""},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the place order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange: ex.Name, Pair: mainPair, AssetType: tc.assetType, MarginType: tc.marginType, Side: tc.side,
+					Type: tc.orderType, TimeInForce: tc.tif, Amount: 0.002, QuoteAmount: tc.quoteAmount, Price: 50000,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+				assert.Equal(t, tc.expType, sent["ordType"], "ordType should follow the order type and time in force")
+				assert.Equal(t, tc.expSize, sent["sz"], "sz should be stated in the currency tgtCcy names")
+				if tc.expTarget == "" {
+					assert.NotContains(t, sent, "tgtCcy", "only a spot market order should send tgtCcy")
+				} else {
+					assert.Equal(t, tc.expTarget, sent["tgtCcy"], "tgtCcy should name the size's currency")
+				}
+				if tc.expPrice == "" {
+					assert.NotContains(t, sent, "px", "a market order should send no price")
+				} else {
+					assert.Equal(t, tc.expPrice, sent["px"], "an ioc or fok order should send its price")
+				}
+			})
+		}
+	})
+
+	// Guards the size currency of an algo order whose leg executes at market:
+	// OKX reads a spot market buy's sz in the quote currency unless tgtCcy
+	// names base_ccy, so a spot buy leg that triggers as a market order states
+	// that its size is in the base currency, while a sell, a leg keeping its
+	// limit price and a non-spot instrument send no tgtCcy at all.
+	t.Run("an at-market spot algo buy states its base currency size", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name       string
+			assetType  asset.Item
+			orderType  order.Type
+			side       order.Side
+			price      float64
+			takeProfit float64
+			stopLoss   float64
+			expTarget  string // empty when no tgtCcy is sent
+		}{
+			{"spot trigger at market", asset.Spot, order.Trigger, order.Buy, marketOrderPrice, 0, 0, targetCurrencyBase},
+			{"spot trigger sell at market", asset.Spot, order.Trigger, order.Sell, marketOrderPrice, 0, 0, ""},
+			{"spot trigger at a limit price", asset.Spot, order.Trigger, order.Buy, 42000, 0, 0, ""},
+			{"spot conditional at market", asset.Spot, order.ConditionalStop, order.Buy, marketOrderPrice, 0, 0, targetCurrencyBase},
+			{"spot conditional sell at market", asset.Spot, order.ConditionalStop, order.Sell, marketOrderPrice, 0, 0, ""},
+			{"spot conditional at a limit price", asset.Spot, order.ConditionalStop, order.Buy, 42000, 0, 0, ""},
+			{"margin trigger at market", asset.Margin, order.Trigger, order.Buy, marketOrderPrice, 0, 0, ""},
+			{"margin conditional at market", asset.Margin, order.ConditionalStop, order.Buy, marketOrderPrice, 0, 0, ""},
+			{"oco with a market take profit", asset.Spot, order.OCO, order.Buy, 0, marketOrderPrice, 42000, targetCurrencyBase},
+			{"oco with a market stop loss", asset.Spot, order.OCO, order.Buy, 0, 41000, marketOrderPrice, targetCurrencyBase},
+			{"oco sell with a market stop loss", asset.Spot, order.OCO, order.Sell, 0, 41000, marketOrderPrice, ""},
+			{"oco sell with a market take profit", asset.Spot, order.OCO, order.Sell, 0, marketOrderPrice, 42000, ""},
+			{"margin oco with a market stop loss", asset.Margin, order.OCO, order.Buy, 0, 41000, marketOrderPrice, ""},
+			{"margin oco with a market take profit", asset.Margin, order.OCO, order.Buy, 0, marketOrderPrice, 42000, ""},
+			{"oco with both legs limited", asset.Spot, order.OCO, order.Buy, 0, 41000, 43000, ""},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the place algo order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"algoId": "ALGO-1", "sCode": "0"}})
+				}))
+				s := &order.Submit{
+					Exchange: ex.Name, Pair: mainPair, AssetType: tc.assetType, Side: tc.side,
+					Type: tc.orderType, Amount: 0.002, Price: tc.price, TriggerPrice: 41000,
+				}
+				if tc.orderType == order.OCO {
+					// OKX takes an OCO leg's trigger price, and its order price
+					// decides whether that leg executes at market.
+					s.RiskManagementModes = order.RiskManagementModes{
+						TakeProfit: order.RiskManagement{Price: 45000, LimitPrice: tc.takeProfit},
+						StopLoss:   order.RiskManagement{Price: 35000, LimitPrice: tc.stopLoss},
+					}
+				}
+				resp, err := ex.SubmitOrder(t.Context(), s)
+				require.NoError(t, err, "SubmitOrder must not error")
+				assert.Equal(t, "ALGO-1", resp.OrderID, "the algo order should return its ID")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place algo order request body must decode")
+				assert.Equal(t, "0.002", sent["sz"], "sz should stay the base currency amount")
+				if tc.expTarget == "" {
+					assert.NotContains(t, sent, "tgtCcy", "only a spot buy with a market leg should send tgtCcy")
+				} else {
+					assert.Equal(t, tc.expTarget, sent["tgtCcy"], "a spot buy with a market leg should name its base currency size")
+				}
+			})
+		}
+	})
+
+	t.Run("live", func(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		arg := &order.Submit{
+		arg = &order.Submit{
 			Pair: currency.Pair{
 				Base:  currency.LTC,
 				Quote: currency.BTC,
@@ -3993,165 +4152,1176 @@ func TestSubmitOrder(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
-}
 
-// newMockServerExchange returns an Exchange whose REST requests are served by handler
-func newMockServerExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
-	t.Helper()
-	server := httptest.NewTestServer(t, handler)
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.SkipAuthCheck = true
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "SetRunningURL must not error")
-	return ex
-}
-
-// newRecordingExchange returns an Exchange whose REST requests, and websocket requests when connected, are answered with
-// result, a reply without its opening brace, and a function returning the requests received since it was last called,
-// each as "REST <path> <body>" or "websocket <operation> <arguments>"
-func newRecordingExchange(t *testing.T, connected, authenticated bool, result string) (ex *Exchange, requests func() []string) {
-	t.Helper()
-	var (
-		mutex    sync.Mutex
-		received []string
-	)
-	record := func(request string) {
-		mutex.Lock()
-		received = append(received, request)
-		mutex.Unlock()
-	}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if gws.IsWebSocketUpgrade(r) {
-			mockws.WsMockUpgrader(t, w, r, func(_ testing.TB, msg []byte, c *gws.Conn) error {
-				if bytes.Equal(msg, pingMsg) {
-					return nil
-				}
-				var req struct {
-					ID        string          `json:"id"`
-					Operation string          `json:"op"`
-					Arguments json.RawMessage `json:"args"`
-				}
-				if err := json.Unmarshal(msg, &req); err != nil {
-					return err
-				}
-				record("websocket " + req.Operation + " " + string(req.Arguments))
-				return c.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","op":"`+req.Operation+`",`+result))
-			})
-			return
-		}
-		body, err := io.ReadAll(r.Body)
-		assert.NoError(t, err, "reading the request body should not error")
-		record("REST " + r.URL.Path + " " + string(body))
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte("{" + result))
+	// guards the OCO submit path: the stop loss leg
+	// triggers at the stop loss price, not the take profit price.
+	t.Run("oco stop-loss trigger price", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var body []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/order-algo" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the algo order request body should not error")
+			mu.Lock()
+			body = b
+			mu.Unlock()
+			writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0", "sMsg": ""})
+		}))
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:   ex.Name,
+			Pair:       mainPair,
+			AssetType:  asset.Spot,
+			Side:       order.Sell,
+			Type:       order.OCO,
+			Amount:     1,
+			MarginType: margin.NoMargin,
+			RiskManagementModes: order.RiskManagementModes{
+				TakeProfit: order.RiskManagement{Price: 110},
+				StopLoss:   order.RiskManagement{Price: 90},
+			},
+		})
+		require.NoError(t, err, "SubmitOrder must not error")
+		mu.Lock()
+		defer mu.Unlock()
+		var sent AlgoOrderParams
+		require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+		assert.Equal(t, 110.0, sent.TakeProfitTriggerPrice, "the take profit leg should trigger at the take profit price")
+		assert.Equal(t, 90.0, sent.StopLossTriggerPrice, "the stop loss leg should trigger at the stop loss price")
 	})
-	server := httptest.NewTestServer(t, handler)
-	if connected {
-		server.Start() // A websocket dials a loopback listener, not the in-memory network
-	}
-	ex = new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.SkipAuthCheck = true
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "SetRunningURL must not error")
-	if connected {
-		require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "SetAllConnectionURLs must not error")
-		ex.Features.Subscriptions = subscription.List{}
-		ex.Websocket.SetSubscriptionsNotRequired()
-		// Disabled first, so the connection monitor does not reconnect to the closed server
-		t.Cleanup(func() {
-			assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
-			if err := ex.Websocket.Shutdown(); err != nil {
-				assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail because the websocket is not connected")
+	// guards the ordType a limit order
+	// sends for each time in force: post_only, fok and ioc must map to their
+	// documented placement ordTypes instead of a plain resting limit.
+	t.Run("limit time in forces request documented ordTypes", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name      string
+			assetType asset.Item
+			orderType order.Type
+			tif       order.TimeInForce
+			exp       string
+		}{
+			{"plain limit", asset.Spot, order.Limit, order.UnknownTIF, orderLimit},
+			{"post only", asset.Spot, order.Limit, order.PostOnly, orderPostOnly},
+			{"good till cancel post only", asset.Spot, order.Limit, order.GoodTillCancel | order.PostOnly, orderPostOnly},
+			{"fill or kill", asset.Spot, order.Limit, order.FillOrKill, orderFOK},
+			{"immediate or cancel", asset.Spot, order.Limit, order.ImmediateOrCancel, orderIOC},
+			// OKX takes MMP orders for options only.
+			{"market maker protection", asset.Options, order.MarketMakerProtection, order.UnknownTIF, orderMarketMakerProtection},
+			{"market maker protection post only", asset.Options, order.MarketMakerProtection, order.PostOnly, orderMarketMakerProtectionAndPostOnly},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/trade/order" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the place order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:    ex.Name,
+					Pair:        mainPair,
+					AssetType:   tc.assetType,
+					Side:        order.Buy,
+					Type:        tc.orderType,
+					TimeInForce: tc.tif,
+					Amount:      1,
+					Price:       1,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+				assert.Equal(t, tc.exp, sent["ordType"], "the submitted limit order should send the documented ordType")
+				assert.Equal(t, "1", sent["px"], "the submitted order should send its price")
+			})
+		}
+	})
+	// guards the contract order
+	// body: OKX requires side for every instrument, and reduceOnly applies to
+	// MARGIN and FUTURES/SWAP orders only.
+	t.Run("contract sends side and reduce only", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name          string
+			assetType     asset.Item
+			side          order.Side
+			reduceOnly    bool
+			expSide       string
+			expPosSide    any // nil when the field must be absent
+			expReduceOnly any // nil when the field must be absent
+		}{
+			{"perpetual swap reduce only sell", asset.PerpetualSwap, order.Sell, true, "sell", positionSideNet, "true"},
+			{"futures long", asset.Futures, order.Long, false, "buy", positionSideNet, nil},
+			{"margin reduce only", asset.Margin, order.Sell, true, "sell", nil, "true"},
+			{"options send side", asset.Options, order.Buy, false, "buy", nil, nil},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/account/config" {
+						writeOKXData(t, w, []map[string]string{{"posMode": positionModeNet}})
+						return
+					}
+					if r.URL.Path != "/trade/order" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the place order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:    ex.Name,
+					Pair:        mainPair,
+					AssetType:   tc.assetType,
+					Side:        tc.side,
+					Type:        order.Limit,
+					TimeInForce: order.GoodTillCancel,
+					Amount:      1,
+					Price:       1,
+					MarginType:  margin.Multi,
+					ReduceOnly:  tc.reduceOnly,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+				assert.Equal(t, tc.expSide, sent["side"], "the order should send OKX's required side")
+				assert.Equal(t, tc.expPosSide, sent["posSide"], "the order should send the position side")
+				assert.Equal(t, tc.expReduceOnly, sent["reduceOnly"], "reduceOnly should match the documented applicability")
+			})
+		}
+	})
+	// verifies that algo
+	// order placement suppresses reduceOnly for FUTURES/SWAP in long/short mode,
+	// where OKX ignores the flag and the position side carries the close intent.
+	t.Run("algo contract guards reduce only by position mode", func(t *testing.T) {
+		t.Parallel()
+		// Each algo type needs its own fields to place.
+		algoExtras := map[order.Type]func(s *order.Submit){
+			order.Trigger: func(s *order.Submit) {
+				s.TriggerPrice = 100
+				s.Price = -1
+			},
+			order.ConditionalStop: func(s *order.Submit) {
+				s.TriggerPrice = 100
+				s.Price = -1
+			},
+			order.Chase: func(s *order.Submit) {
+				s.TrackingMode = order.Percentage
+				s.TrackingValue = 0.1
+			},
+			order.TrailingStop: func(s *order.Submit) {
+				s.TrackingMode = order.Percentage
+				s.TrackingValue = 0.05
+			},
+			order.TWAP: func(s *order.Submit) {
+				s.TrackingMode = order.Percentage
+				s.TrackingValue = 0.01
+				s.Price = 100
+			},
+			order.OCO: func(s *order.Submit) {
+				s.RiskManagementModes.TakeProfit.Price = 110
+				s.RiskManagementModes.TakeProfit.LimitPrice = -1
+				s.RiskManagementModes.StopLoss.Price = 90
+				s.RiskManagementModes.StopLoss.LimitPrice = -1
+			},
+		}
+		for _, tc := range []struct {
+			name          string
+			orderType     order.Type
+			posMode       string
+			assetType     asset.Item
+			pair          currency.Pair
+			expReduceOnly any // nil when the field must be absent
+		}{
+			{"net mode passes reduceOnly", order.Trigger, positionModeNet, asset.PerpetualSwap, mainPair, true},
+			{"long/short mode suppresses reduceOnly", order.Trigger, positionModeLongShort, asset.PerpetualSwap, mainPair, nil},
+			{"margin passes reduceOnly regardless of mode", order.Trigger, positionModeLongShort, asset.Margin, mainPair, true},
+			{"long/short mode suppresses reduceOnly", order.ConditionalStop, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+			{"long/short mode suppresses reduceOnly", order.Chase, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+			{"long/short mode suppresses reduceOnly", order.TrailingStop, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+			{"long/short mode suppresses reduceOnly", order.TWAP, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+			{"long/short mode suppresses reduceOnly", order.OCO, positionModeLongShort, asset.PerpetualSwap, perpetualSwapPair, nil},
+		} {
+			t.Run(tc.orderType.String()+"/"+tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/account/config" {
+						writeOKXData(t, w, []map[string]string{{"posMode": tc.posMode}})
+						return
+					}
+					if r.URL.Path != "/trade/order-algo" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the algo order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0"})
+				}))
+				sub := &order.Submit{
+					Exchange:   ex.Name,
+					Pair:       tc.pair,
+					AssetType:  tc.assetType,
+					Side:       order.Sell,
+					Type:       tc.orderType,
+					Amount:     1,
+					MarginType: margin.Multi,
+					ReduceOnly: true,
+				}
+				algoExtras[tc.orderType](sub)
+				_, err := ex.SubmitOrder(t.Context(), sub)
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+				assert.Equal(t, tc.expReduceOnly, sent["reduceOnly"], "reduceOnly should follow the position mode guard")
+			})
+		}
+	})
+	// guards the placement of perpetual
+	// swap orders against the account's position mode: net mode pairs reduceOnly
+	// with posSide net, and long/short mode pairs the side with the position
+	// side so that a reduce-only sell closes the long position.
+	t.Run("perpetual swap position mode follows account config", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name          string
+			mode          string
+			side          order.Side
+			reduceOnly    bool
+			expPosSide    string
+			expReduceOnly any // nil when the field must be absent
+		}{
+			{"net mode open long", positionModeNet, order.Buy, false, positionSideNet, nil},
+			{"net mode close long", positionModeNet, order.Sell, true, positionSideNet, "true"},
+			{"long short open long", positionModeLongShort, order.Buy, false, positionSideLong, nil},
+			{"long short open short", positionModeLongShort, order.Sell, false, positionSideShort, nil},
+			{"long short close long", positionModeLongShort, order.Sell, true, positionSideLong, nil},
+			{"long short close short", positionModeLongShort, order.Buy, true, positionSideShort, nil},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/account/config" {
+						writeOKXData(t, w, []map[string]string{{"posMode": tc.mode}})
+						return
+					}
+					if r.URL.Path != "/trade/order" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the place order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:   ex.Name,
+					Pair:       mainPair,
+					AssetType:  asset.PerpetualSwap,
+					Side:       tc.side,
+					Type:       order.Limit,
+					Amount:     1,
+					Price:      1,
+					MarginType: margin.Multi,
+					ReduceOnly: tc.reduceOnly,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+				assert.Equal(t, tc.expPosSide, sent["posSide"], "the order should send the position side the account's mode requires")
+				assert.Equal(t, tc.expReduceOnly, sent["reduceOnly"], "reduceOnly should follow the position mode")
+			})
+		}
+		t.Run("unknown mode", func(t *testing.T) {
+			t.Parallel()
+			ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/account/config" {
+					writeOKXData(t, w, []map[string]string{{"posMode": "weird_mode"}})
+					return
+				}
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}))
+			_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:   ex.Name,
+				Pair:       mainPair,
+				AssetType:  asset.PerpetualSwap,
+				Side:       order.Buy,
+				Type:       order.Limit,
+				Amount:     1,
+				Price:      1,
+				MarginType: margin.Multi,
+			})
+			require.ErrorIs(t, err, errInvalidPositionMode, "an undocumented position mode must stop the submit")
+		})
+		t.Run("fetch failure", func(t *testing.T) {
+			t.Parallel()
+			ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/account/config" {
+					http.Error(w, "account config unavailable", http.StatusInternalServerError)
+					return
+				}
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}))
+			_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:   ex.Name,
+				Pair:       mainPair,
+				AssetType:  asset.PerpetualSwap,
+				Side:       order.Buy,
+				Type:       order.Limit,
+				Amount:     1,
+				Price:      1,
+				MarginType: margin.Multi,
+			})
+			require.ErrorIs(t, err, request.ErrAuthRequestFailed, "a failed position mode fetch must stop the submit")
+		})
+		t.Run("empty reply", func(t *testing.T) {
+			t.Parallel()
+			for _, data := range []any{nil, []any{nil}} {
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/account/config" {
+						writeOKXData(t, w, data)
+						return
+					}
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:   ex.Name,
+					Pair:       mainPair,
+					AssetType:  asset.PerpetualSwap,
+					Side:       order.Buy,
+					Type:       order.Limit,
+					Amount:     1,
+					Price:      1,
+					MarginType: margin.Multi,
+				})
+				require.ErrorIsf(t, err, common.ErrNoResponse, "a %v account configuration reply must stop the submit", data)
 			}
 		})
-		require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
-	}
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-	return ex, func() []string {
-		mutex.Lock()
-		defer mutex.Unlock()
-		sent := received
-		received = nil
-		return sent
-	}
+	})
+	// guards the tdMode default: OKX requires
+	// tdMode on every order, and the zero margin type defaults to cash for spot
+	// and cross for perpetual swap.
+	t.Run("defaults the trade mode", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name      string
+			assetType asset.Item
+			exp       string
+		}{
+			{"spot defaults to cash", asset.Spot, TradeModeCash},
+			{"margin defaults to cross", asset.Margin, TradeModeCross},
+			{"futures defaults to cross", asset.Futures, TradeModeCross},
+			{"perpetual swap defaults to cross", asset.PerpetualSwap, TradeModeCross},
+			{"options defaults to cross", asset.Options, TradeModeCross},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/account/config" {
+						writeOKXData(t, w, []map[string]string{{"posMode": positionModeNet}})
+						return
+					}
+					if r.URL.Path != "/trade/order" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the place order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:  ex.Name,
+					Pair:      mainPair,
+					AssetType: tc.assetType,
+					Side:      order.Buy,
+					Type:      order.Limit,
+					Amount:    1,
+					Price:     1,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+				assert.Equal(t, tc.exp, sent["tdMode"], "the order should send the documented default trade mode")
+			})
+		}
+	})
+	// guards the market order body: px is only
+	// applicable to the limit-style order types, so a market order carries no
+	// price even when the submit set one.
+	t.Run("market omits the price", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var body []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/order" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the place order body should not error")
+			mu.Lock()
+			body = b
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+		}))
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:  ex.Name,
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			Side:      order.Buy,
+			Type:      order.Market,
+			Amount:    1,
+			Price:     999,
+		})
+		require.NoError(t, err, "SubmitOrder must not error")
+		mu.Lock()
+		defer mu.Unlock()
+		var sent map[string]any
+		require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+		_, has := sent["px"]
+		assert.False(t, has, "a market order should not send a price")
+	})
+	// guards the submit price check: an order type that
+	// sends px is refused without a price before any request transmits, while
+	// market and optimal_limit_ioc orders, which OKX places with no px, still go
+	// out, the latter only on the futures and perpetual swaps OKX offers it on.
+	t.Run("guards the price", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name      string
+			assetType asset.Item
+			pair      currency.Pair
+			orderType order.Type
+			price     float64
+			expErr    error
+			expType   string // the ordType sent when the order is placed
+		}{
+			{"limit", asset.Spot, mainPair, order.Limit, 0, limits.ErrPriceBelowMin, ""},
+			{"limit with a negative price", asset.Spot, mainPair, order.Limit, -1, limits.ErrPriceBelowMin, ""},
+			{"limit maker", asset.Spot, mainPair, order.LimitMaker, 0, limits.ErrPriceBelowMin, ""},
+			{"market maker protection", asset.Options, optionsPair, order.MarketMakerProtection, 0, limits.ErrPriceBelowMin, ""},
+			{"optimal limit on spot", asset.Spot, mainPair, order.OptimalLimit, 0, order.ErrUnsupportedOrderType, ""},
+			{"market", asset.Spot, mainPair, order.Market, 0, nil, orderMarket},
+			{"optimal limit", asset.PerpetualSwap, perpetualSwapPair, order.OptimalLimit, 0, nil, orderOptimalLimitIOC},
+			{"optimal limit on futures", asset.Futures, futuresPair, order.OptimalLimit, 0, nil, orderOptimalLimitIOC},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					switch r.URL.Path {
+					case "/account/config":
+						writeOKXData(t, w, []map[string]string{{"posMode": positionModeNet}})
+					case "/trade/order":
+						b, err := io.ReadAll(r.Body)
+						assert.NoError(t, err, "reading the place order body should not error")
+						mu.Lock()
+						body = b
+						mu.Unlock()
+						writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+					default:
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+					}
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:  ex.Name,
+					Pair:      tc.pair,
+					AssetType: tc.assetType,
+					Side:      order.Buy,
+					Type:      tc.orderType,
+					Amount:    1,
+					Price:     tc.price,
+				})
+				mu.Lock()
+				defer mu.Unlock()
+				if tc.expErr != nil {
+					require.ErrorIs(t, err, tc.expErr, "an order OKX cannot place as given must be refused")
+					assert.Nil(t, body, "a refused order should not reach OKX")
+					return
+				}
+				require.NoError(t, err, "an order type OKX places with no px must not need a price")
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the place order request body must decode")
+				assert.Equal(t, tc.expType, sent["ordType"], "the order should send its documented ordType")
+				assert.NotContains(t, sent, "px", "the order should not send a price")
+			})
+		}
+	})
+	// guards the trigger order body: OKX
+	// requires orderPx, which the wrapper must take from the submitted price
+	// instead of dropping it.
+	t.Run("trigger sends the order price", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var body []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/account/config" {
+				writeOKXData(t, w, []map[string]string{{"posMode": positionModeNet}})
+				return
+			}
+			if r.URL.Path != "/trade/order-algo" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the algo order body should not error")
+			mu.Lock()
+			body = b
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"algoId": "1", "sCode": "0"}})
+		}))
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:     ex.Name,
+			Pair:         mainPair,
+			AssetType:    asset.PerpetualSwap,
+			Side:         order.Long,
+			Type:         order.Trigger,
+			Amount:       1,
+			Price:        100,
+			TriggerPrice: 110,
+			MarginType:   margin.Multi,
+		})
+		require.NoError(t, err, "SubmitOrder must not error")
+		// Both submits run before the body is read under the mutex, so a second
+		// request cannot deadlock against the handler's own lock.
+		_, err = ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:     ex.Name,
+			Pair:         mainPair,
+			AssetType:    asset.PerpetualSwap,
+			Side:         order.Long,
+			Type:         order.Trigger,
+			Amount:       1,
+			TriggerPrice: 110,
+			MarginType:   margin.Multi,
+		})
+		assert.ErrorIs(t, err, limits.ErrPriceBelowMin, "a trigger order without an order price should be rejected before sending")
+
+		mu.Lock()
+		defer mu.Unlock()
+		var sent map[string]any
+		require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+		assert.Equal(t, "100", sent["orderPx"], "the trigger order should carry the submitted order price")
+		assert.Equal(t, "buy", sent["side"], "the trigger order should send OKX's required side")
+		assert.Equal(t, positionSideNet, sent["posSide"], "the trigger order should send the position side the account's mode requires")
+	})
+	// guards the TWAP interval transport:
+	// OKX documents the field as timeInterval carrying seconds, not interval
+	// carrying a duration code.
+	t.Run("twap sends the time interval", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var body []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/order-algo" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the algo order body should not error")
+			mu.Lock()
+			body = b
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"algoId": "1", "sCode": "0"}})
+		}))
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:      ex.Name,
+			Pair:          mainPair,
+			AssetType:     asset.Spot,
+			Side:          order.Buy,
+			Type:          order.TWAP,
+			Amount:        1,
+			Price:         100,
+			TrackingMode:  order.Percentage,
+			TrackingValue: 0.5,
+			MarginType:    margin.NoMargin,
+		})
+		require.NoError(t, err, "SubmitOrder must not error")
+		mu.Lock()
+		defer mu.Unlock()
+		var sent map[string]any
+		require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+		assert.Equal(t, "900", sent["timeInterval"], "the TWAP order should send its interval as documented seconds")
+		_, has := sent["interval"]
+		assert.False(t, has, "the TWAP order should not send the undocumented interval field")
+	})
+	// guards the chase order
+	// mapping: OKX's maxChaseType accepts distance and ratio, not the percentage
+	// name the tracking mode string carries.
+	t.Run("chase sends the documented max chase type", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name         string
+			trackingMode order.TrackingMode
+			exp          string
+		}{
+			{"percentage maps to ratio", order.Percentage, "ratio"},
+			{"distance maps to distance", order.Distance, "distance"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/account/config" {
+						writeOKXData(t, w, []map[string]string{{"posMode": positionModeNet}})
+						return
+					}
+					if r.URL.Path != "/trade/order-algo" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the algo order body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"algoId": "1", "sCode": "0"}})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:      ex.Name,
+					Pair:          mainPair,
+					AssetType:     asset.PerpetualSwap,
+					Side:          order.Long,
+					Type:          order.Chase,
+					Amount:        1,
+					Price:         100,
+					TrackingMode:  tc.trackingMode,
+					TrackingValue: 0.5,
+					MarginType:    margin.Multi,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+				assert.Equal(t, tc.exp, sent["maxChaseType"], "the chase order should send the documented maximum chase type")
+			})
+		}
+	})
+	// guards the position side of
+	// futures and perpetual swap orders, plain and algo: OKX's position mode
+	// covers FUTURES and SWAP alike, and in long/short mode a close is expressed
+	// by the position side, since reduceOnly does not apply there.
+	t.Run("contracts follow the position mode", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
+			for _, oType := range []order.Type{order.Limit, order.ConditionalStop} {
+				for _, tc := range []struct {
+					mode          string
+					side          order.Side
+					reduceOnly    bool
+					expPosSide    string
+					expReduceOnly any // nil when the field must be absent
+				}{
+					{positionModeNet, order.Buy, false, positionSideNet, nil},
+					{positionModeNet, order.Sell, false, positionSideNet, nil},
+					{positionModeNet, order.Sell, true, positionSideNet, "true"},
+					{positionModeNet, order.Buy, true, positionSideNet, "true"},
+					{positionModeLongShort, order.Buy, false, positionSideLong, nil},
+					{positionModeLongShort, order.Sell, false, positionSideShort, nil},
+					{positionModeLongShort, order.Sell, true, positionSideLong, nil},
+					{positionModeLongShort, order.Buy, true, positionSideShort, nil},
+				} {
+					t.Run(fmt.Sprintf("%s %s %s %s reduce only %t", a, oType, tc.mode, tc.side, tc.reduceOnly), func(t *testing.T) {
+						t.Parallel()
+						var mu sync.Mutex
+						var body []byte
+						ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+							switch r.URL.Path {
+							case "/account/config":
+								writeOKXData(t, w, []map[string]string{{"posMode": tc.mode}})
+								return
+							case "/trade/order", "/trade/order-algo":
+							default:
+								t.Errorf("unexpected request path %s", r.URL.Path)
+								http.NotFound(w, r)
+								return
+							}
+							b, err := io.ReadAll(r.Body)
+							assert.NoError(t, err, "reading the order body should not error")
+							mu.Lock()
+							body = b
+							mu.Unlock()
+							writeOKXData(t, w, []map[string]string{{"ordId": "1", "algoId": "1", "sCode": "0"}})
+						}))
+						_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+							Exchange:     ex.Name,
+							Pair:         mainPair,
+							AssetType:    a,
+							Side:         tc.side,
+							Type:         oType,
+							Amount:       1,
+							Price:        1,
+							TriggerPrice: 2,
+							MarginType:   margin.Multi,
+							ReduceOnly:   tc.reduceOnly,
+						})
+						require.NoError(t, err, "SubmitOrder must not error")
+						mu.Lock()
+						defer mu.Unlock()
+						var sent map[string]any
+						require.NoError(t, json.Unmarshal(body, &sent), "the order request body must decode")
+						assert.Equal(t, tc.expPosSide, sent["posSide"], "the order should send the position side the account's mode requires")
+						if oType == order.Limit {
+							assert.Equal(t, tc.expReduceOnly, sent["reduceOnly"], "reduceOnly should follow the position mode")
+						}
+					})
+				}
+			}
+		}
+	})
+	// guards the trade mode default:
+	// only the zero margin type defaults, so an explicit margin type OKX cannot
+	// express fails before any request instead of trading in another mode.
+	t.Run("rejects an unsupported margin type", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}))
+		for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.Futures} {
+			for _, mt := range []margin.Type{
+				margin.Unknown,
+				margin.Isolated | margin.Multi,
+				margin.Isolated | margin.NoMargin,
+				margin.Isolated | margin.SpotIsolated,
+				margin.NoMargin | margin.SpotIsolated,
+				margin.Isolated | margin.NoMargin | margin.SpotIsolated,
+			} {
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: mainPair, AssetType: a, Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1, MarginType: mt})
+				assert.ErrorIsf(t, err, margin.ErrMarginTypeUnsupported, "SubmitOrder should reject margin type %d for %s", mt, a)
+			}
+		}
+	})
+	// guards every placement path against a
+	// success reply without a usable row: data null or a null row leaves the
+	// order's outcome unknown, so placement must report it rather than panic on
+	// the missing response.
+	t.Run("rejects null reply rows", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name   string
+			path   string
+			data   any
+			submit *order.Submit
+		}{
+			{
+				name: "spot reply with data null",
+				path: "/trade/order",
+				data: nil,
+				submit: &order.Submit{
+					Pair: mainPair, AssetType: asset.Spot,
+					Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1,
+				},
+			},
+			{
+				name: "spot reply with a null row",
+				path: "/trade/order",
+				data: []any{nil},
+				submit: &order.Submit{
+					Pair: mainPair, AssetType: asset.Spot,
+					Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1,
+				},
+			},
+			{
+				name: "spread reply with data null",
+				path: "/sprd/order",
+				data: nil,
+				submit: &order.Submit{
+					Pair: spreadPair, AssetType: asset.Spread,
+					Side: order.Buy, Type: order.Limit, Amount: 1, Price: 2,
+				},
+			},
+			{
+				name: "algo reply with a null row",
+				path: "/trade/order-algo",
+				data: []any{nil},
+				submit: &order.Submit{
+					Pair: mainPair, AssetType: asset.Spot,
+					Side: order.Buy, Type: order.Trigger, Amount: 1, Price: 1, TriggerPrice: 1,
+				},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != tc.path {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					writeOKXData(t, w, tc.data)
+				}))
+				var err error
+				require.NotPanics(t, func() {
+					_, err = ex.SubmitOrder(t.Context(), tc.submit)
+				}, "SubmitOrder must not panic on a success reply without a row")
+				require.ErrorIs(t, err, common.ErrInvalidResponse, "SubmitOrder must reject a success reply without a row")
+			})
+		}
+	})
+	// guards OCO placement reading
+	// each leg's own trigger price type: OKX takes independent tpTriggerPxType
+	// and slTriggerPxType parameters, and ModifyOrder already amends each leg by
+	// its own type, so placement must agree with it.
+	t.Run("oco per-leg trigger price types", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name  string
+			modes order.RiskManagementModes
+			expTP string
+			expSL string
+		}{
+			{
+				name: "per leg types",
+				modes: order.RiskManagementModes{
+					TakeProfit: order.RiskManagement{Price: 110, TriggerPriceType: order.IndexPrice},
+					StopLoss:   order.RiskManagement{Price: 90, TriggerPriceType: order.MarkPrice},
+				},
+				expTP: "index",
+				expSL: "mark",
+			},
+			{
+				name: "unset legs default to last",
+				modes: order.RiskManagementModes{
+					TakeProfit: order.RiskManagement{Price: 110},
+					StopLoss:   order.RiskManagement{Price: 90},
+				},
+				expTP: "last",
+				expSL: "last",
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/trade/order-algo" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the algo order request body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0", "sMsg": ""})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Pair: mainPair, AssetType: asset.Spot, Side: order.Sell,
+					Type: order.OCO, Amount: 1, MarginType: margin.NoMargin,
+					RiskManagementModes: tc.modes,
+				})
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent AlgoOrderParams
+				require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+				assert.Equal(t, tc.expTP, sent.TakeProfitTriggerPriceType, "the take profit leg should use its own trigger price type")
+				assert.Equal(t, tc.expSL, sent.StopLossTriggerPriceType, "the stop loss leg should use its own trigger price type")
+			})
+		}
+	})
+	// guards the algo placement round trip:
+	// ModifyOrder amends and the detail queries look up by algoClOrdId, so
+	// placement must register the client's order ID, while a submit without one
+	// keeps the field off the wire.
+	t.Run("algo sends the client order ID", func(t *testing.T) {
+		t.Parallel()
+		extras := func(t order.Type) *order.Submit {
+			s := &order.Submit{
+				Pair: mainPair, AssetType: asset.Spot, Side: order.Buy, Amount: 1,
+				Type: t, MarginType: margin.NoMargin, ClientOrderID: "my-algo-cl-id",
+			}
+			switch t {
+			case order.Trigger:
+				s.TriggerPrice = 100
+				s.Price = 100
+			case order.ConditionalStop:
+				s.TriggerPrice = 90
+				s.Price = 90
+			case order.Chase, order.TrailingStop:
+				s.TrackingMode = order.Distance
+				s.TrackingValue = 1
+			case order.TWAP:
+				s.TrackingMode = order.Distance
+				s.TrackingValue = 1
+				s.Price = 100
+			case order.OCO:
+				s.RiskManagementModes = order.RiskManagementModes{
+					TakeProfit: order.RiskManagement{Price: 110},
+					StopLoss:   order.RiskManagement{Price: 90},
+				}
+			}
+			return s
+		}
+		for _, oType := range []order.Type{order.Trigger, order.ConditionalStop, order.Chase, order.TrailingStop, order.TWAP, order.OCO} {
+			t.Run(oType.String(), func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/trade/order-algo" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the algo order request body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0", "sMsg": ""})
+				}))
+				_, err := ex.SubmitOrder(t.Context(), extras(oType))
+				require.NoError(t, err, "SubmitOrder must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				var sent AlgoOrderParams
+				require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+				assert.Equal(t, "my-algo-cl-id", sent.AlgoClientOrderID, "algo placement should register the client's order ID as algoClOrdId")
+			})
+		}
+		t.Run("without a client order ID", func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var body []byte
+			ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/trade/order-algo" {
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				b, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "reading the algo order request body should not error")
+				mu.Lock()
+				body = b
+				mu.Unlock()
+				writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0", "sMsg": ""})
+			}))
+			s := extras(order.Trigger)
+			s.ClientOrderID = ""
+			_, err := ex.SubmitOrder(t.Context(), s)
+			require.NoError(t, err, "SubmitOrder must not error")
+			mu.Lock()
+			defer mu.Unlock()
+			var raw map[string]any
+			require.NoError(t, json.Unmarshal(body, &raw), "the algo order request body must decode")
+			assert.NotContains(t, raw, "algoClOrdId", "a submit without a client order ID should keep algoClOrdId off the wire")
+		})
+	})
+	// Guards the spread order submission.
+	t.Run("spread orders", func(t *testing.T) {
+		t.Parallel()
+
+		// Guards the spread submit wire
+		// format: the ordType follows the order type and time in force, a market
+		// order carries no px, and rejected submits never reach OKX.
+		t.Run("market price and type", func(t *testing.T) {
+			t.Parallel()
+			for _, tc := range []struct {
+				name       string
+				orderType  order.Type
+				tif        order.TimeInForce
+				price      float64
+				expOrdType string
+				expPX      bool
+			}{
+				{"market carries no price", order.Market, order.UnknownTIF, 0, orderMarket, false},
+				{"limit follows the maker type", order.LimitMaker, order.UnknownTIF, 2, orderPostOnly, true},
+				{"ioc follows the time in force", order.Limit, order.ImmediateOrCancel, 2, orderIOC, true},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					var mu sync.Mutex
+					var body []byte
+					e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if r.URL.Path != "/sprd/order" {
+							t.Errorf("unexpected request path %s", r.URL.Path)
+							http.NotFound(w, r)
+							return
+						}
+						b, err := io.ReadAll(r.Body)
+						assert.NoError(t, err, "reading the spread order body should not error")
+						mu.Lock()
+						body = b
+						mu.Unlock()
+						writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+					}))
+					_, err := e.SubmitOrder(t.Context(), &order.Submit{
+						Exchange:    e.Name,
+						Pair:        spreadPair,
+						AssetType:   asset.Spread,
+						Side:        order.Buy,
+						Type:        tc.orderType,
+						TimeInForce: tc.tif,
+						Amount:      1,
+						Price:       tc.price,
+					})
+					require.NoError(t, err, "SubmitOrder must not error")
+					mu.Lock()
+					defer mu.Unlock()
+					var sent map[string]any
+					require.NoError(t, json.Unmarshal(body, &sent), "the spread order body must decode")
+					assert.Equal(t, tc.expOrdType, sent["ordType"], "the spread order should send the documented ordType")
+					_, has := sent["px"]
+					assert.Equal(t, tc.expPX, has, "px should follow the documented applicability")
+				})
+			}
+			// A limit order without a price is still rejected by the spread price
+			// guard, and fok is refused outright rather than silently downgraded to
+			// a resting limit order; both are refused client-side, so nothing
+			// reaches OKX.
+			for _, tc := range []struct {
+				name   string
+				tif    order.TimeInForce
+				price  float64
+				expErr error
+			}{
+				{"limit without a price", order.UnknownTIF, 0, limits.ErrPriceBelowMin},
+				{"fok limit", order.FillOrKill, 2, order.ErrUnsupportedOrderType},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						t.Errorf("a rejected spread order should not reach OKX: %s", r.URL.Path)
+						http.NotFound(w, r)
+					}))
+					_, err := e.SubmitOrder(t.Context(), &order.Submit{
+						Exchange:    e.Name,
+						Pair:        spreadPair,
+						AssetType:   asset.Spread,
+						Side:        order.Buy,
+						Type:        order.Limit,
+						TimeInForce: tc.tif,
+						Amount:      1,
+						Price:       tc.price,
+					})
+					require.ErrorIs(t, err, tc.expErr, "the rejected spread order must return its own error")
+				})
+			}
+		})
+
+		// Guards the spread order error shape:
+		// OKX's top-level reply only says all operations failed, so the failed row's
+		// own code and reason must be reported beside it.
+		t.Run("reports the row error", func(t *testing.T) {
+			t.Parallel()
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/sprd/order" {
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"code":"1","msg":"All operations failed","data":[{"sCode":"51008","sMsg":"Order placement failed due to insufficient balance.","ordId":"","clOrdId":""}]}`))
+			}))
+			_, err := e.SubmitOrder(t.Context(), &order.Submit{
+				Exchange: e.Name, Pair: spreadPair, AssetType: asset.Spread,
+				Side: order.Buy, Type: order.Limit, Amount: 1, Price: 2,
+			})
+			require.Error(t, err, "a failed spread row must error")
+			assert.ErrorContains(t, err, "51008", "the error should report the row's sCode")
+			assert.ErrorContains(t, err, "insufficient balance", "the error should report the row's sMsg")
+		})
+
+		// Guards the negative spread price
+		// round trip: a spread price is the differential between its legs, so a
+		// negative limit price must reach OKX as-is.
+		t.Run("negative limit price", func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var body []byte
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/sprd/order" {
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				b, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "reading the spread order body should not error")
+				mu.Lock()
+				body = b
+				mu.Unlock()
+				writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+			}))
+			_, err := e.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:  e.Name,
+				Pair:      spreadPair,
+				AssetType: asset.Spread,
+				Side:      order.Buy,
+				Type:      order.Limit,
+				Amount:    1,
+				Price:     -41.2,
+			})
+			require.NoError(t, err, "SubmitOrder must accept a negative spread limit price")
+			mu.Lock()
+			defer mu.Unlock()
+			var sent map[string]any
+			require.NoError(t, json.Unmarshal(body, &sent), "the spread order body must decode")
+			assert.Equal(t, "-41.2", sent["px"], "the negative spread price should be sent as-is")
+		})
+	})
 }
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	// Checks that CancelOrder cancels the algo order types as algo orders over REST and every other type as a regular
-	// order, over the authenticated websocket when it can be used and over REST otherwise, since the order manager
-	// cancels a tracked order with its stored type, which can be a type SubmitOrder refuses
-	t.Run("by order kind", func(t *testing.T) {
-		t.Parallel()
-		const (
-			restRegular      = `REST /trade/cancel-order {"instId":"BTC-USDT","ordId":"123","clOrdId":"client"}`
-			websocketRegular = `websocket cancel-order [{"instId":"BTC-USDT","ordId":"123","clOrdId":"client"}]`
-			restAlgo         = `REST /trade/cancel-advance-algos [{"algoId":"123","instId":"BTC-USDT"}]`
-			restSpread       = `REST /sprd/cancel-order {"clOrdId":"client","ordId":"123"}`
-			websocketSpread  = `websocket sprd-cancel-order [{"clOrdId":"client","ordId":"123"}]`
-			result           = `"code":"0","msg":"","data":[{"ordId":"123","algoId":"123","clOrdId":"client","sCode":"0","sMsg":""}]}`
-		)
-		algoTypes := []order.Type{order.Trigger, order.OCO, order.ConditionalStop, order.TWAP, order.TrailingStop, order.Chase}
-		for _, state := range []struct {
-			connected, authenticated bool
-		}{
-			{connected: false, authenticated: false},
-			{connected: false, authenticated: true},
-			{connected: true, authenticated: false},
-			{connected: true, authenticated: true},
-		} {
-			t.Run(fmt.Sprintf("connected %t authenticated %t", state.connected, state.authenticated), func(t *testing.T) {
-				t.Parallel()
-				ex, requests := newRecordingExchange(t, state.connected, state.authenticated, result)
-				ctx := t.Context()
-				// Cases share ex and its request recorder, so they run in order
-				for _, typ := range []order.Type{
-					order.UnknownType, order.Limit, order.Market, order.Stop, order.TakeProfit, order.TrailingStop, order.IOS,
-					order.AnyType, order.Liquidation, order.Trigger, order.LimitMaker, order.OCO, order.ConditionalStop,
-					order.TWAP, order.Chase, order.OptimalLimit, order.MarketMakerProtection, order.StopLimit, order.StopMarket,
-					order.TakeProfitMarket, order.TrailingStopLimit, order.Bracket,
-				} {
-					t.Run(typ.String(), func(t *testing.T) {
-						exp := restRegular
-						switch {
-						case slices.Contains(algoTypes, typ):
-							exp = restAlgo
-						case state.connected && state.authenticated:
-							exp = websocketRegular
-						}
-						assert.NoErrorf(t, ex.CancelOrder(ctx, &order.Cancel{Type: typ, OrderID: "123", ClientOrderID: "client", Pair: mainPair, AssetType: asset.Spot}), "CancelOrder should not error for a %s order", typ)
-						assert.Equalf(t, []string{exp}, requests(), "CancelOrder should send the cancel for a %s order", typ)
-					})
-				}
-				// A spread order has a cancel of its own, whatever its type, and a regular order on another asset is cancelled
-				// as one on spot is. These cases share ex too, so they run in order after the ones above
-				for _, c := range []struct {
-					cancel     order.Cancel
-					rest, sock string
-				}{
-					{cancel: order.Cancel{OrderID: "123", ClientOrderID: "client", Pair: spreadPair, AssetType: asset.Spread}, rest: restSpread, sock: websocketSpread},
-					{cancel: order.Cancel{Type: order.Limit, OrderID: "123", ClientOrderID: "client", Pair: spreadPair, AssetType: asset.Spread}, rest: restSpread, sock: websocketSpread},
-					{
-						cancel: order.Cancel{Type: order.Limit, OrderID: "123", ClientOrderID: "client", Pair: perpetualSwapPair, AssetType: asset.PerpetualSwap},
-						rest:   `REST /trade/cancel-order {"instId":"BTC-USDT-SWAP","ordId":"123","clOrdId":"client"}`,
-						sock:   `websocket cancel-order [{"instId":"BTC-USDT-SWAP","ordId":"123","clOrdId":"client"}]`,
-					},
-				} {
-					t.Run(c.cancel.AssetType.String()+" "+c.cancel.Type.String(), func(t *testing.T) {
-						exp := c.rest
-						if state.connected && state.authenticated {
-							exp = c.sock
-						}
-						assert.NoErrorf(t, ex.CancelOrder(ctx, &c.cancel), "CancelOrder should not error for a %s %s order", c.cancel.AssetType, c.cancel.Type)
-						assert.Equalf(t, []string{exp}, requests(), "CancelOrder should send the cancel for a %s %s order", c.cancel.AssetType, c.cancel.Type)
-					})
-				}
-			})
-		}
-	})
-
 	assert.ErrorIs(t, e.CancelOrder(contextGenerate(), nil), order.ErrCancelOrderIsNil, "CancelOrder should error for a nil cancellation")
 
 	arg := &order.Cancel{
@@ -4169,26 +5339,10 @@ func TestCancelOrder(t *testing.T) {
 	err = e.CancelOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	refused := newMockServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"code":"51000","msg":"mock: parameter error","data":[]}`))
-	})
-	err = refused.CancelOrder(t.Context(), &order.Cancel{Type: order.Trigger, OrderID: "123", Pair: mainPair, AssetType: asset.Spot})
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelOrder must return a refused algo cancel's error")
-	refusedOrder := newMockServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"algoId":"123","sCode":"51000","sMsg":"mock: algo order refused"}]}`))
-	})
-	err = refusedOrder.CancelOrder(t.Context(), &order.Cancel{Type: order.Trigger, OrderID: "123", Pair: mainPair, AssetType: asset.Spot})
-	require.ErrorContains(t, err, "mock: algo order refused", "CancelOrder must return an algo order's own refusal")
-	refused.CurrencyPairs.RequestFormat = nil
-	err = refused.CancelOrder(t.Context(), &order.Cancel{OrderID: "123", Pair: mainPair, AssetType: asset.Spot})
-	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "CancelOrder must return the missing pair format")
-
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		err := e.CancelOrder(contextGenerate(), &order.Cancel{
+		err = e.CancelOrder(contextGenerate(), &order.Cancel{
 			OrderID: "1", AccountID: "1", Pair: mainPair, AssetType: asset.Spot,
 		})
 		assert.NoError(t, err)
@@ -4203,31 +5357,88 @@ func TestCancelOrder(t *testing.T) {
 		})
 		assert.NoError(t, err)
 	})
-}
 
-func TestCancelBatchOrders(t *testing.T) {
-	t.Parallel()
-	// Checks that CancelBatchOrders cancels an order by its client order ID alone, as CancelOrder does, over the
-	// authenticated websocket when it can be used and over REST otherwise
-	t.Run("by client order ID", func(t *testing.T) {
+	t.Run("spread replies", func(t *testing.T) {
 		t.Parallel()
-		for _, connected := range []bool{false, true} {
-			t.Run(fmt.Sprintf("connected %t", connected), func(t *testing.T) {
+		// Guards spread cancel replies that confirm no
+		// order on the single-order path: a reply that names no order is a sentinel
+		// error, and a failed cancel reports OKX's status message.
+		for _, tc := range []struct {
+			name  string
+			reply string
+			err   error
+		}{
+			{"no data", `{"code":"0","msg":"","data":null}`, common.ErrNoResponse},
+			{"no order ID", `{"code":"0","msg":"","data":[{"ordId":"","clOrdId":"S1","sCode":"0","sMsg":""}]}`, common.ErrInvalidResponse},
+			{"cancel failed", `{"code":"1","msg":"All operations failed","data":[{"ordId":"","clOrdId":"S1","sCode":"51400","sMsg":"Order does not exist"}]}`, nil},
+			{"failed status in a success reply", `{"code":"0","msg":"","data":[{"ordId":"SPRD-1","clOrdId":"S1","sCode":"51400","sMsg":"Order does not exist"}]}`, nil},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
-				ex, requests := newRecordingExchange(t, connected, connected, `"code":"0","msg":"","data":[{"ordId":"123","clOrdId":"client","sCode":"0","sMsg":""}]}`)
-				resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{ClientOrderID: "client", Type: order.Limit, Pair: mainPair, AssetType: asset.Spot}})
-				exp := `REST /trade/cancel-batch-orders [{"instId":"BTC-USDT","ordId":"","clOrdId":"client"}]`
-				if connected {
-					exp = `websocket batch-cancel-orders [{"instId":"BTC-USDT","ordId":"","clOrdId":"client"}]`
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/sprd/cancel-order" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(tc.reply))
+				}))
+				err := ex.CancelOrder(t.Context(), &order.Cancel{
+					AssetType:     asset.Spread,
+					Pair:          spreadPair,
+					ClientOrderID: "S1",
+				})
+				if tc.err != nil {
+					assert.ErrorIs(t, err, tc.err, "CancelOrder should return the sentinel for a reply that names no order")
+				} else {
+					assert.ErrorContains(t, err, "Order does not exist", "CancelOrder should report the failed cancel's status message")
 				}
-				assert.Equal(t, []string{exp}, requests(), "CancelBatchOrders should send the cancellation by client order ID")
-				require.NoError(t, err, "CancelBatchOrders must not error")
-				require.NotNil(t, resp, "CancelBatchOrders must return a response")
-				assert.Equal(t, map[string]string{"123": order.Cancelled.String()}, resp.Status, "CancelBatchOrders should report the order cancelled")
 			})
 		}
 	})
 
+	t.Run("algo empty reply", func(t *testing.T) {
+		t.Parallel()
+		// Guards the algo cancel reply that names no
+		// order, which would otherwise index an empty result.
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/cancel-algos" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			writeOKXData(t, w, []any{})
+		}))
+		err := ex.CancelOrder(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-1", Type: order.Trigger})
+		assert.ErrorIs(t, err, common.ErrNoResponse, "an algo cancel reply without results should return ErrNoResponse")
+	})
+
+	t.Run("a regular order tracked under another type", func(t *testing.T) {
+		t.Parallel()
+		for _, orderType := range []order.Type{order.UnknownType, order.LimitMaker, order.Stop, order.StopLimit, order.TakeProfit, order.IOS, order.AnyType, order.Liquidation} {
+			t.Run(orderType.String(), func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var paths []string
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					mu.Lock()
+					paths = append(paths, r.URL.Path)
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+				}))
+				err := ex.CancelOrder(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair, OrderID: "1", Type: orderType})
+				require.NoErrorf(t, err, "CancelOrder must cancel a regular order tracked as %s", orderType)
+				mu.Lock()
+				defer mu.Unlock()
+				assert.Equal(t, []string{"/trade/cancel-order"}, paths, "CancelOrder should cancel an order outside the algo types through the regular endpoint")
+			})
+		}
+	})
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
 	_, err := e.CancelBatchOrders(contextGenerate(), make([]order.Cancel, 21))
 	require.ErrorIs(t, err, errExceedLimit)
 	_, err = e.CancelBatchOrders(contextGenerate(), nil)
@@ -4257,6 +5468,13 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = e.CancelBatchOrders(contextGenerate(), []order.Cancel{arg})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
+	spreadCancel := order.Cancel{
+		AssetType: asset.Spread,
+		Pair:      spreadPair,
+	}
+	_, err = e.CancelBatchOrders(contextGenerate(), []order.Cancel{spreadCancel})
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -4285,6 +5503,221 @@ func TestCancelBatchOrders(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
+
+	t.Run("rest partial success", func(t *testing.T) {
+		t.Parallel()
+		// Guards the REST partial-success
+		// path: OKX answers a partly failed batch with code 2, a message and per-order
+		// results, which are reported alongside the error only when they decode,
+		// whatever the message.
+		for _, tc := range []struct {
+			name    string
+			reply   string
+			partial bool
+			status  map[string]string
+		}{
+			{
+				name:    "per-order results",
+				reply:   `{"code":"2","msg":"Bulk operation partially succeeded.","data":[{"ordId":"OK-1","sCode":"0","sMsg":""},{"ordId":"FAIL-1","sCode":"51400","sMsg":"Order does not exist"}]}`,
+				partial: true,
+				status:  map[string]string{"OK-1": order.PendingCancel.String(), "FAIL-1": "Order does not exist"},
+			},
+			{
+				name:    "null result",
+				reply:   `{"code":"2","msg":"Bulk operation partially succeeded.","data":[null,{"ordId":"OK-1","sCode":"0","sMsg":""}]}`,
+				partial: true,
+				status:  map[string]string{"OK-1": order.PendingCancel.String()},
+			},
+			{
+				name:   "undecodable result",
+				reply:  `{"code":"2","msg":"Bulk operation partially succeeded.","data":[{"ordId":"OK-1","sCode":"0","sMsg":""},{"ordId":"FAIL-1","sCode":"bad","sMsg":"Order does not exist"}]}`,
+				status: map[string]string{},
+			},
+			{
+				name:   "undecodable result without a message",
+				reply:  `{"code":"2","msg":"","data":[{"ordId":"OK-1","sCode":"0","sMsg":""},{"ordId":"FAIL-1","sCode":"bad","sMsg":"Order does not exist"}]}`,
+				status: map[string]string{},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/trade/cancel-batch-orders" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(tc.reply))
+				}))
+				resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+					{AssetType: asset.Spot, Pair: mainPair, OrderID: "OK-1"},
+					{AssetType: asset.Spot, Pair: mainPair, OrderID: "FAIL-1"},
+				})
+				require.Error(t, err, "a partially successful REST batch must report its error")
+				assert.Equal(t, tc.partial, errors.Is(err, errPartialSuccess), "only results that decode should be marked as a partial success")
+				require.NotNil(t, resp, "CancelBatchOrders must return the partial results")
+				assert.Equal(t, tc.status, resp.Status, "a partially successful REST batch should report every decoded per-order result")
+			})
+		}
+	})
+
+	t.Run("spread guards", func(t *testing.T) {
+		t.Parallel()
+		// Guards the batch cancel validation: a
+		// spread order cannot batch — OKX takes each spread cancel as its own
+		// request — so a spread entry fails the whole batch before any cancel is
+		// sent, while a client-ID-only spot cancel passes the ordinary order guard.
+		const spotOrdID = "2341161427393388545"
+		var mu sync.Mutex
+		var requests int
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/cancel-batch-orders" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			mu.Lock()
+			requests++
+			mu.Unlock()
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"sCode":"0","sMsg":"","ordId":"` + spotOrdID + `","clOrdId":"spot-cl"}]}`))
+		}))
+		requestsSent := func() int {
+			mu.Lock()
+			defer mu.Unlock()
+			return requests
+		}
+
+		_, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{
+			AssetType:     asset.Spread,
+			Pair:          spreadPair,
+			ClientOrderID: "spread-cl",
+		}})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "a spread cancel should be refused: spread orders cancel one request at a time")
+		assert.Zero(t, requestsSent(), "a refused batch should send no cancels")
+
+		_, err = ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{AssetType: asset.Spot, Pair: mainPair, OrderID: "spot-order"},
+			{AssetType: asset.Spread, Pair: spreadPair, ClientOrderID: "spread-cl"},
+		})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "a spread entry should fail the batch")
+		assert.Zero(t, requestsSent(), "no cancel should be sent before the whole batch validates")
+
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{
+			AssetType:     asset.Spot,
+			Pair:          mainPair,
+			ClientOrderID: "spot-cl",
+		}})
+		require.NoError(t, err, "CancelBatchOrders must accept a client-ID-only spot cancel")
+		assert.Equal(t, map[string]string{spotOrdID: order.PendingCancel.String()}, resp.Status,
+			"a client-ID-only spot cancel should report the status under the order ID OKX returns")
+	})
+
+	t.Run("reports algo results", func(t *testing.T) {
+		t.Parallel()
+		// Guards the per-item algo cancel
+		// results: before the array decode, a response for more than one algo order
+		// failed to decode, so the batch errored, or dropped the algo statuses without
+		// an error when ordinary orders in the same batch were cancelled.
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/cancel-algos" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[` +
+				`{"algoId":"ALGO-OK","sCode":"0","sMsg":""},` +
+				`{"algoId":"ALGO-BAD","sCode":"51000","sMsg":"The algo order does not exist"}]}`))
+		}))
+
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-OK", Type: order.Trigger},
+			{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-BAD", Type: order.Trigger},
+		})
+		require.NoError(t, err, "CancelBatchOrders must not error when the batch is accepted")
+		assert.Equal(t, order.PendingCancel.String(), resp.Status["ALGO-OK"], "an acknowledged algo cancel should report the pending state, as sCode 0 covers the request only")
+		assert.Equal(t, "The algo order does not exist", resp.Status["ALGO-BAD"], "a failed algo cancel should report its status message")
+	})
+
+	t.Run("algo partial success", func(t *testing.T) {
+		t.Parallel()
+		// Guards the algo partial-success
+		// path: OKX answers a partly failed algo batch with code 2 and per-order
+		// results, which must be reported alongside the error, skipping any row that
+		// names no algo order.
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/cancel-algos" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"2","msg":"Bulk operation partially succeeded.","data":[null,` +
+				`{"algoId":"ALGO-OK","sCode":"0","sMsg":""},` +
+				`{"algoId":"ALGO-BAD","sCode":"51000","sMsg":"The algo order does not exist"}]}`))
+		}))
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-OK", Type: order.Trigger},
+			{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-BAD", Type: order.Trigger},
+		})
+		require.ErrorIs(t, err, errPartialSuccess, "a partially successful algo batch must report its error")
+		require.NotNil(t, resp, "CancelBatchOrders must return the partial results")
+		assert.Equal(t, map[string]string{
+			"ALGO-OK":  order.PendingCancel.String(),
+			"ALGO-BAD": "The algo order does not exist",
+		}, resp.Status, "a partially successful algo batch should report every per-order result")
+	})
+
+	t.Run("algo limit", func(t *testing.T) {
+		t.Parallel()
+		// Guards the algo cancel limit: the documented
+		// cancel-algos request takes at most maxCancelAlgosPerRequest orders, and the
+		// wrapper does not chunk for the caller, so a longer list is refused before
+		// any request is sent while a list within the limit goes out as one request.
+		var mu sync.Mutex
+		var requests int
+		var lastSize int
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/cancel-algos" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			raw, readErr := io.ReadAll(r.Body)
+			assert.NoError(t, readErr, "reading the algo cancel body should not error")
+			var sent []map[string]string
+			if err := json.Unmarshal(raw, &sent); err != nil {
+				t.Errorf("the algo cancel body should decode: %v", err)
+				http.Error(w, "bad body", http.StatusBadRequest)
+				return
+			}
+			rows := make([]map[string]string, 0, len(sent))
+			for _, a := range sent {
+				rows = append(rows, map[string]string{"algoId": a["algoId"], "sCode": "0", "sMsg": ""})
+			}
+			mu.Lock()
+			requests++
+			lastSize = len(rows)
+			mu.Unlock()
+			writeOKXData(t, w, rows)
+		}))
+		cancels := make([]order.Cancel, 0, maxCancelAlgosPerRequest+1)
+		for i := range maxCancelAlgosPerRequest + 1 {
+			cancels = append(cancels, order.Cancel{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-" + strconv.Itoa(i), Type: order.Trigger})
+		}
+		_, err := ex.CancelBatchOrders(t.Context(), cancels)
+		assert.ErrorIs(t, err, errExceedLimit, "more than ten algo orders in one batch should be refused")
+
+		resp, err := ex.CancelBatchOrders(t.Context(), cancels[:maxCancelAlgosPerRequest])
+		require.NoError(t, err, "CancelBatchOrders must accept ten algo orders")
+		assert.Len(t, resp.Status, maxCancelAlgosPerRequest, "every cancelled algo order should appear in the status map")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, 1, requests, "the algo cancels within the limit should be sent as one request")
+		assert.Equal(t, maxCancelAlgosPerRequest, lastSize, "the single algo request should carry the whole batch")
+	})
 }
 
 func TestCancelAllOrders(t *testing.T) {
@@ -4292,179 +5725,384 @@ func TestCancelAllOrders(t *testing.T) {
 	_, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Binary})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spread})
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		result, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spread})
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 
-	result, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Futures})
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+		result, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Futures})
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 
-	result, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spot})
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+		result, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spot})
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+
+	t.Run("matches only the requested orders", func(t *testing.T) {
+		t.Parallel()
+		// Subtests share the mock server's pending order queue, so they run
+		// sequentially.
+		var mu sync.Mutex
+		var pending []map[string]string
+		// pages, when set, serves the pending order list keyed by the after
+		// pagination parameter, with "" naming the first page.
+		var pages map[string][]map[string]string
+		var cancelled []CancelOrderRequestParam
+		var pendingQuery string
+		var afterCursors []string
+
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/trade/orders-pending":
+				after := r.URL.Query().Get("after")
+				mu.Lock()
+				defer mu.Unlock()
+				if slices.Contains(afterCursors, after) {
+					// Nothing here fails a request, so a repeat means the cursor never advanced.
+					t.Errorf("after %q requested again", after)
+					http.Error(w, "repeated after", http.StatusBadRequest)
+					return
+				}
+				afterCursors = append(afterCursors, after)
+				pendingQuery = r.URL.RawQuery
+				if pages != nil {
+					writeOKXData(t, w, pages[after])
+					return
+				}
+				writeOKXData(t, w, pending)
+			case "/trade/cancel-batch-orders":
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Errorf("reading cancel request body should not error: %v", err)
+					return
+				}
+				var reqs []CancelOrderRequestParam
+				if err := json.Unmarshal(body, &reqs); err != nil {
+					t.Errorf("decoding cancel request body should not error: %v", err)
+					return
+				}
+				respData := make([]map[string]string, 0, len(reqs))
+				for x := range reqs {
+					respData = append(respData, map[string]string{"ordId": reqs[x].OrderID, "sCode": "0"})
+				}
+				mu.Lock()
+				cancelled = append(cancelled, reqs...)
+				mu.Unlock()
+				writeOKXData(t, w, respData)
+			default:
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}
+		}))
+
+		setPending := func(ords ...map[string]string) {
+			mu.Lock()
+			defer mu.Unlock()
+			pending = ords
+			pages = nil
+		}
+		setPages := func(p map[string][]map[string]string) {
+			mu.Lock()
+			defer mu.Unlock()
+			pages = p
+		}
+		resetCancelled := func() {
+			mu.Lock()
+			defer mu.Unlock()
+			cancelled = nil
+			pendingQuery = ""
+			afterCursors = nil
+		}
+		cancelledIDs := func() []string {
+			mu.Lock()
+			defer mu.Unlock()
+			ids := make([]string, 0, len(cancelled))
+			for x := range cancelled {
+				ids = append(ids, cancelled[x].OrderID)
+			}
+			return ids
+		}
+
+		t.Run("by order ID", func(t *testing.T) {
+			resetCancelled()
+			setPending(
+				map[string]string{"instId": "BTC-USDT", "ordId": "KEEP-ME"},
+				map[string]string{"instId": "BTC-USDT", "ordId": "CANCEL-ME"},
+			)
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{
+				AssetType: asset.Spot,
+				Pair:      mainPair,
+				OrderID:   "CANCEL-ME",
+			})
+			require.NoError(t, err, "CancelAllOrders must not error when cancelling by order ID")
+			assert.Equal(t, []string{"CANCEL-ME"}, cancelledIDs(), "cancelling by order ID should cancel only the requested order")
+			assert.Contains(t, resp.Status, "CANCEL-ME", "the cancelled order should be reported")
+		})
+
+		t.Run("by client order ID", func(t *testing.T) {
+			resetCancelled()
+			setPending(
+				map[string]string{"instId": "BTC-USDT", "ordId": "OTHER", "clOrdId": "other"},
+				map[string]string{"instId": "BTC-USDT", "ordId": "TARGET", "clOrdId": "target"},
+			)
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{
+				AssetType:     asset.Spot,
+				Pair:          mainPair,
+				ClientOrderID: "target",
+			})
+			require.NoError(t, err, "CancelAllOrders must not error when cancelling by client order ID")
+			assert.Equal(t, []string{"TARGET"}, cancelledIDs(), "cancelling by client order ID should cancel only the requested order")
+		})
+
+		t.Run("by both order ID and client order ID", func(t *testing.T) {
+			resetCancelled()
+			setPending(
+				map[string]string{"instId": "BTC-USDT", "ordId": "MATCHES-CL-only", "clOrdId": "both"},
+				map[string]string{"instId": "BTC-USDT", "ordId": "both", "clOrdId": "MATCHES-ORD-only"},
+				map[string]string{"instId": "BTC-USDT", "ordId": "both", "clOrdId": "both"},
+			)
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{
+				AssetType:     asset.Spot,
+				Pair:          mainPair,
+				OrderID:       "both",
+				ClientOrderID: "both",
+			})
+			require.NoError(t, err, "CancelAllOrders must not error when cancelling by both order ID and client order ID")
+			assert.Equal(t, []string{"both"}, cancelledIDs(), "supplying both IDs should only cancel the order matching both")
+		})
+
+		t.Run("order type filter parameter", func(t *testing.T) {
+			resetCancelled()
+			setPending(
+				map[string]string{"instId": "BTC-USDT", "ordId": "LMT-1", "ordType": "limit"},
+			)
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{
+				AssetType: asset.Spot,
+				Pair:      mainPair,
+				Type:      order.Limit,
+			})
+			require.NoError(t, err, "CancelAllOrders must not error when filtering by order type")
+			mu.Lock()
+			query := pendingQuery
+			mu.Unlock()
+			require.NotEmpty(t, query, "the pending order list must have been requested")
+			assert.Contains(t, query, "ordType=limit", "the order type filter should be sent as ordType")
+			assert.NotContains(t, query, "orderType=", "OKX ignores an orderType parameter, so it should not be sent")
+		})
+
+		t.Run("formats the pair through the exchange's pair format", func(t *testing.T) {
+			resetCancelled()
+			setPending(
+				map[string]string{"instId": "BTC-USDT", "ordId": "ANY"},
+			)
+			slashPair := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{
+				AssetType: asset.Spot,
+				Pair:      slashPair,
+			})
+			require.NoError(t, err, "CancelAllOrders must not error for a differently delimited pair")
+			mu.Lock()
+			query := pendingQuery
+			mu.Unlock()
+			assert.Contains(t, query, "instId=BTC-USDT", "the instrument filter should use the exchange's pair format")
+		})
+
+		t.Run("by side", func(t *testing.T) {
+			resetCancelled()
+			setPending(
+				map[string]string{"instId": "BTC-USDT", "ordId": "BUY-1", "side": "buy"},
+				map[string]string{"instId": "BTC-USDT", "ordId": "SELL-1", "side": "sell"},
+			)
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{
+				AssetType: asset.Spot,
+				Pair:      mainPair,
+				Side:      order.Buy,
+			})
+			require.NoError(t, err, "CancelAllOrders must not error when cancelling by side")
+			assert.Equal(t, []string{"BUY-1"}, cancelledIDs(), "cancelling buys should not cancel sell orders")
+		})
+
+		t.Run("all", func(t *testing.T) {
+			resetCancelled()
+			setPending(
+				map[string]string{"instId": "BTC-USDT", "ordId": "BUY-1", "side": "buy"},
+				map[string]string{"instId": "BTC-USDT", "ordId": "SELL-1", "side": "sell"},
+			)
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{
+				AssetType: asset.Spot,
+				Pair:      mainPair,
+			})
+			require.NoError(t, err, "CancelAllOrders must not error when cancelling everything")
+			assert.Equal(t, []string{"BUY-1", "SELL-1"}, cancelledIDs(), "an unfiltered cancel should cancel every open order")
+		})
+
+		t.Run("paginates the pending order list", func(t *testing.T) {
+			resetCancelled()
+			firstPage := make([]map[string]string, 0, orderListPageSize)
+			for x := range orderListPageSize {
+				firstPage = append(firstPage, map[string]string{"instId": "BTC-USDT", "ordId": fmt.Sprintf("PAGE1-%03d", x)})
+			}
+			lastOfFirstPage := firstPage[orderListPageSize-1]["ordId"]
+			setPages(map[string][]map[string]string{
+				"": firstPage,
+				lastOfFirstPage: {
+					{"instId": "BTC-USDT", "ordId": "PAGE2-0"},
+					{"instId": "BTC-USDT", "ordId": "PAGE2-1"},
+				},
+			})
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{
+				AssetType: asset.Spot,
+				Pair:      mainPair,
+			})
+			require.NoError(t, err, "CancelAllOrders must not error when the pending order list spans pages")
+			got := cancelledIDs()
+			assert.Len(t, got, orderListPageSize+2, "a paginated cancel should cancel every open order across pages")
+			assert.Contains(t, got, "PAGE2-1", "orders past the first page should be cancelled")
+		})
+	})
+
+	t.Run("continues after a failed batch", func(t *testing.T) {
+		t.Parallel()
+		// Guards the batch loop: a failed
+		// batch must not stop later batches, and the joined error is returned with the
+		// statuses collected from the batches that succeeded.
+		var mu sync.Mutex
+		var cancelRequests int
+
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/trade/orders-pending":
+				// 22 orders exceed one batch of 20, forming a failing first batch
+				// and a succeeding second batch.
+				ords := make([]map[string]string, 0, 22)
+				for x := range 22 {
+					ords = append(ords, map[string]string{"instId": "BTC-USDT", "ordId": fmt.Sprintf("ORD-%02d", x)})
+				}
+				writeOKXData(t, w, ords)
+			case "/trade/cancel-batch-orders":
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Errorf("reading cancel request body should not error: %v", err)
+					return
+				}
+				var reqs []CancelOrderRequestParam
+				if err := json.Unmarshal(body, &reqs); err != nil {
+					t.Errorf("decoding cancel request body should not error: %v", err)
+					return
+				}
+				mu.Lock()
+				cancelRequests++
+				first := cancelRequests == 1
+				mu.Unlock()
+				if first {
+					http.Error(w, "batch one failed", http.StatusInternalServerError)
+					return
+				}
+				respData := make([]map[string]string, 0, len(reqs))
+				for x := range reqs {
+					respData = append(respData, map[string]string{"ordId": reqs[x].OrderID, "sCode": "0"})
+				}
+				writeOKXData(t, w, respData)
+			default:
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}
+		}))
+
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair})
+		require.Error(t, err, "CancelAllOrders must report the failed batch")
+		mu.Lock()
+		requests := cancelRequests
+		mu.Unlock()
+		assert.Equal(t, 2, requests, "a failed batch should not stop later batches from being sent")
+		assert.Contains(t, resp.Status, "ORD-21", "orders from the later successful batch should still be cancelled")
+		assert.NotContains(t, resp.Status, "ORD-00", "orders from the failed batch should not be reported as cancelled")
+	})
+
+	t.Run("rest partial success", func(t *testing.T) {
+		t.Parallel()
+		// Guards the REST partial-success path
+		// through CancelAllOrders: the per-order results of a code 2 batch reply must
+		// reach the status map alongside the error.
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/trade/orders-pending":
+				writeOKXData(t, w, []map[string]string{
+					{"instId": "BTC-USDT", "ordId": "OK-1"},
+					{"instId": "BTC-USDT", "ordId": "FAIL-1"},
+				})
+			case "/trade/cancel-batch-orders":
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"code":"2","msg":"Bulk operation partially succeeded.","data":[{"ordId":"OK-1","sCode":"0","sMsg":""},{"ordId":"FAIL-1","sCode":"51400","sMsg":"Order does not exist"}]}`))
+			default:
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}
+		}))
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair})
+		require.ErrorIs(t, err, errPartialSuccess, "a partially successful REST batch must report its error")
+		assert.Equal(t, map[string]string{
+			"OK-1":   order.PendingCancel.String(),
+			"FAIL-1": "Order does not exist",
+		}, resp.Status, "a partially successful REST batch should report every per-order result")
+	})
+
+	t.Run("scopes the spread mass cancel", func(t *testing.T) {
+		t.Parallel()
+		// Guards the spread branch: OKX's
+		// mass-cancel takes the spread pair as sprdId and cancels every spread order
+		// when it is omitted, so a populated pair must scope the cancel instead of the
+		// order ID leaking in as a bogus sprdId.
+		var mu sync.Mutex
+		var massCancelBodies []string
+
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/sprd/mass-cancel" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Errorf("reading mass-cancel body should not error: %v", err)
+				return
+			}
+			mu.Lock()
+			massCancelBodies = append(massCancelBodies, string(body))
+			mu.Unlock()
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"result":true}]}`))
+		}))
+
+		t.Run("pair scopes the mass cancel", func(t *testing.T) {
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{
+				AssetType: asset.Spread,
+				Pair:      spreadPair,
+			})
+			require.NoError(t, err, "CancelAllOrders must not error for a pair-scoped spread cancel")
+			mu.Lock()
+			last := massCancelBodies[len(massCancelBodies)-1]
+			mu.Unlock()
+			assert.Contains(t, last, `"sprdId":"BTC-USDT_BTC-USDT-SWAP"`, "a populated pair should scope the mass cancel to that spread")
+			assert.Equal(t, map[string]string{"BTC-USDT_BTC-USDT-SWAP": "true"}, resp.Status, "the result should be reported under the spread it cancelled")
+		})
+
+		t.Run("no pair cancels every spread", func(t *testing.T) {
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spread})
+			require.NoError(t, err, "CancelAllOrders must not error for an unscoped spread cancel")
+			mu.Lock()
+			last := massCancelBodies[len(massCancelBodies)-1]
+			mu.Unlock()
+			assert.Equal(t, "{}", last, "an unscoped cancel should omit sprdId so OKX cancels every spread order")
+		})
+	})
 }
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	// Checks what ModifyOrder sends for each kind of order: a regular order's new size and price, over the
-	// authenticated websocket when it can be used and over REST otherwise, and an algo order's amendment over REST
-	t.Run("requests by order kind", func(t *testing.T) {
-		t.Parallel()
-		const (
-			result  = `"code":"0","msg":"","data":[{"ordId":"123","algoId":"123","clOrdId":"client","sCode":"0","sMsg":""}]}`
-			failure = `"code":"50011","msg":"mock: rate limit reached","data":[]}`
-			fields  = `"instId":"BTC-USDT","ordId":"123","clOrdId":"client"`
-			algo    = `{"instId":"BTC-USDT","algoId":"123","algoClOrdId":"client"`
-		)
-		regular := order.Modify{OrderID: "123", ClientOrderID: "client", Pair: mainPair, AssetType: asset.Spot}
-		modify := func(orderType order.Type, price, amount float64) *order.Modify {
-			m := regular
-			m.Type, m.Price, m.Amount = orderType, price, amount
-			return &m
-		}
-		trigger := modify(order.Trigger, 3.5, 2)
-		trigger.TriggerPrice, trigger.TriggerPriceType = 4, order.MarkPrice
-		triggerWithExits := *trigger
-		triggerWithExits.RiskManagementModes = order.RiskManagementModes{
-			TakeProfit: order.RiskManagement{Price: 5, LimitPrice: 5.5, TriggerPriceType: order.LastPrice},
-			StopLoss:   order.RiskManagement{Price: 2, TriggerPriceType: order.IndexPrice},
-		}
-		oco := modify(order.OCO, 0, 2)
-		oco.RiskManagementModes = order.RiskManagementModes{
-			TakeProfit: order.RiskManagement{Price: 5, LimitPrice: 5.5, TriggerPriceType: order.LastPrice},
-			StopLoss:   order.RiskManagement{Price: 2, TriggerPriceType: order.IndexPrice},
-		}
-		spread := order.Modify{OrderID: "123", ClientOrderID: "client", Pair: spreadPair, AssetType: asset.Spread, Price: 3.5, Amount: 2}
-		swap := modify(order.Limit, 3.5, 2)
-		swap.Pair, swap.AssetType = perpetualSwapPair, asset.PerpetualSwap
-		decimalOnAsset := func(pair currency.Pair, a asset.Item) *order.Modify {
-			m := modify(order.Limit, 3.5, 0.25)
-			m.Pair, m.AssetType = pair, a
-			return m
-		}
-		decimalSpread := spread
-		decimalSpread.Amount = 0.25
-		decimalTrigger := *trigger
-		decimalTrigger.Amount = 0.25
-		decimalOCO := *oco
-		decimalOCO.Amount = 0.25
-		ocoStopLossOrder := *oco
-		ocoStopLossOrder.RiskManagementModes.StopLoss.LimitPrice = 1.9
-		for _, tc := range []struct {
-			name       string
-			modify     *order.Modify
-			rest, sock string
-		}{
-			{name: "new price and size", modify: modify(order.Limit, 3.5, 2), rest: `/trade/amend-order {` + fields + `,"newSz":"2","newPx":"3.5"}`, sock: `amend-order [{` + fields + `,"newSz":"2","newPx":"3.5"}]`},
-			{name: "new price only", modify: modify(order.Limit, 3.5, 0), rest: `/trade/amend-order {` + fields + `,"newPx":"3.5"}`, sock: `amend-order [{` + fields + `,"newPx":"3.5"}]`},
-			{name: "new size only", modify: modify(order.Limit, 0, 2), rest: `/trade/amend-order {` + fields + `,"newSz":"2"}`, sock: `amend-order [{` + fields + `,"newSz":"2"}]`},
-			{name: "decimal size", modify: modify(order.Limit, 3.5, 1.5), rest: `/trade/amend-order {` + fields + `,"newSz":"1.5","newPx":"3.5"}`, sock: `amend-order [{` + fields + `,"newSz":"1.5","newPx":"3.5"}]`},
-			{name: "decimal size at OKX's smallest BTC-USDT lot", modify: modify(order.Limit, 3.5, 0.12345678), rest: `/trade/amend-order {` + fields + `,"newSz":"0.12345678","newPx":"3.5"}`, sock: `amend-order [{` + fields + `,"newSz":"0.12345678","newPx":"3.5"}]`},
-			{name: "no order type given", modify: modify(order.UnknownType, 3.5, 2), rest: `/trade/amend-order {` + fields + `,"newSz":"2","newPx":"3.5"}`, sock: `amend-order [{` + fields + `,"newSz":"2","newPx":"3.5"}]`},
-			{name: "market order", modify: modify(order.Market, 0, 2), rest: `/trade/amend-order {` + fields + `,"newSz":"2"}`, sock: `amend-order [{` + fields + `,"newSz":"2"}]`},
-			{name: "optimal limit order", modify: modify(order.OptimalLimit, 3.5, 2), rest: `/trade/amend-order {` + fields + `,"newSz":"2","newPx":"3.5"}`, sock: `amend-order [{` + fields + `,"newSz":"2","newPx":"3.5"}]`},
-			{name: "market maker protection order", modify: modify(order.MarketMakerProtection, 3.5, 2), rest: `/trade/amend-order {` + fields + `,"newSz":"2","newPx":"3.5"}`, sock: `amend-order [{` + fields + `,"newSz":"2","newPx":"3.5"}]`},
-			{
-				name: "order on another asset", modify: swap,
-				rest: `/trade/amend-order {"instId":"BTC-USDT-SWAP","ordId":"123","clOrdId":"client","newSz":"2","newPx":"3.5"}`,
-				sock: `amend-order [{"instId":"BTC-USDT-SWAP","ordId":"123","clOrdId":"client","newSz":"2","newPx":"3.5"}]`,
-			},
-			{
-				name: "decimal size on a perpetual swap", modify: decimalOnAsset(perpetualSwapPair, asset.PerpetualSwap),
-				rest: `/trade/amend-order {"instId":"BTC-USDT-SWAP","ordId":"123","clOrdId":"client","newSz":"0.25","newPx":"3.5"}`,
-				sock: `amend-order [{"instId":"BTC-USDT-SWAP","ordId":"123","clOrdId":"client","newSz":"0.25","newPx":"3.5"}]`,
-			},
-			{
-				name: "decimal size on margin", modify: decimalOnAsset(mainPair, asset.Margin),
-				rest: `/trade/amend-order {` + fields + `,"newSz":"0.25","newPx":"3.5"}`,
-				sock: `amend-order [{` + fields + `,"newSz":"0.25","newPx":"3.5"}]`,
-			},
-			{
-				name: "decimal size on a future", modify: decimalOnAsset(futuresPair, asset.Futures),
-				rest: `/trade/amend-order {"instId":"BTC-USD","ordId":"123","clOrdId":"client","newSz":"0.25","newPx":"3.5"}`,
-				sock: `amend-order [{"instId":"BTC-USD","ordId":"123","clOrdId":"client","newSz":"0.25","newPx":"3.5"}]`,
-			},
-			{
-				name: "decimal size on an option", modify: decimalOnAsset(optionsPair, asset.Options),
-				rest: `/trade/amend-order {"instId":"BTC-USD","ordId":"123","clOrdId":"client","newSz":"0.25","newPx":"3.5"}`,
-				sock: `amend-order [{"instId":"BTC-USD","ordId":"123","clOrdId":"client","newSz":"0.25","newPx":"3.5"}]`,
-			},
-			{
-				name: "decimal size on a spread order", modify: &decimalSpread,
-				rest: `/sprd/amend-order {"ordId":"123","clOrdId":"client","reqId":"","newSz":"0.25","newPx":"3.5"}`,
-				sock: `sprd-amend-order [{"ordId":"123","clOrdId":"client","reqId":"","newSz":"0.25","newPx":"3.5"}]`,
-			},
-			{name: "decimal size on a trigger order", modify: &decimalTrigger, rest: `/trade/amend-algos ` + algo + `,"newSz":"0.25","newTriggerPx":4,"newOrdPx":3.5,"newTriggerPxType":"mark"}`},
-			{name: "decimal size on a one cancels the other order", modify: &decimalOCO, rest: `/trade/amend-algos ` + algo + `,"newSz":"0.25","newTpTriggerPx":"5","newTpOrdPx":"5.5","newSlTriggerPx":"2","newTpTriggerPxType":"last","newSlTriggerPxType":"index"}`},
-			{
-				name: "spread order", modify: &spread,
-				rest: `/sprd/amend-order {"ordId":"123","clOrdId":"client","reqId":"","newSz":"2","newPx":"3.5"}`,
-				sock: `sprd-amend-order [{"ordId":"123","clOrdId":"client","reqId":"","newSz":"2","newPx":"3.5"}]`,
-			},
-			{name: "trigger order", modify: trigger, rest: `/trade/amend-algos ` + algo + `,"newSz":"2","newTriggerPx":4,"newOrdPx":3.5,"newTriggerPxType":"mark"}`},
-			{
-				name: "trigger order with take profit and stop loss", modify: &triggerWithExits,
-				rest: `/trade/amend-algos ` + algo + `,"newSz":"2","newTriggerPx":4,"newOrdPx":3.5,"newTriggerPxType":"mark","attachAlgoOrds":[{"newTpTriggerPx":"5","newTpOrdPx":"5.5","newSlTriggerPx":"2","newSlOrdPx":"2","newTpTriggerPxType":"last","newSlTriggerPxType":"index"}]}`,
-			},
-			{name: "one cancels the other order", modify: oco, rest: `/trade/amend-algos ` + algo + `,"newSz":"2","newTpTriggerPx":"5","newTpOrdPx":"5.5","newSlTriggerPx":"2","newTpTriggerPxType":"last","newSlTriggerPxType":"index"}`},
-			{
-				name: "one cancels the other order with a stop loss order price", modify: &ocoStopLossOrder,
-				rest: `/trade/amend-algos ` + algo + `,"newSz":"2","newTpTriggerPx":"5","newTpOrdPx":"5.5","newSlTriggerPx":"2","newSlOrdPx":"1.9","newTpTriggerPxType":"last","newSlTriggerPxType":"index"}`,
-			},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-				ctx := t.Context()
-				// Cases share tc.modify, which ModifyOrder is given again after them, so they run in order
-				for _, state := range []struct {
-					connected, authenticated bool
-				}{
-					{connected: false, authenticated: false},
-					{connected: false, authenticated: true},
-					{connected: true, authenticated: false},
-					{connected: true, authenticated: true},
-				} {
-					// The case builds each state's exchange, as the loop did, so the exchange lives until the case ends
-					ex, requests := newRecordingExchange(t, state.connected, state.authenticated, result)
-					t.Run(fmt.Sprintf("connected %t authenticated %t", state.connected, state.authenticated), func(t *testing.T) {
-						exp := "REST " + tc.rest
-						if state.connected && state.authenticated && tc.sock != "" {
-							exp = "websocket " + tc.sock
-						}
-						response, err := ex.ModifyOrder(ctx, tc.modify)
-						require.NoErrorf(t, err, "ModifyOrder must not error when connected %t and authenticated %t", state.connected, state.authenticated)
-						assert.Equalf(t, tc.modify.Price, response.Price, "ModifyOrder should return the new price when connected %t and authenticated %t", state.connected, state.authenticated)
-						assert.Equalf(t, []string{exp}, requests(), "ModifyOrder should send the amendment when connected %t and authenticated %t", state.connected, state.authenticated)
-					})
-				}
-				ex, _ := newRecordingExchange(t, false, false, failure)
-				_, err := ex.ModifyOrder(t.Context(), tc.modify)
-				assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "ModifyOrder should return a refused amendment's error")
-			})
-		}
-
-		t.Run("pair format missing", func(t *testing.T) {
-			t.Parallel()
-			ex, requests := newRecordingExchange(t, false, false, result)
-			ex.CurrencyPairs.RequestFormat = nil
-			_, err := ex.ModifyOrder(t.Context(), modify(order.Limit, 3.5, 2))
-			assert.ErrorIs(t, err, currency.ErrPairFormatIsNil, "ModifyOrder should error without a pair format")
-			assert.Empty(t, requests(), "ModifyOrder should send nothing without a pair format")
-		})
-
-		t.Run("one cancels the other order without a stop loss", func(t *testing.T) {
-			t.Parallel()
-			ex, requests := newRecordingExchange(t, false, false, result)
-			withoutStopLoss := *oco
-			withoutStopLoss.RiskManagementModes.StopLoss = order.RiskManagement{}
-			_, err := ex.ModifyOrder(t.Context(), &withoutStopLoss)
-			assert.ErrorIs(t, err, limits.ErrPriceBelowMin, "ModifyOrder should refuse an order without a stop loss")
-			assert.Empty(t, requests(), "ModifyOrder should send nothing for an order without a stop loss")
-		})
-	})
-
 	_, err := e.ModifyOrder(contextGenerate(), nil)
 	require.ErrorIs(t, err, order.ErrModifyOrderIsNil)
 
@@ -4500,7 +6138,7 @@ func TestModifyOrder(t *testing.T) {
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		arg := &order.Modify{
+		arg = &order.Modify{
 			AssetType: asset.Spot,
 			Pair:      mainPair,
 			OrderID:   "1234",
@@ -4548,265 +6186,203 @@ func TestModifyOrder(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
+
+	t.Run("price-only amend", func(t *testing.T) {
+		t.Parallel()
+		// Guards the NewPrice population in ModifyOrder:
+		// before it, a price-only amend serialised neither newSz nor newPx and was
+		// rejected locally by errInvalidNewSizeOrPriceInformation.
+		var amendBody []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/amend-order" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			var err error
+			amendBody, err = io.ReadAll(r.Body)
+			if err != nil {
+				t.Errorf("reading amend request body should not error: %v", err)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"123","sCode":"0"}]}`))
+		}))
+
+		_, err := ex.ModifyOrder(t.Context(), &order.Modify{
+			Exchange:  ex.Name,
+			AssetType: asset.Spot,
+			Pair:      mainPair,
+			OrderID:   "123",
+			Type:      order.Limit,
+			Price:     42000,
+		})
+		require.NoError(t, err, "ModifyOrder must accept a price-only amend")
+		assert.Contains(t, string(amendBody), `"newPx":"42000"`, "a price-only amend should serialise the new price")
+	})
+
+	t.Run("fractional amount", func(t *testing.T) {
+		t.Parallel()
+		// Guards fractional amend sizes: OKX allows
+		// them on most instruments, and OrderManager.Modify sends the stored size with
+		// every price-only amend.
+		var amendBody []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/amend-order" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			var err error
+			amendBody, err = io.ReadAll(r.Body)
+			if err != nil {
+				t.Errorf("reading amend request body should not error: %v", err)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"123","sCode":"0"}]}`))
+		}))
+
+		_, err := ex.ModifyOrder(t.Context(), &order.Modify{
+			Exchange:  ex.Name,
+			AssetType: asset.Spot,
+			Pair:      mainPair,
+			OrderID:   "123",
+			Type:      order.Limit,
+			Amount:    0.001,
+			Price:     42000,
+		})
+		require.NoError(t, err, "ModifyOrder must accept a fractional amount")
+		assert.JSONEq(t, `{"instId":"BTC-USDT","ordId":"123","newSz":"0.001","newPx":"42000"}`, string(amendBody), "a fractional amend should reach OKX with its new size and price")
+	})
+
+	t.Run("oco amends the stop-loss order price", func(t *testing.T) {
+		t.Parallel()
+		// Guards the OCO amend path: the
+		// stop loss leg amends to the stop loss limit price rather than reading the
+		// stop entry mode, and an unset one is omitted so OKX leaves the leg's order
+		// price unchanged instead of amending it to zero.
+		var mu sync.Mutex
+		var bodies []string
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/amend-algos" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the algo amend request body should not error")
+			mu.Lock()
+			bodies = append(bodies, string(b))
+			mu.Unlock()
+			writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0", "sMsg": ""})
+		}))
+		_, err := ex.ModifyOrder(t.Context(), &order.Modify{
+			Exchange:  ex.Name,
+			AssetType: asset.Spot,
+			Pair:      mainPair,
+			OrderID:   "1",
+			Type:      order.OCO,
+			RiskManagementModes: order.RiskManagementModes{
+				TakeProfit: order.RiskManagement{Price: 110, LimitPrice: 111},
+				StopLoss:   order.RiskManagement{Price: 90, LimitPrice: 89},
+			},
+		})
+		require.NoError(t, err, "ModifyOrder must not error")
+		_, err = ex.ModifyOrder(t.Context(), &order.Modify{
+			Exchange:  ex.Name,
+			AssetType: asset.Spot,
+			Pair:      mainPair,
+			OrderID:   "1",
+			Type:      order.OCO,
+			RiskManagementModes: order.RiskManagementModes{
+				TakeProfit: order.RiskManagement{Price: 110},
+				StopLoss:   order.RiskManagement{Price: 90},
+			},
+		})
+		require.NoError(t, err, "ModifyOrder must not error without limit prices")
+		mu.Lock()
+		defer mu.Unlock()
+		require.Len(t, bodies, 2, "both amends must reach OKX")
+		var sent AmendAlgoOrderParam
+		require.NoError(t, json.Unmarshal([]byte(bodies[0]), &sent), "the algo amend request body must decode")
+		assert.Equal(t, 111.0, sent.NewTakeProfitOrderPrice, "the take profit leg should amend to its limit price")
+		assert.Equal(t, 89.0, sent.NewStopLossOrderPrice, "the stop loss leg should amend to its limit price")
+		assert.Equal(t, 90.0, sent.NewStopLossTriggerPrice, "the stop loss leg should trigger at the stop loss price")
+		assert.NotContains(t, bodies[1], "newSlOrdPx", "an unset stop loss order price should be omitted, not sent as zero")
+	})
+
+	t.Run("trigger attach tpsl order prices", func(t *testing.T) {
+		t.Parallel()
+		// Guards the take profit and stop
+		// loss legs attached to a trigger order amend: each leg carries its own limit
+		// price, with the stop loss order price read from the stop loss mode rather
+		// than its trigger price.
+		var mu sync.Mutex
+		var body []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/amend-algos" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the algo amend request body should not error")
+			mu.Lock()
+			body = b
+			mu.Unlock()
+			writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0", "sMsg": ""})
+		}))
+		_, err := ex.ModifyOrder(t.Context(), &order.Modify{
+			Exchange:     ex.Name,
+			AssetType:    asset.Spot,
+			Pair:         mainPair,
+			OrderID:      "1",
+			Type:         order.Trigger,
+			Price:        101,
+			TriggerPrice: 100,
+			RiskManagementModes: order.RiskManagementModes{
+				TakeProfit: order.RiskManagement{Price: 110, LimitPrice: 111},
+				StopLoss:   order.RiskManagement{Price: 90, LimitPrice: 89},
+			},
+		})
+		require.NoError(t, err, "ModifyOrder must not error")
+		mu.Lock()
+		defer mu.Unlock()
+		var sent AmendAlgoOrderParam
+		require.NoError(t, json.Unmarshal(body, &sent), "the algo amend request body must decode")
+		require.Len(t, sent.AttachAlgoOrders, 1, "the amend must attach the take profit and stop loss legs")
+		assert.Equal(t, 111.0, sent.AttachAlgoOrders[0].NewTakeProfitOrderPrice, "the attached take profit leg should carry its limit price")
+		assert.Equal(t, 89.0, sent.AttachAlgoOrders[0].NewStopLossOrderPrice, "the attached stop loss leg should carry the stop loss limit price, not its trigger price")
+		assert.Equal(t, 90.0, sent.AttachAlgoOrders[0].NewStopLossTriggerPrice, "the attached stop loss leg should trigger at the stop loss price")
+	})
+
+	t.Run("reports the row error", func(t *testing.T) {
+		t.Parallel()
+		// Guards the amend error report: a rejected
+		// amend carries its reason in the row's sCode and sMsg, which PlaceOrder and
+		// CancelSingleOrder already surface.
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/amend-order" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"1","msg":"Request has failed","data":[{"ordId":"123","sCode":"51119","sMsg":"Order modification failed, the order state does not allow amendment"}]}`))
+		}))
+		_, err := ex.ModifyOrder(t.Context(), &order.Modify{
+			Exchange: ex.Name, AssetType: asset.Spot, Pair: mainPair,
+			OrderID: "123", Type: order.Limit, Price: 42000,
+		})
+		require.Error(t, err, "a rejected amend must error")
+		assert.ErrorContains(t, err, "51119", "the error should report the row's sCode")
+		assert.ErrorContains(t, err, "does not allow amendment", "the error should report the row's sMsg")
+	})
 }
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	// Drives GetOrderInfo through canned replies, with each of OKX's spread order types read as the REST order mapping
-	// reads it, an order's fills read from its accumulated fill size and average price rather than its last fill,
-	// rebate or limit price, and a cost given only for spot and margin orders
-	t.Run("mocked", func(t *testing.T) {
-		t.Parallel()
-		const regularOrder = `{"instType":"SPOT","instId":"BTC-USDT","ordId":"1003","clOrdId":"buy1003","px":"10000","sz":"1","ordType":"post_only","side":"buy","accFillSz":"0.25","fillSz":"0.125","avgPx":"9990","feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0.0005","state":"partially_filled","uTime":"1761699801000","cTime":"1761699800000"}`
-		spreadOrder := strings.NewReplacer(`"sprdId":"BTC-USDT_BTC-USDT-SWAP"`, `"instId":"BTC-USDT"`, `"avgPx":"-10"`, `"avgPx":"-9"`, `"accFillSz":"1"`, `"accFillSz":"1.25"`, `"pendingFillSz":"0.75"`, `"pendingFillSz":"0.5"`).Replace(mockSpreadOrder)
-		regular := &order.Detail{
-			Amount:               1,
-			Exchange:             "Okx",
-			OrderID:              "1003",
-			ClientOrderID:        "buy1003",
-			Side:                 order.Buy,
-			Type:                 order.Limit,
-			Pair:                 mainPair,
-			Cost:                 2497.5,
-			CostAsset:            currency.USDT,
-			AssetType:            asset.Spot,
-			Status:               order.PartiallyFilled,
-			Price:                10000,
-			AverageExecutedPrice: 9990,
-			ExecutedAmount:       0.25,
-			RemainingAmount:      0.75,
-			Date:                 time.UnixMilli(1761699800000),
-			LastUpdated:          time.UnixMilli(1761699801000),
-			TimeInForce:          order.PostOnly,
-		}
-		swap := *regular
-		swap.Pair, swap.AssetType, swap.Cost, swap.CostAsset = perpetualSwapPair, asset.PerpetualSwap, 0, currency.EMPTYCODE
-		inverseFutures := swap
-		inverseFutures.Pair, inverseFutures.AssetType, inverseFutures.Amount, inverseFutures.ExecutedAmount, inverseFutures.RemainingAmount = currency.NewPairWithDelimiter("BTC", "USD-261225", "-"), asset.Futures, 2, 0.5, 1.5
-		inverseFutures.Date, inverseFutures.LastUpdated = time.UnixMilli(1777000000000), time.UnixMilli(1777000001000)
-		filled := *regular
-		filled.ExecutedAmount, filled.Cost, filled.RemainingAmount, filled.Status = 1, 9990, 0, order.Filled
-		quoteSized := *regular
-		quoteSized.Amount, quoteSized.Price, quoteSized.Type, quoteSized.TimeInForce, quoteSized.RemainingAmount, quoteSized.Status = 5000, 0, order.Market, order.UnknownTIF, 0, order.Cancelled
-		cancelled := *regular
-		cancelled.Status = order.Cancelled
-		optimalLimit := swap
-		optimalLimit.Amount, optimalLimit.Price, optimalLimit.Type, optimalLimit.TimeInForce, optimalLimit.ExecutedAmount, optimalLimit.RemainingAmount, optimalLimit.Status = 4, 0, order.OptimalLimit, order.ImmediateOrCancel, 1, 3, order.Cancelled
-		optionPair := currency.NewPairWithDelimiter("BTC", "USD-261225-100000-C", "-")
-		marketMakerProtection := swap
-		marketMakerProtection.Pair, marketMakerProtection.AssetType, marketMakerProtection.Type = optionPair, asset.Options, order.MarketMakerProtection
-		marketMakerProtection.Amount, marketMakerProtection.Price, marketMakerProtection.AverageExecutedPrice, marketMakerProtection.ExecutedAmount, marketMakerProtection.RemainingAmount = 5, 0.025, 0.02, 2, 3
-		marketMakerProtection.Date, marketMakerProtection.LastUpdated = time.UnixMilli(1777000000000), time.UnixMilli(1777000001000)
-		mmpOrder := strings.NewReplacer(`"instType":"SPOT","instId":"BTC-USDT"`, `"instType":"OPTION","instId":"BTC-USD-261225-100000-C"`, `"feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0.0005"`, `"feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0"`, `"px":"10000","sz":"1","ordType":"post_only"`, `"px":"0.025","sz":"5","ordType":"mmp_and_post_only"`, `"accFillSz":"0.25","fillSz":"0.125","avgPx":"9990"`, `"accFillSz":"2","fillSz":"1","avgPx":"0.02"`, `"uTime":"1761699801000","cTime":"1761699800000"`, `"uTime":"1777000001000","cTime":"1777000000000"`).Replace(regularOrder)
-		mmpCancelled := marketMakerProtection
-		mmpCancelled.Status = order.Cancelled
-		unfilled := *regular
-		unfilled.Amount, unfilled.TimeInForce, unfilled.ExecutedAmount, unfilled.AverageExecutedPrice, unfilled.Cost, unfilled.RemainingAmount, unfilled.Status = 2, order.UnknownTIF, 0, 0, 0, 2, order.Active
-		killed := *regular
-		killed.TimeInForce, killed.ExecutedAmount, killed.AverageExecutedPrice, killed.Cost, killed.RemainingAmount, killed.Status = order.FillOrKill, 0, 0, 0, 1, order.Cancelled
-		marginBuy := quoteSized
-		marginBuy.AssetType = asset.Margin
-		marginLimit := *regular
-		marginLimit.AssetType, marginLimit.TimeInForce = asset.Margin, order.UnknownTIF
-		baseSized := cancelled
-		baseSized.Price, baseSized.Type, baseSized.TimeInForce = 0, order.Market, order.UnknownTIF
-		marketSell := baseSized
-		marketSell.Side = order.Sell
-		quoteSizedSell := quoteSized
-		quoteSizedSell.Side = order.Sell
-		swapMarket := optimalLimit
-		swapMarket.Type, swapMarket.TimeInForce = order.Market, order.UnknownTIF
-		spread := &order.Detail{
-			Amount:               2,
-			Exchange:             "Okx",
-			OrderID:              "3001",
-			ClientOrderID:        "spread3001",
-			Side:                 order.Buy,
-			Type:                 order.Limit,
-			Pair:                 mainPair,
-			AssetType:            asset.Spread,
-			Status:               order.PartiallyFilled,
-			Price:                -10,
-			ExecutedAmount:       1.25,
-			Date:                 time.UnixMilli(1761700000000),
-			LastUpdated:          time.UnixMilli(1761700001000),
-			AverageExecutedPrice: -9,
-			RemainingAmount:      0.5,
-		}
-		for _, tc := range []struct {
-			name      string
-			orderID   string
-			pair      currency.Pair
-			asset     asset.Item
-			prepare   func(*Exchange) error
-			replies   []string
-			requests  []string
-			err       error
-			errText   string
-			orderType order.Type
-			tif       order.TimeInForce
-			exp       *order.Detail
-		}{
-			{name: "unsupported asset", orderID: "3001", asset: asset.Binary, err: asset.ErrNotSupported},
-			{name: "spread order without an ID", asset: asset.Spread, err: order.ErrOrderIDNotSet},
-			{name: "spread request fails", orderID: "3001", asset: asset.Spread, replies: []string{mockFailureReply}, requests: []string{"/sprd/order?ordId=3001"}, err: request.ErrAuthRequestFailed},
-			{
-				name: "spread side unrecognised", orderID: "3001", asset: asset.Spread, requests: []string{"/sprd/order?ordId=3001"}, err: order.ErrSideIsInvalid,
-				replies: []string{mockOrdersReply(strings.Replace(spreadOrder, `"side":"buy"`, `"side":"sideways"`, 1))},
-			},
-			{
-				name: "spread order type unrecognised", orderID: "3001", asset: asset.Spread, requests: []string{"/sprd/order?ordId=3001"}, err: order.ErrTypeIsInvalid,
-				replies: []string{mockOrdersReply(strings.Replace(spreadOrder, `"ordType":"limit"`, `"ordType":"mystery"`, 1))},
-			},
-			{
-				name: "spread state unrecognised", orderID: "3001", asset: asset.Spread, requests: []string{"/sprd/order?ordId=3001"}, errText: "unrecognised order status",
-				replies: []string{mockOrdersReply(strings.Replace(spreadOrder, `"state":"partially_filled"`, `"state":"mystery"`, 1))},
-			},
-			{
-				name: "spread instrument ID unparsable", orderID: "3001", asset: asset.Spread, requests: []string{"/sprd/order?ordId=3001"}, err: currency.ErrCreatingPair,
-				replies: []string{mockOrdersReply(strings.Replace(spreadOrder, `"instId":"BTC-USDT"`, `"instId":"BT"`, 1))},
-			},
-			{name: "spread order of another pair", orderID: "3001", pair: perpetualSwapPair, asset: asset.Spread, replies: []string{mockOrdersReply(spreadOrder)}, requests: []string{"/sprd/order?ordId=3001"}, err: order.ErrOrderNotFound},
-			{name: "spread order without a pair given", orderID: "3001", asset: asset.Spread, replies: []string{mockOrdersReply(spreadOrder)}, requests: []string{"/sprd/order?ordId=3001"}, orderType: order.Limit},
-			{name: "spread market order", orderID: "3001", pair: mainPair, asset: asset.Spread, replies: []string{mockOrdersReply(strings.Replace(spreadOrder, `"ordType":"limit"`, `"ordType":"market"`, 1))}, requests: []string{"/sprd/order?ordId=3001"}, orderType: order.Market},
-			{name: "spread limit order", orderID: "3001", pair: mainPair, asset: asset.Spread, replies: []string{mockOrdersReply(spreadOrder)}, requests: []string{"/sprd/order?ordId=3001"}, exp: spread},
-			{name: "spread post only order", orderID: "3001", pair: mainPair, asset: asset.Spread, replies: []string{mockOrdersReply(strings.Replace(spreadOrder, `"ordType":"limit"`, `"ordType":"post_only"`, 1))}, requests: []string{"/sprd/order?ordId=3001"}, orderType: order.Limit, tif: order.PostOnly},
-			{name: "spread immediate or cancel order", orderID: "3001", pair: mainPair, asset: asset.Spread, replies: []string{mockOrdersReply(strings.Replace(spreadOrder, `"ordType":"limit"`, `"ordType":"ioc"`, 1))}, requests: []string{"/sprd/order?ordId=3001"}, orderType: order.Limit, tif: order.ImmediateOrCancel},
-			{name: "no pair", orderID: "1003", asset: asset.Spot, err: currency.ErrCurrencyPairEmpty},
-			{
-				name: "disabled asset", orderID: "1003", pair: mainPair, asset: asset.Spot, err: asset.ErrNotEnabled,
-				prepare: func(ex *Exchange) error { return ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false) },
-			},
-			{
-				name: "pair format missing", orderID: "1003", pair: mainPair, asset: asset.Spot, err: currency.ErrPairFormatIsNil,
-				prepare: func(ex *Exchange) error {
-					ex.CurrencyPairs.ConfigFormat = nil
-					return nil
-				},
-			},
-			{name: "half a pair", orderID: "1003", pair: currency.Pair{Base: currency.BTC}, asset: asset.Spot, err: currency.ErrCurrencyPairsEmpty},
-			{name: "request fails", orderID: "1003", pair: mainPair, asset: asset.Spot, replies: []string{mockFailureReply}, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, err: request.ErrAuthRequestFailed},
-			{
-				name: "state unrecognised", orderID: "1003", pair: mainPair, asset: asset.Spot, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, errText: "unrecognised order status",
-				replies: []string{mockOrdersReply(strings.Replace(regularOrder, `"state":"partially_filled"`, `"state":"mystery"`, 1))},
-			},
-			{
-				name: "order type unrecognised", orderID: "1003", pair: mainPair, asset: asset.Spot, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, err: order.ErrTypeIsInvalid,
-				replies: []string{mockOrdersReply(strings.Replace(regularOrder, `"ordType":"post_only"`, `"ordType":"mystery"`, 1))},
-			},
-			{name: "regular order", orderID: "1003", pair: mainPair, asset: asset.Spot, replies: []string{mockOrdersReply(regularOrder)}, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, exp: regular},
-			{
-				name: "filled regular order", orderID: "1003", pair: mainPair, asset: asset.Spot, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, exp: &filled,
-				replies: []string{mockOrdersReply(strings.NewReplacer(`"accFillSz":"0.25","fillSz":"0.125"`, `"accFillSz":"1","fillSz":"0.75"`, `"state":"partially_filled"`, `"state":"filled"`).Replace(regularOrder))},
-			},
-			{
-				name: "market order sized in the quote currency", orderID: "1003", pair: mainPair, asset: asset.Spot, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, exp: &quoteSized,
-				replies: []string{mockOrdersReply(strings.NewReplacer(`"px":"10000","sz":"1","ordType":"post_only"`, `"tgtCcy":"quote_ccy","px":"","sz":"5000","ordType":"market"`, `"state":"partially_filled"`, `"state":"canceled"`).Replace(regularOrder))},
-			},
-			{
-				name: "margin market buy sized in the quote currency", orderID: "1003", pair: mainPair, asset: asset.Margin, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, exp: &marginBuy,
-				replies: []string{mockOrdersReply(strings.NewReplacer(`"instType":"SPOT"`, `"instType":"MARGIN"`, `"px":"10000","sz":"1","ordType":"post_only"`, `"px":"","sz":"5000","ordType":"market"`, `"state":"partially_filled"`, `"state":"canceled"`).Replace(regularOrder))},
-			},
-			{
-				name: "market buy sized in the base currency", orderID: "1003", pair: mainPair, asset: asset.Spot, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, exp: &baseSized,
-				replies: []string{mockOrdersReply(strings.NewReplacer(`"px":"10000","sz":"1","ordType":"post_only"`, `"tgtCcy":"base_ccy","px":"","sz":"1","ordType":"market"`, `"state":"partially_filled"`, `"state":"canceled"`).Replace(regularOrder))},
-			},
-			{
-				name: "market sell sized in the base currency by default", orderID: "1003", pair: mainPair, asset: asset.Spot, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, exp: &marketSell,
-				replies: []string{mockOrdersReply(strings.NewReplacer(`"px":"10000","sz":"1","ordType":"post_only","side":"buy"`, `"px":"","sz":"1","ordType":"market","side":"sell"`, `"state":"partially_filled"`, `"state":"canceled"`).Replace(regularOrder))},
-			},
-			{
-				name: "market sell sized in the quote currency", orderID: "1003", pair: mainPair, asset: asset.Spot, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, exp: &quoteSizedSell,
-				replies: []string{mockOrdersReply(strings.NewReplacer(`"px":"10000","sz":"1","ordType":"post_only","side":"buy"`, `"tgtCcy":"quote_ccy","px":"","sz":"5000","ordType":"market","side":"sell"`, `"feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0.0005"`, `"feeCcy":"USDT","fee":"-2.4975","rebateCcy":"USDT","rebate":"0"`, `"state":"partially_filled"`, `"state":"canceled"`).Replace(regularOrder))},
-			},
-			{
-				name: "margin limit order", orderID: "1003", pair: mainPair, asset: asset.Margin, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, exp: &marginLimit,
-				replies: []string{mockOrdersReply(strings.NewReplacer(`"instType":"SPOT"`, `"instType":"MARGIN"`, `"ordType":"post_only"`, `"ordType":"limit"`).Replace(regularOrder))},
-			},
-			{
-				name: "cancelled regular order", orderID: "1003", pair: mainPair, asset: asset.Spot, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, exp: &cancelled,
-				replies: []string{mockOrdersReply(strings.Replace(regularOrder, `"state":"partially_filled"`, `"state":"canceled"`, 1))},
-			},
-			{
-				name: "cancelled optimal limit order", orderID: "1003", pair: perpetualSwapPair, asset: asset.PerpetualSwap, requests: []string{"/trade/order?instId=BTC-USDT-SWAP&ordId=1003"}, exp: &optimalLimit,
-				replies: []string{mockOrdersReply(strings.NewReplacer(`"instType":"SPOT","instId":"BTC-USDT"`, `"instType":"SWAP","instId":"BTC-USDT-SWAP"`, `"feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0.0005"`, `"feeCcy":"USDT","fee":"-0.00025","rebateCcy":"USDT","rebate":"0"`, `"px":"10000","sz":"1","ordType":"post_only"`, `"px":"","sz":"4","ordType":"optimal_limit_ioc"`, `"accFillSz":"0.25","fillSz":"0.125"`, `"accFillSz":"1","fillSz":"0.12"`, `"state":"partially_filled"`, `"state":"canceled"`).Replace(regularOrder))},
-			},
-			{
-				name: "perpetual swap market order", orderID: "1003", pair: perpetualSwapPair, asset: asset.PerpetualSwap, requests: []string{"/trade/order?instId=BTC-USDT-SWAP&ordId=1003"}, exp: &swapMarket,
-				replies: []string{mockOrdersReply(strings.NewReplacer(`"instType":"SPOT","instId":"BTC-USDT"`, `"instType":"SWAP","instId":"BTC-USDT-SWAP"`, `"feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0.0005"`, `"feeCcy":"USDT","fee":"-0.00025","rebateCcy":"USDT","rebate":"0"`, `"px":"10000","sz":"1","ordType":"post_only"`, `"px":"","sz":"4","ordType":"market"`, `"accFillSz":"0.25","fillSz":"0.125"`, `"accFillSz":"1","fillSz":"0.12"`, `"state":"partially_filled"`, `"state":"canceled"`).Replace(regularOrder))},
-			},
-			{
-				name: "market maker protection order", orderID: "1003", pair: optionPair, asset: asset.Options, requests: []string{"/trade/order?instId=BTC-USD-261225-100000-C&ordId=1003"}, exp: &marketMakerProtection,
-				replies: []string{mockOrdersReply(mmpOrder)},
-			},
-			{
-				name: "order cancelled by market maker protection", orderID: "1003", pair: optionPair, asset: asset.Options, requests: []string{"/trade/order?instId=BTC-USD-261225-100000-C&ordId=1003"}, exp: &mmpCancelled,
-				replies: []string{mockOrdersReply(strings.Replace(mmpOrder, `"state":"partially_filled"`, `"state":"mmp_canceled"`, 1))},
-			},
-			{
-				name: "live order with no fills", orderID: "1003", pair: mainPair, asset: asset.Spot, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, exp: &unfilled,
-				replies: []string{mockOrdersReply(strings.NewReplacer(`"px":"10000","sz":"1","ordType":"post_only"`, `"px":"10000","sz":"2","ordType":"limit"`, `"accFillSz":"0.25","fillSz":"0.125","avgPx":"9990","feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0.0005"`, `"accFillSz":"0","fillSz":"0","avgPx":"","feeCcy":"BTC","fee":"0","rebateCcy":"BTC","rebate":"0"`, `"state":"partially_filled"`, `"state":"live"`).Replace(regularOrder))},
-			},
-			{
-				name: "fill or kill order cancelled unfilled", orderID: "1003", pair: mainPair, asset: asset.Spot, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, exp: &killed,
-				replies: []string{mockOrdersReply(strings.NewReplacer(`"ordType":"post_only"`, `"ordType":"fok"`, `"accFillSz":"0.25","fillSz":"0.125","avgPx":"9990","feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0.0005"`, `"accFillSz":"0","fillSz":"0","avgPx":"","feeCcy":"BTC","fee":"0","rebateCcy":"BTC","rebate":"0"`, `"state":"partially_filled"`, `"state":"canceled"`).Replace(regularOrder))},
-			},
-			{
-				name: "regular perpetual swap order", orderID: "1003", pair: perpetualSwapPair, asset: asset.PerpetualSwap, requests: []string{"/trade/order?instId=BTC-USDT-SWAP&ordId=1003"}, exp: &swap,
-				replies: []string{mockOrdersReply(strings.NewReplacer(`"instType":"SPOT","instId":"BTC-USDT"`, `"instType":"SWAP","instId":"BTC-USDT-SWAP"`, `"feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0.0005"`, `"feeCcy":"USDT","fee":"-0.00025","rebateCcy":"USDT","rebate":"0"`, `"fillSz":"0.125"`, `"fillSz":"0.12"`).Replace(regularOrder))},
-			},
-			{
-				name: "regular inverse futures order", orderID: "1003", pair: inverseFutures.Pair, asset: asset.Futures, requests: []string{"/trade/order?instId=BTC-USD-261225&ordId=1003"}, exp: &inverseFutures,
-				replies: []string{mockOrdersReply(strings.NewReplacer(`"instType":"SPOT","instId":"BTC-USDT"`, `"instType":"FUTURES","instId":"BTC-USD-261225"`, `"feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0.0005"`, `"feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0"`, `"px":"10000","sz":"1"`, `"px":"10000","sz":"2"`, `"accFillSz":"0.25","fillSz":"0.125"`, `"accFillSz":"0.5","fillSz":"0.2"`, `"uTime":"1761699801000","cTime":"1761699800000"`, `"uTime":"1777000001000","cTime":"1777000000000"`).Replace(regularOrder))},
-			},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-				var (
-					mutex    sync.Mutex
-					requests []string
-				)
-				ex := newMockServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-					mutex.Lock()
-					n := len(requests)
-					requests = append(requests, r.URL.RequestURI())
-					mutex.Unlock()
-					w.Header().Set("Content-Type", "application/json")
-					if n >= len(tc.replies) {
-						_, _ = w.Write([]byte(`{"code":"1","msg":"mock: unexpected request","data":[]}`))
-						return
-					}
-					_, _ = w.Write([]byte(tc.replies[n]))
-				})
-				if tc.prepare != nil {
-					require.NoError(t, tc.prepare(ex), "prepare must not error")
-				}
-				result, err := ex.GetOrderInfo(t.Context(), tc.orderID, tc.pair, tc.asset)
-				mutex.Lock()
-				defer mutex.Unlock()
-				assert.Equal(t, tc.requests, requests, "GetOrderInfo should send the expected requests")
-				switch {
-				case tc.err != nil:
-					assert.ErrorIs(t, err, tc.err, "GetOrderInfo should return the expected error")
-				case tc.errText != "":
-					assert.ErrorContains(t, err, tc.errText, "GetOrderInfo should return the expected error")
-				case tc.exp != nil:
-					require.NoError(t, err, "GetOrderInfo must not error")
-					assert.Equal(t, tc.exp, result, "GetOrderInfo should return the expected order")
-				default:
-					require.NoError(t, err, "GetOrderInfo must not error")
-					assert.Equal(t, tc.orderID, result.OrderID, "GetOrderInfo should return the order")
-					assert.Equal(t, mainPair, result.Pair, "GetOrderInfo should return the order's pair")
-					assert.Equal(t, tc.asset, result.AssetType, "GetOrderInfo should return the order's asset")
-					assert.Equal(t, order.Buy, result.Side, "GetOrderInfo should return the order's side")
-					assert.Equal(t, order.PartiallyFilled, result.Status, "GetOrderInfo should return the order's status")
-					assert.Equal(t, tc.orderType, result.Type, "GetOrderInfo should read the order type")
-					assert.Equal(t, tc.tif, result.TimeInForce, "GetOrderInfo should read the time in force")
-				}
-			})
-		}
-	})
-
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -4817,6 +6393,129 @@ func TestGetOrderInfo(t *testing.T) {
 		result, err = e.GetOrderInfo(contextGenerate(), "123", spreadPair, asset.Spread)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
+	})
+	// Guards the order detail mapping:
+	// the average executed price, the cost of the fills and the fee the account
+	// was charged come from the response rather than the order price, and the
+	// fee keeps the websocket stream's positive-for-a-charge sign.
+	t.Run("reports execution values", func(t *testing.T) {
+		t.Parallel()
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/order" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			assert.Equal(t, "ORD-1", r.URL.Query().Get("ordId"), "the order detail request should identify the order")
+			assert.Equal(t, mainPair.String(), r.URL.Query().Get("instId"), "the order detail request should identify the instrument")
+			writeOKXData(t, w, map[string]string{
+				"instId": mainPair.String(), "ordId": "ORD-1", "ordType": orderLimit, "side": "buy", "state": "filled",
+				"sz": "2", "accFillSz": "1.5", "avgPx": "41000", "px": "40000", "fee": "-0.01", "feeCcy": "USDT",
+				"cTime": "1700000000000", "uTime": "1700000000000",
+			})
+		}))
+		detail, err := e.GetOrderInfo(t.Context(), "ORD-1", mainPair, asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		assert.Equal(t, 41000.0, detail.AverageExecutedPrice, "GetOrderInfo should read the average filled price")
+		assert.Equal(t, 41000.0*1.5, detail.Cost, "the cost should be the average filled price times the accumulated fill, not the order price")
+		assert.Equal(t, "USDT", detail.CostAsset.String(), "the cost asset should be the pair quote")
+		assert.Equal(t, 0.01, detail.Fee, "a fee OKX charged should read as a positive cost, as the websocket stream reports it")
+		assert.Equal(t, "USDT", detail.FeeAsset.String(), "the fee asset should come from the response")
+	})
+	// Guards the order detail mapping of lever,
+	// the leverage OKX reports on margin, futures and perpetual swap orders.
+	t.Run("reports the leverage", func(t *testing.T) {
+		t.Parallel()
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/order" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			writeOKXData(t, w, map[string]string{
+				"instType": instTypeSwap, "instId": perpetualSwapPair.String(), "ordId": "ORD-1", "ordType": orderLimit, "side": "buy",
+				"state": "live", "sz": "100", "px": "60000", "lever": "10", "cTime": "1700000000000", "uTime": "1700000000000",
+			})
+		}))
+		detail, err := e.GetOrderInfo(t.Context(), "ORD-1", perpetualSwapPair, asset.PerpetualSwap)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		assert.Equal(t, 10.0, detail.Leverage, "GetOrderInfo should report the order's leverage")
+	})
+	// Guards the spread branch of GetOrderInfo
+	// against a success reply without a row.
+	t.Run("rejects a spread reply without a row", func(t *testing.T) {
+		t.Parallel()
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/sprd/order" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			writeOKXData(t, w, nil)
+		}))
+		var err error
+		require.NotPanics(t, func() {
+			_, err = e.GetOrderInfo(t.Context(), "SPD-1", spreadPair, asset.Spread)
+		}, "GetOrderInfo must not panic on a success reply without a row")
+		require.ErrorIs(t, err, common.ErrInvalidResponse, "GetOrderInfo must reject a success reply without a row")
+	})
+	// Guards the GetOrderInfo spread order path: it
+	// preserves the time in force orderTypeFromString returns, and reports the
+	// accumulated fill size rather than the last fill, and OKX's pending fill
+	// size as the remainder, which leaves out the cancelled size.
+	t.Run("spread order details", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name                                     string
+			ordType                                  string
+			state                                    string
+			sz, accFillSz, pendingFillSz, canceledSz string
+			oType                                    order.Type
+			tif                                      order.TimeInForce
+			executed, remaining                      float64
+		}{
+			{"limit", orderLimit, "live", "1", "0.3", "0.7", "0", order.Limit, order.UnknownTIF, 0.3, 0.7},
+			{"post_only", orderPostOnly, "live", "1", "0.3", "0.7", "0", order.Limit, order.PostOnly, 0.3, 0.7},
+			{"ioc", orderIOC, "live", "1", "0.3", "0.7", "0", order.Limit, order.ImmediateOrCancel, 0.3, 0.7},
+			{"op_fok", orderOptionFOK, "live", "1", "0.3", "0.7", "0", order.Limit, order.FillOrKill, 0.3, 0.7},
+			{"filled", orderLimit, "filled", "1", "1", "0", "0", order.Limit, order.UnknownTIF, 1, 0},
+			{"partly cancelled", orderLimit, "partially_filled", "10", "2", "5", "3", order.Limit, order.UnknownTIF, 2, 5},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				spreadRow := map[string]string{
+					"sprdId":        "BTC-USDT_BTC-USDT",
+					"ordId":         "1",
+					"ordType":       tc.ordType,
+					"side":          "buy",
+					"state":         tc.state,
+					"cTime":         "1700000000000",
+					"sz":            tc.sz,
+					"accFillSz":     tc.accFillSz,
+					"pendingFillSz": tc.pendingFillSz,
+					"canceledSz":    tc.canceledSz,
+					"px":            "100",
+					"avgPx":         "90",
+				}
+				e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					writeOKXData(t, w, spreadRow)
+				}))
+
+				detail, err := e.GetOrderInfo(t.Context(), "1", currency.Pair{}, asset.Spread)
+				require.NoError(t, err, "GetOrderInfo must not error for a spread order")
+				format, err := e.GetPairFormat(asset.Spread, true)
+				require.NoError(t, err, "GetPairFormat must not error for the spread asset")
+				expPair, err := currency.NewPairDelimiter("BTC-USDT_BTC-USDT", format.Delimiter)
+				require.NoError(t, err, "the expected spread pair must parse")
+				assert.Equal(t, expPair, detail.Pair, "GetOrderInfo should parse the pair from the spread ID like the other spread listings")
+				assert.Equal(t, tc.oType, detail.Type, "GetOrderInfo should read the order type")
+				assert.Equal(t, tc.tif, detail.TimeInForce, "GetOrderInfo should preserve the time in force")
+				assert.Equal(t, tc.executed, detail.ExecutedAmount, "GetOrderInfo should report the accumulated fill")
+				assert.Equal(t, tc.remaining, detail.RemainingAmount, "GetOrderInfo should report the unfilled remainder")
+				assert.Equal(t, 90.0, detail.AverageExecutedPrice, "GetOrderInfo should read the average filled price")
+				assert.Zero(t, detail.Cost, "GetOrderInfo should leave a spread order's cost unset")
+			})
+		}
 	})
 }
 
@@ -4868,227 +6567,6 @@ func TestGetPairFromInstrumentID(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	// Drives GetActiveOrders through canned replies, checking every order it returns, with each of OKX's spread order
-	// types read as the REST order mapping reads it
-	t.Run("mocked", func(t *testing.T) {
-		t.Parallel()
-		const (
-			liveOrder     = `{"instType":"SPOT","instId":"BTC-USDT","tgtCcy":"","ccy":"","ordId":"1003","clOrdId":"buy1003","tag":"","px":"10000","sz":"1","ordType":"post_only","side":"buy","posSide":"","tdMode":"cash","accFillSz":"0.25","fillPx":"10000","fillSz":"0.125","avgPx":"10000","state":"partially_filled","lever":"","feeCcy":"BTC","fee":"-0.001","rebateCcy":"USDT","rebate":"0","category":"normal","uTime":"1761699801000","cTime":"1761699800000"}`
-			spotPending   = "/trade/orders-pending?instType=SPOT"
-			spreadPending = "/sprd/orders-pending?ordType=limit"
-			anyPending    = "/sprd/orders-pending"
-		)
-		spotRequest := func() *order.MultiOrderRequest {
-			return &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, Pairs: []currency.Pair{mainPair}}
-		}
-		spreadRequest := func(orderType order.Type, tif order.TimeInForce) *order.MultiOrderRequest {
-			return &order.MultiOrderRequest{AssetType: asset.Spread, Type: orderType, TimeInForce: tif, Side: order.AnySide}
-		}
-		fillOrKillRequest := func(a asset.Item) *order.MultiOrderRequest {
-			return &order.MultiOrderRequest{AssetType: a, Type: order.Limit, TimeInForce: order.FillOrKill, Side: order.AnySide}
-		}
-		live := order.Detail{
-			Amount:          1,
-			Pair:            mainPair,
-			Price:           10000,
-			ExecutedAmount:  0.25,
-			RemainingAmount: 0.75,
-			Fee:             -0.001,
-			FeeAsset:        currency.BTC,
-			Exchange:        "Okx",
-			OrderID:         "1003",
-			ClientOrderID:   "buy1003",
-			Type:            order.Limit,
-			TimeInForce:     order.PostOnly,
-			Side:            order.Buy,
-			Status:          order.PartiallyFilled,
-			AssetType:       asset.Spot,
-			Date:            time.UnixMilli(1761699800000),
-			LastUpdated:     time.UnixMilli(1761699801000),
-		}
-		createdAt := func(created time.Time) string {
-			return strings.NewReplacer(`"cTime":"1761699800000"`, `"cTime":"`+strconv.FormatInt(created.UnixMilli(), 10)+`"`, `"uTime":"1761699801000"`, `"uTime":"`+strconv.FormatInt(created.UnixMilli()+1000, 10)+`"`).Replace(liveOrder)
-		}
-		recent := time.UnixMilli(time.Now().Add(-time.Hour).UnixMilli())
-		recentLive := live
-		recentLive.Date, recentLive.LastUpdated = recent, recent.Add(time.Second)
-		withOrderType := func(orderType string) string {
-			return strings.Replace(liveOrder, `"ordType":"post_only"`, `"ordType":"`+orderType+`"`, 1)
-		}
-		liveImmediateOrCancel := live
-		liveImmediateOrCancel.TimeInForce = order.ImmediateOrCancel
-		quoteSizedOrder := strings.NewReplacer(`"tgtCcy":""`, `"tgtCcy":"quote_ccy"`, `"px":"10000","sz":"1","ordType":"post_only"`, `"px":"","sz":"5000","ordType":"market"`).Replace(liveOrder)
-		quoteSized := live
-		quoteSized.Amount, quoteSized.Price, quoteSized.RemainingAmount, quoteSized.Type, quoteSized.TimeInForce = 5000, 0, 0, order.Market, order.UnknownTIF
-		marginMarketBuy := strings.NewReplacer(`"instType":"SPOT"`, `"instType":"MARGIN"`, `"tdMode":"cash"`, `"tdMode":"cross"`, `"px":"10000","sz":"1","ordType":"post_only"`, `"px":"","sz":"5000","ordType":"market"`).Replace(liveOrder)
-		marginBuy := quoteSized
-		marginBuy.AssetType = asset.Margin
-		optionOrder := strings.NewReplacer(`"instType":"SPOT","instId":"BTC-USDT"`, `"instType":"OPTION","instId":"BTC-USD-261225-100000-C"`, `"tdMode":"cash"`, `"tdMode":"cross"`, `"px":"10000","sz":"1","ordType":"post_only"`, `"px":"0.025","sz":"5","ordType":"mmp_and_post_only"`, `"accFillSz":"0.25","fillPx":"10000","fillSz":"0.125","avgPx":"10000"`, `"accFillSz":"2","fillPx":"0.02","fillSz":"1","avgPx":"0.02"`, `"uTime":"1761699801000","cTime":"1761699800000"`, `"uTime":"1777000001000","cTime":"1777000000000"`).Replace(liveOrder)
-		option := live
-		option.Pair, option.AssetType, option.Amount, option.Price, option.ExecutedAmount, option.RemainingAmount, option.Type = currency.NewPairWithDelimiter("BTC", "USD-261225-100000-C", "-"), asset.Options, 5, 0.025, 2, 3, order.MarketMakerProtection
-		option.Date, option.LastUpdated = time.UnixMilli(1777000000000), time.UnixMilli(1777000001000)
-		unfilledOrder := strings.NewReplacer(`"accFillSz":"0.25","fillPx":"10000","fillSz":"0.125","avgPx":"10000"`, `"accFillSz":"0","fillPx":"","fillSz":"0","avgPx":""`, `"state":"partially_filled"`, `"state":"live"`, `"fee":"-0.001"`, `"fee":"0"`).Replace(liveOrder)
-		unfilled := live
-		unfilled.ExecutedAmount, unfilled.RemainingAmount, unfilled.Fee, unfilled.Status = 0, 1, 0, order.Active
-		liveFillOrKill := unfilled
-		liveFillOrKill.TimeInForce = order.FillOrKill
-		swapMarketOrder := strings.NewReplacer(`"instType":"SPOT","instId":"BTC-USDT"`, `"instType":"SWAP","instId":"BTC-USDT-SWAP"`, `"tdMode":"cash"`, `"tdMode":"cross"`, `"px":"10000","sz":"1","ordType":"post_only"`, `"px":"","sz":"4","ordType":"market"`, `"accFillSz":"0.25","fillPx":"10000","fillSz":"0.125","avgPx":"10000"`, `"accFillSz":"1","fillPx":"9990","fillSz":"0.5","avgPx":"9990"`, `"feeCcy":"BTC"`, `"feeCcy":"USDT"`).Replace(liveOrder)
-		swapMarket := live
-		swapMarket.Pair, swapMarket.AssetType, swapMarket.Amount, swapMarket.Price, swapMarket.ExecutedAmount, swapMarket.RemainingAmount, swapMarket.FeeAsset, swapMarket.Type, swapMarket.TimeInForce = perpetualSwapPair, asset.PerpetualSwap, 4, 0, 1, 3, currency.USDT, order.Market, order.UnknownTIF
-		baseSizedOrder := strings.NewReplacer(`"tgtCcy":""`, `"tgtCcy":"base_ccy"`, `"px":"10000","sz":"1","ordType":"post_only"`, `"px":"","sz":"1","ordType":"market"`).Replace(liveOrder)
-		baseSized := live
-		baseSized.Price, baseSized.Type, baseSized.TimeInForce = 0, order.Market, order.UnknownTIF
-		marketSellOrder := strings.NewReplacer(`"px":"10000","sz":"1","ordType":"post_only","side":"buy"`, `"px":"","sz":"1","ordType":"market","side":"sell"`, `"feeCcy":"BTC"`, `"feeCcy":"USDT"`).Replace(liveOrder)
-		marketSell := baseSized
-		marketSell.Side, marketSell.FeeAsset = order.Sell, currency.USDT
-		quoteSizedSellOrder := strings.NewReplacer(`"tgtCcy":""`, `"tgtCcy":"quote_ccy"`, `"px":"10000","sz":"1","ordType":"post_only","side":"buy"`, `"px":"","sz":"5000","ordType":"market","side":"sell"`, `"feeCcy":"BTC"`, `"feeCcy":"USDT"`).Replace(liveOrder)
-		quoteSizedSell := quoteSized
-		quoteSizedSell.Side, quoteSizedSell.FeeAsset = order.Sell, currency.USDT
-
-		// A full page of another pair's orders makes GetActiveOrders ask again
-		fullPage := make([]string, 100)
-		for i := range fullPage {
-			created := int64(1761700000000) - int64(i)*1000
-			fullPage[i] = fmt.Sprintf(`{"instType":"SPOT","instId":"ETH-USDT","ordId":"%d","px":"2500","sz":"1","ordType":"limit","side":"buy","state":"live","uTime":"%d","cTime":"%d"}`, 5000+i, created+1000, created)
-		}
-
-		spreadTypes := mockSpreadOrderTypes()
-		spreadDetails := mockSpreadOrderDetails()
-		runOrderListingTests(t, (*Exchange).GetActiveOrders, []orderListingTest{
-			{name: "nil request", err: order.ErrGetOrdersRequestIsNil},
-			{
-				name: "start beyond three months",
-				req:  &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, Pairs: []currency.Pair{mainPair}, StartTime: time.Now().AddDate(0, -4, 0)},
-				err:  errOnlyThreeMonthsSupported,
-			},
-			{name: "unsupported asset", req: &order.MultiOrderRequest{AssetType: asset.Binary, Type: order.AnyType, Side: order.AnySide}, err: asset.ErrNotSupported},
-			{name: "type with no OKX order type", req: &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.Stop, Side: order.AnySide}, err: order.ErrUnsupportedOrderType},
-			{name: "post only market orders", req: &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.Market, TimeInForce: order.PostOnly, Side: order.AnySide}, err: order.ErrUnsupportedOrderType},
-			{name: "request fails", req: spotRequest(), replies: []string{mockFailureReply}, requests: []string{spotPending}, err: request.ErrAuthRequestFailed},
-			{name: "no orders", req: spotRequest(), replies: []string{mockOrdersReply()}, requests: []string{spotPending}, exp: order.FilteredOrders{}},
-			{name: "fill or kill orders on spot", req: fillOrKillRequest(asset.Spot), replies: []string{mockOrdersReply()}, requests: []string{"/trade/orders-pending?instType=SPOT&orderType=fok"}, exp: order.FilteredOrders{}},
-			{name: "fill or kill orders on margin", req: fillOrKillRequest(asset.Margin), replies: []string{mockOrdersReply()}, requests: []string{"/trade/orders-pending?instType=MARGIN&orderType=fok"}, exp: order.FilteredOrders{}},
-			{name: "fill or kill orders on perpetual swaps", req: fillOrKillRequest(asset.PerpetualSwap), replies: []string{mockOrdersReply()}, requests: []string{"/trade/orders-pending?instType=SWAP&orderType=fok"}, exp: order.FilteredOrders{}},
-			{name: "fill or kill orders on futures", req: fillOrKillRequest(asset.Futures), replies: []string{mockOrdersReply()}, requests: []string{"/trade/orders-pending?instType=FUTURES&orderType=fok"}, exp: order.FilteredOrders{}},
-			{name: "fill or kill orders on options", req: fillOrKillRequest(asset.Options), replies: []string{mockOrdersReply()}, requests: []string{"/trade/orders-pending?instType=OPTION&orderType=fok"}, exp: order.FilteredOrders{}},
-			{
-				name:     "unparsable instrument ID",
-				req:      spotRequest(),
-				replies:  []string{mockOrdersReply(strings.Replace(liveOrder, `"instId":"BTC-USDT"`, `"instId":"BT"`, 1))},
-				requests: []string{spotPending},
-				err:      currency.ErrCreatingPair,
-			},
-			{
-				name:     "unrecognised state",
-				req:      spotRequest(),
-				replies:  []string{mockOrdersReply(strings.Replace(liveOrder, `"state":"partially_filled"`, `"state":"mystery"`, 1))},
-				requests: []string{spotPending},
-				errText:  "unrecognised order status",
-			},
-			{
-				name:     "unrecognised order type",
-				req:      spotRequest(),
-				replies:  []string{mockOrdersReply(strings.Replace(liveOrder, `"ordType":"post_only"`, `"ordType":"mystery"`, 1))},
-				requests: []string{spotPending},
-				err:      order.ErrTypeIsInvalid,
-			},
-			{name: "orders of the requested pair", req: spotRequest(), replies: []string{mockOrdersReply(liveOrder, fullPage[0])}, requests: []string{spotPending}, exp: order.FilteredOrders{live}},
-			{
-				name:     "orders up to the start time",
-				req:      &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, Pairs: []currency.Pair{mainPair}, StartTime: recent.Add(-24 * time.Hour)},
-				replies:  []string{mockOrdersReply(createdAt(recent), createdAt(recent.Add(-48*time.Hour)))},
-				requests: []string{spotPending},
-				exp:      order.FilteredOrders{recentLive},
-			},
-			{name: "any pair", req: &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide}, replies: []string{mockOrdersReply(liveOrder)}, requests: []string{spotPending}, exp: order.FilteredOrders{live}},
-			{name: "market order sized in the quote currency", req: spotRequest(), replies: []string{mockOrdersReply(quoteSizedOrder)}, requests: []string{spotPending}, exp: order.FilteredOrders{quoteSized}},
-			{
-				name:     "margin market buy sized in the quote currency",
-				req:      &order.MultiOrderRequest{AssetType: asset.Margin, Type: order.AnyType, Side: order.AnySide, Pairs: []currency.Pair{mainPair}},
-				replies:  []string{mockOrdersReply(marginMarketBuy)},
-				requests: []string{"/trade/orders-pending?instType=MARGIN"},
-				exp:      order.FilteredOrders{marginBuy},
-			},
-			{
-				name:     "market maker protection orders",
-				req:      &order.MultiOrderRequest{AssetType: asset.Options, Type: order.AnyType, Side: order.AnySide},
-				replies:  []string{mockOrdersReply(optionOrder)},
-				requests: []string{"/trade/orders-pending?instType=OPTION"},
-				exp:      order.FilteredOrders{option},
-			},
-			{name: "order with no fills", req: spotRequest(), replies: []string{mockOrdersReply(unfilledOrder)}, requests: []string{spotPending}, exp: order.FilteredOrders{unfilled}},
-			{
-				name:     "perpetual swap market order",
-				req:      &order.MultiOrderRequest{AssetType: asset.PerpetualSwap, Type: order.AnyType, Side: order.AnySide},
-				replies:  []string{mockOrdersReply(swapMarketOrder)},
-				requests: []string{"/trade/orders-pending?instType=SWAP"},
-				exp:      order.FilteredOrders{swapMarket},
-			},
-			{name: "market buy sized in the base currency", req: spotRequest(), replies: []string{mockOrdersReply(baseSizedOrder)}, requests: []string{spotPending}, exp: order.FilteredOrders{baseSized}},
-			{name: "market sell sized in the base currency by default", req: spotRequest(), replies: []string{mockOrdersReply(marketSellOrder)}, requests: []string{spotPending}, exp: order.FilteredOrders{marketSell}},
-			{name: "market sell sized in the quote currency", req: spotRequest(), replies: []string{mockOrdersReply(quoteSizedSellOrder)}, requests: []string{spotPending}, exp: order.FilteredOrders{quoteSizedSell}},
-			{name: "fill or kill order listed live", req: spotRequest(), replies: []string{mockOrdersReply(strings.Replace(unfilledOrder, `"ordType":"post_only"`, `"ordType":"fok"`, 1))}, requests: []string{spotPending}, exp: order.FilteredOrders{liveFillOrKill}},
-			{name: "a full page", req: spotRequest(), replies: []string{mockOrdersReply(fullPage...), mockOrdersReply(liveOrder)}, requests: []string{spotPending, spotPending}, exp: order.FilteredOrders{live}},
-			{name: "spread type with no OKX order type", req: spreadRequest(order.Stop, order.ImmediateOrCancel), err: order.ErrUnsupportedOrderType},
-			{name: "spread type with no OKX spread order type", req: spreadRequest(order.Limit, order.FillOrKill), err: order.ErrUnsupportedOrderType},
-			{name: "spread request fails", req: spreadRequest(order.Limit, order.UnknownTIF), replies: []string{mockFailureReply}, requests: []string{spreadPending}, err: request.ErrAuthRequestFailed},
-			{
-				name:            "spread pair format missing",
-				req:             spreadRequest(order.Limit, order.UnknownTIF),
-				noRequestFormat: true,
-				replies:         []string{mockOrdersReply(mockSpreadOrder)},
-				requests:        []string{spreadPending},
-				err:             currency.ErrPairFormatIsNil,
-			},
-			{
-				name:     "spread ID without a delimiter",
-				req:      spreadRequest(order.Limit, order.UnknownTIF),
-				replies:  []string{mockOrdersReply(strings.Replace(mockSpreadOrder, `"sprdId":"BTC-USDT_BTC-USDT-SWAP"`, `"sprdId":"BTCUSDT"`, 1))},
-				requests: []string{spreadPending},
-				errText:  "delimiter not found",
-			},
-			{
-				name:     "spread order type unrecognised",
-				req:      spreadRequest(order.Limit, order.UnknownTIF),
-				replies:  []string{mockOrdersReply(strings.Replace(mockSpreadOrder, `"ordType":"limit"`, `"ordType":"mystery"`, 1))},
-				requests: []string{spreadPending},
-				err:      order.ErrTypeIsInvalid,
-			},
-			{
-				name:     "spread side unrecognised",
-				req:      spreadRequest(order.Limit, order.UnknownTIF),
-				replies:  []string{mockOrdersReply(strings.Replace(mockSpreadOrder, `"side":"buy"`, `"side":"sideways"`, 1))},
-				requests: []string{spreadPending},
-				err:      order.ErrSideIsInvalid,
-			},
-			{
-				name:     "spread state unrecognised",
-				req:      spreadRequest(order.Limit, order.UnknownTIF),
-				replies:  []string{mockOrdersReply(strings.Replace(mockSpreadOrder, `"state":"partially_filled"`, `"state":"mystery"`, 1))},
-				requests: []string{spreadPending},
-				errText:  "unrecognised order status",
-			},
-			{name: "spread orders of each type", req: spreadRequest(order.AnyType, order.UnknownTIF), replies: []string{mockOrdersReply(spreadTypes...)}, requests: []string{anyPending}, exp: spreadDetails},
-			{name: "spread orders of the requested type", req: spreadRequest(order.Limit, order.PostOnly), replies: []string{mockOrdersReply(spreadTypes[2])}, requests: []string{"/sprd/orders-pending?ordType=post_only"}, exp: spreadDetails[2:3]},
-			{name: "spread post only orders requested as limit maker", req: spreadRequest(order.LimitMaker, order.PostOnly), replies: []string{mockOrdersReply(spreadTypes[2])}, requests: []string{"/sprd/orders-pending?ordType=post_only"}, exp: spreadDetails[2:3]},
-			{name: "spread immediate or cancel orders requested as market", req: spreadRequest(order.Market, order.ImmediateOrCancel), replies: []string{mockOrdersReply(spreadTypes[3])}, requests: []string{"/sprd/orders-pending?ordType=ioc"}, exp: spreadDetails[3:4]},
-			{
-				name:     "post only orders requested as limit maker",
-				req:      &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.LimitMaker, TimeInForce: order.PostOnly, Side: order.AnySide, Pairs: []currency.Pair{mainPair}},
-				replies:  []string{mockOrdersReply(liveOrder, withOrderType("limit"), withOrderType("ioc"))},
-				requests: []string{"/trade/orders-pending?instType=SPOT&orderType=post_only"},
-				exp:      order.FilteredOrders{live},
-			},
-			{
-				name:     "immediate or cancel orders requested as market",
-				req:      &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.Market, TimeInForce: order.ImmediateOrCancel, Side: order.AnySide, Pairs: []currency.Pair{mainPair}},
-				replies:  []string{mockOrdersReply(withOrderType("market"), withOrderType("ioc"), withOrderType("limit"), liveOrder)},
-				requests: []string{"/trade/orders-pending?instType=SPOT&orderType=ioc"},
-				exp:      order.FilteredOrders{liveImmediateOrCancel},
-			},
-		})
-	})
-
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -5109,289 +6587,180 @@ func TestGetActiveOrders(t *testing.T) {
 			assert.NotNil(t, result)
 		}
 	})
+
+	t.Run("paginates with the order ID cursor", func(t *testing.T) {
+		t.Parallel()
+		// Guards the pending order crawl:
+		// OKX pages /trade/orders-pending with the after order ID cursor, so paginating
+		// by a timestamp instead re-fetched the first page, losing every order past the
+		// first hundred.
+		fillPage := func(first, count int) []map[string]string {
+			ords := make([]map[string]string, 0, count)
+			for x := range count {
+				ords = append(ords, map[string]string{
+					"instId":    "BTC-USDT",
+					"ordId":     fmt.Sprintf("ORD-%03d", first+x),
+					"cTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
+					"uTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
+					"state":     "live",
+					"ordType":   "limit",
+					"side":      "buy",
+					"sz":        "1",
+					"px":        "42000",
+					"accFillSz": "0",
+					"feeCcy":    "USDT",
+					"fee":       "0",
+				})
+			}
+			return ords
+		}
+		pages := map[string][]map[string]string{
+			"":        fillPage(0, orderListPageSize),
+			"ORD-099": fillPage(orderListPageSize, 50),
+		}
+
+		var mu sync.Mutex
+		var afterCursors []string
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/orders-pending" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			after := r.URL.Query().Get("after")
+			mu.Lock()
+			repeated := slices.Contains(afterCursors, after)
+			afterCursors = append(afterCursors, after)
+			page := pages[after]
+			mu.Unlock()
+			if repeated {
+				// Nothing here fails a request, so a repeat means the cursor never advanced.
+				t.Errorf("after %q requested again", after)
+				http.Error(w, "repeated after", http.StatusBadRequest)
+				return
+			}
+			writeOKXData(t, w, page)
+		}))
+
+		resp, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spot,
+			Type:      order.AnyType,
+			Side:      order.AnySide,
+		})
+		require.NoError(t, err, "GetActiveOrders must not error when the pending order list spans pages")
+
+		mu.Lock()
+		cursors := make([]string, len(afterCursors))
+		copy(cursors, afterCursors)
+		mu.Unlock()
+		assert.Equal(t, []string{"", "ORD-099"}, cursors, "the second page should be requested with the first page's last order ID")
+		assert.Len(t, resp, orderListPageSize+50, "a paginated crawl should return every open order")
+		ids := make(map[string]struct{}, len(resp))
+		for x := range resp {
+			ids[resp[x].OrderID] = struct{}{}
+		}
+		assert.Len(t, ids, orderListPageSize+50, "a paginated crawl should not duplicate orders")
+		assert.Contains(t, ids, "ORD-149", "orders past the first page should be returned")
+	})
+
+	t.Run("reports execution values", func(t *testing.T) {
+		t.Parallel()
+		// Guards the pending order mapping:
+		// a partially filled resting order reports its average executed price and
+		// the cost of its fills, and the fee keeps the websocket stream's
+		// positive-for-a-charge sign.
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/orders-pending" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			writeOKXData(t, w, []map[string]string{{
+				"instId": "BTC-USDT", "ordId": "ORD-1", "ordType": orderLimit, "side": "buy", "state": "live",
+				"sz": "2", "accFillSz": "0.5", "avgPx": "41000", "px": "40000", "fee": "-0.01", "feeCcy": "USDT",
+				"cTime": "1700000000000", "uTime": "1700000000000",
+			}})
+		}))
+		active, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+		})
+		require.NoError(t, err, "GetActiveOrders must not error")
+		require.Len(t, active, 1, "the pending order must be returned")
+		assert.Equal(t, 41000.0, active[0].AverageExecutedPrice, "GetActiveOrders should read the average filled price")
+		assert.Equal(t, 41000.0*0.5, active[0].Cost, "the cost should be the average filled price times the accumulated fill")
+		assert.Equal(t, "USDT", active[0].CostAsset.String(), "the cost asset should be the pair quote")
+		assert.Equal(t, 0.01, active[0].Fee, "a fee OKX charged should read as a positive cost, as the websocket stream reports it")
+		assert.Equal(t, "USDT", active[0].FeeAsset.String(), "the fee asset should come from the response")
+	})
+
+	t.Run("spread orders report the pending fill size as the remainder", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/sprd/orders-pending" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			writeOKXData(t, w, []map[string]string{{
+				"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderLimit, "side": "buy", "state": "partially_filled",
+				"sz": "10", "accFillSz": "2", "pendingFillSz": "5", "canceledSz": "3", "px": "100", "avgPx": "90",
+				"cTime": "1700000000000", "uTime": "1700000000000",
+			}})
+		}))
+		active, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide})
+		require.NoError(t, err, "GetActiveOrders must not error")
+		require.Len(t, active, 1, "the pending spread order must be returned")
+		assert.Equal(t, 10.0, active[0].Amount, "GetActiveOrders should read the spread order size")
+		assert.Equal(t, 2.0, active[0].ExecutedAmount, "GetActiveOrders should read the accumulated fill size")
+		assert.Equal(t, 5.0, active[0].RemainingAmount, "GetActiveOrders should report the pending fill size, which leaves out the cancelled size")
+	})
+
+	t.Run("order lists include the start time", func(t *testing.T) {
+		t.Parallel()
+		// Guards the StartTime bound of GetActiveOrders and GetOrderHistory: an
+		// order created exactly at StartTime is returned, and the listing stops
+		// at the first older order.
+		start := time.Now().Add(-time.Hour).Truncate(time.Millisecond)
+		row := func(id string, created time.Time) map[string]string {
+			return map[string]string{"instId": mainPair.String(), "ordId": id, "ordType": orderLimit, "side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "avgPx": "1", "cTime": strconv.FormatInt(created.UnixMilli(), 10)}
+		}
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			writeOKXData(t, w, []map[string]string{row("NEWER", start.Add(time.Minute)), row("AT-START", start), row("OLDER", start.Add(-time.Minute))})
+		}))
+		active, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, StartTime: start})
+		require.NoError(t, err, "GetActiveOrders must not error")
+		history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, StartTime: start, Pairs: currency.Pairs{mainPair}})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		for name, orders := range map[string]order.FilteredOrders{"GetActiveOrders": active, "GetOrderHistory": history} {
+			ids := make([]string, 0, len(orders))
+			for i := range orders {
+				ids = append(ids, orders[i].OrderID)
+			}
+			assert.ElementsMatchf(t, []string{"NEWER", "AT-START"}, ids, "%s should return the orders created from StartTime on", name)
+		}
+	})
 }
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	// Drives GetOrderHistory through canned order history replies, checking every order it returns, with each cost
-	// labelled in the quote currency on spot and in the settle coin on a derivative rather than the rebate currency
-	t.Run("mocked", func(t *testing.T) {
-		t.Parallel()
-		const (
-			soldOrder         = `{"instType":"SPOT","instId":"BTC-USDT","tgtCcy":"","ccy":"","ordId":"1001","clOrdId":"sell1001","tag":"","px":"30000","sz":"0.5","ordType":"limit","side":"sell","posSide":"","tdMode":"cash","accFillSz":"0.5","fillPx":"30000","fillSz":"0.5","avgPx":"30000","state":"filled","lever":"","feeCcy":"USDT","fee":"-15","rebateCcy":"BTC","rebate":"0","category":"normal","uTime":"1761700001000","cTime":"1761700000000"}`
-			quoteSizedOrder   = `{"instType":"SPOT","instId":"BTC-USDT","tgtCcy":"quote_ccy","ccy":"","ordId":"1002","clOrdId":"buy1002","tag":"","px":"","sz":"5000","ordType":"market","side":"buy","posSide":"","tdMode":"cash","accFillSz":"0.125","fillPx":"20000","fillSz":"0.125","avgPx":"20000","state":"canceled","lever":"","feeCcy":"BTC","fee":"-0.000125","rebateCcy":"USDT","rebate":"0","category":"normal","uTime":"1761699901000","cTime":"1761699900000"}`
-			liveOrder         = `{"instType":"SPOT","instId":"BTC-USDT","tgtCcy":"","ccy":"","ordId":"1003","clOrdId":"","tag":"","px":"10000","sz":"1","ordType":"limit","side":"buy","posSide":"","tdMode":"cash","accFillSz":"0","fillPx":"","fillSz":"0","avgPx":"","state":"live","lever":"","feeCcy":"BTC","fee":"0","rebateCcy":"USDT","rebate":"0","category":"normal","uTime":"1761699801000","cTime":"1761699800000"}`
-			otherPairOrder    = `{"instType":"SPOT","instId":"ETH-USDT","tgtCcy":"","ccy":"","ordId":"1004","clOrdId":"","tag":"","px":"2500","sz":"1","ordType":"limit","side":"buy","posSide":"","tdMode":"cash","accFillSz":"1","fillPx":"2500","fillSz":"1","avgPx":"2500","state":"filled","lever":"","feeCcy":"ETH","fee":"-0.001","rebateCcy":"USDT","rebate":"0","category":"normal","uTime":"1761699701000","cTime":"1761699700000"}`
-			unknownStateOrder = `{"instType":"SPOT","instId":"BTC-USDT","tgtCcy":"","ccy":"","ordId":"1005","clOrdId":"buy1005","tag":"","px":"19000","sz":"0.5","ordType":"post_only","side":"buy","posSide":"","tdMode":"cash","accFillSz":"0.25","fillPx":"19000","fillSz":"0.25","avgPx":"19000","state":"mystery","lever":"","feeCcy":"BTC","fee":"0.00005","rebateCcy":"BTC","rebate":"0.00005","category":"normal","uTime":"1761699601000","cTime":"1761699600000"}`
-			spotHistory       = "/trade/orders-history-archive?instType=SPOT"
-			spreadHistory     = "/sprd/orders-history?ordType=limit"
-		)
-		createdAt := func(fixture string, created time.Time) string {
-			fixture = strings.Replace(fixture, `"cTime":"1761700000000"`, `"cTime":"`+strconv.FormatInt(created.UnixMilli(), 10)+`"`, 1)
-			return strings.Replace(fixture, `"uTime":"1761700001000"`, `"uTime":"`+strconv.FormatInt(created.UnixMilli()+1000, 10)+`"`, 1)
-		}
-		spotRequest := func() *order.MultiOrderRequest {
-			return &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, Pairs: []currency.Pair{mainPair}}
-		}
-		spreadRequest := func(orderType order.Type, tif order.TimeInForce) *order.MultiOrderRequest {
-			return &order.MultiOrderRequest{AssetType: asset.Spread, Type: orderType, TimeInForce: tif, Side: order.AnySide}
-		}
-
-		sold := order.Detail{
-			Price:                30000,
-			AverageExecutedPrice: 30000,
-			Amount:               0.5,
-			ExecutedAmount:       0.5,
-			Fee:                  -15,
-			FeeAsset:             currency.USDT,
-			Exchange:             "Okx",
-			OrderID:              "1001",
-			ClientOrderID:        "sell1001",
-			Type:                 order.Limit,
-			Side:                 order.Sell,
-			Status:               order.Filled,
-			AssetType:            asset.Spot,
-			Date:                 time.UnixMilli(1761700000000),
-			LastUpdated:          time.UnixMilli(1761700001000),
-			Pair:                 mainPair,
-			Cost:                 15000,
-			CostAsset:            currency.USDT,
-		}
-		quoteSized := order.Detail{
-			AverageExecutedPrice: 20000,
-			Amount:               0.25,
-			ExecutedAmount:       0.125,
-			RemainingAmount:      0.125,
-			Fee:                  -0.000125,
-			FeeAsset:             currency.BTC,
-			Exchange:             "Okx",
-			OrderID:              "1002",
-			ClientOrderID:        "buy1002",
-			Type:                 order.Market,
-			Side:                 order.Buy,
-			Status:               order.Cancelled,
-			AssetType:            asset.Spot,
-			Date:                 time.UnixMilli(1761699900000),
-			LastUpdated:          time.UnixMilli(1761699901000),
-			Pair:                 mainPair,
-			Cost:                 2500,
-			CostAsset:            currency.USDT,
-		}
-		unknownState := order.Detail{
-			Price:                19000,
-			AverageExecutedPrice: 19000,
-			Amount:               0.5,
-			ExecutedAmount:       0.25,
-			RemainingAmount:      0.25,
-			Fee:                  0.00005,
-			FeeAsset:             currency.BTC,
-			Exchange:             "Okx",
-			OrderID:              "1005",
-			ClientOrderID:        "buy1005",
-			Type:                 order.Limit,
-			Side:                 order.Buy,
-			Status:               order.UnknownStatus,
-			AssetType:            asset.Spot,
-			Date:                 time.UnixMilli(1761699600000),
-			LastUpdated:          time.UnixMilli(1761699601000),
-			Pair:                 mainPair,
-			Cost:                 4750,
-			CostAsset:            currency.USDT,
-			TimeInForce:          order.PostOnly,
-		}
-		spread := order.Detail{
-			Price:                -10,
-			AverageExecutedPrice: -10,
-			Amount:               2,
-			ExecutedAmount:       1,
-			RemainingAmount:      0.75,
-			Exchange:             "Okx",
-			OrderID:              "3001",
-			ClientOrderID:        "spread3001",
-			Type:                 order.Limit,
-			Side:                 order.Buy,
-			Status:               order.PartiallyFilled,
-			AssetType:            asset.Spread,
-			Date:                 time.UnixMilli(1761700000000),
-			LastUpdated:          time.UnixMilli(1761700001000),
-			Pair:                 currency.NewPairWithDelimiter("BTC", "USDT_BTC-USDT-SWAP", "-"),
-		}
-		recent := time.UnixMilli(time.Now().Add(-time.Hour).UnixMilli())
-		recentSold := sold
-		recentSold.Date, recentSold.LastUpdated = recent, recent.Add(time.Second)
-		withOrderType := func(orderType string) string {
-			return strings.Replace(soldOrder, `"ordType":"limit"`, `"ordType":"`+orderType+`"`, 1)
-		}
-		soldPostOnly := sold
-		soldPostOnly.TimeInForce = order.PostOnly
-		soldImmediateOrCancel := sold
-		soldImmediateOrCancel.TimeInForce = order.ImmediateOrCancel
-		inverseSwapPair := currency.NewPairWithDelimiter("BTC", "USD-SWAP", "-")
-		soldSwap := func(instrument string) string {
-			return strings.Replace(strings.Replace(soldOrder, `"instId":"BTC-USDT"`, `"instId":"`+instrument+`"`, 1), `"instType":"SPOT"`, `"instType":"SWAP"`, 1)
-		}
-		soldDerivative := func(pair currency.Pair, costAsset currency.Code) order.Detail {
-			d := sold
-			d.AssetType, d.Pair, d.CostAsset = asset.PerpetualSwap, pair, costAsset
-			return d
-		}
-
-		// A full page of another pair's orders makes GetOrderHistory ask for the orders before the page's last one
-		fullPage := make([]string, 100)
-		for i := range fullPage {
-			created := int64(1761700000000) - int64(i)*1000
-			fullPage[i] = fmt.Sprintf(`{"instType":"SPOT","instId":"ETH-USDT","ordId":"%d","px":"2500","sz":"1","ordType":"limit","side":"buy","accFillSz":"1","avgPx":"2500","state":"filled","uTime":"%d","cTime":"%d"}`, 5000+i, created+1000, created)
-		}
-
-		spreadDetails := mockSpreadOrderDetails()
-		for i := range spreadDetails {
-			spreadDetails[i].AverageExecutedPrice = -10
-		}
-		runOrderListingTests(t, (*Exchange).GetOrderHistory, []orderListingTest{
-			{name: "nil request", err: order.ErrGetOrdersRequestIsNil},
-			{
-				name: "start beyond three months",
-				req:  &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, Pairs: []currency.Pair{mainPair}, StartTime: time.Now().AddDate(0, -4, 0)},
-				err:  errOnlyThreeMonthsSupported,
-			},
-			{name: "unsupported asset", req: &order.MultiOrderRequest{AssetType: asset.Binary, Type: order.AnyType, Side: order.AnySide}, err: asset.ErrNotSupported},
-			{name: "no pairs", req: &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide}, err: currency.ErrCurrencyPairsEmpty},
-			{name: "history request fails", req: spotRequest(), replies: []string{mockFailureReply}, requests: []string{spotHistory}, err: request.ErrAuthRequestFailed},
-			{name: "empty history", req: spotRequest(), replies: []string{mockOrdersReply()}, requests: []string{spotHistory}, exp: order.FilteredOrders{}},
-			{
-				name:     "unparsable instrument ID",
-				req:      spotRequest(),
-				replies:  []string{mockOrdersReply(strings.Replace(soldOrder, `"instId":"BTC-USDT"`, `"instId":"BT"`, 1))},
-				requests: []string{spotHistory},
-				err:      currency.ErrCreatingPair,
-			},
-			{
-				name:     "unrecognised order type",
-				req:      spotRequest(),
-				replies:  []string{mockOrdersReply(strings.Replace(soldOrder, `"ordType":"limit"`, `"ordType":"mystery"`, 1))},
-				requests: []string{spotHistory},
-				err:      order.ErrTypeIsInvalid,
-			},
-			{
-				name:     "orders of the requested pair that are not live",
-				req:      spotRequest(),
-				replies:  []string{mockOrdersReply(soldOrder, quoteSizedOrder, liveOrder, otherPairOrder, unknownStateOrder)},
-				requests: []string{spotHistory},
-				exp:      order.FilteredOrders{sold, quoteSized, unknownState},
-			},
-			{
-				name:     "orders up to the start time",
-				req:      &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, Pairs: []currency.Pair{mainPair}, StartTime: recent.Add(-24 * time.Hour)},
-				replies:  []string{mockOrdersReply(createdAt(soldOrder, recent), createdAt(soldOrder, recent.Add(-48*time.Hour)))},
-				requests: []string{spotHistory},
-				exp:      order.FilteredOrders{recentSold},
-			},
-			{
-				name:     "orders across pages",
-				req:      spotRequest(),
-				replies:  []string{mockOrdersReply(fullPage...), mockOrdersReply(quoteSizedOrder)},
-				requests: []string{spotHistory, "/trade/orders-history-archive?end=1761699901000&instType=SPOT"},
-				exp:      order.FilteredOrders{quoteSized},
-			},
-			{
-				name:     "cost of each perpetual swap in its settle coin",
-				req:      &order.MultiOrderRequest{AssetType: asset.PerpetualSwap, Type: order.AnyType, Side: order.AnySide, Pairs: []currency.Pair{perpetualSwapPair, inverseSwapPair}},
-				replies:  []string{mockOrdersReply(soldSwap("BTC-USDT-SWAP"), soldSwap("BTC-USD-SWAP"))},
-				requests: []string{"/trade/orders-history-archive?instType=SWAP"},
-				exp:      order.FilteredOrders{soldDerivative(perpetualSwapPair, currency.USDT), soldDerivative(inverseSwapPair, currency.BTC)},
-			},
-			{name: "spread type with no OKX order type", req: spreadRequest(order.Stop, order.ImmediateOrCancel), err: order.ErrUnsupportedOrderType},
-			{name: "spread type with no OKX spread order type", req: spreadRequest(order.Limit, order.FillOrKill), err: order.ErrUnsupportedOrderType},
-			{name: "spread history request fails", req: spreadRequest(order.Limit, order.UnknownTIF), replies: []string{mockFailureReply}, requests: []string{spreadHistory}, err: request.ErrAuthRequestFailed},
-			{
-				name:            "spread pair format missing",
-				req:             spreadRequest(order.Limit, order.UnknownTIF),
-				noRequestFormat: true,
-				replies:         []string{mockOrdersReply(mockSpreadOrder)},
-				requests:        []string{spreadHistory},
-				err:             currency.ErrPairFormatIsNil,
-			},
-			{
-				name:     "spread ID without a delimiter",
-				req:      spreadRequest(order.Limit, order.UnknownTIF),
-				replies:  []string{mockOrdersReply(strings.Replace(mockSpreadOrder, `"sprdId":"BTC-USDT_BTC-USDT-SWAP"`, `"sprdId":"BTCUSDT"`, 1))},
-				requests: []string{spreadHistory},
-				errText:  "delimiter not found",
-			},
-			{
-				name:     "spread order type unrecognised",
-				req:      spreadRequest(order.Limit, order.UnknownTIF),
-				replies:  []string{mockOrdersReply(strings.Replace(mockSpreadOrder, `"ordType":"limit"`, `"ordType":"mystery"`, 1))},
-				requests: []string{spreadHistory},
-				err:      order.ErrTypeIsInvalid,
-			},
-			{
-				name:     "spread side unrecognised",
-				req:      spreadRequest(order.Limit, order.UnknownTIF),
-				replies:  []string{mockOrdersReply(strings.Replace(mockSpreadOrder, `"side":"buy"`, `"side":"sideways"`, 1))},
-				requests: []string{spreadHistory},
-				err:      order.ErrSideIsInvalid,
-			},
-			{
-				name:     "spread state unrecognised",
-				req:      spreadRequest(order.Limit, order.UnknownTIF),
-				replies:  []string{mockOrdersReply(strings.Replace(mockSpreadOrder, `"state":"partially_filled"`, `"state":"mystery"`, 1))},
-				requests: []string{spreadHistory},
-				errText:  "unrecognised order status",
-			},
-			{
-				name:     "spread orders",
-				req:      spreadRequest(order.Limit, order.UnknownTIF),
-				replies:  []string{mockOrdersReply(mockSpreadOrder)},
-				requests: []string{spreadHistory},
-				exp:      order.FilteredOrders{spread},
-			},
-			{
-				name:     "spread orders of any type",
-				req:      spreadRequest(order.AnyType, order.UnknownTIF),
-				replies:  []string{mockOrdersReply(mockSpreadOrder)},
-				requests: []string{"/sprd/orders-history"},
-				exp:      order.FilteredOrders{spread},
-			},
-			{
-				name:     "spread orders of each type",
-				req:      spreadRequest(order.AnyType, order.UnknownTIF),
-				replies:  []string{mockOrdersReply(mockSpreadOrderTypes()...)},
-				requests: []string{"/sprd/orders-history"},
-				exp:      spreadDetails,
-			},
-			{name: "spread post only orders requested as limit maker", req: spreadRequest(order.LimitMaker, order.PostOnly), replies: []string{mockOrdersReply(mockSpreadOrderTypes()[2])}, requests: []string{"/sprd/orders-history?ordType=post_only"}, exp: spreadDetails[2:3]},
-			{name: "spread immediate or cancel orders requested as market", req: spreadRequest(order.Market, order.ImmediateOrCancel), replies: []string{mockOrdersReply(mockSpreadOrderTypes()[3])}, requests: []string{"/sprd/orders-history?ordType=ioc"}, exp: spreadDetails[3:4]},
-			{
-				name:     "post only orders requested as limit maker",
-				req:      &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.LimitMaker, TimeInForce: order.PostOnly, Side: order.AnySide, Pairs: []currency.Pair{mainPair}},
-				replies:  []string{mockOrdersReply(soldOrder, withOrderType("post_only"), withOrderType("ioc"))},
-				requests: []string{spotHistory},
-				exp:      order.FilteredOrders{soldPostOnly},
-			},
-			{
-				name:     "immediate or cancel orders requested as market",
-				req:      &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.Market, TimeInForce: order.ImmediateOrCancel, Side: order.AnySide, Pairs: []currency.Pair{mainPair}},
-				replies:  []string{mockOrdersReply(withOrderType("market"), soldOrder, withOrderType("ioc"), withOrderType("post_only"))},
-				requests: []string{spotHistory},
-				exp:      order.FilteredOrders{soldImmediateOrCancel},
-			},
-		})
-	})
-
-	getOrdersRequest := order.MultiOrderRequest{
-		Type:      order.AnyType,
-		AssetType: asset.Spot,
-		Side:      order.Buy,
-	}
-	_, err := e.GetOrderHistory(contextGenerate(), &getOrdersRequest)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
-
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-		getOrdersRequest.Pairs = []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)}
+
+		getOrdersRequest := order.MultiOrderRequest{
+			Type:      order.AnyType,
+			AssetType: asset.Spot,
+			Side:      order.Buy,
+		}
+		// The history endpoints require only the instrument type, so empty pairs
+		// queries every instrument within the window.
+		getOrdersRequest.StartTime = time.Now().Add(-kline.SevenDay.Duration())
 		result, err := e.GetOrderHistory(contextGenerate(), &getOrdersRequest)
+		require.NoError(t, err, "GetOrderHistory must accept empty pairs")
+		assert.NotNil(t, result)
+
+		getOrdersRequest.Pairs = []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)}
+		result, err = e.GetOrderHistory(contextGenerate(), &getOrdersRequest)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
@@ -5401,105 +6770,527 @@ func TestGetOrderHistory(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
-}
 
-const (
-	mockSpreadOrder  = `{"sprdId":"BTC-USDT_BTC-USDT-SWAP","ordId":"3001","clOrdId":"spread3001","tag":"","px":"-10","sz":"2","ordType":"limit","side":"buy","fillSz":"0.5","fillPx":"-10","tradeId":"7","accFillSz":"1","pendingFillSz":"0.75","pendingSettleSz":"0","canceledSz":"0.25","avgPx":"-10","state":"partially_filled","cancelSource":"","uTime":"1761700001000","cTime":"1761700000000"}`
-	mockFailureReply = `{"code":"50011","msg":"mock: rate limit reached","data":[]}`
-)
-
-// mockOrdersReply returns a successful reply holding orders
-func mockOrdersReply(orders ...string) string {
-	return `{"code":"0","msg":"","data":[` + strings.Join(orders, ",") + `]}`
-}
-
-// orderListingTest is a row of a test driving an order listing through canned replies
-type orderListingTest struct {
-	name            string
-	req             *order.MultiOrderRequest
-	noRequestFormat bool
-	replies         []string
-	requests        []string
-	err             error
-	errText         string
-	exp             order.FilteredOrders
-}
-
-// runOrderListingTests runs each row against an exchange whose server gives the row's replies in turn
-func runOrderListingTests(t *testing.T, listing func(*Exchange, context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error), tests []orderListingTest) {
-	t.Helper()
-	for i := range tests {
-		tc := &tests[i]
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			var (
-				mutex    sync.Mutex
-				requests []string
-			)
-			ex := newMockServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				mutex.Lock()
-				n := len(requests)
-				requests = append(requests, r.URL.RequestURI())
-				mutex.Unlock()
-				w.Header().Set("Content-Type", "application/json")
-				if n >= len(tc.replies) {
-					_, _ = w.Write([]byte(`{"code":"1","msg":"mock: unexpected request","data":[]}`))
-					return
-				}
-				_, _ = w.Write([]byte(tc.replies[n]))
-			})
-			if tc.noRequestFormat {
-				ex.CurrencyPairs.RequestFormat = nil
+	t.Run("paginates with the after cursor", func(t *testing.T) {
+		t.Parallel()
+		// Guards the order history crawl: OKX caps the archive response at
+		// orderListPageSize records and pages the remainder with the after cursor,
+		// which returns the records earlier than the requested order ID. Unlike the
+		// end timestamp, the order ID cursor is exclusive, so orders sharing one
+		// creation millisecond across the page boundary cannot repeat on the next
+		// page.
+		base := time.Now().Add(-24 * time.Hour).Truncate(time.Millisecond)
+		endTime := base.Add(128 * time.Millisecond)
+		// ORD-099 and ORD-100 share one creation millisecond across the page
+		// boundary: the after cursor must page past them without overlap.
+		cTime := func(i int) time.Time {
+			if i == 100 {
+				return base.Add(99 * time.Millisecond)
 			}
-			result, err := listing(ex, t.Context(), tc.req)
-			mutex.Lock()
-			defer mutex.Unlock()
-			assert.Equal(t, tc.requests, requests, "the listing should send the expected requests")
-			switch {
-			case tc.err != nil:
-				assert.ErrorIs(t, err, tc.err, "the listing should return the expected error")
-			case tc.errText != "":
-				assert.ErrorContains(t, err, tc.errText, "the listing should return the expected error")
-			default:
-				require.NoError(t, err, "the listing must not error")
-				assert.Equal(t, tc.exp, result, "the listing should return the expected orders")
-			}
-		})
-	}
-}
-
-// mockSpreadOrderDetails returns the orders mockSpreadOrderTypes describes, as a listing reads them
-func mockSpreadOrderDetails() order.FilteredOrders {
-	detail := func(orderType order.Type, tif order.TimeInForce) order.Detail {
-		return order.Detail{
-			Price:           -10,
-			Amount:          2,
-			ExecutedAmount:  1,
-			RemainingAmount: 0.75,
-			Exchange:        "Okx",
-			OrderID:         "3001",
-			ClientOrderID:   "spread3001",
-			Type:            orderType,
-			TimeInForce:     tif,
-			Side:            order.Buy,
-			Status:          order.PartiallyFilled,
-			AssetType:       asset.Spread,
-			Date:            time.UnixMilli(1761700000000),
-			LastUpdated:     time.UnixMilli(1761700001000),
-			Pair:            currency.NewPairWithDelimiter("BTC", "USDT_BTC-USDT-SWAP", "-"),
+			return base.Add(time.Duration(i) * time.Millisecond)
 		}
-	}
-	return order.FilteredOrders{detail(order.Market, order.UnknownTIF), detail(order.Limit, order.UnknownTIF), detail(order.Limit, order.PostOnly), detail(order.Limit, order.ImmediateOrCancel)}
-}
+		row := func(i int) map[string]string {
+			created := strconv.FormatInt(cTime(i).UnixMilli(), 10)
+			return map[string]string{
+				"instId": mainPair.String(), "ordId": fmt.Sprintf("ORD-%03d", i),
+				"cTime": created, "uTime": created, "state": "filled",
+				"ordType": orderLimit, "side": "buy", "sz": "1",
+				"px": "42000", "accFillSz": "1", "avgPx": "42000",
+				"fee": "-0.01", "feeCcy": "USDT",
+				// The rebate currency is unrelated to the pair, so the cost asset
+				// must come from the pair quote, not this field.
+				"rebateCcy": "DOGE",
+			}
+		}
+		// The mock pages by the after order ID cursor: the first page holds the
+		// 100 newest orders, and the second page holds the 30 older ones.
+		page1 := make([]map[string]string, 0, orderListPageSize)
+		for i := 129; i >= 30; i-- {
+			page1 = append(page1, row(i))
+		}
+		page2 := make([]map[string]string, 0, 30)
+		for i := 29; i >= 0; i-- {
+			page2 = append(page2, row(i))
+		}
+		pages := map[string][]map[string]string{
+			"":        page1,
+			"ORD-030": page2,
+		}
+		var mu sync.Mutex
+		var afterCursors []string
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/trade/orders-history" {
+				// The window reaches the 7 day listing, which has nothing to add
+				// to the archive's rows here.
+				writeOKXData(t, w, []map[string]string{})
+				return
+			}
+			if r.URL.Path != "/trade/orders-history-archive" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			after := r.URL.Query().Get("after")
+			mu.Lock()
+			repeated := slices.Contains(afterCursors, after)
+			afterCursors = append(afterCursors, after)
+			page := pages[after]
+			mu.Unlock()
+			if repeated {
+				// A repeat means the after cursor never advanced.
+				t.Errorf("after %q requested again", after)
+				http.Error(w, "repeated after", http.StatusBadRequest)
+				return
+			}
+			writeOKXData(t, w, page)
+		}))
+		history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+			StartTime: base.Add(-time.Second), EndTime: endTime,
+			Pairs: currency.Pairs{mainPair},
+		})
+		require.NoError(t, err, "GetOrderHistory must not error when the archive spans pages")
+		mu.Lock()
+		cursors := slices.Clone(afterCursors)
+		mu.Unlock()
+		assert.Equal(t, []string{"", "ORD-030"}, cursors, "the second page should be requested with the first page's last order ID as the after cursor")
+		require.Len(t, history, 130, "a paginated crawl must return every order")
+		ids := make(map[string]struct{}, len(history))
+		for x := range history {
+			ids[history[x].OrderID] = struct{}{}
+		}
+		assert.Len(t, ids, len(history), "a paginated crawl should not duplicate orders")
+		assert.Contains(t, ids, "ORD-100", "orders sharing a millisecond across the page boundary should all be returned")
+		assert.Contains(t, ids, "ORD-000", "orders past the first page should be returned")
+		assert.Equal(t, mainPair.Quote, history[0].CostAsset, "the cost asset should be the pair quote, not the order's rebate currency")
+		assert.Equal(t, 0.01, history[0].Fee, "a fee OKX charged should read as a positive cost, as the websocket stream reports it")
+		assert.Equal(t, "USDT", history[0].FeeAsset.String(), "the fee asset should come from the response")
+	})
 
-// mockSpreadOrderTypes returns mockSpreadOrder with each order type OKX documents for a spread order
-func mockSpreadOrderTypes() []string {
-	orderTypes := []string{"market", "limit", "post_only", "ioc"}
-	orders := make([]string, len(orderTypes))
-	for i, orderType := range orderTypes {
-		orders[i] = strings.Replace(mockSpreadOrder, `"ordType":"limit"`, `"ordType":"`+orderType+`"`, 1)
-	}
-	return orders
+	t.Run("without pairs returns every instrument", func(t *testing.T) {
+		t.Parallel()
+		// Guards the official request semantics: the history endpoints require
+		// only the instrument type, so a request without pairs returns every
+		// instrument's orders instead of erroring.
+		created := strconv.FormatInt(time.Now().Add(-24*time.Hour).Truncate(time.Millisecond).UnixMilli(), 10)
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/trade/orders-history" {
+				writeOKXData(t, w, []map[string]string{})
+				return
+			}
+			if r.URL.Path != "/trade/orders-history-archive" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			writeOKXData(t, w, []map[string]string{
+				{
+					"instId": mainPair.String(), "ordId": "ORD-A",
+					"cTime": created, "uTime": created, "state": "filled",
+					"ordType": orderLimit, "side": "buy", "sz": "1",
+					"px": "42000", "accFillSz": "1", "avgPx": "42000",
+				},
+				{
+					"instId": "ETH-USDT", "ordId": "ORD-B",
+					"cTime": created, "uTime": created, "state": "filled",
+					"ordType": orderLimit, "side": "sell", "sz": "2",
+					"px": "3000", "accFillSz": "2", "avgPx": "3000",
+				},
+			})
+		}))
+		history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+			StartTime: time.Now().Add(-25 * time.Hour), EndTime: time.Now().Add(-23 * time.Hour),
+		})
+		require.NoError(t, err, "GetOrderHistory must not error when no pairs are set")
+		require.Len(t, history, 2, "a request without pairs must return every instrument's orders")
+		ids := make(map[string]struct{}, len(history))
+		for x := range history {
+			ids[history[x].OrderID] = struct{}{}
+		}
+		assert.Contains(t, ids, "ORD-A", "the first instrument's orders should be returned without pairs")
+		assert.Contains(t, ids, "ORD-B", "the second instrument's orders should be returned without pairs")
+	})
+
+	t.Run("stops when a full page is seen", func(t *testing.T) {
+		t.Parallel()
+		// Guards the no-progress stop: a full page whose last order ID repeats the
+		// requested after cursor must not loop forever on the same page.
+		created := strconv.FormatInt(time.Now().Add(-24*time.Hour).Truncate(time.Millisecond).UnixMilli(), 10)
+		page := make([]map[string]string, 0, orderListPageSize)
+		for i := range orderListPageSize {
+			// Every order shares the one creation millisecond, and the mock keeps
+			// returning the page the after cursor already passed.
+			page = append(page, map[string]string{
+				"instId": mainPair.String(), "ordId": fmt.Sprintf("ORD-%03d", i),
+				"cTime": created, "uTime": created, "state": "filled",
+				"ordType": orderLimit, "side": "buy", "sz": "1",
+				"px": "42000", "accFillSz": "1", "avgPx": "42000",
+			})
+		}
+		var mu sync.Mutex
+		var afterCursors []string
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/trade/orders-history" {
+				// The window reaches the 7 day listing, which has nothing to add
+				// to the archive's rows here.
+				writeOKXData(t, w, []map[string]string{})
+				return
+			}
+			if r.URL.Path != "/trade/orders-history-archive" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			after := r.URL.Query().Get("after")
+			mu.Lock()
+			repeated := slices.Contains(afterCursors, after)
+			afterCursors = append(afterCursors, after)
+			mu.Unlock()
+			if repeated {
+				// A repeat means the after cursor never advanced.
+				t.Errorf("after %q requested again", after)
+				http.Error(w, "repeated after", http.StatusBadRequest)
+				return
+			}
+			writeOKXData(t, w, page)
+		}))
+		history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+			Pairs: currency.Pairs{mainPair},
+		})
+		require.NoError(t, err, "GetOrderHistory must stop when a full page holds no new order")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, []string{"", "ORD-099"}, afterCursors, "the crawl should stop when the after cursor stops advancing")
+		assert.Len(t, history, orderListPageSize, "the first page's orders should be returned once")
+	})
+
+	t.Run("from order ID seeds the after cursor", func(t *testing.T) {
+		t.Parallel()
+		// Guards the FromOrderID request field: OKX pages the archive from an
+		// order ID with the after cursor, so the first request must carry
+		// FromOrderID as the after cursor.
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/trade/orders-history" {
+				// The 7 day listing is crawled with the same seed and adds
+				// nothing here.
+				writeOKXData(t, w, []map[string]string{})
+				return
+			}
+			if r.URL.Path != "/trade/orders-history-archive" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			assert.Equal(t, "SEED-1", r.URL.Query().Get("after"), "the first request should carry FromOrderID as the after cursor")
+			writeOKXData(t, w, []map[string]string{})
+		}))
+		history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+			FromOrderID: "SEED-1",
+			Pairs:       currency.Pairs{mainPair},
+		})
+		require.NoError(t, err, "GetOrderHistory must not error when FromOrderID seeds the crawl")
+		assert.Empty(t, history, "an empty archive page should return no orders")
+	})
+
+	t.Run("pages the requested time window", func(t *testing.T) {
+		t.Parallel()
+		// Guards the history crawl against OKX's documented pagination: begin
+		// and end are inclusive filters applied first, after then pages to older
+		// order IDs, and past the page limit OKX answers begin without end or
+		// after with the records closest to begin, the oldest. Each listing
+		// holds orders the other lacks, and older ones before the window.
+		base := time.Now().Add(-2 * time.Hour).Truncate(time.Second)
+		created := func(id int64) time.Time { return base.Add(time.Duration(id) * time.Second) }
+		// The archive holds orders 1 to 150 and the 7 day listing 151 to 300.
+		listings := map[string][2]int64{"/trade/orders-history-archive": {1, 150}, "/trade/orders-history": {151, 300}}
+		// venue serves one subtest, recording the cursors it has served in
+		// requested.
+		venue := func(t *testing.T, requested *sync.Map, w http.ResponseWriter, r *http.Request) {
+			t.Helper()
+			ids, ok := listings[r.URL.Path]
+			if !ok {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			q := r.URL.Query()
+			// This venue never fails a well-formed request, so a repeated cursor
+			// means the crawl stopped advancing: failing it ends the crawl instead
+			// of serving the same page until go test's timeout.
+			if _, repeated := requested.LoadOrStore(r.URL.Path+"?after="+q.Get("after"), struct{}{}); repeated {
+				t.Errorf("%s after %q requested again", r.URL.Path, q.Get("after"))
+				http.Error(w, "repeated after", http.StatusBadRequest)
+				return
+			}
+			param := func(k string) (int64, bool) {
+				v, err := strconv.ParseInt(q.Get(k), 10, 64)
+				return v, err == nil
+			}
+			begin, hasBegin := param("begin")
+			end, hasEnd := param("end")
+			after, hasAfter := param("after")
+			var page []int64
+			for id := ids[0]; id <= ids[1]; id++ {
+				c := created(id).UnixMilli()
+				if (hasBegin && c < begin) || (hasEnd && c > end) || (hasAfter && id >= after) {
+					continue
+				}
+				page = append(page, id)
+			}
+			if len(page) > orderListPageSize {
+				if hasBegin && !hasEnd && !hasAfter {
+					page = page[:orderListPageSize]
+				} else {
+					page = page[len(page)-orderListPageSize:]
+				}
+			}
+			rows := make([]map[string]string, 0, len(page))
+			for _, id := range slices.Backward(page) {
+				c := strconv.FormatInt(created(id).UnixMilli(), 10)
+				rows = append(rows, map[string]string{
+					"instId": mainPair.String(), "ordId": strconv.FormatInt(id, 10), "ordType": orderLimit, "side": "buy",
+					"state": "filled", "sz": "1", "accFillSz": "1", "avgPx": "1", "px": "1", "cTime": c, "uTime": c,
+				})
+			}
+			writeOKXData(t, w, rows)
+		}
+		for _, tc := range []struct {
+			name       string
+			start, end time.Time
+			first      int64
+			last       int64
+		}{
+			{"start only", created(31), time.Time{}, 31, 300},
+			{"end only", time.Time{}, created(120), 1, 120},
+			{"start and end", created(31), created(200), 31, 200},
+			{"neither", time.Time{}, time.Time{}, 1, 300},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				requested := new(sync.Map)
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					venue(t, requested, w, r)
+				}))
+				history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+					AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+					StartTime: tc.start, EndTime: tc.end, Pairs: currency.Pairs{mainPair},
+				})
+				require.NoError(t, err, "GetOrderHistory must not error")
+				got := make([]int64, 0, len(history))
+				for i := range history {
+					id, err := strconv.ParseInt(history[i].OrderID, 10, 64)
+					require.NoError(t, err, "order IDs must parse")
+					got = append(got, id)
+				}
+				slices.Sort(got)
+				exp := make([]int64, 0, tc.last-tc.first+1)
+				for id := tc.first; id <= tc.last; id++ {
+					exp = append(exp, id)
+				}
+				assert.Equal(t, exp, got, "GetOrderHistory should return exactly the orders in the window")
+			})
+		}
+	})
+
+	t.Run("rejects unmapped states", func(t *testing.T) {
+		t.Parallel()
+		// Guards the history crawl's state mapping: a state the wrapper cannot
+		// map must fail the request instead of reporting an order with an
+		// unknown status.
+		created := strconv.FormatInt(time.Now().Add(-time.Hour).UnixMilli(), 10)
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/orders-history-archive" && r.URL.Path != "/trade/orders-history" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			writeOKXData(t, w, []map[string]string{{
+				"instId": mainPair.String(), "ordId": "ORD-1", "ordType": orderLimit, "side": "buy",
+				"state": "bogus", "sz": "1", "accFillSz": "1", "avgPx": "1", "px": "1", "cTime": created,
+			}})
+		}))
+		_, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, Pairs: currency.Pairs{mainPair},
+		})
+		require.ErrorContains(t, err, "unrecognised order status", "an unmapped order state must fail the request")
+	})
+
+	t.Run("narrows by the requested time in force", func(t *testing.T) {
+		t.Parallel()
+		// Guards the history result set's time in force narrowing: the crawls
+		// send no ordType, so a post-only Limit query must not return IOC
+		// orders, and a GoodTillCancel one must keep the limit orders OKX reads
+		// back with no time in force, on both the standard and the spread
+		// listings.
+		row := func(id, ordType string) map[string]string {
+			return map[string]string{"instId": mainPair.String(), "sprdId": spreadPair.String(), "ordId": id, "ordType": ordType, "side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "avgPx": "1", "px": "1", "cTime": "1700000000000"}
+		}
+		rows := []map[string]string{
+			row("LIMIT-1", orderLimit), row("POST-1", orderPostOnly), row("IOC-1", orderIOC), row("RPI-1", orderRPI), row("FOK-1", orderFOK),
+			row("OPFOK-1", orderOptionFOK), row("MMP-1", orderMarketMakerProtection), row("MMPPO-1", orderMarketMakerProtectionAndPostOnly),
+			// OKX sends ordType in lower case; the read-back accepts any case.
+			row("POST-2", "POST_ONLY"),
+		}
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/trade/orders-history-archive", "/trade/orders-history":
+				writeOKXData(t, w, rows)
+			case "/sprd/orders-history", "/sprd/orders-history-archive":
+				// The spread listings filter on the single ordType they are sent.
+				filtered := make([]map[string]string, 0, len(rows))
+				for _, o := range rows {
+					if ordType := r.URL.Query().Get("ordType"); ordType == "" || o["ordType"] == ordType {
+						filtered = append(filtered, o)
+					}
+				}
+				writeOKXData(t, w, filtered)
+			default:
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}
+		}))
+		for _, tc := range []struct {
+			name      string
+			assetType asset.Item
+			orderType order.Type
+			tif       order.TimeInForce
+			exp       []string
+		}{
+			{"post only query returns post only orders", asset.Spot, order.Limit, order.PostOnly, []string{"POST-1", "POST-2"}},
+			{"good till cancel post only query returns post only orders", asset.Spot, order.Limit, order.GoodTillCancel | order.PostOnly, []string{"POST-1", "POST-2"}},
+			{"good till cancel post only spread query returns post only orders", asset.Spread, order.Limit, order.GoodTillCancel | order.PostOnly, []string{"POST-1"}},
+			{"immediate or cancel query returns ioc orders", asset.Spot, order.Limit, order.ImmediateOrCancel, []string{"IOC-1"}},
+			{"no time in force returns every limit order", asset.Spot, order.Limit, order.UnknownTIF, []string{"LIMIT-1", "POST-1", "IOC-1", "RPI-1", "FOK-1", "OPFOK-1", "POST-2"}},
+			{"fill or kill query returns both fill or kill types", asset.Spot, order.Limit, order.FillOrKill, []string{"FOK-1", "OPFOK-1"}},
+			{"good till cancel query returns the orders it places", asset.Spot, order.Limit, order.GoodTillCancel, []string{"LIMIT-1"}},
+			{"good till day query returns the orders it places", asset.Spot, order.Limit, order.GoodTillDay, []string{"LIMIT-1"}},
+			{"good till cancel limit maker query returns post only orders", asset.Spot, order.LimitMaker, order.GoodTillCancel, []string{"POST-1", "POST-2"}},
+			{"post only market maker protection query returns its post only orders", asset.Spot, order.MarketMakerProtection, order.PostOnly, []string{"MMPPO-1"}},
+			{"any type query ignores the time in force as GetActiveOrders does", asset.Spot, order.AnyType, order.PostOnly, []string{"LIMIT-1", "POST-1", "IOC-1", "RPI-1", "FOK-1", "OPFOK-1", "MMP-1", "MMPPO-1", "POST-2"}},
+			{"good till cancel spread query returns the orders it places", asset.Spread, order.Limit, order.GoodTillCancel, []string{"LIMIT-1"}},
+			{"spread query without a time in force returns every limit order", asset.Spread, order.Limit, order.UnknownTIF, []string{"LIMIT-1", "POST-1", "IOC-1", "RPI-1", "FOK-1", "OPFOK-1", "POST-2"}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+					AssetType: tc.assetType, Type: tc.orderType, TimeInForce: tc.tif, Side: order.AnySide,
+				})
+				require.NoError(t, err, "GetOrderHistory must not error")
+				ids := make([]string, 0, len(history))
+				for i := range history {
+					ids = append(ids, history[i].OrderID)
+				}
+				assert.ElementsMatch(t, tc.exp, ids, "the history should return exactly the orders carrying the requested time in force")
+			})
+		}
+		_, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spot, Type: order.LimitMaker, TimeInForce: order.FillOrKill, Side: order.AnySide,
+		})
+		assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "a time in force the order type cannot take should be refused, as GetActiveOrders refuses it")
+	})
+
+	t.Run("keeps the start time millisecond", func(t *testing.T) {
+		t.Parallel()
+		// Guards the history crawl's lower bound: OKX stamps orders to the
+		// millisecond and the crawl sends no begin, so its StartTime stop is the
+		// only lower bound, and an order created in StartTime's millisecond is
+		// kept even when StartTime is finer than that.
+		created := time.Now().Add(-time.Hour).Truncate(time.Millisecond)
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/trade/orders-history-archive", "/trade/orders-history":
+				writeOKXData(t, w, []map[string]string{{"instId": mainPair.String(), "ordId": "ORD-1", "ordType": orderLimit, "side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "avgPx": "1", "px": "1", "cTime": strconv.FormatInt(created.UnixMilli(), 10)}})
+			default:
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}
+		}))
+		history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, StartTime: created.Add(500 * time.Microsecond),
+		})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		require.Len(t, history, 1, "GetOrderHistory must keep an order created in the StartTime millisecond")
+		assert.Equal(t, "ORD-1", history[0].OrderID, "the order created in the StartTime millisecond should be returned")
+	})
+
+	t.Run("includes zero-fill canceled from the seven-day listing", func(t *testing.T) {
+		t.Parallel()
+		// Guards the 7 day listing beside the archive: the archive does not
+		// contain canceled orders without any fills, so a zero-fill canceled
+		// order must come from the 7 day listing without duplicating the
+		// archive's rows.
+
+		start := time.Now().Add(-time.Hour).Truncate(time.Millisecond)
+		filled := map[string]string{
+			"instId": mainPair.String(), "ordId": "FILLED-1", "ordType": orderLimit, "side": "buy",
+			"state": "filled", "sz": "1", "accFillSz": "1", "avgPx": "42000", "px": "42000",
+			"cTime": strconv.FormatInt(start.Add(time.Minute).UnixMilli(), 10),
+		}
+		zeroFillCanceled := map[string]string{
+			"instId": mainPair.String(), "ordId": "CANCELED-1", "ordType": orderLimit, "side": "buy",
+			"state": "canceled", "sz": "1", "accFillSz": "0", "avgPx": "0", "px": "42000",
+			"cTime": strconv.FormatInt(start.Add(2*time.Minute).UnixMilli(), 10),
+		}
+
+		t.Run("the zero-fill canceled order comes from the 7 day listing", func(t *testing.T) {
+			t.Parallel()
+			ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/trade/orders-history-archive":
+					writeOKXData(t, w, []map[string]string{filled})
+				case "/trade/orders-history":
+					// Only the 7 day listing keeps canceled orders without fills.
+					writeOKXData(t, w, []map[string]string{zeroFillCanceled, filled})
+				default:
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+				}
+			}))
+			history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+				AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+				StartTime: start, Pairs: currency.Pairs{mainPair},
+			})
+			require.NoError(t, err, "GetOrderHistory must not error when the 7 day listing adds the zero-fill canceled order")
+			ids := make([]string, 0, len(history))
+			for i := range history {
+				ids = append(ids, history[i].OrderID)
+			}
+			assert.ElementsMatch(t, []string{"FILLED-1", "CANCELED-1"}, ids, "the crawl should keep the zero-fill canceled order beside the archive's rows without duplicating them")
+		})
+
+		t.Run("a window closed past the 7 day listing still reads it", func(t *testing.T) {
+			t.Parallel()
+			// OKX lists an order there for 7 days after it completes, so an older
+			// order cancelled without fills within the last 2 hours is only there.
+			oldCanceled := map[string]string{
+				"instId": mainPair.String(), "ordId": "OLD-CANCELED", "ordType": orderLimit, "side": "buy",
+				"state": "canceled", "sz": "1", "accFillSz": "0", "avgPx": "0", "px": "42000",
+				"cTime": strconv.FormatInt(time.Now().Add(-10*24*time.Hour).UnixMilli(), 10),
+			}
+			ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/trade/orders-history-archive":
+					writeOKXData(t, w, []map[string]string{})
+				case "/trade/orders-history":
+					writeOKXData(t, w, []map[string]string{oldCanceled})
+				default:
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+				}
+			}))
+			history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+				AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+				StartTime: time.Now().Add(-11 * 24 * time.Hour), EndTime: time.Now().Add(-9 * 24 * time.Hour),
+				Pairs: currency.Pairs{mainPair},
+			})
+			require.NoError(t, err, "GetOrderHistory must not error when the window closes past the 7 day listing")
+			require.Len(t, history, 1, "the 7 day listing must supply an older order cancelled without fills")
+			assert.Equal(t, "OLD-CANCELED", history[0].OrderID, "the 7 day listing's order should be returned")
+		})
+	})
 }
 
 func TestGetFeeByType(t *testing.T) {
@@ -5879,8 +7670,69 @@ func TestWsProcessOrderBooks(t *testing.T) {
 	})
 }
 
-// TestWebsocketProcessOrders checks every path of an orders channel push, with each order type read as the order type
-// and time in force the REST order mapping gives it
+func TestOrderPushData(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsOrders.jsonl", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
+	e.Websocket.DataHandler.Close()
+	require.Len(t, e.Websocket.DataHandler.C, 4, "Should see 4 orders")
+	for resp := range e.Websocket.DataHandler.C {
+		switch v := resp.Data.(type) {
+		case *order.Detail:
+			switch len(e.Websocket.DataHandler.C) {
+			case 3:
+				assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
+				assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+				assert.Equal(t, order.Sell, v.Side, "Side")
+				assert.Equal(t, order.Filled, v.Status, "Status")
+				assert.Equal(t, order.Limit, v.Type, "Type")
+				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "Pair")
+				assert.Equal(t, 31527.1, v.AverageExecutedPrice, "AverageExecutedPrice")
+				assert.Equal(t, time.UnixMilli(1654084334977), v.Date, "Date")
+				assert.Equal(t, time.UnixMilli(1654084353263), v.CloseTime, "CloseTime")
+				assert.Equal(t, 0.001, v.Amount, "Amount")
+				assert.Equal(t, 0.001, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.000, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 31527.1, v.Price, "Price")
+				assert.Equal(t, 0.02522168, v.Fee, "Fee")
+				assert.Equal(t, currency.USDT, v.FeeAsset, "FeeAsset")
+			case 2:
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+				assert.Equal(t, order.Market, v.Type, "Type")
+				assert.Equal(t, order.Sell, v.Side, "Side")
+				assert.Equal(t, order.Active, v.Status, "Status")
+				assert.Equal(t, 0.0, v.Amount, "Amount should be 0 for a market sell")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+			case 1:
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+				assert.Equal(t, 0.00038127046945832905, v.Amount, "Amount")
+				assert.Equal(t, 0.010000249968, v.Fee, "Fee")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, order.PartiallyFilled, v.Status, "Status")
+			case 0:
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+				assert.Equal(t, 0.010000249968, v.Fee, "Fee")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.00038128, v.Amount, "Amount should be derived because order filled")
+				assert.Equal(t, order.Filled, v.Status, "Status")
+			}
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Got unexpected data: %T %v", v, v)
+		}
+	}
+}
+
+// TestWsProcessOrders guards the private orders stream: every documented
+// ordType must decode into its order type and time in force.
 func TestWebsocketProcessOrders(t *testing.T) {
 	t.Parallel()
 	const push = `{"arg":{"channel":"orders","instType":"SPOT","uid":"614488474791936"},"data":[{"instType":"SPOT","instId":"BTC-USDT","ordId":"1001","clOrdId":"client1001","ordType":"limit","side":"buy","state":"partially_filled","sz":"2","px":"100","accFillSz":"0.5","avgPx":"99","fee":"-0.01","feeCcy":"USDT","tgtCcy":"","cTime":"1761700000000","fillTime":"1761700000500","uTime":"1761700001000"}]}`
@@ -5907,8 +7759,8 @@ func TestWebsocketProcessOrders(t *testing.T) {
 			d.Type, d.TimeInForce = order.MarketMakerProtection, order.PostOnly
 		}},
 		{name: "op_fok", replace: []string{`"ordType":"limit"`, `"ordType":"op_fok"`}, edit: func(d *order.Detail) { d.TimeInForce = order.FillOrKill }},
-		{name: "rpi", replace: []string{`"ordType":"limit"`, `"ordType":"rpi"`}, edit: func(d *order.Detail) { d.TimeInForce = order.PostOnly }},
-		{name: "elp", replace: []string{`"ordType":"limit"`, `"ordType":"elp"`}, edit: func(d *order.Detail) { d.TimeInForce = order.PostOnly }},
+		{name: "rpi", replace: []string{`"ordType":"limit"`, `"ordType":"rpi"`}},
+		{name: "elp", replace: []string{`"ordType":"limit"`, `"ordType":"elp"`}},
 		{name: "unrecognised order type", replace: []string{`"ordType":"limit"`, `"ordType":"mystery"`}, err: order.ErrTypeIsInvalid},
 		{name: "malformed push", replace: []string{push, `{"arg":`}, malformed: true},
 		{name: "unsupported instrument type", replace: []string{`"instType":"SPOT","uid"`, `"instType":"MYSTERY","uid"`}, err: asset.ErrNotSupported},
@@ -6059,67 +7911,6 @@ func TestWebsocketProcessOrders(t *testing.T) {
 	})
 }
 
-func TestOrderPushData(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsOrders.jsonl", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
-	e.Websocket.DataHandler.Close()
-	require.Len(t, e.Websocket.DataHandler.C, 4, "Should see 4 orders")
-	for resp := range e.Websocket.DataHandler.C {
-		switch v := resp.Data.(type) {
-		case *order.Detail:
-			switch len(e.Websocket.DataHandler.C) {
-			case 3:
-				assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
-				assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
-				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-				assert.Equal(t, order.Sell, v.Side, "Side")
-				assert.Equal(t, order.Filled, v.Status, "Status")
-				assert.Equal(t, order.Limit, v.Type, "Type")
-				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "Pair")
-				assert.Equal(t, 31527.1, v.AverageExecutedPrice, "AverageExecutedPrice")
-				assert.Equal(t, time.UnixMilli(1654084334977), v.Date, "Date")
-				assert.Equal(t, time.UnixMilli(1654084353263), v.CloseTime, "CloseTime")
-				assert.Equal(t, 0.001, v.Amount, "Amount")
-				assert.Equal(t, 0.001, v.ExecutedAmount, "ExecutedAmount")
-				assert.Equal(t, 0.000, v.RemainingAmount, "RemainingAmount")
-				assert.Equal(t, 31527.1, v.Price, "Price")
-				assert.Equal(t, 0.02522168, v.Fee, "Fee")
-				assert.Equal(t, currency.USDT, v.FeeAsset, "FeeAsset")
-			case 2:
-				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-				assert.Equal(t, order.Market, v.Type, "Type")
-				assert.Equal(t, order.Sell, v.Side, "Side")
-				assert.Equal(t, order.Active, v.Status, "Status")
-				assert.Equal(t, 0.0, v.Amount, "Amount should be 0 for a market sell")
-				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-			case 1:
-				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-				assert.Equal(t, 0.00038127046945832905, v.Amount, "Amount")
-				assert.Equal(t, 0.010000249968, v.Fee, "Fee")
-				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
-				assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
-				assert.Equal(t, order.PartiallyFilled, v.Status, "Status")
-			case 0:
-				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-				assert.Equal(t, 0.010000249968, v.Fee, "Fee")
-				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
-				assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
-				assert.Equal(t, 0.00038128, v.Amount, "Amount should be derived because order filled")
-				assert.Equal(t, order.Filled, v.Status, "Status")
-			}
-		case error:
-			t.Error(v)
-		default:
-			t.Errorf("Got unexpected data: %T %v", v, v)
-		}
-	}
-}
-
 var pushDataMap = map[string]string{
 	"Algo Orders":                           `{"arg": {"channel": "orders-algo","uid": "77982378738415879","instType": "FUTURES","instId": "BTC-USD-200329"},"data": [{"instType": "FUTURES","instId": "BTC-USD-200329","ordId": "312269865356374016","ccy": "BTC","algoId": "1234","px": "999","sz": "3","tdMode": "cross","tgtCcy": "","notionalUsd": "","ordType": "trigger","side": "buy","posSide": "long","state": "live","lever": "20","tpTriggerPx": "","tpTriggerPxType": "","tpOrdPx": "","slTriggerPx": "","slTriggerPxType": "","triggerPx": "99","triggerPxType": "last","ordPx": "12","actualSz": "","actualPx": "","tag": "adadadadad","actualSide": "","triggerTime": "1597026383085","cTime": "1597026383000"}]}`,
 	"Advanced Algo Order":                   `{"arg": {"channel":"algo-advance","uid": "77982378738415879","instType":"SPOT","instId":"BTC-USDT"},"data":[{"actualPx":"","actualSide":"","actualSz":"0","algoId":"355056228680335360","cTime":"1630924001545","ccy":"","count":"1","instId":"BTC-USDT","instType":"SPOT","lever":"0","notionalUsd":"","ordPx":"","ordType":"iceberg","pTime":"1630924295204","posSide":"net","pxLimit":"10","pxSpread":"1","pxVar":"","side":"buy","slOrdPx":"","slTriggerPx":"","state":"pause","sz":"0.1","szLimit":"0.1","tdMode":"cash","timeInterval":"","tpOrdPx":"","tpTriggerPx":"","tag": "adadadadad","triggerPx":"","triggerTime":"","callbackRatio":"","callbackSpread":"","activePx":"","moveTriggerPx":""}]}`,
@@ -6228,6 +8019,57 @@ func TestWsHandleData(t *testing.T) {
 		require.Len(t, response.Data, 1, "funding push must contain one rate")
 		assert.Equal(t, "BTC-USDT-SWAP", response.Argument.InstrumentID.String(), "routing metadata should remain available")
 		assert.Equal(t, 0.0001, response.Data[0].FundingRate.Float64(), "funding rate should decode into its numeric type")
+	})
+
+	t.Run("instruments push caches ID codes", func(t *testing.T) {
+		t.Parallel()
+		// An instruments push's instrument ID codes reach the cache the
+		// websocket order operations read, so an instrument listed after
+		// start-up can trade over the websocket.
+		e := new(Exchange)
+		require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+		push := []byte(`{"arg":{"channel":"instruments","instType":"SPOT"},"data":[{"instType":"SPOT","instId":"NEW-USDT","instIdCode":4242}]}`)
+		require.NoError(t, e.wsHandleData(t.Context(), nil, push), "an instruments push must not error")
+		assert.EqualValues(t, 4242, e.getInstrumentIDCode("NEW-USDT"), "the pushed instrument's ID code should be cached")
+
+		t.Run("full relay still updates the code cache", func(t *testing.T) {
+			t.Parallel()
+
+			for _, tc := range []struct {
+				name string
+				code string
+				want uint64
+			}{
+				{name: "new code replaces the old code", code: "4242", want: 4242},
+				{name: "null code invalidates the old code", code: "null"},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+
+					ex := new(Exchange)
+					require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+					ex.cacheInstrumentIDCodes([]Instrument{
+						{InstrumentID: mainPair, InstrumentIDCode: 123},
+					})
+
+					for range cap(ex.Websocket.DataHandler.C) {
+						require.NoError(t,
+							ex.Websocket.DataHandler.Send(t.Context(), nil),
+							"prefilling the relay must not error")
+					}
+
+					push := []byte(`{"arg":{"channel":"instruments","instType":"SPOT"},"data":[{"instType":"SPOT","instId":"BTC-USDT","instIdCode":` + tc.code + `}]}`)
+
+					require.Error(t,
+						ex.wsHandleData(t.Context(), nil, push),
+						"a full relay must report its delivery error")
+
+					assert.Equal(t, tc.want, ex.getInstrumentIDCode("BTC-USDT"),
+						"the cache should reflect the received push even when relay delivery fails")
+				})
+			}
+		})
 	})
 }
 
@@ -6548,6 +8390,20 @@ func TestInstrument(t *testing.T) {
 	assert.Empty(t, i.StrikePrice, "expected empty strike price")
 	assert.Equal(t, 0.1, i.TickSize.Float64())
 	assert.Equal(t, "BTC-USD", i.Underlying, "expected BTC-USD underlying")
+}
+
+// TestInstrumentUpcomingChanges guards the upcChg shape OKX documents for the
+// public and account instrument endpoints: param, newValue and effTime.
+func TestInstrumentUpcomingChanges(t *testing.T) {
+	t.Parallel()
+	const upcomingChanges = `{"instId":"BTC-USDT","upcChg":[{"param":"tickSz","newValue":"0.0001","effTime":"1704876947000"}]}`
+	exp := []InstrumentUpcomingChange{{Parameter: "tickSz", NewValue: "0.0001", EffectiveTime: types.Time(time.UnixMilli(1704876947000))}}
+	var i Instrument
+	require.NoError(t, json.Unmarshal([]byte(upcomingChanges), &i), "Instrument must decode")
+	assert.Equal(t, exp, i.UpcomingChanges, "Instrument should decode each upcoming change")
+	var a AccountInstrument
+	require.NoError(t, json.Unmarshal([]byte(upcomingChanges), &a), "AccountInstrument must decode")
+	assert.Equal(t, exp, a.UpcomingChanges, "AccountInstrument should decode each upcoming change")
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
@@ -7518,280 +9374,220 @@ func TestGetFuturesPositions(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-// TestGetFuturesPositionOrders drives GetFuturesPositionOrders through canned contract and order history replies,
-// checking every order it returns, with each cost labelled in the requested pair's settle coin rather than the rebate
-// currency
-func TestGetFuturesPositionOrders(t *testing.T) {
-	t.Parallel()
-	t.Run("canned replies", func(t *testing.T) {
-		t.Parallel()
-		const (
-			instruments       = `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","uly":"BTC-USDT","instFamily":"BTC-USDT","baseCcy":"","quoteCcy":"","settleCcy":"USDT","ctVal":"0.01","ctMult":"1","ctValCcy":"BTC","ctType":"linear","lever":"100","listTime":"1573557408000","expTime":"","alias":"","state":"live"},{"instType":"SWAP","instId":"SOL-USDT-SWAP","uly":"SOL-USDT","instFamily":"SOL-USDT","baseCcy":"","quoteCcy":"","settleCcy":"USDT","ctVal":"1","ctMult":"1","ctValCcy":"SOL","ctType":"linear","lever":"100","listTime":"1611298800000","expTime":"","alias":"","state":"live"}]}`
-			longOrder         = `{"instType":"SWAP","instId":"BTC-USDT-SWAP","tgtCcy":"","ccy":"","ordId":"2001","clOrdId":"long2001","tag":"","px":"30000","sz":"4","ordType":"limit","side":"buy","posSide":"long","tdMode":"cross","accFillSz":"4","fillPx":"30000","fillSz":"4","avgPx":"30000","state":"filled","lever":"10","feeCcy":"USDT","fee":"-0.6","rebateCcy":"USDT","rebate":"0","category":"normal","uTime":"1761700001000","cTime":"1761700000000"}`
-			quoteSizedOrder   = `{"instType":"SWAP","instId":"BTC-USDT-SWAP","tgtCcy":"quote_ccy","ccy":"","ordId":"2002","clOrdId":"short2002","tag":"","px":"31000","sz":"62000","ordType":"post_only","side":"sell","posSide":"short","tdMode":"cross","accFillSz":"1","fillPx":"31000","fillSz":"1","avgPx":"31000","state":"canceled","lever":"10","feeCcy":"USDT","fee":"0.0775","rebateCcy":"","rebate":"","category":"normal","uTime":"1761699901000","cTime":"1761699900000"}`
-			otherSwapOrder    = `{"instType":"SWAP","instId":"ETH-USDT-SWAP","tgtCcy":"","ccy":"","ordId":"2003","clOrdId":"","tag":"","px":"2500","sz":"1","ordType":"limit","side":"buy","posSide":"long","tdMode":"cross","accFillSz":"1","fillPx":"2500","fillSz":"1","avgPx":"2500","state":"filled","lever":"10","feeCcy":"USDT","fee":"-0.125","rebateCcy":"USDT","rebate":"0","category":"normal","uTime":"1761699801000","cTime":"1761699800000"}`
-			unknownStateOrder = `{"instType":"SWAP","instId":"BTC-USDT-SWAP","tgtCcy":"","ccy":"","ordId":"2004","clOrdId":"long2004","tag":"","px":"29000","sz":"2","ordType":"ioc","side":"buy","posSide":"long","tdMode":"cross","accFillSz":"0","fillPx":"","fillSz":"0","avgPx":"","state":"mystery","lever":"10","feeCcy":"USDT","fee":"0","rebateCcy":"USDT","rebate":"0","category":"normal","uTime":"1761699701000","cTime":"1761699700000"}`
-			solOrder          = `{"instType":"SWAP","instId":"SOL-USDT-SWAP","tgtCcy":"","ccy":"","ordId":"2005","clOrdId":"short2005","tag":"","px":"","sz":"2","ordType":"market","side":"sell","posSide":"short","tdMode":"isolated","accFillSz":"2","fillPx":"150","fillSz":"2","avgPx":"150","state":"filled","lever":"5","feeCcy":"USDT","fee":"-0.15","rebateCcy":"USDT","rebate":"0","category":"normal","uTime":"1761699601000","cTime":"1761699600000"}`
-			failure           = `{"code":"50011","msg":"mock: rate limit reached","data":[]}`
-			recentHistory     = "/trade/orders-history"
-			archivedHistory   = "/trade/orders-history-archive"
-		)
-		reply := func(orders ...string) string {
-			return `{"code":"0","msg":"","data":[` + strings.Join(orders, ",") + `]}`
-		}
-		solSwapPair := currency.NewPairWithDelimiter("SOL", "USDT-SWAP", "-")
-		end := time.Now()
-		positionsRequest := func(start time.Time, pairs ...currency.Pair) *futures.PositionsRequest {
-			return &futures.PositionsRequest{Asset: asset.PerpetualSwap, Pairs: pairs, StartDate: start, EndDate: end}
-		}
-
-		long := order.Detail{
-			Price:                30000,
-			AverageExecutedPrice: 30000,
-			Amount:               0.04,
-			ContractAmount:       4,
-			ExecutedAmount:       4,
-			Fee:                  -0.6,
-			FeeAsset:             currency.USDT,
-			Exchange:             "Okx",
-			OrderID:              "2001",
-			ClientOrderID:        "long2001",
-			Type:                 order.Limit,
-			Side:                 order.Buy,
-			Status:               order.Filled,
-			AssetType:            asset.PerpetualSwap,
-			Date:                 time.UnixMilli(1761700000000),
-			LastUpdated:          time.UnixMilli(1761700001000),
-			Pair:                 perpetualSwapPair,
-			Cost:                 1200,
-			CostAsset:            currency.USDT,
-		}
-		quoteSized := order.Detail{
-			Price:                31000,
-			AverageExecutedPrice: 31000,
-			Amount:               0.02,
-			ContractAmount:       2,
-			ExecutedAmount:       1,
-			RemainingAmount:      1,
-			Fee:                  0.0775,
-			FeeAsset:             currency.USDT,
-			Exchange:             "Okx",
-			OrderID:              "2002",
-			ClientOrderID:        "short2002",
-			Type:                 order.Limit,
-			Side:                 order.Sell,
-			Status:               order.Cancelled,
-			AssetType:            asset.PerpetualSwap,
-			Date:                 time.UnixMilli(1761699900000),
-			LastUpdated:          time.UnixMilli(1761699901000),
-			Pair:                 perpetualSwapPair,
-			Cost:                 310,
-			CostAsset:            currency.USDT,
-			TimeInForce:          order.PostOnly,
-		}
-		unknownState := order.Detail{
-			Price:           29000,
-			Amount:          0.02,
-			ContractAmount:  2,
-			RemainingAmount: 2,
-			FeeAsset:        currency.USDT,
-			Exchange:        "Okx",
-			OrderID:         "2004",
-			ClientOrderID:   "long2004",
-			Type:            order.Limit,
-			Side:            order.Buy,
-			Status:          order.UnknownStatus,
-			AssetType:       asset.PerpetualSwap,
-			Date:            time.UnixMilli(1761699700000),
-			LastUpdated:     time.UnixMilli(1761699701000),
-			Pair:            perpetualSwapPair,
-			CostAsset:       currency.USDT,
-			TimeInForce:     order.ImmediateOrCancel,
-		}
-		sol := order.Detail{
-			AverageExecutedPrice: 150,
-			Amount:               2,
-			ContractAmount:       2,
-			ExecutedAmount:       2,
-			Fee:                  -0.15,
-			FeeAsset:             currency.USDT,
-			Exchange:             "Okx",
-			OrderID:              "2005",
-			ClientOrderID:        "short2005",
-			Type:                 order.Market,
-			Side:                 order.Sell,
-			Status:               order.Filled,
-			AssetType:            asset.PerpetualSwap,
-			Date:                 time.UnixMilli(1761699600000),
-			LastUpdated:          time.UnixMilli(1761699601000),
-			Pair:                 solSwapPair,
-			Cost:                 300,
-			CostAsset:            currency.USDT,
-		}
-
-		for _, tc := range []struct {
-			name        string
-			req         *futures.PositionsRequest
-			instruments string
-			history     map[string]string
-			historyPath string
-			historyIDs  []string
-			err         error
-			errText     string
-			exp         []futures.PositionResponse
-		}{
-			{name: "nil request", err: common.ErrNilPointer},
-			{name: "spot asset", req: &futures.PositionsRequest{Asset: asset.Spot, Pairs: currency.Pairs{mainPair}}, err: asset.ErrNotSupported},
-			{name: "start beyond the order history limit", req: positionsRequest(end.AddDate(0, 0, -100), perpetualSwapPair), err: futures.ErrOrderHistoryTooLarge},
-			{name: "start after end", req: positionsRequest(end.Add(time.Hour), perpetualSwapPair), err: common.ErrStartAfterEnd},
-			{name: "contract details request fails", req: positionsRequest(end.Add(-24*time.Hour), perpetualSwapPair), instruments: `{"code":"50001","msg":"mock: instruments unavailable","data":[]}`, errText: "mock: instruments unavailable"},
-			{name: "empty pair", req: positionsRequest(end.Add(-24*time.Hour), currency.EMPTYPAIR), instruments: instruments, err: currency.ErrCurrencyPairEmpty},
-			{name: "contract not listed", req: positionsRequest(end.Add(-24*time.Hour), currency.NewPairWithDelimiter("ETH", "USDT-SWAP", "-")), instruments: instruments, err: futures.ErrContractNotSupported},
-			{
-				name:        "history request fails",
-				req:         positionsRequest(end.Add(-24*time.Hour), perpetualSwapPair),
-				instruments: instruments,
-				history:     map[string]string{"BTC-USDT-SWAP": failure},
-				historyPath: recentHistory,
-				historyIDs:  []string{"BTC-USDT-SWAP"},
-				err:         request.ErrAuthRequestFailed,
-			},
-			{
-				name:        "unrecognised order type",
-				req:         positionsRequest(end.Add(-24*time.Hour), perpetualSwapPair),
-				instruments: instruments,
-				history:     map[string]string{"BTC-USDT-SWAP": reply(strings.Replace(longOrder, `"ordType":"limit"`, `"ordType":"mystery"`, 1))},
-				historyPath: recentHistory,
-				historyIDs:  []string{"BTC-USDT-SWAP"},
-				err:         order.ErrTypeIsInvalid,
-			},
-			{
-				name:        "orders of each requested pair",
-				req:         positionsRequest(end.Add(-24*time.Hour), perpetualSwapPair, solSwapPair),
-				instruments: instruments,
-				history: map[string]string{
-					"BTC-USDT-SWAP": reply(longOrder, quoteSizedOrder, otherSwapOrder, unknownStateOrder),
-					"SOL-USDT-SWAP": reply(solOrder),
-				},
-				historyPath: recentHistory,
-				historyIDs:  []string{"BTC-USDT-SWAP", "SOL-USDT-SWAP"},
-				exp: []futures.PositionResponse{
-					{Pair: perpetualSwapPair, Asset: asset.PerpetualSwap, ContractSettlementType: futures.Linear, Orders: []order.Detail{long, quoteSized, unknownState}},
-					{Pair: solSwapPair, Asset: asset.PerpetualSwap, ContractSettlementType: futures.Linear, Orders: []order.Detail{sol}},
-				},
-			},
-			{
-				name:        "start clamped to the order history limit",
-				req:         &futures.PositionsRequest{Asset: asset.PerpetualSwap, Pairs: currency.Pairs{perpetualSwapPair}, StartDate: end.AddDate(0, 0, -100), EndDate: end, RespectOrderHistoryLimits: true},
-				instruments: instruments,
-				history:     map[string]string{"BTC-USDT-SWAP": reply()},
-				historyPath: archivedHistory,
-				historyIDs:  []string{"BTC-USDT-SWAP"},
-				exp:         []futures.PositionResponse{{Pair: perpetualSwapPair, Asset: asset.PerpetualSwap, ContractSettlementType: futures.Linear}},
-			},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-				var (
-					mutex    sync.Mutex
-					requests []string
-				)
-				ex := newMockServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-					mutex.Lock()
-					requests = append(requests, r.URL.RequestURI())
-					mutex.Unlock()
-					w.Header().Set("Content-Type", "application/json")
-					resp, ok := tc.history[r.URL.Query().Get("instId")]
-					if r.URL.Path == "/public/instruments" {
-						resp, ok = tc.instruments, tc.instruments != ""
-					}
-					if !ok {
-						resp = `{"code":"1","msg":"mock: unexpected request","data":[]}`
-					}
-					_, _ = w.Write([]byte(resp))
-				})
-				result, err := ex.GetFuturesPositionOrders(t.Context(), tc.req)
-				var expRequests []string
-				if tc.instruments != "" {
-					expRequests = append(expRequests, "/public/instruments?instType=SWAP")
-				}
-				for _, instID := range tc.historyIDs {
-					expRequests = append(expRequests, tc.historyPath+"?begin="+strconv.FormatInt(tc.req.StartDate.UnixMilli(), 10)+"&end="+strconv.FormatInt(tc.req.EndDate.UnixMilli(), 10)+"&instId="+instID+"&instType=SWAP")
-				}
-				mutex.Lock()
-				defer mutex.Unlock()
-				assert.Equal(t, expRequests, requests, "GetFuturesPositionOrders should send the expected requests")
-				switch {
-				case tc.err != nil:
-					assert.ErrorIs(t, err, tc.err, "GetFuturesPositionOrders should return the expected error")
-				case tc.errText != "":
-					assert.ErrorContains(t, err, tc.errText, "GetFuturesPositionOrders should return the expected error")
-				default:
-					require.NoError(t, err, "GetFuturesPositionOrders must not error")
-					assert.Equal(t, tc.exp, result, "GetFuturesPositionOrders should return the expected position orders")
-				}
-			})
-		}
-	})
-
-	// Checks that each swap's cost is labelled with its settle coin, written as the requested pair is written, with no
-	// fee or rebate currency in the reply to take it from
-	t.Run("settle coin as cost asset", func(t *testing.T) {
-		t.Parallel()
-		const instruments = `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","uly":"BTC-USDT","instFamily":"BTC-USDT","baseCcy":"","quoteCcy":"","settleCcy":"USDT","ctVal":"0.01","ctMult":"1","ctValCcy":"BTC","ctType":"linear","lever":"100","listTime":"1573557408000","expTime":"","alias":"","state":"live"},{"instType":"SWAP","instId":"BTC-USD-SWAP","uly":"BTC-USD","instFamily":"BTC-USD","baseCcy":"","quoteCcy":"","settleCcy":"BTC","ctVal":"100","ctMult":"1","ctValCcy":"USD","ctType":"inverse","lever":"100","listTime":"1573557408000","expTime":"","alias":"","state":"live"}]}`
-		reply := func(instrument string) string {
-			return `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"` + instrument + `","tgtCcy":"","ccy":"","ordId":"2001","clOrdId":"long2001","tag":"","px":"30000","sz":"4","ordType":"limit","side":"buy","posSide":"long","tdMode":"cross","accFillSz":"0","fillPx":"","fillSz":"0","avgPx":"","state":"canceled","lever":"10","feeCcy":"","fee":"0","rebateCcy":"","rebate":"0","category":"normal","uTime":"1761700001000","cTime":"1761700000000"}]}`
-		}
-		history := map[string]string{"BTC-USDT-SWAP": reply("BTC-USDT-SWAP"), "BTC-USD-SWAP": reply("BTC-USD-SWAP")}
-		ex := newMockServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			if r.URL.Path == "/public/instruments" {
-				_, _ = w.Write([]byte(instruments))
-				return
-			}
-			_, _ = w.Write([]byte(history[r.URL.Query().Get("instId")]))
-		})
-		end := time.Now()
-		result, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.PerpetualSwap, Pairs: currency.Pairs{perpetualSwapPair, currency.NewPairWithDelimiter("BTC", "USD-SWAP", "-"), currency.NewPairWithDelimiter("btc", "usdt-swap", "-")}, StartDate: end.Add(-time.Hour), EndDate: end})
-		require.NoError(t, err, "GetFuturesPositionOrders must not error")
-		require.Len(t, result, 3, "GetFuturesPositionOrders must return each requested pair")
-		for i, exp := range []currency.Code{currency.USDT, currency.BTC, currency.NewCode("usdt")} {
-			require.Lenf(t, result[i].Orders, 1, "GetFuturesPositionOrders must return the order of %s", result[i].Pair)
-			assert.Equalf(t, exp, result[i].Orders[0].CostAsset, "CostAsset should be the settle coin of %s", result[i].Pair)
-		}
-	})
-}
-
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	pp, err := e.CurrencyPairs.GetPairs(asset.Futures, true)
 	require.NoError(t, err)
-	_, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.UnknownSide)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = e.GetLeverage(contextGenerate(), asset.Options, pp[0], margin.Multi, order.UnknownSide)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+	_, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Unset, order.UnknownSide)
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+	if !sharedtestvalues.AreAPICredentialsSet(e) {
+		_, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.UnknownSide)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "without credentials the fetch must fail before any request is sent, as with them it would read the live account")
+	}
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, order.UnknownSide)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	result, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.Long)
-	require.NoError(t, err)
-	require.NotNil(t, result)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		result, err := e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, order.UnknownSide)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		result, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.Long)
+		require.NoError(t, err)
+		require.NotNil(t, result)
 
-	result, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.Short)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+		result, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.Short)
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+
+	// Guards the sentinel error for an instrument that has no configured
+	// leverage rows.
+	t.Run("without configured leverage", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/account/leverage-info" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			writeOKXData(t, w, []map[string]string{})
+		}))
+		_, err := ex.GetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, margin.Multi, order.AnySide)
+		require.ErrorIs(t, err, futures.ErrPositionNotFound, "a query for an instrument without configured leverage must report the missing position")
+	})
+
+	// Guards the propagation of upstream leverage-info failures to the caller.
+	t.Run("propagates request errors", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/account/leverage-info" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			http.Error(w, `{"code":"51000","data":[],"msg":"Parameter instId error"}`, http.StatusBadRequest)
+		}))
+		_, err := ex.GetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, margin.Multi, order.AnySide)
+		require.ErrorContains(t, err, "51000", "upstream leverage-info errors must propagate to the caller")
+	})
+
+	// Guards the per-side row matching: a side without its own leverage row must
+	// not silently read the opposite side's or a stale row's leverage.
+	t.Run("requires a matching position side row", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/account/config":
+				writeOKXData(t, w, []map[string]string{{"posMode": positionModeLongShort}})
+			case "/account/leverage-info":
+				writeOKXData(t, w, []map[string]string{{
+					"instId": "BTC-USDT-SWAP", "mgnMode": "isolated", "posSide": "short", "lever": "3",
+				}})
+			default:
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}
+		}))
+		_, err := ex.GetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, margin.Isolated, order.Long)
+		require.ErrorIs(t, err, futures.ErrPositionNotFound, "a per-side query without the requested side's row must not fall back to another side's leverage")
+		lever, err := ex.GetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, margin.Isolated, order.Short)
+		require.NoError(t, err, "GetLeverage isolated short must not error")
+		assert.Equal(t, 3.0, lever, "the short side should read its own leverage row")
+	})
+
+	// Guards the pair format failure paths in the leverage wrappers: a store
+	// without request formats must surface the formatting error and must not
+	// reach the API.
+	t.Run("rejects unformattable pairs", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected request %s", r.URL.Path)
+			http.NotFound(w, r)
+		}))
+		err := ex.CurrencyPairs.Store(asset.PerpetualSwap, &currency.PairStore{AssetEnabled: true})
+		// The mock setup shares a global pair format; a per-asset store with nil
+		// formats must be authoritative for the failure to surface.
+		ex.CurrencyPairs.UseGlobalFormat = false
+		require.NoError(t, err, "storing a formatless pair store must not error")
+		err = ex.SetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, margin.Multi, 3, order.AnySide)
+		require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "SetLeverage must surface the pair format failure")
+		_, err = ex.GetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, margin.Multi, order.AnySide)
+		require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "GetLeverage must surface the pair format failure")
+	})
+
+	// Guards the leverage wrappers against OKX's documented posSide rule:
+	// isolated contract leverage takes a posSide only in long/short mode, where
+	// the side selects the position; net mode and cross margin leave it unset.
+	// Options carry no leverage setting.
+	t.Run("follows the contract position mode", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name      string
+			mode      string // empty when no account configuration fetch is expected
+			margin    margin.Type
+			side      order.Side
+			expPos    string // expected posSide in the set-leverage body; "" means absent
+			expGet    float64
+			expSetErr error
+		}{
+			{"long/short mode isolated long", positionModeLongShort, margin.Isolated, order.Long, positionSideLong, 5, nil},
+			{"long/short mode isolated short", positionModeLongShort, margin.Isolated, order.Short, positionSideShort, 10, nil},
+			{"long/short mode isolated without a side", positionModeLongShort, margin.Isolated, order.UnknownSide, "", 0, order.ErrSideIsInvalid},
+			{"net mode isolated without a side", positionModeNet, margin.Isolated, order.UnknownSide, "", 3, nil},
+			{"cross sends no position side and fetches no mode", "", margin.Multi, order.UnknownSide, "", 7, nil},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var body []byte
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					switch r.URL.Path {
+					case "/account/config":
+						if tc.mode == "" {
+							t.Errorf("unexpected account configuration fetch for %s margin", tc.margin)
+						}
+						writeOKXData(t, w, []map[string]string{{"posMode": tc.mode}})
+					case "/account/set-leverage":
+						b, err := io.ReadAll(r.Body)
+						assert.NoError(t, err, "reading the set leverage body should not error")
+						mu.Lock()
+						body = b
+						mu.Unlock()
+						writeOKXData(t, w, []map[string]string{{"lever": "5", "mgnMode": "isolated", "posSide": tc.expPos, "instId": perpetualSwapPair.String()}})
+					case "/account/leverage-info":
+						if r.URL.Query().Get("mgnMode") == TradeModeCross {
+							writeOKXData(t, w, []map[string]string{
+								{"instId": perpetualSwapPair.String(), "mgnMode": "cross", "posSide": "", "lever": "7"},
+							})
+							return
+						}
+						writeOKXData(t, w, []map[string]string{
+							{"instId": perpetualSwapPair.String(), "mgnMode": "isolated", "posSide": positionSideLong, "lever": "5"},
+							{"instId": perpetualSwapPair.String(), "mgnMode": "isolated", "posSide": positionSideShort, "lever": "10"},
+							{"instId": perpetualSwapPair.String(), "mgnMode": "isolated", "posSide": positionSideNet, "lever": "3"},
+						})
+					default:
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+					}
+				}))
+				err := ex.SetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, tc.margin, 5, tc.side)
+				if tc.expSetErr != nil {
+					require.ErrorIsf(t, err, tc.expSetErr, "SetLeverage must reject %s", tc.name)
+					assert.Empty(t, body, "a rejected leverage setting should not reach OKX")
+				} else {
+					require.NoError(t, err, "SetLeverage must not error")
+					mu.Lock()
+					var sent map[string]any
+					require.NoError(t, json.Unmarshal(body, &sent), "the set leverage body must decode")
+					mu.Unlock()
+					if tc.expPos == "" {
+						_, has := sent["posSide"]
+						assert.False(t, has, "posSide should be omitted")
+					} else {
+						assert.Equal(t, tc.expPos, sent["posSide"], "the leverage should target the position side the mode requires")
+					}
+				}
+
+				got, err := ex.GetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, tc.margin, tc.side)
+				if tc.expSetErr != nil {
+					require.ErrorIsf(t, err, tc.expSetErr, "GetLeverage must reject %s", tc.name)
+				} else {
+					require.NoError(t, err, "GetLeverage must not error")
+					assert.Equalf(t, tc.expGet, got, "GetLeverage should return the row for %s", tc.name)
+				}
+			})
+		}
+		t.Run("options carry no leverage setting", func(t *testing.T) {
+			t.Parallel()
+			ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}))
+			err := ex.SetLeverage(t.Context(), asset.Options, mainPair, margin.Multi, 5, order.UnknownSide)
+			assert.ErrorIs(t, err, asset.ErrNotSupported, "SetLeverage should reject options, which OKX gives no leverage setting")
+			_, err = ex.GetLeverage(t.Context(), asset.Options, mainPair, margin.Multi, order.UnknownSide)
+			assert.ErrorIs(t, err, asset.ErrNotSupported, "GetLeverage should reject options, which OKX gives no leverage setting")
+		})
+	})
 }
 
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	pp, err := e.CurrencyPairs.GetPairs(asset.Futures, true)
 	require.NoError(t, err)
-	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.UnknownSide)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.CouldNotBuy)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	err = e.SetLeverage(contextGenerate(), asset.Options, pp[0], margin.Multi, 5, order.UnknownSide)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 	err = e.SetLeverage(contextGenerate(), asset.Spot, pp[0], margin.Multi, 5, order.UnknownSide)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Unset, 5, order.UnknownSide)
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+	if !sharedtestvalues.AreAPICredentialsSet(e) {
+		err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.UnknownSide)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "without credentials the fetch must fail before any request is sent, as with them it would change the live account's leverage")
+	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, 5, order.UnknownSide)
@@ -7887,6 +9683,54 @@ func TestGetFuturesContractDetails(t *testing.T) {
 			}
 		})
 	}
+	// Guards the linear and inverse
+	// classification: OKX leaves baseCcy empty on derivatives, so the settlement
+	// type comes from ctType, and an inverse contract must not report as linear.
+	t.Run("reads the settlement type from ctType", func(t *testing.T) {
+		t.Parallel()
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/public/instruments" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			writeOKXData(t, w, []map[string]string{
+				{"instType": instTypeSwap, "instId": "BTC-USDT-SWAP", "uly": "BTC-USDT", "ctType": "linear", "settleCcy": "USDT", "ctVal": "0.01", "state": "live"},
+				{"instType": instTypeSwap, "instId": "BTC-USD-SWAP", "uly": "BTC-USD", "ctType": "inverse", "settleCcy": "BTC", "ctVal": "100", "state": "live"},
+			})
+		}))
+		contracts, err := e.GetFuturesContractDetails(t.Context(), asset.PerpetualSwap)
+		require.NoError(t, err, "GetFuturesContractDetails must not error")
+		require.Len(t, contracts, 2, "GetFuturesContractDetails must return both contracts")
+		byID := make(map[string]futures.Contract, len(contracts))
+		for i := range contracts {
+			byID[contracts[i].Name.String()] = contracts[i]
+		}
+		assert.Equal(t, futures.Linear, byID["BTC-USDT-SWAP"].SettlementType, "a ctType linear contract should report as linear")
+		assert.Equal(t, futures.Inverse, byID["BTC-USD-SWAP"].SettlementType, "a ctType inverse contract should report as inverse, not linear")
+	})
+	// Guards the spread settlement
+	// currency: quoteCcy is the currency a spread is priced in, so an inverse
+	// spread, whose legs settle in its base currency, must not report it.
+	t.Run("reads the spread settlement currency", func(t *testing.T) {
+		t.Parallel()
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/sprd/spreads" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			writeOKXData(t, w, []map[string]string{
+				{"sprdId": "BTC-USDT_BTC-USDT-SWAP", "sprdType": "linear", "state": "live", "baseCcy": "BTC", "szCcy": "BTC", "quoteCcy": "USDT"},
+				{"sprdId": "BTC-USD-SWAP_BTC-USD-261225", "sprdType": "inverse", "state": "live", "baseCcy": "BTC", "szCcy": "USD", "quoteCcy": "USD"},
+			})
+		}))
+		contracts, err := e.GetFuturesContractDetails(t.Context(), asset.Spread)
+		require.NoError(t, err, "GetFuturesContractDetails must not error")
+		require.Len(t, contracts, 2, "GetFuturesContractDetails must return both spreads")
+		assert.Equal(t, "USDT", contracts[0].SettlementCurrency.String(), "a linear spread should settle in its quote currency")
+		assert.Equal(t, "BTC", contracts[1].SettlementCurrency.String(), "an inverse spread should settle in its base currency")
+	})
 }
 
 func TestWsProcessOrderbook5(t *testing.T) {
@@ -8698,18 +10542,75 @@ func TestPlaceSpreadOrder(t *testing.T) {
 	_, err = e.PlaceSpreadOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.PlaceSpreadOrder(contextGenerate(), &SpreadOrderParam{
-		InstrumentID:  spreadPair.String(),
-		SpreadID:      "1234",
-		ClientOrderID: "12354123523",
-		Side:          order.Buy.Lower(),
-		OrderType:     "limit",
-		Size:          1,
-		Price:         12345,
+	// Guards the spread price validation on the
+	// REST helper: the px of a spread is the differential between its legs, which
+	// can be negative, while a price-bearing order without any price is rejected.
+	t.Run("guards the price", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var body []byte
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/sprd/order" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the spread order body should not error")
+			mu.Lock()
+			body = b
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+		}))
+		_, err := ex.PlaceSpreadOrder(t.Context(), &SpreadOrderParam{
+			SpreadID:  spreadPair.String(),
+			Side:      "buy",
+			OrderType: orderLimit,
+			Size:      1,
+			Price:     -41.2,
+		})
+		require.NoError(t, err, "a negative-priced spread order must place")
+		mu.Lock()
+		var sent map[string]any
+		require.NoError(t, json.Unmarshal(body, &sent), "the spread order body must decode")
+		mu.Unlock()
+		assert.Equal(t, "-41.2", sent["px"], "a negative spread price should send verbatim")
+		_, err = ex.PlaceSpreadOrder(t.Context(), &SpreadOrderParam{
+			SpreadID:  spreadPair.String(),
+			Side:      "buy",
+			OrderType: orderLimit,
+			Size:      1,
+		})
+		require.ErrorIs(t, err, limits.ErrPriceBelowMin, "a price-bearing spread order without a price must be rejected")
+		_, err = ex.PlaceSpreadOrder(t.Context(), &SpreadOrderParam{
+			SpreadID:  spreadPair.String(),
+			Side:      "buy",
+			OrderType: "MARKET",
+			Size:      1,
+		})
+		require.NoError(t, err, "a market spread order given in upper case must place without a price")
+		mu.Lock()
+		sent = nil
+		require.NoError(t, json.Unmarshal(body, &sent), "the spread order body must decode")
+		mu.Unlock()
+		assert.Equal(t, orderMarket, sent["ordType"], "the spread order type should be sent in lower case")
 	})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		result, err := e.PlaceSpreadOrder(contextGenerate(), &SpreadOrderParam{
+			InstrumentID:  spreadPair.String(),
+			SpreadID:      "1234",
+			ClientOrderID: "12354123523",
+			Side:          order.Buy.Lower(),
+			OrderType:     "limit",
+			Size:          1,
+			Price:         12345,
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
 }
 
 func TestCancelSpreadOrder(t *testing.T) {
@@ -8762,18 +10663,158 @@ func TestGetSpreadOrderDetails(t *testing.T) {
 
 func TestGetActiveSpreadOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		result, err := e.GetActiveSpreadOrders(contextGenerate(), "", "post_only", "partially_filled", "", "", 10)
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+
+	t.Run("paginates with the endId cursor", func(t *testing.T) {
+		t.Parallel()
+		// Guards the pending spread
+		// order pagination: OKX caps the sprd/orders-pending response at
+		// orderListPageSize records while an account can hold 500 pending spread
+		// orders, and pages the remainder with the endId cursor, which returns
+		// records earlier than the order ID.
+		fillPage := func(first, count int) []map[string]string {
+			ords := make([]map[string]string, 0, count)
+			for x := range count {
+				ords = append(ords, map[string]string{
+					"sprdId":    "BTC-USDT_BTC-USDT",
+					"ordId":     fmt.Sprintf("SPD-%03d", first+x),
+					"cTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
+					"uTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
+					"state":     "live",
+					"ordType":   "limit",
+					"side":      "buy",
+					"sz":        "1",
+					"px":        "42000",
+					"accFillSz": "0",
+				})
+			}
+			return ords
+		}
+		pages := map[string][]map[string]string{
+			"":        fillPage(0, orderListPageSize),
+			"SPD-099": fillPage(orderListPageSize, 50),
+		}
+
+		var mu sync.Mutex
+		var endIDCursors []string
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/sprd/orders-pending" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			endID := r.URL.Query().Get("endId")
+			mu.Lock()
+			repeated := slices.Contains(endIDCursors, endID)
+			endIDCursors = append(endIDCursors, endID)
+			page := pages[endID]
+			mu.Unlock()
+			if repeated {
+				// Nothing here fails a request, so a repeat means the cursor never advanced.
+				t.Errorf("endId %q requested again", endID)
+				http.Error(w, "repeated endId", http.StatusBadRequest)
+				return
+			}
+			writeOKXData(t, w, page)
+		}))
+
+		resp, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spread,
+			Type:      order.AnyType,
+			Side:      order.AnySide,
+		})
+		require.NoError(t, err, "GetActiveOrders must not error when the pending spread order list spans pages")
+
+		mu.Lock()
+		cursors := make([]string, len(endIDCursors))
+		copy(cursors, endIDCursors)
+		mu.Unlock()
+		assert.Equal(t, []string{"", "SPD-099"}, cursors, "the second page should be requested with the first page's last order ID as the endId cursor")
+		assert.Len(t, resp, orderListPageSize+50, "a paginated crawl should return every pending spread order")
+		ids := make(map[string]struct{}, len(resp))
+		for x := range resp {
+			ids[resp[x].OrderID] = struct{}{}
+		}
+		assert.Len(t, ids, orderListPageSize+50, "a paginated crawl should not duplicate orders")
+		assert.Contains(t, ids, "SPD-149", "orders past the first page should be returned")
+	})
+
+	t.Run("from order ID seeds the endId cursor", func(t *testing.T) {
+		t.Parallel()
+		// Guards the
+		// FromOrderID request field for pending spread orders: it must seed the
+		// endId cursor, orders earlier than the ID, the direction the spread
+		// history crawls and the standard listing's after cursor use, and beginId,
+		// which returns records newer than the ID, must never go out.
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/sprd/orders-pending" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			assert.Equal(t, "SEED-1", r.URL.Query().Get("endId"), "the first request should carry FromOrderID as the endId cursor")
+			assert.Empty(t, r.URL.Query().Get("beginId"), "beginId returns records newer than the order ID and should never be sent")
+			writeOKXData(t, w, []map[string]string{{
+				"sprdId": spreadPair.String(), "ordId": "SPD-1", "ordType": orderLimit,
+				"side": "buy", "state": "live", "sz": "1", "px": "1", "accFillSz": "0", "cTime": "1700000000000",
+			}})
+		}))
+		active, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide, FromOrderID: "SEED-1",
+		})
+		require.NoError(t, err, "GetActiveOrders must not error when FromOrderID seeds the spread crawl")
+		require.Len(t, active, 1, "the seeded crawl must return the listing's orders")
+		assert.Equal(t, "SPD-1", active[0].OrderID, "the pending spread order should be returned")
+	})
+
+	t.Run("reports execution values", func(t *testing.T) {
+		t.Parallel()
+		// Guards the pending spread
+		// order mapping: it reports the average executed price and, like the spread
+		// history, leaves the cost unset.
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/sprd/orders-pending" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			writeOKXData(t, w, []map[string]string{{
+				"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderLimit, "side": "buy", "state": "live",
+				"sz": "1", "accFillSz": "0.3", "px": "100", "avgPx": "90", "cTime": "1700000000000",
+			}})
+		}))
+		active, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide,
+		})
+		require.NoError(t, err, "GetActiveOrders must not error")
+		require.Len(t, active, 1, "the pending spread order must be returned")
+		assert.Equal(t, 90.0, active[0].AverageExecutedPrice, "GetActiveOrders should read the average filled price")
+		assert.Equal(t, 1.0, active[0].Amount, "GetActiveOrders should read the order size")
+		assert.Equal(t, 0.3, active[0].ExecutedAmount, "GetActiveOrders should read the accumulated fill")
+		assert.Zero(t, active[0].Cost, "GetActiveOrders should leave a spread order's cost unset")
+	})
+}
+
+func TestGetCompletedSpreadOrdersLast21Days(t *testing.T) {
+	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetActiveSpreadOrders(contextGenerate(), "", "post_only", "partially_filled", "", "", 10)
+	result, err := e.GetCompletedSpreadOrdersLast21Days(contextGenerate(), "", "limit", "canceled", "", "", time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestGetCompletedSpreadOrdersLast7Days(t *testing.T) {
+func TestGetCompletedSpreadOrdersLast3Months(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetCompletedSpreadOrdersLast7Days(contextGenerate(), "", "limit", "canceled", "", "", time.Time{}, time.Time{}, 10)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	result, err := e.GetCompletedSpreadOrdersLast3Months(contextGenerate(), "", "limit", "canceled", "", "", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err, "GetCompletedSpreadOrdersLast3Months must not error")
+	assert.NotNil(t, result, "GetCompletedSpreadOrdersLast3Months should return a result")
 }
 
 func TestGetSpreadTradesOfLast7Days(t *testing.T) {
@@ -9068,181 +11109,97 @@ func TestGetAccountInstruments(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-// TestFilterListedOrders checks which orders a listing keeps for each order type and time in force it can be asked for
-func TestFilterListedOrders(t *testing.T) {
-	t.Parallel()
-	listed := func(okxType string, side order.Side) order.Detail {
-		orderType, tif, err := orderTypeFromString(okxType)
-		require.NoError(t, err, "orderTypeFromString must not error")
-		return order.Detail{OrderID: okxType, Type: orderType, TimeInForce: tif, Side: side, Pair: mainPair}
-	}
-	orders := []order.Detail{
-		listed(orderMarket, order.Buy),
-		listed(orderLimit, order.Buy),
-		listed(orderPostOnly, order.Buy),
-		listed(orderFOK, order.Buy),
-		listed(orderIOC, order.Buy),
-		listed(orderOptimalLimitIOC, order.Buy),
-		listed(orderMarketMakerProtection, order.Buy),
-		listed(orderMarketMakerProtectionAndPostOnly, order.Buy),
-		listed(orderPostOnly, order.Sell),
-		{OrderID: "trigger", Type: order.Trigger, Side: order.Buy, Pair: mainPair},
-		{OrderID: "stop", Type: order.Stop, Side: order.Buy, Pair: mainPair},
-	}
-	for _, tc := range []struct {
-		name      string
-		orderType order.Type
-		tif       order.TimeInForce
-		side      order.Side
-		exp       []string
-	}{
-		{name: "any type", orderType: order.AnyType, side: order.AnySide, exp: []string{"market", "limit", "post_only", "fok", "ioc", "optimal_limit_ioc", "mmp", "mmp_and_post_only", "post_only", "trigger", "stop"}},
-		{name: "limit", orderType: order.Limit, side: order.AnySide, exp: []string{"limit", "post_only", "fok", "ioc", "post_only"}},
-		{name: "limit post only", orderType: order.Limit, tif: order.PostOnly, side: order.AnySide, exp: []string{"post_only", "post_only"}},
-		{name: "limit fill or kill", orderType: order.Limit, tif: order.FillOrKill, side: order.AnySide, exp: []string{"fok"}},
-		{name: "limit immediate or cancel", orderType: order.Limit, tif: order.ImmediateOrCancel, side: order.AnySide, exp: []string{"ioc"}},
-		{name: "limit good till cancel post only", orderType: order.Limit, tif: order.GoodTillCancel | order.PostOnly, side: order.AnySide, exp: []string{"post_only", "post_only"}},
-		{name: "limit maker post only", orderType: order.LimitMaker, tif: order.PostOnly, side: order.AnySide, exp: []string{"post_only", "post_only"}},
-		{name: "limit maker post only on one side", orderType: order.LimitMaker, tif: order.PostOnly, side: order.Sell, exp: []string{"post_only"}},
-		{name: "limit maker fill or kill", orderType: order.LimitMaker, tif: order.FillOrKill, side: order.AnySide, exp: []string{"fok"}},
-		{name: "limit maker immediate or cancel", orderType: order.LimitMaker, tif: order.ImmediateOrCancel, side: order.AnySide, exp: []string{"ioc"}},
-		{name: "market", orderType: order.Market, side: order.AnySide, exp: []string{"market"}},
-		{name: "market fill or kill", orderType: order.Market, tif: order.FillOrKill, side: order.AnySide, exp: []string{"fok"}},
-		{name: "market immediate or cancel", orderType: order.Market, tif: order.ImmediateOrCancel, side: order.AnySide, exp: []string{"ioc"}},
-		{name: "optimal limit", orderType: order.OptimalLimit, side: order.AnySide, exp: []string{"optimal_limit_ioc"}},
-		{name: "market maker protection", orderType: order.MarketMakerProtection, side: order.AnySide, exp: []string{"mmp", "mmp_and_post_only"}},
-		{name: "market maker protection post only", orderType: order.MarketMakerProtection, tif: order.PostOnly, side: order.AnySide, exp: []string{"mmp_and_post_only"}},
-		{name: "OKX type that does not read back", orderType: order.Trigger, side: order.AnySide, exp: []string{"trigger"}},
-		{name: "no OKX type", orderType: order.Stop, side: order.AnySide, exp: []string{"stop"}},
-		{name: "limit maker without a time in force", orderType: order.LimitMaker, side: order.AnySide, exp: []string{}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			req := &order.MultiOrderRequest{AssetType: asset.Spot, Type: tc.orderType, TimeInForce: tc.tif, Side: tc.side}
-			kept := []string{}
-			for _, o := range e.filterListedOrders(req, slices.Clone(orders)) {
-				kept = append(kept, o.OrderID)
-			}
-			assert.Equal(t, tc.exp, kept, "filterListedOrders should keep the orders the request asks for")
-			assert.Equal(t, tc.orderType, req.Type, "filterListedOrders should leave the request's type unchanged")
-		})
-	}
-}
-
-func TestCostCurrency(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		pair currency.Pair
-		exp  currency.Code
-	}{
-		{pair: mainPair, exp: currency.USDT},
-		{pair: currency.NewPairWithDelimiter("ETH", "BTC", "-"), exp: currency.BTC},
-		{pair: currency.NewBTCUSD(), exp: currency.USD},
-		{pair: perpetualSwapPair, exp: currency.USDT},
-		{pair: currency.NewPairWithDelimiter("BTC", "USDC-SWAP", "-"), exp: currency.USDC},
-		{pair: currency.NewPairWithDelimiter("ETH", "USD-SWAP", "-"), exp: currency.ETH},
-		{pair: currency.NewPairWithDelimiter("ETH", "USD-261225", "-"), exp: currency.ETH},
-		{pair: currency.NewPairWithDelimiter("ETH", "USD-261225-1950-C", "-"), exp: currency.ETH},
-		{pair: currency.NewPairWithDelimiter("ETH", "USD_UM-261225", "-"), exp: currency.USD},
-		{pair: currency.NewPairWithDelimiter("ETH", "USD_UM-261225-1950-C", "-"), exp: currency.USD},
-		{pair: currency.NewPairWithDelimiter("ETH", "USD_UM_XPERP-310404", "-"), exp: currency.USD},
-		{pair: currency.NewPairWithDelimiter("eth", "usd-swap", "-"), exp: currency.NewCode("eth")},
-		{pair: currency.NewPairWithDelimiter("eth", "usdt-swap", "-"), exp: currency.NewCode("usdt")},
-		{pair: currency.NewPairWithDelimiter("ETH", "USD-SWAP", "/"), exp: currency.ETH},
-	} {
-		t.Run(tc.pair.String(), func(t *testing.T) {
-			t.Parallel()
-			assert.Equalf(t, tc.exp, costCurrency(tc.pair), "costCurrency should return the expected currency for %s", tc.pair)
-		})
-	}
-}
-
-func TestSizeInQuoteCurrency(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		assetType      asset.Item
-		orderType      order.Type
-		side           order.Side
-		targetCurrency string
-		exp            bool
-	}{
-		{assetType: asset.Spot, orderType: order.Market, side: order.Buy, exp: true},
-		{assetType: asset.Spot, orderType: order.Market, side: order.Sell},
-		{assetType: asset.Spot, orderType: order.Market, side: order.Buy, targetCurrency: "quote_ccy", exp: true},
-		{assetType: asset.Spot, orderType: order.Market, side: order.Sell, targetCurrency: "quote_ccy", exp: true},
-		{assetType: asset.Spot, orderType: order.Market, side: order.Buy, targetCurrency: "base_ccy"},
-		{assetType: asset.Spot, orderType: order.Market, side: order.Sell, targetCurrency: "base_ccy"},
-		{assetType: asset.Spot, orderType: order.Limit, side: order.Buy},
-		{assetType: asset.Spot, orderType: order.Limit, side: order.Sell},
-		{assetType: asset.Margin, orderType: order.Market, side: order.Buy, exp: true},
-		{assetType: asset.Margin, orderType: order.Market, side: order.Sell},
-		{assetType: asset.Margin, orderType: order.Limit, side: order.Buy},
-		{assetType: asset.PerpetualSwap, orderType: order.Market, side: order.Buy},
-		{assetType: asset.PerpetualSwap, orderType: order.Market, side: order.Sell},
-		{assetType: asset.Futures, orderType: order.Market, side: order.Buy},
-		{assetType: asset.Options, orderType: order.Limit, side: order.Buy},
-	} {
-		t.Run(strings.TrimSpace(fmt.Sprintf("%s %s %s %s", tc.assetType, tc.orderType, tc.side, tc.targetCurrency)), func(t *testing.T) {
-			t.Parallel()
-			assert.Equalf(t, tc.exp, sizeInQuoteCurrency(tc.assetType, tc.orderType, tc.side, tc.targetCurrency), "sizeInQuoteCurrency should return %t for a %s %s %s order with tgtCcy %q", tc.exp, tc.assetType, tc.orderType, tc.side, tc.targetCurrency)
-		})
-	}
-}
-
+// TestOrderTypeString guards the ordType an order places. The post-only rows
+// read PostOnly from a time in force that combines PostOnly with other flags,
+// where an unlisted type combination is still refused.
 func TestOrderTypeString(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		orderType order.Type
-		tif       order.TimeInForce
-		exp       string
-		err       error
+	type OrderTypeWithTIF struct {
+		OrderType order.Type
+		TIF       order.TimeInForce
+	}
+	orderTypesToStringMap := map[OrderTypeWithTIF]struct {
+		Expected string
+		Error    error
 	}{
-		{orderType: order.Market, exp: orderMarket},
-		{orderType: order.Limit, exp: orderLimit},
-		{orderType: order.Limit, tif: order.PostOnly, exp: orderPostOnly},
-		{orderType: order.Limit, tif: order.FillOrKill, exp: orderFOK},
-		{orderType: order.Limit, tif: order.ImmediateOrCancel, exp: orderIOC},
-		{orderType: order.Limit, tif: order.GoodTillCancel, exp: orderLimit},
-		{orderType: order.Limit, tif: order.GoodTillCancel | order.PostOnly, exp: orderPostOnly},
-		{orderType: order.Market, tif: order.FillOrKill, exp: orderFOK},
-		{orderType: order.Market, tif: order.ImmediateOrCancel, exp: orderIOC},
-		{orderType: order.Market, tif: order.GoodTillCancel, exp: orderMarket},
-		{orderType: order.Market, tif: order.PostOnly, err: order.ErrUnsupportedOrderType},
-		{orderType: order.Market, tif: order.GoodTillCancel | order.PostOnly, err: order.ErrUnsupportedOrderType},
-		{orderType: order.OptimalLimit, tif: order.ImmediateOrCancel, exp: orderOptimalLimitIOC},
-		{orderType: order.MarketMakerProtection, exp: orderMarketMakerProtection},
-		{orderType: order.MarketMakerProtection, tif: order.GoodTillCancel, exp: orderMarketMakerProtection},
-		{orderType: order.MarketMakerProtection, tif: order.PostOnly, exp: orderMarketMakerProtectionAndPostOnly},
-		{orderType: order.MarketMakerProtection, tif: order.GoodTillCancel | order.PostOnly, exp: orderMarketMakerProtectionAndPostOnly},
-		{orderType: order.MarketMakerProtection, tif: order.FillOrKill, err: order.ErrUnsupportedOrderType},
-		{orderType: order.MarketMakerProtection, tif: order.ImmediateOrCancel, err: order.ErrUnsupportedOrderType},
-		{orderType: order.OCO, exp: orderOCO},
-		{orderType: order.TrailingStop, exp: orderMoveOrderStop},
-		{orderType: order.Chase, exp: orderChase},
-		{orderType: order.TWAP, exp: orderTWAP},
-		{orderType: order.ConditionalStop, exp: orderConditional},
-		{orderType: order.Chase, tif: order.GoodTillCancel, exp: orderChase},
-		{orderType: order.TWAP, tif: order.ImmediateOrCancel, exp: orderTWAP},
-		{orderType: order.ConditionalStop, tif: order.GoodTillDay, exp: orderConditional},
-		{orderType: order.Trigger, exp: orderTrigger},
-		{orderType: order.UnknownType, err: order.ErrUnsupportedOrderType},
-		{orderType: order.UnknownType, tif: order.PostOnly, exp: orderPostOnly},
-		{orderType: order.UnknownType, tif: order.GoodTillCancel | order.PostOnly, exp: orderPostOnly},
-		{orderType: order.UnknownType, tif: order.FillOrKill, exp: orderFOK},
-		{orderType: order.UnknownType, tif: order.ImmediateOrCancel, exp: orderIOC},
-		{orderType: order.LimitMaker, err: order.ErrUnsupportedOrderType},
-		{orderType: order.LimitMaker, tif: order.PostOnly, exp: orderPostOnly},
-		{orderType: order.LimitMaker, tif: order.GoodTillCancel | order.PostOnly, exp: orderPostOnly},
-		{orderType: order.LimitMaker, tif: order.FillOrKill, exp: orderFOK},
-		{orderType: order.LimitMaker, tif: order.ImmediateOrCancel, exp: orderIOC},
-	} {
-		t.Run(tc.orderType.String()+"/"+tc.tif.String(), func(t *testing.T) {
+		{OrderType: order.Market, TIF: order.UnknownTIF}:                {Expected: orderMarket},
+		{OrderType: order.Limit, TIF: order.UnknownTIF}:                 {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.PostOnly}:                   {Expected: orderPostOnly},
+		{OrderType: order.Limit, TIF: order.FillOrKill}:                 {Expected: orderFOK},
+		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:          {Expected: orderIOC},
+		{OrderType: order.LimitMaker, TIF: order.UnknownTIF}:            {Expected: orderPostOnly},
+		{OrderType: order.LimitMaker, TIF: order.ImmediateOrCancel}:     {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.LimitMaker, TIF: order.FillOrKill}:            {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Stop, TIF: order.ImmediateOrCancel}:           {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.StopLimit, TIF: order.FillOrKill}:             {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.StopMarket, TIF: order.FillOrKill}:            {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.TakeProfit, TIF: order.FillOrKill}:            {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.TakeProfitMarket, TIF: order.FillOrKill}:      {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.TrailingStopLimit, TIF: order.FillOrKill}:     {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Bracket, TIF: order.FillOrKill}:               {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Liquidation, TIF: order.FillOrKill}:           {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Market, TIF: order.FillOrKill}:                {Expected: orderFOK},
+		{OrderType: order.Market, TIF: order.ImmediateOrCancel}:         {Expected: orderIOC},
+		{OrderType: order.OptimalLimit, TIF: order.ImmediateOrCancel}:   {Expected: orderOptimalLimitIOC},
+		{OrderType: order.MarketMakerProtection, TIF: order.UnknownTIF}: {Expected: orderMarketMakerProtection},
+		{OrderType: order.MarketMakerProtection, TIF: order.PostOnly}:   {Expected: orderMarketMakerProtectionAndPostOnly},
+		{OrderType: order.Liquidation, TIF: order.UnknownTIF}:           {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.OCO, TIF: order.UnknownTIF}:                   {Expected: orderOCO},
+		{OrderType: order.TrailingStop, TIF: order.UnknownTIF}:          {Expected: orderMoveOrderStop},
+		{OrderType: order.Chase, TIF: order.UnknownTIF}:                 {Expected: orderChase},
+		{OrderType: order.TWAP, TIF: order.UnknownTIF}:                  {Expected: orderTWAP},
+		{OrderType: order.ConditionalStop, TIF: order.UnknownTIF}:       {Expected: orderConditional},
+		{OrderType: order.Chase, TIF: order.GoodTillCancel}:             {Expected: orderChase},
+		{OrderType: order.TWAP, TIF: order.ImmediateOrCancel}:           {Expected: orderTWAP},
+		{OrderType: order.ConditionalStop, TIF: order.GoodTillDay}:      {Expected: orderConditional},
+		{OrderType: order.Trigger, TIF: order.UnknownTIF}:               {Expected: orderTrigger},
+		{OrderType: order.UnknownType, TIF: order.PostOnly}:             {Expected: orderPostOnly},
+		{OrderType: order.UnknownType, TIF: order.FillOrKill}:           {Expected: orderFOK},
+		{OrderType: order.UnknownType, TIF: order.ImmediateOrCancel}:    {Expected: orderIOC},
+		// Only Limit and MarketMakerProtection read PostOnly from a combined
+		// time in force; an unlisted type combination is still refused.
+		{OrderType: order.TakeProfit | order.Limit, TIF: order.GoodTillCancel | order.PostOnly}: {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Limit, TIF: order.GoodTillCancel}:                                     {Expected: orderLimit},
+		{OrderType: order.Market, TIF: order.GoodTillCancel}:                                    {Expected: orderMarket},
+		{OrderType: order.Market, TIF: order.PostOnly}:                                          {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Market, TIF: order.GoodTillCancel | order.PostOnly}:                   {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.MarketMakerProtection, TIF: order.GoodTillCancel}:                     {Expected: orderMarketMakerProtection},
+		{OrderType: order.MarketMakerProtection, TIF: order.FillOrKill}:                         {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.MarketMakerProtection, TIF: order.ImmediateOrCancel}:                  {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.UnknownType, TIF: order.UnknownTIF}:                                   {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.UnknownType, TIF: order.GoodTillCancel | order.PostOnly}:              {Expected: orderPostOnly},
+	}
+	for tc, val := range orderTypesToStringMap {
+		t.Run(tc.OrderType.String()+"/"+tc.TIF.String(), func(t *testing.T) {
 			t.Parallel()
-			got, err := orderTypeString(tc.orderType, tc.tif)
-			require.ErrorIs(t, err, tc.err, "orderTypeString must return the expected error")
-			assert.Equal(t, tc.exp, got, "orderTypeString should return the expected OKX order type")
+			orderTypeString, err := orderTypeString(tc.OrderType, tc.TIF)
+			require.ErrorIs(t, err, val.Error)
+			assert.Equal(t, val.Expected, orderTypeString)
 		})
 	}
+
+	t.Run("post-only is read from combined time in forces", func(t *testing.T) {
+		t.Parallel()
+		// A time in force that combines PostOnly with other flags, which
+		// TimeInForce.IsValid allows, must still place as post-only.
+		flags := []order.TimeInForce{order.GoodTillCancel, order.GoodTillDay, order.GoodTillTime, order.GoodTillCrossing, order.StopOrReduce}
+		for mask := range 1 << len(flags) {
+			tif := order.PostOnly
+			for i, f := range flags {
+				if mask&(1<<i) != 0 {
+					tif |= f
+				}
+			}
+			require.Truef(t, tif.IsValid(), "%s must be a valid time in force", tif)
+			got, err := orderTypeString(order.Limit, tif)
+			require.NoErrorf(t, err, "orderTypeString must not error for a limit order with %s", tif)
+			assert.Equalf(t, orderPostOnly, got, "a limit order with %s should place as post_only", tif)
+			got, err = orderTypeString(order.MarketMakerProtection, tif)
+			require.NoErrorf(t, err, "orderTypeString must not error for an MMP order with %s", tif)
+			assert.Equalf(t, orderMarketMakerProtectionAndPostOnly, got, "an MMP order with %s should place as mmp_and_post_only", tif)
+		}
+	})
+
 	for _, orderType := range []order.Type{
 		order.Stop, order.StopLimit, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStopLimit,
 		order.Bracket, order.IOS, order.Liquidation, order.AnyType,
@@ -9256,10 +11213,7 @@ func TestOrderTypeString(t *testing.T) {
 			})
 		}
 	}
-	// Checks every valid time in force with the order types whose OKX order type it selects: post only, alone or
-	// together with another time in force, selects post_only, or mmp_and_post_only for market maker protection, and FOK
-	// or IOC alone selects fok or ioc for the others, while post only on a market order and FOK or IOC on market maker
-	// protection are refused, as no OKX order type carries them
+
 	t.Run("every valid time in force", func(t *testing.T) {
 		t.Parallel()
 		flags := []order.TimeInForce{order.GoodTillCancel, order.GoodTillDay, order.GoodTillTime, order.GoodTillCrossing, order.FillOrKill, order.ImmediateOrCancel, order.PostOnly, order.StopOrReduce}
@@ -9279,16 +11233,16 @@ func TestOrderTypeString(t *testing.T) {
 			}
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				limit, plain, mmp, market := orderLimit, "", orderMarketMakerProtection, orderMarket
+				limit, plain, maker, mmp, market := orderLimit, "", orderPostOnly, orderMarketMakerProtection, orderMarket
 				switch {
 				case tif&order.PostOnly != 0:
 					limit, plain, mmp, market = orderPostOnly, orderPostOnly, orderMarketMakerProtectionAndPostOnly, ""
 				case tif == order.FillOrKill:
-					limit, plain, mmp, market = orderFOK, orderFOK, "", orderFOK
+					limit, plain, maker, mmp, market = orderFOK, orderFOK, "", "", orderFOK
 				case tif == order.ImmediateOrCancel:
-					limit, plain, mmp, market = orderIOC, orderIOC, "", orderIOC
+					limit, plain, maker, mmp, market = orderIOC, orderIOC, "", "", orderIOC
 				}
-				expected := map[order.Type]string{order.Limit: limit, order.LimitMaker: plain, order.UnknownType: plain, order.MarketMakerProtection: mmp, order.Market: market}
+				expected := map[order.Type]string{order.Limit: limit, order.LimitMaker: maker, order.UnknownType: plain, order.MarketMakerProtection: mmp, order.Market: market}
 				for orderType, exp := range expected {
 					t.Run(orderType.String(), func(t *testing.T) {
 						t.Parallel()
@@ -9306,56 +11260,54 @@ func TestOrderTypeString(t *testing.T) {
 	})
 }
 
-// TestSpreadOrderTypeString checks that a spread order listing filters only with OKX's spread order types, refusing any
-// other type before sending
+// TestSpreadOrderTypeString pins the ordType a spread order places: the
+// spread endpoints document only market, limit, post_only and ioc, so fok
+// and trigger-style types are rejected instead of downgraded.
 func TestSpreadOrderTypeString(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		orderType order.Type
-		tif       order.TimeInForce
-		exp       string
-	}{
-		{orderType: order.Market, exp: orderMarket},
-		{orderType: order.Market, tif: order.ImmediateOrCancel, exp: orderIOC},
-		{orderType: order.Limit, exp: orderLimit},
-		{orderType: order.Limit, tif: order.PostOnly, exp: orderPostOnly},
-		{orderType: order.Limit, tif: order.ImmediateOrCancel, exp: orderIOC},
-		{orderType: order.LimitMaker, tif: order.PostOnly, exp: orderPostOnly},
-		{orderType: order.LimitMaker, tif: order.ImmediateOrCancel, exp: orderIOC},
-		{orderType: order.UnknownType, tif: order.PostOnly, exp: orderPostOnly},
-	} {
-		t.Run(tc.orderType.String()+"/"+tc.tif.String(), func(t *testing.T) {
-			t.Parallel()
-			got, err := spreadOrderTypeString(tc.orderType, tc.tif)
-			require.NoError(t, err, "spreadOrderTypeString must not error for a spread order type")
-			assert.Equal(t, tc.exp, got, "spreadOrderTypeString should return the expected OKX order type")
-		})
+	type OrderTypeWithTIF struct {
+		OrderType order.Type
+		TIF       order.TimeInForce
 	}
-	for _, tc := range []struct {
-		orderType order.Type
-		tif       order.TimeInForce
+	spreadOrderTypesToStringMap := map[OrderTypeWithTIF]struct {
+		Expected string
+		Error    error
 	}{
-		{orderType: order.Market, tif: order.FillOrKill},
-		{orderType: order.Market, tif: order.PostOnly},
-		{orderType: order.Limit, tif: order.FillOrKill},
-		{orderType: order.LimitMaker, tif: order.FillOrKill},
-		{orderType: order.OptimalLimit, tif: order.ImmediateOrCancel},
-		{orderType: order.MarketMakerProtection},
-		{orderType: order.MarketMakerProtection, tif: order.PostOnly},
-		{orderType: order.Trigger},
-		{orderType: order.Chase},
-		{orderType: order.TWAP},
-		{orderType: order.OCO},
-		{orderType: order.ConditionalStop},
-		{orderType: order.TrailingStop},
-		{orderType: order.Stop, tif: order.ImmediateOrCancel},
-		{orderType: order.LimitMaker},
-	} {
-		t.Run(tc.orderType.String()+"/"+tc.tif.String(), func(t *testing.T) {
+		{OrderType: order.Market, TIF: order.UnknownTIF}:                          {Expected: orderMarket},
+		{OrderType: order.Market, TIF: order.ImmediateOrCancel}:                   {Expected: orderMarket},
+		{OrderType: order.Market, TIF: order.FillOrKill}:                          {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Market, TIF: order.PostOnly}:                            {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Market, TIF: order.GoodTillCancel | order.PostOnly}:     {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Limit, TIF: order.UnknownTIF}:                           {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.GoodTillCancel}:                       {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.GoodTillDay}:                          {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.PostOnly}:                             {Expected: orderPostOnly},
+		{OrderType: order.Limit, TIF: order.GoodTillCancel | order.PostOnly}:      {Expected: orderPostOnly},
+		{OrderType: order.Limit, TIF: order.GoodTillDay | order.PostOnly}:         {Expected: orderPostOnly},
+		{OrderType: order.Limit, TIF: order.GoodTillTime | order.PostOnly}:        {Expected: orderPostOnly},
+		{OrderType: order.Limit, TIF: order.ImmediateOrCancel | order.PostOnly}:   {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Limit, TIF: order.PostOnly | 1<<15}:                     {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:                    {Expected: orderIOC},
+		{OrderType: order.Limit, TIF: order.FillOrKill}:                           {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.LimitMaker, TIF: order.UnknownTIF}:                      {Expected: orderPostOnly},
+		{OrderType: order.LimitMaker, TIF: order.GoodTillCancel}:                  {Expected: orderPostOnly},
+		{OrderType: order.LimitMaker, TIF: order.GoodTillDay}:                     {Expected: orderPostOnly},
+		{OrderType: order.LimitMaker, TIF: order.PostOnly}:                        {Expected: orderPostOnly},
+		{OrderType: order.LimitMaker, TIF: order.GoodTillCancel | order.PostOnly}: {Expected: orderPostOnly},
+		{OrderType: order.LimitMaker, TIF: order.GoodTillTime | order.PostOnly}:   {Expected: orderPostOnly},
+		{OrderType: order.LimitMaker, TIF: order.FillOrKill | order.PostOnly}:     {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.LimitMaker, TIF: order.PostOnly | 1<<15}:                {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.LimitMaker, TIF: order.ImmediateOrCancel}:               {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.LimitMaker, TIF: order.FillOrKill}:                      {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Stop, TIF: order.UnknownTIF}:                            {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.ConditionalStop, TIF: order.UnknownTIF}:                 {Error: order.ErrUnsupportedOrderType},
+	}
+	for tc, val := range spreadOrderTypesToStringMap {
+		t.Run(tc.OrderType.String()+"/"+tc.TIF.String(), func(t *testing.T) {
 			t.Parallel()
-			got, err := spreadOrderTypeString(tc.orderType, tc.tif)
-			assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "spreadOrderTypeString should refuse a type with no OKX spread order type")
-			assert.Empty(t, got, "spreadOrderTypeString should not return an OKX order type for a refused type")
+			spreadOrderType, err := spreadOrderTypeString(tc.OrderType, tc.TIF)
+			require.ErrorIs(t, err, val.Error)
+			assert.Equal(t, val.Expected, spreadOrderType)
 		})
 	}
 }
@@ -9671,7 +11623,7 @@ const (
 	processSpreadOrderbookJSON      = `{"arg":{"channel":"sprd-books5", "sprdId": "BTC-USDT_BTC-USDT-SWAP" }, "data": [ { "asks": [ ["111.06","55154","2"], ["111.07","53276","2"], ["111.08","72435","2"], ["111.09","70312","2"], ["111.1","67272","2"]], "bids": [ ["111.05","57745","2"], ["111.04","57109","2"], ["111.03","69563","2"], ["111.02","71248","2"], ["111.01","65090","2"]], "ts": "1670324386802"}]}`
 	wsProcessPublicSpreadTradesJSON = `{"arg":{"channel":"sprd-public-trades", "sprdId": "BTC-USDT_BTC-USDT-SWAP" }, "data": [ { "sprdId": "BTC-USDT_BTC-USDT-SWAP", "tradeId": "2499206329160695808", "px": "-10", "sz": "0.001", "side": "sell", "ts": "1726801105519"}]}`
 	okxSpreadPublicTickerJSON       = `{"arg":{"channel":"sprd-tickers", "sprdId": "BTC-USDT_BTC-USDT-SWAP" }, "data": [ { "sprdId": "BTC-USDT_BTC-USDT-SWAP", "last": "4", "lastSz": "0.01", "askPx": "19.7", "askSz": "5.79", "bidPx": "5.9", "bidSz": "5.79", "open24h": "-7", "high24h": "19.6", "low24h": "-7", "vol24h": "9.87", "ts": "1715247061026"}]}`
-	wsProcessSpreadOrdersJSON       = `{"arg":{"channel":"sprd-orders","sprdId": "BTC-USDT_BTC-USDT-SWAP", "uid": "614488474791936"}, "data": [{"sprdId": "BTC-USDT_BTC-UST-SWAP", "ordId": "312269865356374016", "clOrdId": "b1", "tag": "", "px": "999", "sz": "3", "ordType": "limit", "side": "buy", "fillSz": "0.5", "fillPx": "999", "tradeId": "7", "accFillSz": "1", "pendingFillSz": "1.5", "pendingSettleSz": "1", "canceledSz": "0.5", "state": "partially_filled", "avgPx": "999", "cancelSource": "", "uTime": "1597026383085", "cTime": "1597026383085", "code": "0", "msg": "", "reqId": "", "amendResult": ""}]}`
+	wsProcessSpreadOrdersJSON       = `{"arg":{"channel":"sprd-orders","sprdId": "BTC-USDT_BTC-USDT-SWAP", "uid": "614488474791936"}, "data": [{"sprdId": "BTC-USDT_BTC-UST-SWAP", "ordId": "312269865356374016", "clOrdId": "b1", "tag": "", "px": "999", "sz": "3", "ordType": "limit", "side": "buy", "fillSz": "0", "fillPx": "", "tradeId": "", "accFillSz": "0", "pendingFillSz": "2", "pendingSettleSz": "1", "canceledSz": "1", "state": "live", "avgPx": "0", "cancelSource": "", "uTime": "1597026383085", "cTime": "1597026383085", "code": "0", "msg": "", "reqId": "", "amendResult": ""}]}`
 	wsProcessSpreadTradesJSON       = `{"arg":{"channel":"sprd-trades", "sprdId": "BTC-USDT_BTC-USDT-SWAP", "uid": "614488474791936" }, "data":[ { "sprdId":"BTC-USDT-SWAP_BTC-USDT-200329", "tradeId":"123", "ordId":"123445", "clOrdId": "b16", "tag":"", "fillPx":"999", "fillSz":"3", "state": "filled", "side":"buy", "execType":"M", "ts":"1597026383085", "legs": [ { "instId": "BTC-USDT-SWAP", "px": "20000", "sz": "3", "szCont": "0.03", "side": "buy", "fee": "", "feeCcy": "", "tradeId": "1232342342" }, { "instId": "BTC-USDT-200329", "px": "21000", "sz": "3", "szCont": "0.03", "side": "sell", "fee": "", "feeCcy": "", "tradeId": "5345646634" } ], "code": "", "msg":""}]}`
 )
 
@@ -9683,8 +11635,61 @@ func TestWsProcessSpreadOrderbook(t *testing.T) {
 
 func TestWsProcessPublicSpreadTrades(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessPublicSpreadTrades([]byte(wsProcessPublicSpreadTradesJSON))
-	assert.NoError(t, err)
+	t.Run("public spread trades decode", func(t *testing.T) {
+		t.Parallel()
+		err := e.wsProcessPublicSpreadTrades([]byte(wsProcessPublicSpreadTradesJSON))
+		assert.NoError(t, err)
+		trades, err := e.spreadPublicTrades([]byte(wsProcessPublicSpreadTradesJSON))
+		require.NoError(t, err, "spreadPublicTrades must not error")
+		require.Len(t, trades, 1, "spreadPublicTrades must return the pushed trade")
+		exp := trade.Data{
+			TID: "2499206329160695808", Exchange: e.Name, CurrencyPair: spreadPair, AssetType: asset.Spread,
+			Side: order.Sell, Price: -10, Amount: 0.001, Timestamp: time.UnixMilli(1726801105519),
+		}
+		assert.Equal(t, exp, trades[0], "the push should decode its trade rather than drop it")
+	})
+
+	t.Run("honours the save trade data gate", func(t *testing.T) {
+		t.Parallel()
+		// With trade saving off a push must not reach the shared trade
+		// buffer, while the decode still runs first so a malformed push
+		// reports its error. The fixture trades carry a zero size, which the
+		// buffer rejects with an error, so that error tells whether the
+		// buffer was reached. The database is only configured, never
+		// connected: the rejected trade never enters the buffer.
+		zeroSize := strings.Replace(wsProcessPublicSpreadTradesJSON, `"sz": "0.001"`, `"sz": "0"`, 1)
+		require.NotEqual(t, wsProcessPublicSpreadTradesJSON, zeroSize, "the zero size replacement must find its fixture anchor")
+		for _, tc := range []struct {
+			name       string
+			save       bool
+			push       string
+			expErr     string
+			wantAnyErr bool
+		}{
+			{name: "saving off", save: false, push: zeroSize},
+			{name: "saving on", save: true, push: zeroSize, expErr: "received invalid trade data"},
+			// The decoder's message differs per JSON backend (stdlib vs sonic),
+			// so only the presence of the error is pinned for the malformed push.
+			{name: "malformed push with saving off", save: false, push: "{", wantAnyErr: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				e := new(Exchange)
+				require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+				e.SetSaveTradeDataStatus(tc.save)
+				err := e.wsProcessPublicSpreadTrades([]byte(tc.push))
+				if tc.wantAnyErr {
+					assert.Error(t, err, "a malformed push should still report its decode error")
+					return
+				}
+				if tc.expErr == "" {
+					assert.NoError(t, err, "a push with trade saving off should not reach the trade buffer")
+					return
+				}
+				assert.ErrorContains(t, err, tc.expErr, "the push should report the expected error")
+			})
+		}
+	})
 }
 
 func TestWsProcessPublicSpreadTicker(t *testing.T) {
@@ -9704,10 +11709,57 @@ func TestWsProcessPublicSpreadTicker(t *testing.T) {
 	})
 }
 
-// TestWsProcessSpreadOrders checks every path of a spread orders push, with each spread order type read as the order
-// type and time in force the REST order mapping gives it
 func TestWsProcessSpreadOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("relays the push", func(t *testing.T) {
+		t.Parallel()
+		err := e.wsProcessSpreadOrders(t.Context(), []byte(wsProcessSpreadOrdersJSON))
+		assert.NoError(t, err)
+	})
+	// Guards the spread order stream's fill
+	// mapping: the executed amount is the accumulated fill rather than the last
+	// fill, the remainder is what is left of the size, and the order type's time
+	// in force is kept.
+	t.Run("reports fills from the accumulated size", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		push := `{"arg":{"channel":"sprd-orders","sprdId":"BTC-USDT_BTC-USDT-SWAP","uid":"614488474791936"},"data":[{"sprdId":"BTC-USDT_BTC-USDT-SWAP","ordId":"312269865356374016","clOrdId":"b1","px":"999","sz":"3","ordType":"post_only","side":"buy","fillSz":"0.5","fillPx":"999","accFillSz":"2","pendingFillSz":"1","state":"partially_filled","avgPx":"998","uTime":"1597026383085","cTime":"1597026383085"}]}`
+		require.NoError(t, ex.wsProcessSpreadOrders(t.Context(), []byte(push)), "wsProcessSpreadOrders must not error")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessSpreadOrders must relay the push")
+		resp := <-ex.Websocket.DataHandler.C
+		details, ok := resp.Data.([]order.Detail)
+		require.True(t, ok, "the push must relay order details")
+		stamp := time.UnixMilli(1597026383085)
+		exp := []order.Detail{{
+			AssetType: asset.Spread, Amount: 3, AverageExecutedPrice: 998, ClientOrderID: "b1", Date: stamp, Exchange: ex.Name,
+			ExecutedAmount: 2, OrderID: "312269865356374016", Pair: spreadPair, Price: 999, RemainingAmount: 1,
+			Side: order.Buy, Status: order.PartiallyFilled, Type: order.Limit, LastUpdated: stamp, TimeInForce: order.PostOnly,
+		}}
+		assert.Equal(t, exp, details, "the push should report the accumulated fill, the remainder and the time in force")
+	})
+
+	const push = `{"arg":{"channel":"sprd-orders","sprdId": "BTC-USDT_BTC-USDT-SWAP", "uid": "614488474791936"}, "data": [{"sprdId": "BTC-USDT_BTC-USDT-SWAP", "ordId": "312269865356374016", "clOrdId": "b1", "tag": "", "px": "999", "sz": "3", "ordType": "limit", "side": "buy", "fillSz": "0.5", "fillPx": "999", "tradeId": "7", "accFillSz": "1", "pendingFillSz": "1.5", "pendingSettleSz": "1", "canceledSz": "0.5", "state": "partially_filled", "avgPx": "999", "cancelSource": "", "uTime": "1597026383085", "cTime": "1597026383085", "code": "0", "msg": "", "reqId": "", "amendResult": ""}]}`
+	expected := func(id string, tif order.TimeInForce, oType order.Type) order.Detail {
+		return order.Detail{
+			AssetType:            asset.Spread,
+			Amount:               3,
+			AverageExecutedPrice: 999,
+			ClientOrderID:        "b1",
+			Date:                 time.UnixMilli(1597026383085),
+			Exchange:             e.Name,
+			ExecutedAmount:       1,
+			OrderID:              id,
+			Pair:                 spreadPair,
+			Price:                999,
+			RemainingAmount:      1.5,
+			Side:                 order.Buy,
+			Status:               order.PartiallyFilled,
+			TimeInForce:          tif,
+			Type:                 oType,
+			LastUpdated:          time.UnixMilli(1597026383085),
+		}
+	}
 	for _, tc := range []struct {
 		name      string
 		replace   []string // Pairs of old and new text applied to the push in turn
@@ -9723,7 +11775,7 @@ func TestWsProcessSpreadOrders(t *testing.T) {
 		{name: "post_only", replace: []string{`"ordType": "limit"`, `"ordType": "post_only"`}, expType: order.Limit, expTIF: order.PostOnly},
 		{name: "ioc", replace: []string{`"ordType": "limit"`, `"ordType": "ioc"`}, expType: order.Limit, expTIF: order.ImmediateOrCancel},
 		{name: "unrecognised order type", replace: []string{`"ordType": "limit"`, `"ordType": "mystery"`}, err: order.ErrTypeIsInvalid},
-		{name: "malformed push", replace: []string{wsProcessSpreadOrdersJSON, `{"arg":`}, malformed: true},
+		{name: "malformed push", replace: []string{push, `{"arg":`}, malformed: true},
 		{name: "no orders", replace: []string{`"data": [{`, `"data": [], "unused": [{`}, err: kline.ErrNoTimeSeriesDataToConvert},
 		{name: "unparsable spread ID", replace: []string{`"sprdId": "BTC-USDT_BTC-USDT-SWAP"`, `"sprdId": "BT"`}, err: currency.ErrCreatingPair},
 		{name: "unrecognised side", replace: []string{`"side": "buy"`, `"side": "sideways"`}, err: order.ErrSideIsInvalid},
@@ -9734,7 +11786,7 @@ func TestWsProcessSpreadOrders(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Setup must not error")
-			frame := wsProcessSpreadOrdersJSON
+			frame := push
 			for i := 0; i+1 < len(tc.replace); i += 2 {
 				require.Containsf(t, frame, tc.replace[i], "the push must hold %s", tc.replace[i])
 				frame = strings.Replace(frame, tc.replace[i], tc.replace[i+1], 1)
@@ -9759,26 +11811,8 @@ func TestWsProcessSpreadOrders(t *testing.T) {
 			}
 			require.NoError(t, err, "wsProcessSpreadOrders must not error")
 			require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessSpreadOrders must relay the orders")
-			exp := []order.Detail{{
-				AssetType:            asset.Spread,
-				Amount:               3,
-				AverageExecutedPrice: 999,
-				ClientOrderID:        "b1",
-				Date:                 time.UnixMilli(1597026383085),
-				Exchange:             ex.Name,
-				ExecutedAmount:       1,
-				OrderID:              "312269865356374016",
-				Pair:                 currency.NewPairWithDelimiter("BTC", "USDT_BTC-USDT-SWAP", "-"),
-				Price:                999,
-				QuoteAmount:          2997,
-				RemainingAmount:      1.5,
-				Side:                 order.Buy,
-				Status:               order.PartiallyFilled,
-				TimeInForce:          tc.expTIF,
-				Type:                 tc.expType,
-				LastUpdated:          time.UnixMilli(1597026383085),
-			}}
-			assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsProcessSpreadOrders should relay the orders with their type and time in force")
+			exp := []order.Detail{expected("312269865356374016", tc.expTIF, tc.expType)}
+			assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsProcessSpreadOrders should relay the orders with their type, time in force and pending fill size")
 		})
 	}
 
@@ -9786,40 +11820,67 @@ func TestWsProcessSpreadOrders(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "Setup must not error")
-		first := wsProcessSpreadOrdersJSON[strings.Index(wsProcessSpreadOrdersJSON, `[{`)+1 : strings.LastIndex(wsProcessSpreadOrdersJSON, `]}`)]
+		first := push[strings.Index(push, `[{`)+1 : strings.LastIndex(push, `]}`)]
 		second := strings.NewReplacer(`"ordId": "312269865356374016"`, `"ordId": "312269865356374017"`, `"ordType": "limit"`, `"ordType": "post_only"`).Replace(first)
-		require.NoError(t, ex.wsProcessSpreadOrders(t.Context(), []byte(strings.Replace(wsProcessSpreadOrdersJSON, first, first+","+second, 1))), "wsProcessSpreadOrders must not error")
+		require.NoError(t, ex.wsProcessSpreadOrders(t.Context(), []byte(strings.Replace(push, first, first+","+second, 1))), "wsProcessSpreadOrders must not error")
 		require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessSpreadOrders must relay the orders together")
-		exp := make([]order.Detail, 2)
-		for i, id := range []string{"312269865356374016", "312269865356374017"} {
-			exp[i] = order.Detail{
-				AssetType:            asset.Spread,
-				Amount:               3,
-				AverageExecutedPrice: 999,
-				ClientOrderID:        "b1",
-				Date:                 time.UnixMilli(1597026383085),
-				Exchange:             ex.Name,
-				ExecutedAmount:       1,
-				OrderID:              id,
-				Pair:                 currency.NewPairWithDelimiter("BTC", "USDT_BTC-USDT-SWAP", "-"),
-				Price:                999,
-				QuoteAmount:          2997,
-				RemainingAmount:      1.5,
-				Side:                 order.Buy,
-				Status:               order.PartiallyFilled,
-				Type:                 order.Limit,
-				LastUpdated:          time.UnixMilli(1597026383085),
-			}
+		exp := []order.Detail{
+			expected("312269865356374016", order.UnknownTIF, order.Limit),
+			expected("312269865356374017", order.PostOnly, order.Limit),
 		}
-		exp[1].TimeInForce = order.PostOnly
 		assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsProcessSpreadOrders should relay both orders as the push describes them")
 	})
 }
 
 func TestWsProcessSpreadTradesJSON(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessSpreadTrades([]byte(wsProcessSpreadTradesJSON))
-	assert.NoError(t, err)
+	t.Run("private spread trades decode", func(t *testing.T) {
+		t.Parallel()
+		err := e.wsProcessSpreadTrades([]byte(wsProcessSpreadTradesJSON))
+		assert.NoError(t, err)
+	})
+
+	t.Run("honours the save trade data gate", func(t *testing.T) {
+		t.Parallel()
+		// The private spread trades stream keeps the same saving gate as the
+		// public one: with trade saving off a push must not reach the shared
+		// trade buffer, while the decode still runs first so a malformed push
+		// reports its error. The fixture trade carries a zero fill size,
+		// which the buffer rejects with an error, so that error tells whether
+		// the buffer was reached.
+		zeroSize := strings.Replace(wsProcessSpreadTradesJSON, `"fillSz":"3"`, `"fillSz":"0"`, 1)
+		require.NotEqual(t, wsProcessSpreadTradesJSON, zeroSize, "the zero size replacement must find its fixture anchor")
+		for _, tc := range []struct {
+			name       string
+			save       bool
+			push       string
+			expErr     string
+			wantAnyErr bool
+		}{
+			{name: "saving off", save: false, push: zeroSize},
+			{name: "saving on", save: true, push: zeroSize, expErr: "received invalid trade data"},
+			// The decoder's message differs per JSON backend (stdlib vs sonic),
+			// so only the presence of the error is pinned for the malformed push.
+			{name: "malformed push with saving off", save: false, push: "{", wantAnyErr: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				e := new(Exchange)
+				require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+				e.SetSaveTradeDataStatus(tc.save)
+				err := e.wsProcessSpreadTrades([]byte(tc.push))
+				if tc.wantAnyErr {
+					assert.Error(t, err, "a malformed push should still report its decode error")
+					return
+				}
+				if tc.expErr == "" {
+					assert.NoError(t, err, "a push with trade saving off should not reach the trade buffer")
+					return
+				}
+				assert.ErrorContains(t, err, tc.expErr, "the push should report the expected error")
+			})
+		}
+	})
 }
 
 func TestOrderTypeFromString(t *testing.T) {
@@ -9835,12 +11896,12 @@ func TestOrderTypeFromString(t *testing.T) {
 		"post_only":         {OType: order.Limit, TIF: order.PostOnly},
 		"fok":               {OType: order.Limit, TIF: order.FillOrKill},
 		"ioc":               {OType: order.Limit, TIF: order.ImmediateOrCancel},
+		"op_fok":            {OType: order.Limit, TIF: order.FillOrKill},
+		"rpi":               {OType: order.Limit},
+		"elp":               {OType: order.Limit},
 		"optimal_limit_ioc": {OType: order.OptimalLimit, TIF: order.ImmediateOrCancel},
 		"mmp":               {OType: order.MarketMakerProtection},
 		"mmp_and_post_only": {OType: order.MarketMakerProtection, TIF: order.PostOnly},
-		"op_fok":            {OType: order.Limit, TIF: order.FillOrKill},
-		"rpi":               {OType: order.Limit, TIF: order.PostOnly},
-		"elp":               {OType: order.Limit, TIF: order.PostOnly},
 		"trigger":           {OType: order.UnknownType, Error: order.ErrTypeIsInvalid},
 		"chase":             {OType: order.Chase},
 		"move_order_stop":   {OType: order.TrailingStop},
@@ -9973,7 +12034,13 @@ func TestMarginTypeToString(t *testing.T) {
 		margin.Multi:        "cross",
 		margin.NoMargin:     "cash",
 		margin.SpotIsolated: "spot_isolated",
-		margin.Unset:        "",
+		// Unset must map to an empty trade mode so the submit path can tell
+		// the zero margin type, which takes a per-asset default, apart from
+		// the types it refuses.
+		margin.Unset: "",
+		// An unsupported type falls through to an empty trade mode, which
+		// the leverage wrappers reject with margin.ErrMarginTypeUnsupported.
+		margin.Type(99): "",
 	}
 	var marginTypeString string
 	for m := range marginTypeToStringMap {
@@ -9995,6 +12062,7 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errInvalidTradeModeValue)
 	p.TradeMode = TradeModeIsolated
 	p.AssetType = asset.Futures
+	p.PositionSide = "reverse"
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
@@ -10005,6 +12073,38 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errCurrencyQuantityTypeRequired)
 	p.TargetCurrency = "base_ccy"
 	require.NoError(t, p.Validate())
+
+	// The account's position mode decides the position side of futures and
+	// perpetual swap orders, so empty and net pass alongside long and short.
+	for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
+		p.AssetType = a
+		for _, posSide := range []string{positionSideLong, positionSideShort, positionSideNet, ""} {
+			p.PositionSide = posSide
+			require.NoErrorf(t, p.Validate(), "Validate must accept position side %q for %s", posSide, a)
+		}
+		p.PositionSide = "reverse"
+		require.ErrorIsf(t, p.Validate(), order.ErrSideIsInvalid, "Validate must reject an unknown position side for %s", a)
+	}
+
+	// Guards the documented requirement that side is set for every instrument
+	// type.
+	t.Run("requires a side for contracts", func(t *testing.T) {
+		t.Parallel()
+		for _, assetType := range []asset.Item{asset.Futures, asset.PerpetualSwap, asset.Options} {
+			arg := &PlaceOrderRequestParam{
+				AssetType:    assetType,
+				InstrumentID: mainPair.String(),
+				TradeMode:    TradeModeCross,
+				OrderType:    orderLimit,
+				Amount:       1,
+				PositionSide: "long",
+			}
+			err := arg.Validate()
+			assert.ErrorIsf(t, err, order.ErrSideIsInvalid, "Validate should reject a %s order without side", assetType)
+			arg.Side = "buy"
+			require.NoErrorf(t, arg.Validate(), "Validate must accept a %s order with side", assetType)
+		}
+	})
 }
 
 func TestValidateSpreadOrderParam(t *testing.T) {
@@ -10015,7 +12115,7 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errMissingInstrumentID)
 	p.SpreadID = spreadPair.String()
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
-	p.OrderType = order.Market.String()
+	p.OrderType = order.Limit.String()
 	require.ErrorIs(t, p.Validate(), limits.ErrAmountBelowMin)
 	p.Size = 1
 	require.ErrorIs(t, p.Validate(), limits.ErrPriceBelowMin)
@@ -10023,6 +12123,11 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
 	require.NoError(t, p.Validate())
+	p.Price = -41.2
+	require.NoError(t, p.Validate(), "a negative price must validate: the price of a spread order is the differential between its legs")
+	p.OrderType = order.Market.String()
+	p.Price = 0
+	require.NoError(t, p.Validate(), "a market order must validate with no price at all")
 }
 
 // TestDeprecatedUlyReplacedByInstFamily pins the uly to instFamily migration
