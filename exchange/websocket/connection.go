@@ -85,6 +85,11 @@ type ConnectionSetup struct {
 	// GenerateSubscriptions is a function that will be called to generate a
 	// list of subscriptions to be made to the exchange's websocket server.
 	GenerateSubscriptions func() (subscription.List, error)
+	// ExpandSubscriptions converts the generated subscriptions into the manager's expanded boundary
+	// type. When nil the manager uses the manager-level ExpandSubscriptions if set, otherwise it
+	// validates that GenerateSubscriptions already returned an expanded list. Expansion runs once,
+	// before the subscribe call and before capacity allocation.
+	ExpandSubscriptions func(subscription.List) (subscription.ExpandedList, error)
 	// Subscriber is a function that will be called to send subscription
 	// messages based on the exchange's websocket server requirements to
 	// subscribe to specific channels.

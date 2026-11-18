@@ -441,8 +441,9 @@ func runConcurrentSubscriptionOps(t *testing.T, workers int, op func(int) error)
 func newConcurrentSubscription(channel string, index int) *subscription.Subscription {
 	name := fmt.Sprintf("%s-%d", channel, index)
 	return &subscription.Subscription{
-		Key:     name,
-		Channel: name,
+		Key:              name,
+		Channel:          name,
+		QualifiedChannel: name,
 	}
 }
 
@@ -676,7 +677,9 @@ func TestFlushChannels(t *testing.T) {
 
 	// Disable pair and flush system
 	newgen.EnabledPairs = []currency.Pair{currency.NewPair(currency.BTC, currency.AUD)}
-	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{{Channel: "test"}}, nil }
+	w.GenerateSubs = func() (subscription.List, error) {
+		return subscription.List{{Channel: "test", QualifiedChannel: "test"}}, nil
+	}
 
 	require.ErrorIs(t, w.FlushChannels(t.Context()), ErrSubscriptionsNotAdded, "FlushChannels must error correctly on no subscriptions added")
 
@@ -1420,8 +1423,8 @@ func TestConnectTracksOnExistingConnectionBeforeNewConnection(t *testing.T) {
 	}))
 	t.Cleanup(func() { cleanupManagerMonitors(t, m) })
 
-	subA := &subscription.Subscription{Channel: "A"}
-	subB := &subscription.Subscription{Channel: "B"}
+	subA := &subscription.Subscription{Channel: "A", QualifiedChannel: "A"}
+	subB := &subscription.Subscription{Channel: "B", QualifiedChannel: "B"}
 	var connectorCalls int
 	var trackCalls int
 	require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
@@ -1470,10 +1473,10 @@ func TestConnectReducesTrackedSubscriptionsBeforeBatching(t *testing.T) {
 	}))
 	t.Cleanup(func() { cleanupManagerMonitors(t, m) })
 
-	realA := &subscription.Subscription{Channel: "real-A"}
-	trackedA := &subscription.Subscription{Channel: "tracked-A"}
-	realB := &subscription.Subscription{Channel: "real-B"}
-	trackedB := &subscription.Subscription{Channel: "tracked-B"}
+	realA := &subscription.Subscription{Channel: "real-A", QualifiedChannel: "real-A"}
+	trackedA := &subscription.Subscription{Channel: "tracked-A", QualifiedChannel: "tracked-A"}
+	realB := &subscription.Subscription{Channel: "real-B", QualifiedChannel: "real-B"}
+	trackedB := &subscription.Subscription{Channel: "tracked-B", QualifiedChannel: "tracked-B"}
 	trackable := map[*subscription.Subscription]bool{
 		trackedA: true,
 		trackedB: true,
@@ -1541,8 +1544,8 @@ func TestConnectPreBatchTrackedSubscriptionsAutoRecordState(t *testing.T) {
 	}))
 	t.Cleanup(func() { cleanupManagerMonitors(t, m) })
 
-	realSub := &subscription.Subscription{Channel: "real"}
-	trackedSub := &subscription.Subscription{Channel: "tracked"}
+	realSub := &subscription.Subscription{Channel: "real", QualifiedChannel: "real"}
+	trackedSub := &subscription.Subscription{Channel: "tracked", QualifiedChannel: "tracked"}
 	require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
 		URL: "ws" + srv.URL[len("http"):] + "/ws",
 		Connector: func(ctx context.Context, conn Connection) error {
@@ -1994,8 +1997,8 @@ func TestFlushChannelsKeepsConnectionWithPartialSubscriptions(t *testing.T) {
 	}))
 	t.Cleanup(func() { cleanupManagerMonitors(t, m) })
 
-	accepted := &subscription.Subscription{Channel: "accepted"}
-	rejected := &subscription.Subscription{Channel: "rejected"}
+	accepted := &subscription.Subscription{Channel: "accepted", QualifiedChannel: "accepted"}
+	rejected := &subscription.Subscription{Channel: "rejected", QualifiedChannel: "rejected"}
 	var enabledMu sync.Mutex
 	enabled := subscription.List{accepted, rejected}
 	require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
