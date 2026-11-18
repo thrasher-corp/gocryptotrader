@@ -532,7 +532,8 @@ func TestValidateTicker(t *testing.T) {
 		{name: "locked book", price: &Price{ExchangeName: "test", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Bid: 1, Ask: 1}, wantErr: ErrBidEqualsAsk},
 		{name: "crossed book", price: &Price{ExchangeName: "test", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Bid: 2, Ask: 1}, wantErr: errBidGreaterThanAsk},
 		{name: "missing asset", price: &Price{ExchangeName: "test", Pair: currency.NewBTCUSD()}, wantErr: errAssetTypeNotSet},
-		{name: "Bitfinex funding exception", price: &Price{ExchangeName: "Bitfinex", Pair: currency.NewBTCUSD(), AssetType: asset.MarginFunding, Bid: 2, Ask: 1}},
+		{name: "crossed funding book", price: &Price{ExchangeName: "test", Pair: currency.NewBTCUSD(), AssetType: asset.MarginFunding, Bid: 2, Ask: 1}},
+		{name: "locked funding book", price: &Price{ExchangeName: "test", Pair: currency.NewBTCUSD(), AssetType: asset.MarginFunding, Bid: 1, Ask: 1}},
 		{name: "valid", price: &Price{ExchangeName: "test", Pair: currency.NewBTCUSD(), AssetType: asset.Spot}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

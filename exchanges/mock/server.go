@@ -10,9 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"reflect"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -281,30 +279,15 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 			data = mockData[i].BodyParams
 		}
 
-		mockVals := url.Values{}
+		var mockVals url.Values
 		if data != "" && json.Valid([]byte(data)) {
 			if getJSONBodyShape(data) != jsonBodyObject {
 				continue
 			}
-			dataMap := make(map[string]any)
-			if err := json.Unmarshal([]byte(data), &dataMap); err != nil {
+			// Requests are derived the same way, so nested objects and arrays compare as the same JSON text
+			var err error
+			if mockVals, err = DeriveURLValsFromJSONMap([]byte(data)); err != nil {
 				return nil, err
-			}
-
-			for k, v := range dataMap {
-				switch val := v.(type) {
-				case string:
-					mockVals.Add(k, val)
-				case bool:
-					mockVals.Add(k, strconv.FormatBool(val))
-				case float64:
-					mockVals.Add(k, strconv.FormatFloat(val, 'f', -1, 64))
-				case map[string]any, []any, nil:
-					mockVals.Add(k, fmt.Sprintf("%v", val))
-				default:
-					log.Println(reflect.TypeOf(val))
-					log.Fatal("unhandled type please add as needed")
-				}
 			}
 		} else {
 			var err error
