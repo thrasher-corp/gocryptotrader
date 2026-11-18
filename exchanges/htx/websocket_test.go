@@ -158,7 +158,7 @@ func TestWebsocketHandleData(t *testing.T) {
 	t.Parallel()
 	t.Run("futures private notification", func(t *testing.T) {
 		t.Parallel()
-		h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+		h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 		conn, err := h.Websocket.GetConnection(exchange.WebsocketCoinMarginedPrivate)
 		require.NoError(t, err, "coin-margined private websocket connection must be available")
 		sub := &subscription.Subscription{
@@ -178,7 +178,7 @@ func TestWebsocketHandleData(t *testing.T) {
 	})
 	t.Run("futures subscription response", func(t *testing.T) {
 		t.Parallel()
-		h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+		h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 		conn, err := h.Websocket.GetConnection(exchange.WebsocketFuturesPrivate)
 		require.NoError(t, err, "delivery private websocket connection must be available")
 		err = h.wsHandleData(t.Context(), conn, []byte(`{"op":"sub"}`))
@@ -186,7 +186,7 @@ func TestWebsocketHandleData(t *testing.T) {
 	})
 	t.Run("spot subscription response", func(t *testing.T) {
 		t.Parallel()
-		h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+		h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 		conn, err := h.Websocket.GetConnection(exchange.WebsocketPrivate)
 		require.NoError(t, err, "private spot websocket connection must be available")
 		require.ErrorIs(t, h.wsHandleData(t.Context(), conn, []byte(`{"action":"sub"}`)), common.ErrParsingWSField, "subscription response must require a channel")
@@ -358,7 +358,7 @@ func TestManageSubs(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, msg []byte, w *gws.Conn) error {
+			h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, msg []byte, w *gws.Conn) error {
 				tb.Helper()
 				operation, err := jsonparser.GetString(msg, "op")
 				require.NoError(t, err, "subscription operation must decode")
@@ -406,7 +406,7 @@ func TestSubscribe(t *testing.T) {
 	})
 	t.Run("authenticated derivatives", func(t *testing.T) {
 		t.Parallel()
-		h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+		h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		h.Features.Subscriptions = defaultFuturesSubscriptions.Clone()
 		for _, sub := range h.Features.Subscriptions {
@@ -467,7 +467,7 @@ func TestSubscribe(t *testing.T) {
 	t.Run("authenticated spot", func(t *testing.T) {
 		t.Parallel()
 		subCfg := defaultSubscriptions.Clone()
-		h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+		h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		subs, err := subCfg.ExpandTemplates(h)
 		require.NoError(t, err, "ExpandTemplates must not error")
@@ -483,7 +483,7 @@ func TestSubscribe(t *testing.T) {
 			assert.Equal(t, subscription.SubscribedState, s.State())
 		}
 	})
-	e := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	e := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	subs, err := defaultSubscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	err = e.Subscribe(subs)
@@ -511,7 +511,7 @@ func TestUnsubscribe(t *testing.T) {
 		require.NoError(t, h.Unsubscribe(subs), "live public unsubscription must be acknowledged")
 		assert.Empty(t, h.Websocket.GetSubscriptions(), "live unsubscription should remove the tracked topic")
 	})
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	subs, err := defaultSubscriptions.ExpandTemplates(h)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	require.NoError(t, h.Subscribe(subs), "Subscribe must not error")
@@ -956,7 +956,7 @@ func TestIsExpiredDeliveryContract(t *testing.T) {
 
 func TestGetWebsocketConnection(t *testing.T) {
 	t.Parallel()
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	type testCase struct {
 		name          string
 		asset         asset.Item
@@ -989,7 +989,7 @@ func TestGetWebsocketConnection(t *testing.T) {
 
 func TestSubscribeConnection(t *testing.T) {
 	t.Parallel()
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketCoinMarginedPrivate)
 	require.NoError(t, err, "coin-margined private websocket connection must be available")
 	sub := &subscription.Subscription{
@@ -1006,7 +1006,7 @@ func TestSubscribeConnection(t *testing.T) {
 
 func TestUnsubscribeConnection(t *testing.T) {
 	t.Parallel()
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
 	require.NoError(t, err, "spot websocket connection must be available")
 	sub := &subscription.Subscription{

@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -109,8 +110,11 @@ func (bt *BackTest) liveCheck() error {
 		case <-bt.LiveDataHandler.HasShutdown():
 			return nil
 		case <-bt.LiveDataHandler.Updated():
-			err := bt.Run()
-			if err != nil {
+			if err := bt.Run(); err != nil {
+				// Nothing reads the data checker's updates once this loop returns
+				if stopErr := bt.LiveDataHandler.Stop(); stopErr != nil && !errors.Is(stopErr, engine.ErrSubSystemNotStarted) {
+					return errors.Join(err, stopErr)
+				}
 				return err
 			}
 		}
