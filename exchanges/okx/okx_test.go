@@ -5413,6 +5413,28 @@ func TestCancelOrder(t *testing.T) {
 		err := ex.CancelOrder(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-1", Type: order.Trigger})
 		assert.ErrorIs(t, err, common.ErrNoResponse, "an algo cancel reply without results should return ErrNoResponse")
 	})
+
+	t.Run("a regular order tracked under another type", func(t *testing.T) {
+		t.Parallel()
+		for _, orderType := range []order.Type{order.UnknownType, order.LimitMaker, order.Stop, order.StopLimit, order.TakeProfit, order.IOS, order.AnyType, order.Liquidation} {
+			t.Run(orderType.String(), func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var paths []string
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					mu.Lock()
+					paths = append(paths, r.URL.Path)
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+				}))
+				err := ex.CancelOrder(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair, OrderID: "1", Type: orderType})
+				require.NoErrorf(t, err, "CancelOrder must cancel a regular order tracked as %s", orderType)
+				mu.Lock()
+				defer mu.Unlock()
+				assert.Equal(t, []string{"/trade/cancel-order"}, paths, "CancelOrder should cancel an order outside the algo types through the regular endpoint")
+			})
+		}
+	})
 }
 
 func TestCancelBatchOrders(t *testing.T) {
@@ -6439,38 +6461,41 @@ func TestGetOrderInfo(t *testing.T) {
 	})
 	// Guards the GetOrderInfo spread order path: it
 	// preserves the time in force orderTypeFromString returns, and reports the
-	// accumulated fill size rather than the last fill.
+	// accumulated fill size rather than the last fill, and OKX's pending fill
+	// size as the remainder, which leaves out the cancelled size.
 	t.Run("spread order details", func(t *testing.T) {
 		t.Parallel()
 		for _, tc := range []struct {
-			name                string
-			ordType             string
-			state               string
-			sz                  string
-			accFillSz           string
-			oType               order.Type
-			tif                 order.TimeInForce
-			executed, remaining float64
+			name                                     string
+			ordType                                  string
+			state                                    string
+			sz, accFillSz, pendingFillSz, canceledSz string
+			oType                                    order.Type
+			tif                                      order.TimeInForce
+			executed, remaining                      float64
 		}{
-			{"limit", orderLimit, "live", "1", "0.3", order.Limit, order.UnknownTIF, 0.3, 0.7},
-			{"post_only", orderPostOnly, "live", "1", "0.3", order.Limit, order.PostOnly, 0.3, 0.7},
-			{"ioc", orderIOC, "live", "1", "0.3", order.Limit, order.ImmediateOrCancel, 0.3, 0.7},
-			{"op_fok", orderOptionFOK, "live", "1", "0.3", order.Limit, order.FillOrKill, 0.3, 0.7},
-			{"filled", orderLimit, "filled", "1", "1", order.Limit, order.UnknownTIF, 1, 0},
+			{"limit", orderLimit, "live", "1", "0.3", "0.7", "0", order.Limit, order.UnknownTIF, 0.3, 0.7},
+			{"post_only", orderPostOnly, "live", "1", "0.3", "0.7", "0", order.Limit, order.PostOnly, 0.3, 0.7},
+			{"ioc", orderIOC, "live", "1", "0.3", "0.7", "0", order.Limit, order.ImmediateOrCancel, 0.3, 0.7},
+			{"op_fok", orderOptionFOK, "live", "1", "0.3", "0.7", "0", order.Limit, order.FillOrKill, 0.3, 0.7},
+			{"filled", orderLimit, "filled", "1", "1", "0", "0", order.Limit, order.UnknownTIF, 1, 0},
+			{"partly cancelled", orderLimit, "partially_filled", "10", "2", "5", "3", order.Limit, order.UnknownTIF, 2, 5},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				spreadRow := map[string]string{
-					"sprdId":    "BTC-USDT_BTC-USDT",
-					"ordId":     "1",
-					"ordType":   tc.ordType,
-					"side":      "buy",
-					"state":     tc.state,
-					"cTime":     "1700000000000",
-					"sz":        tc.sz,
-					"accFillSz": tc.accFillSz,
-					"px":        "100",
-					"avgPx":     "90",
+					"sprdId":        "BTC-USDT_BTC-USDT",
+					"ordId":         "1",
+					"ordType":       tc.ordType,
+					"side":          "buy",
+					"state":         tc.state,
+					"cTime":         "1700000000000",
+					"sz":            tc.sz,
+					"accFillSz":     tc.accFillSz,
+					"pendingFillSz": tc.pendingFillSz,
+					"canceledSz":    tc.canceledSz,
+					"px":            "100",
+					"avgPx":         "90",
 				}
 				e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					writeOKXData(t, w, spreadRow)
@@ -6666,6 +6691,28 @@ func TestGetActiveOrders(t *testing.T) {
 		assert.Equal(t, "USDT", active[0].CostAsset.String(), "the cost asset should be the pair quote")
 		assert.Equal(t, 0.01, active[0].Fee, "a fee OKX charged should read as a positive cost, as the websocket stream reports it")
 		assert.Equal(t, "USDT", active[0].FeeAsset.String(), "the fee asset should come from the response")
+	})
+
+	t.Run("spread orders report the pending fill size as the remainder", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/sprd/orders-pending" {
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			writeOKXData(t, w, []map[string]string{{
+				"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderLimit, "side": "buy", "state": "partially_filled",
+				"sz": "10", "accFillSz": "2", "pendingFillSz": "5", "canceledSz": "3", "px": "100", "avgPx": "90",
+				"cTime": "1700000000000", "uTime": "1700000000000",
+			}})
+		}))
+		active, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide})
+		require.NoError(t, err, "GetActiveOrders must not error")
+		require.Len(t, active, 1, "the pending spread order must be returned")
+		assert.Equal(t, 10.0, active[0].Amount, "GetActiveOrders should read the spread order size")
+		assert.Equal(t, 2.0, active[0].ExecutedAmount, "GetActiveOrders should read the accumulated fill size")
+		assert.Equal(t, 5.0, active[0].RemainingAmount, "GetActiveOrders should report the pending fill size, which leaves out the cancelled size")
 	})
 
 	t.Run("order lists include the start time", func(t *testing.T) {
@@ -7686,41 +7733,197 @@ func TestOrderPushData(t *testing.T) {
 
 // TestWsProcessOrders guards the private orders stream: every documented
 // ordType must decode into its order type and time in force.
-func TestWsProcessOrders(t *testing.T) {
+func TestWebsocketProcessOrders(t *testing.T) {
 	t.Parallel()
-	t.Run("parses every order type", func(t *testing.T) {
-		t.Parallel()
-		for ordType, exp := range map[string]struct {
-			oType order.Type
-			tif   order.TimeInForce
-		}{
-			orderPostOnly:                         {order.Limit, order.PostOnly},
-			orderFOK:                              {order.Limit, order.FillOrKill},
-			orderIOC:                              {order.Limit, order.ImmediateOrCancel},
-			orderOptionFOK:                        {order.Limit, order.FillOrKill},
-			orderOptimalLimitIOC:                  {order.OptimalLimit, order.ImmediateOrCancel},
-			orderMarketMakerProtection:            {order.MarketMakerProtection, order.UnknownTIF},
-			orderMarketMakerProtectionAndPostOnly: {order.MarketMakerProtection, order.PostOnly},
-			orderRPI:                              {order.Limit, order.UnknownTIF},
-			orderELP:                              {order.Limit, order.UnknownTIF},
-		} {
-			t.Run(ordType, func(t *testing.T) {
-				t.Parallel()
-				e := new(Exchange)
-				require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-				push := []byte(`{"arg":{"channel":"orders","instType":"SPOT"},"data":[{"instId":"BTC-USDT","ordId":"1","ordType":"` + ordType + `","side":"buy","state":"live","sz":"1","accFillSz":"0","cTime":"1700000000000"}]}`)
-				require.NoErrorf(t, e.wsProcessOrders(t.Context(), push), "a %s order push must not error", ordType)
-				e.Websocket.DataHandler.Close()
-				var got *order.Detail
-				for resp := range e.Websocket.DataHandler.C {
-					d, ok := resp.Data.(*order.Detail)
-					require.True(t, ok, "the order push must reach the data handler as an order detail")
-					got = d
+	const push = `{"arg":{"channel":"orders","instType":"SPOT","uid":"614488474791936"},"data":[{"instType":"SPOT","instId":"BTC-USDT","ordId":"1001","clOrdId":"client1001","ordType":"limit","side":"buy","state":"partially_filled","sz":"2","px":"100","accFillSz":"0.5","avgPx":"99","fee":"-0.01","feeCcy":"USDT","tgtCcy":"","cTime":"1761700000000","fillTime":"1761700000500","uTime":"1761700001000"}]}`
+	quoteSized := []string{`"ordType":"limit"`, `"ordType":"market"`, `"tgtCcy":""`, `"tgtCcy":"quote_ccy"`, `"sz":"2"`, `"sz":"200"`, `"avgPx":"99"`, `"avgPx":"100"`}
+	for _, tc := range []struct {
+		name      string
+		replace   []string            // Pairs of old and new text applied to the push in turn
+		edit      func(*order.Detail) // The changes from the partly filled limit order the push holds as it is
+		fullRelay bool
+		malformed bool
+		err       error
+		errText   string
+	}{
+		{name: "market", replace: []string{`"ordType":"limit"`, `"ordType":"market"`, `"tgtCcy":""`, `"tgtCcy":"base_ccy"`}, edit: func(d *order.Detail) { d.Type = order.Market }},
+		{name: "limit"},
+		{name: "post_only", replace: []string{`"ordType":"limit"`, `"ordType":"post_only"`}, edit: func(d *order.Detail) { d.TimeInForce = order.PostOnly }},
+		{name: "fok", replace: []string{`"ordType":"limit"`, `"ordType":"fok"`}, edit: func(d *order.Detail) { d.TimeInForce = order.FillOrKill }},
+		{name: "ioc", replace: []string{`"ordType":"limit"`, `"ordType":"ioc"`}, edit: func(d *order.Detail) { d.TimeInForce = order.ImmediateOrCancel }},
+		{name: "optimal_limit_ioc", replace: []string{`"ordType":"limit"`, `"ordType":"optimal_limit_ioc"`}, edit: func(d *order.Detail) {
+			d.Type, d.TimeInForce = order.OptimalLimit, order.ImmediateOrCancel
+		}},
+		{name: "mmp", replace: []string{`"ordType":"limit"`, `"ordType":"mmp"`}, edit: func(d *order.Detail) { d.Type = order.MarketMakerProtection }},
+		{name: "mmp_and_post_only", replace: []string{`"ordType":"limit"`, `"ordType":"mmp_and_post_only"`}, edit: func(d *order.Detail) {
+			d.Type, d.TimeInForce = order.MarketMakerProtection, order.PostOnly
+		}},
+		{name: "op_fok", replace: []string{`"ordType":"limit"`, `"ordType":"op_fok"`}, edit: func(d *order.Detail) { d.TimeInForce = order.FillOrKill }},
+		{name: "rpi", replace: []string{`"ordType":"limit"`, `"ordType":"rpi"`}},
+		{name: "elp", replace: []string{`"ordType":"limit"`, `"ordType":"elp"`}},
+		{name: "unrecognised order type", replace: []string{`"ordType":"limit"`, `"ordType":"mystery"`}, err: order.ErrTypeIsInvalid},
+		{name: "malformed push", replace: []string{push, `{"arg":`}, malformed: true},
+		{name: "unsupported instrument type", replace: []string{`"instType":"SPOT","uid"`, `"instType":"MYSTERY","uid"`}, err: asset.ErrNotSupported},
+		{name: "unrecognised state", replace: []string{`"state":"partially_filled"`, `"state":"mystery"`}, errText: "unrecognised order status"},
+		{name: "unparsable instrument ID", replace: []string{`"instId":"BTC-USDT"`, `"instId":"BT"`}, err: currency.ErrCreatingPair},
+		{name: "quote sized order", replace: quoteSized, edit: func(d *order.Detail) {
+			d.Type, d.Amount, d.QuoteAmount, d.AverageExecutedPrice, d.Cost = order.Market, 2, 200, 100, 50
+		}},
+		{name: "quote sized order without an average price", replace: append(slices.Clone(quoteSized), `"avgPx":"100"`, `"avgPx":""`), edit: func(d *order.Detail) {
+			d.Type, d.Amount, d.QuoteAmount, d.AverageExecutedPrice, d.RemainingAmount, d.Cost = order.Market, 0, 200, 0, 0, 0
+		}},
+		{name: "filled quote sized order", replace: append(slices.Clone(quoteSized), `"state":"partially_filled"`, `"state":"filled"`), edit: func(d *order.Detail) {
+			d.Type, d.Amount, d.QuoteAmount, d.AverageExecutedPrice, d.RemainingAmount, d.Cost = order.Market, 0.5, 200, 100, 0, 50
+			d.Status, d.CloseTime = order.Filled, time.UnixMilli(1761700000500)
+		}},
+		{name: "perpetual swap market buy", replace: []string{`"instType":"SPOT","uid"`, `"instType":"SWAP","uid"`, `"instType":"SPOT","instId"`, `"instType":"SWAP","instId"`, `"instId":"BTC-USDT"`, `"instId":"BTC-USDT-SWAP"`, `"ordType":"limit"`, `"ordType":"market"`}, edit: func(d *order.Detail) {
+			d.AssetType, d.Pair, d.Type, d.Cost, d.CostAsset = asset.PerpetualSwap, perpetualSwapPair, order.Market, 0, currency.EMPTYCODE
+		}},
+		{name: "market buy without a target currency", replace: []string{`"ordType":"limit"`, `"ordType":"market"`, `"sz":"2"`, `"sz":"200"`, `"avgPx":"99"`, `"avgPx":"100"`}, edit: func(d *order.Detail) {
+			d.Type, d.Amount, d.QuoteAmount, d.AverageExecutedPrice, d.Cost = order.Market, 2, 200, 100, 50
+		}},
+		{name: "margin market buy", replace: []string{`"instType":"SPOT","uid"`, `"instType":"MARGIN","uid"`, `"instType":"SPOT","instId"`, `"instType":"MARGIN","instId"`, `"ordType":"limit"`, `"ordType":"market"`, `"sz":"2"`, `"sz":"200"`, `"avgPx":"99"`, `"avgPx":"100"`}, edit: func(d *order.Detail) {
+			d.AssetType, d.Type, d.Amount, d.QuoteAmount, d.AverageExecutedPrice, d.Cost = asset.Margin, order.Market, 2, 200, 100, 50
+		}},
+		{name: "market sell without a target currency", replace: []string{`"ordType":"limit"`, `"ordType":"market"`, `"side":"buy"`, `"side":"sell"`}, edit: func(d *order.Detail) {
+			d.Type, d.Side = order.Market, order.Sell
+		}},
+		{name: "filled order without a size", replace: []string{`"state":"partially_filled"`, `"state":"filled"`, `"sz":"2"`, `"sz":"0"`}, edit: func(d *order.Detail) {
+			d.Amount, d.RemainingAmount, d.Status, d.CloseTime = 0.5, 0, order.Filled, time.UnixMilli(1761700000500)
+		}},
+		{name: "option order", replace: []string{`"instType":"SPOT","uid"`, `"instType":"OPTION","uid"`, `"instId":"BTC-USDT"`, `"instId":"BTC-USD-261225-100000-C"`}, edit: func(d *order.Detail) {
+			d.AssetType, d.Pair, d.Cost, d.CostAsset = asset.Options, currency.NewPairWithDelimiter("BTC", "USD-261225-100000-C", "-"), 0, currency.EMPTYCODE
+		}},
+		{name: "option order cancelled by market maker protection", replace: []string{`"instType":"SPOT","uid"`, `"instType":"OPTION","uid"`, `"instId":"BTC-USDT"`, `"instId":"BTC-USD-261225-100000-C"`, `"ordType":"limit"`, `"ordType":"mmp"`, `"state":"partially_filled"`, `"state":"mmp_canceled"`}, edit: func(d *order.Detail) {
+			d.AssetType, d.Pair, d.Type, d.Status = asset.Options, currency.NewPairWithDelimiter("BTC", "USD-261225-100000-C", "-"), order.MarketMakerProtection, order.Cancelled
+			d.Cost, d.CostAsset = 0, currency.EMPTYCODE
+		}},
+		{name: "relay full", fullRelay: true, errText: "channel buffer is full"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			frame := push
+			for i := 0; i+1 < len(tc.replace); i += 2 {
+				require.Containsf(t, frame, tc.replace[i], "the push must hold %s", tc.replace[i])
+				frame = strings.Replace(frame, tc.replace[i], tc.replace[i+1], 1)
+			}
+			for tc.fullRelay && len(ex.Websocket.DataHandler.C) < cap(ex.Websocket.DataHandler.C) {
+				require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), struct{}{}), "DataHandler must accept the saturation payload")
+			}
+			err := ex.wsProcessOrders(t.Context(), []byte(frame))
+			switch {
+			case tc.malformed:
+				require.Error(t, err, "wsProcessOrders must error for a malformed push")
+			case tc.err != nil:
+				require.ErrorIs(t, err, tc.err, "wsProcessOrders must return the expected error")
+			case tc.errText != "":
+				require.ErrorContains(t, err, tc.errText, "wsProcessOrders must return the expected error")
+			}
+			if tc.malformed || tc.err != nil || tc.errText != "" {
+				if !tc.fullRelay {
+					assert.Empty(t, ex.Websocket.DataHandler.C, "wsProcessOrders should relay nothing for a push it cannot read")
 				}
-				require.NotNil(t, got, "the order push must reach the data handler")
-				assert.Equal(t, exp.oType, got.Type, "the push should read the order type")
-				assert.Equal(t, exp.tif, got.TimeInForce, "the push should preserve the time in force")
-			})
+				return
+			}
+			require.NoError(t, err, "wsProcessOrders must not error")
+			require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessOrders must relay the order")
+			exp := &order.Detail{
+				Amount:               2,
+				AssetType:            asset.Spot,
+				AverageExecutedPrice: 99,
+				ClientOrderID:        "client1001",
+				Cost:                 49.5,
+				CostAsset:            currency.USDT,
+				Date:                 time.UnixMilli(1761700000000),
+				Exchange:             ex.Name,
+				ExecutedAmount:       0.5,
+				Fee:                  0.01,
+				FeeAsset:             currency.USDT,
+				OrderID:              "1001",
+				Pair:                 mainPair,
+				Price:                100,
+				RemainingAmount:      1.5,
+				Side:                 order.Buy,
+				Status:               order.PartiallyFilled,
+				Type:                 order.Limit,
+			}
+			if tc.edit != nil {
+				tc.edit(exp)
+			}
+			assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsProcessOrders should relay the order as the push describes it")
+		})
+	}
+
+	t.Run("two orders in one push", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		first := push[strings.Index(push, `[{`)+1 : strings.LastIndex(push, `]}`)]
+		second := strings.NewReplacer(`"ordId":"1001"`, `"ordId":"1002"`, `"clOrdId":"client1001"`, `"clOrdId":"client1002"`, `"ordType":"limit"`, `"ordType":"post_only"`).Replace(first)
+		require.NoError(t, ex.wsProcessOrders(t.Context(), []byte(strings.Replace(push, first, first+","+second, 1))), "wsProcessOrders must not error")
+		require.Len(t, ex.Websocket.DataHandler.C, 2, "wsProcessOrders must relay both orders")
+		for _, id := range []string{"1001", "1002"} {
+			exp := &order.Detail{
+				Amount:               2,
+				AssetType:            asset.Spot,
+				AverageExecutedPrice: 99,
+				ClientOrderID:        "client" + id,
+				Cost:                 49.5,
+				CostAsset:            currency.USDT,
+				Date:                 time.UnixMilli(1761700000000),
+				Exchange:             ex.Name,
+				ExecutedAmount:       0.5,
+				Fee:                  0.01,
+				FeeAsset:             currency.USDT,
+				OrderID:              id,
+				Pair:                 mainPair,
+				Price:                100,
+				RemainingAmount:      1.5,
+				Side:                 order.Buy,
+				Status:               order.PartiallyFilled,
+				Type:                 order.Limit,
+			}
+			if id == "1002" {
+				exp.TimeInForce = order.PostOnly
+			}
+			assert.Equalf(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsProcessOrders should relay order %s as the push describes it", id)
+		}
+	})
+
+	t.Run("an order cancelled by market maker protection before an open one", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		options := strings.NewReplacer(`"instType":"SPOT","uid"`, `"instType":"OPTION","uid"`, `"instId":"BTC-USDT"`, `"instId":"BTC-USD-261225-100000-C"`, `"ordType":"limit"`, `"ordType":"mmp"`).Replace(push)
+		open := options[strings.Index(options, `[{`)+1 : strings.LastIndex(options, `]}`)]
+		cancelled := strings.NewReplacer(`"ordId":"1001"`, `"ordId":"1000"`, `"clOrdId":"client1001"`, `"clOrdId":"client1000"`, `"state":"partially_filled"`, `"state":"mmp_canceled"`).Replace(open)
+		require.NoError(t, ex.wsProcessOrders(t.Context(), []byte(strings.Replace(options, open, cancelled+","+open, 1))), "wsProcessOrders must not error")
+		require.Len(t, ex.Websocket.DataHandler.C, 2, "wsProcessOrders must relay both orders")
+		for _, id := range []string{"1000", "1001"} {
+			exp := &order.Detail{
+				Amount:               2,
+				AssetType:            asset.Options,
+				AverageExecutedPrice: 99,
+				ClientOrderID:        "client" + id,
+				Date:                 time.UnixMilli(1761700000000),
+				Exchange:             ex.Name,
+				ExecutedAmount:       0.5,
+				Fee:                  0.01,
+				FeeAsset:             currency.USDT,
+				OrderID:              id,
+				Pair:                 currency.NewPairWithDelimiter("BTC", "USD-261225-100000-C", "-"),
+				Price:                100,
+				RemainingAmount:      1.5,
+				Side:                 order.Buy,
+				Status:               order.PartiallyFilled,
+				Type:                 order.MarketMakerProtection,
+			}
+			if id == "1000" {
+				exp.Status = order.Cancelled
+			}
+			assert.Equalf(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsProcessOrders should relay order %s as the push describes it", id)
 		}
 	})
 }
@@ -10973,6 +11176,15 @@ func TestOrderTypeString(t *testing.T) {
 		// Only Limit and MarketMakerProtection read PostOnly from a combined
 		// time in force; an unlisted type combination is still refused.
 		{OrderType: order.TakeProfit | order.Limit, TIF: order.GoodTillCancel | order.PostOnly}: {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Limit, TIF: order.GoodTillCancel}:                                     {Expected: orderLimit},
+		{OrderType: order.Market, TIF: order.GoodTillCancel}:                                    {Expected: orderMarket},
+		{OrderType: order.Market, TIF: order.PostOnly}:                                          {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Market, TIF: order.GoodTillCancel | order.PostOnly}:                   {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.MarketMakerProtection, TIF: order.GoodTillCancel}:                     {Expected: orderMarketMakerProtection},
+		{OrderType: order.MarketMakerProtection, TIF: order.FillOrKill}:                         {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.MarketMakerProtection, TIF: order.ImmediateOrCancel}:                  {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.UnknownType, TIF: order.UnknownTIF}:                                   {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.UnknownType, TIF: order.GoodTillCancel | order.PostOnly}:              {Expected: orderPostOnly},
 	}
 	for tc, val := range orderTypesToStringMap {
 		t.Run(tc.OrderType.String()+"/"+tc.TIF.String(), func(t *testing.T) {
@@ -11004,6 +11216,65 @@ func TestOrderTypeString(t *testing.T) {
 			assert.Equalf(t, orderMarketMakerProtectionAndPostOnly, got, "an MMP order with %s should place as mmp_and_post_only", tif)
 		}
 	})
+
+	for _, orderType := range []order.Type{
+		order.Stop, order.StopLimit, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStopLimit,
+		order.Bracket, order.IOS, order.Liquidation, order.AnyType,
+	} {
+		for _, tif := range []order.TimeInForce{order.UnknownTIF, order.PostOnly, order.FillOrKill, order.ImmediateOrCancel} {
+			t.Run(orderType.String()+"/"+tif.String(), func(t *testing.T) {
+				t.Parallel()
+				got, err := orderTypeString(orderType, tif)
+				assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "orderTypeString should refuse a type with no OKX order type whatever its time in force")
+				assert.Empty(t, got, "orderTypeString should not return an OKX order type for a refused type")
+			})
+		}
+	}
+
+	t.Run("every valid time in force", func(t *testing.T) {
+		t.Parallel()
+		flags := []order.TimeInForce{order.GoodTillCancel, order.GoodTillDay, order.GoodTillTime, order.GoodTillCrossing, order.FillOrKill, order.ImmediateOrCancel, order.PostOnly, order.StopOrReduce}
+		for set := range 1 << len(flags) {
+			var tif order.TimeInForce
+			for i, flag := range flags {
+				if set&(1<<i) != 0 {
+					tif |= flag
+				}
+			}
+			if !tif.IsValid() {
+				continue
+			}
+			name := tif.String()
+			if tif == order.UnknownTIF {
+				name = "no time in force"
+			}
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				limit, plain, maker, mmp, market := orderLimit, "", orderPostOnly, orderMarketMakerProtection, orderMarket
+				switch {
+				case tif&order.PostOnly != 0:
+					limit, plain, mmp, market = orderPostOnly, orderPostOnly, orderMarketMakerProtectionAndPostOnly, ""
+				case tif == order.FillOrKill:
+					limit, plain, maker, mmp, market = orderFOK, orderFOK, "", "", orderFOK
+				case tif == order.ImmediateOrCancel:
+					limit, plain, maker, mmp, market = orderIOC, orderIOC, "", "", orderIOC
+				}
+				expected := map[order.Type]string{order.Limit: limit, order.LimitMaker: maker, order.UnknownType: plain, order.MarketMakerProtection: mmp, order.Market: market}
+				for orderType, exp := range expected {
+					t.Run(orderType.String(), func(t *testing.T) {
+						t.Parallel()
+						got, err := orderTypeString(orderType, tif)
+						if exp == "" {
+							assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "orderTypeString should refuse %s with time in force %s", orderType, tif)
+							return
+						}
+						assert.NoErrorf(t, err, "orderTypeString should not error for %s with time in force %s", orderType, tif)
+						assert.Equalf(t, exp, got, "orderTypeString should return the expected OKX order type for %s with time in force %s", orderType, tif)
+					})
+				}
+			})
+		}
+	})
 }
 
 // TestSpreadOrderTypeString pins the ordType a spread order places: the
@@ -11022,6 +11293,8 @@ func TestSpreadOrderTypeString(t *testing.T) {
 		{OrderType: order.Market, TIF: order.UnknownTIF}:                          {Expected: orderMarket},
 		{OrderType: order.Market, TIF: order.ImmediateOrCancel}:                   {Expected: orderMarket},
 		{OrderType: order.Market, TIF: order.FillOrKill}:                          {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Market, TIF: order.PostOnly}:                            {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Market, TIF: order.GoodTillCancel | order.PostOnly}:     {Error: order.ErrUnsupportedOrderType},
 		{OrderType: order.Limit, TIF: order.UnknownTIF}:                           {Expected: orderLimit},
 		{OrderType: order.Limit, TIF: order.GoodTillCancel}:                       {Expected: orderLimit},
 		{OrderType: order.Limit, TIF: order.GoodTillDay}:                          {Expected: orderLimit},
@@ -11481,6 +11754,98 @@ func TestWsProcessSpreadOrders(t *testing.T) {
 			Side: order.Buy, Status: order.PartiallyFilled, Type: order.Limit, LastUpdated: stamp, TimeInForce: order.PostOnly,
 		}}
 		assert.Equal(t, exp, details, "the push should report the accumulated fill, the remainder and the time in force")
+	})
+
+	const push = `{"arg":{"channel":"sprd-orders","sprdId": "BTC-USDT_BTC-USDT-SWAP", "uid": "614488474791936"}, "data": [{"sprdId": "BTC-USDT_BTC-USDT-SWAP", "ordId": "312269865356374016", "clOrdId": "b1", "tag": "", "px": "999", "sz": "3", "ordType": "limit", "side": "buy", "fillSz": "0.5", "fillPx": "999", "tradeId": "7", "accFillSz": "1", "pendingFillSz": "1.5", "pendingSettleSz": "1", "canceledSz": "0.5", "state": "partially_filled", "avgPx": "999", "cancelSource": "", "uTime": "1597026383085", "cTime": "1597026383085", "code": "0", "msg": "", "reqId": "", "amendResult": ""}]}`
+	expected := func(id string, tif order.TimeInForce, oType order.Type) order.Detail {
+		return order.Detail{
+			AssetType:            asset.Spread,
+			Amount:               3,
+			AverageExecutedPrice: 999,
+			ClientOrderID:        "b1",
+			Date:                 time.UnixMilli(1597026383085),
+			Exchange:             e.Name,
+			ExecutedAmount:       1,
+			OrderID:              id,
+			Pair:                 spreadPair,
+			Price:                999,
+			RemainingAmount:      1.5,
+			Side:                 order.Buy,
+			Status:               order.PartiallyFilled,
+			TimeInForce:          tif,
+			Type:                 oType,
+			LastUpdated:          time.UnixMilli(1597026383085),
+		}
+	}
+	for _, tc := range []struct {
+		name      string
+		replace   []string // Pairs of old and new text applied to the push in turn
+		expType   order.Type
+		expTIF    order.TimeInForce
+		fullRelay bool
+		malformed bool
+		err       error
+		errText   string
+	}{
+		{name: "market", replace: []string{`"ordType": "limit"`, `"ordType": "market"`}, expType: order.Market},
+		{name: "limit", expType: order.Limit},
+		{name: "post_only", replace: []string{`"ordType": "limit"`, `"ordType": "post_only"`}, expType: order.Limit, expTIF: order.PostOnly},
+		{name: "ioc", replace: []string{`"ordType": "limit"`, `"ordType": "ioc"`}, expType: order.Limit, expTIF: order.ImmediateOrCancel},
+		{name: "unrecognised order type", replace: []string{`"ordType": "limit"`, `"ordType": "mystery"`}, err: order.ErrTypeIsInvalid},
+		{name: "malformed push", replace: []string{push, `{"arg":`}, malformed: true},
+		{name: "no orders", replace: []string{`"data": [{`, `"data": [], "unused": [{`}, err: kline.ErrNoTimeSeriesDataToConvert},
+		{name: "unparsable spread ID", replace: []string{`"sprdId": "BTC-USDT_BTC-USDT-SWAP"`, `"sprdId": "BT"`}, err: currency.ErrCreatingPair},
+		{name: "unrecognised side", replace: []string{`"side": "buy"`, `"side": "sideways"`}, err: order.ErrSideIsInvalid},
+		{name: "unrecognised state", replace: []string{`"state": "partially_filled"`, `"state": "mystery"`}, errText: "unrecognised order status"},
+		{name: "relay full", fullRelay: true, errText: "channel buffer is full"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			frame := push
+			for i := 0; i+1 < len(tc.replace); i += 2 {
+				require.Containsf(t, frame, tc.replace[i], "the push must hold %s", tc.replace[i])
+				frame = strings.Replace(frame, tc.replace[i], tc.replace[i+1], 1)
+			}
+			for tc.fullRelay && len(ex.Websocket.DataHandler.C) < cap(ex.Websocket.DataHandler.C) {
+				require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), struct{}{}), "DataHandler must accept the saturation payload")
+			}
+			err := ex.wsProcessSpreadOrders(t.Context(), []byte(frame))
+			switch {
+			case tc.malformed:
+				require.Error(t, err, "wsProcessSpreadOrders must error for a malformed push")
+			case tc.err != nil:
+				require.ErrorIs(t, err, tc.err, "wsProcessSpreadOrders must return the expected error")
+			case tc.errText != "":
+				require.ErrorContains(t, err, tc.errText, "wsProcessSpreadOrders must return the expected error")
+			}
+			if tc.malformed || tc.err != nil || tc.errText != "" {
+				if !tc.fullRelay {
+					assert.Empty(t, ex.Websocket.DataHandler.C, "wsProcessSpreadOrders should relay nothing for a push it cannot read")
+				}
+				return
+			}
+			require.NoError(t, err, "wsProcessSpreadOrders must not error")
+			require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessSpreadOrders must relay the orders")
+			exp := []order.Detail{expected("312269865356374016", tc.expTIF, tc.expType)}
+			assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsProcessSpreadOrders should relay the orders with their type, time in force and pending fill size")
+		})
+	}
+
+	t.Run("two orders in one push", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		first := push[strings.Index(push, `[{`)+1 : strings.LastIndex(push, `]}`)]
+		second := strings.NewReplacer(`"ordId": "312269865356374016"`, `"ordId": "312269865356374017"`, `"ordType": "limit"`, `"ordType": "post_only"`).Replace(first)
+		require.NoError(t, ex.wsProcessSpreadOrders(t.Context(), []byte(strings.Replace(push, first, first+","+second, 1))), "wsProcessSpreadOrders must not error")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessSpreadOrders must relay the orders together")
+		exp := []order.Detail{
+			expected("312269865356374016", order.UnknownTIF, order.Limit),
+			expected("312269865356374017", order.PostOnly, order.Limit),
+		}
+		assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsProcessSpreadOrders should relay both orders as the push describes them")
 	})
 }
 

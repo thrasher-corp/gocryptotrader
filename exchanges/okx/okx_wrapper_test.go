@@ -1027,12 +1027,12 @@ func TestGetSpreadOrderHistory(t *testing.T) {
 				writeOKXData(t, w, []map[string]string{
 					{
 						"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderPostOnly, "side": "buy", "state": "live",
-						"sz": "1", "accFillSz": "0.3", "px": "100", "avgPx": "90",
+						"sz": "1", "accFillSz": "0.3", "pendingFillSz": "0.5", "canceledSz": "0.2", "px": "100", "avgPx": "90",
 						"cTime": "1700000000000", "uTime": "1700000000000",
 					},
 					{
 						"sprdId": "BTC-USDT_BTC-USDT", "ordId": "2", "ordType": orderLimit, "side": "sell", "state": "filled",
-						"sz": "2", "accFillSz": "2", "px": "90", "avgPx": "88",
+						"sz": "2", "accFillSz": "2", "pendingFillSz": "0", "canceledSz": "0", "px": "90", "avgPx": "88",
 						"cTime": "1700000000001", "uTime": "1700000000001",
 					},
 				})
@@ -1061,7 +1061,7 @@ func TestGetSpreadOrderHistory(t *testing.T) {
 		assert.Zero(t, first.Cost, "GetOrderHistory should leave a spread order's cost unset")
 		assert.Equal(t, 1.0, first.Amount, "GetOrderHistory should read the order size")
 		assert.Equal(t, 0.3, first.ExecutedAmount, "GetOrderHistory should read the accumulated fill size")
-		assert.InDelta(t, 0.7, first.RemainingAmount, 1e-9, "an unfilled spread order should keep its remaining amount")
+		assert.Equal(t, 0.5, first.RemainingAmount, "an unfilled spread order should keep its pending fill size, which leaves out the cancelled size")
 		assert.Equal(t, asset.Spread, first.AssetType, "GetOrderHistory should tag the spread asset type")
 		assert.Equal(t, "BTC", first.Pair.Base.String(), "the pair base should be the spread ID head under the dash delimiter")
 		assert.Equal(t, "USDT_BTC-USDT", first.Pair.Quote.String(), "the pair quote should keep the remainder of the spread ID")
@@ -2047,6 +2047,39 @@ func TestOrderAmounts(t *testing.T) {
 			assert.Equal(t, tc.quoteAmount, detail.QuoteAmount, "QuoteAmount should carry the quote-currency size when set")
 		})
 	}
+
+	// OKX states a margin market buy's size in the quote currency, and a spot market buy's when it leaves tgtCcy out
+	for _, tc := range []struct {
+		name                                     string
+		a                                        asset.Item
+		pair                                     currency.Pair
+		instType, ordType, side, sz, tgtCcy      string
+		amount, executed, remaining, quoteAmount float64
+	}{
+		{"margin market buy", asset.Margin, mainPair, instTypeMargin, orderMarket, "buy", "100", "", 0.004, 0.002, 0.002, 100},
+		{"margin market buy without instType", asset.Margin, mainPair, "", orderMarket, "buy", "100", "", 0.004, 0.002, 0.002, 100},
+		{"spot market buy without tgtCcy", asset.Spot, mainPair, instTypeSpot, orderMarket, "buy", "100", "", 0.004, 0.002, 0.002, 100},
+		{"spot market sell without tgtCcy", asset.Spot, mainPair, instTypeSpot, orderMarket, "sell", "0.004", "", 0.004, 0.002, 0.002, 0},
+		{"margin market sell", asset.Margin, mainPair, instTypeMargin, orderMarket, "sell", "0.004", "", 0.004, 0.002, 0.002, 0},
+		{"margin limit buy", asset.Margin, mainPair, instTypeMargin, orderLimit, "buy", "0.004", "", 0.004, 0.002, 0.002, 0},
+		{"perpetual swap market buy", asset.PerpetualSwap, perpetualSwapPair, instTypeSwap, orderMarket, "buy", "0.004", "", 0.004, 0.002, 0.002, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				writeOKXData(t, w, []map[string]string{{
+					"instType": tc.instType, "instId": tc.pair.String(), "ordId": "1", "ordType": tc.ordType, "side": tc.side,
+					"cTime": "1694153250532", "sz": tc.sz, "tgtCcy": tc.tgtCcy, "accFillSz": "0.002", "avgPx": "25000", "state": "partially_filled",
+				}})
+			}))
+			detail, err := e.GetOrderInfo(t.Context(), "1", tc.pair, tc.a)
+			require.NoError(t, err, "GetOrderInfo must not error")
+			assert.Equal(t, tc.amount, detail.Amount, "Amount should be in the base currency")
+			assert.Equal(t, tc.executed, detail.ExecutedAmount, "ExecutedAmount should match accFillSz")
+			assert.InDelta(t, tc.remaining, detail.RemainingAmount, 1e-12, "RemainingAmount should be the unfilled base amount")
+			assert.Equal(t, tc.quoteAmount, detail.QuoteAmount, "QuoteAmount should carry the quote-currency size")
+		})
+	}
 }
 
 // TestLimitMakerOrdersAmendAndCancelByType guards the order types the amend
@@ -2569,7 +2602,6 @@ func TestContractPositionModeErrorsWhenAFetchOverlapsASwitch(t *testing.T) {
 // unset.
 func TestOrderCost(t *testing.T) {
 	t.Parallel()
-	o := &OrderDetail{AveragePrice: 41000, AccumulatedFillSize: 1.5}
 	for _, tc := range []struct {
 		assetType asset.Item
 		cost      float64
@@ -2581,7 +2613,7 @@ func TestOrderCost(t *testing.T) {
 		{asset.PerpetualSwap, 0, currency.EMPTYCODE},
 		{asset.Options, 0, currency.EMPTYCODE},
 	} {
-		cost, costAsset := orderCost(tc.assetType, o, currency.NewBTCUSDT())
+		cost, costAsset := orderCost(tc.assetType, 41000, 1.5, currency.NewBTCUSDT())
 		assert.Equalf(t, tc.cost, cost, "orderCost should report the expected cost for %s", tc.assetType)
 		assert.Equalf(t, tc.costAsset, costAsset, "orderCost should report the expected cost asset for %s", tc.assetType)
 	}

@@ -1,0 +1,4 @@
+{"topic":"orderbook.25.BTCUSDT_BTC/USDT","ts":1791534204555,"type":"snapshot","data":{"s":"BTCUSDT_BTC/USDT","b":[["-44.9","7.268"],["-45.2","1.5"]],"a":[["-37.8","7.266"]],"u":642456,"seq":3303636553},"cts":1791528922919}
+{"topic":"orderbook.25.BTCUSDT_BTC/USDT","ts":1791534289889,"type":"delta","data":{"s":"BTCUSDT_BTC/USDT","b":[["-45.2","0"]],"a":[["-38.1","1.2"]],"u":642457,"seq":3303636601},"cts":1791534289875}
+{"topic":"publicTrade.BTCUSDT_BTC/USDT","ts":1791362633860,"type":"snapshot","data":[{"T":1791362633856,"s":"BTCUSDT_BTC/USDT","S":"Sell","v":"0.119","p":"-43.5","L":"MinusTick","i":"b311eff0-b8a1-546c-992d-981b5c81f857","seq":3302117152}]}
+{"topic":"tickers.BTCUSDT_BTC/USDT","ts":1791534255189,"type":"snapshot","data":{"symbol":"BTCUSDT_BTC/USDT","bidPrice":"-44.9","bidSize":"7.268","askPrice":"-37.8","askSize":"7.266","lastPrice":"-43.5","highPrice24h":"-43.3","lowPrice24h":"-43.5","prevPrice24h":"-43.4","volume24h":"0.238"}}

@@ -1539,12 +1539,6 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	instrumentID := pairFormat.Format(ord.Pair)
 	switch ord.Type {
-	case order.UnknownType, order.Market, order.Limit, order.LimitMaker, order.OptimalLimit, order.MarketMakerProtection:
-		_, err = e.CancelSingleOrder(ctx, &CancelOrderRequestParam{
-			InstrumentID:  instrumentID,
-			OrderID:       ord.OrderID,
-			ClientOrderID: ord.ClientOrderID,
-		})
 	case order.Trigger, order.OCO, order.ConditionalStop, order.TWAP, order.TrailingStop, order.Chase:
 		var response []AlgoOrder
 		response, err = e.CancelAlgoOrder(ctx, []AlgoOrderCancelParams{
@@ -1561,7 +1555,13 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		}
 		return getStatusError(response[0].StatusCode, response[0].StatusMessage)
 	default:
-		return fmt.Errorf("%w, order type %v", order.ErrUnsupportedOrderType, ord.Type)
+		// Every order that is not an algo order is a regular order, a post only LimitMaker order for instance, and so is
+		// an order a caller tracks under a type SubmitOrder refuses, as the order manager cancels with an order's stored type
+		_, err = e.CancelSingleOrder(ctx, &CancelOrderRequestParam{
+			InstrumentID:  instrumentID,
+			OrderID:       ord.OrderID,
+			ClientOrderID: ord.ClientOrderID,
+		})
 	}
 	return err
 }
@@ -2229,10 +2229,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		spreadAmt := resp.Size.Float64()
 		spreadExec := resp.AccumulatedFillSize.Float64()
-		spreadRemaining := float64(0)
-		if oStatus != order.Filled && spreadAmt > spreadExec {
-			spreadRemaining = spreadAmt - spreadExec
-		}
+		spreadRemaining := resp.PendingFillSize.Float64()
 		return &order.Detail{
 			Amount:               spreadAmt,
 			Exchange:             e.Name,
@@ -2282,8 +2279,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 
-	amount, remaining, quoteAmount := orderAmounts(orderDetail, status)
-	cost, costAsset := orderCost(assetType, orderDetail, pair)
+	amount, remaining, quoteAmount := orderAmounts(orderDetail, status, assetType)
+	cost, costAsset := orderCost(assetType, orderDetail.AveragePrice.Float64(), orderDetail.AccumulatedFillSize.Float64(), pair)
 	return &order.Detail{
 		Amount:               amount,
 		Exchange:             e.Name,
@@ -2323,11 +2320,11 @@ func okxFee(fee types.Number) float64 {
 // average price times it is a cost in the quote currency; futures, perpetual
 // swap and option orders fill in contracts, whose cost needs each contract's
 // value, so theirs is left unset rather than reported in contracts.
-func orderCost(a asset.Item, o *OrderDetail, pair currency.Pair) (float64, currency.Code) {
+func orderCost(a asset.Item, averagePrice, accumulatedFillSize float64, pair currency.Pair) (float64, currency.Code) {
 	if a != asset.Spot && a != asset.Margin {
 		return 0, currency.EMPTYCODE
 	}
-	return o.AveragePrice.Float64() * o.AccumulatedFillSize.Float64(), pair.Quote
+	return averagePrice * accumulatedFillSize, pair.Quote
 }
 
 // tgtCcy values name the currency a spot market order states its size in.
@@ -2337,13 +2334,12 @@ const (
 )
 
 // orderAmounts returns an order's size and unfilled size in the base currency,
-// and its size in the quote currency when OKX states it that way: tgtCcy
-// quote_ccy sizes a spot market order in the quote currency, while accFillSz
-// is always in the base currency. It sizes them as wsProcessOrders does.
-func orderAmounts(o *OrderDetail, status order.Status) (amount, remaining, quoteAmount float64) {
+// and its size in the quote currency when OKX states it that way, while
+// accFillSz is always in the base currency.
+func orderAmounts(o *OrderDetail, status order.Status, assetType asset.Item) (amount, remaining, quoteAmount float64) {
 	amount = o.Size.Float64()
 	executed := o.AccumulatedFillSize.Float64()
-	if o.QuantityType == targetCurrencyQuote {
+	if sizedInQuoteCurrency(assetType, o.OrderType, o.Side, o.QuantityType) {
 		quoteAmount = amount
 		switch avgPrice := o.AveragePrice.Float64(); {
 		case status == order.Filled:
@@ -2358,6 +2354,18 @@ func orderAmounts(o *OrderDetail, status order.Status) (amount, remaining, quote
 		remaining = amount - executed
 	}
 	return amount, remaining, quoteAmount
+}
+
+// sizedInQuoteCurrency reports whether OKX states an order's size in the quote currency: tgtCcy quote_ccy says so for
+// a spot market order, a spot market buy that leaves tgtCcy out defaults to it, and a margin market buy always takes it
+func sizedInQuoteCurrency(assetType asset.Item, ordType string, side order.Side, tgtCcy string) bool {
+	if tgtCcy == targetCurrencyQuote {
+		return true
+	}
+	if ordType != orderMarket || !side.IsLong() {
+		return false
+	}
+	return assetType == asset.Margin || (assetType == asset.Spot && tgtCcy == "")
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -2512,10 +2520,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			}
 			spreadAmt := spreads[x].Size.Float64()
 			spreadExec := spreads[x].AccumulatedFillSize.Float64()
-			spreadRemaining := float64(0)
-			if oStatus != order.Filled && spreadAmt > spreadExec {
-				spreadRemaining = spreadAmt - spreadExec
-			}
+			spreadRemaining := spreads[x].PendingFillSize.Float64()
 			resp = append(resp, order.Detail{
 				Amount:               spreadAmt,
 				Pair:                 pair,
@@ -2598,8 +2603,8 @@ allOrders:
 			if err != nil {
 				return nil, err
 			}
-			amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus)
-			cost, costAsset := orderCost(req.AssetType, &orderList[i], pair)
+			amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus, req.AssetType)
+			cost, costAsset := orderCost(req.AssetType, orderList[i].AveragePrice.Float64(), orderList[i].AccumulatedFillSize.Float64(), pair)
 			resp = append(resp, order.Detail{
 				Amount:               amount,
 				Pair:                 pair,
@@ -2794,10 +2799,7 @@ func (e *Exchange) spreadOrderToDetail(so *SpreadOrder, assetType asset.Item, fo
 	}
 	amount := so.Size.Float64()
 	executed := so.AccumulatedFillSize.Float64()
-	remaining := float64(0)
-	if oStatus != order.Filled && amount > executed {
-		remaining = amount - executed
-	}
+	remaining := so.PendingFillSize.Float64()
 	return order.Detail{
 		Price:                so.Price.Float64(),
 		AverageExecutedPrice: so.AveragePrice.Float64(),
@@ -2897,8 +2899,8 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 				if err != nil {
 					return err
 				}
-				amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus)
-				cost, costAsset := orderCost(req.AssetType, &orderList[i], pair)
+				amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus, req.AssetType)
+				cost, costAsset := orderCost(req.AssetType, orderList[i].AveragePrice.Float64(), orderList[i].AccumulatedFillSize.Float64(), pair)
 				resp = append(resp, order.Detail{
 					Price:                orderList[i].Price.Float64(),
 					AverageExecutedPrice: orderList[i].AveragePrice.Float64(),

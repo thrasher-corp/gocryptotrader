@@ -461,3 +461,64 @@ func TestSetWebsocketDataHandler(t *testing.T) {
 		t.Fatal("unexpected data handler count")
 	}
 }
+
+// TestWebsocketDataHandlerOrderFees streams #2456's order updates through the websocket data handler, singly and in a
+// batch: a second currency replaces the stored single fee, an update without fees keeps the stored ones even when it
+// carries a single fee, a fill streamed again replaces its own fees rather than adding a fill, and an empty snapshot
+// clears the order's fees
+func TestWebsocketDataHandlerOrderFees(t *testing.T) {
+	t.Parallel()
+	exchName := "Bitstamp"
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName(exchName)
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	require.NoError(t, em.Add(exch), "Add must not error")
+	var wg sync.WaitGroup
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
+	require.NoError(t, err, "SetupOrderManager must not error")
+	om.started.Store(true)
+	m, err := setupWebsocketRoutineManager(em, om, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{Delimiter: "-"}}, false)
+	require.NoError(t, err, "setupWebsocketRoutineManager must not error")
+
+	btc := newTestFees(t, order.FeeAmount{Currency: currency.BTC, Amount: 0.001})
+	btcUSDT := newTestFees(t, order.FeeAmount{Currency: currency.BTC, Amount: 0.001}, order.FeeAmount{Currency: currency.USDT, Amount: 0.2})
+	fillFees := newTestFees(t, order.FeeAmount{Currency: currency.USDT, Amount: 0.2})
+	newerFillFees := newTestFees(t, order.FeeAmount{Currency: currency.NewCode("GT"), Amount: 0.01}, order.FeeAmount{Currency: currency.USDT, Amount: 0.2})
+	first := &order.Detail{Exchange: exchName, OrderID: "1", Status: order.PartiallyFilled}
+	first.SetFees(btc)
+	require.NoError(t, m.websocketDataHandler(exchName, first), "websocketDataHandler must not error adding the order")
+	stored, err := om.GetByExchangeAndID(exchName, "1")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	assert.Equal(t, btc, stored.Fees, "the order should store its fee in one currency")
+	assert.Equal(t, 0.001, stored.Fee, "the order should store its single fee")
+
+	batch := []order.Detail{{Exchange: exchName, OrderID: "1", Trades: []order.TradeHistory{{TID: "1"}}}}
+	batch[0].SetFees(btcUSDT)
+	batch[0].Trades[0].SetFees(fillFees)
+	require.NoError(t, m.websocketDataHandler(exchName, batch), "websocketDataHandler must not error for a batch")
+	stored, err = om.GetByExchangeAndID(exchName, "1")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	require.Len(t, stored.Trades, 1, "the order must keep the fill")
+	assert.Equal(t, fillFees, stored.Trades[0].Fees, "the fill should keep its own fees")
+
+	fill := &order.Detail{Exchange: exchName, OrderID: "1", Fee: 0.3, FeeAsset: currency.USDT, Trades: []order.TradeHistory{{TID: "1"}}}
+	fill.Trades[0].SetFees(newerFillFees)
+	require.NoError(t, m.websocketDataHandler(exchName, fill), "websocketDataHandler must not error for a fill")
+	stored, err = om.GetByExchangeAndID(exchName, "1")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	assert.Equal(t, btcUSDT, stored.Fees, "the order should keep its fees in both currencies")
+	assert.Zero(t, stored.Fee, "the order should not keep a single fee for fees in two currencies")
+	assert.True(t, stored.FeeAsset.IsEmpty(), "the order should not keep a single fee asset for fees in two currencies")
+	require.Len(t, stored.Trades, 1, "the order must keep the fill once")
+	assert.Equal(t, newerFillFees, stored.Trades[0].Fees, "the fill should replace its fees with the newer ones")
+
+	none := &order.Detail{Exchange: exchName, OrderID: "1"}
+	none.SetFees(newTestFees(t))
+	require.NoError(t, m.websocketDataHandler(exchName, none), "websocketDataHandler must not error for no fees")
+	stored, err = om.GetByExchangeAndID(exchName, "1")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	assert.Equal(t, newTestFees(t), stored.Fees, "an empty snapshot should clear the order's fees")
+	require.Len(t, stored.Trades, 1, "the order must keep the fill")
+	assert.Equal(t, newerFillFees, stored.Trades[0].Fees, "an empty snapshot should not clear the fill's fees")
+}

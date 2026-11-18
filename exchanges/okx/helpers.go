@@ -47,12 +47,18 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 	}
 }
 
-// orderTypeString returns a string representation of order.Type instance
+// orderTypeString returns the OKX order type for an order type and time in force. A time in force alone selects the OKX
+// order type only for an order of no type, so a type with no OKX order type of its own is refused rather than placed as
+// a plain order, and post only on a Market order and FOK or IOC on a MarketMakerProtection order are refused, as no OKX
+// order type carries them
 func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
 	switch orderType {
 	case order.MarketMakerProtection:
 		if tif.Is(order.PostOnly) {
 			return orderMarketMakerProtectionAndPostOnly, nil
+		}
+		if tif == order.FillOrKill || tif == order.ImmediateOrCancel {
+			return "", fmt.Errorf("%w: %q with %q", order.ErrUnsupportedOrderType, orderType, tif)
 		}
 		return orderMarketMakerProtection, nil
 	case order.OptimalLimit:
@@ -77,6 +83,9 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		case order.ImmediateOrCancel:
 			return orderIOC, nil
 		}
+		if tif.Is(order.PostOnly) {
+			return "", fmt.Errorf("%w: %q with %q", order.ErrUnsupportedOrderType, orderType, tif)
+		}
 		return orderMarket, nil
 	case order.Trigger,
 		order.Chase,
@@ -94,22 +103,17 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		return orderConditional, nil
 	case order.TrailingStop:
 		return orderMoveOrderStop, nil
-	case order.Stop, order.StopLimit, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStopLimit, order.Bracket, order.Liquidation:
-		// A trigger order cannot ride the time-in-force fallback below: it
-		// would reach OKX as a plain limit-style order with no trigger
-		// attached.
-		return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
-	default:
-		switch tif {
-		case order.PostOnly:
+	case order.UnknownType:
+		switch {
+		case tif.Is(order.PostOnly):
 			return orderPostOnly, nil
-		case order.FillOrKill:
+		case tif == order.FillOrKill:
 			return orderFOK, nil
-		case order.ImmediateOrCancel:
+		case tif == order.ImmediateOrCancel:
 			return orderIOC, nil
 		}
-		return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 	}
+	return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 }
 
 // spreadOrderTypeString returns the ordType a spread order places for the
@@ -120,7 +124,7 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 func spreadOrderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
 	switch orderType {
 	case order.Market:
-		if tif == order.FillOrKill {
+		if tif == order.FillOrKill || tif.Is(order.PostOnly) {
 			return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 		}
 		return orderMarket, nil // an ioc market order is already immediate

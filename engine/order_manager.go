@@ -227,6 +227,16 @@ func (m *OrderManager) cancel(ctx context.Context, cancel *order.Cancel, require
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, cancel.AssetType)
 	}
 
+	// Some exchanges find an order only by its kind, such as Bybit's spot TP/SL and conditional orders, so a
+	// cancellation without a type takes the stored order's, on a copy that leaves the caller's cancellation as sent
+	if cancel.Type == order.UnknownType {
+		if stored, err := m.orderStore.getByExchangeAndID(cancel.Exchange, cancel.OrderID); err == nil {
+			typed := *cancel
+			typed.Type = stored.Type
+			cancel = &typed
+		}
+	}
+
 	log.Debugf(log.OrderMgr, "Cancelling order ID %v [%+v]",
 		cancel.OrderID, cancel)
 
@@ -568,13 +578,15 @@ func (m *OrderManager) GetOrdersSnapshot(s order.Status) []order.Detail {
 	if m == nil || !m.started.Load() {
 		return nil
 	}
+	m.orderStore.m.RLock()
+	defer m.orderStore.m.RUnlock()
 	var os []order.Detail
 	for _, v := range m.orderStore.Orders {
 		for i := range v {
 			if s != v[i].Status && s != order.AnyStatus && s != order.UnknownStatus {
 				continue
 			}
-			os = append(os, *v[i])
+			os = append(os, v[i].Copy())
 		}
 	}
 
