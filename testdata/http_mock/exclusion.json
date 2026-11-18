@@ -5,7 +5,8 @@
   "Rest-Key",
   "Apiauth-Key",
   "X-Gemini-Apikey",
-  "X-Bapi-Api-Key"
+  "X-Bapi-Api-Key",
+  "X-Auth"
  ],
  "variables": [
   "bsb",
