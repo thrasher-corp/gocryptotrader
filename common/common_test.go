@@ -233,6 +233,10 @@ func TestGetURIPath(t *testing.T) {
 	t.Parallel()
 	// mapping of input vs expected result
 	testTable := map[string]string{
+		"https://example.com/a%2Fb?q=x%2Fy":             "/a%2Fb?q=x%2Fy",
+		"https://example.com/a%20b":                     "/a%20b",
+		"https://example.com":                           "/",
+		"https://example.com/path?":                     "/path?",
 		"https://api.pro.coinbase.com/accounts":         "/accounts",
 		"https://api.pro.coinbase.com/accounts?a=1&b=2": "/accounts?a=1&b=2",
 		"http://www.google.com/accounts?!@#$%;^^":       "",
