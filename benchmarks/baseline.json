@@ -117,6 +117,18 @@
     "allocs": 1,
     "bytes": 48
   },
+  "currency.BenchmarkMatch/delimited": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "currency.BenchmarkMatch/lower": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "currency.BenchmarkMatch/upper": {
+    "allocs": 0,
+    "bytes": 0
+  },
   "currency.BenchmarkNewCode": {
     "allocs": 1,
     "bytes": 8
@@ -136,6 +148,10 @@
   "currency.BenchmarkRemovePairsByFilter": {
     "allocs": 0,
     "bytes": 0
+  },
+  "currency.BenchmarkStorePairs": {
+    "allocs": 7103,
+    "bytes": 739666
   },
   "dispatch.BenchmarkSubscribe": {
     "allocs": 0,
@@ -190,16 +206,16 @@
     "bytes": 240
   },
   "exchanges/binance.BenchmarkWsHandleData/Depth": {
-    "allocs": 10,
-    "bytes": 416
+    "allocs": 8,
+    "bytes": 400
   },
   "exchanges/binance.BenchmarkWsHandleData/ExecutionReport": {
     "allocs": 9,
     "bytes": 74782
   },
   "exchanges/binance.BenchmarkWsHandleData/Kline": {
-    "allocs": 6,
-    "bytes": 616
+    "allocs": 5,
+    "bytes": 608
   },
   "exchanges/binance.BenchmarkWsHandleData/ListStatus": {
     "allocs": 5,
@@ -210,12 +226,12 @@
     "bytes": 464
   },
   "exchanges/binance.BenchmarkWsHandleData/Ticker": {
-    "allocs": 7,
-    "bytes": 672
+    "allocs": 6,
+    "bytes": 664
   },
   "exchanges/binance.BenchmarkWsHandleData/Trade": {
-    "allocs": 2,
-    "bytes": 40
+    "allocs": 1,
+    "bytes": 32
   },
   "exchanges/currencystate.BenchmarkGetCurrencyStateSnapshot/1": {
     "allocs": 2,

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -90,7 +91,12 @@ func TestMockHTTPInstance(t *testing.T) {
 	b := new(binance.Exchange)
 	require.NoError(t, Setup(b), "Test exchange Setup must not error")
 	require.NoError(t, MockHTTPInstance(b), "MockHTTPInstance with no optional path must not error")
+	assert.ErrorIs(t, b.DisableRateLimiter(), request.ErrRateLimiterAlreadyDisabled, "MockHTTPInstance should disable the rate limiter")
 	require.NoError(t, MockHTTPInstance(b, "api"), "MockHTTPInstance with optional path must not error")
+
+	t.Run("errors without a requester", func(t *testing.T) {
+		require.ErrorIs(t, MockHTTPInstance(new(binance.Exchange)), request.ErrRequestSystemIsNil, "MockHTTPInstance must error without a requester")
+	})
 }
 
 // TestMockWsInstance exercises MockWsInstance

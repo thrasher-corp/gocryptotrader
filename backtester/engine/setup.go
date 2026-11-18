@@ -146,6 +146,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				}
 
 				var dc *gctconfig.Exchange
+				// GetDefaultConfig also updates the tradable pairs that Setup loads from dc
 				dc, err = gctexchange.GetDefaultConfig(context.TODO(), exch)
 				if err != nil {
 					return err
@@ -155,10 +156,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				exchBase.Verbose = cfg.DataSettings.VerboseExchangeRequests
 
 				err = exch.Setup(dc)
-				if err != nil {
-					return err
-				}
-				err = exch.UpdateTradablePairs(context.TODO())
 				if err != nil {
 					return err
 				}

@@ -1,6 +1,8 @@
 package currency
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,6 +51,22 @@ func initTest(t *testing.T) *PairsManager {
 	}
 
 	return &p
+}
+
+// testCode returns a code outside the shared code store
+func testCode(symbol string) Code {
+	return Code{Item: &Item{Symbol: symbol, Lower: strings.ToLower(symbol)}}
+}
+
+// matcherKey identifies one PairsManager matcher entry
+type matcherKey struct {
+	Symbol string
+	Asset  asset.Item
+}
+
+func (k matcherKey) lookup(pm *PairsManager) (*Pair, bool) {
+	p, ok := pm.matcher[k.Asset][k.Symbol]
+	return p, ok
 }
 
 func TestGetAssetTypes(t *testing.T) {
@@ -116,6 +134,220 @@ func TestPairsManagerMatch(t *testing.T) {
 	if !whatIgot.Equal(whatIwant) {
 		t.Fatal("expected btc-usd")
 	}
+
+	matcher := new(PairsManager)
+	long := NewPair(testCode(strings.Repeat("LONG", 10)), testCode(strings.Repeat("QUOTE", 6)))
+	accented := NewPair(testCode("ÄPFEL"), USDT)
+	require.NoError(t, matcher.StorePairs(asset.Spot, Pairs{NewBTCUSD(), long, accented}, false), "StorePairs must not error")
+	for _, tc := range []struct {
+		name   string
+		symbol string
+		want   Pair
+	}{
+		{name: "lower case symbol", symbol: "btcusd", want: NewBTCUSD()},
+		{name: "upper case symbol", symbol: "BTCUSD", want: NewBTCUSD()},
+		{name: "symbol longer than the key buffer", symbol: strings.ToUpper(long.Base.String() + long.Quote.String()), want: long},
+		{name: "non-ASCII upper case symbol", symbol: "ÄPFELUSDT", want: accented},
+		{name: "non-ASCII lower case symbol", symbol: "äpfelusdt", want: accented},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := matcher.Match(tc.symbol, asset.Spot)
+			require.NoError(t, err, "Match must not error")
+			assert.True(t, got.Equal(tc.want), "Match should return the matching pair")
+		})
+	}
+
+	for _, tc := range []struct {
+		name   string
+		symbol string
+		key    string
+	}{
+		{name: "missing pair", symbol: "SILLYBILLY", key: "sillybilly"},
+		{name: "missing non-ASCII pair", symbol: "ÄBCUSDT", key: "äbcusdt"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := matcher.Match(tc.symbol, asset.Spot)
+			require.ErrorIs(t, err, ErrPairNotFound, "Match must error for a missing pair")
+			assert.ErrorContains(t, err, tc.key, "Match's error should name the lower case symbol")
+		})
+	}
+}
+
+func TestPairsManagerMatchDelimited(t *testing.T) {
+	t.Parallel()
+
+	p := new(PairsManager)
+	_, err := p.MatchDelimited("", asset.Spot)
+	require.ErrorIs(t, err, ErrSymbolStringEmpty, "MatchDelimited must error for an empty symbol")
+	_, err = p.MatchDelimited("BTC-USD", asset.Spot)
+	require.ErrorIs(t, err, errPairMatcherIsNil, "MatchDelimited must error without a matcher")
+
+	option := NewPair(BTC, testCode("26NOV24-92000-C"))
+	accented := NewPair(testCode("ÄPFEL"), USDT)
+	require.NoError(t, p.StorePairs(asset.Spot, Pairs{NewBTCUSD(), accented}, false), "StorePairs must not error")
+	require.NoError(t, p.StorePairs(asset.Options, Pairs{option}, false), "StorePairs must not error")
+	for _, tc := range []struct {
+		name   string
+		symbol string
+		a      asset.Item
+		want   Pair
+	}{
+		{name: "dash delimited upper case symbol", symbol: "BTC-USD", a: asset.Spot, want: NewBTCUSD()},
+		{name: "underscore delimited lower case symbol", symbol: "btc_usd", a: asset.Spot, want: NewBTCUSD()},
+		{name: "symbol without a delimiter", symbol: "btcusd", a: asset.Spot, want: NewBTCUSD()},
+		{name: "only the first punctuation character is dropped", symbol: "BTC-26NOV24-92000-C", a: asset.Options, want: option},
+		{name: "non-ASCII delimited symbol", symbol: "ÄPFEL/USDT", a: asset.Spot, want: accented},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := p.MatchDelimited(tc.symbol, tc.a)
+			require.NoError(t, err, "MatchDelimited must not error")
+			assert.True(t, got.Equal(tc.want), "MatchDelimited should return the matching pair")
+		})
+	}
+
+	t.Run("missing pair", func(t *testing.T) {
+		t.Parallel()
+		_, err := p.MatchDelimited("BTC-XYZ", asset.Spot)
+		require.ErrorIs(t, err, ErrPairNotFound, "MatchDelimited must error for a missing pair")
+		assert.ErrorContains(t, err, "btcxyz", "MatchDelimited's error should name the symbol's key")
+	})
+}
+
+func TestMatchSymbol(t *testing.T) {
+	t.Parallel()
+
+	p := new(PairsManager)
+	_, err := p.matchSymbol("btcusd", asset.Spot, false)
+	require.ErrorIs(t, err, errPairMatcherIsNil, "matchSymbol must error without a matcher")
+	require.NoError(t, p.StorePairs(asset.Spot, Pairs{NewBTCUSD()}, false), "StorePairs must not error")
+	for _, tc := range []struct {
+		name         string
+		symbol       string
+		hasDelimiter bool
+		err          error
+		errText      string
+	}{
+		{name: "empty symbol", hasDelimiter: true, err: ErrSymbolStringEmpty},
+		{name: "symbol in its key's form", symbol: "btcusd"},
+		{name: "missing symbol in its key's form", symbol: "ethusd", err: ErrPairNotFound, errText: "ethusd spot"},
+		{name: "missing delimited symbol in its key's form", symbol: "ethusd", hasDelimiter: true, err: ErrPairNotFound, errText: "ethusd spot"},
+		{name: "delimiter kept without hasDelimiter", symbol: "btc-usd", err: ErrPairNotFound, errText: "btc-usd spot"},
+		{name: "delimiter dropped with hasDelimiter", symbol: "btc-usd", hasDelimiter: true},
+		{name: "upper case symbol", symbol: "BTCUSD"},
+		{name: "upper case last byte", symbol: "btcusD"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := p.matchSymbol(tc.symbol, asset.Spot, tc.hasDelimiter)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "matchSymbol must return the expected error")
+				assert.ErrorContains(t, err, tc.errText, "matchSymbol's error should name the key and asset")
+				return
+			}
+			require.NoError(t, err, "matchSymbol must not error")
+			assert.True(t, got.Equal(NewBTCUSD()), "matchSymbol should return the matching pair")
+		})
+	}
+}
+
+func TestMatchKey(t *testing.T) {
+	t.Parallel()
+
+	option := NewPair(BTC, testCode("26NOV24-92000-C"))
+	accented := NewPair(testCode("ÄPFEL"), USDT)
+	accentedQuote := NewPair(testCode("X"), testCode("ÄPFEL"))
+	long := NewPair(testCode(strings.Repeat("LONG", 10)), testCode(strings.Repeat("QUOTE", 6)))
+	symbols := make(map[string]*Pair)
+	for _, pair := range []Pair{NewBTCUSD(), option, accented, accentedQuote, long} {
+		symbols[pair.Base.Lower().String()+pair.Quote.Lower().String()] = &pair
+	}
+
+	for _, tc := range []struct {
+		name         string
+		symbol       string
+		start        int
+		hasDelimiter bool
+		want         Pair
+	}{
+		{name: "upper case symbol", symbol: "BTCUSD", want: NewBTCUSD()},
+		{name: "keeps the bytes before start", symbol: "btcUSD", start: 3, want: NewBTCUSD()},
+		{name: "drops only the first delimiter", symbol: "BTC-26NOV24-92000-C", hasDelimiter: true, want: option},
+		{name: "non-ASCII symbol", symbol: "ÄPFELUSDT", want: accented},
+		{name: "delimiter before a non-ASCII byte", symbol: "X-ÄPFEL", hasDelimiter: true, want: accentedQuote},
+		{name: "key longer than the buffer", symbol: strings.ToUpper(long.Base.String() + long.Quote.String()), want: long},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := matchKey(symbols, tc.symbol, tc.start, asset.Spot, tc.hasDelimiter)
+			require.NoError(t, err, "matchKey must not error")
+			assert.True(t, got.Equal(tc.want), "matchKey should return the matching pair")
+		})
+	}
+
+	for _, tc := range []struct {
+		name         string
+		symbol       string
+		hasDelimiter bool
+		key          string
+	}{
+		{name: "delimiter kept without hasDelimiter", symbol: "BTC-USD", key: "btc-usd"},
+		{name: "missing non-ASCII pair", symbol: "ÄBC-USDT", hasDelimiter: true, key: "äbcusdt"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := matchKey(symbols, tc.symbol, 0, asset.Spot, tc.hasDelimiter)
+			require.ErrorIs(t, err, ErrPairNotFound, "matchKey must error for a missing pair")
+			assert.ErrorContains(t, err, tc.key, "matchKey's error should name the key")
+		})
+	}
+}
+
+func TestWithoutDelimiter(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name         string
+		symbol       string
+		hasDelimiter bool
+		want         string
+	}{
+		{name: "without hasDelimiter", symbol: "BTC-USD", want: "BTC-USD"},
+		{name: "no punctuation", symbol: "BTCUSD", hasDelimiter: true, want: "BTCUSD"},
+		{name: "first of several punctuation characters", symbol: "BTC-26NOV24-92000-C", hasDelimiter: true, want: "BTC26NOV24-92000-C"},
+		{name: "underscore", symbol: "btc_usd", hasDelimiter: true, want: "btcusd"},
+		{name: "after a non-ASCII character", symbol: "ÄPFEL/USDT", hasDelimiter: true, want: "ÄPFELUSDT"},
+		{name: "multi-byte character before the delimiter", symbol: "grán-usdt", hasDelimiter: true, want: "gránusdt"},
+		{name: "symbol characters are not punctuation", symbol: "BTC$USD", hasDelimiter: true, want: "BTC$USD"},
+		{name: "empty symbol", hasDelimiter: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, withoutDelimiter(tc.symbol, tc.hasDelimiter), "withoutDelimiter should return the expected symbol")
+		})
+	}
+}
+
+func TestKeyBytes(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		bytes string
+		class uint8
+	}{
+		{name: "upper case letters", bytes: "AMZ", class: keyByteChanges},
+		{name: "non-ASCII bytes", bytes: "\x80\xc3\xff", class: keyByteChanges},
+		{name: "punctuation", bytes: "-_/.:", class: keyByteDelimits},
+		{name: "lower case letters, digits and symbols", bytes: "amz09$+^", class: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			for i := range len(tc.bytes) {
+				assert.Equalf(t, tc.class, keyBytes[tc.bytes[i]], "keyBytes should classify %q", tc.bytes[i])
+			}
+		})
+	}
 }
 
 func TestStore(t *testing.T) {
@@ -163,6 +395,28 @@ func TestStore(t *testing.T) {
 
 	err = p.Store(asset.Futures, nil)
 	require.ErrorIs(t, err, errPairStoreIsNil)
+
+	t.Run("re-indexes only the stored asset", func(t *testing.T) {
+		t.Parallel()
+		p := initTest(t)
+		sentinel := NewPairWithDelimiter("SENT", "INEL", "-")
+		p.matcher[asset.Spot]["sentinel"] = &sentinel
+		require.NoError(t, p.Store(asset.Futures, &PairStore{Available: Pairs{NewPairWithDelimiter("ETH", "USD", "-")}}), "Store must not error")
+		_, err := p.Match("ethusd", asset.Futures)
+		assert.NoError(t, err, "Match should find a pair stored by Store")
+		_, err = p.Match("ltcusd", asset.Futures)
+		assert.ErrorIs(t, err, ErrPairNotFound, "Match should not find a pair replaced by Store")
+		_, err = p.Match("sentinel", asset.Spot)
+		assert.NoError(t, err, "Store should leave other assets' matcher entries untouched")
+	})
+
+	t.Run("re-indexes an emptied asset", func(t *testing.T) {
+		t.Parallel()
+		p := initTest(t)
+		require.NoError(t, p.Store(asset.Spot, &PairStore{}), "Store must not error")
+		_, err := p.Match("btcusd", asset.Spot)
+		assert.ErrorIs(t, err, ErrPairNotFound, "Match should not find a pair of an asset stored empty")
+	})
 }
 
 func TestDelete(t *testing.T) {
@@ -197,6 +451,8 @@ func TestDelete(t *testing.T) {
 	if _, err := p.Get(asset.Spot); err == nil {
 		t.Error("Delete should have deleted AssetTypeSpot")
 	}
+	_, err = p.Match("btcusd", asset.Spot)
+	assert.ErrorIs(t, err, ErrPairNotFound, "Match should not find pairs of a deleted asset")
 }
 
 func TestGetPairs(t *testing.T) {
@@ -350,6 +606,65 @@ func TestStorePairs(t *testing.T) {
 	if !pairs.Contains(ethkrw, true) {
 		t.Errorf("TestStorePairs failed, unexpected result")
 	}
+
+	t.Run("available pairs re-index only their asset", func(t *testing.T) {
+		t.Parallel()
+		p := initTest(t)
+		sentinel := NewPairWithDelimiter("SENT", "INEL", "-")
+		p.matcher[asset.Futures]["sentinel"] = &sentinel
+		require.NoError(t, p.StorePairs(asset.Spot, ethusdPairs, false), "StorePairs must not error")
+		_, err := p.Match("ethusd", asset.Spot)
+		assert.NoError(t, err, "Match should find a pair stored by StorePairs")
+		_, err = p.Match("btcusd", asset.Spot)
+		assert.ErrorIs(t, err, ErrPairNotFound, "Match should not find a pair replaced by StorePairs")
+		_, err = p.Match("sentinel", asset.Futures)
+		assert.NoError(t, err, "StorePairs should leave other assets' matcher entries untouched")
+	})
+
+	t.Run("enabled pairs missing from the available pairs are not added", func(t *testing.T) {
+		t.Parallel()
+		p := initTest(t)
+		sentinel := NewPairWithDelimiter("SENT", "INEL", "-")
+		p.matcher[asset.Spot]["sentinel"] = &sentinel
+		input := Pairs{NewPairWithDelimiter("BTC", "USD", "-"), ethkrw}
+		require.NoError(t, p.StorePairs(asset.Spot, input, true), "StorePairs must not error")
+		input[0] = NewPairWithDelimiter("XRP", "USD", "-")
+		available, err := p.GetPairs(asset.Spot, false)
+		require.NoError(t, err, "GetPairs must not error for available pairs")
+		assert.False(t, available.Contains(ethkrw, true), "StorePairs should not add an enabled pair to the available pairs")
+		assert.Len(t, available, 2, "StorePairs should leave the available pairs unchanged")
+		enabled, err := p.GetPairs(asset.Spot, true)
+		assert.ErrorIs(t, err, ErrPairNotContainedInAvailablePairs, "GetPairs should report an enabled pair missing from the available pairs")
+		assert.True(t, enabled.Equal(Pairs{NewPairWithDelimiter("BTC", "USD", "-"), ethkrw}), "StorePairs should store a copy of every enabled pair")
+		_, err = p.Match("ethkrw", asset.Spot)
+		assert.ErrorIs(t, err, ErrPairNotFound, "Match should not find an enabled pair missing from the available pairs")
+		_, err = p.Match("sentinel", asset.Spot)
+		assert.NoError(t, err, "StorePairs should not re-index an asset when it stores enabled pairs")
+	})
+
+	t.Run("enabled pairs enable their asset", func(t *testing.T) {
+		t.Parallel()
+		p := initTest(t)
+		require.NoError(t, p.StorePairs(asset.Futures, nil, true), "StorePairs must not error")
+		assert.ErrorIs(t, p.IsAssetEnabled(asset.Futures), asset.ErrNotEnabled, "StorePairs should leave an asset disabled when it stores no enabled pairs")
+		require.NoError(t, p.StorePairs(asset.Futures, Pairs{NewPairWithDelimiter("BTC", "USD", "-")}, true), "StorePairs must not error")
+		assert.NoError(t, p.IsAssetEnabled(asset.Futures), "StorePairs should enable an asset when it stores enabled pairs")
+		require.NoError(t, p.StorePairs(asset.Futures, nil, true), "StorePairs must not error")
+		assert.NoError(t, p.IsAssetEnabled(asset.Futures), "StorePairs should leave an asset enabled when it stores no enabled pairs")
+	})
+
+	t.Run("enabled pairs already available leave the available pairs unchanged", func(t *testing.T) {
+		t.Parallel()
+		p := initTest(t)
+		sentinel := NewPairWithDelimiter("SENT", "INEL", "-")
+		p.matcher[asset.Spot]["sentinel"] = &sentinel
+		require.NoError(t, p.StorePairs(asset.Spot, Pairs{NewPairWithDelimiter("BTC", "USD", "-")}, true), "StorePairs must not error")
+		available, err := p.GetPairs(asset.Spot, false)
+		require.NoError(t, err, "GetPairs must not error for available pairs")
+		assert.Len(t, available, 2, "StorePairs should not add an enabled pair already available")
+		_, err = p.Match("sentinel", asset.Spot)
+		assert.NoError(t, err, "StorePairs should not re-index when every enabled pair is already available")
+	})
 }
 
 func TestDisablePair(t *testing.T) {
@@ -706,8 +1021,8 @@ func TestReindex(t *testing.T) {
 	for _, tc := range []struct {
 		name           string
 		setup          func() *PairsManager
-		wantKeys       []key
-		wantAbsentKeys []key
+		wantKeys       []matcherKey
+		wantAbsentKeys []matcherKey
 	}{
 		{
 			name: "indexes available pairs across multiple assets",
@@ -728,7 +1043,7 @@ func TestReindex(t *testing.T) {
 					},
 				}
 			},
-			wantKeys: []key{
+			wantKeys: []matcherKey{
 				{Symbol: "btcusd", Asset: asset.Spot},
 				{Symbol: "ethusd", Asset: asset.Spot},
 				{Symbol: "btcusd", Asset: asset.Futures},
@@ -744,10 +1059,10 @@ func TestReindex(t *testing.T) {
 					},
 				}
 			},
-			wantKeys: []key{
+			wantKeys: []matcherKey{
 				{Symbol: "btcusd", Asset: asset.Futures},
 			},
-			wantAbsentKeys: []key{
+			wantAbsentKeys: []matcherKey{
 				{Symbol: "btcusd", Asset: asset.Spot},
 			},
 		},
@@ -762,6 +1077,16 @@ func TestReindex(t *testing.T) {
 			},
 		},
 		{
+			name: "drops the entries of assets no longer stored",
+			setup: func() *PairsManager {
+				return &PairsManager{
+					Pairs:   FullStore{},
+					matcher: map[asset.Item]map[string]*Pair{asset.Futures: {"btcusd": new(NewBTCUSD())}},
+				}
+			},
+			wantAbsentKeys: []matcherKey{{Symbol: "btcusd", Asset: asset.Futures}},
+		},
+		{
 			name: "replaces stale matcher entries on reindex",
 			setup: func() *PairsManager {
 				return &PairsManager{
@@ -770,15 +1095,15 @@ func TestReindex(t *testing.T) {
 							Available: Pairs{NewPairWithDelimiter("BTC", "USD", "-")},
 						},
 					},
-					matcher: map[key]*Pair{
-						{Symbol: "oldpair", Asset: asset.Spot}: new(NewPairWithDelimiter("OLD", "PAIR", "-")),
+					matcher: map[asset.Item]map[string]*Pair{
+						asset.Spot: {"oldpair": new(NewPairWithDelimiter("OLD", "PAIR", "-"))},
 					},
 				}
 			},
-			wantKeys: []key{
+			wantKeys: []matcherKey{
 				{Symbol: "btcusd", Asset: asset.Spot},
 			},
-			wantAbsentKeys: []key{
+			wantAbsentKeys: []matcherKey{
 				{Symbol: "oldpair", Asset: asset.Spot},
 			},
 		},
@@ -790,7 +1115,7 @@ func TestReindex(t *testing.T) {
 			assert.NotPanics(t, pm.reindex, "reindex should not panic")
 
 			for _, k := range tc.wantKeys {
-				p, ok := pm.matcher[k]
+				p, ok := k.lookup(pm)
 				assert.Truef(t, ok, "matcher should contain key %v", k)
 				if ok {
 					assert.NotNilf(t, p, "matcher entry for key %v should not be nil", k)
@@ -798,7 +1123,85 @@ func TestReindex(t *testing.T) {
 			}
 
 			for _, k := range tc.wantAbsentKeys {
-				_, ok := pm.matcher[k]
+				_, ok := k.lookup(pm)
+				assert.Falsef(t, ok, "matcher should not contain key %v", k)
+			}
+		})
+	}
+}
+
+func TestIndexAsset(t *testing.T) {
+	t.Parallel()
+
+	eth := NewPairWithDelimiter("ETH", "USD", "-")
+	old := NewPairWithDelimiter("OLD", "PAIR", "-")
+	for _, tc := range []struct {
+		name           string
+		setup          func() *PairsManager
+		wantKeys       []matcherKey
+		wantAbsentKeys []matcherKey
+	}{
+		{
+			name: "creates the matcher",
+			setup: func() *PairsManager {
+				return &PairsManager{Pairs: FullStore{asset.Spot: {Available: Pairs{NewBTCUSD()}}}}
+			},
+			wantKeys: []matcherKey{{Symbol: "btcusd", Asset: asset.Spot}},
+		},
+		{
+			name: "replaces the asset's entries",
+			setup: func() *PairsManager {
+				return &PairsManager{
+					Pairs:   FullStore{asset.Spot: {Available: Pairs{NewBTCUSD()}}},
+					matcher: map[asset.Item]map[string]*Pair{asset.Spot: {"oldpair": &old}},
+				}
+			},
+			wantKeys:       []matcherKey{{Symbol: "btcusd", Asset: asset.Spot}},
+			wantAbsentKeys: []matcherKey{{Symbol: "oldpair", Asset: asset.Spot}},
+		},
+		{
+			name: "leaves other assets' entries",
+			setup: func() *PairsManager {
+				return &PairsManager{
+					Pairs:   FullStore{asset.Spot: {Available: Pairs{NewBTCUSD()}}},
+					matcher: map[asset.Item]map[string]*Pair{asset.Futures: {"ethusd": &eth}},
+				}
+			},
+			wantKeys: []matcherKey{{Symbol: "btcusd", Asset: asset.Spot}, {Symbol: "ethusd", Asset: asset.Futures}},
+		},
+		{
+			name: "empties the entries of an empty store",
+			setup: func() *PairsManager {
+				return &PairsManager{
+					Pairs:   FullStore{asset.Spot: {}},
+					matcher: map[asset.Item]map[string]*Pair{asset.Spot: {"oldpair": &old}},
+				}
+			},
+			wantAbsentKeys: []matcherKey{{Symbol: "oldpair", Asset: asset.Spot}},
+		},
+		{
+			name: "removes the entries of a nil store",
+			setup: func() *PairsManager {
+				return &PairsManager{
+					Pairs:   FullStore{asset.Spot: nil},
+					matcher: map[asset.Item]map[string]*Pair{asset.Spot: {"oldpair": &old}},
+				}
+			},
+			wantAbsentKeys: []matcherKey{{Symbol: "oldpair", Asset: asset.Spot}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			pm := tc.setup()
+			pm.indexAsset(asset.Spot)
+			for _, k := range tc.wantKeys {
+				p, ok := k.lookup(pm)
+				if assert.Truef(t, ok, "matcher should contain key %v", k) && k.Asset == asset.Spot {
+					assert.Same(t, &pm.Pairs[asset.Spot].Available[0], p, "matcher entry should point at the stored pair")
+				}
+			}
+			for _, k := range tc.wantAbsentKeys {
+				_, ok := k.lookup(pm)
 				assert.Falsef(t, ok, "matcher should not contain key %v", k)
 			}
 		})
@@ -808,9 +1211,9 @@ func TestReindex(t *testing.T) {
 func TestSortAvailablePairs(t *testing.T) {
 	t.Parallel()
 
-	sentinelKey := key{Symbol: "sentinel", Asset: asset.Spot}
+	sentinelKey := matcherKey{Symbol: "sentinel", Asset: asset.Spot}
 	sentinelPair := NewPairWithDelimiter("SENT", "INEL", "-")
-	futuresKey := key{Symbol: "btcusd", Asset: asset.Futures}
+	futuresKey := matcherKey{Symbol: "btcusd", Asset: asset.Futures}
 
 	for _, tc := range []struct {
 		name            string
@@ -857,8 +1260,8 @@ func TestSortAvailablePairs(t *testing.T) {
 						asset.Spot:    nil,
 						asset.Futures: {Available: Pairs{NewBTCUSD()}},
 					},
-					matcher: map[key]*Pair{
-						sentinelKey: &sentinelPair,
+					matcher: map[asset.Item]map[string]*Pair{
+						sentinelKey.Asset: {sentinelKey.Symbol: &sentinelPair},
 					},
 				}
 			},
@@ -879,8 +1282,8 @@ func TestSortAvailablePairs(t *testing.T) {
 							},
 						},
 					},
-					matcher: map[key]*Pair{
-						sentinelKey: &sentinelPair,
+					matcher: map[asset.Item]map[string]*Pair{
+						sentinelKey.Asset: {sentinelKey.Symbol: &sentinelPair},
 					},
 				}
 			},
@@ -925,17 +1328,17 @@ func TestSortAvailablePairs(t *testing.T) {
 			}
 
 			if tc.checkSentinel {
-				_, ok := pm.matcher[sentinelKey]
+				_, ok := sentinelKey.lookup(pm)
 				assert.Equal(t, tc.wantSentinel, ok, "SortAvailablePairs should not alter sentinel matcher entries unexpectedly")
 			}
 
 			if tc.checkFuturesKey {
-				_, ok := pm.matcher[futuresKey]
+				_, ok := futuresKey.lookup(pm)
 				assert.Equal(t, tc.wantFuturesKey, ok, "SortAvailablePairs should only adjust matcher entries when reindexing is required")
 			}
 
 			if tc.checkMatcherLen {
-				assert.Len(t, pm.matcher, tc.wantMatcherLen, "Matcher length should remain unchanged when no reindex is required")
+				assert.Len(t, pm.matcher[asset.Spot], tc.wantMatcherLen, "Matcher length should remain unchanged when no reindex is required")
 			}
 		})
 	}
@@ -1080,4 +1483,55 @@ func TestIsAssetSupported(t *testing.T) {
 	}
 	assert.True(t, p.IsAssetSupported(asset.Spot), "Spot should be supported")
 	assert.False(t, p.IsAssetSupported(asset.Index), "Index should not be supported")
+}
+
+// BenchmarkStorePairs stores each asset's available pairs in turn, as updating tradable pairs does
+func BenchmarkStorePairs(b *testing.B) {
+	assets := asset.Items{asset.Spot, asset.Margin, asset.PerpetualSwap, asset.Futures, asset.Options, asset.Spread}
+	sizes := []int{2500, 800, 300, 400, 3000, 50}
+	available := make([]Pairs, len(assets))
+	for i := range assets {
+		available[i] = make(Pairs, sizes[i])
+		for j := range available[i] {
+			available[i][j] = NewPair(testCode("BENCH"+strconv.Itoa(i)+"X"+strconv.Itoa(j)), USDT)
+		}
+	}
+
+	for b.Loop() {
+		var p PairsManager
+		for i, a := range assets {
+			if err := p.StorePairs(a, available[i], false); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
+// BenchmarkMatch matches symbols in the forms exchanges send them
+func BenchmarkMatch(b *testing.B) {
+	pairs := make(Pairs, 2000)
+	for i := range pairs {
+		pairs[i] = NewPair(testCode("BENCH"+strconv.Itoa(i)), USDT)
+	}
+	p := new(PairsManager)
+	if err := p.StorePairs(asset.Spot, pairs, false); err != nil {
+		b.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name   string
+		symbol string
+		match  func(string, asset.Item) (Pair, error)
+	}{
+		{name: "lower", symbol: "bench1234usdt", match: p.Match},
+		{name: "upper", symbol: "BENCH1234USDT", match: p.Match},
+		{name: "delimited", symbol: "BENCH1234-USDT", match: p.MatchDelimited},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			for b.Loop() {
+				if _, err := tc.match(tc.symbol, asset.Spot); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
 }
