@@ -52,6 +52,34 @@ func TestWrite(t *testing.T) {
 }
 
 func TestMove(t *testing.T) {
+	for _, link := range []struct {
+		name   string
+		create func(string, string) error
+	}{
+		{name: "hard link", create: os.Link},
+		{name: "symbolic link", create: os.Symlink},
+	} {
+		t.Run(link.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			source := filepath.Join(dir, "source")
+			destination := filepath.Join(dir, "destination")
+			data := []byte("preserve the original file")
+			require.NoError(t, os.WriteFile(source, data, DefaultPermissionOctal), "source must be created")
+			err := link.create(source, destination)
+			if err != nil && link.name == "symbolic link" && runtime.GOOS == "windows" {
+				t.Skipf("symbolic links require Windows privileges: %v", err)
+			}
+			require.NoError(t, err, "alias must be created")
+			require.ErrorIs(t, Move(source, destination), errSameFile, "moving onto the same file must fail")
+			for _, path := range []string{source, destination} {
+				contents, err := os.ReadFile(path)
+				require.NoError(t, err, "original file must remain readable")
+				assert.Equal(t, data, contents, "contents should remain unchanged")
+			}
+		})
+	}
+
 	tester := func(in, out string, write bool) error {
 		if write {
 			if err := os.WriteFile(in, []byte("GoCryptoTrader"), DefaultPermissionOctal); err != nil {
