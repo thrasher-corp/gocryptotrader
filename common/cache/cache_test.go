@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -124,4 +125,48 @@ func TestAdd_MutexReleaseOnPanic(t *testing.T) {
 	lruCache.m.Unlock()
 	lruCache.Add("key", "val")
 	assert.Equal(t, "val", lruCache.Get("key"), "Get should return the value added after the panic")
+}
+
+func TestSetCapacity(t *testing.T) {
+	t.Parallel()
+	t.Run("preserve recent entries when shrinking and growing", func(t *testing.T) {
+		t.Parallel()
+		c := New(3)
+		c.Add("a", 1)
+		c.Add("b", 2)
+		c.Add("c", 3)
+		require.Equal(t, 1, c.Get("a"), "Get must promote the oldest entry")
+		c.SetCapacity(2)
+		assert.False(t, c.Contains("b"), "shrinking should evict the least recently used entry")
+		assert.Equal(t, uint64(2), c.Len(), "shrinking should honour the new capacity")
+		c.SetCapacity(4)
+		c.Add("d", 4)
+		c.Add("e", 5)
+		assert.Equal(t, 1, c.Get("a"), "growing should retain previous entries")
+		assert.Equal(t, uint64(4), c.Len(), "growing should admit more entries")
+		c.SetCapacity(0)
+		assert.Zero(t, c.Len(), "zero capacity should empty the cache")
+		c.Add("f", 6)
+		assert.Nil(t, c.Get("f"), "zero capacity should not retain new entries")
+		c.SetCapacity(1)
+		c.Add("g", 7)
+		assert.Equal(t, 7, c.Get("g"), "growing from zero should restore caching")
+	})
+	t.Run("concurrent reads writes and capacity changes", func(t *testing.T) {
+		t.Parallel()
+		c := New(3)
+		var workers sync.WaitGroup
+		for worker := range 4 {
+			workers.Go(func() {
+				for i := range 100 {
+					c.Add(worker, i)
+					c.Get(worker)
+					c.SetCapacity(uint64(i % 4))
+				}
+			})
+		}
+		workers.Wait()
+		c.SetCapacity(1)
+		assert.LessOrEqual(t, c.Len(), uint64(1), "final resize should honour the capacity")
+	})
 }
