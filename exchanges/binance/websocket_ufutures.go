@@ -360,8 +360,8 @@ func (e *Exchange) subscribeUserData(ctx context.Context, conn websocket.Connect
 
 // subscribeUserDataKeptAlive subscribes under ctx and keeps the listen key alive under keepAliveCtx. A subscription
 // unsubscribed while its listen key is requested, through it or an equivalent subscription, is left as it is, as
-// subscribing then would undo the unsubscription, while one an earlier unsubscription left unsubscribing or unsubscribed
-// and no longer registered, such as the websocket manager's resubscription passes, is subscribed afresh
+// subscribing then would undo the unsubscription, while one already unsubscribing or unsubscribed and no longer
+// registered, such as the websocket manager's resubscription passes, is subscribed afresh
 func (e *Exchange) subscribeUserDataKeptAlive(ctx, keepAliveCtx context.Context, conn websocket.Connection, s *subscription.Subscription) error {
 	unsubscribed := func() bool {
 		state := s.State()
@@ -383,7 +383,12 @@ func (e *Exchange) subscribeUserDataKeptAlive(ctx, keepAliveCtx context.Context,
 		err = e.sendDerivativesStreamCommand(ctx, conn, wsSubscribeMethod, []any{listenKey})
 	}
 	if err != nil {
-		return common.AppendError(fmt.Errorf("%w: %s user data stream: %w", websocket.ErrSubscriptionFailure, s.Asset, err), e.Websocket.RemoveSubscriptions(conn, s))
+		err = fmt.Errorf("%w: %s user data stream: %w", websocket.ErrSubscriptionFailure, s.Asset, err)
+		// An unsubscription made meanwhile has removed the subscription, and the stream may since be subscribed afresh
+		if e.Websocket.GetSubscription(s) != s {
+			return err
+		}
+		return common.AppendError(err, e.Websocket.RemoveSubscriptions(conn, s))
 	}
 	if err := s.SetState(subscription.SubscribedState); err != nil {
 		return err
@@ -394,7 +399,8 @@ func (e *Exchange) subscribeUserDataKeptAlive(ctx, keepAliveCtx context.Context,
 
 // UnsubscribeUserData unsubscribes a private connection from its user data streams. The account's active listen key
 // is fetched again because a renewal may have replaced the one first subscribed; it is not closed, since every
-// client of the account shares it
+// client of the account shares it. A failed unsubscription ends the subscription too, as one left registered would
+// neither be kept alive and renewed nor be subscribed again by a flush that wants the stream
 func (e *Exchange) UnsubscribeUserData(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	var errs error
 	for _, s := range subs {
@@ -408,7 +414,6 @@ func (e *Exchange) UnsubscribeUserData(ctx context.Context, conn websocket.Conne
 		}
 		if err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w: %s user data stream: %w", websocket.ErrSubscriptionFailure, s.Asset, err))
-			continue
 		}
 		errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(conn, s))
 	}

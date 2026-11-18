@@ -2864,8 +2864,9 @@ func TestWebsocketHandleSpotAPIData(t *testing.T) {
 func TestSpotBalancesOrderedByAccountUpdateTime(t *testing.T) {
 	t.Parallel()
 	// Spot events and REST snapshots both show the account update time their balances follow, so whichever is stored
-	// last, each currency keeps the later one's balance. An event and a snapshot of the same millisecond keep the
-	// event's, as the stream's later events of that millisecond follow it
+	// last, each currency keeps the later one's balance. A snapshot of an event's millisecond keeps the event's balance
+	// when the event arrives while the snapshot is requested, or a later snapshot is stored; otherwise the snapshot holds
+	// the event's balance or a later one of that millisecond, which the stream misses while it is down
 	type step struct {
 		// poll polls a snapshot taken at account update time updateTime, where Binance gives one, and otherwise an
 		// event reports balances at updateTime
@@ -2882,6 +2883,17 @@ func TestSpotBalancesOrderedByAccountUpdateTime(t *testing.T) {
 		return accounts.Balance{Currency: currency.BTC, Total: free + hold, Free: free, Hold: hold}
 	}
 	usdt := accounts.Balance{Currency: currency.USDT, Total: 100, Free: 100}
+	storedBalances := func(t *testing.T, ex *Exchange) map[currency.Code]accounts.Balance {
+		t.Helper()
+		stored, err := ex.Accounts.CurrencyBalances(&accounts.Credentials{Key: "test-key", Secret: "test-secret"}, asset.Spot)
+		require.NoError(t, err, "CurrencyBalances must not error")
+		got := make(map[currency.Code]accounts.Balance, len(stored))
+		for c, b := range stored {
+			b.UpdatedAt = time.Time{}
+			got[c] = b
+		}
+		return got
+	}
 	for _, tc := range []struct {
 		name  string
 		steps []step
@@ -2901,7 +2913,10 @@ func TestSpotBalancesOrderedByAccountUpdateTime(t *testing.T) {
 		}, map[currency.Code]accounts.Balance{currency.BTC: btc(0.5, 0.5), currency.USDT: usdt}},
 		{"snapshot in a stored event's millisecond", []step{
 			{updateTime: base + 2000, balances: `{"a":"BTC","f":"0.5","l":"0.5"}`}, {poll: true, updateTime: base + 2000},
-		}, map[currency.Code]accounts.Balance{currency.BTC: btc(0.5, 0.5), currency.USDT: usdt}},
+		}, map[currency.Code]accounts.Balance{currency.BTC: btc(1, 0), currency.USDT: usdt}},
+		{"currency a snapshot in a stored event's millisecond leaves out", []step{
+			{updateTime: base + 2000, balances: `{"a":"ETH","f":"3","l":"0"}`}, {poll: true, updateTime: base + 2000},
+		}, map[currency.Code]accounts.Balance{currency.BTC: btc(1, 0), currency.USDT: usdt}},
 		{"event in a stored snapshot's millisecond", []step{
 			{poll: true, updateTime: base + 2000}, {updateTime: base + 2000, balances: `{"a":"BTC","f":"0.25","l":"0.5"}`},
 		}, map[currency.Code]accounts.Balance{currency.BTC: btc(0.25, 0.5), currency.USDT: usdt}},
@@ -2939,16 +2954,103 @@ func TestSpotBalancesOrderedByAccountUpdateTime(t *testing.T) {
 				event := fmt.Appendf(nil, `{"e":"outboundAccountPosition","E":%d,"u":%d,"B":[%s]}`, s.updateTime+1, s.updateTime, s.balances)
 				require.NoError(t, ex.processAccountPosition(t.Context(), asset.Spot, event), "processAccountPosition must not error")
 			}
-			stored, err := ex.Accounts.CurrencyBalances(&accounts.Credentials{Key: "test-key", Secret: "test-secret"}, asset.Spot)
-			require.NoError(t, err, "CurrencyBalances must not error")
-			got := make(map[currency.Code]accounts.Balance, len(stored))
-			for c, b := range stored {
-				b.UpdatedAt = time.Time{}
-				got[c] = b
-			}
-			assert.Equal(t, tc.exp, got, "each currency should keep the later balance")
+			assert.Equal(t, tc.exp, storedBalances(t, ex), "each currency should keep the later balance")
 		})
 	}
+
+	// heldPollExchange returns an exchange answering its first spot account request only once release is closed, closing
+	// requested as that request arrives, and each request with the reply replies gives for its number, from 1
+	heldPollExchange := func(t *testing.T, replies func(request int32) string) (ex *Exchange, requested, release chan struct{}) {
+		t.Helper()
+		requested, release = make(chan struct{}), make(chan struct{})
+		var requests atomic.Int32
+		ex = newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			if !assert.Equal(t, "/api/v3/account", r.URL.Path, "only the account should be requested") {
+				return
+			}
+			n := requests.Add(1)
+			if n == 1 {
+				close(requested)
+				select {
+				case <-release:
+				case <-r.Context().Done():
+					return
+				}
+			}
+			_, err := w.Write([]byte(replies(n)))
+			assert.NoError(t, err, "Write should not error")
+		})
+		return ex, requested, release
+	}
+	// pollHeld starts a spot poll and returns once its request has arrived, with the channel its error is sent on
+	pollHeld := func(t *testing.T, ex *Exchange, requested <-chan struct{}) <-chan error {
+		t.Helper()
+		polled := make(chan error, 1)
+		go func() {
+			_, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+			polled <- err
+		}()
+		select {
+		case <-requested:
+		case <-time.After(30 * time.Second):
+			require.FailNow(t, "the poll must request its snapshot")
+		}
+		return polled
+	}
+	waitPolled := func(t *testing.T, polled <-chan error) {
+		t.Helper()
+		select {
+		case err := <-polled:
+			require.NoError(t, err, "UpdateAccountBalances must not error")
+		case <-time.After(30 * time.Second):
+			require.FailNow(t, "the poll must return")
+		}
+	}
+
+	t.Run("snapshot in the millisecond of an event during its request", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name     string
+			balances string
+			exp      map[currency.Code]accounts.Balance
+		}{
+			{"reported", `{"a":"BTC","f":"0.5","l":"0.5"}`, map[currency.Code]accounts.Balance{currency.BTC: btc(0.5, 0.5), currency.USDT: usdt}},
+			{"left out", `{"a":"ETH","f":"3","l":"0"}`, map[currency.Code]accounts.Balance{currency.BTC: btc(1, 0), currency.USDT: usdt, currency.ETH: {Currency: currency.ETH, Total: 3, Free: 3}}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, requested, release := heldPollExchange(t, func(int32) string {
+					return fmt.Sprintf(`{"updateTime":%d,%s}`, base+2000, snapshot)
+				})
+				polled := pollHeld(t, ex, requested)
+				event := fmt.Appendf(nil, `{"e":"outboundAccountPosition","E":%d,"u":%d,"B":[%s]}`, base+2001, base+2000, tc.balances)
+				require.NoError(t, ex.processAccountPosition(t.Context(), asset.Spot, event), "processAccountPosition must not error")
+				close(release)
+				waitPolled(t, polled)
+				assert.Equal(t, tc.exp, storedBalances(t, ex), "the balance of an event during the poll's request should stand")
+			})
+		}
+	})
+
+	t.Run("snapshot in a stored event's millisecond after a later snapshot", func(t *testing.T) {
+		t.Parallel()
+		// The first poll's reply shows the event's millisecond and lands after a second poll has stored a snapshot one
+		// millisecond later
+		ex, requested, release := heldPollExchange(t, func(request int32) string {
+			if request == 1 {
+				return fmt.Sprintf(`{"updateTime":%d,"balances":[{"asset":"BTC","free":"0.75","locked":"0"},{"asset":"USDT","free":"100","locked":"0"}]}`, base+2000)
+			}
+			return fmt.Sprintf(`{"updateTime":%d,%s}`, base+2001, snapshot)
+		})
+		event := fmt.Appendf(nil, `{"e":"outboundAccountPosition","E":%d,"u":%d,"B":[{"a":"BTC","f":"0.5","l":"0.5"}]}`, base+2001, base+2000)
+		require.NoError(t, ex.processAccountPosition(t.Context(), asset.Spot, event), "processAccountPosition must not error")
+		polled := pollHeld(t, ex, requested)
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "UpdateAccountBalances must not error for the later poll")
+		close(release)
+		waitPolled(t, polled)
+		assert.Equal(t, map[currency.Code]accounts.Balance{currency.BTC: btc(1, 0), currency.USDT: usdt}, storedBalances(t, ex), "the later snapshot's balance should stand")
+	})
 
 	t.Run("event predating a stored snapshot is not relayed", func(t *testing.T) {
 		t.Parallel()
@@ -2977,6 +3079,42 @@ func TestSpotBalancesOrderedByAccountUpdateTime(t *testing.T) {
 		assert.Equal(t, 0.5, balance.Free, "the configured account's event should be stored")
 	})
 
+	t.Run("snapshot of a new configured account", func(t *testing.T) {
+		t.Parallel()
+		// The old account's snapshot a millisecond after its event left the event's currency out, and the new account's
+		// snapshot, of the event's millisecond or the one before, is stored as it is
+		for _, tc := range []struct {
+			name       string
+			updateTime int64
+		}{
+			{"before the old account's event", base + 1999},
+			{"in the old account's event's millisecond", base + 2000},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					if r.Header.Get("X-MBX-APIKEY") == "test-key" {
+						_, _ = fmt.Fprintf(w, `{"updateTime":%d,"balances":[{"asset":"USDT","free":"100","locked":"0"}]}`, base+2001)
+						return
+					}
+					_, _ = fmt.Fprintf(w, `{"updateTime":%d,%s}`, tc.updateTime, snapshot)
+				})
+				event := fmt.Appendf(nil, `{"e":"outboundAccountPosition","E":%d,"u":%d,"B":[{"a":"BTC","f":"0.5","l":"0.5"}]}`, base+2001, base+2000)
+				require.NoError(t, ex.processAccountPosition(t.Context(), asset.Spot, event), "processAccountPosition must not error")
+				_, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+				require.NoError(t, err, "UpdateAccountBalances must not error for the old account")
+				require.Equal(t, map[currency.Code]accounts.Balance{currency.USDT: usdt}, storedBalances(t, ex), "the old account's snapshot must leave the event's currency out")
+				creds := &accounts.Credentials{Key: "new-key", Secret: "new-secret"}
+				ex.SetCredentials(creds)
+				_, err = ex.UpdateAccountBalances(t.Context(), asset.Spot)
+				require.NoError(t, err, "UpdateAccountBalances must not error for the new account")
+				balance, err := ex.Accounts.GetBalance("", creds, asset.Spot, currency.BTC)
+				require.NoError(t, err, "GetBalance must not error for the new account")
+				assert.Equal(t, 1.0, balance.Free, "the new account's snapshot balance should be stored")
+			})
+		}
+	})
+
 	t.Run("event store holds the balance store lock", func(t *testing.T) {
 		t.Parallel()
 		ex := newTradingTestExchange(t, http.NotFound)
@@ -2991,6 +3129,134 @@ func TestSpotBalancesOrderedByAccountUpdateTime(t *testing.T) {
 		require.NoError(t, ex.processAccountPosition(t.Context(), asset.Spot, olderEvent), "processAccountPosition must not error")
 		assert.Positive(t, stores.Load(), "the balances should be stored")
 	})
+}
+
+func TestKeepStreamedSpotBalances(t *testing.T) {
+	t.Parallel()
+	eventTime := time.UnixMilli(1791285060000)
+	event := fmt.Appendf(nil, `{"e":"outboundAccountPosition","E":%d,"u":%d,"B":[{"a":"BTC","f":"0.5","l":"0.5"}]}`, eventTime.UnixMilli()+1, eventTime.UnixMilli())
+	otherEvent := fmt.Appendf(nil, `{"e":"outboundAccountPosition","E":%d,"u":%d,"B":[{"a":"ETH","f":"3","l":"0"}]}`, eventTime.UnixMilli()+1, eventTime.UnixMilli())
+	rest := accounts.Balance{Total: 2, Free: 2}
+	for _, tc := range []struct {
+		name string
+		// asOf is the snapshot's account update time, and reported has the snapshot report the event's currency
+		asOf     time.Time
+		reported bool
+		// sinceRequest records the event after the poll has counted the events recorded before its request, otherEvent
+		// and otherEventBefore record another currency's event after the count or after the event and before the count,
+		// snapshotTime records a stored snapshot of that account update time, before the event where it is the event's own
+		// time or earlier and after it otherwise, and unstored records the event without its balance, as a failed store
+		// leaves it
+		sinceRequest, otherEvent, otherEventBefore, unstored bool
+		snapshotTime                                         time.Time
+		kept                                                 bool
+	}{
+		{name: "reported before the event", asOf: eventTime.Add(-time.Millisecond), reported: true, kept: true},
+		{name: "reported after the event", asOf: eventTime.Add(time.Millisecond), reported: true},
+		{name: "reported at the event's time, recorded since the request", asOf: eventTime, reported: true, sinceRequest: true, kept: true},
+		{name: "reported at the event's time, recorded before the request", asOf: eventTime, reported: true},
+		{name: "reported at the event's time, recorded before the request with another event since", asOf: eventTime, reported: true, otherEvent: true},
+		{name: "reported at the event's time, recorded before the request with another event after it", asOf: eventTime, reported: true, otherEventBefore: true},
+		{name: "reported at the event's time, recorded before a later snapshot", asOf: eventTime, reported: true, snapshotTime: eventTime.Add(time.Millisecond), kept: true},
+		{name: "reported at the event's time, recorded after a snapshot of that time", asOf: eventTime, reported: true, snapshotTime: eventTime},
+		{name: "reported before an event whose balance was not stored", asOf: eventTime.Add(-time.Millisecond), reported: true, unstored: true},
+		{name: "reported at the time of an event recorded since the request whose balance was not stored", asOf: eventTime, reported: true, sinceRequest: true, unstored: true},
+		{name: "reported before an event whose balance was not stored, after an earlier snapshot", asOf: eventTime.Add(-time.Millisecond), reported: true, snapshotTime: eventTime.Add(-time.Millisecond), unstored: true},
+		{name: "reported at the time of an event recorded since the request whose balance was not stored, after a snapshot of that time", asOf: eventTime, reported: true, sinceRequest: true, snapshotTime: eventTime, unstored: true},
+		{name: "left out before the event", asOf: eventTime.Add(-time.Millisecond), kept: true},
+		{name: "left out after the event", asOf: eventTime.Add(time.Millisecond)},
+		{name: "left out at the event's time, recorded since the request", asOf: eventTime, sinceRequest: true, kept: true},
+		{name: "left out at the event's time, recorded before the request", asOf: eventTime},
+		{name: "left out at the event's time, recorded before a later snapshot", asOf: eventTime, snapshotTime: eventTime.Add(time.Millisecond), kept: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTradingTestExchange(t, func(_ http.ResponseWriter, _ *http.Request) {
+				assert.Fail(t, "no REST request should be made")
+			})
+			if !tc.snapshotTime.IsZero() && !tc.snapshotTime.After(eventTime) {
+				ex.recordBalanceSnapshot(t.Context(), asset.Spot, tc.snapshotTime, nil)
+			}
+			eventsBefore := ex.balanceEventsRecorded()
+			var streamed accounts.Balance
+			if tc.unstored {
+				ex.recordBalanceEvent(asset.Spot, eventTime, currency.BTC)
+			} else {
+				require.NoError(t, ex.processAccountPosition(t.Context(), asset.Spot, event), "processAccountPosition must not error")
+				streamed = storedBalance(t, ex, asset.Spot, currency.BTC)
+			}
+			if tc.otherEventBefore {
+				require.NoError(t, ex.processAccountPosition(t.Context(), asset.Spot, otherEvent), "processAccountPosition must not error for the other event")
+			}
+			if !tc.sinceRequest {
+				eventsBefore = ex.balanceEventsRecorded()
+			}
+			if tc.otherEvent {
+				require.NoError(t, ex.processAccountPosition(t.Context(), asset.Spot, otherEvent), "processAccountPosition must not error for the other event")
+			}
+			if tc.snapshotTime.After(eventTime) {
+				ex.recordBalanceSnapshot(t.Context(), asset.Spot, tc.snapshotTime, nil)
+			}
+			subAccount := accounts.NewSubAccount(asset.Spot, "")
+			subAccount.Balances.Set(currency.USDT, rest)
+			snapshotUSDT := subAccount.Balances[currency.USDT]
+			if tc.reported {
+				subAccount.Balances.Set(currency.BTC, rest)
+			}
+			snapshotBTC := subAccount.Balances[currency.BTC]
+			var ordered bool
+			require.NoError(t, ex.withBalanceStore(func() error {
+				ordered = ex.keepStreamedSpotBalances(t.Context(), subAccount, tc.asOf, eventsBefore)
+				return nil
+			}), "withBalanceStore must not error")
+			assert.True(t, ordered, "a snapshot of the configured account with an update time should be ordered")
+			got, ok := subAccount.Balances[currency.BTC]
+			switch {
+			case tc.unstored:
+				assert.Equal(t, snapshotBTC, got, "the snapshot's balance should stand for an event whose balance was not stored")
+			case tc.kept:
+				require.True(t, ok, "the snapshot must hold the event's currency")
+				assert.Equal(t, streamed, got, "the event's balance should stand")
+			case tc.reported:
+				assert.Equal(t, snapshotBTC, got, "the balance the snapshot reports should stand")
+			default:
+				assert.False(t, ok, "the currency the snapshot leaves out should stay out")
+			}
+			assert.Equal(t, snapshotUSDT, subAccount.Balances[currency.USDT], "a currency no event reported should keep the snapshot's balance")
+		})
+	}
+
+	for _, tc := range []struct {
+		name string
+		// asOf is the snapshot's account update time, and other polls with another account's credentials
+		asOf  time.Time
+		other bool
+	}{
+		{name: "snapshot without an account update time"},
+		{name: "another account's snapshot", asOf: eventTime, other: true},
+	} {
+		t.Run("leaves "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTradingTestExchange(t, func(_ http.ResponseWriter, _ *http.Request) {
+				assert.Fail(t, "no REST request should be made")
+			})
+			require.NoError(t, ex.processAccountPosition(t.Context(), asset.Spot, event), "processAccountPosition must not error")
+			ctx := t.Context()
+			if tc.other {
+				ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "other-key", Secret: "other-secret"})
+			}
+			subAccount := accounts.NewSubAccount(asset.Spot, "")
+			subAccount.Balances.Set(currency.BTC, rest)
+			snapshotBTC := subAccount.Balances[currency.BTC]
+			var ordered bool
+			require.NoError(t, ex.withBalanceStore(func() error {
+				ordered = ex.keepStreamedSpotBalances(ctx, subAccount, tc.asOf, 0)
+				return nil
+			}), "withBalanceStore must not error")
+			assert.False(t, ordered, "the snapshot should not be ordered against the stream")
+			assert.Equal(t, snapshotBTC, subAccount.Balances[currency.BTC], "the snapshot should keep its balance")
+		})
+	}
 }
 
 func TestUserDataEventPayloads(t *testing.T) { //nolint:tparallel // the events decode in the fixture's order, so they run in order while the test runs in parallel

@@ -901,6 +901,143 @@ func TestUnsubscribeUserData(t *testing.T) {
 	assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "UnsubscribeUserData should report a subscription failure")
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "UnsubscribeUserData should reject an asset without user data streams")
 
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
+		for _, tc := range []struct {
+			name string
+			// refused has Binance refuse the UNSUBSCRIBE rather than the listen key request failing
+			refused bool
+			methods []string
+		}{
+			{name: "fails at the listen key request", methods: []string{"SUBSCRIBE"}},
+			{name: "is refused by Binance", refused: true, methods: []string{"SUBSCRIBE", "UNSUBSCRIBE"}},
+		} {
+			t.Run("ends a "+a.String()+" subscription whose unsubscription "+tc.name, func(t *testing.T) {
+				t.Parallel()
+				var listenKeys atomic.Int32
+				ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					if !assert.Contains(t, []string{"/fapi/v1/listenKey", "/dapi/v1/listenKey", "/eapi/v1/listenKey"}, r.URL.Path, "only listen keys should be requested") {
+						return
+					}
+					// The second listen key request is the unsubscription's
+					writeListenKeyReply(t, w, !tc.refused && listenKeys.Add(1) == 2)
+				})
+				recorder := &streamRequestRecorder{reply: func(req *DerivativesStreamRequest) []byte {
+					if tc.refused && req.Method == wsUnsubscribeMethod {
+						return fmt.Appendf(nil, `{"error":{"code":2,"msg":"Invalid request: unknown variant"},"id":%d}`, req.ID)
+					}
+					return nil
+				}}
+				useMockWebsocket(t, ex, &websocket.ConnectionSetup{
+					MessageFilter:            usdtmPrivateFilter,
+					Connector:                ex.WebsocketDerivativesConnect,
+					Handler:                  ex.wsHandleUSDTMarginedFuturesUserData,
+					ResponseCheckTimeout:     ex.Config.WebsocketResponseCheckTimeout,
+					ResponseMaxLimit:         ex.Config.WebsocketResponseMaxLimit,
+					SubscriptionsNotRequired: true,
+				}, recorder.handle)
+				require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+				conn, err := ex.Websocket.GetConnection(usdtmPrivateFilter)
+				require.NoError(t, err, "GetConnection must not error")
+				s := &subscription.Subscription{Channel: userDataStreamChannel, Asset: a, Authenticated: true}
+				require.NoError(t, ex.subscribeUserDataKeptAlive(t.Context(), t.Context(), conn, s), "subscribeUserDataKeptAlive must not error")
+				err = ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s})
+				require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "UnsubscribeUserData must report the failed unsubscription")
+				assert.Equal(t, subscription.UnsubscribedState, s.State(), "the failed unsubscription should end the subscription")
+				assert.Nil(t, ex.Websocket.GetSubscription(s), "the failed unsubscription should remove the subscription")
+				methods := make([]string, 0, len(tc.methods))
+				for _, req := range recorder.recorded() {
+					methods = append(methods, req.Method)
+				}
+				assert.Equal(t, tc.methods, methods, "the unsubscription should send an UNSUBSCRIBE only once it has the listen key")
+			})
+		}
+	}
+
+	for _, tc := range []struct {
+		name string
+		// resubscribe fails the websocket manager's resubscription rather than a flush of the disabled asset
+		resubscribe bool
+	}{
+		{name: "failed by a flush of the disabled asset"},
+		{name: "failed by the websocket manager's resubscription", resubscribe: true},
+	} {
+		t.Run("ends a subscription whose unsubscription is "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			var listenKeys, keepalives atomic.Int32
+			var wanted atomic.Bool
+			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if !assert.Equal(t, "/fapi/v1/listenKey", r.URL.Path, "only listen keys should be requested") {
+					return
+				}
+				if r.Method == http.MethodPut {
+					// Keepalives before the flush wanting the stream again, and those after the fourth since, wait for the
+					// case to end, so the test server's request allowance holds however long the case is held up
+					if !wanted.Load() || keepalives.Add(1) > 4 {
+						<-r.Context().Done()
+						return
+					}
+					writeListenKeyReply(t, w, false)
+					return
+				}
+				// The second listen key request is the unsubscription's
+				writeListenKeyReply(t, w, listenKeys.Add(1) == 2)
+			})
+			ex.userDataRetry.keepalive = 20 * time.Millisecond
+			recorder := &streamRequestRecorder{}
+			useMockWebsocket(t, ex, &websocket.ConnectionSetup{
+				MessageFilter:         usdtmPrivateFilter,
+				Connector:             ex.WebsocketDerivativesConnect,
+				GenerateSubscriptions: ex.generateUSDTMarginedFuturesUserDataSubscriptions,
+				Subscriber:            ex.SubscribeUserData,
+				Unsubscriber:          ex.UnsubscribeUserData,
+				Handler:               ex.wsHandleUSDTMarginedFuturesUserData,
+				ResponseCheckTimeout:  ex.Config.WebsocketResponseCheckTimeout,
+				ResponseMaxLimit:      ex.Config.WebsocketResponseMaxLimit,
+			}, recorder.handle)
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+			conn, err := ex.Websocket.GetConnection(usdtmPrivateFilter)
+			require.NoError(t, err, "GetConnection must not error")
+			key := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures}
+			s := ex.Websocket.GetSubscription(key)
+			require.NotNil(t, s, "connecting must register the user data subscription")
+			if tc.resubscribe {
+				err = ex.Websocket.ResubscribeToChannel(t.Context(), conn, s)
+			} else {
+				require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
+				err = ex.Websocket.FlushChannels(t.Context())
+			}
+			require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "the failed unsubscription must be reported")
+			assert.Equal(t, subscription.UnsubscribedState, s.State(), "the failed unsubscription should end the subscription")
+			require.Nil(t, ex.Websocket.GetSubscription(key), "the failed unsubscription must remove the subscription")
+			if !tc.resubscribe {
+				assert.Nil(t, conn.Subscriptions().Get(key), "the flush should release the subscription from its connection")
+				require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, true), "SetAssetEnabled must not error")
+			}
+			wanted.Store(true)
+			err = ex.Websocket.FlushChannels(t.Context())
+			if tc.resubscribe {
+				// The manager's resubscription returns without releasing the subscription from its connection
+				assert.ErrorIs(t, err, subscription.ErrDuplicate, "the flush should report the subscription the resubscription left on its connection")
+				require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "the flush after it must not error")
+			} else {
+				require.NoError(t, err, "the flush wanting the stream again must not error")
+			}
+			fresh := ex.Websocket.GetSubscription(key)
+			require.NotNil(t, fresh, "the flush must subscribe the stream afresh")
+			assert.NotSame(t, s, fresh, "the flush should subscribe a new subscription")
+			assert.Equal(t, subscription.SubscribedState, fresh.State(), "the stream should be subscribed again")
+			assert.Eventually(t, func() bool { return keepalives.Load() >= 2 }, 30*time.Second, time.Millisecond, "the listen key of the stream subscribed again should be kept alive")
+			require.NoError(t, ex.processListenKeyExpired(t.Context(), conn, []byte(`{"e":"listenKeyExpired","E":1791284812500,"listenKey":"expired"}`), asset.USDTMarginedFutures), "the expiry must be handled")
+			assert.Eventually(t, func() bool { return len(recorder.recorded()) == 3 }, 30*time.Second, time.Millisecond, "the renewal after the expiry should subscribe the stream's new listen key")
+			methods := make([]string, 0, 3)
+			for _, req := range recorder.recorded() {
+				methods = append(methods, req.Method)
+			}
+			assert.Equal(t, []string{"SUBSCRIBE", "SUBSCRIBE", "SUBSCRIBE"}, methods, "the stream should be subscribed when connecting, by the flush wanting it and after its listen key expires")
+		})
+	}
+
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		if mockTests {
@@ -1295,15 +1432,19 @@ func TestSubscribeUserDataKeptAlive(t *testing.T) {
 
 	for _, tc := range []struct {
 		name string
-		// failedUnsubscription has a further unsubscription fail its listen key request, which leaves the subscription
-		// unsubscribing, registered has that unsubscription follow the subscription directly, so it stays registered, and
-		// replaced registers another subscription to the stream before the subscription is subscribed again
-		failedUnsubscription, registered, replaced bool
+		// failed has the unsubscription fail its listen key request, which ends the subscription as a completed one does,
+		// underWay leaves the subscription unsubscribing and registered, as an unsubscription still waiting on its request
+		// does, unregistered then removes it through an equivalent subscription, and replaced registers another
+		// subscription to the stream before the subscription is subscribed again
+		failed, underWay, unregistered, replaced bool
+		methods                                  []string
 	}{
-		{name: "subscribes afresh a subscription unsubscribed before"},
-		{name: "subscribes afresh a subscription a failed unsubscription left unsubscribing", failedUnsubscription: true},
-		{name: "refuses a subscription still registered and leaves it unsubscribing", failedUnsubscription: true, registered: true},
-		{name: "refuses a subscription another has replaced and lets it unsubscribe the replacement", failedUnsubscription: true, replaced: true},
+		{name: "subscribes afresh a subscription unsubscribed before", methods: []string{"SUBSCRIBE", "UNSUBSCRIBE", "SUBSCRIBE"}},
+		{name: "subscribes afresh a subscription a failed unsubscription ended", failed: true, methods: []string{"SUBSCRIBE", "SUBSCRIBE"}},
+		{name: "subscribes afresh a subscription left unsubscribing and no longer registered", underWay: true, unregistered: true, methods: []string{"SUBSCRIBE", "SUBSCRIBE"}},
+		{name: "refuses a subscription still registered while its unsubscription is under way", underWay: true, methods: []string{"SUBSCRIBE"}},
+		{name: "refuses a subscription left unsubscribing that another has replaced and lets it unsubscribe the replacement", underWay: true, unregistered: true, replaced: true, methods: []string{"SUBSCRIBE", "SUBSCRIBE", "UNSUBSCRIBE"}},
+		{name: "refuses a subscription another has replaced and lets it unsubscribe the replacement", failed: true, replaced: true, methods: []string{"SUBSCRIBE", "SUBSCRIBE", "UNSUBSCRIBE"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1312,12 +1453,8 @@ func TestSubscribeUserDataKeptAlive(t *testing.T) {
 				if !assert.Equal(t, "/fapi/v1/listenKey", r.URL.Path, "only listen keys should be requested") {
 					return
 				}
-				// The failing listen key request is the further unsubscription's
-				failing := int32(3)
-				if tc.registered {
-					failing = 2
-				}
-				writeListenKeyReply(t, w, tc.failedUnsubscription && listenKeys.Add(1) == failing)
+				// The second listen key request is the unsubscription's
+				writeListenKeyReply(t, w, tc.failed && listenKeys.Add(1) == 2)
 			})
 			recorder := &streamRequestRecorder{}
 			useMockWebsocket(t, ex, &websocket.ConnectionSetup{
@@ -1333,13 +1470,20 @@ func TestSubscribeUserDataKeptAlive(t *testing.T) {
 			require.NoError(t, err, "GetConnection must not error")
 			s := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
 			require.NoError(t, ex.subscribeUserDataKeptAlive(t.Context(), t.Context(), conn, s), "subscribeUserDataKeptAlive must not error")
-			if !tc.registered {
-				require.NoError(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}), "UnsubscribeUserData must not error")
-			}
-			if tc.failedUnsubscription {
+			switch {
+			case tc.underWay:
+				require.NoError(t, s.SetState(subscription.UnsubscribingState), "SetState must not error")
+				if tc.unregistered {
+					equivalent := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+					require.NoError(t, ex.Websocket.RemoveSubscriptions(conn, equivalent), "RemoveSubscriptions must not error for the equivalent subscription")
+					require.Nil(t, ex.Websocket.GetSubscription(s), "the equivalent subscription's removal must remove the stream")
+				}
+			case tc.failed:
 				require.Error(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}), "UnsubscribeUserData must report its failed request")
-				require.Equal(t, subscription.UnsubscribingState, s.State(), "the failed unsubscription must leave the stream unsubscribing")
-			} else {
+				require.Equal(t, subscription.UnsubscribedState, s.State(), "the failed unsubscription must end the stream")
+				require.Nil(t, ex.Websocket.GetSubscription(s), "the failed unsubscription must remove the stream")
+			default:
+				require.NoError(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}), "UnsubscribeUserData must not error")
 				require.Equal(t, subscription.UnsubscribedState, s.State(), "the stream must be unsubscribed")
 			}
 			if tc.replaced {
@@ -1357,20 +1501,19 @@ func TestSubscribeUserDataKeptAlive(t *testing.T) {
 			for _, req := range recorded {
 				methods = append(methods, req.Method)
 			}
-			if tc.replaced {
-				assert.Equal(t, []string{"SUBSCRIBE", "UNSUBSCRIBE", "SUBSCRIBE", "UNSUBSCRIBE"}, methods, "only the replacement should be subscribed and then unsubscribed")
-				return
-			}
-			if tc.registered {
+			switch {
+			case tc.replaced:
+				assert.Equal(t, tc.methods, methods, "only the replacement should be subscribed and then unsubscribed")
+			case tc.underWay && !tc.unregistered:
 				assert.ErrorIs(t, err, subscription.ErrDuplicate, "subscribeUserDataKeptAlive should refuse a subscription still registered")
-				assert.Equal(t, []string{"SUBSCRIBE"}, methods, "the refused subscription should send nothing")
+				assert.Equal(t, tc.methods, methods, "the refused subscription should send nothing")
 				assert.Equal(t, subscription.UnsubscribingState, s.State(), "the refused subscription should keep its state")
-				return
+			default:
+				require.NoError(t, err, "subscribeUserDataKeptAlive must not error for the subscription no longer registered")
+				assert.Equal(t, tc.methods, methods, "the subscription no longer registered should be subscribed again")
+				assert.Equal(t, subscription.SubscribedState, s.State(), "the stream should be subscribed again")
+				assert.Same(t, s, ex.Websocket.GetSubscription(s), "the stream should be stored again")
 			}
-			require.NoError(t, err, "subscribeUserDataKeptAlive must not error for the subscription unsubscribed before")
-			assert.Equal(t, []string{"SUBSCRIBE", "UNSUBSCRIBE", "SUBSCRIBE"}, methods, "the subscription unsubscribed before should be subscribed again")
-			assert.Equal(t, subscription.SubscribedState, s.State(), "the stream should be subscribed again")
-			assert.Same(t, s, ex.Websocket.GetSubscription(s), "the stream should be stored again")
 		})
 	}
 
@@ -1469,6 +1612,75 @@ func TestSubscribeUserDataKeptAlive(t *testing.T) {
 		require.NoError(t, waitResult(t, subscribed, "the fresh subscription must return"), "subscribeUserDataKeptAlive must not error for the fresh subscription")
 		assert.Equal(t, []string{"SUBSCRIBE", "UNSUBSCRIBE", "SUBSCRIBE"}, requestMethods(recorder), "the fresh subscription should subscribe the stream")
 	})
+
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
+		for _, tc := range []struct {
+			name string
+			// unsubscriptionFails fails the unsubscription's listen key request, which ends the subscription as a
+			// completed unsubscription does
+			unsubscriptionFails bool
+			methods             []string
+		}{
+			{name: "a failed listen key request after a failed unsubscription leaves the stream to a fresh subscription", unsubscriptionFails: true, methods: []string{"SUBSCRIBE"}},
+			{name: "a failed listen key request after an unsubscription leaves the stream to a fresh subscription", methods: []string{"UNSUBSCRIBE", "SUBSCRIBE"}},
+		} {
+			t.Run(a.String()+" "+tc.name, func(t *testing.T) {
+				t.Parallel()
+				entered, release := make(chan struct{}), make(chan struct{})
+				var listenKeys atomic.Int32
+				ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					if !assert.Contains(t, []string{"/fapi/v1/listenKey", "/dapi/v1/listenKey", "/eapi/v1/listenKey"}, r.URL.Path, "only listen keys should be requested") {
+						return
+					}
+					// The subscription's listen key request is the first, and fails once the fresh subscription is made; the
+					// unsubscription's is the second
+					switch listenKeys.Add(1) {
+					case 1:
+						close(entered)
+						select {
+						case <-release:
+						case <-r.Context().Done():
+							return
+						}
+						writeListenKeyReply(t, w, true)
+					case 2:
+						writeListenKeyReply(t, w, tc.unsubscriptionFails)
+					default:
+						writeListenKeyReply(t, w, false)
+					}
+				})
+				recorder := &streamRequestRecorder{}
+				useMockWebsocket(t, ex, &websocket.ConnectionSetup{
+					MessageFilter:            usdtmPrivateFilter,
+					Connector:                ex.WebsocketDerivativesConnect,
+					Handler:                  ex.wsHandleUSDTMarginedFuturesUserData,
+					ResponseCheckTimeout:     ex.Config.WebsocketResponseCheckTimeout,
+					ResponseMaxLimit:         ex.Config.WebsocketResponseMaxLimit,
+					SubscriptionsNotRequired: true,
+				}, recorder.handle)
+				require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+				conn, err := ex.Websocket.GetConnection(usdtmPrivateFilter)
+				require.NoError(t, err, "GetConnection must not error")
+				s := &subscription.Subscription{Channel: userDataStreamChannel, Asset: a, Authenticated: true}
+				subscribed := make(chan error, 1)
+				go func() { subscribed <- ex.subscribeUserDataKeptAlive(t.Context(), t.Context(), conn, s) }()
+				waitFor(t, entered, "the subscription must request a listen key")
+				err = ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s})
+				if tc.unsubscriptionFails {
+					require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "UnsubscribeUserData must report its failed listen key request")
+				} else {
+					require.NoError(t, err, "UnsubscribeUserData must not error")
+				}
+				fresh := &subscription.Subscription{Channel: userDataStreamChannel, Asset: a, Authenticated: true}
+				require.NoError(t, ex.subscribeUserDataKeptAlive(t.Context(), t.Context(), conn, fresh), "subscribeUserDataKeptAlive must not error for the fresh subscription")
+				close(release)
+				require.ErrorIs(t, waitResult(t, subscribed, "the subscription must return"), websocket.ErrSubscriptionFailure, "the subscription must report its failed listen key request")
+				assert.Same(t, fresh, ex.Websocket.GetSubscription(s), "the fresh subscription should stay registered")
+				assert.Equal(t, subscription.SubscribedState, fresh.State(), "the fresh subscription should stay subscribed")
+				assert.Equal(t, tc.methods, requestMethods(recorder), "only the fresh subscription should subscribe the stream")
+			})
+		}
+	}
 }
 
 func TestUserDataRetryReportsOnlyBinanceRefusal(t *testing.T) {
@@ -1749,11 +1961,16 @@ func TestRenewUserDataStream(t *testing.T) {
 			t.Helper()
 			require.NoError(t, ex.Websocket.RemoveSubscriptions(conn, s), "RemoveSubscriptions must not error")
 		}},
-		{"given up while unsubscribing", func(n int32) bool { return n > 1 }, func(t *testing.T, ex *Exchange, conn websocket.Connection, s *subscription.Subscription) {
+		{"given up while unsubscribing", func(n int32) bool { return n > 1 }, func(t *testing.T, _ *Exchange, _ websocket.Connection, s *subscription.Subscription) {
 			t.Helper()
-			// The unsubscription's own listen key request fails, which leaves the stream registered as unsubscribing
+			// An unsubscription of the stream under way leaves it registered as unsubscribing
+			require.NoError(t, s.SetState(subscription.UnsubscribingState), "SetState must not error")
+		}},
+		{"given up once a failed unsubscription ended the stream", func(n int32) bool { return n > 1 }, func(t *testing.T, ex *Exchange, conn websocket.Connection, s *subscription.Subscription) {
+			t.Helper()
 			require.Error(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}), "UnsubscribeUserData must report its failed request")
-			require.Equal(t, subscription.UnsubscribingState, s.State(), "the stream must be left unsubscribing")
+			require.Equal(t, subscription.UnsubscribedState, s.State(), "the failed unsubscription must end the stream")
+			require.Nil(t, ex.Websocket.GetSubscription(s), "the failed unsubscription must remove the stream")
 		}},
 		{"given up while subscribed afresh", func(n int32) bool { return n > 1 }, func(t *testing.T, _ *Exchange, _ websocket.Connection, s *subscription.Subscription) {
 			t.Helper()

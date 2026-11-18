@@ -3245,35 +3245,53 @@ func TestUpdateAccountBalances(t *testing.T) {
 		t.Parallel()
 		// Transactions can share a millisecond, so a snapshot showing a stream event's time may predate the event: a
 		// balance the event stores while the poll's request is under way stands, whether the snapshot reports its currency
-		// or leaves it out, while a snapshot showing the currency after the event is stored as REST reports it
+		// or leaves it out, while a snapshot showing the currency after the event, or one requested after the event, is
+		// stored as REST reports it
 		const eventTime int64 = 1791300000000
 		for _, tc := range balanceEvents {
+			// Where currencies show update times of their own, another currency's is the snapshot's latest
+			atEvent := strings.ReplaceAll(balanceRefreshReplies[tc.path], "1791200000000", strconv.FormatInt(eventTime+1, 10))
+			afterEvent := strings.ReplaceAll(balanceRefreshReplies[tc.path], strconv.FormatInt(eventTime, 10), strconv.FormatInt(eventTime+1, 10))
 			for _, c := range []struct {
 				name  string
 				reply string
-				newer bool
+				// earlierPoll has a poll store the reply before the poll whose request is held, eventBefore processes the
+				// event before that request rather than during it, and spotEventDuring processes a spot event during it
+				earlierPoll, eventBefore, spotEventDuring bool
+				stored                                    bool
 			}{
-				// Where currencies show update times of their own, another currency's is the snapshot's latest
-				{name: "reported", reply: strings.ReplaceAll(balanceRefreshReplies[tc.path], "1791200000000", strconv.FormatInt(eventTime+1, 10))},
+				{name: "reported", reply: atEvent},
 				{name: "left out", reply: fmt.Sprintf(tc.restOnlyReply, eventTime)},
-				{name: "reported after the event", reply: strings.ReplaceAll(balanceRefreshReplies[tc.path], strconv.FormatInt(eventTime, 10), strconv.FormatInt(eventTime+1, 10)), newer: true},
+				{name: "reported after the event", reply: afterEvent, stored: true},
+				{name: "reported after the event, as an earlier poll stored", reply: afterEvent, earlierPoll: true, stored: true},
+				{name: "reported at an event before the request, with a spot event during it", reply: atEvent, eventBefore: true, spotEventDuring: true, stored: true},
 			} {
 				t.Run(tc.a.String()+" "+c.name, func(t *testing.T) {
 					t.Parallel()
 					requested, release := make(chan struct{}), make(chan struct{})
+					var requests atomic.Int32
 					ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
 						if !assert.Equal(t, tc.path, r.URL.Path, "only the balance endpoint should be requested") {
 							return
 						}
-						close(requested)
-						select {
-						case <-release:
-						case <-r.Context().Done():
-							return
+						if !c.earlierPoll || requests.Add(1) > 1 {
+							close(requested)
+							select {
+							case <-release:
+							case <-r.Context().Done():
+								return
+							}
 						}
 						_, err := w.Write([]byte(c.reply))
 						assert.NoError(t, err, "Write should not error")
 					})
+					if c.earlierPoll {
+						_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
+						require.NoError(t, err, "UpdateAccountBalances must not error for the earlier poll")
+					}
+					if c.eventBefore {
+						require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
+					}
 					polled := make(chan error, 1)
 					go func() {
 						_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
@@ -3284,8 +3302,15 @@ func TestUpdateAccountBalances(t *testing.T) {
 					case <-time.After(30 * time.Second):
 						require.FailNow(t, "the poll must request its snapshot")
 					}
-					require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
+					if c.spotEventDuring {
+						spotEvent := []byte(`{"e":"outboundAccountPosition","E":1791300000001,"u":1791300000000,"B":[{"a":"BTC","f":"1","l":"0"}]}`)
+						require.NoError(t, ex.processAccountPosition(t.Context(), asset.Spot, spotEvent), "processing the spot balance event must not error")
+					}
+					if !c.eventBefore {
+						require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
+					}
 					streamed := storedBalance(t, ex, tc.a, tc.code)
+					require.Equal(t, tc.eventTotal, streamed.Total, "the event must store its wallet balance")
 					close(release)
 					select {
 					case err := <-polled:
@@ -3294,9 +3319,9 @@ func TestUpdateAccountBalances(t *testing.T) {
 						require.FailNow(t, "the poll must return")
 					}
 					got := storedBalance(t, ex, tc.a, tc.code)
-					if c.newer {
-						assert.Equal(t, tc.restTotal, got.Total, "a snapshot showing the currency after the event should store the wallet balance REST reports")
-						assert.Equal(t, tc.restFree, got.Free, "a snapshot showing the currency after the event should store the available balance REST reports")
+					if c.stored {
+						assert.Equal(t, tc.restTotal, got.Total, "the snapshot should store the wallet balance REST reports")
+						assert.Equal(t, tc.restFree, got.Free, "the snapshot should store the available balance REST reports")
 						return
 					}
 					assert.Equal(t, streamed, got, "a balance streamed during the poll's request should stand")

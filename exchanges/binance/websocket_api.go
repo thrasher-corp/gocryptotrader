@@ -550,13 +550,15 @@ func (e *Exchange) processAccountPosition(ctx context.Context, a asset.Item, eve
 }
 
 // keepStreamedSpotBalances puts the stored balance in place of each currency of a spot REST poll's snapshot that the
-// user data stream reported at or after asOf, the account update time the snapshot shows: the snapshot predates that
-// event, or shares its millisecond and may predate it, while the stream's later events in that millisecond carry the
-// latest balance. A currency the snapshot leaves out keeps its stored balance in the same case rather than being
-// removed. The user data stream is the configured account's, so it reports whether the snapshot is that account's and
-// carries a time to order it by, leaving any other as it is. The caller holds the balance store lock until the snapshot
-// is stored
-func (e *Exchange) keepStreamedSpotBalances(ctx context.Context, subAccount *accounts.SubAccount, asOf time.Time) bool {
+// user data stream reported after asOf, the account update time the snapshot shows, as the snapshot predates that
+// event. A snapshot sharing an event's millisecond may predate the event too, so the event's balance stands when the
+// event was recorded since the poll's request, after eventsBefore events, or a snapshot of a later account update time
+// is stored. Otherwise the snapshot, requested after the event, is taken to hold the event's balance or a later one of
+// its millisecond, as the stream misses the account's changes while it is down. A currency the snapshot leaves out
+// keeps its stored balance in the same cases rather than being removed. The user data stream is the configured
+// account's, so it reports whether the snapshot is that account's and carries a time to order it by, leaving any other
+// as it is. The caller holds the balance store lock until the snapshot is stored
+func (e *Exchange) keepStreamedSpotBalances(ctx context.Context, subAccount *accounts.SubAccount, asOf time.Time, eventsBefore uint64) bool {
 	if asOf.IsZero() {
 		return false
 	}
@@ -571,8 +573,13 @@ func (e *Exchange) keepStreamedSpotBalances(ctx context.Context, subAccount *acc
 	for c := range subAccount.Balances {
 		reported[c.Item] = c
 	}
+	r := &e.balanceRefresh
+	r.mu.Lock()
+	eventNumbers := maps.Clone(r.eventNumbers[asset.Spot])
+	laterSnapshotStored := r.snapshotTimes[asset.Spot].After(asOf)
+	r.mu.Unlock()
 	for item, eventTime := range e.balanceEventTimes(asset.Spot) {
-		if eventTime.Before(asOf) {
+		if eventTime.Before(asOf) || eventTime.Equal(asOf) && eventNumbers[item] <= eventsBefore && !laterSnapshotStored {
 			continue
 		}
 		c, ok := reported[item]

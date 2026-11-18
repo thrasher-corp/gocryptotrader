@@ -740,8 +740,9 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 // UpdateAccountBalances retrieves currency balances. For the configured account, a currency the snapshot reports as last
 // updated before the latest user data stream event to report it keeps its stored balance, as does one the snapshot
 // leaves out while its latest event is newer than every update the snapshot shows and than the snapshot's own time,
-// where Binance gives one, or one whose latest event, at the time the snapshot shows, was stored since the request. Spot
-// snapshots show the account's update time, which spot events are ordered against too
+// where Binance gives one, or one whose latest event, at the time the snapshot shows, was stored since the request or
+// precedes a later snapshot already stored. Spot snapshots show the account's update time, which spot events are
+// ordered against too
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	eventsBefore := e.balanceEventsRecorded()
 	subAccount, updated, asOf, err := e.accountBalances(ctx, assetType)
@@ -758,7 +759,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			e.recordBalanceSnapshot(ctx, assetType, asOf, updated)
 			return nil
 		}
-		ordered := e.keepStreamedSpotBalances(ctx, subAccount, asOf)
+		ordered := e.keepStreamedSpotBalances(ctx, subAccount, asOf, eventsBefore)
 		if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
 			return err
 		}
