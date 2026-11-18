@@ -1590,25 +1590,6 @@ func TestBatchAndGridReplies(t *testing.T) {
 	assert.ErrorContains(t, err, "Parameter algoId error", "AmendGridAlgoOrder should report OKX's status message")
 }
 
-// stopMockWebsocket stops the websocket manager MockWsInstance leaves
-// running. Left alone, it redials the closed mock's port a minute later and
-// logs in again, by when another test's server may hold that port. Registered
-// after the server's cleanup, it runs first.
-func stopMockWebsocket(t *testing.T, e *Exchange) {
-	t.Helper()
-	t.Cleanup(func() {
-		if e.Websocket.IsEnabled() {
-			assert.NoError(t, e.Websocket.Disable(), "Disable should not error")
-		}
-		// Shutdown may return an error if the connection is already closed, but
-		// we must ensure the connection monitor goroutine is stopped regardless.
-		_ = e.Websocket.Shutdown()
-		// Give the connection monitor a moment to exit before the test cleanup
-		// closes the mock server, preventing a redial attempt.
-		time.Sleep(100 * time.Millisecond)
-	})
-}
-
 // newMockWebsocketExchange returns an exchange whose authenticated websocket is
 // available to the wrapper, with every REST endpoint pointed at the same test
 // server and mainPair's instrument code cached. rest answers REST requests, and
@@ -1641,7 +1622,6 @@ func newMockWebsocketExchange(t *testing.T, rest http.HandlerFunc, wsReply func(
 			return c.WriteMessage(gws.TextMessage, reply)
 		})
 	}))
-	stopMockWebsocket(t, e)
 	mockURL, err := e.API.Endpoints.GetURL(exchange.RestSpot)
 	require.NoError(t, err, "GetURL must not error for RestSpot")
 	for k := range e.API.Endpoints.GetURLMap() {
@@ -2190,7 +2170,6 @@ func TestSpreadOrdersUseRESTWithAuthenticatedWebsocket(t *testing.T) {
 	})
 
 	e := testexch.MockWsInstance[Exchange](t, handler)
-	stopMockWebsocket(t, e)
 	// MockWsInstance points RestSpotURL at the server without a trailing
 	// slash, which breaks the REST path join, so every endpoint is re-pointed
 	// at the mock server; the websocket connections are already established.
