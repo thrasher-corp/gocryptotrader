@@ -1896,7 +1896,7 @@ func TestWebsocketFuturesSubscribe(t *testing.T) {
 		live := liveExchange(t, livePublic)
 		liveFuturesPublicMu.Lock()
 		defer liveFuturesPublicMu.Unlock()
-		testexch.SetupWs(t, live)
+		testexch.SetupWebsocket(t, live)
 		conn, err := live.Websocket.GetConnection(futuresPublicConnection)
 		require.NoError(t, err, "GetConnection must not error")
 		sub := &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel, Pairs: currency.Pairs{futuresTradablePair}, QualifiedChannel: "ticker@BTC_USDT"}
@@ -2008,7 +2008,7 @@ func TestWebsocketFuturesUnsubscribe(t *testing.T) {
 		live := liveExchange(t, livePublic)
 		liveFuturesPublicMu.Lock()
 		defer liveFuturesPublicMu.Unlock()
-		testexch.SetupWs(t, live)
+		testexch.SetupWebsocket(t, live)
 		conn, err := live.Websocket.GetConnection(futuresPublicConnection)
 		require.NoError(t, err, "GetConnection must not error")
 		sub := tickerSubscription("ETH_USDT")
@@ -2291,7 +2291,7 @@ func TestWebsocketFuturesSubscribePrivate(t *testing.T) {
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		live := liveExchange(t, liveReadOnly)
-		testexch.SetupWs(t, live)
+		testexch.SetupWebsocket(t, live)
 		conn, err := live.Websocket.GetConnection(futuresPrivateConnection)
 		require.NoError(t, err, "GetConnection must not error")
 		sub := &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.MyAccountChannel, Authenticated: true, QualifiedChannel: futuresChannelAsset}
