@@ -40,6 +40,19 @@ func (o *Orderbook) Setup(exchangeName string, dataHandler *stream.Relay, verbos
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket
 func (o *Orderbook) LoadSnapshot(ctx context.Context, book *orderbook.Book) error {
+	return o.loadSnapshot(ctx, book, false)
+}
+
+// LoadSnapshotWithOptions loads a snapshot as LoadSnapshot does, also replacing an existing book's options with the
+// snapshot's, where LoadSnapshot keeps the options of the snapshot that created the book. It is for an exchange whose
+// snapshots of one book can carry different options, such as a book subscribed to again at another depth
+func (o *Orderbook) LoadSnapshotWithOptions(ctx context.Context, book *orderbook.Book) error {
+	return o.loadSnapshot(ctx, book, true)
+}
+
+// loadSnapshot validates a snapshot, creates its book if there is none, loads the snapshot into the book, replacing
+// its options with the snapshot's when replaceOptions is set, then publishes and relays the book
+func (o *Orderbook) loadSnapshot(ctx context.Context, book *orderbook.Book, replaceOptions bool) error {
 	if err := book.Validate(); err != nil {
 		return err
 	}
@@ -58,7 +71,12 @@ func (o *Orderbook) LoadSnapshot(ctx context.Context, book *orderbook.Book) erro
 				o.m.Unlock()
 				return err
 			}
-			newDepth.AssignOptions(book)
+			// A load replacing the options assigns them with the levels, so that a book already in the global store,
+			// such as one REST loaded, never shows this snapshot's options with its own levels, nor keeps them when
+			// the load fails
+			if !replaceOptions {
+				newDepth.AssignOptions(book)
+			}
 			depth = newDepth
 			o.ob[bookKey] = depth
 		}
@@ -66,7 +84,11 @@ func (o *Orderbook) LoadSnapshot(ctx context.Context, book *orderbook.Book) erro
 	}
 
 	book.RestSnapshot = false
-	if err := depth.LoadSnapshot(book); err != nil {
+	load := depth.LoadSnapshot
+	if replaceOptions {
+		load = depth.LoadSnapshotWithOptions
+	}
+	if err := load(book); err != nil {
 		return err
 	}
 

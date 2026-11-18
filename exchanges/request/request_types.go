@@ -46,7 +46,7 @@ type Item struct {
 	Path                   string
 	Headers                map[string]string
 	Body                   io.Reader
-	Result                 any
+	Result                 any // Decoded from the JSON body, unless a *[]byte, which takes the body as sent
 	NonceEnabled           bool
 	Verbose                bool
 	HTTPDebugging          bool

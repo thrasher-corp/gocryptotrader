@@ -174,6 +174,75 @@ func TestLoadSnapshot(t *testing.T) {
 	assert.Equal(t, 2.0, ob.Bids[0].Amount, "Top bid amount should be correct")
 }
 
+func TestLoadSnapshotWithOptions(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewBTCUSD()
+	first := &Book{
+		Bids:              Levels{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}},
+		Asks:              Levels{{Price: 101, Amount: 1}, {Price: 102, Amount: 1}},
+		Exchange:          "test",
+		Pair:              pair,
+		Asset:             asset.Spot,
+		LastUpdated:       time.Unix(1, 0),
+		LastPushed:        time.Unix(2, 0),
+		LastUpdateID:      1,
+		ValidateOrderbook: true,
+		MaxDepth:          2,
+	}
+	// Every option but the depth's exchange, pair and asset differs from the first snapshot's
+	second := &Book{
+		Bids:                   Levels{{Price: 200, Amount: 2, StrPrice: "200", StrAmount: "2", ID: 2}, {Price: 200, Amount: 3, StrPrice: "200", StrAmount: "3", ID: 3}},
+		Asks:                   Levels{{Price: 201, Amount: 2, StrPrice: "201", StrAmount: "2", ID: 4}},
+		Exchange:               "test",
+		Pair:                   pair,
+		Asset:                  asset.Spot,
+		LastUpdated:            time.Unix(3, 0),
+		LastPushed:             time.Unix(4, 0),
+		LastUpdateID:           2,
+		PriceDuplication:       true,
+		IsFundingRate:          true,
+		RestSnapshot:           true,
+		IDAlignment:            true,
+		MaxDepth:               25,
+		ChecksumStringRequired: true,
+	}
+	d := NewDepth(id)
+	// load loads a snapshot with method, returning the book retrieved after it and the book expected: exp with the time
+	// the snapshot was inserted at, which must be within the call
+	load := func(method func(*Book) error, b, exp *Book) (got, want *Book) {
+		t.Helper()
+		before := time.Now()
+		require.NoError(t, method(b), "loading a snapshot must not error")
+		after := time.Now()
+		got, err := d.Retrieve()
+		require.NoError(t, err, "Retrieve must not error")
+		assert.WithinRange(t, got.InsertedAt, before, after, "a snapshot should be inserted when it is loaded")
+		inserted := *exp
+		inserted.InsertedAt = got.InsertedAt
+		return got, &inserted
+	}
+
+	got, exp := load(d.LoadSnapshotWithOptions, first, first)
+	assert.Equal(t, exp, got, "LoadSnapshotWithOptions should load a snapshot with its options")
+
+	noTime := *second
+	noTime.LastUpdated = time.Time{}
+	assert.ErrorIs(t, d.LoadSnapshotWithOptions(&noTime), ErrLastUpdatedNotSet, "LoadSnapshotWithOptions should refuse a snapshot without a time")
+	unchanged, err := d.Retrieve()
+	require.NoError(t, err, "Retrieve must not error")
+	assert.Equal(t, exp, unchanged, "a snapshot without a time should change neither the levels nor the options")
+
+	got, exp = load(d.LoadSnapshotWithOptions, second, second)
+	assert.Equal(t, exp, got, "LoadSnapshotWithOptions should replace the levels and the options together")
+
+	// LoadSnapshot takes a snapshot's levels and times but keeps the depth's options
+	kept := *second
+	kept.Bids, kept.Asks = first.Bids, first.Asks
+	kept.LastUpdated, kept.LastPushed, kept.LastUpdateID, kept.RestSnapshot = first.LastUpdated, first.LastPushed, first.LastUpdateID, first.RestSnapshot
+	got, exp = load(d.LoadSnapshot, first, &kept)
+	assert.Equal(t, exp, got, "LoadSnapshot should keep the options LoadSnapshotWithOptions replaced")
+}
+
 func TestInvalidate(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
