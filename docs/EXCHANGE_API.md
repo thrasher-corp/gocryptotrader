@@ -88,3 +88,39 @@ supplied meet the requirements to make an authenticated request.
     }
     fmt.Println(resp.OrderID)
 ```
+
+## Managed websocket connections
+
+BinanceUS, Bithumb, BTCMarkets, BTSE, Coinut, Gemini and HitBTC use managed
+connections. Configure their existing `urlEndpoints` before setup; managed
+connections do not support `gctcli websocket seturl` at runtime. Their legacy
+`Websocket.Conn` field is not populated. Use the manager's connection lifecycle
+and connection routing instead.
+
+`WsConnect()` remains available and delegates to the manager. Subscription
+callbacks now take a context and connection; Gemini's former `Subscribe` and
+`Unsubscribe` methods are internal setup callbacks. Update configured
+subscriptions and call `FlushWebsocketChannels()` so that the manager records
+connection ownership. Invoking wire callbacks directly does not complete that
+bookkeeping. The inherited `SubscribeToWebsocketChannels` and
+`UnsubscribeToWebsocketChannels` methods require the legacy `Websocket.Conn`
+and cannot be used for these managed exchanges.
+BTCMarkets retains `ReSubscribeSpecificOrderbook(pair)` and resolves its managed
+connection internally. BinanceUS's renewal worker `KeepAuthKeyAlive` is managed
+internally, and Gemini's former `WsAuth` dial method is replaced by its managed
+private connector.
+
+BinanceUS retains one combined public/account connection and its existing
+subscription limit. It rejects a second active connection so that closing one
+socket cannot invalidate another socket's listen key or orderbook workers.
+Coinut and HitBTC retain a connection for direct requests when market
+subscriptions are empty; BinanceUS retains its account-event connection.
+These use `KeepAliveWithoutSubscriptions`: subscriptions are still generated
+and updated, but the last empty socket remains open. `SubscriptionsNotRequired`
+instead describes a connection with no subscription management at all, such as
+Gemini's private order-event stream.
+
+BTSE waits for a login acknowledgement before subscribing to private channels.
+Coinut fills its instrument cache through the existing REST discovery path
+before dialling when the cache has not already been populated. Authentication
+then uses the connection's response matcher.

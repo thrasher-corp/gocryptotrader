@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
@@ -1035,6 +1036,74 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		t.Cleanup(func() { cleanupManagedConnectionReaders(t, m, ws) })
 		return m, ws
 	}
+
+	for _, keepAlive := range []bool{false, true} {
+		name := "ordinary empty setup does not dial"
+		if keepAlive {
+			name = "keepalive reuses socket through empty subscriptions"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			m, ws := setup(t, true)
+			managerSetup := newDefaultSetup()
+			managerSetup.UseMultiConnectionManagement = true
+			managerSetup.ExchangeConfig.ConnectionMonitorDelay = 20 * time.Millisecond
+			managerSetup.ExchangeConfig.WebsocketTrafficTimeout = time.Hour
+			require.NoError(t, m.Setup(managerSetup), "manager must initialise")
+			t.Cleanup(func() { cleanupManagerMonitors(t, m) })
+			var pending subscription.List
+			ws.setup.KeepAliveWithoutSubscriptions = keepAlive
+			ws.setup.MessageFilter = "requests"
+			ws.setup.ResponseMaxLimit = time.Second
+			ws.setup.Handler = func(_ context.Context, conn Connection, data []byte) error {
+				return conn.RequireMatchWithData("request", data)
+			}
+			ws.setup.GenerateSubscriptions = func() (subscription.List, error) { return pending, nil }
+			require.NoError(t, m.SetupNewConnection(ws.setup), "managed setup must register")
+			ws = m.snapshotConnectionManager()[0]
+			require.NoError(t, m.Connect(t.Context()), "empty initial connection must succeed")
+			if !keepAlive {
+				assert.Empty(t, m.snapshotManagedConnections(ws), "ordinary setup should not dial an empty socket")
+				return
+			}
+			connections := m.snapshotManagedConnections(ws)
+			require.Len(t, connections, 1, "keepalive must dial exactly one empty connection")
+			original := connections[0]
+			assert.True(t, m.IsConnected(), "keepalive manager should be connected without subscriptions")
+			for _, next := range []subscription.List{nil, {{Channel: "A"}}, nil, {{Channel: "B"}}} {
+				pending = next
+				require.NoError(t, m.FlushChannels(t.Context()), "subscription changes must preserve the keepalive connection")
+				connections = m.snapshotManagedConnections(ws)
+				require.Len(t, connections, 1, "keepalive must retain only one socket")
+				assert.Same(t, original, connections[0], "subscription transitions should reuse the original socket")
+				assert.Equal(t, len(next), original.Subscriptions().Len(), "connection ownership should match current subscriptions")
+				assert.Equal(t, len(next), len(m.GetSubscriptions()), "manager ownership should match current subscriptions")
+				routed, err := m.GetConnection("requests")
+				require.NoError(t, err, "direct requests must still find their connection")
+				response, err := routed.SendMessageReturnResponse(t.Context(), request.Unset, "request", map[string]string{"request": "still available"})
+				require.NoError(t, err, "direct requests must receive responses with or without subscriptions")
+				assert.JSONEq(t, `{"request":"still available"}`, string(response), "response should come through the retained socket")
+			}
+		})
+	}
+
+	t.Run("keepalive removes excess empty sockets", func(t *testing.T) {
+		t.Parallel()
+		m, ws := setup(t, true)
+		ws.setup.KeepAliveWithoutSubscriptions = true
+		m.MaxSubscriptionsPerConnection = 1
+		a, b := &subscription.Subscription{Channel: "A"}, &subscription.Subscription{Channel: "B"}
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, subscription.List{a, b}), "two subscriptions must scale to two sockets")
+		require.Len(t, ws.connections, 2, "capacity must require two sockets")
+		owner := ws.connections[1]
+		require.Same(t, b, owner.Subscriptions().Get(b), "second connection must own the retained subscription")
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, subscription.List{b}), "removing a subscription must release excess empty sockets")
+		require.Len(t, ws.connections, 1, "keepalive must not retain an empty socket beside a nonempty one")
+		assert.Same(t, owner, ws.connections[0], "nonempty owner should survive scale down")
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, nil), "last subscription must be removable")
+		require.Len(t, ws.connections, 1, "scale to zero must retain one socket")
+		assert.Same(t, owner, ws.connections[0], "the last socket should become the empty keepalive")
+	})
 
 	t.Run("Nil ws", func(t *testing.T) {
 		t.Parallel()

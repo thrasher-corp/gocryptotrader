@@ -116,6 +116,14 @@ func MockWsInstance[T any, PT interface {
 	s.Start()
 
 	b := e.GetBase()
+	b.SkipAuthCheck = true
+	// Mock sockets exercise authenticated requests on both legacy and managed connections.
+	b.API.AuthenticatedWebsocketSupport = true
+	// Managed private setups need this flag; legacy connectors must not try
+	// authenticating against endpoints outside the mock server.
+	if b.Websocket.Conn == nil {
+		b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	}
 	tb.Cleanup(func() {
 		if err := b.Websocket.Disable(); err != nil {
 			assert.ErrorIs(tb, err, websocket.ErrAlreadyDisabled, "Disable should not error")
@@ -124,9 +132,6 @@ func MockWsInstance[T any, PT interface {
 			assert.ErrorIs(tb, err, websocket.ErrNotConnected, "Shutdown should not error")
 		}
 	})
-	b.SkipAuthCheck = true
-	// Mock sockets exercise authenticated requests on both legacy and managed connections.
-	b.API.AuthenticatedWebsocketSupport = true
 	err := b.API.Endpoints.SetRunningURL("RestSpotURL", s.URL)
 	require.NoError(tb, err, "Endpoints.SetRunningURL must not error for RestSpotURL")
 
@@ -264,4 +269,13 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	cache := new(currency.PairsManager)
 	cache.Load(&b.CurrencyPairs)
 	updatePairsOnce[e.GetName()] = cache
+}
+
+// GetMockConn returns an isolated websocket connection for handler tests without
+// connecting to a real websocket server.
+func GetMockConn(tb testing.TB, e exchange.IBotExchange, messageFilter any) websocket.Connection {
+	tb.Helper()
+	conn, err := e.GetBase().Websocket.CreateTestConnection(messageFilter)
+	require.NoError(tb, err, "CreateTestConnection must resolve the configured connection")
+	return conn
 }

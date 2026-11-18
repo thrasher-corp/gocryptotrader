@@ -130,23 +130,26 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            coinutWebsocketURL,
-		RunningURL:            wsRunningURL,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.GenerateDefaultSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:               exch,
+		UseMultiConnectionManagement: true,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
 	}
-
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            request.NewWeightedRateLimitByDuration(33 * time.Millisecond),
+		URL:                           wsRunningURL,
+		KeepAliveWithoutSubscriptions: true,
+		MessageFilter:                 coinutConnection,
+		Connector:                     e.wsConnect,
+		Authenticate:                  e.wsAuthenticate,
+		GenerateSubscriptions:         e.GenerateDefaultSubscriptions,
+		Subscriber:                    e.Subscribe,
+		Unsubscriber:                  e.Unsubscribe,
+		Handler:                       e.wsHandleMessage,
+		ResponseCheckTimeout:          exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:              exch.WebsocketResponseMaxLimit,
+		RateLimit:                     request.NewWeightedRateLimitByDuration(33 * time.Millisecond),
 	})
 }
 
@@ -941,7 +944,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	return e.wsAuthenticate(ctx)
+	conn, err := e.Websocket.GetConnection(coinutConnection)
+	if err != nil {
+		return err
+	}
+	return e.wsAuthenticate(ctx, conn)
 }
 
 func (e *Exchange) loadInstrumentsIfNotLoaded(ctx context.Context) error {

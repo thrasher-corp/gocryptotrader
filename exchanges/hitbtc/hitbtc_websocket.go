@@ -26,7 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -51,50 +50,20 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true},
 }
 
-// WsConnect starts a new connection with the websocket API
+// WsConnect starts the managed websocket lifecycle.
 func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
+	return e.Websocket.Connect(context.TODO())
+}
+
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
-	if err != nil {
-		return err
-	}
-
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx)
-
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err = e.wsLogin(ctx)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", e.Name, err)
-		}
-	}
-
-	return nil
+	return conn.Dial(ctx, &dialer, http.Header{}, nil)
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-
-		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-			}
-		}
-	}
-}
-
-func (e *Exchange) wsGetTableName(ctx context.Context, respRaw []byte) (string, error) {
+func (e *Exchange) wsGetTableName(ctx context.Context, conn websocket.Connection, respRaw []byte) (string, error) {
 	var init capture
 	err := json.Unmarshal(respRaw, &init)
 	if err != nil {
@@ -104,7 +73,7 @@ func (e *Exchange) wsGetTableName(ctx context.Context, respRaw []byte) (string, 
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	if init.ID != "" {
-		if e.Websocket.Match.IncomingWithData(init.ID, respRaw) {
+		if conn.IncomingWithData(init.ID, respRaw) {
 			return "", nil
 		}
 	}
@@ -149,8 +118,8 @@ func (e *Exchange) wsGetTableName(ctx context.Context, respRaw []byte) (string, 
 	return "", e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 }
 
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
-	name, err := e.wsGetTableName(ctx, respRaw)
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+	name, err := e.wsGetTableName(ctx, conn, respRaw)
 	if err != nil {
 		return err
 	}
@@ -554,18 +523,20 @@ const (
 )
 
 // Subscribe sends a websocket message to receive data from the channel
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	ctx := context.TODO()
-	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, subs subscription.List) error { return e.manageSubs(ctx, subscribeOp, subs) }, 1)
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, subs subscription.List) error {
+		return e.manageSubs(ctx, conn, subscribeOp, subs)
+	}, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	ctx := context.TODO()
-	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, subs subscription.List) error { return e.manageSubs(ctx, unsubscribeOp, subs) }, 1)
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, subs subscription.List) error {
+		return e.manageSubs(ctx, conn, unsubscribeOp, subs)
+	}, 1)
 }
 
-func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
+func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op string, subs subscription.List) error {
 	var errs error
 	subs, errs = subs.ExpandTemplates(e)
 	for _, s := range subs {
@@ -578,12 +549,12 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 			continue
 		}
 		r.Method = op + r.Method
-		err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, r) // v2 api does not return an ID with errors, so we don't use ReturnResponse
+		err := conn.SendJSONMessage(ctx, request.Unset, r) // v2 api does not return an ID with errors, so we don't use ReturnResponse
 		if err == nil {
 			if op == subscribeOp {
-				err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s)
+				err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
 			} else {
-				err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s)
+				err = e.Websocket.RemoveSubscriptions(conn, s)
 			}
 		}
 		if err != nil {
@@ -594,7 +565,7 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 }
 
 // wsLogin authenticates the websocket connection
-func (e *Exchange) wsLogin(ctx context.Context) error {
+func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error {
 	if !e.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
 	}
@@ -620,13 +591,22 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 		ID: e.MessageID(),
 	}
 
-	err = e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
+	err = conn.SendJSONMessage(ctx, request.Unset, req)
 	if err != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
 
 	return nil
+}
+
+// wsSendRequest routes request responses through the selected managed connection.
+func (e *Exchange) wsSendRequest(ctx context.Context, id string, payload any) ([]byte, error) {
+	conn, err := e.Websocket.GetConnection(hitbtcWebsocketAddress)
+	if err != nil {
+		return nil, err
+	}
+	return conn.SendMessageReturnResponse(ctx, request.Unset, id, payload)
 }
 
 // wsPlaceOrder sends a websocket message to submit an order
@@ -652,7 +632,7 @@ func (e *Exchange) wsPlaceOrder(ctx context.Context, pair currency.Pair, side st
 		},
 		ID: id,
 	}
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, id, req)
+	resp, err := e.wsSendRequest(ctx, id, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", e.Name, err)
 	}
@@ -679,7 +659,7 @@ func (e *Exchange) wsCancelOrder(ctx context.Context, clientOrderID string) (*Ws
 		},
 		ID: e.MessageID(),
 	}
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
+	resp, err := e.wsSendRequest(ctx, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", e.Name, err)
 	}
@@ -709,7 +689,7 @@ func (e *Exchange) wsReplaceOrder(ctx context.Context, clientOrderID string, qua
 		},
 		ID: e.MessageID(),
 	}
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
+	resp, err := e.wsSendRequest(ctx, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", e.Name, err)
 	}
@@ -734,7 +714,7 @@ func (e *Exchange) wsGetActiveOrders(ctx context.Context) (*wsActiveOrdersRespon
 		Params: WsReplaceOrderRequestData{},
 		ID:     e.MessageID(),
 	}
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
+	resp, err := e.wsSendRequest(ctx, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", e.Name, err)
 	}
@@ -759,7 +739,7 @@ func (e *Exchange) wsGetTradingBalance(ctx context.Context) (*WsGetTradingBalanc
 		Params: WsReplaceOrderRequestData{},
 		ID:     e.MessageID(),
 	}
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
+	resp, err := e.wsSendRequest(ctx, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", e.Name, err)
 	}
@@ -783,7 +763,7 @@ func (e *Exchange) wsGetCurrencies(ctx context.Context, currencyItem currency.Co
 		},
 		ID: e.MessageID(),
 	}
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
+	resp, err := e.wsSendRequest(ctx, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", e.Name, err)
 	}
@@ -812,7 +792,7 @@ func (e *Exchange) wsGetSymbols(ctx context.Context, c currency.Pair) (*WsGetSym
 		},
 		ID: e.MessageID(),
 	}
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
+	resp, err := e.wsSendRequest(ctx, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", e.Name, err)
 	}
@@ -844,7 +824,7 @@ func (e *Exchange) wsGetTrades(ctx context.Context, c currency.Pair, limit int64
 		},
 		ID: e.MessageID(),
 	}
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
+	resp, err := e.wsSendRequest(ctx, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", e.Name, err)
 	}

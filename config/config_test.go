@@ -1577,7 +1577,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 19, expected.Version, "Config.Version must use version 19")
+	require.Equal(t, 20, expected.Version, "Config.Version must use version 20")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
@@ -1594,7 +1594,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 14 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 19")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 20")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should remove BitMEX credentials while preserving all other exchanges")
 	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
 }
@@ -1606,7 +1606,7 @@ func TestReadVersion16OrderbookBufferConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the current config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 19, expected.Version, "Config.Version must use version 19")
+	require.Equal(t, 20, expected.Version, "Config.Version must use version 20")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
@@ -1636,7 +1636,7 @@ func TestReadVersion16OrderbookBufferConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 16 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 19")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 20")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should preserve exchanges apart from obsolete buffer settings")
 
 	var output bytes.Buffer
@@ -1654,7 +1654,7 @@ func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 15 config")
-	assert.Equal(t, 19, migrated.Version, "ReadConfigFromFile should advance the config to version 19")
+	assert.Equal(t, 20, migrated.Version, "ReadConfigFromFile should advance the config to version 20")
 	require.Len(t, migrated.Logging.SubLoggers, 1, "ReadConfigFromFile must preserve the obsolete GCTScript sublogger")
 	assert.Equal(t, "GCTSCRIPT", migrated.Logging.SubLoggers[0].Name, "ReadConfigFromFile should preserve the obsolete sublogger name")
 	require.NoError(t, log.SetupSubLoggers(migrated.Logging.SubLoggers), "SetupSubLoggers must safely ignore the obsolete GCTScript sublogger")
@@ -1676,7 +1676,7 @@ func TestReadConfigFromReader(t *testing.T) {
 			input := `{"version":18,"exchanges":[{"name":"` + name + `","currencyPairs":{"pairs":{}},"features":{"subscriptions":[{"enabled":true,"channel":"myAccount","authenticated":true},{"enabled":true,"channel":"myOrders","asset":"Futures"},{"enabled":true,"channel":"fundingRate","asset":"USDTMarginedFutures"}]}}]}`
 			cfg := new(Config)
 			require.NoError(t, cfg.readConfig(strings.NewReader(input)), "real config loader must migrate derivative subscriptions")
-			assert.Equal(t, 19, cfg.Version, "HTX configuration should advance from upstream version 18 to version 19")
+			assert.Equal(t, 20, cfg.Version, "HTX configuration should advance through version 20")
 			require.Len(t, cfg.Exchanges, 1, "loader must retain the exchange")
 			loaded := &cfg.Exchanges[0]
 			assert.Equal(t, "HTX", loaded.Name, "loader should canonicalise the exchange name")
@@ -1709,12 +1709,36 @@ func TestReadConfigFromReader(t *testing.T) {
 				t.Parallel()
 				var cfg Config
 				require.NoError(t, cfg.readConfig(strings.NewReader(`{"version":17,"exchanges":[{"name":"`+name+`","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business"}}}]}`)), "saved configuration must load and migrate")
-				assert.Equal(t, 19, cfg.Version, "saved configuration should advance to version 19")
+				assert.Equal(t, 20, cfg.Version, "saved configuration should advance to version 20")
 				require.Len(t, cfg.Exchanges, 1, "OKX entry must survive loading")
 				assert.Equal(t, "wss://ws.okx.com/ws/v5/public", cfg.Exchanges[0].API.Endpoints["WebsocketSpotURL"], "public endpoint should migrate")
 				assert.Equal(t, "wss://ws.okx.com/ws/v5/private", cfg.Exchanges[0].API.Endpoints["WebsocketPrivateURL"], "private endpoint should migrate")
 				assert.Equal(t, "wss://ws.okx.com/ws/v5/business", cfg.Exchanges[0].API.Endpoints["WebsocketSpotSupplementaryURL"], "business endpoint should migrate")
 			})
+		}
+	})
+	t.Run("Gemini saved endpoint migration", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"Gemini", "gemini", "GEMINI"} {
+			for _, tc := range []struct {
+				name, endpoint, want string
+			}{
+				{name: "old default", endpoint: "wss://api.gemini.com", want: "wss://api.gemini.com/v2/marketdata"},
+				{name: "current default", endpoint: "wss://api.gemini.com/v2/marketdata", want: "wss://api.gemini.com/v2/marketdata"},
+				{name: "custom", endpoint: "wss://example.com/marketdata", want: "wss://example.com/marketdata"},
+			} {
+				t.Run(name+"/"+tc.name, func(t *testing.T) {
+					t.Parallel()
+					input := `{"version":19,"exchanges":[{"name":"` + name + `","api":{"urlEndpoints":{"WebsocketSpotURL":"` + tc.endpoint + `","WebsocketSpotSupplementaryURL":"wss://example.com/private"}}},{"name":"Other","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://api.gemini.com"}}}]}`
+					var cfg Config
+					require.NoError(t, cfg.readConfig(strings.NewReader(input)), "saved configuration must load through the version migration")
+					assert.Equal(t, 20, cfg.Version, "configuration should advance from upstream version 19")
+					require.Len(t, cfg.Exchanges, 2, "loader must retain both exchanges")
+					assert.Equal(t, tc.want, cfg.Exchanges[0].API.Endpoints["WebsocketSpotURL"], "public endpoint should migrate only the old default")
+					assert.Equal(t, "wss://example.com/private", cfg.Exchanges[0].API.Endpoints["WebsocketSpotSupplementaryURL"], "custom private endpoint should be preserved")
+					assert.Equal(t, "wss://api.gemini.com", cfg.Exchanges[1].API.Endpoints["WebsocketSpotURL"], "unrelated exchange should be preserved")
+				})
+			}
 		}
 	})
 }

@@ -3,12 +3,11 @@ package hitbtc
 import (
 	"context"
 	"log"
-	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
-	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -21,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -53,11 +53,11 @@ func TestMain(m *testing.M) {
 		e.SetCredentials(apiCredentials)
 	}
 
-	if err := e.UpdateTradablePairs(context.Background()); err != nil {
-		log.Fatalf("HitBTC UpdateTradablePairs error: %s", err)
-	}
-
 	os.Exit(m.Run())
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	assert.NoError(t, e.UpdateTradablePairs(t.Context()), "UpdateTradablePairs should refresh the live pair listing")
 }
 
 func TestGetOrderbook(t *testing.T) {
@@ -429,14 +429,9 @@ func setupWsAuth(t *testing.T) {
 		return
 	}
 	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
+	testexch.UpdatePairsOnce(t, e)
 
-	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	go e.wsReadData(t.Context())
-	err = e.wsLogin(t.Context())
+	err := e.Websocket.Connect(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -544,7 +539,7 @@ func TestWsGetActiveOrdersJSON(t *testing.T) {
     }
   ]
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, hitbtcWebsocketAddress), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -568,7 +563,7 @@ func TestWsGetCurrenciesJSON(t *testing.T) {
   },
   "id": "c4ce77f5-1c50-435a-b623-4961191ca129"
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, hitbtcWebsocketAddress), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -589,16 +584,14 @@ func TestWsGetSymbolsJSON(t *testing.T) {
   },
   "id": "1c847290-b366-412b-b8f5-dc630ed5b147"
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, hitbtcWebsocketAddress), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsTicker(t *testing.T) {
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	e.Name = t.Name()
+	t.Parallel()
 	pressXToJSON := []byte(`{
   "jsonrpc": "2.0",
   "method": "ticker",
@@ -615,9 +608,47 @@ func TestWsTicker(t *testing.T) {
     "symbol": "BTCUSD"
   }
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	for _, tc := range []struct {
+		name     string
+		rejected bool
+	}{
+		{name: "stored ticker is relayed"},
+		{name: "rejected ticker is not relayed", rejected: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			ex.Name = t.Name()
+			payload := pressXToJSON
+			if tc.rejected {
+				payload = []byte(strings.Replace(string(payload), `"bid": "0.054463"`, `"bid": "0.054464"`, 1))
+			}
+			conn := testexch.GetMockConn(t, ex, hitbtcWebsocketAddress)
+			err := ex.wsHandleData(t.Context(), conn, payload)
+			if tc.rejected {
+				require.ErrorIs(t, err, ticker.ErrBidEqualsAsk, "invalid ticker must fail processing")
+				select {
+				case <-ex.Websocket.DataHandler.C:
+					t.Fatal("rejected ticker must not be relayed")
+				default:
+				}
+				_, err = ticker.GetTicker(ex.Name, currency.NewBTCUSD(), asset.Spot)
+				assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "rejected ticker should not enter the shared store")
+				return
+			}
+			require.NoError(t, err, "ticker handler must succeed")
+			select {
+			case message := <-ex.Websocket.DataHandler.C:
+				price, ok := message.Data.(*ticker.Price)
+				require.True(t, ok, "handler must relay a ticker")
+				stored, err := ticker.GetTicker(ex.Name, currency.NewBTCUSD(), asset.Spot)
+				require.NoError(t, err, "relayed ticker must already exist in the shared store")
+				assert.Equal(t, stored, price, "relay should contain the processed ticker")
+			default:
+				t.Fatal("processed ticker must be relayed")
+			}
+		})
 	}
 }
 
@@ -659,7 +690,7 @@ func TestWsOrderbook(t *testing.T) {
     "timestamp": "2018-11-19T05:00:28.193Z"
   }
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, hitbtcWebsocketAddress), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -689,7 +720,7 @@ func TestWsOrderbook(t *testing.T) {
     "timestamp": "2018-11-19T05:00:28.700Z"
   }
 }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, hitbtcWebsocketAddress), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -720,7 +751,7 @@ func TestWsOrderNotification(t *testing.T) {
     "tradeFee": "-0.000000005"
   }
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, hitbtcWebsocketAddress), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -747,7 +778,7 @@ func TestWsSubmitOrderJSON(t *testing.T) {
   },
   "id": "99f55c70-1166-49a7-87e9-3b54a00ad893"
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, hitbtcWebsocketAddress), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -774,7 +805,7 @@ func TestWsCancelOrderJSON(t *testing.T) {
   },
   "id": "2ce46937-2770-4453-ac99-ee87939bf5bb"
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, hitbtcWebsocketAddress), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -802,7 +833,7 @@ func TestWsCancelReplaceJSON(t *testing.T) {
   },
   "id": "91e925d3-3b95-4e29-8ae7-938fd5006709"
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, hitbtcWebsocketAddress), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -830,7 +861,7 @@ func TestWsGetTradesRequestResponse(t *testing.T) {
   ],
   "id": "4b1f1391-215e-4d12-972c-5cea9d50edf4"
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, hitbtcWebsocketAddress), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -860,7 +891,7 @@ func TestWsGetActiveOrdersRequestJSON(t *testing.T) {
   ],
   "id": "9e67b440-2eec-445a-be3a-e81f962c8391"
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, hitbtcWebsocketAddress), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -897,7 +928,7 @@ func TestWsTrades(t *testing.T) {
     "symbol": "BTCUSD"
   }
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, hitbtcWebsocketAddress), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -918,7 +949,7 @@ func TestWsTrades(t *testing.T) {
     "symbol": "BTCUSD"
   }
 }    `)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, hitbtcWebsocketAddress), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -949,7 +980,7 @@ func TestWsCandles(t *testing.T) {
     ]
   }
 }`)
-	err := h.wsHandleData(t.Context(), pressXToJSON)
+	err := h.wsHandleData(t.Context(), testexch.GetMockConn(t, h, hitbtcWebsocketAddress), pressXToJSON)
 	require.NoError(t, err)
 
 	select {
@@ -994,7 +1025,7 @@ func TestWsCandles(t *testing.T) {
     ]
   }
 }`)
-	err = h.wsHandleData(t.Context(), pressXToJSON)
+	err = h.wsHandleData(t.Context(), testexch.GetMockConn(t, h, hitbtcWebsocketAddress), pressXToJSON)
 	require.NoError(t, err)
 }
 

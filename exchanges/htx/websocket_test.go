@@ -101,8 +101,8 @@ func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
 	if action == "req" && channel == "auth" {
 		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"req","code":200,"ch":"auth","data":{}}`))
 	}
-	if action == "sub" {
-		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"sub","code":200,"ch":"`+channel+`"}`))
+	if action == wsSubOp || action == wsUnsubOp {
+		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"`+action+`","code":200,"ch":"`+channel+`"}`))
 	}
 	id, _ := jsonparser.GetString(msg, "id")
 	sub, _ := jsonparser.GetString(msg, "sub")
@@ -124,6 +124,7 @@ func TestWebsocketFixture(t *testing.T) {
 		{"derivatives login", `{"op":"auth"}`, `{"op":"auth","type":"api","ts":1489474081631,"err-code":0,"data":{"user-id":"12345678"}}`},
 		{"derivatives subscription", `{"op":"sub","topic":"orders.*"}`, `{"op":"sub","topic":"orders.*","ts":1489474081631,"err-code":0}`},
 		{"spot login", `{"action":"req","ch":"auth"}`, `{"action":"req","code":200,"ch":"auth","data":{}}`},
+		{"spot private unsubscription", `{"action":"unsub","ch":"orders#*"}`, `{"action":"unsub","code":200,"ch":"orders#*"}`},
 		{"public unsubscription", `{"id":"17","unsub":"market.btcusdt.detail"}`, `{"id":"17","status":"ok","unsubbed":"market.btcusdt.detail"}`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -361,6 +362,9 @@ func TestManageSubs(t *testing.T) {
 			h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, msg []byte, w *gws.Conn) error {
 				tb.Helper()
 				operation, err := jsonparser.GetString(msg, "op")
+				if err != nil || operation == wsAuthChannel {
+					return wsFixture(tb, msg, w)
+				}
 				require.NoError(t, err, "subscription operation must decode")
 				topic, err := jsonparser.GetString(msg, "topic")
 				require.NoError(t, err, "subscription topic must decode")
@@ -484,6 +488,7 @@ func TestSubscribe(t *testing.T) {
 		}
 	})
 	e := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	subs, err := defaultSubscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	err = e.Subscribe(subs)

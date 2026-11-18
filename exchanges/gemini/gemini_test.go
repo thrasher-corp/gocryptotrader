@@ -1,6 +1,9 @@
 package gemini
 
 import (
+	"context"
+	"errors"
+	"net/http"
 	"net/url"
 	"strings"
 	"testing"
@@ -10,12 +13,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -29,6 +36,26 @@ const canManipulateRealOrders = false
 const testCurrency = "btcusd"
 
 var e *Exchange
+
+type websocketTestConnection struct {
+	websocket.Connection
+	dialErr     error
+	sendErr     error
+	dialCalls   int
+	dialHeaders http.Header
+	sent        []any
+}
+
+func (c *websocketTestConnection) Dial(_ context.Context, _ *gws.Dialer, headers http.Header, _ url.Values) error {
+	c.dialCalls++
+	c.dialHeaders = headers.Clone()
+	return c.dialErr
+}
+
+func (c *websocketTestConnection) SendJSONMessage(_ context.Context, _ request.EndpointLimit, payload any) error {
+	c.sent = append(c.sent, payload)
+	return c.sendErr
+}
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
@@ -542,32 +569,83 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-func TestWsAuth(t *testing.T) {
+func TestWsAuthConnect(t *testing.T) {
 	t.Parallel()
-	err := e.API.Endpoints.SetRunningURL(exchange.WebsocketSpot.String(), geminiWebsocketSandboxEndpoint)
-	if err != nil {
-		t.Error(err)
-	}
-	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
-	var dialer gws.Dialer
-	err = e.WsAuth(t.Context(), &dialer)
-	if err != nil {
-		t.Error(err)
-	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case resp := <-e.Websocket.DataHandler.C:
-		subAck, ok := resp.Data.(WsSubscriptionAcknowledgementResponse)
-		if !ok {
-			t.Error("unable to type assert WsSubscriptionAcknowledgementResponse")
+
+	t.Run("missing credentials", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, asset.Spot)}
+		assert.Error(t, ex.wsAuthConnect(t.Context(), conn), "wsAuthConnect should error without credentials")
+		assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "missing credentials should disable runtime authentication")
+		assert.Zero(t, conn.dialCalls, "wsAuthConnect should not dial without credentials")
+	})
+
+	t.Run("authenticated dial", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, asset.Spot)}
+
+		conn.SetURL(geminiWebsocketSandboxEndpoint + "/v1/" + geminiWsOrderEvents)
+		require.NoError(t, ex.wsAuthConnect(t.Context(), conn), "wsAuthConnect must not error")
+		assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "successful dial should retain runtime authentication")
+		assert.Equal(t, 1, conn.dialCalls, "wsAuthConnect should dial once")
+		assert.Equal(t, "key", conn.dialHeaders.Get("X-GEMINI-APIKEY"), "wsAuthConnect should set the API key header")
+		assert.NotEmpty(t, conn.dialHeaders.Get("X-GEMINI-PAYLOAD"), "wsAuthConnect should set the payload header")
+		assert.NotEmpty(t, conn.dialHeaders.Get("X-GEMINI-SIGNATURE"), "wsAuthConnect should set the signature header")
+	})
+
+	t.Run("dial failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		errDial := errors.New("dial failure")
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		conn := &websocketTestConnection{
+			Connection: testexch.GetMockConn(t, ex, asset.Spot),
+			dialErr:    errDial,
 		}
-		if subAck.Type != "subscription_ack" {
-			t.Error("Login failed")
-		}
-	case <-timer.C:
-		t.Error("Expected response")
-	}
-	timer.Stop()
+
+		err := ex.wsAuthConnect(t.Context(), conn)
+		assert.ErrorIs(t, err, errDial, "wsAuthConnect should preserve the dial failure")
+		assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "failed dial should disable runtime authentication")
+	})
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+
+	t.Run("disabled exchange", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		assert.ErrorIs(t, ex.WsConnect(), websocket.ErrWebsocketNotEnabled, "disabled exchange should reject connection")
+	})
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, asset.Spot)}
+		require.NoError(t, ex.wsConnect(t.Context(), conn), "wsConnect must not error")
+		assert.Equal(t, 1, conn.dialCalls, "wsConnect should dial once")
+	})
+
+	t.Run("dial failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		errDial := errors.New("dial failure")
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, asset.Spot), dialErr: errDial}
+		assert.ErrorIs(t, ex.wsConnect(t.Context(), conn), errDial, "wsConnect should return the dial failure")
+	})
 }
 
 func TestWsMissingRole(t *testing.T) {
@@ -576,7 +654,7 @@ func TestWsMissingRole(t *testing.T) {
 		"reason":"MissingRole",
 		"message":"To access this endpoint, you need to log in to the website and go to the settings page to assign one of these roles [FundManager] to API key wujB3szN54gtJ4QDhqRJ which currently has roles [Trader]"
 	}`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err == nil {
+	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err == nil {
 		t.Error("Expected error")
 	}
 }
@@ -600,7 +678,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "14.0296",
   "price" : "1059.54"
 } ]`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -622,7 +700,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "price": "3592.00",
     "socket_sequence": 13
 }]`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -643,7 +721,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "total_spend": "200.00",
     "socket_sequence": 29
 }]`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -664,7 +742,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "original_amount": "25",
     "socket_sequence": 26
 }]`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -686,7 +764,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "500",
   "socket_sequence" : 32307
 } ]`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -708,7 +786,7 @@ func TestWsSubAck(t *testing.T) {
     "closed"
   ]
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -721,7 +799,7 @@ func TestWsHeartbeat(t *testing.T) {
   "trace_id": "b8biknoqppr32kc7gfgg",
   "socket_sequence": 37
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -742,7 +820,7 @@ func TestWsUnsubscribe(t *testing.T) {
         ]}
     ]
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -765,7 +843,7 @@ func TestWsTradeData(t *testing.T) {
     }
   ]
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -797,7 +875,7 @@ func TestWsAuctionData(t *testing.T) {
     ],
     "type": "update"
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -818,7 +896,7 @@ func TestWsBlockTrade(t *testing.T) {
       }
    ]
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -833,7 +911,7 @@ func TestWSTrade(t *testing.T) {
 		"quantity": "0.09110000",
 		"side": "buy"
 	}`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -866,7 +944,7 @@ func TestWsCandles(t *testing.T) {
     ]
   ]
 }`)
-	require.NoError(t, g.wsHandleData(t.Context(), pressXToJSON))
+	require.NoError(t, g.wsHandleData(t.Context(), nil, pressXToJSON))
 
 	for _, exp := range []kline.Candle{
 		{
@@ -939,7 +1017,7 @@ func TestWsAuctions(t *testing.T) {
     ],
     "type": "update"
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
 		t.Error(err)
 	}
 
@@ -963,7 +1041,7 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
 		t.Error(err)
 	}
 
@@ -994,7 +1072,7 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -1023,7 +1101,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1051,7 +1129,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1073,7 +1151,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }  `)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1111,7 +1189,7 @@ func TestWsError(t *testing.T) {
 	}
 
 	for x := range tt {
-		err := e.wsHandleData(t.Context(), tt[x].Data)
+		err := e.wsHandleData(t.Context(), nil, tt[x].Data)
 		if tt[x].ErrorExpected && err != nil && !strings.Contains(err.Error(), tt[x].ErrorShouldContain) {
 			t.Errorf(
 				"expected error to contain: %s, got: %s",
@@ -1172,7 +1250,7 @@ func TestWsLevel2Update(t *testing.T) {
 			}
 		]
 	}`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -1369,4 +1447,86 @@ func TestGenerateSubscriptions(t *testing.T) {
 		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
 		"should panic on invalid channel",
 	)
+}
+
+func TestGeneratePublicSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", ""), currency.NewPairWithDelimiter("ETH", "BTC", "")}
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, p, false), "StorePairs must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, p, true), "StorePairs must not error")
+
+	subs, err := ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	require.NotEmpty(t, subs, "generatePublicSubscriptions must return subscriptions")
+	for _, s := range subs {
+		assert.False(t, s.Authenticated, "generatePublicSubscriptions should only return public subscriptions")
+	}
+}
+
+func TestSetup(t *testing.T) {
+	t.Parallel()
+	cfg := new(config.Config)
+	require.NoError(t, cfg.LoadConfig("../../testdata/configtest.json", true), "test config must load")
+	exch, err := cfg.GetExchangeConfig("Gemini")
+	require.NoError(t, err, "Gemini config must exist")
+	exch.API.AuthenticatedWebsocketSupport = false
+	delete(exch.API.Endpoints, exchange.WebsocketSpotSupplementary.String())
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.API.Endpoints = ex.NewEndpoints()
+	require.NoError(t, ex.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      geminiAPIURL,
+		exchange.WebsocketSpot: geminiWebsocketEndpoint + "/v2/" + geminiWsMarketData,
+	}), "public endpoints must be configured")
+	assert.NoError(t, ex.Setup(exch), "public-only setup should not require a private endpoint")
+}
+
+func TestManageSubs(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		op   wsSubOp
+		fail bool
+	}{
+		{name: "subscribe", op: wsSubscribeOp},
+		{name: "unsubscribe", op: wsUnsubscribeOp},
+		{name: "subscribe send failure", op: wsSubscribeOp, fail: true},
+		{name: "unsubscribe send failure", op: wsUnsubscribeOp, fail: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, asset.Spot)}
+			require.NoError(t, ex.Websocket.TrackTestConnection(asset.Spot, conn), "final connection wrapper must be managed")
+			sub := &subscription.Subscription{
+				Asset:            asset.Spot,
+				Channel:          subscription.OrderbookChannel,
+				QualifiedChannel: marketDataLevel2,
+				Pairs:            currency.Pairs{currency.NewBTCUSD()},
+			}
+			if tc.op == wsUnsubscribeOp {
+				require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, sub), "subscription must exist before removal")
+			}
+			if tc.fail {
+				conn.sendErr = errors.New("send failure")
+			}
+			err := ex.manageSubs(t.Context(), conn, subscription.List{sub}, tc.op)
+			if tc.fail {
+				assert.ErrorIs(t, err, conn.sendErr, "send failure should propagate")
+			} else {
+				require.NoError(t, err, "subscription operation must succeed")
+			}
+			require.Len(t, conn.sent, 1, "one wire request must be sent")
+			assert.Equal(t, wsSubscribeRequest{Type: tc.op, Subscriptions: []wsSubscriptions{{Name: marketDataLevel2, Symbols: sub.Pairs.Strings()}}}, conn.sent[0], "wire request should preserve channel, pairs and operation")
+			if (tc.op == wsSubscribeOp) != tc.fail {
+				assert.Same(t, sub, ex.Websocket.GetSubscription(sub), "active subscription should remain in its managed store")
+				assert.Equal(t, subscription.SubscribedState, sub.State(), "active subscription should be subscribed")
+			} else {
+				assert.Nil(t, ex.Websocket.GetSubscription(sub), "inactive subscription should not be registered")
+			}
+		})
+	}
 }

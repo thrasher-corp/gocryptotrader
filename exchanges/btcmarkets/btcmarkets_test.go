@@ -1,6 +1,7 @@
 package btcmarkets
 
 import (
+	"context"
 	"encoding/base64"
 	"io"
 	"log"
@@ -23,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -545,9 +547,35 @@ func TestWsTicker(t *testing.T) {
     "volume24h": "299.12936654",
     "messageType": "tick"
   }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	for _, tc := range []struct {
+		name    string
+		payload []byte
+		invalid bool
+	}{
+		{name: "stores ticker before relay", payload: pressXToJSON},
+		{name: "rejects invalid ticker without relay", payload: []byte(strings.ReplaceAll(string(pressXToJSON), "7309.12", "7326.88")), invalid: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			err := ex.wsHandleData(t.Context(), nil, tc.payload)
+			if tc.invalid {
+				require.ErrorIs(t, err, ticker.ErrBidEqualsAsk, "crossed ticker must fail processing")
+				assert.Empty(t, ex.Websocket.DataHandler.C, "invalid ticker should not be relayed")
+				return
+			}
+			require.NoError(t, err, "valid ticker must be processed")
+			select {
+			case data := <-ex.Websocket.DataHandler.C:
+				relayed, ok := data.Data.(*ticker.Price)
+				require.True(t, ok, "relay must receive a ticker")
+				stored, err := ticker.GetTicker(ex.Name, spotTestPair, asset.Spot)
+				require.NoError(t, err, "ticker must already exist in the shared store when relayed")
+				assert.Equal(t, stored.Last, relayed.Last, "relay should match the processed ticker")
+			default:
+				t.Fatal("valid ticker must be relayed")
+			}
+		})
 	}
 }
 
@@ -556,7 +584,7 @@ func TestWSTrade(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAllTrades.jsonl", e.wsHandleData)
+	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAllTrades.jsonl", func(ctx context.Context, raw []byte) error { return e.wsHandleData(ctx, nil, raw) })
 	require.Equal(t, 2, len(fErrs), "Must get correct number of errors from wsHandleData")
 	assert.ErrorIs(t, fErrs[0].Err, order.ErrSideIsInvalid, "Side.UnmarshalJSON errors should propagate correctly")
 	assert.ErrorContains(t, fErrs[0].Err, "WRONG", "Side.UnmarshalJSON errors should propagate correctly")
@@ -612,7 +640,7 @@ func TestWsFundChange(t *testing.T) {
   "fee": "0",
   "messageType": "fundChange"
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -634,7 +662,7 @@ func TestWsOrderbookUpdate(t *testing.T) {
           [ "101", "6.32", 2 ] ],
       "messageType": "orderbookUpdate"
   }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -647,7 +675,7 @@ func TestWsOrderbookUpdate(t *testing.T) {
     "messageType": "orderbookUpdate",
 	"checksum": "2513007604"
   }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -659,7 +687,7 @@ func TestWsHeartbeats(t *testing.T) {
   "code": 3,
   "message": "invalid channel names"
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -669,7 +697,7 @@ func TestWsHeartbeats(t *testing.T) {
 "code": 3,
 "message": "invalid marketIds"
 }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -679,7 +707,7 @@ func TestWsHeartbeats(t *testing.T) {
 "code": 1,
 "message": "authentication failed. invalid key"
 }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -702,7 +730,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:19.339Z",
     "messageType": "orderChange"
   }`)
-	err := e.wsHandleData(ctx, pressXToJSON)
+	err := e.wsHandleData(ctx, nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -725,7 +753,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:50:39.658Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(ctx, pressXToJSON)
+	err = e.wsHandleData(ctx, nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -742,7 +770,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(ctx, pressXToJSON)
+	err = e.wsHandleData(ctx, nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -765,7 +793,7 @@ func TestWsOrders(t *testing.T) {
 	"timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(ctx, pressXToJSON)
+	err = e.wsHandleData(ctx, nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -782,7 +810,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(ctx, pressXToJSON)
+	err = e.wsHandleData(ctx, nil, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}

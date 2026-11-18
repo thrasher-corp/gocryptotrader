@@ -22,6 +22,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -169,7 +170,7 @@ func TestWebsocketFuturesLogin(t *testing.T) {
 	}
 	for _, tc := range []testCase{
 		{name: "successful trade login", authResponse: `{"op":"auth","err-code":0}`},
-		{name: "rejected trade login", authResponse: `{"op":"auth","err-code":2001,"err-msg":"invalid authentication"}`, connectErr: errAPIResponse, tradeErr: websocket.ErrNotConnected},
+		{name: "rejected trade login", authResponse: `{"op":"auth","err-code":2001,"err-msg":"invalid authentication"}`, connectErr: errAPIResponse, tradeErr: request.ErrAuthRequestFailed},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -208,6 +209,10 @@ func TestWebsocketFuturesLogin(t *testing.T) {
 
 			err := h.Websocket.Connect(t.Context())
 			require.ErrorIs(t, err, tc.connectErr, "connection setup must match the login result")
+			if tc.connectErr != nil {
+				_, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
+				assert.ErrorIs(t, err, websocket.ErrNotConnected, "rejected login should leave the trade connection unavailable")
+			}
 			_, err = h.WebsocketPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT"})
 			assert.ErrorIs(t, err, tc.tradeErr, "order submission should require successful login")
 			_, err = h.WebsocketCancelV5Order(t.Context(), &V5CancelOrderRequest{ContractCode: "BTC-USDT", OrderID: "1"})

@@ -49,41 +49,16 @@ var subscriptionNames = map[string]string{
 	subscription.HeartbeatChannel: heartbeat,
 }
 
-// WsConnect connects to a websocket feed
+// WsConnect starts the managed websocket lifecycle.
 func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
+	return e.Websocket.Connect(context.TODO())
+}
+
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
-	if err != nil {
-		return err
-	}
-	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", e.Name)
-	}
-
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx)
-	return nil
-}
-
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-			}
-		}
-	}
+	return conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil)
 }
 
 // UnmarshalJSON implements the unmarshaler interface.
@@ -102,7 +77,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var wsResponse WsMessageType
 	err := json.Unmarshal(respRaw, &wsResponse)
 	if err != nil {
@@ -146,7 +121,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		}
 		if err != nil {
 			if errors.Is(err, orderbook.ErrOrderbookInvalid) {
-				err2 := e.ReSubscribeSpecificOrderbook(ob.Currency)
+				err2 := e.reSubscribeSpecificOrderbook(ctx, conn, ob.Currency)
 				if err2 != nil {
 					return err2
 				}
@@ -310,8 +285,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	ctx := context.TODO()
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	baseReq := &WsSubscribe{
 		MessageType: subscribe,
 	}
@@ -327,8 +301,9 @@ func (e *Exchange) Subscribe(subs subscription.List) error {
 		}
 	}
 
+	subscribed := conn.Subscriptions().Len() != 0
 	for _, batch := range subs.GroupByPairs() {
-		if baseReq.MessageType == subscribe && len(e.Websocket.GetSubscriptions()) != 0 {
+		if baseReq.MessageType == subscribe && subscribed {
 			baseReq.MessageType = addSubscription // After first *successful* subscription API requires addSubscription
 			baseReq.ClientType = clientType       // Note: Only addSubscription requires/accepts clientType
 		}
@@ -341,9 +316,10 @@ func (e *Exchange) Subscribe(subs subscription.List) error {
 			r.Channels[i] = s.QualifiedChannel
 		}
 
-		err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, r)
+		err := conn.SendJSONMessage(ctx, request.Unset, r)
 		if err == nil {
-			err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, batch...)
+			subscribed = true
+			err = e.Websocket.AddSuccessfulSubscriptions(conn, batch...)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -370,20 +346,19 @@ func (e *Exchange) signWsReq(ctx context.Context, r *WsSubscribe) error {
 }
 
 // Unsubscribe sends a websocket message to manage and remove a subscription.
-func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	ctx := context.TODO()
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	var errs error
 	for _, s := range subs {
 		req := WsSubscribe{
 			MessageType: removeSubscription,
 			ClientType:  clientType,
-			Channels:    []string{s.Channel},
+			Channels:    []string{s.QualifiedChannel},
 			MarketIDs:   s.Pairs.Strings(),
 		}
 
-		err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
+		err := conn.SendJSONMessage(ctx, request.Unset, req)
 		if err == nil {
-			err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s)
+			err = e.Websocket.RemoveSubscriptions(conn, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -392,20 +367,34 @@ func (e *Exchange) Unsubscribe(subs subscription.List) error {
 	return errs
 }
 
-// ReSubscribeSpecificOrderbook removes the subscription and the subscribes
-// again to fetch a new snapshot in the event of a de-sync event.
+// ReSubscribeSpecificOrderbook requests a new snapshot for a subscribed orderbook.
 func (e *Exchange) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
-	sub := subscription.List{{
-		Channel: wsOrderbookUpdate,
-		Pairs:   currency.Pairs{pair},
-		Asset:   asset.Spot,
-	}}
-	if err := e.Unsubscribe(sub); err != nil && !errors.Is(err, subscription.ErrNotFound) {
-		// ErrNotFound is okay, because we might be re-subscribing a single pair from a larger list
-		// BTC-Market handles unsub/sub of one pair gracefully and the other pairs are unaffected
+	conn, err := e.Websocket.GetConnection(asset.Spot)
+	if err != nil {
 		return err
 	}
-	return e.Subscribe(sub)
+	for _, sub := range conn.Subscriptions().List() {
+		if sub.QualifiedChannel == wsOrderbookUpdate && sub.Pairs.Contains(pair, true) {
+			return e.reSubscribeSpecificOrderbook(context.TODO(), conn, pair)
+		}
+	}
+	return fmt.Errorf("%w: orderbook %s", subscription.ErrNotFound, pair)
+}
+
+func (e *Exchange) reSubscribeSpecificOrderbook(ctx context.Context, conn websocket.Connection, pair currency.Pair) error {
+	// The incoming frame identifies its connection before the manager has copied
+	// subscription ownership. Refresh that pair without changing grouped tracking.
+	req := &WsSubscribe{
+		MessageType: removeSubscription,
+		ClientType:  clientType,
+		Channels:    []string{wsOrderbookUpdate},
+		MarketIDs:   currency.Pairs{pair}.Strings(),
+	}
+	if err := conn.SendJSONMessage(ctx, request.Unset, req); err != nil {
+		return err
+	}
+	req.MessageType = addSubscription
+	return conn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 // orderbookChecksum calculates a checksum for the orderbook liquidity

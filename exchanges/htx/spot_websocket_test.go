@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -265,9 +266,13 @@ func TestWebsocketHandleTickerMsg(t *testing.T) {
 func TestWebsocketHandleV1Ping(t *testing.T) {
 	t.Parallel()
 	messages := make(chan []byte, 1)
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, _ *gws.Conn) error {
-		messages <- msg
-		return nil
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, msg []byte, conn *gws.Conn) error {
+		tb.Helper()
+		if _, err := jsonparser.GetInt(msg, "pong"); err == nil {
+			messages <- msg
+			return nil
+		}
+		return wsFixture(tb, msg, conn)
 	}))
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
 	require.NoError(t, err, "spot websocket connection must be available")

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	gws "github.com/gorilla/websocket"
@@ -30,9 +31,9 @@ const (
 	pingDelay                    = time.Minute * 9
 )
 
-var listenKey string
+var errWebsocketSessionActive = errors.New("binanceus combined websocket already has an active session")
 
-var (
+const (
 	// maxWSUpdateBuffer defines max websocket updates to apply when an
 	// orderbook is initially fetched
 	maxWSUpdateBuffer = 150
@@ -44,97 +45,106 @@ var (
 	maxWSOrderbookWorkers = 10
 )
 
-// WsConnect initiates a websocket connection
+// WsConnect starts the managed websocket lifecycle, including subscriptions and monitoring.
+// Use Websocket.Connect when the caller needs to supply a lifecycle context.
 func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
+	if !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer gws.Dialer
-	dialer.HandshakeTimeout = e.Config.HTTPTimeout
-	dialer.Proxy = http.ProxyFromEnvironment
-	var err error
+	return e.Websocket.Connect(context.Background())
+}
+
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
+	e.wsSessionMu.Lock()
+	defer e.wsSessionMu.Unlock()
+	// The combined stream shares a listen key and orderbook workers. Do not split
+	// it into sockets until those resources support independent ownership.
+	if e.wsSessionActive {
+		return errWebsocketSessionActive
+	}
+	dialer := gws.Dialer{HandshakeTimeout: e.Config.HTTPTimeout, Proxy: http.ProxyFromEnvironment}
+	var key string
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err = e.GetWsAuthStreamKey(ctx)
+		var err error
+		key, err = e.GetWsAuthStreamKey(ctx)
 		if err != nil {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys,
-				"%v unable to connect to authenticated Websocket. Error: %s",
-				e.Name,
-				err)
+			log.Errorf(log.ExchangeSys, "%s unable to obtain websocket authentication: %s", e.Name, err)
 		} else {
-			// cleans on failed connection
-			clean := strings.Split(e.Websocket.GetWebsocketURL(), "?streams=")
-			authPayload := clean[0] + "?streams=" + listenKey
-			err = e.Websocket.SetWebsocketURL(authPayload, false, false)
-			if err != nil {
-				return err
-			}
+			e.listenKeyMu.Lock()
+			e.listenKey = key
+			e.listenKeyMu.Unlock()
+			conn.SetURL(strings.Split(conn.GetURL(), "?streams=")[0] + "?streams=" + key)
 		}
 	}
-	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
-	if err != nil {
-		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
-			e.Name,
-			err)
+	if err := conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
+		if key != "" {
+			e.closeWebsocketStream(ctx, key)
+		}
+		return fmt.Errorf("%s unable to connect to websocket: %w", e.Name, err)
 	}
-
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		e.Websocket.Wg.Add(1)
-		go e.KeepAuthKeyAlive(ctx)
-	}
-
-	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		UseGorillaHandler: true,
-		MessageType:       gws.PongMessage,
-		Delay:             pingDelay,
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+		UseGorillaHandler: true, MessageType: gws.PongMessage, Delay: pingDelay,
 	})
-
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx)
-
-	e.setupOrderbookManager(ctx)
+	sessionCtx, cancel := context.WithCancel(ctx)
+	e.wsSessionActive = true
+	shutdown := e.Websocket.ShutdownC
+	e.prepareOrderbookManager()
+	e.Websocket.Wg.Go(func() {
+		defer func() {
+			cancel()
+			e.wsSessionMu.Lock()
+			e.wsSessionActive = false
+			e.wsSessionMu.Unlock()
+		}()
+		var workers sync.WaitGroup
+		for range maxWSOrderbookWorkers {
+			workers.Go(func() { e.synchroniseWebsocketOrderbook(sessionCtx, shutdown) })
+		}
+		if key != "" {
+			workers.Go(func() { e.keepAuthKeyAlive(sessionCtx, key) })
+		}
+		// Capture this manager generation's shutdown signal; a later reconnect
+		// replaces it. Keep the guard until all workers and key cleanup complete.
+		select {
+		case <-shutdown:
+			cancel()
+		case <-sessionCtx.Done():
+		}
+		workers.Wait()
+	})
 	return nil
 }
 
-// KeepAuthKeyAlive will continuously send messages to
-// keep the WS auth key active
-func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-	// CloseUserDataStream closes the User data stream and remove the listen key when closing the websocket
-	defer func() {
-		if err := e.CloseUserDataStream(ctx); err != nil {
-			log.Errorf(log.WebsocketMgr, "%s closing user data stream error %v", e.Name, err)
-		}
-	}()
-
-	for {
-		select {
-		case <-e.Websocket.ShutdownC:
-			return
-		case <-time.After(time.Minute * 30):
-			if err := e.MaintainWsAuthStreamKey(ctx); err != nil {
-				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-				}
-				log.Warnf(log.ExchangeSys, "%s %s: Unable to renew auth websocket token, may experience shutdown", e.Name, e.Websocket.Conn.GetURL())
-			}
-		}
+func (e *Exchange) closeWebsocketStream(ctx context.Context, key string) {
+	// Closing a stream must outlive cancellation of its reader, but remain bounded.
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), e.Config.HTTPTimeout)
+	defer cancel()
+	if err := e.closeUserDataStream(cleanupCtx, key); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s closing user data stream: %v", e.Name, err)
+		return
 	}
+	e.listenKeyMu.Lock()
+	if e.listenKey == key {
+		e.listenKey = ""
+	}
+	e.listenKeyMu.Unlock()
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-
+func (e *Exchange) keepAuthKeyAlive(ctx context.Context, key string) {
+	defer e.closeWebsocketStream(ctx, key)
+	timer := time.NewTicker(30 * time.Minute)
+	defer timer.Stop()
 	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-ctx.Done():
 			return
-		}
-		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+		case <-timer.C:
+			if err := e.maintainWsAuthStreamKey(ctx, key); err != nil {
+				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+					log.Errorf(log.WebsocketMgr, "%s websocket token renewal: %s %s", e.Name, errSend, err)
+				}
+				log.Warnf(log.ExchangeSys, "%s unable to renew auth websocket token, may experience shutdown", e.Name)
 			}
 		}
 	}
@@ -161,7 +171,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 	}
 }
 
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
 	var multiStreamData map[string]any
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
@@ -541,16 +551,15 @@ subs:
 	return subscriptions, nil
 }
 
-// Subscribe subscribes to a set of channels
-func (e *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
-	ctx := context.TODO()
+// Subscribe registers channels on their owning managed connection.
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
 	payload := WebsocketPayload{
 		Method: "SUBSCRIBE",
 	}
 	for i := range channelsToSubscribe {
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payload)
+			err := conn.SendJSONMessage(ctx, request.Unset, payload)
 			if err != nil {
 				return err
 			}
@@ -558,24 +567,23 @@ func (e *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payload)
+		err := conn.SendJSONMessage(ctx, request.Unset, payload)
 		if err != nil {
 			return err
 		}
 	}
-	return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, channelsToSubscribe...)
+	return e.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe...)
 }
 
-// Unsubscribe unsubscribes from a set of channels
-func (e *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
-	ctx := context.TODO()
+// Unsubscribe removes channels from their owning managed connection.
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	payload := WebsocketPayload{
 		Method: "UNSUBSCRIBE",
 	}
 	for i := range channelsToUnsubscribe {
 		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payload)
+			err := conn.SendJSONMessage(ctx, request.Unset, payload)
 			if err != nil {
 				return err
 			}
@@ -583,21 +591,23 @@ func (e *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payload)
+		err := conn.SendJSONMessage(ctx, request.Unset, payload)
 		if err != nil {
 			return err
 		}
 	}
-	return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, channelsToUnsubscribe...)
+	return e.Websocket.RemoveSubscriptions(conn, channelsToUnsubscribe...)
 }
 
-func (e *Exchange) setupOrderbookManager(ctx context.Context) {
+func (e *Exchange) prepareOrderbookManager() {
 	if e.obm == nil {
 		e.obm = &orderbookManager{
 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
 			jobs:  make(chan job, maxWSOrderbookJobs),
 		}
 	} else {
+		e.obm.Lock()
+		defer e.obm.Unlock()
 		// Change state on reconnect for initial sync.
 		for x := range e.obm.state {
 			for _, m2 := range e.obm.state[x] {
@@ -609,32 +619,36 @@ func (e *Exchange) setupOrderbookManager(ctx context.Context) {
 			}
 		}
 	}
-	for range maxWSOrderbookWorkers {
-		// 10 workers for synchronising book
-		e.SynchroniseWebsocketOrderbook(ctx)
-	}
 }
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair asset
 func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
-	e.Websocket.Wg.Go(func() {
+	shutdown := e.Websocket.ShutdownC
+	e.Websocket.Wg.Go(func() { e.synchroniseWebsocketOrderbook(ctx, shutdown) })
+}
+
+func (e *Exchange) synchroniseWebsocketOrderbook(ctx context.Context, shutdown <-chan struct{}) {
+	defer func() {
 		for {
 			select {
-			case <-e.Websocket.ShutdownC:
-				for {
-					select {
-					case <-e.obm.jobs:
-					default:
-						return
-					}
-				}
-			case j := <-e.obm.jobs:
-				if err := e.processJob(ctx, j.Pair); err != nil {
-					log.Errorf(log.WebsocketMgr, "%s processing websocket orderbook error: %v", e.Name, err)
-				}
+			case <-e.obm.jobs:
+			default:
+				return
 			}
 		}
-	})
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-shutdown:
+			return
+		case j := <-e.obm.jobs:
+			if err := e.processJob(ctx, j.Pair); err != nil {
+				log.Errorf(log.WebsocketMgr, "%s processing websocket orderbook error: %v", e.Name, err)
+			}
+		}
+	}
 }
 
 // ProcessOrderbookUpdate processes the websocket orderbook update
