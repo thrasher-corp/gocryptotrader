@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchange/kline"
 )
 
 func TestGetConcatReasons(t *testing.T) {

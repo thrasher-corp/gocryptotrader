@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchange/deposit"
 )
 
 // vars related to the deposit address helpers

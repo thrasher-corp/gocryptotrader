@@ -26,10 +26,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchange/request"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 

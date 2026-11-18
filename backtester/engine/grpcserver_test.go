@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchange/kline"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

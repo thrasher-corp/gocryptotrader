@@ -7,7 +7,7 @@ import (
 	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 

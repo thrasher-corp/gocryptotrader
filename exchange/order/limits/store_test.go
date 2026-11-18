@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order"
 )
 
 var happyKey = key.NewExchangeAssetPair("test", asset.Spot, currency.NewBTCUSDT())

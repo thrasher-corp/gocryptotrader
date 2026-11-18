@@ -9,7 +9,7 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
-	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchange/kline"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 

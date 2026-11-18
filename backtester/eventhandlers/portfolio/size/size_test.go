@@ -11,9 +11,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchange/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 

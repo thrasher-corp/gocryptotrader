@@ -17,10 +17,10 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 func TestSetupLiveDataHandler(t *testing.T) {

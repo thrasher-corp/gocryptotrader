@@ -8,8 +8,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	dbwithdraw "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )

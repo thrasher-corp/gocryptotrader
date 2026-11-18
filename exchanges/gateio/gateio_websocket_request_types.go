@@ -3,7 +3,7 @@ package gateio
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 

@@ -1,0 +1,59 @@
+# GoCryptoTrader package Orderbook
+
+<img src="../../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
+
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
+[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchange/orderbook)
+[![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
+
+This orderbook package is part of the GoCryptoTrader codebase.
+
+## This is still in active development
+
+You can track ideas, planned features and what's in progress on our [GoCryptoTrader Kanban board](https://github.com/orgs/thrasher-corp/projects/3).
+
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g)
+
+## Current Features for orderbook
+
++ This package facilitates orderbook generation.
++ Attaches methods to an orderbook
+  + To Return total Bids
+  + To Return total Asks
+  + Update orderbooks
++ Gets a loaded orderbook by exchange, asset type and currency pair.
+
++ This package is primarily used in conjunction with but not limited to the
+exchange interface system set by exchange wrapper orderbook functions in
+"exchange"_wrapper.go.
+
+Examples below:
+
+```go
+ob, err := yobitExchange.UpdateOrderbook(...)
+if err != nil {
+    // Handle error
+}
+
+// Find total asks which also returns total orderbook value
+totalAsks, totalOrderbookVal := ob.CalculateTotalAsks()
+```
+
++ or if you have a routine setting an exchange orderbook you can access it via
+the package itself.
+
+```go
+ob, err := orderbook.Get(...)
+if err != nil {
+    // Handle error
+}
+```
+
+## Donations
+
+<img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
+
+If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
+
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

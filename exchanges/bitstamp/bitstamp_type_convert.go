@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order"
 )
 
 // UnmarshalJSON deserialises JSON and parses the minimum order value

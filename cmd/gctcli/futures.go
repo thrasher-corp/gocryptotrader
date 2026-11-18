@@ -6,10 +6,10 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchange/collateral"
+	"github.com/thrasher-corp/gocryptotrader/exchange/futures"
+	"github.com/thrasher-corp/gocryptotrader/exchange/margin"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
 )

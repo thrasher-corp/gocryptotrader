@@ -93,7 +93,7 @@ type ExchangeTuningSettings struct {
 	EnableExchangeWebsocketSupport      bool
 	TradeBufferProcessingInterval       time.Duration
 	RequestMaxRetryAttempts             int
-	AlertSystemPreAllocationCommsBuffer int // See exchanges/alert.go
+	AlertSystemPreAllocationCommsBuffer int // See exchange/alert/alert.go
 	ExchangeShutdownTimeout             time.Duration
 	HTTPTimeout                         time.Duration
 	HTTPUserAgent                       string

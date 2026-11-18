@@ -19,8 +19,8 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchange/request"
+	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 

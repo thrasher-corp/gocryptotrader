@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order"
 )
 
 // PingHandler container for ping handler settings

@@ -25,9 +25,9 @@ out of reported trades.
 | Exchange             | String name of concerned exchange                                 |                                                         | Mandatory |
 | ID                   | Order ID (on the exchange)                                        |                                                         | Mandatory |
 | ClientOrderID        | Client order ID (submitted by user)                               |                                                         | Mandatory |
-| Type                 | e.g. MARKET or LIMIT, see exchanges/order/order_types.go          |                                                         | Mandatory |
-| Side                 | e.g. BUY or SELL, see exchanges/order/order_types.go              |                                                         | Mandatory |
-| Status               | e.g. FILLED or CANCELLED, see exchanges/order/order_types.go      |                                                         | Mandatory |
+| Type                 | e.g. MARKET or LIMIT, see exchange/order/order_types.go           |                                                         | Mandatory |
+| Side                 | e.g. BUY or SELL, see exchange/order/order_types.go               |                                                         | Mandatory |
+| Status               | e.g. FILLED or CANCELLED, see exchange/order/order_types.go       |                                                         | Mandatory |
 | AssetType            | e.g. asset.Spot or asset.Futures                                  |                                                         | Mandatory |
 | Date                 | Time of order creation (as reported by the exchange)              |                                                         | Optional  |
 | LastUpdated          | Time of last order event (as reported by the exchange)            |                                                         | Optional  |

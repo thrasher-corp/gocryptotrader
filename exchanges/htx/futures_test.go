@@ -14,10 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order"
+	"github.com/thrasher-corp/gocryptotrader/exchange/request"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 

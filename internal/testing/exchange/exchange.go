@@ -25,13 +25,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/mock"
+	"github.com/thrasher-corp/gocryptotrader/exchange/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 )
 

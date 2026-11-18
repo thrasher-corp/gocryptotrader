@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchange/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 

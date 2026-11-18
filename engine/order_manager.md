@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + The order manager subsystem stores and monitors all orders from enabled exchanges with API keys and `authenticatedSupport` enabled
 + It can be enabled or disabled via runtime command `-ordermanager=false` and defaults to true
 + All orders placed via GoCryptoTrader will be added to the order manager store
-+ Any futures based order will be tracked via the [futures positions controller](../exchanges/order/README.md) which can be used to track PNL. Use GRPC command [getfuturesposition](https://api.gocryptotrader.app/#gocryptotrader_getfuturesposition) to view position data for an exchange, asset, pair
++ Any futures based order will be tracked via the [futures positions controller](../exchange/order/README.md) which can be used to track PNL. Use GRPC command [getfuturesposition](https://api.gocryptotrader.app/#gocryptotrader_getfuturesposition) to view position data for an exchange, asset, pair
 
 ## Donations
 

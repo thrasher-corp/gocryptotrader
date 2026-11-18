@@ -3,7 +3,7 @@ package gateio
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchange/request"
 )
 
 // GateIO endpoints limits. See: https://www.gate.io/docs/developers/apiv4/en/#frequency-limit-rule

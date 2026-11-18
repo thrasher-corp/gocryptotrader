@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 This package is responsible for the loading of kline data via the API. It can retrieve candle data or trade data which is converted into candle data.
 This package uses existing GoCryptoTrader exchange implementations.
 
-See the [individual exchange implementations](../../../../exchanges) and the [exchange interface](../../../../exchanges/interfaces.go).
+See the [individual exchange implementations](../../../../exchanges) and the [exchange interface](../../../../exchange/interfaces.go).
 
 ## Donations
 

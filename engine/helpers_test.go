@@ -27,12 +27,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchange/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stats"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 

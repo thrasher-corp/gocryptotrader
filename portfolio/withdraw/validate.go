@@ -6,7 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
+	"github.com/thrasher-corp/gocryptotrader/exchange/validate"
 )
 
 // Validate takes interface and passes to asset type to check the request meets requirements to submit

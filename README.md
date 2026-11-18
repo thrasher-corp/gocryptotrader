@@ -68,9 +68,9 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
 + OHLCV/Candle retrieval support. See [OHLCV](./docs/OHLCV.md).
-+ Recent and historic trade processing. See [trades](./exchanges/trade/README.md).
++ Recent and historic trade processing. See [trades](./exchange/trade/README.md).
 + Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](./backtester/README.md).
-+ Exchange HTTP mock testing. See [mock](./exchanges/mock/README.md).
++ Exchange HTTP mock testing. See [mock](./exchange/mock/README.md).
 + Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](./docs/MULTICHAIN_TRANSFER_SUPPORT.md).
 
 ## Development Tracking

@@ -10,10 +10,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
 )

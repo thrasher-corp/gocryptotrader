@@ -11,10 +11,10 @@ import (
 	v19 "github.com/thrasher-corp/gocryptotrader/config/versions/v19"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 func TestExchanges(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchange/order"
 )
 
 func main() {

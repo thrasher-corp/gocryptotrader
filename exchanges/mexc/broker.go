@@ -10,8 +10,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
 )
 
 // GetBrokerUniversalTransferHistory retrieves universal transfer history for broker users

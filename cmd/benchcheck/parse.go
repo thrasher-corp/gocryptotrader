@@ -55,7 +55,7 @@ type Samples struct {
 	Allocs []float64
 }
 
-// Key returns the baseline key, such as "exchanges/orderbook.BenchmarkProcess"
+// Key returns the baseline key, such as "exchange/orderbook.BenchmarkProcess"
 func (s *Samples) Key() string {
 	return s.Pkg + "." + s.Name
 }
@@ -68,7 +68,7 @@ type Result struct {
 	Bytes  uint64
 }
 
-// Key returns the baseline key, such as "exchanges/orderbook.BenchmarkProcess"
+// Key returns the baseline key, such as "exchange/orderbook.BenchmarkProcess"
 func (r *Result) Key() string {
 	return r.Pkg + "." + r.Name
 }

@@ -6,7 +6,7 @@ import (
 	"os"
 
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
 	"github.com/urfave/cli/v2"
 )
 

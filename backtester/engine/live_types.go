@@ -13,9 +13,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctexchange "github.com/thrasher-corp/gocryptotrader/exchange"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchange/kline"
 )
 
 var (
