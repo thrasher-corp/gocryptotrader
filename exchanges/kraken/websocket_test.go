@@ -276,8 +276,8 @@ func TestMockWebsocketSkipsKeepAlivePings(t *testing.T) {
 	require.NoError(t, err, "GetConnection must not error")
 	// A test slowed by load can outlive wsPingDelay, so its mock must not take the keep-alive ping for a request
 	require.NoError(t, conn.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte(`{"method":"ping"}`)), "SendRawMessage must not error")
-	_, err = ex.WebsocketCancelAllOrders(t.Context())
-	assert.NoError(t, err, "WebsocketCancelAllOrders should not error after a keep-alive ping")
+	_, err = ex.WebsocketCancelAllOpenOrders(t.Context())
+	assert.NoError(t, err, "WebsocketCancelAllOpenOrders should not error after a keep-alive ping")
 }
 
 func TestConnectionSetups(t *testing.T) {

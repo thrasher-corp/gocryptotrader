@@ -364,25 +364,25 @@ func TestWebsocketCancelOrderParamsTakeNoUserReferences(t *testing.T) {
 	}
 }
 
-func TestWebsocketCancelAllOrders(t *testing.T) {
+func TestWebsocketCancelAllOpenOrders(t *testing.T) {
 	// Serial, the live case included, so cancelling every open order cannot cancel one that a parallel test placed
 	ex := newWsTradingTestExchange(t,
 		`{"method":"cancel_all","params":{"token":"`+wsTradingTestToken+`"}}`,
 		`{"method":"cancel_all","result":{"count":1,"warnings":["Untriggered orders cancelled"]},"success":true,"time_in":"2023-09-26T13:09:48.463201Z","time_out":"2023-09-26T13:09:48.471419Z"}`,
 	)
-	result, err := ex.WebsocketCancelAllOrders(t.Context())
-	require.NoError(t, err, "WebsocketCancelAllOrders must not error")
-	assert.Equal(t, &WebsocketCancelAllOrdersResponse{
+	result, err := ex.WebsocketCancelAllOpenOrders(t.Context())
+	require.NoError(t, err, "WebsocketCancelAllOpenOrders must not error")
+	assert.Equal(t, &WebsocketCancelAllOpenOrdersResponse{
 		Count:    1,
 		Warnings: []string{"Untriggered orders cancelled"},
 		TimeIn:   wsTestTime(t, "2023-09-26T13:09:48.463201Z"),
 		TimeOut:  wsTestTime(t, "2023-09-26T13:09:48.471419Z"),
-	}, result, "WebsocketCancelAllOrders should decode every field")
+	}, result, "WebsocketCancelAllOpenOrders should decode every field")
 
 	t.Run("live API", func(t *testing.T) {
 		ex := newLiveWsTradingTestExchange(t.Context(), t)
-		_, err := ex.WebsocketCancelAllOrders(t.Context())
-		assert.NoError(t, err, "WebsocketCancelAllOrders should cancel every open order")
+		_, err := ex.WebsocketCancelAllOpenOrders(t.Context())
+		assert.NoError(t, err, "WebsocketCancelAllOpenOrders should cancel every open order")
 	})
 }
 
@@ -668,7 +668,7 @@ func TestWebsocketPrivateRequest(t *testing.T) {
 	t.Run("fails without a private connection", func(t *testing.T) {
 		t.Parallel()
 		ex := newTestExchange(t)
-		_, err := ex.WebsocketCancelAllOrders(t.Context())
+		_, err := ex.WebsocketCancelAllOpenOrders(t.Context())
 		assert.ErrorIs(t, err, websocket.ErrNotConnected, "a private request should fail without a private connection")
 	})
 
@@ -688,7 +688,7 @@ func TestWebsocketPrivateRequest(t *testing.T) {
 		useTestWebsocket(t, ex, newMockWebsocketURL(t, mock), wsPrivateConnection)
 		ex.Websocket.SetSubscriptionsNotRequired()
 		require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-		_, err := ex.WebsocketCancelAllOrders(t.Context())
+		_, err := ex.WebsocketCancelAllOpenOrders(t.Context())
 		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "a private request should fail when its token cannot be fetched")
 	})
 }

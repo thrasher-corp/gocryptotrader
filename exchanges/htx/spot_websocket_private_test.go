@@ -159,7 +159,7 @@ func TestWebsocketHandleMyTradesMsg(t *testing.T) {
 
 func TestWebsocketGenerateSignature(t *testing.T) {
 	t.Parallel()
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketPrivate)
 	require.NoError(t, err, "private spot websocket connection must be available")
 	signature, err := h.wsGenerateSignature(conn, &accounts.Credentials{Key: "key", Secret: "secret"}, "2026-07-30T00:00:00")
@@ -173,7 +173,7 @@ func TestWebsocketGenerateSignature(t *testing.T) {
 
 func TestWebsocketLogin(t *testing.T) {
 	t.Parallel()
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketPrivate)
 	require.NoError(t, err, "private spot websocket connection must be available")
@@ -185,7 +185,7 @@ func TestWebsocketLogin(t *testing.T) {
 func TestWebsocketHandleV2Ping(t *testing.T) {
 	t.Parallel()
 	messages := make(chan []byte, 1)
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, _ *gws.Conn) error {
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, _ *gws.Conn) error {
 		messages <- msg
 		return nil
 	}))

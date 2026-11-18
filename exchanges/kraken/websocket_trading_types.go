@@ -171,8 +171,8 @@ type WebsocketCancelOrderResponse struct {
 	TimeOut       time.Time `json:"-"`
 }
 
-// WebsocketCancelAllOrdersResponse holds the number of orders cancel_all cancelled
-type WebsocketCancelAllOrdersResponse struct {
+// WebsocketCancelAllOpenOrdersResponse holds the number of orders cancel_all cancelled
+type WebsocketCancelAllOpenOrdersResponse struct {
 	Count    uint64    `json:"count"`
 	Warnings []string  `json:"warnings"`
 	TimeIn   time.Time `json:"-"`

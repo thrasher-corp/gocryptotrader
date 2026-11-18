@@ -56,11 +56,18 @@ func createSnapshot(ctx context.Context, pair currency.Pair) (holder *Orderbook,
 	newBook := make(map[key.PairAsset]*orderbook.Depth)
 
 	relay := stream.NewRelay(10)
-	go func(relay *stream.Relay) { // reader
-		for range relay.C {
-			continue
+	go func() { // reader
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case _, ok := <-relay.C:
+				if !ok {
+					return
+				}
+			}
 		}
-	}(relay)
+	}()
 	holder = &Orderbook{
 		exchangeName: exchangeName,
 		dataHandler:  relay,
@@ -77,8 +84,7 @@ func BenchmarkUpdatePerformance(b *testing.B) {
 
 	obl, asks, bids, err := createSnapshot(b.Context(), cp)
 	require.NoError(b, err, "createSnapshot must not error")
-	// Closing ends the reader createSnapshot started, which would otherwise outlive the benchmark
-	obl.dataHandler.Close()
+	// A relay of its own, as createSnapshot's reader drains the original
 	obl.dataHandler = stream.NewRelay(1)
 
 	update := &orderbook.Update{

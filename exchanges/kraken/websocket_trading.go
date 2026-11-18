@@ -170,13 +170,13 @@ func (e *Exchange) WebsocketCancelOrders(ctx context.Context, req *WebsocketCanc
 	return results, nil
 }
 
-// WebsocketCancelAllOrders calls cancel_all, cancelling every open order, including untriggered ones
-func (e *Exchange) WebsocketCancelAllOrders(ctx context.Context) (*WebsocketCancelAllOrdersResponse, error) {
+// WebsocketCancelAllOpenOrders calls cancel_all, cancelling every open order, including untriggered ones
+func (e *Exchange) WebsocketCancelAllOpenOrders(ctx context.Context) (*WebsocketCancelAllOpenOrdersResponse, error) {
 	resp, err := e.wsPrivateRequest(ctx, "cancel_all", &wsTokenParams{})
 	if err != nil {
 		return nil, err
 	}
-	result := &WebsocketCancelAllOrdersResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
+	result := &WebsocketCancelAllOpenOrdersResponse{TimeIn: resp.TimeIn, TimeOut: resp.TimeOut}
 	return result, json.Unmarshal(resp.Result, result)
 }
 

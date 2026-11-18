@@ -172,7 +172,7 @@ func TestSetup(t *testing.T) {
 	t.Parallel()
 	t.Run("trade connection requires authenticated websocket support", func(t *testing.T) {
 		t.Parallel()
-		h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+		h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 		_, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
 		require.Error(t, err, "trade connection must be skipped while authenticated endpoints are disabled")
 	})

@@ -1273,6 +1273,130 @@ func TestUpdateAccountBalances(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestAccountBalanceResp(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	subAccts := accounts.SubAccounts{
+		{
+			ID: "sub1",
+			Balances: accounts.CurrencyBalances{
+				currency.BTC: {
+					Total:     1.5,
+					Free:      1.0,
+					Hold:      0.5,
+					UpdatedAt: now,
+				},
+				currency.ETH: {
+					Total:                  0,
+					Hold:                   0,
+					Free:                   0,
+					AvailableWithoutBorrow: 0,
+					Borrowed:               0,
+					UpdatedAt:              now,
+				},
+				currency.USDT: {
+					Borrowed:  50,
+					UpdatedAt: now,
+				},
+				currency.DOGE: {
+					AvailableWithoutBorrow: 10,
+					UpdatedAt:              now,
+				},
+			},
+		},
+		{
+			ID: "sub2",
+			Balances: accounts.CurrencyBalances{
+				currency.LTC: {
+					Total: 0,
+				},
+			},
+		},
+	}
+
+	resp := accountBalanceResp("Binance", subAccts)
+	require.NotNil(t, resp)
+	assert.Equal(t, "Binance", resp.Exchange)
+	require.Len(t, resp.Accounts, 2)
+
+	assert.Equal(t, "sub1", resp.Accounts[0].Id)
+	require.Len(t, resp.Accounts[0].Currencies, 3)
+	currencies := make(map[string]*gctrpc.AccountCurrencyInfo)
+	for _, c := range resp.Accounts[0].Currencies {
+		currencies[c.Currency] = c
+	}
+	require.Contains(t, currencies, "BTC", "BTC must be kept")
+	assert.Equal(t, 1.5, currencies["BTC"].TotalValue)
+	assert.Equal(t, 1.0, currencies["BTC"].Free)
+	assert.Equal(t, 0.5, currencies["BTC"].Hold)
+
+	require.Contains(t, currencies, "USDT", "USDT must be kept")
+	assert.Equal(t, 50.0, currencies["USDT"].Borrowed)
+
+	require.Contains(t, currencies, "DOGE", "DOGE must be kept")
+	assert.Equal(t, 10.0, currencies["DOGE"].FreeWithoutBorrow)
+
+	assert.NotContains(t, currencies, "ETH")
+
+	assert.Equal(t, "sub2", resp.Accounts[1].Id)
+	assert.Empty(t, resp.Accounts[1].Currencies)
+
+	updatedAt := time.Date(2026, 11, 16, 1, 2, 3, 4, time.UTC)
+	for _, tc := range []struct {
+		name    string
+		balance accounts.Balance
+		kept    bool
+	}{
+		{name: "total only is kept", balance: accounts.Balance{Total: 2}, kept: true},
+		{name: "hold only is kept", balance: accounts.Balance{Hold: 3}, kept: true},
+		{name: "free only is kept", balance: accounts.Balance{Free: 4}, kept: true},
+		{name: "available without borrow only is kept", balance: accounts.Balance{AvailableWithoutBorrow: 5}, kept: true},
+		{name: "borrowed only is kept", balance: accounts.Balance{Borrowed: 6}, kept: true},
+		{name: "negative total only is kept", balance: accounts.Balance{Total: -2}, kept: true},
+		{name: "negative hold only is kept", balance: accounts.Balance{Hold: -3}, kept: true},
+		{name: "negative free only is kept", balance: accounts.Balance{Free: -4}, kept: true},
+		{name: "negative available without borrow only is kept", balance: accounts.Balance{AvailableWithoutBorrow: -5}, kept: true},
+		{name: "negative borrowed only is kept", balance: accounts.Balance{Borrowed: -6}, kept: true},
+		{name: "all zero amounts are left out", balance: accounts.Balance{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.balance.Currency = currency.XRP
+			tc.balance.UpdatedAt = updatedAt
+			resp := accountBalanceResp("Binance", accounts.SubAccounts{{Balances: accounts.CurrencyBalances{currency.XRP: tc.balance}}})
+			require.Len(t, resp.Accounts, 1, "response must hold one account")
+			if !tc.kept {
+				assert.Empty(t, resp.Accounts[0].Currencies, "a balance with only zero amounts should be left out")
+				return
+			}
+			require.Len(t, resp.Accounts[0].Currencies, 1, "a balance with a non-zero amount must be kept")
+			c := resp.Accounts[0].Currencies[0]
+			assert.Equal(t, "XRP", c.Currency, "currency should be XRP")
+			assert.Equal(t, tc.balance.Total, c.TotalValue, "total should be mapped")
+			assert.Equal(t, tc.balance.Hold, c.Hold, "hold should be mapped")
+			assert.Equal(t, tc.balance.Free, c.Free, "free should be mapped")
+			assert.Equal(t, tc.balance.AvailableWithoutBorrow, c.FreeWithoutBorrow, "available without borrow should be mapped")
+			assert.Equal(t, tc.balance.Borrowed, c.Borrowed, "borrowed should be mapped")
+			require.NoError(t, c.UpdatedAt.CheckValid(), "updated at must be a valid timestamp")
+			assert.Equal(t, updatedAt, c.UpdatedAt.AsTime(), "updated at should be mapped")
+		})
+	}
+
+	t.Run("each account keeps its own balances", func(t *testing.T) {
+		t.Parallel()
+		resp := accountBalanceResp("Binance", accounts.SubAccounts{
+			{ID: "first", Balances: accounts.CurrencyBalances{currency.XRP: {Currency: currency.XRP, Total: 7, UpdatedAt: updatedAt}}},
+			{ID: "second", Balances: accounts.CurrencyBalances{currency.XRP: {Currency: currency.XRP, Total: 8, UpdatedAt: updatedAt}}},
+		})
+		require.Len(t, resp.Accounts, 2, "response must hold both accounts")
+		for i, total := range []float64{7, 8} {
+			require.Lenf(t, resp.Accounts[i].Currencies, 1, "account %d must hold one currency", i)
+			assert.Equalf(t, total, resp.Accounts[i].Currencies[0].TotalValue, "account %d total should be its own", i)
+		}
+	})
+}
+
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
 	exchName := "Binance"

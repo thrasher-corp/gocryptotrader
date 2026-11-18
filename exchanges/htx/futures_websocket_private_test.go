@@ -137,7 +137,7 @@ func TestFormatLegacyFuturesWebsocketOrder(t *testing.T) {
 
 func TestWebsocketGenerateFuturesSignature(t *testing.T) {
 	t.Parallel()
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketCoinMarginedPrivate)
 	require.NoError(t, err, "coin-margined private websocket connection must be available")
 	conn.SetURL("wss://api.hbdm.com/swap-notification")
@@ -214,7 +214,7 @@ func TestWebsocketFuturesLogin(t *testing.T) {
 			assert.ErrorIs(t, err, tc.tradeErr, "order cancellation should require successful login")
 		})
 	}
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketUSDTMarginedPrivate)
 	require.NoError(t, err, "USDT private websocket connection must be available")
@@ -241,7 +241,7 @@ func TestWebsocketHandleFuturesPing(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			messages := make(chan []byte, 1)
-			h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, msg []byte, conn *gws.Conn) error {
+			h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, msg []byte, conn *gws.Conn) error {
 				tb.Helper()
 				operation, _ := jsonparser.GetString(msg, "op")
 				if operation == "pong" {
@@ -261,7 +261,7 @@ func TestWebsocketHandleFuturesPing(t *testing.T) {
 			}
 		})
 	}
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketFuturesPrivate)
 	require.NoError(t, err, "delivery private websocket connection must be available")
 	err = h.wsHandleFuturesPing(t.Context(), conn, []byte(`{"op":"ping"}`))
@@ -306,7 +306,7 @@ func TestGetFuturesPrivateSubscription(t *testing.T) {
 		}
 	})
 
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketFuturesPrivate)
 	require.NoError(t, err, "delivery private websocket connection must be available")
 	sub := &subscription.Subscription{
