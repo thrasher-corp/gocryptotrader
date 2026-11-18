@@ -2,6 +2,7 @@ package binance
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -2152,7 +2153,7 @@ func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	channels, err := e.generateSubscriptions() // Note: We grab this before it's overwritten by MockWsInstance below
+	channels, err := e.generateSubscriptions() // Note: We grab this before it's overwritten by MockWebsocketInstance below
 	require.NoError(t, err, "generateSubscriptions must not error")
 	if mockTests {
 		exp := []string{"btcusdt@depth@100ms", "btcusdt@kline_1m", "btcusdt@ticker", "btcusdt@trade", "dogeusdt@depth@100ms", "dogeusdt@kline_1m", "dogeusdt@ticker", "dogeusdt@trade"}
@@ -2163,9 +2164,10 @@ func TestSubscribe(t *testing.T) {
 			require.ElementsMatch(tb, req.Params, exp, "Params must have correct channels")
 			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":"%s"}`, req.ID))
 		}
-		e = testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
+		e = testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
-		testexch.SetupWs(t, e)
+		t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+		testexch.SetupWebsocket(t, e)
 	}
 	err = e.Subscribe(channels)
 	require.NoError(t, err, "Subscribe must not error")
@@ -2185,7 +2187,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		require.NoError(tb, err, "Unmarshal must not error")
 		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":"%s"}`, req.ID))
 	}
-	b := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
+	b := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	err := b.Subscribe(channels)
 	assert.ErrorIs(t, err, common.ErrUnknownError, "Subscribe should error correctly")
 	assert.ErrorContains(t, err, "carrots", "Subscribe should error containing the carrots")
@@ -2682,6 +2684,50 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 
 	// reset order book sync status
 	e.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
+}
+
+func TestSynchroniseWebsocketOrderbook(t *testing.T) {
+	t.Parallel()
+	// With no pairs set, each job fails before it sends a request
+	e := &Exchange{obm: &orderbookManager{jobs: make(chan job, maxWSOrderbookJobs)}}
+	e.Websocket = sharedtestvalues.NewTestWebsocket()
+	requireStopped := func(msg string) {
+		t.Helper()
+		stopped := make(chan struct{})
+		go func() {
+			e.Websocket.Wg.Wait()
+			close(stopped)
+		}()
+		select {
+		case <-stopped:
+		case <-time.After(time.Second * 5):
+			require.FailNow(t, msg)
+		}
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	e.SynchroniseWebsocketOrderbook(ctx)
+	for range 2 {
+		e.obm.jobs <- job{}
+		require.Eventually(t, func() bool { return len(e.obm.jobs) == 0 }, time.Second*5, time.Millisecond, "SynchroniseWebsocketOrderbook must keep taking jobs")
+	}
+	cancel()
+	requireStopped("SynchroniseWebsocketOrderbook must stop when its context ends")
+
+	for range cap(e.obm.jobs) {
+		e.obm.jobs <- job{}
+	}
+	e.SynchroniseWebsocketOrderbook(ctx)
+	requireStopped("SynchroniseWebsocketOrderbook must stop when its context has ended")
+	require.Empty(t, e.obm.jobs, "SynchroniseWebsocketOrderbook must drain pending jobs when its context has ended")
+
+	for range cap(e.obm.jobs) {
+		e.obm.jobs <- job{}
+	}
+	close(e.Websocket.ShutdownC)
+	e.SynchroniseWebsocketOrderbook(t.Context())
+	requireStopped("SynchroniseWebsocketOrderbook must stop when the websocket shuts down")
+	assert.Empty(t, e.obm.jobs, "SynchroniseWebsocketOrderbook should drain pending jobs when the websocket shuts down")
 }
 
 func TestUFuturesHistoricalTrades(t *testing.T) {

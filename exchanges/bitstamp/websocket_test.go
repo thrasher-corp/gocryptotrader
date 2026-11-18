@@ -73,7 +73,7 @@ func TestShutdown(t *testing.T) {
 			upgrades.Add(1)
 			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 		}
-		e := testexch.MockWsInstance[Exchange](t, h)
+		e := testexch.MockWebsocketInstance[Exchange](t, h)
 		require.True(t, e.Websocket.IsConnected(), "websocket must be connected")
 		before := upgrades.Load()
 
@@ -882,7 +882,7 @@ func newMockWsInstance(t *testing.T, tokenAvailable bool) (*Exchange, *mockWsSub
 	t.Helper()
 	m := &mockWsSubscriptions{channels: make(map[string]string)}
 	wsHandler := mockws.CurryWsMockUpgrader(t, m.handle)
-	ex := testexch.MockWsInstance[Exchange](t, func(w http.ResponseWriter, r *http.Request) {
+	ex := testexch.MockWebsocketInstance[Exchange](t, func(w http.ResponseWriter, r *http.Request) {
 		if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
 			assert.Equal(t, "/v2/websockets_token/", r.URL.Path, "websocket token path should be correct")
 			if !tokenAvailable {
@@ -929,7 +929,7 @@ func TestSubscribe(t *testing.T) {
 			}
 			return m.handle(tb, msg, c)
 		})
-		ex := testexch.MockWsInstance[Exchange](t, func(w http.ResponseWriter, r *http.Request) {
+		ex := testexch.MockWebsocketInstance[Exchange](t, func(w http.ResponseWriter, r *http.Request) {
 			if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
 				wsHandler(w, r)
 				return

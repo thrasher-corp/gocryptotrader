@@ -1,14 +1,42 @@
 package database
 
 import (
+	"context"
 	"database/sql"
+	"database/sql/driver"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+var errCloseFailed = errors.New("close failed")
+
+// closeErrorConnector backs a pool whose Close fails
+type closeErrorConnector struct{}
+
+func (closeErrorConnector) Connect(context.Context) (driver.Conn, error) {
+	return nil, driver.ErrBadConn
+}
+
+func (closeErrorConnector) Driver() driver.Driver { return nil }
+
+func (closeErrorConnector) Close() error { return errCloseFailed }
+
+func openMemoryDatabase(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err, "sql.Open must not error")
+	t.Cleanup(func() { assert.NoError(t, db.Close(), "Close should not error") })
+	return db
+}
 
 func TestSetConfig(t *testing.T) {
 	t.Parallel()
@@ -166,7 +194,74 @@ func TestGetSQL(t *testing.T) {
 	_, err = inst.GetSQL()
 	assert.NoError(t, err)
 
+	err = con.Close()
+	assert.NoError(t, err)
+
 	inst = nil
 	_, err = inst.GetSQL()
 	assert.ErrorIs(t, err, ErrNilInstance)
+}
+
+func TestConnectionReplacement(t *testing.T) {
+	t.Parallel()
+	for name, set := range map[string]func(*Instance, *sql.DB) error{
+		"sqlite":   (*Instance).SetSQLiteConnection,
+		"postgres": (*Instance).SetPostgresConnection,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			inst := &Instance{}
+			first := openMemoryDatabase(t)
+			require.NoError(t, set(inst, first), "setting a connection must not error")
+
+			second := openMemoryDatabase(t)
+			require.NoError(t, set(inst, second), "replacing the connection must not error")
+			assert.Same(t, second, inst.SQL, "the replacement should be installed")
+			assert.ErrorContains(t, first.PingContext(t.Context()), "database is closed", "the replaced connection should be closed")
+		})
+	}
+}
+
+func TestReplaceSQL(t *testing.T) {
+	// Not parallel: the log hook and log config are process-wide, and cleanup removes the hook and disables logging
+	type logEntry struct{ header, message string }
+	var mu sync.Mutex
+	var logged []logEntry
+	require.NoError(t, log.SetGlobalLogConfig(log.GenDefaultSettings()), "SetGlobalLogConfig must not error")
+	require.NoError(t, log.SetupGlobalLogger(t.Name(), false), "SetupGlobalLogger must not error")
+	log.SetCustomLogHook(func(header, _ string, a ...any) bool {
+		mu.Lock()
+		logged = append(logged, logEntry{header, fmt.Sprint(a...)})
+		mu.Unlock()
+		return true
+	})
+	t.Cleanup(func() {
+		log.SetCustomLogHook(nil)
+		assert.NoError(t, log.SetGlobalLogConfig(&log.Config{}), "SetGlobalLogConfig should not error")
+	})
+
+	inst := &Instance{}
+	first := openMemoryDatabase(t)
+	inst.replaceSQL(first)
+	require.Same(t, first, inst.SQL, "replaceSQL must install the first connection")
+	inst.replaceSQL(first)
+	require.Same(t, first, inst.SQL, "replaceSQL must keep the same connection installed")
+	assert.NoError(t, first.PingContext(t.Context()), "replaceSQL should leave the same connection open")
+
+	failsToClose := sql.OpenDB(closeErrorConnector{})
+	inst.replaceSQL(failsToClose)
+	require.Same(t, failsToClose, inst.SQL, "replaceSQL must install the replacement")
+	assert.ErrorContains(t, first.PingContext(t.Context()), "database is closed", "replaceSQL should close the connection it replaces")
+
+	last := openMemoryDatabase(t)
+	inst.replaceSQL(last)
+	assert.Same(t, last, inst.SQL, "replaceSQL should install the replacement when closing the replaced connection fails")
+	assert.ErrorContains(t, failsToClose.PingContext(t.Context()), "database is closed", "replaceSQL should close the replaced connection when its Close fails")
+	assert.NoError(t, last.PingContext(t.Context()), "replaceSQL should leave the replacement open")
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, logged, 1, "replaceSQL must log only the failed close")
+	assert.Equal(t, "[ERROR]", logged[0].header, "replaceSQL should log the failed close as an error")
+	assert.Contains(t, logged[0].message, errCloseFailed.Error(), "replaceSQL should log the close error")
 }
