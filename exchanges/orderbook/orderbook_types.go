@@ -124,6 +124,12 @@ type Book struct {
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity
 	RestSnapshot bool
+	// DeferToWebsocketWithin keeps in place, when this REST snapshot is processed, a valid book that a websocket loaded
+	// and has updated within this long: the snapshot is then neither loaded nor published, so the websocket's update
+	// sequence carries on. A book the websocket has not updated for longer, as one it stopped maintaining, takes the
+	// snapshot. An exchange setting it has its websocket manager invalidate those books when it shuts down, see
+	// websocket.ManagerSetup.InvalidateOrderbooksOnShutdown, so REST snapshots replace them at once
+	DeferToWebsocketWithin time.Duration
 	// Checks if the orderbook needs ID alignment as well as price alignment
 	IDAlignment bool
 	// Determines if there is a max depth of orderbooks and after an append we

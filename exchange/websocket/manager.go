@@ -118,6 +118,8 @@ type Manager struct {
 	AuthConn                      Connection // Authenticated Private connection
 	ExchangeLevelReporter         Reporter   // Latency reporter
 	MaxSubscriptionsPerConnection int
+	// invalidateOrderbooksOnShutdown invalidates the orderbooks the websocket loaded when it shuts down
+	invalidateOrderbooksOnShutdown bool
 
 	// connectionManager stores all *potential* connections for the exchange, organised within websocket structs.
 	// For example, separate connections can be used for Spot, Margin, and Futures trading. This structure is especially useful
@@ -148,6 +150,11 @@ type ManagerSetup struct {
 	FillsFeed bool
 
 	MaxWebsocketSubscriptionsPerConnection int
+
+	// InvalidateOrderbooksOnShutdown invalidates the orderbooks the websocket loaded when its connections shut down, for
+	// an exchange whose REST orderbook snapshots defer to them (orderbook.Book.DeferToWebsocketWithin), so REST snapshots
+	// replace them once the websocket no longer maintains them
+	InvalidateOrderbooksOnShutdown bool
 
 	// RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections for all endpoints.
 	// These rate limits take precedence over any rate limits specified in individual connection configurations.
@@ -295,6 +302,7 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 		return fmt.Errorf("%s %w", m.exchangeName, errInvalidMaxSubscriptions)
 	}
 	m.MaxSubscriptionsPerConnection = s.MaxWebsocketSubscriptionsPerConnection
+	m.invalidateOrderbooksOnShutdown = s.InvalidateOrderbooksOnShutdown
 	m.setState(disconnectedState)
 
 	m.rateLimitDefinitions = s.RateLimitDefinitions
@@ -550,6 +558,9 @@ func (m *Manager) connect(ctx context.Context) error {
 
 	// TODO: Implement concurrency below.
 	for i, ws := range connectionManager {
+		if ws.setup.AuthenticatedOnly && !m.CanUseAuthenticatedEndpoints() {
+			continue
+		}
 		var subs subscription.List
 		if !ws.setup.SubscriptionsNotRequired {
 			if ws.setup.GenerateSubscriptions == nil {
@@ -647,29 +658,13 @@ func (m *Manager) connect(ctx context.Context) error {
 	}
 
 	if multiConnectFatalError != nil {
-		// Roll back any successful connections and flush subscriptions
-		connectionManager = m.snapshotConnectionManager()
-		m.connectionManagerMu.Lock()
-		for _, ws := range connectionManager {
-			for _, conn := range ws.connections {
-				if err := conn.Shutdown(); err != nil {
-					log.Errorln(log.WebsocketMgr, err)
-				}
-				conn.Subscriptions().Clear()
-			}
-			ws.connections = nil
-			ws.subscriptions.Clear()
+		// Roll back any successful connections, as a failed single connection is, so their readers have stopped and any
+		// orderbooks they loaded are invalidated before the next attempt
+		nonFatalCloseConnectionErrors, err := m.teardown()
+		if nonFatalCloseConnectionErrors != nil {
+			log.Errorln(log.WebsocketMgr, nonFatalCloseConnectionErrors)
 		}
-		clear(m.connections)
-		m.connectionManagerMu.Unlock()
-		m.setState(disconnectedState) // Flip from connecting to disconnected.
-
-		// Drain residual error in the single buffered channel, this mitigates
-		// the cycle when `Connect` is called again and the connectionMonitor
-		// starts but there is an old error in the channel.
-		drain(m.ReadMessageErrors)
-
-		return multiConnectFatalError
+		return common.AppendError(multiConnectFatalError, err)
 	}
 
 	// Assume connected state here. All connections have been established.
@@ -840,6 +835,10 @@ func (m *Manager) teardown() (nonFatalCloseConnectionErrors, err error) {
 	m.setState(disconnectedState)
 	m.Wg.Wait()
 	m.ShutdownC = make(chan struct{})
+	if m.invalidateOrderbooksOnShutdown {
+		// The readers have stopped, so no snapshot the websocket loads can follow the invalidation
+		m.Orderbook.InvalidateWebsocketOrderbooks()
+	}
 
 	for _, conn := range []Connection{m.Conn, m.AuthConn} {
 		if conn == nil {

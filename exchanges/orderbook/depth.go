@@ -91,10 +91,21 @@ func (d *Depth) Retrieve() (*Book, error) {
 
 // LoadSnapshot flushes the bids and asks with a snapshot
 func (d *Depth) LoadSnapshot(incoming *Book) error {
+	_, err := d.loadUnlessStreamed(incoming)
+	return err
+}
+
+// loadUnlessStreamed flushes the bids and asks with a snapshot and reports whether it did: a snapshot that defers to a
+// websocket (Book.DeferToWebsocketWithin) is not loaded over a valid book a websocket loaded and has updated within that
+// long
+func (d *Depth) loadUnlessStreamed(incoming *Book) (bool, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if incoming.DeferToWebsocketWithin > 0 && d.validationError == nil && !d.restSnapshot && !d.insertedAt.IsZero() && time.Since(d.insertedAt) < incoming.DeferToWebsocketWithin {
+		return false, nil
+	}
 	if incoming.LastUpdated.IsZero() {
-		return fmt.Errorf("error loading orderbook snapshot: %s %s %s - %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
+		return false, fmt.Errorf("error loading orderbook snapshot: %s %s %s - %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
 	d.lastUpdateID = incoming.LastUpdateID
 	d.lastUpdated = incoming.LastUpdated
@@ -105,7 +116,7 @@ func (d *Depth) LoadSnapshot(incoming *Book) error {
 	d.askLevels.load(incoming.Asks)
 	d.validationError = nil
 	d.Alert()
-	return nil
+	return true, nil
 }
 
 // Invalidate initialises the Depth, with a error to explain why it was invalid
@@ -125,6 +136,17 @@ func (d *Depth) invalidate(withReason error) error {
 	d.validationError = fmt.Errorf("%s %s %s Reason: [%w]", d.exchange, d.pair, d.asset, common.AppendError(ErrOrderbookInvalid, withReason))
 	d.Alert()
 	return d.validationError
+}
+
+// InvalidateWebsocketSnapshot invalidates the depth when a websocket loaded its snapshot, for a websocket that no
+// longer maintains it; a depth holding a REST snapshot, or already invalid, is left as it is
+func (d *Depth) InvalidateWebsocketSnapshot(withReason error) {
+	d.m.Lock()
+	defer d.m.Unlock()
+	if d.validationError != nil || d.restSnapshot {
+		return
+	}
+	_ = d.invalidate(withReason)
 }
 
 // IsValid returns if the underlying book is valid.

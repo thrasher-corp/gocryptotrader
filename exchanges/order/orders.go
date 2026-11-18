@@ -698,6 +698,8 @@ func (t Type) String() string {
 		return orderTakeProfit
 	case TakeProfitMarket:
 		return orderTakeProfitMarket
+	case TakeProfitLimit:
+		return orderTakeProfitLimit
 	case TrailingStop:
 		return orderTrailingStop
 	case TrailingStopLimit:
@@ -1093,6 +1095,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return Chase, nil
 	case orderTakeProfitMarket, "TAKE_PROFIT_MARKET":
 		return TakeProfitMarket, nil
+	case orderTakeProfitLimit, "TAKE_PROFIT_LIMIT":
+		return TakeProfitLimit, nil
 	case orderTakeProfit, "TAKE_PROFIT":
 		return TakeProfit, nil
 	case orderLiquidation:

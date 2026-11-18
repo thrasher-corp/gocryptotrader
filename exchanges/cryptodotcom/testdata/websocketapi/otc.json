@@ -1,0 +1,31 @@
+{
+ "private/otc/request-quote": {
+  "subscription": "user.otc_qr.requests",
+  "channel": "user.otc_qr.requests",
+  "data": [
+   {
+    "cl_quote_req_id": "abcd13456",
+    "quote_req_id": "4611686018427626536"
+   }
+  ]
+ },
+ "private/otc/request-deal": {
+  "cl_deal_id": "client_id_1",
+  "deal_id": "4611686018429016536",
+  "quote_req_id": "4611686018427623960",
+  "quote_id": "4611686018492073851",
+  "deal_type": "QUOTE_REQUEST",
+  "deal_status": "ACCEPTED",
+  "reason": "NO_ERROR",
+  "update_time_ns": "1739329285207188882",
+  "leg_list": [
+   {
+    "instrument_name": "BTC_USD",
+    "quantity": "1",
+    "price": "95734.2",
+    "side": "BUY",
+    "type": "PRICE"
+   }
+  ]
+ }
+}

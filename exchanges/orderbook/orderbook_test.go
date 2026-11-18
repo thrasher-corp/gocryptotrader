@@ -225,6 +225,85 @@ func TestBookGetDepth(t *testing.T) {
 	assert.True(t, result.pair.Equal(pair))
 }
 
+func TestStoreUpdate(t *testing.T) {
+	t.Parallel()
+	websocketBook := func(t *testing.T, name string, p currency.Pair) {
+		t.Helper()
+		d, err := DeployDepth(name, p, asset.Spot)
+		require.NoError(t, err, "DeployDepth must not error")
+		d.AssignOptions(&Book{Exchange: name, Pair: p, Asset: asset.Spot})
+		require.NoError(t, d.LoadSnapshot(&Book{Bids: Levels{{Price: 1, Amount: 1}}, Asks: Levels{{Price: 4, Amount: 1}}, LastUpdated: time.Now(), LastUpdateID: 7}), "LoadSnapshot must load the websocket book")
+	}
+	for _, tc := range []struct {
+		name    string
+		prepare func(*testing.T, string, currency.Pair)
+		defers  bool
+		loaded  bool
+	}{
+		{name: "no book yet", defers: true, loaded: true},
+		{name: "websocket book", prepare: websocketBook, defers: true},
+		{name: "invalidated websocket book", prepare: func(t *testing.T, name string, p currency.Pair) {
+			t.Helper()
+			websocketBook(t, name, p)
+			d, err := GetDepth(name, p, asset.Spot)
+			require.NoError(t, err, "GetDepth must not error")
+			_ = d.Invalidate(errors.New("test"))
+		}, defers: true, loaded: true},
+		{name: "REST snapshot", prepare: func(t *testing.T, name string, p currency.Pair) {
+			t.Helper()
+			require.NoError(t, (&Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 3, Amount: 1}}, LastUpdated: time.Now()}).Process(), "Process must store the REST snapshot")
+		}, defers: true, loaded: true},
+		{name: "websocket book without deferring", prepare: websocketBook, loaded: true},
+		{name: "websocket book not updated within the window", prepare: func(t *testing.T, name string, p currency.Pair) {
+			t.Helper()
+			websocketBook(t, name, p)
+			d, err := GetDepth(name, p, asset.Spot)
+			require.NoError(t, err, "GetDepth must not error")
+			d.m.Lock()
+			d.insertedAt = time.Now().Add(-2 * time.Minute)
+			d.m.Unlock()
+		}, defers: true, loaded: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			name, p := t.Name(), currency.NewBTCUSDT()
+			if tc.prepare != nil {
+				tc.prepare(t, name, p)
+			}
+			rest := &Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 2, Amount: 1}}, Asks: Levels{{Price: 5, Amount: 1}}, LastUpdated: time.Now()}
+			if tc.defers {
+				rest.DeferToWebsocketWithin = time.Minute
+			}
+			require.NoError(t, s.Update(rest), "Update must not error")
+			assert.True(t, rest.RestSnapshot, "Update should mark the snapshot as REST's")
+			got, err := Get(name, p, asset.Spot)
+			require.NoError(t, err, "Get must return the stored book")
+			if tc.loaded {
+				assert.Equal(t, rest.Bids, got.Bids, "Update should store the REST snapshot")
+				assert.True(t, got.RestSnapshot, "Update should store the snapshot as REST's")
+				return
+			}
+			assert.Equal(t, Levels{{Price: 1, Amount: 1}}, got.Bids, "Update should leave the websocket book in place")
+			assert.False(t, got.RestSnapshot, "Update should leave the websocket book marked as the websocket's")
+			assert.Equal(t, int64(7), got.LastUpdateID, "Update should leave the websocket book's last update")
+		})
+	}
+}
+
+func TestStoreTrack(t *testing.T) {
+	t.Parallel()
+	b := &Book{Exchange: t.Name(), Pair: currency.NewBTCUSDT(), Asset: asset.Spot}
+	first, err := s.track(b)
+	require.NoError(t, err, "track must not error")
+	again, err := s.track(b)
+	require.NoError(t, err, "track must not error for a book tracked already")
+	assert.Same(t, first.Depth, again.Depth, "track should return the depth the store holds for a book tracked already")
+	assert.Equal(t, first.RouterID, again.RouterID, "track should return the router the store holds for a book tracked already")
+	stored, err := GetDepth(b.Exchange, b.Pair, b.Asset)
+	require.NoError(t, err, "GetDepth must not error")
+	assert.Same(t, first.Depth, stored, "track should leave the store holding the first depth")
+}
+
 func TestDeployDepth(t *testing.T) {
 	pair := currency.NewBTCUSD()
 	_, err := DeployDepth("", pair, asset.Spot)
@@ -629,4 +708,59 @@ func TestLevelsArrayPriceAmountUnmarshalJSON(t *testing.T) {
 
 	err = asks.UnmarshalJSON([]byte(`invalid`))
 	assert.Error(t, err)
+}
+
+func TestStoreUpdatePublication(t *testing.T) {
+	// Not parallel: a subscriber queues every publication on the global dispatcher
+	name, p := t.Name(), currency.NewBTCUSDT()
+	d, err := DeployDepth(name, p, asset.Spot)
+	require.NoError(t, err, "DeployDepth must not error")
+	d.AssignOptions(&Book{Exchange: name, Pair: p, Asset: asset.Spot})
+	require.NoError(t, d.LoadSnapshot(&Book{Bids: Levels{{Price: 1, Amount: 1}}, Asks: Levels{{Price: 4, Amount: 1}}, LastUpdated: time.Now(), LastUpdateID: 7}), "LoadSnapshot must load the websocket book")
+	pipe, err := SubscribeToExchangeOrderbooks(name)
+	require.NoError(t, err, "SubscribeToExchangeOrderbooks must not error")
+	t.Cleanup(func() { assert.NoError(t, pipe.Release(), "Release should not error") })
+	d.Publish()
+	select {
+	case <-pipe.Channel():
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the websocket book's publication must reach the subscriber")
+	}
+	require.NoError(t, s.Update(&Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 2, Amount: 1}}, Asks: Levels{{Price: 5, Amount: 1}}, LastUpdated: time.Now(), DeferToWebsocketWithin: time.Minute}), "Update must not error")
+	select {
+	case <-pipe.Channel():
+		assert.Fail(t, "Update should not publish a REST snapshot it leaves unloaded")
+	case <-time.After(100 * time.Millisecond):
+	}
+	published := func(t *testing.T, msg string) {
+		t.Helper()
+		select {
+		case <-pipe.Channel():
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, msg)
+		}
+	}
+	t.Run("deferring snapshot over an invalidated websocket book", func(t *testing.T) {
+		d.InvalidateWebsocketSnapshot(errors.New("test"))
+		require.NoError(t, s.Update(&Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 2, Amount: 1}}, Asks: Levels{{Price: 5, Amount: 1}}, LastUpdated: time.Now(), DeferToWebsocketWithin: time.Minute}), "Update must not error")
+		published(t, "Update must publish a REST snapshot it loads")
+	})
+	t.Run("deferring snapshot over a websocket book not updated within the window", func(t *testing.T) {
+		require.NoError(t, d.LoadSnapshot(&Book{Bids: Levels{{Price: 1, Amount: 1}}, Asks: Levels{{Price: 4, Amount: 1}}, LastUpdated: time.Now(), LastUpdateID: 8}), "LoadSnapshot must load the websocket book")
+		d.m.Lock()
+		d.insertedAt = time.Now().Add(-2 * time.Minute)
+		d.m.Unlock()
+		require.NoError(t, s.Update(&Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 2, Amount: 1}}, Asks: Levels{{Price: 5, Amount: 1}}, LastUpdated: time.Now(), DeferToWebsocketWithin: time.Minute}), "Update must not error")
+		published(t, "Update must publish a REST snapshot it loads")
+	})
+	t.Run("deferring snapshot over a REST snapshot", func(t *testing.T) {
+		require.NoError(t, s.Update(&Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 3, Amount: 1}}, Asks: Levels{{Price: 6, Amount: 1}}, LastUpdated: time.Now()}), "Update must not error for a snapshot without deferring")
+		published(t, "Update must publish a REST snapshot without deferring")
+		require.NoError(t, s.Update(&Book{Exchange: name, Pair: p, Asset: asset.Spot, Bids: Levels{{Price: 2, Amount: 1}}, Asks: Levels{{Price: 5, Amount: 1}}, LastUpdated: time.Now(), DeferToWebsocketWithin: time.Minute}), "Update must not error")
+		published(t, "Update must publish a REST snapshot it loads")
+	})
+	t.Run("deferring snapshot with no book yet", func(t *testing.T) {
+		require.NoError(t, s.Update(&Book{Exchange: name, Pair: currency.NewBTCUSD(), Asset: asset.Spot, Bids: Levels{{Price: 2, Amount: 1}}, Asks: Levels{{Price: 5, Amount: 1}}, LastUpdated: time.Now(), DeferToWebsocketWithin: time.Minute}), "Update must not error")
+		published(t, "Update must publish a REST snapshot it loads")
+	})
 }
