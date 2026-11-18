@@ -2,11 +2,13 @@ package okx
 
 import (
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -19,18 +21,31 @@ func TestWSPlaceOrder(t *testing.T) {
 	_, err := e.WSPlaceOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
+	_, err = e.WSPlaceOrder(t.Context(), &PlaceOrderRequestParam{
+		InstrumentID: mainPair.String(),
+		TradeMode:    TradeModeCash,
+		Side:         "buy",
+		OrderType:    orderLimit,
+		Amount:       1,
+	})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
+
+	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
+	require.NoError(t, err)
 
 	out := &PlaceOrderRequestParam{
-		InstrumentID: mainPair.String(),
-		TradeMode:    TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
-		Side:         "Buy",
-		OrderType:    "post_only",
-		Amount:       0.0001,
-		Price:        20000,
-		Currency:     "USDT",
+		InstrumentID:     mainPair.String(),
+		InstrumentIDCode: e.getInstrumentIDCode(mainPair.String()),
+		TradeMode:        TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
+		Side:             "Buy",
+		OrderType:        "post_only",
+		Amount:           0.0001,
+		Price:            20000,
+		Currency:         "USDT",
 	}
 
 	got, err := e.WSPlaceOrder(request.WithVerbose(t.Context()), out)
@@ -47,23 +62,51 @@ func TestWSPlaceMultipleOrders(t *testing.T) {
 	_, err = e.WSPlaceMultipleOrders(t.Context(), []PlaceOrderRequestParam{{}})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-
-	testexch.SetupWs(t, e)
-
-	out := PlaceOrderRequestParam{
+	_, err = e.WSPlaceMultipleOrders(t.Context(), []PlaceOrderRequestParam{{
 		InstrumentID: mainPair.String(),
-		TradeMode:    TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
-		Side:         "Buy",
-		OrderType:    "post_only",
-		Amount:       0.0001,
-		Price:        20000,
-		Currency:     "USDT",
-	}
+		TradeMode:    TradeModeCash,
+		Side:         "buy",
+		OrderType:    orderLimit,
+		Amount:       1,
+	}})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode)
 
-	got, err := e.WSPlaceMultipleOrders(request.WithVerbose(t.Context()), []PlaceOrderRequestParam{out})
-	require.NoError(t, err)
-	require.NotEmpty(t, got)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+
+		testexch.SetupWebsocket(t, e)
+
+		_, err := e.getInstrumentsForAsset(t.Context(), asset.Spot)
+		require.NoError(t, err)
+
+		out := PlaceOrderRequestParam{
+			InstrumentID:     mainPair.String(),
+			InstrumentIDCode: e.getInstrumentIDCode(mainPair.String()),
+			TradeMode:        TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
+			Side:             "Buy",
+			OrderType:        "post_only",
+			Amount:           0.0001,
+			Price:            20000,
+			Currency:         "USDT",
+		}
+
+		got, err := e.WSPlaceMultipleOrders(request.WithVerbose(t.Context()), []PlaceOrderRequestParam{out})
+		require.NoError(t, err)
+		require.NotEmpty(t, got)
+	})
+
+	// Guards the same documented batch limit on the websocket transport.
+	t.Run("limits the batch size", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}))
+		args := make([]PlaceOrderRequestParam, 21)
+		_, err := ex.WSPlaceMultipleOrders(t.Context(), args)
+		assert.ErrorIs(t, err, errExceedLimit, "an oversized websocket batch should be rejected before transmission")
+	})
 }
 
 func TestWSCancelOrder(t *testing.T) {
@@ -78,11 +121,21 @@ func TestWSCancelOrder(t *testing.T) {
 	_, err = e.WSCancelOrder(t.Context(), &CancelOrderRequestParam{InstrumentID: mainPair.String()})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
+	_, err = e.WSCancelOrder(t.Context(), &CancelOrderRequestParam{InstrumentID: mainPair.String(), OrderID: "1"})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
-	got, err := e.WSCancelOrder(request.WithVerbose(t.Context()), &CancelOrderRequestParam{InstrumentID: mainPair.String(), OrderID: "2341161427393388544"})
+	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
+	require.NoError(t, err)
+
+	got, err := e.WSCancelOrder(request.WithVerbose(t.Context()), &CancelOrderRequestParam{
+		InstrumentID:     mainPair.String(),
+		InstrumentIDCode: e.getInstrumentIDCode(mainPair.String()),
+		OrderID:          "2341161427393388544",
+	})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -99,11 +152,21 @@ func TestWSCancelMultipleOrders(t *testing.T) {
 	_, err = e.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{InstrumentID: mainPair.String()}})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
+	_, err = e.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{InstrumentID: mainPair.String(), OrderID: "1"}})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
-	got, err := e.WSCancelMultipleOrders(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{InstrumentID: mainPair.String(), OrderID: "2341184920998715392"}})
+	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
+	require.NoError(t, err)
+
+	got, err := e.WSCancelMultipleOrders(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{
+		InstrumentID:     mainPair.String(),
+		InstrumentIDCode: e.getInstrumentIDCode(mainPair.String()),
+		OrderID:          "2341184920998715392",
+	}})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -126,11 +189,18 @@ func TestWSAmendOrder(t *testing.T) {
 	_, err = e.WSAmendOrder(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidNewSizeOrPriceInformation)
 
+	out.NewPrice = 21000
+	_, err = e.WSAmendOrder(t.Context(), out)
+	require.ErrorIs(t, err, errMissingInstrumentIDCode)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
-	out.NewPrice = 21000
+	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
+	require.NoError(t, err)
+
+	out.InstrumentIDCode = e.getInstrumentIDCode(mainPair.String())
 	got, err := e.WSAmendOrder(request.WithVerbose(t.Context()), out)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
@@ -154,10 +224,17 @@ func TestWSAmendMultipleOrders(t *testing.T) {
 	_, err = e.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
 	require.ErrorIs(t, err, errInvalidNewSizeOrPriceInformation)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
 	out.NewPrice = 20000
+	_, err = e.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode)
 
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	testexch.SetupWebsocket(t, e)
+
+	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
+	require.NoError(t, err)
+
+	out.InstrumentIDCode = e.getInstrumentIDCode(mainPair.String())
 	got, err := e.WSAmendMultipleOrders(request.WithVerbose(t.Context()), []AmendOrderRequestParams{out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
@@ -175,7 +252,7 @@ func TestWSMassCancelOrders(t *testing.T) {
 	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	err = e.WSMassCancelOrders(request.WithVerbose(t.Context()), []CancelMassReqParam{
 		{
 			InstrumentType:   "OPTION",
@@ -191,7 +268,7 @@ func TestWSPlaceSpreadOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WSPlaceSpreadOrder(request.WithVerbose(t.Context()), &SpreadOrderParam{
 		SpreadID:      spreadPair.String(),
 		ClientOrderID: "b15",
@@ -214,7 +291,7 @@ func TestWSAmendSpreadOrder(t *testing.T) {
 	require.ErrorIs(t, err, errSizeOrPriceIsRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WSAmendSpreadOrder(request.WithVerbose(t.Context()), &AmendSpreadOrderParam{
 		OrderID: "2510789768709120",
 		NewSize: 2,
@@ -228,7 +305,7 @@ func TestWSCancelSpreadOrder(t *testing.T) {
 	_, err := e.WSCancelSpreadOrder(t.Context(), "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WSCancelSpreadOrder(request.WithVerbose(t.Context()), "1234", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -237,7 +314,7 @@ func TestWSCancelSpreadOrder(t *testing.T) {
 func TestWSCancelAllSpreadOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	err := e.WSCancelAllSpreadOrders(request.WithVerbose(t.Context()), spreadPair.String())
 	require.NoError(t, err)
 }
@@ -262,7 +339,8 @@ func TestParseWSResponseErrors(t *testing.T) {
 
 	err1 := errors.New("error 1")
 	err2 := errors.New("error 2")
-	mockSlice := []*mockHasError{{err: nil}, {err: err1}, {err: err2}}
+	// A null row in a batch reply decodes to a nil element and is skipped.
+	mockSlice := []*mockHasError{nil, {err: nil}, {err: err1}, {err: err2}}
 	err := parseWSResponseErrors(&mockSlice, errPartialSuccess)
 	require.ErrorIs(t, err, errPartialSuccess)
 	require.ErrorIs(t, err, err1)
