@@ -904,6 +904,11 @@ func TestNewBTCUSD(t *testing.T) {
 	}
 }
 
+func TestNewBTCUSDC(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, NewPair(BTC, USDC), NewBTCUSDC(), "NewBTCUSDC should return the BTC-USDC pair")
+}
+
 func TestNewBTCUSDT(t *testing.T) {
 	t.Parallel()
 	p := NewBTCUSDT()

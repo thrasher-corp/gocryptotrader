@@ -9,7 +9,9 @@ import (
 )
 
 // SetSubscriptionsNotRequired configures the manager to connect without
-// generating default subscriptions.
+// generating default subscriptions. Under multi connection management each
+// connection setup is dialled without subscriptions, and its subscription
+// generator is removed so none are generated or refreshed.
 //
 // This exported helper exists for cross-package test harnesses only. It is a
 // pre-connect test-mode mutation used by websocket unit-test helpers that need
@@ -31,6 +33,7 @@ func (m *Manager) SetSubscriptionsNotRequired() {
 			ws.setup = &ConnectionSetup{}
 		}
 		ws.setup.SubscriptionsNotRequired = true
+		ws.setup.GenerateSubscriptions = nil
 	}
 }
 

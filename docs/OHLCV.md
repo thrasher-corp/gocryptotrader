@@ -82,6 +82,7 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | Gemini         |             |
 | HitBTC         | Y           |
 | HTX            | Y           |
+| Hyperliquid    | Y           |
 | Kraken         | Y           |
 | Kucoin         | Y           |
 | lBank          | Y           |
