@@ -1766,6 +1766,24 @@ func TestWebsocketSubscribe(t *testing.T) {
 	if mockTests {
 		assert.Len(t, venue.events("unsubscribe"), 2, "each channel should be unsubscribed")
 	}
+
+	t.Run("shuts its websocket down when its test ends", func(t *testing.T) {
+		t.Parallel()
+		var owned *Exchange
+		// A failing run's fallback, registered here so that it runs after the checks below
+		t.Cleanup(func() {
+			if owned != nil && owned.Websocket.IsEnabled() {
+				assert.NoError(t, owned.Websocket.Disable(), "Websocket disable should not error")
+			}
+		})
+		t.Run("owner", func(t *testing.T) {
+			owned, _ = newWebsocketTestExchange(t, subscription.List{})
+			require.True(t, owned.Websocket.IsConnected(), "Websocket must be connected during its test")
+		})
+		require.NotNil(t, owned, "The owner must set up an exchange")
+		assert.False(t, owned.Websocket.IsEnabled(), "Websocket should be disabled once its test ends")
+		assert.False(t, owned.Websocket.IsConnected(), "Websocket should be shut down once its test ends")
+	})
 }
 
 func TestWebsocketChecksumMarginBookMissing(t *testing.T) {
