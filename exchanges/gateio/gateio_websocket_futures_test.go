@@ -119,7 +119,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		ex := new(Exchange)
 		ex.SetDefaults()
 		ex.Name = "generateFuturesPayloadTest"
-		ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		ex.Websocket.SetAuthenticatedWebsocketSupport(false)
 
 		got, err := ex.generateFuturesPayload(context.Background(), subscribeEvent, subscription.List{
 			&subscription.Subscription{
@@ -175,7 +175,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 
 		// Force path into GetCredentials() by allowing authenticated endpoints.
 		ex.API.AuthenticatedWebsocketSupport = true
-		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 
 		got, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
 			&subscription.Subscription{
@@ -196,7 +196,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		ex.SetDefaults()
 		ex.Name = "generateFuturesPayloadAuthTest"
 		ex.API.AuthenticatedWebsocketSupport = true
-		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
 		got, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
@@ -228,7 +228,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		ex.SetDefaults()
 		ex.Name = "generateFuturesPayloadAllPositionsTest"
 		ex.API.AuthenticatedWebsocketSupport = true
-		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
 		got, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
@@ -255,7 +255,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		ex.SetDefaults()
 		ex.Name = "generateFuturesPayloadPositionClosesTest"
 		ex.API.AuthenticatedWebsocketSupport = true
-		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
 		_, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{

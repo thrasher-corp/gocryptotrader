@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
 		e.SetCredentials(&accounts.Credentials{Key: key, Secret: secret})
-		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		e.Websocket.SetAuthenticatedWebsocketSupport(true)
 	}
 	if err := populateTradablePairs(); err != nil {
 		log.Fatal(err)

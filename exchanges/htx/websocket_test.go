@@ -407,6 +407,7 @@ func TestSubscribe(t *testing.T) {
 	t.Run("authenticated derivatives", func(t *testing.T) {
 		t.Parallel()
 		h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+		h.Websocket.SetAuthenticatedWebsocketSupport(true)
 		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		h.Features.Subscriptions = defaultFuturesSubscriptions.Clone()
 		for _, sub := range h.Features.Subscriptions {
@@ -468,6 +469,7 @@ func TestSubscribe(t *testing.T) {
 		t.Parallel()
 		subCfg := defaultSubscriptions.Clone()
 		h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+		h.Websocket.SetAuthenticatedWebsocketSupport(true)
 		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		subs, err := subCfg.ExpandTemplates(h)
 		require.NoError(t, err, "ExpandTemplates must not error")
@@ -757,7 +759,7 @@ func TestGenerateSubscriptionsForAsset(t *testing.T) {
 		require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 		e.Features.Subscriptions = defaultSubscriptions.Clone()
 
-		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		e.Websocket.SetAuthenticatedWebsocketSupport(true)
 		subs, err := e.generateSubscriptionsForAsset(asset.Spot, false)
 		require.NoError(t, err, "public generateSubscriptionsForAsset must not error")
 		privateSubs, err := e.generateSubscriptionsForAsset(asset.Spot, true)
@@ -866,6 +868,7 @@ func TestGenerateSubscriptionsForAsset(t *testing.T) {
 		assert.NotEmpty(t, sub.QualifiedChannel, "subscription channel should be expanded")
 	}
 
+	h.Websocket.SetAuthenticatedWebsocketSupport(true)
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	for _, sub := range h.Features.Subscriptions {
 		if sub.Authenticated {

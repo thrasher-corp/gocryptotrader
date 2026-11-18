@@ -75,18 +75,20 @@ func (e *Exchange) wsDial(ctx context.Context, conn websocket.Connection, privat
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var listenKey string
-	if private && e.Websocket.CanUseAuthenticatedEndpoints() {
+	if private {
+		if !e.Websocket.CanAttemptAuthentication() {
+			return errNoListenKey
+		}
 		var err error
 		if listenKey, err = e.GenerateListenKey(ctx); err != nil {
-			// The manager rolls the public connections back when this one fails, so failing here with the private
-			// channels still enabled would take the market data down on every retry. Carry on without the private
-			// channels instead, as binance does.
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.WebsocketMgr, "%s: private channels unavailable, no listen key: %v", e.Name, err)
-		} else {
-			conn.SetURL(conn.GetURL() + "?listenKey=" + listenKey)
+			return fmt.Errorf("generate private websocket listen key: %w", err)
 		}
+		if listenKey == "" {
+			return errNoListenKey
+		}
+		conn.SetURL(conn.GetURL() + "?listenKey=" + listenKey)
 	}
+
 	if err := conn.Dial(ctx, &gws.Dialer{
 		EnableCompression: true,
 		ReadBufferSize:    8192,
@@ -167,7 +169,7 @@ func (e *Exchange) releaseListenKey(ctx context.Context, listenKey string) {
 
 // Subscribe subscribes to a channel
 func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
-	if !e.Websocket.CanUseAuthenticatedEndpoints() && slices.ContainsFunc(channelsToSubscribe, isPrivateChannel) {
+	if !e.Websocket.CanAttemptAuthentication() && slices.ContainsFunc(channelsToSubscribe, isPrivateChannel) {
 		return errNoListenKey
 	}
 	return e.handleSubscription(ctx, conn, "SUBSCRIPTION", channelsToSubscribe)
@@ -247,7 +249,7 @@ func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
 // generatePrivateSubscriptions returns the configured subscriptions to the private channels, none unless the
 // authenticated websocket can be used
 func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
-	if !e.Websocket.CanUseAuthenticatedEndpoints() {
+	if !e.Websocket.CanGenerateAuthenticatedSubscriptions() {
 		return nil, nil
 	}
 	subs, err := e.generateSubscriptions()

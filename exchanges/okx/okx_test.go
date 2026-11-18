@@ -86,6 +86,7 @@ func TestMain(m *testing.M) {
 	if apiCredentials.Key != "" && apiCredentials.Secret != "" && apiCredentials.ClientID != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
+		e.Websocket.SetAuthenticatedWebsocketSupport(true)
 		e.SetCredentials(apiCredentials)
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
@@ -11225,7 +11226,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	e.Websocket.SetAuthenticatedWebsocketSupport(true)
 	public, err := e.generateSubscriptions(true)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	private, err := e.generateSubscriptions(false)

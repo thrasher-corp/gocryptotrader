@@ -1101,7 +1101,7 @@ func TestKeepListenKeyAliveStopsWithItsConnection(t *testing.T) {
 		renewed.Add(1)
 		_, _ = w.Write([]byte(`{}`))
 	}))
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 	conn := &listenKeyTestConn{url: "wss://one"}
 	require.NoError(t, ex.wsConnectPrivate(t.Context(), conn), "wsConnectPrivate must not error")
 	assert.Equal(t, "wss://one?listenKey=key-1", conn.url, "the connection should dial with its listen key")
@@ -1587,7 +1587,7 @@ func TestWsConnectPrivateReleasesListenKeyOnFailedDial(t *testing.T) {
 			_, _ = w.Write([]byte(`{}`))
 		}
 	}))
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 	for range 3 {
 		assert.Error(t, ex.wsConnectPrivate(t.Context(), &failingDialConn{url: spotWebsocketURL}), "wsConnectPrivate should report the failed dial")
 	}
@@ -1609,7 +1609,7 @@ func TestWsConnectPublicConnectionsTakeNoListenKey(t *testing.T) {
 		}
 		_, _ = w.Write([]byte(`{"listenKey":"key-1"}`))
 	}))
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 	conn := &listenKeyTestConn{url: "wss://one"}
 	require.NoError(t, ex.WsConnect(t.Context(), conn), "WsConnect must not error")
 	assert.Equal(t, "wss://one", conn.url, "a public connection should dial without a listen key")
@@ -1621,7 +1621,9 @@ func TestWsConnectPublicConnectionsTakeNoListenKey(t *testing.T) {
 func TestGenerateSubscriptionsSplitsPrivateChannels(t *testing.T) {
 	t.Parallel()
 	ex := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetAuthenticatedWebsocketSupport(true)
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "subscription planning should not require authenticated runtime readiness")
 	all, err := ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	public, err := ex.generatePublicSubscriptions()
@@ -1660,7 +1662,7 @@ func TestGenerateSubscriptionsSplitsPrivateChannels(t *testing.T) {
 		assert.Emptyf(t, public, "%s%s should not be on a public connection", s.Channel, s.QualifiedChannel)
 	}
 
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	ex.Websocket.SetAuthenticatedWebsocketSupport(false)
 	private, err = ex.generatePrivateSubscriptions()
 	require.NoError(t, err, "generatePrivateSubscriptions must not error")
 	assert.Empty(t, private, "no private channel should be subscribed without the authenticated websocket")
@@ -1722,7 +1724,7 @@ func TestWebsocketTakesOneListenKeyForThePrivateChannels(t *testing.T) {
 	require.NoError(t, ex.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), srv.URL), "SetRunningURL must not error")
 	ex.API.AuthenticatedWebsocketSupport = true
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(srv.URL, "http")), "SetAllConnectionURLs must not error")
 	ex.Features.Subscriptions = subscription.List{
 		{Enabled: true, Asset: asset.Spot, Channel: channelMiniTickerV3},
@@ -1796,7 +1798,7 @@ func TestWebsocketMintsNoListenKeyWhenAPublicConnectionFails(t *testing.T) {
 	require.NoError(t, ex.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), srv.URL), "SetRunningURL must not error")
 	ex.API.AuthenticatedWebsocketSupport = true
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(srv.URL, "http")), "SetAllConnectionURLs must not error")
 	ex.Features.Subscriptions = subscription.List{
 		{Enabled: true, Asset: asset.Spot, Channel: channelMiniTickerV3},
@@ -2421,7 +2423,7 @@ func TestWebsocketKeepsMarketDataWhenNoListenKeyCanBeMinted(t *testing.T) {
 	require.NoError(t, ex.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), srv.URL), "SetRunningURL must not error")
 	ex.API.AuthenticatedWebsocketSupport = true
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetAuthenticatedWebsocketSupport(true)
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(srv.URL, "http")), "SetAllConnectionURLs must not error")
 	ex.Features.Subscriptions = subscription.List{
 		{Enabled: true, Asset: asset.Spot, Channel: channelMiniTickerV3},
@@ -2435,12 +2437,13 @@ func TestWebsocketKeepsMarketDataWhenNoListenKeyCanBeMinted(t *testing.T) {
 		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
 	})
 	assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "the private channels should be reported as not subscribed")
-	assert.ErrorIs(t, err, errNoListenKey, "the missing listen key should be named")
+	assert.ErrorIs(t, err, websocket.ErrNotConnected, "the failed private connection should be reported")
+	assert.ErrorContains(t, err, "listen key limit reached", "the exchange rejection should remain visible")
 	require.True(t, ex.Websocket.IsConnected(), "the websocket must stay connected for the market data")
 	public, err := ex.generatePublicSubscriptions()
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	assert.Equal(t, int64(len(public)), publicSubscribed.Load(), "every public channel should be subscribed")
-	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "the private channels should be left out of later connects")
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "failed authentication should not advertise private readiness")
 }
 
 // TestGetAnnouncementsReportsRejectedParameters reports the error MEXC answers a rejected parameter with. A language it
@@ -2538,6 +2541,40 @@ func TestHandleSubscription(t *testing.T) {
 			require.Len(t, got, 1)
 			assert.Equal(t, refused.QualifiedChannel, got[0].QualifiedChannel)
 			assert.Equal(t, subscription.SubscribedState, got[0].State())
+		})
+	}
+}
+
+func TestWsDial(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		enabled   bool
+		status    int
+		body      string
+		wantError string
+	}{
+		{name: "authentication disabled", status: http.StatusOK, body: `{"listenKey":"key"}`},
+		{name: "listen key rejected", enabled: true, status: http.StatusBadRequest, body: `{"code":700003,"msg":"listen key limit reached"}`, wantError: "listen key limit reached"},
+		{name: "empty listen key", enabled: true, status: http.StatusOK, body: `{}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var requested atomic.Bool
+			ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				requested.Store(true)
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			ex.Websocket.SetAuthenticatedWebsocketSupport(tc.enabled)
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			err := ex.wsDial(t.Context(), &failingDialConn{url: spotWebsocketURL}, true)
+			if tc.wantError != "" {
+				assert.ErrorContains(t, err, tc.wantError, "key acquisition should preserve the exchange rejection before dialling")
+			} else {
+				assert.ErrorIs(t, err, errNoListenKey, "private connection should reject a missing key before dialling")
+			}
+			assert.Equal(t, tc.enabled, requested.Load(), "only configured authentication should attempt key acquisition")
 		})
 	}
 }

@@ -54,6 +54,7 @@ func (e *Exchange) setAPICredential(creds *accounts.Credentials) {
 	if creds.Key != "" && creds.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
+		e.Websocket.SetAuthenticatedWebsocketSupport(true)
 		e.SetCredentials(creds)
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}

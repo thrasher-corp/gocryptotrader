@@ -27,6 +27,12 @@ var (
 	errInvalidTemplate          = errors.New("GetSubscriptionTemplate did not return a template")
 )
 
+// AuthenticatedSubscriptionGenerator optionally provides configured eligibility independently of login readiness.
+// Existing IExchange implementations can continue to use their runtime authentication check.
+type AuthenticatedSubscriptionGenerator interface {
+	CanGenerateAuthenticatedSubscriptions() bool
+}
+
 type tplCtx struct {
 	S              *Subscription
 	AssetPairs     assetPairs
@@ -38,7 +44,7 @@ type tplCtx struct {
 // ExpandTemplates returns a list of Subscriptions with Template expanded
 // May be called on already expanded subscriptions: Passes $s through unprocessed if QualifiedChannel is already populated
 // Calls e.GetSubscriptionTemplate to find a template for each subscription
-// Filters out Authenticated subscriptions if !e.CanUseAuthenticatedEndpoints
+// Filters authenticated subscriptions using configured generation eligibility when available
 // See README.md for more details
 // The exchange can optionally implement ListValidator to have custom validation on subscriptions
 func (l List) ExpandTemplates(e IExchange) (List, error) {
@@ -47,7 +53,11 @@ func (l List) ExpandTemplates(e IExchange) (List, error) {
 		return slices.Clone(l), nil
 	}
 
-	if !e.CanUseAuthenticatedWebsocketEndpoints() {
+	authenticated := e.CanUseAuthenticatedWebsocketEndpoints()
+	if generator, ok := e.(AuthenticatedSubscriptionGenerator); ok {
+		authenticated = generator.CanGenerateAuthenticatedSubscriptions()
+	}
+	if !authenticated {
 		n := List{}
 		for _, s := range l {
 			if !s.Authenticated {

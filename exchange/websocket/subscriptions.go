@@ -329,12 +329,20 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		return m.updateChannelSubscriptions(ctx, m.subscriptions, newSubs)
 	}
 
+	defer m.updateAuthenticationStatus()
 	var subscriptionError error
 	for _, ws := range m.snapshotConnectionManager() {
 		if ws.setup.SubscriptionsNotRequired {
 			continue
 		}
 
+		if ws.retryAuthentication {
+			subscriptionError = common.AppendError(subscriptionError, errFailedToAuthenticate)
+			continue
+		}
+		if ws.setup.Authenticated && !m.authenticatedWebsocketSupport.Load() {
+			continue
+		}
 		newSubs, err := ws.setup.GenerateSubscriptions()
 		var fatalErr error
 		subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, err)
@@ -623,6 +631,9 @@ func (m *Manager) unsubscribeFromConnection(ctx context.Context, conn Connection
 // subscribeToConnection subscribes for a connection and adds subscriptions to the connection's store
 // On error, subscriptions the subscriber added to the manager's store are still added to the connection's store, because flushing uses it to decide whether the connection is still in use
 func (m *Manager) subscribeToConnection(ctx context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
+	if ws, managed := m.managedWebsocket(conn); managed && ws.retryAuthentication && !m.CanAttemptAuthentication() {
+		return subs, errFailedToAuthenticate
+	}
 	store := conn.Subscriptions()
 	if err := common.NilGuard(store); err != nil {
 		return nil, fmt.Errorf("websocket connection %w", err)

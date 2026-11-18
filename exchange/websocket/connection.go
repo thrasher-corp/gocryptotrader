@@ -72,7 +72,7 @@ type ConnectionSetup struct {
 	RateLimit            *request.RateLimiterWithWeight
 	// ConnectionRateLimiter returns a new rate limiter for each connection instance
 	ConnectionRateLimiter    func() *request.RateLimiterWithWeight
-	Authenticated            bool // unused for multi-connection websocket
+	Authenticated            bool // Private-only connection; authentication failure must not affect public connections.
 	SubscriptionsNotRequired bool
 	ConnectionLevelReporter  Reporter
 
@@ -279,6 +279,15 @@ func (c *connection) IsConnected() bool {
 	return c.connected.Load()
 }
 
+// connectionReadError identifies the owning socket even when an exchange wraps Connection.
+// Subscription stores are unique to a physical managed connection.
+type connectionReadError struct {
+	error
+	subscriptions *subscription.Store
+}
+
+func (e *connectionReadError) Unwrap() error { return e.error }
+
 // ReadMessage reads messages, can handle text, gzip and binary
 func (c *connection) ReadMessage() Response {
 	mType, resp, err := c.Connection.ReadMessage()
@@ -296,7 +305,7 @@ func (c *connection) ReadMessage() Response {
 			// method on WebsocketConnection type has been called and can
 			// be skipped.
 			select {
-			case c.readMessageErrors <- fmt.Errorf("%w: %w (%q)", err, errConnectionFault, c.URL):
+			case c.readMessageErrors <- &connectionReadError{error: fmt.Errorf("%w: %w (%q)", err, errConnectionFault, c.URL), subscriptions: c.Subscriptions()}:
 			default:
 				// bypass if there is no receiver, as this stops it returning
 				// when shutdown is called.

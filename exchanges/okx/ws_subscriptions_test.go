@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -492,7 +493,7 @@ func TestIsAssetChannel(t *testing.T) {
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "test exchange setup must succeed")
 			authenticated := tc.channel == channelOrders || tc.channel == subscription.MyOrdersChannel
-			ex.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+			ex.Websocket.SetAuthenticatedWebsocketSupport(authenticated)
 			ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: tc.channel, Asset: asset.PerpetualSwap, Authenticated: authenticated}}
 			subs, err := ex.generateSubscriptions(!authenticated)
 			require.NoError(t, err, "asset subscription expansion must succeed")
@@ -558,5 +559,35 @@ func TestHandleSubscription(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestGenerateDefaultBusinessSubscriptions(t *testing.T) {
+	t.Parallel()
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("configured=%t", enabled), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spread, true), "spread asset must enable")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spread, currency.Pairs{currency.NewBTCUSDT()}, false), "spread fixture must be available")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spread, currency.Pairs{currency.NewBTCUSDT()}, true), "spread fixture must be configured")
+			ex.Websocket.SetAuthenticatedWebsocketSupport(enabled)
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			subs, err := ex.GenerateDefaultBusinessSubscriptions()
+			require.NoError(t, err, "business subscriptions must generate before login completes")
+			var private []string
+			for _, sub := range subs {
+				if sub.Channel == okxSpreadOrders || sub.Channel == okxSpreadTrades {
+					private = append(private, sub.Channel)
+				}
+			}
+			if enabled {
+				assert.ElementsMatch(t, []string{okxSpreadOrders, okxSpreadTrades}, private, "configured authentication should generate private spread channels")
+			} else {
+				assert.Empty(t, private, "disabled authentication should omit private spread channels")
+			}
+			assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "generation should not mark authentication ready")
+		})
 	}
 }

@@ -948,7 +948,7 @@ func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation str
 // agnostic to the asset type and pair as all account level data will be routed through this connection.
 // TODO: Remove this function when template expansion is across all assets
 func (e *Exchange) generateAuthSubscriptions() (subscription.List, error) {
-	if !e.Websocket.CanUseAuthenticatedEndpoints() {
+	if !e.Websocket.CanGenerateAuthenticatedSubscriptions() {
 		return nil, nil
 	}
 

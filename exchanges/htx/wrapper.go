@@ -231,7 +231,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		{endpoint: exchange.WebsocketUSDTMarginedPrivate, asset: asset.USDTMarginedFutures, private: true},
 		{endpoint: exchange.WebsocketTrade, asset: asset.USDTMarginedFutures, private: true, trade: true},
 	} {
-		if ws.trade && !e.Websocket.CanUseAuthenticatedEndpoints() {
+		if ws.trade && !e.Websocket.CanAttemptAuthentication() {
 			continue
 		}
 		runningURL, err := e.API.Endpoints.GetURL(ws.endpoint)
@@ -282,7 +282,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 					}
 					return nil, err
 				}
-				if !e.Websocket.CanUseAuthenticatedEndpoints() {
+				if !e.Websocket.CanGenerateAuthenticatedSubscriptions() {
 					return nil, nil
 				}
 				return subscription.List{{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: "trade", Authenticated: true}}, nil
