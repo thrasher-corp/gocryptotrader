@@ -75,6 +75,16 @@ func copyExchangeConfig(src *config.Exchange) (*config.Exchange, error) {
 // Setup takes an empty exchange instance, sets it up with its own copy of its testdata/configtest.json config and
 // attaches a NewTestWebsocket
 func Setup(e exchange.IBotExchange, verbose ...bool) error {
+	return SetupWithConfig(e, func(exchConf *config.Exchange) {
+		if len(verbose) > 0 {
+			exchConf.Verbose = verbose[0]
+		}
+	})
+}
+
+// SetupWithConfig is Setup with configure applied to the exchange's own copy of its test config before the exchange is
+// set up, such as to turn on useSandbox
+func SetupWithConfig(e exchange.IBotExchange, configure func(*config.Exchange)) error {
 	cfg, err := testConfig()
 	if err != nil {
 		return err
@@ -89,8 +99,8 @@ func Setup(e exchange.IBotExchange, verbose ...bool) error {
 	if err != nil {
 		return fmt.Errorf("%s %w", eName, err)
 	}
-	if len(verbose) > 0 {
-		exchConf.Verbose = verbose[0]
+	if configure != nil {
+		configure(exchConf)
 	}
 
 	b := e.GetBase()

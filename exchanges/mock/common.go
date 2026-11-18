@@ -43,7 +43,8 @@ func MatchURLVals(v1, v2 url.Values) bool {
 	return true
 }
 
-// DeriveURLValsFromJSONArray converts a JSON array into a slice of url.Values by processing each array element as a JSON object
+// DeriveURLValsFromJSONArray converts a JSON array into a slice of url.Values, one per array element: an object's
+// fields, an array's elements keyed by index, or a scalar's JSON text keyed by an empty string, as for a list of IDs
 func DeriveURLValsFromJSONArray(payload []byte) ([]url.Values, error) {
 	if len(payload) == 0 {
 		return []url.Values{}, nil
@@ -57,10 +58,14 @@ func DeriveURLValsFromJSONArray(payload []byte) ([]url.Values, error) {
 	vals := make([]url.Values, len(intermediary))
 	for i := range intermediary {
 		var result url.Values
-		if getJSONBodyShape(strings.TrimSpace(string(intermediary[i]))) == jsonBodyArray {
+		element := strings.TrimSpace(string(intermediary[i]))
+		switch getJSONBodyShape(element) {
+		case jsonBodyArray:
 			result, err = DeriveURLValsFromJSONArrayAsMap(intermediary[i])
-		} else {
+		case jsonBodyObject:
 			result, err = DeriveURLValsFromJSONMap(intermediary[i])
+		default:
+			result = url.Values{"": {element}}
 		}
 		if err != nil {
 			return nil, err

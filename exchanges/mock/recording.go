@@ -163,7 +163,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 						break
 					}
 				}
-			case http.MethodPost, http.MethodDelete, http.MethodPut:
+			case http.MethodPost, http.MethodDelete, http.MethodPut, http.MethodPatch:
 				for i := range mockResponses {
 					cType, ok := mockResponses[i].Headers[contentType]
 

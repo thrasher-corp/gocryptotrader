@@ -256,7 +256,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			Unsubscriber:             e.unsubscribeConnection,
 			MessageFilter:            ws.endpoint,
 			SubscriptionsNotRequired: ws.trade,
-			GenerateSubscriptions: func() (subscription.List, error) {
+			GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 				if ws.trade {
 					return nil, nil
 				}
@@ -275,7 +275,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			// request-only socket without sending a market subscription to HTX.
 			setup.SubscriptionsNotRequired = false
 			setup.Authenticated = true
-			setup.GenerateSubscriptions = func() (subscription.List, error) {
+			setup.GenerateSubscriptions = func(context.Context) (subscription.List, error) {
 				if err := e.CurrencyPairs.IsAssetEnabled(asset.USDTMarginedFutures); err != nil {
 					if errors.Is(err, asset.ErrNotEnabled) {
 						return nil, nil

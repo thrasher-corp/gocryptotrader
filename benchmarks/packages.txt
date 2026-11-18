@@ -21,8 +21,8 @@ exchange/websocket/orderbookmanager
 exchanges/alert
 exchanges/binance
 exchanges/currencystate
-exchanges/gateio
 exchanges/htx
+exchanges/gate
 exchanges/kucoin
 exchanges/okx
 exchanges/order
