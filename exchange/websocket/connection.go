@@ -75,6 +75,12 @@ type ConnectionSetup struct {
 	Authenticated            bool // unused for multi-connection websocket
 	SubscriptionsNotRequired bool
 	ConnectionLevelReporter  Reporter
+	// Optional lets the websocket connect without this connection when it cannot be established, so that a request-only
+	// connection such as an order API cannot take the market data connections down with it. While the websocket is
+	// connected, the connection monitor tries it again, and replaces it on its own when it is lost, once the lost
+	// connection's reader has returned; its handler therefore must not wait on the websocket's ShutdownC, which releasing
+	// the connection leaves open. Only a multi-connection setup without subscriptions can be optional
+	Optional bool
 
 	// URL defines the websocket server URL to connect to
 	URL string
@@ -139,6 +145,8 @@ type connection struct {
 	ResponseMaxLimit     time.Duration
 	Traffic              chan struct{}
 	readMessageErrors    chan error
+	// stopRoutines closes shutdown when the connection owns it, as one released while the websocket stays connected does
+	stopRoutines func()
 }
 
 // Dial sets proxy URLs and then connects to the websocket.
@@ -353,7 +361,13 @@ func parseBinaryResponse(resp []byte) ([]byte, error) {
 // deadline that any write starting meanwhile clears. Taking writeControl afterwards waits for a write in progress to
 // return, so a reconnect cannot replace c.Connection underneath it.
 func (c *connection) Shutdown() error {
-	if c == nil || c.Connection == nil {
+	if c == nil {
+		return nil
+	}
+	if c.stopRoutines != nil {
+		c.stopRoutines()
+	}
+	if c.Connection == nil {
 		return nil // Allow Shutdown to be called during early startup/teardown when the socket hasn't been created yet.
 	}
 	c.setConnectedStatus(false)

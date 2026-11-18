@@ -422,26 +422,27 @@ func TestMockWebsocketInstance(t *testing.T) {
 		// Its handler returns once it has upgraded the connection, so this case checks the cleanup's own shutdown rather
 		// than one the connection monitor makes while the cleanup waits for a running handler
 		upgrader := gws.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
-		upgraded := make(chan *gws.Conn, 1)
+		var mu sync.Mutex
+		var serverConns []*gws.Conn
 		var e *binance.Exchange
-		var serverConn *gws.Conn
 		t.Run("instance", func(t *testing.T) {
 			e = MockWebsocketInstance[binance.Exchange](t, func(w http.ResponseWriter, r *http.Request) {
 				c, err := upgrader.Upgrade(w, r, nil)
 				if assert.NoError(t, err, "Upgrade should not error") {
-					upgraded <- c
+					mu.Lock()
+					serverConns = append(serverConns, c)
+					mu.Unlock()
 				}
 			})
 			require.True(t, e.Websocket.IsConnected(), "Websocket must be connected during its test")
-			select {
-			case serverConn = <-upgraded:
-			case <-time.After(10 * time.Second):
-				require.FailNow(t, "Mock handler must upgrade the connection")
-			}
 		})
-		require.NotNil(t, serverConn, "Mock handler must have upgraded the connection")
 		assert.False(t, e.Websocket.IsConnected(), "Websocket should be shut down once its test ends")
-		assert.NoError(t, serverConn.Close(), "Closing the mock's connection should not error")
+		mu.Lock()
+		defer mu.Unlock()
+		require.NotEmpty(t, serverConns, "Mock handlers must have upgraded the connections")
+		for _, c := range serverConns {
+			assert.NoError(t, c.Close(), "Closing the mock's connection should not error")
+		}
 	})
 
 	t.Run("already shut down", func(t *testing.T) {
@@ -464,11 +465,6 @@ func TestMockWebsocketInstance(t *testing.T) {
 		handlerReturned := sync.OnceFunc(func() { close(returned) })
 		var waited bool
 		t.Run("instance", func(t *testing.T) {
-			held := mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error {
-				close(entered)
-				<-release
-				return nil
-			})
 			// Registered before the instance's own cleanup, so it runs after it
 			t.Cleanup(func() {
 				select {
@@ -477,11 +473,24 @@ func TestMockWebsocketInstance(t *testing.T) {
 				default:
 				}
 			})
+			// Each of the exchange's connections runs a handler, and only the one sent the frame holds the cleanup
 			e := MockWebsocketInstance[binance.Exchange](t, func(w http.ResponseWriter, r *http.Request) {
-				defer handlerReturned()
-				held(w, r)
+				var received bool
+				defer func() {
+					if received {
+						handlerReturned()
+					}
+				}()
+				mockws.WsMockUpgrader(t, w, r, func(testing.TB, []byte, *gws.Conn) error {
+					received = true
+					close(entered)
+					<-release
+					return nil
+				})
 			})
-			err := e.Websocket.Conn.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("{}"))
+			conn, err := e.Websocket.GetConnection(asset.Spot)
+			require.NoError(t, err, "GetConnection must not error")
+			err = conn.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("{}"))
 			require.NoError(t, err, "SendRawMessage must not error")
 			select {
 			case <-entered:

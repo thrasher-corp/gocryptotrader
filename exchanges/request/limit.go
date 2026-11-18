@@ -38,7 +38,7 @@ type EndpointLimit uint16
 
 // Weight defines the number of reservations to be used. This is a generalised weight for rate limiting.
 // e.g. n weight = n request. i.e. 50 Weight = 50 requests.
-type Weight uint8
+type Weight uint32
 
 // RateLimitDefinitions is a map of endpoint limits to rate limiters.
 type RateLimitDefinitions map[any]*RateLimiterWithWeight
@@ -196,6 +196,19 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	case <-time.After(finalDelay):
 		return nil
 	}
+}
+
+// Delay returns how long a request on the limiter would wait were it reserved now, behind every reservation made before
+// it, without reserving anything
+func (r *RateLimiterWithWeight) Delay() time.Duration {
+	if r == nil {
+		return 0
+	}
+	rateLimitReservationMu.Lock()
+	defer rateLimitReservationMu.Unlock()
+	r.m.Lock()
+	defer r.m.Unlock()
+	return r.pendingDelayLocked(time.Now())
 }
 
 // pendingDelayLocked returns the delay a reservation of the limiter's weight would incur at the

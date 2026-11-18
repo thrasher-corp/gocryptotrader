@@ -218,6 +218,21 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 // UpdateBalance atomically modifies one stored balance, stamps it with the local arrival time, and publishes the change.
 // The update callback must not call another Accounts method.
 func (a *Accounts) UpdateBalance(ctx context.Context, subAccount string, aType asset.Item, c currency.Code, update func(*Balance)) (Balance, error) {
+	var updateIf func(*Balance) bool
+	if update != nil {
+		updateIf = func(b *Balance) bool {
+			update(b)
+			return true
+		}
+	}
+	return a.UpdateBalanceIf(ctx, subAccount, aType, c, updateIf)
+}
+
+// UpdateBalanceIf atomically modifies one stored balance as UpdateBalance does when the update callback returns true.
+// When it returns false the stored balance is left as it was, its update time included, so that a caller deciding
+// against a change does not make a stale balance read as current, and nothing is published. The update callback must
+// not call another Accounts method.
+func (a *Accounts) UpdateBalanceIf(ctx context.Context, subAccount string, aType asset.Item, c currency.Code, update func(*Balance) bool) (Balance, error) {
 	if err := common.NilGuard(a); err != nil {
 		return Balance{}, fmt.Errorf("cannot update balance: %w", err)
 	}
@@ -244,10 +259,19 @@ func (a *Accounts) UpdateBalance(ctx context.Context, subAccount string, aType a
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	balances := a.currencyBalances(creds, subAccount, aType)
-	stored := balances.balance(c.Item)
-	balance := stored.Balance()
-	update(&balance)
+	// Looked up without creating it, so a balance the callback leaves alone is not added as an empty one
+	existing, exists := a.subAccounts[*creds][key.SubAccountAsset{SubAccount: subAccount, Asset: aType}][c.Item]
+	balance := Balance{Currency: c.Item.Currency()}
+	if exists {
+		balance = existing.Balance()
+	}
+	if !update(&balance) {
+		if exists {
+			return existing.Balance(), nil
+		}
+		return Balance{}, nil
+	}
+	stored := a.currencyBalances(creds, subAccount, aType).balance(c.Item)
 	// UpdateBalance owns arrival timestamps so callbacks cannot accidentally retain stale transport times.
 	balance.UpdatedAt = time.Now()
 	if balance.Currency.IsEmpty() {
