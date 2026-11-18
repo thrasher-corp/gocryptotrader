@@ -188,7 +188,7 @@ func (c *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLi
 	return c.writeToConn(ctx, epl, func() error {
 		if request.IsVerbose(ctx, c.Verbose) {
 			if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
-				log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", c.ExchangeName, removeURLQueryString(c.URL), string(msg))
+				log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %s", c.ExchangeName, removeURLQueryString(c.URL), request.MessageForLog(msg))
 			}
 		}
 		return c.Connection.WriteJSON(data)
@@ -199,7 +199,7 @@ func (c *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLi
 func (c *connection) SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error {
 	return c.writeToConn(ctx, epl, func() error {
 		if request.IsVerbose(ctx, c.Verbose) {
-			log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", c.ExchangeName, removeURLQueryString(c.URL), string(message))
+			log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %s", c.ExchangeName, removeURLQueryString(c.URL), request.MessageForLog(message))
 		}
 		return c.Connection.WriteMessage(messageType, message)
 	})
@@ -323,7 +323,7 @@ func (c *connection) ReadMessage() Response {
 		}
 	}
 	if c.Verbose {
-		log.Debugf(log.WebsocketMgr, "%v %v: Message received: %v", c.ExchangeName, removeURLQueryString(c.URL), string(standardMessage))
+		log.Debugf(log.WebsocketMgr, "%v %v: Message received: %s", c.ExchangeName, removeURLQueryString(c.URL), request.MessageForLog(standardMessage))
 	}
 	return Response{Raw: standardMessage, Type: mType}
 }
@@ -457,7 +457,7 @@ inspection:
 	// Only check context verbosity. If the exchange is verbose, it will log the responses in the ReadMessage() call.
 	if request.IsVerbose(ctx, false) {
 		for i := range resps {
-			log.Debugf(log.WebsocketMgr, "%v %v: Received response [%d/%d]: %v", c.ExchangeName, removeURLQueryString(c.URL), i+1, len(resps), string(resps[i]))
+			log.Debugf(log.WebsocketMgr, "%v %v: Received response [%d/%d]: %s", c.ExchangeName, removeURLQueryString(c.URL), i+1, len(resps), request.MessageForLog(resps[i]))
 		}
 	}
 

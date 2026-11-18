@@ -15,6 +15,22 @@ var (
 	errJSONMapPayloadMustBeArray  = errors.New("json map payload must be an array")
 )
 
+// structuredValuePrefix marks an object, array or null derived from a JSON body, so it never matches a string holding
+// the same JSON text, and escapedStringPrefix marks a string starting with the byte the markers start with, so no string
+// matches a marked value
+const (
+	structuredValuePrefix = "\x00json:"
+	escapedStringPrefix   = "\x00string:"
+)
+
+// stringValue returns a JSON string value as it is compared, escaped when it could be taken for a marked value
+func stringValue(s string) string {
+	if strings.HasPrefix(s, "\x00") {
+		return escapedStringPrefix + s
+	}
+	return s
+}
+
 // MatchURLVals matches url.Value query strings
 func MatchURLVals(v1, v2 url.Values) bool {
 	if len(v1) != len(v2) {
@@ -87,7 +103,7 @@ func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 	for k, v := range intermediary {
 		switch val := v.(type) {
 		case string:
-			vals.Add(k, val)
+			vals.Add(k, stringValue(val))
 		case bool:
 			vals.Add(k, strconv.FormatBool(val))
 		case float64:
@@ -97,7 +113,7 @@ func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 			if err != nil {
 				return nil, err
 			}
-			vals.Add(k, string(b))
+			vals.Add(k, structuredValuePrefix+string(b))
 		default:
 			return nil, fmt.Errorf("unhandled conversion type: %T, please add as needed", val)
 		}
@@ -124,7 +140,7 @@ func DeriveURLValsFromJSONArrayAsMap(payload []byte) (url.Values, error) {
 	for k, v := range intermediary {
 		switch val := v.(type) {
 		case string:
-			vals.Add(strconv.Itoa(k), val)
+			vals.Add(strconv.Itoa(k), stringValue(val))
 		case bool:
 			vals.Add(strconv.Itoa(k), strconv.FormatBool(val))
 		case float64:
@@ -134,7 +150,7 @@ func DeriveURLValsFromJSONArrayAsMap(payload []byte) (url.Values, error) {
 			if err != nil {
 				return vals, err
 			}
-			vals.Add(strconv.Itoa(k), string(b))
+			vals.Add(strconv.Itoa(k), structuredValuePrefix+string(b))
 		default:
 			return nil, fmt.Errorf("unhandled conversion type: %T, please add as needed", val)
 		}
