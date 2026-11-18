@@ -222,7 +222,7 @@ func TestWebsocketDerivativesConnect(t *testing.T) { //nolint:tparallel // the c
 	err := e.WebsocketDerivativesConnect(t.Context(), failingDialConnection{})
 	assert.ErrorIs(t, err, errTestDial, "WebsocketDerivativesConnect should return the dial error")
 
-	ex := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mockws.EchoHandler))
+	ex := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mockws.EchoHandler))
 	// The cases share ex and its connections, so they run in order
 	for _, filter := range []string{usdtmPublicFilter, usdtmMarketFilter, usdtmPrivateFilter, coinmFilter, coinmPrivateFilter, optionsPublicFilter, optionsMarketFilter, optionsPrivateFilter} {
 		t.Run(subtestName(filter), func(t *testing.T) {

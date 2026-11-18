@@ -265,7 +265,7 @@ func TestWebsocketHandleTickerMsg(t *testing.T) {
 func TestWebsocketHandleV1Ping(t *testing.T) {
 	t.Parallel()
 	messages := make(chan []byte, 1)
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, _ *gws.Conn) error {
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, _ *gws.Conn) error {
 		messages <- msg
 		return nil
 	}))
