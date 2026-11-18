@@ -90,12 +90,8 @@ func TestGetExchangeInfo(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	r, err := e.UpdateTicker(t.Context(), testPairMapping, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-	if r.Pair.Base != currency.BTC && r.Pair.Quote != currency.USDT {
-		t.Error("Binanceus UpdateTicker() invalid pair values")
-	}
+	require.NoError(t, err, "UpdateTicker must not error")
+	assert.Truef(t, r.Pair.Equal(testPairMapping), "UpdateTicker should return pair %s", testPairMapping)
 }
 
 func TestUpdateTickers(t *testing.T) {

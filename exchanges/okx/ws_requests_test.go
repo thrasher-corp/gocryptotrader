@@ -32,7 +32,7 @@ func TestWSPlaceOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
 	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
 	require.NoError(t, err)
@@ -75,7 +75,7 @@ func TestWSPlaceMultipleOrders(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-		testexch.SetupWs(t, e)
+		testexch.SetupWebsocket(t, e)
 
 		_, err := e.getInstrumentsForAsset(t.Context(), asset.Spot)
 		require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestWSCancelOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
 	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
 	require.NoError(t, err)
@@ -157,7 +157,7 @@ func TestWSCancelMultipleOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
 	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
 	require.NoError(t, err)
@@ -195,7 +195,7 @@ func TestWSAmendOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
 	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
 	require.NoError(t, err)
@@ -229,7 +229,7 @@ func TestWSAmendMultipleOrders(t *testing.T) {
 	require.ErrorIs(t, err, errMissingInstrumentIDCode)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
 	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
 	require.NoError(t, err)
@@ -252,7 +252,7 @@ func TestWSMassCancelOrders(t *testing.T) {
 	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	err = e.WSMassCancelOrders(request.WithVerbose(t.Context()), []CancelMassReqParam{
 		{
 			InstrumentType:   "OPTION",
@@ -268,7 +268,7 @@ func TestWSPlaceSpreadOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WSPlaceSpreadOrder(request.WithVerbose(t.Context()), &SpreadOrderParam{
 		SpreadID:      spreadPair.String(),
 		ClientOrderID: "b15",
@@ -291,7 +291,7 @@ func TestWSAmendSpreadOrder(t *testing.T) {
 	require.ErrorIs(t, err, errSizeOrPriceIsRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WSAmendSpreadOrder(request.WithVerbose(t.Context()), &AmendSpreadOrderParam{
 		OrderID: "2510789768709120",
 		NewSize: 2,
@@ -305,7 +305,7 @@ func TestWSCancelSpreadOrder(t *testing.T) {
 	_, err := e.WSCancelSpreadOrder(t.Context(), "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WSCancelSpreadOrder(request.WithVerbose(t.Context()), "1234", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -314,7 +314,7 @@ func TestWSCancelSpreadOrder(t *testing.T) {
 func TestWSCancelAllSpreadOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	err := e.WSCancelAllSpreadOrders(request.WithVerbose(t.Context()), spreadPair.String())
 	require.NoError(t, err)
 }

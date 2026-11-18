@@ -1597,7 +1597,7 @@ func TestBatchAndGridReplies(t *testing.T) {
 func newMockWebsocketExchange(t *testing.T, rest http.HandlerFunc, wsReply func(op string, args json.RawMessage) (code string, data any)) *Exchange {
 	t.Helper()
 	limitedRest := limitMockRequests(t, rest)
-	e := testexch.MockWsInstance[Exchange](t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	e := testexch.MockWebsocketInstance[Exchange](t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Upgrade") != "websocket" {
 			limitedRest.ServeHTTP(w, r)
 			return
@@ -2169,8 +2169,8 @@ func TestSpreadOrdersUseRESTWithAuthenticatedWebsocket(t *testing.T) {
 		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"sCode":"0","sMsg":"","ordId":"SPRD-1","clOrdId":""}]}`))
 	})
 
-	e := testexch.MockWsInstance[Exchange](t, handler)
-	// MockWsInstance points RestSpotURL at the server without a trailing
+	e := testexch.MockWebsocketInstance[Exchange](t, handler)
+	// MockWebsocketInstance points RestSpotURL at the server without a trailing
 	// slash, which breaks the REST path join, so every endpoint is re-pointed
 	// at the mock server; the websocket connections are already established.
 	mockURL, err := e.API.Endpoints.GetURL(exchange.RestSpot)
