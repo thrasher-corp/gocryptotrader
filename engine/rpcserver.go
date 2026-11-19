@@ -590,6 +590,9 @@ func accountBalanceResp(eName string, s accounts.SubAccounts) *gctrpc.GetAccount
 			Id: sa.ID,
 		}
 		for curr, bal := range sa.Balances {
+			if bal.Total == 0 && bal.Hold == 0 && bal.Free == 0 && bal.AvailableWithoutBorrow == 0 && bal.Borrowed == 0 {
+				continue
+			}
 			subAccts[i].Currencies = append(subAccts[i].Currencies, &gctrpc.AccountCurrencyInfo{
 				Currency:          curr.String(),
 				TotalValue:        bal.Total,
