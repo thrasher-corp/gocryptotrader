@@ -214,7 +214,26 @@ func TestParseSpotOrderID(t *testing.T) {
 
 func TestRemainingAmount(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, 0.8, remainingAmount(1.1, 0.3), "remainingAmount should subtract exactly")
+	for _, tc := range []struct {
+		name                          string
+		original, executed, prevented types.Number
+		status                        order.Status
+		expected                      float64
+	}{
+		{name: "a partly filled order", original: 1.1, executed: 0.3, status: order.PartiallyFilled, expected: 0.8},
+		{name: "a new order with part of its quantity prevented", original: 1.1, prevented: 0.3, status: order.New, expected: 0.8},
+		{name: "a partly filled order with part of its quantity prevented", original: 1.1, executed: 0.3, prevented: 0.2, status: order.PartiallyFilled, expected: 0.6},
+		{name: "a filled order with part of its quantity prevented", original: 1.1, executed: 0.8, prevented: 0.3, status: order.Filled, expected: 0},
+		{name: "a filled order whose executed and prevented quantities add inexactly in binary", original: 0.3, executed: 0.1, prevented: 0.2, status: order.Filled, expected: 0},
+		{name: "a cancelled order with part of its quantity prevented", original: 1.1, executed: 0.3, prevented: 0.2, status: order.Cancelled, expected: 0.8},
+		{name: "an order self-trade prevention expired", original: 1.1, executed: 0.3, prevented: 0.8, status: order.Expired, expected: 0.8},
+		{name: "a new order with a prevented quantity finer than its own", original: 0.01, prevented: 0.00021, status: order.New, expected: 0.00979},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, remainingAmount(tc.original, tc.executed, tc.prevented, tc.status), "remainingAmount should subtract exactly")
+		})
+	}
 }
 
 func TestAveragePrice(t *testing.T) {
@@ -1594,6 +1613,119 @@ func TestSpotSubmitResponse(t *testing.T) {
 		require.Len(t, resp.Trades, 2, "spotSubmitResponse must report both fills")
 		assert.Equal(t, []float64{0.00004142, 0.00099946}, []float64{resp.Trades[0].Total, resp.Trades[1].Total}, "spotSubmitResponse should truncate each fill's quote total on its own, as Binance.US reports each trade's")
 	})
+
+	t.Run("placements at each status they report, most with part of their quantity prevented by a DECREMENT or TRANSFER match", func(t *testing.T) {
+		t.Parallel()
+		sell := &order.Submit{Exchange: "test", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Sell, Type: order.Limit, Price: 66000.01, Amount: 0.006}
+		for _, tc := range []struct {
+			name      string
+			submit    *order.Submit
+			placed    *NewOrderResponse
+			status    order.Status
+			remaining float64
+		}{
+			{
+				name: "a limit sell left resting", submit: sell, status: order.New, remaining: 0.004,
+				placed: &NewOrderResponse{
+					OrderID: 37, TransactTime: types.Time(time.UnixMilli(1794466395184)), Price: 66000.01, OriginalQuantity: 0.006, Status: "NEW",
+					SelfTradePreventionMode: SelfTradePreventionModeDecrement, PreventedMatchID: 5, PreventedQuantity: 0.002,
+				},
+			},
+			{
+				name: "a limit buy left resting after the symbol's first prevented match", status: order.New, remaining: 0.004,
+				submit: &order.Submit{Exchange: "test", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 65999.99, Amount: 0.006},
+				placed: &NewOrderResponse{
+					OrderID: 42, TransactTime: types.Time(time.UnixMilli(1794466395184)), Price: 65999.99, OriginalQuantity: 0.006, Status: "NEW",
+					SelfTradePreventionMode: SelfTradePreventionModeDecrement, PreventedQuantity: 0.002,
+				},
+			},
+			{
+				name: "a limit sell partly filled and left resting", submit: sell, status: order.PartiallyFilled, remaining: 0.003,
+				placed: &NewOrderResponse{
+					OrderID: 39, TransactTime: types.Time(time.UnixMilli(1794466395184)), Price: 66000.01, OriginalQuantity: 0.006, ExecutedQuantity: 0.001,
+					CumulativeQuoteQuantity: 66.00001, Status: "PARTIALLY_FILLED", SelfTradePreventionMode: SelfTradePreventionModeTransfer,
+					PreventedMatchID: 7, PreventedQuantity: 0.002,
+					Fills: []OrderFill{{Price: 66000.01, Quantity: 0.001, Commission: 0.06600001, CommissionAsset: currency.USDT, TradeID: 86}},
+				},
+			},
+			{
+				name: "a limit sell filled for the rest of its quantity", submit: sell, status: order.New,
+				placed: &NewOrderResponse{
+					OrderID: 40, TransactTime: types.Time(time.UnixMilli(1794466395184)), Price: 66000.01, OriginalQuantity: 0.006, ExecutedQuantity: 0.004,
+					CumulativeQuoteQuantity: 264.00004, Status: "FILLED", SelfTradePreventionMode: SelfTradePreventionModeDecrement,
+					PreventedMatchID: 8, PreventedQuantity: 0.002,
+					Fills: []OrderFill{{Price: 66000.01, Quantity: 0.004, Commission: 0.26400004, CommissionAsset: currency.USDT, TradeID: 87}},
+				},
+			},
+			{
+				name: "a market buy filled for the rest of its quantity", status: order.New,
+				submit: &order.Submit{Exchange: "test", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Market, Amount: 0.006},
+				placed: &NewOrderResponse{
+					OrderID: 43, TransactTime: types.Time(time.UnixMilli(1794466395184)), OriginalQuantity: 0.006, ExecutedQuantity: 0.004,
+					CumulativeQuoteQuantity: 264.00004, Status: "FILLED", Type: OrderTypeMarket, SelfTradePreventionMode: SelfTradePreventionModeDecrement,
+					PreventedMatchID: 10, PreventedQuantity: 0.002,
+					Fills: []OrderFill{{Price: 66000.01, Quantity: 0.004, Commission: 0.000004, CommissionAsset: currency.BTC, TradeID: 89}},
+				},
+			},
+			{
+				name: "an IOC limit buy expired after a partial fill", status: order.New, remaining: 0.002,
+				submit: &order.Submit{
+					Exchange: "test", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 66000.01, Amount: 0.003,
+					TimeInForce: order.ImmediateOrCancel,
+				},
+				placed: &NewOrderResponse{
+					OrderID: 41, TransactTime: types.Time(time.UnixMilli(1794466395184)), Price: 66000.01, OriginalQuantity: 0.003, ExecutedQuantity: 0.001,
+					CumulativeQuoteQuantity: 66.00001, Status: "EXPIRED", TimeInForce: TimeInForceImmediateOrCancel,
+					SelfTradePreventionMode: SelfTradePreventionModeDecrement, PreventedMatchID: 9, PreventedQuantity: 0.001,
+					Fills: []OrderFill{{Price: 66000.01, Quantity: 0.001, Commission: 0.000001, CommissionAsset: currency.BTC, TradeID: 88}},
+				},
+			},
+			{
+				name: "a FOK limit buy expired unfilled", status: order.Expired, remaining: 0.006,
+				submit: &order.Submit{
+					Exchange: "test", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 65950, Amount: 0.006,
+					TimeInForce: order.FillOrKill,
+				},
+				placed: &NewOrderResponse{
+					OrderID: 44, TransactTime: types.Time(time.UnixMilli(1794466395184)), Price: 65950, OriginalQuantity: 0.006, Status: "EXPIRED",
+					TimeInForce: TimeInForceFillOrKill,
+				},
+			},
+			{
+				name: "an untriggered stop loss limit sell", status: order.New, remaining: 0.006,
+				submit: &order.Submit{
+					Exchange: "test", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Sell, Type: order.StopLimit, Price: 64000.01,
+					TriggerPrice: 64100.01, Amount: 0.006,
+				},
+				placed: &NewOrderResponse{
+					OrderID: 45, TransactTime: types.Time(time.UnixMilli(1794466395184)), Price: 64000.01, OriginalQuantity: 0.006, Status: "NEW",
+					Type: OrderTypeStopLossLimit, WorkingTime: -1, StopPrice: 64100.01,
+				},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				resp, err := ex.spotSubmitResponse(tc.submit, tc.placed)
+				require.NoError(t, err, "spotSubmitResponse must not error")
+				assert.Equal(t, tc.status, resp.Status, "spotSubmitResponse should report the order's status, or New for an order finished after a partial execution")
+				assert.Equal(t, tc.remaining, resp.RemainingAmount, "spotSubmitResponse should leave the prevented quantity out of the remaining amount only while the order is open or once it is filled")
+			})
+		}
+	})
+
+	t.Run("a limit buy self-trade prevention expired after a partial fill", func(t *testing.T) {
+		t.Parallel()
+		buy := &order.Submit{Exchange: "test", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 66000.01, Amount: 0.003}
+		resp, err := ex.spotSubmitResponse(buy, &NewOrderResponse{
+			OrderID: 38, TransactTime: types.Time(time.UnixMilli(1794466395184)), Price: 66000.01, OriginalQuantity: 0.003, ExecutedQuantity: 0.001,
+			CumulativeQuoteQuantity: 66.00001, Status: "EXPIRED_IN_MATCH", SelfTradePreventionMode: SelfTradePreventionModeExpireTaker,
+			PreventedMatchID: 6, PreventedQuantity: 0.002,
+			Fills: []OrderFill{{Price: 66000.01, Quantity: 0.001, Commission: 0.000001, CommissionAsset: currency.BTC, TradeID: 85}},
+		})
+		require.NoError(t, err, "spotSubmitResponse must not error")
+		assert.Equal(t, order.New, resp.Status, "an order expired after a partial execution should be reported New for the order manager to settle")
+		assert.Equal(t, 0.002, resp.RemainingAmount, "spotSubmitResponse should report all an expired order did not execute as remaining")
+	})
 }
 
 func TestFillQuoteTotal(t *testing.T) {
@@ -2298,7 +2430,7 @@ func TestSpotOrderDetail(t *testing.T) {
 			OrderID: 12, ClientOrderID: "GCTstpTakerExpiry-7Kq2Wm9Zr4Lt8Vx", Price: 64821.45, OriginalQuantity: 0.00389, ExecutedQuantity: 0.00071,
 			CumulativeQuoteQuantity: 46.0232225, Status: "EXPIRED_IN_MATCH", TimeInForce: TimeInForceGoodTillCancel, Type: OrderTypeLimit, Side: SideBuy,
 			Time: types.Time(time.UnixMilli(1794466395184)), UpdateTime: types.Time(time.UnixMilli(1794466395189)),
-			SelfTradePreventionMode: SelfTradePreventionModeExpireTaker, PreventedMatchID: 1, PreventedQuantity: 0.00045,
+			SelfTradePreventionMode: SelfTradePreventionModeExpireTaker, PreventedMatchID: 1, PreventedQuantity: 0.00318,
 		}
 		d, err := binanceUS.spotOrderDetail(prevented, currency.NewBTCUSDT())
 		require.NoError(t, err, "spotOrderDetail must not error")
@@ -2307,7 +2439,118 @@ func TestSpotOrderDetail(t *testing.T) {
 			CostAsset: currency.USDT, AverageExecutedPrice: 64821.44014084507, Exchange: "Binanceus", OrderID: "12",
 			ClientOrderID: "GCTstpTakerExpiry-7Kq2Wm9Zr4Lt8Vx", Type: order.Limit, Side: order.Buy, Status: order.Expired, AssetType: asset.Spot,
 			Date: time.UnixMilli(1794466395184), LastUpdated: time.UnixMilli(1794466395189), Pair: currency.NewBTCUSDT(),
-		}, d, "spotOrderDetail should keep the exchange name and client order ID as sent and leave the prevented quantity out of the executed and remaining amounts")
+		}, d, "spotOrderDetail should keep the exchange name and client order ID as sent and report all an expired order did not execute as remaining")
+	})
+
+	t.Run("orders a DECREMENT or TRANSFER taker prevented part of, at each status they can reach", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name            string
+			status          string
+			side            Side
+			orderType       OrderType
+			mode            SelfTradePreventionMode
+			matchID         uint64
+			iceberg         types.Number
+			timeInForce     TimeInForce
+			executed, quote types.Number
+			remaining       float64
+			expected        order.Detail
+		}{
+			{
+				name: "a new iceberg limit buy prevented in the symbol's first prevented match", status: "NEW", side: SideBuy, orderType: OrderTypeLimit,
+				mode: SelfTradePreventionModeDecrement, iceberg: 0.001, remaining: 0.004,
+				expected: order.Detail{Type: order.Limit, Side: order.Buy, Status: order.New, TimeInForce: order.GoodTillCancel},
+			},
+			{
+				name: "a partly filled limit buy", status: "PARTIALLY_FILLED", side: SideBuy, orderType: OrderTypeLimit, mode: SelfTradePreventionModeTransfer,
+				matchID: 4, executed: 0.001, quote: 66.00001, remaining: 0.003,
+				expected: order.Detail{Type: order.Limit, Side: order.Buy, Status: order.PartiallyFilled, TimeInForce: order.GoodTillCancel},
+			},
+			{
+				name: "a filled limit buy", status: "FILLED", side: SideBuy, orderType: OrderTypeLimit, mode: SelfTradePreventionModeDecrement, matchID: 4,
+				executed: 0.004, quote: 264.00004,
+				expected: order.Detail{Type: order.Limit, Side: order.Buy, Status: order.Filled, TimeInForce: order.GoodTillCancel},
+			},
+			{
+				name: "a cancelled limit buy", status: "CANCELED", side: SideBuy, orderType: OrderTypeLimit, mode: SelfTradePreventionModeTransfer, matchID: 4,
+				executed: 0.001, quote: 66.00001, remaining: 0.005,
+				expected: order.Detail{Type: order.Limit, Side: order.Buy, Status: order.Cancelled, TimeInForce: order.GoodTillCancel},
+			},
+			{
+				name: "an IOC limit buy expired after a fill", status: "EXPIRED", side: SideBuy, orderType: OrderTypeLimit, mode: SelfTradePreventionModeDecrement,
+				matchID: 4, timeInForce: TimeInForceImmediateOrCancel, executed: 0.001, quote: 66.00001, remaining: 0.005,
+				expected: order.Detail{Type: order.Limit, Side: order.Buy, Status: order.Expired, TimeInForce: order.ImmediateOrCancel},
+			},
+			{
+				name: "a new limit maker sell", status: "NEW", side: SideSell, orderType: OrderTypeLimitMaker, mode: SelfTradePreventionModeDecrement, matchID: 5,
+				remaining: 0.004, expected: order.Detail{Type: order.LimitMaker, Side: order.Sell, Status: order.New, TimeInForce: order.PostOnly},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				d, err := ex.spotOrderDetail(&TradeOrderResponse{
+					OrderID: 14, ClientOrderID: "d", Price: 66000.01, OriginalQuantity: 0.006, ExecutedQuantity: tc.executed, CumulativeQuoteQuantity: tc.quote,
+					Status: tc.status, TimeInForce: cmp.Or(tc.timeInForce, TimeInForceGoodTillCancel), Type: tc.orderType, Side: tc.side,
+					Time: types.Time(time.UnixMilli(1794466395184)), UpdateTime: types.Time(time.UnixMilli(1794466395190)), IsWorking: true, WorkingTime: 1794466395184,
+					SelfTradePreventionMode: tc.mode, PreventedMatchID: tc.matchID, PreventedQuantity: 0.002, IcebergQuantity: tc.iceberg,
+				}, currency.NewBTCUSDT())
+				require.NoError(t, err, "spotOrderDetail must not error")
+				expected := tc.expected
+				expected.Price, expected.Amount, expected.ExecutedAmount, expected.RemainingAmount = 66000.01, 0.006, tc.executed.Float64(), tc.remaining
+				expected.Exchange, expected.OrderID, expected.ClientOrderID, expected.AssetType = "test", "14", "d", asset.Spot
+				expected.Date, expected.LastUpdated, expected.Pair = time.UnixMilli(1794466395184), time.UnixMilli(1794466395190), currency.NewBTCUSDT()
+				if tc.executed > 0 {
+					expected.Cost, expected.CostAsset, expected.AverageExecutedPrice = tc.quote.Float64(), currency.USDT, 66000.01
+				}
+				assert.Equal(t, expected, d, "spotOrderDetail should leave the prevented quantity out of the remaining amount only while the order is open or once it is filled")
+			})
+		}
+	})
+
+	t.Run("a filled order of each type leaves its prevented quantity out of the remaining amount", func(t *testing.T) {
+		t.Parallel()
+		for _, orderType := range []OrderType{
+			OrderTypeLimit, OrderTypeLimitMaker, OrderTypeMarket, OrderTypeStopLoss, OrderTypeStopLossLimit, OrderTypeTakeProfit, OrderTypeTakeProfitLimit,
+		} {
+			t.Run(string(orderType), func(t *testing.T) {
+				t.Parallel()
+				var price, stopPrice types.Number
+				switch orderType {
+				case OrderTypeLimit, OrderTypeLimitMaker:
+					price = 66000.01
+				case OrderTypeStopLossLimit:
+					price, stopPrice = 66000.01, 66000
+				case OrderTypeTakeProfitLimit:
+					price, stopPrice = 66000.01, 66000.02
+				case OrderTypeStopLoss:
+					stopPrice = 66000
+				case OrderTypeTakeProfit:
+					stopPrice = 66000.02
+				}
+				d, err := ex.spotOrderDetail(&TradeOrderResponse{
+					OrderID: 15, ClientOrderID: "f", Price: price, StopPrice: stopPrice, OriginalQuantity: 0.006, ExecutedQuantity: 0.004,
+					CumulativeQuoteQuantity: 264.00004, Status: "FILLED", TimeInForce: TimeInForceGoodTillCancel, Type: orderType, Side: SideBuy,
+					Time:       types.Time(time.UnixMilli(1794466395184)),
+					UpdateTime: types.Time(time.UnixMilli(1794466395192)), IsWorking: true, WorkingTime: 1794466395184,
+					SelfTradePreventionMode: SelfTradePreventionModeDecrement, PreventedMatchID: 6, PreventedQuantity: 0.002,
+				}, currency.NewBTCUSDT())
+				require.NoError(t, err, "spotOrderDetail must not error")
+				assert.Equal(t, order.Filled, d.Status, "spotOrderDetail should report the order filled")
+				assert.Zero(t, d.RemainingAmount, "spotOrderDetail should report nothing remaining once an order whose executed and prevented quantities make up its quantity is filled")
+			})
+		}
+	})
+
+	t.Run("an untriggered stop loss limit sell keeps its whole quantity remaining", func(t *testing.T) {
+		t.Parallel()
+		d, err := ex.spotOrderDetail(&TradeOrderResponse{
+			OrderID: 16, ClientOrderID: "u", Price: 64000.01, StopPrice: 64100.01, OriginalQuantity: 0.006, Status: "NEW", TimeInForce: TimeInForceGoodTillCancel,
+			Type: OrderTypeStopLossLimit, Side: SideSell, Time: types.Time(time.UnixMilli(1794466395184)), UpdateTime: types.Time(time.UnixMilli(1794466395184)),
+			WorkingTime: -1,
+		}, currency.NewBTCUSDT())
+		require.NoError(t, err, "spotOrderDetail must not error")
+		assert.Equal(t, 0.006, d.RemainingAmount, "spotOrderDetail should report an order not yet working with its whole quantity remaining")
 	})
 
 	t.Run("a filled historical order whose quote total Binance.US reports as negative", func(t *testing.T) {

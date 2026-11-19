@@ -214,9 +214,24 @@ func newTwoServerTestExchange(t *testing.T, apiMock mockws.WsMockFunc, authentic
 	t.Cleanup(func() {
 		// Disabling stops the connection monitor connecting again once the servers close; a shutdown it started may have
 		// taken the websocket down already
-		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
-		if err := ex.Websocket.Shutdown(); err != nil {
-			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should not error unless the websocket is down")
+		var disableErr, shutdownErr error
+		stopped := make(chan struct{})
+		go func() {
+			defer close(stopped)
+			disableErr = ex.Websocket.Disable()
+			if ex.Websocket.IsConnected() {
+				shutdownErr = ex.Websocket.Shutdown()
+			}
+		}()
+		select {
+		case <-stopped:
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "the websocket should shut down within 10 seconds")
+			return
+		}
+		assert.NoError(t, disableErr, "Disable should not error")
+		if shutdownErr != nil {
+			assert.ErrorIs(t, shutdownErr, websocket.ErrNotConnected, "Shutdown should not error unless the websocket is down")
 		}
 	})
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
@@ -376,6 +391,25 @@ func TestWebsocketAPIConnectionKept(t *testing.T) {
 	assert.Same(t, conn, w.kept(), "kept should return the connection even once it is retired")
 }
 
+// waitForRetirement returns how long a retirement's wait took to return, failing the test when it has not returned
+// within 5 seconds
+func waitForRetirement(t *testing.T, wait func()) time.Duration {
+	t.Helper()
+	start := time.Now()
+	returned := make(chan struct{})
+	go func() {
+		wait()
+		close(returned)
+	}()
+	select {
+	case <-returned:
+		return time.Since(start)
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "a retirement's wait must return within 5 seconds")
+		return 0
+	}
+}
+
 func TestWebsocketAPIConnectionAcquire(t *testing.T) {
 	t.Parallel()
 	var w websocketAPIConnection
@@ -414,15 +448,15 @@ func TestWebsocketAPIConnectionAcquire(t *testing.T) {
 		old, replacement := newFakeConnection(), newFakeConnection()
 		w.set(old, time.Millisecond)
 		_, releaseOld := w.acquire()
-		w.retire(old)()
+		releaseOld = sync.OnceFunc(releaseOld)
+		defer releaseOld()
+		waitForRetirement(t, w.retire(old))
 		w.set(nil, 0)
 		w.set(replacement, 10*time.Millisecond)
 		_, releaseReplacement := w.acquire()
 		defer releaseReplacement()
 		require.NotPanics(t, releaseOld, "releasing a request on the replaced connection must not panic")
-		start := time.Now()
-		w.retire(replacement)()
-		assert.GreaterOrEqual(t, time.Since(start), 10*time.Millisecond, "retiring the replacement should wait for its own request in flight")
+		assert.GreaterOrEqual(t, waitForRetirement(t, w.retire(replacement)), 10*time.Millisecond, "retiring the replacement should wait for its own request in flight")
 	})
 
 	t.Run("a retirement waits for an earlier request in flight once a later one returns", func(t *testing.T) {
@@ -434,9 +468,7 @@ func TestWebsocketAPIConnectionAcquire(t *testing.T) {
 		defer releaseEarlier()
 		_, releaseLater := w.acquire()
 		releaseLater()
-		start := time.Now()
-		w.retire(conn)()
-		assert.GreaterOrEqual(t, time.Since(start), 10*time.Millisecond, "retiring the connection should wait for the earlier request still in flight")
+		assert.GreaterOrEqual(t, waitForRetirement(t, w.retire(conn)), 10*time.Millisecond, "retiring the connection should wait for the earlier request still in flight")
 	})
 
 	t.Run("a retirement waits for a later request in flight once an earlier one returns", func(t *testing.T) {
@@ -448,9 +480,7 @@ func TestWebsocketAPIConnectionAcquire(t *testing.T) {
 		_, releaseLater := w.acquire()
 		defer releaseLater()
 		releaseEarlier()
-		start := time.Now()
-		w.retire(conn)()
-		assert.GreaterOrEqual(t, time.Since(start), 10*time.Millisecond, "retiring the connection should wait for the later request still in flight")
+		assert.GreaterOrEqual(t, waitForRetirement(t, w.retire(conn)), 10*time.Millisecond, "retiring the connection should wait for the later request still in flight")
 	})
 }
 
@@ -465,15 +495,76 @@ func TestWebsocketAPIConnectionRetire(t *testing.T) {
 	assert.Same(t, conn, w.get(), "retire should leave the connection kept when none is retired")
 
 	_, release := w.acquire()
-	defer release()
-	start := time.Now()
-	w.retire(conn)()
-	assert.GreaterOrEqual(t, time.Since(start), 10*time.Millisecond, "retire's wait should wait for the response limit while a request is in flight")
+	t.Cleanup(release)
+	assert.GreaterOrEqual(t, waitForRetirement(t, w.retire(conn)), 10*time.Millisecond, "retire's wait should wait for the response limit while a request is in flight")
 	assert.Nil(t, w.get(), "retire should stop the connection taking requests")
-	start = time.Now()
-	w.retire(conn)()
-	assert.GreaterOrEqual(t, time.Since(start), 10*time.Millisecond, "retiring the connection again should wait for the same request in flight")
+	assert.GreaterOrEqual(t, waitForRetirement(t, w.retire(conn)), 10*time.Millisecond, "retiring the connection again should wait for the same request in flight")
 	assert.Nil(t, w.get(), "retiring the connection again should keep it retired")
+
+	t.Run("each retirement waits exactly a long response limit, to the microsecond, while a request is in flight", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			var w websocketAPIConnection
+			conn := newFakeConnection()
+			limit := time.Minute + 750*time.Microsecond
+			w.set(conn, limit)
+			_, release := w.acquire()
+			defer release()
+			start := time.Now()
+			w.retire(conn)()
+			assert.Equal(t, limit, time.Since(start), "retire's wait should last the response limit while a request is in flight")
+			start = time.Now()
+			w.retire(conn)()
+			assert.Equal(t, limit, time.Since(start), "retiring the connection again should wait the response limit again")
+		})
+	})
+
+	t.Run("a retirement's wait counts its response limit from when it runs", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			var w websocketAPIConnection
+			conn := newFakeConnection()
+			w.set(conn, time.Minute)
+			_, release := w.acquire()
+			defer release()
+			wait := w.retire(conn)
+			time.Sleep(2 * time.Second)
+			start := time.Now()
+			wait()
+			assert.Equal(t, time.Minute, time.Since(start), "a retirement's wait should last the response limit from when it runs")
+		})
+	})
+
+	for _, tc := range []struct {
+		name            string
+		releaseRetired  bool
+		expectedElapsed time.Duration
+	}{
+		{name: "a retirement waits its own connection's response limit once a replacement with a longer limit takes requests", expectedElapsed: time.Minute},
+		{name: "a retirement returns once its own connection's request has, while a replacement's request is in flight", releaseRetired: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				var w websocketAPIConnection
+				old, replacement := newFakeConnection(), newFakeConnection()
+				w.set(old, time.Minute)
+				_, releaseOld := w.acquire()
+				releaseOld = sync.OnceFunc(releaseOld)
+				defer releaseOld()
+				wait := w.retire(old)
+				w.set(replacement, 2*time.Minute)
+				_, releaseReplacement := w.acquire()
+				defer releaseReplacement()
+				if tc.releaseRetired {
+					releaseOld()
+				}
+				start := time.Now()
+				wait()
+				assert.Equal(t, tc.expectedElapsed, time.Since(start), "a retirement should wait for the retired connection's own request, within its own response limit")
+			})
+		})
+	}
 }
 
 func TestWebsocketAPIConnectionSetup(t *testing.T) {

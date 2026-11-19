@@ -240,7 +240,7 @@ type PreventedMatchResponse struct {
 	PreventedMatchID        uint64                  `json:"preventedMatchId"`
 	TakerOrderID            uint64                  `json:"takerOrderId"`
 	MakerOrderID            uint64                  `json:"makerOrderId"`
-	TradeGroupID            uint64                  `json:"tradeGroupId"`
+	TradeGroupID            int64                   `json:"tradeGroupId"` // -1 when the account is in no trade group
 	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
 	Price                   types.Number            `json:"price"`
 	MakerPreventedQuantity  types.Number            `json:"makerPreventedQuantity"`

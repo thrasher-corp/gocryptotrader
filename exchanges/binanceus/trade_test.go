@@ -552,6 +552,24 @@ func TestGetPreventedMatches(t *testing.T) {
 		require.NoError(t, err, "GetPreventedMatches must not error")
 	})
 
+	t.Run("decodes a prevented match of an account in no trade group", func(t *testing.T) {
+		t.Parallel()
+		ex := signedRequestExchange(t, http.MethodGet, "/api/v3/myPreventedMatches", url.Values{"symbol": {"BTCUSDT"}, "preventedMatchId": {"8"}}, `[{"symbol":"BTCUSDT","preventedMatchId":8,"takerOrderId":12,"makerOrderId":10,"tradeGroupId":-1,"selfTradePreventionMode":"EXPIRE_BOTH","price":"50.00000000","takerPreventedQuantity":"1.00000000","makerPreventedQuantity":"10.00000000","transactTime":1663190634060}]`)
+		result, err := ex.GetPreventedMatches(t.Context(), &PreventedMatchesRequest{Symbol: currency.NewBTCUSDT(), PreventedMatchID: 8})
+		require.NoError(t, err, "GetPreventedMatches must not error for an account in no trade group")
+		require.Len(t, result, 1, "GetPreventedMatches must return the prevented match")
+		assert.Equal(t, int64(-1), result[0].TradeGroupID, "GetPreventedMatches should decode the trade group ID of an account in no trade group")
+	})
+
+	t.Run("decodes a prevented match of an account in a trade group", func(t *testing.T) {
+		t.Parallel()
+		ex := signedRequestExchange(t, http.MethodGet, "/api/v3/myPreventedMatches", url.Values{"symbol": {"BTCUSDT"}, "preventedMatchId": {"9"}}, `[{"symbol":"BTCUSDT","preventedMatchId":9,"takerOrderId":14,"makerOrderId":13,"tradeGroupId":2,"selfTradePreventionMode":"EXPIRE_MAKER","price":"50.00000000","makerPreventedQuantity":"10.00000000","transactTime":1663190634061}]`)
+		result, err := ex.GetPreventedMatches(t.Context(), &PreventedMatchesRequest{Symbol: currency.NewBTCUSDT(), PreventedMatchID: 9})
+		require.NoError(t, err, "GetPreventedMatches must not error for an account in a trade group")
+		require.Len(t, result, 1, "GetPreventedMatches must return the prevented match")
+		assert.Equal(t, int64(2), result[0].TradeGroupID, "GetPreventedMatches should decode the trade group ID of an account in a trade group")
+	})
+
 	skipIfCredentialsUnset(t)
 	result, err := e.GetPreventedMatches(t.Context(), &PreventedMatchesRequest{Symbol: currency.NewBTCUSDT(), PreventedMatchID: 1})
 	require.NoError(t, err, "GetPreventedMatches must not error")

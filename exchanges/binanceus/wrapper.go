@@ -225,9 +225,15 @@ func parseSpotOrderID(orderID string) (id uint64, isList bool, err error) {
 	return id, true, nil
 }
 
-// remainingAmount returns an order's unfilled amount, in decimal arithmetic so it is as exact as Binance.US's amounts
-func remainingAmount(original, executed types.Number) float64 {
-	return original.Decimal().Sub(executed.Decimal()).InexactFloat64()
+// remainingAmount returns an order's unfilled amount, in decimal arithmetic so it is as exact as Binance.US's amounts.
+// Quantity self-trade prevention has prevented can no longer fill, so an open or filled order leaves it out, while a
+// cancelled or expired order reports all it did not execute
+func remainingAmount(original, executed, prevented types.Number, status order.Status) float64 {
+	remaining := original.Decimal().Sub(executed.Decimal())
+	if status == order.Filled || !status.IsInactive() {
+		remaining = remaining.Sub(prevented.Decimal())
+	}
+	return remaining.InexactFloat64()
 }
 
 // averagePrice returns the average price of an order's fills from the quote amount and quantity they total, in decimal
@@ -371,7 +377,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
-	// A request without symbols returns every ticker, while one with symbols takes at most 100
+	// A request without symbols returns every ticker, at the weight of one naming 101 or more symbols
 	stats, err := e.GetPriceChangeStats(ctx, &PriceChangeStatsRequest{})
 	if err != nil {
 		return err
@@ -913,13 +919,13 @@ func (e *Exchange) spotSubmitResponse(s *order.Submit, placed *NewOrderResponse)
 	if resp.Status, err = stringToOrderStatus(placed.Status); err != nil {
 		e.logOrderIssue(resp.OrderID, err)
 	}
+	resp.RemainingAmount = remainingAmount(placed.OriginalQuantity, placed.ExecutedQuantity, placed.PreventedQuantity, resp.Status)
 	if resp.Amount > 0 && placed.ExecutedQuantity > 0 && placed.ExecutedQuantity < placed.OriginalQuantity && resp.Status.IsInactive() {
 		// A submit response carries no executed amount, so an order Binance.US finished after executing part of it is
 		// reported New for the order manager to settle from a later query. A quote sized market order keeps Binance.US's
 		// status, since the order manager cannot treat an order without an amount as active
 		resp.Status = order.New
 	}
-	resp.RemainingAmount = remainingAmount(placed.OriginalQuantity, placed.ExecutedQuantity)
 	if placed.ExecutedQuantity > 0 {
 		resp.Cost = placed.CumulativeQuoteQuantity.Float64()
 		resp.AverageExecutedPrice = averagePrice(placed.CumulativeQuoteQuantity, placed.ExecutedQuantity)
@@ -1398,7 +1404,7 @@ func (e *Exchange) spotOrderDetail(o *TradeOrderResponse, pair currency.Pair) (o
 		TriggerPrice:    o.StopPrice.Float64(),
 		QuoteAmount:     o.OriginalQuoteOrderQuantity.Float64(),
 		ExecutedAmount:  o.ExecutedQuantity.Float64(),
-		RemainingAmount: remainingAmount(o.OriginalQuantity, o.ExecutedQuantity),
+		RemainingAmount: remainingAmount(o.OriginalQuantity, o.ExecutedQuantity, o.PreventedQuantity, vars.status),
 		Exchange:        e.Name,
 		OrderID:         strconv.FormatUint(o.OrderID, 10),
 		ClientOrderID:   o.ClientOrderID,

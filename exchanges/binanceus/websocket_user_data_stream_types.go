@@ -82,7 +82,7 @@ type WebsocketExecutionReport struct {
 	// TrailingTime is when a trailing stop order started tracking the price, in milliseconds
 	TrailingTime          int64        `json:"D"`
 	WorkingTime           types.Time   `json:"W"`
-	TradeGroupID          uint64       `json:"u"`
+	TradeGroupID          int64        `json:"u"` // Signed, as prevented matches give -1 for an account in no trade group
 	PreventedMatchID      uint64       `json:"v"`
 	CounterOrderID        uint64       `json:"U"`
 	PreventedQuantity     types.Number `json:"A"`

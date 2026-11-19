@@ -246,6 +246,27 @@ func TestHandleStreamsServerShutdown(t *testing.T) {
 	require.NoError(t, ex.handleStreamsServerShutdown(down, []byte(`{"e":"serverShutdown","E":1794466395877}`)), "handleStreamsServerShutdown must not error")
 	assert.Nil(t, ex.wsAPI.get(), "the stream server's shutdown should retire the WebSocket API connection, which the websocket's shutdown closes")
 	assert.Error(t, ex.handleStreamsServerShutdown(down, []byte(`{"E":"x"}`)), "handleStreamsServerShutdown should error for an event that does not decode")
+
+	t.Run("the stream server's notice starts closing the stream connection when no WebSocket API connection is kept", func(t *testing.T) {
+		t.Parallel()
+		public := newStreamTestExchange(t)
+		streamConn := &closeCheckingConnection{fakeConnection: newFakeConnection()}
+		require.NoError(t, public.handleStreamsServerShutdown(streamConn, []byte(`{"e":"serverShutdown","E":1794466395877}`)), "handleStreamsServerShutdown must not error")
+		assert.Eventually(t, func() bool {
+			return streamConn.checks.Load() >= 1
+		}, 5*time.Second, time.Millisecond, "the stream server's notice should start closing the stream connection")
+	})
+
+	t.Run("the stream server's notice shuts down a connected websocket keeping no WebSocket API connection", func(t *testing.T) {
+		t.Parallel()
+		public, conn := newSubscriptionTestExchange(t)
+		require.Nil(t, public.wsAPI.kept(), "the websocket must keep no WebSocket API connection")
+		require.NoError(t, public.wsHandleData(t.Context(), conn, []byte(`{"e":"serverShutdown","E":1794466395877}`)), "wsHandleData must not error for the stream server's notice")
+		assert.Eventually(t, func() bool {
+			return !public.Websocket.IsConnected()
+		}, 5*time.Second, time.Millisecond, "the stream server's notice should shut the websocket down for the connection monitor to connect it again")
+		assert.True(t, public.Websocket.IsEnabled(), "the stream server's notice should leave the websocket enabled for the connection monitor to connect it again")
+	})
 }
 
 func TestShutdownWebsocketFor(t *testing.T) {
@@ -278,11 +299,22 @@ func TestHandleServerShutdown(t *testing.T) {
 	apiConn := newFakeConnection()
 	ex.wsAPI.set(apiConn, time.Hour)
 	_, release := ex.wsAPI.acquire()
+	release = sync.OnceFunc(release)
+	t.Cleanup(release)
 	closed := make(chan struct{})
-	require.NoError(t, ex.handleServerShutdown([]byte(`{"e":"serverShutdown","E":1794466395877}`), apiConn, func() error {
-		close(closed)
-		return nil
-	}), "handleServerShutdown must not error")
+	handled := make(chan error, 1)
+	go func() {
+		handled <- ex.handleServerShutdown([]byte(`{"e":"serverShutdown","E":1794466395877}`), apiConn, func() error {
+			close(closed)
+			return nil
+		})
+	}()
+	select {
+	case err := <-handled:
+		require.NoError(t, err, "handleServerShutdown must not error")
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "handleServerShutdown must return while the request is in flight")
+	}
 	assert.Nil(t, ex.wsAPI.get(), "handleServerShutdown should stop the connection taking requests")
 	select {
 	case <-closed:
@@ -295,6 +327,24 @@ func TestHandleServerShutdown(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		require.Fail(t, "handleServerShutdown must close the connection once the request in flight returns")
 	}
+
+	t.Run("a notice naming no WebSocket API connection leaves the kept one taking requests", func(t *testing.T) {
+		t.Parallel()
+		ex := newStreamTestExchange(t)
+		apiConn := newFakeConnection()
+		ex.wsAPI.set(apiConn, time.Hour)
+		closed := make(chan struct{})
+		require.NoError(t, ex.handleServerShutdown([]byte(`{"e":"serverShutdown","E":1794466395877}`), nil, func() error {
+			close(closed)
+			return nil
+		}), "handleServerShutdown must not error")
+		select {
+		case <-closed:
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "handleServerShutdown must close the connection")
+		}
+		assert.Same(t, apiConn, ex.wsAPI.get(), "a notice naming no WebSocket API connection should leave the kept one taking requests")
+	})
 }
 
 func TestProcessTrade(t *testing.T) {

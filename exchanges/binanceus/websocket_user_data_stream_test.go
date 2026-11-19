@@ -1,8 +1,10 @@
 package binanceus
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"maps"
 	"sync"
 	"testing"
 	"time"
@@ -752,6 +754,14 @@ func TestProcessAccountPosition(t *testing.T) {
 			btc: 1.5,
 		},
 		{
+			name: "a later event published in the same millisecond replaces the balance",
+			events: []string{
+				`{"e":"outboundAccountPosition","E":1795087200000,"u":1795087200000,"B":[{"a":"BTC","f":"1.25000000","l":"0.00000000"}]}`,
+				`{"e":"outboundAccountPosition","E":1795087200000,"u":1795087200000,"B":[{"a":"BTC","f":"1.50000000","l":"0.00000000"}]}`,
+			},
+			btc: 1.5,
+		},
+		{
 			name:   "each currency of an event is stored",
 			events: []string{`{"e":"outboundAccountPosition","E":1795087200003,"u":1795087200000,"B":[{"a":"BTC","f":"1.25000000","l":"0.00000000"},{"a":"USD","f":"623.00000000","l":"15.00000000"}]}`},
 			btc:    1.25,
@@ -785,9 +795,117 @@ func TestProcessAccountPosition(t *testing.T) {
 				stored, err = ex.Accounts.GetBalance("", creds, asset.Spot, currency.USD)
 				require.NoError(t, err, "GetBalance must not error for USD")
 				assert.Equal(t, tc.usd, stored.Total, "processAccountPosition should store each currency of the event")
+				updated := time.UnixMilli(1795087200000)
+				assert.Equal(t, map[*currency.Item]time.Time{currency.BTC.Item: updated, currency.USD.Item: updated}, ex.balanceEventTimes(), "processAccountPosition should record the event's account update time for each of its currencies")
 			}
 		})
 	}
+
+	t.Run("another account's event is stored for that account and leaves the configured account's event times alone", func(t *testing.T) {
+		t.Parallel()
+		ex := subscribedUserDataTestExchange(t)
+		creds := configuredCredentials(t, ex)
+		require.NoError(t, ex.processAccountPosition(accounts.DeployCredentialsToContext(t.Context(), creds), creds, []byte(`{"e":"outboundAccountPosition","E":1795087199003,"u":1795087199000,"B":[{"a":"USD","f":"623.00000000","l":"0.00000000"}]}`)), "processAccountPosition must not error for the configured account's event")
+		_, ok := relayed(t, ex).(accounts.SubAccounts)
+		require.True(t, ok, "processAccountPosition must relay the configured account's balances")
+		other := &accounts.Credentials{Key: "other-api-key", Secret: "other-api-secret"}
+		otherCtx := accounts.DeployCredentialsToContext(t.Context(), other)
+		require.NoError(t, ex.processAccountPosition(otherCtx, other, []byte(`{"e":"outboundAccountPosition","E":1795087200003,"u":1795087200000,"B":[{"a":"BTC","f":"1.00000000","l":"0.00000000"}]}`)), "processAccountPosition must not error for another account's event")
+		_, ok = relayed(t, ex).(accounts.SubAccounts)
+		require.True(t, ok, "processAccountPosition must relay another account's balances")
+		stored, err := ex.Accounts.GetBalance("", other, asset.Spot, currency.BTC)
+		require.NoError(t, err, "GetBalance must not error for the other account")
+		assert.Equal(t, 1.0, stored.Total, "another account's balance should be stored for that account")
+		assert.Equal(t, map[*currency.Item]time.Time{currency.USD.Item: time.UnixMilli(1795087199000)}, ex.balanceEventTimes(), "another account's event should leave the configured account's event times alone")
+	})
+
+	t.Run("an event of three currencies with amounts to the eighth decimal place is relayed and stored exactly, held rather than borrowed", func(t *testing.T) {
+		t.Parallel()
+		ex := subscribedUserDataTestExchange(t)
+		creds := configuredCredentials(t, ex)
+		ctx := accounts.DeployCredentialsToContext(t.Context(), creds)
+		require.NoError(t, ex.processAccountPosition(ctx, creds, []byte(`{"e":"outboundAccountPosition","E":1795087200003,"u":1795087200000,"B":[{"a":"BTC","f":"1.23456789","l":"0.87654321"},{"a":"USD","f":"623.12345678","l":"15.00000001"},{"a":"BNB","f":"0.12345678","l":"0.00000001"}]}`)), "processAccountPosition must not error")
+		subAccounts, ok := relayed(t, ex).(accounts.SubAccounts)
+		require.True(t, ok, "processAccountPosition must relay the balances as sub-accounts")
+		require.Len(t, subAccounts, 1, "processAccountPosition must relay one sub-account")
+		require.Len(t, subAccounts[0].Balances, 3, "processAccountPosition must relay each currency of the event")
+		for _, exp := range []accounts.Balance{
+			{Currency: currency.BTC, Total: 2.1111111, Hold: 0.87654321, Free: 1.23456789},
+			{Currency: currency.USD, Total: 638.12345679, Hold: 15.00000001, Free: 623.12345678},
+			{Currency: currency.BNB, Total: 0.12345679, Hold: 0.00000001, Free: 0.12345678},
+		} {
+			stored, err := ex.Accounts.GetBalance("", creds, asset.Spot, exp.Currency)
+			require.NoErrorf(t, err, "GetBalance must not error for %s", exp.Currency)
+			exp.UpdatedAt = stored.UpdatedAt
+			assert.Equalf(t, exp, stored, "the %s balance should be stored as the event's amounts", exp.Currency)
+			assert.Equalf(t, exp, subAccounts[0].Balances[exp.Currency], "the %s balance should be relayed as the event's amounts", exp.Currency)
+		}
+		require.NoError(t, ex.processAccountPosition(ctx, creds, []byte(`{"e":"outboundAccountPosition","E":1795087201003,"u":1795087201000,"B":[{"a":"BTC","f":"1.23456789","l":"0.87654321"},{"a":"USD","f":"623.12345678","l":"15.00000001"},{"a":"BNB","f":"0.12345678","l":"0.00000001"}]}`)), "processAccountPosition must not error for the same balances again")
+		subAccounts, ok = relayed(t, ex).(accounts.SubAccounts)
+		require.True(t, ok, "processAccountPosition must relay the same balances again as sub-accounts")
+		require.Len(t, subAccounts, 1, "processAccountPosition must relay one sub-account for the same balances again")
+		assert.Len(t, subAccounts[0].Balances, 3, "an event repeating unchanged balances should relay each of its currencies")
+	})
+
+	t.Run("each currency of an event is relayed as spot, reserving and releasing a balance moves it between free and held at the same total, and a balance reaching zero is relayed", func(t *testing.T) {
+		t.Parallel()
+		ex := subscribedUserDataTestExchange(t)
+		creds := configuredCredentials(t, ex)
+		ctx := accounts.DeployCredentialsToContext(t.Context(), creds)
+		relayedBalances := func(event, which string) accounts.CurrencyBalances {
+			t.Helper()
+			require.NoErrorf(t, ex.processAccountPosition(ctx, creds, []byte(event)), "processAccountPosition must not error for the %s", which)
+			subAccounts, ok := relayed(t, ex).(accounts.SubAccounts)
+			require.Truef(t, ok, "processAccountPosition must relay the %s as sub-accounts", which)
+			require.Lenf(t, subAccounts, 1, "processAccountPosition must relay one sub-account for the %s", which)
+			assert.Equalf(t, asset.Spot, subAccounts[0].AssetType, "the %s should be relayed as spot balances", which)
+			assert.Emptyf(t, subAccounts[0].ID, "the %s should be relayed for the main account", which)
+			return subAccounts[0].Balances
+		}
+		amounts := func(b accounts.Balance) [3]float64 {
+			return [3]float64{b.Total, b.Free, b.Hold}
+		}
+		storedBalance := func(code currency.Code) accounts.Balance {
+			t.Helper()
+			b, err := ex.Accounts.GetBalance("", creds, asset.Spot, code)
+			require.NoErrorf(t, err, "GetBalance must not error for %s", code)
+			return b
+		}
+		stored := func(code currency.Code) [3]float64 {
+			t.Helper()
+			return amounts(storedBalance(code))
+		}
+		balances := relayedBalances(`{"e":"outboundAccountPosition","E":1795087200003,"u":1795087200000,"B":[{"a":"BTC","f":"1.25000000","l":"0.00000000"},{"a":"USD","f":"623.00000000","l":"15.00000000"}]}`, "event of two currencies")
+		require.Len(t, balances, 2, "the event of two currencies must be relayed with both")
+		assert.Equal(t, [3]float64{1.25, 1.25, 0}, amounts(balances[currency.BTC]), "the BTC balance should be relayed as the event's")
+		assert.Equal(t, [3]float64{638, 623, 15}, amounts(balances[currency.USD]), "the USD balance should be relayed as the event's")
+		assert.Equal(t, storedBalance(currency.BTC), balances[currency.BTC], "the BTC balance should be relayed as stored")
+		assert.Equal(t, storedBalance(currency.USD), balances[currency.USD], "the USD balance should be relayed as stored")
+		eventTimes := func(btc int64) map[*currency.Item]time.Time {
+			return map[*currency.Item]time.Time{currency.BTC.Item: time.UnixMilli(btc), currency.USD.Item: time.UnixMilli(1795087200000)}
+		}
+		assert.Equal(t, eventTimes(1795087200000), ex.balanceEventTimes(), "the event of two currencies should record its account update time for both")
+		first := maps.Clone(balances)
+		firstRelay := balances
+		balances = relayedBalances(`{"e":"outboundAccountPosition","E":1795087201003,"u":1795087201000,"B":[{"a":"BTC","f":"0.00000000","l":"1.25000000"}]}`, "reservation")
+		require.Len(t, balances, 1, "the reservation must be relayed with its own currency alone")
+		assert.Equal(t, [3]float64{1.25, 0, 1.25}, amounts(balances[currency.BTC]), "the reservation should be relayed with the BTC balance locked")
+		assert.Equal(t, [3]float64{1.25, 0, 1.25}, stored(currency.BTC), "the reservation should be stored with the BTC balance locked")
+		assert.Equal(t, [3]float64{638, 623, 15}, stored(currency.USD), "the reservation should leave the USD balance stored as it was")
+		assert.Equal(t, eventTimes(1795087201000), ex.balanceEventTimes(), "the reservation should record its account update time for BTC alone")
+		balances = relayedBalances(`{"e":"outboundAccountPosition","E":1795087202003,"u":1795087202000,"B":[{"a":"BTC","f":"1.25000000","l":"0.00000000"}]}`, "release")
+		assert.Equal(t, [3]float64{1.25, 1.25, 0}, amounts(balances[currency.BTC]), "the release should be relayed with the BTC balance free")
+		assert.Equal(t, [3]float64{1.25, 1.25, 0}, stored(currency.BTC), "the release should be stored with the BTC balance free")
+		assert.Equal(t, storedBalance(currency.BTC), balances[currency.BTC], "the release should be relayed as stored")
+		assert.Equal(t, eventTimes(1795087202000), ex.balanceEventTimes(), "the release should record its account update time for BTC alone")
+		balances = relayedBalances(`{"e":"outboundAccountPosition","E":1795087203003,"u":1795087203000,"B":[{"a":"BTC","f":"0.00000000","l":"0.00000000"}]}`, "balance reaching zero")
+		require.Len(t, balances, 1, "the balance reaching zero must be relayed")
+		assert.Equal(t, [3]float64{0, 0, 0}, amounts(balances[currency.BTC]), "the BTC balance reaching zero should be relayed as zero")
+		assert.Equal(t, [3]float64{0, 0, 0}, stored(currency.BTC), "the BTC balance reaching zero should be stored as zero")
+		assert.Equal(t, storedBalance(currency.BTC), balances[currency.BTC], "the balance reaching zero should be relayed as stored")
+		assert.Equal(t, eventTimes(1795087203000), ex.balanceEventTimes(), "the balance reaching zero should record its account update time for BTC")
+		assert.Equal(t, first, firstRelay, "the event of two currencies should be left as it was relayed after the later events")
+	})
 }
 
 func TestProcessExecutionReport(t *testing.T) {
@@ -890,6 +1008,22 @@ func TestProcessExecutionReport(t *testing.T) {
 		assert.Empty(t, subscribed.Websocket.DataHandler.C, "each report should be relayed once")
 	})
 
+	t.Run("a report carrying the trade group ID of an account in no trade group is relayed", func(t *testing.T) {
+		t.Parallel()
+		ungrouped := subscribedUserDataTestExchange(t)
+		report := []byte(`{"e":"executionReport","E":1794466396201,"s":"BTCUSDT","c":"restingBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00100000","p":"65900.02000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE_PREVENTION","X":"EXPIRED_IN_MATCH","r":"NONE","i":4293182,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466396200,"t":-1,"I":8642015,"w":false,"m":false,"M":false,"O":1794466396120,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466396120,"V":"EXPIRE_MAKER","u":-1,"v":17,"U":4293183,"A":"0.00100000","B":"0.00100000","pl":"0.00100000","pL":"65900.02000000","pY":"65.90002000","eR":"EXPIRED_IN_MATCH"}`)
+		var decoded WebsocketExecutionReport
+		require.NoError(t, json.Unmarshal(report, &decoded), "the report of an account in no trade group must decode")
+		assert.Equal(t, int64(-1), decoded.TradeGroupID, "the report should decode the trade group ID of an account in no trade group")
+		assert.Equal(t, uint64(4293183), decoded.CounterOrderID, "the report should decode the counter order ID beside the trade group ID")
+		require.NoError(t, json.Unmarshal(bytes.Replace(report, []byte(`"u":-1`), []byte(`"u":2`), 1), &decoded), "the report of an account in trade group 2 must decode")
+		assert.Equal(t, int64(2), decoded.TradeGroupID, "the report should decode the trade group ID of an account in a trade group")
+		require.NoError(t, ungrouped.processExecutionReport(t.Context(), report), "processExecutionReport must not error for a report of an account in no trade group")
+		detail, ok := relayed(t, ungrouped).(*order.Detail)
+		require.True(t, ok, "processExecutionReport must relay the report of an account in no trade group as an order detail")
+		assert.Equal(t, order.Expired, detail.Status, "the report of an account in no trade group should be relayed as the order's expiry")
+	})
+
 	assert.ErrorIs(t, ex.processExecutionReport(ctx, []byte(`{"s":"NOTAPAIR"}`)), currency.ErrPairNotFound, "processExecutionReport should error for an unknown symbol")
 	assert.Error(t, ex.processExecutionReport(ctx, []byte(`{"s":1}`)), "processExecutionReport should error for an event that does not decode")
 
@@ -932,6 +1066,89 @@ func TestProcessExecutionReport(t *testing.T) {
 		require.Len(t, detail.Trades, 1, "a filled market order must relay its fill")
 		assert.False(t, detail.Trades[0].IsMaker, "a market order's fill should be reported as the taker's")
 		assert.Equal(t, time.UnixMilli(1499405658800), detail.Date, "a quote sized market order should report when it was created")
+	})
+
+	t.Run("each report of an order STP prevented part of leaves the prevented quantity out of the remaining amount only while the order is open or once it is filled", func(t *testing.T) {
+		t.Parallel()
+		// Binance.US documents neither DECREMENT's nor TRANSFER's stream reports; these give an order STP prevented part of the
+		// prevented quantity fields its STP FAQ gives "execution reports for orders involved in STP"
+		for _, tc := range []struct {
+			name, frame string
+			expected    *order.Detail
+		}{
+			{
+				name:     "a market buy filled once a DECREMENT match prevented part of it, paying its commission in BNB",
+				frame:    `{"e":"executionReport","E":1794466398101,"s":"BTCUSDT","c":"marketBuy","S":"BUY","o":"MARKET","f":"GTC","q":"0.00600000","p":"0.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293200,"l":"0.00400000","z":"0.00400000","L":"66000.01000000","n":"0.00033000","N":"BNB","T":1794466398100,"t":120,"I":8642050,"w":false,"m":false,"M":true,"O":1794466398099,"Z":"264.00004000","Y":"264.00004000","Q":"0.00000000","V":"DECREMENT","A":"0.00200000"}`,
+				expected: &order.Detail{Amount: 0.006, AverageExecutedPrice: 66000.01, ExecutedAmount: 0.004, Cost: 264.00004, CostAsset: currency.USDT, FeeAsset: currency.BNB, OrderID: "4293200", ClientOrderID: "marketBuy", Type: order.Market, Side: order.Buy, Status: order.Filled, Date: time.UnixMilli(1794466398099), LastUpdated: time.UnixMilli(1794466398100), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{Price: 66000.01, Amount: 0.004, Fee: 0.00033, FeeAsset: "BNB", TID: "120", Type: order.Market, Side: order.Buy, Timestamp: time.UnixMilli(1794466398100), Total: 264.00004}}},
+			},
+			{
+				name:     "a limit sell left open by a DECREMENT match before it rests",
+				frame:    `{"e":"executionReport","E":1794466398201,"s":"BTCUSDT","c":"restingSell","S":"SELL","o":"LIMIT","f":"GTC","q":"0.00600000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE_PREVENTION","X":"NEW","r":"NONE","i":4293201,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466398200,"t":-1,"I":8642051,"w":false,"m":false,"M":false,"O":1794466398200,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","V":"DECREMENT","v":22,"U":4293202,"A":"0.00200000","B":"0.00200000","pl":"0.00200000","pL":"66000.01000000","pY":"132.00002000"}`,
+				expected: &order.Detail{Price: 66000.01, Amount: 0.006, RemainingAmount: 0.004, CostAsset: currency.USDT, OrderID: "4293201", ClientOrderID: "restingSell", Type: order.Limit, Side: order.Sell, Status: order.New, Date: time.UnixMilli(1794466398200), LastUpdated: time.UnixMilli(1794466398200), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel},
+			},
+			{
+				name:     "a limit buy expired by a later match once a DECREMENT match had prevented part of it",
+				frame:    `{"e":"executionReport","E":1794466398301,"s":"BTCUSDT","c":"expiredBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00600000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE_PREVENTION","X":"EXPIRED_IN_MATCH","r":"NONE","i":4293203,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466398300,"t":-1,"I":8642052,"w":false,"m":false,"M":false,"O":1794466398250,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466398250,"V":"DECREMENT","v":24,"U":4293204,"A":"0.00600000","B":"0.00400000","pl":"0.00400000","pL":"66000.01000000","pY":"264.00004000","eR":"EXPIRED_IN_MATCH"}`,
+				expected: &order.Detail{Price: 66000.01, Amount: 0.006, RemainingAmount: 0.006, CostAsset: currency.USDT, OrderID: "4293203", ClientOrderID: "expiredBuy", Type: order.Limit, Side: order.Buy, Status: order.Expired, Date: time.UnixMilli(1794466398250), LastUpdated: time.UnixMilli(1794466398300), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel},
+			},
+			{
+				name:     "a limit buy cancelled after a fill once a DECREMENT match had prevented part of it",
+				frame:    `{"e":"executionReport","E":1794466398401,"s":"BTCUSDT","c":"cancelPartlyFilledBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00600000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"partlyFilledDecrementedBuy","x":"CANCELED","X":"CANCELED","r":"NONE","i":4293205,"l":"0.00000000","z":"0.00100000","L":"0.00000000","n":"0","N":null,"T":1794466398400,"t":-1,"I":8642053,"w":false,"m":false,"M":false,"O":1794466398350,"Z":"66.00001000","Y":"0.00000000","Q":"0.00000000","W":1794466398350,"V":"DECREMENT","A":"0.00200000"}`,
+				expected: &order.Detail{Price: 66000.01, Amount: 0.006, AverageExecutedPrice: 66000.01, ExecutedAmount: 0.001, RemainingAmount: 0.005, Cost: 66.00001, CostAsset: currency.USDT, OrderID: "4293205", ClientOrderID: "partlyFilledDecrementedBuy", Type: order.Limit, Side: order.Buy, Status: order.Cancelled, Date: time.UnixMilli(1794466398350), LastUpdated: time.UnixMilli(1794466398400), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel},
+			},
+			{
+				name:     "a limit buy partly filled when a DECREMENT match prevents part of it",
+				frame:    `{"e":"executionReport","E":1794466398501,"s":"BTCUSDT","c":"partlyPreventedBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00600000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE_PREVENTION","X":"PARTIALLY_FILLED","r":"NONE","i":4293206,"l":"0.00000000","z":"0.00100000","L":"0.00000000","n":"0","N":null,"T":1794466398500,"t":-1,"I":8642054,"w":true,"m":false,"M":false,"O":1794466398450,"Z":"66.00001000","Y":"0.00000000","Q":"0.00000000","W":1794466398450,"V":"DECREMENT","v":25,"U":4293207,"A":"0.00200000","B":"0.00200000","pl":"0.00200000","pL":"66000.01000000","pY":"132.00002000"}`,
+				expected: &order.Detail{Price: 66000.01, Amount: 0.006, AverageExecutedPrice: 66000.01, ExecutedAmount: 0.001, RemainingAmount: 0.003, Cost: 66.00001, CostAsset: currency.USDT, OrderID: "4293206", ClientOrderID: "partlyPreventedBuy", Type: order.Limit, Side: order.Buy, Status: order.PartiallyFilled, Date: time.UnixMilli(1794466398450), LastUpdated: time.UnixMilli(1794466398500), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel},
+			},
+			{
+				name:     "an IOC limit buy expired after a fill once a DECREMENT match had prevented part of it",
+				frame:    `{"e":"executionReport","E":1794466398601,"s":"BTCUSDT","c":"iocDecrementedBuy","S":"BUY","o":"LIMIT","f":"IOC","q":"0.00600000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"EXPIRED","X":"EXPIRED","r":"NONE","i":4293208,"l":"0.00000000","z":"0.00100000","L":"0.00000000","n":"0","N":null,"T":1794466398600,"t":-1,"I":8642055,"w":false,"m":false,"M":false,"O":1794466398600,"Z":"66.00001000","Y":"0.00000000","Q":"0.00000000","V":"DECREMENT","A":"0.00200000","eR":"UNFILLED_IOC_QUANTITY_EXPIRED"}`,
+				expected: &order.Detail{Price: 66000.01, Amount: 0.006, AverageExecutedPrice: 66000.01, ExecutedAmount: 0.001, RemainingAmount: 0.005, Cost: 66.00001, CostAsset: currency.USDT, OrderID: "4293208", ClientOrderID: "iocDecrementedBuy", Type: order.Limit, Side: order.Buy, Status: order.Expired, Date: time.UnixMilli(1794466398600), LastUpdated: time.UnixMilli(1794466398600), Pair: currency.NewBTCUSDT(), TimeInForce: order.ImmediateOrCancel},
+			},
+			{
+				name:     "a TRANSFER limit buy filled as the maker, paying its commission in BNB",
+				frame:    `{"e":"executionReport","E":1794466398701,"s":"BTCUSDT","c":"transferBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00600000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293209,"l":"0.00400000","z":"0.00400000","L":"66000.01000000","n":"0.00033000","N":"BNB","T":1794466398700,"t":121,"I":8642056,"w":false,"m":true,"M":true,"O":1794466398650,"Z":"264.00004000","Y":"264.00004000","Q":"0.00000000","W":1794466398650,"V":"TRANSFER","A":"0.00200000"}`,
+				expected: &order.Detail{Price: 66000.01, Amount: 0.006, AverageExecutedPrice: 66000.01, ExecutedAmount: 0.004, Cost: 264.00004, CostAsset: currency.USDT, FeeAsset: currency.BNB, OrderID: "4293209", ClientOrderID: "transferBuy", Type: order.Limit, Side: order.Buy, Status: order.Filled, Date: time.UnixMilli(1794466398650), LastUpdated: time.UnixMilli(1794466398700), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{Price: 66000.01, Amount: 0.004, Fee: 0.00033, FeeAsset: "BNB", TID: "121", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466398700), IsMaker: true, Total: 264.00004}}},
+			},
+			{
+				name:     "a limit maker buy filled as the maker",
+				frame:    `{"e":"executionReport","E":1794466398801,"s":"BTCUSDT","c":"makerBuy","S":"BUY","o":"LIMIT_MAKER","f":"GTC","q":"0.00600000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293210,"l":"0.00400000","z":"0.00400000","L":"66000.01000000","n":"0.00000400","N":"BTC","T":1794466398800,"t":122,"I":8642057,"w":false,"m":true,"M":true,"O":1794466398750,"Z":"264.00004000","Y":"264.00004000","Q":"0.00000000","W":1794466398750,"V":"DECREMENT","A":"0.00200000"}`,
+				expected: &order.Detail{Price: 66000.01, Amount: 0.006, AverageExecutedPrice: 66000.01, ExecutedAmount: 0.004, Cost: 264.00004, CostAsset: currency.USDT, FeeAsset: currency.BTC, OrderID: "4293210", ClientOrderID: "makerBuy", Type: order.LimitMaker, Side: order.Buy, Status: order.Filled, Date: time.UnixMilli(1794466398750), LastUpdated: time.UnixMilli(1794466398800), Pair: currency.NewBTCUSDT(), TimeInForce: order.PostOnly, Trades: []order.TradeHistory{{Price: 66000.01, Amount: 0.004, Fee: 0.000004, FeeAsset: "BTC", TID: "122", Type: order.LimitMaker, Side: order.Buy, Timestamp: time.UnixMilli(1794466398800), IsMaker: true, Total: 264.00004}}},
+			},
+			{
+				name:     "a stop loss sell filled after its trigger",
+				frame:    `{"e":"executionReport","E":1794466398901,"s":"BTCUSDT","c":"stopSell","S":"SELL","o":"STOP_LOSS","f":"GTC","q":"0.00600000","p":"0.00000000","P":"66000.05000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293211,"l":"0.00400000","z":"0.00400000","L":"66000.01000000","n":"0.26400004","N":"USDT","T":1794466398900,"t":123,"I":8642058,"w":false,"m":false,"M":true,"O":1794466398800,"Z":"264.00004000","Y":"264.00004000","Q":"0.00000000","V":"DECREMENT","A":"0.00200000"}`,
+				expected: &order.Detail{Amount: 0.006, TriggerPrice: 66000.05, AverageExecutedPrice: 66000.01, ExecutedAmount: 0.004, Cost: 264.00004, CostAsset: currency.USDT, FeeAsset: currency.USDT, OrderID: "4293211", ClientOrderID: "stopSell", Type: order.StopMarket, Side: order.Sell, Status: order.Filled, Date: time.UnixMilli(1794466398800), LastUpdated: time.UnixMilli(1794466398900), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{Price: 66000.01, Amount: 0.004, Fee: 0.26400004, FeeAsset: "USDT", TID: "123", Type: order.StopMarket, Side: order.Sell, Timestamp: time.UnixMilli(1794466398900), Total: 264.00004}}},
+			},
+			{
+				name:     "a stop loss limit sell filled after its trigger",
+				frame:    `{"e":"executionReport","E":1794466399001,"s":"BTCUSDT","c":"stopLimitSell","S":"SELL","o":"STOP_LOSS_LIMIT","f":"GTC","q":"0.00600000","p":"66000.01000000","P":"66000.05000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293212,"l":"0.00400000","z":"0.00400000","L":"66000.01000000","n":"0.26400004","N":"USDT","T":1794466399000,"t":124,"I":8642059,"w":false,"m":false,"M":true,"O":1794466398900,"Z":"264.00004000","Y":"264.00004000","Q":"0.00000000","W":1794466398960,"V":"DECREMENT","A":"0.00200000"}`,
+				expected: &order.Detail{Price: 66000.01, Amount: 0.006, TriggerPrice: 66000.05, AverageExecutedPrice: 66000.01, ExecutedAmount: 0.004, Cost: 264.00004, CostAsset: currency.USDT, FeeAsset: currency.USDT, OrderID: "4293212", ClientOrderID: "stopLimitSell", Type: order.StopLimit, Side: order.Sell, Status: order.Filled, Date: time.UnixMilli(1794466398900), LastUpdated: time.UnixMilli(1794466399000), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{Price: 66000.01, Amount: 0.004, Fee: 0.26400004, FeeAsset: "USDT", TID: "124", Type: order.StopLimit, Side: order.Sell, Timestamp: time.UnixMilli(1794466399000), Total: 264.00004}}},
+			},
+			{
+				name:     "a take profit buy filled after its trigger",
+				frame:    `{"e":"executionReport","E":1794466399101,"s":"BTCUSDT","c":"takeProfitBuy","S":"BUY","o":"TAKE_PROFIT","f":"GTC","q":"0.00600000","p":"0.00000000","P":"65999.99000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293213,"l":"0.00400000","z":"0.00400000","L":"66000.01000000","n":"0.00000400","N":"BTC","T":1794466399100,"t":125,"I":8642060,"w":false,"m":false,"M":true,"O":1794466399000,"Z":"264.00004000","Y":"264.00004000","Q":"0.00000000","V":"DECREMENT","A":"0.00200000"}`,
+				expected: &order.Detail{Amount: 0.006, TriggerPrice: 65999.99, AverageExecutedPrice: 66000.01, ExecutedAmount: 0.004, Cost: 264.00004, CostAsset: currency.USDT, FeeAsset: currency.BTC, OrderID: "4293213", ClientOrderID: "takeProfitBuy", Type: order.TakeProfitMarket, Side: order.Buy, Status: order.Filled, Date: time.UnixMilli(1794466399000), LastUpdated: time.UnixMilli(1794466399100), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{Price: 66000.01, Amount: 0.004, Fee: 0.000004, FeeAsset: "BTC", TID: "125", Type: order.TakeProfitMarket, Side: order.Buy, Timestamp: time.UnixMilli(1794466399100), Total: 264.00004}}},
+			},
+			{
+				name:     "a take profit limit buy filled after its trigger, displaying an iceberg part",
+				frame:    `{"e":"executionReport","E":1794466399201,"s":"BTCUSDT","c":"takeProfitLimitBuy","S":"BUY","o":"TAKE_PROFIT_LIMIT","f":"GTC","q":"0.00600000","p":"66000.01000000","P":"65999.99000000","F":"0.00100000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293214,"l":"0.00400000","z":"0.00400000","L":"66000.01000000","n":"0.00000400","N":"BTC","T":1794466399200,"t":126,"I":8642061,"w":false,"m":false,"M":true,"O":1794466399100,"Z":"264.00004000","Y":"264.00004000","Q":"0.00000000","W":1794466399160,"V":"DECREMENT","A":"0.00200000"}`,
+				expected: &order.Detail{Price: 66000.01, Amount: 0.006, TriggerPrice: 65999.99, AverageExecutedPrice: 66000.01, ExecutedAmount: 0.004, Cost: 264.00004, CostAsset: currency.USDT, FeeAsset: currency.BTC, OrderID: "4293214", ClientOrderID: "takeProfitLimitBuy", Type: order.TakeProfitLimit, Side: order.Buy, Status: order.Filled, Date: time.UnixMilli(1794466399100), LastUpdated: time.UnixMilli(1794466399200), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{Price: 66000.01, Amount: 0.004, Fee: 0.000004, FeeAsset: "BTC", TID: "126", Type: order.TakeProfitLimit, Side: order.Buy, Timestamp: time.UnixMilli(1794466399200), Total: 264.00004}}},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := subscribedUserDataTestExchange(t)
+				require.NoError(t, ex.processExecutionReport(t.Context(), []byte(tc.frame)), "processExecutionReport must not error")
+				expected := tc.expected
+				expected.Exchange, expected.AssetType = ex.Name, asset.Spot
+				for i := range expected.Trades {
+					expected.Trades[i].Exchange = ex.Name
+				}
+				assert.Equal(t, expected, relayed(t, ex), "processExecutionReport should relay the order detail the report gives")
+			})
+		}
 	})
 
 	t.Run("an exchange relays each report in turn, over its orders' lifecycles", func(t *testing.T) {
@@ -1080,7 +1297,7 @@ func TestProcessExecutionReport(t *testing.T) {
 				Price: 68500.06, Amount: 0.0005, Fee: 0.03425003, FeeAsset: "USDT", TID: "106", Type: order.LimitMaker, Side: order.Sell, Timestamp: time.UnixMilli(1794466395420), IsMaker: true, Total: 34.25003,
 			}},
 		})
-		report(`{"e":"executionReport","E":1794466395421,"s":"BTCUSDT","c":"ocoStopLossLeg","S":"SELL","o":"STOP_LOSS_LIMIT","f":"GTC","q":"0.00050000","p":"63800.08000000","P":"63900.07000000","F":"0.00000000","g":2049,"C":"","x":"EXPIRED","X":"EXPIRED","r":"NONE","i":4293164,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466395420,"t":-1,"I":8642007,"w":false,"m":false,"M":false,"O":1794466395320,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, &order.Detail{
+		report(`{"e":"executionReport","E":1794466395421,"s":"BTCUSDT","c":"ocoStopLossLeg","S":"SELL","o":"STOP_LOSS_LIMIT","f":"GTC","q":"0.00050000","p":"63800.08000000","P":"63900.07000000","F":"0.00000000","g":2049,"C":"","x":"EXPIRED","X":"EXPIRED","r":"NONE","i":4293164,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466395420,"t":-1,"I":8642007,"w":false,"m":false,"M":false,"O":1794466395320,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","eR":"OCO_TRIGGER"}`, &order.Detail{
 			Price: 63800.08, Amount: 0.0005, TriggerPrice: 63900.07, RemainingAmount: 0.0005, CostAsset: currency.USDT, OrderID: "4293164", ClientOrderID: "ocoStopLossLeg", Type: order.StopLimit,
 			Side: order.Sell, Status: order.Expired, Date: time.UnixMilli(1794466395320), LastUpdated: time.UnixMilli(1794466395420), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
 		})
@@ -1181,7 +1398,7 @@ func TestProcessExecutionReport(t *testing.T) {
 		report(`{"e":"executionReport","E":1794466396431,"s":"BTCUSDT","c":"iocBuy","S":"BUY","o":"LIMIT","f":"IOC","q":"0.00300000","p":"66010.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":4293187,"l":"0.00100000","z":"0.00100000","L":"66005.00000000","n":"0.00000100","N":"BTC","T":1794466396430,"t":111,"I":8642022,"w":false,"m":false,"M":true,"O":1794466396430,"Z":"66.00500000","Y":"66.00500000","Q":"0.00000000"}`, iocBuy(order.PartiallyFilled, 0.001, 0.002, 66.005, 66005, 1794466396430, currency.BTC, order.TradeHistory{
 			Price: 66005, Amount: 0.001, Fee: 0.000001, FeeAsset: "BTC", TID: "111", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466396430), Total: 66.005,
 		}))
-		report(`{"e":"executionReport","E":1794466396431,"s":"BTCUSDT","c":"iocBuy","S":"BUY","o":"LIMIT","f":"IOC","q":"0.00300000","p":"66010.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"EXPIRED","X":"EXPIRED","r":"NONE","i":4293187,"l":"0.00000000","z":"0.00100000","L":"0.00000000","n":"0","N":null,"T":1794466396430,"t":-1,"I":8642023,"w":false,"m":false,"M":false,"O":1794466396430,"Z":"66.00500000","Y":"0.00000000","Q":"0.00000000"}`, iocBuy(order.Expired, 0.001, 0.002, 66.005, 66005, 1794466396430, currency.EMPTYCODE))
+		report(`{"e":"executionReport","E":1794466396431,"s":"BTCUSDT","c":"iocBuy","S":"BUY","o":"LIMIT","f":"IOC","q":"0.00300000","p":"66010.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"EXPIRED","X":"EXPIRED","r":"NONE","i":4293187,"l":"0.00000000","z":"0.00100000","L":"0.00000000","n":"0","N":null,"T":1794466396430,"t":-1,"I":8642023,"w":false,"m":false,"M":false,"O":1794466396430,"Z":"66.00500000","Y":"0.00000000","Q":"0.00000000","eR":"UNFILLED_IOC_QUANTITY_EXPIRED"}`, iocBuy(order.Expired, 0.001, 0.002, 66.005, 66005, 1794466396430, currency.EMPTYCODE))
 		fokBuy := func(status order.Status) *order.Detail {
 			return &order.Detail{
 				Price: 65950, Amount: 0.002, RemainingAmount: 0.002, CostAsset: currency.USDT, OrderID: "4293188", ClientOrderID: "fokBuy", Type: order.Limit, Side: order.Buy, Status: status,
@@ -1189,7 +1406,62 @@ func TestProcessExecutionReport(t *testing.T) {
 			}
 		}
 		report(`{"e":"executionReport","E":1794466396441,"s":"BTCUSDT","c":"fokBuy","S":"BUY","o":"LIMIT","f":"FOK","q":"0.00200000","p":"65950.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293188,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466396440,"t":-1,"I":8642024,"w":false,"m":false,"M":false,"O":1794466396440,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, fokBuy(order.New))
-		report(`{"e":"executionReport","E":1794466396441,"s":"BTCUSDT","c":"fokBuy","S":"BUY","o":"LIMIT","f":"FOK","q":"0.00200000","p":"65950.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"EXPIRED","X":"EXPIRED","r":"NONE","i":4293188,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466396440,"t":-1,"I":8642025,"w":false,"m":false,"M":false,"O":1794466396440,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, fokBuy(order.Expired))
+		report(`{"e":"executionReport","E":1794466396441,"s":"BTCUSDT","c":"fokBuy","S":"BUY","o":"LIMIT","f":"FOK","q":"0.00200000","p":"65950.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"EXPIRED","X":"EXPIRED","r":"NONE","i":4293188,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466396440,"t":-1,"I":8642025,"w":false,"m":false,"M":false,"O":1794466396440,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","eR":"UNFILLED_FOK_ORDER_EXPIRED"}`, fokBuy(order.Expired))
+		partlyFilled := func(status order.Status, updated int64, fee currency.Code, fills ...order.TradeHistory) *order.Detail {
+			return &order.Detail{
+				Price: 66000.01, Amount: 0.003, AverageExecutedPrice: 66000.01, ExecutedAmount: 0.001, RemainingAmount: 0.002, Cost: 66.00001, CostAsset: currency.USDT,
+				FeeAsset: fee, OrderID: "4293190", ClientOrderID: "partlyFilledBuy", Type: order.Limit, Side: order.Buy, Status: status, Date: time.UnixMilli(1794466397100),
+				LastUpdated: time.UnixMilli(updated), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: fills,
+			}
+		}
+		report(`{"e":"executionReport","E":1794466397101,"s":"BTCUSDT","c":"partlyFilledBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00300000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":4293190,"l":"0.00100000","z":"0.00100000","L":"66000.01000000","n":"0.00000100","N":"BTC","T":1794466397100,"t":112,"I":8642030,"w":true,"m":false,"M":true,"O":1794466397100,"Z":"66.00001000","Y":"66.00001000","Q":"0.00000000","W":1794466397100}`, partlyFilled(order.PartiallyFilled, 1794466397100, currency.BTC, order.TradeHistory{
+			Price: 66000.01, Amount: 0.001, Fee: 0.000001, FeeAsset: "BTC", TID: "112", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466397100), Total: 66.00001,
+		}))
+		report(`{"e":"executionReport","E":1794466397301,"s":"BTCUSDT","c":"partlyFilledBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00300000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE_PREVENTION","X":"EXPIRED_IN_MATCH","r":"NONE","i":4293190,"l":"0.00000000","z":"0.00100000","L":"0.00000000","n":"0","N":null,"T":1794466397300,"t":-1,"I":8642032,"w":false,"m":false,"M":false,"O":1794466397100,"Z":"66.00001000","Y":"0.00000000","Q":"0.00000000","W":1794466397100,"V":"EXPIRE_MAKER","v":18,"U":4293191,"A":"0.00200000","B":"0.00200000","pl":"0.00200000","pL":"66000.01000000","pY":"132.00002000","eR":"EXPIRED_IN_MATCH"}`, partlyFilled(order.Expired, 1794466397300, currency.EMPTYCODE))
+		// Binance.US documents neither DECREMENT's nor TRANSFER's stream reports; these give an order STP left open the prevented
+		// quantity fields its STP FAQ gives "execution reports for orders involved in STP"
+		decrementedBuy := func(status order.Status, executed, remaining, cost, average float64, updated int64, fee currency.Code, fills ...order.TradeHistory) *order.Detail {
+			return &order.Detail{
+				Price: 66000.01, Amount: 0.006, AverageExecutedPrice: average, ExecutedAmount: executed, RemainingAmount: remaining, Cost: cost, CostAsset: currency.USDT, FeeAsset: fee,
+				OrderID: "4293192", ClientOrderID: "decrementedBuy", Type: order.Limit, Side: order.Buy, Status: status, Date: time.UnixMilli(1794466397400), LastUpdated: time.UnixMilli(updated),
+				Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: fills,
+			}
+		}
+		ethUSDT := currency.NewPair(currency.ETH, currency.USDT)
+		transferredSell := func(status order.Status, remaining float64, updated int64) *order.Detail {
+			return &order.Detail{
+				Price: 2500.02, Amount: 0.04, RemainingAmount: remaining, CostAsset: currency.USDT, OrderID: "1200346", ClientOrderID: "transferredSell", Type: order.LimitMaker,
+				Side: order.Sell, Status: status, Date: time.UnixMilli(1794466397800), LastUpdated: time.UnixMilli(updated), Pair: ethUSDT, TimeInForce: order.PostOnly,
+			}
+		}
+		decrementingTaker := func(orderID, clientOrderID string, pair currency.Pair, side order.Side, price, amount float64, placed int64, status order.Status) *order.Detail {
+			return &order.Detail{
+				Price: price, Amount: amount, RemainingAmount: amount, CostAsset: currency.USDT, OrderID: orderID, ClientOrderID: clientOrderID, Type: order.Limit, Side: side,
+				Status: status, Date: time.UnixMilli(placed), LastUpdated: time.UnixMilli(placed), Pair: pair, TimeInForce: order.GoodTillCancel,
+			}
+		}
+		report(`{"e":"executionReport","E":1794466397401,"s":"BTCUSDT","c":"decrementedBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00600000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293192,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466397400,"t":-1,"I":8642033,"w":true,"m":false,"M":false,"O":1794466397400,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466397400,"V":"DECREMENT"}`, decrementedBuy(order.New, 0, 0.006, 0, 0, 1794466397400, currency.EMPTYCODE))
+		report(`{"e":"executionReport","E":1794466397501,"s":"BTCUSDT","c":"decrementingSell","S":"SELL","o":"LIMIT","f":"GTC","q":"0.00200000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293193,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466397500,"t":-1,"I":8642034,"w":false,"m":false,"M":false,"O":1794466397500,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","V":"DECREMENT"}`, decrementingTaker("4293193", "decrementingSell", currency.NewBTCUSDT(), order.Sell, 66000.01, 0.002, 1794466397500, order.New))
+		report(`{"e":"executionReport","E":1794466397501,"s":"BTCUSDT","c":"decrementedBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00600000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE_PREVENTION","X":"NEW","r":"NONE","i":4293192,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466397500,"t":-1,"I":8642035,"w":true,"m":false,"M":false,"O":1794466397400,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466397400,"V":"DECREMENT","v":19,"U":4293193,"A":"0.00200000","B":"0.00200000","pl":"0.00200000","pL":"66000.01000000","pY":"132.00002000"}`, decrementedBuy(order.New, 0, 0.004, 0, 0, 1794466397500, currency.EMPTYCODE))
+		report(`{"e":"executionReport","E":1794466397501,"s":"BTCUSDT","c":"decrementingSell","S":"SELL","o":"LIMIT","f":"GTC","q":"0.00200000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE_PREVENTION","X":"EXPIRED_IN_MATCH","r":"NONE","i":4293193,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466397500,"t":-1,"I":8642036,"w":false,"m":false,"M":false,"O":1794466397500,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","V":"DECREMENT","v":19,"U":4293192,"A":"0.00200000","B":"0.00200000","pl":"0.00200000","pL":"66000.01000000","pY":"132.00002000","eR":"EXPIRED_IN_MATCH"}`, decrementingTaker("4293193", "decrementingSell", currency.NewBTCUSDT(), order.Sell, 66000.01, 0.002, 1794466397500, order.Expired))
+		report(`{"e":"executionReport","E":1794466397551,"s":"BTCUSDT","c":"secondDecrementingSell","S":"SELL","o":"LIMIT","f":"GTC","q":"0.00100000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293194,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466397550,"t":-1,"I":8642037,"w":false,"m":false,"M":false,"O":1794466397550,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","V":"DECREMENT"}`, decrementingTaker("4293194", "secondDecrementingSell", currency.NewBTCUSDT(), order.Sell, 66000.01, 0.001, 1794466397550, order.New))
+		report(`{"e":"executionReport","E":1794466397551,"s":"BTCUSDT","c":"decrementedBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00600000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE_PREVENTION","X":"NEW","r":"NONE","i":4293192,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466397550,"t":-1,"I":8642038,"w":true,"m":false,"M":false,"O":1794466397400,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466397400,"V":"DECREMENT","v":20,"U":4293194,"A":"0.00300000","B":"0.00100000","pl":"0.00100000","pL":"66000.01000000","pY":"66.00001000"}`, decrementedBuy(order.New, 0, 0.003, 0, 0, 1794466397550, currency.EMPTYCODE))
+		report(`{"e":"executionReport","E":1794466397551,"s":"BTCUSDT","c":"secondDecrementingSell","S":"SELL","o":"LIMIT","f":"GTC","q":"0.00100000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE_PREVENTION","X":"EXPIRED_IN_MATCH","r":"NONE","i":4293194,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466397550,"t":-1,"I":8642039,"w":false,"m":false,"M":false,"O":1794466397550,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","V":"DECREMENT","v":20,"U":4293192,"A":"0.00100000","B":"0.00100000","pl":"0.00100000","pL":"66000.01000000","pY":"66.00001000","eR":"EXPIRED_IN_MATCH"}`, decrementingTaker("4293194", "secondDecrementingSell", currency.NewBTCUSDT(), order.Sell, 66000.01, 0.001, 1794466397550, order.Expired))
+		report(`{"e":"executionReport","E":1794466397601,"s":"BTCUSDT","c":"decrementedBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00600000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":4293192,"l":"0.00100000","z":"0.00100000","L":"66000.01000000","n":"0.00000100","N":"BTC","T":1794466397600,"t":113,"I":8642040,"w":true,"m":true,"M":true,"O":1794466397400,"Z":"66.00001000","Y":"66.00001000","Q":"0.00000000","W":1794466397400,"V":"DECREMENT","A":"0.00300000"}`, decrementedBuy(order.PartiallyFilled, 0.001, 0.002, 66.00001, 66000.01, 1794466397600, currency.BTC, order.TradeHistory{
+			Price: 66000.01, Amount: 0.001, Fee: 0.000001, FeeAsset: "BTC", TID: "113", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466397600), IsMaker: true, Total: 66.00001,
+		}))
+		report(`{"e":"executionReport","E":1794466397701,"s":"BTCUSDT","c":"decrementedBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00600000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293192,"l":"0.00200000","z":"0.00300000","L":"66000.01000000","n":"0.00000200","N":"BTC","T":1794466397700,"t":114,"I":8642041,"w":false,"m":true,"M":true,"O":1794466397400,"Z":"198.00003000","Y":"132.00002000","Q":"0.00000000","W":1794466397400,"V":"DECREMENT","A":"0.00300000"}`, decrementedBuy(order.Filled, 0.003, 0, 198.00003, 66000.01, 1794466397700, currency.BTC, order.TradeHistory{
+			Price: 66000.01, Amount: 0.002, Fee: 0.000002, FeeAsset: "BTC", TID: "114", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466397700), IsMaker: true, Total: 132.00002,
+		}))
+		report(`{"e":"executionReport","E":1794466397801,"s":"ETHUSDT","c":"transferredSell","S":"SELL","o":"LIMIT_MAKER","f":"GTC","q":"0.04000000","p":"2500.02000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":1200346,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466397800,"t":-1,"I":8642042,"w":true,"m":false,"M":false,"O":1794466397800,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466397800,"V":"TRANSFER"}`, transferredSell(order.New, 0.04, 1794466397800))
+		report(`{"e":"executionReport","E":1794466397901,"s":"ETHUSDT","c":"transferringBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.01000000","p":"2500.02000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":1200347,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466397900,"t":-1,"I":8642043,"w":false,"m":false,"M":false,"O":1794466397900,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","V":"TRANSFER"}`, decrementingTaker("1200347", "transferringBuy", ethUSDT, order.Buy, 2500.02, 0.01, 1794466397900, order.New))
+		report(`{"e":"executionReport","E":1794466397901,"s":"ETHUSDT","c":"transferredSell","S":"SELL","o":"LIMIT_MAKER","f":"GTC","q":"0.04000000","p":"2500.02000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE_PREVENTION","X":"NEW","r":"NONE","i":1200346,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466397900,"t":-1,"I":8642044,"w":true,"m":false,"M":false,"O":1794466397800,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466397800,"V":"TRANSFER","v":0,"U":1200347,"A":"0.01000000","B":"0.01000000","pl":"0.01000000","pL":"2500.02000000","pY":"25.00020000"}`, transferredSell(order.New, 0.03, 1794466397900))
+		report(`{"e":"executionReport","E":1794466397901,"s":"ETHUSDT","c":"transferringBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.01000000","p":"2500.02000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE_PREVENTION","X":"EXPIRED_IN_MATCH","r":"NONE","i":1200347,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466397900,"t":-1,"I":8642045,"w":false,"m":false,"M":false,"O":1794466397900,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","V":"TRANSFER","v":0,"U":1200346,"A":"0.01000000","B":"0.01000000","pl":"0.01000000","pL":"2500.02000000","pY":"25.00020000","eR":"EXPIRED_IN_MATCH"}`, decrementingTaker("1200347", "transferringBuy", ethUSDT, order.Buy, 2500.02, 0.01, 1794466397900, order.Expired))
+		report(`{"e":"executionReport","E":1794466398001,"s":"ETHUSDT","c":"cancelTransferredSell","S":"SELL","o":"LIMIT_MAKER","f":"GTC","q":"0.04000000","p":"2500.02000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"transferredSell","x":"CANCELED","X":"CANCELED","r":"NONE","i":1200346,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466398000,"t":-1,"I":8642046,"w":false,"m":false,"M":false,"O":1794466397800,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466397800,"V":"TRANSFER","A":"0.01000000"}`, transferredSell(order.Cancelled, 0.04, 1794466398000))
+		report(`{"e":"executionReport","E":1794466398001,"s":"ETHUSDT","c":"replacementSell","S":"SELL","o":"LIMIT_MAKER","f":"GTC","q":"0.04000000","p":"2500.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"REJECTED","X":"REJECTED","r":"WOULD_MATCH_IMMEDIATELY","i":1200348,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466398000,"t":-1,"I":8642047,"w":false,"m":false,"M":false,"O":1794466398000,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","V":"TRANSFER"}`, &order.Detail{
+			Price: 2500.01, Amount: 0.04, RemainingAmount: 0.04, CostAsset: currency.USDT, OrderID: "1200348", ClientOrderID: "replacementSell", Type: order.LimitMaker, Side: order.Sell,
+			Status: order.Rejected, Date: time.UnixMilli(1794466398000), LastUpdated: time.UnixMilli(1794466398000), Pair: ethUSDT, TimeInForce: order.PostOnly,
+		})
 		for i, detail := range relays {
 			assert.Equalf(t, expected[i], detail, "order %s's %s report should be left as it was relayed after the later reports", detail.OrderID, detail.Status)
 		}

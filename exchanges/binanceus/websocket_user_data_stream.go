@@ -611,7 +611,7 @@ func (e *Exchange) processExecutionReport(ctx context.Context, event []byte) err
 	quantity := resp.OrderQuantity.Float64()
 	var remaining float64
 	if quantity > executed {
-		remaining = remainingAmount(resp.OrderQuantity, resp.CumulativeFilledQuantity)
+		remaining = remainingAmount(resp.OrderQuantity, resp.CumulativeFilledQuantity, resp.PreventedQuantity, status)
 	}
 	detail := &order.Detail{
 		Price:                resp.OrderPrice.Float64(),
