@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -256,6 +257,19 @@ func TestShutdownWebsocketFor(t *testing.T) {
 	assert.True(t, ex.Websocket.IsConnected(), "shutdownWebsocketFor should leave a websocket that closed the connection alone")
 	require.NoError(t, ex.shutdownWebsocketFor(conn)(), "shutdownWebsocketFor must not error")
 	assert.False(t, ex.Websocket.IsConnected(), "shutdownWebsocketFor should shut the websocket down for the connection monitor to connect it again")
+
+	t.Run("a connection's close left until after the websocket reconnected leaves the new connection connected", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketAPITestExchange(t, false)
+		old := ex.wsAPI.get()
+		closeOld := ex.shutdownWebsocketFor(old)
+		require.NoError(t, ex.Websocket.Shutdown(), "the websocket must shut down")
+		require.NoError(t, ex.Websocket.Connect(t.Context()), "the websocket must connect again")
+		replacement := ex.wsAPI.get()
+		require.NotSame(t, old, replacement, "connecting again must give a new WebSocket API connection")
+		require.NoError(t, closeOld(), "the old connection's close must not error")
+		assert.True(t, isConnected(replacement), "the old connection's close should leave the new connection connected")
+	})
 }
 
 func TestHandleServerShutdown(t *testing.T) {
@@ -328,7 +342,7 @@ func TestProcessTicker(t *testing.T) {
 func TestProcessKline(t *testing.T) {
 	t.Parallel()
 	frames := streamFramesOf(t, "btcusdt@kline_1m")
-	require.Len(t, frames, 2, "the fixture must hold a closed and an open candle")
+	require.Len(t, frames, 12, "the fixture must hold a closed candle and the open one after it, then ten minute candles of a later recording")
 	for i, tc := range []struct {
 		name    string
 		partial string
@@ -348,6 +362,145 @@ func TestProcessKline(t *testing.T) {
 			assert.Emptyf(t, ex.Websocket.DataHandler.C, "processKline should relay nothing more for frame %d", i)
 		})
 	}
+	t.Run("the recorded frames in turn on one exchange", func(t *testing.T) {
+		t.Parallel()
+		ex := newStreamTestExchange(t)
+		require.NoError(t, ex.processKline(t.Context(), streamData(t, frames[0])), "processKline must not error for the closed candle")
+		closed, ok := relayed(t, ex).(kline.Item)
+		require.True(t, ok, "processKline must relay the closed candle")
+		closedCandles := slices.Clone(closed.Candles)
+		require.NoError(t, ex.processKline(t.Context(), streamData(t, frames[1])), "processKline must not error for the open candle after the closed one")
+		open, ok := relayed(t, ex).(kline.Item)
+		require.True(t, ok, "processKline must relay the open candle after the closed one")
+		require.Len(t, open.Candles, 1, "processKline must relay one candle for the open candle after the closed one")
+		assert.Equal(t, time.UnixMilli(1794465840000), open.Candles[0].Time, "the open candle after the closed one should be relayed with its own start")
+		assert.Equal(t, kline.PartialCandle, open.Candles[0].ValidationIssues, "the open candle after the closed one should be flagged as partial")
+		assert.Equal(t, closedCandles, closed.Candles, "the closed candle relayed first should be left as it was relayed")
+		assert.Empty(t, ex.Websocket.DataHandler.C, "processKline should relay each frame once")
+		assert.ErrorIs(t, ex.processKline(t.Context(), []byte(`{"s":"BTCUSDT","k":{"i":"1s"}}`)), kline.ErrInvalidInterval, "processKline should error for an unknown interval after the recorded frames")
+	})
+	t.Run("candles of one pair at several intervals and of two pairs at one interval in turn on one exchange", func(t *testing.T) {
+		t.Parallel()
+		ex := newStreamTestExchange(t)
+		ethUSDT := currency.NewPair(currency.ETH, currency.USDT)
+		ethBTC := currency.NewPair(currency.ETH, currency.BTC)
+		pairs := currency.Pairs{currency.NewBTCUSDT(), ethUSDT, currency.NewBTCUSD(), ethBTC}
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, false), "StorePairs must not error")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, true), "StorePairs must not error")
+		fiveMinutes := streamFramesOf(t, "btcusdt@kline_5m")
+		etherMinutes := streamFramesOf(t, "ethusdt@kline_1m")
+		dollarMinutes := streamFramesOf(t, "btcusd@kline_1m")
+		var names []string
+		var relays, expected []kline.Item
+		relay := func(name string, frame []byte, pair currency.Pair, interval kline.Interval, candle kline.Candle) {
+			t.Helper()
+			require.NoErrorf(t, ex.processKline(t.Context(), streamData(t, frame)), "processKline must not error for the %s", name)
+			item, ok := relayed(t, ex).(kline.Item)
+			require.Truef(t, ok, "processKline must relay the %s", name)
+			exp := kline.Item{Exchange: ex.Name, Pair: pair, Asset: asset.Spot, Interval: interval, Candles: []kline.Candle{candle}}
+			assert.Equalf(t, exp, item, "the %s should be relayed as recorded", name)
+			names, relays, expected = append(names, name), append(relays, item), append(expected, exp)
+		}
+		minute := kline.Candle{Time: time.UnixMilli(1795081020000), Open: 63879.99, Close: 63867.04, High: 63886, Low: 63867.04, Volume: 0.021, ValidationIssues: kline.PartialCandle}
+		relay("open minute candle", frames[2], currency.NewBTCUSDT(), kline.OneMin, minute)
+		relay("open five minute candle", fiveMinutes[0], currency.NewBTCUSDT(), kline.FiveMin, kline.Candle{
+			Time: time.UnixMilli(1795080900000), Open: 63859.81, Close: 63867.04, High: 63886, Low: 63854.09, Volume: 0.03938, ValidationIssues: kline.PartialCandle,
+		})
+		minute.ValidationIssues = ""
+		relay("open minute candle's close", frames[3], currency.NewBTCUSDT(), kline.OneMin, minute)
+		relay("close of ETHUSDT's minute without trades", etherMinutes[0], ethUSDT, kline.OneMin, kline.Candle{
+			Time: time.UnixMilli(1795081020000), Open: 1806.56, Close: 1806.56, High: 1806.56, Low: 1806.56,
+		})
+		relay("next minute candle before its first trade", frames[4], currency.NewBTCUSDT(), kline.OneMin, kline.Candle{
+			Time: time.UnixMilli(1795081080000), Open: 63867.04, Close: 63867.04, High: 63867.04, Low: 63867.04, ValidationIssues: kline.PartialCandle,
+		})
+		relay("ETHUSDT's next minute candle before its first trade", etherMinutes[1], ethUSDT, kline.OneMin, kline.Candle{
+			Time: time.UnixMilli(1795081080000), Open: 1806.56, Close: 1806.56, High: 1806.56, Low: 1806.56, ValidationIssues: kline.PartialCandle,
+		})
+		relay("next minute candle after its first trades", frames[5], currency.NewBTCUSDT(), kline.OneMin, kline.Candle{
+			Time: time.UnixMilli(1795081080000), Open: 63867.81, Close: 63867.88, High: 63867.88, Low: 63867.81, Volume: 0.00236, ValidationIssues: kline.PartialCandle,
+		})
+		relay("five minute candle after more trades", fiveMinutes[1], currency.NewBTCUSDT(), kline.FiveMin, kline.Candle{
+			Time: time.UnixMilli(1795080900000), Open: 63859.81, Close: 63867.88, High: 63886, Low: 63854.09, Volume: 0.04174, ValidationIssues: kline.PartialCandle,
+		})
+		relay("next minute candle after more trades", frames[6], currency.NewBTCUSDT(), kline.OneMin, kline.Candle{
+			Time: time.UnixMilli(1795081080000), Open: 63867.81, Close: 63880.18, High: 63880.18, Low: 63867.81, Volume: 0.00472, ValidationIssues: kline.PartialCandle,
+		})
+		relay("ETHUSDT's later minute candle before its first trade", etherMinutes[2], ethUSDT, kline.OneMin, kline.Candle{
+			Time: time.UnixMilli(1795081140000), Open: 1806.88, Close: 1806.88, High: 1806.88, Low: 1806.88, ValidationIssues: kline.PartialCandle,
+		})
+		relay("ETHUSDT's later minute candle after its first trades, lower than the price before them", etherMinutes[3], ethUSDT, kline.OneMin, kline.Candle{
+			Time: time.UnixMilli(1795081140000), Open: 1806.61, Close: 1806.56, High: 1806.61, Low: 1806.56, Volume: 0.1192, ValidationIssues: kline.PartialCandle,
+		})
+		relay("close of a later minute candle", frames[7], currency.NewBTCUSDT(), kline.OneMin, kline.Candle{
+			Time: time.UnixMilli(1795081140000), Open: 63855.66, Close: 63832.43, High: 63864.57, Low: 63814.98, Volume: 0.03628,
+		})
+		relay("five minute candle's close", fiveMinutes[2], currency.NewBTCUSDT(), kline.FiveMin, kline.Candle{
+			Time: time.UnixMilli(1795080900000), Open: 63859.81, Close: 63832.43, High: 63886.4, Low: 63814.98, Volume: 0.08878,
+		})
+		relay("close of ETHUSDT's later minute candle", etherMinutes[4], ethUSDT, kline.OneMin, kline.Candle{
+			Time: time.UnixMilli(1795081140000), Open: 1806.61, Close: 1805.97, High: 1806.61, Low: 1805.97, Volume: 0.5168,
+		})
+		opening := kline.Candle{Time: time.UnixMilli(1795081200000), Open: 63832.43, Close: 63832.43, High: 63832.43, Low: 63832.43, ValidationIssues: kline.PartialCandle}
+		relay("minute candle opening with the next five minute candle", frames[8], currency.NewBTCUSDT(), kline.OneMin, opening)
+		relay("five minute candle opening with the minute candle", fiveMinutes[3], currency.NewBTCUSDT(), kline.FiveMin, opening)
+		relay("ETHUSDT's minute candle opening with them", etherMinutes[5], ethUSDT, kline.OneMin, kline.Candle{
+			Time: time.UnixMilli(1795081200000), Open: 1805.97, Close: 1805.97, High: 1805.97, Low: 1805.97, ValidationIssues: kline.PartialCandle,
+		})
+		relay("ETHUSDT's minute candle after its first trade", etherMinutes[6], ethUSDT, kline.OneMin, kline.Candle{
+			Time: time.UnixMilli(1795081200000), Open: 1806.1, Close: 1806.1, High: 1806.1, Low: 1806.1, Volume: 0.02, ValidationIssues: kline.PartialCandle,
+		})
+		require.NoError(t, ex.CurrencyPairs.DisablePair(asset.Spot, ethUSDT), "DisablePair must not error")
+		require.NoError(t, ex.processKline(t.Context(), streamData(t, etherMinutes[7])), "processKline must not error for a pair disabled after its earlier frames")
+		assert.Empty(t, ex.Websocket.DataHandler.C, "processKline should relay nothing for a pair disabled after its earlier frames")
+		require.NoError(t, ex.CurrencyPairs.EnablePair(asset.Spot, ethUSDT), "EnablePair must not error")
+		relay("ETHUSDT's minute candle once the pair is enabled again", etherMinutes[8], ethUSDT, kline.OneMin, kline.Candle{
+			Time: time.UnixMilli(1795081260000), Open: 1807.08, Close: 1807.65, High: 1807.65, Low: 1807.08, Volume: 0.0895, ValidationIssues: kline.PartialCandle,
+		})
+		lastMinute := kline.Candle{Time: time.UnixMilli(1795081440000), Open: 63897.57, Close: 63897.57, High: 63897.57, Low: 63897.57, ValidationIssues: kline.PartialCandle}
+		relay("last minute candle before its first trade", frames[9], currency.NewBTCUSDT(), kline.OneMin, lastMinute)
+		lastMinute.Volume = 0.00117
+		relay("last minute candle after a first trade at the same price", frames[10], currency.NewBTCUSDT(), kline.OneMin, lastMinute)
+		lastMinute.Volume = 0.01116
+		relay("last minute candle after more trades at the same price", frames[11], currency.NewBTCUSDT(), kline.OneMin, lastMinute)
+		relay("weekly candle", streamFramesOf(t, "btcusdt@kline_1w")[0], currency.NewBTCUSDT(), kline.OneWeek, kline.Candle{
+			Time: time.UnixMilli(1794787200000), Open: 65350.8, Close: 63820.99, High: 65711.35, Low: 62071.04, Volume: 256.30226, ValidationIssues: kline.PartialCandle,
+		})
+		relay("monthly candle", streamFramesOf(t, "btcusdt@kline_1M")[0], currency.NewBTCUSDT(), kline.OneMonth, kline.Candle{
+			Time: time.UnixMilli(1793491200000), Open: 77565.14, Close: 63820.99, High: 81195.76, Low: 62026.59, Volume: 1182.37844, ValidationIssues: kline.PartialCandle,
+		})
+		relay("three day candle", streamFramesOf(t, "btcusdt@kline_3d")[0], currency.NewBTCUSDT(), kline.ThreeDay, kline.Candle{
+			Time: time.UnixMilli(1794873600000), Open: 64898.05, Close: 63848.4, High: 65423.28, Low: 62071.04, Volume: 196.80223, ValidationIssues: kline.PartialCandle,
+		})
+		quiet := kline.Candle{Time: time.UnixMilli(1795085880000), Open: 63771.5, Close: 63771.5, High: 63771.5, Low: 63771.5}
+		relay("close of BTCUSD's minute without trades", dollarMinutes[0], currency.NewBTCUSD(), kline.OneMin, quiet)
+		quiet.Time, quiet.ValidationIssues = time.UnixMilli(1795085940000), kline.PartialCandle
+		relay("BTCUSD's next minute candle", dollarMinutes[1], currency.NewBTCUSD(), kline.OneMin, quiet)
+		quiet.ValidationIssues = ""
+		relay("close of BTCUSD's next minute, without trades too", dollarMinutes[2], currency.NewBTCUSD(), kline.OneMin, quiet)
+		relay("close of ETHBTC's minute without trades", streamFramesOf(t, "ethbtc@kline_1m")[0], ethBTC, kline.OneMin, kline.Candle{
+			Time: time.UnixMilli(1795088220000), Open: 0.02832, Close: 0.02832, High: 0.02832, Low: 0.02832,
+		})
+		for i, item := range relays {
+			assert.Equalf(t, expected[i], item, "the %s should be left as it was relayed after the later frames", names[i])
+		}
+		assert.Empty(t, ex.Websocket.DataHandler.C, "processKline should relay each frame once")
+	})
+	t.Run("exchanges sharing a name each relay a frame both receive", func(t *testing.T) {
+		t.Parallel()
+		first, second := newStreamTestExchange(t), newStreamTestExchange(t)
+		require.Equal(t, first.Name, second.Name, "both exchanges must share a name")
+		relay := func(which string, ex *Exchange) {
+			t.Helper()
+			require.NoErrorf(t, ex.processKline(t.Context(), streamData(t, frames[2])), "processKline must not error on the %s exchange", which)
+			item, ok := relayed(t, ex).(kline.Item)
+			require.Truef(t, ok, "processKline must relay the frame on the %s exchange", which)
+			require.Lenf(t, item.Candles, 1, "processKline must relay one candle on the %s exchange", which)
+			assert.Equalf(t, time.UnixMilli(1795081020000), item.Candles[0].Time, "the %s exchange should relay the frame's candle", which)
+		}
+		relay("first", first)
+		relay("second", second)
+	})
 	ex := newStreamTestExchange(t)
 	require.NoError(t, ex.processKline(t.Context(), []byte(`{"s":"ETHUSDT","k":{"i":"1m"}}`)), "processKline must not error for a pair that is not enabled")
 	assert.ErrorIs(t, ex.processKline(t.Context(), []byte(`{"s":"BTCUSDT","k":{"i":"1s"}}`)), kline.ErrInvalidInterval, "processKline should error for an unknown interval")

@@ -16,6 +16,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	gws "github.com/gorilla/websocket"
@@ -314,6 +315,27 @@ func (f *fakeConnection) closed() int {
 	return f.shutdowns
 }
 
+// unawaitedConnection is a fakeConnection on which no request awaits a response any longer
+type unawaitedConnection struct {
+	*fakeConnection
+}
+
+func (unawaitedConnection) RequireMatchWithData(signature any, _ []byte) error {
+	return fmt.Errorf("%q: %w", signature, websocket.ErrSignatureNotMatched)
+}
+
+// closeCheckingConnection is a fakeConnection counting its IsConnected calls, which closing it for a serverShutdown event
+// makes first
+type closeCheckingConnection struct {
+	*fakeConnection
+	checks atomic.Int32
+}
+
+func (c *closeCheckingConnection) IsConnected() bool {
+	c.checks.Add(1)
+	return c.fakeConnection.IsConnected()
+}
+
 func TestWebsocketAPI(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
@@ -385,6 +407,51 @@ func TestWebsocketAPIConnectionAcquire(t *testing.T) {
 	}
 	conn, _ = w.acquire()
 	assert.Nil(t, conn, "acquire should return no connection once it is retired")
+
+	t.Run("a request released after its connection was retired and replaced counts against its own connection", func(t *testing.T) {
+		t.Parallel()
+		var w websocketAPIConnection
+		old, replacement := newFakeConnection(), newFakeConnection()
+		w.set(old, time.Millisecond)
+		_, releaseOld := w.acquire()
+		w.retire(old)()
+		w.set(nil, 0)
+		w.set(replacement, 10*time.Millisecond)
+		_, releaseReplacement := w.acquire()
+		defer releaseReplacement()
+		require.NotPanics(t, releaseOld, "releasing a request on the replaced connection must not panic")
+		start := time.Now()
+		w.retire(replacement)()
+		assert.GreaterOrEqual(t, time.Since(start), 10*time.Millisecond, "retiring the replacement should wait for its own request in flight")
+	})
+
+	t.Run("a retirement waits for an earlier request in flight once a later one returns", func(t *testing.T) {
+		t.Parallel()
+		var w websocketAPIConnection
+		conn := newFakeConnection()
+		w.set(conn, 10*time.Millisecond)
+		_, releaseEarlier := w.acquire()
+		defer releaseEarlier()
+		_, releaseLater := w.acquire()
+		releaseLater()
+		start := time.Now()
+		w.retire(conn)()
+		assert.GreaterOrEqual(t, time.Since(start), 10*time.Millisecond, "retiring the connection should wait for the earlier request still in flight")
+	})
+
+	t.Run("a retirement waits for a later request in flight once an earlier one returns", func(t *testing.T) {
+		t.Parallel()
+		var w websocketAPIConnection
+		conn := newFakeConnection()
+		w.set(conn, 10*time.Millisecond)
+		_, releaseEarlier := w.acquire()
+		_, releaseLater := w.acquire()
+		defer releaseLater()
+		releaseEarlier()
+		start := time.Now()
+		w.retire(conn)()
+		assert.GreaterOrEqual(t, time.Since(start), 10*time.Millisecond, "retiring the connection should wait for the later request still in flight")
+	})
 }
 
 func TestWebsocketAPIConnectionRetire(t *testing.T) {
@@ -403,7 +470,9 @@ func TestWebsocketAPIConnectionRetire(t *testing.T) {
 	w.retire(conn)()
 	assert.GreaterOrEqual(t, time.Since(start), 10*time.Millisecond, "retire's wait should wait for the response limit while a request is in flight")
 	assert.Nil(t, w.get(), "retire should stop the connection taking requests")
+	start = time.Now()
 	w.retire(conn)()
+	assert.GreaterOrEqual(t, time.Since(start), 10*time.Millisecond, "retiring the connection again should wait for the same request in flight")
 	assert.Nil(t, w.get(), "retiring the connection again should keep it retired")
 }
 
@@ -502,6 +571,194 @@ func TestWebsocketHandleAPIData(t *testing.T) {
 		})
 	}
 
+	t.Run("serverShutdown events retire each connection in turn", func(t *testing.T) {
+		t.Parallel()
+		shutdown := newWebsocketTestExchange(t)
+		retire := func(id string, subscriptionID int, frame, which string) {
+			t.Helper()
+			apiConn := newFakeConnection()
+			shutdown.wsAPI.set(apiConn, 10*time.Millisecond)
+			shutdown.userData.expect(id, &accounts.Credentials{Key: "k"})
+			require.NoErrorf(t, shutdown.wsHandleAPIData(t.Context(), apiConn, fmt.Appendf(nil, `{"id":%q,"status":200,"result":{"subscriptionId":%d}}`, id, subscriptionID)), "wsHandleAPIData must not error for the %s connection's subscription response", which)
+			require.NoErrorf(t, shutdown.wsHandleAPIData(t.Context(), apiConn, fmt.Appendf(nil, `{"subscriptionId":%d,"event":{"e":"balanceUpdate","E":1573200697110,"a":"BTC","d":"100.00000000","T":1573200697068}}`, subscriptionID)), "wsHandleAPIData must not error for the %s connection's balance update", which)
+			_, ok := relayed(t, shutdown).(*WebsocketBalanceUpdate)
+			require.Truef(t, ok, "the %s connection's balance update must be passed to its handler", which)
+			require.NoErrorf(t, shutdown.wsHandleAPIData(t.Context(), apiConn, []byte(frame)), "wsHandleAPIData must not error for the %s connection's serverShutdown event", which)
+			assert.Nilf(t, shutdown.wsAPI.get(), "a serverShutdown event should retire the %s connection", which)
+		}
+		retire("1", 3, wrapped, "first")
+		retire("2", 4, raw, "second")
+		retire("3", 5, wrapped, "third")
+	})
+
+	for _, tc := range []struct {
+		name     string
+		apiFirst bool
+	}{
+		{name: "the stream server's notice first"},
+		{name: "the WebSocket API server's notice first", apiFirst: true},
+	} {
+		t.Run("a WebSocket API connection both servers' serverShutdown notices retire is closed once its request in flight returns, "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				draining := new(Exchange)
+				draining.Websocket = sharedtestvalues.NewTestWebsocket()
+				apiConn := &closeCheckingConnection{fakeConnection: newFakeConnection()}
+				streamConn := &closeCheckingConnection{fakeConnection: newFakeConnection()}
+				draining.wsAPI.set(apiConn, time.Hour)
+				_, release := draining.wsAPI.acquire()
+				release = sync.OnceFunc(release)
+				defer release()
+				streamNotice := func() {
+					require.NoError(t, draining.handleStreamsServerShutdown(streamConn, []byte(raw)), "handleStreamsServerShutdown must not error")
+				}
+				apiNotice := func() {
+					require.NoError(t, draining.wsHandleAPIData(t.Context(), apiConn, []byte(wrapped)), "wsHandleAPIData must not error for the WebSocket API server's serverShutdown event")
+				}
+				if tc.apiFirst {
+					apiNotice()
+					streamNotice()
+				} else {
+					streamNotice()
+					apiNotice()
+				}
+				synctest.Wait()
+				assert.Zero(t, apiConn.checks.Load(), "the WebSocket API connection should not be closed while its request is in flight")
+				assert.Zero(t, streamConn.checks.Load(), "the stream connection should not be closed while the WebSocket API connection's request is in flight")
+				release()
+				synctest.Wait()
+				assert.Equal(t, int32(1), apiConn.checks.Load(), "the WebSocket API connection should be closed once its request returns")
+				assert.Equal(t, int32(1), streamConn.checks.Load(), "the stream connection should be closed once the WebSocket API connection's request returns")
+			})
+		})
+	}
+
+	t.Run("a retired WebSocket API connection still delivers its responses and User Data Stream events", func(t *testing.T) {
+		t.Parallel()
+		draining := subscribedUserDataTestExchange(t)
+		drainingConn := newFakeConnection()
+		draining.wsAPI.set(drainingConn, time.Hour)
+		_ = draining.wsAPI.retire(drainingConn)
+		first, second := `{"id":"first","status":200,"result":{"serverTime":1794466395000}}`, `{"id":"second","status":200,"result":{}}`
+		require.NoError(t, draining.wsHandleAPIData(t.Context(), drainingConn, []byte(first)), "wsHandleAPIData must not error for a response on a retired connection")
+		require.NoError(t, draining.wsHandleAPIData(t.Context(), drainingConn, []byte(second)), "wsHandleAPIData must not error for a later response on a retired connection")
+		assert.Equal(t, []byte(first), drainingConn.matched["first"], "a response on a retired connection should reach its request as received")
+		assert.Equal(t, []byte(second), drainingConn.matched["second"], "a later response on a retired connection should reach its request as received")
+		refusal := `{"id":"third","status":400,"error":{"code":-2010,"msg":"Account has insufficient balance for requested action."}}`
+		require.NoError(t, draining.wsHandleAPIData(t.Context(), drainingConn, []byte(refusal)), "wsHandleAPIData must not error for an error response on a retired connection")
+		assert.Equal(t, []byte(refusal), drainingConn.matched["third"], "an error response on a retired connection should reach its request as received")
+		require.NoError(t, draining.wsHandleAPIData(t.Context(), drainingConn, []byte(`{"subscriptionId":0,"event":{"e":"balanceUpdate","E":1794466395010,"a":"BTC","d":"0.01000000","T":1794466395009}}`)), "wsHandleAPIData must not error for a User Data Stream event on a retired connection")
+		_, ok := relayed(t, draining).(*WebsocketBalanceUpdate)
+		assert.True(t, ok, "a User Data Stream event on a retired connection should be passed to its handler")
+	})
+
+	t.Run("a subscription response no request awaits any longer is still recorded, and its stream's events handled", func(t *testing.T) {
+		t.Parallel()
+		late := subscribedUserDataTestExchange(t)
+		lateConn := unawaitedConnection{newFakeConnection()}
+		late.userData.expect("late", &accounts.Credentials{Key: "other-account-key", Secret: "other-account-secret"})
+		late.userData.returned("late")
+		err := late.wsHandleAPIData(t.Context(), lateConn, []byte(`{"id":"late","status":200,"result":{"subscriptionId":1}}`))
+		require.ErrorIs(t, err, websocket.ErrSignatureNotMatched, "wsHandleAPIData must return that no request awaits the response")
+		_, ok := late.userData.credentials(1)
+		require.True(t, ok, "a subscription response no request awaits must still record the subscription")
+		require.NoError(t, late.wsHandleAPIData(t.Context(), lateConn, []byte(`{"subscriptionId":1,"event":{"e":"balanceUpdate","E":1794466395010,"a":"BTC","d":"0.01000000","T":1794466395009}}`)), "wsHandleAPIData must not error for the late subscription's event")
+		_, ok = relayed(t, late).(*WebsocketBalanceUpdate)
+		assert.True(t, ok, "the late subscription's event should be passed to its handler")
+	})
+
+	t.Run("two accounts' User Data Streams on one connection keep their own events and subscriptions", func(t *testing.T) {
+		t.Parallel()
+		shared := subscribedUserDataTestExchange(t)
+		configured := configuredCredentials(t, shared)
+		other := &accounts.Credentials{Key: "other-account-key", Secret: "other-account-secret"}
+		sharedConn := newFakeConnection()
+		send := func(subscriptionID uint64, event string) error {
+			return shared.wsHandleAPIData(t.Context(), sharedConn, fmt.Appendf(nil, `{"subscriptionId":%d,"event":%s}`, subscriptionID, event))
+		}
+		shared.userData.reset()
+		shared.userData.expect("configured", configured)
+		require.NoError(t, shared.wsHandleAPIData(t.Context(), sharedConn, []byte(`{"id":"configured","status":200,"result":{"subscriptionId":0}}`)), "wsHandleAPIData must not error for the configured account's subscription response")
+		shared.userData.expect("other", other)
+		require.NoError(t, shared.wsHandleAPIData(t.Context(), sharedConn, []byte(`{"id":"other","status":200,"result":{"subscriptionId":1}}`)), "wsHandleAPIData must not error for another account's subscription response")
+		position := func(subscriptionID uint64, free string) {
+			t.Helper()
+			require.NoErrorf(t, send(subscriptionID, `{"e":"outboundAccountPosition","E":1794466395402,"u":1794466395400,"B":[{"a":"BTC","f":"`+free+`","l":"0.00000000"}]}`), "wsHandleAPIData must not error for subscription %d's account position", subscriptionID)
+			_, ok := relayed(t, shared).(accounts.SubAccounts)
+			require.Truef(t, ok, "subscription %d's account position must be relayed as sub-accounts", subscriptionID)
+		}
+		position(0, "1.25000000")
+		position(1, "2.75000000")
+		balance := func(creds *accounts.Credentials, which string) float64 {
+			t.Helper()
+			stored, err := shared.Accounts.GetBalance("", creds, asset.Spot, currency.BTC)
+			require.NoErrorf(t, err, "GetBalance must not error for the %s account", which)
+			return stored.Total
+		}
+		assert.Equal(t, 1.25, balance(configured, "configured"), "the configured account's position should be stored as its own")
+		assert.Equal(t, 2.75, balance(other, "other"), "the other account's position, updated in the same millisecond, should be stored as its own")
+
+		require.NoError(t, send(0, `{"e":"balanceUpdate","E":1794466395410,"a":"BNB","d":"0.10000000","T":1794466395409}`), "wsHandleAPIData must not error for a balance update")
+		deposit := relayed(t, shared)
+		require.NoError(t, send(0, `{"e":"balanceUpdate","E":1794466395420,"a":"BNB","d":"-0.03000000","T":1794466395419}`), "wsHandleAPIData must not error for a later balance update")
+		assert.Equal(t, &WebsocketBalanceUpdate{
+			EventType: "balanceUpdate", EventTime: types.Time(time.UnixMilli(1794466395420)), Asset: currency.BNB, BalanceDelta: -0.03, ClearTime: types.Time(time.UnixMilli(1794466395419)),
+		}, relayed(t, shared), "a later balance update should be relayed as its own")
+		assert.Equal(t, &WebsocketBalanceUpdate{
+			EventType: "balanceUpdate", EventTime: types.Time(time.UnixMilli(1794466395410)), Asset: currency.BNB, BalanceDelta: 0.1, ClearTime: types.Time(time.UnixMilli(1794466395409)),
+		}, deposit, "a balance update should be left as it was relayed after a later one")
+		require.NoError(t, send(0, `{"e":"externalLockUpdate","E":1794466395430,"a":"BTC","d":"0.01000000","T":1794466395429}`), "wsHandleAPIData must not error for an external lock update")
+		lock := relayed(t, shared)
+		require.NoError(t, send(0, `{"e":"externalLockUpdate","E":1794466395440,"a":"BTC","d":"-0.01000000","T":1794466395439}`), "wsHandleAPIData must not error for a later external lock update")
+		assert.Equal(t, &WebsocketExternalLockUpdate{
+			EventType: "externalLockUpdate", EventTime: types.Time(time.UnixMilli(1794466395440)), Asset: currency.BTC, Delta: -0.01, TransactionTime: types.Time(time.UnixMilli(1794466395439)),
+		}, relayed(t, shared), "a later external lock update should be relayed as its own")
+		assert.Equal(t, &WebsocketExternalLockUpdate{
+			EventType: "externalLockUpdate", EventTime: types.Time(time.UnixMilli(1794466395430)), Asset: currency.BTC, Delta: 0.01, TransactionTime: types.Time(time.UnixMilli(1794466395429)),
+		}, lock, "an external lock update should be left as it was relayed after a later one")
+		require.NoError(t, send(1, `{"e":"externalLockUpdate","E":1794466395445,"a":"BTC","d":"0.01000000","T":1794466395444}`), "wsHandleAPIData must not error for the other account's external lock update")
+		_, ok := relayed(t, shared).(*WebsocketExternalLockUpdate)
+		assert.True(t, ok, "the other account's external lock update should be relayed")
+
+		end := func(subscriptionID uint64, eventTime int64) {
+			t.Helper()
+			require.NoErrorf(t, send(subscriptionID, fmt.Sprintf(`{"e":"eventStreamTerminated","E":%d}`, eventTime)), "wsHandleAPIData must not error for the end of subscription %d's User Data Stream", subscriptionID)
+			_, terminated := relayed(t, shared).(*WebsocketEventStreamTerminated)
+			require.Truef(t, terminated, "the end of subscription %d's User Data Stream must be relayed", subscriptionID)
+			_, subscribed := shared.userData.credentials(subscriptionID)
+			assert.Falsef(t, subscribed, "the end of subscription %d's User Data Stream should end it", subscriptionID)
+		}
+		end(0, 1794466395450)
+		_, ok = shared.userData.credentials(1)
+		assert.True(t, ok, "the end of the configured account's User Data Stream should leave the other account's subscribed")
+		require.NoError(t, send(1, `{"e":"balanceUpdate","E":1794466395460,"a":"BTC","d":"0.02000000","T":1794466395459}`), "wsHandleAPIData must not error for the other account's balance update after the configured account's stream ended")
+		_, ok = relayed(t, shared).(*WebsocketBalanceUpdate)
+		assert.True(t, ok, "the other account's balance update should be relayed after the configured account's stream ended")
+		end(1, 1794466395470)
+		assert.Empty(t, shared.Websocket.DataHandler.C, "each event should be relayed once")
+	})
+
+	t.Run("the end of a User Data Stream is handled on each connection, though a new connection's subscription takes an ended one's ID", func(t *testing.T) {
+		t.Parallel()
+		ended := subscribedUserDataTestExchange(t)
+		end := func(which string, eventTime int64) {
+			t.Helper()
+			endedConn := newFakeConnection()
+			ended.userData.reset()
+			ended.wsAPI.set(endedConn, time.Second)
+			ended.userData.expect(which, configuredCredentials(t, ended))
+			require.NoErrorf(t, ended.wsHandleAPIData(t.Context(), endedConn, fmt.Appendf(nil, `{"id":%q,"status":200,"result":{"subscriptionId":0}}`, which)), "wsHandleAPIData must not error for the %s connection's subscription response", which)
+			require.NoErrorf(t, ended.wsHandleAPIData(t.Context(), endedConn, fmt.Appendf(nil, `{"subscriptionId":0,"event":{"e":"eventStreamTerminated","E":%d}}`, eventTime)), "wsHandleAPIData must not error for the end of the %s connection's User Data Stream", which)
+			_, ok := relayed(t, ended).(*WebsocketEventStreamTerminated)
+			require.Truef(t, ok, "the end of the %s connection's User Data Stream must be relayed", which)
+			_, ok = ended.userData.credentials(0)
+			assert.Falsef(t, ok, "the end of the %s connection's User Data Stream should end its subscription", which)
+		}
+		end("first", 1728973001334)
+		end("second", 1728973061334)
+		assert.Empty(t, ended.Websocket.DataHandler.C, "the end of each User Data Stream should be relayed once")
+	})
+
 	down := newFakeConnection()
 	down.connected = false
 	ex.wsAPI.set(down, 10*time.Millisecond)
@@ -566,6 +823,26 @@ func TestWebsocketHandleAPIData(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("each serverShutdown event has the websocket connect a new WebSocket API connection, on the new connection too", func(t *testing.T) {
+		t.Parallel()
+		ex, _, apiDials := newTwoServerTestExchange(t, func(tb testing.TB, msg []byte, w *gws.Conn) error {
+			tb.Helper()
+			if err := websocketAPIMock(tb, msg, w); err != nil {
+				return err
+			}
+			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"e":"serverShutdown","E":%d}`, time.Now().UnixMilli()))
+		}, false)
+		reconnects := func(dials int32) {
+			t.Helper()
+			require.NoError(t, ex.WebsocketAPI().TestConnectivity(t.Context()), "TestConnectivity must not error")
+			require.Eventuallyf(t, func() bool {
+				return apiDials.Load() == dials && ex.WebsocketAPI().IsConnected()
+			}, 10*time.Second, 10*time.Millisecond, "a serverShutdown event must have the websocket connect WebSocket API connection %d", dials)
+		}
+		reconnects(2)
+		reconnects(3)
+	})
 
 	t.Run("a refused key turns authenticated websocket use off rather than reconnecting over and over", func(t *testing.T) {
 		t.Parallel()

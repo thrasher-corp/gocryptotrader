@@ -730,6 +730,64 @@ func TestProcessAccountPosition(t *testing.T) {
 	assert.Empty(t, ex.Websocket.DataHandler.C, "an event left out should relay nothing")
 
 	assert.Error(t, ex.processAccountPosition(ctx, creds, []byte(`{"B":"x"}`)), "processAccountPosition should error for an event that does not decode")
+
+	for _, tc := range []struct {
+		name     string
+		snapshot int64
+		events   []string
+		btc, usd float64
+	}{
+		{
+			name:     "an event sharing the stored snapshot's account update time is stored",
+			snapshot: 1795087200000,
+			events:   []string{`{"e":"outboundAccountPosition","E":1795087200003,"u":1795087200000,"B":[{"a":"BTC","f":"1.50000000","l":"0.00000000"}]}`},
+			btc:      1.5,
+		},
+		{
+			name: "a later event in the same millisecond replaces the balance",
+			events: []string{
+				`{"e":"outboundAccountPosition","E":1795087200003,"u":1795087200000,"B":[{"a":"BTC","f":"1.25000000","l":"0.00000000"}]}`,
+				`{"e":"outboundAccountPosition","E":1795087200004,"u":1795087200000,"B":[{"a":"BTC","f":"1.50000000","l":"0.00000000"}]}`,
+			},
+			btc: 1.5,
+		},
+		{
+			name:   "each currency of an event is stored",
+			events: []string{`{"e":"outboundAccountPosition","E":1795087200003,"u":1795087200000,"B":[{"a":"BTC","f":"1.25000000","l":"0.00000000"},{"a":"USD","f":"623.00000000","l":"15.00000000"}]}`},
+			btc:    1.25,
+			usd:    638,
+		},
+		{
+			name: "a balance reaching zero is stored",
+			events: []string{
+				`{"e":"outboundAccountPosition","E":1795087200003,"u":1795087200000,"B":[{"a":"BTC","f":"1.25000000","l":"0.00000000"}]}`,
+				`{"e":"outboundAccountPosition","E":1795087201003,"u":1795087201000,"B":[{"a":"BTC","f":"0.00000000","l":"0.00000000"}]}`,
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := subscribedUserDataTestExchange(t)
+			creds := configuredCredentials(t, ex)
+			ctx := accounts.DeployCredentialsToContext(t.Context(), creds)
+			if tc.snapshot != 0 {
+				ex.recordBalanceSnapshot(time.UnixMilli(tc.snapshot))
+			}
+			for i, event := range tc.events {
+				require.NoErrorf(t, ex.processAccountPosition(ctx, creds, []byte(event)), "processAccountPosition must not error for event %d", i)
+				_, ok := relayed(t, ex).(accounts.SubAccounts)
+				require.Truef(t, ok, "processAccountPosition must relay event %d's balances", i)
+			}
+			stored, err := ex.Accounts.GetBalance("", creds, asset.Spot, currency.BTC)
+			require.NoError(t, err, "GetBalance must not error for BTC")
+			assert.Equal(t, tc.btc, stored.Total, "processAccountPosition should store the latest BTC balance")
+			if tc.usd != 0 {
+				stored, err = ex.Accounts.GetBalance("", creds, asset.Spot, currency.USD)
+				require.NoError(t, err, "GetBalance must not error for USD")
+				assert.Equal(t, tc.usd, stored.Total, "processAccountPosition should store each currency of the event")
+			}
+		})
+	}
 }
 
 func TestProcessExecutionReport(t *testing.T) {
@@ -816,6 +874,22 @@ func TestProcessExecutionReport(t *testing.T) {
 		})
 	}
 
+	t.Run("each report of an order of an unknown type is relayed as a classification error", func(t *testing.T) {
+		t.Parallel()
+		subscribed := subscribedUserDataTestExchange(t)
+		report := func(status string) {
+			t.Helper()
+			frame := `{"e":"executionReport","s":"BTCUSDT","S":"BUY","o":"UNKNOWN","f":"GTC","X":"` + status + `","i":6}`
+			require.NoErrorf(t, subscribed.processExecutionReport(t.Context(), []byte(frame)), "processExecutionReport must not error for the %s report of an order of an unknown type", status)
+			classification, ok := relayed(t, subscribed).(order.ClassificationError)
+			require.Truef(t, ok, "the %s report of an order of an unknown type must be relayed as a classification error", status)
+			assert.Equalf(t, "6", classification.OrderID, "the classification error of the %s report should name the order", status)
+		}
+		report("NEW")
+		report("CANCELED")
+		assert.Empty(t, subscribed.Websocket.DataHandler.C, "each report should be relayed once")
+	})
+
 	assert.ErrorIs(t, ex.processExecutionReport(ctx, []byte(`{"s":"NOTAPAIR"}`)), currency.ErrPairNotFound, "processExecutionReport should error for an unknown symbol")
 	assert.Error(t, ex.processExecutionReport(ctx, []byte(`{"s":1}`)), "processExecutionReport should error for an event that does not decode")
 
@@ -858,6 +932,268 @@ func TestProcessExecutionReport(t *testing.T) {
 		require.Len(t, detail.Trades, 1, "a filled market order must relay its fill")
 		assert.False(t, detail.Trades[0].IsMaker, "a market order's fill should be reported as the taker's")
 		assert.Equal(t, time.UnixMilli(1499405658800), detail.Date, "a quote sized market order should report when it was created")
+	})
+
+	t.Run("an exchange relays each report in turn, over its orders' lifecycles", func(t *testing.T) {
+		t.Parallel()
+		ex := subscribedUserDataTestExchange(t)
+		ethUSDT := currency.NewPair(currency.ETH, currency.USDT)
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT(), ethUSDT, currency.NewBTCUSD()}, false), "StorePairs must not error")
+		conn := newFakeConnection()
+		var subscriptionID uint64
+		event := func(frame string) error {
+			return ex.wsHandleAPIData(t.Context(), conn, fmt.Appendf(nil, `{"subscriptionId":%d,"event":%s}`, subscriptionID, frame))
+		}
+		var names []string
+		var relays, expected []any
+		relay := func(name string, exp any) {
+			t.Helper()
+			got := relayed(t, ex)
+			require.IsTypef(t, exp, got, "%s must be relayed as its type", name)
+			assert.Equalf(t, exp, got, "%s should be relayed as expected", name)
+			names, relays, expected = append(names, name), append(relays, got), append(expected, exp)
+		}
+		report := func(frame string, exp *order.Detail) {
+			t.Helper()
+			exp.Exchange, exp.AssetType = ex.Name, asset.Spot
+			for i := range exp.Trades {
+				exp.Trades[i].Exchange = ex.Name
+			}
+			require.NoErrorf(t, event(frame), "wsHandleAPIData must not error for order %s's %s report", exp.OrderID, exp.Status)
+			relay(fmt.Sprintf("order %s's %s report", exp.OrderID, exp.Status), exp)
+		}
+		listStatus := func(frame string, exp *WebsocketListStatus, list *order.Detail) {
+			t.Helper()
+			list.Exchange, list.Type, list.AssetType = ex.Name, order.OCO, asset.Spot
+			require.NoErrorf(t, event(frame), "wsHandleAPIData must not error for order list %d's %s event", exp.OrderListID, exp.ListOrderStatus)
+			relay(fmt.Sprintf("order list %d's %s event", exp.OrderListID, exp.ListOrderStatus), exp)
+			relay(fmt.Sprintf("order list %d's %s detail", exp.OrderListID, exp.ListOrderStatus), list)
+		}
+		ocoOrders := []WebsocketListStatusOrder{{Symbol: "BTCUSDT", OrderID: 4293164, ClientOrderID: "ocoStopLossLeg"}, {Symbol: "BTCUSDT", OrderID: 4293165, ClientOrderID: "ocoLimitMakerLeg"}}
+		report(`{"e":"executionReport","E":1794466395100,"s":"BTCUSDT","c":"sweptOrder","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00300000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293160,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466395099,"t":-1,"I":8641990,"w":false,"m":false,"M":false,"O":1794466395099,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, &order.Detail{
+			Price: 66000.01, Amount: 0.003, RemainingAmount: 0.003, CostAsset: currency.USDT, OrderID: "4293160", ClientOrderID: "sweptOrder", Type: order.Limit, Side: order.Buy,
+			Status: order.New, Date: time.UnixMilli(1794466395099), LastUpdated: time.UnixMilli(1794466395099), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
+		})
+		report(`{"e":"executionReport","E":1794466395100,"s":"BTCUSDT","c":"sweptOrder","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00300000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":4293160,"l":"0.00100000","z":"0.00100000","L":"65990.00000000","n":"0.00008249","N":"BNB","T":1794466395099,"t":101,"I":8641991,"w":false,"m":false,"M":true,"O":1794466395099,"Z":"65.99000000","Y":"65.99000000","Q":"0.00000000"}`, &order.Detail{
+			Price: 66000.01, Amount: 0.003, AverageExecutedPrice: 65990, ExecutedAmount: 0.001, RemainingAmount: 0.002, Cost: 65.99, CostAsset: currency.USDT, FeeAsset: currency.BNB,
+			OrderID: "4293160", ClientOrderID: "sweptOrder", Type: order.Limit, Side: order.Buy, Status: order.PartiallyFilled, Date: time.UnixMilli(1794466395099),
+			LastUpdated: time.UnixMilli(1794466395099), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{
+				Price: 65990, Amount: 0.001, Fee: 0.00008249, FeeAsset: "BNB", TID: "101", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466395099), Total: 65.99,
+			}},
+		})
+		report(`{"e":"executionReport","E":1794466395100,"s":"BTCUSDT","c":"sweptOrder","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00300000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":4293160,"l":"0.00100000","z":"0.00200000","L":"65990.00000000","n":"0.00008249","N":"BNB","T":1794466395099,"t":102,"I":8641992,"w":true,"m":false,"M":true,"O":1794466395099,"Z":"131.98000000","Y":"65.99000000","Q":"0.00000000","W":1794466395099}`, &order.Detail{
+			Price: 66000.01, Amount: 0.003, AverageExecutedPrice: 65990, ExecutedAmount: 0.002, RemainingAmount: 0.001, Cost: 131.98, CostAsset: currency.USDT, FeeAsset: currency.BNB,
+			OrderID: "4293160", ClientOrderID: "sweptOrder", Type: order.Limit, Side: order.Buy, Status: order.PartiallyFilled, Date: time.UnixMilli(1794466395099),
+			LastUpdated: time.UnixMilli(1794466395099), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{
+				Price: 65990, Amount: 0.001, Fee: 0.00008249, FeeAsset: "BNB", TID: "102", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466395099), Total: 65.99,
+			}},
+		})
+		require.NoError(t, event(`{"e":"balanceUpdate","E":1794466395110,"a":"BNB","d":"-0.04991751","T":1794466395109}`), "wsHandleAPIData must not error for a balance update between the reports")
+		relay("a balance update between the reports", &WebsocketBalanceUpdate{
+			EventType: "balanceUpdate", EventTime: types.Time(time.UnixMilli(1794466395110)), Asset: currency.BNB, BalanceDelta: -0.04991751, ClearTime: types.Time(time.UnixMilli(1794466395109)),
+		})
+		report(`{"e":"executionReport","E":1794466395120,"s":"BTCUSDT","c":"stopLossOrder","S":"SELL","o":"STOP_LOSS_LIMIT","f":"GTC","q":"0.00200000","p":"64000.02000000","P":"64100.03000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293161,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466395119,"t":-1,"I":8641994,"w":false,"m":false,"M":false,"O":1794466395119,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, &order.Detail{
+			Price: 64000.02, Amount: 0.002, TriggerPrice: 64100.03, RemainingAmount: 0.002, CostAsset: currency.USDT, OrderID: "4293161", ClientOrderID: "stopLossOrder", Type: order.StopLimit,
+			Side: order.Sell, Status: order.New, Date: time.UnixMilli(1794466395119), LastUpdated: time.UnixMilli(1794466395119), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
+		})
+		report(`{"e":"executionReport","E":1794466395120,"s":"BTCUSDT","c":"takeProfitOrder","S":"SELL","o":"TAKE_PROFIT_LIMIT","f":"GTC","q":"0.00200000","p":"68000.04000000","P":"67900.05000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293162,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466395119,"t":-1,"I":8641996,"w":false,"m":false,"M":false,"O":1794466395119,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, &order.Detail{
+			Price: 68000.04, Amount: 0.002, TriggerPrice: 67900.05, RemainingAmount: 0.002, CostAsset: currency.USDT, OrderID: "4293162", ClientOrderID: "takeProfitOrder", Type: order.TakeProfitLimit,
+			Side: order.Sell, Status: order.New, Date: time.UnixMilli(1794466395119), LastUpdated: time.UnixMilli(1794466395119), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
+		})
+		report(`{"e":"executionReport","E":1794466395201,"s":"BTCUSDT","c":"cancelStopLoss","S":"SELL","o":"STOP_LOSS_LIMIT","f":"GTC","q":"0.00200000","p":"64000.02000000","P":"64100.03000000","F":"0.00000000","g":-1,"C":"stopLossOrder","x":"CANCELED","X":"CANCELED","r":"NONE","i":4293161,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466395200,"t":-1,"I":8641995,"w":false,"m":false,"M":false,"O":1794466395119,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, &order.Detail{
+			Price: 64000.02, Amount: 0.002, TriggerPrice: 64100.03, RemainingAmount: 0.002, CostAsset: currency.USDT, OrderID: "4293161", ClientOrderID: "stopLossOrder", Type: order.StopLimit,
+			Side: order.Sell, Status: order.Cancelled, Date: time.UnixMilli(1794466395119), LastUpdated: time.UnixMilli(1794466395200), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
+		})
+		report(`{"e":"executionReport","E":1794466395231,"s":"BTCUSDT","c":"sweptOrder","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00300000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":4293160,"l":"0.00050000","z":"0.00250000","L":"66000.01000000","n":"0.00000050","N":"BTC","T":1794466395230,"t":103,"I":8641993,"w":true,"m":true,"M":true,"O":1794466395099,"Z":"164.98000500","Y":"33.00000500","Q":"0.00000000","W":1794466395099}`, &order.Detail{
+			Price: 66000.01, Amount: 0.003, AverageExecutedPrice: 65992.002, ExecutedAmount: 0.0025, RemainingAmount: 0.0005, Cost: 164.980005, CostAsset: currency.USDT, FeeAsset: currency.BTC,
+			OrderID: "4293160", ClientOrderID: "sweptOrder", Type: order.Limit, Side: order.Buy, Status: order.PartiallyFilled, Date: time.UnixMilli(1794466395099),
+			LastUpdated: time.UnixMilli(1794466395230), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{
+				Price: 66000.01, Amount: 0.0005, Fee: 0.0000005, FeeAsset: "BTC", TID: "103", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466395230), IsMaker: true, Total: 33.000005,
+			}},
+		})
+		report(`{"e":"executionReport","E":1794466395251,"s":"BTCUSDT","c":"cancelSweptOrder","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00300000","p":"66000.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"sweptOrder","x":"CANCELED","X":"CANCELED","r":"NONE","i":4293160,"l":"0.00000000","z":"0.00250000","L":"0.00000000","n":"0","N":null,"T":1794466395250,"t":-1,"I":8641997,"w":false,"m":false,"M":false,"O":1794466395099,"Z":"164.98000500","Y":"0.00000000","Q":"0.00000000","W":1794466395099}`, &order.Detail{
+			Price: 66000.01, Amount: 0.003, AverageExecutedPrice: 65992.002, ExecutedAmount: 0.0025, RemainingAmount: 0.0005, Cost: 164.980005, CostAsset: currency.USDT, OrderID: "4293160",
+			ClientOrderID: "sweptOrder", Type: order.Limit, Side: order.Buy, Status: order.Cancelled, Date: time.UnixMilli(1794466395099), LastUpdated: time.UnixMilli(1794466395250),
+			Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
+		})
+		report(`{"e":"executionReport","E":1794466395301,"s":"BTCUSDT","c":"sweptOrder","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00100000","p":"65900.02000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293163,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466395300,"t":-1,"I":8641998,"w":true,"m":false,"M":false,"O":1794466395300,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466395300}`, &order.Detail{
+			Price: 65900.02, Amount: 0.001, RemainingAmount: 0.001, CostAsset: currency.USDT, OrderID: "4293163", ClientOrderID: "sweptOrder", Type: order.Limit, Side: order.Buy,
+			Status: order.New, Date: time.UnixMilli(1794466395300), LastUpdated: time.UnixMilli(1794466395300), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
+		})
+		report(`{"e":"executionReport","E":1794466395321,"s":"BTCUSDT","c":"ocoStopLossLeg","S":"SELL","o":"STOP_LOSS_LIMIT","f":"GTC","q":"0.00050000","p":"63800.08000000","P":"63900.07000000","F":"0.00000000","g":2049,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293164,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466395320,"t":-1,"I":8641999,"w":false,"m":false,"M":false,"O":1794466395320,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, &order.Detail{
+			Price: 63800.08, Amount: 0.0005, TriggerPrice: 63900.07, RemainingAmount: 0.0005, CostAsset: currency.USDT, OrderID: "4293164", ClientOrderID: "ocoStopLossLeg", Type: order.StopLimit,
+			Side: order.Sell, Status: order.New, Date: time.UnixMilli(1794466395320), LastUpdated: time.UnixMilli(1794466395320), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
+		})
+		report(`{"e":"executionReport","E":1794466395321,"s":"BTCUSDT","c":"ocoLimitMakerLeg","S":"SELL","o":"LIMIT_MAKER","f":"GTC","q":"0.00050000","p":"68500.06000000","P":"0.00000000","F":"0.00000000","g":2049,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293165,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466395320,"t":-1,"I":8642000,"w":true,"m":false,"M":false,"O":1794466395320,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466395320}`, &order.Detail{
+			Price: 68500.06, Amount: 0.0005, RemainingAmount: 0.0005, CostAsset: currency.USDT, OrderID: "4293165", ClientOrderID: "ocoLimitMakerLeg", Type: order.LimitMaker, Side: order.Sell,
+			Status: order.New, Date: time.UnixMilli(1794466395320), LastUpdated: time.UnixMilli(1794466395320), Pair: currency.NewBTCUSDT(), TimeInForce: order.PostOnly,
+		})
+		listStatus(`{"e":"listStatus","E":1794466395322,"s":"BTCUSDT","g":2049,"c":"OCO","l":"EXEC_STARTED","L":"EXECUTING","r":"NONE","C":"ocoSellList","T":1794466395320,"O":[{"s":"BTCUSDT","i":4293164,"c":"ocoStopLossLeg"},{"s":"BTCUSDT","i":4293165,"c":"ocoLimitMakerLeg"}]}`, &WebsocketListStatus{
+			EventType: "listStatus", EventTime: types.Time(time.UnixMilli(1794466395322)), Symbol: "BTCUSDT", OrderListID: 2049, ContingencyType: "OCO", ListStatusType: "EXEC_STARTED",
+			ListOrderStatus: "EXECUTING", ListRejectReason: "NONE", ListClientOrderID: "ocoSellList", TransactionTime: types.Time(time.UnixMilli(1794466395320)), Orders: ocoOrders,
+		}, &order.Detail{
+			OrderID: "list-2049", ClientOrderID: "ocoSellList", Status: order.Active, Date: time.UnixMilli(1794466395320), LastUpdated: time.UnixMilli(1794466395320), Pair: currency.NewBTCUSDT(),
+		})
+		report(`{"e":"executionReport","E":1794466395331,"s":"BTCUSD","c":"dollarBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00100000","p":"65800.03000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":1208447,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466395330,"t":-1,"I":3204411,"w":true,"m":false,"M":false,"O":1794466395330,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466395330}`, &order.Detail{
+			Price: 65800.03, Amount: 0.001, RemainingAmount: 0.001, CostAsset: currency.USD, OrderID: "1208447", ClientOrderID: "dollarBuy", Type: order.Limit, Side: order.Buy,
+			Status: order.New, Date: time.UnixMilli(1794466395330), LastUpdated: time.UnixMilli(1794466395330), Pair: currency.NewBTCUSD(), TimeInForce: order.GoodTillCancel,
+		})
+		report(`{"e":"executionReport","E":1794466395351,"s":"ETHUSDT","c":"etherBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.02000000","p":"2500.01000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":4293160,"l":"0.01000000","z":"0.01000000","L":"2500.01000000","n":"0.00001000","N":"ETH","T":1794466395350,"t":101,"I":201,"w":true,"m":true,"M":true,"O":1794466395000,"Z":"25.00010000","Y":"25.00010000","Q":"0.00000000","W":1794466395000}`, &order.Detail{
+			Price: 2500.01, Amount: 0.02, AverageExecutedPrice: 2500.01, ExecutedAmount: 0.01, RemainingAmount: 0.01, Cost: 25.0001, CostAsset: currency.USDT, FeeAsset: currency.ETH,
+			OrderID: "4293160", ClientOrderID: "etherBuy", Type: order.Limit, Side: order.Buy, Status: order.PartiallyFilled, Date: time.UnixMilli(1794466395000),
+			LastUpdated: time.UnixMilli(1794466395350), Pair: ethUSDT, TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{
+				Price: 2500.01, Amount: 0.01, Fee: 0.00001, FeeAsset: "ETH", TID: "101", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466395350), IsMaker: true, Total: 25.0001,
+			}},
+		})
+		require.NoError(t, event(`{"e":"eventStreamTerminated","E":1794466395380}`), "wsHandleAPIData must not error for the end of the User Data Stream")
+		relay("the end of the User Data Stream", &WebsocketEventStreamTerminated{EventType: "eventStreamTerminated", EventTime: types.Time(time.UnixMilli(1794466395380))})
+		ex.userData.expect("resubscribe", configuredCredentials(t, ex))
+		require.NoError(t, ex.wsHandleAPIData(t.Context(), conn, []byte(`{"id":"resubscribe","status":200,"result":{"subscriptionId":1}}`)), "wsHandleAPIData must not error for the User Data Stream subscribed again")
+		ex.userData.expect("otherAccount", &accounts.Credentials{Key: "other-account-key", Secret: "other-account-secret"})
+		require.NoError(t, ex.wsHandleAPIData(t.Context(), conn, []byte(`{"id":"otherAccount","status":200,"result":{"subscriptionId":2}}`)), "wsHandleAPIData must not error for another account's User Data Stream subscribed on the connection")
+		subscriptionID = 2
+		report(`{"e":"executionReport","E":1794466395401,"s":"BTCUSDT","c":"sweptOrder","S":"BUY","o":"LIMIT","f":"IOC","q":"0.00200000","p":"68100.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293170,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466395400,"t":-1,"I":8642002,"w":false,"m":false,"M":false,"O":1794466395400,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, &order.Detail{
+			Price: 68100, Amount: 0.002, RemainingAmount: 0.002, CostAsset: currency.USDT, OrderID: "4293170", ClientOrderID: "sweptOrder", Type: order.Limit, Side: order.Buy, Status: order.New,
+			Date: time.UnixMilli(1794466395400), LastUpdated: time.UnixMilli(1794466395400), Pair: currency.NewBTCUSDT(), TimeInForce: order.ImmediateOrCancel,
+		})
+		subscriptionID = 1
+		report(`{"e":"executionReport","E":1794466395401,"s":"BTCUSDT","c":"takeProfitOrder","S":"SELL","o":"TAKE_PROFIT_LIMIT","f":"GTC","q":"0.00200000","p":"68000.04000000","P":"67900.05000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293162,"l":"0.00200000","z":"0.00200000","L":"68000.04000000","n":"0.13600008","N":"USDT","T":1794466395400,"t":105,"I":8642003,"w":false,"m":true,"M":true,"O":1794466395119,"Z":"136.00008000","Y":"136.00008000","Q":"0.00000000","W":1794466395390}`, &order.Detail{
+			Price: 68000.04, Amount: 0.002, TriggerPrice: 67900.05, AverageExecutedPrice: 68000.04, ExecutedAmount: 0.002, Cost: 136.00008, CostAsset: currency.USDT, FeeAsset: currency.USDT,
+			OrderID: "4293162", ClientOrderID: "takeProfitOrder", Type: order.TakeProfitLimit, Side: order.Sell, Status: order.Filled, Date: time.UnixMilli(1794466395119),
+			LastUpdated: time.UnixMilli(1794466395400), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{
+				Price: 68000.04, Amount: 0.002, Fee: 0.13600008, FeeAsset: "USDT", TID: "105", Type: order.TakeProfitLimit, Side: order.Sell, Timestamp: time.UnixMilli(1794466395400), IsMaker: true, Total: 136.00008,
+			}},
+		})
+		subscriptionID = 2
+		report(`{"e":"executionReport","E":1794466395401,"s":"BTCUSDT","c":"sweptOrder","S":"BUY","o":"LIMIT","f":"IOC","q":"0.00200000","p":"68100.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293170,"l":"0.00200000","z":"0.00200000","L":"68000.04000000","n":"0.00000200","N":"BTC","T":1794466395400,"t":105,"I":8642004,"w":false,"m":false,"M":true,"O":1794466395400,"Z":"136.00008000","Y":"136.00008000","Q":"0.00000000"}`, &order.Detail{
+			Price: 68100, Amount: 0.002, AverageExecutedPrice: 68000.04, ExecutedAmount: 0.002, Cost: 136.00008, CostAsset: currency.USDT, FeeAsset: currency.BTC, OrderID: "4293170",
+			ClientOrderID: "sweptOrder", Type: order.Limit, Side: order.Buy, Status: order.Filled, Date: time.UnixMilli(1794466395400), LastUpdated: time.UnixMilli(1794466395400),
+			Pair: currency.NewBTCUSDT(), TimeInForce: order.ImmediateOrCancel, Trades: []order.TradeHistory{{
+				Price: 68000.04, Amount: 0.002, Fee: 0.000002, FeeAsset: "BTC", TID: "105", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466395400), Total: 136.00008,
+			}},
+		})
+		subscriptionID = 1
+		report(`{"e":"executionReport","E":1794466395421,"s":"BTCUSDT","c":"ocoLimitMakerLeg","S":"SELL","o":"LIMIT_MAKER","f":"GTC","q":"0.00050000","p":"68500.06000000","P":"0.00000000","F":"0.00000000","g":2049,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293165,"l":"0.00050000","z":"0.00050000","L":"68500.06000000","n":"0.03425003","N":"USDT","T":1794466395420,"t":106,"I":8642006,"w":false,"m":true,"M":true,"O":1794466395320,"Z":"34.25003000","Y":"34.25003000","Q":"0.00000000","W":1794466395320}`, &order.Detail{
+			Price: 68500.06, Amount: 0.0005, AverageExecutedPrice: 68500.06, ExecutedAmount: 0.0005, Cost: 34.25003, CostAsset: currency.USDT, FeeAsset: currency.USDT, OrderID: "4293165",
+			ClientOrderID: "ocoLimitMakerLeg", Type: order.LimitMaker, Side: order.Sell, Status: order.Filled, Date: time.UnixMilli(1794466395320), LastUpdated: time.UnixMilli(1794466395420),
+			Pair: currency.NewBTCUSDT(), TimeInForce: order.PostOnly, Trades: []order.TradeHistory{{
+				Price: 68500.06, Amount: 0.0005, Fee: 0.03425003, FeeAsset: "USDT", TID: "106", Type: order.LimitMaker, Side: order.Sell, Timestamp: time.UnixMilli(1794466395420), IsMaker: true, Total: 34.25003,
+			}},
+		})
+		report(`{"e":"executionReport","E":1794466395421,"s":"BTCUSDT","c":"ocoStopLossLeg","S":"SELL","o":"STOP_LOSS_LIMIT","f":"GTC","q":"0.00050000","p":"63800.08000000","P":"63900.07000000","F":"0.00000000","g":2049,"C":"","x":"EXPIRED","X":"EXPIRED","r":"NONE","i":4293164,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466395420,"t":-1,"I":8642007,"w":false,"m":false,"M":false,"O":1794466395320,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, &order.Detail{
+			Price: 63800.08, Amount: 0.0005, TriggerPrice: 63900.07, RemainingAmount: 0.0005, CostAsset: currency.USDT, OrderID: "4293164", ClientOrderID: "ocoStopLossLeg", Type: order.StopLimit,
+			Side: order.Sell, Status: order.Expired, Date: time.UnixMilli(1794466395320), LastUpdated: time.UnixMilli(1794466395420), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
+		})
+		listStatus(`{"e":"listStatus","E":1794466395422,"s":"BTCUSDT","g":2049,"c":"OCO","l":"ALL_DONE","L":"ALL_DONE","r":"NONE","C":"ocoSellList","T":1794466395420,"O":[{"s":"BTCUSDT","i":4293164,"c":"ocoStopLossLeg"},{"s":"BTCUSDT","i":4293165,"c":"ocoLimitMakerLeg"}]}`, &WebsocketListStatus{
+			EventType: "listStatus", EventTime: types.Time(time.UnixMilli(1794466395422)), Symbol: "BTCUSDT", OrderListID: 2049, ContingencyType: "OCO", ListStatusType: "ALL_DONE",
+			ListOrderStatus: "ALL_DONE", ListRejectReason: "NONE", ListClientOrderID: "ocoSellList", TransactionTime: types.Time(time.UnixMilli(1794466395420)), Orders: ocoOrders,
+		}, &order.Detail{
+			OrderID: "list-2049", ClientOrderID: "ocoSellList", Status: order.Closed, Date: time.UnixMilli(1794466395420), LastUpdated: time.UnixMilli(1794466395420), Pair: currency.NewBTCUSDT(),
+		})
+		for i, got := range relays {
+			assert.Equalf(t, expected[i], got, "%s should be left as it was relayed after the later events", names[i])
+		}
+		assert.Empty(t, ex.Websocket.DataHandler.C, "each report should be relayed once")
+	})
+
+	t.Run("an exchange relays reports of iceberg, stop, take profit, self-trade prevented, market, quote sized, IOC and FOK orders in turn", func(t *testing.T) {
+		t.Parallel()
+		ex := subscribedUserDataTestExchange(t)
+		ethBTC := currency.NewPair(currency.ETH, currency.BTC)
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT), ethBTC}, false), "StorePairs must not error")
+		conn := newFakeConnection()
+		var relays, expected []*order.Detail
+		report := func(frame string, exp *order.Detail) {
+			t.Helper()
+			exp.Exchange, exp.AssetType = ex.Name, asset.Spot
+			for i := range exp.Trades {
+				exp.Trades[i].Exchange = ex.Name
+			}
+			require.NoErrorf(t, ex.wsHandleAPIData(t.Context(), conn, []byte(`{"subscriptionId":0,"event":`+frame+`}`)), "wsHandleAPIData must not error for order %s's %s report", exp.OrderID, exp.Status)
+			detail, ok := relayed(t, ex).(*order.Detail)
+			require.Truef(t, ok, "order %s's %s report must be relayed as an order detail", exp.OrderID, exp.Status)
+			assert.Equalf(t, exp, detail, "order %s's %s report should be relayed as the order's detail", exp.OrderID, exp.Status)
+			relays, expected = append(relays, detail), append(expected, exp)
+		}
+		report(`{"e":"executionReport","E":1794466396101,"s":"BTCUSDT","c":"icebergBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00300000","p":"65800.01000000","P":"0.00000000","F":"0.00100000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293180,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466396100,"t":-1,"I":8642010,"w":true,"m":false,"M":false,"O":1794466396100,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466396100}`, &order.Detail{
+			Price: 65800.01, Amount: 0.003, RemainingAmount: 0.003, CostAsset: currency.USDT, OrderID: "4293180", ClientOrderID: "icebergBuy", Type: order.Limit, Side: order.Buy,
+			Status: order.New, Date: time.UnixMilli(1794466396100), LastUpdated: time.UnixMilli(1794466396100), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
+		})
+		report(`{"e":"executionReport","E":1794466396111,"s":"BTCUSDT","c":"stopMarketSell","S":"SELL","o":"STOP_LOSS","f":"GTC","q":"0.00200000","p":"0.00000000","P":"64100.03000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293181,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466396110,"t":-1,"I":8642011,"w":false,"m":false,"M":false,"O":1794466396110,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, &order.Detail{
+			Amount: 0.002, TriggerPrice: 64100.03, RemainingAmount: 0.002, CostAsset: currency.USDT, OrderID: "4293181", ClientOrderID: "stopMarketSell", Type: order.StopMarket, Side: order.Sell,
+			Status: order.New, Date: time.UnixMilli(1794466396110), LastUpdated: time.UnixMilli(1794466396110), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
+		})
+		report(`{"e":"executionReport","E":1794466396121,"s":"BTCUSDT","c":"restingBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00100000","p":"65900.02000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293182,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466396120,"t":-1,"I":8642012,"w":true,"m":false,"M":false,"O":1794466396120,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466396120}`, &order.Detail{
+			Price: 65900.02, Amount: 0.001, RemainingAmount: 0.001, CostAsset: currency.USDT, OrderID: "4293182", ClientOrderID: "restingBuy", Type: order.Limit, Side: order.Buy,
+			Status: order.New, Date: time.UnixMilli(1794466396120), LastUpdated: time.UnixMilli(1794466396120), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
+		})
+		marketSell := func(status order.Status, executed, remaining, cost, average float64, fee currency.Code, fills ...order.TradeHistory) *order.Detail {
+			return &order.Detail{
+				Amount: 0.0015, AverageExecutedPrice: average, ExecutedAmount: executed, RemainingAmount: remaining, Cost: cost, CostAsset: currency.USDT, FeeAsset: fee, OrderID: "4293183",
+				ClientOrderID: "marketSell", Type: order.Market, Side: order.Sell, Status: status, Date: time.UnixMilli(1794466396200), LastUpdated: time.UnixMilli(1794466396200),
+				Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: fills,
+			}
+		}
+		report(`{"e":"executionReport","E":1794466396201,"s":"BTCUSDT","c":"marketSell","S":"SELL","o":"MARKET","f":"GTC","q":"0.00150000","p":"0.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293183,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466396200,"t":-1,"I":8642013,"w":false,"m":false,"M":false,"O":1794466396200,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, marketSell(order.New, 0, 0.0015, 0, 0, currency.EMPTYCODE))
+		report(`{"e":"executionReport","E":1794466396201,"s":"BTCUSDT","c":"restingBuy","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00100000","p":"65900.02000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE_PREVENTION","X":"EXPIRED_IN_MATCH","r":"NONE","i":4293182,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466396200,"t":-1,"I":8642015,"w":false,"m":false,"M":false,"O":1794466396120,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1794466396120,"V":"EXPIRE_MAKER","v":17,"U":4293183,"A":"0.00100000","B":"0.00100000","pl":"0.00100000","pL":"65900.02000000","pY":"65.90002000","eR":"EXPIRED_IN_MATCH"}`, &order.Detail{
+			Price: 65900.02, Amount: 0.001, RemainingAmount: 0.001, CostAsset: currency.USDT, OrderID: "4293182", ClientOrderID: "restingBuy", Type: order.Limit, Side: order.Buy,
+			Status: order.Expired, Date: time.UnixMilli(1794466396120), LastUpdated: time.UnixMilli(1794466396200), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
+		})
+		report(`{"e":"executionReport","E":1794466396201,"s":"BTCUSDT","c":"marketSell","S":"SELL","o":"MARKET","f":"GTC","q":"0.00150000","p":"0.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":4293183,"l":"0.00050000","z":"0.00050000","L":"65899.99000000","n":"0.03294999","N":"USDT","T":1794466396200,"t":107,"I":8642016,"w":false,"m":false,"M":true,"O":1794466396200,"Z":"32.94999500","Y":"32.94999500","Q":"0.00000000"}`, marketSell(order.PartiallyFilled, 0.0005, 0.001, 32.949995, 65899.99, currency.USDT, order.TradeHistory{
+			Price: 65899.99, Amount: 0.0005, Fee: 0.03294999, FeeAsset: "USDT", TID: "107", Type: order.Market, Side: order.Sell, Timestamp: time.UnixMilli(1794466396200), Total: 32.949995,
+		}))
+		report(`{"e":"executionReport","E":1794466396201,"s":"BTCUSDT","c":"marketSell","S":"SELL","o":"MARKET","f":"GTC","q":"0.00150000","p":"0.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293183,"l":"0.00100000","z":"0.00150000","L":"65890.00000000","n":"0.06589000","N":"USDT","T":1794466396200,"t":108,"I":8642017,"w":false,"m":false,"M":true,"O":1794466396200,"Z":"98.83999500","Y":"65.89000000","Q":"0.00000000"}`, marketSell(order.Filled, 0.0015, 0, 98.839995, 65893.33, currency.USDT, order.TradeHistory{
+			Price: 65890, Amount: 0.001, Fee: 0.06589, FeeAsset: "USDT", TID: "108", Type: order.Market, Side: order.Sell, Timestamp: time.UnixMilli(1794466396200), Total: 65.89,
+		}))
+		report(`{"e":"executionReport","E":1794466396301,"s":"BTCUSDT","c":"quoteBuy","S":"BUY","o":"MARKET","f":"GTC","q":"0.00151000","p":"0.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293184,"l":"0.00151000","z":"0.00151000","L":"66000.00000000","n":"0.00000151","N":"BTC","T":1794466396300,"t":109,"I":8642018,"w":false,"m":false,"M":true,"O":1794466396300,"Z":"99.66000000","Y":"99.66000000","Q":"100.00000000"}`, &order.Detail{
+			Amount: 0.00151, AverageExecutedPrice: 66000, QuoteAmount: 100, ExecutedAmount: 0.00151, Cost: 99.66, CostAsset: currency.USDT, FeeAsset: currency.BTC, OrderID: "4293184",
+			ClientOrderID: "quoteBuy", Type: order.Market, Side: order.Buy, Status: order.Filled, Date: time.UnixMilli(1794466396300), LastUpdated: time.UnixMilli(1794466396300),
+			Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{
+				Price: 66000, Amount: 0.00151, Fee: 0.00000151, FeeAsset: "BTC", TID: "109", Type: order.Market, Side: order.Buy, Timestamp: time.UnixMilli(1794466396300), Total: 99.66,
+			}},
+		})
+		report(`{"e":"executionReport","E":1794466396401,"s":"ETHBTC","c":"etherBitcoinBuy","S":"BUY","o":"MARKET","f":"GTC","q":"0.01250000","p":"0.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":1200345,"l":"0.01250000","z":"0.01250000","L":"0.02971000","n":"0.00001250","N":"ETH","T":1794466396400,"t":702001,"I":3108721,"w":false,"m":false,"M":true,"O":1794466396400,"Z":"0.00037137","Y":"0.00037137","Q":"0.00000000"}`, &order.Detail{
+			Amount: 0.0125, AverageExecutedPrice: 0.0297096, ExecutedAmount: 0.0125, Cost: 0.00037137, CostAsset: currency.BTC, FeeAsset: currency.ETH, OrderID: "1200345",
+			ClientOrderID: "etherBitcoinBuy", Type: order.Market, Side: order.Buy, Status: order.Filled, Date: time.UnixMilli(1794466396400), LastUpdated: time.UnixMilli(1794466396400),
+			Pair: ethBTC, TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{
+				Price: 0.02971, Amount: 0.0125, Fee: 0.0000125, FeeAsset: "ETH", TID: "702001", Type: order.Market, Side: order.Buy, Timestamp: time.UnixMilli(1794466396400), Total: 0.00037137,
+			}},
+		})
+		report(`{"e":"executionReport","E":1794466396411,"s":"BTCUSDT","c":"takeProfitMarketSell","S":"SELL","o":"TAKE_PROFIT","f":"GTC","q":"0.00100000","p":"0.00000000","P":"67000.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293185,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466396410,"t":-1,"I":8642019,"w":false,"m":false,"M":false,"O":1794466396410,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, &order.Detail{
+			Amount: 0.001, TriggerPrice: 67000, RemainingAmount: 0.001, CostAsset: currency.USDT, OrderID: "4293185", ClientOrderID: "takeProfitMarketSell", Type: order.TakeProfitMarket,
+			Side: order.Sell, Status: order.New, Date: time.UnixMilli(1794466396410), LastUpdated: time.UnixMilli(1794466396410), Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel,
+		})
+		report(`{"e":"executionReport","E":1794466396421,"s":"BTCUSDT","c":"quoteSell","S":"SELL","o":"MARKET","f":"GTC","q":"0.00145000","p":"0.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":4293186,"l":"0.00145000","z":"0.00145000","L":"66000.00000000","n":"0.09570000","N":"USDT","T":1794466396420,"t":110,"I":8642020,"w":false,"m":false,"M":true,"O":1794466396420,"Z":"95.70000000","Y":"95.70000000","Q":"95.70000000"}`, &order.Detail{
+			Amount: 0.00145, AverageExecutedPrice: 66000, QuoteAmount: 95.7, ExecutedAmount: 0.00145, Cost: 95.7, CostAsset: currency.USDT, FeeAsset: currency.USDT, OrderID: "4293186",
+			ClientOrderID: "quoteSell", Type: order.Market, Side: order.Sell, Status: order.Filled, Date: time.UnixMilli(1794466396420), LastUpdated: time.UnixMilli(1794466396420),
+			Pair: currency.NewBTCUSDT(), TimeInForce: order.GoodTillCancel, Trades: []order.TradeHistory{{
+				Price: 66000, Amount: 0.00145, Fee: 0.0957, FeeAsset: "USDT", TID: "110", Type: order.Market, Side: order.Sell, Timestamp: time.UnixMilli(1794466396420), Total: 95.7,
+			}},
+		})
+		iocBuy := func(status order.Status, executed, remaining, cost, average float64, updated int64, fee currency.Code, fills ...order.TradeHistory) *order.Detail {
+			return &order.Detail{
+				Price: 66010, Amount: 0.003, AverageExecutedPrice: average, ExecutedAmount: executed, RemainingAmount: remaining, Cost: cost, CostAsset: currency.USDT, FeeAsset: fee,
+				OrderID: "4293187", ClientOrderID: "iocBuy", Type: order.Limit, Side: order.Buy, Status: status, Date: time.UnixMilli(1794466396430), LastUpdated: time.UnixMilli(updated),
+				Pair: currency.NewBTCUSDT(), TimeInForce: order.ImmediateOrCancel, Trades: fills,
+			}
+		}
+		report(`{"e":"executionReport","E":1794466396431,"s":"BTCUSDT","c":"iocBuy","S":"BUY","o":"LIMIT","f":"IOC","q":"0.00300000","p":"66010.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293187,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466396430,"t":-1,"I":8642021,"w":false,"m":false,"M":false,"O":1794466396430,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, iocBuy(order.New, 0, 0.003, 0, 0, 1794466396430, currency.EMPTYCODE))
+		report(`{"e":"executionReport","E":1794466396431,"s":"BTCUSDT","c":"iocBuy","S":"BUY","o":"LIMIT","f":"IOC","q":"0.00300000","p":"66010.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":4293187,"l":"0.00100000","z":"0.00100000","L":"66005.00000000","n":"0.00000100","N":"BTC","T":1794466396430,"t":111,"I":8642022,"w":false,"m":false,"M":true,"O":1794466396430,"Z":"66.00500000","Y":"66.00500000","Q":"0.00000000"}`, iocBuy(order.PartiallyFilled, 0.001, 0.002, 66.005, 66005, 1794466396430, currency.BTC, order.TradeHistory{
+			Price: 66005, Amount: 0.001, Fee: 0.000001, FeeAsset: "BTC", TID: "111", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466396430), Total: 66.005,
+		}))
+		report(`{"e":"executionReport","E":1794466396431,"s":"BTCUSDT","c":"iocBuy","S":"BUY","o":"LIMIT","f":"IOC","q":"0.00300000","p":"66010.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"EXPIRED","X":"EXPIRED","r":"NONE","i":4293187,"l":"0.00000000","z":"0.00100000","L":"0.00000000","n":"0","N":null,"T":1794466396430,"t":-1,"I":8642023,"w":false,"m":false,"M":false,"O":1794466396430,"Z":"66.00500000","Y":"0.00000000","Q":"0.00000000"}`, iocBuy(order.Expired, 0.001, 0.002, 66.005, 66005, 1794466396430, currency.EMPTYCODE))
+		fokBuy := func(status order.Status) *order.Detail {
+			return &order.Detail{
+				Price: 65950, Amount: 0.002, RemainingAmount: 0.002, CostAsset: currency.USDT, OrderID: "4293188", ClientOrderID: "fokBuy", Type: order.Limit, Side: order.Buy, Status: status,
+				Date: time.UnixMilli(1794466396440), LastUpdated: time.UnixMilli(1794466396440), Pair: currency.NewBTCUSDT(), TimeInForce: order.FillOrKill,
+			}
+		}
+		report(`{"e":"executionReport","E":1794466396441,"s":"BTCUSDT","c":"fokBuy","S":"BUY","o":"LIMIT","f":"FOK","q":"0.00200000","p":"65950.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293188,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466396440,"t":-1,"I":8642024,"w":false,"m":false,"M":false,"O":1794466396440,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, fokBuy(order.New))
+		report(`{"e":"executionReport","E":1794466396441,"s":"BTCUSDT","c":"fokBuy","S":"BUY","o":"LIMIT","f":"FOK","q":"0.00200000","p":"65950.00000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"EXPIRED","X":"EXPIRED","r":"NONE","i":4293188,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1794466396440,"t":-1,"I":8642025,"w":false,"m":false,"M":false,"O":1794466396440,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}`, fokBuy(order.Expired))
+		for i, detail := range relays {
+			assert.Equalf(t, expected[i], detail, "order %s's %s report should be left as it was relayed after the later reports", detail.OrderID, detail.Status)
+		}
+		assert.Empty(t, ex.Websocket.DataHandler.C, "each report should be relayed once")
 	})
 }
 
@@ -909,4 +1245,31 @@ func TestProcessListStatus(t *testing.T) {
 
 	assert.ErrorIs(t, ex.processListStatus(ctx, []byte(`{"s":"NOTAPAIR","c":"OCO"}`)), currency.ErrPairNotFound, "processListStatus should error for an unknown symbol")
 	assert.Error(t, ex.processListStatus(ctx, []byte(`{"s":1}`)), "processListStatus should error for an event that does not decode")
+
+	t.Run("each OCO order list is relayed as an order, on a pair that is not enabled or beside another list on its symbol", func(t *testing.T) {
+		t.Parallel()
+		lists := subscribedUserDataTestExchange(t)
+		ethUSDT := currency.NewPair(currency.ETH, currency.USDT)
+		enabled, err := lists.GetEnabledPairs(asset.Spot)
+		require.NoError(t, err, "GetEnabledPairs must not error")
+		require.False(t, enabled.Contains(ethUSDT, true), "ETH/USDT must not be enabled")
+		list := func(frame string, exp *order.Detail) {
+			t.Helper()
+			exp.Exchange, exp.Type, exp.AssetType, exp.Status = lists.Name, order.OCO, asset.Spot, order.Active
+			require.NoErrorf(t, lists.processListStatus(t.Context(), []byte(frame)), "processListStatus must not error for order list %s", exp.OrderID)
+			_, ok := relayed(t, lists).(*WebsocketListStatus)
+			require.Truef(t, ok, "order list %s's event must be relayed decoded", exp.OrderID)
+			assert.Equalf(t, exp, relayed(t, lists), "order list %s should be relayed as the order GCT tracks", exp.OrderID)
+		}
+		list(`{"e":"listStatus","E":1794466395322,"s":"ETHUSDT","g":1187,"c":"OCO","l":"EXEC_STARTED","L":"EXECUTING","r":"NONE","C":"etherList","T":1794466395320,"O":[{"s":"ETHUSDT","i":81240,"c":"etherStopLeg"},{"s":"ETHUSDT","i":81241,"c":"etherLimitLeg"}]}`, &order.Detail{
+			OrderID: "list-1187", ClientOrderID: "etherList", Date: time.UnixMilli(1794466395320), LastUpdated: time.UnixMilli(1794466395320), Pair: ethUSDT,
+		})
+		list(`{"e":"listStatus","E":1794466395332,"s":"BTCUSDT","g":2049,"c":"OCO","l":"EXEC_STARTED","L":"EXECUTING","r":"NONE","C":"firstList","T":1794466395330,"O":[{"s":"BTCUSDT","i":4293164,"c":"firstStopLeg"},{"s":"BTCUSDT","i":4293165,"c":"firstLimitLeg"}]}`, &order.Detail{
+			OrderID: "list-2049", ClientOrderID: "firstList", Date: time.UnixMilli(1794466395330), LastUpdated: time.UnixMilli(1794466395330), Pair: currency.NewBTCUSDT(),
+		})
+		list(`{"e":"listStatus","E":1794466395342,"s":"BTCUSDT","g":2050,"c":"OCO","l":"EXEC_STARTED","L":"EXECUTING","r":"NONE","C":"secondList","T":1794466395340,"O":[{"s":"BTCUSDT","i":4293166,"c":"secondStopLeg"},{"s":"BTCUSDT","i":4293167,"c":"secondLimitLeg"}]}`, &order.Detail{
+			OrderID: "list-2050", ClientOrderID: "secondList", Date: time.UnixMilli(1794466395340), LastUpdated: time.UnixMilli(1794466395340), Pair: currency.NewBTCUSDT(),
+		})
+		assert.Empty(t, lists.Websocket.DataHandler.C, "each order list should be relayed once")
+	})
 }
