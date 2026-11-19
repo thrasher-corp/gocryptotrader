@@ -186,6 +186,29 @@ func TestCreateKline_OneMonth(t *testing.T) {
 	assert.Equal(t, 4.0, k.Candles[2].Volume, "Third candle volume should reflect the March trades")
 }
 
+func TestIntervalIsCalendar(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		interval Interval
+		want     bool
+	}{
+		{interval: OneMin},
+		{interval: OneDay},
+		{interval: ThreeWeek},
+		{interval: OneMonth, want: true},
+		{interval: ThreeMonth, want: true},
+		{interval: SixMonth, want: true},
+		{interval: NineMonth, want: true},
+		{interval: OneYear, want: true},
+		{interval: OneMonth + 1},
+	} {
+		t.Run(tc.interval.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, tc.interval.IsCalendar(), "IsCalendar should report whether the interval follows calendar months")
+		})
+	}
+}
+
 func TestAlignIntervalStart(t *testing.T) {
 	t.Parallel()
 

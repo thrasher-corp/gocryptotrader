@@ -605,10 +605,7 @@ func (s *GRPCServer) StopTask(_ context.Context, req *btrpc.StopTaskRequest) (*b
 	if err != nil {
 		return nil, err
 	}
-	if err := s.manager.StopTask(id); err != nil {
-		return nil, err
-	}
-	task, err := s.manager.GetSummary(id)
+	task, err := s.manager.StopTask(id)
 	if err != nil {
 		return nil, err
 	}

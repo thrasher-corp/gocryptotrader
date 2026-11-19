@@ -3380,10 +3380,13 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 			return nil, fmt.Errorf("%s %w", r.Id, err)
 		}
 		if r.FullDetails {
-			// Job results are only loaded by nickname
+			// Job results are only loaded by nickname, which another job can take over between the two reads
 			result, err = s.dataHistoryManager.GetByNickname(result.Nickname, true)
 			if err != nil {
 				return nil, fmt.Errorf("%s %w", r.Id, err)
+			}
+			if result.ID != id {
+				return nil, fmt.Errorf("%s %w", r.Id, errJobNotFound)
 			}
 		}
 	} else {

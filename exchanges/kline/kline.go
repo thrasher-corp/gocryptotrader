@@ -137,6 +137,11 @@ func (i Interval) Duration() time.Duration {
 	return time.Duration(i)
 }
 
+// IsCalendar reports whether the interval follows calendar months, so that its length depends on the months it spans
+func (i Interval) IsCalendar() bool {
+	return calendarIntervalMonths(i) != 0
+}
+
 func calendarIntervalMonths(interval Interval) int {
 	switch interval {
 	case OneMonth:

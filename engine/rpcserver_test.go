@@ -1947,6 +1947,25 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 	byID, err = s.GetDataHistoryJobDetails(t.Context(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: dhj.ID.String()})
 	require.NoError(t, err, "GetDataHistoryJobDetails must not error")
 	assert.Empty(t, byID.JobResults, "job results should be left out unless full details are requested")
+
+	t.Run("nickname taken over by another job", func(t *testing.T) {
+		t.Parallel()
+		mgr, _ := createDHM(t)
+		server := RPCServer{Engine: &Engine{dataHistoryManager: mgr}}
+		job := &DataHistoryJob{
+			Nickname:  "TestGetDataHistoryJobDetailsTakenOver",
+			Exchange:  testExchange,
+			Asset:     asset.Spot,
+			Pair:      currency.NewBTCUSD(),
+			StartDate: time.Now().UTC().Add(-time.Minute * 2),
+			EndDate:   time.Now().UTC(),
+			Interval:  kline.OneMin,
+		}
+		require.NoError(t, mgr.UpsertJob(job, false), "UpsertJob must not error")
+		mgr.jobDB = jobDBNicknameTakenOver{IDBService: mgr.jobDB, id: uuid.NewV4().String()}
+		_, err := server.GetDataHistoryJobDetails(t.Context(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: job.ID.String(), FullDetails: true})
+		assert.ErrorIs(t, err, errJobNotFound, "full details by ID should refuse another job that has taken the nickname over")
+	})
 }
 
 func TestSetDataHistoryJobStatus(t *testing.T) {

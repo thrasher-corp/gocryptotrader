@@ -81,10 +81,10 @@ func (r *TaskManager) GetSummary(id uuid.UUID) (*TaskSummary, error) {
 	return nil, fmt.Errorf("%s %w", id, errTaskNotFound)
 }
 
-// StopTask stops a strategy task if enabled, this will run CloseAllPositions
-func (r *TaskManager) StopTask(id uuid.UUID) error {
+// StopTask stops a strategy task, running CloseAllPositions if enabled, and returns the stopped task's summary
+func (r *TaskManager) StopTask(id uuid.UUID) (*TaskSummary, error) {
 	if r == nil {
-		return fmt.Errorf("%w TaskManager", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w TaskManager", gctcommon.ErrNilPointer)
 	}
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -93,14 +93,17 @@ func (r *TaskManager) StopTask(id uuid.UUID) error {
 		case !r.tasks[i].MatchesID(id):
 			continue
 		case r.tasks[i].IsRunning():
-			return r.tasks[i].Stop()
+			if err := r.tasks[i].Stop(); err != nil {
+				return nil, err
+			}
+			return r.tasks[i].GenerateSummary()
 		case r.tasks[i].HasRan():
-			return fmt.Errorf("%w %v", errAlreadyRan, id)
+			return nil, fmt.Errorf("%w %v", errAlreadyRan, id)
 		default:
-			return fmt.Errorf("%w %v", errTaskHasNotRan, id)
+			return nil, fmt.Errorf("%w %v", errTaskHasNotRan, id)
 		}
 	}
-	return fmt.Errorf("%s %w", id, errTaskNotFound)
+	return nil, fmt.Errorf("%s %w", id, errTaskNotFound)
 }
 
 // StopAllTasks stops all running strategies

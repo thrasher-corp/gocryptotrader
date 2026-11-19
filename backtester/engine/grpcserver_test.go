@@ -582,6 +582,55 @@ func TestGRPCStopTask(t *testing.T) {
 	assert.False(t, s.manager.tasks[0].MetaData.DateEnded.IsZero(), "DateEnded should not be zero")
 	assert.True(t, resp.StoppedTask.Closed, "response should describe the task after it stopped")
 	assert.NotEmpty(t, resp.StoppedTask.DateEnded, "response should carry the task's end date")
+
+	t.Run("clear after stop keeps the response", func(t *testing.T) {
+		t.Parallel()
+		manager := NewTaskManager()
+		server := &GRPCServer{manager: manager}
+		type stopResult struct {
+			response *btrpc.StopTaskResponse
+			err      error
+		}
+		// A clear lands between a stop and a later lookup only by chance, so this takes many attempts
+		for range 2048 {
+			func() {
+				ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+				defer cancel()
+				task := &BackTest{shutdown: make(chan struct{})}
+				task.MetaData.DateStarted = time.Now()
+				require.NoError(t, manager.AddTask(task), "AddTask must not error")
+				id := task.MetaData.ID
+				cleared := make(chan error, 1)
+				go func() {
+					select {
+					case <-task.shutdown:
+						cleared <- manager.ClearTask(id)
+					case <-ctx.Done():
+						cleared <- ctx.Err()
+					}
+				}()
+				stopped := make(chan stopResult, 1)
+				go func() {
+					response, err := server.StopTask(ctx, &btrpc.StopTaskRequest{Id: id.String()})
+					stopped <- stopResult{response: response, err: err}
+				}()
+				var result stopResult
+				select {
+				case result = <-stopped:
+				case <-ctx.Done():
+					require.FailNow(t, "StopTask must return before the deadline")
+				}
+				require.NoError(t, result.err, "StopTask must return the summary of a task cleared as soon as it stops")
+				assert.True(t, result.response.GetStoppedTask().GetClosed(), "StopTask's summary should describe the stopped task")
+				select {
+				case err := <-cleared:
+					require.NoError(t, err, "ClearTask must clear the stopped task")
+				case <-ctx.Done():
+					require.FailNow(t, "ClearTask must finish before the deadline")
+				}
+			}()
+		}
+	})
 }
 
 func TestGRPCStopAllTasks(t *testing.T) {
