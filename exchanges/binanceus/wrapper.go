@@ -939,9 +939,16 @@ func (e *Exchange) spotSubmitResponse(s *order.Submit, placed *NewOrderResponse)
 			Side:      s.Side,
 			Timestamp: resp.Date,
 			FeeAsset:  placed.Fills[i].CommissionAsset.String(),
+			Total:     fillQuoteTotal(placed.Fills[i].Price, placed.Fills[i].Quantity),
 		}
 	}
 	return resp, nil
+}
+
+// fillQuoteTotal returns a fill's quote total, its price times its quantity truncated to eight decimal places, as
+// Binance.US reports a trade's quote quantity
+func fillQuoteTotal(price, quantity types.Number) float64 {
+	return price.Decimal().Mul(quantity.Decimal()).Truncate(8).InexactFloat64()
 }
 
 // newOneCancelsTheOtherOrderRequest works out an OCO order list's request: a LIMIT_MAKER order at Price and a STOP_LOSS
@@ -1299,20 +1306,28 @@ func (e *Exchange) orderListInfo(list *OneCancelsTheOtherOrderResponse, pair cur
 	return &d, nil
 }
 
-// orderPair returns an order's pair: the pair its orders were requested for, or the available pair matching its symbol
-// when every symbol's orders were requested
-func (e *Exchange) orderPair(requested currency.Pair, symbol string) (currency.Pair, error) {
-	if !requested.IsEmpty() {
-		return requested, nil
+// orderPair returns an order's pair: the pair its orders were listed for or, when every symbol's orders were listed, the
+// available pair matching its symbol, else the requested pair with that symbol, so a requested pair keeps its orders
+// without taking those of an available pair sharing its symbol
+func (e *Exchange) orderPair(listed currency.Pair, symbol string, requested map[string]currency.Pair) (currency.Pair, error) {
+	if !listed.IsEmpty() {
+		return listed, nil
 	}
-	return e.MatchSymbolWithAvailablePairs(symbol, asset.Spot, false)
+	pair, err := e.MatchSymbolWithAvailablePairs(symbol, asset.Spot, false)
+	if err == nil {
+		return pair, nil
+	}
+	if p, ok := requested[symbol]; ok {
+		return p, nil
+	}
+	return currency.EMPTYPAIR, err
 }
 
-// appendListedOrder adds an order of a listing to orders. An order whose symbol is not an available pair is left out,
-// and an order with values that cannot be converted is kept without them, each with a logged warning, so one odd order
-// does not fail the listing
-func (e *Exchange) appendListedOrder(orders []order.Detail, orderID string, requested currency.Pair, symbol string, convert func(currency.Pair) (order.Detail, error)) []order.Detail {
-	pair, err := e.orderPair(requested, symbol)
+// appendListedOrder adds an order of a listing to orders. An order whose symbol is neither an available nor a requested
+// pair is left out, and an order with values that cannot be converted is kept without them, each with a logged warning,
+// so one odd order does not fail the listing
+func (e *Exchange) appendListedOrder(orders []order.Detail, orderID string, listed currency.Pair, symbol string, requested map[string]currency.Pair, convert func(currency.Pair) (order.Detail, error)) []order.Detail {
+	pair, err := e.orderPair(listed, symbol, requested)
 	if err != nil {
 		e.logOrderIssue(orderID, err)
 		return orders
@@ -1413,6 +1428,10 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	if req.AssetType != asset.Spot {
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, req.AssetType)
 	}
+	requested, err := e.requestedPairsBySymbol(req.Pairs)
+	if err != nil {
+		return nil, err
+	}
 	useWebsocket := e.canUseWebsocketAPIForOrders(ctx)
 	var orders []order.Detail
 	if req.Type == order.OCO {
@@ -1420,7 +1439,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		orders = e.appendOrderLists(orders, lists)
+		orders = e.appendOrderLists(orders, lists, requested)
 		return e.filterOrders(req, orders), nil
 	}
 	pairs := req.Pairs
@@ -1434,7 +1453,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		}
 		for i := range open {
 			o := &open[i]
-			orders = e.appendListedOrder(orders, strconv.FormatUint(o.OrderID, 10), p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
+			orders = e.appendListedOrder(orders, strconv.FormatUint(o.OrderID, 10), p, o.Symbol, requested, func(pair currency.Pair) (order.Detail, error) {
 				return e.spotOrderDetail(o, pair)
 			})
 		}
@@ -1442,15 +1461,29 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	return e.filterOrders(req, orders), nil
 }
 
+// requestedPairsBySymbol returns the requested pairs by their symbols, so a listing of every symbol's orders can give an
+// order whose symbol no available pair has the requested pair with that symbol
+func (e *Exchange) requestedPairsBySymbol(pairs currency.Pairs) (map[string]currency.Pair, error) {
+	bySymbol := make(map[string]currency.Pair, len(pairs))
+	for _, p := range pairs {
+		symbol, err := e.FormatSymbol(p, asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		bySymbol[symbol] = p
+	}
+	return bySymbol, nil
+}
+
 // appendOrderLists adds the OCO order lists among lists to orders, each as an order identified by its order list ID,
-// tagged as an order list's
-func (e *Exchange) appendOrderLists(orders []order.Detail, lists []OneCancelsTheOtherOrderResponse) []order.Detail {
+// tagged as an order list's, of the available pair matching its symbol or else the requested pair with it
+func (e *Exchange) appendOrderLists(orders []order.Detail, lists []OneCancelsTheOtherOrderResponse, requested map[string]currency.Pair) []order.Detail {
 	for i := range lists {
 		l := &lists[i]
 		if l.ContingencyType != oneCancelsTheOtherContingencyType {
 			continue
 		}
-		orders = e.appendListedOrder(orders, formatOrderListID(l.OrderListID), currency.EMPTYPAIR, l.Symbol, func(pair currency.Pair) (order.Detail, error) {
+		orders = e.appendListedOrder(orders, formatOrderListID(l.OrderListID), currency.EMPTYPAIR, l.Symbol, requested, func(pair currency.Pair) (order.Detail, error) {
 			return e.orderListDetail(l.OrderListID, l.ListClientOrderID, l.ListOrderStatus, l.TransactionTime.Time(), pair)
 		})
 	}
@@ -1496,13 +1529,17 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 	var orders []order.Detail
 	if req.Type == order.OCO {
+		requested, err := e.requestedPairsBySymbol(req.Pairs)
+		if err != nil {
+			return nil, err
+		}
 		lists, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, orderHistorySpan, 1000, func(start, end time.Time) ([]OneCancelsTheOtherOrderResponse, error) {
 			return e.GetAllOneCancelsTheOtherOrders(ctx, &AllOrderListsRequest{FromID: fromID, StartTime: start, EndTime: end, Limit: 1000})
 		}, func(l *OneCancelsTheOtherOrderResponse) time.Time { return l.TransactionTime.Time() }, func(l *OneCancelsTheOtherOrderResponse) uint64 { return l.OrderListID })
 		if err != nil {
 			return nil, err
 		}
-		return e.filterOrders(req, e.appendOrderLists(orders, lists)), nil
+		return e.filterOrders(req, e.appendOrderLists(orders, lists, requested)), nil
 	}
 	for _, p := range req.Pairs {
 		history, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, orderHistorySpan, 1000, func(start, end time.Time) ([]TradeOrderResponse, error) {
@@ -1513,7 +1550,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 		for i := range history {
 			o := &history[i]
-			orders = e.appendListedOrder(orders, strconv.FormatUint(o.OrderID, 10), p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
+			orders = e.appendListedOrder(orders, strconv.FormatUint(o.OrderID, 10), p, o.Symbol, nil, func(pair currency.Pair) (order.Detail, error) {
 				return e.spotOrderDetail(o, pair)
 			})
 		}

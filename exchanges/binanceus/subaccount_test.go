@@ -88,10 +88,13 @@ func TestExecuteSubAccountTransfer(t *testing.T) {
 		{name: "no asset", modify: func(r *SubAccountTransferRequest) { r.Asset = currency.EMPTYCODE }, err: currency.ErrCurrencyCodeEmpty},
 		{name: "no amount", modify: func(r *SubAccountTransferRequest) { r.Amount = 0 }, err: order.ErrAmountIsInvalid},
 	} {
-		req := valid
-		tc.modify(&req)
-		_, err := e.ExecuteSubAccountTransfer(t.Context(), &req)
-		require.ErrorIsf(t, err, tc.err, "ExecuteSubAccountTransfer must reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := valid
+			tc.modify(&req)
+			_, err := e.ExecuteSubAccountTransfer(t.Context(), &req)
+			require.ErrorIsf(t, err, tc.err, "ExecuteSubAccountTransfer must reject a request with %s", tc.name)
+		})
 	}
 	_, err := e.ExecuteSubAccountTransfer(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "ExecuteSubAccountTransfer must reject a nil request")

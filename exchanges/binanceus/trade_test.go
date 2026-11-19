@@ -363,12 +363,18 @@ func TestGetAccountTradeList(t *testing.T) {
 	_, err = e.GetAccountTradeList(t.Context(), &AccountTradeListRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetAccountTradeList must reject an empty pair")
 	start := time.UnixMilli(1794464000000)
-	for _, req := range []*AccountTradeListRequest{
-		{Symbol: currency.NewBTCUSDT(), OrderID: 1, StartTime: start},
-		{Symbol: currency.NewBTCUSDT(), FromID: 1, EndTime: start},
+	for _, tc := range []struct {
+		name string
+		req  *AccountTradeListRequest
+	}{
+		{name: "order ID with a start time", req: &AccountTradeListRequest{Symbol: currency.NewBTCUSDT(), OrderID: 1, StartTime: start}},
+		{name: "from ID with an end time", req: &AccountTradeListRequest{Symbol: currency.NewBTCUSDT(), FromID: 1, EndTime: start}},
 	} {
-		_, err = e.GetAccountTradeList(t.Context(), req)
-		require.ErrorIs(t, err, errInvalidParameterCombination, "GetAccountTradeList must reject orderId or fromId with a time")
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetAccountTradeList(t.Context(), tc.req)
+			require.ErrorIs(t, err, errInvalidParameterCombination, "GetAccountTradeList must reject orderId or fromId with a time")
+		})
 	}
 	_, err = e.GetAccountTradeList(t.Context(), &AccountTradeListRequest{Symbol: currency.NewBTCUSDT(), StartTime: start, EndTime: start.Add(-time.Second)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAccountTradeList must reject a start after the end")
@@ -429,10 +435,13 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 		{name: "no mode", modify: func(r *CancelReplaceOrderRequest) { r.CancelReplaceMode = "" }, err: errCancelReplaceModeRequired},
 		{name: "no order to cancel", modify: func(r *CancelReplaceOrderRequest) { r.CancelOrderID = 0 }, err: order.ErrOrderIDNotSet},
 	} {
-		req := valid
-		tc.modify(&req)
-		_, err := e.CancelExistingOrderAndSendNewOrder(t.Context(), &req)
-		require.ErrorIsf(t, err, tc.err, "CancelExistingOrderAndSendNewOrder must reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := valid
+			tc.modify(&req)
+			_, err := e.CancelExistingOrderAndSendNewOrder(t.Context(), &req)
+			require.ErrorIsf(t, err, tc.err, "CancelExistingOrderAndSendNewOrder must reject a request with %s", tc.name)
+		})
 	}
 	_, err := e.CancelExistingOrderAndSendNewOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelExistingOrderAndSendNewOrder must reject a nil request")
@@ -621,10 +630,13 @@ func TestNewOneCancelsTheOtherOrder(t *testing.T) {
 		{name: "no stop price", modify: func(r *OneCancelsTheOtherOrderRequest) { r.StopPrice = 0 }, err: errStopPriceRequired},
 		{name: "a stop limit price without its time in force", modify: func(r *OneCancelsTheOtherOrderRequest) { r.StopLimitPrice = 69900 }, err: errStopLimitTimeInForceRequired},
 	} {
-		req := valid
-		tc.modify(&req)
-		_, err := e.NewOneCancelsTheOtherOrder(t.Context(), &req)
-		require.ErrorIsf(t, err, tc.err, "NewOneCancelsTheOtherOrder must reject %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := valid
+			tc.modify(&req)
+			_, err := e.NewOneCancelsTheOtherOrder(t.Context(), &req)
+			require.ErrorIsf(t, err, tc.err, "NewOneCancelsTheOtherOrder must reject %s", tc.name)
+		})
 	}
 	_, err := e.NewOneCancelsTheOtherOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "NewOneCancelsTheOtherOrder must reject a nil request")

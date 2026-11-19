@@ -783,14 +783,20 @@ func TestProcessExecutionReport(t *testing.T) {
 	detail, ok = relayed(t, ex).(*order.Detail)
 	require.True(t, ok, "a cancellation must be relayed as an order detail")
 	assert.Equal(t, "originalClientID", detail.ClientOrderID, "a cancellation should report the order's own client order ID")
+	assert.Empty(t, ex.Websocket.DataHandler.C, "a cancellation should be relayed once")
 
 	for orderType, exp := range map[OrderType]order.Type{OrderTypeStopLossLimit: order.StopLimit, OrderTypeTakeProfitLimit: order.TakeProfitLimit} {
-		frame := `{"e":"executionReport","s":"BTCUSDT","S":"SELL","o":"` + string(orderType) + `","f":"GTC","q":"1","p":"70000","P":"69900","X":"NEW","i":7,"T":1499405658800,"O":1499405658800}`
-		require.NoErrorf(t, ex.processExecutionReport(ctx, []byte(frame)), "processExecutionReport must not error for a %s order", orderType)
-		detail, ok = relayed(t, ex).(*order.Detail)
-		require.Truef(t, ok, "a %s order must be relayed as an order detail", orderType)
-		assert.Equalf(t, exp, detail.Type, "a %s order should be relayed with its type", orderType)
-		assert.Equalf(t, 69900.0, detail.TriggerPrice, "a %s order should be relayed with its stop price", orderType)
+		t.Run(string(orderType), func(t *testing.T) {
+			t.Parallel()
+			subscribed := subscribedUserDataTestExchange(t)
+			frame := `{"e":"executionReport","s":"BTCUSDT","S":"SELL","o":"` + string(orderType) + `","f":"GTC","q":"1","p":"70000","P":"69900","X":"NEW","i":7,"T":1499405658800,"O":1499405658800}`
+			require.NoErrorf(t, subscribed.processExecutionReport(t.Context(), []byte(frame)), "processExecutionReport must not error for a %s order", orderType)
+			detail, ok := relayed(t, subscribed).(*order.Detail)
+			require.Truef(t, ok, "a %s order must be relayed as an order detail", orderType)
+			assert.Equalf(t, exp, detail.Type, "a %s order should be relayed with its type", orderType)
+			assert.Equalf(t, 69900.0, detail.TriggerPrice, "a %s order should be relayed with its stop price", orderType)
+			assert.Emptyf(t, subscribed.Websocket.DataHandler.C, "a %s order should be relayed once", orderType)
+		})
 	}
 
 	for name, frame := range map[string]string{
@@ -799,10 +805,15 @@ func TestProcessExecutionReport(t *testing.T) {
 		"side":          `{"e":"executionReport","s":"BTCUSDT","S":"UNKNOWN","o":"LIMIT","f":"GTC","X":"NEW","i":6}`,
 		"time in force": `{"e":"executionReport","s":"BTCUSDT","S":"BUY","o":"LIMIT","f":"UNKNOWN","X":"NEW","i":6}`,
 	} {
-		require.NoErrorf(t, ex.processExecutionReport(ctx, []byte(frame)), "processExecutionReport must not error for an unknown %s", name)
-		classification, ok := relayed(t, ex).(order.ClassificationError)
-		require.Truef(t, ok, "an unknown %s must be relayed as a classification error", name)
-		assert.Equalf(t, "6", classification.OrderID, "the classification error of an unknown %s should name the order", name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			subscribed := subscribedUserDataTestExchange(t)
+			require.NoErrorf(t, subscribed.processExecutionReport(t.Context(), []byte(frame)), "processExecutionReport must not error for an unknown %s", name)
+			classification, ok := relayed(t, subscribed).(order.ClassificationError)
+			require.Truef(t, ok, "an unknown %s must be relayed as a classification error", name)
+			assert.Equalf(t, "6", classification.OrderID, "the classification error of an unknown %s should name the order", name)
+			assert.Emptyf(t, subscribed.Websocket.DataHandler.C, "an unknown %s should be relayed once", name)
+		})
 	}
 
 	assert.ErrorIs(t, ex.processExecutionReport(ctx, []byte(`{"s":"NOTAPAIR"}`)), currency.ErrPairNotFound, "processExecutionReport should error for an unknown symbol")

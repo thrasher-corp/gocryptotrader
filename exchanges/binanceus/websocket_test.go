@@ -217,15 +217,21 @@ func TestWebsocketHandleData(t *testing.T) {
 		"not an object":    `[]`,
 		"unknown channels": `{"stream":"btcusdt@aggTrade","data":{}}`,
 	} {
-		assert.ErrorIsf(t, ex.wsHandleData(t.Context(), conn, []byte(frame)), errUnhandledMessage, "a frame with %s should be unhandled", name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, ex.wsHandleData(t.Context(), conn, []byte(frame)), errUnhandledMessage, "a frame with %s should be unhandled", name)
+		})
 	}
 
 	for name, frame := range map[string]string{
 		"raw":      `{"e":"serverShutdown","E":1794466395877}`,
 		"combined": `{"stream":"!serverShutdown","data":{"e":"serverShutdown","E":1794466395877}}`,
 	} {
-		shutdown := newStreamTestExchange(t)
-		require.NoErrorf(t, shutdown.wsHandleData(t.Context(), newFakeConnection(), []byte(frame)), "a %s serverShutdown event must not error", name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			shutdown := newStreamTestExchange(t)
+			require.NoErrorf(t, shutdown.wsHandleData(t.Context(), newFakeConnection(), []byte(frame)), "a %s serverShutdown event must not error", name)
+		})
 	}
 }
 
@@ -321,17 +327,28 @@ func TestProcessTicker(t *testing.T) {
 
 func TestProcessKline(t *testing.T) {
 	t.Parallel()
-	ex := newStreamTestExchange(t)
 	frames := streamFramesOf(t, "btcusdt@kline_1m")
 	require.Len(t, frames, 2, "the fixture must hold a closed and an open candle")
-	for i, partial := range []string{"", kline.PartialCandle} {
-		require.NoErrorf(t, ex.processKline(t.Context(), streamData(t, frames[i])), "processKline must not error for frame %d", i)
-		item, ok := relayed(t, ex).(kline.Item)
-		require.Truef(t, ok, "processKline must relay candles for frame %d", i)
-		require.Lenf(t, item.Candles, 1, "processKline must relay one candle for frame %d", i)
-		assert.Equalf(t, partial, item.Candles[0].ValidationIssues, "processKline should flag an open candle as partial for frame %d", i)
-		assert.Equalf(t, kline.OneMin, item.Interval, "processKline should relay the interval for frame %d", i)
+	for i, tc := range []struct {
+		name    string
+		partial string
+	}{
+		{name: "closed candle"},
+		{name: "open candle", partial: kline.PartialCandle},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newStreamTestExchange(t)
+			require.NoErrorf(t, ex.processKline(t.Context(), streamData(t, frames[i])), "processKline must not error for frame %d", i)
+			item, ok := relayed(t, ex).(kline.Item)
+			require.Truef(t, ok, "processKline must relay candles for frame %d", i)
+			require.Lenf(t, item.Candles, 1, "processKline must relay one candle for frame %d", i)
+			assert.Equalf(t, tc.partial, item.Candles[0].ValidationIssues, "processKline should flag an open candle as partial for frame %d", i)
+			assert.Equalf(t, kline.OneMin, item.Interval, "processKline should relay the interval for frame %d", i)
+			assert.Emptyf(t, ex.Websocket.DataHandler.C, "processKline should relay nothing more for frame %d", i)
+		})
 	}
+	ex := newStreamTestExchange(t)
 	require.NoError(t, ex.processKline(t.Context(), []byte(`{"s":"ETHUSDT","k":{"i":"1m"}}`)), "processKline must not error for a pair that is not enabled")
 	assert.ErrorIs(t, ex.processKline(t.Context(), []byte(`{"s":"BTCUSDT","k":{"i":"1s"}}`)), kline.ErrInvalidInterval, "processKline should error for an unknown interval")
 	assert.Error(t, ex.processKline(t.Context(), []byte(`{"s":1}`)), "processKline should error for a payload that does not decode")
@@ -525,9 +542,12 @@ var orderStatuses = map[string]order.Status{
 func TestStringToOrderStatus(t *testing.T) {
 	t.Parallel()
 	for status, exp := range orderStatuses {
-		got, err := stringToOrderStatus(status)
-		require.NoErrorf(t, err, "stringToOrderStatus must not error for %s", status)
-		assert.Equalf(t, exp, got, "stringToOrderStatus should convert %s", status)
+		t.Run(status, func(t *testing.T) {
+			t.Parallel()
+			got, err := stringToOrderStatus(status)
+			require.NoErrorf(t, err, "stringToOrderStatus must not error for %s", status)
+			assert.Equalf(t, exp, got, "stringToOrderStatus should convert %s", status)
+		})
 	}
 	_, err := stringToOrderStatus("UNKNOWN")
 	assert.ErrorIs(t, err, errUnknownOrderStatus, "stringToOrderStatus should reject an unknown status")
@@ -597,25 +617,29 @@ func TestGetSubscriptionTemplate(t *testing.T) {
 func TestChannelName(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		s   *subscription.Subscription
-		exp string
-		err error
+		name string
+		s    *subscription.Subscription
+		exp  string
+		err  error
 	}{
-		{s: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "ticker"},
-		{s: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "trade"},
-		{s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FifteenMin}, exp: "kline_15m"},
-		{s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.TenMin}, err: kline.ErrUnsupportedInterval},
-		{s: &subscription.Subscription{Channel: subscription.OrderbookChannel}, exp: "depth"},
-		{s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.ThousandMilliseconds}, exp: "depth"},
-		{s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, exp: "depth@100ms"},
-		{s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 10, Interval: kline.HundredMilliseconds}, exp: "depth10@100ms"},
-		{s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 15}, err: errUnsupportedLevels},
-		{s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.OneMin}, err: errUnsupportedFrequency},
-		{s: &subscription.Subscription{Channel: subscription.MyOrdersChannel}, err: errUnsupportedChannel},
+		{name: "ticker", s: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "ticker"},
+		{name: "trades", s: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "trade"},
+		{name: "candles every 15 minutes", s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FifteenMin}, exp: "kline_15m"},
+		{name: "candles every 10 minutes", s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.TenMin}, err: kline.ErrUnsupportedInterval},
+		{name: "order book", s: &subscription.Subscription{Channel: subscription.OrderbookChannel}, exp: "depth"},
+		{name: "order book every second", s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.ThousandMilliseconds}, exp: "depth"},
+		{name: "order book every 100 milliseconds", s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, exp: "depth@100ms"},
+		{name: "order book of 10 levels every 100 milliseconds", s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 10, Interval: kline.HundredMilliseconds}, exp: "depth10@100ms"},
+		{name: "order book of 15 levels", s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 15}, err: errUnsupportedLevels},
+		{name: "order book every minute", s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.OneMin}, err: errUnsupportedFrequency},
+		{name: "my orders", s: &subscription.Subscription{Channel: subscription.MyOrdersChannel}, err: errUnsupportedChannel},
 	} {
-		got, err := channelName(tc.s)
-		require.ErrorIsf(t, err, tc.err, "channelName must return the expected error for %s %s levels %d", tc.s.Channel, tc.s.Interval, tc.s.Levels)
-		assert.Equalf(t, tc.exp, got, "channelName should name %s %s levels %d", tc.s.Channel, tc.s.Interval, tc.s.Levels)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := channelName(tc.s)
+			require.ErrorIsf(t, err, tc.err, "channelName must return the expected error for %s %s levels %d", tc.s.Channel, tc.s.Interval, tc.s.Levels)
+			assert.Equalf(t, tc.exp, got, "channelName should name %s %s levels %d", tc.s.Channel, tc.s.Interval, tc.s.Levels)
+		})
 	}
 }
 

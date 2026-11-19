@@ -475,14 +475,31 @@ func TestWebsocketHandleAPIData(t *testing.T) {
 	_, ok = relayed(t, ex).(*WebsocketBalanceUpdate)
 	assert.True(t, ok, "a user data event should be passed to its handler")
 
-	for name, frame := range map[string]string{
-		"wrapped": `{"event":{"e":"serverShutdown","E":1794466395877}}`,
-		"raw":     `{"e":"serverShutdown","E":1794466395877}`,
+	wrapped, raw := `{"event":{"e":"serverShutdown","E":1794466395877}}`, `{"e":"serverShutdown","E":1794466395877}`
+	for _, tc := range []struct {
+		name       string
+		frame      string
+		subscribed bool
+	}{
+		{name: "wrapped", frame: wrapped},
+		{name: "raw", frame: raw},
+		{name: "wrapped with a User Data Stream subscribed", frame: wrapped, subscribed: true},
+		{name: "raw with a User Data Stream subscribed", frame: raw, subscribed: true},
 	} {
-		shutdownConn := newFakeConnection()
-		ex.wsAPI.set(shutdownConn, 10*time.Millisecond)
-		require.NoErrorf(t, ex.wsHandleAPIData(t.Context(), shutdownConn, []byte(frame)), "wsHandleAPIData must not error for a %s serverShutdown event", name)
-		assert.Nilf(t, ex.wsAPI.get(), "a %s serverShutdown event should retire the connection", name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			shutdown := newWebsocketTestExchange(t)
+			if tc.subscribed {
+				shutdown.userData.expect("1", &accounts.Credentials{Key: "k"})
+				require.NoError(t, shutdown.wsHandleAPIData(t.Context(), newFakeConnection(), []byte(`{"id":"1","status":200,"result":{"subscriptionId":3}}`)), "wsHandleAPIData must not error for a response")
+				_, ok := shutdown.userData.credentials(3)
+				require.True(t, ok, "the User Data Stream must be subscribed before the serverShutdown event")
+			}
+			shutdownConn := newFakeConnection()
+			shutdown.wsAPI.set(shutdownConn, 10*time.Millisecond)
+			require.NoError(t, shutdown.wsHandleAPIData(t.Context(), shutdownConn, []byte(tc.frame)), "wsHandleAPIData must not error for a serverShutdown event")
+			assert.Nil(t, shutdown.wsAPI.get(), "a serverShutdown event should retire the connection")
+		})
 	}
 
 	down := newFakeConnection()
@@ -503,25 +520,52 @@ func TestWebsocketHandleAPIData(t *testing.T) {
 	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "a refusal of the configured account's key should turn authenticated websocket use off")
 	assert.Contains(t, conn.matched, "configured", "a refused subscription should be matched to its request")
 
-	t.Run("a serverShutdown event has the websocket connect a new WebSocket API connection", func(t *testing.T) {
-		t.Parallel()
-		ex, _, apiDials := newTwoServerTestExchange(t, func(tb testing.TB, msg []byte, w *gws.Conn) error {
-			tb.Helper()
-			var req WebsocketAPIRequest
-			require.NoError(tb, json.Unmarshal(msg, &req), "request must decode")
-			if req.Method != "ping" {
+	for _, tc := range []struct {
+		name          string
+		frame         string
+		authenticated bool
+	}{
+		{name: "a wrapped serverShutdown event has the websocket connect a new WebSocket API connection", frame: wrapped},
+		{name: "a raw serverShutdown event has the websocket connect a new WebSocket API connection", frame: raw},
+		{name: "a wrapped serverShutdown event has the websocket connect a new WebSocket API connection and subscribe its User Data Stream again", frame: wrapped, authenticated: true},
+		{name: "a raw serverShutdown event has the websocket connect a new WebSocket API connection and subscribe its User Data Stream again", frame: raw, authenticated: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var subscriptions atomic.Int32
+			ex, _, apiDials := newTwoServerTestExchange(t, func(tb testing.TB, msg []byte, w *gws.Conn) error {
+				tb.Helper()
+				var req WebsocketAPIRequest
+				require.NoError(tb, json.Unmarshal(msg, &req), "request must decode")
+				switch req.Method {
+				case "userDataStream.subscribe.signature":
+					return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"id":%q,"status":200,"result":{"subscriptionId":%d}}`, req.ID, subscriptions.Add(1)))
+				case "ping":
+					if err := w.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","status":200,"result":{}}`)); err != nil {
+						return err
+					}
+					return w.WriteMessage(gws.TextMessage, []byte(tc.frame))
+				}
 				return websocketAPIMock(tb, msg, w)
+			}, tc.authenticated)
+			if tc.authenticated {
+				require.Eventually(t, func() bool {
+					_, ok := ex.userData.credentials(1)
+					return ok
+				}, 10*time.Second, 10*time.Millisecond, "the User Data Stream must be subscribed before the serverShutdown event")
 			}
-			if err := w.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","status":200,"result":{}}`)); err != nil {
-				return err
+			require.NoError(t, ex.WebsocketAPI().TestConnectivity(t.Context()), "TestConnectivity must not error")
+			assert.Eventually(t, func() bool {
+				return apiDials.Load() == 2 && ex.WebsocketAPI().IsConnected()
+			}, 10*time.Second, 10*time.Millisecond, "a serverShutdown event should have the websocket connect a new WebSocket API connection")
+			if tc.authenticated {
+				assert.Eventually(t, func() bool {
+					_, ok := ex.userData.credentials(2)
+					return ok && subscriptions.Load() == 2
+				}, 10*time.Second, 10*time.Millisecond, "a serverShutdown event should have the new WebSocket API connection subscribe the User Data Stream again")
 			}
-			return w.WriteMessage(gws.TextMessage, []byte(`{"event":{"e":"serverShutdown","E":1794466395877}}`))
-		}, false)
-		require.NoError(t, ex.WebsocketAPI().TestConnectivity(t.Context()), "TestConnectivity must not error")
-		assert.Eventually(t, func() bool {
-			return apiDials.Load() == 2 && ex.WebsocketAPI().IsConnected()
-		}, 10*time.Second, 10*time.Millisecond, "a serverShutdown event should have the websocket connect a new WebSocket API connection")
-	})
+		})
+	}
 
 	t.Run("a refused key turns authenticated websocket use off rather than reconnecting over and over", func(t *testing.T) {
 		t.Parallel()
@@ -753,10 +797,13 @@ func TestSendOnWebsocketAPIConnection(t *testing.T) {
 		{name: "null result", response: `{"id":"1","status":200,"result":null}`, err: common.ErrNoResponse},
 		{name: "missing result", response: `{"id":"1","status":200}`, err: common.ErrNoResponse},
 	} {
-		failing := newFakeConnection()
-		failing.response, failing.sendErr = []byte(tc.response), tc.sendErr
-		var resp *ServerTimeResponse
-		assert.ErrorIsf(t, ex.sendOnWebsocketAPIConnection(t.Context(), failing, defaultRate, req, &resp), tc.err, "sendOnWebsocketAPIConnection should error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			failing := newFakeConnection()
+			failing.response, failing.sendErr = []byte(tc.response), tc.sendErr
+			var resp *ServerTimeResponse
+			assert.ErrorIsf(t, ex.sendOnWebsocketAPIConnection(t.Context(), failing, defaultRate, req, &resp), tc.err, "sendOnWebsocketAPIConnection should error for %s", tc.name)
+		})
 	}
 	conn = newFakeConnection()
 	conn.response = []byte(`{`)

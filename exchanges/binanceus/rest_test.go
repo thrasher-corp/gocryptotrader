@@ -484,7 +484,10 @@ func TestSetSymbolParams(t *testing.T) {
 func TestFormatFloat(t *testing.T) {
 	t.Parallel()
 	for in, exp := range map[float64]string{1.9: "1.9", 0.00001234: "0.00001234", 1e-8: "0.00000001", 25: "25", 123456789.123: "123456789.123"} {
-		assert.Equalf(t, exp, formatFloat(in), "formatFloat should format %v in plain notation", in)
+		t.Run(exp, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, formatFloat(in), "formatFloat should format %v in plain notation", in)
+		})
 	}
 }
 

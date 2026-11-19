@@ -92,8 +92,11 @@ func TestTransferFromExchangeWallet(t *testing.T) {
 		{name: "no asset", req: &CustodialAssetTransferRequest{Rail: custodialTestRail, Amount: 1}, err: currency.ErrCurrencyCodeEmpty},
 		{name: "no amount", req: &CustodialAssetTransferRequest{Rail: custodialTestRail, Asset: currency.BTC}, err: order.ErrAmountIsInvalid},
 	} {
-		_, err := e.TransferFromExchangeWallet(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "TransferFromExchangeWallet must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.TransferFromExchangeWallet(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "TransferFromExchangeWallet must refuse a request with %s", tc.name)
+		})
 	}
 
 	t.Run("sends the request's parameters", func(t *testing.T) {
@@ -157,8 +160,11 @@ func TestTransferFromCustodian(t *testing.T) {
 		{name: "no asset", req: &CustodialAssetTransferRequest{Rail: custodialTestRail, Amount: 1}, err: currency.ErrCurrencyCodeEmpty},
 		{name: "no amount", req: &CustodialAssetTransferRequest{Rail: custodialTestRail, Asset: currency.BTC}, err: order.ErrAmountIsInvalid},
 	} {
-		_, err := e.TransferFromCustodian(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "TransferFromCustodian must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.TransferFromCustodian(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "TransferFromCustodian must refuse a request with %s", tc.name)
+		})
 	}
 
 	t.Run("sends the request's parameters", func(t *testing.T) {
@@ -252,8 +258,11 @@ func TestGetExchangeWalletTransfer(t *testing.T) {
 		{name: "no rail", req: &ExchangeWalletTransferRequest{}, err: errRailRequired},
 		{name: "a reversed time range", req: &ExchangeWalletTransferRequest{Rail: custodialTestRail, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetExchangeWalletTransfer(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetExchangeWalletTransfer must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetExchangeWalletTransfer(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetExchangeWalletTransfer must refuse a request with %s", tc.name)
+		})
 	}
 
 	t.Run("sends the request's parameters", func(t *testing.T) {
@@ -333,8 +342,11 @@ func TestGetCustodianTransfer(t *testing.T) {
 		{name: "no rail", req: &CustodianTransferRequest{}, err: errRailRequired},
 		{name: "a reversed time range", req: &CustodianTransferRequest{Rail: custodialTestRail, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetCustodianTransfer(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetCustodianTransfer must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetCustodianTransfer(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetCustodianTransfer must refuse a request with %s", tc.name)
+		})
 	}
 
 	t.Run("sends the request's parameters", func(t *testing.T) {
@@ -419,8 +431,11 @@ func TestCustodialNewOrder(t *testing.T) {
 		{name: "no side", req: &CustodialNewOrderRequest{Rail: custodialTestRail, Symbol: ethtusd, Type: OrderTypeMarket}, err: order.ErrSideIsInvalid},
 		{name: "no type", req: &CustodialNewOrderRequest{Rail: custodialTestRail, Symbol: ethtusd, Side: SideBuy}, err: order.ErrTypeIsInvalid},
 	} {
-		_, err := e.CustodialNewOrder(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "CustodialNewOrder must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.CustodialNewOrder(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "CustodialNewOrder must refuse a request with %s", tc.name)
+		})
 	}
 
 	t.Run("sends the request's parameters", func(t *testing.T) {
@@ -535,10 +550,13 @@ func TestCustodialNewOneCancelsTheOtherOrder(t *testing.T) {
 		{name: "no stop price", modify: func(r *CustodialNewOneCancelsTheOtherOrderRequest) { r.StopPrice = 0 }, err: errStopPriceRequired},
 		{name: "a stop limit price without its time in force", modify: func(r *CustodialNewOneCancelsTheOtherOrderRequest) { r.StopLimitPrice = 0.97 }, err: errStopLimitTimeInForceRequired},
 	} {
-		req := valid
-		tc.modify(&req)
-		_, err := e.CustodialNewOneCancelsTheOtherOrder(t.Context(), &req)
-		require.ErrorIsf(t, err, tc.err, "CustodialNewOneCancelsTheOtherOrder must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := valid
+			tc.modify(&req)
+			_, err := e.CustodialNewOneCancelsTheOtherOrder(t.Context(), &req)
+			require.ErrorIsf(t, err, tc.err, "CustodialNewOneCancelsTheOtherOrder must refuse a request with %s", tc.name)
+		})
 	}
 	_, err := e.CustodialNewOneCancelsTheOtherOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CustodialNewOneCancelsTheOtherOrder must refuse a nil request")
@@ -722,8 +740,11 @@ func TestGetCustodialOrder(t *testing.T) {
 		{name: "no symbol", req: &CustodialOrderRequest{Rail: custodialTestRail, OrderID: 1}, err: currency.ErrCurrencyPairEmpty},
 		{name: "no order ID", req: &CustodialOrderRequest{Rail: custodialTestRail, Symbol: ltcbtc}, err: order.ErrOrderIDNotSet},
 	} {
-		_, err := e.GetCustodialOrder(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetCustodialOrder must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetCustodialOrder(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetCustodialOrder must refuse a request with %s", tc.name)
+		})
 	}
 
 	t.Run("sends the request's parameters", func(t *testing.T) {
@@ -775,8 +796,11 @@ func TestGetCustodialOrderHistory(t *testing.T) {
 		{name: "no rail", req: &CustodialOrderHistoryRequest{}, err: errRailRequired},
 		{name: "a reversed time range", req: &CustodialOrderHistoryRequest{Rail: custodialTestRail, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetCustodialOrderHistory(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetCustodialOrderHistory must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetCustodialOrderHistory(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetCustodialOrderHistory must refuse a request with %s", tc.name)
+		})
 	}
 
 	t.Run("sends the request's parameters", func(t *testing.T) {
@@ -842,8 +866,11 @@ func TestGetCustodialTradeHistory(t *testing.T) {
 		{name: "no rail", req: &CustodialTradeHistoryRequest{}, err: errRailRequired},
 		{name: "a reversed time range", req: &CustodialTradeHistoryRequest{Rail: custodialTestRail, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetCustodialTradeHistory(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetCustodialTradeHistory must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetCustodialTradeHistory(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetCustodialTradeHistory must refuse a request with %s", tc.name)
+		})
 	}
 
 	t.Run("sends the request's parameters", func(t *testing.T) {
@@ -920,8 +947,11 @@ func TestCancelCustodialOrder(t *testing.T) {
 		{name: "no symbol", req: &CancelCustodialOrderRequest{Rail: custodialTestRail, OrderID: 4}, err: currency.ErrCurrencyPairEmpty},
 		{name: "neither order ID", req: &CancelCustodialOrderRequest{Rail: custodialTestRail, Symbol: ltcbtc, NewClientOrderID: "cancelMyOrder1"}, err: order.ErrOrderIDNotSet},
 	} {
-		_, err := e.CancelCustodialOrder(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "CancelCustodialOrder must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.CancelCustodialOrder(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "CancelCustodialOrder must refuse a request with %s", tc.name)
+		})
 	}
 
 	t.Run("sends the request's parameters", func(t *testing.T) {
@@ -1037,8 +1067,11 @@ func TestCancelCustodialOneCancelsTheOtherOrder(t *testing.T) {
 		{name: "no symbol", req: &CancelCustodialOneCancelsTheOtherOrderRequest{Rail: custodialTestRail, OrderListID: new(uint64(1))}, err: currency.ErrCurrencyPairEmpty},
 		{name: "a list client order ID instead of an order list ID", req: &CancelCustodialOneCancelsTheOtherOrderRequest{Rail: custodialTestRail, Symbol: ltcbtc, ListClientOrderID: "C3wyj4WVEktd7u9aVBRXcN"}, err: order.ErrOrderIDNotSet},
 	} {
-		_, err := e.CancelCustodialOneCancelsTheOtherOrder(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "CancelCustodialOneCancelsTheOtherOrder must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.CancelCustodialOneCancelsTheOtherOrder(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "CancelCustodialOneCancelsTheOtherOrder must refuse a request with %s", tc.name)
+		})
 	}
 
 	t.Run("sends the request's parameters", func(t *testing.T) {
@@ -1168,8 +1201,11 @@ func TestGetCustodialSettlementHistory(t *testing.T) {
 		{name: "no rail", req: &CustodialSettlementHistoryRequest{}, err: errRailRequired},
 		{name: "a reversed time range", req: &CustodialSettlementHistoryRequest{Rail: custodialTestRail, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetCustodialSettlementHistory(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetCustodialSettlementHistory must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetCustodialSettlementHistory(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetCustodialSettlementHistory must refuse a request with %s", tc.name)
+		})
 	}
 
 	t.Run("sends the request's parameters", func(t *testing.T) {

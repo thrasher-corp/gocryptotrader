@@ -1,6 +1,7 @@
 package binanceus
 
 import (
+	"cmp"
 	"context"
 	"io"
 	"math"
@@ -104,9 +105,12 @@ func TestSetDefaults(t *testing.T) {
 		exchange.WebsocketSpot:  websocketStreamsURL,
 		exchange.WebsocketTrade: websocketAPIURL,
 	} {
-		got, err := ex.API.Endpoints.GetURL(endpoint)
-		require.NoErrorf(t, err, "GetURL must not error for %s", endpoint)
-		assert.Equalf(t, exp, got, "SetDefaults should set the %s endpoint", endpoint)
+		t.Run(endpoint.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := ex.API.Endpoints.GetURL(endpoint)
+			require.NoErrorf(t, err, "GetURL must not error for %s", endpoint)
+			assert.Equalf(t, exp, got, "SetDefaults should set the %s endpoint", endpoint)
+		})
 	}
 }
 
@@ -198,10 +202,13 @@ func TestParseSpotOrderID(t *testing.T) {
 		{orderID: "list-x", isList: true, err: errInvalidOrderID},
 		{orderID: "x", err: errInvalidOrderID},
 	} {
-		id, isList, err := parseSpotOrderID(tc.orderID)
-		require.ErrorIsf(t, err, tc.err, "parseSpotOrderID must return the expected error for %q", tc.orderID)
-		assert.Equalf(t, tc.id, id, "parseSpotOrderID should return the ID of %q", tc.orderID)
-		assert.Equalf(t, tc.isList, isList, "parseSpotOrderID should report whether %q is an order list's", tc.orderID)
+		t.Run(cmp.Or(tc.orderID, "empty"), func(t *testing.T) {
+			t.Parallel()
+			id, isList, err := parseSpotOrderID(tc.orderID)
+			require.ErrorIsf(t, err, tc.err, "parseSpotOrderID must return the expected error for %q", tc.orderID)
+			assert.Equalf(t, tc.id, id, "parseSpotOrderID should return the ID of %q", tc.orderID)
+			assert.Equalf(t, tc.isList, isList, "parseSpotOrderID should report whether %q is an order list's", tc.orderID)
+		})
 	}
 }
 
@@ -232,9 +239,12 @@ func TestSpotOrderTypeString(t *testing.T) {
 		{orderType: order.TakeProfitMarket, exp: OrderTypeTakeProfit},
 		{orderType: order.TakeProfitLimit, exp: OrderTypeTakeProfitLimit},
 	} {
-		got, err := spotOrderTypeString(tc.orderType, tc.tif)
-		require.NoErrorf(t, err, "spotOrderTypeString must not error for %s %s", tc.orderType, tc.tif)
-		assert.Equalf(t, tc.exp, got, "spotOrderTypeString should convert %s %s", tc.orderType, tc.tif)
+		t.Run(strings.TrimSpace(tc.orderType.String()+" "+tc.tif.String()), func(t *testing.T) {
+			t.Parallel()
+			got, err := spotOrderTypeString(tc.orderType, tc.tif)
+			require.NoErrorf(t, err, "spotOrderTypeString must not error for %s %s", tc.orderType, tc.tif)
+			assert.Equalf(t, tc.exp, got, "spotOrderTypeString should convert %s %s", tc.orderType, tc.tif)
+		})
 	}
 	_, err := spotOrderTypeString(order.TrailingStop, order.UnknownTIF)
 	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "spotOrderTypeString should reject an unsupported type")
@@ -259,9 +269,12 @@ var spotTimesInForce = map[TimeInForce]order.TimeInForce{
 func TestStringToSpotOrderType(t *testing.T) {
 	t.Parallel()
 	for orderType, exp := range spotOrderTypes {
-		got, err := stringToSpotOrderType(orderType)
-		require.NoErrorf(t, err, "stringToSpotOrderType must not error for %s", orderType)
-		assert.Equalf(t, exp, got, "stringToSpotOrderType should convert %s", orderType)
+		t.Run(string(orderType), func(t *testing.T) {
+			t.Parallel()
+			got, err := stringToSpotOrderType(orderType)
+			require.NoErrorf(t, err, "stringToSpotOrderType must not error for %s", orderType)
+			assert.Equalf(t, exp, got, "stringToSpotOrderType should convert %s", orderType)
+		})
 	}
 	_, err := stringToSpotOrderType("UNKNOWN")
 	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "stringToSpotOrderType should reject an unknown type")
@@ -276,11 +289,14 @@ func TestSpotTimeInForce(t *testing.T) {
 		t.Run(typ.String(), func(t *testing.T) {
 			t.Parallel()
 			for _, tif := range spotTimesInForce {
-				exp := tif
-				if typ == order.LimitMaker {
-					exp = order.PostOnly
-				}
-				assert.Equalf(t, exp, spotTimeInForce(typ, tif), "spotTimeInForce should return %s for a %s order reported as %s", exp, typ, tif)
+				t.Run(tif.String(), func(t *testing.T) {
+					t.Parallel()
+					exp := tif
+					if typ == order.LimitMaker {
+						exp = order.PostOnly
+					}
+					assert.Equalf(t, exp, spotTimeInForce(typ, tif), "spotTimeInForce should return %s for a %s order reported as %s", exp, typ, tif)
+				})
 			}
 		})
 	}
@@ -289,9 +305,12 @@ func TestSpotTimeInForce(t *testing.T) {
 func TestOrderListStatus(t *testing.T) {
 	t.Parallel()
 	for status, exp := range map[string]order.Status{"EXECUTING": order.Active, "ALL_DONE": order.Closed, "REJECT": order.Rejected} {
-		got, err := orderListStatus(status)
-		require.NoErrorf(t, err, "orderListStatus must not error for %s", status)
-		assert.Equalf(t, exp, got, "orderListStatus should convert %s", status)
+		t.Run(status, func(t *testing.T) {
+			t.Parallel()
+			got, err := orderListStatus(status)
+			require.NoErrorf(t, err, "orderListStatus must not error for %s", status)
+			assert.Equalf(t, exp, got, "orderListStatus should convert %s", status)
+		})
 	}
 	_, err := orderListStatus("UNKNOWN")
 	assert.ErrorIs(t, err, errUnknownOrderStatus, "orderListStatus should reject an unknown status")
@@ -314,6 +333,8 @@ func TestOrderListDetail(t *testing.T) {
 		LastUpdated:   at,
 		Pair:          currency.NewBTCUSDT(),
 	}, d, "orderListDetail should convert the order list")
+	assert.True(t, d.IsActive(), "an executing order list should read as active, so the order manager keeps checking it")
+	assert.False(t, d.IsInactive(), "an executing order list should not read as inactive")
 	_, err = ex.orderListDetail(5, "", "UNKNOWN", at, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errUnknownOrderStatus, "orderListDetail should return an unknown status")
 
@@ -326,6 +347,17 @@ func TestOrderListDetail(t *testing.T) {
 			Exchange: "test", OrderID: "list-12569099453", ClientOrderID: "other", Type: order.OCO, Status: order.Closed,
 			AssetType: asset.Spot, Date: done, LastUpdated: done, Pair: currency.NewPair(currency.ETH, currency.BTC),
 		}, d, "orderListDetail should convert an order list's pair, status and order list ID")
+		assert.True(t, d.IsInactive(), "an order list that is all done should read as inactive")
+		assert.False(t, d.IsActive(), "an order list that is all done should not read as active")
+	})
+
+	t.Run("a rejected order list", func(t *testing.T) {
+		t.Parallel()
+		d, err := ex.orderListDetail(6, "rejected", "REJECT", at, currency.NewBTCUSDT())
+		require.NoError(t, err, "orderListDetail must not error")
+		assert.Equal(t, order.Rejected, d.Status, "orderListDetail should convert a rejected order list's status")
+		assert.True(t, d.IsInactive(), "a rejected order list should read as inactive")
+		assert.False(t, d.IsActive(), "a rejected order list should not read as active")
 	})
 }
 
@@ -1004,9 +1036,12 @@ func TestLogOrderIssue(t *testing.T) {
 func TestOrderSideString(t *testing.T) {
 	t.Parallel()
 	for side, exp := range map[order.Side]Side{order.Buy: SideBuy, order.Bid: SideBuy, order.Sell: SideSell, order.Ask: SideSell} {
-		got, err := orderSideString(side)
-		require.NoErrorf(t, err, "orderSideString must not error for %s", side)
-		assert.Equalf(t, exp, got, "orderSideString should convert %s", side)
+		t.Run(side.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := orderSideString(side)
+			require.NoErrorf(t, err, "orderSideString must not error for %s", side)
+			assert.Equalf(t, exp, got, "orderSideString should convert %s", side)
+		})
 	}
 	_, err := orderSideString(order.UnknownSide)
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "orderSideString should reject an unknown side")
@@ -1034,9 +1069,12 @@ func TestTimeInForceString(t *testing.T) {
 		order.UnknownTIF: TimeInForceGoodTillCancel, order.GoodTillCancel: TimeInForceGoodTillCancel,
 		order.ImmediateOrCancel: TimeInForceImmediateOrCancel, order.FillOrKill: TimeInForceFillOrKill,
 	} {
-		got, err := timeInForceString(tif)
-		require.NoErrorf(t, err, "timeInForceString must not error for %s", tif)
-		assert.Equalf(t, exp, got, "timeInForceString should convert %s", tif)
+		t.Run(cmp.Or(tif.String(), "unset"), func(t *testing.T) {
+			t.Parallel()
+			got, err := timeInForceString(tif)
+			require.NoErrorf(t, err, "timeInForceString must not error for %s", tif)
+			assert.Equalf(t, exp, got, "timeInForceString should convert %s", tif)
+		})
 	}
 	_, err := timeInForceString(order.GoodTillDay)
 	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "timeInForceString should reject an unsupported time in force")
@@ -1063,9 +1101,12 @@ func TestNewSpotOrderValues(t *testing.T) {
 		{name: "untriggered stop", s: order.Submit{Side: order.Buy, Type: order.StopMarket, Amount: 2}, err: errTriggerPriceRequired},
 		{name: "no amount", s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 1}, err: order.ErrAmountIsInvalid},
 	} {
-		got, err := newSpotOrderValues(&tc.s)
-		require.ErrorIsf(t, err, tc.err, "newSpotOrderValues must return the expected error for %s", tc.name)
-		assert.Equalf(t, tc.exp, got, "newSpotOrderValues should work out the values of %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := newSpotOrderValues(&tc.s)
+			require.ErrorIsf(t, err, tc.err, "newSpotOrderValues must return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "newSpotOrderValues should work out the values of %s", tc.name)
+		})
 	}
 }
 
@@ -1460,8 +1501,8 @@ func TestSpotSubmitResponse(t *testing.T) {
 	assert.Equal(t, 28000.0, resp.Cost, "spotSubmitResponse should report the cost")
 	assert.Equal(t, 70000.0, resp.AverageExecutedPrice, "spotSubmitResponse should report the average price")
 	exp := []order.TradeHistory{
-		{Price: 70000, Amount: 0.3, Fee: 0.0003, Exchange: "test", TID: "77", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466395184), FeeAsset: "BTC"},
-		{Price: 70000, Amount: 0.1, Fee: 0.0001, Exchange: "test", TID: "78", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466395184), FeeAsset: "BTC"},
+		{Price: 70000, Amount: 0.3, Fee: 0.0003, Exchange: "test", TID: "77", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466395184), FeeAsset: "BTC", Total: 21000},
+		{Price: 70000, Amount: 0.1, Fee: 0.0001, Exchange: "test", TID: "78", Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1794466395184), FeeAsset: "BTC", Total: 7000},
 	}
 	assert.Equal(t, exp, resp.Trades, "spotSubmitResponse should report each fill with its trade ID")
 	d := &order.Detail{Exchange: "test", OrderID: resp.OrderID, Trades: resp.Trades}
@@ -1489,10 +1530,91 @@ func TestSpotSubmitResponse(t *testing.T) {
 		assert.Equal(t, 33300.0, resp.Cost, "spotSubmitResponse should report the quote amount the fills cost")
 		assert.Equal(t, 0.6, resp.RemainingAmount, "spotSubmitResponse should report the quantity left to fill")
 		assert.Equal(t, []order.TradeHistory{
-			{Price: 66500, Amount: 0.25, Fee: 0.0001, Exchange: "test", TID: "79", Type: order.Market, Side: order.Buy, Timestamp: time.UnixMilli(1794466395184), FeeAsset: "BNB"},
-			{Price: 66700, Amount: 0.25, Fee: 0.0001, Exchange: "test", TID: "80", Type: order.Market, Side: order.Buy, Timestamp: time.UnixMilli(1794466395184), FeeAsset: "BNB"},
+			{Price: 66500, Amount: 0.25, Fee: 0.0001, Exchange: "test", TID: "79", Type: order.Market, Side: order.Buy, Timestamp: time.UnixMilli(1794466395184), FeeAsset: "BNB", Total: 16625},
+			{Price: 66700, Amount: 0.25, Fee: 0.0001, Exchange: "test", TID: "80", Type: order.Market, Side: order.Buy, Timestamp: time.UnixMilli(1794466395184), FeeAsset: "BNB", Total: 16675},
 		}, resp.Trades, "spotSubmitResponse should report each fill at its own price, with the asset its fee was taken in")
 	})
+
+	t.Run("fills whose float products miss their exact quote totals", func(t *testing.T) {
+		t.Parallel()
+		sell := &order.Submit{Exchange: "test", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Sell, Type: order.Market, Amount: 0.00426}
+		resp, err := ex.spotSubmitResponse(sell, &NewOrderResponse{
+			OrderID: 33, TransactTime: types.Time(time.UnixMilli(1794466395184)), OriginalQuantity: 0.00426,
+			ExecutedQuantity: 0.00426, CumulativeQuoteQuantity: 283.2946158, Status: "FILLED",
+			Fills: []OrderFill{
+				{Price: 66512.37, Quantity: 0.00037, Commission: 0.02460958, CommissionAsset: currency.USDT, TradeID: 81},
+				{Price: 66500.01, Quantity: 0.00389, Commission: 0.25868504, CommissionAsset: currency.USDT, TradeID: 82},
+			},
+		})
+		require.NoError(t, err, "spotSubmitResponse must not error")
+		require.Len(t, resp.Trades, 2, "spotSubmitResponse must report both fills")
+		assert.Equal(t, 24.6095769, resp.Trades[0].Total, "spotSubmitResponse should report a fill's quote total as its price times its quantity, exactly")
+		assert.Equal(t, 258.6850389, resp.Trades[1].Total, "spotSubmitResponse should report a fill's quote total as its price times its quantity, exactly")
+	})
+
+	t.Run("a fill whose quote total runs to the quote's eighth decimal place", func(t *testing.T) {
+		t.Parallel()
+		buy := &order.Submit{Exchange: "test", Pair: currency.NewPair(currency.SHIB, currency.USDT), AssetType: asset.Spot, Side: order.Buy, Type: order.Market, Amount: 123457}
+		resp, err := ex.spotSubmitResponse(buy, &NewOrderResponse{
+			OrderID: 34, TransactTime: types.Time(time.UnixMilli(1794466395184)), OriginalQuantity: 123457,
+			ExecutedQuantity: 123457, CumulativeQuoteQuantity: 2.90247407, Status: "FILLED",
+			Fills: []OrderFill{{Price: 0.00002351, Quantity: 123457, Commission: 123.457, CommissionAsset: currency.SHIB, TradeID: 83}},
+		})
+		require.NoError(t, err, "spotSubmitResponse must not error")
+		require.Len(t, resp.Trades, 1, "spotSubmitResponse must report the fill")
+		assert.Equal(t, 2.90247407, resp.Trades[0].Total, "spotSubmitResponse should report a fill's quote total to the quote's eighth decimal place")
+	})
+
+	t.Run("a fill whose quote total runs past the quote's eighth decimal place", func(t *testing.T) {
+		t.Parallel()
+		buy := &order.Submit{Exchange: "test", Pair: currency.NewPair(currency.ETH, currency.BTC), AssetType: asset.Spot, Side: order.Buy, Type: order.Market, Amount: 0.0085}
+		resp, err := ex.spotSubmitResponse(buy, &NewOrderResponse{
+			OrderID: 35, TransactTime: types.Time(time.UnixMilli(1794466395184)), OriginalQuantity: 0.0085,
+			ExecutedQuantity: 0.0085, CumulativeQuoteQuantity: 0.00025253, Status: "FILLED",
+			Fills: []OrderFill{{Price: 0.02971, Quantity: 0.0085, Commission: 0.0000085, CommissionAsset: currency.ETH, TradeID: 84}},
+		})
+		require.NoError(t, err, "spotSubmitResponse must not error")
+		require.Len(t, resp.Trades, 1, "spotSubmitResponse must report the fill")
+		assert.Equal(t, 0.00025253, resp.Trades[0].Total, "spotSubmitResponse should report a fill's quote total truncated to the quote's eighth decimal place")
+		assert.Equal(t, resp.Cost, resp.Trades[0].Total, "spotSubmitResponse should report a lone fill's quote total as the order's cost")
+	})
+
+	t.Run("fills whose quote totals Binance.US truncates one by one", func(t *testing.T) {
+		t.Parallel()
+		sell := &order.Submit{Exchange: "test", Pair: currency.NewPair(currency.ETH, currency.BTC), AssetType: asset.Spot, Side: order.Sell, Type: order.Market, Amount: 0.0352}
+		resp, err := ex.spotSubmitResponse(sell, &NewOrderResponse{
+			OrderID: 36, TransactTime: types.Time(time.UnixMilli(1793911868242)), OriginalQuantity: 0.0352,
+			ExecutedQuantity: 0.0352, CumulativeQuoteQuantity: 0.00104088, Status: "FILLED",
+			Fills: []OrderFill{
+				{Price: 0.02959, Quantity: 0.0014, Commission: 0.00000004, CommissionAsset: currency.BTC, TradeID: 5804413},
+				{Price: 0.02957, Quantity: 0.0338, Commission: 0.00000099, CommissionAsset: currency.BTC, TradeID: 5804414},
+			},
+		})
+		require.NoError(t, err, "spotSubmitResponse must not error")
+		require.Len(t, resp.Trades, 2, "spotSubmitResponse must report both fills")
+		assert.Equal(t, []float64{0.00004142, 0.00099946}, []float64{resp.Trades[0].Total, resp.Trades[1].Total}, "spotSubmitResponse should truncate each fill's quote total on its own, as Binance.US reports each trade's")
+	})
+}
+
+func TestFillQuoteTotal(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		price    types.Number
+		quantity types.Number
+		exp      float64
+	}{
+		{name: "a BTCUSDT fill whose float product misses its total", price: 66512.37, quantity: 0.00037, exp: 24.6095769},
+		{name: "a SHIBUSDT fill to the quote's eighth decimal place", price: 0.00002351, quantity: 123457, exp: 2.90247407},
+		{name: "an ETHBTC fill past the quote's eighth decimal place", price: 0.02971, quantity: 0.0085, exp: 0.00025253},
+		{name: "a SOLBTC fill past the quote's eighth decimal place", price: 0.0012166, quantity: 0.71, exp: 0.00086378},
+		{name: "a BNBBTC fill whose float product misses its total", price: 0.009393, quantity: 0.042, exp: 0.0003945},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, fillQuoteTotal(tc.price, tc.quantity), "fillQuoteTotal should truncate a fill's price times its quantity to eight decimal places, as Binance.US reports a trade's quote quantity")
+		})
+	}
 }
 
 func TestNewOneCancelsTheOtherOrderRequest(t *testing.T) {
@@ -1516,10 +1638,13 @@ func TestNewOneCancelsTheOtherOrderRequest(t *testing.T) {
 		"no trigger price": func(s *order.Submit) { s.TriggerPrice = 0 },
 		"time in force":    func(s *order.Submit) { s.TimeInForce = order.FillOrKill },
 	} {
-		invalid := s
-		modify(&invalid)
-		_, err := newOneCancelsTheOtherOrderRequest(&invalid)
-		assert.Errorf(t, err, "newOneCancelsTheOtherOrderRequest should reject a list with %s", name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			invalid := s
+			modify(&invalid)
+			_, err := newOneCancelsTheOtherOrderRequest(&invalid)
+			assert.Errorf(t, err, "newOneCancelsTheOtherOrderRequest should reject a list with %s", name)
+		})
 	}
 
 	for _, limitPrice := range []float64{-1, -0.5, -math.SmallestNonzeroFloat64} {
@@ -1933,9 +2058,12 @@ func TestSpotOrderList(t *testing.T) {
 		"another contingency type": `{"orderListId":5,"contingencyType":"OTO","listClientOrderId":"L","symbol":"BTCUSDT"}`,
 		"another client ID":        `{"orderListId":5,"contingencyType":"OCO","listClientOrderId":"other","symbol":"BTCUSDT"}`,
 	} {
-		ex := routedTestExchange(t, map[string]http.HandlerFunc{"GET /api/v3/orderList": reply(t, nil, body)})
-		_, err := ex.spotOrderList(t.Context(), new(uint64(5)), "L", currency.NewBTCUSDT(), queryOrderListRate)
-		assert.ErrorIsf(t, err, order.ErrOrderNotFound, "spotOrderList should not find an order list of %s", name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ex := routedTestExchange(t, map[string]http.HandlerFunc{"GET /api/v3/orderList": reply(t, nil, body)})
+			_, err := ex.spotOrderList(t.Context(), new(uint64(5)), "L", currency.NewBTCUSDT(), queryOrderListRate)
+			assert.ErrorIsf(t, err, order.ErrOrderNotFound, "spotOrderList should not find an order list of %s", name)
+		})
 	}
 	ex := routedTestExchange(t, map[string]http.HandlerFunc{"GET /api/v3/orderList": reply(t, url.Values{"orderListId": {"5"}, "origClientOrderId": {"L"}}, `{"orderListId":5,"contingencyType":"OCO","listClientOrderId":"L","symbol":"BTCUSDT"}`)})
 	list, err := ex.spotOrderList(t.Context(), new(uint64(5)), "L", currency.NewBTCUSDT(), queryOrderListRate)
@@ -1956,25 +2084,50 @@ func TestOrderListInfo(t *testing.T) {
 func TestOrderPair(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	pair, err := ex.orderPair(currency.NewPair(currency.ETH, currency.USDT), "BTCUSDT")
-	require.NoError(t, err, "orderPair must not error")
-	assert.True(t, pair.Equal(currency.NewPair(currency.ETH, currency.USDT)), "orderPair should keep the requested pair")
-	pair, err = ex.orderPair(currency.EMPTYPAIR, "BTCUSDT")
-	require.NoError(t, err, "orderPair must not error for a symbol")
-	assert.True(t, pair.Equal(currency.NewBTCUSDT()), "orderPair should match the symbol")
+	unavailable := currency.NewPairWithDelimiter("ltc", "usdt", currency.UnderscoreDelimiter)
+	sharingSymbol := currency.NewPairWithDelimiter("BTCU", "SDT", currency.DashDelimiter)
+	requested := map[string]currency.Pair{"LTCUSDT": unavailable, "BTCUSDT": sharingSymbol}
+	for _, tc := range []struct {
+		name   string
+		listed currency.Pair
+		symbol string
+		exp    currency.Pair
+		err    error
+	}{
+		{name: "the pair its orders were listed for", listed: currency.NewPair(currency.ETH, currency.USDT), symbol: "BTCUSDT", exp: currency.NewPair(currency.ETH, currency.USDT)},
+		{name: "an available pair a requested pair shares its symbol with", symbol: "BTCUSDT", exp: currency.NewBTCUSDT()},
+		{name: "a requested pair the available pairs lack", symbol: "LTCUSDT", exp: unavailable},
+		{name: "neither an available nor a requested pair", symbol: "XRPUSDT", exp: currency.EMPTYPAIR, err: currency.ErrPairNotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			pair, err := ex.orderPair(tc.listed, tc.symbol, requested)
+			require.ErrorIs(t, err, tc.err, "orderPair must return the expected error")
+			assert.Equal(t, tc.exp, pair, "orderPair should return the listed pair, else the available pair, else the requested pair as requested")
+		})
+	}
 }
 
 func TestAppendListedOrder(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	orders := ex.appendListedOrder(nil, "1", currency.EMPTYPAIR, "NOTAPAIR", func(currency.Pair) (order.Detail, error) {
+	orders := ex.appendListedOrder(nil, "1", currency.EMPTYPAIR, "NOTAPAIR", nil, func(currency.Pair) (order.Detail, error) {
 		return order.Detail{OrderID: "1"}, nil
 	})
 	assert.Empty(t, orders, "an order of an unknown symbol should be left out")
-	orders = ex.appendListedOrder(nil, "2", currency.EMPTYPAIR, "BTCUSDT", func(currency.Pair) (order.Detail, error) {
+	orders = ex.appendListedOrder(nil, "2", currency.EMPTYPAIR, "BTCUSDT", nil, func(currency.Pair) (order.Detail, error) {
 		return order.Detail{OrderID: "2"}, errUnknownOrderStatus
 	})
 	assert.Equal(t, []order.Detail{{OrderID: "2"}}, orders, "an order with a value that cannot be converted should be kept")
+
+	t.Run("an order of a requested pair the available pairs lack", func(t *testing.T) {
+		t.Parallel()
+		unavailable := currency.NewPairWithDelimiter("ltc", "usdt", currency.UnderscoreDelimiter)
+		orders := ex.appendListedOrder(nil, "3", currency.EMPTYPAIR, "LTCUSDT", map[string]currency.Pair{"LTCUSDT": unavailable}, func(p currency.Pair) (order.Detail, error) {
+			return order.Detail{OrderID: "3", Pair: p}, nil
+		})
+		assert.Equal(t, []order.Detail{{OrderID: "3", Pair: unavailable}}, orders, "an order of a requested pair the available pairs lack should be kept with that pair")
+	})
 }
 
 func TestSpotOrderVars(t *testing.T) {
@@ -1995,10 +2148,13 @@ func TestSpotOrderVars(t *testing.T) {
 			for side, expSide := range map[Side]order.Side{SideBuy: order.Buy, SideSell: order.Sell} {
 				for status, expStatus := range orderStatuses {
 					for tif, expTIF := range spotTimesInForce {
-						vars, err := spotOrderVars(side, status, orderType, tif)
-						require.NoErrorf(t, err, "spotOrderVars must not error for %s %s %s %s", side, status, orderType, tif)
-						assert.Equalf(t, orderVars{side: expSide, status: expStatus, orderType: expType, timeInForce: expTIF}, vars,
-							"spotOrderVars should convert %s %s %s %s", side, status, orderType, tif)
+						t.Run(string(side)+" "+status+" "+string(tif), func(t *testing.T) {
+							t.Parallel()
+							vars, err := spotOrderVars(side, status, orderType, tif)
+							require.NoErrorf(t, err, "spotOrderVars must not error for %s %s %s %s", side, status, orderType, tif)
+							assert.Equalf(t, orderVars{side: expSide, status: expStatus, orderType: expType, timeInForce: expTIF}, vars,
+								"spotOrderVars should convert %s %s %s %s", side, status, orderType, tif)
+						})
 					}
 				}
 			}
@@ -2204,6 +2360,97 @@ func TestGetActiveOrders(t *testing.T) {
 	require.NoError(t, err, "GetActiveOrders must not error without pairs")
 	require.Len(t, orders, 2, "GetActiveOrders must return every symbol's open orders without pairs")
 	assert.True(t, orders[1].Pair.Equal(currency.NewPair(currency.ETH, currency.USDT)), "GetActiveOrders should give each order its symbol's pair")
+
+	t.Run("an open order of a requested pair the available pairs lack, among pairs enough to list every symbol", func(t *testing.T) {
+		t.Parallel()
+		ex := routedTestExchange(t, map[string]http.HandlerFunc{
+			"GET /api/v3/openOrders": reply(t, url.Values{}, `[{"symbol":"LTCUSDT","orderId":7,"origQty":"1","executedQty":"0","status":"NEW","type":"LIMIT","side":"BUY","timeInForce":"GTC"}]`),
+		})
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false), "StorePairs must not error")
+		requested := currency.NewPairWithDelimiter("LTC", "USDT", currency.DashDelimiter)
+		bases := []currency.Code{currency.ETH, currency.BNB, currency.ADA, currency.XRP, currency.DOGE, currency.SOL, currency.TRX, currency.DOT, currency.BCH, currency.XLM, currency.LINK, currency.AVAX, currency.ATOM}
+		pairs := make(currency.Pairs, 0, len(bases)+1)
+		pairs = append(pairs, requested)
+		for _, c := range bases {
+			pairs = append(pairs, currency.NewPair(c, currency.USDT))
+		}
+		require.Len(t, pairs, openOrdersAllSymbolsFrom, "the request must hold enough pairs to list every symbol's open orders")
+		orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: pairs})
+		require.NoError(t, err, "GetActiveOrders must not error")
+		require.Len(t, orders, 1, "GetActiveOrders must return the requested pair's open order")
+		assert.True(t, orders[0].Pair.Equal(requested), "GetActiveOrders should give an open order of a requested pair that pair")
+	})
+
+	t.Run("an order list of a requested pair the available pairs lack", func(t *testing.T) {
+		t.Parallel()
+		ex := routedTestExchange(t, map[string]http.HandlerFunc{
+			"GET /api/v3/openOrderList": reply(t, url.Values{}, `[{"orderListId":9,"contingencyType":"OCO","listOrderStatus":"EXECUTING","symbol":"LTCUSDT"}]`),
+		})
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false), "StorePairs must not error")
+		requested := currency.NewPairWithDelimiter("LTC", "USDT", currency.DashDelimiter)
+		lists, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.OCO, Pairs: currency.Pairs{requested}})
+		require.NoError(t, err, "GetActiveOrders must not error for OCO order lists")
+		require.Len(t, lists, 1, "GetActiveOrders must return the requested pair's order list")
+		assert.True(t, lists[0].Pair.Equal(requested), "GetActiveOrders should give an order list of a requested pair that pair")
+	})
+
+	t.Run("every symbol's open orders, mixing requested and available pairs", func(t *testing.T) {
+		t.Parallel()
+		ex := routedTestExchange(t, map[string]http.HandlerFunc{
+			"GET /api/v3/openOrders": reply(t, url.Values{}, `[`+
+				`{"symbol":"LTCUSDT","orderId":7,"origQty":"1","executedQty":"0","status":"NEW","type":"LIMIT","side":"BUY","timeInForce":"GTC"},`+
+				`{"symbol":"BTCUSDT","orderId":8,"origQty":"1","executedQty":"0","status":"NEW","type":"LIMIT","side":"BUY","timeInForce":"GTC"},`+
+				`{"symbol":"ETHUSDT","orderId":9,"origQty":"1","executedQty":"0","status":"NEW","type":"LIMIT","side":"BUY","timeInForce":"GTC"},`+
+				`{"symbol":"XRPUSDT","orderId":10,"origQty":"1","executedQty":"0","status":"NEW","type":"LIMIT","side":"BUY","timeInForce":"GTC"},`+
+				`{"symbol":"LINKBTC","orderId":11,"origQty":"1","executedQty":"0","status":"NEW","type":"LIMIT","side":"BUY","timeInForce":"GTC"}]`),
+		})
+		available := currency.NewPairWithDelimiter("eth", "usdt", currency.UnderscoreDelimiter)
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT(), available, currency.NewPair(currency.LINK, currency.BTC)}, false), "StorePairs must not error")
+		unavailable := currency.NewPairWithDelimiter("ltc", "usdt", currency.UnderscoreDelimiter)
+		sharingSymbol := currency.NewPairWithDelimiter("BTCU", "SDT", currency.DashDelimiter)
+		pairs := make(currency.Pairs, 0, openOrdersAllSymbolsFrom)
+		pairs = append(pairs, unavailable, sharingSymbol, currency.NewPair(currency.ETH, currency.USDT))
+		for _, c := range []currency.Code{currency.BNB, currency.ADA, currency.DOGE, currency.SOL, currency.TRX, currency.DOT, currency.BCH, currency.XLM, currency.LINK, currency.AVAX, currency.ATOM} {
+			pairs = append(pairs, currency.NewPair(c, currency.USDT))
+		}
+		require.Len(t, pairs, openOrdersAllSymbolsFrom, "the request must hold enough pairs to list every symbol's open orders")
+		orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: pairs})
+		require.NoError(t, err, "GetActiveOrders must not error")
+		require.Len(t, orders, 2, "GetActiveOrders must return the requested pairs' open orders alone")
+		assert.Equal(t, "7", orders[0].OrderID, "GetActiveOrders should return the open order of the requested pair the available pairs lack")
+		assert.Equal(t, unavailable, orders[0].Pair, "GetActiveOrders should give that order the pair as requested")
+		assert.Equal(t, "9", orders[1].OrderID, "GetActiveOrders should return the open order of the requested available pair, leaving out an unrequested available pair's order and the available pair's order a requested pair shares a symbol with")
+		assert.Equal(t, available, orders[1].Pair, "GetActiveOrders should give that order its available pair as stored")
+	})
+
+	t.Run("open orders listed pair by pair keep each pair as requested", func(t *testing.T) {
+		t.Parallel()
+		bySymbol := map[string]string{
+			"BTCUSDT": `[{"symbol":"BTCUSDT","orderId":5,"origQty":"1","executedQty":"0","status":"NEW","type":"LIMIT","side":"BUY","timeInForce":"GTC"}]`,
+			"LTCUSDT": `[{"symbol":"LTCUSDT","orderId":7,"origQty":"1","executedQty":"0","status":"NEW","type":"LIMIT","side":"BUY","timeInForce":"GTC"}]`,
+		}
+		ex := routedTestExchange(t, map[string]http.HandlerFunc{
+			"GET /api/v3/openOrders": func(w http.ResponseWriter, r *http.Request) {
+				body, ok := bySymbol[r.URL.Query().Get("symbol")]
+				assert.True(t, ok, "openOrders should be requested for a requested pair's symbol")
+				writeResponse(t, w, body)
+			},
+		})
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false), "StorePairs must not error")
+		available := currency.NewPairWithDelimiter("btc", "usdt", currency.UnderscoreDelimiter)
+		unavailable := currency.NewPairWithDelimiter("ltc", "usdt", currency.UnderscoreDelimiter)
+		orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{available, unavailable}})
+		require.NoError(t, err, "GetActiveOrders must not error")
+		require.Len(t, orders, 2, "GetActiveOrders must return each requested pair's open order")
+		assert.Equal(t, available, orders[0].Pair, "GetActiveOrders should give an open order listed for an available pair that pair as requested")
+		assert.Equal(t, unavailable, orders[1].Pair, "GetActiveOrders should give an open order listed for a pair the available pairs lack that pair as requested")
+	})
+
+	t.Run("requested pairs the exchange cannot format", func(t *testing.T) {
+		t.Parallel()
+		_, err := new(Exchange).GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{currency.NewBTCUSDT()}})
+		assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "GetActiveOrders should return the error formatting a requested pair")
+	})
 }
 
 func TestAppendOrderLists(t *testing.T) {
@@ -2212,9 +2459,53 @@ func TestAppendOrderLists(t *testing.T) {
 	orders := ex.appendOrderLists(nil, []OneCancelsTheOtherOrderResponse{
 		{OrderListID: 1, ContingencyType: "OCO", ListOrderStatus: "EXECUTING", Symbol: "BTCUSDT"},
 		{OrderListID: 2, ContingencyType: "OTO", ListOrderStatus: "EXECUTING", Symbol: "BTCUSDT"},
-	})
+	}, nil)
 	require.Len(t, orders, 1, "appendOrderLists must add the OCO order lists alone")
 	assert.Equal(t, "list-1", orders[0].OrderID, "appendOrderLists should add an order list by its tagged ID")
+
+	t.Run("an order list of a requested pair the available pairs lack", func(t *testing.T) {
+		t.Parallel()
+		requested := currency.NewPair(currency.LTC, currency.USDT)
+		orders := ex.appendOrderLists([]order.Detail{{OrderID: "4"}}, []OneCancelsTheOtherOrderResponse{
+			{OrderListID: 3, ContingencyType: "OCO", ListOrderStatus: "EXECUTING", Symbol: "LTCUSDT"},
+		}, map[string]currency.Pair{"LTCUSDT": requested})
+		require.Len(t, orders, 2, "appendOrderLists must add an order list of a requested pair after the orders it is given")
+		assert.Equal(t, "4", orders[0].OrderID, "appendOrderLists should keep the orders it is given")
+		assert.True(t, orders[1].Pair.Equal(requested), "appendOrderLists should give an order list of a requested pair that pair")
+	})
+
+	t.Run("order lists mixing requested and available pairs", func(t *testing.T) {
+		t.Parallel()
+		unavailable := currency.NewPairWithDelimiter("ltc", "usdt", currency.UnderscoreDelimiter)
+		requested := map[string]currency.Pair{"LTCUSDT": unavailable, "BTCUSDT": currency.NewPairWithDelimiter("BTCU", "SDT", currency.DashDelimiter)}
+		orders := ex.appendOrderLists(nil, []OneCancelsTheOtherOrderResponse{
+			{OrderListID: 0, ContingencyType: "OCO", ListOrderStatus: "EXECUTING", Symbol: "BTCUSDT"},
+			{OrderListID: 6, ContingencyType: "OCO", ListOrderStatus: "EXECUTING", Symbol: "LTCUSDT"},
+			{OrderListID: 7, ContingencyType: "OCO", ListOrderStatus: "EXECUTING", Symbol: "XRPUSDT"},
+		}, requested)
+		require.Len(t, orders, 2, "appendOrderLists must leave out an order list of a symbol neither available nor requested")
+		assert.Equal(t, []string{"list-0", "list-6"}, []string{orders[0].OrderID, orders[1].OrderID}, "appendOrderLists should add the order lists in their listed order")
+		assert.Equal(t, currency.NewBTCUSDT(), orders[0].Pair, "appendOrderLists should give an order list its available pair, though a requested pair shares its symbol")
+		assert.Equal(t, unavailable, orders[1].Pair, "appendOrderLists should give an order list of a requested pair the available pairs lack that pair as requested")
+	})
+}
+
+func TestRequestedPairsBySymbol(t *testing.T) {
+	t.Parallel()
+	requested := currency.NewPairWithDelimiter("LTC", "USDT", currency.DashDelimiter)
+	t.Run("pairs available or not", func(t *testing.T) {
+		t.Parallel()
+		lowerCase := currency.NewPairWithDelimiter("eth", "btc", currency.DashDelimiter)
+		underscored := currency.NewPairWithDelimiter("Sol", "usd", currency.UnderscoreDelimiter)
+		bySymbol, err := newWebsocketTestExchange(t).requestedPairsBySymbol(currency.Pairs{currency.NewBTCUSDT(), requested, lowerCase, underscored})
+		require.NoError(t, err, "requestedPairsBySymbol must not error")
+		assert.Equal(t, map[string]currency.Pair{"BTCUSDT": currency.NewBTCUSDT(), "LTCUSDT": requested, "ETHBTC": lowerCase, "SOLUSD": underscored}, bySymbol, "requestedPairsBySymbol should key each requested pair by its symbol, available or not")
+	})
+	t.Run("a pair it cannot format", func(t *testing.T) {
+		t.Parallel()
+		_, err := new(Exchange).requestedPairsBySymbol(currency.Pairs{requested})
+		assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "requestedPairsBySymbol should return the error formatting a pair")
+	})
 }
 
 func TestFilterOrders(t *testing.T) {
@@ -2285,6 +2576,73 @@ func TestGetOrderHistory(t *testing.T) {
 	require.NoError(t, err, "GetOrderHistory must not error for OCO order lists")
 	require.Len(t, orders, 2, "GetOrderHistory must return the window's order lists")
 	assert.Equal(t, []string{"list-9", "list-10"}, []string{orders[0].OrderID, orders[1].OrderID}, "GetOrderHistory should put the order lists in time order")
+
+	t.Run("an order list of a requested pair the available pairs lack", func(t *testing.T) {
+		t.Parallel()
+		ex := routedTestExchange(t, map[string]http.HandlerFunc{
+			"GET /api/v3/allOrderList": reply(t, nil, `[{"orderListId":11,"contingencyType":"OCO","listOrderStatus":"ALL_DONE","symbol":"LTCUSDT","transactionTime":1794400000000}]`),
+		})
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false), "StorePairs must not error")
+		requested := currency.NewPairWithDelimiter("LTC", "USDT", currency.DashDelimiter)
+		orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.OCO, Pairs: currency.Pairs{requested}, StartTime: start, EndTime: end})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		require.Len(t, orders, 1, "GetOrderHistory must return the requested pair's order list")
+		assert.True(t, orders[0].Pair.Equal(requested), "GetOrderHistory should give an order list of a requested pair that pair")
+	})
+
+	t.Run("orders listed pair by pair keep each pair as requested", func(t *testing.T) {
+		t.Parallel()
+		window := url.Values{"startTime": {"1794380000000"}, "endTime": {"1794466000000"}, "limit": {"1000"}}
+		bySymbol := map[string]http.HandlerFunc{
+			"BTCUSDT": reply(t, url.Values{"symbol": {"BTCUSDT"}, "startTime": window["startTime"], "endTime": window["endTime"], "limit": window["limit"]},
+				`[{"symbol":"BTCUSDT","orderId":12,"origQty":"1","executedQty":"1","status":"FILLED","type":"MARKET","side":"SELL","time":1794400000000}]`),
+			"LTCUSDT": reply(t, url.Values{"symbol": {"LTCUSDT"}, "startTime": window["startTime"], "endTime": window["endTime"], "limit": window["limit"]},
+				`[{"symbol":"LTCUSDT","orderId":13,"origQty":"1","executedQty":"1","status":"FILLED","type":"MARKET","side":"SELL","time":1794400000000}]`),
+		}
+		ex := routedTestExchange(t, map[string]http.HandlerFunc{
+			"GET /api/v3/allOrders": func(w http.ResponseWriter, r *http.Request) {
+				handler, ok := bySymbol[r.URL.Query().Get("symbol")]
+				if !assert.True(t, ok, "allOrders should be requested for a requested pair's symbol") {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				handler(w, r)
+			},
+		})
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false), "StorePairs must not error")
+		available := currency.NewPairWithDelimiter("btc", "usdt", currency.UnderscoreDelimiter)
+		unavailable := currency.NewPairWithDelimiter("ltc", "usdt", currency.UnderscoreDelimiter)
+		orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{available, unavailable}, StartTime: start, EndTime: end})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		require.Len(t, orders, 2, "GetOrderHistory must return each requested pair's order")
+		assert.Equal(t, available, orders[0].Pair, "GetOrderHistory should give an order listed for an available pair that pair as requested")
+		assert.Equal(t, unavailable, orders[1].Pair, "GetOrderHistory should give an order listed for a pair the available pairs lack that pair as requested")
+	})
+
+	t.Run("every symbol's order lists, mixing requested and available pairs", func(t *testing.T) {
+		t.Parallel()
+		ex := routedTestExchange(t, map[string]http.HandlerFunc{
+			"GET /api/v3/allOrderList": reply(t, nil, `[`+
+				`{"orderListId":0,"contingencyType":"OCO","listOrderStatus":"ALL_DONE","symbol":"BTCUSDT","transactionTime":1794400000000},`+
+				`{"orderListId":11,"contingencyType":"OCO","listOrderStatus":"ALL_DONE","symbol":"LTCUSDT","transactionTime":1794400000001},`+
+				`{"orderListId":12,"contingencyType":"OCO","listOrderStatus":"ALL_DONE","symbol":"XRPUSDT","transactionTime":1794400000002}]`),
+		})
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false), "StorePairs must not error")
+		unavailable := currency.NewPairWithDelimiter("ltc", "usdt", currency.UnderscoreDelimiter)
+		reciprocal := currency.NewPair(currency.USDT, currency.BTC)
+		orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.OCO, Pairs: currency.Pairs{reciprocal, unavailable}, StartTime: start, EndTime: end})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		require.Len(t, orders, 2, "GetOrderHistory must return the requested pairs' order lists alone")
+		assert.Equal(t, []string{"list-0", "list-11"}, []string{orders[0].OrderID, orders[1].OrderID}, "GetOrderHistory should return the requested pairs' order lists in time order")
+		assert.Equal(t, currency.NewBTCUSDT(), orders[0].Pair, "GetOrderHistory should give an order list its available pair, which the request's reciprocal pair matches")
+		assert.Equal(t, unavailable, orders[1].Pair, "GetOrderHistory should give an order list of a requested pair the available pairs lack that pair as requested")
+	})
+
+	t.Run("order lists of requested pairs the exchange cannot format", func(t *testing.T) {
+		t.Parallel()
+		_, err := new(Exchange).GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.OCO, Pairs: currency.Pairs{currency.NewBTCUSDT()}, StartTime: start, EndTime: end})
+		assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "GetOrderHistory should return the error formatting a requested pair")
+	})
 }
 
 func TestPagedOrderHistory(t *testing.T) {
@@ -2683,7 +3041,10 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 func TestWithdrawalStatusString(t *testing.T) {
 	t.Parallel()
 	for status, exp := range map[uint64]string{0: "Email sent", 1: "Cancelled", 2: "Awaiting approval", 3: "Rejected", 4: "Processing", 5: "Failure", 6: "Completed", 9: "9"} {
-		assert.Equalf(t, exp, withdrawalStatusString(status), "withdrawalStatusString should name status %d", status)
+		t.Run(exp, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, withdrawalStatusString(status), "withdrawalStatusString should name status %d", status)
+		})
 	}
 }
 

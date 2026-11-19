@@ -1,6 +1,7 @@
 package binanceus
 
 import (
+	"cmp"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -608,39 +609,57 @@ func TestWindowSizeToString(t *testing.T) {
 	}{
 		{time.Minute, "1m"}, {59 * time.Minute, "59m"}, {time.Hour, "1h"}, {23 * time.Hour, "23h"}, {day, "1d"}, {7 * day, "7d"},
 	} {
-		got, err := windowSizeToString(tc.window)
-		require.NoErrorf(t, err, "windowSizeToString must not error for %s", tc.window)
-		assert.Equalf(t, tc.exp, got, "windowSizeToString should format %s", tc.window)
+		t.Run(tc.exp, func(t *testing.T) {
+			t.Parallel()
+			got, err := windowSizeToString(tc.window)
+			require.NoErrorf(t, err, "windowSizeToString must not error for %s", tc.window)
+			assert.Equalf(t, tc.exp, got, "windowSizeToString should format %s", tc.window)
+		})
 	}
 	for _, window := range []time.Duration{0, time.Second, 90 * time.Second, 61 * time.Minute, 25 * time.Hour, 8 * day, -time.Hour} {
-		_, err := windowSizeToString(window)
-		assert.ErrorIsf(t, err, errInvalidWindowSize, "windowSizeToString should reject %s", window)
+		t.Run(window.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := windowSizeToString(window)
+			assert.ErrorIsf(t, err, errInvalidWindowSize, "windowSizeToString should reject %s", window)
+		})
 	}
 }
 
 func TestFormatToInterval(t *testing.T) {
 	t.Parallel()
 	for _, i := range klineIntervalList {
-		got, err := formatToInterval(i.String)
-		require.NoErrorf(t, err, "formatToInterval must not error for %q", i.String)
-		assert.Equalf(t, i.Interval, got, "formatToInterval should return the interval of %q", i.String)
+		t.Run(i.String, func(t *testing.T) {
+			t.Parallel()
+			got, err := formatToInterval(i.String)
+			require.NoErrorf(t, err, "formatToInterval must not error for %q", i.String)
+			assert.Equalf(t, i.Interval, got, "formatToInterval should return the interval of %q", i.String)
+		})
 	}
 	for _, s := range []string{"", "1s", "1H", "10m"} {
-		_, err := formatToInterval(s)
-		assert.ErrorIsf(t, err, kline.ErrInvalidInterval, "formatToInterval should reject %q", s)
+		t.Run(cmp.Or(s, "empty"), func(t *testing.T) {
+			t.Parallel()
+			_, err := formatToInterval(s)
+			assert.ErrorIsf(t, err, kline.ErrInvalidInterval, "formatToInterval should reject %q", s)
+		})
 	}
 }
 
 func TestIntervalToString(t *testing.T) {
 	t.Parallel()
 	for _, i := range klineIntervalList {
-		got, err := intervalToString(i.Interval)
-		require.NoErrorf(t, err, "intervalToString must not error for %s", i.Interval)
-		assert.Equalf(t, i.String, got, "intervalToString should name %s", i.Interval)
+		t.Run(i.String, func(t *testing.T) {
+			t.Parallel()
+			got, err := intervalToString(i.Interval)
+			require.NoErrorf(t, err, "intervalToString must not error for %s", i.Interval)
+			assert.Equalf(t, i.String, got, "intervalToString should name %s", i.Interval)
+		})
 	}
 	for _, interval := range []kline.Interval{0, kline.ThousandMilliseconds, kline.TenMin} {
-		_, err := intervalToString(interval)
-		assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "intervalToString should reject %s", interval)
+		t.Run(interval.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := intervalToString(interval)
+			assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "intervalToString should reject %s", interval)
+		})
 	}
 }
 

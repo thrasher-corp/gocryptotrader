@@ -193,8 +193,11 @@ func TestExecuteCreditLineTransfer(t *testing.T) {
 		{name: "no quantity", req: &CreditLineTransferRequest{TransferType: CreditLineTransferTypeTransferIn, TransferAssetType: currency.USD}, err: order.ErrAmountIsInvalid},
 		{name: "a negative quantity", req: &CreditLineTransferRequest{TransferType: CreditLineTransferTypeTransferIn, TransferAssetType: currency.USD, Quantity: -1}, err: order.ErrAmountIsInvalid},
 	} {
-		_, err := e.ExecuteCreditLineTransfer(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "ExecuteCreditLineTransfer must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.ExecuteCreditLineTransfer(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "ExecuteCreditLineTransfer must refuse a request with %s", tc.name)
+		})
 	}
 
 	t.Run("sends the request's parameters", func(t *testing.T) {

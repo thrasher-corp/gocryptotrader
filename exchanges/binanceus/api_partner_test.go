@@ -52,8 +52,11 @@ func TestGetRebateHistory(t *testing.T) {
 		{name: "no partner ID", req: &RebateHistoryRequest{}, err: errPartnerIDRequired},
 		{name: "a reversed time range", req: &RebateHistoryRequest{PartnerID: apiPartnerTestID, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetRebateHistory(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetRebateHistory must refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetRebateHistory(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetRebateHistory must refuse a request with %s", tc.name)
+		})
 	}
 
 	t.Run("sends the request's parameters", func(t *testing.T) {

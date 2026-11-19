@@ -1,6 +1,7 @@
 package binanceus
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -14,8 +15,11 @@ func TestGetRateLimits(t *testing.T) {
 	t.Parallel()
 	definitions := GetRateLimits()
 	require.Len(t, definitions, len(endpointCosts)+1, "GetRateLimits must define each endpoint limit once")
-	for _, epl := range []request.EndpointLimit{request.Unset, request.Auth, request.UnAuth} {
-		assert.NotContainsf(t, definitions, epl, "GetRateLimits should not define the generic endpoint limit %d", epl)
+	for name, epl := range map[string]request.EndpointLimit{"unset": request.Unset, "authenticated": request.Auth, "unauthenticated": request.UnAuth} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.NotContainsf(t, definitions, epl, "GetRateLimits should not define the generic endpoint limit %d", epl)
+		})
 	}
 
 	pools := make(map[rateLimitPool]*request.RateLimiterWithWeight, len(poolBudgets))
@@ -94,9 +98,12 @@ func TestOrderbookLimit(t *testing.T) {
 		{depth: 5000, exp: orderbookDepth5000Rate, weight: 250},
 		{depth: 5001, exp: orderbookDepth5000Rate, weight: 250},
 	} {
-		got := orderbookLimit(tc.depth)
-		assert.Equalf(t, tc.exp, got, "orderbookLimit should pick the tier of depth %d", tc.depth)
-		assert.Equalf(t, tc.weight, endpointCosts[got].weight, "orderbookLimit should charge depth %d its documented weight", tc.depth)
+		t.Run("depth "+strconv.FormatUint(tc.depth, 10), func(t *testing.T) {
+			t.Parallel()
+			got := orderbookLimit(tc.depth)
+			assert.Equalf(t, tc.exp, got, "orderbookLimit should pick the tier of depth %d", tc.depth)
+			assert.Equalf(t, tc.weight, endpointCosts[got].weight, "orderbookLimit should charge depth %d its documented weight", tc.depth)
+		})
 	}
 }
 
@@ -112,9 +119,12 @@ func TestSymbolsTickerLimit(t *testing.T) {
 		{symbols: 2, exp: symbolsTickerAllRate, weight: 4},
 		{symbols: 100, exp: symbolsTickerAllRate, weight: 4},
 	} {
-		got := symbolsTickerLimit(tc.symbols)
-		assert.Equalf(t, tc.exp, got, "symbolsTickerLimit should pick the tier of %d symbols", tc.symbols)
-		assert.Equalf(t, tc.weight, endpointCosts[got].weight, "symbolsTickerLimit should charge %d symbols the weight Binance.US charges", tc.symbols)
+		t.Run(strconv.Itoa(tc.symbols)+" symbols", func(t *testing.T) {
+			t.Parallel()
+			got := symbolsTickerLimit(tc.symbols)
+			assert.Equalf(t, tc.exp, got, "symbolsTickerLimit should pick the tier of %d symbols", tc.symbols)
+			assert.Equalf(t, tc.weight, endpointCosts[got].weight, "symbolsTickerLimit should charge %d symbols the weight Binance.US charges", tc.symbols)
+		})
 	}
 }
 
@@ -132,9 +142,12 @@ func TestTicker24HourLimit(t *testing.T) {
 		{symbols: 100, exp: ticker24Hour100Rate, weight: 40},
 		{symbols: 101, exp: ticker24HourAllRate, weight: 80},
 	} {
-		got := ticker24HourLimit(tc.symbols)
-		assert.Equalf(t, tc.exp, got, "ticker24HourLimit should pick the tier of %d symbols", tc.symbols)
-		assert.Equalf(t, tc.weight, endpointCosts[got].weight, "ticker24HourLimit should charge %d symbols the weight Binance.US charges", tc.symbols)
+		t.Run(strconv.Itoa(tc.symbols)+" symbols", func(t *testing.T) {
+			t.Parallel()
+			got := ticker24HourLimit(tc.symbols)
+			assert.Equalf(t, tc.exp, got, "ticker24HourLimit should pick the tier of %d symbols", tc.symbols)
+			assert.Equalf(t, tc.weight, endpointCosts[got].weight, "ticker24HourLimit should charge %d symbols the weight Binance.US charges", tc.symbols)
+		})
 	}
 }
 
@@ -158,9 +171,12 @@ func TestRollingWindowTickerLimit(t *testing.T) {
 		{symbols: 100, exp: rollingWindowTickerMaxRate, weight: 200},
 		{symbols: 101, exp: rollingWindowTickerMaxRate, weight: 200},
 	} {
-		got := rollingWindowTickerLimit(tc.symbols)
-		assert.Equalf(t, tc.exp, got, "rollingWindowTickerLimit should pick the tier of %d symbols", tc.symbols)
-		assert.Equalf(t, tc.weight, endpointCosts[got].weight, "rollingWindowTickerLimit should charge %d symbols the weight of their tier's largest count", tc.symbols)
+		t.Run(strconv.Itoa(tc.symbols)+" symbols", func(t *testing.T) {
+			t.Parallel()
+			got := rollingWindowTickerLimit(tc.symbols)
+			assert.Equalf(t, tc.exp, got, "rollingWindowTickerLimit should pick the tier of %d symbols", tc.symbols)
+			assert.Equalf(t, tc.weight, endpointCosts[got].weight, "rollingWindowTickerLimit should charge %d symbols the weight of their tier's largest count", tc.symbols)
+		})
 	}
 	for symbols := 1; symbols <= 100; symbols++ {
 		charged := min(4*symbols, 200)
@@ -188,9 +204,12 @@ func TestTradingDayTickerLimit(t *testing.T) {
 		{symbols: 100, exp: tradingDayTickerMaxRate, weight: 200},
 		{symbols: 101, exp: tradingDayTickerMaxRate, weight: 200},
 	} {
-		got := tradingDayTickerLimit(tc.symbols)
-		assert.Equalf(t, tc.exp, got, "tradingDayTickerLimit should pick the tier of %d symbols", tc.symbols)
-		assert.Equalf(t, tc.weight, endpointCosts[got].weight, "tradingDayTickerLimit should charge %d symbols the weight of their tier's largest count", tc.symbols)
+		t.Run(strconv.Itoa(tc.symbols)+" symbols", func(t *testing.T) {
+			t.Parallel()
+			got := tradingDayTickerLimit(tc.symbols)
+			assert.Equalf(t, tc.exp, got, "tradingDayTickerLimit should pick the tier of %d symbols", tc.symbols)
+			assert.Equalf(t, tc.weight, endpointCosts[got].weight, "tradingDayTickerLimit should charge %d symbols the weight of their tier's largest count", tc.symbols)
+		})
 	}
 	for symbols := 1; symbols <= 100; symbols++ {
 		documented := min(4*symbols, 200)
@@ -209,9 +228,12 @@ func TestAccountTradesLimit(t *testing.T) {
 		{orderID: 1, exp: accountTradesByOrderIDRate, weight: 5},
 		{orderID: 100234, exp: accountTradesByOrderIDRate, weight: 5},
 	} {
-		got := accountTradesLimit(tc.orderID)
-		assert.Equalf(t, tc.exp, got, "accountTradesLimit should pick the tier of order ID %d", tc.orderID)
-		assert.Equalf(t, tc.weight, endpointCosts[got].weight, "accountTradesLimit should charge order ID %d its documented weight", tc.orderID)
+		t.Run("order ID "+strconv.FormatUint(tc.orderID, 10), func(t *testing.T) {
+			t.Parallel()
+			got := accountTradesLimit(tc.orderID)
+			assert.Equalf(t, tc.exp, got, "accountTradesLimit should pick the tier of order ID %d", tc.orderID)
+			assert.Equalf(t, tc.weight, endpointCosts[got].weight, "accountTradesLimit should charge order ID %d its documented weight", tc.orderID)
+		})
 	}
 }
 
@@ -226,8 +248,11 @@ func TestPreventedMatchesLimit(t *testing.T) {
 		{orderID: 1, exp: preventedMatchesByOrderIDRate, weight: 10},
 		{orderID: 35, exp: preventedMatchesByOrderIDRate, weight: 10},
 	} {
-		got := preventedMatchesLimit(tc.orderID)
-		assert.Equalf(t, tc.exp, got, "preventedMatchesLimit should pick the tier of order ID %d", tc.orderID)
-		assert.Equalf(t, tc.weight, endpointCosts[got].weight, "preventedMatchesLimit should charge order ID %d its documented weight", tc.orderID)
+		t.Run("order ID "+strconv.FormatUint(tc.orderID, 10), func(t *testing.T) {
+			t.Parallel()
+			got := preventedMatchesLimit(tc.orderID)
+			assert.Equalf(t, tc.exp, got, "preventedMatchesLimit should pick the tier of order ID %d", tc.orderID)
+			assert.Equalf(t, tc.weight, endpointCosts[got].weight, "preventedMatchesLimit should charge order ID %d its documented weight", tc.orderID)
+		})
 	}
 }
