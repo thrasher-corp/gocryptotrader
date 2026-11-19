@@ -7495,7 +7495,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 			PreviousSequenceID: 10,
 			SequenceID:         11,
 		}, pair, assets)
-		require.ErrorContains(t, err, "channel buffer is full", "WsProcessUpdateOrderbook must return the dispatch failure")
+		require.NoError(t, err, "WsProcessUpdateOrderbook must not error when only the dispatch fails")
 		for _, a := range assets {
 			book, bookErr := tracked.Websocket.Orderbook.GetOrderbook(pair, a)
 			require.NoErrorf(t, bookErr, "The %s orderbook must remain valid after a dispatch failure", a)

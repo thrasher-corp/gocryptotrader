@@ -418,15 +418,21 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 // available on the exchange
 func (d *Detail) IsActive() bool {
 	return d.Status != UnknownStatus &&
-		d.Amount > max(0, d.ExecutedAmount) &&
+		(d.Amount > max(0, d.ExecutedAmount) || d.isOrderListWithoutAmounts()) &&
 		activeStatuses&d.Status == d.Status
 }
 
 // IsInactive returns true if an order has a status that indicates it is
 // currently not available on the exchange
 func (d *Detail) IsInactive() bool {
-	return d.Amount <= max(0, d.ExecutedAmount) ||
+	return (d.Amount <= max(0, d.ExecutedAmount) && !d.isOrderListWithoutAmounts()) ||
 		d.Status.IsInactive()
+}
+
+// isOrderListWithoutAmounts reports whether d is an OCO order list reported without its orders' amounts, as some
+// exchanges report order lists, so that its status alone says whether it is active
+func (d *Detail) isOrderListWithoutAmounts() bool {
+	return d.Type == OCO && d.Amount == 0
 }
 
 // IsInactive returns true if the status indicates it is
@@ -698,6 +704,8 @@ func (t Type) String() string {
 		return orderTakeProfit
 	case TakeProfitMarket:
 		return orderTakeProfitMarket
+	case TakeProfitLimit:
+		return orderTakeProfitLimit
 	case TrailingStop:
 		return orderTrailingStop
 	case TrailingStopLimit:
@@ -1093,6 +1101,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return Chase, nil
 	case orderTakeProfitMarket, "TAKE_PROFIT_MARKET":
 		return TakeProfitMarket, nil
+	case orderTakeProfitLimit, "TAKE_PROFIT_LIMIT":
+		return TakeProfitLimit, nil
 	case orderTakeProfit, "TAKE_PROFIT":
 		return TakeProfit, nil
 	case orderLiquidation:

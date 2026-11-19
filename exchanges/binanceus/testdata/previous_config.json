@@ -1,0 +1,82 @@
+{
+ "name": "Binanceus",
+ "enabled": true,
+ "verbose": false,
+ "httpTimeout": 15000000000,
+ "websocketResponseCheckTimeout": 30000000,
+ "websocketResponseMaxLimit": 7000000000,
+ "websocketTrafficTimeout": 30000000000,
+ "connectionMonitorDelay": 2000000000,
+ "baseCurrencies": "USD",
+ "currencyPairs": {
+  "bypassConfigFormatUpgrades": false,
+  "pairs": {
+   "spot": {
+    "assetEnabled": true,
+    "enabled": "BTC-USDT,ETH-USDT,LTC-USDT,ADA-USDT",
+    "available": "BTC-USDT,ETH-USDT,LTC-USDT,ADA-USDT",
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    }
+   }
+  }
+ },
+ "api": {
+  "authenticatedSupport": false,
+  "authenticatedWebsocketApiSupport": false,
+  "credentials": {
+   "key": "Key",
+   "secret": "Secret"
+  },
+  "credentialsValidator": {
+   "requiresKey": true,
+   "requiresSecret": true
+  },
+  "urlEndpoints": {
+   "RestSpotSupplementaryURL": "https://api.binance.us",
+   "RestSpotURL": "https://api.binance.us",
+   "WebsocketSpotSupplementaryURL": "wss://stream.binance.us:9443/stream",
+   "WebsocketSpotURL": "wss://stream.binance.us:9443/stream"
+  }
+ },
+ "features": {
+  "supports": {
+   "restAPI": true,
+   "restCapabilities": {
+    "tickerBatching": true,
+    "autoPairUpdates": true,
+    "fundingRateFetching": false
+   },
+   "websocketAPI": true
+  },
+  "enabled": {
+   "autoPairUpdates": true,
+   "websocketAPI": true,
+   "saveTradeData": false,
+   "tradeFeed": false,
+   "fillsFeed": false
+  }
+ },
+ "bankAccounts": [
+  {
+   "enabled": false,
+   "bankName": "",
+   "bankAddress": "",
+   "bankPostalCode": "",
+   "bankPostalCity": "",
+   "bankCountry": "",
+   "accountName": "",
+   "accountNumber": "",
+   "swiftCode": "",
+   "iban": "",
+   "supportedCurrencies": ""
+  }
+ ],
+ "orderbook": {
+  "verificationBypass": false
+ }
+}

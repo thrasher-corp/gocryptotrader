@@ -27,6 +27,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -240,6 +242,12 @@ func TestSetup(t *testing.T) {
 	websocketSetup.ExchangeConfig.WebsocketTrafficTimeout = time.Minute
 	err = w.Setup(websocketSetup)
 	assert.NoError(t, err, "Setup should not error")
+	assert.False(t, w.invalidateOrderbooksOnShutdown, "Setup should leave the orderbooks to outlive a shutdown by default")
+
+	w = &Manager{DataHandler: stream.NewRelay(1)}
+	websocketSetup.InvalidateOrderbooksOnShutdown = true
+	require.NoError(t, w.Setup(websocketSetup), "Setup must not error")
+	assert.True(t, w.invalidateOrderbooksOnShutdown, "Setup should keep that the orderbooks are invalidated on shutdown")
 }
 
 func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level parallel is safe; serial subtests limit websocket CI contention
@@ -817,46 +825,104 @@ func newConnectionCountingServer(t *testing.T) (string, *gws.Dialer, *atomic.Int
 func TestConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
 	t.Parallel()
 
-	synctest.Test(t, func(t *testing.T) {
-		wsURL, dialer, openConnections := newConnectionCountingServer(t)
-		ws := NewManager()
-		t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
-		setup := newDefaultSetup()
-		setup.RunningURL = wsURL
-		require.NoError(t, ws.Setup(setup), "Setup must not error")
-		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL}), "SetupNewConnection must not error")
-		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL, Authenticated: true}), "SetupNewConnection must not error for the authenticated connection")
+	t.Run("single connection", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			wsURL, dialer, openConnections := newConnectionCountingServer(t)
+			ws := NewManager()
+			t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+			setup := newDefaultSetup()
+			setup.RunningURL = wsURL
+			require.NoError(t, ws.Setup(setup), "Setup must not error")
+			require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL}), "SetupNewConnection must not error")
+			require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL, Authenticated: true}), "SetupNewConnection must not error for the authenticated connection")
 
-		readerDone := make(chan struct{})
-		// Mirrors an exchange whose login on the authenticated socket fails after the public socket and its reader are
-		// already running
-		ws.connector = func() error {
-			if err := ws.Conn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
-				return err
-			}
-			ws.Wg.Go(func() {
-				defer close(readerDone)
-				for {
-					if resp := ws.Conn.ReadMessage(); resp.Raw == nil {
-						return
-					}
+			readerDone := make(chan struct{})
+			// Mirrors an exchange whose login on the authenticated socket fails after the public socket and its reader are
+			// already running
+			ws.connector = func() error {
+				if err := ws.Conn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
+					return err
 				}
-			})
-			if err := ws.AuthConn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
-				return err
+				ws.Wg.Go(func() {
+					defer close(readerDone)
+					for {
+						if resp := ws.Conn.ReadMessage(); resp.Raw == nil {
+							return
+						}
+					}
+				})
+				if err := ws.AuthConn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
+					return err
+				}
+				return errDastardlyReason
 			}
-			return errDastardlyReason
-		}
 
-		require.ErrorIs(t, ws.Connect(t.Context()), errDastardlyReason, "Connect must return the connector error")
+			require.ErrorIs(t, ws.Connect(t.Context()), errDastardlyReason, "Connect must return the connector error")
+			assert.False(t, ws.IsConnected(), "IsConnected should return false after a failed connect")
+			assert.False(t, ws.IsConnecting(), "IsConnecting should return false after a failed connect")
+			select {
+			case <-readerDone:
+			default:
+				assert.Fail(t, "reader should be stopped by the time Connect returns")
+			}
+			assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, 5*time.Second, 10*time.Millisecond, "server should see both sockets closed")
+		})
+	})
+
+	t.Run("multiple connections", func(t *testing.T) {
+		t.Parallel()
+		server, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+		wsURL := "ws" + server.URL[len("http"):] + "/ws"
+		ws := NewManager()
+		setup := newDefaultSetup()
+		setup.ExchangeConfig.Name = t.Name()
+		setup.UseMultiConnectionManagement = true
+		setup.InvalidateOrderbooksOnShutdown = true
+		require.NoError(t, ws.Setup(setup), "Setup must not error")
+		p := currency.NewBTCUSDT()
+		loaded := make(chan struct{})
+		markLoaded := sync.OnceFunc(func() { close(loaded) })
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+			URL:                   wsURL,
+			Connector:             func(ctx context.Context, c Connection) error { return c.Dial(ctx, dialer, nil, nil) },
+			GenerateSubscriptions: func() (subscription.List, error) { return subscription.List{{Channel: "book"}}, nil },
+			Subscriber: func(ctx context.Context, c Connection, subs subscription.List) error {
+				// The echo reaches the reader, whose handler loads a book before the next connection fails
+				if err := c.SendJSONMessage(ctx, request.Unset, map[string]string{"load": "book"}); err != nil {
+					return err
+				}
+				select {
+				case <-loaded:
+				case <-time.After(5 * time.Second):
+					assert.Fail(t, "the echo should reach the reader while the connection subscribes")
+					return context.DeadlineExceeded
+				}
+				return ws.AddSuccessfulSubscriptions(c, subs...)
+			},
+			Unsubscriber: func(context.Context, Connection, subscription.List) error { return nil },
+			Handler: func(ctx context.Context, _ Connection, _ []byte) error {
+				defer markLoaded()
+				return ws.Orderbook.LoadSnapshot(ctx, &orderbook.Book{Exchange: t.Name(), Pair: p, Asset: asset.Spot, LastUpdated: time.Now(), Bids: orderbook.Levels{{Price: 1, Amount: 1}}})
+			},
+		}), "SetupNewConnection must not error")
+		// The failing connection also ends the context, so that no connection monitor redials and reloads the book
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+			URL:                      wsURL + "/fails",
+			SubscriptionsNotRequired: true,
+			Connector: func(context.Context, Connection) error {
+				cancel()
+				return context.Canceled
+			},
+			Handler: func(context.Context, Connection, []byte) error { return nil },
+		}), "SetupNewConnection must not error for the failing connection")
+
+		require.ErrorIs(t, ws.Connect(ctx), context.Canceled, "Connect must return the failing connection's error")
 		assert.False(t, ws.IsConnected(), "IsConnected should return false after a failed connect")
-		assert.False(t, ws.IsConnecting(), "IsConnecting should return false after a failed connect")
-		select {
-		case <-readerDone:
-		default:
-			assert.Fail(t, "reader should be stopped by the time Connect returns")
-		}
-		assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, 5*time.Second, 10*time.Millisecond, "server should see both sockets closed")
+		_, err := orderbook.Get(t.Name(), p, asset.Spot)
+		assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "Connect should invalidate the orderbook an earlier connection loaded, as its reader has stopped")
 	})
 }
 
@@ -2617,6 +2683,63 @@ func TestGetConnection(t *testing.T) {
 	conn, err := ws.GetConnection("testURL")
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
+}
+
+func TestTeardown(t *testing.T) {
+	t.Parallel()
+	for _, invalidate := range []bool{false, true} {
+		t.Run("invalidate orderbooks "+strconv.FormatBool(invalidate), func(t *testing.T) {
+			t.Parallel()
+			m := NewManager()
+			require.NoError(t, m.Orderbook.Setup(t.Name(), m.DataHandler, false), "Orderbook.Setup must not error")
+			m.invalidateOrderbooksOnShutdown = invalidate
+			p := currency.NewBTCUSDT()
+			require.NoError(t, m.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{Exchange: t.Name(), Pair: p, Asset: asset.Spot, Bids: orderbook.Levels{{Price: 1, Amount: 1}}, LastUpdated: time.Now()}), "LoadSnapshot must not error")
+			m.m.Lock()
+			_, err := m.teardown()
+			m.m.Unlock()
+			require.NoError(t, err, "teardown must not error")
+			_, err = m.Orderbook.GetOrderbook(p, asset.Spot)
+			if invalidate {
+				assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "teardown should invalidate the orderbooks the websocket loaded")
+			} else {
+				assert.NoError(t, err, "teardown should leave the orderbooks valid unless set to invalidate them")
+			}
+		})
+	}
+	t.Run("a snapshot a reader loads while teardown waits for it", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		require.NoError(t, m.Orderbook.Setup(t.Name(), m.DataHandler, false), "Orderbook.Setup must not error")
+		m.invalidateOrderbooksOnShutdown = true
+		m.setState(connectedState)
+		p := currency.NewBTCUSDT()
+		reading := make(chan struct{})
+		release := sync.OnceFunc(func() { close(reading) })
+		t.Cleanup(release)
+		m.Wg.Go(func() {
+			<-reading
+			assert.NoError(t, m.Orderbook.LoadSnapshot(context.Background(), &orderbook.Book{Exchange: t.Name(), Pair: p, Asset: asset.Spot, Bids: orderbook.Levels{{Price: 1, Amount: 1}}, LastUpdated: time.Now()}), "the reader's snapshot should load")
+		})
+		torn := make(chan error, 1)
+		go func() {
+			m.m.Lock()
+			_, err := m.teardown()
+			m.m.Unlock()
+			torn <- err
+		}()
+		// Teardown marks the manager disconnected once it has told its readers to stop, and then waits for them
+		require.Eventually(t, func() bool { return !m.IsConnected() }, 5*time.Second, time.Millisecond, "teardown must disconnect the manager")
+		release()
+		select {
+		case err := <-torn:
+			require.NoError(t, err, "teardown must not error")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "teardown must return once its reader has")
+		}
+		_, err := m.Orderbook.GetOrderbook(p, asset.Spot)
+		assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "teardown should invalidate a snapshot its reader loaded while it waited")
+	})
 }
 
 func TestShutdown(t *testing.T) {

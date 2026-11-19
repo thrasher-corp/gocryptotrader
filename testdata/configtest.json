@@ -705,7 +705,8 @@
      "RestSpotSupplementaryURL": "https://api.binance.us",
      "RestSpotURL": "https://api.binance.us",
      "WebsocketSpotSupplementaryURL": "wss://stream.binance.us:9443/stream",
-     "WebsocketSpotURL": "wss://stream.binance.us:9443/stream"
+     "WebsocketSpotURL": "wss://stream.binance.us:9443/stream",
+     "WebsocketTradeURL": "wss://ws-api.binance.us:443/ws-api/v3"
     }
    },
    "features": {

@@ -2,8 +2,10 @@ package orderbookmanager
 
 import (
 	"context"
+	"fmt"
 	"math/rand/v2"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -16,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -312,12 +315,11 @@ func TestUpdateDepth(t *testing.T) {
 		wantUpdateID  int64
 		wantRelayLen  int
 		wantErr       error
-		wantErrText   string
 		wantLastIDErr error
 	}{
 		{name: "valid", allowEmpty: true, updateID: 69421, wantUpdateID: 69421, wantRelayLen: 1},
 		{name: "invalid", wantErr: orderbook.ErrEmptyUpdate, wantLastIDErr: orderbook.ErrOrderbookInvalid},
-		{name: "relay full", allowEmpty: true, updateID: 69421, relayFull: true, wantUpdateID: 69421, wantRelayLen: 1, wantErrText: "channel buffer is full"},
+		{name: "relay full", allowEmpty: true, updateID: 69421, relayFull: true, wantUpdateID: 69421, wantRelayLen: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -351,12 +353,9 @@ func TestUpdateDepth(t *testing.T) {
 				UpdateID:   tc.updateID,
 				UpdateTime: time.Now(),
 			})
-			switch {
-			case tc.wantErr != nil:
+			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr, "updateDepth must return the expected error")
-			case tc.wantErrText != "":
-				require.ErrorContains(t, err, tc.wantErrText, "updateDepth must return the expected relay error")
-			default:
+			} else {
 				require.NoError(t, err, "updateDepth must not error")
 			}
 
@@ -457,6 +456,80 @@ func TestLoadSnapshot(t *testing.T) {
 	snapShot1.LastUpdated = time.Now()
 	require.NoError(t, obl.LoadSnapshot(t.Context(), &snapShot1), "LoadSnapshot must not error for an existing depth")
 	assert.Same(t, existingDepth, obl.ob[bookKey], "LoadSnapshot should reuse an existing depth")
+
+	obl.dataHandler = stream.NewRelay(1)
+	require.NoError(t, obl.dataHandler.Send(t.Context(), "full"), "Send must not error while filling the relay")
+	snapShot1.LastUpdateID = 2
+	snapShot1.LastUpdated = time.Now()
+	require.NoError(t, obl.LoadSnapshot(t.Context(), &snapShot1), "LoadSnapshot must not error when the relay is full")
+	lastUpdateID, err := existingDepth.LastUpdateID()
+	require.NoError(t, err, "LastUpdateID must not error after a snapshot the relay could not take")
+	assert.Equal(t, int64(2), lastUpdateID, "LoadSnapshot should load the snapshot when the relay is full")
+}
+
+// logLine is a line the global logger was given, with its level's header
+type logLine struct {
+	header, message string
+}
+
+// captureLogs sets the global logger up with its default headers and hands every line it is given to the returned
+// function, which returns and forgets the lines given so far, until the test ends. The logger and its hook are
+// process-wide, so a caller must not run in parallel
+func captureLogs(t *testing.T) func() []logLine {
+	t.Helper()
+	var mu sync.Mutex
+	var logged []logLine
+	require.NoError(t, gctlog.SetGlobalLogConfig(gctlog.GenDefaultSettings()), "SetGlobalLogConfig must not error")
+	require.NoError(t, gctlog.SetupGlobalLogger(t.Name(), false), "SetupGlobalLogger must not error")
+	gctlog.SetCustomLogHook(func(header, _ string, a ...any) bool {
+		mu.Lock()
+		logged = append(logged, logLine{header: header, message: fmt.Sprint(a...)})
+		mu.Unlock()
+		return true
+	})
+	t.Cleanup(func() {
+		gctlog.SetCustomLogHook(nil)
+		assert.NoError(t, gctlog.SetGlobalLogConfig(&gctlog.Config{}), "SetGlobalLogConfig should not error")
+	})
+	return func() []logLine {
+		mu.Lock()
+		defer mu.Unlock()
+		lines := logged
+		logged = nil
+		return lines
+	}
+}
+
+func TestRelay(t *testing.T) {
+	// Not parallel: the log hook and log config are process-wide
+	logged := captureLogs(t)
+	errorHeader := gctlog.GenDefaultSettings().AdvancedSettings.Headers.Error
+	cp, err := getExclusivePair()
+	require.NoError(t, err, "getExclusivePair must not error")
+	depth, err := orderbook.DeployDepth("TestRelay", cp, asset.Spot)
+	require.NoError(t, err, "DeployDepth must not error")
+	for _, verbose := range []bool{false, true} {
+		obl := &Orderbook{exchangeName: "TestRelay", dataHandler: stream.NewRelay(1), verbose: verbose}
+		obl.relay(t.Context(), depth)
+		require.Len(t, obl.dataHandler.C, 1, "relay must send the depth to an empty relay")
+		payload := <-obl.dataHandler.C
+		assert.Same(t, depth, payload.Data, "relay should send the depth")
+
+		require.NoError(t, obl.dataHandler.Send(t.Context(), "full"), "Send must not error while filling the relay")
+		logged()
+		obl.relay(t.Context(), depth)
+		require.Len(t, obl.dataHandler.C, 1, "relay must leave a full relay as it was")
+		payload = <-obl.dataHandler.C
+		assert.Equal(t, "full", payload.Data, "relay should not replace what a full relay holds")
+		var dropped []logLine
+		for _, line := range logged() {
+			if strings.Contains(line.message, "TestRelay websocket orderbook manager") {
+				dropped = append(dropped, line)
+			}
+		}
+		require.Lenf(t, dropped, 1, "relay must log the book a full relay drops when verbose is %v", verbose)
+		assert.Equalf(t, errorHeader, dropped[0].header, "relay should log the book a full relay drops at ERROR when verbose is %v", verbose)
+	}
 }
 
 func TestLoadSnapshotConcurrentDepthStability(t *testing.T) {
@@ -749,4 +822,55 @@ func TestInvalidateOrderbook(t *testing.T) {
 
 	_, err = w.GetOrderbook(cp, asset.Spot)
 	require.ErrorIs(t, err, errOrderbookInvalidated)
+}
+
+func TestOrderbookPublishedUpdateID(t *testing.T) {
+	t.Parallel()
+	o := &Orderbook{}
+	require.NoError(t, o.Setup(uniqueTestExchange(t), stream.NewRelay(1), false), "Setup must not error")
+	pair := currency.NewBTCUSDT()
+	_, err := o.publishedUpdateID(pair, asset.Spot)
+	assert.ErrorIs(t, err, orderbook.ErrOrderbookNotFound, "publishedUpdateID should error before any book is published")
+
+	book := &orderbook.Book{
+		Exchange:     o.exchangeName,
+		Pair:         pair,
+		Asset:        asset.Spot,
+		Bids:         orderbook.Levels{{Price: 1, Amount: 1}},
+		Asks:         orderbook.Levels{{Price: 2, Amount: 1}},
+		LastUpdated:  time.Now(),
+		LastUpdateID: 1336,
+	}
+	require.NoError(t, book.Process(), "Process must not error")
+	_, err = o.LastUpdateID(pair, asset.Spot)
+	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "LastUpdateID must not find a book the manager did not load")
+	lastUpdateID, err := o.publishedUpdateID(pair, asset.Spot)
+	require.NoError(t, err, "publishedUpdateID must not error for a book published outside the manager")
+	assert.Equal(t, int64(1336), lastUpdateID, "publishedUpdateID should return the published book's update ID")
+
+	depth, err := orderbook.GetDepth(o.exchangeName, pair, asset.Spot)
+	require.NoError(t, err, "GetDepth must not error")
+	require.ErrorIs(t, depth.Invalidate(errOrderbookInvalidated), orderbook.ErrOrderbookInvalid, "Invalidate must invalidate the book")
+	_, err = o.publishedUpdateID(pair, asset.Spot)
+	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "publishedUpdateID should error for an invalid book")
+}
+
+func TestInvalidateWebsocketOrderbooks(t *testing.T) {
+	t.Parallel()
+	streamed, err := getExclusivePair()
+	require.NoError(t, err, "getExclusivePair must not error")
+	replaced, err := getExclusivePair()
+	require.NoError(t, err, "getExclusivePair must not error")
+	o := &Orderbook{}
+	require.NoError(t, o.Setup(exchangeName, stream.NewRelay(4), false), "Setup must not error")
+	for _, p := range []currency.Pair{streamed, replaced} {
+		require.NoError(t, o.LoadSnapshot(t.Context(), &orderbook.Book{Exchange: exchangeName, Pair: p, Asset: asset.Spot, Bids: orderbook.Levels{{Price: 1, Amount: 1}}, LastUpdated: time.Now()}), "LoadSnapshot must not error")
+	}
+	require.NoError(t, (&orderbook.Book{Exchange: exchangeName, Pair: replaced, Asset: asset.Spot, Bids: orderbook.Levels{{Price: 2, Amount: 1}}, LastUpdated: time.Now()}).Process(), "Process must store the REST snapshot")
+	o.InvalidateWebsocketOrderbooks()
+	_, err = o.GetOrderbook(streamed, asset.Spot)
+	assert.ErrorIs(t, err, errWebsocketShutdown, "InvalidateWebsocketOrderbooks should invalidate a book the websocket loaded")
+	got, err := o.GetOrderbook(replaced, asset.Spot)
+	require.NoError(t, err, "InvalidateWebsocketOrderbooks must leave a REST snapshot valid")
+	assert.Equal(t, orderbook.Levels{{Price: 2, Amount: 1}}, got.Bids, "InvalidateWebsocketOrderbooks should leave the REST snapshot's bids")
 }
