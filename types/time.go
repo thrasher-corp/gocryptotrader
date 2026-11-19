@@ -36,8 +36,14 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 
 	target := bytes.IndexByte(timestamp, '.')
 	length := len(timestamp)
+	signLength := 0
+	if timestamp[0] == '-' {
+		signLength = 1
+	}
 	if target != -1 {
 		length--
+	} else {
+		length -= signLength
 	}
 	padding := 0
 	switch length {
@@ -47,21 +53,29 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 		padding = 2
 	}
 	if target != -1 || padding != 0 {
-		var normalised [19]byte // A nanosecond Unix timestamp is the largest supported representation.
-		length += padding
+		total := length + padding
+		if target == -1 {
+			total += signLength
+		}
+		var normalised [20]byte // A nanosecond Unix timestamp with a sign is the largest supported representation.
 		var destination []byte
-		if length <= len(normalised) {
-			destination = normalised[:length]
+		if total <= len(normalised) {
+			destination = normalised[:total]
 		} else {
-			destination = make([]byte, length)
+			destination = make([]byte, total)
 		}
 		if target == -1 {
-			copy(destination, timestamp)
+			if signLength != 0 {
+				destination[0] = '-'
+				copy(destination[1:], timestamp[1:])
+			} else {
+				copy(destination, timestamp)
+			}
 		} else {
 			copy(destination, timestamp[:target])
 			copy(destination[target:], timestamp[target+1:])
 		}
-		for x := length - padding; x < length; x++ {
+		for x := total - padding; x < total; x++ {
 			destination[x] = '0'
 		}
 		timestamp = destination
@@ -70,7 +84,11 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	if len(timestamp) == 8 {
+	digitsLength := len(timestamp)
+	if target == -1 {
+		digitsLength -= signLength
+	}
+	if digitsLength == 8 {
 		value := string(timestamp)
 		parsed, err := time.Parse("20060102", value)
 		if err != nil {
@@ -85,7 +103,7 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("error parsing unix timestamp: %w", err)
 	}
 
-	switch len(timestamp) {
+	switch digitsLength {
 	case 10:
 		*t = Time(time.Unix(unixTS, 0))
 	case 13:
