@@ -99,6 +99,7 @@ func TestNewVCRServer(t *testing.T) {
 	err = os.Remove(testFile)
 	require.NoError(t, err, "Remove testFile must not error")
 
+	// The test runs serially, as this case changes the working directory
 	t.Run("creates a missing recording", func(t *testing.T) {
 		t.Chdir(t.TempDir())
 		for _, tc := range []struct {
