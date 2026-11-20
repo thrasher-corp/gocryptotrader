@@ -16,6 +16,7 @@ func IsSupported(exchangeName string) bool {
 var Exchanges = []string{
 	"binance",
 	"binanceus",
+	"bingx",
 	"bitfinex",
 	"bithumb",
 	"bitflyer",

@@ -31,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bingx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitflyer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bithumb"
@@ -907,6 +908,8 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 	switch strings.ToLower(name) {
 	case "binanceus":
 		return new(binanceus.Exchange), nil
+	case "bingx":
+		return new(bingx.Exchange), nil
 	case "binance":
 		return new(binance.Exchange), nil
 	case "bitfinex":
