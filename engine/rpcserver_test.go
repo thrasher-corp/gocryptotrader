@@ -286,6 +286,17 @@ func (f fExchange) GetHistoricCandlesExtended(_ context.Context, p currency.Pair
 	}, nil
 }
 
+// candleRequestRecorder records the instrument of each candle request it serves
+type candleRequestRecorder struct {
+	fExchange
+	requested *[]string
+}
+
+func (c candleRequestRecorder) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, timeEnd time.Time) (*kline.Item, error) {
+	*c.requested = append(*c.requested, p.Upper().String()+" "+a.String())
+	return c.fExchange.GetHistoricCandlesExtended(ctx, p, a, interval, timeStart, timeEnd)
+}
+
 func (f fExchange) GetCurrencyTradeURL(_ context.Context, _ asset.Item, _ currency.Pair) (string, error) {
 	return "https://google.com", nil
 }
@@ -1602,6 +1613,28 @@ func TestGetOrders(t *testing.T) {
 	})
 	require.Error(t, err, "GetOrders must return the exchange request's error")
 	assert.NotErrorIs(t, err, common.ErrDateUnset, "GetOrders should accept a request without dates")
+
+	for _, tc := range []struct {
+		name       string
+		start, end string
+		err        error
+	}{
+		{name: "start date alone", start: "2024-03-01 00:00:00 UTC", err: common.ErrDateUnset},
+		{name: "end date alone", end: "2024-03-01 00:00:00 UTC", err: common.ErrDateUnset},
+		{name: "unix epoch end date", start: "2024-03-01 00:00:00 UTC", end: "1970-01-01 00:00:00 UTC", err: common.ErrDateUnset},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := s.GetOrders(cancelledCtx, &gctrpc.GetOrdersRequest{
+				Exchange:  exchName,
+				AssetType: asset.Spot.String(),
+				Pair:      p,
+				StartDate: tc.start,
+				EndDate:   tc.end,
+			})
+			assert.ErrorIs(t, err, tc.err, "GetOrders should refuse a date range the order filter cannot apply")
+		})
+	}
 }
 
 func TestGetOrder(t *testing.T) {
@@ -3009,6 +3042,43 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		t.Parallel()
 		_, err := s.GetTechnicalAnalysis(t.Context(), &gctrpc.GetTechnicalAnalysisRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 		assert.ErrorIs(t, err, errCurrencyPairUnset, "GetTechnicalAnalysis should reject a request without a pair")
+	})
+
+	t.Run("COCO other pair without a quote currency", func(t *testing.T) {
+		t.Parallel()
+		other, err := em.NewExchangeByName(testExchange)
+		require.NoError(t, err, "NewExchangeByName must not error")
+		other.GetBase().Name = "COCO other exchange"
+		var requested []string
+		require.NoError(t, em.Add(candleRequestRecorder{IBotExchange: other, requested: &requested}), "adding the other exchange must not error")
+		analysis, err := s.GetTechnicalAnalysis(t.Context(), &gctrpc.GetTechnicalAnalysisRequest{
+			Exchange:       fakeExchangeName,
+			AssetType:      "spot",
+			Pair:           &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+			OtherExchange:  "COCO other exchange",
+			OtherPair:      &gctrpc.CurrencyPair{Base: "usd"},
+			OtherAssetType: asset.MarginFunding.String(),
+			Interval:       int64(kline.OneDay),
+			AlgorithmType:  "COCO",
+			Period:         9,
+		})
+		require.NoError(t, err, "COCO must accept a margin funding instrument, which has no quote currency, as the other pair")
+		assert.Equal(t, []string{"USD " + asset.MarginFunding.String()}, requested, "COCO should request the other pair's candles for the margin funding instrument")
+		assert.Len(t, analysis.Signals["COCO"].Signals, 33, "COCO should return one signal entry per candle")
+	})
+
+	t.Run("COCO other pair without currencies", func(t *testing.T) {
+		t.Parallel()
+		_, err := s.GetTechnicalAnalysis(t.Context(), &gctrpc.GetTechnicalAnalysisRequest{
+			Exchange:      fakeExchangeName,
+			AssetType:     "spot",
+			Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+			OtherPair:     &gctrpc.CurrencyPair{Delimiter: "-"},
+			Interval:      int64(kline.OneDay),
+			AlgorithmType: "COCO",
+			Period:        9,
+		})
+		assert.ErrorIs(t, err, errOtherPairUnset, "COCO should refuse an other pair with neither currency")
 	})
 
 	t.Run("range too large", func(t *testing.T) {

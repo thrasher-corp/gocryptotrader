@@ -862,8 +862,11 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 			return nil, err
 		}
 	}
-	if err := common.StartEndTimeCheck(start, end); err != nil && !errors.Is(err, common.ErrDateUnset) {
-		return nil, err
+	// The order filter applies a time range only when both dates are set, so one date alone is refused
+	if r.StartDate != "" || r.EndDate != "" {
+		if err := common.StartEndTimeCheck(start, end); err != nil {
+			return nil, err
+		}
 	}
 
 	req := &order.MultiOrderRequest{
@@ -4606,7 +4609,8 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 			}
 		}
 
-		if r.OtherPair.GetBase() == "" || r.OtherPair.GetQuote() == "" {
+		// A margin funding instrument, such as Bitfinex's, has a base currency and no quote
+		if r.OtherPair.GetBase() == "" && r.OtherPair.GetQuote() == "" {
 			return nil, errOtherPairUnset
 		}
 

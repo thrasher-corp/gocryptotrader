@@ -258,10 +258,9 @@ func (o *OHLC) GetMovingAverageConvergenceDivergence(option []float64, fast, slo
 	}
 
 	if slow > int64(len(option)) || signal > int64(len(option)) || int64(len(option)) < slow+signal-2 {
-		return nil, fmt.Errorf("get macd %w %v data points are less than minimum %v length requirement derived from the slow %v and signal %v period subtract two, increase end date or scale down granularity",
+		return nil, fmt.Errorf("get macd %w %v data points are fewer than the slow period %v and signal period %v need, increase end date or scale down granularity",
 			ErrNotEnoughData,
 			len(option),
-			slow+signal-2,
 			slow,
 			signal)
 	}

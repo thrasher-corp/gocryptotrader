@@ -642,32 +642,42 @@ func (m *DataHistoryManager) runValidationJob(ctx context.Context, job *DataHist
 	if err != nil {
 		return fmt.Errorf("job %s %w", job.Nickname, err)
 	}
+	rangeEnd := func(start time.Time) time.Time {
+		if end := start.Add(intervalLength); end.Before(job.EndDate) {
+			return end
+		}
+		return job.EndDate
+	}
+	// A range counts only the results covering exactly that range, as an edit to a job's dates, request size or
+	// interval leaves earlier results under the start seconds they share with the new ranges
+	covers := func(start time.Time) func(DataHistoryJobResult) bool {
+		end := rangeEnd(start)
+		return func(r DataHistoryJobResult) bool {
+			return r.IntervalStartDate.Equal(start) && r.IntervalEndDate.Equal(end)
+		}
+	}
+	rangeResults := func(start time.Time) []DataHistoryJobResult {
+		covered := covers(start)
+		return slices.DeleteFunc(slices.Clone(job.Results[start.Unix()]), func(r DataHistoryJobResult) bool { return !covered(r) })
+	}
 	for i := job.StartDate; i.Before(job.EndDate); i = i.Add(intervalLength) {
 		jobIntervals = append(jobIntervals, i)
 	}
-	nextIntervalToProcess := job.StartDate
-timesToFetch:
-	for t, results := range job.Results {
-		tt := time.Unix(t, 0)
-		if uint64(len(results)) < job.MaxRetryAttempts {
-			for x := range results {
-				if results[x].Status == dataHistoryStatusComplete {
-					continue timesToFetch
+	for _, interval := range jobIntervals {
+		results := rangeResults(interval)
+		if slices.ContainsFunc(results, func(r DataHistoryJobResult) bool { return r.Status == dataHistoryStatusComplete }) {
+			continue
+		}
+		if uint64(len(results)) >= job.MaxRetryAttempts {
+			covered, stored := covers(interval), job.Results[interval.Unix()]
+			for x := range stored {
+				if covered(stored[x]) {
+					stored[x].Status = dataHistoryIntervalIssuesFound
 				}
 			}
-			intervalsToCheck = append(intervalsToCheck, tt)
-		} else {
-			for x := range results {
-				results[x].Status = dataHistoryIntervalIssuesFound
-			}
-			job.Results[t] = results
+			continue
 		}
-		if tt.After(nextIntervalToProcess) {
-			nextIntervalToProcess = tt.Add(intervalLength)
-		}
-	}
-	for i := nextIntervalToProcess; i.Before(job.EndDate); i = i.Add(intervalLength) {
-		intervalsToCheck = append(intervalsToCheck, i)
+		intervalsToCheck = append(intervalsToCheck, interval)
 	}
 
 	for i := range intervalsToCheck {
@@ -677,10 +687,7 @@ timesToFetch:
 		if err := common.StartEndTimeCheck(intervalsToCheck[i], job.EndDate); err != nil {
 			break
 		}
-		requestEnd := intervalsToCheck[i].Add(intervalLength)
-		if requestEnd.After(job.EndDate) {
-			requestEnd = job.EndDate
-		}
+		requestEnd := rangeEnd(intervalsToCheck[i])
 		if m.verbose {
 			log.Debugf(log.DataHistory, "running data history job %v start: %s end: %s interval: %s datatype: %s",
 				job.Nickname,
@@ -703,7 +710,7 @@ timesToFetch:
 	allResultsSuccessful := true
 	allResultsFailed := true
 	for i := range jobIntervals {
-		decided, complete := rangeResult(job.Results[jobIntervals[i].Unix()])
+		decided, complete := rangeResult(rangeResults(jobIntervals[i]))
 		if !decided {
 			completed = false
 			break
@@ -1393,6 +1400,12 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		}
 	}
 
+	// Validation matches candles by the second, and job results are keyed by their start's second
+	if (job.DataType == dataHistoryCandleValidationDataType || job.DataType == dataHistoryCandleValidationSecondarySourceType) &&
+		job.Interval.Duration()%time.Second != 0 {
+		return fmt.Errorf("job %s validation %w: %s", job.Nickname, errIntervalNotWholeSeconds, job.Interval)
+	}
+
 	b := exch.GetBase()
 	// TODO: In future allow custom candles.
 	if !b.Features.Enabled.Kline.Intervals.ExchangeSupported(job.Interval) &&
@@ -1433,6 +1446,15 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 
 	job.StartDate = job.StartDate.Round(job.Interval.Duration())
 	job.EndDate = job.EndDate.Round(job.Interval.Duration())
+	if job.DataType == dataHistoryConvertCandlesDataType {
+		// Conversion keeps to the whole conversion intervals within the dates, once rounded to the source interval, so
+		// that it never needs source candles from beyond them
+		conversion := job.ConversionInterval.Duration()
+		if start := job.StartDate.Truncate(conversion); start.Before(job.StartDate) {
+			job.StartDate = start.Add(conversion)
+		}
+		job.EndDate = job.EndDate.Truncate(conversion)
+	}
 	if err := common.StartEndTimeCheck(job.StartDate, job.EndDate); err != nil {
 		return fmt.Errorf("job %s %w start: %v end %v", job.Nickname, err, job.StartDate, job.EndDate)
 	}

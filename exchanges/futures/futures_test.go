@@ -1213,7 +1213,7 @@ func TestPTTrackFundingDetails(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 }
 
-func TestAreFundingRatePrerequisitesMet(t *testing.T) {
+func TestCheckFundingRatePrerequisites(t *testing.T) {
 	t.Parallel()
 	err := CheckFundingRatePrerequisites(false, false, false)
 	assert.NoError(t, err)
@@ -1238,6 +1238,12 @@ func TestAreFundingRatePrerequisitesMet(t *testing.T) {
 
 	err = CheckFundingRatePrerequisites(false, true, false)
 	assert.ErrorIs(t, err, ErrGetFundingDataRequired)
+
+	t.Run("refusal names the rates requested", func(t *testing.T) {
+		t.Parallel()
+		assert.ErrorContains(t, CheckFundingRatePrerequisites(false, false, true), "to get full funding rates", "CheckFundingRatePrerequisites should name full funding rates when only they are requested")
+		assert.ErrorContains(t, CheckFundingRatePrerequisites(false, true, false), "to get predicted funding rates", "CheckFundingRatePrerequisites should name predicted funding rates when only they are requested")
+	})
 }
 
 func TestLastUpdated(t *testing.T) {

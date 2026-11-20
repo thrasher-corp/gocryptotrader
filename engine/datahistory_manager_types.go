@@ -108,6 +108,7 @@ var (
 	errNilResult                  = errors.New("received nil job result")
 	errJobMustBeActiveOrPaused    = errors.New("job must be active or paused to be set as a prerequisite")
 	errNilCandles                 = errors.New("received nil candles")
+	errIntervalNotWholeSeconds    = errors.New("interval is not a whole number of seconds")
 )
 
 const (
