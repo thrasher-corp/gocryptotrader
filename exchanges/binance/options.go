@@ -441,14 +441,17 @@ func (e *Exchange) PlaceBatchEOptionsOrder(ctx context.Context, orders []Options
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/batchOrders", params, optionsBatchOrderRate, &resp)
 }
 
-// CancelBatchOptionsOrders cancels options orders of a symbol by order ID or client order ID through Cancel Multiple
-// Option Orders
+// CancelBatchOptionsOrders cancels up to ten options orders of a symbol, named by order ID or client order ID, through
+// Cancel Multiple Option Orders
 func (e *Exchange) CancelBatchOptionsOrders(ctx context.Context, symbol currency.Pair, orderIDs []uint64, clientOrderIDs []string) ([]OptionsCancelledOrderResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if len(orderIDs) == 0 && len(clientOrderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
+	}
+	if err := checkListLength("order IDs and client order IDs", len(orderIDs)+len(clientOrderIDs), batchCancelLimit); err != nil {
+		return nil, err
 	}
 	s, err := e.FormatSymbol(symbol, asset.Options)
 	if err != nil {

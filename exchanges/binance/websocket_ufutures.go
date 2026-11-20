@@ -313,88 +313,119 @@ func (e *Exchange) generateUserDataSubscriptions(a asset.Item) (subscription.Lis
 }
 
 // SubscribeUserData subscribes a private connection to the user data stream of each subscription's asset and keeps
-// its listen key alive. Binance treats a listen key as a stream name on combined connections
+// its listen key alive. Binance treats a listen key as a stream name on combined connections. A subscription that fails
+// stays registered while it is tried again in the background, so that the websocket manager, subscribing through it,
+// records it against its connection, which a flush then keeps up, and a flush wanting the stream leaves it to the retry.
+// The retry, and the keepalives of a subscription it makes, outlast ctx, as the subscription stays registered until the
+// retry subscribes it or the connection or websocket goes down
 func (e *Exchange) SubscribeUserData(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	var errs error
 	for _, s := range subs {
-		if err := e.subscribeUserData(ctx, conn, s); err != nil {
-			errs = common.AppendError(errs, err)
-			if !errors.Is(err, asset.ErrNotSupported) {
-				e.retryUserDataSubscription(ctx, conn, s.Asset, false, func(attemptCtx context.Context) (bool, error) {
-					return e.resubscribeUserData(attemptCtx, ctx, conn, s)
-				})
-			}
+		err := e.subscribeUserData(ctx, conn, s)
+		if err == nil {
+			continue
 		}
+		errs = common.AppendError(errs, err)
+		if e.Websocket.GetSubscription(s) != s {
+			// Not registered, or unsubscribed or replaced since, so there is nothing of its own to try again
+			continue
+		}
+		if errors.Is(err, asset.ErrNotSupported) {
+			// Nothing tries such a subscription again, so it is not left registered
+			errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(conn, s))
+			continue
+		}
+		// A resubscription that failed is over, so the subscription waits to be subscribed again, as its retry requires
+		if s.State() == subscription.ResubscribingState {
+			// SetState refuses only the state the subscription is in already
+			_ = s.SetState(subscription.SubscribingState)
+		}
+		retryCtx := context.WithoutCancel(ctx)
+		e.retryUserDataSubscription(retryCtx, conn, s, s.Asset, false, func(attemptCtx context.Context) (bool, error) {
+			return e.resubscribeUserData(attemptCtx, retryCtx, conn, s)
+		})
 	}
 	return errs
 }
 
-// resubscribeUserData subscribes a private connection to the user data stream a subscription failed to, while the
-// stream is still wanted and no other subscription has been made to it, reporting whether it is done trying. The
-// attempt is made under ctx, which ends with the retry, and the listen key is kept alive under keepAliveCtx, as when
-// the connection first subscribed
-func (e *Exchange) resubscribeUserData(ctx, keepAliveCtx context.Context, conn websocket.Connection, failed *subscription.Subscription) (done bool, err error) {
-	if e.Websocket.GetSubscription(failed) != nil {
+// resubscribeUserData subscribes a private connection again to the user data stream of a subscription that failed,
+// which stays registered while it is tried again, reporting whether it is done trying: once the subscription is
+// subscribed, or no longer both registered and being subscribed, as an unsubscription, a replacement or the websocket
+// manager's resubscription leaves it. While the stream is not wanted, it waits, as a flush that no longer wants the
+// stream unsubscribes it. The attempt is made under ctx, which ends with the retry, and the listen key is kept alive
+// under keepAliveCtx, as when the connection first subscribed
+func (e *Exchange) resubscribeUserData(ctx, keepAliveCtx context.Context, conn websocket.Connection, s *subscription.Subscription) (done bool, err error) {
+	if e.Websocket.GetSubscription(s) != s || s.State() != subscription.SubscribingState {
 		return true, nil
 	}
-	wanted, err := e.generateUserDataSubscriptions(failed.Asset)
+	wanted, err := e.generateUserDataSubscriptions(s.Asset)
 	if err != nil || len(wanted) == 0 {
-		return true, err
-	}
-	// The failed subscription was removed as unsubscribed, and a clone of it would carry that state into this attempt,
-	// so removing it again after another failure would report the state alongside Binance's refusal
-	s := wanted[0]
-	if err := e.subscribeUserDataKeptAlive(ctx, keepAliveCtx, conn, s); err != nil {
 		return false, err
 	}
-	if !isSubscribedUserDataStream(s) {
-		return true, nil
+	if err := e.subscribeListenKey(ctx, keepAliveCtx, conn, s); err != nil {
+		return false, err
 	}
-	// Connecting records the subscriptions it makes against the connection, which tells a flush the connection is in use
-	return true, conn.Subscriptions().Add(s)
+	// Only the websocket manager's connect and flushes record a subscription against its connection, and a flush shuts a
+	// connection recording nothing down. The record is read first, as an unsubscription removes it after the registration
+	if store := conn.Subscriptions(); store.Get(s) == nil && isSubscribedUserDataStream(s) && e.Websocket.GetSubscription(s) == s {
+		// Add refuses only a stream recorded meanwhile, which leaves the connection recording it all the same
+		_ = store.Add(s)
+	}
+	return true, nil
 }
 
 func (e *Exchange) subscribeUserData(ctx context.Context, conn websocket.Connection, s *subscription.Subscription) error {
 	return e.subscribeUserDataKeptAlive(ctx, ctx, conn, s)
 }
 
-// subscribeUserDataKeptAlive subscribes under ctx and keeps the listen key alive under keepAliveCtx. A subscription
-// unsubscribed while its listen key is requested, through it or an equivalent subscription, is left as it is, as
-// subscribing then would undo the unsubscription, while one already unsubscribing or unsubscribed and no longer
-// registered, such as the websocket manager's resubscription passes, is subscribed afresh
+// subscribeUserDataKeptAlive registers a subscription, subscribes it under ctx and keeps its listen key alive under
+// keepAliveCtx. A subscription already unsubscribing or unsubscribed and no longer registered, such as the websocket
+// manager's resubscription passes, is subscribed afresh. One that fails stays registered, for its caller to try again
+// or remove
 func (e *Exchange) subscribeUserDataKeptAlive(ctx, keepAliveCtx context.Context, conn websocket.Connection, s *subscription.Subscription) error {
-	unsubscribed := func() bool {
-		state := s.State()
-		return state == subscription.UnsubscribingState || state == subscription.UnsubscribedState
-	}
-	if unsubscribed() && e.Websocket.GetSubscription(s) != s {
+	if isUnsubscribedState(s.State()) && e.Websocket.GetSubscription(s) != s {
 		// SetState refuses only the state the subscription is in already, which is the one wanted here
 		_ = s.SetState(subscription.SubscribingState)
 	}
 	if err := e.Websocket.AddSubscriptions(conn, s); err != nil {
 		return err
 	}
-	listenKey, err := e.startUserDataStream(ctx, s.Asset)
+	return e.subscribeListenKey(ctx, keepAliveCtx, conn, s)
+}
+
+// subscribeListenKey subscribes a connection under ctx to the account's active listen key for a registered user data
+// stream subscription, and keeps the key alive under keepAliveCtx. A subscription unsubscribed or replaced while its
+// listen key is requested, through it or an equivalent subscription, is left as it is, as subscribing then would undo
+// the unsubscription, and one unsubscribed or replaced while Binance's acknowledgement is awaited is neither marked
+// subscribed nor kept alive
+func (e *Exchange) subscribeListenKey(ctx, keepAliveCtx context.Context, conn websocket.Connection, s *subscription.Subscription) error {
 	// An unsubscription removes the registered subscription matching the one it is given, which may be another object
-	if err == nil && (unsubscribed() || e.Websocket.GetSubscription(s) != s) {
-		return nil
+	ended := func() bool {
+		return isUnsubscribedState(s.State()) || e.Websocket.GetSubscription(s) != s
 	}
+	listenKey, err := e.startUserDataStream(ctx, s.Asset)
 	if err == nil {
+		if ended() {
+			return nil
+		}
 		err = e.sendDerivativesStreamCommand(ctx, conn, wsSubscribeMethod, []any{listenKey})
 	}
 	if err != nil {
-		err = fmt.Errorf("%w: %s user data stream: %w", websocket.ErrSubscriptionFailure, s.Asset, err)
-		// An unsubscription made meanwhile has removed the subscription, and the stream may since be subscribed afresh
-		if e.Websocket.GetSubscription(s) != s {
-			return err
-		}
-		return common.AppendError(err, e.Websocket.RemoveSubscriptions(conn, s))
+		return fmt.Errorf("%w: %s user data stream: %w", websocket.ErrSubscriptionFailure, s.Asset, err)
+	}
+	if ended() {
+		return nil
 	}
 	if err := s.SetState(subscription.SubscribedState); err != nil {
 		return err
 	}
 	e.keepUserDataStreamAlive(keepAliveCtx, conn, s)
 	return nil
+}
+
+// isUnsubscribedState reports whether a subscription state is one an unsubscription leaves
+func isUnsubscribedState(state subscription.State) bool {
+	return state == subscription.UnsubscribingState || state == subscription.UnsubscribedState
 }
 
 // UnsubscribeUserData unsubscribes a private connection from its user data streams. The account's active listen key
@@ -473,16 +504,26 @@ func (e *Exchange) keepUserDataStreamAlive(ctx context.Context, conn websocket.C
 	shutdown := e.Websocket.ShutdownC
 	interval := cmp.Or(e.userDataRetry.keepalive, userDataKeepaliveInterval)
 	e.Websocket.Wg.Go(func() {
+		// A keepalive under way when the websocket shuts down is cancelled rather than holding the shutdown up
+		keepaliveCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		go func() {
+			select {
+			case <-shutdown:
+				cancel()
+			case <-keepaliveCtx.Done():
+			}
+		}()
 		t := time.NewTicker(interval)
 		defer t.Stop()
 		for {
 			select {
 			case <-shutdown:
 				return
-			case <-ctx.Done():
+			case <-keepaliveCtx.Done():
 				return
 			case <-t.C:
-				if !e.keepaliveUserDataSubscription(ctx, conn, s) {
+				if !e.keepaliveUserDataSubscription(keepaliveCtx, conn, s) {
 					return
 				}
 			}
@@ -491,12 +532,18 @@ func (e *Exchange) keepUserDataStreamAlive(ctx context.Context, conn websocket.C
 }
 
 // keepaliveUserDataSubscription extends the listen key of a subscribed user data stream and reports whether the
-// stream is still subscribed. A failed keepalive means the key has expired, so the stream is renewed with a new one
+// stream is still subscribed through s on a connection that is up, as an unsubscription or a replacement ends it even
+// where s was marked subscribed after it. A failed keepalive means the key has expired, so the stream is renewed with a
+// new one, unless the keepalive was cancelled with ctx, as at shutdown, or its connection is down, which ends the
+// keepalives instead
 func (e *Exchange) keepaliveUserDataSubscription(ctx context.Context, conn websocket.Connection, s *subscription.Subscription) bool {
-	if !isSubscribedUserDataStream(s) {
+	if !isSubscribedUserDataStream(s) || e.Websocket.GetSubscription(s) != s || !isConnected(conn) {
 		return false
 	}
 	if err := e.keepaliveUserDataStream(ctx, s.Asset); err != nil {
+		if ctx.Err() != nil || !isConnected(conn) {
+			return false
+		}
 		e.renewUserDataStream(ctx, conn, s.Asset, err)
 	}
 	return true
@@ -504,8 +551,9 @@ func (e *Exchange) keepaliveUserDataSubscription(ctx context.Context, conn webso
 
 // renewUserDataStream subscribes a connection to a new listen key after the old one expired; without it no further
 // user data arrives. A failed renewal is reported, then tried again with the waits of a failed subscription while the
-// connection is up and the asset's user data stream is subscribed. Renewals are tracked apart from subscription retries,
-// as a subscription retry that finds the stream subscribed ends without renewing it
+// connection is up and the asset's user data stream is subscribed, outlasting ctx, as a keepalive loop's context ends
+// with the loop, which a replacement of its subscription ends while the stream stays subscribed. Renewals are tracked
+// apart from subscription retries, as a subscription retry that finds the stream subscribed ends without renewing it
 func (e *Exchange) renewUserDataStream(ctx context.Context, conn websocket.Connection, a asset.Item, reason error) {
 	subscribed := func() bool {
 		s := e.Websocket.GetSubscription(&subscription.Subscription{Channel: userDataStreamChannel, Asset: a})
@@ -518,7 +566,7 @@ func (e *Exchange) renewUserDataStream(ctx context.Context, conn websocket.Conne
 	if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
 		log.Errorf(log.WebsocketMgr, "%s %s: %s", e.Name, errSend, err)
 	}
-	e.retryUserData(ctx, conn, a, false, true, func(ctx context.Context) (bool, error) {
+	e.retryUserData(context.WithoutCancel(ctx), conn, a, a, false, true, func(ctx context.Context) (bool, error) {
 		if !subscribed() {
 			return true, nil
 		}
@@ -553,13 +601,15 @@ const (
 	userDataRetryMaxDelay = 5 * time.Minute
 )
 
-// userDataRetries tracks, by asset, the connection a user data stream subscription is being tried again on, so that an
-// asset has one retry at a time and a retry on a replaced connection cannot end its successor's
+// userDataRetries tracks the user data stream subscriptions being tried again, so that each has one retry at a time,
+// and a retry on a replaced connection cannot end its successor's
 type userDataRetries struct {
-	mu      sync.Mutex
-	running map[asset.Item]websocket.Connection
-	// renewing tracks the renewals of expired listen keys being tried again, as running tracks subscriptions
-	renewing map[asset.Item]websocket.Connection
+	mu sync.Mutex
+	// running tracks subscription retries by what they try again: a derivatives subscription, or a spot or margin
+	// account's asset
+	running map[any]*userDataRetry
+	// renewing tracks, by asset, the renewals of expired listen keys being tried again, as running tracks subscriptions
+	renewing map[any]*userDataRetry
 	// delay is the first wait before a retry, userDataRetryDelay when zero
 	delay time.Duration
 	// keepalive is the interval between the keepalives of a subscribed stream's listen key, userDataKeepaliveInterval
@@ -567,43 +617,73 @@ type userDataRetries struct {
 	keepalive time.Duration
 }
 
+// userDataRetry is a running retry: the connection it tries on, and whether it was asked again since its last attempt
+// began, which it guards with its tracker's mutex
+type userDataRetry struct {
+	conn  websocket.Connection
+	again bool
+}
+
 // tracker returns the map tracking retries of listen key renewals, or of subscriptions, making it on first use. It must
 // be called with mu held
-func (r *userDataRetries) tracker(renewal bool) map[asset.Item]websocket.Connection {
+func (r *userDataRetries) tracker(renewal bool) map[any]*userDataRetry {
 	if renewal {
 		if r.renewing == nil {
-			r.renewing = make(map[asset.Item]websocket.Connection)
+			r.renewing = make(map[any]*userDataRetry)
 		}
 		return r.renewing
 	}
 	if r.running == nil {
-		r.running = make(map[asset.Item]websocket.Connection)
+		r.running = make(map[any]*userDataRetry)
 	}
 	return r.running
 }
 
-// retryUserDataSubscription subscribes asset a's user data stream on conn in the background, at once or after the first
-// retry delay, and again after a longer wait each time subscribe fails, until subscribe reports it is done, the
-// connection goes down, or the websocket shuts down. Nothing else asks again while the connection stays up, which can
-// be until Binance's daily disconnection, leaving the account's balances and orders to polls alone. It must be called
-// while the websocket's wait group counts a running routine, such as a connection's reader
-func (e *Exchange) retryUserDataSubscription(ctx context.Context, conn websocket.Connection, a asset.Item, immediately bool, subscribe func(context.Context) (done bool, err error)) {
-	e.retryUserData(ctx, conn, a, immediately, false, subscribe)
+// retryUserDataSubscription subscribes a user data stream of asset a on conn in the background, at once or after the
+// first retry delay, and again after a longer wait each time subscribe fails, until subscribe reports it is done, the
+// connection goes down, or the websocket shuts down. key names what is tried again, such as the subscription, so that
+// each has one retry at a time: asking again while it runs on the same connection has it make another attempt rather
+// than end, as subscribe may have just reported it done. Nothing else asks again while the connection stays up, which
+// can be until Binance's daily disconnection, leaving the account's balances and orders to polls alone. It must be
+// called while the websocket's wait group counts a running routine, such as a connection's reader
+func (e *Exchange) retryUserDataSubscription(ctx context.Context, conn websocket.Connection, key any, a asset.Item, immediately bool, subscribe func(context.Context) (done bool, err error)) {
+	e.retryUserData(ctx, conn, key, a, immediately, false, subscribe)
 }
 
 // retryUserData runs retryUserDataSubscription's retries of subscribe, tracking them apart for a renewal of an expired
-// listen key
-func (e *Exchange) retryUserData(ctx context.Context, conn websocket.Connection, a asset.Item, immediately, renewal bool, subscribe func(context.Context) (done bool, err error)) {
+// listen key, which is not asked again
+func (e *Exchange) retryUserData(ctx context.Context, conn websocket.Connection, key any, a asset.Item, immediately, renewal bool, subscribe func(context.Context) (done bool, err error)) {
+	// A connection already down has nothing to try again on, and tracking a retry for it would untrack its successor's
+	if !isConnected(conn) {
+		return
+	}
 	r := &e.userDataRetry
 	r.mu.Lock()
 	tracked := r.tracker(renewal)
-	if tracked[a] == conn {
+	if running := tracked[key]; running != nil && running.conn == conn {
+		if !renewal {
+			running.again = true
+		}
 		r.mu.Unlock()
 		return
 	}
-	tracked[a] = conn
+	retry := &userDataRetry{conn: conn}
+	tracked[key] = retry
 	delay := cmp.Or(r.delay, userDataRetryDelay)
 	r.mu.Unlock()
+	// ends reports whether the retry ends after an attempt that reported it done, which it does unless asked again since
+	// that attempt began, untracking it under the same lock that asking again takes
+	ends := func() bool {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		if retry.again {
+			return false
+		}
+		if tracked[key] == retry {
+			delete(tracked, key)
+		}
+		return true
+	}
 	var wait time.Duration
 	if !immediately {
 		wait = delay
@@ -612,8 +692,8 @@ func (e *Exchange) retryUserData(ctx context.Context, conn websocket.Connection,
 	e.Websocket.Wg.Go(func() {
 		defer func() {
 			r.mu.Lock()
-			if tracked[a] == conn {
-				delete(tracked, a)
+			if tracked[key] == retry {
+				delete(tracked, key)
 			}
 			r.mu.Unlock()
 		}()
@@ -638,14 +718,22 @@ func (e *Exchange) retryUserData(ctx context.Context, conn websocket.Connection,
 			if !isConnected(conn) {
 				return
 			}
+			// The attempt about to begin covers asking again before it
+			r.mu.Lock()
+			retry.again = false
+			r.mu.Unlock()
 			done, err := subscribe(retryCtx)
 			if err != nil {
 				e.reportUserDataStreamError(retryCtx, a, err)
 			}
 			if done {
-				return
+				if ends() {
+					return
+				}
+				wait = delay
+			} else {
+				wait = nextUserDataRetryWait(wait, delay)
 			}
-			wait = nextUserDataRetryWait(wait, delay)
 			timer.Reset(wait)
 		}
 	})

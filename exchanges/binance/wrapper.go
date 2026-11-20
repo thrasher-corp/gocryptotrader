@@ -2634,12 +2634,15 @@ func (e *Exchange) untaggedAlgoOrder(ctx context.Context, a asset.Item, pair cur
 	}
 }
 
-// CancelBatchOrders cancels USDⓈ-M, COIN-M or options orders of one pair. Orders are cancelled ten at a time by order
-// ID or by client order ID, and USDⓈ-M and COIN-M algo orders one by one; each order's status is its cancelled status
-// or why its cancellation failed, keyed by the ID it was requested with. An untyped USDⓈ-M or COIN-M entry's untagged
-// ID, and a COIN-M stop, take profit or trailing stop entry's, is cancelled as the pair's order or algo order with it,
-// which untaggedAlgoOrder looks up before any order is cancelled. Errors of whole requests are returned with the
-// response
+// CancelBatchOrders cancels up to ten USDⓈ-M, COIN-M or options orders of one pair, with one Cancel Multiple Orders
+// request for the entries naming an order ID and one for those naming a client order ID alone; each order's status is
+// its cancelled status or why its cancellation failed, keyed by the ID it was requested with. An untyped USDⓈ-M or COIN-M
+// entry's untagged ID, and a COIN-M stop, take profit or trailing stop entry's, is looked up before any order is
+// cancelled, as it may name the pair's algo order, which untaggedAlgoOrder reports. A batch of more than ten entries is
+// refused, and so is one with a USDⓈ-M or COIN-M entry naming an algo order, which Cancel Multiple Orders does not take:
+// an algo order ID, a USDⓈ-M stop, take profit or trailing stop type, a TWAP type, or an untagged ID the lookup finds
+// naming the pair's algo order alone; CancelOrder cancels such a conditional order, and CancelFuturesAlgoOrder a TWAP
+// order. A refused batch cancels nothing. Errors of whole requests are returned with the response
 func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(o) == 0 {
 		return nil, order.ErrCancelOrderIsNil
@@ -2650,13 +2653,16 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	default:
 		return nil, fmt.Errorf("%w: batch cancellation on %s", asset.ErrNotSupported, a)
 	}
+	if err := checkListLength("orders", len(o), batchCancelLimit); err != nil {
+		return nil, err
+	}
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	hasAlgoOrders := a != asset.Options
-	parsedIDs, isAlgoID := make([]uint64, len(o)), make([]bool, len(o))
-	// An entry with an algo order ID or a stop, take profit or trailing stop type is cancelled, or looked up, by a request
-	// of its own, so an ID that cannot be parsed fails that entry alone
+	parsedIDs := make([]uint64, len(o))
+	// A COIN-M stop, take profit or trailing stop entry is looked up by a request of its own, so an ID that cannot be
+	// parsed fails that entry alone, as a failed lookup does
 	parseErrs := make([]error, len(o))
 	for i := range o {
 		if o[i].AssetType != a || !o[i].Pair.Equal(pair) {
@@ -2665,15 +2671,22 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		if o[i].OrderID == "" && o[i].ClientOrderID == "" {
 			return nil, order.ErrOrderIDNotSet
 		}
-		var err error
-		if hasAlgoOrders {
-			parsedIDs[i], isAlgoID[i], err = parseFuturesOrderID(o[i].OrderID)
-		} else {
-			parsedIDs[i], err = parseOrderID(o[i].OrderID)
+		if !hasAlgoOrders {
+			id, err := parseOrderID(o[i].OrderID)
+			if err != nil {
+				return nil, err
+			}
+			parsedIDs[i] = id
+			continue
+		}
+		id, isAlgoID, err := parseFuturesOrderID(o[i].OrderID)
+		if isAlgoID || isAlgoOrderType(a, o[i].Type) || o[i].Type == order.TWAP {
+			return nil, fmt.Errorf("%w: batch cancellation of %s algo order %s", common.ErrFunctionNotSupported, a, cmp.Or(o[i].OrderID, o[i].ClientOrderID))
 		}
 		switch {
 		case err == nil:
-		case hasAlgoOrders && (isAlgoID[i] || isConditionalOrderType(o[i].Type)):
+			parsedIDs[i] = id
+		case isConditionalOrderType(o[i].Type):
 			parseErrs[i] = err
 		default:
 			return nil, err
@@ -2681,18 +2694,20 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	var orderIDs []uint64
 	var clientOrderIDs []string
-	// algoOrders holds the entries cancelled as algo orders by their own IDs, and those whose IDs cannot be parsed, which
-	// fail there alone. found holds the entries whose untagged IDs, looked up as namesOrderOrAlgoOrder allows, name algo
-	// orders and failed those whose lookups failed, each keyed by its order ID as the orders cancelled ten at a time
-	// are, or by its client order ID
-	var algoOrders []int
-	var found, failed []untaggedEntry
+	// unparsed holds the entries whose IDs cannot be parsed, keyed by their order IDs, and failed those whose lookups
+	// failed, each keyed by its order ID, as the entries cancelled are, or by its client order ID when it names no order
+	// ID
+	var unparsed, failed []untaggedEntry
 	// An untagged ID is looked up once however many entries name it
 	lookups := make(map[untaggedLookup]untaggedEntry)
 	for i := range o {
-		if hasAlgoOrders && (isAlgoID[i] || parseErrs[i] != nil || isAlgoOrderType(a, o[i].Type)) {
-			algoOrders = append(algoOrders, i)
+		if parseErrs[i] != nil {
+			unparsed = append(unparsed, untaggedEntry{statusKey: o[i].OrderID, err: parseErrs[i]})
 			continue
+		}
+		statusKey := strconv.FormatUint(parsedIDs[i], 10)
+		if o[i].OrderID == "" {
+			statusKey = o[i].ClientOrderID
 		}
 		if hasAlgoOrders && namesOrderOrAlgoOrder(a, o[i].Type) {
 			// untaggedAlgoOrder goes by the order ID when there is one, so entries naming it share its lookup whatever
@@ -2706,17 +2721,13 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				entry.algo, entry.err = e.untaggedAlgoOrder(ctx, a, pair, parsedIDs[i], o[i].ClientOrderID)
 				lookups[lookup] = entry
 			}
-			entry.statusKey, entry.byClientOrderID = strconv.FormatUint(parsedIDs[i], 10), false
-			if o[i].OrderID == "" {
-				entry.statusKey, entry.byClientOrderID = o[i].ClientOrderID, true
-			}
 			switch {
 			case entry.err != nil:
+				entry.statusKey = statusKey
 				failed = append(failed, entry)
 				continue
 			case entry.algo != nil:
-				found = append(found, entry)
-				continue
+				return nil, fmt.Errorf("%w: batch cancellation of %s algo order %s, which %s names", common.ErrFunctionNotSupported, a, formatAlgoOrderID(entry.algo.AlgoID), statusKey)
 			}
 		}
 		if o[i].OrderID != "" {
@@ -2729,59 +2740,22 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	// The keys of each kind of ID whose cancellation succeeded keep that status, as Binance rejects another entry
 	// naming the same order as unknown once the order is cancelled
 	succeededOrderKeys, succeededClientOrderKeys := make(map[string]bool), make(map[string]bool)
-	succeededAlgoKeys, succeededClientAlgoKeys := make(map[string]bool), make(map[string]bool)
 	var errs error
-	for start := 0; start < len(orderIDs); start += batchCancelLimit {
-		end := min(start+batchCancelLimit, len(orderIDs))
-		ids, keys := orderIDs[start:end], make([]string, end-start)
-		for i := range ids {
-			keys[i] = strconv.FormatUint(ids[i], 10)
+	if len(orderIDs) != 0 {
+		keys := make([]string, len(orderIDs))
+		for i := range orderIDs {
+			keys[i] = strconv.FormatUint(orderIDs[i], 10)
 		}
-		outcomes, err := e.cancelOrderBatch(ctx, a, pair, ids, nil)
+		outcomes, err := e.cancelOrderBatch(ctx, a, pair, orderIDs, nil)
 		errs = common.AppendError(errs, recordBatchStatuses(resp, succeededOrderKeys, keys, outcomes, err))
 	}
-	for start := 0; start < len(clientOrderIDs); start += batchCancelLimit {
-		ids := clientOrderIDs[start:min(start+batchCancelLimit, len(clientOrderIDs))]
-		outcomes, err := e.cancelOrderBatch(ctx, a, pair, nil, ids)
-		errs = common.AppendError(errs, recordBatchStatuses(resp, succeededClientOrderKeys, ids, outcomes, err))
+	if len(clientOrderIDs) != 0 {
+		outcomes, err := e.cancelOrderBatch(ctx, a, pair, nil, clientOrderIDs)
+		errs = common.AppendError(errs, recordBatchStatuses(resp, succeededClientOrderKeys, clientOrderIDs, outcomes, err))
 	}
-	// Algo IDs are numbered apart from order IDs, so the algo orders cancelled are kept apart too, by their algo IDs:
-	// the one requested, and the one Binance reports for an algo order cancelled by its client algo ID
-	cancelledAlgoIDs := make(map[uint64]bool)
-	for _, i := range algoOrders {
-		statusKey, succeeded := o[i].OrderID, succeededAlgoKeys
-		if statusKey == "" {
-			statusKey, succeeded = o[i].ClientOrderID, succeededClientAlgoKeys
-		}
-		err := parseErrs[i]
-		var cancelled *USDTMarginedFuturesCancelAlgoOrderResponse
-		if err == nil {
-			cancelled, err = e.cancelFuturesAlgoOrder(ctx, a, parsedIDs[i], o[i].ClientOrderID)
-		}
-		if err == nil {
-			cancelledAlgoIDs[parsedIDs[i]] = true
-			if cancelled != nil {
-				cancelledAlgoIDs[cancelled.AlgoID] = true
-			}
-		}
-		errs = common.AppendError(errs, recordBatchStatuses(resp, succeeded, []string{statusKey}, []batchCancelOutcome{{status: "CANCELED"}}, err))
-	}
-	// An algo order another entry cancelled is not cancelled again, as Binance would reject it as unknown
-	for _, entry := range found {
-		var err error
-		if !cancelledAlgoIDs[entry.algo.AlgoID] {
-			if _, err = e.cancelFuturesAlgoOrder(ctx, a, entry.algo.AlgoID, ""); err == nil {
-				cancelledAlgoIDs[entry.algo.AlgoID] = true
-			}
-		}
-		succeeded := succeededAlgoKeys
-		if entry.byClientOrderID {
-			succeeded = succeededClientAlgoKeys
-		}
-		errs = common.AppendError(errs, recordBatchStatuses(resp, succeeded, []string{entry.statusKey}, []batchCancelOutcome{{status: "CANCELED"}}, err))
-	}
-	// A failed lookup is recorded last, so that a cancellation another entry named by the same text does not hide it
-	for _, entry := range failed {
+	// A failed lookup is recorded last, so that a cancellation or a parse error another entry named by the same text
+	// does not hide it
+	for _, entry := range slices.Concat(unparsed, failed) {
 		resp.Status[entry.statusKey] = entry.err.Error()
 		errs = common.AppendError(errs, fmt.Errorf("error cancelling order %s: %w", entry.statusKey, entry.err))
 	}
@@ -2795,13 +2769,12 @@ type untaggedLookup struct {
 	clientOrderID string
 }
 
-// untaggedEntry is what untaggedAlgoOrder found for a batch entry it looked up, and the entry's status key, its client
-// order ID when byClientOrderID is set and its order ID otherwise
+// untaggedEntry is a batch entry that failed before its cancellation was requested, with its status key, or what
+// untaggedAlgoOrder found for an entry it looked up
 type untaggedEntry struct {
-	statusKey       string
-	byClientOrderID bool
-	algo            *USDTMarginedFuturesAlgoOrderResponse
-	err             error
+	statusKey string
+	algo      *USDTMarginedFuturesAlgoOrderResponse
+	err       error
 }
 
 // batchCancelOutcome is one order's outcome in a batch cancellation: its status, or the error Binance rejected its

@@ -2,7 +2,10 @@ package binance
 
 import (
 	"math"
+	"net/http"
 	"net/url"
+	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1055,6 +1058,65 @@ func TestCancelBatchOptionsOrders(t *testing.T) {
 	ensureTradablePairs(t)
 	_, err = e.CancelBatchOptionsOrders(t.Context(), optionsTradablePair, nil, nil)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelBatchOptionsOrders must require an order ID or a client order ID")
+
+	t.Run("at most ten orders", func(t *testing.T) {
+		t.Parallel()
+		symbol := currency.Pair{Base: currency.BTC, Quote: currency.NewCode("260410-72000-P"), Delimiter: currency.DashDelimiter}
+		for _, tc := range []struct {
+			name                string
+			orderIDs, clientIDs int
+		}{
+			{"ten order IDs", 10, 0},
+			{"ten client order IDs", 0, 10},
+			{"six order IDs and four client order IDs", 6, 4},
+			{"eleven order IDs", 11, 0},
+			{"eleven client order IDs", 0, 11},
+			{"six order IDs and five client order IDs", 6, 5},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				orderIDs := make([]uint64, tc.orderIDs)
+				for i := range orderIDs {
+					orderIDs[i] = uint64(i + 1)
+				}
+				clientIDs := make([]string, tc.clientIDs)
+				for i := range clientIDs {
+					clientIDs[i] = "gct-option-" + strconv.Itoa(i+1)
+				}
+				exp := url.Values{"symbol": {"BTC-260410-72000-P"}}
+				if len(orderIDs) != 0 {
+					ids, err := json.Marshal(orderIDs)
+					require.NoError(t, err, "Marshal must not error")
+					exp.Set("orderIds", string(ids))
+				}
+				if len(clientIDs) != 0 {
+					ids, err := json.Marshal(clientIDs)
+					require.NoError(t, err, "Marshal must not error")
+					exp.Set("clientOrderIds", string(ids))
+				}
+				var requests atomic.Int32
+				ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					assert.Equal(t, http.MethodDelete+" /eapi/v1/batchOrders", r.Method+" "+r.URL.Path, "the request should be Cancel Multiple Option Orders")
+					q := r.URL.Query()
+					for _, param := range []string{"symbol", "orderIds", "clientOrderIds"} {
+						assert.Equalf(t, exp[param], q[param], "the request should carry %s as given", param)
+					}
+					_, err := w.Write([]byte(`[]`))
+					assert.NoError(t, err, "Write should not error")
+				})
+				result, err := ex.CancelBatchOptionsOrders(t.Context(), symbol, orderIDs, clientIDs)
+				if tc.orderIDs+tc.clientIDs > 10 {
+					assert.ErrorIs(t, err, errTooManyItems, "CancelBatchOptionsOrders should refuse more than ten orders")
+					assert.Nil(t, result, "CancelBatchOptionsOrders should return no result for the refused request")
+					assert.Zero(t, requests.Load(), "CancelBatchOptionsOrders should send nothing for the refused request")
+					return
+				}
+				require.NoError(t, err, "CancelBatchOptionsOrders must send up to ten orders")
+				assert.Equal(t, int32(1), requests.Load(), "CancelBatchOptionsOrders should send one request")
+			})
+		}
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

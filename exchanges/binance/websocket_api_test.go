@@ -3992,7 +3992,7 @@ func TestUserDataStreamSubscriptionRetried(t *testing.T) {
 	assert.Equal(t, map[asset.Item]int{asset.Spot: 2, asset.Margin: 1}, reported, "each failed subscription should be reported")
 }
 
-func TestUserDataStreamRetrySendsNothing(t *testing.T) {
+func TestRetryAccountUserDataStream(t *testing.T) {
 	t.Parallel()
 	// A retry sends no subscription request while the account is subscribed or a request for its subscription awaits
 	// its response, once the connection is retired or no longer kept for requests, or while the account is disabled or

@@ -408,7 +408,7 @@ func (e *Exchange) subscribeAccountUserDataStream(ctx context.Context, conn webs
 // in the background, and again after each failure, while the connection is kept for requests and the account is enabled
 // with usable credentials, and until a subscription, or a request for one awaiting its response, is recorded
 func (e *Exchange) retryAccountUserDataStream(ctx context.Context, conn websocket.Connection, a asset.Item, immediately bool) {
-	e.retryUserDataSubscription(ctx, conn, a, immediately, func(ctx context.Context) (bool, error) {
+	e.retryUserDataSubscription(ctx, conn, a, a, immediately, func(ctx context.Context) (bool, error) {
 		enabled := e.CurrencyPairs.IsAssetEnabled(a) == nil
 		if e.wsAPI.get() != conn || !enabled || !e.AreCredentialsValid(ctx) || e.userData.has(a) {
 			return true, nil
