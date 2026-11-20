@@ -3,6 +3,7 @@ package cache
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -152,6 +153,37 @@ func TestSetCapacity(t *testing.T) {
 		c.Add("g", 7)
 		assert.Equal(t, 7, c.Get("g"), "growing from zero should restore caching")
 	})
+	t.Run("shrink several entries to a smaller positive capacity", func(t *testing.T) {
+		t.Parallel()
+		c := New(5)
+		for i, k := range []string{"a", "b", "c", "d", "e"} {
+			c.Add(k, i)
+		}
+		require.Equal(t, 0, c.Get("a"), "Get must promote the oldest entry")
+		c.SetCapacity(2)
+		require.Equal(t, uint64(2), c.Len(), "shrinking must evict entries down to the new capacity")
+		for _, k := range []string{"b", "c", "d"} {
+			assert.Falsef(t, c.Contains(k), "shrinking should evict least recently used entry %s", k)
+		}
+		c.Add("f", 5)
+		assert.False(t, c.Contains("e"), "the next Add should evict the least recently used survivor")
+		assert.True(t, c.Contains("a"), "the next Add should retain the most recently used survivor")
+		assert.True(t, c.Contains("f"), "the next Add should retain the new entry")
+	})
+	t.Run("resize an empty cache", func(t *testing.T) {
+		t.Parallel()
+		c := New(3)
+		c.SetCapacity(2)
+		require.Zero(t, c.Len(), "resizing an empty cache must leave it empty")
+		c.Add("a", 1)
+		c.Add("b", 2)
+		require.Equal(t, uint64(2), c.Len(), "Len must report entries up to the new capacity")
+		c.Add("c", 3)
+		assert.False(t, c.Contains("a"), "the next Add should evict the oldest entry at the new capacity")
+		assert.True(t, c.Contains("b"), "the next Add should retain the newer entry")
+		assert.True(t, c.Contains("c"), "the next Add should retain the new entry")
+		assert.Equal(t, uint64(2), c.Len(), "Len should not exceed the new capacity")
+	})
 	t.Run("concurrent reads writes and capacity changes", func(t *testing.T) {
 		t.Parallel()
 		c := New(3)
@@ -165,8 +197,20 @@ func TestSetCapacity(t *testing.T) {
 				}
 			})
 		}
-		workers.Wait()
-		c.SetCapacity(1)
-		assert.LessOrEqual(t, c.Len(), uint64(1), "final resize should honour the capacity")
+		// Wait with a deadline so a leaked lock fails this test instead of hanging the package. The repeated resize
+		// covers an unchanged capacity on every run, and the length is sent back so t is not used after a timeout.
+		finalLen := make(chan uint64, 1)
+		go func() {
+			workers.Wait()
+			c.SetCapacity(1)
+			c.SetCapacity(1)
+			finalLen <- c.Len()
+		}()
+		select {
+		case n := <-finalLen:
+			assert.LessOrEqual(t, n, uint64(1), "final resize should honour the capacity")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "workers and the final resize must release the cache lock within 5 seconds")
+		}
 	})
 }
