@@ -565,6 +565,16 @@ func (s *Storage) SeedDefaultForeignExchangeRates() error {
 // GetExchangeRates returns storage seeded exchange rates
 func (s *Storage) GetExchangeRates() (Conversions, error) {
 	if !s.updaterRunning.Load() || !s.fxRates.HasData() {
+		if !s.fxRefreshMtx.TryLock() {
+			// A refresh is in flight and will publish rates: wait for the refresh
+			// to publish instead of asking the provider again, whose narrower
+			// answer would evict the pairs the refresh cached, such as USD/CAD.
+			s.fxRefreshMtx.Lock()
+			s.fxRefreshMtx.Unlock()
+			return s.fxRates.GetFullRates(), nil
+		}
+		s.fxRefreshMtx.Unlock()
+
 		err := s.SeedForeignExchangeRates()
 		if err != nil {
 			return nil, err
