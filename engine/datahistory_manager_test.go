@@ -822,6 +822,11 @@ func TestPadSourceCandles(t *testing.T) {
 		{name: "interior gap", candles: []kline.Candle{at(0, 1), at(2*time.Minute, 3)}, end: 3 * time.Minute, interval: kline.OneMin, wantPadded: []kline.Candle{at(0, 1), empty(time.Minute), at(2*time.Minute, 3)}, wantPresent: []bool{true, false, true}},
 		{name: "candle away from an interval start", candles: []kline.Candle{at(0, 1), at(90*time.Second, 2), at(2*time.Minute, 3)}, end: 3 * time.Minute, interval: kline.OneMin, wantPadded: []kline.Candle{at(0, 1), at(time.Minute, 2), at(2*time.Minute, 3)}, wantPresent: []bool{true, true, true}},
 		{name: "two candles in one interval", candles: []kline.Candle{at(0, 1), at(30*time.Second, 9), at(time.Minute, 2)}, end: 2 * time.Minute, interval: kline.OneMin, wantPadded: []kline.Candle{at(0, 1), at(time.Minute, 2)}, wantPresent: []bool{true, true}},
+		{name: "candle without data", candles: []kline.Candle{at(0, 1), empty(time.Minute), at(2*time.Minute, 3)}, end: 3 * time.Minute, interval: kline.OneMin, wantPadded: []kline.Candle{at(0, 1), empty(time.Minute), at(2*time.Minute, 3)}, wantPresent: []bool{true, false, true}},
+		{name: "candle without data before one with", candles: []kline.Candle{empty(0), at(30*time.Second, 2)}, end: time.Minute, interval: kline.OneMin, wantPadded: []kline.Candle{at(0, 2)}, wantPresent: []bool{true}},
+		{name: "candle with nothing above zero", candles: []kline.Candle{{Time: start, Open: -1, High: -1, Low: -1, Close: -1}}, end: time.Minute, interval: kline.OneMin, wantPadded: []kline.Candle{empty(0)}, wantPresent: []bool{false}},
+		{name: "candle without data away from an interval start", candles: []kline.Candle{at(0, 1), empty(90 * time.Second), at(2*time.Minute, 3)}, end: 3 * time.Minute, interval: kline.OneMin, wantPadded: []kline.Candle{at(0, 1), empty(time.Minute), at(2*time.Minute, 3)}, wantPresent: []bool{true, false, true}},
+		{name: "price without volume", candles: []kline.Candle{{Time: start, Open: 1, High: 1, Low: 1, Close: 1}}, end: time.Minute, interval: kline.OneMin, wantPadded: []kline.Candle{{Time: start, Open: 1, High: 1, Low: 1, Close: 1}}, wantPresent: []bool{true}},
 		{name: "candles outside the range", candles: []kline.Candle{at(-time.Minute, 9), at(time.Minute, 2), at(3*time.Minute, 9)}, end: 3 * time.Minute, interval: kline.OneMin, wantPadded: []kline.Candle{empty(0), at(time.Minute, 2), empty(2 * time.Minute)}, wantPresent: []bool{false, true, false}},
 		{name: "no candles", end: 2 * time.Minute, interval: kline.OneMin, wantPadded: []kline.Candle{empty(0), empty(time.Minute)}, wantPresent: []bool{false, false}},
 		{name: "candle in a partial final interval", candles: []kline.Candle{at(0, 1), at(time.Minute, 2), at(2*time.Minute+15*time.Second, 9)}, end: 2*time.Minute + 30*time.Second, interval: kline.OneMin, wantPadded: []kline.Candle{at(0, 1), at(time.Minute, 2)}, wantPresent: []bool{true, true}},
@@ -1227,6 +1232,55 @@ func TestCompareJobsToData(t *testing.T) {
 		}
 		assert.Equal(t, []int64{start.Unix(), start.Add(5 * time.Minute).Unix(), start.Add(10 * time.Minute).Unix(), start.Add(15 * time.Minute).Unix(), start.Add(20 * time.Minute).Unix()}, converted, "runDataJob should convert the whole batch")
 		assert.Equal(t, dataHistoryStatusComplete, job.Status, "runDataJob should complete the job once its batch converts")
+	})
+
+	t.Run("candle series with a gap", func(t *testing.T) {
+		t.Parallel()
+		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		gap := generateCandles(2, start.Add(5*time.Minute), kline.FiveMin)
+		for _, tc := range []struct {
+			name  string
+			saved []kline.Candle
+		}{
+			{name: "first interval missing", saved: gap},
+			{name: "candle away from the first interval start", saved: slices.Concat(generateCandles(1, start.Add(2*time.Minute), kline.FiveMin), gap)},
+		} {
+			for _, dataType := range []dataHistoryDataType{dataHistoryCandleDataType, dataHistoryCandleValidationDataType, dataHistoryCandleValidationSecondarySourceType, dataHistoryConvertTradesDataType, dataHistoryConvertCandlesDataType} {
+				for _, overwrite := range []bool{false, true} {
+					name := tc.name + "/" + dataType.String() + "/keep existing data"
+					if overwrite {
+						name = tc.name + "/" + dataType.String() + "/overwrite existing data"
+					}
+					t.Run(name, func(t *testing.T) {
+						t.Parallel()
+						mgr, _ := createDHM(t)
+						mgr.candleLoader = func(_ string, _ currency.Pair, _ asset.Item, interval kline.Interval, from, until time.Time) (*kline.Item, error) {
+							return loadSavedCandles(tc.saved, interval, from, until)
+						}
+						job := &DataHistoryJob{
+							StartDate:             start,
+							EndDate:               start.Add(15 * time.Minute),
+							Interval:              kline.FiveMin,
+							ConversionInterval:    kline.FiveMin,
+							DataType:              dataType,
+							RequestSizeLimit:      2,
+							OverwriteExistingData: overwrite,
+						}
+						if dataType == dataHistoryConvertCandlesDataType {
+							job.Interval = kline.OneMin
+						}
+						require.NoError(t, mgr.compareJobsToData(job), "compareJobsToData must prepare a job whose candle series has a gap")
+						var hasData []bool
+						for _, r := range job.rangeHolder.Ranges {
+							for _, interval := range r.Intervals {
+								hasData = append(hasData, interval.HasData)
+							}
+						}
+						assert.Equal(t, []bool{false, true, true}, hasData, "only the intervals a saved candle starts should have data")
+					})
+				}
+			}
+		}
 	})
 
 	t.Run("start between conversion intervals", func(t *testing.T) {
@@ -1923,6 +1977,33 @@ func TestConvertCandleData(t *testing.T) {
 			wantResult:  "missing 1 of 2 converted candles",
 			wantSaves:   [][]time.Time{{start.Add(5 * time.Minute)}},
 			wantTargets: map[time.Duration]ohlcv{5 * time.Minute: {1, 1, 1, 1, 5}},
+		},
+		{
+			name:        "source candle without data in the batch",
+			source:      slices.Concat(minutes(0, 2*time.Minute, 1, 1), []kline.Candle{{Time: start.Add(2 * time.Minute)}}, minutes(3*time.Minute, 10*time.Minute, 1, 1)),
+			end:         10 * time.Minute,
+			wantStatus:  dataHistoryStatusFailed,
+			wantResult:  "missing 1 of 2 converted candles",
+			wantSaves:   [][]time.Time{{start.Add(5 * time.Minute)}},
+			wantTargets: map[time.Duration]ohlcv{5 * time.Minute: {1, 1, 1, 1, 5}},
+		},
+		{
+			name:        "source candle without data under a saved converted candle",
+			source:      slices.Concat(minutes(0, 2*time.Minute, 1, 1), []kline.Candle{{Time: start.Add(2 * time.Minute)}}, minutes(3*time.Minute, 10*time.Minute, 1, 1)),
+			existing:    []kline.Candle{candleAt(0, 777, 777)},
+			overwrite:   true,
+			end:         10 * time.Minute,
+			wantStatus:  dataHistoryStatusComplete,
+			wantSaves:   [][]time.Time{{start.Add(5 * time.Minute)}},
+			wantTargets: map[time.Duration]ohlcv{0: {777, 777, 777, 777, 777}, 5 * time.Minute: {1, 1, 1, 1, 5}},
+		},
+		{
+			name:        "source candle with a price but no volume",
+			source:      slices.Concat(minutes(0, 2*time.Minute, 1, 1), []kline.Candle{candleAt(2*time.Minute, 1, 0)}, minutes(3*time.Minute, 5*time.Minute, 1, 1)),
+			end:         5 * time.Minute,
+			wantStatus:  dataHistoryStatusComplete,
+			wantSaves:   [][]time.Time{{start}},
+			wantTargets: map[time.Duration]ohlcv{0: {1, 1, 1, 1, 4}},
 		},
 		{
 			name:        "source candle away from its interval start",

@@ -230,8 +230,10 @@ func candleRuns(h *kline.IntervalRangeHolder, candles []kline.Candle) [][]kline.
 }
 
 // padSourceCandles returns one candle for each interval from start until end, holding the first of the candles given
-// that starts within it, at the interval's start, or an empty candle, and which intervals had a candle. Conversion
-// then groups the candles by the output interval they start in, rather than from the first candle it is given.
+// with data that starts within it, at the interval's start, or an empty candle, and which intervals had such a candle.
+// A stored candle without data is the padding a candle job saves for an interval the exchange did not supply, so it
+// leaves its interval missing. Conversion then groups the candles by the output interval they start in, rather than
+// from the first candle it is given.
 func padSourceCandles(candles []kline.Candle, start, end time.Time, interval kline.Interval) (padded []kline.Candle, present []bool) {
 	if interval <= 0 || !start.Before(end) {
 		return nil, nil
@@ -243,7 +245,7 @@ func padSourceCandles(candles []kline.Candle, start, end time.Time, interval kli
 		padded[i].Time = start.Add(time.Duration(i) * interval.Duration())
 	}
 	for i := range candles {
-		if candles[i].Time.Before(start) || !candles[i].Time.Before(end) {
+		if candles[i].Time.Before(start) || !candles[i].Time.Before(end) || !candles[i].HasData() {
 			continue
 		}
 		slot := int(candles[i].Time.Sub(start) / interval.Duration())
@@ -283,16 +285,15 @@ func rangeResult(results []DataHistoryJobResult) (decided, complete bool) {
 	return false, false
 }
 
-// setHasDataByCandleTime marks each interval that a candle with data starts. A conversion job saves each batch on its
-// own, so a batch that failed can leave a gap before later saved candles, which kline's in-order SetHasDataFromCandles
-// rejects.
+// setHasDataByCandleTime marks each interval that a candle with data starts. A conversion job saves only the candles
+// it can convert, so a series any job reads can have a gap before later saved candles, which kline's in-order
+// SetHasDataFromCandles rejects, failing the preparation of every job.
 func setHasDataByCandleTime(h *kline.IntervalRangeHolder, candles []kline.Candle) {
 	starts := make(map[int64]bool, len(candles))
 	for i := range candles {
-		if candles[i].Low <= 0 && candles[i].High <= 0 && candles[i].Close <= 0 && candles[i].Open <= 0 && candles[i].Volume <= 0 {
-			continue
+		if candles[i].HasData() {
+			starts[candles[i].Time.UnixNano()] = true
 		}
-		starts[candles[i].Time.UnixNano()] = true
 	}
 	for x := range h.Ranges {
 		for y := range h.Ranges[x].Intervals {
@@ -324,12 +325,8 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
-			if candles == nil {
-				candles = &kline.Item{}
-			}
-			err = jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
-			if err != nil {
-				return err
+			if candles != nil {
+				setHasDataByCandleTime(jobs[i].rangeHolder, candles.Candles)
 			}
 		case dataHistoryTradeDataType:
 			for x := range jobs[i].rangeHolder.Ranges {

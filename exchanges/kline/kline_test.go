@@ -1,6 +1,7 @@
 package kline
 
 import (
+	"math"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -1422,6 +1423,35 @@ func TestSetHasDataFromCandles(t *testing.T) {
 		err = ranges.SetHasDataFromCandles([]Candle{{Time: start}, {Time: start.Add(OneHour.Duration() + time.Minute)}})
 		assert.ErrorIs(t, err, errCandleTimeMismatch, "SetHasDataFromCandles should reject a candle away from its interval start")
 	})
+}
+
+func TestCandleHasData(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	padding := Item{Interval: OneMin, Candles: []Candle{{Time: start.Add(time.Minute), Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}}}
+	require.NoError(t, padding.addPadding(start, start.Add(2*time.Minute), false), "addPadding must not error")
+	require.Len(t, padding.Candles, 2, "addPadding must insert a candle for the missing interval")
+	for _, tc := range []struct {
+		name   string
+		candle Candle
+		want   bool
+	}{
+		{name: "padding", candle: padding.Candles[0], want: false},
+		{name: "every value", candle: padding.Candles[1], want: true},
+		{name: "nothing above zero", candle: Candle{Time: start, Open: -1, High: -1, Low: -1, Close: -1, Volume: -1}, want: false},
+		{name: "price without volume", candle: Candle{Time: start, Open: 1, High: 1, Low: 1, Close: 1}, want: true},
+		{name: "open only", candle: Candle{Time: start, Open: 1}, want: true},
+		{name: "high only", candle: Candle{Time: start, High: 1}, want: true},
+		{name: "low only", candle: Candle{Time: start, Low: 1}, want: true},
+		{name: "close only", candle: Candle{Time: start, Close: 1}, want: true},
+		{name: "volume only", candle: Candle{Time: start, Volume: 1}, want: true},
+		{name: "not a number", candle: Candle{Time: start, Open: math.NaN(), High: -1, Low: -1, Close: -1}, want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, tc.candle.HasData(), "HasData should report whether the candle has a price or volume above zero")
+		})
+	}
 }
 
 func TestGetIntervalResultLimit(t *testing.T) {
