@@ -73,3 +73,14 @@ func (l *LRUCache) Len() uint64 {
 	defer l.m.Unlock()
 	return l.lru.Len()
 }
+
+// SetCapacity resizes the cache in place, evicting the least recently used entries.
+// A zero capacity removes all entries and prevents new entries being retained.
+func (l *LRUCache) SetCapacity(capacity uint64) {
+	l.m.Lock()
+	defer l.m.Unlock()
+	l.lru.Cap = capacity
+	for l.lru.Len() > capacity {
+		l.lru.removeOldestEntry()
+	}
+}
