@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -71,6 +72,10 @@ const (
 	// it twice the last wait, up to websocketListenKeyRetryMaxDelay
 	websocketListenKeyRetryDelay    = 5 * time.Second
 	websocketListenKeyRetryMaxDelay = 5 * time.Minute
+
+	// A perpetual account connection's open order read, and the lookups of orders it holds events of, are sent once and
+	// ended websocketOpenOrderReadTimeout after the read begins, as the connection holds its order events until they end
+	websocketOpenOrderReadTimeout = 5 * time.Second
 )
 
 var (
@@ -153,6 +158,11 @@ type websocketState struct {
 	extensionRetryDelay time.Duration
 	// retryDelay is the first wait after a failed listen key request, websocketListenKeyRetryDelay when zero
 	retryDelay time.Duration
+	// openOrderReadTimeout bounds an account connection's open order read and order lookups,
+	// websocketOpenOrderReadTimeout when zero
+	openOrderReadTimeout time.Duration
+	// netDialContext dials the connections' sockets, the system's dialer when nil
+	netDialContext func(ctx context.Context, network, addr string) (net.Conn, error)
 }
 
 // websocketConnection is the state of a connection a Connector dialled
@@ -203,8 +213,10 @@ type websocketListenKeyKeeper struct {
 	session    <-chan struct{}
 	// credentials are those the key was created for, whose account the key's connections stream and which extend it
 	credentials *accounts.Credentials
-	// conns are the connections dialled with the key, guarded by websocketState.mu
+	// conns are the connections dialled with the key, and dials the dials in flight with it, both guarded by
+	// websocketState.mu
 	conns []websocket.Connection
+	dials int
 	done  chan struct{}
 }
 
@@ -276,7 +288,7 @@ func (e *Exchange) wsConnectionSetups(exch *config.Exchange) ([]*websocket.Conne
 
 // wsDialer returns the dialer of every connection
 func (e *Exchange) wsDialer() *gws.Dialer {
-	return &gws.Dialer{HandshakeTimeout: e.Config.HTTPTimeout, Proxy: http.ProxyFromEnvironment}
+	return &gws.Dialer{HandshakeTimeout: e.Config.HTTPTimeout, Proxy: http.ProxyFromEnvironment, NetDialContext: e.wsState.netDialContext}
 }
 
 // wsConnectMarket dials a market data connection. The servers send heartbeats, which the handlers answer
@@ -302,10 +314,11 @@ func (e *Exchange) wsConnectAccount(ctx context.Context, conn websocket.Connecti
 		return err
 	}
 	if err := conn.Dial(ctx, e.wsDialer(), http.Header{}, url.Values{"listenKey": {keeper.key}}); err != nil {
+		e.wsEndKeeperDial(keeper, nil)
 		return fmt.Errorf("%w: %s", errWebsocketAccountDial, wsRedact(err.Error(), keeper.key))
 	}
 	state := e.wsTrackConnection(conn, session, false, a, keeper.credentials)
-	e.wsAddKeeperConnection(keeper, conn)
+	e.wsEndKeeperDial(keeper, conn)
 	if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
 		ctx = accounts.DeployCredentialsToContext(ctx, keeper.credentials)
 		e.refreshBalances(ctx, a, session)
@@ -317,20 +330,29 @@ func (e *Exchange) wsConnectAccount(ctx context.Context, conn websocket.Connecti
 // wsReadOpenOrderFees reads the open orders of a perpetual account connection's account once the connection is up, so
 // the fee totals of the orders placed before it start from the fees each had paid rather than from the first fill it
 // streams. The connection's order events are held until the read ends and then handled in turn, so their fills add to
-// the totals the read starts, while its other frames, heartbeats included, are handled as they arrive. The read ends
-// with the connection's session, and the manager waits for it before starting another, so the held events are relayed
-// before that session's. The read starts the connection's totals although the connection closes first, and within the
-// session a held event that a connection dialled since has taken its order past is dropped (perpetualOrderRelay)
+// the totals the read starts, while its other frames, heartbeats included, are handled as they arrive. A held fill of
+// an order the read did not list, such as one that closed while the read was in flight, would start a total without
+// the fills before the connection came up, so that order is looked up before its events are handled. The read and the
+// lookups are sent once and end websocketOpenOrderReadTimeout after the read begins, or with the connection's session,
+// as order events wait for them; the held events are then handled without what they did not return. The manager waits
+// for the read before starting another session, so the held events are relayed before that session's. The read starts
+// the connection's totals although the connection closes first, and within the session a held event that a connection
+// dialled since has taken its order past is dropped (perpetualOrderRelay)
 func (e *Exchange) wsReadOpenOrderFees(ctx context.Context, state *websocketConnection) {
+	// The read outlives the connection attempt, whose context ends with it, and ends with the session instead
+	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	e.wsState.mu.Lock()
+	timeout := cmp.Or(e.wsState.openOrderReadTimeout, websocketOpenOrderReadTimeout)
+	e.wsState.mu.Unlock()
+	readCtx, cancelRead := context.WithTimeout(request.WithRetryNotAllowed(context.WithValue(ctx, perpetualOrderFeeReadOwnerKey{}, state)), timeout)
 	state.heldOrders.Lock()
 	state.holding = true
 	state.heldOrders.Unlock()
-	// The read outlives the connection attempt, whose context ends with it, and ends with the session instead
-	ctx, cancel := context.WithCancel(context.WithValue(context.WithoutCancel(ctx), perpetualOrderFeeReadOwnerKey{}, state))
 	e.Websocket.Wg.Add(1)
 	e.wsState.background.Go(func() {
 		defer e.Websocket.Wg.Done()
 		defer cancel()
+		defer cancelRead()
 		go func() {
 			select {
 			case <-state.session:
@@ -338,10 +360,21 @@ func (e *Exchange) wsReadOpenOrderFees(ctx context.Context, state *websocketConn
 			case <-ctx.Done():
 			}
 		}()
-		if _, err := e.GetActiveOrders(ctx, &order.MultiOrderRequest{AssetType: state.account, Side: order.AnySide, Type: order.AnyType}); err != nil {
+		settled := make(map[string]bool)
+		orders, err := e.GetActiveOrders(readCtx, &order.MultiOrderRequest{AssetType: state.account, Side: order.AnySide, Type: order.AnyType})
+		if err != nil {
 			log.Errorf(log.WebsocketMgr, "%s %s open order fee read failed: %v", e.Name, state.account, err)
 		}
-		e.wsReleaseOrderEvents(ctx, state)
+		for i := range orders {
+			settled[orders[i].OrderID] = true
+		}
+		for {
+			lookups := e.wsReleaseOrderEvents(ctx, state, settled, readCtx.Err() == nil)
+			if len(lookups) == 0 {
+				return
+			}
+			e.wsLookUpOrderFees(readCtx, state, lookups, settled)
+		}
 	})
 }
 
@@ -978,10 +1011,11 @@ func (e *Exchange) wsSession(conn websocket.Connection) <-chan struct{} {
 }
 
 // wsListenKey returns the keeper of the listen key the account connections to a product's REST host use in this
-// session, creating the key and its keeper on the first request, for the credentials ctx names then. A key refused for
-// the credentials turns authenticated websocket use off, so the next connection attempt connects the public streams
-// alone; other failures make the requests that follow wait, longer after each failure, and schedule the flush that
-// connects the account streams once the wait ends
+// session, creating the key and its keeper on the first request, for the credentials ctx names then. The keeper counts
+// a dial with its key in flight, which the caller ends with wsEndKeeperDial, so the key is kept alive while the first
+// connection using it is still being dialled. A key refused for the credentials turns authenticated websocket use off,
+// so the next connection attempt connects the public streams alone; other failures make the requests that follow wait,
+// longer after each failure, and schedule the flush that connects the account streams once the wait ends
 func (e *Exchange) wsListenKey(ctx context.Context, ePath exchange.URL, session <-chan struct{}) (*websocketListenKeyKeeper, error) {
 	host, err := e.API.Endpoints.GetURL(ePath)
 	if err != nil {
@@ -990,6 +1024,7 @@ func (e *Exchange) wsListenKey(ctx context.Context, ePath exchange.URL, session 
 	s := &e.wsState
 	s.mu.Lock()
 	if k := s.keepers[host]; k != nil && k.session == session {
+		k.dials++
 		s.mu.Unlock()
 		return k, nil
 	}
@@ -1019,6 +1054,7 @@ func (e *Exchange) wsListenKey(ctx context.Context, ePath exchange.URL, session 
 	defer s.mu.Unlock()
 	delete(s.keyRetries, host)
 	if k := s.keepers[host]; k != nil && k.session == session {
+		k.dials++
 		return k, nil
 	}
 	if s.keepers == nil {
@@ -1033,6 +1069,7 @@ func (e *Exchange) wsListenKey(ctx context.Context, ePath exchange.URL, session 
 		validity:    cmp.Or(s.keyValidity, websocketListenKeyValidity),
 		retryDelay:  cmp.Or(s.extensionRetryDelay, websocketListenKeyExtensionRetryDelay),
 		session:     session,
+		dials:       1,
 		done:        make(chan struct{}),
 	}
 	s.keepers[host] = k
@@ -1147,26 +1184,39 @@ func (e *Exchange) wsScheduleAccountReconnect(ctx context.Context, at time.Time)
 	}()
 }
 
-// wsAddKeeperConnection records a connection dialled with a keeper's key, forgetting those no longer connected
-func (e *Exchange) wsAddKeeperConnection(k *websocketListenKeyKeeper, conn websocket.Connection) {
+// wsEndKeeperDial ends a dial wsListenKey counted with a keeper's key, recording conn, the connection it dialled, or
+// nothing for a dial that failed, and forgetting the connections no longer connected
+func (e *Exchange) wsEndKeeperDial(k *websocketListenKeyKeeper, conn websocket.Connection) {
 	s := &e.wsState
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	k.conns = append(slices.DeleteFunc(k.conns, func(c websocket.Connection) bool { return !wsIsConnected(c) }), conn)
+	k.dials = max(k.dials-1, 0)
+	k.conns = slices.DeleteFunc(k.conns, func(c websocket.Connection) bool { return !wsIsConnected(c) })
+	if conn != nil {
+		k.conns = append(k.conns, conn)
+	}
 }
 
-// wsKeeperInUse reports whether any connection dialled with a keeper's key is still connected
-func (e *Exchange) wsKeeperInUse(k *websocketListenKeyKeeper) bool {
+// wsForgetUnusedKeeper reports whether a keeper's key is no longer in use, with no dial in flight with it and no
+// connection dialled with it still connected, and then forgets the keeper while still holding the lock it checked
+// under, so a dial never takes the key of a keeper that has stopped
+func (e *Exchange) wsForgetUnusedKeeper(k *websocketListenKeyKeeper) bool {
 	s := &e.wsState
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return slices.ContainsFunc(k.conns, wsIsConnected)
+	if k.dials > 0 || slices.ContainsFunc(k.conns, wsIsConnected) {
+		return false
+	}
+	if s.keepers[k.host] == k {
+		delete(s.keepers, k.host)
+	}
+	return true
 }
 
 // wsKeepListenKeyAlive extends a listen key each interval, with the credentials it was created for, until its session is
-// torn down or none of the connections using it is connected. A failed extension is tried again, after longer waits,
-// while the key remains valid; once no attempt fits before the key expires, the websocket reconnects and the account
-// connections take a new key
+// torn down or no dial with it is in flight and none of the connections using it is connected. A failed extension is
+// tried again, after longer waits, while the key remains valid; once no attempt fits before the key expires, the
+// websocket reconnects and the account connections take a new key
 func (e *Exchange) wsKeepListenKeyAlive(ctx context.Context, k *websocketListenKeyKeeper) {
 	defer e.wsStopKeeper(k)
 	ctx, cancel := context.WithCancel(accounts.DeployCredentialsToContext(ctx, k.credentials))
@@ -1190,7 +1240,7 @@ func (e *Exchange) wsKeepListenKeyAlive(ctx context.Context, k *websocketListenK
 			return
 		case <-t.C:
 		}
-		if !e.wsKeeperInUse(k) {
+		if e.wsForgetUnusedKeeper(k) {
 			return
 		}
 		err := e.extendListenKey(ctx, k.ePath, k.key)

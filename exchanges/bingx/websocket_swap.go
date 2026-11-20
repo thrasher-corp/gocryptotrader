@@ -318,10 +318,17 @@ func (e *Exchange) wsHoldOrderEvent(conn websocket.Connection, data []byte) bool
 
 // wsReleaseOrderEvents handles the order events an account connection held while it read its open orders, in the order
 // they arrived, adding their fills to the connection's own totals whether or not it is still tracked, and stops holding
-// them. An event arriving meanwhile waits, and is handled after them
-func (e *Exchange) wsReleaseOrderEvents(ctx context.Context, state *websocketConnection) {
+// them. An event arriving meanwhile waits, and is handled after them. With lookup set, the events stay held while any
+// is a fill whose order's total would start without the fills before the connection came up, and those orders are
+// returned to be looked up, each once: settled names the orders the read listed or that were looked up
+func (e *Exchange) wsReleaseOrderEvents(ctx context.Context, state *websocketConnection, settled map[string]bool, lookup bool) []perpetualOrderLookup {
 	state.heldOrders.Lock()
 	defer state.heldOrders.Unlock()
+	if lookup {
+		if lookups := heldOrdersMissingFees(state, settled); len(lookups) != 0 {
+			return lookups
+		}
+	}
 	for _, data := range state.held {
 		if err := e.wsProcessPerpetualOrderUpdate(ctx, state, state.account, data); err != nil {
 			log.Errorf(log.WebsocketMgr, "%s %s held order event failed: %v", e.Name, state.account, err)
@@ -329,6 +336,100 @@ func (e *Exchange) wsReleaseOrderEvents(ctx context.Context, state *websocketCon
 	}
 	state.held, state.holding = nil, false
 	e.wsState.orderRelay.unhold(state)
+	return nil
+}
+
+// perpetualOrderLookup is an order an account connection holds events of, to be looked up by its ID and symbol
+type perpetualOrderLookup struct {
+	orderID, symbol string
+}
+
+// perpetualHeldOrder is what an account connection's held events show of an order: its symbol, whether the first of
+// them is a NEW event reporting nothing executed, and whether any is a fill
+type perpetualHeldOrder struct {
+	symbol          string
+	started, filled bool
+}
+
+// heldOrdersMissingFees returns the orders of a connection's held events whose totals the events would start without
+// the fills before the connection came up: an order with a held fill, whose first held event is not a NEW event
+// reporting nothing executed, which has no total counting all its fills and which settled does not name. The caller
+// holds state.heldOrders
+func heldOrdersMissingFees(state *websocketConnection, settled map[string]bool) []perpetualOrderLookup {
+	held := make(map[string]*perpetualHeldOrder)
+	var orderIDs []string
+	for _, data := range state.held {
+		var event WebsocketPerpetualOrderUpdate
+		if err := json.Unmarshal(data, &event); err != nil {
+			continue
+		}
+		o := &event.Order
+		orderID := o.OrderID.String()
+		h, ok := held[orderID]
+		if !ok {
+			h = &perpetualHeldOrder{symbol: o.Symbol, started: o.ExecutionType == ExecutionTypeNew && o.CumulativeFilledQuantity.Decimal().IsZero()}
+			held[orderID] = h
+			orderIDs = append(orderIDs, orderID)
+		}
+		if o.ExecutionType == ExecutionTypeTrade || o.ExecutionType == ExecutionTypeCalculated {
+			h.filled = true
+		}
+	}
+	var lookups []perpetualOrderLookup
+	for _, orderID := range orderIDs {
+		if h := held[orderID]; h.filled && !h.started && !settled[orderID] && !state.fees.counted(orderID) {
+			lookups = append(lookups, perpetualOrderLookup{orderID: orderID, symbol: h.symbol})
+		}
+	}
+	return lookups
+}
+
+// wsLookUpOrderFees looks up orders an account connection holds events of, at once so that one slow lookup leaves the
+// others their time, and starts each one's total on the connection from the executed quantity and commission BingX
+// reports, open or closed, as the order's held events are handled after and add the fills beyond it. Each order is
+// settled whatever the outcome, so it is looked up once
+func (e *Exchange) wsLookUpOrderFees(ctx context.Context, state *websocketConnection, lookups []perpetualOrderLookup, settled map[string]bool) {
+	var wg sync.WaitGroup
+	for _, l := range lookups {
+		settled[l.orderID] = true
+		wg.Go(func() {
+			executed, commission, err := e.perpetualOrderFees(ctx, state.account, l)
+			if err != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s order %s fee lookup failed: %v", e.Name, state.account, l.orderID, err)
+				return
+			}
+			state.fees.seed(l.orderID, executed.Decimal(), commission.Decimal().Neg())
+		})
+	}
+	wg.Wait()
+}
+
+// perpetualOrderFees returns the executed quantity and commission BingX reports for a perpetual order
+func (e *Exchange) perpetualOrderFees(ctx context.Context, a asset.Item, l perpetualOrderLookup) (executed, commission types.Number, err error) {
+	pair, err := e.wsAccountPair(l.symbol, a)
+	if err != nil {
+		return 0, 0, err
+	}
+	id, err := parseOrderID(l.orderID)
+	if err != nil {
+		return 0, 0, err
+	}
+	switch a {
+	case asset.USDTMarginedFutures:
+		o, err := e.GetSwapOrderDetails(ctx, pair, id, "")
+		if err != nil {
+			return 0, 0, err
+		}
+		return o.ExecutedQuantity, o.Commission, nil
+	case asset.CoinMarginedFutures:
+		o, err := e.GetCoinMarginedOrderDetail(ctx, pair, id, "")
+		if err != nil {
+			return 0, 0, err
+		}
+		return o.ExecutedQuantity, o.Commission, nil
+	default:
+		return 0, 0, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+	}
 }
 
 // perpetualOrderRelay relays the order events of the perpetual account connections. An account connection retired
@@ -423,8 +524,8 @@ func (r *perpetualOrderRelay) relay(d *order.Detail, executed decimal.Decimal, s
 
 // perpetualOrderFeeTotals keeps the fees of the open perpetual orders an account connection streams. A total starts
 // from the order's NEW event, from a REST read of the order begun while the connection was up or by the connection
-// itself, or from the first fill the connection streams, in which case the fills before it are left out until such a
-// read
+// itself, from a lookup of an order the connection held events of during its own read, or from the first fill the
+// connection streams, in which case the fills before it are left out until such a read
 type perpetualOrderFeeTotals struct {
 	mu     sync.Mutex
 	orders map[string]*perpetualOrderFeeTotal
@@ -461,6 +562,14 @@ func (t *perpetualOrderFeeTotals) total(orderID string) *perpetualOrderFeeTotal 
 		t.orders[orderID] = total
 	}
 	return total
+}
+
+// counted reports whether an order's total counts all its fills so far
+func (t *perpetualOrderFeeTotals) counted(orderID string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	total, ok := t.orders[orderID]
+	return ok && total.complete
 }
 
 // start marks an order whose NEW event reports nothing executed as having all its fills counted, unless it has a total

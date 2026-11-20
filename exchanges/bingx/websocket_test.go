@@ -22,6 +22,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	gws "github.com/gorilla/websocket"
@@ -252,16 +253,16 @@ func trackTestConnection(tb testing.TB, ex *Exchange, conn websocket.Connection,
 	return ex.wsTrackConnection(conn, session.ch, serialRequests, asset.Empty, nil), session
 }
 
-// newWebsocketMockConnection dials a connection of the setup filter names to a mock server answering with mock. It is
-// tracked as a Connector tracks it and read by handler until the test ends
+// newWebsocketMockConnection dials a connection of the setup filter names to an in-memory mock server answering with
+// mock, so the test can run in a synctest bubble. It is tracked as a Connector tracks it and read by handler until the
+// test ends
 func newWebsocketMockConnection(tb testing.TB, ex *Exchange, filter string, serialRequests bool, handler func(context.Context, websocket.Connection, []byte) error, mock mockws.WsMockFunc) (websocket.Connection, *testSession) {
 	tb.Helper()
-	s := httptest.NewTestServer(tb, mockws.CurryWsMockUpgrader(tb, mock))
-	s.Start()
+	s, dialer := mockws.NewTestServer(tb, mockws.CurryWsMockUpgrader(tb, mock))
 	require.NoError(tb, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(s.URL, "http")), "SetAllConnectionURLs must not error")
 	conn, err := ex.Websocket.CreateTestConnection(filter)
 	require.NoError(tb, err, "CreateTestConnection must not error")
-	require.NoError(tb, conn.Dial(tb.Context(), &gws.Dialer{}, http.Header{}, nil), "Dial must not error")
+	require.NoError(tb, conn.Dial(tb.Context(), dialer, http.Header{}, nil), "Dial must not error")
 	session := &testSession{ch: make(chan struct{})}
 	ex.wsTrackConnection(conn, session.ch, serialRequests, asset.Empty, nil)
 	read := make(chan struct{})
@@ -538,6 +539,53 @@ func testRESTEndpoints(tb testing.TB, ex *Exchange, serverURL string) {
 	}
 }
 
+// testMemoryNetwork is an in-memory network of test servers, each reached at a host of its own, for a test run in a
+// synctest bubble: the bubble's clock moves only while every goroutine in it waits on another, which waiting on a
+// socket never counts as. The hosts are loopback addresses, which the environment's proxy settings never apply to,
+// though nothing is dialled over the loopback
+type testMemoryNetwork struct {
+	mu    sync.Mutex
+	dials map[string]func(ctx context.Context, network, addr string) (net.Conn, error)
+}
+
+// serve returns an in-memory server of handler for the test, reached at host
+func (n *testMemoryNetwork) serve(tb testing.TB, host string, handler http.Handler) *httptest.Server {
+	tb.Helper()
+	s := httptest.NewTestServer(tb, handler)
+	tr, ok := s.Client().Transport.(*http.Transport)
+	require.True(tb, ok, "an in-memory server's client must have an *http.Transport")
+	s.URL = "http://" + host
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.dials == nil {
+		n.dials = make(map[string]func(ctx context.Context, network, addr string) (net.Conn, error))
+	}
+	n.dials[host] = tr.DialContext
+	return s
+}
+
+// DialContext dials the server reached at addr's host
+func (n *testMemoryNetwork) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+	n.mu.Lock()
+	dial, ok := n.dials[host]
+	n.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("%w: no server at %s", errTestDial, addr)
+	}
+	return dial(ctx, network, addr)
+}
+
+// connect sends ex's REST requests and dials its websocket connections over the network
+func (n *testMemoryNetwork) connect(tb testing.TB, ex *Exchange) {
+	tb.Helper()
+	require.NoError(tb, ex.SetHTTPClient(&http.Client{Transport: &http.Transport{DialContext: n.DialContext}}), "SetHTTPClient must not error")
+	ex.wsState.netDialContext = n.DialContext
+}
+
 func TestWebsocketConnectionSetups(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
@@ -671,6 +719,7 @@ func TestWebsocketConnectAccount(t *testing.T) {
 	keeper := ex.wsState.keepers[rest.URL]
 	require.NotNil(t, keeper, "a keeper must keep the listen key alive")
 	assert.Equal(t, []websocket.Connection{spot, swap}, keeper.conns, "the keeper should know the connections using its key")
+	assert.Zero(t, keeper.dials, "the keeper should count no dial in flight once its connections are dialled")
 	ex.wsState.mu.Unlock()
 	for _, tc := range []struct {
 		a    asset.Item
@@ -704,6 +753,12 @@ func TestWebsocketConnectAccount(t *testing.T) {
 		require.ErrorIs(t, err, errWebsocketAccountDial, "wsConnectAccount must report the failed dial")
 		assert.NotContains(t, err.Error(), testListenKey, "the error should not carry the listen key")
 		assert.Contains(t, err.Error(), "[redacted]", "the error should show where the listen key was")
+		ex.wsState.mu.Lock()
+		defer ex.wsState.mu.Unlock()
+		keeper := ex.wsState.keepers[rest.URL]
+		require.NotNil(t, keeper, "the key's keeper must be kept for the session")
+		assert.Zero(t, keeper.dials, "a failed dial should end its count on the keeper")
+		assert.Empty(t, keeper.conns, "a failed dial should record no connection")
 	})
 
 	t.Run("listen key failure", func(t *testing.T) {
@@ -1985,35 +2040,37 @@ func TestWebsocketUnsubscribeOne(t *testing.T) {
 
 	t.Run("unanswered through the manager", func(t *testing.T) {
 		t.Parallel()
-		servers := newTestWebsocketServers(t, asset.Spot)
-		tickers := &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}
-		ex := newWebsocketIntegrationExchange(t, servers, asset.Spot, false, testWebsocketSubscriptions(tickers,
-			&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 20}), func(cfg *config.Exchange) {
-			cfg.ConnectionMonitorDelay = 50 * time.Millisecond
-			cfg.WebsocketResponseMaxLimit = 200 * time.Millisecond
-		})
-		require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-		require.Eventually(t, func() bool { return bookError(ex, testSpotPair, asset.Spot) == nil }, 5*time.Second, time.Millisecond, "the book must load")
-		first := testConnectedSession(t, ex)
+		synctest.Test(t, func(t *testing.T) {
+			servers := newMemoryTestWebsocketServers(t, asset.Spot)
+			tickers := &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}
+			ex := newWebsocketIntegrationExchange(t, servers, asset.Spot, false, testWebsocketSubscriptions(tickers,
+				&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 20}), func(cfg *config.Exchange) {
+				cfg.ConnectionMonitorDelay = 50 * time.Millisecond
+				cfg.WebsocketResponseMaxLimit = 200 * time.Millisecond
+			})
+			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+			require.Eventually(t, func() bool { return bookError(ex, testSpotPair, asset.Spot) == nil }, 5*time.Second, time.Millisecond, "the book must load")
+			first := testConnectedSession(t, ex)
 
-		servers.ws[asset.Spot].ignoreUnsubscribe.Store(true)
-		ex.Features.Subscriptions = subscription.List{tickers}
-		assert.ErrorIs(t, ex.Websocket.FlushChannels(t.Context()), websocket.ErrSignatureTimeout, "FlushChannels should report the unanswered unsubscription")
-		assert.ErrorIs(t, bookError(ex, testSpotPair, asset.Spot), orderbook.ErrOrderbookInvalid, "the book of a stream that may have stopped should be invalidated")
-		require.Eventually(t, func() bool {
-			select {
-			case <-first:
-				return true
-			default:
-				return false
-			}
-		}, 5*time.Second, time.Millisecond, "the unanswered unsubscription must retire the connection's session")
-		require.Eventually(t, func() bool {
-			return servers.ws[asset.Spot].marketDials() == 2 && ex.Websocket.IsConnected() && len(ex.Websocket.GetSubscriptions()) == 1
-		}, 5*time.Second, 10*time.Millisecond, "the connection monitor must connect again")
-		testWaitBackground(t, ex)
-		assert.Equal(t, []string{"BTC-USDT@ticker"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "the reconnection should subscribe to what is still wanted alone")
-		assert.ErrorIs(t, bookError(ex, testSpotPair, asset.Spot), orderbook.ErrOrderbookInvalid, "the book should stay invalid once nothing streams it")
+			servers.ws[asset.Spot].ignoreUnsubscribe.Store(true)
+			ex.Features.Subscriptions = subscription.List{tickers}
+			assert.ErrorIs(t, ex.Websocket.FlushChannels(t.Context()), websocket.ErrSignatureTimeout, "FlushChannels should report the unanswered unsubscription")
+			assert.ErrorIs(t, bookError(ex, testSpotPair, asset.Spot), orderbook.ErrOrderbookInvalid, "the book of a stream that may have stopped should be invalidated")
+			require.Eventually(t, func() bool {
+				select {
+				case <-first:
+					return true
+				default:
+					return false
+				}
+			}, 5*time.Second, time.Millisecond, "the unanswered unsubscription must retire the connection's session")
+			require.Eventually(t, func() bool {
+				return servers.ws[asset.Spot].marketDials() == 2 && ex.Websocket.IsConnected() && len(ex.Websocket.GetSubscriptions()) == 1
+			}, 5*time.Second, 10*time.Millisecond, "the connection monitor must connect again")
+			testWaitBackground(t, ex)
+			assert.Equal(t, []string{"BTC-USDT@ticker"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "the reconnection should subscribe to what is still wanted alone")
+			assert.ErrorIs(t, bookError(ex, testSpotPair, asset.Spot), orderbook.ErrOrderbookInvalid, "the book should stay invalid once nothing streams it")
+		})
 	})
 }
 
@@ -2108,67 +2165,73 @@ func TestWebsocketSendRequest(t *testing.T) {
 
 func TestWebsocketSendSerialRequest(t *testing.T) {
 	t.Parallel()
-	ex := newWebsocketTestExchange(t, func(cfg *config.Exchange) { cfg.WebsocketResponseMaxLimit = 100 * time.Millisecond })
-	var writes sync.Mutex
-	var received []string
-	lateErrorSent := make(chan struct{})
-	conn, session := newWebsocketMockConnection(t, ex, websocketCoinMarginedFilter, true, ex.wsHandleCoinMarginedData, func(tb testing.TB, msg []byte, w *gws.Conn) error {
-		tb.Helper()
-		req := testWebsocketRequest(tb, msg)
-		writes.Lock()
-		defer writes.Unlock()
-		received = append(received, req.DataType)
-		switch req.DataType {
-		case "BTC-USD@nonsense":
-			return w.WriteMessage(gws.BinaryMessage, testGzip([]byte(`{"code":100400,"msg":"code:100400:nonsense dataType is not supported","timestamp":1794390762853}`)))
-		case "BTC-USD@depth20":
-			// Answered after the request has timed out
-			go func() {
-				defer close(lateErrorSent)
-				time.Sleep(300 * time.Millisecond)
+	t.Run("requests on a coin-M connection", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			ex := newWebsocketTestExchange(t, func(cfg *config.Exchange) { cfg.WebsocketResponseMaxLimit = 100 * time.Millisecond })
+			var writes sync.Mutex
+			var received []string
+			lateErrorSent := make(chan struct{})
+			conn, session := newWebsocketMockConnection(t, ex, websocketCoinMarginedFilter, true, ex.wsHandleCoinMarginedData, func(tb testing.TB, msg []byte, w *gws.Conn) error {
+				tb.Helper()
+				req := testWebsocketRequest(tb, msg)
 				writes.Lock()
 				defer writes.Unlock()
-				assert.NoError(tb, w.WriteMessage(gws.BinaryMessage, testGzip([]byte(`{"code":100400,"msg":"code:100400: symbol is not found: BTC_USD","timestamp":1794390798083}`))), "the late reply should be written")
-			}()
-			return nil
-		default:
-			return w.WriteMessage(gws.BinaryMessage, testGzip(testWebsocketAck(asset.CoinMarginedFutures, req.ID, 0, "SUCCESS")))
-		}
+				received = append(received, req.DataType)
+				switch req.DataType {
+				case "BTC-USD@nonsense":
+					return w.WriteMessage(gws.BinaryMessage, testGzip([]byte(`{"code":100400,"msg":"code:100400:nonsense dataType is not supported","timestamp":1794390762853}`)))
+				case "BTC-USD@depth20":
+					// Answered after the request has timed out
+					go func() {
+						defer close(lateErrorSent)
+						time.Sleep(300 * time.Millisecond)
+						writes.Lock()
+						defer writes.Unlock()
+						assert.NoError(tb, w.WriteMessage(gws.BinaryMessage, testGzip([]byte(`{"code":100400,"msg":"code:100400: symbol is not found: BTC_USD","timestamp":1794390798083}`))), "the late reply should be written")
+					}()
+					return nil
+				default:
+					return w.WriteMessage(gws.BinaryMessage, testGzip(testWebsocketAck(asset.CoinMarginedFutures, req.ID, 0, "SUCCESS")))
+				}
+			})
+			state, err := ex.wsConnection(conn)
+			require.NoError(t, err, "wsConnection must not error")
+
+			assert.NoError(t, ex.wsSendRequest(t.Context(), conn, state, WebsocketRequestTypeSubscribe, "BTC-USD@trade"), "an acknowledged request should not error")
+			err = ex.wsSendRequest(t.Context(), conn, state, WebsocketRequestTypeSubscribe, "BTC-USD@nonsense")
+			assert.ErrorIs(t, err, errWebsocketRequestRejected, "an error reply naming the request in flight should be its refusal")
+
+			err = ex.wsSendRequest(t.Context(), conn, state, WebsocketRequestTypeSubscribe, "BTC-USD@depth20")
+			assert.ErrorIs(t, err, websocket.ErrSignatureTimeout, "an unanswered request should time out")
+			state.mu.Lock()
+			assert.True(t, state.retired, "an unanswered request should retire its connection")
+			assert.Empty(t, state.inFlightID, "nothing should be in flight after the timeout")
+			state.mu.Unlock()
+			ex.wsState.mu.Lock()
+			assert.Equal(t, session.token(), ex.wsState.recovering, "an unanswered request should reconnect its session")
+			ex.wsState.mu.Unlock()
+
+			select {
+			case <-lateErrorSent:
+			case <-time.After(5 * time.Second):
+				require.FailNow(t, "the late reply must be sent")
+			}
+			late := waitForWebsocketPayload(t, ex, func(err error) bool { return errors.Is(err, errWebsocketErrorMessage) })
+			assert.Contains(t, late.Error(), "BTC_USD", "the late reply should be reported rather than taken for another request's")
+
+			err = ex.wsSendRequest(t.Context(), conn, state, WebsocketRequestTypeSubscribe, "BTC-USD@ticker")
+			assert.ErrorIs(t, err, errWebsocketConnectionRetired, "a retired connection should refuse later requests at once")
+			writes.Lock()
+			assert.Equal(t, []string{"BTC-USD@trade", "BTC-USD@nonsense", "BTC-USD@depth20"}, received, "a retired connection should send nothing more")
+			writes.Unlock()
+			testWaitBackground(t, ex)
+		})
 	})
-	state, err := ex.wsConnection(conn)
-	require.NoError(t, err, "wsConnection must not error")
-
-	assert.NoError(t, ex.wsSendRequest(t.Context(), conn, state, WebsocketRequestTypeSubscribe, "BTC-USD@trade"), "an acknowledged request should not error")
-	err = ex.wsSendRequest(t.Context(), conn, state, WebsocketRequestTypeSubscribe, "BTC-USD@nonsense")
-	assert.ErrorIs(t, err, errWebsocketRequestRejected, "an error reply naming the request in flight should be its refusal")
-
-	err = ex.wsSendRequest(t.Context(), conn, state, WebsocketRequestTypeSubscribe, "BTC-USD@depth20")
-	assert.ErrorIs(t, err, websocket.ErrSignatureTimeout, "an unanswered request should time out")
-	state.mu.Lock()
-	assert.True(t, state.retired, "an unanswered request should retire its connection")
-	assert.Empty(t, state.inFlightID, "nothing should be in flight after the timeout")
-	state.mu.Unlock()
-	ex.wsState.mu.Lock()
-	assert.Equal(t, session.token(), ex.wsState.recovering, "an unanswered request should reconnect its session")
-	ex.wsState.mu.Unlock()
-
-	select {
-	case <-lateErrorSent:
-	case <-time.After(5 * time.Second):
-		require.FailNow(t, "the late reply must be sent")
-	}
-	late := waitForWebsocketPayload(t, ex, func(err error) bool { return errors.Is(err, errWebsocketErrorMessage) })
-	assert.Contains(t, late.Error(), "BTC_USD", "the late reply should be reported rather than taken for another request's")
-
-	err = ex.wsSendRequest(t.Context(), conn, state, WebsocketRequestTypeSubscribe, "BTC-USD@ticker")
-	assert.ErrorIs(t, err, errWebsocketConnectionRetired, "a retired connection should refuse later requests at once")
-	writes.Lock()
-	assert.Equal(t, []string{"BTC-USD@trade", "BTC-USD@nonsense", "BTC-USD@depth20"}, received, "a retired connection should send nothing more")
-	writes.Unlock()
-	testWaitBackground(t, ex)
 
 	t.Run("cancelled while another request is in flight", func(t *testing.T) {
 		t.Parallel()
+		ex := newWebsocketTestExchange(t)
 		conn := &testWebsocketConnection{}
 		state, _ := trackTestConnection(t, ex, conn, true)
 		state.gate <- struct{}{}
@@ -2411,6 +2474,9 @@ func TestWebsocketListenKey(t *testing.T) {
 	swap, err := ex.wsListenKey(t.Context(), exchange.RestUSDTMargined, session.ch)
 	require.NoError(t, err, "wsListenKey must not error")
 	assert.Same(t, spot, swap, "products on one REST host should share a keeper")
+	ex.wsState.mu.Lock()
+	assert.Equal(t, 2, spot.dials, "the keeper should count a dial for each request that took its key")
+	ex.wsState.mu.Unlock()
 	coinMargined, err := ex.wsListenKey(t.Context(), exchange.RestCoinMargined, session.ch)
 	require.NoError(t, err, "wsListenKey must not error")
 	assert.NotSame(t, spot, coinMargined, "another REST host should have its own keeper")
@@ -2547,6 +2613,7 @@ func TestWebsocketListenKey(t *testing.T) {
 		assert.Same(t, keepers[0], keepers[1], "requests in one session should share the keeper the first of them created")
 		sharing.wsState.mu.Lock()
 		assert.Len(t, sharing.wsState.keepers, 1, "one keeper should be kept for the REST host")
+		assert.Equal(t, 2, keepers[0].dials, "the shared keeper should count a dial for each request")
 		sharing.wsState.mu.Unlock()
 	})
 
@@ -2736,47 +2803,110 @@ func TestWebsocketScheduleAccountReconnect(t *testing.T) {
 
 	t.Run("public streams connect while listen key requests wait", func(t *testing.T) {
 		t.Parallel()
-		servers := newTestWebsocketServers(t, asset.Spot)
-		servers.rest.setReplies(`{"code":100500,"msg":"internal error"}`, "")
-		ex := newWebsocketIntegrationExchange(t, servers, asset.Spot, true, func(cfg *config.Exchange) {
-			cfg.ConnectionMonitorDelay = 50 * time.Millisecond
-			cfg.Features.Subscriptions = subscription.List{
-				{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
-				{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true},
-			}
+		synctest.Test(t, func(t *testing.T) {
+			servers := newMemoryTestWebsocketServers(t, asset.Spot)
+			servers.rest.setReplies(`{"code":100500,"msg":"internal error"}`, "")
+			ex := newWebsocketIntegrationExchange(t, servers, asset.Spot, true, func(cfg *config.Exchange) {
+				cfg.ConnectionMonitorDelay = 50 * time.Millisecond
+				cfg.Features.Subscriptions = subscription.List{
+					{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+					{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true},
+				}
+			})
+			ex.wsState.retryDelay = 500 * time.Millisecond
+			assert.ErrorIs(t, ex.Websocket.Connect(t.Context()), errWebsocketListenKeyUnavailable, "the first connection attempt should fail for want of a listen key")
+			servers.rest.setReplies("", "")
+			require.Eventually(t, ex.Websocket.IsConnected, 5*time.Second, time.Millisecond, "the public streams must connect while listen key requests wait")
+			assert.Equal(t, []string{"BTC-USDT@ticker"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "the account stream should be left out while listen key requests wait")
+			testWaitBackground(t, ex)
+			assert.Len(t, ex.Websocket.GetSubscriptions(), 2, "the account stream should connect once the wait ends")
+			assert.Equal(t, []string{testListenKey + "-2"}, servers.ws[asset.Spot].accountKeys(), "the account connection should be dialled with the key taken after the wait")
+			assert.Equal(t, 2, servers.ws[asset.Spot].marketDials(), "the market connection should not be dialled again when the account stream returns")
 		})
-		ex.wsState.retryDelay = 500 * time.Millisecond
-		assert.ErrorIs(t, ex.Websocket.Connect(t.Context()), errWebsocketListenKeyUnavailable, "the first connection attempt should fail for want of a listen key")
-		servers.rest.setReplies("", "")
-		require.Eventually(t, ex.Websocket.IsConnected, 5*time.Second, time.Millisecond, "the public streams must connect while listen key requests wait")
-		assert.Equal(t, []string{"BTC-USDT@ticker"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "the account stream should be left out while listen key requests wait")
-		testWaitBackground(t, ex)
-		assert.Len(t, ex.Websocket.GetSubscriptions(), 2, "the account stream should connect once the wait ends")
-		assert.Equal(t, []string{testListenKey + "-2"}, servers.ws[asset.Spot].accountKeys(), "the account connection should be dialled with the key taken after the wait")
-		assert.Equal(t, 2, servers.ws[asset.Spot].marketDials(), "the market connection should not be dialled again when the account stream returns")
 	})
 }
 
-func TestWebsocketAddKeeperConnection(t *testing.T) {
+func TestWebsocketEndKeeperDial(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	closed, kept, added := &testWebsocketConnection{}, &testWebsocketConnection{}, &testWebsocketConnection{}
 	closed.down.Store(true)
-	k := &websocketListenKeyKeeper{conns: []websocket.Connection{closed, kept}}
-	ex.wsAddKeeperConnection(k, added)
-	assert.Equal(t, []websocket.Connection{kept, added}, k.conns, "the keeper should forget closed connections and add the new one")
+	for _, tc := range []struct {
+		name  string
+		conn  websocket.Connection
+		dials int
+		exp   []websocket.Connection
+		left  int
+	}{
+		{"a dial that connected", added, 2, []websocket.Connection{kept, added}, 1},
+		{"a dial that failed", nil, 2, []websocket.Connection{kept}, 1},
+		{"the last dial in flight", added, 1, []websocket.Connection{kept, added}, 0},
+		{"no dial counted", nil, 0, []websocket.Connection{kept}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			k := &websocketListenKeyKeeper{conns: []websocket.Connection{closed, kept}, dials: tc.dials}
+			ex.wsEndKeeperDial(k, tc.conn)
+			assert.Equal(t, tc.exp, k.conns, "the keeper should forget closed connections and record the one dialled")
+			assert.Equal(t, tc.left, k.dials, "the keeper should count one dial fewer in flight, and never fewer than none")
+		})
+	}
 }
 
-func TestWebsocketKeeperInUse(t *testing.T) {
+func TestWebsocketForgetUnusedKeeper(t *testing.T) {
 	t.Parallel()
-	ex := newWebsocketTestExchange(t)
-	conn := &testWebsocketConnection{}
-	k := &websocketListenKeyKeeper{}
-	assert.False(t, ex.wsKeeperInUse(k), "a keeper without connections should not be in use")
-	k.conns = []websocket.Connection{conn}
-	assert.True(t, ex.wsKeeperInUse(k), "a keeper with a connected connection should be in use")
-	conn.down.Store(true)
-	assert.False(t, ex.wsKeeperInUse(k), "a keeper whose connections are closed should not be in use")
+	connected, closed := &testWebsocketConnection{}, &testWebsocketConnection{}
+	closed.down.Store(true)
+	for _, tc := range []struct {
+		name      string
+		conns     []websocket.Connection
+		dials     int
+		forgotten bool
+	}{
+		{"no connections", nil, 0, true},
+		{"a dial in flight", nil, 1, false},
+		{"a connected connection", []websocket.Connection{closed, connected}, 0, false},
+		{"closed connections", []websocket.Connection{closed}, 0, true},
+		{"closed connections with a dial in flight", []websocket.Connection{closed}, 1, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newWebsocketTestExchange(t)
+			k := &websocketListenKeyKeeper{host: "host", conns: tc.conns, dials: tc.dials}
+			ex.wsState.keepers = map[string]*websocketListenKeyKeeper{"host": k}
+			assert.Equal(t, tc.forgotten, ex.wsForgetUnusedKeeper(k), "wsForgetUnusedKeeper should report whether the keeper's key is no longer in use")
+			if tc.forgotten {
+				assert.Empty(t, ex.wsState.keepers, "a keeper no longer in use should be forgotten")
+			} else {
+				assert.Same(t, k, ex.wsState.keepers["host"], "a keeper in use should be kept")
+			}
+		})
+	}
+
+	t.Run("a keeper replaced", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		k, replacement := &websocketListenKeyKeeper{host: "host"}, &websocketListenKeyKeeper{host: "host"}
+		ex.wsState.keepers = map[string]*websocketListenKeyKeeper{"host": replacement}
+		assert.True(t, ex.wsForgetUnusedKeeper(k), "wsForgetUnusedKeeper should report a keeper no longer in use")
+		assert.Same(t, replacement, ex.wsState.keepers["host"], "the keeper replacing a forgotten one should be kept")
+	})
+
+	t.Run("a dial after the keeper stops", func(t *testing.T) {
+		t.Parallel()
+		rest := newTestListenKeyServer(t)
+		ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+		testRESTEndpoints(t, ex, rest.URL)
+		session := newTestSession(t, ex)
+		k, err := ex.wsListenKey(t.Context(), exchange.RestSpot, session.ch)
+		require.NoError(t, err, "wsListenKey must not error")
+		ex.wsEndKeeperDial(k, nil)
+		require.True(t, ex.wsForgetUnusedKeeper(k), "wsForgetUnusedKeeper must forget a keeper whose only dial failed")
+		next, err := ex.wsListenKey(t.Context(), exchange.RestSpot, session.ch)
+		require.NoError(t, err, "wsListenKey must not error")
+		require.NotSame(t, k, next, "a dial must not take the key of a keeper that has stopped")
+		assert.Equal(t, testListenKey+"-2", next.key, "a dial after the keeper stops should take a new key")
+	})
 }
 
 // startTestKeeper starts a keeper of a key for a test connection in a test session, extending every millisecond a key
@@ -2853,21 +2983,26 @@ func TestWebsocketKeepListenKeyAlive(t *testing.T) {
 
 	t.Run("failure", func(t *testing.T) {
 		t.Parallel()
-		rest := newTestListenKeyServer(t)
-		rest.setReplies("", `{"code":100400,"msg":"listen key `+testListenKey+` does not exist"}`)
-		ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
-		testRESTEndpoints(t, ex, rest.URL)
-		require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
-		start := time.Now()
-		k, session := startTestKeeper(t, ex, &testWebsocketConnection{})
-		waitForKeeper(t, k)
-		ex.wsState.mu.Lock()
-		assert.Equal(t, session.token(), ex.wsState.recovering, "a failed extension should reconnect the session once no attempt fits before the key expires")
-		ex.wsState.mu.Unlock()
-		_, extended := rest.counts()
-		assert.Equal(t, 6, extended, "a failed extension should be tried again after 50, 100, 200, 400 and 800 milliseconds, each attempt coming at least 50 milliseconds before the key expires")
-		assert.Less(t, time.Since(start), k.validity, "the websocket should reconnect before the key expires")
-		testWaitBackground(t, ex)
+		synctest.Test(t, func(t *testing.T) {
+			network := new(testMemoryNetwork)
+			rest := new(testListenKeyServer)
+			rest.Server = network.serve(t, "127.0.0.10", rest)
+			rest.setReplies("", `{"code":100400,"msg":"listen key `+testListenKey+` does not exist"}`)
+			ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+			network.connect(t, ex)
+			testRESTEndpoints(t, ex, rest.URL)
+			require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+			start := time.Now()
+			k, session := startTestKeeper(t, ex, &testWebsocketConnection{})
+			waitForKeeper(t, k)
+			ex.wsState.mu.Lock()
+			assert.Equal(t, session.token(), ex.wsState.recovering, "a failed extension should reconnect the session once no attempt fits before the key expires")
+			ex.wsState.mu.Unlock()
+			_, extended := rest.counts()
+			assert.Equal(t, 6, extended, "a failed extension should be tried again after 50, 100, 200, 400 and 800 milliseconds, each attempt coming at least 50 milliseconds before the key expires")
+			assert.Equal(t, 1551*time.Millisecond, time.Since(start), "the websocket should reconnect once the last attempt fails, before the key expires")
+			testWaitBackground(t, ex)
+		})
 	})
 
 	t.Run("failure then success", func(t *testing.T) {
@@ -2890,29 +3025,30 @@ func TestWebsocketKeepListenKeyAlive(t *testing.T) {
 
 	t.Run("failure reconnects with a new key", func(t *testing.T) {
 		t.Parallel()
-		servers := newTestWebsocketServers(t, asset.Spot)
-		ex := newWebsocketIntegrationExchange(t, servers, asset.Spot, true, func(cfg *config.Exchange) {
-			cfg.ConnectionMonitorDelay = 50 * time.Millisecond
-			cfg.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true}}
+		synctest.Test(t, func(t *testing.T) {
+			servers := newMemoryTestWebsocketServers(t, asset.Spot)
+			ex := newWebsocketIntegrationExchange(t, servers, asset.Spot, true, func(cfg *config.Exchange) {
+				cfg.ConnectionMonitorDelay = 50 * time.Millisecond
+				cfg.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true}}
+			})
+			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+			require.Equal(t, []string{testListenKey + "-1"}, servers.ws[asset.Spot].accountKeys(), "the account connection must be dialled with the first key")
+			servers.rest.setReplies("", `{"code":100400,"msg":"listen key does not exist"}`)
+			// A validity short enough for the failed extension's retries to give up soon after the keeper first extends its key
+			ex.wsState.mu.Lock()
+			ex.wsState.keepaliveInterval = 200 * time.Millisecond
+			ex.wsState.keyValidity = 400 * time.Millisecond
+			ex.wsState.extensionRetryDelay = 20 * time.Millisecond
+			ex.wsState.mu.Unlock()
+			// The keeper took the interval when it started, so the session is ended to start a keeper that takes the new one
+			require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
+			require.Eventually(t, func() bool {
+				return len(servers.ws[asset.Spot].accountKeys()) >= 3
+			}, 10*time.Second, 5*time.Millisecond, "a failed extension must reconnect the account connection with a new key")
+			keys := servers.ws[asset.Spot].accountKeys()
+			assert.Equal(t, testListenKey+"-2", keys[1], "the reconnection should take a new key")
+			assert.Equal(t, testListenKey+"-3", keys[2], "a failed extension should reconnect with a new key")
 		})
-		require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-		require.Equal(t, []string{testListenKey + "-1"}, servers.ws[asset.Spot].accountKeys(), "the account connection must be dialled with the first key")
-		servers.rest.setReplies("", `{"code":100400,"msg":"listen key does not exist"}`)
-		// Long enough for the account connection to be dialled and recorded before the keeper first extends its key, and
-		// a validity short enough for the failed extension's retries to give up soon after
-		ex.wsState.mu.Lock()
-		ex.wsState.keepaliveInterval = 200 * time.Millisecond
-		ex.wsState.keyValidity = 400 * time.Millisecond
-		ex.wsState.extensionRetryDelay = 20 * time.Millisecond
-		ex.wsState.mu.Unlock()
-		// The keeper took the interval when it started, so the session is ended to start a keeper that takes the new one
-		require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
-		require.Eventually(t, func() bool {
-			return len(servers.ws[asset.Spot].accountKeys()) >= 3
-		}, 10*time.Second, 5*time.Millisecond, "a failed extension must reconnect the account connection with a new key")
-		keys := servers.ws[asset.Spot].accountKeys()
-		assert.Equal(t, testListenKey+"-2", keys[1], "the reconnection should take a new key")
-		assert.Equal(t, testListenKey+"-3", keys[2], "a failed extension should reconnect with a new key")
 	})
 
 	t.Run("extension ended with its session", func(t *testing.T) {
@@ -3260,8 +3396,9 @@ type testWebsocketServer struct {
 
 var testUpgrader = gws.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 
-// newTestWebsocketServer starts a product's mock websocket server for the test
-func newTestWebsocketServer(tb testing.TB, product asset.Item, reject ...string) *testWebsocketServer {
+// newTestWebsocketServer starts a product's mock websocket server for the test, on network at host when network is set
+// and on the loopback otherwise
+func newTestWebsocketServer(tb testing.TB, network *testMemoryNetwork, host string, product asset.Item, reject ...string) *testWebsocketServer {
 	tb.Helper()
 	fixtures := map[asset.Item][2]string{
 		asset.Spot:                {"testdata/wsSpot.jsonl", "testdata/wsSpotAccount.jsonl"},
@@ -3273,6 +3410,10 @@ func newTestWebsocketServer(tb testing.TB, product asset.Item, reject ...string)
 		reject:        reject,
 		marketFrames:  fixtureLines(tb, fixtures[0]),
 		accountFrames: fixtureLines(tb, fixtures[1]),
+	}
+	if network != nil {
+		s.Server = network.serve(tb, host, s)
+		return s
 	}
 	s.Server = httptest.NewTestServer(tb, s)
 	s.Start()
@@ -3403,30 +3544,52 @@ func (s *testWebsocketServer) heartbeatReplies() []string {
 }
 
 // testWebsocketServers are the mock servers of an integration test: a REST host serving the listen keys and each
-// product's websocket server
+// product's websocket server, on the loopback, or on network when it is set
 type testWebsocketServers struct {
-	rest *testListenKeyServer
-	ws   map[asset.Item]*testWebsocketServer
+	rest    *testListenKeyServer
+	ws      map[asset.Item]*testWebsocketServer
+	network *testMemoryNetwork
 }
 
-// newTestWebsocketServers starts the mock servers of an integration test, the product's websocket server refusing the
-// dataTypes in reject
+// newTestWebsocketServers starts the mock servers of an integration test on the loopback, the product's websocket
+// server refusing the dataTypes in reject
 func newTestWebsocketServers(tb testing.TB, product asset.Item, reject ...string) *testWebsocketServers {
 	tb.Helper()
-	s := &testWebsocketServers{rest: newTestListenKeyServer(tb), ws: make(map[asset.Item]*testWebsocketServer)}
-	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+	return newTestWebsocketServersOn(tb, nil, product, reject...)
+}
+
+// newMemoryTestWebsocketServers starts the mock servers of an integration test on an in-memory network, for a test run
+// in a synctest bubble, the product's websocket server refusing the dataTypes in reject
+func newMemoryTestWebsocketServers(tb testing.TB, product asset.Item, reject ...string) *testWebsocketServers {
+	tb.Helper()
+	return newTestWebsocketServersOn(tb, new(testMemoryNetwork), product, reject...)
+}
+
+// newTestWebsocketServersOn starts the mock servers of an integration test on network, or on the loopback when network
+// is nil
+func newTestWebsocketServersOn(tb testing.TB, network *testMemoryNetwork, product asset.Item, reject ...string) *testWebsocketServers {
+	tb.Helper()
+	s := &testWebsocketServers{ws: make(map[asset.Item]*testWebsocketServer), network: network}
+	if network != nil {
+		s.rest = new(testListenKeyServer)
+		s.rest.Server = network.serve(tb, "127.0.0.10", s.rest)
+	} else {
+		s.rest = newTestListenKeyServer(tb)
+	}
+	for i, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
 		var refused []string
 		if a == product {
 			refused = reject
 		}
-		s.ws[a] = newTestWebsocketServer(tb, a, refused...)
+		s.ws[a] = newTestWebsocketServer(tb, network, "127.0.0.1"+strconv.Itoa(i+1), a, refused...)
 	}
 	return s
 }
 
 // newWebsocketIntegrationExchange returns an exchange set up through the real Setup with its websocket enabled, asset a
 // alone enabled, authenticated websocket use when authenticated is set, and every REST and websocket endpoint served
-// by servers. When the test ends the websocket is disabled and shut down
+// by servers, reached over their in-memory network when they have one. When the test ends the websocket is disabled and
+// shut down
 func newWebsocketIntegrationExchange(tb testing.TB, servers *testWebsocketServers, a asset.Item, authenticated bool, configure ...func(*config.Exchange)) *Exchange {
 	tb.Helper()
 	setup := []func(*config.Exchange){
@@ -3447,7 +3610,17 @@ func newWebsocketIntegrationExchange(tb testing.TB, servers *testWebsocketServer
 		setup = append(setup, testWebsocketAuthenticated)
 	}
 	ex := newWebsocketTestExchange(tb, append(setup, configure...)...)
-	tb.Cleanup(func() { shutdownTestWebsocket(tb, ex) })
+	if servers.network != nil {
+		servers.network.connect(tb, ex)
+	}
+	tb.Cleanup(func() {
+		shutdownTestWebsocket(tb, ex)
+		if servers.network != nil {
+			// The connection monitor stops at its next check once the websocket is disabled, which a synctest bubble's
+			// clock reaches only while the test waits
+			time.Sleep(2 * ex.Config.ConnectionMonitorDelay)
+		}
+	})
 	return ex
 }
 

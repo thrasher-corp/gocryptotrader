@@ -487,9 +487,12 @@ func TestUpdateTickers(t *testing.T) {
 		}
 		if !mockTests {
 			for a, p := range assetToTradablePairMap {
-				price, err := ticker.GetTicker(ex.Name, p, a)
-				require.NoErrorf(t, err, "GetTicker must not error for %s %s", a, p)
-				assert.Positivef(t, price.Last, "UpdateTickers should store the %s last price", a)
+				t.Run(a.String()+" stored ticker", func(t *testing.T) {
+					t.Parallel()
+					price, err := ticker.GetTicker(ex.Name, p, a)
+					require.NoErrorf(t, err, "GetTicker must not error for %s %s", a, p)
+					assert.Positivef(t, price.Last, "UpdateTickers should store the %s last price", a)
+				})
 			}
 			return
 		}

@@ -11,8 +11,11 @@ import (
 	"net/http/httptest"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -571,10 +574,19 @@ func TestWebsocketProcessPerpetualOrderUpdate(t *testing.T) {
 					arrived, release := server.holdNext()
 					readErr := make(chan error, 1)
 					go func() { readErr <- server.readError(ctx, ex, tc.read) }()
-					<-arrived
+					select {
+					case <-arrived:
+					case <-time.After(5 * time.Second):
+						require.FailNow(t, "the read's request must arrive")
+					}
 					ex.SetCredentials(other)
 					close(release)
-					require.NoError(t, <-readErr, "the read must not error")
+					select {
+					case err := <-readErr:
+						require.NoError(t, err, "the read must not error")
+					case <-time.After(5 * time.Second):
+						require.FailNow(t, "the read must return")
+					}
 				}
 				assert.Equal(t, []string{readCreds.Key}, server.requestKeys(), "the read should be sent with its own account's key")
 				for _, s := range []struct {
@@ -628,10 +640,19 @@ func TestWebsocketProcessPerpetualOrderUpdate(t *testing.T) {
 				arrived, release := server.holdNext()
 				readErr := make(chan error, 1)
 				go func() { readErr <- server.readError(t.Context(), ex, tc.read) }()
-				<-arrived
+				select {
+				case <-arrived:
+				case <-time.After(5 * time.Second):
+					require.FailNow(t, "the read's request must arrive")
+				}
 				server.step(t, ex, conn, &perpetualFeeStep{executed: "3", fee: "-0.3", status: "FILLED", relayed: 0.6})
 				close(release)
-				require.NoError(t, <-readErr, "the read must not error")
+				select {
+				case err := <-readErr:
+					require.NoError(t, err, "the read must not error")
+				case <-time.After(5 * time.Second):
+					require.FailNow(t, "the read must return")
+				}
 				state.fees.mu.Lock()
 				assert.Empty(t, state.fees.orders, "a read begun before the order closed should not start its total again")
 				assert.Empty(t, state.fees.reads, "the read should end")
@@ -693,22 +714,29 @@ type perpetualFeeStep struct {
 }
 
 // testPerpetualOrderServer answers a perpetual product's open order listing and order query with one order, recording
-// the API key each request is sent with, and holds a reply when asked
+// the API key and route of each request, and holds a reply when asked. The query reports the order under the ID it is
+// asked for, or the filled order set for that ID, and leaves the IDs set to hang unanswered; the listing leaves the
+// order out while it is unlisted. A query reply set answers every query in its place
 type testPerpetualOrderServer struct {
 	a                         asset.Item
 	pair                      currency.Pair
 	symbol, listPath, getPath string
 	quantity                  bool
 
-	mu      sync.Mutex
-	order   string
-	keys    []string
-	arrived chan struct{}
-	release chan struct{}
+	mu        sync.Mutex
+	order     string
+	unlisted  bool
+	getReply  string
+	getOrders map[string]string
+	hang      map[string]bool
+	keys      []string
+	routes    []string
+	arrived   chan struct{}
+	release   chan struct{}
 }
 
-// newTestPerpetualOrderServer serves asset a's order endpoints to ex. quantity sends a coin-M order's size as its
-// quantity rather than its origQty
+// newTestPerpetualOrderServer serves asset a's order endpoints to ex from an in-memory server, which a test can also run
+// in a synctest bubble. quantity sends a coin-M order's size as its quantity rather than its origQty
 func newTestPerpetualOrderServer(tb testing.TB, ex *Exchange, a asset.Item, quantity bool) *testPerpetualOrderServer {
 	tb.Helper()
 	s := &testPerpetualOrderServer{a: a, pair: currency.NewBTCUSDT(), symbol: "BTC-USDT", listPath: "/openApi/swap/v2/trade/openOrders", getPath: "/openApi/swap/v2/trade/order", quantity: quantity}
@@ -716,11 +744,22 @@ func newTestPerpetualOrderServer(tb testing.TB, ex *Exchange, a asset.Item, quan
 		s.pair, s.symbol, s.listPath, s.getPath = currency.NewBTCUSD(), "BTC-USD", "/openApi/cswap/v1/trade/openOrders", "/openApi/cswap/v1/trade/orderDetail"
 	}
 	server := httptest.NewTestServer(tb, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		route := r.URL.Path
+		if route == s.getPath {
+			route += "?orderId=" + r.URL.Query().Get("orderId")
+		}
 		s.mu.Lock()
 		s.keys = append(s.keys, r.Header.Get(keyHeader))
-		reply, arrived, release := s.order, s.arrived, s.release
+		s.routes = append(s.routes, route)
+		reply, unlisted, getReply, arrived, release := s.order, s.unlisted, s.getReply, s.arrived, s.release
+		orderID := r.URL.Query().Get("orderId")
+		getOrder, hang := s.getOrders[orderID], route != s.listPath && s.hang[orderID]
 		s.arrived, s.release = nil, nil
 		s.mu.Unlock()
+		if hang {
+			<-r.Context().Done()
+			return
+		}
 		if arrived != nil {
 			close(arrived)
 			select {
@@ -731,19 +770,71 @@ func newTestPerpetualOrderServer(tb testing.TB, ex *Exchange, a asset.Item, quan
 		}
 		switch r.URL.Path {
 		case s.listPath:
+			if unlisted {
+				reply = ""
+			}
 			_, _ = io.WriteString(w, `{"code":0,"data":{"orders":[`+reply+`]}}`)
 		case s.getPath:
+			if getReply != "" {
+				_, _ = io.WriteString(w, getReply)
+				return
+			}
+			if getOrder != "" {
+				reply = getOrder
+			} else if id, err := strconv.ParseUint(orderID, 10, 64); err == nil {
+				reply = strings.Replace(reply, `"orderId":42`, `"orderId":`+strconv.FormatUint(id, 10), 1)
+			}
 			_, _ = io.WriteString(w, `{"code":0,"data":{"order":`+reply+`}}`)
 		default:
 			assert.Failf(tb, "unexpected request", "%s should not be requested", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
-	server.Start()
 	require.NoError(tb, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	testRESTEndpoints(tb, ex, server.URL)
 	require.NoError(tb, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 	return s
+}
+
+// setUnlisted makes the listing leave the order out, as BingX does once the order has closed
+func (s *testPerpetualOrderServer) setUnlisted(unlisted bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.unlisted = unlisted
+}
+
+// setFilledOrder makes the query for an order ID report that order filled, with its commission
+func (s *testPerpetualOrderServer) setFilledOrder(orderID uint64, commission string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.getOrders == nil {
+		s.getOrders = make(map[string]string)
+	}
+	s.getOrders[strconv.FormatUint(orderID, 10)] = fmt.Sprintf(`{"symbol":%q,"orderId":%d,"side":"BUY","type":"LIMIT","origQty":"3","price":"10","executedQty":"3","avgPrice":"10","commission":%q,"status":"FILLED"}`, s.symbol, orderID, commission)
+}
+
+// hangGet leaves the queries for an order ID unanswered until they are given up
+func (s *testPerpetualOrderServer) hangGet(orderID uint64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.hang == nil {
+		s.hang = make(map[string]bool)
+	}
+	s.hang[strconv.FormatUint(orderID, 10)] = true
+}
+
+// setGetReply makes the query answer with reply instead of the order, or with the order again when reply is empty
+func (s *testPerpetualOrderServer) setGetReply(reply string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.getReply = reply
+}
+
+// requestRoutes returns the route of each request the server received, a query's with the order ID it asked for
+func (s *testPerpetualOrderServer) requestRoutes() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.routes)
 }
 
 // setOrder sets the order the server reports, of three contracts or coins, with its executed quantity, commission and
@@ -882,6 +973,35 @@ func TestPerpetualOrderFeeTotalsStart(t *testing.T) {
 	assert.True(t, decimal.MustFromString("0.1").Equal(totals.orders["1"].fee), "a later NEW event should leave the order's total alone")
 	require.Contains(t, totals.orders, "2", "add must give an order a total")
 	assert.False(t, totals.orders["2"].complete, "a NEW event after a fill should not mark the order's fills counted")
+}
+
+func TestPerpetualOrderFeeTotalsCounted(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		start   func(*perpetualOrderFeeTotals)
+		counted bool
+	}{
+		{"no total", func(*perpetualOrderFeeTotals) {}, false},
+		{"a total started from a fill", func(totals *perpetualOrderFeeTotals) {
+			totals.add("42", decimal.NewFromInt(1), decimal.MustFromString("0.1"))
+		}, false},
+		{"a total a read started", func(totals *perpetualOrderFeeTotals) {
+			totals.seed("42", decimal.NewFromInt(1), decimal.MustFromString("0.1"))
+		}, true},
+		{"a total a read completed", func(totals *perpetualOrderFeeTotals) {
+			totals.add("42", decimal.NewFromInt(2), decimal.MustFromString("0.2"))
+			totals.seed("42", decimal.NewFromInt(1), decimal.MustFromString("0.1"))
+		}, true},
+		{"a total started from the order's NEW event", func(totals *perpetualOrderFeeTotals) { totals.start("42") }, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var totals perpetualOrderFeeTotals
+			tc.start(&totals)
+			assert.Equal(t, tc.counted, totals.counted("42"), "counted should report whether the order's total counts every fill")
+		})
+	}
 }
 
 func TestPerpetualOrderFeeTotalsSeed(t *testing.T) {
@@ -1159,6 +1279,255 @@ func TestWebsocketReadOpenOrderFees(t *testing.T) {
 		})
 	}
 
+	t.Run("an order the read does not list", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name     string
+			a        asset.Item
+			listed   bool
+			order    [3]string // executed, commission and status the order query reports
+			getReply string
+			held     [][4]string // execution type, status, executed and fee of each held event
+			fees     []float64
+			lookedUp bool
+		}{
+			{"USDT-M closed by its last fill", asset.USDTMarginedFutures, false, [3]string{"3", "-0.33", "FILLED"}, "", [][4]string{{"TRADE", "FILLED", "3", "-0.1"}}, []float64{0.33}, true},
+			{"USDT-M closed by its last two fills", asset.USDTMarginedFutures, false, [3]string{"3", "-0.6", "FILLED"}, "", [][4]string{{"TRADE", "PARTIALLY_FILLED", "2", "-0.2"}, {"TRADE", "FILLED", "3", "-0.3"}}, []float64{0.6, 0.6}, true},
+			{"coin-M closed by its last fill", asset.CoinMarginedFutures, false, [3]string{"3", "-0.0033", "FILLED"}, "", [][4]string{{"TRADE", "FILLED", "3", "-0.001"}}, []float64{0.0033}, true},
+			{"looked up before its held fill", asset.USDTMarginedFutures, false, [3]string{"2", "-0.23", "PARTIALLY_FILLED"}, "", [][4]string{{"TRADE", "FILLED", "3", "-0.1"}}, []float64{0.33}, true},
+			{"amended before its held fill", asset.USDTMarginedFutures, false, [3]string{"2", "-0.3", "PARTIALLY_FILLED"}, "", [][4]string{{"NEW", "PARTIALLY_FILLED", "1", "0"}, {"TRADE", "PARTIALLY_FILLED", "2", "-0.2"}}, []float64{0, 0.3}, true},
+			{"a lookup failing", asset.USDTMarginedFutures, false, [3]string{"3", "-0.33", "FILLED"}, `{"code":100500,"msg":"internal error"}`, [][4]string{{"TRADE", "FILLED", "3", "-0.1"}}, []float64{0.1}, true},
+			{"placed during the read", asset.USDTMarginedFutures, false, [3]string{"1", "-0.1", "PARTIALLY_FILLED"}, "", [][4]string{{"NEW", "NEW", "0", "0"}, {"TRADE", "PARTIALLY_FILLED", "1", "-0.1"}}, []float64{0, 0.1}, false},
+			{"listed with nothing executed", asset.USDTMarginedFutures, true, [3]string{"0", "0", "NEW"}, "", [][4]string{{"TRADE", "PARTIALLY_FILLED", "1", "-0.1"}}, []float64{0.1}, false},
+			{"cancelled without a held fill", asset.USDTMarginedFutures, false, [3]string{"2", "-0.23", "CANCELED"}, "", [][4]string{{"CANCELED", "CANCELED", "2", "0"}}, []float64{0}, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+				server := newTestPerpetualOrderServer(t, ex, tc.a, false)
+				creds, err := ex.GetCredentials(t.Context())
+				require.NoError(t, err, "GetCredentials must not error")
+				conn := &testWebsocketConnection{}
+				state := ex.wsTrackConnection(conn, newTestSession(t, ex).ch, false, tc.a, creds)
+				server.setOrder(tc.order[0], tc.order[1], tc.order[2])
+				server.setUnlisted(!tc.listed)
+				server.setGetReply(tc.getReply)
+				arrived, release := server.holdNext()
+				var releaseOnce sync.Once
+				t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+				waitForTestRead(t, func() { ex.wsReadOpenOrderFees(t.Context(), state) }, arrived)
+				for _, h := range tc.held {
+					event := fmt.Appendf(nil, `{"e":"ORDER_TRADE_UPDATE","E":1758608899001,"o":{"s":%q,"i":42,"S":"BUY","o":"LIMIT","q":"3","p":"10","ap":"10","z":%q,"x":%q,"X":%q,"N":"USDT","n":%q,"T":1758608899001}}`, server.symbol, h[2], h[0], h[1], h[3])
+					require.NoError(t, ex.wsHandlePerpetualAccountData(t.Context(), conn, event, tc.a), "an order event must be handled while the read is in flight")
+				}
+				assert.Empty(t, websocketPayloads(ex), "the order events should be held while the read is in flight")
+				releaseOnce.Do(func() { close(release) })
+				testWaitBackground(t, ex)
+				fees := make([]float64, 0, len(tc.held))
+				for range tc.held {
+					fees = append(fees, waitForWebsocketPayload[*order.Detail](t, ex, nil).Fee)
+				}
+				assert.InDeltaSlice(t, tc.fees, fees, 1e-12, "the held events should carry the order's fees")
+				routes := []string{server.listPath}
+				if tc.lookedUp {
+					routes = append(routes, server.getPath+"?orderId=42")
+				}
+				assert.Equal(t, routes, server.requestRoutes(), "an order the read does not list should be looked up once, when a held fill would start its total without its earlier fees")
+				assert.Equal(t, slices.Repeat([]string{creds.Key}, len(routes)), server.requestKeys(), "the read and the lookup should be sent for the connection's account")
+			})
+		}
+	})
+
+	t.Run("a fill of another order held during a lookup", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+		server := newTestPerpetualOrderServer(t, ex, asset.USDTMarginedFutures, false)
+		creds, err := ex.GetCredentials(t.Context())
+		require.NoError(t, err, "GetCredentials must not error")
+		conn := &testWebsocketConnection{}
+		state := ex.wsTrackConnection(conn, newTestSession(t, ex).ch, false, asset.USDTMarginedFutures, creds)
+		server.setOrder("3", "-0.33", "FILLED")
+		server.setUnlisted(true)
+		closingFill := func(orderID int) []byte {
+			return fmt.Appendf(nil, `{"e":"ORDER_TRADE_UPDATE","E":1758608899001,"o":{"s":"BTC-USDT","i":%d,"S":"BUY","o":"LIMIT","q":"3","p":"10","ap":"10","z":"3","x":"TRADE","X":"FILLED","N":"USDT","n":"-0.1","T":1758608899001}}`, orderID)
+		}
+		readArrived, readRelease := server.holdNext()
+		var readOnce, lookupOnce sync.Once
+		t.Cleanup(func() { readOnce.Do(func() { close(readRelease) }) })
+		waitForTestRead(t, func() { ex.wsReadOpenOrderFees(t.Context(), state) }, readArrived)
+		require.NoError(t, ex.wsHandlePerpetualAccountData(t.Context(), conn, closingFill(42), asset.USDTMarginedFutures), "the first order's fill must be handled while the read is in flight")
+		lookupArrived, lookupRelease := server.holdNext()
+		t.Cleanup(func() { lookupOnce.Do(func() { close(lookupRelease) }) })
+		readOnce.Do(func() { close(readRelease) })
+		select {
+		case <-lookupArrived:
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "the first order must be looked up")
+		}
+		require.NoError(t, ex.wsHandlePerpetualAccountData(t.Context(), conn, closingFill(43), asset.USDTMarginedFutures), "the second order's fill must be handled while the first is looked up")
+		lookupOnce.Do(func() { close(lookupRelease) })
+		testWaitBackground(t, ex)
+		exp := []any{testRelayedOrder{"42", 3, order.Filled, 0.33}, testRelayedOrder{"43", 3, order.Filled, 0.33}}
+		assert.Equal(t, exp, testRelayedOrders(ex), "each held fill should carry its order's looked up fees")
+		assert.Equal(t, []string{server.listPath, server.getPath + "?orderId=42", server.getPath + "?orderId=43"}, server.requestRoutes(), "an order whose fill is held during another's lookup should be looked up before the events are handled")
+	})
+
+	t.Run("two orders the read does not list", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+		server := newTestPerpetualOrderServer(t, ex, asset.USDTMarginedFutures, false)
+		creds, err := ex.GetCredentials(t.Context())
+		require.NoError(t, err, "GetCredentials must not error")
+		conn := &testWebsocketConnection{}
+		state := ex.wsTrackConnection(conn, newTestSession(t, ex).ch, false, asset.USDTMarginedFutures, creds)
+		server.setUnlisted(true)
+		server.setFilledOrder(42, "-0.33")
+		server.setFilledOrder(43, "-0.87")
+		arrived, release := server.holdNext()
+		var releaseOnce sync.Once
+		t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+		waitForTestRead(t, func() { ex.wsReadOpenOrderFees(t.Context(), state) }, arrived)
+		for _, orderID := range []int{42, 43} {
+			fill := fmt.Appendf(nil, `{"e":"ORDER_TRADE_UPDATE","E":1758608899001,"o":{"s":"BTC-USDT","i":%d,"S":"BUY","o":"LIMIT","q":"3","p":"10","ap":"10","z":"3","x":"TRADE","X":"FILLED","N":"USDT","n":"-0.1","T":1758608899001}}`, orderID)
+			require.NoErrorf(t, ex.wsHandlePerpetualAccountData(t.Context(), conn, fill, asset.USDTMarginedFutures), "order %d's fill must be handled while the read is in flight", orderID)
+		}
+		releaseOnce.Do(func() { close(release) })
+		testWaitBackground(t, ex)
+		exp := []any{testRelayedOrder{"42", 3, order.Filled, 0.33}, testRelayedOrder{"43", 3, order.Filled, 0.87}}
+		assert.Equal(t, exp, testRelayedOrders(ex), "each held fill should carry its own order's looked up fees")
+		routes := server.requestRoutes()
+		slices.Sort(routes)
+		assert.Equal(t, []string{server.listPath, server.getPath + "?orderId=42", server.getPath + "?orderId=43"}, routes, "each order should be looked up once")
+	})
+
+	t.Run("a read or lookup left unanswered", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name     string
+			readTime time.Duration // how long the read takes to be answered, the listing leaving the orders out
+			hang     []uint64      // the orders whose lookups are left unanswered
+			relayed  []testRelayedOrder
+		}{
+			{"the read", -1, nil, []testRelayedOrder{{"42", 3, order.Filled, 0.1}}},
+			{"a lookup", 0, []uint64{42}, []testRelayedOrder{{"42", 3, order.Filled, 0.1}}},
+			{"a lookup after a slow read", 4 * time.Second, []uint64{42}, []testRelayedOrder{{"42", 3, order.Filled, 0.1}}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				synctest.Test(t, func(t *testing.T) {
+					ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+					server := newTestPerpetualOrderServer(t, ex, asset.USDTMarginedFutures, false)
+					creds, err := ex.GetCredentials(t.Context())
+					require.NoError(t, err, "GetCredentials must not error")
+					conn := &testWebsocketConnection{}
+					state := ex.wsTrackConnection(conn, newTestSession(t, ex).ch, false, asset.USDTMarginedFutures, creds)
+					server.setOrder("2", "-0.23", "PARTIALLY_FILLED")
+					server.setUnlisted(true)
+					server.setFilledOrder(43, "-0.87")
+					for _, orderID := range tc.hang {
+						server.hangGet(orderID)
+					}
+					arrived, release := server.holdNext()
+					var releaseOnce sync.Once
+					t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+					start := time.Now()
+					waitForTestRead(t, func() { ex.wsReadOpenOrderFees(t.Context(), state) }, arrived)
+					exp := make([]any, 0, len(tc.relayed))
+					for _, r := range tc.relayed {
+						exp = append(exp, r)
+						fill := fmt.Appendf(nil, `{"e":"ORDER_TRADE_UPDATE","E":1758608899001,"o":{"s":"BTC-USDT","i":%s,"S":"BUY","o":"LIMIT","q":"3","p":"10","ap":"10","z":"3","x":"TRADE","X":"FILLED","N":"USDT","n":"-0.1","T":1758608899001}}`, r.orderID)
+						require.NoError(t, ex.wsHandlePerpetualAccountData(t.Context(), conn, fill, asset.USDTMarginedFutures), "an order event must be handled while the read is in flight")
+					}
+					if tc.readTime >= 0 {
+						time.Sleep(tc.readTime)
+						releaseOnce.Do(func() { close(release) })
+					}
+					testWaitBackground(t, ex)
+					assert.Equal(t, 5*time.Second, time.Since(start), "the held events should be handled five seconds after the read began")
+					assert.Equal(t, exp, testRelayedOrders(ex), "the held fills should be relayed with the fees their lookups found, or their connection counted")
+					routes := []string{server.listPath}
+					if tc.readTime >= 0 {
+						for _, r := range tc.relayed {
+							routes = append(routes, server.getPath+"?orderId="+r.orderID)
+						}
+					}
+					got := server.requestRoutes()
+					slices.Sort(got)
+					assert.Equal(t, routes, got, "nothing left unanswered should be sent again")
+				})
+			})
+		}
+	})
+
+	// The requester's lock, which a request holds for up to 50 milliseconds, keeps a second lookup out of a synctest
+	// bubble while the first is unanswered, so this case runs on the clock
+	t.Run("one of three lookups left unanswered", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+		server := newTestPerpetualOrderServer(t, ex, asset.USDTMarginedFutures, false)
+		creds, err := ex.GetCredentials(t.Context())
+		require.NoError(t, err, "GetCredentials must not error")
+		conn := &testWebsocketConnection{}
+		state := ex.wsTrackConnection(conn, newTestSession(t, ex).ch, false, asset.USDTMarginedFutures, creds)
+		server.setUnlisted(true)
+		server.setFilledOrder(43, "-0.87")
+		server.setFilledOrder(44, "-0.64")
+		server.hangGet(42)
+		arrived, release := server.holdNext()
+		var releaseOnce sync.Once
+		t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+		waitForTestRead(t, func() { ex.wsReadOpenOrderFees(t.Context(), state) }, arrived)
+		for _, orderID := range []int{42, 43, 44} {
+			fill := fmt.Appendf(nil, `{"e":"ORDER_TRADE_UPDATE","E":1758608899001,"o":{"s":"BTC-USDT","i":%d,"S":"BUY","o":"LIMIT","q":"3","p":"10","ap":"10","z":"3","x":"TRADE","X":"FILLED","N":"USDT","n":"-0.1","T":1758608899001}}`, orderID)
+			require.NoErrorf(t, ex.wsHandlePerpetualAccountData(t.Context(), conn, fill, asset.USDTMarginedFutures), "order %d's fill must be handled while the read is in flight", orderID)
+		}
+		releaseOnce.Do(func() { close(release) })
+		testWaitBackground(t, ex)
+		exp := []any{testRelayedOrder{"42", 3, order.Filled, 0.1}, testRelayedOrder{"43", 3, order.Filled, 0.87}, testRelayedOrder{"44", 3, order.Filled, 0.64}}
+		assert.Equal(t, exp, testRelayedOrders(ex), "an unanswered lookup should leave the others their time, and its own order the fees its connection counted")
+		routes := server.requestRoutes()
+		slices.Sort(routes)
+		assert.Equal(t, []string{server.listPath, server.getPath + "?orderId=42", server.getPath + "?orderId=43", server.getPath + "?orderId=44"}, routes, "nothing left unanswered should be sent again")
+	})
+
+	t.Run("a read refused for its rate", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			var requests atomic.Int32
+			arrived, release := make(chan struct{}), make(chan struct{})
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if requests.Add(1) == 1 {
+					close(arrived)
+					select {
+					case <-release:
+					case <-r.Context().Done():
+					}
+				}
+				w.Header().Set("Retry-After", "1")
+				w.WriteHeader(http.StatusTooManyRequests)
+			}))
+			ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			testRESTEndpoints(t, ex, server.URL)
+			require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+			creds, err := ex.GetCredentials(t.Context())
+			require.NoError(t, err, "GetCredentials must not error")
+			conn := &testWebsocketConnection{}
+			state := ex.wsTrackConnection(conn, newTestSession(t, ex).ch, false, asset.USDTMarginedFutures, creds)
+			var releaseOnce sync.Once
+			t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+			start := time.Now()
+			waitForTestRead(t, func() { ex.wsReadOpenOrderFees(t.Context(), state) }, arrived)
+			fill := []byte(`{"e":"ORDER_TRADE_UPDATE","E":1758608899001,"o":{"s":"BTC-USDT","i":42,"S":"BUY","o":"LIMIT","q":"3","p":"10","ap":"10","z":"3","x":"TRADE","X":"FILLED","N":"USDT","n":"-0.1","T":1758608899001}}`)
+			require.NoError(t, ex.wsHandlePerpetualAccountData(t.Context(), conn, fill, asset.USDTMarginedFutures), "an order event must be handled while the read is in flight")
+			releaseOnce.Do(func() { close(release) })
+			testWaitBackground(t, ex)
+			assert.Zero(t, time.Since(start), "a refused read and lookup should end at once rather than wait to be sent again")
+			assert.Equal(t, int32(2), requests.Load(), "the read and the held order's lookup should each be sent once")
+			assert.Equal(t, []any{testRelayedOrder{"42", 3, order.Filled, 0.1}}, testRelayedOrders(ex), "the held fill should be relayed with the fees its connection counted")
+		})
+	})
+
 	t.Run("read failing", func(t *testing.T) {
 		t.Parallel()
 		ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
@@ -1372,13 +1741,30 @@ func TestWebsocketReleaseOrderEvents(t *testing.T) {
 	require.True(t, ex.wsHoldOrderEvent(conn, []byte(`{"o":{"sg":1}}`)), "wsHoldOrderEvent must hold an event that does not decode")
 	require.True(t, ex.wsHoldOrderEvent(conn, event("1")), "wsHoldOrderEvent must hold the first event")
 	require.True(t, ex.wsHoldOrderEvent(conn, event("2")), "wsHoldOrderEvent must hold the second event")
-	ex.wsReleaseOrderEvents(t.Context(), state)
+	ex.wsReleaseOrderEvents(t.Context(), state, nil, false)
 	fees := []float64{waitForWebsocketPayload[*order.Detail](t, ex, nil).Fee, waitForWebsocketPayload[*order.Detail](t, ex, nil).Fee}
 	assert.InDeltaSlice(t, []float64{0.1, 0.2}, fees, 1e-12, "the held events should be handled in the order they arrived")
 	assert.Empty(t, websocketPayloads(ex), "an event that does not decode should be logged and dropped")
 	assert.False(t, state.holding, "wsReleaseOrderEvents should stop holding order events")
 	assert.Empty(t, state.held, "wsReleaseOrderEvents should drop the events it handled")
 	assert.False(t, ex.wsHoldOrderEvent(conn, []byte(`{}`)), "an event after the release should not be held")
+
+	t.Run("an order to look up first", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		conn := &testWebsocketConnection{}
+		state := ex.wsTrackConnection(conn, newTestSession(t, ex).ch, false, asset.USDTMarginedFutures, creds)
+		state.holding = true
+		require.True(t, ex.wsHoldOrderEvent(conn, event("1")), "wsHoldOrderEvent must hold the event")
+		lookups := ex.wsReleaseOrderEvents(t.Context(), state, map[string]bool{}, true)
+		assert.Equal(t, []perpetualOrderLookup{{orderID: "42", symbol: "BTC-USDT"}}, lookups, "wsReleaseOrderEvents should return the order whose held fill lacks its earlier fees")
+		assert.True(t, state.holding, "wsReleaseOrderEvents should keep holding order events until the order is looked up")
+		assert.Len(t, state.held, 1, "wsReleaseOrderEvents should keep the held event")
+		assert.Empty(t, websocketPayloads(ex), "nothing should be relayed before the order is looked up")
+		assert.Empty(t, ex.wsReleaseOrderEvents(t.Context(), state, map[string]bool{"42": true}, true), "wsReleaseOrderEvents should not return an order already looked up")
+		assert.False(t, state.holding, "wsReleaseOrderEvents should stop holding order events once no order is left to look up")
+		assert.InDelta(t, 0.1, waitForWebsocketPayload[*order.Detail](t, ex, nil).Fee, 1e-12, "the held event should be relayed once no order is left to look up")
+	})
 
 	t.Run("an order event arriving during the release", func(t *testing.T) {
 		t.Parallel()
@@ -1392,21 +1778,38 @@ func TestWebsocketReleaseOrderEvents(t *testing.T) {
 		require.True(t, ex.wsHoldOrderEvent(conn, fill("1", "-0.1")), "wsHoldOrderEvent must hold the first fill")
 		require.True(t, ex.wsHoldOrderEvent(conn, fill("2", "-0.2")), "wsHoldOrderEvent must hold the second fill")
 		ctx := &testPausingContext{Context: t.Context(), paused: make(chan struct{}), resume: make(chan struct{})}
+		var resumeOnce sync.Once
+		resume := func() { resumeOnce.Do(func() { close(ctx.resume) }) }
+		// A release reaching its context after the test failed would otherwise wait for resume for good
+		t.Cleanup(resume)
 		released := make(chan struct{})
 		go func() {
-			ex.wsReleaseOrderEvents(ctx, state)
+			ex.wsReleaseOrderEvents(ctx, state, nil, false)
 			close(released)
 		}()
-		<-ctx.paused
+		select {
+		case <-ctx.paused:
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "the release must look its context up")
+		}
 		handled := make(chan error, 1)
 		go func() {
 			handled <- ex.wsHandlePerpetualAccountData(t.Context(), conn, fill("3", "-0.3"), asset.USDTMarginedFutures)
 		}()
 		// The later event gets the time to overtake the held ones, which it must not take
 		time.Sleep(50 * time.Millisecond)
-		close(ctx.resume)
-		<-released
-		require.NoError(t, <-handled, "the later event must be handled")
+		resume()
+		select {
+		case <-released:
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "the release must end")
+		}
+		select {
+		case err := <-handled:
+			require.NoError(t, err, "the later event must be handled")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "the later event must be handled once the release ends")
+		}
 		executed, fees := make([]float64, 0, 3), make([]float64, 0, 3)
 		for range 3 {
 			d := waitForWebsocketPayload[*order.Detail](t, ex, nil)
@@ -1470,6 +1873,123 @@ func TestWebsocketReleaseOrderEvents(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestHeldOrdersMissingFees(t *testing.T) {
+	t.Parallel()
+	event := func(orderID int, execution, executed string) []byte {
+		return fmt.Appendf(nil, `{"e":"ORDER_TRADE_UPDATE","E":1758608899001,"o":{"s":"ETH-USDT","i":%d,"S":"BUY","o":"LIMIT","q":"3","p":"10","ap":"10","z":%q,"x":%q,"X":"PARTIALLY_FILLED","N":"USDT","n":"-0.1","T":1758608899001}}`, orderID, executed, execution)
+	}
+	missing := func(orderIDs ...string) []perpetualOrderLookup {
+		if len(orderIDs) == 0 {
+			return nil
+		}
+		lookups := make([]perpetualOrderLookup, 0, len(orderIDs))
+		for _, orderID := range orderIDs {
+			lookups = append(lookups, perpetualOrderLookup{orderID: orderID, symbol: "ETH-USDT"})
+		}
+		return lookups
+	}
+	for _, tc := range []struct {
+		name    string
+		held    [][]byte
+		settled map[string]bool
+		total   string // how order 42's total was started before the events: "", "read" or "fill"
+		exp     []perpetualOrderLookup
+	}{
+		{"a fill", [][]byte{event(42, "TRADE", "1")}, nil, "", missing("42")},
+		{"a fill reported as calculated", [][]byte{event(42, "CALCULATED", "1")}, nil, "", missing("42")},
+		{"no fill", [][]byte{event(42, "CANCELED", "1")}, nil, "", missing()},
+		{"a NEW event reporting nothing executed first", [][]byte{event(42, "NEW", "0"), event(42, "TRADE", "1")}, nil, "", missing()},
+		{"a NEW event reporting fills first", [][]byte{event(42, "NEW", "1"), event(42, "TRADE", "2")}, nil, "", missing("42")},
+		{"a fill then an amendment", [][]byte{event(42, "TRADE", "1"), event(42, "NEW", "1")}, nil, "", missing("42")},
+		{"an order settled", [][]byte{event(42, "TRADE", "1")}, map[string]bool{"42": true}, "", missing()},
+		{"a total counting every fill", [][]byte{event(42, "TRADE", "2")}, nil, "read", missing()},
+		{"a total missing its first fills", [][]byte{event(42, "TRADE", "2")}, nil, "fill", missing("42")},
+		{"an event that does not decode", [][]byte{[]byte(`{"o":{"sg":1}}`), event(42, "TRADE", "1")}, nil, "", missing("42")},
+		{"several orders", [][]byte{
+			event(47, "TRADE", "1"), event(41, "TRADE", "1"), event(44, "NEW", "0"), event(45, "TRADE", "1"), event(47, "TRADE", "2"),
+			event(43, "TRADE", "1"), event(44, "TRADE", "1"), event(49, "TRADE", "1"), event(42, "TRADE", "1"), event(48, "TRADE", "1"),
+			event(46, "TRADE", "1"),
+		}, nil, "", missing("47", "41", "45", "43", "49", "42", "48", "46")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			state := &websocketConnection{account: asset.USDTMarginedFutures, held: tc.held}
+			switch tc.total {
+			case "read":
+				state.fees.seed("42", decimal.NewFromInt(1), decimal.MustFromString("0.1"))
+			case "fill":
+				state.fees.add("42", decimal.NewFromInt(1), decimal.MustFromString("0.1"))
+			}
+			assert.Equal(t, tc.exp, heldOrdersMissingFees(state, tc.settled), "heldOrdersMissingFees should return the orders whose held fills would start a total without their earlier fees")
+		})
+	}
+}
+
+func TestWebsocketLookUpOrderFees(t *testing.T) {
+	t.Parallel()
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+			server := newTestPerpetualOrderServer(t, ex, a, false)
+			server.setOrder("3", "-0.33", "FILLED")
+			creds, err := ex.GetCredentials(t.Context())
+			require.NoError(t, err, "GetCredentials must not error")
+			state := ex.wsTrackConnection(&testWebsocketConnection{}, newTestSession(t, ex).ch, false, a, creds)
+			settled := map[string]bool{"41": true}
+			ex.wsLookUpOrderFees(accounts.DeployCredentialsToContext(t.Context(), creds), state, []perpetualOrderLookup{{orderID: "42", symbol: server.symbol}, {orderID: "x", symbol: server.symbol}}, settled)
+			assert.Equal(t, map[string]bool{"41": true, "42": true, "x": true}, settled, "each order should be settled, whether or not its lookup succeeds")
+			assert.Equal(t, []string{server.getPath + "?orderId=42"}, server.requestRoutes(), "an order should be looked up by its ID, and one whose ID does not parse not at all")
+			state.fees.mu.Lock()
+			defer state.fees.mu.Unlock()
+			require.Contains(t, state.fees.orders, "42", "a closed order's lookup must start its total")
+			total := state.fees.orders["42"]
+			assert.True(t, total.complete, "a looked up total should count every fill")
+			assert.True(t, decimal.NewFromInt(3).Equal(total.executed), "a looked up total should take the executed quantity BingX reports")
+			assert.True(t, decimal.MustFromString("0.33").Equal(total.fee), "a looked up total should take the commission BingX reports as a fee paid")
+		})
+	}
+}
+
+func TestPerpetualOrderFees(t *testing.T) {
+	t.Parallel()
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+			server := newTestPerpetualOrderServer(t, ex, a, false)
+			server.setOrder("2", "-0.23", "PARTIALLY_FILLED")
+			executed, commission, err := ex.perpetualOrderFees(t.Context(), a, perpetualOrderLookup{orderID: "42", symbol: server.symbol})
+			require.NoError(t, err, "perpetualOrderFees must not error")
+			assert.Equal(t, 2.0, executed.Float64(), "perpetualOrderFees should return the executed quantity BingX reports")
+			assert.Equal(t, -0.23, commission.Float64(), "perpetualOrderFees should return the commission BingX reports")
+			server.setGetReply(`{"code":100500,"msg":"internal error"}`)
+			_, _, err = ex.perpetualOrderFees(t.Context(), a, perpetualOrderLookup{orderID: "42", symbol: server.symbol})
+			var apiErr *APIError
+			require.ErrorAs(t, err, &apiErr, "perpetualOrderFees must return BingX's refusal")
+			assert.Equal(t, int64(100500), apiErr.Code, "the refusal should carry BingX's code")
+		})
+	}
+
+	for _, tc := range []struct {
+		name   string
+		a      asset.Item
+		lookup perpetualOrderLookup
+		err    error
+	}{
+		{"a symbol that does not parse", asset.USDTMarginedFutures, perpetualOrderLookup{orderID: "42", symbol: "BTCUSDT"}, errWebsocketInvalidSymbol},
+		{"an order ID that does not parse", asset.CoinMarginedFutures, perpetualOrderLookup{orderID: "x", symbol: "BTC-USD"}, errInvalidOrderID},
+		{"spot", asset.Spot, perpetualOrderLookup{orderID: "42", symbol: "BTC-USDT"}, asset.ErrNotSupported},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newWebsocketTestExchange(t)
+			_, _, err := ex.perpetualOrderFees(t.Context(), tc.a, tc.lookup)
+			assert.ErrorIs(t, err, tc.err, "perpetualOrderFees should refuse a lookup it cannot send")
+		})
+	}
 }
 
 // testRelayedOrder is what a relayed order detail reports of an order's progress
