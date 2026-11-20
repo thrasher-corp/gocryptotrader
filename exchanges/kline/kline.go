@@ -137,6 +137,11 @@ func (i Interval) Duration() time.Duration {
 	return time.Duration(i)
 }
 
+// IsCalendar reports whether the interval follows calendar months, so that its length depends on the months it spans
+func (i Interval) IsCalendar() bool {
+	return calendarIntervalMonths(i) != 0
+}
+
 func calendarIntervalMonths(interval Interval) int {
 	switch interval {
 	case OneMonth:
@@ -702,6 +707,12 @@ func (k *Item) GetClosePriceAtTime(t time.Time) (float64, error) {
 	return -1, fmt.Errorf("%w at %v", ErrNotFoundAtTime, t)
 }
 
+// HasData reports whether the candle carries market data: the empty candles addPadding inserts for intervals an
+// exchange did not supply have no price or volume above zero
+func (c *Candle) HasData() bool {
+	return !(c.Low <= 0 && c.High <= 0 && c.Close <= 0 && c.Open <= 0 && c.Volume <= 0)
+}
+
 // SetHasDataFromCandles will calculate whether there is data in each candle
 // allowing any missing data from an API request to be highlighted
 func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) error {
@@ -712,15 +723,9 @@ func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) error {
 				return nil
 			}
 			if !h.Ranges[x].Intervals[y].Start.Time.Equal(incoming[offset].Time) {
-				return fmt.Errorf("%w '%v' expected '%v'", errInvalidPeriod, incoming[offset].Time.UTC(), h.Ranges[x].Intervals[y].Start.Time.UTC())
+				return fmt.Errorf("%w '%v' expected '%v'", errCandleTimeMismatch, incoming[offset].Time.UTC(), h.Ranges[x].Intervals[y].Start.Time.UTC())
 			}
-			if incoming[offset].Low <= 0 && incoming[offset].High <= 0 &&
-				incoming[offset].Close <= 0 && incoming[offset].Open <= 0 &&
-				incoming[offset].Volume <= 0 {
-				h.Ranges[x].Intervals[y].HasData = false
-			} else {
-				h.Ranges[x].Intervals[y].HasData = true
-			}
+			h.Ranges[x].Intervals[y].HasData = incoming[offset].HasData()
 			offset++
 		}
 	}

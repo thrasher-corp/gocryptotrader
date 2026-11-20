@@ -88,6 +88,7 @@ var (
 	errCannotFetchIntervalLimit         = errors.New("cannot fetch interval limit")
 	errIntervalNotSupported             = errors.New("interval not supported")
 	errCandleOpenTimeIsNotUTCAligned    = errors.New("candle open time is not UTC aligned")
+	errCandleTimeMismatch               = errors.New("candle time does not match its interval start")
 
 	oneYearDurationInNano = float64(OneYear.Duration().Nanoseconds())
 

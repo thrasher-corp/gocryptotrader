@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 	"uuid"
@@ -168,6 +169,139 @@ func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
 	return jobs, nil
 }
 
+// rangeInterval returns the interval the job's date ranges are built with
+func (j *DataHistoryJob) rangeInterval() kline.Interval {
+	if j.DataType == dataHistoryConvertCandlesDataType {
+		return j.ConversionInterval
+	}
+	return j.Interval
+}
+
+// dropStaleResults removes the results of each range that end elsewhere, and its Complete results while an interval
+// lacks data. Earlier conversion jobs recorded results for shorter batches, and Complete without saving converted candles.
+func (j *DataHistoryJob) dropStaleResults() {
+	for x := range j.rangeHolder.Ranges {
+		key := j.rangeHolder.Ranges[x].Start.Time.Unix()
+		results, ok := j.Results[key]
+		if !ok {
+			continue
+		}
+		end := j.rangeHolder.Ranges[x].End.Time
+		missing := slices.ContainsFunc(j.rangeHolder.Ranges[x].Intervals, func(i kline.IntervalData) bool { return !i.HasData })
+		results = slices.DeleteFunc(results, func(r DataHistoryJobResult) bool {
+			return !r.IntervalEndDate.Equal(end) || missing && r.Status == dataHistoryStatusComplete
+		})
+		if len(results) == 0 {
+			delete(j.Results, key)
+			continue
+		}
+		j.Results[key] = results
+	}
+}
+
+// candleRuns returns the first candle within each interval of h, in runs of consecutive intervals. An overwriting save
+// deletes every stored candle between its first and last, so saving each run on its own leaves the candles of
+// intervals without a converted candle, and outside h, untouched.
+func candleRuns(h *kline.IntervalRangeHolder, candles []kline.Candle) [][]kline.Candle {
+	sorted := slices.Clone(candles)
+	slices.SortStableFunc(sorted, func(a, b kline.Candle) int { return a.Time.Compare(b.Time) })
+	var runs [][]kline.Candle
+	var run []kline.Candle
+	var next int
+	for x := range h.Ranges {
+		for _, interval := range h.Ranges[x].Intervals {
+			for next < len(sorted) && sorted[next].Time.Before(interval.Start.Time) {
+				next++
+			}
+			if next < len(sorted) && sorted[next].Time.Before(interval.End.Time) {
+				run = append(run, sorted[next])
+				continue
+			}
+			if len(run) > 0 {
+				runs = append(runs, run)
+				run = nil
+			}
+		}
+	}
+	if len(run) > 0 {
+		runs = append(runs, run)
+	}
+	return runs
+}
+
+// padSourceCandles returns one candle for each interval from start until end, holding the first of the candles given
+// with data that starts within it, at the interval's start, or an empty candle, and which intervals had such a candle.
+// A stored candle without data is the padding a candle job saves for an interval the exchange did not supply, so it
+// leaves its interval missing. Conversion then groups the candles by the output interval they start in, rather than
+// from the first candle it is given.
+func padSourceCandles(candles []kline.Candle, start, end time.Time, interval kline.Interval) (padded []kline.Candle, present []bool) {
+	if interval <= 0 || !start.Before(end) {
+		return nil, nil
+	}
+	count := int(end.Sub(start) / interval.Duration())
+	padded = make([]kline.Candle, count)
+	present = make([]bool, count)
+	for i := range padded {
+		padded[i].Time = start.Add(time.Duration(i) * interval.Duration())
+	}
+	for i := range candles {
+		if candles[i].Time.Before(start) || !candles[i].Time.Before(end) || !candles[i].HasData() {
+			continue
+		}
+		slot := int(candles[i].Time.Sub(start) / interval.Duration())
+		if slot >= count || present[slot] {
+			continue
+		}
+		c := candles[i]
+		c.Time = padded[slot].Time
+		padded[slot] = c
+		present[slot] = true
+	}
+	return padded, present
+}
+
+// intervalsWithoutData returns how many intervals of h have no data, and how many intervals h has
+func intervalsWithoutData(h *kline.IntervalRangeHolder) (missing, total int) {
+	for x := range h.Ranges {
+		for _, interval := range h.Ranges[x].Intervals {
+			total++
+			if !interval.HasData {
+				missing++
+			}
+		}
+	}
+	return missing, total
+}
+
+// rangeResult reports whether a range's results decide it and, if so, whether it completed rather than finishing with
+// issues found, whatever order the results were loaded in
+func rangeResult(results []DataHistoryJobResult) (decided, complete bool) {
+	if slices.ContainsFunc(results, func(r DataHistoryJobResult) bool { return r.Status == dataHistoryStatusComplete }) {
+		return true, true
+	}
+	if slices.ContainsFunc(results, func(r DataHistoryJobResult) bool { return r.Status == dataHistoryIntervalIssuesFound }) {
+		return true, false
+	}
+	return false, false
+}
+
+// setHasDataByCandleTime marks each interval that a candle with data starts. A conversion job saves only the candles
+// it can convert, so a series any job reads can have a gap before later saved candles, which kline's in-order
+// SetHasDataFromCandles rejects, failing the preparation of every job.
+func setHasDataByCandleTime(h *kline.IntervalRangeHolder, candles []kline.Candle) {
+	starts := make(map[int64]bool, len(candles))
+	for i := range candles {
+		if candles[i].HasData() {
+			starts[candles[i].Time.UnixNano()] = true
+		}
+	}
+	for x := range h.Ranges {
+		for y := range h.Ranges[x].Intervals {
+			h.Ranges[x].Intervals[y].HasData = starts[h.Ranges[x].Intervals[y].Start.Time.UnixNano()]
+		}
+	}
+}
+
 func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 	if m == nil {
 		return ErrNilSubsystem
@@ -177,7 +311,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 	}
 	var err error
 	for i := range jobs {
-		jobs[i].rangeHolder, err = kline.CalculateCandleDateRanges(jobs[i].StartDate, jobs[i].EndDate, jobs[i].Interval, jobs[i].RequestSizeLimit)
+		jobs[i].rangeHolder, err = kline.CalculateCandleDateRanges(jobs[i].StartDate, jobs[i].EndDate, jobs[i].rangeInterval(), jobs[i].RequestSizeLimit)
 		if err != nil {
 			return err
 		}
@@ -191,12 +325,8 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
-			if candles == nil {
-				candles = &kline.Item{}
-			}
-			err = jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
-			if err != nil {
-				return err
+			if candles != nil {
+				setHasDataByCandleTime(jobs[i].rangeHolder, candles.Candles)
 			}
 		case dataHistoryTradeDataType:
 			for x := range jobs[i].rangeHolder.Ranges {
@@ -214,17 +344,14 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 				}
 			}
 		case dataHistoryConvertCandlesDataType:
-			candles, err = m.candleLoader(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].ConversionInterval, jobs[i].StartDate, jobs[i].EndDate)
+			candles, err = m.candleLoader(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].ConversionInterval, jobs[i].rangeHolder.Start.Time, jobs[i].rangeHolder.End.Time)
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
-			if candles == nil {
-				candles = &kline.Item{}
+			if candles != nil {
+				setHasDataByCandleTime(jobs[i].rangeHolder, candles.Candles)
 			}
-			err = jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
-			if err != nil {
-				return err
-			}
+			jobs[i].dropStaleResults()
 		default:
 			return fmt.Errorf("%s %w %s", jobs[i].Nickname, errUnknownDataType, jobs[i].DataType)
 		}
@@ -378,21 +505,18 @@ ranges:
 			}
 		}
 		if skipProcessing {
-			_, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()]
-			if !ok && !job.OverwriteExistingData {
+			key := job.rangeHolder.Ranges[i].Start.Time.Unix()
+			if _, complete := rangeResult(job.Results[key]); !complete && !job.OverwriteExistingData {
 				// we have determined that data is there, however it is not reflected in
 				// this specific job's results, which is required for a job to be complete
-				id := uuid.NewV4()
-				job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()] = []DataHistoryJobResult{
-					{
-						ID:                id,
-						JobID:             job.ID,
-						IntervalStartDate: job.rangeHolder.Ranges[i].Start.Time,
-						IntervalEndDate:   job.rangeHolder.Ranges[i].End.Time,
-						Status:            dataHistoryStatusComplete,
-						Date:              time.Now(),
-					},
-				}
+				job.Results[key] = append(job.Results[key], DataHistoryJobResult{
+					ID:                uuid.NewV4(),
+					JobID:             job.ID,
+					IntervalStartDate: job.rangeHolder.Ranges[i].Start.Time,
+					IntervalEndDate:   job.rangeHolder.Ranges[i].End.Time,
+					Status:            dataHistoryStatusComplete,
+					Date:              time.Now(),
+				})
 			}
 			if !job.OverwriteExistingData {
 				continue
@@ -474,25 +598,16 @@ ranges:
 	completed := true
 	allResultsSuccessful := true
 	allResultsFailed := true
-completionCheck:
 	for i := range job.rangeHolder.Ranges {
-		result, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()]
-		if !ok {
+		decided, complete := rangeResult(job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()])
+		if !decided {
 			completed = false
+			break
 		}
-	results:
-		for j := range result {
-			switch result[j].Status {
-			case dataHistoryIntervalIssuesFound:
-				allResultsSuccessful = false
-				break results
-			case dataHistoryStatusComplete:
-				allResultsFailed = false
-				break results
-			default:
-				completed = false
-				break completionCheck
-			}
+		if complete {
+			allResultsFailed = false
+		} else {
+			allResultsSuccessful = false
 		}
 	}
 	if completed {
@@ -504,6 +619,14 @@ completionCheck:
 	return nil
 }
 
+// validationIntervalLength returns the time one validation request spans, rejecting a length a time.Duration cannot hold
+func validationIntervalLength(interval kline.Interval, requestSizeLimit uint64) (time.Duration, error) {
+	if interval <= 0 || requestSizeLimit == 0 || requestSizeLimit > math.MaxInt64/uint64(interval) {
+		return 0, fmt.Errorf("%w: interval %s with request size limit %d", kline.ErrInvalidInterval, interval, requestSizeLimit)
+	}
+	return interval.Duration() * time.Duration(requestSizeLimit), nil //nolint:gosec // the limit is checked to fit above
+}
+
 // runValidationJob verifies existing database candle data against
 // the original API's data, or a secondary exchange source
 func (m *DataHistoryManager) runValidationJob(ctx context.Context, job *DataHistoryJob, exch exchange.IBotExchange) error {
@@ -512,33 +635,46 @@ func (m *DataHistoryManager) runValidationJob(ctx context.Context, job *DataHist
 	}
 	var intervalsProcessed uint64
 	var jobIntervals, intervalsToCheck []time.Time
-	intervalLength := job.Interval.Duration() * time.Duration(job.RequestSizeLimit) //nolint:gosec // TODO: Ensure size limit can't overflow
+	intervalLength, err := validationIntervalLength(job.Interval, job.RequestSizeLimit)
+	if err != nil {
+		return fmt.Errorf("job %s %w", job.Nickname, err)
+	}
+	rangeEnd := func(start time.Time) time.Time {
+		if end := start.Add(intervalLength); end.Before(job.EndDate) {
+			return end
+		}
+		return job.EndDate
+	}
+	// A range counts only the results covering exactly that range, as an edit to a job's dates, request size or
+	// interval leaves earlier results under the start seconds they share with the new ranges
+	covers := func(start time.Time) func(DataHistoryJobResult) bool {
+		end := rangeEnd(start)
+		return func(r DataHistoryJobResult) bool {
+			return r.IntervalStartDate.Equal(start) && r.IntervalEndDate.Equal(end)
+		}
+	}
+	rangeResults := func(start time.Time) []DataHistoryJobResult {
+		covered := covers(start)
+		return slices.DeleteFunc(slices.Clone(job.Results[start.Unix()]), func(r DataHistoryJobResult) bool { return !covered(r) })
+	}
 	for i := job.StartDate; i.Before(job.EndDate); i = i.Add(intervalLength) {
 		jobIntervals = append(jobIntervals, i)
 	}
-	nextIntervalToProcess := job.StartDate
-timesToFetch:
-	for t, results := range job.Results {
-		tt := time.Unix(t, 0)
-		if uint64(len(results)) < job.MaxRetryAttempts {
-			for x := range results {
-				if results[x].Status == dataHistoryStatusComplete {
-					continue timesToFetch
+	for _, interval := range jobIntervals {
+		results := rangeResults(interval)
+		if slices.ContainsFunc(results, func(r DataHistoryJobResult) bool { return r.Status == dataHistoryStatusComplete }) {
+			continue
+		}
+		if uint64(len(results)) >= job.MaxRetryAttempts {
+			covered, stored := covers(interval), job.Results[interval.Unix()]
+			for x := range stored {
+				if covered(stored[x]) {
+					stored[x].Status = dataHistoryIntervalIssuesFound
 				}
 			}
-			intervalsToCheck = append(intervalsToCheck, tt)
-		} else {
-			for x := range results {
-				results[x].Status = dataHistoryIntervalIssuesFound
-			}
-			job.Results[t] = results
+			continue
 		}
-		if tt.After(nextIntervalToProcess) {
-			nextIntervalToProcess = tt.Add(intervalLength)
-		}
-	}
-	for i := nextIntervalToProcess; i.Before(job.EndDate); i = i.Add(intervalLength) {
-		intervalsToCheck = append(intervalsToCheck, i)
+		intervalsToCheck = append(intervalsToCheck, interval)
 	}
 
 	for i := range intervalsToCheck {
@@ -548,10 +684,7 @@ timesToFetch:
 		if err := common.StartEndTimeCheck(intervalsToCheck[i], job.EndDate); err != nil {
 			break
 		}
-		requestEnd := intervalsToCheck[i].Add(intervalLength)
-		if requestEnd.After(job.EndDate) {
-			requestEnd = job.EndDate
-		}
+		requestEnd := rangeEnd(intervalsToCheck[i])
 		if m.verbose {
 			log.Debugf(log.DataHistory, "running data history job %v start: %s end: %s interval: %s datatype: %s",
 				job.Nickname,
@@ -573,26 +706,16 @@ timesToFetch:
 	completed := true
 	allResultsSuccessful := true
 	allResultsFailed := true
-completionCheck:
 	for i := range jobIntervals {
-		results, ok := job.Results[jobIntervals[i].Unix()]
-		if !ok {
+		decided, complete := rangeResult(rangeResults(jobIntervals[i]))
+		if !decided {
 			completed = false
 			break
 		}
-	results:
-		for j := range results {
-			switch results[j].Status {
-			case dataHistoryIntervalIssuesFound:
-				allResultsSuccessful = false
-				break results
-			case dataHistoryStatusComplete:
-				allResultsFailed = false
-				break results
-			default:
-				completed = false
-				break completionCheck
-			}
+		if complete {
+			allResultsFailed = false
+		} else {
+			allResultsSuccessful = false
 		}
 	}
 	if completed {
@@ -877,11 +1000,21 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 		Status:            dataHistoryStatusComplete,
 		Date:              time.Now(),
 	}
-	candles, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.Interval, startRange, endRange)
+	intervals, err := kline.CalculateCandleDateRanges(startRange, endRange, job.ConversionInterval, 0)
+	if err != nil {
+		r.Result = "could not calculate converted candle intervals in range: " + err.Error()
+		r.Status = dataHistoryStatusFailed
+		return r, nil //nolint:nilerr // error is returned in the job result
+	}
+	candles, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.Interval, intervals.Start.Time, intervals.End.Time)
 	if err != nil {
 		r.Result = "could not get candles in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
 		return r, nil //nolint:nilerr // error is returned in the job result
+	}
+	var present []bool
+	if candles != nil {
+		candles.Candles, present = padSourceCandles(candles.Candles, intervals.Start.Time, intervals.End.Time, job.Interval)
 	}
 	newCandles, err := candles.ConvertToNewInterval(job.ConversionInterval)
 	if err != nil {
@@ -889,9 +1022,38 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 		r.Status = dataHistoryStatusFailed
 		return r, nil //nolint:nilerr // error is returned in the job result
 	}
+	// A converted candle needs every source candle of its interval, so that one built from part of them is not kept
+	perCandle := int(job.ConversionInterval / job.Interval)
+	for i := range newCandles.Candles {
+		if slices.Contains(present[i*perCandle:min((i+1)*perCandle, len(present))], false) {
+			newCandles.Candles[i] = kline.Candle{}
+		}
+	}
 	newCandles.SourceJobID = job.ID
-	err = m.saveCandlesInBatches(job, candles, r)
-	return r, err
+	for _, run := range candleRuns(intervals, newCandles.Candles) {
+		converted := *newCandles
+		converted.Candles = run
+		if err := m.saveCandlesInBatches(job, &converted, r); err != nil {
+			return nil, err
+		}
+	}
+	if r.Status != dataHistoryStatusComplete {
+		return r, nil
+	}
+	// The batch is judged on what the store holds, as the next preparation will judge it
+	saved, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.ConversionInterval, intervals.Start.Time, intervals.End.Time)
+	if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
+		return nil, fmt.Errorf("%s could not load saved candles: %w", job.Nickname, err)
+	}
+	if saved != nil {
+		setHasDataByCandleTime(intervals, saved.Candles)
+	}
+	if missing, total := intervalsWithoutData(intervals); missing > 0 {
+		r.Result = fmt.Sprintf("missing %d of %d converted candles from %v - %v. ", missing, total,
+			startRange.Format(common.SimpleTimeFormatWithTimezone), endRange.Format(common.SimpleTimeFormatWithTimezone))
+		r.Status = dataHistoryStatusFailed
+	}
+	return r, nil
 }
 
 func (m *DataHistoryManager) validateCandles(ctx context.Context, job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
@@ -1150,11 +1312,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	if job.ID == uuid.Nil() {
 		job.ID = uuid.NewV4()
 	}
-	interval := job.Interval
-	if job.DataType == dataHistoryConvertCandlesDataType {
-		interval = job.ConversionInterval
-	}
-	job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, interval, job.RequestSizeLimit)
+	job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.rangeInterval(), job.RequestSizeLimit)
 	if err != nil {
 		return err
 	}
@@ -1239,6 +1397,12 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		}
 	}
 
+	// Validation matches candles by the second, and job results are keyed by their start's second
+	if (job.DataType == dataHistoryCandleValidationDataType || job.DataType == dataHistoryCandleValidationSecondarySourceType) &&
+		job.Interval.Duration()%time.Second != 0 {
+		return fmt.Errorf("job %s validation %w: %s", job.Nickname, errIntervalNotWholeSeconds, job.Interval)
+	}
+
 	b := exch.GetBase()
 	// TODO: In future allow custom candles.
 	if !b.Features.Enabled.Kline.Intervals.ExchangeSupported(job.Interval) &&
@@ -1249,12 +1413,25 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
 
-	if job.DataType == dataHistoryConvertCandlesDataType && job.ConversionInterval <= 0 {
-		return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.ConversionInterval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
+	if job.DataType == dataHistoryConvertCandlesDataType {
+		if job.ConversionInterval <= 0 {
+			return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.ConversionInterval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
+		}
+		if job.Interval <= 0 {
+			return fmt.Errorf("job interval %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
+		}
+		// The candle store keeps intervals in whole seconds, and conversion counts fixed spans rather than calendar months
+		if job.Interval.IsCalendar() || job.ConversionInterval.IsCalendar() || job.Interval.Duration()%time.Second != 0 || job.ConversionInterval.Duration()%time.Second != 0 {
+			return fmt.Errorf("job conversion %s from %s to %s %w %s", job.Nickname, job.Interval, job.ConversionInterval, kline.ErrUnsupportedInterval, job.Exchange)
+		}
 	}
 
-	if job.DataType == dataHistoryCandleValidationDataType {
-		if job.DecimalPlaceComparison == 0 {
+	if job.DataType == dataHistoryCandleValidationDataType || job.DataType == dataHistoryCandleValidationSecondarySourceType {
+		if job.DecimalPlaceComparison > maxDecimalPlaceComparison {
+			return fmt.Errorf("job %s %w: %d exceeds %d", job.Nickname, errInvalidDecimalPlaces, job.DecimalPlaceComparison, maxDecimalPlaceComparison)
+		}
+		// Zero is unset for the primary source, while a secondary source job compares whole units
+		if job.DecimalPlaceComparison == 0 && job.DataType == dataHistoryCandleValidationDataType {
 			log.Warnf(log.DataHistory, "job %s decimal place comparison %v invalid. defaulting to %v decimal places when comparing data for validation", job.Nickname, job.DecimalPlaceComparison, defaultDecimalPlaceComparison)
 			job.DecimalPlaceComparison = defaultDecimalPlaceComparison
 		}
@@ -1266,8 +1443,26 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 
 	job.StartDate = job.StartDate.Round(job.Interval.Duration())
 	job.EndDate = job.EndDate.Round(job.Interval.Duration())
+	if job.DataType == dataHistoryConvertCandlesDataType {
+		// Conversion keeps to the whole conversion intervals within the dates, once rounded to the source interval, so
+		// that it never needs source candles from beyond them
+		conversion := job.ConversionInterval.Duration()
+		if start := job.StartDate.Truncate(conversion); start.Before(job.StartDate) {
+			job.StartDate = start.Add(conversion)
+		}
+		job.EndDate = job.EndDate.Truncate(conversion)
+	}
 	if err := common.StartEndTimeCheck(job.StartDate, job.EndDate); err != nil {
 		return fmt.Errorf("job %s %w start: %v end %v", job.Nickname, err, job.StartDate, job.EndDate)
+	}
+	if err := checkIntervalCount(job.StartDate, job.EndDate, job.Interval.Duration(), maxDataHistoryJobIntervals); err != nil {
+		return fmt.Errorf("job %s %w", job.Nickname, err)
+	}
+	if job.DataType == dataHistoryConvertCandlesDataType {
+		// A convert candles job's date ranges are built with its conversion interval
+		if err := checkIntervalCount(job.StartDate, job.EndDate, job.ConversionInterval.Duration(), maxDataHistoryJobIntervals); err != nil {
+			return fmt.Errorf("job %s conversion interval %w", job.Nickname, err)
+		}
 	}
 
 	return nil
@@ -1286,7 +1481,10 @@ func (m *DataHistoryManager) GetByID(id uuid.UUID) (*DataHistoryJob, error) {
 	}
 	dbJ, err := m.jobDB.GetByID(id.String())
 	if err != nil {
-		return nil, fmt.Errorf("%w with id %s %s", errJobNotFound, id, err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("%w with id %s", errJobNotFound, id)
+		}
+		return nil, fmt.Errorf("could not load job with id %s: %w", id, err)
 	}
 	result, err := m.convertDBModelToJob(dbJ)
 	if err != nil {
@@ -1308,6 +1506,9 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 	if fullDetails {
 		dbJ, err := m.jobDB.GetJobAndAllResults(nickname)
 		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, errJobNotFound
+			}
 			return nil, fmt.Errorf("job %s could not load job from database: %w", nickname, err)
 		}
 		result, err := m.convertDBModelToJob(dbJ)
@@ -1318,11 +1519,11 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 	}
 	j, err := m.jobDB.GetByNickName(nickname)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			// no need to display normal sql err to user
 			return nil, errJobNotFound
 		}
-		return nil, fmt.Errorf("job %s %w, %s", nickname, errJobNotFound, err)
+		return nil, fmt.Errorf("job %s could not load job from database: %w", nickname, err)
 	}
 	job, err := m.convertDBModelToJob(j)
 	if err != nil {

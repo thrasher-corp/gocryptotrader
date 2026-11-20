@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"time"
 	"uuid"
 
@@ -119,6 +120,16 @@ func (f fakeReport) SetKlineData(*gctkline.Item) error {
 }
 
 func (f fakeReport) UseDarkMode(bool) {}
+
+var errGenerateReport = errors.New("generate report failed")
+
+type failingReport struct {
+	fakeReport
+}
+
+func (f failingReport) GenerateReport() error {
+	return errGenerateReport
+}
 
 type fakeStats struct{}
 

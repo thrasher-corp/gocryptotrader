@@ -107,19 +107,16 @@ func TestList(t *testing.T) {
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
-func TestStopRun(t *testing.T) {
+func TestStopTask(t *testing.T) {
 	t.Parallel()
 	rm := NewTaskManager()
 	list, err := rm.List()
-	assert.NoError(t, err)
-
-	if len(list) != 0 {
-		t.Errorf("received '%v' expected '%v'", len(list), 0)
-	}
+	require.NoError(t, err, "List must not error")
+	assert.Empty(t, list, "List should return no tasks")
 
 	id := uuid.NewV4()
 
-	err = rm.StopTask(id)
+	_, err = rm.StopTask(id)
 	assert.ErrorIs(t, err, errTaskNotFound)
 
 	bt := &BackTest{
@@ -129,23 +126,44 @@ func TestStopRun(t *testing.T) {
 		shutdown:  make(chan struct{}),
 	}
 	err = rm.AddTask(bt)
-	assert.NoError(t, err)
+	require.NoError(t, err, "AddTask must not error")
 
-	err = rm.StopTask(bt.MetaData.ID)
+	_, err = rm.StopTask(bt.MetaData.ID)
 	assert.ErrorIs(t, err, errTaskHasNotRan)
 
 	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Now()
 	bt.m.Unlock()
-	err = rm.StopTask(bt.MetaData.ID)
-	assert.NoError(t, err)
+	summary, err := rm.StopTask(bt.MetaData.ID)
+	require.NoError(t, err, "StopTask must not error")
+	require.Equal(t, &TaskSummary{MetaData: bt.MetaData}, summary, "StopTask must return the stopped task's summary")
+	assert.True(t, summary.MetaData.Closed, "StopTask's summary should show the task closed")
 
-	err = rm.StopTask(bt.MetaData.ID)
+	_, err = rm.StopTask(bt.MetaData.ID)
 	assert.ErrorIs(t, err, errAlreadyRan)
 
 	rm = nil
-	err = rm.StopTask(id)
+	_, err = rm.StopTask(id)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
+	t.Run("stop error", func(t *testing.T) {
+		t.Parallel()
+		manager := NewTaskManager()
+		failing := &BackTest{
+			Strategy:            &fakeStrat{},
+			Statistic:           &fakeStats{},
+			Reports:             failingReport{},
+			shutdown:            make(chan struct{}),
+			hasProcessedAnEvent: true,
+		}
+		require.NoError(t, manager.AddTask(failing), "AddTask must not error")
+		failing.m.Lock()
+		failing.MetaData.DateStarted = time.Now()
+		failing.m.Unlock()
+		summary, err := manager.StopTask(failing.MetaData.ID)
+		assert.ErrorIs(t, err, errGenerateReport, "StopTask should return the stop's error")
+		assert.Nil(t, summary, "StopTask should return no summary when the stop fails")
+	})
 }
 
 func TestStopAllRuns(t *testing.T) {

@@ -28,9 +28,11 @@ func ReadStrategyConfigFromFile(path string) (*Config, error) {
 		return nil, err
 	}
 
-	var resp *Config
-	err = json.Unmarshal(data, &resp)
-	return resp, err
+	var resp Config
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
 
 // Validate checks all config settings

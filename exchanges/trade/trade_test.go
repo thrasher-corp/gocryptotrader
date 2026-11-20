@@ -193,6 +193,20 @@ func TestConvertTradesToCandles(t *testing.T) {
 	if candles.Interval != kline.FifteenSecond {
 		t.Error("expected fifteen seconds")
 	}
+
+	t.Run("candles are in time order", func(t *testing.T) {
+		t.Parallel()
+		trades := make([]Data, 24)
+		for i := range trades {
+			trades[i] = Data{Timestamp: startDate.Add(time.Duration(i) * time.Hour), Exchange: "test!", CurrencyPair: cp, AssetType: asset.Spot, Price: 1, Amount: 1, Side: order.Buy}
+		}
+		candles, err := ConvertTradesToCandles(kline.OneHour, trades...)
+		require.NoError(t, err, "ConvertTradesToCandles must not error")
+		require.Len(t, candles.Candles, len(trades), "ConvertTradesToCandles must return a candle per hour")
+		for i := range candles.Candles {
+			assert.Truef(t, candles.Candles[i].Time.Equal(trades[i].Timestamp), "candle %d should be for %s", i, trades[i].Timestamp)
+		}
+	})
 }
 
 func TestShutdown(t *testing.T) {

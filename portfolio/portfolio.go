@@ -562,6 +562,13 @@ func (b *Base) IsColdStorage(address string) bool {
 	})
 }
 
+// GetAddresses returns a copy of the portfolio addresses
+func (b *Base) GetAddresses() []Address {
+	b.mtx.RLock()
+	defer b.mtx.RUnlock()
+	return slices.Clone(b.Addresses)
+}
+
 // IsWhiteListed checks if address is whitelisted for withdraw transfers
 func (b *Base) IsWhiteListed(address string) bool {
 	b.mtx.RLock()
