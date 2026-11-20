@@ -1137,8 +1137,10 @@ func (e *Exchange) GetServerTime(ctx context.Context, a asset.Item) (time.Time, 
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval, in UTC periods. A range starting
-// before the candles BingX holds is reported, rather than padded: for a USDT-M contract with a trading schedule, whose
-// candles stop while its market is closed, a range starting before its launch
+// before the candles BingX holds is reported, rather than padded. A USDT-M contract with a trading schedule has no
+// candles while its market is closed, so a range whose first candle opens after its start, aligned to the interval, is
+// padded only when BingX lists the contract's launch time at or before that start and returns a BTC-USDT candle opening
+// less than one interval of the fetched candles after it, a month counting as 30 days
 func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := e.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
@@ -1156,8 +1158,10 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval, in UTC periods, paging by
 // the most candles each product's endpoint returns a request. A range starting before the candles BingX holds is
-// reported, rather than padded: for a USDT-M contract with a trading schedule, whose candles stop while its market is
-// closed, a range starting before its launch
+// reported, rather than padded. A USDT-M contract with a trading schedule has no candles while its market is closed, so
+// a range whose first candle opens after its start, aligned to the interval, is padded only when BingX lists the
+// contract's launch time at or before that start and returns a BTC-USDT candle opening less than one interval of the
+// fetched candles after it, a month counting as 30 days
 func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	limit, err := candleLimit(a)
 	if err != nil {
@@ -1282,9 +1286,9 @@ func (e *Exchange) candles(ctx context.Context, a asset.Item, pair currency.Pair
 // candle for every period of a crypto symbol, traded or not, so a late first candle means it holds none before it: its
 // retention for the interval ends there, or the symbol was listed later. A USDT-M contract with a trading schedule, such
 // as a forex contract, has no candles while its market is closed, so its late first candle is left for the request
-// processing to pad when the contract launched by the range's start and BingX holds the interval that far back, which
-// BTC-USDT's candle at the start shows, as BingX keeps each interval for the same span on every contract. An empty
-// series is left for the request processing to report
+// processing to pad when BingX lists the contract's launch time at or before the range's start and returns a BTC-USDT
+// candle opening less than the interval's duration after the start, assuming BingX keeps an interval for the same span
+// on every contract. An empty series is left for the request processing to report
 func (e *Exchange) checkCandleHistory(ctx context.Context, a asset.Item, pair currency.Pair, interval kline.Interval, candles []kline.Candle, start time.Time) error {
 	if len(candles) == 0 {
 		return nil

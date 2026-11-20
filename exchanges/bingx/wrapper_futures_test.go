@@ -137,14 +137,17 @@ func TestGetFuturesContractDetails(t *testing.T) {
 			"GET /openApi/cswap/v1/market/contracts":    {`{"code":100500,"msg":"busy"}`, `{"code":0,"data":[{"symbol":"NODASH"}]}`, `{"code":0,"data":[]}`},
 			"GET /openApi/cswap/v1/market/premiumIndex": {`{"code":0,"data":[]}`, `{"code":100500,"msg":"busy"}`},
 		})
+		// Serial, as the cases share one test server
 		for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-			_, err := ex.GetFuturesContractDetails(t.Context(), a)
-			assert.ErrorIsf(t, err, errAPIResponse, "GetFuturesContractDetails should return the %s contracts request's error", a)
-			contracts, err := ex.GetFuturesContractDetails(t.Context(), a)
-			require.NoErrorf(t, err, "GetFuturesContractDetails must skip a %s symbol it cannot read", a)
-			assert.Emptyf(t, contracts, "GetFuturesContractDetails should leave out a %s symbol it cannot read", a)
-			_, err = ex.GetFuturesContractDetails(t.Context(), a)
-			assert.ErrorIsf(t, err, errAPIResponse, "GetFuturesContractDetails should return the %s funding rate request's error", a)
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := ex.GetFuturesContractDetails(t.Context(), a)
+				assert.ErrorIsf(t, err, errAPIResponse, "GetFuturesContractDetails should return the %s contracts request's error", a)
+				contracts, err := ex.GetFuturesContractDetails(t.Context(), a)
+				require.NoErrorf(t, err, "GetFuturesContractDetails must skip a %s symbol it cannot read", a)
+				assert.Emptyf(t, contracts, "GetFuturesContractDetails should leave out a %s symbol it cannot read", a)
+				_, err = ex.GetFuturesContractDetails(t.Context(), a)
+				assert.ErrorIsf(t, err, errAPIResponse, "GetFuturesContractDetails should return the %s funding rate request's error", a)
+			})
 		}
 	})
 }
@@ -158,7 +161,10 @@ func TestSwapContractStatusString(t *testing.T) {
 		SwapContractStatusForbiddenToOpenPositions: "forbidden to open positions",
 		9: "9",
 	} {
-		assert.Equalf(t, exp, swapContractStatusString(status), "swapContractStatusString should name status %d", status)
+		t.Run(exp, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, swapContractStatusString(status), "swapContractStatusString should name status %d", status)
+		})
 	}
 }
 
@@ -181,11 +187,14 @@ func TestSwapFundingInterval(t *testing.T) {
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-		isPerpetual, err := e.IsPerpetualFutureCurrency(a, currency.NewBTCUSDT())
-		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
-		assert.Truef(t, isPerpetual, "IsPerpetualFutureCurrency should report every %s contract perpetual", a)
-		_, err = e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
-		assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "IsPerpetualFutureCurrency should reject an empty %s pair", a)
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			isPerpetual, err := e.IsPerpetualFutureCurrency(a, currency.NewBTCUSDT())
+			require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
+			assert.Truef(t, isPerpetual, "IsPerpetualFutureCurrency should report every %s contract perpetual", a)
+			_, err = e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
+			assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "IsPerpetualFutureCurrency should reject an empty %s pair", a)
+		})
 	}
 	isPerpetual, err := e.IsPerpetualFutureCurrency(asset.Spot, currency.NewBTCUSDT())
 	require.NoError(t, err, "IsPerpetualFutureCurrency must not error for spot")
@@ -225,10 +234,13 @@ func TestContractSettlement(t *testing.T) {
 		{asset.USDTMarginedFutures, currency.NewPair(currency.ETH, currency.USDC), currency.USDC},
 		{asset.CoinMarginedFutures, currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter), currency.BTC},
 	} {
-		code, a, err := contractSettlement(tc.a, tc.pair)
-		require.NoErrorf(t, err, "contractSettlement must not error for %s %s", tc.a, tc.pair)
-		assert.Equalf(t, tc.exp, code, "contractSettlement should settle %s %s in %s", tc.a, tc.pair, tc.exp)
-		assert.Equalf(t, tc.a, a, "contractSettlement should settle %s into its own account", tc.a)
+		t.Run(tc.a.String()+" "+tc.pair.String(), func(t *testing.T) {
+			t.Parallel()
+			code, a, err := contractSettlement(tc.a, tc.pair)
+			require.NoErrorf(t, err, "contractSettlement must not error for %s %s", tc.a, tc.pair)
+			assert.Equalf(t, tc.exp, code, "contractSettlement should settle %s %s in %s", tc.a, tc.pair, tc.exp)
+			assert.Equalf(t, tc.a, a, "contractSettlement should settle %s into its own account", tc.a)
+		})
 	}
 	_, _, err := contractSettlement(asset.USDTMarginedFutures, currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "contractSettlement should reject an empty pair")
@@ -287,18 +299,21 @@ func TestGetLatestFundingRates(t *testing.T) {
 			asset.USDTMarginedFutures: {"BTC-USDT"},
 			asset.CoinMarginedFutures: {},
 		} {
-			rates, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: a})
-			require.NoErrorf(t, err, "GetLatestFundingRates must not error for %s", a)
-			if !mockTests {
-				assert.NotEmptyf(t, rates, "GetLatestFundingRates should return the enabled %s pairs' rates", a)
-				continue
-			}
-			symbols := make([]string, 0, len(rates))
-			for i := range rates {
-				symbols = append(symbols, rates[i].Pair.String())
-				assert.Truef(t, rates[i].PredictedUpcomingRate.Time.IsZero(), "GetLatestFundingRates should leave out a %s predicted rate not requested", a)
-			}
-			assert.Equalf(t, expSymbols, symbols, "GetLatestFundingRates should return the enabled %s pairs' rates", a)
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				rates, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: a})
+				require.NoErrorf(t, err, "GetLatestFundingRates must not error for %s", a)
+				if !mockTests {
+					assert.NotEmptyf(t, rates, "GetLatestFundingRates should return the enabled %s pairs' rates", a)
+					return
+				}
+				symbols := make([]string, 0, len(rates))
+				for i := range rates {
+					symbols = append(symbols, rates[i].Pair.String())
+					assert.Truef(t, rates[i].PredictedUpcomingRate.Time.IsZero(), "GetLatestFundingRates should leave out a %s predicted rate not requested", a)
+				}
+				assert.Equalf(t, expSymbols, symbols, "GetLatestFundingRates should return the enabled %s pairs' rates", a)
+			})
 		}
 	})
 
@@ -308,9 +323,12 @@ func TestGetLatestFundingRates(t *testing.T) {
 			"GET /openApi/swap/v2/quote/premiumIndex":   {`{"code":100500,"msg":"busy"}`},
 			"GET /openApi/cswap/v1/market/premiumIndex": {`{"code":100500,"msg":"busy"}`},
 		})
+		// Serial, as the cases share one test server
 		for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-			_, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: a})
-			assert.ErrorIsf(t, err, errAPIResponse, "GetLatestFundingRates should return the %s request's error", a)
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: a})
+				assert.ErrorIsf(t, err, errAPIResponse, "GetLatestFundingRates should return the %s request's error", a)
+			})
 		}
 	})
 
@@ -321,9 +339,12 @@ func TestGetLatestFundingRates(t *testing.T) {
 			"GET /openApi/cswap/v1/market/premiumIndex": {`{"code":0,"data":[{"symbol":"BTC-USD","lastFundingRate":"0.0001"}]}`},
 		})
 		ex.CurrencyPairs = currency.PairsManager{}
+		// Serial, as the cases share one test server
 		for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-			_, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: a})
-			assert.ErrorContainsf(t, err, "pair matcher is nil", "GetLatestFundingRates should return the %s pair lookup's error", a)
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: a})
+				assert.ErrorContainsf(t, err, "pair matcher is nil", "GetLatestFundingRates should return the %s pair lookup's error", a)
+			})
 		}
 	})
 }
@@ -342,9 +363,12 @@ func TestFundingRatePair(t *testing.T) {
 	assert.True(t, ok, "fundingRatePair should return an enabled pair")
 	assert.Equal(t, usdtMarginedTradablePair.String(), pair.String(), "fundingRatePair should return the symbol's pair")
 	for _, symbol := range []string{"NOPE-USDT", "NODASH"} {
-		_, ok, err = ex.fundingRatePair(every, symbol)
-		require.NoErrorf(t, err, "fundingRatePair must not error for %q", symbol)
-		assert.Falsef(t, ok, "fundingRatePair should leave out %q", symbol)
+		t.Run(symbol, func(t *testing.T) {
+			t.Parallel()
+			_, ok, err := ex.fundingRatePair(every, symbol)
+			require.NoErrorf(t, err, "fundingRatePair must not error for %q", symbol)
+			assert.Falsef(t, ok, "fundingRatePair should leave out %q", symbol)
+		})
 	}
 	_, _, err = new(Exchange).fundingRatePair(every, "BTC-USDT")
 	assert.Error(t, err, "fundingRatePair should return the error of a pair manager without pairs")
@@ -393,8 +417,11 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		{"start after end", &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), StartDate: wrapperFixtureEnd, EndDate: wrapperFixtureStart}, common.ErrStartAfterEnd},
 		{"payment currency", &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), StartDate: wrapperFixtureStart, EndDate: wrapperFixtureEnd, PaymentCurrency: currency.USDC}, common.ErrFunctionNotSupported},
 	} {
-		_, err := e.GetHistoricalFundingRates(t.Context(), tc.r)
-		require.ErrorIsf(t, err, tc.err, "GetHistoricalFundingRates must reject a request with an invalid %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetHistoricalFundingRates(t.Context(), tc.r)
+			require.ErrorIsf(t, err, tc.err, "GetHistoricalFundingRates must reject a request with an invalid %s", tc.name)
+		})
 	}
 
 	t.Run("recorded", func(t *testing.T) {
@@ -584,12 +611,15 @@ func TestSwapFundingRates(t *testing.T) {
 			{"an error", `{"code":100500,"msg":"busy"}`, errAPIResponse},
 			{"a null body", `null`, common.ErrNoResponse},
 		} {
-			ex, requests := wrapperTestServer(t, map[string][]string{
-				"GET /openApi/swap/v2/quote/fundingRate": {wrapperFundingRatePage(start.Add(8*time.Hour), start.Add(16*time.Hour)), tc.body},
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, requests := wrapperTestServer(t, map[string][]string{
+					"GET /openApi/swap/v2/quote/fundingRate": {wrapperFundingRatePage(start.Add(8*time.Hour), start.Add(16*time.Hour)), tc.body},
+				})
+				_, err := ex.swapFundingRates(t.Context(), currency.NewBTCUSDT(), start, start.Add(16*time.Hour))
+				assert.ErrorIsf(t, err, tc.err, "swapFundingRates should return a later page's error rather than the rates before it, for %s", tc.name)
+				assert.Lenf(t, requests(), 2, "swapFundingRates should stop paging at %s", tc.name)
 			})
-			_, err := ex.swapFundingRates(t.Context(), currency.NewBTCUSDT(), start, start.Add(16*time.Hour))
-			assert.ErrorIsf(t, err, tc.err, "swapFundingRates should return a later page's error rather than the rates before it, for %s", tc.name)
-			assert.Lenf(t, requests(), 2, "swapFundingRates should stop paging at %s", tc.name)
 		}
 	})
 
@@ -725,26 +755,29 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 }
 
-func TestLeveragePositionSides(t *testing.T) {
+func TestLeveragePositionSides(t *testing.T) { //nolint:tparallel // The cases run serially, as they share each server's cached position mode
 	t.Parallel()
 	hedge, _ := wrapperTestServer(t, map[string][]string{"GET /openApi/swap/v1/positionSide/dual": {wrapperHedgeModeReply}})
 	oneWay, _ := wrapperTestServer(t, map[string][]string{"GET /openApi/swap/v1/positionSide/dual": {wrapperOneWayModeReply}})
 	for _, tc := range []struct {
+		name string
 		ex   *Exchange
 		a    asset.Item
 		side order.Side
 		exp  []PositionSide
 	}{
-		{hedge, asset.USDTMarginedFutures, order.Long, []PositionSide{PositionSideLong}},
-		{hedge, asset.USDTMarginedFutures, order.Sell, []PositionSide{PositionSideShort}},
-		{hedge, asset.USDTMarginedFutures, order.UnknownSide, []PositionSide{PositionSideLong, PositionSideShort}},
-		{oneWay, asset.USDTMarginedFutures, order.Long, []PositionSide{PositionSideBoth}},
-		{oneWay, asset.CoinMarginedFutures, order.AnySide, []PositionSide{PositionSideLong, PositionSideShort}},
-		{oneWay, asset.CoinMarginedFutures, order.Short, []PositionSide{PositionSideShort}},
+		{"USDT-M hedge long", hedge, asset.USDTMarginedFutures, order.Long, []PositionSide{PositionSideLong}},
+		{"USDT-M hedge sell", hedge, asset.USDTMarginedFutures, order.Sell, []PositionSide{PositionSideShort}},
+		{"USDT-M hedge without a direction", hedge, asset.USDTMarginedFutures, order.UnknownSide, []PositionSide{PositionSideLong, PositionSideShort}},
+		{"USDT-M one-way long", oneWay, asset.USDTMarginedFutures, order.Long, []PositionSide{PositionSideBoth}},
+		{"coin-M any side", oneWay, asset.CoinMarginedFutures, order.AnySide, []PositionSide{PositionSideLong, PositionSideShort}},
+		{"coin-M short", oneWay, asset.CoinMarginedFutures, order.Short, []PositionSide{PositionSideShort}},
 	} {
-		sides, err := tc.ex.leveragePositionSides(t.Context(), tc.a, tc.side)
-		require.NoErrorf(t, err, "leveragePositionSides must not error for %s %s", tc.a, tc.side)
-		assert.Equalf(t, tc.exp, sides, "leveragePositionSides should set %s %s leverage on %v", tc.a, tc.side, tc.exp)
+		t.Run(tc.name, func(t *testing.T) {
+			sides, err := tc.ex.leveragePositionSides(t.Context(), tc.a, tc.side)
+			require.NoErrorf(t, err, "leveragePositionSides must not error for %s %s", tc.a, tc.side)
+			assert.Equalf(t, tc.exp, sides, "leveragePositionSides should set %s %s leverage on %v", tc.a, tc.side, tc.exp)
+		})
 	}
 	failing, _ := wrapperTestServer(t, map[string][]string{"GET /openApi/swap/v1/positionSide/dual": {`{"code":100500,"msg":"busy"}`}})
 	_, err := failing.leveragePositionSides(t.Context(), asset.USDTMarginedFutures, order.Long)
@@ -756,7 +789,10 @@ func TestSetLeverage(t *testing.T) {
 	require.ErrorIs(t, e.SetLeverage(t.Context(), asset.Spot, currency.NewBTCUSDT(), margin.Isolated, 2, order.Long), asset.ErrNotSupported, "SetLeverage must reject an unsupported asset")
 	require.ErrorIs(t, e.SetLeverage(t.Context(), asset.USDTMarginedFutures, currency.EMPTYPAIR, margin.Isolated, 2, order.Long), currency.ErrCurrencyPairEmpty, "SetLeverage must reject an empty pair")
 	for _, amount := range []float64{0, 0.5, 2.5, math.NaN(), math.Inf(1), math.MaxUint32 + 1} {
-		require.ErrorIsf(t, e.SetLeverage(t.Context(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), margin.Isolated, amount, order.Long), errInvalidLeverage, "SetLeverage must reject leverage %v", amount)
+		t.Run("invalid leverage "+strconv.FormatFloat(amount, 'f', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			require.ErrorIsf(t, e.SetLeverage(t.Context(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), margin.Isolated, amount, order.Long), errInvalidLeverage, "SetLeverage must reject leverage %v", amount)
+		})
 	}
 
 	t.Run("recorded", func(t *testing.T) {
@@ -778,9 +814,12 @@ func TestSetLeverage(t *testing.T) {
 		ex := newWrapperTestExchange(t)
 		wrapperSkipIfCannotManipulateOrders(t, ex)
 		for _, a := range wrapperPerpetualAssets {
-			leverage, err := ex.GetLeverage(t.Context(), a, assetToTradablePairMap[a], margin.Unset, order.Long)
-			require.NoErrorf(t, err, "GetLeverage must not error for %s", a)
-			require.NoErrorf(t, ex.SetLeverage(t.Context(), a, assetToTradablePairMap[a], margin.Unset, leverage, order.Long), "SetLeverage must not error for %s", a)
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				leverage, err := ex.GetLeverage(t.Context(), a, assetToTradablePairMap[a], margin.Unset, order.Long)
+				require.NoErrorf(t, err, "GetLeverage must not error for %s", a)
+				require.NoErrorf(t, ex.SetLeverage(t.Context(), a, assetToTradablePairMap[a], margin.Unset, leverage, order.Long), "SetLeverage must not error for %s", a)
+			})
 		}
 	})
 
@@ -904,9 +943,12 @@ func TestGetLeverage(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
 		if !mockTests {
 			for a, p := range map[asset.Item]currency.Pair{asset.USDTMarginedFutures: usdtMarginedTradablePair, asset.CoinMarginedFutures: coinMarginedTradablePair} {
-				leverage, err := ex.GetLeverage(t.Context(), a, p, margin.Multi, order.Long)
-				require.NoErrorf(t, err, "GetLeverage must not error for %s", a)
-				assert.Positivef(t, leverage, "GetLeverage should return the %s leverage", a)
+				t.Run(a.String(), func(t *testing.T) {
+					t.Parallel()
+					leverage, err := ex.GetLeverage(t.Context(), a, p, margin.Multi, order.Long)
+					require.NoErrorf(t, err, "GetLeverage must not error for %s", a)
+					assert.Positivef(t, leverage, "GetLeverage should return the %s leverage", a)
+				})
 			}
 			return
 		}
@@ -915,9 +957,12 @@ func TestGetLeverage(t *testing.T) {
 		assert.Equal(t, 50.0, leverage, "GetLeverage should return the leverage both sides share")
 		btcUSD := currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter)
 		for side, exp := range map[order.Side]float64{order.Long: 4, order.Sell: 8} {
-			leverage, err = ex.GetLeverage(t.Context(), asset.CoinMarginedFutures, btcUSD, margin.Multi, side)
-			require.NoErrorf(t, err, "GetLeverage must not error for %s", side)
-			assert.Equalf(t, exp, leverage, "GetLeverage should return the %s side's leverage", side)
+			t.Run(side.String(), func(t *testing.T) {
+				t.Parallel()
+				leverage, err := ex.GetLeverage(t.Context(), asset.CoinMarginedFutures, btcUSD, margin.Multi, side)
+				require.NoErrorf(t, err, "GetLeverage must not error for %s", side)
+				assert.Equalf(t, exp, leverage, "GetLeverage should return the %s side's leverage", side)
+			})
 		}
 		_, err = ex.GetLeverage(t.Context(), asset.CoinMarginedFutures, btcUSD, margin.Multi, order.UnknownSide)
 		assert.ErrorIs(t, err, errPositionDirectionRequired, "GetLeverage should require a direction while the sides' leverage differs")
@@ -929,9 +974,12 @@ func TestGetLeverage(t *testing.T) {
 			"GET /openApi/swap/v2/trade/leverage":  {`{"code":100500,"msg":"busy"}`},
 			"GET /openApi/cswap/v1/trade/leverage": {`{"code":100500,"msg":"busy"}`},
 		})
+		// Serial, as the cases share one test server
 		for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-			_, err := ex.GetLeverage(t.Context(), a, currency.NewBTCUSDT(), margin.Multi, order.Long)
-			assert.ErrorIsf(t, err, errAPIResponse, "GetLeverage should return the %s request's error", a)
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := ex.GetLeverage(t.Context(), a, currency.NewBTCUSDT(), margin.Multi, order.Long)
+				assert.ErrorIsf(t, err, errAPIResponse, "GetLeverage should return the %s request's error", a)
+			})
 		}
 	})
 }
@@ -939,22 +987,38 @@ func TestGetLeverage(t *testing.T) {
 func TestFormatMarginType(t *testing.T) {
 	t.Parallel()
 	for mt, exp := range map[margin.Type]MarginType{margin.Isolated: MarginTypeIsolated, margin.Multi: MarginTypeCrossed} {
-		got, err := formatMarginType(mt)
-		require.NoErrorf(t, err, "formatMarginType must not error for %s", mt)
-		assert.Equalf(t, exp, got, "formatMarginType should format %s", mt)
+		t.Run(mt.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := formatMarginType(mt)
+			require.NoErrorf(t, err, "formatMarginType must not error for %s", mt)
+			assert.Equalf(t, exp, got, "formatMarginType should format %s", mt)
+		})
 	}
-	for _, mt := range []margin.Type{margin.Unset, margin.SpotIsolated, margin.NoMargin} {
-		_, err := formatMarginType(mt)
-		assert.ErrorIsf(t, err, margin.ErrInvalidMarginType, "formatMarginType should reject %s", mt)
+	for _, tc := range []struct {
+		name string
+		mt   margin.Type
+	}{
+		{"unset", margin.Unset},
+		{"spot isolated", margin.SpotIsolated},
+		{"no margin", margin.NoMargin},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := formatMarginType(tc.mt)
+			assert.ErrorIsf(t, err, margin.ErrInvalidMarginType, "formatMarginType should reject %s", tc.mt)
+		})
 	}
 }
 
 func TestConvertMarginType(t *testing.T) {
 	t.Parallel()
 	for mt, exp := range map[MarginType]margin.Type{MarginTypeIsolated: margin.Isolated, MarginTypeSeparateIsolated: margin.Isolated, MarginTypeCrossed: margin.Multi} {
-		got, err := convertMarginType(mt)
-		require.NoErrorf(t, err, "convertMarginType must not error for %s", mt)
-		assert.Equalf(t, exp, got, "convertMarginType should convert %s", mt)
+		t.Run(string(mt), func(t *testing.T) {
+			t.Parallel()
+			got, err := convertMarginType(mt)
+			require.NoErrorf(t, err, "convertMarginType must not error for %s", mt)
+			assert.Equalf(t, exp, got, "convertMarginType should convert %s", mt)
+		})
 	}
 	got, err := convertMarginType("CROSS")
 	assert.ErrorIs(t, err, margin.ErrInvalidMarginType, "convertMarginType should reject an unknown margin type")
@@ -985,14 +1049,17 @@ func TestSetMarginType(t *testing.T) {
 		ex := newWrapperTestExchange(t)
 		wrapperSkipIfCannotManipulateOrders(t, ex)
 		for _, a := range wrapperPerpetualAssets {
-			current := wrapperLiveMarginType(t, ex, a)
-			other := margin.Isolated
-			if current == margin.Isolated {
-				other = margin.Multi
-			}
-			require.NoErrorf(t, ex.SetMarginType(t.Context(), a, assetToTradablePairMap[a], other), "SetMarginType must not error for %s %s", a, other)
-			assert.Equalf(t, other, wrapperLiveMarginType(t, ex, a), "SetMarginType should set the %s margin type", a)
-			require.NoErrorf(t, ex.SetMarginType(t.Context(), a, assetToTradablePairMap[a], current), "SetMarginType must not error for %s %s", a, current)
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				current := wrapperLiveMarginType(t, ex, a)
+				other := margin.Isolated
+				if current == margin.Isolated {
+					other = margin.Multi
+				}
+				require.NoErrorf(t, ex.SetMarginType(t.Context(), a, assetToTradablePairMap[a], other), "SetMarginType must not error for %s %s", a, other)
+				assert.Equalf(t, other, wrapperLiveMarginType(t, ex, a), "SetMarginType should set the %s margin type", a)
+				require.NoErrorf(t, ex.SetMarginType(t.Context(), a, assetToTradablePairMap[a], current), "SetMarginType must not error for %s %s", a, current)
+			})
 		}
 	})
 
@@ -1002,8 +1069,11 @@ func TestSetMarginType(t *testing.T) {
 			"POST /openApi/swap/v2/trade/marginType":  {`{"code":100500,"msg":"busy"}`},
 			"POST /openApi/cswap/v1/trade/marginType": {`{"code":100500,"msg":"busy"}`},
 		})
+		// Serial, as the cases share one test server
 		for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-			assert.ErrorIsf(t, ex.SetMarginType(t.Context(), a, currency.NewBTCUSDT(), margin.Isolated), errAPIResponse, "SetMarginType should return the %s request's error", a)
+			t.Run(a.String(), func(t *testing.T) {
+				assert.ErrorIsf(t, ex.SetMarginType(t.Context(), a, currency.NewBTCUSDT(), margin.Isolated), errAPIResponse, "SetMarginType should return the %s request's error", a)
+			})
 		}
 	})
 }
@@ -1028,8 +1098,11 @@ func TestChangePositionMargin(t *testing.T) {
 		{"unchanged margin", &margin.PositionChangeRequest{Asset: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OriginalAllocatedMargin: 1.1, NewAllocatedMargin: 1.1}, errMarginChangeRequired},
 		{"coin-M side", &margin.PositionChangeRequest{Asset: asset.CoinMarginedFutures, Pair: btcUSD, OriginalAllocatedMargin: 1, NewAllocatedMargin: 2}, errPositionSideRequired},
 	} {
-		_, err := e.ChangePositionMargin(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "ChangePositionMargin must reject a request with an invalid %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.ChangePositionMargin(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "ChangePositionMargin must reject a request with an invalid %s", tc.name)
+		})
 	}
 
 	t.Run("recorded", func(t *testing.T) {
@@ -1043,9 +1116,12 @@ func TestChangePositionMargin(t *testing.T) {
 			{Exchange: ex.Name, Asset: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), MarginType: margin.Isolated, OriginalAllocatedMargin: 10, NewAllocatedMargin: 13, MarginSide: "long"},
 			{Exchange: ex.Name, Asset: asset.CoinMarginedFutures, Pair: btcUSD, MarginType: margin.Isolated, OriginalAllocatedMargin: 1, NewAllocatedMargin: 1.01, MarginSide: "LONG"},
 		} {
-			resp, err := ex.ChangePositionMargin(t.Context(), req)
-			require.NoErrorf(t, err, "ChangePositionMargin must not error for %s", req.Asset)
-			assert.Equalf(t, &margin.PositionChangeResponse{Exchange: ex.Name, Pair: req.Pair, Asset: req.Asset, MarginType: margin.Isolated, AllocatedMargin: req.NewAllocatedMargin}, resp, "ChangePositionMargin should report the %s position's new margin", req.Asset)
+			t.Run(req.Asset.String(), func(t *testing.T) {
+				t.Parallel()
+				resp, err := ex.ChangePositionMargin(t.Context(), req)
+				require.NoErrorf(t, err, "ChangePositionMargin must not error for %s", req.Asset)
+				assert.Equalf(t, &margin.PositionChangeResponse{Exchange: ex.Name, Pair: req.Pair, Asset: req.Asset, MarginType: margin.Isolated, AllocatedMargin: req.NewAllocatedMargin}, resp, "ChangePositionMargin should report the %s position's new margin", req.Asset)
+			})
 		}
 	})
 
@@ -1063,14 +1139,17 @@ func TestChangePositionMargin(t *testing.T) {
 			{asset.USDTMarginedFutures, 10.1},
 			{asset.CoinMarginedFutures, 1.0001},
 		} {
-			sides, err := ex.leveragePositionSides(t.Context(), tc.a, order.Long)
-			require.NoErrorf(t, err, "leveragePositionSides must not error for %s", tc.a)
-			resp, err := ex.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Exchange: ex.Name, Asset: tc.a, Pair: assetToTradablePairMap[tc.a], MarginType: margin.Isolated, OriginalAllocatedMargin: math.Trunc(tc.margin), NewAllocatedMargin: tc.margin, MarginSide: string(sides[0])})
-			if err != nil {
-				requireAPIErrorCode(t, err, livePositionStateCodes...)
-				continue
-			}
-			assert.Equalf(t, tc.margin, resp.AllocatedMargin, "ChangePositionMargin should report the %s position's new margin", tc.a)
+			t.Run(tc.a.String(), func(t *testing.T) {
+				t.Parallel()
+				sides, err := ex.leveragePositionSides(t.Context(), tc.a, order.Long)
+				require.NoErrorf(t, err, "leveragePositionSides must not error for %s", tc.a)
+				resp, err := ex.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Exchange: ex.Name, Asset: tc.a, Pair: assetToTradablePairMap[tc.a], MarginType: margin.Isolated, OriginalAllocatedMargin: math.Trunc(tc.margin), NewAllocatedMargin: tc.margin, MarginSide: string(sides[0])})
+				if err != nil {
+					requireAPIErrorCode(t, err, livePositionStateCodes...)
+					return
+				}
+				assert.Equalf(t, tc.margin, resp.AllocatedMargin, "ChangePositionMargin should report the %s position's new margin", tc.a)
+			})
 		}
 	})
 
@@ -1096,20 +1175,24 @@ func TestChangePositionMargin(t *testing.T) {
 func TestSummaryPositionSide(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name      string
 		direction order.Side
 		sides     []PositionSide
 		exp       PositionSide
 	}{
-		{order.Long, nil, PositionSideLong},
-		{order.Sell, []PositionSide{PositionSideLong}, PositionSideShort},
-		{order.UnknownSide, []PositionSide{PositionSideBoth}, PositionSideBoth},
-		{order.UnknownSide, nil, PositionSideBoth},
-		{order.AnySide, []PositionSide{PositionSideLong}, PositionSideLong},
-		{order.UnknownSide, []PositionSide{PositionSideShort}, PositionSideShort},
+		{"long without open sides", order.Long, nil, PositionSideLong},
+		{"sell with a long side open", order.Sell, []PositionSide{PositionSideLong}, PositionSideShort},
+		{"no direction with a one-way side open", order.UnknownSide, []PositionSide{PositionSideBoth}, PositionSideBoth},
+		{"no direction without open sides", order.UnknownSide, nil, PositionSideBoth},
+		{"any direction with a long side open", order.AnySide, []PositionSide{PositionSideLong}, PositionSideLong},
+		{"no direction with a short side open", order.UnknownSide, []PositionSide{PositionSideShort}, PositionSideShort},
 	} {
-		side, err := summaryPositionSide(tc.direction, tc.sides)
-		require.NoErrorf(t, err, "summaryPositionSide must not error for %s %v", tc.direction, tc.sides)
-		assert.Equalf(t, tc.exp, side, "summaryPositionSide should summarise %s with sides %v open on %s", tc.direction, tc.sides, tc.exp)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			side, err := summaryPositionSide(tc.direction, tc.sides)
+			require.NoErrorf(t, err, "summaryPositionSide must not error for %s %v", tc.direction, tc.sides)
+			assert.Equalf(t, tc.exp, side, "summaryPositionSide should summarise %s with sides %v open on %s", tc.direction, tc.sides, tc.exp)
+		})
 	}
 	_, err := summaryPositionSide(order.UnknownSide, []PositionSide{PositionSideLong, PositionSideShort})
 	assert.ErrorIs(t, err, errPositionDirectionRequired, "summaryPositionSide should require a direction while both sides are open")
@@ -1158,13 +1241,16 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 		ex := newWrapperTestExchange(t)
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
 		for _, a := range wrapperPerpetualAssets {
-			summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: a, Pair: assetToTradablePairMap[a]})
-			if errors.Is(err, futures.ErrNoPositionsFound) || errors.Is(err, errPositionDirectionRequired) {
-				continue
-			}
-			require.NoErrorf(t, err, "GetFuturesPositionSummary must not error for %s", a)
-			assert.Equalf(t, assetToTradablePairMap[a], summary.Pair, "GetFuturesPositionSummary should summarise the %s pair", a)
-			assert.Equalf(t, a, summary.Asset, "GetFuturesPositionSummary should summarise the %s position", a)
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: a, Pair: assetToTradablePairMap[a]})
+				if errors.Is(err, futures.ErrNoPositionsFound) || errors.Is(err, errPositionDirectionRequired) {
+					return
+				}
+				require.NoErrorf(t, err, "GetFuturesPositionSummary must not error for %s", a)
+				assert.Equalf(t, assetToTradablePairMap[a], summary.Pair, "GetFuturesPositionSummary should summarise the %s pair", a)
+				assert.Equalf(t, a, summary.Asset, "GetFuturesPositionSummary should summarise the %s position", a)
+			})
 		}
 	})
 }
@@ -1271,8 +1357,11 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 		{"start", &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSDT()}}, common.ErrDateUnset},
 		{"range", &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSDT()}, StartDate: start, EndDate: start.Add(-time.Hour)}, common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetFuturesPositionOrders(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetFuturesPositionOrders must reject a request with an invalid %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetFuturesPositionOrders(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetFuturesPositionOrders must reject a request with an invalid %s", tc.name)
+		})
 	}
 
 	t.Run("recorded", func(t *testing.T) {
@@ -1302,13 +1391,16 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
 		settlement := map[asset.Item]futures.ContractSettlementType{asset.USDTMarginedFutures: futures.Linear, asset.CoinMarginedFutures: futures.Inverse}
 		for _, a := range wrapperPerpetualAssets {
-			pair := assetToTradablePairMap[a]
-			resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: a, Pairs: currency.Pairs{pair}, StartDate: time.Now().Add(-24 * time.Hour)})
-			require.NoErrorf(t, err, "GetFuturesPositionOrders must not error for %s", a)
-			require.Lenf(t, resp, 1, "GetFuturesPositionOrders must return the %s pair's position", a)
-			assert.Equalf(t, pair, resp[0].Pair, "GetFuturesPositionOrders should return the %s pair's position", a)
-			assert.Equalf(t, a, resp[0].Asset, "GetFuturesPositionOrders should return the %s position", a)
-			assert.Equalf(t, settlement[a], resp[0].ContractSettlementType, "GetFuturesPositionOrders should report the %s contract's settlement", a)
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				pair := assetToTradablePairMap[a]
+				resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: a, Pairs: currency.Pairs{pair}, StartDate: time.Now().Add(-24 * time.Hour)})
+				require.NoErrorf(t, err, "GetFuturesPositionOrders must not error for %s", a)
+				require.Lenf(t, resp, 1, "GetFuturesPositionOrders must return the %s pair's position", a)
+				assert.Equalf(t, pair, resp[0].Pair, "GetFuturesPositionOrders should return the %s pair's position", a)
+				assert.Equalf(t, a, resp[0].Asset, "GetFuturesPositionOrders should return the %s position", a)
+				assert.Equalf(t, settlement[a], resp[0].ContractSettlementType, "GetFuturesPositionOrders should report the %s contract's settlement", a)
+			})
 		}
 	})
 

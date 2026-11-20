@@ -1,6 +1,8 @@
 package bingx
 
 import (
+	"cmp"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -117,32 +119,47 @@ func TestConvertCoinMarginedOrderStatus(t *testing.T) {
 		"Unknown":   order.UnknownStatus,
 		"UNKNOWN":   order.UnknownStatus,
 	} {
-		got, err := convertCoinMarginedOrderStatus(status)
-		require.NoErrorf(t, err, "convertCoinMarginedOrderStatus must not error for %s", status)
-		assert.Equalf(t, exp, got, "convertCoinMarginedOrderStatus should convert %s in any case", status)
+		t.Run(status, func(t *testing.T) {
+			t.Parallel()
+			got, err := convertCoinMarginedOrderStatus(status)
+			require.NoErrorf(t, err, "convertCoinMarginedOrderStatus must not error for %s", status)
+			assert.Equalf(t, exp, got, "convertCoinMarginedOrderStatus should convert %s in any case", status)
+		})
 	}
-	got, err := convertCoinMarginedOrderStatus("Settled")
-	assert.ErrorIs(t, err, order.ErrUnsupportedStatusType, "convertCoinMarginedOrderStatus should reject an unknown status")
-	assert.Equal(t, order.UnknownStatus, got, "convertCoinMarginedOrderStatus should return no status for an unknown one")
+	t.Run("unknown status", func(t *testing.T) {
+		t.Parallel()
+		got, err := convertCoinMarginedOrderStatus("Settled")
+		assert.ErrorIs(t, err, order.ErrUnsupportedStatusType, "convertCoinMarginedOrderStatus should reject an unknown status")
+		assert.Equal(t, order.UnknownStatus, got, "convertCoinMarginedOrderStatus should return no status for an unknown one")
+	})
 }
 
 func TestConvertPositionSide(t *testing.T) {
 	t.Parallel()
 	for side, exp := range map[string]PositionSide{"LONG": PositionSideLong, "Long": PositionSideLong, "short": PositionSideShort, "BOTH": PositionSideBoth, "": ""} {
-		assert.Equalf(t, exp, convertPositionSide(side), "convertPositionSide should convert %q in any case", side)
+		t.Run(cmp.Or(side, "empty"), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, convertPositionSide(side), "convertPositionSide should convert %q in any case", side)
+		})
 	}
 }
 
 func TestFormatOrderSide(t *testing.T) {
 	t.Parallel()
 	for side, exp := range map[order.Side]Side{order.Buy: SideBuy, order.Bid: SideBuy, order.Long: SideBuy, order.Sell: SideSell, order.Ask: SideSell, order.Short: SideSell} {
-		got, err := formatOrderSide(side)
-		require.NoErrorf(t, err, "formatOrderSide must not error for %s", side)
-		assert.Equalf(t, exp, got, "formatOrderSide should format %s", side)
+		t.Run(side.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := formatOrderSide(side)
+			require.NoErrorf(t, err, "formatOrderSide must not error for %s", side)
+			assert.Equalf(t, exp, got, "formatOrderSide should format %s", side)
+		})
 	}
 	for _, side := range []order.Side{order.UnknownSide, order.AnySide, order.ClosePosition} {
-		_, err := formatOrderSide(side)
-		assert.ErrorIsf(t, err, order.ErrSideIsInvalid, "formatOrderSide should reject %s", side)
+		t.Run(side.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := formatOrderSide(side)
+			assert.ErrorIsf(t, err, order.ErrSideIsInvalid, "formatOrderSide should reject %s", side)
+		})
 	}
 }
 
@@ -161,7 +178,10 @@ func TestResolveOrderType(t *testing.T) {
 		{order.StopLimit, 0, order.StopLimit},
 		{order.TrailingStop, 1, order.TrailingStop},
 	} {
-		assert.Equalf(t, tc.exp, resolveOrderType(tc.orderType, tc.price), "resolveOrderType should place %s with price %v as %s", tc.orderType, tc.price, tc.exp)
+		t.Run(fmt.Sprintf("%s with price %v", tc.orderType, tc.price), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, resolveOrderType(tc.orderType, tc.price), "resolveOrderType should place %s with price %v as %s", tc.orderType, tc.price, tc.exp)
+		})
 	}
 }
 
@@ -188,9 +208,12 @@ func TestFormatOrderType(t *testing.T) {
 		{asset.CoinMarginedFutures, order.TakeProfit, OrderTypeTakeProfit},
 		{asset.CoinMarginedFutures, order.TakeProfitMarket, OrderTypeTakeProfitMarket},
 	} {
-		got, err := formatOrderType(tc.a, tc.orderType)
-		require.NoErrorf(t, err, "formatOrderType must not error for %s %s", tc.a, tc.orderType)
-		assert.Equalf(t, tc.exp, got, "formatOrderType should format %s %s", tc.a, tc.orderType)
+		t.Run(tc.a.String()+" "+tc.orderType.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := formatOrderType(tc.a, tc.orderType)
+			require.NoErrorf(t, err, "formatOrderType must not error for %s %s", tc.a, tc.orderType)
+			assert.Equalf(t, tc.exp, got, "formatOrderType should format %s %s", tc.a, tc.orderType)
+		})
 	}
 	for _, tc := range []struct {
 		a         asset.Item
@@ -202,8 +225,11 @@ func TestFormatOrderType(t *testing.T) {
 		{asset.USDTMarginedFutures, order.Stop},
 		{asset.Futures, order.StopLimit},
 	} {
-		_, err := formatOrderType(tc.a, tc.orderType)
-		assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "formatOrderType should reject %s %s", tc.a, tc.orderType)
+		t.Run(tc.a.String()+" "+tc.orderType.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := formatOrderType(tc.a, tc.orderType)
+			assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "formatOrderType should reject %s %s", tc.a, tc.orderType)
+		})
 	}
 }
 
@@ -222,7 +248,10 @@ func TestOrderTypeTakesPrice(t *testing.T) {
 		OrderTypeTriggerMarket:      false,
 		OrderTypeTrailingStopMarket: false,
 	} {
-		assert.Equalf(t, exp, orderTypeTakesPrice(orderType), "orderTypeTakesPrice should report whether %s takes a price", orderType)
+		t.Run(string(orderType), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, orderTypeTakesPrice(orderType), "orderTypeTakesPrice should report whether %s takes a price", orderType)
+		})
 	}
 }
 
@@ -241,7 +270,10 @@ func TestOrderTypeTakesTrigger(t *testing.T) {
 		OrderTypeMarket:             false,
 		OrderTypeTrailingStopMarket: false,
 	} {
-		assert.Equalf(t, exp, orderTypeTakesTrigger(orderType), "orderTypeTakesTrigger should report whether %s triggers at a stop price", orderType)
+		t.Run(string(orderType), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, orderTypeTakesTrigger(orderType), "orderTypeTakesTrigger should report whether %s triggers at a stop price", orderType)
+		})
 	}
 }
 
@@ -254,7 +286,10 @@ func TestOrderTypeTrails(t *testing.T) {
 		OrderTypeLimit:                        false,
 		OrderTypeTakeStopMarket:               false,
 	} {
-		assert.Equalf(t, exp, orderTypeTrails(orderType), "orderTypeTrails should report whether %s trails the price", orderType)
+		t.Run(string(orderType), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, orderTypeTrails(orderType), "orderTypeTrails should report whether %s trails the price", orderType)
+		})
 	}
 }
 
@@ -268,13 +303,19 @@ func TestFormatTimeInForce(t *testing.T) {
 		order.PostOnly:                        TimeInForcePostOnly,
 		order.PostOnly | order.GoodTillCancel: TimeInForcePostOnly,
 	} {
-		got, err := formatTimeInForce(timeInForce)
-		require.NoErrorf(t, err, "formatTimeInForce must not error for %s", timeInForce)
-		assert.Equalf(t, exp, got, "formatTimeInForce should format %s", timeInForce)
+		t.Run(cmp.Or(timeInForce.String(), "unset"), func(t *testing.T) {
+			t.Parallel()
+			got, err := formatTimeInForce(timeInForce)
+			require.NoErrorf(t, err, "formatTimeInForce must not error for %s", timeInForce)
+			assert.Equalf(t, exp, got, "formatTimeInForce should format %s", timeInForce)
+		})
 	}
 	for _, timeInForce := range []order.TimeInForce{order.GoodTillDay, order.PostOnly | order.ImmediateOrCancel} {
-		_, err := formatTimeInForce(timeInForce)
-		assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "formatTimeInForce should reject %s", timeInForce)
+		t.Run(timeInForce.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := formatTimeInForce(timeInForce)
+			assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "formatTimeInForce should reject %s", timeInForce)
+		})
 	}
 }
 
@@ -285,10 +326,16 @@ func TestFormatWorkingType(t *testing.T) {
 		order.MarkPrice:  WorkingTypeMarkPrice,
 		order.IndexPrice: WorkingTypeIndexPrice,
 	} {
-		got, err := formatWorkingType(priceType)
-		require.NoErrorf(t, err, "formatWorkingType must not error for %s", priceType)
-		assert.Equalf(t, exp, got, "formatWorkingType should format %s", priceType)
+		t.Run(priceType.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := formatWorkingType(priceType)
+			require.NoErrorf(t, err, "formatWorkingType must not error for %s", priceType)
+			assert.Equalf(t, exp, got, "formatWorkingType should format %s", priceType)
+		})
 	}
-	_, err := formatWorkingType(order.PriceType(99))
-	assert.ErrorIs(t, err, order.ErrUnknownPriceType, "formatWorkingType should reject an unknown price type")
+	t.Run("unknown price type", func(t *testing.T) {
+		t.Parallel()
+		_, err := formatWorkingType(order.PriceType(99))
+		assert.ErrorIs(t, err, order.ErrUnknownPriceType, "formatWorkingType should reject an unknown price type")
+	})
 }

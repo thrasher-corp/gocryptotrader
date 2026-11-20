@@ -221,10 +221,13 @@ func TestSwapTradeOrder(t *testing.T) {
 	_, err = e.swapTradeOrder(arg)
 	require.ErrorIs(t, err, errSwapClosePositionWithReduceOnly, "swapTradeOrder must reject close position with reduce only")
 	arg.ClosePosition = false
+	// Serial, as the steps below go on to change arg
 	for _, side := range []PositionSide{PositionSideLong, PositionSideShort} {
-		arg.PositionSide = side
-		_, err = e.swapTradeOrder(arg)
-		require.ErrorIsf(t, err, errSwapReduceOnlyInHedgeMode, "swapTradeOrder must reject reduce only with position side %s", side)
+		t.Run("reduce only "+string(side), func(t *testing.T) {
+			arg.PositionSide = side
+			_, err := e.swapTradeOrder(arg)
+			require.ErrorIsf(t, err, errSwapReduceOnlyInHedgeMode, "swapTradeOrder must reject reduce only with position side %s", side)
+		})
 	}
 	arg.PositionSide = PositionSideBoth
 	arg.StopLoss = &SwapTakeProfitStopLossRequest{Type: OrderTypeStop, StopPrice: math.NaN()}
@@ -496,17 +499,21 @@ func TestSwapTradeOrderIDParams(t *testing.T) {
 	_, err = e.swapTradeOrderIDParams(currency.NewBTCUSDT(), 0, "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "swapTradeOrderIDParams must reject a missing order ID")
 	for _, tc := range []struct {
+		name          string
 		orderID       uint64
 		clientOrderID string
 		exp           url.Values
 	}{
-		{1736011869418901234, "", url.Values{"symbol": {"BTC-USDT"}, "orderId": {"1736011869418901234"}}},
-		{0, "abc", url.Values{"symbol": {"BTC-USDT"}, "clientOrderId": {"abc"}}},
-		{1, "abc", url.Values{"symbol": {"BTC-USDT"}, "orderId": {"1"}, "clientOrderId": {"abc"}}},
+		{"order ID", 1736011869418901234, "", url.Values{"symbol": {"BTC-USDT"}, "orderId": {"1736011869418901234"}}},
+		{"client order ID", 0, "abc", url.Values{"symbol": {"BTC-USDT"}, "clientOrderId": {"abc"}}},
+		{"both IDs", 1, "abc", url.Values{"symbol": {"BTC-USDT"}, "orderId": {"1"}, "clientOrderId": {"abc"}}},
 	} {
-		params, err := e.swapTradeOrderIDParams(currency.NewBTCUSDT(), tc.orderID, tc.clientOrderID)
-		require.NoErrorf(t, err, "swapTradeOrderIDParams must not error for order ID %d and client order ID %q", tc.orderID, tc.clientOrderID)
-		assert.Equalf(t, tc.exp, params, "swapTradeOrderIDParams should send the IDs given for order ID %d and client order ID %q", tc.orderID, tc.clientOrderID)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params, err := e.swapTradeOrderIDParams(currency.NewBTCUSDT(), tc.orderID, tc.clientOrderID)
+			require.NoErrorf(t, err, "swapTradeOrderIDParams must not error for order ID %d and client order ID %q", tc.orderID, tc.clientOrderID)
+			assert.Equalf(t, tc.exp, params, "swapTradeOrderIDParams should send the IDs given for order ID %d and client order ID %q", tc.orderID, tc.clientOrderID)
+		})
 	}
 }
 
@@ -1491,34 +1498,62 @@ func TestApplySwapVST(t *testing.T) {
 
 	t.Run("adjustment", func(t *testing.T) {
 		t.Parallel()
-		for _, adjustType := range []VSTAdjustType{VSTAdjustTypeIncrease, VSTAdjustTypeDecrease} {
-			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, http.MethodPost, r.Method, "method should be POST")
-				assert.Equal(t, "/openApi/swap/v2/trade/getVst", r.URL.Path, "path should be the Apply VST path")
-				assert.Equalf(t, url.Values{"adjustType": {string(adjustType)}, "amount": {"1000"}}, swapTradeBusinessParams(r), "adjustment %s and its amount should be sent", adjustType)
-				_, _ = io.WriteString(w, `{"code":0,"msg":"","data":{"adjustType":"`+string(adjustType)+`","amount":"1000"}}`)
+		for _, tc := range []struct {
+			name       string
+			adjustType VSTAdjustType
+		}{
+			{"increase", VSTAdjustTypeIncrease},
+			{"decrease", VSTAdjustTypeDecrease},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, http.MethodPost, r.Method, "method should be POST")
+					assert.Equal(t, "/openApi/swap/v2/trade/getVst", r.URL.Path, "path should be the Apply VST path")
+					assert.Equalf(t, url.Values{"adjustType": {string(tc.adjustType)}, "amount": {"1000"}}, swapTradeBusinessParams(r), "adjustment %s and its amount should be sent", tc.adjustType)
+					_, _ = io.WriteString(w, `{"code":0,"msg":"","data":{"adjustType":"`+string(tc.adjustType)+`","amount":"1000"}}`)
+				})
+				got, err := ex.ApplySwapVST(t.Context(), tc.adjustType, 1000)
+				require.NoErrorf(t, err, "ApplySwapVST must not error for adjustment %s", tc.adjustType)
+				assert.Equalf(t, &ApplySwapVSTResponse{AdjustType: tc.adjustType, Amount: 1000}, got, "ApplySwapVST should decode adjustment %s", tc.adjustType)
 			})
-			got, err := ex.ApplySwapVST(t.Context(), adjustType, 1000)
-			require.NoErrorf(t, err, "ApplySwapVST must not error for adjustment %s", adjustType)
-			assert.Equalf(t, &ApplySwapVSTResponse{AdjustType: adjustType, Amount: 1000}, got, "ApplySwapVST should decode adjustment %s", adjustType)
 		}
 	})
 
-	if !mockTests {
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("VST is adjusted on the demo trading host in the live build alone")
+		}
 		ex := newWrapperTestExchange(t)
 		wrapperSkipIfCannotManipulateOrders(t, ex)
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), "https://open-api-vst.bingx.com"), "SetRunningURL must not error")
-		for _, adjustType := range []VSTAdjustType{VSTAdjustTypeIncrease, VSTAdjustTypeDecrease} {
-			result, err = ex.ApplySwapVST(t.Context(), adjustType, 1000)
-			require.NoErrorf(t, err, "ApplySwapVST must not error for adjustment %s", adjustType)
-			assert.Equalf(t, &ApplySwapVSTResponse{AdjustType: adjustType, Amount: 1000}, result, "ApplySwapVST should make adjustment %s on the demo trading host", adjustType)
+		// Serial, so the decrease takes back the increase
+		for _, tc := range []struct {
+			name       string
+			adjustType VSTAdjustType
+		}{
+			{"increase", VSTAdjustTypeIncrease},
+			{"decrease", VSTAdjustTypeDecrease},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				got, err := ex.ApplySwapVST(t.Context(), tc.adjustType, 1000)
+				require.NoErrorf(t, err, "ApplySwapVST must not error for adjustment %s", tc.adjustType)
+				assert.Equalf(t, &ApplySwapVSTResponse{AdjustType: tc.adjustType, Amount: 1000}, got, "ApplySwapVST should make adjustment %s on the demo trading host", tc.adjustType)
+			})
 		}
-		return
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err = e.ApplySwapVST(t.Context(), VSTAdjustTypeIncrease, 500000)
-	require.NoError(t, err, "ApplySwapVST must not error")
-	assert.Equal(t, &ApplySwapVSTResponse{AdjustType: VSTAdjustTypeIncrease, Amount: 500000}, result, "ApplySwapVST should decode the documented example")
+	})
+
+	t.Run("documented example", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the documented example is recorded for the mock build alone")
+		}
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		result, err := e.ApplySwapVST(t.Context(), VSTAdjustTypeIncrease, 500000)
+		require.NoError(t, err, "ApplySwapVST must not error")
+		assert.Equal(t, &ApplySwapVSTResponse{AdjustType: VSTAdjustTypeIncrease, Amount: 500000}, result, "ApplySwapVST should decode the documented example")
+	})
 }
 
 func TestPlaceSwapTWAPOrder(t *testing.T) {
@@ -1835,12 +1870,15 @@ func TestStopGuaranteedUnmarshalJSON(t *testing.T) {
 		{`"cutfee"`, StopGuaranteedCutFee},
 		{`""`, ""},
 	} {
-		var s StopGuaranteed
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.raw), &s), "Unmarshal must not error for %s", tc.raw)
-		assert.Equalf(t, tc.exp, s, "Unmarshal should decode %s", tc.raw)
-		direct := StopGuaranteed("unset")
-		require.NoErrorf(t, direct.UnmarshalJSON([]byte(tc.raw)), "UnmarshalJSON must not error for %s", tc.raw)
-		assert.Equalf(t, tc.exp, direct, "UnmarshalJSON should decode %s", tc.raw)
+		t.Run(tc.raw, func(t *testing.T) {
+			t.Parallel()
+			var s StopGuaranteed
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.raw), &s), "Unmarshal must not error for %s", tc.raw)
+			assert.Equalf(t, tc.exp, s, "Unmarshal should decode %s", tc.raw)
+			direct := StopGuaranteed("unset")
+			require.NoErrorf(t, direct.UnmarshalJSON([]byte(tc.raw)), "UnmarshalJSON must not error for %s", tc.raw)
+			assert.Equalf(t, tc.exp, direct, "UnmarshalJSON should decode %s", tc.raw)
+		})
 	}
 	s := StopGuaranteedCutFee
 	require.NoError(t, json.Unmarshal([]byte(`null`), &s), "Unmarshal must not error for null")

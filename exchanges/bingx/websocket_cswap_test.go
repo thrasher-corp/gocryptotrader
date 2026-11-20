@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -169,7 +170,7 @@ func TestWebsocketProcessCoinMarginedKline(t *testing.T) {
 	assert.Error(t, ex.wsProcessCoinMarginedKline(t.Context(), "1m", nil, []byte(`{"u":"x"}`)), "wsProcessCoinMarginedKline should error for a candle that does not decode")
 }
 
-func TestWebsocketProcessCoinMarginedOrderbook(t *testing.T) {
+func TestWebsocketProcessCoinMarginedOrderbook(t *testing.T) { //nolint:tparallel // the pushes load one book in turn for the checks that follow
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	conn := &testWebsocketConnection{}
@@ -181,25 +182,27 @@ func TestWebsocketProcessCoinMarginedOrderbook(t *testing.T) {
 			continue
 		}
 		pushes++
-		data, _, _, err := jsonparser.Get(line, "data")
-		require.NoError(t, err, "the push must have data")
-		require.NoError(t, ex.wsProcessCoinMarginedOrderbook(t.Context(), conn, "BTC-USD@depth20", data), "wsProcessCoinMarginedOrderbook must not error")
-		var push WebsocketCoinMarginedOrderbook
-		require.NoError(t, json.Unmarshal(data, &push), "the push must decode")
-		expBids, expAsks := make(orderbook.Levels, len(push.Bids)), make(orderbook.Levels, len(push.Asks))
-		for i := range push.Bids {
-			expBids[i] = orderbook.Level{Price: push.Bids[i].Price.Float64(), Amount: push.Bids[i].Volume.Float64()}
-		}
-		for i := range push.Asks {
-			expAsks[i] = orderbook.Level{Price: push.Asks[i].Price.Float64(), Amount: push.Asks[i].Volume.Float64()}
-		}
-		slices.SortFunc(expBids, func(a, b orderbook.Level) int { return cmp.Compare(b.Price, a.Price) })
-		slices.SortFunc(expAsks, func(a, b orderbook.Level) int { return cmp.Compare(a.Price, b.Price) })
-		book, err := ex.Websocket.Orderbook.GetOrderbook(testCoinMarginedPair, asset.CoinMarginedFutures)
-		require.NoError(t, err, "the push must load the book")
-		assert.Equal(t, expBids, book.Bids, "the bids should be loaded highest first in contracts")
-		assert.Equal(t, expAsks, book.Asks, "the asks, which arrive highest first, should be loaded lowest first in contracts")
-		assert.Equal(t, push.Timestamp.Time(), book.LastUpdated, "the book should be dated by the push's timestamp")
+		t.Run("push "+strconv.Itoa(pushes), func(t *testing.T) {
+			data, _, _, err := jsonparser.Get(line, "data")
+			require.NoError(t, err, "the push must have data")
+			require.NoError(t, ex.wsProcessCoinMarginedOrderbook(t.Context(), conn, "BTC-USD@depth20", data), "wsProcessCoinMarginedOrderbook must not error")
+			var push WebsocketCoinMarginedOrderbook
+			require.NoError(t, json.Unmarshal(data, &push), "the push must decode")
+			expBids, expAsks := make(orderbook.Levels, len(push.Bids)), make(orderbook.Levels, len(push.Asks))
+			for i := range push.Bids {
+				expBids[i] = orderbook.Level{Price: push.Bids[i].Price.Float64(), Amount: push.Bids[i].Volume.Float64()}
+			}
+			for i := range push.Asks {
+				expAsks[i] = orderbook.Level{Price: push.Asks[i].Price.Float64(), Amount: push.Asks[i].Volume.Float64()}
+			}
+			slices.SortFunc(expBids, func(a, b orderbook.Level) int { return cmp.Compare(b.Price, a.Price) })
+			slices.SortFunc(expAsks, func(a, b orderbook.Level) int { return cmp.Compare(a.Price, b.Price) })
+			book, err := ex.Websocket.Orderbook.GetOrderbook(testCoinMarginedPair, asset.CoinMarginedFutures)
+			require.NoError(t, err, "the push must load the book")
+			assert.Equal(t, expBids, book.Bids, "the bids should be loaded highest first in contracts")
+			assert.Equal(t, expAsks, book.Asks, "the asks, which arrive highest first, should be loaded lowest first in contracts")
+			assert.Equal(t, push.Timestamp.Time(), book.LastUpdated, "the book should be dated by the push's timestamp")
+		})
 	}
 	require.Equal(t, 2, pushes, "the fixture must hold two pushes")
 
@@ -285,8 +288,11 @@ func TestWebsocketCoinMarginedIntegration(t *testing.T) {
 	}, 5*time.Second, time.Millisecond, "the book should take the last depth frame's best bid, counted in contracts")
 	assert.Equal(t, []string{testListenKey + "-1"}, servers.ws[asset.CoinMarginedFutures].accountKeys(), "the account connection should be dialled with the listen key")
 	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
-		assert.Zerof(t, servers.ws[a].marketDials(), "disabled %s should dial no market connection", a)
-		assert.Emptyf(t, servers.ws[a].accountKeys(), "disabled %s should dial no account connection", a)
+		// Serial, as the websocket is shut down after these checks
+		t.Run("disabled "+a.String(), func(t *testing.T) {
+			assert.Zerof(t, servers.ws[a].marketDials(), "disabled %s should dial no market connection", a)
+			assert.Emptyf(t, servers.ws[a].accountKeys(), "disabled %s should dial no account connection", a)
+		})
 	}
 	shutdownTestWebsocket(t, ex)
 	assert.ErrorIs(t, bookError(ex, testCoinMarginedPair, asset.CoinMarginedFutures), orderbook.ErrOrderbookInvalid, "shutting down should invalidate the book")

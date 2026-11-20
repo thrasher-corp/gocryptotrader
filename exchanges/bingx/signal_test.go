@@ -68,7 +68,10 @@ func TestCreateSignal(t *testing.T) {
 			"symbol": `"BTC-USDT"`, "side": `"long"`, "entryPrice": `"65000"`, "tpPrice": `"68000"`, "slPrice": `"62000.5"`,
 			"orderType": `"LIMIT"`, "leverage": `20`, "sizePct": `10`, "recvWindow": `5000`,
 		} {
-			assert.JSONEqf(t, v, string(received[k]), "%s should be sent as documented", k)
+			t.Run(k, func(t *testing.T) {
+				t.Parallel()
+				assert.JSONEqf(t, v, string(received[k]), "%s should be sent as documented", k)
+			})
 		}
 		require.Contains(t, received, "timestamp", "timestamp must be sent")
 		var signature string

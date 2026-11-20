@@ -40,8 +40,6 @@ type Exchange struct {
 	// balances orders the stream's balance writes against REST balance snapshots and runs the refreshes perpetual
 	// balance events ask for
 	balances balanceState
-	// perpetualOrderFees totals the fees of each open perpetual order's fills, which order events report one at a time
-	perpetualOrderFees perpetualOrderFeeTotals
 }
 
 const (

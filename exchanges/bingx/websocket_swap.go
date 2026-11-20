@@ -1,8 +1,11 @@
 package bingx
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"math"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
@@ -198,7 +202,11 @@ func (e *Exchange) wsHandlePerpetualAccountData(ctx context.Context, conn websoc
 	}
 	switch event {
 	case "ORDER_TRADE_UPDATE", "TRADE_UPDATE":
-		return e.wsProcessPerpetualOrderUpdate(ctx, a, data)
+		if e.wsHoldOrderEvent(conn, data) {
+			return nil
+		}
+		state, _ := e.wsConnection(conn)
+		return e.wsProcessPerpetualOrderUpdate(ctx, state, a, data)
 	case "ACCOUNT_UPDATE":
 		return e.wsProcessPerpetualAccountUpdate(ctx, conn, a, data)
 	case "ACCOUNT_CONFIG_UPDATE":
@@ -217,9 +225,10 @@ func (e *Exchange) wsHandlePerpetualAccountData(ctx context.Context, conn websoc
 //     lacks
 //
 // The event reports a fill's fee alone, while an order detail carries the order's fee, so the fee of a TRADE or
-// CALCULATED fill is added to the order's running total, which the detail carries. BingX reports a charged fee as a
-// negative amount
-func (e *Exchange) wsProcessPerpetualOrderUpdate(ctx context.Context, a asset.Item, data []byte) error {
+// CALCULATED fill is added to the order's running total on state, the account connection the event arrived on, which
+// the detail carries; nil, for a connection no longer tracked, keeps no totals. BingX reports a charged fee as a
+// negative amount. The detail is relayed through the exchange's perpetualOrderRelay
+func (e *Exchange) wsProcessPerpetualOrderUpdate(ctx context.Context, state *websocketConnection, a asset.Item, data []byte) error {
 	var resp WebsocketPerpetualOrderUpdate
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -270,57 +279,348 @@ func (e *Exchange) wsProcessPerpetualOrderUpdate(ctx context.Context, a asset.It
 	if a == asset.USDTMarginedFutures {
 		d.Cost = o.AverageFilled.Decimal().Mul(executed).InexactFloat64()
 	}
-	k := perpetualOrderFeeKey{asset: a, orderID: orderID}
-	if o.ExecutionType == ExecutionTypeTrade || o.ExecutionType == ExecutionTypeCalculated {
-		d.Fee = e.perpetualOrderFees.add(k, executed, o.Fee.Decimal().Neg()).InexactFloat64()
+	if state != nil {
+		fees := &state.fees
+		switch o.ExecutionType {
+		case ExecutionTypeNew:
+			if executed.IsZero() {
+				fees.start(orderID)
+			}
+		case ExecutionTypeTrade, ExecutionTypeCalculated:
+			d.Fee = fees.add(orderID, executed, o.Fee.Decimal().Neg()).InexactFloat64()
+		}
+		if d.IsInactive() {
+			fees.forget(orderID)
+		}
 	}
-	if d.IsInactive() {
-		e.perpetualOrderFees.forget(k)
-	}
-	return e.Websocket.DataHandler.Send(ctx, d)
+	return e.wsState.orderRelay.relay(d, executed, func() error { return e.Websocket.DataHandler.Send(ctx, d) })
 }
 
-// perpetualOrderFeeTotals keeps the fee of each open perpetual order's fills that the account streams have reported
-type perpetualOrderFeeTotals struct {
-	mu     sync.Mutex
-	orders map[perpetualOrderFeeKey]perpetualOrderFeeTotal
+// wsHoldOrderEvent holds an order event that arrives while its account connection reads its open orders, reporting
+// whether it did, and notes the connection holding an event of its order with the exchange's perpetualOrderRelay
+func (e *Exchange) wsHoldOrderEvent(conn websocket.Connection, data []byte) bool {
+	state, err := e.wsConnection(conn)
+	if err != nil {
+		return false
+	}
+	state.heldOrders.Lock()
+	defer state.heldOrders.Unlock()
+	if !state.holding {
+		return false
+	}
+	state.held = append(state.held, bytes.Clone(data))
+	var event WebsocketPerpetualOrderUpdate
+	if err := json.Unmarshal(data, &event); err == nil {
+		e.wsState.orderRelay.hold(state, event.Order.OrderID.String())
+	}
+	return true
 }
 
-// perpetualOrderFeeKey names a perpetual order by its asset and order ID
-type perpetualOrderFeeKey struct {
+// wsReleaseOrderEvents handles the order events an account connection held while it read its open orders, in the order
+// they arrived, adding their fills to the connection's own totals whether or not it is still tracked, and stops holding
+// them. An event arriving meanwhile waits, and is handled after them
+func (e *Exchange) wsReleaseOrderEvents(ctx context.Context, state *websocketConnection) {
+	state.heldOrders.Lock()
+	defer state.heldOrders.Unlock()
+	for _, data := range state.held {
+		if err := e.wsProcessPerpetualOrderUpdate(ctx, state, state.account, data); err != nil {
+			log.Errorf(log.WebsocketMgr, "%s %s held order event failed: %v", e.Name, state.account, err)
+		}
+	}
+	state.held, state.holding = nil, false
+	e.wsState.orderRelay.unhold(state)
+}
+
+// perpetualOrderRelay relays the order events of the perpetual account connections. An account connection retired
+// while it reads its open orders, as a flush or a failed connection attempt can retire one within its session, hands
+// its held events over once the read ends, which can be after a connection dialled in its place has relayed newer
+// events of the same orders. So while a connection holds events of an order, how far the order's relayed events have
+// taken it is kept, and an event behind that is dropped rather than relayed
+type perpetualOrderRelay struct {
+	mu sync.Mutex
+	// holders holds the orders each connection holding its order events holds events of
+	holders map[*websocketConnection]map[perpetualOrderKey]struct{}
+	// heldBy counts the connections holding events of each order
+	heldBy  map[perpetualOrderKey]int
+	relayed map[perpetualOrderKey]perpetualOrderProgress
+}
+
+// perpetualOrderKey is a perpetual order of a product
+type perpetualOrderKey struct {
 	asset   asset.Item
 	orderID string
 }
 
-// perpetualOrderFeeTotal is the fee of an order's fills up to its executed quantity
-type perpetualOrderFeeTotal struct {
+// perpetualOrderProgress is how far an order's last relayed event took it: the executed quantity, and whether the event
+// finished the order, with an inactive status or its whole quantity executed. An order of no quantity, such as one
+// closing a position, finishes only with its status
+type perpetualOrderProgress struct {
 	executed decimal.Decimal
-	fee      decimal.Decimal
+	finished bool
+}
+
+// hold notes a connection holding an event of one of its product's orders
+func (r *perpetualOrderRelay) hold(state *websocketConnection, orderID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.holders == nil {
+		r.holders = make(map[*websocketConnection]map[perpetualOrderKey]struct{})
+		r.heldBy = make(map[perpetualOrderKey]int)
+	}
+	orders, ok := r.holders[state]
+	if !ok {
+		orders = make(map[perpetualOrderKey]struct{})
+		r.holders[state] = orders
+	}
+	k := perpetualOrderKey{asset: state.account, orderID: orderID}
+	if _, ok := orders[k]; !ok {
+		orders[k] = struct{}{}
+		r.heldBy[k]++
+	}
+}
+
+// unhold notes a connection no longer holding its order events, forgetting how far each order it held events of went
+// unless another connection holds events of the order, and everything once no connection holds any
+func (r *perpetualOrderRelay) unhold(state *websocketConnection) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for k := range r.holders[state] {
+		r.heldBy[k]--
+		if r.heldBy[k] == 0 {
+			delete(r.heldBy, k)
+			delete(r.relayed, k)
+		}
+	}
+	delete(r.holders, state)
+	if len(r.holders) == 0 {
+		r.holders, r.heldBy, r.relayed = nil, nil, nil
+	}
+}
+
+// relay relays an order event's detail with send. While a connection holds events of the order, an event behind how
+// far the order's relayed events have taken it is dropped: one at a lower executed quantity, or one leaving the order
+// unfinished at the quantity an event finished it at. Only an event send succeeds with counts as relayed
+func (r *perpetualOrderRelay) relay(d *order.Detail, executed decimal.Decimal, send func() error) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	k := perpetualOrderKey{asset: d.AssetType, orderID: d.OrderID}
+	if r.heldBy[k] == 0 {
+		return send()
+	}
+	finished := d.Status.IsInactive() || d.Amount > 0 && d.ExecutedAmount >= d.Amount
+	if p, ok := r.relayed[k]; ok && (executed.LessThan(p.executed) || executed.Equal(p.executed) && p.finished && !finished) {
+		return nil
+	}
+	if err := send(); err != nil {
+		return err
+	}
+	if r.relayed == nil {
+		r.relayed = make(map[perpetualOrderKey]perpetualOrderProgress)
+	}
+	r.relayed[k] = perpetualOrderProgress{executed: executed, finished: finished}
+	return nil
+}
+
+// perpetualOrderFeeTotals keeps the fees of the open perpetual orders an account connection streams. A total starts
+// from the order's NEW event, from a REST read of the order begun while the connection was up or by the connection
+// itself, or from the first fill the connection streams, in which case the fills before it are left out until such a
+// read
+type perpetualOrderFeeTotals struct {
+	mu     sync.Mutex
+	orders map[string]*perpetualOrderFeeTotal
+	// seq numbers the REST reads and the orders' closes. reads holds the number each read in flight began at, and
+	// closed the number each order closed at while a read that began before it was in flight, as that read may report
+	// the order open
+	seq    uint64
+	reads  map[uint64]struct{}
+	closed map[string]uint64
+}
+
+// perpetualOrderFeeTotal is the fee of an order's fills up to its executed quantity. Until a REST read or the order's
+// NEW event shows its first fills are counted, the fills its events reported are kept, so a read taken before the
+// latest of them can still supply the fills before them
+type perpetualOrderFeeTotal struct {
+	executed, fee decimal.Decimal
+	complete      bool
+	fills         []perpetualOrderFill
+}
+
+// perpetualOrderFill is the executed quantity an order event reported and the fee of the fill that took it there
+type perpetualOrderFill struct {
+	executed, fee decimal.Decimal
+}
+
+// total returns an order's total, starting it if it has none
+func (t *perpetualOrderFeeTotals) total(orderID string) *perpetualOrderFeeTotal {
+	total, ok := t.orders[orderID]
+	if !ok {
+		if t.orders == nil {
+			t.orders = make(map[string]*perpetualOrderFeeTotal)
+		}
+		total = new(perpetualOrderFeeTotal)
+		t.orders[orderID] = total
+	}
+	return total
+}
+
+// start marks an order whose NEW event reports nothing executed as having all its fills counted, unless it has a total
+func (t *perpetualOrderFeeTotals) start(orderID string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if _, ok := t.orders[orderID]; !ok {
+		t.total(orderID).complete = true
+	}
 }
 
 // add counts a fill's fee once, when its event raises the order's executed quantity, which a repeated event does not,
 // and returns the order's fee so far
-func (t *perpetualOrderFeeTotals) add(k perpetualOrderFeeKey, executed, fee decimal.Decimal) decimal.Decimal {
+func (t *perpetualOrderFeeTotals) add(orderID string, executed, fee decimal.Decimal) decimal.Decimal {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	total := t.orders[k]
+	total, ok := t.orders[orderID]
+	if !ok {
+		if !executed.IsPositive() {
+			return decimal.Zero
+		}
+		total = t.total(orderID)
+	}
 	if !executed.GreaterThan(total.executed) {
 		return total.fee
 	}
 	total.executed = executed
 	total.fee = total.fee.Add(fee)
-	if t.orders == nil {
-		t.orders = make(map[perpetualOrderFeeKey]perpetualOrderFeeTotal)
+	if !total.complete {
+		total.fills = append(total.fills, perpetualOrderFill{executed: executed, fee: fee})
 	}
-	t.orders[k] = total
 	return total.fee
 }
 
-// forget drops the total of an order that is no longer open
-func (t *perpetualOrderFeeTotals) forget(k perpetualOrderFeeKey) {
+// seed takes a REST read's executed quantity and fee for an open order as its total, unless its events or another read
+// have counted further. A total missing its first fills takes them from the read and keeps the fills its events
+// counted beyond it. An order closed since a read in flight began gets no total from a read
+func (t *perpetualOrderFeeTotals) seed(orderID string, executed, fee decimal.Decimal) {
+	if !executed.IsPositive() {
+		return
+	}
 	t.mu.Lock()
-	delete(t.orders, k)
-	t.mu.Unlock()
+	defer t.mu.Unlock()
+	if _, ok := t.closed[orderID]; ok {
+		return
+	}
+	total := t.total(orderID)
+	if total.complete {
+		if executed.GreaterThanOrEqual(total.executed) {
+			total.executed, total.fee = executed, fee
+		}
+		return
+	}
+	for _, f := range total.fills {
+		if f.executed.GreaterThan(executed) {
+			fee = fee.Add(f.fee)
+		}
+	}
+	if executed.GreaterThan(total.executed) {
+		total.executed = executed
+	}
+	total.fee, total.complete, total.fills = fee, true, nil
+}
+
+// forget drops the total of an order that is no longer open, noting its close while a read is in flight
+func (t *perpetualOrderFeeTotals) forget(orderID string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.orders, orderID)
+	if len(t.reads) == 0 {
+		return
+	}
+	if t.closed == nil {
+		t.closed = make(map[string]uint64)
+	}
+	t.seq++
+	t.closed[orderID] = t.seq
+}
+
+// beginRead numbers a REST read whose open orders may start totals
+func (t *perpetualOrderFeeTotals) beginRead() uint64 {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.reads == nil {
+		t.reads = make(map[uint64]struct{})
+	}
+	t.seq++
+	t.reads[t.seq] = struct{}{}
+	return t.seq
+}
+
+// endRead ends a REST read, dropping the closes noted before every read still in flight began
+func (t *perpetualOrderFeeTotals) endRead(read uint64) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.reads, read)
+	oldest := uint64(math.MaxUint64)
+	for r := range t.reads {
+		oldest = min(oldest, r)
+	}
+	for orderID, closed := range t.closed {
+		if closed < oldest {
+			delete(t.closed, orderID)
+		}
+	}
+}
+
+// perpetualOrderFeeRead is a REST read of perpetual orders, whose open orders start the fee totals of the account
+// connections that were streaming the read's account and product when it began, and of the connection whose own read
+// it is
+type perpetualOrderFeeRead struct {
+	totals []*perpetualOrderFeeTotals
+	reads  []uint64
+}
+
+// perpetualOrderFeeReadOwnerKey is the context key of the account connection whose own read of its open orders the
+// context carries
+type perpetualOrderFeeReadOwnerKey struct{}
+
+// beginPerpetualOrderFeeRead begins a REST read of asset a's orders for ctx's account, returning ctx carrying that
+// account's credentials, so the read requests and the totals it starts are that account's although the exchange's
+// default credentials change meanwhile. The connection whose own read ctx carries counts although it is no longer up,
+// as it hands the events it held during the read over with its own totals. Without credentials the read starts no
+// totals, and ctx is returned unchanged
+func (e *Exchange) beginPerpetualOrderFeeRead(ctx context.Context, a asset.Item) (context.Context, *perpetualOrderFeeRead) {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return ctx, nil
+	}
+	states := e.wsAccountConnections(a, creds)
+	if owner, ok := ctx.Value(perpetualOrderFeeReadOwnerKey{}).(*websocketConnection); ok && !slices.Contains(states, owner) {
+		states = append(states, owner)
+	}
+	read := new(perpetualOrderFeeRead)
+	for _, state := range states {
+		read.totals = append(read.totals, &state.fees)
+		read.reads = append(read.reads, state.fees.beginRead())
+	}
+	return accounts.DeployCredentialsToContext(ctx, creds), read
+}
+
+// seed starts the fee total of an open order the read reports from its executed quantity and its commission, negated
+// as an event's fill fee is, as BingX reports a charged fee as negative
+func (r *perpetualOrderFeeRead) seed(d *order.Detail, executed, commission types.Number) {
+	if r == nil || !d.IsActive() {
+		return
+	}
+	for _, t := range r.totals {
+		t.seed(d.OrderID, executed.Decimal(), commission.Decimal().Neg())
+	}
+}
+
+// end ends the read
+func (r *perpetualOrderFeeRead) end() {
+	if r == nil {
+		return
+	}
+	for i, t := range r.totals {
+		t.endRead(r.reads[i])
+	}
 }
 
 // wsProcessPerpetualAccountUpdate relays a perpetual ACCOUNT_UPDATE event's balances and positions. A balance's wb is

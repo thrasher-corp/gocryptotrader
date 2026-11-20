@@ -3,6 +3,7 @@ package bingx
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"compress/gzip"
 	"context"
 	"errors"
@@ -45,6 +46,7 @@ import (
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const testListenKey = "test-listen-key"
@@ -247,7 +249,7 @@ func waitForSessionEnd(tb testing.TB, ex *Exchange, session <-chan struct{}) {
 func trackTestConnection(tb testing.TB, ex *Exchange, conn websocket.Connection, serialRequests bool) (*websocketConnection, *testSession) {
 	tb.Helper()
 	session := newTestSession(tb, ex)
-	return ex.wsTrackConnection(conn, session.ch, serialRequests, nil), session
+	return ex.wsTrackConnection(conn, session.ch, serialRequests, asset.Empty, nil), session
 }
 
 // newWebsocketMockConnection dials a connection of the setup filter names to a mock server answering with mock. It is
@@ -261,7 +263,7 @@ func newWebsocketMockConnection(tb testing.TB, ex *Exchange, filter string, seri
 	require.NoError(tb, err, "CreateTestConnection must not error")
 	require.NoError(tb, conn.Dial(tb.Context(), &gws.Dialer{}, http.Header{}, nil), "Dial must not error")
 	session := &testSession{ch: make(chan struct{})}
-	ex.wsTrackConnection(conn, session.ch, serialRequests, nil)
+	ex.wsTrackConnection(conn, session.ch, serialRequests, asset.Empty, nil)
 	read := make(chan struct{})
 	ex.Websocket.Wg.Add(1)
 	go func() {
@@ -546,29 +548,33 @@ func TestWebsocketConnectionSetups(t *testing.T) {
 	require.NoError(t, err, "wsConnectionSetups must not error")
 	require.Len(t, setups, 6, "wsConnectionSetups must return a market and an account setup for each product")
 	for i, exp := range []struct {
-		filter, url string
+		filter, url   string
+		subscriptions int
 	}{
-		{websocketSpotFilter, spotWebsocketURL},
-		{websocketSpotAccountFilter, spotWebsocketURL},
-		{websocketSwapFilter, usdtMarginedWebsocketURL},
-		{websocketSwapAccountFilter, usdtMarginedWebsocketURL},
-		{websocketCoinMarginedFilter, coinMarginedWebsocketURL},
-		{websocketCoinMarginedAccountFilter, coinMarginedWebsocketURL},
+		{websocketSpotFilter, spotWebsocketURL, 4},
+		{websocketSpotAccountFilter, spotWebsocketURL, 0},
+		{websocketSwapFilter, usdtMarginedWebsocketURL, 4},
+		{websocketSwapAccountFilter, usdtMarginedWebsocketURL, 0},
+		{websocketCoinMarginedFilter, coinMarginedWebsocketURL, 4},
+		{websocketCoinMarginedAccountFilter, coinMarginedWebsocketURL, 0},
 	} {
-		s := setups[i]
-		assert.Equalf(t, exp.filter, s.MessageFilter, "setup %d should have the expected message filter", i)
-		assert.Equalf(t, exp.url, s.URL, "setup %d should connect to its product's endpoint", i)
-		assert.Equalf(t, ex.Config.WebsocketResponseMaxLimit, s.ResponseMaxLimit, "setup %d should take the configured response limit", i)
-		assert.Equalf(t, ex.Config.WebsocketResponseCheckTimeout, s.ResponseCheckTimeout, "setup %d should take the configured response check timeout", i)
-		for name, fn := range map[string]any{"Connector": s.Connector, "GenerateSubscriptions": s.GenerateSubscriptions, "Subscriber": s.Subscriber, "Unsubscriber": s.Unsubscriber, "Handler": s.Handler} {
-			assert.NotNilf(t, fn, "setup %d should have a %s", i, name)
-		}
-	}
-
-	for i, exp := range []int{4, 0, 4, 0, 4, 0} {
-		subs, err := setups[i].GenerateSubscriptions()
-		require.NoErrorf(t, err, "setup %d GenerateSubscriptions must not error", i)
-		assert.Lenf(t, subs, exp, "setup %d should generate its enabled pair's market subscriptions, and no account ones without authentication", i)
+		t.Run(exp.filter, func(t *testing.T) {
+			t.Parallel()
+			s := setups[i]
+			assert.Equalf(t, exp.filter, s.MessageFilter, "setup %d should have the expected message filter", i)
+			assert.Equalf(t, exp.url, s.URL, "setup %d should connect to its product's endpoint", i)
+			assert.Equalf(t, ex.Config.WebsocketResponseMaxLimit, s.ResponseMaxLimit, "setup %d should take the configured response limit", i)
+			assert.Equalf(t, ex.Config.WebsocketResponseCheckTimeout, s.ResponseCheckTimeout, "setup %d should take the configured response check timeout", i)
+			for name, fn := range map[string]any{"Connector": s.Connector, "GenerateSubscriptions": s.GenerateSubscriptions, "Subscriber": s.Subscriber, "Unsubscriber": s.Unsubscriber, "Handler": s.Handler} {
+				t.Run(name, func(t *testing.T) {
+					t.Parallel()
+					assert.NotNilf(t, fn, "setup %d should have a %s", i, name)
+				})
+			}
+			subs, err := s.GenerateSubscriptions()
+			require.NoErrorf(t, err, "setup %d GenerateSubscriptions must not error", i)
+			assert.Lenf(t, subs, exp.subscriptions, "setup %d should generate its enabled pair's market subscriptions, and no account ones without authentication", i)
+		})
 	}
 
 	t.Run("configured endpoint", func(t *testing.T) {
@@ -598,7 +604,7 @@ func TestWebsocketDialer(t *testing.T) {
 	assert.NotNil(t, d.Proxy, "the dialer should use the environment's proxy")
 }
 
-func TestWebsocketConnectMarket(t *testing.T) {
+func TestWebsocketConnectMarket(t *testing.T) { //nolint:tparallel // the cases track their connections on one exchange
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	s := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, mockws.EchoHandler))
@@ -610,14 +616,16 @@ func TestWebsocketConnectMarket(t *testing.T) {
 		waitForSessionEnd(t, ex, ex.Websocket.ShutdownC)
 	})
 	for _, serialRequests := range []bool{false, true} {
-		conn, err := ex.Websocket.CreateTestConnection(websocketCoinMarginedFilter)
-		require.NoError(t, err, "CreateTestConnection must not error")
-		require.NoErrorf(t, ex.wsConnectMarket(t.Context(), conn, serialRequests), "wsConnectMarket must not error with serial requests %t", serialRequests)
-		t.Cleanup(func() { assert.NoError(t, conn.Shutdown(), "Shutdown should not error") })
-		state, err := ex.wsConnection(conn)
-		require.NoError(t, err, "wsConnectMarket must track the connection")
-		assert.Equalf(t, serialRequests, state.gate != nil, "a connection should have a request gate only for serial requests %t", serialRequests)
-		assert.Equal(t, receiveOnly(ex.Websocket.ShutdownC), state.session, "the connection should belong to the manager's session")
+		t.Run("serial requests "+strconv.FormatBool(serialRequests), func(t *testing.T) {
+			conn, err := ex.Websocket.CreateTestConnection(websocketCoinMarginedFilter)
+			require.NoError(t, err, "CreateTestConnection must not error")
+			require.NoErrorf(t, ex.wsConnectMarket(t.Context(), conn, serialRequests), "wsConnectMarket must not error with serial requests %t", serialRequests)
+			t.Cleanup(func() { assert.NoError(t, conn.Shutdown(), "Shutdown should not error") })
+			state, err := ex.wsConnection(conn)
+			require.NoError(t, err, "wsConnectMarket must track the connection")
+			assert.Equalf(t, serialRequests, state.gate != nil, "a connection should have a request gate only for serial requests %t", serialRequests)
+			assert.Equal(t, receiveOnly(ex.Websocket.ShutdownC), state.session, "the connection should belong to the manager's session")
+		})
 	}
 
 	err := ex.wsConnectMarket(t.Context(), &testWebsocketConnection{}, false)
@@ -664,10 +672,20 @@ func TestWebsocketConnectAccount(t *testing.T) {
 	require.NotNil(t, keeper, "a keeper must keep the listen key alive")
 	assert.Equal(t, []websocket.Connection{spot, swap}, keeper.conns, "the keeper should know the connections using its key")
 	ex.wsState.mu.Unlock()
-	for _, conn := range []websocket.Connection{spot, swap} {
-		_, err := ex.wsConnection(conn)
-		assert.NoError(t, err, "wsConnectAccount should track the connection")
+	for _, tc := range []struct {
+		a    asset.Item
+		conn websocket.Connection
+	}{{asset.Spot, spot}, {asset.USDTMarginedFutures, swap}} {
+		t.Run(tc.a.String()+" tracked", func(t *testing.T) {
+			t.Parallel()
+			state, err := ex.wsConnection(tc.conn)
+			require.NoError(t, err, "wsConnectAccount must track the connection")
+			assert.Equal(t, tc.a, state.account, "the connection should stream the account events of its asset's product")
+		})
 	}
+	testWaitBackground(t, ex)
+	assert.Equal(t, []string{"test-api-key"}, rest.requestKeys("GET /openApi/swap/v2/trade/openOrders"), "the USDT-M account connection should read its account's open orders once up")
+	assert.Empty(t, rest.requestKeys("GET /openApi/spot/v1/trade/openOrders"), "the spot account connection should read no open orders")
 
 	t.Run("dial failure", func(t *testing.T) {
 		t.Parallel()
@@ -839,8 +857,9 @@ func TestWebsocketConnectAccount(t *testing.T) {
 		second := &accounts.Credentials{Key: "second-key", Secret: "second-secret"}
 		ex.SetCredentials(second)
 		extensions := len(rest.requestKeys("PUT /openApi/user/auth/userDataStream"))
-		// The USDT-M connection takes the listen key created for the first credentials, so it streams their account too
+		// The perpetual connections take the listen key created for the first credentials, so they stream their account too
 		swap := connect(asset.USDTMarginedFutures, websocketSwapAccountFilter, exchange.RestUSDTMargined)
+		connect(asset.CoinMarginedFutures, websocketCoinMarginedAccountFilter, exchange.RestCoinMargined)
 		require.NoError(t, ex.wsHandleSpotAccountData(t.Context(), spot, fixtureLine(t, "testdata/wsSpotAccount.jsonl", "ACCOUNT_UPDATE")), "wsHandleSpotAccountData must not error")
 		require.NoError(t, ex.wsHandleSwapAccountData(t.Context(), swap, fixtureLine(t, "testdata/wsSwapAccount.jsonl", "ACCOUNT_UPDATE")), "wsHandleSwapAccountData must not error")
 		require.Eventually(t, func() bool {
@@ -848,16 +867,104 @@ func TestWebsocketConnectAccount(t *testing.T) {
 		}, 5*time.Second, time.Millisecond, "the keeper must extend the listen key after the default credentials change")
 		testWaitBackground(t, ex)
 		assert.Len(t, rest.requestKeys("GET /openApi/swap/v3/user/balance"), 2, "the USDT-M balances should be refreshed once the connection is up and once after its balance event")
-		for _, route := range []string{"POST /openApi/user/auth/userDataStream", "PUT /openApi/user/auth/userDataStream", "GET /openApi/swap/v3/user/balance"} {
-			for _, apiKey := range rest.requestKeys(route) {
-				assert.Equalf(t, first.Key, apiKey, "%s should be sent for the account the listen key was created for", route)
-			}
+		assert.Len(t, rest.requestKeys("GET /openApi/swap/v2/trade/openOrders"), 1, "the USDT-M open orders should be read once the connection is up")
+		assert.Len(t, rest.requestKeys("GET /openApi/cswap/v1/trade/openOrders"), 1, "the coin-M open orders should be read once the connection is up")
+		for _, tc := range []struct {
+			name, route string
+		}{
+			{"listen key creation", "POST /openApi/user/auth/userDataStream"},
+			{"listen key extensions", "PUT /openApi/user/auth/userDataStream"},
+			{"balance refreshes", "GET /openApi/swap/v3/user/balance"},
+			{"open order reads", "GET /openApi/swap/v2/trade/openOrders"},
+			{"coin-M balance refreshes", "GET /openApi/cswap/v1/user/balance"},
+			{"coin-M open order reads", "GET /openApi/cswap/v1/trade/openOrders"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				for _, apiKey := range rest.requestKeys(tc.route) {
+					assert.Equalf(t, first.Key, apiKey, "%s should be sent for the account the listen key was created for", tc.route)
+				}
+			})
 		}
 		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
-			_, err := ex.Accounts.GetBalance("", first, a, currency.USDT)
-			assert.NoErrorf(t, err, "the %s balances should be stored for the account the listen key was created for", a)
-			_, err = ex.Accounts.GetBalance("", second, a, currency.USDT)
-			assert.ErrorIsf(t, err, accounts.ErrNoBalances, "no %s balances should be stored for the exchange's new default credentials", a)
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				_, err := ex.Accounts.GetBalance("", first, a, currency.USDT)
+				assert.NoErrorf(t, err, "the %s balances should be stored for the account the listen key was created for", a)
+				_, err = ex.Accounts.GetBalance("", second, a, currency.USDT)
+				assert.ErrorIsf(t, err, accounts.ErrNoBalances, "no %s balances should be stored for the exchange's new default credentials", a)
+			})
+		}
+	})
+
+	t.Run("order events held while the open orders are read", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			a              asset.Item
+			filter, symbol string
+			ePath          exchange.URL
+			openOrders     string
+		}{
+			{asset.USDTMarginedFutures, websocketSwapAccountFilter, "BTC-USDT", exchange.RestUSDTMargined, "/openApi/swap/v2/trade/openOrders"},
+			{asset.CoinMarginedFutures, websocketCoinMarginedAccountFilter, "BTC-USD", exchange.RestCoinMargined, "/openApi/cswap/v1/trade/openOrders"},
+		} {
+			t.Run(tc.a.String(), func(t *testing.T) {
+				t.Parallel()
+				arrived, release := make(chan struct{}), make(chan struct{})
+				rest := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					switch r.URL.Path {
+					case "/openApi/user/auth/userDataStream":
+						_, _ = io.WriteString(w, `{"listenKey":"`+testListenKey+`"}`)
+					case tc.openOrders:
+						close(arrived)
+						<-release
+						_, _ = io.WriteString(w, `{"code":0,"data":{"orders":[{"symbol":"`+tc.symbol+`","orderId":42,"side":"BUY","type":"LIMIT","origQty":"3","price":"10","executedQty":"2","avgPrice":"10","commission":"-0.23","status":"PARTIALLY_FILLED"}]}}`)
+					default:
+						_, _ = io.WriteString(w, testBalanceReplies[r.URL.Path])
+					}
+				}))
+				rest.Start()
+				ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+				testRESTEndpoints(t, ex, rest.URL)
+				require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+				s := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+				}))
+				s.Start()
+				require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(s.URL, "http")), "SetAllConnectionURLs must not error")
+				t.Cleanup(func() {
+					close(ex.Websocket.ShutdownC)
+					waitForSessionEnd(t, ex, ex.Websocket.ShutdownC)
+					testWaitBackground(t, ex)
+				})
+				conn, err := ex.Websocket.CreateTestConnection(tc.filter)
+				require.NoError(t, err, "CreateTestConnection must not error")
+				t.Cleanup(func() { assert.NoError(t, conn.Shutdown(), "Shutdown should not error") })
+				var releaseOnce sync.Once
+				t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+				require.NoError(t, ex.wsConnectAccount(t.Context(), conn, tc.a, tc.ePath), "wsConnectAccount must not wait for the open order read")
+				select {
+				case <-arrived:
+				case <-time.After(5 * time.Second):
+					require.FailNow(t, "the connection must read its account's open orders")
+				}
+				state, err := ex.wsConnection(conn)
+				require.NoError(t, err, "wsConnectAccount must track the connection")
+				state.heldOrders.Lock()
+				assert.True(t, state.holding, "the connection's order events should be held while its open orders are read")
+				state.heldOrders.Unlock()
+				releaseOnce.Do(func() { close(release) })
+				assert.Eventually(t, func() bool {
+					state.heldOrders.Lock()
+					defer state.heldOrders.Unlock()
+					return !state.holding
+				}, 5*time.Second, time.Millisecond, "the connection should stop holding order events once the read ends")
+				state.fees.mu.Lock()
+				defer state.fees.mu.Unlock()
+				if total, ok := state.fees.orders["42"]; assert.True(t, ok, "the read should start the open order's total") {
+					assert.True(t, decimal.MustFromString("0.23").Equal(total.fee), "the total should hold the fees the order had paid")
+				}
+			})
 		}
 	})
 }
@@ -873,15 +980,17 @@ func TestWebsocketTrackConnection(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	session := newTestSession(t, ex)
 	a, b := &testWebsocketConnection{}, &testWebsocketConnection{}
-	stateA := ex.wsTrackConnection(a, session.ch, false, nil)
-	stateB := ex.wsTrackConnection(b, session.ch, true, nil)
+	stateA := ex.wsTrackConnection(a, session.ch, false, asset.Empty, nil)
+	stateB := ex.wsTrackConnection(b, session.ch, true, asset.Empty, nil)
 	assert.Less(t, stateA.generation, stateB.generation, "each connection should have a later generation")
 	assert.Nil(t, stateA.gate, "a connection without serial requests should have no request gate")
 	assert.NotNil(t, stateB.gate, "a connection with serial requests should have a request gate")
 	assert.Nil(t, stateA.credentials, "a market connection should have no credentials")
+	assert.Equal(t, asset.Empty, stateA.account, "a market connection should stream no account")
 	creds := &accounts.Credentials{Key: "account-key", Secret: "account-secret"}
-	account := ex.wsTrackConnection(&testWebsocketConnection{}, session.ch, false, creds)
+	account := ex.wsTrackConnection(&testWebsocketConnection{}, session.ch, false, asset.CoinMarginedFutures, creds)
 	assert.Same(t, creds, account.credentials, "an account connection should keep the credentials of its listen key")
+	assert.Equal(t, asset.CoinMarginedFutures, account.account, "an account connection should keep the asset whose account events it streams")
 	ex.wsState.mu.Lock()
 	assert.Len(t, ex.wsState.sessions, 1, "a session should be watched once")
 	ex.wsState.mu.Unlock()
@@ -890,12 +999,12 @@ func TestWebsocketTrackConnection(t *testing.T) {
 	claimAndLoadBook(t, ex, a, sub)
 	require.NoError(t, bookError(ex, testSpotPair, asset.Spot), "the book must be valid")
 	a.down.Store(true)
-	ex.wsTrackConnection(&testWebsocketConnection{}, session.ch, false, nil)
+	ex.wsTrackConnection(&testWebsocketConnection{}, session.ch, false, asset.Empty, nil)
 	_, err := ex.wsConnection(a)
 	assert.ErrorIs(t, err, errWebsocketConnectionUnknown, "a connection no longer connected should be forgotten when another is tracked")
 	assert.ErrorIs(t, bookError(ex, testSpotPair, asset.Spot), orderbook.ErrOrderbookInvalid, "the book a forgotten connection fed should be invalidated")
 
-	again := ex.wsTrackConnection(b, session.ch, true, nil)
+	again := ex.wsTrackConnection(b, session.ch, true, asset.Empty, nil)
 	assert.Greater(t, again.generation, stateB.generation, "a connection tracked again should have a new generation")
 }
 
@@ -904,8 +1013,8 @@ func TestWebsocketEndSession(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	ended, kept := newTestSession(t, ex), newTestSession(t, ex)
 	a, b := &testWebsocketConnection{}, &testWebsocketConnection{}
-	ex.wsTrackConnection(a, ended.ch, false, nil)
-	ex.wsTrackConnection(b, kept.ch, false, nil)
+	ex.wsTrackConnection(a, ended.ch, false, asset.Empty, nil)
+	ex.wsTrackConnection(b, kept.ch, false, asset.Empty, nil)
 	claimAndLoadBook(t, ex, a, testOrderbookSubscription(testSpotPair, asset.Spot, 20))
 	claimAndLoadBook(t, ex, b, testOrderbookSubscription(testCoinMarginedPair, asset.CoinMarginedFutures, 20))
 
@@ -944,6 +1053,53 @@ func TestWebsocketIsConnected(t *testing.T) {
 	assert.True(t, wsIsConnected(struct{ websocket.Connection }{}), "wsIsConnected should take a connection that cannot tell as connected")
 }
 
+func TestWebsocketAccountConnections(t *testing.T) {
+	t.Parallel()
+	creds := &accounts.Credentials{Key: "account-key", Secret: "account-secret"}
+	for _, tc := range []struct {
+		name        string
+		account     asset.Item
+		credentials *accounts.Credentials
+		down        bool
+		exp         bool
+	}{
+		{name: "the account's connection on the product", account: asset.USDTMarginedFutures, credentials: creds, exp: true},
+		{name: "the account's connection on another product", account: asset.CoinMarginedFutures, credentials: creds},
+		{name: "another account's connection on the product", account: asset.USDTMarginedFutures, credentials: &accounts.Credentials{Key: "other-key", Secret: "other-secret"}},
+		{name: "a market connection", account: asset.Empty},
+		{name: "the account's connection down", account: asset.USDTMarginedFutures, credentials: creds, down: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newWebsocketTestExchange(t)
+			conn := &testWebsocketConnection{}
+			conn.down.Store(tc.down)
+			state := ex.wsTrackConnection(conn, newTestSession(t, ex).ch, false, tc.account, tc.credentials)
+			got := ex.wsAccountConnections(asset.USDTMarginedFutures, creds)
+			if tc.exp {
+				assert.Equal(t, []*websocketConnection{state}, got, "wsAccountConnections should return the account's up connection of the product")
+			} else {
+				assert.Empty(t, got, "wsAccountConnections should return only up connections of the product for the account")
+			}
+		})
+	}
+	t.Run("several connections", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		session := newTestSession(t, ex).ch
+		exp := make([]*websocketConnection, 0, 3)
+		for range 3 {
+			exp = append(exp, ex.wsTrackConnection(&testWebsocketConnection{}, session, false, asset.USDTMarginedFutures, creds))
+			ex.wsTrackConnection(&testWebsocketConnection{}, session, false, asset.CoinMarginedFutures, creds)
+		}
+		assert.ElementsMatch(t, exp, ex.wsAccountConnections(asset.USDTMarginedFutures, creds), "wsAccountConnections should return every up connection of the product for the account")
+	})
+	t.Run("no connection", func(t *testing.T) {
+		t.Parallel()
+		assert.Empty(t, newWebsocketTestExchange(t).wsAccountConnections(asset.USDTMarginedFutures, creds), "wsAccountConnections should return nothing without a connection")
+	})
+}
+
 func TestWebsocketBookKey(t *testing.T) {
 	t.Parallel()
 	k, err := wsBookKey(testOrderbookSubscription(testSpotPair, asset.Spot, 20))
@@ -952,8 +1108,11 @@ func TestWebsocketBookKey(t *testing.T) {
 	assert.Equal(t, testSpotPair.Quote.Item, k.Quote, "the key should hold the quote")
 	assert.Equal(t, asset.Spot, k.Asset, "the key should hold the asset")
 	for _, pairs := range []currency.Pairs{nil, {testSpotPair, currency.NewPairWithDelimiter("ETH", "USDT", "-")}} {
-		_, err := wsBookKey(&subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: pairs})
-		assert.ErrorIsf(t, err, subscription.ErrNotSinglePair, "wsBookKey should reject %d pairs", len(pairs))
+		t.Run(strconv.Itoa(len(pairs))+" pairs", func(t *testing.T) {
+			t.Parallel()
+			_, err := wsBookKey(&subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: pairs})
+			assert.ErrorIsf(t, err, subscription.ErrNotSinglePair, "wsBookKey should reject %d pairs", len(pairs))
+		})
 	}
 }
 
@@ -1041,7 +1200,7 @@ func TestWebsocketLoadBook(t *testing.T) {
 	assert.ErrorIs(t, bookError(ex, testSpotPair, asset.Spot), orderbook.ErrDepthNotFound, "a push of a book without a feed should not load it")
 
 	require.NoError(t, ex.wsClaimBook(a, stateA.generation, depth20), "wsClaimBook must not error")
-	ex.wsTrackConnection(b, session.ch, false, nil)
+	ex.wsTrackConnection(b, session.ch, false, asset.Empty, nil)
 	require.NoError(t, ex.wsLoadBook(t.Context(), b, stream, testBook(ex, testSpotPair, asset.Spot, 100)), "wsLoadBook must not error for another connection")
 	assert.ErrorIs(t, bookError(ex, testSpotPair, asset.Spot), orderbook.ErrDepthNotFound, "a push from a connection not feeding the book should not load it")
 	require.NoError(t, ex.wsLoadBook(t.Context(), a, "BTC-USDT@depth5", testBook(ex, testSpotPair, asset.Spot, 100)), "wsLoadBook must not error for another stream")
@@ -1052,7 +1211,7 @@ func TestWebsocketLoadBook(t *testing.T) {
 	require.NoError(t, err, "the feed's push must load the book")
 	assert.InDelta(t, 99, book.Bids[0].Price, 1e-9, "the book should hold the push's levels")
 
-	ex.wsTrackConnection(a, session.ch, false, nil)
+	ex.wsTrackConnection(a, session.ch, false, asset.Empty, nil)
 	require.NoError(t, ex.wsLoadBook(t.Context(), a, stream, testBook(ex, testSpotPair, asset.Spot, 200)), "wsLoadBook must not error for a stale generation")
 	book, err = ex.Websocket.Orderbook.GetOrderbook(testSpotPair, asset.Spot)
 	require.NoError(t, err, "GetOrderbook must not error")
@@ -1079,8 +1238,17 @@ func TestWebsocketFrameTime(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, time.UnixMilli(1794390762865), wsFrameTime([]byte(`{"ts":1794390762865}`), "ts"), "wsFrameTime should return the frame's time")
 	assert.Equal(t, time.UnixMilli(1794390763070), wsFrameTime([]byte(`{"data":{"timestamp":1794390763070}}`), "data", "timestamp"), "wsFrameTime should return a nested time")
-	for _, frame := range []string{`{}`, `{"ts":0}`, `{"ts":"x"}`} {
-		assert.WithinDurationf(t, time.Now(), wsFrameTime([]byte(frame), "ts"), time.Minute, "wsFrameTime should return the receipt time for %s", frame)
+	for _, tc := range []struct {
+		name, frame string
+	}{
+		{"missing time", `{}`},
+		{"zero time", `{"ts":0}`},
+		{"malformed time", `{"ts":"x"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.WithinDurationf(t, time.Now(), wsFrameTime([]byte(tc.frame), "ts"), time.Minute, "wsFrameTime should return the receipt time for %s", tc.frame)
+		})
 	}
 }
 
@@ -1189,9 +1357,12 @@ func TestWebsocketGenerateAccountSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	for a, ePath := range testAccountRESTPaths {
-		subs, err := ex.wsGenerateAccountSubscriptions(a, ePath)
-		require.NoErrorf(t, err, "wsGenerateAccountSubscriptions must not error for %s without authentication", a)
-		assert.Emptyf(t, subs, "%s should generate no account subscriptions without authenticated websocket use", a)
+		t.Run(a.String()+" without authentication", func(t *testing.T) {
+			t.Parallel()
+			subs, err := ex.wsGenerateAccountSubscriptions(a, ePath)
+			require.NoErrorf(t, err, "wsGenerateAccountSubscriptions must not error for %s without authentication", a)
+			assert.Emptyf(t, subs, "%s should generate no account subscriptions without authenticated websocket use", a)
+		})
 	}
 
 	for _, tc := range []struct {
@@ -1232,9 +1403,12 @@ func TestWebsocketGenerateAccountSubscriptions(t *testing.T) {
 		require.NoError(t, err, "GetURL must not error")
 		ex.wsRecordListenKeyFailure(host)
 		for a, exp := range map[asset.Item]int{asset.Spot: 0, asset.USDTMarginedFutures: 0, asset.CoinMarginedFutures: 2} {
-			subs, err := ex.wsGenerateAccountSubscriptions(a, testAccountRESTPaths[a])
-			require.NoErrorf(t, err, "wsGenerateAccountSubscriptions must not error for %s", a)
-			assert.Lenf(t, subs, exp, "%s should generate its account subscriptions only when its REST host's listen key requests are not waiting", a)
+			// The cases read the wait the failure above started, which the test ends below, so they run in turn
+			t.Run(a.String(), func(t *testing.T) {
+				subs, err := ex.wsGenerateAccountSubscriptions(a, testAccountRESTPaths[a])
+				require.NoErrorf(t, err, "wsGenerateAccountSubscriptions must not error for %s", a)
+				assert.Lenf(t, subs, exp, "%s should generate its account subscriptions only when its REST host's listen key requests are not waiting", a)
+			})
 		}
 		ex.wsState.mu.Lock()
 		ex.wsState.keyRetries[host] = websocketListenKeyRetry{wait: time.Second, next: time.Now().Add(-time.Millisecond)}
@@ -1280,9 +1454,12 @@ func TestWebsocketAccountStreamName(t *testing.T) {
 		{asset.USDTMarginedFutures, subscription.MyOrdersChannel, "ORDER_TRADE_UPDATE"},
 		{asset.CoinMarginedFutures, subscription.MyAccountChannel, "ACCOUNT_UPDATE"},
 	} {
-		got, err := wsAccountStreamName(tc.asset, tc.channel)
-		require.NoErrorf(t, err, "wsAccountStreamName must not error for %s %s", tc.asset, tc.channel)
-		assert.Equalf(t, tc.exp, got, "wsAccountStreamName should name the %s %s stream", tc.asset, tc.channel)
+		t.Run(tc.asset.String()+" "+tc.channel, func(t *testing.T) {
+			t.Parallel()
+			got, err := wsAccountStreamName(tc.asset, tc.channel)
+			require.NoErrorf(t, err, "wsAccountStreamName must not error for %s %s", tc.asset, tc.channel)
+			assert.Equalf(t, tc.exp, got, "wsAccountStreamName should name the %s %s stream", tc.asset, tc.channel)
+		})
 	}
 	_, err := wsAccountStreamName(asset.Spot, subscription.MyTradesChannel)
 	assert.ErrorIs(t, err, subscription.ErrNotSupported, "wsAccountStreamName should reject an unsupported channel")
@@ -1372,12 +1549,18 @@ func TestWebsocketStreamName(t *testing.T) {
 func TestWebsocketParseInterval(t *testing.T) {
 	t.Parallel()
 	for _, interval := range websocketKlineIntervals {
-		for _, format := range []func(kline.Interval) (string, error){intervalToString, spotWebsocketIntervalToString} {
-			name, err := format(interval)
-			require.NoErrorf(t, err, "formatting %s must not error", interval)
-			got, err := wsParseInterval(name, format)
-			require.NoErrorf(t, err, "wsParseInterval must not error for %s", name)
-			assert.Equalf(t, interval, got, "wsParseInterval should parse %s", name)
+		for _, f := range []struct {
+			streams string
+			format  func(kline.Interval) (string, error)
+		}{{"perpetual", intervalToString}, {"spot", spotWebsocketIntervalToString}} {
+			t.Run(f.streams+" "+interval.Word(), func(t *testing.T) {
+				t.Parallel()
+				name, err := f.format(interval)
+				require.NoErrorf(t, err, "formatting %s must not error", interval)
+				got, err := wsParseInterval(name, f.format)
+				require.NoErrorf(t, err, "wsParseInterval must not error for %s", name)
+				assert.Equalf(t, interval, got, "wsParseInterval should parse %s", name)
+			})
 		}
 	}
 	_, err := wsParseInterval("1min", intervalToString)
@@ -1397,9 +1580,12 @@ func TestWebsocketUTCPlus8PeriodStart(t *testing.T) {
 		kline.OneWeek:    time.Date(2026, 11, 8, 16, 0, 0, 0, time.UTC),
 		kline.OneMonth:   time.Date(2026, 10, 31, 16, 0, 0, 0, time.UTC),
 	} {
-		got := wsUTCPlus8PeriodStart(at, interval)
-		assert.Equalf(t, exp, got, "%s periods should start as the spot candle stream starts them", interval)
-		assert.Equalf(t, exp, wsUTCPlus8PeriodStart(got, interval), "a %s period's start should be its own period's start", interval)
+		t.Run(interval.Word(), func(t *testing.T) {
+			t.Parallel()
+			got := wsUTCPlus8PeriodStart(at, interval)
+			assert.Equalf(t, exp, got, "%s periods should start as the spot candle stream starts them", interval)
+			assert.Equalf(t, exp, wsUTCPlus8PeriodStart(got, interval), "a %s period's start should be its own period's start", interval)
+		})
 	}
 	assert.Equal(t, time.Date(1969, 12, 31, 16, 0, 0, 0, time.UTC), wsUTCPlus8PeriodStart(time.Unix(0, 0).UTC(), kline.OneDay), "a time before the first period should fall in the period before it")
 	assert.Equal(t, time.Date(2026, 11, 10, 16, 0, 0, 0, time.UTC).Local(), wsUTCPlus8PeriodStart(at.Local(), kline.OneDay), "the period start should be in the time's location")
@@ -1842,7 +2028,10 @@ func TestWebsocketTrackPushedSubscriptions(t *testing.T) {
 	require.NoError(t, ex.wsTrackPushedSubscriptions(t.Context(), conn, subs), "wsTrackPushedSubscriptions must not error")
 	assert.Len(t, ex.Websocket.GetSubscriptions(), 2, "the subscriptions should be stored")
 	for _, s := range subs {
-		assert.Equal(t, subscription.SubscribedState, s.State(), "the subscriptions should be subscribed")
+		t.Run(s.QualifiedChannel, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, subscription.SubscribedState, s.State(), "the subscriptions should be subscribed")
+		})
 	}
 	assert.Empty(t, conn.messages(), "nothing should be sent")
 }
@@ -2064,17 +2253,20 @@ func TestWebsocketRouteCoinMarginedError(t *testing.T) {
 func TestWebsocketErrorNamesRequest(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		msg, dataType string
-		exp           bool
+		name, msg, dataType string
+		exp                 bool
 	}{
-		{"code:100400: symbol is not found: BTC_USD", "BTC-USD@trade", true},
-		{"symbol is not found: BTC-USD", "BTC-USD@trade", true},
-		{"code:100400:nonsense dataType is not supported", "BTC-USD@nonsense", true},
-		{"code:100400:peroid is not supported: 1min", "BTC-USD@kline_1min", true}, // codespell:ignore peroid // BingX's spelling in its reply
-		{"code:100400:nonsense dataType is not supported", "ETH-USD@trade", false},
-		{"code:100400:something else", "", false},
+		{"symbol with an underscore", "code:100400: symbol is not found: BTC_USD", "BTC-USD@trade", true},
+		{"symbol with a dash", "symbol is not found: BTC-USD", "BTC-USD@trade", true},
+		{"stream", "code:100400:nonsense dataType is not supported", "BTC-USD@nonsense", true},
+		{"candle interval", "code:100400:peroid is not supported: 1min", "BTC-USD@kline_1min", true}, // codespell:ignore peroid // BingX's spelling in its reply
+		{"another request's stream", "code:100400:nonsense dataType is not supported", "ETH-USD@trade", false},
+		{"empty dataType", "code:100400:something else", "", false},
 	} {
-		assert.Equalf(t, tc.exp, wsErrorNamesRequest(tc.msg, tc.dataType), "wsErrorNamesRequest should report %t for %q and %q", tc.exp, tc.msg, tc.dataType)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, wsErrorNamesRequest(tc.msg, tc.dataType), "wsErrorNamesRequest should report %t for %q and %q", tc.exp, tc.msg, tc.dataType)
+		})
 	}
 }
 
@@ -2434,25 +2626,30 @@ func (s *listenKeyRotationServer) createdWith() []string {
 func TestWebsocketCredentialsRefused(t *testing.T) {
 	t.Parallel()
 	for _, code := range []int64{100001, 100412, 100413, 100419} {
-		assert.Truef(t, wsCredentialsRefused(fmt.Errorf("wrapped: %w", &APIError{Code: code})), "code %d should be refused credentials", code)
+		t.Run(strconv.FormatInt(code, 10), func(t *testing.T) {
+			t.Parallel()
+			assert.Truef(t, wsCredentialsRefused(fmt.Errorf("wrapped: %w", &APIError{Code: code})), "code %d should be refused credentials", code)
+		})
 	}
 	assert.False(t, wsCredentialsRefused(&APIError{Code: 100410}), "a rate limit error should not be refused credentials")
 	assert.False(t, wsCredentialsRefused(request.ErrAuthRequestFailed), "the requester's authenticated request error should not be refused credentials")
 }
 
-func TestWebsocketRecordListenKeyFailure(t *testing.T) {
+func TestWebsocketRecordListenKeyFailure(t *testing.T) { //nolint:tparallel // each failure doubles the wait the failure before it left
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	ex.wsState.retryDelay = time.Minute
 	waits := make([]time.Duration, 0, 5)
-	for range 5 {
-		next := ex.wsRecordListenKeyFailure("host")
-		ex.wsState.mu.Lock()
-		r := ex.wsState.keyRetries["host"]
-		ex.wsState.mu.Unlock()
-		waits = append(waits, r.wait)
-		assert.WithinDuration(t, time.Now().Add(r.wait), r.next, time.Second, "the next attempt should be the wait away")
-		assert.Equal(t, r.next, next, "wsRecordListenKeyFailure should return when the wait ends")
+	for i := range 5 {
+		t.Run("failure "+strconv.Itoa(i+1), func(t *testing.T) {
+			next := ex.wsRecordListenKeyFailure("host")
+			ex.wsState.mu.Lock()
+			r := ex.wsState.keyRetries["host"]
+			ex.wsState.mu.Unlock()
+			waits = append(waits, r.wait)
+			assert.WithinDuration(t, time.Now().Add(r.wait), r.next, time.Second, "the next attempt should be the wait away")
+			assert.Equal(t, r.next, next, "wsRecordListenKeyFailure should return when the wait ends")
+		})
 	}
 	assert.Equal(t, []time.Duration{time.Minute, 2 * time.Minute, 4 * time.Minute, websocketListenKeyRetryMaxDelay, websocketListenKeyRetryMaxDelay}, waits, "each failure should double the wait up to the cap")
 
@@ -2908,9 +3105,18 @@ func TestWebsocketMarketFrame(t *testing.T) {
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr, "the report must carry BingX's error")
 	assert.Equal(t, &APIError{Code: 100400, Message: "bad request"}, apiErr, "the report should carry the code and message")
-	for _, frame := range []string{`{"code":0}`, `{"code":0,"dataType":"BTC-USDT"}`, `{"code":0,"dataType":"BTC-USDT@ticker"}`} {
-		_, _, _, err := wsMarketFrame([]byte(frame))
-		assert.ErrorIsf(t, err, errWebsocketUnhandledMessage, "wsMarketFrame should reject %s", frame)
+	for _, tc := range []struct {
+		name, frame string
+	}{
+		{"missing dataType", `{"code":0}`},
+		{"dataType without a stream", `{"code":0,"dataType":"BTC-USDT"}`},
+		{"missing data", `{"code":0,"dataType":"BTC-USDT@ticker"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, _, _, err := wsMarketFrame([]byte(tc.frame))
+			assert.ErrorIsf(t, err, errWebsocketUnhandledMessage, "wsMarketFrame should reject %s", tc.frame)
+		})
 	}
 }
 
@@ -2966,13 +3172,19 @@ func TestWebsocketTakerSide(t *testing.T) {
 func TestWebsocketSplitSymbol(t *testing.T) {
 	t.Parallel()
 	for symbol, exp := range map[string][2]string{"BTC-USDT": {"BTC", "USDT"}, "X-OLD-USDT": {"X-OLD", "USDT"}, "BTC-USD": {"BTC", "USD"}} {
-		base, quote, err := wsSplitSymbol(symbol)
-		require.NoErrorf(t, err, "wsSplitSymbol must not error for %s", symbol)
-		assert.Equalf(t, exp, [2]string{base, quote}, "wsSplitSymbol should split %s at its last dash", symbol)
+		t.Run(symbol, func(t *testing.T) {
+			t.Parallel()
+			base, quote, err := wsSplitSymbol(symbol)
+			require.NoErrorf(t, err, "wsSplitSymbol must not error for %s", symbol)
+			assert.Equalf(t, exp, [2]string{base, quote}, "wsSplitSymbol should split %s at its last dash", symbol)
+		})
 	}
 	for _, symbol := range []string{"BTCUSDT", "-USDT", "BTC-", ""} {
-		_, _, err := wsSplitSymbol(symbol)
-		assert.ErrorIsf(t, err, errWebsocketInvalidSymbol, "wsSplitSymbol should reject %q", symbol)
+		t.Run(cmp.Or(symbol, "empty"), func(t *testing.T) {
+			t.Parallel()
+			_, _, err := wsSplitSymbol(symbol)
+			assert.ErrorIsf(t, err, errWebsocketInvalidSymbol, "wsSplitSymbol should reject %q", symbol)
+		})
 	}
 }
 

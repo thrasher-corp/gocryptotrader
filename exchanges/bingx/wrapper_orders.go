@@ -8,6 +8,7 @@ import (
 	"maps"
 	"math"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,10 +27,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
-// Order request limits: the order and client order IDs a USDT-M batch cancellation takes each, the order history spans
-// and page sizes each product's endpoint takes, and the furthest record spot order history pages reach
+// Order request limits: the order history spans and page sizes each product's endpoint takes, and the furthest record
+// spot order history pages reach
 const (
-	swapBatchCancelLimit         = 10
 	perpetualOrderHistorySpan    = 7*24*time.Hour - time.Millisecond
 	perpetualOrderHistoryLimit   = 1000
 	spotOrderHistoryPageSize     = 100
@@ -47,6 +47,7 @@ var (
 	errCancelOutcomeUnknown         = errors.New("cancellation outcome unknown")
 	errOrderNotOpen                 = errors.New("order is no longer open")
 	errBatchCancelMixedAssets       = errors.New("batch cancellation orders must share an asset")
+	errBatchCancelMixedPairs        = errors.New("batch cancellation orders must share a pair")
 	errBatchCancelResultMissing     = errors.New("cancellation result missing from the reply")
 	errOrderHistoryLimit            = errors.New("more orders than BingX pages in the smallest time window")
 	errOrderHistoryTruncated        = errors.New("order history truncated at the furthest page BingX serves")
@@ -1141,21 +1142,24 @@ type batchCancelGroup struct {
 	clientOrderIDs []string
 }
 
-// CancelBatchOrders cancels orders of one asset, a pair's at a time: spot orders in one request a pair, which reports
-// each order's outcome, USDT-M orders ten order IDs and ten client order IDs a request, and coin-M orders, which BingX
-// cancels in batches no other way, one by one. Each order's status is its cancelled status or why its cancellation
-// failed, keyed by the ID it was requested with; errors of whole requests are returned with the response
+// CancelBatchOrders cancels orders of one asset and pair in one request, as each of BingX's batch cancellations takes
+// one symbol: spot orders, whose request reports each order's outcome, and USDT-M orders, at most ten by order ID and
+// ten by client order ID. BingX has no coin-M batch cancellation, so coin-M orders are refused. Each order's status is
+// its cancelled status or why its cancellation failed, keyed by the ID it was requested with; a failed request's error
+// is returned with the response
 func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(cancels) == 0 {
 		return nil, order.ErrCancelOrderIsNil
 	}
 	a := cancels[0].AssetType
 	switch a {
-	case asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures:
+	case asset.Spot, asset.USDTMarginedFutures:
+	case asset.CoinMarginedFutures:
+		return nil, fmt.Errorf("%w: BingX has no %s batch cancellation", common.ErrFunctionNotSupported, a)
 	default:
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}
-	var groups []*batchCancelGroup
+	g := &batchCancelGroup{pair: cancels[0].Pair}
 	for i := range cancels {
 		c := &cancels[i]
 		if c.AssetType != a {
@@ -1164,6 +1168,9 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 		if c.Pair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
+		if !c.Pair.Equal(g.pair) {
+			return nil, errBatchCancelMixedPairs
+		}
 		orderID, err := parseOrderID(c.OrderID)
 		if err != nil {
 			return nil, err
@@ -1171,47 +1178,25 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 		if orderID == 0 && c.ClientOrderID == "" {
 			return nil, order.ErrOrderIDNotSet
 		}
-		var group *batchCancelGroup
-		for _, g := range groups {
-			if g.pair.Equal(c.Pair) {
-				group = g
-				break
-			}
-		}
-		if group == nil {
-			group = &batchCancelGroup{pair: c.Pair}
-			groups = append(groups, group)
-		}
 		if orderID != 0 {
-			group.orderIDs = append(group.orderIDs, orderID)
+			g.orderIDs = append(g.orderIDs, orderID)
 		} else {
-			group.clientOrderIDs = append(group.clientOrderIDs, c.ClientOrderID)
+			g.clientOrderIDs = append(g.clientOrderIDs, c.ClientOrderID)
+		}
+	}
+	if a == asset.USDTMarginedFutures {
+		if err := swapTradeCheckListLength("order IDs", len(g.orderIDs), swapTradeBatchCancelLimit); err != nil {
+			return nil, err
+		}
+		if err := swapTradeCheckListLength("client order IDs", len(g.clientOrderIDs), swapTradeBatchCancelLimit); err != nil {
+			return nil, err
 		}
 	}
 	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(cancels))}
-	var errs error
-	for _, g := range groups {
-		switch a {
-		case asset.Spot:
-			errs = common.AppendError(errs, e.cancelSpotBatch(ctx, g, resp))
-		case asset.USDTMarginedFutures:
-			for start := 0; start < max(len(g.orderIDs), len(g.clientOrderIDs)); start += swapBatchCancelLimit {
-				orderIDs := g.orderIDs[min(start, len(g.orderIDs)):min(start+swapBatchCancelLimit, len(g.orderIDs))]
-				clientOrderIDs := g.clientOrderIDs[min(start, len(g.clientOrderIDs)):min(start+swapBatchCancelLimit, len(g.clientOrderIDs))]
-				errs = common.AppendError(errs, e.cancelSwapBatch(ctx, g.pair, orderIDs, clientOrderIDs, resp))
-			}
-		default:
-			for _, id := range g.orderIDs {
-				status, err := e.cancelCoinMarginedBatchOrder(ctx, g.pair, id, "")
-				errs = common.AppendError(errs, recordCoinMarginedCancel(resp, strconv.FormatUint(id, 10), status, err))
-			}
-			for _, id := range g.clientOrderIDs {
-				status, err := e.cancelCoinMarginedBatchOrder(ctx, g.pair, 0, id)
-				errs = common.AppendError(errs, recordCoinMarginedCancel(resp, id, status, err))
-			}
-		}
+	if a == asset.Spot {
+		return resp, e.cancelSpotBatch(ctx, g, resp)
 	}
-	return resp, errs
+	return resp, e.cancelSwapBatch(ctx, g.pair, g.orderIDs, g.clientOrderIDs, resp)
 }
 
 // recordBatchRequestError records a whole cancellation request's error as the status of each order it covered, and
@@ -1300,23 +1285,60 @@ func (e *Exchange) cancelSwapBatch(ctx context.Context, pair currency.Pair, orde
 	return nil
 }
 
-// cancelCoinMarginedBatchOrder cancels one coin-M order of a batch, returning its cancelled status
-func (e *Exchange) cancelCoinMarginedBatchOrder(ctx context.Context, pair currency.Pair, orderID uint64, clientOrderID string) (string, error) {
-	cancelled, err := e.CancelCoinMarginedOrder(ctx, pair, orderID, clientOrderID)
-	if err != nil {
-		return "", err
+// cancelMatchedOrders cancels the open orders a narrowed CancelAllOrders matched in the batches each product takes: a
+// pair's spot orders in one request, its USDT-M orders ten a request, and coin-M orders, which BingX has no batch
+// cancellation for, one a request. Each order's status is recorded by its order ID
+func (e *Exchange) cancelMatchedOrders(ctx context.Context, a asset.Item, matched []order.Cancel, status map[string]string) error {
+	var errs error
+	if a == asset.CoinMarginedFutures {
+		for i := range matched {
+			errs = common.AppendError(errs, e.cancelCoinMarginedOpenOrder(ctx, &matched[i], status))
+		}
+		return errs
 	}
-	return cancelled.Status, nil
+	for _, pairOrders := range ordersByPair(matched) {
+		size := len(pairOrders)
+		if a == asset.USDTMarginedFutures {
+			size = swapTradeBatchCancelLimit
+		}
+		for batch := range slices.Chunk(pairOrders, size) {
+			cancelled, err := e.CancelBatchOrders(ctx, batch)
+			if cancelled != nil {
+				maps.Copy(status, cancelled.Status)
+			}
+			errs = common.AppendError(errs, err)
+		}
+	}
+	return errs
 }
 
-// recordCoinMarginedCancel records a coin-M cancellation's status, or the error that failed it, returned naming the
-// order
-func recordCoinMarginedCancel(resp *order.CancelBatchResponse, key, status string, err error) error {
-	if err != nil {
-		resp.Status[key] = err.Error()
-		return fmt.Errorf("error cancelling order %s: %w", key, err)
+// ordersByPair groups orders by pair, in the order each pair first appears
+func ordersByPair(cancels []order.Cancel) [][]order.Cancel {
+	var groups [][]order.Cancel
+	for i := range cancels {
+		j := slices.IndexFunc(groups, func(g []order.Cancel) bool { return g[0].Pair.Equal(cancels[i].Pair) })
+		if j < 0 {
+			groups = append(groups, nil)
+			j = len(groups) - 1
+		}
+		groups[j] = append(groups[j], cancels[i])
 	}
-	resp.Status[key] = status
+	return groups
+}
+
+// cancelCoinMarginedOpenOrder cancels a coin-M order by its order ID, recording its cancelled status, or why its
+// cancellation failed, and returning that error naming the order
+func (e *Exchange) cancelCoinMarginedOpenOrder(ctx context.Context, c *order.Cancel, status map[string]string) error {
+	orderID, err := parseOrderID(c.OrderID)
+	var cancelled *CoinMarginedOrderResponse
+	if err == nil {
+		cancelled, err = e.CancelCoinMarginedOrder(ctx, c.Pair, orderID, "")
+	}
+	if err != nil {
+		status[c.OrderID] = err.Error()
+		return fmt.Errorf("error cancelling order %s: %w", c.OrderID, err)
+	}
+	status[c.OrderID] = cancelled.Status
 	return nil
 }
 
@@ -1327,6 +1349,11 @@ func recordCoinMarginedCancel(resp *order.CancelBatchResponse, key, status strin
 func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
 	if err := req.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
+	}
+	switch req.AssetType {
+	case asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures:
+	default:
+		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", asset.ErrNotSupported, req.AssetType)
 	}
 	if (req.Side != order.UnknownSide && req.Side != order.AnySide) || (req.Type != order.UnknownType && req.Type != order.AnyType) {
 		var err error
@@ -1350,14 +1377,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 			}
 		}
 		resp := order.CancelAllResponse{Status: make(map[string]string, len(cancels))}
-		if len(cancels) == 0 {
-			return resp, nil
-		}
-		cancelled, err := e.CancelBatchOrders(ctx, cancels)
-		if cancelled != nil {
-			maps.Copy(resp.Status, cancelled.Status)
-		}
-		return resp, err
+		return resp, e.cancelMatchedOrders(ctx, req.AssetType, cancels, resp.Status)
 	}
 	resp := order.CancelAllResponse{Status: make(map[string]string)}
 	switch req.AssetType {
@@ -1393,8 +1413,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 			f := &cancelled.Failed[i]
 			resp.Add(f.OrderID.String(), (&APIError{Code: int64(min(f.Code, math.MaxInt64)), Message: f.Message}).Error())
 		}
-	default:
-		return resp, fmt.Errorf("%w: %s", asset.ErrNotSupported, req.AssetType)
 	}
 	return resp, nil
 }
@@ -1410,6 +1428,11 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	id, err := parseOrderID(orderID)
 	if err != nil {
 		return nil, err
+	}
+	var fees *perpetualOrderFeeRead
+	if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
+		ctx, fees = e.beginPerpetualOrderFeeRead(ctx, a)
+		defer fees.end()
 	}
 	var d order.Detail
 	switch a {
@@ -1431,6 +1454,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, fmt.Errorf("error converting %s order %s: %w", a, orderID, err)
 		}
+		fees.seed(&d, o.ExecutedQuantity, o.Commission)
 	case asset.CoinMarginedFutures:
 		o, err := e.GetCoinMarginedOrderDetail(ctx, pair, id, "")
 		if err != nil {
@@ -1440,6 +1464,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, fmt.Errorf("error converting %s order %s: %w", a, orderID, err)
 		}
+		fees.seed(&d, o.ExecutedQuantity, o.Commission)
 	default:
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}
@@ -1597,6 +1622,11 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
+	var fees *perpetualOrderFeeRead
+	if req.AssetType == asset.USDTMarginedFutures || req.AssetType == asset.CoinMarginedFutures {
+		ctx, fees = e.beginPerpetualOrderFeeRead(ctx, req.AssetType)
+		defer fees.end()
+	}
 	var orders []order.Detail
 	for _, p := range listingPairs(req.Pairs) {
 		switch req.AssetType {
@@ -1619,7 +1649,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			for i := range open {
 				o := &open[i]
 				orders = e.appendListedOrder(orders, req.AssetType, o.OrderID.String(), p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-					return e.swapOrderDetail(o, pair)
+					d, err := e.swapOrderDetail(o, pair)
+					fees.seed(&d, o.ExecutedQuantity, o.Commission)
+					return d, err
 				})
 			}
 		case asset.CoinMarginedFutures:
@@ -1630,7 +1662,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			for i := range open {
 				o := &open[i]
 				orders = e.appendListedOrder(orders, req.AssetType, o.OrderID.String(), p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-					return e.coinMarginedOrderDetail(o, pair)
+					d, err := e.coinMarginedOrderDetail(o, pair)
+					fees.seed(&d, o.ExecutedQuantity, o.Commission)
+					return d, err
 				})
 			}
 		default:

@@ -143,6 +143,8 @@ type websocketState struct {
 	booksMu sync.Mutex
 	books   map[key.PairAsset]websocketBookFeed
 
+	orderRelay perpetualOrderRelay
+
 	// keepaliveInterval is the time between listen key extensions, websocketListenKeyKeepaliveInterval when zero
 	keepaliveInterval time.Duration
 	// keyValidity is how long a listen key lasts after its last extension, websocketListenKeyValidity when zero
@@ -165,6 +167,17 @@ type websocketConnection struct {
 	// credentials are those of the listen key an account connection was dialled with, whose account its events report;
 	// they are nil on market connections
 	credentials *accounts.Credentials
+	// account is the asset whose product's account events an account connection streams, asset.Empty on market
+	// connections
+	account asset.Item
+	// fees totals the fees of the open orders a perpetual account connection streams, whose events report each fill's
+	// fee alone
+	fees perpetualOrderFeeTotals
+	// heldOrders holds a perpetual account connection's order events while it reads its open orders, so their fills add
+	// to the totals the read starts; holding is set until the read ends, and held keeps the events in their order
+	heldOrders sync.Mutex
+	holding    bool
+	held       [][]byte
 
 	mu               sync.Mutex
 	inFlightID       string
@@ -271,7 +284,7 @@ func (e *Exchange) wsConnectMarket(ctx context.Context, conn websocket.Connectio
 	if err := conn.Dial(ctx, e.wsDialer(), http.Header{}, nil); err != nil {
 		return fmt.Errorf("%s unable to connect to the market data streams: %w", e.Name, err)
 	}
-	e.wsTrackConnection(conn, e.Websocket.ShutdownC, serialRequests, nil)
+	e.wsTrackConnection(conn, e.Websocket.ShutdownC, serialRequests, asset.Empty, nil)
 	return nil
 }
 
@@ -281,7 +294,7 @@ func (e *Exchange) wsConnectMarket(ctx context.Context, conn websocket.Connectio
 // created for, which it keeps, so the balances its events store and refresh are that account's whatever the exchange's
 // default credentials become. Once a perpetual product's account connection is up, its balances are refreshed for the
 // connection's session, fetching the changes made while it was disconnected, which include those of a refresh the end
-// of the previous session cut off
+// of the previous session cut off, and its open orders are read to start their fee totals
 func (e *Exchange) wsConnectAccount(ctx context.Context, conn websocket.Connection, a asset.Item, ePath exchange.URL) error {
 	session := e.Websocket.ShutdownC
 	keeper, err := e.wsListenKey(ctx, ePath, session)
@@ -291,12 +304,45 @@ func (e *Exchange) wsConnectAccount(ctx context.Context, conn websocket.Connecti
 	if err := conn.Dial(ctx, e.wsDialer(), http.Header{}, url.Values{"listenKey": {keeper.key}}); err != nil {
 		return fmt.Errorf("%w: %s", errWebsocketAccountDial, wsRedact(err.Error(), keeper.key))
 	}
-	e.wsTrackConnection(conn, session, false, keeper.credentials)
+	state := e.wsTrackConnection(conn, session, false, a, keeper.credentials)
 	e.wsAddKeeperConnection(keeper, conn)
 	if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
-		e.refreshBalances(accounts.DeployCredentialsToContext(ctx, keeper.credentials), a, session)
+		ctx = accounts.DeployCredentialsToContext(ctx, keeper.credentials)
+		e.refreshBalances(ctx, a, session)
+		e.wsReadOpenOrderFees(ctx, state)
 	}
 	return nil
+}
+
+// wsReadOpenOrderFees reads the open orders of a perpetual account connection's account once the connection is up, so
+// the fee totals of the orders placed before it start from the fees each had paid rather than from the first fill it
+// streams. The connection's order events are held until the read ends and then handled in turn, so their fills add to
+// the totals the read starts, while its other frames, heartbeats included, are handled as they arrive. The read ends
+// with the connection's session, and the manager waits for it before starting another, so the held events are relayed
+// before that session's. The read starts the connection's totals although the connection closes first, and within the
+// session a held event that a connection dialled since has taken its order past is dropped (perpetualOrderRelay)
+func (e *Exchange) wsReadOpenOrderFees(ctx context.Context, state *websocketConnection) {
+	state.heldOrders.Lock()
+	state.holding = true
+	state.heldOrders.Unlock()
+	// The read outlives the connection attempt, whose context ends with it, and ends with the session instead
+	ctx, cancel := context.WithCancel(context.WithValue(context.WithoutCancel(ctx), perpetualOrderFeeReadOwnerKey{}, state))
+	e.Websocket.Wg.Add(1)
+	e.wsState.background.Go(func() {
+		defer e.Websocket.Wg.Done()
+		defer cancel()
+		go func() {
+			select {
+			case <-state.session:
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
+		if _, err := e.GetActiveOrders(ctx, &order.MultiOrderRequest{AssetType: state.account, Side: order.AnySide, Type: order.AnyType}); err != nil {
+			log.Errorf(log.WebsocketMgr, "%s %s open order fee read failed: %v", e.Name, state.account, err)
+		}
+		e.wsReleaseOrderEvents(ctx, state)
+	})
 }
 
 // wsRedact replaces a secret in an error message
@@ -307,11 +353,11 @@ func wsRedact(message, secret string) string {
 	return strings.ReplaceAll(message, secret, "[redacted]")
 }
 
-// wsTrackConnection records a dialled connection under a new generation, an account connection with the credentials of
-// its listen key, first forgetting connections no longer connected, such as those a failed connection attempt closed,
-// and invalidating the books they fed. The session the connection belongs to is watched so that its connections' books
-// are invalidated once it is torn down
-func (e *Exchange) wsTrackConnection(conn websocket.Connection, session <-chan struct{}, serialRequests bool, credentials *accounts.Credentials) *websocketConnection {
+// wsTrackConnection records a dialled connection under a new generation, an account connection with the asset whose
+// product's account events it streams and the credentials of its listen key, first forgetting connections no longer
+// connected, such as those a failed connection attempt closed, and invalidating the books they fed. The session the
+// connection belongs to is watched so that its connections' books are invalidated once it is torn down
+func (e *Exchange) wsTrackConnection(conn websocket.Connection, session <-chan struct{}, serialRequests bool, account asset.Item, credentials *accounts.Credentials) *websocketConnection {
 	s := &e.wsState
 	s.mu.Lock()
 	if s.connections == nil {
@@ -326,7 +372,7 @@ func (e *Exchange) wsTrackConnection(conn websocket.Connection, session <-chan s
 		}
 	}
 	s.generation++
-	state := &websocketConnection{generation: s.generation, session: session, credentials: credentials}
+	state := &websocketConnection{generation: s.generation, session: session, credentials: credentials, account: account}
 	if serialRequests {
 		state.gate = make(chan struct{}, 1)
 	}
@@ -373,6 +419,21 @@ func (e *Exchange) wsConnection(conn websocket.Connection) (*websocketConnection
 		return state, nil
 	}
 	return nil, errWebsocketConnectionUnknown
+}
+
+// wsAccountConnections returns the account connections up for asset a's product and the account of creds, which that
+// account's order events on the product arrive on
+func (e *Exchange) wsAccountConnections(a asset.Item, creds *accounts.Credentials) []*websocketConnection {
+	s := &e.wsState
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var states []*websocketConnection
+	for conn, state := range s.connections {
+		if state.account == a && state.credentials.Equal(creds) && wsIsConnected(conn) {
+			states = append(states, state)
+		}
+	}
+	return states
 }
 
 // wsIsConnected reports whether a connection is up, taking one that cannot tell as up

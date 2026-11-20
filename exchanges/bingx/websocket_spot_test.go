@@ -185,7 +185,7 @@ func TestWebsocketProcessSpotKline(t *testing.T) {
 	assert.Error(t, ex.wsProcessSpotKline(t.Context(), []byte(`{"K":{"n":"x"}}`)), "wsProcessSpotKline should error for a candle that does not decode")
 }
 
-func TestWebsocketProcessSpotOrderbook(t *testing.T) {
+func TestWebsocketProcessSpotOrderbook(t *testing.T) { //nolint:tparallel // the pushes load one book in turn for the checks that follow
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	conn := &testWebsocketConnection{}
@@ -199,22 +199,24 @@ func TestWebsocketProcessSpotOrderbook(t *testing.T) {
 	}
 	require.Len(t, frames, 2, "the fixture must hold two pushes")
 	for i, frame := range frames {
-		data, _, _, err := jsonparser.Get(frame, "data")
-		require.NoError(t, err, "the push must have data")
-		require.NoErrorf(t, ex.wsProcessSpotOrderbook(t.Context(), conn, "BTC-USDT@depth20", frame, data), "wsProcessSpotOrderbook must not error for push %d", i)
-		book, err := ex.Websocket.Orderbook.GetOrderbook(testSpotPair, asset.Spot)
-		require.NoErrorf(t, err, "push %d must load the book", i)
-		var push WebsocketSpotOrderbook
-		require.NoError(t, json.Unmarshal(data, &push), "the push must decode")
-		assert.Equalf(t, push.LastUpdateID, book.LastUpdateID, "push %d should replace the book's update ID", i)
-		pushed, err := jsonparser.GetInt(frame, "timestamp")
-		require.NoError(t, err, "the push must have a timestamp")
-		assert.Equalf(t, time.UnixMilli(pushed), book.LastUpdated, "push %d should date the book", i)
-		require.Lenf(t, book.Asks, 20, "push %d must load every ask", i)
-		require.Lenf(t, book.Bids, 20, "push %d must load every bid", i)
-		assert.InDeltaf(t, push.Asks[len(push.Asks)-1].Price, book.Asks[0].Price, 1e-9, "push %d's asks arrive highest first and should be sorted lowest first", i)
-		assert.InDeltaf(t, push.Asks[0].Price, book.Asks[19].Price, 1e-9, "push %d's highest ask should be last", i)
-		assert.InDeltaf(t, push.Bids[0].Price, book.Bids[0].Price, 1e-9, "push %d's bids should be highest first", i)
+		t.Run("push "+strconv.Itoa(i), func(t *testing.T) {
+			data, _, _, err := jsonparser.Get(frame, "data")
+			require.NoError(t, err, "the push must have data")
+			require.NoErrorf(t, ex.wsProcessSpotOrderbook(t.Context(), conn, "BTC-USDT@depth20", frame, data), "wsProcessSpotOrderbook must not error for push %d", i)
+			book, err := ex.Websocket.Orderbook.GetOrderbook(testSpotPair, asset.Spot)
+			require.NoErrorf(t, err, "push %d must load the book", i)
+			var push WebsocketSpotOrderbook
+			require.NoError(t, json.Unmarshal(data, &push), "the push must decode")
+			assert.Equalf(t, push.LastUpdateID, book.LastUpdateID, "push %d should replace the book's update ID", i)
+			pushed, err := jsonparser.GetInt(frame, "timestamp")
+			require.NoError(t, err, "the push must have a timestamp")
+			assert.Equalf(t, time.UnixMilli(pushed), book.LastUpdated, "push %d should date the book", i)
+			require.Lenf(t, book.Asks, 20, "push %d must load every ask", i)
+			require.Lenf(t, book.Bids, 20, "push %d must load every bid", i)
+			assert.InDeltaf(t, push.Asks[len(push.Asks)-1].Price, book.Asks[0].Price, 1e-9, "push %d's asks arrive highest first and should be sorted lowest first", i)
+			assert.InDeltaf(t, push.Asks[0].Price, book.Asks[19].Price, 1e-9, "push %d's highest ask should be last", i)
+			assert.InDeltaf(t, push.Bids[0].Price, book.Bids[0].Price, 1e-9, "push %d's bids should be highest first", i)
+		})
 	}
 
 	stale := []byte(`{"code":0,"data":{"asks":[["2","1"]],"bids":[["1","1"]],"lastUpdateId":1},"dataType":"BTC-USDT@depth5","success":true,"timestamp":1794390763285}`)
@@ -259,7 +261,7 @@ func TestWebsocketHandleSpotAccountData(t *testing.T) {
 		first, err := ex.GetCredentials(t.Context())
 		require.NoError(t, err, "GetCredentials must not error")
 		conn := &testWebsocketConnection{}
-		ex.wsTrackConnection(conn, newTestSession(t, ex).ch, false, first)
+		ex.wsTrackConnection(conn, newTestSession(t, ex).ch, false, asset.Spot, first)
 		second := &accounts.Credentials{Key: "second-key", Secret: "second-secret"}
 		ex.SetCredentials(second)
 		event := fixtureLine(t, "testdata/wsSpotAccount.jsonl", "ACCOUNT_UPDATE")
@@ -272,7 +274,7 @@ func TestWebsocketHandleSpotAccountData(t *testing.T) {
 	})
 }
 
-func TestWebsocketProcessSpotOrderUpdate(t *testing.T) {
+func TestWebsocketProcessSpotOrderUpdate(t *testing.T) { //nolint:tparallel // the cases take their payloads from ex's data handler in turn
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), fixtureData(t, "testdata/wsSpotAccount.jsonl", "executionReport")), "wsProcessSpotOrderUpdate must not error")
@@ -325,10 +327,12 @@ func TestWebsocketProcessSpotOrderUpdate(t *testing.T) {
 		{"side", `{"s":"BTC-USDT","S":"BOTH","o":"LIMIT","X":"NEW","i":1}`, order.ErrSideIsInvalid},
 		{"symbol", `{"s":"BTCUSDT","S":"BUY","o":"LIMIT","X":"NEW","i":1}`, errWebsocketInvalidSymbol},
 	} {
-		require.NoErrorf(t, ex.wsProcessSpotOrderUpdate(t.Context(), []byte(tc.event)), "wsProcessSpotOrderUpdate must relay an unclassified %s", tc.name)
-		classification := waitForWebsocketPayload[order.ClassificationError](t, ex, nil)
-		assert.ErrorIsf(t, classification.Err, tc.err, "an unknown %s should be relayed as a classification error", tc.name)
-		assert.Equal(t, "1", classification.OrderID, "the classification error should name the order")
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoErrorf(t, ex.wsProcessSpotOrderUpdate(t.Context(), []byte(tc.event)), "wsProcessSpotOrderUpdate must relay an unclassified %s", tc.name)
+			classification := waitForWebsocketPayload[order.ClassificationError](t, ex, nil)
+			assert.ErrorIsf(t, classification.Err, tc.err, "an unknown %s should be relayed as a classification error", tc.name)
+			assert.Equal(t, "1", classification.OrderID, "the classification error should name the order")
+		})
 	}
 	assert.Error(t, ex.wsProcessSpotOrderUpdate(t.Context(), []byte(`{"i":"x"}`)), "wsProcessSpotOrderUpdate should error for an event that does not decode")
 }
@@ -502,8 +506,11 @@ func TestWebsocketSpotIntegration(t *testing.T) {
 	assert.Equal(t, 1, servers.ws[asset.Spot].marketDials(), "one market connection should be dialled")
 	assert.Equal(t, []string{testListenKey + "-1"}, servers.ws[asset.Spot].accountKeys(), "the account connection should be dialled with the listen key")
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-		assert.Zerof(t, servers.ws[a].marketDials(), "disabled %s should dial no market connection", a)
-		assert.Emptyf(t, servers.ws[a].accountKeys(), "disabled %s should dial no account connection", a)
+		// Serial, as the websocket is shut down after these checks
+		t.Run("disabled "+a.String(), func(t *testing.T) {
+			assert.Zerof(t, servers.ws[a].marketDials(), "disabled %s should dial no market connection", a)
+			assert.Emptyf(t, servers.ws[a].accountKeys(), "disabled %s should dial no account connection", a)
+		})
 	}
 
 	ex.wsState.mu.Lock()
@@ -524,22 +531,25 @@ func TestWebsocketSpotIntegration(t *testing.T) {
 		for _, tc := range []struct {
 			pairs, dials int
 		}{{50, 1}, {51, 2}} {
-			pairs := make(currency.Pairs, tc.pairs)
-			for i := range pairs {
-				pairs[i] = currency.NewPairWithDelimiter("C"+strconv.Itoa(i), "USDT", currency.DashDelimiter)
-			}
-			servers := newTestWebsocketServers(t, asset.Spot)
-			ex := newWebsocketIntegrationExchange(t, servers, asset.Spot, false, testWebsocketPairs(asset.Spot, pairs), testWebsocketSubscriptions(
-				&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
-				&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
-				&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-				&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 20},
-				&subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
-			))
-			ex.Requester.GetRateLimiterDefinitions()[websocketSubscriptionRate] = request.NewRateLimitWithWeight(0, 0, 1)
-			require.NoErrorf(t, ex.Websocket.Connect(t.Context()), "Connect must not error with %d pairs", tc.pairs)
-			assert.Lenf(t, ex.Websocket.GetSubscriptions(), tc.pairs*4, "every distinct stream of %d pairs should be subscribed", tc.pairs)
-			assert.Equalf(t, tc.dials, servers.ws[asset.Spot].marketDials(), "%d pairs should need %d connections", tc.pairs, tc.dials)
+			t.Run(strconv.Itoa(tc.pairs)+" pairs", func(t *testing.T) {
+				t.Parallel()
+				pairs := make(currency.Pairs, tc.pairs)
+				for i := range pairs {
+					pairs[i] = currency.NewPairWithDelimiter("C"+strconv.Itoa(i), "USDT", currency.DashDelimiter)
+				}
+				servers := newTestWebsocketServers(t, asset.Spot)
+				ex := newWebsocketIntegrationExchange(t, servers, asset.Spot, false, testWebsocketPairs(asset.Spot, pairs), testWebsocketSubscriptions(
+					&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+					&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+					&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+					&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 20},
+					&subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
+				))
+				ex.Requester.GetRateLimiterDefinitions()[websocketSubscriptionRate] = request.NewRateLimitWithWeight(0, 0, 1)
+				require.NoErrorf(t, ex.Websocket.Connect(t.Context()), "Connect must not error with %d pairs", tc.pairs)
+				assert.Lenf(t, ex.Websocket.GetSubscriptions(), tc.pairs*4, "every distinct stream of %d pairs should be subscribed", tc.pairs)
+				assert.Equalf(t, tc.dials, servers.ws[asset.Spot].marketDials(), "%d pairs should need %d connections", tc.pairs, tc.dials)
+			})
 		}
 	})
 }

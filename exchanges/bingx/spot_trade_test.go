@@ -840,8 +840,11 @@ func TestCancelAllSpotOrdersAfter(t *testing.T) {
 	_, err := e.CancelAllSpotOrdersAfter(t.Context(), "", 10*time.Second)
 	require.ErrorIs(t, err, errSpotCancelAllAfterTypeEmpty, "CancelAllSpotOrdersAfter must reject an empty type")
 	for _, timeout := range []time.Duration{0, -time.Second, 1500 * time.Millisecond} {
-		_, err = e.CancelAllSpotOrdersAfter(t.Context(), CancelAllAfterTypeActivate, timeout)
-		require.ErrorIsf(t, err, errSpotInvalidTimeout, "CancelAllSpotOrdersAfter must reject a timeout of %s", timeout)
+		// Serial, as the cases share e with the documented example below
+		t.Run(timeout.String(), func(t *testing.T) {
+			_, err := e.CancelAllSpotOrdersAfter(t.Context(), CancelAllAfterTypeActivate, timeout)
+			require.ErrorIsf(t, err, errSpotInvalidTimeout, "CancelAllSpotOrdersAfter must reject a timeout of %s", timeout)
+		})
 	}
 
 	t.Run("request", func(t *testing.T) {
@@ -1247,17 +1250,21 @@ func TestSpotOCOOrderParams(t *testing.T) {
 	_, err := spotOCOOrderParams(0, "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "spotOCOOrderParams must reject neither ID")
 	for _, tc := range []struct {
+		name          string
 		orderID       uint64
 		clientOrderID string
 		exp           url.Values
 	}{
-		{orderID: 1827968197060460545, exp: url.Values{"orderId": {"1827968197060460545"}}},
-		{clientOrderID: "12345610027", exp: url.Values{"clientOrderId": {"12345610027"}}},
-		{orderID: 1, clientOrderID: "2", exp: url.Values{"orderId": {"1"}, "clientOrderId": {"2"}}},
+		{name: "order ID", orderID: 1827968197060460545, exp: url.Values{"orderId": {"1827968197060460545"}}},
+		{name: "client order ID", clientOrderID: "12345610027", exp: url.Values{"clientOrderId": {"12345610027"}}},
+		{name: "both IDs", orderID: 1, clientOrderID: "2", exp: url.Values{"orderId": {"1"}, "clientOrderId": {"2"}}},
 	} {
-		params, err := spotOCOOrderParams(tc.orderID, tc.clientOrderID)
-		require.NoError(t, err, "spotOCOOrderParams must not error")
-		assert.Equal(t, tc.exp, params, "spotOCOOrderParams should set the IDs given")
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params, err := spotOCOOrderParams(tc.orderID, tc.clientOrderID)
+			require.NoError(t, err, "spotOCOOrderParams must not error")
+			assert.Equal(t, tc.exp, params, "spotOCOOrderParams should set the IDs given")
+		})
 	}
 }
 

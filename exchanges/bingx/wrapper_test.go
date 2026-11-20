@@ -1,6 +1,7 @@
 package bingx
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -194,9 +195,12 @@ func TestSetDefaults(t *testing.T) {
 	assert.Equal(t, protocol.TradingRequirements{SpotMarketBuyQuotation: true, SpotMarketSellBase: true}, ex.GetTradingRequirements(), "SetDefaults should take spot market buys in quote and sells in base")
 	assert.ElementsMatch(t, asset.Items{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures}, ex.GetAssetTypes(false), "SetDefaults should support spot and both perpetual assets")
 	for _, a := range ex.GetAssetTypes(false) {
-		format, err := ex.GetPairFormat(a, true)
-		require.NoErrorf(t, err, "GetPairFormat must not error for %s", a)
-		assert.Equalf(t, currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}, format, "SetDefaults should format %s pairs as BASE-QUOTE", a)
+		t.Run(a.String()+" pair format", func(t *testing.T) {
+			t.Parallel()
+			format, err := ex.GetPairFormat(a, true)
+			require.NoErrorf(t, err, "GetPairFormat must not error for %s", a)
+			assert.Equalf(t, currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}, format, "SetDefaults should format %s pairs as BASE-QUOTE", a)
+		})
 	}
 	assert.True(t, ex.Features.Supports.RESTCapabilities.TickerBatching, "SetDefaults should batch tickers")
 	assert.True(t, ex.Features.Supports.RESTCapabilities.ModifyOrder, "SetDefaults should modify orders")
@@ -206,13 +210,19 @@ func TestSetDefaults(t *testing.T) {
 	assert.Equal(t, map[asset.Item]bool{asset.USDTMarginedFutures: true, asset.CoinMarginedFutures: true}, ex.Features.Supports.FuturesCapabilities.FundingRateBatching, "SetDefaults should batch funding rates of both perpetual assets")
 	assert.Equal(t, uint64(coinMarginedCandleLimit), ex.Features.Enabled.Kline.GlobalResultLimit, "SetDefaults should limit a candle request to the smallest product limit")
 	for _, interval := range []kline.Interval{kline.OneMin, kline.SixHour, kline.OneDay, kline.OneWeek, kline.OneMonth} {
-		assert.Truef(t, ex.Features.Enabled.Kline.Intervals.ExchangeSupported(interval), "SetDefaults should enable %s candles", interval)
+		t.Run(interval.Word()+" candles", func(t *testing.T) {
+			t.Parallel()
+			assert.Truef(t, ex.Features.Enabled.Kline.Intervals.ExchangeSupported(interval), "SetDefaults should enable %s candles", interval)
+		})
 	}
 	assert.False(t, ex.Features.Enabled.Kline.Intervals.ExchangeSupported(kline.ThreeDay), "SetDefaults should build three day candles from daily ones")
 	for _, u := range []exchange.URL{exchange.RestSpot, exchange.RestUSDTMargined, exchange.RestCoinMargined} {
-		endpoint, err := ex.API.Endpoints.GetURL(u)
-		require.NoErrorf(t, err, "GetURL must not error for %s", u)
-		assert.Equalf(t, apiURL, endpoint, "SetDefaults should set the %s endpoint", u)
+		t.Run(u.String()+" endpoint", func(t *testing.T) {
+			t.Parallel()
+			endpoint, err := ex.API.Endpoints.GetURL(u)
+			require.NoErrorf(t, err, "GetURL must not error for %s", u)
+			assert.Equalf(t, apiURL, endpoint, "SetDefaults should set the %s endpoint", u)
+		})
 	}
 }
 
@@ -344,8 +354,11 @@ func TestFetchTradablePairs(t *testing.T) {
 			"GET /openApi/cswap/v1/market/contracts": {`{"code":100500,"msg":"busy"}`},
 		})
 		for _, a := range ex.GetAssetTypes(false) {
-			_, err := ex.FetchTradablePairs(t.Context(), a)
-			assert.ErrorIsf(t, err, errAPIResponse, "FetchTradablePairs should return the %s request's error", a)
+			// The cases share ex and its server, so they run in turn
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := ex.FetchTradablePairs(t.Context(), a)
+				assert.ErrorIsf(t, err, errAPIResponse, "FetchTradablePairs should return the %s request's error", a)
+			})
 		}
 	})
 
@@ -372,8 +385,11 @@ func TestSymbolPair(t *testing.T) {
 	assert.Equal(t, "GPT-OLD", pair.Base.String(), "symbolPair should split a symbol at its last dash")
 	assert.Equal(t, "USDT", pair.Quote.String(), "symbolPair should take the quote after the last dash")
 	for _, symbol := range []string{"BTCUSDT", "-USDT", "BTC-", ""} {
-		_, err = symbolPair(symbol, format)
-		assert.ErrorIsf(t, err, errWebsocketInvalidSymbol, "symbolPair should reject %q", symbol)
+		t.Run(cmp.Or(symbol, "empty"), func(t *testing.T) {
+			t.Parallel()
+			_, err := symbolPair(symbol, format)
+			assert.ErrorIsf(t, err, errWebsocketInvalidSymbol, "symbolPair should reject %q", symbol)
+		})
 	}
 }
 
@@ -417,13 +433,16 @@ func TestUpdateTradablePairs(t *testing.T) {
 			require.NoError(t, err, "UpdateTradablePairs must not error")
 		}
 		for a, p := range assetToTradablePairMap {
-			pairs, err := ex.GetAvailablePairs(a)
-			require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
-			if mockTests && a == asset.CoinMarginedFutures {
-				assert.Equal(t, []string{"BNB-USD", "SUI-USD", "UNI-USD"}, pairs.Strings(), "UpdateTradablePairs should store the recorded coin-M pairs")
-				continue
-			}
-			assert.Containsf(t, pairs.Strings(), p.String(), "UpdateTradablePairs should store the %s test pair", a)
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				pairs, err := ex.GetAvailablePairs(a)
+				require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
+				if mockTests && a == asset.CoinMarginedFutures {
+					assert.Equal(t, []string{"BNB-USD", "SUI-USD", "UNI-USD"}, pairs.Strings(), "UpdateTradablePairs should store the recorded coin-M pairs")
+					return
+				}
+				assert.Containsf(t, pairs.Strings(), p.String(), "UpdateTradablePairs should store the %s test pair", a)
+			})
 		}
 	})
 }
@@ -436,10 +455,13 @@ func TestAvailablePair(t *testing.T) {
 	assert.True(t, ok, "availablePair should find an available pair")
 	assert.Equal(t, "BTC-USDT", pair.String(), "availablePair should return the available pair")
 	for _, symbol := range []string{"NOPE-USDT", "NODASH", ""} {
-		pair, ok, err = ex.availablePair(symbol, asset.Spot)
-		require.NoErrorf(t, err, "availablePair must not error for %q", symbol)
-		assert.Falsef(t, ok, "availablePair should report %q has no available pair", symbol)
-		assert.Truef(t, pair.IsEmpty(), "availablePair should return no pair for %q", symbol)
+		t.Run(cmp.Or(symbol, "empty"), func(t *testing.T) {
+			t.Parallel()
+			pair, ok, err := ex.availablePair(symbol, asset.Spot)
+			require.NoErrorf(t, err, "availablePair must not error for %q", symbol)
+			assert.Falsef(t, ok, "availablePair should report %q has no available pair", symbol)
+			assert.Truef(t, pair.IsEmpty(), "availablePair should return no pair for %q", symbol)
+		})
 	}
 	_, _, err = new(Exchange).availablePair("BTC-USDT", asset.Spot)
 	assert.Error(t, err, "availablePair should return the error of a pair manager without pairs")
@@ -458,7 +480,10 @@ func TestUpdateTickers(t *testing.T) {
 			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, currency.Pairs{coinMarginedTradablePair, suiUSD}, false), "StorePairs must not error")
 		}
 		for _, a := range ex.GetAssetTypes(false) {
-			require.NoErrorf(t, ex.UpdateTickers(t.Context(), a), "UpdateTickers must not error for %s", a)
+			// The checks below read the tickers the cases store, so they run in turn
+			t.Run(a.String(), func(t *testing.T) {
+				require.NoErrorf(t, ex.UpdateTickers(t.Context(), a), "UpdateTickers must not error for %s", a)
+			})
 		}
 		if !mockTests {
 			for a, p := range assetToTradablePairMap {
@@ -507,7 +532,10 @@ func TestUpdateTickers(t *testing.T) {
 			"GET /openApi/cswap/v1/market/ticker": {`{"code":100500,"msg":"busy"}`},
 		})
 		for _, a := range ex.GetAssetTypes(false) {
-			assert.ErrorIsf(t, ex.UpdateTickers(t.Context(), a), errAPIResponse, "UpdateTickers should return the %s request's error", a)
+			// The cases share ex and its server, so they run in turn
+			t.Run(a.String(), func(t *testing.T) {
+				assert.ErrorIsf(t, ex.UpdateTickers(t.Context(), a), errAPIResponse, "UpdateTickers should return the %s request's error", a)
+			})
 		}
 	})
 
@@ -537,7 +565,10 @@ func TestUpdateTickers(t *testing.T) {
 		})
 		ex.CurrencyPairs = currency.PairsManager{}
 		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-			assert.ErrorContainsf(t, ex.UpdateTickers(t.Context(), a), "pair matcher is nil", "UpdateTickers should return the %s pair lookup's error", a)
+			// The cases share ex and its server, so they run in turn
+			t.Run(a.String(), func(t *testing.T) {
+				assert.ErrorContainsf(t, ex.UpdateTickers(t.Context(), a), "pair matcher is nil", "UpdateTickers should return the %s pair lookup's error", a)
+			})
 		}
 	})
 }
@@ -580,8 +611,11 @@ func TestUpdateTicker(t *testing.T) {
 			"GET /openApi/cswap/v1/market/ticker": {`{"code":0,"data":[]}`, `{"code":0,"data":[{"symbol":"BTC-USD","priceChangePercent":"x%"}]}`},
 		})
 		for _, a := range ex.GetAssetTypes(false) {
-			_, err := ex.UpdateTicker(t.Context(), currency.NewBTCUSDT(), a)
-			assert.ErrorIsf(t, err, ticker.ErrTickerNotFound, "UpdateTicker should report a missing %s ticker", a)
+			// The cases share ex and its server's replies with the call below, so they run in turn
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := ex.UpdateTicker(t.Context(), currency.NewBTCUSDT(), a)
+				assert.ErrorIsf(t, err, ticker.ErrTickerNotFound, "UpdateTicker should report a missing %s ticker", a)
+			})
 		}
 		_, err := ex.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter), asset.CoinMarginedFutures)
 		assert.ErrorIs(t, err, errInvalidPercentage, "UpdateTicker should report a ticker reply it cannot decode")
@@ -595,8 +629,11 @@ func TestUpdateTicker(t *testing.T) {
 			"GET /openApi/cswap/v1/market/ticker": {`{"code":100500,"msg":"busy"}`},
 		})
 		for _, a := range ex.GetAssetTypes(false) {
-			_, err := ex.UpdateTicker(t.Context(), currency.NewBTCUSDT(), a)
-			assert.ErrorIsf(t, err, errAPIResponse, "UpdateTicker should return the %s request's error", a)
+			// The cases share ex and its server, so they run in turn
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := ex.UpdateTicker(t.Context(), currency.NewBTCUSDT(), a)
+				assert.ErrorIsf(t, err, errAPIResponse, "UpdateTicker should return the %s request's error", a)
+			})
 		}
 	})
 
@@ -712,8 +749,11 @@ func TestUpdateOrderbook(t *testing.T) {
 			"GET /openApi/cswap/v1/market/depth": {`{"code":100500,"msg":"busy"}`},
 		})
 		for _, a := range ex.GetAssetTypes(false) {
-			_, err := ex.UpdateOrderbook(t.Context(), currency.NewBTCUSDT(), a)
-			assert.ErrorIsf(t, err, errAPIResponse, "UpdateOrderbook should return the %s request's error", a)
+			// The checks below read the requests the cases make, so they run in turn
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := ex.UpdateOrderbook(t.Context(), currency.NewBTCUSDT(), a)
+				assert.ErrorIsf(t, err, errAPIResponse, "UpdateOrderbook should return the %s request's error", a)
+			})
 		}
 		got := requests()
 		require.Len(t, got, 3, "UpdateOrderbook must request each asset's book")
@@ -789,8 +829,11 @@ func TestUpdateAccountBalances(t *testing.T) {
 			"GET /openApi/cswap/v1/user/balance":   {`{"code":100001,"msg":"signature"}`},
 		})
 		for _, a := range ex.GetAssetTypes(false) {
-			_, err := ex.UpdateAccountBalances(t.Context(), a)
-			assert.ErrorIsf(t, err, errAPIResponse, "UpdateAccountBalances should return the %s request's error", a)
+			// The cases share ex and its server, so they run in turn
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := ex.UpdateAccountBalances(t.Context(), a)
+				assert.ErrorIsf(t, err, errAPIResponse, "UpdateAccountBalances should return the %s request's error", a)
+			})
 		}
 	})
 
@@ -1079,7 +1122,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 	})
 }
 
-func TestAccountBalances(t *testing.T) {
+func TestAccountBalances(t *testing.T) { //nolint:tparallel // the cases share ex and its server with the check that follows them
 	t.Parallel()
 	_, err := e.accountBalances(t.Context(), asset.Futures)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "accountBalances must reject an unsupported asset")
@@ -1098,13 +1141,15 @@ func TestAccountBalances(t *testing.T) {
 		{asset.USDTMarginedFutures, currency.USDT, accounts.Balance{Total: 194.8212, Hold: 1.0602, Free: 193.7609}},
 		{asset.CoinMarginedFutures, currency.BTC, accounts.Balance{Total: 0.14438227, Hold: 0.00110845, Free: 0.14317271}},
 	} {
-		subAccount, err := ex.accountBalances(t.Context(), tc.a)
-		require.NoErrorf(t, err, "accountBalances must not error for %s", tc.a)
-		assert.Equalf(t, tc.a, subAccount.AssetType, "accountBalances should return the %s sub-account", tc.a)
-		tc.exp.Currency = tc.c
-		assert.Equalf(t, tc.exp, subAccount.Balances[tc.c], "accountBalances should map the %s balance", tc.a)
-		_, err = ex.accountBalances(t.Context(), tc.a)
-		assert.ErrorIsf(t, err, errAPIResponse, "accountBalances should return the %s request's error", tc.a)
+		t.Run(tc.a.String(), func(t *testing.T) {
+			subAccount, err := ex.accountBalances(t.Context(), tc.a)
+			require.NoErrorf(t, err, "accountBalances must not error for %s", tc.a)
+			assert.Equalf(t, tc.a, subAccount.AssetType, "accountBalances should return the %s sub-account", tc.a)
+			tc.exp.Currency = tc.c
+			assert.Equalf(t, tc.exp, subAccount.Balances[tc.c], "accountBalances should map the %s balance", tc.a)
+			_, err = ex.accountBalances(t.Context(), tc.a)
+			assert.ErrorIsf(t, err, errAPIResponse, "accountBalances should return the %s request's error", tc.a)
+		})
 	}
 	_, err = ex.GetCachedCurrencyBalances(t.Context(), asset.Spot)
 	assert.Error(t, err, "accountBalances should not store the balances")
@@ -1137,10 +1182,13 @@ func TestAccountBalanceContext(t *testing.T) {
 			}
 			contexts := make([]context.Context, 0, 3)
 			for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-				ctx, k, err := ex.accountBalanceContext(requestCtx, a)
-				require.NoErrorf(t, err, "accountBalanceContext must not error for %s", a)
-				assert.Equalf(t, balanceKey{credentials: tc.exp, asset: a}, k, "accountBalanceContext should key the %s balances by the whole of the credentials", a)
-				contexts = append(contexts, ctx)
+				// The cases collect the contexts the checks below read, so they run in turn
+				t.Run(a.String(), func(t *testing.T) {
+					ctx, k, err := ex.accountBalanceContext(requestCtx, a)
+					require.NoErrorf(t, err, "accountBalanceContext must not error for %s", a)
+					assert.Equalf(t, balanceKey{credentials: tc.exp, asset: a}, k, "accountBalanceContext should key the %s balances by the whole of the credentials", a)
+					contexts = append(contexts, ctx)
+				})
 			}
 			ex.SetCredentials(&accounts.Credentials{Key: "after-key", Secret: "after-secret"})
 			for _, ctx := range contexts {
@@ -1724,11 +1772,14 @@ func TestPerpetualBalance(t *testing.T) {
 func TestValidateAPICredentials(t *testing.T) {
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
-	for _, a := range ex.GetAssetTypes(false) {
-		assert.NoErrorf(t, ex.ValidateAPICredentials(t.Context(), a), "ValidateAPICredentials should not error for %s", a)
-	}
 	assert.ErrorIs(t, ex.ValidateAPICredentials(t.Context(), asset.Futures), asset.ErrNotSupported, "ValidateAPICredentials should reject an unsupported asset")
+	for _, a := range ex.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
+			assert.NoErrorf(t, ex.ValidateAPICredentials(t.Context(), a), "ValidateAPICredentials should not error for %s", a)
+		})
+	}
 }
 
 func TestGetAccountFundingHistory(t *testing.T) {
@@ -1870,7 +1921,10 @@ func TestDepositStatusString(t *testing.T) {
 		DepositStatusChainUploaded: "Chain uploaded",
 		9:                          "9",
 	} {
-		assert.Equalf(t, exp, depositStatusString(status), "depositStatusString should name status %d", status)
+		t.Run(exp, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, depositStatusString(status), "depositStatusString should name status %d", status)
+		})
 	}
 }
 
@@ -1882,7 +1936,10 @@ func TestWithdrawStatusString(t *testing.T) {
 		WithdrawStatusCompleted:   "Completed",
 		0:                         "0",
 	} {
-		assert.Equalf(t, exp, withdrawStatusString(status), "withdrawStatusString should name status %d", status)
+		t.Run(exp, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, withdrawStatusString(status), "withdrawStatusString should name status %d", status)
+		})
 	}
 }
 
@@ -1938,8 +1995,11 @@ func TestGetRecentTrades(t *testing.T) {
 			"GET /openApi/swap/v2/quote/trades": {`{"code":100500,"msg":"busy"}`},
 		})
 		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
-			_, err := ex.GetRecentTrades(t.Context(), currency.NewBTCUSDT(), a)
-			assert.ErrorIsf(t, err, errAPIResponse, "GetRecentTrades should return the %s request's error", a)
+			// The cases share ex and its server, so they run in turn
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := ex.GetRecentTrades(t.Context(), currency.NewBTCUSDT(), a)
+				assert.ErrorIsf(t, err, errAPIResponse, "GetRecentTrades should return the %s request's error", a)
+			})
 		}
 	})
 
@@ -1972,8 +2032,11 @@ func TestGetHistoricTrades(t *testing.T) {
 	_, err := e.GetHistoricTrades(t.Context(), pair, asset.Futures, start, end)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricTrades must reject an unsupported asset")
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-		_, err = e.GetHistoricTrades(t.Context(), pair, a, start, end)
-		require.ErrorIsf(t, err, common.ErrFunctionNotSupported, "GetHistoricTrades must report that BingX serves no %s trades by time", a)
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetHistoricTrades(t.Context(), pair, a, start, end)
+			require.ErrorIsf(t, err, common.ErrFunctionNotSupported, "GetHistoricTrades must report that BingX serves no %s trades by time", a)
+		})
 	}
 	_, err = e.GetHistoricTrades(t.Context(), currency.EMPTYPAIR, asset.Spot, start, end)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetHistoricTrades must reject an empty pair")
@@ -2318,15 +2381,21 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 func TestCandleLimit(t *testing.T) {
 	t.Parallel()
 	for a, exp := range map[asset.Item]uint64{asset.Spot: 1440, asset.USDTMarginedFutures: 1440, asset.CoinMarginedFutures: 1000} {
-		limit, err := candleLimit(a)
-		require.NoErrorf(t, err, "candleLimit must not error for %s", a)
-		assert.Equalf(t, exp, limit, "candleLimit should return the %s candle endpoint's limit", a)
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			limit, err := candleLimit(a)
+			require.NoErrorf(t, err, "candleLimit must not error for %s", a)
+			assert.Equalf(t, exp, limit, "candleLimit should return the %s candle endpoint's limit", a)
+		})
 	}
-	_, err := candleLimit(asset.Futures)
-	assert.ErrorIs(t, err, asset.ErrNotSupported, "candleLimit should reject an unsupported asset")
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		_, err := candleLimit(asset.Futures)
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "candleLimit should reject an unsupported asset")
+	})
 }
 
-func TestCandles(t *testing.T) {
+func TestCandles(t *testing.T) { //nolint:tparallel // the cases share ex and its server with the checks that follow them
 	t.Parallel()
 	_, err := e.candles(t.Context(), asset.Futures, currency.NewBTCUSDT(), kline.OneDay, wrapperFixtureStart, wrapperFixtureEnd, 1000)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "candles must reject an unsupported asset")
@@ -2344,11 +2413,13 @@ func TestCandles(t *testing.T) {
 		{asset.USDTMarginedFutures, kline.Candle{Time: wrapperFixtureStart, Open: 1, High: 2, Low: 0.5, Close: 1.5, Volume: 10}},
 		{asset.CoinMarginedFutures, kline.Candle{Time: wrapperFixtureStart, Open: 1, High: 2, Low: 0.5, Close: 1.5, Volume: 10}},
 	} {
-		candles, err := ex.candles(t.Context(), tc.a, currency.NewBTCUSDT(), kline.OneDay, wrapperFixtureStart, wrapperFixtureEnd, 7)
-		require.NoErrorf(t, err, "candles must not error for %s", tc.a)
-		assert.Equalf(t, []kline.Candle{tc.exp}, candles, "candles should convert the %s candle in UTC", tc.a)
-		_, err = ex.candles(t.Context(), tc.a, currency.NewBTCUSDT(), kline.OneDay, wrapperFixtureStart, wrapperFixtureEnd, 7)
-		assert.ErrorIsf(t, err, errAPIResponse, "candles should return the %s request's error", tc.a)
+		t.Run(tc.a.String(), func(t *testing.T) {
+			candles, err := ex.candles(t.Context(), tc.a, currency.NewBTCUSDT(), kline.OneDay, wrapperFixtureStart, wrapperFixtureEnd, 7)
+			require.NoErrorf(t, err, "candles must not error for %s", tc.a)
+			assert.Equalf(t, []kline.Candle{tc.exp}, candles, "candles should convert the %s candle in UTC", tc.a)
+			_, err = ex.candles(t.Context(), tc.a, currency.NewBTCUSDT(), kline.OneDay, wrapperFixtureStart, wrapperFixtureEnd, 7)
+			assert.ErrorIsf(t, err, errAPIResponse, "candles should return the %s request's error", tc.a)
+		})
 	}
 	got := requests()
 	require.Len(t, got, 6, "candles must request each asset's candles twice")
@@ -2722,14 +2793,20 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			"GET /openApi/cswap/v1/market/contracts": {`{"code":100500,"msg":"busy"}`, `{"code":0,"data":[{"symbol":"NODASH"}]}`},
 		})
 		for _, a := range ex.GetAssetTypes(false) {
-			assert.ErrorIsf(t, ex.UpdateOrderExecutionLimits(t.Context(), a), errAPIResponse, "UpdateOrderExecutionLimits should return the %s request's error", a)
+			// The cases share ex and its server's replies with the calls below, so they run in turn
+			t.Run(a.String()+" request error", func(t *testing.T) {
+				assert.ErrorIsf(t, ex.UpdateOrderExecutionLimits(t.Context(), a), errAPIResponse, "UpdateOrderExecutionLimits should return the %s request's error", a)
+			})
 		}
 		require.NoError(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.Spot), "UpdateOrderExecutionLimits must skip a symbol it cannot read")
 		l, err := ex.GetOrderExecutionLimits(asset.Spot, currency.NewBTCUSDT())
 		require.NoError(t, err, "GetOrderExecutionLimits must not error")
 		assert.Zero(t, l.MaximumQuoteAmount, "UpdateOrderExecutionLimits should read a negative maximum notional as no limit")
 		for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-			assert.ErrorIsf(t, ex.UpdateOrderExecutionLimits(t.Context(), a), limits.ErrEmptyLevels, "UpdateOrderExecutionLimits should report %s without limits to load", a)
+			// The cases share ex and its server, so they run in turn
+			t.Run(a.String()+" without limits", func(t *testing.T) {
+				assert.ErrorIsf(t, ex.UpdateOrderExecutionLimits(t.Context(), a), limits.ErrEmptyLevels, "UpdateOrderExecutionLimits should report %s without limits to load", a)
+			})
 		}
 	})
 }
@@ -2737,16 +2814,25 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestPrecisionStep(t *testing.T) {
 	t.Parallel()
 	for places, exp := range map[uint64]float64{0: 1, 1: 0.1, 4: 0.0001, 8: 0.00000001} {
-		assert.Equalf(t, exp, precisionStep(places), "precisionStep should return the step of %d places", places)
+		t.Run(strconv.FormatUint(places, 10)+" places", func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, precisionStep(places), "precisionStep should return the step of %d places", places)
+		})
 	}
-	assert.Equal(t, 1e-300, precisionStep(1<<63), "precisionStep should clamp a precision beyond float range")
+	t.Run("beyond float range", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, 1e-300, precisionStep(1<<63), "precisionStep should clamp a precision beyond float range")
+	})
 }
 
 func TestUpdateCurrencyStates(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.UpdateCurrencyStates(t.Context(), asset.Futures), asset.ErrNotSupported, "UpdateCurrencyStates must reject an unsupported asset")
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-		require.ErrorIsf(t, e.UpdateCurrencyStates(t.Context(), a), common.ErrFunctionNotSupported, "UpdateCurrencyStates must report that BingX keeps no %s currency states", a)
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.ErrorIsf(t, e.UpdateCurrencyStates(t.Context(), a), common.ErrFunctionNotSupported, "UpdateCurrencyStates must report that BingX keeps no %s currency states", a)
+		})
 	}
 
 	t.Run("states", func(t *testing.T) {
@@ -2788,14 +2874,20 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		{asset.USDTMarginedFutures, currency.NewPair(currency.BTC, currency.USDC), "https://bingx.com/en/perpetual/BTC-USDC"},
 		{asset.CoinMarginedFutures, currency.NewPairWithDelimiter("btc", "usd", "_"), "https://bingx.com/en/perpetual/BTC-USD"},
 	} {
-		resp, err := e.GetCurrencyTradeURL(t.Context(), tc.a, tc.pair)
-		require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s", tc.a)
-		assert.Equalf(t, tc.exp, resp, "GetCurrencyTradeURL should return the %s trade page", tc.a)
+		// Serial, so the test pair cases below run after these
+		t.Run(tc.a.String(), func(t *testing.T) {
+			resp, err := e.GetCurrencyTradeURL(t.Context(), tc.a, tc.pair)
+			require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s", tc.a)
+			assert.Equalf(t, tc.exp, resp, "GetCurrencyTradeURL should return the %s trade page", tc.a)
+		})
 	}
 	ensureTradablePairs(t)
 	for a, p := range assetToTradablePairMap {
-		resp, err := e.GetCurrencyTradeURL(t.Context(), a, p)
-		require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s", a)
-		assert.NotEmptyf(t, resp, "GetCurrencyTradeURL should return the %s test pair's page", a)
+		t.Run(a.String()+" test pair", func(t *testing.T) {
+			t.Parallel()
+			resp, err := e.GetCurrencyTradeURL(t.Context(), a, p)
+			require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s", a)
+			assert.NotEmptyf(t, resp, "GetCurrencyTradeURL should return the %s test pair's page", a)
+		})
 	}
 }

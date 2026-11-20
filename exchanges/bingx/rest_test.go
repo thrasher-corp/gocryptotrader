@@ -315,7 +315,12 @@ func TestSendRequest(t *testing.T) {
 		}))
 		// Every budget but the tested endpoints' own is spent, so a request that also drew on another, such as an IP
 		// group's, would be refused
-		tested := []request.EndpointLimit{swapPlaceOrderRate, spotPlaceOrderRate, coinMarginedPlaceOrderRate, depositAddressRate}
+		tested := map[request.EndpointLimit]string{
+			swapPlaceOrderRate:         "USDT-M place order",
+			spotPlaceOrderRate:         "spot place order",
+			coinMarginedPlaceOrderRate: "coin-M place order",
+			depositAddressRate:         "deposit address",
+		}
 		definitions := make(request.RateLimitDefinitions)
 		for f := range GetRateLimits() {
 			definitions[f] = request.NewRateLimitWithWeight(time.Hour, 1, 1)
@@ -327,18 +332,21 @@ func TestSendRequest(t *testing.T) {
 		for k := range definitions {
 			f, ok := k.(request.EndpointLimit)
 			require.Truef(t, ok, "definition key %v must be an endpoint limit", k)
-			if !slices.Contains(tested, f) {
+			if _, isTested := tested[f]; !isTested {
 				require.NoErrorf(t, ex.Requester.InitiateRateLimit(t.Context(), f), "InitiateRateLimit must spend the budget of endpoint %d", f)
 			}
 		}
-		send := func(f request.EndpointLimit) error {
-			return ex.sendRequest(request.WithDelayNotAllowed(t.Context()), f, request.AuthenticatedRequest, nil, func() (*request.Item, error) {
+		send := func(ctx context.Context, f request.EndpointLimit) error {
+			return ex.sendRequest(request.WithDelayNotAllowed(ctx), f, request.AuthenticatedRequest, nil, func() (*request.Item, error) {
 				return &request.Item{Method: http.MethodGet, Path: server.URL + "/openApi/test"}, nil
 			})
 		}
-		for _, f := range tested {
-			assert.NoErrorf(t, send(f), "sendRequest should admit endpoint %d by its own budget alone", f)
-			assert.ErrorIsf(t, send(f), request.ErrDelayNotAllowed, "sendRequest should refuse endpoint %d once its own budget is spent", f)
+		// Serial, as the request count below covers every case
+		for f, name := range tested {
+			t.Run(name, func(t *testing.T) {
+				assert.NoErrorf(t, send(t.Context(), f), "sendRequest should admit endpoint %d by its own budget alone", f)
+				assert.ErrorIsf(t, send(t.Context(), f), request.ErrDelayNotAllowed, "sendRequest should refuse endpoint %d once its own budget is spent", f)
+			})
 		}
 		assert.EqualValues(t, len(tested), requests.Load(), "sendRequest should send each request its endpoint's budget admitted")
 	})
@@ -713,18 +721,21 @@ func TestSignJSONBody(t *testing.T) {
 func TestSigningValue(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		raw, exp string
+		name, raw, exp string
 	}{
-		{`"plain"`, "plain"},
-		{` "with \"quote\"" `, `with "quote"`},
-		{`12.5`, "12.5"},
-		{`true`, "true"},
-		{`[1,"a"]`, `[1,"a"]`},
-		{`{"k":"v"}`, `{"k":"v"}`},
+		{"string", `"plain"`, "plain"},
+		{"padded string with escaped quotes", ` "with \"quote\"" `, `with "quote"`},
+		{"number", `12.5`, "12.5"},
+		{"boolean", `true`, "true"},
+		{"array", `[1,"a"]`, `[1,"a"]`},
+		{"object", `{"k":"v"}`, `{"k":"v"}`},
 	} {
-		value, err := signingValue(json.RawMessage(tc.raw))
-		require.NoErrorf(t, err, "signingValue must not error for %s", tc.raw)
-		assert.Equalf(t, tc.exp, value, "signingValue should render %s", tc.raw)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			value, err := signingValue(json.RawMessage(tc.raw))
+			require.NoErrorf(t, err, "signingValue must not error for %s", tc.raw)
+			assert.Equalf(t, tc.exp, value, "signingValue should render %s", tc.raw)
+		})
 	}
 	_, err := signingValue(json.RawMessage(`"bad`))
 	assert.Error(t, err, "signingValue should error for an unterminated string")
@@ -766,22 +777,26 @@ func TestCheckErrorResponse(t *testing.T) {
 func TestResponseCode(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name string
 		raw  string
 		code int64
 		ok   bool
 	}{
-		{``, 0, false},
-		{`[1]`, 0, false},
-		{`{"listenKey":"a"}`, 0, false},
-		{`{"code":109400}`, 109400, true},
-		{`{"code":"100400"}`, 100400, true},
-		{`{"code":1.5}`, 0, false},
-		{`{"code":"x"}`, 0, false},
-		{`{"code":true}`, 0, false},
+		{"empty", ``, 0, false},
+		{"array", `[1]`, 0, false},
+		{"no code", `{"listenKey":"a"}`, 0, false},
+		{"number code", `{"code":109400}`, 109400, true},
+		{"string code", `{"code":"100400"}`, 100400, true},
+		{"bad number code", `{"code":1.5}`, 0, false},
+		{"bad string code", `{"code":"x"}`, 0, false},
+		{"bool code", `{"code":true}`, 0, false},
 	} {
-		code, ok := responseCode(json.RawMessage(tc.raw))
-		assert.Equalf(t, tc.ok, ok, "responseCode should report %t for %q", tc.ok, tc.raw)
-		assert.Equalf(t, tc.code, code, "responseCode should return %d for %q", tc.code, tc.raw)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			code, ok := responseCode(json.RawMessage(tc.raw))
+			assert.Equalf(t, tc.ok, ok, "responseCode should report %t for %q", tc.ok, tc.raw)
+			assert.Equalf(t, tc.code, code, "responseCode should return %d for %q", tc.code, tc.raw)
+		})
 	}
 }
 
@@ -829,10 +844,20 @@ func TestBadStatusCode(t *testing.T) {
 func TestIsEmptyJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name  string
 		value string
 		exp   bool
-	}{{`{}`, true}, {" [] ", true}, {`""`, true}, {`{"a":1}`, false}, {`0`, false}} {
-		assert.Equalf(t, tc.exp, isEmptyJSON([]byte(tc.value)), "isEmptyJSON should report %t for %q", tc.exp, tc.value)
+	}{
+		{"empty object", `{}`, true},
+		{"padded empty array", " [] ", true},
+		{"empty string", `""`, true},
+		{"object with a member", `{"a":1}`, false},
+		{"number", `0`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, isEmptyJSON([]byte(tc.value)), "isEmptyJSON should report %t for %q", tc.exp, tc.value)
+		})
 	}
 }
 
@@ -911,7 +936,10 @@ func TestAPIError(t *testing.T) {
 	assert.Equal(t, []error{errAPIResponse}, err.Unwrap(), "Unwrap should return errAPIResponse alone for an unmapped code")
 
 	for code, target := range errorCodeToErrorMap {
-		assert.ErrorIsf(t, &APIError{Code: code}, target, "code %d should match its mapped error", code)
+		t.Run(strconv.FormatInt(code, 10), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, &APIError{Code: code}, target, "code %d should match its mapped error", code)
+		})
 	}
 	assert.ErrorIs(t, &APIError{Code: 109425}, currency.ErrPairNotFound, "an unknown pair code should match ErrPairNotFound")
 	assert.ErrorIs(t, &APIError{Code: 100001}, request.ErrAuthRequestFailed, "a signature failure should match ErrAuthRequestFailed")
@@ -949,9 +977,12 @@ func TestIntervalToString(t *testing.T) {
 		kline.OneHour: "1h", kline.TwoHour: "2h", kline.FourHour: "4h", kline.SixHour: "6h", kline.EightHour: "8h",
 		kline.TwelveHour: "12h", kline.OneDay: "1d", kline.ThreeDay: "3d", kline.OneWeek: "1w", kline.OneMonth: "1M",
 	} {
-		s, err := intervalToString(interval)
-		require.NoErrorf(t, err, "intervalToString must not error for %s", interval)
-		assert.Equalf(t, exp, s, "intervalToString should return %s for %s", exp, interval)
+		t.Run(interval.String(), func(t *testing.T) {
+			t.Parallel()
+			s, err := intervalToString(interval)
+			require.NoErrorf(t, err, "intervalToString must not error for %s", interval)
+			assert.Equalf(t, exp, s, "intervalToString should return %s for %s", exp, interval)
+		})
 	}
 	_, err := intervalToString(kline.TenMin)
 	assert.ErrorIs(t, err, errUnsupportedInterval, "intervalToString should reject an unsupported interval")
@@ -964,9 +995,12 @@ func TestSpotWebsocketIntervalToString(t *testing.T) {
 		kline.OneHour: "60min", kline.TwoHour: "2hour", kline.FourHour: "4hour", kline.SixHour: "6hour", kline.EightHour: "8hour",
 		kline.TwelveHour: "12hour", kline.OneDay: "1day", kline.ThreeDay: "3day", kline.OneWeek: "1week", kline.OneMonth: "1mon",
 	} {
-		s, err := spotWebsocketIntervalToString(interval)
-		require.NoErrorf(t, err, "spotWebsocketIntervalToString must not error for %s", interval)
-		assert.Equalf(t, exp, s, "spotWebsocketIntervalToString should return %s for %s", exp, interval)
+		t.Run(interval.String(), func(t *testing.T) {
+			t.Parallel()
+			s, err := spotWebsocketIntervalToString(interval)
+			require.NoErrorf(t, err, "spotWebsocketIntervalToString must not error for %s", interval)
+			assert.Equalf(t, exp, s, "spotWebsocketIntervalToString should return %s for %s", exp, interval)
+		})
 	}
 	_, err := spotWebsocketIntervalToString(kline.TenMin)
 	assert.ErrorIs(t, err, errUnsupportedInterval, "spotWebsocketIntervalToString should reject an unsupported interval")
@@ -1001,17 +1035,23 @@ func TestNumericIDUnmarshalJSON(t *testing.T) {
 		{`""`, 0},
 		{`18446744073709551615`, 18446744073709551615},
 	} {
-		var id NumericID
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.raw), &id), "Unmarshal must not error for %s", tc.raw)
-		assert.Equalf(t, tc.exp, id, "Unmarshal should decode %s exactly", tc.raw)
-		direct := NumericID(99)
-		require.NoErrorf(t, direct.UnmarshalJSON([]byte(tc.raw)), "UnmarshalJSON must not error for %s", tc.raw)
-		assert.Equalf(t, tc.exp, direct, "UnmarshalJSON should decode %s exactly", tc.raw)
+		t.Run(tc.raw, func(t *testing.T) {
+			t.Parallel()
+			var id NumericID
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.raw), &id), "Unmarshal must not error for %s", tc.raw)
+			assert.Equalf(t, tc.exp, id, "Unmarshal should decode %s exactly", tc.raw)
+			direct := NumericID(99)
+			require.NoErrorf(t, direct.UnmarshalJSON([]byte(tc.raw)), "UnmarshalJSON must not error for %s", tc.raw)
+			assert.Equalf(t, tc.exp, direct, "UnmarshalJSON should decode %s exactly", tc.raw)
+		})
 	}
 	for _, raw := range []string{`"abc"`, `-1`, `1.5`, `18446744073709551616`} {
-		var id NumericID
-		assert.ErrorIsf(t, json.Unmarshal([]byte(raw), &id), errInvalidNumericID, "Unmarshal should reject %s", raw)
-		assert.ErrorIsf(t, id.UnmarshalJSON([]byte(raw)), errInvalidNumericID, "UnmarshalJSON should reject %s", raw)
+		t.Run(raw, func(t *testing.T) {
+			t.Parallel()
+			var id NumericID
+			assert.ErrorIsf(t, json.Unmarshal([]byte(raw), &id), errInvalidNumericID, "Unmarshal should reject %s", raw)
+			assert.ErrorIsf(t, id.UnmarshalJSON([]byte(raw)), errInvalidNumericID, "UnmarshalJSON should reject %s", raw)
+		})
 	}
 }
 
@@ -1050,27 +1090,45 @@ func TestGetRateLimits(t *testing.T) {
 	assert.True(t, limits[coinMarginedTickerRate].SharesBudgetWith(limits[systemTimeRate]), "public market data endpoints should share one budget")
 	assert.False(t, limits[depositAddressRate].SharesBudgetWith(limits[systemTimeRate]), "the signed deposit address endpoint should keep its own budget")
 	assert.InDelta(t, 50, float64(limits[systemTimeRate].Limit()+limits[depositAddressRate].Limit()), 1e-9, "group 1's market data and deposit address budgets should together allow 500 requests each 10 seconds")
-	undocumented := []request.EndpointLimit{swapMultiAssetsRulesRate, subAccountTransferHistoryRate, subAccountTransferableAmountRate, subAccountAssetTransferRate}
+	undocumented := []struct {
+		name  string
+		limit request.EndpointLimit
+	}{
+		{"USDT-M multi-assets rules", swapMultiAssetsRulesRate},
+		{"sub-account transfer history", subAccountTransferHistoryRate},
+		{"sub-account transferable amount", subAccountTransferableAmountRate},
+		{"sub-account asset transfer", subAccountAssetTransferRate},
+	}
 	for i, f := range undocumented {
 		for _, other := range undocumented[i+1:] {
-			assert.Falsef(t, limits[f].SharesBudgetWith(limits[other]), "endpoints %d and %d should have budgets of their own", f, other)
+			t.Run(f.name+" and "+other.name, func(t *testing.T) {
+				t.Parallel()
+				assert.Falsef(t, limits[f.limit].SharesBudgetWith(limits[other.limit]), "endpoints %d and %d should have budgets of their own", f.limit, other.limit)
+			})
 		}
 	}
-	for f, exp := range map[request.EndpointLimit]float64{
-		systemTimeRate:                   49,
-		swapPlaceOrderRate:               10,
-		spotCancelOrderRate:              5,
-		swapTradingScheduleRate:          2,
-		activityListRate:                 10,
-		createSignalRate:                 1,
-		swapTradingRulesRate:             5,
-		depositAddressRate:               1,
-		swapMultiAssetsRulesRate:         5,
-		subAccountTransferHistoryRate:    5,
-		subAccountTransferableAmountRate: 5,
-		subAccountAssetTransferRate:      5,
+	for _, tc := range []struct {
+		name  string
+		limit request.EndpointLimit
+		exp   float64
+	}{
+		{"system time", systemTimeRate, 49},
+		{"USDT-M place order", swapPlaceOrderRate, 10},
+		{"spot cancel order", spotCancelOrderRate, 5},
+		{"USDT-M trading schedule", swapTradingScheduleRate, 2},
+		{"activity list", activityListRate, 10},
+		{"create signal", createSignalRate, 1},
+		{"USDT-M trading rules", swapTradingRulesRate, 5},
+		{"deposit address", depositAddressRate, 1},
+		{"USDT-M multi-assets rules", swapMultiAssetsRulesRate, 5},
+		{"sub-account transfer history", subAccountTransferHistoryRate, 5},
+		{"sub-account transferable amount", subAccountTransferableAmountRate, 5},
+		{"sub-account asset transfer", subAccountAssetTransferRate, 5},
 	} {
-		assert.InDeltaf(t, exp, float64(limits[f].Limit()), 1e-9, "endpoint %d should allow %v requests a second", f, exp)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.InDeltaf(t, tc.exp, float64(limits[tc.limit].Limit()), 1e-9, "endpoint %d should allow %v requests a second", tc.limit, tc.exp)
+		})
 	}
 }
 
