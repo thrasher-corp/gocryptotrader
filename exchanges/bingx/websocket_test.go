@@ -2992,6 +2992,8 @@ func TestWebsocketKeepListenKeyAlive(t *testing.T) {
 			network.connect(t, ex)
 			testRESTEndpoints(t, ex, rest.URL)
 			require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+			// The bubble's clock starts at midnight, where a keeper rounding or truncating its start time goes unnoticed
+			time.Sleep(450 * time.Millisecond)
 			start := time.Now()
 			k, session := startTestKeeper(t, ex, &testWebsocketConnection{})
 			waitForKeeper(t, k)
@@ -3007,20 +3009,26 @@ func TestWebsocketKeepListenKeyAlive(t *testing.T) {
 
 	t.Run("failure then success", func(t *testing.T) {
 		t.Parallel()
-		rest := newTestListenKeyServer(t)
-		rest.refuseExtensions(2)
-		ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
-		testRESTEndpoints(t, ex, rest.URL)
-		require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
-		_, session := startTestKeeper(t, ex, &testWebsocketConnection{})
-		require.Eventually(t, func() bool {
-			_, extended := rest.counts()
-			return extended >= 6
-		}, 5*time.Second, time.Millisecond, "the keeper must keep extending the key after a retry succeeds")
-		ex.wsState.mu.Lock()
-		assert.Nil(t, ex.wsState.recovering, "an extension that succeeds on a retry should not reconnect")
-		ex.wsState.mu.Unlock()
-		session.end()
+		synctest.Test(t, func(t *testing.T) {
+			network := new(testMemoryNetwork)
+			rest := new(testListenKeyServer)
+			rest.Server = network.serve(t, "127.0.0.10", rest)
+			rest.refuseExtensions(2)
+			ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+			network.connect(t, ex)
+			testRESTEndpoints(t, ex, rest.URL)
+			require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+			k, session := startTestKeeper(t, ex, &testWebsocketConnection{})
+			require.Eventually(t, func() bool {
+				_, extended := rest.counts()
+				return extended >= 6
+			}, 5*time.Second, time.Millisecond, "the keeper must keep extending the key after a retry succeeds")
+			ex.wsState.mu.Lock()
+			assert.Nil(t, ex.wsState.recovering, "an extension that succeeds on a retry should not reconnect")
+			ex.wsState.mu.Unlock()
+			session.end()
+			waitForKeeper(t, k)
+		})
 	})
 
 	t.Run("failure reconnects with a new key", func(t *testing.T) {

@@ -42,8 +42,8 @@ var (
 	errTriggerPriceRequired         = errors.New("trigger price required")
 	errTrailingValueRequired        = errors.New("trailing stops need a positive tracking value")
 	errCancelReplaceFailed          = errors.New("cancel-replace failed")
-	errModifyAmountNotAboveExecuted = errors.New("modified amount is not above the amount already executed")
-	errCancelledOrderExecuted       = errors.New("order cancelled after executing its desired total")
+	errModifyPartlyExecuted         = errors.New("partly executed orders cannot be replaced")
+	errCancelledOrderExecuted       = errors.New("order executed before its cancellation")
 	errCancelOutcomeUnknown         = errors.New("cancellation outcome unknown")
 	errOrderNotOpen                 = errors.New("order is no longer open")
 	errBatchCancelMixedAssets       = errors.New("batch cancellation orders must share an asset")
@@ -285,6 +285,21 @@ func parseOrderID(orderID string) (uint64, error) {
 	return id, nil
 }
 
+// averagePrice returns quote over executed in decimal arithmetic, or 0 when the executed quantity is not positive in
+// that arithmetic or either value is not a finite number
+func averagePrice(quote, executed types.Number) float64 {
+	for _, v := range []types.Number{quote, executed} {
+		if math.IsNaN(v.Float64()) || math.IsInf(v.Float64(), 0) {
+			return 0
+		}
+	}
+	divisor := executed.Decimal()
+	if !divisor.IsPositive() {
+		return 0
+	}
+	return quote.Decimal().Div(divisor).InexactFloat64()
+}
+
 // remainingAmount returns an order's unfilled amount, in decimal arithmetic so it is as exact as BingX's amounts
 func remainingAmount(original, executed types.Number) float64 {
 	return max(original.Decimal().Sub(executed.Decimal()).InexactFloat64(), 0)
@@ -438,7 +453,7 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit) (*order
 	resp.RemainingAmount = remainingAmount(placed.OriginalQuantity, placed.ExecutedQuantity)
 	if placed.ExecutedQuantity > 0 {
 		resp.Cost = placed.CummulativeQuoteQuantity.Float64()
-		resp.AverageExecutedPrice = placed.CummulativeQuoteQuantity.Decimal().Div(placed.ExecutedQuantity.Decimal()).InexactFloat64()
+		resp.AverageExecutedPrice = averagePrice(placed.CummulativeQuoteQuantity, placed.ExecutedQuantity)
 	}
 	reportExecutedPlacementNew(&resp.Status, resp.Amount, placed.ExecutedQuantity)
 	return resp, nil
@@ -651,28 +666,29 @@ func (e *Exchange) submitCoinMarginedOrder(ctx context.Context, s *order.Submit)
 // ModifyOrder modifies an order's price, amount, trigger price or time in force. Amount is the order's desired total
 // quantity, which the order manager fills with the order's original total when a modification leaves it out. A USDT-M
 // LIMIT order whose amount alone changes is amended in place to that total. Other USDT-M orders and spot orders are
-// cancelled, and once the order is cancelled a replacement is placed for the desired total, or the existing order's
-// total without one, less the quantity the cancelled order had executed, taking every value the modification leaves
-// unchanged from the existing order; the replacement's order ID is returned. The cancellation is sent once, and one
-// that fails is checked by looking the order up again. A cancellation that was refused shows it cancelled nothing,
-// whether BingX refused it with an error code, an HTTP 4xx status without one turned it away, as a firewall or rate
-// limit page does, or it was never sent, as when the rate limiter refuses a wait past the context's deadline: a filled
-// order returns an error saying it executed, one closed otherwise an error saying it is no longer open, and one still
-// open the cancellation's error, each placing nothing. A cancellation without an answer showing its outcome, such as
-// one that timed out, one answered with an HTTP 5xx status such as a gateway timeout, or one BingX answered with a code
-// reporting a busy, internal or network failure (100500, 109500, 109701 or 110500), may have cancelled the order, so an
-// order closed without filling is replaced, a filled one returns an error saying it executed, and one still open an
-// error saying the outcome is unknown, as the cancellation may still land. A failed lookup returns both errors, the
-// outcome being unknown. Modifications of one order run one at a time, whether they name it by its order ID or by its
-// client order ID, which is looked up first, and each looks the order up by its order ID once its turn comes, so one
-// waiting while another replaces the order finds it closed. An order the lookup shows closed, and a total not above the
-// quantity the order's lookup reports executed, are refused before anything is cancelled, and a total not above the
-// quantity executed by the cancellation places nothing and returns an error saying the order was cancelled. A
-// replacement that fails after the cancellation is reported with the outcome of both. A trailing stop's trigger price
-// is its activation price. A USDT-M order that closes a position keeps its position ID, and one whose separate isolated
-// position its lookup does not name is refused before anything is cancelled, as is a NewClientOrderID for a USDT-M
-// order other than a LIMIT or MARKET order. Spot orders report no time in force, so a spot replacement takes the
-// modification's, or else BingX's default, GTC. Every request a modification sends goes to the account of the
+// cancelled, and once the order is closed a replacement is placed for the desired total, or the existing order's
+// total without one, taking every value the modification leaves unchanged from the existing order; the replacement's
+// order ID is returned. Only an order that has executed none of its quantity is replaced, as the order manager keeps
+// the executed quantity and fee of the order it modifies on the replacement: one its lookup shows partly executed is
+// refused before anything is cancelled, and one its cancellation shows executed places nothing and returns an error
+// saying the order was cancelled. The cancellation is sent once, and one that fails is checked by looking the order up
+// again. A cancellation that was refused shows it cancelled nothing, whether BingX refused it with an error code, an
+// HTTP 4xx status without one turned it away, as a firewall or rate limit page does, or it was never sent, as when the
+// rate limiter refuses a wait past the context's deadline: a filled order returns an error saying it executed, one
+// closed otherwise an error saying it is no longer open, and one still open the cancellation's error, each placing
+// nothing. A cancellation without an answer showing its outcome, such as one that timed out, one answered with an HTTP
+// 5xx status such as a gateway timeout, or one BingX answered with a code reporting a busy, internal or network failure
+// (100500, 109500, 109701 or 110500), may have cancelled the order, so an order closed without executing any of its
+// quantity is replaced, one closed after executing any returns an error saying it executed, and one still open an error
+// saying the outcome is unknown, as the cancellation may still land. A failed lookup returns both errors, the outcome
+// being unknown. Modifications of one order run one at a time, whether they name it by its order ID or by its client
+// order ID, which is looked up first, and each looks the order up by its order ID once its turn comes, so one waiting
+// while another replaces the order finds it closed. An order the lookup shows closed is refused before anything is
+// cancelled. A replacement that fails after the cancellation is reported with the outcome of both. A trailing stop's
+// trigger price is its activation price. A USDT-M order that closes a position keeps its position ID, and one whose
+// separate isolated position its lookup does not name is refused before anything is cancelled, as is a NewClientOrderID
+// for a USDT-M order other than a LIMIT or MARKET order. Spot orders report no time in force, so a spot replacement
+// takes the modification's, or else BingX's default, GTC. Every request a modification sends goes to the account of the
 // credentials ctx names when it starts. Coin-M orders cannot be modified
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
@@ -740,33 +756,35 @@ func (e *Exchange) modifiedOrderID(ctx context.Context, action *order.Modify) (u
 }
 
 // replacementQuantity returns the quantity a cancel-replace places: the desired total, the modification's amount or
-// else the existing order's original quantity, less the quantity the existing order has executed
-func replacementQuantity(amount float64, original, executed types.Number) (float64, error) {
+// else the existing order's original quantity, in decimal arithmetic. An order whose executed quantity is anything but
+// zero returns errModifyPartlyExecuted, as the order manager would keep its executed quantity and fee on the
+// replacement
+func replacementQuantity(orderID string, amount float64, original, executed types.Number) (float64, error) {
 	if amount < 0 || math.IsNaN(amount) || math.IsInf(amount, 0) {
 		return 0, fmt.Errorf("%w: %v", order.ErrAmountIsInvalid, amount)
 	}
-	total := original.Decimal()
-	if amount > 0 {
-		total = decimal.MustFromFloat(amount)
+	if executed != 0 {
+		return 0, fmt.Errorf("%w: order %s has executed %v", errModifyPartlyExecuted, orderID, executed.Float64())
 	}
-	remaining := total.Sub(executed.Decimal())
-	if !remaining.IsPositive() {
-		return 0, fmt.Errorf("%w: %s, of which %s is executed", errModifyAmountNotAboveExecuted, total, executed.Decimal())
+	chosen := cmp.Or(amount, original.Float64())
+	if math.IsNaN(chosen) || math.IsInf(chosen, 0) {
+		return 0, fmt.Errorf("%w: order %s has a total of %v", order.ErrAmountIsInvalid, orderID, chosen)
 	}
-	return remaining.InexactFloat64(), nil
+	total := decimal.MustFromFloat(chosen)
+	if !total.IsPositive() {
+		return 0, fmt.Errorf("%w: order %s has a total of %s", order.ErrAmountIsInvalid, orderID, total)
+	}
+	return total.InexactFloat64(), nil
 }
 
-// cancelledReplacementQuantity returns the quantity a replacement places once the order it replaces is cancelled: the
-// desired total less the quantity the cancellation reports executed, or the lookup's when that is larger, as executed
-// quantities only grow. A total not above it returns errCancelledOrderExecuted, the order being cancelled without a
-// replacement
-func cancelledReplacementQuantity(orderID string, amount float64, original, lookedUp, cancelled types.Number) (float64, error) {
-	executed := max(lookedUp, cancelled)
-	quantity, err := replacementQuantity(amount, original, executed)
-	if errors.Is(err, errModifyAmountNotAboveExecuted) {
-		return 0, fmt.Errorf("%w: order %s had executed %v when cancelled, and no replacement was placed", errCancelledOrderExecuted, orderID, executed.Float64())
+// cancelledReplacementQuantity returns the quantity a replacement places once the order it replaces is cancelled, as
+// replacementQuantity sizes it. A cancellation reporting an executed quantity other than zero returns
+// errCancelledOrderExecuted, the order being cancelled without a replacement
+func cancelledReplacementQuantity(orderID string, amount float64, original, cancelled types.Number) (float64, error) {
+	if cancelled != 0 {
+		return 0, fmt.Errorf("%w: order %s had executed %v when cancelled, and no replacement was placed", errCancelledOrderExecuted, orderID, cancelled.Float64())
 	}
-	return quantity, err
+	return replacementQuantity(orderID, amount, original, 0)
 }
 
 // orderOpenToModify returns errOrderNotOpen for an order whose lookup shows it closed, before anything is cancelled: a
@@ -803,9 +821,9 @@ func cancellationRefused(err error) bool {
 // closed it, and one still open, or whose status does not show whether it is, errCancelReplaceFailed. A cancellation
 // without an answer showing its outcome, such as one that timed out, one answered with an HTTP 5xx status or one BingX
 // answered with a code reporting a busy, internal or network failure, may have cancelled the order: one closed without
-// filling returns its executed quantity, to size its replacement by, one filled errCancelledOrderExecuted, and one
-// still open, or whose status does not show whether it is, errCancelOutcomeUnknown, as the cancellation may still land.
-// A failed lookup returns errCancelOutcomeUnknown with both errors
+// filling returns its executed quantity, which cancelledReplacementQuantity replaces only when zero, one filled
+// errCancelledOrderExecuted, and one still open, or whose status does not show whether it is, errCancelOutcomeUnknown,
+// as the cancellation may still land. A failed lookup returns errCancelOutcomeUnknown with both errors
 func failedCancellationExecuted(orderID, status string, executed types.Number, cancelErr, lookupErr error) (types.Number, error) {
 	if lookupErr != nil {
 		return 0, fmt.Errorf("%w: %w: cancelling order %s failed, and so did looking it up again, so no replacement was placed: %w; %w", errCancelReplaceFailed, errCancelOutcomeUnknown, orderID, cancelErr, lookupErr)
@@ -859,7 +877,7 @@ func (e *Exchange) replaceSpotOrder(ctx context.Context, action *order.Modify, o
 	if err := orderOpenToModify(existing.OrderID.String(), string(existing.Status)); err != nil {
 		return nil, err
 	}
-	if _, err := replacementQuantity(action.Amount, existing.OriginalQuantity, existing.ExecutedQuantity); err != nil {
+	if _, err := replacementQuantity(existing.OrderID.String(), action.Amount, existing.OriginalQuantity, existing.ExecutedQuantity); err != nil {
 		return nil, err
 	}
 	resp, err := action.DeriveModifyResponse()
@@ -885,7 +903,7 @@ func (e *Exchange) replaceSpotOrder(ctx context.Context, action *order.Modify, o
 	if err != nil {
 		return nil, err
 	}
-	if req.Quantity, err = cancelledReplacementQuantity(existing.OrderID.String(), action.Amount, existing.OriginalQuantity, existing.ExecutedQuantity, cancelledExecuted); err != nil {
+	if req.Quantity, err = cancelledReplacementQuantity(existing.OrderID.String(), action.Amount, existing.OriginalQuantity, cancelledExecuted); err != nil {
 		return nil, err
 	}
 	placed, err := e.PlaceSpotOrder(ctx, req)
@@ -1014,7 +1032,7 @@ func (e *Exchange) amendOrReplaceSwapOrder(ctx context.Context, action *order.Mo
 	if err != nil {
 		return nil, err
 	}
-	if _, err := replacementQuantity(action.Amount, existing.OriginalQuantity, existing.ExecutedQuantity); err != nil {
+	if _, err := replacementQuantity(existing.OrderID.String(), action.Amount, existing.OriginalQuantity, existing.ExecutedQuantity); err != nil {
 		return nil, err
 	}
 	// Checked before the cancellation, after which the replacement would be refused
@@ -1073,7 +1091,7 @@ func (e *Exchange) amendOrReplaceSwapOrder(ctx context.Context, action *order.Mo
 	if err != nil {
 		return nil, err
 	}
-	if req.Quantity, err = cancelledReplacementQuantity(existing.OrderID.String(), action.Amount, existing.OriginalQuantity, existing.ExecutedQuantity, cancelledExecuted); err != nil {
+	if req.Quantity, err = cancelledReplacementQuantity(existing.OrderID.String(), action.Amount, existing.OriginalQuantity, cancelledExecuted); err != nil {
 		return nil, err
 	}
 	placed, err := e.PlaceSwapOrder(ctx, req)
@@ -1473,7 +1491,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 
 // spotOrderDetail converts a spot order. Values that cannot be converted are left unset and returned as the error.
 // BingX reports a charged fee as negative on fills and in order events but documents no sign for the order queries,
-// so the fee is taken as paid whatever its sign
+// so the fee is taken as paid whatever its sign. An executed order without an average price, as BingX's open orders
+// example shows, takes its cumulative quote quantity over its executed quantity, as order events do
 func (e *Exchange) spotOrderDetail(o *SpotOrderDetailResponse, pair currency.Pair) (order.Detail, error) {
 	status, statusErr := convertOrderStatus(string(o.Status))
 	orderType, typeErr := convertOrderType(o.Type)
@@ -1500,6 +1519,9 @@ func (e *Exchange) spotOrderDetail(o *SpotOrderDetailResponse, pair currency.Pai
 		Date:                 o.Time.Time(),
 		LastUpdated:          o.UpdateTime.Time(),
 		Pair:                 pair,
+	}
+	if d.AverageExecutedPrice == 0 {
+		d.AverageExecutedPrice = averagePrice(o.CummulativeQuoteQuantity, o.ExecutedQuantity)
 	}
 	return d, common.AppendError(common.AppendError(statusErr, typeErr), sideErr)
 }
@@ -1680,7 +1702,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 // orders), each split while it holds more than the endpoint returns. Orders from FromOrderID on are paged: spot up to
 // its 10,000th order, beyond which the history is reported truncated, and USDT-M and coin-M from the highest order ID
 // each page returns until a page comes back short or adds no later order. Without a window or an order ID, BingX's
-// most recent orders are returned. USDT-M listings of every symbol cover USDT- and USDC-settled contracts
+// most recent orders are returned. Orders dated after EndTime are left out, as a request without a start, or one paging
+// from an order ID, sends BingX no end; an EndTime at the Unix epoch, which common.StartEndTimeCheck counts as unset,
+// leaves none out. USDT-M listings of every symbol cover USDT- and USDC-settled contracts
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -1715,7 +1739,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 		orders = append(orders, listed...)
 	}
-	return req.Filter(e.Name, orders), nil
+	filtered := req.Filter(e.Name, orders)
+	if !req.EndTime.IsZero() && !req.EndTime.Equal(time.Unix(0, 0)) {
+		// The filter compares whole seconds, and applies a time range only with both bounds set
+		filtered = slices.DeleteFunc(filtered, func(d order.Detail) bool { return d.Date.After(req.EndTime) })
+	}
+	return filtered, nil
 }
 
 // windowedOrders collects every order from start to end through fetch, which reports whether a window's orders were

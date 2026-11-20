@@ -75,24 +75,25 @@ over REST follow UTC periods.
   `MarginType` other than unset, or `NoMargin` on spot, and a `ReduceOnly` spot order, before anything is sent.
 + `ModifyOrder` takes `Amount` as the order's desired total quantity, as the order manager fills it in. A USDT-M limit
   order whose amount alone changes is amended in place. Other USDT-M orders and spot orders are cancelled, and a
-  replacement is placed only once the order is cancelled; its order ID is returned. The cancellation is sent once, and
-  one that fails is checked by looking the order up again. A cancellation that was refused shows it cancelled nothing,
-  whether BingX refused it with an error code, an HTTP 4xx status without one turned it away, as a firewall or rate
-  limit page does, or it was never sent, as when the rate limiter refuses a wait past the context's deadline: a filled
-  order returns an error saying it executed, one closed otherwise an error saying it is no longer open, and one still
-  open the cancellation's error, each placing nothing. A cancellation without an answer showing its outcome, such as one
-  that timed out, one answered with an HTTP 5xx status such as a gateway timeout, or one BingX answered with a code
-  reporting a busy, internal or network failure (100500, 109500, 109701 or 110500), may have cancelled the order, so an
-  order closed without filling is replaced, a filled one returns an error saying it executed, and one still open an
-  error saying the outcome is unknown, as the cancellation may still land. A failed lookup returns both errors.
-  Modifications of one order run one at a time, whether they name it by its order ID or its client order ID, so one made
-  while another replaces the order finds it closed. The replacement is for the desired total less what the cancelled
-  order had executed by its cancellation, so fills landing before it are subtracted. A negative, NaN or infinite price
-  or trigger price, an order its lookup shows closed, a total not above what the lookup reports executed, and a
-  `NewClientOrderID` for a USDT-M order other than a limit or market order are refused before anything is cancelled, and
-  a total the cancelled order had executed places nothing and returns an error saying the order was cancelled. A USDT-M
-  replacement of an order that triggers or trails triggers on the modification's `TriggerPriceType` when it names one
-  other than the last price, and on the order's otherwise. Coin-M orders cannot be modified.
+  replacement for the desired total is placed only once the order is closed; its order ID is returned. Only an order
+  that has executed none of its quantity is replaced, as the order manager keeps the executed quantity and fee of the
+  order it modifies on the replacement: one its lookup shows partly executed is refused before anything is cancelled,
+  and one its cancellation shows executed places nothing and returns an error saying the order was cancelled. The
+  cancellation is sent once, and one that fails is checked by looking the order up again. A cancellation that was
+  refused shows it cancelled nothing, whether BingX refused it with an error code, an HTTP 4xx status without one turned
+  it away, as a firewall or rate limit page does, or it was never sent, as when the rate limiter refuses a wait past the
+  context's deadline: a filled order returns an error saying it executed, one closed otherwise an error saying it is no
+  longer open, and one still open the cancellation's error, each placing nothing. A cancellation without an answer
+  showing its outcome, such as one that timed out, one answered with an HTTP 5xx status such as a gateway timeout, or
+  one BingX answered with a code reporting a busy, internal or network failure (100500, 109500, 109701 or 110500), may
+  have cancelled the order, so an order closed without executing any of its quantity is replaced, one closed after
+  executing any returns an error saying it executed, and one still open an error saying the outcome is unknown, as the
+  cancellation may still land. A failed lookup returns both errors. Modifications of one order run one at a time,
+  whether they name it by its order ID or its client order ID, so one made while another replaces the order finds it
+  closed. A negative, NaN or infinite price or trigger price, an order its lookup shows closed, and a `NewClientOrderID`
+  for a USDT-M order other than a limit or market order are refused before anything is cancelled. A USDT-M replacement
+  of an order that triggers or trails triggers on the modification's `TriggerPriceType` when it names one other than the
+  last price, and on the order's otherwise. Coin-M orders cannot be modified.
 + `CancelAllOrders` cancels every open order of the pair, or of every symbol without one. With a `Side` or `Type` it
   cancels, by order ID, the open orders `GetActiveOrders` reports with that side and type.
 + `GetHistoricTrades` is supported for spot only: BingX's USDT-M trade endpoints return their latest 1000 trades

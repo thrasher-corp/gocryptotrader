@@ -31,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -393,6 +394,38 @@ func TestParseOrderID(t *testing.T) {
 	}
 }
 
+func TestAveragePrice(t *testing.T) {
+	t.Parallel()
+	// beyondPrecision is positive as a float but below the udecimal_on backend's 19 decimal places
+	const beyondPrecision = 1e-20
+	beyondPrecisionAverage := 0.0
+	if decimal.MustFromFloat(beyondPrecision).IsPositive() {
+		beyondPrecisionAverage = 1
+	}
+	for _, tc := range []struct {
+		name            string
+		quote, executed types.Number
+		exp             float64
+	}{
+		{name: "quote over executed", quote: 21, executed: 2, exp: 10.5},
+		{name: "decimal arithmetic", quote: 0.3, executed: 0.1, exp: 3},
+		{name: "nothing executed", quote: 21},
+		{name: "negative executed quantity", quote: 21, executed: -2},
+		{name: "NaN quote", quote: types.Number(math.NaN()), executed: 2},
+		{name: "infinite quote", quote: types.Number(math.Inf(1)), executed: 2},
+		{name: "negative infinite quote", quote: types.Number(math.Inf(-1)), executed: 2},
+		{name: "NaN executed quantity", quote: 21, executed: types.Number(math.NaN())},
+		{name: "infinite executed quantity", quote: 21, executed: types.Number(math.Inf(1))},
+		{name: "negative infinite executed quantity", quote: 21, executed: types.Number(math.Inf(-1))},
+		{name: "executed quantity beyond the decimal backend's precision", quote: beyondPrecision, executed: beyondPrecision, exp: beyondPrecisionAverage},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, averagePrice(tc.quote, tc.executed), "averagePrice should divide the quote by a positive finite executed quantity in decimal arithmetic, and return 0 otherwise")
+		})
+	}
+}
+
 func TestRemainingAmount(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, 0.2, remainingAmount(0.3, 0.1), "remainingAmount should subtract in decimal arithmetic")
@@ -734,6 +767,31 @@ func TestSubmitSpotOrder(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("executed quantity beyond the decimal backend's precision", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := wrapperTestServer(t, map[string][]string{
+			"POST /openApi/spot/v1/trade/order": {`{"code":0,"data":{"symbol":"BTC-USDT","orderId":14,"transactTime":1700000000000,"origQty":"1","executedQty":"0.00000000000000000001","cummulativeQuoteQty":"0.00000000000000000001","status":"PARTIALLY_FILLED","type":"LIMIT","side":"BUY"}}`},
+		})
+		var resp *order.SubmitResponse
+		assert.NotPanics(t, func() {
+			var err error
+			resp, err = ex.submitSpotOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1})
+			assert.NoError(t, err, "submitSpotOrder should not error")
+		}, "submitSpotOrder should not divide by an executed quantity the decimal backend holds as zero")
+		require.NotNil(t, resp, "submitSpotOrder must return a response")
+		assert.Equal(t, averagePrice(1e-20, 1e-20), resp.AverageExecutedPrice, "submitSpotOrder should take averagePrice's average")
+	})
+
+	t.Run("average in decimal arithmetic", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := wrapperTestServer(t, map[string][]string{
+			"POST /openApi/spot/v1/trade/order": {`{"code":0,"data":{"symbol":"BTC-USDT","orderId":15,"transactTime":1700000000000,"origQty":"0.1","executedQty":"0.1","cummulativeQuoteQty":"0.3","status":"FILLED","type":"MARKET","side":"SELL"}}`},
+		})
+		resp, err := ex.submitSpotOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Sell, Type: order.Market, Amount: 0.1})
+		require.NoError(t, err, "submitSpotOrder must not error")
+		assert.Equal(t, 3.0, resp.AverageExecutedPrice, "submitSpotOrder should divide the quote spent by the executed quantity in decimal arithmetic")
+	})
 }
 
 func TestSetPlacedOrderStatus(t *testing.T) {
@@ -1064,8 +1122,11 @@ func TestSubmitCoinMarginedOrder(t *testing.T) {
 	})
 }
 
-// wrapperSpotOrderReply is a spot order details reply for a partly filled LIMIT buy of 3 at 10, order 11
-const wrapperSpotOrderReply = `{"code":0,"data":{"symbol":"BTC-USDT","orderId":11,"price":"10","stopPrice":"0","origQty":"3","executedQty":"1","status":"PARTIALLY_FILLED","type":"LIMIT","side":"BUY","time":1700000000000,"updateTime":1700000000001}}`
+// wrapperSpotOrderReply is a spot order details reply for an open LIMIT buy of 2 at 10 with nothing executed, order 11
+const wrapperSpotOrderReply = `{"code":0,"data":{"symbol":"BTC-USDT","orderId":11,"price":"10","stopPrice":"0","origQty":"2","executedQty":"0","status":"NEW","type":"LIMIT","side":"BUY","time":1700000000000,"updateTime":1700000000001}}`
+
+// wrapperSpotPartlyFilledOrderReply is a spot order details reply for a partly filled LIMIT buy of 3 at 10, order 11
+const wrapperSpotPartlyFilledOrderReply = `{"code":0,"data":{"symbol":"BTC-USDT","orderId":11,"price":"10","stopPrice":"0","origQty":"3","executedQty":"1","status":"PARTIALLY_FILLED","type":"LIMIT","side":"BUY","time":1700000000000,"updateTime":1700000000001}}`
 
 // wrapperSpotCancelledReply returns a spot cancellation reply for an order cancelled after executing the quantity given
 func wrapperSpotCancelledReply(orderID int, executed string) string {
@@ -1086,7 +1147,7 @@ func TestModifyOrder(t *testing.T) {
 
 	ex, requests := wrapperTestServer(t, map[string][]string{
 		"GET /openApi/spot/v1/trade/query":   {wrapperSpotOrderReply},
-		"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(11, "1")},
+		"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(11, "0")},
 		"POST /openApi/spot/v1/trade/order":  {wrapperSpotPlacedReply},
 		"GET /openApi/swap/v2/trade/order":   {`{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":21,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"2","price":"10","executedQty":"0","status":"PENDING"}}}`},
 		"POST /openApi/swap/v1/trade/amend":  {`{"code":0,"data":{"orderId":21,"clientOrderId":"","symbol":"BTC-USDT","quantity":3}}`},
@@ -1151,6 +1212,70 @@ func TestModifyOrder(t *testing.T) {
 		assert.Empty(t, requests(), "ModifyOrder should send nothing without the product's endpoint")
 	})
 
+	t.Run("partly executed orders", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name   string
+			action order.Modify
+			routes map[string][]string
+			err    error
+		}{
+			{
+				name:   "spot price change",
+				action: order.Modify{AssetType: asset.Spot, OrderID: "11", Price: 11},
+				routes: map[string][]string{"GET /openApi/spot/v1/trade/query": {wrapperSpotPartlyFilledOrderReply}},
+				err:    errModifyPartlyExecuted,
+			},
+			{
+				name:   "spot order named by its client order ID",
+				action: order.Modify{AssetType: asset.Spot, ClientOrderID: "c11", Price: 11},
+				routes: map[string][]string{"GET /openApi/spot/v1/trade/query": {wrapperSpotPartlyFilledOrderReply, wrapperSpotPartlyFilledOrderReply}},
+				err:    errModifyPartlyExecuted,
+			},
+			{
+				name:   "USDT-M price change",
+				action: order.Modify{AssetType: asset.USDTMarginedFutures, OrderID: "21", Price: 11},
+				routes: map[string][]string{"GET /openApi/swap/v2/trade/order": {wrapperSwapPartlyFilledOrderReply}},
+				err:    errModifyPartlyExecuted,
+			},
+			{
+				name:   "USDT-M order named by its client order ID",
+				action: order.Modify{AssetType: asset.USDTMarginedFutures, ClientOrderID: "c21", Price: 11},
+				routes: map[string][]string{"GET /openApi/swap/v2/trade/order": {wrapperSwapPartlyFilledOrderReply, wrapperSwapPartlyFilledOrderReply}},
+				err:    errModifyPartlyExecuted,
+			},
+			{
+				name:   "USDT-M amount change",
+				action: order.Modify{AssetType: asset.USDTMarginedFutures, OrderID: "21", Amount: 3},
+				routes: map[string][]string{
+					"GET /openApi/swap/v2/trade/order":  {wrapperSwapPartlyFilledOrderReply},
+					"POST /openApi/swap/v1/trade/amend": {`{"code":0,"data":{"orderId":21,"clientOrderId":"c21","symbol":"BTC-USDT","quantity":3}}`},
+				},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, requests := wrapperTestServer(t, tc.routes)
+				action := tc.action
+				action.Exchange, action.Pair = ex.Name, currency.NewBTCUSDT()
+				resp, err := ex.ModifyOrder(t.Context(), &action)
+				got := requests()
+				if tc.err != nil {
+					assert.ErrorIs(t, err, tc.err, "ModifyOrder should refuse to replace a partly executed order")
+					lookups := 1
+					if tc.action.OrderID == "" {
+						lookups = 2
+					}
+					assert.Len(t, got, lookups, "ModifyOrder should neither cancel nor replace a partly executed order")
+					return
+				}
+				require.NoError(t, err, "ModifyOrder must amend a partly executed USDT-M LIMIT order's amount")
+				assert.Equal(t, "21", resp.OrderID, "ModifyOrder should keep the order ID of an order it amends")
+				assert.Len(t, got, 2, "ModifyOrder should look the order up and amend it")
+			})
+		}
+	})
+
 	t.Run("concurrent modifications of one order", func(t *testing.T) {
 		t.Parallel()
 		type product struct {
@@ -1162,16 +1287,16 @@ func TestModifyOrder(t *testing.T) {
 			a:           asset.Spot,
 			lookupRoute: "GET /openApi/spot/v1/trade/query", cancelRoute: "POST /openApi/spot/v1/trade/cancel", placeRoute: "POST /openApi/spot/v1/trade/order",
 			openReply:      wrapperSpotOrderReply,
-			closedReply:    `{"code":0,"data":{"symbol":"BTC-USDT","orderId":11,"price":"10","stopPrice":"0","origQty":"3","executedQty":"1","status":"CANCELED","type":"LIMIT","side":"BUY"}}`,
-			cancelledReply: wrapperSpotCancelledReply(11, "1"),
+			closedReply:    `{"code":0,"data":{"symbol":"BTC-USDT","orderId":11,"price":"10","stopPrice":"0","origQty":"2","executedQty":"0","status":"CANCELED","type":"LIMIT","side":"BUY"}}`,
+			cancelledReply: wrapperSpotCancelledReply(11, "0"),
 			placedReply:    wrapperSpotPlacedReply,
 		}
 		usdtMargined := product{
 			a:           asset.USDTMarginedFutures,
 			lookupRoute: "GET /openApi/swap/v2/trade/order", cancelRoute: "DELETE /openApi/swap/v2/trade/order", placeRoute: "POST /openApi/swap/v2/trade/order",
 			openReply:      wrapperSwapOrderReply(""),
-			closedReply:    `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":21,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"2","price":"10","executedQty":"0.5","status":"CANCELLED","clientOrderId":"c21"}}}`,
-			cancelledReply: wrapperSwapCancelledReply(21, "0.5"),
+			closedReply:    `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":21,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"2","price":"10","executedQty":"0","status":"CANCELLED","clientOrderId":"c21"}}}`,
+			cancelledReply: wrapperSwapCancelledReply(21, "0"),
 			placedReply:    wrapperSwapPlacedReply("LIMIT", ""),
 		}
 		for _, tc := range []struct {
@@ -1340,7 +1465,7 @@ func TestModifyOrder(t *testing.T) {
 							reply = strings.Replace(wrapperSpotOrderReply, `"orderId":11`, `"orderId":13`, 1)
 						}
 					case "POST /openApi/spot/v1/trade/cancel":
-						reply = wrapperSpotCancelledReply(11, "1")
+						reply = wrapperSpotCancelledReply(11, "0")
 					case "POST /openApi/spot/v1/trade/order":
 						reply = wrapperSpotPlacedReply
 					default:
@@ -1388,10 +1513,10 @@ func TestModifyOrder(t *testing.T) {
 		t.Parallel()
 		ex, requests := wrapperTestServer(t, map[string][]string{
 			"GET /openApi/spot/v1/trade/query":    {wrapperSpotOrderReply, wrapperSpotOrderReply, `{"code":100404,"msg":"order not exist"}`},
-			"POST /openApi/spot/v1/trade/cancel":  {wrapperSpotCancelledReply(11, "1")},
+			"POST /openApi/spot/v1/trade/cancel":  {wrapperSpotCancelledReply(11, "0")},
 			"POST /openApi/spot/v1/trade/order":   {wrapperSpotPlacedReply},
 			"GET /openApi/swap/v2/trade/order":    {wrapperSwapOrderReply(""), wrapperSwapOrderReply("")},
-			"DELETE /openApi/swap/v2/trade/order": {wrapperSwapCancelledReply(21, "0.5")},
+			"DELETE /openApi/swap/v2/trade/order": {wrapperSwapCancelledReply(21, "0")},
 			"POST /openApi/swap/v2/trade/order":   {wrapperSwapPlacedReply("LIMIT", "")},
 		})
 		resp, err := ex.ModifyOrder(t.Context(), &order.Modify{Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, ClientOrderID: "c11", Price: 11})
@@ -1431,8 +1556,8 @@ func TestModifyOrder(t *testing.T) {
 	t.Run("credentials changing during the modification", func(t *testing.T) {
 		t.Parallel()
 		const (
-			spotClosed = `{"code":0,"data":{"symbol":"BTC-USDT","orderId":11,"price":"10","stopPrice":"0","origQty":"3","executedQty":"1","status":"CANCELED","type":"LIMIT","side":"BUY"}}`
-			swapClosed = `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":21,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"2","price":"10","executedQty":"0.5","status":"CANCELLED"}}}`
+			spotClosed = `{"code":0,"data":{"symbol":"BTC-USDT","orderId":11,"price":"10","stopPrice":"0","origQty":"2","executedQty":"0","status":"CANCELED","type":"LIMIT","side":"BUY"}}`
+			swapClosed = `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":21,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"2","price":"10","executedQty":"0","status":"CANCELLED"}}}`
 		)
 		for _, tc := range []struct {
 			name   string
@@ -1443,7 +1568,7 @@ func TestModifyOrder(t *testing.T) {
 				name: "spot cancellation answered", action: order.Modify{AssetType: asset.Spot, OrderID: "11"},
 				routes: map[string][]string{
 					"GET /openApi/spot/v1/trade/query":   {wrapperSpotOrderReply},
-					"POST /openApi/spot/v1/trade/cancel": {wrapperCredentialsChange + wrapperSpotCancelledReply(11, "1")},
+					"POST /openApi/spot/v1/trade/cancel": {wrapperCredentialsChange + wrapperSpotCancelledReply(11, "0")},
 					"POST /openApi/spot/v1/trade/order":  {wrapperSpotPlacedReply},
 				},
 			},
@@ -1459,7 +1584,7 @@ func TestModifyOrder(t *testing.T) {
 				name: "spot order named by its client order ID", action: order.Modify{AssetType: asset.Spot, ClientOrderID: "c11"},
 				routes: map[string][]string{
 					"GET /openApi/spot/v1/trade/query":   {wrapperCredentialsChange + wrapperSpotOrderReply, wrapperSpotOrderReply},
-					"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(11, "1")},
+					"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(11, "0")},
 					"POST /openApi/spot/v1/trade/order":  {wrapperSpotPlacedReply},
 				},
 			},
@@ -1467,7 +1592,7 @@ func TestModifyOrder(t *testing.T) {
 				name: "USDT-M cancellation answered", action: order.Modify{AssetType: asset.USDTMarginedFutures, OrderID: "21"},
 				routes: map[string][]string{
 					"GET /openApi/swap/v2/trade/order":    {wrapperSwapOrderReply("")},
-					"DELETE /openApi/swap/v2/trade/order": {wrapperCredentialsChange + wrapperSwapCancelledReply(21, "0.5")},
+					"DELETE /openApi/swap/v2/trade/order": {wrapperCredentialsChange + wrapperSwapCancelledReply(21, "0")},
 					"POST /openApi/swap/v2/trade/order":   {wrapperSwapPlacedReply("LIMIT", "")},
 				},
 			},
@@ -1563,6 +1688,11 @@ func TestModifiedOrderID(t *testing.T) {
 
 func TestReplacementQuantity(t *testing.T) {
 	t.Parallel()
+	// A total below the udecimal_on backend's 19 decimal places is zero there, and refused
+	tiny, tinyErr := decimal.MustFromFloat(1e-20).InexactFloat64(), error(nil)
+	if tiny == 0 {
+		tinyErr = order.ErrAmountIsInvalid
+	}
 	for _, tc := range []struct {
 		name               string
 		amount             float64
@@ -1570,54 +1700,72 @@ func TestReplacementQuantity(t *testing.T) {
 		exp                float64
 		err                error
 	}{
-		{name: "existing total less the executed quantity", original: 3, executed: 1, exp: 2},
-		{name: "desired total less the executed quantity", amount: 10, original: 10, executed: 4, exp: 6},
-		{name: "larger desired total", amount: 12, original: 10, executed: 4, exp: 8},
-		{name: "decimal arithmetic", amount: 0.3, original: 0.5, executed: 0.1, exp: 0.2},
-		{name: "nothing executed", amount: 2, original: 1, exp: 2},
-		{name: "desired total executed", amount: 4, original: 10, executed: 4, err: errModifyAmountNotAboveExecuted},
-		{name: "desired total below the executed quantity", amount: 3, original: 10, executed: 4, err: errModifyAmountNotAboveExecuted},
-		{name: "existing total executed", original: 1, executed: 1, err: errModifyAmountNotAboveExecuted},
+		{name: "existing total", original: 3, exp: 3},
+		{name: "desired total", amount: 10, original: 3, exp: 10},
+		{name: "smaller desired total", amount: 2, original: 3, exp: 2},
+		{name: "desired total in the decimal backend's precision", amount: 1.2345678901234567e-6, original: 1, exp: decimal.MustFromFloat(1.2345678901234567e-6).InexactFloat64()},
+		{name: "existing total in the decimal backend's precision", original: 1.2345678901234567e-6, exp: decimal.MustFromFloat(1.2345678901234567e-6).InexactFloat64()},
+		{name: "desired total below the decimal backend's precision", amount: 1e-20, original: 1, exp: tiny, err: tinyErr},
+		{name: "existing total below the decimal backend's precision", original: 1e-20, exp: tiny, err: tinyErr},
+		{name: "desired total with a NaN existing total", amount: 2, original: types.Number(math.NaN()), exp: 2},
+		{name: "desired total with an infinite existing total", amount: 2, original: types.Number(math.Inf(-1)), exp: 2},
+		{name: "NaN existing total", original: types.Number(math.NaN()), err: order.ErrAmountIsInvalid},
+		{name: "infinite existing total", original: types.Number(math.Inf(1)), err: order.ErrAmountIsInvalid},
+		{name: "NaN executed quantity", amount: 2, original: 1, executed: types.Number(math.NaN()), err: errModifyPartlyExecuted},
+		{name: "existing total less the executed quantity", original: 3, executed: 1, err: errModifyPartlyExecuted},
+		{name: "desired total less the executed quantity", amount: 10, original: 10, executed: 4, err: errModifyPartlyExecuted},
+		{name: "larger desired total", amount: 12, original: 10, executed: 4, err: errModifyPartlyExecuted},
+		{name: "decimal arithmetic", amount: 0.3, original: 0.5, executed: 0.1, err: errModifyPartlyExecuted},
+		{name: "desired total executed", amount: 4, original: 10, executed: 4, err: errModifyPartlyExecuted},
+		{name: "desired total below the executed quantity", amount: 3, original: 10, executed: 4, err: errModifyPartlyExecuted},
+		{name: "existing total executed", original: 1, executed: 1, err: errModifyPartlyExecuted},
+		{name: "smallest executed quantity", amount: 2, original: 1, executed: 0.0001, err: errModifyPartlyExecuted},
+		{name: "existing total of zero", err: order.ErrAmountIsInvalid},
 		{name: "negative amount", amount: -1, original: 1, err: order.ErrAmountIsInvalid},
 		{name: "NaN amount", amount: math.NaN(), original: 1, err: order.ErrAmountIsInvalid},
 		{name: "infinite amount", amount: math.Inf(1), original: 1, err: order.ErrAmountIsInvalid},
+		{name: "invalid amount of a partly executed order", amount: -1, original: 1, executed: 0.5, err: order.ErrAmountIsInvalid},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			quantity, err := replacementQuantity(tc.amount, tc.original, tc.executed)
+			quantity, err := replacementQuantity("16", tc.amount, tc.original, tc.executed)
 			require.ErrorIs(t, err, tc.err, "replacementQuantity must return the expected error")
-			assert.Equal(t, tc.exp, quantity, "replacementQuantity should return the desired total less the executed quantity")
+			assert.Equal(t, tc.exp, quantity, "replacementQuantity should return the desired total, or else the existing order's")
 		})
 	}
+	_, err := replacementQuantity("16", 10, 10, 0.0001)
+	assert.ErrorContains(t, err, "order 16 has executed 0.0001", "replacementQuantity should name the order and its executed quantity")
 }
 
 func TestCancelledReplacementQuantity(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name                          string
-		amount                        float64
-		original, lookedUp, cancelled types.Number
-		exp                           float64
-		err                           error
+		name                string
+		amount              float64
+		original, cancelled types.Number
+		exp                 float64
+		err                 error
 	}{
-		{name: "cancellation reports the lookup's execution", amount: 10, original: 10, lookedUp: 4, cancelled: 4, exp: 6},
-		{name: "cancellation reports more execution", amount: 10, original: 10, lookedUp: 4, cancelled: 5, exp: 5},
-		{name: "cancellation reports less execution", amount: 10, original: 10, lookedUp: 4, exp: 6},
-		{name: "existing total", original: 3, lookedUp: 1, cancelled: 2, exp: 1},
-		{name: "desired total executed by the cancellation", amount: 10, original: 10, lookedUp: 4, cancelled: 10, err: errCancelledOrderExecuted},
-		{name: "more than the desired total executed by the cancellation", amount: 8, original: 10, lookedUp: 4, cancelled: 9, err: errCancelledOrderExecuted},
+		{name: "nothing executed by the cancellation", amount: 10, original: 10, exp: 10},
+		{name: "existing total", original: 3, exp: 3},
+		{name: "part executed by the cancellation", amount: 10, original: 10, cancelled: 4, err: errCancelledOrderExecuted},
+		{name: "smallest quantity executed by the cancellation", amount: 10, original: 10, cancelled: 0.0001, err: errCancelledOrderExecuted},
+		{name: "NaN quantity executed by the cancellation", amount: 10, original: 10, cancelled: types.Number(math.NaN()), err: errCancelledOrderExecuted},
+		{name: "existing total less the cancellation's execution", original: 3, cancelled: 2, err: errCancelledOrderExecuted},
+		{name: "desired total executed by the cancellation", amount: 10, original: 10, cancelled: 10, err: errCancelledOrderExecuted},
+		{name: "more than the desired total executed by the cancellation", amount: 8, original: 10, cancelled: 9, err: errCancelledOrderExecuted},
 		{name: "invalid amount", amount: math.NaN(), original: 10, err: order.ErrAmountIsInvalid},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			quantity, err := cancelledReplacementQuantity("16", tc.amount, tc.original, tc.lookedUp, tc.cancelled)
+			quantity, err := cancelledReplacementQuantity("16", tc.amount, tc.original, tc.cancelled)
 			require.ErrorIs(t, err, tc.err, "cancelledReplacementQuantity must return the expected error")
-			assert.Equal(t, tc.exp, quantity, "cancelledReplacementQuantity should return the desired total less the larger executed quantity")
+			assert.Equal(t, tc.exp, quantity, "cancelledReplacementQuantity should return the desired total of an order the cancellation reports unexecuted")
 		})
 	}
-	_, err := cancelledReplacementQuantity("16", 10, 10, 4, 10)
-	assert.ErrorContains(t, err, "order 16 had executed 10 when cancelled, and no replacement was placed", "cancelledReplacementQuantity should name the order and its final executed quantity")
-	_, err = cancelledReplacementQuantity("16", math.NaN(), 10, 0, 0)
+	_, err := cancelledReplacementQuantity("16", 10, 10, 0.0001)
+	assert.ErrorContains(t, err, "order 16 had executed 0.0001 when cancelled, and no replacement was placed", "cancelledReplacementQuantity should name the order and its final executed quantity")
+	_, err = cancelledReplacementQuantity("16", math.NaN(), 10, 0)
 	assert.NotErrorIs(t, err, errCancelledOrderExecuted, "cancelledReplacementQuantity should not report an invalid amount as an order cancelled without a replacement")
 }
 
@@ -1910,7 +2058,7 @@ func TestReplaceSpotOrder(t *testing.T) {
 			wrapperSpotOrderReply,
 			`{"code":0,"data":{"symbol":"BTC-USDT","orderId":13,"price":"0","stopPrice":"9","origQty":"1","executedQty":"0","status":"NEW","type":"TAKE_STOP_MARKET","side":"SELL"}}`,
 		},
-		"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(11, "1"), wrapperSpotCancelledReply(13, "0")},
+		"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(11, "0"), wrapperSpotCancelledReply(13, "0")},
 		"POST /openApi/spot/v1/trade/order": {
 			wrapperSpotPlacedReply,
 			`{"code":0,"data":{"symbol":"BTC-USDT","orderId":14,"transactTime":1700000000003,"stopPrice":"8","origQty":"1","executedQty":"0","status":"NEW","type":"TAKE_STOP_MARKET","side":"SELL"}}`,
@@ -1930,7 +2078,7 @@ func TestReplaceSpotOrder(t *testing.T) {
 		"price":            {"11"},
 		"quantity":         {"2"},
 		"newClientOrderId": {"n12"},
-	}, got[2].params, "replaceSpotOrder should place the order's unfilled amount, keeping what the modification leaves unchanged")
+	}, got[2].params, "replaceSpotOrder should place the order's total, keeping what the modification leaves unchanged")
 	assert.Equal(t, "12", resp.OrderID, "replaceSpotOrder should return the replacement's order ID")
 	assert.Equal(t, "n12", resp.ClientOrderID, "replaceSpotOrder should return the replacement's client order ID")
 	assert.Equal(t, 11.0, resp.Price, "replaceSpotOrder should return the replacement's price")
@@ -1949,11 +2097,11 @@ func TestReplaceSpotOrder(t *testing.T) {
 
 	t.Run("carried values", func(t *testing.T) {
 		t.Parallel()
-		existing := `{"code":0,"data":{"symbol":"BTC-USDT","orderId":15,"price":"12","stopPrice":"11","origQty":"3","executedQty":"1","status":"PARTIALLY_FILLED","type":"TRIGGER_LIMIT","side":"SELL"}}`
-		placed := `{"code":0,"data":{"symbol":"BTC-USDT","orderId":16,"price":"13","stopPrice":"12","origQty":"2","executedQty":"0","status":"NEW","type":"TRIGGER_LIMIT","side":"SELL"}}`
+		existing := `{"code":0,"data":{"symbol":"BTC-USDT","orderId":15,"price":"12","stopPrice":"11","origQty":"3","executedQty":"0","status":"NEW","type":"TRIGGER_LIMIT","side":"SELL"}}`
+		placed := `{"code":0,"data":{"symbol":"BTC-USDT","orderId":16,"price":"13","stopPrice":"12","origQty":"3","executedQty":"0","status":"NEW","type":"TRIGGER_LIMIT","side":"SELL"}}`
 		ex, requests := wrapperTestServer(t, map[string][]string{
 			"GET /openApi/spot/v1/trade/query":   {existing, existing},
-			"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(15, "1"), wrapperSpotCancelledReply(15, "1")},
+			"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(15, "0"), wrapperSpotCancelledReply(15, "0")},
 			"POST /openApi/spot/v1/trade/order":  {placed, placed},
 		})
 		for _, tc := range []struct {
@@ -1964,12 +2112,12 @@ func TestReplaceSpotOrder(t *testing.T) {
 			{
 				name:   "changed values",
 				action: order.Modify{Price: 13, TriggerPrice: 12, NewClientOrderID: "n16", TimeInForce: order.ImmediateOrCancel},
-				exp:    url.Values{"symbol": {"BTC-USDT"}, "side": {"SELL"}, "type": {"TRIGGER_LIMIT"}, "price": {"13"}, "stopPrice": {"12"}, "quantity": {"2"}, "newClientOrderId": {"n16"}, "timeInForce": {"IOC"}},
+				exp:    url.Values{"symbol": {"BTC-USDT"}, "side": {"SELL"}, "type": {"TRIGGER_LIMIT"}, "price": {"13"}, "stopPrice": {"12"}, "quantity": {"3"}, "newClientOrderId": {"n16"}, "timeInForce": {"IOC"}},
 			},
 			{
 				name:   "values the modification leaves unchanged",
 				action: order.Modify{Amount: 4, TimeInForce: order.PostOnly},
-				exp:    url.Values{"symbol": {"BTC-USDT"}, "side": {"SELL"}, "type": {"TRIGGER_LIMIT"}, "price": {"12"}, "stopPrice": {"11"}, "quantity": {"3"}, "timeInForce": {"PostOnly"}},
+				exp:    url.Values{"symbol": {"BTC-USDT"}, "side": {"SELL"}, "type": {"TRIGGER_LIMIT"}, "price": {"12"}, "stopPrice": {"11"}, "quantity": {"4"}, "timeInForce": {"PostOnly"}},
 			},
 		} {
 			// The rows share the server's queued replies, so they run one at a time in order
@@ -1987,40 +2135,63 @@ func TestReplaceSpotOrder(t *testing.T) {
 
 	t.Run("desired total", func(t *testing.T) {
 		t.Parallel()
-		existing := `{"code":0,"data":{"symbol":"BTC-USDT","orderId":16,"price":"10","stopPrice":"0","origQty":"10","executedQty":"4","status":"PARTIALLY_FILLED","type":"LIMIT","side":"BUY"}}`
+		existing := `{"code":0,"data":{"symbol":"BTC-USDT","orderId":16,"price":"10","stopPrice":"0","origQty":"10","executedQty":"0","status":"NEW","type":"LIMIT","side":"BUY"}}`
 		placed := func(quantity string) string {
 			return `{"code":0,"data":{"symbol":"BTC-USDT","orderId":17,"price":"11","origQty":"` + quantity + `","executedQty":"0","status":"PENDING","type":"LIMIT","side":"BUY"}}`
 		}
 		ex, requests := wrapperTestServer(t, map[string][]string{
-			"GET /openApi/spot/v1/trade/query":   {existing, existing, existing, existing},
-			"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(16, "4"), wrapperSpotCancelledReply(16, "5"), wrapperSpotCancelledReply(16, "10")},
-			"POST /openApi/spot/v1/trade/order":  {placed("6"), placed("5")},
+			"GET /openApi/spot/v1/trade/query":   {existing, existing},
+			"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(16, "0"), wrapperSpotCancelledReply(16, "0")},
+			"POST /openApi/spot/v1/trade/order":  {placed("12"), placed("10")},
 		})
-		modify := order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.Spot, OrderID: "16", Price: 11, Amount: 10}
+		modify := order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.Spot, OrderID: "16", Price: 11, Amount: 12}
 		resp, err := ex.replaceSpotOrder(t.Context(), &modify, 16)
 		require.NoError(t, err, "replaceSpotOrder must not error")
 		got := requests()
 		require.Len(t, got, 3, "replaceSpotOrder must fetch the order, cancel it and then place its replacement")
-		assert.Equal(t, "6", got[2].params.Get("quantity"), "replaceSpotOrder should place the desired total less the executed quantity")
-		assert.Equal(t, 6.0, resp.Amount, "replaceSpotOrder should return the replacement's amount")
+		assert.Equal(t, "12", got[2].params.Get("quantity"), "replaceSpotOrder should place the desired total")
+		assert.Equal(t, 12.0, resp.Amount, "replaceSpotOrder should return the replacement's amount")
 
+		modify.Amount = 0
 		resp, err = ex.replaceSpotOrder(t.Context(), &modify, 16)
-		require.NoError(t, err, "replaceSpotOrder must not error when the order executed more before its cancellation")
+		require.NoError(t, err, "replaceSpotOrder must not error for a modification without a desired total")
 		got = requests()
 		require.Len(t, got, 6, "replaceSpotOrder must fetch the order, cancel it and then place its replacement")
-		assert.Equal(t, "5", got[5].params.Get("quantity"), "replaceSpotOrder should size the replacement by the quantity the cancellation reports executed")
-		assert.Equal(t, 5.0, resp.Amount, "replaceSpotOrder should return the replacement's amount")
+		assert.Equal(t, "10", got[5].params.Get("quantity"), "replaceSpotOrder should place the existing order's total without a desired total")
+		assert.Equal(t, 10.0, resp.Amount, "replaceSpotOrder should return the replacement's amount")
+	})
 
-		_, err = ex.replaceSpotOrder(t.Context(), &modify, 16)
-		assert.ErrorIs(t, err, errCancelledOrderExecuted, "replaceSpotOrder should report an order whose cancellation executed its desired total")
-		got = requests()
-		require.Len(t, got, 8, "replaceSpotOrder must fetch and cancel the order")
-		assert.Equal(t, "/openApi/spot/v1/trade/cancel", got[7].path, "replaceSpotOrder should place nothing for an order that executed its desired total")
-
-		modify.Amount = 4
-		_, err = ex.replaceSpotOrder(t.Context(), &modify, 16)
-		assert.ErrorIs(t, err, errModifyAmountNotAboveExecuted, "replaceSpotOrder should refuse a desired total the order has executed")
-		assert.Len(t, requests(), 9, "replaceSpotOrder should refuse the modification before cancelling the order")
+	t.Run("partly executed order", func(t *testing.T) {
+		t.Parallel()
+		existing := `{"code":0,"data":{"symbol":"BTC-USDT","orderId":16,"price":"10","stopPrice":"0","origQty":"10","executedQty":"4","status":"PARTIALLY_FILLED","type":"LIMIT","side":"BUY"}}`
+		unexecuted := strings.Replace(strings.Replace(existing, `"executedQty":"4"`, `"executedQty":"0"`, 1), "PARTIALLY_FILLED", "NEW", 1)
+		for _, tc := range []struct {
+			name, lookup, cancel string
+			amount               float64
+			err                  error
+			message              string
+		}{
+			{name: "desired total above the executed quantity", lookup: existing, amount: 10, err: errModifyPartlyExecuted, message: "order 16 has executed 4"},
+			{name: "desired total executed", lookup: existing, amount: 4, err: errModifyPartlyExecuted, message: "order 16 has executed 4"},
+			{name: "existing total", lookup: existing, err: errModifyPartlyExecuted, message: "order 16 has executed 4"},
+			{name: "part executed by the cancellation", lookup: unexecuted, cancel: wrapperSpotCancelledReply(16, "4"), amount: 10, err: errCancelledOrderExecuted, message: "order 16 had executed 4 when cancelled, and no replacement was placed"},
+			{name: "desired total executed by the cancellation", lookup: unexecuted, cancel: wrapperSpotCancelledReply(16, "10"), amount: 10, err: errCancelledOrderExecuted, message: "order 16 had executed 10 when cancelled, and no replacement was placed"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				routes := map[string][]string{"GET /openApi/spot/v1/trade/query": {tc.lookup}}
+				sent := 1
+				if tc.cancel != "" {
+					routes["POST /openApi/spot/v1/trade/cancel"] = []string{tc.cancel}
+					sent = 2
+				}
+				ex, requests := wrapperTestServer(t, routes)
+				_, err := ex.replaceSpotOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.Spot, OrderID: "16", Price: 11, Amount: tc.amount}, 16)
+				require.ErrorIs(t, err, tc.err, "replaceSpotOrder must refuse to replace an order that executed any of its quantity")
+				assert.ErrorContains(t, err, tc.message, "replaceSpotOrder should name the order and the quantity it executed")
+				assert.Len(t, requests(), sent, "replaceSpotOrder should place nothing, cancelling an order only when its lookup shows nothing executed")
+			})
+		}
 	})
 
 	t.Run("errors", func(t *testing.T) {
@@ -2028,7 +2199,7 @@ func TestReplaceSpotOrder(t *testing.T) {
 		ex, requests := wrapperTestServer(t, map[string][]string{
 			// The third lookup follows the failed cancellation, and shows the order still open
 			"GET /openApi/spot/v1/trade/query":   {`{"code":100500,"msg":"busy"}`, wrapperSpotOrderReply, wrapperSpotOrderReply, wrapperSpotOrderReply},
-			"POST /openApi/spot/v1/trade/cancel": {`{"code":100500,"msg":"busy"}`, wrapperSpotCancelledReply(11, "1")},
+			"POST /openApi/spot/v1/trade/cancel": {`{"code":100500,"msg":"busy"}`, wrapperSpotCancelledReply(11, "0")},
 			"POST /openApi/spot/v1/trade/order":  {`{"code":100500,"msg":"busy"}`},
 		})
 		action := &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.Spot, OrderID: "11", Price: 11}
@@ -2062,6 +2233,7 @@ func TestReplaceSpotOrder(t *testing.T) {
 		})
 		_, err := ex.replaceSpotOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.Spot, OrderID: "11", Price: 11}, 11)
 		assert.ErrorIs(t, err, errOrderNotOpen, "replaceSpotOrder should refuse an order its lookup shows cancelled")
+		assert.NotErrorIs(t, err, errModifyPartlyExecuted, "replaceSpotOrder should refuse a cancelled order as no longer open, whatever it executed")
 		assert.Len(t, requests(), 1, "replaceSpotOrder should neither cancel nor replace an order no longer open")
 	})
 
@@ -2078,7 +2250,8 @@ func TestReplaceSpotOrder(t *testing.T) {
 			{name: "refusal, order still open", cancel: refusal, lookup: lookedUp("PARTIALLY_FILLED", "1"), errs: []error{errCancelReplaceFailed, order.ErrOrderNotFound}, notErrs: []error{errCancelOutcomeUnknown}},
 			{name: "refusal, status that does not show whether the order is open", cancel: refusal, lookup: lookedUp("ODD", "1"), errs: []error{errCancelReplaceFailed, order.ErrOrderNotFound}, notErrs: []error{errCancelOutcomeUnknown}},
 			{name: "refusal, failed lookup", cancel: refusal, lookup: failedLookup, errs: []error{errCancelOutcomeUnknown, order.ErrOrderNotFound, request.ErrAuthRequestFailed}},
-			{name: "no answer, order cancelled", cancel: wrapperNoReply, lookup: lookedUp("CANCELED", "2"), quantity: "1"},
+			{name: "no answer, order cancelled", cancel: wrapperNoReply, lookup: lookedUp("CANCELED", "0"), quantity: "2"},
+			{name: "no answer, order cancelled after executing part of it", cancel: wrapperNoReply, lookup: lookedUp("CANCELED", "1"), errs: []error{errCancelledOrderExecuted}, notErrs: []error{errCancelOutcomeUnknown}},
 			{name: "no answer, order cancelled after executing the desired total", cancel: wrapperNoReply, lookup: lookedUp("CANCELED", "3"), errs: []error{errCancelledOrderExecuted}},
 			{name: "no answer, order filled", cancel: wrapperNoReply, lookup: lookedUp("FILLED", "3"), errs: []error{errCancelledOrderExecuted}},
 			{name: "no answer, order still open", cancel: wrapperNoReply, lookup: lookedUp("PARTIALLY_FILLED", "1"), errs: []error{errCancelReplaceFailed, errCancelOutcomeUnknown}},
@@ -2086,11 +2259,12 @@ func TestReplaceSpotOrder(t *testing.T) {
 			{name: "no answer, failed lookup", cancel: wrapperNoReply, lookup: failedLookup, errs: []error{errCancelOutcomeUnknown, request.ErrAuthRequestFailed}},
 		}
 		codes := []string{"100500", "109500", "109701", "110500"}
-		busy := make([]wrapperFailedCancellationCase, 0, 2*len(codes))
+		busy := make([]wrapperFailedCancellationCase, 0, 3*len(codes))
 		for _, code := range codes {
 			failure := `{"code":` + code + `,"msg":"busy"}`
 			busy = append(busy,
-				wrapperFailedCancellationCase{name: "code " + code + ", order cancelled", cancel: failure, lookup: lookedUp("CANCELED", "2"), quantity: "1"},
+				wrapperFailedCancellationCase{name: "code " + code + ", order cancelled", cancel: failure, lookup: lookedUp("CANCELED", "0"), quantity: "2"},
+				wrapperFailedCancellationCase{name: "code " + code + ", order cancelled after executing part of it", cancel: failure, lookup: lookedUp("CANCELED", "1"), errs: []error{errCancelledOrderExecuted}, notErrs: []error{errCancelOutcomeUnknown}},
 				wrapperFailedCancellationCase{name: "code " + code + ", order still open", cancel: failure, lookup: lookedUp("PARTIALLY_FILLED", "1"), errs: []error{errCancelReplaceFailed, errCancelOutcomeUnknown, errAPIResponse}},
 			)
 		}
@@ -2129,7 +2303,7 @@ func TestReplaceSpotOrder(t *testing.T) {
 				require.NoError(t, err, "replaceSpotOrder must replace an order its lookup shows cancelled after a cancellation without an answer showing its outcome")
 				require.Len(t, got, sent+1, "replaceSpotOrder must fetch the order, cancel it, look it up again and then place its replacement")
 				assert.Equal(t, "/openApi/spot/v1/trade/query", got[sent-1].path, "replaceSpotOrder should look the order up again after a failed cancellation")
-				assert.Equal(t, tc.quantity, got[sent].params.Get("quantity"), "replaceSpotOrder should size the replacement by the quantity the lookup reports executed")
+				assert.Equal(t, tc.quantity, got[sent].params.Get("quantity"), "replaceSpotOrder should place the order's total for an order the lookup shows cancelled without executing")
 				assert.Equal(t, "12", resp.OrderID, "replaceSpotOrder should return the replacement's order ID")
 			})
 		}
@@ -2139,7 +2313,7 @@ func TestReplaceSpotOrder(t *testing.T) {
 		t.Parallel()
 		ex, _ := wrapperTestServer(t, map[string][]string{
 			"GET /openApi/spot/v1/trade/query":   {wrapperSpotOrderReply},
-			"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(11, "1")},
+			"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(11, "0")},
 			"POST /openApi/spot/v1/trade/order":  {`{"code":0,"data":{"symbol":"BTC-USDT","orderId":15,"origQty":"2","status":"ODD","type":"ODD","side":"ODD"}}`},
 		})
 		resp, err := ex.replaceSpotOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.Spot, OrderID: "11", Price: 11}, 11)
@@ -2168,7 +2342,7 @@ func TestReplaceSpotOrder(t *testing.T) {
 				t.Parallel()
 				ex, _ := wrapperTestServer(t, map[string][]string{
 					"GET /openApi/spot/v1/trade/query":   {wrapperSpotOrderReply},
-					"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(11, "1")},
+					"POST /openApi/spot/v1/trade/cancel": {wrapperSpotCancelledReply(11, "0")},
 					"POST /openApi/spot/v1/trade/order":  {tc.placed},
 				})
 				resp, err := ex.replaceSpotOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.Spot, OrderID: "11", Price: 11}, 11)
@@ -2239,11 +2413,15 @@ func TestSwapOrderCloses(t *testing.T) {
 	}
 }
 
-// wrapperSwapOrderReply returns a USDT-M order details reply for order 21, a BTC-USDT LIMIT buy of 2 at 10 with 0.5
-// filled, with extra JSON members
+// wrapperSwapOrderReply returns a USDT-M order details reply for order 21, an open BTC-USDT LIMIT buy of 2 at 10 with
+// nothing executed, with extra JSON members
 func wrapperSwapOrderReply(extra string) string {
-	return `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":21,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"2","price":"10","executedQty":"0.5","status":"PARTIALLY_FILLED","clientOrderId":"c21"` + extra + `}}}`
+	return `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":21,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"2","price":"10","executedQty":"0","status":"NEW","clientOrderId":"c21"` + extra + `}}}`
 }
+
+// wrapperSwapPartlyFilledOrderReply is a USDT-M order details reply for order 21, a BTC-USDT LIMIT buy of 2 at 10 with
+// 0.5 filled
+const wrapperSwapPartlyFilledOrderReply = `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":21,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"2","price":"10","executedQty":"0.5","status":"PARTIALLY_FILLED","clientOrderId":"c21"}}}`
 
 // wrapperSwapCancelledReply returns a USDT-M cancellation reply for an order cancelled after executing the quantity given
 func wrapperSwapCancelledReply(orderID int, executed string) string {
@@ -2293,7 +2471,7 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 	t.Run("amend", func(t *testing.T) {
 		t.Parallel()
 		ex, requests := wrapperTestServer(t, map[string][]string{
-			"GET /openApi/swap/v2/trade/order":  {wrapperSwapOrderReply("")},
+			"GET /openApi/swap/v2/trade/order":  {wrapperSwapPartlyFilledOrderReply},
 			"POST /openApi/swap/v1/trade/amend": {`{"code":0,"data":{"orderId":21,"clientOrderId":"c21","symbol":"BTC-USDT","quantity":3}}`},
 		})
 		resp, err := ex.amendOrReplaceSwapOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "21", Amount: 3}, 21)
@@ -2371,7 +2549,7 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 				wrapperSwapOrderReply(`,"workingType":"MARK_PRICE","stopLoss":{"type":"STOP_MARKET","stopPrice":8,"price":0,"quantity":0,"workingType":"MARK_PRICE"}`),
 				wrapperSwapOrderReply(""),
 			},
-			"DELETE /openApi/swap/v2/trade/order": {wrapperSwapCancelledReply(21, "0.5"), wrapperSwapCancelledReply(21, "0.5")},
+			"DELETE /openApi/swap/v2/trade/order": {wrapperSwapCancelledReply(21, "0"), wrapperSwapCancelledReply(21, "0")},
 			"POST /openApi/swap/v2/trade/order":   {wrapperSwapPlacedReply("LIMIT", ""), wrapperSwapPlacedReply("LIMIT", `,"status":"PARTIALLY_FILLED","executedQty":"0.5"`)},
 		})
 		resp, err := ex.amendOrReplaceSwapOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "21", Price: 11, NewClientOrderID: "n22"}, 21)
@@ -2386,17 +2564,17 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 			"side":          {"BUY"},
 			"positionSide":  {"LONG"},
 			"price":         {"11"},
-			"quantity":      {"1.5"},
+			"quantity":      {"2"},
 			"workingType":   {"MARK_PRICE"},
 			"stopLoss":      {`{"type":"STOP_MARKET","stopPrice":8,"workingType":"MARK_PRICE"}`},
 			"clientOrderId": {"n22"},
 			"timeInForce":   {"GTC"},
-		}, got[2].params, "amendOrReplaceSwapOrder should place the order's unfilled amount, keeping what the modification leaves unchanged")
+		}, got[2].params, "amendOrReplaceSwapOrder should place the order's total, keeping what the modification leaves unchanged")
 		assert.Equal(t, "22", resp.OrderID, "amendOrReplaceSwapOrder should return the replacement's order ID")
 		assert.Equal(t, "n22", resp.ClientOrderID, "amendOrReplaceSwapOrder should return the replacement's client order ID")
 		assert.Equal(t, 11.0, resp.Price, "amendOrReplaceSwapOrder should return the replacement's price")
-		assert.Equal(t, 1.5, resp.Amount, "amendOrReplaceSwapOrder should return the replacement's amount")
-		assert.Equal(t, 1.5, resp.RemainingAmount, "amendOrReplaceSwapOrder should return the replacement's unfilled amount")
+		assert.Equal(t, 2.0, resp.Amount, "amendOrReplaceSwapOrder should return the replacement's amount")
+		assert.Equal(t, 2.0, resp.RemainingAmount, "amendOrReplaceSwapOrder should return the replacement's unfilled amount")
 		assert.Equal(t, order.New, resp.Status, "amendOrReplaceSwapOrder should report a replacement without a status new")
 		assert.Equal(t, order.GoodTillCancel, resp.TimeInForce, "amendOrReplaceSwapOrder should return the replacement's time in force")
 		assert.Equal(t, order.Limit, resp.Type, "amendOrReplaceSwapOrder should return the replacement's type")
@@ -2405,7 +2583,7 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 		resp, err = ex.amendOrReplaceSwapOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "21", Price: 11}, 21)
 		require.NoError(t, err, "amendOrReplaceSwapOrder must not error")
 		assert.Equal(t, order.PartiallyFilled, resp.Status, "amendOrReplaceSwapOrder should return the status the placement reports")
-		assert.Equal(t, 1.0, resp.RemainingAmount, "amendOrReplaceSwapOrder should return the replacement's unfilled amount less what its placement executed")
+		assert.Equal(t, 1.5, resp.RemainingAmount, "amendOrReplaceSwapOrder should return the replacement's unfilled amount less what its placement executed")
 	})
 
 	t.Run("carried values", func(t *testing.T) {
@@ -2459,37 +2637,74 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 
 	t.Run("desired total", func(t *testing.T) {
 		t.Parallel()
-		existing := `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":27,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"10","price":"10","executedQty":"4","status":"PARTIALLY_FILLED"}}}`
+		existing := `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":27,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"10","price":"10","executedQty":"0","status":"NEW"}}}`
 		ex, requests := wrapperTestServer(t, map[string][]string{
-			"GET /openApi/swap/v2/trade/order":    {existing, existing, existing, existing},
-			"DELETE /openApi/swap/v2/trade/order": {wrapperSwapCancelledReply(27, "4"), wrapperSwapCancelledReply(27, "5"), wrapperSwapCancelledReply(27, "10")},
+			"GET /openApi/swap/v2/trade/order":    {existing, existing},
+			"DELETE /openApi/swap/v2/trade/order": {wrapperSwapCancelledReply(27, "0"), wrapperSwapCancelledReply(27, "0")},
 			"POST /openApi/swap/v2/trade/order":   {wrapperSwapPlacedReply("LIMIT", ""), wrapperSwapPlacedReply("LIMIT", "")},
 		})
-		modify := order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "27", Price: 11, Amount: 10}
+		modify := order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "27", Price: 11, Amount: 12}
 		resp, err := ex.amendOrReplaceSwapOrder(t.Context(), &modify, 27)
 		require.NoError(t, err, "amendOrReplaceSwapOrder must not error")
 		got := requests()
 		require.Len(t, got, 3, "amendOrReplaceSwapOrder must fetch the order, cancel it and then place its replacement")
-		assert.Equal(t, "6", got[2].params.Get("quantity"), "amendOrReplaceSwapOrder should place the desired total less the executed quantity")
-		assert.Equal(t, 6.0, resp.Amount, "amendOrReplaceSwapOrder should return the replacement's amount")
+		assert.Equal(t, "12", got[2].params.Get("quantity"), "amendOrReplaceSwapOrder should place the desired total")
+		assert.Equal(t, 12.0, resp.Amount, "amendOrReplaceSwapOrder should return the replacement's amount")
 
+		modify.Amount = 0
 		resp, err = ex.amendOrReplaceSwapOrder(t.Context(), &modify, 27)
-		require.NoError(t, err, "amendOrReplaceSwapOrder must not error when the order executed more before its cancellation")
+		require.NoError(t, err, "amendOrReplaceSwapOrder must not error for a modification without a desired total")
 		got = requests()
 		require.Len(t, got, 6, "amendOrReplaceSwapOrder must fetch the order, cancel it and then place its replacement")
-		assert.Equal(t, "5", got[5].params.Get("quantity"), "amendOrReplaceSwapOrder should size the replacement by the quantity the cancellation reports executed")
-		assert.Equal(t, 5.0, resp.Amount, "amendOrReplaceSwapOrder should return the replacement's amount")
+		assert.Equal(t, "10", got[5].params.Get("quantity"), "amendOrReplaceSwapOrder should place the existing order's total without a desired total")
+		assert.Equal(t, 10.0, resp.Amount, "amendOrReplaceSwapOrder should return the replacement's amount")
+	})
 
-		_, err = ex.amendOrReplaceSwapOrder(t.Context(), &modify, 27)
-		assert.ErrorIs(t, err, errCancelledOrderExecuted, "amendOrReplaceSwapOrder should report an order whose cancellation executed its desired total")
-		got = requests()
-		require.Len(t, got, 8, "amendOrReplaceSwapOrder must fetch and cancel the order")
-		assert.Equal(t, http.MethodDelete, got[7].method, "amendOrReplaceSwapOrder should place nothing for an order that executed its desired total")
-
-		modify.Amount = 4
-		_, err = ex.amendOrReplaceSwapOrder(t.Context(), &modify, 27)
-		assert.ErrorIs(t, err, errModifyAmountNotAboveExecuted, "amendOrReplaceSwapOrder should refuse a desired total the order has executed")
-		assert.Len(t, requests(), 9, "amendOrReplaceSwapOrder should refuse the modification before cancelling the order")
+	t.Run("partly executed order", func(t *testing.T) {
+		t.Parallel()
+		existing := `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":27,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"10","price":"10","executedQty":"4","status":"PARTIALLY_FILLED"}}}`
+		unexecuted := strings.Replace(strings.Replace(existing, `"executedQty":"4"`, `"executedQty":"0"`, 1), "PARTIALLY_FILLED", "NEW", 1)
+		for _, tc := range []struct {
+			name, lookup, cancel string
+			price, amount        float64
+			err                  error
+			message              string
+		}{
+			{name: "desired total above the executed quantity", lookup: existing, price: 11, amount: 10, err: errModifyPartlyExecuted, message: "order 27 has executed 4"},
+			{name: "desired total executed", lookup: existing, price: 11, amount: 4, err: errModifyPartlyExecuted, message: "order 27 has executed 4"},
+			{name: "existing total", lookup: existing, price: 11, err: errModifyPartlyExecuted, message: "order 27 has executed 4"},
+			{name: "documented status spelling", lookup: strings.Replace(strings.Replace(existing, `"executedQty":"4"`, `"executedQty":"0.0001"`, 1), "PARTIALLY_FILLED", "PARTIALLYFILLED", 1), price: 11, amount: 10, err: errModifyPartlyExecuted, message: "order 27 has executed 0.0001"},
+			{name: "part executed by the cancellation", lookup: unexecuted, cancel: wrapperSwapCancelledReply(27, "4"), price: 11, amount: 10, err: errCancelledOrderExecuted, message: "order 27 had executed 4 when cancelled, and no replacement was placed"},
+			{name: "desired total executed by the cancellation", lookup: unexecuted, cancel: wrapperSwapCancelledReply(27, "10"), price: 11, amount: 10, err: errCancelledOrderExecuted, message: "order 27 had executed 10 when cancelled, and no replacement was placed"},
+			{name: "amount alone amended in place", lookup: existing, amount: 12},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				routes := map[string][]string{"GET /openApi/swap/v2/trade/order": {tc.lookup}}
+				sent := 1
+				switch {
+				case tc.cancel != "":
+					routes["DELETE /openApi/swap/v2/trade/order"] = []string{tc.cancel}
+					sent = 2
+				case tc.err == nil:
+					routes["POST /openApi/swap/v1/trade/amend"] = []string{`{"code":0,"data":{"orderId":27,"symbol":"BTC-USDT","quantity":12}}`}
+					sent = 2
+				}
+				ex, requests := wrapperTestServer(t, routes)
+				resp, err := ex.amendOrReplaceSwapOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "27", Price: tc.price, Amount: tc.amount}, 27)
+				got := requests()
+				require.Len(t, got, sent, "amendOrReplaceSwapOrder must place nothing, cancelling an order only when its lookup shows nothing executed")
+				if tc.err == nil {
+					require.NoError(t, err, "amendOrReplaceSwapOrder must amend a partly executed LIMIT order whose amount alone changes")
+					assert.Equal(t, "/openApi/swap/v1/trade/amend", got[1].path, "amendOrReplaceSwapOrder should amend the order in place")
+					assert.Equal(t, "27", resp.OrderID, "amendOrReplaceSwapOrder should keep the order ID of an order it amends")
+					assert.Equal(t, 8.0, resp.RemainingAmount, "amendOrReplaceSwapOrder should return the amended order's unfilled amount")
+					return
+				}
+				require.ErrorIs(t, err, tc.err, "amendOrReplaceSwapOrder must refuse to replace an order that executed any of its quantity")
+				assert.ErrorContains(t, err, tc.message, "amendOrReplaceSwapOrder should name the order and the quantity it executed")
+			})
+		}
 	})
 
 	t.Run("position ID", func(t *testing.T) {
@@ -2576,9 +2791,9 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 	t.Run("errors", func(t *testing.T) {
 		t.Parallel()
 		ex, requests := wrapperTestServer(t, map[string][]string{
-			"GET /openApi/swap/v2/trade/order":    {`{"code":100500,"msg":"busy"}`, wrapperSwapOrderReply(""), wrapperSwapOrderReply(""), wrapperSwapOrderReply(""), wrapperSwapOrderReply(""), wrapperSwapOrderReply("")},
+			"GET /openApi/swap/v2/trade/order":    {`{"code":100500,"msg":"busy"}`, wrapperSwapPartlyFilledOrderReply, wrapperSwapPartlyFilledOrderReply, wrapperSwapOrderReply(""), wrapperSwapOrderReply(""), wrapperSwapOrderReply("")},
 			"POST /openApi/swap/v1/trade/amend":   {`{"code":100500,"msg":"busy"}`},
-			"DELETE /openApi/swap/v2/trade/order": {`{"code":100500,"msg":"busy"}`, wrapperSwapCancelledReply(21, "0.5")},
+			"DELETE /openApi/swap/v2/trade/order": {`{"code":100500,"msg":"busy"}`, wrapperSwapCancelledReply(21, "0")},
 			"POST /openApi/swap/v2/trade/order":   {`{"code":101204,"msg":"insufficient margin"}`},
 		})
 		modify := func(action order.Modify) error {
@@ -2609,12 +2824,18 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 
 	t.Run("order no longer open", func(t *testing.T) {
 		t.Parallel()
-		ex, requests := wrapperTestServer(t, map[string][]string{
-			"GET /openApi/swap/v2/trade/order": {`{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":21,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"2","price":"10","executedQty":"0","status":"CANCELLED"}}}`},
-		})
-		_, err := ex.amendOrReplaceSwapOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "21", Price: 11}, 21)
-		assert.ErrorIs(t, err, errOrderNotOpen, "amendOrReplaceSwapOrder should refuse an order its lookup shows cancelled")
-		assert.Len(t, requests(), 1, "amendOrReplaceSwapOrder should neither cancel nor replace an order no longer open")
+		for _, executed := range []string{"0", "0.5"} {
+			t.Run("executed "+executed, func(t *testing.T) {
+				t.Parallel()
+				ex, requests := wrapperTestServer(t, map[string][]string{
+					"GET /openApi/swap/v2/trade/order": {`{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":21,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"2","price":"10","executedQty":"` + executed + `","status":"CANCELLED"}}}`},
+				})
+				_, err := ex.amendOrReplaceSwapOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "21", Price: 11}, 21)
+				assert.ErrorIs(t, err, errOrderNotOpen, "amendOrReplaceSwapOrder should refuse an order its lookup shows cancelled")
+				assert.NotErrorIs(t, err, errModifyPartlyExecuted, "amendOrReplaceSwapOrder should refuse a cancelled order as no longer open, whatever it executed")
+				assert.Len(t, requests(), 1, "amendOrReplaceSwapOrder should neither cancel nor replace an order no longer open")
+			})
+		}
 	})
 
 	t.Run("failed cancellation", func(t *testing.T) {
@@ -2630,7 +2851,8 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 			{name: "refusal, order still open", cancel: refusal, lookup: lookedUp("PARTIALLY_FILLED", "0.5"), errs: []error{errCancelReplaceFailed, order.ErrOrderNotFound}, notErrs: []error{errCancelOutcomeUnknown}},
 			{name: "refusal, status that does not show whether the order is open", cancel: refusal, lookup: lookedUp("ODD", "0.5"), errs: []error{errCancelReplaceFailed, order.ErrOrderNotFound}, notErrs: []error{errCancelOutcomeUnknown}},
 			{name: "refusal, failed lookup", cancel: refusal, lookup: failedLookup, errs: []error{errCancelOutcomeUnknown, order.ErrOrderNotFound, request.ErrAuthRequestFailed}},
-			{name: "no answer, order cancelled", cancel: wrapperNoReply, lookup: lookedUp("CANCELLED", "1"), quantity: "1"},
+			{name: "no answer, order cancelled", cancel: wrapperNoReply, lookup: lookedUp("CANCELLED", "0"), quantity: "2"},
+			{name: "no answer, order cancelled after executing part of it", cancel: wrapperNoReply, lookup: lookedUp("CANCELLED", "0.5"), errs: []error{errCancelledOrderExecuted}, notErrs: []error{errCancelOutcomeUnknown}},
 			{name: "no answer, order cancelled after executing the desired total", cancel: wrapperNoReply, lookup: lookedUp("CANCELLED", "2"), errs: []error{errCancelledOrderExecuted}},
 			{name: "no answer, order filled", cancel: wrapperNoReply, lookup: lookedUp("FILLED", "2"), errs: []error{errCancelledOrderExecuted}},
 			{name: "no answer, order still open", cancel: wrapperNoReply, lookup: lookedUp("PARTIALLY_FILLED", "0.5"), errs: []error{errCancelReplaceFailed, errCancelOutcomeUnknown}},
@@ -2638,11 +2860,12 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 			{name: "no answer, failed lookup", cancel: wrapperNoReply, lookup: failedLookup, errs: []error{errCancelOutcomeUnknown, request.ErrAuthRequestFailed}},
 		}
 		codes := []string{"100500", "109500", "109701", "110500"}
-		busy := make([]wrapperFailedCancellationCase, 0, 2*len(codes))
+		busy := make([]wrapperFailedCancellationCase, 0, 3*len(codes))
 		for _, code := range codes {
 			failure := `{"code":` + code + `,"msg":"busy"}`
 			busy = append(busy,
-				wrapperFailedCancellationCase{name: "code " + code + ", order cancelled", cancel: failure, lookup: lookedUp("CANCELLED", "1"), quantity: "1"},
+				wrapperFailedCancellationCase{name: "code " + code + ", order cancelled", cancel: failure, lookup: lookedUp("CANCELLED", "0"), quantity: "2"},
+				wrapperFailedCancellationCase{name: "code " + code + ", order cancelled after executing part of it", cancel: failure, lookup: lookedUp("CANCELLED", "0.5"), errs: []error{errCancelledOrderExecuted}, notErrs: []error{errCancelOutcomeUnknown}},
 				wrapperFailedCancellationCase{name: "code " + code + ", order still open", cancel: failure, lookup: lookedUp("PARTIALLY_FILLED", "0.5"), errs: []error{errCancelReplaceFailed, errCancelOutcomeUnknown, errAPIResponse}},
 			)
 		}
@@ -2681,7 +2904,7 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 				require.NoError(t, err, "amendOrReplaceSwapOrder must replace an order its lookup shows cancelled after a cancellation without an answer showing its outcome")
 				require.Len(t, got, sent+1, "amendOrReplaceSwapOrder must fetch the order, cancel it, look it up again and then place its replacement")
 				assert.Equal(t, http.MethodGet, got[sent-1].method, "amendOrReplaceSwapOrder should look the order up again after a failed cancellation")
-				assert.Equal(t, tc.quantity, got[sent].params.Get("quantity"), "amendOrReplaceSwapOrder should size the replacement by the quantity the lookup reports executed")
+				assert.Equal(t, tc.quantity, got[sent].params.Get("quantity"), "amendOrReplaceSwapOrder should place the order's total for an order the lookup shows cancelled without executing")
 				assert.Equal(t, "22", resp.OrderID, "amendOrReplaceSwapOrder should return the replacement's order ID")
 			})
 		}
@@ -2695,7 +2918,7 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 				wrapperSwapOrderReply(""),
 			},
 			"POST /openApi/swap/v1/trade/amend":   {`{"code":0,"data":{"orderId":21,"symbol":"BTC-USDT","quantity":3}}`},
-			"DELETE /openApi/swap/v2/trade/order": {wrapperSwapCancelledReply(21, "0.5")},
+			"DELETE /openApi/swap/v2/trade/order": {wrapperSwapCancelledReply(21, "0")},
 			"POST /openApi/swap/v2/trade/order":   {`{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":22,"side":"ODD","positionSide":"LONG","type":"ODD","status":"ODD"}}}`},
 		})
 		resp, err := ex.amendOrReplaceSwapOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "21", Amount: 3}, 21)
@@ -2717,15 +2940,15 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 			exp          order.Status
 			remaining    float64
 		}{
-			{name: "filled replacement", placed: `,"status":"FILLED","executedQty":"1.5","avgPrice":"11"`, exp: order.New},
-			{name: "replacement cancelled after executing", placed: `,"status":"CANCELLED","executedQty":"0.5","avgPrice":"11"`, exp: order.New, remaining: 1},
-			{name: "replacement cancelled without executing", placed: `,"status":"CANCELLED","executedQty":"0"`, exp: order.Cancelled, remaining: 1.5},
+			{name: "filled replacement", placed: `,"status":"FILLED","executedQty":"2","avgPrice":"11"`, exp: order.New},
+			{name: "replacement cancelled after executing", placed: `,"status":"CANCELLED","executedQty":"0.5","avgPrice":"11"`, exp: order.New, remaining: 1.5},
+			{name: "replacement cancelled without executing", placed: `,"status":"CANCELLED","executedQty":"0"`, exp: order.Cancelled, remaining: 2},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				ex, _ := wrapperTestServer(t, map[string][]string{
 					"GET /openApi/swap/v2/trade/order":    {wrapperSwapOrderReply("")},
-					"DELETE /openApi/swap/v2/trade/order": {wrapperSwapCancelledReply(21, "0.5")},
+					"DELETE /openApi/swap/v2/trade/order": {wrapperSwapCancelledReply(21, "0")},
 					"POST /openApi/swap/v2/trade/order":   {wrapperSwapPlacedReply("LIMIT", tc.placed)},
 				})
 				resp, err := ex.amendOrReplaceSwapOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "21", Price: 11}, 21)
@@ -3551,6 +3774,37 @@ func TestSpotOrderDetail(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "spotOrderDetail should report a type it cannot convert")
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "spotOrderDetail should report a side it cannot convert")
 	assert.Equal(t, "5", d.OrderID, "spotOrderDetail should convert the other values")
+
+	t.Run("average price", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name                           string
+			average, executed, quoteAmount types.Number
+			exp                            float64
+		}{
+			{name: "reported", average: 10.5, executed: 2, quoteAmount: 22, exp: 10.5},
+			{name: "left out of a partly executed order", executed: 2, quoteAmount: 21, exp: 10.5},
+			{name: "left out, in decimal arithmetic", executed: 0.1, quoteAmount: 0.3, exp: 3},
+			{name: "left out of an order with nothing executed"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				d, err := e.spotOrderDetail(&SpotOrderDetailResponse{OrderID: 5, Status: "PARTIALLY_FILLED", Type: OrderTypeLimit, Side: SideBuy, Price: 9, OriginalQuantity: 3, ExecutedQuantity: tc.executed, CummulativeQuoteQuantity: tc.quoteAmount, AveragePrice: tc.average}, pair)
+				require.NoError(t, err, "spotOrderDetail must not error")
+				assert.Equal(t, tc.exp, d.AverageExecutedPrice, "spotOrderDetail should take the reported average price, or else the quote quantity over the executed quantity")
+			})
+		}
+		t.Run("executed quantity beyond the decimal backend's precision", func(t *testing.T) {
+			t.Parallel()
+			var d order.Detail
+			assert.NotPanics(t, func() {
+				var err error
+				d, err = e.spotOrderDetail(&SpotOrderDetailResponse{OrderID: 5, Status: "PARTIALLY_FILLED", Type: OrderTypeLimit, Side: SideBuy, OriginalQuantity: 3, ExecutedQuantity: 1e-20, CummulativeQuoteQuantity: 1e-20}, pair)
+				assert.NoError(t, err, "spotOrderDetail should not error")
+			}, "spotOrderDetail should not divide by an executed quantity the decimal backend holds as zero")
+			assert.Equal(t, averagePrice(1e-20, 1e-20), d.AverageExecutedPrice, "spotOrderDetail should take averagePrice's average")
+		})
+	})
 }
 
 func TestSwapOrderDetail(t *testing.T) {
@@ -3701,6 +3955,18 @@ func TestGetActiveOrders(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("spot order without an average price", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := wrapperTestServer(t, map[string][]string{
+			"GET /openApi/spot/v1/trade/openOrders": {`{"code":0,"data":{"orders":[{"symbol":"BNB-USDC","orderId":1735930294290081280,"price":"255.27","StopPrice":"0","origQty":"0.16261","executedQty":"0.1","cummulativeQuoteQty":"25.53","status":"PARTIALLY_FILLED","type":"LIMIT","side":"SELL","time":1702713008841,"updateTime":1702713008841,"origQuoteOrderQty":"0","fee":0}]}}`},
+		})
+		pair := currency.NewPairWithDelimiter("BNB", "USDC", currency.DashDelimiter)
+		orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{pair}, Side: order.AnySide, Type: order.AnyType})
+		require.NoError(t, err, "GetActiveOrders must not error")
+		require.Len(t, orders, 1, "GetActiveOrders must return the open order")
+		assert.Equal(t, 255.3, orders[0].AverageExecutedPrice, "GetActiveOrders should average a partly executed spot order listed without an average price over its executed quantity")
+	})
 }
 
 func TestGetOrderHistory(t *testing.T) {
@@ -3767,6 +4033,76 @@ func TestGetOrderHistory(t *testing.T) {
 		assert.Equal(t, url.Values{"orderId": {"3"}, "pageIndex": {"1"}, "pageSize": {"100"}}, requests()[1].params, "GetOrderHistory should page every symbol's orders from the order ID")
 		_, err = ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType})
 		assert.ErrorIs(t, err, errAPIResponse, "GetOrderHistory should return a request's error")
+	})
+
+	t.Run("orders after the end", func(t *testing.T) {
+		t.Parallel()
+		// An end past its millisecond, as time.Now gives, where BingX dates orders to the millisecond
+		end := time.UnixMilli(1700000000400).Add(500 * time.Microsecond)
+		// listedTimes returns an order's creation and update times, the update half an hour later
+		listedTimes := func(at time.Time) (created, updated string) {
+			return strconv.FormatInt(at.UnixMilli(), 10), strconv.FormatInt(at.Add(30*time.Minute).UnixMilli(), 10)
+		}
+		perpetual := func(symbol string) func(id string, at time.Time) string {
+			return func(id string, at time.Time) string {
+				created, updated := listedTimes(at)
+				return `{"symbol":"` + symbol + `","orderId":` + id + `,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"1","price":"10","executedQty":"1","avgPrice":"10","cumQuote":"10","status":"FILLED","time":` + created + `,"updateTime":` + updated + `}`
+			}
+		}
+		for _, product := range []struct {
+			a      asset.Item
+			pair   currency.Pair
+			route  string
+			listed func(id string, at time.Time) string
+		}{
+			{
+				a: asset.Spot, pair: currency.NewBTCUSDT(), route: "GET /openApi/spot/v1/trade/historyOrders",
+				listed: func(id string, at time.Time) string {
+					created, updated := listedTimes(at)
+					return `{"symbol":"BTC-USDT","orderId":` + id + `,"price":"10","origQty":"1","executedQty":"1","cummulativeQuoteQty":"10","status":"FILLED","type":"LIMIT","side":"BUY","time":` + created + `,"updateTime":` + updated + `}`
+				},
+			},
+			{a: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(), route: "GET /openApi/swap/v2/trade/allOrders", listed: perpetual("BTC-USDT")},
+			{a: asset.CoinMarginedFutures, pair: currency.NewBTCUSD(), route: "GET /openApi/cswap/v1/trade/orderHistory", listed: perpetual("BTC-USD")},
+		} {
+			for _, tc := range []struct {
+				name        string
+				start, end  time.Time
+				fromOrderID string
+				exp         []string
+			}{
+				{name: "end alone", end: end, exp: []string{"1", "2"}},
+				{name: "end alone, on a millisecond", end: end.Truncate(time.Millisecond), exp: []string{"1", "2"}},
+				{name: "Unix epoch start, from an order ID", start: time.Unix(0, 0), end: end, fromOrderID: "1", exp: []string{"1", "2"}},
+				{name: "full range, from an order ID", start: end.Add(-2 * time.Hour), end: end, fromOrderID: "1", exp: []string{"1", "2"}},
+				{name: "Unix epoch end alone", end: time.Unix(0, 0), exp: []string{"1", "2", "3", "4", "5"}},
+				{name: "Unix epoch end alone, in UTC", end: time.Unix(0, 0).UTC(), exp: []string{"1", "2", "3", "4", "5"}},
+				{name: "end alone, a nanosecond after the Unix epoch", end: time.Unix(0, 1), exp: []string{}},
+			} {
+				t.Run(product.a.String()+" "+tc.name, func(t *testing.T) {
+					t.Parallel()
+					listed := []string{
+						product.listed("1", end.Add(-time.Hour)),
+						product.listed("2", end),
+						product.listed("3", end.Add(time.Millisecond)),
+						product.listed("4", end.Add(time.Second)),
+						product.listed("5", end.Add(time.Hour)),
+					}
+					ex, requests := wrapperTestServer(t, map[string][]string{product.route: {`{"code":0,"data":{"orders":[` + strings.Join(listed, ",") + `]}}`}})
+					orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: product.a, Pairs: currency.Pairs{product.pair}, Side: order.AnySide, Type: order.AnyType, StartTime: tc.start, EndTime: tc.end, FromOrderID: tc.fromOrderID})
+					require.NoError(t, err, "GetOrderHistory must not error")
+					ids := make([]string, len(orders))
+					for i := range orders {
+						ids[i] = orders[i].OrderID
+					}
+					assert.Equal(t, tc.exp, ids, "GetOrderHistory should leave out the orders dated after a set end")
+					got := requests()
+					require.Len(t, got, 1, "GetOrderHistory must request the orders once")
+					assert.False(t, got[0].params.Has("startTime") || got[0].params.Has("endTime"), "GetOrderHistory should send no range for these requests")
+					assert.Equal(t, tc.fromOrderID, got[0].params.Get("orderId"), "GetOrderHistory should page from the order ID requested")
+				})
+			}
+		}
 	})
 }
 
