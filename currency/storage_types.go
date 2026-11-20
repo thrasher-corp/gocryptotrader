@@ -28,6 +28,9 @@ type Storage struct {
 	baseCurrency Code
 	// FXRates defines a protected conversion rate map
 	fxRates ConversionRates
+	// fxRefreshMtx runs one rate refresh at a time; on the package storage, publishing appends to the fiatCurrencies a
+	// refresh reads
+	fxRefreshMtx sync.Mutex
 	// DefaultBaseCurrency is the base currency used for conversion
 	defaultBaseCurrency Code
 	// DefaultFiatCurrencies has the default minimum of FIAT values

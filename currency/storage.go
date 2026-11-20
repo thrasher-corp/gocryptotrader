@@ -512,8 +512,8 @@ func (s *Storage) UpdateCurrencies() error {
 // SeedForeignExchangeRatesByCurrencies seeds the foreign exchange rates by
 // currencies supplied
 func (s *Storage) SeedForeignExchangeRatesByCurrencies(c Currencies) error {
-	s.fxRates.mtx.Lock()
-	defer s.fxRates.mtx.Unlock()
+	s.fxRefreshMtx.Lock()
+	defer s.fxRefreshMtx.Unlock()
 	if s.fiatExchangeMarkets == nil {
 		return nil
 	}
@@ -548,8 +548,8 @@ func (s *Storage) GetDefaultForeignExchangeRates() (Conversions, error) {
 
 // SeedDefaultForeignExchangeRates seeds the default foreign exchange rates
 func (s *Storage) SeedDefaultForeignExchangeRates() error {
-	s.fxRates.mtx.Lock()
-	defer s.fxRates.mtx.Unlock()
+	s.fxRefreshMtx.Lock()
+	defer s.fxRefreshMtx.Unlock()
 	if s.fiatExchangeMarkets == nil {
 		return errNoForeignExchangeProvidersEnabled
 	}
@@ -565,6 +565,16 @@ func (s *Storage) SeedDefaultForeignExchangeRates() error {
 // GetExchangeRates returns storage seeded exchange rates
 func (s *Storage) GetExchangeRates() (Conversions, error) {
 	if !s.updaterRunning.Load() || !s.fxRates.HasData() {
+		if !s.fxRefreshMtx.TryLock() {
+			// A refresh is in flight and will publish rates: wait for the refresh
+			// to publish instead of asking the provider again, whose narrower
+			// answer would evict the pairs the refresh cached, such as USD/CAD.
+			s.fxRefreshMtx.Lock()
+			s.fxRefreshMtx.Unlock()
+			return s.fxRates.GetFullRates(), nil
+		}
+		s.fxRefreshMtx.Unlock()
+
 		err := s.SeedForeignExchangeRates()
 		if err != nil {
 			return nil, err
@@ -575,8 +585,8 @@ func (s *Storage) GetExchangeRates() (Conversions, error) {
 
 // SeedForeignExchangeRates seeds the foreign exchange rates from storage config currencies
 func (s *Storage) SeedForeignExchangeRates() error {
-	s.fxRates.mtx.Lock()
-	defer s.fxRates.mtx.Unlock()
+	s.fxRefreshMtx.Lock()
+	defer s.fxRefreshMtx.Unlock()
 	if s.fiatExchangeMarkets == nil {
 		return errNoForeignExchangeProvidersEnabled
 	}
@@ -589,6 +599,8 @@ func (s *Storage) SeedForeignExchangeRates() error {
 }
 
 func (s *Storage) updateExchangeRates(m map[string]float64) error {
+	s.fxRates.mtx.Lock()
+	defer s.fxRates.mtx.Unlock()
 	return s.fxRates.Update(m)
 }
 

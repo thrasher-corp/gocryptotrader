@@ -2,6 +2,7 @@ package currency
 
 import (
 	"errors"
+	"fmt"
 	"math/rand/v2"
 	"strings"
 	"sync/atomic"
@@ -76,4 +77,75 @@ func (c *CountingMockProvider) GetRates(baseCurrency, symbols string) (map[strin
 		res[baseCurrency+s] = float64(call)
 	}
 	return res, nil
+}
+
+type channelControlledMockProvider struct {
+	called chan struct{}
+	resume chan struct{}
+	rates  map[string]float64
+	err    error
+}
+
+func newChannelControlledMockProvider(called, resume chan struct{}, rates map[string]float64) (*forexprovider.ForexProviders, *channelControlledMockProvider) {
+	p := &channelControlledMockProvider{
+		called: called,
+		resume: resume,
+		rates:  rates,
+	}
+	return &forexprovider.ForexProviders{
+		Primary: base.Provider{
+			Provider:            p,
+			SupportedCurrencies: []string{"USD", "EUR", "AUD", "CAD"},
+		},
+	}, p
+}
+
+func (c *channelControlledMockProvider) GetName() string           { return "ChannelControlledMockProvider" }
+func (c *channelControlledMockProvider) Setup(base.Settings) error { return nil }
+func (c *channelControlledMockProvider) IsEnabled() bool           { return true }
+func (c *channelControlledMockProvider) IsPrimaryProvider() bool   { return true }
+func (c *channelControlledMockProvider) GetSupportedCurrencies() ([]string, error) {
+	return []string{"USD", "EUR", "AUD", "CAD"}, nil
+}
+
+func (c *channelControlledMockProvider) GetRates(_, _ string) (map[string]float64, error) {
+	if c.called != nil {
+		select {
+		case c.called <- struct{}{}:
+		default:
+		}
+	}
+	if c.resume != nil {
+		<-c.resume
+	}
+	if c.err != nil {
+		return nil, c.err
+	}
+	return c.rates, nil
+}
+
+// freshCodeMockProvider answers each request with a fiat code storage has not listed yet, as a provider answering with
+// more than it was asked for does
+type freshCodeMockProvider struct {
+	calls atomic.Int64
+}
+
+func newFreshCodeMockProvider() *forexprovider.ForexProviders {
+	return &forexprovider.ForexProviders{
+		Primary: base.Provider{Provider: &freshCodeMockProvider{}},
+	}
+}
+
+func (f *freshCodeMockProvider) GetName() string                           { return "FreshCodeMockProvider" }
+func (f *freshCodeMockProvider) Setup(base.Settings) error                 { return nil }
+func (f *freshCodeMockProvider) IsEnabled() bool                           { return true }
+func (f *freshCodeMockProvider) IsPrimaryProvider() bool                   { return true }
+func (f *freshCodeMockProvider) GetSupportedCurrencies() ([]string, error) { return nil, nil }
+
+func (f *freshCodeMockProvider) GetRates(baseCurrency, _ string) (map[string]float64, error) {
+	n := f.calls.Add(1)
+	return map[string]float64{
+		baseCurrency + "EUR":                    0.9,
+		baseCurrency + fmt.Sprintf("QQ%02d", n): 2,
+	}, nil
 }
