@@ -631,7 +631,7 @@ func TestValidateJob(t *testing.T) {
 		job.Interval = kline.Interval(time.Nanosecond)
 		job.StartDate = time.Now().Add(-time.Hour).Truncate(time.Second)
 		job.EndDate = job.StartDate.Add(900 * time.Millisecond)
-		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should count the intervals of a range shorter than a second")
+		assert.ErrorIs(t, m.validateJob(job), errIntervalNotWholeSeconds, "validateJob should refuse an interval of part of a second before counting its intervals")
 	})
 
 	t.Run("conversion interval with too many intervals", func(t *testing.T) {
@@ -666,24 +666,35 @@ func TestValidateJob(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		dataType dataHistoryDataType
+		interval kline.Interval
 	}{
-		{name: "validation interval of part of a second", dataType: dataHistoryCandleValidationDataType},
-		{name: "secondary source validation interval of part of a second", dataType: dataHistoryCandleValidationSecondarySourceType},
+		{name: "validation interval of part of a second", dataType: dataHistoryCandleValidationDataType, interval: kline.HundredMilliseconds},
+		{name: "secondary source validation interval of part of a second", dataType: dataHistoryCandleValidationSecondarySourceType, interval: kline.HundredMilliseconds},
+		{name: "candle interval of part of a second", dataType: dataHistoryCandleDataType, interval: kline.HundredMilliseconds},
+		{name: "trade conversion interval of part of a second", dataType: dataHistoryConvertTradesDataType, interval: kline.HundredMilliseconds},
+		{name: "trade interval with part of a second", dataType: dataHistoryTradeDataType, interval: kline.Interval(60500 * time.Millisecond)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			mgr, _ := createDHM(t)
 			exch, err := mgr.exchangeManager.GetExchangeByName(testExchange)
 			require.NoError(t, err, "GetExchangeByName must not error")
-			// Listed by the exchange, over a minute within the interval limit, so that only the whole-second rule can refuse it
-			exch.GetBase().Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.HundredMilliseconds})
+			// Listed by the exchange, over ten intervals within the interval limit, so that only the whole-second rule can refuse it
+			exch.GetBase().Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: tc.interval})
 			job := newJob(tc.dataType)
-			job.Interval = kline.HundredMilliseconds
-			job.StartDate = job.EndDate.Add(-time.Minute)
+			job.Interval = tc.interval
+			job.StartDate = job.EndDate.Add(-10 * tc.interval.Duration())
 			job.SecondaryExchangeSource = testExchange
-			assert.ErrorIs(t, mgr.validateJob(job), errIntervalNotWholeSeconds, "validateJob should refuse a validation interval of part of a second")
+			assert.ErrorIs(t, mgr.validateJob(job), errIntervalNotWholeSeconds, "validateJob should refuse an interval of part of a second")
 		})
 	}
+
+	t.Run("trade conversion interval of whole seconds", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(dataHistoryConvertTradesDataType)
+		job.Interval = kline.Interval(90 * time.Second)
+		assert.NoError(t, m.validateJob(job), "validateJob should accept a trade conversion interval of whole seconds")
+	})
 }
 
 func TestGetAllJobStatusBetween(t *testing.T) {
@@ -792,6 +803,17 @@ func TestDropStaleResults(t *testing.T) {
 			start.Add(2 * time.Minute).Unix():  {result(2*time.Minute, 4*time.Minute, dataHistoryStatusComplete)},
 			start.Add(10 * time.Minute).Unix(): {result(10*time.Minute, 20*time.Minute, dataHistoryStatusFailed), result(10*time.Minute, 20*time.Minute, dataHistoryIntervalIssuesFound)},
 		}, job.Results, "dropStaleResults should drop results for other batches, and completions of batches missing candles")
+	})
+
+	t.Run("result for a range starting within the same second", func(t *testing.T) {
+		t.Parallel()
+		job := newJob(t, map[int64][]DataHistoryJobResult{
+			start.Unix(): {result(500*time.Millisecond, 10*time.Minute, dataHistoryStatusComplete), result(0, 10*time.Minute, dataHistoryStatusFailed)},
+		})
+		job.dropStaleResults()
+		assert.Equal(t, map[int64][]DataHistoryJobResult{
+			start.Unix(): {result(0, 10*time.Minute, dataHistoryStatusFailed)},
+		}, job.Results, "dropStaleResults should drop a result for a range starting elsewhere within the same second")
 	})
 
 	t.Run("no results", func(t *testing.T) {
@@ -948,6 +970,60 @@ func TestRangeResult(t *testing.T) {
 			assert.Equal(t, tc.wantComplete, complete, "rangeResult should report whether the range completed")
 		})
 	}
+}
+
+func TestDataHistoryJobResultCoversRange(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(time.Hour)
+	sydney := time.FixedZone("AEDT", 11*60*60)
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		want       bool
+	}{
+		{name: "the range's bounds", start: start, end: end, want: true},
+		{name: "the range's bounds in another time zone", start: start.In(sydney), end: end.In(sydney), want: true},
+		{name: "a later start within the same second", start: start.Add(500 * time.Millisecond), end: end},
+		{name: "an earlier end", start: start, end: end.Add(-time.Minute)},
+		{name: "a later end", start: start, end: end.Add(time.Hour)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			r := DataHistoryJobResult{IntervalStartDate: tc.start, IntervalEndDate: tc.end}
+			assert.Equal(t, tc.want, r.coversRange(start, end), "coversRange should report only a result recorded for the range")
+		})
+	}
+}
+
+func TestDataHistoryJobRangeResults(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(3 * time.Hour)
+	own := []DataHistoryJobResult{
+		{IntervalStartDate: start, IntervalEndDate: end, Status: dataHistoryStatusFailed},
+		{IntervalStartDate: start, IntervalEndDate: end, Status: dataHistoryStatusComplete},
+	}
+	shorter := DataHistoryJobResult{IntervalStartDate: start, IntervalEndDate: start.Add(time.Hour), Status: dataHistoryStatusComplete}
+	recorded := []DataHistoryJobResult{own[0], shorter, own[1]}
+	job := &DataHistoryJob{Results: map[int64][]DataHistoryJobResult{start.Unix(): slices.Clone(recorded)}}
+	assert.Equal(t, own, job.rangeResults(start, end), "rangeResults should return only the results recorded for the range, in order")
+	assert.Equal(t, recorded, job.Results[start.Unix()], "rangeResults should leave the job's results as recorded")
+	assert.Empty(t, job.rangeResults(end, end.Add(time.Hour)), "rangeResults should return nothing for a range without results")
+}
+
+func TestDataHistoryJobMarkRangeIssuesFound(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(3 * time.Hour)
+	failed := DataHistoryJobResult{IntervalStartDate: start, IntervalEndDate: end, Status: dataHistoryStatusFailed}
+	completed := DataHistoryJobResult{IntervalStartDate: start, IntervalEndDate: end, Status: dataHistoryStatusComplete}
+	shorter := DataHistoryJobResult{IntervalStartDate: start, IntervalEndDate: start.Add(time.Hour), Status: dataHistoryStatusFailed}
+	job := &DataHistoryJob{Results: map[int64][]DataHistoryJobResult{start.Unix(): {failed, shorter, completed}}}
+	job.markRangeIssuesFound(start, end)
+	issues := failed
+	issues.Status = dataHistoryIntervalIssuesFound
+	assert.Equal(t, []DataHistoryJobResult{issues, shorter, issues}, job.Results[start.Unix()], "markRangeIssuesFound should mark every result recorded for the range and leave the others")
 }
 
 func TestSetHasDataByCandleTime(t *testing.T) {
@@ -1233,6 +1309,41 @@ func TestCompareJobsToData(t *testing.T) {
 		assert.Equal(t, []int64{start.Unix(), start.Add(5 * time.Minute).Unix(), start.Add(10 * time.Minute).Unix(), start.Add(15 * time.Minute).Unix(), start.Add(20 * time.Minute).Unix()}, converted, "runDataJob should convert the whole batch")
 		assert.Equal(t, dataHistoryStatusComplete, job.Status, "runDataJob should complete the job once its batch converts")
 	})
+
+	for _, tc := range []struct {
+		name         string
+		resultEnd    time.Duration
+		resultStatus dataHistoryStatus
+		wantHasData  []bool
+	}{
+		{name: "trade range with its own completion", resultEnd: 3 * time.Hour, resultStatus: dataHistoryStatusComplete, wantHasData: []bool{true, true, true}},
+		{name: "trade range beside a completion for a shorter range", resultEnd: time.Hour, resultStatus: dataHistoryStatusComplete, wantHasData: []bool{false, false, false}},
+		{name: "trade range whose own attempts found issues", resultEnd: 3 * time.Hour, resultStatus: dataHistoryIntervalIssuesFound, wantHasData: []bool{false, false, false}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			mgr, _ := createDHM(t)
+			start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+			job := &DataHistoryJob{
+				StartDate:        start,
+				EndDate:          start.Add(3 * time.Hour),
+				Interval:         kline.OneHour,
+				DataType:         dataHistoryTradeDataType,
+				RequestSizeLimit: 3,
+				Results: map[int64][]DataHistoryJobResult{start.Unix(): {
+					{IntervalStartDate: start, IntervalEndDate: start.Add(tc.resultEnd), Status: tc.resultStatus},
+				}},
+			}
+			require.NoError(t, mgr.compareJobsToData(job), "compareJobsToData must not error")
+			var hasData []bool
+			for _, r := range job.rangeHolder.Ranges {
+				for _, interval := range r.Intervals {
+					hasData = append(hasData, interval.HasData)
+				}
+			}
+			assert.Equal(t, tc.wantHasData, hasData, "compareJobsToData should mark a trade range only from a completion recorded for it")
+		})
+	}
 
 	t.Run("candle series with a gap", func(t *testing.T) {
 		t.Parallel()
@@ -2400,6 +2511,23 @@ func TestRunValidationJob(t *testing.T) {
 		assert.Equal(t, dataHistoryIntervalIssuesFound, job.Status, "runValidationJob should finish a job with an interval out of attempts")
 	})
 
+	t.Run("interval past a lowered retry limit not retried", func(t *testing.T) {
+		t.Parallel()
+		mgr, _ := createDHM(t)
+		exch, validated := matchingCandles(t, mgr)
+		from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		// Two attempts that found issues, recorded before an edit lowered the job's retry limit to one
+		job := newValidationJob(from, 1, map[int64][]DataHistoryJobResult{
+			from.Unix():                    hourResults(from, dataHistoryIntervalIssuesFound, dataHistoryIntervalIssuesFound),
+			from.Add(time.Hour).Unix():     hourResults(from.Add(time.Hour), dataHistoryStatusComplete),
+			from.Add(2 * time.Hour).Unix(): hourResults(from.Add(2*time.Hour), dataHistoryStatusComplete),
+		})
+		job.MaxRetryAttempts = 1
+		require.NoError(t, mgr.runValidationJob(t.Context(), job, exch), "runValidationJob must not error")
+		assert.Empty(t, *validated, "runValidationJob should not retry an interval past its retry limit")
+		assert.Equal(t, dataHistoryIntervalIssuesFound, job.Status, "runValidationJob should finish a job with an interval past its retry limit")
+	})
+
 	t.Run("results from an earlier request size count only for unchanged ranges", func(t *testing.T) {
 		t.Parallel()
 		mgr, _ := createDHM(t)
@@ -2447,6 +2575,21 @@ func TestRunValidationJob(t *testing.T) {
 		assert.Equal(t, want, job.Results[from.Unix()], "runValidationJob should mark only the results covering the range out of attempts")
 		assert.Equal(t, dataHistoryIntervalIssuesFound, job.Status, "runValidationJob should finish a job with a range out of attempts")
 	})
+
+	t.Run("last range out of attempts marks its own results", func(t *testing.T) {
+		t.Parallel()
+		mgr, _ := createDHM(t)
+		from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		// No batch processes, leaving only the retry limit and completion checks to run
+		job := newValidationJob(from, 0, map[int64][]DataHistoryJobResult{
+			from.Unix():                    rangeResults(from, from.Add(2*time.Hour), dataHistoryStatusComplete),
+			from.Add(2 * time.Hour).Unix(): hourResults(from.Add(2*time.Hour), dataHistoryStatusFailed, dataHistoryStatusFailed, dataHistoryStatusFailed),
+		})
+		job.RequestSizeLimit = 2
+		require.NoError(t, mgr.runValidationJob(t.Context(), job, nil), "runValidationJob must not error")
+		assert.Equal(t, hourResults(from.Add(2*time.Hour), dataHistoryIntervalIssuesFound, dataHistoryIntervalIssuesFound, dataHistoryIntervalIssuesFound), job.Results[from.Add(2*time.Hour).Unix()], "runValidationJob should mark the results of a last range ending with the job")
+		assert.Equal(t, dataHistoryIntervalIssuesFound, job.Status, "runValidationJob should finish a job whose last range is out of attempts")
+	})
 }
 
 func TestRunDataJob(t *testing.T) {
@@ -2461,13 +2604,17 @@ func TestRunDataJob(t *testing.T) {
 		for i := range h.Ranges[0].Intervals {
 			h.Ranges[0].Intervals[i].HasData = true
 		}
+		end := start.Add(10 * time.Minute)
 		job := &DataHistoryJob{
 			Nickname:         "TestRunDataJobRetried",
 			DataType:         dataHistoryConvertCandlesDataType,
 			RunBatchLimit:    1,
 			MaxRetryAttempts: 3,
 			rangeHolder:      h,
-			Results:          map[int64][]DataHistoryJobResult{start.Unix(): {{Status: dataHistoryStatusFailed}, {Status: dataHistoryStatusComplete}}},
+			Results: map[int64][]DataHistoryJobResult{start.Unix(): {
+				{IntervalStartDate: start, IntervalEndDate: end, Status: dataHistoryStatusFailed},
+				{IntervalStartDate: start, IntervalEndDate: end, Status: dataHistoryStatusComplete},
+			}},
 		}
 		require.NoError(t, m.runDataJob(t.Context(), job, nil), "runDataJob must not error")
 		assert.Equal(t, dataHistoryStatusComplete, job.Status, "runDataJob should complete a job whose range completed on a retry")
@@ -2522,14 +2669,104 @@ func TestRunDataJob(t *testing.T) {
 				MaxRetryAttempts: 3,
 				rangeHolder:      h,
 				Results: map[int64][]DataHistoryJobResult{
-					start.Unix():                      {{Status: dataHistoryStatusComplete}},
-					start.Add(5 * time.Minute).Unix(): {{Status: dataHistoryStatusFailed}, {Status: dataHistoryIntervalIssuesFound}},
+					start.Unix(): {{IntervalStartDate: start, IntervalEndDate: start.Add(5 * time.Minute), Status: dataHistoryStatusComplete}},
+					start.Add(5 * time.Minute).Unix(): {
+						{IntervalStartDate: start.Add(5 * time.Minute), IntervalEndDate: start.Add(10 * time.Minute), Status: dataHistoryStatusFailed},
+						{IntervalStartDate: start.Add(5 * time.Minute), IntervalEndDate: start.Add(10 * time.Minute), Status: dataHistoryIntervalIssuesFound},
+					},
 				},
 			}
 			require.NoError(t, m.runDataJob(t.Context(), job, nil), "runDataJob must not error")
 			assert.Equal(t, tc.wantStatus, job.Status, "runDataJob should finish with issues found only while a range lacks data")
 		})
 	}
+
+	// candleJob returns a candle job over three hours requesting the hours given at a time, whose store holds the hours
+	// given, beside the results given, and the exchange it requests candles from
+	candleJob := func(t *testing.T, requestHours uint64, storedHours []int, fetchErr error, results ...DataHistoryJobResult) (*DataHistoryManager, *DataHistoryJob, *rangeRequestExchange) {
+		t.Helper()
+		m, _ := createDHM(t)
+		m.candleSaver = dataHistoryCandleSaver
+		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		stored := make([]kline.Candle, 0, len(storedHours))
+		for _, hour := range storedHours {
+			stored = append(stored, generateCandles(1, start.Add(time.Duration(hour)*time.Hour), kline.OneHour)...)
+		}
+		m.candleLoader = func(_ string, _ currency.Pair, _ asset.Item, interval kline.Interval, from, until time.Time) (*kline.Item, error) {
+			return loadSavedCandles(stored, interval, from, until)
+		}
+		job := &DataHistoryJob{
+			Nickname:         "TestRunDataJobEdited",
+			Exchange:         testExchange,
+			Asset:            asset.Spot,
+			Pair:             currency.NewBTCUSD(),
+			StartDate:        start,
+			EndDate:          start.Add(3 * time.Hour),
+			Interval:         kline.OneHour,
+			DataType:         dataHistoryCandleDataType,
+			RequestSizeLimit: requestHours,
+			RunBatchLimit:    1,
+			MaxRetryAttempts: 3,
+			Results:          map[int64][]DataHistoryJobResult{start.Unix(): results},
+		}
+		require.NoError(t, m.compareJobsToData(job), "compareJobsToData must not error")
+		return m, job, &rangeRequestExchange{err: fetchErr}
+	}
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	// Recorded before an edit changed how many hours the job requests at a time
+	hourComplete := DataHistoryJobResult{IntervalStartDate: start, IntervalEndDate: start.Add(time.Hour), Status: dataHistoryStatusComplete}
+	threeHourFailed := DataHistoryJobResult{IntervalStartDate: start, IntervalEndDate: start.Add(3 * time.Hour), Status: dataHistoryStatusFailed}
+
+	for _, tc := range []struct {
+		name         string
+		requestHours uint64
+		storedHours  []int
+		fetchErr     error
+		results      []DataHistoryJobResult
+		wantRequests []string
+		wantStatus   dataHistoryStatus
+	}{
+		{name: "widened range beside a result for a shorter range", requestHours: 3, storedHours: []int{0, 2}, results: []DataHistoryJobResult{hourComplete}, wantRequests: []string{"00:00-03:00"}, wantStatus: dataHistoryStatusComplete},
+		{name: "widened range failing beside a result for a shorter range", requestHours: 3, storedHours: []int{0, 2}, fetchErr: errExpectedTestError, results: []DataHistoryJobResult{hourComplete}, wantRequests: []string{"00:00-03:00"}, wantStatus: dataHistoryStatusActive},
+		{name: "widened range stored beside a result for a shorter range", requestHours: 3, storedHours: []int{0, 1, 2}, results: []DataHistoryJobResult{hourComplete}, wantStatus: dataHistoryStatusComplete},
+		{name: "narrowed range beside failures for a longer range", requestHours: 1, storedHours: []int{1, 2}, results: []DataHistoryJobResult{threeHourFailed, threeHourFailed, threeHourFailed}, wantRequests: []string{"00:00-01:00"}, wantStatus: dataHistoryStatusComplete},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m, job, exch := candleJob(t, tc.requestHours, tc.storedHours, tc.fetchErr, slices.Clone(tc.results)...)
+			require.NoError(t, m.runDataJob(t.Context(), job, exch), "runDataJob must not error")
+			assert.Equal(t, tc.wantRequests, exch.requests, "runDataJob should request a range while its own results leave it undecided")
+			assert.Equal(t, tc.results, job.Results[start.Unix()][:len(tc.results)], "runDataJob should leave the results recorded for other ranges as they were")
+			assert.Equal(t, tc.wantStatus, job.Status, "runDataJob should decide a range from the results recorded for it")
+		})
+	}
+
+	t.Run("range out of attempts marks only its own results", func(t *testing.T) {
+		t.Parallel()
+		failed := DataHistoryJobResult{IntervalStartDate: start, IntervalEndDate: start.Add(3 * time.Hour), Status: dataHistoryStatusFailed}
+		m, job, exch := candleJob(t, 3, []int{0, 2}, nil, hourComplete, failed, failed, failed)
+		require.NoError(t, m.runDataJob(t.Context(), job, exch), "runDataJob must not error")
+		assert.Empty(t, exch.requests, "runDataJob should not request a range out of attempts")
+		issues := failed
+		issues.Status = dataHistoryIntervalIssuesFound
+		assert.Equal(t, []DataHistoryJobResult{hourComplete, issues, issues, issues}, job.Results[start.Unix()], "runDataJob should mark only the results recorded for the range out of attempts")
+		assert.Equal(t, dataHistoryStatusFailed, job.Status, "runDataJob should fail a job whose only range is out of attempts")
+	})
+
+	t.Run("range out of attempts marks its own completion too", func(t *testing.T) {
+		t.Parallel()
+		failed := DataHistoryJobResult{IntervalStartDate: start, IntervalEndDate: start.Add(3 * time.Hour), Status: dataHistoryStatusFailed}
+		completed := DataHistoryJobResult{IntervalStartDate: start, IntervalEndDate: start.Add(3 * time.Hour), Status: dataHistoryStatusComplete}
+		// The completion was recorded before an edit lowered the retry limit to the range's failures
+		m, job, exch := candleJob(t, 3, []int{0, 2}, nil, failed, completed)
+		job.MaxRetryAttempts = 1
+		require.NoError(t, m.runDataJob(t.Context(), job, exch), "runDataJob must not error")
+		assert.Empty(t, exch.requests, "runDataJob should not request a range out of attempts")
+		issues := failed
+		issues.Status = dataHistoryIntervalIssuesFound
+		assert.Equal(t, []DataHistoryJobResult{issues, issues}, job.Results[start.Unix()], "runDataJob should mark every result recorded for a range out of attempts, its completion included")
+		assert.Equal(t, dataHistoryStatusFailed, job.Status, "runDataJob should fail a job whose only range is out of attempts")
+	})
 
 	t.Run("conversion job whose dates fall within conversion intervals", func(t *testing.T) {
 		t.Parallel()
@@ -3110,6 +3347,22 @@ func dataHistoryCandleSaver(_ *kline.Item, _ bool) (uint64, error) {
 // we're not testing an actual exchange's implemented functions
 type dhmExchange struct {
 	exchange.IBotExchange
+}
+
+// rangeRequestExchange answers each candle request with a candle for every interval requested, or the error given, and
+// records the ranges requested
+type rangeRequestExchange struct {
+	exchange.IBotExchange
+	err      error
+	requests []string
+}
+
+func (e *rangeRequestExchange) GetHistoricCandlesExtended(_ context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, timeEnd time.Time) (*kline.Item, error) {
+	e.requests = append(e.requests, timeStart.UTC().Format("15:04")+"-"+timeEnd.UTC().Format("15:04"))
+	if e.err != nil {
+		return nil, e.err
+	}
+	return &kline.Item{Exchange: testExchange, Pair: p, Asset: a, Interval: interval, Candles: generateCandles(int(timeEnd.Sub(timeStart)/interval.Duration()), timeStart, interval)}, nil
 }
 
 // candleExchange answers each candle request with the candles given for the request's start

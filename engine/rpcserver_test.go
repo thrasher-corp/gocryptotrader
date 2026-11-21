@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"cmp"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -1392,6 +1393,38 @@ func TestUpdateAccountBalances(t *testing.T) {
 
 	_, err = s.UpdateAccountBalances(ctx, &gctrpc.GetAccountBalancesRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	assert.NoError(t, err)
+
+	for _, tc := range []struct {
+		name      string
+		exchange  string
+		assetType string
+		exchErr   error
+		wantCode  codes.Code
+	}{
+		{name: "balance the exchange cannot parse", assetType: asset.Spot.String(), exchErr: fmt.Errorf("%w for balance", currency.ErrCurrencyCodeEmpty), wantCode: codes.Unknown},
+		{name: "exchange without balance updates", assetType: asset.Spot.String(), exchErr: common.ErrFunctionNotSupported, wantCode: codes.Unimplemented},
+		{name: "request with an unknown asset type", assetType: "sideways", exchErr: errExpectedTestError, wantCode: codes.InvalidArgument},
+		{name: "request with an asset the exchange does not support", assetType: asset.Margin.String(), exchErr: errExpectedTestError, wantCode: codes.InvalidArgument},
+		{name: "unknown exchange", exchange: "unknown", assetType: asset.Spot.String(), exchErr: errExpectedTestError, wantCode: codes.NotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s, exch := newUpstreamErrorServer(t, tc.exchErr)
+			_, err := s.UpdateAccountBalances(t.Context(), &gctrpc.GetAccountBalancesRequest{Exchange: cmp.Or(tc.exchange, exch.GetName()), AssetType: tc.assetType})
+			require.Error(t, err, "UpdateAccountBalances must error")
+			assert.Equal(t, tc.wantCode, rpcStatusCode(err), "UpdateAccountBalances should report a request problem only for its own checks")
+		})
+	}
+
+	t.Run("every request error from the exchange", func(t *testing.T) {
+		t.Parallel()
+		for _, target := range requestErrors(t) {
+			s, exch := newUpstreamErrorServer(t, fmt.Errorf("venue reply: %w", target))
+			_, err := s.UpdateAccountBalances(t.Context(), &gctrpc.GetAccountBalancesRequest{Exchange: exch.GetName(), AssetType: asset.Spot.String()})
+			require.ErrorIsf(t, err, target, "UpdateAccountBalances must return the exchange's error %v", target)
+			assert.Equalf(t, codes.Unknown, rpcStatusCode(err), "UpdateAccountBalances should answer Unknown for the exchange's error %v", target)
+		}
+	})
 }
 
 func TestAccountBalanceResp(t *testing.T) {
@@ -1556,6 +1589,7 @@ func TestGetOrders(t *testing.T) {
 
 	_, err = s.GetOrders(t.Context(), nil)
 	assert.ErrorIs(t, err, errInvalidArguments)
+	assert.Equal(t, codes.InvalidArgument, rpcStatusCode(err), "GetOrders should answer InvalidArgument for its own checks")
 
 	_, err = s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
 		AssetType: asset.Spot.String(),
@@ -1575,6 +1609,7 @@ func TestGetOrders(t *testing.T) {
 		AssetType: asset.Spot.String(),
 	})
 	assert.ErrorIs(t, err, errCurrencyPairUnset)
+	assert.Equal(t, codes.InvalidArgument, rpcStatusCode(err), "GetOrders should answer InvalidArgument for its own checks")
 
 	_, err = s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
 		Exchange: exchName,
@@ -1635,6 +1670,45 @@ func TestGetOrders(t *testing.T) {
 			assert.ErrorIs(t, err, tc.err, "GetOrders should refuse a date range the order filter cannot apply")
 		})
 	}
+
+	for _, tc := range []struct {
+		name     string
+		exchange string
+		quote    string
+		start    string
+		exchErr  error
+		wantCode codes.Code
+	}{
+		{name: "order side the exchange cannot parse", exchErr: fmt.Errorf("%q %w", "VENUE-ONLY", order.ErrSideIsInvalid), wantCode: codes.Unknown},
+		{name: "order symbol the exchange cannot match", exchErr: fmt.Errorf("%w: XBTUSDTM", currency.ErrPairNotFound), wantCode: codes.Unknown},
+		{name: "exchange without open order requests", exchErr: common.ErrFunctionNotSupported, wantCode: codes.Unimplemented},
+		{name: "request with a start date alone", start: "2024-03-01 00:00:00 UTC", exchErr: errExpectedTestError, wantCode: codes.InvalidArgument},
+		{name: "request with a pair the exchange does not list", quote: "JPY", exchErr: errExpectedTestError, wantCode: codes.InvalidArgument},
+		{name: "unknown exchange", exchange: "unknown", exchErr: errExpectedTestError, wantCode: codes.NotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s, exch := newUpstreamErrorServer(t, tc.exchErr)
+			_, err := s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
+				Exchange:  cmp.Or(tc.exchange, exch.GetName()),
+				AssetType: asset.Spot.String(),
+				Pair:      &gctrpc.CurrencyPair{Base: "BTC", Quote: cmp.Or(tc.quote, "USD")},
+				StartDate: tc.start,
+			})
+			require.Error(t, err, "GetOrders must error")
+			assert.Equal(t, tc.wantCode, rpcStatusCode(err), "GetOrders should report a request problem only for its own checks")
+		})
+	}
+
+	t.Run("every request error from the exchange", func(t *testing.T) {
+		t.Parallel()
+		for _, target := range requestErrors(t) {
+			s, exch := newUpstreamErrorServer(t, fmt.Errorf("venue reply: %w", target))
+			_, err := s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{Exchange: exch.GetName(), AssetType: asset.Spot.String(), Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"}})
+			require.ErrorIsf(t, err, target, "GetOrders must return the exchange's error %v", target)
+			assert.Equalf(t, codes.Unknown, rpcStatusCode(err), "GetOrders should answer Unknown for the exchange's error %v", target)
+		}
+	})
 }
 
 func TestGetOrder(t *testing.T) {
@@ -1676,6 +1750,7 @@ func TestGetOrder(t *testing.T) {
 
 	_, err = s.GetOrder(t.Context(), nil)
 	assert.ErrorIs(t, err, errInvalidArguments)
+	assert.Equal(t, codes.InvalidArgument, rpcStatusCode(err), "GetOrder should answer InvalidArgument for its own checks")
 
 	_, err = s.GetOrder(t.Context(), &gctrpc.GetOrderRequest{
 		Exchange: "test123",
@@ -1692,6 +1767,7 @@ func TestGetOrder(t *testing.T) {
 		Asset:    "",
 	})
 	assert.ErrorIs(t, err, errCurrencyPairUnset)
+	assert.Equal(t, codes.InvalidArgument, rpcStatusCode(err), "GetOrder should answer InvalidArgument for its own checks")
 
 	_, err = s.GetOrder(t.Context(), &gctrpc.GetOrderRequest{
 		Exchange: exchName,
@@ -1760,6 +1836,56 @@ func TestGetOrder(t *testing.T) {
 		require.NoError(t, err, "GetOrder must not error")
 		require.Len(t, resp.Trades, 1, "GetOrder must return the order's trade")
 		assert.Equal(t, asset.Spot.String(), resp.Trades[0].AssetType, "trade asset type should be the order's asset type")
+	})
+
+	for _, tc := range []struct {
+		name     string
+		exchange string
+		orderID  string
+		exchErr  error
+		wantCode codes.Code
+	}{
+		{name: "order side the exchange cannot parse", orderID: "1", exchErr: fmt.Errorf("%q %w", "VENUE-ONLY", order.ErrSideIsInvalid), wantCode: codes.Unknown},
+		{name: "order symbol the exchange cannot match", orderID: "1", exchErr: fmt.Errorf("%w: XBTUSDTM", currency.ErrPairNotFound), wantCode: codes.Unknown},
+		{name: "exchange without order lookups", orderID: "1", exchErr: common.ErrFunctionNotSupported, wantCode: codes.Unimplemented},
+		{name: "request without an order ID", exchErr: errExpectedTestError, wantCode: codes.InvalidArgument},
+		{name: "unknown exchange", exchange: "unknown", orderID: "1", exchErr: errExpectedTestError, wantCode: codes.NotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s, exch := newUpstreamErrorServer(t, tc.exchErr)
+			_, err := s.GetOrder(t.Context(), &gctrpc.GetOrderRequest{
+				Exchange: cmp.Or(tc.exchange, exch.GetName()),
+				OrderId:  tc.orderID,
+				Pair:     &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"},
+				Asset:    asset.Spot.String(),
+			})
+			require.Error(t, err, "GetOrder must error")
+			assert.Equal(t, tc.wantCode, rpcStatusCode(err), "GetOrder should report a request problem only for its own checks")
+		})
+	}
+
+	t.Run("order lookup error names the order", func(t *testing.T) {
+		t.Parallel()
+		s, exch := newUpstreamErrorServer(t, errExpectedTestError)
+		_, err := s.GetOrder(t.Context(), &gctrpc.GetOrderRequest{
+			Exchange: exch.GetName(),
+			OrderId:  "1337",
+			Pair:     &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"},
+			Asset:    asset.Spot.String(),
+		})
+		require.ErrorIs(t, err, errExpectedTestError, "GetOrder must return the exchange's error")
+		assert.ErrorContains(t, err, "order 1337", "GetOrder should name the order it could not retrieve")
+	})
+
+	t.Run("every request error from the exchange", func(t *testing.T) {
+		t.Parallel()
+		for _, target := range requestErrors(t) {
+			s, exch := newUpstreamErrorServer(t, fmt.Errorf("venue reply: %w", target))
+			_, err := s.GetOrder(t.Context(), &gctrpc.GetOrderRequest{Exchange: exch.GetName(), OrderId: "1", Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"}, Asset: asset.Spot.String()})
+			require.ErrorIsf(t, err, target, "GetOrder must return the exchange's error %v", target)
+			assert.Equalf(t, codes.Unknown, rpcStatusCode(err), "GetOrder should answer Unknown for the exchange's error %v", target)
+		}
 	})
 }
 
@@ -2646,6 +2772,73 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 			SyncWithOrderManager: true,
 		})
 		assert.ErrorIs(t, err, ErrNilSubsystem, "GetFuturesPositionsOrders should report the missing order manager")
+	})
+
+	for _, tc := range []struct {
+		name       string
+		exchange   string
+		assetType  string
+		quote      string
+		start, end string
+		sync       bool
+		exchErr    error
+		wantErr    error
+		wantCode   codes.Code
+	}{
+		{name: "order side the exchange cannot parse", exchErr: fmt.Errorf("%q %w", "VENUE-ONLY", order.ErrSideIsInvalid), wantErr: order.ErrSideIsInvalid, wantCode: codes.Unknown},
+		{name: "order symbol the exchange cannot match", exchErr: fmt.Errorf("%w: XBTUSDTM", currency.ErrPairNotFound), wantErr: currency.ErrPairNotFound, wantCode: codes.Unknown},
+		{name: "exchange without position orders", exchErr: common.ErrFunctionNotSupported, wantErr: common.ErrFunctionNotSupported, wantCode: codes.Unimplemented},
+		{name: "position order the order manager cannot track", sync: true, wantErr: order.ErrSideIsInvalid, wantCode: codes.Unknown},
+		{name: "request with a spot asset", assetType: asset.Spot.String(), exchErr: errExpectedTestError, wantErr: futures.ErrNotFuturesAsset, wantCode: codes.InvalidArgument},
+		{name: "request with a pair the exchange does not list", quote: "JPY", exchErr: errExpectedTestError, wantErr: currency.ErrPairNotFound, wantCode: codes.NotFound},
+		{name: "request ending before it starts", start: "2024-03-02 00:00:00 UTC", end: "2024-03-01 00:00:00 UTC", exchErr: errExpectedTestError, wantErr: common.ErrStartAfterEnd, wantCode: codes.InvalidArgument},
+		{name: "unknown exchange", exchange: "unknown", exchErr: errExpectedTestError, wantErr: ErrExchangeNotFound, wantCode: codes.NotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s, exch := newUpstreamErrorServer(t, tc.exchErr)
+			_, err := s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
+				Exchange:             cmp.Or(tc.exchange, exch.GetName()),
+				Asset:                cmp.Or(tc.assetType, asset.Futures.String()),
+				Pair:                 &gctrpc.CurrencyPair{Base: "BTC", Quote: cmp.Or(tc.quote, "USD")},
+				StartDate:            tc.start,
+				EndDate:              tc.end,
+				SyncWithOrderManager: tc.sync,
+			})
+			require.ErrorIs(t, err, tc.wantErr, "GetFuturesPositionsOrders must return the error of the check or call that failed")
+			assert.Equal(t, tc.wantCode, rpcStatusCode(err), "GetFuturesPositionsOrders should report a request problem only for its own checks")
+		})
+	}
+
+	positionsRequest := func(exchangeName string) *gctrpc.GetFuturesPositionsOrdersRequest {
+		return &gctrpc.GetFuturesPositionsOrdersRequest{
+			Exchange:             exchangeName,
+			Asset:                asset.Futures.String(),
+			Pair:                 &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"},
+			SyncWithOrderManager: true,
+		}
+	}
+
+	t.Run("every request error from the exchange", func(t *testing.T) {
+		t.Parallel()
+		for _, target := range requestErrors(t) {
+			s, exch := newUpstreamErrorServer(t, fmt.Errorf("venue reply: %w", target))
+			_, err := s.GetFuturesPositionsOrders(t.Context(), positionsRequest(exch.GetName()))
+			require.ErrorIsf(t, err, target, "GetFuturesPositionsOrders must return the exchange's error %v", target)
+			assert.Equalf(t, codes.Unknown, rpcStatusCode(err), "GetFuturesPositionsOrders should answer Unknown for the exchange's error %v", target)
+		}
+	})
+
+	t.Run("every request error from the order manager", func(t *testing.T) {
+		t.Parallel()
+		for _, target := range requestErrors(t) {
+			s, exch := newUpstreamErrorServer(t, nil)
+			exch.positionSide, exch.tickerErr = order.Long, fmt.Errorf("ticker: %w", target)
+			_, err := s.GetFuturesPositionsOrders(t.Context(), positionsRequest(exch.GetName()))
+			require.ErrorIsf(t, err, target, "GetFuturesPositionsOrders must return the order manager's error %v", target)
+			assert.Equal(t, 1, exch.tickerLookups, "GetFuturesPositionsOrders should reach the order manager's ticker lookup")
+			assert.Equalf(t, codes.Unknown, rpcStatusCode(err), "GetFuturesPositionsOrders should answer Unknown for the order manager's error %v", target)
+		}
 	})
 }
 
@@ -5750,6 +5943,12 @@ func TestRPCStatusCode(t *testing.T) {
 		{name: "candle away from its interval start", err: candleTimeMismatch, want: codes.Unknown},
 		{name: "missing pair", err: errCurrencyPairUnset, want: codes.InvalidArgument},
 		{name: "wrapped validation error", err: fmt.Errorf("%w GetOpenInterestRequest", common.ErrNilPointer), want: codes.InvalidArgument},
+		{name: "order manager missing an order", err: upstreamError{fmt.Errorf("failed to retrieve order 1 to update cancelled status: %w", ErrOrderNotFound)}, want: codes.Unknown},
+		{name: "wrapped exchange refusal", err: fmt.Errorf("cancel: %w", upstreamError{common.ErrNilPointer}), want: codes.Unknown},
+		{name: "order manager not started", err: upstreamError{fmt.Errorf("order manager %w", ErrSubSystemNotStarted)}, want: codes.FailedPrecondition},
+		{name: "order manager not started behind a missing order", err: upstreamError{fmt.Errorf("%w: %w", ErrOrderNotFound, ErrSubSystemNotStarted)}, want: codes.FailedPrecondition},
+		{name: "marked error joined with another", err: errors.Join(errExpectedTestError, upstreamError{ErrOrderNotFound}), want: codes.Unknown},
+		{name: "exchange without the function", err: upstreamError{common.ErrFunctionNotSupported}, want: codes.Unimplemented},
 		{name: "unknown exchange", err: fmt.Errorf("%s %w", testExchange, ErrExchangeNotFound), want: codes.NotFound},
 		{name: "subsystem not started", err: fmt.Errorf("order manager %w", ErrSubSystemNotStarted), want: codes.FailedPrecondition},
 		{name: "unsupported function", err: common.ErrFunctionNotSupported, want: codes.Unimplemented},
@@ -5774,8 +5973,8 @@ func TestRPCStatusCode(t *testing.T) {
 		{want: codes.InvalidArgument, errs: []error{
 			errInvalidArguments, errCurrencyPairUnset, errOtherPairUnset, errInvalidTimes, errAssetTypeUnset,
 			errCurrencyNotSpecified, errCurrencyPairInvalid, errNilRequestData, errInvalidStrategy, errDuplicateOrderID,
-			errRangeTooLarge, errInvalidDecimalPlaces, errNicknameIDUnset, errOnlyNicknameOrID, ErrOrderIDCannotBeEmpty,
-			common.ErrExchangeNameNotSet, common.ErrNilPointer, common.ErrDateUnset, common.ErrStartAfterEnd,
+			errRangeTooLarge, errInvalidDecimalPlaces, errIntervalNotWholeSeconds, errNicknameIDUnset, errOnlyNicknameOrID,
+			ErrOrderIDCannotBeEmpty, common.ErrExchangeNameNotSet, common.ErrNilPointer, common.ErrDateUnset, common.ErrStartAfterEnd,
 			common.ErrStartEqualsEnd, common.ErrStartAfterTimeNow, common.ErrAddressIsEmptyOrInvalid,
 			asset.ErrNotSupported, currency.ErrCurrencyPairEmpty, currency.ErrCurrencyCodeEmpty,
 			order.ErrSideIsInvalid, order.ErrTypeIsInvalid, kline.ErrInvalidInterval, kline.ErrUnsupportedInterval,
@@ -5788,9 +5987,247 @@ func TestRPCStatusCode(t *testing.T) {
 				t.Parallel()
 				wrapped := fmt.Errorf("handler: %w", err)
 				assert.Equal(t, group.want, rpcStatusCode(wrapped), "rpcStatusCode should return the code documented for the error")
+				wantMarked := group.want
+				if wantMarked == codes.NotFound || wantMarked == codes.InvalidArgument {
+					wantMarked = codes.Unknown
+				}
+				assert.Equal(t, wantMarked, rpcStatusCode(upstreamError{wrapped}), "rpcStatusCode should keep only what the server or exchange cannot do for an upstream error")
 			})
 		}
 	}
+}
+
+// cancelExchange records the cancels it is sent and answers them with cancelErr, and answers a cancel all without its
+// parameter with the error given, as Kucoin's and Poloniex's wrappers refuse one with common.ErrNilPointer
+type cancelExchange struct {
+	exchange.IBotExchange
+	cancelAllErr error
+	cancelErr    error
+	cancelled    []string
+}
+
+func (e *cancelExchange) CancelOrder(_ context.Context, c *order.Cancel) error {
+	e.cancelled = append(e.cancelled, c.OrderID)
+	return e.cancelErr
+}
+
+func (e *cancelExchange) CancelAllOrders(_ context.Context, c *order.Cancel) (order.CancelAllResponse, error) {
+	if c == nil && e.cancelAllErr != nil {
+		return order.CancelAllResponse{}, e.cancelAllErr
+	}
+	return order.CancelAllResponse{Status: map[string]string{"1": order.Cancelled.String()}}, nil
+}
+
+// newCancelServer returns a server whose exchange records cancels, and whose order manager holds the orders given and
+// runs when started is set
+func newCancelServer(t *testing.T, cancelAllErr error, started bool, tracked ...string) (*RPCServer, *cancelExchange) {
+	t.Helper()
+	setup := NewExchangeManager()
+	b := newFakeExchange(t, setup, map[asset.Item]currency.Pairs{asset.Spot: {currency.NewBTCUSD()}})
+	base, err := setup.GetExchangeByName(b.Name)
+	require.NoError(t, err, "GetExchangeByName must not error")
+	exch := &cancelExchange{IBotExchange: base, cancelAllErr: cancelAllErr}
+	em := NewExchangeManager()
+	require.NoError(t, em.Add(exch), "Add must not error")
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &sync.WaitGroup{}, &config.OrderManager{})
+	require.NoError(t, err, "SetupOrderManager must not error")
+	om.started.Store(started)
+	for _, id := range tracked {
+		_, err = om.orderStore.upsert(&order.Detail{
+			Exchange: b.Name, OrderID: id, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Status: order.New, Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1,
+		})
+		require.NoError(t, err, "upsert must not error")
+	}
+	return &RPCServer{Engine: &Engine{Config: &config.Config{}, ExchangeManager: em, OrderManager: om}}, exch
+}
+
+func TestRPCServerCancelOrder(t *testing.T) {
+	t.Parallel()
+	btcusd := &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"}
+	for _, tc := range []struct {
+		name          string
+		exchange      string
+		pair          *gctrpc.CurrencyPair
+		side          string
+		stopped       bool
+		tracked       []string
+		wantCancelled []string
+		wantCode      codes.Code
+	}{
+		{name: "order the order manager holds", pair: btcusd, tracked: []string{"1"}, wantCancelled: []string{"1"}, wantCode: codes.OK},
+		{name: "order the order manager does not hold beside one it does", pair: btcusd, tracked: []string{"2"}, wantCancelled: []string{"1"}, wantCode: codes.Unknown},
+		{name: "order the order manager does not hold on an exchange without orders", pair: btcusd, wantCancelled: []string{"1"}, wantCode: codes.Unknown},
+		{name: "order manager not started", pair: btcusd, stopped: true, wantCode: codes.FailedPrecondition},
+		{name: "unknown exchange", exchange: "unknown", pair: btcusd, wantCode: codes.NotFound},
+		{name: "request without a pair", wantCode: codes.InvalidArgument},
+		{name: "request with an unknown side", pair: btcusd, side: "sideways", wantCode: codes.InvalidArgument},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s, exch := newCancelServer(t, nil, !tc.stopped, tc.tracked...)
+			_, err := s.CancelOrder(t.Context(), &gctrpc.CancelOrderRequest{
+				Exchange:  cmp.Or(tc.exchange, exch.GetName()),
+				OrderId:   "1",
+				Pair:      tc.pair,
+				AssetType: asset.Spot.String(),
+				Side:      cmp.Or(tc.side, order.Buy.String()),
+			})
+			assert.Equal(t, tc.wantCancelled, exch.cancelled, "CancelOrder should send the exchange only a checked request")
+			if tc.wantCode == codes.OK {
+				assert.NoError(t, err, "CancelOrder should not error for an order the order manager holds")
+				return
+			}
+			require.Error(t, err, "CancelOrder must error")
+			assert.Equal(t, tc.wantCode, rpcStatusCode(err), "CancelOrder should report a request problem only for its own checks")
+		})
+	}
+
+	t.Run("every request error from the exchange", func(t *testing.T) {
+		t.Parallel()
+		for _, target := range requestErrors(t) {
+			s, exch := newCancelServer(t, nil, true, "1")
+			exch.cancelErr = fmt.Errorf("venue reply: %w", target)
+			_, err := s.CancelOrder(t.Context(), &gctrpc.CancelOrderRequest{
+				Exchange:  exch.GetName(),
+				OrderId:   "1",
+				Pair:      &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"},
+				AssetType: asset.Spot.String(),
+				Side:      order.Buy.String(),
+			})
+			require.ErrorIsf(t, err, target, "CancelOrder must return the exchange's error %v", target)
+			assert.Equalf(t, codes.Unknown, rpcStatusCode(err), "CancelOrder should answer Unknown for the exchange's error %v", target)
+		}
+	})
+}
+
+func TestRPCServerCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name         string
+		exchange     string
+		cancelAllErr error
+		wantCode     codes.Code
+	}{
+		{name: "exchange taking a cancel all without parameters", wantCode: codes.OK},
+		{name: "exchange refusing a cancel all without parameters", cancelAllErr: common.ErrNilPointer, wantCode: codes.Unknown},
+		{name: "exchange without a cancel all", cancelAllErr: common.ErrFunctionNotSupported, wantCode: codes.Unimplemented},
+		{name: "exchange refusing with a pair it cannot find", cancelAllErr: currency.ErrPairNotFound, wantCode: codes.Unknown},
+		{name: "unknown exchange", exchange: "unknown", wantCode: codes.NotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s, exch := newCancelServer(t, tc.cancelAllErr, true)
+			resp, err := s.CancelAllOrders(t.Context(), &gctrpc.CancelAllOrdersRequest{Exchange: cmp.Or(tc.exchange, exch.GetName())})
+			if tc.wantCode == codes.OK {
+				require.NoError(t, err, "CancelAllOrders must not error")
+				assert.Equal(t, int64(1), resp.Count, "CancelAllOrders should count the cancelled orders")
+				return
+			}
+			require.Error(t, err, "CancelAllOrders must error")
+			if tc.cancelAllErr != nil {
+				assert.ErrorIs(t, err, tc.cancelAllErr, "CancelAllOrders should return the exchange's error")
+			}
+			assert.Equal(t, tc.wantCode, rpcStatusCode(err), "CancelAllOrders should report a request problem only for its own checks")
+		})
+	}
+
+	t.Run("every request error from the exchange", func(t *testing.T) {
+		t.Parallel()
+		for _, target := range requestErrors(t) {
+			s, exch := newCancelServer(t, fmt.Errorf("venue reply: %w", target), true)
+			_, err := s.CancelAllOrders(t.Context(), &gctrpc.CancelAllOrdersRequest{Exchange: exch.GetName()})
+			require.ErrorIsf(t, err, target, "CancelAllOrders must return the exchange's error %v", target)
+			assert.Equalf(t, codes.Unknown, rpcStatusCode(err), "CancelAllOrders should answer Unknown for the exchange's error %v", target)
+		}
+	})
+}
+
+func TestUpstreamErrorUnwrap(t *testing.T) {
+	t.Parallel()
+	err := fmt.Errorf("cancel: %w", ErrOrderNotFound)
+	assert.Equal(t, err, upstreamError{err}.Unwrap(), "Unwrap should return the error it marks")
+	assert.ErrorIs(t, upstreamError{err}, ErrOrderNotFound, "an upstream error should match the errors it carries")
+}
+
+// upstreamErrorExchange answers order lookups, open order requests, balance updates and position order requests with the
+// error given, as an exchange does when it cannot parse the venue's reply. Without one, it reports a position order of
+// the side given for each pair requested, and answers the ticker lookup that tracking the position leads to with
+// tickerErr
+type upstreamErrorExchange struct {
+	exchange.IBotExchange
+	err           error
+	positionSide  order.Side
+	tickerErr     error
+	tickerLookups int
+}
+
+func (e *upstreamErrorExchange) GetOrderInfo(context.Context, string, currency.Pair, asset.Item) (*order.Detail, error) {
+	return nil, e.err
+}
+
+func (e *upstreamErrorExchange) GetActiveOrders(context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	return nil, e.err
+}
+
+func (e *upstreamErrorExchange) UpdateAccountBalances(context.Context, asset.Item) (accounts.SubAccounts, error) {
+	return nil, e.err
+}
+
+func (e *upstreamErrorExchange) GetFuturesPositionOrders(_ context.Context, req *futures.PositionsRequest) ([]futures.PositionResponse, error) {
+	if e.err != nil {
+		return nil, e.err
+	}
+	resp := make([]futures.PositionResponse, len(req.Pairs))
+	for i, p := range req.Pairs {
+		resp[i] = futures.PositionResponse{
+			Asset:  req.Asset,
+			Pair:   p,
+			Orders: []order.Detail{{Exchange: e.GetName(), OrderID: "1", AssetType: req.Asset, Pair: p, Side: e.positionSide, Price: 1, Amount: 1, Date: time.Now()}},
+		}
+	}
+	return resp, nil
+}
+
+func (e *upstreamErrorExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	e.tickerLookups++
+	if e.tickerErr != nil {
+		return nil, e.tickerErr
+	}
+	return e.IBotExchange.GetCachedTicker(p, a)
+}
+
+// newUpstreamErrorServer returns a server whose exchange answers with the error given and supports futures positions,
+// and whose order manager runs and tracks futures positions
+func newUpstreamErrorServer(t *testing.T, err error) (*RPCServer, *upstreamErrorExchange) {
+	t.Helper()
+	setup := NewExchangeManager()
+	b := newFakeExchange(t, setup, map[asset.Item]currency.Pairs{asset.Spot: {currency.NewBTCUSD()}, asset.Futures: {currency.NewBTCUSD()}})
+	b.Features.Supports.FuturesCapabilities.Positions = true
+	b.Features.Supports.FuturesCapabilities.OrderManagerPositionTracking = true
+	base, getErr := setup.GetExchangeByName(b.Name)
+	require.NoError(t, getErr, "GetExchangeByName must not error")
+	em := NewExchangeManager()
+	exch := &upstreamErrorExchange{IBotExchange: base, err: err}
+	require.NoError(t, em.Add(exch), "Add must not error")
+	om, setupErr := SetupOrderManager(em, &CommunicationManager{}, &sync.WaitGroup{}, &config.OrderManager{ActivelyTrackFuturesPositions: true, FuturesTrackingSeekDuration: time.Hour})
+	require.NoError(t, setupErr, "SetupOrderManager must not error")
+	om.started.Store(true)
+	return &RPCServer{Engine: &Engine{Config: &config.Config{}, ExchangeManager: em, OrderManager: om}}, exch
+}
+
+// requestErrors returns the errors rpcStatusCode answers NotFound or InvalidArgument for, which the order manager and
+// exchanges can also return for reasons of their own
+func requestErrors(t *testing.T) []error {
+	t.Helper()
+	var errs []error
+	for _, group := range rpcErrorCodes {
+		if group.code == codes.NotFound || group.code == codes.InvalidArgument {
+			errs = append(errs, group.errs...)
+		}
+	}
+	require.Contains(t, errs, ErrOrderNotFound, "requestErrors must include the NotFound group")
+	require.Contains(t, errs, common.ErrNilPointer, "requestErrors must include the InvalidArgument group")
+	return errs
 }
 
 func TestExchangeAssetPair(t *testing.T) {

@@ -177,19 +177,20 @@ func (j *DataHistoryJob) rangeInterval() kline.Interval {
 	return j.Interval
 }
 
-// dropStaleResults removes the results of each range that end elsewhere, and its Complete results while an interval
-// lacks data. Earlier conversion jobs recorded results for shorter batches, and Complete without saving converted candles.
+// dropStaleResults removes the results under each range's start that were not recorded for it, and its Complete results
+// while an interval lacks data. Earlier conversion jobs recorded results for shorter batches, and Complete without saving
+// converted candles.
 func (j *DataHistoryJob) dropStaleResults() {
 	for x := range j.rangeHolder.Ranges {
-		key := j.rangeHolder.Ranges[x].Start.Time.Unix()
+		start, end := j.rangeHolder.Ranges[x].Start.Time, j.rangeHolder.Ranges[x].End.Time
+		key := start.Unix()
 		results, ok := j.Results[key]
 		if !ok {
 			continue
 		}
-		end := j.rangeHolder.Ranges[x].End.Time
 		missing := slices.ContainsFunc(j.rangeHolder.Ranges[x].Intervals, func(i kline.IntervalData) bool { return !i.HasData })
 		results = slices.DeleteFunc(results, func(r DataHistoryJobResult) bool {
-			return !r.IntervalEndDate.Equal(end) || missing && r.Status == dataHistoryStatusComplete
+			return !r.coversRange(start, end) || missing && r.Status == dataHistoryStatusComplete
 		})
 		if len(results) == 0 {
 			delete(j.Results, key)
@@ -285,6 +286,27 @@ func rangeResult(results []DataHistoryJobResult) (decided, complete bool) {
 	return false, false
 }
 
+// coversRange reports whether the result was recorded for the range from start until end
+func (r *DataHistoryJobResult) coversRange(start, end time.Time) bool {
+	return r.IntervalStartDate.Equal(start) && r.IntervalEndDate.Equal(end)
+}
+
+// rangeResults returns the results recorded for the range from start until end. An edit to a job's dates, request size
+// or interval leaves its earlier results under the start seconds they share with its new ranges.
+func (j *DataHistoryJob) rangeResults(start, end time.Time) []DataHistoryJobResult {
+	return slices.DeleteFunc(slices.Clone(j.Results[start.Unix()]), func(r DataHistoryJobResult) bool { return !r.coversRange(start, end) })
+}
+
+// markRangeIssuesFound marks the results recorded for the range from start until end as having issues found
+func (j *DataHistoryJob) markRangeIssuesFound(start, end time.Time) {
+	results := j.Results[start.Unix()]
+	for i := range results {
+		if results[i].coversRange(start, end) {
+			results[i].Status = dataHistoryIntervalIssuesFound
+		}
+	}
+}
+
 // setHasDataByCandleTime marks each interval that a candle with data starts. A conversion job saves only the candles
 // it can convert, so a series any job reads can have a gap before later saved candles, which kline's in-order
 // SetHasDataFromCandles rejects, failing the preparation of every job.
@@ -330,17 +352,12 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			}
 		case dataHistoryTradeDataType:
 			for x := range jobs[i].rangeHolder.Ranges {
-				results, ok := jobs[i].Results[jobs[i].rangeHolder.Ranges[x].Start.Time.Unix()]
-				if !ok {
+				r := &jobs[i].rangeHolder.Ranges[x]
+				if _, complete := rangeResult(jobs[i].rangeResults(r.Start.Time, r.End.Time)); !complete {
 					continue
 				}
-				for y := range results {
-					if results[y].Status == dataHistoryStatusComplete {
-						for z := range jobs[i].rangeHolder.Ranges[x].Intervals {
-							jobs[i].rangeHolder.Ranges[x].Intervals[z].HasData = true
-						}
-						break
-					}
+				for z := range r.Intervals {
+					r.Intervals[z].HasData = true
 				}
 			}
 		case dataHistoryConvertCandlesDataType:
@@ -497,6 +514,7 @@ func (m *DataHistoryManager) runDataJob(ctx context.Context, job *DataHistoryJob
 	var result *DataHistoryJobResult
 ranges:
 	for i := range job.rangeHolder.Ranges {
+		rangeStart, rangeEnd := job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time
 		skipProcessing := true
 		for j := range job.rangeHolder.Ranges[i].Intervals {
 			if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
@@ -505,8 +523,8 @@ ranges:
 			}
 		}
 		if skipProcessing {
-			key := job.rangeHolder.Ranges[i].Start.Time.Unix()
-			if _, complete := rangeResult(job.Results[key]); !complete && !job.OverwriteExistingData {
+			key := rangeStart.Unix()
+			if _, complete := rangeResult(job.rangeResults(rangeStart, rangeEnd)); !complete && !job.OverwriteExistingData {
 				// we have determined that data is there, however it is not reflected in
 				// this specific job's results, which is required for a job to be complete
 				job.Results[key] = append(job.Results[key], DataHistoryJobResult{
@@ -537,8 +555,8 @@ ranges:
 
 		var failures uint64
 		hasDataInRange := false
-		resultLookup, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()]
-		if ok {
+		resultLookup := job.rangeResults(rangeStart, rangeEnd)
+		if len(resultLookup) > 0 {
 			for x := range resultLookup {
 				switch resultLookup[x].Status {
 				case dataHistoryIntervalIssuesFound:
@@ -556,10 +574,7 @@ ranges:
 			if failures >= job.MaxRetryAttempts {
 				// failure threshold reached, we should not attempt
 				// to check this interval again
-				for x := range resultLookup {
-					resultLookup[x].Status = dataHistoryIntervalIssuesFound
-				}
-				job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()] = resultLookup
+				job.markRangeIssuesFound(rangeStart, rangeEnd)
 				continue
 			}
 		}
@@ -599,7 +614,7 @@ ranges:
 	allResultsSuccessful := true
 	allResultsFailed := true
 	for i := range job.rangeHolder.Ranges {
-		decided, complete := rangeResult(job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()])
+		decided, complete := rangeResult(job.rangeResults(job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time))
 		if !decided {
 			completed = false
 			break
@@ -645,33 +660,16 @@ func (m *DataHistoryManager) runValidationJob(ctx context.Context, job *DataHist
 		}
 		return job.EndDate
 	}
-	// A range counts only the results covering exactly that range, as an edit to a job's dates, request size or
-	// interval leaves earlier results under the start seconds they share with the new ranges
-	covers := func(start time.Time) func(DataHistoryJobResult) bool {
-		end := rangeEnd(start)
-		return func(r DataHistoryJobResult) bool {
-			return r.IntervalStartDate.Equal(start) && r.IntervalEndDate.Equal(end)
-		}
-	}
-	rangeResults := func(start time.Time) []DataHistoryJobResult {
-		covered := covers(start)
-		return slices.DeleteFunc(slices.Clone(job.Results[start.Unix()]), func(r DataHistoryJobResult) bool { return !covered(r) })
-	}
 	for i := job.StartDate; i.Before(job.EndDate); i = i.Add(intervalLength) {
 		jobIntervals = append(jobIntervals, i)
 	}
 	for _, interval := range jobIntervals {
-		results := rangeResults(interval)
+		results := job.rangeResults(interval, rangeEnd(interval))
 		if slices.ContainsFunc(results, func(r DataHistoryJobResult) bool { return r.Status == dataHistoryStatusComplete }) {
 			continue
 		}
 		if uint64(len(results)) >= job.MaxRetryAttempts {
-			covered, stored := covers(interval), job.Results[interval.Unix()]
-			for x := range stored {
-				if covered(stored[x]) {
-					stored[x].Status = dataHistoryIntervalIssuesFound
-				}
-			}
+			job.markRangeIssuesFound(interval, rangeEnd(interval))
 			continue
 		}
 		intervalsToCheck = append(intervalsToCheck, interval)
@@ -707,7 +705,7 @@ func (m *DataHistoryManager) runValidationJob(ctx context.Context, job *DataHist
 	allResultsSuccessful := true
 	allResultsFailed := true
 	for i := range jobIntervals {
-		decided, complete := rangeResult(rangeResults(jobIntervals[i]))
+		decided, complete := rangeResult(job.rangeResults(jobIntervals[i], rangeEnd(jobIntervals[i])))
 		if !decided {
 			completed = false
 			break
@@ -1397,10 +1395,10 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		}
 	}
 
-	// Validation matches candles by the second, and job results are keyed by their start's second
-	if (job.DataType == dataHistoryCandleValidationDataType || job.DataType == dataHistoryCandleValidationSecondarySourceType) &&
-		job.Interval.Duration()%time.Second != 0 {
-		return fmt.Errorf("job %s validation %w: %s", job.Nickname, errIntervalNotWholeSeconds, job.Interval)
+	// A job's ranges need whole-second intervals: results are matched to their ranges by start and end, which SQLite keeps
+	// to the second, and validation matches candles by the second. Candle conversion checks both of its intervals below
+	if job.DataType != dataHistoryConvertCandlesDataType && job.Interval.Duration()%time.Second != 0 {
+		return fmt.Errorf("job %s %s %w: %s", job.Nickname, job.DataType, errIntervalNotWholeSeconds, job.Interval)
 	}
 
 	b := exch.GetBase()

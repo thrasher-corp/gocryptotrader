@@ -161,8 +161,8 @@ var rpcErrorCodes = []struct {
 	{code: codes.InvalidArgument, errs: []error{
 		errInvalidArguments, errCurrencyPairUnset, errOtherPairUnset, errInvalidTimes, errAssetTypeUnset,
 		errCurrencyNotSpecified, errCurrencyPairInvalid, errNilRequestData, errInvalidStrategy, errDuplicateOrderID,
-		errRangeTooLarge, errInvalidDecimalPlaces, errNicknameIDUnset, errOnlyNicknameOrID, ErrOrderIDCannotBeEmpty,
-		common.ErrExchangeNameNotSet, common.ErrNilPointer, common.ErrDateUnset, common.ErrStartAfterEnd,
+		errRangeTooLarge, errInvalidDecimalPlaces, errIntervalNotWholeSeconds, errNicknameIDUnset, errOnlyNicknameOrID,
+		ErrOrderIDCannotBeEmpty, common.ErrExchangeNameNotSet, common.ErrNilPointer, common.ErrDateUnset, common.ErrStartAfterEnd,
 		common.ErrStartEqualsEnd, common.ErrStartAfterTimeNow, common.ErrAddressIsEmptyOrInvalid,
 		asset.ErrNotSupported, currency.ErrCurrencyPairEmpty, currency.ErrCurrencyCodeEmpty,
 		order.ErrSideIsInvalid, order.ErrTypeIsInvalid, kline.ErrInvalidInterval, kline.ErrUnsupportedInterval,
@@ -171,9 +171,20 @@ var rpcErrorCodes = []struct {
 	}},
 }
 
+// upstreamError marks an error the order manager or an exchange returned once a handler had checked its request. It can
+// carry the errors of a bad request or a missing item without either being the client's, while what it says the server
+// or exchange cannot do still holds
+type upstreamError struct{ error }
+
+func (e upstreamError) Unwrap() error { return e.error }
+
 // rpcStatusCode maps a handler error to a gRPC code, so that clients can tell a bad request from a server failure
 func rpcStatusCode(err error) codes.Code {
+	upstream := errors.As(err, new(upstreamError))
 	for i := range rpcErrorCodes {
+		if upstream && (rpcErrorCodes[i].code == codes.NotFound || rpcErrorCodes[i].code == codes.InvalidArgument) {
+			continue
+		}
 		for _, target := range rpcErrorCodes[i].errs {
 			if errors.Is(err, target) {
 				return rpcErrorCodes[i].code
@@ -577,7 +588,7 @@ func (s *RPCServer) UpdateAccountBalances(ctx context.Context, r *gctrpc.GetAcco
 
 	resp, err := e.UpdateAccountBalances(ctx, assetType)
 	if err != nil {
-		return nil, err
+		return nil, upstreamError{err}
 	}
 
 	return accountBalanceResp(r.Exchange, resp), nil
@@ -885,7 +896,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 	var resp []order.Detail
 	resp, err = exch.GetActiveOrders(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, upstreamError{err}
 	}
 
 	orders := make([]*gctrpc.OrderDetails, len(resp))
@@ -1038,6 +1049,9 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 	if err != nil {
 		return nil, err
 	}
+	if r.OrderId == "" {
+		return nil, ErrOrderIDCannotBeEmpty
+	}
 
 	result, err := s.OrderManager.GetOrderInfo(ctx,
 		r.Exchange,
@@ -1045,7 +1059,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 		pair,
 		a)
 	if err != nil {
-		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %w", r.OrderId, err)
+		return nil, upstreamError{fmt.Errorf("error whilst trying to retrieve info for order %s: %w", r.OrderId, err)}
 	}
 	trades := make([]*gctrpc.TradeHistory, len(result.Trades))
 	for i := range result.Trades {
@@ -1311,7 +1325,7 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 			AssetType: a,
 		})
 	if err != nil {
-		return nil, err
+		return nil, upstreamError{err}
 	}
 	return &gctrpc.GenericResponse{
 		Status: MsgStatusSuccess,
@@ -1398,7 +1412,7 @@ func (s *RPCServer) CancelAllOrders(ctx context.Context, r *gctrpc.CancelAllOrde
 	// TODO: Change to order manager
 	resp, err := exch.CancelAllOrders(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, upstreamError{err}
 	}
 
 	cancelledOrders := new(gctrpc.Orders)
@@ -4057,7 +4071,7 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 		RespectOrderHistoryLimits: r.RespectOrderHistoryLimits,
 	})
 	if err != nil {
-		return nil, err
+		return nil, upstreamError{err}
 	}
 	response := &gctrpc.GetFuturesPositionsOrdersResponse{}
 	positions := make([]*gctrpc.FuturePosition, len(positionDetails))
@@ -4106,7 +4120,7 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 	if r.SyncWithOrderManager {
 		for i := range positionDetails {
 			if err := s.OrderManager.processFuturesPositions(ctx, exch, &positionDetails[i]); err != nil {
-				return nil, err
+				return nil, upstreamError{err}
 			}
 		}
 	}
