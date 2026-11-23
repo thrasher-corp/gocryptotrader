@@ -16,14 +16,14 @@ import (
 
 var c CurrencyLayer
 
-// Either set your API key here or in env var for integration testing
+// Either set your API key here or in env var, and build with the mock_test_off tag, for integration testing
 var (
 	apiKey      = ""
 	apiKeyLevel = 0
 )
 
 func TestMain(m *testing.M) {
-	if apiKey == "" {
+	if !livetest.Mock && apiKey == "" {
 		apiKey = os.Getenv("CURRENCYLAYER_APIKEY")
 	}
 
@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	if err := c.Setup(cfg); err != nil {
 		log.Fatal(err)
 	}
-	if livetest.Mock && apiKey == "" {
+	if livetest.Mock {
 		if err := c.Requester.SetHTTPClient(standin.Client(noAccessKeyReply)); err != nil {
 			log.Fatal(err)
 		}
@@ -65,6 +65,9 @@ func noAccessKeyReply(r *http.Request) (standin.Reply, error) {
 
 func skipIfNoAPIKey(tb testing.TB) {
 	tb.Helper()
+	if livetest.Mock {
+		tb.Skip("calls the CurrencyLayer API; build with the mock_test_off tag to run it")
+	}
 	if apiKey == "" {
 		tb.Skip("No API Key configured. Set env var CURRENCYLAYER_APIKEY")
 	}

@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -33,9 +34,14 @@ func TestSendHTTPRequest(t *testing.T) {
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	type received struct{ method, userAgent string }
-	requests := make(chan received, 3)
+	var (
+		mu       sync.Mutex
+		requests []received
+	)
 	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		requests <- received{method: r.Method, userAgent: r.Header.Get("User-Agent")}
+		mu.Lock()
+		defer mu.Unlock()
+		requests = append(requests, received{method: r.Method, userAgent: r.Header.Get("User-Agent")})
 	}))
 	t.Cleanup(server.Close)
 
@@ -86,12 +92,13 @@ func TestSendHTTPRequest(t *testing.T) {
 		t.Error("Common HTTPRequest accepted invalid protocol")
 	}
 
+	mu.Lock()
+	defer mu.Unlock()
 	require.Len(t, requests, 3, "the server must receive the three valid requests")
-	assert.Equal(t, http.MethodPost, (<-requests).method, "the first request should be a POST")
-	assert.Equal(t, http.MethodGet, (<-requests).method, "the second request should be a GET")
-	last := <-requests
-	assert.Equal(t, http.MethodDelete, last.method, "the third request should be a DELETE")
-	assert.Equal(t, "GCTbot/1337.69 (+http://www.lol.com/)", last.userAgent, "the request after SetHTTPUserAgent should carry its user agent")
+	assert.Equal(t, http.MethodPost, requests[0].method, "the first request should be a POST")
+	assert.Equal(t, http.MethodGet, requests[1].method, "the second request should be a GET")
+	assert.Equal(t, http.MethodDelete, requests[2].method, "the third request should be a DELETE")
+	assert.Equal(t, "GCTbot/1337.69 (+http://www.lol.com/)", requests[2].userAgent, "the request after SetHTTPUserAgent should carry its user agent")
 }
 
 func TestSetHTTPClientWithTimeout(t *testing.T) {

@@ -2,6 +2,7 @@
 package standin
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -21,12 +22,18 @@ type Reply struct {
 // Transport answers each request with the reply its function returns
 type Transport func(*http.Request) (Reply, error)
 
-// RoundTrip closes the request body and answers with the function's reply
-func (t Transport) RoundTrip(r *http.Request) (*http.Response, error) {
-	if r.Body != nil {
-		if err := r.Body.Close(); err != nil {
-			return nil, err
-		}
+// RoundTrip answers with the function's reply, or with the context's cause if the request is already cancelled. It then
+// closes the body the request was sent with, and returns the close error if answering succeeded.
+func (t Transport) RoundTrip(r *http.Request) (resp *http.Response, err error) {
+	if body := r.Body; body != nil {
+		defer func() {
+			if closeErr := body.Close(); closeErr != nil && err == nil {
+				resp, err = nil, closeErr
+			}
+		}()
+	}
+	if ctx := r.Context(); ctx.Err() != nil {
+		return nil, context.Cause(ctx)
 	}
 	reply, err := t(r)
 	if err != nil {

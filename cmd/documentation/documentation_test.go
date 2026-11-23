@@ -14,6 +14,8 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"text/template"
 
@@ -438,9 +440,21 @@ func TestGetContributorList(t *testing.T) {
 			full[i] = Contributor{Login: fmt.Sprintf("contributor-%d", i+1), Contributions: 1}
 		}
 		last := []Contributor{{Login: "contributor-last", Contributions: 1}}
+		var (
+			mu    sync.Mutex
+			pages []string
+		)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/repos/thrasher-corp/gocryptotrader/contributors", r.URL.Path, "GetContributorList should request the contributors path")
 			assert.Equal(t, "100", r.URL.Query().Get("per_page"), "GetContributorList should request full pages")
+			mu.Lock()
+			pages = append(pages, r.URL.Query().Get("page"))
+			requests := len(pages)
+			mu.Unlock()
+			if requests > 2 {
+				http.Error(w, "more requests than pages", http.StatusTooManyRequests)
+				return
+			}
 			var page []Contributor
 			switch r.URL.Query().Get("page") {
 			case "1":
@@ -457,17 +471,26 @@ func TestGetContributorList(t *testing.T) {
 		c, err := GetContributorList(t.Context(), server.URL+"/repos/thrasher-corp/gocryptotrader", false)
 		require.NoError(t, err, "GetContributorList must not error")
 		assert.Equal(t, slices.Concat(full, last), c, "GetContributorList should return every page's contributors in order")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, []string{"1", "2"}, pages, "GetContributorList should request each page once and stop after the short page")
 	})
 
 	t.Run("GitHub error", func(t *testing.T) {
 		t.Parallel()
+		var requests atomic.Int32
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			if requests.Add(1) > 1 {
+				http.Error(w, "more requests than the error", http.StatusTooManyRequests)
+				return
+			}
 			_, err := w.Write([]byte(`{"message":"API rate limit exceeded","status":"403"}`))
 			assert.NoError(t, err, "writing the error should not error")
 		}))
 		t.Cleanup(server.Close)
 		_, err := GetContributorList(t.Context(), server.URL, false)
 		assert.ErrorContains(t, err, "API rate limit exceeded", "GetContributorList should return GitHub's error message")
+		assert.Equal(t, int32(1), requests.Load(), "GetContributorList should stop at GitHub's error")
 	})
 
 	t.Run("live", func(t *testing.T) {

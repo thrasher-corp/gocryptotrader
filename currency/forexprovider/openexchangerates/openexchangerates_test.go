@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/internal/testing/standin"
 )
 
-// please set apikey for due diligence testing NOTE testing uses your allocated
+// please set apikey and build with the mock_test_off tag for due diligence testing NOTE testing uses your allocated
 // API request quota
 const (
 	apikey = ""
@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if livetest.Mock && apikey == "" {
+	if livetest.Mock {
 		currencies, err := os.ReadFile("testdata/currencies.json")
 		if err != nil {
 			log.Fatal(err)
