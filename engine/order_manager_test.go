@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -412,7 +413,7 @@ func TestStore_modifyOrder(t *testing.T) {
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestOrderManagerCancel(t *testing.T) {
 	m := OrdersSetup(t)
 
 	err := m.Cancel(t.Context(), nil)
@@ -448,6 +449,20 @@ func TestCancelOrder(t *testing.T) {
 		t.Error("Expected error due to bad asset type")
 	}
 
+	comms := &testCommsManager{}
+	m.orderStore.commsManager = comms
+	unknown := &order.Cancel{
+		OrderID:   "Unknown",
+		Exchange:  strings.ToLower(testExchange),
+		AssetType: asset.Spot,
+	}
+	wantEvents := []base.Event{{Type: orderEventType, Message: "Exchange " + testExchange + " order ID=Unknown cancelled."}}
+	// The cases share the order manager and run in order, as the second needs the order added after the first
+	t.Run("order on an exchange the order manager holds no orders for", func(t *testing.T) {
+		require.NoError(t, m.Cancel(t.Context(), unknown), "Cancel must not error once the exchange has cancelled the order")
+		assert.Equal(t, wantEvents, comms.events, "Cancel should report the cancel and no error")
+	})
+
 	o := &order.Detail{
 		Exchange: testExchange,
 		OrderID:  "1337",
@@ -458,14 +473,12 @@ func TestCancelOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = m.Cancel(t.Context(), &order.Cancel{
-		OrderID:   "Unknown",
-		Exchange:  testExchange,
-		AssetType: asset.Spot,
+	t.Run("order the order manager does not hold beside one it does", func(t *testing.T) {
+		comms.events = nil
+		require.NoError(t, m.Cancel(t.Context(), unknown), "Cancel must not error once the exchange has cancelled the order")
+		assert.Equal(t, order.New, o.Status, "Cancel should leave the orders the order manager holds as they were")
+		assert.Equal(t, wantEvents, comms.events, "Cancel should report the cancel and no error")
 	})
-	if err == nil {
-		t.Error("Expected error due to no order found")
-	}
 
 	cancel := &order.Cancel{
 		Exchange:  testExchange,
@@ -474,12 +487,14 @@ func TestCancelOrder(t *testing.T) {
 		AssetType: asset.Spot,
 		Pair:      btcusdPair,
 	}
+	comms.events = nil
 	err = m.Cancel(t.Context(), cancel)
 	assert.NoError(t, err)
 
 	if o.Status != order.Cancelled {
 		t.Error("Failed to cancel")
 	}
+	assert.Equal(t, []base.Event{{Type: orderEventType, Message: "Exchange " + testExchange + " order ID=1337 cancelled."}}, comms.events, "Cancel should report the held order's cancel")
 }
 
 func TestGetOrderInfo(t *testing.T) {

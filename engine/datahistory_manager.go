@@ -307,19 +307,22 @@ func (j *DataHistoryJob) markRangeIssuesFound(start, end time.Time) {
 	}
 }
 
-// setHasDataByCandleTime marks each interval that a candle with data starts. A conversion job saves only the candles
-// it can convert, so a series any job reads can have a gap before later saved candles, which kline's in-order
-// SetHasDataFromCandles rejects, failing the preparation of every job.
-func setHasDataByCandleTime(h *kline.IntervalRangeHolder, candles []kline.Candle) {
+// setHasDataByCandleTime sets HasData for each interval of the ranges given that a candle starts, from whether a candle
+// starting there has data, and leaves the intervals no candle starts as they were, as SetHasDataFromCandles, in kline,
+// leaves those after its last candle. That function matches candles in order from a holder's first interval, so it
+// rejects both a gap before later candles, which the candles a conversion job saves can have, and the candles fetched
+// for any range after a job's first.
+func setHasDataByCandleTime(ranges []kline.IntervalRange, candles []kline.Candle) {
 	starts := make(map[int64]bool, len(candles))
 	for i := range candles {
-		if candles[i].HasData() {
-			starts[candles[i].Time.UnixNano()] = true
-		}
+		start := candles[i].Time.UnixNano()
+		starts[start] = starts[start] || candles[i].HasData()
 	}
-	for x := range h.Ranges {
-		for y := range h.Ranges[x].Intervals {
-			h.Ranges[x].Intervals[y].HasData = starts[h.Ranges[x].Intervals[y].Start.Time.UnixNano()]
+	for x := range ranges {
+		for y := range ranges[x].Intervals {
+			if hasData, ok := starts[ranges[x].Intervals[y].Start.Time.UnixNano()]; ok {
+				ranges[x].Intervals[y].HasData = hasData
+			}
 		}
 	}
 }
@@ -348,7 +351,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
 			if candles != nil {
-				setHasDataByCandleTime(jobs[i].rangeHolder, candles.Candles)
+				setHasDataByCandleTime(jobs[i].rangeHolder.Ranges, candles.Candles)
 			}
 		case dataHistoryTradeDataType:
 			for x := range jobs[i].rangeHolder.Ranges {
@@ -366,7 +369,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
 			if candles != nil {
-				setHasDataByCandleTime(jobs[i].rangeHolder, candles.Candles)
+				setHasDataByCandleTime(jobs[i].rangeHolder.Ranges, candles.Candles)
 			}
 			jobs[i].dropStaleResults()
 		default:
@@ -849,16 +852,13 @@ func (m *DataHistoryManager) processCandleData(ctx context.Context, job *DataHis
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
-	err = job.rangeHolder.SetHasDataFromCandles(candles.Candles)
-	if err != nil {
-		return nil, err
-	}
+	setHasDataByCandleTime(job.rangeHolder.Ranges[intervalIndex:intervalIndex+1], candles.Candles)
 	for i := range job.rangeHolder.Ranges[intervalIndex].Intervals {
 		if !job.rangeHolder.Ranges[intervalIndex].Intervals[i].HasData {
 			r.Status = dataHistoryStatusFailed
 			r.Result += fmt.Sprintf("missing data from %v - %v. ",
-				startRange.Format(common.SimpleTimeFormatWithTimezone),
-				endRange.Format(common.SimpleTimeFormatWithTimezone))
+				job.rangeHolder.Ranges[intervalIndex].Intervals[i].Start.Time.Format(common.SimpleTimeFormatWithTimezone),
+				job.rangeHolder.Ranges[intervalIndex].Intervals[i].End.Time.Format(common.SimpleTimeFormatWithTimezone))
 		}
 	}
 	candles.SourceJobID = job.ID
@@ -901,16 +901,17 @@ func (m *DataHistoryManager) processTradeData(ctx context.Context, job *DataHist
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
+	// A wrapper can return trades outside the dates it is given, which belong to other ranges or to no range of the job
+	trades = slices.DeleteFunc(trades, func(t trade.Data) bool {
+		return t.Timestamp.Before(startRange) || !t.Timestamp.Before(endRange)
+	})
 	candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
 	if err != nil {
 		r.Result += "could not convert candles to trades: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
 		return r, nil //nolint:nilerr // error is returned in the job result
 	}
-	err = job.rangeHolder.SetHasDataFromCandles(candles.Candles)
-	if err != nil {
-		return nil, err
-	}
+	setHasDataByCandleTime(job.rangeHolder.Ranges[intervalIndex:intervalIndex+1], candles.Candles)
 	for i := range job.rangeHolder.Ranges[intervalIndex].Intervals {
 		if !job.rangeHolder.Ranges[intervalIndex].Intervals[i].HasData {
 			r.Status = dataHistoryStatusFailed
@@ -1044,7 +1045,7 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 		return nil, fmt.Errorf("%s could not load saved candles: %w", job.Nickname, err)
 	}
 	if saved != nil {
-		setHasDataByCandleTime(intervals, saved.Candles)
+		setHasDataByCandleTime(intervals.Ranges, saved.Candles)
 	}
 	if missing, total := intervalsWithoutData(intervals); missing > 0 {
 		r.Result = fmt.Sprintf("missing %d of %d converted candles from %v - %v. ", missing, total,

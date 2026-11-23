@@ -1042,6 +1042,7 @@ func TestSetHasDataByCandleTime(t *testing.T) {
 		{name: "gap before later batches", candles: []kline.Candle{withData(5 * time.Minute), withData(10 * time.Minute)}, want: []bool{false, true, true}},
 		{name: "candle away from an interval start", candles: []kline.Candle{withData(2 * time.Minute)}, want: []bool{false, false, false}},
 		{name: "candle a nanosecond after an interval start", candles: []kline.Candle{withData(time.Nanosecond)}, want: []bool{false, false, false}},
+		{name: "starts shared by candles with and without data", candles: []kline.Candle{{Time: start}, withData(0), withData(5 * time.Minute), {Time: start.Add(5 * time.Minute)}}, want: []bool{true, true, false}},
 		{name: "candle after the last interval", candles: []kline.Candle{withData(15 * time.Minute)}, want: []bool{false, false, false}},
 		{name: "candle without data", candles: []kline.Candle{{Time: start, Open: -1, High: -1, Low: -1, Close: -1}}, want: []bool{false, false, false}},
 		{name: "not a number", candles: []kline.Candle{{Time: start, Open: math.NaN(), High: -1, Low: -1, Close: -1}}, want: []bool{true, false, false}},
@@ -1055,7 +1056,7 @@ func TestSetHasDataByCandleTime(t *testing.T) {
 			t.Parallel()
 			h, err := kline.CalculateCandleDateRanges(start, start.Add(15*time.Minute), kline.FiveMin, 2)
 			require.NoError(t, err, "CalculateCandleDateRanges must not error")
-			setHasDataByCandleTime(h, tc.candles)
+			setHasDataByCandleTime(h.Ranges, tc.candles)
 			var got []bool
 			for _, r := range h.Ranges {
 				for _, interval := range r.Intervals {
@@ -1065,6 +1066,16 @@ func TestSetHasDataByCandleTime(t *testing.T) {
 			assert.Equal(t, tc.want, got, "each interval's HasData should match its saved candle")
 		})
 	}
+
+	t.Run("only the ranges given", func(t *testing.T) {
+		t.Parallel()
+		h, err := kline.CalculateCandleDateRanges(start, start.Add(20*time.Minute), kline.FiveMin, 1)
+		require.NoError(t, err, "CalculateCandleDateRanges must not error")
+		h.Ranges[1].Intervals[0].HasData = true
+		h.Ranges[2].Intervals[0].HasData = true
+		setHasDataByCandleTime(h.Ranges[1:], []kline.Candle{withData(0), {Time: start.Add(5 * time.Minute)}, withData(15 * time.Minute)})
+		assert.Equal(t, [][]bool{{false}, {false}, {true}, {true}}, rangesHasData(h), "setHasDataByCandleTime should set each interval of the ranges given that a candle starts and leave the rest as they were")
+	})
 }
 
 func TestCompareJobsToData(t *testing.T) {
@@ -1421,6 +1432,35 @@ func TestCompareJobsToData(t *testing.T) {
 		assert.Equal(t, []bool{true, true, true}, hasData, "each saved candle should be recognised")
 	})
 
+	for _, dataType := range []dataHistoryDataType{
+		dataHistoryCandleDataType, dataHistoryCandleValidationDataType, dataHistoryCandleValidationSecondarySourceType,
+		dataHistoryConvertTradesDataType, dataHistoryConvertCandlesDataType,
+	} {
+		t.Run("each job's own stored candles for "+dataType.String(), func(t *testing.T) {
+			t.Parallel()
+			mgr, _ := createDHM(t)
+			start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+			// BTC/USD has its second hour stored and BTC/USDT its first
+			mgr.candleLoader = func(_ string, pair currency.Pair, _ asset.Item, interval kline.Interval, from, until time.Time) (*kline.Item, error) {
+				hour := 1
+				if pair.Equal(currency.NewBTCUSDT()) {
+					hour = 0
+				}
+				return loadSavedCandles(generateCandles(1, start.Add(time.Duration(hour)*time.Hour), interval), interval, from, until)
+			}
+			newJob := func(pair currency.Pair) *DataHistoryJob {
+				return &DataHistoryJob{
+					Nickname: pair.String(), Exchange: testExchange, Asset: asset.Spot, Pair: pair, StartDate: start, EndDate: start.Add(2 * time.Hour),
+					Interval: kline.OneHour, ConversionInterval: kline.OneHour, DataType: dataType, RequestSizeLimit: 1,
+				}
+			}
+			btcusd, btcusdt := newJob(currency.NewBTCUSD()), newJob(currency.NewBTCUSDT())
+			require.NoError(t, mgr.compareJobsToData(btcusd, btcusdt), "compareJobsToData must not error")
+			assert.Equal(t, [][]bool{{false}, {true}}, rangesHasData(btcusd.rangeHolder), "compareJobsToData should mark the first job's own stored candles")
+			assert.Equal(t, [][]bool{{true}, {false}}, rangesHasData(btcusdt.rangeHolder), "compareJobsToData should mark the second job's own stored candles")
+		})
+	}
+
 	m.started.Store(false)
 	err = m.compareJobsToData(dhj)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
@@ -1428,6 +1468,17 @@ func TestCompareJobsToData(t *testing.T) {
 	m = nil
 	err = m.compareJobsToData(dhj)
 	assert.ErrorIs(t, err, ErrNilSubsystem)
+}
+
+// rangesHasData returns the HasData of each range's intervals
+func rangesHasData(h *kline.IntervalRangeHolder) [][]bool {
+	hasData := make([][]bool, len(h.Ranges))
+	for i := range h.Ranges {
+		for _, interval := range h.Ranges[i].Intervals {
+			hasData[i] = append(hasData[i], interval.HasData)
+		}
+	}
+	return hasData
 }
 
 // loadSavedCandles returns the candles between two times inclusively, as the candle repository's query does
@@ -1884,6 +1935,52 @@ func TestProcessCandleData(t *testing.T) {
 	if r.Status != dataHistoryStatusFailed {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
 	}
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	withData := func(hour int) kline.Candle {
+		return kline.Candle{Time: start.Add(time.Duration(hour) * time.Hour), Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}
+	}
+	for _, tc := range []struct {
+		name        string
+		stored      [][]bool
+		reply       []kline.Candle
+		wantStatus  dataHistoryStatus
+		wantResult  string
+		wantHasData [][]bool
+	}{
+		{name: "range after the job's first", stored: [][]bool{{false, false}, {false, false}, {false, false}}, reply: []kline.Candle{withData(2), withData(3)}, wantStatus: dataHistoryStatusComplete, wantHasData: [][]bool{{false, false}, {true, true}, {false, false}}},
+		{name: "reply with candles beyond the range", stored: [][]bool{{false, false}, {false, false}, {false, false}}, reply: []kline.Candle{withData(0), withData(2), withData(3), withData(4)}, wantStatus: dataHistoryStatusComplete, wantHasData: [][]bool{{false, false}, {true, true}, {false, false}}},
+		{name: "interval the reply leaves out", stored: [][]bool{{false, false}, {false, false}, {false, false}}, reply: []kline.Candle{withData(2)}, wantStatus: dataHistoryStatusFailed, wantResult: "missing data from 2025-01-01 03:00:00 UTC - 2025-01-01 04:00:00 UTC. ", wantHasData: [][]bool{{false, false}, {true, false}, {false, false}}},
+		{name: "first interval the reply leaves out", stored: [][]bool{{false, false}, {false, false}, {false, false}}, reply: []kline.Candle{withData(3)}, wantStatus: dataHistoryStatusFailed, wantResult: "missing data from 2025-01-01 02:00:00 UTC - 2025-01-01 03:00:00 UTC. ", wantHasData: [][]bool{{false, false}, {false, true}, {false, false}}},
+		{name: "stored interval the reply leaves out", stored: [][]bool{{false, false}, {false, true}, {false, false}}, reply: []kline.Candle{withData(2)}, wantStatus: dataHistoryStatusComplete, wantHasData: [][]bool{{false, false}, {true, true}, {false, false}}},
+		{name: "stored interval the reply has without data", stored: [][]bool{{false, false}, {false, true}, {false, false}}, reply: []kline.Candle{withData(2), {Time: start.Add(3 * time.Hour)}}, wantStatus: dataHistoryStatusFailed, wantResult: "missing data from 2025-01-01 03:00:00 UTC - 2025-01-01 04:00:00 UTC. ", wantHasData: [][]bool{{false, false}, {true, false}, {false, false}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m, _ := createDHM(t)
+			m.candleSaver = dataHistoryCandleSaver
+			job := &DataHistoryJob{Exchange: testExchange, Asset: asset.Spot, Pair: currency.NewBTCUSD(), StartDate: start, EndDate: start.Add(6 * time.Hour), Interval: kline.OneHour}
+			var err error
+			job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.Interval, 2)
+			require.NoError(t, err, "CalculateCandleDateRanges must not error")
+			for i, stored := range tc.stored {
+				for x := range stored {
+					job.rangeHolder.Ranges[i].Intervals[x].HasData = stored[x]
+				}
+			}
+			var requested []time.Time
+			exch := candleExchange{candles: func(requestStart time.Time) []kline.Candle {
+				requested = append(requested, requestStart)
+				return slices.Clone(tc.reply)
+			}}
+			r, err := m.processCandleData(t.Context(), job, exch, start.Add(2*time.Hour), start.Add(4*time.Hour), 1)
+			require.NoError(t, err, "processCandleData must not error for a range after the job's first")
+			assert.Equal(t, []time.Time{start.Add(2 * time.Hour)}, requested, "processCandleData should request the range given")
+			assert.Equal(t, tc.wantStatus, r.Status, "processCandleData should judge the range by its own intervals")
+			assert.Equal(t, tc.wantResult, r.Result, "processCandleData should name each of the range's intervals without data")
+			assert.Equal(t, tc.wantHasData, rangesHasData(job.rangeHolder), "processCandleData should set its own range's intervals from the candles starting them and leave the rest as they were")
+		})
+	}
 }
 
 func TestProcessTradeData(t *testing.T) {
@@ -1931,6 +2028,68 @@ func TestProcessTradeData(t *testing.T) {
 
 	if r.Status != dataHistoryStatusFailed {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
+	}
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	// inFirstHour answers a request with two trades in its first hour, as dhmExchange does
+	inFirstHour := func(requestStart, _ time.Time) []time.Time {
+		return []time.Time{requestStart.Add(time.Minute), requestStart.Add(2 * time.Minute)}
+	}
+	for _, tc := range []struct {
+		name         string
+		requestHours uint64
+		trades       func(requestStart, requestEnd time.Time) []time.Time
+		wantStatus   dataHistoryStatus
+		wantResult   string
+		wantHasData  [][]bool
+		wantSaved    []time.Time
+	}{
+		{name: "range after the job's first", requestHours: 1, trades: inFirstHour, wantStatus: dataHistoryStatusComplete, wantHasData: [][]bool{{false}, {true}, {false}, {false}}, wantSaved: []time.Time{start.Add(61 * time.Minute), start.Add(62 * time.Minute)}},
+		{name: "range after the job's first without trades in an interval", requestHours: 2, trades: inFirstHour, wantStatus: dataHistoryStatusFailed, wantResult: "missing data from 2025-01-01 03:00:00 UTC - 2025-01-01 04:00:00 UTC. ", wantHasData: [][]bool{{false, false}, {true, false}}, wantSaved: []time.Time{start.Add(121 * time.Minute), start.Add(122 * time.Minute)}},
+		{
+			// The range processed is the job's last, so its end is the job's end
+			name:         "trades outside the range",
+			requestHours: 2,
+			trades: func(requestStart, requestEnd time.Time) []time.Time {
+				return []time.Time{requestEnd.In(time.FixedZone("UTC+10", 10*60*60)), requestStart, requestStart.Add(-time.Nanosecond), requestEnd.Add(time.Minute), requestEnd.Add(-time.Nanosecond)}
+			},
+			wantStatus:  dataHistoryStatusComplete,
+			wantHasData: [][]bool{{false, false}, {true, true}},
+			wantSaved:   []time.Time{start.Add(2 * time.Hour), start.Add(4*time.Hour - time.Nanosecond)},
+		},
+		{
+			name:         "trades only outside the range",
+			requestHours: 1,
+			trades: func(requestStart, requestEnd time.Time) []time.Time {
+				return []time.Time{requestStart.Add(-time.Minute), requestEnd}
+			},
+			wantStatus:  dataHistoryStatusFailed,
+			wantResult:  "could not convert candles to trades: no trades supplied. ",
+			wantHasData: [][]bool{{false}, {false}, {false}, {false}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m, _ := createDHM(t)
+			var saved []time.Time
+			m.tradeSaver = func(trades ...trade.Data) error {
+				for i := range trades {
+					saved = append(saved, trades[i].Timestamp)
+				}
+				return nil
+			}
+			job := &DataHistoryJob{Exchange: testExchange, Asset: asset.Spot, Pair: currency.NewBTCUSD(), StartDate: start, EndDate: start.Add(4 * time.Hour), Interval: kline.OneHour}
+			var err error
+			job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.Interval, tc.requestHours)
+			require.NoError(t, err, "CalculateCandleDateRanges must not error")
+			second := job.rangeHolder.Ranges[1]
+			r, err := m.processTradeData(t.Context(), job, tradeExchange{trades: tc.trades}, second.Start.Time, second.End.Time, 1)
+			require.NoError(t, err, "processTradeData must not error for a range after the job's first")
+			assert.Equal(t, tc.wantStatus, r.Status, "processTradeData should judge the range by its own intervals")
+			assert.Equal(t, tc.wantResult, r.Result, "processTradeData should name each of the range's intervals without trades")
+			assert.Equal(t, tc.wantHasData, rangesHasData(job.rangeHolder), "processTradeData should set only its own range's intervals")
+			assert.Equal(t, tc.wantSaved, saved, "processTradeData should save only the trades within the range")
+		})
 	}
 }
 
@@ -2730,6 +2889,7 @@ func TestRunDataJob(t *testing.T) {
 		{name: "widened range failing beside a result for a shorter range", requestHours: 3, storedHours: []int{0, 2}, fetchErr: errExpectedTestError, results: []DataHistoryJobResult{hourComplete}, wantRequests: []string{"00:00-03:00"}, wantStatus: dataHistoryStatusActive},
 		{name: "widened range stored beside a result for a shorter range", requestHours: 3, storedHours: []int{0, 1, 2}, results: []DataHistoryJobResult{hourComplete}, wantStatus: dataHistoryStatusComplete},
 		{name: "narrowed range beside failures for a longer range", requestHours: 1, storedHours: []int{1, 2}, results: []DataHistoryJobResult{threeHourFailed, threeHourFailed, threeHourFailed}, wantRequests: []string{"00:00-01:00"}, wantStatus: dataHistoryStatusComplete},
+		{name: "range after the first fetched between stored ranges", requestHours: 1, storedHours: []int{0, 2}, results: []DataHistoryJobResult{hourComplete}, wantRequests: []string{"01:00-02:00"}, wantStatus: dataHistoryStatusComplete},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -3373,6 +3533,21 @@ type candleExchange struct {
 
 func (e candleExchange) GetHistoricCandlesExtended(_ context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
 	return &kline.Item{Exchange: testExchange, Pair: p, Asset: a, Interval: interval, Candles: e.candles(timeStart)}, nil
+}
+
+// tradeExchange answers each trade request with a trade at each of the times given for the request's dates
+type tradeExchange struct {
+	exchange.IBotExchange
+	trades func(requestStart, requestEnd time.Time) []time.Time
+}
+
+func (e tradeExchange) GetHistoricTrades(_ context.Context, p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error) {
+	times := e.trades(startTime, endTime)
+	trades := make([]trade.Data, len(times))
+	for i := range times {
+		trades[i] = trade.Data{Exchange: testExchange, CurrencyPair: p, AssetType: a, Side: order.Buy, Price: 1337, Amount: 1, Timestamp: times[i]}
+	}
+	return trades, nil
 }
 
 func (f dhmExchange) GetHistoricCandlesExtended(_ context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
