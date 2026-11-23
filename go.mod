@@ -15,7 +15,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.53
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.5.0
-	github.com/quagmt/udecimal v1.11.0
+	github.com/quagmt/udecimal v1.12.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.12.1
@@ -27,7 +27,7 @@ require (
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/yuin/goldmark v1.8.7
 	golang.org/x/crypto v0.59.0
-	golang.org/x/net v0.62.0
+	golang.org/x/net v0.63.0
 	golang.org/x/perf v0.0.0-20260709024250-82a0b07e230d
 	golang.org/x/term v0.48.0
 	golang.org/x/text v0.44.0
