@@ -1597,7 +1597,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 				AssetType: asset.Spot,
 				Balances: accounts.CurrencyBalances{
 					currency.XBT:  {Currency: currency.XBT, Total: 1.2435, Hold: 0.8423, Free: 0.4012, AvailableWithoutBorrow: 0.4012},
-					currency.USD:  {Currency: currency.USD, Total: 25435.21, Hold: 8249.76, Free: 20984.949999999997, AvailableWithoutBorrow: 17185.449999999997, Borrowed: 1200.5},
+					currency.USD:  {Currency: currency.USD, Total: 25435.21, Hold: 8249.76, Free: 20984.95, AvailableWithoutBorrow: 17185.45, Borrowed: 1200.5},
 					currency.USDT: {Currency: currency.USDT, Total: 1500, Hold: 250, Free: 1250, AvailableWithoutBorrow: 1250},
 				},
 			},
@@ -1610,6 +1610,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 		t.Parallel()
 		for _, tc := range []struct {
 			name, balance string
+			asset         string // Kraken's name for the balance's asset, or ZUSD when unset
 			exp           accounts.Balance
 		}{
 			{
@@ -1624,15 +1625,89 @@ func TestUpdateAccountBalances(t *testing.T) {
 				balance: `{"balance":"0.0000","credit":"1000.0000","credit_used":"1200.5000","hold_trade":"0.0000"}`,
 				exp:     accounts.Balance{Currency: currency.USD, Borrowed: 1200.5},
 			},
+			{
+				// What is used beyond the credit line comes out of the balance, leaving none of it available
+				name:    "credit line reduced below its use with a balance it takes in full",
+				balance: `{"balance":"100.0000","credit":"1000.0000","credit_used":"1200.0000","hold_trade":"0.0000"}`,
+				exp:     accounts.Balance{Currency: currency.USD, Total: 100, Borrowed: 1200},
+			},
+			{
+				name:    "credit line reduced below its use with a balance it takes in part",
+				balance: `{"balance":"300.0000","credit":"1000.0000","credit_used":"1200.0000","hold_trade":"50.0000"}`,
+				exp:     accounts.Balance{Currency: currency.USD, Total: 300, Hold: 50, Free: 50, AvailableWithoutBorrow: 50, Borrowed: 1200},
+			},
+			{
+				// The balance covers what is used beyond the credit line, which still comes out of it
+				name:    "credit line exceeded by less than the balance",
+				balance: `{"balance":"300.0000","credit":"100.0000","credit_used":"150.0000","hold_trade":"50.0000"}`,
+				exp:     accounts.Balance{Currency: currency.USD, Total: 300, Hold: 50, Free: 200, AvailableWithoutBorrow: 200, Borrowed: 150},
+			},
+			{
+				// The credit used beyond the line takes the balance in full
+				name:    "credit line reduced below its use by the balance exactly",
+				balance: `{"balance":"0.2000","credit":"0.1000","credit_used":"0.3000","hold_trade":"0.0000"}`,
+				exp:     accounts.Balance{Currency: currency.USD, Total: 0.2, Borrowed: 0.3},
+			},
+			{
+				// Kraken gives balances to as many as ten decimal places
+				name:    "amounts to ten decimal places",
+				balance: `{"balance":"0.3000000001","credit":"0.1000000005","credit_used":"0.1000000000","hold_trade":"0.2000000000"}`,
+				exp:     accounts.Balance{Currency: currency.USD, Total: 0.3000000001, Hold: 0.2, Free: 0.1000000006, AvailableWithoutBorrow: 0.1000000001, Borrowed: 0.1},
+			},
+			{
+				name:    "credit line exceeded, amounts to ten decimal places",
+				balance: `{"balance":"0.3000000051","credit":"0.1000000000","credit_used":"0.2000000000","hold_trade":"0.1000000000"}`,
+				exp:     accounts.Balance{Currency: currency.USD, Total: 0.3000000051, Hold: 0.1, Free: 0.1000000051, AvailableWithoutBorrow: 0.1000000051, Borrowed: 0.2},
+			},
+			{
+				name:    "no credit line",
+				balance: `{"balance":"0.3000000000","hold_trade":"0.1000000000"}`,
+				exp:     accounts.Balance{Currency: currency.USD, Total: 0.3, Hold: 0.1, Free: 0.2, AvailableWithoutBorrow: 0.2},
+			},
+			{
+				name:    "XBT without a credit line, to ten decimal places",
+				asset:   "XXBT",
+				balance: `{"balance":"0.3000000001","hold_trade":"0.1000000000"}`,
+				exp:     accounts.Balance{Currency: currency.XBT, Total: 0.3000000001, Hold: 0.1, Free: 0.2000000001, AvailableWithoutBorrow: 0.2000000001},
+			},
+			{
+				// The unused credit counts towards what is available for trading even when the balance is negative
+				name:    "negative balance with an unused credit line",
+				balance: `{"balance":"-1.0000","credit":"3.0000","credit_used":"0.0000","hold_trade":"0.0000"}`,
+				exp:     accounts.Balance{Currency: currency.USD, Total: -1, Free: 2},
+			},
+			{
+				// A line used in full leaves the balance as it is
+				name:    "credit line used in full",
+				balance: `{"balance":"0.3000","credit":"4.0000","credit_used":"4.0000","hold_trade":"0.0000"}`,
+				exp:     accounts.Balance{Currency: currency.USD, Total: 0.3, Free: 0.3, AvailableWithoutBorrow: 0.3, Borrowed: 4},
+			},
+			{
+				// Credit still used after its line is reduced to nothing comes out of the balance too
+				name:    "credit line reduced to nothing while used",
+				balance: `{"balance":"100.0000","credit":"0.0000","credit_used":"200.0000","hold_trade":"0.0000"}`,
+				exp:     accounts.Balance{Currency: currency.USD, Total: 100, Borrowed: 200},
+			},
+			{
+				name:    "credit line reduced to nothing while partly used",
+				balance: `{"balance":"100.0000","credit":"0.0000","credit_used":"40.0000","hold_trade":"10.0000"}`,
+				exp:     accounts.Balance{Currency: currency.USD, Total: 100, Hold: 10, Free: 50, AvailableWithoutBorrow: 50, Borrowed: 40},
+			},
+			{
+				// Unused credit adds to what is available for trading, but not to what is available without borrowing
+				name:    "credit line partly used",
+				balance: `{"balance":"300.0000","credit":"1000.0000","credit_used":"400.0000","hold_trade":"50.0000"}`,
+				exp:     accounts.Balance{Currency: currency.USD, Total: 300, Hold: 50, Free: 850, AvailableWithoutBorrow: 250, Borrowed: 400},
+			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
-				ex := newAccountTestExchange(t, "/0/private/BalanceEx", `{"error":[],"result":{"ZUSD":`+tc.balance+`}}`)
+				ex := newAccountTestExchange(t, "/0/private/BalanceEx", `{"error":[],"result":{"`+cmp.Or(tc.asset, "ZUSD")+`":`+tc.balance+`}}`)
 				started := time.Now()
 				result, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
 				require.NoError(t, err, "UpdateAccountBalances must not error")
-				exp := accounts.SubAccounts{{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.USD: tc.exp}}}
-				assert.Equal(t, exp, accountTestSubAccounts(t, result, started, time.Now()), "UpdateAccountBalances should never report a negative available balance")
+				exp := accounts.SubAccounts{{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{tc.exp.Currency: tc.exp}}}
+				assert.Equalf(t, exp, accountTestSubAccounts(t, result, started, time.Now()), "UpdateAccountBalances should report what is available, never negative, for %s", tc.name)
 			})
 		}
 	})
@@ -3693,6 +3768,78 @@ func TestSubmitOrder(t *testing.T) {
 		assert.Equal(t, exp, resp, "SubmitOrder should place a leveraged spot order over REST, which takes its leverage, while the private websocket is connected")
 	})
 
+	t.Run("spot order without a base amount", func(t *testing.T) {
+		t.Parallel()
+		type baseAmountCase struct {
+			name      string
+			submit    order.Submit
+			websocket bool
+		}
+		cases := []baseAmountCase{
+			{name: "leveraged limit buy", submit: order.Submit{Type: order.Limit, Side: order.Buy, Price: 25000, QuoteAmount: 100, Leverage: 2}},
+			{name: "leveraged limit sell", submit: order.Submit{Type: order.Limit, Side: order.Sell, Price: 125000, QuoteAmount: 100, Leverage: 2}},
+			{name: "leveraged stop limit sell", submit: order.Submit{Type: order.StopLimit, Side: order.Sell, Price: 24000, TriggerPrice: 24500, QuoteAmount: 100, Leverage: 3}},
+			{name: "leveraged take profit buy", submit: order.Submit{Type: order.TakeProfit, Side: order.Buy, TriggerPrice: 24500, QuoteAmount: 100, Leverage: 2}},
+			{name: "leveraged stop market sell", submit: order.Submit{Type: order.StopMarket, Side: order.Sell, TriggerPrice: 24500, QuoteAmount: 100, Leverage: 2}},
+			{name: "leveraged take profit market buy", submit: order.Submit{Type: order.TakeProfitMarket, Side: order.Buy, TriggerPrice: 24500, QuoteAmount: 100, Leverage: 2}},
+			{name: "leveraged reduce-only limit sell", submit: order.Submit{Type: order.Limit, Side: order.Sell, Price: 125000, QuoteAmount: 100, Leverage: 2, ReduceOnly: true}},
+			{name: "leveraged trailing stop sell", submit: order.Submit{Type: order.TrailingStop, Side: order.Sell, TrackingMode: order.Distance, TrackingValue: 500, QuoteAmount: 100, Leverage: 2}},
+			{name: "leveraged limit ask", submit: order.Submit{Type: order.Limit, Side: order.Ask, Price: 125000, QuoteAmount: 100, Leverage: 2}},
+			{name: "leveraged limit bid", submit: order.Submit{Type: order.Limit, Side: order.Bid, Price: 25000, QuoteAmount: 100, Leverage: 2}},
+			{name: "leveraged stop buy", submit: order.Submit{Type: order.Stop, Side: order.Buy, TriggerPrice: 25500, QuoteAmount: 100, Leverage: 2}},
+			{name: "limit buy at 1:1 leverage", submit: order.Submit{Type: order.Limit, Side: order.Buy, Price: 25000, QuoteAmount: 100, Leverage: 1}},
+			{name: "leveraged take profit limit sell", submit: order.Submit{Type: order.TakeProfit | order.Limit, Side: order.Sell, Price: 125500, TriggerPrice: 125000, QuoteAmount: 100, Leverage: 2}},
+			{name: "limit buy without leverage", submit: order.Submit{Type: order.Limit, Side: order.Buy, Price: 25000, QuoteAmount: 100}},
+			{name: "limit buy over the private websocket", submit: order.Submit{Type: order.Limit, Side: order.Buy, Price: 25000, QuoteAmount: 100}, websocket: true},
+			{name: "leveraged limit buy while the private websocket is connected", submit: order.Submit{Type: order.Limit, Side: order.Buy, Price: 25000, QuoteAmount: 100, Leverage: 2}, websocket: true},
+		}
+		// Every leverage Kraken lists for XBT/USD
+		for leverage := 2; leverage <= 10; leverage++ {
+			cases = append(cases, baseAmountCase{
+				name:   "limit buy at " + strconv.Itoa(leverage) + ":1 leverage",
+				submit: order.Submit{Type: order.Limit, Side: order.Buy, Price: 25000, QuoteAmount: 100, Leverage: float64(leverage)},
+			})
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					assert.Failf(t, "no spot order should be placed", "%s", r.URL.Path)
+					_, _ = w.Write([]byte(`{"error":["EGeneral:Invalid arguments"]}`))
+				})
+				if tc.websocket {
+					// Without round trips the mock fails the test on any websocket request
+					useOrdersTestWebsocket(t, ex)
+				}
+				s := tc.submit
+				s.Exchange, s.Pair, s.AssetType = ex.Name, spotTestPair, asset.Spot
+				resp, err := ex.SubmitOrder(t.Context(), &s)
+				assert.ErrorIsf(t, err, order.ErrAmountIsInvalid, "SubmitOrder should refuse a %s without a base amount", tc.name)
+				assert.Nilf(t, resp, "SubmitOrder should return no response for a %s without a base amount", tc.name)
+			})
+		}
+	})
+
+	t.Run("spot limit order with a base amount and a quote amount", func(t *testing.T) {
+		t.Parallel()
+		ex := newOrdersRequestCheckExchange(t, "/0/private/AddOrder",
+			`{"leverage":"2","ordertype":"limit","pair":"XBTUSD","price":"25000","type":"buy","volume":"0.5"}`,
+			`{"error":[],"result":{"descr":{"order":"buy 0.50000000 XBTUSD @ limit 25000.0 with 2:1 leverage"},"txid":["OLV3TB-ZQ9KD-4XWBRM"]}}`)
+		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 25000, Amount: 0.5, QuoteAmount: 100, Leverage: 2})
+		require.NoError(t, err, "SubmitOrder must place a limit order given a base amount beside a quote amount")
+		assert.Equal(t, "OLV3TB-ZQ9KD-4XWBRM", resp.OrderID, "SubmitOrder should place a limit order sized by its base amount")
+	})
+
+	t.Run("spot market bid sized in the quote currency", func(t *testing.T) {
+		t.Parallel()
+		ex := newOrdersRequestCheckExchange(t, "/0/private/AddOrder",
+			`{"oflags":"viqc","ordertype":"market","pair":"XBTUSD","type":"buy","volume":"100"}`,
+			`{"error":[],"result":{"descr":{"order":"buy 100.00000000 XBTUSD @ market"},"txid":["ODV663-X7J9B-IUFH4O"]}}`)
+		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Market, Side: order.Bid, QuoteAmount: 100})
+		require.NoError(t, err, "SubmitOrder must place a market bid sized in the quote currency")
+		assert.Equal(t, "ODV663-X7J9B-IUFH4O", resp.OrderID, "SubmitOrder should place a market bid sized in the quote currency as a market buy")
+	})
+
 	t.Run("spot leverage Kraken does not take", func(t *testing.T) {
 		t.Parallel()
 		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
@@ -5338,6 +5485,28 @@ func TestFuturesCancelStatusError(t *testing.T) {
 	assert.ErrorContains(t, err, "filled", "the error should carry Kraken's status")
 }
 
+// cancelBatchOrdersWithin returns what CancelBatchOrders returns, failing the test should it not return within
+// testWaitTimeout, so a cancellation loop that never ends fails rather than hangs the test
+func cancelBatchOrdersWithin(ctx context.Context, t *testing.T, ex *Exchange, cancels []order.Cancel) (*order.CancelBatchResponse, error) {
+	t.Helper()
+	type outcome struct {
+		resp *order.CancelBatchResponse
+		err  error
+	}
+	returned := make(chan outcome, 1)
+	go func() {
+		resp, err := ex.CancelBatchOrders(ctx, cancels)
+		returned <- outcome{resp, err}
+	}()
+	select {
+	case o := <-returned:
+		return o.resp, o.err
+	case <-time.After(testWaitTimeout):
+		require.FailNowf(t, "CancelBatchOrders must return", "it did not return within %s", testWaitTimeout)
+		return nil, nil
+	}
+}
+
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -5455,7 +5624,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		assert.Equal(t, exp, resp, "CancelBatchOrders should report each order's outcome, and an order Kraken reports nothing for as not cancelled")
 	})
 
-	t.Run("futures orders in batches of 500", func(t *testing.T) {
+	t.Run("futures orders in one batch of up to 500", func(t *testing.T) {
 		t.Parallel()
 		const a, b, unknown = "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b", "9ac37735-a838-4323-9dd2-5c672bd97b54", "d31f46d3-c3c1-4411-ab5d-a6b1e81ea6c9"
 		orders := make([]string, 1001)
@@ -5482,7 +5651,6 @@ func TestCancelBatchOrders(t *testing.T) {
 			name    string
 			cancels []order.Cancel
 			refused int // the request Kraken refuses, counting from 1, or 0 for none
-			ended   int // the request after which the caller's context ends, or 0
 			sent    [][]string
 			status  map[string]string
 			unknown bool // whether the status of the order Kraken doesn't know follows the reply
@@ -5490,11 +5658,21 @@ func TestCancelBatchOrders(t *testing.T) {
 		}{
 			{name: "an order named twice, the second time with another pair and client order ID", cancels: renamed, sent: [][]string{{a}}, status: cancelled(a)},
 			{name: "repeats that are not adjacent", cancels: cancel(a, b, a, b, a), sent: [][]string{{a, b}}, status: cancelled(a, b)},
-			{name: "1001 orders", cancels: cancel(orders...), sent: [][]string{orders[:500], orders[500:1000], orders[1000:]}, status: cancelled(orders...)},
-			{name: "a repeat past a batch of 500", cancels: cancel(append(slices.Clone(orders[:500]), orders[0])...), sent: [][]string{orders[:500]}, status: cancelled(orders[:500]...)},
+			{name: "a repeat between orders", cancels: cancel(a, b, a, orders[0], orders[1]), sent: [][]string{{a, b, orders[0], orders[1]}}, status: cancelled(a, b, orders[0], orders[1])},
+			{name: "500 orders", cancels: cancel(orders[:500]...), sent: [][]string{orders[:500]}, status: cancelled(orders[:500]...)},
+			{name: "501 orders", cancels: cancel(orders[:501]...), err: errTooManyIDs},
+			{name: "1001 orders", cancels: cancel(orders...), err: errTooManyIDs},
+			{name: "500 orders and a repeat of the first", cancels: cancel(append(slices.Clone(orders[:500]), orders[0])...), err: errTooManyIDs},
+			{name: "500 orders and a repeat of the last", cancels: cancel(append(slices.Clone(orders[:500]), orders[499])...), err: errTooManyIDs},
+			{name: "1001 orders and an unsupported asset", cancels: append(cancel(orders...), order.Cancel{AssetType: asset.Margin, Pair: spotTestPair, OrderID: "OP5V2Y-7YKVL-ET3V3B"}), err: asset.ErrNotSupported},
+			{
+				name:    "501 orders on two contracts",
+				cancels: append(cancel(orders[:500]...), order.Cancel{AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("PF", "ETHUSD", currency.UnderscoreDelimiter), OrderID: orders[500]}),
+				err:     errTooManyIDs,
+			},
+			{name: "501 orders, the last without an ID", cancels: append(cancel(orders[:500]...), order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, ClientOrderID: "gct-without-id"}), err: order.ErrOrderIDNotSet},
 			{name: "an order Kraken does not know, named twice, between two it does", cancels: cancel(a, unknown, unknown, b), sent: [][]string{{a, unknown, b}}, status: cancelled(a, b), unknown: true},
-			{name: "1001 orders, Kraken refusing the second batch", cancels: cancel(orders...), refused: 2, sent: [][]string{orders[:500], orders[500:1000]}, err: errAPIResponse},
-			{name: "1001 orders, the context ending after the first batch", cancels: cancel(orders...), ended: 1, sent: [][]string{orders[:500]}, err: context.Canceled},
+			{name: "500 orders, Kraken refusing them", cancels: cancel(orders[:500]...), refused: 1, sent: [][]string{orders[:500]}, err: errAPIResponse},
 		} {
 			// Kraken's recorded not found cancellation names no order, while the batch fixture above names it
 			for _, reply := range []struct {
@@ -5510,8 +5688,6 @@ func TestCancelBatchOrders(t *testing.T) {
 					var mu sync.Mutex
 					var sent [][]string
 					done := make(map[string]bool)
-					ctx, end := context.WithCancel(t.Context())
-					defer end()
 					// The fake cancels an order it knows once, and answers a later cancellation of it not found. It
 					// refuses any request past those expected, so a batching loop that never ends fails rather than hangs
 					ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
@@ -5528,10 +5704,6 @@ func TestCancelBatchOrders(t *testing.T) {
 							ids[i] = instruction.OrderID
 						}
 						sent = append(sent, ids)
-						if len(sent) == tc.ended {
-							// The caller's context ends once this reply is written, so no later batch should reach the fake
-							defer end()
-						}
 						if len(sent) == tc.refused || len(sent) > len(tc.sent) {
 							_, err := w.Write([]byte(`{"result":"error","error":"apiLimitExceeded","serverTime":"2026-10-09T08:42:00.001Z"}`))
 							assert.NoError(t, err, "Write should not error")
@@ -5557,16 +5729,17 @@ func TestCancelBatchOrders(t *testing.T) {
 						cancels[i].Exchange = ex.Name
 					}
 					given := slices.Clone(cancels)
-					resp, err := ex.CancelBatchOrders(ctx, cancels)
+					resp, err := cancelBatchOrdersWithin(t.Context(), t, ex, cancels)
 					assert.Equalf(t, given, cancels, "CancelBatchOrders should leave the cancellations it was given unchanged for %s", tc.name)
 					mu.Lock()
 					defer mu.Unlock()
-					assert.Equalf(t, tc.sent, sent, "CancelBatchOrders should send each order once, in batches of 500, for %s", tc.name)
+					assert.Equalf(t, tc.sent, sent, "CancelBatchOrders should send each order once, in one batch, for %s", tc.name)
 					if tc.err != nil {
-						assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should return the error that stopped it for %s", tc.name)
+						assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should refuse %s", tc.name)
 						if tc.refused != 0 {
 							assert.ErrorContainsf(t, err, "apiLimitExceeded", "CancelBatchOrders should return Kraken's error for %s", tc.name)
 						}
+						assert.Nilf(t, resp, "CancelBatchOrders should return no response for %s", tc.name)
 						return
 					}
 					require.NoErrorf(t, err, "CancelBatchOrders must not error for %s", tc.name)
@@ -5581,6 +5754,357 @@ func TestCancelBatchOrders(t *testing.T) {
 		}
 	})
 
+	t.Run("spot orders in one batch of up to 50", func(t *testing.T) {
+		t.Parallel()
+		spotIDs := make([]string, 100)
+		for i := range spotIDs {
+			spotIDs[i] = "OC" + string(rune('A'+i/26)) + string(rune('A'+i%26)) + "XY-PZQ2L-VF3GJA"
+		}
+		futuresIDs := make([]string, 501)
+		for i := range futuresIDs {
+			futuresIDs[i] = "d31f46d3-c3c1-4411-ab5d-" + strconv.FormatInt(100000000000+int64(i), 10)
+		}
+		cancel := func(a asset.Item, ids ...string) []order.Cancel {
+			cancels := make([]order.Cancel, len(ids))
+			for i, id := range ids {
+				cancels[i] = order.Cancel{AssetType: a, Pair: spotTestPair, OrderID: id}
+				if a == asset.Futures {
+					cancels[i].Pair = futuresTestPair
+				}
+			}
+			return cancels
+		}
+		otherPair := func(cancels []order.Cancel) []order.Cancel {
+			for i := range cancels {
+				cancels[i].Pair = ordersETHUSDPair
+			}
+			return cancels
+		}
+		type sentRequest struct {
+			path string
+			ids  []string
+		}
+		for _, tc := range []struct {
+			name          string
+			cancels       []order.Cancel
+			websocket     bool                // whether the private websocket is connected
+			trips         []ordersWsRoundTrip // the private websocket's round trips; any other request fails the test
+			pendingSpot   bool                // whether Kraken leaves a spot order cancelled on its own pending cancellation
+			unknownSpot   bool                // whether Kraken does not know a spot order cancelled on its own
+			partialSpot   bool                // whether Cancel Order Batch cancels only the first spot order
+			refuseFutures string              // the error Kraken refuses the futures request with, if any
+			nullFutures   bool                // whether Kraken answers the futures request with null
+			failFutures   bool                // whether the futures request fails with 502 Bad Gateway
+			endFutures    bool                // whether the caller's context ends during the futures request
+			expireFutures bool                // whether the caller's deadline passes during the futures request
+			sent          []sentRequest
+			err           error
+			kept          map[string]string // the outcomes returned with the error, if any
+		}{
+			{name: "no orders"},
+			{name: "an order", cancels: cancel(asset.Spot, spotIDs[0]), sent: []sentRequest{{"/0/private/CancelOrder", spotIDs[:1]}}},
+			{name: "50 orders", cancels: cancel(asset.Spot, spotIDs[:50]...), sent: []sentRequest{{"/0/private/CancelOrderBatch", spotIDs[:50]}}},
+			{name: "50 orders on two pairs", cancels: slices.Concat(cancel(asset.Spot, spotIDs[:25]...), otherPair(cancel(asset.Spot, spotIDs[25:50]...))), sent: []sentRequest{{"/0/private/CancelOrderBatch", spotIDs[:50]}}},
+			{name: "orders named more than once", cancels: cancel(asset.Spot, spotIDs[0], spotIDs[1], spotIDs[0]), sent: []sentRequest{{"/0/private/CancelOrderBatch", spotIDs[:2]}}},
+			{name: "51 orders", cancels: cancel(asset.Spot, spotIDs[:51]...), err: errTooManyIDs},
+			{name: "100 orders", cancels: cancel(asset.Spot, spotIDs...), err: errTooManyIDs},
+			{name: "51 orders on two pairs", cancels: slices.Concat(cancel(asset.Spot, spotIDs[:26]...), otherPair(cancel(asset.Spot, spotIDs[26:51]...))), err: errTooManyIDs},
+			{name: "50 orders and a repeat of the first", cancels: cancel(asset.Spot, append(slices.Clone(spotIDs[:50]), spotIDs[0])...), err: errTooManyIDs},
+			{name: "50 orders and a repeat of the last", cancels: cancel(asset.Spot, append(slices.Clone(spotIDs[:50]), spotIDs[49])...), err: errTooManyIDs},
+			{name: "51 orders and an unsupported asset", cancels: append(cancel(asset.Spot, spotIDs[:51]...), order.Cancel{AssetType: asset.Margin, Pair: spotTestPair, OrderID: "OP5V2Y-7YKVL-ET3V3B"}), err: asset.ErrNotSupported},
+			{name: "51 orders, the last without an ID", cancels: append(cancel(asset.Spot, spotIDs[:50]...), order.Cancel{AssetType: asset.Spot, Pair: spotTestPair}), err: order.ErrOrderIDNotSet},
+			{
+				name:    "a spot order and a futures order without an ID",
+				cancels: append(cancel(asset.Spot, spotIDs[0]), order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, ClientOrderID: "gct-without-id"}),
+				err:     order.ErrOrderIDNotSet,
+			},
+			{
+				name:    "51 spot orders around a futures order",
+				cancels: slices.Concat(cancel(asset.Spot, spotIDs[:26]...), cancel(asset.Futures, futuresIDs[0]), cancel(asset.Spot, spotIDs[26:51]...)),
+				err:     errTooManyIDs,
+			},
+			{
+				name:    "50 spot and 500 futures orders",
+				cancels: slices.Concat(cancel(asset.Spot, spotIDs[:50]...), cancel(asset.Futures, futuresIDs[:500]...)),
+				sent:    []sentRequest{{"/0/private/CancelOrderBatch", spotIDs[:50]}, {"/derivatives/api/v3/batchorder", futuresIDs[:500]}},
+			},
+			{
+				name:    "500 futures and 50 spot orders",
+				cancels: slices.Concat(cancel(asset.Futures, futuresIDs[:500]...), cancel(asset.Spot, spotIDs[:50]...)),
+				sent:    []sentRequest{{"/0/private/CancelOrderBatch", spotIDs[:50]}, {"/derivatives/api/v3/batchorder", futuresIDs[:500]}},
+			},
+			{
+				name:          "spot orders and futures orders Kraken refuses",
+				cancels:       slices.Concat(cancel(asset.Spot, spotIDs[:2]...), cancel(asset.Futures, futuresIDs[:2]...)),
+				refuseFutures: "apiLimitExceeded",
+				sent:          []sentRequest{{"/0/private/CancelOrderBatch", spotIDs[:2]}, {"/derivatives/api/v3/batchorder", futuresIDs[:2]}},
+				err:           errAPIResponse,
+				kept:          map[string]string{spotIDs[0]: order.Cancelled.String(), spotIDs[1]: order.Cancelled.String()},
+			},
+			{
+				name:          "a spot order pending cancellation and a futures order Kraken refuses",
+				cancels:       slices.Concat(cancel(asset.Spot, spotIDs[0]), cancel(asset.Futures, futuresIDs[0])),
+				pendingSpot:   true,
+				refuseFutures: "apiLimitExceeded",
+				sent:          []sentRequest{{"/0/private/CancelOrder", spotIDs[:1]}, {"/derivatives/api/v3/batchorder", futuresIDs[:1]}},
+				err:           errAPIResponse,
+				kept:          map[string]string{spotIDs[0]: order.PendingCancel.String()},
+			},
+			{
+				name:          "a spot order Kraken does not know and a futures order Kraken refuses",
+				cancels:       slices.Concat(cancel(asset.Spot, spotIDs[0]), cancel(asset.Futures, futuresIDs[0])),
+				unknownSpot:   true,
+				refuseFutures: "apiLimitExceeded",
+				sent:          []sentRequest{{"/0/private/CancelOrder", spotIDs[:1]}, {"/derivatives/api/v3/batchorder", futuresIDs[:1]}},
+				err:           errAPIResponse,
+				kept:          map[string]string{spotIDs[0]: errAPIResponse.Error() + ": EOrder:Unknown order"},
+			},
+			{
+				name:          "futures orders Kraken refuses listed before spot orders, one named twice",
+				cancels:       slices.Concat(cancel(asset.Futures, futuresIDs[:2]...), cancel(asset.Spot, spotIDs[0], spotIDs[1], spotIDs[0])),
+				refuseFutures: "apiLimitExceeded",
+				sent:          []sentRequest{{"/0/private/CancelOrderBatch", spotIDs[:2]}, {"/derivatives/api/v3/batchorder", futuresIDs[:2]}},
+				err:           errAPIResponse,
+				kept:          map[string]string{spotIDs[0]: order.Cancelled.String(), spotIDs[1]: order.Cancelled.String()},
+			},
+			{
+				name:       "spot orders and a futures request the caller's context ends during",
+				cancels:    slices.Concat(cancel(asset.Spot, spotIDs[:2]...), cancel(asset.Futures, futuresIDs[:2]...)),
+				endFutures: true,
+				sent:       []sentRequest{{"/0/private/CancelOrderBatch", spotIDs[:2]}, {"/derivatives/api/v3/batchorder", futuresIDs[:2]}},
+				err:        context.Canceled,
+				kept:       map[string]string{spotIDs[0]: order.Cancelled.String(), spotIDs[1]: order.Cancelled.String()},
+			},
+			{
+				name:          "spot orders and a futures request the caller's deadline passes during",
+				cancels:       slices.Concat(cancel(asset.Spot, spotIDs[:2]...), cancel(asset.Futures, futuresIDs[:2]...)),
+				expireFutures: true,
+				sent:          []sentRequest{{"/0/private/CancelOrderBatch", spotIDs[:2]}, {"/derivatives/api/v3/batchorder", futuresIDs[:2]}},
+				err:           context.DeadlineExceeded,
+				kept:          map[string]string{spotIDs[0]: order.Cancelled.String(), spotIDs[1]: order.Cancelled.String()},
+			},
+			{
+				name:        "spot orders and a futures request failing with Bad Gateway",
+				cancels:     slices.Concat(cancel(asset.Spot, spotIDs[:2]...), cancel(asset.Futures, futuresIDs[:2]...)),
+				failFutures: true,
+				sent:        []sentRequest{{"/0/private/CancelOrderBatch", spotIDs[:2]}, {"/derivatives/api/v3/batchorder", futuresIDs[:2]}},
+				err:         request.ErrBadStatus,
+				kept:        map[string]string{spotIDs[0]: order.Cancelled.String(), spotIDs[1]: order.Cancelled.String()},
+			},
+			{
+				name:        "spot orders and a futures request Kraken answers with null",
+				cancels:     slices.Concat(cancel(asset.Spot, spotIDs[:2]...), cancel(asset.Futures, futuresIDs[:2]...)),
+				nullFutures: true,
+				sent:        []sentRequest{{"/0/private/CancelOrderBatch", spotIDs[:2]}, {"/derivatives/api/v3/batchorder", futuresIDs[:2]}},
+				err:         common.ErrNoResponse,
+				kept:        map[string]string{spotIDs[0]: order.Cancelled.String(), spotIDs[1]: order.Cancelled.String()},
+			},
+			{
+				name:          "spot orders Kraken cancels one of, not knowing the other, and futures orders Kraken refuses",
+				cancels:       slices.Concat(cancel(asset.Spot, spotIDs[:2]...), cancel(asset.Futures, futuresIDs[:2]...)),
+				partialSpot:   true,
+				unknownSpot:   true,
+				refuseFutures: "apiLimitExceeded",
+				sent: []sentRequest{
+					{"/0/private/CancelOrderBatch", spotIDs[:2]},
+					{"/0/private/QueryOrders", spotIDs[:1]},
+					{"/0/private/QueryOrders", spotIDs[1:2]},
+					{"/0/private/CancelOrder", spotIDs[1:2]},
+					{"/derivatives/api/v3/batchorder", futuresIDs[:2]},
+				},
+				err:  errAPIResponse,
+				kept: map[string]string{spotIDs[0]: order.Cancelled.String(), spotIDs[1]: errAPIResponse.Error() + ": EOrder:Unknown order"},
+			},
+			{
+				name:          "spot orders Kraken cancels one of, leaving the other pending cancellation, and futures orders Kraken refuses",
+				cancels:       slices.Concat(cancel(asset.Spot, spotIDs[:2]...), cancel(asset.Futures, futuresIDs[:2]...)),
+				partialSpot:   true,
+				pendingSpot:   true,
+				refuseFutures: "apiLimitExceeded",
+				sent: []sentRequest{
+					{"/0/private/CancelOrderBatch", spotIDs[:2]},
+					{"/0/private/QueryOrders", spotIDs[:1]},
+					{"/0/private/QueryOrders", spotIDs[1:2]},
+					{"/0/private/CancelOrder", spotIDs[1:2]},
+					{"/derivatives/api/v3/batchorder", futuresIDs[:2]},
+				},
+				err:  errAPIResponse,
+				kept: map[string]string{spotIDs[0]: order.Cancelled.String(), spotIDs[1]: order.PendingCancel.String()},
+			},
+			{
+				name:          "spot orders and futures orders Kraken refuses for the key's authentication",
+				cancels:       slices.Concat(cancel(asset.Spot, spotIDs[:2]...), cancel(asset.Futures, futuresIDs[:2]...)),
+				refuseFutures: "authenticationError",
+				sent:          []sentRequest{{"/0/private/CancelOrderBatch", spotIDs[:2]}, {"/derivatives/api/v3/batchorder", futuresIDs[:2]}},
+				err:           request.ErrAuthRequestFailed,
+				kept:          map[string]string{spotIDs[0]: order.Cancelled.String(), spotIDs[1]: order.Cancelled.String()},
+			},
+			{name: "a spot order and 501 futures orders", cancels: slices.Concat(cancel(asset.Spot, spotIDs[0]), cancel(asset.Futures, futuresIDs...)), err: errTooManyIDs},
+			{name: "51 spot orders and a futures order", cancels: slices.Concat(cancel(asset.Spot, spotIDs[:51]...), cancel(asset.Futures, futuresIDs[0])), err: errTooManyIDs},
+			{name: "51 spot orders while the private websocket is connected", cancels: cancel(asset.Spot, spotIDs[:51]...), websocket: true, err: errTooManyIDs},
+			{
+				name:      "spot orders the private websocket fails to cancel, and futures orders Kraken refuses",
+				cancels:   slices.Concat(cancel(asset.Spot, spotIDs[:2]...), cancel(asset.Futures, futuresIDs[:2]...)),
+				websocket: true,
+				trips: []ordersWsRoundTrip{{
+					request: ordersWsRequest("cancel_order", `"order_id":["`+spotIDs[0]+`","`+spotIDs[1]+`"]`),
+					replies: []string{ordersWsRejection("cancel_order", "EOrder:Unknown order"), ordersWsRejection("cancel_order", "EGeneral:Internal error")},
+				}},
+				refuseFutures: "apiLimitExceeded",
+				sent:          []sentRequest{{"/derivatives/api/v3/batchorder", futuresIDs[:2]}},
+				err:           errAPIResponse,
+				kept: map[string]string{
+					spotIDs[0]: errAPIResponse.Error() + ": EOrder:Unknown order; " + errAPIResponse.Error() + ": EGeneral:Internal error",
+					spotIDs[1]: errAPIResponse.Error() + ": EOrder:Unknown order; " + errAPIResponse.Error() + ": EGeneral:Internal error",
+				},
+			},
+			{name: "501 futures orders while the private websocket is connected", cancels: cancel(asset.Futures, futuresIDs...), websocket: true, err: errTooManyIDs},
+			{
+				name:      "500 futures orders while the private websocket is connected",
+				cancels:   cancel(asset.Futures, futuresIDs[:500]...),
+				websocket: true,
+				sent:      []sentRequest{{"/derivatives/api/v3/batchorder", futuresIDs[:500]}},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var sent []sentRequest
+				ctx, cancelRequest := context.WithTimeout(t.Context(), 5*time.Second)
+				defer cancelRequest()
+				ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					mu.Lock()
+					defer mu.Unlock()
+					// Any request past those expected is refused, so a batching loop that never ends fails rather than hangs
+					refused := len(sent) >= len(tc.sent)
+					switch r.URL.Path {
+					case "/0/private/CancelOrder":
+						var req struct {
+							TransactionID string `json:"txid"`
+						}
+						assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+						sent = append(sent, sentRequest{r.URL.Path, []string{req.TransactionID}})
+						if refused {
+							_, _ = w.Write([]byte(`{"error":["EGeneral:Invalid arguments"]}`))
+							return
+						}
+						if tc.unknownSpot {
+							_, _ = w.Write([]byte(`{"error":["EOrder:Unknown order"]}`))
+							return
+						}
+						_, _ = w.Write([]byte(`{"error":[],"result":{"count":1,"pending":` + strconv.FormatBool(tc.pendingSpot) + `}}`))
+					case "/0/private/CancelOrderBatch":
+						var req struct {
+							Orders []string `json:"orders"`
+						}
+						assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+						sent = append(sent, sentRequest{r.URL.Path, req.Orders})
+						if refused {
+							_, _ = w.Write([]byte(`{"error":["EGeneral:Invalid arguments"]}`))
+							return
+						}
+						count := len(req.Orders)
+						if tc.partialSpot {
+							count = 1
+						}
+						_, _ = w.Write([]byte(`{"error":[],"result":{"count":` + strconv.Itoa(count) + `}}`))
+					case "/0/private/QueryOrders":
+						var req struct {
+							TransactionIDs string `json:"txid"`
+						}
+						assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+						ids := strings.Split(req.TransactionIDs, ",")
+						sent = append(sent, sentRequest{r.URL.Path, ids})
+						if refused {
+							_, _ = w.Write([]byte(`{"error":["EGeneral:Invalid arguments"]}`))
+							return
+						}
+						statuses := make([]string, len(ids))
+						for i, id := range ids {
+							status := "open"
+							if id == spotIDs[0] {
+								status = "canceled"
+							}
+							statuses[i] = `"` + id + `":{"status":"` + status + `"}`
+						}
+						_, _ = w.Write([]byte(`{"error":[],"result":{` + strings.Join(statuses, ",") + `}}`))
+					case "/derivatives/api/v3/batchorder":
+						var req struct {
+							BatchOrder []struct {
+								OrderID string `json:"order_id"`
+							} `json:"batchOrder"`
+						}
+						assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &req), "Unmarshal should not error")
+						ids := make([]string, len(req.BatchOrder))
+						statuses := make([]string, len(req.BatchOrder))
+						for i := range req.BatchOrder {
+							ids[i] = req.BatchOrder[i].OrderID
+							statuses[i] = `{"order_id":"` + ids[i] + `","orderEvents":[],"status":"cancelled"}`
+						}
+						sent = append(sent, sentRequest{r.URL.Path, ids})
+						if tc.failFutures && !refused {
+							http.Error(w, "Bad Gateway", http.StatusBadGateway)
+							return
+						}
+						if tc.nullFutures && !refused {
+							_, _ = w.Write([]byte(`null`))
+							return
+						}
+						if (tc.endFutures || tc.expireFutures) && !refused {
+							// The reply is held until the client gives up on it, and for no longer than a call may take
+							if tc.endFutures {
+								cancelRequest()
+							}
+							select {
+							case <-r.Context().Done():
+							case <-time.After(testWaitTimeout):
+							}
+							return
+						}
+						if refused || tc.refuseFutures != "" {
+							_, _ = w.Write([]byte(`{"result":"error","error":"` + cmp.Or(tc.refuseFutures, "apiLimitExceeded") + `","serverTime":"2026-10-09T08:42:00.001Z"}`))
+							return
+						}
+						_, _ = w.Write([]byte(`{"batchStatus":[` + strings.Join(statuses, ",") + `],"result":"success","serverTime":"2026-10-09T08:42:00.003Z"}`))
+					default:
+						sent = append(sent, sentRequest{path: r.URL.Path})
+						assert.Failf(t, "only Cancel Order, Cancel Order Batch and Batch order management should be called", "%s", r.URL.Path)
+					}
+				})
+				if tc.websocket {
+					// A request beyond the round trips fails the test and is answered by none, so the context's deadline
+					// ends the wait it starts
+					useOrdersTestWebsocket(t, ex, tc.trips...)
+				}
+				given := slices.Clone(tc.cancels)
+				resp, err := cancelBatchOrdersWithin(ctx, t, ex, tc.cancels)
+				assert.Equalf(t, given, tc.cancels, "CancelBatchOrders should leave the cancellations it was given unchanged for %s", tc.name)
+				mu.Lock()
+				defer mu.Unlock()
+				assert.Equalf(t, tc.sent, sent, "CancelBatchOrders should send each asset's orders in one request, in the order given, for %s", tc.name)
+				if tc.err != nil {
+					assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should refuse %s", tc.name)
+					if tc.refuseFutures != "" {
+						assert.ErrorContainsf(t, err, tc.refuseFutures, "CancelBatchOrders should return Kraken's error for %s", tc.name)
+					}
+					if tc.kept == nil {
+						assert.Nilf(t, resp, "CancelBatchOrders should return no response for %s", tc.name)
+						return
+					}
+					require.NotNilf(t, resp, "CancelBatchOrders must return the outcomes it has for %s", tc.name)
+					assert.Equalf(t, tc.kept, resp.Status, "CancelBatchOrders should report each spot outcome recorded before the futures request failed for %s", tc.name)
+					return
+				}
+				require.NoErrorf(t, err, "CancelBatchOrders must not error for %s", tc.name)
+				exp := make(map[string]string, len(tc.cancels))
+				for i := range tc.cancels {
+					exp[tc.cancels[i].OrderID] = order.Cancelled.String()
+				}
+				assert.Equalf(t, exp, resp.Status, "CancelBatchOrders should report each order cancelled for %s", tc.name)
+			})
+		}
+	})
+
 	for _, tc := range []struct {
 		name    string
 		cancels []order.Cancel
@@ -5591,8 +6115,9 @@ func TestCancelBatchOrders(t *testing.T) {
 		t.Run(tc.name+" batch failing", func(t *testing.T) {
 			t.Parallel()
 			ex := newOrdersFailingExchange(t)
-			_, err := ex.CancelBatchOrders(t.Context(), tc.cancels)
+			resp, err := cancelBatchOrdersWithin(t.Context(), t, ex, tc.cancels)
 			assert.ErrorIs(t, err, errAPIResponse, "CancelBatchOrders should return the batch request's error")
+			assert.Nil(t, resp, "CancelBatchOrders should return no response when the batch request fails before any outcome is recorded")
 		})
 	}
 
@@ -6634,6 +7159,42 @@ func TestCancelAllOrderType(t *testing.T) {
 	}
 }
 
+func TestListedOrderType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		orderType, exp order.Type
+	}{
+		{order.StopMarket, order.Stop},
+		{order.TakeProfitMarket, order.TakeProfit},
+		{order.Stop, order.Stop},
+		{order.TakeProfit, order.TakeProfit},
+		{order.StopLimit, order.StopLimit},
+		{order.Limit, order.Limit},
+		{order.AnyType, order.AnyType},
+		{order.UnknownType, order.UnknownType},
+		{order.Market, order.Market},
+		{order.TrailingStop, order.TrailingStop},
+		{order.TrailingStopLimit, order.TrailingStopLimit},
+		{order.TakeProfit | order.Limit, order.TakeProfit | order.Limit},
+		{order.LimitMaker, order.LimitMaker},
+		{order.IOS, order.IOS},
+		{order.Liquidation, order.Liquidation},
+		{order.Trigger, order.Trigger},
+		{order.OCO, order.OCO},
+		{order.ConditionalStop, order.ConditionalStop},
+		{order.TWAP, order.TWAP},
+		{order.Chase, order.Chase},
+		{order.OptimalLimit, order.OptimalLimit},
+		{order.MarketMakerProtection, order.MarketMakerProtection},
+		{order.Bracket, order.Bracket},
+	} {
+		t.Run(tc.orderType.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, listedOrderType(tc.orderType), "listedOrderType should return the type to filter Kraken's listings by for %s orders", tc.orderType)
+		})
+	}
+}
+
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOrderInfo(t.Context(), "", spotTestPair, asset.Spot)
@@ -7531,11 +8092,70 @@ func TestFuturesOpenOrderDetail(t *testing.T) { //nolint:tparallel // the cases 
 				LastUpdated:     updated,
 			},
 		},
+		{
+			name: "limit order with 0.1 filled and 0.2 unfilled",
+			order: &FuturesOpenOrder{
+				OrderID:        "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b",
+				Symbol:         "PF_XBTUSD",
+				Side:           "buy",
+				OrderType:      "lmt",
+				Status:         "partiallyFilled",
+				LimitPrice:     81450,
+				FilledSize:     0.1,
+				UnfilledSize:   0.2,
+				ReceivedTime:   received,
+				LastUpdateTime: updated,
+			},
+			exp: &order.Detail{
+				Exchange:        e.Name,
+				AssetType:       asset.Futures,
+				OrderID:         "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b",
+				Pair:            futuresTestPair,
+				Side:            order.Buy,
+				Type:            order.Limit,
+				Status:          order.PartiallyFilled,
+				Price:           81450,
+				Amount:          0.3,
+				ExecutedAmount:  0.1,
+				RemainingAmount: 0.2,
+				Date:            received,
+				LastUpdated:     updated,
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := e.futuresOpenOrderDetail(tc.order)
 			require.NoErrorf(t, err, "futuresOpenOrderDetail must not error for a %s", tc.name)
 			assert.Equalf(t, tc.exp, got, "futuresOpenOrderDetail should convert a %s", tc.name)
+		})
+	}
+	// The cases share e's pair matcher in order
+	for _, tc := range []struct {
+		name, orderType string
+		limit, stop     float64
+	}{
+		{name: "limit", orderType: "lmt", limit: 81450},
+		{name: "post-only limit", orderType: "post", limit: 81450},
+		{name: "stop", orderType: "stp", stop: 79100},
+		{name: "stop limit", orderType: "stp", limit: 79000, stop: 79100},
+		{name: "take profit", orderType: "take_profit", stop: 86000},
+		{name: "take profit limit", orderType: "take_profit", limit: 85900, stop: 86000},
+		{name: "trailing stop", orderType: "trailing_stop", stop: 79100},
+	} {
+		t.Run(tc.name+" order with 0.1 filled and 0.2 unfilled", func(t *testing.T) {
+			o := FuturesOpenOrder{
+				OrderID:      "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b",
+				Symbol:       "PF_XBTUSD",
+				Side:         "sell",
+				OrderType:    tc.orderType,
+				LimitPrice:   tc.limit,
+				StopPrice:    tc.stop,
+				FilledSize:   0.1,
+				UnfilledSize: 0.2,
+			}
+			got, err := e.futuresOpenOrderDetail(&o)
+			require.NoErrorf(t, err, "futuresOpenOrderDetail must not error for the %s order", tc.name)
+			assert.Equalf(t, 0.3, got.Amount, "futuresOpenOrderDetail should sum the %s order's filled and unfilled sizes exactly", tc.name)
 		})
 	}
 	valid := FuturesOpenOrder{OrderID: "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b", Symbol: "PF_XBTUSD", Side: "buy", OrderType: "lmt", LimitPrice: 81450, UnfilledSize: 0.0004}
@@ -7795,6 +8415,111 @@ func TestFuturesOpenOrderType(t *testing.T) {
 	assert.ErrorIs(t, err, errUnknownOrderType, "futuresOpenOrderType should return the error of an order type it cannot read")
 }
 
+// ordersFuturesStopAndTakeProfitListing is a futures open order listing holding a stop order and a take profit order
+// without limit prices, which Kraken places for stop and take profit market orders too
+const ordersFuturesStopAndTakeProfitListing = `{"openOrders":[` +
+	`{"cliOrdId":"gct-stop-3","filledSize":0,"lastUpdateTime":"2026-10-09T08:26:15.004Z","orderType":"stp","order_id":"f8a9b0c1-d2e3-4f4a-9b5c-6d7e8f9a0b1c",` +
+	`"receivedTime":"2026-10-09T08:24:59.122Z","reduceOnly":false,"side":"sell","status":"untouched","stopPrice":79100,"symbol":"PF_XBTUSD","triggerSignal":"mark","unfilledSize":0.0005},` +
+	`{"cliOrdId":"gct-take-profit-1","filledSize":0,"lastUpdateTime":"2026-10-09T08:26:15.004Z","orderType":"take_profit","order_id":"9ac37735-a838-4323-9dd2-5c672bd97b54",` +
+	`"receivedTime":"2026-10-09T08:24:59.122Z","reduceOnly":false,"side":"buy","status":"untouched","stopPrice":78000,"symbol":"PF_XBTUSD","triggerSignal":"mark","unfilledSize":0.0005}` +
+	`],"result":"success","serverTime":"2026-10-09T08:27:00.512Z"}`
+
+// ordersStopAndTakeProfitListing returns a spot order listing under listing, such as open or closed, holding a stop
+// loss order and a take profit order, which Kraken places for stop and take profit market orders too
+func ordersStopAndTakeProfitListing(listing, status string) string {
+	info := func(orderType, side string) string {
+		return `{"cl_ord_id":null,"cost":"0.00000","descr":{"aclass":"forex","close":"","leverage":"none","order":"` + side + ` 1.25000000 XBTUSD @ ` + orderType + ` 30010.0",` +
+			`"ordertype":"` + orderType + `","pair":"XBTUSD","price":"30010.0","price2":"0","type":"` + side + `"},"expiretm":0,"fee":"0.00000","limitprice":"0.00000",` +
+			`"misc":"","oflags":"fciq","opentm":1780582233.729133,"price":"0.00000","refid":null,"starttm":0,"status":"` + status + `",` +
+			`"stopprice":"30010.0","time_in_force":"gtc","userref":null,"vol":"1.25000000","vol_exec":"0.00000000"}`
+	}
+	return `{"error":[],"result":{"` + listing + `":{"OSTOPL-BW3P3-BUCMWZ":` + info("stop-loss", "sell") + `,"OTAKEP-BW3P3-BUCMWZ":` + info("take-profit", "buy") + `}}}`
+}
+
+// listedOrderTypeCase is a listing case for orders of a type Kraken places under another
+type listedOrderTypeCase struct {
+	name      string
+	asset     asset.Item
+	orderType order.Type
+	pairs     currency.Pairs
+	side      order.Side // the side the request asks for, or any side when unset
+	fail      bool       // whether Kraken refuses the listing
+	window    bool       // whether the request asks for orders placed a day after those listed
+	around    bool       // whether the request asks for orders placed within a minute of those listed
+	exp       []string   // each order listed, by ID and type
+}
+
+// spotListedOrderTypeCases are the spot listing cases for orders of a type Kraken places under another, which the open
+// and closed order listings share
+var spotListedOrderTypeCases = []listedOrderTypeCase{
+	{name: "spot stop market", asset: asset.Spot, orderType: order.StopMarket, exp: []string{"OSTOPL-BW3P3-BUCMWZ STOP"}},
+	{name: "spot stop", asset: asset.Spot, orderType: order.Stop, exp: []string{"OSTOPL-BW3P3-BUCMWZ STOP"}},
+	{name: "spot take profit market", asset: asset.Spot, orderType: order.TakeProfitMarket, exp: []string{"OTAKEP-BW3P3-BUCMWZ TAKE PROFIT"}},
+	{name: "spot take profit", asset: asset.Spot, orderType: order.TakeProfit, exp: []string{"OTAKEP-BW3P3-BUCMWZ TAKE PROFIT"}},
+	{name: "spot limit", asset: asset.Spot, orderType: order.Limit},
+	{name: "spot stop market on another pair", asset: asset.Spot, orderType: order.StopMarket, pairs: currency.Pairs{ordersETHUSDPair}},
+	{name: "spot stop market with the listing refused", asset: asset.Spot, orderType: order.StopMarket, fail: true},
+	{name: "spot stop market outside the window", asset: asset.Spot, orderType: order.StopMarket, window: true},
+	{name: "spot stop market buys", asset: asset.Spot, orderType: order.StopMarket, side: order.Buy},
+	{name: "spot stop market sells", asset: asset.Spot, orderType: order.StopMarket, side: order.Sell, exp: []string{"OSTOPL-BW3P3-BUCMWZ STOP"}},
+	{name: "spot take profit market buys", asset: asset.Spot, orderType: order.TakeProfitMarket, side: order.Buy, exp: []string{"OTAKEP-BW3P3-BUCMWZ TAKE PROFIT"}},
+	{name: "spot take profit market sells", asset: asset.Spot, orderType: order.TakeProfitMarket, side: order.Sell},
+	{name: "spot stop market on two pairs", asset: asset.Spot, orderType: order.StopMarket, pairs: currency.Pairs{ordersETHUSDPair, spotTestPair}, exp: []string{"OSTOPL-BW3P3-BUCMWZ STOP"}},
+	{name: "spot stop market on its pair", asset: asset.Spot, orderType: order.StopMarket, pairs: currency.Pairs{spotTestPair}, exp: []string{"OSTOPL-BW3P3-BUCMWZ STOP"}},
+	{name: "spot stop market inside the window", asset: asset.Spot, orderType: order.StopMarket, around: true, exp: []string{"OSTOPL-BW3P3-BUCMWZ STOP"}},
+	{name: "spot one-cancels-the-other", asset: asset.Spot, orderType: order.OCO},
+}
+
+// testListedOrderTypes runs listing cases through list, the method named, against a fake Kraken that answers a first
+// request to a path in listings with its listing
+func testListedOrderTypes(t *testing.T, method string, list func(*Exchange, context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error), listings map[string]string, cases []listedOrderTypeCase) {
+	t.Helper()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var requests atomic.Int32
+			req := &order.MultiOrderRequest{AssetType: tc.asset, Pairs: tc.pairs, Side: order.AnySide, Type: tc.orderType}
+			ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equalf(t, tc.orderType, req.Type, "%s should leave the request's order type as it was while listing for %s", method, tc.name)
+				// A request past the first is refused, so a listing that never stops paging fails rather than hangs
+				if tc.fail || requests.Add(1) > 1 {
+					_, _ = w.Write([]byte(`{"error":["EGeneral:Invalid arguments"]}`))
+					return
+				}
+				listing, ok := listings[r.URL.Path]
+				if !ok {
+					assert.Failf(t, "only the listings expected should be requested", "%s requested %s", method, r.URL.Path)
+					return
+				}
+				_, _ = w.Write([]byte(listing))
+			})
+			if tc.side != order.UnknownSide {
+				req.Side = tc.side
+			}
+			placed := time.UnixMicro(1780582233729133)
+			if tc.window {
+				req.StartTime = placed.Add(24 * time.Hour)
+				req.EndTime = req.StartTime.Add(time.Hour)
+			}
+			if tc.around {
+				req.StartTime, req.EndTime = placed.Add(-time.Minute), placed.Add(time.Minute)
+			}
+			got, err := list(ex, t.Context(), req)
+			assert.Equalf(t, tc.orderType, req.Type, "%s should leave the request's order type as it was for %s", method, tc.name)
+			if tc.fail {
+				assert.ErrorIsf(t, err, errAPIResponse, "%s should return the listing's error for %s", method, tc.name)
+				return
+			}
+			require.NoErrorf(t, err, "%s must not error for %s", method, tc.name)
+			var listed []string
+			for i := range got {
+				listed = append(listed, got[i].OrderID+" "+got[i].Type.String())
+			}
+			assert.Equalf(t, tc.exp, listed, "%s should list the orders matching %s", method, tc.name)
+		})
+	}
+}
+
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetActiveOrders(t.Context(), nil)
@@ -7830,6 +8555,18 @@ func TestGetActiveOrders(t *testing.T) {
 		got, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType})
 		require.NoError(t, err, "GetActiveOrders must not error for futures")
 		assert.Equal(t, order.FilteredOrders{ordersFuturesLimitDetail(ex.Name)}, got, "GetActiveOrders should return the futures orders on contracts it can name")
+	})
+
+	t.Run("orders of a type Kraken places under another", func(t *testing.T) {
+		t.Parallel()
+		listings := map[string]string{
+			"/0/private/OpenOrders":          ordersStopAndTakeProfitListing("open", "open"),
+			"/derivatives/api/v3/openorders": ordersFuturesStopAndTakeProfitListing,
+		}
+		testListedOrderTypes(t, "GetActiveOrders", (*Exchange).GetActiveOrders, listings, append(slices.Clone(spotListedOrderTypeCases),
+			listedOrderTypeCase{name: "futures stop market", asset: asset.Futures, orderType: order.StopMarket, exp: []string{"f8a9b0c1-d2e3-4f4a-9b5c-6d7e8f9a0b1c STOP"}},
+			listedOrderTypeCase{name: "futures take profit market", asset: asset.Futures, orderType: order.TakeProfitMarket, exp: []string{"9ac37735-a838-4323-9dd2-5c672bd97b54 TAKE PROFIT"}},
+		))
 	})
 
 	if !mockTests {
@@ -7916,6 +8653,26 @@ func TestGetOrderHistory(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrGetOrdersRequestIsNil, "GetOrderHistory must reject a nil request")
 	_, err = e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Margin, Side: order.AnySide, Type: order.AnyType})
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetOrderHistory must reject an unsupported asset")
+	t.Run("orders of a type Kraken places under another", func(t *testing.T) {
+		t.Parallel()
+		testListedOrderTypes(t, "GetOrderHistory", (*Exchange).GetOrderHistory, map[string]string{"/0/private/ClosedOrders": ordersStopAndTakeProfitListing("closed", "canceled")}, spotListedOrderTypeCases)
+		t.Run("futures stop market", func(t *testing.T) {
+			t.Parallel()
+			at := time.UnixMilli(1791518460000)
+			placed := futuresHistoryOrderJSON("f8a9b0c1-d2e3-4f4a-9b5c-6d7e8f9a0b1c", "gct-stop-3", "Sell", "Stop", "0.25", "0", at, at)
+			event := futuresHistoryElement("5d0c6b2e-8f1a-4c3d-9e7b-2a4f6c8d0e1b", at, "OrderPlaced", `{"order":`+placed+`,"reason":"new_user_order","reducedQuantity":""}`)
+			ex := newFuturesHistoryExchange(t, newHistoryListing([]string{event}), newHistoryListing([]string{}))
+			req := &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.StopMarket, StartTime: at.Add(-time.Minute), EndTime: at.Add(time.Minute)}
+			got, err := ex.GetOrderHistory(t.Context(), req)
+			assert.Equal(t, order.StopMarket, req.Type, "GetOrderHistory should leave the request's order type as it was")
+			require.NoError(t, err, "GetOrderHistory must not error")
+			listed := make([]string, 0, len(got))
+			for i := range got {
+				listed = append(listed, got[i].OrderID+" "+got[i].Type.String())
+			}
+			assert.Equal(t, []string{"f8a9b0c1-d2e3-4f4a-9b5c-6d7e8f9a0b1c STOP"}, listed, "GetOrderHistory should return the futures stop order for a stop market filter")
+		})
+	})
 	// The cases share e and err in order, so each also checks that a call keeps nothing from the last
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
 		t.Run(a.String()+" window ending before it starts", func(t *testing.T) {

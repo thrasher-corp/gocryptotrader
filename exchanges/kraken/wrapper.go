@@ -581,14 +581,20 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		}
 		subAcct := accounts.NewSubAccount(a, "")
 		for name, b := range balances {
-			total, hold, creditUsed := b.Balance.Float64(), b.HoldTrade.Float64(), b.CreditUsed.Float64()
+			// Kraken's balance available for trading includes the unused part of a credit line and takes what is used
+			// beyond it from the balance, so no more of the balance than that is available without borrowing. Decimal
+			// sums keep float residues out of both
+			free := b.Balance.Decimal().Add(b.Credit.Decimal()).Sub(b.CreditUsed.Decimal()).Sub(b.HoldTrade.Decimal())
+			withoutBorrowing := b.Balance.Decimal().Sub(b.HoldTrade.Decimal())
+			if free.LessThan(withoutBorrowing) {
+				withoutBorrowing = free
+			}
 			subAcct.Balances.Set(e.assetCode(name), accounts.Balance{
-				Total: total,
-				Hold:  hold,
-				// Kraken's balance available for trading includes the unused part of a credit line
-				Free:                   max(total+b.Credit.Float64()-creditUsed-hold, 0),
-				AvailableWithoutBorrow: max(total-hold, 0),
-				Borrowed:               creditUsed,
+				Total:                  b.Balance.Float64(),
+				Hold:                   b.HoldTrade.Float64(),
+				Free:                   max(free.InexactFloat64(), 0),
+				AvailableWithoutBorrow: max(withoutBorrowing.InexactFloat64(), 0),
+				Borrowed:               b.CreditUsed.Float64(),
 			})
 		}
 		subAccts = accounts.SubAccounts{subAcct}
@@ -1129,6 +1135,11 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit) (*order
 	if quoteSized && s.Leverage != 0 {
 		return nil, fmt.Errorf("%w: a market buy sized in the quote currency", order.ErrSubmitLeverageNotSupported)
 	}
+	// Add Order reads a margin order's volume of 0 as closing its position in full, so every order but a market buy
+	// sized in the quote currency needs a base amount
+	if !quoteSized && s.Amount == 0 {
+		return nil, fmt.Errorf("%w: a base amount is required, as Kraken takes a quote amount on a market buy alone", order.ErrAmountIsInvalid)
+	}
 	// Websocket v2 places a margin order at the pair's maximum leverage alone, so a leveraged order goes over REST too
 	if !quoteSized && s.Leverage == 0 && e.privateWebsocketAvailable() {
 		o := WebsocketOrder{
@@ -1629,7 +1640,8 @@ func futuresCancelStatusError(status string) error {
 	}
 }
 
-// CancelBatchOrders cancels orders by their IDs, or client order IDs when they have no ID
+// CancelBatchOrders cancels orders by their IDs, sending each asset's orders in one batch: up to 50 spot orders, the
+// most Cancel Order Batch takes, and up to 500 futures orders, the most Batch order management takes
 func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(o))}
 	var spotIDs, futuresIDs []string
@@ -1653,10 +1665,19 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, o[i].AssetType)
 		}
 	}
+	if len(spotIDs) > 50 {
+		return nil, fmt.Errorf("%w: %d spot orders, Cancel Order Batch takes up to 50", errTooManyIDs, len(spotIDs))
+	}
+	if len(futuresIDs) > 500 {
+		return nil, fmt.Errorf("%w: %d futures orders, Batch order management takes up to 500", errTooManyIDs, len(futuresIDs))
+	}
 	if len(spotIDs) != 0 {
 		if err := e.cancelSpotOrders(ctx, spotIDs, resp.Status); err != nil {
 			return nil, err
 		}
+	}
+	if len(futuresIDs) == 0 {
+		return resp, nil
 	}
 	// A futures order named more than once is cancelled once, as a repeat can record its failure over the cancellation
 	seen := make(map[string]bool, len(futuresIDs))
@@ -1665,26 +1686,30 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		seen[id] = true
 		return repeated
 	})
-	for chunk := range slices.Chunk(futuresIDs, 500) {
-		instructions := make([]FuturesBatchInstruction, len(chunk))
-		for i := range chunk {
-			instructions[i] = FuturesBatchInstruction{Cancel: &FuturesBatchCancelInstruction{OrderID: chunk[i]}}
-			// An order Kraken reports no outcome for is not known to be cancelled
-			resp.Status[chunk[i]] = fmt.Errorf("%w: no status returned", order.ErrCancelFailed).Error()
+	instructions := make([]FuturesBatchInstruction, len(futuresIDs))
+	for i, id := range futuresIDs {
+		instructions[i] = FuturesBatchInstruction{Cancel: &FuturesBatchCancelInstruction{OrderID: id}}
+	}
+	batch, err := e.FuturesBatchOrder(ctx, &FuturesBatchOrderRequest{Instructions: instructions})
+	if err != nil {
+		// The spot cancellations were sent before the futures request failed, so their outcomes are kept
+		if len(spotIDs) != 0 {
+			return resp, err
 		}
-		batch, err := e.FuturesBatchOrder(ctx, &FuturesBatchOrderRequest{Instructions: instructions})
-		if err != nil {
-			return nil, err
+		return nil, err
+	}
+	for _, id := range futuresIDs {
+		// An order Kraken reports no outcome for is not known to be cancelled
+		resp.Status[id] = fmt.Errorf("%w: no status returned", order.ErrCancelFailed).Error()
+	}
+	for i := range batch.BatchStatus {
+		s := &batch.BatchStatus[i]
+		if s.OrderID == "" {
+			continue
 		}
-		for i := range batch.BatchStatus {
-			s := &batch.BatchStatus[i]
-			if s.OrderID == "" {
-				continue
-			}
-			resp.Status[s.OrderID] = order.Cancelled.String()
-			if err := futuresCancelStatusError(s.Status); err != nil {
-				resp.Status[s.OrderID] = err.Error()
-			}
+		resp.Status[s.OrderID] = order.Cancelled.String()
+		if err := futuresCancelStatusError(s.Status); err != nil {
+			resp.Status[s.OrderID] = err.Error()
 		}
 	}
 	return resp, nil
@@ -1956,13 +1981,19 @@ func cancelAllOrderType(a asset.Item, t order.Type) (order.Type, error) {
 	if err != nil {
 		return order.UnknownType, err
 	}
+	return listedOrderType(t), nil
+}
+
+// listedOrderType returns the order type to filter Kraken's listings by for orders of type t, as Kraken places stop and
+// take profit market orders as stop and take profit orders
+func listedOrderType(t order.Type) order.Type {
 	switch t {
 	case order.StopMarket:
-		return order.Stop, nil
+		return order.Stop
 	case order.TakeProfitMarket:
-		return order.TakeProfit, nil
+		return order.TakeProfit
 	default:
-		return t, nil
+		return t
 	}
 }
 
@@ -2266,7 +2297,7 @@ func (e *Exchange) futuresOpenOrderDetail(o *FuturesOpenOrder) (*order.Detail, e
 		ReduceOnly:      o.ReduceOnly,
 		Price:           o.LimitPrice,
 		TriggerPrice:    o.StopPrice,
-		Amount:          o.FilledSize + o.UnfilledSize,
+		Amount:          decimal.MustFromFloat(o.FilledSize).Add(decimal.MustFromFloat(o.UnfilledSize)).InexactFloat64(),
 		ExecutedAmount:  o.FilledSize,
 		RemainingAmount: o.UnfilledSize,
 		Date:            o.ReceivedTime,
@@ -2541,7 +2572,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	default:
 		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, req.AssetType)
 	}
-	return req.Filter(e.Name, orders), nil
+	filter := *req
+	filter.Type = listedOrderType(req.Type)
+	return filter.Filter(e.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
@@ -2584,7 +2617,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	default:
 		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, req.AssetType)
 	}
-	return req.Filter(e.Name, orders), nil
+	filter := *req
+	filter.Type = listedOrderType(req.Type)
+	return filter.Filter(e.Name, orders), nil
 }
 
 // futuresHistoryEntry is an order as its latest event within a window left it, with that event's time

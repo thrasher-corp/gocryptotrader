@@ -1331,7 +1331,8 @@ func (e *Exchange) executionOrderDetail(x *WebsocketExecution) (*order.Detail, e
 	if x.PostOnly {
 		d.TimeInForce |= order.PostOnly
 	}
-	if x.LimitPrice != 0 {
+	// A relative limit price is an offset rather than the price the order holds
+	if x.LimitPrice != 0 && x.LimitPriceType != "pct" && x.LimitPriceType != "quote" {
 		d.Price = x.LimitPrice
 	}
 	if x.ExecutionType == "pending_new" {

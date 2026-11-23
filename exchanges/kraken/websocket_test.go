@@ -617,7 +617,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 func TestDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	// Config version 19 migrates the previous default subscriptions to the defaults the config fixture holds
+	// Config version 20 migrates the previous default subscriptions to the defaults the config fixture holds
 	testsubs.EqualLists(t, defaultSubscriptions.Clone(), ex.Config.Features.Subscriptions.Clone())
 	// EqualLists leaves out whether a subscription is enabled or authenticated, which the migration matches saved
 	// defaults on
@@ -3535,6 +3535,47 @@ func TestExecutionOrderDetail(t *testing.T) {
 			d, err = ex.executionOrderDetail(&WebsocketExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "status", Triggers: WebsocketExecutionTriggers{Reference: "last", Price: 5, PriceType: priceType, ActualPrice: 95000}})
 			require.NoErrorf(t, err, "executionOrderDetail must not error for a %s trigger", priceType)
 			assert.Equalf(t, 95000.0, d.TriggerPrice, "executionOrderDetail should report the trigger price a %s trigger works out to", priceType)
+		})
+	}
+
+	// The cases share ex and reuse d and err in order
+	for _, tc := range []struct {
+		name, priceType string
+		limit, exp      float64
+	}{
+		{name: "limit price without a type", limit: 80150, exp: 80150},
+		{name: "static limit price", priceType: "static", limit: 80150, exp: 80150},
+		{name: "quote limit price above the trigger price", priceType: "quote", limit: 150},
+		{name: "quote limit price below the trigger price", priceType: "quote", limit: -150},
+		{name: "pct limit price", priceType: "pct", limit: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d, err = ex.executionOrderDetail(&WebsocketExecution{
+				OrderID:        "OAIYAU-LGI3M-PFM5VW",
+				ExecutionType:  "status",
+				OrderType:      "trailing-stop-limit",
+				LimitPrice:     tc.limit,
+				LimitPriceType: tc.priceType,
+				Triggers:       WebsocketExecutionTriggers{Reference: "last", Price: 500, PriceType: "quote", ActualPrice: 80000},
+			})
+			require.NoErrorf(t, err, "executionOrderDetail must not error for a %s", tc.name)
+			assert.Equalf(t, tc.exp, d.Price, "executionOrderDetail should report an absolute limit price alone as the order's price for a %s", tc.name)
+		})
+	}
+	// The cases share ex and reuse d and err in order
+	for _, executionType := range []string{"pending_new", "new", "trade", "filled", "iceberg_refill", "canceled", "expired", "amended", "restated", "status"} {
+		t.Run(executionType+" report with a static limit price", func(t *testing.T) {
+			d, err = ex.executionOrderDetail(&WebsocketExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: executionType, OrderType: "limit", LimitPrice: 26510, LimitPriceType: "static"})
+			require.NoErrorf(t, err, "executionOrderDetail must not error for the %s report", executionType)
+			assert.Equalf(t, 26510.0, d.Price, "executionOrderDetail should report a static limit price as the order's price in the %s report", executionType)
+		})
+	}
+	// The cases share ex and reuse d and err in order
+	for _, orderType := range []string{"limit", "iceberg", "stop-loss-limit", "take-profit-limit", "trailing-stop-limit"} {
+		t.Run(orderType+" order with a static limit price", func(t *testing.T) {
+			d, err = ex.executionOrderDetail(&WebsocketExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "new", OrderType: orderType, LimitPrice: 2650.5, LimitPriceType: "static"})
+			require.NoErrorf(t, err, "executionOrderDetail must not error for the %s order", orderType)
+			assert.Equalf(t, 2650.5, d.Price, "executionOrderDetail should report the %s order's static limit price as its price", orderType)
 		})
 	}
 
