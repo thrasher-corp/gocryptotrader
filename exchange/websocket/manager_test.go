@@ -817,6 +817,20 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 		require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when exceeding the connection limit")
 		assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should enforce the connection limit when the manager has none")
 	})
+
+	t.Run("connection subscription limit below manager limit", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.useMultiConnectionManagement = true
+		m.MaxSubscriptionsPerConnection = 4
+		ws := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{
+			MaxSubscriptions: 1,
+			Connector:        func(context.Context, Connection) error { return errConnectionFault },
+		}}
+		err := m.createConnectAndSubscribe(t.Context(), ws, subscription.List{{Channel: "one"}, {Channel: "two"}})
+		require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when exceeding a connection limit below the manager's")
+		assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should enforce a connection limit below the manager's")
+	})
 }
 
 func TestConnect(t *testing.T) {
