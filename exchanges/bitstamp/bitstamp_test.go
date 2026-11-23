@@ -1,9 +1,12 @@
 package bitstamp
 
 import (
+	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -19,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -863,7 +867,7 @@ func TestWsOrderUpdate(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", e.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.jsonl", e.wsHandleData)
 	e.Websocket.DataHandler.Close()
 	assert.Len(t, e.Websocket.DataHandler.C, 8, "Should see 8 orders")
 	for resp := range e.Websocket.DataHandler.C {
@@ -1150,7 +1154,8 @@ func TestSubscribe(t *testing.T) {
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	e.Features.Subscriptions = subscription.List{}
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
 	for _, s := range subs {
@@ -1161,4 +1166,26 @@ func TestSubscribe(t *testing.T) {
 	for _, s := range subs {
 		assert.Equalf(t, subscription.UnsubscribedState, s.State(), "Subscription %s should be subscribed", s)
 	}
+}
+
+func TestShutdownDoesNotReconnect(t *testing.T) {
+	t.Parallel()
+	var upgrades atomic.Int64
+	h := func(w http.ResponseWriter, r *http.Request) {
+		if !gws.IsWebSocketUpgrade(r) {
+			http.NotFound(w, r) // REST order book seeding on connect
+			return
+		}
+		upgrades.Add(1)
+		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+	}
+	e := testexch.MockWebsocketInstance[Exchange](t, h)
+	require.True(t, e.Websocket.IsConnected(), "websocket must be connected")
+	before := upgrades.Load()
+
+	require.NoError(t, e.Shutdown(), "Shutdown must not error")
+	assert.False(t, e.Websocket.IsConnected(), "websocket should be disconnected after Shutdown")
+	assert.Never(t, func() bool {
+		return upgrades.Load() != before || e.Websocket.IsConnected()
+	}, 3*time.Second, 10*time.Millisecond, "a shut down exchange should not reconnect")
 }

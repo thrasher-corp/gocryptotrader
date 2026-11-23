@@ -21,6 +21,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/buger/jsonparser"
@@ -182,7 +183,7 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 			return
 		}
 		for _, want := range wanted {
-			if want != "*" && want != name {
+			if want != "*" && !strings.EqualFold(want, name) {
 				continue
 			}
 			exchNew, err := method(patch, ctx, exchOrig)

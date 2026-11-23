@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/allratestoday"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	currencyconverter "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencyconverterapi"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencylayer"
 	exchangerates "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/exchangeratesapi.io"
 	fixer "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/fixer.io"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/fxmacrodata"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/openexchangerates"
 )
 
@@ -27,10 +29,12 @@ type ForexProviders struct {
 // GetSupportedForexProviders returns a list of supported forex providers
 func GetSupportedForexProviders() []string {
 	return []string{
+		"AllRatesToday",
 		"CurrencyConverter",
 		"CurrencyLayer",
 		"ExchangeRates",
 		"Fixer",
+		"FXMacroData",
 		"OpenExchangeRates",
 	}
 }
@@ -64,6 +68,8 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 	for i := range fxProviders {
 		var provider base.IFXProvider
 		switch fxProviders[i].Name {
+		case "AllRatesToday":
+			provider = new(allratestoday.AllRatesToday)
 		case "CurrencyConverter":
 			provider = new(currencyconverter.CurrencyConverter)
 		case "CurrencyLayer":
@@ -72,6 +78,8 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 			provider = new(exchangerates.ExchangeRates)
 		case "Fixer":
 			provider = new(fixer.Fixer)
+		case "FXMacroData":
+			provider = new(fxmacrodata.FXMacroData)
 		case "OpenExchangeRates":
 			provider = new(openexchangerates.OXR)
 		default:

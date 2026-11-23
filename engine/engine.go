@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -164,11 +165,13 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	flagSet.WithBool("coinmarketcap", &b.Settings.EnableCoinmarketcapAnalysis, b.Config.Currency.CryptocurrencyProvider.Enabled)
 	flagSet.WithBool("ordermanager", &b.Settings.EnableOrderManager, b.Config.OrderManager.Enabled)
 
+	flagSet.WithBool("allratestoday", &b.Settings.EnableAllRatesToday, b.Config.Currency.ForexProviders.IsEnabled("allratestoday"))
 	flagSet.WithBool("currencyconverter", &b.Settings.EnableCurrencyConverter, b.Config.Currency.ForexProviders.IsEnabled("currencyconverter"))
 
 	flagSet.WithBool("currencylayer", &b.Settings.EnableCurrencyLayer, b.Config.Currency.ForexProviders.IsEnabled("currencylayer"))
 	flagSet.WithBool("exchangerates", &b.Settings.EnableExchangeRates, b.Config.Currency.ForexProviders.IsEnabled("exchangerates"))
 	flagSet.WithBool("fixer", &b.Settings.EnableFixer, b.Config.Currency.ForexProviders.IsEnabled("fixer"))
+	flagSet.WithBool("fxmacrodata", &b.Settings.EnableFXMacroData, b.Config.Currency.ForexProviders.IsEnabled("fxmacrodata"))
 	flagSet.WithBool("openexchangerates", &b.Settings.EnableOpenExchangeRates, b.Config.Currency.ForexProviders.IsEnabled("openexchangerates"))
 
 	flagSet.WithBool("datahistorymanager", &b.Settings.EnableDataHistoryManager, b.Config.DataHistoryManager.Enabled)
@@ -196,6 +199,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 
 	if flagSet["withdrawcachesize"] {
 		withdraw.CacheSize = b.Settings.WithdrawCacheSize
+		withdraw.Cache = cache.New(withdraw.CacheSize)
 	}
 
 	if b.Settings.EnableEventManager && b.Settings.EventManagerDelay <= 0 {
@@ -398,11 +402,13 @@ func (bot *Engine) Start() error {
 
 	if err := currency.RunStorageUpdater(
 		currency.BotOverrides{
+			AllRatesToday:     bot.Settings.EnableAllRatesToday,
 			Coinmarketcap:     bot.Settings.EnableCoinmarketcapAnalysis,
 			CurrencyConverter: bot.Settings.EnableCurrencyConverter,
 			CurrencyLayer:     bot.Settings.EnableCurrencyLayer,
 			ExchangeRates:     bot.Settings.EnableExchangeRates,
 			Fixer:             bot.Settings.EnableFixer,
+			FXMacroData:       bot.Settings.EnableFXMacroData,
 			OpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
 		},
 		&bot.Config.Currency,

@@ -28,12 +28,40 @@ func TestContainsOrAdd(t *testing.T) {
 func TestClear(t *testing.T) {
 	t.Parallel()
 	lruCache := New(5)
+	lruCache.Add("a", 1)
+	lruCache.Add("b", 2)
+	require.Equal(t, uint64(2), lruCache.Len(), "Len must report every added entry")
+
+	lruCache.Clear()
+	assert.Zero(t, lruCache.Len(), "Len should be zero after Clear")
+	assert.False(t, lruCache.Contains("a"), "Contains should return false for a cleared key")
+	assert.False(t, lruCache.Contains("b"), "Contains should return false for a cleared key")
+	assert.Nil(t, lruCache.Get("a"), "Get should return nil for a cleared key")
+
+	lruCache.Add("c", 3)
+	assert.Equal(t, 3, lruCache.Get("c"), "Get should return a value added after Clear")
+}
+
+func TestClearFullCache(t *testing.T) {
+	t.Parallel()
+	lruCache := New(5)
 	for x := range 5 {
 		lruCache.Add(x, x)
 	}
 	require.Equal(t, uint64(5), lruCache.Len(), "Len must report every added entry")
+
 	lruCache.Clear()
 	assert.Zero(t, lruCache.Len(), "Len should be zero after Clear")
+	for x := range 5 {
+		assert.Falsef(t, lruCache.Contains(x), "Contains should return false for cleared key %d", x)
+	}
+
+	for x := range 5 {
+		lruCache.Add(x, x)
+	}
+	for x := range 5 {
+		assert.Equalf(t, x, lruCache.Get(x), "Get should return the value re-added after Clear for key %d", x)
+	}
 }
 
 func TestAdd(t *testing.T) {
@@ -86,4 +114,14 @@ func TestGetOldest(t *testing.T) {
 	t.Parallel()
 	k, _ := New(2).getOldest()
 	assert.Nil(t, k, "getOldest should return nil on an empty cache")
+}
+
+func TestAdd_MutexReleaseOnPanic(t *testing.T) {
+	t.Parallel()
+	lruCache := New(2)
+	require.Panics(t, func() { lruCache.Add([]int{1}, "val") }, "Add must panic on an unhashable key")
+	require.True(t, lruCache.m.TryLock(), "Add must release the mutex when it panics")
+	lruCache.m.Unlock()
+	lruCache.Add("key", "val")
+	assert.Equal(t, "val", lruCache.Get("key"), "Get should return the value added after the panic")
 }

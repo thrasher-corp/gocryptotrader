@@ -208,6 +208,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.Fee = m.Fee
 		updated = true
 	}
+	if !m.FeeAsset.IsEmpty() && !m.FeeAsset.Equal(d.FeeAsset) {
+		d.FeeAsset = m.FeeAsset
+		updated = true
+	}
 	if m.AccountID != "" && m.AccountID != d.AccountID {
 		d.AccountID = m.AccountID
 		updated = true
@@ -414,23 +418,21 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 // available on the exchange
 func (d *Detail) IsActive() bool {
 	return d.Status != UnknownStatus &&
-		d.Amount > 0 &&
-		d.Amount > d.ExecutedAmount &&
+		d.Amount > max(0, d.ExecutedAmount) &&
 		activeStatuses&d.Status == d.Status
 }
 
 // IsInactive returns true if an order has a status that indicates it is
 // currently not available on the exchange
 func (d *Detail) IsInactive() bool {
-	return d.Amount <= 0 ||
-		d.Amount <= d.ExecutedAmount ||
+	return d.Amount <= max(0, d.ExecutedAmount) ||
 		d.Status.IsInactive()
 }
 
 // IsInactive returns true if the status indicates it is
 // currently not available on the exchange
 func (s Status) IsInactive() bool {
-	return inactiveStatuses&s == s
+	return s != UnknownStatus && inactiveStatuses&s == s
 }
 
 // WasOrderPlaced returns true if an order has a status that indicates that it
@@ -1125,7 +1127,7 @@ func StringToOrderStatus(status string) (Status, error) {
 		return Open, nil
 	case Closed.String(), "POSITION_CLOSED":
 		return Closed, nil
-	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED":
+	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED", "MMP_CANCELED":
 		return Cancelled, nil
 	case Pending.String():
 		return Pending, nil

@@ -2,6 +2,7 @@ package binance
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -2067,26 +2068,84 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-func BenchmarkWsHandleData(bb *testing.B) {
-	bb.ReportAllocs()
-	ap, err := e.CurrencyPairs.GetPairs(asset.Spot, false)
-	require.NoError(bb, err)
-	err = e.CurrencyPairs.StorePairs(asset.Spot, ap, true)
-	require.NoError(bb, err)
+// BenchmarkWsHandleData measures each message type separately, so a regression names its handler
+func BenchmarkWsHandleData(b *testing.B) {
+	e := new(Exchange)
+	require.NoError(b, testexch.Setup(e), "Test instance Setup must not error")
 
-	data, err := os.ReadFile("testdata/wsHandleData.json")
-	require.NoError(bb, err)
+	pair, err := e.MatchSymbolWithAvailablePairs("BNBBTC", asset.Spot, false)
+	require.NoError(b, err, "MatchSymbolWithAvailablePairs must not error")
+	// Only the fixture's pair is enabled. ExecutionReport still pays for Pairs.ContainsAll cloning every
+	// available pair, as production does.
+	require.NoError(b, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, true), "StorePairs must not error")
+	// Other enabled assets would make the work per iteration vary with map order
+	for _, a := range e.CurrencyPairs.GetAssetTypes(true) {
+		if a != asset.Spot {
+			require.NoErrorf(b, e.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+		}
+	}
+
+	// Built directly, since setupOrderbookManager starts REST sync workers that outlive the benchmark and
+	// print into its output. Seeded mid-sync at lastUpdateID 156, as the fixture's update starts at 157.
+	depth := &update{
+		buffer:       make(chan *WebsocketDepthStream, 1),
+		fetchingBook: true,
+		lastUpdateID: 156,
+	}
+	e.obm = &orderbookManager{
+		state: map[currency.Code]map[currency.Code]map[asset.Item]*update{
+			pair.Base: {pair.Quote: {asset.Spot: depth}},
+		},
+		jobs: make(chan job, maxWSOrderbookJobs),
+	}
+
+	data, err := os.ReadFile("testdata/wsHandleData.jsonl")
+	require.NoError(b, err, "ReadFile must not error")
 	lines := bytes.Split(data, []byte("\n"))
-	require.Len(bb, lines, 8)
-	go func() {
-		for {
-			<-e.Websocket.DataHandler.C
-		}
-	}()
-	for bb.Loop() {
-		for x := range lines {
-			assert.NoError(bb, e.wsHandleData(bb.Context(), lines[x]))
-		}
+	require.Len(b, lines, 8, "the fixture must hold one line per message type")
+
+	for _, tc := range []struct {
+		name   string
+		line   []byte
+		relays bool
+		depth  bool
+	}{
+		{name: "Ticker", line: lines[0], relays: true},
+		{name: "Kline", line: lines[1], relays: true},
+		// Trades relay only when trade saving or streaming is enabled
+		{name: "Trade", line: lines[2]},
+		{name: "Depth", line: lines[3], depth: true},
+		{name: "BalanceUpdate", line: lines[4], relays: true},
+		{name: "ListStatus", line: lines[5], relays: true},
+		{name: "ExecutionReport", line: lines[6], relays: true},
+		{name: "OutboundAccountPosition", line: lines[7], relays: true},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			ctx := b.Context()
+			for b.Loop() {
+				require.NoError(b, e.wsHandleData(ctx, tc.line), "wsHandleData must not error")
+				if tc.depth {
+					select {
+					case <-depth.buffer:
+					default:
+						b.Fatal("wsHandleData must stage the depth update")
+					}
+					depth.lastUpdateID = 156
+				}
+				// Relay.Send has queued the payload by the time it returns, so a non-blocking
+				// receive is safe, and draining keeps the relay from filling
+				select {
+				case <-e.Websocket.DataHandler.C:
+					if !tc.relays {
+						b.Fatal("wsHandleData must not relay this message")
+					}
+				default:
+					if tc.relays {
+						b.Fatal("wsHandleData must relay this message")
+					}
+				}
+			}
+		})
 	}
 }
 
@@ -2094,7 +2153,7 @@ func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	channels, err := e.generateSubscriptions() // Note: We grab this before it's overwritten by MockWsInstance below
+	channels, err := e.generateSubscriptions() // Note: We grab this before it's overwritten by MockWebsocketInstance below
 	require.NoError(t, err, "generateSubscriptions must not error")
 	if mockTests {
 		exp := []string{"btcusdt@depth@100ms", "btcusdt@kline_1m", "btcusdt@ticker", "btcusdt@trade", "dogeusdt@depth@100ms", "dogeusdt@kline_1m", "dogeusdt@ticker", "dogeusdt@trade"}
@@ -2105,9 +2164,10 @@ func TestSubscribe(t *testing.T) {
 			require.ElementsMatch(tb, req.Params, exp, "Params must have correct channels")
 			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":"%s"}`, req.ID))
 		}
-		e = testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
+		e = testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
-		testexch.SetupWs(t, e)
+		t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+		testexch.SetupWebsocket(t, e)
 	}
 	err = e.Subscribe(channels)
 	require.NoError(t, err, "Subscribe must not error")
@@ -2127,7 +2187,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		require.NoError(tb, err, "Unmarshal must not error")
 		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":"%s"}`, req.ID))
 	}
-	b := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
+	b := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	err := b.Subscribe(channels)
 	assert.ErrorIs(t, err, common.ErrUnknownError, "Subscribe should error correctly")
 	assert.ErrorContains(t, err, "carrots", "Subscribe should error containing the carrots")
@@ -2624,6 +2684,50 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 
 	// reset order book sync status
 	e.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
+}
+
+func TestSynchroniseWebsocketOrderbook(t *testing.T) {
+	t.Parallel()
+	// With no pairs set, each job fails before it sends a request
+	e := &Exchange{obm: &orderbookManager{jobs: make(chan job, maxWSOrderbookJobs)}}
+	e.Websocket = sharedtestvalues.NewTestWebsocket()
+	requireStopped := func(msg string) {
+		t.Helper()
+		stopped := make(chan struct{})
+		go func() {
+			e.Websocket.Wg.Wait()
+			close(stopped)
+		}()
+		select {
+		case <-stopped:
+		case <-time.After(time.Second * 5):
+			require.FailNow(t, msg)
+		}
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	e.SynchroniseWebsocketOrderbook(ctx)
+	for range 2 {
+		e.obm.jobs <- job{}
+		require.Eventually(t, func() bool { return len(e.obm.jobs) == 0 }, time.Second*5, time.Millisecond, "SynchroniseWebsocketOrderbook must keep taking jobs")
+	}
+	cancel()
+	requireStopped("SynchroniseWebsocketOrderbook must stop when its context ends")
+
+	for range cap(e.obm.jobs) {
+		e.obm.jobs <- job{}
+	}
+	e.SynchroniseWebsocketOrderbook(ctx)
+	requireStopped("SynchroniseWebsocketOrderbook must stop when its context has ended")
+	require.Empty(t, e.obm.jobs, "SynchroniseWebsocketOrderbook must drain pending jobs when its context has ended")
+
+	for range cap(e.obm.jobs) {
+		e.obm.jobs <- job{}
+	}
+	close(e.Websocket.ShutdownC)
+	e.SynchroniseWebsocketOrderbook(t.Context())
+	requireStopped("SynchroniseWebsocketOrderbook must stop when the websocket shuts down")
+	assert.Empty(t, e.obm.jobs, "SynchroniseWebsocketOrderbook should drain pending jobs when the websocket shuts down")
 }
 
 func TestUFuturesHistoricalTrades(t *testing.T) {

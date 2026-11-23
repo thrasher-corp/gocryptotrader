@@ -56,11 +56,18 @@ func createSnapshot(ctx context.Context, pair currency.Pair) (holder *Orderbook,
 	newBook := make(map[key.PairAsset]*orderbook.Depth)
 
 	relay := stream.NewRelay(10)
-	go func(relay *stream.Relay) { // reader
-		for range relay.C {
-			continue
+	go func() { // reader
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case _, ok := <-relay.C:
+				if !ok {
+					return
+				}
+			}
 		}
-	}(relay)
+	}()
 	holder = &Orderbook{
 		exchangeName: exchangeName,
 		dataHandler:  relay,
@@ -73,10 +80,11 @@ func createSnapshot(ctx context.Context, pair currency.Pair) (holder *Orderbook,
 // BenchmarkUpdatePerformance benchmarks applying orderbook updates directly.
 func BenchmarkUpdatePerformance(b *testing.B) {
 	cp, err := getExclusivePair()
-	require.NoError(b, err)
+	require.NoError(b, err, "getExclusivePair must not error")
 
 	obl, asks, bids, err := createSnapshot(b.Context(), cp)
-	require.NoError(b, err)
+	require.NoError(b, err, "createSnapshot must not error")
+	// A relay of its own, as createSnapshot's reader drains the original
 	obl.dataHandler = stream.NewRelay(1)
 
 	update := &orderbook.Update{
@@ -91,8 +99,10 @@ func BenchmarkUpdatePerformance(b *testing.B) {
 		randomIndex := rand.IntN(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
-		require.NoError(b, obl.Update(b.Context(), update))
-		<-obl.dataHandler.C
+		require.NoError(b, obl.Update(b.Context(), update), "Update must not error")
+		if !relayed(obl.dataHandler, 1) {
+			b.Fatal("Update must relay the book")
+		}
 	}
 }
 
