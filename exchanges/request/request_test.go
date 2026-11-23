@@ -1362,9 +1362,13 @@ func TestSendPayloadRateLimitBarrierAllowsRetryAfterAcceptance(t *testing.T) {
 }
 
 func TestEnableDisableRateLimit(t *testing.T) {
+	t.Parallel()
+
 	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-		// A stub transport keeps the test off the network so the fake clock only
-		// advances for the rate limiter.
+		// A stub transport keeps the test off the network: a kept-alive
+		// connection's read loop would wait on its socket inside the bubble, so
+		// the fake clock would never advance and the rate-limited request below
+		// would hang.
 		client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,

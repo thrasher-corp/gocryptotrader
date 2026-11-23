@@ -192,12 +192,14 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		// The caller is abandoning the request, so release the reserved capacity
-		// instead of letting it stand. Otherwise every subsequent request is
-		// forced to wait an extra rate-limit period for capacity that will never
-		// be used. Cancel at the current time: once another request has advanced
-		// the limiter past tn, CancelAt(tn) can wind its clock back so the next
-		// refill counts that time again.
+		// The caller is abandoning the request, so give back what CancelAt can
+		// return rather than make later requests wait for it. That is not always
+		// everything: reservations whose time has passed, and capacity later
+		// reservations were scheduled against, stay spent, and rounding between
+		// a weighted request's per-token reservation times can hold some back
+		// even when nothing else is pending. Cancel at the current time: once
+		// another request has advanced the limiter past tn, CancelAt(tn) can wind
+		// its clock back so the next refill counts that time again.
 		rateLimitReservationMu.Lock()
 		r.m.Lock()
 		cancelAll(reserved, time.Now())

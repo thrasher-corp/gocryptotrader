@@ -94,6 +94,41 @@ func TestRateLimit(t *testing.T) {
 				"admission with a deadline should wait for one token")
 		})
 	})
+
+	t.Run("cancelled wait releases its reservations", func(t *testing.T) {
+		t.Parallel()
+
+		synctest.Test(t, func(t *testing.T) {
+			shared := NewRateLimit(time.Second, 1)
+			single, triple := GetRateLimiterWithWeight(shared, 1), GetRateLimiterWithWeight(shared, 3)
+			start := time.Now()
+			require.NoError(t, single.RateLimit(t.Context()), "initial call must not error")
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			errs := make(chan error, 1)
+			go func() { errs <- triple.RateLimit(ctx) }()
+			synctest.Wait()
+			time.Sleep(730 * time.Millisecond)
+
+			// A later waiter's reservation moves the limiter's clock past the weighted call's reservation time (tn in
+			// RateLimit). Cancelling it first leaves the weighted call's reservations last in line, so cancelling those
+			// at tn would wind the clock back.
+			laterCtx, cancelLater := context.WithCancel(t.Context())
+			defer cancelLater()
+			laterErrs := make(chan error, 1)
+			go func() { laterErrs <- single.RateLimit(laterCtx) }()
+			synctest.Wait()
+			cancelLater()
+			require.ErrorIs(t, <-laterErrs, context.Canceled, "cancelled later call must report cancellation")
+			cancel()
+			require.ErrorIs(t, <-errs, context.Canceled, "cancelled call must report cancellation")
+
+			require.NoError(t, single.RateLimit(t.Context()), "follow-up call must not error")
+			assert.InDelta(t, time.Second, time.Since(start), float64(time.Millisecond),
+				"follow-up call should be admitted one token period after the initial call")
+		})
+	})
 }
 
 func TestRateLimit_Concurrent_WithFailure(t *testing.T) {
@@ -546,32 +581,6 @@ func TestNewBasicRateLimit(t *testing.T) {
 
 	assert.Same(t, defs[Unset], defs[Auth], "Unset and Auth should be same instance")
 	assert.Same(t, defs[Auth], defs[UnAuth], "Auth and UnAuth should be same instance")
-}
-
-func TestRateLimitCancellationReleasesReservation(t *testing.T) {
-	t.Parallel()
-
-	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-		shared := NewRateLimit(time.Second, 1)
-		single, triple := GetRateLimiterWithWeight(shared, 1), GetRateLimiterWithWeight(shared, 3)
-		start := time.Now()
-		require.NoError(t, single.RateLimit(t.Context()), "initial call must not error")
-
-		ctx, cancel := context.WithCancel(t.Context())
-		defer cancel()
-		errs := make(chan error, 1)
-		go func() { errs <- triple.RateLimit(ctx) }()
-		synctest.Wait()
-		time.Sleep(730 * time.Millisecond)
-		require.ErrorIs(t, single.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
-			"call that may not wait must be refused while the reservation is held")
-		cancel()
-		require.ErrorIs(t, <-errs, context.Canceled, "cancelled call must report cancellation")
-
-		require.NoError(t, single.RateLimit(t.Context()), "follow-up call must not error")
-		assert.InDelta(t, time.Second, time.Since(start), float64(time.Millisecond),
-			"follow-up call should be admitted one token period after the initial call")
-	})
 }
 
 func TestCancelAll(t *testing.T) {
