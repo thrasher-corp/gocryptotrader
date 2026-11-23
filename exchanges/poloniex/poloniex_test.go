@@ -482,7 +482,8 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WebsocketSubmitOrder(generateContext(t), &order.Submit{
 		Exchange:    e.Name,
 		Pair:        spotTradablePair,
@@ -527,7 +528,8 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	err = e.WebsocketCancelOrder(t.Context(), &order.Cancel{OrderID: "2312", ClientOrderID: "23123121231"})
 	assert.NoError(t, err)
 }
@@ -582,7 +584,7 @@ func TestCancelAllOrders(t *testing.T) {
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		testexch.SetupWs(t, e)
+		testexch.SetupWebsocket(t, e)
 	}
 	arg := &order.Cancel{
 		OrderID:   "1",
@@ -1605,6 +1607,8 @@ func TestGetOrderInfo(t *testing.T) {
 	assert.Equal(t, 0.2, result.ExecutedAmount, "ExecutedAmount should be the filled base quantity")
 	assert.Equal(t, 0.3, result.RemainingAmount, "RemainingAmount should be the unfilled base quantity")
 	assert.Equal(t, 12000.0, result.Cost, "Cost should be the filled quote amount")
+	require.Len(t, result.Trades, 1, "result must have one trade")
+	assert.True(t, result.Trades[0].IsMaker, "a MAKER role should be reported as maker")
 
 	result, err = e.GetOrderInfo(generateContext(t), "331380922769473536", futuresTradablePair, asset.Futures)
 	require.NoError(t, err)
@@ -2332,12 +2336,105 @@ func TestProcessOrders(t *testing.T) {
 			TID:       "68561300",
 			Type:      order.Limit,
 			Side:      order.Buy,
-			Timestamp: time.UnixMilli(1757800060010),
+			Timestamp: time.UnixMilli(1757800060000),
+			IsMaker:   true,
 			FeeAsset:  "BTC",
 			Total:     12000,
 		}},
 	}}
 	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processOrders should map the order update")
+}
+
+// TestProcessOrdersPlaceEventNoTrade asserts a place event does not fabricate a
+// zero-value trade and does not leave LastUpdated zero.
+func TestProcessOrdersPlaceEventNoTrade(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+
+	resp := &SubscriptionResponse{
+		Channel: "orders",
+		Data:    json.RawMessage(`[{"symbol":"BTC_USDC","type":"LIMIT","quantity":"1","orderId":"32471407854219264","tradeFee":"0","clientOrderId":"","accountType":"SPOT","feeCurrency":"","eventType":"place","source":"API","side":"BUY","filledQuantity":"0","filledAmount":"0","matchRole":"MAKER","state":"NEW","tradeTime":0,"tradeAmount":"0","orderAmount":"0","createTime":1648708186922,"price":"47112.1","tradeQty":"0","tradePrice":"0","tradeId":"0","ts":1648708187469}]`),
+	}
+	require.NoError(t, ex.processOrders(t.Context(), resp), "processOrders must not error for a place event")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "Must see exactly one order update")
+	exp := []order.Detail{{
+		Price:           47112.1,
+		Amount:          1,
+		RemainingAmount: 1,
+		Exchange:        ex.Name,
+		OrderID:         "32471407854219264",
+		Type:            order.Limit,
+		Side:            order.Buy,
+		Status:          order.New,
+		AssetType:       asset.Spot,
+		Date:            time.UnixMilli(1648708186922),
+		LastUpdated:     time.UnixMilli(1648708187469),
+		Pair:            currency.NewPairWithDelimiter("BTC", "USDC", "_"),
+	}}
+	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processOrders should map a place event without a trade")
+}
+
+// TestProcessOrdersPartiallyCanceledBatch asserts that a PARTIALLY_CANCELED
+// state, as documented by Poloniex, no longer discards the whole websocket batch.
+func TestProcessOrdersPartiallyCanceledBatch(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+
+	resp := &SubscriptionResponse{
+		Channel: "orders",
+		Data:    json.RawMessage(`[{"symbol":"BTC_USDT","type":"LIMIT","quantity":"0.5","orderId":"1","tradeFee":"0.0001","accountType":"SPOT","feeCurrency":"BTC","eventType":"trade","side":"BUY","filledQuantity":"0.3","matchRole":"TAKER","state":"PARTIALLY_FILLED","tradeTime":1757800060000,"tradeAmount":"18000","createTime":1757800000000,"price":"60000","tradeQty":"0.3","tradePrice":"60000","tradeId":"68561300","ts":1757800060010},{"symbol":"BTC_USDT","type":"LIMIT","quantity":"0.5","orderId":"2","tradeFee":"0","accountType":"SPOT","feeCurrency":"","eventType":"canceled","side":"SELL","filledQuantity":"0.25","state":"PARTIALLY_CANCELED","tradeTime":0,"createTime":1757800000000,"price":"61000","tradeId":"0","ts":1757800090000}]`),
+	}
+	require.NoError(t, ex.processOrders(t.Context(), resp), "processOrders must not error for a PARTIALLY_CANCELED state")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "Must see exactly one order update")
+	exp := []order.Detail{
+		{
+			Price:           60000,
+			Amount:          0.5,
+			ExecutedAmount:  0.3,
+			RemainingAmount: 0.2,
+			Fee:             0.0001,
+			FeeAsset:        currency.BTC,
+			Exchange:        ex.Name,
+			OrderID:         "1",
+			Type:            order.Limit,
+			Side:            order.Buy,
+			Status:          order.PartiallyFilled,
+			AssetType:       asset.Spot,
+			Date:            time.UnixMilli(1757800000000),
+			LastUpdated:     time.UnixMilli(1757800060000),
+			Pair:            currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+			Trades: []order.TradeHistory{{
+				Price:     60000,
+				Amount:    0.3,
+				Fee:       0.0001,
+				Exchange:  ex.Name,
+				TID:       "68561300",
+				Type:      order.Limit,
+				Side:      order.Buy,
+				Timestamp: time.UnixMilli(1757800060000),
+				FeeAsset:  "BTC",
+				Total:     18000,
+			}},
+		},
+		{
+			Price:           61000,
+			Amount:          0.5,
+			ExecutedAmount:  0.25,
+			RemainingAmount: 0.25,
+			Exchange:        ex.Name,
+			OrderID:         "2",
+			Type:            order.Limit,
+			Side:            order.Sell,
+			Status:          order.PartiallyCancelled,
+			AssetType:       asset.Spot,
+			Date:            time.UnixMilli(1757800000000),
+			LastUpdated:     time.UnixMilli(1757800090000),
+			Pair:            currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+		},
+	}
+	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processOrders should deliver both orders, with a trade only on the fill")
 }
 
 func TestProcessCandlestickDataIntervalMapping(t *testing.T) {
@@ -2403,7 +2500,8 @@ func TestWsSpotPrivateHandleData(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	conn, err := e.Websocket.GetConnection(connSpotPrivate)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
@@ -2451,7 +2549,8 @@ func TestWsCreateOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WsCreateOrder(generateContext(t), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
 		Side:          order.Buy,
@@ -2482,7 +2581,8 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WsCancelMultipleOrdersByIDs(t.Context(), []string{"1234"}, []string{"5678"})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2500,7 +2600,8 @@ func TestWsCancelTradeOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	result, err := e.WsCancelTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []AccountType{AccountType(asset.Spot)})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2640,7 +2741,8 @@ func TestWsFuturesPrivateHandleData(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	conn, err := e.Websocket.GetConnection(connFuturesPrivate)
 	require.NoError(t, err)
 	require.NotNil(t, conn)

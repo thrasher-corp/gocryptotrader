@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -519,6 +520,28 @@ func TestFuturesBaseVolume(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			assert.InDelta(t, tc.exp, futuresBaseVolume(&tc.tick), 1e-9, "futuresBaseVolume should return the 24h volume in the base currency")
+		})
+	}
+}
+
+// TestFuturesOrderUserUnmarshal pins User as types.Number: REST sends the
+// account ID as a bare number while websocket sends it as a quoted string, and
+// a plain integer or a string field would drop one channel's decode.
+func TestFuturesOrderUserUnmarshal(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		payload string
+	}{
+		{"REST sends a bare number", `{"id":123,"user":110110110}`},
+		{"websocket sends a quoted string", `{"id":123,"user":"110110110"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			exp := FuturesOrder{ID: 123, User: 110110110}
+			var resp FuturesOrder
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.payload), &resp), "Unmarshal must not error for %s", tc.payload)
+			assert.Equal(t, exp, resp, "FuturesOrder should decode User from both shapes")
 		})
 	}
 }
@@ -1759,7 +1782,7 @@ func TestCancelDeliveryPriceTriggeredOrder(t *testing.T) {
 
 func TestEnableOrDisableDualMode(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.EnableOrDisableDualMode(t.Context(), currency.BTC, true)
 	assert.NoError(t, err, "EnableOrDisableDualMode should not error")
 }
@@ -2531,14 +2554,14 @@ func TestUpdateOrderbook(t *testing.T) {
 	_, err := e.UpdateOrderbook(t.Context(), currency.EMPTYPAIR, 1336)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	for _, a := range e.GetAssetTypes(false) {
-		pair := getPair(t, a)
-		t.Run(a.String()+" "+pair.String(), func(t *testing.T) {
+		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
-			o, err := e.UpdateOrderbook(t.Context(), pair, a)
-			require.NoError(t, err)
+			ex, pair := getMarketDataPair(t, a, hasTwoSidedDeliveryBook)
+			o, err := ex.UpdateOrderbook(t.Context(), pair, a)
+			require.NoErrorf(t, err, "UpdateOrderbook must not error for %s", pair)
 			if a != asset.Options { // Options orderbooks can be empty
-				assert.NotEmpty(t, o.Bids)
-				assert.NotEmpty(t, o.Asks)
+				assert.NotEmptyf(t, o.Bids, "UpdateOrderbook should return bids for %s", pair)
+				assert.NotEmptyf(t, o.Asks, "UpdateOrderbook should return asks for %s", pair)
 			}
 		})
 	}
@@ -2766,12 +2789,16 @@ func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	startTime := time.Now().Add(-time.Hour * 10)
 	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.GetHistoricCandles(t.Context(), getPair(t, a), a, kline.OneDay, startTime, time.Now())
-		if a == asset.Options {
-			assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandles should error correctly for options")
-		} else {
-			assert.NoErrorf(t, err, "GetHistoricCandles should not error for %s", a)
-		}
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex, pair := getMarketDataPair(t, a, hasDeliveryCandles(kline.OneDay, startTime))
+			_, err := ex.GetHistoricCandles(t.Context(), pair, a, kline.OneDay, startTime, time.Now())
+			if a == asset.Options {
+				assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandles should error correctly for options")
+			} else {
+				assert.NoErrorf(t, err, "GetHistoricCandles should not error for %s", pair)
+			}
+		})
 	}
 }
 
@@ -2779,12 +2806,16 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	startTime := time.Now().Add(-time.Hour * 5)
 	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.GetHistoricCandlesExtended(t.Context(), getPair(t, a), a, kline.OneMin, startTime, time.Now())
-		if a == asset.Options {
-			assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandlesExtended should error correctly for options")
-		} else {
-			assert.NoErrorf(t, err, "GetHistoricCandlesExtended should not error for %s", a)
-		}
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex, pair := getMarketDataPair(t, a, hasDeliveryCandles(kline.OneMin, startTime))
+			_, err := ex.GetHistoricCandlesExtended(t.Context(), pair, a, kline.OneMin, startTime, time.Now())
+			if a == asset.Options {
+				assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandlesExtended should error correctly for options")
+			} else {
+				assert.NoErrorf(t, err, "GetHistoricCandlesExtended should not error for %s", pair)
+			}
+		})
 	}
 }
 
@@ -2951,7 +2982,7 @@ func TestFuturesDataHandler(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, m []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsFutures.jsonl", func(ctx context.Context, m []byte) error {
 		if strings.Contains(string(m), "futures.balances") {
 			ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "test", Secret: "test"})
 		}
@@ -3654,6 +3685,10 @@ func TestPreConnectWiring(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	// Failed connects start the connection monitor, whose retries would add to the request counts below
+	ex.Config.ConnectionMonitorDelay = time.Hour
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	require.NoError(t, ex.Setup(ex.Config), "Setup must not error with a long connection monitor delay")
 
 	var accountRequests atomic.Int64
 	var healthy atomic.Bool
@@ -4124,7 +4159,13 @@ func TestGetOpenInterest(t *testing.T) {
 	var resp []futures.OpenInterest
 	validPairs := make(map[asset.Item]key.PairAsset, 3)
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures} {
-		pair, response := getPairWithOpenInterest(t, a)
+		pairs := getPairs(t, a)
+		if a == asset.DeliveryFutures {
+			// The enabled delivery contract is picked at random and may have no open positions
+			pairs, err = e.GetAvailablePairs(a)
+			require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
+		}
+		pair, response := getPairWithOpenInterest(t, a, pairs)
 		validPairs[a] = pair
 		resp = response
 		require.Lenf(t, resp, 1, "GetOpenInterest must return 1 item for %s asset", a)
@@ -4206,7 +4247,7 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 		incoming string
 		status   order.Status
 	}{
-		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"open","stp_id":"123456","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Open},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"open","stp_id":"123456","text":"-","tif":"gtc","tkfr":0.0005,"user":"110110110"}]}`, order.Open},
 	}
 	processed, err := e.processFuturesOrdersPushData([]byte(testCases[0].incoming), asset.CoinMarginedFutures)
 	require.NoError(t, err)
@@ -4339,14 +4380,14 @@ func TestProcessFinishedFuturesOrdersPushData(t *testing.T) {
 		incoming string
 		status   order.Status
 	}{
-		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"filled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Filled},
-		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"cancelled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
-		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"liquidated","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Liquidated},
-		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"ioc","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
-		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"auto_deleveraged","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.AutoDeleverage},
-		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"reduce_only","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
-		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"position_closed","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Closed},
-		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"stp","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.STP},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"filled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110110110"}]}`, order.Filled},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"cancelled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110110110"}]}`, order.Cancelled},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"liquidated","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110110110"}]}`, order.Liquidated},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"ioc","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110110110"}]}`, order.Cancelled},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"auto_deleveraged","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110110110"}]}`, order.AutoDeleverage},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"reduce_only","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110110110"}]}`, order.Cancelled},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"position_closed","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110110110"}]}`, order.Closed},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"stp","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110110110"}]}`, order.STP},
 	}
 
 	for _, tc := range testCases {
@@ -4922,11 +4963,11 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 	return currency.EMPTYPAIR
 }
 
-func getPairWithOpenInterest(t *testing.T, a asset.Item) (key.PairAsset, []futures.OpenInterest) {
+func getPairWithOpenInterest(t *testing.T, a asset.Item, pairs currency.Pairs) (key.PairAsset, []futures.OpenInterest) {
 	t.Helper()
 	var lastErr error
 	var receivedResponse bool
-	for _, pair := range getPairs(t, a) {
+	for _, pair := range pairs {
 		pairAsset := key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a}
 		response, err := e.GetOpenInterest(t.Context(), pairAsset)
 		if err != nil {
@@ -4974,6 +5015,79 @@ func getPairs(tb testing.TB, a asset.Item) currency.Pairs {
 	pairMap[a] = enabledPairs
 
 	return enabledPairs
+}
+
+// getMarketDataPair uses the most active delivery contract with the data the test asserts on, rather than the enabled
+// one, because most of Gate's delivery contracts can go hours without a trade, often with one side of the book empty,
+// and the enabled contract is picked at random once the configured one expires. Delivery gets an instance of its own
+// because candle requests need the contract enabled, and enabling it on e would not last: testexch.UpdatePairsOnce
+// reloads e's cached pairs.
+func getMarketDataPair(t *testing.T, a asset.Item, hasData deliveryDataCheck) (*Exchange, currency.Pair) {
+	t.Helper()
+	if a != asset.DeliveryFutures {
+		return e, getPair(t, a)
+	}
+	pair := getActiveDeliveryPair(t, hasData)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, false), "StorePairs must not error for available pairs")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, true), "StorePairs must not error for enabled pairs")
+	return ex, pair
+}
+
+// deliveryDataCheck returns why a delivery contract lacks the data a test asserts on, or nil if it has it. Each test
+// checks only its own need, because a contract with a two-sided book can go hours without a trade while another trades
+// with one side of its book empty
+type deliveryDataCheck func(context.Context, currency.Pair) error
+
+func hasTwoSidedDeliveryBook(ctx context.Context, p currency.Pair) error {
+	book, err := e.GetDeliveryOrderbook(ctx, currency.USDT, "", p, 1, false)
+	switch {
+	case err != nil:
+		return err
+	case book == nil || len(book.Bids) == 0:
+		return errors.New("no bids")
+	case len(book.Asks) == 0:
+		return errors.New("no asks")
+	}
+	return nil
+}
+
+// hasDeliveryCandles checks with the test's own interval and start, because Gate returns no candles unless a trade
+// falls in a candle the window overlaps, and a contract's 24-hour volume does not show when it traded
+func hasDeliveryCandles(interval kline.Interval, start time.Time) deliveryDataCheck {
+	return func(ctx context.Context, p currency.Pair) error {
+		candles, err := e.GetDeliveryFuturesCandlesticks(ctx, currency.USDT, p, start, time.Now(), 0, interval)
+		if err == nil && len(candles) == 0 {
+			return errors.New("no candles")
+		}
+		return err
+	}
+}
+
+// getActiveDeliveryPair returns the contract with the most 24-hour volume that passes hasData. It selects afresh on
+// each call, as each test checks for different data and a contract's book and recent trades can change between tests
+func getActiveDeliveryPair(tb testing.TB, hasData deliveryDataCheck) currency.Pair {
+	tb.Helper()
+	tickers, err := e.GetDeliveryFutureTickers(tb.Context(), currency.USDT, currency.EMPTYPAIR)
+	require.NoError(tb, err, "GetDeliveryFutureTickers must not error")
+	slices.SortFunc(tickers, func(a, b FuturesTicker) int {
+		return cmp.Compare(b.Volume24HourQuote.Float64(), a.Volume24HourQuote.Float64())
+	})
+	// A contract can expire mid-selection, so a failed request moves on to the next one
+	var errs error
+	for i := range tickers {
+		pair, err := currency.NewPairFromString(tickers[i].Contract)
+		require.NoErrorf(tb, err, "NewPairFromString must not error for %q", tickers[i].Contract)
+		if err := hasData(tb.Context(), pair); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%s: %w", pair, err))
+			continue
+		}
+		return pair
+	}
+	require.FailNowf(tb, "must find a delivery contract with the data this test asserts on", "%d contracts checked: %v", len(tickers), errs)
+	return currency.EMPTYPAIR
 }
 
 func BenchmarkTimeInForceFromString(b *testing.B) {

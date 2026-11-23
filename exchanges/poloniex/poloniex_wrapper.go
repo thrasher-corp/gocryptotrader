@@ -1058,6 +1058,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 				Fee:       td.FeeAmount.Float64(),
 				Side:      td.Side,
 				Type:      oType,
+				IsMaker:   strings.EqualFold(td.MatchRole, orderMatchRoleMaker),
 			}
 		}
 		resp, err := e.GetOrder(ctx, orderID, "")

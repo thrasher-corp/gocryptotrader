@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -358,10 +359,58 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestGetAllOpenOrderID(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := e.getAllOpenOrderID(t.Context())
-	assert.NoError(t, err, "getAllOpenOrderID should not error")
+	t.Run("Live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+
+		_, err := e.getAllOpenOrderID(t.Context())
+		assert.NoError(t, err, "getAllOpenOrderID should not error")
+	})
+
+	t.Run("Regression test: pagination", func(t *testing.T) {
+		t.Parallel()
+		ethPair := currency.NewPair(currency.ETH, currency.USDT).Format(currency.PairFormat{Delimiter: "_"})
+		btcSymbol, ethSymbol := testPair.String(), ethPair.String()
+		pages := []struct {
+			symbol, page, response string
+		}{
+			{btcSymbol, "1", `{"result":"true","error_code":0,"orders":[{"order_id":"1"},{"order_id":"2"}]}`},
+			{btcSymbol, "2", `{"result":"true","error_code":0,"orders":[{"order_id":"3"}]}`},
+			{btcSymbol, "3", `{"result":"true","error_code":0,"orders":[{"order_id":"5"},{"order_id":"6"}]}`},
+			{btcSymbol, "4", orderGuardNoOrders},
+			{ethSymbol, "1", `{"result":"true","error_code":0,"orders":[{"order_id":"4"}]}`},
+			{ethSymbol, "2", orderGuardNoOrders},
+		}
+		var calls atomic.Int64
+		ex := setupOrderGuard(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !assert.NoError(t, r.ParseForm(), "the request body should parse as a form") {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			i := calls.Add(1) - 1
+			if !assert.Less(t, i, int64(len(pages)), "the crawl should not make extra requests") {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			want := pages[i]
+			assert.Equal(t, http.MethodPost, r.Method, "the request method should be POST")
+			assert.Equal(t, "/v"+lbankAPIVersion2+"/"+lbankOpeningOrders, r.URL.Path, "the request path should be the open orders endpoint")
+			assert.Equal(t, want.symbol, r.PostForm.Get("symbol"), "the pair should match the expected request")
+			assert.Equal(t, want.page, r.PostForm.Get("current_page"), "the page should match the expected request")
+			assert.Equal(t, "200", r.PostForm.Get("page_length"), "the page length should be 200")
+			_, err := fmt.Fprint(w, want.response)
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		pairs := currency.Pairs{testPair, ethPair}
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, false), "StorePairs must not error for available pairs")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, true), "StorePairs must not error for enabled pairs")
+
+		ids, err := ex.getAllOpenOrderID(t.Context())
+		require.NoError(t, err, "getAllOpenOrderID must not error")
+		assert.Equal(t, map[string][]string{btcSymbol: {"1", "2", "3", "5", "6"}, ethSymbol: {"4"}}, ids, "the crawl should retain every ID across changing page sizes and pairs")
+		assert.Equal(t, int64(len(pages)), calls.Load(), "the crawl should request every expected page once")
+	})
 }
 
 func TestGetFeeByType(t *testing.T) {

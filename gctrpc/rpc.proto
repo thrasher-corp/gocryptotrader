@@ -163,6 +163,8 @@ message OrderbookItem {
   double amount = 1;
   double price = 2;
   int64 id = 3;
+  string str_amount = 4;
+  string str_price = 5;
 }
 
 message OrderbookResponse {
@@ -328,6 +330,7 @@ message OrderDetails {
   double cost = 16;
   repeated TradeHistory trades = 17;
   double contract_amount = 18;
+  string fee_currency = 19;
 }
 
 message TradeHistory {
@@ -371,6 +374,7 @@ message SubmitOrderRequest {
   string client_id = 7;
   string asset_type = 8;
   string margin_type = 9;
+  string client_order_id = 10;
 }
 
 message Trades {

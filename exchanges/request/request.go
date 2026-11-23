@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sort"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -118,26 +119,21 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 	}
 	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
 	if err != nil {
-		return nil, err
+		return nil, urlErrorForLog(err)
 	}
 
-	if i.HTTPDebugging {
-		// Err not evaluated due to validation check above
-		dump, _ := httputil.DumpRequestOut(req, true)
-		log.Debugf(log.RequestSys, "DumpRequest:\n%s", dump)
-	}
-
-	for k, v := range i.Headers {
-		req.Header.Add(k, v)
-	}
+	applyStringHeaders(req.Header, i.Headers)
 
 	if r.userAgent != "" && req.Header.Get(userAgent) == "" {
 		req.Header.Add(userAgent, r.userAgent)
 	}
-	for key, values := range headersFromContext(ctx) {
-		req.Header.Del(key)
-		for _, value := range values {
-			req.Header.Add(key, value)
+	applyHeaders(req.Header, headersFromContext(ctx))
+
+	if i.HTTPDebugging {
+		if dump, err := dumpRequestForLog(req, req.Header.Get("Content-Type")); err != nil {
+			log.Errorf(log.RequestSys, "%s DumpRequest invalid request: %v", r.name, err)
+		} else {
+			log.Debugf(log.RequestSys, "DumpRequest:\n%s", dump)
 		}
 	}
 
@@ -190,9 +186,9 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 // caller should retry. Any response body is closed before this method returns.
 func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Request, attempt int, verbose bool) (bool, error) {
 	if verbose {
-		log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, p.Path)
+		log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, pathForLog(p.Path))
 		for k, d := range req.Header {
-			log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.name, k, d)
+			log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.name, k, headerValuesForLog(k, d))
 		}
 		log.Debugf(log.RequestSys, "%s request type: %s", r.name, p.Method)
 		if req.GetBody != nil {
@@ -207,6 +203,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 			if bodyErr != nil {
 				return false, bodyErr
 			}
+			payload = bodyForLog(payload, req.Header.Get("Content-Type"))
 			log.Debugf(log.RequestSys, "%s request body: %s", r.name, payload)
 		}
 	}
@@ -243,7 +240,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 	if p.HTTPRecording {
 		// This dumps http responses for future mocking implementations
 		if err := mock.HTTPRecord(resp, r.name, contents, p.HTTPMockDataSliceLimit); err != nil {
-			return false, fmt.Errorf("mock recording failure %w, request %v: resp: %v", err, req, resp)
+			return false, fmt.Errorf("mock recording failure %w, request %s %s: resp: %s", err, req.Method, pathForLog(p.Path), resp.Status)
 		}
 	}
 
@@ -252,29 +249,63 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 	}
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > http.StatusNoContent {
-		return false, fmt.Errorf("%s %w: %d raw response: %s", r.name, ErrBadStatus, resp.StatusCode, string(contents))
+		return false, fmt.Errorf("%s %w: %d raw response: %s", r.name, ErrBadStatus, resp.StatusCode, bodyForLog(contents, resp.Header.Get("Content-Type")))
 	}
 
+	var contentsForLog []byte
+	if p.HTTPDebugging || verbose {
+		contentsForLog = bodyForLog(contents, resp.Header.Get("Content-Type"))
+	}
 	if p.HTTPDebugging {
-		dump, dumpErr := httputil.DumpResponse(resp, false)
+		respForLog := *resp
+		respForLog.Header = make(http.Header, len(resp.Header))
+		for name, values := range resp.Header {
+			respForLog.Header[name] = headerValuesForLog(name, values)
+		}
+		dump, dumpErr := httputil.DumpResponse(&respForLog, false)
 		if dumpErr != nil {
 			log.Errorf(log.RequestSys, "DumpResponse invalid response: %v:", dumpErr)
 		} else {
-			log.Debugf(log.RequestSys, "DumpResponse (%v):\n%s", p.Path, dump)
+			log.Debugf(log.RequestSys, "DumpResponse (%v):\n%s", pathForLog(p.Path), dump)
 		}
-		log.Debugf(log.RequestSys, "DumpResponse Body (%v):\n %s", p.Path, string(contents))
+		log.Debugf(log.RequestSys, "DumpResponse Body (%v):\n %s", pathForLog(p.Path), contentsForLog)
 	}
 
 	if verbose {
 		for k, d := range resp.Header {
-			log.Debugf(log.RequestSys, "%s response header [%s]: %s", r.name, k, d)
+			log.Debugf(log.RequestSys, "%s response header [%s]: %s", r.name, k, headerValuesForLog(k, d))
 		}
 		log.Debugf(log.RequestSys, "HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
 		if !p.HTTPDebugging {
-			log.Debugf(log.RequestSys, "%s raw response: %s", r.name, string(contents))
+			log.Debugf(log.RequestSys, "%s raw response: %s", r.name, contentsForLog)
 		}
 	}
 	return false, unmarshallError
+}
+
+func applyStringHeaders(destination http.Header, headers map[string]string) {
+	keys := make([]string, 0, len(headers))
+	for key := range headers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		destination.Set(key, headers[key])
+	}
+}
+
+func applyHeaders(destination, headers http.Header) {
+	keys := make([]string, 0, len(headers))
+	for key := range headers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		destination.Del(key)
+		for _, value := range headers[key] {
+			destination.Add(key, value)
+		}
+	}
 }
 
 // evaluateRetry checks whether a request should be retried based on the retry
@@ -283,7 +314,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 // a retry-decision error.
 func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, incomingErr error, attempt int, verbose bool) (bool, error) {
 	if hasRetryNotAllowed(ctx) {
-		return false, incomingErr
+		return false, urlErrorForLog(incomingErr)
 	}
 
 	retry, err := r.retryPolicy(resp, incomingErr)
@@ -291,11 +322,11 @@ func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, inco
 		if incomingErr == nil && resp != nil {
 			r.drainBody(resp.Body)
 		}
-		return false, err
+		return false, urlErrorForLog(err)
 	}
 
 	if !retry {
-		return false, incomingErr
+		return false, urlErrorForLog(incomingErr)
 	}
 
 	if incomingErr == nil {
@@ -305,7 +336,7 @@ func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, inco
 
 	if attempt > r.maxRetries {
 		if incomingErr != nil {
-			return false, fmt.Errorf("%w %w: err: %w", errFailedToRetryRequest, errExceedsMaxRetries, incomingErr)
+			return false, fmt.Errorf("%w %w: err: %w", errFailedToRetryRequest, errExceedsMaxRetries, urlErrorForLog(incomingErr))
 		}
 		return false, fmt.Errorf("%w %w: status %q", errFailedToRetryRequest, errExceedsMaxRetries, resp.Status)
 	}
@@ -316,14 +347,14 @@ func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, inco
 
 	if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(delay)) {
 		if incomingErr != nil {
-			return false, fmt.Errorf("%w %w: err: %w", errFailedToRetryRequest, context.DeadlineExceeded, incomingErr)
+			return false, fmt.Errorf("%w %w: err: %w", errFailedToRetryRequest, context.DeadlineExceeded, urlErrorForLog(incomingErr))
 		}
 		return false, fmt.Errorf("%w %w: status %q", errFailedToRetryRequest, context.DeadlineExceeded, resp.Status)
 	}
 
 	if verbose {
 		if incomingErr != nil {
-			log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d, cause: %s", r.name, delay, attempt, incomingErr)
+			log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d, cause: %s", r.name, delay, attempt, urlErrorForLog(incomingErr))
 		} else {
 			log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d, status: %q", r.name, delay, attempt, resp.Status)
 		}

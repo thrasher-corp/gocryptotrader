@@ -57,10 +57,11 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 | GateIO | Yes | Yes | |
 | Gemini | No | No | |
 | HitBTC | No | No | |
-| Huobi.Pro | Yes | Yes | |
+| HTX | Yes | Yes | |
 | Kraken | Yes | Yes | Front-end and API don't match total available transfer chains |
 | Kucoin |  Yes | Yes | |
 | Lbank | No | No | |
+| MEXC | No | Yes | |
 | Okx | Yes | Yes | |
 | Poloniex | Yes | Yes | |
 | Yobit | No | No | |

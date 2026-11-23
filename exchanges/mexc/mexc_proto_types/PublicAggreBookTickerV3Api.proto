@@ -1,0 +1,18 @@
+// spot@public.aggre.bookTicker.v3.api.pb
+
+syntax = "proto3";
+
+option go_package = "github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types";
+option java_multiple_files = true;
+option java_outer_classname = "PublicAggreBookTickerV3ApiProto";
+option java_package = "com.mxc.push.common.protobuf";
+option optimize_for = SPEED;
+
+message PublicAggreBookTickerV3Api {
+  string bidPrice = 1;
+  string bidQuantity = 2;
+  string askPrice = 3;
+  string askQuantity = 4;
+  string version = 5;
+  int64 lastOrderCreateTime = 6;
+}
