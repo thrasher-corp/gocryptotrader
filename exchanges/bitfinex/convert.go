@@ -112,6 +112,21 @@ func isDerivativeAsset(a asset.Item) bool {
 	return a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures
 }
 
+// isOrderAsset reports whether an asset is one Bitfinex trades with orders, which its order endpoints place and cancel;
+// margin funding takes offers instead
+func isOrderAsset(a asset.Item) bool {
+	return a == asset.Spot || a == asset.Margin || isDerivativeAsset(a)
+}
+
+// isTradedOrderType reports whether an order type is one the wrapper places and reads Bitfinex's orders back as
+func isTradedOrderType(t order.Type) bool {
+	switch t {
+	case order.Limit, order.Market, order.Stop, order.StopLimit, order.TrailingStop:
+		return true
+	}
+	return false
+}
+
 // derivativeAsset returns the asset of the derivatives a collateral currency, a derivative pair's quote, margins: USDT
 // margined futures for USTF0, Tether's USDT, and TESTUSDTF0, its paper trading twin, and coin margined futures for any
 // other, such as BTCF0

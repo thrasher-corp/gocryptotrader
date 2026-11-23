@@ -56,7 +56,9 @@ refused.
   stop Bitfinex works out from its distance. A good till crossing limit order is placed post only, and a time in force
   or tracking mode Bitfinex has no order for, such as good till day without an end time, is refused rather than left
   out.
-+ Client order IDs must be numbers, as Bitfinex's are.
++ `SubmitOrder` refuses a client order ID unless it is a non-zero unsigned 64-bit integer written in decimal without
+  leading zeros, as it reports the order with the ID as given, and the wrapper reads Bitfinex's client order IDs back in
+  that form.
 + An order has no margin mode to choose, so `SubmitOrder` refuses a `MarginType` other than a derivative's isolated
   margin, a margin order's cross margin and a spot order's no margin. It also refuses a `QuoteAmount`, as Bitfinex sizes
   orders in the base currency. `SubmitOrder` and `ModifyOrder` refuse `RiskManagementModes`, as Bitfinex places no take
@@ -82,7 +84,10 @@ refused.
   cancellation of every order would reach an order placed since, so a rate-limit refusal comes back as an error.
 + `CancelAllOrders` cancels the open orders of the requested asset, and of its pair, side and order type when they are
   given; a request naming none of them, or the nil one the cancel all orders RPC sends, cancels every open order through
-  Bitfinex's own cancellation of them all. `CancelBatchOrders` cancels its orders in one request. Both report the orders
+  Bitfinex's own cancellation of them all. `CancelBatchOrders` cancels its orders in one request. Both refuse, before
+  sending anything, an asset Bitfinex does not trade with orders, such as margin funding, whose offers have
+  cancellations of their own, and an order type other than the five `SubmitOrder` places. Neither needs an asset or an
+  order type, both take `order.AnyType`, and `CancelAllOrders` also takes `asset.All`. Both report the orders
   Bitfinex's reply names pending cancellation, as Bitfinex confirms each when the order closes, and any other they
   listed unknown.
 + `GetOrderInfo` returns an order with its trades and their fees, reading the order again when its trades show a fill

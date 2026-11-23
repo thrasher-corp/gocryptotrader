@@ -747,12 +747,6 @@ func TestPlaceOrderRequest(t *testing.T) {
 	t.Parallel()
 	t.Run("margin type and quote amount refusals", func(t *testing.T) {
 		t.Parallel()
-		pairs := map[asset.Item]currency.Pair{
-			asset.Spot:                currency.NewBTCUSD(),
-			asset.Margin:              currency.NewBTCUSD(),
-			asset.USDTMarginedFutures: testDerivativePair,
-			asset.CoinMarginedFutures: testCoinMarginedPair,
-		}
 		// Every order type placeOrderRequest takes, and every name for a side, as neither refusal depends on them
 		orders := []order.Submit{
 			{Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100},
@@ -775,7 +769,7 @@ func TestPlaceOrderRequest(t *testing.T) {
 			t.Run(tc.a.String(), func(t *testing.T) {
 				for _, s := range orders {
 					t.Run(s.Side.String()+" "+s.Type.String(), func(t *testing.T) {
-						s.AssetType, s.Pair = tc.a, pairs[tc.a]
+						s.AssetType, s.Pair = tc.a, testOrderAssetPairs[tc.a]
 						exp, err := placeOrderRequest(&s)
 						require.NoErrorf(t, err, "placeOrderRequest must not error for a %s %s %s order without a margin type", tc.a, s.Side, s.Type)
 						// The cases set the margin type of s in turn, and the quote amount check after them reuses s, so they run in order
@@ -818,12 +812,6 @@ func TestPlaceOrderRequest(t *testing.T) {
 
 	t.Run("take profit, stop loss and trigger price type refusals", func(t *testing.T) {
 		t.Parallel()
-		pairs := map[asset.Item]currency.Pair{
-			asset.Spot:                currency.NewBTCUSD(),
-			asset.Margin:              currency.NewBTCUSD(),
-			asset.USDTMarginedFutures: testDerivativePair,
-			asset.CoinMarginedFutures: testCoinMarginedPair,
-		}
 		// Every order type placeOrderRequest takes, every name for a side and every time in force it takes, as no refusal
 		// of either depends on them
 		orders := []order.Submit{
@@ -841,7 +829,7 @@ func TestPlaceOrderRequest(t *testing.T) {
 		options := orderOptionCases()
 		for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
 			for _, s := range orders {
-				s.AssetType, s.Pair = a, pairs[a]
+				s.AssetType, s.Pair = a, testOrderAssetPairs[a]
 				name := a.String() + " " + s.Side.String() + " " + s.Type.String()
 				if s.TimeInForce != order.UnknownTIF {
 					name += " " + s.TimeInForce.String()
@@ -856,6 +844,73 @@ func TestPlaceOrderRequest(t *testing.T) {
 						got, err := placeOrderRequest(&with)
 						assert.ErrorIsf(t, err, option.err, "placeOrderRequest should refuse a %s order with %s", name, option.name)
 						assert.Nilf(t, got, "placeOrderRequest should return no request for a %s order with %s", name, option.name)
+					})
+				}
+			}
+		}
+	})
+
+	t.Run("client order IDs of each asset and type", func(t *testing.T) {
+		t.Parallel()
+		orders := []order.Submit{
+			{Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100},
+			{Type: order.Market, Side: order.Sell, Amount: 1},
+			{Type: order.Stop, Side: order.Sell, Amount: 1, TriggerPrice: 90},
+			{Type: order.StopLimit, Side: order.Buy, Amount: 1, Price: 105, TriggerPrice: 110},
+			{Type: order.TrailingStop, Side: order.Sell, Amount: 1, TrackingValue: 10},
+		}
+		// The margin type placeOrderRequest applies to each asset's orders, which it takes when given too
+		marginTypes := map[asset.Item]margin.Type{
+			asset.Spot:                margin.NoMargin,
+			asset.Margin:              margin.Multi,
+			asset.USDTMarginedFutures: margin.Isolated,
+			asset.CoinMarginedFutures: margin.Isolated,
+		}
+		// The client order ID is checked and sent, changing nothing else in the request, whatever else the order sets
+		options := []struct {
+			name        string
+			types       []order.Type // The order types the option is for, or every type when empty
+			timeInForce order.TimeInForce
+			endTime     time.Time
+			reduceOnly  bool
+			marginType  bool
+			clientID    string
+		}{
+			{name: "no option"},
+			{name: "post only", timeInForce: order.PostOnly},
+			{name: "fill or kill", types: []order.Type{order.Limit}, timeInForce: order.FillOrKill},
+			{name: "immediate or cancel", types: []order.Type{order.Limit, order.Market}, timeInForce: order.ImmediateOrCancel},
+			{name: "good till time", timeInForce: order.GoodTillTime, endTime: time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC)},
+			{name: "reduce only", reduceOnly: true},
+			{name: "its margin type", marginType: true},
+			{name: "a client ID", clientID: "desk"},
+		}
+		for a, p := range testOrderAssetPairs {
+			for _, s := range orders {
+				for _, o := range options {
+					if len(o.types) != 0 && !slices.Contains(o.types, s.Type) {
+						continue
+					}
+					t.Run(a.String()+" "+s.Type.String()+" with "+o.name, func(t *testing.T) {
+						t.Parallel()
+						with := s
+						with.AssetType, with.Pair, with.TimeInForce, with.EndTime, with.ReduceOnly, with.ClientID = a, p, o.timeInForce, o.endTime, o.reduceOnly, o.clientID
+						if o.marginType {
+							with.MarginType = marginTypes[a]
+						}
+						exp, err := placeOrderRequest(&with)
+						require.NoErrorf(t, err, "placeOrderRequest must take a %s %s order with %s", a, with.Type, o.name)
+						exp.ClientOrderID = 1
+						with.ClientOrderID = "1"
+						got, err := placeOrderRequest(&with)
+						require.NoErrorf(t, err, "placeOrderRequest must take client order ID 1 for a %s %s order with %s", a, with.Type, o.name)
+						assert.Equalf(t, exp, got, "placeOrderRequest should send client order ID 1, and the rest of a %s %s order with %s as without it", a, with.Type, o.name)
+						for _, cid := range []string{"0", "01"} {
+							with.ClientOrderID = cid
+							refused, err := placeOrderRequest(&with)
+							assert.ErrorIsf(t, err, errInvalidClientOrderID, "placeOrderRequest should refuse client order ID %q for a %s %s order with %s", cid, a, with.Type, o.name)
+							assert.Nilf(t, refused, "placeOrderRequest should return no request for client order ID %q for a %s %s order with %s", cid, a, with.Type, o.name)
+						}
 					})
 				}
 			}
@@ -1011,6 +1066,35 @@ func TestPlaceOrderRequest(t *testing.T) {
 			exp:  &PlaceOrderRequest{Type: "TRAILING STOP", Symbol: "tBTCUSD", Amount: 1, TrailingPrice: 50},
 		},
 		{name: "client order ID", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, ClientOrderID: "abc"}, err: errInvalidClientOrderID},
+		{name: "zero client order ID", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "0"}, err: errInvalidClientOrderID},
+		{name: "client order ID with leading zeros", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "012"}, err: errInvalidClientOrderID},
+		{name: "client order ID with a sign", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "+12"}, err: errInvalidClientOrderID},
+		{name: "client order ID with spaces", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: " 12 "}, err: errInvalidClientOrderID},
+		{name: "client order ID of a space", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: " "}, err: errInvalidClientOrderID},
+		{name: "client order ID with a trailing space", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "12 "}, err: errInvalidClientOrderID},
+		{name: "client order ID with a leading space", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: " 12"}, err: errInvalidClientOrderID},
+		{name: "client order ID with a digit separator", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "1_2"}, err: errInvalidClientOrderID},
+		{name: "negative client order ID", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "-12"}, err: errInvalidClientOrderID},
+		{name: "margin client order ID with leading zeros", s: &order.Submit{AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "012"}, err: errInvalidClientOrderID},
+		{name: "client order ID past the largest", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "18446744073709551616"}, err: errInvalidClientOrderID},
+		{name: "client order ID with a line ending", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "12\n"}, err: errInvalidClientOrderID},
+		{name: "client order ID with a fraction", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "7.0"}, err: errInvalidClientOrderID},
+		{name: "client order ID with an exponent", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "7e0"}, err: errInvalidClientOrderID},
+		{
+			name: "largest client order ID",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "18446744073709551615"},
+			exp:  &PlaceOrderRequest{Type: "EXCHANGE LIMIT", Symbol: "tBTCUSD", Amount: 1, Price: 100, ClientOrderID: math.MaxUint64},
+		},
+		{
+			name: "client order ID ending in zero",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "1678987199440"},
+			exp:  &PlaceOrderRequest{Type: "EXCHANGE LIMIT", Symbol: "tBTCUSD", Amount: 1, Price: 100, ClientOrderID: 1678987199440},
+		},
+		{
+			name: "client ID without a client order ID",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientID: "desk"},
+			exp:  &PlaceOrderRequest{Type: "EXCHANGE LIMIT", Symbol: "tBTCUSD", Amount: 1, Price: 100},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1084,7 +1168,7 @@ func TestCheckOrderOptions(t *testing.T) {
 	}
 }
 
-func TestSubmitOrder(t *testing.T) { //nolint:tparallel // The cases share placed in order
+func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.SubmitOrder(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil, "SubmitOrder must refuse a nil submission")
@@ -1128,6 +1212,71 @@ func TestSubmitOrder(t *testing.T) { //nolint:tparallel // The cases share place
 			assert.Equalf(t, tc.triggerPrice, resp.TriggerPrice, "SubmitOrder should report a %s order's trigger price, a trailing stop's as Bitfinex placed it", tc.s.Type)
 		})
 	}
+	t.Run("client order IDs", func(t *testing.T) {
+		t.Parallel()
+		ex, bodies := newRequestBodyExchange(t, "/v2/auth/w/order/submit", `[1678987199,"on-req",null,null,[[1747566431,null,7,"tBTCUSD",1678987199446,1678987199448,1,1,"EXCHANGE LIMIT",null,null,null,0,"ACTIVE",null,null,100,0,0,0,null,null,null,0,0,null,null,null,"API>BFX",null,null,null]],null,"SUCCESS","Submitting exchange limit buy order for 1 BTC."]`)
+		for _, clientID := range []string{"", "desk"} {
+			s := order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientID: clientID}
+			for _, cid := range []string{"0", "007"} {
+				s.ClientOrderID = cid
+				resp, err := ex.SubmitOrder(t.Context(), &s)
+				assert.ErrorIsf(t, err, errInvalidClientOrderID, "SubmitOrder should refuse client order ID %q beside client ID %q", cid, clientID)
+				assert.Nilf(t, resp, "SubmitOrder should return no response for client order ID %q", cid)
+			}
+			assert.Empty(t, bodies, "SubmitOrder should send no order whose client order ID it refuses")
+			for _, cid := range []string{"7", "4294967297"} {
+				s.ClientOrderID = cid
+				resp, err := ex.SubmitOrder(t.Context(), &s)
+				require.NoErrorf(t, err, "SubmitOrder must place an order with client order ID %s beside client ID %q", cid, clientID)
+				assert.Equalf(t, cid, resp.ClientOrderID, "SubmitOrder should report client order ID %s, which it sends, beside client ID %q", cid, clientID)
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal([]byte(requestBody(t, bodies)), &sent), "Decoding the order sent must not error")
+				exp, err := strconv.ParseFloat(cid, 64)
+				require.NoError(t, err, "ParseFloat must not error")
+				assert.Equalf(t, exp, sent["cid"], "SubmitOrder should send client order ID %s as its number beside client ID %q", cid, clientID)
+			}
+		}
+	})
+	t.Run("client order IDs through the websocket", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the websocket would place the order on Bitfinex")
+		}
+		ex := newRefusingTestExchange(t)
+		venue := connectWebsocketTestExchange(t, ex, subscription.List{})
+		require.True(t, ex.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "the wrapper must be able to use the authenticated websocket")
+		req := wsTestOrderRequest(t)
+		clientIDs := []string{"", "desk"}
+		for _, clientID := range clientIDs {
+			for _, cid := range []string{"0", "007"} {
+				s := order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: req.Amount, Price: req.Price, ClientID: clientID, ClientOrderID: cid}
+				resp, err := ex.SubmitOrder(t.Context(), &s)
+				assert.ErrorIsf(t, err, errInvalidClientOrderID, "SubmitOrder should refuse client order ID %q beside client ID %q through the websocket", cid, clientID)
+				assert.Nilf(t, resp, "SubmitOrder should return no response for client order ID %q through the websocket", cid)
+			}
+		}
+		assertNoWebsocketInputs(t, venue, "SubmitOrder")
+		cids := []string{"7", "4294967297"}
+		exp := make([]float64, 0, len(clientIDs)*len(cids))
+		for _, clientID := range clientIDs {
+			for _, cid := range cids {
+				s := order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: req.Amount, Price: req.Price, ClientID: clientID, ClientOrderID: cid}
+				resp, err := ex.SubmitOrder(t.Context(), &s)
+				require.NoErrorf(t, err, "SubmitOrder must place an order with client order ID %s beside client ID %q through the websocket", cid, clientID)
+				assert.Equalf(t, cid, resp.ClientOrderID, "SubmitOrder should report client order ID %s, which it sends, beside client ID %q through the websocket", cid, clientID)
+				n, err := strconv.ParseFloat(cid, 64)
+				require.NoError(t, err, "ParseFloat must not error")
+				exp = append(exp, n)
+			}
+		}
+		inputs := venue.inputs(wsOrderNew)
+		require.Len(t, inputs, len(exp), "SubmitOrder must place each order through the websocket")
+		for i := range inputs {
+			var sent map[string]any
+			require.NoError(t, json.Unmarshal(inputs[i], &sent), "Decoding the order sent must not error")
+			assert.Equalf(t, exp[i], sent["cid"], "SubmitOrder should send client order ID %v as its number through the websocket", exp[i])
+		}
+	})
 	skipLiveUnlessCanManipulate(t)
 	ex := newWrapperTestExchange(t)
 	s := &order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 0.1, Price: 10000, ClientOrderID: "1678987199446"}
@@ -1487,12 +1636,6 @@ func TestModifyOrder(t *testing.T) {
 		t.Run("take profit, stop loss and trigger price type refusals", func(t *testing.T) {
 			t.Parallel()
 			ex, updates := newOrderUpdateTestExchange(t, testOrderRecord{id: 11, symbol: "tBTCUSD", orderType: "LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 100})
-			pairs := map[asset.Item]currency.Pair{
-				asset.Spot:                currency.NewBTCUSD(),
-				asset.Margin:              currency.NewBTCUSD(),
-				asset.USDTMarginedFutures: testDerivativePair,
-				asset.CoinMarginedFutures: testCoinMarginedPair,
-			}
 			// No side, any side and every name for one, no type, any type and every type Bitfinex places, every time in force,
 			// and new prices, amounts and trigger prices, as no refusal depends on them
 			modifications := []struct {
@@ -1523,7 +1666,7 @@ func TestModifyOrder(t *testing.T) {
 					for _, option := range options {
 						t.Run(a.String()+" "+mod.name+" with "+option.name, func(t *testing.T) {
 							m := mod.m
-							m.OrderID, m.AssetType, m.Pair = "11", a, pairs[a]
+							m.OrderID, m.AssetType, m.Pair = "11", a, testOrderAssetPairs[a]
 							m.RiskManagementModes, m.TriggerPriceType = option.risk, option.triggerPriceType
 							_, err := ex.ModifyOrder(t.Context(), &m)
 							assert.ErrorIsf(t, err, option.err, "ModifyOrder should refuse %s with %s for a %s order", mod.name, option.name, a)
@@ -1780,6 +1923,141 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = newResponseServerExchange(t, `["error",10001,"cancel: invalid"]`).CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1"}})
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr, "CancelBatchOrders must return the error Bitfinex reports")
+	for _, tc := range []struct {
+		name string
+		c    order.Cancel
+	}{
+		{name: "refuses a hexadecimal order ID", c: order.Cancel{OrderID: "0x2A"}},
+		{name: "refuses a client order ID alone", c: order.Cancel{ClientOrderID: "1747566428"}},
+		{name: "refuses a client ID alone", c: order.Cancel{ClientID: "42"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := newRefusingTestExchange(t).CancelBatchOrders(t.Context(), []order.Cancel{tc.c})
+			assert.ErrorIs(t, err, errOrderIDRequired, "CancelBatchOrders should refuse an entry without a decimal order ID")
+		})
+	}
+	t.Run("an order of each asset and type the wrapper places", func(t *testing.T) {
+		t.Parallel()
+		ex, cancellations := newCancelTestExchange(t, nil, nil)
+		cancels := make([]order.Cancel, 0, len(testOrderAssets)+len(testOrderTypes)+2)
+		for _, a := range testOrderAssets {
+			cancels = append(cancels, order.Cancel{AssetType: a})
+		}
+		for _, orderType := range slices.Concat(testOrderTypes, []order.Type{order.AnyType}) {
+			cancels = append(cancels, order.Cancel{Type: orderType})
+		}
+		cancels = append(cancels, order.Cancel{
+			Exchange: ex.Name, ClientOrderID: "1678987199446", AccountID: "1", ClientID: "2", Type: order.Limit, Side: order.Sell, AssetType: asset.Spot,
+			Pair: currency.NewBTCUSD(), MarginType: margin.Isolated, TimeInForce: order.GoodTillCancel,
+		})
+		ids := make([]any, len(cancels))
+		for i := range cancels {
+			cancels[i].OrderID = strconv.Itoa(1747566428 + i)
+			ids[i] = float64(1747566428 + i)
+		}
+		_, err := ex.CancelBatchOrders(t.Context(), cancels)
+		require.NoError(t, err, "CancelBatchOrders must accept an order of each asset and type the wrapper places")
+		assert.Equal(t, []map[string]any{{"id": ids}}, cancellations(), "CancelBatchOrders should send every order in one request")
+	})
+	t.Run("an order of each asset with each type the wrapper places", func(t *testing.T) {
+		t.Parallel()
+		ex, cancellations := newCancelTestExchange(t, nil, nil)
+		assets := slices.Concat([]asset.Item{asset.Empty}, testOrderAssets)
+		orderTypes := slices.Concat([]order.Type{order.UnknownType, order.AnyType}, testOrderTypes)
+		cancels := make([]order.Cancel, 0, len(assets)*len(orderTypes)+1)
+		for _, a := range assets {
+			for _, orderType := range orderTypes {
+				cancels = append(cancels, order.Cancel{AssetType: a, Type: orderType})
+			}
+		}
+		cancels = append(cancels, order.Cancel{
+			Exchange: ex.Name, ClientOrderID: "1678987199446", AccountID: "1", ClientID: "2", Type: order.Limit, Side: order.Sell, AssetType: asset.Spot,
+			Pair: currency.NewBTCUSD(), MarginType: margin.Isolated, TimeInForce: order.GoodTillCancel,
+		})
+		ids := make([]any, len(cancels))
+		for i := range cancels {
+			cancels[i].OrderID = strconv.Itoa(1747566428 + i)
+			ids[i] = float64(1747566428 + i)
+		}
+		_, err := ex.CancelBatchOrders(t.Context(), cancels)
+		require.NoError(t, err, "CancelBatchOrders must accept an order of each asset with each type the wrapper places")
+		assert.Equal(t, []map[string]any{{"id": ids}}, cancellations(), "CancelBatchOrders should send every order in one request")
+	})
+	for _, a := range append(asset.Supported(), asset.All, asset.All+1) {
+		if slices.Contains(testOrderAssets, a) {
+			continue
+		}
+		t.Run("refuses "+cmp.Or(a.String(), "an undefined asset"), func(t *testing.T) {
+			t.Parallel()
+			ex := newRefusingTestExchange(t)
+			for _, c := range []order.Cancel{
+				{OrderID: "1747566429", AssetType: a},
+				{OrderID: "1747566429", AssetType: a, Side: order.AnySide, Type: order.AnyType},
+				{OrderID: "1747566429", AssetType: a, Pair: testDerivativePair},
+				{OrderID: "1747566429", AssetType: a, Pair: testCoinMarginedPair},
+				{OrderID: "1747566429", AssetType: a, Pair: currency.NewPair(currency.USD, currency.EMPTYCODE)},
+				{
+					Exchange: ex.Name, OrderID: "1747566429", ClientOrderID: "1678987199446", AccountID: "1", ClientID: "2", Type: order.Limit, Side: order.Sell,
+					AssetType: a, Pair: currency.NewBTCUSD(), MarginType: margin.Isolated, TimeInForce: order.GoodTillCancel,
+				},
+			} {
+				valid := order.Cancel{OrderID: "1747566428", AssetType: asset.Spot}
+				sameID := c
+				sameID.OrderID = valid.OrderID
+				for _, cancels := range [][]order.Cancel{{c}, {valid, c}, {c, valid}, {valid, c, valid}, {valid, sameID}} {
+					resp, err := ex.CancelBatchOrders(t.Context(), cancels)
+					assert.ErrorIsf(t, err, asset.ErrNotSupported, "CancelBatchOrders should refuse an order of asset %q on pair %s", a, c.Pair)
+					assert.Nilf(t, resp, "CancelBatchOrders should return no response when it refuses an order of asset %q", a)
+				}
+			}
+		})
+	}
+	for _, orderType := range testOtherOrderTypes() {
+		t.Run("refuses "+testOrderTypeName(orderType), func(t *testing.T) {
+			t.Parallel()
+			ex := newRefusingTestExchange(t)
+			assets := slices.Concat([]asset.Item{asset.Empty}, testOrderAssets)
+			sides := []order.Side{order.UnknownSide, order.AnySide, order.Buy, order.Sell, order.Bid, order.Ask, order.Long, order.Short}
+			cancels := make([]order.Cancel, 0, 2*len(assets)*len(sides)+1)
+			cancels = append(cancels, order.Cancel{
+				Exchange: ex.Name, OrderID: "1747566429", ClientOrderID: "1678987199446", AccountID: "1", ClientID: "2", Type: orderType, Side: order.Sell,
+				AssetType: asset.Spot, Pair: currency.NewBTCUSD(), MarginType: margin.Isolated, TimeInForce: order.GoodTillCancel,
+			})
+			for _, a := range assets {
+				for _, side := range sides {
+					cancels = append(cancels, order.Cancel{OrderID: "1747566429", AssetType: a, Side: side, Type: orderType})
+					if p, ok := testOrderAssetPairs[a]; ok {
+						cancels = append(cancels, order.Cancel{OrderID: "1747566429", AssetType: a, Pair: p, Side: side, Type: orderType})
+					}
+				}
+			}
+			for _, c := range cancels {
+				valid := order.Cancel{OrderID: "1747566428", AssetType: asset.Spot, Type: order.Limit}
+				sameID := c
+				sameID.OrderID = valid.OrderID
+				for _, batch := range [][]order.Cancel{{c}, {valid, c}, {c, valid}, {valid, c, valid}, {valid, sameID}} {
+					resp, err := ex.CancelBatchOrders(t.Context(), batch)
+					assert.ErrorIsf(t, err, errUnsupportedOrderType, "CancelBatchOrders should refuse an order of type %s and asset %q on pair %s and side %s", orderType, c.AssetType, c.Pair, c.Side)
+					assert.Nilf(t, resp, "CancelBatchOrders should return no response when it refuses an order of type %s", orderType)
+				}
+			}
+		})
+	}
+	t.Run("refuses with the websocket connected", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the websocket would connect to Bitfinex")
+		}
+		ex := newRefusingTestExchange(t)
+		venue := connectWebsocketTestExchange(t, ex, subscription.List{})
+		require.True(t, ex.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "the wrapper must be able to use the authenticated websocket")
+		_, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1747566428", AssetType: asset.MarginFunding}})
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelBatchOrders should refuse an order of margin funding with the websocket connected")
+		_, err = ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1747566428", AssetType: asset.Spot, Type: order.OCO}})
+		assert.ErrorIs(t, err, errUnsupportedOrderType, "CancelBatchOrders should refuse an OCO order with the websocket connected")
+		assertNoWebsocketInputs(t, venue, "CancelBatchOrders")
+	})
 	skipLiveUnlessCanManipulate(t)
 	ex := newWrapperTestExchange(t)
 	ids := []string{testWrapperOrderID, "1747566429"}
@@ -1834,6 +2112,24 @@ func newCancelTestExchange(t *testing.T, open, replied []testOrderRecord) (ex *E
 		mu.Lock()
 		defer mu.Unlock()
 		return slices.Clone(sent)
+	}
+}
+
+// newRefusingTestExchange returns an exchange whose test server fails the test on any request, for calls that must
+// refuse before sending anything
+func newRefusingTestExchange(t *testing.T) *Exchange {
+	t.Helper()
+	return newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "the test server should receive no request for a call refused before sending anything", "%s %s", r.Method, r.URL.Path)
+		http.Error(w, "unexpected request", http.StatusBadRequest)
+	}))
+}
+
+// assertNoWebsocketInputs checks that the mock websocket received no input request of any type
+func assertNoWebsocketInputs(t *testing.T, venue *websocketVenue, caller string) {
+	t.Helper()
+	for _, input := range []string{wsOrderNew, wsOrderUpdate, wsOrderCancel, wsOrderCancelMulti, wsFundingOfferNew, wsFundingOfferCancel, wsCalc} {
+		assert.Emptyf(t, venue.inputs(input), "%s should send no %s input through the websocket for what it refuses", caller, input)
 	}
 }
 
@@ -1911,6 +2207,10 @@ func TestCancelAllOrders(t *testing.T) {
 			{name: "stop limit orders", c: order.Cancel{AssetType: asset.Spot, Type: order.StopLimit}, exp: []testOrderRecord{stopLimit}},
 			{name: "any type", c: order.Cancel{AssetType: asset.Spot, Type: order.AnyType}, exp: []testOrderRecord{buy, sell, stop, stopLimit}},
 			{name: "a side and type", c: order.Cancel{AssetType: asset.Spot, Side: order.Buy, Type: order.Limit}, exp: []testOrderRecord{buy}},
+			{name: "bids of a type", c: order.Cancel{AssetType: asset.Spot, Side: order.Bid, Type: order.Limit}, exp: []testOrderRecord{buy}},
+			{name: "asks of a type", c: order.Cancel{AssetType: asset.Spot, Side: order.Ask, Type: order.Limit}, exp: []testOrderRecord{sell}},
+			{name: "longs of a type", c: order.Cancel{AssetType: asset.Spot, Side: order.Long, Type: order.Limit}, exp: []testOrderRecord{buy}},
+			{name: "shorts of a type", c: order.Cancel{AssetType: asset.Spot, Side: order.Short, Type: order.Limit}, exp: []testOrderRecord{sell}},
 			{name: "a side of a pair", c: order.Cancel{AssetType: asset.Spot, Pair: spotPair, Side: order.Sell}, exp: []testOrderRecord{sell, stopLimit}},
 			{name: "a type of a pair", c: order.Cancel{AssetType: asset.Spot, Pair: spotPair, Type: order.Stop}, exp: []testOrderRecord{stop}},
 			{name: "a side of every asset", c: order.Cancel{AssetType: asset.All, Side: order.Sell}, exp: []testOrderRecord{sell, margined, stopLimit}},
@@ -1950,6 +2250,9 @@ func TestCancelAllOrders(t *testing.T) {
 		spot := testOrderRecord{id: 1747566428, symbol: "tBTCUSD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: 0.1, original: 0.1, price: 10000}
 		derivative := testOrderRecord{id: 1747566430, symbol: "tBTCF0:USTF0", orderType: "LIMIT", status: "ACTIVE", amount: 0.002, original: 0.002, price: 70000, meta: `{"$F33":20}`}
 		late := testOrderRecord{id: 1747566431, symbol: "tETHUSD", orderType: "LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 2000}
+		sell := testOrderRecord{id: 1747566432, symbol: "tBTCUSD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: -0.1, original: -0.1, price: 11000}
+		stop := testOrderRecord{id: 1747566433, symbol: "tBTCUSD", orderType: "EXCHANGE STOP", status: "ACTIVE", amount: 0.1, original: 0.1, price: 12000}
+		trailing := testOrderRecord{id: 1747566434, symbol: "tBTCUSD", orderType: "EXCHANGE TRAILING STOP", status: "ACTIVE", amount: -0.1, original: -0.1, price: 9000}
 		pending, unknown := order.PendingCancel.String(), order.UnknownStatus.String()
 		for _, tc := range []struct {
 			name          string
@@ -1971,6 +2274,47 @@ func TestCancelAllOrders(t *testing.T) {
 			{
 				name: "every asset", c: &order.Cancel{AssetType: asset.All}, open: []testOrderRecord{spot, derivative}, replied: []testOrderRecord{spot, derivative},
 				exp: map[string]string{"1747566428": pending, "1747566430": pending}, expSent: []map[string]any{{"all": 1.0}},
+			},
+			{
+				name: "any side and type of every asset", c: &order.Cancel{AssetType: asset.All, Side: order.AnySide, Type: order.AnyType}, open: []testOrderRecord{spot, derivative},
+				replied: []testOrderRecord{spot, derivative, late}, exp: map[string]string{"1747566428": pending, "1747566430": pending, "1747566431": pending},
+				expSent: []map[string]any{{"all": 1.0}},
+			},
+			{
+				name: "trailing stops with no asset", c: &order.Cancel{Type: order.TrailingStop}, open: []testOrderRecord{spot, trailing},
+				replied: []testOrderRecord{trailing}, exp: map[string]string{"1747566434": pending}, expSent: []map[string]any{{"id": []any{1747566434.0}}},
+			},
+			{
+				name: "any side and type with no asset", c: &order.Cancel{Side: order.AnySide, Type: order.AnyType}, open: []testOrderRecord{spot, derivative},
+				replied: []testOrderRecord{spot, derivative, late}, exp: map[string]string{"1747566428": pending, "1747566430": pending, "1747566431": pending},
+				expSent: []map[string]any{{"all": 1.0}},
+			},
+			{
+				name: "any side with no asset", c: &order.Cancel{Side: order.AnySide}, open: []testOrderRecord{spot, derivative},
+				replied: []testOrderRecord{spot, derivative, late}, exp: map[string]string{"1747566428": pending, "1747566430": pending, "1747566431": pending},
+				expSent: []map[string]any{{"all": 1.0}},
+			},
+			{
+				name: "any type with no asset", c: &order.Cancel{Type: order.AnyType}, open: []testOrderRecord{spot, derivative},
+				replied: []testOrderRecord{spot, derivative, late}, exp: map[string]string{"1747566428": pending, "1747566430": pending, "1747566431": pending},
+				expSent: []map[string]any{{"all": 1.0}},
+			},
+			{
+				name: "a side of any type with no asset", c: &order.Cancel{Side: order.Sell, Type: order.AnyType}, open: []testOrderRecord{spot, sell},
+				replied: []testOrderRecord{sell}, exp: map[string]string{"1747566432": pending}, expSent: []map[string]any{{"id": []any{1747566432.0}}},
+			},
+			{
+				name: "a type on any side with no asset", c: &order.Cancel{Side: order.AnySide, Type: order.Stop}, open: []testOrderRecord{spot, stop},
+				replied: []testOrderRecord{stop}, exp: map[string]string{"1747566433": pending}, expSent: []map[string]any{{"id": []any{1747566433.0}}},
+			},
+			{
+				// The side or type asked for holds even when every listed order has it, as an order placed after the listing may not
+				name: "a side every open order is of", c: &order.Cancel{Side: order.Sell}, open: []testOrderRecord{sell},
+				replied: []testOrderRecord{sell}, exp: map[string]string{"1747566432": pending}, expSent: []map[string]any{{"id": []any{1747566432.0}}},
+			},
+			{
+				name: "a type every open order is of", c: &order.Cancel{Type: order.Stop}, open: []testOrderRecord{stop},
+				replied: []testOrderRecord{stop}, exp: map[string]string{"1747566433": pending}, expSent: []map[string]any{{"id": []any{1747566433.0}}},
 			},
 			{
 				name: "an asset", c: &order.Cancel{AssetType: asset.Spot}, open: []testOrderRecord{spot, derivative}, replied: []testOrderRecord{spot},
@@ -2005,6 +2349,81 @@ func TestCancelAllOrders(t *testing.T) {
 		_, err = refused.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.All + 1})
 		assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders should refuse an asset that is not one, rather than cancel every order")
 		assert.Empty(t, cancellations(), "CancelAllOrders should cancel nothing for an asset it refuses")
+		for _, a := range append(asset.Supported(), asset.All+1) {
+			if slices.Contains(testOrderAssets, a) {
+				continue
+			}
+			t.Run("refuses "+cmp.Or(a.String(), "an undefined asset"), func(t *testing.T) {
+				t.Parallel()
+				ex := newRefusingTestExchange(t)
+				for _, c := range []order.Cancel{
+					{AssetType: a},
+					{AssetType: a, Side: order.AnySide, Type: order.AnyType},
+					{AssetType: a, Pair: currency.NewBTCUSD()},
+					{AssetType: a, Pair: testDerivativePair},
+					{AssetType: a, Pair: testCoinMarginedPair},
+					{AssetType: a, Pair: currency.NewPair(currency.USD, currency.EMPTYCODE)},
+					{
+						Exchange: ex.Name, OrderID: "1747566428", ClientOrderID: "1678987199446", AccountID: "1", ClientID: "2", Type: order.Limit, Side: order.Sell,
+						AssetType: a, MarginType: margin.Isolated, TimeInForce: order.GoodTillCancel,
+					},
+				} {
+					_, err := ex.CancelAllOrders(t.Context(), &c)
+					assert.ErrorIsf(t, err, asset.ErrNotSupported, "CancelAllOrders should refuse orders of asset %q on pair %s, rather than report nothing to cancel", a, c.Pair)
+				}
+			})
+		}
+		for _, orderType := range testOtherOrderTypes() {
+			t.Run("refuses "+testOrderTypeName(orderType), func(t *testing.T) {
+				t.Parallel()
+				ex := newRefusingTestExchange(t)
+				assets := slices.Concat([]asset.Item{asset.Empty, asset.All}, testOrderAssets)
+				sides := []order.Side{order.UnknownSide, order.AnySide, order.Buy, order.Sell, order.Bid, order.Ask, order.Long, order.Short}
+				cancels := make([]order.Cancel, 0, 2*len(assets)*len(sides)+1)
+				cancels = append(cancels, order.Cancel{
+					Exchange: ex.Name, OrderID: "1747566428", ClientOrderID: "1678987199446", AccountID: "1", ClientID: "2", Type: orderType, Side: order.Sell,
+					AssetType: asset.All, Pair: currency.NewBTCUSD(), MarginType: margin.Isolated, TimeInForce: order.GoodTillCancel,
+				})
+				for _, a := range assets {
+					for _, side := range sides {
+						cancels = append(cancels, order.Cancel{AssetType: a, Side: side, Type: orderType})
+						if p, ok := testOrderAssetPairs[a]; ok {
+							cancels = append(cancels, order.Cancel{AssetType: a, Pair: p, Side: side, Type: orderType})
+						}
+					}
+				}
+				for _, c := range cancels {
+					_, err := ex.CancelAllOrders(t.Context(), &c)
+					assert.ErrorIsf(t, err, errUnsupportedOrderType, "CancelAllOrders should refuse %s orders of asset %q on pair %s and side %s, rather than report nothing to cancel", orderType, c.AssetType, c.Pair, c.Side)
+				}
+			})
+		}
+		for _, orderType := range slices.Concat(testOrderTypes, []order.Type{order.AnyType}) {
+			t.Run("takes "+orderType.String(), func(t *testing.T) {
+				t.Parallel()
+				ex, cancellations := newCancelTestExchange(t, nil, nil)
+				for _, a := range testOrderAssets {
+					resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a, Type: orderType})
+					require.NoErrorf(t, err, "CancelAllOrders must take %s orders of asset %s", orderType, a)
+					assert.Emptyf(t, resp.Status, "CancelAllOrders should report no %s order of asset %s with none open", orderType, a)
+				}
+				assert.Emptyf(t, cancellations(), "CancelAllOrders should send no cancellation with no %s order open", orderType)
+			})
+		}
+		t.Run("refuses with the websocket connected", func(t *testing.T) {
+			t.Parallel()
+			if !mockTests {
+				t.Skip("the websocket would connect to Bitfinex")
+			}
+			ex := newRefusingTestExchange(t)
+			venue := connectWebsocketTestExchange(t, ex, subscription.List{})
+			require.True(t, ex.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "the wrapper must be able to use the authenticated websocket")
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.MarginFunding})
+			assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders should refuse orders of margin funding with the websocket connected")
+			_, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Type: order.OCO})
+			assert.ErrorIs(t, err, errUnsupportedOrderType, "CancelAllOrders should refuse OCO orders with the websocket connected")
+			assertNoWebsocketInputs(t, venue, "CancelAllOrders")
+		})
 
 		skipLiveUnlessCanManipulate(t)
 		ex := newWrapperTestExchange(t)

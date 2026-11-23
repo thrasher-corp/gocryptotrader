@@ -1,6 +1,9 @@
 package bitfinex
 
 import (
+	"cmp"
+	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -19,7 +22,39 @@ var (
 	// testDerivativePair is a USDT margined perpetual contract, and testCoinMarginedPair one margined by bitcoin
 	testDerivativePair   = currency.NewPair(currency.NewCode("BTCF0"), currency.NewCode("USTF0"))
 	testCoinMarginedPair = currency.NewPair(currency.NewCode("ETHF0"), currency.NewCode("BTCF0"))
+	// testOrderAssets are the assets Bitfinex trades with orders, and testOrderTypes the order types the wrapper places
+	testOrderAssets = []asset.Item{asset.Spot, asset.Margin, asset.USDTMarginedFutures, asset.CoinMarginedFutures}
+	testOrderTypes  = []order.Type{order.Limit, order.Market, order.Stop, order.StopLimit, order.TrailingStop}
+	// testOrderAssetPairs holds a pair of each asset Bitfinex trades with orders
+	testOrderAssetPairs = map[asset.Item]currency.Pair{
+		asset.Spot:                currency.NewBTCUSD(),
+		asset.Margin:              currency.NewBTCUSD(),
+		asset.USDTMarginedFutures: testDerivativePair,
+		asset.CoinMarginedFutures: testCoinMarginedPair,
+	}
 )
+
+// testOtherOrderTypes returns the order types the wrapper does not place: the hybrid types but stop limit, unions of the
+// placed types' bits GCT does not name, GCT's mask of every type, and every single-bit type across the type's width,
+// named or not, but any type and the four the wrapper places
+func testOtherOrderTypes() []order.Type {
+	others := []order.Type{
+		order.StopMarket, order.TakeProfitMarket, order.TrailingStopLimit, order.Bracket,
+		order.Limit | order.Market, order.Market | order.TrailingStop, order.Stop | order.TrailingStop,
+		order.Limit | order.Market | order.Stop | order.TrailingStop, order.AllOrderTypes,
+	}
+	for b := order.Type(1); b != 0; b <<= 1 {
+		if b != order.AnyType && !slices.Contains(testOrderTypes, b) {
+			others = append(others, b)
+		}
+	}
+	return others
+}
+
+// testOrderTypeName names an order type for a subtest by its bits as well, as GCT names only some types
+func testOrderTypeName(t order.Type) string {
+	return t.String() + " " + strconv.FormatUint(uint64(t), 10)
+}
 
 func TestSymbolFor(t *testing.T) {
 	t.Parallel()
@@ -84,6 +119,26 @@ func TestDerivativeAsset(t *testing.T) {
 	assert.True(t, isDerivativeAsset(asset.CoinMarginedFutures), "coin margined futures should be a derivative asset")
 	assert.False(t, isDerivativeAsset(asset.Futures), "futures should not be a derivative asset, as Bitfinex's derivatives trade by their collateral")
 	assert.Equal(t, currency.BTC, underlyingCurrency(currency.NewCode("btcf0")), "a derivative currency should follow the currency without its suffix")
+}
+
+func TestIsOrderAsset(t *testing.T) {
+	t.Parallel()
+	for _, a := range append(asset.Supported(), asset.Empty, asset.All) {
+		t.Run(cmp.Or(a.String(), "empty"), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, slices.Contains(testOrderAssets, a), isOrderAsset(a), "isOrderAsset should report whether Bitfinex trades %s with orders", a)
+		})
+	}
+}
+
+func TestIsTradedOrderType(t *testing.T) {
+	t.Parallel()
+	for _, orderType := range slices.Concat(testOrderTypes, testOtherOrderTypes(), []order.Type{order.UnknownType, order.AnyType}) {
+		t.Run(testOrderTypeName(orderType), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, slices.Contains(testOrderTypes, orderType), isTradedOrderType(orderType), "isTradedOrderType should report whether the wrapper places %s orders", orderType)
+		})
+	}
 }
 
 func TestPairFromSymbol(t *testing.T) {

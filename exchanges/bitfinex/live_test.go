@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 var (
@@ -37,7 +38,7 @@ func TestMain(m *testing.M) {
 
 // setupLiveExchange sets an exchange up for live testing, with the credentials above when they are set
 func setupLiveExchange(ex *Exchange) error {
-	if err := setupTestExchange(ex); err != nil {
+	if err := testexch.Setup(ex); err != nil {
 		return err
 	}
 	if apiCredentials.Key != "" && apiCredentials.Secret != "" {

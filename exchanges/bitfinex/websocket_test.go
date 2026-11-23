@@ -1581,8 +1581,8 @@ func TestGenerateSubscriptions(t *testing.T) { //nolint:tparallel // The cases s
 	assert.Equal(t, subscription.List{{Channel: subscription.MyAccountChannel, Authenticated: true, Asset: asset.All}}, accountSubs, "generateAccountSubscriptions should generate the account channel")
 }
 
-// version18Subscriptions are the default subscriptions a configuration saved before perpetual contracts holds
-const version18Subscriptions = `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"allTrades","asset":"all"},` +
+// version19Subscriptions are the default subscriptions a configuration saved before perpetual contracts holds
+const version19Subscriptions = `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"allTrades","asset":"all"},` +
 	`{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"},{"enabled":true,"channel":"candles","asset":"margin","interval":"1m"},` +
 	`{"enabled":true,"channel":"candles","asset":"marginfunding","params":{"_period":"p30"},"interval":"1m"},` +
 	`{"enabled":true,"channel":"orderbook","asset":"all","params":{"prec":"R0"},"levels":100}]`
@@ -1591,7 +1591,7 @@ func TestGenerateSubscriptionsFromMigratedConfig(t *testing.T) {
 	t.Parallel()
 	raw, err := testExchangeConfig()
 	require.NoError(t, err, "testExchangeConfig must not error")
-	withPerpetualPairs, err := jsonparser.Set(raw, []byte(version18Subscriptions), "features", "subscriptions")
+	withPerpetualPairs, err := jsonparser.Set(raw, []byte(version19Subscriptions), "features", "subscriptions")
 	require.NoError(t, err, "jsonparser.Set must not error")
 	// A configuration saved before perpetual contracts holds no perpetual pairs, and one downgraded from version 20 keeps them
 	withoutPerpetualPairs := withPerpetualPairs
@@ -1625,6 +1625,7 @@ func TestGenerateSubscriptionsFromMigratedConfig(t *testing.T) {
 				ex := new(Exchange)
 				ex.SetDefaults()
 				ex.Websocket = sharedtestvalues.NewTestWebsocket()
+				ex.Accounts = accounts.MustNewAccounts(ex)
 				require.NoError(t, ex.Setup(exchCfg), "Setup must not error for the upgraded configuration")
 				ex.Name = t.Name()
 				subs, err := ex.generateSubscriptions()

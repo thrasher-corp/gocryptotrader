@@ -28,6 +28,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -50,8 +51,8 @@ const (
 
 var e *Exchange
 
-// testExchangeConfig is Bitfinex's configuration from testdata/configtest.json, loaded once; testexch.Setup loads every
-// exchange's configuration each time, which serialises the many exchanges the tests set up on its locks
+// testExchangeConfig is Bitfinex's configuration from testdata/configtest.json, loaded once, for tests that save it as an
+// older configuration
 var testExchangeConfig = sync.OnceValues(func() ([]byte, error) {
 	root, err := testutils.RootPathFromCWD()
 	if err != nil {
@@ -68,25 +69,6 @@ var testExchangeConfig = sync.OnceValues(func() ([]byte, error) {
 	return json.Marshal(exchCfg)
 })
 
-// setupTestExchange sets an exchange up as testexch.Setup does, from its own copy of Bitfinex's test configuration
-func setupTestExchange(ex *Exchange) error {
-	raw, err := testExchangeConfig()
-	if err != nil {
-		return err
-	}
-	var exchCfg config.Exchange
-	if err := json.Unmarshal(raw, &exchCfg); err != nil {
-		return err
-	}
-	ex.SetDefaults()
-	ex.Websocket = sharedtestvalues.NewTestWebsocket()
-	if err := ex.Setup(&exchCfg); err != nil {
-		return err
-	}
-	ex.Accounts = accounts.MustNewAccounts(ex)
-	return nil
-}
-
 // setTestCredentials enables authenticated support with the given credentials
 func setTestCredentials(ex *Exchange, creds *accounts.Credentials) {
 	ex.API.AuthenticatedSupport = true
@@ -99,7 +81,7 @@ func setTestCredentials(ex *Exchange, creds *accounts.Credentials) {
 func newTestServerExchange(t *testing.T, handler http.Handler) *Exchange {
 	t.Helper()
 	ex := new(Exchange)
-	require.NoError(t, setupTestExchange(ex), "setupTestExchange must not error")
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 	ex.Name = t.Name()
 	setTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
@@ -349,7 +331,7 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	assert.Error(t, ex.SendAuthenticatedHTTPRequest(t.Context(), walletsEPL, "auth/r/wallets", make(chan int), &result), "SendAuthenticatedHTTPRequest should error for a body that cannot be marshalled")
 
 	unauthenticated := new(Exchange)
-	require.NoError(t, setupTestExchange(unauthenticated), "setupTestExchange must not error")
+	require.NoError(t, testexch.Setup(unauthenticated), "Setup must not error")
 	err = unauthenticated.SendAuthenticatedHTTPRequest(t.Context(), walletsEPL, "auth/r/wallets", nil, &result)
 	assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "SendAuthenticatedHTTPRequest should error without authentication support")
 }

@@ -76,7 +76,7 @@ const (
 var (
 	errTransferMethodUnknown       = errors.New("no transfer method for currency")
 	errTransferMethodNeeded        = errors.New("transfer chain required, as the currency has several")
-	errInvalidClientOrderID        = errors.New("client order ID must be an unsigned integer")
+	errInvalidClientOrderID        = errors.New("client order ID must be a positive decimal uint64 without leading zeros")
 	errUnsupportedOrderType        = errors.New("order type not supported")
 	errHistoryPageFull             = errors.New("history has more records from one millisecond than a page holds")
 	errInvalidLeverage             = errors.New("invalid leverage")
@@ -887,9 +887,13 @@ func placeOrderRequest(s *order.Submit) (*PlaceOrderRequest, error) {
 		req.TimeInForce = s.EndTime
 	}
 	if s.ClientOrderID != "" {
-		if req.ClientOrderID, err = strconv.ParseUint(s.ClientOrderID, 10, 64); err != nil {
+		// The order is reported with the ID as given, so it must be written as Bitfinex writes the number sent; for a zero,
+		// REST sends no ID and the authenticated websocket one of its own
+		cid, err := strconv.ParseUint(s.ClientOrderID, 10, 64)
+		if err != nil || cid == 0 || strconv.FormatUint(cid, 10) != s.ClientOrderID {
 			return nil, fmt.Errorf("%w: %q", errInvalidClientOrderID, s.ClientOrderID)
 		}
+		req.ClientOrderID = cid
 	}
 	return req, nil
 }
@@ -1107,6 +1111,12 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 	}
 	ids := make([]uint64, len(cancels))
 	for i := range cancels {
+		if a := cancels[i].AssetType; a != asset.Empty && !isOrderAsset(a) {
+			return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+		}
+		if t := cancels[i].Type; t != order.UnknownType && t != order.AnyType && !isTradedOrderType(t) {
+			return nil, fmt.Errorf("%w: %s", errUnsupportedOrderType, t)
+		}
 		id, err := parseOrderID(cancels[i].OrderID)
 		if err != nil {
 			return nil, err
@@ -1129,7 +1139,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.
 		c = new(order.Cancel)
 	}
 	everyAsset := c.AssetType == asset.Empty || c.AssetType == asset.All
-	if !everyAsset && !c.AssetType.IsValid() {
+	if !everyAsset && !isOrderAsset(c.AssetType) {
 		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", asset.ErrNotSupported, c.AssetType)
 	}
 	oneSide := c.Side != order.UnknownSide && c.Side != order.AnySide
@@ -1137,6 +1147,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.
 		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, c.Side)
 	}
 	oneType := c.Type != order.UnknownType && c.Type != order.AnyType
+	if oneType && !isTradedOrderType(c.Type) {
+		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", errUnsupportedOrderType, c.Type)
+	}
 	open, err := e.openOrderDetails(ctx, c.Pair, c.AssetType)
 	if err != nil {
 		return order.CancelAllResponse{}, err

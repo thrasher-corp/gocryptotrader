@@ -43,7 +43,7 @@ func TestMain(m *testing.M) {
 // recordings and whose authenticated endpoint responses follow Bitfinex's documented examples, signing with
 // placeholder credentials so the authenticated endpoints run against their recorded responses too
 func setupMockExchange(ex *Exchange) error {
-	if err := setupTestExchange(ex); err != nil {
+	if err := testexch.Setup(ex); err != nil {
 		return err
 	}
 	setTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
