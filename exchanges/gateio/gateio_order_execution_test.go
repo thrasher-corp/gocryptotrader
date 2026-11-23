@@ -16,7 +16,7 @@ import (
 
 func TestWebsocketSubmitOrderSpotRequestQuantities(t *testing.T) {
 	t.Parallel()
-	ex := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, c *gws.Conn) error {
+	ex := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, c *gws.Conn) error {
 		var req WebsocketRequest
 		if err := json.Unmarshal(msg, &req); err != nil {
 			return err

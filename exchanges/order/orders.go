@@ -486,7 +486,7 @@ func (d *Detail) IsActive() bool {
 	// Quote-sized orders have no known base quantity; their status determines activity.
 	quoteSized := d.Amount == 0 && d.QuoteAmount > 0
 	return d.Status != UnknownStatus &&
-		(quoteSized || (d.Amount > 0 && d.Amount > d.ExecutedAmount)) &&
+		(quoteSized || d.Amount > max(0, d.ExecutedAmount)) &&
 		activeStatuses&d.Status == d.Status
 }
 
@@ -494,17 +494,16 @@ func (d *Detail) IsActive() bool {
 // currently not available on the exchange
 func (d *Detail) IsInactive() bool {
 	if d.Amount == 0 && d.QuoteAmount > 0 {
-		return d.Status.IsInactive()
+		return d.Status == UnknownStatus || d.Status.IsInactive()
 	}
-	return d.Amount <= 0 ||
-		d.Amount <= d.ExecutedAmount ||
+	return d.Amount <= max(0, d.ExecutedAmount) ||
 		d.Status.IsInactive()
 }
 
 // IsInactive returns true if the status indicates it is
 // currently not available on the exchange
 func (s Status) IsInactive() bool {
-	return inactiveStatuses&s == s
+	return s != UnknownStatus && inactiveStatuses&s == s
 }
 
 // WasOrderPlaced returns true if an order has a status that indicates that it
@@ -947,14 +946,9 @@ func (d *Detail) InferExecutionAndTimes() {
 		}
 	}
 
-	if d.ExecutedAmount <= 0 {
-		return
-	}
-
-	if d.AverageExecutedPrice == 0 {
-		if d.ExecutedQuoteAmount != 0 {
-			d.AverageExecutedPrice = d.ExecutedQuoteAmount / d.ExecutedAmount
-		}
+	// Derivative execution amounts may count contracts rather than base units.
+	if d.ExecutedAmount > 0 && d.AverageExecutedPrice == 0 && d.ExecutedQuoteAmount != 0 && !d.AssetType.IsDerivative() {
+		d.AverageExecutedPrice = d.ExecutedQuoteAmount / d.ExecutedAmount
 	}
 }
 
@@ -1194,7 +1188,7 @@ func StringToOrderStatus(status string) (Status, error) {
 		return Open, nil
 	case Closed.String(), "POSITION_CLOSED":
 		return Closed, nil
-	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED":
+	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED", "MMP_CANCELED":
 		return Cancelled, nil
 	case Pending.String():
 		return Pending, nil

@@ -740,7 +740,7 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			Price:                resp.Result[x].Price.Float64(),
 			AverageExecutedPrice: resp.Result[x].FillPrice.Float64(),
 			AssetType:            assetType,
-			AccountID:            resp.Result[x].User,
+			AccountID:            resp.Result[x].User.String(),
 			CloseTime:            resp.Result[x].FinishTime.Time(),
 			Side:                 side,
 			Type:                 getTypeFromTimeInForce(resp.Result[x].TimeInForce, resp.Result[x].Price.Float64()),

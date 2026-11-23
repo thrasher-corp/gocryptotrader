@@ -14,6 +14,14 @@ type MatchableKey interface {
 	String() string
 }
 
+// QualifiedChannelKey restricts matching to an exact wire topic before comparing keys.
+// Implement it only when Match requires QualifiedChannel equality. Subscription stores
+// maintain the topic index through normal registration, removal and teardown.
+type QualifiedChannelKey interface {
+	MatchableKey
+	GetQualifiedChannel() string
+}
+
 // ExactKey is key type for subscriptions where all the pairs in a Subscription must match exactly
 type ExactKey struct {
 	*Subscription
