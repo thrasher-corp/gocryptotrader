@@ -224,6 +224,7 @@ func (e *Exchange) CancelFuturesOrderByExternalID(ctx context.Context, symbol cu
 	if externalOrderID == "" {
 		return nil, errExternalOrderIDRequired
 	}
+	// MEXC's legacy contract docs give one object; the current page repeats the batch endpoint's list example
 	body := &FuturesExternalOrderRequest{Symbol: symbol.String(), ExternalOrderID: externalOrderID}
 	var resp oneOrMany[*FuturesCancelOrderResponse]
 	return resp, e.SendFuturesHTTPRequest(ctx, futuresCancelByExternalIDEPL, http.MethodPost, "private/order/cancel_with_external", nil, body, &resp, true)

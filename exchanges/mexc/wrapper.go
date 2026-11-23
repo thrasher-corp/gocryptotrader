@@ -1299,8 +1299,9 @@ func (e *Exchange) cancelFuturesOrder(ctx context.Context, ord *order.Cancel) er
 	return fmt.Errorf("%w: order %s", errCancelOutcomeMissing, ord.OrderID)
 }
 
-// CancelBatchOrders cancels futures orders by their IDs, up to 50 in a request. Each order's outcome is reported in
-// the response's status; a failed request, or an order the venue gives no outcome for, is returned as an error
+// CancelBatchOrders cancels up to 50 futures orders by their IDs in one request, and refuses a longer list. Each order's
+// outcome is reported in the response's status; a failed request, or an order the venue gives no outcome for, is
+// returned as an error
 func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(orders) == 0 {
 		return nil, order.ErrCancelOrderIsNil
@@ -1318,14 +1319,12 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel)
 			return nil, err
 		}
 	}
-	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(orders))}
-	var errs error
-	for start := 0; start < len(ids); start += futuresBatchLimit {
-		end := min(start+futuresBatchLimit, len(ids))
-		results, err := e.CancelFuturesOrders(ctx, ids[start:end])
-		errs = common.AppendError(errs, recordFuturesCancelOutcomes(resp, orders[start:end], ids[start:end], results, err))
+	if len(ids) > futuresBatchLimit {
+		return nil, fmt.Errorf("%w: %d orders, at most %d", errTooManyOrders, len(ids), futuresBatchLimit)
 	}
-	return resp, errs
+	results, err := e.CancelFuturesOrders(ctx, ids)
+	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(orders))}
+	return resp, recordFuturesCancelOutcomes(resp, orders, ids, results, err)
 }
 
 // recordFuturesCancelOutcomes reports each requested order's outcome in the batch response, under the ID it was
