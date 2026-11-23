@@ -1,6 +1,7 @@
 package currency
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -417,6 +418,17 @@ func TestStore(t *testing.T) {
 		_, err := p.Match("btcusd", asset.Spot)
 		assert.ErrorIs(t, err, ErrPairNotFound, "Match should not find a pair of an asset stored empty")
 	})
+
+	t.Run("indexes every asset of a manager without a matcher", func(t *testing.T) {
+		t.Parallel()
+		p := &PairsManager{Pairs: FullStore{asset.Spot: {Available: Pairs{NewBTCUSD(), NewPair(LTC, USD)}}}}
+		require.NoError(t, p.Store(asset.Futures, &PairStore{Available: Pairs{NewPairWithDelimiter("ETH", "USD", "-")}}), "Store must not error")
+		_, err := p.Match("ethusd", asset.Futures)
+		assert.NoError(t, err, "Match should find a pair stored by Store")
+		got, err := p.Match("ltcusd", asset.Spot)
+		require.NoError(t, err, "Store must index the other assets of a manager without a matcher")
+		assert.Equal(t, NewPair(LTC, USD), got, "Match should return the other asset's stored pair")
+	})
 }
 
 func TestDelete(t *testing.T) {
@@ -619,6 +631,18 @@ func TestStorePairs(t *testing.T) {
 		assert.ErrorIs(t, err, ErrPairNotFound, "Match should not find a pair replaced by StorePairs")
 		_, err = p.Match("sentinel", asset.Futures)
 		assert.NoError(t, err, "StorePairs should leave other assets' matcher entries untouched")
+	})
+
+	t.Run("available pairs index every asset of a manager without a matcher", func(t *testing.T) {
+		t.Parallel()
+		btckrw := NewPairWithDelimiter("BTC", "KRW", "-")
+		p := &PairsManager{Pairs: FullStore{asset.Futures: {Available: Pairs{ethkrw, btckrw}}}}
+		require.NoError(t, p.StorePairs(asset.Spot, ethusdPairs, false), "StorePairs must not error")
+		_, err := p.Match("ethusd", asset.Spot)
+		assert.NoError(t, err, "Match should find a pair stored by StorePairs")
+		got, err := p.Match("btckrw", asset.Futures)
+		require.NoError(t, err, "StorePairs must index the other assets of a manager without a matcher")
+		assert.Equal(t, btckrw, got, "Match should return the other asset's stored pair")
 	})
 
 	t.Run("enabled pairs missing from the available pairs are not added", func(t *testing.T) {
@@ -1149,6 +1173,16 @@ func TestIndexAsset(t *testing.T) {
 			wantKeys: []matcherKey{{Symbol: "btcusd", Asset: asset.Spot}},
 		},
 		{
+			name: "indexes every asset without a matcher",
+			setup: func() *PairsManager {
+				return &PairsManager{Pairs: FullStore{
+					asset.Spot:    {Available: Pairs{NewBTCUSD()}},
+					asset.Futures: {Available: Pairs{eth, NewPairWithDelimiter("LTC", "USD", "-")}},
+				}}
+			},
+			wantKeys: []matcherKey{{Symbol: "btcusd", Asset: asset.Spot}, {Symbol: "ethusd", Asset: asset.Futures}, {Symbol: "ltcusd", Asset: asset.Futures}},
+		},
+		{
 			name: "replaces the asset's entries",
 			setup: func() *PairsManager {
 				return &PairsManager{
@@ -1196,8 +1230,16 @@ func TestIndexAsset(t *testing.T) {
 			pm.indexAsset(asset.Spot)
 			for _, k := range tc.wantKeys {
 				p, ok := k.lookup(pm)
-				if assert.Truef(t, ok, "matcher should contain key %v", k) && k.Asset == asset.Spot {
-					assert.Same(t, &pm.Pairs[asset.Spot].Available[0], p, "matcher entry should point at the stored pair")
+				if !assert.Truef(t, ok, "matcher should contain key %v", k) {
+					continue
+				}
+				if fs := pm.Pairs[k.Asset]; fs != nil {
+					i := slices.IndexFunc(fs.Available, func(stored Pair) bool {
+						return stored.Base.Lower().String()+stored.Quote.Lower().String() == k.Symbol
+					})
+					if assert.NotEqualf(t, -1, i, "stored pairs should hold key %v", k) {
+						assert.Samef(t, &fs.Available[i], p, "matcher entry for key %v should point at its stored pair", k)
+					}
 				}
 			}
 			for _, k := range tc.wantAbsentKeys {
@@ -1251,6 +1293,28 @@ func TestSortAvailablePairs(t *testing.T) {
 			wantAvailable:  "ADA-USD,BTC-USD,ETH-USD",
 			checkMatch:     true,
 			wantMatch:      "BTC-USD",
+		},
+		{
+			name: "sorting a manager without a matcher indexes every asset",
+			setup: func() *PairsManager {
+				return &PairsManager{
+					Pairs: FullStore{
+						asset.Spot: {
+							Available: Pairs{
+								NewPairWithDelimiter("ETH", "USD", "-"),
+								NewPairWithDelimiter("BTC", "USD", "-"),
+							},
+						},
+						asset.Futures: {Available: Pairs{NewPair(ADA, USD), NewBTCUSD()}},
+					},
+				}
+			},
+			checkAvailable:  true,
+			wantAvailable:   "BTC-USD,ETH-USD",
+			checkMatch:      true,
+			wantMatch:       "BTC-USD",
+			checkFuturesKey: true,
+			wantFuturesKey:  true,
 		},
 		{
 			name: "noop when no store has more than one available pair",
@@ -1333,8 +1397,10 @@ func TestSortAvailablePairs(t *testing.T) {
 			}
 
 			if tc.checkFuturesKey {
-				_, ok := futuresKey.lookup(pm)
-				assert.Equal(t, tc.wantFuturesKey, ok, "SortAvailablePairs should only adjust matcher entries when reindexing is required")
+				p, ok := futuresKey.lookup(pm)
+				if assert.Equal(t, tc.wantFuturesKey, ok, "SortAvailablePairs should only adjust matcher entries when reindexing is required") && ok {
+					assert.Equal(t, "BTCUSD", p.String(), "the futures matcher entry should hold its stored pair")
+				}
 			}
 
 			if tc.checkMatcherLen {

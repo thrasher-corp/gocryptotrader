@@ -153,7 +153,8 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				}
 
 				var dc *gctconfig.Exchange
-				// GetDefaultConfig also updates the tradable pairs that Setup loads from dc
+				// GetDefaultConfig also updates the tradable pairs that Setup loads from dc, for exchanges supporting
+				// auto pair updates
 				dc, err = gctexchange.GetDefaultConfig(context.TODO(), exch)
 				if err != nil {
 					return err
@@ -185,16 +186,12 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		}
 
 		exchBase := exch.GetBase()
-		exchangeAsset, ok := exchBase.CurrencyPairs.Pairs[cfg.CurrencySettings[i].Asset]
-		if !ok {
-			return fmt.Errorf("%v %v %w", cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Asset, asset.ErrNotSupported)
+		cp := currency.NewPair(cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote)
+		if err = enableStrategyPair(&exchBase.CurrencyPairs, cfg.CurrencySettings[i].Asset, cp); err != nil {
+			err = fmt.Errorf("error enabling %s %s pair %s: %w", cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Asset, cp, err)
+			return err
 		}
-		exchangeAsset.AssetEnabled = true
-		cp := currency.NewPair(cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote).Format(*exchangeAsset.RequestFormat)
-		exchangeAsset.Available = exchangeAsset.Available.Add(cp)
-		exchangeAsset.Enabled = exchangeAsset.Enabled.Add(cp)
 		exchBase.Verbose = verbose
-		exchBase.CurrencyPairs.Pairs[cfg.CurrencySettings[i].Asset] = exchangeAsset
 	}
 
 	portfolioRisk := &risk.Risk{
@@ -445,9 +442,11 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			if err != nil {
 				return err
 			}
-			exchBase := exch.GetBase()
-			exchangeAsset := exchBase.CurrencyPairs.Pairs[trackingPairs[i].Asset] // no ok as handled earlier
-			exchangeAsset.Enabled = exchangeAsset.Enabled.Add(currency.NewPair(trackingPairs[i].Base, trackingPairs[i].Quote))
+			cp := currency.NewPair(trackingPairs[i].Base, trackingPairs[i].Quote)
+			if enableErr := exch.GetBase().CurrencyPairs.EnablePair(trackingPairs[i].Asset, cp); enableErr != nil && !errors.Is(enableErr, currency.ErrPairAlreadyEnabled) {
+				err = fmt.Errorf("error enabling %s %s tracking pair %s: %w", trackingPairs[i].Exchange, trackingPairs[i].Asset, cp, enableErr)
+				return err
+			}
 		}
 	}
 
@@ -482,6 +481,27 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	cfg.PrintSetting()
 
 	return nil
+}
+
+// enableStrategyPair enables a strategy's asset and pair through the pair manager, as a pair added to a pair store's
+// available pairs directly is missing from the symbol index
+func enableStrategyPair(pm *currency.PairsManager, a asset.Item, pair currency.Pair) error {
+	ps, err := pm.Get(a)
+	if err != nil {
+		return err
+	}
+	if ps == nil {
+		return fmt.Errorf("%v pair store is nil: %w", a, asset.ErrNotSupported)
+	}
+	pFmt, err := pm.GetFormat(a, true)
+	if err != nil {
+		return err
+	}
+	pair = pair.Format(pFmt)
+	ps.AssetEnabled = true
+	ps.Available = ps.Available.Add(pair)
+	ps.Enabled = ps.Enabled.Add(pair)
+	return pm.Store(a, ps)
 }
 
 func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchange, error) {

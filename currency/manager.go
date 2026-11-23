@@ -518,15 +518,17 @@ func (p *PairsManager) reindex() {
 }
 
 // indexAsset re-indexes the matcher for one asset's Available pairs, leaving other assets' entries untouched
+// A manager without a matcher, such as one decoded from JSON, has every asset indexed instead
 // This method does not lock for concurrency
 func (p *PairsManager) indexAsset(a asset.Item) {
+	if p.matcher == nil {
+		p.reindex()
+		return
+	}
 	fs := p.Pairs[a]
 	if fs == nil {
 		delete(p.matcher, a)
 		return
-	}
-	if p.matcher == nil {
-		p.matcher = make(map[asset.Item]map[string]*Pair, len(p.Pairs))
 	}
 	symbols := make(map[string]*Pair, len(fs.Available))
 	for i, pair := range fs.Available {
