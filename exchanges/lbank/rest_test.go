@@ -18,6 +18,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"weak"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,6 +39,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 )
 
@@ -48,8 +51,8 @@ const (
 	// testAPIKey and testAPISecret are placeholder credentials, which the mock responses and the test servers accept
 	testAPIKey    = "mock-api-key"
 	testAPISecret = "mock-api-secret"
-	// testServerRequestLimit is the most requests a test server answers, several times as many as any test sends one,
-	// so a pager no longer advancing fails its test rather than hangs it
+	// testServerRequestLimit is the most requests a test server answers, more than any test sends one, so a pager no
+	// longer advancing fails its test rather than hangs it
 	testServerRequestLimit = 100
 	// liveMalformedAddress is no address on any network, for live withdrawals built to be refused
 	liveMalformedAddress = "gct-live-test-not-an-address"
@@ -74,8 +77,8 @@ var (
 	futuresTestPair = currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter})
 )
 
-// testExchangeConfig is LBank's configuration from testdata/configtest.json, loaded once; testexch.Setup loads every
-// exchange's configuration each time, which serialises the many exchanges the tests set up on its locks
+// testExchangeConfig is LBank's configuration from testdata/configtest.json, loaded once, for tests that set an
+// exchange up from it themselves
 var testExchangeConfig = sync.OnceValues(func() ([]byte, error) {
 	root, err := testutils.RootPathFromCWD()
 	if err != nil {
@@ -92,23 +95,11 @@ var testExchangeConfig = sync.OnceValues(func() ([]byte, error) {
 	return json.Marshal(exchCfg)
 })
 
-// setupTestExchange sets an exchange up as testexch.Setup does, from its own copy of LBank's test configuration, with
-// the test pairs and their assets enabled
+// setupTestExchange sets an exchange up with testexch.Setup, with the test pairs and their assets enabled
 func setupTestExchange(ex *Exchange) error {
-	raw, err := testExchangeConfig()
-	if err != nil {
+	if err := testexch.Setup(ex); err != nil {
 		return err
 	}
-	var exchCfg config.Exchange
-	if err := json.Unmarshal(raw, &exchCfg); err != nil {
-		return err
-	}
-	ex.SetDefaults()
-	ex.Websocket = sharedtestvalues.NewTestWebsocket()
-	if err := ex.Setup(&exchCfg); err != nil {
-		return err
-	}
-	ex.Accounts = accounts.MustNewAccounts(ex)
 	return storeTestPairs(ex)
 }
 
@@ -240,6 +231,22 @@ func pkcs8Secret(t *testing.T, key any) string {
 	der, err := x509.MarshalPKCS8PrivateKey(key)
 	require.NoError(t, err, "MarshalPKCS8PrivateKey must not error")
 	return base64.StdEncoding.EncodeToString(der)
+}
+
+func TestSetupTestExchange(t *testing.T) {
+	t.Parallel()
+	t.Run("does not retain the exchange", func(t *testing.T) {
+		t.Parallel()
+		dropped := func() weak.Pointer[Exchange] {
+			ex := new(Exchange)
+			require.NoError(t, setupTestExchange(ex), "setupTestExchange must not error")
+			return weak.Make(ex)
+		}()
+		assert.Eventually(t, func() bool {
+			runtime.GC()
+			return dropped.Value() == nil
+		}, 10*time.Second, 10*time.Millisecond, "setupTestExchange should not keep the exchange reachable once the caller drops it")
+	})
 }
 
 func TestSendHTTPRequest(t *testing.T) { //nolint:tparallel // Cases share one test server and its record of requests, which the last case checks, and run in order

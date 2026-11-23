@@ -89,6 +89,7 @@ func TestSetup(t *testing.T) {
 			ex := new(Exchange)
 			ex.SetDefaults()
 			ex.Websocket = sharedtestvalues.NewTestWebsocket()
+			ex.Accounts = accounts.MustNewAccounts(ex.GetBase())
 			require.NoError(t, ex.Setup(exch), "Setup must not error")
 			assert.Equal(t, tc.exp, ex.API.AuthenticatedSupport, "Setup should keep authentication only for a secret it can sign with")
 			assert.Equal(t, tc.exp, ex.API.AuthenticatedWebsocketSupport, "Setup should keep websocket authentication only for a secret it can sign with")
@@ -134,6 +135,7 @@ func TestSetup(t *testing.T) {
 			ex := new(Exchange)
 			ex.SetDefaults()
 			ex.Websocket = sharedtestvalues.NewTestWebsocket()
+			ex.Accounts = accounts.MustNewAccounts(ex.GetBase())
 			require.NoError(t, ex.Setup(exch), "Setup must not error")
 			assert.ErrorIs(t, ex.CurrencyPairs.IsAssetEnabled(asset.USDTMarginedFutures), tc.exp, "Setup should enable the contracts only when the configuration does")
 			assert.ErrorIs(t, exch.CurrencyPairs.IsAssetEnabled(asset.USDTMarginedFutures), tc.exp, "Setup should store the contracts in the configuration as set up")
@@ -794,20 +796,16 @@ func TestSubmitOrder(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				tc.submit.Exchange, tc.submit.Pair, tc.submit.AssetType = e.Name, spotTestPair, asset.Spot
+				exp := &order.SubmitResponse{
+					Exchange: e.Name, Type: tc.submit.Type, Side: tc.submit.Side, Pair: spotTestPair, AssetType: asset.Spot,
+					TimeInForce: tc.submit.TimeInForce, Price: tc.submit.Price, Amount: tc.submit.Amount, QuoteAmount: tc.submit.QuoteAmount,
+					ClientOrderID: tc.submit.ClientOrderID, Status: order.New, OrderID: tc.orderID,
+				}
 				result, err := e.SubmitOrder(t.Context(), tc.submit)
 				require.NoError(t, err, "SubmitOrder must not error")
 				require.NotZero(t, result.Date, "SubmitOrder must date the order")
 				require.NotZero(t, result.LastUpdated, "SubmitOrder must date the order")
 				result.Date, result.LastUpdated = time.Time{}, time.Time{}
-				status := order.New
-				if tc.submit.Type == order.Market {
-					status = order.Filled
-				}
-				exp := &order.SubmitResponse{
-					Exchange: e.Name, Type: tc.submit.Type, Side: tc.submit.Side, Pair: spotTestPair, AssetType: asset.Spot,
-					TimeInForce: tc.submit.TimeInForce, Price: tc.submit.Price, Amount: tc.submit.Amount, QuoteAmount: tc.submit.QuoteAmount,
-					ClientOrderID: tc.submit.ClientOrderID, Status: status, OrderID: tc.orderID,
-				}
 				assert.Equal(t, exp, result, "SubmitOrder should return the placed order")
 			})
 		}
@@ -855,15 +853,24 @@ func TestSubmitOrder(t *testing.T) {
 					s := tc.submit
 					s.Exchange, s.Pair, s.AssetType = ex.Name, spotTestPair, asset.Spot
 					s.Side, s.Type, s.TimeInForce, s.Price, s.Amount, s.QuoteAmount = o.Side, o.Type, o.TimeInForce, o.Price, o.Amount, o.QuoteAmount
+					exp := &order.SubmitResponse{
+						Exchange: s.Exchange, Type: s.Type, Side: s.Side, Pair: s.Pair, AssetType: s.AssetType, TimeInForce: s.TimeInForce,
+						Leverage: s.Leverage, Price: s.Price, Amount: s.Amount, QuoteAmount: s.QuoteAmount, MarginType: s.MarginType,
+						Status: order.New, OrderID: "0cf8a3de-4597-4296-af45-be7abaa06b07",
+					}
 					before := placed.Load()
-					_, err := ex.SubmitOrder(t.Context(), &s)
+					result, err := ex.SubmitOrder(t.Context(), &s)
 					if tc.err != nil {
 						assert.ErrorIsf(t, err, tc.err, "SubmitOrder should refuse %s for a %s %s %q order rather than place it without", tc.name, s.Side, s.Type, s.TimeInForce)
 						assert.Equalf(t, before, placed.Load(), "SubmitOrder should place no %s %s %q order asking for %s", s.Side, s.Type, s.TimeInForce, tc.name)
 						return
 					}
-					assert.NoErrorf(t, err, "SubmitOrder should place a %s %s %q order asking for %s", s.Side, s.Type, s.TimeInForce, tc.name)
+					require.NoErrorf(t, err, "SubmitOrder must place a %s %s %q order asking for %s", s.Side, s.Type, s.TimeInForce, tc.name)
 					assert.Equalf(t, before+1, placed.Load(), "SubmitOrder should place a %s %s %q order asking for %s", s.Side, s.Type, s.TimeInForce, tc.name)
+					require.NotZerof(t, result.Date, "SubmitOrder must date a %s %s %q order asking for %s", s.Side, s.Type, s.TimeInForce, tc.name)
+					require.NotZerof(t, result.LastUpdated, "SubmitOrder must date a %s %s %q order asking for %s", s.Side, s.Type, s.TimeInForce, tc.name)
+					result.Date, result.LastUpdated = time.Time{}, time.Time{}
+					assert.Equalf(t, exp, result, "SubmitOrder should report a %s %s %q order asking for %s as new, with its terms", s.Side, s.Type, s.TimeInForce, tc.name)
 				})
 			}
 		}
@@ -919,6 +926,79 @@ func TestSubmitOrder(t *testing.T) {
 					check(t, tc)
 				})
 			}
+		}
+	})
+
+	t.Run("placed orders keep their terms", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name   string
+			submit *order.Submit
+		}{
+			{name: "immediate or cancel market sell with a reference price", submit: &order.Submit{Side: order.Sell, Type: order.Market, TimeInForce: order.ImmediateOrCancel, Price: 92325, Amount: 0.001, ClientID: "desk-17", ClientOrderID: "gct-market-sell"}},
+			{name: "immediate or cancel market bid with a reference price", submit: &order.Submit{Side: order.Bid, Type: order.Market, TimeInForce: order.ImmediateOrCancel, Price: 92325, QuoteAmount: 100, ClientID: "desk-17", ClientOrderID: "gct-market-bid"}},
+			{name: "good till cancel cash limit bid", submit: &order.Submit{Side: order.Bid, Type: order.Limit, TimeInForce: order.GoodTillCancel, Price: 50000, Amount: 0.001, MarginType: margin.NoMargin, Leverage: 1, ClientID: "desk-17", ClientOrderID: "gct-limit"}},
+			{name: "good till cancel post only limit ask", submit: &order.Submit{Side: order.Ask, Type: order.Limit, TimeInForce: order.GoodTillCancel | order.PostOnly, Price: 90000, Amount: 0.002}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				clientOrderID := tc.submit.ClientOrderID
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/v2/supplement/create_order.do" {
+						http.Error(w, "unexpected path", http.StatusNotFound)
+						return
+					}
+					if assert.NoError(t, r.ParseForm(), "the request body should parse as a form") {
+						assert.Equal(t, clientOrderID, r.PostForm.Get("custom_id"), "SubmitOrder should send the caller's client order ID")
+					}
+					// LBank's reply echoes the custom ID the order was placed with
+					writeResponse(t, w, `{"result":true,"data":{"symbol":"btc_usdt","order_id":"0cf8a3de-4597-4296-af45-be7abaa06b08","custom_id":"`+clientOrderID+`"},"error_code":0,"ts":1772335196000}`)
+				}))
+				tc.submit.Exchange, tc.submit.Pair, tc.submit.AssetType = strings.ToLower(ex.Name), currency.NewBTCUSDT(), asset.Spot
+				want := *tc.submit
+				exp := &order.SubmitResponse{
+					Exchange: want.Exchange, Type: want.Type, Side: want.Side, Pair: want.Pair, AssetType: want.AssetType,
+					TimeInForce: want.TimeInForce, Leverage: want.Leverage, Price: want.Price, Amount: want.Amount, QuoteAmount: want.QuoteAmount,
+					ClientID: want.ClientID, ClientOrderID: want.ClientOrderID, MarginType: want.MarginType,
+					Status: order.New, OrderID: "0cf8a3de-4597-4296-af45-be7abaa06b08",
+				}
+				start := time.Now()
+				result, err := ex.SubmitOrder(t.Context(), tc.submit)
+				end := time.Now()
+				require.NoError(t, err, "SubmitOrder must not error")
+				assert.Equal(t, want, *tc.submit, "SubmitOrder should leave the caller's order unchanged")
+				assert.WithinRange(t, result.Date, start, end, "SubmitOrder should date the order when it is placed")
+				assert.WithinRange(t, result.LastUpdated, start, end, "SubmitOrder should date the order's last update when it is placed")
+				result.Date, result.LastUpdated = time.Time{}, time.Time{}
+				assert.Equal(t, exp, result, "SubmitOrder should return the placed order with the caller's terms")
+			})
+		}
+	})
+
+	t.Run("reply without an order ID", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/v2/supplement/create_order.do" {
+				http.Error(w, "unexpected path", http.StatusNotFound)
+				return
+			}
+			writeResponse(t, w, `{"result":true,"data":{"symbol":"btc_usdt","order_id":"","custom_id":""},"error_code":0,"ts":1772335196000}`)
+		}))
+		for _, tc := range []struct {
+			name   string
+			submit *order.Submit
+		}{
+			{name: "limit buy", submit: &order.Submit{Side: order.Buy, Type: order.Limit, Price: 50000, Amount: 0.001}},
+			{name: "market buy", submit: &order.Submit{Side: order.Buy, Type: order.Market, QuoteAmount: 100}},
+			{name: "market sell", submit: &order.Submit{Side: order.Sell, Type: order.Market, Amount: 0.001}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				tc.submit.Exchange, tc.submit.Pair, tc.submit.AssetType = ex.Name, spotTestPair, asset.Spot
+				result, err := ex.SubmitOrder(t.Context(), tc.submit)
+				assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "SubmitOrder should report a reply without the order's ID")
+				assert.Nil(t, result, "SubmitOrder should return no order for a reply without its ID")
+			})
 		}
 	})
 }

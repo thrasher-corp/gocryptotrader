@@ -700,7 +700,13 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	return s.DeriveSubmitResponse(resp.OrderID)
+	submitted, err := s.DeriveSubmitResponse(resp.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	// LBank's reply only acknowledges the order, so a market order stays new until an update or query reports its fills
+	submitted.Status = order.New
+	return submitted, nil
 }
 
 // orderTypeString returns the LBank order type of a side, type and time in force
