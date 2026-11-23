@@ -152,6 +152,8 @@ func (*websocketVenue) receivedOn(int, string) []websocketVenueRequest { return 
 
 func (*websocketVenue) connectionCount() int { return 0 }
 
+func (*websocketVenue) requestCount() int { return 0 }
+
 // startWebsocketVenue skips the test, as the live tests share Deribit's websocket rather than a mock of it
 func startWebsocketVenue(t *testing.T) (string, *websocketVenue) {
 	t.Helper()

@@ -2,6 +2,7 @@ package deribit
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -507,6 +508,10 @@ func TestParseOrderStatus(t *testing.T) {
 	}{
 		{name: "open", state: "open", exp: order.Open},
 		{name: "open partly filled", state: "open", filled: 1, exp: order.PartiallyFilled},
+		{name: "speed bumped", state: "speed_bumped", exp: order.Open},
+		{name: "speed bumped partly filled", state: "speed_bumped", filled: 1, exp: order.PartiallyFilled},
+		{name: "open filled by a fraction", state: "open", filled: 0.5, exp: order.PartiallyFilled},
+		{name: "speed bumped filled by a fraction", state: "speed_bumped", filled: 0.5, exp: order.PartiallyFilled},
 		{name: "triggered", state: "triggered", exp: order.Closed},
 		{name: "triggered partly filled", state: "triggered", filled: 1, exp: order.Closed},
 		{name: "untriggered", state: "untriggered", exp: order.Pending},
@@ -668,6 +673,7 @@ func TestSetDefaults(t *testing.T) {
 	require.NoError(t, json.Unmarshal(raw, &exchCfg), "Unmarshal must not error")
 	require.NotNil(t, exchCfg.Features, "the test configuration must hold Deribit's features")
 	exchCfg.Features.Supports.RESTCapabilities.TickerBatching = true
+	ex.Accounts = accounts.MustNewAccounts(ex)
 	require.NoError(t, ex.Setup(&exchCfg), "Setup must not error")
 	assert.False(t, ex.SupportsRESTTickerBatchUpdates(), "Setup should keep REST ticker batching off for a configuration saved with it on")
 	assert.False(t, exchCfg.Features.Supports.RESTCapabilities.TickerBatching, "Setup should turn ticker batching off in a configuration saved with it on")
@@ -1279,7 +1285,8 @@ func TestUpdateAccountBalances(t *testing.T) {
 		subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
 		require.NoError(t, err, "UpdateAccountBalances must not error")
 		require.Len(t, subAccounts, 1, "UpdateAccountBalances must return one subaccount")
-		assert.Equal(t, asset.Futures, subAccounts[0].AssetType, "UpdateAccountBalances should save the balances under the asset requested")
+		assert.Equal(t, asset.Futures, subAccounts[0].AssetType, "UpdateAccountBalances should label the balances with the asset requested")
+		assertBalancesSavedUnderSpot(t, ex)
 	})
 
 	t.Run("mocked", func(t *testing.T) {
@@ -1291,16 +1298,592 @@ func TestUpdateAccountBalances(t *testing.T) {
 		subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
 		require.NoError(t, err, "UpdateAccountBalances must not error")
 		require.Len(t, subAccounts, 1, "UpdateAccountBalances must return one subaccount")
-		assert.Equal(t, asset.Futures, subAccounts[0].AssetType, "UpdateAccountBalances should save the balances under the asset requested")
+		assert.Equal(t, asset.Futures, subAccounts[0].AssetType, "UpdateAccountBalances should label the balances with the asset requested")
 		btc := subAccounts[0].Balances[currency.BTC]
 		assert.Equal(t, 302.60065765, btc.Total, "UpdateAccountBalances should take the cash balance as the total")
 		assert.Equal(t, 301.35396172, btc.Free, "UpdateAccountBalances should take the withdrawable funds as free")
 		assert.InDelta(t, 302.60065765-301.35396172, btc.Hold, 1e-9, "UpdateAccountBalances should hold the rest of the balance")
 		assert.Equal(t, 100.0, subAccounts[0].Balances[currency.ETH].Total, "UpdateAccountBalances should return every currency's balance")
+		assertBalancesSavedUnderSpot(t, ex)
+	})
+
+	t.Run("saved once under spot whichever asset asks", func(t *testing.T) {
+		t.Parallel()
+		var ethBalance atomic.Int64
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			summaries := fmt.Sprintf(`{"currency":"ETH","balance":%[1]d,"available_withdrawal_funds":%[1]d}`, ethBalance.Load())
+			switch ethBalance.Load() {
+			case -1:
+				summaries = ""
+			case 1:
+				summaries += `,{"currency":"BTC","balance":5,"available_withdrawal_funds":5}`
+			}
+			_, err := fmt.Fprintf(w, `{"jsonrpc":"2.0","result":{"summaries":[%s]}}`, summaries)
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.OptionCombo, false), "SetAssetEnabled must not error")
+		// Each asset's update reads a different ETH balance, so a copy saved under an earlier asset would be totalled
+		// with it, and only the first holds BTC
+		for i, a := range ex.GetAssetTypes(false) {
+			ethBalance.Store(int64(i + 1))
+			subAccounts, err := ex.UpdateAccountBalances(t.Context(), a)
+			require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", a)
+			require.Lenf(t, subAccounts, 1, "UpdateAccountBalances must return one subaccount for %s", a)
+			assert.Equalf(t, a, subAccounts[0].AssetType, "UpdateAccountBalances should label the balances with the asset requested, %s", a)
+			assert.Equalf(t, float64(i+1), subAccounts[0].Balances[currency.ETH].Total, "UpdateAccountBalances should return the balance read for %s", a)
+			assertBalancesSavedUnderSpot(t, ex)
+			totals, err := ex.Accounts.CurrencyBalances(nil, asset.All)
+			require.NoError(t, err, "CurrencyBalances must not error")
+			assert.Equalf(t, float64(i+1), totals[currency.ETH].Total, "the account store should total the balance once after the update for %s", a)
+			if i > 0 {
+				assert.NotContainsf(t, totals, currency.BTC, "the update for %s should drop a currency the wallet no longer holds", a)
+			}
+		}
+
+		ethBalance.Store(-1)
+		subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error for an empty wallet")
+		require.Len(t, subAccounts, 1, "UpdateAccountBalances must return one subaccount for an empty wallet")
+		assert.Empty(t, subAccounts[0].Balances, "UpdateAccountBalances should return no balances for an empty wallet")
+		_, err = ex.Accounts.CurrencyBalances(nil, asset.All)
+		assert.ErrorIs(t, err, accounts.ErrNoBalances, "UpdateAccountBalances should clear the balances saved when the wallet is empty")
+	})
+
+	t.Run("save failure", func(t *testing.T) {
+		t.Parallel()
+		ex := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"summaries":[{"currency":"ETH","balance":2,"available_withdrawal_funds":2}]}}`)
+		// A balance stamped later than the reply refuses it as out of sequence
+		later := accounts.Balance{Total: 1, Free: 1, UpdatedAt: time.Now().Add(time.Hour)}
+		require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.ETH: later}}}, true), "Save must not error")
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		assert.ErrorContains(t, err, "out of sequence", "UpdateAccountBalances should return a failure to save the balances")
+	})
+
+	t.Run("reply requested before a notification", func(t *testing.T) {
+		t.Parallel()
+		var ex *Exchange
+		ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			// Notifications handled while the request is answered are newer than its reply
+			assert.NoError(t, ex.wsHandlePortfolio(t.Context(), notification("user.portfolio.any", `{"currency":"ETH","balance":3,"available_withdrawal_funds":3}`)), "wsHandlePortfolio should not error")
+			assert.NoError(t, ex.wsHandlePortfolio(t.Context(), notification("user.portfolio.any", `{"currency":"BTC","balance":1,"available_withdrawal_funds":1}`)), "wsHandlePortfolio should not error")
+			_, err := w.Write([]byte(`{"jsonrpc":"2.0","result":{"summaries":[{"currency":"ETH","balance":2,"available_withdrawal_funds":2}]}}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		require.Len(t, subAccounts, 1, "UpdateAccountBalances must return one subaccount")
+		assert.Equal(t, asset.Futures, subAccounts[0].AssetType, "UpdateAccountBalances should label the balances with the asset requested")
+		assert.Equal(t, 3.0, subAccounts[0].Balances[currency.ETH].Total, "UpdateAccountBalances should return the newer balance saved")
+		assert.Equal(t, 1.0, subAccounts[0].Balances[currency.BTC].Total, "UpdateAccountBalances should return the currency saved while it was requested")
+		assertBalancesSavedUnderSpot(t, ex)
+		for c, exp := range map[currency.Code]float64{currency.ETH: 3, currency.BTC: 1} {
+			balance, err := savedBalance(t, ex, asset.Spot, c)
+			require.NoErrorf(t, err, "the %s balance must be saved", c)
+			assert.Equalf(t, exp, balance.Total, "UpdateAccountBalances should not save its older reply over the %s notification", c)
+		}
+	})
+
+	t.Run("reply for credentials no notification saved", func(t *testing.T) {
+		t.Parallel()
+		var ex *Exchange
+		ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			// The websocket's notifications carry the exchange's own credentials' balances, not those the request is sent
+			// with
+			assert.NoError(t, ex.wsHandlePortfolio(t.Context(), notification("user.portfolio.any", `{"currency":"ETH","balance":3,"available_withdrawal_funds":3}`)), "wsHandlePortfolio should not error")
+			_, err := w.Write([]byte(`{"jsonrpc":"2.0","result":{"summaries":[{"currency":"ETH","balance":2,"available_withdrawal_funds":2}]}}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		other := &accounts.Credentials{Key: "other-key", Secret: "other-secret"}
+		subAccounts, err := ex.UpdateAccountBalances(accounts.DeployCredentialsToContext(t.Context(), other), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		require.Len(t, subAccounts, 1, "UpdateAccountBalances must return one subaccount")
+		assert.Equal(t, 2.0, subAccounts[0].Balances[currency.ETH].Total, "UpdateAccountBalances should return its reply")
+		balance, err := ex.Accounts.GetBalance("", other, asset.Spot, currency.ETH)
+		require.NoError(t, err, "the balance must be saved for the credentials the request was sent with")
+		assert.Equal(t, 2.0, balance.Total, "UpdateAccountBalances should save its reply for credentials no notification saved")
+	})
+
+	t.Run("reply requested before another update", func(t *testing.T) {
+		t.Parallel()
+		var ex *Exchange
+		var requests atomic.Int32
+		ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			balance := 5
+			if requests.Add(1) == 1 {
+				// Another update, requested and saved while this request is answered, reads the newer balance
+				assert.NoError(t, updateWithinDeadline(t, ex), "UpdateAccountBalances should not error")
+				balance = 2
+			}
+			_, err := fmt.Fprintf(w, `{"jsonrpc":"2.0","result":{"summaries":[{"currency":"ETH","balance":%[1]d,"available_withdrawal_funds":%[1]d}]}}`, balance)
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{{ID: "sub", AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.ETH: {Total: 1}}}}, true), "Save must not error")
+		subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		require.Len(t, subAccounts, 1, "UpdateAccountBalances must return the main account alone")
+		assert.Empty(t, subAccounts[0].ID, "UpdateAccountBalances should return the main account")
+		assert.Equal(t, asset.Futures, subAccounts[0].AssetType, "UpdateAccountBalances should label the balances with the asset requested")
+		assert.Equal(t, 5.0, subAccounts[0].Balances[currency.ETH].Total, "UpdateAccountBalances should return the newer balance saved")
+		balance, err := savedBalance(t, ex, asset.Spot, currency.ETH)
+		require.NoError(t, err, "the balance must be saved")
+		assert.Equal(t, 5.0, balance.Total, "UpdateAccountBalances should not save its older reply over another update's")
+	})
+
+	t.Run("reply requested before an update whose save failed", func(t *testing.T) {
+		t.Parallel()
+		var ex *Exchange
+		var requests atomic.Int32
+		ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			balances := `{"currency":"ETH","balance":5,"available_withdrawal_funds":5},{"currency":"BTC","balance":6,"available_withdrawal_funds":6}`
+			if requests.Add(1) == 1 {
+				// Another update, requested while this request is answered, saves BTC but fails to save ETH
+				assert.ErrorContains(t, updateWithinDeadline(t, ex), "out of sequence", "UpdateAccountBalances should return the failure to save ETH")
+				balances = `{"currency":"ETH","balance":2,"available_withdrawal_funds":2},{"currency":"BTC","balance":1,"available_withdrawal_funds":1}`
+			}
+			_, err := w.Write([]byte(`{"jsonrpc":"2.0","result":{"summaries":[` + balances + `]}}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		// A balance stamped later than the replies refuses them as out of sequence
+		later := accounts.Balance{Total: 9, Free: 9, UpdatedAt: time.Now().Add(time.Hour)}
+		require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.ETH: later}}}, true), "Save must not error")
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		balance, err := savedBalance(t, ex, asset.Spot, currency.BTC)
+		require.NoError(t, err, "the BTC balance must be saved")
+		assert.Equal(t, 6.0, balance.Total, "UpdateAccountBalances should not save its older reply over an update that saved some of its balances")
+	})
+
+	t.Run("replies saved in the order requested", func(t *testing.T) {
+		t.Parallel()
+		secondArrived, releaseSecond := make(chan struct{}), make(chan struct{})
+		var requests atomic.Int32
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			balance, wait := 2, secondArrived
+			if requests.Add(1) == 2 {
+				close(secondArrived)
+				balance, wait = 5, releaseSecond
+			}
+			// The first reply is sent once the second request has arrived, and the second once the first is saved
+			select {
+			case <-wait:
+			case <-r.Context().Done():
+				return
+			case <-time.After(5 * time.Second):
+				assert.Fail(t, "the test should release the reply")
+				return
+			}
+			_, err := fmt.Fprintf(w, `{"jsonrpc":"2.0","result":{"summaries":[{"currency":"ETH","balance":%[1]d,"available_withdrawal_funds":%[1]d}]}}`, balance)
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		update := func(a asset.Item) <-chan accounts.SubAccounts {
+			replies := make(chan accounts.SubAccounts, 1)
+			go func() {
+				subAccounts, err := ex.UpdateAccountBalances(t.Context(), a)
+				assert.NoError(t, err, "UpdateAccountBalances should not error")
+				replies <- subAccounts
+			}()
+			return replies
+		}
+		received := func(replies <-chan accounts.SubAccounts) accounts.SubAccounts {
+			select {
+			case subAccounts := <-replies:
+				return subAccounts
+			case <-time.After(5 * time.Second):
+				require.Fail(t, "UpdateAccountBalances must return")
+				return nil
+			}
+		}
+		first := update(asset.Futures)
+		require.Eventually(t, func() bool { return requests.Load() == 1 }, 5*time.Second, time.Millisecond, "the first request must arrive")
+		second := update(asset.Options)
+		firstReply := received(first)
+		close(releaseSecond)
+		secondReply := received(second)
+		require.Len(t, firstReply, 1, "the first update must return one subaccount")
+		assert.Equal(t, 2.0, firstReply[0].Balances[currency.ETH].Total, "the first update should return its reply")
+		require.Len(t, secondReply, 1, "the second update must return one subaccount")
+		assert.Equal(t, 5.0, secondReply[0].Balances[currency.ETH].Total, "the second update should return its reply")
+		balance, err := savedBalance(t, ex, asset.Spot, currency.ETH)
+		require.NoError(t, err, "the balance must be saved")
+		assert.Equal(t, 5.0, balance.Total, "UpdateAccountBalances should save a reply over that of an update requested before it")
+	})
+
+	t.Run("replies requested before a notification, saved in turn", func(t *testing.T) {
+		t.Parallel()
+		type pendingReply struct{ body chan string }
+		pending := make(chan pendingReply, 2)
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			reply := pendingReply{body: make(chan string, 1)}
+			pending <- reply
+			select {
+			case body := <-reply.body:
+				_, err := w.Write([]byte(`{"jsonrpc":"2.0","result":{"summaries":[` + body + `]}}`))
+				assert.NoError(t, err, "Writing the response should not error")
+			case <-r.Context().Done():
+			case <-time.After(5 * time.Second):
+				assert.Fail(t, "the test should release the reply")
+			}
+		}))
+		requested := func() pendingReply {
+			select {
+			case reply := <-pending:
+				return reply
+			case <-time.After(5 * time.Second):
+				require.Fail(t, "the update's request must arrive")
+				return pendingReply{}
+			}
+		}
+		update := func(a asset.Item) <-chan accounts.SubAccounts {
+			replies := make(chan accounts.SubAccounts, 1)
+			go func() {
+				subAccounts, err := ex.UpdateAccountBalances(t.Context(), a)
+				assert.NoError(t, err, "UpdateAccountBalances should not error")
+				replies <- subAccounts
+			}()
+			return replies
+		}
+		received := func(replies <-chan accounts.SubAccounts) accounts.SubAccounts {
+			select {
+			case subAccounts := <-replies:
+				return subAccounts
+			case <-time.After(5 * time.Second):
+				require.Fail(t, "UpdateAccountBalances must return")
+				return nil
+			}
+		}
+		// Both updates are requested before the notification; the first is answered first and the second, requested
+		// after it, then saves its own reply
+		first := update(asset.Futures)
+		firstRequest := requested()
+		second := update(asset.Options)
+		secondRequest := requested()
+		require.NoError(t, ex.wsHandlePortfolio(t.Context(), notification("user.portfolio.any", `{"currency":"ETH","balance":3,"available_withdrawal_funds":3}`)), "wsHandlePortfolio must not error")
+		firstRequest.body <- `{"currency":"ETH","balance":1,"available_withdrawal_funds":1},{"currency":"BTC","balance":4,"available_withdrawal_funds":4}`
+		firstReply := received(first)
+		secondRequest.body <- `{"currency":"ETH","balance":2,"available_withdrawal_funds":2},{"currency":"BTC","balance":9,"available_withdrawal_funds":9}`
+		secondReply := received(second)
+		for name, tc := range map[string]struct {
+			subAccounts accounts.SubAccounts
+			btc         float64
+		}{"first": {firstReply, 4}, "second": {secondReply, 9}} {
+			require.Lenf(t, tc.subAccounts, 1, "the %s update must return one subaccount", name)
+			assert.Equalf(t, 3.0, tc.subAccounts[0].Balances[currency.ETH].Total, "the %s update should return the notified ETH balance", name)
+			assert.Equalf(t, tc.btc, tc.subAccounts[0].Balances[currency.BTC].Total, "the %s update should return its reply's BTC balance", name)
+		}
+		for c, exp := range map[currency.Code]float64{currency.ETH: 3, currency.BTC: 9} {
+			balance, err := savedBalance(t, ex, asset.Spot, c)
+			require.NoErrorf(t, err, "the %s balance must be saved", c)
+			assert.Equalf(t, exp, balance.Total, "UpdateAccountBalances should save the later update's %s balance, keeping the notified one", c)
+		}
+	})
+
+	t.Run("reply requested before a notification for one currency", func(t *testing.T) {
+		t.Parallel()
+		var ex *Exchange
+		ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			assert.NoError(t, ex.wsHandlePortfolio(t.Context(), notification("user.portfolio.any", `{"currency":"ETH","balance":3,"available_withdrawal_funds":3}`)), "wsHandlePortfolio should not error")
+			_, err := w.Write([]byte(`{"jsonrpc":"2.0","result":{"summaries":[{"currency":"ETH","balance":2,"available_withdrawal_funds":2},{"currency":"BTC","balance":4,"available_withdrawal_funds":4}]}}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		require.Len(t, subAccounts, 1, "UpdateAccountBalances must return one subaccount")
+		for c, exp := range map[currency.Code]float64{currency.ETH: 3, currency.BTC: 4} {
+			assert.Equalf(t, exp, subAccounts[0].Balances[c].Total, "UpdateAccountBalances should return the %s balance saved", c)
+			balance, err := savedBalance(t, ex, asset.Spot, c)
+			require.NoErrorf(t, err, "the %s balance must be saved", c)
+			assert.Equalf(t, exp, balance.Total, "UpdateAccountBalances should keep the notified balance and save the reply's other balances, %s", c)
+		}
+	})
+
+	t.Run("reply requested before a notification repeating the saved balance", func(t *testing.T) {
+		t.Parallel()
+		saved := accounts.Balance{Currency: currency.ETH, Total: 3, Hold: 1, Free: 2}
+		var ex *Exchange
+		ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			// A notification repeating the saved balance while the request is answered is as new as one changing it
+			assert.NoError(t, ex.wsHandlePortfolio(t.Context(), notification("user.portfolio.any", `{"currency":"ETH","balance":3,"available_withdrawal_funds":2}`)), "wsHandlePortfolio should not error")
+			_, err := w.Write([]byte(`{"jsonrpc":"2.0","result":{"summaries":[{"currency":"ETH","balance":2,"available_withdrawal_funds":1},{"currency":"BTC","balance":4,"available_withdrawal_funds":4}]}}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		// Stamped an hour back, so the notification re-stamps it however coarse the clock
+		older := saved
+		older.UpdatedAt = time.Now().Add(-time.Hour)
+		require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.ETH: older}}}, true), "Save must not error")
+		subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		require.Len(t, subAccounts, 1, "UpdateAccountBalances must return one subaccount")
+		eth := subAccounts[0].Balances[currency.ETH]
+		eth.UpdatedAt = time.Time{}
+		assert.Equal(t, saved, eth, "UpdateAccountBalances should return the balance the notification repeated over its reply's")
+		assert.Equal(t, 4.0, subAccounts[0].Balances[currency.BTC].Total, "UpdateAccountBalances should return the reply's other balances")
+		balance, err := savedBalance(t, ex, asset.Spot, currency.ETH)
+		require.NoError(t, err, "the ETH balance must be saved")
+		assert.Equal(t, saved, balance, "UpdateAccountBalances should keep the balance the notification repeated over its reply's")
+		balance, err = savedBalance(t, ex, asset.Spot, currency.BTC)
+		require.NoError(t, err, "the BTC balance must be saved")
+		assert.Equal(t, 4.0, balance.Total, "UpdateAccountBalances should save the reply's other balances")
+	})
+
+	t.Run("notified balance missing", func(t *testing.T) {
+		t.Parallel()
+		var ex *Exchange
+		ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			// A notification recorded while the request is answered whose balance the store no longer holds
+			creds, err := ex.GetCredentials(t.Context())
+			assert.NoError(t, err, "GetCredentials should not error")
+			ex.walletMu.Lock()
+			ex.recordWalletNotification(creds, currency.XRP)
+			ex.walletMu.Unlock()
+			_, err = w.Write([]byte(`{"jsonrpc":"2.0","result":{"summaries":[{"currency":"ETH","balance":2,"available_withdrawal_funds":2}]}}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		assert.ErrorIs(t, err, accounts.ErrNoBalances, "UpdateAccountBalances should return a notified balance it cannot read")
+	})
+
+	t.Run("reply requested before a notification that saved nothing", func(t *testing.T) {
+		t.Parallel()
+		var ex *Exchange
+		ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			assert.ErrorIs(t, ex.wsHandlePortfolio(t.Context(), notification("user.portfolio.any", `{"balance":3}`)), currency.ErrCurrencyCodeEmpty, "wsHandlePortfolio should refuse a notification without a currency")
+			_, err := w.Write([]byte(`{"jsonrpc":"2.0","result":{"summaries":[{"currency":"ETH","balance":2,"available_withdrawal_funds":2}]}}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		require.Len(t, subAccounts, 1, "UpdateAccountBalances must return one subaccount")
+		assert.Equal(t, 2.0, subAccounts[0].Balances[currency.ETH].Total, "UpdateAccountBalances should return its reply")
+		balance, err := savedBalance(t, ex, asset.Spot, currency.ETH)
+		require.NoError(t, err, "the balance must be saved")
+		assert.Equal(t, 2.0, balance.Total, "UpdateAccountBalances should save its reply when no notification saved a balance")
 	})
 
 	_, err := newTestExchange(t).UpdateAccountBalances(t.Context(), asset.Margin)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "UpdateAccountBalances should reject an unsupported asset")
+
+	ex := newAccountTestExchange(t)
+	ex.SkipAuthCheck = false
+	ex.SetCredentials(&accounts.Credentials{})
+	_, err = ex.UpdateAccountBalances(t.Context(), asset.Futures)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "UpdateAccountBalances should fail as an authenticated request without credentials")
+	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "UpdateAccountBalances should need credentials")
+}
+
+var errUpdateTimedOut = errors.New("update did not return in time")
+
+// updateWithinDeadline updates an exchange's spot balances from a request handler, returning errUpdateTimedOut unless the
+// update returns within five seconds, so an update waiting on the one the handler answers fails the test rather than
+// holding it until the package times out
+func updateWithinDeadline(t *testing.T, ex *Exchange) error {
+	t.Helper()
+	errs := make(chan error, 1)
+	go func() {
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+		errs <- err
+	}()
+	select {
+	case err := <-errs:
+		return err
+	case <-time.After(5 * time.Second):
+		return errUpdateTimedOut
+	}
+}
+
+// assertBalancesSavedUnderSpot checks the account store holds the main account's balances once, under spot
+func assertBalancesSavedUnderSpot(t *testing.T, ex *Exchange) {
+	t.Helper()
+	saved, err := ex.Accounts.SubAccounts(nil, asset.All)
+	require.NoError(t, err, "SubAccounts must not error")
+	require.Len(t, saved, 1, "the account store must hold the balances once")
+	assert.Equal(t, asset.Spot, saved[0].AssetType, "UpdateAccountBalances should save the balances under spot")
+	assert.Empty(t, saved[0].ID, "UpdateAccountBalances should save the main account's balances")
+}
+
+func TestKeepNotifiedBalances(t *testing.T) {
+	t.Parallel()
+	notified := accounts.Balance{Currency: currency.ETH, Total: 3, Free: 3}
+	ex := newAccountTestExchange(t, &accounts.SubAccount{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.ETH: notified, currency.BTC: {Total: 8}}})
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	other := accounts.Credentials{Key: "other-key", Secret: "other-secret"}
+	ex.walletNotified = map[accounts.Credentials]map[*currency.Item]uint64{
+		*creds: {currency.ETH.Item: 5, currency.BTC.Item: 3},
+		other:  {currency.SOL.Item: 9},
+	}
+	wallet := accounts.NewSubAccount(asset.Spot, "")
+	wallet.Balances.Set(currency.BTC, accounts.Balance{Total: 4, Free: 4})
+	ex.walletMu.Lock()
+	err = ex.keepNotifiedBalances(creds, 4, wallet)
+	ex.walletMu.Unlock()
+	require.NoError(t, err, "keepNotifiedBalances must not error")
+	eth := wallet.Balances[currency.ETH]
+	eth.UpdatedAt = time.Time{}
+	assert.Equal(t, notified, eth, "keepNotifiedBalances should set the balance notified after the request over the reply")
+	assert.Equal(t, 4.0, wallet.Balances[currency.BTC].Total, "keepNotifiedBalances should keep the reply's balance notified before the request")
+	assert.NotContains(t, wallet.Balances, currency.SOL, "keepNotifiedBalances should keep to the credentials given")
+
+	ex.walletNotified[*creds][currency.XRP.Item] = 6
+	ex.walletMu.Lock()
+	err = ex.keepNotifiedBalances(creds, 4, accounts.NewSubAccount(asset.Spot, ""))
+	ex.walletMu.Unlock()
+	assert.ErrorIs(t, err, accounts.ErrNoBalances, "keepNotifiedBalances should return a notified balance it cannot read")
+}
+
+func TestRecordWalletNotification(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	first, second := &accounts.Credentials{Key: "first"}, &accounts.Credentials{Key: "second"}
+	ex.walletMu.Lock()
+	ex.recordWalletNotification(first, currency.BTC)
+	ex.recordWalletNotification(second, currency.BTC)
+	ex.recordWalletNotification(first, currency.ETH)
+	ex.recordWalletNotification(first, currency.BTC)
+	ex.walletMu.Unlock()
+	exp := map[accounts.Credentials]map[*currency.Item]uint64{
+		*first:  {currency.BTC.Item: 4, currency.ETH.Item: 3},
+		*second: {currency.BTC.Item: 2},
+	}
+	assert.Equal(t, exp, ex.walletNotified, "recordWalletNotification should number each notification and hold the last of each credentials' currency")
+	assert.Equal(t, uint64(4), ex.walletSequence, "recordWalletNotification should number the notifications in turn")
+}
+
+func TestSavedWallet(t *testing.T) {
+	t.Parallel()
+	main := accounts.Balance{Currency: currency.BTC, Total: 2, Hold: 0.5, Free: 1.5}
+	ex := newAccountTestExchange(
+		t,
+		&accounts.SubAccount{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: main}},
+		&accounts.SubAccount{ID: "sub", AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1}}},
+		&accounts.SubAccount{AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 7}}},
+	)
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	subAccounts, err := ex.savedWallet(creds, asset.Options)
+	require.NoError(t, err, "savedWallet must not error")
+	require.Len(t, subAccounts, 1, "savedWallet must return the main account alone")
+	assert.Empty(t, subAccounts[0].ID, "savedWallet should return the main account")
+	assert.Equal(t, asset.Options, subAccounts[0].AssetType, "savedWallet should label the balances with the asset given")
+	balance := subAccounts[0].Balances[currency.BTC]
+	balance.UpdatedAt = time.Time{}
+	assert.Equal(t, main, balance, "savedWallet should return the balances saved under spot")
+
+	_, err = ex.savedWallet(&accounts.Credentials{Key: "other-key", Secret: "other-secret"}, asset.Options)
+	assert.ErrorIs(t, err, accounts.ErrNoSubAccounts, "savedWallet should read the credentials given")
+	subAccountOnly := newAccountTestExchange(t, &accounts.SubAccount{ID: "sub", AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1}}})
+	_, err = subAccountOnly.savedWallet(creds, asset.Options)
+	assert.ErrorIs(t, err, accounts.ErrNoSubAccounts, "savedWallet should need the main account saved")
+}
+
+func TestGetCachedSubAccounts(t *testing.T) {
+	t.Parallel()
+	wallet := accounts.Balance{Currency: currency.BTC, Total: 2, Hold: 0.5, Free: 1.5}
+	ex := newAccountTestExchange(t, &accounts.SubAccount{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: wallet}})
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.OptionCombo, false), "SetAssetEnabled must not error")
+	for _, a := range append(ex.GetAssetTypes(false), asset.All) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			subAccounts, err := ex.GetCachedSubAccounts(t.Context(), a)
+			require.NoErrorf(t, err, "GetCachedSubAccounts must not error for %s", a)
+			require.Lenf(t, subAccounts, 1, "GetCachedSubAccounts must return the main account for %s", a)
+			exp := a
+			if a == asset.All {
+				exp = asset.Spot
+			}
+			assert.Equalf(t, exp, subAccounts[0].AssetType, "GetCachedSubAccounts should label the balances saved under spot with %s", exp)
+			assert.Emptyf(t, subAccounts[0].ID, "GetCachedSubAccounts should return the main account for %s", a)
+			balance := subAccounts[0].Balances[currency.BTC]
+			balance.UpdatedAt = time.Time{}
+			assert.Equalf(t, wallet, balance, "GetCachedSubAccounts should return the balances saved under spot for %s", a)
+			assertBalancesSavedUnderSpot(t, ex)
+		})
+	}
+
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		_, err := ex.GetCachedSubAccounts(t.Context(), asset.Margin)
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "GetCachedSubAccounts should reject an unsupported asset")
+	})
+
+	t.Run("nothing saved", func(t *testing.T) {
+		t.Parallel()
+		empty := newAccountTestExchange(t)
+		for _, a := range []asset.Item{asset.Futures, asset.All} {
+			_, err := empty.GetCachedSubAccounts(t.Context(), a)
+			assert.ErrorIsf(t, err, accounts.ErrNoSubAccounts, "GetCachedSubAccounts should return no subaccounts for %s", a)
+		}
+	})
+
+	t.Run("several saved", func(t *testing.T) {
+		t.Parallel()
+		several := newAccountTestExchange(
+			t,
+			&accounts.SubAccount{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: wallet}},
+			&accounts.SubAccount{ID: "sub", AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: wallet}},
+			&accounts.SubAccount{AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.BTC: wallet}},
+		)
+		subAccounts, err := several.GetCachedSubAccounts(t.Context(), asset.Options)
+		require.NoError(t, err, "GetCachedSubAccounts must not error")
+		require.Len(t, subAccounts, 2, "GetCachedSubAccounts must return every subaccount saved under spot")
+		for _, s := range subAccounts {
+			assert.Equalf(t, asset.Options, s.AssetType, "GetCachedSubAccounts should label subaccount %q with the asset asked for", s.ID)
+		}
+		subAccounts, err = several.GetCachedSubAccounts(t.Context(), asset.All)
+		require.NoError(t, err, "GetCachedSubAccounts must not error")
+		assets := make([]asset.Item, len(subAccounts))
+		for i := range subAccounts {
+			assets[i] = subAccounts[i].AssetType
+		}
+		assert.ElementsMatch(t, []asset.Item{asset.Spot, asset.Spot, asset.Futures}, assets, "GetCachedSubAccounts should return every subaccount saved, under its own asset, for asset.All")
+	})
+}
+
+func TestGetCachedCurrencyBalances(t *testing.T) {
+	t.Parallel()
+	wallet := accounts.Balance{Currency: currency.BTC, Total: 2, Hold: 0.5, Free: 1.5}
+	ex := newAccountTestExchange(t, &accounts.SubAccount{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: wallet}})
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.OptionCombo, false), "SetAssetEnabled must not error")
+	for _, a := range append(ex.GetAssetTypes(false), asset.All) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			balances, err := ex.GetCachedCurrencyBalances(t.Context(), a)
+			require.NoErrorf(t, err, "GetCachedCurrencyBalances must not error for %s", a)
+			require.Lenf(t, balances, 1, "GetCachedCurrencyBalances must return the one currency saved for %s", a)
+			balance := balances[currency.BTC]
+			balance.UpdatedAt = time.Time{}
+			assert.Equalf(t, wallet, balance, "GetCachedCurrencyBalances should return the balances saved under spot for %s", a)
+		})
+	}
+
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		_, err := ex.GetCachedCurrencyBalances(t.Context(), asset.Margin)
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "GetCachedCurrencyBalances should reject an unsupported asset")
+	})
+
+	t.Run("nothing saved", func(t *testing.T) {
+		t.Parallel()
+		empty := newAccountTestExchange(t)
+		for _, a := range []asset.Item{asset.Futures, asset.All} {
+			_, err := empty.GetCachedCurrencyBalances(t.Context(), a)
+			assert.ErrorIsf(t, err, accounts.ErrNoBalances, "GetCachedCurrencyBalances should return no balances for %s", a)
+		}
+	})
+
+	t.Run("several saved", func(t *testing.T) {
+		t.Parallel()
+		several := newAccountTestExchange(
+			t,
+			&accounts.SubAccount{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: wallet}},
+			&accounts.SubAccount{AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1}}},
+		)
+		balances, err := several.GetCachedCurrencyBalances(t.Context(), asset.Options)
+		require.NoError(t, err, "GetCachedCurrencyBalances must not error")
+		assert.Equal(t, 2.0, balances[currency.BTC].Total, "GetCachedCurrencyBalances should return the balances saved under spot for an asset")
+		balances, err = several.GetCachedCurrencyBalances(t.Context(), asset.All)
+		require.NoError(t, err, "GetCachedCurrencyBalances must not error")
+		assert.Equal(t, 3.0, balances[currency.BTC].Total, "GetCachedCurrencyBalances should total every asset saved for asset.All")
+	})
 }
 
 func TestValidateAPICredentials(t *testing.T) {
@@ -2450,34 +3033,50 @@ func TestCancelOrder(t *testing.T) {
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelBatchOrders(t.Context(), nil)
-	assert.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelBatchOrders should reject no orders")
-	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{}})
-	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelBatchOrders should reject an order without an ID")
-	unsent := newWrapperServerExchange(t, func(_ string, params json.RawMessage) string {
-		assert.Failf(t, "CancelBatchOrders should send no cancel of a batch holding an invalid one", "sent %s", params)
-		return `{"jsonrpc":"2.0","result":{"order_id":"known","order_state":"cancelled"}}`
+	ex := newWrapperServerExchange(t, func(method string, params json.RawMessage) string {
+		assert.Failf(t, "CancelBatchOrders should send no request", "sent %s %s", method, params)
+		return `{"jsonrpc":"2.0","result":{"order_id":"ETH-1","order_state":"cancelled"}}`
 	})
-	invalid, err := unsent.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "known"}, {}})
-	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelBatchOrders should reject a batch holding an order without an ID")
-	assert.Nil(t, invalid, "CancelBatchOrders should return no response for an invalid batch")
-
-	ex := newWrapperServerExchange(t, func(_ string, params json.RawMessage) string {
-		if strings.Contains(string(params), "unknown") {
-			return `{"jsonrpc":"2.0","error":{"code":11044,"message":"not_open_order"}}`
-		}
-		return `{"jsonrpc":"2.0","result":{"order_id":"known","order_state":"cancelled"}}`
-	})
-	resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "known"}, {OrderID: "unknown"}})
-	require.NoError(t, err, "CancelBatchOrders must not error")
-	assert.Equal(t, map[string]string{"known": "cancelled", "unknown": "authenticated request failed: code 11044: not_open_order"}, resp.Status, "CancelBatchOrders should report each order's state or error")
-
-	skipLiveUnlessCanManipulate(t)
-	if mockTests {
-		resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: mockWrapperCancelOrderID}})
-		require.NoError(t, err, "CancelBatchOrders must not error")
-		assert.Equal(t, map[string]string{mockWrapperCancelOrderID: "untriggered"}, resp.Status, "CancelBatchOrders should report the cancelled order's state")
+	cancel := func(orderID string) order.Cancel {
+		return order.Cancel{OrderID: orderID, Pair: currency.NewPairWithDelimiter("ETH", "PERPETUAL", "-"), AssetType: asset.Futures, Side: order.Buy, Type: order.Limit}
 	}
+	for name, cancels := range map[string][]order.Cancel{
+		"nil":                         nil,
+		"empty":                       {},
+		"no order ID":                 {{}},
+		"client order ID alone":       {{ClientOrderID: "label-1"}},
+		"order ID alone":              {{OrderID: "known"}},
+		"order and one without an ID": {{OrderID: "known"}, {}},
+		"two order IDs":               {{OrderID: "known"}, {OrderID: "unknown"}},
+		"one order":                   {cancel("ETH-1")},
+		"two orders":                  {cancel("ETH-1"), cancel("ETH-2")},
+		"three orders":                {cancel("ETH-1"), cancel("ETH-2"), cancel("ETH-3")},
+		"the same order twice":        {cancel("ETH-1"), cancel("ETH-1")},
+		"one spot order":              {{OrderID: "ETH_USDC-1", Pair: currency.NewPair(currency.ETH, currency.USDC), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit}},
+		"one option order":            {{OrderID: "ETH-4", Pair: currency.NewPairWithDelimiter("ETH", "27MAR26-2000-C", "-"), AssetType: asset.Options, Side: order.Sell, Type: order.Limit}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			resp, err := ex.CancelBatchOrders(t.Context(), cancels)
+			assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders should refuse a batch, as Deribit cancels no list of order IDs")
+			assert.Nil(t, resp, "CancelBatchOrders should return no response")
+		})
+	}
+
+	t.Run("authenticated websocket", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the mock websocket venue is checked in mock mode")
+		}
+		ws, venue := newWebsocketTestExchange(t)
+		require.True(t, ws.websocketForWrapper(true), "websocketForWrapper must send private requests over the authenticated mock websocket")
+		requests := venue.requestCount()
+		resp, err := ws.CancelBatchOrders(t.Context(), []order.Cancel{cancel("ETH-1"), cancel("ETH-2")})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders should refuse a batch over the websocket too")
+		assert.Nil(t, resp, "CancelBatchOrders should return no response")
+		assert.Empty(t, venue.received("private/cancel"), "CancelBatchOrders should send no cancel over the websocket")
+		assert.Equal(t, requests, venue.requestCount(), "CancelBatchOrders should send no request over the websocket")
+	})
 }
 
 func TestCancelAllOrders(t *testing.T) {
@@ -2936,6 +3535,20 @@ func TestGetActiveOrders(t *testing.T) {
 		openIDs[i] = open[i].OrderID
 	}
 	assert.Equal(t, []string{"BTC-PERPETUAL-146062", "BTC-PERPETUAL-146063", "ETH-PERPETUAL-146062", "ETH-PERPETUAL-146063"}, openIDs, "GetActiveOrders should return every requested pair's open orders")
+
+	t.Run("speed bumped order", func(t *testing.T) {
+		t.Parallel()
+		// An open order listing can hold an order waiting out its speed bump
+		ex := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":[{"instrument_name":"BTC-PERPETUAL","order_id":"open","order_type":"limit","order_state":"open","direction":"buy","time_in_force":"good_til_cancelled","price":80000,"amount":20},`+
+			`{"instrument_name":"BTC-PERPETUAL","order_id":"bumped","order_type":"limit","order_state":"speed_bumped","direction":"buy","time_in_force":"good_til_cancelled","price":80000,"amount":20,"filled_amount":10}]}`)
+		orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{wrapperTestPair(t, asset.Futures)}})
+		require.NoError(t, err, "GetActiveOrders must not error for a listing holding a speed bumped order")
+		statuses := make(map[string]order.Status, len(orders))
+		for i := range orders {
+			statuses[orders[i].OrderID] = orders[i].Status
+		}
+		assert.Equal(t, map[string]order.Status{"open": order.Open, "bumped": order.PartiallyFilled}, statuses, "GetActiveOrders should return a speed bumped order as an open one")
+	})
 
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
@@ -3756,6 +4369,7 @@ func TestSetup(t *testing.T) {
 		ex.SetDefaults()
 		// The manager sets up no connection without the channel its connections signal traffic on
 		ex.Websocket.TrafficAlert = nil
+		ex.Accounts = accounts.MustNewAccounts(ex)
 		assert.ErrorContains(t, ex.Setup(exchCfg), "traffic alert is nil", "Setup should return a failure to set the request connection up")
 	})
 
@@ -3768,6 +4382,7 @@ func TestSetup(t *testing.T) {
 		exchCfg.API.Endpoints = map[string]string{exchange.WebsocketSpot.String(): testnetWebsocketURL}
 		ex := new(Exchange)
 		ex.SetDefaults()
+		ex.Accounts = accounts.MustNewAccounts(ex)
 		require.NoError(t, ex.Setup(&exchCfg), "Setup must not error")
 		urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
 		require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")

@@ -2,6 +2,7 @@ package deribit
 
 import (
 	"errors"
+	"net/http"
 	"slices"
 	"strconv"
 	"sync"
@@ -104,6 +105,61 @@ func TestSendWebsocketRequest(t *testing.T) {
 
 	err = newTestExchange(t).SendWebsocketRequest(t.Context(), nonMatchingEPL, "public/get_time", nil, &result)
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "SendWebsocketRequest should error without a connection")
+
+	t.Run("each attempt within the ticker and order book limit and the non-matching engine limit", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the mock websocket venue's retries are checked in mock mode")
+		}
+		for _, tc := range []struct {
+			name    string
+			retries int
+			tokens  map[request.EndpointLimit]int
+			noRetry bool
+			sent    int
+			err     error
+		}{
+			{name: "first attempt over the ticker and order book limit", tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: 0, nonMatchingEPL: -1}, err: request.ErrDelayNotAllowed},
+			{name: "first attempt over the non-matching engine limit", tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: -1, nonMatchingEPL: 0}, err: request.ErrDelayNotAllowed},
+			{name: "only attempt over the ticker and order book limit", tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: 0, nonMatchingEPL: -1}, noRetry: true, err: request.ErrDelayNotAllowed},
+			{name: "only attempt over the non-matching engine limit", tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: -1, nonMatchingEPL: 0}, noRetry: true, err: request.ErrDelayNotAllowed},
+			{name: "only attempt within both limits", tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: 1, nonMatchingEPL: 1}, noRetry: true, sent: 1},
+			{name: "retried over the ticker and order book limit", retries: 1, tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: 1, nonMatchingEPL: -1}, sent: 1, err: request.ErrDelayNotAllowed},
+			{name: "retried over the non-matching engine limit", retries: 1, tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: -1, nonMatchingEPL: 1}, sent: 1, err: request.ErrDelayNotAllowed},
+			{name: "retried within both limits", retries: 1, tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: 2, nonMatchingEPL: 2}, sent: 2},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, venue := newWebsocketTestExchange(t)
+				limited, noDelay := newLimitedServerExchange(t, http.NotFoundHandler(), tc.tokens)
+				require.NoError(t, ex.SetRequester(limited.Requester), "SetRequester must not error")
+				venue.retryNext("public/get_time", tc.retries)
+				ctx := noDelay
+				if tc.noRetry {
+					ctx = request.WithRetryNotAllowed(ctx)
+				}
+				var result types.Time
+				err := ex.SendWebsocketRequest(ctx, tickerOrderBookEPL, "public/get_time", nil, &result)
+				assert.ErrorIs(t, err, tc.err, "SendWebsocketRequest should wait on both limits before each attempt of a ticker or order book request")
+				assert.Len(t, venue.received("public/get_time"), tc.sent, "SendWebsocketRequest should send each attempt only within both limits")
+			})
+		}
+
+		// The ticker and order book limit is waited on last, just before each attempt is sent, so a request the
+		// non-matching engine limit refuses leaves its capacity
+		t.Run("non-matching engine limit first", func(t *testing.T) {
+			t.Parallel()
+			ex, venue := newWebsocketTestExchange(t)
+			limited, noDelay := newLimitedServerExchange(t, http.NotFoundHandler(), map[request.EndpointLimit]int{tickerOrderBookEPL: 1, nonMatchingEPL: 0})
+			require.NoError(t, ex.SetRequester(limited.Requester), "SetRequester must not error")
+			var result types.Time
+			err := ex.SendWebsocketRequest(noDelay, tickerOrderBookEPL, "public/get_time", nil, &result)
+			require.ErrorIs(t, err, request.ErrDelayNotAllowed, "SendWebsocketRequest must refuse a request over the non-matching engine limit")
+			ex.Requester.GetRateLimiterDefinitions()[nonMatchingEPL] = request.NewRateLimitWithWeight(0, 0, 1)
+			require.NoError(t, ex.SendWebsocketRequest(noDelay, tickerOrderBookEPL, "public/get_time", nil, &result), "SendWebsocketRequest must send the next request within both limits")
+			assert.Len(t, venue.received("public/get_time"), 1, "SendWebsocketRequest should send only the request both limits admit")
+		})
+	})
 }
 
 func TestSendWebsocketRequestOverConnection(t *testing.T) {

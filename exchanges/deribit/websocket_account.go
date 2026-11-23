@@ -2,7 +2,6 @@ package deribit
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -57,51 +56,35 @@ func (e *Exchange) wsHandleUserChanges(ctx context.Context, respRaw []byte) erro
 	return common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, changes))
 }
 
-// wsHandlePortfolio saves a user.portfolio notification's balance as UpdateAccountBalances does, under each asset that
-// holds the main account's balances, then relays the summary
+// wsHandlePortfolio saves a user.portfolio notification's balance as UpdateAccountBalances does, under spot, then
+// relays the summary; each balance it saves is recorded, even when publishing the change fails, so an update requested
+// before it keeps the notified balance over its reply's
 func (e *Exchange) wsHandlePortfolio(ctx context.Context, respRaw []byte) error {
 	summary := new(AccountSummary)
 	if err := decodeNotification(respRaw, summary); err != nil {
 		return err
 	}
-	assets, err := e.mainAccountAssets(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	for _, a := range assets {
-		if _, err := e.Accounts.UpdateBalance(ctx, "", a, summary.Currency, func(b *accounts.Balance) {
-			b.Total = summary.Balance
-			b.Hold = max(summary.Balance-summary.AvailableWithdrawalFunds, 0)
-			b.Free = summary.AvailableWithdrawalFunds
-		}); err != nil {
-			return err
-		}
+	e.walletMu.Lock()
+	before, beforeErr := e.Accounts.GetBalance("", creds, asset.Spot, summary.Currency)
+	_, err = e.Accounts.UpdateBalance(ctx, "", asset.Spot, summary.Currency, func(b *accounts.Balance) {
+		b.Total = summary.Balance
+		b.Hold = max(summary.Balance-summary.AvailableWithdrawalFunds, 0)
+		b.Free = summary.AvailableWithdrawalFunds
+	})
+	// Read back, as a save whose publication failed has still stored the balance, which an update requested before it
+	// must keep
+	if after, afterErr := e.Accounts.GetBalance("", creds, asset.Spot, summary.Currency); afterErr == nil && (beforeErr != nil || after != before) {
+		e.recordWalletNotification(creds, summary.Currency)
+	}
+	e.walletMu.Unlock()
+	if err != nil {
+		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, summary)
-}
-
-// mainAccountAssets returns the assets the main account's balances are saved under, or spot when none are saved yet.
-// Deribit's balances back every asset, so a copy saved under another asset would be counted again in asset.All totals,
-// and the portfolio manager saves the balances of an exchange without segregated asset accounts under spot
-func (e *Exchange) mainAccountAssets(ctx context.Context) (asset.Items, error) {
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-	subAccounts, err := e.Accounts.SubAccounts(creds, asset.All)
-	if err != nil && !errors.Is(err, accounts.ErrNoSubAccounts) {
-		return nil, err
-	}
-	var assets asset.Items
-	for _, s := range subAccounts {
-		if s.ID == "" {
-			assets = append(assets, s.AssetType)
-		}
-	}
-	if len(assets) == 0 {
-		return asset.Items{asset.Spot}, nil
-	}
-	return assets, nil
 }
 
 // wsHandleUserTrades passes the account's trades to the fills feed

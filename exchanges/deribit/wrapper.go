@@ -556,27 +556,135 @@ func orderBookLevels(levels []OrderBookLevel) orderbook.Levels {
 }
 
 // UpdateAccountBalances retrieves the account's balance in every currency it holds. Deribit's balances back every kind
-// of instrument, so they are saved under the asset requested. The total is the cash balance and the free amount what
-// can be withdrawn, which leaves out the margin held, positive session profit and reserved balances
+// of instrument, so they are saved under spot whichever asset asks, as user.portfolio notifications update them, and
+// the account store holds and totals them once; the sub-account returned carries the asset asked for. A currency's
+// balance a notification saved while the balances were requested is kept over the reply's, as the reply may be the
+// older, and a reply is not saved once an update requested after it has saved its own, or tried to, the balances saved
+// being returned instead. Updates are ordered by when they were requested, not sent, so an update whose request is sent
+// again, after a 10040 or 429 answer or a timed-out response, once an update requested later has saved is not saved
+// either, though its reply is the newer, and the older balances stay until the next notification or update. The total
+// is the cash balance and the free amount what can be withdrawn, which leaves out the margin held, positive session
+// profit and reserved balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	if !e.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
+	}
+	e.walletMu.Lock()
+	e.walletSequence++
+	requested := e.walletSequence
+	e.walletMu.Unlock()
 	resp, err := e.getAccountSummaries(ctx, &GetAccountSummariesRequest{}, e.websocketForWrapper(true))
 	if err != nil {
 		return nil, err
 	}
-	subAccount := accounts.NewSubAccount(a, "")
+	wallet := accounts.NewSubAccount(asset.Spot, "")
 	for i := range resp.Summaries {
 		summary := &resp.Summaries[i]
-		subAccount.Balances.Set(summary.Currency, accounts.Balance{
+		wallet.Balances.Set(summary.Currency, accounts.Balance{
 			Total: summary.Balance,
 			Hold:  max(summary.Balance-summary.AvailableWithdrawalFunds, 0),
 			Free:  summary.AvailableWithdrawalFunds,
 		})
 	}
-	subAccounts := accounts.SubAccounts{subAccount}
-	return subAccounts, e.Accounts.Save(ctx, subAccounts, true)
+	e.walletMu.Lock()
+	defer e.walletMu.Unlock()
+	if e.walletUpdated[*creds] > requested {
+		return e.savedWallet(creds, a)
+	}
+	if err := e.keepNotifiedBalances(creds, requested, wallet); err != nil {
+		return nil, err
+	}
+	// Copied before the save, which passes wallet itself to the account store's subscribers
+	subAccount := *wallet
+	subAccount.AssetType = a
+	err = e.Accounts.Save(ctx, accounts.SubAccounts{wallet}, true)
+	// Recorded whether or not the save errored, as a save can change some balances before it fails
+	if e.walletUpdated == nil {
+		e.walletUpdated = make(map[accounts.Credentials]uint64)
+	}
+	e.walletUpdated[*creds] = requested
+	return accounts.SubAccounts{&subAccount}, err
+}
+
+// keepNotifiedBalances sets the balances user.portfolio notifications saved for credentials after an update numbered
+// requested was requested over the wallet its reply returned, as they may be the newer; walletMu must be held
+func (e *Exchange) keepNotifiedBalances(creds *accounts.Credentials, requested uint64, wallet *accounts.SubAccount) error {
+	for item, notified := range e.walletNotified[*creds] {
+		if notified < requested {
+			continue
+		}
+		c := item.Currency()
+		balance, err := e.Accounts.GetBalance("", creds, asset.Spot, c)
+		if err != nil {
+			return err
+		}
+		wallet.Balances.Set(c, balance)
+	}
+	return nil
+}
+
+// recordWalletNotification numbers a user.portfolio notification saved for credentials' balance in a currency;
+// walletMu must be held
+func (e *Exchange) recordWalletNotification(creds *accounts.Credentials, c currency.Code) {
+	e.walletSequence++
+	if e.walletNotified == nil {
+		e.walletNotified = make(map[accounts.Credentials]map[*currency.Item]uint64)
+	}
+	if e.walletNotified[*creds] == nil {
+		e.walletNotified[*creds] = make(map[*currency.Item]uint64)
+	}
+	e.walletNotified[*creds][c.Item] = e.walletSequence
+}
+
+// savedWallet returns the main account's balances saved under spot for credentials, labelled with an asset
+func (e *Exchange) savedWallet(creds *accounts.Credentials, a asset.Item) (accounts.SubAccounts, error) {
+	subAccounts, err := e.Accounts.SubAccounts(creds, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range subAccounts {
+		if s.ID == "" {
+			s.AssetType = a
+			return accounts.SubAccounts{s}, nil
+		}
+	}
+	return nil, fmt.Errorf("%w: main account", accounts.ErrNoSubAccounts)
+}
+
+// GetCachedSubAccounts returns the saved sub-accounts of an asset, or of every asset for asset.All. Deribit's balances
+// back every kind of instrument and are saved under spot alone, so each supported asset returns them, labelled with
+// that asset
+func (e *Exchange) GetCachedSubAccounts(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
+	if a == asset.All {
+		return e.Base.GetCachedSubAccounts(ctx, a)
+	}
+	if !e.SupportsAsset(a) {
+		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+	}
+	subAccounts, err := e.Base.GetCachedSubAccounts(ctx, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range subAccounts {
+		s.AssetType = a
+	}
+	return subAccounts, nil
+}
+
+// GetCachedCurrencyBalances returns the saved balances of an asset, or of every asset for asset.All, by currency.
+// Deribit's balances back every kind of instrument and are saved under spot alone, so each supported asset returns them
+func (e *Exchange) GetCachedCurrencyBalances(ctx context.Context, a asset.Item) (accounts.CurrencyBalances, error) {
+	if a != asset.All {
+		if !e.SupportsAsset(a) {
+			return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+		}
+		a = asset.Spot
+	}
+	return e.Base.GetCachedCurrencyBalances(ctx, a)
 }
 
 // GetAccountFundingHistory returns the latest page of deposits and withdrawals in each currency available to the
@@ -1125,29 +1233,9 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	return err
 }
 
-// CancelBatchOrders cancels orders by their IDs, one request each, as Deribit cancels no list of orders; each order's
-// status is its state once cancelled, or the error cancelling it. Every cancel is validated before any is sent, so an
-// invalid batch cancels nothing
-func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel) (*order.CancelBatchResponse, error) {
-	if len(cancels) == 0 {
-		return nil, order.ErrCancelOrderIsNil
-	}
-	for i := range cancels {
-		if err := cancels[i].Validate(cancels[i].StandardCancel()); err != nil {
-			return nil, err
-		}
-	}
-	overWebsocket := e.websocketForWrapper(true)
-	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(cancels))}
-	for i := range cancels {
-		cancelled, err := e.cancelOrderByID(ctx, cancels[i].OrderID, overWebsocket)
-		if err != nil {
-			resp.Status[cancels[i].OrderID] = err.Error()
-			continue
-		}
-		resp.Status[cancels[i].OrderID] = cancelled.OrderState
-	}
-	return resp, nil
+// CancelBatchOrders is not supported, as Deribit cancels no list of order IDs; CancelOrder cancels each order
+func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels the orders of a type in a pair, or in every pair of the asset when the pair is empty. Deribit
@@ -2160,10 +2248,12 @@ func parseOrderType(orderType string) (order.Type, error) {
 }
 
 // parseOrderStatus converts an order state, reporting partly filled open and cancelled orders as such; an untriggered
-// trigger order is pending, and a triggered one closed, as Deribit places a new order with its own ID when it triggers
+// trigger order is pending, and a triggered one closed, as Deribit places a new order with its own ID when it triggers.
+// An order held in its speed bump, which an open order listing can report before the order enters the book, converts as
+// an open order does
 func parseOrderStatus(state string, filledAmount float64) (order.Status, error) {
 	switch state {
-	case "open":
+	case "open", "speed_bumped":
 		if filledAmount > 0 {
 			return order.PartiallyFilled, nil
 		}

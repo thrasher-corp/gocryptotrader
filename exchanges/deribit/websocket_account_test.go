@@ -2,14 +2,16 @@ package deribit
 
 import (
 	"errors"
+	"net/http"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
@@ -264,8 +266,7 @@ func savedBalance(t *testing.T, ex *Exchange, a asset.Item, c currency.Code) (ac
 	return balance, err
 }
 
-func TestWebsocketHandlePortfolio(t *testing.T) {
-	t.Parallel()
+func TestWebsocketHandlePortfolio(t *testing.T) { //nolint:tparallel // Its failed publication case starts the process-wide dispatcher, so it runs serially while the other cases wait
 	// Deribit's documented user.portfolio example
 	const channel = "user.portfolio.btc"
 	const btcPortfolio = `{"delta_total_map":{"btc_usd":31.594397699},"margin_balance":302.62675921,"session_upl":0.05341555,"options_gamma_map":{"btc_usd":1e-05},"options_value":-0.0079,"available_withdrawal_funds":301.35426172,"maintenance_margin":0.8854841,"available_funds":301.38036328,"balance":302.60065765,"equity":302.6188592,"fee_balance":0,"currency":"BTC","portfolio_margining_enabled":false,"margin_model":"segregated_sm","initial_margin":1.24639592,"spot_reserve":0,"delta_total":31.602298,"additional_reserve":0}`
@@ -301,36 +302,53 @@ func TestWebsocketHandlePortfolio(t *testing.T) {
 		assert.Len(t, saved, 1, "wsHandlePortfolio should save the balance under spot alone")
 	})
 
-	t.Run("saved under futures", func(t *testing.T) {
+	t.Run("saved under other assets", func(t *testing.T) {
 		t.Parallel()
-		ex := newAccountTestExchange(t, &accounts.SubAccount{AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1, Free: 1}}})
-		require.NoError(t, ex.wsHandlePortfolio(t.Context(), notification(channel, btcPortfolio)), "wsHandlePortfolio must not error")
-		assert.IsType(t, &AccountSummary{}, relayed(t, ex), "wsHandlePortfolio should relay the summary")
-		balance, err := savedBalance(t, ex, asset.Futures, currency.BTC)
-		require.NoError(t, err, "the balance must be saved under futures")
-		assert.Equal(t, expBalance, balance, "wsHandlePortfolio should update the balance where it is saved")
-		_, err = savedBalance(t, ex, asset.Spot, currency.BTC)
-		assert.ErrorIs(t, err, accounts.ErrNoBalances, "wsHandlePortfolio should not save another copy, which asset.All totals would count again")
-	})
-
-	t.Run("saved under two assets", func(t *testing.T) {
-		t.Parallel()
+		other := accounts.Balance{Currency: currency.BTC, Total: 1, Free: 1}
 		ex := newAccountTestExchange(
 			t,
-			&accounts.SubAccount{AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1, Free: 1}}},
-			&accounts.SubAccount{AssetType: asset.Options, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1, Free: 1}}},
+			&accounts.SubAccount{AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.BTC: other}},
+			&accounts.SubAccount{AssetType: asset.Options, Balances: accounts.CurrencyBalances{currency.BTC: other}},
 		)
 		require.NoError(t, ex.wsHandlePortfolio(t.Context(), notification(channel, btcPortfolio)), "wsHandlePortfolio must not error")
+		assert.IsType(t, &AccountSummary{}, relayed(t, ex), "wsHandlePortfolio should relay the summary")
+		balance, err := savedBalance(t, ex, asset.Spot, currency.BTC)
+		require.NoError(t, err, "the balance must be saved under spot")
+		assert.Equal(t, expBalance, balance, "wsHandlePortfolio should save the balance under spot, where UpdateAccountBalances saves it")
 		for _, a := range []asset.Item{asset.Futures, asset.Options} {
-			t.Run(a.String(), func(t *testing.T) {
-				t.Parallel()
-				balance, err := savedBalance(t, ex, a, currency.BTC)
-				require.NoErrorf(t, err, "the balance must be saved under %s", a)
-				assert.Equalf(t, expBalance, balance, "wsHandlePortfolio should update the balance saved under %s", a)
-			})
+			balance, err := savedBalance(t, ex, a, currency.BTC)
+			require.NoErrorf(t, err, "the balance saved under %s must still be saved", a)
+			assert.Equalf(t, other, balance, "wsHandlePortfolio should leave the balance saved under %s as it is", a)
 		}
-		_, err := savedBalance(t, ex, asset.Spot, currency.BTC)
-		assert.ErrorIs(t, err, accounts.ErrNoBalances, "wsHandlePortfolio should not save a copy under spot")
+	})
+
+	t.Run("saved under futures alone", func(t *testing.T) {
+		t.Parallel()
+		other := accounts.Balance{Currency: currency.BTC, Total: 1, Free: 1}
+		ex := newAccountTestExchange(t, &accounts.SubAccount{AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.BTC: other}})
+		require.NoError(t, ex.wsHandlePortfolio(t.Context(), notification(channel, btcPortfolio)), "wsHandlePortfolio must not error")
+		assert.IsType(t, &AccountSummary{}, relayed(t, ex), "wsHandlePortfolio should relay the summary")
+		balance, err := savedBalance(t, ex, asset.Spot, currency.BTC)
+		require.NoError(t, err, "the balance must be saved under spot")
+		assert.Equal(t, expBalance, balance, "wsHandlePortfolio should save the balance under spot, where UpdateAccountBalances saves it")
+		balance, err = savedBalance(t, ex, asset.Futures, currency.BTC)
+		require.NoError(t, err, "the balance saved under futures must still be saved")
+		assert.Equal(t, other, balance, "wsHandlePortfolio should leave the balance saved under futures as it is")
+	})
+
+	t.Run("after a balance update for another asset", func(t *testing.T) {
+		t.Parallel()
+		ex := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"summaries":[{"currency":"BTC","balance":1,"available_withdrawal_funds":1}]}}`)
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		require.NoError(t, ex.wsHandlePortfolio(t.Context(), notification(channel, btcPortfolio)), "wsHandlePortfolio must not error")
+		saved, err := ex.Accounts.SubAccounts(nil, asset.All)
+		require.NoError(t, err, "SubAccounts must not error")
+		require.Len(t, saved, 1, "the account store must hold the balances once")
+		assert.Equal(t, asset.Spot, saved[0].AssetType, "the account store should hold the balances under spot")
+		totals, err := ex.Accounts.CurrencyBalances(nil, asset.All)
+		require.NoError(t, err, "CurrencyBalances must not error")
+		assert.Equal(t, cashBalance, totals[currency.BTC].Total, "the account store should total the updated balance once")
 	})
 
 	t.Run("negative cash balance", func(t *testing.T) {
@@ -366,39 +384,148 @@ func TestWebsocketHandlePortfolio(t *testing.T) {
 		assert.ErrorIs(t, ex.wsHandlePortfolio(t.Context(), notification(channel, btcPortfolio)), exchange.ErrCredentialsAreEmpty, "wsHandlePortfolio should need credentials to save the balance under")
 		assertNothingRelayed(t, ex)
 	})
-}
 
-func TestMainAccountAssets(t *testing.T) {
-	t.Parallel()
-	// Save writes to the balances it is given, so each sub-account needs its own
-	balances := func() accounts.CurrencyBalances { return accounts.CurrencyBalances{currency.BTC: {Total: 1}} }
-	for _, tc := range []struct {
-		name  string
-		saved []*accounts.SubAccount
-		exp   asset.Items
-	}{
-		{name: "nothing saved", exp: asset.Items{asset.Spot}},
-		{name: "main account", saved: []*accounts.SubAccount{{AssetType: asset.Futures, Balances: balances()}, {AssetType: asset.Options, Balances: balances()}}, exp: asset.Items{asset.Futures, asset.Options}},
-		{name: "subaccount", saved: []*accounts.SubAccount{{ID: "sub", AssetType: asset.Futures, Balances: balances()}}, exp: asset.Items{asset.Spot}},
-		{name: "main account and subaccount", saved: []*accounts.SubAccount{{AssetType: asset.Options, Balances: balances()}, {ID: "sub", AssetType: asset.Futures, Balances: balances()}}, exp: asset.Items{asset.Options}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			assets, err := newAccountTestExchange(t, tc.saved...).mainAccountAssets(t.Context())
-			require.NoError(t, err, "mainAccountAssets must not error")
-			assert.ElementsMatch(t, tc.exp, assets, "mainAccountAssets should return the assets the main account's balances are saved under")
-		})
-	}
-
-	ex := newAccountTestExchange(t)
-	ex.SkipAuthCheck = false
-	ex.SetCredentials(&accounts.Credentials{})
-	_, err := ex.mainAccountAssets(t.Context())
-	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "mainAccountAssets should need credentials")
-	ex = newAccountTestExchange(t)
-	ex.Accounts = nil
-	_, err = ex.mainAccountAssets(t.Context())
-	assert.ErrorIs(t, err, common.ErrNilPointer, "mainAccountAssets should return an account store failure")
+	t.Run("save whose publication failed", func(t *testing.T) {
+		// Serial and on one processor: the process-wide dispatcher it starts has one job slot, which other tests'
+		// publications would share, and its one worker must not take a job off the filled slot before the notification's
+		// balance is published
+		procs := runtime.GOMAXPROCS(1)
+		t.Cleanup(func() { runtime.GOMAXPROCS(procs) })
+		require.False(t, dispatch.IsRunning(), "the dispatcher must not be running yet")
+		require.NoError(t, dispatch.Start(1, 1), "dispatch.Start must not error")
+		t.Cleanup(func() { assert.NoError(t, dispatch.Stop(), "dispatch.Stop should not error") })
+		mux := dispatch.GetNewMux(nil)
+		filler, err := mux.GetID()
+		require.NoError(t, err, "GetID must not error")
+		fillerPipe, err := mux.Subscribe(filler)
+		require.NoError(t, err, "Subscribe must not error")
+		t.Cleanup(func() { assert.NoError(t, fillerPipe.Release(), "Release should not error") })
+		fillJobSlot := func() {
+			t.Helper()
+			var err error
+			for i := 0; i < 1000 && err == nil; i++ {
+				err = mux.Publish("filler", filler)
+			}
+			require.ErrorContains(t, err, "dispatcher jobs at limit", "the dispatcher's job slot must fill")
+		}
+		// drain waits until the dispatcher has taken every job published so far off its slot
+		drain := func() {
+			t.Helper()
+			deadline := time.After(5 * time.Second)
+			for mux.Publish("drained", filler) != nil {
+				select {
+				case <-deadline:
+					require.FailNow(t, "the dispatcher must free its job slot")
+				default:
+					runtime.Gosched()
+				}
+			}
+			for {
+				select {
+				case published := <-fillerPipe.Channel():
+					if published == "drained" {
+						return
+					}
+				case <-deadline:
+					require.FailNow(t, "the dispatcher must relay the jobs published")
+				}
+			}
+		}
+		type update struct {
+			subAccounts accounts.SubAccounts
+			err         error
+		}
+		// startUpdate returns an exchange whose balance update has sent its request, which waits for the reply sent on the
+		// channel returned, and the channel the update returns on
+		startUpdate := func() (*Exchange, chan<- string, <-chan update) {
+			t.Helper()
+			arrived, replies := make(chan struct{}, 1), make(chan string, 1)
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				select {
+				case arrived <- struct{}{}:
+				default:
+				}
+				select {
+				case reply := <-replies:
+					_, err := w.Write([]byte(reply))
+					assert.NoError(t, err, "Writing the response should not error")
+				case <-r.Context().Done():
+				case <-time.After(5 * time.Second):
+					assert.Fail(t, "the test should release the reply")
+				}
+			}))
+			updated := make(chan update, 1)
+			go func() {
+				subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+				updated <- update{subAccounts, err}
+			}()
+			select {
+			case <-arrived:
+			case <-time.After(5 * time.Second):
+				require.FailNow(t, "the update's request must arrive")
+			}
+			return ex, replies, updated
+		}
+		received := func(updated <-chan update) update {
+			t.Helper()
+			select {
+			case u := <-updated:
+				return u
+			case <-time.After(5 * time.Second):
+				require.FailNow(t, "UpdateAccountBalances must return")
+				return update{}
+			}
+		}
+		const reply = `{"jsonrpc":"2.0","result":{"summaries":[{"currency":"ETH","balance":2,"available_withdrawal_funds":2},{"currency":"BTC","balance":4,"available_withdrawal_funds":4}]}}`
+		var (
+			ex        *Exchange
+			replies   chan<- string
+			updated   <-chan update
+			notifyErr error
+		)
+		// The worker runs once the test waits, so it can take a job off the filled slot before the notification is
+		// published only if the runtime preempts the test; the case then starts again on another exchange
+		for range 5 {
+			ex, replies, updated = startUpdate()
+			fillJobSlot()
+			if notifyErr = ex.wsHandlePortfolio(t.Context(), notification("user.portfolio.eth", `{"currency":"ETH","balance":3,"available_withdrawal_funds":3}`)); notifyErr != nil {
+				break
+			}
+			drain()
+			replies <- reply
+			require.NoError(t, received(updated).err, "UpdateAccountBalances must not error")
+		}
+		require.ErrorContains(t, notifyErr, "dispatcher jobs at limit", "the notification's publication must fail on the filled job slot")
+		balance, err := savedBalance(t, ex, asset.Spot, currency.ETH)
+		require.NoError(t, err, "the notified balance must be saved")
+		require.Equal(t, 3.0, balance.Total, "the notification must save its balance though its publication fails")
+		events, err := ex.SubscribeAccountBalances()
+		require.NoError(t, err, "SubscribeAccountBalances must not error")
+		t.Cleanup(func() { assert.NoError(t, events.Release(), "Release should not error") })
+		drain()
+		replies <- reply
+		u := received(updated)
+		require.NoError(t, u.err, "UpdateAccountBalances must not error")
+		require.Len(t, u.subAccounts, 1, "UpdateAccountBalances must return one subaccount")
+		assert.Equal(t, asset.Futures, u.subAccounts[0].AssetType, "UpdateAccountBalances should label the balances with the asset requested")
+		var published *accounts.SubAccount
+		select {
+		case event := <-events.Channel():
+			var ok bool
+			published, ok = event.(*accounts.SubAccount)
+			require.Truef(t, ok, "the account store must publish a subaccount, not %T", event)
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "the account store must publish the update's save")
+		}
+		assert.Equal(t, asset.Spot, published.AssetType, "the account store should publish the balances saved under spot")
+		for c, exp := range map[currency.Code]float64{currency.ETH: 3, currency.BTC: 4} {
+			assert.Equalf(t, exp, u.subAccounts[0].Balances[c].Total, "UpdateAccountBalances should return the %s balance, keeping the notified one", c)
+			assert.Equalf(t, exp, published.Balances[c].Total, "the account store should publish the %s balance, keeping the notified one", c)
+			balance, err := savedBalance(t, ex, asset.Spot, c)
+			require.NoErrorf(t, err, "the %s balance must be saved", c)
+			assert.Equalf(t, exp, balance.Total, "UpdateAccountBalances should keep the %s balance notified after its request over its reply", c)
+		}
+	})
 }
 
 func TestWebsocketHandleUserTrades(t *testing.T) {

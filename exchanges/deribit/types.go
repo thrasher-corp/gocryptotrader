@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -70,6 +71,14 @@ type Exchange struct {
 	// resubscribing is only removed once the request under way is answered. A connection's reader never takes it, as a
 	// resubscription holds it while it waits for the reader to match its responses
 	subscriptionMtx sync.Mutex
+	// walletMu serialises saving the account's balances. walletSequence numbers each balance update's request and each
+	// user.portfolio notification saved; walletNotified holds the number of the last notification saved for each
+	// credentials' currency, and walletUpdated that of the last update saved for each credentials, so an update's reply
+	// replaces neither a balance notified after it was requested nor the balances of an update requested after it
+	walletMu       sync.Mutex
+	walletSequence uint64
+	walletNotified map[accounts.Credentials]map[*currency.Item]uint64
+	walletUpdated  map[accounts.Credentials]uint64
 }
 
 // JSONRPCRequest is the envelope of every request; requests sent over HTTP leave the ID out, as each HTTP response
@@ -151,7 +160,8 @@ func (o *OrderPrice) UnmarshalJSON(data []byte) error {
 // OrderResponse contains an order, as trading and account methods and the user.orders notifications report it
 type OrderResponse struct {
 	OrderID string `json:"order_id"`
-	// OrderState is open, filled, rejected, cancelled, untriggered or triggered
+	// OrderState can be open, filled, rejected, cancelled, untriggered or triggered, or speed_bumped in an open order
+	// listing while the order waits out its speed bump
 	OrderState string `json:"order_state"`
 	// OrderType is limit, market, stop_limit, stop_market, take_limit, take_market or trailing_stop
 	OrderType string `json:"order_type"`

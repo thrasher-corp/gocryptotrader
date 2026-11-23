@@ -2137,6 +2137,14 @@ func TestGetOrderBook(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOrderBook should reject a null result")
 	_, err = newUnavailableServerExchange(t).GetOrderBook(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderBook should return the request failure")
+
+	t.Run("rate limits", func(t *testing.T) {
+		t.Parallel()
+		testTickerOrderBookLimits(t, `{"jsonrpc":"2.0","result":{"instrument_name":"BTC-PERPETUAL"}}`, func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.GetOrderBook(ctx, arg)
+			return err
+		})
+	})
 }
 
 // testPerpetualOrderBookByID is the mock order book of marketDataPerpetualID, 1 level deep
@@ -2198,6 +2206,14 @@ func TestGetOrderBookByInstrumentID(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOrderBookByInstrumentID should reject a null result")
 	_, err = newUnavailableServerExchange(t).GetOrderBookByInstrumentID(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderBookByInstrumentID should return the request failure")
+
+	t.Run("rate limits", func(t *testing.T) {
+		t.Parallel()
+		testTickerOrderBookLimits(t, `{"jsonrpc":"2.0","result":{"instrument_name":"BTC-PERPETUAL"}}`, func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.GetOrderBookByInstrumentID(ctx, arg)
+			return err
+		})
+	})
 }
 
 func TestOrderBookLevelUnmarshalJSON(t *testing.T) {
@@ -2611,6 +2627,14 @@ func TestGetTicker(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetTicker should reject a null result")
 	_, err = newUnavailableServerExchange(t).GetTicker(t.Context(), marketDataPerpetual)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetTicker should return the request failure")
+
+	t.Run("rate limits", func(t *testing.T) {
+		t.Parallel()
+		testTickerOrderBookLimits(t, `{"jsonrpc":"2.0","result":{"instrument_name":"BTC-PERPETUAL"}}`, func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.GetTicker(ctx, marketDataPerpetual)
+			return err
+		})
+	})
 }
 
 func TestValidateMarketDataKind(t *testing.T) {

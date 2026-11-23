@@ -105,11 +105,10 @@ func testExchangeConfigCopy() (*config.Exchange, error) {
 func setupTestExchangeFromConfig(ex *Exchange, exchCfg *config.Exchange) error {
 	ex.SetDefaults()
 	ex.Websocket = sharedtestvalues.NewTestWebsocket()
-	if err := ex.Setup(exchCfg); err != nil {
-		return err
-	}
+	// Assigned before Setup so SetupDefaults does not register the exchange in the global accounts store, which never
+	// releases it
 	ex.Accounts = accounts.MustNewAccounts(ex)
-	return nil
+	return ex.Setup(exchCfg)
 }
 
 // newTestServerExchange returns an exchange, with placeholder credentials, whose REST requests the handler serves, for
@@ -387,6 +386,79 @@ func TestSendHTTPRequest(t *testing.T) {
 		var result int64
 		require.NoError(t, ex.SendHTTPRequest(ctx, nonMatchingEPL, "public/get_time", nil, &result), "SendHTTPRequest must not error")
 		assert.Equal(t, int64(1792105300181), result, "SendHTTPRequest should decode the result")
+	})
+
+	t.Run("each attempt within the ticker and order book limit and the non-matching engine limit", func(t *testing.T) {
+		t.Parallel()
+		tooManyRequests := func(w http.ResponseWriter) {
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, err := w.Write([]byte(`{"jsonrpc":"2.0","error":{"code":10028,"message":"too_many_requests"}}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}
+		retry := func(w http.ResponseWriter) {
+			_, err := w.Write([]byte(`{"jsonrpc":"2.0","error":{"code":10040,"message":"retry"}}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}
+		for _, tc := range []struct {
+			name    string
+			first   func(http.ResponseWriter)
+			tokens  map[request.EndpointLimit]int
+			noRetry bool
+			sent    int32
+			err     error
+		}{
+			{name: "first attempt over the ticker and order book limit", tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: 0, nonMatchingEPL: -1}, err: request.ErrDelayNotAllowed},
+			{name: "first attempt over the non-matching engine limit", tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: -1, nonMatchingEPL: 0}, err: request.ErrDelayNotAllowed},
+			{name: "only attempt over the ticker and order book limit", tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: 0, nonMatchingEPL: -1}, noRetry: true, err: request.ErrDelayNotAllowed},
+			{name: "only attempt over the non-matching engine limit", tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: -1, nonMatchingEPL: 0}, noRetry: true, err: request.ErrDelayNotAllowed},
+			{name: "only attempt within both limits", tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: 1, nonMatchingEPL: 1}, noRetry: true, sent: 1},
+			{name: "resent after too many requests over the ticker and order book limit", first: tooManyRequests, tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: 1, nonMatchingEPL: -1}, sent: 1, err: request.ErrDelayNotAllowed},
+			{name: "resent after too many requests over the non-matching engine limit", first: tooManyRequests, tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: -1, nonMatchingEPL: 1}, sent: 1, err: request.ErrDelayNotAllowed},
+			{name: "resent after too many requests within both limits", first: tooManyRequests, tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: 2, nonMatchingEPL: 2}, sent: 2},
+			{name: "retried over the ticker and order book limit", first: retry, tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: 1, nonMatchingEPL: -1}, sent: 1, err: request.ErrDelayNotAllowed},
+			{name: "retried over the non-matching engine limit", first: retry, tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: -1, nonMatchingEPL: 1}, sent: 1, err: request.ErrDelayNotAllowed},
+			{name: "retried within both limits", first: retry, tokens: map[request.EndpointLimit]int{tickerOrderBookEPL: 2, nonMatchingEPL: 2}, sent: 2},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var sent atomic.Int32
+				ex, noDelay := newLimitedServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					if sent.Add(1) == 1 && tc.first != nil {
+						tc.first(w)
+						return
+					}
+					_, err := w.Write([]byte(`{"jsonrpc":"2.0","result":{"instrument_name":"BTC-PERPETUAL"}}`))
+					assert.NoError(t, err, "Writing the response should not error")
+				}), tc.tokens)
+				ctx := noDelay
+				if tc.noRetry {
+					ctx = request.WithRetryNotAllowed(ctx)
+				}
+				var result TickerResponse
+				err := ex.SendHTTPRequest(ctx, tickerOrderBookEPL, "public/ticker", &InstrumentNameRequest{InstrumentName: "BTC-PERPETUAL"}, &result)
+				assert.ErrorIs(t, err, tc.err, "SendHTTPRequest should wait on both limits before each attempt of a ticker or order book request")
+				assert.Equal(t, tc.sent, sent.Load(), "SendHTTPRequest should send each attempt only within both limits")
+			})
+		}
+
+		// The ticker and order book limit is waited on last, just before each attempt is sent, so a request the
+		// non-matching engine limit refuses leaves its capacity
+		t.Run("non-matching engine limit first", func(t *testing.T) {
+			t.Parallel()
+			var sent atomic.Int32
+			ex, noDelay := newLimitedServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				sent.Add(1)
+				_, err := w.Write([]byte(`{"jsonrpc":"2.0","result":{"instrument_name":"BTC-PERPETUAL"}}`))
+				assert.NoError(t, err, "Writing the response should not error")
+			}), map[request.EndpointLimit]int{tickerOrderBookEPL: 1, nonMatchingEPL: 0})
+			var result TickerResponse
+			err := ex.SendHTTPRequest(noDelay, tickerOrderBookEPL, "public/ticker", &InstrumentNameRequest{InstrumentName: "BTC-PERPETUAL"}, &result)
+			require.ErrorIs(t, err, request.ErrDelayNotAllowed, "SendHTTPRequest must refuse a request over the non-matching engine limit")
+			ex.Requester.GetRateLimiterDefinitions()[nonMatchingEPL] = request.NewRateLimitWithWeight(0, 0, 1)
+			err = ex.SendHTTPRequest(noDelay, tickerOrderBookEPL, "public/ticker", &InstrumentNameRequest{InstrumentName: "BTC-PERPETUAL"}, &result)
+			require.NoError(t, err, "SendHTTPRequest must send the next request within both limits")
+			assert.Equal(t, int32(1), sent.Load(), "SendHTTPRequest should send only the request both limits admit")
+		})
 	})
 }
 

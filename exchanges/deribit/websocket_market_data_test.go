@@ -1,6 +1,7 @@
 package deribit
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -393,6 +394,14 @@ func TestWebsocketAPIGetOrderBook(t *testing.T) {
 
 	_, err = newTestExchange(t).WebsocketAPI().GetOrderBook(t.Context(), arg)
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.GetOrderBook should error without a websocket connection")
+
+	t.Run("rate limits", func(t *testing.T) {
+		t.Parallel()
+		testWebsocketTickerOrderBookLimits(t, "public/get_order_book", `{"result":{"instrument_name":"BTC-PERPETUAL"}}`, func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.WebsocketAPI().GetOrderBook(ctx, arg)
+			return err
+		})
+	})
 }
 
 func TestWebsocketAPIGetOrderBookByInstrumentID(t *testing.T) {
@@ -409,6 +418,14 @@ func TestWebsocketAPIGetOrderBookByInstrumentID(t *testing.T) {
 
 	_, err = newTestExchange(t).WebsocketAPI().GetOrderBookByInstrumentID(t.Context(), arg)
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.GetOrderBookByInstrumentID should error without a websocket connection")
+
+	t.Run("rate limits", func(t *testing.T) {
+		t.Parallel()
+		testWebsocketTickerOrderBookLimits(t, "public/get_order_book_by_instrument_id", `{"result":{"instrument_name":"BTC-PERPETUAL"}}`, func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.WebsocketAPI().GetOrderBookByInstrumentID(ctx, arg)
+			return err
+		})
+	})
 }
 
 func TestWebsocketAPIGetSupportedIndexNames(t *testing.T) {
@@ -487,4 +504,12 @@ func TestWebsocketAPIGetTicker(t *testing.T) {
 
 	_, err = newTestExchange(t).WebsocketAPI().GetTicker(t.Context(), marketDataPerpetual)
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.GetTicker should error without a websocket connection")
+
+	t.Run("rate limits", func(t *testing.T) {
+		t.Parallel()
+		testWebsocketTickerOrderBookLimits(t, "public/ticker", `{"result":{"instrument_name":"BTC-PERPETUAL"}}`, func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.WebsocketAPI().GetTicker(ctx, marketDataPerpetual)
+			return err
+		})
+	})
 }

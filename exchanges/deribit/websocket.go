@@ -317,8 +317,12 @@ func (e *Exchange) sendWebsocketRequest(ctx context.Context, conn websocket.Conn
 			return err
 		}
 	}
+	limits := attemptRateLimits(epl)
 	return retryRequest(ctx, func() error {
-		if err := e.Requester.InitiateRateLimit(ctx, epl); err != nil {
+		if err := e.Requester.InitiateRateLimit(ctx, limits[0]); err != nil {
+			return err
+		}
+		if err := e.initiateRateLimits(ctx, limits[1:]); err != nil {
 			return err
 		}
 		req := &JSONRPCRequest{JSONRPC: jsonRPCVersion, ID: e.MessageSequence(), Method: method, Params: params}

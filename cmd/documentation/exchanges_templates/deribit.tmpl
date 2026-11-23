@@ -75,11 +75,11 @@ sent this way, and the challenge is returned instead.
   attaches neither with an edit. An edit that leaves the order filled or closed reports no status, as the response
   carries no executed amount, so the order manager keeps the order active rather than storing it finished with nothing
   executed.
-+ `CancelBatchOrders` cancels one order a request, as Deribit cancels no list of orders, and reports each order's state
-  or error; it checks every cancel first, so an invalid batch cancels nothing. `CancelAllOrders` cancels a pair's
-  orders, or every order of the asset when the pair is empty, on both sides together, so a cancellation of one side's
-  orders is refused. Deribit cancels stop and take profit orders only as whole groups, so `order.Stop` cancels every
-  stop order, and stop limit, stop market and take profit types are refused.
++ `CancelBatchOrders` is not supported, as Deribit cancels no list of order IDs; `CancelOrder` cancels each order.
+  `CancelAllOrders` cancels a pair's orders, or every order of the asset when the pair is empty, on both sides
+  together, so a cancellation of one side's orders is refused. Deribit cancels stop and take profit orders only as
+  whole groups, so `order.Stop` cancels every stop order, and stop limit, stop market and take profit types are
+  refused.
 + `GetActiveOrders` returns the open orders of the requested pairs, or of every pair of the asset when none are
   requested. `GetOrderHistory` returns the latest 1000 recent and the latest 1000 historical orders of each requested
   pair, each order once, including those that never filled; Deribit keeps an order as a recent record for 30 minutes
@@ -89,11 +89,17 @@ sent this way, and the challenge is returned instead.
 
 ### Balances
 
-Deribit's balances back every kind of instrument, so `UpdateAccountBalances` saves them under the asset requested. A
-balance's total is the currency's cash balance, its free amount what can be withdrawn, and its hold the rest, which
-covers the margin in use, positive session profit and reserved balances. The `user.portfolio` notifications a
-`myAccount` subscription receives update a currency's balance in the same way under each asset it is saved under, or
-under spot before any balances are saved.
+Deribit's balances back every kind of instrument, so `UpdateAccountBalances` saves them under spot whichever asset it is
+asked for and returns them labelled with that asset, and `GetCachedSubAccounts` and `GetCachedCurrencyBalances` return
+the balances saved under spot for each supported asset; the account store holds and totals them once. A balance's total
+is the currency's cash balance, its free amount what can be withdrawn, and its hold any rest, which covers the margin in
+use, positive session profit and reserved balances. The `user.portfolio` notifications a `myAccount` subscription
+receives update a currency's balance under spot in the same way. `UpdateAccountBalances` keeps a currency's balance a
+notification saved while the balances were requested over the reply's, as the reply may be the older, and does not
+save a reply once an update requested after it has saved its own, or tried to, returning the balances saved instead.
+Updates are ordered by when they were requested, not sent, so an update whose request is sent again, after a 10040 or
+429 answer or a timed-out response, once an update requested later has saved is not saved either, though its reply is
+the newer, and the older balances stay until the next notification or update.
 
 `GetAccountFundingHistory` returns the latest 1000 deposits and withdrawals of each currency available to the account,
 and `GetWithdrawalsHistory` the latest 1000 withdrawals of a currency, or of each one when the currency is empty.
@@ -163,6 +169,12 @@ Requests are limited to Deribit's default credits: 20 non-matching engine and 5 
 the lower rates of the methods Deribit limits separately. Subaccounts with more trading volume are allowed more. Every
 Exchange instance shares the same limiters, as Deribit counts requests per subaccount, and unauthenticated ones per IP
 address.
+
+`public/ticker`, `public/get_order_book` and `public/get_order_book_by_instrument_id` also share a limit of their own,
+which Deribit charges on top of the non-matching engine one, so each attempt to send one waits on the non-matching
+engine limit and then on theirs, the last wait before the attempt is sent. Deribit documents 5 of them a second, but
+after the first few it accepted unauthenticated ones, which it counts per IP address, at only about one a second, so
+they are limited to one a second.
 
 A request Deribit answers with code 10040, which it sends when it did not process the request, is sent again, up to five
 times in all, unless its context is marked by `request.WithRetryNotAllowed`, which sends it once. A REST request whose

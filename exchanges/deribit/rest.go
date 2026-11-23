@@ -95,6 +95,7 @@ func (e *Exchange) sendHTTPRequest(ctx context.Context, epl request.EndpointLimi
 		// context allows no retries
 		sendCtx = request.WithRetryNotAllowed(ctx)
 	}
+	limits := attemptRateLimits(epl)
 	return retryRequest(ctx, func() error {
 		resp := &JSONRPCResponse{Result: result}
 		var challenged privateResult
@@ -102,7 +103,12 @@ func (e *Exchange) sendHTTPRequest(ctx context.Context, epl request.EndpointLimi
 			challenged.result = result
 			resp.Result = &challenged
 		}
-		err := e.SendPayload(sendCtx, epl, func() (*request.Item, error) {
+		err := e.SendPayload(sendCtx, limits[0], func() (*request.Item, error) {
+			// The requester calls this for each attempt it sends, its own resends included, once the first limit has
+			// admitted the attempt
+			if err := e.initiateRateLimits(sendCtx, limits[1:]); err != nil {
+				return nil, err
+			}
 			return e.httpRequestItem(endpoint, path, body, resp, creds)
 		}, requestType)
 		// Deribit answers a failed request with an error status, so its error object explains the failure better; an

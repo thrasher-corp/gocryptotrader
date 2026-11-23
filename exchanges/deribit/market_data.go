@@ -593,7 +593,7 @@ func (e *Exchange) getOrderBook(ctx context.Context, arg *OrderBookRequest, over
 		return nil, errInstrumentNameRequired
 	}
 	var resp *OrderBookResponse
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_order_book", arg, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, tickerOrderBookEPL, "public/get_order_book", arg, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -616,7 +616,7 @@ func (e *Exchange) getOrderBookByInstrumentID(ctx context.Context, arg *OrderBoo
 		return nil, errInstrumentIDRequired
 	}
 	var resp *OrderBookResponse
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/get_order_book_by_instrument_id", arg, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, tickerOrderBookEPL, "public/get_order_book_by_instrument_id", arg, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -774,7 +774,7 @@ func (e *Exchange) getTicker(ctx context.Context, instrumentName string, overWeb
 		return nil, errInstrumentNameRequired
 	}
 	var resp *TickerResponse
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/ticker", &InstrumentNameRequest{InstrumentName: instrumentName}, &resp); err != nil {
+	if err := e.sendRequest(ctx, overWebsocket, tickerOrderBookEPL, "public/ticker", &InstrumentNameRequest{InstrumentName: instrumentName}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {

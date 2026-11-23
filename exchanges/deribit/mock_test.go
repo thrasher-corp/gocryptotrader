@@ -283,6 +283,13 @@ func (v *websocketVenue) retryNext(method string, count int) {
 	v.retries[method] = count
 }
 
+// requestCount returns the number of requests received on every connection, of every method
+func (v *websocketVenue) requestCount() int {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return len(v.requests)
+}
+
 // received returns the requests received for a method on every connection, in arrival order
 func (v *websocketVenue) received(method string) []websocketVenueRequest {
 	return v.receivedOn(0, method)
