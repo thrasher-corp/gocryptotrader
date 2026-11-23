@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/user"
@@ -31,22 +32,29 @@ func TestSendHTTPRequest(t *testing.T) {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
+	type received struct{ method, userAgent string }
+	requests := make(chan received, 3)
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		requests <- received{method: r.Method, userAgent: r.Header.Get("User-Agent")}
+	}))
+	t.Cleanup(server.Close)
+
 	_, err := SendHTTPRequest(t.Context(),
-		methodGarbage, "https://www.google.com", headers,
+		methodGarbage, server.URL, headers,
 		strings.NewReader(""), true,
 	)
 	if err == nil {
 		t.Error("Expected error 'invalid HTTP method specified'")
 	}
 	_, err = SendHTTPRequest(t.Context(),
-		methodPost, "https://www.google.com", headers,
+		methodPost, server.URL, headers,
 		strings.NewReader(""), true,
 	)
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = SendHTTPRequest(t.Context(),
-		methodGet, "https://www.google.com", headers,
+		methodGet, server.URL, headers,
 		strings.NewReader(""), true,
 	)
 	if err != nil {
@@ -57,7 +65,7 @@ func TestSendHTTPRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = SendHTTPRequest(t.Context(),
-		methodDelete, "https://www.google.com", headers,
+		methodDelete, server.URL, headers,
 		strings.NewReader(""), true,
 	)
 	if err != nil {
@@ -77,6 +85,13 @@ func TestSendHTTPRequest(t *testing.T) {
 	if err == nil {
 		t.Error("Common HTTPRequest accepted invalid protocol")
 	}
+
+	require.Len(t, requests, 3, "the server must receive the three valid requests")
+	assert.Equal(t, http.MethodPost, (<-requests).method, "the first request should be a POST")
+	assert.Equal(t, http.MethodGet, (<-requests).method, "the second request should be a GET")
+	last := <-requests
+	assert.Equal(t, http.MethodDelete, last.method, "the third request should be a DELETE")
+	assert.Equal(t, "GCTbot/1337.69 (+http://www.lol.com/)", last.userAgent, "the request after SetHTTPUserAgent should carry its user agent")
 }
 
 func TestSetHTTPClientWithTimeout(t *testing.T) {

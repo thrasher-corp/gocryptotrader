@@ -1,12 +1,50 @@
 package engine
 
 import (
+	"bytes"
+	"encoding/binary"
+	"net"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
+
+// ntpTimestamp splits a time into NTP's seconds since 1900 and binary fraction of a second
+func ntpTimestamp(ts time.Time) (secs, frac uint32) {
+	sinceEpoch := ts.Sub(time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC))
+	fraction := sinceEpoch % time.Second << 32 / time.Second
+	return uint32(sinceEpoch / time.Second), uint32(fraction) //nolint:gosec // NTP's 32-bit fields hold these until 2036
+}
+
+// newNTPServer answers NTP queries on a loopback UDP port with the time now returns, and returns its address
+func newNTPServer(t *testing.T, now func() time.Time) string {
+	t.Helper()
+	var lc net.ListenConfig
+	conn, err := lc.ListenPacket(t.Context(), "udp", "127.0.0.1:0")
+	require.NoError(t, err, "ListenPacket must not error")
+	t.Cleanup(func() { assert.NoError(t, conn.Close(), "Close should not error") })
+	go func() {
+		req := make([]byte, 48)
+		for {
+			_, addr, err := conn.ReadFrom(req)
+			if err != nil {
+				return
+			}
+			secs, frac := ntpTimestamp(now())
+			var rsp bytes.Buffer
+			if err := binary.Write(&rsp, binary.BigEndian, &ntpPacket{Settings: 0x24, TxTimeSec: secs, TxTimeFrac: frac}); err != nil {
+				return
+			}
+			if _, err := conn.WriteTo(rsp.Bytes(), addr); err != nil {
+				return
+			}
+		}
+	}()
+	return conn.LocalAddr().String()
+}
 
 func TestSetupNTPManager(t *testing.T) {
 	_, err := setupNTPManager(nil, false)
@@ -131,13 +169,11 @@ func TestFetchNTPTime(t *testing.T) {
 		t.Error("expected time")
 	}
 
-	m.pools = []string{"0.pool.ntp.org:123"}
+	served := time.Date(2026, 1, 2, 3, 4, 5, 500_000_000, time.UTC)
+	m.pools = []string{newNTPServer(t, func() time.Time { return served })}
 	tt, err = m.FetchNTPTime()
 	assert.NoError(t, err)
-
-	if tt.IsZero() {
-		t.Error("expected time")
-	}
+	assert.Truef(t, served.Equal(tt), "FetchNTPTime should return the server's time %s, got %s", served, tt)
 }
 
 func TestProcessTime(t *testing.T) {
@@ -146,7 +182,7 @@ func TestProcessTime(t *testing.T) {
 		AllowedDifference:         &sec,
 		AllowedNegativeDifference: &sec,
 		Level:                     1,
-		Pool:                      []string{"0.pool.ntp.org:123"},
+		Pool:                      []string{newNTPServer(t, time.Now)},
 	}
 	m, err := setupNTPManager(cfg, true)
 	assert.NoError(t, err)

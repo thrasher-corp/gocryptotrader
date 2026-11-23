@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 const testExchange = "binanceus"
@@ -22,6 +23,7 @@ func TestLoadCandles(t *testing.T) {
 	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	require.NoError(t, err, "NewExchangeByName must not error")
+	exch = testexch.OfflineIfMocked(exch)
 	exch.SetDefaults()
 	cp := currency.NewBTCUSDT()
 	b := exch.GetBase()
@@ -49,6 +51,7 @@ func TestLoadTrades(t *testing.T) {
 	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	require.NoError(t, err, "NewExchangeByName must not error")
+	exch = testexch.OfflineIfMocked(exch)
 	exch.SetDefaults()
 	cp := currency.NewBTCUSDT()
 	b := exch.GetBase()

@@ -49,6 +49,9 @@ import (
 // rewrites the global database config whose driver a load's queries read
 var databaseLoadMu sync.Mutex
 
+// newExchangeManager creates each backtest's exchange manager; tests replace it to stand in for live APIs
+var newExchangeManager = engine.NewExchangeManager
+
 // NewBacktester returns a new BackTest instance
 func NewBacktester() (*BackTest, error) {
 	bt := &BackTest{
@@ -61,7 +64,7 @@ func NewBacktester() (*BackTest, error) {
 	if err != nil {
 		return nil, err
 	}
-	bt.exchangeManager = engine.NewExchangeManager()
+	bt.exchangeManager = newExchangeManager()
 
 	return bt, nil
 }

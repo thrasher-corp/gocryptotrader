@@ -1,13 +1,17 @@
 package currencylayer
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/standin"
 )
 
 var c CurrencyLayer
@@ -33,7 +37,30 @@ func TestMain(m *testing.M) {
 	if err := c.Setup(cfg); err != nil {
 		log.Fatal(err)
 	}
+	if livetest.Mock && apiKey == "" {
+		if err := c.Requester.SetHTTPClient(standin.Client(noAccessKeyReply)); err != nil {
+			log.Fatal(err)
+		}
+	}
 	os.Exit(m.Run())
+}
+
+// missingAccessKeyReply is apilayer's reply to a request without an access key, captured live
+const missingAccessKeyReply = `{
+  "success": false,
+  "error": {
+    "code": 101,
+    "type": "missing_access_key",
+    "info": "You have not supplied an API Access Key. [Required format: access_key=YOUR_ACCESS_KEY]"
+  }
+}`
+
+// noAccessKeyReply answers requests the way CurrencyLayer answers a client without an access key
+func noAccessKeyReply(r *http.Request) (standin.Reply, error) {
+	if r.URL.Host != "apilayer.net" {
+		return standin.Reply{}, fmt.Errorf("%w for host %q", standin.ErrNoReply, r.URL.Host)
+	}
+	return standin.Reply{Status: http.StatusUnauthorized, Body: missingAccessKeyReply}, nil
 }
 
 func skipIfNoAPIKey(tb testing.TB) {

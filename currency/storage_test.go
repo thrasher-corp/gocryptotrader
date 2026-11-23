@@ -1,7 +1,9 @@
 package currency
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,10 +12,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
 )
 
 //nolint:forbidigo // TestMain reports setup and teardown failures before or after a *testing.T exists
 func TestMain(m *testing.M) {
+	if livetest.Mock {
+		// Forex providers build their own HTTP clients, which take their proxy from the environment, so a proxy
+		// refusing connections fails their startup requests at once, as a rejected key fails them live
+		if err := refuseProxiedHTTP(); err != nil {
+			fmt.Printf("failed to set the test proxy: %v", err)
+			os.Exit(1)
+		}
+	}
 	var err error
 	testhelpers.TempDir, err = os.MkdirTemp("", "gct-temp")
 	if err != nil {
@@ -31,6 +42,26 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(t)
+}
+
+// refuseProxiedHTTP points the proxy environment at a closed loopback port, so HTTP clients that read their proxy
+// from the environment fail without reaching the network
+func refuseProxiedHTTP() error {
+	var lc net.ListenConfig
+	l, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		return err
+	}
+	proxy := "http://" + l.Addr().String()
+	if err := l.Close(); err != nil {
+		return err
+	}
+	for k, v := range map[string]string{"HTTP_PROXY": proxy, "HTTPS_PROXY": proxy, "NO_PROXY": "", "http_proxy": "", "https_proxy": "", "no_proxy": ""} {
+		if err := os.Setenv(k, v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func TestRunUpdater(t *testing.T) {

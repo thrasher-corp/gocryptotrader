@@ -4,30 +4,39 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/comms"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+func TestMain(m *testing.M) {
+	if err := comms.UseTestHTTPClient(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	os.Exit(m.Run())
+}
 
 const (
 	testErrNotFound = "Not Found"
 )
 
 func TestInitialConnectReportsEachUnauthorisedUsernameOnce(t *testing.T) {
-	// Not parallel: the log hook, log config and common's HTTP client are process-wide; cleanup disables logging, removes the hook and installs a default client.
+	// Not parallel: the log hook, log config and common's HTTP client are process-wide; cleanup disables logging, removes the hook and reinstalls the shared test client.
 	var mu sync.Mutex
 	var warnings []string
 	t.Cleanup(func() {
 		log.SetCustomLogHook(nil)
 		assert.NoError(t, log.SetGlobalLogConfig(&log.Config{}), "SetGlobalLogConfig should not error")
-		assert.NoError(t, common.SetHTTPClientWithTimeout(15*time.Second), "SetHTTPClientWithTimeout should not error")
+		assert.NoError(t, comms.UseTestHTTPClient(), "UseTestHTTPClient should not error")
 	})
 	require.NoError(t, log.SetGlobalLogConfig(log.GenDefaultSettings()), "SetGlobalLogConfig must not error")
 	log.SetCustomLogHook(func(_, _ string, a ...any) bool {

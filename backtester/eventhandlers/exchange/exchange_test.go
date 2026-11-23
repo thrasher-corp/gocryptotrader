@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
@@ -184,6 +185,7 @@ func TestPlaceOrder(t *testing.T) {
 	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	require.NoError(t, err, "NewExchangeByName must not error")
+	exch = testexch.OfflineIfMocked(exch)
 
 	exch.SetDefaults()
 	exchB := exch.GetBase()
@@ -227,6 +229,7 @@ func TestExecuteOrder(t *testing.T) {
 	const testExchange = "binanceus"
 	exch, err := em.NewExchangeByName(testExchange)
 	require.NoError(t, err, "NewExchangeByName must not error")
+	exch = testexch.OfflineIfMocked(exch)
 	exch.SetDefaults()
 	exchB := exch.GetBase()
 	exchB.States = currencystate.NewCurrencyStates()
@@ -328,6 +331,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	const testExchange = "BTC Markets"
 	exch, err := em.NewExchangeByName(testExchange)
 	require.NoError(t, err, "NewExchangeByName must not error")
+	exch = testexch.OfflineIfMocked(exch)
 	exch.SetDefaults()
 	exchB := exch.GetBase()
 	exchB.CurrencyPairs = currency.PairsManager{

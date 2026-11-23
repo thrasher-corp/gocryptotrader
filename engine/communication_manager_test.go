@@ -29,7 +29,7 @@ func TestSetup(t *testing.T) {
 	assert.ErrorIs(t, err, communications.ErrNoRelayersEnabled)
 
 	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
-		SlackConfig: base.SlackConfig{
+		SMSGlobalConfig: base.SMSGlobalConfig{
 			Enabled: true,
 		},
 	})
@@ -83,7 +83,7 @@ func TestStart(t *testing.T) {
 func TestGetStatus(t *testing.T) {
 	t.Parallel()
 	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
-		TelegramConfig: base.TelegramConfig{
+		SMSGlobalConfig: base.SMSGlobalConfig{
 			Enabled: true,
 		},
 	})
@@ -102,7 +102,7 @@ func TestGetStatus(t *testing.T) {
 func TestStop(t *testing.T) {
 	t.Parallel()
 	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
-		SlackConfig: base.SlackConfig{
+		SMSGlobalConfig: base.SMSGlobalConfig{
 			Enabled: true,
 		},
 	})
@@ -125,7 +125,7 @@ func TestStop(t *testing.T) {
 func TestPushEvent(t *testing.T) {
 	t.Parallel()
 	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
-		SlackConfig: base.SlackConfig{
+		SMSGlobalConfig: base.SMSGlobalConfig{
 			Enabled: true,
 		},
 	})

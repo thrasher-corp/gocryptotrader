@@ -1,14 +1,19 @@
 package openexchangerates
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/standin"
 )
 
 // please set apikey for due diligence testing NOTE testing uses your allocated
@@ -30,7 +35,33 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if livetest.Mock && apikey == "" {
+		currencies, err := os.ReadFile("testdata/currencies.json")
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := o.Requester.SetHTTPClient(standin.Client(noAppIDReply(currencies))); err != nil {
+			log.Fatal(err)
+		}
+	}
 	os.Exit(m.Run())
+}
+
+// missingAppIDReply is Open Exchange Rates' reply to a request without an app ID, captured live
+const missingAppIDReply = `{"error":true,"status":403,"message":"missing_app_id","description":"No App ID provided. Please sign up at https://openexchangerates.org/signup, or contact support@openexchangerates.org."}`
+
+// noAppIDReply answers requests the way Open Exchange Rates answers a client without an app ID, which can still
+// list currencies
+func noAppIDReply(currencies []byte) standin.Transport {
+	return func(r *http.Request) (standin.Reply, error) {
+		if r.URL.Host != "openexchangerates.org" {
+			return standin.Reply{}, fmt.Errorf("%w for host %q", standin.ErrNoReply, r.URL.Host)
+		}
+		if strings.HasSuffix(r.URL.Path, "/"+APIEndpointCurrencies) {
+			return standin.Reply{Status: http.StatusOK, Body: string(currencies)}, nil
+		}
+		return standin.Reply{Status: http.StatusForbidden, Body: missingAppIDReply}, nil
+	}
 }
 
 func TestGetRates(t *testing.T) {

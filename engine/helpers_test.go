@@ -33,10 +33,21 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var testExchange = "Bitstamp"
+
+// newTestExchangeManager returns an exchange manager that, in mock runs, loads exchanges without their live APIs
+func newTestExchangeManager() *ExchangeManager {
+	m := NewExchangeManager()
+	if livetest.Mock {
+		m.Builder = testexch.OfflineBuilder{New: NewSupportedExchangeByName}
+	}
+	return m
+}
 
 func CreateTestBot(tb testing.TB) *Engine {
 	tb.Helper()
@@ -59,7 +70,7 @@ func CreateTestBot(tb testing.TB) *Engine {
 		},
 	}
 	bot := &Engine{
-		ExchangeManager: NewExchangeManager(),
+		ExchangeManager: newTestExchangeManager(),
 		Config: &config.Config{Exchanges: []config.Exchange{
 			{
 				Name:                    testExchange,
@@ -128,7 +139,7 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 		},
 		{
 			Subsystem:    ConnectionManagerName,
-			Engine:       &Engine{Config: &config.Config{}},
+			Engine:       &Engine{Config: &config.Config{ConnectionMonitor: *localConnectionMonitorConfig()}},
 			EnableError:  nil,
 			DisableError: nil,
 		},
@@ -299,6 +310,7 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 func TestIsOnline(t *testing.T) {
 	t.Parallel()
 	e := CreateTestBot(t)
+	e.Config.ConnectionMonitor = *localConnectionMonitorConfig()
 	var err error
 	e.connectionManager, err = setupConnectionManager(&e.Config.ConnectionMonitor)
 	if err != nil {
@@ -496,6 +508,9 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 		currency.NewBTCUSD(),
 		currency.NewPair(currency.BTC, currency.EUR),
 	}
+	exchCfg, err := e.Config.GetExchangeConfig(testExchange)
+	require.NoError(t, err, "GetExchangeConfig must not error")
+	require.NoError(t, exchCfg.CurrencyPairs.StorePairs(asset.Spot, pairs, false), "StorePairs must not error")
 
 	result := e.MapCurrenciesByExchange(pairs, true, asset.Spot)
 	pairs, ok := result[testExchange]
@@ -1021,6 +1036,9 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 		name := exchange.Exchanges[x]
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+			if livetest.Mock {
+				t.Skip("NewExchangeByNameWithDefaults downloads the exchange's pairs; build with the mock_test_off tag to run it")
+			}
 			if isCITest() && slices.Contains(blockedCIExchanges, name) {
 				t.Skipf("skipping %s due to CI test restrictions", name)
 			}

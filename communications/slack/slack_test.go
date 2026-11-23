@@ -1,6 +1,8 @@
 package slack
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,7 +10,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/comms"
 )
+
+func TestMain(m *testing.M) {
+	if err := comms.UseTestHTTPClient(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	os.Exit(m.Run())
+}
 
 type group struct {
 	ID      string   `json:"id"`

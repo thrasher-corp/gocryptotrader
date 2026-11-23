@@ -1261,11 +1261,14 @@ func TestSetProxy(t *testing.T) {
 }
 
 func TestBasicLimiter(t *testing.T) {
-	r, err := New("test", new(http.Client), WithLimiter(NewBasicRateLimit(time.Second, 1, 1)))
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{}`))}, nil
+	})}
+	r, err := New("test", client, WithLimiter(NewBasicRateLimit(time.Second, 1, 1)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	i := Item{Path: "http://www.google.com", Method: http.MethodGet}
+	i := Item{Path: "https://example.com", Method: http.MethodGet}
 	ctx := t.Context()
 
 	tn := time.Now()

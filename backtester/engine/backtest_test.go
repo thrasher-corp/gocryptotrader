@@ -3,6 +3,7 @@ package engine
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -50,6 +51,8 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 	"github.com/thrasher-corp/goose"
 )
@@ -57,6 +60,17 @@ import (
 const testExchange = "binanceus"
 
 var leet = decimal.NewFromInt(1337)
+
+func TestMain(m *testing.M) {
+	if livetest.Mock {
+		newExchangeManager = func() *engine.ExchangeManager {
+			em := engine.NewExchangeManager()
+			em.Builder = testexch.OfflineBuilder{New: engine.NewSupportedExchangeByName}
+			return em
+		}
+	}
+	os.Exit(m.Run())
+}
 
 func TestSetupFromConfig(t *testing.T) {
 	t.Parallel()
@@ -140,7 +154,7 @@ func TestSetupFromConfig(t *testing.T) {
 		}
 		dataPath := t.TempDir()
 		seedCandleDatabase(t, dataPath, &dbConfig, cp, start)
-		exch, err := engine.NewExchangeManager().NewExchangeByName("binanceus")
+		exch, err := newExchangeManager().NewExchangeByName("binanceus")
 		require.NoError(t, err, "NewExchangeByName must not error")
 		exch.SetDefaults()
 
@@ -275,7 +289,7 @@ func TestLoadDataAPI(t *testing.T) {
 			},
 		},
 	}
-	em := engine.ExchangeManager{}
+	em := newExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -435,7 +449,7 @@ func TestLoadDataDatabaseConcurrently(t *testing.T) {
 	dataPath := t.TempDir()
 	seedCandleDatabase(t, dataPath, &dbConfig, cp, start)
 
-	em := engine.NewExchangeManager()
+	em := newExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	require.NoError(t, err, "NewExchangeByName must not error")
 	exch.SetDefaults()
@@ -522,7 +536,7 @@ func TestLoadDataLive(t *testing.T) {
 		Funding:         &funding.FundManager{},
 		DataHolder:      &data.HandlerHolder{},
 		Statistic:       &fakeStats{},
-		exchangeManager: engine.NewExchangeManager(),
+		exchangeManager: newExchangeManager(),
 		shutdown:        make(chan struct{}),
 	}
 
@@ -1194,7 +1208,7 @@ func TestProcessFillEvent(t *testing.T) {
 	ev := &fill.Fill{
 		Base: de.Base,
 	}
-	em := engine.NewExchangeManager()
+	em := newExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -1292,7 +1306,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	ev := &fill.Fill{
 		Base: de.Base,
 	}
-	em := engine.NewExchangeManager()
+	em := newExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	require.NoError(t, err)
 	exch.SetDefaults()

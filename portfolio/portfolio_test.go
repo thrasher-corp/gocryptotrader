@@ -3,6 +3,9 @@ package portfolio
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/standin"
 )
 
 const (
@@ -21,6 +26,39 @@ const (
 	testXRPAddress        = "rs8ZPbYqgecRcDzQpJYAMhSxSi5htsjnza"
 	cryptoIDAPIKey        = ""
 )
+
+func TestMain(m *testing.M) {
+	if livetest.Mock {
+		ethplorer, err := os.ReadFile("testdata/ethplorer_address.json")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		xrpscan, err := os.ReadFile("testdata/xrpscan_account.json")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		if err := common.SetHTTPClient(standin.Client(explorerReplies(ethplorer, xrpscan))); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
+	os.Exit(m.Run())
+}
+
+// explorerReplies answers the blockchain explorer requests for the test addresses with replies captured live
+func explorerReplies(ethplorer, xrpscan []byte) standin.Transport {
+	return func(r *http.Request) (standin.Reply, error) {
+		switch r.URL.Host + r.URL.Path {
+		case "api.ethplorer.io/getAddressInfo/" + testETHAddress:
+			return standin.Reply{Status: http.StatusOK, Body: string(ethplorer)}, nil
+		case "api.xrpscan.com/api/v1/account/" + testXRPAddress:
+			return standin.Reply{Status: http.StatusOK, Body: string(xrpscan)}, nil
+		}
+		return standin.Reply{}, fmt.Errorf("%w for %s%s", standin.ErrNoReply, r.URL.Host, r.URL.Path)
+	}
+}
 
 func TestGetEthereumAddressBalance(t *testing.T) {
 	t.Parallel()
