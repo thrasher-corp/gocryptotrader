@@ -17,11 +17,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+	"weak"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -80,8 +82,7 @@ func testCredentials(tb testing.TB) *accounts.Credentials {
 	return creds
 }
 
-// testExchangeConfig is Coinbase's configuration from testdata/configtest.json, loaded once; testexch.Setup loads every
-// exchange's configuration each time, which serialises the many exchanges the tests set up on its locks
+// testExchangeConfig is Coinbase's configuration from testdata/configtest.json, loaded once
 var testExchangeConfig = sync.OnceValues(func() ([]byte, error) {
 	root, err := testutils.RootPathFromCWD()
 	if err != nil {
@@ -110,11 +111,10 @@ func setupTestExchange(ex *Exchange) error {
 	}
 	ex.SetDefaults()
 	ex.Websocket = sharedtestvalues.NewTestWebsocket()
-	if err := ex.Setup(&exchCfg); err != nil {
-		return err
-	}
+	// Assigned before Setup so SetupDefaults does not register the exchange in the global accounts store, which never
+	// releases it
 	ex.Accounts = accounts.MustNewAccounts(ex)
-	return nil
+	return ex.Setup(&exchCfg)
 }
 
 // setupDerivativesWebsocket gives an exchange a websocket holding only the gateway's connections, so tests connecting
@@ -290,6 +290,20 @@ func verifyTestJWT(t *testing.T, token string) jwtParts {
 	decoded, err := parseTestJWT(token)
 	require.NoError(t, err, "the JWT must verify with the signing key")
 	return decoded
+}
+
+func TestSetupTestExchange(t *testing.T) {
+	t.Parallel()
+	exch := func() weak.Pointer[Exchange] {
+		ex := new(Exchange)
+		require.NoError(t, setupTestExchange(ex), "setupTestExchange must not error")
+		require.NotNil(t, ex.Accounts, "setupTestExchange must set the exchange's accounts")
+		return weak.Make(ex)
+	}()
+	assert.Eventually(t, func() bool {
+		runtime.GC()
+		return exch.Value() == nil
+	}, 10*time.Second, 10*time.Millisecond, "setupTestExchange should not keep the exchange reachable once the caller drops it")
 }
 
 func TestSendHTTPRequest(t *testing.T) {

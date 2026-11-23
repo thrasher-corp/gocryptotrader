@@ -100,6 +100,7 @@ var (
 	errOrderLabelNotUnique       = errors.New("label does not identify one open order")
 	errReduceOnlyNotSupported    = errors.New("reduce only orders are not supported")
 	errClientOrderIDInUse        = errors.New("client order ID already names another order")
+	errTooManyOrders             = errors.New("too many orders for one cancel request")
 	// errProofTokenRequired is the EU's strong customer authentication asking for a proof token, which only the account
 	// holder can give, in place of the list asked for
 	errProofTokenRequired = errors.New("a strong customer authentication proof token is required")
@@ -2134,66 +2135,48 @@ func (e *Exchange) cancelDerivativesOrder(ctx context.Context, orderID string, i
 	})
 }
 
-// CancelBatchOrders submits orders for cancellation: Advanced Trade orders in batches, each reported pending
-// cancellation once Coinbase submits its cancel request, which completes asynchronously, and gateway orders one request
-// each, each reported in its state once cancelled. An order that could not be cancelled reports the error
+// CancelBatchOrders submits up to cancelOrdersBatchSize Advanced Trade orders for cancellation in one request. Each order
+// Coinbase's answer names is reported pending cancellation once Coinbase submits its cancel request, which completes
+// asynchronously, or with the error that kept it from being cancelled. A longer list is refused, as are gateway orders,
+// as the gateway cancels no list of order IDs; CancelOrder cancels each of those
 func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(cancels) == 0 {
 		return nil, order.ErrCancelOrderIsNil
 	}
-	// A gateway order named again is sent again only while its cancel has failed, as the gateway refuses to cancel an
-	// order it has cancelled, and the refusal would replace the order's status
-	cancelledDerivatives := make(map[string]bool)
-	var advancedTradeIDs []string
+	orderIDs := make([]string, len(cancels))
 	for i := range cancels {
 		if err := cancels[i].Validate(cancels[i].StandardCancel()); err != nil {
 			return nil, err
 		}
-		switch {
-		case isAdvancedTradeAsset(cancels[i].AssetType):
-			advancedTradeIDs = append(advancedTradeIDs, cancels[i].OrderID)
-		case isDerivativesAsset(cancels[i].AssetType):
-		default:
+		if !isAdvancedTradeAsset(cancels[i].AssetType) {
 			return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, cancels[i].AssetType)
 		}
+		orderIDs[i] = cancels[i].OrderID
 	}
-	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(cancels))}
-	// The gateway's orders are cancelled though an Advanced Trade batch failed, as they are held apart from its orders
-	advancedTradeErr := e.cancelAdvancedTradeOrders(ctx, advancedTradeIDs, resp.Status)
-	overWebsocket := e.derivativesOverWebsocket(ctx, true)
-	for i := range cancels {
-		if !isDerivativesAsset(cancels[i].AssetType) || cancelledDerivatives[cancels[i].OrderID] {
-			continue
-		}
-		cancelled, err := e.cancelDerivativesOrder(ctx, cancels[i].OrderID, cancels[i].MarginType == margin.Isolated, overWebsocket)
-		if err != nil {
-			resp.Status[cancels[i].OrderID] = err.Error()
-			continue
-		}
-		cancelledDerivatives[cancels[i].OrderID] = true
-		resp.Status[cancels[i].OrderID] = derivativesOrderStatusString(cancelled)
+	if len(orderIDs) > cancelOrdersBatchSize {
+		return nil, fmt.Errorf("%w: %d orders, at most %d", errTooManyOrders, len(orderIDs), cancelOrdersBatchSize)
 	}
-	return resp, advancedTradeErr
+	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(orderIDs))}
+	return resp, e.cancelAdvancedTradeOrders(ctx, orderIDs, resp.Status)
 }
 
-// cancelAdvancedTradeOrders submits Advanced Trade orders for cancellation in batches, recording each order's status:
-// pending cancellation once Coinbase submits its cancel request, which completes asynchronously, or why it did not
+// cancelAdvancedTradeOrders submits Advanced Trade orders for cancellation in one request, recording each order's
+// status: pending cancellation once Coinbase submits its cancel request, which completes asynchronously, or why it did
+// not
 func (e *Exchange) cancelAdvancedTradeOrders(ctx context.Context, orderIDs []string, statuses map[string]string) error {
-	for batch := range slices.Chunk(orderIDs, cancelOrdersBatchSize) {
-		resp, err := e.CancelOrders(ctx, batch)
-		if resp == nil {
-			return err
-		}
-		for i := range resp.Results {
-			if err := resp.Results[i].Err(); err != nil {
-				// An order named again keeps the status of a cancel request Coinbase submitted over the repeat's refusal
-				if statuses[resp.Results[i].OrderID] != order.PendingCancel.String() {
-					statuses[resp.Results[i].OrderID] = err.Error()
-				}
-				continue
+	resp, err := e.CancelOrders(ctx, orderIDs)
+	if resp == nil {
+		return err
+	}
+	for i := range resp.Results {
+		if err := resp.Results[i].Err(); err != nil {
+			// An order named again keeps the status of a cancel request Coinbase submitted over the repeat's refusal
+			if statuses[resp.Results[i].OrderID] != order.PendingCancel.String() {
+				statuses[resp.Results[i].OrderID] = err.Error()
 			}
-			statuses[resp.Results[i].OrderID] = order.PendingCancel.String()
+			continue
 		}
+		statuses[resp.Results[i].OrderID] = order.PendingCancel.String()
 	}
 	return nil
 }
@@ -2210,10 +2193,11 @@ func derivativesOrderStatusString(o *DerivativesOrderResponse) string {
 
 // CancelAllOrders submits the account's open orders of an asset for cancellation, of a pair when one is given and of
 // the request's type, side, margin type and time in force when they are set. Advanced Trade orders are listed and
-// cancelled in batches, each reported pending cancellation. The gateway cancels an instrument's orders together, in the
-// main account and the isolated margin subaccounts, by categories of order type, so a request it cannot express, by
-// side, margin type, time in force or a type narrower than its categories, has its orders listed and cancelled one at a
-// time
+// cancelled in batches of up to cancelOrdersBatchSize, reported as CancelBatchOrders reports them, and a cancel request
+// that fails ends the cancellation with the statuses reported before it. The gateway cancels an instrument's orders
+// together, in the main account and the isolated margin subaccounts, by categories of order type, so a request it
+// cannot express, by side, margin type, time in force or a type narrower than its categories, has its orders listed and
+// cancelled one at a time
 func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.CancelAllResponse, error) {
 	resp := order.CancelAllResponse{Status: make(map[string]string)}
 	if err := common.NilGuard(c); err != nil {
@@ -2242,7 +2226,12 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.
 			}
 			ids = append(ids, open[i].OrderID)
 		}
-		return resp, e.cancelAdvancedTradeOrders(ctx, ids, resp.Status)
+		for batch := range slices.Chunk(ids, cancelOrdersBatchSize) {
+			if err := e.cancelAdvancedTradeOrders(ctx, batch, resp.Status); err != nil {
+				return resp, err
+			}
+		}
+		return resp, nil
 	case isDerivativesAsset(c.AssetType):
 		cancelType, bulk, err := derivativesCancelType(c.Type)
 		if err != nil {

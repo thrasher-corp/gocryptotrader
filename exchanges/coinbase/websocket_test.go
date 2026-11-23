@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -3103,7 +3104,7 @@ func TestTypesBooleanPostOnly(t *testing.T) {
 	assert.Equal(t, types.Boolean(true), o.PostOnly, "a post only flag sent as a string should decode")
 }
 
-func TestSetupFromVersion18Config(t *testing.T) {
+func TestSetupFromVersion19Config(t *testing.T) {
 	t.Parallel()
 	raw, err := testExchangeConfig()
 	require.NoError(t, err, "testExchangeConfig must not error")
@@ -3131,6 +3132,7 @@ func TestSetupFromVersion18Config(t *testing.T) {
 	ex := new(Exchange)
 	ex.SetDefaults()
 	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	ex.Accounts = accounts.MustNewAccounts(ex)
 	require.NoError(t, ex.Setup(exchCfg), "Setup must not error for the upgraded configuration")
 	ex.Name = t.Name()
 	// The cases share ex, whose pairs the statements after the loop store, so they run in order before them
@@ -3166,7 +3168,7 @@ func TestSetupFromVersion18Config(t *testing.T) {
 	}
 }
 
-func TestSetupFromVersion18CustomisedConfig(t *testing.T) {
+func TestSetupFromVersion19CustomisedConfig(t *testing.T) {
 	t.Parallel()
 	raw, err := testExchangeConfig()
 	require.NoError(t, err, "testExchangeConfig must not error")
@@ -3193,6 +3195,7 @@ func TestSetupFromVersion18CustomisedConfig(t *testing.T) {
 	ex := new(Exchange)
 	ex.SetDefaults()
 	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	ex.Accounts = accounts.MustNewAccounts(ex)
 	require.NoError(t, ex.Setup(exchCfg), "Setup must not error for the upgraded configuration")
 	ex.Name = t.Name()
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)

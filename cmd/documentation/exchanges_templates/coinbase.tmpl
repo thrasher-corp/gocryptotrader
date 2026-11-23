@@ -81,15 +81,17 @@ is replaced before it expires; its private websocket connection authenticates wi
   and a gateway edit keeps the price an order triggers on, taking the order's own price type, or the last price, which
   leaves the trigger as it is. `SubmitOrder` and `ModifyOrder` refuse take profit, stop loss and stop entry orders
   attached to an order, and a slippage tolerance, which they send to neither venue.
-+ `CancelOrder`, `CancelBatchOrders`, `GetOrderInfo` and `ModifyOrder` find a gateway order in the main account, or in
-  the isolated margin subaccount holding it. Advanced Trade cancels asynchronously, so `CancelBatchOrders` and
-  `CancelAllOrders` report an order pending cancellation once Coinbase submits its cancel request, and an order named
-  twice keeps the status of the cancel that went through. A batch that fails returns the statuses reported so far with
-  its error, the gateway's orders being cancelled still. `CancelAllOrders` lists an asset's open orders and cancels
-  them in batches, those of the type asked for alone. The gateway cancels an instrument's orders together, in
-  both margin scopes, unless the request selects them by side, margin type, time in force, a single stop or take
-  profit type, or limit or market orders, as the gateway holds market orders' unfilled remainders as limit orders,
-  when they are listed and cancelled one at a time.
++ `CancelOrder`, `GetOrderInfo` and `ModifyOrder` find a gateway order in the main account, or in the isolated margin
+  subaccount holding it. `CancelBatchOrders` cancels up to 100 Advanced Trade orders in one request, and refuses a
+  longer list and the gateway's orders, as the gateway cancels no list of order IDs. Advanced Trade cancels
+  asynchronously, so `CancelBatchOrders` and `CancelAllOrders` report an order pending cancellation once Coinbase
+  submits its cancel request, an order Coinbase refuses with the refusal, and none for an order its answer leaves out;
+  an order named twice keeps the status of a cancel that went through, or else its last refusal. `CancelAllOrders`
+  lists an Advanced Trade asset's open orders and cancels them in batches of up to 100, those of the type asked for
+  alone; a cancel request that fails ends it, returning the statuses reported before it with the error. The gateway
+  cancels an instrument's orders together, in both margin scopes, unless the request selects them by side, margin
+  type, time in force, a single stop or take profit type, or limit or market orders, as the gateway holds market
+  orders' unfilled remainders as limit orders, when they are listed and cancelled one at a time.
 + `GetOrderInfo` returns an order with its fills, less those a reversal undoes, `GetActiveOrders` an asset's live
   orders, Advanced Trade's pending and queued ones among them, and `GetOrderHistory` its filled, cancelled, expired and
   failed orders, by margin type and time in force too, a good till day filter matching the good till time orders

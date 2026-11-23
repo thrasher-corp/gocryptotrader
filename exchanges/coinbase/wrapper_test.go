@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/url"
@@ -3429,30 +3430,28 @@ func TestCancelOrder(t *testing.T) {
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
-	_, err := ex.CancelBatchOrders(t.Context(), nil)
-	require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelBatchOrders must refuse no orders")
-	_, err = ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1", AssetType: asset.Options}})
-	require.ErrorIs(t, err, asset.ErrNotSupported, "CancelBatchOrders must refuse an asset Coinbase does not trade")
+	for name, cancels := range map[string][]order.Cancel{"nil": nil, "empty": {}} {
+		t.Run("refuses "+name+" orders", func(t *testing.T) {
+			t.Parallel()
+			resp, err := ex.CancelBatchOrders(t.Context(), cancels)
+			assert.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelBatchOrders should refuse no orders")
+			assert.Nil(t, resp, "CancelBatchOrders should return no response for no orders")
+		})
+	}
+	_, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1", AssetType: asset.Options}})
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelBatchOrders should refuse an asset Coinbase does not trade")
 	_, err = ex.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Spot}})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelBatchOrders must refuse an order without an ID")
-	t.Run("cancels an Advanced Trade and a gateway order", func(t *testing.T) {
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelBatchOrders should refuse an order without an ID")
+	t.Run("cancels an Advanced Trade order", func(t *testing.T) {
 		t.Parallel()
 		skipLiveUnlessCanManipulate(t)
-		spotID, gatewayID := testSandboxOrderID, testWrapperDerivativesOrderID
+		spotID := testSandboxOrderID
 		if !mockTests {
 			spotID = newLiveTestOrder(t)
-			_, placed := placeDerivativesTradingLiveOrder(t)
-			gatewayID = placed.OrderID
 		}
-		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
-			{OrderID: spotID, AssetType: asset.Spot},
-			{OrderID: gatewayID, AssetType: asset.USDCMarginedFutures},
-		})
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: spotID, AssetType: asset.Spot}})
 		require.NoError(t, err, "CancelBatchOrders must not error")
-		assert.Equal(t, map[string]string{
-			spotID:    order.PendingCancel.String(),
-			gatewayID: order.Cancelled.String(),
-		}, resp.Status, "CancelBatchOrders should report the Advanced Trade order pending cancellation, and the gateway order cancelled")
+		assert.Equal(t, map[string]string{spotID: order.PendingCancel.String()}, resp.Status, "CancelBatchOrders should report the Advanced Trade order pending cancellation")
 	})
 	t.Run("reports an Advanced Trade order named twice pending cancellation", func(t *testing.T) {
 		t.Parallel()
@@ -3497,125 +3496,226 @@ func TestCancelBatchOrders(t *testing.T) {
 		assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelBatchOrders should refuse a repeat of an order for an asset it does not trade")
 		assert.Zero(t, requests.Load(), "CancelBatchOrders should send nothing when it refuses an entry")
 	})
-	t.Run("cancels a gateway order named twice once", func(t *testing.T) {
+	cancelsOf := func(a asset.Item, n int) []order.Cancel {
+		cancels := make([]order.Cancel, n)
+		for i := range cancels {
+			cancels[i] = order.Cancel{OrderID: "order-" + strconv.Itoa(i), AssetType: a}
+		}
+		return cancels
+	}
+	gateway := order.Cancel{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures}
+	t.Run("refuses a batch it cannot send in one request", func(t *testing.T) {
 		t.Parallel()
-		const cancelledOrder = `{"jsonrpc":"2.0","result":{"order_id":"USDC-1","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}}`
 		for _, tc := range []struct {
 			name    string
-			replies []string
+			cancels []order.Cancel
+			err     error
 		}{
-			// The gateway refuses to cancel an order it has cancelled, which a repeat would be
-			{"first cancel succeeding", []string{cancelledOrder}},
-			{"first cancel failing", []string{`{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error"}}`, cancelledOrder}},
+			// The gateway cancels no list of order IDs, so its orders are refused rather than cancelled one at a time
+			{"an Advanced Trade and a gateway order", []order.Cancel{{OrderID: testSandboxOrderID, AssetType: asset.Spot}, {OrderID: testWrapperDerivativesOrderID, AssetType: asset.USDCMarginedFutures}}, asset.ErrNotSupported},
+			{"an Advanced Trade order before a gateway order", []order.Cancel{{OrderID: "order-1", AssetType: asset.Spot}, gateway}, asset.ErrNotSupported},
+			{"an Advanced Trade order after a gateway order", []order.Cancel{gateway, {OrderID: "order-1", AssetType: asset.Spot}}, asset.ErrNotSupported},
+			{"a gateway order named twice", []order.Cancel{gateway, gateway}, asset.ErrNotSupported},
+			{"gateway orders apart from their margin type", []order.Cancel{gateway, {OrderID: "USDC-2", AssetType: asset.USDCMarginedFutures}, {OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures, MarginType: margin.Isolated}}, asset.ErrNotSupported},
+			{"an isolated margin gateway order", []order.Cancel{{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures, MarginType: margin.Isolated}}, asset.ErrNotSupported},
+			{"a coin margined gateway order", []order.Cancel{{OrderID: "BTC-1", AssetType: asset.CoinMarginedFutures}}, asset.ErrNotSupported},
+			{"a gateway order with its pair", []order.Cancel{{OrderID: "USDC-1", Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures}}, asset.ErrNotSupported},
+			{"a client order ID alone", []order.Cancel{{ClientOrderID: "client-only", AssetType: asset.Spot}}, order.ErrOrderIDNotSet},
+			{"a gateway order after 100 orders", append(cancelsOf(asset.Spot, 100), gateway), asset.ErrNotSupported},
+			{"a gateway order after 101 orders", append(cancelsOf(asset.Spot, 101), gateway), asset.ErrNotSupported},
+			{"an order without an ID after 100 orders", append(cancelsOf(asset.Spot, 100), order.Cancel{AssetType: asset.Spot}), order.ErrOrderIDNotSet},
+			{"101 orders", cancelsOf(asset.Spot, 101), errTooManyOrders},
+			{"150 orders", cancelsOf(asset.Spot, 150), errTooManyOrders},
+			{"201 orders", cancelsOf(asset.Spot, 201), errTooManyOrders},
+			{"256 orders", cancelsOf(asset.Spot, 256), errTooManyOrders},
+			{"101 futures orders", cancelsOf(asset.Futures, 101), errTooManyOrders},
+			{"a futures order after 100 spot orders", append(cancelsOf(asset.Spot, 100), order.Cancel{OrderID: "futures-1", AssetType: asset.Futures}), errTooManyOrders},
+			{"an order named again after 100 orders", append(cancelsOf(asset.Spot, 100), order.Cancel{OrderID: "order-0", AssetType: asset.Spot}), errTooManyOrders},
+			{"the 100th order named again", append(cancelsOf(asset.Spot, 100), order.Cancel{OrderID: "order-99", AssetType: asset.Spot}), errTooManyOrders},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
-				var calls atomic.Int32
-				ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-					if req.Method != "private/cancel" {
-						assert.Failf(t, "CancelBatchOrders should only cancel orders", "sent %s", req.Method)
-						return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
-					}
-					if n := int(calls.Add(1)); n <= len(tc.replies) {
-						return tc.replies[n-1]
-					}
-					return `{"jsonrpc":"2.0","error":{"code":11044,"message":"not_open_order"}}`
-				})
-				resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
-					{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures},
-					{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures},
-				})
-				require.NoErrorf(t, err, "CancelBatchOrders must not error with the %s", tc.name)
-				assert.Equalf(t, map[string]string{"USDC-1": order.Cancelled.String()}, resp.Status, "CancelBatchOrders should report an order named twice cancelled with the %s", tc.name)
-				assert.Lenf(t, sent(), len(tc.replies), "CancelBatchOrders should send a repeat only after a failed cancel, with the %s", tc.name)
+				var requests atomic.Int32
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					http.NotFound(w, r)
+				}))
+				resp, err := ex.CancelBatchOrders(t.Context(), tc.cancels)
+				assert.ErrorIs(t, err, tc.err, "CancelBatchOrders should refuse the batch")
+				assert.Nil(t, resp, "CancelBatchOrders should report no status for a batch it refuses")
+				assert.Zero(t, requests.Load(), "CancelBatchOrders should send nothing for a batch it refuses")
 			})
 		}
 	})
-	t.Run("cancels each gateway order it names", func(t *testing.T) {
+	t.Run("refuses gateway orders while the gateway's websocket is connected", func(t *testing.T) {
 		t.Parallel()
-		// The orders share an asset, a pair and an empty client order ID, so only their IDs tell them apart, and the repeat's
-		// isolated margin type changes only which scope the gateway looks it up in first
-		ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-			var params DerivativesCancelOrderByIDRequest
-			if req.Method != "private/cancel" || !assert.NoError(t, json.Unmarshal(req.Params, &params), "the cancel's params should decode") {
-				assert.Failf(t, "CancelBatchOrders should only cancel orders", "sent %s", req.Method)
-				return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
-			}
-			switch params.OrderID {
-			case "USDC-1":
-				return `{"jsonrpc":"2.0","result":{"order_id":"USDC-1","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}}`
-			case "USDC-2":
-				return `{"jsonrpc":"2.0","result":{"order_id":"USDC-2","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":90000,"amount":0.002}}`
-			}
-			return `{"jsonrpc":"2.0","error":{"code":11044,"message":"not_open_order"}}`
-		})
-		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
-			{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures},
-			{OrderID: "USDC-2", AssetType: asset.USDCMarginedFutures},
-			{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures, MarginType: margin.Isolated},
-		})
-		require.NoError(t, err, "CancelBatchOrders must not error")
-		assert.Equal(t, map[string]string{"USDC-1": order.Cancelled.String(), "USDC-2": order.Cancelled.String()}, resp.Status, "CancelBatchOrders should report each gateway order cancelled")
-		assert.Len(t, sent(), 2, "CancelBatchOrders should cancel each gateway order once")
+		if !mockTests {
+			t.Skip("the mock gateway websocket records what the exchange sends over it")
+		}
+		ex, venue := newDerivativesWebsocketTestExchange(t)
+		require.True(t, ex.derivativesOverWebsocket(t.Context(), true), "the gateway's authenticated websocket must carry the wrapper's private requests")
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{gateway, {OrderID: "USDC-2", AssetType: asset.USDCMarginedFutures}})
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelBatchOrders should refuse gateway orders while the gateway's websocket is connected")
+		assert.Nil(t, resp, "CancelBatchOrders should report no status for gateway orders")
+		assert.Empty(t, venue.requestsFor("private/cancel"), "CancelBatchOrders should send no cancel over the gateway's websocket")
 	})
-	t.Run("reports the batch answered before a later one fails", func(t *testing.T) {
+	t.Run("refuses every asset but spot and futures", func(t *testing.T) {
 		t.Parallel()
-		var batches atomic.Int32
+		for _, a := range append(asset.Items{asset.Empty, asset.All}, asset.Supported()...) {
+			if a == asset.Spot || a == asset.Futures {
+				continue
+			}
+			name := a.String()
+			if a == asset.Empty {
+				name = "no asset"
+			}
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				var requests atomic.Int32
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					http.NotFound(w, r)
+				}))
+				resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "order-1", AssetType: a}})
+				assert.ErrorIsf(t, err, asset.ErrNotSupported, "CancelBatchOrders should refuse an order of %s", name)
+				assert.Nilf(t, resp, "CancelBatchOrders should report no status for an order of %s", name)
+				assert.Zerof(t, requests.Load(), "CancelBatchOrders should send nothing for an order of %s", name)
+			})
+		}
+	})
+	// cancelServer answers each cancel request with the results reply gives for its order IDs, recording the IDs
+	cancelServer := func(t *testing.T, reply func(ids []string) []string) (*Exchange, func() [][]string) {
+		t.Helper()
+		var mu sync.Mutex
+		var sent [][]string
 		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !assert.Equal(t, "/api/v3/brokerage/orders/batch_cancel", r.URL.Path, "CancelBatchOrders should only send cancel requests") {
 				http.NotFound(w, r)
 				return
 			}
-			if batches.Add(1) > 1 {
-				http.Error(w, `{"error":"UNAVAILABLE","message":"try again"}`, http.StatusServiceUnavailable)
-				return
-			}
-			body, err := io.ReadAll(r.Body)
-			if !assert.NoError(t, err, "reading the request should not error") {
-				return
-			}
 			var req CancelOrdersWireRequest
-			if !assert.NoError(t, json.Unmarshal(body, &req), "the request should decode") {
+			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "the request should decode") {
 				return
 			}
-			results := make([]string, len(req.OrderIDs))
-			for i, id := range req.OrderIDs {
-				results[i] = `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"` + id + `"}`
-			}
-			_, err = w.Write([]byte(`{"results":[` + strings.Join(results, ",") + `]}`))
+			mu.Lock()
+			sent = append(sent, req.OrderIDs)
+			mu.Unlock()
+			_, err := w.Write([]byte(`{"results":[` + strings.Join(reply(req.OrderIDs), ",") + `]}`))
 			assert.NoError(t, err, "writing the response should not error")
 		}))
-		cancels := make([]order.Cancel, cancelOrdersBatchSize+50)
-		for i := range cancels {
-			cancels[i] = order.Cancel{OrderID: "order-" + strconv.Itoa(i), AssetType: asset.Spot}
+		return ex, func() [][]string {
+			mu.Lock()
+			defer mu.Unlock()
+			return slices.Clone(sent)
 		}
-		resp, err := ex.CancelBatchOrders(t.Context(), cancels)
-		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelBatchOrders should report the batch Coinbase did not answer")
-		require.NotNil(t, resp, "CancelBatchOrders must report the orders whose cancellations Coinbase submitted before the failure")
-		assert.Len(t, resp.Status, cancelOrdersBatchSize, "CancelBatchOrders should report every order of the batch Coinbase answered")
-		assert.Equal(t, order.PendingCancel.String(), resp.Status["order-0"], "CancelBatchOrders should report a submitted cancellation pending")
-		assert.NotContains(t, resp.Status, "order-"+strconv.Itoa(cancelOrdersBatchSize), "CancelBatchOrders should not report an order of the failed batch")
-	})
-	t.Run("cancels gateway orders after an Advanced Trade batch fails", func(t *testing.T) {
+	}
+	submittedAll := func(ids []string) []string {
+		results := make([]string, len(ids))
+		for i, id := range ids {
+			results[i] = `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"` + id + `"}`
+		}
+		return results
+	}
+	t.Run("sends a batch in one request", func(t *testing.T) {
 		t.Parallel()
-		var gatewayCancels atomic.Int32
-		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			switch r.URL.Path {
-			case "/api/v3/brokerage/orders/batch_cancel":
-				http.Error(w, `{"error":"UNAVAILABLE","message":"try again"}`, http.StatusServiceUnavailable)
-			case "/api/v2/private/cancel":
-				gatewayCancels.Add(1)
-				writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"order_id":"USDC-1","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}}`)
-			default:
-				assert.Failf(t, "CancelBatchOrders should only cancel orders", "requested %s", r.URL.Path)
-				http.NotFound(w, r)
-			}
+		namedTwice := cancelsOf(asset.Spot, 3)
+		namedTwice[2].OrderID = namedTwice[0].OrderID
+		withClientIDs := cancelsOf(asset.Spot, 2)
+		for i := range withClientIDs {
+			withClientIDs[i].ClientOrderID = "client-" + strconv.Itoa(i)
+		}
+		for _, tc := range []struct {
+			name    string
+			cancels []order.Cancel
+		}{
+			{"one order", cancelsOf(asset.Spot, 1)},
+			{"two orders", cancelsOf(asset.Spot, 2)},
+			{"99 orders", cancelsOf(asset.Spot, 99)},
+			{"100 orders", cancelsOf(asset.Spot, 100)},
+			{"spot and futures orders", append(cancelsOf(asset.Spot, 99), order.Cancel{OrderID: "futures-1", AssetType: asset.Futures})},
+			{"futures orders", cancelsOf(asset.Futures, 2)},
+			{"orders of two pairs", []order.Cancel{{OrderID: "order-0", Pair: currency.NewBTCUSD(), AssetType: asset.Spot}, {OrderID: "order-1", Pair: testETHUSD, AssetType: asset.Spot}}},
+			{"futures orders around a spot order", []order.Cancel{{OrderID: "futures-0", AssetType: asset.Futures}, {OrderID: "order-0", AssetType: asset.Spot}, {OrderID: "futures-1", AssetType: asset.Futures}}},
+			{"an order named again", namedTwice},
+			{"orders with client order IDs", withClientIDs},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				want := make([]string, len(tc.cancels))
+				for i := range tc.cancels {
+					want[i] = tc.cancels[i].OrderID
+				}
+				ex, sent := cancelServer(t, submittedAll)
+				resp, err := ex.CancelBatchOrders(t.Context(), tc.cancels)
+				require.NoErrorf(t, err, "CancelBatchOrders must not error for %s", tc.name)
+				assert.Equalf(t, [][]string{want}, sent(), "CancelBatchOrders should send %s in one request, in order", tc.name)
+				reported := slices.Compact(slices.Sorted(slices.Values(want)))
+				assert.Lenf(t, resp.Status, len(reported), "CancelBatchOrders should report each order once for %s", tc.name)
+				for _, id := range reported {
+					assert.Equalf(t, order.PendingCancel.String(), resp.Status[id], "CancelBatchOrders should report order %s pending cancellation for %s", id, tc.name)
+				}
+			})
+		}
+	})
+	t.Run("reports each order as Coinbase answers it", func(t *testing.T) {
+		t.Parallel()
+		refused := func(id, reason string) string {
+			return (&CancelOrderResult{FailureReason: reason, OrderID: id}).Err().Error()
+		}
+		for _, tc := range []struct {
+			name   string
+			reply  []string
+			status map[string]string
+		}{
+			// Coinbase may answer out of order and leave an order out, which then has no status
+			{"out of order, one refused and one left out", []string{`{"success":false,"failure_reason":"UNKNOWN_CANCEL_ORDER","order_id":"order-2"}`, `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"order-0"}`}, map[string]string{"order-0": order.PendingCancel.String(), "order-2": refused("order-2", CancelFailureReasonUnknownOrder)}},
+			{"every order refused, for its own reason", []string{`{"success":false,"failure_reason":"UNKNOWN_CANCEL_ORDER","order_id":"order-0"}`, `{"success":false,"failure_reason":"ORDER_IS_FULLY_FILLED","order_id":"order-1"}`, `{"success":false,"failure_reason":"NOT_ALLOWED_TO_CANCEL","order_id":"order-2"}`}, map[string]string{"order-0": refused("order-0", CancelFailureReasonUnknownOrder), "order-1": refused("order-1", CancelFailureReasonOrderFullyFilled), "order-2": refused("order-2", CancelFailureReasonNotAllowed)}},
+			{"no order answered", []string{}, map[string]string{}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, sent := cancelServer(t, func([]string) []string { return tc.reply })
+				resp, err := ex.CancelBatchOrders(t.Context(), cancelsOf(asset.Spot, 3))
+				require.NoErrorf(t, err, "CancelBatchOrders must not error for a request Coinbase answered, %s", tc.name)
+				assert.Equalf(t, [][]string{{"order-0", "order-1", "order-2"}}, sent(), "CancelBatchOrders should send the orders in one request, %s", tc.name)
+				assert.Lenf(t, resp.Status, len(tc.status), "CancelBatchOrders should report no order but those Coinbase answered, %s", tc.name)
+				for id, status := range tc.status {
+					assert.Equalf(t, status, resp.Status[id], "CancelBatchOrders should report order %s as Coinbase answered it, %s", id, tc.name)
+				}
+			})
+		}
+	})
+	t.Run("reports a single order Coinbase refuses with the refusal", func(t *testing.T) {
+		t.Parallel()
+		ex, sent := cancelServer(t, func([]string) []string {
+			return []string{`{"success":false,"failure_reason":"ORDER_IS_FULLY_FILLED","order_id":"order-0"}`}
+		})
+		resp, err := ex.CancelBatchOrders(t.Context(), cancelsOf(asset.Spot, 1))
+		require.NoError(t, err, "CancelBatchOrders must not error for a request Coinbase answered")
+		assert.Equal(t, [][]string{{"order-0"}}, sent(), "CancelBatchOrders should send the order")
+		assert.Equal(t, map[string]string{"order-0": (&CancelOrderResult{FailureReason: CancelFailureReasonOrderFullyFilled, OrderID: "order-0"}).Err().Error()}, resp.Status, "CancelBatchOrders should report a single order Coinbase refuses with the refusal")
+	})
+	t.Run("reports an Advanced Trade order refused twice with its last refusal", func(t *testing.T) {
+		t.Parallel()
+		const id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+		ex, sent := cancelServer(t, func([]string) []string {
+			return []string{`{"success":false,"failure_reason":"ORDER_IS_BEING_REPLACED","order_id":"` + id + `"}`, `{"success":false,"failure_reason":"ORDER_IS_FULLY_FILLED","order_id":"` + id + `"}`}
+		})
+		c := order.Cancel{OrderID: id, AssetType: asset.Spot}
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{c, c})
+		require.NoError(t, err, "CancelBatchOrders must not error for a request Coinbase answered")
+		assert.Equal(t, [][]string{{id, id}}, sent(), "CancelBatchOrders should send each entry")
+		assert.Equal(t, map[string]string{id: (&CancelOrderResult{FailureReason: CancelFailureReasonOrderFullyFilled, OrderID: id}).Err().Error()}, resp.Status, "CancelBatchOrders should report an order refused twice with its last refusal")
+	})
+	t.Run("returns the request's refusal", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			http.Error(w, `{"error":"UNAVAILABLE","message":"try again"}`, http.StatusServiceUnavailable)
 		}))
-		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "order-1", AssetType: asset.Spot}, {OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures}})
-		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelBatchOrders should report the Advanced Trade batch Coinbase did not answer")
-		require.NotNil(t, resp, "CancelBatchOrders must report the gateway order it cancelled")
-		assert.Equal(t, map[string]string{"USDC-1": order.Cancelled.String()}, resp.Status, "CancelBatchOrders should cancel the gateway's orders after an Advanced Trade batch fails")
-		assert.EqualValues(t, 1, gatewayCancels.Load(), "CancelBatchOrders should send the gateway order's cancel once")
+		resp, err := ex.CancelBatchOrders(t.Context(), cancelsOf(asset.Spot, 100))
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelBatchOrders should return the refusal of a request Coinbase did not answer")
+		assert.ErrorContains(t, err, "try again", "CancelBatchOrders should return Coinbase's message with the refusal")
+		assert.True(t, resp == nil || len(resp.Status) == 0, "CancelBatchOrders should report no order of a refused request")
 	})
 }
 
@@ -3863,6 +3963,194 @@ func TestCancelAllOrders(t *testing.T) { //nolint:tparallel // the live case run
 		mu.Lock()
 		defer mu.Unlock()
 		assert.ElementsMatch(t, []string{"limit-1", "limit-f"}, cancelled, "CancelAllOrders should cancel only the limit orders")
+	})
+	t.Run("cancels the Advanced Trade orders it lists in batches of up to 100", func(t *testing.T) {
+		t.Parallel()
+		listedIDs := func(n int) []string {
+			ids := make([]string, n)
+			for i := range ids {
+				ids[i] = "order-" + strconv.Itoa(i)
+			}
+			return ids
+		}
+		pending := func(batches ...[]string) map[string]string {
+			statuses := make(map[string]string)
+			for _, id := range slices.Concat(batches...) {
+				statuses[id] = order.PendingCancel.String()
+			}
+			return statuses
+		}
+		submitted := func(id string) string {
+			return `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"` + id + `"}`
+		}
+		refusedFor := func(reason string) func(string) string {
+			return func(id string) string {
+				return `{"success":false,"failure_reason":"` + reason + `","order_id":"` + id + `"}`
+			}
+		}
+		refusal := func(id, reason string) string {
+			return (&CancelOrderResult{FailureReason: reason, OrderID: id}).Err().Error()
+		}
+		ids := listedIDs(301)
+		// The first answer refuses order-5 and leaves order-7 out, which the next batch still follows
+		partlyAnswered := pending(ids[:100], ids[100:101])
+		partlyAnswered["order-5"] = refusal("order-5", CancelFailureReasonOrderFullyFilled)
+		delete(partlyAnswered, "order-7")
+		partlyAnsweredThenRefused := maps.Clone(partlyAnswered)
+		delete(partlyAnsweredThenRefused, "order-100")
+		allRefusedFirst := pending(ids[100:101])
+		for _, id := range ids[:100] {
+			allRefusedFirst[id] = refusal(id, CancelFailureReasonOrderFullyFilled)
+		}
+		// The first and second answers to each order listed again, nil leaving it out
+		beingReplaced, fullyFilled := refusedFor(CancelFailureReasonOrderBeingReplaced), refusedFor(CancelFailureReasonOrderFullyFilled)
+		relisted := map[string][2]func(string) string{
+			"order-91": {submitted, submitted},
+			"order-92": {submitted, fullyFilled},
+			"order-93": {submitted, nil},
+			"order-94": {beingReplaced, submitted},
+			"order-95": {beingReplaced, fullyFilled},
+			"order-96": {beingReplaced, nil},
+			"order-97": {nil, submitted},
+			"order-98": {nil, fullyFilled},
+			"order-99": {nil, nil},
+		}
+		// An order keeps a cancel that went through, or else its last refusal
+		relistedStatuses := pending(ids[:95], ids[97:98])
+		relistedStatuses["order-95"] = refusal("order-95", CancelFailureReasonOrderFullyFilled)
+		relistedStatuses["order-96"] = refusal("order-96", CancelFailureReasonOrderBeingReplaced)
+		relistedStatuses["order-98"] = refusal("order-98", CancelFailureReasonOrderFullyFilled)
+		for _, tc := range []struct {
+			name      string
+			futures   bool
+			listed    []string
+			products  []string
+			refused   int
+			null      int
+			relisted  map[string][2]func(string) string
+			partly    bool
+			empty     bool
+			refuseAll int
+			attempts  [][]string
+			statuses  map[string]string
+		}{
+			{name: "no listed orders", statuses: map[string]string{}},
+			{name: "100 listed orders", listed: ids[:100], attempts: [][]string{ids[:100]}, statuses: pending(ids[:100])},
+			{name: "150 listed orders", listed: ids[:150], attempts: [][]string{ids[:100], ids[100:150]}, statuses: pending(ids[:150])},
+			{name: "200 listed orders", listed: ids[:200], attempts: [][]string{ids[:100], ids[100:200]}, statuses: pending(ids[:200])},
+			{name: "201 listed orders", listed: ids[:201], attempts: [][]string{ids[:100], ids[100:200], ids[200:201]}, statuses: pending(ids[:201])},
+			{name: "101 listed futures orders", futures: true, listed: ids[:101], attempts: [][]string{ids[:100], ids[100:101]}, statuses: pending(ids[:101])},
+			{name: "orders of several pairs", listed: ids[:3], products: []string{"ETH-USD", "BTC-USD", "ETH-USD"}, attempts: [][]string{ids[:3]}, statuses: pending(ids[:3])},
+			{name: "101 listed orders, the first answer refusing one and leaving one out", listed: ids[:101], partly: true, attempts: [][]string{ids[:100], ids[100:101]}, statuses: partlyAnswered},
+			{name: "101 listed orders, the first answer empty", listed: ids[:101], empty: true, attempts: [][]string{ids[:100], ids[100:101]}, statuses: pending(ids[100:101])},
+			{name: "101 listed orders, the first answer refusing every order", listed: ids[:101], refuseAll: 1, attempts: [][]string{ids[:100], ids[100:101]}, statuses: allRefusedFirst},
+			{name: "109 listed orders, nine listed again and answered in every pairing of submitted, refused and left out", listed: append(slices.Clone(ids[:100]), ids[91:100]...), relisted: relisted, attempts: [][]string{ids[:100], ids[91:100]}, statuses: relistedStatuses},
+			// A cancel request that fails ends the cancellation, so the orders after it stay unsent and unreported
+			{name: "201 listed orders, the first batch refused", listed: ids[:201], refused: 1, attempts: [][]string{ids[:100]}, statuses: map[string]string{}},
+			{name: "201 listed orders, the second batch refused", listed: ids[:201], refused: 2, attempts: [][]string{ids[:100], ids[100:200]}, statuses: pending(ids[:100])},
+			{name: "200 listed orders, the last batch refused", listed: ids[:200], refused: 2, attempts: [][]string{ids[:100], ids[100:200]}, statuses: pending(ids[:100])},
+			{name: "101 listed orders, the first answer refusing one and leaving one out, the second batch refused", listed: ids[:101], partly: true, refused: 2, attempts: [][]string{ids[:100], ids[100:101]}, statuses: partlyAnsweredThenRefused},
+			{name: "301 listed orders, the third batch refused", listed: ids[:301], refused: 3, attempts: [][]string{ids[:100], ids[100:200], ids[200:300]}, statuses: pending(ids[:200])},
+			{name: "201 listed orders, the second answer null", listed: ids[:201], null: 2, attempts: [][]string{ids[:100], ids[100:200]}, statuses: pending(ids[:100])},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				productType, product := ProductTypeSpot, "BTC-USD"
+				if tc.futures {
+					productType, product = ProductTypeFuture, "BIP-20DEC30-CDE"
+				}
+				listed := make([]string, len(tc.listed))
+				for i, id := range tc.listed {
+					p := product
+					if tc.products != nil {
+						p = tc.products[i]
+					}
+					// A partly filled order is still open, and cancelled with the others
+					filled := "0"
+					if id == "order-3" {
+						filled = "0.25"
+					}
+					listed[i] = `{"order_id":"` + id + `","product_id":"` + p + `","product_type":"` + productType + `","side":"BUY","status":"OPEN","order_type":"` + OrderTypeLimit + `","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"` + filled + `","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}}`
+				}
+				var mu sync.Mutex
+				var attempts [][]string
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var body string
+					switch r.URL.Path {
+					case "/api/v3/brokerage/orders/historical/batch":
+						body = `{"orders":[],"has_next":false,"cursor":""}`
+						if r.URL.Query().Get("order_status") == OrderStatusOpen && (r.URL.Query().Get("product_type") == ProductTypeFuture) == tc.futures {
+							body = `{"orders":[` + strings.Join(listed, ",") + `],"has_next":false,"cursor":""}`
+						}
+					case "/api/v3/brokerage/orders/batch_cancel":
+						var req CancelOrdersWireRequest
+						if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "the request should decode") {
+							return
+						}
+						mu.Lock()
+						attempts = append(attempts, req.OrderIDs)
+						attempt := len(attempts)
+						mu.Unlock()
+						if attempt == tc.refused {
+							http.Error(w, `{"error":"UNAVAILABLE","message":"try again"}`, http.StatusServiceUnavailable)
+							return
+						}
+						var results []string
+						for _, id := range req.OrderIDs {
+							if tc.empty && attempt == 1 {
+								break
+							}
+							if answers, ok := tc.relisted[id]; ok && attempt <= len(answers) {
+								if answer := answers[attempt-1]; answer != nil {
+									results = append(results, answer(id))
+								}
+								continue
+							}
+							switch {
+							case attempt == tc.refuseAll:
+								results = append(results, `{"success":false,"failure_reason":"ORDER_IS_FULLY_FILLED","order_id":"`+id+`"}`)
+							case tc.partly && id == "order-5":
+								results = append(results, `{"success":false,"failure_reason":"ORDER_IS_FULLY_FILLED","order_id":"order-5"}`)
+							case tc.partly && id == "order-7":
+							default:
+								results = append(results, submitted(id))
+							}
+						}
+						body = `{"results":[` + strings.Join(results, ",") + `]}`
+						if attempt == tc.null {
+							body = "null"
+						}
+					default:
+						assert.Failf(t, "CancelAllOrders should only list and cancel orders", "requested %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				a := asset.Spot
+				if tc.futures {
+					a = asset.Futures
+				}
+				resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a})
+				switch {
+				case tc.refused != 0:
+					assert.ErrorIsf(t, err, request.ErrAuthRequestFailed, "CancelAllOrders should return the refusal of a batch Coinbase did not answer, with %s", tc.name)
+					assert.ErrorContainsf(t, err, "try again", "CancelAllOrders should return Coinbase's message with the refusal, with %s", tc.name)
+				case tc.null != 0:
+					assert.ErrorIsf(t, err, common.ErrNoResponse, "CancelAllOrders should return the lack of an answer to a batch, with %s", tc.name)
+				default:
+					assert.NoErrorf(t, err, "CancelAllOrders should not error with %s", tc.name)
+				}
+				mu.Lock()
+				defer mu.Unlock()
+				assert.Equalf(t, tc.attempts, attempts, "CancelAllOrders should send the listed orders in batches of up to 100, in order, with %s", tc.name)
+				assert.Lenf(t, resp.Status, len(tc.statuses), "CancelAllOrders should report no order but those of the batches Coinbase answered, with %s", tc.name)
+				for id, status := range tc.statuses {
+					assert.Equalf(t, status, resp.Status[id], "CancelAllOrders should report order %s as Coinbase answered it, with %s", id, tc.name)
+				}
+			})
+		}
 	})
 	t.Run("returns the Advanced Trade listing's refusal", func(t *testing.T) {
 		t.Parallel()
