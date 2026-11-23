@@ -4507,7 +4507,7 @@ func TestWebsocketChannelName(t *testing.T) {
 	assert.ErrorIs(t, err, subscription.ErrNotSupported, "websocketChannelName should reject a data channel that is not a subscription type")
 }
 
-func TestGenerateSubscriptions(t *testing.T) {
+func TestExpandWebsocketSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
 	public, err := ex.expandWebsocketSubscriptions(false)
@@ -4523,9 +4523,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 	held.feed = WebsocketSubscription{Type: wsChannelAllMids}
 	stored.SetKey(held)
 	ex.Features.Subscriptions = subscription.List{stored}
-	_, err = ex.expandWebsocketSubscriptions(false)
+	expanded, err := ex.expandWebsocketSubscriptions(false)
 	require.NoError(t, err, "expandWebsocketSubscriptions must not error for an expanded subscription")
-	assert.Equal(t, held, stored.EnsureKeyed(), "expandWebsocketSubscriptions should keep the key of a subscription keyed by its feed, which may be held")
+	require.Len(t, expanded, 1, "expandWebsocketSubscriptions must return the expanded subscription")
+	assert.Same(t, held, expanded[0].EnsureKeyed(), "expandWebsocketSubscriptions should return an expanded subscription with its key")
+	assert.Same(t, held, stored.EnsureKeyed(), "expandWebsocketSubscriptions should keep the key of a subscription keyed by its feed, which may be held")
 
 	// The configuration replaces the held subscriptions, so a variant of a held book is no conflict
 	require.NoError(t, subscribeWebsocketTest(t, ex, subscription.List{testBookSubscription(20, nil)}), "Subscribe must not error")
@@ -4584,7 +4586,84 @@ func TestGenerateSubscriptions(t *testing.T) {
 		&subscription.Subscription{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, QualifiedChannel: wsChannelOrderUpdates},
 		&subscription.Subscription{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true, QualifiedChannel: wsSubscriptionUserEvents},
 	)
+	assert.Len(t, subs, len(exp), "expandWebsocketSubscriptions should generate each default subscription once")
 	testsubs.EqualLists(t, exp, subs)
+
+	t.Run("a subscription it cannot expand beside a refused configuration", func(t *testing.T) {
+		t.Parallel()
+		refused := newWebsocketTestExchange(t)
+		fastBook, slowBook := testBookSubscription(5, nil), testBookSubscription(20, nil)
+		fastBook.Enabled, slowBook.Enabled = true, true
+		refused.Features.Subscriptions = subscription.List{{Enabled: true, Channel: "bogus"}, fastBook, slowBook}
+		generated, err := refused.expandWebsocketSubscriptions(false)
+		assert.ErrorIs(t, err, subscription.ErrNotSupported, "expandWebsocketSubscriptions should report a subscription it cannot expand beside a refused configuration")
+		assert.ErrorIs(t, err, subscription.ErrExclusiveSubscription, "expandWebsocketSubscriptions should refuse two variants of a market's l2Book beside a subscription it cannot expand")
+		assert.NotErrorIs(t, err, websocket.ErrSubscriptionPartial, "expandWebsocketSubscriptions should not report a refused configuration as a partial generation")
+		assert.Empty(t, generated, "expandWebsocketSubscriptions should generate nothing of a refused configuration")
+	})
+
+	t.Run("two subscriptions it cannot expand", func(t *testing.T) {
+		t.Parallel()
+		unsupported := newWebsocketTestExchange(t)
+		unsupported.Features.Subscriptions = subscription.List{{Enabled: true, Channel: "bogus"}, {Enabled: true, Channel: "unknown"}}
+		generated, err := unsupported.expandWebsocketSubscriptions(false)
+		assert.ErrorIs(t, err, subscription.ErrNotSupported, "expandWebsocketSubscriptions should report the subscriptions it cannot expand")
+		assert.Empty(t, generated, "expandWebsocketSubscriptions should generate nothing of subscriptions it cannot expand")
+	})
+
+	t.Run("l2Book variants that overlap once expanded", func(t *testing.T) {
+		t.Parallel()
+		refused := newWebsocketTestExchange(t)
+		fastBook := testBookSubscription(5, nil)
+		fastBook.Enabled = true
+		refused.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All}, fastBook}
+		generated, err := refused.expandWebsocketSubscriptions(false)
+		assert.ErrorIs(t, err, subscription.ErrExclusiveSubscription, "expandWebsocketSubscriptions should refuse l2Book variants that overlap once expanded")
+		assert.NotErrorIs(t, err, websocket.ErrSubscriptionPartial, "expandWebsocketSubscriptions should not report a refused configuration as a partial generation")
+		assert.Empty(t, generated, "expandWebsocketSubscriptions should generate nothing of a refused configuration")
+	})
+
+	t.Run("qualified l2Book variants", func(t *testing.T) {
+		t.Parallel()
+		refused := newWebsocketTestExchange(t)
+		fastBook, slowBook := testBookSubscription(5, nil), testBookSubscription(20, nil)
+		qualifiedChannel := wsChannelOrderbook + ":" + asset.PerpetualContract.String() + ":" + perpetualPair.Format(dashFormat).String()
+		fastBook.Enabled, slowBook.Enabled = true, true
+		fastBook.QualifiedChannel, slowBook.QualifiedChannel = qualifiedChannel, qualifiedChannel
+		refused.Features.Subscriptions = subscription.List{fastBook, slowBook}
+		generated, err := refused.expandWebsocketSubscriptions(false)
+		assert.ErrorIs(t, err, subscription.ErrExclusiveSubscription, "expandWebsocketSubscriptions should refuse qualified variants of a market's l2Book")
+		assert.NotErrorIs(t, err, websocket.ErrSubscriptionPartial, "expandWebsocketSubscriptions should not report a refused configuration as a partial generation")
+		assert.Empty(t, generated, "expandWebsocketSubscriptions should generate nothing of a refused configuration")
+	})
+
+	t.Run("qualified subscriptions of the other connection", func(t *testing.T) {
+		t.Parallel()
+		split := newWebsocketTestExchange(t)
+		public := &subscription.Subscription{Enabled: true, Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids}
+		account := &subscription.Subscription{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, QualifiedChannel: wsChannelOrderUpdates}
+		split.Features.Subscriptions = subscription.List{public, account}
+		publicFeeds, err := split.expandWebsocketSubscriptions(false)
+		require.NoError(t, err, "expandWebsocketSubscriptions must not error for the public feeds")
+		accountFeeds, err := split.expandWebsocketSubscriptions(true)
+		require.NoError(t, err, "expandWebsocketSubscriptions must not error for the account feeds")
+		assert.Equal(t, subscription.List{public}, publicFeeds, "expandWebsocketSubscriptions should leave a qualified account feed out of the public feeds")
+		assert.Equal(t, subscription.List{account}, accountFeeds, "expandWebsocketSubscriptions should leave a qualified public feed out of the account feeds")
+	})
+
+	t.Run("a qualified subscription before a template", func(t *testing.T) {
+		t.Parallel()
+		mixed := newWebsocketTestExchange(t)
+		qualified := &subscription.Subscription{Enabled: true, Channel: wsChannelAllMids, QualifiedChannel: wsChannelAllMids}
+		book := testBookSubscription(5, nil)
+		book.Enabled = true
+		mixed.Features.Subscriptions = subscription.List{qualified, book}
+		generated, err := mixed.expandWebsocketSubscriptions(false)
+		require.NoError(t, err, "expandWebsocketSubscriptions must not error for a qualified subscription before a template")
+		require.Len(t, generated, 2, "expandWebsocketSubscriptions must return both subscriptions")
+		assert.Equal(t, subscription.OrderbookChannel, generated[1].Channel, "expandWebsocketSubscriptions should return the template's l2Book after the qualified subscription")
+		assert.NotEmpty(t, generated[1].QualifiedChannel, "expandWebsocketSubscriptions should expand a template that follows a qualified subscription")
+	})
 }
 
 func TestGenerateConnectionSubscriptions(t *testing.T) {
@@ -4764,7 +4843,7 @@ func TestGeneratePublicSubscriptions(t *testing.T) {
 }
 
 //nolint:tparallel // The subtests share subscriptions that production code receives by pointer
-func TestWebsocketFeedIdentity(t *testing.T) {
+func TestWebsocketSubscriptionKeyIdentity(t *testing.T) {
 	t.Parallel()
 	feeds := []struct {
 		name string
@@ -4886,6 +4965,38 @@ func TestKeyWebsocketSubscriptions(t *testing.T) {
 	keyWebsocketSubscriptions(subscription.List{fresh, nil, held})
 	assert.Equal(t, newWebsocketSubscriptionKey(fresh), fresh.EnsureKeyed(), "keyWebsocketSubscriptions should key a subscription by the feed it selects")
 	assert.Same(t, heldKey, held.EnsureKeyed(), "keyWebsocketSubscriptions should keep the key of a subscription keyed by its feed, which may be held")
+
+	t.Run("a feed key keeps the feed it was subscribed with", func(t *testing.T) {
+		t.Parallel()
+		book := testBookSubscription(5, nil)
+		bookKey := newWebsocketSubscriptionKey(book)
+		subscribed := WebsocketSubscription{Type: wsChannelOrderbook, Coin: "BTC", Fast: true}
+		bookKey.feed = subscribed
+		book.SetKey(bookKey)
+		keyWebsocketSubscriptions(subscription.List{book})
+		assert.Same(t, bookKey, book.EnsureKeyed(), "keyWebsocketSubscriptions should keep a subscription's feed key")
+		assert.Equal(t, subscribed, bookKey.feed, "keyWebsocketSubscriptions should keep the feed a key was subscribed with")
+	})
+
+	t.Run("other kinds of key", func(t *testing.T) {
+		t.Parallel()
+		exact := &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": "abc"}}
+		exact.EnsureKeyed()
+		ignoringPairs := &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": "def"}}
+		ignoringPairs.SetKey(&subscription.IgnoringPairsKey{Subscription: ignoringPairs})
+		keyWebsocketSubscriptions(subscription.List{exact, ignoringPairs})
+		assert.Equal(t, newWebsocketSubscriptionKey(exact), exact.EnsureKeyed(), "keyWebsocketSubscriptions should key a subscription with an exact key by the feed it selects")
+		assert.Equal(t, newWebsocketSubscriptionKey(ignoringPairs), ignoringPairs.EnsureKeyed(), "keyWebsocketSubscriptions should key a subscription with a key ignoring pairs by the feed it selects")
+	})
+
+	t.Run("a subscription after one with a feed key", func(t *testing.T) {
+		t.Parallel()
+		first := &subscription.Subscription{Channel: wsChannelAllMids}
+		first.SetKey(newWebsocketSubscriptionKey(first))
+		later := &subscription.Subscription{Channel: wsChannelAllMids, Params: map[string]any{"dex": "xyz"}}
+		keyWebsocketSubscriptions(subscription.List{first, later})
+		assert.Equal(t, newWebsocketSubscriptionKey(later), later.EnsureKeyed(), "keyWebsocketSubscriptions should key a subscription that follows one with a feed key")
+	})
 }
 
 func TestSubscribeToWebsocketChannels(t *testing.T) {

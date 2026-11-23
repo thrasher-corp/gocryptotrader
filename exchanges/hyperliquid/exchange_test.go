@@ -3085,6 +3085,29 @@ func TestValidateSendAssetRoute(t *testing.T) {
 	assert.Nil(t, tokenMetadata, "validateSendAssetRoute should return no token after a metadata failure")
 }
 
+func TestValidateTransferAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		amount float64
+		err    error
+	}{
+		{name: "a positive amount", amount: 1.5},
+		{name: "the smallest positive amount", amount: math.SmallestNonzeroFloat64},
+		{name: "the largest finite amount", amount: math.MaxFloat64},
+		{name: "no amount", err: errTransferAmountInvalid},
+		{name: "a negative amount", amount: -1, err: errTransferAmountInvalid},
+		{name: "the largest negative amount", amount: -math.SmallestNonzeroFloat64, err: errTransferAmountInvalid},
+		{name: "an amount that is not a number", amount: math.NaN(), err: errTransferAmountInvalid},
+		{name: "an infinite amount", amount: math.Inf(1), err: errTransferAmountInvalid},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateTransferAmount(tc.amount), tc.err, "validateTransferAmount should return the expected error for %v", tc.amount)
+		})
+	}
+}
+
 func TestFormatTokenTransferAmount(t *testing.T) {
 	t.Parallel()
 	ubtc := &SpotTokenMetadata{Name: currency.NewCode("UBTC"), WeiDecimals: 10}
@@ -3117,6 +3140,26 @@ func TestFormatTokenTransferAmount(t *testing.T) {
 			amount, err := formatTokenTransferAmount(tc.amount, tc.token)
 			require.ErrorIsf(t, err, tc.err, "formatTokenTransferAmount must return the expected error for %v %s", tc.amount, tc.token.Name)
 			assert.Equalf(t, tc.exp, amount, "formatTokenTransferAmount should format %v %s to the token's decimals, eight at least", tc.amount, tc.token.Name)
+		})
+	}
+}
+
+func TestDecimalPlaces(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		text string
+		exp  int
+	}{
+		{text: "10"},
+		{text: "0.5", exp: 1},
+		{text: "84.9371054562", exp: 10},
+		{text: "0.30000000000000004", exp: 17},
+		{text: "0.000000000000000001", exp: 18},
+		{text: "0.0000000000000000001", exp: 19},
+	} {
+		t.Run(tc.text, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, decimalPlaces(tc.text), "decimalPlaces should count the digits after the decimal point of %s", tc.text)
 		})
 	}
 }

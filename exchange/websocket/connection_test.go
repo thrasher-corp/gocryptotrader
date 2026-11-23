@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -76,6 +78,21 @@ func TestConnectionSubscriptions(t *testing.T) {
 	ws.subscriptions = subscription.NewStore()
 	require.NotNil(t, ws.Subscriptions())
 	testsubs.EqualLists(t, ws.subscriptions.List(), ws.Subscriptions().List())
+}
+
+func TestConnectionFaultErrorError(t *testing.T) {
+	t.Parallel()
+	cause := fmt.Errorf("%w: %w (%q)", &gws.CloseError{Code: gws.CloseNormalClosure, Text: "maintenance"}, errConnectionFault, "ws://localhost/ws")
+	fault := &connectionFaultError{connection: &connection{URL: "ws://localhost/ws"}, err: cause}
+	assert.Equal(t, cause.Error(), fault.Error(), "Error should return the cause's message, which already names the connection's URL")
+}
+
+func TestConnectionFaultErrorUnwrap(t *testing.T) {
+	t.Parallel()
+	cause := fmt.Errorf("%w: %w (%q)", &gws.CloseError{Code: gws.CloseNormalClosure, Text: "maintenance"}, errConnectionFault, "ws://localhost/ws")
+	fault := &connectionFaultError{err: cause}
+	require.Same(t, cause, fault.Unwrap(), "Unwrap must return the cause")
+	assert.ErrorIs(t, fault, errConnectionFault, "a fault should match errConnectionFault through its cause")
 }
 
 func TestDialNilDialer(t *testing.T) {
