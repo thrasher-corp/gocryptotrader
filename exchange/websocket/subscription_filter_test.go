@@ -78,6 +78,56 @@ func TestSetSubscriptionFilter(t *testing.T) {
 		}, calls, "each active filter call should receive the default URL and the full list")
 	})
 
+	t.Run("replacement waits for an in-flight refresh", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		setup := newDefaultSetup()
+		setup.Subscriber = currySimpleSub(m)
+		setup.Unsubscriber = currySimpleUnsub(m)
+		var calls []filterCall
+		replacement := recordFilter(&calls, map[string][]string{setup.DefaultURL: {"TestSub3"}})
+		replacementStarted := make(chan struct{})
+		replacementDone := make(chan struct{})
+		generate := setup.GenerateSubscriptions
+		startReplacement := true
+		setup.GenerateSubscriptions = func() (subscription.List, error) {
+			if startReplacement {
+				startReplacement = false
+				go func() {
+					close(replacementStarted)
+					m.SetSubscriptionFilter(replacement)
+					close(replacementDone)
+				}()
+				<-replacementStarted
+				// FlushChannels holds the manager lock here. A setter using a
+				// different lock can finish early and change this refresh.
+				select {
+				case <-replacementDone:
+				case <-time.After(100 * time.Millisecond):
+				}
+			}
+			return generate()
+		}
+		require.NoError(t, m.Setup(setup), "manager setup must succeed")
+		// Exercise the refresh without starting the connection monitors.
+		m.setState(connectedState)
+		m.SetSubscriptionFilter(recordFilter(&calls, map[string][]string{setup.DefaultURL: {"TestSub", "TestSub2"}}))
+
+		require.NoError(t, m.FlushChannels(t.Context()), "refresh must succeed during replacement")
+		assert.Equal(t, []string{"TestSub", "TestSub2"}, channels(m.GetSubscriptions()), "in-flight refresh should use the original filter")
+		select {
+		case <-replacementDone:
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "replacement must complete after the refresh returns")
+		}
+
+		require.NoError(t, m.FlushChannels(t.Context()), "next refresh must succeed")
+		assert.Equal(t, []string{"TestSub3"}, channels(m.GetSubscriptions()), "next refresh should use the replacement filter")
+		all := []string{"TestSub", "TestSub2", "TestSub3", "TestSub4"}
+		assert.Equal(t, []filterCall{{setup.DefaultURL, all}, {setup.DefaultURL, all}}, calls,
+			"both refreshes should pass the complete generated list")
+	})
+
 	t.Run("multi connection filters before splitting subscriptions", func(t *testing.T) {
 		t.Parallel()
 		m := NewManager()
@@ -97,7 +147,7 @@ func TestSetSubscriptionFilter(t *testing.T) {
 			url  string
 			subs subscription.List
 		}{
-			{publicURL, subscription.List{{Channel: "book"}, {Channel: "trades"}}},
+			{publicURL, subscription.List{{Channel: "book"}, {Channel: "candles"}, {Channel: "trades"}}},
 			{otherURL, subscription.List{{Channel: "ticker"}}},
 			{requestURL, nil},
 		} {
@@ -105,6 +155,7 @@ func TestSetSubscriptionFilter(t *testing.T) {
 				URL:                      cfg.url,
 				SubscriptionsNotRequired: cfg.subs == nil,
 				Connector: func(ctx context.Context, conn Connection) error {
+					conn.SetURL(cfg.url + "/session")
 					return conn.Dial(ctx, dialer, nil, nil)
 				},
 				GenerateSubscriptions: func() (subscription.List, error) { return cfg.subs.Clone(), nil },
@@ -135,9 +186,9 @@ func TestSetSubscriptionFilter(t *testing.T) {
 		assert.Equal(t, []string{"ticker", "trades"}, channels(m.GetSubscriptions()), "refresh should reconcile the changed selection")
 		assert.Equal(t, 1, connectionCounts()[otherURL], "refresh should open a newly selected connection")
 		assert.Equal(t, []filterCall{
-			{publicURL, []string{"book", "trades"}},
+			{publicURL, []string{"book", "candles", "trades"}},
 			{otherURL, []string{"ticker"}},
-			{publicURL, []string{"book", "trades"}},
+			{publicURL, []string{"book", "candles", "trades"}},
 			{otherURL, []string{"ticker"}},
 		}, calls, "filter should receive one complete list per subscribing URL on both paths")
 	})
