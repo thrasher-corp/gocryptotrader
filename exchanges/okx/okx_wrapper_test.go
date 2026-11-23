@@ -34,6 +34,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
+	"github.com/thrasher-corp/gocryptotrader/types"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
@@ -1026,8 +1027,8 @@ func TestGetSpreadOrderHistory(t *testing.T) {
 				assert.Empty(t, r.URL.Query().Get("ordType"), "an AnyType request should not send an ordType filter")
 				writeOKXData(t, w, []map[string]string{
 					{
-						"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderPostOnly, "side": "buy", "state": "live",
-						"sz": "1", "accFillSz": "0.3", "pendingFillSz": "0.5", "canceledSz": "0.2", "px": "100", "avgPx": "90",
+						"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderPostOnly, "side": "buy", "state": "canceled",
+						"sz": "1", "accFillSz": "0.3", "pendingFillSz": "0", "canceledSz": "0.7", "px": "100", "avgPx": "90",
 						"cTime": "1700000000000", "uTime": "1700000000000",
 					},
 					{
@@ -1055,13 +1056,13 @@ func TestGetSpreadOrderHistory(t *testing.T) {
 		assert.Equal(t, order.Limit, first.Type, "GetOrderHistory should read the order type")
 		assert.Equal(t, order.PostOnly, first.TimeInForce, "GetOrderHistory should preserve the time in force")
 		assert.Equal(t, order.Buy, first.Side, "GetOrderHistory should read the order side")
-		assert.Equal(t, order.Active, first.Status, "GetOrderHistory should read the order state")
+		assert.Equal(t, order.Cancelled, first.Status, "GetOrderHistory should read the order state")
 		assert.Equal(t, 100.0, first.Price, "GetOrderHistory should read the limit price")
 		assert.Equal(t, 90.0, first.AverageExecutedPrice, "GetOrderHistory should read the average filled price")
 		assert.Zero(t, first.Cost, "GetOrderHistory should leave a spread order's cost unset")
 		assert.Equal(t, 1.0, first.Amount, "GetOrderHistory should read the order size")
 		assert.Equal(t, 0.3, first.ExecutedAmount, "GetOrderHistory should read the accumulated fill size")
-		assert.Equal(t, 0.5, first.RemainingAmount, "an unfilled spread order should keep its pending fill size, which leaves out the cancelled size")
+		assert.Equal(t, 0.7, first.RemainingAmount, "a cancelled spread order should report the size it left unfilled")
 		assert.Equal(t, asset.Spread, first.AssetType, "GetOrderHistory should tag the spread asset type")
 		assert.Equal(t, "BTC", first.Pair.Base.String(), "the pair base should be the spread ID head under the dash delimiter")
 		assert.Equal(t, "USDT_BTC-USDT", first.Pair.Quote.String(), "the pair quote should keep the remainder of the spread ID")
@@ -2078,6 +2079,99 @@ func TestOrderAmounts(t *testing.T) {
 			assert.Equal(t, tc.executed, detail.ExecutedAmount, "ExecutedAmount should match accFillSz")
 			assert.InDelta(t, tc.remaining, detail.RemainingAmount, 1e-12, "RemainingAmount should be the unfilled base amount")
 			assert.Equal(t, tc.quoteAmount, detail.QuoteAmount, "QuoteAmount should carry the quote-currency size")
+		})
+	}
+}
+
+func TestSpreadOrderToDetail(t *testing.T) {
+	t.Parallel()
+	format, err := e.GetPairFormat(asset.Spread, true)
+	require.NoError(t, err, "GetPairFormat must not error for the spread asset")
+	pair, err := currency.NewPairDelimiter("BTC-USDT_BTC-USDT-SWAP", format.Delimiter)
+	require.NoError(t, err, "the spread pair must parse")
+	created, updated := time.UnixMilli(1700000000000), time.UnixMilli(1700000001000)
+	spreadOrder := func(state string, accumulatedFill, pendingFill, canceled types.Number) *SpreadOrder {
+		return &SpreadOrder{
+			OrderID: "9", ClientOrderID: "b1", SpreadID: "BTC-USDT_BTC-USDT-SWAP", OrderType: orderPostOnly, Side: "buy", State: state,
+			Price: 2, Size: 10, AccumulatedFillSize: accumulatedFill, PendingFillSize: pendingFill, CanceledSize: canceled,
+			AveragePrice: 1.9, CreationTime: types.Time(created), UpdateTime: types.Time(updated),
+		}
+	}
+	detail := func(status order.Status, executed, remaining float64) order.Detail {
+		return order.Detail{
+			Price: 2, AverageExecutedPrice: 1.9, Amount: 10, ExecutedAmount: executed, RemainingAmount: remaining,
+			Exchange: e.Name, OrderID: "9", ClientOrderID: "b1", Type: order.Limit, Side: order.Buy, Status: status,
+			AssetType: asset.Spread, Date: created, LastUpdated: updated, Pair: pair, TimeInForce: order.PostOnly,
+		}
+	}
+	unfilled := spreadOrder("canceled", 0, 0, 10)
+	unfilled.AveragePrice = 0
+	unfilledDetail := detail(order.Cancelled, 0, 10)
+	unfilledDetail.AverageExecutedPrice = 0
+	ioc := spreadOrder("canceled", 8, 0, 4)
+	ioc.OrderType, ioc.Size = orderIOC, 12
+	iocDetail := detail(order.Cancelled, 8, 4)
+	iocDetail.Amount, iocDetail.TimeInForce = 12, order.ImmediateOrCancel
+	for _, tc := range []struct {
+		name  string
+		order *SpreadOrder
+		exp   order.Detail
+	}{
+		{name: "an open order reports its live quantity", order: spreadOrder("partially_filled", 3, 5, 2), exp: detail(order.PartiallyFilled, 3, 5)},
+		{name: "a cancelled order reports the size it left unfilled", order: spreadOrder("canceled", 8, 0, 2), exp: detail(order.Cancelled, 8, 2)},
+		{name: "an order cancelled without fills reports its whole size", order: unfilled, exp: unfilledDetail},
+		{name: "a part-filled IOC reports the size it left unfilled", order: ioc, exp: iocDetail},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := e.spreadOrderToDetail(tc.order, asset.Spread, format)
+			require.NoError(t, err, "spreadOrderToDetail must not error")
+			assert.Equal(t, tc.exp, got, "spreadOrderToDetail should map every field of the spread order")
+		})
+	}
+	for _, tc := range []struct {
+		name    string
+		modify  func(*SpreadOrder)
+		err     error
+		errText string
+	}{
+		{name: "a spread ID without the pair delimiter", modify: func(so *SpreadOrder) { so.SpreadID = "BT" }, errText: "delimiter not found"},
+		{name: "an unknown order type", modify: func(so *SpreadOrder) { so.OrderType = "mystery" }, err: order.ErrTypeIsInvalid},
+		{name: "an unknown side", modify: func(so *SpreadOrder) { so.Side = "sideways" }, err: order.ErrSideIsInvalid},
+		{name: "an unknown state", modify: func(so *SpreadOrder) { so.State = "mystery" }, errText: "unrecognised order status"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			so := spreadOrder("live", 0, 10, 0)
+			tc.modify(so)
+			_, err := e.spreadOrderToDetail(so, asset.Spread, format)
+			if tc.err != nil {
+				assert.ErrorIsf(t, err, tc.err, "spreadOrderToDetail should refuse %s", tc.name)
+				return
+			}
+			assert.ErrorContainsf(t, err, tc.errText, "spreadOrderToDetail should refuse %s", tc.name)
+		})
+	}
+}
+
+func TestSpreadOrderRemaining(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                            string
+		status                          order.Status
+		size, accumulated, pending, exp float64
+	}{
+		{name: "live", status: order.Active, size: 3, pending: 2, exp: 2},
+		{name: "partially filled with rejected trades", status: order.PartiallyFilled, size: 10, accumulated: 2, pending: 5, exp: 5},
+		{name: "filled", status: order.Filled, size: 2, accumulated: 2, exp: 0},
+		{name: "filled after rejected trades", status: order.Filled, size: 10, accumulated: 8, exp: 0},
+		{name: "cancelled after fills", status: order.Cancelled, size: 10, accumulated: 8, exp: 2},
+		{name: "cancelled unfilled", status: order.Cancelled, size: 1, exp: 1},
+		{name: "cancelled with more filled than its size", status: order.Cancelled, size: 1, accumulated: 1.5, exp: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, spreadOrderRemaining(tc.status, tc.size, tc.accumulated, tc.pending), "spreadOrderRemaining should return the order's remaining amount")
 		})
 	}
 }

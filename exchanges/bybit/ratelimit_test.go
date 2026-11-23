@@ -999,7 +999,7 @@ func TestBatchOrderSendTimes(t *testing.T) {
 		})
 	})
 
-	t.Run("cancelling more orders than the budget admits sends batches it admits", func(t *testing.T) {
+	t.Run("caller-sized batches keep to the linear order budget", func(t *testing.T) {
 		t.Parallel()
 		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
 			ex, transport := batchTransportExchange(t)
@@ -1007,9 +1007,17 @@ func TestBatchOrderSendTimes(t *testing.T) {
 			for i := range cancels {
 				cancels[i] = order.Cancel{OrderID: strconv.Itoa(i + 1), Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures}
 			}
-			resp, err := ex.CancelBatchOrders(t.Context(), cancels)
-			require.NoError(t, err, "CancelBatchOrders must not error")
-			assert.Len(t, resp.Status, 25, "CancelBatchOrders should report every order's outcome")
+			refused, err := ex.CancelBatchOrders(t.Context(), cancels)
+			require.ErrorIs(t, err, errBatchTooLarge, "CancelBatchOrders must refuse more orders than one batch holds")
+			assert.Nil(t, refused, "CancelBatchOrders should return no response for a list it refuses")
+			assert.Empty(t, transport.recorded(), "CancelBatchOrders should send nothing for a list it refuses")
+			statuses := make(map[string]string)
+			for chunk := range slices.Chunk(cancels, 10) {
+				resp, err := ex.CancelBatchOrders(t.Context(), chunk)
+				require.NoError(t, err, "CancelBatchOrders must accept each caller-sized batch")
+				maps.Copy(statuses, resp.Status)
+			}
+			assert.Len(t, statuses, 25, "CancelBatchOrders should report every order's outcome over the three batches")
 			assert.Equal(t, []batchSend{{0, 10}, {orderWindow, 10}, {2 * orderWindow, 5}}, transport.recorded(), "CancelBatchOrders should send batches of the 10 orders a window the budget admits")
 		})
 	})

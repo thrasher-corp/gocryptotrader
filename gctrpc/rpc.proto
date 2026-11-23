@@ -344,7 +344,7 @@ message TradeHistory {
   string order_side = 7;
   double fee = 8;
   double total = 9;
-  Fees fees = 10;
+  Fees fees = 11;
 }
 
 message GetOrdersRequest {

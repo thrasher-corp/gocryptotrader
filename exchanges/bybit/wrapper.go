@@ -1284,63 +1284,59 @@ func cancelWithStopOrderFallback(ctx context.Context, arg *CancelOrderRequest, s
 	return err
 }
 
-// CancelBatchOrders cancels orders by order ID or client order ID, in as few requests as Bybit's batch limits allow.
-// Each order's status is "success" when Bybit accepted its cancellation, and Bybit's reason otherwise
+// CancelBatchOrders cancels orders of one category by order ID or client order ID in a single request. A list mixing
+// categories, which Bybit takes one to a request, or holding more orders than batchOrderSize allows, is refused before
+// anything is sent. Each order's status, keyed by its order ID or else its client order ID, is "success" when Bybit
+// accepted its cancellation and Bybit's reason otherwise; an ID named twice keeps its last outcome
 func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(o) == 0 {
 		return nil, order.ErrCancelOrderIsNil
 	}
-	// Bybit takes one category per request
-	type batch struct {
-		category string
-		keys     []string
-		items    []BatchCancelOrderItem
-	}
-	var batches []*batch
-	byCategory := make(map[string]*batch)
+	var category, otherCategory string
+	keys := make([]string, len(o))
+	items := make([]BatchCancelOrderItem, len(o))
 	for i := range o {
 		if err := o[i].Validate(orderIDRequired(&o[i]), o[i].PairAssetRequired()); err != nil {
 			return nil, err
 		}
-		category := getCategoryName(o[i].AssetType)
-		if category == "" {
+		orderCategory := getCategoryName(o[i].AssetType)
+		if orderCategory == "" {
 			return nil, fmt.Errorf("%s %w", o[i].AssetType, asset.ErrNotSupported)
 		}
 		symbol, err := e.orderSymbol(o[i].Pair, o[i].AssetType)
 		if err != nil {
 			return nil, err
 		}
-		b, ok := byCategory[category]
-		if !ok {
-			b = &batch{category: category}
-			byCategory[category] = b
-			batches = append(batches, b)
+		switch {
+		case category == "":
+			category = orderCategory
+		case orderCategory != category && otherCategory == "":
+			otherCategory = orderCategory
 		}
-		id := o[i].OrderID
-		if id == "" {
-			id = o[i].ClientOrderID
+		keys[i] = o[i].OrderID
+		if keys[i] == "" {
+			keys[i] = o[i].ClientOrderID
 		}
-		b.keys = append(b.keys, id)
-		b.items = append(b.items, BatchCancelOrderItem{Symbol: symbol, OrderID: o[i].OrderID, OrderLinkID: o[i].ClientOrderID})
+		items[i] = BatchCancelOrderItem{Symbol: symbol, OrderID: o[i].OrderID, OrderLinkID: o[i].ClientOrderID}
+	}
+	if otherCategory != "" {
+		return nil, fmt.Errorf("%w: %s and %s", errBatchCategoriesMixed, category, otherCategory)
+	}
+	if size := batchOrderSize(category); len(items) > size {
+		return nil, fmt.Errorf("%w: %d %s orders, at most %d", errBatchTooLarge, len(items), category, size)
+	}
+	result, err := e.CancelBatchOrder(ctx, &BatchCancelOrderRequest{Category: category, Request: items})
+	if err != nil {
+		return nil, err
 	}
 	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(o))}
-	for _, b := range batches {
-		size := batchOrderSize(b.category)
-		for start := 0; start < len(b.items); start += size {
-			end := min(start+size, len(b.items))
-			result, err := e.CancelBatchOrder(ctx, &BatchCancelOrderRequest{Category: b.category, Request: b.items[start:end]})
-			if err != nil {
-				return resp, err
-			}
-			// Bybit reports each order's outcome in request order; a rejected order may come back without its IDs
-			for i := range result.List {
-				status := "success"
-				if result.List[i].Code != 0 {
-					status = result.List[i].Message
-				}
-				resp.Status[b.keys[start+i]] = status
-			}
+	// Bybit reports each order's outcome in request order; a rejected order may come back without its IDs
+	for i := range result.List {
+		status := "success"
+		if result.List[i].Code != 0 {
+			status = result.List[i].Message
 		}
+		resp.Status[keys[i]] = status
 	}
 	return resp, nil
 }

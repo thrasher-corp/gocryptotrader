@@ -2229,7 +2229,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		spreadAmt := resp.Size.Float64()
 		spreadExec := resp.AccumulatedFillSize.Float64()
-		spreadRemaining := resp.PendingFillSize.Float64()
+		spreadRemaining := spreadOrderRemaining(oStatus, spreadAmt, spreadExec, resp.PendingFillSize.Float64())
 		return &order.Detail{
 			Amount:               spreadAmt,
 			Exchange:             e.Name,
@@ -2799,7 +2799,7 @@ func (e *Exchange) spreadOrderToDetail(so *SpreadOrder, assetType asset.Item, fo
 	}
 	amount := so.Size.Float64()
 	executed := so.AccumulatedFillSize.Float64()
-	remaining := so.PendingFillSize.Float64()
+	remaining := spreadOrderRemaining(oStatus, amount, executed, so.PendingFillSize.Float64())
 	return order.Detail{
 		Price:                so.Price.Float64(),
 		AverageExecutedPrice: so.AveragePrice.Float64(),
@@ -2818,6 +2818,16 @@ func (e *Exchange) spreadOrderToDetail(so *SpreadOrder, assetType asset.Item, fo
 		Pair:                 pair,
 		TimeInForce:          tif,
 	}, nil
+}
+
+// spreadOrderRemaining returns a spread order's remaining amount: its live quantity, pendingFillSz, while it is open,
+// as the size less the accumulated fill also counts quantity cancelled by rejected trades, and the size it left unfilled
+// once it is cancelled
+func spreadOrderRemaining(status order.Status, size, accumulatedFill, pendingFill float64) float64 {
+	if status == order.Cancelled {
+		return max(size-accumulatedFill, 0)
+	}
+	return pendingFill
 }
 
 // getStandardOrderHistoryDetails retrieves the standard order history for the

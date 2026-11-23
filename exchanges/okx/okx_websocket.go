@@ -640,7 +640,7 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 		}
 		spreadAmt := resp.Data[x].Size.Float64()
 		spreadExec := resp.Data[x].AccumulatedFillSize.Float64()
-		spreadRemaining := resp.Data[x].PendingFillSize.Float64()
+		spreadRemaining := spreadOrderRemaining(oStatus, spreadAmt, spreadExec, resp.Data[x].PendingFillSize.Float64())
 		orderDetails[x] = order.Detail{
 			AssetType:            asset.Spread,
 			Amount:               spreadAmt,

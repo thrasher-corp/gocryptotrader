@@ -1320,9 +1320,10 @@ func TestGetTickers(t *testing.T) {
 
 	ensureTradablePairs(t)
 	for _, tc := range []struct {
-		name string
-		req  *TickersRequest
-		exp  *TickersResponse
+		name      string
+		req       *TickersRequest
+		exp       *TickersResponse
+		preLaunch bool
 	}{
 		{name: "linear perpetual", req: &TickersRequest{Category: cLinear, Symbol: "BTCUSDT"}, exp: &TickersResponse{
 			Category: "linear",
@@ -1379,7 +1380,7 @@ func TestGetTickers(t *testing.T) {
 				},
 			},
 		}},
-		{name: "linear pre-market", req: &TickersRequest{Category: cLinear, Symbol: "ANTHROPICUSDT"}, exp: &TickersResponse{
+		{name: "linear pre-market", req: &TickersRequest{Category: cLinear, Symbol: "ANTHROPICUSDT"}, preLaunch: true, exp: &TickersResponse{
 			Category: "linear",
 			List: []Ticker{
 				{
@@ -1544,13 +1545,29 @@ func TestGetTickers(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := e.GetTickers(t.Context(), tc.req)
+			req := tc.req
+			if !mockTests && tc.preLaunch {
+				// Pre-market symbols launch or go, so a live run asks for one Bybit lists as PreLaunch now
+				instruments, err := e.GetInstrumentInfo(t.Context(), &InstrumentInfoRequest{Category: cLinear, Status: "PreLaunch", Limit: 1})
+				require.NoError(t, err, "GetInstrumentInfo must not error")
+				if len(instruments.List) == 0 {
+					t.Skip("Bybit lists no pre-market linear symbol")
+				}
+				require.NotEmpty(t, instruments.List[0].Symbol, "GetInstrumentInfo must name the pre-market symbol")
+				req = &TickersRequest{Category: cLinear, Symbol: instruments.List[0].Symbol}
+			}
+			result, err := e.GetTickers(t.Context(), req)
 			require.NoError(t, err, "GetTickers must not error")
 			if mockTests {
 				assert.Equal(t, tc.exp, result, "GetTickers should decode every field")
 				return
 			}
-			assert.NotEmpty(t, result.List, "GetTickers should return tickers")
+			require.NotEmpty(t, result.List, "GetTickers must return tickers")
+			if tc.preLaunch {
+				require.Len(t, result.List, 1, "GetTickers must return the pre-market symbol's ticker alone")
+				assert.Equal(t, req.Symbol, result.List[0].Symbol, "GetTickers should return the requested pre-market symbol")
+				assert.NotEmpty(t, result.List[0].CurrentPreListingPhase, "GetTickers should report the pre-market phase")
+			}
 		})
 	}
 }

@@ -1,6 +1,7 @@
 package bybit
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
@@ -2286,16 +2287,14 @@ func TestGetRecentTrades(t *testing.T) {
 		})
 	}
 
-	// A USDC margined futures contract is asked for by its dashed symbol; Bybit lists none now, but still serves the
-	// trades of the delivered BTC-26DEC25
+	// A USDC margined futures contract is asked for by its dashed symbol. Bybit's reply for the delivered BTC-26DEC25 can
+	// hold no trades, so a live run requires only that the call succeeds
 	t.Run("USDC margined futures contract", func(t *testing.T) {
 		t.Parallel()
 		usdcFutures := currency.NewPairWithDelimiter("BTC", "26DEC25", currency.DashDelimiter)
 		trades, err := e.GetRecentTrades(t.Context(), currency.NewPair(currency.BTC, currency.NewCode("26DEC25")), asset.USDCMarginedFutures)
 		require.NoError(t, err, "GetRecentTrades must not error")
 		if !mockTests {
-			require.NotEmpty(t, trades, "GetRecentTrades must return the contract's trades")
-			assert.Equal(t, usdcFutures, trades[0].CurrencyPair, "GetRecentTrades should return the contract's trades")
 			return
 		}
 		exp := []trade.Data{
@@ -2403,16 +2402,14 @@ func TestGetHistoricTrades(t *testing.T) {
 		})
 	}
 
-	// A USDC margined futures contract is asked for by its dashed symbol; Bybit lists none now, but still serves the
-	// trades of the delivered BTC-26DEC25
+	// A USDC margined futures contract is asked for by its dashed symbol. Bybit's reply for the delivered BTC-26DEC25 can
+	// hold no trades, so a live run requires only that the call succeeds
 	t.Run("USDC margined futures contract", func(t *testing.T) {
 		t.Parallel()
 		usdcFutures := currency.NewPairWithDelimiter("BTC", "26DEC25", currency.DashDelimiter)
 		trades, err := e.GetHistoricTrades(t.Context(), currency.NewPair(currency.BTC, currency.NewCode("26DEC25")), asset.USDCMarginedFutures, start, end)
 		require.NoError(t, err, "GetHistoricTrades must not error")
 		if !mockTests {
-			require.NotEmpty(t, trades, "GetHistoricTrades must return the contract's trades")
-			assert.Equal(t, usdcFutures, trades[0].CurrencyPair, "GetHistoricTrades should return the contract's trades")
 			return
 		}
 		exp := []trade.Data{
@@ -3015,10 +3012,9 @@ func TestCancelWithStopOrderFallback(t *testing.T) {
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelBatchOrders(t.Context(), nil)
+	noCancellations, err := e.CancelBatchOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "CancelBatchOrders must reject no cancellations")
-	ctx := t.Context()
-	// The cases share e, and CancelBatchOrders is called again after them, so they run in order
+	assert.Nil(t, noCancellations, "CancelBatchOrders should return no response for no cancellations")
 	for _, tc := range []struct {
 		name   string
 		cancel order.Cancel
@@ -3028,61 +3024,169 @@ func TestCancelBatchOrders(t *testing.T) {
 		{name: "an order without a pair", cancel: order.Cancel{OrderID: "1321003749386327552", AssetType: asset.Spot}, err: order.ErrPairIsEmpty},
 		{name: "an order without an asset", cancel: order.Cancel{OrderID: "1321003749386327552", Pair: currency.NewBTCUSDT()}, err: order.ErrAssetNotSet},
 		{name: "an asset Bybit does not trade", cancel: order.Cancel{OrderID: "1321003749386327552", Pair: currency.NewBTCUSDT(), AssetType: asset.Margin}, err: asset.ErrNotSupported},
+		{name: "an order of an asset Bybit does not trade without an ID", cancel: order.Cancel{Pair: currency.NewBTCUSDT(), AssetType: asset.Margin}, err: order.ErrOrderIDNotSet},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := e.CancelBatchOrders(ctx, []order.Cancel{{OrderID: "1321003749386327552", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot}, tc.cancel})
+			t.Parallel()
+			resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1321003749386327552", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot}, tc.cancel})
 			require.ErrorIsf(t, err, tc.err, "CancelBatchOrders must reject %s before sending anything", tc.name)
+			assert.Nilf(t, resp, "CancelBatchOrders should return no response when it rejects %s", tc.name)
 		})
 	}
 	option := currency.NewPairWithDelimiter("BTC", "26NOV24-92000-C", "-")
-	_, err = noRequestFormatTestInstance(t, asset.Options).CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c01", Pair: option, AssetType: asset.Options}})
+	unwritable, err := noRequestFormatTestInstance(t, asset.Options).CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c01", Pair: option, AssetType: asset.Options}})
 	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "CancelBatchOrders must not send an order whose symbol it cannot write")
+	assert.Nil(t, unwritable, "CancelBatchOrders should return no response for an order whose symbol it cannot write")
+	t.Run("an unwritable option after a spot order", func(t *testing.T) {
+		t.Parallel()
+		// The per-order checks come before the batch checks, so an unwritable symbol is reported ahead of a mixed list
+		resp, err := noRequestFormatTestInstance(t, asset.Options).CancelBatchOrders(t.Context(), []order.Cancel{
+			{OrderID: "1321003749386327552", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot},
+			{OrderID: "3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c01", Pair: option, AssetType: asset.Options},
+		})
+		require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "CancelBatchOrders must report an unwritable symbol ahead of a mixed list")
+		assert.Nil(t, resp, "CancelBatchOrders should return no response for a list it refuses")
+	})
+	t.Run("a margin order whose symbol can be written, after spot and USDT margined orders", func(t *testing.T) {
+		t.Parallel()
+		ex := newTransportTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "nothing should be sent", "%s %s was sent for a list CancelBatchOrders refuses", r.Method, r.URL.Path)
+		})
+		format := &currency.PairFormat{Uppercase: true}
+		require.NoError(t, ex.CurrencyPairs.Store(asset.Margin, &currency.PairStore{ConfigFormat: format, RequestFormat: format}), "Store must not error")
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{OrderID: "1321003749386327552", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot},
+			{OrderID: "fd4300ae-7847-404e-b947-b46980a4d140", Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures},
+			{OrderID: "1321003749386327589", Pair: currency.NewBTCUSDT(), AssetType: asset.Margin},
+		})
+		require.ErrorIs(t, err, asset.ErrNotSupported, "CancelBatchOrders must refuse an asset Bybit cannot cancel in a batch ahead of a mixed list")
+		assert.Nil(t, resp, "CancelBatchOrders should return no response for a list it refuses")
+	})
 	refused, err := restReplyTestInstance(t, nil).CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c01", Pair: option, AssetType: asset.Options}})
 	require.ErrorIs(t, err, errAPIResponse, "CancelBatchOrders must return Bybit's refusal")
-	require.NotNil(t, refused, "CancelBatchOrders must return the outcomes reported before Bybit refused")
-	assert.Empty(t, refused.Status, "CancelBatchOrders should report no outcome for orders Bybit refused to cancel")
+	assert.Nil(t, refused, "CancelBatchOrders should return no response when Bybit refuses the request")
 	// Bybit reports each order's outcome in request order, so a reply that leaves orders out cannot be matched to them
 	short := restReplyTestInstance(t, map[string]string{"/v5/order/cancel-batch": `{"retCode":0,"retMsg":"OK","result":{"list":[{"category":"option","symbol":"BTC-26NOV24-92000-C","orderId":"3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c01","orderLinkId":""}]},"retExtInfo":{"list":[{"code":0,"msg":"OK"}]},"time":1760000000000}`})
-	_, err = short.CancelBatchOrders(t.Context(), []order.Cancel{
+	unmatched, err := short.CancelBatchOrders(t.Context(), []order.Cancel{
 		{OrderID: "3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c01", Pair: option, AssetType: asset.Options},
 		{OrderID: "3f8a2c1e-5b7d-4e9f-a1c3-5e7f9a1b3c02", Pair: option, AssetType: asset.Options},
 	})
 	require.ErrorIs(t, err, errBatchOutcomeMismatch, "CancelBatchOrders must reject a reply that leaves out some of its orders")
-	// A request carries 5 options, or 10 orders of any other category: Bybit's limit for options and spot, and the order
-	// budget's for linear and inverse. A full batch is one request, and one order more is a second. IDs starting gct- are
-	// client order IDs, and an order ID and a client order ID joined by | name one order by both. Bybit refuses the
+	assert.Nil(t, unmatched, "CancelBatchOrders should return no response for a reply it cannot match to its orders")
+	// A request carries at most 5 options, or 10 orders of any other category: Bybit's limit for options and spot, and the
+	// order budget's for linear and inverse. A full batch is one request, and a list with one order more, or with orders
+	// of two categories, is refused with nothing sent. IDs starting gct- are client order IDs, an order ID and a client
+	// order ID joined by | name one order by both, and a client order ID after a bare | names one alone. Bybit refuses the
 	// orders at the refused positions with the code and message given
 	spotOrder := order.Cancel{OrderID: "1321003749386327588", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot}
+	futuresOrder := order.Cancel{OrderID: "fd4300ae-7847-404e-b947-b46980a4d140", Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures}
+	marginOrder := order.Cancel{OrderID: "1321003749386327589", Pair: currency.NewBTCUSDT(), AssetType: asset.Margin}
+	usdcPerpetual := currency.NewPairWithDelimiter("BTC", "PERP", "-")
+	usdcFuturesOrders := func(n int) []order.Cancel {
+		orders := make([]order.Cancel, n)
+		for i := range orders {
+			orders[i] = order.Cancel{OrderID: "c" + strconv.Itoa(i), Pair: usdcPerpetual, AssetType: asset.USDCMarginedFutures}
+		}
+		return orders
+	}
+	ethOrders := make([]order.Cancel, 5)
+	for i := range ethOrders {
+		ethOrders[i] = order.Cancel{OrderID: strconv.FormatUint(1321003749386327700+uint64(i), 10), Pair: currency.NewPair(currency.ETH, currency.USDT), AssetType: asset.Spot}
+	}
+	orderIDs := func(n int) []string {
+		ids := make([]string, n)
+		for i := range ids {
+			ids[i] = strconv.FormatUint(1321003749386327600+uint64(i), 10)
+		}
+		return ids
+	}
+	symbols := map[currency.Pair]string{
+		currency.NewBTCUSDT():                         "BTCUSDT",
+		currency.NewPair(currency.ETH, currency.USDT): "ETHUSDT",
+		option:        "BTC-26NOV24-92000-C",
+		usdcPerpetual: "BTCPERP",
+		currency.NewPairWithDelimiter("BTC", "26DEC25", "-"):        "BTC-26DEC25",
+		currency.NewPair(currency.BTC, currency.NewCode("26DEC25")): "BTC-26DEC25",
+		currency.NewPair(currency.ADA, currency.USD):                "ADAUSD",
+		currency.NewPair(currency.ETH, currency.USD):                "ETHUSD",
+		currency.NewBTCUSD():                                        "BTCUSD",
+	}
+	categories := map[asset.Item]string{
+		asset.Spot:                "spot",
+		asset.USDTMarginedFutures: "linear",
+		asset.USDCMarginedFutures: "linear",
+		asset.CoinMarginedFutures: "inverse",
+		asset.Options:             "option",
+	}
 	for _, tc := range []struct {
 		name    string
 		asset   asset.Item
 		pair    currency.Pair
 		lead    []order.Cancel
 		ids     []string
+		trail   []order.Cancel
 		refused map[int][2]string
 		sizes   []int
+		err     error
 	}{
 		{name: "five options in one request", asset: asset.Options, pair: option, ids: []string{"c5", "a1", "gct-e4", "b2", "gct-d3"}, sizes: []int{5}},
 		{name: "ten spot orders in one request, two refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: []string{"1321003749386327561", "gct-b", "1321003749386327552", "1321003749386327580", "gct-a", "1321003749386327553", "1321003749386327599", "gct-c", "1321003749386327570", "1321003749386327555"}, refused: map[int][2]string{2: {"170213", "Order does not exist."}, 6: {"170142", "Order has been cancelled"}}, sizes: []int{10}},
-		{name: "eleven spot orders in two requests, the last refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: []string{"1321003749386327561", "gct-b", "1321003749386327552", "1321003749386327580", "gct-a", "1321003749386327553", "1321003749386327599", "gct-c", "1321003749386327570", "1321003749386327555", "gct-d"}, refused: map[int][2]string{10: {"170213", "Order does not exist."}}, sizes: []int{10, 1}},
+		{name: "eleven spot orders, refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: []string{"1321003749386327561", "gct-b", "1321003749386327552", "1321003749386327580", "gct-a", "1321003749386327553", "1321003749386327599", "gct-c", "1321003749386327570", "1321003749386327555", "gct-d"}, err: errBatchTooLarge},
+		{name: "twenty spot orders, refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: orderIDs(20), err: errBatchTooLarge},
+		{name: "eleven spot orders naming one twice, refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: append(orderIDs(10), "1321003749386327600"), err: errBatchTooLarge},
+		{name: "eleven spot orders naming one client order ID twice, refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: append(orderIDs(9), "gct-x", "gct-x"), err: errBatchTooLarge},
+		{name: "twenty USDT margined futures orders, refused", asset: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(), ids: orderIDs(20), err: errBatchTooLarge},
+		{name: "eleven USDT margined futures orders, refused", asset: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(), ids: []string{"f9", "gct-f1", "f3", "f7|gct-f7", "gct-f2", "f5", "f2", "f8", "gct-f3", "f4", "f6"}, err: errBatchTooLarge},
+		{name: "ten options, refused", asset: asset.Options, pair: option, ids: []string{"c5", "a1", "gct-e4", "b2", "gct-d3", "f6", "g7", "gct-h8", "i9", "j10"}, err: errBatchTooLarge},
+		{name: "eleven coin margined futures orders, refused", asset: asset.CoinMarginedFutures, pair: currency.NewPair(currency.ADA, currency.USD), ids: []string{"i9", "gct-i1", "i3", "i7", "gct-i2", "i5", "i2", "i8", "gct-i3", "i4", "i6"}, err: errBatchTooLarge},
+		{name: "ten USDT margined futures orders and a coin margined one, refused", asset: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(), ids: []string{"f9", "gct-f1", "f3", "f7|gct-f7", "gct-f2", "f5", "f2", "f8", "gct-f3", "f4"}, trail: []order.Cancel{{OrderID: "i1", Pair: currency.NewPair(currency.ADA, currency.USD), AssetType: asset.CoinMarginedFutures}}, err: errBatchCategoriesMixed},
+		{name: "ten spot orders and a USDT margined futures order, refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: orderIDs(10), trail: []order.Cancel{futuresOrder}, err: errBatchCategoriesMixed},
+		{name: "ten spot orders and a margin order, refused as unsupported", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: orderIDs(10), trail: []order.Cancel{marginOrder}, err: asset.ErrNotSupported},
+		{name: "eleven spot orders and a margin order, refused as unsupported", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: orderIDs(11), trail: []order.Cancel{marginOrder}, err: asset.ErrNotSupported},
+		{name: "spot, USDT margined futures and margin orders, refused as unsupported", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: orderIDs(1), trail: []order.Cancel{futuresOrder, marginOrder}, err: asset.ErrNotSupported},
+		{name: "a margin order, then a spot order without an ID, refused as unsupported", asset: asset.Spot, pair: currency.NewBTCUSDT(), lead: []order.Cancel{marginOrder}, trail: []order.Cancel{{Pair: currency.NewBTCUSDT(), AssetType: asset.Spot}}, err: asset.ErrNotSupported},
+		{name: "ten spot orders and one without an ID, refused for the missing ID", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: orderIDs(10), trail: []order.Cancel{{Pair: currency.NewBTCUSDT(), AssetType: asset.Spot}}, err: order.ErrOrderIDNotSet},
+		{name: "a spot order and a USDT margined futures order without an ID, refused for the missing ID", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: orderIDs(1), trail: []order.Cancel{{Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures}}, err: order.ErrOrderIDNotSet},
+		{name: "six BTC and five ETH spot orders, refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: orderIDs(6), trail: ethOrders, err: errBatchTooLarge},
+		{name: "six USDC and five USDT margined futures orders, refused", asset: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(), lead: usdcFuturesOrders(6), ids: []string{"u1", "u2", "u3", "u4", "u5"}, err: errBatchTooLarge},
+		{name: "a spot order and a USDC margined futures order, refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: orderIDs(1), trail: usdcFuturesOrders(1), err: errBatchCategoriesMixed},
+		{name: "two spot orders, both refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: orderIDs(2), refused: map[int][2]string{0: {"170213", "Order does not exist."}, 1: {"170142", "Order has been cancelled"}}, sizes: []int{2}},
+		{name: "one spot order, refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: []string{"gct-x"}, refused: map[int][2]string{0: {"170213", "Order does not exist."}}, sizes: []int{1}},
+		{name: "a spot order named by a numeric client order ID", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: []string{"1321003749386327561", "|1666800494330512129"}, sizes: []int{2}},
+		{name: "two spot orders naming one twice, the second refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: []string{"1321003749386327600", "1321003749386327600"}, refused: map[int][2]string{1: {"170142", "Order has been cancelled"}}, sizes: []int{2}},
+		{name: "two spot orders naming one client order ID twice, the second refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), ids: []string{"gct-x", "gct-x"}, refused: map[int][2]string{1: {"170142", "Order has been cancelled"}}, sizes: []int{2}},
+		{name: "one client order ID on two spot symbols, the first refused", asset: asset.Spot, pair: currency.NewBTCUSDT(), lead: []order.Cancel{{ClientOrderID: "gct-x", Pair: currency.NewPair(currency.ETH, currency.USDT), AssetType: asset.Spot}}, ids: []string{"gct-x"}, refused: map[int][2]string{-1: {"170213", "Order does not exist."}}, sizes: []int{2}},
+		{name: "six dated USDC margined futures orders in one request", asset: asset.USDCMarginedFutures, pair: currency.NewPairWithDelimiter("BTC", "26DEC25", "-"), ids: []string{"d1", "d2", "gct-d3", "d4", "d5|gct-d5", "d6"}, sizes: []int{6}},
+		{name: "dated USDC margined futures orders named without a delimiter in one request", asset: asset.USDCMarginedFutures, pair: currency.NewPair(currency.BTC, currency.NewCode("26DEC25")), ids: []string{"d1", "gct-d2"}, sizes: []int{2}},
 		{name: "ten USDT margined futures orders in one request", asset: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(), ids: []string{"f9", "gct-f1", "f3", "f7|gct-f7", "gct-f2", "f5", "f2", "f8", "gct-f3", "f4"}, sizes: []int{10}},
+		{name: "ten USDT margined futures orders in one request, two refused", asset: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(), ids: []string{"f9", "gct-f1", "f3", "f7|gct-f7", "gct-f2", "f5", "f2", "f8", "gct-f3", "f4"}, refused: map[int][2]string{1: {"110001", "Order does not exist"}, 3: {"110010", "Order has been cancelled"}}, sizes: []int{10}},
+		{name: "a USDC and two USDT margined futures orders in one request", asset: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(), lead: usdcFuturesOrders(1), ids: []string{"u2", "gct-u3"}, sizes: []int{3}},
+		{name: "a dated USDC and two USDT margined futures orders in one request", asset: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(), lead: []order.Cancel{{OrderID: "d0", Pair: currency.NewPairWithDelimiter("BTC", "26DEC25", "-"), AssetType: asset.USDCMarginedFutures}}, ids: []string{"u2", "gct-u3"}, sizes: []int{3}},
+		{name: "ETHUSD and BTCUSD coin margined futures orders in one request", asset: asset.CoinMarginedFutures, pair: currency.NewBTCUSD(), lead: []order.Cancel{{OrderID: "e1", Pair: currency.NewPair(currency.ETH, currency.USD), AssetType: asset.CoinMarginedFutures}}, ids: []string{"b1", "gct-b2"}, sizes: []int{3}},
 		{name: "ten coin margined futures orders in one request", asset: asset.CoinMarginedFutures, pair: currency.NewPair(currency.ADA, currency.USD), ids: []string{"i9", "gct-i1", "i3", "i7", "gct-i2", "i5", "i2", "i8", "gct-i3", "i4"}, sizes: []int{10}},
-		{name: "a spot order, then six options in two requests", asset: asset.Options, pair: option, lead: []order.Cancel{spotOrder}, ids: []string{"c5", "a1", "gct-e4", "b2", "gct-d3", "f6"}, sizes: []int{1, 5, 1}},
+		{name: "a spot order, then six options, refused", asset: asset.Options, pair: option, lead: []order.Cancel{spotOrder}, ids: []string{"c5", "a1", "gct-e4", "b2", "gct-d3", "f6"}, err: errBatchCategoriesMixed},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var mu sync.Mutex
 			var sizes []int
+			var sentCategories []string
+			var sent [][]map[string]string
 			ex := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
 				var body struct {
-					Request []json.RawMessage `json:"request"`
+					Category string              `json:"category"`
+					Request  []map[string]string `json:"request"`
 				}
 				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "decoding the batch should not error")
 				mu.Lock()
 				sizes = append(sizes, len(body.Request))
+				sentCategories = append(sentCategories, body.Category)
+				sent = append(sent, body.Request)
 				request := len(sizes) - 1
 				mu.Unlock()
-				// Each reply holds a result and an outcome for as many orders as the request should carry
+				// Each reply holds a result and an outcome for as many orders as the request should carry. An accepted
+				// order's result repeats the IDs sent, adding the order or client order ID that was not sent, and a
+				// refused order's gives none
 				var results, outcomes []string
 				if request < len(tc.sizes) {
 					position := -len(tc.lead)
@@ -3090,11 +3194,22 @@ func TestCancelBatchOrders(t *testing.T) {
 						position += size
 					}
 					for i := range tc.sizes[request] {
-						results = append(results, `{"orderId":"`+strconv.Itoa(i)+`","orderLinkId":""}`)
+						var orderID, clientOrderID string
+						if i < len(body.Request) {
+							orderID, clientOrderID = body.Request[i]["orderId"], body.Request[i]["orderLinkId"]
+							if clientOrderID == "" {
+								clientOrderID = "link-" + orderID
+							}
+							if orderID == "" {
+								orderID = "id-" + clientOrderID
+							}
+						}
 						outcome := `{"code":0,"msg":"OK"}`
 						if refusal, ok := tc.refused[position+i]; ok {
+							orderID, clientOrderID = "", ""
 							outcome = `{"code":` + refusal[0] + `,"msg":"` + refusal[1] + `"}`
 						}
+						results = append(results, `{"orderId":"`+orderID+`","orderLinkId":"`+clientOrderID+`"}`)
 						outcomes = append(outcomes, outcome)
 					}
 				}
@@ -3104,13 +3219,17 @@ func TestCancelBatchOrders(t *testing.T) {
 			require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 			cancel := slices.Clone(tc.lead)
 			exp := &order.CancelBatchResponse{Status: make(map[string]string, len(tc.lead)+len(tc.ids))}
-			for _, o := range tc.lead {
-				exp.Status[o.OrderID] = "success"
+			for i, o := range tc.lead {
+				id := cmp.Or(o.OrderID, o.ClientOrderID)
+				exp.Status[id] = "success"
+				if refusal, ok := tc.refused[i-len(tc.lead)]; ok {
+					exp.Status[id] = refusal[1]
+				}
 			}
 			for i, id := range tc.ids {
 				c := order.Cancel{OrderID: id, Pair: tc.pair, AssetType: tc.asset}
 				if orderID, clientOrderID, both := strings.Cut(id, "|"); both {
-					c.OrderID, c.ClientOrderID, id = orderID, clientOrderID, orderID
+					c.OrderID, c.ClientOrderID, id = orderID, clientOrderID, cmp.Or(orderID, clientOrderID)
 				} else if strings.HasPrefix(id, "gct-") {
 					c = order.Cancel{ClientOrderID: id, Pair: tc.pair, AssetType: tc.asset}
 				}
@@ -3120,15 +3239,36 @@ func TestCancelBatchOrders(t *testing.T) {
 					exp.Status[id] = refusal[1]
 				}
 			}
+			cancel = append(cancel, tc.trail...)
+			items := make([]map[string]string, len(cancel))
+			for i := range cancel {
+				items[i] = map[string]string{"symbol": symbols[cancel[i].Pair]}
+				if cancel[i].OrderID != "" {
+					items[i]["orderId"] = cancel[i].OrderID
+				}
+				if cancel[i].ClientOrderID != "" {
+					items[i]["orderLinkId"] = cancel[i].ClientOrderID
+				}
+			}
+			asked := slices.Clone(cancel)
 			resp, err := ex.CancelBatchOrders(t.Context(), cancel)
-			require.NoError(t, err, "CancelBatchOrders must not error")
-			assert.Equal(t, exp, resp, "CancelBatchOrders should report each order's outcome")
+			assert.Equal(t, asked, cancel, "CancelBatchOrders should leave the caller's cancellations as they were")
 			mu.Lock()
 			defer mu.Unlock()
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "CancelBatchOrders must refuse the list")
+				assert.Nil(t, resp, "CancelBatchOrders should return no response for a list it refuses")
+				assert.Empty(t, sizes, "CancelBatchOrders should send nothing for a list it refuses")
+				return
+			}
+			require.NoError(t, err, "CancelBatchOrders must not error")
+			assert.Equal(t, exp, resp, "CancelBatchOrders should report each order's outcome")
 			assert.Equal(t, tc.sizes, sizes, "CancelBatchOrders should send as many orders in each request as Bybit takes")
+			assert.Equal(t, [][]map[string]string{items}, sent, "CancelBatchOrders should send each order with its own symbol and IDs, in order")
+			assert.Equal(t, []string{categories[tc.asset]}, sentCategories, "CancelBatchOrders should send the orders' category")
 		})
 	}
-	t.Run("eleven spot orders over two symbols keep each order's symbol and IDs", func(t *testing.T) {
+	t.Run("ten spot orders over two symbols keep each order's symbol and IDs", func(t *testing.T) {
 		t.Parallel()
 		var mu sync.Mutex
 		var sent [][]map[string]string
@@ -3150,20 +3290,28 @@ func TestCancelBatchOrders(t *testing.T) {
 			assert.NoError(t, err, "writing the reply should not error")
 		})
 		require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
-		cancel := make([]order.Cancel, 0, 11)
-		exp := make([][]map[string]string, 2)
-		for i := range 10 {
+		cancel := make([]order.Cancel, 0, 10)
+		exp := make([][]map[string]string, 1)
+		for i := range 9 {
 			id := strconv.FormatUint(1321003749386327560+uint64(i), 10)
 			cancel = append(cancel, order.Cancel{OrderID: id, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot})
 			exp[0] = append(exp[0], map[string]string{"symbol": "BTCUSDT", "orderId": id})
 		}
 		cancel = append(cancel, order.Cancel{ClientOrderID: "gct-eth", Pair: currency.NewPair(currency.ETH, currency.USDT), AssetType: asset.Spot})
-		exp[1] = []map[string]string{{"symbol": "ETHUSDT", "orderLinkId": "gct-eth"}}
+		exp[0] = append(exp[0], map[string]string{"symbol": "ETHUSDT", "orderLinkId": "gct-eth"})
 		_, err := ex.CancelBatchOrders(t.Context(), cancel)
 		require.NoError(t, err, "CancelBatchOrders must not error")
 		mu.Lock()
 		defer mu.Unlock()
 		assert.Equal(t, exp, sent, "CancelBatchOrders should send each order with its own symbol and IDs, in order")
+	})
+	t.Run("an order named by its order ID and a stale client order ID", func(t *testing.T) {
+		t.Parallel()
+		// Bybit takes the order ID over the client order ID, and its result gives the order's own client order ID
+		ex := restReplyTestInstance(t, map[string]string{"/v5/order/cancel-batch": `{"retCode":0,"retMsg":"OK","result":{"list":[{"category":"spot","symbol":"BTCUSDT","orderId":"1321003749386327600","orderLinkId":"gct-current"}]},"retExtInfo":{"list":[{"code":0,"msg":"OK"}]},"time":1760000000000}`})
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1321003749386327600", ClientOrderID: "gct-stale", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot}})
+		require.NoError(t, err, "CancelBatchOrders must not error")
+		assert.Equal(t, &order.CancelBatchResponse{Status: map[string]string{"1321003749386327600": "success"}}, resp, "CancelBatchOrders should report the order's outcome under its order ID")
 	})
 
 	if !mockTests {
@@ -3185,19 +3333,24 @@ func TestCancelBatchOrders(t *testing.T) {
 		options[i] = order.Cancel{OrderID: id, Pair: optionsTradablePair, AssetType: asset.Options}
 		optionStatus[id] = "success"
 	}
+	recordedSpotOrders := []order.Cancel{
+		{OrderID: "1321003749386327552", Pair: spotTradablePair, AssetType: asset.Spot},
+		{ClientOrderID: "spot-test-09", Pair: spotTradablePair, AssetType: asset.Spot},
+	}
+	recordedFuturesOrder := order.Cancel{OrderID: "fd4300ae-7847-404e-b947-b46980a4d140", Pair: usdtMarginedTradablePair, AssetType: asset.USDTMarginedFutures}
 	for _, tc := range []struct {
-		name   string
-		cancel []order.Cancel
-		exp    *order.CancelBatchResponse
+		name    string
+		cancel  []order.Cancel
+		err     error
+		batches [][]order.Cancel
+		exp     *order.CancelBatchResponse
 	}{
 		{
-			// Each category is cancelled in a request of its own, and Bybit reports each order's outcome
-			name: "spot and USDT margined futures",
-			cancel: []order.Cancel{
-				{OrderID: "1321003749386327552", Pair: spotTradablePair, AssetType: asset.Spot},
-				{OrderID: "fd4300ae-7847-404e-b947-b46980a4d140", Pair: usdtMarginedTradablePair, AssetType: asset.USDTMarginedFutures},
-				{ClientOrderID: "spot-test-09", Pair: spotTradablePair, AssetType: asset.Spot},
-			},
+			// Bybit takes one category a request
+			name:    "spot and USDT margined futures",
+			cancel:  []order.Cancel{recordedSpotOrders[0], recordedFuturesOrder, recordedSpotOrders[1]},
+			err:     errBatchCategoriesMixed,
+			batches: [][]order.Cancel{recordedSpotOrders, {recordedFuturesOrder}},
 			exp: &order.CancelBatchResponse{Status: map[string]string{
 				"1321003749386327552":                  "success",
 				"fd4300ae-7847-404e-b947-b46980a4d140": "success",
@@ -3206,23 +3359,33 @@ func TestCancelBatchOrders(t *testing.T) {
 		},
 		{
 			// Bybit cancels at most five options a request
-			name:   "six options",
-			cancel: options,
-			exp:    &order.CancelBatchResponse{Status: optionStatus},
+			name:    "six options",
+			cancel:  options,
+			err:     errBatchTooLarge,
+			batches: [][]order.Cancel{options[:5], options[5:]},
+			exp:     &order.CancelBatchResponse{Status: optionStatus},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			resp, err := e.CancelBatchOrders(t.Context(), tc.cancel)
-			require.NoError(t, err, "CancelBatchOrders must not error")
-			assert.Equal(t, tc.exp, resp, "CancelBatchOrders should report each order's outcome")
+			refused, err := e.CancelBatchOrders(t.Context(), tc.cancel)
+			require.ErrorIs(t, err, tc.err, "CancelBatchOrders must refuse the list before sending it")
+			assert.Nil(t, refused, "CancelBatchOrders should return no response for a list it refuses")
+			resp := &order.CancelBatchResponse{Status: make(map[string]string, len(tc.cancel))}
+			for _, batch := range tc.batches {
+				batchResp, err := e.CancelBatchOrders(t.Context(), batch)
+				require.NoError(t, err, "CancelBatchOrders must accept a batch of one category within Bybit's limit")
+				maps.Copy(resp.Status, batchResp.Status)
+			}
+			assert.Equal(t, tc.exp, resp, "CancelBatchOrders should report each order's outcome over the caller's batches")
 		})
 	}
 
 	t.Run("more outcomes than orders", func(t *testing.T) {
 		t.Parallel()
-		_, err := e.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "8e1a2b3c-4d5e-4f60-8172-93a4b5c6d7e8", Pair: inverseTradablePair, AssetType: asset.CoinMarginedFutures}})
+		resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "8e1a2b3c-4d5e-4f60-8172-93a4b5c6d7e8", Pair: inverseTradablePair, AssetType: asset.CoinMarginedFutures}})
 		assert.ErrorIs(t, err, errBatchOutcomeMismatch, "CancelBatchOrders should reject a reply whose outcomes do not match its orders")
+		assert.Nil(t, resp, "CancelBatchOrders should return no response for a reply it cannot match to its orders")
 	})
 }
 

@@ -91,6 +91,8 @@ var (
 	errBodyWithGet                        = errors.New("signed GET requests cannot carry a body")
 	errQueryWithBody                      = errors.New("signed requests with a body cannot carry query parameters")
 	errInvalidContractLength              = errors.New("contract length cannot be less than or equal to zero")
+	errBatchCategoriesMixed               = errors.New("batch holds orders of more than one category")
+	errBatchTooLarge                      = errors.New("batch holds more orders than one request takes")
 )
 
 var (

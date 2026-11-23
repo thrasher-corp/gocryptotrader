@@ -3414,7 +3414,7 @@ type TradeHistory struct {
 	OrderSide     string                 `protobuf:"bytes,7,opt,name=order_side,json=orderSide,proto3" json:"order_side,omitempty"`
 	Fee           float64                `protobuf:"fixed64,8,opt,name=fee,proto3" json:"fee,omitempty"`
 	Total         float64                `protobuf:"fixed64,9,opt,name=total,proto3" json:"total,omitempty"`
-	Fees          *Fees                  `protobuf:"bytes,10,opt,name=fees,proto3" json:"fees,omitempty"`
+	Fees          *Fees                  `protobuf:"bytes,11,opt,name=fees,proto3" json:"fees,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -15127,8 +15127,7 @@ const file_rpc_proto_rawDesc = "" +
 	"order_side\x18\a \x01(\tR\torderSide\x12\x10\n" +
 	"\x03fee\x18\b \x01(\x01R\x03fee\x12\x14\n" +
 	"\x05total\x18\t \x01(\x01R\x05total\x12 \n" +
-	"\x04fees\x18\n" +
-	" \x01(\v2\f.gctrpc.FeesR\x04fees\"\xb1\x01\n" +
+	"\x04fees\x18\v \x01(\v2\f.gctrpc.FeesR\x04fees\"\xb1\x01\n" +
 	"\x10GetOrdersRequest\x12\x1a\n" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12\x1d\n" +
 	"\n" +

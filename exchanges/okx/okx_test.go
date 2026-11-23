@@ -6462,7 +6462,7 @@ func TestGetOrderInfo(t *testing.T) {
 	// Guards the GetOrderInfo spread order path: it
 	// preserves the time in force orderTypeFromString returns, and reports the
 	// accumulated fill size rather than the last fill, and OKX's pending fill
-	// size as the remainder, which leaves out the cancelled size.
+	// size as an open order's remainder, which leaves out the cancelled size.
 	t.Run("spread order details", func(t *testing.T) {
 		t.Parallel()
 		for _, tc := range []struct {
@@ -6480,9 +6480,16 @@ func TestGetOrderInfo(t *testing.T) {
 			{"op_fok", orderOptionFOK, "live", "1", "0.3", "0.7", "0", order.Limit, order.FillOrKill, 0.3, 0.7},
 			{"filled", orderLimit, "filled", "1", "1", "0", "0", order.Limit, order.UnknownTIF, 1, 0},
 			{"partly cancelled", orderLimit, "partially_filled", "10", "2", "5", "3", order.Limit, order.UnknownTIF, 2, 5},
+			{"cancelled", orderLimit, "canceled", "10", "8", "0", "2", order.Limit, order.UnknownTIF, 8, 2},
+			{"cancelled unfilled", orderLimit, "canceled", "1", "0", "0", "1", order.Limit, order.UnknownTIF, 0, 1},
+			{"cancelled ioc", orderIOC, "canceled", "10", "3.25", "0", "6.75", order.Limit, order.ImmediateOrCancel, 3.25, 6.75},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
+				avgPx, expAveragePrice := "90", 90.0
+				if tc.accFillSz == "0" {
+					avgPx, expAveragePrice = "0", 0
+				}
 				spreadRow := map[string]string{
 					"sprdId":        "BTC-USDT_BTC-USDT",
 					"ordId":         "1",
@@ -6495,7 +6502,7 @@ func TestGetOrderInfo(t *testing.T) {
 					"pendingFillSz": tc.pendingFillSz,
 					"canceledSz":    tc.canceledSz,
 					"px":            "100",
-					"avgPx":         "90",
+					"avgPx":         avgPx,
 				}
 				e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					writeOKXData(t, w, spreadRow)
@@ -6512,7 +6519,7 @@ func TestGetOrderInfo(t *testing.T) {
 				assert.Equal(t, tc.tif, detail.TimeInForce, "GetOrderInfo should preserve the time in force")
 				assert.Equal(t, tc.executed, detail.ExecutedAmount, "GetOrderInfo should report the accumulated fill")
 				assert.Equal(t, tc.remaining, detail.RemainingAmount, "GetOrderInfo should report the unfilled remainder")
-				assert.Equal(t, 90.0, detail.AverageExecutedPrice, "GetOrderInfo should read the average filled price")
+				assert.Equal(t, expAveragePrice, detail.AverageExecutedPrice, "GetOrderInfo should read the average filled price")
 				assert.Zero(t, detail.Cost, "GetOrderInfo should leave a spread order's cost unset")
 			})
 		}
@@ -6618,6 +6625,11 @@ func TestGetActiveOrders(t *testing.T) {
 			"":        fillPage(0, orderListPageSize),
 			"ORD-099": fillPage(orderListPageSize, 50),
 		}
+		// The first page leads with a market buy sized in the quote currency, whose tgtCcy the limit buys on the next
+		// page must not take
+		lead := pages[""][0]
+		lead["ordType"], lead["tgtCcy"], lead["state"], lead["sz"], lead["accFillSz"], lead["avgPx"] = orderMarket, "quote_ccy", "partially_filled", "100", "0.001", "25000"
+		delete(lead, "px")
 
 		var mu sync.Mutex
 		var afterCursors []string
@@ -6661,6 +6673,13 @@ func TestGetActiveOrders(t *testing.T) {
 		}
 		assert.Len(t, ids, orderListPageSize+50, "a paginated crawl should not duplicate orders")
 		assert.Contains(t, ids, "ORD-149", "orders past the first page should be returned")
+		amounts := make(map[string][]float64, 2)
+		for x := range resp {
+			if id := resp[x].OrderID; id == "ORD-000" || id == "ORD-149" {
+				amounts[id] = []float64{resp[x].Amount, resp[x].ExecutedAmount, resp[x].RemainingAmount, resp[x].QuoteAmount}
+			}
+		}
+		assert.Equal(t, map[string][]float64{"ORD-000": {0.004, 0.001, 0.003, 100}, "ORD-149": {1, 0, 1, 0}}, amounts, "each page's orders should be sized by their own tgtCcy")
 	})
 
 	t.Run("reports execution values", func(t *testing.T) {
@@ -6693,6 +6712,123 @@ func TestGetActiveOrders(t *testing.T) {
 		assert.Equal(t, "USDT", active[0].FeeAsset.String(), "the fee asset should come from the response")
 	})
 
+	t.Run("market order sizing", func(t *testing.T) {
+		t.Parallel()
+		// A margin market buy and a spot market buy with an empty tgtCcy are sized in the quote currency. Each page leads
+		// with a limit order of other quantities, so each order must be read from its own entry
+		deliveryFutures := currency.NewPairWithDelimiter("BTC", "USD-261225", currency.DashDelimiter)
+		type sizingCase struct {
+			name                                     string
+			a                                        asset.Item
+			pair                                     currency.Pair
+			ordType, side, state, sz, tgtCcy, filled string
+			amount, executed, remaining, quoteAmount float64
+		}
+		cases := []sizingCase{
+			{"margin market buy", asset.Margin, mainPair, orderMarket, "buy", "partially_filled", "100", "", "0.001", 0.004, 0.001, 0.003, 100},
+			{"spot market buy with an empty tgtCcy", asset.Spot, mainPair, orderMarket, "buy", "partially_filled", "100", "", "0.001", 0.004, 0.001, 0.003, 100},
+			{"spot market buy in the base currency", asset.Spot, mainPair, orderMarket, "buy", "partially_filled", "0.004", "base_ccy", "0.001", 0.004, 0.001, 0.003, 0},
+			{"spot market sell in the quote currency", asset.Spot, mainPair, orderMarket, "sell", "partially_filled", "100", "quote_ccy", "0.001", 0.004, 0.001, 0.003, 100},
+			{"spot market sell with an empty tgtCcy", asset.Spot, mainPair, orderMarket, "sell", "partially_filled", "0.004", "", "0.001", 0.004, 0.001, 0.003, 0},
+			{"margin market sell", asset.Margin, mainPair, orderMarket, "sell", "partially_filled", "0.004", "", "0.001", 0.004, 0.001, 0.003, 0},
+			{"perpetual swap market buy", asset.PerpetualSwap, perpetualSwapPair, orderMarket, "buy", "partially_filled", "10", "", "3", 10, 3, 7, 0},
+			{"futures market buy", asset.Futures, deliveryFutures, orderMarket, "buy", "partially_filled", "10", "", "3", 10, 3, 7, 0},
+			{"unfilled spot limit buy", asset.Spot, mainPair, orderLimit, "buy", "live", "2", "", "0", 2, 0, 2, 0},
+			// Without a fill price, a market buy sized in the quote currency has no base amount to report
+			{"unfilled spot market buy with an empty tgtCcy", asset.Spot, mainPair, orderMarket, "buy", "live", "100", "", "0", 0, 0, 0, 100},
+			{"unfilled margin market buy", asset.Margin, mainPair, orderMarket, "buy", "live", "100", "", "0", 0, 0, 0, 100},
+			// These partially filled margin limit and post-only bids have a resting remainder in base units
+			{"margin limit buy", asset.Margin, mainPair, orderLimit, "buy", "partially_filled", "0.004", "", "0.001", 0.004, 0.001, 0.003, 0},
+			{"margin post_only buy", asset.Margin, mainPair, orderPostOnly, "buy", "partially_filled", "0.004", "", "0.001", 0.004, 0.001, 0.003, 0},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/trade/orders-pending" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					entry := sizingEntry(tc.a, tc.pair, tc.ordType, tc.side, tc.state, tc.sz, tc.tgtCcy, tc.filled, "1700000000000")
+					writeOKXData(t, w, []map[string]string{{
+						"instId": tc.pair.String(), "ordId": "0", "ordType": "limit", "side": "buy", "state": "partially_filled",
+						"sz": "5", "px": "27000", "accFillSz": "0.5", "fillSz": "0.1", "fillPx": "26000", "avgPx": "25000", "cTime": "1700000000000", "uTime": "1700000000000",
+					}, entry})
+				}))
+				active, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: tc.a, Type: order.AnyType, Side: order.AnySide})
+				require.NoError(t, err, "GetActiveOrders must not error")
+				require.Len(t, active, 2, "both pending orders must be returned")
+				i := slices.IndexFunc(active, func(d order.Detail) bool { return d.OrderID == "1" })
+				require.NotEqual(t, -1, i, "the case's order must be returned")
+				assert.Equal(t, tc.amount, active[i].Amount, "Amount should match the expected order quantity")
+				assert.Equal(t, tc.executed, active[i].ExecutedAmount, "ExecutedAmount should match accFillSz")
+				assert.InDelta(t, tc.remaining, active[i].RemainingAmount, 1e-12, "RemainingAmount should match the expected unfilled quantity")
+				assert.Equal(t, tc.quoteAmount, active[i].QuoteAmount, "QuoteAmount should carry the quote-currency size")
+				lead := active[1-i]
+				assert.Equal(t, []float64{5, 0.5, 4.5, 0}, []float64{lead.Amount, lead.ExecutedAmount, lead.RemainingAmount, lead.QuoteAmount}, "the leading limit order should keep its own amounts")
+			})
+		}
+	})
+
+	t.Run("each order keeps its own tgtCcy", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name string
+			page []map[string]string
+			exp  map[string][]float64
+		}{
+			{
+				name: "a quote-sized market buy, then a limit buy without tgtCcy",
+				page: []map[string]string{
+					{
+						"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "buy", "state": "partially_filled", "tgtCcy": "quote_ccy",
+						"sz": "100", "accFillSz": "0.001", "fillSz": "0.001", "fillPx": "25000", "avgPx": "25000", "cTime": "1700000000000", "uTime": "1700000000000",
+					},
+					{
+						"instId": mainPair.String(), "ordId": "2", "ordType": orderLimit, "side": "buy", "state": "live", "px": "27000",
+						"sz": "2", "accFillSz": "0", "fillSz": "0", "cTime": "1700000000000", "uTime": "1700000000000",
+					},
+				},
+				exp: map[string][]float64{"1": {0.004, 0.001, 0.003, 100}, "2": {2, 0, 2, 0}},
+			},
+			{
+				name: "a base-sized market buy, then a market buy without tgtCcy",
+				page: []map[string]string{
+					{
+						"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "buy", "state": "partially_filled", "tgtCcy": "base_ccy",
+						"sz": "0.004", "accFillSz": "0.001", "fillSz": "0.001", "fillPx": "25000", "avgPx": "25000", "cTime": "1700000000000", "uTime": "1700000000000",
+					},
+					{
+						"instId": mainPair.String(), "ordId": "2", "ordType": orderMarket, "side": "buy", "state": "partially_filled",
+						"sz": "100", "accFillSz": "0.001", "fillSz": "0.001", "fillPx": "25000", "avgPx": "25000", "cTime": "1700000000000", "uTime": "1700000000000",
+					},
+				},
+				exp: map[string][]float64{"1": {0.004, 0.001, 0.003, 0}, "2": {0.004, 0.001, 0.003, 100}},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/trade/orders-pending" {
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					writeOKXData(t, w, tc.page)
+				}))
+				active, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide})
+				require.NoError(t, err, "GetActiveOrders must not error")
+				require.Len(t, active, 2, "both pending orders must be returned")
+				amounts := make(map[string][]float64, len(active))
+				for i := range active {
+					amounts[active[i].OrderID] = []float64{active[i].Amount, active[i].ExecutedAmount, active[i].RemainingAmount, active[i].QuoteAmount}
+				}
+				assert.Equal(t, tc.exp, amounts, "each order should be sized by its own tgtCcy")
+			})
+		}
+	})
+
 	t.Run("spread orders report the pending fill size as the remainder", func(t *testing.T) {
 		t.Parallel()
 		ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -6701,18 +6837,27 @@ func TestGetActiveOrders(t *testing.T) {
 				http.NotFound(w, r)
 				return
 			}
-			writeOKXData(t, w, []map[string]string{{
-				"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderLimit, "side": "buy", "state": "partially_filled",
-				"sz": "10", "accFillSz": "2", "pendingFillSz": "5", "canceledSz": "3", "px": "100", "avgPx": "90",
-				"cTime": "1700000000000", "uTime": "1700000000000",
-			}})
+			writeOKXData(t, w, []map[string]string{
+				{
+					"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderLimit, "side": "buy", "state": "partially_filled",
+					"sz": "10", "accFillSz": "2", "pendingFillSz": "5", "canceledSz": "3", "px": "100", "avgPx": "90",
+					"cTime": "1700000000000", "uTime": "1700000000000",
+				},
+				{
+					"sprdId": "BTC-USDT_BTC-USDT", "ordId": "2", "ordType": orderLimit, "side": "sell", "state": "partially_filled",
+					"sz": "6", "accFillSz": "1", "pendingFillSz": "4", "canceledSz": "1", "px": "101", "avgPx": "91",
+					"cTime": "1700000000000", "uTime": "1700000000000",
+				},
+			})
 		}))
 		active, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide})
 		require.NoError(t, err, "GetActiveOrders must not error")
-		require.Len(t, active, 1, "the pending spread order must be returned")
-		assert.Equal(t, 10.0, active[0].Amount, "GetActiveOrders should read the spread order size")
-		assert.Equal(t, 2.0, active[0].ExecutedAmount, "GetActiveOrders should read the accumulated fill size")
-		assert.Equal(t, 5.0, active[0].RemainingAmount, "GetActiveOrders should report the pending fill size, which leaves out the cancelled size")
+		require.Len(t, active, 2, "both pending spread orders must be returned")
+		amounts := make(map[string][]float64, len(active))
+		for i := range active {
+			amounts[active[i].OrderID] = []float64{active[i].Amount, active[i].ExecutedAmount, active[i].RemainingAmount}
+		}
+		assert.Equal(t, map[string][]float64{"1": {10, 2, 5}, "2": {6, 1, 4}}, amounts, "GetActiveOrders should report each spread order's size, accumulated fill and pending fill size, which leaves out the cancelled size")
 	})
 
 	t.Run("order lists include the start time", func(t *testing.T) {
@@ -6910,6 +7055,205 @@ func TestGetOrderHistory(t *testing.T) {
 		}
 		assert.Contains(t, ids, "ORD-A", "the first instrument's orders should be returned without pairs")
 		assert.Contains(t, ids, "ORD-B", "the second instrument's orders should be returned without pairs")
+	})
+
+	t.Run("market order sizing", func(t *testing.T) {
+		t.Parallel()
+		// A margin market buy and a spot market buy with an empty tgtCcy are sized in the quote currency. Each page leads
+		// with a limit order of other quantities, so each order must be read from its own entry
+		created := strconv.FormatInt(time.Now().Add(-24*time.Hour).Truncate(time.Millisecond).UnixMilli(), 10)
+		deliveryFutures := currency.NewPairWithDelimiter("BTC", "USD-261225", currency.DashDelimiter)
+		type sizingCase struct {
+			name                                     string
+			a                                        asset.Item
+			pair                                     currency.Pair
+			ordType, side, state, sz, tgtCcy, filled string
+			amount, executed, remaining, quoteAmount float64
+		}
+		cases := []sizingCase{
+			{"margin market buy", asset.Margin, mainPair, orderMarket, "buy", "canceled", "100", "", "0.001", 0.004, 0.001, 0.003, 100},
+			{"spot market buy with an empty tgtCcy", asset.Spot, mainPair, orderMarket, "buy", "filled", "100", "", "0.00399", 0.00399, 0.00399, 0, 100},
+			{"spot market buy in the base currency", asset.Spot, mainPair, orderMarket, "buy", "canceled", "0.004", "base_ccy", "0.001", 0.004, 0.001, 0.003, 0},
+			{"spot market sell in the quote currency", asset.Spot, mainPair, orderMarket, "sell", "canceled", "100", "quote_ccy", "0.001", 0.004, 0.001, 0.003, 100},
+			{"spot market sell with an empty tgtCcy", asset.Spot, mainPair, orderMarket, "sell", "canceled", "0.004", "", "0.001", 0.004, 0.001, 0.003, 0},
+			{"margin market sell", asset.Margin, mainPair, orderMarket, "sell", "canceled", "0.004", "", "0.001", 0.004, 0.001, 0.003, 0},
+			{"perpetual swap market buy", asset.PerpetualSwap, perpetualSwapPair, orderMarket, "buy", "canceled", "10", "", "3", 10, 3, 7, 0},
+			{"futures market buy", asset.Futures, deliveryFutures, orderMarket, "buy", "canceled", "10", "", "3", 10, 3, 7, 0},
+			// These margin limit, post-only, IOC and FOK bids are sized in base units. The IOC filled partly before its
+			// remainder was cancelled, and the FOK filled in full
+			{"margin limit buy", asset.Margin, mainPair, orderLimit, "buy", "canceled", "0.004", "", "0.001", 0.004, 0.001, 0.003, 0},
+			{"margin post_only buy", asset.Margin, mainPair, orderPostOnly, "buy", "canceled", "0.004", "", "0.001", 0.004, 0.001, 0.003, 0},
+			{"margin ioc buy", asset.Margin, mainPair, orderIOC, "buy", "canceled", "0.004", "", "0.001", 0.004, 0.001, 0.003, 0},
+			{"margin fok buy", asset.Margin, mainPair, orderFOK, "buy", "filled", "0.004", "", "0.004", 0.004, 0.004, 0, 0},
+		}
+		for _, tc := range cases {
+			// GetOrderHistory reads the archive and the last seven days' listing, so each order comes from each in turn
+			for _, listing := range []struct{ name, path string }{{"recent", "/trade/orders-history"}, {"archive", "/trade/orders-history-archive"}} {
+				t.Run(tc.name+" in the "+listing.name+" listing", func(t *testing.T) {
+					t.Parallel()
+					ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						switch r.URL.Path {
+						case listing.path:
+							writeOKXData(t, w, []map[string]string{{
+								"instId": tc.pair.String(), "ordId": "0", "ordType": "limit", "side": "buy", "state": "canceled",
+								"sz": "5", "px": "27000", "accFillSz": "0.5", "fillSz": "0.1", "fillPx": "26000", "avgPx": "25000", "cTime": created, "uTime": created,
+							}, sizingEntry(tc.a, tc.pair, tc.ordType, tc.side, tc.state, tc.sz, tc.tgtCcy, tc.filled, created)})
+						case "/trade/orders-history", "/trade/orders-history-archive":
+							writeOKXData(t, w, []map[string]string{})
+						default:
+							t.Errorf("unexpected request path %s", r.URL.Path)
+							http.NotFound(w, r)
+						}
+					}))
+					history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+						AssetType: tc.a, Type: order.AnyType, Side: order.AnySide,
+						StartTime: time.Now().Add(-25 * time.Hour), EndTime: time.Now().Add(-23 * time.Hour),
+					})
+					require.NoError(t, err, "GetOrderHistory must not error")
+					require.Len(t, history, 2, "both orders must be returned")
+					i := slices.IndexFunc(history, func(d order.Detail) bool { return d.OrderID == "1" })
+					require.NotEqual(t, -1, i, "the case's order must be returned")
+					assert.Equal(t, tc.amount, history[i].Amount, "Amount should match the expected order quantity")
+					assert.Equal(t, tc.executed, history[i].ExecutedAmount, "ExecutedAmount should match accFillSz")
+					assert.InDelta(t, tc.remaining, history[i].RemainingAmount, 1e-12, "RemainingAmount should match the expected unfilled quantity")
+					assert.Equal(t, tc.quoteAmount, history[i].QuoteAmount, "QuoteAmount should carry the quote-currency size")
+					lead := history[1-i]
+					assert.Equal(t, []float64{5, 0.5, 4.5, 0}, []float64{lead.Amount, lead.ExecutedAmount, lead.RemainingAmount, lead.QuoteAmount}, "the leading limit order should keep its own amounts")
+				})
+			}
+		}
+	})
+
+	t.Run("each order keeps its own tgtCcy", func(t *testing.T) {
+		t.Parallel()
+		created := strconv.FormatInt(time.Now().Add(-24*time.Hour).Truncate(time.Millisecond).UnixMilli(), 10)
+		for _, tc := range []struct {
+			name string
+			page []map[string]string
+			exp  map[string][]float64
+		}{
+			{
+				name: "a quote-sized market buy, then a limit buy without tgtCcy",
+				page: []map[string]string{
+					{
+						"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "buy", "state": "filled", "tgtCcy": "quote_ccy",
+						"sz": "100", "accFillSz": "0.004", "fillSz": "0.004", "fillPx": "25000", "avgPx": "25000", "cTime": created, "uTime": created,
+					},
+					{
+						"instId": mainPair.String(), "ordId": "2", "ordType": orderLimit, "side": "buy", "state": "canceled", "px": "27000",
+						"sz": "2", "accFillSz": "0.5", "fillSz": "0.5", "fillPx": "26000", "avgPx": "26000", "cTime": created, "uTime": created,
+					},
+				},
+				exp: map[string][]float64{"1": {0.004, 0.004, 0, 100}, "2": {2, 0.5, 1.5, 0}},
+			},
+			{
+				name: "a base-sized market buy, then a market buy without tgtCcy",
+				page: []map[string]string{
+					{
+						"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "buy", "state": "canceled", "tgtCcy": "base_ccy",
+						"sz": "0.004", "accFillSz": "0.001", "fillSz": "0.001", "fillPx": "25000", "avgPx": "25000", "cTime": created, "uTime": created,
+					},
+					{
+						"instId": mainPair.String(), "ordId": "2", "ordType": orderMarket, "side": "buy", "state": "filled",
+						"sz": "100", "accFillSz": "0.004", "fillSz": "0.004", "fillPx": "25000", "avgPx": "25000", "cTime": created, "uTime": created,
+					},
+				},
+				exp: map[string][]float64{"1": {0.004, 0.001, 0.003, 0}, "2": {0.004, 0.004, 0, 100}},
+			},
+		} {
+			// GetOrderHistory reads the archive and the last seven days' listing, so each page comes from each in turn
+			for _, listing := range []struct{ name, path string }{{"recent", "/trade/orders-history"}, {"archive", "/trade/orders-history-archive"}} {
+				t.Run(tc.name+" in the "+listing.name+" listing", func(t *testing.T) {
+					t.Parallel()
+					ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						switch r.URL.Path {
+						case listing.path:
+							writeOKXData(t, w, tc.page)
+						case "/trade/orders-history", "/trade/orders-history-archive":
+							writeOKXData(t, w, []map[string]string{})
+						default:
+							t.Errorf("unexpected request path %s", r.URL.Path)
+							http.NotFound(w, r)
+						}
+					}))
+					history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+						AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+						StartTime: time.Now().Add(-25 * time.Hour), EndTime: time.Now().Add(-23 * time.Hour),
+					})
+					require.NoError(t, err, "GetOrderHistory must not error")
+					require.Len(t, history, 2, "both orders must be returned")
+					amounts := make(map[string][]float64, len(history))
+					for i := range history {
+						amounts[history[i].OrderID] = []float64{history[i].Amount, history[i].ExecutedAmount, history[i].RemainingAmount, history[i].QuoteAmount}
+					}
+					assert.Equal(t, tc.exp, amounts, "each order should be sized by its own tgtCcy")
+				})
+			}
+		}
+		t.Run("a base-sized market buy from the archive, then a market buy without tgtCcy from the recent listing", func(t *testing.T) {
+			t.Parallel()
+			baseSized := map[string]string{
+				"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "buy", "state": "canceled", "tgtCcy": "base_ccy",
+				"sz": "0.004", "accFillSz": "0.001", "fillSz": "0.001", "fillPx": "25000", "avgPx": "25000", "cTime": created, "uTime": created,
+			}
+			quoteSized := map[string]string{
+				"instId": mainPair.String(), "ordId": "2", "ordType": orderMarket, "side": "buy", "state": "filled",
+				"sz": "100", "accFillSz": "0.004", "fillSz": "0.004", "fillPx": "25000", "avgPx": "25000", "cTime": created, "uTime": created,
+			}
+			ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/trade/orders-history-archive":
+					writeOKXData(t, w, []map[string]string{baseSized})
+				case "/trade/orders-history":
+					// The seven-day listing repeats the archive's order beside its own
+					writeOKXData(t, w, []map[string]string{baseSized, quoteSized})
+				default:
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+				}
+			}))
+			history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+				AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+				StartTime: time.Now().Add(-25 * time.Hour), EndTime: time.Now().Add(-23 * time.Hour),
+			})
+			require.NoError(t, err, "GetOrderHistory must not error")
+			require.Len(t, history, 2, "both orders must be returned once")
+			amounts := make(map[string][]float64, len(history))
+			for i := range history {
+				amounts[history[i].OrderID] = []float64{history[i].Amount, history[i].ExecutedAmount, history[i].RemainingAmount, history[i].QuoteAmount}
+			}
+			assert.Equal(t, map[string][]float64{"1": {0.004, 0.001, 0.003, 0}, "2": {0.004, 0.004, 0, 100}}, amounts, "each order should be sized by its own tgtCcy")
+		})
+	})
+
+	t.Run("market buys cancelled without fills in the last two hours", func(t *testing.T) {
+		t.Parallel()
+		// OKX lists an order cancelled without fills in the seven-day listing alone, for two hours. Without a fill price,
+		// a market buy sized in the quote currency has no base amount to report
+		created := strconv.FormatInt(time.Now().Add(-30*time.Minute).Truncate(time.Millisecond).UnixMilli(), 10)
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					switch r.URL.Path {
+					case "/trade/orders-history":
+						writeOKXData(t, w, []map[string]string{sizingEntry(a, mainPair, orderMarket, "buy", "canceled", "100", "", "0", created)})
+					case "/trade/orders-history-archive":
+						writeOKXData(t, w, []map[string]string{})
+					default:
+						t.Errorf("unexpected request path %s", r.URL.Path)
+						http.NotFound(w, r)
+					}
+				}))
+				history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+					AssetType: a, Type: order.AnyType, Side: order.AnySide,
+					StartTime: time.Now().Add(-2 * time.Hour), EndTime: time.Now(),
+				})
+				require.NoError(t, err, "GetOrderHistory must not error")
+				require.Len(t, history, 1, "the cancelled order must be returned")
+				assert.Equal(t, []float64{0, 0, 0, 100}, []float64{history[0].Amount, history[0].ExecutedAmount, history[0].RemainingAmount, history[0].QuoteAmount}, "an unfilled quote-sized market buy should report its quote size alone")
+			})
+		}
 	})
 
 	t.Run("stops when a full page is seen", func(t *testing.T) {
@@ -11756,6 +12100,32 @@ func TestWsProcessSpreadOrders(t *testing.T) {
 		assert.Equal(t, exp, details, "the push should report the accumulated fill, the remainder and the time in force")
 	})
 
+	t.Run("a cancelled order reports the size it left unfilled", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		relay := func(push string) order.Detail {
+			require.NoError(t, ex.wsProcessSpreadOrders(t.Context(), []byte(push)), "wsProcessSpreadOrders must not error")
+			require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessSpreadOrders must relay the push")
+			details, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
+			require.True(t, ok, "the push must relay order details")
+			require.Len(t, details, 1, "the push must relay one order")
+			return details[0]
+		}
+		const order10 = `{"arg":{"channel":"sprd-orders","sprdId":"BTC-USDT_BTC-USDT-SWAP","uid":"614488474791936"},"data":[{"sprdId":"BTC-USDT_BTC-USDT-SWAP","ordId":"9","px":"2","sz":"10","ordType":"limit","side":"buy","cTime":"1700000000000",`
+		stored := relay(order10 + `"accFillSz":"3","pendingFillSz":"7","canceledSz":"0","state":"partially_filled","avgPx":"2","uTime":"1700000001000"}]}`)
+		assert.Equal(t, 7.0, stored.RemainingAmount, "a partly filled order should report its pending fill size")
+		cancelled := relay(order10 + `"accFillSz":"8","pendingFillSz":"0","canceledSz":"2","state":"canceled","avgPx":"2","uTime":"1700000002000"}]}`)
+		assert.Equal(t, order.Cancelled, cancelled.Status, "the cancellation should report the cancelled state")
+		assert.Equal(t, 8.0, cancelled.ExecutedAmount, "the cancellation should report the accumulated fill")
+		assert.Equal(t, 2.0, cancelled.RemainingAmount, "the cancellation should report the size the order left unfilled")
+		require.NoError(t, stored.UpdateOrderFromDetail(&cancelled), "UpdateOrderFromDetail must not error")
+		assert.Equal(t, 2.0, stored.RemainingAmount, "the stored order should take the cancelled order's unfilled size over the earlier remainder")
+		unfilled := relay(`{"arg":{"channel":"sprd-orders","sprdId":"BTC-USDT_BTC-USDT-SWAP","uid":"614488474791936"},"data":[{"sprdId":"BTC-USDT_BTC-USDT-SWAP","ordId":"10","px":"2","sz":"10","ordType":"limit","side":"buy","cTime":"1700000000000","accFillSz":"0","pendingFillSz":"0","canceledSz":"10","state":"canceled","avgPx":"0","uTime":"1700000003000"}]}`)
+		assert.Zero(t, unfilled.ExecutedAmount, "an order cancelled without fills should report no fill")
+		assert.Equal(t, 10.0, unfilled.RemainingAmount, "an order cancelled without fills should report its whole size as unfilled")
+	})
+
 	const push = `{"arg":{"channel":"sprd-orders","sprdId": "BTC-USDT_BTC-USDT-SWAP", "uid": "614488474791936"}, "data": [{"sprdId": "BTC-USDT_BTC-USDT-SWAP", "ordId": "312269865356374016", "clOrdId": "b1", "tag": "", "px": "999", "sz": "3", "ordType": "limit", "side": "buy", "fillSz": "0.5", "fillPx": "999", "tradeId": "7", "accFillSz": "1", "pendingFillSz": "1.5", "pendingSettleSz": "1", "canceledSz": "0.5", "state": "partially_filled", "avgPx": "999", "cancelSource": "", "uTime": "1597026383085", "cTime": "1597026383085", "code": "0", "msg": "", "reqId": "", "amendResult": ""}]}`
 	expected := func(id string, tif order.TimeInForce, oType order.Type) order.Detail {
 		return order.Detail{
@@ -11833,18 +12203,22 @@ func TestWsProcessSpreadOrders(t *testing.T) {
 		})
 	}
 
-	t.Run("two orders in one push", func(t *testing.T) {
+	t.Run("several orders in one push", func(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "Setup must not error")
 		first := push[strings.Index(push, `[{`)+1 : strings.LastIndex(push, `]}`)]
-		second := strings.NewReplacer(`"ordId": "312269865356374016"`, `"ordId": "312269865356374017"`, `"ordType": "limit"`, `"ordType": "post_only"`).Replace(first)
-		require.NoError(t, ex.wsProcessSpreadOrders(t.Context(), []byte(strings.Replace(push, first, first+","+second, 1))), "wsProcessSpreadOrders must not error")
+		second := strings.NewReplacer(`"ordId": "312269865356374016"`, `"ordId": "312269865356374017"`, `"ordType": "limit"`, `"ordType": "post_only"`, `"pendingFillSz": "1.5"`, `"pendingFillSz": "0.25"`, `"pendingSettleSz": "1"`, `"pendingSettleSz": "0"`, `"canceledSz": "0.5"`, `"canceledSz": "1.75"`).Replace(first)
+		third := strings.NewReplacer(`"ordId": "312269865356374016"`, `"ordId": "312269865356374018"`, `"ordType": "limit"`, `"ordType": "ioc"`, `"accFillSz": "1"`, `"accFillSz": "2"`, `"pendingFillSz": "1.5"`, `"pendingFillSz": "0"`, `"pendingSettleSz": "1"`, `"pendingSettleSz": "0"`, `"canceledSz": "0.5"`, `"canceledSz": "1"`, `"state": "partially_filled"`, `"state": "canceled"`).Replace(first)
+		require.NoError(t, ex.wsProcessSpreadOrders(t.Context(), []byte(strings.Replace(push, first, first+","+second+","+third, 1))), "wsProcessSpreadOrders must not error")
 		require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessSpreadOrders must relay the orders together")
 		exp := []order.Detail{
 			expected("312269865356374016", order.UnknownTIF, order.Limit),
 			expected("312269865356374017", order.PostOnly, order.Limit),
+			expected("312269865356374018", order.ImmediateOrCancel, order.Limit),
 		}
+		exp[1].RemainingAmount = 0.25
+		exp[2].Status, exp[2].ExecutedAmount, exp[2].RemainingAmount = order.Cancelled, 2, 1
 		assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsProcessSpreadOrders should relay both orders as the push describes them")
 	})
 }
@@ -12657,4 +13031,32 @@ func TestCappedHandler(t *testing.T) {
 		assert.Equal(t, http.StatusNoContent, response.Code, "requests within the budget should reach the handler")
 	}
 	assert.Equal(t, fakeRequestBudget, calls, "the full legitimate budget should reach the handler")
+}
+
+// sizingEntry returns the case's order entry for the market order sizing subtests. It keeps the cumulative fill, the
+// last fill and the fill prices apart, gives a limit price to orders other than market orders, a post-only bid its own
+// price as its fill price, a derivative a whole-contract last fill and a spot buy a fee in BTC, and an order without
+// fills no fill price
+func sizingEntry(a asset.Item, pair currency.Pair, ordType, side, state, size, tgtCcy, filled, at string) map[string]string {
+	entry := map[string]string{
+		"instId": pair.String(), "ordId": "1", "ordType": ordType, "side": side, "state": state, "sz": size, "tgtCcy": tgtCcy,
+		"accFillSz": filled, "fillSz": "0.0005", "fillPx": "26000", "avgPx": "25000", "cTime": at, "uTime": at,
+	}
+	switch ordType {
+	case orderMarket:
+	case orderPostOnly:
+		entry["px"], entry["fillPx"] = "25000", "25000"
+	default:
+		entry["px"] = "27000"
+	}
+	if a.IsFutures() {
+		entry["fillSz"] = "1"
+	}
+	if a == asset.Spot && side == "buy" {
+		entry["fee"], entry["feeCcy"] = "-0.0000005", "BTC"
+	}
+	if filled == "0" {
+		entry["fillSz"], entry["fillPx"], entry["avgPx"], entry["fee"] = "0", "", "", "0"
+	}
+	return entry
 }

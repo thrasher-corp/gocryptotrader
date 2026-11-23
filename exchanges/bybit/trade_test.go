@@ -1322,6 +1322,16 @@ func TestCancelBatchOrder(t *testing.T) {
 		assert.Nil(t, result, "CancelBatchOrder should return no result for a batch it did not send")
 		assert.Empty(t, transport.recorded(), "CancelBatchOrder should not send a batch cancelled while it waits")
 	})
+	t.Run("a reply without outcomes whose results carry no IDs", func(t *testing.T) {
+		t.Parallel()
+		ex := restReplyTestInstance(t, map[string]string{"/v5/order/cancel-batch": `{"retCode":0,"retMsg":"OK","result":{"list":[{"category":"spot","symbol":"BTCUSDT","orderId":"","orderLinkId":""},{"category":"spot","symbol":"ETHUSDT","orderId":"","orderLinkId":""}]},"retExtInfo":{},"time":1760000000000}`})
+		result, err := ex.CancelBatchOrder(t.Context(), &BatchCancelOrderRequest{Category: cSpot, Request: []BatchCancelOrderItem{
+			{Symbol: "BTCUSDT", OrderID: "1666800494330512128"},
+			{Symbol: "ETHUSDT", OrderID: "1666800494330512130"},
+		}})
+		require.ErrorIs(t, err, errBatchOutcomeMismatch, "CancelBatchOrder must reject a reply that gives no outcome for its orders")
+		assert.Nil(t, result, "CancelBatchOrder should return no result for a reply it cannot match to its orders")
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
