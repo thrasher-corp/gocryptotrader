@@ -273,9 +273,11 @@ func (e *Exchange) wsProcessSpotOrderUpdate(ctx context.Context, conn websocket.
 	if fee, feeOK := finiteDecimal(resp.FeeAmount); resp.ExecutionType == ExecutionTypeTrade && filledOK && feeOK && filled.IsPositive() {
 		fill = &spotOrderFill{from: executed.Sub(filled), to: executed, fee: fee.Neg()}
 	}
+	// Copied for the lookup, as the receiver can keep d and update it
+	event := *d
 	lookUp, err := state.spotFees.relay(orderID, d, executed, fill, status.IsInactive(), func() error { return e.Websocket.DataHandler.Send(ctx, d) })
 	if lookUp {
-		e.wsLookUpSpotOrderFee(ctx, conn, state, d, uint64(resp.OrderID))
+		e.wsLookUpSpotOrderFee(ctx, conn, state, &event, uint64(resp.OrderID))
 	}
 	return err
 }

@@ -311,6 +311,7 @@ func TestWebsocketProcessPerpetualOrderUpdate(t *testing.T) {
 	assert.Zero(t, got.Fee, "an event without a fill should carry no fee")
 	assert.InDelta(t, 2, got.RemainingAmount, 1e-9, "an order without fills should have its whole quantity remaining")
 	assert.InDelta(t, 9, got.TriggerPrice, 1e-9, "the trigger price should be relayed")
+	assert.InDelta(t, 10, got.Price, 1e-9, "a stop limit order's price should be relayed")
 	assert.Equal(t, order.StopLimit, got.Type, "STOP should be a stop limit order")
 	assert.Error(t, ex.wsProcessPerpetualOrderUpdate(t.Context(), state, asset.USDTMarginedFutures, []byte(`{"o":{"sg":1}}`)), "wsProcessPerpetualOrderUpdate should error for an event that does not decode")
 
@@ -334,6 +335,43 @@ func TestWebsocketProcessPerpetualOrderUpdate(t *testing.T) {
 			assert.Equal(t, "1", classification.OrderID, "the classification error should name the order")
 		})
 	}
+
+	t.Run("trailing order's price", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, event, symbol, orderType, fill string // fill holds the event's fill and trigger fields, if any
+			tracked                              bool
+			trigger, average, cost               float64
+		}{
+			{"trailing stop", "ORDER_TRADE_UPDATE", "BTC-USDT", "TRAILING_STOP_MARKET", `"x":"NEW","X":"NEW"`, true, 0, 0, 0},
+			{"take profit or stop loss trailing order", "ORDER_TRADE_UPDATE", "BTC-USDT", "TRAILING_TP_SL", `"x":"NEW","X":"NEW"`, true, 0, 0, 0},
+			{"trailing stop filled in part", "ORDER_TRADE_UPDATE", "BTC-USDT", "TRAILING_STOP_MARKET", `"sp":"110","ap":"99","z":"1","x":"TRADE","X":"PARTIALLY_FILLED","N":"USDT","n":"-0.1","T":1758608899350`, true, 110, 99, 99},
+			{"trailing stop filled", "ORDER_TRADE_UPDATE", "BTC-USDT", "TRAILING_STOP_MARKET", `"sp":"110","ap":"99","z":"2","x":"TRADE","X":"FILLED","N":"USDT","n":"-0.2","T":1758608899350`, true, 110, 99, 198},
+			{"trailing stop filled in an event named as the USDT-M docs example names it", "TRADE_UPDATE", "BTC-USDT", "TRAILING_STOP_MARKET", `"sp":"110","ap":"99","z":"2","x":"TRADE","X":"FILLED","N":"USDT","n":"-0.2","T":1758608899350`, true, 110, 99, 198},
+			{"trailing stop cancelled", "ORDER_TRADE_UPDATE", "BTC-USDT", "TRAILING_STOP_MARKET", `"x":"CANCELED","X":"CANCELED"`, true, 0, 0, 0},
+			{"trailing stop cancelled after a part fill", "ORDER_TRADE_UPDATE", "BTC-USDT", "TRAILING_STOP_MARKET", `"sp":"110","ap":"99","z":"1","x":"CANCELED","X":"CANCELED"`, true, 110, 99, 99},
+			{"take profit or stop loss trailing order filled", "ORDER_TRADE_UPDATE", "BTC-USDT", "TRAILING_TP_SL", `"sp":"110","ap":"99","z":"2","x":"TRADE","X":"FILLED","N":"USDT","n":"-0.2","T":1758608899350`, true, 110, 99, 198},
+			{"trailing stop expired", "ORDER_TRADE_UPDATE", "BTC-USDT", "TRAILING_STOP_MARKET", `"x":"EXPIRED","X":"EXPIRED"`, true, 0, 0, 0},
+			{"trailing stop settled in USDC", "ORDER_TRADE_UPDATE", "BTC-USDC", "TRAILING_STOP_MARKET", `"x":"NEW","X":"NEW"`, true, 0, 0, 0},
+			{"trailing stop on a connection not tracked", "ORDER_TRADE_UPDATE", "BTC-USDT", "TRAILING_STOP_MARKET", `"x":"NEW","X":"NEW"`, false, 0, 0, 0},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newWebsocketTestExchange(t)
+				var state *websocketConnection
+				if tc.tracked {
+					state, _ = trackTestConnection(t, ex, &testWebsocketConnection{}, false)
+				}
+				event := []byte(`{"e":"` + tc.event + `","E":1758608899350,"o":{"s":"` + tc.symbol + `","i":4,"S":"SELL","o":"` + tc.orderType + `","q":"2","p":"5",` + tc.fill + `}}`)
+				require.NoErrorf(t, ex.wsProcessPerpetualOrderUpdate(t.Context(), state, asset.USDTMarginedFutures, event), "wsProcessPerpetualOrderUpdate must not error for a %s", tc.name)
+				got := waitForWebsocketPayload[*order.Detail](t, ex, nil)
+				assert.Zerof(t, got.Price, "a %s should be relayed without a price, as its reads do", tc.name)
+				assert.Equalf(t, tc.trigger, got.TriggerPrice, "a %s should be relayed with its trigger price", tc.name)
+				assert.Equalf(t, tc.average, got.AverageExecutedPrice, "a %s should be relayed with its average price", tc.name)
+				assert.Equalf(t, tc.cost, got.Cost, "a %s should be relayed with its cost", tc.name)
+			})
+		}
+	})
 
 	t.Run("coin-M statuses in the order store", func(t *testing.T) {
 		t.Parallel()

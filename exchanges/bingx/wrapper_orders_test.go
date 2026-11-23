@@ -999,6 +999,53 @@ func TestSubmitSwapOrder(t *testing.T) {
 	assert.Equal(t, 21.0, resp.Cost, "submitSwapOrder should report the cost")
 	assert.Zero(t, resp.RemainingAmount, "submitSwapOrder should report nothing left of a filled order")
 
+	t.Run("reported price", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name       string
+			submission order.Submit
+			placedType string
+			exp        url.Values // the price and rate placed
+			price      float64
+		}{
+			{"trailing stop by distance", order.Submit{Type: order.TrailingStop, TrackingMode: order.Distance, TrackingValue: 5, Price: 80, TriggerPrice: 100}, "TRAILING_STOP_MARKET", url.Values{"price": {"5"}}, 0},
+			{"trailing stop by a distance equal to its price", order.Submit{Type: order.TrailingStop, TrackingMode: order.Distance, TrackingValue: 5, Price: 5, TriggerPrice: 100}, "TRAILING_STOP_MARKET", url.Values{"price": {"5"}}, 0},
+			{"trailing stop settled in USDC", order.Submit{Pair: currency.NewPairWithDelimiter("BTC", "USDC", currency.DashDelimiter), Type: order.TrailingStop, TrackingMode: order.Distance, TrackingValue: 5, Price: 80, TriggerPrice: 100}, "TRAILING_STOP_MARKET", url.Values{"price": {"5"}}, 0},
+			{"trailing stop by percentage", order.Submit{Type: order.TrailingStop, TrackingMode: order.Percentage, TrackingValue: 5, Price: 80, TriggerPrice: 100}, "TRAILING_STOP_MARKET", url.Values{"priceRate": {"0.05"}}, 0},
+			{"trailing stop without an activation price", order.Submit{Type: order.TrailingStop, TrackingMode: order.Distance, TrackingValue: 5, Price: 80}, "TRAILING_STOP_MARKET", url.Values{"price": {"5"}}, 0},
+			{"limit order", order.Submit{Type: order.Limit, Price: 80}, "LIMIT", url.Values{"price": {"80"}}, 80},
+			{"stop limit order", order.Submit{Type: order.StopLimit, Price: 80, TriggerPrice: 100}, "STOP", url.Values{"price": {"80"}}, 80},
+			{"limit order given a tracking value", order.Submit{Type: order.Limit, Price: 80, TrackingMode: order.Distance, TrackingValue: 5}, "LIMIT", url.Values{"price": {"80"}}, 80},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, requests := wrapperTestServer(t, map[string][]string{
+					"GET /openApi/swap/v1/positionSide/dual": {wrapperOneWayModeReply},
+					"POST /openApi/swap/v2/trade/order":      {wrapperSwapPlacedReply(tc.placedType, "")},
+				})
+				s := tc.submission
+				if s.Pair.IsEmpty() {
+					s.Pair = currency.NewBTCUSDT()
+				}
+				s.Exchange, s.AssetType, s.Side, s.Amount = ex.Name, asset.USDTMarginedFutures, order.Sell, 2
+				resp, err := ex.submitSwapOrder(t.Context(), &s)
+				require.NoErrorf(t, err, "submitSwapOrder must not error for a %s", tc.name)
+				got := requests()
+				require.Lenf(t, got, 2, "submitSwapOrder must look the position mode up and place a %s", tc.name)
+				placed := url.Values{}
+				for _, k := range []string{"price", "priceRate"} {
+					if v, ok := got[1].params[k]; ok {
+						placed[k] = v
+					}
+				}
+				assert.Equalf(t, tc.exp, placed, "submitSwapOrder should place a %s with only what it trails by or its price", tc.name)
+				assert.Equalf(t, tc.price, resp.Price, "submitSwapOrder should report a %s's price as its reads do", tc.name)
+				assert.Equalf(t, tc.submission.TriggerPrice, resp.TriggerPrice, "submitSwapOrder should report a %s's trigger price", tc.name)
+				assert.Equalf(t, tc.submission.Price, s.Price, "submitSwapOrder should leave a %s's submission unchanged", tc.name)
+			})
+		}
+	})
+
 	t.Run("reply statuses", func(t *testing.T) {
 		t.Parallel()
 		for _, tc := range []struct {
@@ -2559,6 +2606,21 @@ func TestSwapModificationChanges(t *testing.T) {
 	limitGuaranteed.StopGuaranteed = StopGuaranteedTrue
 	stopLimit := SwapOrderResponse{Type: OrderTypeStop, Status: "NEW", OriginalQuantity: 2, Price: 9, StopPrice: 9.5, WorkingType: WorkingTypeMarkPrice}
 	trailing := SwapOrderResponse{Type: OrderTypeTrailingStopMarket, Status: "NEW", OriginalQuantity: 2, Price: 5, ActivationPrice: 100, WorkingType: WorkingTypeMarkPrice}
+	rateTrailing := SwapOrderResponse{Type: OrderTypeTrailingStopMarket, Status: "NEW", OriginalQuantity: 2, Price: 1.1, PriceRate: 0.01, ActivationPrice: 100, WorkingType: WorkingTypeMarkPrice}
+	rateTakeProfitOrStopLoss := rateTrailing
+	rateTakeProfitOrStopLoss.Type = OrderTypeTrailingTakeProfitOrStopLoss
+	rateTrailingWithoutActivation := rateTrailing
+	rateTrailingWithoutActivation.ActivationPrice = 0
+	takeProfitOrStopLoss := trailing
+	takeProfitOrStopLoss.Type = OrderTypeTrailingTakeProfitOrStopLoss
+	trailingWithoutActivation := trailing
+	trailingWithoutActivation.ActivationPrice = 0
+	pendingRateTrailing := rateTrailing
+	pendingRateTrailing.Status = "PENDING"
+	maximumRateTrailing := rateTrailing
+	maximumRateTrailing.PriceRate = 1
+	takeProfit := SwapOrderResponse{Type: OrderTypeTakeProfit, Status: "NEW", OriginalQuantity: 2, Price: 11, StopPrice: 10.5, WorkingType: WorkingTypeMarkPrice}
+	triggerLimit := SwapOrderResponse{Type: OrderTypeTriggerLimit, Status: "NEW", OriginalQuantity: 2, Price: 11, StopPrice: 10.5, WorkingType: WorkingTypeMarkPrice}
 	for _, tc := range []struct {
 		name         string
 		existing     SwapOrderResponse
@@ -2597,6 +2659,21 @@ func TestSwapModificationChanges(t *testing.T) {
 		{name: "stop limit order's trigger price", existing: stopLimit, action: order.Modify{TriggerPrice: 9.6}, workingType: WorkingTypeMarkPrice, more: true},
 		{name: "stop limit order given a time in force alone", existing: stopLimit, timeInForce: TimeInForceImmediateOrCancel, workingType: WorkingTypeMarkPrice},
 		{name: "trailing order's distance", existing: trailing, action: order.Modify{Price: 6}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "trailing order's shorter distance", existing: trailing, action: order.Modify{Price: 4}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "trailing order's own distance", existing: trailing, action: order.Modify{Price: 5}, workingType: WorkingTypeMarkPrice},
+		{name: "trailing order with a price rate given the price its lookup reports", existing: rateTrailing, action: order.Modify{Price: 1.1}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "trailing order with a price rate given a distance equal to its rate", existing: rateTrailing, action: order.Modify{Price: 0.01}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "trailing order with a price rate given nothing", existing: rateTrailing, workingType: WorkingTypeMarkPrice},
+		{name: "take profit or stop loss trailing order with a price rate given the price its lookup reports", existing: rateTakeProfitOrStopLoss, action: order.Modify{Price: 1.1}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "take profit or stop loss trailing order's own distance", existing: takeProfitOrStopLoss, action: order.Modify{Price: 5}, workingType: WorkingTypeMarkPrice},
+		{name: "trailing order with a price rate given a distance equal to its activation price", existing: rateTrailing, action: order.Modify{Price: 100}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "trailing order with a price rate and no activation price given the price its lookup reports", existing: rateTrailingWithoutActivation, action: order.Modify{Price: 1.1}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "trailing order with a price rate given a distance equal to its rate times its activation price", existing: rateTrailing, action: order.Modify{Price: 1}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "pending trailing order with a price rate given the price its lookup reports", existing: pendingRateTrailing, action: order.Modify{Price: 1.1}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "trailing order at the maximum price rate given the price its lookup reports", existing: maximumRateTrailing, action: order.Modify{Price: 1.1}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "trailing order without an activation price given a price type", existing: trailingWithoutActivation, workingType: WorkingTypeIndexPrice, more: true},
+		{name: "take profit limit order's price", existing: takeProfit, action: order.Modify{Price: 12}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "trigger limit order's price", existing: triggerLimit, action: order.Modify{Price: 12}, workingType: WorkingTypeMarkPrice, more: true},
 		{name: "trailing order's activation price", existing: trailing, action: order.Modify{TriggerPrice: 110}, workingType: WorkingTypeMarkPrice, more: true},
 		{name: "trailing order's own activation price", existing: trailing, action: order.Modify{TriggerPrice: 100}, workingType: WorkingTypeMarkPrice},
 		{name: "trailing order's price type", existing: trailing, workingType: WorkingTypeIndexPrice, more: true},
@@ -2911,6 +2988,7 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 			existing string
 			action   order.Modify
 			exp      url.Values
+			pair     currency.Pair // BTC-USDT when unset
 		}{
 			{
 				name:     "one-way reduce only stop limit order",
@@ -2934,6 +3012,121 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 				action:   order.Modify{TriggerPrice: 110},
 				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "priceRate": {"0.01"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"110"}, "positionId": {"79"}},
 			},
+			{
+				name:     "trailing order with a price rate given a trailing distance",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Price: 6},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "price": {"6"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
+			{
+				name:     "trailing order with a price rate given a trailing distance and an amount",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Price: 6, Amount: 3},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"3"}, "price": {"6"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
+			{
+				name:     "take profit or stop loss trailing order with a price rate given a trailing distance",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_TP_SL","origQty":"1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Price: 6},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_TP_SL"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "price": {"6"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
+			{
+				name:     "trailing order with a price rate whose lookup reports a price",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"1.1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{TriggerPrice: 110},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "priceRate": {"0.01"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"110"}, "positionId": {"79"}},
+			},
+			{
+				name:     "trailing order with a price rate whose lookup reports a price, given a trailing distance",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"1.1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Price: 6},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "price": {"6"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
+			{
+				name:     "trailing order with a price rate given the price its lookup reports as a trailing distance",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"1.1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Price: 1.1},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "price": {"1.1"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
+			{
+				name:     "take profit or stop loss trailing order with a price rate whose lookup reports a price, given an amount",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_TP_SL","origQty":"1","price":"1.1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Amount: 3},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_TP_SL"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"3"}, "priceRate": {"0.01"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
+			{
+				name:     "take profit or stop loss trailing order with a price rate given the price its lookup reports as a trailing distance",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_TP_SL","origQty":"1","price":"1.1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Price: 1.1},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_TP_SL"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "price": {"1.1"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
+			{
+				name:     "take profit or stop loss trailing order with a distance given an amount",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_TP_SL","origQty":"1","price":"5","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Amount: 3},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_TP_SL"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"3"}, "price": {"5"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
+			{
+				name:     "trailing order with a distance given its first activation price",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"5","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","positionID":79}`,
+				action:   order.Modify{TriggerPrice: 110},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "price": {"5"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"110"}, "positionId": {"79"}},
+			},
+			{
+				name:     "trailing order with a price rate given a trailing distance and an activation price",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"1.1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Price: 6, TriggerPrice: 110},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "price": {"6"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"110"}, "positionId": {"79"}},
+			},
+			{
+				name:     "trailing order with a price rate given a trailing distance equal to its rate",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"1.1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Price: 0.01},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "price": {"0.01"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
+			{
+				name:     "trailing order at the maximum price rate whose lookup reports a price, given an amount",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"1.1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"1","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Amount: 3},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"3"}, "priceRate": {"1"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
+			{
+				name:     "trailing order with a price rate given a trailing distance below its rate",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"1.1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Price: 0.005},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "price": {"0.005"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
+			{
+				name:     "trailing order with a price rate given a trailing distance equal to its rate times its activation price",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"1.1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Price: 1},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "price": {"1"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
+			{
+				name:     "trailing order given a lower activation price",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"5","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","actPrice":"100","positionID":79}`,
+				action:   order.Modify{TriggerPrice: 90},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "price": {"5"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"90"}, "positionId": {"79"}},
+			},
+			{
+				name:     "pending trailing order with a price rate whose lookup reports a price, given an amount",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"1.1","executedQty":"0","status":"PENDING","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Amount: 3},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"3"}, "priceRate": {"0.01"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
+			{
+				name:     "trailing order settled in USDC with a price rate given a trailing distance",
+				existing: `{"symbol":"BTC-USDC","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"1.1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Price: 6},
+				exp:      url.Values{"symbol": {"BTC-USDC"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "price": {"6"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+				pair:     currency.NewPairWithDelimiter("BTC", "USDC", currency.DashDelimiter),
+			},
+			{
+				name:     "trailing order with a distance given an amount",
+				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"5","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","actPrice":"100","positionID":79}`,
+				action:   order.Modify{Amount: 3},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"3"}, "price": {"5"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"100"}, "positionId": {"79"}},
+			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
@@ -2944,6 +3137,9 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 				})
 				action := tc.action
 				action.Exchange, action.Pair, action.AssetType, action.OrderID = ex.Name, pair, asset.USDTMarginedFutures, "23"
+				if !tc.pair.IsEmpty() {
+					action.Pair = tc.pair
+				}
 				_, err := ex.amendOrReplaceSwapOrder(t.Context(), &action, 23)
 				require.NoErrorf(t, err, "amendOrReplaceSwapOrder must not error for a %s", tc.name)
 				got := requests()

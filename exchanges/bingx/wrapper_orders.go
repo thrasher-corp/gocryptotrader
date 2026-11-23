@@ -589,6 +589,11 @@ func (e *Exchange) submitSwapOrder(ctx context.Context, s *order.Submit) (*order
 		return nil, err
 	}
 	resp.ClientOrderID = placed.ClientOrderID
+	if orderTypeTrails(req.Type) {
+		// Reported as swapOrderDetail reports a trailing order, as the order manager hands the price it stores to a
+		// modification without one, which takes a trailing order's price as its trailing distance
+		resp.Price = 0
+	}
 	resp.Status = order.New
 	e.setPlacedOrderStatus(&resp.Status, resp.AssetType, resp.OrderID, placed.Status)
 	resp.RemainingAmount = remainingAmount(types.Number(resp.Amount), placed.ExecutedQuantity)
@@ -700,14 +705,15 @@ func (e *Exchange) submitCoinMarginedOrder(ctx context.Context, s *order.Submit)
 // price or trigger price its type does not take, or an amount for a USDT-M guaranteed stop, whose quantity BingX
 // ignores, is left out, and a time in force counts only for an order whose lookup shows one, as the order manager hands
 // every modification the time in force it stored. A replacement that fails after the cancellation is reported with the
-// outcome of both. A trailing stop's price is its trailing distance and its trigger price its activation price. A
-// USDT-M order that closes a position keeps its position ID, and one whose separate isolated position its lookup does
-// not name is refused before anything is cancelled, as is a NewClientOrderID for a USDT-M order other than a LIMIT or
-// MARKET order. USDT-M lookups show the time in force of a post-only order, and of an open LIMIT order, which is GTC,
-// and spot lookups none, so a replacement takes the modification's time in force, or else the one its lookup shows, or
-// else BingX's default, GTC. RiskManagementModes setting any value, and a spot modification's TriggerPriceType other
-// than the last price, are refused before anything is sent. Every request a modification sends goes to the account of
-// the credentials ctx names when it starts. Coin-M orders cannot be modified
+// outcome of both. A trailing stop's price is its trailing distance, which replaces the price rate of one trailing by a
+// rate, and its trigger price its activation price. A USDT-M order that closes a position keeps its position ID, and
+// one whose separate isolated position its lookup does not name is refused before anything is cancelled, as is a
+// NewClientOrderID for a USDT-M order other than a LIMIT or MARKET order. USDT-M lookups show the time in force of a
+// post-only order, and of an open LIMIT order, which is GTC, and spot lookups none, so a replacement takes the
+// modification's time in force, or else the one its lookup shows, or else BingX's default, GTC. RiskManagementModes
+// setting any value, and a spot modification's TriggerPriceType other than the last price, are refused before anything
+// is sent. Every request a modification sends goes to the account of the credentials ctx names when it starts. Coin-M
+// orders cannot be modified
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
@@ -966,12 +972,16 @@ func (e *Exchange) replaceSpotOrder(ctx context.Context, action *order.Modify, o
 // the modification's or else the order's, and workingType the price type it would trigger on
 func swapModificationChanges(existing *SwapOrderResponse, action *order.Modify, timeInForce TimeInForce, workingType WorkingType) (amount, other bool) {
 	trails, triggers := orderTypeTrails(existing.Type), orderTypeTakesTrigger(existing.Type)
-	trigger := existing.StopPrice
+	trigger, price := existing.StopPrice, existing.Price
 	if trails {
 		trigger = existing.ActivationPrice
+		if existing.PriceRate > 0 {
+			// An order trailing by a rate has no distance, so any distance changes it
+			price = 0
+		}
 	}
 	amount = !swapGuaranteedStop(existing) && action.Amount > 0 && action.Amount != existing.OriginalQuantity.Float64()
-	other = (orderTypeTakesPrice(existing.Type) || trails) && action.Price > 0 && action.Price != existing.Price.Float64() ||
+	other = (orderTypeTakesPrice(existing.Type) || trails) && action.Price > 0 && action.Price != price.Float64() ||
 		(triggers || trails) && (action.TriggerPrice > 0 && action.TriggerPrice != trigger.Float64() || workingType != existing.WorkingType) ||
 		action.NewClientOrderID != "" && action.NewClientOrderID != existing.ClientOrderID
 	if timeInForce != "" {
@@ -1164,6 +1174,13 @@ func (e *Exchange) amendOrReplaceSwapOrder(ctx context.Context, action *order.Mo
 	switch {
 	case trails:
 		req.ActivationPrice = cmp.Or(action.TriggerPrice, existing.ActivationPrice.Float64())
+		// An order trails by a distance or by a rate: a distance given replaces the rate, and an order trailing by a
+		// rate otherwise keeps the rate alone
+		if action.Price > 0 {
+			req.PriceRate = 0
+		} else if existing.PriceRate > 0 {
+			req.Price = 0
+		}
 	case orderTypeTakesTrigger(req.Type):
 		req.StopPrice = cmp.Or(action.TriggerPrice, existing.StopPrice.Float64())
 	}

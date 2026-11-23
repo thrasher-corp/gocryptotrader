@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -506,6 +507,65 @@ func TestWebsocketLookUpSpotOrderFee(t *testing.T) {
 		assert.Equal(t, []string{"42", "42"}, server.queried(), "an order should be looked up again after a refused lookup")
 	})
 
+	t.Run("orders of other types", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, orderType, status, executed string
+			exp                               order.Type
+			fee                               float64
+		}{
+			{"MARKET", "MARKET", "FILLED", "3", order.Market, 0.3},
+			{"MARKET filled in part", "MARKET", "PARTIALLY_FILLED", "2", order.Market, 0.2},
+			{"TAKE_STOP_LIMIT", "TAKE_STOP_LIMIT", "FILLED", "3", order.StopLimit, 0.3},
+			{"TAKE_STOP_MARKET", "TAKE_STOP_MARKET", "FILLED", "3", order.StopMarket, 0.3},
+			{"TRIGGER_LIMIT", "TRIGGER_LIMIT", "FILLED", "3", order.StopLimit, 0.3},
+			{"TRIGGER_MARKET", "TRIGGER_MARKET", "FILLED", "3", order.StopMarket, 0.3},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, server, conn, _ := spotFeeSetup(t)
+				server.queue(strings.Replace(testSpotOrderReply(tc.status, tc.executed, "-"+strconv.FormatFloat(tc.fee, 'f', -1, 64)), `"type":"LIMIT"`, `"type":"`+tc.orderType+`"`, 1))
+				event := strings.Replace(string(testSpotOrderEvent("TRADE", tc.status, "1", tc.executed, "-0.1", 103)), `"o":"LIMIT"`, `"o":"`+tc.orderType+`"`, 1)
+				require.NoErrorf(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, []byte(event)), "wsProcessSpotOrderUpdate must not error for a %s order", tc.name)
+				waitForWebsocketPayload[*order.Detail](t, ex, nil)
+				testWaitBackground(t, ex)
+				got := testOrderDetails(t, ex)
+				require.Lenf(t, got, 1, "the lookup must relay a %s order's fee", tc.name)
+				assert.Equalf(t, tc.fee, got[0].Fee, "the lookup should relay a %s order's fee", tc.name)
+				assert.Equalf(t, tc.exp, got[0].Type, "the looked up fee should carry the %s order's type", tc.name)
+				assert.Equalf(t, []string{"42"}, server.queried(), "a %s order should be looked up once", tc.name)
+			})
+		}
+	})
+
+	t.Run("fee in the base currency", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, _ := spotFeeSetup(t)
+		server.queue(strings.Replace(testSpotOrderReply("FILLED", "3", "-0.0003"), `"feeAsset":"USDT"`, `"feeAsset":"BTC"`, 1))
+		event := strings.Replace(string(testSpotOrderEvent("TRADE", "FILLED", "1", "3", "-0.0001", 103)), `"N":"USDT"`, `"N":"BTC"`, 1)
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, []byte(event)), "wsProcessSpotOrderUpdate must not error")
+		waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		testWaitBackground(t, ex)
+		got := testOrderDetails(t, ex)
+		require.Len(t, got, 1, "the lookup must relay the order's fee")
+		assert.Equal(t, 0.0003, got[0].Fee, "the lookup should relay the fee charged in the base currency")
+		assert.Equal(t, currency.BTC, got[0].FeeAsset, "the lookup should relay the base currency the fee was charged in")
+		assert.Equal(t, []string{"42"}, server.queried(), "an order charged its fees in the base currency should be looked up")
+	})
+
+	t.Run("fill without a fee after fills the connection did not stream", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, _ := spotFeeSetup(t)
+		server.queue(testSpotOrderReply("FILLED", "3", "-0.2"))
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, testSpotOrderEvent("TRADE", "FILLED", "1", "3", "0", 103)), "wsProcessSpotOrderUpdate must not error")
+		waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		testWaitBackground(t, ex)
+		got := testOrderDetails(t, ex)
+		require.Len(t, got, 1, "the lookup must relay the order's fee")
+		assert.Equal(t, 0.2, got[0].Fee, "the lookup should relay the fee of the fills the connection did not stream")
+		assert.Equal(t, []string{"42"}, server.queried(), "an order whose earlier fills were not streamed should be looked up after a fill without a fee")
+	})
+
 	t.Run("fills streamed while the lookup is in flight", func(t *testing.T) {
 		t.Parallel()
 		ex, server, conn, _ := spotFeeSetup(t)
@@ -593,17 +653,51 @@ func TestWebsocketLookUpSpotOrderFee(t *testing.T) {
 
 	t.Run("lookup unanswered by its deadline", func(t *testing.T) {
 		t.Parallel()
-		ex, server, conn, _ := spotFeeSetup(t)
-		ex.wsState.mu.Lock()
-		ex.wsState.openOrderReadTimeout = 50 * time.Millisecond
-		ex.wsState.mu.Unlock()
-		server.queue(testSpotOrderReply("FILLED", "3", "-0.3"))
-		_, arrived := server.hold()
-		testSpotOrderEventLookedUp(t, ex, conn, gapFill, arrived)
-		waitForWebsocketPayload[*order.Detail](t, ex, nil)
-		testWaitBackground(t, ex)
-		assert.Empty(t, websocketPayloads(ex), "a lookup unanswered by its deadline should relay nothing")
-		assert.Len(t, server.queried(), 1, "the lookup should be sent once")
+		for _, tc := range []struct {
+			name     string
+			override time.Duration
+			timeout  time.Duration
+		}{
+			{"default timeout", 0, 5 * time.Second},
+			{"timeout set", 50 * time.Millisecond, 50 * time.Millisecond},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				synctest.Test(t, func(t *testing.T) {
+					ex, server, conn, _ := spotFeeSetup(t)
+					if tc.override != 0 {
+						ex.wsState.mu.Lock()
+						ex.wsState.openOrderReadTimeout = tc.override
+						ex.wsState.mu.Unlock()
+					}
+					server.queue(testSpotOrderReply("FILLED", "3", "-0.3"))
+					release, arrived := server.hold()
+					// An event between whole milliseconds, which a deadline rounded to any coarser unit would miss
+					time.Sleep(time.Second/4 + time.Nanosecond)
+					start := time.Now()
+					testSpotOrderEventLookedUp(t, ex, conn, gapFill, arrived)
+					waitForWebsocketPayload[*order.Detail](t, ex, nil)
+					testWaitBackground(t, ex)
+					synctest.Wait()
+					cancelled := server.cancellations()
+					require.Len(t, cancelled, 1, "the held lookup must be cancelled")
+					assert.Equal(t, tc.timeout, cancelled[0].Sub(start), "the lookup should be cancelled once its timeout has passed since the event")
+					close(release)
+					time.Sleep(time.Minute)
+					synctest.Wait()
+					assert.Empty(t, websocketPayloads(ex), "a cancelled lookup should relay nothing after its hold is released")
+					assert.Len(t, server.queried(), 1, "the lookup should be sent once")
+					server.queue(testSpotOrderReply("FILLED", "3", "-0.3"))
+					require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, testSpotOrderEvent("TRADE", "FILLED", "1", "3", "-0.1", 103)), "wsProcessSpotOrderUpdate must not error")
+					waitForWebsocketPayload[*order.Detail](t, ex, nil)
+					testWaitBackground(t, ex)
+					got := testOrderDetails(t, ex)
+					require.Len(t, got, 1, "the next event's lookup must relay the order's fee")
+					assert.Equal(t, 0.3, got[0].Fee, "the next event's lookup should relay the order's fee")
+					assert.Equal(t, []string{"42", "42"}, server.queried(), "the order should be looked up again after a lookup that gave up")
+				})
+			})
+		}
 	})
 
 	t.Run("lookup refused for its rate", func(t *testing.T) {
@@ -681,6 +775,70 @@ func TestWebsocketLookUpSpotOrderFee(t *testing.T) {
 		server.mu.Lock()
 		assert.Equal(t, []string{"test-api-key"}, server.keys, "the lookup should be sent with the credentials of the connection's listen key")
 		server.mu.Unlock()
+	})
+
+	t.Run("event updated by its receiver", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, reply, clientOrderID, cost string
+			quoteAmount                      float64
+			event                            []byte
+		}{
+			{"trade", testSpotOrderReply("FILLED", "3", "-0.3"), "client-1", "19.8", 30.05, gapFill},
+			{"trade without a client order ID or quote amount", testSpotOrderReply("FILLED", "3", "-0.3"), "", "19.8", 0, gapFill},
+			{"cancellation", testSpotOrderReply("CANCELED", "2", "-0.2"), "client-1", "19.8", 30.05, testSpotOrderEvent("CANCELED", "CANCELED", "0", "2", "0", 0)},
+			{"closing fill", testSpotOrderReply("FILLED", "3", "-0.3"), "client-1", "29.7", 30.05, testSpotOrderEvent("TRADE", "FILLED", "1", "3", "-0.1", 103)},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, server, conn, _ := spotFeeSetup(t)
+				ex.wsState.mu.Lock()
+				ex.wsState.openOrderReadTimeout = time.Hour
+				ex.wsState.mu.Unlock()
+				server.queue(tc.reply)
+				release, arrived := server.hold()
+				// The fills are at a better price than the order's, as a limit order's can be, with Z their cost
+				replacements := []string{`"Q":"30"`, `"Q":"` + strconv.FormatFloat(tc.quoteAmount, 'f', -1, 64) + `"`, `"L":"10"`, `"L":"9.9"`, `"O":`, `"Z":"` + tc.cost + `","O":`}
+				if tc.clientOrderID != "" {
+					replacements = append(replacements, `"i":42,`, `"i":42,"C":"`+tc.clientOrderID+`",`)
+				}
+				event := []byte(strings.NewReplacer(replacements...).Replace(string(tc.event)))
+				returned := make(chan error, 1)
+				go func() { returned <- ex.wsProcessSpotOrderUpdate(context.Background(), conn, event) }()
+				// Written as the order store writes a detail it keeps, before the handler is known to have returned
+				d := waitForWebsocketPayload[*order.Detail](t, ex, nil)
+				d.ClientOrderID, d.Price, d.Amount, d.QuoteAmount, d.Type, d.Side = "client-2", 11, 4, 44, order.Market, order.Sell
+				for i := range d.Trades {
+					d.Trades[i].Price, d.Trades[i].Type, d.Trades[i].Side = 12, order.Market, order.Sell
+				}
+				select {
+				case err := <-returned:
+					require.NoErrorf(t, err, "wsProcessSpotOrderUpdate must not error for a %s event", tc.name)
+				case <-time.After(5 * time.Second):
+					require.FailNow(t, "wsProcessSpotOrderUpdate must not wait for the lookup")
+				}
+				select {
+				case <-arrived:
+				case <-time.After(5 * time.Second):
+					require.FailNow(t, "the order must be looked up")
+				}
+				close(release)
+				testWaitBackground(t, ex)
+				got := testOrderDetails(t, ex)
+				require.Lenf(t, got, 1, "the lookup must relay the fee of the order a %s event names", tc.name)
+				assert.Equalf(t, ex.Name, got[0].Exchange, "the looked up fee should carry the %s event's exchange", tc.name)
+				assert.Equalf(t, "42", got[0].OrderID, "the looked up fee should carry the %s event's order ID", tc.name)
+				assert.Equalf(t, testSpotPair, got[0].Pair, "the looked up fee should carry the %s event's pair", tc.name)
+				assert.Equalf(t, asset.Spot, got[0].AssetType, "the looked up fee should carry the %s event's asset", tc.name)
+				assert.Equalf(t, tc.clientOrderID, got[0].ClientOrderID, "the looked up fee should carry the %s event's client order ID", tc.name)
+				assert.Equalf(t, 10.0, got[0].Price, "the looked up fee should carry the %s event's price", tc.name)
+				assert.Equalf(t, 3.0, got[0].Amount, "the looked up fee should carry the %s event's quantity", tc.name)
+				assert.Equalf(t, tc.quoteAmount, got[0].QuoteAmount, "the looked up fee should carry the %s event's quote amount", tc.name)
+				assert.Equalf(t, order.Limit, got[0].Type, "the looked up fee should carry the %s event's order type", tc.name)
+				assert.Equalf(t, order.Buy, got[0].Side, "the looked up fee should carry the %s event's side", tc.name)
+				assert.Equalf(t, time.UnixMilli(1700000000000), got[0].Date, "the looked up fee should carry the %s event's creation time", tc.name)
+			})
+		}
 	})
 }
 
@@ -978,14 +1136,15 @@ func testSpotOrderReply(status, executed, fee string) string {
 }
 
 // testSpotOrderServer answers spot order queries with the replies queued, in turn, recording the order ID and API key
-// of each query, and holds the queries while held is set
+// of each query, and holds the queries while held is set, recording when a held query is cancelled
 type testSpotOrderServer struct {
-	mu      sync.Mutex
-	replies []string
-	keys    []string
-	ids     []string
-	held    chan struct{}
-	arrived chan struct{}
+	mu        sync.Mutex
+	replies   []string
+	keys      []string
+	ids       []string
+	cancelled []time.Time
+	held      chan struct{}
+	arrived   chan struct{}
 }
 
 // newTestSpotOrderServer serves spot order queries to ex from an in-memory server
@@ -1017,6 +1176,9 @@ func newTestSpotOrderServer(tb testing.TB, ex *Exchange) *testSpotOrderServer {
 			select {
 			case <-held:
 			case <-r.Context().Done():
+				s.mu.Lock()
+				s.cancelled = append(s.cancelled, time.Now())
+				s.mu.Unlock()
 				return
 			case <-stopped:
 				return
@@ -1064,6 +1226,13 @@ func (s *testSpotOrderServer) queried() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return slices.Clone(s.ids)
+}
+
+// cancellations returns when each held query was cancelled
+func (s *testSpotOrderServer) cancellations() []time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.cancelled)
 }
 
 func TestWebsocketProcessSpotAccountUpdate(t *testing.T) {
@@ -1262,22 +1431,25 @@ func TestWebsocketSpotIntegration(t *testing.T) {
 		}{{50, 1}, {51, 2}} {
 			t.Run(strconv.Itoa(tc.pairs)+" pairs", func(t *testing.T) {
 				t.Parallel()
-				pairs := make(currency.Pairs, tc.pairs)
-				for i := range pairs {
-					pairs[i] = currency.NewPairWithDelimiter("C"+strconv.Itoa(i), "USDT", currency.DashDelimiter)
-				}
-				servers := newTestWebsocketServers(t, asset.Spot)
-				ex := newWebsocketIntegrationExchange(t, servers, asset.Spot, false, testWebsocketPairs(asset.Spot, pairs), testWebsocketSubscriptions(
-					&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
-					&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
-					&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-					&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 20},
-					&subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
-				))
-				ex.Requester.GetRateLimiterDefinitions()[websocketSubscriptionRate] = request.NewRateLimitWithWeight(0, 0, 1)
-				require.NoErrorf(t, ex.Websocket.Connect(t.Context()), "Connect must not error with %d pairs", tc.pairs)
-				assert.Lenf(t, ex.Websocket.GetSubscriptions(), tc.pairs*4, "every distinct stream of %d pairs should be subscribed", tc.pairs)
-				assert.Equalf(t, tc.dials, servers.ws[asset.Spot].marketDials(), "%d pairs should need %d connections", tc.pairs, tc.dials)
+				// In a bubble, as each subscription's response limit would otherwise run on the real clock
+				synctest.Test(t, func(t *testing.T) {
+					pairs := make(currency.Pairs, tc.pairs)
+					for i := range pairs {
+						pairs[i] = currency.NewPairWithDelimiter("C"+strconv.Itoa(i), "USDT", currency.DashDelimiter)
+					}
+					servers := newTestWebsocketServersOn(t, new(testMemoryNetwork), asset.Spot)
+					ex := newWebsocketIntegrationExchange(t, servers, asset.Spot, false, testWebsocketPairs(asset.Spot, pairs), testWebsocketSubscriptions(
+						&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+						&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+						&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+						&subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 20},
+						&subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
+					))
+					ex.Requester.GetRateLimiterDefinitions()[websocketSubscriptionRate] = request.NewRateLimitWithWeight(0, 0, 1)
+					require.NoErrorf(t, ex.Websocket.Connect(t.Context()), "Connect must not error with %d pairs", tc.pairs)
+					assert.Lenf(t, ex.Websocket.GetSubscriptions(), tc.pairs*4, "every distinct stream of %d pairs should be subscribed", tc.pairs)
+					assert.Equalf(t, tc.dials, servers.ws[asset.Spot].marketDials(), "%d pairs should need %d connections", tc.pairs, tc.dials)
+				})
 			})
 		}
 	})

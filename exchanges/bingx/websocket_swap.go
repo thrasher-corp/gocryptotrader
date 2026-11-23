@@ -279,6 +279,11 @@ func (e *Exchange) wsProcessPerpetualOrderUpdate(ctx context.Context, state *web
 	if a == asset.USDTMarginedFutures {
 		d.Cost = o.AverageFilled.Decimal().Mul(executed).InexactFloat64()
 	}
+	if orderTypeTrails(o.OrderType) {
+		// Reported as swapOrderDetail reports a trailing order, as the order manager hands the price it stores to a
+		// modification without one, which takes a trailing order's price as its trailing distance
+		d.Price = 0
+	}
 	if state != nil {
 		fees := &state.fees
 		switch o.ExecutionType {
