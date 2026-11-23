@@ -397,6 +397,7 @@ func TestWebsocketHandleData(t *testing.T) {
 				ob, err := ex.Websocket.Orderbook.GetOrderbook(wsPerpetualPair, asset.PerpetualContract)
 				require.NoError(t, err, "orderbooks must be stored for their channel's market")
 				assert.Equal(t, orderbook.Levels{{Price: 84010, Amount: 0.0119}}, ob.Bids, "Bids should be correct")
+				assert.False(t, ob.PriceDuplication, "the orderbook should be aggregated by price")
 				bookStored = true
 			}},
 			{name: "live trades", msg: `{"data":{"id":502711286,"amount_str":"0.01000","price_str":"84010","type":0,"microtimestamp":"1790318552115000"},"channel":"live_trades_btcusd-perp","event":"trade"}`, check: func(t *testing.T, payloads []any) {
@@ -900,8 +901,6 @@ func newMockWsInstance(t *testing.T, tokenAvailable bool) (*Exchange, *mockWsSub
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	// The mock server asserts with the test's own t, so its connection must end with the test
-	t.Cleanup(func() { shutdownWebsocketTestInstance(t, ex) })
 	return ex, m
 }
 
@@ -954,7 +953,6 @@ func TestSubscribe(t *testing.T) {
 		})
 		// The orderbook store is global, so the books are stored under the test's own exchange name
 		ex.Name = t.Name()
-		t.Cleanup(func() { shutdownWebsocketTestInstance(t, ex) })
 		subs, err := subscription.List{
 			{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Pairs: currency.Pairs{spotPair, currency.NewPair(currency.BTC, currency.EUR)}},
 			{Enabled: true, Asset: asset.PerpetualContract, Channel: channelDetailOrderbook},
@@ -1121,9 +1119,14 @@ func testSubscribeLive(t *testing.T) {
 		assert.Equalf(t, subscription.SubscribedState, s.State(), "subscription %s should be subscribed", s)
 	}
 	for a, p := range map[asset.Item]currency.Pair{asset.Spot: spotPair, asset.PerpetualContract: perpetualPair} {
+		// Subscribe stores each book it loads over REST before subscribing, so wait for one newer than the book held now
+		var held time.Time
+		if book, err := orderbook.Get(ex.Name, p, a); err == nil {
+			held = book.LastUpdated
+		}
 		assert.Eventuallyf(t, func() bool {
-			_, err := orderbook.Get(ex.Name, p, a)
-			return err == nil
+			book, err := orderbook.Get(ex.Name, p, a)
+			return err == nil && book.LastUpdated.After(held)
 		}, 30*time.Second, 100*time.Millisecond, "the %s order book for %s should be streamed", a, p)
 	}
 
