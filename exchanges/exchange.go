@@ -1362,6 +1362,10 @@ func (u URL) String() string {
 		return websocketFuturesURL
 	case WebsocketFuturesPrivate:
 		return websocketFuturesPrivateURL
+	case WebsocketCoinMarginedPrivate:
+		return websocketCoinMarginedPrivateURL
+	case WebsocketUSDTMarginedPrivate:
+		return websocketUSDTMarginedPrivateURL
 	case ChainAnalysis:
 		return chainAnalysisURL
 	case EdgeCase1:
@@ -1416,6 +1420,10 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return WebsocketFutures, nil
 	case websocketFuturesPrivateURL:
 		return WebsocketFuturesPrivate, nil
+	case websocketCoinMarginedPrivateURL:
+		return WebsocketCoinMarginedPrivate, nil
+	case websocketUSDTMarginedPrivateURL:
+		return WebsocketUSDTMarginedPrivate, nil
 	case chainAnalysisURL:
 		return ChainAnalysis, nil
 	case edgeCase1URL:
@@ -1954,6 +1962,16 @@ func (*Base) WebsocketModifyOrder(context.Context, *order.Modify) (*order.Modify
 // WebsocketCancelOrder cancels an order via the websocket connection
 func (*Base) WebsocketCancelOrder(context.Context, *order.Cancel) error {
 	return common.ErrFunctionNotSupported
+}
+
+// WebsocketCancelBatchOrders cancels a batch of orders via the websocket connection
+func (*Base) WebsocketCancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketCancelAllOrders cancels all orders via the websocket connection
+func (*Base) WebsocketCancelAllOrders(_ context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
+	return order.CancelAllResponse{}, common.ErrFunctionNotSupported
 }
 
 // MessageID returns a universally unique id using UUID V7

@@ -1045,11 +1045,7 @@ func TestResolvePPROFListenAddress(t *testing.T) {
 func TestStartPPROF(t *testing.T) {
 	t.Parallel()
 	assert.NoError(t, StartPPROF(t.Context(), &config.Profiler{Enabled: false}), "StartPPROF with a disabled config should not error")
-	var listenCfg net.ListenConfig
-	freeAddr, err := listenCfg.Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err, "Finding a free port must not error")
-	listenAddr := freeAddr.Addr().String()
-	require.NoError(t, freeAddr.Close(), "Releasing temporary listener must not error")
+	listenAddr := reserveAddress(t, "127.0.0.1")
 
 	pprofConfig := &config.Profiler{
 		Enabled:              true,
