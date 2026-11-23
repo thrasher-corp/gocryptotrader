@@ -141,6 +141,9 @@ func (e *Exchange) GetStockOrderHistory(ctx context.Context, arg *GetStockOrderH
 			}
 			params.Set("side", strconv.FormatUint(uint64(side), 10))
 		}
+		if len(arg.OrderIDs) > 20 {
+			return nil, fmt.Errorf("%w: %d supplied, maximum is 20", errTooManyOrderIDs, len(arg.OrderIDs))
+		}
 		setTradFiPageParams(params, arg.Page, arg.PageSize)
 	}
 	var resp tradFiResponse[*StockOrderHistoryResponse]

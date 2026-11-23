@@ -553,6 +553,42 @@
      "succeeded": true
     }
    ]
+  },
+  {
+   "params": [
+    {
+     "id": "1700664344",
+     "currency_pair": "BTC_USDT"
+    },
+    {
+     "id": "1700664345",
+     "currency_pair": "BTC_USDT"
+    },
+    {
+     "id": "1700664346",
+     "currency_pair": "ETH_USDT"
+    }
+   ],
+   "result": [
+    {
+     "currency_pair": "BTC_USDT",
+     "id": "1700664344",
+     "text": "t-first",
+     "succeeded": true
+    },
+    {
+     "currency_pair": "BTC_USDT",
+     "id": "1700664345",
+     "succeeded": false,
+     "label": "ORDER_NOT_FOUND",
+     "message": "Order not found"
+    },
+    {
+     "currency_pair": "ETH_USDT",
+     "id": "1700664346",
+     "succeeded": true
+    }
+   ]
   }
  ],
  "spot.order_cancel_cp": [
@@ -1092,7 +1128,39 @@
   {
    "params": {
     "order_id": "74046543",
-    "size": 2
+    "price": "31303.18"
+   },
+   "result": {
+    "id": 74046543,
+    "user": 6790020,
+    "create_time": 1681196535.01,
+    "finish_time": 0,
+    "finish_as": "",
+    "status": "open",
+    "contract": "BTC_USDT",
+    "size": "10",
+    "iceberg": "0",
+    "price": "31303.18",
+    "is_close": false,
+    "is_reduce_only": false,
+    "is_liq": false,
+    "tif": "gtc",
+    "left": "10",
+    "fill_price": "0",
+    "text": "t-my-custom-id",
+    "tkfr": "0.0005",
+    "mkfr": "0.0002",
+    "refu": 0,
+    "stp_id": 0,
+    "stp_act": "-",
+    "amend_text": "-",
+    "update_time": 1681196536.343
+   }
+  },
+  {
+   "params": {
+    "order_id": "74046543",
+    "size": "2"
    },
    "result": {
     "id": 74046543,
@@ -1110,6 +1178,104 @@
     "is_liq": false,
     "tif": "gtc",
     "left": "2",
+    "fill_price": "0",
+    "text": "t-my-custom-id",
+    "tkfr": "0.0005",
+    "mkfr": "0.0002",
+    "refu": 0,
+    "stp_id": 0,
+    "stp_act": "-",
+    "amend_text": "-",
+    "update_time": 1681196536.343
+   }
+  },
+  {
+   "params": {
+    "order_id": "74046543",
+    "size": "3",
+    "price": "31303.5"
+   },
+   "result": {
+    "id": 74046543,
+    "user": 6790020,
+    "create_time": 1681196535.01,
+    "finish_time": 0,
+    "finish_as": "",
+    "status": "open",
+    "contract": "BTC_USDT",
+    "size": "3",
+    "iceberg": "0",
+    "price": "31303.5",
+    "is_close": false,
+    "is_reduce_only": false,
+    "is_liq": false,
+    "tif": "gtc",
+    "left": "3",
+    "fill_price": "0",
+    "text": "t-my-custom-id",
+    "tkfr": "0.0005",
+    "mkfr": "0.0002",
+    "refu": 0,
+    "stp_id": 0,
+    "stp_act": "-",
+    "amend_text": "-",
+    "update_time": 1681196536.343
+   }
+  },
+  {
+   "params": {
+    "order_id": "74046544",
+    "size": "-2.5"
+   },
+   "result": {
+    "id": 74046544,
+    "user": 6790020,
+    "create_time": 1681196535.01,
+    "finish_time": 0,
+    "finish_as": "",
+    "status": "open",
+    "contract": "ETH_USDT",
+    "size": "-2.5",
+    "iceberg": "0",
+    "price": "1702.5",
+    "is_close": false,
+    "is_reduce_only": false,
+    "is_liq": false,
+    "tif": "gtc",
+    "left": "-2.5",
+    "fill_price": "0",
+    "text": "t-my-custom-id",
+    "tkfr": "0.0005",
+    "mkfr": "0.0002",
+    "refu": 0,
+    "stp_id": 0,
+    "stp_act": "-",
+    "amend_text": "-",
+    "update_time": 1681196536.343
+   }
+  },
+  {
+   "params": {
+    "order_id": "74046544",
+    "size": "-2.5",
+    "price": "1704.1"
+   },
+   "result": {
+    "id": 74046544,
+    "user": 6790020,
+    "create_time": 1681196535.01,
+    "finish_time": 0,
+    "finish_as": "",
+    "status": "open",
+    "contract": "ETH_USDT",
+    "size": "-2.5",
+    "iceberg": "0",
+    "price": "1704.1",
+    "is_close": false,
+    "is_reduce_only": false,
+    "is_liq": false,
+    "tif": "gtc",
+    "left": "-2.5",
     "fill_price": "0",
     "text": "t-my-custom-id",
     "tkfr": "0.0005",

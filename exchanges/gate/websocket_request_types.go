@@ -145,14 +145,6 @@ type WebsocketOrderRequest struct {
 	Account string `json:"account,omitempty"`
 }
 
-// WebsocketCancellAllResponse defines a websocket order cancel response
-type WebsocketCancellAllResponse struct {
-	Pair      currency.Pair `json:"currency_pair"`
-	Label     string        `json:"label"`
-	Message   string        `json:"message"`
-	Succeeded bool          `json:"succeeded"`
-}
-
 // WebsocketCancelRequest is a struct to hold the parameters for cancelling orders
 type WebsocketCancelRequest struct {
 	Pair    currency.Pair `json:"currency_pair,omitzero"`
@@ -177,7 +169,7 @@ type WebsocketFuturesAmendOrderRequest struct {
 	Asset     asset.Item    `json:"-"` // Only used internally for routing
 	AmendText string        `json:"amend_text,omitempty"`
 	Price     string        `json:"price,omitempty"`
-	Size      int64         `json:"size,omitempty"` // Negative for a sell order, as the size keeps the order's side
+	Size      types.Number  `json:"size,omitzero"` // Negative for a sell order, as the size keeps the order's side; omitzero also drops a negative zero, which sonic's omitempty sends
 }
 
 // WebsocketSpotListOrdersRequest holds the filters for listing spot orders over the websocket API

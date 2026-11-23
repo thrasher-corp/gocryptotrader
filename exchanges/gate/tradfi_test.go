@@ -1,7 +1,10 @@
 package gate
 
 import (
+	"net/http"
 	"net/url"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -199,6 +202,53 @@ func TestGetTradFiSymbols(t *testing.T) {
 
 func TestGetTradFiSymbolDetails(t *testing.T) {
 	t.Parallel()
+	symbols := []string{"XAUUSD", "AAPL", "EURUSD", "NAS100", "US500", "GBPJPY", "TSLA", "USDJPY", "BTCUSD", "GER40", "AUDUSD", "NVDA", "EURGBP", "UK100", "XAGUSD", "META", "USDCHF", "JP225", "NZDUSD", "AMZN"}
+	withRepeats := append([]string{symbols[0], symbols[1], symbols[1]}, symbols[2:7]...)
+	withRepeats = append(withRepeats, symbols[0], symbols[7])
+	for _, tc := range []struct {
+		name    string
+		symbols []string
+	}{
+		{name: "one symbol", symbols: symbols[:1]},
+		{name: "three symbols", symbols: symbols[:3]},
+		{name: "10 distinct symbols", symbols: symbols[:10]},
+		{name: "10 symbols with repeats", symbols: withRepeats},
+	} {
+		t.Run("sends "+tc.name+" in one request", func(t *testing.T) {
+			t.Parallel()
+			expected := strings.Join(tc.symbols, ",")
+			var requests atomic.Int32
+			ex := newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				assert.Equal(t, expected, r.URL.Query().Get("symbols"), "the request should carry every symbol in order")
+				_, err := w.Write([]byte(`{"data":{"list":[]}}`))
+				assert.NoError(t, err, "writing the symbol details should not error")
+			})
+			_, err := ex.GetTradFiSymbolDetails(t.Context(), tc.symbols)
+			require.NoError(t, err, "GetTradFiSymbolDetails must send up to 10 symbols")
+			assert.Equal(t, int32(1), requests.Load(), "GetTradFiSymbolDetails should send one request")
+		})
+	}
+	for _, tc := range []struct {
+		name    string
+		symbols []string
+	}{
+		{name: "11 symbols", symbols: symbols[:11]},
+		{name: "11 symbols ending in a repeat", symbols: append(symbols[:10:10], symbols[9])},
+		{name: "11 symbols with a repeat in the middle", symbols: append([]string{symbols[0], symbols[1], symbols[1]}, symbols[2:10]...)},
+		{name: "11 symbols starting with a share", symbols: symbols[1:12]},
+		{name: "21 symbols", symbols: append(symbols[:20:20], symbols[0])},
+	} {
+		t.Run("refuses "+tc.name+" without a request", func(t *testing.T) {
+			t.Parallel()
+			ex := newServedExchange(t, func(http.ResponseWriter, *http.Request) {
+				assert.Fail(t, "GetTradFiSymbolDetails should not send more than 10 symbols")
+			})
+			_, err := ex.GetTradFiSymbolDetails(t.Context(), tc.symbols)
+			assert.ErrorIs(t, err, errTooManySymbols, "GetTradFiSymbolDetails should refuse more than 10 symbols")
+		})
+	}
+
 	_, err := e.GetTradFiSymbolDetails(t.Context(), nil)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetTradFiSymbolDetails must require a symbol")
 

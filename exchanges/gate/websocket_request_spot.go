@@ -97,8 +97,9 @@ func (e *Exchange) WebsocketSpotCancelOrder(ctx context.Context, orderID string,
 	return resp, nil
 }
 
-// WebsocketSpotCancelAllOrdersByIDs cancels multiple orders via the websocket
-func (e *Exchange) WebsocketSpotCancelAllOrdersByIDs(ctx context.Context, o []WebsocketOrderBatchRequest) ([]*WebsocketCancellAllResponse, error) {
+// WebsocketSpotCancelAllOrdersByIDs cancels up to 20 orders, which may span several currency pairs, by order ID via the
+// websocket
+func (e *Exchange) WebsocketSpotCancelAllOrdersByIDs(ctx context.Context, o []WebsocketOrderBatchRequest) ([]*CancelOrderByIDResponse, error) {
 	if len(o) == 0 {
 		return nil, errNoOrdersToCancel
 	}
@@ -111,8 +112,11 @@ func (e *Exchange) WebsocketSpotCancelAllOrdersByIDs(ctx context.Context, o []We
 			return nil, currency.ErrCurrencyPairEmpty
 		}
 	}
+	if len(o) > 20 {
+		return nil, fmt.Errorf("%w: %d exceeds the limit of 20", errTooManyOrderIDs, len(o))
+	}
 
-	var resp []*WebsocketCancellAllResponse
+	var resp []*CancelOrderByIDResponse
 	return resp, e.SendWebsocketRequest(ctx, spotCancelBatchOrdersEPL, "spot.order_cancel_ids", asset.Spot, o, &resp, 2)
 }
 

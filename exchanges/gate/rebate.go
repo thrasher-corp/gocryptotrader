@@ -2,6 +2,7 @@ package gate
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -164,11 +165,14 @@ func (e *Exchange) GetUserRebateInformation(ctx context.Context) (uint64, error)
 	return resp.InviteUID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebateUserInfoEPL, http.MethodGet, "rebate/user/info", nil, nil, &resp)
 }
 
-// GetUserSubordinateRelationship queries whether the specified users are within the system. Gate only reports the first
-// 100 users
+// GetUserSubordinateRelationship queries whether up to 100 specified users are within the system, as Gate reports on
+// only 100 users of a longer list
 func (e *Exchange) GetUserSubordinateRelationship(ctx context.Context, userIDs []uint64) (*UserSubordinateRelationResponse, error) {
 	if len(userIDs) == 0 || slices.Contains(userIDs, 0) {
 		return nil, errUserIDRequired
+	}
+	if len(userIDs) > 100 {
+		return nil, fmt.Errorf("%w: %d supplied, maximum is 100", errTooManyUserIDs, len(userIDs))
 	}
 	ids := make([]string, len(userIDs))
 	for i := range userIDs {

@@ -224,7 +224,8 @@ func (e *Exchange) GetFutureFundingRates(ctx context.Context, settle currency.Co
 	return rates, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFundingRatesEPL, common.EncodeURLValues("futures/"+settle.Item.Lower+"/funding_rate", params), &rates)
 }
 
-// GetBatchFuturesFundingRates retrieves the funding rate history of several perpetual contracts at once
+// GetBatchFuturesFundingRates retrieves the funding rate history of up to 10 perpetual contracts at once. Gate's
+// documentation allows 200 contracts, but the endpoint refuses more than 10
 func (e *Exchange) GetBatchFuturesFundingRates(ctx context.Context, settle currency.Code, contracts currency.Pairs) ([]*BatchFundingRatesResponse, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
@@ -238,6 +239,9 @@ func (e *Exchange) GetBatchFuturesFundingRates(ctx context.Context, settle curre
 			return nil, currency.ErrCurrencyPairEmpty
 		}
 		names[i] = contracts[i].String()
+	}
+	if len(contracts) > 10 {
+		return nil, fmt.Errorf("%w: %d supplied, maximum is 10", errTooManyCurrencyPairs, len(contracts))
 	}
 	var resp []*BatchFundingRatesResponse
 	return resp, e.sendPublicPostRequest(ctx, publicBatchFundingRatesEPL, "futures/"+settle.Item.Lower+"/funding_rates", &batchFundingRatesRequest{Contracts: names}, &resp)

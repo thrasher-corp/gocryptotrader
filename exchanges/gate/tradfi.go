@@ -76,6 +76,9 @@ func (e *Exchange) GetTradFiSymbolDetails(ctx context.Context, symbols []string)
 	if len(symbols) == 0 {
 		return nil, fmt.Errorf("%w: at least one tradfi symbol required", currency.ErrSymbolStringEmpty)
 	}
+	if len(symbols) > 10 {
+		return nil, fmt.Errorf("%w: %d supplied, maximum is 10", errTooManySymbols, len(symbols))
+	}
 	params := url.Values{}
 	params.Set("symbols", strings.Join(symbols, ","))
 	var resp tradFiResponse[tradFiList[*TradFiSymbolDetailResponse]]

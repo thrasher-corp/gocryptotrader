@@ -2,6 +2,7 @@ package gate
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -271,11 +272,60 @@ func TestWebsocketSpotCancelAllOrdersByIDs(t *testing.T) {
 	_, err = e.WebsocketSpotCancelAllOrdersByIDs(t.Context(), []WebsocketOrderBatchRequest{out})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
+	orders := make([]WebsocketOrderBatchRequest, 41)
+	for i := range orders {
+		orders[i] = WebsocketOrderBatchRequest{OrderID: strconv.Itoa(9200 + i), Pair: BTCUSDT}
+	}
+	withRepeats := append([]WebsocketOrderBatchRequest{orders[0], orders[1], orders[1]}, orders[2:17]...)
+	withRepeats = append(withRepeats, orders[0], orders[17])
+	// A list within the limit passes the checks, so an unconnected instance fails only at sending
+	unconnected := new(Exchange)
+	require.NoError(t, testexch.Setup(unconnected), "Setup must not error")
+	for _, tc := range []struct {
+		name   string
+		orders []WebsocketOrderBatchRequest
+		err    error
+	}{
+		{name: "20 distinct orders", orders: orders[:20], err: websocket.ErrNotConnected},
+		{name: "20 orders with repeats", orders: withRepeats, err: websocket.ErrNotConnected},
+		{name: "21 orders", orders: orders[:21], err: errTooManyOrderIDs},
+		{name: "21 orders ending in a repeat", orders: append(orders[:20:20], orders[19]), err: errTooManyOrderIDs},
+		{name: "41 orders", orders: orders, err: errTooManyOrderIDs},
+		{name: "21 orders ending in one without an ID", orders: append(orders[:20:20], WebsocketOrderBatchRequest{Pair: BTCUSDT}), err: order.ErrOrderIDNotSet},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := unconnected.WebsocketSpotCancelAllOrdersByIDs(t.Context(), tc.orders)
+			assert.ErrorIs(t, err, tc.err, "WebsocketSpotCancelAllOrdersByIDs should return the expected error")
+		})
+	}
+
+	t.Run("outcomes carry their order IDs", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the cancelled orders are only recorded for mock tests")
+		}
+		ethUSDT := currency.NewPairWithDelimiter("ETH", "USDT", "_")
+		ex := newWsAPITestExchange(t, asset.Spot)
+		got, err := ex.WebsocketSpotCancelAllOrdersByIDs(t.Context(), []WebsocketOrderBatchRequest{
+			{OrderID: "1700664344", Pair: BTCUSDT},
+			{OrderID: "1700664345", Pair: BTCUSDT},
+			{OrderID: "1700664346", Pair: ethUSDT},
+		})
+		require.NoError(t, err, "WebsocketSpotCancelAllOrdersByIDs must not error")
+		exp := []*CancelOrderByIDResponse{
+			{CurrencyPair: BTCUSDT, OrderID: "1700664344", Text: "t-first", Succeeded: true},
+			{CurrencyPair: BTCUSDT, OrderID: "1700664345", Label: "ORDER_NOT_FOUND", Message: "Order not found"},
+			{CurrencyPair: ethUSDT, OrderID: "1700664346", Succeeded: true},
+		}
+		assert.Equal(t, exp, got, "WebsocketSpotCancelAllOrdersByIDs should return each order's outcome with its ID")
+	})
+
 	ex := newWsAPITestExchange(t, asset.Spot, canManipulateRealOrders)
 	got, err := ex.WebsocketSpotCancelAllOrdersByIDs(t.Context(), []WebsocketOrderBatchRequest{{OrderID: "1700664343", Pair: BTCUSDT}})
 	require.NoError(t, err, "WebsocketSpotCancelAllOrdersByIDs must not error")
 	if mockTests {
-		exp := []*WebsocketCancellAllResponse{{Pair: BTCUSDT, Succeeded: true}}
+		exp := []*CancelOrderByIDResponse{{CurrencyPair: BTCUSDT, OrderID: "1700664343", Succeeded: true}}
 		assert.Equal(t, exp, got, "WebsocketSpotCancelAllOrdersByIDs should decode every field")
 		return
 	}

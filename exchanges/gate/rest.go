@@ -105,6 +105,8 @@ var (
 	errInvalidEquity                        = errors.New("equity must not be 0")
 	errTooManyCurrencyCodes                 = errors.New("too many currency codes supplied")
 	errTooManyCurrencyPairs                 = errors.New("too many currency pairs supplied")
+	errTooManySymbols                       = errors.New("too many symbols supplied")
+	errTooManyUserIDs                       = errors.New("too many user IDs supplied")
 	errFetchingOrderbook                    = errors.New("error fetching orderbook")
 	errNoSpotInstrument                     = errors.New("no spot instrument available")
 	errInvalidLeverage                      = errors.New("invalid leverage value")

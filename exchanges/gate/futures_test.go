@@ -762,6 +762,84 @@ func TestGetFutureFundingRates(t *testing.T) {
 
 func TestGetBatchFuturesFundingRates(t *testing.T) {
 	t.Parallel()
+	bases := []currency.Code{currency.BTC, currency.ETH, currency.LTC, currency.XRP, currency.SOL, currency.DOGE, currency.ADA, currency.DOT, currency.TRX, currency.LINK, currency.AVAX, currency.BNB, currency.BCH, currency.ETC, currency.XLM, currency.EOS, currency.ATOM, currency.UNI, currency.FIL, currency.NEAR}
+	makeContracts := func(quote currency.Code, n int) currency.Pairs {
+		pairs := make(currency.Pairs, n)
+		for i := range pairs {
+			pairs[i] = currency.NewPairWithDelimiter(bases[i].String(), quote.String(), currency.UnderscoreDelimiter)
+		}
+		return pairs
+	}
+	usd1 := currency.NewCode("USD1")
+	usdt := makeContracts(currency.USDT, len(bases))
+	withRepeats := append(currency.Pairs{usdt[0], usdt[1], usdt[1]}, usdt[2:7]...)
+	withRepeats = append(withRepeats, usdt[0], usdt[7])
+	unformatted := make(currency.Pairs, 11)
+	for i := range unformatted {
+		unformatted[i] = currency.NewPair(bases[i], currency.USDT)
+	}
+	for _, tc := range []struct {
+		name      string
+		settle    currency.Code
+		contracts currency.Pairs
+	}{
+		{name: "one contract", settle: currency.USDT, contracts: usdt[:1]},
+		{name: "three contracts", settle: currency.USDT, contracts: usdt[:3]},
+		{name: "10 distinct contracts", settle: currency.USDT, contracts: usdt[:10]},
+		{name: "10 contracts with repeats", settle: currency.USDT, contracts: withRepeats},
+		{name: "10 contracts settled in BTC", settle: currency.BTC, contracts: makeContracts(currency.USD, 10)},
+		{name: "10 contracts settled in USD1", settle: usd1, contracts: makeContracts(usd1, 10)},
+	} {
+		t.Run("sends "+tc.name+" in one request", func(t *testing.T) {
+			t.Parallel()
+			expected := make([]string, len(tc.contracts))
+			for i := range tc.contracts {
+				expected[i] = tc.contracts[i].String()
+			}
+			path := "/api/v4/futures/" + tc.settle.Item.Lower + "/funding_rates"
+			var requests atomic.Int32
+			ex := newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				assert.Equal(t, path, r.URL.Path, "the request should go to the settlement's endpoint")
+				raw, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "reading the request body should not error")
+				var body batchFundingRatesRequest
+				assert.NoError(t, json.Unmarshal(raw, &body), "decoding the request body should not error")
+				assert.Equal(t, expected, body.Contracts, "the request should carry every contract in order")
+				_, err = w.Write([]byte(`[]`))
+				assert.NoError(t, err, "writing the funding rates should not error")
+			})
+			_, err := ex.GetBatchFuturesFundingRates(t.Context(), tc.settle, tc.contracts)
+			require.NoError(t, err, "GetBatchFuturesFundingRates must send up to 10 contracts")
+			assert.Equal(t, int32(1), requests.Load(), "GetBatchFuturesFundingRates should send one request")
+		})
+	}
+	for _, tc := range []struct {
+		name      string
+		settle    currency.Code
+		contracts currency.Pairs
+		err       error
+	}{
+		{name: "11 contracts", settle: currency.USDT, contracts: usdt[:11], err: errTooManyCurrencyPairs},
+		{name: "11 contracts ending in a repeat", settle: currency.USDT, contracts: append(usdt[:10:10], usdt[9]), err: errTooManyCurrencyPairs},
+		{name: "11 contracts with a repeat in the middle", settle: currency.USDT, contracts: append(currency.Pairs{usdt[0], usdt[1], usdt[1]}, usdt[2:10]...), err: errTooManyCurrencyPairs},
+		{name: "21 contracts", settle: currency.USDT, contracts: append(usdt[:20:20], usdt[0]), err: errTooManyCurrencyPairs},
+		{name: "11 unformatted contracts", settle: currency.USDT, contracts: unformatted, err: errTooManyCurrencyPairs},
+		{name: "11 contracts settled in BTC", settle: currency.BTC, contracts: makeContracts(currency.USD, 11), err: errTooManyCurrencyPairs},
+		{name: "11 contracts settled in USD1", settle: usd1, contracts: makeContracts(usd1, 11), err: errTooManyCurrencyPairs},
+		{name: "11 contracts without a settlement", settle: currency.EMPTYCODE, contracts: usdt[:11], err: currency.ErrCurrencyCodeEmpty},
+		{name: "20 contracts ending in an empty one", settle: currency.USDT, contracts: append(usdt[:19:19], currency.EMPTYPAIR), err: currency.ErrCurrencyPairEmpty},
+	} {
+		t.Run("refuses "+tc.name+" without a request", func(t *testing.T) {
+			t.Parallel()
+			ex := newServedExchange(t, func(http.ResponseWriter, *http.Request) {
+				assert.Fail(t, "GetBatchFuturesFundingRates should not send a refused list")
+			})
+			_, err := ex.GetBatchFuturesFundingRates(t.Context(), tc.settle, tc.contracts)
+			assert.ErrorIs(t, err, tc.err, "GetBatchFuturesFundingRates should refuse the list with the expected error")
+		})
+	}
+
 	contract := getPair(t, asset.USDTMarginedFutures)
 	_, err := e.GetBatchFuturesFundingRates(t.Context(), currency.EMPTYCODE, currency.Pairs{contract})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetBatchFuturesFundingRates must reject an empty settlement currency")

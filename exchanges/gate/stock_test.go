@@ -1,7 +1,11 @@
 package gate
 
 import (
+	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -290,6 +294,67 @@ func TestCancelAllStockOrders(t *testing.T) {
 
 func TestGetStockOrderHistory(t *testing.T) {
 	t.Parallel()
+	orderIDs := make([]string, 0, 40)
+	for i := range uint64(40) {
+		orderIDs = append(orderIDs, strconv.FormatUint(9000000000000+i*7%40, 10))
+	}
+	withRepeats := append([]string{orderIDs[0], orderIDs[1], orderIDs[1]}, orderIDs[2:17]...)
+	withRepeats = append(withRepeats, orderIDs[0], orderIDs[17])
+	begin, end := getTime()
+	for _, tc := range []struct {
+		name string
+		arg  *GetStockOrderHistoryRequest
+	}{
+		{name: "a nil request", arg: nil},
+		{name: "no order IDs", arg: &GetStockOrderHistoryRequest{Page: 1}},
+		{name: "one order ID", arg: &GetStockOrderHistoryRequest{OrderIDs: orderIDs[:1]}},
+		{name: "three order IDs", arg: &GetStockOrderHistoryRequest{OrderIDs: orderIDs[:3]}},
+		{name: "20 distinct order IDs", arg: &GetStockOrderHistoryRequest{OrderIDs: orderIDs[:20]}},
+		{name: "20 order IDs with repeats", arg: &GetStockOrderHistoryRequest{OrderIDs: withRepeats}},
+		{name: "20 order IDs with every filter", arg: &GetStockOrderHistoryRequest{Symbol: "AAPL", OrderIDs: orderIDs[:20], BeginTime: begin, EndTime: end, Side: order.Sell, Page: 2, PageSize: 5}},
+	} {
+		t.Run("sends "+tc.name+" in one request", func(t *testing.T) {
+			t.Parallel()
+			var expected string
+			if tc.arg != nil {
+				expected = strings.Join(tc.arg.OrderIDs, ",")
+			}
+			var requests atomic.Int32
+			ex := newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				assert.Equal(t, expected, r.URL.Query().Get("order_ids"), "the request should carry every order ID in order")
+				_, err := w.Write([]byte(`{"data":{"list":[]}}`))
+				assert.NoError(t, err, "writing the order history should not error")
+			})
+			_, err := ex.GetStockOrderHistory(t.Context(), tc.arg)
+			require.NoError(t, err, "GetStockOrderHistory must send up to 20 order IDs")
+			assert.Equal(t, int32(1), requests.Load(), "GetStockOrderHistory should send one request")
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		arg  *GetStockOrderHistoryRequest
+		err  error
+	}{
+		{name: "21 order IDs", arg: &GetStockOrderHistoryRequest{OrderIDs: orderIDs[:21]}, err: errTooManyOrderIDs},
+		{name: "21 order IDs ending in a repeat", arg: &GetStockOrderHistoryRequest{OrderIDs: append(orderIDs[:20:20], orderIDs[19])}, err: errTooManyOrderIDs},
+		{name: "21 order IDs with a repeat in the middle", arg: &GetStockOrderHistoryRequest{OrderIDs: append([]string{orderIDs[0], orderIDs[1], orderIDs[1]}, orderIDs[2:20]...)}, err: errTooManyOrderIDs},
+		{name: "41 order IDs", arg: &GetStockOrderHistoryRequest{OrderIDs: append(orderIDs[:40:40], orderIDs[0])}, err: errTooManyOrderIDs},
+		{name: "21 buy order IDs", arg: &GetStockOrderHistoryRequest{OrderIDs: orderIDs[:21], Side: order.Buy}, err: errTooManyOrderIDs},
+		{name: "21 order IDs with every filter", arg: &GetStockOrderHistoryRequest{Symbol: "AAPL", OrderIDs: orderIDs[:21], BeginTime: begin, EndTime: end, Side: order.Sell, Page: 2, PageSize: 100}, err: errTooManyOrderIDs},
+		{name: "21 order IDs with an invalid side", arg: &GetStockOrderHistoryRequest{OrderIDs: orderIDs[:21], Side: order.Short}, err: order.ErrSideIsInvalid},
+		{name: "21 order IDs with the times reversed", arg: &GetStockOrderHistoryRequest{OrderIDs: orderIDs[:21], BeginTime: end, EndTime: begin}, err: common.ErrStartAfterEnd},
+	} {
+		t.Run("refuses "+tc.name+" without a request", func(t *testing.T) {
+			t.Parallel()
+			ex := newServedExchange(t, func(http.ResponseWriter, *http.Request) {
+				assert.Fail(t, "GetStockOrderHistory should not send a refused request")
+			})
+			_, err := ex.GetStockOrderHistory(t.Context(), tc.arg)
+			assert.ErrorIs(t, err, tc.err, "GetStockOrderHistory should refuse the request with the expected error")
+		})
+	}
+
 	startTime, endTime := getTime()
 	_, err := e.GetStockOrderHistory(t.Context(), &GetStockOrderHistoryRequest{BeginTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetStockOrderHistory must reject a begin time after the end time")

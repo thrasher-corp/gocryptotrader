@@ -1,6 +1,7 @@
 package gate
 
 import (
+	"math"
 	"strconv"
 	"testing"
 	"time"
@@ -282,6 +283,67 @@ func TestWebsocketFuturesAmendOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	amend.Size = 2
+
+	ethUSDT := currency.NewPairWithDelimiter("ETH", "USDT", "_")
+	for _, tc := range []struct {
+		name  string
+		amend *WebsocketFuturesAmendOrderRequest
+		exp   *WebsocketFuturesOrderResponse
+	}{
+		{
+			name:  "price only",
+			amend: &WebsocketFuturesAmendOrderRequest{OrderID: "74046543", Contract: BTCUSDT, Asset: asset.USDTMarginedFutures, Price: "31303.18"},
+			exp: wsAPIFuturesOrder(func(o *WebsocketFuturesOrderResponse) {
+				wsAPIOpenFuturesOrder(o)
+				o.Price = 31303.18
+			}),
+		},
+		{
+			name:  "size and price",
+			amend: &WebsocketFuturesAmendOrderRequest{OrderID: "74046543", Contract: BTCUSDT, Asset: asset.USDTMarginedFutures, Size: 3, Price: "31303.5"},
+			exp: wsAPIFuturesOrder(func(o *WebsocketFuturesOrderResponse) {
+				wsAPIOpenFuturesOrder(o)
+				o.Price, o.Size, o.Left = 31303.5, 3, 3
+			}),
+		},
+		{
+			name:  "price only with a negative zero size",
+			amend: &WebsocketFuturesAmendOrderRequest{OrderID: "74046543", Contract: BTCUSDT, Asset: asset.USDTMarginedFutures, Price: "31303.18", Size: types.Number(math.Copysign(0, -1))},
+			exp: wsAPIFuturesOrder(func(o *WebsocketFuturesOrderResponse) {
+				wsAPIOpenFuturesOrder(o)
+				o.Price = 31303.18
+			}),
+		},
+		{
+			name:  "decimal size",
+			amend: &WebsocketFuturesAmendOrderRequest{OrderID: "74046544", Contract: ethUSDT, Asset: asset.USDTMarginedFutures, Size: -2.5},
+			exp: wsAPIFuturesOrder(func(o *WebsocketFuturesOrderResponse) {
+				wsAPIOpenFuturesOrder(o)
+				o.ID, o.Contract, o.Price = 74046544, ethUSDT, 1702.5
+				o.Size, o.Left = -2.5, -2.5
+			}),
+		},
+		{
+			name:  "decimal size and price",
+			amend: &WebsocketFuturesAmendOrderRequest{OrderID: "74046544", Contract: ethUSDT, Asset: asset.USDTMarginedFutures, Size: -2.5, Price: "1704.1"},
+			exp: wsAPIFuturesOrder(func(o *WebsocketFuturesOrderResponse) {
+				wsAPIOpenFuturesOrder(o)
+				o.ID, o.Contract, o.Price = 74046544, ethUSDT, 1704.1
+				o.Size, o.Left = -2.5, -2.5
+			}),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if !mockTests {
+				t.Skip("the amended order is only recorded for mock tests")
+			}
+			ex := newWsAPITestExchange(t, asset.USDTMarginedFutures)
+			got, err := ex.WebsocketFuturesAmendOrder(t.Context(), tc.amend)
+			require.NoError(t, err, "WebsocketFuturesAmendOrder must not error")
+			assert.Equal(t, tc.exp, got, "WebsocketFuturesAmendOrder should return the amended order")
+		})
+	}
 
 	ex := newWsAPITestExchange(t, asset.USDTMarginedFutures, canManipulateRealOrders)
 	amend.OrderID = "74046543"

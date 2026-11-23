@@ -1,8 +1,11 @@
 package gate
 
 import (
+	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -362,6 +365,61 @@ func TestGetUserRebateInformation(t *testing.T) {
 
 func TestGetUserSubordinateRelationship(t *testing.T) {
 	t.Parallel()
+	userIDs := make([]uint64, 0, 200)
+	for i := range uint64(200) {
+		userIDs = append(userIDs, i*37%200+1)
+	}
+	withRepeats := append([]uint64{userIDs[0], userIDs[1], userIDs[1]}, userIDs[2:97]...)
+	withRepeats = append(withRepeats, userIDs[0], userIDs[97])
+	for _, tc := range []struct {
+		name    string
+		userIDs []uint64
+	}{
+		{name: "one user", userIDs: userIDs[:1]},
+		{name: "three users", userIDs: userIDs[:3]},
+		{name: "100 distinct users", userIDs: userIDs[:100]},
+		{name: "100 users with repeats", userIDs: withRepeats},
+	} {
+		t.Run("sends "+tc.name+" in one request", func(t *testing.T) {
+			t.Parallel()
+			ids := make([]string, len(tc.userIDs))
+			for i := range tc.userIDs {
+				ids[i] = strconv.FormatUint(tc.userIDs[i], 10)
+			}
+			expected := strings.Join(ids, ",")
+			var requests atomic.Int32
+			ex := newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				assert.Equal(t, expected, r.URL.Query().Get("user_id_list"), "the request should carry every user in order")
+				_, err := w.Write([]byte(`{"list":[]}`))
+				assert.NoError(t, err, "writing the relationships should not error")
+			})
+			_, err := ex.GetUserSubordinateRelationship(t.Context(), tc.userIDs)
+			require.NoError(t, err, "GetUserSubordinateRelationship must send up to 100 users")
+			assert.Equal(t, int32(1), requests.Load(), "GetUserSubordinateRelationship should send one request")
+		})
+	}
+	for _, tc := range []struct {
+		name    string
+		userIDs []uint64
+		err     error
+	}{
+		{name: "101 users", userIDs: userIDs[:101], err: errTooManyUserIDs},
+		{name: "101 users ending in a repeat", userIDs: append(userIDs[:100:100], userIDs[99]), err: errTooManyUserIDs},
+		{name: "101 users with a repeat in the middle", userIDs: append([]uint64{userIDs[0], userIDs[1], userIDs[1]}, userIDs[2:100]...), err: errTooManyUserIDs},
+		{name: "201 users", userIDs: append(userIDs[:200:200], userIDs[0]), err: errTooManyUserIDs},
+		{name: "150 users ending in an empty ID", userIDs: append(userIDs[:149:149], 0), err: errUserIDRequired},
+	} {
+		t.Run("refuses "+tc.name+" without a request", func(t *testing.T) {
+			t.Parallel()
+			ex := newServedExchange(t, func(http.ResponseWriter, *http.Request) {
+				assert.Fail(t, "GetUserSubordinateRelationship should not send a refused list")
+			})
+			_, err := ex.GetUserSubordinateRelationship(t.Context(), tc.userIDs)
+			assert.ErrorIs(t, err, tc.err, "GetUserSubordinateRelationship should refuse the list with the expected error")
+		})
+	}
+
 	_, err := e.GetUserSubordinateRelationship(t.Context(), nil)
 	require.ErrorIs(t, err, errUserIDRequired, "GetUserSubordinateRelationship must reject an empty user list")
 
