@@ -44,6 +44,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
+// databaseLoadMu serialises loading data from the database, as every backtest's database manager connects, and
+// later closes, the one global database connection. SetupFromConfig takes it too to set up a task's manager, as that
+// rewrites the global database config whose driver a load's queries read
+var databaseLoadMu sync.Mutex
+
 // NewBacktester returns a new BackTest instance
 func NewBacktester() (*BackTest, error) {
 	bt := &BackTest{
@@ -77,7 +82,9 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		return fmt.Errorf("%w %v min interval size of %v", gctkline.ErrInvalidInterval, cfg.DataSettings.Interval, gctkline.FifteenSecond)
 	}
 	if cfg.DataSettings.DatabaseData != nil {
+		databaseLoadMu.Lock()
 		bt.databaseManager, err = engine.SetupDatabaseConnectionManager(&cfg.DataSettings.DatabaseData.Config)
+		databaseLoadMu.Unlock()
 		if err != nil {
 			return err
 		}
@@ -772,6 +779,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if cfg.DataSettings.DatabaseData.Path == "" {
 			cfg.DataSettings.DatabaseData.Path = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
 		}
+		databaseLoadMu.Lock()
+		defer databaseLoadMu.Unlock()
 		gctdatabase.DB.DataPath = cfg.DataSettings.DatabaseData.Path
 		err = gctdatabase.DB.SetConfig(&cfg.DataSettings.DatabaseData.Config)
 		if err != nil {
