@@ -1,6 +1,7 @@
 package decimal
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -66,6 +67,44 @@ func BenchmarkDecimalDiv(b *testing.B) {
 	}
 }
 
+func BenchmarkDecimalMod(b *testing.B) {
+	value := MustFromString("12345.6789012345")
+	step := MustFromString("0.00001")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		benchmarkDecimalSink = value.Mod(step)
+	}
+}
+
+func BenchmarkDecimalPow(b *testing.B) {
+	value := MustFromString("1.000123456789")
+	two := NewFromInt(2)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		benchmarkDecimalSink = value.Pow(two)
+	}
+}
+
+func BenchmarkDecimalRound(b *testing.B) {
+	value := MustFromString("12345.6789012345")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		benchmarkDecimalSink = value.Round(8)
+	}
+}
+
+func BenchmarkDecimalTruncate(b *testing.B) {
+	value := MustFromString("12345.6789012345")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		benchmarkDecimalSink = value.Truncate(8)
+	}
+}
+
 func BenchmarkDecimalEqual(b *testing.B) {
 	left := MustFromString("12345.6789012345")
 	right := MustFromString("12345.6789012345")
@@ -82,6 +121,16 @@ func BenchmarkDecimalString(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		benchmarkStringSink = value.String()
+	}
+}
+
+func BenchmarkDecimalSprintf(b *testing.B) {
+	amount := MustFromString("1.000123456789")
+	price := MustFromString("12345.6789012345")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		benchmarkStringSink = fmt.Sprintf("%v at %v", amount, price)
 	}
 }
 

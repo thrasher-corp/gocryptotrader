@@ -3,6 +3,7 @@
 package decimal
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -45,6 +46,8 @@ func TestNewFromString(t *testing.T) {
 	assert.Equal(t, shopspring.RequireFromString("1e-300"), result, "NewFromString should delegate to shopspring")
 	_, err = NewFromString("invalid")
 	assert.Error(t, err, "NewFromString should return the shopspring parse error")
+	t.Run("decode exponent limit", testNewFromStringExponentLimit)
+	t.Run("Unicode minus sign", testNewFromStringUnicodeMinus)
 }
 
 func TestMustFromString(t *testing.T) {
@@ -52,4 +55,56 @@ func TestMustFromString(t *testing.T) {
 	assert.Equal(t, shopspring.RequireFromString("1.25"), MustFromString("1.25"),
 		"MustFromString should preserve shopspring parsing")
 	assert.Panics(t, func() { MustFromString("invalid") }, "MustFromString should panic for invalid input")
+}
+
+func TestDecimalPow(t *testing.T) {
+	t.Parallel()
+	t.Run("zero base", testDecimalPowZeroBase)
+}
+
+func TestDecimalUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	t.Run("bare null leaves the value unchanged", testDecimalUnmarshalJSONBareNull)
+	t.Run("decoding failure leaves zero", func(t *testing.T) {
+		t.Parallel()
+		testDecodeFailureLeavesZero(t, unmarshalJSONDecoders)
+	})
+}
+
+func TestDecimalUnmarshalText(t *testing.T) {
+	t.Parallel()
+	t.Run("quoted text", testDecimalUnmarshalTextQuoted)
+	t.Run("decoding failure leaves zero", func(t *testing.T) {
+		t.Parallel()
+		testDecodeFailureLeavesZero(t, unmarshalTextDecoders)
+	})
+}
+
+func TestDecimalScan(t *testing.T) {
+	t.Parallel()
+	t.Run("input types", testDecimalScanInputTypes)
+	t.Run("decoding failure leaves zero", func(t *testing.T) {
+		t.Parallel()
+		testDecodeFailureLeavesZero(t, scanDecoders)
+	})
+}
+
+// testDecimalFormatGoSyntax checks shopspring's %#v form, which the udecimal
+// build replaces with a MustFromString call.
+func testDecimalFormatGoSyntax(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, value, expected string
+	}{
+		{name: "fraction", value: "3.14", expected: "decimal.New(314, -2)"},
+		{name: "negative fraction", value: "-0.5", expected: "decimal.New(-5, -1)"},
+		{name: "zero", value: "0", expected: "decimal.New(0, 0)"},
+		{name: "positive exponent", value: "1e3", expected: "decimal.New(1, 3)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, fmt.Sprintf("%#v", MustFromString(tc.value)),
+				"Go syntax formatting should print shopspring's New call")
+		})
+	}
 }

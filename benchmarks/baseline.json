@@ -52,16 +52,16 @@
     "bytes": 0
   },
   "common/math.BenchmarkCompareSignedPercentageDifferenceDecimal": {
-    "allocs": 12,
-    "bytes": 376
+    "allocs": 9,
+    "bytes": 328
   },
   "common/math.BenchmarkCompareSignedPercentageDifferenceDecimalPrecisionFallback": {
-    "allocs": 26,
-    "bytes": 872
+    "allocs": 9,
+    "bytes": 384
   },
   "common/math.BenchmarkDecimalPercentageDifference": {
-    "allocs": 27,
-    "bytes": 792
+    "allocs": 19,
+    "bytes": 600
   },
   "common/math.BenchmarkPercentageDifference": {
     "allocs": 0,
@@ -146,8 +146,8 @@
     "bytes": 648
   },
   "exchange/order/limits.BenchmarkAmountStepCommonBaseIncrement": {
-    "allocs": 64,
-    "bytes": 1064
+    "allocs": 57,
+    "bytes": 1008
   },
   "exchange/websocket/orderbookmanager.BenchmarkApplyPendingUpdates/1": {
     "allocs": 3,
@@ -314,8 +314,8 @@
     "bytes": 480
   },
   "exchanges/orderbook.BenchmarkLevelsCalculateExecution": {
-    "allocs": 46,
-    "bytes": 1288
+    "allocs": 32,
+    "bytes": 960
   },
   "exchanges/orderbook.BenchmarkLoad": {
     "allocs": 0,
@@ -617,12 +617,12 @@
     "bytes": 16
   },
   "types.BenchmarkPreciseNumberDecimal": {
-    "allocs": 3,
-    "bytes": 56
+    "allocs": 2,
+    "bytes": 40
   },
   "types.BenchmarkPreciseNumberUnmarshalJSON": {
-    "allocs": 16,
-    "bytes": 392
+    "allocs": 4,
+    "bytes": 72
   },
   "types.BenchmarkUnmarshalJSON/decoder/date": {
     "allocs": 1,
@@ -661,32 +661,52 @@
     "bytes": 80
   },
   "types/decimal.BenchmarkDecimalDiv": {
-    "allocs": 12,
-    "bytes": 384
+    "allocs": 7,
+    "bytes": 224
   },
   "types/decimal.BenchmarkDecimalEqual": {
     "allocs": 0,
     "bytes": 0
   },
   "types/decimal.BenchmarkDecimalFloat64": {
-    "allocs": 11,
-    "bytes": 304
+    "allocs": 0,
+    "bytes": 0
   },
   "types/decimal.BenchmarkDecimalInexactFloat64": {
-    "allocs": 11,
-    "bytes": 304
+    "allocs": 0,
+    "bytes": 0
+  },
+  "types/decimal.BenchmarkDecimalMod": {
+    "allocs": 5,
+    "bytes": 128
   },
   "types/decimal.BenchmarkDecimalMul": {
     "allocs": 2,
     "bytes": 80
   },
+  "types/decimal.BenchmarkDecimalPow": {
+    "allocs": 6,
+    "bytes": 176
+  },
+  "types/decimal.BenchmarkDecimalRound": {
+    "allocs": 5,
+    "bytes": 104
+  },
+  "types/decimal.BenchmarkDecimalSprintf": {
+    "allocs": 7,
+    "bytes": 144
+  },
   "types/decimal.BenchmarkDecimalString": {
-    "allocs": 4,
-    "bytes": 56
+    "allocs": 2,
+    "bytes": 32
+  },
+  "types/decimal.BenchmarkDecimalTruncate": {
+    "allocs": 3,
+    "bytes": 48
   },
   "types/decimal.BenchmarkDecimalUnmarshalJSON": {
-    "allocs": 5,
-    "bytes": 96
+    "allocs": 3,
+    "bytes": 64
   },
   "types/decimal.BenchmarkMustFromFloat": {
     "allocs": 2,
@@ -697,7 +717,7 @@
     "bytes": 40
   },
   "types/decimal.BenchmarkNewFromString": {
-    "allocs": 3,
-    "bytes": 56
+    "allocs": 2,
+    "bytes": 40
   }
 }

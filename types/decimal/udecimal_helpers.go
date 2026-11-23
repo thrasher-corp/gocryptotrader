@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -17,24 +16,31 @@ import (
 const Implementation = "quagmt/udecimal"
 
 const (
-	maxPrecision             = 19
-	maxStringDigits          = 200
-	maxEncodedBinaryBytes    = 255
-	u128MaxDecimalDigits     = 39
-	udecimalDivisionOverflow = "runtime error: integer overflow"
-	maxDecodeExponent        = 10000 // shopspring's default MaxDecodeExponent
+	maxPrecision          = 19
+	maxStringDigits       = 200
+	maxEncodedBinaryBytes = 255
+
+	// shopspringMaxDecodeExponent is shopspring's default MaxDecodeExponent.
+	// udecimal's precision and expansion bounds already reject large exponents
+	// except on zero and trailing-zero input; this limit rejects those too, so
+	// the udecimal build accepts no exponent that the default build rejects.
+	shopspringMaxDecodeExponent = 10000
 )
 
 var (
 	errInvalidDecimal      = errors.New("invalid decimal")
 	errPrecisionOutOfRange = errors.New("decimal precision out of range")
 	errExponentOutOfRange  = errors.New("decimal exponent out of range")
+	errUnsupportedScanType = errors.New("unsupported decimal scan type")
 )
 
-// udecimalBigIntDivisionFactor exceeds u128 while retaining zero precision.
-// Multiplying both operands by it preserves their quotient and precision but
-// makes udecimal select its native big.Int division path.
-var udecimalBigIntDivisionFactor = udecimal.MustParse("1" + strings.Repeat("0", u128MaxDecimalDigits))
+// useNativeParser reports whether udecimal's own parser can decode text. Beyond
+// its u128 fast path, that parser removes a leading '-' and lets big.Int read
+// the rest, which accepts a second sign, so text starting "-+" or "--" goes to
+// NewFromString instead.
+func useNativeParser[T string | []byte](text T) bool {
+	return len(text) <= maxStringDigits && (len(text) < 2 || text[0] != '-' || (text[1] != '+' && text[1] != '-'))
+}
 
 // parseUdecimal reconstructs values beyond udecimal's 200-character parser
 // limit because internal arithmetic can produce larger values.
@@ -69,67 +75,15 @@ func parseUdecimal(value string) (udecimal.Decimal, error) {
 	return result, nil
 }
 
-// divideUdecimal preserves udecimal's native zero-allocation division path
-// while repairing a specific valid-operand overflow in its u128 implementation.
-func divideUdecimal(left, right udecimal.Decimal) (result udecimal.Decimal) {
-	// udecimal v1.10.1's u128 fast division can violate bits.Div64's divisor
-	// precondition for a narrow operand range. Recover only that known runtime
-	// failure so divide-by-zero and any unrelated backend panic remain visible.
-	defer func() {
-		recovered := recover()
-		if recovered == nil {
-			return
-		}
-		runtimeError, ok := recovered.(runtime.Error)
-		if !ok || runtimeError.Error() != udecimalDivisionOverflow {
-			panic(recovered)
-		}
-
-		// Multiplying both operands by the same precision-zero factor leaves the
-		// quotient unchanged. Because the factor exceeds u128, both products use
-		// udecimal's big.Int representation and MustDiv bypasses the faulty fast
-		// path. Its native fallback retains sign handling and 19-place truncation.
-		scaledLeft := left.Mul(udecimalBigIntDivisionFactor)
-		scaledRight := right.Mul(udecimalBigIntDivisionFactor)
-		result = scaledLeft.MustDiv(scaledRight)
-	}()
-	return left.MustDiv(right)
-}
-
-// moduloUdecimal preserves udecimal's native remainder path while repairing
-// the same valid-operand overflow as divideUdecimal's u128 implementation.
-func moduloUdecimal(left, right udecimal.Decimal) (result udecimal.Decimal) {
-	// MustMod obtains the quotient through udecimal's u128 fast division, so it
-	// can reach the same bits.Div64 precondition failure as MustDiv. Recover only
-	// that known runtime error; zero divisors and unrelated panics must propagate.
-	defer func() {
-		recovered := recover()
-		if recovered == nil {
-			return
-		}
-		runtimeError, ok := recovered.(runtime.Error)
-		if !ok || runtimeError.Error() != udecimalDivisionOverflow {
-			panic(recovered)
-		}
-
-		// Scaling both operands by the same power preserves the remainder after
-		// scaling it back down. The factor exceeds u128, forcing MustMod onto the
-		// backend's big.Int path without reimplementing sign or precision rules.
-		scaledLeft := left.Mul(udecimalBigIntDivisionFactor)
-		scaledRight := right.Mul(udecimalBigIntDivisionFactor)
-		result = scaledLeft.MustMod(scaledRight).MustDiv(udecimalBigIntDivisionFactor)
-	}()
-	return left.MustMod(right)
-}
-
-// newUdecimalFromFloat accepts every finite float64 because udecimal's native
+// newUdecimalFromFloat accepts every finite float because udecimal's native
 // constructor uses fixed notation and rejects large finite values over its
-// parser length limit.
-func newUdecimalFromFloat(value float64) (udecimal.Decimal, error) {
+// parser length limit. It converts the shortest decimal form that round-trips
+// to a float of bitSize bits.
+func newUdecimalFromFloat(value float64, bitSize int) (udecimal.Decimal, error) {
 	if math.IsNaN(value) || math.IsInf(value, 0) {
 		return udecimal.Decimal{}, fmt.Errorf("%w: non-finite float %v", errInvalidDecimal, value)
 	}
-	formatted := strconv.FormatFloat(value, 'g', -1, 64)
+	formatted := strconv.FormatFloat(value, 'g', -1, bitSize)
 	exponentIndex := strings.IndexAny(formatted, "eE")
 	if exponentIndex < 0 {
 		normalised, err := normalise(formatted, true)
@@ -202,6 +156,8 @@ func powUdecimal(value, exponent udecimal.Decimal) (udecimal.Decimal, error) {
 		return udecimal.Decimal{}, fmt.Errorf("%w: fractional exponent %s", errInvalidDecimal, exponent)
 	}
 	if value.IsZero() {
+		// The default build returns zero for every power of zero, including 0^0
+		// and negative powers, where PowToIntPart returns one or an error.
 		return udecimal.Decimal{}, nil
 	}
 	return value.PowToIntPart(exponent)
@@ -221,16 +177,15 @@ func roundUdecimal(value udecimal.Decimal, places int32) udecimal.Decimal {
 	if zeroes > integerDigitCount(value) {
 		// The rounding position is left of every significant digit, so the result
 		// is zero. Besides avoiding unnecessary work, this makes extreme int32
-		// places safe without attempting to construct an enormous power of ten.
+		// places safe without attempting to construct a ginormous power of ten.
 		return udecimal.Zero
 	}
 	scale := powerOfTenUdecimal(int(zeroes))
-	return divideUdecimal(value, scale).RoundHAZ(0).Mul(scale)
+	return value.MustDiv(scale).RoundHAZ(0).Mul(scale)
 }
 
 // truncateUdecimal handles negative precision because udecimal.Trunc accepts
-// only an unsigned fractional precision, while shopspring's Truncate clears
-// integer digits for negative precision.
+// only an unsigned fractional precision.
 func truncateUdecimal(value udecimal.Decimal, precision int32) udecimal.Decimal {
 	if precision >= 0 {
 		if precision >= maxPrecision {
@@ -243,11 +198,11 @@ func truncateUdecimal(value udecimal.Decimal, precision int32) udecimal.Decimal 
 	if zeroes > integerDigitCount(value) {
 		// Truncating left of every significant digit leaves zero. As in
 		// roundUdecimal, this also keeps extreme int32 precision from
-		// constructing an enormous power of ten.
+		// constructing a ginormous power of ten.
 		return udecimal.Zero
 	}
 	scale := powerOfTenUdecimal(int(zeroes))
-	return divideUdecimal(value, scale).Trunc(0).Mul(scale)
+	return value.MustDiv(scale).Trunc(0).Mul(scale)
 }
 
 // integerDigitCount returns the number of significant digits before the
@@ -307,10 +262,9 @@ func parseDecimalParts(value string) (digits string, scale int64, negative bool,
 
 	digits = strings.TrimLeft(digits, "0")
 	scale = int64(len(fractionalPart)) - exponent
-	if scale > maxDecodeExponent || scale < -maxDecodeExponent {
-		// shopspring's default limit rejects these exponents even for zero and
-		// trailing-zero input which udecimal could represent. Rejecting the same
-		// input keeps parsing independent of the selected backend.
+	if scale > shopspringMaxDecodeExponent || scale < -shopspringMaxDecodeExponent {
+		// Like the default build, reject these even for zero and trailing-zero
+		// input that udecimal could represent.
 		return "", 0, false, fmt.Errorf("%w: %q", errExponentOutOfRange, value)
 	}
 	for scale > 0 && strings.HasSuffix(digits, "0") {
