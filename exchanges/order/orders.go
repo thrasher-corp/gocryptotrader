@@ -167,7 +167,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	executionAdvanced := m.ExecutedAmount > d.ExecutedAmount+executionTolerance
 	terminal := d.Status != UnknownStatus && d.Status.IsInactive() && d.Status != Cancelling && d.Status != AnyStatus
 	incomingTerminal := m.Status.IsInactive() && m.Status != Cancelling && m.Status != AnyStatus
-	if (m.ExecutedAmount > 0 && m.ExecutedAmount < d.ExecutedAmount-executionTolerance) ||
+	// A quote-sized order can report cumulative quote execution before its base fills arrive.
+	quoteSized := m.Amount == 0 && (m.QuoteAmount > 0 || (d.Amount == 0 && d.QuoteAmount > 0))
+	quoteRegressed := quoteSized && m.ExecutedQuoteAmount > 0 && m.ExecutedQuoteAmount < d.ExecutedQuoteAmount
+	if quoteRegressed || (m.ExecutedAmount > 0 && m.ExecutedAmount < d.ExecutedAmount-executionTolerance) ||
 		(terminal && m.Status != UnknownStatus && !incomingTerminal && !executionAdvanced) {
 		for i := range m.Trades {
 			found := false
@@ -238,7 +241,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		}
 		updated = true
 	}
-	executedQuoteAmountChanged := m.ExecutedQuoteAmount > 0 && (m.ExecutedAmount > 0 || m.AverageExecutedPrice > 0) && m.ExecutedQuoteAmount != d.ExecutedQuoteAmount
+	executedQuoteAmountChanged := m.ExecutedQuoteAmount > 0 && (m.ExecutedAmount > 0 || m.AverageExecutedPrice > 0 || quoteSized) && m.ExecutedQuoteAmount != d.ExecutedQuoteAmount
 	if executedQuoteAmountChanged {
 		d.ExecutedQuoteAmount = m.ExecutedQuoteAmount
 		updated = true
@@ -253,7 +256,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		if effectiveAssetType == asset.Empty {
 			effectiveAssetType = d.AssetType
 		}
-		if m.ExecutedQuoteAmount > 0 && effectiveAssetType.IsValid() && !effectiveAssetType.IsDerivative() {
+		if m.ExecutedAmount > 0 && m.ExecutedQuoteAmount > 0 && effectiveAssetType.IsValid() && !effectiveAssetType.IsDerivative() {
 			d.AverageExecutedPrice = m.ExecutedQuoteAmount / d.ExecutedAmount
 		} else {
 			d.AverageExecutedPrice = 0
@@ -494,7 +497,7 @@ func (d *Detail) IsActive() bool {
 // currently not available on the exchange
 func (d *Detail) IsInactive() bool {
 	if d.Amount == 0 && d.QuoteAmount > 0 {
-		return d.Status == UnknownStatus || d.Status.IsInactive()
+		return d.Status.IsInactive()
 	}
 	return d.Amount <= max(0, d.ExecutedAmount) ||
 		d.Status.IsInactive()
@@ -539,11 +542,8 @@ func (d *Detail) Copy() Detail {
 	return c
 }
 
-// DeriveSubmitResponse will construct an order SubmitResponse when a successful
-// submission has occurred. NOTE: order status is populated as order.Filled for a
-// market order else order.New if an order is accepted as default, date and
-// lastupdated fields have been populated as time.Now(). All fields can be
-// customised in caller scope if needed.
+// DeriveSubmitResponse records an acknowledged order as New and sets its
+// timestamps to the current time. Callers can set a status reported by the venue.
 func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 	if s == nil {
 		return nil, errOrderSubmitIsNil
@@ -551,11 +551,6 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 
 	if orderID == "" {
 		return nil, ErrOrderIDNotSet
-	}
-
-	status := New
-	if s.Type == Market { // NOTE: This will need to be scrutinized.
-		status = Filled
 	}
 
 	return &SubmitResponse{
@@ -578,7 +573,7 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 
 		LastUpdated: time.Now(),
 		Date:        time.Now(),
-		Status:      status,
+		Status:      New,
 		OrderID:     orderID,
 	}, nil
 }

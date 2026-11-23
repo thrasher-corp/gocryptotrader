@@ -440,9 +440,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 			return nil, err
 		}
 		orderID = strconv.FormatInt(response.OrderNumber, 10)
-		if o.Type == order.Market {
-			status = order.Filled
-		}
 	}
 	resp, err := o.DeriveSubmitResponse(orderID)
 	if err != nil {

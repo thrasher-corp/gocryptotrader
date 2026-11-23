@@ -727,7 +727,7 @@ func TestGetOrderHistory(t *testing.T) {
 			require.Len(t, orders, 1, "spot history must return one order")
 			assert.Equal(t, 1.0, orders[0].ExecutedAmount, "executed amount should match")
 			assert.Equal(t, 1.0, orders[0].RemainingAmount, "remaining amount should exclude executions")
-			assert.Equal(t, 99.5, orders[0].ExecutedQuoteAmount, "cost should match the executed quote amount")
+			assert.Equal(t, 99.5, orders[0].ExecutedQuoteAmount, "executed quote amount should match the reported cash amount")
 			assert.Equal(t, 0.1, orders[0].Fee, "fee should match")
 			assert.Equal(t, time.UnixMilli(1604367700000), orders[0].CloseTime, "close time should use the completion timestamp")
 		})
@@ -2743,13 +2743,13 @@ func TestFormatV5OrderDetail(t *testing.T) {
 	for _, contract := range []string{"BTC-USDT", "BTC-USDT-261113"} {
 		for _, state := range []string{"submitted", "partially_filled", "filled"} {
 			for _, feeCurrency := range []string{"", "USDT", "HTX", "USDT,HTX"} {
-				t.Run("cost currency/"+contract+"/"+state+"/"+feeCurrency, func(t *testing.T) {
+				t.Run("quote turnover/"+contract+"/"+state+"/"+feeCurrency, func(t *testing.T) {
 					t.Parallel()
 					h := new(Exchange)
 					h.SetDefaults()
 					detail, err := h.formatV5OrderDetail(&V5Order{ContractCode: contract, Side: "buy", Type: "limit", State: V5OrderState(state), TimeInForce: "gtc", MarginMode: "cross", Price: 3100, Volume: 2, TradeVolume: 1, TradeTurnover: 3.1, FeeCurrency: feeCurrency}, asset.USDTMarginedFutures)
 					require.NoError(t, err, "linear contract order must decode")
-					assert.Equal(t, 3.1, detail.ExecutedQuoteAmount, "turnover should remain the order cost")
+					assert.Equal(t, 3.1, detail.ExecutedQuoteAmount, "executed quote amount should match the reported turnover")
 				})
 			}
 		}
@@ -2853,7 +2853,7 @@ func TestGetOrderInfo(t *testing.T) {
 			})
 		}
 	})
-	t.Run("V5 execution prices and cost", func(t *testing.T) {
+	t.Run("V5 execution price and quote turnover", func(t *testing.T) {
 		t.Parallel()
 		// Volumes count contracts of 0.001 BTC or 0.01 ETH, so turnover differs from volume times average price.
 		type testCase struct {
@@ -2983,7 +2983,7 @@ func TestGetOrderInfo(t *testing.T) {
 				require.NoError(t, err, "derivative order information must decode")
 				assert.Equal(t, "1", detail.OrderID, "order ID should match")
 				assert.Equal(t, tc.closeTime, detail.CloseTime, "close time should match the cancellation timestamp")
-				assert.Equal(t, tc.cost, detail.ExecutedQuoteAmount, "cost should match the executed turnover")
+				assert.Equal(t, tc.cost, detail.ExecutedQuoteAmount, "executed quote amount should match the reported turnover")
 			})
 		}
 	}
@@ -3087,7 +3087,7 @@ func TestGetOrderInfo(t *testing.T) {
 			assert.Equal(t, 2.0, detail.Amount, "amount should match")
 			assert.Equal(t, 1.0, detail.ExecutedAmount, "executed amount should match")
 			assert.Equal(t, 0.1, detail.Fee, "charged fee should be positive for every asset")
-			assert.Equal(t, 100.0, detail.ExecutedQuoteAmount, "executed cost should match")
+			assert.Equal(t, 100.0, detail.ExecutedQuoteAmount, "executed quote amount should match")
 			stored := &order.Detail{OrderID: detail.OrderID, Exchange: detail.Exchange, Pair: detail.Pair, AssetType: detail.AssetType}
 			require.NoError(t, stored.UpdateOrderFromDetail(detail), "order store must accept the completed order")
 			assert.Equal(t, detail.Fee, stored.Fee, "order store should record the charged fee")

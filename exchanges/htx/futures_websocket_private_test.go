@@ -124,7 +124,7 @@ func TestFormatLegacyFuturesWebsocketOrder(t *testing.T) {
 				assert.Equal(t, 2.0, detail.Amount, "amount should match")
 				assert.Equal(t, 1.0, detail.ExecutedAmount, "executed amount should match")
 				assert.Equal(t, 1.0, detail.RemainingAmount, "remaining amount should match")
-				assert.Equal(t, 100.0, detail.ExecutedQuoteAmount, "cost should match")
+				assert.Equal(t, 100.0, detail.ExecutedQuoteAmount, "executed quote amount should match the turnover")
 				assert.Equal(t, 0.1, detail.Fee, "fee should match")
 				assert.Equal(t, currency.BTC, detail.FeeAsset, "fee asset should match")
 				assert.Equal(t, 5.0, detail.Leverage, "leverage should match")

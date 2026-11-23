@@ -700,7 +700,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 
 	var orderID string
-	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
 		var timeInForce string
@@ -742,9 +741,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				orderID = strings.Join(response.TransactionIDs, ", ")
 			}
 		}
-		if s.Type == order.Market {
-			status = order.Filled
-		}
 	case asset.Futures:
 		var fOrder FuturesSendOrderData
 		fOrder, err = e.FuturesSendOrder(ctx,
@@ -771,12 +767,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
 	}
-	resp, err := s.DeriveSubmitResponse(orderID)
-	if err != nil {
-		return nil, err
-	}
-	resp.Status = status
-	return resp, nil
+	return s.DeriveSubmitResponse(orderID)
 }
 
 // ModifyOrder modifies an existing order

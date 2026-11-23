@@ -655,7 +655,6 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 			OrderID:              resp.Data[x].OrderID,
 			Pair:                 pair,
 			Price:                resp.Data[x].Price.Float64(),
-			QuoteAmount:          spreadAmt * resp.Data[x].Price.Float64(),
 			RemainingAmount:      spreadRemaining,
 			Side:                 oSide,
 			Status:               oStatus,

@@ -332,6 +332,10 @@ Use `require` and `assert` appropriately:
 - In merges, preserve omitted values unless new fills invalidate them. Clear
     stale totals and averages, not unrelated fees or remainders; derive averages
     only from compatible supplied quantities. Document unknown-versus-zero semantics.
+    When a quote-sized order reports cumulative quote execution before base
+    fills, test that it stays eligible for polling and that later snapshots
+    enrich it without rewinding execution or inferring an average from
+    totals representing different fills.
 - Delayed snapshots must not rewind cumulative execution or reopen terminal
     orders. Preserve unseen trades without replacing known fills. Test older,
     equal and missing timestamps, status-only updates and genuine fill progress.

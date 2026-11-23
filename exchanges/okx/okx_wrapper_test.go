@@ -1992,10 +1992,7 @@ func TestWebsocketCancelAllOrders(t *testing.T) {
 	})
 }
 
-// TestOrderAmounts guards the order sizes GetOrderInfo reports: an order sized
-// in the quote currency reports its amounts in the base currency, as the
-// websocket order channel does for the captured order in testdata/wsOrders.json,
-// and a filled order has nothing remaining.
+// TestOrderAmounts checks that quote budgets and base fills stay in their reported units.
 func TestOrderAmounts(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -2006,22 +2003,22 @@ func TestOrderAmounts(t *testing.T) {
 		{
 			"quote sized, filled",
 			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "sell", "cTime": "1694153250532", "sz": "10", "tgtCcy": "quote_ccy", "accFillSz": "0.00038128", "avgPx": "26228.1", "state": "filled"},
-			0.00038128, 0.00038128, 0, 10,
+			0, 0.00038128, 0, 10,
 		},
 		{
 			"quote sized, partially filled",
 			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "buy", "cTime": "1694153250532", "sz": "100", "tgtCcy": "quote_ccy", "accFillSz": "0.001", "avgPx": "25000", "state": "partially_filled"},
-			0.004, 0.001, 0.003, 100,
+			0, 0.001, 0, 100,
 		},
 		{
 			"quote sized, live",
-			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderLimit, "side": "buy", "cTime": "1694153250532", "sz": "100", "tgtCcy": "quote_ccy", "accFillSz": "0", "avgPx": "", "state": "live"},
+			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "buy", "cTime": "1694153250532", "sz": "100", "tgtCcy": "quote_ccy", "accFillSz": "0", "avgPx": "", "state": "live"},
 			0, 0, 0, 100,
 		},
 		{
 			"quote sized, partially filled, zero avgPx",
-			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderLimit, "side": "buy", "cTime": "1694153250532", "sz": "100", "tgtCcy": "quote_ccy", "accFillSz": "0", "avgPx": "", "state": "partially_filled"},
-			0, 0, 0, 100,
+			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "buy", "cTime": "1694153250532", "sz": "100", "tgtCcy": "quote_ccy", "accFillSz": "0.001", "avgPx": "", "state": "partially_filled"},
+			0, 0.001, 0, 100,
 		},
 		{
 			"base sized, partially filled",

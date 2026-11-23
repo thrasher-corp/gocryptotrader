@@ -361,10 +361,13 @@ func TestGetOrderInfo(t *testing.T) {
 		assert.Equal(t, "1", got.OrderID, "GetOrderInfo should preserve the response order ID")
 		assert.Equal(t, time.UnixMilli(1758499200000), got.Date, "GetOrderInfo should preserve the creation timestamp")
 	})
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := e.GetOrderInfo(t.Context(), "9ead39f5-701a-400b-b635-d7349eb0f6b", currency.EMPTYPAIR, asset.Spot)
-	assert.NoError(t, err, "GetOrderInfo should not error")
+		_, err := e.GetOrderInfo(t.Context(), "9ead39f5-701a-400b-b635-d7349eb0f6b", currency.EMPTYPAIR, asset.Spot)
+		assert.NoError(t, err, "GetOrderInfo should not error")
+	})
 }
 
 func TestGetAllOpenOrderID(t *testing.T) {
@@ -453,14 +456,17 @@ func TestGetActiveOrders(t *testing.T) {
 		assert.Equal(t, "1", got[0].OrderID, "GetActiveOrders should preserve the response order ID")
 		assert.Equal(t, time.UnixMilli(1758499200000), got[0].Date, "GetActiveOrders should preserve the creation timestamp")
 	})
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
-		Side:      order.AnySide,
-		AssetType: asset.Spot,
-		Type:      order.AnyType,
+		_, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+			Side:      order.AnySide,
+			AssetType: asset.Spot,
+			Type:      order.AnyType,
+		})
+		assert.NoError(t, err, "GetActiveOrders should not error")
 	})
-	assert.NoError(t, err, "GetActiveOrders should not error")
 }
 
 func TestGetOrderHistory(t *testing.T) {

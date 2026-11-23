@@ -3871,6 +3871,104 @@ func TestGetRecentTrades(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+// testSubmitMarketTimeInForce checks sizing for each valid time in force at the REST boundary.
+func testSubmitMarketTimeInForce(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	const base, quote = 0.0123456789, 0.123456789012
+	cases := []struct {
+		name                  string
+		asset                 asset.Item
+		pair                  currency.Pair
+		marginType            margin.Type
+		side                  order.Side
+		amount, quote         float64
+		marketSize, limitSize float64
+		marketTarget          string
+		marketErr, limitErr   error
+	}{
+		{name: "margin buy with both amounts", asset: asset.Margin, pair: mainPair, side: order.Buy, amount: base, quote: quote, marketSize: quote, limitSize: base},
+		{name: "margin buy with base amount", asset: asset.Margin, pair: mainPair, side: order.Buy, amount: base, marketErr: order.ErrAmountMustBeSet, limitSize: base},
+		{name: "isolated margin buy", asset: asset.Margin, pair: mainPair, marginType: margin.Isolated, side: order.Buy, amount: base, quote: quote, marketSize: quote, limitSize: base},
+		{name: "cross margin buy with quote amount", asset: asset.Margin, pair: mainPair, marginType: margin.Multi, side: order.Buy, quote: quote, marketSize: quote, limitErr: limits.ErrAmountBelowMin},
+		{name: "margin sell", asset: asset.Margin, pair: mainPair, side: order.Sell, amount: base, quote: quote, marketSize: base, limitSize: base},
+		{name: "spot buy with both amounts", asset: asset.Spot, pair: mainPair, side: order.Buy, amount: base, quote: quote, marketSize: quote, limitSize: base, marketTarget: targetCurrencyQuote},
+		{name: "spot buy with quote amount", asset: asset.Spot, pair: mainPair, side: order.Buy, quote: quote, marketSize: quote, marketTarget: targetCurrencyQuote, limitErr: limits.ErrAmountBelowMin},
+		{name: "spot buy with base amount", asset: asset.Spot, pair: mainPair, side: order.Buy, amount: base, marketSize: base, limitSize: base, marketTarget: targetCurrencyBase},
+		{name: "spot sell with both amounts", asset: asset.Spot, pair: mainPair, side: order.Sell, amount: base, quote: quote, marketSize: quote, limitSize: base, marketTarget: targetCurrencyQuote},
+		{name: "spot sell with quote amount", asset: asset.Spot, pair: mainPair, side: order.Sell, quote: quote, marketSize: quote, marketTarget: targetCurrencyQuote, limitErr: limits.ErrAmountBelowMin},
+		{name: "spot sell with base amount", asset: asset.Spot, pair: mainPair, side: order.Sell, amount: base, marketSize: base, limitSize: base, marketTarget: targetCurrencyBase},
+		{name: "futures buy", asset: asset.Futures, pair: futuresPair, side: order.Buy, amount: base, quote: quote, marketSize: base, limitSize: base},
+		{name: "options buy", asset: asset.Options, pair: optionsPair, side: order.Buy, amount: base, quote: quote, marketSize: base, limitSize: base},
+	}
+	for i := range cases {
+		tc := &cases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			requests := make(map[string]PlaceOrderRequestParam)
+			ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/account/config":
+					writeOKXData(t, w, []map[string]string{{"posMode": positionModeNet}})
+				case "/trade/order":
+					var placed PlaceOrderRequestParam
+					if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&placed), "request should decode") {
+						http.Error(w, "invalid test request", http.StatusBadRequest)
+						return
+					}
+					mu.Lock()
+					requests[placed.ClientOrderID] = placed
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"ordId": "42", "sCode": "0"}})
+				default:
+					t.Errorf("unexpected order endpoint %s", r.URL.Path)
+					http.NotFound(w, r)
+				}
+			}))
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
+			for i := range 1 << 16 {
+				tif := order.TimeInForce(i)
+				if !tif.IsValid() {
+					continue
+				}
+				name := tif.String()
+				if name == "" {
+					name = "unset"
+				}
+				t.Run(name, func(t *testing.T) {
+					t.Parallel()
+					wantType, wantSize, wantTarget, wantErr := orderMarket, tc.marketSize, tc.marketTarget, tc.marketErr
+					switch tif {
+					case order.ImmediateOrCancel:
+						wantType, wantSize, wantTarget, wantErr = orderIOC, tc.limitSize, "", tc.limitErr
+					case order.FillOrKill:
+						wantType, wantSize, wantTarget, wantErr = orderFOK, tc.limitSize, "", tc.limitErr
+					}
+					clientID := strconv.Itoa(i)
+					_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+						Exchange: ex.Name, Pair: tc.pair, AssetType: tc.asset, MarginType: tc.marginType, Side: tc.side,
+						Type: order.Market, TimeInForce: tif, Amount: tc.amount, QuoteAmount: tc.quote, ClientOrderID: clientID,
+					})
+					mu.Lock()
+					placed, sent := requests[clientID]
+					mu.Unlock()
+					if wantErr != nil {
+						require.ErrorIs(t, err, wantErr, "SubmitOrder must reject the incompatible size")
+						assert.False(t, sent, "a rejected order should never be sent")
+						return
+					}
+					require.NoError(t, err, "SubmitOrder must accept the size")
+					require.True(t, sent, "the order must reach the exchange")
+					assert.Equal(t, wantType, placed.OrderType, "wire order type should match the time in force")
+					assert.Equal(t, wantSize, placed.Amount, "wire size should use the correct units without rounding")
+					assert.Equal(t, wantTarget, placed.TargetCurrency, "tgtCcy should match the size units")
+				})
+			}
+		})
+	}
+}
+
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	t.Run("market quantity units", func(t *testing.T) {
@@ -3888,11 +3986,20 @@ func TestSubmitOrder(t *testing.T) {
 			{name: "margin quote overrides base", asset: asset.Margin, side: order.Buy, typ: order.Market, amount: 2, quote: 180, size: 180},
 			{name: "margin buy missing quote", asset: asset.Margin, side: order.Buy, typ: order.Market, amount: 2, err: order.ErrAmountMustBeSet},
 			{name: "margin market sell", asset: asset.Margin, side: order.Sell, typ: order.Market, amount: 2, quote: 180, size: 2},
+			{name: "margin market sell without quote", asset: asset.Margin, side: order.Sell, typ: order.Market, amount: 0.123456789012, size: 0.123456789012},
+			{name: "margin sell quote below base", asset: asset.Margin, side: order.Sell, typ: order.Market, amount: 2, quote: 0.5, size: 2},
+			{name: "margin buy quote below base", asset: asset.Margin, side: order.Buy, typ: order.Market, amount: 2, quote: 0.5, size: 0.5},
 			{name: "margin limit buy", asset: asset.Margin, side: order.Buy, typ: order.Limit, amount: 2, quote: 180, size: 2},
+			{name: "margin limit buy without quote", asset: asset.Margin, side: order.Buy, typ: order.Limit, amount: 1.123456789012, size: 1.123456789012},
 			{name: "spot quote buy", asset: asset.Spot, side: order.Buy, typ: order.Market, quote: 180, size: 180, target: quantityTypeQuoteCurrency},
 			{name: "spot quote sell", asset: asset.Spot, side: order.Sell, typ: order.Market, quote: 180, size: 180, target: quantityTypeQuoteCurrency},
 			{name: "spot base buy", asset: asset.Spot, side: order.Buy, typ: order.Market, amount: 2, size: 2, target: "base_ccy"},
+			{name: "spot base sell", asset: asset.Spot, side: order.Sell, typ: order.Market, amount: 0.123456789012, size: 0.123456789012, target: targetCurrencyBase},
+			{name: "spot buy quote below base", asset: asset.Spot, side: order.Buy, typ: order.Market, amount: 2, quote: 0.5, size: 0.5, target: targetCurrencyQuote},
+			{name: "spot sell quote below base", asset: asset.Spot, side: order.Sell, typ: order.Market, amount: 2, quote: 0.5, size: 0.5, target: targetCurrencyQuote},
+			{name: "spot limit buy with quote", asset: asset.Spot, side: order.Buy, typ: order.Limit, amount: 1.123456789012, quote: 180, size: 1.123456789012},
 			{name: "perpetual market buy", asset: asset.PerpetualSwap, side: order.Long, typ: order.Market, amount: 2, quote: 180, size: 2},
+			{name: "perpetual buy side", asset: asset.PerpetualSwap, side: order.Buy, typ: order.Market, amount: 2, quote: 180, size: 2},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
@@ -3930,9 +4037,12 @@ func TestSubmitOrder(t *testing.T) {
 				require.NoError(t, err, "SubmitOrder must accept valid quantities")
 				require.NotNil(t, got, "SubmitOrder must return the accepted order")
 				assert.Equal(t, "42", got.OrderID, "SubmitOrder should preserve the order ID")
+				assert.Equal(t, order.New, got.Status, "placement acknowledgement should keep the order active")
+				assert.Zero(t, got.ExecutedAmount, "placement acknowledgement should leave execution unknown")
 			})
 		}
 	})
+	t.Run("market time in force", testSubmitMarketTimeInForce)
 	var resp []PlaceOrderRequestParam
 	err := json.Unmarshal([]byte(placeOrderArgs), &resp)
 	require.NoError(t, err)
@@ -6486,132 +6596,132 @@ func TestRESTOrderExecutionMappings(t *testing.T) {
 	assert.Equal(t, -0.02, positions[0].Orders[1].Fee, "GetFuturesPositionOrders should report a rebate as negative")
 }
 
-func TestGetOrderInfo(t *testing.T) {
+// testOrderQuantityMapping runs the same quantity and fee fixtures at each order ingestion boundary.
+func testOrderQuantityMapping(t *testing.T, endpoint string) {
+	t.Helper()
 	t.Parallel()
-	t.Run("remaining quantity and fee", func(t *testing.T) {
-		t.Parallel()
-		for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.PerpetualSwap} {
-			for _, tc := range []struct {
-				name, state, feeCurrency string
-				filled, fee, remaining   float64
-				orderType, quantityType  string
-				side                     order.Side
-				size, quoteAmount        float64
-				assetType                asset.Item
-			}{
-				{name: "partial fill charge", state: "partially_filled", feeCurrency: "USDC", filled: 2, fee: -0.06, remaining: 1},
-				{name: "partial fill rebate", state: "partially_filled", feeCurrency: "BTC", filled: 2, fee: 0.02, remaining: 1},
-				{name: "unfilled", state: "live", remaining: 3},
-				{name: "filled", state: "filled", feeCurrency: "USDT", filled: 3, fee: -0.09},
-				{name: "quote market buy", state: "partially_filled", filled: 2, orderType: "market", quantityType: "quote_ccy", side: order.Buy, size: 180, quoteAmount: 180},
-				{name: "quote market sell", state: "partially_filled", filled: 2, orderType: "market", quantityType: "quote_ccy", side: order.Sell, size: 180, quoteAmount: 180},
-				{name: "default market buy", state: "partially_filled", filled: 2, orderType: "market", side: order.Buy, size: 180, quoteAmount: 180},
-				{name: "base market buy", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", quantityType: "base_ccy", side: order.Buy},
-				{name: "default market sell", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", side: order.Sell},
-				{name: "unfilled quote market buy", state: "live", orderType: "market", quantityType: "quote_ccy", side: order.Buy, size: 180, quoteAmount: 180},
-				{name: "cancelled quote market buy", state: "canceled", filled: 2, orderType: "market", quantityType: "quote_ccy", side: order.Buy, size: 180, quoteAmount: 180},
-				{name: "filled quote market buy", state: "filled", filled: 3, orderType: "market", quantityType: "quote_ccy", side: order.Buy, size: 180, quoteAmount: 180},
-				{name: "unfilled market buy", state: "live", orderType: "market", side: order.Buy, size: 180, quoteAmount: 180, assetType: asset.Margin},
-				{name: "filled market buy", state: "filled", filled: 3, orderType: "market", side: order.Buy, size: 180, quoteAmount: 180, assetType: asset.Margin},
-				{name: "partially filled market buy", state: "partially_filled", filled: 2, orderType: "market", side: order.Buy, size: 180, quoteAmount: 180, assetType: asset.Margin},
-				{name: "market sell", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", side: order.Sell, assetType: asset.Margin},
-				{name: "market buy", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", side: order.Buy, assetType: asset.PerpetualSwap},
-			} {
-				if (tc.assetType == asset.Empty && a != asset.Spot && tc.orderType == "market") || (tc.assetType != asset.Empty && tc.assetType != a) {
-					continue
+	cases := []struct {
+		name, state, feeCurrency string
+		filled, fee, remaining   float64
+		orderType, quantityType  string
+		side                     order.Side
+		size, quoteAmount        float64
+		assetType                asset.Item
+	}{
+		{name: "partial fill charge", state: "partially_filled", feeCurrency: "USDC", filled: 2, fee: -0.06, remaining: 1},
+		{name: "partial fill rebate", state: "partially_filled", feeCurrency: "BTC", filled: 2, fee: 0.02, remaining: 1},
+		{name: "unfilled", state: "live", remaining: 3},
+		{name: "filled", state: "filled", feeCurrency: "USDT", filled: 3, fee: -0.09},
+		{name: "quote market buy", state: "partially_filled", filled: 2, orderType: "market", quantityType: "quote_ccy", side: order.Buy, size: 180, quoteAmount: 180},
+		{name: "quote market sell", state: "partially_filled", filled: 2, orderType: "market", quantityType: "quote_ccy", side: order.Sell, size: 180, quoteAmount: 180},
+		{name: "default market buy", state: "partially_filled", filled: 2, orderType: "market", side: order.Buy, size: 180, quoteAmount: 180},
+		{name: "base market buy", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", quantityType: "base_ccy", side: order.Buy},
+		{name: "default market sell", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", side: order.Sell},
+		{name: "unfilled quote market buy", state: "live", orderType: "market", quantityType: "quote_ccy", side: order.Buy, size: 180, quoteAmount: 180},
+		{name: "cancelled quote market buy", state: "canceled", filled: 2, orderType: "market", quantityType: "quote_ccy", side: order.Buy, size: 180, quoteAmount: 180},
+		{name: "filled quote market buy", state: "filled", filled: 3, orderType: "market", quantityType: "quote_ccy", side: order.Buy, size: 180, quoteAmount: 180},
+		{name: "unfilled market buy", state: "live", orderType: "market", side: order.Buy, size: 180, quoteAmount: 180, assetType: asset.Margin},
+		{name: "filled market buy", state: "filled", filled: 3, orderType: "market", side: order.Buy, size: 180, quoteAmount: 180, assetType: asset.Margin},
+		{name: "partially filled market buy", state: "partially_filled", filled: 2, orderType: "market", side: order.Buy, size: 180, quoteAmount: 180, assetType: asset.Margin},
+		{name: "market sell", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", side: order.Sell, assetType: asset.Margin},
+		{name: "market buy", state: "partially_filled", filled: 2, remaining: 1, orderType: "market", side: order.Buy, assetType: asset.PerpetualSwap},
+	}
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.PerpetualSwap} {
+		for i := range cases {
+			tc := &cases[i]
+			if (tc.assetType == asset.Empty && a != asset.Spot && tc.orderType == "market") || (tc.assetType != asset.Empty && tc.assetType != a) {
+				continue
+			}
+			t.Run(a.String()+"/"+tc.name, func(t *testing.T) {
+				t.Parallel()
+				orderType, side, size := tc.orderType, tc.side, tc.size
+				if orderType == "" {
+					orderType = "limit"
 				}
-				t.Run(a.String()+"/"+tc.name, func(t *testing.T) {
-					t.Parallel()
-					orderType, side, size := tc.orderType, tc.side, tc.size
-					if orderType == "" {
-						orderType = "limit"
+				if side == order.UnknownSide {
+					side = order.Buy
+				}
+				if size == 0 {
+					size = 3
+				}
+				pair := mainPair
+				if a == asset.PerpetualSwap {
+					pair = perpetualSwapPair
+				}
+				average, reportedAverage := 0.0, ""
+				if tc.filled > 0 {
+					average, reportedAverage = 60, "60"
+				}
+				payload := fmt.Sprintf(`{"code":"0","msg":"","arg":{"channel":"orders","instType":%q},"data":[{"instId":%q,"ordId":"42","clOrdId":"client","side":%q,"ordType":%q,"tgtCcy":%q,"state":%q,"sz":"%v","accFillSz":"%v","px":"61","avgPx":%q,"fee":"%v","feeCcy":%q,"cTime":"1700000000000","uTime":"1700000001000"}]}`, GetInstrumentTypeFromAssetItem(a), pair.String(), side.String(), orderType, tc.quantityType, tc.state, size, tc.filled, reportedAverage, tc.fee, tc.feeCurrency)
+				ex := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != endpoint && (endpoint != "/trade/orders-history" || r.URL.Path != "/trade/orders-history-archive") {
+						t.Errorf("unexpected order endpoint %s", r.URL.Path)
+						http.NotFound(w, r)
+						return
 					}
-					if side == order.UnknownSide {
-						side = order.Buy
+					_, err := w.Write([]byte(payload))
+					assert.NoError(t, err, "writing the response should succeed")
+				}))
+				sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ex, a, pair)
+				status, err := order.StringToOrderStatus(tc.state)
+				require.NoError(t, err, "fixture status must be valid")
+				expectedType := order.Limit
+				if orderType == "market" {
+					expectedType = order.Market
+				}
+				amount := size
+				if tc.quoteAmount != 0 {
+					amount = 0
+				}
+				expected := order.Detail{
+					Exchange: ex.Name, OrderID: "42", ClientOrderID: "client", Pair: pair, AssetType: a,
+					Side: side, Type: expectedType, Status: status, Price: 61, AverageExecutedPrice: average,
+					Amount: amount, QuoteAmount: tc.quoteAmount, ExecutedAmount: tc.filled, RemainingAmount: tc.remaining,
+					Fee: -tc.fee, FeeAsset: currency.NewCode(tc.feeCurrency),
+					Date: time.UnixMilli(1700000000000), LastUpdated: time.UnixMilli(1700000001000),
+				}
+				if endpoint == "websocket" {
+					require.NoError(t, ex.wsProcessOrders(t.Context(), []byte(payload)), "wsProcessOrders must accept the fixture")
+					require.Len(t, ex.Websocket.DataHandler.C, 1, "the order must reach DataHandler")
+					detail, ok := (<-ex.Websocket.DataHandler.C).Data.(*order.Detail)
+					require.True(t, ok, "the event must contain order details")
+					if status == order.Filled && amount == 0 {
+						amount = expected.ExecutedAmount
 					}
-					if size == 0 {
-						size = 3
-					}
-					pair := mainPair
-					if a == asset.PerpetualSwap {
-						pair = perpetualSwapPair
-					}
-					average, reportedAverage := 0.0, ""
-					if tc.filled > 0 {
-						average, reportedAverage = 60, "60"
-					}
-					payload := fmt.Sprintf(`{"code":"0","msg":"","arg":{"channel":"orders","instType":%q},"data":[{"instId":%q,"ordId":"42","clOrdId":"client","side":%q,"ordType":%q,"tgtCcy":%q,"state":%q,"sz":"%v","accFillSz":"%v","px":"61","avgPx":%q,"fee":"%v","feeCcy":%q,"cTime":"1700000000000","uTime":"1700000001000"}]}`, GetInstrumentTypeFromAssetItem(a), pair.String(), side.String(), orderType, tc.quantityType, tc.state, size, tc.filled, reportedAverage, tc.fee, tc.feeCurrency)
-					server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-						assert.Contains(t, []string{"/api/v5/trade/order", "/api/v5/trade/orders-pending", "/api/v5/trade/orders-history-archive", "/api/v5/trade/orders-history"}, r.URL.Path, "request should query an order endpoint")
-						_, err := w.Write([]byte(payload))
-						assert.NoError(t, err, "writing the order response should not error")
-					}))
-					ex := new(Exchange)
-					require.NoError(t, testexch.Setup(ex), "Setup must not error")
-					sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ex, a, pair)
-					ex.SkipAuthCheck = true
-					ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
-					require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
-					require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-					require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+					assert.Equal(t, amount, detail.Amount, "websocket should preserve base sizing, using the final fill for completed orders")
+					assert.Equal(t, expected.QuoteAmount, detail.QuoteAmount, "websocket should preserve quote sizing")
+					assert.Equal(t, expected.RemainingAmount, detail.RemainingAmount, "websocket should preserve base remainder")
+					assert.Equal(t, expected.ExecutedAmount, detail.ExecutedAmount, "websocket should preserve base fills")
+					assert.Equal(t, expected.Fee, detail.Fee, "websocket should preserve the signed fee")
+					assert.Equal(t, expected.FeeAsset, detail.FeeAsset, "websocket should preserve the fee asset")
+					return
+				}
+				if endpoint == "/trade/order" {
 					got, err := ex.GetOrderInfo(t.Context(), "42", pair, a)
 					require.NoError(t, err, "GetOrderInfo must not error")
-					status, err := order.StringToOrderStatus(tc.state)
-					require.NoError(t, err, "fixture status must be valid")
-					expectedType := order.Limit
-					if orderType == "market" {
-						expectedType = order.Market
-					}
-					amount := size
-					if tc.quoteAmount != 0 {
-						amount = 0
-					}
-					expected := &order.Detail{
-						Exchange: ex.Name, OrderID: "42", ClientOrderID: "client", Pair: pair, AssetType: a,
-						Side: side, Type: expectedType, Status: status, Price: 61, AverageExecutedPrice: average,
-						Amount: amount, QuoteAmount: tc.quoteAmount, ExecutedAmount: tc.filled, RemainingAmount: tc.remaining,
-						Fee: -tc.fee, FeeAsset: currency.NewCode(tc.feeCurrency),
-						Date: time.UnixMilli(1700000000000), LastUpdated: time.UnixMilli(1700000001000),
-					}
-					assert.Equal(t, expected, got, "GetOrderInfo should map all reported order fields")
-					for name, fetch := range map[string]func(context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error){
-						"active orders": ex.GetActiveOrders, "order history": ex.GetOrderHistory,
-					} {
-						t.Run(name, func(t *testing.T) {
-							t.Parallel()
-							orders, err := fetch(t.Context(), &order.MultiOrderRequest{Pairs: currency.Pairs{pair}, AssetType: a, Side: order.AnySide, Type: order.AnyType})
-							require.NoError(t, err, "order list must not error")
-							if name == "order history" && status == order.Active {
-								assert.Empty(t, orders, "history should exclude live orders")
-								return
-							}
-							require.Len(t, orders, 1, "order list must return the fixture order")
-							assert.Equal(t, *expected, orders[0], "order list should preserve identity, quantities, fees and timestamps")
-						})
-					}
-					t.Run("websocket", func(t *testing.T) {
-						t.Parallel()
-						require.NoError(t, ex.wsProcessOrders(t.Context(), []byte(payload)), "wsProcessOrders must accept the fixture")
-						select {
-						case event := <-ex.Websocket.DataHandler.C:
-							detail, ok := event.Data.(*order.Detail)
-							require.True(t, ok, "websocket event must contain order details")
-							amount := expected.Amount
-							if status == order.Filled && amount == 0 {
-								amount = expected.ExecutedAmount
-							}
-							assert.Equal(t, amount, detail.Amount, "websocket should preserve base sizing, using the final fill for completed orders")
-							assert.Equal(t, expected.QuoteAmount, detail.QuoteAmount, "websocket should preserve quote sizing")
-							assert.Equal(t, expected.RemainingAmount, detail.RemainingAmount, "websocket should preserve base remainder")
-							assert.Equal(t, expected.ExecutedAmount, detail.ExecutedAmount, "websocket should preserve base fills")
-						case <-time.After(time.Second):
-							t.Fatal("websocket order must reach DataHandler")
-						}
-					})
-				})
-			}
+					assert.Equal(t, &expected, got, "GetOrderInfo should map all reported order fields")
+					return
+				}
+				fetch := ex.GetActiveOrders
+				if endpoint == "/trade/orders-history" {
+					fetch = ex.GetOrderHistory
+				}
+				orders, err := fetch(t.Context(), &order.MultiOrderRequest{Pairs: currency.Pairs{pair}, AssetType: a, Side: order.AnySide, Type: order.AnyType})
+				require.NoError(t, err, "order list must not error")
+				if endpoint == "/trade/orders-history" && status == order.Active {
+					assert.Empty(t, orders, "history should exclude live orders")
+					return
+				}
+				require.Len(t, orders, 1, "order list must return the fixture order")
+				assert.Equal(t, expected, orders[0], "order list should preserve identity, quantities, fees and timestamps")
+			})
 		}
-	})
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	t.Run("remaining quantity and fee", func(t *testing.T) { testOrderQuantityMapping(t, "/trade/order") })
 	t.Run("live API", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -6791,6 +6901,7 @@ func TestGetPairFromInstrumentID(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("remaining quantity and fee", func(t *testing.T) { testOrderQuantityMapping(t, "/trade/orders-pending") })
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -6943,6 +7054,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("remaining quantity and fee", func(t *testing.T) { testOrderQuantityMapping(t, "/trade/orders-history") })
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -7934,6 +8046,7 @@ func TestOrderPushData(t *testing.T) {
 // ordType must decode into its order type and time in force.
 func TestWsProcessOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("remaining quantity and fee", func(t *testing.T) { testOrderQuantityMapping(t, "websocket") })
 	t.Run("parses every order type", func(t *testing.T) {
 		t.Parallel()
 		for ordType, exp := range map[string]struct {

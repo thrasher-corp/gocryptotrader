@@ -267,6 +267,30 @@ func TestSubmit_DeriveSubmitResponse(t *testing.T) {
 	require.Equal(t, New, resp.Status)
 	require.False(t, resp.Date.IsZero())
 	assert.False(t, resp.LastUpdated.IsZero())
+	t.Run("acknowledgement stays active until the venue reports execution", func(t *testing.T) {
+		t.Parallel()
+		for _, typ := range []Type{Market, Limit, LimitMaker, StopMarket, StopLimit, TakeProfitMarket, TrailingStop, OCO, OptimalLimit} {
+			for _, side := range []Side{Buy, Sell, Bid, Ask, Long, Short} {
+				t.Run(side.String()+" "+typ.String(), func(t *testing.T) {
+					t.Parallel()
+					submit := &Submit{Type: typ, Side: side, Amount: 1}
+					response, err := submit.DeriveSubmitResponse("1")
+					require.NoError(t, err, "DeriveSubmitResponse must accept the acknowledgement")
+					assert.Equal(t, New, response.Status, "acknowledgement should report a new order")
+					detail, err := response.DeriveDetail(uuid.NewV4())
+					require.NoError(t, err, "the acknowledgement must map to an order detail")
+					assert.True(t, detail.IsActive(), "the acknowledged order should stay eligible for polling")
+					require.NoError(t, detail.UpdateOrderFromDetail(&Detail{
+						Status: PartiallyFilled, Amount: 1, ExecutedAmount: 0.5, RemainingAmount: 0.5,
+					}), "the partial fill must merge")
+					assert.Equal(t, PartiallyFilled, detail.Status, "the partial fill should set the reported status")
+					assert.True(t, detail.IsActive(), "the partially filled order should stay eligible for polling")
+					require.NoError(t, detail.UpdateOrderFromDetail(&Detail{Status: PartiallyCancelled, Amount: 1, ExecutedAmount: 0.5}), "the terminal snapshot must merge")
+					assert.False(t, detail.IsActive(), "the terminal snapshot should stop polling")
+				})
+			}
+		}
+	})
 }
 
 func TestSubmitResponse_DeriveDetail(t *testing.T) {
@@ -1203,6 +1227,24 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	t.Run("mixed clocks", testUpdateOrderFromDetailMixedClocks)
 	t.Run("delayed snapshots", testUpdateOrderFromDetailDelayedSnapshots)
 
+	t.Run("reported terminal status survives non-terminal updates", func(t *testing.T) {
+		t.Parallel()
+		for _, status := range []Status{Filled, PartiallyCancelled, Cancelled, Rejected, Expired, Closed, Liquidated} {
+			for _, incoming := range []Status{New, Open, PartiallyFilled} {
+				t.Run(status.String()+"/"+incoming.String(), func(t *testing.T) {
+					t.Parallel()
+					stored := Detail{Type: Market, Status: status, LastUpdated: time.Unix(1, 0)}
+					update := Detail{Status: incoming, LastUpdated: time.Unix(2, 0)}
+					if incoming == PartiallyFilled {
+						update.ExecutedAmount = 0.5
+					}
+					require.NoError(t, stored.UpdateOrderFromDetail(&update), "the delayed update must merge")
+					assert.Equal(t, status, stored.Status, "the delayed update should preserve the venue's terminal status")
+				})
+			}
+		}
+	})
+
 	t.Run("update without a status keeps the stored status", func(t *testing.T) {
 		t.Parallel()
 		for _, status := range []Status{Open, Cancelled} {
@@ -1640,7 +1682,7 @@ func TestDetail_IsInactive(t *testing.T) {
 			status   Status
 			inactive bool
 		}{
-			{Open, false}, {PartiallyFilled, false}, {Filled, true}, {Cancelled, true}, {UnknownStatus, true},
+			{Open, false}, {PartiallyFilled, false}, {Filled, true}, {Cancelled, true}, {UnknownStatus, false},
 		} {
 			t.Run(tc.status.String(), func(t *testing.T) {
 				t.Parallel()

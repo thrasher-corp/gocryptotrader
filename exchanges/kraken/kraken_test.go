@@ -1186,25 +1186,50 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
+	t.Run("market acknowledgement", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodPost, r.Method, "order submission should use POST")
+			assert.Equal(t, "/0/private/AddOrder", r.URL.Path, "request should use the placement endpoint")
+			_, err := w.Write([]byte(`{"error":[],"result":{"txid":["TEST-ORDER"]}}`))
+			assert.NoError(t, err, "the acknowledgement should be written")
+		}))
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "the mock client must be configured")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "the mock endpoint must be configured")
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "c2VjcmV0"})
+		got, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Market, Amount: 1,
+		})
+		require.NoError(t, err, "the market order must be accepted")
+		assert.Equal(t, "TEST-ORDER", got.OrderID, "the response should retain the venue order ID")
+		assert.Equal(t, order.New, got.Status, "an acknowledgement should keep the market order active")
+		assert.Zero(t, got.ExecutedAmount, "an acknowledgement should leave execution unknown")
+	})
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
-	orderSubmission := &order.Submit{
-		Exchange:  e.Name,
-		Pair:      spotTestPair,
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "meowOrder",
-		AssetType: asset.Spot,
-	}
-	response, err := e.SubmitOrder(t.Context(), orderSubmission)
-	if sharedtestvalues.AreAPICredentialsSet(e) {
-		assert.NoError(t, err, "SubmitOrder should not error")
-		assert.Equal(t, order.New, response.Status, "SubmitOrder should return a New order status")
-	} else {
-		assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "SubmitOrder should error correctly")
-	}
+		orderSubmission := &order.Submit{
+			Exchange:  e.Name,
+			Pair:      spotTestPair,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Price:     1,
+			Amount:    1,
+			ClientID:  "meowOrder",
+			AssetType: asset.Spot,
+		}
+		response, err := e.SubmitOrder(t.Context(), orderSubmission)
+		if sharedtestvalues.AreAPICredentialsSet(e) {
+			assert.NoError(t, err, "SubmitOrder should not error")
+			assert.Equal(t, order.New, response.Status, "SubmitOrder should return a New order status")
+		} else {
+			assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "SubmitOrder should error correctly")
+		}
+	})
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
