@@ -867,7 +867,7 @@ func TestWsOrderUpdate(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", e.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.jsonl", e.wsHandleData)
 	e.Websocket.DataHandler.Close()
 	assert.Len(t, e.Websocket.DataHandler.C, 8, "Should see 8 orders")
 	for resp := range e.Websocket.DataHandler.C {
@@ -1154,7 +1154,8 @@ func TestSubscribe(t *testing.T) {
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	e.Features.Subscriptions = subscription.List{}
-	testexch.SetupWs(t, e)
+	t.Cleanup(func() { assert.NoError(t, e.Shutdown(), "Shutdown should not error") })
+	testexch.SetupWebsocket(t, e)
 	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
 	for _, s := range subs {
@@ -1178,7 +1179,7 @@ func TestShutdownDoesNotReconnect(t *testing.T) {
 		upgrades.Add(1)
 		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 	}
-	e := testexch.MockWsInstance[Exchange](t, h)
+	e := testexch.MockWebsocketInstance[Exchange](t, h)
 	require.True(t, e.Websocket.IsConnected(), "websocket must be connected")
 	before := upgrades.Load()
 

@@ -750,7 +750,7 @@ func (e *Exchange) GetSubaccountInformation(ctx context.Context, page, limit uin
 		subaccountsInformation,
 		params,
 		spotDefaultRate,
-		resp)
+		&resp)
 }
 
 // GetSubaccountTransferHistory to fetch sub-account asset transfer history.
@@ -789,7 +789,7 @@ func (e *Exchange) GetSubaccountTransferHistory(ctx context.Context, email strin
 		subaccountTransferHistory,
 		params,
 		spotDefaultRate,
-		resp)
+		&resp)
 }
 
 // ExecuteSubAccountTransfer to execute sub-account asset transfers.
@@ -811,7 +811,7 @@ func (e *Exchange) ExecuteSubAccountTransfer(ctx context.Context, arg *SubAccoun
 	params.Set("fromEmail", arg.FromEmail)
 	params.Set("toEmail", arg.ToEmail)
 	params.Set("asset", arg.Asset)
-	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', 0, 64))
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	return &response, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, subaccountTransfer, params, spotDefaultRate, &response)
 }
@@ -1028,7 +1028,7 @@ func (e *Exchange) CancelOpenOrdersForSymbol(ctx context.Context, symbol string)
 	var response []Order
 	return response, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodDelete, openOrders,
-		params, spotOrderRate, response)
+		params, spotOrderRate, &response)
 }
 
 // GetTrades to get trade data for a specific account and token symbol.
@@ -1357,7 +1357,7 @@ func (e *Exchange) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) (s
 	if arg.Amount <= 0 {
 		return "", errAmountValueMustBeGreaterThan0
 	}
-	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', 0, 64))
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	var response WithdrawalResponse
 	if err := e.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
@@ -1416,8 +1416,11 @@ func (e *Exchange) WithdrawalHistory(ctx context.Context, c currency.Code, statu
 // returns FiatAssetHistory containing list of fiat asset records.
 func (e *Exchange) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
 	var response FiatAssetsHistory
+	if arg == nil {
+		return response, common.ErrNilPointer
+	}
 	params := url.Values{}
-	if !arg.EndTime.IsZero() && !arg.EndTime.Before(time.Now()) {
+	if !arg.EndTime.IsZero() && !arg.EndTime.After(time.Now()) {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	if !arg.StartTime.IsZero() && !arg.StartTime.After(time.Now()) {
@@ -1548,8 +1551,11 @@ func (e *Exchange) DepositHistory(ctx context.Context, coin currency.Code, statu
 
 // FiatDepositHistory fetch your fiat (USD) deposit history as Fiat Assets History
 func (e *Exchange) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
+	if arg == nil {
+		return FiatAssetsHistory{}, common.ErrNilPointer
+	}
 	params := url.Values{}
-	if !arg.EndTime.IsZero() && !arg.EndTime.Before(time.Now()) {
+	if !arg.EndTime.IsZero() && !arg.EndTime.After(time.Now()) {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	if !arg.StartTime.IsZero() && !arg.StartTime.After(time.Now()) {

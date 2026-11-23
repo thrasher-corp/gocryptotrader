@@ -72,6 +72,7 @@ type ExchangeSyncerSettings struct {
 
 // ForexSettings defines settings related to the foreign exchange services
 type ForexSettings struct {
+	EnableAllRatesToday     bool
 	EnableCurrencyConverter bool
 	EnableCurrencyLayer     bool
 	EnableExchangeRates     bool

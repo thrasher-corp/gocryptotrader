@@ -958,7 +958,7 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 		return nil, 0, currency.EMPTYCODE
 	}
 	fills := make([]*AccountTrade, 0, len(page))
-	seen := make(map[string]struct{}, len(page))
+	seen := make(common.Seen[string], len(page))
 	// The order's time carries milliseconds but its fills are stamped to the second, so the windows start at
 	// the second the order was created in; starting at its time would leave out the fills of that second.
 	start := created.Truncate(time.Second)
@@ -966,8 +966,7 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 	var end time.Time
 	for requests := 1; ; requests++ {
 		for _, f := range page {
-			if _, ok := seen[f.ID]; !ok {
-				seen[f.ID] = struct{}{}
+			if !seen.CheckAndRecord(f.ID) {
 				fills = append(fills, f)
 			}
 		}

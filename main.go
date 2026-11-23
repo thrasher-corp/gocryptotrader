@@ -71,6 +71,7 @@ func main() {
 		"the amount of time before the syncer will switch from the websocket protocol to REST protocol (e.g. from websocket to REST)")
 
 	// Forex provider settings
+	flag.BoolVar(&settings.EnableAllRatesToday, "allratestoday", false, "overrides config and sets up foreign exchange AllRatesToday")
 	flag.BoolVar(&settings.EnableCurrencyConverter, "currencyconverter", false, "overrides config and sets up foreign exchange Currency Converter")
 	flag.BoolVar(&settings.EnableCurrencyLayer, "currencylayer", false, "overrides config and sets up foreign exchange Currency Layer")
 	flag.BoolVar(&settings.EnableExchangeRates, "exchangerates", false, "overrides config and sets up foreign exchange exchangeratesapi.io")

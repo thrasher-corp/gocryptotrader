@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/allratestoday"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	currencyconverter "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencyconverterapi"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencylayer"
@@ -28,6 +29,7 @@ type ForexProviders struct {
 // GetSupportedForexProviders returns a list of supported forex providers
 func GetSupportedForexProviders() []string {
 	return []string{
+		"AllRatesToday",
 		"CurrencyConverter",
 		"CurrencyLayer",
 		"ExchangeRates",
@@ -66,6 +68,8 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 	for i := range fxProviders {
 		var provider base.IFXProvider
 		switch fxProviders[i].Name {
+		case "AllRatesToday":
+			provider = new(allratestoday.AllRatesToday)
 		case "CurrencyConverter":
 			provider = new(currencyconverter.CurrencyConverter)
 		case "CurrencyLayer":

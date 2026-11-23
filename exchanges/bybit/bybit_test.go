@@ -3304,7 +3304,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 		currency.NewBTCUSDT(),
 	})
 	storeFixturePairs(asset.Options, currency.Pairs{optionsTradablePair})
-	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAuth.json", func(ctx context.Context, r []byte) error {
+	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAuth.jsonl", func(ctx context.Context, r []byte) error {
 		if bytes.Contains(r, []byte("%s")) {
 			r = fmt.Appendf(nil, string(r), formattedOptionsPair.String())
 		}
@@ -3482,7 +3482,7 @@ func TestWsTicker(t *testing.T) {
 		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
 	}
 	routingIndex := 0
-	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(_ context.Context, r []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsTicker.jsonl", func(_ context.Context, r []byte) error {
 		require.Less(t, routingIndex, len(assetRouting), "routingIndex must stay within ticker fixture asset routing bounds")
 		a := assetRouting[routingIndex]
 		routingIndex++
@@ -4013,13 +4013,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
 
-	seenQualifiedChannels := make(map[string]struct{}, len(subs))
+	seenQualifiedChannels := make(common.Seen[string], len(subs))
 	for _, sub := range subs {
 		assert.NotEmpty(t, sub.QualifiedChannel, "QualifiedChannel should not be empty")
 		assert.Len(t, sub.Pairs, 1, "Pairs should contain a single symbol per generated subscription")
-		_, found := seenQualifiedChannels[sub.QualifiedChannel]
-		assert.Falsef(t, found, "QualifiedChannel should be unique, got duplicate %q", sub.QualifiedChannel)
-		seenQualifiedChannels[sub.QualifiedChannel] = struct{}{}
+		assert.Falsef(t, seenQualifiedChannels.CheckAndRecord(sub.QualifiedChannel), "QualifiedChannel should be unique, got duplicate %q", sub.QualifiedChannel)
 	}
 
 	expectedBaseSubscriptions := subscription.List{
@@ -4093,6 +4091,28 @@ func TestAuthSubscribe(t *testing.T) {
 
 	require.NoError(t, e.authSubscribe(t.Context(), &FixtureConnection{}, authsubs))
 	require.NoError(t, e.authUnsubscribe(t.Context(), &FixtureConnection{}, authsubs))
+}
+
+func TestDirectSubscriptionPayloadPrivateChannels(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := e.generateAuthSubscriptions()
+	require.NoError(t, err, "generateAuthSubscriptions must not error")
+	repeated := &subscription.Subscription{Channel: chanOrder, Asset: asset.Spot}
+	payloads, err := e.directSubscriptionPayload(asset.Spot, "subscribe", append(subs, repeated))
+	require.NoError(t, err, "directSubscriptionPayload must not error")
+	require.Len(t, payloads, 1, "directSubscriptionPayload must return one private payload")
+	assert.NotEmpty(t, payloads[0].RequestID, "directSubscriptionPayload should set a request ID")
+	payloads[0].RequestID = ""
+	expected := SubscriptionArgument{
+		auth:           true,
+		Operation:      "subscribe",
+		Arguments:      []string{chanPositions, chanExecution, chanOrder, chanWallet},
+		associatedSubs: subs,
+	}
+	assert.Equal(t, expected, payloads[0], "directSubscriptionPayload should send each private channel once with its first subscription")
 }
 
 func TestWebsocketAuthenticatePrivateConnection(t *testing.T) {

@@ -78,9 +78,9 @@ func (e *Exchange) wsDial(ctx context.Context, conn websocket.Connection, privat
 	if private && e.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
 		if listenKey, err = e.GenerateListenKey(ctx); err != nil {
-			// The manager rolls the public connections back when this one fails, and nothing retries a failed first
-			// connect, so a key that cannot be minted would keep the market data down as well. Carry on without the
-			// private channels instead, as binance does.
+			// The manager rolls the public connections back when this one fails, so failing here with the private
+			// channels still enabled would take the market data down on every retry. Carry on without the private
+			// channels instead, as binance does.
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.WebsocketMgr, "%s: private channels unavailable, no listen key: %v", e.Name, err)
 		} else {

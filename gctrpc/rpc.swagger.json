@@ -6537,6 +6537,12 @@
         "id": {
           "type": "string",
           "format": "int64"
+        },
+        "strAmount": {
+          "type": "string"
+        },
+        "strPrice": {
+          "type": "string"
         }
       }
     },
@@ -6957,6 +6963,9 @@
           "type": "string"
         },
         "marginType": {
+          "type": "string"
+        },
+        "clientOrderId": {
           "type": "string"
         }
       }
@@ -7537,7 +7546,7 @@
           "type": "string"
         }
       },
-      "additionalProperties": {}
+      "additionalProperties": true
     },
     "rpcStatus": {
       "type": "object",

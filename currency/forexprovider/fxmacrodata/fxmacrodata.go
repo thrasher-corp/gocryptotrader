@@ -79,7 +79,7 @@ func (f *FXMacroData) GetRates(baseCurrency, symbols string) (map[string]float64
 	}
 
 	targetSymbols := make([]string, 0, len(targets))
-	seen := make(map[string]struct{}, len(targets))
+	seen := make(common.Seen[string], len(targets))
 	var unsupported []string
 	for _, symbol := range targets {
 		symbol = strings.ToUpper(symbol)
@@ -93,10 +93,9 @@ func (f *FXMacroData) GetRates(baseCurrency, symbols string) (map[string]float64
 			unsupported = append(unsupported, symbol)
 			continue
 		}
-		if _, ok := seen[symbol]; ok {
+		if seen.CheckAndRecord(symbol) {
 			return nil, fmt.Errorf("%w: %s", errDuplicateCurrency, symbol)
 		}
-		seen[symbol] = struct{}{}
 		targetSymbols = append(targetSymbols, symbol)
 	}
 	if len(targetSymbols) == 0 && len(unsupported) != 0 {

@@ -75,6 +75,7 @@ var (
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 	errInvalidStrategy         = errors.New("invalid strategy")
 	errSpecificPairNotEnabled  = errors.New("specified pair is not enabled")
+	errDuplicateOrderID        = errors.New("duplicate order id received")
 )
 
 // RPCServer struct
@@ -200,7 +201,7 @@ func (s *RPCServer) startRPCRESTProxy(ctx context.Context) {
 		return
 	}
 
-	mux := runtime.NewServeMux()
+	mux := runtime.NewServeMux(runtime.WithIncomingHeaderMatcher(rpcProxyHeaderMatcher))
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(auth.BasicAuth{
@@ -251,6 +252,20 @@ func (s *RPCServer) authClient(handler http.Handler) http.Handler {
 		}
 		handler.ServeHTTP(w, r)
 	})
+}
+
+// rpcProxyHeaderMatcher forwards the Grpc-Metadata- headers that authenticateClient reads, which grpc-gateway no longer
+// forwards by default, so REST clients keep their per-request credential and verbose overrides. Other Grpc-Metadata-
+// headers are dropped, so REST clients cannot set gRPC metadata that the server does not read from them
+func rpcProxyHeaderMatcher(header string) (string, bool) {
+	if mdKey, ok := strings.CutPrefix(strings.ToLower(header), strings.ToLower(runtime.MetadataHeaderPrefix)); ok {
+		switch mdKey {
+		case string(accounts.ContextCredentialsFlag), "verbose":
+			return mdKey, true
+		}
+		return "", false
+	}
+	return runtime.DefaultHeaderMatcher(header)
 }
 
 // GetInfo returns info about the current GoCryptoTrader session
@@ -507,6 +522,23 @@ func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (
 	return &gctrpc.GetTickersResponse{Tickers: tickers}, nil
 }
 
+// orderbookItems keeps level conversion consistent across snapshot and stream endpoints.
+func orderbookItems(levels orderbook.Levels, includeIDs bool) []*gctrpc.OrderbookItem {
+	items := make([]*gctrpc.OrderbookItem, len(levels))
+	for i := range levels {
+		items[i] = &gctrpc.OrderbookItem{
+			Amount:    levels[i].Amount,
+			Price:     levels[i].Price,
+			StrAmount: levels[i].StrAmount,
+			StrPrice:  levels[i].StrPrice,
+		}
+		if includeIDs {
+			items[i].Id = levels[i].ID
+		}
+	}
+	return items
+}
+
 // GetOrderbook returns an orderbook for a specific exchange, currency pair
 // and asset type
 func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
@@ -527,20 +559,10 @@ func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookReques
 		return nil, err
 	}
 
-	bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
-	for x := range ob.Bids {
-		bids[x] = &gctrpc.OrderbookItem{Amount: ob.Bids[x].Amount, Price: ob.Bids[x].Price}
-	}
-
-	asks := make([]*gctrpc.OrderbookItem, len(ob.Asks))
-	for x := range ob.Asks {
-		asks[x] = &gctrpc.OrderbookItem{Amount: ob.Asks[x].Amount, Price: ob.Asks[x].Price}
-	}
-
 	resp := &gctrpc.OrderbookResponse{
 		Pair:        r.Pair,
-		Bids:        bids,
-		Asks:        asks,
+		Bids:        orderbookItems(ob.Bids, false),
+		Asks:        orderbookItems(ob.Asks, false),
 		LastUpdated: s.unixTimestamp(ob.LastUpdated),
 		AssetType:   r.AssetType,
 	}
@@ -581,14 +603,8 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 					},
 					AssetType:   a.String(),
 					LastUpdated: s.unixTimestamp(resp.LastUpdated),
-					Bids:        make([]*gctrpc.OrderbookItem, len(resp.Bids)),
-					Asks:        make([]*gctrpc.OrderbookItem, len(resp.Asks)),
-				}
-				for i := range resp.Bids {
-					ob.Bids[i] = &gctrpc.OrderbookItem{Amount: resp.Bids[i].Amount, Price: resp.Bids[i].Price}
-				}
-				for i := range resp.Asks {
-					ob.Asks[i] = &gctrpc.OrderbookItem{Amount: resp.Asks[i].Amount, Price: resp.Asks[i].Price}
+					Bids:        orderbookItems(resp.Bids, false),
+					Asks:        orderbookItems(resp.Asks, false),
 				}
 				obs = append(obs, ob)
 			}
@@ -654,6 +670,9 @@ func accountBalanceResp(eName string, s accounts.SubAccounts) *gctrpc.GetAccount
 			Id: sa.ID,
 		}
 		for curr, bal := range sa.Balances {
+			if bal.Total == 0 && bal.Hold == 0 && bal.Free == 0 && bal.AvailableWithoutBorrow == 0 && bal.Borrowed == 0 {
+				continue
+			}
 			subAccts[i].Currencies = append(subAccts[i].Currencies, &gctrpc.AccountCurrencyInfo{
 				Currency:          curr.String(),
 				TotalValue:        bal.Total,
@@ -1214,7 +1233,7 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		Amount:        r.Amount,
 		Price:         r.Price,
 		ClientID:      r.ClientId,
-		ClientOrderID: r.ClientId,
+		ClientOrderID: r.ClientOrderId,
 		Exchange:      r.Exchange,
 		AssetType:     a,
 	}
@@ -1415,15 +1434,28 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 		return nil, err
 	}
 
-	status := make(map[string]string)
-	orders := strings.Split(r.OrdersId, ",")
+	if r.OrdersId == "" {
+		return nil, order.ErrCancelOrderIsNil
+	}
+
+	rawOrders := strings.Split(r.OrdersId, ",")
+	orders := make([]string, 0, len(rawOrders))
+	seen := make(common.Seen[string], len(rawOrders))
+	for _, id := range rawOrders {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return nil, ErrOrderIDCannotBeEmpty
+		}
+		if seen.CheckAndRecord(id) {
+			return nil, fmt.Errorf("%w: %s", errDuplicateOrderID, id)
+		}
+		orders = append(orders, id)
+	}
 	req := make([]order.Cancel, len(orders))
 	for x := range orders {
-		orderID := orders[x]
-		status[orderID] = order.Cancelled.String()
 		req[x] = order.Cancel{
 			AccountID: r.AccountId,
-			OrderID:   orderID,
+			OrderID:   orders[x],
 			Side:      side,
 			Pair:      pair,
 			AssetType: assetType,
@@ -1431,9 +1463,23 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}
 
 	// TODO: Change to order manager
-	_, err = exch.CancelBatchOrders(ctx, req)
+	resp, err := exch.CancelBatchOrders(ctx, req)
 	if err != nil {
 		return nil, err
+	}
+
+	status := make(map[string]string, len(orders))
+	for _, id := range orders {
+		if resp == nil {
+			// A wrapper that returns no response reports any failed cancel through its error
+			status[id] = order.Cancelled.String()
+			continue
+		}
+		reported, ok := resp.Status[id]
+		if !ok {
+			reported = order.UnknownStatus.String()
+		}
+		status[id] = reported
 	}
 
 	return &gctrpc.CancelBatchOrdersResponse{
@@ -2089,22 +2135,8 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 			resp.LastUpdated = time.Now().UnixMicro()
 		} else {
 			resp.LastUpdated = base.LastUpdated.UnixMicro()
-			resp.Bids = make([]*gctrpc.OrderbookItem, len(base.Bids))
-			for i := range base.Bids {
-				resp.Bids[i] = &gctrpc.OrderbookItem{
-					Amount: base.Bids[i].Amount,
-					Price:  base.Bids[i].Price,
-					Id:     base.Bids[i].ID,
-				}
-			}
-			resp.Asks = make([]*gctrpc.OrderbookItem, len(base.Asks))
-			for i := range base.Asks {
-				resp.Asks[i] = &gctrpc.OrderbookItem{
-					Amount: base.Asks[i].Amount,
-					Price:  base.Asks[i].Price,
-					Id:     base.Asks[i].ID,
-				}
-			}
+			resp.Bids = orderbookItems(base.Bids, true)
+			resp.Asks = orderbookItems(base.Asks, true)
 		}
 
 		if err := stream.Send(resp); err != nil {
@@ -2159,22 +2191,8 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 				Quote: ob.Pair.Quote.String(),
 			}
 			resp.AssetType = ob.Asset.String()
-			resp.Bids = make([]*gctrpc.OrderbookItem, len(ob.Bids))
-			for i := range ob.Bids {
-				resp.Bids[i] = &gctrpc.OrderbookItem{
-					Amount: ob.Bids[i].Amount,
-					Price:  ob.Bids[i].Price,
-					Id:     ob.Bids[i].ID,
-				}
-			}
-			resp.Asks = make([]*gctrpc.OrderbookItem, len(ob.Asks))
-			for i := range ob.Asks {
-				resp.Asks[i] = &gctrpc.OrderbookItem{
-					Amount: ob.Asks[i].Amount,
-					Price:  ob.Asks[i].Price,
-					Id:     ob.Asks[i].ID,
-				}
-			}
+			resp.Bids = orderbookItems(ob.Bids, true)
+			resp.Asks = orderbookItems(ob.Asks, true)
 		}
 
 		if err := stream.Send(resp); err != nil {

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -164,6 +165,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	flagSet.WithBool("coinmarketcap", &b.Settings.EnableCoinmarketcapAnalysis, b.Config.Currency.CryptocurrencyProvider.Enabled)
 	flagSet.WithBool("ordermanager", &b.Settings.EnableOrderManager, b.Config.OrderManager.Enabled)
 
+	flagSet.WithBool("allratestoday", &b.Settings.EnableAllRatesToday, b.Config.Currency.ForexProviders.IsEnabled("allratestoday"))
 	flagSet.WithBool("currencyconverter", &b.Settings.EnableCurrencyConverter, b.Config.Currency.ForexProviders.IsEnabled("currencyconverter"))
 
 	flagSet.WithBool("currencylayer", &b.Settings.EnableCurrencyLayer, b.Config.Currency.ForexProviders.IsEnabled("currencylayer"))
@@ -197,6 +199,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 
 	if flagSet["withdrawcachesize"] {
 		withdraw.CacheSize = b.Settings.WithdrawCacheSize
+		withdraw.Cache = cache.New(withdraw.CacheSize)
 	}
 
 	if b.Settings.EnableEventManager && b.Settings.EventManagerDelay <= 0 {
@@ -399,6 +402,7 @@ func (bot *Engine) Start() error {
 
 	if err := currency.RunStorageUpdater(
 		currency.BotOverrides{
+			AllRatesToday:     bot.Settings.EnableAllRatesToday,
 			Coinmarketcap:     bot.Settings.EnableCoinmarketcapAnalysis,
 			CurrencyConverter: bot.Settings.EnableCurrencyConverter,
 			CurrencyLayer:     bot.Settings.EnableCurrencyLayer,

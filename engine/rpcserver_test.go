@@ -53,6 +53,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/utils"
 	"github.com/thrasher-corp/goose"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -1253,6 +1254,130 @@ func TestUpdateAccountBalances(t *testing.T) {
 
 	_, err = s.UpdateAccountBalances(ctx, &gctrpc.GetAccountBalancesRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	assert.NoError(t, err)
+}
+
+func TestAccountBalanceResp(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	subAccts := accounts.SubAccounts{
+		{
+			ID: "sub1",
+			Balances: accounts.CurrencyBalances{
+				currency.BTC: {
+					Total:     1.5,
+					Free:      1.0,
+					Hold:      0.5,
+					UpdatedAt: now,
+				},
+				currency.ETH: {
+					Total:                  0,
+					Hold:                   0,
+					Free:                   0,
+					AvailableWithoutBorrow: 0,
+					Borrowed:               0,
+					UpdatedAt:              now,
+				},
+				currency.USDT: {
+					Borrowed:  50,
+					UpdatedAt: now,
+				},
+				currency.DOGE: {
+					AvailableWithoutBorrow: 10,
+					UpdatedAt:              now,
+				},
+			},
+		},
+		{
+			ID: "sub2",
+			Balances: accounts.CurrencyBalances{
+				currency.LTC: {
+					Total: 0,
+				},
+			},
+		},
+	}
+
+	resp := accountBalanceResp("Binance", subAccts)
+	require.NotNil(t, resp)
+	assert.Equal(t, "Binance", resp.Exchange)
+	require.Len(t, resp.Accounts, 2)
+
+	assert.Equal(t, "sub1", resp.Accounts[0].Id)
+	require.Len(t, resp.Accounts[0].Currencies, 3)
+	currencies := make(map[string]*gctrpc.AccountCurrencyInfo)
+	for _, c := range resp.Accounts[0].Currencies {
+		currencies[c.Currency] = c
+	}
+	require.Contains(t, currencies, "BTC", "BTC must be kept")
+	assert.Equal(t, 1.5, currencies["BTC"].TotalValue)
+	assert.Equal(t, 1.0, currencies["BTC"].Free)
+	assert.Equal(t, 0.5, currencies["BTC"].Hold)
+
+	require.Contains(t, currencies, "USDT", "USDT must be kept")
+	assert.Equal(t, 50.0, currencies["USDT"].Borrowed)
+
+	require.Contains(t, currencies, "DOGE", "DOGE must be kept")
+	assert.Equal(t, 10.0, currencies["DOGE"].FreeWithoutBorrow)
+
+	assert.NotContains(t, currencies, "ETH")
+
+	assert.Equal(t, "sub2", resp.Accounts[1].Id)
+	assert.Empty(t, resp.Accounts[1].Currencies)
+
+	updatedAt := time.Date(2026, 11, 16, 1, 2, 3, 4, time.UTC)
+	for _, tc := range []struct {
+		name    string
+		balance accounts.Balance
+		kept    bool
+	}{
+		{name: "total only is kept", balance: accounts.Balance{Total: 2}, kept: true},
+		{name: "hold only is kept", balance: accounts.Balance{Hold: 3}, kept: true},
+		{name: "free only is kept", balance: accounts.Balance{Free: 4}, kept: true},
+		{name: "available without borrow only is kept", balance: accounts.Balance{AvailableWithoutBorrow: 5}, kept: true},
+		{name: "borrowed only is kept", balance: accounts.Balance{Borrowed: 6}, kept: true},
+		{name: "negative total only is kept", balance: accounts.Balance{Total: -2}, kept: true},
+		{name: "negative hold only is kept", balance: accounts.Balance{Hold: -3}, kept: true},
+		{name: "negative free only is kept", balance: accounts.Balance{Free: -4}, kept: true},
+		{name: "negative available without borrow only is kept", balance: accounts.Balance{AvailableWithoutBorrow: -5}, kept: true},
+		{name: "negative borrowed only is kept", balance: accounts.Balance{Borrowed: -6}, kept: true},
+		{name: "all zero amounts are left out", balance: accounts.Balance{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.balance.Currency = currency.XRP
+			tc.balance.UpdatedAt = updatedAt
+			resp := accountBalanceResp("Binance", accounts.SubAccounts{{Balances: accounts.CurrencyBalances{currency.XRP: tc.balance}}})
+			require.Len(t, resp.Accounts, 1, "response must hold one account")
+			if !tc.kept {
+				assert.Empty(t, resp.Accounts[0].Currencies, "a balance with only zero amounts should be left out")
+				return
+			}
+			require.Len(t, resp.Accounts[0].Currencies, 1, "a balance with a non-zero amount must be kept")
+			c := resp.Accounts[0].Currencies[0]
+			assert.Equal(t, "XRP", c.Currency, "currency should be XRP")
+			assert.Equal(t, tc.balance.Total, c.TotalValue, "total should be mapped")
+			assert.Equal(t, tc.balance.Hold, c.Hold, "hold should be mapped")
+			assert.Equal(t, tc.balance.Free, c.Free, "free should be mapped")
+			assert.Equal(t, tc.balance.AvailableWithoutBorrow, c.FreeWithoutBorrow, "available without borrow should be mapped")
+			assert.Equal(t, tc.balance.Borrowed, c.Borrowed, "borrowed should be mapped")
+			require.NoError(t, c.UpdatedAt.CheckValid(), "updated at must be a valid timestamp")
+			assert.Equal(t, updatedAt, c.UpdatedAt.AsTime(), "updated at should be mapped")
+		})
+	}
+
+	t.Run("each account keeps its own balances", func(t *testing.T) {
+		t.Parallel()
+		resp := accountBalanceResp("Binance", accounts.SubAccounts{
+			{ID: "first", Balances: accounts.CurrencyBalances{currency.XRP: {Currency: currency.XRP, Total: 7, UpdatedAt: updatedAt}}},
+			{ID: "second", Balances: accounts.CurrencyBalances{currency.XRP: {Currency: currency.XRP, Total: 8, UpdatedAt: updatedAt}}},
+		})
+		require.Len(t, resp.Accounts, 2, "response must hold both accounts")
+		for i, total := range []float64{7, 8} {
+			require.Lenf(t, resp.Accounts[i].Currencies, 1, "account %d must hold one currency", i)
+			assert.Equalf(t, total, resp.Accounts[i].Currencies[0].TotalValue, "account %d total should be its own", i)
+		}
+	})
 }
 
 func TestGetOrders(t *testing.T) {
@@ -3166,6 +3291,53 @@ func TestGetAllManagedPositions(t *testing.T) {
 	assert.Equal(t, "USDT", resp.GetPositions()[0].GetOrders()[0].GetFeeCurrency(), "the managed position's order should carry its fee currency")
 }
 
+func TestOrderbookItems(t *testing.T) {
+	t.Parallel()
+	levels := orderbook.Levels{
+		{Price: 1.234567891234567, Amount: 0.00000000123, StrPrice: "1.234567891234567890", StrAmount: "0.0000000012300", ID: 17},
+		{Price: 1, Amount: 2, ID: 18},
+	}
+	for _, tc := range []struct {
+		name       string
+		levels     orderbook.Levels
+		includeIDs bool
+		want       []*gctrpc.OrderbookItem
+	}{
+		{name: "nil", want: []*gctrpc.OrderbookItem{}},
+		{name: "empty", levels: orderbook.Levels{}, includeIDs: true, want: []*gctrpc.OrderbookItem{}},
+		{
+			name: "single level", levels: levels[:1],
+			want: []*gctrpc.OrderbookItem{
+				{Price: 1.234567891234567, Amount: 0.00000000123, StrPrice: "1.234567891234567890", StrAmount: "0.0000000012300"},
+			},
+		},
+		{
+			name: "snapshot levels", levels: levels,
+			want: []*gctrpc.OrderbookItem{
+				{Price: 1.234567891234567, Amount: 0.00000000123, StrPrice: "1.234567891234567890", StrAmount: "0.0000000012300"},
+				{Price: 1, Amount: 2},
+			},
+		},
+		{
+			name: "stream levels", levels: levels, includeIDs: true,
+			want: []*gctrpc.OrderbookItem{
+				{Price: 1.234567891234567, Amount: 0.00000000123, StrPrice: "1.234567891234567890", StrAmount: "0.0000000012300", Id: 17},
+				{Price: 1, Amount: 2, Id: 18},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := orderbookItems(tc.levels, tc.includeIDs)
+			require.Len(t, got, len(tc.want), "conversion must retain every level")
+			assert.NotNil(t, got, "empty inputs should retain the existing empty-slice response")
+			for i := range tc.want {
+				assert.True(t, proto.Equal(tc.want[i], got[i]), "conversion should preserve level values and ordering with IDs only for streams")
+			}
+		})
+	}
+}
+
 func TestGetOrderbookMovement(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
@@ -3798,22 +3970,80 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// reservedPorts holds the ports reserveAddress has handed to tests that are still running
+var reservedPorts sync.Map
+
+// reserveAddress returns an address on host with a free port for a server the test starts
+// Ports below the ephemeral range are never assigned to listeners on port 0 or to outgoing connections. That range starts
+// at 32768 on Linux and 49152 on macOS and Windows by default, so unless a host lowers it, none of those can take this
+// port before the test's server binds it
+func reserveAddress(t *testing.T, host string) string {
+	t.Helper()
+	listenConfig := net.ListenConfig{}
+	for range 100 {
+		port := 10000 + rand.IntN(10000) //nolint:gosec // a test port needs no cryptographic randomness
+		if _, taken := reservedPorts.LoadOrStore(port, struct{}{}); taken {
+			continue
+		}
+		address := net.JoinHostPort(host, strconv.Itoa(port))
+		lis, err := listenConfig.Listen(t.Context(), "tcp", address)
+		if err != nil {
+			reservedPorts.Delete(port)
+			continue
+		}
+		require.NoError(t, lis.Close(), "Close must not error")
+		t.Cleanup(func() { reservedPorts.Delete(port) })
+		return address
+	}
+	require.FailNow(t, "reserveAddress must find a free port")
+	return ""
+}
+
+// Serial, so each release can be checked once its subtest has ended
+func TestReserveAddress(t *testing.T) {
+	for _, host := range []string{"localhost", "127.0.0.1"} {
+		var port int
+		t.Run(host, func(t *testing.T) {
+			address := reserveAddress(t, host)
+			addressHost, portText, err := net.SplitHostPort(address)
+			require.NoError(t, err, "SplitHostPort must not error")
+			assert.Equal(t, host, addressHost, "reserveAddress should keep the host")
+			port, err = strconv.Atoi(portText)
+			require.NoError(t, err, "Atoi must not error")
+			assert.GreaterOrEqual(t, port, 10000, "reserveAddress should pick a port from 10000")
+			assert.Less(t, port, 20000, "reserveAddress should pick a port below 20000")
+			_, held := reservedPorts.Load(port)
+			assert.True(t, held, "reserveAddress should hold the port while its test runs")
+			listenConfig := net.ListenConfig{}
+			lis, err := listenConfig.Listen(t.Context(), "tcp", address)
+			require.NoError(t, err, "the reserved port must be free to listen on")
+			assert.NoError(t, lis.Close(), "Close should not error")
+		})
+		_, held := reservedPorts.Load(port)
+		assert.False(t, held, "reserveAddress should release the port once its test has ended")
+	}
+}
+
 func TestStartRPCRESTProxy(t *testing.T) {
 	t.Parallel()
 
-	tempDir := filepath.Join(os.TempDir(), "gct-grpc-proxy-test")
+	tempDir := t.TempDir()
 	tempDirTLS := filepath.Join(tempDir, "tls")
+	require.NoError(t, genCert(tempDirTLS), "genCert must not error")
 
-	t.Cleanup(func() {
-		assert.NoErrorf(t, os.RemoveAll(tempDir), "RemoveAll should not error, manual directory deletion required for TempDir: %s", tempDir)
-	})
+	// The default configuration listens on localhost, which also verifies the TLS certificate's localhost DNS name
+	gRPCAddress, proxyAddress := reserveAddress(t, "localhost"), reserveAddress(t, "localhost")
 
-	if !assert.NoError(t, genCert(tempDirTLS), "genCert should not error") {
-		t.FailNow()
-	}
-
-	gRPCPort := rand.IntN(65535-42069) + 42069 //nolint:gosec // Don't require crypto/rand usage here
-	gRPCProxyPort := gRPCPort + 1
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exchName := newUniqueFakeExchangeName()
+	b := exch.GetBase()
+	b.Name = exchName
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{asset.Spot: {AssetEnabled: true}}
+	b.SetCredentials(&accounts.Credentials{Key: "mainkey", Secret: "mainsecret", SubAccount: "main"})
+	require.NoError(t, em.Add(fExchange{IBotExchange: exch}), "Add must not error")
 
 	e := &Engine{
 		Config: &config.Config{
@@ -3822,8 +4052,8 @@ func TestStartRPCRESTProxy(t *testing.T) {
 				Password: "Sup3rdup3rS3cr3t",
 				GRPC: config.GRPCConfig{
 					Enabled:                true,
-					ListenAddress:          "localhost:" + strconv.Itoa(gRPCPort),
-					GRPCProxyListenAddress: "localhost:" + strconv.Itoa(gRPCProxyPort),
+					ListenAddress:          gRPCAddress,
+					GRPCProxyListenAddress: proxyAddress,
 				},
 			},
 		},
@@ -3831,6 +4061,7 @@ func TestStartRPCRESTProxy(t *testing.T) {
 			DataDir:      tempDir,
 			CoreSettings: CoreSettings{EnableGRPCProxy: true},
 		},
+		ExchangeManager: em,
 	}
 
 	fakeTime := time.Now().Add(-time.Hour)
@@ -3840,8 +4071,11 @@ func TestStartRPCRESTProxy(t *testing.T) {
 	t.Cleanup(cancel)
 	StartRPCServer(rpcCtx, e)
 
-	// Give the proxy time to start
-	time.Sleep(time.Millisecond * 500)
+	require.Eventually(t, func() bool {
+		dialer := net.Dialer{Timeout: 100 * time.Millisecond}
+		conn, err := dialer.DialContext(t.Context(), "tcp", proxyAddress)
+		return err == nil && conn.Close() == nil
+	}, 5*time.Second, 10*time.Millisecond, "gRPC proxy must accept TCP connections after startup")
 
 	certFile := filepath.Join(tempDirTLS, "cert.pem")
 	caCert, err := os.ReadFile(certFile)
@@ -3849,7 +4083,8 @@ func TestStartRPCRESTProxy(t *testing.T) {
 	caCertPool := x509.NewCertPool()
 	ok := caCertPool.AppendCertsFromPEM(caCert)
 	require.True(t, ok, "AppendCertsFromPEM must return true")
-	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12}}}
+	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12}}, Timeout: 5 * time.Second}
+	t.Cleanup(client.CloseIdleConnections)
 
 	for _, creds := range []struct {
 		testDescription string
@@ -3864,7 +4099,7 @@ func TestStartRPCRESTProxy(t *testing.T) {
 		t.Run(creds.testDescription, func(t *testing.T) {
 			t.Parallel()
 
-			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://localhost:"+strconv.Itoa(gRPCProxyPort)+"/v1/getinfo", http.NoBody)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://"+proxyAddress+"/v1/getinfo", http.NoBody)
 			require.NoError(t, err, "NewRequestWithContext must not error")
 			req.SetBasicAuth(creds.username, creds.password)
 			// the server measures uptime while handling the request, so it must fall within this window; bounding it
@@ -3892,6 +4127,44 @@ func TestStartRPCRESTProxy(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("Metadata forwarding", func(t *testing.T) {
+		t.Parallel()
+
+		for _, tc := range []struct {
+			name           string
+			header         string
+			value          string
+			wantSubAccount string
+		}{
+			{name: "No metadata header", wantSubAccount: "main"},
+			{name: "Sub-account override", header: "Grpc-Metadata-Apicredentials", value: "subaccount:sub", wantSubAccount: "sub"},
+			{name: "Lower-case sub-account override", header: "grpc-metadata-apicredentials", value: "subaccount:sub", wantSubAccount: "sub"},
+			{name: "Credentials override", header: "Grpc-Metadata-Apicredentials", value: "key:altkey,secret:altsecret,subaccount:alt", wantSubAccount: "alt"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://"+proxyAddress+"/v1/getaccountbalances?asset_type=spot&exchange="+exchName, http.NoBody)
+				require.NoError(t, err, "NewRequestWithContext must not error")
+				req.SetBasicAuth("bobmarley", "Sup3rdup3rS3cr3t")
+				if tc.header != "" {
+					req.Header[tc.header] = []string{tc.value} // Header.Set would canonicalise the lower-case spelling
+				}
+				resp, err := client.Do(req)
+				require.NoError(t, err, "Do must not error")
+				defer resp.Body.Close()
+				respBody, err := io.ReadAll(resp.Body)
+				require.NoError(t, err, "ReadAll must not error")
+				require.Equalf(t, http.StatusOK, resp.StatusCode, "HTTP status code must be 200, body: %s", respBody)
+
+				var balances gctrpc.GetAccountBalancesResponse
+				require.NoError(t, protojson.Unmarshal(respBody, &balances), "protojson.Unmarshal must not error")
+				require.Len(t, balances.Accounts, 1, "response must contain one account")
+				assert.Equal(t, tc.wantSubAccount, balances.Accounts[0].Id, "balances should be for the sub-account the request resolved to")
+			})
+		}
+	})
 }
 
 func TestRPCProxyAuthClient(t *testing.T) {
@@ -3945,6 +4218,37 @@ func TestRPCProxyAuthClient(t *testing.T) {
 	}
 }
 
+func TestRPCProxyHeaderMatcher(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		header  string
+		wantKey string
+		wantOK  bool
+	}{
+		{header: "Grpc-Metadata-Apicredentials", wantKey: "apicredentials", wantOK: true},
+		{header: "grpc-metadata-apicredentials", wantKey: "apicredentials", wantOK: true},
+		{header: "Grpc-Metadata-Verbose", wantKey: "verbose", wantOK: true},
+		{header: "Grpc-Metadata-Authorization"},
+		{header: "Grpc-Metadata-Apicredentials-Bin"},
+		{header: "Grpc-Metadata-Verbose-Bin"},
+		{header: "Grpc-Metadata-Grpc-Metadata-Apicredentials"},
+		{header: "Grpc-Metadata-Grpc-Metadata-Verbose"},
+		{header: "Grpc-Metadata-"},
+		{header: "X-Grpc-Metadata-Verbose"},
+		{header: "Apicredentials"},
+		{header: "Verbose"},
+		{header: "User-Agent", wantKey: "grpcgateway-User-Agent", wantOK: true},
+	} {
+		t.Run(tc.header, func(t *testing.T) {
+			t.Parallel()
+			mdKey, ok := rpcProxyHeaderMatcher(tc.header)
+			assert.Equalf(t, tc.wantOK, ok, "rpcProxyHeaderMatcher should report whether %q is forwarded", tc.header)
+			assert.Equalf(t, tc.wantKey, mdKey, "rpcProxyHeaderMatcher should return the expected metadata key for %q", tc.header)
+		})
+	}
+}
+
 func TestStartRPCServerStopsListenerOnContextCancel(t *testing.T) {
 	t.Parallel()
 	tempDir := t.TempDir()
@@ -3952,11 +4256,7 @@ func TestStartRPCServerStopsListenerOnContextCancel(t *testing.T) {
 	require.NoError(t, os.MkdirAll(tempDirTLS, os.ModePerm), "MkdirAll must not error")
 	require.NoError(t, genCert(tempDirTLS), "genCert must not error")
 
-	listenConfig := net.ListenConfig{}
-	portListener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err, "Listen must not error")
-	listenAddress := portListener.Addr().String()
-	require.NoError(t, portListener.Close(), "Close must not error")
+	listenAddress := reserveAddress(t, "127.0.0.1")
 
 	e := &Engine{
 		Config: &config.Config{RemoteControl: config.RemoteControlConfig{
@@ -4036,4 +4336,231 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	resp, err := s.GetCurrencyTradeURL(t.Context(), req)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.Url)
+}
+
+type batchCancelRPCFake struct {
+	fExchange
+	cancelsReceived []order.Cancel
+	resp            *order.CancelBatchResponse
+	err             error
+}
+
+func (f *batchCancelRPCFake) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	f.cancelsReceived = append(f.cancelsReceived, o...)
+	return f.resp, f.err
+}
+
+func setupBatchCancelServer(t *testing.T, fake *batchCancelRPCFake) *RPCServer {
+	t.Helper()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("binance")
+	require.NoError(t, err)
+
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled:  true,
+		Enabled:       []currency.Pair{currency.NewBTCUSDT()},
+		Available:     []currency.Pair{currency.NewBTCUSDT()},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+	})
+	require.NoError(t, err)
+
+	fake.IBotExchange = exch
+	err = em.Add(fake)
+	require.NoError(t, err)
+
+	return &RPCServer{Engine: &Engine{ExchangeManager: em}}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+
+	t.Run("reports wrapper statuses", func(t *testing.T) {
+		t.Parallel()
+
+		fake := &batchCancelRPCFake{
+			resp: &order.CancelBatchResponse{
+				Status: map[string]string{
+					"1": order.Cancelled.String(),
+					"2": "failed to cancel",
+				},
+			},
+		}
+		server := setupBatchCancelServer(t, fake)
+
+		res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+			Exchange:  fakeExchangeName,
+			AssetType: "spot",
+			Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+			Side:      "buy",
+			OrdersId:  "1,2,3",
+		})
+		require.NoError(t, err)
+		require.Len(t, res.Orders, 1)
+
+		status := res.Orders[0].OrderStatus
+		assert.Equal(t, order.Cancelled.String(), status["1"])
+		assert.Equal(t, "failed to cancel", status["2"])
+		assert.Equal(t, order.UnknownStatus.String(), status["3"], "an omitted status is reported as unknown")
+	})
+
+	t.Run("defaults when wrapper reports no status", func(t *testing.T) {
+		t.Parallel()
+
+		fake := &batchCancelRPCFake{}
+		server := setupBatchCancelServer(t, fake)
+
+		res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+			Exchange:  fakeExchangeName,
+			AssetType: "spot",
+			Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+			Side:      "buy",
+			OrdersId:  "10,20",
+		})
+		require.NoError(t, err)
+		require.Len(t, res.Orders, 1)
+
+		status := res.Orders[0].OrderStatus
+		assert.Equal(t, order.Cancelled.String(), status["10"])
+		assert.Equal(t, order.Cancelled.String(), status["20"])
+	})
+
+	t.Run("reports requested statuses", func(t *testing.T) {
+		t.Parallel()
+
+		cancelled, unknown := order.Cancelled.String(), order.UnknownStatus.String()
+		for _, tc := range []struct {
+			name     string
+			statuses map[string]string
+			expected map[string]string
+		}{
+			{name: "no status map", expected: map[string]string{"10": unknown, "20": unknown}},
+			{name: "empty status map", statuses: map[string]string{}, expected: map[string]string{"10": unknown, "20": unknown}},
+			{name: "unrequested order only", statuses: map[string]string{"30": cancelled}, expected: map[string]string{"10": unknown, "20": unknown}},
+			{name: "one requested order", statuses: map[string]string{"10": cancelled}, expected: map[string]string{"10": cancelled, "20": unknown}},
+			{name: "requested and unrequested orders", statuses: map[string]string{"10": cancelled, "30": cancelled}, expected: map[string]string{"10": cancelled, "20": unknown}},
+			{name: "every requested order", statuses: map[string]string{"10": cancelled, "20": "failed to cancel"}, expected: map[string]string{"10": cancelled, "20": "failed to cancel"}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				fake := &batchCancelRPCFake{
+					resp: &order.CancelBatchResponse{Status: tc.statuses},
+				}
+				server := setupBatchCancelServer(t, fake)
+
+				res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+					Exchange:  fakeExchangeName,
+					AssetType: "spot",
+					Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+					Side:      "buy",
+					OrdersId:  "10,20",
+				})
+				require.NoError(t, err)
+				require.Len(t, res.Orders, 1)
+				assert.Equal(t, tc.expected, res.Orders[0].OrderStatus, "order statuses should cover exactly the requested orders")
+			})
+		}
+	})
+
+	t.Run("trims", func(t *testing.T) {
+		t.Parallel()
+
+		unknown, cancelled := order.UnknownStatus.String(), order.Cancelled.String()
+		for _, tc := range []struct {
+			name     string
+			ordersID string
+			statuses map[string]string
+			sent     []string
+			reply    map[string]string
+		}{
+			{name: "whitespace padded IDs", ordersID: " 1 , 2 \t", sent: []string{"1", "2"}, reply: map[string]string{"1": unknown, "2": unknown}},
+			{name: "different valid statuses", ordersID: "2, \t1", statuses: map[string]string{"1": "failed to cancel", "2": cancelled}, sent: []string{"2", "1"}, reply: map[string]string{"1": "failed to cancel", "2": cancelled}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				fake := &batchCancelRPCFake{
+					resp: &order.CancelBatchResponse{Status: tc.statuses},
+				}
+				server := setupBatchCancelServer(t, fake)
+
+				res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+					Exchange:  fakeExchangeName,
+					AssetType: "spot",
+					Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+					Side:      "buy",
+					OrdersId:  tc.ordersID,
+				})
+				require.NoError(t, err)
+				require.Len(t, res.Orders, 1)
+				assert.Equal(t, tc.reply, res.Orders[0].OrderStatus, "the reply should be keyed by the trimmed order IDs")
+
+				pair := currency.NewPairWithDelimiter("btc", "usdt", "-")
+				sent := make([]order.Cancel, len(tc.sent))
+				for i, id := range tc.sent {
+					sent[i] = order.Cancel{OrderID: id, Side: order.Buy, Pair: pair, AssetType: asset.Spot}
+				}
+				assert.Equal(t, sent, fake.cancelsReceived, "each order ID should reach the exchange once, trimmed and in the order given")
+			})
+		}
+	})
+
+	t.Run("rejects empty and duplicate orders", func(t *testing.T) {
+		t.Parallel()
+
+		for _, tc := range []struct {
+			name     string
+			ordersID string
+			wantErr  error
+		}{
+			{name: "empty string", ordersID: "", wantErr: order.ErrCancelOrderIsNil},
+			{name: "all empty fragments", ordersID: " , , ", wantErr: ErrOrderIDCannotBeEmpty},
+			{name: "inner empty fragment", ordersID: "1,,2", wantErr: ErrOrderIDCannotBeEmpty},
+			{name: "trailing empty fragment", ordersID: "1,2,", wantErr: ErrOrderIDCannotBeEmpty},
+			{name: "adjacent duplicate", ordersID: "1, 1", wantErr: errDuplicateOrderID},
+			{name: "non-adjacent duplicate", ordersID: "1, 2, 1", wantErr: errDuplicateOrderID},
+			{name: "padded duplicate", ordersID: "2, 1, \t2", wantErr: errDuplicateOrderID},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				fake := &batchCancelRPCFake{}
+				server := setupBatchCancelServer(t, fake)
+
+				_, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+					Exchange:  fakeExchangeName,
+					AssetType: "spot",
+					Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+					Side:      "buy",
+					OrdersId:  tc.ordersID,
+				})
+				assert.ErrorIs(t, err, tc.wantErr)
+				assert.Empty(t, fake.cancelsReceived, "a refused batch should send nothing to the exchange")
+			})
+		}
+	})
+
+	t.Run("propagates wrapper error", func(t *testing.T) {
+		t.Parallel()
+
+		fake := &batchCancelRPCFake{
+			err: errors.New("exchange unavailable"),
+		}
+		server := setupBatchCancelServer(t, fake)
+
+		_, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+			Exchange:  fakeExchangeName,
+			AssetType: "spot",
+			Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+			Side:      "buy",
+			OrdersId:  "1,2",
+		})
+		assert.ErrorContains(t, err, "exchange unavailable")
+	})
 }
