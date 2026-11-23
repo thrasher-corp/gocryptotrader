@@ -51,6 +51,22 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// mockServer serves the recorded REST responses to every exchange setupMockExchange sets up; it is started once, as
+// mock.NewVCRServer gives no way to stop the server it starts
+var mockServer = sync.OnceValues(func() (*vcrServer, error) {
+	serverURL, client, err := mock.NewVCRServer(mockHTTPFile)
+	if err != nil {
+		return nil, err
+	}
+	return &vcrServer{url: serverURL, client: client}, nil
+})
+
+// vcrServer is a server mock.NewVCRServer started, by its URL and the client that reaches it
+type vcrServer struct {
+	url    string
+	client *http.Client
+}
+
 // setupMockExchange serves an exchange from the recorded REST responses, signing with placeholder credentials so the
 // private methods run against their recorded responses too; each private request's signature is checked before the
 // mock matches it
@@ -59,11 +75,11 @@ func setupMockExchange(ex *Exchange) error {
 		return err
 	}
 	setTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
-	serverURL, client, err := mock.NewVCRServer(mockHTTPFile)
+	server, err := mockServer()
 	if err != nil {
 		return fmt.Errorf("error starting NewVCRServer: %w", err)
 	}
-	client.Transport = &signedRequestNormaliser{next: client.Transport}
+	serverURL, client := server.url, &http.Client{Transport: &signedRequestNormaliser{next: server.client.Transport}}
 	ex.SkipAuthCheck = true
 	if err := ex.SetHTTPClient(client); err != nil {
 		return err
@@ -76,6 +92,17 @@ func setupMockExchange(ex *Exchange) error {
 	log.Printf(sharedtestvalues.MockTesting, ex.Name)
 	// Mock responses are served locally, so throttling protects nothing
 	return ex.DisableRateLimiter()
+}
+
+func TestSetupMockExchange(t *testing.T) {
+	t.Parallel()
+	t.Run("serves every exchange from one server", func(t *testing.T) {
+		t.Parallel()
+		first, second := new(Exchange), new(Exchange)
+		require.NoError(t, setupMockExchange(first), "setupMockExchange must not error")
+		require.NoError(t, setupMockExchange(second), "setupMockExchange must not error for a second exchange")
+		assert.Equal(t, first.API.Endpoints.GetURLMap(), second.API.Endpoints.GetURLMap(), "setupMockExchange should send every exchange's requests to one server")
+	})
 }
 
 // newTestExchange returns a mock exchange named after the test, so the ticker, orderbook and account stores it writes

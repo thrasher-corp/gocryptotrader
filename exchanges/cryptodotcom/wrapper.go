@@ -1411,18 +1411,18 @@ func (e *Exchange) submitOrderWith(ctx context.Context, s *order.Submit, create 
 	return submitResponse(s, resp)
 }
 
-// WebsocketSubmitOrders places orders over the websocket, in lists of up to 10, trigger orders in lists of their own;
-// an order Crypto.com rejects has its submission error set, and one its answer leaves out an unknown status, as it may
-// have been placed. A list whose request fails, or whose answer cannot be read,
-// stops the orders after it, and the responses of the lists placed before it are returned with the error, the rest left
+// WebsocketSubmitOrders places up to 10 orders over the websocket in a list, trigger orders in a list of their own, and
+// refuses more, as each list takes 10; an order Crypto.com rejects has its submission error set, and one its answer
+// leaves out an unknown status, as it may have been placed. A list whose request fails, or whose answer cannot be read,
+// stops the list after it, and the responses of the list placed before it are returned with the error, the rest left
 // nil. Each list's margin orders are tracked as submitOrderWith tracks an order, by their client order IDs before the
 // list is sent and by their order IDs once it is answered, and an isolated margin order is placed as submitOrderWith
 // places one, on its instrument's isolated position. Orders naming none open a new isolated position each, and
 // Crypto.com refuses a second on one instrument, so a second isolated margin order on an instrument without one is
 // refused before any list is sent
 func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) ([]*order.SubmitResponse, error) {
-	if len(orders) == 0 {
-		return nil, errOrderListEmpty
+	if err := checkOrderListLength(len(orders), min(maxOrderListLength, maxAdvancedOrderListLength)); err != nil {
+		return nil, err
 	}
 	var regular, triggers []int
 	requests := make([]*orderRequest, len(orders))
@@ -1449,37 +1449,37 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		}
 	}
 	responses := make([]*order.SubmitResponse, len(orders))
-	for list := range slices.Chunk(regular, maxOrderListLength) {
-		creates := make([]CreateOrderRequest, len(list))
-		for j, i := range list {
+	if len(regular) > 0 {
+		creates := make([]CreateOrderRequest, len(regular))
+		for j, i := range regular {
 			creates[j] = *requests[i].order
 		}
-		e.trackListSent(orders, requests, list)
+		e.trackListSent(orders, requests, regular)
 		entries, err := e.WebsocketAPI().CreateOrderList(ctx, creates)
 		if err != nil {
-			e.trackListRefused(orders, requests, list, err)
+			e.trackListRefused(orders, requests, regular, err)
 			return responses, err
 		}
-		if err := listSubmitResponses(orders, list, entries, responses); err != nil {
+		if err := listSubmitResponses(orders, regular, entries, responses); err != nil {
 			return responses, err
 		}
-		e.trackListAnswered(orders, requests, list, responses)
+		e.trackListAnswered(orders, requests, regular, responses)
 	}
-	for list := range slices.Chunk(triggers, maxAdvancedOrderListLength) {
-		creates := make([]CreateAdvancedOrderRequest, len(list))
-		for j, i := range list {
+	if len(triggers) > 0 {
+		creates := make([]CreateAdvancedOrderRequest, len(triggers))
+		for j, i := range triggers {
 			creates[j] = *requests[i].trigger
 		}
-		e.trackListSent(orders, requests, list)
+		e.trackListSent(orders, requests, triggers)
 		entries, err := e.WebsocketAPI().CreateAdvancedOrderList(ctx, creates)
 		if err != nil {
-			e.trackListRefused(orders, requests, list, err)
+			e.trackListRefused(orders, requests, triggers, err)
 			return responses, err
 		}
-		if err := listSubmitResponses(orders, list, entries, responses); err != nil {
+		if err := listSubmitResponses(orders, triggers, entries, responses); err != nil {
 			return responses, err
 		}
-		e.trackListAnswered(orders, requests, list, responses)
+		e.trackListAnswered(orders, requests, triggers, responses)
 	}
 	return responses, nil
 }
@@ -1768,12 +1768,13 @@ type orderCancel struct {
 	Advanced      bool
 }
 
-// CancelBatchOrders cancels orders by their order IDs or client order IDs, in lists of up to 10, trigger orders, which
-// must have their type given, in lists the advanced order methods cancel. A list whose request fails stops the lists
-// after it, and the outcomes of those sent before it are returned with the error
+// CancelBatchOrders cancels up to 10 orders by their order IDs or client order IDs, and refuses more, as each list
+// takes 10: trigger orders, when their type is given, go straight to the list the advanced order methods cancel, and
+// the orders the trading methods refuse to cancel for the order named join them there. A list whose request fails
+// stops the list after it, and the outcomes of the list sent before it are returned with the error
 func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
-	if len(orders) == 0 {
-		return nil, errOrderListEmpty
+	if err := checkOrderListLength(len(orders), min(maxOrderListLength, maxAdvancedOrderListLength)); err != nil {
+		return nil, err
 	}
 	cancels := make([]orderCancel, len(orders))
 	for i := range orders {

@@ -7,6 +7,7 @@ import (
 	"maps"
 	"math"
 	"net/url"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"testing"
 	"time"
 	"uuid"
+	"weak"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -2860,7 +2862,7 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	assert.Equal(t, "5755600460443882762", got[0].OrderID, "WebsocketSubmitOrders should return the ID of an order placed before a list failed")
 	assert.Nil(t, got[1], "WebsocketSubmitOrders should leave the response of an order whose list failed unset")
 
-	// Eleven orders go in two lists, and the second failing keeps the first's responses
+	// Eleven orders, more than a list takes, which the cases below refuse, and the answer to a list of ten
 	orders = make([]*order.Submit, 11)
 	entries := make([]string, 10)
 	for i := range orders {
@@ -2870,27 +2872,87 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	for i := range entries {
 		entries[i] = `{"code":0,"index":` + strconv.Itoa(i) + `,"order_id":"` + strconv.Itoa(100+i) + `"}`
 	}
-	venue.respond("private/create-order-list", "["+strings.Join(entries, ",")+"]")
-	venue.beforeAnswering("private/create-order-list", func() {
-		venue.fail("private/create-order-list", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"})
-	})
-	got, err = ex.WebsocketSubmitOrders(t.Context(), orders)
-	require.ErrorAs(t, err, &apiErr, "WebsocketSubmitOrders must return the error of a later list whose request failed")
-	require.Len(t, got, 11, "WebsocketSubmitOrders must return the orders' responses with the error")
-	require.NotNil(t, got[9], "WebsocketSubmitOrders must return the responses of the list placed before one failed")
-	assert.Equal(t, "109", got[9].OrderID, "WebsocketSubmitOrders should return the IDs of the list placed before one failed")
-	assert.Nil(t, got[10], "WebsocketSubmitOrders should leave the response of an order whose list failed unset")
 
-	// A later list's answer accepting an order without its ID keeps the responses of the lists placed before it too; the
-	// cases run in order, as both set the exchange of orders[0] and WebsocketSubmitOrders is called again below
+	// As many orders as a list takes go in one list, the trigger orders in a list of their own
+	for _, tc := range []struct {
+		name              string
+		regular, triggers int
+	}{
+		{"ten orders", 10, 0},
+		{"ten trigger orders", 0, 10},
+		{"nine orders and a trigger order", 9, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fullEx, fullVenue := newWebsocketTestExchange(t)
+			full := make([]*order.Submit, 0, tc.regular+tc.triggers)
+			for range tc.regular {
+				full = append(full, testSubmit())
+			}
+			for range tc.triggers {
+				full = append(full, testTriggerSubmit())
+			}
+			sentIDs := map[string][]string{"private/create-order-list": nil, "private/advanced/create-order-list": nil}
+			for i, s := range full {
+				s.ClientOrderID = "full_" + strconv.Itoa(i)
+				method := "private/create-order-list"
+				if i >= tc.regular {
+					method = "private/advanced/create-order-list"
+				}
+				sentIDs[method] = append(sentIDs[method], s.ClientOrderID)
+			}
+			answer := func(count, firstID int) string {
+				listed := make([]string, count)
+				for i := range listed {
+					listed[i] = `{"code":0,"index":` + strconv.Itoa(i) + `,"order_id":"` + strconv.Itoa(firstID+i) + `"}`
+				}
+				return "[" + strings.Join(listed, ",") + "]"
+			}
+			for _, s := range full {
+				s.Exchange = fullEx.Name
+			}
+			fullVenue.respond("private/create-order-list", answer(tc.regular, 100))
+			fullVenue.respond("private/advanced/create-order-list", answer(tc.triggers, 200))
+			placed, err := fullEx.WebsocketSubmitOrders(t.Context(), full)
+			require.NoError(t, err, "WebsocketSubmitOrders must place as many orders as a list takes")
+			require.Len(t, placed, len(full), "WebsocketSubmitOrders must return a response for every order")
+			for i := range full {
+				exp := strconv.Itoa(100 + i)
+				if i >= tc.regular {
+					exp = strconv.Itoa(200 + i - tc.regular)
+				}
+				require.NotNilf(t, placed[i], "WebsocketSubmitOrders must return order %d's response", i)
+				assert.Equalf(t, exp, placed[i].OrderID, "WebsocketSubmitOrders should return order %d's ID from its list", i)
+			}
+			for method, count := range map[string]int{"private/create-order-list": tc.regular, "private/advanced/create-order-list": tc.triggers} {
+				lists := fullVenue.received(method)
+				if count == 0 {
+					assert.Emptyf(t, lists, "WebsocketSubmitOrders should send no %s request without orders for it", method)
+					continue
+				}
+				require.Lenf(t, lists, 1, "WebsocketSubmitOrders must send its orders in one %s request", method)
+				var sent struct {
+					OrderList []struct {
+						ClientOrderID string `json:"client_oid"`
+					} `json:"order_list"`
+				}
+				require.NoErrorf(t, json.Unmarshal(lists[0].Params, &sent), "the %s params must decode", method)
+				got := make([]string, len(sent.OrderList))
+				for i := range sent.OrderList {
+					got[i] = sent.OrderList[i].ClientOrderID
+				}
+				assert.Equalf(t, sentIDs[method], got, "WebsocketSubmitOrders should send every order in the %s request, in order", method)
+			}
+		})
+	}
+
+	// A later list's answer accepting an order without its ID keeps the responses of the list placed before it too; the
+	// case sets the exchange of orders[0], which WebsocketSubmitOrders is called with again below
 	for _, tc := range []struct {
 		name   string
 		orders []*order.Submit
 		arm    func(*websocketVenue)
 	}{
-		{"the trading methods' second list", orders, func(v *websocketVenue) {
-			v.beforeAnswering("private/create-order-list", func() { v.respond("private/create-order-list", `[{"code":0,"index":0}]`) })
-		}},
 		{"the advanced order methods' list", []*order.Submit{orders[0], testTriggerSubmit()}, func(v *websocketVenue) {
 			v.respond("private/advanced/create-order-list", `[{"code":0,"index":0}]`)
 		}},
@@ -2912,7 +2974,8 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	}
 
 	// Every order is checked before any list is sent, so an order Crypto.com would refuse stops the lists before its own,
-	// and is named by its index among the orders
+	// and is named by its index among the orders; more orders than a list takes are refused before any is checked, the
+	// trigger orders counted with the rest
 	ex, venue = newWebsocketTestExchange(t)
 	marginOrders := make([]*order.Submit, 11)
 	for i := range marginOrders {
@@ -2921,14 +2984,47 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	marginOrders[10].ClientOrderID = strings.Repeat("c", 37)
 	noTriggerPrice := testTriggerSubmit()
 	noTriggerPrice.Exchange, noTriggerPrice.TriggerPrice = ex.Name, 0
+	trigger := testTriggerSubmit()
+	trigger.Exchange = ex.Name
+	marginTriggers := make([]*order.Submit, 11)
+	for i := range marginTriggers {
+		marginTriggers[i] = &order.Submit{Exchange: ex.Name, Type: order.StopLimit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 49000, TriggerPrice: 49500, Amount: 0.001, ClientOrderID: "margin_trigger_" + strconv.Itoa(i)}
+	}
+	noClientOrderID := testSubmit()
+	noClientOrderID.Exchange, noClientOrderID.ClientOrderID = ex.Name, ""
+	secondTrigger := testTriggerSubmit()
+	secondTrigger.Exchange = ex.Name
+	quoteBuy := &order.Submit{Exchange: ex.Name, Type: order.Market, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Spot, QuoteAmount: 50}
 	// The cases share ex and its venue in order, whose requests are checked after them
+	for _, tc := range []struct {
+		name   string
+		orders []*order.Submit
+	}{
+		{"eleven orders", orders},
+		{"ten orders and a trigger order", append(slices.Clone(orders[:10]), trigger)},
+		{"ten orders then one with a client order ID of 37 characters", marginOrders},
+		{"eleven margin trigger orders", marginTriggers},
+		{"nine orders, the first again and a trigger order", append(slices.Clone(orders[:9]), orders[0], trigger)},
+		{"nine orders, one without a client order ID and a trigger order", append(slices.Clone(orders[:9]), noClientOrderID, trigger)},
+		{"nine orders, the last again and a trigger order", append(slices.Clone(orders[:9]), orders[8], trigger)},
+		{"nine orders, a market buy sized in quote and a trigger order", append(slices.Clone(orders[:9]), quoteBuy, trigger)},
+		{"ten orders and two trigger orders", append(slices.Clone(orders[:10]), trigger, secondTrigger)},
+	} {
+		t.Run("refuses "+tc.name, func(t *testing.T) {
+			_, err = ex.WebsocketSubmitOrders(t.Context(), tc.orders)
+			require.ErrorIsf(t, err, errOrderListTooLong, "WebsocketSubmitOrders must refuse %s, more than a list takes", tc.name)
+			for _, s := range tc.orders {
+				assert.Falsef(t, ex.isMarginOrder("", s.ClientOrderID), "WebsocketSubmitOrders should not track client order ID %q of %s, sending none of them", s.ClientOrderID, tc.name)
+			}
+		})
+	}
 	for _, tc := range []struct {
 		name   string
 		orders []*order.Submit
 		err    error
 		named  string
 	}{
-		{"ten orders then one with a client order ID of 37 characters", marginOrders, errClientOrderIDTooLong, "order 10: "},
+		{"nine orders then one with a client order ID of 37 characters", marginOrders[1:], errClientOrderIDTooLong, "order 9: "},
 		{"an order then a trigger order without a trigger price", []*order.Submit{marginOrders[0], noTriggerPrice}, errInvalidReferencePrice, "order 1: "},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2984,28 +3080,45 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	}
 	assert.Equal(t, expLookups, lookedUp(), "WebsocketSubmitOrders should look up each isolated margin order's position and place none")
 
-	// The refusal spans the lists the orders are sent in, and covers a reduce-only close, which names no position either
-	ex, lookedUp = newRoutesServerExchange(t, map[string]testRoute{"private/get-positions": testResult(`{"data":[]}`)})
-	venue = newWebsocketVenue(t)
-	connectWebsocketVenue(t, ex, venue)
-	acrossLists := make([]*order.Submit, 11)
-	for i := range acrossLists {
-		acrossLists[i] = testSubmit()
-		acrossLists[i].Exchange, acrossLists[i].ClientOrderID = ex.Name, "order_"+strconv.Itoa(i)
+	// More orders than a list takes are refused before any position is looked up, and the refusal covers a reduce-only
+	// close at the end of a full list, which names no position either
+	isolatedOrders := func(ex *Exchange, count int) []*order.Submit {
+		orders := make([]*order.Submit, count)
+		for i := range orders {
+			orders[i] = testSubmit()
+			orders[i].Exchange, orders[i].ClientOrderID = ex.Name, "order_"+strconv.Itoa(i)
+		}
+		opener, closer := orders[0], orders[count-1]
+		opener.Type, opener.Price, opener.TimeInForce, opener.MarginType = order.Market, 0, order.UnknownTIF, margin.Isolated
+		closer.Type, closer.Side, closer.Price, closer.TimeInForce, closer.ReduceOnly, closer.MarginType = order.Market, order.Sell, 0, order.UnknownTIF, true, margin.Isolated
+		return orders
 	}
-	opener, closer := acrossLists[0], acrossLists[10]
-	opener.Type, opener.Price, opener.TimeInForce, opener.MarginType = order.Market, 0, order.UnknownTIF, margin.Isolated
-	closer.Type, closer.Side, closer.Price, closer.TimeInForce, closer.ReduceOnly, closer.MarginType = order.Market, order.Sell, 0, order.UnknownTIF, true, margin.Isolated
-	responses, err := ex.WebsocketSubmitOrders(t.Context(), acrossLists)
-	require.ErrorIs(t, err, errIsolatedPositionNotOpen, "WebsocketSubmitOrders must refuse an isolated margin close in a later list than the order opening its position")
-	assert.ErrorContains(t, err, "order 10: isolated position not open yet: order 0 opens the one on BTCUSD-PERP", "WebsocketSubmitOrders should name the close and the order opening the position")
-	assert.Nil(t, responses, "WebsocketSubmitOrders should return no responses for orders refused before any list is sent")
-	expLookups = []testRequest{
-		{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`},
-		{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`},
-	}
-	assert.Equal(t, expLookups, lookedUp(), "WebsocketSubmitOrders should look up the isolated position of each isolated margin order only")
-	assert.Empty(t, venue.received("private/create-order-list"), "WebsocketSubmitOrders should send no list of orders holding one it refuses")
+	t.Run("refuses eleven orders, an isolated open and its reduce-only close among them", func(t *testing.T) {
+		t.Parallel()
+		refuseEx, refuseLookups := newRoutesServerExchange(t, map[string]testRoute{"private/get-positions": testResult(`{"data":[]}`)})
+		refuseVenue := newWebsocketVenue(t)
+		connectWebsocketVenue(t, refuseEx, refuseVenue)
+		placed, err := refuseEx.WebsocketSubmitOrders(t.Context(), isolatedOrders(refuseEx, 11))
+		require.ErrorIs(t, err, errOrderListTooLong, "WebsocketSubmitOrders must refuse more orders than a list takes")
+		assert.Nil(t, placed, "WebsocketSubmitOrders should return no responses for orders refused before any list is sent")
+		assert.Empty(t, refuseLookups(), "WebsocketSubmitOrders should look up no position for orders it refuses for their number")
+		assert.Empty(t, refuseVenue.received("private/create-order-list"), "WebsocketSubmitOrders should send no list of orders it refuses")
+	})
+	t.Run("an isolated reduce-only close at the end of a full list", func(t *testing.T) {
+		t.Parallel()
+		fullEx, fullLookups := newRoutesServerExchange(t, map[string]testRoute{"private/get-positions": testResult(`{"data":[]}`)})
+		fullVenue := newWebsocketVenue(t)
+		connectWebsocketVenue(t, fullEx, fullVenue)
+		placed, err := fullEx.WebsocketSubmitOrders(t.Context(), isolatedOrders(fullEx, 10))
+		require.ErrorIs(t, err, errIsolatedPositionNotOpen, "WebsocketSubmitOrders must refuse an isolated margin close in the list of the order opening its position")
+		assert.ErrorContains(t, err, "order 9: isolated position not open yet: order 0 opens the one on BTCUSD-PERP", "WebsocketSubmitOrders should name the close and the order opening the position")
+		assert.Nil(t, placed, "WebsocketSubmitOrders should return no responses for orders refused before any list is sent")
+		assert.Equal(t, []testRequest{
+			{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`},
+			{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`},
+		}, fullLookups(), "WebsocketSubmitOrders should look up the isolated position of each isolated margin order only")
+		assert.Empty(t, fullVenue.received("private/create-order-list"), "WebsocketSubmitOrders should send no list of orders holding one it refuses")
+	})
 
 	// An isolated margin order whose isolated position cannot be looked up is refused before any order is sent, as it could
 	// open a second one
@@ -3728,45 +3841,138 @@ func TestCancelBatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, errOrderListEmpty, "CancelBatchOrders must refuse no orders")
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1"}, {}})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelBatchOrders must refuse an order without an ID")
-	ex, received := newRoutesServerExchange(t, map[string]testRoute{
-		"private/cancel-order-list": func(params string) (string, *APIError) {
-			if strings.Contains(params, `"order_id":"11"`) {
-				return `[{"code":0,"index":0}]`, nil
-			}
-			return `[{"code":0,"index":0},{"code":0,"index":2},{"code":316,"index":1,"message":"NO_ACTIVE_ORDER"},{"code":0,"index":3},{"code":0,"index":4},{"code":0,"index":5},{"code":0,"index":6},{"code":0,"index":7},{"code":0,"index":8}]`, nil
-		},
-		// The order the trading methods could not cancel is an order list's leg, which the advanced order methods cancel
-		"private/advanced/cancel-order-list": testResult(`[{"code":0,"index":0},{"code":0,"index":1}]`),
-	})
 	cancels := make([]order.Cancel, 0, 12)
 	for i := range 11 {
 		cancels = append(cancels, order.Cancel{OrderID: strconv.Itoa(i + 1)})
 	}
 	cancels = append(cancels, order.Cancel{ClientOrderID: "my_sl_order", Type: order.Stop})
-	got, err := ex.CancelBatchOrders(t.Context(), cancels)
-	require.NoError(t, err, "CancelBatchOrders must not error")
-	exp := &order.CancelBatchResponse{Status: map[string]string{
-		"1": "PENDING_CANCEL", "2": "PENDING_CANCEL", "3": "PENDING_CANCEL", "4": "PENDING_CANCEL", "5": "PENDING_CANCEL", "6": "PENDING_CANCEL",
-		"7": "PENDING_CANCEL", "8": "PENDING_CANCEL", "9": "PENDING_CANCEL", "10": "no result for the order", "11": "PENDING_CANCEL", "my_sl_order": "PENDING_CANCEL",
-	}}
-	assert.Equal(t, exp, got, "CancelBatchOrders should return every order's outcome")
-	requests := received()
-	require.Len(t, requests, 3, "CancelBatchOrders must send two lists of up to 10 and a list of trigger orders")
-	assert.JSONEq(t, `{"contingency_type":"LIST","order_list":[{"order_id":"11"}]}`, requests[1].Params, "CancelBatchOrders should send the orders past 10 in a second list")
-	assert.Equal(t, testRequest{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[{"client_oid":"my_sl_order"},{"order_id":"2"}]}`}, requests[2], "CancelBatchOrders should cancel trigger orders, and the orders the trading methods refused, with the advanced order methods")
+	triggers := make([]order.Cancel, 11)
+	for i := range triggers {
+		triggers[i] = order.Cancel{OrderID: strconv.Itoa(101 + i), Type: order.Stop}
+	}
+	twoPairs := make([]order.Cancel, 11)
+	for i := range twoPairs {
+		twoPairs[i] = order.Cancel{OrderID: strconv.Itoa(201 + i), Pair: testSpotPair}
+		if i >= 6 {
+			twoPairs[i].Pair = currency.NewPairWithDelimiter("CRO", "USD", currency.UnderscoreDelimiter)
+		}
+	}
+	// Each list takes 10, and the orders the trading methods refuse to cancel for the order named join the trigger orders
+	// in the advanced order methods' list, so a batch of more than 10 orders is refused before any request, whatever it
+	// holds
+	for _, tc := range []struct {
+		name   string
+		orders []order.Cancel
+	}{
+		{"eleven orders and a trigger order", cancels},
+		{"eleven orders", cancels[:11]},
+		{"ten orders and a trigger order", append(slices.Clone(cancels[:10]), cancels[11])},
+		{"eleven trigger orders", triggers},
+		{"ten orders and the first again", append(slices.Clone(cancels[:10]), cancels[0])},
+		{"ten orders and the last again", append(slices.Clone(cancels[:10]), cancels[9])},
+		{"six orders on one pair and five on another", twoPairs},
+		{"ten orders and a trailing stop", append(slices.Clone(cancels[:10]), order.Cancel{OrderID: "12", Type: order.TrailingStop})},
+	} {
+		t.Run("refuses "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, received := newRoutesServerExchange(t, nil)
+			_, err := ex.CancelBatchOrders(t.Context(), tc.orders)
+			require.ErrorIs(t, err, errOrderListTooLong, "CancelBatchOrders must refuse more orders than a list takes")
+			assert.Empty(t, received(), "CancelBatchOrders should send no list of a batch it refuses")
+		})
+	}
+	// Up to as many orders as a list takes go in one list, an order the trading methods refuse to cancel for the order
+	// named retried with the advanced order methods after any trigger orders
+	orderIDs := func(first, last int) string {
+		listed := make([]string, 0, last-first+1)
+		for i := first; i <= last; i++ {
+			listed = append(listed, `{"order_id":"`+strconv.Itoa(i)+`"}`)
+		}
+		return strings.Join(listed, ",")
+	}
+	// The trading methods refuse the second order, an order list's leg, which the advanced order methods cancel
+	refusingSecond := `[{"code":0,"index":0},{"code":0,"index":2},{"code":316,"index":1,"message":"NO_ACTIVE_ORDER"},{"code":0,"index":3},{"code":0,"index":4},{"code":0,"index":5},{"code":0,"index":6},{"code":0,"index":7},{"code":0,"index":8}]`
+	tenTriggers := make(map[string]string, 10)
+	for i := range 10 {
+		tenTriggers[strconv.Itoa(101+i)] = "PENDING_CANCEL"
+	}
+	for _, tc := range []struct {
+		name     string
+		routes   map[string]testRoute
+		orders   []order.Cancel
+		exp      map[string]string
+		requests []testRequest
+	}{
+		{
+			name:     "one order",
+			routes:   map[string]testRoute{"private/cancel-order-list": testResult(`[{"code":0,"index":0}]`)},
+			orders:   cancels[:1],
+			exp:      map[string]string{"1": "PENDING_CANCEL"},
+			requests: []testRequest{{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[{"order_id":"1"}]}`}},
+		},
+		{
+			name: "ten orders",
+			// The answer leaves out the tenth order
+			routes: map[string]testRoute{
+				"private/cancel-order-list":          testResult(refusingSecond),
+				"private/advanced/cancel-order-list": testResult(`[{"code":0,"index":0}]`),
+			},
+			orders: cancels[:10],
+			exp: map[string]string{
+				"1": "PENDING_CANCEL", "2": "PENDING_CANCEL", "3": "PENDING_CANCEL", "4": "PENDING_CANCEL", "5": "PENDING_CANCEL", "6": "PENDING_CANCEL",
+				"7": "PENDING_CANCEL", "8": "PENDING_CANCEL", "9": "PENDING_CANCEL", "10": "no result for the order",
+			},
+			requests: []testRequest{
+				{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[` + orderIDs(1, 10) + `]}`},
+				{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[{"order_id":"2"}]}`},
+			},
+		},
+		{
+			name: "nine orders and a trigger order",
+			routes: map[string]testRoute{
+				"private/cancel-order-list":          testResult(refusingSecond),
+				"private/advanced/cancel-order-list": testResult(`[{"code":0,"index":0},{"code":0,"index":1}]`),
+			},
+			orders: append(slices.Clone(cancels[:9]), cancels[11]),
+			exp: map[string]string{
+				"1": "PENDING_CANCEL", "2": "PENDING_CANCEL", "3": "PENDING_CANCEL", "4": "PENDING_CANCEL", "5": "PENDING_CANCEL", "6": "PENDING_CANCEL",
+				"7": "PENDING_CANCEL", "8": "PENDING_CANCEL", "9": "PENDING_CANCEL", "my_sl_order": "PENDING_CANCEL",
+			},
+			requests: []testRequest{
+				{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[` + orderIDs(1, 9) + `]}`},
+				{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[{"client_oid":"my_sl_order"},{"order_id":"2"}]}`},
+			},
+		},
+		{
+			name:     "ten trigger orders",
+			routes:   map[string]testRoute{"private/advanced/cancel-order-list": acceptCancelList},
+			orders:   triggers[:10],
+			exp:      tenTriggers,
+			requests: []testRequest{{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[` + orderIDs(101, 110) + `]}`}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fullEx, fullRequests := newRoutesServerExchange(t, tc.routes)
+			outcomes, err := fullEx.CancelBatchOrders(t.Context(), tc.orders)
+			require.NoError(t, err, "CancelBatchOrders must not error for as many orders as a list takes")
+			assert.Equal(t, &order.CancelBatchResponse{Status: tc.exp}, outcomes, "CancelBatchOrders should return every order's outcome")
+			assertJSONRequests(t, tc.requests, fullRequests())
+		})
+	}
 
-	ex, _ = newRoutesServerExchange(t, map[string]testRoute{
+	ex, _ := newRoutesServerExchange(t, map[string]testRoute{
 		"private/cancel-order-list":          testResult(`[{"code":316,"index":0,"message":"NO_ACTIVE_ORDER"},{"code":316,"index":1,"message":"NO_ACTIVE_ORDER"}]`),
 		"private/advanced/cancel-order-list": testResult(`[{"code":40401,"index":0,"message":"NOT_FOUND"}]`),
 	})
-	got, err = ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1"}, {OrderID: "2"}})
+	got, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1"}, {OrderID: "2"}})
 	require.NoError(t, err, "CancelBatchOrders must not error for orders neither method cancels")
-	exp = &order.CancelBatchResponse{Status: map[string]string{"1": "316 NO_ACTIVE_ORDER; 40401 NOT_FOUND", "2": "316 NO_ACTIVE_ORDER; no result for the order"}}
+	exp := &order.CancelBatchResponse{Status: map[string]string{"1": "316 NO_ACTIVE_ORDER; 40401 NOT_FOUND", "2": "316 NO_ACTIVE_ORDER; no result for the order"}}
 	assert.Equal(t, exp, got, "CancelBatchOrders should report both refusals of an order neither method cancels")
 
 	// An entry refused for the request rather than its order, which the advanced order methods would refuse too, is not
 	// retried with them
-	ex, received = newRoutesServerExchange(t, map[string]testRoute{
+	ex, received := newRoutesServerExchange(t, map[string]testRoute{
 		"private/cancel-order-list": testResult(`[{"code":42901,"index":0,"message":"TOO_MANY_REQUESTS"},{"code":0,"index":1}]`),
 	})
 	got, err = ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1"}, {OrderID: "2"}})
@@ -3775,22 +3981,30 @@ func TestCancelBatchOrders(t *testing.T) {
 	assert.Equal(t, exp, got, "CancelBatchOrders should report an entry refused for the request")
 	assert.Len(t, received(), 1, "CancelBatchOrders should not retry an entry refused for the request with the advanced order methods")
 
-	// A list whose request fails stops the lists after it, and the outcomes of those sent before it come with the error
-	ex, _ = newRoutesServerExchange(t, map[string]testRoute{
-		"private/cancel-order-list": func(params string) (string, *APIError) {
-			if strings.Contains(params, `"order_id":"11"`) {
-				return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}
-			}
-			return `[{"code":0,"index":0},{"code":0,"index":1},{"code":0,"index":2},{"code":0,"index":3},{"code":0,"index":4},{"code":0,"index":5},{"code":0,"index":6},{"code":0,"index":7},{"code":0,"index":8},{"code":0,"index":9}]`, nil
-		},
-	})
-	got, err = ex.CancelBatchOrders(t.Context(), cancels[:len(cancels)-1])
-	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr, "CancelBatchOrders must return the error of a list whose request failed")
-	require.NotNil(t, got, "CancelBatchOrders must return the outcomes of the lists sent before one failed")
-	assert.Len(t, got.Status, 10, "CancelBatchOrders should return the outcome of each order of the lists sent before one failed")
-	assert.Equal(t, "PENDING_CANCEL", got.Status["10"], "CancelBatchOrders should report the orders cancelled before a list failed")
-	assert.NotContains(t, got.Status, "11", "CancelBatchOrders should report no outcome for an order whose list failed")
+	// A list whose request fails stops the list after it, and the outcomes of the list sent before it come with the error
+	failed := func(string) (string, *APIError) { return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"} }
+	batch := []order.Cancel{cancels[0], cancels[1], cancels[11]}
+	for _, tc := range []struct {
+		name   string
+		routes map[string]testRoute
+		exp    map[string]string
+	}{
+		{"the list of orders failing stops the list of trigger orders", map[string]testRoute{"private/cancel-order-list": failed}, map[string]string{}},
+		{"the list of trigger orders failing keeps the outcomes of the list of orders", map[string]testRoute{
+			"private/cancel-order-list":          testResult(`[{"code":0,"index":0},{"code":316,"index":1,"message":"NO_ACTIVE_ORDER"}]`),
+			"private/advanced/cancel-order-list": failed,
+		}, map[string]string{"1": "PENDING_CANCEL", "2": "316 NO_ACTIVE_ORDER"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, _ := newRoutesServerExchange(t, tc.routes)
+			outcomes, err := ex.CancelBatchOrders(t.Context(), batch)
+			var apiErr *APIError
+			require.ErrorAs(t, err, &apiErr, "CancelBatchOrders must return the error of a list whose request failed")
+			require.NotNil(t, outcomes, "CancelBatchOrders must return the outcomes of the list sent before one failed")
+			assert.Equal(t, tc.exp, outcomes.Status, "CancelBatchOrders should report only the outcomes of the list sent before the one that failed")
+		})
+	}
 
 	// The recorded mock holds a cancel of trigger orders only, so live the batch cancels two orders the test places
 	skipLiveUnlessCanManipulate(t)
@@ -3853,6 +4067,35 @@ func TestCancelAllOrders(t *testing.T) {
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr, "CancelAllOrders must return the error of a list whose request failed")
 	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"1": "PENDING_CANCEL"}}, got, "CancelAllOrders should return the outcomes of the lists sent before one failed")
+
+	t.Run("crawls more open orders than a list takes in lists of 10", func(t *testing.T) {
+		t.Parallel()
+		open := make([]string, 11)
+		exp := make(map[string]string, 11)
+		for i := range open {
+			id := strconv.Itoa(i + 1)
+			open[i] = `{"order_id":"` + id + `","order_type":"LIMIT","side":"BUY","status":"ACTIVE","instrument_name":"BTC_USD","exec_inst":[]}`
+			exp[id] = "PENDING_CANCEL"
+		}
+		crawlEx, crawlRequests := newRoutesServerExchange(t, map[string]testRoute{
+			"private/get-open-orders":          testResult(`{"data":[` + strings.Join(open, ",") + `]}`),
+			"private/advanced/get-open-orders": testResult(`{"data":[]}`),
+			"private/cancel-order-list":        acceptCancelList,
+		})
+		outcomes, err := crawlEx.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+		require.NoError(t, err, "CancelAllOrders must not error for more open orders than a list takes")
+		assert.Equal(t, order.CancelAllResponse{Status: exp}, outcomes, "CancelAllOrders should cancel every open order")
+		listed := make([]string, 10)
+		for i := range listed {
+			listed[i] = `{"order_id":"` + strconv.Itoa(i+1) + `"}`
+		}
+		assertJSONRequests(t, []testRequest{
+			{Method: "private/get-open-orders", Params: `{}`},
+			{Method: "private/advanced/get-open-orders", Params: `{}`},
+			{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[` + strings.Join(listed, ",") + `]}`},
+			{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[{"order_id":"11"}]}`},
+		}, crawlRequests())
+	})
 
 	// An instrument the other tests place no orders on, so that cancelling its orders live leaves theirs
 	skipLiveUnlessCanManipulate(t)
@@ -5647,6 +5890,22 @@ func TestSetup(t *testing.T) {
 		ex, cfg := setUp(t)
 		ex.Websocket = nil
 		assert.ErrorIs(t, ex.Setup(cfg), common.ErrNilPointer, "Setup should return the error setting the websocket up")
+	})
+}
+
+func TestSetupTestExchange(t *testing.T) {
+	t.Parallel()
+	t.Run("does not retain the exchange", func(t *testing.T) {
+		t.Parallel()
+		ref := func() weak.Pointer[Exchange] {
+			ex := new(Exchange)
+			require.NoError(t, setupTestExchange(ex), "setupTestExchange must not error")
+			return weak.Make(ex)
+		}()
+		assert.Eventually(t, func() bool {
+			runtime.GC()
+			return ref.Value() == nil
+		}, 10*time.Second, 10*time.Millisecond, "setupTestExchange should not keep the exchange reachable once the caller drops it")
 	})
 }
 

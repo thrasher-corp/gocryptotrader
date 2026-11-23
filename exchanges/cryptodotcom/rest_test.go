@@ -54,8 +54,7 @@ const (
 
 var e *Exchange
 
-// testExchangeConfig is Crypto.com's configuration from testdata/configtest.json, loaded once; testexch.Setup loads
-// every exchange's configuration each time, which serialises the many exchanges the tests set up on its locks
+// testExchangeConfig is Crypto.com's configuration from testdata/configtest.json, loaded once
 var testExchangeConfig = sync.OnceValues(func() ([]byte, error) {
 	root, err := testutils.RootPathFromCWD()
 	if err != nil {
@@ -85,13 +84,15 @@ func setupTestExchange(ex *Exchange) error {
 	}
 	ex.SetDefaults()
 	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	// Assigned before Setup so SetupDefaults does not register the exchange in the global accounts store, which never
+	// releases it
+	ex.Accounts = accounts.MustNewAccounts(ex)
 	if err := ex.Setup(&exchCfg); err != nil {
 		return err
 	}
 	if mockTests {
 		ex.websocketConnectDelay = 0
 	}
-	ex.Accounts = accounts.MustNewAccounts(ex)
 	return nil
 }
 

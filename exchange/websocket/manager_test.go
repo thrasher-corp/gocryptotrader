@@ -1985,7 +1985,7 @@ func newEchoTestConnection(t *testing.T, responseMaxLimit time.Duration) *connec
 		Match:            NewMatch(),
 	}
 	require.NoError(t, wc.Dial(t.Context(), dialer, http.Header{}, nil), "Dial must not error")
-	go readMessages(t, wc)
+	readUntilShutdown(t, wc)
 	return wc
 }
 
