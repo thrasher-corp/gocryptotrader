@@ -615,14 +615,14 @@ func TestValidateJob(t *testing.T) {
 	t.Run("conversion range at the job limit", func(t *testing.T) {
 		t.Parallel()
 		job := newJob(dataHistoryConvertCandlesDataType)
-		job.Interval = kline.FiveMin
-		job.ConversionInterval = kline.OneMin
-		job.EndDate = time.Now().Add(-time.Hour).Truncate(time.Minute)
+		job.Interval = kline.OneMin
+		job.ConversionInterval = kline.FiveMin
+		job.EndDate = time.Now().Add(-time.Hour).Truncate(5 * time.Minute)
 		job.StartDate = job.EndDate.Add(-1_000_000 * time.Minute)
-		assert.NoError(t, m.validateJob(job), "validateJob should accept a job of 1,000,000 conversion intervals")
-		// validateJob rounds the dates to the five-minute interval, so the range can only grow by five conversion intervals
+		assert.NoError(t, m.validateJob(job), "validateJob should accept a conversion of 1,000,000 source intervals")
+		// validateJob keeps a conversion to whole five-minute intervals, so the range grows in steps of five source intervals
 		job.StartDate = job.StartDate.Add(-5 * time.Minute)
-		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should reject a job of 1,000,005 conversion intervals")
+		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should reject a conversion of 1,000,005 source intervals")
 	})
 
 	t.Run("sub-second range with too many intervals", func(t *testing.T) {
@@ -634,16 +634,6 @@ func TestValidateJob(t *testing.T) {
 		assert.ErrorIs(t, m.validateJob(job), errIntervalNotWholeSeconds, "validateJob should refuse an interval of part of a second before counting its intervals")
 	})
 
-	t.Run("conversion interval with too many intervals", func(t *testing.T) {
-		t.Parallel()
-		job := newJob(dataHistoryConvertCandlesDataType)
-		job.StartDate = job.EndDate.Add(-300 * time.Hour)
-		job.ConversionInterval = kline.Interval(time.Second)
-		assert.ErrorIs(t, m.validateJob(job), errRangeTooLarge, "validateJob should count the intervals the job's date ranges are built with")
-		job.ConversionInterval = kline.OneDay
-		assert.NoError(t, m.validateJob(job), "validateJob should accept a conversion interval within the limit")
-	})
-
 	for _, tc := range []struct {
 		name       string
 		interval   kline.Interval
@@ -653,13 +643,16 @@ func TestValidateJob(t *testing.T) {
 		{name: "source interval of part of a second", interval: kline.Interval(1500 * time.Millisecond), conversion: kline.Interval(3 * time.Second)},
 		{name: "calendar conversion interval", interval: kline.OneDay, conversion: kline.OneMonth},
 		{name: "calendar source interval", interval: kline.OneMonth, conversion: kline.Interval(60 * 24 * time.Hour)},
+		{name: "conversion interval not a whole multiple of the source interval", interval: kline.ThreeMin, conversion: kline.FiveMin},
+		{name: "conversion interval shorter than the source interval", interval: kline.FiveMin, conversion: kline.OneMin},
+		{name: "conversion interval equal to the source interval", interval: kline.FiveMin, conversion: kline.FiveMin},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			job := newJob(dataHistoryConvertCandlesDataType)
 			job.Interval = tc.interval
 			job.ConversionInterval = tc.conversion
-			assert.ErrorIs(t, m.validateJob(job), kline.ErrUnsupportedInterval, "validateJob should reject a conversion between intervals that are not fixed whole seconds")
+			assert.ErrorIs(t, m.validateJob(job), kline.ErrUnsupportedInterval, "validateJob should reject a conversion it cannot perform")
 		})
 	}
 
@@ -687,6 +680,47 @@ func TestValidateJob(t *testing.T) {
 			job.SecondaryExchangeSource = testExchange
 			assert.ErrorIs(t, mgr.validateJob(job), errIntervalNotWholeSeconds, "validateJob should refuse an interval of part of a second")
 		})
+	}
+
+	for _, dataType := range []dataHistoryDataType{dataHistoryCandleValidationDataType, dataHistoryCandleValidationSecondarySourceType, dataHistoryCandleDataType} {
+		for _, tc := range []struct {
+			name             string
+			interval         kline.Interval
+			requestSizeLimit uint64
+			validationErr    error
+		}{
+			{name: "one year intervals at the default request size", interval: kline.OneYear, validationErr: kline.ErrInvalidInterval},
+			{name: "one year intervals at 293 a request", interval: kline.OneYear, requestSizeLimit: 293, validationErr: kline.ErrInvalidInterval},
+			{name: "one year intervals at 501 a request", interval: kline.OneYear, requestSizeLimit: 501, validationErr: kline.ErrInvalidInterval},
+			{name: "one year intervals at 292 a request", interval: kline.OneYear, requestSizeLimit: 292},
+			{name: "six month intervals at 999 a request", interval: kline.SixMonth, requestSizeLimit: 999},
+		} {
+			t.Run(dataType.String()+" job of "+tc.name, func(t *testing.T) {
+				t.Parallel()
+				mgr, _ := createDHM(t)
+				exch, err := mgr.exchangeManager.GetExchangeByName(testExchange)
+				require.NoError(t, err, "GetExchangeByName must not error")
+				exch.GetBase().Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: tc.interval})
+				job := newJob(dataType)
+				job.Interval = tc.interval
+				job.StartDate = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+				job.EndDate = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+				job.RequestSizeLimit = tc.requestSizeLimit
+				wantErr := tc.validationErr
+				switch dataType {
+				case dataHistoryCandleValidationSecondarySourceType:
+					job.SecondaryExchangeSource = testExchange
+				case dataHistoryCandleDataType:
+					wantErr = nil
+				}
+				err = mgr.validateJob(job)
+				if wantErr != nil {
+					assert.ErrorIs(t, err, wantErr, "validateJob should refuse a validation request spanning more time than a duration holds")
+					return
+				}
+				assert.NoError(t, err, "validateJob should accept a request size it can run")
+			})
+		}
 	}
 
 	t.Run("trade conversion interval of whole seconds", func(t *testing.T) {

@@ -1419,8 +1419,10 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		if job.Interval <= 0 {
 			return fmt.Errorf("job interval %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 		}
-		// The candle store keeps intervals in whole seconds, and conversion counts fixed spans rather than calendar months
-		if job.Interval.IsCalendar() || job.ConversionInterval.IsCalendar() || job.Interval.Duration()%time.Second != 0 || job.ConversionInterval.Duration()%time.Second != 0 {
+		// The candle store keeps intervals in whole seconds, conversion counts fixed spans rather than calendar months, and
+		// each converted candle is built from a whole number of shorter source candles
+		if job.Interval.IsCalendar() || job.ConversionInterval.IsCalendar() || job.Interval.Duration()%time.Second != 0 ||
+			job.ConversionInterval <= job.Interval || job.ConversionInterval%job.Interval != 0 {
 			return fmt.Errorf("job conversion %s from %s to %s %w %s", job.Nickname, job.Interval, job.ConversionInterval, kline.ErrUnsupportedInterval, job.Exchange)
 		}
 	}
@@ -1437,6 +1439,9 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		if job.RequestSizeLimit > defaultDataHistoryRequestSizeLimit {
 			log.Warnf(log.DataHistory, "job %s validation batch %v above limit of %v. defaulting to %v intervals to process per request", job.Nickname, job.RequestSizeLimit, defaultDataHistoryRequestSizeLimit, defaultDataHistoryRequestSizeLimit)
 			job.RequestSizeLimit = defaultDataHistoryRequestSizeLimit
+		}
+		if _, err := validationIntervalLength(job.Interval, job.RequestSizeLimit); err != nil {
+			return fmt.Errorf("job %s %w", job.Nickname, err)
 		}
 	}
 
@@ -1456,12 +1461,6 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	}
 	if err := checkIntervalCount(job.StartDate, job.EndDate, job.Interval.Duration(), maxDataHistoryJobIntervals); err != nil {
 		return fmt.Errorf("job %s %w", job.Nickname, err)
-	}
-	if job.DataType == dataHistoryConvertCandlesDataType {
-		// A convert candles job's date ranges are built with its conversion interval
-		if err := checkIntervalCount(job.StartDate, job.EndDate, job.ConversionInterval.Duration(), maxDataHistoryJobIntervals); err != nil {
-			return fmt.Errorf("job %s conversion interval %w", job.Nickname, err)
-		}
 	}
 
 	return nil
