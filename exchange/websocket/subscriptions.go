@@ -327,7 +327,7 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 			return err
 		}
 		if m.subscriptionFilter != nil {
-			newSubs = m.subscriptionFilter(m.Conn.GetURL(), newSubs)
+			newSubs = m.subscriptionFilter(m.defaultURL, newSubs)
 		}
 		return m.updateChannelSubscriptions(ctx, m.subscriptions, newSubs)
 	}

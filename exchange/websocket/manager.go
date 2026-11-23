@@ -578,7 +578,7 @@ func (m *Manager) connect(ctx context.Context) error {
 			}
 
 			if m.subscriptionFilter != nil {
-				subs = m.subscriptionFilter(m.connectionManager[i].setup.URL, subs)
+				subs = m.subscriptionFilter(ws.setup.URL, subs)
 			}
 
 			if len(subs) == 0 {
