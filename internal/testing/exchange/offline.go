@@ -64,6 +64,18 @@ func answered(err error) bool {
 	return !errors.Is(err, context.Canceled)
 }
 
+// Bootstrap asks the exchange's own start-up steps with a cancelled copy of the caller's context, which keeps the
+// caller's values such as credentials. When their error matches context.Canceled, it returns true and the caller's
+// context error, leaving the default steps to the overrides below
+func (o Offline) Bootstrap(ctx context.Context) (continueBootstrap bool, err error) {
+	probe, cancel := context.WithCancel(ctx)
+	cancel()
+	if continueBootstrap, err := o.IBotExchange.Bootstrap(probe); answered(err) {
+		return continueBootstrap, err
+	}
+	return true, ctx.Err()
+}
+
 // UpdateTradablePairs keeps the exchange's configured pairs instead of downloading them
 func (o Offline) UpdateTradablePairs(ctx context.Context) error {
 	if err := o.IBotExchange.UpdateTradablePairs(cancelled); answered(err) {

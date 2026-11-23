@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"text/template"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -430,6 +431,28 @@ func TestRunTemplateReplacesExistingFile(t *testing.T) {
 	}
 }
 
+// contributorsWithin calls GetContributorList and fails the test if it hasn't returned within ten seconds, so a pager
+// that never stops fails the test rather than holding it until go test's timeout
+func contributorsWithin(t *testing.T, repo string) ([]Contributor, error) {
+	t.Helper()
+	type result struct {
+		contributors []Contributor
+		err          error
+	}
+	done := make(chan result, 1)
+	go func() {
+		contributors, err := GetContributorList(t.Context(), repo, false)
+		done <- result{contributors, err}
+	}()
+	select {
+	case r := <-done:
+		return r.contributors, r.err
+	case <-time.After(10 * time.Second):
+		require.FailNow(t, "GetContributorList must return within ten seconds")
+		return nil, nil
+	}
+}
+
 func TestGetContributorList(t *testing.T) {
 	t.Parallel()
 
@@ -468,7 +491,7 @@ func TestGetContributorList(t *testing.T) {
 			assert.NoError(t, json.NewEncoder(w).Encode(page), "encoding the page should not error")
 		}))
 		t.Cleanup(server.Close)
-		c, err := GetContributorList(t.Context(), server.URL+"/repos/thrasher-corp/gocryptotrader", false)
+		c, err := contributorsWithin(t, server.URL+"/repos/thrasher-corp/gocryptotrader")
 		require.NoError(t, err, "GetContributorList must not error")
 		assert.Equal(t, slices.Concat(full, last), c, "GetContributorList should return every page's contributors in order")
 		mu.Lock()
@@ -488,7 +511,7 @@ func TestGetContributorList(t *testing.T) {
 			assert.NoError(t, err, "writing the error should not error")
 		}))
 		t.Cleanup(server.Close)
-		_, err := GetContributorList(t.Context(), server.URL, false)
+		_, err := contributorsWithin(t, server.URL)
 		assert.ErrorContains(t, err, "API rate limit exceeded", "GetContributorList should return GitHub's error message")
 		assert.Equal(t, int32(1), requests.Load(), "GetContributorList should stop at GitHub's error")
 	})

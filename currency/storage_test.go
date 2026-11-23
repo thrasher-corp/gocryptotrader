@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -56,12 +57,48 @@ func refuseProxiedHTTP() error {
 	if err := l.Close(); err != nil {
 		return err
 	}
-	for k, v := range map[string]string{"HTTP_PROXY": proxy, "HTTPS_PROXY": proxy, "NO_PROXY": "", "http_proxy": "", "https_proxy": "", "no_proxy": ""} {
+	for k, v := range map[string]string{"HTTP_PROXY": proxy, "http_proxy": proxy, "HTTPS_PROXY": proxy, "https_proxy": proxy, "NO_PROXY": "", "no_proxy": ""} {
 		if err := os.Setenv(k, v); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func TestRefuseProxiedHTTP(t *testing.T) {
+	t.Parallel()
+	if !livetest.Mock {
+		t.Skip("TestMain refuses proxied HTTP in mock runs only")
+	}
+	// Windows reads both spellings as one variable, so they must agree for TestMain's writes not to depend on their order
+	for upper, lower := range map[string]string{"HTTP_PROXY": "http_proxy", "HTTPS_PROXY": "https_proxy", "NO_PROXY": "no_proxy"} {
+		t.Run(upper+" and "+lower+" agree", func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, os.Getenv(upper), os.Getenv(lower), "both spellings should hold the same value")
+		})
+	}
+	for _, tc := range []struct{ scheme, host string }{
+		{"http", "apilayer.net"},
+		{"http", "data.fixer.io"},
+		{"https", "allratestoday.com"},
+		{"https", "api.exchangeratesapi.io"},
+		{"https", "openexchangerates.org"},
+	} {
+		t.Run(tc.host, func(t *testing.T) {
+			t.Parallel()
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, tc.scheme+"://"+tc.host, http.NoBody)
+			require.NoError(t, err, "NewRequestWithContext must not error")
+			proxy, err := http.ProxyFromEnvironment(req)
+			require.NoError(t, err, "ProxyFromEnvironment must not error")
+			require.NotNil(t, proxy, "a proxy must be selected")
+			want := os.Getenv("HTTPS_PROXY")
+			if tc.scheme == "http" {
+				want = os.Getenv("HTTP_PROXY")
+			}
+			assert.Equal(t, want, proxy.String(), "the selected proxy should be the one TestMain set")
+			assert.True(t, net.ParseIP(proxy.Hostname()).IsLoopback(), "the selected proxy should be on loopback")
+		})
+	}
 }
 
 func TestRunUpdater(t *testing.T) {

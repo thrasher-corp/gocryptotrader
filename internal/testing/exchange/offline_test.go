@@ -48,6 +48,19 @@ func (v *venue) request(ctx context.Context) error {
 	return errUnexpectedRequest
 }
 
+func (v *venue) Bootstrap(ctx context.Context) (bool, error) {
+	return false, v.request(ctx)
+}
+
+type bootstrapKey struct{}
+
+// bootstrapVenue answers Bootstrap without a request, continuing only when the caller's value reached it
+type bootstrapVenue struct{ venue }
+
+func (*bootstrapVenue) Bootstrap(ctx context.Context) (bool, error) {
+	return ctx.Value(bootstrapKey{}) != nil, nil
+}
+
 func (v *venue) UpdateTradablePairs(ctx context.Context) error {
 	return v.request(ctx)
 }
@@ -156,6 +169,38 @@ func TestAnswered(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, tc.want, answered(tc.err), "answered should report whether the venue answered")
+		})
+	}
+}
+
+func TestOfflineBootstrap(t *testing.T) {
+	t.Parallel()
+	testProbe(t, func(ctx context.Context, o Offline) error {
+		_, err := o.Bootstrap(ctx)
+		return err
+	})
+	t.Run("no request", func(t *testing.T) {
+		t.Parallel()
+		continueBootstrap, err := Offline{IBotExchange: &venue{}}.Bootstrap(t.Context())
+		require.NoError(t, err, "Bootstrap must not error")
+		assert.True(t, continueBootstrap, "Bootstrap should continue to the default steps")
+	})
+	t.Run("venue's choice", func(t *testing.T) {
+		t.Parallel()
+		continueBootstrap, err := Offline{IBotExchange: &venue{answer: errAnswered}}.Bootstrap(t.Context())
+		assert.ErrorIs(t, err, errAnswered, "Bootstrap should return the venue's answer")
+		assert.False(t, continueBootstrap, "Bootstrap should keep the venue's choice")
+	})
+	for _, carried := range []bool{true, false} {
+		t.Run(fmt.Sprintf("answer without a request, caller's value %t", carried), func(t *testing.T) {
+			t.Parallel()
+			ctx := t.Context()
+			if carried {
+				ctx = context.WithValue(ctx, bootstrapKey{}, true)
+			}
+			continueBootstrap, err := Offline{IBotExchange: &bootstrapVenue{}}.Bootstrap(ctx)
+			require.NoError(t, err, "Bootstrap must not error")
+			assert.Equal(t, carried, continueBootstrap, "Bootstrap should return the venue's choice for the caller's context")
 		})
 	}
 }

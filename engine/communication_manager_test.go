@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/comms"
 )
 
 // startCommunicationManager starts m and stops its run routine when the test ends, whatever the test does to the
@@ -21,7 +22,8 @@ func startCommunicationManager(t *testing.T, m *CommunicationManager) {
 }
 
 func TestSetup(t *testing.T) {
-	t.Parallel()
+	// Not parallel: common's HTTP client is process-wide, and engine start-up in parallel tests replaces it
+	require.NoError(t, comms.UseTestHTTPClient(), "UseTestHTTPClient must not error")
 	_, err := SetupCommunicationManager(nil)
 	assert.ErrorIs(t, err, errNilConfig)
 
@@ -29,7 +31,7 @@ func TestSetup(t *testing.T) {
 	assert.ErrorIs(t, err, communications.ErrNoRelayersEnabled)
 
 	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
-		SMSGlobalConfig: base.SMSGlobalConfig{
+		SlackConfig: base.SlackConfig{
 			Enabled: true,
 		},
 	})
@@ -81,9 +83,10 @@ func TestStart(t *testing.T) {
 }
 
 func TestGetStatus(t *testing.T) {
-	t.Parallel()
+	// Not parallel: common's HTTP client is process-wide, and engine start-up in parallel tests replaces it
+	require.NoError(t, comms.UseTestHTTPClient(), "UseTestHTTPClient must not error")
 	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
-		SMSGlobalConfig: base.SMSGlobalConfig{
+		TelegramConfig: base.TelegramConfig{
 			Enabled: true,
 		},
 	})
@@ -100,9 +103,10 @@ func TestGetStatus(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
-	t.Parallel()
+	// Not parallel: common's HTTP client is process-wide, and engine start-up in parallel tests replaces it
+	require.NoError(t, comms.UseTestHTTPClient(), "UseTestHTTPClient must not error")
 	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
-		SMSGlobalConfig: base.SMSGlobalConfig{
+		SlackConfig: base.SlackConfig{
 			Enabled: true,
 		},
 	})
@@ -123,9 +127,10 @@ func TestStop(t *testing.T) {
 }
 
 func TestPushEvent(t *testing.T) {
-	t.Parallel()
+	// Not parallel: common's HTTP client is process-wide, and engine start-up in parallel tests replaces it
+	require.NoError(t, comms.UseTestHTTPClient(), "UseTestHTTPClient must not error")
 	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
-		SMSGlobalConfig: base.SMSGlobalConfig{
+		SlackConfig: base.SlackConfig{
 			Enabled: true,
 		},
 	})
