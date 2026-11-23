@@ -1,0 +1,1 @@
+{"arg":{"channel":"fills","instId":"BTC-USDT-SWAP","uid":"614488474791111"},"data":[{"instId":"BTC-USDT-SWAP","fillSz":"100","fillPx":"70000","side":"buy","ts":"1705449605015","ordId":"680800019749904384","clOrdId":"1234567890","tradeId":"12345","execType":"T","count":"10"}]}

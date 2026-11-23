@@ -155,6 +155,7 @@ func validateTicker(p *Price) error {
 		switch {
 		case p.ExchangeName == "Bitfinex" && p.AssetType == asset.MarginFunding:
 		// Margin funding books can be crossed see Bitfinex.
+		case p.PreOpen:
 		default:
 			if p.Bid == p.Ask {
 				return fmt.Errorf("%s %s %w",

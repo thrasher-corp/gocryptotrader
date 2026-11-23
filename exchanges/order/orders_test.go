@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"testing/synctest"
 	"time"
 	"uuid"
 
@@ -235,6 +236,54 @@ func TestSubmitValidate(t *testing.T) {
 			RequiresID: true,
 			ValidOpts:  validate.Check(func() error { return nil }),
 		},
+		{
+			ExpectedErr: nil,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
+				Side:      Buy,
+				Type:      Limit,
+				Amount:    1,
+				AssetType: asset.Spread,
+			},
+			ValidOpts: validate.Check(func() error { return nil }),
+		}, // a spread's price is the difference between its legs' prices, so zero is a price
+		{
+			ExpectedErr: nil,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
+				Side:      Sell,
+				Type:      Limit,
+				Amount:    1,
+				Price:     -2,
+				AssetType: asset.Spread,
+			},
+			ValidOpts: validate.Check(func() error { return nil }),
+		}, // and so is a negative difference
+		{
+			ExpectedErr: ErrPriceMustBeSetIfLimitOrder,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
+				Side:      Sell,
+				Type:      Limit,
+				Amount:    1,
+				Price:     -2,
+				AssetType: asset.Spot,
+			},
+		}, // a spot limit order needs a positive price
+		{
+			ExpectedErr: ErrPriceMustBeSetIfLimitOrder,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
+				Side:      Buy,
+				Type:      Limit,
+				Amount:    1,
+				AssetType: asset.FutureCombo,
+			},
+		}, // the spread exemption covers spreads alone
 	}
 
 	for x, tc := range tester {
@@ -934,41 +983,268 @@ func BenchmarkStringToOrderStatus(b *testing.B) {
 }
 
 func TestUpdateOrderFromModifyResponse(t *testing.T) {
-	od := Detail{OrderID: "1"}
-	updated := time.Now()
+	t.Parallel()
 
-	om := ModifyResponse{
-		TimeInForce:     PostOnly | GoodTillTime,
-		Price:           1,
-		Amount:          1,
-		TriggerPrice:    1,
-		RemainingAmount: 1,
-		Exchange:        "1",
-		Type:            1,
-		Side:            1,
-		Status:          1,
-		AssetType:       1,
-		LastUpdated:     updated,
-		Pair:            currency.NewBTCUSD(),
+	t.Run("copies the response fields", func(t *testing.T) {
+		t.Parallel()
+		od := Detail{OrderID: "1"}
+		updated := time.Now()
+
+		om := ModifyResponse{
+			TimeInForce:     PostOnly | GoodTillTime,
+			Price:           1,
+			Amount:          1,
+			TriggerPrice:    1,
+			RemainingAmount: 1,
+			ExecutedAmount:  1,
+			Exchange:        "1",
+			Type:            1,
+			Side:            1,
+			Status:          1,
+			AssetType:       1,
+			LastUpdated:     updated,
+			Pair:            currency.NewBTCUSD(),
+		}
+
+		od.UpdateOrderFromModifyResponse(&om)
+		require.NotEqual(t, UnknownTIF, od.TimeInForce)
+		assert.True(t, od.TimeInForce.Is(GoodTillTime))
+		assert.True(t, od.TimeInForce.Is(PostOnly))
+		assert.Equal(t, 1.0, od.Price)
+		assert.Equal(t, 1.0, od.Amount)
+		assert.Equal(t, 1.0, od.TriggerPrice)
+		assert.Equal(t, 1.0, od.RemainingAmount)
+		assert.Equal(t, 1.0, od.ExecutedAmount, "the reply's executed amount should be copied")
+		assert.Empty(t, od.Exchange, "Should not be able to update exchange via modify")
+		assert.Equal(t, "1", od.OrderID)
+		assert.Equal(t, Type(1), od.Type)
+		assert.Equal(t, Side(1), od.Side)
+		assert.Equal(t, Status(1), od.Status)
+		assert.Equal(t, asset.Item(1), od.AssetType)
+		assert.Equal(t, od.LastUpdated, updated)
+		assert.Equal(t, "BTCUSD", od.Pair.String())
+		assert.Nil(t, od.Trades)
+	})
+
+	// Each row builds the reply the way an exchange's ModifyOrder does, from the request the order manager sends: the
+	// manager fills the pair, side and time in force from the stored order, and the amount or price the caller left
+	// unset. Bitfinex, Bybit, Coinbase, Deribit and OKX derive their reply from that request, Bybit's websocket echoes
+	// the amended quantity, BTC Markets reports its replacement order and Poloniex names its replacement's order ID and
+	// client order ID.
+	pair := currency.NewBTCUSDT()
+	spreadPair := currency.NewPairWithDelimiter("BTC", "USDT_BTC-USDT-SWAP", currency.DashDelimiter)
+	storedTime := time.UnixMilli(1700000000000)
+	stored := Detail{
+		Exchange: "venue", OrderID: "1", ClientOrderID: "client-1", Pair: pair, AssetType: asset.Spot, Type: Limit, Side: Buy,
+		Status: PartiallyFilled, TimeInForce: GoodTillCancel, Price: 100, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6,
+		Date: storedTime, LastUpdated: storedTime,
 	}
-
-	od.UpdateOrderFromModifyResponse(&om)
-	require.NotEqual(t, UnknownTIF, od.TimeInForce)
-	assert.True(t, od.TimeInForce.Is(GoodTillTime))
-	assert.True(t, od.TimeInForce.Is(PostOnly))
-	assert.Equal(t, 1.0, od.Price)
-	assert.Equal(t, 1.0, od.Amount)
-	assert.Equal(t, 1.0, od.TriggerPrice)
-	assert.Equal(t, 1.0, od.RemainingAmount)
-	assert.Empty(t, od.Exchange, "Should not be able to update exchange via modify")
-	assert.Equal(t, "1", od.OrderID)
-	assert.Equal(t, Type(1), od.Type)
-	assert.Equal(t, Side(1), od.Side)
-	assert.Equal(t, Status(1), od.Status)
-	assert.Equal(t, asset.Item(1), od.AssetType)
-	assert.Equal(t, od.LastUpdated, updated)
-	assert.Equal(t, "BTCUSD", od.Pair.String())
-	assert.Nil(t, od.Trades)
+	amend := Modify{Exchange: "venue", OrderID: "1", Pair: pair, AssetType: asset.Spot, Side: Buy, TimeInForce: GoodTillCancel, Price: 100, Amount: 20}
+	with := func(d Detail, change func(*Detail)) Detail {
+		change(&d)
+		return d
+	}
+	filled := with(stored, func(d *Detail) {
+		d.AverageExecutedPrice, d.Cost, d.CostAsset, d.Fee, d.FeeAsset = 99, 396, currency.USDT, 0.4, currency.USDT
+		d.Trades = []TradeHistory{{TID: "t1", Price: 99, Amount: 4, Fee: 0.4, Side: Buy, Timestamp: storedTime}}
+	})
+	// A replacement takes none of the cancelled order's executions
+	replacement := func(d *Detail) { d.ExecutedAmount, d.AverageExecutedPrice, d.Cost, d.Fee, d.Trades = 0, 0, 0, 0, nil }
+	withModify := func(m Modify, change func(*Modify)) Modify {
+		change(&m)
+		return m
+	}
+	for _, tc := range []struct {
+		name   string
+		stored Detail
+		modify Modify
+		reply  func(*ModifyResponse)
+		exp    Detail
+		expNow bool // the order is stamped with the time it was updated, as the reply carries none
+	}{
+		{
+			name:   "amended total amount of a partially filled order (Bitfinex, Coinbase, Deribit, OKX)",
+			stored: stored,
+			modify: amend,
+			exp:    with(stored, func(d *Detail) { d.Amount, d.RemainingAmount = 20, 16 }),
+			expNow: true,
+		},
+		{
+			name:   "amended quantity echoed by the venue (Bybit websocket)",
+			stored: stored,
+			modify: amend,
+			reply:  func(r *ModifyResponse) { r.ClientOrderID, r.Amount = "client-1", 20 },
+			exp:    with(stored, func(d *Detail) { d.Amount, d.RemainingAmount = 20, 16 }),
+			expNow: true,
+		},
+		{
+			name:   "amended total amount below the executed amount",
+			stored: stored,
+			modify: withModify(amend, func(m *Modify) { m.Amount = 3 }),
+			exp:    with(stored, func(d *Detail) { d.Amount, d.RemainingAmount = 3, 0 }),
+			expNow: true,
+		},
+		{
+			name:   "price-only amendment keeps the remaining amount",
+			stored: with(stored, func(d *Detail) { d.ExecutedAmount = 0 }),
+			modify: withModify(amend, func(m *Modify) { m.Amount, m.Price = 10, 101 }),
+			exp:    with(stored, func(d *Detail) { d.ExecutedAmount, d.Price = 0, 101 }),
+			expNow: true,
+		},
+		{
+			name:   "identical amendment leaves the order untouched",
+			stored: stored,
+			modify: withModify(amend, func(m *Modify) { m.Amount = 10 }),
+			exp:    stored,
+		},
+		{
+			name:   "reply without a price keeps the stored price",
+			stored: stored,
+			modify: amend,
+			reply:  func(r *ModifyResponse) { r.Price = 0 },
+			exp:    with(stored, func(d *Detail) { d.Amount, d.RemainingAmount = 20, 16 }),
+			expNow: true,
+		},
+		{
+			name: "negative spread price (OKX spreads)",
+			stored: with(stored, func(d *Detail) {
+				d.Pair, d.AssetType, d.Status, d.Price, d.Amount, d.ExecutedAmount, d.RemainingAmount = spreadPair, asset.Spread, Active, 5, 1, 0, 1
+			}),
+			modify: withModify(amend, func(m *Modify) { m.Pair, m.AssetType, m.Price, m.Amount = spreadPair, asset.Spread, -5, 1 }),
+			exp: with(stored, func(d *Detail) {
+				d.Pair, d.AssetType, d.Status, d.Price, d.Amount, d.ExecutedAmount, d.RemainingAmount = spreadPair, asset.Spread, Active, -5, 1, 0, 1
+			}),
+			expNow: true,
+		},
+		{
+			name:   "replacement order with the venue's open amount (BTC Markets)",
+			stored: stored,
+			modify: withModify(amend, func(m *Modify) { m.Price = 101 }),
+			reply: func(r *ModifyResponse) {
+				r.OrderID, r.Type, r.Status, r.LastUpdated, r.RemainingAmount = "2", Limit, Active, time.UnixMilli(1700000001000), 20
+			},
+			exp: with(stored, func(d *Detail) {
+				d.OrderID, d.ClientOrderID, d.Status, d.Price, d.Amount, d.ExecutedAmount, d.RemainingAmount, d.LastUpdated = "2", "", Active, 101, 20, 0, 20, time.UnixMilli(1700000001000)
+			}),
+		},
+		{
+			name:   "replacement order matched in full on placement (BTC Markets)",
+			stored: filled,
+			modify: withModify(amend, func(m *Modify) { m.Price, m.Amount = 101, 7 }),
+			reply: func(r *ModifyResponse) {
+				r.OrderID, r.Type, r.Status, r.LastUpdated, r.RemainingAmount, r.ExecutedAmount = "2", Limit, Filled, time.UnixMilli(1700000001000), 0, 7
+			},
+			exp: with(filled, func(d *Detail) {
+				replacement(d)
+				d.OrderID, d.ClientOrderID, d.Status, d.Price, d.Amount, d.ExecutedAmount, d.RemainingAmount, d.LastUpdated = "2", "", Filled, 101, 7, 7, 0, time.UnixMilli(1700000001000)
+			}),
+		},
+		{
+			name:   "replacement order partly matched on placement (BTC Markets)",
+			stored: filled,
+			modify: withModify(amend, func(m *Modify) { m.Price, m.Amount = 101, 7 }),
+			reply: func(r *ModifyResponse) {
+				r.OrderID, r.Type, r.Status, r.LastUpdated, r.RemainingAmount, r.ExecutedAmount = "2", Limit, PartiallyFilled, time.UnixMilli(1700000001000), 2, 5
+			},
+			exp: with(filled, func(d *Detail) {
+				replacement(d)
+				d.OrderID, d.ClientOrderID, d.Status, d.Price, d.Amount, d.ExecutedAmount, d.RemainingAmount, d.LastUpdated = "2", "", PartiallyFilled, 101, 7, 5, 2, time.UnixMilli(1700000001000)
+			}),
+		},
+		{
+			name:   "replacement order under a new order ID starts without the cancelled order's executions (Poloniex)",
+			stored: filled,
+			modify: amend,
+			reply:  func(r *ModifyResponse) { r.OrderID = "2" },
+			exp: with(filled, func(d *Detail) {
+				replacement(d)
+				d.OrderID, d.ClientOrderID, d.Status, d.Amount, d.RemainingAmount = "2", "", New, 20, 20
+			}),
+			expNow: true,
+		},
+		{
+			name:   "replacement order under its own client order ID (Poloniex, BTC Markets)",
+			stored: filled,
+			modify: amend,
+			reply:  func(r *ModifyResponse) { r.OrderID, r.ClientOrderID = "2", "client-2" },
+			exp: with(filled, func(d *Detail) {
+				replacement(d)
+				d.OrderID, d.ClientOrderID, d.Status, d.Amount, d.RemainingAmount = "2", "client-2", New, 20, 20
+			}),
+			expNow: true,
+		},
+		{
+			name:   "replacement order at a new price is open in full (Poloniex)",
+			stored: filled,
+			modify: withModify(amend, func(m *Modify) { m.Price, m.Amount = 101, 10 }),
+			reply:  func(r *ModifyResponse) { r.OrderID = "2" },
+			exp: with(filled, func(d *Detail) {
+				replacement(d)
+				d.OrderID, d.ClientOrderID, d.Status, d.Price, d.RemainingAmount = "2", "", New, 101, 10
+			}),
+			expNow: true,
+		},
+		{
+			name:   "reply naming the stored order is an amendment in place (Poloniex smart order)",
+			stored: filled,
+			modify: amend,
+			reply:  func(r *ModifyResponse) { r.OrderID = "1" },
+			exp:    with(filled, func(d *Detail) { d.Amount, d.RemainingAmount = 20, 16 }),
+			expNow: true,
+		},
+		{
+			name:   "amendment in place keeps the stored client order ID whatever the reply names (OKX)",
+			stored: stored,
+			modify: withModify(amend, func(m *Modify) { m.ClientOrderID = "client-9" }),
+			exp:    with(stored, func(d *Detail) { d.Amount, d.RemainingAmount = 20, 16 }),
+			expNow: true,
+		},
+		{
+			name:   "stored order without an order ID keeps its executions",
+			stored: with(filled, func(d *Detail) { d.OrderID = "" }),
+			modify: amend,
+			reply:  func(r *ModifyResponse) { r.OrderID = "2" },
+			exp:    with(filled, func(d *Detail) { d.OrderID, d.Amount, d.RemainingAmount = "2", 20, 16 }),
+			expNow: true,
+		},
+		{
+			name:   "amendment reply reporting the executed amount",
+			stored: stored,
+			modify: withModify(amend, func(m *Modify) { m.Amount = 10 }),
+			reply:  func(r *ModifyResponse) { r.ExecutedAmount = 5 },
+			exp:    with(stored, func(d *Detail) { d.ExecutedAmount, d.RemainingAmount = 5, 5 }),
+			expNow: true,
+		},
+		{
+			name: "signed sell amounts (Bitfinex websocket)",
+			stored: with(stored, func(d *Detail) {
+				d.Side, d.Amount, d.ExecutedAmount, d.RemainingAmount = Sell, -10, -4, -6
+			}),
+			modify: withModify(amend, func(m *Modify) { m.Side = Sell }),
+			exp: with(stored, func(d *Detail) {
+				d.Side, d.Amount, d.ExecutedAmount, d.RemainingAmount = Sell, 20, -4, 16
+			}),
+			expNow: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				reply, err := tc.modify.DeriveModifyResponse()
+				require.NoError(t, err, "DeriveModifyResponse must not error")
+				if tc.reply != nil {
+					tc.reply(reply)
+				}
+				got := tc.stored
+				got.UpdateOrderFromModifyResponse(reply)
+				exp := tc.exp
+				if tc.expNow {
+					exp.LastUpdated = time.Now()
+				}
+				assert.Equal(t, exp, got, "UpdateOrderFromModifyResponse should apply the amendment to the stored order")
+			})
+		})
+	}
 }
 
 func TestUpdateOrderFromDetail(t *testing.T) {
@@ -1116,6 +1392,171 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	err = od.UpdateOrderFromDetail(om)
 	require.NoError(t, err)
 	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialisation")
+
+	// Each row merges an order report the way an exchange's wrapper or websocket relays it into the order the engine
+	// stores: the order manager's store and the websocket routine manager merge every exchange's reports, and the
+	// futures position tracker merges its positions' orders
+	t.Run("prices", func(t *testing.T) {
+		t.Parallel()
+		storedTime, reportTime := time.UnixMilli(1700000000000), time.UnixMilli(1700000001000)
+		spreadPair := currency.NewPairWithDelimiter("BTC", "USDT_BTC-USDT-SWAP", currency.DashDelimiter)
+		limitOrder := Detail{
+			Exchange: "venue", OrderID: "1", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Type: Limit, Side: Buy, Status: Active,
+			Price: 100, Amount: 1, RemainingAmount: 1, LastUpdated: storedTime,
+		}
+		spreadOrder := limitOrder
+		spreadOrder.Pair, spreadOrder.AssetType, spreadOrder.Price = spreadPair, asset.Spread, -5
+		with := func(d Detail, change func(*Detail)) Detail {
+			change(&d)
+			return d
+		}
+		for _, tc := range []struct {
+			name           string
+			stored, report Detail
+			exp            Detail
+		}{
+			{
+				name:   "amended limit price (every exchange)",
+				stored: limitOrder,
+				report: Detail{Price: 101, LastUpdated: reportTime},
+				exp:    with(limitOrder, func(d *Detail) { d.Price, d.LastUpdated = 101, reportTime }),
+			},
+			{
+				name:   "report without a price keeps the stored price (market orders and partial reports)",
+				stored: limitOrder,
+				report: Detail{Status: PartiallyFilled, LastUpdated: reportTime},
+				exp:    with(limitOrder, func(d *Detail) { d.Status, d.LastUpdated = PartiallyFilled, reportTime }),
+			},
+			{
+				name:   "negative spread price (OKX spreads, Deribit combos)",
+				stored: with(spreadOrder, func(d *Detail) { d.Price = 5 }),
+				report: Detail{Price: -5, LastUpdated: reportTime},
+				exp:    with(spreadOrder, func(d *Detail) { d.LastUpdated = reportTime }),
+			},
+			{
+				name:   "spread price amended to another negative price",
+				stored: spreadOrder,
+				report: Detail{Price: -7, LastUpdated: reportTime},
+				exp:    with(spreadOrder, func(d *Detail) { d.Price, d.LastUpdated = -7, reportTime }),
+			},
+			{
+				name:   "spread price amended through zero",
+				stored: spreadOrder,
+				report: Detail{Price: 3, LastUpdated: reportTime},
+				exp:    with(spreadOrder, func(d *Detail) { d.Price, d.LastUpdated = 3, reportTime }),
+			},
+			{
+				name:   "negative spread fill price",
+				stored: spreadOrder,
+				report: Detail{Status: Filled, ExecutedAmount: 1, AverageExecutedPrice: -45.5, LastUpdated: reportTime},
+				exp: with(spreadOrder, func(d *Detail) {
+					d.Status, d.ExecutedAmount, d.RemainingAmount, d.AverageExecutedPrice, d.LastUpdated = Filled, 1, 0, -45.5, reportTime
+				}),
+			},
+			{
+				name:   "unchanged negative spread price",
+				stored: spreadOrder,
+				report: Detail{Price: -5, LastUpdated: reportTime},
+				exp:    spreadOrder,
+			},
+			{
+				name:   "OKX algo order executing at market reports its order price as -1",
+				stored: with(limitOrder, func(d *Detail) { d.Type, d.Price, d.TriggerPrice = ConditionalStop, 0, 90 }),
+				report: Detail{Price: -1, TriggerPrice: 90, LastUpdated: reportTime},
+				exp:    with(limitOrder, func(d *Detail) { d.Type, d.Price, d.TriggerPrice, d.LastUpdated = ConditionalStop, -1, 90, reportTime }),
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				got := tc.stored
+				require.NoError(t, got.UpdateOrderFromDetail(&tc.report), "UpdateOrderFromDetail must not error")
+				assert.Equal(t, tc.exp, got, "UpdateOrderFromDetail should merge the report's prices into the stored order")
+			})
+		}
+	})
+
+	t.Run("fees, costs and remaining amounts", func(t *testing.T) {
+		t.Parallel()
+		storedTime, reportTime := time.UnixMilli(1700000000000), time.UnixMilli(1700000001000)
+		partlyFilled := Detail{
+			Exchange: "venue", OrderID: "1", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Type: Limit, Side: Buy, Status: PartiallyFilled,
+			Price: 20, Amount: 2, ExecutedAmount: 1, RemainingAmount: 1, Cost: 20, CostAsset: currency.USDT, Fee: 0.02, FeeAsset: currency.USDT,
+			LastUpdated: storedTime,
+		}
+		with := func(d Detail, change func(*Detail)) Detail {
+			change(&d)
+			return d
+		}
+		for _, tc := range []struct {
+			name           string
+			stored, report Detail
+			exp            Detail
+		}{
+			{
+				name:   "maker rebate reported as a negative fee (OKX, HTX)",
+				stored: partlyFilled,
+				report: Detail{Status: Filled, ExecutedAmount: 2, Cost: 40, Fee: -0.05, FeeAsset: currency.USDT, LastUpdated: reportTime},
+				exp: with(partlyFilled, func(d *Detail) {
+					d.Status, d.ExecutedAmount, d.RemainingAmount, d.Cost, d.Fee, d.LastUpdated = Filled, 2, 0, 40, -0.05, reportTime
+				}),
+			},
+			{
+				name:   "report without a fee keeps the stored fee",
+				stored: partlyFilled,
+				report: Detail{ExecutedAmount: 1.5, RemainingAmount: 0.5, LastUpdated: reportTime},
+				exp: with(partlyFilled, func(d *Detail) {
+					d.ExecutedAmount, d.RemainingAmount, d.LastUpdated = 1.5, 0.5, reportTime
+				}),
+			},
+			{
+				name:   "cost reported in its currency (OKX spot and margin, Binance websocket)",
+				stored: with(partlyFilled, func(d *Detail) { d.CostAsset = currency.EMPTYCODE }),
+				report: Detail{Cost: 30, CostAsset: currency.USDC, LastUpdated: reportTime},
+				exp:    with(partlyFilled, func(d *Detail) { d.Cost, d.CostAsset, d.LastUpdated = 30, currency.USDC, reportTime }),
+			},
+			{
+				name:   "report without a cost currency keeps the stored one",
+				stored: partlyFilled,
+				report: Detail{Cost: 30, LastUpdated: reportTime},
+				exp:    with(partlyFilled, func(d *Detail) { d.Cost, d.LastUpdated = 30, reportTime }),
+			},
+			{
+				name:   "fill leaves nothing to execute (Bitstamp, BTSE, Bybit and HTX spot websockets)",
+				stored: partlyFilled,
+				report: Detail{Status: Filled, ExecutedAmount: 2, LastUpdated: reportTime},
+				exp: with(partlyFilled, func(d *Detail) {
+					d.Status, d.ExecutedAmount, d.RemainingAmount, d.LastUpdated = Filled, 2, 0, reportTime
+				}),
+			},
+			{
+				name:   "fill report carrying a remainder keeps it (KuCoin and Coinut partial fills)",
+				stored: partlyFilled,
+				report: Detail{Status: Filled, ExecutedAmount: 1.5, RemainingAmount: 0.5, LastUpdated: reportTime},
+				exp: with(partlyFilled, func(d *Detail) {
+					d.Status, d.ExecutedAmount, d.RemainingAmount, d.LastUpdated = Filled, 1.5, 0.5, reportTime
+				}),
+			},
+			{
+				name:   "cancellation keeps the unfilled remainder",
+				stored: partlyFilled,
+				report: Detail{Status: Cancelled, LastUpdated: reportTime},
+				exp:    with(partlyFilled, func(d *Detail) { d.Status, d.LastUpdated = Cancelled, reportTime }),
+			},
+			{
+				name:   "repeated fill report leaves a filled order untouched",
+				stored: with(partlyFilled, func(d *Detail) { d.Status, d.ExecutedAmount, d.RemainingAmount = Filled, 2, 0 }),
+				report: Detail{Status: Filled, ExecutedAmount: 2, LastUpdated: reportTime},
+				exp:    with(partlyFilled, func(d *Detail) { d.Status, d.ExecutedAmount, d.RemainingAmount = Filled, 2, 0 }),
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				got := tc.stored
+				require.NoError(t, got.UpdateOrderFromDetail(&tc.report), "UpdateOrderFromDetail must not error")
+				assert.Equal(t, tc.exp, got, "UpdateOrderFromDetail should merge the report's accounting into the stored order")
+			})
+		}
+	})
 }
 
 // TestUpdateOrderFromDetailMergesFeeAsset asserts the commission currency propagates through order
@@ -1332,6 +1773,7 @@ func TestMatchFilter(t *testing.T) {
 }
 
 func TestDetail_IsActive(t *testing.T) {
+	t.Parallel()
 	orders := map[int]Detail{
 		0: {Amount: 0.0, Status: Active},
 		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
@@ -1363,6 +1805,27 @@ func TestDetail_IsActive(t *testing.T) {
 	} {
 		assert.False(t, (&Detail{Amount: 1.0, Status: s}).IsActive(), s)
 	}
+
+	t.Run("quote-sized orders follow their status", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name   string
+			detail Detail
+			active bool
+		}{
+			{"open", Detail{QuoteAmount: 100, Status: Active}, true},
+			{"partially filled with a base fill", Detail{QuoteAmount: 100, ExecutedAmount: 0.002, Status: PartiallyFilled}, true},
+			{"filled", Detail{QuoteAmount: 100, ExecutedAmount: 0.002, Status: Filled}, false},
+			{"ended by self-trade prevention", Detail{QuoteAmount: 100, Status: STP}, false},
+			{"unknown status", Detail{QuoteAmount: 100, Status: UnknownStatus}, false},
+			{"base amount set keeps the amount rule", Detail{Amount: 1, QuoteAmount: 100, ExecutedAmount: 1, Status: Active}, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				assert.Equal(t, tc.active, tc.detail.IsActive(), "IsActive should follow the quote-sized rule")
+			})
+		}
+	})
 }
 
 var activeBenchmark = Detail{Status: Pending, Amount: 1}
@@ -1396,6 +1859,43 @@ func TestDetail_IsInactive(t *testing.T) {
 	} {
 		assert.False(t, d.IsInactive(), d.ClientID+" should not be Inactive")
 	}
+
+	t.Run("quote-sized orders follow their status", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name     string
+			detail   Detail
+			inactive bool
+		}{
+			{"open", Detail{QuoteAmount: 100, Status: Active}, false},
+			{"partially filled with a base fill", Detail{QuoteAmount: 100, ExecutedAmount: 0.002, Status: PartiallyFilled}, false},
+			{"filled", Detail{QuoteAmount: 100, ExecutedAmount: 0.002, Status: Filled}, true},
+			{"ended by self-trade prevention", Detail{QuoteAmount: 100, Status: STP}, true},
+			{"unknown status", Detail{QuoteAmount: 100, Status: UnknownStatus}, true},
+			{"base amount set keeps the amount rule", Detail{Amount: 1, QuoteAmount: 100, ExecutedAmount: 1, Status: Active}, true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				assert.Equal(t, tc.inactive, tc.detail.IsInactive(), "IsInactive should follow the quote-sized rule")
+			})
+		}
+	})
+
+	t.Run("a quote-sized order is either active or inactive under every status", func(t *testing.T) {
+		t.Parallel()
+		statuses := []Status{UnknownStatus}
+		for s := AnyStatus; s.String() != UnknownStatus.String(); s <<= 1 {
+			statuses = append(statuses, s)
+		}
+		require.Contains(t, statuses, STP, "the statuses must run through the last one defined")
+		for _, s := range statuses {
+			t.Run(s.String(), func(t *testing.T) {
+				t.Parallel()
+				d := Detail{QuoteAmount: 100, Status: s}
+				assert.NotEqual(t, d.IsActive(), d.IsInactive(), "a quote-sized order should be exactly one of active or inactive")
+			})
+		}
+	})
 }
 
 func TestStatus_IsInactive(t *testing.T) {
@@ -1407,7 +1907,7 @@ func TestStatus_IsInactive(t *testing.T) {
 	}
 
 	for _, s := range []Status{
-		PartiallyCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, Closed, Cancelling, Liquidated,
+		PartiallyCancelled, PartiallyFilledCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, Closed, Cancelling, Liquidated, STP,
 	} {
 		assert.Truef(t, s.IsInactive(), "%s should be inactive", s)
 	}

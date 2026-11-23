@@ -3,6 +3,7 @@ package poloniex
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -634,6 +635,111 @@ func TestModifyOrder(t *testing.T) {
 	arg.AssetType = asset.Spot
 	_, err = e.ModifyOrder(t.Context(), arg)
 	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	t.Run("a replacement takes none of the cancelled order's executions", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name      string
+			orderType order.Type
+			amount    float64
+			path      string
+			body      string
+		}{
+			{"cancel and replace", order.Limit, 7, "/orders/41", `{"clientOrderId":"","price":"101","quantity":"7","type":"LIMIT","timeInForce":"GTC"}`},
+			{"cancel and replace at a new price alone", order.Limit, 10, "/orders/41", `{"clientOrderId":"","price":"101","quantity":"10","type":"LIMIT","timeInForce":"GTC"}`},
+			{"smart order cancel and replace", order.StopLimit, 7, "/smartorders/41", `{"price":"101","stopPrice":"99","amount":"7","type":"STOP_LIMIT","timeInForce":"GTC","proceedOnFailure":"true"}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					body, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the replacement request should not error")
+					assert.Equal(t, http.MethodPut, r.Method, "ModifyOrder should send the replacement as a PUT")
+					assert.Equal(t, tc.path, r.URL.Path, "ModifyOrder should replace the stored order")
+					assert.JSONEq(t, tc.body, string(body), "ModifyOrder should send the replacement's price and quantity")
+					_, err = fmt.Fprint(w, `{"id":"42","clientOrderId":""}`)
+					assert.NoError(t, err, "writing the replacement reply should not error")
+				}))
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				ex.SkipAuthCheck = true
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+				stored := order.Detail{
+					Exchange: ex.Name, OrderID: "41", Pair: spotTradablePair, AssetType: asset.Spot, Type: tc.orderType, Side: order.Buy,
+					Status: order.PartiallyFilled, TimeInForce: order.GoodTillCancel, Price: 100, TriggerPrice: 99, Amount: 10,
+					ExecutedAmount: 3, RemainingAmount: 7, AverageExecutedPrice: 100, Cost: 300, CostAsset: currency.USDT, Fee: 0.3,
+					FeeAsset: currency.USDT, Trades: []order.TradeHistory{{TID: "1", Price: 100, Amount: 3, Fee: 0.3, Side: order.Buy}},
+				}
+				resp, err := ex.ModifyOrder(t.Context(), &order.Modify{
+					OrderID: "41", Pair: spotTradablePair, AssetType: asset.Spot, Type: tc.orderType, Side: order.Buy,
+					TimeInForce: order.GoodTillCancel, Price: 101, TriggerPrice: 99, Amount: tc.amount,
+				})
+				require.NoError(t, err, "ModifyOrder must not error")
+				before := time.Now()
+				got := stored
+				got.UpdateOrderFromModifyResponse(resp)
+				assert.WithinRange(t, got.LastUpdated, before, time.Now(), "the replacement should be stamped when it was stored")
+				exp := order.Detail{
+					Exchange: ex.Name, OrderID: "42", Pair: spotTradablePair, AssetType: asset.Spot, Type: tc.orderType, Side: order.Buy,
+					Status: order.New, TimeInForce: order.GoodTillCancel, Price: 101, TriggerPrice: 99, Amount: tc.amount,
+					RemainingAmount: tc.amount, CostAsset: currency.USDT, FeeAsset: currency.USDT, LastUpdated: got.LastUpdated,
+				}
+				assert.Equal(t, exp, got, "the replacement should be stored as a new order open in full with none of the cancelled order's executions")
+			})
+		}
+	})
+
+	t.Run("a replacement takes its client order ID from its own reply", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name      string
+			orderType order.Type
+			path      string
+			body      string
+		}{
+			{"cancel and replace", order.Limit, "/orders/41", `{"clientOrderId":"new42","price":"101","quantity":"7","type":"LIMIT","timeInForce":"GTC"}`},
+			{"smart order cancel and replace", order.StopLimit, "/smartorders/41", `{"clientOrderId":"new42","price":"101","stopPrice":"99","amount":"7","type":"STOP_LIMIT","timeInForce":"GTC","proceedOnFailure":"true"}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					body, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the replacement request should not error")
+					assert.Equal(t, http.MethodPut, r.Method, "ModifyOrder should send the replacement as a PUT")
+					assert.Equal(t, tc.path, r.URL.Path, "ModifyOrder should replace the stored order")
+					assert.JSONEq(t, tc.body, string(body), "ModifyOrder should send the replacement's client order ID")
+					_, err = fmt.Fprint(w, `{"id":"42","clientOrderId":"new42"}`)
+					assert.NoError(t, err, "writing the replacement reply should not error")
+				}))
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				ex.SkipAuthCheck = true
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+				stored := order.Detail{
+					Exchange: ex.Name, OrderID: "41", ClientOrderID: "old41", Pair: spotTradablePair, AssetType: asset.Spot, Type: tc.orderType,
+					Side: order.Buy, Status: order.PartiallyFilled, TimeInForce: order.GoodTillCancel, Price: 100, TriggerPrice: 99, Amount: 10,
+					ExecutedAmount: 3, RemainingAmount: 7,
+				}
+				resp, err := ex.ModifyOrder(t.Context(), &order.Modify{
+					OrderID: "41", ClientOrderID: "old41", NewClientOrderID: "new42", Pair: spotTradablePair, AssetType: asset.Spot, Type: tc.orderType,
+					Side: order.Buy, TimeInForce: order.GoodTillCancel, Price: 101, TriggerPrice: 99, Amount: 7,
+				})
+				require.NoError(t, err, "ModifyOrder must not error")
+				got := stored
+				got.UpdateOrderFromModifyResponse(resp)
+				exp := order.Detail{
+					Exchange: ex.Name, OrderID: "42", ClientOrderID: "new42", Pair: spotTradablePair, AssetType: asset.Spot, Type: tc.orderType,
+					Side: order.Buy, Status: order.New, TimeInForce: order.GoodTillCancel, Price: 101, TriggerPrice: 99, Amount: 7, RemainingAmount: 7,
+					LastUpdated: got.LastUpdated,
+				}
+				assert.Equal(t, exp, got, "the replacement should be stored under its own client order ID as a new order")
+			})
+		}
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

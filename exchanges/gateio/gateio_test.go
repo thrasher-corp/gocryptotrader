@@ -4418,6 +4418,19 @@ func TestProcessFinishedFuturesOrdersPushData(t *testing.T) {
 		assert.Equal(t, 1.0, processed[0].ExecutedAmount, "executed futures order amount should be absolute")
 	})
 
+	t.Run("an order self-trade prevention ended with size left is inactive", func(t *testing.T) {
+		t.Parallel()
+		incoming := strings.Replace(testCases[len(testCases)-1].incoming, `"left":0`, `"left":1`, 1)
+		incoming = strings.Replace(incoming, `"size":1`, `"size":2`, 1)
+		processed, err := e.processFuturesOrdersPushData([]byte(incoming), asset.CoinMarginedFutures)
+		require.NoError(t, err)
+		require.Len(t, processed, 1, "futures order update must contain one order")
+		require.Equal(t, order.STP, processed[0].Status, "the order must end by self-trade prevention")
+		require.Equal(t, 1.0, processed[0].RemainingAmount, "the order must have size left")
+		assert.True(t, processed[0].IsInactive(), "an order self-trade prevention ended should be inactive")
+		assert.False(t, processed[0].IsActive(), "an order self-trade prevention ended should not be active")
+	})
+
 	t.Run("market order", func(t *testing.T) {
 		t.Parallel()
 		incoming := strings.NewReplacer(`"price":40000.4`, `"price":0`, `"tif":"gtc"`, `"tif":"ioc"`).Replace(testCases[1].incoming)

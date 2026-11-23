@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -37,6 +38,7 @@ import (
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -2157,6 +2159,40 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 	for x := range websocketGSTEUROrderbookUpdates {
 		err := e.wsHandleData(t.Context(), []byte(websocketGSTEUROrderbookUpdates[x]))
 		require.NoError(t, err, "wsHandleData must not error")
+	}
+}
+
+func TestWebsocketProcessOrderBookUpdate(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		price       string
+		checksummed string
+	}{
+		{name: "an update at a level's price spelled as before", price: "0.05005", checksummed: "5005600" + "5000500"},
+		{name: "an update respelling a level's price", price: "0.050050", checksummed: "50050600" + "5000500"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.Name = t.Name()
+			pair := currency.NewPairWithDelimiter("XBT", "USD", "/")
+			snapshotTime := types.Time(time.UnixMilli(1700000000000))
+			require.NoError(t, ex.wsProcessOrderBookPartial(t.Context(), pair, &wsSnapshot{
+				Asks: []wsOrderbookItem{{Price: 0.05005, PriceRaw: "0.05005", Amount: 0.000005, AmountRaw: "0.00000500", Time: snapshotTime}},
+				Bids: []wsOrderbookItem{{Price: 0.05, PriceRaw: "0.05000", Amount: 0.000005, AmountRaw: "0.00000500", Time: snapshotTime}},
+			}, 10), "the snapshot must load")
+			err := ex.wsProcessOrderBookUpdate(t.Context(), pair, &wsUpdate{
+				Asks:     []wsOrderbookItem{{Price: 0.05005, PriceRaw: tc.price, Amount: 0.000006, AmountRaw: "0.00000600", Time: types.Time(time.UnixMilli(1700000001000))}},
+				Checksum: crc32.ChecksumIEEE([]byte(tc.checksummed)),
+			})
+			require.NoError(t, err, "an update matching the checksum of the levels as sent must apply")
+			book, err := ex.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+			require.NoError(t, err, "GetOrderbook must not error")
+			assert.Equal(t, orderbook.Levels{{Price: 0.05005, StrPrice: tc.price, Amount: 0.000006, StrAmount: "0.00000600"}}, book.Asks, "the ask should hold its price and size as last sent")
+			assert.Equal(t, orderbook.Levels{{Price: 0.05, StrPrice: "0.05000", Amount: 0.000005, StrAmount: "0.00000500"}}, book.Bids, "the bid should be unchanged")
+		})
 	}
 }
 

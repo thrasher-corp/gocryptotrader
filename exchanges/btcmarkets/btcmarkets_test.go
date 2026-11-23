@@ -960,6 +960,22 @@ func TestReplaceOrder(t *testing.T) {
 	_, err = e.ReplaceOrder(t.Context(), "", "bro", 1, 1)
 	require.ErrorIs(t, err, errIDRequired)
 
+	t.Run("returns the order placed in its place", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.SkipAuthCheck = true
+		reply := `{"orderId":"54","marketId":"BTC-AUD","side":"Bid","type":"Limit","creationTime":"2026-11-23T06:00:00Z","price":"101","amount":"7","openAmount":"4","status":"Partially Matched","targetAmount":"707","timeInForce":"GTC"}`
+		require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: replaceOrderTransport{t: t, body: `{"price":"101","amount":"7","clientOrderId":"new54"}`, reply: reply}}), "SetHTTPClient must not error")
+		resp, err := ex.ReplaceOrder(t.Context(), "53", "new54", 101, 7)
+		require.NoError(t, err, "ReplaceOrder must not error")
+		exp := &OrderData{
+			OrderID: "54", MarketID: spotTestPair, Side: "Bid", Type: "Limit", CreationTime: time.Date(2026, time.November, 23, 6, 0, 0, 0, time.UTC),
+			Price: 101, Amount: 7, OpenAmount: 4, Status: "Partially Matched", TargetAmount: 707, TimeInForce: "GTC",
+		}
+		assert.Equal(t, exp, resp, "ReplaceOrder should decode the order placed in the replaced order's place")
+	})
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	_, err = e.ReplaceOrder(t.Context(), "8207096301", "bruh", 100000, 0.001)
@@ -970,6 +986,89 @@ func TestWrapperModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.ModifyOrder(t.Context(), &order.Modify{})
 	require.ErrorIs(t, err, order.ErrPairIsEmpty)
+
+	t.Run("a replacement takes none of the cancelled order's executions", func(t *testing.T) {
+		t.Parallel()
+		created := time.Date(2026, time.November, 23, 6, 0, 0, 0, time.UTC)
+		stored := order.Detail{
+			Exchange: "BTC Markets", OrderID: "53", Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Bid,
+			Status: order.PartiallyFilled, Price: 100, Amount: 10, ExecutedAmount: 3, RemainingAmount: 7, AverageExecutedPrice: 100,
+			Cost: 300, CostAsset: currency.AUD, Fee: 0.3, FeeAsset: currency.AUD, LastUpdated: created.Add(-time.Hour),
+			Trades: []order.TradeHistory{{TID: "1", Price: 100, Amount: 3, Fee: 0.3, Side: order.Bid}},
+		}
+		for _, tc := range []struct {
+			name              string
+			status            string
+			openAmount        string // the reply's openAmount value, left out when empty
+			expStatus         order.Status
+			reportedExecuted  float64
+			reportedRemaining float64
+			expExecuted       float64
+			expRemaining      float64
+		}{
+			{"matched in full on placement", "Fully Matched", `"0"`, order.Filled, 7, 0, 7, 0},
+			{"partly matched on placement", "Partially Matched", `"4"`, order.PartiallyFilled, 3, 4, 3, 4},
+			{"open in full", "Placed", `"7"`, order.New, 0, 7, 0, 7},
+			{"placed without stating its open amount", "Placed", "", order.New, 0, 0, 0, 7},
+			{"placed with a null open amount", "Placed", "null", order.New, 0, 0, 0, 7},
+			{"placed with a blank open amount", "Placed", `""`, order.New, 0, 0, 0, 7},
+			{"matched in full without stating its open amount", "Fully Matched", "", order.Filled, 7, 0, 7, 0},
+			{"matched in full with a null open amount", "Fully Matched", "null", order.Filled, 7, 0, 7, 0},
+			{"matched in full with a blank open amount", "Fully Matched", `""`, order.Filled, 7, 0, 7, 0},
+			{"partly matched without stating its open amount", "Partially Matched", "", order.PartiallyFilled, 0, 0, 0, 7},
+			{"partly matched with a null open amount", "Partially Matched", "null", order.PartiallyFilled, 0, 0, 0, 7},
+			{"partly matched with a blank open amount", "Partially Matched", `""`, order.PartiallyFilled, 0, 0, 0, 7},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var openAmount string
+				if tc.openAmount != "" {
+					openAmount = `,"openAmount":` + tc.openAmount
+				}
+				reply := `{"orderId":"54","marketId":"BTC-AUD","side":"Bid","type":"Limit","creationTime":"2026-11-23T06:00:00Z","price":"101","amount":"7"` + openAmount + `,"status":"` + tc.status + `"}`
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				ex.SkipAuthCheck = true
+				require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: replaceOrderTransport{t: t, body: `{"price":"101","amount":"7"}`, reply: reply}}), "SetHTTPClient must not error")
+				resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "53", Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Bid, Price: 101, Amount: 7})
+				require.NoError(t, err, "ModifyOrder must not error")
+				expResp := &order.ModifyResponse{
+					OrderID: "54", Pair: spotTestPair, Type: order.Limit, Side: order.Bid, Status: tc.expStatus, AssetType: asset.Spot, Price: 101, Amount: 7,
+					RemainingAmount: tc.reportedRemaining, ExecutedAmount: tc.reportedExecuted, LastUpdated: created,
+				}
+				assert.Equal(t, expResp, resp, "ModifyOrder should report the replacement's executions from the open amount BTC Markets states, or from a full match")
+				got := stored
+				got.UpdateOrderFromModifyResponse(resp)
+				exp := stored
+				exp.OrderID, exp.Status, exp.Price, exp.Amount, exp.LastUpdated = "54", tc.expStatus, 101, 7, created
+				exp.ExecutedAmount, exp.RemainingAmount, exp.AverageExecutedPrice, exp.Cost, exp.Fee, exp.Trades = tc.expExecuted, tc.expRemaining, 0, 0, 0, nil
+				assert.Equal(t, exp, got, "the replacement should be stored with its own executions and open amount")
+			})
+		}
+	})
+
+	t.Run("a replacement takes the client order ID it was placed with", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.SkipAuthCheck = true
+		reply := `{"orderId":"54","marketId":"BTC-AUD","side":"Bid","type":"Limit","creationTime":"2026-11-23T06:00:00Z","price":"101","amount":"7","openAmount":"7","status":"Placed"}`
+		require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: replaceOrderTransport{t: t, body: `{"price":"101","amount":"7","clientOrderId":"new54"}`, reply: reply}}), "SetHTTPClient must not error")
+		resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "53", ClientOrderID: "new54", Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Bid, Price: 101, Amount: 7})
+		require.NoError(t, err, "ModifyOrder must not error")
+		created := time.Date(2026, time.November, 23, 6, 0, 0, 0, time.UTC)
+		stored := order.Detail{
+			Exchange: "BTC Markets", OrderID: "53", ClientOrderID: "old53", Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Bid,
+			Status: order.PartiallyFilled, Price: 100, Amount: 10, ExecutedAmount: 3, RemainingAmount: 7, LastUpdated: created.Add(-time.Hour),
+		}
+		got := stored
+		got.UpdateOrderFromModifyResponse(resp)
+		exp := order.Detail{
+			Exchange: "BTC Markets", OrderID: "54", ClientOrderID: "new54", Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Bid,
+			Status: order.New, Price: 101, Amount: 7, RemainingAmount: 7, LastUpdated: created,
+		}
+		assert.Equal(t, exp, got, "the replacement should be stored under the client order ID it was placed with")
+	})
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
@@ -1076,6 +1175,22 @@ func TestGenerateSubscriptions(t *testing.T) {
 		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
 		"should panic on invalid channel",
 	)
+}
+
+// replaceOrderTransport answers an order replacement in-process, as the authenticated sender hardcodes its URL
+type replaceOrderTransport struct {
+	t     *testing.T
+	body  string
+	reply string
+}
+
+func (r replaceOrderTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	body, err := io.ReadAll(req.Body)
+	assert.NoError(r.t, err, "reading the replacement request should not error")
+	assert.Equal(r.t, http.MethodPut, req.Method, "ModifyOrder should send the replacement as a PUT")
+	assert.Equal(r.t, "/v3/orders/53", req.URL.Path, "ModifyOrder should replace the stored order")
+	assert.JSONEq(r.t, r.body, string(body), "ModifyOrder should send the replacement's price, amount and client order ID")
+	return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(r.reply)), Request: req}, nil
 }
 
 // clientOrderIDTransport captures requests in-process because the legacy sender hardcodes its URL.

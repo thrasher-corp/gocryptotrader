@@ -49,6 +49,9 @@ type Price struct {
 	ExchangeName               string
 	AssetType                  asset.Item
 	LastUpdated                time.Time
+	// PreOpen marks a quote from a market's pre-open period, when its best bid
+	// can be at or above its best ask
+	PreOpen bool
 	// Funding rate field variables
 	FlashReturnRate       float64
 	BidPeriod             float64

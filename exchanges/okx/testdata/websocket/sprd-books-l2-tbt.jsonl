@@ -1,0 +1,3 @@
+{"arg":{"channel":"sprd-books-l2-tbt","sprdId":"BTC-USDT_BTC-USDT-SWAP"},"action":"snapshot","data":[{"asks":[["-8.7","2.749","1"]],"bids":[["-63.9","0.2297","1"]],"ts":"1795406820638","checksum":0,"prevSeqId":-1,"seqId":1794451134581245}]}
+{"arg":{"channel":"sprd-books-l2-tbt","sprdId":"BTC-USDT_BTC-USDT-SWAP"},"action":"update","data":[{"asks":[],"bids":[],"ts":"1795406826985","checksum":0,"prevSeqId":1794451134581245,"seqId":1794451134581245}]}
+{"arg":{"channel":"sprd-books-l2-tbt","sprdId":"BTC-USDT_BTC-USDT-SWAP"},"action":"update","data":[{"asks":[],"bids":[],"ts":"1795406886982","checksum":0,"prevSeqId":1794451134581245,"seqId":1794451134581245}]}

@@ -106,4 +106,136 @@ func TestSubmitOrder(t *testing.T) {
 			}
 		}
 	}
+
+	// Guards the quote amount an order sized in the quote currency needs, such as OKX's margin market buys and spot
+	// trailing stop buys: the RPC carries it to the exchange's submission beside or instead of the base amount
+	t.Run("carries the quote amount", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name      string
+			orderType string
+			amount    float64
+			price     float64
+			quote     float64
+		}{
+			{"quote amount alone", "market", 0, 0, 100},
+			{"base and quote amounts", "limit", 1, 5, 5},
+			{"base amount alone", "limit", 1, 5, 0},
+		} {
+			for _, transport := range []string{"protobuf", "JSON"} {
+				t.Run(tc.name+"/"+transport, func(t *testing.T) {
+					t.Parallel()
+					em := NewExchangeManager()
+					realExchange, err := em.NewExchangeByName("Binance")
+					require.NoError(t, err, "test exchange must be available")
+					realExchange.SetDefaults()
+					base := realExchange.GetBase()
+					base.Enabled = true
+					pair := currency.NewBTCUSDT()
+					base.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{asset.Spot: {
+						Available:     currency.Pairs{pair},
+						Enabled:       currency.Pairs{pair},
+						AssetEnabled:  true,
+						ConfigFormat:  &currency.PairFormat{Uppercase: true},
+						RequestFormat: &currency.PairFormat{Uppercase: true},
+					}}
+					exch := &rpcSubmitExchange{IBotExchange: realExchange}
+					require.NoError(t, em.Add(exch), "test exchange must be registered")
+					var wg sync.WaitGroup
+					manager, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
+					require.NoError(t, err, "order manager must be configured")
+					manager.started.Store(true)
+					server := &RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: manager}}
+					req := &gctrpc.SubmitOrderRequest{
+						Exchange:    "Binance",
+						Pair:        &gctrpc.CurrencyPair{Base: "BTC", Quote: "USDT", Delimiter: "-"},
+						Side:        "buy",
+						OrderType:   tc.orderType,
+						Amount:      tc.amount,
+						Price:       tc.price,
+						QuoteAmount: tc.quote,
+						AssetType:   asset.Spot.String(),
+					}
+					decoded := new(gctrpc.SubmitOrderRequest)
+					if transport == "protobuf" {
+						wire, err := proto.Marshal(req)
+						require.NoError(t, err, "protobuf request must encode")
+						require.NoError(t, proto.Unmarshal(wire, decoded), "protobuf request must decode")
+					} else {
+						wire, err := protojson.Marshal(req)
+						require.NoError(t, err, "JSON request must encode")
+						require.NoError(t, protojson.Unmarshal(wire, decoded), "JSON request must decode")
+					}
+					_, err = server.SubmitOrder(t.Context(), decoded)
+					require.ErrorIs(t, err, errExpectedTestError, "request must reach the captured exchange submission")
+					oType, err := order.StringToOrderType(tc.orderType)
+					require.NoError(t, err, "order type must parse")
+					exp := &order.Submit{
+						Exchange: "Binance", Pair: currency.NewPairWithDelimiter("BTC", "USDT", "-"), AssetType: asset.Spot, Side: order.Buy, Type: oType,
+						Amount: tc.amount, Price: tc.price, QuoteAmount: tc.quote,
+					}
+					assert.Equal(t, exp, exch.submission, "the exchange should receive the requested amounts")
+				})
+			}
+		}
+	})
+
+	t.Run("limit prices by asset", func(t *testing.T) {
+		t.Parallel()
+		spreadPair := currency.NewPairWithDelimiter("BTC", "USDT_BTC-USDT-SWAP", currency.DashDelimiter)
+		spotPair := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
+		for _, tc := range []struct {
+			name  string
+			a     asset.Item
+			pair  currency.Pair
+			price float64
+			err   error
+		}{
+			{name: "spread at zero", a: asset.Spread, pair: spreadPair},
+			{name: "spread below zero", a: asset.Spread, pair: spreadPair, price: -2},
+			{name: "spot at zero", a: asset.Spot, pair: spotPair, err: order.ErrPriceMustBeSetIfLimitOrder},
+			{name: "spot below zero", a: asset.Spot, pair: spotPair, price: -2, err: order.ErrPriceMustBeSetIfLimitOrder},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				em := NewExchangeManager()
+				realExchange, err := em.NewExchangeByName("Okx")
+				require.NoError(t, err, "test exchange must be available")
+				realExchange.SetDefaults()
+				base := realExchange.GetBase()
+				base.Enabled = true
+				base.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{tc.a: {
+					Available:     currency.Pairs{tc.pair},
+					Enabled:       currency.Pairs{tc.pair},
+					AssetEnabled:  true,
+					ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+					RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+				}}
+				exch := &rpcSubmitExchange{IBotExchange: realExchange}
+				require.NoError(t, em.Add(exch), "test exchange must be registered")
+				var wg sync.WaitGroup
+				manager, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
+				require.NoError(t, err, "order manager must be configured")
+				manager.started.Store(true)
+				server := &RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: manager}}
+				_, err = server.SubmitOrder(t.Context(), &gctrpc.SubmitOrderRequest{
+					Exchange:  "Okx",
+					Pair:      &gctrpc.CurrencyPair{Base: tc.pair.Base.String(), Quote: tc.pair.Quote.String(), Delimiter: currency.DashDelimiter},
+					Side:      "buy",
+					OrderType: "limit",
+					Price:     tc.price,
+					Amount:    1,
+					AssetType: tc.a.String(),
+				})
+				if tc.err != nil {
+					require.ErrorIs(t, err, tc.err, "SubmitOrder must refuse the limit price")
+					assert.Nil(t, exch.submission, "a refused order should not reach the exchange")
+					return
+				}
+				require.ErrorIs(t, err, errExpectedTestError, "request must reach the captured exchange submission")
+				exp := &order.Submit{Exchange: "Okx", Pair: tc.pair, AssetType: tc.a, Side: order.Buy, Type: order.Limit, Amount: 1, Price: tc.price}
+				assert.Equal(t, exp, exch.submission, "the exchange should receive the spread's limit price")
+			})
+		}
+	})
 }

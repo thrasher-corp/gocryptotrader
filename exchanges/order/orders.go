@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ const (
 	shortSide                 = Short | Sell | Ask
 	longSide                  = Long | Buy | Bid
 
-	inactiveStatuses = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | PartiallyFilledCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
+	inactiveStatuses = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | PartiallyFilledCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated | STP
 	activeStatuses   = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
 	notPlaced        = InsufficientBalance | MarketUnavailable | Rejected
 )
@@ -101,7 +102,8 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 		return fmt.Errorf("submit validation error quote %w, suppled: %v", ErrAmountIsInvalid, s.QuoteAmount)
 	}
 
-	if s.Type == Limit && s.Price <= 0 {
+	// A spread's price is the difference between its legs' prices, so it can be zero or negative
+	if s.Type == Limit && s.Price <= 0 && s.AssetType != asset.Spread {
 		return ErrPriceMustBeSetIfLimitOrder
 	}
 
@@ -164,7 +166,8 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.HiddenOrder = m.HiddenOrder
 		updated = true
 	}
-	if m.Price > 0 && m.Price != d.Price {
+	// A spread's price is the difference between its legs' prices, so it can be negative
+	if m.Price != 0 && m.Price != d.Price {
 		d.Price = m.Price
 		updated = true
 	}
@@ -196,7 +199,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.ExecutedAmount = m.ExecutedAmount
 		updated = true
 	}
-	if m.AverageExecutedPrice > 0 && m.AverageExecutedPrice != d.AverageExecutedPrice {
+	if m.AverageExecutedPrice != 0 && m.AverageExecutedPrice != d.AverageExecutedPrice {
 		d.AverageExecutedPrice = m.AverageExecutedPrice
 		updated = true
 	}
@@ -204,7 +207,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.Cost = m.Cost
 		updated = true
 	}
-	if m.Fee > 0 && m.Fee != d.Fee {
+	if !m.CostAsset.IsEmpty() && !m.CostAsset.Equal(d.CostAsset) {
+		d.CostAsset = m.CostAsset
+		updated = true
+	}
+	// A negative fee is a maker's rebate
+	if m.Fee != 0 && m.Fee != d.Fee {
 		d.Fee = m.Fee
 		updated = true
 	}
@@ -301,8 +309,16 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 	// Do not derive RemainingAmount from Trades: trade lists may be cumulative
 	// or from a different snapshot. A supplied non-zero value is preserved.
-	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
-		d.RemainingAmount = m.RemainingAmount
+	switch {
+	case m.RemainingAmount > 0:
+		if m.RemainingAmount != d.RemainingAmount {
+			d.RemainingAmount = m.RemainingAmount
+			updated = true
+		}
+	case m.Status == Filled && d.RemainingAmount != 0:
+		// A filled order has nothing left to execute, which a report of zero
+		// cannot otherwise tell from an unreported remainder
+		d.RemainingAmount = 0
 		updated = true
 	}
 	if updated {
@@ -327,22 +343,36 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 // UpdateOrderFromModifyResponse Will update an order detail (used in order management)
 // by comparing passed in and existing values
 func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
-	var updated bool
+	var updated, amountChanged, executedChanged bool
+	// A reply naming another order reports the replacement a venue placed after cancelling the stored order, and the
+	// cancelled order's executions, status and client order ID are not the replacement's: a replacement is a new order
+	// until its reply states otherwise
+	replaced := m.OrderID != "" && d.OrderID != "" && d.OrderID != m.OrderID
 	if m.OrderID != "" && d.OrderID != m.OrderID {
 		d.OrderID = m.OrderID
 		updated = true
+	}
+	if replaced {
+		d.ExecutedAmount, d.AverageExecutedPrice, d.Cost, d.Fee, d.Trades = 0, 0, 0, 0, nil
+		d.ClientOrderID, d.Status = m.ClientOrderID, New
+	}
+	if m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount {
+		d.ExecutedAmount = m.ExecutedAmount
+		updated, executedChanged = true, true
 	}
 	if d.TimeInForce != m.TimeInForce && m.TimeInForce != UnknownTIF {
 		d.TimeInForce = m.TimeInForce
 		updated = true
 	}
-	if m.Price > 0 && m.Price != d.Price {
+	// A spread's price is the difference between its legs' prices, so it can be negative
+	if m.Price != 0 && m.Price != d.Price {
 		d.Price = m.Price
 		updated = true
 	}
 	if m.Amount > 0 && m.Amount != d.Amount {
 		d.Amount = m.Amount
 		updated = true
+		amountChanged = true
 	}
 	if m.TriggerPrice > 0 && m.TriggerPrice != d.TriggerPrice {
 		d.TriggerPrice = m.TriggerPrice
@@ -370,12 +400,19 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 		d.AssetType = m.AssetType
 		updated = true
 	}
-	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
-		d.RemainingAmount = m.RemainingAmount
-		updated = true
+	switch {
+	case m.RemainingAmount > 0:
+		if m.RemainingAmount != d.RemainingAmount {
+			d.RemainingAmount = m.RemainingAmount
+			updated = true
+		}
+	case amountChanged, executedChanged, replaced:
+		// An amended amount is the order's new total, fills included; Bitfinex's websocket reports a sell's executed
+		// amount signed
+		d.RemainingAmount = max(d.Amount-math.Abs(d.ExecutedAmount), 0)
 	}
 	if updated {
-		if d.LastUpdated.Equal(m.LastUpdated) {
+		if m.LastUpdated.IsZero() || d.LastUpdated.Equal(m.LastUpdated) {
 			d.LastUpdated = time.Now()
 		} else {
 			d.LastUpdated = m.LastUpdated
@@ -417,14 +454,19 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 // IsActive returns true if an order has a status that indicates it is currently
 // available on the exchange
 func (d *Detail) IsActive() bool {
+	// Quote-sized orders have no known base quantity; their status determines activity.
+	quoteSized := d.Amount == 0 && d.QuoteAmount > 0
 	return d.Status != UnknownStatus &&
-		d.Amount > max(0, d.ExecutedAmount) &&
+		(quoteSized || d.Amount > max(0, d.ExecutedAmount)) &&
 		activeStatuses&d.Status == d.Status
 }
 
 // IsInactive returns true if an order has a status that indicates it is
 // currently not available on the exchange
 func (d *Detail) IsInactive() bool {
+	if d.Amount == 0 && d.QuoteAmount > 0 {
+		return d.Status == UnknownStatus || d.Status.IsInactive()
+	}
 	return d.Amount <= max(0, d.ExecutedAmount) ||
 		d.Status.IsInactive()
 }

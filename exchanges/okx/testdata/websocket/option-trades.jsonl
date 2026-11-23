@@ -1,0 +1,1 @@
+{"arg":{"channel":"option-trades","instType":"OPTION","instFamily":"BTC-USD"},"data":[{"fillVol":"0.4968351782226562","fwdPx":"61609.2503436324","idxPx":"61393.9","instFamily":"BTC-USD","instId":"BTC-USD-261225-60000-C","markPx":"0.0720294568233771","optType":"C","px":"0.072","side":"sell","sz":"220","tradeId":"116","ts":"1795405205844"}]}

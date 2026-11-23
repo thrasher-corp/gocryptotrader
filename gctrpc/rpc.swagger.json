@@ -4601,6 +4601,9 @@
       "properties": {
         "exchange": {
           "type": "string"
+        },
+        "assetType": {
+          "type": "string"
         }
       }
     },
@@ -6967,6 +6970,10 @@
         },
         "clientOrderId": {
           "type": "string"
+        },
+        "quoteAmount": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

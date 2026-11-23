@@ -1,120 +1,286 @@
 {{define "exchanges okx" -}}
 {{template "header" .}}
 
-## Okx Exchange
+## OKX Exchange
 
 ### Current Features
 
-+ REST Support
-+ Websocket Support
++ Spot, margin, delivery futures (including OKX's X-Perps), perpetual swaps, options and spreads
++ Every endpoint of OKX's v5 REST API apart from its binary SBE order book, grouped in files by the sections of OKX's
+  documentation: trading account, trade, algo trading, grid, DCA, signal bot and recurring buy trading, copy trading,
+  market data, block trading, spread trading, public data, trading statistics, funding account, sub-accounts, the
+  financial products (on-chain earn, ETH and SOL staking, Stable Rewards, OKUSD, simple earn, flexible loans and dual
+  investment), affiliate, status and announcements
++ Every documented websocket channel, decoded into typed pushes, over GoCryptoTrader's multi-connection websocket
+  manager; tickers, order books, candles, trades, orders, fills and balances also update GoCryptoTrader's stores and
+  feeds
++ Order placement, amendment and cancellation over the websocket, spread orders included
 
 ### How to enable
 
- [Enable via configuration]({{.RepoRoot}}/config/README.md#enable-exchange-via-config-example)
++ [Enable via configuration]({{.RepoRoot}}/config/README.md#enable-exchange-via-config-example)
 
-+ Individual package example below:
+### Credentials
 
-```go
-    // Exchanges will be abstracted out in further updates and examples will be
-    // supplied then
-```
+OKX API keys come with a passphrase, which GoCryptoTrader takes as the credentials' client ID. REST requests are signed
+with the API secret, and each authenticated websocket connection logs in with a signature, so the secret is never sent.
+Order placement, amendment and cancellation, and account mode switches, act for one account throughout: the one whose
+credentials they started with, even if the exchange's credentials, or those a request's context carries, change while
+they run. Each refuses credentials which cannot be used when it starts, as those they become may be another account's;
+with authentication disabled, its requests are refused as they are sent.
 
-### How to do REST public/private calls
+### Rate limits
 
-+ If enabled via "configuration".json file the exchange will be added to the
-IBotExchange array in the ```go var bot Bot``` and you will only be able to use
-the wrapper interface functions for accessing exchange data. View routines.go
-for an example of integration usage with GoCryptoTrader. Rudimentary example
-below:
+Each endpoint is limited at the rate OKX documents for it, and an operation's REST and websocket requests share its
+budget, as they do at OKX. OKX budgets its batch endpoints by orders rather than requests, so a batch takes a request's
+share for each order it carries, all at once on every attempt, and a batch its budget cannot cover takes none of it.
+Each order budget holds one full batch and refills the rest of OKX's budget over its 2 seconds, so no 2 seconds carry
+more orders than OKX allows, however batches fall: sustained, that is 140 orders a second on the batch endpoints and 5
+on cancelling algo orders. OKX enforces its further limits for each account itself: the 80 RFQs an account may create in
+12 hours and its daily quota of demo balance increases, so creating an RFQ is held to its own limit alone and adjusting
+a demo account's balances is not limited. Limits OKX applies per instrument, such as a quote's, are held at the
+account-wide rate, as the requester cannot tell instruments apart, and so are the lower limits OKX sets on a lead
+trader's lead instruments.
 
-main.go
+### Orders
 
-```go
-var ok exchange.IBotExchange
++ `SubmitOrder` places limit, market, post only, fill or kill, immediate or cancel and optimal limit orders, market
+  maker protection orders on options, and OKX's algo orders: trigger, conditional stop, OCO, trailing stop, TWAP and,
+  on futures and perpetual swaps, chase orders. A conditional or OCO leg given only its trigger price executes at
+  market when triggered. A chase order's tracking value is its distance from the best bid or ask, where zero tracks the
+  best price itself. Order types OKX has no order for, such as stop limit orders or `AnyType`, are refused rather than
+  placed as something else, and so is a time in force the order cannot honour: good till time, good till day, stop or
+  reduce, good till crossing unless post only is also set, post only on a market order, any but immediate or cancel on
+  an optimal limit order, and fill or kill or immediate or cancel on a market maker protection order. Algo orders take
+  no post only, fill or kill or immediate or cancel instruction, except a chase order's post only, which it places
+  anyway, and a trigger order's fill or kill or immediate or cancel at a limit price, which applies to the order it
+  places once triggered. Market orders on options and market maker protection orders on anything but options are
+  refused too.
++ `SubmitOrder` attaches an order's take profit and stop loss to an ordinary order and, outside Spot mode, to a trigger
+  order, each leg with its trigger price and type and its order price: market for a market leg or one with no limit
+  price, and its limit price otherwise. An OCO order's legs are checked as attached legs are, so a limit leg without its
+  limit price is refused rather than placed at market. An attachment OKX does not take is refused rather than dropped:
+  on a spread, conditional, chase, trailing stop or TWAP order, over the websocket, where `WebsocketAPI`'s placement and
+  amendment refuse one too, on a market buy sized in the base currency or a market sell sized in the quote currency,
+  and a stop entry order or take profit and stop loss mode.
++ OKX sizes some orders in the quote currency. A spot market order takes its `QuoteAmount` when it has one, and its
+  `Amount` otherwise, telling OKX which with `tgtCcy`, which OKX takes on no algo order but a spot conditional market
+  buy. Margin market buys, and spot and margin algo buys that place a market buy once triggered (trailing stops,
+  trigger orders at market, OCO orders with both legs at market and margin conditional orders at market), are always
+  sized in the quote currency, so they need a `QuoteAmount` and refuse an amount in the base currency. An OCO buy with
+  one leg at market and one at a limit price is refused, as OKX would read its one size in two currencies.
++ A spot pair ordered with a cross or isolated margin type is a margin order, sized as margin orders are and sent
+  reduce only when the order asks. Margin orders send the margin currency OKX requires of isolated margin orders, and
+  of cross margin orders in OKX's Futures mode: the quote currency for a buy and the base currency for a sell. The
+  account's mode is looked up with its position mode. A spot order with an isolated `spot` margin type is placed for
+  spot lead trading, and a margin order with a cash or spot lead trading margin type is refused.
++ An order without a margin type takes the trade mode OKX documents for the account's mode, looked up once per
+  account: spot orders trade in cash in Spot and Futures mode and in cross in the margin modes, option orders in cash
+  in Spot mode and in cross otherwise, and margin, futures and perpetual swap orders in cross.
++ Futures and swap orders take their position side from the account's position mode, which is looked up once per
+  account and refreshed when GoCryptoTrader changes it. A reduce only order is sent as such. Position mode and account
+  level switches are made one at a time, a switch waiting for another giving up when its context ends, and a switch OKX
+  does not confirm, or confirms with another or an undocumented mode or level, is reported as an error and makes the
+  next order look the account's modes up again.
++ Spreads trade at negative prices and at zero, so a spread limit order may be placed at any price, through the order
+  manager too.
++ `ModifyOrder` amends ordinary, spread and algo orders, a conditional or OCO order's size alone included, and reports
+  only what the amendment sent: the new size and prices and, but for a spread, the instrument. OKX amends no side, type
+  or time in force, so the response states none of them, nor an asset type. An option's price may be amended in USD or
+  as implied volatility over either transport, one way at a time, as OKX requires. A trigger order's amendment needs
+  its order price, which OKX requires beside the new trigger price, and moves its attached take profit or stop loss,
+  either alone; another order's attachment is refused, as OKX amends it by an ID an order modification cannot name. An
+  amendment by client order ID reports the order ID from OKX's reply. A spread amendment's zero price leaves the price
+  unchanged, so a spread is repriced to zero by `AmendSpreadOrder` with a `NewPrice` pointing at zero.
++ OKX states each order's outcome in its own row of the reply, and a row can carry an order ID for an order OKX
+  rejected. A placement, amendment or cancellation is reported only when its row states success and names the order
+  requested, by its order ID, or by the client order ID the row echoes when the request had no order ID; otherwise the
+  row's status, or an invalid response error, is returned.
++ With the authenticated websocket connected, `WebsocketSubmitOrder`, `WebsocketModifyOrder` and
+  `WebsocketCancelOrder` send orders over it: ordinary orders over the private connection and spread orders over the
+  business connection, which is where OKX takes them. Websocket orders need an instrument's ID code, which is cached
+  from the instruments list and kept up to date by the instruments channel; the websocket operations identify an
+  instrument by its code alone, as OKX documents. A websocket connection acts for the account it logged in with, so a
+  request for any other account, by its own credentials or by the exchange's once they change after the login, is
+  refused rather than placed for the wrong account; such a request should go over REST.
++ `WebsocketSubmitOrders` pairs OKX's reply rows with orders by the client order ID each row echoes, as OKX does not
+  promise its rows follow the batch's order, so an order without a client order ID is sent with one of its own, which
+  its response reports. A batch giving two orders one client order ID is refused before it is sent, and an order whose
+  row is missing, repeated or echoes another client order ID gets an error rather than another order's ID, as does an
+  order given an order ID that any successful row gives another client order ID too. A rejected row's order ID claims
+  no order, as OKX can give an order it rejects an ID.
 
-for i := range bot.Exchanges {
-    if bot.Exchanges[i].GetName() == "Okx" {
-        y = bot.Exchanges[i]
-    }
-}
+### Cancellations
 
-// Public calls - wrapper functions
++ `CancelOrder` cancels an ordinary, spread or algo order by its order ID or client order ID. OKX has deprecated the
+  client order ID in its reply to an algo cancellation, so there it is checked only when the reply carries it.
++ `CancelBatchOrders` cancels up to 20 orders, of which up to 10 may be algo orders, with one request for the ordinary
+  orders and one for the algo orders, which is still sent when the first fails, and refuses a longer batch rather than
+  splitting it, as OKX's batch endpoints take no more; spread orders, which OKX cancels one at a time, are refused. An
+  order OKX's reply does not account for, or whose row states no outcome, is reported in the error, and results are
+  keyed by order ID only. OKX has deprecated the client order ID in an algo cancellation's rows, so a row echoing none
+  answers the one order requested by client order ID alone that is left, and where several are left its result is
+  kept by its order ID and a failure naming no order is reported against them all. Rows giving the orders of two client
+  order IDs one order ID are reported rather than recorded: rows echoing both, whatever their outcomes, and rows
+  answering by elimination which cannot each be given a client order ID of their own, as the rows naming one order ID
+  answer one client order ID, once for each of its requests.
++ `CancelAllOrders` cancels the open orders of an asset that match every filter given: pair, side, order type, time in
+  force, margin type, order ID and client order ID. It cancels untriggered algo orders too, icebergs among them, unless
+  a time in force or an ordinary order type is given, and an algo order type cancels algo orders alone. A filter it
+  cannot apply, such as a pair naming one currency, an order type and time in force no pending order reads back as, or
+  a time in force beside an algo order type, is refused rather than dropped. An order a listing returns for another
+  instrument type than it asked for is left alone and reported, and a listing whose pages stop advancing before its
+  last, even with a short page, is reported beside the orders it read, which are still cancelled. A spread's orders
+  are cancelled by OKX's mass cancellation of a spread, which cannot filter by order, side, type, time in force or
+  margin type, so a spread request with any of those is refused; `asset.All` and an unset asset cancel the orders of
+  every other instrument type.
++ OKX cancels no algo order over the websocket, so `WebsocketCancelAllOrders` names the algo orders a cancellation
+  selects in its error, beside the ordinary orders it cancelled.
++ OKX confirms a cancellation when it is accepted, not when the order closes, so cancelled orders are reported as
+  pending cancellation until their final state arrives.
 
-// Fetches current ticker information
-tick, err := ok.UpdateTicker(...)
-if err != nil {
-    // Handle error
-}
+### Order reports
 
-// Fetches current orderbook information
-ob, err := ok.UpdateOrderbook(...)
-if err != nil {
-    // Handle error
-}
++ `GetOrderInfo` finds ordinary and spread orders, and algo orders by the algo ID `SubmitOrder` returns. OKX's spot and
+  margin orders share instrument IDs, so an order is reported under the asset its instrument type names.
++ `GetActiveOrders` and `GetOrderHistory` list algo orders beside ordinary orders, or alone for an algo order type. OKX
+  lists completed algo orders by state, so the history reads each algo order type's listing in each state. A trigger
+  order reads back with the fill or kill or immediate or cancel of the order it places once triggered, so a listing by
+  either time in force includes such trigger orders; other algo orders read back with no time in force. An algo order
+  listing whose pages stop advancing before its last, even with a short page, is reported beside the orders of every
+  listing read.
++ `GetActiveOrders`, `GetOrderHistory` and `GetFuturesPositionOrders` page through OKX's listings, reading the 7 day
+  history and the 3 month archive as the window needs, each order once. Open orders are listed whatever their age, a
+  start or end time bounds their creation to the millisecond, and a time in force narrows a listing of any order type
+  to the orders OKX reads back with it. A type and time in force no pending order reads back as, such as a market order
+  with any time in force, is refused, as `CancelAllOrders` refuses it.
++ An algo order takes effect by placing ordinary orders, which carry its fills, so a triggered algo order is reported
+  closed rather than filled.
++ Fees are reported as costs, positive when charged; a maker's rebate, which OKX reports beside the fee, lowers the fee
+  when both are in the same currency. A cost is in the currency the order traded against, which OKX can state apart
+  from the pair's quote, such as USDC on a BTC-USD book.
++ An order OKX sizes in the quote currency reports its size as `QuoteAmount`: one whose target currency says so, a spot
+  or margin market buy without one, and a spot or margin algo buy without one that places a market buy once triggered,
+  as `SubmitOrder` places them. A conditional order is judged, and reports its prices, by the leg OKX states triggered,
+  and otherwise by its stop loss, which OKX executes alone when both legs are set, or by its take profit when it has
+  none. An order sized in the quote currency has no known amount in the base currency until it fills, so its status
+  alone says whether it is open.
++ A spread order's remaining amount is what OKX states is still to fill, which leaves out any cancelled part.
++ `GetFuturesPositionOrders` reports the orders that executed something, as only they make up positions, reading the 7
+  day history for every window, since it holds every order completed in the last 7 days whenever it was created.
++ Inverse contracts' position orders report amounts in USD, as their contracts are valued. A contract with no known
+  value, such as an expired one OKX no longer lists or one listed with a value that is not finite and above zero, has
+  its position orders refused, as its position summary is.
++ The fills channel pushes every instrument's fills: a fill of an instrument with no enabled asset is reported as an
+  error, and the push's other fills are still relayed.
 
-// Private calls - wrapper functions - make sure your APIKEY, APISECRET, and API_CLIENT_ID are
-// set and AuthenticatedAPISupport is set to true
+### Positions
 
-// Fetches current account information
-accountInfo, err := ok.GetAccountInfo()
-if err != nil {
-    // Handle error
-}
-```
++ `GetFuturesPositionSummary` sizes a position by its contract's value and refuses a contract it cannot value. In
+  long/short position mode an instrument can hold a long and a short position at once: the request's `Direction`
+  selects one, and a request matching both is refused.
++ `ChangePositionMargin` changes the margin of isolated margin, perpetual swap, futures and options positions. An
+  isolated margin position may hold its margin in either currency of its pair, so the change is made in the currency
+  the position reports. OKX also lists the instrument's closed positions, and one holding no size, margin or debt is
+  left out.
++ A spread's positions are its legs', so position summaries and position orders refuse spreads.
++ `GetOpenInterest` reports the instruments its keys name, whether or not their pairs are enabled, reading only the
+  markets they name, or every enabled pair when given no key.
 
-+ If enabled via individually importing package, rudimentary example below:
+### Balances
 
-```go
-// Public calls
+`UpdateAccountBalances` reports each currency's equity, available, frozen and borrowed amounts and replaces the stored
+balances with them, and leaves the stored balances alone when OKX's reply holds no account or a null one. The account
+channel saves the same amounts as the same trading account, under the credentials its connection logged in with,
+whatever the exchange's credentials have become since. Its pushes, a snapshot's pages included, are merged into the
+stored balances, so a currency a snapshot leaves out keeps its balance until `UpdateAccountBalances` replaces them. The
+balance and position channel carries a currency's cash alone, so it leaves the stored balances to the account channel,
+which reports the same changes with every amount, and its pushes are relayed as they arrive.
 
-// Fetches current ticker information
-ticker, err := ok.GetTicker()
-if err != nil {
-    // Handle error
-}
+### Market data
 
-// Fetches current orderbook information
-ob, err := ok.GetOrderBook()
-if err != nil {
-    // Handle error
-}
++ `UpdateTickers` updates every enabled pair of an asset from one request.
++ A ticker generated while its instrument is in OKX's pre-open state may quote its best ask below its best bid, as OKX
+  allows then. The state is judged at the ticker's own time: by the instrument's switch from its call auction or
+  pre-quote to continuous trading when OKX gives the switch time, by the listing time of a spot, margin, perpetual swap
+  or futures instrument without one, as OKX switches those to live then, and otherwise, as for an option, which OKX
+  switches shortly after its listing time, by the state last listed or pushed by the instruments channel. A listing
+  answered after a newer listing of its instrument type is discarded whole, and the pairs and execution limits drawn
+  from it are the newer listing's; a listing answered after a push leaves the pushed instrument codes and states in
+  place.
++ `UpdateOrderbook` fetches 400 levels a side, and a spread's book keeps its zero and negative prices.
++ Candles of six hours and longer use OKX's UTC opening times, and report their volume in the base currency, which for
+  contracts OKX gives beside the number of contracts.
++ `GetRecentTrades` returns the latest 500 trades, OKX's limit; a margin pair's are its spot instrument's.
 
-// Fetches historic trade data within the timeframe provided
-tradeDatas, err := ok.GetHistoricTrades(...)
-if err != nil {
-    // Handle error
-}
+### Deposits and withdrawals
 
+`WithdrawCryptocurrencyFunds` withdraws on-chain, or to another OKX account when the request is an internal transfer. A
+destination tag is sent with its address, and the request's client order ID as the withdrawal's client ID. An on-chain
+withdrawal carries the recipient information of the request's travel rule that OKX takes: the wallet type and the
+recipient's country, state, town and street. A withdrawal to an exchange wallet is refused, as OKX needs its recipient's
+first and last names and the exchange's ID, which the travel rule cannot carry.
 
-// Returns an estimate of fee based on the type of transaction
-fee, err := ok.GetFeeByType(...)
-if err != nil {
-    // Handle error
-}
+### Websocket
 
-// Private calls - make sure your APIKEY and APISECRET are set and
-// AuthenticatedAPISupport is set to true
+OKX serves its channels over public, private and business URLs. GoCryptoTrader opens a connection for each URL that has
+subscriptions, logging in on those whose channels need it, and opens another when a connection reaches OKX's limit of 30
+subscriptions:
 
-// Submits an order to the exchange and returns its tradeID
-orderID, err := ok.SubmitOrder(...)
-if err != nil {
-    // Handle error
-}
++ Public: tickers, trades, order books, option trades, call auctions, instruments, event contract markets, open
+  interest, funding rates, price limits, option summaries, estimated prices, mark prices, index tickers, liquidation
+  orders, ADL warnings and status; with login, the tick-by-tick order books.
++ Private: account, positions, balances and positions, liquidation warnings, account greeks, orders and fills, and the
+  order operations.
++ Business: candles, all trades, mark price and index candles, block trades and tickers, and spread books, trades,
+  tickers and candles; with login, algo, grid, recurring buy and copy trading orders and notifications, RFQs, quotes,
+  block trades, spread orders and trades, the economic calendar, deposits and withdrawals, and the spread order
+  operations.
 
-// ModifyOrder modifies an existing order
-updatedOrder, err := ok.ModifyOrder(...)
-if err != nil {
-    // Handle error
-}
+The default subscriptions are trades, order books and tickers for every enabled asset, and, when authenticated, orders
+and the account.
 
-```
+A subscription is tracked only once OKX acknowledges it. A request's replies are awaited for the connection's response
+limit; the subscriptions OKX acknowledged by then are tracked, and those it rejected or did not answer are left
+untracked and reported in the error subscribing returns. An unsubscription OKX does not acknowledge stays tracked and is
+reported likewise. Arguments OKX may acknowledge alike, such as an account channel with and without `extraParams`, are
+sent in separate requests, so each reply names its argument, and the subscriptions are told apart by their arguments,
+so one OKX rejected is subscribed when its configuration next applies while the other stays tracked. Subscriptions with
+one argument on a connection, such as a pair's spot and margin tickers, share one subscription at OKX, which is
+unsubscribed once the last of them is removed, by the subscription itself or by one generated alike. A subscription OKX
+ends after acknowledging it, as it does on a connection beyond its limit of connections to an account channel, stops
+being tracked and is reported. The grid positions and sub orders channels need an `algoId` parameter and the option
+summary channel an `instFamily`, while event contract markets are subscribed with the `EVENTS` instrument type, the
+only one OKX takes; a subscription configured already expanded to its argument is held to the same rules, and one
+breaking them is refused before anything is sent. A request stays within OKX's 64 KiB limit as the connection sends it,
+and an argument too long for a request of its own is refused. Empty grid pushes, which OKX says to ignore, are not
+relayed.
 
-### How to do Websocket public/private calls
+Notices OKX sends on a connection are relayed as `WebsocketNotice`. On the notice that a connection will soon close for
+a service upgrade, GoCryptoTrader reconnects its websocket at once rather than waiting for OKX to close it. Connections
+are dialled at most three every 1.2 seconds, within OKX's limit of three a second for each IP. A connection's login,
+subscribe and unsubscribe requests stay within OKX's limit of 480 an hour per connection: up to 20 go at once, so a
+connection logs in and subscribes without waiting, and the rest are spread over the hour.
 
-```go
-    // Exchanges will be abstracted out in further updates and examples will be
-    // supplied then
-```
+An instrument subscribed, or being subscribed, to several order book channels keeps the book of the deepest:
+`books-l2-tbt`, then `books`, `books-rpi`, `books50-l2-tbt`, `books5` and `bbo-tbt`, and for a spread
+`sprd-books-l2-tbt`, then `sprd-books5` and `sprd-bbo-tbt`. The other channels' pushes are relayed as they arrive. When
+another channel takes over a book, its updates are not applied to the previous channel's snapshot: the book waits for
+the new channel's own snapshot, which resubscribing the channel brings. A snapshot from the new channel which does not
+load is reported, and ends the previous channel's book at once. A channel whose snapshot was relayed while a deeper
+channel was being subscribed, which OKX then rejected, is resubscribed for a snapshot on its first update. The
+connections pushing an instrument's books apply their pushes in turn, so a book and the channel it was loaded from
+change together. With order book verification on, a spread book is checked against the checksum OKX sends with it,
+using each level's price and size as OKX last sent them, and resubscribed when it does not match; a zero checksum,
+which OKX sends in place of one, is not checked. A book which needs resubscribing before its subscription is tracked is
+resubscribed on its channel's next push once it is.
+
+### Testing
+
+The tests run against recorded responses by default, without network access. Public responses are recordings of OKX's
+replies; private responses are built from OKX's documented examples, as the tests have no credentials. Build with
+`-tags mock_test_off` to run the tests against OKX itself, setting the credentials in `rest_test.go` to test private
+endpoints, and `canManipulateRealOrders` to place and cancel real orders.
 
 {{template "donations" .}}
 {{end}}

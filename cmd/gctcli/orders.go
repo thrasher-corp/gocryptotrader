@@ -13,7 +13,8 @@ import (
 var (
 	errSubmitOrderSideRequired   = errors.New("order side must be set")
 	errSubmitOrderTypeRequired   = errors.New("order type must be set")
-	errSubmitOrderAmountRequired = errors.New("amount must be set")
+	errSubmitOrderAmountRequired = errors.New("amount or quote amount must be set")
+	errSubmitOrderAmountConflict = errors.New("amount and quote amount must not both be set")
 )
 
 // submitOrderRequest validates command flags and keeps account and client order identifiers distinct.
@@ -33,9 +34,13 @@ func submitOrderRequest(c *cli.Context) (*gctrpc.SubmitOrderRequest, error) {
 		return nil, errSubmitOrderTypeRequired
 	}
 
-	amount := c.Float64(amountFlagName)
-	if amount == 0 {
+	amount, quoteAmount := c.Float64(amountFlagName), c.Float64(quoteAmountFlagName)
+	if amount == 0 && quoteAmount == 0 {
 		return nil, errSubmitOrderAmountRequired
+	}
+	// A server that predates quote amounts would ignore this one and submit the amount alone, a different quantity
+	if amount != 0 && quoteAmount != 0 {
+		return nil, errSubmitOrderAmountConflict
 	}
 
 	assetType := strings.ToLower(c.String(assetFlagName))
@@ -63,6 +68,7 @@ func submitOrderRequest(c *cli.Context) (*gctrpc.SubmitOrderRequest, error) {
 		Side:          orderSide,
 		OrderType:     orderType,
 		Amount:        amount,
+		QuoteAmount:   quoteAmount,
 		Price:         c.Float64(priceFlagName),
 		ClientId:      c.String("client_id"),
 		ClientOrderId: c.String("client_order_id"),
