@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -295,13 +296,13 @@ func TestWebsocketProcessPerpetualOrderUpdate(t *testing.T) {
 		OrderID:              "1976541385109553200",
 		Type:                 order.Market,
 		Side:                 order.Sell,
-		Status:               order.UnknownStatus,
+		Status:               order.Filled,
 		AssetType:            asset.CoinMarginedFutures,
 		Date:                 time.UnixMilli(1760079163296),
 		LastUpdated:          time.UnixMilli(1760079163296),
 		Pair:                 currency.NewPairWithDelimiter("SUI", "USD", currency.DashDelimiter),
 	}
-	assert.Equal(t, exp, waitForWebsocketPayload[*order.Detail](t, ex, nil), "the coin-M order event should be relayed without a cost, dated by its event without a trade time")
+	assert.Equal(t, exp, waitForWebsocketPayload[*order.Detail](t, ex, nil), "the coin-M order event should be relayed filled, as its executed quantity is its whole quantity, without a cost, dated by its event without a trade time")
 
 	reduceOnly := []byte(`{"e":"ORDER_TRADE_UPDATE","E":1758608899350,"o":{"s":"BTC-USDT","i":3,"S":"BUY","o":"STOP","q":"2","p":"10","sp":"9","x":"NEW","X":"NEW","ro":"true","n":"-1"}}`)
 	require.NoError(t, ex.wsProcessPerpetualOrderUpdate(t.Context(), state, asset.USDTMarginedFutures, reduceOnly), "wsProcessPerpetualOrderUpdate must not error")
@@ -333,6 +334,36 @@ func TestWebsocketProcessPerpetualOrderUpdate(t *testing.T) {
 			assert.Equal(t, "1", classification.OrderID, "the classification error should name the order")
 		})
 	}
+
+	t.Run("coin-M statuses in the order store", func(t *testing.T) {
+		t.Parallel()
+		event := func(execution, status, quantity, executed string) []byte {
+			return []byte(`{"e":"ORDER_TRADE_UPDATE","E":1760079163296,"o":{"s":"SUI-USD","i":43,"S":"SELL","o":"LIMIT","q":"` + quantity + `","p":"3.4","ap":"3.4","x":"` + execution + `","X":"` + status + `","N":"SUI","n":"-0.001","z":"` + executed + `"}}`)
+		}
+		for _, tc := range []struct {
+			name, orderID string
+			events        [][]byte
+			exp           order.Status
+		}{
+			{name: "the documented fill of a stored new order", orderID: "1976541385109553200", events: [][]byte{fixtureLine(t, "testdata/wsCoinMarginedAccount.jsonl", "ORDER_TRADE_UPDATE")}, exp: order.Filled},
+			{name: "a part fill reporting Unknown after the order's cancellation", orderID: "43", events: [][]byte{event("CANCELED", "CANCELLED", "10", "3"), event("TRADE", "Unknown", "10", "3")}, exp: order.Cancelled},
+			{name: "a part fill reporting Unknown", orderID: "43", events: [][]byte{event("TRADE", "Unknown", "10", "3")}, exp: order.New},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newWebsocketTestExchange(t)
+				state, _ := trackTestConnection(t, ex, &testWebsocketConnection{}, false)
+				stored := &order.Detail{Exchange: ex.Name, OrderID: tc.orderID, AssetType: asset.CoinMarginedFutures, Amount: 10, Status: order.New}
+				for _, data := range tc.events {
+					require.NoError(t, ex.wsProcessPerpetualOrderUpdate(t.Context(), state, asset.CoinMarginedFutures, data), "wsProcessPerpetualOrderUpdate must not error")
+					relayed := waitForWebsocketPayload[*order.Detail](t, ex, nil)
+					require.Equal(t, tc.orderID, relayed.OrderID, "the event's order must be relayed")
+					require.NoError(t, stored.UpdateOrderFromDetail(relayed), "the order store must take the relayed order")
+				}
+				assert.Equal(t, tc.exp, stored.Status, "the order store should hold the status the coin-M events show")
+			})
+		}
+	})
 
 	t.Run("connection not tracked", func(t *testing.T) {
 		t.Parallel()
@@ -698,6 +729,46 @@ func TestWebsocketProcessPerpetualOrderUpdate(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestWebsocketPerpetualOrderStatus(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name               string
+		a                  asset.Item
+		execution          ExecutionType
+		status             string
+		quantity, executed types.Number
+		exp                order.Status
+		err                error
+	}{
+		{name: "coin-M Pending", a: asset.CoinMarginedFutures, execution: ExecutionTypeNew, status: "Pending", quantity: 10, executed: 0, exp: order.Pending},
+		{name: "coin-M filled", a: asset.CoinMarginedFutures, execution: ExecutionTypeTrade, status: "filled", quantity: 10, executed: 10, exp: order.Filled},
+		{name: "coin-M Cancelled", a: asset.CoinMarginedFutures, execution: ExecutionTypeCancelled, status: "Cancelled", quantity: 10, executed: 3, exp: order.Cancelled},
+		{name: "coin-M PARTIALLY_FILLED", a: asset.CoinMarginedFutures, execution: ExecutionTypeTrade, status: "PARTIALLY_FILLED", quantity: 10, executed: 3, exp: order.PartiallyFilled},
+		{name: "coin-M Pending with no quantity", a: asset.CoinMarginedFutures, execution: ExecutionTypeTrade, status: "Pending", quantity: 0, executed: 0, exp: order.Pending},
+		{name: "coin-M Unknown fill of the whole quantity", a: asset.CoinMarginedFutures, execution: ExecutionTypeTrade, status: "Unknown", quantity: 10, executed: 10, exp: order.Filled},
+		{name: "coin-M UNKNOWN fill of the whole quantity", a: asset.CoinMarginedFutures, execution: ExecutionTypeTrade, status: "UNKNOWN", quantity: 10, executed: 10, exp: order.Filled},
+		{name: "coin-M Unknown calculated fill of the whole quantity", a: asset.CoinMarginedFutures, execution: ExecutionTypeCalculated, status: "Unknown", quantity: 10, executed: 10, exp: order.Filled},
+		{name: "coin-M Unknown part fill", a: asset.CoinMarginedFutures, execution: ExecutionTypeTrade, status: "Unknown", quantity: 10, executed: 3, exp: order.UnknownStatus},
+		{name: "coin-M Unknown fill beyond the quantity", a: asset.CoinMarginedFutures, execution: ExecutionTypeTrade, status: "Unknown", quantity: 1, executed: 2, exp: order.UnknownStatus},
+		{name: "coin-M Unknown fill without a quantity", a: asset.CoinMarginedFutures, execution: ExecutionTypeTrade, status: "Unknown", quantity: 0, executed: 0, exp: order.UnknownStatus},
+		{name: "coin-M Unknown fill of a quantity that is not a number", a: asset.CoinMarginedFutures, execution: ExecutionTypeTrade, status: "Unknown", quantity: types.Number(math.NaN()), executed: types.Number(math.NaN()), exp: order.UnknownStatus},
+		{name: "coin-M Unknown fill of an executed quantity that is not a number", a: asset.CoinMarginedFutures, execution: ExecutionTypeTrade, status: "Unknown", quantity: 10, executed: types.Number(math.NaN()), exp: order.UnknownStatus},
+		{name: "coin-M Unknown new event at the whole quantity", a: asset.CoinMarginedFutures, execution: ExecutionTypeNew, status: "Unknown", quantity: 10, executed: 10, exp: order.UnknownStatus},
+		{name: "coin-M Unknown cancellation at the whole quantity", a: asset.CoinMarginedFutures, execution: ExecutionTypeCancelled, status: "Unknown", quantity: 10, executed: 10, exp: order.UnknownStatus},
+		{name: "coin-M status that cannot be converted", a: asset.CoinMarginedFutures, execution: ExecutionTypeTrade, status: "Waiting", quantity: 10, executed: 10, exp: order.UnknownStatus, err: order.ErrUnsupportedStatusType},
+		{name: "USDT-M Unknown fill of the whole quantity", a: asset.USDTMarginedFutures, execution: ExecutionTypeTrade, status: "Unknown", quantity: 10, executed: 10, exp: order.UnknownStatus},
+		{name: "USDT-M FILLED", a: asset.USDTMarginedFutures, execution: ExecutionTypeTrade, status: "FILLED", quantity: 10, executed: 10, exp: order.Filled},
+		{name: "USDT-M Pending", a: asset.USDTMarginedFutures, execution: ExecutionTypeNew, status: "Pending", quantity: 10, executed: 0, exp: order.UnknownStatus, err: order.ErrUnsupportedStatusType},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			status, err := wsPerpetualOrderStatus(tc.a, &WebsocketPerpetualOrder{ExecutionType: tc.execution, OrderStatus: tc.status, Quantity: tc.quantity, CumulativeFilledQuantity: tc.executed})
+			require.ErrorIs(t, err, tc.err, "wsPerpetualOrderStatus must return the expected error")
+			assert.Equal(t, tc.exp, status, "wsPerpetualOrderStatus should convert the event's status")
+		})
+	}
 }
 
 // perpetualFeeStep is a REST read of a perpetual order or an order event in a fee total test

@@ -239,7 +239,7 @@ func (e *Exchange) wsProcessPerpetualOrderUpdate(ctx context.Context, state *web
 	if err != nil {
 		return e.Websocket.DataHandler.Send(ctx, order.ClassificationError{Exchange: e.Name, OrderID: orderID, Err: err})
 	}
-	status, err := convertOrderStatus(o.OrderStatus)
+	status, err := wsPerpetualOrderStatus(a, o)
 	if err != nil {
 		return e.Websocket.DataHandler.Send(ctx, order.ClassificationError{Exchange: e.Name, OrderID: orderID, Err: err})
 	}
@@ -294,6 +294,25 @@ func (e *Exchange) wsProcessPerpetualOrderUpdate(ctx context.Context, state *web
 		}
 	}
 	return e.wsState.orderRelay.relay(d, executed, func() error { return e.Websocket.DataHandler.Send(ctx, d) })
+}
+
+// wsPerpetualOrderStatus converts a perpetual order event's status. Coin-M events are converted as coin-M replies are,
+// in either case, and BingX's coin-M example reports Unknown for a fill, so a TRADE or CALCULATED event reporting
+// Unknown whose executed quantity equals its positive quantity has filled the order. Any other Unknown stays unknown,
+// which the order store keeps the status it holds for, as a part fill taken as partly filled would reopen an order the
+// store holds as cancelled when the fill's event follows the cancellation's
+func wsPerpetualOrderStatus(a asset.Item, o *WebsocketPerpetualOrder) (order.Status, error) {
+	if a != asset.CoinMarginedFutures {
+		return convertOrderStatus(o.OrderStatus)
+	}
+	status, err := convertCoinMarginedOrderStatus(o.OrderStatus)
+	if err != nil || status != order.UnknownStatus {
+		return status, err
+	}
+	if (o.ExecutionType == ExecutionTypeTrade || o.ExecutionType == ExecutionTypeCalculated) && o.Quantity > 0 && o.CumulativeFilledQuantity == o.Quantity {
+		return order.Filled, nil
+	}
+	return order.UnknownStatus, nil
 }
 
 // wsHoldOrderEvent holds an order event that arrives while its account connection reads its open orders, reporting

@@ -609,6 +609,64 @@ func TestSubmitOrder(t *testing.T) {
 		}
 	})
 
+	t.Run("risk management modes and trigger price types", func(t *testing.T) {
+		t.Parallel()
+		replies := map[asset.Item]map[string][]string{
+			asset.Spot: {"POST /openApi/spot/v1/trade/order": {`{"code":0,"data":{"symbol":"BTC-USDT","orderId":1,"transactTime":1700000000000,"origQty":"1","executedQty":"0","status":"NEW","type":"LIMIT","side":"BUY"}}`}},
+			asset.USDTMarginedFutures: {
+				"GET /openApi/swap/v1/positionSide/dual": {wrapperHedgeModeReply},
+				"POST /openApi/swap/v2/trade/order":      {`{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":2,"side":"BUY","positionSide":"LONG","type":"LIMIT","status":"NEW"}}}`},
+			},
+			asset.CoinMarginedFutures: {"POST /openApi/cswap/v2/trade/order": {`{"code":0,"data":{"order":{"orderId":"3","symbol":"BTC-USD","side":"BUY","type":"LIMIT","quantity":1}}}`}},
+		}
+		pairs := map[asset.Item]currency.Pair{asset.Spot: currency.NewBTCUSDT(), asset.USDTMarginedFutures: currency.NewBTCUSDT(), asset.CoinMarginedFutures: currency.NewBTCUSD()}
+		modes := map[string]order.RiskManagementModes{
+			"none":                      {},
+			"take profit":               {TakeProfit: order.RiskManagement{Enabled: true, TriggerPriceType: order.MarkPrice, Price: 120}},
+			"stop loss price":           {StopLoss: order.RiskManagement{Price: 90}},
+			"stop entry limit price":    {StopEntry: order.RiskManagement{LimitPrice: 91}},
+			"stop loss order type":      {StopLoss: order.RiskManagement{OrderType: order.Limit}},
+			"take profit price type":    {TakeProfit: order.RiskManagement{TriggerPriceType: order.IndexPrice}},
+			"take profit and stop loss": {Mode: "full", TakeProfit: order.RiskManagement{Enabled: true, Price: 120}, StopLoss: order.RiskManagement{Enabled: true, Price: 90}},
+			"mode alone":                {Mode: "partial"},
+		}
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+			for name, modes := range modes {
+				for _, priceType := range []order.PriceType{order.LastPrice, order.MarkPrice, order.IndexPrice, order.UnknownPriceType} {
+					for _, orderType := range []order.Type{order.Limit, order.StopLimit} {
+						t.Run(fmt.Sprintf("%s %s %s %s", a, orderType, name, priceType), func(t *testing.T) {
+							t.Parallel()
+							var exp error
+							switch {
+							case name != "none":
+								exp = errRiskManagementUnsupported
+							case a == asset.Spot && priceType != order.LastPrice:
+								exp = errSpotTriggerPriceType
+							case orderType == order.StopLimit && priceType == order.UnknownPriceType:
+								exp = order.ErrUnknownPriceType
+							}
+							routes := make(map[string][]string)
+							if exp == nil {
+								maps.Copy(routes, replies[a])
+							}
+							ex, requests := wrapperTestServer(t, routes)
+							_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: pairs[a], AssetType: a, Side: order.Buy, Type: orderType, Price: 10, TriggerPrice: 9, Amount: 1, TriggerPriceType: priceType, RiskManagementModes: modes})
+							if exp != nil {
+								assert.ErrorIs(t, err, exp, "SubmitOrder should refuse what the order cannot carry")
+								if exp != order.ErrUnknownPriceType {
+									assert.Empty(t, requests(), "SubmitOrder should send nothing for an order it refuses")
+								}
+								return
+							}
+							require.NoError(t, err, "SubmitOrder must place the order")
+							assert.NotEmpty(t, requests(), "SubmitOrder should place the order")
+						})
+					}
+				}
+			}
+		}
+	})
+
 	t.Run("perpetual order without credentials", func(t *testing.T) {
 		t.Parallel()
 		ex, requests := wrapperTestServer(t, map[string][]string{})
@@ -965,6 +1023,17 @@ func TestSubmitSwapOrder(t *testing.T) {
 		}
 	})
 
+	t.Run("unfilled amount in decimal arithmetic", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := wrapperTestServer(t, map[string][]string{
+			"GET /openApi/swap/v1/positionSide/dual": {wrapperHedgeModeReply},
+			"POST /openApi/swap/v2/trade/order":      {`{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":9,"side":"BUY","positionSide":"LONG","type":"LIMIT","status":"PARTIALLY_FILLED","avgPrice":"10","executedQty":"0.1"}}}`},
+		})
+		resp, err := ex.submitSwapOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 10, Amount: 0.3})
+		require.NoError(t, err, "submitSwapOrder must not error")
+		assert.Equal(t, 0.2, resp.RemainingAmount, "submitSwapOrder should subtract the executed quantity in decimal arithmetic")
+	})
+
 	t.Run("errors", func(t *testing.T) {
 		t.Parallel()
 		ex, requests := wrapperTestServer(t, map[string][]string{
@@ -1182,6 +1251,72 @@ func TestModifyOrder(t *testing.T) {
 					_, err := ex.ModifyOrder(t.Context(), &order.Modify{Pair: currency.NewBTCUSDT(), AssetType: a, OrderID: "11", Amount: 2, Price: tc.price, TriggerPrice: tc.triggerPrice})
 					assert.ErrorIs(t, err, errInvalidPrice, "ModifyOrder should refuse an invalid price")
 					assert.Empty(t, requests(), "ModifyOrder should send nothing for a price it refuses")
+				})
+			}
+		}
+	})
+
+	t.Run("what an order cannot carry", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name   string
+			a      asset.Item
+			modify order.Modify
+			err    error
+		}{
+			{"spot take profit", asset.Spot, order.Modify{Price: 11, RiskManagementModes: order.RiskManagementModes{TakeProfit: order.RiskManagement{Enabled: true, Price: 12}}}, errRiskManagementUnsupported},
+			{"spot mark price trigger of an order named by its client order ID", asset.Spot, order.Modify{ClientOrderID: "c11", TriggerPrice: 8, TriggerPriceType: order.MarkPrice}, errSpotTriggerPriceType},
+			{"spot mark price trigger of an order named by both its IDs", asset.Spot, order.Modify{OrderID: "11", ClientOrderID: "c11", TriggerPrice: 8, TriggerPriceType: order.MarkPrice}, errSpotTriggerPriceType},
+			{"USDT-M stop loss", asset.USDTMarginedFutures, order.Modify{Price: 11, RiskManagementModes: order.RiskManagementModes{StopLoss: order.RiskManagement{Price: 9}}}, errRiskManagementUnsupported},
+			{"USDT-M stop entry", asset.USDTMarginedFutures, order.Modify{Price: 11, RiskManagementModes: order.RiskManagementModes{StopEntry: order.RiskManagement{Enabled: true}}}, errRiskManagementUnsupported},
+			{"coin-M risk management mode", asset.CoinMarginedFutures, order.Modify{Price: 11, RiskManagementModes: order.RiskManagementModes{Mode: "full"}}, errRiskManagementUnsupported},
+			{"spot stop entry limit price", asset.Spot, order.Modify{Price: 11, RiskManagementModes: order.RiskManagementModes{StopEntry: order.RiskManagement{LimitPrice: 10}}}, errRiskManagementUnsupported},
+			{"USDT-M take profit order type", asset.USDTMarginedFutures, order.Modify{Price: 11, RiskManagementModes: order.RiskManagementModes{TakeProfit: order.RiskManagement{OrderType: order.Limit}}}, errRiskManagementUnsupported},
+			{"spot mark price trigger", asset.Spot, order.Modify{TriggerPrice: 8, TriggerPriceType: order.MarkPrice}, errSpotTriggerPriceType},
+			{"spot index price trigger", asset.Spot, order.Modify{Price: 11, TriggerPriceType: order.IndexPrice}, errSpotTriggerPriceType},
+			{"spot unknown price type", asset.Spot, order.Modify{Price: 11, TriggerPriceType: order.UnknownPriceType}, errSpotTriggerPriceType},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, requests := wrapperTestServer(t, map[string][]string{})
+				modify := tc.modify
+				modify.Exchange, modify.Pair, modify.AssetType = ex.Name, currency.NewBTCUSDT(), tc.a
+				if modify.ClientOrderID == "" && modify.OrderID == "" {
+					modify.OrderID = "11"
+				}
+				if tc.a == asset.CoinMarginedFutures {
+					modify.Pair = currency.NewBTCUSD()
+				}
+				_, err := ex.ModifyOrder(t.Context(), &modify)
+				assert.ErrorIs(t, err, tc.err, "ModifyOrder should refuse what the order cannot carry")
+				assert.Empty(t, requests(), "ModifyOrder should send nothing for a modification it refuses")
+			})
+		}
+	})
+
+	t.Run("every risk management value", func(t *testing.T) {
+		t.Parallel()
+		values := map[string]order.RiskManagement{
+			"enabled":            {Enabled: true},
+			"trigger price type": {TriggerPriceType: order.MarkPrice},
+			"price":              {Price: 12},
+			"limit price":        {LimitPrice: 11},
+			"order type":         {OrderType: order.Limit},
+		}
+		modes := map[string]order.RiskManagementModes{"mode": {Mode: "full"}}
+		for name, v := range values {
+			modes["take profit "+name] = order.RiskManagementModes{TakeProfit: v}
+			modes["stop loss "+name] = order.RiskManagementModes{StopLoss: v}
+			modes["stop entry "+name] = order.RiskManagementModes{StopEntry: v}
+		}
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
+			for name, rm := range modes {
+				t.Run(a.String()+" "+name, func(t *testing.T) {
+					t.Parallel()
+					ex, requests := wrapperTestServer(t, map[string][]string{})
+					_, err := ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: currency.NewBTCUSDT(), AssetType: a, OrderID: "11", Price: 11, RiskManagementModes: rm})
+					assert.ErrorIs(t, err, errRiskManagementUnsupported, "ModifyOrder should refuse any risk management value")
+					assert.Empty(t, requests(), "ModifyOrder should send nothing for a modification it refuses")
 				})
 			}
 		}
@@ -2151,6 +2286,7 @@ func TestReplaceSpotOrder(t *testing.T) {
 		require.Len(t, got, 3, "replaceSpotOrder must fetch the order, cancel it and then place its replacement")
 		assert.Equal(t, "12", got[2].params.Get("quantity"), "replaceSpotOrder should place the desired total")
 		assert.Equal(t, 12.0, resp.Amount, "replaceSpotOrder should return the replacement's amount")
+		assert.Equal(t, 12.0, resp.RemainingAmount, "replaceSpotOrder should return the replacement's unfilled amount")
 
 		modify.Amount = 0
 		resp, err = ex.replaceSpotOrder(t.Context(), &modify, 16)
@@ -2159,6 +2295,7 @@ func TestReplaceSpotOrder(t *testing.T) {
 		require.Len(t, got, 6, "replaceSpotOrder must fetch the order, cancel it and then place its replacement")
 		assert.Equal(t, "10", got[5].params.Get("quantity"), "replaceSpotOrder should place the existing order's total without a desired total")
 		assert.Equal(t, 10.0, resp.Amount, "replaceSpotOrder should return the replacement's amount")
+		assert.Equal(t, 10.0, resp.RemainingAmount, "replaceSpotOrder should return the replacement's unfilled amount")
 	})
 
 	t.Run("partly executed order", func(t *testing.T) {
@@ -2190,6 +2327,58 @@ func TestReplaceSpotOrder(t *testing.T) {
 				require.ErrorIs(t, err, tc.err, "replaceSpotOrder must refuse to replace an order that executed any of its quantity")
 				assert.ErrorContains(t, err, tc.message, "replaceSpotOrder should name the order and the quantity it executed")
 				assert.Len(t, requests(), sent, "replaceSpotOrder should place nothing, cancelling an order only when its lookup shows nothing executed")
+			})
+		}
+	})
+
+	t.Run("changes the order's type cannot take", func(t *testing.T) {
+		t.Parallel()
+		stopMarket := `{"code":0,"data":{"symbol":"BTC-USDT","orderId":7,"price":"0","stopPrice":"90","origQty":"2","executedQty":"0","status":"NEW","type":"TAKE_STOP_MARKET","side":"SELL","clientOrderID":"c7"}}`
+		limit := `{"code":0,"data":{"symbol":"BTC-USDT","orderId":7,"price":"100","stopPrice":"0","origQty":"2","executedQty":"0","status":"NEW","type":"LIMIT","side":"SELL","clientOrderID":"c7"}}`
+		for _, tc := range []struct {
+			name, existing string
+			action         order.Modify
+			exp            url.Values
+		}{
+			{name: "price of a stop market order", existing: stopMarket, action: order.Modify{Price: 95}},
+			{name: "trigger price of a limit order", existing: limit, action: order.Modify{TriggerPrice: 105}},
+			{name: "price of a FOK stop market order as the order manager hands it", existing: stopMarket, action: order.Modify{Price: 80, Amount: 2, TimeInForce: order.FillOrKill}},
+			{name: "time in force alone of a limit order", existing: limit, action: order.Modify{TimeInForce: order.ImmediateOrCancel}},
+			{name: "client order ID a limit order already has", existing: limit, action: order.Modify{NewClientOrderID: "c7"}},
+			{
+				name: "amount of a stop market order with a price it does not take", existing: stopMarket, action: order.Modify{Price: 80, Amount: 3},
+				exp: url.Values{"symbol": {"BTC-USDT"}, "side": {"SELL"}, "type": {"TAKE_STOP_MARKET"}, "stopPrice": {"90"}, "quantity": {"3"}},
+			},
+			{
+				name: "client order ID alone of a limit order", existing: limit, action: order.Modify{NewClientOrderID: "n7"},
+				exp: url.Values{"symbol": {"BTC-USDT"}, "side": {"SELL"}, "type": {"LIMIT"}, "price": {"100"}, "quantity": {"2"}, "newClientOrderId": {"n7"}},
+			},
+			{
+				name: "time in force alongside a limit order's price", existing: limit, action: order.Modify{Price: 101, TimeInForce: order.ImmediateOrCancel},
+				exp: url.Values{"symbol": {"BTC-USDT"}, "side": {"SELL"}, "type": {"LIMIT"}, "price": {"101"}, "quantity": {"2"}, "timeInForce": {"IOC"}},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				routes := map[string][]string{"GET /openApi/spot/v1/trade/query": {tc.existing}}
+				if tc.exp != nil {
+					routes["POST /openApi/spot/v1/trade/cancel"] = []string{wrapperSpotCancelledReply(7, "0")}
+					routes["POST /openApi/spot/v1/trade/order"] = []string{wrapperSpotPlacedReply}
+				}
+				ex, requests := wrapperTestServer(t, routes)
+				action := tc.action
+				action.Exchange, action.Pair, action.AssetType, action.OrderID = ex.Name, pair, asset.Spot, "7"
+				_, err := ex.replaceSpotOrder(t.Context(), &action, 7)
+				got := requests()
+				if tc.exp == nil {
+					require.ErrorIs(t, err, errModifyNoChange, "replaceSpotOrder must refuse a modification changing nothing the order's type takes")
+					assert.ErrorContains(t, err, "order 7", "replaceSpotOrder should name the order")
+					assert.Len(t, got, 1, "replaceSpotOrder should only look the order up")
+					return
+				}
+				require.NoError(t, err, "replaceSpotOrder must not error")
+				require.Len(t, got, 3, "replaceSpotOrder must fetch the order, cancel it and then place its replacement")
+				assert.Equal(t, tc.exp, got[2].params, "replaceSpotOrder should place what the order's type takes")
 			})
 		}
 	})
@@ -2354,33 +2543,162 @@ func TestReplaceSpotOrder(t *testing.T) {
 	})
 }
 
-func TestSwapAmountOnlyChange(t *testing.T) { //nolint:tparallel // the cases share one existing order
+func TestSwapModificationChanges(t *testing.T) {
 	t.Parallel()
-	existing := &SwapOrderResponse{OriginalQuantity: 2, Price: 10}
+	limit := SwapOrderResponse{Type: OrderTypeLimit, Status: "NEW", OriginalQuantity: 2, Price: 10, ClientOrderID: "c21", WorkingType: WorkingTypeMarkPrice}
+	postOnly := limit
+	postOnly.PostOnly = true
+	stopMarket := SwapOrderResponse{Type: OrderTypeStopMarket, Status: "NEW", OriginalQuantity: 2, StopPrice: 90, WorkingType: WorkingTypeContractPrice}
+	guaranteed := stopMarket
+	guaranteed.StopGuaranteed = StopGuaranteedTrue
+	cutFee := stopMarket
+	cutFee.StopGuaranteed = StopGuaranteedCutFee
+	notGuaranteed := stopMarket
+	notGuaranteed.StopGuaranteed = StopGuaranteedFalse
+	limitGuaranteed := limit
+	limitGuaranteed.StopGuaranteed = StopGuaranteedTrue
+	stopLimit := SwapOrderResponse{Type: OrderTypeStop, Status: "NEW", OriginalQuantity: 2, Price: 9, StopPrice: 9.5, WorkingType: WorkingTypeMarkPrice}
+	trailing := SwapOrderResponse{Type: OrderTypeTrailingStopMarket, Status: "NEW", OriginalQuantity: 2, Price: 5, ActivationPrice: 100, WorkingType: WorkingTypeMarkPrice}
 	for _, tc := range []struct {
-		name   string
-		action *order.Modify
-		exp    bool
+		name         string
+		existing     SwapOrderResponse
+		action       order.Modify
+		timeInForce  TimeInForce
+		workingType  WorkingType
+		amount, more bool
 	}{
-		{"new amount", &order.Modify{Amount: 3}, true},
-		{"new amount at the same price and time in force", &order.Modify{Amount: 3, Price: 10, TimeInForce: order.GoodTillCancel}, true},
-		{"same amount", &order.Modify{Amount: 2}, false},
-		{"new price alone", &order.Modify{Price: 11}, false},
-		{"new amount and price", &order.Modify{Amount: 3, Price: 11}, false},
-		{"new amount and trigger price", &order.Modify{Amount: 3, TriggerPrice: 9}, false},
-		{"new amount and time in force", &order.Modify{Amount: 3, TimeInForce: order.PostOnly}, false},
-		{"new amount and client order ID", &order.Modify{Amount: 3, NewClientOrderID: "n"}, false},
+		{name: "limit order's amount", existing: limit, action: order.Modify{Amount: 3}, timeInForce: TimeInForceGoodTillCancel, amount: true},
+		{name: "limit order's own amount", existing: limit, action: order.Modify{Amount: 2}, timeInForce: TimeInForceGoodTillCancel},
+		{name: "limit order's price", existing: limit, action: order.Modify{Price: 11}, timeInForce: TimeInForceGoodTillCancel, more: true},
+		{name: "limit order's own price", existing: limit, action: order.Modify{Price: 10}, timeInForce: TimeInForceGoodTillCancel},
+		{name: "limit order's amount and a trigger price it does not take", existing: limit, action: order.Modify{Amount: 3, TriggerPrice: 9}, timeInForce: TimeInForceGoodTillCancel, amount: true},
+		{name: "limit order given a trigger price alone", existing: limit, action: order.Modify{TriggerPrice: 9}, timeInForce: TimeInForceGoodTillCancel},
+		{name: "limit order given a price type alone", existing: limit, timeInForce: TimeInForceGoodTillCancel, workingType: WorkingTypeIndexPrice},
+		{name: "limit order's time in force", existing: limit, timeInForce: TimeInForceImmediateOrCancel, more: true},
+		{name: "limit order made post-only", existing: limit, timeInForce: TimeInForcePostOnly, more: true},
+		{name: "limit order's own time in force", existing: limit, action: order.Modify{TimeInForce: order.GoodTillCancel}, timeInForce: TimeInForceGoodTillCancel},
+		{name: "limit order's client order ID", existing: limit, action: order.Modify{NewClientOrderID: "n22"}, timeInForce: TimeInForceGoodTillCancel, more: true},
+		{name: "limit order's own client order ID", existing: limit, action: order.Modify{NewClientOrderID: "c21"}, timeInForce: TimeInForceGoodTillCancel},
+		{name: "limit order reporting a guaranteed stop", existing: limitGuaranteed, action: order.Modify{Amount: 3}, timeInForce: TimeInForceGoodTillCancel, amount: true},
+		{name: "post-only order kept post-only", existing: postOnly, timeInForce: TimeInForcePostOnly},
+		{name: "post-only order made GTC", existing: postOnly, timeInForce: TimeInForceGoodTillCancel, more: true},
+		{name: "stop market order given a price", existing: stopMarket, action: order.Modify{Price: 95}},
+		{name: "stop market order's trigger price", existing: stopMarket, action: order.Modify{TriggerPrice: 91}, more: true},
+		{name: "stop market order's own trigger price", existing: stopMarket, action: order.Modify{TriggerPrice: 90}},
+		{name: "stop market order's price type", existing: stopMarket, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "stop market order's own price type", existing: stopMarket, workingType: WorkingTypeContractPrice},
+		{name: "stop market order given a time in force", existing: stopMarket, timeInForce: TimeInForceFillOrKill},
+		{name: "stop market order's amount", existing: stopMarket, action: order.Modify{Amount: 3}, amount: true},
+		{name: "guaranteed stop's amount", existing: guaranteed, action: order.Modify{Amount: 3}, workingType: WorkingTypeContractPrice},
+		{name: "guaranteed stop with the fee cut's amount", existing: cutFee, action: order.Modify{Amount: 3}, workingType: WorkingTypeContractPrice},
+		{name: "guaranteed stop's trigger price", existing: guaranteed, action: order.Modify{Amount: 3, TriggerPrice: 91}, workingType: WorkingTypeContractPrice, more: true},
+		{name: "stop without a guarantee's amount", existing: notGuaranteed, action: order.Modify{Amount: 3}, workingType: WorkingTypeContractPrice, amount: true},
+		{name: "stop limit order's price", existing: stopLimit, action: order.Modify{Price: 9.1}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "stop limit order's trigger price", existing: stopLimit, action: order.Modify{TriggerPrice: 9.6}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "stop limit order given a time in force alone", existing: stopLimit, timeInForce: TimeInForceImmediateOrCancel, workingType: WorkingTypeMarkPrice},
+		{name: "trailing order's distance", existing: trailing, action: order.Modify{Price: 6}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "trailing order's activation price", existing: trailing, action: order.Modify{TriggerPrice: 110}, workingType: WorkingTypeMarkPrice, more: true},
+		{name: "trailing order's own activation price", existing: trailing, action: order.Modify{TriggerPrice: 100}, workingType: WorkingTypeMarkPrice},
+		{name: "trailing order's price type", existing: trailing, workingType: WorkingTypeIndexPrice, more: true},
+		{name: "trailing order given nothing", existing: trailing, workingType: WorkingTypeMarkPrice},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equalf(t, tc.exp, swapAmountOnlyChange(existing, tc.action), "swapAmountOnlyChange should report %+v as changing the amount alone: %t", tc.action, tc.exp)
+			t.Parallel()
+			workingType := cmp.Or(tc.workingType, tc.existing.WorkingType)
+			amount, more := swapModificationChanges(&tc.existing, &tc.action, tc.timeInForce, workingType)
+			assert.Equal(t, tc.amount, amount, "swapModificationChanges should report whether the amount changes")
+			assert.Equal(t, tc.more, more, "swapModificationChanges should report whether anything else the order's type takes changes")
+		})
+	}
+}
+
+func TestSwapGuaranteedStop(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		orderType  OrderType
+		guaranteed StopGuaranteed
+		exp        bool
+	}{
+		{OrderTypeStopMarket, StopGuaranteedTrue, true},
+		{OrderTypeTakeProfit, StopGuaranteedCutFee, true},
+		{OrderTypeStopMarket, StopGuaranteedFalse, false},
+		{OrderTypeStopMarket, "", false},
+		{OrderTypeLimit, StopGuaranteedTrue, false},
+		{OrderTypeTrailingStopMarket, StopGuaranteedTrue, false},
+	} {
+		t.Run(string(tc.orderType)+" "+string(tc.guaranteed), func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, swapGuaranteedStop(&SwapOrderResponse{Type: tc.orderType, StopGuaranteed: tc.guaranteed}), "swapGuaranteedStop should report a conditional order with a guaranteed stop")
+		})
+	}
+}
+
+func TestSpotModificationChanges(t *testing.T) {
+	t.Parallel()
+	limit := SpotOrderDetailResponse{Type: OrderTypeLimit, Status: "NEW", OriginalQuantity: 2, Price: 10, ClientOrderID: "c11"}
+	stopMarket := SpotOrderDetailResponse{Type: OrderTypeTakeStopMarket, Status: "NEW", OriginalQuantity: 2, StopPrice: 90}
+	stopLimit := SpotOrderDetailResponse{Type: OrderTypeTakeStopLimit, Status: "NEW", OriginalQuantity: 2, Price: 10, StopPrice: 9}
+	for _, tc := range []struct {
+		name     string
+		existing SpotOrderDetailResponse
+		action   order.Modify
+		exp      bool
+	}{
+		{name: "limit order's price", existing: limit, action: order.Modify{Price: 11}, exp: true},
+		{name: "limit order's own price", existing: limit, action: order.Modify{Price: 10}},
+		{name: "limit order given a trigger price", existing: limit, action: order.Modify{TriggerPrice: 105}},
+		{name: "limit order's amount", existing: limit, action: order.Modify{Amount: 3}, exp: true},
+		{name: "limit order's own amount", existing: limit, action: order.Modify{Amount: 2}},
+		{name: "limit order's client order ID", existing: limit, action: order.Modify{NewClientOrderID: "n12"}, exp: true},
+		{name: "limit order's own client order ID", existing: limit, action: order.Modify{NewClientOrderID: "c11"}},
+		{name: "limit order given a time in force alone", existing: limit, action: order.Modify{TimeInForce: order.FillOrKill}},
+		{name: "stop market order given a price", existing: stopMarket, action: order.Modify{Price: 95}},
+		{name: "stop market order given a price and its own time in force", existing: stopMarket, action: order.Modify{Price: 95, TimeInForce: order.FillOrKill}},
+		{name: "stop market order's trigger price", existing: stopMarket, action: order.Modify{TriggerPrice: 91}, exp: true},
+		{name: "stop market order's own trigger price", existing: stopMarket, action: order.Modify{TriggerPrice: 90}},
+		{name: "stop market order's amount, with a price it does not take", existing: stopMarket, action: order.Modify{Price: 80, Amount: 3}, exp: true},
+		{name: "stop limit order's price", existing: stopLimit, action: order.Modify{Price: 11}, exp: true},
+		{name: "stop limit order's trigger price", existing: stopLimit, action: order.Modify{TriggerPrice: 8}, exp: true},
+		{name: "stop limit order given nothing", existing: stopLimit},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, spotModificationChanges(&tc.existing, &tc.action), "spotModificationChanges should report whether the modification changes anything the order's type takes")
 		})
 	}
 }
 
 func TestSwapOrderTimeInForce(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, order.PostOnly, swapOrderTimeInForce(&SwapOrderResponse{PostOnly: true}), "swapOrderTimeInForce should read a post only order")
-	assert.Equal(t, order.GoodTillCancel, swapOrderTimeInForce(&SwapOrderResponse{}), "swapOrderTimeInForce should read another resting order as GTC")
+	for _, tc := range []struct {
+		name      string
+		orderType OrderType
+		status    string
+		postOnly  bool
+		exp       order.TimeInForce
+	}{
+		{"open post-only limit order", OrderTypeLimit, "NEW", true, order.PostOnly},
+		{"closed post-only limit order", OrderTypeLimit, "CANCELLED", true, order.PostOnly},
+		{"new limit order", OrderTypeLimit, "NEW", false, order.GoodTillCancel},
+		{"pending limit order", OrderTypeLimit, "PENDING", false, order.GoodTillCancel},
+		{"partly filled limit order", OrderTypeLimit, "PARTIALLY_FILLED", false, order.GoodTillCancel},
+		{"partly filled limit order, as queries spell it", OrderTypeLimit, "PARTIALLYFILLED", false, order.GoodTillCancel},
+		{"filled limit order", OrderTypeLimit, "FILLED", false, order.UnknownTIF},
+		{"cancelled limit order", OrderTypeLimit, "CANCELLED", false, order.UnknownTIF},
+		{"expired limit order", OrderTypeLimit, "EXPIRED", false, order.UnknownTIF},
+		{"limit order of unknown status", OrderTypeLimit, "Unknown", false, order.UnknownTIF},
+		{"limit order of a status that cannot be converted", OrderTypeLimit, "ODD", false, order.UnknownTIF},
+		{"untriggered stop limit order", OrderTypeStop, "NEW", false, order.UnknownTIF},
+		{"untriggered take profit order", OrderTypeTakeProfit, "PENDING", false, order.UnknownTIF},
+		{"untriggered stop market order", OrderTypeStopMarket, "NEW", false, order.UnknownTIF},
+		{"open trailing order", OrderTypeTrailingStopMarket, "NEW", false, order.UnknownTIF},
+		{"open market order", OrderTypeMarket, "NEW", false, order.UnknownTIF},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, swapOrderTimeInForce(&SwapOrderResponse{Type: tc.orderType, Status: tc.status, PostOnly: tc.postOnly}), "swapOrderTimeInForce should read the time in force the order's query shows")
+		})
+	}
 }
 
 func TestSwapAttachedOrder(t *testing.T) {
@@ -2513,8 +2831,8 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 			{"trigger limit", "TRIGGER_LIMIT", "INDEX_PRICE", "MARK_PRICE", order.MarkPrice, 8, nil},
 			{"trigger market", "TRIGGER_MARKET", "INDEX_PRICE", "MARK_PRICE", order.MarkPrice, 8, nil},
 			{"trailing take profit or stop loss", "TRAILING_TP_SL", "INDEX_PRICE", "MARK_PRICE", order.MarkPrice, 8, nil},
-			{"limit order keeps the order's", "LIMIT", "INDEX_PRICE", "INDEX_PRICE", order.MarkPrice, 8, nil},
-			{"limit order ignores an unknown type", "LIMIT", "INDEX_PRICE", "INDEX_PRICE", order.UnknownPriceType, 8, nil},
+			{"limit order given a price type and trigger price it does not take", "LIMIT", "INDEX_PRICE", "", order.MarkPrice, 8, errModifyNoChange},
+			{"limit order given an unknown price type it does not take", "LIMIT", "INDEX_PRICE", "", order.UnknownPriceType, 8, errModifyNoChange},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
@@ -2528,8 +2846,8 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 				_, err := ex.amendOrReplaceSwapOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "21", TriggerPrice: tc.triggerPrice, TriggerPriceType: tc.priceType}, 21)
 				got := requests()
 				if tc.err != nil {
-					assert.ErrorIs(t, err, tc.err, "amendOrReplaceSwapOrder should refuse a price type BingX does not take")
-					assert.Len(t, got, 1, "amendOrReplaceSwapOrder should cancel nothing for a price type it refuses")
+					assert.ErrorIs(t, err, tc.err, "amendOrReplaceSwapOrder should refuse a price type BingX does not take, or a modification changing nothing the order's type takes")
+					assert.Len(t, got, 1, "amendOrReplaceSwapOrder should cancel nothing for a modification it refuses")
 					return
 				}
 				require.NoError(t, err, "amendOrReplaceSwapOrder must not error")
@@ -2597,10 +2915,10 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 			{
 				name:     "one-way reduce only stop limit order",
 				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"BOTH","type":"STOP","origQty":"1","price":"9","stopPrice":"9.5","executedQty":"0","status":"NEW","reduceOnly":true,"workingType":"MARK_PRICE","stopGuaranteed":"true","positionID":77,"takeProfit":{"type":"TAKE_PROFIT_MARKET","stopPrice":12,"price":0,"quantity":0,"workingType":"MARK_PRICE"},"stopLoss":{"type":"STOP_MARKET","stopPrice":8,"price":0,"quantity":0,"workingType":"CONTRACT_PRICE"}}`,
-				action:   order.Modify{TimeInForce: order.ImmediateOrCancel},
+				action:   order.Modify{TriggerPrice: 9.6, TimeInForce: order.ImmediateOrCancel},
 				exp: url.Values{
 					"symbol": {"BTC-USDT"}, "type": {"STOP"}, "side": {"SELL"}, "positionSide": {"BOTH"}, "reduceOnly": {"true"}, "price": {"9"}, "quantity": {"1"},
-					"stopPrice": {"9.5"}, "workingType": {"MARK_PRICE"}, "takeProfit": {`{"type":"TAKE_PROFIT_MARKET","stopPrice":12,"workingType":"MARK_PRICE"}`},
+					"stopPrice": {"9.6"}, "workingType": {"MARK_PRICE"}, "takeProfit": {`{"type":"TAKE_PROFIT_MARKET","stopPrice":12,"workingType":"MARK_PRICE"}`},
 					"stopLoss": {`{"type":"STOP_MARKET","stopPrice":8,"workingType":"CONTRACT_PRICE"}`}, "timeInForce": {"IOC"}, "stopGuaranteed": {"true"}, "positionId": {"77"},
 				},
 			},
@@ -2608,13 +2926,13 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 				name:     "close position order",
 				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"STOP_MARKET","origQty":"1","stopPrice":"9","executedQty":"0","status":"NEW","closePosition":"true","positionID":78}`,
 				action:   order.Modify{TriggerPrice: 8},
-				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "stopPrice": {"8"}, "timeInForce": {"GTC"}, "closePosition": {"true"}, "positionId": {"78"}},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "stopPrice": {"8"}, "closePosition": {"true"}, "positionId": {"78"}},
 			},
 			{
 				name:     "trailing order with a price rate",
 				existing: `{"symbol":"BTC-USDT","orderId":23,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","priceRate":"0.01","actPrice":"100","positionID":79}`,
 				action:   order.Modify{TriggerPrice: 110},
-				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "priceRate": {"0.01"}, "workingType": {"MARK_PRICE"}, "timeInForce": {"GTC"}, "activationPrice": {"110"}, "positionId": {"79"}},
+				exp:      url.Values{"symbol": {"BTC-USDT"}, "type": {"TRAILING_STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"LONG"}, "quantity": {"1"}, "priceRate": {"0.01"}, "workingType": {"MARK_PRICE"}, "activationPrice": {"110"}, "positionId": {"79"}},
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -2650,6 +2968,7 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 		require.Len(t, got, 3, "amendOrReplaceSwapOrder must fetch the order, cancel it and then place its replacement")
 		assert.Equal(t, "12", got[2].params.Get("quantity"), "amendOrReplaceSwapOrder should place the desired total")
 		assert.Equal(t, 12.0, resp.Amount, "amendOrReplaceSwapOrder should return the replacement's amount")
+		assert.Equal(t, 12.0, resp.RemainingAmount, "amendOrReplaceSwapOrder should return the replacement's unfilled amount")
 
 		modify.Amount = 0
 		resp, err = ex.amendOrReplaceSwapOrder(t.Context(), &modify, 27)
@@ -2658,6 +2977,7 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 		require.Len(t, got, 6, "amendOrReplaceSwapOrder must fetch the order, cancel it and then place its replacement")
 		assert.Equal(t, "10", got[5].params.Get("quantity"), "amendOrReplaceSwapOrder should place the existing order's total without a desired total")
 		assert.Equal(t, 10.0, resp.Amount, "amendOrReplaceSwapOrder should return the replacement's amount")
+		assert.Equal(t, 10.0, resp.RemainingAmount, "amendOrReplaceSwapOrder should return the replacement's unfilled amount")
 	})
 
 	t.Run("partly executed order", func(t *testing.T) {
@@ -2703,6 +3023,46 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 				}
 				require.ErrorIs(t, err, tc.err, "amendOrReplaceSwapOrder must refuse to replace an order that executed any of its quantity")
 				assert.ErrorContains(t, err, tc.message, "amendOrReplaceSwapOrder should name the order and the quantity it executed")
+			})
+		}
+	})
+
+	t.Run("unfilled amounts in decimal arithmetic", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name   string
+			action order.Modify
+			routes map[string][]string
+			exp    float64
+		}{
+			{
+				name:   "amended in place",
+				action: order.Modify{Amount: 0.4},
+				routes: map[string][]string{
+					"GET /openApi/swap/v2/trade/order":  {`{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":28,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"0.3","price":"10","executedQty":"0.1","status":"PARTIALLY_FILLED"}}}`},
+					"POST /openApi/swap/v1/trade/amend": {`{"code":0,"data":{"orderId":28,"symbol":"BTC-USDT","quantity":0.4}}`},
+				},
+				exp: 0.3,
+			},
+			{
+				name:   "replaced",
+				action: order.Modify{Price: 11, Amount: 0.3},
+				routes: map[string][]string{
+					"GET /openApi/swap/v2/trade/order":    {`{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":28,"side":"BUY","positionSide":"LONG","type":"LIMIT","origQty":"0.5","price":"10","executedQty":"0","status":"NEW"}}}`},
+					"DELETE /openApi/swap/v2/trade/order": {wrapperSwapCancelledReply(28, "0")},
+					"POST /openApi/swap/v2/trade/order":   {wrapperSwapPlacedReply("LIMIT", `,"status":"PARTIALLY_FILLED","executedQty":"0.1"`)},
+				},
+				exp: 0.2,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, _ := wrapperTestServer(t, tc.routes)
+				action := tc.action
+				action.Exchange, action.Pair, action.AssetType, action.OrderID = ex.Name, pair, asset.USDTMarginedFutures, "28"
+				resp, err := ex.amendOrReplaceSwapOrder(t.Context(), &action, 28)
+				require.NoError(t, err, "amendOrReplaceSwapOrder must not error")
+				assert.Equal(t, tc.exp, resp.RemainingAmount, "amendOrReplaceSwapOrder should subtract the executed quantity in decimal arithmetic")
 			})
 		}
 	})
@@ -2753,37 +3113,136 @@ func TestAmendOrReplaceSwapOrder(t *testing.T) {
 		t.Parallel()
 		trailing := `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":24,"side":"SELL","positionSide":"LONG","type":"TRAILING_STOP_MARKET","origQty":"1","price":"5","executedQty":"0","status":"NEW","workingType":"MARK_PRICE","actPrice":"100"}}}`
 		ex, requests := wrapperTestServer(t, map[string][]string{
-			"GET /openApi/swap/v2/trade/order":      {trailing, trailing},
+			"GET /openApi/swap/v2/trade/order":      {trailing, trailing, trailing},
 			"GET /openApi/swap/v2/trade/marginType": {`{"code":0,"data":{"marginType":"ISOLATED"}}`, `{"code":0,"data":{"marginType":"ISOLATED"}}`},
 			"DELETE /openApi/swap/v2/trade/order":   {wrapperSwapCancelledReply(24, "0"), wrapperSwapCancelledReply(24, "0")},
 			"POST /openApi/swap/v2/trade/order":     {wrapperSwapPlacedReply("TRAILING_STOP_MARKET", ""), wrapperSwapPlacedReply("TRAILING_STOP_MARKET", "")},
 		})
 		for _, tc := range []struct {
-			name       string
-			trigger    float64
-			activation float64
+			name           string
+			price, trigger float64
+			distance       string
+			activation     float64
+			err            error
 		}{
-			{"activation price changes", 110, 110},
-			{"activation price is kept", 0, 100},
+			{name: "activation price changes", trigger: 110, distance: "5", activation: 110},
+			{name: "activation price is kept", err: errModifyNoChange},
+			{name: "trailing distance changes", price: 6, distance: "6", activation: 100},
 		} {
 			// The rows share the server's queued replies, so they run one at a time in order
 			t.Run(tc.name, func(t *testing.T) {
-				resp, err := ex.amendOrReplaceSwapOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "24", TriggerPrice: tc.trigger}, 24)
-				require.NoErrorf(t, err, "amendOrReplaceSwapOrder must not error when the %s", tc.name)
+				before := len(requests())
+				resp, err := ex.amendOrReplaceSwapOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, OrderID: "24", Price: tc.price, TriggerPrice: tc.trigger}, 24)
 				got := requests()
+				if tc.err != nil {
+					require.ErrorIsf(t, err, tc.err, "amendOrReplaceSwapOrder must refuse a modification of a trailing stop when the %s", tc.name)
+					assert.Lenf(t, got, before+1, "amendOrReplaceSwapOrder should only look the order up when the %s", tc.name)
+					return
+				}
+				require.NoErrorf(t, err, "amendOrReplaceSwapOrder must not error when the %s", tc.name)
 				assert.Equalf(t, url.Values{
 					"symbol":          {"BTC-USDT"},
 					"type":            {"TRAILING_STOP_MARKET"},
 					"side":            {"SELL"},
 					"positionSide":    {"LONG"},
-					"price":           {"5"},
+					"price":           {tc.distance},
 					"quantity":        {"1"},
 					"workingType":     {"MARK_PRICE"},
-					"timeInForce":     {"GTC"},
 					"activationPrice": {strconv.FormatFloat(tc.activation, 'f', -1, 64)},
-				}, got[len(got)-1].params, "amendOrReplaceSwapOrder should take a trailing stop's trigger price as its activation price when the %s", tc.name)
+				}, got[len(got)-1].params, "amendOrReplaceSwapOrder should take a trailing stop's price as its trailing distance and its trigger price as its activation price when the %s", tc.name)
 				assert.Zerof(t, resp.Price, "amendOrReplaceSwapOrder should not report a trailing distance as the price when the %s", tc.name)
 				assert.Equalf(t, tc.activation, resp.TriggerPrice, "amendOrReplaceSwapOrder should report the activation price as the trigger price when the %s", tc.name)
+			})
+		}
+	})
+
+	t.Run("changes the order's type cannot take", func(t *testing.T) {
+		t.Parallel()
+		order29 := func(fields string) string {
+			return `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":29,"positionSide":"BOTH","origQty":"2","executedQty":"0","status":"NEW",` + fields + `}}}`
+		}
+		stopMarket := order29(`"side":"SELL","type":"STOP_MARKET","price":"0","stopPrice":"90","workingType":"MARK_PRICE"`)
+		stopLimit := order29(`"side":"SELL","type":"STOP","price":"99","stopPrice":"100","workingType":"MARK_PRICE"`)
+		limit := order29(`"side":"BUY","type":"LIMIT","price":"100","clientOrderId":"c29"`)
+		for _, tc := range []struct {
+			name, existing string
+			action         order.Modify
+			path           string
+			exp            url.Values
+		}{
+			{name: "price of a stop market order", existing: stopMarket, action: order.Modify{Price: 95}},
+			{name: "trigger price of a limit order", existing: limit, action: order.Modify{TriggerPrice: 105}},
+			{name: "price of a FOK stop market order as the order manager hands it", existing: stopMarket, action: order.Modify{Price: 80, Amount: 2, TimeInForce: order.FillOrKill}},
+			{name: "amount of a guaranteed stop", existing: order29(`"side":"SELL","type":"STOP_MARKET","stopPrice":"90","workingType":"MARK_PRICE","stopGuaranteed":"true"`), action: order.Modify{Amount: 3}},
+			{name: "amount of a guaranteed stop with the fee cut", existing: order29(`"side":"SELL","type":"STOP_MARKET","stopPrice":"90","workingType":"MARK_PRICE","stopGuaranteed":"cutfee"`), action: order.Modify{Amount: 3}},
+			{name: "time in force alone of a stop limit order", existing: `{"code":0,"data":{"order":{"symbol":"BTC-USDT","orderId":29,"side":"SELL","positionSide":"BOTH","type":"STOP","origQty":"1","price":"9","stopPrice":"9.5","executedQty":"0","status":"NEW","reduceOnly":true,"workingType":"MARK_PRICE","stopGuaranteed":"true","positionID":77}}}`, action: order.Modify{TimeInForce: order.ImmediateOrCancel}},
+			{
+				name: "amount of a stop market order with a price it does not take", existing: stopMarket, action: order.Modify{Price: 80, Amount: 3, TimeInForce: order.FillOrKill}, path: "/openApi/swap/v2/trade/order",
+				exp: url.Values{"symbol": {"BTC-USDT"}, "type": {"STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"BOTH"}, "quantity": {"3"}, "stopPrice": {"90"}, "workingType": {"MARK_PRICE"}, "timeInForce": {"FOK"}},
+			},
+			{
+				name: "trigger price of a FOK stop limit order as the order manager hands it", existing: stopLimit, action: order.Modify{Price: 99, Amount: 2, TriggerPrice: 101, TimeInForce: order.FillOrKill}, path: "/openApi/swap/v2/trade/order",
+				exp: url.Values{"symbol": {"BTC-USDT"}, "type": {"STOP"}, "side": {"SELL"}, "positionSide": {"BOTH"}, "price": {"99"}, "quantity": {"2"}, "stopPrice": {"101"}, "workingType": {"MARK_PRICE"}, "timeInForce": {"FOK"}},
+			},
+			{
+				name: "price type alone of a stop market order", existing: stopMarket, action: order.Modify{TriggerPriceType: order.IndexPrice}, path: "/openApi/swap/v2/trade/order",
+				exp: url.Values{"symbol": {"BTC-USDT"}, "type": {"STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"BOTH"}, "quantity": {"2"}, "stopPrice": {"90"}, "workingType": {"INDEX_PRICE"}},
+			},
+			{
+				name: "price of a limit order with a trigger price it does not take", existing: limit, action: order.Modify{Price: 101, TriggerPrice: 105}, path: "/openApi/swap/v2/trade/order",
+				exp: url.Values{"symbol": {"BTC-USDT"}, "type": {"LIMIT"}, "side": {"BUY"}, "positionSide": {"BOTH"}, "price": {"101"}, "quantity": {"2"}, "timeInForce": {"GTC"}},
+			},
+			{
+				name: "trigger price of a guaranteed stop with an amount BingX ignores", existing: order29(`"side":"SELL","type":"STOP_MARKET","stopPrice":"90","workingType":"MARK_PRICE","stopGuaranteed":"true"`), action: order.Modify{Amount: 3, TriggerPrice: 91}, path: "/openApi/swap/v2/trade/order",
+				exp: url.Values{"symbol": {"BTC-USDT"}, "type": {"STOP_MARKET"}, "side": {"SELL"}, "positionSide": {"BOTH"}, "quantity": {"2"}, "stopPrice": {"91"}, "workingType": {"MARK_PRICE"}, "stopGuaranteed": {"true"}},
+			},
+			{
+				name: "client order ID alone of a limit order", existing: limit, action: order.Modify{NewClientOrderID: "n29"}, path: "/openApi/swap/v2/trade/order",
+				exp: url.Values{"symbol": {"BTC-USDT"}, "type": {"LIMIT"}, "side": {"BUY"}, "positionSide": {"BOTH"}, "price": {"100"}, "quantity": {"2"}, "timeInForce": {"GTC"}, "clientOrderId": {"n29"}},
+			},
+			{
+				name: "time in force alone of a limit order", existing: limit, action: order.Modify{TimeInForce: order.ImmediateOrCancel}, path: "/openApi/swap/v2/trade/order",
+				exp: url.Values{"symbol": {"BTC-USDT"}, "type": {"LIMIT"}, "side": {"BUY"}, "positionSide": {"BOTH"}, "price": {"100"}, "quantity": {"2"}, "timeInForce": {"IOC"}},
+			},
+			{
+				name: "amount of a partly executed limit order with a trigger price it does not take", existing: strings.Replace(strings.Replace(limit, `"executedQty":"0"`, `"executedQty":"0.5"`, 1), `"NEW"`, `"PARTIALLY_FILLED"`, 1),
+				action: order.Modify{Amount: 3, TriggerPrice: 9}, path: "/openApi/swap/v1/trade/amend", exp: url.Values{"symbol": {"BTC-USDT"}, "orderId": {"29"}, "quantity": {"3"}},
+			},
+			{name: "post-only time in force of a post-only limit order", existing: order29(`"side":"BUY","type":"LIMIT","price":"100","postOnly":true`), action: order.Modify{TimeInForce: order.PostOnly | order.GoodTillCancel}},
+			{
+				name: "amount of a limit order with a trigger price it does not take", existing: limit,
+				action: order.Modify{Amount: 3, TriggerPrice: 9}, path: "/openApi/swap/v1/trade/amend", exp: url.Values{"symbol": {"BTC-USDT"}, "orderId": {"29"}, "quantity": {"3"}},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				routes := map[string][]string{"GET /openApi/swap/v2/trade/order": {tc.existing}}
+				switch tc.path {
+				case "/openApi/swap/v2/trade/order":
+					routes["DELETE /openApi/swap/v2/trade/order"] = []string{wrapperSwapCancelledReply(29, "0")}
+					routes["POST /openApi/swap/v2/trade/order"] = []string{wrapperSwapPlacedReply("LIMIT", "")}
+				case "/openApi/swap/v1/trade/amend":
+					routes["POST /openApi/swap/v1/trade/amend"] = []string{`{"code":0,"data":{"orderId":29,"symbol":"BTC-USDT","quantity":3}}`}
+				}
+				ex, requests := wrapperTestServer(t, routes)
+				action := tc.action
+				action.Exchange, action.Pair, action.AssetType, action.OrderID = ex.Name, pair, asset.USDTMarginedFutures, "29"
+				resp, err := ex.amendOrReplaceSwapOrder(t.Context(), &action, 29)
+				got := requests()
+				if tc.path == "" {
+					require.ErrorIs(t, err, errModifyNoChange, "amendOrReplaceSwapOrder must refuse a modification changing nothing the order's type takes")
+					assert.ErrorContains(t, err, "order 29", "amendOrReplaceSwapOrder should name the order")
+					assert.Len(t, got, 1, "amendOrReplaceSwapOrder should only look the order up")
+					return
+				}
+				require.NoError(t, err, "amendOrReplaceSwapOrder must not error")
+				require.NotEmpty(t, got, "amendOrReplaceSwapOrder must send requests")
+				last := got[len(got)-1]
+				assert.Equal(t, tc.path, last.path, "amendOrReplaceSwapOrder should amend or replace the order")
+				assert.Equal(t, tc.exp, last.params, "amendOrReplaceSwapOrder should send what the order's type takes")
+				if tc.path == "/openApi/swap/v1/trade/amend" {
+					assert.Zero(t, resp.TriggerPrice, "amendOrReplaceSwapOrder should report no trigger price for a limit order it amends")
+				}
 			})
 		}
 	})
@@ -3705,7 +4164,7 @@ func TestGetOrderInfo(t *testing.T) {
 			exp     order.Detail
 		}{
 			{asset.Spot, brg, "1735965009395131234", order.Detail{
-				Price: 0.0005027, Amount: 4038, AverageExecutedPrice: 0.0005028, RemainingAmount: 4038, CostAsset: currency.USDT,
+				Price: 0.0005027, Amount: 4038, RemainingAmount: 4038, CostAsset: currency.USDT,
 				FeeAsset: currency.NewCode("BRG"), OrderID: "1735965009395131100", Type: order.Limit, Side: order.Buy, Status: order.Pending,
 				Date: time.UnixMilli(1702721285567), LastUpdated: time.UnixMilli(1702721285567),
 			}},
@@ -3779,17 +4238,24 @@ func TestSpotOrderDetail(t *testing.T) {
 		t.Parallel()
 		for _, tc := range []struct {
 			name                           string
+			status                         SpotOrderStatus
 			average, executed, quoteAmount types.Number
 			exp                            float64
 		}{
 			{name: "reported", average: 10.5, executed: 2, quoteAmount: 22, exp: 10.5},
 			{name: "left out of a partly executed order", executed: 2, quoteAmount: 21, exp: 10.5},
 			{name: "left out, in decimal arithmetic", executed: 0.1, quoteAmount: 0.3, exp: 3},
+			{name: "left out of a filled order", status: "FILLED", executed: 3, quoteAmount: 30, exp: 10},
+			{name: "left out of an order cancelled part executed", status: "CANCELED", executed: 2, quoteAmount: 21, exp: 10.5},
+			{name: "left out, without a cumulative quote", executed: 2},
 			{name: "left out of an order with nothing executed"},
+			{name: "reported for a pending order with nothing executed", status: "PENDING", average: 0.0005028, quoteAmount: 2.03},
+			{name: "reported for an order cancelled with nothing executed", status: "CANCELED", average: 13},
+			{name: "reported without a cumulative quote", average: 13, executed: 2, exp: 13},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
-				d, err := e.spotOrderDetail(&SpotOrderDetailResponse{OrderID: 5, Status: "PARTIALLY_FILLED", Type: OrderTypeLimit, Side: SideBuy, Price: 9, OriginalQuantity: 3, ExecutedQuantity: tc.executed, CummulativeQuoteQuantity: tc.quoteAmount, AveragePrice: tc.average}, pair)
+				d, err := e.spotOrderDetail(&SpotOrderDetailResponse{OrderID: 5, Status: cmp.Or(tc.status, "PARTIALLY_FILLED"), Type: OrderTypeLimit, Side: SideBuy, Price: 9, OriginalQuantity: 3, ExecutedQuantity: tc.executed, CummulativeQuoteQuantity: tc.quoteAmount, AveragePrice: tc.average}, pair)
 				require.NoError(t, err, "spotOrderDetail must not error")
 				assert.Equal(t, tc.exp, d.AverageExecutedPrice, "spotOrderDetail should take the reported average price, or else the quote quantity over the executed quantity")
 			})
@@ -3836,6 +4302,29 @@ func TestSwapOrderDetail(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "swapOrderDetail should report a type it cannot convert")
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "swapOrderDetail should report a side it cannot convert")
 	assert.ErrorIs(t, err, errInvalidOrderLeverage, "swapOrderDetail should report a leverage it cannot read")
+
+	t.Run("time in force in the order store", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name        string
+			stored, exp order.TimeInForce
+			read        *SwapOrderResponse
+		}{
+			{"FOK stop limit order read back untriggered", order.FillOrKill, order.FillOrKill, &SwapOrderResponse{OrderID: 8, Type: OrderTypeStop, Side: SideSell, Status: "PENDING", OriginalQuantity: 2, Price: 99, StopPrice: 100}},
+			{"IOC limit order read back cancelled", order.ImmediateOrCancel, order.ImmediateOrCancel, &SwapOrderResponse{OrderID: 8, Type: OrderTypeLimit, Side: SideBuy, Status: "CANCELLED", OriginalQuantity: 2, Price: 10}},
+			{"FOK limit order read back filled", order.FillOrKill, order.FillOrKill, &SwapOrderResponse{OrderID: 8, Type: OrderTypeLimit, Side: SideBuy, Status: "FILLED", OriginalQuantity: 2, ExecutedQuantity: 2, Price: 10}},
+			{"open limit order read back", order.UnknownTIF, order.GoodTillCancel, &SwapOrderResponse{OrderID: 8, Type: OrderTypeLimit, Side: SideBuy, Status: "NEW", OriginalQuantity: 2, Price: 10}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				read, err := e.swapOrderDetail(tc.read, pair)
+				require.NoError(t, err, "swapOrderDetail must not error")
+				stored := &order.Detail{Exchange: e.Name, OrderID: "8", AssetType: asset.USDTMarginedFutures, Pair: pair, TimeInForce: tc.stored}
+				require.NoError(t, stored.UpdateOrderFromDetail(&read), "the order store must take the read")
+				assert.Equal(t, tc.exp, stored.TimeInForce, "the order store should keep a time in force the query cannot tell")
+			})
+		}
+	})
 }
 
 func TestCoinMarginedOrderDetail(t *testing.T) {
@@ -4078,6 +4567,11 @@ func TestGetOrderHistory(t *testing.T) {
 				{name: "Unix epoch end alone", end: time.Unix(0, 0), exp: []string{"1", "2", "3", "4", "5"}},
 				{name: "Unix epoch end alone, in UTC", end: time.Unix(0, 0).UTC(), exp: []string{"1", "2", "3", "4", "5"}},
 				{name: "end alone, a nanosecond after the Unix epoch", end: time.Unix(0, 1), exp: []string{}},
+				{name: "Unix epoch start alone", start: time.Unix(0, 0), exp: []string{"1", "2", "3", "4", "5"}},
+				{name: "Unix epoch start alone, in UTC", start: time.Unix(0, 0).UTC(), exp: []string{"1", "2", "3", "4", "5"}},
+				{name: "Unix epoch start and an end", start: time.Unix(0, 0), end: end, exp: []string{"1", "2"}},
+				{name: "Unix epoch start and end", start: time.Unix(0, 0), end: time.Unix(0, 0), exp: []string{"1", "2", "3", "4", "5"}},
+				{name: "start and a Unix epoch end, from an order ID", start: end.Add(-30 * time.Minute), end: time.Unix(0, 0), fromOrderID: "1", exp: []string{"2", "3", "4", "5"}},
 			} {
 				t.Run(product.a.String()+" "+tc.name, func(t *testing.T) {
 					t.Parallel()
@@ -4089,8 +4583,11 @@ func TestGetOrderHistory(t *testing.T) {
 						product.listed("5", end.Add(time.Hour)),
 					}
 					ex, requests := wrapperTestServer(t, map[string][]string{product.route: {`{"code":0,"data":{"orders":[` + strings.Join(listed, ",") + `]}}`}})
-					orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: product.a, Pairs: currency.Pairs{product.pair}, Side: order.AnySide, Type: order.AnyType, StartTime: tc.start, EndTime: tc.end, FromOrderID: tc.fromOrderID})
+					req := &order.MultiOrderRequest{AssetType: product.a, Pairs: currency.Pairs{product.pair}, Side: order.AnySide, Type: order.AnyType, StartTime: tc.start, EndTime: tc.end, FromOrderID: tc.fromOrderID}
+					orders, err := ex.GetOrderHistory(t.Context(), req)
 					require.NoError(t, err, "GetOrderHistory must not error")
+					assert.Equal(t, tc.start, req.StartTime, "GetOrderHistory should leave the request's start as given")
+					assert.Equal(t, tc.end, req.EndTime, "GetOrderHistory should leave the request's end as given")
 					ids := make([]string, len(orders))
 					for i := range orders {
 						ids[i] = orders[i].OrderID
@@ -4102,6 +4599,36 @@ func TestGetOrderHistory(t *testing.T) {
 					assert.Equal(t, tc.fromOrderID, got[0].params.Get("orderId"), "GetOrderHistory should page from the order ID requested")
 				})
 			}
+		}
+	})
+
+	t.Run("start and a Unix epoch end", func(t *testing.T) {
+		t.Parallel()
+		start := time.Now().Add(-8 * 24 * time.Hour).Truncate(time.Millisecond)
+		for _, product := range []struct {
+			a       asset.Item
+			pair    currency.Pair
+			route   string
+			windows int
+		}{
+			{a: asset.Spot, pair: currency.NewBTCUSDT(), route: "GET /openApi/spot/v1/trade/historyOrders", windows: 1},
+			{a: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(), route: "GET /openApi/swap/v2/trade/allOrders", windows: 2},
+			{a: asset.CoinMarginedFutures, pair: currency.NewBTCUSD(), route: "GET /openApi/cswap/v1/trade/orderHistory", windows: 2},
+		} {
+			t.Run(product.a.String(), func(t *testing.T) {
+				t.Parallel()
+				ex, requests := wrapperTestServer(t, map[string][]string{product.route: slices.Repeat([]string{`{"code":0,"data":{"orders":[]}}`}, product.windows)})
+				before := time.Now().UnixMilli()
+				_, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: product.a, Pairs: currency.Pairs{product.pair}, Side: order.AnySide, Type: order.AnyType, StartTime: start, EndTime: time.Unix(0, 0)})
+				after := time.Now().UnixMilli()
+				require.NoError(t, err, "GetOrderHistory must take an end at the Unix epoch as unset")
+				got := requests()
+				require.Len(t, got, product.windows, "GetOrderHistory must request every window from the start to now")
+				assert.Equal(t, wrapperMilliseconds(start), got[0].params.Get("startTime"), "GetOrderHistory should start the first window at the request's start")
+				windowEnd, err := strconv.ParseInt(got[len(got)-1].params.Get("endTime"), 10, 64)
+				require.NoError(t, err, "the last window's end must be a Unix millisecond time")
+				assert.True(t, windowEnd >= before && windowEnd <= after, "GetOrderHistory should end the last window now")
+			})
 		}
 	})
 }

@@ -1,10 +1,16 @@
 package bingx
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"math"
+	"slices"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -12,8 +18,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // wsHandleSpotData routes a spot market data frame
@@ -171,7 +181,7 @@ func (e *Exchange) wsHandleSpotAccountData(ctx context.Context, conn websocket.C
 	}
 	switch event {
 	case "executionReport":
-		return e.wsProcessSpotOrderUpdate(ctx, data)
+		return e.wsProcessSpotOrderUpdate(ctx, conn, data)
 	case "ACCOUNT_UPDATE":
 		state, err := e.wsConnection(conn)
 		if err != nil {
@@ -186,12 +196,15 @@ func (e *Exchange) wsHandleSpotAccountData(ctx context.Context, conn websocket.C
 
 // wsProcessSpotOrderUpdate relays an executionReport event as an order detail:
 //   - p, q, Q, z and Z are the order's price, quantity, quote amount, executed quantity and cost
-//   - the average price is Z over z, and the remaining amount q less z
+//   - the average price is Z over z, and the remaining amount q less z, or 0 when z exceeds q
 //   - O dates the order and E its update
 //
-// A fill's fee is the fill's alone, so it is reported with the fill, from l, L, Y, t and T, as the order's trade
-// rather than as the order's fee. BingX reports a charged fee as a negative amount
-func (e *Exchange) wsProcessSpotOrderUpdate(ctx context.Context, data []byte) error {
+// A fill's fee is reported with the fill, from l, L, Y, t and T, as the order's trade, and BingX reports a charged fee
+// as a negative amount. The order's fee is the total the connection's spotOrderFees keeps, which the detail carries
+// when it reaches at least the event's executed quantity; an order whose earlier fills the connection did not stream is
+// looked up by wsLookUpSpotOrderFee, which relays the fee once it covers them. A connection no longer tracked keeps no
+// totals
+func (e *Exchange) wsProcessSpotOrderUpdate(ctx context.Context, conn websocket.Connection, data []byte) error {
 	var resp WebsocketSpotOrderUpdate
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -251,7 +264,222 @@ func (e *Exchange) wsProcessSpotOrderUpdate(ctx context.Context, data []byte) er
 			Total:     resp.LastFilledAmount.Float64(),
 		}}
 	}
-	return e.Websocket.DataHandler.Send(ctx, d)
+	state, err := e.wsConnection(conn)
+	if err != nil {
+		return e.Websocket.DataHandler.Send(ctx, d)
+	}
+	var fill *spotOrderFill
+	filled, filledOK := finiteDecimal(resp.LastFilledQuantity)
+	if fee, feeOK := finiteDecimal(resp.FeeAmount); resp.ExecutionType == ExecutionTypeTrade && filledOK && feeOK && filled.IsPositive() {
+		fill = &spotOrderFill{from: executed.Sub(filled), to: executed, fee: fee.Neg()}
+	}
+	lookUp, err := state.spotFees.relay(orderID, d, executed, fill, status.IsInactive(), func() error { return e.Websocket.DataHandler.Send(ctx, d) })
+	if lookUp {
+		e.wsLookUpSpotOrderFee(ctx, conn, state, d, uint64(resp.OrderID))
+	}
+	return err
+}
+
+// wsLookUpSpotOrderFee looks up a spot order whose events show fills its account connection did not stream, off the
+// connection's reader and with the credentials of the connection's listen key. The lookup is sent once and ends
+// websocketOpenOrderReadTimeout after it begins or with the connection's session, and its executed quantity and fee
+// settle the order's fee on the connection. The fee is relayed once it reaches every fill the order's events reported,
+// while the connection is still up, in a detail dated by the update time BingX reports for the order and holding the
+// order's identity, price, amount, quote amount and date from event, the detail of the event that showed the missing
+// fills, but no status or executed quantity, which the order's events report
+func (e *Exchange) wsLookUpSpotOrderFee(ctx context.Context, conn websocket.Connection, state *websocketConnection, event *order.Detail, orderID uint64) {
+	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	e.wsState.mu.Lock()
+	timeout := cmp.Or(e.wsState.openOrderReadTimeout, websocketOpenOrderReadTimeout)
+	e.wsState.mu.Unlock()
+	lookupCtx, cancelLookup := context.WithTimeout(request.WithRetryNotAllowed(accounts.DeployCredentialsToContext(ctx, state.credentials)), timeout)
+	relayed := order.Detail{
+		Exchange:      event.Exchange,
+		OrderID:       event.OrderID,
+		ClientOrderID: event.ClientOrderID,
+		Pair:          event.Pair,
+		AssetType:     event.AssetType,
+		Type:          event.Type,
+		Side:          event.Side,
+		Price:         event.Price,
+		Amount:        event.Amount,
+		QuoteAmount:   event.QuoteAmount,
+		Date:          event.Date,
+	}
+	e.Websocket.Wg.Add(1)
+	e.wsState.background.Go(func() {
+		defer e.Websocket.Wg.Done()
+		defer cancel()
+		defer cancelLookup()
+		go func() {
+			select {
+			case <-state.session:
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
+		executed, fee, feeAsset, updated, err := e.spotOrderFee(lookupCtx, relayed.Pair, orderID)
+		if err != nil {
+			log.Errorf(log.WebsocketMgr, "%s %s order %s fee lookup failed: %v", e.Name, asset.Spot, relayed.OrderID, err)
+			_ = state.spotFees.settle(relayed.OrderID, decimal.Zero, decimal.Zero, false, nil)
+			return
+		}
+		err = state.spotFees.settle(relayed.OrderID, executed, fee, true, func(fee decimal.Decimal) error {
+			if !wsIsConnected(conn) {
+				return nil
+			}
+			d := relayed
+			d.Fee, d.FeeAsset, d.LastUpdated = fee.InexactFloat64(), feeAsset, updated
+			return e.Websocket.DataHandler.Send(ctx, &d)
+		})
+		if err != nil {
+			log.Errorf(log.WebsocketMgr, "%s %s order %s fee relay failed: %v", e.Name, asset.Spot, relayed.OrderID, err)
+		}
+	})
+}
+
+// spotOrderFee returns the executed quantity, fee, fee currency and update time BingX reports for a spot order. The fee
+// is taken as paid whatever its sign, as spotOrderDetail takes it
+func (e *Exchange) spotOrderFee(ctx context.Context, pair currency.Pair, orderID uint64) (executed, fee decimal.Decimal, feeAsset currency.Code, updated time.Time, err error) {
+	o, err := e.GetSpotOrderDetails(ctx, &SpotOrderDetailsRequest{Symbol: pair, OrderID: orderID})
+	if err != nil {
+		return decimal.Zero, decimal.Zero, currency.EMPTYCODE, time.Time{}, err
+	}
+	executed, executedOK := finiteDecimal(o.ExecutedQuantity)
+	fee, feeOK := finiteDecimal(o.Fee)
+	if !executedOK || !feeOK {
+		return decimal.Zero, decimal.Zero, currency.EMPTYCODE, time.Time{}, fmt.Errorf("%w: executed quantity %v, fee %v", errSpotOrderFeeNotFinite, o.ExecutedQuantity.Float64(), o.Fee.Float64())
+	}
+	return executed, fee.Abs(), o.FeeAsset, o.UpdateTime.Time(), nil
+}
+
+// finiteDecimal returns n as a decimal, and whether it is a finite number, which alone a decimal holds
+func finiteDecimal(n types.Number) (decimal.Decimal, bool) {
+	if f := n.Float64(); math.IsNaN(f) || math.IsInf(f, 0) {
+		return decimal.Zero, false
+	}
+	return n.Decimal(), true
+}
+
+// spotOrderFees keeps the fees of the spot orders an account connection streams. A spot order event reports the
+// quantity and fee of the fill it reports beside the order's executed quantity, so an order's fee is known from its
+// first fill, and each fill after it adds to it. The fills of an order whose earlier fills the connection did not
+// stream are kept, while the order is open or a lookup of it is in flight, for a lookup to report the order's fee up to
+// them
+type spotOrderFees struct {
+	mu     sync.Mutex
+	orders map[string]*spotOrderFee
+}
+
+// spotOrderFee is what an account connection knows of a spot order's fee. With known set, fee is the fee of its fills
+// up to executed. fills holds the fills streamed beyond what is known, latest the highest executed quantity its events
+// reported, lookups the lookups of it in flight, and closed whether an event closed it
+type spotOrderFee struct {
+	executed, fee, latest decimal.Decimal
+	known, closed         bool
+	fills                 []spotOrderFill
+	lookups               int
+}
+
+// spotOrderFill is a fill an order event reported: the order's executed quantity before and after it, and its fee
+type spotOrderFill struct {
+	from, to, fee decimal.Decimal
+}
+
+// relay relays an order event's detail d with send, carrying the order's fee when what is known of it reaches at least
+// the event's executed quantity, and reports whether the order is to be looked up: the event was relayed, the order's
+// events report fills the connection did not stream, and no lookup of it is in flight. fill is the fill the event
+// reports, if any, and closes whether the event closes the order, whose record is dropped once no lookup of it is in
+// flight. An event of an order without a record that reports no fill and nothing executed starts none, as the order's
+// first fill shows as much
+func (f *spotOrderFees) relay(orderID string, d *order.Detail, executed decimal.Decimal, fill *spotOrderFill, closes bool, send func() error) (lookUp bool, err error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	o, ok := f.orders[orderID]
+	if !ok && fill == nil && executed.IsZero() {
+		return false, send()
+	}
+	if !ok {
+		o = new(spotOrderFee)
+		if f.orders == nil {
+			f.orders = make(map[string]*spotOrderFee)
+		}
+		f.orders[orderID] = o
+	}
+	if fill != nil {
+		o.add(fill)
+	}
+	if executed.GreaterThan(o.latest) {
+		o.latest = executed
+	}
+	if o.known && !o.executed.LessThan(executed) {
+		d.Fee = o.fee.InexactFloat64()
+	}
+	err = send()
+	o.closed = o.closed || closes
+	if lookUp = err == nil && (!o.known || o.executed.LessThan(o.latest)) && o.lookups == 0; lookUp {
+		o.lookups++
+	}
+	if o.closed && o.lookups == 0 {
+		delete(f.orders, orderID)
+	}
+	return lookUp, err
+}
+
+// settle ends a lookup of an order. A lookup that succeeded reports the order's fee up to its executed quantity, which
+// the fills streamed beyond it add to, and the fee is relayed with send once it reaches every fill the order's events
+// reported
+func (f *spotOrderFees) settle(orderID string, executed, fee decimal.Decimal, ok bool, send func(fee decimal.Decimal) error) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	o := f.orders[orderID]
+	o.lookups--
+	defer func() {
+		if o.closed && o.lookups == 0 {
+			delete(f.orders, orderID)
+		}
+	}()
+	if !ok || o.known && !executed.GreaterThan(o.executed) {
+		return nil
+	}
+	o.known, o.executed, o.fee = true, executed, fee
+	o.absorb()
+	if o.executed.LessThan(o.latest) {
+		return nil
+	}
+	return send(o.fee)
+}
+
+// add counts a fill that continues what is known of the order's fee, or starts it as the order's first, and keeps one
+// that does not
+func (o *spotOrderFee) add(fill *spotOrderFill) {
+	switch {
+	case o.known && !fill.to.GreaterThan(o.executed):
+	case o.known && fill.from.Equal(o.executed), !o.known && fill.from.IsZero():
+		o.known, o.executed, o.fee = true, fill.to, o.fee.Add(fill.fee)
+		o.absorb()
+	case !slices.ContainsFunc(o.fills, func(kept spotOrderFill) bool { return kept.to.Equal(fill.to) }):
+		o.fills = append(o.fills, *fill)
+	}
+}
+
+// absorb counts the kept fills that continue what is known of the order's fee, and drops those it already counts
+func (o *spotOrderFee) absorb() {
+	slices.SortFunc(o.fills, func(a, b spotOrderFill) int { return a.from.Cmp(b.from) })
+	kept := o.fills[:0]
+	for _, fill := range o.fills {
+		switch {
+		case !fill.to.GreaterThan(o.executed):
+		case fill.from.Equal(o.executed):
+			o.executed, o.fee = fill.to, o.fee.Add(fill.fee)
+		default:
+			kept = append(kept, fill)
+		}
+	}
+	if len(kept) == 0 {
+		kept = nil
+	}
+	o.fills = kept
 }
 
 // wsProcessSpotAccountUpdate stores the spot balances an ACCOUNT_UPDATE event carries and relays them, leaving other

@@ -93,6 +93,7 @@ var (
 	errWebsocketListenKeyBackoff              = errors.New("listen key requests waiting after a failure")
 	errWebsocketListenKeyExtension            = errors.New("listen key extension failed")
 	errWebsocketListenKeyExpired              = errors.New("listen key expired")
+	errSpotOrderFeeNotFinite                  = errors.New("spot order fee lookup returned a value that is not a finite number")
 )
 
 // websocketKlineIntervals are the candle intervals every product streams
@@ -158,7 +159,7 @@ type websocketState struct {
 	extensionRetryDelay time.Duration
 	// retryDelay is the first wait after a failed listen key request, websocketListenKeyRetryDelay when zero
 	retryDelay time.Duration
-	// openOrderReadTimeout bounds an account connection's open order read and order lookups,
+	// openOrderReadTimeout bounds an account connection's open order read and order lookups, perpetual and spot,
 	// websocketOpenOrderReadTimeout when zero
 	openOrderReadTimeout time.Duration
 	// netDialContext dials the connections' sockets, the system's dialer when nil
@@ -183,6 +184,8 @@ type websocketConnection struct {
 	// fees totals the fees of the open orders a perpetual account connection streams, whose events report each fill's
 	// fee alone
 	fees perpetualOrderFeeTotals
+	// spotFees keeps the fees of the orders a spot account connection streams
+	spotFees spotOrderFees
 	// heldOrders holds a perpetual account connection's order events while it reads its open orders, so their fills add
 	// to the totals the read starts; holding is set until the read ends, and held keeps the events in their order
 	heldOrders sync.Mutex

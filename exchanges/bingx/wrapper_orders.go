@@ -43,6 +43,9 @@ var (
 	errTrailingValueRequired        = errors.New("trailing stops need a positive tracking value")
 	errCancelReplaceFailed          = errors.New("cancel-replace failed")
 	errModifyPartlyExecuted         = errors.New("partly executed orders cannot be replaced")
+	errModifyNoChange               = errors.New("modification changes nothing the order takes")
+	errSpotTriggerPriceType         = errors.New("spot orders trigger on the last price")
+	errRiskManagementUnsupported    = errors.New("risk management modes unsupported")
 	errCancelledOrderExecuted       = errors.New("order executed before its cancellation")
 	errCancelOutcomeUnknown         = errors.New("cancellation outcome unknown")
 	errOrderNotOpen                 = errors.New("order is no longer open")
@@ -338,7 +341,8 @@ func (e *Exchange) logOrderIssue(a asset.Item, orderID string, err error) {
 // and refusing it for its position side shows one-way mode, which cannot mark it reduce only, and returns an error. A
 // perpetual order's position mode lookup and placements all go to the account of the credentials ctx names when it is
 // submitted. Orders carry no margin type, so a MarginType is refused other than a spot order's NoMargin, as is a reduce
-// only spot order
+// only spot order, and are placed without a take profit, stop loss or stop entry, so RiskManagementModes setting any
+// value is refused, as is a spot order's TriggerPriceType other than the last price, which spot stop orders trigger on
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
@@ -355,6 +359,12 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 	if s.ReduceOnly && s.AssetType == asset.Spot {
 		return nil, errSpotReduceOnly
+	}
+	if s.RiskManagementModes != (order.RiskManagementModes{}) {
+		return nil, errRiskManagementUnsupported
+	}
+	if s.AssetType == asset.Spot && s.TriggerPriceType != order.LastPrice {
+		return nil, fmt.Errorf("%w, received %s", errSpotTriggerPriceType, s.TriggerPriceType)
 	}
 	if t := resolveOrderType(s.Type, s.Price); t != s.Type {
 		// The response reports the type placed, which later reads of the order report
@@ -581,7 +591,7 @@ func (e *Exchange) submitSwapOrder(ctx context.Context, s *order.Submit) (*order
 	resp.ClientOrderID = placed.ClientOrderID
 	resp.Status = order.New
 	e.setPlacedOrderStatus(&resp.Status, resp.AssetType, resp.OrderID, placed.Status)
-	resp.RemainingAmount = max(resp.Amount-placed.ExecutedQuantity.Float64(), 0)
+	resp.RemainingAmount = remainingAmount(types.Number(resp.Amount), placed.ExecutedQuantity)
 	if placed.ExecutedQuantity > 0 {
 		resp.AverageExecutedPrice = placed.AveragePrice.Float64()
 		resp.Cost = placed.AveragePrice.Decimal().Mul(placed.ExecutedQuantity.Decimal()).InexactFloat64()
@@ -666,30 +676,38 @@ func (e *Exchange) submitCoinMarginedOrder(ctx context.Context, s *order.Submit)
 // ModifyOrder modifies an order's price, amount, trigger price or time in force. Amount is the order's desired total
 // quantity, which the order manager fills with the order's original total when a modification leaves it out. A USDT-M
 // LIMIT order whose amount alone changes is amended in place to that total. Other USDT-M orders and spot orders are
-// cancelled, and once the order is closed a replacement is placed for the desired total, or the existing order's
-// total without one, taking every value the modification leaves unchanged from the existing order; the replacement's
-// order ID is returned. Only an order that has executed none of its quantity is replaced, as the order manager keeps
-// the executed quantity and fee of the order it modifies on the replacement: one its lookup shows partly executed is
-// refused before anything is cancelled, and one its cancellation shows executed places nothing and returns an error
-// saying the order was cancelled. The cancellation is sent once, and one that fails is checked by looking the order up
-// again. A cancellation that was refused shows it cancelled nothing, whether BingX refused it with an error code, an
-// HTTP 4xx status without one turned it away, as a firewall or rate limit page does, or it was never sent, as when the
-// rate limiter refuses a wait past the context's deadline: a filled order returns an error saying it executed, one
-// closed otherwise an error saying it is no longer open, and one still open the cancellation's error, each placing
-// nothing. A cancellation without an answer showing its outcome, such as one that timed out, one answered with an HTTP
-// 5xx status such as a gateway timeout, or one BingX answered with a code reporting a busy, internal or network failure
-// (100500, 109500, 109701 or 110500), may have cancelled the order, so an order closed without executing any of its
-// quantity is replaced, one closed after executing any returns an error saying it executed, and one still open an error
-// saying the outcome is unknown, as the cancellation may still land. A failed lookup returns both errors, the outcome
-// being unknown. Modifications of one order run one at a time, whether they name it by its order ID or by its client
-// order ID, which is looked up first, and each looks the order up by its order ID once its turn comes, so one waiting
-// while another replaces the order finds it closed. An order the lookup shows closed is refused before anything is
-// cancelled. A replacement that fails after the cancellation is reported with the outcome of both. A trailing stop's
-// trigger price is its activation price. A USDT-M order that closes a position keeps its position ID, and one whose
-// separate isolated position its lookup does not name is refused before anything is cancelled, as is a NewClientOrderID
-// for a USDT-M order other than a LIMIT or MARKET order. Spot orders report no time in force, so a spot replacement
-// takes the modification's, or else BingX's default, GTC. Every request a modification sends goes to the account of the
-// credentials ctx names when it starts. Coin-M orders cannot be modified
+// cancelled, and once the order is closed a replacement is placed for the desired total, or the existing order's total
+// without one, taking every value the modification leaves unchanged from the existing order other than its client order
+// ID, which a replacement takes only from NewClientOrderID, and its sizing, as a replacement is sized in the base
+// currency, a spot order placed by quote amount being replaced for a base quantity, the desired total or else the
+// quantity its lookup reports; the replacement's order ID is returned. Only an order that has executed none of its
+// quantity is replaced, as the order manager keeps the executed quantity and fee of the order it modifies on the
+// replacement: one its lookup shows partly executed is refused before anything is cancelled, and one its cancellation
+// shows executed places nothing and returns an error saying the order was cancelled. The cancellation is sent once, and
+// one that fails is checked by looking the order up again. A cancellation that was refused shows it cancelled nothing,
+// whether BingX refused it with an error code, an HTTP 4xx status without one turned it away, as a firewall or rate
+// limit page does, or it was never sent, as when the rate limiter refuses a wait past the context's deadline: a filled
+// order returns an error saying it executed, one closed otherwise an error saying it is no longer open, and one still
+// open the cancellation's error, each placing nothing. A cancellation without an answer showing its outcome, such as
+// one that timed out, one answered with an HTTP 5xx status such as a gateway timeout, or one BingX answered with a code
+// reporting a busy, internal or network failure (100500, 109500, 109701 or 110500), may have cancelled the order, so an
+// order closed without executing any of its quantity is replaced, one closed after executing any returns an error
+// saying it executed, and one still open an error saying the outcome is unknown, as the cancellation may still land. A
+// failed lookup returns both errors, the outcome being unknown. Modifications of one order run one at a time, whether
+// they name it by its order ID or by its client order ID, which is looked up first, and each looks the order up by its
+// order ID once its turn comes, so one waiting while another replaces the order finds it closed. An order the lookup
+// shows closed is refused before anything is cancelled, as is a modification changing nothing the order's type takes: a
+// price or trigger price its type does not take, or an amount for a USDT-M guaranteed stop, whose quantity BingX
+// ignores, is left out, and a time in force counts only for an order whose lookup shows one, as the order manager hands
+// every modification the time in force it stored. A replacement that fails after the cancellation is reported with the
+// outcome of both. A trailing stop's price is its trailing distance and its trigger price its activation price. A
+// USDT-M order that closes a position keeps its position ID, and one whose separate isolated position its lookup does
+// not name is refused before anything is cancelled, as is a NewClientOrderID for a USDT-M order other than a LIMIT or
+// MARKET order. USDT-M lookups show the time in force of a post-only order, and of an open LIMIT order, which is GTC,
+// and spot lookups none, so a replacement takes the modification's time in force, or else the one its lookup shows, or
+// else BingX's default, GTC. RiskManagementModes setting any value, and a spot modification's TriggerPriceType other
+// than the last price, are refused before anything is sent. Every request a modification sends goes to the account of
+// the credentials ctx names when it starts. Coin-M orders cannot be modified
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
@@ -699,6 +717,12 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		if price < 0 || math.IsNaN(price) || math.IsInf(price, 0) {
 			return nil, fmt.Errorf("%w: %v", errInvalidPrice, price)
 		}
+	}
+	if action.RiskManagementModes != (order.RiskManagementModes{}) {
+		return nil, errRiskManagementUnsupported
+	}
+	if action.AssetType == asset.Spot && action.TriggerPriceType != order.LastPrice {
+		return nil, fmt.Errorf("%w, received %s", errSpotTriggerPriceType, action.TriggerPriceType)
 	}
 	var ePath exchange.URL
 	switch action.AssetType {
@@ -877,6 +901,9 @@ func (e *Exchange) replaceSpotOrder(ctx context.Context, action *order.Modify, o
 	if err := orderOpenToModify(existing.OrderID.String(), string(existing.Status)); err != nil {
 		return nil, err
 	}
+	if !spotModificationChanges(existing, action) {
+		return nil, fmt.Errorf("%w: order %s", errModifyNoChange, existing.OrderID)
+	}
 	if _, err := replacementQuantity(existing.OrderID.String(), action.Amount, existing.OriginalQuantity, existing.ExecutedQuantity); err != nil {
 		return nil, err
 	}
@@ -930,22 +957,62 @@ func (e *Exchange) replaceSpotOrder(ctx context.Context, action *order.Modify, o
 	return resp, nil
 }
 
-// swapAmountOnlyChange reports whether a modification changes an order's amount and nothing else
-func swapAmountOnlyChange(existing *SwapOrderResponse, action *order.Modify) bool {
-	return action.Amount > 0 && action.Amount != existing.OriginalQuantity.Float64() &&
-		(action.Price == 0 || action.Price == existing.Price.Float64()) &&
-		(action.TriggerPrice == 0 || action.TriggerPrice == existing.StopPrice.Float64()) &&
-		(action.TimeInForce == order.UnknownTIF || action.TimeInForce == swapOrderTimeInForce(existing)) &&
-		action.NewClientOrderID == ""
+// swapModificationChanges reports whether a modification changes a USDT-M order's amount, and whether it changes
+// anything else, leaving out what the order's type does not take: a price unless the type takes one or trails by it, a
+// trigger price unless the type triggers or trails from it, a trigger price type unless the type triggers or trails,
+// and an amount for a guaranteed stop, whose quantity BingX ignores. The order queries report a time in force only for
+// a post-only order or an open limit order, and the order manager hands every modification the time in force it stored,
+// so a time in force changes only such an order: timeInForce is the one the replacement would carry as BingX takes it,
+// the modification's or else the order's, and workingType the price type it would trigger on
+func swapModificationChanges(existing *SwapOrderResponse, action *order.Modify, timeInForce TimeInForce, workingType WorkingType) (amount, other bool) {
+	trails, triggers := orderTypeTrails(existing.Type), orderTypeTakesTrigger(existing.Type)
+	trigger := existing.StopPrice
+	if trails {
+		trigger = existing.ActivationPrice
+	}
+	amount = !swapGuaranteedStop(existing) && action.Amount > 0 && action.Amount != existing.OriginalQuantity.Float64()
+	other = (orderTypeTakesPrice(existing.Type) || trails) && action.Price > 0 && action.Price != existing.Price.Float64() ||
+		(triggers || trails) && (action.TriggerPrice > 0 && action.TriggerPrice != trigger.Float64() || workingType != existing.WorkingType) ||
+		action.NewClientOrderID != "" && action.NewClientOrderID != existing.ClientOrderID
+	if timeInForce != "" {
+		switch swapOrderTimeInForce(existing) {
+		case order.PostOnly:
+			other = other || timeInForce != TimeInForcePostOnly
+		case order.GoodTillCancel:
+			other = other || timeInForce != TimeInForceGoodTillCancel
+		}
+	}
+	return amount, other
 }
 
-// swapOrderTimeInForce returns the time in force of a USDT-M order, which the order queries report only as postOnly;
-// a resting order without it is GTC, as IOC and FOK orders never rest
+// swapGuaranteedStop reports whether a USDT-M order is a conditional order with a guaranteed stop, whose quantity BingX
+// ignores
+func swapGuaranteedStop(o *SwapOrderResponse) bool {
+	return orderTypeTakesTrigger(o.Type) && (o.StopGuaranteed == StopGuaranteedTrue || o.StopGuaranteed == StopGuaranteedCutFee)
+}
+
+// spotModificationChanges reports whether a modification changes anything a spot order's type takes: a price if the
+// type takes one, a trigger price if it triggers, its amount or its client order ID. Spot order queries report no time
+// in force, and the order manager hands every modification the time in force it stored, so a time in force is sent only
+// alongside another change
+func spotModificationChanges(existing *SpotOrderDetailResponse, action *order.Modify) bool {
+	return orderTypeTakesPrice(existing.Type) && action.Price > 0 && action.Price != existing.Price.Float64() ||
+		orderTypeTakesTrigger(existing.Type) && action.TriggerPrice > 0 && action.TriggerPrice != existing.StopPrice.Float64() ||
+		action.Amount > 0 && action.Amount != existing.OriginalQuantity.Float64() ||
+		action.NewClientOrderID != "" && action.NewClientOrderID != existing.ClientOrderID
+}
+
+// swapOrderTimeInForce returns the time in force of a USDT-M order, which the order queries report only as postOnly. An
+// open LIMIT order without it is GTC, as IOC and FOK orders never rest, while a closed or conditional order without it
+// may have been placed with any time in force, which is unknown
 func swapOrderTimeInForce(o *SwapOrderResponse) order.TimeInForce {
 	if o.PostOnly {
 		return order.PostOnly
 	}
-	return order.GoodTillCancel
+	if status, err := convertOrderStatus(o.Status); err == nil && o.Type == OrderTypeLimit && status != order.UnknownStatus && !status.IsInactive() {
+		return order.GoodTillCancel
+	}
+	return order.UnknownTIF
 }
 
 // swapAttachedOrder returns a USDT-M order's attached take profit or stop loss as a request, or nil without one
@@ -1003,11 +1070,28 @@ func (e *Exchange) amendOrReplaceSwapOrder(ctx context.Context, action *order.Mo
 	if err := orderOpenToModify(existing.OrderID.String(), existing.Status); err != nil {
 		return nil, err
 	}
+	timeInForce := cmp.Or(action.TimeInForce, swapOrderTimeInForce(existing))
+	formattedTimeInForce, err := formatTimeInForce(timeInForce)
+	if err != nil {
+		return nil, err
+	}
+	trails := orderTypeTrails(existing.Type)
+	workingType := existing.WorkingType
+	// LastPrice is the price type's zero value, so only another price type shows the modification asks for a change
+	if action.TriggerPriceType != order.LastPrice && (orderTypeTakesTrigger(existing.Type) || trails) {
+		if workingType, err = formatWorkingType(action.TriggerPriceType); err != nil {
+			return nil, err
+		}
+	}
+	changesAmount, changesOther := swapModificationChanges(existing, action, formattedTimeInForce, workingType)
+	if !changesAmount && !changesOther {
+		return nil, fmt.Errorf("%w: order %s", errModifyNoChange, existing.OrderID)
+	}
 	resp, err := action.DeriveModifyResponse()
 	if err != nil {
 		return nil, err
 	}
-	if existing.Type == OrderTypeLimit && swapAmountOnlyChange(existing, action) {
+	if existing.Type == OrderTypeLimit && !changesOther {
 		amended, err := e.ModifySwapOrder(ctx, &ModifySwapOrderRequest{Symbol: action.Pair, OrderID: uint64(existing.OrderID), Quantity: action.Amount})
 		if err != nil {
 			return nil, err
@@ -1016,7 +1100,8 @@ func (e *Exchange) amendOrReplaceSwapOrder(ctx context.Context, action *order.Mo
 		resp.ClientOrderID = amended.ClientOrderID
 		resp.Amount = amended.Quantity
 		resp.Price = existing.Price.Float64()
-		resp.RemainingAmount = max(amended.Quantity-existing.ExecutedQuantity.Float64(), 0)
+		resp.TriggerPrice = 0
+		resp.RemainingAmount = remainingAmount(types.Number(amended.Quantity), existing.ExecutedQuantity)
 		resp.TimeInForce = swapOrderTimeInForce(existing)
 		resp.Type = order.Limit
 		if resp.Side, err = convertOrderSide(existing.Side); err != nil {
@@ -1027,12 +1112,11 @@ func (e *Exchange) amendOrReplaceSwapOrder(ctx context.Context, action *order.Mo
 		}
 		return resp, nil
 	}
-	timeInForce := cmp.Or(action.TimeInForce, swapOrderTimeInForce(existing))
-	formattedTimeInForce, err := formatTimeInForce(timeInForce)
-	if err != nil {
-		return nil, err
+	amount := action.Amount
+	if swapGuaranteedStop(existing) {
+		amount = 0
 	}
-	if _, err := replacementQuantity(existing.OrderID.String(), action.Amount, existing.OriginalQuantity, existing.ExecutedQuantity); err != nil {
+	if _, err := replacementQuantity(existing.OrderID.String(), amount, existing.OriginalQuantity, existing.ExecutedQuantity); err != nil {
 		return nil, err
 	}
 	// Checked before the cancellation, after which the replacement would be refused
@@ -1051,13 +1135,6 @@ func (e *Exchange) amendOrReplaceSwapOrder(ctx context.Context, action *order.Mo
 			return nil, fmt.Errorf("%w: order %s closes a separate isolated position its lookup did not name", errSwapPositionIDRequired, existing.OrderID)
 		}
 	}
-	workingType := existing.WorkingType
-	// LastPrice is the price type's zero value, so only another price type shows the modification asks for a change
-	if action.TriggerPriceType != order.LastPrice && (orderTypeTakesTrigger(existing.Type) || orderTypeTrails(existing.Type)) {
-		if workingType, err = formatWorkingType(action.TriggerPriceType); err != nil {
-			return nil, err
-		}
-	}
 	closePosition := existing.ClosePosition.Bool()
 	req := &SwapOrderRequest{
 		Symbol:       action.Pair,
@@ -1066,8 +1143,6 @@ func (e *Exchange) amendOrReplaceSwapOrder(ctx context.Context, action *order.Mo
 		PositionSide: existing.PositionSide,
 		// Hedge mode orders and close position orders take no reduce only flag
 		ReduceOnly:      existing.ReduceOnly.Bool() && existing.PositionSide == PositionSideBoth && !closePosition,
-		Price:           cmp.Or(action.Price, existing.Price.Float64()),
-		StopPrice:       cmp.Or(action.TriggerPrice, existing.StopPrice.Float64()),
 		PriceRate:       existing.PriceRate.Float64(),
 		WorkingType:     workingType,
 		StopLoss:        swapAttachedOrder(&existing.StopLoss),
@@ -1083,15 +1158,20 @@ func (e *Exchange) amendOrReplaceSwapOrder(ctx context.Context, action *order.Mo
 		// orders too
 		req.PositionID = uint64(existing.PositionID)
 	}
-	if orderTypeTrails(req.Type) {
-		req.StopPrice = 0
+	if orderTypeTakesPrice(req.Type) || trails {
+		req.Price = cmp.Or(action.Price, existing.Price.Float64())
+	}
+	switch {
+	case trails:
 		req.ActivationPrice = cmp.Or(action.TriggerPrice, existing.ActivationPrice.Float64())
+	case orderTypeTakesTrigger(req.Type):
+		req.StopPrice = cmp.Or(action.TriggerPrice, existing.StopPrice.Float64())
 	}
 	cancelledExecuted, err := e.cancelSwapOrderForReplacement(ctx, action.Pair, existing.OrderID)
 	if err != nil {
 		return nil, err
 	}
-	if req.Quantity, err = cancelledReplacementQuantity(existing.OrderID.String(), action.Amount, existing.OriginalQuantity, cancelledExecuted); err != nil {
+	if req.Quantity, err = cancelledReplacementQuantity(existing.OrderID.String(), amount, existing.OriginalQuantity, cancelledExecuted); err != nil {
 		return nil, err
 	}
 	placed, err := e.PlaceSwapOrder(ctx, req)
@@ -1109,7 +1189,7 @@ func (e *Exchange) amendOrReplaceSwapOrder(ctx context.Context, action *order.Mo
 		resp.Price = 0
 		resp.TriggerPrice = req.ActivationPrice
 	}
-	resp.RemainingAmount = max(req.Quantity-placed.ExecutedQuantity.Float64(), 0)
+	resp.RemainingAmount = remainingAmount(types.Number(req.Quantity), placed.ExecutedQuantity)
 	resp.TimeInForce = timeInForce
 	resp.Status = order.New
 	e.setPlacedOrderStatus(&resp.Status, action.AssetType, resp.OrderID, placed.Status)
@@ -1492,7 +1572,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 // spotOrderDetail converts a spot order. Values that cannot be converted are left unset and returned as the error.
 // BingX reports a charged fee as negative on fills and in order events but documents no sign for the order queries,
 // so the fee is taken as paid whatever its sign. An executed order without an average price, as BingX's open orders
-// example shows, takes its cumulative quote quantity over its executed quantity, as order events do
+// example shows, takes its cumulative quote quantity over its executed quantity, as order events do, and an order with
+// nothing executed has no average price, although BingX's order query example reports one
 func (e *Exchange) spotOrderDetail(o *SpotOrderDetailResponse, pair currency.Pair) (order.Detail, error) {
 	status, statusErr := convertOrderStatus(string(o.Status))
 	orderType, typeErr := convertOrderType(o.Type)
@@ -1520,7 +1601,10 @@ func (e *Exchange) spotOrderDetail(o *SpotOrderDetailResponse, pair currency.Pai
 		LastUpdated:          o.UpdateTime.Time(),
 		Pair:                 pair,
 	}
-	if d.AverageExecutedPrice == 0 {
+	switch {
+	case o.ExecutedQuantity <= 0:
+		d.AverageExecutedPrice = 0
+	case d.AverageExecutedPrice == 0:
 		d.AverageExecutedPrice = averagePrice(o.CummulativeQuoteQuantity, o.ExecutedQuantity)
 	}
 	return d, common.AppendError(common.AppendError(statusErr, typeErr), sideErr)
@@ -1702,9 +1786,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 // orders), each split while it holds more than the endpoint returns. Orders from FromOrderID on are paged: spot up to
 // its 10,000th order, beyond which the history is reported truncated, and USDT-M and coin-M from the highest order ID
 // each page returns until a page comes back short or adds no later order. Without a window or an order ID, BingX's
-// most recent orders are returned. Orders dated after EndTime are left out, as a request without a start, or one paging
-// from an order ID, sends BingX no end; an EndTime at the Unix epoch, which common.StartEndTimeCheck counts as unset,
-// leaves none out. USDT-M listings of every symbol cover USDT- and USDC-settled contracts
+// most recent orders are returned. A StartTime or EndTime at the Unix epoch, which common.StartEndTimeCheck counts as
+// unset, is taken as unset. Orders dated after EndTime are left out, as a request without a start, or one paging from
+// an order ID, sends BingX no end. USDT-M listings of every symbol cover USDT- and USDC-settled contracts
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -1715,6 +1799,17 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	fromID, err := parseOrderID(req.FromOrderID)
 	if err != nil {
 		return nil, err
+	}
+	if epoch := time.Unix(0, 0); req.StartTime.Equal(epoch) || req.EndTime.Equal(epoch) {
+		// A window from the Unix epoch would take thousands of seven-day requests, and one to it would end before the start
+		unset := *req
+		if unset.StartTime.Equal(epoch) {
+			unset.StartTime = time.Time{}
+		}
+		if unset.EndTime.Equal(epoch) {
+			unset.EndTime = time.Time{}
+		}
+		req = &unset
 	}
 	if !req.StartTime.IsZero() && req.EndTime.IsZero() {
 		windowed := *req
@@ -1740,7 +1835,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		orders = append(orders, listed...)
 	}
 	filtered := req.Filter(e.Name, orders)
-	if !req.EndTime.IsZero() && !req.EndTime.Equal(time.Unix(0, 0)) {
+	if !req.EndTime.IsZero() {
 		// The filter compares whole seconds, and applies a time range only with both bounds set
 		filtered = slices.DeleteFunc(filtered, func(d order.Detail) bool { return d.Date.After(req.EndTime) })
 	}

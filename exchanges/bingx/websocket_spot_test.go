@@ -2,7 +2,13 @@ package bingx
 
 import (
 	"context"
+	"io"
+	"math"
+	"net/http"
+	"net/http/httptest"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -24,6 +31,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // enableTestTradeFeed relays trades to the data handler
@@ -274,10 +283,12 @@ func TestWebsocketHandleSpotAccountData(t *testing.T) {
 	})
 }
 
-func TestWebsocketProcessSpotOrderUpdate(t *testing.T) { //nolint:tparallel // the cases take their payloads from ex's data handler in turn
+func TestWebsocketProcessSpotOrderUpdate(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), fixtureData(t, "testdata/wsSpotAccount.jsonl", "executionReport")), "wsProcessSpotOrderUpdate must not error")
+	conn := &testWebsocketConnection{}
+	trackTestConnection(t, ex, conn, false)
+	require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, fixtureData(t, "testdata/wsSpotAccount.jsonl", "executionReport")), "wsProcessSpotOrderUpdate must not error")
 	exp := &order.Detail{
 		Price:                3.4649,
 		Amount:               5,
@@ -285,6 +296,7 @@ func TestWebsocketProcessSpotOrderUpdate(t *testing.T) { //nolint:tparallel // t
 		ExecutedAmount:       5,
 		Cost:                 17.3235,
 		AverageExecutedPrice: 3.4647,
+		Fee:                  0.005,
 		FeeAsset:             currency.NewCode("SUI"),
 		Exchange:             ex.Name,
 		OrderID:              "1976495057808654300",
@@ -308,10 +320,10 @@ func TestWebsocketProcessSpotOrderUpdate(t *testing.T) { //nolint:tparallel // t
 			Total:     17.3235,
 		}},
 	}
-	assert.Equal(t, exp, waitForWebsocketPayload[*order.Detail](t, ex, nil), "the order event should be relayed as an order detail with its fill")
+	assert.Equal(t, exp, waitForWebsocketPayload[*order.Detail](t, ex, nil), "the order event should be relayed as an order detail with its fill, its only fill's fee being the order's")
 
 	newOrder := []byte(`{"e":"executionReport","E":1794390762863,"s":"BTC-USDT","S":"SELL","o":"LIMIT","q":"2","p":"100","x":"NEW","X":"NEW","i":7,"z":"0","Z":"0","C":"mine","O":1794390762862}`)
-	require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), newOrder), "wsProcessSpotOrderUpdate must not error")
+	require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, newOrder), "wsProcessSpotOrderUpdate must not error")
 	got := waitForWebsocketPayload[*order.Detail](t, ex, nil)
 	assert.Empty(t, got.Trades, "an event without a fill should carry no trade")
 	assert.Zero(t, got.AverageExecutedPrice, "an order without fills should have no average price")
@@ -327,14 +339,731 @@ func TestWebsocketProcessSpotOrderUpdate(t *testing.T) { //nolint:tparallel // t
 		{"side", `{"s":"BTC-USDT","S":"BOTH","o":"LIMIT","X":"NEW","i":1}`, order.ErrSideIsInvalid},
 		{"symbol", `{"s":"BTCUSDT","S":"BUY","o":"LIMIT","X":"NEW","i":1}`, errWebsocketInvalidSymbol},
 	} {
+		// The cases take their payloads from ex's data handler in turn
 		t.Run(tc.name, func(t *testing.T) {
-			require.NoErrorf(t, ex.wsProcessSpotOrderUpdate(t.Context(), []byte(tc.event)), "wsProcessSpotOrderUpdate must relay an unclassified %s", tc.name)
+			require.NoErrorf(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, []byte(tc.event)), "wsProcessSpotOrderUpdate must relay an unclassified %s", tc.name)
 			classification := waitForWebsocketPayload[order.ClassificationError](t, ex, nil)
 			assert.ErrorIsf(t, classification.Err, tc.err, "an unknown %s should be relayed as a classification error", tc.name)
 			assert.Equal(t, "1", classification.OrderID, "the classification error should name the order")
 		})
 	}
-	assert.Error(t, ex.wsProcessSpotOrderUpdate(t.Context(), []byte(`{"i":"x"}`)), "wsProcessSpotOrderUpdate should error for an event that does not decode")
+	assert.Error(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, []byte(`{"i":"x"}`)), "wsProcessSpotOrderUpdate should error for an event that does not decode")
+
+	t.Run("quote-sized order executed past its quantity", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		quoteSized := []byte(`{"e":"executionReport","E":1700000001000,"s":"BTC-USDT","S":"BUY","o":"MARKET","q":"0","p":"0","x":"TRADE","X":"FILLED","i":44,"l":"2","z":"2","L":"10","n":"-0.002","N":"BTC","T":1700000001000,"t":301,"Z":"20","Y":"20","Q":"20","O":1700000000000}`)
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), &testWebsocketConnection{}, quoteSized), "wsProcessSpotOrderUpdate must not error")
+		assert.Zero(t, waitForWebsocketPayload[*order.Detail](t, ex, nil).RemainingAmount, "an order executed past its quantity should have nothing remaining")
+	})
+
+	t.Run("connection not tracked", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), &testWebsocketConnection{}, fixtureData(t, "testdata/wsSpotAccount.jsonl", "executionReport")), "wsProcessSpotOrderUpdate must not error on a connection not tracked")
+		d := waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		require.Len(t, d.Trades, 1, "the fill must be relayed")
+		assert.Equal(t, 0.005, d.Trades[0].Fee, "the fill should carry its fee")
+		assert.Zero(t, d.Fee, "an event on a connection keeping no totals should carry no order fee")
+	})
+
+	t.Run("order fees in the order store", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name    string
+			stored  order.Detail
+			lookups []string
+			events  [][]byte
+			fees    []float64
+			exp     float64
+			queries int
+			records int
+		}{
+			{
+				name:   "the documented fill",
+				events: [][]byte{fixtureData(t, "testdata/wsSpotAccount.jsonl", "executionReport")},
+				fees:   []float64{0.005},
+				exp:    0.005,
+			},
+			{
+				name:    "the last fills of an order the sweep stored part filled",
+				stored:  order.Detail{ExecutedAmount: 1, Fee: 0.1, Status: order.PartiallyFilled},
+				lookups: []string{testSpotOrderReply("FILLED", "3", "-0.3")},
+				events:  [][]byte{testSpotOrderEvent("TRADE", "FILLED", "2", "3", "-0.2", 102)},
+				fees:    []float64{0, 0.3},
+				exp:     0.3,
+				queries: 1,
+			},
+			{
+				name:    "the last fills of an order the sweep stored part filled, looked up behind them",
+				stored:  order.Detail{ExecutedAmount: 1, Fee: 0.1, Status: order.PartiallyFilled},
+				lookups: []string{testSpotOrderReply("PARTIALLY_FILLED", "1", "-0.1")},
+				events:  [][]byte{testSpotOrderEvent("TRADE", "FILLED", "2", "3", "-0.2", 102)},
+				fees:    []float64{0, 0.3},
+				exp:     0.3,
+				queries: 1,
+			},
+			{
+				name:   "a first fill and the order's cancellation",
+				events: [][]byte{testSpotOrderEvent("TRADE", "PARTIALLY_FILLED", "1", "1", "-0.1", 101), testSpotOrderEvent("CANCELED", "CANCELED", "0", "1", "0", 0)},
+				fees:   []float64{0.1, 0.1},
+				exp:    0.1,
+			},
+			{
+				name:   "fills in turn",
+				events: [][]byte{testSpotOrderEvent("NEW", "NEW", "0", "0", "0", 0), testSpotOrderEvent("TRADE", "PARTIALLY_FILLED", "1", "1", "-0.1", 101), testSpotOrderEvent("TRADE", "PARTIALLY_FILLED", "1.5", "2.5", "-0.15", 102), testSpotOrderEvent("TRADE", "FILLED", "0.5", "3", "-0.05", 103)},
+				fees:   []float64{0, 0.1, 0.25, 0.3},
+				exp:    0.3,
+			},
+			{
+				name:    "a cancellation after a fill the connection did not stream",
+				stored:  order.Detail{Status: order.New},
+				lookups: []string{testSpotOrderReply("CANCELED", "1", "-0.1")},
+				events:  [][]byte{testSpotOrderEvent("CANCELED", "CANCELED", "0", "1", "0", 0)},
+				fees:    []float64{0, 0.1},
+				exp:     0.1,
+				queries: 1,
+			},
+			{
+				name:    "a fill repeated",
+				events:  [][]byte{testSpotOrderEvent("TRADE", "PARTIALLY_FILLED", "1", "1", "-0.1", 101), testSpotOrderEvent("TRADE", "PARTIALLY_FILLED", "1", "1", "-0.1", 101)},
+				fees:    []float64{0.1, 0.1},
+				exp:     0.1,
+				records: 1,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+				server := newTestSpotOrderServer(t, ex)
+				server.queue(tc.lookups...)
+				conn := &testWebsocketConnection{}
+				creds, err := ex.GetCredentials(t.Context())
+				require.NoError(t, err, "GetCredentials must not error")
+				state := ex.wsTrackConnection(conn, newTestSession(t, ex).ch, false, asset.Spot, creds)
+				stored := tc.stored
+				stored.Exchange, stored.AssetType, stored.Amount = ex.Name, asset.Spot, 3
+				var fees []float64
+				for _, data := range tc.events {
+					require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, data), "wsProcessSpotOrderUpdate must not error")
+					d := waitForWebsocketPayload[*order.Detail](t, ex, nil)
+					if stored.OrderID == "" {
+						stored.OrderID = d.OrderID
+					}
+					fees = append(fees, d.Fee)
+					require.NoError(t, stored.UpdateOrderFromDetail(d), "the order store must take the event")
+				}
+				testWaitBackground(t, ex)
+				for _, p := range websocketPayloads(ex) {
+					d, ok := p.(*order.Detail)
+					require.Truef(t, ok, "only order details must be relayed, got %T", p)
+					fees = append(fees, d.Fee)
+					require.NoError(t, stored.UpdateOrderFromDetail(d), "the order store must take the looked up fee")
+				}
+				assert.Equal(t, tc.fees, fees, "each relayed detail should carry the order's fee as far as it is known")
+				assert.InDelta(t, tc.exp, stored.Fee, 1e-12, "the stored order should hold the fees of all its fills")
+				assert.Len(t, server.queried(), tc.queries, "only an order whose earlier fills the connection did not stream should be looked up")
+				state.spotFees.mu.Lock()
+				assert.Len(t, state.spotFees.orders, tc.records, "only an open order's record should be kept")
+				state.spotFees.mu.Unlock()
+			})
+		}
+	})
+}
+
+func TestWebsocketLookUpSpotOrderFee(t *testing.T) {
+	t.Parallel()
+	// spotFeeSetup tracks a spot account connection with the exchange's credentials and serves its order queries
+	spotFeeSetup := func(t *testing.T) (*Exchange, *testSpotOrderServer, *testWebsocketConnection, *testSession) {
+		t.Helper()
+		ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+		server := newTestSpotOrderServer(t, ex)
+		conn := &testWebsocketConnection{}
+		creds, err := ex.GetCredentials(t.Context())
+		require.NoError(t, err, "GetCredentials must not error")
+		session := newTestSession(t, ex)
+		ex.wsTrackConnection(conn, session.ch, false, asset.Spot, creds)
+		return ex, server, conn, session
+	}
+	gapFill := testSpotOrderEvent("TRADE", "PARTIALLY_FILLED", "1", "2", "-0.1", 102)
+
+	t.Run("lookup refused", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, _ := spotFeeSetup(t)
+		server.queue(`{"code":100400,"msg":"refused"}`, testSpotOrderReply("FILLED", "3", "-0.3"))
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, gapFill), "wsProcessSpotOrderUpdate must not error")
+		d := waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		assert.Equal(t, order.PartiallyFilled, d.Status, "the event's status should be relayed whatever the lookup's outcome")
+		assert.Len(t, d.Trades, 1, "the event's fill should be relayed whatever the lookup's outcome")
+		testWaitBackground(t, ex)
+		assert.Empty(t, websocketPayloads(ex), "a refused lookup should relay nothing")
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, testSpotOrderEvent("TRADE", "FILLED", "1", "3", "-0.1", 103)), "wsProcessSpotOrderUpdate must not error")
+		waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		testWaitBackground(t, ex)
+		got := testOrderDetails(t, ex)
+		require.Len(t, got, 1, "the next event's lookup must relay the order's fee")
+		assert.Equal(t, 0.3, got[0].Fee, "the next event's lookup should relay the order's fee")
+		assert.Equal(t, []string{"42", "42"}, server.queried(), "an order should be looked up again after a refused lookup")
+	})
+
+	t.Run("fills streamed while the lookup is in flight", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, _ := spotFeeSetup(t)
+		server.queue(testSpotOrderReply("PARTIALLY_FILLED", "2", "-0.2"))
+		release, arrived := server.hold()
+		testSpotOrderEventLookedUp(t, ex, conn, gapFill, arrived)
+		assert.Zero(t, waitForWebsocketPayload[*order.Detail](t, ex, nil).Fee, "an event whose earlier fills were not streamed should carry no order fee")
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, testSpotOrderEvent("TRADE", "FILLED", "1", "3", "-0.05", 103)), "wsProcessSpotOrderUpdate must not error while the lookup is in flight")
+		assert.Zero(t, waitForWebsocketPayload[*order.Detail](t, ex, nil).Fee, "an event whose earlier fills are being looked up should carry no order fee")
+		close(release)
+		testWaitBackground(t, ex)
+		got := testOrderDetails(t, ex)
+		require.Len(t, got, 1, "the lookup must relay the order's fee")
+		d := got[0]
+		assert.InDelta(t, 0.25, d.Fee, 1e-12, "the lookup's fee should add the fills streamed beyond it")
+		assert.Equal(t, currency.USDT, d.FeeAsset, "the fee's currency should be relayed")
+		assert.Equal(t, order.UnknownStatus, d.Status, "the looked up fee should be relayed without a status, which the events report")
+		assert.Zero(t, d.ExecutedAmount, "the looked up fee should be relayed without an executed quantity, which the events report")
+		assert.Equal(t, "42", d.OrderID, "the looked up fee should name its order")
+		assert.Equal(t, 3.0, d.Amount, "the looked up fee should carry the order's quantity")
+		assert.Equal(t, 30.0, d.QuoteAmount, "the looked up fee should carry the order's quote amount")
+		assert.Equal(t, time.UnixMilli(1700000000000), d.Date, "the looked up fee should carry the order's creation time")
+		assert.Equal(t, 10.0, d.Price, "the looked up fee should carry the order's price")
+		assert.Equal(t, time.UnixMilli(1700000002000), d.LastUpdated, "the looked up fee should be dated by the order's update time BingX reports")
+		assert.Equal(t, []string{"42"}, server.queried(), "an order should be looked up once while a lookup of it is in flight")
+	})
+
+	t.Run("reply ahead of the stream", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, _ := spotFeeSetup(t)
+		server.queue(testSpotOrderReply("FILLED", "3", "-0.3"))
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, gapFill), "wsProcessSpotOrderUpdate must not error")
+		waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		testWaitBackground(t, ex)
+		got := testOrderDetails(t, ex)
+		require.Len(t, got, 1, "the lookup must relay the order's fee")
+		assert.Equal(t, 0.3, got[0].Fee, "the lookup should relay the fee of every fill it reports")
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, testSpotOrderEvent("TRADE", "FILLED", "1", "3", "-0.1", 103)), "wsProcessSpotOrderUpdate must not error")
+		assert.Equal(t, 0.3, waitForWebsocketPayload[*order.Detail](t, ex, nil).Fee, "a fill the lookup already counted should carry the order's fee once")
+	})
+
+	t.Run("reply behind a fill the connection did not stream", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, _ := spotFeeSetup(t)
+		server.queue(testSpotOrderReply("PARTIALLY_FILLED", "1", "-0.1"), testSpotOrderReply("FILLED", "3", "-0.3"))
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, testSpotOrderEvent("TRADE", "PARTIALLY_FILLED", "0.5", "2.5", "-0.05", 102)), "wsProcessSpotOrderUpdate must not error")
+		waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		testWaitBackground(t, ex)
+		assert.Empty(t, websocketPayloads(ex), "a lookup leaving fills unknown should relay nothing")
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, testSpotOrderEvent("TRADE", "FILLED", "0.5", "3", "-0.05", 103)), "wsProcessSpotOrderUpdate must not error")
+		waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		testWaitBackground(t, ex)
+		got := testOrderDetails(t, ex)
+		require.Len(t, got, 1, "the next event's lookup must relay the order's fee")
+		assert.Equal(t, 0.3, got[0].Fee, "the next event's lookup should relay the order's fee")
+	})
+
+	t.Run("connection down before the reply", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, _ := spotFeeSetup(t)
+		server.queue(testSpotOrderReply("FILLED", "3", "-0.3"))
+		release, arrived := server.hold()
+		testSpotOrderEventLookedUp(t, ex, conn, gapFill, arrived)
+		waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		conn.down.Store(true)
+		close(release)
+		testWaitBackground(t, ex)
+		assert.Empty(t, websocketPayloads(ex), "a lookup answered after its connection went down should relay nothing")
+	})
+
+	t.Run("session ended during the lookup", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, session := spotFeeSetup(t)
+		ex.wsState.mu.Lock()
+		ex.wsState.openOrderReadTimeout = time.Hour
+		ex.wsState.mu.Unlock()
+		server.queue(testSpotOrderReply("FILLED", "3", "-0.3"))
+		_, arrived := server.hold()
+		testSpotOrderEventLookedUp(t, ex, conn, gapFill, arrived)
+		waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		session.end()
+		testWaitBackground(t, ex)
+		assert.Empty(t, websocketPayloads(ex), "a lookup ended with its session should relay nothing")
+	})
+
+	t.Run("lookup unanswered by its deadline", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, _ := spotFeeSetup(t)
+		ex.wsState.mu.Lock()
+		ex.wsState.openOrderReadTimeout = 50 * time.Millisecond
+		ex.wsState.mu.Unlock()
+		server.queue(testSpotOrderReply("FILLED", "3", "-0.3"))
+		_, arrived := server.hold()
+		testSpotOrderEventLookedUp(t, ex, conn, gapFill, arrived)
+		waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		testWaitBackground(t, ex)
+		assert.Empty(t, websocketPayloads(ex), "a lookup unanswered by its deadline should relay nothing")
+		assert.Len(t, server.queried(), 1, "the lookup should be sent once")
+	})
+
+	t.Run("lookup refused for its rate", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, _ := spotFeeSetup(t)
+		server.queue(wrapperStatusPrefix+`429 {"code":100410,"msg":"rate limited"}`, testSpotOrderReply("FILLED", "3", "-0.3"))
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, gapFill), "wsProcessSpotOrderUpdate must not error")
+		waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		testWaitBackground(t, ex)
+		assert.Empty(t, websocketPayloads(ex), "a lookup refused for its rate should relay nothing")
+		assert.Len(t, server.queried(), 1, "the lookup should be sent once")
+	})
+
+	t.Run("cancellation without a fee currency", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, _ := spotFeeSetup(t)
+		server.queue(testSpotOrderReply("CANCELED", "1", "-0.1"))
+		cancelled := []byte(`{"e":"executionReport","E":1700000002000,"s":"BTC-USDT","S":"BUY","o":"LIMIT","q":"3","p":"10","x":"CANCELED","X":"CANCELED","i":42,"z":"1","Z":"10","O":1700000000000}`)
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, cancelled), "wsProcessSpotOrderUpdate must not error")
+		waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		testWaitBackground(t, ex)
+		got := testOrderDetails(t, ex)
+		require.Len(t, got, 1, "the lookup must relay the order's fee")
+		assert.Equal(t, 0.1, got[0].Fee, "the lookup should relay the order's fee")
+		assert.Equal(t, currency.USDT, got[0].FeeAsset, "the lookup should relay the fee's currency BingX reports for the order")
+	})
+
+	t.Run("cancellation repeating its last fill's quantity", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, _ := spotFeeSetup(t)
+		server.queue(testSpotOrderReply("CANCELED", "1", "-0.1"))
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, testSpotOrderEvent("CANCELED", "CANCELED", "1", "1", "0", 0)), "wsProcessSpotOrderUpdate must not error")
+		assert.Zero(t, waitForWebsocketPayload[*order.Detail](t, ex, nil).Fee, "an event that reports no fill should carry no order fee its fills were not streamed for")
+		testWaitBackground(t, ex)
+		got := testOrderDetails(t, ex)
+		require.Len(t, got, 1, "the lookup must relay the order's fee")
+		assert.Equal(t, 0.1, got[0].Fee, "the lookup should relay the fee of the fill the connection did not stream")
+	})
+
+	t.Run("event refused by the data handler", func(t *testing.T) {
+		t.Parallel()
+		for _, event := range [][]byte{gapFill, testSpotOrderEvent("TRADE", "FILLED", "2", "3", "-0.2", 103)} {
+			ex, server, conn, _ := spotFeeSetup(t)
+			ex.Websocket.DataHandler = stream.NewRelay(1)
+			require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "full"), "Send must fill the data handler")
+			assert.Error(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, event), "wsProcessSpotOrderUpdate should return the data handler's refusal")
+			testWaitBackground(t, ex)
+			assert.Empty(t, server.queried(), "an order whose event was not relayed should not be looked up, open or closed")
+		}
+	})
+
+	t.Run("looked up fee refused by the data handler", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, _ := spotFeeSetup(t)
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		server.queue(testSpotOrderReply("FILLED", "3", "-0.3"))
+		require.NoError(t, ex.wsProcessSpotOrderUpdate(t.Context(), conn, gapFill), "wsProcessSpotOrderUpdate must not error")
+		testWaitBackground(t, ex)
+		got := testOrderDetails(t, ex)
+		require.Len(t, got, 1, "the data handler must hold only the event, being full when the lookup relays")
+		assert.Zero(t, got[0].Fee, "the event should carry no order fee")
+		assert.Len(t, server.queried(), 1, "the order should be looked up")
+	})
+
+	t.Run("credentials changing during the lookup", func(t *testing.T) {
+		t.Parallel()
+		ex, server, conn, _ := spotFeeSetup(t)
+		server.queue(testSpotOrderReply("FILLED", "3", "-0.3"))
+		release, arrived := server.hold()
+		ex.SetCredentials(&accounts.Credentials{Key: "other-key", Secret: "other-secret"})
+		testSpotOrderEventLookedUp(t, ex, conn, gapFill, arrived)
+		waitForWebsocketPayload[*order.Detail](t, ex, nil)
+		close(release)
+		testWaitBackground(t, ex)
+		server.mu.Lock()
+		assert.Equal(t, []string{"test-api-key"}, server.keys, "the lookup should be sent with the credentials of the connection's listen key")
+		server.mu.Unlock()
+	})
+}
+
+func TestSpotOrderFeesRelay(t *testing.T) {
+	t.Parallel()
+	type event struct {
+		executed, from, fee string
+		fill, closes        bool
+	}
+	for _, tc := range []struct {
+		name    string
+		events  []event
+		fees    []float64
+		lookups []bool
+		known   bool
+		open    bool
+		latest  string
+	}{
+		{name: "new order", events: []event{{executed: "0"}}, fees: []float64{0}, lookups: []bool{false}},
+		{name: "new order, then its first fill", events: []event{{executed: "0"}, {executed: "1", from: "0", fee: "0.1", fill: true}}, fees: []float64{0, 0.1}, lookups: []bool{false, false}, known: true, open: true, latest: "1"},
+		{name: "first fill", events: []event{{executed: "1", from: "0", fee: "0.1", fill: true}}, fees: []float64{0.1}, lookups: []bool{false}, known: true, open: true},
+		{name: "fills in turn", events: []event{{executed: "1", from: "0", fee: "0.1", fill: true}, {executed: "3", from: "1", fee: "0.2", fill: true, closes: true}}, fees: []float64{0.1, 0.3}, lookups: []bool{false, false}},
+		{name: "fill after a missed one", events: []event{{executed: "1", from: "0", fee: "0.1", fill: true}, {executed: "3", from: "2", fee: "0.1", fill: true}}, fees: []float64{0.1, 0}, lookups: []bool{false, true}, known: true, open: true},
+		{name: "fill after earlier ones not streamed", events: []event{{executed: "3", from: "1", fee: "0.2", fill: true}}, fees: []float64{0}, lookups: []bool{true}, open: true},
+		{name: "cancellation after a fill not streamed", events: []event{{executed: "1", closes: true}}, fees: []float64{0}, lookups: []bool{true}, open: true},
+		{name: "cancellation after a streamed fill", events: []event{{executed: "1", from: "0", fee: "0.1", fill: true}, {executed: "1", closes: true}}, fees: []float64{0.1, 0.1}, lookups: []bool{false, false}},
+		{name: "cancellation after a streamed fill and one not streamed", events: []event{{executed: "1", from: "0", fee: "0.1", fill: true}, {executed: "2", closes: true}}, fees: []float64{0.1, 0}, lookups: []bool{false, true}, known: true, open: true, latest: "2"},
+		{name: "cancellation with nothing executed", events: []event{{executed: "0", closes: true}}, fees: []float64{0}, lookups: []bool{false}},
+		{name: "fill repeated", events: []event{{executed: "1", from: "0", fee: "0.1", fill: true}, {executed: "1", from: "0", fee: "0.1", fill: true}}, fees: []float64{0.1, 0.1}, lookups: []bool{false, false}, known: true, open: true},
+		{name: "fills not streamed, one lookup", events: []event{{executed: "2", from: "1", fee: "0.1", fill: true}, {executed: "3", from: "2", fee: "0.1", fill: true}}, fees: []float64{0, 0}, lookups: []bool{true, false}, open: true},
+		{name: "fills out of order", events: []event{{executed: "3", from: "1", fee: "0.2", fill: true}, {executed: "1", from: "0", fee: "0.1", fill: true}}, fees: []float64{0, 0.3}, lookups: []bool{true, false}, known: true, open: true, latest: "3"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var f spotOrderFees
+			for i, ev := range tc.events {
+				var fill *spotOrderFill
+				if ev.fill {
+					fill = &spotOrderFill{from: testDecimal(t, ev.from), to: testDecimal(t, ev.executed), fee: testDecimal(t, ev.fee)}
+				}
+				d := &order.Detail{OrderID: "42"}
+				var sent int
+				lookUp, err := f.relay("42", d, testDecimal(t, ev.executed), fill, ev.closes, func() error {
+					sent++
+					return nil
+				})
+				require.NoError(t, err, "relay must not error")
+				assert.Equal(t, 1, sent, "relay should send the event")
+				assert.InDeltaf(t, tc.fees[i], d.Fee, 1e-12, "event %d should carry the order's fee as far as it is known", i)
+				assert.Equalf(t, tc.lookups[i], lookUp, "event %d should look the order up only when fills were not streamed and no lookup is in flight", i)
+			}
+			o, ok := f.orders["42"]
+			require.Equal(t, tc.open, ok, "relay must keep the record of an order still open or being looked up")
+			if ok {
+				assert.Equal(t, tc.known, o.known, "relay should know the order's fee only from its first fill")
+			}
+			if tc.latest != "" {
+				assert.Equal(t, tc.latest, o.latest.String(), "relay should keep the highest executed quantity the order's events reported")
+			}
+		})
+	}
+
+	t.Run("send failure of an event starting no record", func(t *testing.T) {
+		t.Parallel()
+		var f spotOrderFees
+		lookUp, err := f.relay("42", &order.Detail{}, decimal.Zero, nil, false, func() error { return errTestDial })
+		assert.ErrorIs(t, err, errTestDial, "relay should return the send's error")
+		assert.False(t, lookUp, "relay should not look up an order whose event reports nothing executed")
+		assert.Empty(t, f.orders, "relay should start no record for an event reporting no fill and nothing executed")
+	})
+
+	t.Run("send failure", func(t *testing.T) {
+		t.Parallel()
+		var f spotOrderFees
+		lookUp, err := f.relay("42", &order.Detail{}, decimal.NewFromInt(2), &spotOrderFill{from: decimal.NewFromInt(1), to: decimal.NewFromInt(2), fee: testDecimal(t, "0.1")}, false, func() error { return errTestDial })
+		assert.ErrorIs(t, err, errTestDial, "relay should return the send's error")
+		assert.False(t, lookUp, "relay should not look up an order whose event it could not relay")
+		require.Contains(t, f.orders, "42", "relay must keep the order's record")
+		assert.Zero(t, f.orders["42"].lookups, "relay should count no lookup for an event it could not relay")
+	})
+}
+
+func TestSpotOrderFeesSettle(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name            string
+		known           bool
+		executed, fee   string
+		fills           []spotOrderFill
+		latest          string
+		reply, replyFee string
+		ok, closed      bool
+		relayed         string
+		records         int
+	}{
+		{name: "reply covering the fills", fills: []spotOrderFill{{from: decimal.NewFromInt(1), to: decimal.NewFromInt(3), fee: testDecimal(t, "0.2")}}, latest: "3", reply: "3", replyFee: "0.3", ok: true, relayed: "0.3", records: 1},
+		{name: "reply behind the fills", fills: []spotOrderFill{{from: decimal.NewFromInt(1), to: decimal.NewFromInt(3), fee: testDecimal(t, "0.2")}}, latest: "3", reply: "1", replyFee: "0.1", ok: true, relayed: "0.3", records: 1},
+		{name: "reply leaving a gap", fills: []spotOrderFill{{from: decimal.NewFromInt(2), to: decimal.NewFromInt(3), fee: testDecimal(t, "0.1")}}, latest: "3", reply: "1", replyFee: "0.1", ok: true, records: 1},
+		{name: "failed lookup", fills: []spotOrderFill{{from: decimal.NewFromInt(1), to: decimal.NewFromInt(3), fee: testDecimal(t, "0.2")}}, latest: "3", reply: "3", replyFee: "0.3", records: 1},
+		{name: "reply no further than known", known: true, executed: "3", fee: "0.3", latest: "3", reply: "2", replyFee: "0.2", ok: true, records: 1},
+		{name: "reply at the known quantity", known: true, executed: "3", fee: "0.3", latest: "3", reply: "3", replyFee: "0.25", ok: true, records: 1},
+		{name: "reply on a closed order", fills: []spotOrderFill{{from: decimal.NewFromInt(1), to: decimal.NewFromInt(3), fee: testDecimal(t, "0.2")}}, latest: "3", reply: "3", replyFee: "0.3", ok: true, closed: true, relayed: "0.3"},
+		{name: "failed lookup on a closed order", latest: "1", reply: "1", replyFee: "0.1", closed: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			o := &spotOrderFee{known: tc.known, fills: tc.fills, latest: testDecimal(t, tc.latest), lookups: 1, closed: tc.closed}
+			if tc.known {
+				o.executed, o.fee = testDecimal(t, tc.executed), testDecimal(t, tc.fee)
+			}
+			f := spotOrderFees{orders: map[string]*spotOrderFee{"42": o}}
+			var relayed []string
+			err := f.settle("42", testDecimal(t, tc.reply), testDecimal(t, tc.replyFee), tc.ok, func(fee decimal.Decimal) error {
+				relayed = append(relayed, fee.String())
+				return nil
+			})
+			require.NoError(t, err, "settle must not error")
+			var exp []string
+			if tc.relayed != "" {
+				exp = []string{tc.relayed}
+			}
+			assert.Equal(t, exp, relayed, "settle should relay the order's fee once it covers every fill reported")
+			if tc.known {
+				assert.Equal(t, tc.executed, o.executed.String(), "settle should keep a known total a reply does not pass")
+				assert.Equal(t, tc.fee, o.fee.String(), "settle should keep the fee of a known total a reply does not pass")
+			}
+			assert.Zero(t, o.lookups, "settle should end the lookup")
+			assert.Len(t, f.orders, tc.records, "settle should drop a closed order's record")
+		})
+	}
+
+	t.Run("send failure", func(t *testing.T) {
+		t.Parallel()
+		f := spotOrderFees{orders: map[string]*spotOrderFee{"42": {latest: decimal.NewFromInt(1), lookups: 1}}}
+		err := f.settle("42", decimal.NewFromInt(1), testDecimal(t, "0.1"), true, func(decimal.Decimal) error { return errTestDial })
+		assert.ErrorIs(t, err, errTestDial, "settle should return the send's error")
+	})
+}
+
+func TestSpotOrderFeeAdd(t *testing.T) {
+	t.Parallel()
+	fill := func(from, to int64, fee string) spotOrderFill {
+		return spotOrderFill{from: decimal.NewFromInt(from), to: decimal.NewFromInt(to), fee: testDecimal(t, fee)}
+	}
+	for _, tc := range []struct {
+		name          string
+		start         spotOrderFee
+		fill          spotOrderFill
+		known         bool
+		executed, fee string
+		kept          int
+	}{
+		{name: "first fill", fill: fill(0, 1, "0.1"), known: true, executed: "1", fee: "0.1"},
+		{name: "next fill", start: spotOrderFee{known: true, executed: decimal.NewFromInt(1), fee: testDecimal(t, "0.1")}, fill: fill(1, 3, "0.2"), known: true, executed: "3", fee: "0.3"},
+		{name: "fill counted", start: spotOrderFee{known: true, executed: decimal.NewFromInt(3), fee: testDecimal(t, "0.3")}, fill: fill(1, 3, "0.2"), known: true, executed: "3", fee: "0.3"},
+		{name: "fill after a gap", start: spotOrderFee{known: true, executed: decimal.NewFromInt(1), fee: testDecimal(t, "0.1")}, fill: fill(2, 3, "0.1"), known: true, executed: "1", fee: "0.1", kept: 1},
+		{name: "fill without the first", fill: fill(1, 2, "0.1"), executed: "0", fee: "0", kept: 1},
+		{name: "fill kept already", start: spotOrderFee{fills: []spotOrderFill{fill(1, 2, "0.1")}}, fill: fill(1, 2, "0.1"), executed: "0", fee: "0", kept: 1},
+		{name: "first fill joining a kept one", start: spotOrderFee{fills: []spotOrderFill{fill(1, 2, "0.1")}}, fill: fill(0, 1, "0.1"), known: true, executed: "2", fee: "0.2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			o := tc.start
+			o.add(&tc.fill)
+			assert.Equal(t, tc.known, o.known, "add should know the fee from the order's first fill")
+			assert.Equal(t, tc.executed, o.executed.String(), "add should count the fills that continue what is known")
+			assert.Equal(t, tc.fee, o.fee.String(), "add should total the fees of the fills it counts")
+			assert.Len(t, o.fills, tc.kept, "add should keep the fills that do not continue what is known")
+		})
+	}
+}
+
+func TestSpotOrderFeeAbsorb(t *testing.T) {
+	t.Parallel()
+	o := &spotOrderFee{known: true, executed: decimal.NewFromInt(1), fee: testDecimal(t, "0.1"), fills: []spotOrderFill{
+		{from: decimal.NewFromInt(4), to: decimal.NewFromInt(5), fee: testDecimal(t, "0.1")},
+		{from: decimal.NewFromInt(2), to: decimal.NewFromInt(3), fee: testDecimal(t, "0.1")},
+		{from: decimal.NewFromInt(1), to: decimal.NewFromInt(2), fee: testDecimal(t, "0.1")},
+		{from: decimal.NewFromInt(0), to: decimal.NewFromInt(1), fee: testDecimal(t, "0.1")},
+	}}
+	o.absorb()
+	assert.Equal(t, "3", o.executed.String(), "absorb should count the kept fills continuing what is known, in order")
+	assert.Equal(t, "0.3", o.fee.String(), "absorb should total the fees of the fills it counts")
+	require.Len(t, o.fills, 1, "absorb must keep the fills beyond a gap")
+	assert.Equal(t, "4", o.fills[0].from.String(), "absorb should keep the fill beyond the gap")
+	o.executed = decimal.NewFromInt(4)
+	o.absorb()
+	assert.Equal(t, "5", o.executed.String(), "absorb should count the last kept fill")
+	assert.Nil(t, o.fills, "absorb should let go of the fills once it counts them all")
+}
+
+func TestSpotOrderFee(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, reply   string
+		executed, fee string
+		err           error
+	}{
+		{name: "charged fee reported negative", reply: testSpotOrderReply("FILLED", "3", "-0.3"), executed: "3", fee: "0.3"},
+		{name: "charged fee reported positive", reply: testSpotOrderReply("FILLED", "3", "0.3"), executed: "3", fee: "0.3"},
+		{name: "executed quantity not a number", reply: testSpotOrderReply("FILLED", "NaN", "-0.3"), err: errSpotOrderFeeNotFinite},
+		{name: "infinite fee", reply: testSpotOrderReply("FILLED", "3", "Infinity"), err: errSpotOrderFeeNotFinite},
+		{name: "refused", reply: `{"code":100400,"msg":"refused"}`, err: errAPIResponse},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newWebsocketTestExchange(t, testWebsocketAuthenticated)
+			newTestSpotOrderServer(t, ex).queue(tc.reply)
+			executed, fee, feeAsset, updated, err := ex.spotOrderFee(t.Context(), currency.NewBTCUSDT(), 42)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "spotOrderFee must return the lookup's error")
+				return
+			}
+			require.NoError(t, err, "spotOrderFee must not error")
+			assert.Equal(t, tc.executed, executed.String(), "spotOrderFee should return the executed quantity")
+			assert.Equal(t, tc.fee, fee.String(), "spotOrderFee should return the fee as paid")
+			assert.Equal(t, currency.USDT, feeAsset, "spotOrderFee should return the fee's currency")
+			assert.Equal(t, time.UnixMilli(1700000002000), updated, "spotOrderFee should return the order's update time")
+		})
+	}
+}
+
+func TestFiniteDecimal(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		n   types.Number
+		exp string
+		ok  bool
+	}{
+		{1.5, "1.5", true},
+		{types.Number(math.NaN()), "0", false},
+		{types.Number(math.Inf(1)), "0", false},
+		{types.Number(math.Inf(-1)), "0", false},
+	} {
+		t.Run(tc.n.String(), func(t *testing.T) {
+			t.Parallel()
+			d, ok := finiteDecimal(tc.n)
+			assert.Equal(t, tc.ok, ok, "finiteDecimal should report whether the number is finite")
+			assert.Equal(t, tc.exp, d.String(), "finiteDecimal should return the number as a decimal, or zero")
+		})
+	}
+}
+
+// testSpotOrderEventLookedUp hands an event to wsProcessSpotOrderUpdate, which must return while the lookup it starts
+// is held, and waits for the lookup to arrive
+func testSpotOrderEventLookedUp(tb testing.TB, ex *Exchange, conn websocket.Connection, event []byte, arrived <-chan struct{}) {
+	tb.Helper()
+	returned := make(chan error, 1)
+	go func() { returned <- ex.wsProcessSpotOrderUpdate(context.Background(), conn, event) }()
+	select {
+	case err := <-returned:
+		require.NoError(tb, err, "wsProcessSpotOrderUpdate must not error")
+	case <-time.After(5 * time.Second):
+		require.FailNow(tb, "wsProcessSpotOrderUpdate must not wait for the lookup")
+	}
+	select {
+	case <-arrived:
+	case <-time.After(5 * time.Second):
+		require.FailNow(tb, "the order must be looked up")
+	}
+}
+
+// testOrderDetails returns the order details relayed so far, failing the test on any other payload
+func testOrderDetails(tb testing.TB, ex *Exchange) []*order.Detail {
+	tb.Helper()
+	payloads := websocketPayloads(ex)
+	details := make([]*order.Detail, 0, len(payloads))
+	for _, p := range payloads {
+		d, ok := p.(*order.Detail)
+		require.Truef(tb, ok, "only order details must be relayed, got %T", p)
+		details = append(details, d)
+	}
+	return details
+}
+
+// testDecimal returns s as a decimal
+func testDecimal(tb testing.TB, s string) decimal.Decimal {
+	tb.Helper()
+	d, err := decimal.NewFromString(s)
+	require.NoErrorf(tb, err, "decimal %q must parse", s)
+	return d
+}
+
+// testSpotOrderEvent returns an executionReport event of spot order 42, a LIMIT buy of 3 BTC-USDT at 10, reporting an
+// execution of type x, the order's status, the fill's quantity, the order's executed quantity, the fill's fee in USDT
+// and its trade ID, at an event time 1700000001000 plus the trade ID's last two digits
+func testSpotOrderEvent(x, status, filled, executed, fee string, tradeID uint64) []byte {
+	return []byte(`{"e":"executionReport","E":` + strconv.FormatUint(1700000001000+tradeID%100, 10) + `,"s":"BTC-USDT","S":"BUY","o":"LIMIT","q":"3","p":"10","x":"` + x + `","X":"` + status + `","i":42,"l":"` + filled + `","z":"` + executed + `","L":"10","n":"` + fee + `","N":"USDT","T":1700000001000,"t":` + strconv.FormatUint(tradeID, 10) + `,"O":1700000000000,"Q":"30"}`)
+}
+
+// testSpotOrderReply returns a spot order query reply for order 42, a LIMIT buy of 3 BTC-USDT at 10, with its status,
+// executed quantity and fee in USDT, last updated at 1700000002000
+func testSpotOrderReply(status, executed, fee string) string {
+	return `{"code":0,"data":{"symbol":"BTC-USDT","orderId":42,"price":"10","origQty":"3","executedQty":"` + executed + `","status":"` + status + `","type":"LIMIT","side":"BUY","fee":"` + fee + `","feeAsset":"USDT","time":1700000000000,"updateTime":1700000002000}}`
+}
+
+// testSpotOrderServer answers spot order queries with the replies queued, in turn, recording the order ID and API key
+// of each query, and holds the queries while held is set
+type testSpotOrderServer struct {
+	mu      sync.Mutex
+	replies []string
+	keys    []string
+	ids     []string
+	held    chan struct{}
+	arrived chan struct{}
+}
+
+// newTestSpotOrderServer serves spot order queries to ex from an in-memory server
+func newTestSpotOrderServer(tb testing.TB, ex *Exchange) *testSpotOrderServer {
+	tb.Helper()
+	s := new(testSpotOrderServer)
+	stopped := make(chan struct{})
+	server := httptest.NewTestServer(tb, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/openApi/spot/v1/trade/query" {
+			assert.Failf(tb, "unexpected request", "%s should not be requested", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		orderID := r.URL.Query().Get("orderId")
+		s.mu.Lock()
+		s.keys = append(s.keys, r.Header.Get(keyHeader))
+		s.ids = append(s.ids, orderID)
+		var reply string
+		if len(s.replies) != 0 {
+			reply, s.replies = s.replies[0], s.replies[1:]
+		}
+		held, arrived := s.held, s.arrived
+		s.arrived = nil
+		s.mu.Unlock()
+		if arrived != nil {
+			close(arrived)
+		}
+		if held != nil {
+			select {
+			case <-held:
+			case <-r.Context().Done():
+				return
+			case <-stopped:
+				return
+			}
+		}
+		if reply == "" {
+			assert.Failf(tb, "unexpected query", "order %s should not be queried", orderID)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if after, ok := strings.CutPrefix(reply, wrapperStatusPrefix); ok {
+			code, body, _ := strings.Cut(after, " ")
+			status, err := strconv.Atoi(code)
+			assert.NoErrorf(tb, err, "the status of reply %q should be a number", after)
+			w.WriteHeader(status)
+			reply = body
+		}
+		_, _ = io.WriteString(w, reply)
+	}))
+	// Registered after the server's own cleanup, so held queries end before the server closes
+	tb.Cleanup(func() { close(stopped) })
+	require.NoError(tb, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	testRESTEndpoints(tb, ex, server.URL)
+	require.NoError(tb, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+	return s
+}
+
+// queue queues replies to the queries
+func (s *testSpotOrderServer) queue(replies ...string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.replies = append(s.replies, replies...)
+}
+
+// hold holds the queries until the channel returned is closed, and returns a channel closed when the next query arrives
+func (s *testSpotOrderServer) hold() (release, arrived chan struct{}) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.held, s.arrived = make(chan struct{}), make(chan struct{})
+	return s.held, s.arrived
+}
+
+// queried returns the order IDs queried so far
+func (s *testSpotOrderServer) queried() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.ids)
 }
 
 func TestWebsocketProcessSpotAccountUpdate(t *testing.T) {

@@ -10,8 +10,8 @@ import (
 
 // convertOrderStatus converts the status of a spot or perpetual order. Spot reports NEW, PENDING, PARTIALLY_FILLED,
 // FILLED, CANCELED and FAILED. Perpetual order queries spell two of theirs PARTIALLYFILLED and CANCELLED, and perpetual
-// order events add EXPIRED. The coin-M order event example reports Unknown, which converts to order.UnknownStatus: order
-// stores keep the status they hold for it
+// order events add EXPIRED. Unknown, which the coin-M order event example reports, converts to order.UnknownStatus,
+// for which order stores keep the status they hold
 func convertOrderStatus(status string) (order.Status, error) {
 	switch status {
 	case "NEW":
