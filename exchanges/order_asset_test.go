@@ -23,7 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deribit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/hitbtc"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/huobi"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -157,16 +156,6 @@ func TestGetOrderInfoReportedAsset(t *testing.T) {
 			name: "deribit_options", newExchange: func() exchange.IBotExchange { return new(deribit.Exchange) }, wantAsset: asset.Options,
 			requestedAssets: []asset.Item{asset.Spot, asset.Futures, asset.Options},
 			responses:       map[string]string{"/private/get_order_state": `{"result":{"order_id":"1","instrument_name":"BTC-26SEP25-30000-C","order_type":"limit","order_state":"open","time_in_force":"good_til_cancelled"}}`},
-		},
-		{
-			name: "huobi_futures", newExchange: func() exchange.IBotExchange { return new(huobi.Exchange) }, wantAsset: asset.Futures, wantTrades: 1,
-			requestedAssets: []asset.Item{asset.Futures},
-			responses:       map[string]string{"/api/v1/contract_order_info": `{"status":"ok","data":[{"direction":"buy","order_price_type":"limit","status":3,"order_id_str":"1"}]}`},
-		},
-		{
-			name: "huobi_coin_margined_futures", newExchange: func() exchange.IBotExchange { return new(huobi.Exchange) }, wantAsset: asset.CoinMarginedFutures, wantTrades: 1,
-			requestedAssets: []asset.Item{asset.CoinMarginedFutures},
-			responses:       map[string]string{"/swap-api/v1/swap_order_info": `{"status":"ok","data":[{"direction":"buy","order_price_type":"limit","status":3,"order_id_str":"1"}]}`},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

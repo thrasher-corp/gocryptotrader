@@ -22,11 +22,13 @@ exchanges/alert
 exchanges/binance
 exchanges/currencystate
 exchanges/gateio
+exchanges/htx
 exchanges/kucoin
 exchanges/okx
 exchanges/order
 exchanges/orderbook
 exchanges/request
+internal/testing/exchange
 log
 types
 types/decimal

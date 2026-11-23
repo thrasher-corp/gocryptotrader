@@ -412,7 +412,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		fOrderSide,
 		e.getTimeInForce(s),
 		"",
-		s.ClientID,
+		s.ClientOrderID,
 		s.TimeInForce.Is(order.PostOnly))
 	if err != nil {
 		return nil, err
