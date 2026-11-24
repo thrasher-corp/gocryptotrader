@@ -68,7 +68,8 @@ var Manager = newManager()
 
 // Deploy upgrades or downgrades the config between versions
 // Pass UseLatestVersion for version to use the latest version automatically
-// Prints an error and returns if the config file version or version param is not registered
+// For a valid config file version, prints an error and returns it if that version or the requested version is
+// above the latest registered version, unless the config is already at the requested version
 func (m *manager) Deploy(ctx context.Context, j []byte, version uint16) ([]byte, error) {
 	if err := m.checkVersions(); err != nil {
 		return j, err
