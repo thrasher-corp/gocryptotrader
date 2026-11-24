@@ -188,7 +188,7 @@ func (e *Exchange) GetInsurance(ctx context.Context, req *InsuranceRequest) (*In
 
 // setTimeWindowParams sets the start_ts and end_ts of a time window, each converted by toParam and left out when unset
 func setTimeWindowParams(params url.Values, start, end time.Time, toParam func(time.Time) (uint64, error)) error {
-	if err := common.StartEndOptionalTimeCheck(start, end); err != nil {
+	if err := common.StartEndTimeCheckSkipZero(start, end); err != nil {
 		return err
 	}
 	startTS, err := toParam(start)

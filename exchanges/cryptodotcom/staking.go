@@ -183,7 +183,7 @@ func newStakingConvertHistoryParams(req *StakingConvertHistoryRequest) (*staking
 // newStakingWindowParams checks a staking history query's window and limit and returns its params, sending its times in
 // nanoseconds, which Crypto.com recommends for paging
 func newStakingWindowParams(instrumentName string, startTime, endTime time.Time, limit uint64) (*stakingHistoryParams, error) {
-	if err := common.StartEndOptionalTimeCheck(startTime, endTime); err != nil {
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
 		return nil, err
 	}
 	if limit > stakingHistoryMaximumLimit {

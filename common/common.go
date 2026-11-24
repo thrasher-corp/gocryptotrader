@@ -626,15 +626,6 @@ func StartEndTimeCheckSkipZero(start, end time.Time) error {
 	return StartEndTimeCheck(start, end)
 }
 
-// StartEndOptionalTimeCheck checks a time window either end of which may be left unset, as StartEndTimeCheck does once
-// both are set
-func StartEndOptionalTimeCheck(start, end time.Time) error {
-	if start.IsZero() || end.IsZero() {
-		return nil
-	}
-	return StartEndTimeCheck(start, end)
-}
-
 // GenerateRandomString generates a random string provided a length and list of Character types { SmallLetters, CapitalLetters, NumberCharacters}.
 // if no characters are provided, the function uses a NumberCharacters(string of numeric characters).
 func GenerateRandomString(length uint, characters ...string) (string, error) {

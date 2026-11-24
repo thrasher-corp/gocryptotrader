@@ -1,6 +1,7 @@
 package cryptodotcom
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -74,20 +75,25 @@ var (
 	errNoIsolatedPosition        = errors.New("no isolated position")
 	errLeverageNotWhole          = errors.New("account leverage must be a whole number")
 	errOrderAssetMismatch        = errors.New("order asset mismatch")
-	errRiskManagementUnsupported = errors.New("take profit and stop loss legs are unsupported")
+	errRiskManagementUnsupported = errors.New("risk management modes are unsupported")
 	errQuoteAmountUnsupported    = errors.New("only a market buy is placed by its quote amount")
+	errQuoteAmountWithAmount     = errors.New("an order is placed by its amount or by its quote amount, not both")
+	errSlippageUnsupported       = errors.New("slippage tolerance unsupported")
 	errTriggerOrderQuantity      = errors.New("a trigger order is placed by its quantity")
 	errTriggerOrderMargin        = errors.New("a trigger order takes neither leverage nor isolated margin")
 	errLeverageUnsupported       = errors.New("leverage unsupported for spot orders")
 	errTriggerPriceUnsupported   = errors.New("trigger price unsupported for orders other than trigger orders")
 	errInvalidPriceType          = errors.New("invalid trigger price type")
 	errTimeInForceNotAmendable   = errors.New("time in force cannot be amended")
+	errPriceTypeNotAmendable     = errors.New("trigger price type cannot be amended")
+	errOrderTypeNotAmendable     = errors.New("order type cannot be amended")
 	errClientOrderIDNotAmendable = errors.New("an advanced order's client order ID cannot be amended")
 	errMarginNotFinite           = errors.New("margin must be a finite number")
 	errIsolatedPositionNotOpen   = errors.New("isolated position not open yet")
 	errInstrumentNotFound        = errors.New("instrument not found")
 	errNoMaximumLeverage         = errors.New("instrument has no maximum leverage")
 	errOrderListOutcomeUnknown   = errors.New("order outcome unknown")
+	errTimeInForceNotSelectable  = errors.New("open orders cannot be selected by their time in force")
 )
 
 // SetDefaults sets the basic defaults for Crypto.com
@@ -120,6 +126,8 @@ func (e *Exchange) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
+			// Crypto.com keeps six months of order history
+			MaximumOrderHistory: kline.OneDay.Duration() * 180,
 			RESTCapabilities: protocol.Features{
 				TickerBatching:        true,
 				TickerFetching:        true,
@@ -1218,7 +1226,7 @@ func (e *Exchange) newOrderRequest(s *order.Submit) (*orderRequest, error) {
 	if !e.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, s.AssetType)
 	}
-	if s.RiskManagementModes.TakeProfit.Price != 0 || s.RiskManagementModes.StopLoss.Price != 0 || s.RiskManagementModes.StopEntry.Price != 0 {
+	if s.RiskManagementModes != (order.RiskManagementModes{}) {
 		return nil, errRiskManagementUnsupported
 	}
 	name, err := e.instrumentName(s.AssetType, s.Pair)
@@ -1244,10 +1252,10 @@ func (e *Exchange) newOrderRequest(s *order.Submit) (*orderRequest, error) {
 	if s.ReduceOnly {
 		instructions = append(instructions, ExecutionInstructionReduceOnly)
 	}
-	switch {
-	case s.MarginType == margin.Isolated && !s.AssetType.IsFutures():
+	if !assetMarginType(s.AssetType, s.MarginType) {
 		return nil, fmt.Errorf("%w: %s for %s", margin.ErrMarginTypeUnsupported, s.MarginType, s.AssetType)
-	case s.MarginType == margin.Isolated:
+	}
+	if s.MarginType == margin.Isolated {
 		instructions = append(instructions, ExecutionInstructionIsolatedMargin)
 	}
 	// A leverage of one is no leverage, which a spot or trigger order may state
@@ -1261,6 +1269,13 @@ func (e *Exchange) newOrderRequest(s *order.Submit) (*orderRequest, error) {
 	clientOrderID := s.ClientOrderID
 	if clientOrderID == "" && s.AssetType == asset.Margin {
 		clientOrderID = uuid.NewV4().String()
+	}
+	// Crypto.com places an order by its quantity or by its notional, not both, and takes no slippage limit
+	switch {
+	case s.Amount != 0 && s.QuoteAmount != 0:
+		return nil, errQuoteAmountWithAmount
+	case s.SlippageTolerance != 0:
+		return nil, errSlippageUnsupported
 	}
 	if trigger {
 		switch {
@@ -1325,6 +1340,23 @@ func (e *Exchange) newOrderRequest(s *order.Submit) (*orderRequest, error) {
 		return nil, err
 	}
 	return &orderRequest{order: r, clientOrderID: clientOrderID}, nil
+}
+
+// assetMarginType reports whether an asset's orders trade on a margin type: spot orders without margin, margin orders on
+// cross margin and derivatives on cross or isolated margin, and any order on its asset's own when the type is unset
+func assetMarginType(a asset.Item, t margin.Type) bool {
+	switch t {
+	case margin.Unset:
+		return true
+	case margin.NoMargin:
+		return a == asset.Spot
+	case margin.Multi:
+		return a == asset.Margin || a.IsFutures()
+	case margin.Isolated:
+		return a.IsFutures()
+	default:
+		return false
+	}
 }
 
 // setIsolationID names the isolated position an isolated margin order trades, the account's on the order's instrument,
@@ -1569,18 +1601,40 @@ type orderAmendment struct {
 
 // newOrderAmendment returns the request amending an order. Crypto.com takes a regular amendment's quantity and limit
 // price together, so those left unset are restated from the order; a trigger order or an order-list leg is amended
-// through the advanced endpoint
+// through the advanced endpoint. A type given must be one Crypto.com places and, where the order is looked up, the
+// order's own or, for a trigger order, its other form
 func (e *Exchange) newOrderAmendment(ctx context.Context, m *order.Modify) (*orderAmendment, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
 	}
+	if m.SlippageTolerance != 0 {
+		return nil, errSlippageUnsupported
+	}
 	if !e.SupportsAsset(m.AssetType) {
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, m.AssetType)
+	}
+	if m.RiskManagementModes != (order.RiskManagementModes{}) {
+		return nil, errRiskManagementUnsupported
+	}
+	// LastPrice is the zero price type, so it names no price type to compare with the order's
+	var priceType string
+	if m.TriggerPriceType != order.LastPrice {
+		var err error
+		if priceType, err = referencePriceType(m.TriggerPriceType); err != nil {
+			return nil, err
+		}
+	}
+	var typeName string
+	if m.Type != order.UnknownType && m.Type != order.AnyType {
+		var err error
+		if typeName, _, err = orderTypeString(m.Type); err != nil {
+			return nil, err
+		}
 	}
 	amendment := &orderAmendment{price: m.Price, amount: m.Amount}
 	useAdvancedEndpoint := isTriggerOrder(m.Type)
 	marketTrigger := m.Type == order.Stop || m.Type == order.StopMarket || m.Type == order.TakeProfit || m.Type == order.TakeProfitMarket
-	if amendment.amount == 0 || (amendment.price == 0 && !marketTrigger) || m.Type == order.UnknownType || m.Type == order.AnyType || m.TimeInForce != order.UnknownTIF {
+	if amendment.amount == 0 || (amendment.price == 0 && !marketTrigger) || m.Type == order.UnknownType || m.Type == order.AnyType || m.TimeInForce != order.UnknownTIF || priceType != "" {
 		o, fromAdvanced, err := e.orderByID(ctx, m.OrderID, m.ClientOrderID)
 		if err != nil {
 			return nil, err
@@ -1588,6 +1642,11 @@ func (e *Exchange) newOrderAmendment(ctx context.Context, m *order.Modify) (*ord
 		orderType, err := orderTypeFromString(o.OrderType)
 		if err != nil {
 			return nil, err
+		}
+		// Crypto.com amends only an order's quantity and prices, which move a trigger order between its market and limit
+		// forms, so a type of another kind than the order's is refused rather than reported as amended
+		if typeName != "" && orderKind(typeName) != orderKind(o.OrderType) {
+			return nil, fmt.Errorf("%w: %s, not %s", errOrderTypeNotAmendable, orderType, m.Type)
 		}
 		useAdvancedEndpoint = fromAdvanced || isTriggerOrder(orderType)
 		if m.Type == order.UnknownType || m.Type == order.AnyType {
@@ -1603,11 +1662,19 @@ func (e *Exchange) newOrderAmendment(ctx context.Context, m *order.Modify) (*ord
 		if m.TimeInForce != order.UnknownTIF && effectiveTimeInForce(m.TimeInForce) != effectiveTimeInForce(amendment.timeInForce) {
 			return nil, fmt.Errorf("%w: %s, not %s", errTimeInForceNotAmendable, amendment.timeInForce, m.TimeInForce)
 		}
+		// Crypto.com amends a trigger order's reference price, not the price it compares with the reference price
+		if priceType != "" && priceType != o.ReferencePriceType {
+			return nil, fmt.Errorf("%w: %s, not %s", errPriceTypeNotAmendable, cmp.Or(o.ReferencePriceType, "none"), priceType)
+		}
 		if amendment.amount == 0 {
 			amendment.amount = o.Quantity.Float64()
 		}
 		if amendment.price == 0 {
 			amendment.price = o.LimitPrice.Float64()
+		}
+		// A trigger order in its market form has no limit price to restate, which its limit form needs
+		if (typeName == OrderTypeStopLimit || typeName == OrderTypeTakeProfitLimit) && amendment.price == 0 {
+			return nil, fmt.Errorf("%w: %s", order.ErrPriceMustBeSetIfLimitOrder, m.Type)
 		}
 	}
 	if marketTrigger {
@@ -1640,6 +1707,20 @@ func (e *Exchange) newOrderAmendment(ctx context.Context, m *order.Modify) (*ord
 		NewQuantity:           types.Number(amendment.amount),
 	}
 	return amendment, nil
+}
+
+// orderKind returns the kind of a Crypto.com order type that an amendment keeps: a trigger order's type in its market
+// form, as the price an amendment sends moves a trigger order between its market and limit forms, and any other type
+// as it is
+func orderKind(orderType string) string {
+	switch orderType {
+	case OrderTypeStopLimit:
+		return OrderTypeStopLoss
+	case OrderTypeTakeProfitLimit:
+		return OrderTypeTakeProfit
+	default:
+		return orderType
+	}
 }
 
 // modifyResponse returns an amended order's modify response, with the quantity and price it was amended to, and the
@@ -1788,14 +1869,19 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel)
 }
 
 // CancelAllOrders cancels the open orders of an asset, those of the pair given or of every pair, those the advanced
-// order methods hold included. Spot and margin orders share their instruments, which a cancel-all request would cancel
-// together, so the open orders are listed and those of the asset cancelled by their order IDs
+// order methods hold included, and of the side, type and margin type given, if any. Spot and margin orders share their
+// instruments, which a cancel-all request would cancel together, so the open orders are listed and those selected
+// cancelled by their order IDs
 func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.CancelAllResponse, error) {
 	if err := o.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
 	if !e.SupportsAsset(o.AssetType) {
 		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", asset.ErrNotSupported, o.AssetType)
+	}
+	selected, err := cancelAllSelection(o)
+	if err != nil {
+		return order.CancelAllResponse{}, err
 	}
 	var pairs currency.Pairs
 	if !o.Pair.IsEmpty() {
@@ -1807,12 +1893,12 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 	}
 	cancels := make([]orderCancel, 0, len(open)+len(advanced))
 	for i := range open {
-		if orderAsset(open[i].InstrumentName, open[i].ExecutionInstructions) == o.AssetType {
+		if selected(&open[i]) {
 			cancels = append(cancels, orderCancel{OrderID: open[i].OrderID})
 		}
 	}
 	for i := range advanced {
-		if orderAsset(advanced[i].InstrumentName, advanced[i].ExecutionInstructions) == o.AssetType {
+		if selected(&advanced[i]) {
 			cancels = append(cancels, orderCancel{OrderID: advanced[i].OrderID, Advanced: true})
 		}
 	}
@@ -1821,6 +1907,41 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 	}
 	status, err := e.cancelOrders(ctx, cancels)
 	return order.CancelAllResponse{Status: status}, err
+}
+
+// cancelAllSelection returns whether a cancel-all request selects an open order: one of its asset, and of its side,
+// type and margin type where it names them. A margin type the asset's orders cannot trade on, and a time in force, are
+// refused rather than ignored, as no open order is selected by them
+func cancelAllSelection(o *order.Cancel) (func(*OrderResponse) bool, error) {
+	var side, orderType string
+	var err error
+	if o.Side != order.UnknownSide && o.Side != order.AnySide {
+		if side, err = orderSideString(o.Side); err != nil {
+			return nil, err
+		}
+	}
+	if o.Type != order.UnknownType && o.Type != order.AnyType {
+		if orderType, _, err = orderTypeString(o.Type); err != nil {
+			return nil, err
+		}
+	}
+	if !assetMarginType(o.AssetType, o.MarginType) {
+		return nil, fmt.Errorf("%w: %s for %s", margin.ErrMarginTypeUnsupported, o.MarginType, o.AssetType)
+	}
+	if o.TimeInForce != order.UnknownTIF {
+		return nil, fmt.Errorf("%w: %s", errTimeInForceNotSelectable, o.TimeInForce)
+	}
+	return func(r *OrderResponse) bool {
+		switch {
+		case orderAsset(r.InstrumentName, r.ExecutionInstructions) != o.AssetType,
+			side != "" && r.Side != side,
+			orderType != "" && r.OrderType != orderType,
+			o.MarginType == margin.Isolated && !isIsolated(r.IsolationID),
+			o.MarginType == margin.Multi && o.AssetType.IsFutures() && isIsolated(r.IsolationID):
+			return false
+		}
+		return true
+	}, nil
 }
 
 // cancelOrders cancels orders in lists of up to 10, those the advanced order methods hold in lists they cancel, and
@@ -2696,7 +2817,9 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 }
 
 // GetFuturesPositionOrders returns the orders of derivatives pairs created from the start date to the end date; without
-// a start date the day before the end date, the window Crypto.com defaults to
+// a start date from the day before the end date, the window Crypto.com defaults to, and without an end date to the
+// current time. Crypto.com keeps six months of order history, so a window starting earlier, a default one included, is
+// refused, or moved up to the history kept when the request respects the order history limits
 func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.PositionsRequest) ([]futures.PositionResponse, error) {
 	if r == nil {
 		return nil, common.ErrNilPointer
@@ -2707,13 +2830,40 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.Posi
 	if len(r.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
+	// The window is settled against one reading of the clock, so the limit holds a default start too, and a window
+	// moved up spans the history kept exactly
+	now := time.Now()
+	start, end := r.StartDate, r.EndDate
+	if end.IsZero() {
+		end = now
+	}
+	if start.IsZero() {
+		start = end.Add(-privateHistoryWindow)
+	}
+	if err := common.StartEndTimeCheck(start, end); err != nil {
+		return nil, err
+	}
+	if end.After(now) {
+		end = now
+	}
+	if kept := e.Features.Supports.MaximumOrderHistory; now.Sub(start) > kept {
+		if !r.RespectOrderHistoryLimits {
+			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, now.Add(-kept))
+		}
+		start = now.Add(-kept)
+	}
 	resp := make([]futures.PositionResponse, len(r.Pairs))
 	for i, p := range r.Pairs {
 		name, err := e.instrumentName(r.Asset, p)
 		if err != nil {
 			return nil, err
 		}
-		orders, err := e.orderHistory(ctx, name, r.StartDate, r.EndDate)
+		// A window ending by its start, as one before the history kept does once moved up, holds no order to request
+		if !end.After(start) {
+			resp[i] = futures.PositionResponse{Pair: p, Asset: r.Asset, ContractSettlementType: futures.Linear}
+			continue
+		}
+		orders, err := e.orderHistory(ctx, name, start, end)
 		if err != nil {
 			return nil, err
 		}

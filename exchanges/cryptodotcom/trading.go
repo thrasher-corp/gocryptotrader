@@ -510,7 +510,7 @@ func checkOrderListLength(length, limit int) error { //nolint:unparam // the reg
 // newTradingHistoryParams validates a history query's window and limit and returns its params, with the window in
 // nanoseconds, which Crypto.com recommends for paging accurately
 func newTradingHistoryParams(instrumentName, journalType string, start, end time.Time, limit uint64, isolationID string) (*tradingHistoryParams, error) {
-	if err := common.StartEndOptionalTimeCheck(start, end); err != nil {
+	if err := common.StartEndTimeCheckSkipZero(start, end); err != nil {
 		return nil, err
 	}
 	if limit > maxTradingHistoryLimit {

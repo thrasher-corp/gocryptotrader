@@ -323,7 +323,7 @@ func newOTCDealHistoryParams(req *OTCDealHistoryRequest) (*otcDealHistoryParams,
 
 // newOTCWindow checks an OTC query's time window and page size, and returns its window
 func newOTCWindow(startTime, endTime time.Time, limit uint64) (otcWindow, error) {
-	if err := common.StartEndOptionalTimeCheck(startTime, endTime); err != nil {
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
 		return otcWindow{}, err
 	}
 	if limit > otcHistoryMaximumLimit {

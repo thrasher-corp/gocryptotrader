@@ -457,7 +457,7 @@ func (r *GetAdvancedOrderHistoryRequest) params() (*advancedOrderHistoryParams, 
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
-	if err := common.StartEndOptionalTimeCheck(r.StartTime, r.EndTime); err != nil {
+	if err := common.StartEndTimeCheckSkipZero(r.StartTime, r.EndTime); err != nil {
 		return nil, err
 	}
 	if r.Limit > maxAdvancedOrderHistoryLimit {
