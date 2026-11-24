@@ -171,6 +171,10 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Padding drops an empty partial candle, so a range holding only the current period can be left with none
+	if len(holder.Candles) == 0 {
+		return nil, fmt.Errorf("%w between %s and %s", ErrNoTimeSeriesDataToConvert, r.Start, r.End)
+	}
 
 	if r.IsExtended {
 		// NOTE: This allows for a processed candles to be analysed
@@ -182,12 +186,6 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 		if holder, err = holder.ConvertToNewInterval(r.ClientRequired); err != nil {
 			return nil, err
 		}
-	}
-
-	// Purging an empty partial candle can leave nothing behind when every
-	// returned candle fell outside the request range
-	if len(holder.Candles) == 0 {
-		return nil, ErrNoTimeSeriesDataToConvert
 	}
 
 	if r.PartialCandle {

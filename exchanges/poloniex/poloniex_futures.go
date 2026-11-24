@@ -39,10 +39,8 @@ func (e *Exchange) GetAccountBalance(ctx context.Context) (*FuturesAccountBalanc
 
 // GetAccountBills retrieves the account’s bills.
 func (e *Exchange) GetAccountBills(ctx context.Context, startTime, endTime time.Time, offset, limit uint64, direction, billType string) ([]*BillDetails, error) {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
@@ -227,10 +225,8 @@ func (e *Exchange) GetCurrentFuturesOrders(ctx context.Context, symbol currency.
 
 // GetOrderExecutionDetails retrieves detailed information about your executed futures order
 func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, side order.Side, symbol currency.Pair, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesTradeFill, error) {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if side != order.UnknownSide {
@@ -266,10 +262,8 @@ func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, side order.Side
 
 // GetFuturesOrderHistory retrieves previous futures orders. Orders initiated through the API that are completely cancelled (no transaction has occurred) can only be queried for 4 hours.
 func (e *Exchange) GetFuturesOrderHistory(ctx context.Context, symbol currency.Pair, side order.Side, orderType, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesOrderDetails, error) {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
@@ -321,10 +315,8 @@ func (e *Exchange) GetFuturesCurrentPosition(ctx context.Context, symbol currenc
 
 // GetFuturesPositionHistory gets information about previous positions.
 func (e *Exchange) GetFuturesPositionHistory(ctx context.Context, symbol currency.Pair, marginMode, positionSide, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesPosition, error) {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !symbol.IsEmpty() {
@@ -480,10 +472,8 @@ func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol currency.Pair
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	intervalString, err := intervalToString(interval)
 	if err != nil {
@@ -521,10 +511,8 @@ func (e *Exchange) GetFuturesExecution(ctx context.Context, symbol currency.Pair
 
 // GetLiquidationOrder gets details of previous liquidation events
 func (e *Exchange) GetLiquidationOrder(ctx context.Context, symbol currency.Pair, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*LiquidationPrice, error) {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
@@ -617,10 +605,8 @@ func (e *Exchange) getIndexPriceKlineData(ctx context.Context, symbol currency.P
 	if err != nil {
 		return nil, err
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
@@ -664,10 +650,8 @@ func (e *Exchange) GetMarkPriceKlineData(ctx context.Context, symbol currency.Pa
 	if err != nil {
 		return nil, err
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
@@ -722,10 +706,8 @@ func (e *Exchange) GetFuturesHistoricalFundingRates(ctx context.Context, symbol 
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
