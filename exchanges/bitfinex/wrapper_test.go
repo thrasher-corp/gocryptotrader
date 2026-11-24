@@ -917,6 +917,39 @@ func TestPlaceOrderRequest(t *testing.T) {
 		}
 	})
 
+	t.Run("prices past Bitfinex's precision, of each asset and priced order type", func(t *testing.T) {
+		t.Parallel()
+		// Each order's prices are within five significant figures and eight decimals, and the order refused is the same
+		// with one of them given a sixth figure or a ninth decimal
+		for _, tc := range []struct {
+			name      string
+			kept, cut order.Submit
+		}{
+			{name: "limit", kept: order.Submit{Type: order.Limit, Price: 60412}, cut: order.Submit{Type: order.Limit, Price: 60412.9}},
+			{name: "limit of eight decimals", kept: order.Submit{Type: order.Limit, Price: 0.00012345}, cut: order.Submit{Type: order.Limit, Price: 0.000012345}},
+			{name: "fill or kill limit", kept: order.Submit{Type: order.Limit, TimeInForce: order.FillOrKill, Price: 60412}, cut: order.Submit{Type: order.Limit, TimeInForce: order.FillOrKill, Price: 60412.9}},
+			{name: "immediate or cancel limit", kept: order.Submit{Type: order.Limit, TimeInForce: order.ImmediateOrCancel, Price: 60412}, cut: order.Submit{Type: order.Limit, TimeInForce: order.ImmediateOrCancel, Price: 60412.9}},
+			{name: "stop", kept: order.Submit{Type: order.Stop, TriggerPrice: 59000}, cut: order.Submit{Type: order.Stop, TriggerPrice: 59000.5}},
+			{name: "stop limit's stop", kept: order.Submit{Type: order.StopLimit, Price: 58900, TriggerPrice: 59000}, cut: order.Submit{Type: order.StopLimit, Price: 58900, TriggerPrice: 59000.5}},
+			{name: "stop limit's limit", kept: order.Submit{Type: order.StopLimit, Price: 58900, TriggerPrice: 59000}, cut: order.Submit{Type: order.StopLimit, Price: 58900.5, TriggerPrice: 59000}},
+		} {
+			for a, p := range testOrderAssetPairs {
+				for _, side := range []order.Side{order.Buy, order.Sell} {
+					t.Run(a.String()+" "+side.String()+" "+tc.name, func(t *testing.T) {
+						t.Parallel()
+						kept, cut := tc.kept, tc.cut
+						kept.AssetType, kept.Pair, kept.Side, kept.Amount = a, p, side, 0.37
+						cut.AssetType, cut.Pair, cut.Side, cut.Amount = a, p, side, 0.37
+						_, err := placeOrderRequest(&kept)
+						require.NoErrorf(t, err, "placeOrderRequest must take a %s %s %s order's prices within Bitfinex's precision", a, side, tc.name)
+						_, err = placeOrderRequest(&cut)
+						assert.ErrorIsf(t, err, errPriceTooPrecise, "placeOrderRequest should refuse a %s %s %s order's price past Bitfinex's precision", a, side, tc.name)
+					})
+				}
+			}
+		}
+	})
+
 	until := time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
 		name string
@@ -970,6 +1003,11 @@ func TestPlaceOrderRequest(t *testing.T) {
 			exp:  &PlaceOrderRequest{Type: "EXCHANGE TRAILING STOP", Symbol: "tBTCUSD", Amount: -1, TrailingPrice: 50},
 		},
 		{
+			name: "trailing stop distance of six figures, which the wrapper does not report",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.TrailingStop, Side: order.Sell, Amount: 1, TrackingValue: 12.3456},
+			exp:  &PlaceOrderRequest{Type: "EXCHANGE TRAILING STOP", Symbol: "tBTCUSD", Amount: -1, TrailingPrice: 12.3456},
+		},
+		{
 			name: "USDT margined derivative limit buy with leverage",
 			s:    &order.Submit{AssetType: asset.USDTMarginedFutures, Pair: testDerivativePair, Type: order.Limit, Side: order.Buy, Amount: 0.001, Price: 70000, Leverage: 20},
 			exp:  &PlaceOrderRequest{Type: "LIMIT", Symbol: "tBTCF0:USTF0", Amount: 0.001, Price: 70000, Leverage: 20},
@@ -980,9 +1018,99 @@ func TestPlaceOrderRequest(t *testing.T) {
 			exp:  &PlaceOrderRequest{Type: "MARKET", Symbol: "tETHF0:BTCF0", Amount: -1, Flags: OrderFlagReduceOnly},
 		},
 		{
+			name: "USDT margined derivative limit sell at a leverage of 1",
+			s:    &order.Submit{AssetType: asset.USDTMarginedFutures, Pair: testDerivativePair, Type: order.Limit, Side: order.Sell, Amount: 0.001, Price: 70000, Leverage: 1},
+			exp:  &PlaceOrderRequest{Type: "LIMIT", Symbol: "tBTCF0:USTF0", Amount: -0.001, Price: 70000, Leverage: 1},
+		},
+		{
+			name: "coin margined derivative limit buy, reduce only, with leverage",
+			s:    &order.Submit{AssetType: asset.CoinMarginedFutures, Pair: testCoinMarginedPair, Type: order.Limit, Side: order.Buy, Amount: 1, Price: 0.03, ReduceOnly: true, Leverage: 7},
+			exp:  &PlaceOrderRequest{Type: "LIMIT", Symbol: "tETHF0:BTCF0", Amount: 1, Price: 0.03, Leverage: 7, Flags: OrderFlagReduceOnly},
+		},
+		{
 			name: "margin order leverage, which Bitfinex takes for derivatives only",
 			s:    &order.Submit{AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, Leverage: 3},
-			exp:  &PlaceOrderRequest{Type: "LIMIT", Symbol: "tBTCUSD", Amount: 1, Price: 100},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "spot order leverage, which Bitfinex takes for derivatives only",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, Leverage: 3},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "margin order leverage of 1, which is none",
+			s:    &order.Submit{AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Sell, Amount: 1, Price: 100, Leverage: 1},
+			exp:  &PlaceOrderRequest{Type: "LIMIT", Symbol: "tBTCUSD", Amount: -1, Price: 100},
+		},
+		{
+			name: "spot order leverage of 1, which is none",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Market, Side: order.Sell, Amount: 1, Leverage: 1},
+			exp:  &PlaceOrderRequest{Type: "EXCHANGE MARKET", Symbol: "tBTCUSD", Amount: -1},
+		},
+		{
+			name: "margin stop order leverage",
+			s:    &order.Submit{AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Type: order.Stop, Side: order.Sell, Amount: 1, TriggerPrice: 90, Leverage: 2},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "margin trailing stop order leverage",
+			s:    &order.Submit{AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Type: order.TrailingStop, Side: order.Sell, Amount: 1, TrackingValue: 10, Leverage: 2},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "spot stop limit order leverage",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.StopLimit, Side: order.Buy, Amount: 1, Price: 105, TriggerPrice: 110, Leverage: 2},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "cross margin order leverage",
+			s:    &order.Submit{AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, MarginType: margin.Multi, Leverage: 3},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "spot order leverage of 10, a derivative's default",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, Leverage: 10},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "spot order fractional leverage",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, Leverage: 0.5},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "margin order leverage on a pair Bitfinex writes with a colon",
+			s:    &order.Submit{AssetType: asset.Margin, Pair: currency.NewPair(currency.AVAX, currency.USD), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 10, Leverage: 3},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "reduce only margin order leverage",
+			s:    &order.Submit{AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Sell, Amount: 1, Price: 100, ReduceOnly: true, Leverage: 3},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "spot order negative leverage",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, Leverage: -1},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "spot order leverage between 1 and 2",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, Leverage: 1.5},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "spot order leverage of the float after 1",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, Leverage: math.Nextafter(1, 2)},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "margin order leverage that is not a number",
+			s:    &order.Submit{AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, Leverage: math.NaN()},
+			err:  order.ErrSubmitLeverageNotSupported,
+		},
+		{
+			name: "spot order leverage with no margin",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Sell, Amount: 1, Price: 100, MarginType: margin.NoMargin, Leverage: 2},
+			err:  order.ErrSubmitLeverageNotSupported,
 		},
 		{name: "fractional leverage", s: &order.Submit{AssetType: asset.USDTMarginedFutures, Pair: testDerivativePair, Type: order.Limit, Leverage: 2.5}, err: errInvalidLeverage},
 		{name: "leverage above 100", s: &order.Submit{AssetType: asset.USDTMarginedFutures, Pair: testDerivativePair, Type: order.Limit, Leverage: 101}, err: errInvalidLeverage},
@@ -1081,6 +1209,31 @@ func TestPlaceOrderRequest(t *testing.T) {
 		{name: "client order ID with a fraction", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "7.0"}, err: errInvalidClientOrderID},
 		{name: "client order ID with an exponent", s: &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "7e0"}, err: errInvalidClientOrderID},
 		{
+			name: "price of five significant figures",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Sell, Amount: 1, Price: 60412},
+			exp:  &PlaceOrderRequest{Type: "EXCHANGE LIMIT", Symbol: "tBTCUSD", Amount: -1, Price: 60412},
+		},
+		{
+			name: "price of five significant figures and trailing zeros",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Sell, Amount: 1, Price: 123450},
+			exp:  &PlaceOrderRequest{Type: "EXCHANGE LIMIT", Symbol: "tBTCUSD", Amount: -1, Price: 123450},
+		},
+		{
+			name: "price of five significant figures and eight decimals",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 0.00012345},
+			exp:  &PlaceOrderRequest{Type: "EXCHANGE LIMIT", Symbol: "tBTCUSD", Amount: 1, Price: 0.00012345},
+		},
+		{
+			name: "stop limit's prices within Bitfinex's precision",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.StopLimit, Side: order.Sell, Amount: 1, Price: 58900, TriggerPrice: 59000},
+			exp:  &PlaceOrderRequest{Type: "EXCHANGE STOP LIMIT", Symbol: "tBTCUSD", Amount: -1, Price: 59000, AuxiliaryLimitPrice: 58900},
+		},
+		{
+			name: "market order's price, which the request replaces with zero",
+			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Market, Side: order.Buy, Amount: 1, Price: 60412.9},
+			exp:  &PlaceOrderRequest{Type: "EXCHANGE MARKET", Symbol: "tBTCUSD", Amount: 1},
+		},
+		{
 			name: "largest client order ID",
 			s:    &order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientOrderID: "18446744073709551615"},
 			exp:  &PlaceOrderRequest{Type: "EXCHANGE LIMIT", Symbol: "tBTCUSD", Amount: 1, Price: 100, ClientOrderID: math.MaxUint64},
@@ -1157,6 +1310,57 @@ func orderOptionCases() []orderOptionCase {
 	return cases
 }
 
+func TestCheckPricePrecision(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		prices []float64
+		err    error
+	}{
+		{name: "no price"},
+		{name: "zero", prices: []float64{0}},
+		{name: "one figure", prices: []float64{1}},
+		{name: "five figures", prices: []float64{60412}},
+		{name: "five figures and trailing zeros", prices: []float64{123450}},
+		{name: "one figure and trailing zeros", prices: []float64{100000}},
+		{name: "five figures with decimals", prices: []float64{23.456}},
+		{name: "five figures and eight decimals", prices: []float64{0.00012345}},
+		{name: "one figure and eight decimals", prices: []float64{0.00000001}},
+		{name: "three figures and eight decimals", prices: []float64{0.00000355}},
+		{name: "seven at the eighth decimal", prices: []float64{0.00000007}},
+		{name: "two decimals no float holds exactly", prices: []float64{0.29}},
+		{name: "five figures and seven trailing zeros", prices: []float64{123450000000}},
+		{name: "one figure and nine trailing zeros", prices: []float64{1000000000}},
+		{name: "five figures and eight trailing zeros", prices: []float64{5903100000000}},
+		{name: "six figures with a decimal", prices: []float64{60412.5}, err: errPriceTooPrecise},
+		{name: "six figures", prices: []float64{123456}, err: errPriceTooPrecise},
+		{name: "six figures with interior zeros", prices: []float64{100001}, err: errPriceTooPrecise},
+		{name: "six figures with zeros after the point", prices: []float64{1000.05}, err: errPriceTooPrecise},
+		{name: "six figures below one", prices: []float64{0.123456}, err: errPriceTooPrecise},
+		{name: "six figures with decimals", prices: []float64{23.4567}, err: errPriceTooPrecise},
+		{name: "six figures and nine decimals", prices: []float64{0.000123456}, err: errPriceTooPrecise},
+		{name: "five figures and nine decimals", prices: []float64{0.000012345}, err: errPriceTooPrecise},
+		{name: "one figure and nine decimals", prices: []float64{0.000000001}, err: errPriceTooPrecise},
+		{name: "four figures and nine decimals", prices: []float64{0.000003555}, err: errPriceTooPrecise},
+		{name: "the float after 0.3, which the request writes with 17 figures", prices: []float64{math.Nextafter(0.3, 1)}, err: errPriceTooPrecise},
+		{name: "the float before 23.456, which the request writes with 17 figures", prices: []float64{math.Nextafter(23.456, 0)}, err: errPriceTooPrecise},
+		{name: "a negative price, which the request's body refuses", prices: []float64{-60412.5}},
+		{name: "not a number, which the request's body refuses", prices: []float64{math.NaN()}},
+		{name: "infinity, which the request's body refuses", prices: []float64{math.Inf(1)}},
+		{name: "two prices within the precision", prices: []float64{60412, 58900}},
+		{name: "two prices within the precision, of different magnitudes", prices: []float64{100000, 99999}},
+		{name: "no price, then a price of six figures", prices: []float64{0, 60412.5}, err: errPriceTooPrecise},
+		{name: "a price of five figures and none", prices: []float64{60412, 0}},
+		{name: "a first price of six figures", prices: []float64{60412.5, 60412}, err: errPriceTooPrecise},
+		{name: "a second price of six figures", prices: []float64{60412, 60412.5}, err: errPriceTooPrecise},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, checkPricePrecision(tc.prices...), tc.err, "checkPricePrecision should check %v against five significant figures and eight decimals", tc.prices)
+		})
+	}
+}
+
 func TestCheckOrderOptions(t *testing.T) {
 	t.Parallel()
 	assert.NoError(t, checkOrderOptions(new(order.RiskManagementModes), order.LastPrice), "checkOrderOptions should take a trigger on the last price, a price type's zero value, as none")
@@ -1191,6 +1395,9 @@ func TestSubmitOrder(t *testing.T) {
 	limit.RiskManagementModes, limit.TriggerPriceType = order.RiskManagementModes{}, order.MarkPrice
 	_, err = unsent.SubmitOrder(t.Context(), &limit)
 	assert.ErrorIs(t, err, errTriggerPriceTypeUnsupported, "SubmitOrder should refuse a trigger price type, which Bitfinex takes no field for")
+	limit.TriggerPriceType, limit.Leverage = order.LastPrice, 3
+	_, err = unsent.SubmitOrder(t.Context(), &limit)
+	assert.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported, "SubmitOrder should refuse a spot order's leverage, which Bitfinex takes only with a derivative order")
 	assert.Empty(t, bodies, "SubmitOrder should send no order it refuses")
 
 	// Bitfinex places each order with its price at 90: a stop's and a stop limit's trigger, and a trailing stop's stop
@@ -1275,6 +1482,18 @@ func TestSubmitOrder(t *testing.T) {
 			var sent map[string]any
 			require.NoError(t, json.Unmarshal(inputs[i], &sent), "Decoding the order sent must not error")
 			assert.Equalf(t, exp[i], sent["cid"], "SubmitOrder should send client order ID %v as its number through the websocket", exp[i])
+		}
+	})
+	t.Run("a spot or margin order's leverage of 1, which is none", func(t *testing.T) {
+		t.Parallel()
+		for a, orderType := range map[asset.Item]string{asset.Spot: "EXCHANGE LIMIT", asset.Margin: "LIMIT"} {
+			ex, bodies := newRequestBodyExchange(t, "/v2/auth/w/order/submit", `[1678987199,"on-req",null,null,[[1747566431,null,1678987199446,"tBTCUSD",1678987199446,1678987199448,1,1,"`+orderType+`",null,null,null,0,"ACTIVE",null,null,100,0,0,0,null,null,null,0,0,null,null,null,"API>BFX",null,null,null]],null,"SUCCESS","Submitting limit buy order for 1 BTC."]`)
+			resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: a, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, Leverage: 1})
+			require.NoErrorf(t, err, "SubmitOrder must place a %s order with a leverage of 1", a)
+			assert.Equalf(t, 1.0, resp.Leverage, "SubmitOrder should report the %s order's leverage of 1", a)
+			var sent map[string]any
+			require.NoError(t, json.Unmarshal([]byte(requestBody(t, bodies)), &sent), "Decoding the order sent must not error")
+			assert.Equalf(t, map[string]any{"type": orderType, "symbol": "tBTCUSD", "amount": "1", "price": "100"}, sent, "SubmitOrder should send the %s order without a leverage", a)
 		}
 	})
 	skipLiveUnlessCanManipulate(t)
@@ -1610,6 +1829,77 @@ func TestModifyOrder(t *testing.T) {
 			mu.Lock()
 			assert.Equal(t, map[string]any{"id": 19.0, "price": "101"}, sent[len(sent)-1], "ModifyOrder should send no amount where what remains differs from the order's only past a float's precision")
 			mu.Unlock()
+		})
+
+		t.Run("prices past Bitfinex's precision", func(t *testing.T) {
+			t.Parallel()
+			ex, updates := newOrderUpdateTestExchange(t,
+				testOrderRecord{id: 20, symbol: "tBTCUSD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 60000},
+				testOrderRecord{id: 21, symbol: "tBTCUSD", orderType: "EXCHANGE STOP", status: "ACTIVE", amount: -1, original: -1, price: 59000},
+				testOrderRecord{id: 22, symbol: "tBTCUSD", orderType: "EXCHANGE STOP LIMIT", status: "ACTIVE", amount: -1, original: -1, price: 59000, auxiliaryLimit: 58900},
+				testOrderRecord{id: 23, symbol: "tBTCF0:USTF0", orderType: "LIMIT", status: "ACTIVE", amount: 0.1, original: 0.1, price: 60000, meta: `{"$F33":10}`},
+				testOrderRecord{id: 24, symbol: "tBTCUSD", orderType: "LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 60000},
+				testOrderRecord{id: 25, symbol: "tETHF0:BTCF0", orderType: "LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 0.03, meta: `{"$F33":10}`},
+			)
+			spot := func(m order.Modify) order.Modify {
+				m.AssetType, m.Pair = asset.Spot, currency.NewBTCUSD()
+				return m
+			}
+			derivative := func(m order.Modify) order.Modify {
+				m.AssetType, m.Pair = asset.USDTMarginedFutures, testDerivativePair
+				return m
+			}
+			marginOrder := func(m order.Modify) order.Modify {
+				m.AssetType, m.Pair = asset.Margin, currency.NewBTCUSD()
+				return m
+			}
+			coinMargined := func(m order.Modify) order.Modify {
+				m.AssetType, m.Pair = asset.CoinMarginedFutures, testCoinMarginedPair
+				return m
+			}
+			// The cases share ex in order, and the checks after them count the updates they sent
+			for _, tc := range []struct {
+				name string
+				m    order.Modify
+			}{
+				{name: "a limit price", m: spot(order.Modify{OrderID: "20", Side: order.Buy, Price: 60412.5})},
+				{name: "a limit price of nine decimals", m: spot(order.Modify{OrderID: "20", Side: order.Buy, Price: 0.000012345})},
+				{name: "a stop price", m: spot(order.Modify{OrderID: "21", Side: order.Sell, TriggerPrice: 59000.5})},
+				{name: "a stop limit's stop price", m: spot(order.Modify{OrderID: "22", Side: order.Sell, Price: 58900, TriggerPrice: 59000.5})},
+				{name: "a stop limit's limit price", m: spot(order.Modify{OrderID: "22", Side: order.Sell, Price: 58900.5, TriggerPrice: 59000})},
+				{name: "a stop limit's limit price alone", m: spot(order.Modify{OrderID: "22", Side: order.Sell, Price: 58900.5})},
+				{name: "a derivative's limit price", m: derivative(order.Modify{OrderID: "23", Side: order.Buy, Price: 60412.5})},
+				{name: "a margin order's limit price", m: marginOrder(order.Modify{OrderID: "24", Side: order.Buy, Price: 60412.5})},
+				{name: "a coin margined derivative's limit price", m: coinMargined(order.Modify{OrderID: "25", Side: order.Buy, Price: 0.0312345})},
+				{name: "a limit price with a new amount", m: spot(order.Modify{OrderID: "20", Side: order.Buy, Price: 60412.5, Amount: 2})},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					_, err := ex.ModifyOrder(t.Context(), &tc.m)
+					assert.ErrorIsf(t, err, errPriceTooPrecise, "ModifyOrder should refuse %s past Bitfinex's precision", tc.name)
+				})
+			}
+			assert.Empty(t, updates(), "ModifyOrder should send no modification with a price past Bitfinex's precision")
+			for _, m := range []order.Modify{
+				spot(order.Modify{OrderID: "20", Side: order.Buy, Price: 60412}),
+				spot(order.Modify{OrderID: "21", Side: order.Sell, TriggerPrice: 59001}),
+				spot(order.Modify{OrderID: "22", Side: order.Sell, Price: 58901, TriggerPrice: 59001}),
+				spot(order.Modify{OrderID: "22", Side: order.Sell, Price: 58902}),
+				derivative(order.Modify{OrderID: "23", Side: order.Buy, Price: 60412}),
+				marginOrder(order.Modify{OrderID: "24", Side: order.Buy, Price: 60412}),
+				coinMargined(order.Modify{OrderID: "25", Side: order.Buy, Price: 0.031234}),
+			} {
+				_, err := ex.ModifyOrder(t.Context(), &m)
+				require.NoErrorf(t, err, "ModifyOrder must take order %s's prices within Bitfinex's precision", m.OrderID)
+			}
+			assert.Equal(t, []map[string]any{
+				{"id": 20.0, "price": "60412"},
+				{"id": 21.0, "price": "59001"},
+				{"id": 22.0, "price": "59001", "price_aux_limit": "58901"},
+				{"id": 22.0, "price_aux_limit": "58902"},
+				{"id": 23.0, "price": "60412", "lev": 10.0},
+				{"id": 24.0, "price": "60412"},
+				{"id": 25.0, "price": "0.031234", "lev": 10.0},
+			}, updates(), "ModifyOrder should send prices within Bitfinex's precision")
 		})
 
 		t.Run("the order's type and time in force", func(t *testing.T) {
@@ -4620,7 +4910,7 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "GetFuturesPositionSummary should report a contract without a position")
 }
 
-func TestGetFuturesPositionOrders(t *testing.T) { //nolint:tparallel // serial subtests share e in order
+func TestGetFuturesPositionOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesPositionOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFuturesPositionOrders must reject a nil request")
@@ -4689,11 +4979,136 @@ func TestGetFuturesPositionOrders(t *testing.T) { //nolint:tparallel // serial s
 
 	req := &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair}, StartDate: now.Add(-time.Hour), EndDate: now}
 	var apiErr *APIError
-	_, err = newRefusingServerExchange(t, `["error",10100,"apikey: invalid"]`).GetFuturesPositionOrders(t.Context(), req)
+	_, err = newPathResponseServerExchange(t, map[string]string{
+		"/v2/auth/r/orders/tBTCF0:USTF0/hist": `["error",10100,"apikey: invalid"]`,
+		"/v2/auth/r/orders/tBTCF0:USTF0":      `[` + orderArray(3, now.Add(-10*time.Minute), "ACTIVE") + `]`,
+	}).GetFuturesPositionOrders(t.Context(), req)
 	assert.ErrorAs(t, err, &apiErr, "GetFuturesPositionOrders should return the order history's refusal")
 	apiErr = nil
 	_, err = newPathResponseServerExchange(t, map[string]string{"/v2/auth/r/orders/tBTCF0:USTF0": `["error",10100,"apikey: invalid"]`}).GetFuturesPositionOrders(t.Context(), req)
 	assert.ErrorAs(t, err, &apiErr, "GetFuturesPositionOrders should return the open orders' refusal")
+
+	record := func(symbol string, id, cid uint64, created, updated time.Time, remaining float64, status string) string {
+		// Bitfinex averages the prices an order has filled at, so one nothing has filled has no average
+		average := "0"
+		if remaining < 0.1 {
+			average = "80000"
+		}
+		return `[` + strconv.FormatUint(id, 10) + `,null,` + strconv.FormatUint(cid, 10) + `,"` + symbol + `",` + strconv.FormatInt(created.UnixMilli(), 10) + `,` +
+			strconv.FormatInt(updated.UnixMilli(), 10) + `,` + strconv.FormatFloat(remaining, 'f', -1, 64) +
+			`,0.1,"LIMIT",null,null,null,0,"` + status + `",null,null,80000,` + average + `,0,0,null,null,null,0,0,null,null,null,"API>BFX",null,null,{"$F33":10}]`
+	}
+	listed := func(orders []order.Detail) []string {
+		l := make([]string, len(orders))
+		for i := range orders {
+			l[i] = orders[i].OrderID + " " + orders[i].Status.String() + " " + strconv.FormatFloat(orders[i].RemainingAmount, 'f', -1, 64)
+		}
+		return l
+	}
+
+	t.Run("an order closing between the two reads", func(t *testing.T) {
+		t.Parallel()
+		// The replies list orders newest first, numbered in the order they were placed. Order 105 is partly filled for the
+		// first request and closed for every later one, whichever list each reads, and orders 104, 103 and 99 close
+		// alongside it: 104 fills, 103 is refused for want of balance in the millisecond of its last update, and 99, last
+		// updated on an earlier day, is cancelled; order 106 was placed in the same millisecond as order 105 and order 102
+		// earlier, and both stay open; order 107 filled before either read, order 110 is open but newer than the window,
+		// and order 101 closed on an earlier day, under the client order ID order 106 has since reused, as Bitfinex's are
+		// unique within a day
+		const symbol = "tBTCF0:USTF0"
+		end, placed, before := now.Add(-5*time.Minute), now.Add(-20*time.Minute), now.Add(-30*time.Hour)
+		refused, longAgo := now.Add(-time.Minute), now.Add(-40*time.Hour)
+		open := func(closed bool) string {
+			newer := record(symbol, 110, 1010, now.Add(-2*time.Minute), now.Add(-2*time.Minute), 0.1, "ACTIVE")
+			opened := record(symbol, 106, 777, placed, placed, 0.1, "ACTIVE")
+			older := record(symbol, 102, 808, now.Add(-50*time.Minute), now.Add(-50*time.Minute), 0.1, "ACTIVE")
+			if closed {
+				return `[` + newer + `,` + opened + `,` + older + `]`
+			}
+			return `[` + newer + `,` + opened + `,` + record(symbol, 105, 505, placed, placed.Add(time.Minute), 0.05, "PARTIALLY FILLED @ 80000.0(0.05)") + `,` +
+				record(symbol, 104, 909, now.Add(-25*time.Minute), now.Add(-25*time.Minute), 0.1, "ACTIVE") + `,` +
+				record(symbol, 103, 303, now.Add(-40*time.Minute), refused, 0.1, "ACTIVE") + `,` + older + `,` +
+				record(symbol, 99, 990, longAgo, longAgo, 0.1, "ACTIVE") + `]`
+		}
+		for _, tc := range []struct {
+			name      string
+			closed    string
+			remaining float64
+			status    order.Status
+		}{
+			{name: "filled", closed: "EXECUTED @ 80000.0(0.1)", status: order.Filled},
+			{name: "cancelled", closed: "CANCELED was: PARTIALLY FILLED @ 80000.0(0.05)", remaining: 0.05, status: order.PartiallyFilledCancelled},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var requests int
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					mu.Lock()
+					defer mu.Unlock()
+					requests++
+					closed := requests > 1
+					var body string
+					switch r.URL.Path {
+					case "/v2/auth/r/orders/" + symbol + "/hist":
+						filledBefore := record(symbol, 107, 707, now.Add(-10*time.Minute), now.Add(-9*time.Minute), 0, "EXECUTED @ 80000.0(0.1)")
+						earlierDay := record(symbol, 101, 777, before, before.Add(time.Minute), 0, "EXECUTED @ 80000.0(0.1)")
+						body = `[` + filledBefore + `,` + earlierDay + `]`
+						if closed {
+							body = `[` + filledBefore + `,` + record(symbol, 105, 505, placed, now.Add(-time.Minute), tc.remaining, tc.closed) + `,` +
+								record(symbol, 104, 909, now.Add(-25*time.Minute), now.Add(-time.Minute), 0, "EXECUTED @ 80000.0(0.1)") + `,` +
+								record(symbol, 103, 303, now.Add(-40*time.Minute), refused, 0.1, "INSUFFICIENT BALANCE (U1)") + `,` + earlierDay + `,` +
+								record(symbol, 99, 990, longAgo, now.Add(-time.Minute), 0.1, "CANCELED") + `]`
+						}
+					case "/v2/auth/r/orders/" + symbol:
+						body = open(closed)
+					default:
+						assert.Failf(t, "the test server should receive only the requests expected", "%s %s", r.Method, r.URL.Path)
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "Writing the response should not error")
+				}))
+				got, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair}, StartDate: now.Add(-48 * time.Hour), EndDate: end})
+				require.NoError(t, err, "GetFuturesPositionOrders must not error for an order closing between its reads")
+				require.Len(t, got, 1, "GetFuturesPositionOrders must return the pair's orders")
+				assert.Equal(t, []string{
+					"106 " + order.Active.String() + " 0.1",
+					"102 " + order.Active.String() + " 0.1",
+					"107 " + order.Filled.String() + " 0",
+					"105 " + tc.status.String() + " " + strconv.FormatFloat(tc.remaining, 'f', -1, 64),
+					"104 " + order.Filled.String() + " 0",
+					"103 " + order.InsufficientBalance.String() + " 0.1",
+					"101 " + order.Filled.String() + " 0",
+					"99 " + order.Cancelled.String() + " 0.1",
+				}, listed(got[0].Orders), "GetFuturesPositionOrders should list the open orders, then the closed ones, each once, and an order closing between its reads as it closed")
+			})
+		}
+	})
+
+	t.Run("the orders of three contracts", func(t *testing.T) {
+		t.Parallel()
+		// The second contract's history in the window is empty, and the third has no open orders
+		ethPair := currency.NewPair(currency.NewCode("ETHF0"), currency.NewCode("USTF0"))
+		solPair := currency.NewPair(currency.NewCode("SOLF0"), currency.NewCode("USTF0"))
+		placed := now.Add(-10 * time.Minute)
+		bodies := map[string]string{
+			"/v2/auth/r/orders/tBTCF0:USTF0":      `[` + record("tBTCF0:USTF0", 202, 2, placed, placed, 0.1, "ACTIVE") + `]`,
+			"/v2/auth/r/orders/tBTCF0:USTF0/hist": `[` + record("tBTCF0:USTF0", 201, 1, placed, placed.Add(time.Minute), 0, "EXECUTED @ 80000.0(0.1)") + `]`,
+			"/v2/auth/r/orders/tETHF0:USTF0":      `[` + record("tETHF0:USTF0", 302, 4, placed, placed, 0.1, "ACTIVE") + `]`,
+			"/v2/auth/r/orders/tETHF0:USTF0/hist": `[]`,
+			"/v2/auth/r/orders/tSOLF0:USTF0":      `[]`,
+			"/v2/auth/r/orders/tSOLF0:USTF0/hist": `[` + record("tSOLF0:USTF0", 401, 6, placed, placed.Add(time.Minute), 0.1, "CANCELED") + `]`,
+		}
+		got, err := newPathResponseServerExchange(t, bodies).GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair, ethPair, solPair}, StartDate: now.Add(-time.Hour), EndDate: now})
+		require.NoError(t, err, "GetFuturesPositionOrders must not error for three contracts")
+		require.Len(t, got, 3, "GetFuturesPositionOrders must return each contract's orders")
+		assert.Equal(t, testDerivativePair, got[0].Pair, "GetFuturesPositionOrders should return the first contract's orders first")
+		assert.Equal(t, []string{"202 " + order.Active.String() + " 0.1", "201 " + order.Filled.String() + " 0"}, listed(got[0].Orders), "GetFuturesPositionOrders should list each contract's own orders")
+		assert.Equal(t, ethPair, got[1].Pair, "GetFuturesPositionOrders should return the second contract's orders second")
+		assert.Equal(t, []string{"302 " + order.Active.String() + " 0.1"}, listed(got[1].Orders), "GetFuturesPositionOrders should list each contract's own orders")
+		assert.Equal(t, solPair, got[2].Pair, "GetFuturesPositionOrders should return the third contract's orders third")
+		assert.Equal(t, []string{"401 " + order.Cancelled.String() + " 0.1"}, listed(got[2].Orders), "GetFuturesPositionOrders should list the closed orders of a contract with none open")
+	})
 
 	t.Run("live", func(t *testing.T) {
 		if mockTests {

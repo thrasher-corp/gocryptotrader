@@ -59,6 +59,10 @@ refused.
 + `SubmitOrder` refuses a client order ID unless it is a non-zero unsigned 64-bit integer written in decimal without
   leading zeros, as it reports the order with the ID as given, and the wrapper reads Bitfinex's client order IDs back in
   that form.
++ `SubmitOrder` and `ModifyOrder` refuse a limit or trigger price they send with more than five significant figures
+  or eight decimals, the precision Bitfinex documents for every pair, as Bitfinex cuts a price with more significant
+  figures and they report the order at the prices given. A price is read as the shortest decimal that converts back to
+  it, which is how they send it.
 + An order has no margin mode to choose, so `SubmitOrder` refuses a `MarginType` other than a derivative's isolated
   margin, a margin order's cross margin and a spot order's no margin. It also refuses a `QuoteAmount`, as Bitfinex sizes
   orders in the base currency. `SubmitOrder` and `ModifyOrder` refuse `RiskManagementModes`, as Bitfinex places no take
@@ -107,6 +111,8 @@ Bitfinex's derivatives are all perpetual contracts, on pairs whose currencies Bi
 + `SubmitOrder` places a derivative order as a margin order, with the order's `Leverage`, a whole number from 1 to 100,
   or Bitfinex's default of 10 without one. Bitfinex takes leverage with each order, so `SetLeverage` is not supported.
   `ModifyOrder` sends a derivative order's own leverage, which Bitfinex needs to update it.
+  `SubmitOrder` takes a spot or margin order's `Leverage` of 1 as none, as it does 0, and refuses any other, as Bitfinex
+  takes leverage with derivative orders only.
 + `GetLatestFundingRates` and `GetHistoricalFundingRates` return the rates Bitfinex sets every 8 hours, each from the
   premium accrued over the 8 hours before it. Bitfinex gives no predicted rate, and its ledgers record funding payments
   by currency rather than by contract, so neither is supported.

@@ -90,6 +90,7 @@ var (
 	errTrackingModeUnsupported     = errors.New("tracking mode not supported")
 	errRiskManagementUnsupported   = errors.New("take profit, stop loss and stop entry orders not supported")
 	errTriggerPriceTypeUnsupported = errors.New("trigger price type not supported")
+	errPriceTooPrecise             = errors.New("price has more than five significant figures or eight decimals")
 )
 
 // SetDefaults sets the basic defaults for bitfinex
@@ -817,10 +818,16 @@ func placeOrderRequest(s *order.Submit) (*PlaceOrderRequest, error) {
 		return nil, err
 	}
 	req := &PlaceOrderRequest{Symbol: symbol, Amount: s.Amount, Price: s.Price}
-	if isDerivativeAsset(s.AssetType) && s.Leverage != 0 {
+	switch {
+	case s.Leverage == 0:
+	case isDerivativeAsset(s.AssetType):
 		if req.Leverage, err = derivativeLeverage(s.Leverage); err != nil {
 			return nil, err
 		}
+	case s.Leverage != 1:
+		// The response would report a leverage Bitfinex was never sent, as it takes one only with a derivative order; a
+		// leverage of 1 is none
+		return nil, fmt.Errorf("%w: %v for a %s order, as Bitfinex takes leverage only with a derivative order", order.ErrSubmitLeverageNotSupported, s.Leverage, s.AssetType)
 	}
 	if s.Side.IsShort() {
 		req.Amount = -s.Amount
@@ -873,6 +880,9 @@ func placeOrderRequest(s *order.Submit) (*PlaceOrderRequest, error) {
 		req.Type, req.Price, req.TrailingPrice = OrderTypeTrailingStop, 0, s.TrackingValue
 	default:
 		return nil, fmt.Errorf("%w: %s", errUnsupportedOrderType, s.Type)
+	}
+	if err := checkPricePrecision(req.Price, req.AuxiliaryLimitPrice); err != nil {
+		return nil, err
 	}
 	if s.AssetType == asset.Spot {
 		req.Type = ExchangeOrderTypePrefix + req.Type
@@ -1051,6 +1061,27 @@ func setUpdatePrices(req *UpdateOrderRequest, orderType order.Type, m *order.Mod
 			return fmt.Errorf("%w: %s orders have none", errTriggerPriceUnsupported, orderType)
 		}
 		req.Price = m.Price
+	}
+	return checkPricePrecision(req.Price, req.AuxiliaryLimitPrice)
+}
+
+// checkPricePrecision returns an error for a price past the precision Bitfinex documents for every pair, five significant
+// figures and eight decimals, as Bitfinex cuts a price with more significant figures while the wrapper reports an order
+// at the prices it was given. Each price is read as the decimal the request sends, the shortest that converts back to it
+func checkPricePrecision(prices ...float64) error {
+	for _, p := range prices {
+		// A zero price is none, and the request's body refuses a negative or non-finite one
+		if p <= 0 || math.IsNaN(p) || math.IsInf(p, 0) {
+			continue
+		}
+		s := strconv.FormatFloat(p, 'f', -1, 64)
+		var decimals int
+		if point := strings.IndexByte(s, '.'); point != -1 {
+			decimals = len(s) - point - 1
+		}
+		if figures := strings.Trim(strings.Replace(s, ".", "", 1), "0"); len(figures) > 5 || decimals > 8 {
+			return fmt.Errorf("%w: %s", errPriceTooPrecise, s)
+		}
 	}
 	return nil
 }
@@ -2100,20 +2131,27 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.Posi
 	}
 	resp := make([]futures.PositionResponse, len(r.Pairs))
 	for i, p := range r.Pairs {
+		// Open orders are read before the history, so an order closing between the two reads is in the history rather than
+		// in neither, and the open orders the history lists are left out
+		open, err := e.openOrderDetails(ctx, p, r.Asset)
+		if err != nil {
+			return nil, err
+		}
 		req := &order.MultiOrderRequest{AssetType: r.Asset, Pairs: currency.Pairs{p}, StartTime: start, EndTime: r.EndDate, Side: order.AnySide, Type: order.AnyType}
 		closed, err := e.GetOrderHistory(ctx, req)
 		if err != nil {
 			return nil, err
 		}
-		open, err := e.openOrderDetails(ctx, p, r.Asset)
-		if err != nil {
-			return nil, err
+		closedIDs := make(map[string]bool, len(closed))
+		for j := range closed {
+			closedIDs[closed[j].OrderID] = true
 		}
+		stillOpen := slices.DeleteFunc(req.Filter(e.Name, open), func(d order.Detail) bool { return closedIDs[d.OrderID] })
 		resp[i] = futures.PositionResponse{
 			Pair:                   p,
 			Asset:                  r.Asset,
 			ContractSettlementType: futures.Linear,
-			Orders:                 append(req.Filter(e.Name, open), closed...),
+			Orders:                 append(stillOpen, closed...),
 		}
 	}
 	return resp, nil
