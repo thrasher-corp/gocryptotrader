@@ -817,7 +817,7 @@ func TestGetDeliveryOrderRequest(t *testing.T) {
 }
 
 func TestSetDefaults(t *testing.T) {
-	t.Parallel()
+	// Not parallel, as other tests' SetDefaults calls read-lock elements of the shared defaultSubscriptions, whose locks assert.Equal compares
 	ex := new(Exchange)
 	ex.SetDefaults()
 	assert.Equal(t, "Gate", ex.Name, "SetDefaults should name the exchange")
@@ -4566,11 +4566,16 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetHistoricalFundingRates must reject a start after the end")
 
+	// The recorded rates don't move with the clock, so in mock mode the 8008 hours count back from the newest of them
+	outsideStart := time.Now().Add(-time.Hour * 8008)
+	if mockTests {
+		outsideStart = time.Unix(1774969200, 0).Add(-time.Hour * 8008)
+	}
 	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
 		Pair:            getPair(t, asset.USDTMarginedFutures),
 		PaymentCurrency: currency.USDT,
-		StartDate:       time.Now().Add(-time.Hour * 8008),
+		StartDate:       outsideStart,
 		EndDate:         time.Now(),
 	})
 	require.ErrorIs(t, err, fundingrate.ErrFundingRateOutsideLimits, "GetHistoricalFundingRates must reject a start before the rates Gate returns")
