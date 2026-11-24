@@ -13,7 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/quagmt/udecimal" //nolint:depguard // Verifies errors from the selected backend.
+	"github.com/quagmt/udecimal"               //nolint:depguard // Verifies errors from the selected backend.
+	shopspring "github.com/shopspring/decimal" //nolint:depguard // The default build's type, which Scan accepts.
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -701,6 +702,10 @@ func TestDecimalScan(t *testing.T) {
 		{name: "sub-precision float32", input: float32(1e-20), expected: "0"},
 		{name: "float64", input: 1.25, expected: "1.25"},
 		{name: "sub-precision float64", input: 1e-20, expected: "0"},
+		{name: "shopspring Decimal", input: shopspring.RequireFromString("53.51"), expected: "53.51"},
+		{name: "shopspring Decimal at the expansion limit", input: shopspring.New(1, maxStringDigits-1), expected: "1" + strings.Repeat("0", maxStringDigits-1)},
+		{name: "zero shopspring Decimal at the negative exponent limit", input: shopspring.New(0, -shopspringMaxDecodeExponent), expected: "0"},
+		{name: "zero shopspring Decimal at the positive exponent limit", input: shopspring.New(0, shopspringMaxDecodeExponent), expected: "0"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -719,6 +724,10 @@ func TestDecimalScan(t *testing.T) {
 		{name: "nil big.Int pointer", input: (*big.Int)(nil), expected: errInvalidDecimal},
 		{name: "non-finite float64", input: math.NaN(), expected: errInvalidDecimal},
 		{name: "non-finite float32", input: float32(math.Inf(1)), expected: errInvalidDecimal},
+		{name: "shopspring Decimal beyond udecimal precision", input: shopspring.RequireFromString("0.12345678901234567891"), expected: errPrecisionOutOfRange},
+		{name: "shopspring Decimal beyond the negative exponent limit", input: shopspring.New(1, -shopspringMaxDecodeExponent-1), expected: errExponentOutOfRange},
+		{name: "shopspring Decimal beyond the positive exponent limit", input: shopspring.New(1, shopspringMaxDecodeExponent+1), expected: errExponentOutOfRange},
+		{name: "shopspring Decimal beyond the expansion limit", input: shopspring.New(1, maxStringDigits), expected: errInvalidDecimal},
 		{name: "invalid text beyond the parser cap", input: strings.Repeat("1", maxStringDigits+1) + "x", expected: errInvalidDecimal},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -755,6 +764,13 @@ func TestDecimalScan(t *testing.T) {
 	t.Run("decoding failure leaves zero", func(t *testing.T) {
 		t.Parallel()
 		testDecodeFailureLeavesZero(t, scanDecoders)
+	})
+	t.Run("refused shopspring Decimal leaves the receiver unchanged", func(t *testing.T) {
+		t.Parallel()
+		result := NewFromInt(7)
+		require.ErrorIs(t, result.Scan(shopspring.RequireFromString("0.12345678901234567891")), errPrecisionOutOfRange,
+			"Scan must refuse a shopspring Decimal beyond udecimal precision")
+		assert.Equal(t, "7", result.String(), "Scan should leave the receiver unchanged after refusing a shopspring Decimal")
 	})
 }
 

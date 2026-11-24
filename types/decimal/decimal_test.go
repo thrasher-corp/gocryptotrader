@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	shopspring "github.com/shopspring/decimal" //nolint:depguard // Reference output for the udecimal build's Format.
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -122,6 +123,39 @@ func TestDecimalFormat(t *testing.T) {
 		})
 	}
 	t.Run("Go syntax", testDecimalFormatGoSyntax)
+	values := []string{"0", "3.14", "-3.14159", "1.20", "2.675", "-0.001", "9.995", "54.33000183105469", strings.Repeat("9", 40)}
+	decoded := make([]Decimal, len(values))
+	for i, value := range values {
+		// UnmarshalText keeps trailing zeros in both builds, as shopspring's parser does.
+		require.NoError(t, decoded[i].UnmarshalText([]byte(value)), "UnmarshalText must decode the format test value")
+	}
+	for _, verb := range "vsqxXfFdeEgGbcoOUt" {
+		for flagSet := range 1 << 5 {
+			var flags strings.Builder
+			for i, flag := range "+-# 0" {
+				if flagSet&(1<<i) != 0 {
+					flags.WriteRune(flag)
+				}
+			}
+			if verb == 'v' && strings.ContainsRune(flags.String(), '#') {
+				// The udecimal build prints %#v as a MustFromString call instead.
+				continue
+			}
+			directive := "%" + flags.String() + string(verb)
+			t.Run("matches shopspring "+directive, func(t *testing.T) {
+				t.Parallel()
+				for _, width := range []string{"", "1", "8", "12"} {
+					for _, precision := range []string{"", ".0", ".2", ".5", ".20", ".256"} {
+						format := "%" + flags.String() + width + precision + string(verb)
+						for i, value := range values {
+							assert.Equalf(t, fmt.Sprintf(format, shopspring.RequireFromString(value)), fmt.Sprintf(format, decoded[i]),
+								"Sprintf(%q) should print %s as shopspring does", format, value)
+						}
+					}
+				}
+			})
+		}
+	}
 	t.Run("struct field", func(t *testing.T) {
 		t.Parallel()
 		price := struct{ Price Decimal }{Price: MustFromString("3.14")}
@@ -257,6 +291,9 @@ func testDecodeFailureLeavesZero(t *testing.T, decoders []textDecoder) {
 		{name: "invalid text", value: "invalid"},
 		{name: "invalid text beyond the udecimal parser limit", value: strings.Repeat("1", 300) + "x"},
 		{name: "quoted null", value: `"null"`},
+		{name: "lone minus sign", value: "-"},
+		{name: "unbalanced quote", value: `"1.5`},
+		{name: "closing quote only", value: `1.5"`},
 		{name: "minus then plus sign before 40 digits", value: "-+" + strings.Repeat("1", 40)},
 		{name: "quoted minus then plus sign before 40 digits", value: `"-+` + strings.Repeat("1", 40) + `"`},
 		{name: "two minus signs before 40 zeros", value: "--" + strings.Repeat("0", 40)},
@@ -292,6 +329,8 @@ func testDecimalScanInputTypes(t *testing.T) {
 		{name: "Unicode minus string", input: "\u22121.25", expected: "-1.25"},
 		{name: "float32", input: float32(54.33), expected: "54.33"},
 		{name: "float64", input: 54.33, expected: "54.33"},
+		{name: "float64 beyond float32 precision", input: 1.234567891234, expected: "1.234567891234"},
+		{name: "float64 holding a float32 value", input: float64(float32(54.33)), expected: "54.33000183105469"},
 		{name: "int", input: int(-1), expected: "-1"},
 		{name: "int8", input: int8(math.MinInt8), expected: "-128"},
 		{name: "int16", input: int16(math.MinInt16), expected: "-32768"},
@@ -304,11 +343,15 @@ func testDecimalScanInputTypes(t *testing.T) {
 		{name: "uint64", input: uint64(math.MaxUint64), expected: "18446744073709551615"},
 		{name: "big.Int", input: *largeInteger, expected: largeInteger.String()},
 		{name: "big.Int pointer", input: largeInteger, expected: largeInteger.String()},
+		{name: "zero big.Int", input: big.Int{}, expected: "0"},
+		{name: "zero big.Int pointer", input: new(big.Int), expected: "0"},
 		{name: "Decimal", input: MustFromString("-1.25"), expected: "-1.25"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var result Decimal
+			// Start from a non-zero value so that a case which returns without
+			// storing its input cannot pass on the zero row.
+			result := NewFromInt(7)
 			require.NoError(t, result.Scan(tc.input), "Scan must accept the input type")
 			assert.Equal(t, tc.expected, result.String(), "Scan should preserve the input value")
 		})

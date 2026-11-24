@@ -34,7 +34,7 @@ var (
 	errUnsupportedScanType = errors.New("unsupported decimal scan type")
 )
 
-// useNativeParser reports whether udecimal's own parser can decode text. Beyond
+// useNativeParser reports whether text may go to udecimal's own parser. Beyond
 // its u128 fast path, that parser removes a leading '-' and lets big.Int read
 // the rest, which accepts a second sign, so text starting "-+" or "--" goes to
 // NewFromString instead.

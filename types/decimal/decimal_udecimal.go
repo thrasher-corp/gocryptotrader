@@ -11,7 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/quagmt/udecimal" //nolint:depguard // Selected implementation for the udecimal_on build.
+	"github.com/quagmt/udecimal"               //nolint:depguard // Selected implementation for the udecimal_on build.
+	shopspring "github.com/shopspring/decimal" //nolint:depguard // Scan takes the default build's own type, as the default build does.
 )
 
 // MaxFractionalDigits is the fractional precision retained by udecimal arithmetic.
@@ -358,6 +359,15 @@ func (d *Decimal) Scan(value any) error {
 		return d.scanBigInt(value)
 	case Decimal:
 		*d = value
+		return nil
+	case shopspring.Decimal:
+		// String would expand the exponent before NewFromString bounds it, and
+		// its form follows shopspring's display settings.
+		result, err := NewFromString(value.Coefficient().String() + "e" + strconv.FormatInt(int64(value.Exponent()), 10))
+		if err != nil {
+			return fmt.Errorf("error scanning decimal: %w", err)
+		}
+		*d = result
 		return nil
 	default:
 		return fmt.Errorf("error scanning decimal: %w: %T", errUnsupportedScanType, value)
