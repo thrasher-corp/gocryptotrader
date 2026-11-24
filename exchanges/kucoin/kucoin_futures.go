@@ -834,12 +834,13 @@ func (e *Exchange) GetFuturesTradingPairsActualFees(ctx context.Context, symbol 
 // GetPositionHistory query position history information records
 func (e *Exchange) GetPositionHistory(ctx context.Context, symbol string, from, to time.Time, limit, pageID int64) (*FuturesPositionHistory, error) {
 	params := url.Values{}
-	if !from.IsZero() && !to.IsZero() {
-		err := common.StartEndTimeCheck(from, to)
-		if err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(from, to); err != nil {
+		return nil, err
+	}
+	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	if symbol != "" {
