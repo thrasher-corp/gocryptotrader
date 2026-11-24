@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -414,7 +415,7 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 		remaining := m.RemainingAmount
 		// Such a reply can also be older than fills stored of an open order, which its remainder would count again
 		if m.Status == UnknownStatus && d.ExecutedAmount > m.ExecutedAmount {
-			remaining = max(d.Amount-d.ExecutedAmount, 0)
+			remaining = max(decimal.MustFromFloat(d.Amount).Sub(decimal.MustFromFloat(d.ExecutedAmount)).InexactFloat64(), 0)
 		}
 		if remaining != d.RemainingAmount {
 			d.RemainingAmount = remaining

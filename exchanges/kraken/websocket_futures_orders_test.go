@@ -2307,6 +2307,8 @@ func TestFuturesOrderStateAddTo(t *testing.T) {
 		// The update keeps the quantities it carries when the feeds have reported too little of the order
 		{name: "partly filled by fills all reported as they happened, its quantity unknown", state: futuresOrderState{fillQuantity: 4, liveOnly: true}, exp: quantities{3, 2, 1}},
 		{name: "filled, its quantity unknown", state: futuresOrderState{fillQuantity: 6, filledInFull: true}, exp: quantities{3, 2, 1}},
+		{name: "partly filled, 0.1 of 0.3", state: futuresOrderState{quantity: 0.3, filled: 0.1, fillQuantity: 0.1}, exp: quantities{0.3, 0.1, 0.2}},
+		{name: "partly filled, amounts to ten decimal places", state: futuresOrderState{quantity: 0.3000000003, filled: 0.1000000001, fillQuantity: 0.1000000001}, exp: quantities{0.3000000003, 0.1000000001, 0.2000000002}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

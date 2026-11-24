@@ -1031,6 +1031,13 @@ func (s *store) modifyExisting(id string, mod *order.ModifyResponse) error {
 		if r[x].OrderID != id {
 			continue
 		}
+		// A trailing stop limit's edit gives its limit as an offset, which is not where the limit stands, so the stored
+		// price is kept unless the edit replaced the order with one of another type
+		if r[x].Type == order.TrailingStopLimit && (mod.Type == order.UnknownType || mod.Type == order.TrailingStopLimit) {
+			edited := *mod
+			edited.Price = 0
+			mod = &edited
+		}
 		r[x].UpdateOrderFromModifyResponse(mod)
 		if !r[x].AssetType.IsFutures() {
 			return nil

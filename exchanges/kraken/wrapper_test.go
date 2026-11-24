@@ -1744,7 +1744,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 				ID:        "fi_xbtusd",
 				AssetType: asset.Futures,
 				Balances: accounts.CurrencyBalances{
-					currency.XBT: {Currency: currency.XBT, Total: 2.01451296, Hold: 0.10109333999999981, Free: 1.91341962},
+					currency.XBT: {Currency: currency.XBT, Total: 2.01451296, Hold: 0.10109334, Free: 1.91341962},
 				},
 			},
 			{
@@ -1753,7 +1753,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 				AssetType: asset.Futures,
 				Balances: accounts.CurrencyBalances{
 					currency.USD: {Currency: currency.USD, Total: 5000, Hold: 124.5, Free: 4875.5},
-					currency.XBT: {Currency: currency.XBT, Total: 0.1185308247, Hold: 0.0049999999999999906, Free: 0.1135308247},
+					currency.XBT: {Currency: currency.XBT, Total: 0.1185308247, Hold: 0.005, Free: 0.1135308247},
 				},
 			},
 		}
@@ -1787,6 +1787,17 @@ func TestUpdateAccountBalances(t *testing.T) {
 					currency.XBT: {Currency: currency.XBT, Total: 0.1185308247, Hold: 0.1185308247},
 				},
 			},
+			{
+				name: "margin in use, amounts to ten decimal places",
+				currencies: `{"USD":{"quantity":0.3,"value":0.3,"collateral":0.3,"available":0.1},` +
+					`"XBT":{"quantity":0.3000000003,"value":24.6,"collateral":24.1,"available":0.1000000001},` +
+					`"ETH":{"quantity":0.5,"value":1650.2,"collateral":1600.1,"available":0.49999966035931903}}`,
+				exp: accounts.CurrencyBalances{
+					currency.USD: {Currency: currency.USD, Total: 0.3, Hold: 0.2, Free: 0.1},
+					currency.XBT: {Currency: currency.XBT, Total: 0.3000000003, Hold: 0.2000000002, Free: 0.1000000001},
+					currency.ETH: {Currency: currency.ETH, Total: 0.5, Hold: 0.00000033964068097, Free: 0.49999966035931903},
+				},
+			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
@@ -1802,6 +1813,19 @@ func TestUpdateAccountBalances(t *testing.T) {
 				assert.Equal(t, exp, accountTestSubAccounts(t, result, started, time.Now()), "UpdateAccountBalances should keep each free balance within its quantity")
 			})
 		}
+	})
+
+	t.Run("futures margin hold, amounts to ten decimal places", func(t *testing.T) {
+		t.Parallel()
+		ex := newAccountTestExchange(t, "/derivatives/api/v3/accounts", `{"accounts":{"fi_xbtusd":{"type":"marginAccount","currency":"xbt",`+
+			`"balances":{"xbt":"0.3000000003"},"auxiliary":{"usd":0,"pv":0.3000000003,"pnl":0,"af":0.1000000001,"funding":0.1000000001}}},`+
+			`"result":"success","serverTime":"2026-10-09T08:42:00.000Z"}`)
+		reportSeparateFlexWallet(ex)
+		result, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		wallets := futuresWalletBalances(result)
+		assert.Equal(t, 0.2000000002, wallets["fi_xbtusd"][currency.XBT].Hold, "UpdateAccountBalances should hold exactly what is unavailable of a margin account's balance")
+		assert.Equal(t, 0.1000000001, wallets["fi_xbtusd"][currency.XBT].Free, "UpdateAccountBalances should free the margin account's available funds")
 	})
 
 	t.Run("futures margin limits", func(t *testing.T) {
@@ -1831,7 +1855,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 				ID:        "fi_xbtusd",
 				AssetType: asset.Futures,
 				Balances: accounts.CurrencyBalances{
-					currency.XBT: {Currency: currency.XBT, Total: 141.31756797, Hold: 40.578652340000005, Free: 100.73891563},
+					currency.XBT: {Currency: currency.XBT, Total: 141.31756797, Hold: 40.57865234, Free: 100.73891563},
 					currency.XRP: {Currency: currency.XRP},
 				},
 			},
@@ -4906,10 +4930,12 @@ func TestModifyOrder(t *testing.T) {
 			t.Parallel()
 			ex := newOrdersWsTestExchange(t, tc.trip)
 			tc.modify.Exchange, tc.modify.Pair, tc.modify.AssetType = ex.Name, spotTestPair, asset.Spot
+			sent := *tc.modify
 			resp, err := ex.ModifyOrder(t.Context(), tc.modify)
 			require.NoError(t, err, "ModifyOrder must not error")
 			tc.exp.Exchange, tc.exp.Pair, tc.exp.AssetType = ex.Name, spotTestPair, asset.Spot
 			assert.Equal(t, tc.exp, resp, "ModifyOrder should amend the order over the private websocket")
+			assert.Equal(t, &sent, tc.modify, "ModifyOrder should leave the caller's modification as it was")
 		})
 	}
 
@@ -4927,8 +4953,12 @@ func TestModifyOrder(t *testing.T) {
 			request: ordersWsRequest("amend_order", `"order_id":"OAIYAU-LGI3M-PFM5VW","limit_price":-150`),
 			replies: []string{ordersWsReply("amend_order", `{"amend_id":"TTW6PD-RC36L-ZZSWNU","order_id":"OAIYAU-LGI3M-PFM5VW"}`)},
 		})
-		_, err := ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, OrderID: "OAIYAU-LGI3M-PFM5VW", Type: order.TrailingStopLimit, Side: order.Sell, Price: -150})
-		assert.NoError(t, err, "ModifyOrder should send a negative limit price offset")
+		modify := &order.Modify{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, OrderID: "OAIYAU-LGI3M-PFM5VW", Type: order.TrailingStopLimit, Side: order.Sell, Price: -150}
+		sent := *modify
+		resp, err := ex.ModifyOrder(t.Context(), modify)
+		require.NoError(t, err, "ModifyOrder must send a negative limit price offset")
+		assert.Equal(t, &order.ModifyResponse{Exchange: ex.Name, OrderID: "OAIYAU-LGI3M-PFM5VW", Pair: spotTestPair, Type: order.TrailingStopLimit, Side: order.Sell, AssetType: asset.Spot, Price: -150}, resp, "ModifyOrder should return the amendment")
+		assert.Equal(t, &sent, modify, "ModifyOrder should leave the caller's modification as it was")
 	})
 
 	for _, tc := range []struct {
@@ -5035,9 +5065,11 @@ func TestModifyOrder(t *testing.T) {
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
+				sent := *tc.modify
 				resp, err := e.ModifyOrder(t.Context(), tc.modify)
 				require.NoError(t, err, "ModifyOrder must not error")
 				assert.Equal(t, tc.exp, resp, "ModifyOrder should return the modification")
+				assert.Equal(t, &sent, tc.modify, "ModifyOrder should leave the caller's modification as it was")
 			})
 		}
 		if !mockTests {
@@ -7358,9 +7390,32 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 }
 
+// remainingAmountCases are quantities ordered and filled whose float differences carry residues, with what remains
+var remainingAmountCases = []struct {
+	name                       string
+	quantity, filled, expected float64
+}{
+	{name: "0.3 ordered, 0.1 filled", quantity: 0.3, filled: 0.1, expected: 0.2},
+	{name: "0.3000000003 ordered, 0.1000000001 filled", quantity: 0.3000000003, filled: 0.1000000001, expected: 0.2000000002},
+	{name: "0.5 ordered, 0.49999966035931903 filled", quantity: 0.5, filled: 0.49999966035931903, expected: 0.00000033964068097},
+}
+
 func TestSpotOrderDetail(t *testing.T) { //nolint:tparallel // the cases share e's pair matcher in order
 	t.Parallel()
 	openTime, closeTime := time.UnixMicro(1791421234551200), time.UnixMicro(1791421301012700)
+	for _, tc := range remainingAmountCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := e.spotOrderDetail("O6KIO9-Y73RV-6LFAIX", &OrderInfoResponse{
+				Status:         "open",
+				OpenTime:       types.Time(openTime),
+				Description:    OrderDescription{Pair: "XBTUSD", Side: "buy", OrderType: "limit", Price: OrderPrice{Value: 81250}},
+				Volume:         types.Number(tc.quantity),
+				VolumeExecuted: types.Number(tc.filled),
+			})
+			require.NoErrorf(t, err, "spotOrderDetail must not error for %s", tc.name)
+			assert.Equalf(t, tc.expected, got.RemainingAmount, "spotOrderDetail should report exactly what remains with %s", tc.name)
+		})
+	}
 	// The cases share e's pair matcher in order, so each also checks that a conversion keeps nothing from the last
 	for _, tc := range []struct {
 		name string
@@ -8252,6 +8307,15 @@ func TestFuturesOrderStatusDetail(t *testing.T) { //nolint:tparallel // the case
 			tc.modify(&s)
 			_, err := e.futuresOrderStatusDetail(&s)
 			assert.ErrorIsf(t, err, tc.err, "futuresOrderStatusDetail should reject %s", tc.name)
+		})
+	}
+	for _, tc := range remainingAmountCases {
+		t.Run(tc.name, func(t *testing.T) {
+			o := cached
+			o.Quantity, o.FilledQuantity = tc.quantity, tc.filled
+			got, err := e.futuresOrderStatusDetail(&FuturesOrderStatusDetails{Order: o, Status: "ENTERED_BOOK"})
+			require.NoErrorf(t, err, "futuresOrderStatusDetail must not error for %s", tc.name)
+			assert.Equalf(t, tc.expected, got.RemainingAmount, "futuresOrderStatusDetail should report exactly what remains with %s", tc.name)
 		})
 	}
 }

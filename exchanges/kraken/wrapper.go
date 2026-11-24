@@ -618,7 +618,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		flex := accounts.NewSubAccount(a, "flex")
 		for code, c := range resp.Accounts.Flex.Currencies {
 			free := min(max(c.Available, 0), c.Quantity)
-			flex.Balances.Set(currency.NewCode(code).Upper(), accounts.Balance{Total: c.Quantity, Hold: c.Quantity - free, Free: free})
+			flex.Balances.Set(currency.NewCode(code).Upper(), accounts.Balance{Total: c.Quantity, Hold: decimal.MustFromFloat(c.Quantity).Sub(decimal.MustFromFloat(free)).InexactFloat64(), Free: free})
 		}
 		subAccts = append(subAccts, cash, flex)
 		marginCurrencies := make(map[string]currency.Code, len(resp.Accounts.MarginAccounts))
@@ -637,7 +637,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 				if c.Equal(m.Currency) {
 					free = min(max(m.Auxiliary.AvailableFunds, 0), total)
 				}
-				marginAccount.Balances.Set(c, accounts.Balance{Total: total, Hold: total - free, Free: free})
+				marginAccount.Balances.Set(c, accounts.Balance{Total: total, Hold: decimal.MustFromFloat(total).Sub(decimal.MustFromFloat(free)).InexactFloat64(), Free: free})
 			}
 			subAccts = append(subAccts, marginAccount)
 		}
@@ -2075,7 +2075,7 @@ func (e *Exchange) spotOrderDetail(orderID string, info *OrderInfoResponse) (*or
 		AverageExecutedPrice: info.AveragePrice.Float64(),
 		Amount:               info.Volume.Float64(),
 		ExecutedAmount:       executed,
-		RemainingAmount:      info.Volume.Float64() - executed,
+		RemainingAmount:      info.Volume.Decimal().Sub(info.VolumeExecuted.Decimal()).InexactFloat64(),
 		Cost:                 info.Cost.Float64(),
 		CostAsset:            pair.Quote,
 		Fee:                  info.Fee.Float64(),
@@ -2346,7 +2346,7 @@ func (e *Exchange) futuresOrderStatusDetail(s *FuturesOrderStatusDetails) (*orde
 		Price:           s.Order.LimitPrice,
 		Amount:          s.Order.Quantity,
 		ExecutedAmount:  s.Order.FilledQuantity,
-		RemainingAmount: s.Order.Quantity - s.Order.FilledQuantity,
+		RemainingAmount: decimal.MustFromFloat(s.Order.Quantity).Sub(decimal.MustFromFloat(s.Order.FilledQuantity)).InexactFloat64(),
 		Date:            s.Order.PlacedTime,
 		LastUpdated:     s.Order.LastUpdateTime,
 	}

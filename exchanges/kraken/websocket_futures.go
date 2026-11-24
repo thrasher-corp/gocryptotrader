@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -576,7 +577,7 @@ func (e *Exchange) futuresWsOrderDetail(o *WebsocketFuturesOpenOrder, status ord
 		TriggerPrice:    o.StopPrice,
 		Amount:          o.Quantity,
 		ExecutedAmount:  o.Filled,
-		RemainingAmount: o.Quantity - o.Filled,
+		RemainingAmount: decimal.MustFromFloat(o.Quantity).Sub(decimal.MustFromFloat(o.Filled)).InexactFloat64(),
 		Date:            o.Time.Time(),
 		LastUpdated:     o.LastUpdateTime.Time(),
 	}, nil
@@ -715,7 +716,7 @@ func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, feed string, re
 		flex := accounts.NewSubAccount(asset.Futures, "flex")
 		for code, fc := range b.FlexFutures.Currencies {
 			free := min(max(fc.Available, 0), fc.Quantity)
-			flex.Balances.Set(currency.NewCode(code).Upper(), accounts.Balance{Total: fc.Quantity, Hold: fc.Quantity - free, Free: free})
+			flex.Balances.Set(currency.NewCode(code).Upper(), accounts.Balance{Total: fc.Quantity, Hold: decimal.MustFromFloat(fc.Quantity).Sub(decimal.MustFromFloat(free)).InexactFloat64(), Free: free})
 		}
 		wallets = append(wallets, flex)
 	}
@@ -726,7 +727,7 @@ func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, feed string, re
 		}
 		margin := accounts.NewSubAccount(asset.Futures, account)
 		free := min(max(m.Available, 0), m.Balance)
-		margin.Balances.Set(currency.NewCode(m.Unit).Upper(), accounts.Balance{Total: m.Balance, Hold: m.Balance - free, Free: free})
+		margin.Balances.Set(currency.NewCode(m.Unit).Upper(), accounts.Balance{Total: m.Balance, Hold: decimal.MustFromFloat(m.Balance).Sub(decimal.MustFromFloat(free)).InexactFloat64(), Free: free})
 		wallets = append(wallets, margin)
 	}
 	var unified *bool

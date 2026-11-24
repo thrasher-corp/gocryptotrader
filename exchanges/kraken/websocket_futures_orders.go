@@ -362,6 +362,6 @@ func (s *futuresOrderState) addTo(d *order.Detail) {
 		d.Amount, d.ExecutedAmount, d.RemainingAmount = s.fillQuantity, s.fillQuantity, 0
 	case s.quantity > 0:
 		d.Amount, d.ExecutedAmount = s.quantity, s.executed()
-		d.RemainingAmount = max(d.Amount-d.ExecutedAmount, 0)
+		d.RemainingAmount = max(decimal.MustFromFloat(d.Amount).Sub(decimal.MustFromFloat(d.ExecutedAmount)).InexactFloat64(), 0)
 	}
 }

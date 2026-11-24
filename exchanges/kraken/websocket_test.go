@@ -3465,6 +3465,13 @@ func TestExecutionOrderDetail(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
+	for _, tc := range remainingAmountCases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, err := ex.executionOrderDetail(&WebsocketExecution{OrderID: "OAIYAU-LGI3M-PFM5VW", ExecutionType: "status", OrderType: "limit", OrderStatus: "partially_filled", OrderQuantity: tc.quantity, CumulativeQuantity: tc.filled})
+			require.NoErrorf(t, err, "executionOrderDetail must not error for %s", tc.name)
+			assert.Equalf(t, tc.expected, d.RemainingAmount, "executionOrderDetail should report exactly what remains with %s", tc.name)
+		})
+	}
 	tradeTime := time.Date(2026, 10, 9, 1, 5, 0, 120000000, time.UTC)
 	execution := &WebsocketExecution{
 		OrderID:            "OAIYAU-LGI3M-PFM5VW",

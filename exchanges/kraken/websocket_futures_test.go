@@ -1472,6 +1472,13 @@ func TestFuturesWebsocketOrderDetail(t *testing.T) { //nolint:tparallel // its c
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "futuresWsOrderDetail should reject an unknown instrument")
 	_, err = ex.futuresWsOrderDetail(&WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Type: "moon"}, order.Open)
 	assert.ErrorIs(t, err, errUnknownOrderType, "futuresWsOrderDetail should reject an unknown order type")
+	for _, tc := range remainingAmountCases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, err := ex.futuresWsOrderDetail(&WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Type: "limit", LimitPrice: 34900, Quantity: tc.quantity, Filled: tc.filled}, order.PartiallyFilled)
+			require.NoErrorf(t, err, "futuresWsOrderDetail must not error for %s", tc.name)
+			assert.Equalf(t, tc.expected, d.RemainingAmount, "futuresWsOrderDetail should report exactly what remains with %s", tc.name)
+		})
+	}
 }
 
 func TestWebsocketFuturesProcessFills(t *testing.T) {
@@ -1698,6 +1705,25 @@ func TestWebsocketFuturesProcessBalances(t *testing.T) {
 	require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), struct{}{}), "DataHandler must accept the saturation payload")
 	err = ex.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalances, []byte(`{"feed":"balances","holding":{"usd":2}}`))
 	assert.ErrorContains(t, err, "channel buffer is full: failed to relay <accounts.SubAccounts>", "wsFuturesProcessBalances should return the error relaying the wallets")
+
+	t.Run("holds of amounts to ten and seventeen decimal places", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		useTestCredentials(ex)
+		reportSeparateFlexWallet(ex)
+		setFuturesMarginCurrencies(ex, map[string]currency.Code{"fi_xbtusd": currency.NewCode("xbt")})
+		msg := `{"feed":"balances","account":"DemoUser","flex_futures":{"currencies":{"USD":{"quantity":0.3,"available":0.1},` +
+			`"XBT":{"quantity":0.3000000003,"available":0.1000000001},"ETH":{"quantity":0.5,"available":0.49999966035931903}}},"futures":{` +
+			`"F-XBT:USD":{"name":"F-XBT:USD","pair":"XBT/USD","unit":"XBT","balance":0.3000000003,"available":0.1000000001}},"timestamp":1640995200000,"seq":85}`
+		require.NoError(t, ex.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalances, []byte(msg)), "wsFuturesProcessBalances must not error")
+		got := relayed(ex)
+		require.NotEmpty(t, got, "wsFuturesProcessBalances must relay the wallets")
+		wallets := futuresWalletBalances(futuresTestSubAccounts(t, got[0]))
+		assert.Equal(t, 0.2, wallets["flex"][currency.USD].Hold, "wsFuturesProcessBalances should hold exactly what is unavailable of a multi-collateral currency")
+		assert.Equal(t, 0.2000000002, wallets["flex"][currency.XBT].Hold, "wsFuturesProcessBalances should hold exactly what is unavailable of a currency to ten decimal places")
+		assert.Equal(t, 0.00000033964068097, wallets["flex"][currency.ETH].Hold, "wsFuturesProcessBalances should hold exactly what is unavailable of a currency to seventeen decimal places")
+		assert.Equal(t, 0.2000000002, wallets["fi_xbtusd"][currency.XBT].Hold, "wsFuturesProcessBalances should hold exactly what is unavailable of a margin account's balance")
+	})
 
 	t.Run("balances snapshots", func(t *testing.T) {
 		t.Parallel()

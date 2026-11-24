@@ -1088,6 +1088,18 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) { //nolint:tparallel // The
 			exp:  Detail{OrderID: "1", Status: PartiallyFilled, Amount: 7, ExecutedAmount: 6, RemainingAmount: 1},
 		},
 		{
+			name: "older than a fill stored, amounts to ten decimal places",
+			od:   Detail{OrderID: "1", Status: PartiallyFilled, Amount: 0.3000000003, ExecutedAmount: 0.1000000001, RemainingAmount: 0.2000000002},
+			m:    ModifyResponse{OrderID: "1", Amount: 0.3000000003, RemainingAmount: 0.3000000003},
+			exp:  Detail{OrderID: "1", Status: PartiallyFilled, Amount: 0.3000000003, ExecutedAmount: 0.1000000001, RemainingAmount: 0.2000000002},
+		},
+		{
+			name: "older than a fill of 0.1 of 0.3 stored",
+			od:   Detail{OrderID: "1", Status: PartiallyFilled, Amount: 0.3, ExecutedAmount: 0.1, RemainingAmount: 0.2},
+			m:    ModifyResponse{OrderID: "1", Amount: 0.3, RemainingAmount: 0.3},
+			exp:  Detail{OrderID: "1", Status: PartiallyFilled, Amount: 0.3, ExecutedAmount: 0.1, RemainingAmount: 0.2},
+		},
+		{
 			name: "older than fills stored beyond the amount it reports",
 			od:   Detail{OrderID: "1", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 6, RemainingAmount: 4},
 			m:    ModifyResponse{OrderID: "1", Amount: 5, ExecutedAmount: 1, RemainingAmount: 4},
