@@ -563,6 +563,18 @@ func TestAdvancedTradeBookLevels(t *testing.T) {
 	assert.Equal(t, orderbook.Levels{{Price: 2, Amount: 0.5}, {Price: 1, Amount: 3}}, got, "advancedTradeBookLevels should convert levels in order")
 }
 
+// saveCounter counts the saves of an accounts store built on it, as each save reads the exchange's credentials once
+type saveCounter struct {
+	*Exchange
+	saves atomic.Int32
+}
+
+// GetCredentials counts a read of the exchange's credentials
+func (s *saveCounter) GetCredentials(ctx context.Context) (*accounts.Credentials, error) {
+	s.saves.Add(1)
+	return s.Exchange.GetCredentials(ctx)
+}
+
 func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 
@@ -650,6 +662,332 @@ func TestUpdateAccountBalances(t *testing.T) {
 		assert.Equal(t, 1100.0, balances[currency.USDC].Total, "the cached balances should not count a recycled subaccount's collateral again")
 	})
 
+	t.Run("stores both perpetual assets' balances from a refresh of either", func(t *testing.T) {
+		t.Parallel()
+		rpcResult := func(result string) string { return `{"jsonrpc":"2.0","id":1,"result":` + result + `}` }
+		// Isolated margin subaccounts holding each asset's currencies, then all recycled and the main account's USDT gone
+		active := rpcResult(`{"summaries":[{"currency":"BTC","balance":2,"available_withdrawal_funds":1.5},{"currency":"USDC","balance":1000,"available_withdrawal_funds":1000},{"currency":"USDT","balance":7,"available_withdrawal_funds":7}],"isolated_account_summaries":[{"id":3,"summaries":[{"currency":"USDC","balance":100,"available_withdrawal_funds":0}]},{"id":5,"summaries":[{"currency":"BTC","balance":0.5,"available_withdrawal_funds":0}]},{"id":9,"summaries":[{"currency":"USDC","balance":50,"available_withdrawal_funds":0}]}]}`)
+		recycled := rpcResult(`{"summaries":[{"currency":"BTC","balance":2.5,"available_withdrawal_funds":2},{"currency":"USDC","balance":1150,"available_withdrawal_funds":1150}],"isolated_account_summaries":[]}`)
+		for _, tc := range []struct {
+			asset    asset.Item
+			returned map[string][]currency.Code
+		}{
+			{asset.CoinMarginedFutures, map[string][]currency.Code{"": {currency.BTC}, "5": {currency.BTC}}},
+			{asset.USDCMarginedFutures, map[string][]currency.Code{"": {currency.USDC, currency.USDT}, "3": {currency.USDC}, "9": {currency.USDC}}},
+		} {
+			t.Run(tc.asset.String(), func(t *testing.T) {
+				t.Parallel()
+				var calls atomic.Int32
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/api/v2/private/get_account_summaries" {
+						http.NotFound(w, r)
+						return
+					}
+					body := recycled
+					if calls.Add(1) == 1 {
+						body = active
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				totals := func(a asset.Item) map[currency.Code]float64 {
+					balances, err := ex.Accounts.CurrencyBalances(nil, a)
+					require.NoErrorf(t, err, "CurrencyBalances must not error for %s after a %s refresh", a, tc.asset)
+					got := make(map[currency.Code]float64, len(balances))
+					for c, b := range balances {
+						got[c] = b.Total
+					}
+					return got
+				}
+				subAccounts, err := ex.UpdateAccountBalances(t.Context(), tc.asset)
+				require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", tc.asset)
+				returned := make(map[string][]currency.Code, len(subAccounts))
+				for _, s := range subAccounts {
+					assert.Equalf(t, tc.asset, s.AssetType, "UpdateAccountBalances should return %s sub-accounts alone", tc.asset)
+					for c := range s.Balances {
+						returned[s.ID] = append(returned[s.ID], c)
+					}
+					slices.SortFunc(returned[s.ID], func(a, b currency.Code) int { return strings.Compare(a.String(), b.String()) })
+				}
+				assert.Equalf(t, tc.returned, returned, "UpdateAccountBalances should return the %s balances", tc.asset)
+				assert.Equalf(t, map[currency.Code]float64{currency.BTC: 2.5}, totals(asset.CoinMarginedFutures), "a %s refresh should store the inverse perpetuals' balances", tc.asset)
+				assert.Equalf(t, map[currency.Code]float64{currency.USDC: 1150, currency.USDT: 7}, totals(asset.USDCMarginedFutures), "a %s refresh should store the USDC perpetuals' balances", tc.asset)
+				assert.Equalf(t, map[currency.Code]float64{currency.BTC: 2.5, currency.USDC: 1150, currency.USDT: 7}, totals(asset.All), "a %s refresh should store each balance once", tc.asset)
+				_, err = ex.UpdateAccountBalances(t.Context(), tc.asset)
+				require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s once the subaccounts are recycled", tc.asset)
+				assert.Equalf(t, map[currency.Code]float64{currency.BTC: 2.5, currency.USDC: 1150}, totals(asset.All), "a %s refresh should clear the recycled subaccounts and the USDT the main account no longer holds", tc.asset)
+			})
+		}
+	})
+
+	gatewaySummaries := func(t *testing.T, results ...string) http.Handler {
+		t.Helper()
+		var calls atomic.Int32
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/v2/private/get_account_summaries" {
+				http.NotFound(w, r)
+				return
+			}
+			// Each request takes the next result, and the last result answers every request after it
+			result := results[min(int(calls.Add(1)), len(results))-1]
+			_, err := w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":` + result + `}`))
+			assert.NoError(t, err, "writing the response should not error")
+		})
+	}
+	const plainSummaries = `{"summaries":[{"currency":"BTC","balance":2,"available_withdrawal_funds":2},{"currency":"USDC","balance":25,"available_withdrawal_funds":25}],"isolated_account_summaries":[]}`
+
+	t.Run("keeps both perpetual assets' isolated margin subaccounts current across refreshes", func(t *testing.T) {
+		t.Parallel()
+		results := []string{
+			// Subaccounts 11 and 12 hold both assets' currencies
+			`{"summaries":[{"currency":"BTC","balance":2,"available_withdrawal_funds":2},{"currency":"ETH","balance":3,"available_withdrawal_funds":3},{"currency":"USDC","balance":100,"available_withdrawal_funds":100},{"currency":"USDT","balance":7,"available_withdrawal_funds":7}],"isolated_account_summaries":[{"id":3,"summaries":[{"currency":"USDC","balance":10,"available_withdrawal_funds":0},{"currency":"USDT","balance":4,"available_withdrawal_funds":0}]},{"id":11,"summaries":[{"currency":"BTC","balance":0.5,"available_withdrawal_funds":0},{"currency":"USDC","balance":20,"available_withdrawal_funds":0}]},{"id":12,"summaries":[{"currency":"ETH","balance":1,"available_withdrawal_funds":0},{"currency":"BTC","balance":0.2,"available_withdrawal_funds":0},{"currency":"SOL","balance":2,"available_withdrawal_funds":0}]}]}`,
+			// 3 is recycled as 9 opens, keeping the count, 11 keeps only its bitcoin and 12 drops its bitcoin
+			`{"summaries":[{"currency":"BTC","balance":2.2,"available_withdrawal_funds":2.2},{"currency":"ETH","balance":3,"available_withdrawal_funds":3},{"currency":"USDC","balance":125,"available_withdrawal_funds":125},{"currency":"USDT","balance":11,"available_withdrawal_funds":11}],"isolated_account_summaries":[{"id":9,"summaries":[{"currency":"USDC","balance":5,"available_withdrawal_funds":0}]},{"id":11,"summaries":[{"currency":"BTC","balance":0.5,"available_withdrawal_funds":0}]},{"id":12,"summaries":[{"currency":"ETH","balance":1,"available_withdrawal_funds":0},{"currency":"SOL","balance":2,"available_withdrawal_funds":0}]}]}`,
+			// The main account's bitcoin and ether move to subaccount 5 as 9 and 12 are recycled, and 11's USDC returns
+			`{"summaries":[{"currency":"USDC","balance":115,"available_withdrawal_funds":115},{"currency":"USDT","balance":11,"available_withdrawal_funds":11},{"currency":"SOL","balance":2,"available_withdrawal_funds":2}],"isolated_account_summaries":[{"id":5,"summaries":[{"currency":"BTC","balance":2.7,"available_withdrawal_funds":0},{"currency":"ETH","balance":4,"available_withdrawal_funds":0}]},{"id":11,"summaries":[{"currency":"BTC","balance":0.5,"available_withdrawal_funds":0},{"currency":"USDC","balance":20,"available_withdrawal_funds":0}]}]}`,
+			// No bitcoin or ether is left, 11 is recycled and the main account's SOL is gone
+			`{"summaries":[{"currency":"USDC","balance":135,"available_withdrawal_funds":135},{"currency":"USDT","balance":11,"available_withdrawal_funds":11}],"isolated_account_summaries":[]}`,
+		}
+		type holdings map[string]map[currency.Code]float64
+		type refresh struct {
+			ids      map[asset.Item][]string
+			holdings map[asset.Item]holdings
+		}
+		want := []refresh{
+			{
+				ids: map[asset.Item][]string{asset.CoinMarginedFutures: {"", "11", "12"}, asset.USDCMarginedFutures: {"", "3", "11", "12"}},
+				holdings: map[asset.Item]holdings{
+					asset.CoinMarginedFutures: {"": {currency.BTC: 2, currency.ETH: 3}, "11": {currency.BTC: 0.5}, "12": {currency.ETH: 1, currency.BTC: 0.2}},
+					asset.USDCMarginedFutures: {"": {currency.USDC: 100, currency.USDT: 7}, "3": {currency.USDC: 10, currency.USDT: 4}, "11": {currency.USDC: 20}, "12": {currency.SOL: 2}},
+				},
+			},
+			{
+				ids: map[asset.Item][]string{asset.CoinMarginedFutures: {"", "11", "12"}, asset.USDCMarginedFutures: {"", "9", "12"}},
+				holdings: map[asset.Item]holdings{
+					asset.CoinMarginedFutures: {"": {currency.BTC: 2.2, currency.ETH: 3}, "11": {currency.BTC: 0.5}, "12": {currency.ETH: 1}},
+					asset.USDCMarginedFutures: {"": {currency.USDC: 125, currency.USDT: 11}, "9": {currency.USDC: 5}, "12": {currency.SOL: 2}},
+				},
+			},
+			{
+				ids: map[asset.Item][]string{asset.CoinMarginedFutures: {"", "5", "11"}, asset.USDCMarginedFutures: {"", "11"}},
+				holdings: map[asset.Item]holdings{
+					asset.CoinMarginedFutures: {"5": {currency.BTC: 2.7, currency.ETH: 4}, "11": {currency.BTC: 0.5}},
+					asset.USDCMarginedFutures: {"": {currency.USDC: 115, currency.USDT: 11, currency.SOL: 2}, "11": {currency.USDC: 20}},
+				},
+			},
+			{
+				ids: map[asset.Item][]string{asset.CoinMarginedFutures: {""}, asset.USDCMarginedFutures: {""}},
+				holdings: map[asset.Item]holdings{
+					asset.CoinMarginedFutures: {},
+					asset.USDCMarginedFutures: {"": {currency.USDC: 135, currency.USDT: 11}},
+				},
+			},
+		}
+		// Sub-accounts without balances, such as a main account holding none of an asset's currencies or a recycled
+		// subaccount once cleared, are left out
+		totals := func(subAccounts accounts.SubAccounts) holdings {
+			got := make(holdings)
+			for _, s := range subAccounts {
+				for c, b := range s.Balances {
+					if got[s.ID] == nil {
+						got[s.ID] = make(map[currency.Code]float64)
+					}
+					got[s.ID][c] = b.Total
+				}
+			}
+			return got
+		}
+		for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDCMarginedFutures} {
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, gatewaySummaries(t, results...))
+				// The refreshes build on each other, so they run in order
+				for i := range results {
+					t.Run("refresh "+strconv.Itoa(i+1), func(t *testing.T) {
+						subAccounts, err := ex.UpdateAccountBalances(t.Context(), a)
+						require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s refresh %d", a, i+1)
+						ids := make([]string, len(subAccounts))
+						for j, s := range subAccounts {
+							ids[j] = s.ID
+						}
+						assert.Equalf(t, want[i].ids[a], ids, "UpdateAccountBalances should return the %s sub-accounts of refresh %d", a, i+1)
+						assert.Equalf(t, want[i].holdings[a], totals(subAccounts), "UpdateAccountBalances should return the %s balances of refresh %d", a, i+1)
+						for _, stored := range []asset.Item{asset.CoinMarginedFutures, asset.USDCMarginedFutures} {
+							t.Run(stored.String(), func(t *testing.T) {
+								cached, err := ex.GetCachedSubAccounts(t.Context(), stored)
+								require.NoErrorf(t, err, "GetCachedSubAccounts must not error for %s after %s refresh %d", stored, a, i+1)
+								assert.Equalf(t, want[i].holdings[stored], totals(cached), "%s refresh %d should store the %s balances", a, i+1, stored)
+							})
+						}
+					})
+				}
+			})
+		}
+	})
+
+	t.Run("stores both perpetual assets' balances in one save", func(t *testing.T) {
+		t.Parallel()
+		results := []string{
+			`{"summaries":[{"currency":"BTC","balance":2,"available_withdrawal_funds":2},{"currency":"USDC","balance":25,"available_withdrawal_funds":25}],"isolated_account_summaries":[{"id":3,"summaries":[{"currency":"USDC","balance":10,"available_withdrawal_funds":0}]},{"id":5,"summaries":[{"currency":"BTC","balance":0.5,"available_withdrawal_funds":0}]},{"id":9,"summaries":[{"currency":"USDC","balance":5,"available_withdrawal_funds":0}]}]}`,
+			`{"summaries":[{"currency":"BTC","balance":2,"available_withdrawal_funds":2},{"currency":"USDC","balance":35,"available_withdrawal_funds":35}],"isolated_account_summaries":[{"id":5,"summaries":[{"currency":"BTC","balance":0.5,"available_withdrawal_funds":0}]},{"id":9,"summaries":[{"currency":"USDC","balance":5,"available_withdrawal_funds":0}]}]}`,
+			`{"summaries":[{"currency":"BTC","balance":2.5,"available_withdrawal_funds":2.5},{"currency":"USDC","balance":40,"available_withdrawal_funds":40}],"isolated_account_summaries":[]}`,
+		}
+		for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDCMarginedFutures} {
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, gatewaySummaries(t, results...))
+				store := &saveCounter{Exchange: ex}
+				ex.Accounts = accounts.MustNewAccounts(store)
+				// The refreshes open subaccounts, recycle one of them, then the rest, so they run in order
+				for i := range results {
+					t.Run("refresh "+strconv.Itoa(i+1), func(t *testing.T) {
+						saves := store.saves.Load()
+						_, err := ex.UpdateAccountBalances(t.Context(), a)
+						require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s refresh %d", a, i+1)
+						assert.Equalf(t, saves+1, store.saves.Load(), "UpdateAccountBalances should store both perpetual assets' balances in one save for %s refresh %d", a, i+1)
+					})
+				}
+			})
+		}
+	})
+
+	t.Run("stores both perpetual assets' balances with one of them enabled", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			enabled, disabled asset.Item
+			want              map[currency.Code]float64
+		}{
+			{asset.CoinMarginedFutures, asset.USDCMarginedFutures, map[currency.Code]float64{currency.USDC: 25}},
+			{asset.USDCMarginedFutures, asset.CoinMarginedFutures, map[currency.Code]float64{currency.BTC: 2}},
+		} {
+			t.Run(tc.enabled.String(), func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, gatewaySummaries(t, plainSummaries))
+				require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(tc.enabled, true), "SetAssetEnabled must not error")
+				require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(tc.disabled, false), "SetAssetEnabled must not error")
+				_, err := ex.UpdateAccountBalances(t.Context(), tc.enabled)
+				require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", tc.enabled)
+				balances, err := ex.GetCachedCurrencyBalances(t.Context(), tc.disabled)
+				require.NoErrorf(t, err, "GetCachedCurrencyBalances must not error for %s", tc.disabled)
+				got := make(map[currency.Code]float64, len(balances))
+				for c, b := range balances {
+					got[c] = b.Total
+				}
+				assert.Equalf(t, tc.want, got, "a %s refresh should store the disabled %s balances", tc.enabled, tc.disabled)
+			})
+		}
+	})
+
+	t.Run("stores and clears both perpetual assets' balances in the caller's sub-account scope", func(t *testing.T) {
+		t.Parallel()
+		results := []string{
+			`{"summaries":[{"currency":"BTC","balance":2,"available_withdrawal_funds":2},{"currency":"USDC","balance":100,"available_withdrawal_funds":100}],"isolated_account_summaries":[{"id":5,"summaries":[{"currency":"USDC","balance":20,"available_withdrawal_funds":0}]}]}`,
+			`{"summaries":[{"currency":"BTC","balance":2,"available_withdrawal_funds":2},{"currency":"USDC","balance":120,"available_withdrawal_funds":120}],"isolated_account_summaries":[]}`,
+		}
+		for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDCMarginedFutures} {
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, gatewaySummaries(t, results...))
+				ctx := accounts.DeploySubAccountOverrideToContext(t.Context(), "desk-b")
+				for i := range results {
+					_, err := ex.UpdateAccountBalances(ctx, a)
+					require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s refresh %d", a, i+1)
+				}
+				for stored, want := range map[asset.Item]map[currency.Code]float64{
+					asset.CoinMarginedFutures: {currency.BTC: 2},
+					asset.USDCMarginedFutures: {currency.USDC: 120},
+				} {
+					t.Run(stored.String(), func(t *testing.T) {
+						t.Parallel()
+						balances, err := ex.GetCachedCurrencyBalances(ctx, stored)
+						require.NoErrorf(t, err, "GetCachedCurrencyBalances must not error for %s in the caller's scope", stored)
+						got := make(map[currency.Code]float64, len(balances))
+						for c, b := range balances {
+							got[c] = b.Total
+						}
+						assert.Equalf(t, want, got, "%s refreshes should store the %s balances in the caller's scope, the recycled subaccount cleared", a, stored)
+						_, err = ex.GetCachedSubAccounts(t.Context(), stored)
+						assert.ErrorIsf(t, err, accounts.ErrNoSubAccounts, "%s refreshes should store no %s balances outside the caller's scope", a, stored)
+					})
+				}
+			})
+		}
+	})
+
+	t.Run("stores both perpetual assets' balances from a refresh over the gateway's websocket", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the mock gateway websocket answers the refresh")
+		}
+		for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDCMarginedFutures} {
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				ex, venue := newDerivativesWebsocketTestExchange(t)
+				require.True(t, ex.derivativesOverWebsocket(t.Context(), true), "the gateway's authenticated websocket must carry the refresh")
+				venue.override("private/get_account_summaries", []byte(`{"result":{"summaries":[{"currency":"BTC","balance":2,"available_withdrawal_funds":2},{"currency":"USDC","balance":25,"available_withdrawal_funds":25}],"isolated_account_summaries":[{"id":5,"summaries":[{"currency":"BTC","balance":0.5,"available_withdrawal_funds":0}]}]}}`))
+				_, err := ex.UpdateAccountBalances(t.Context(), a)
+				require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", a)
+				require.Lenf(t, venue.requestsFor("private/get_account_summaries"), 1, "UpdateAccountBalances must ask the gateway's websocket for the account summaries once for %s", a)
+				for stored, want := range map[asset.Item]map[string]map[currency.Code]float64{
+					asset.CoinMarginedFutures: {"": {currency.BTC: 2}, "5": {currency.BTC: 0.5}},
+					asset.USDCMarginedFutures: {"": {currency.USDC: 25}},
+				} {
+					t.Run(stored.String(), func(t *testing.T) {
+						t.Parallel()
+						cached, err := ex.GetCachedSubAccounts(t.Context(), stored)
+						require.NoErrorf(t, err, "GetCachedSubAccounts must not error for %s", stored)
+						got := make(map[string]map[currency.Code]float64, len(cached))
+						for _, s := range cached {
+							got[s.ID] = make(map[currency.Code]float64, len(s.Balances))
+							for c, b := range s.Balances {
+								got[s.ID][c] = b.Total
+							}
+						}
+						assert.Equalf(t, want, got, "a %s refresh over the websocket should store the %s balances", a, stored)
+					})
+				}
+			})
+		}
+	})
+
+	t.Run("returns a failed save's error", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDCMarginedFutures} {
+			t.Run(a.String()+" without a store", func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, gatewaySummaries(t, plainSummaries))
+				ex.Accounts = nil
+				subAccounts, err := ex.UpdateAccountBalances(t.Context(), a)
+				assert.ErrorIsf(t, err, common.ErrNilPointer, "UpdateAccountBalances should return the error of a save that fails for %s", a)
+				require.Lenf(t, subAccounts, 1, "UpdateAccountBalances must return the %s main account with the error", a)
+				assert.Equalf(t, a, subAccounts[0].AssetType, "UpdateAccountBalances should return the %s balances with the error", a)
+			})
+			t.Run(a.String()+" with a store whose exchange has no credentials", func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, gatewaySummaries(t, plainSummaries))
+				ex.Accounts = accounts.MustNewAccounts(new(Exchange))
+				subAccounts, err := ex.UpdateAccountBalances(t.Context(), a)
+				assert.ErrorIsf(t, err, exchange.ErrCredentialsAreEmpty, "UpdateAccountBalances should return the store's refusal for %s", a)
+				require.Lenf(t, subAccounts, 1, "UpdateAccountBalances must return the %s main account with the error", a)
+				assert.Equalf(t, a, subAccounts[0].AssetType, "UpdateAccountBalances should return the %s balances with the error", a)
+			})
+			t.Run(a.String()+" with a newer stored balance", func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, gatewaySummaries(t, plainSummaries))
+				newer := accounts.NewSubAccount(asset.CoinMarginedFutures, "")
+				newer.Balances.Set(currency.BTC, accounts.Balance{Total: 1, UpdatedAt: time.Now().Add(time.Hour)})
+				require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{newer}, true), "Save must not error")
+				subAccounts, err := ex.UpdateAccountBalances(t.Context(), a)
+				assert.ErrorContainsf(t, err, "out of sequence", "UpdateAccountBalances should return the store's refusal of an older balance for %s", a)
+				require.Lenf(t, subAccounts, 1, "UpdateAccountBalances must return the %s main account with the error", a)
+				assert.Equalf(t, a, subAccounts[0].AssetType, "UpdateAccountBalances should return the %s balances with the error", a)
+				balances, err := ex.GetCachedCurrencyBalances(t.Context(), asset.USDCMarginedFutures)
+				require.NoErrorf(t, err, "GetCachedCurrencyBalances must not error after a %s refresh", a)
+				assert.Equalf(t, 25.0, balances[currency.USDC].Total, "UpdateAccountBalances should store the rest of a %s refresh", a)
+			})
+		}
+	})
+
 	t.Run("returns every page's balances", func(t *testing.T) {
 		t.Parallel()
 		account := func(code, available, hold string) string {
@@ -681,11 +1019,65 @@ func TestUpdateAccountBalances(t *testing.T) {
 			got[c] = b
 		}
 		assert.Equal(t, accounts.CurrencyBalances{
-			currency.BTC:  {Currency: currency.BTC, Total: 1.5, Hold: 0.5, Free: 1},
-			currency.ETH:  {Currency: currency.ETH, Total: 2, Free: 2},
+			currency.BTC:  {Currency: currency.BTC, Total: 1.5, Hold: 0.5, Free: 1, AvailableWithoutBorrow: 1},
+			currency.ETH:  {Currency: currency.ETH, Total: 2, Free: 2, AvailableWithoutBorrow: 2},
 			currency.USDC: {Currency: currency.USDC, Total: 25, Hold: 25},
 		}, got, "UpdateAccountBalances should return every page's balances")
 		assert.Equal(t, []string{"", "page-2"}, cursors, "UpdateAccountBalances should page by the cursor")
+	})
+
+	t.Run("reports each account's available balance as free without borrowing", func(t *testing.T) {
+		t.Parallel()
+		account := func(code, available, hold, accountType, platform string) string {
+			body := `{"uuid":"` + code + `-` + platform + `","currency":"` + code + `","available_balance":{"value":"` + available + `","currency":"` + code + `"},"hold":{"value":"` + hold + `","currency":"` + code + `"},"type":"` + accountType + `"`
+			if platform != "" {
+				body += `,"platform":"` + platform + `"`
+			}
+			return body + `}`
+		}
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Held and unheld spot and US derivatives accounts of several types and platforms, over two pages
+			body := `{"accounts":[` + strings.Join([]string{
+				account("BTC", "0.00123456", "1", AccountTypeCrypto, AccountPlatformConsumer),
+				account("USD", "100", "5", AccountTypeFiat, AccountPlatformConsumer),
+				account("EUR", "40.25", "0", AccountTypeFiat, AccountPlatformConsumer),
+				account("USDC", "7.125", "0", "ACCOUNT_TYPE_UNSPECIFIED", ""),
+				account("ETH", "2", "0.25", AccountTypeCrypto, AccountPlatformCFMConsumer),
+				account("USD", "250.75", "10", AccountTypeFiat, AccountPlatformCFMConsumer),
+			}, ",") + `],"has_next":true,"cursor":"page-2"}`
+			if r.URL.Query().Get("cursor") == "page-2" {
+				body = `{"accounts":[` + account("SOL", "3.123456789", "0", AccountTypeCrypto, AccountPlatformUnspecified) + `,` + account("BTC", "0.5", "0", AccountTypeCrypto, AccountPlatformCFMConsumer) + `],"has_next":false}`
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		availableWithoutBorrow := func(subAccounts accounts.SubAccounts) map[currency.Code]float64 {
+			got := make(map[currency.Code]float64)
+			for _, s := range subAccounts {
+				for c, b := range s.Balances {
+					got[c] = b.AvailableWithoutBorrow
+				}
+			}
+			return got
+		}
+		for _, tc := range []struct {
+			asset asset.Item
+			want  map[currency.Code]float64
+		}{
+			{asset.Spot, map[currency.Code]float64{currency.BTC: 0.00123456, currency.USD: 100, currency.EUR: 40.25, currency.USDC: 7.125, currency.SOL: 3.123456789}},
+			{asset.Futures, map[currency.Code]float64{currency.ETH: 2, currency.USD: 250.75, currency.BTC: 0.5}},
+		} {
+			t.Run(tc.asset.String(), func(t *testing.T) {
+				t.Parallel()
+				subAccounts, err := ex.UpdateAccountBalances(t.Context(), tc.asset)
+				require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", tc.asset)
+				require.Lenf(t, subAccounts, 1, "UpdateAccountBalances must return the %s sub-account", tc.asset)
+				assert.Equalf(t, tc.want, availableWithoutBorrow(subAccounts), "UpdateAccountBalances should report each %s account's available balance as free without borrowing", tc.asset)
+				stored, err := ex.GetCachedSubAccounts(t.Context(), tc.asset)
+				require.NoErrorf(t, err, "GetCachedSubAccounts must not error for %s", tc.asset)
+				assert.Equalf(t, tc.want, availableWithoutBorrow(stored), "UpdateAccountBalances should store each %s account's available balance as free without borrowing", tc.asset)
+			})
+		}
 	})
 
 	t.Run("returns a failed accounts page", func(t *testing.T) {
@@ -729,6 +1121,61 @@ func TestUpdateAccountBalances(t *testing.T) {
 		assert.Equal(t, "private/get_account_summaries", requests[0].Method, "UpdateAccountBalances should ask for the account summaries")
 		_, err = ex.GetCachedCurrencyBalances(t.Context(), asset.USDCMarginedFutures)
 		assert.ErrorIs(t, err, accounts.ErrNoBalances, "UpdateAccountBalances should store no balances the gateway refused")
+	})
+}
+
+func TestDerivativesSubAccounts(t *testing.T) {
+	t.Parallel()
+	summary := func(c currency.Code, balance, withdrawable float64) DerivativesAccountSummary {
+		return DerivativesAccountSummary{Currency: c, Balance: balance, AvailableWithdrawalFunds: withdrawable}
+	}
+	subAccount := func(a asset.Item, id string, balances ...accounts.Balance) *accounts.SubAccount {
+		s := accounts.NewSubAccount(a, id)
+		for _, b := range balances {
+			s.Balances.Set(b.Currency, b)
+		}
+		return s
+	}
+	resp := &DerivativesAccountSummariesResponse{
+		Summaries: []DerivativesAccountSummary{summary(currency.BTC, 2, 1.5), summary(currency.ETH, 3, 3), summary(currency.USDC, 1000, 900), summary(currency.USDT, 7, 7)},
+		IsolatedAccountSummaries: []DerivativesIsolatedAccountSummaries{
+			{ID: 14, Summaries: []DerivativesAccountSummary{summary(currency.BTC, 0.1, 0), summary(currency.USDC, 0, 0)}},
+			{ID: 3, Summaries: []DerivativesAccountSummary{summary(currency.USDC, 100, 0)}},
+			{ID: 11, Summaries: []DerivativesAccountSummary{summary(currency.USDC, 20, 0), summary(currency.ETH, 1, 0.5), summary(currency.USDT, 3, 3), summary(currency.BTC, 0.2, 0)}},
+			{ID: 5, Summaries: []DerivativesAccountSummary{summary(currency.BTC, 0.5, 0.25)}},
+			{ID: 7},
+			{ID: 13, Summaries: []DerivativesAccountSummary{summary(currency.USDT, 4, 0)}},
+			{ID: 15, Summaries: []DerivativesAccountSummary{summary(currency.USDT, 4, 0)}},
+		},
+	}
+	for _, tc := range []struct {
+		asset asset.Item
+		want  accounts.SubAccounts
+	}{
+		{asset.CoinMarginedFutures, accounts.SubAccounts{
+			subAccount(asset.CoinMarginedFutures, "", accounts.Balance{Currency: currency.BTC, Total: 2, Hold: 0.5, Free: 1.5}, accounts.Balance{Currency: currency.ETH, Total: 3, Free: 3}),
+			subAccount(asset.CoinMarginedFutures, "14", accounts.Balance{Currency: currency.BTC, Total: 0.1, Hold: 0.1}),
+			subAccount(asset.CoinMarginedFutures, "11", accounts.Balance{Currency: currency.ETH, Total: 1, Hold: 0.5, Free: 0.5}, accounts.Balance{Currency: currency.BTC, Total: 0.2, Hold: 0.2}),
+			subAccount(asset.CoinMarginedFutures, "5", accounts.Balance{Currency: currency.BTC, Total: 0.5, Hold: 0.25, Free: 0.25}),
+		}},
+		{asset.USDCMarginedFutures, accounts.SubAccounts{
+			subAccount(asset.USDCMarginedFutures, "", accounts.Balance{Currency: currency.USDC, Total: 1000, Hold: 100, Free: 900}, accounts.Balance{Currency: currency.USDT, Total: 7, Free: 7}),
+			subAccount(asset.USDCMarginedFutures, "14", accounts.Balance{Currency: currency.USDC}),
+			subAccount(asset.USDCMarginedFutures, "3", accounts.Balance{Currency: currency.USDC, Total: 100, Hold: 100}),
+			subAccount(asset.USDCMarginedFutures, "11", accounts.Balance{Currency: currency.USDC, Total: 20, Hold: 20}, accounts.Balance{Currency: currency.USDT, Total: 3, Free: 3}),
+			subAccount(asset.USDCMarginedFutures, "13", accounts.Balance{Currency: currency.USDT, Total: 4, Hold: 4}),
+			subAccount(asset.USDCMarginedFutures, "15", accounts.Balance{Currency: currency.USDT, Total: 4, Hold: 4}),
+		}},
+	} {
+		t.Run(tc.asset.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.want, derivativesSubAccounts(tc.asset, resp), "derivativesSubAccounts should return the main account, then each isolated margin subaccount with a summary in a %s currency in the answer's order", tc.asset)
+		})
+	}
+	t.Run("returns the main account when it holds none of the asset's currencies", func(t *testing.T) {
+		t.Parallel()
+		empty := &DerivativesAccountSummariesResponse{Summaries: []DerivativesAccountSummary{summary(currency.USDC, 1, 1)}}
+		assert.Equal(t, accounts.SubAccounts{subAccount(asset.CoinMarginedFutures, "")}, derivativesSubAccounts(asset.CoinMarginedFutures, empty), "derivativesSubAccounts should return the main account without balances")
 	})
 }
 
@@ -3415,16 +3862,102 @@ func TestCancelOrder(t *testing.T) {
 	ex := newWrapperTestExchange(t)
 	require.ErrorIs(t, ex.CancelOrder(t.Context(), &order.Cancel{}), order.ErrOrderIDNotSet, "CancelOrder must refuse an order without an ID")
 	require.ErrorIs(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: "1", AssetType: asset.Options}), asset.ErrNotSupported, "CancelOrder must refuse an asset Coinbase does not trade")
-	skipLiveUnlessCanManipulate(t)
-	spotID, gatewayID := testSandboxOrderID, testWrapperDerivativesOrderID
-	if !mockTests {
-		spotID = newLiveTestOrder(t)
-		_, placed := placeDerivativesTradingLiveOrder(t)
-		gatewayID = placed.OrderID
-	}
-	require.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: spotID, AssetType: asset.Spot}), "CancelOrder must not error for a spot order")
-	assert.ErrorIs(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: testUnknownOrderID, AssetType: asset.Spot}), order.ErrOrderNotFound, "CancelOrder should report an order Coinbase does not know")
-	assert.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: gatewayID, AssetType: asset.USDCMarginedFutures}), "CancelOrder should not error for a gateway order")
+	t.Run("reports an Advanced Trade order by its own result in Coinbase's answer", func(t *testing.T) {
+		t.Parallel()
+		const (
+			submitted     = `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"order-0"}`
+			refused       = `{"success":false,"failure_reason":"ORDER_IS_FULLY_FILLED","order_id":"order-0"}`
+			otherRefused  = `{"success":false,"failure_reason":"UNKNOWN_CANCEL_ORDER","order_id":"order-1"}`
+			otherAnswered = `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"order-1"}`
+		)
+		answer := func(results ...string) string { return `{"results":[` + strings.Join(results, ",") + `]}` }
+		// Each row's error wraps exactly the sentinels it lists of these, so an error wrapping another fails its row
+		sentinels := []error{common.ErrNoResponse, errCancelOrderNotAnswered, errCancelOrderFailed, order.ErrOrderNotFound, request.ErrAuthRequestFailed}
+		for _, a := range []asset.Item{asset.Spot, asset.Futures} {
+			for _, clientOrderID := range []string{"", "client-0", "order-0"} {
+				name := a.String() + " without a client order ID"
+				switch clientOrderID {
+				case "client-0":
+					name = a.String() + " with a client order ID"
+				case "order-0":
+					name = a.String() + " with the order ID as its client order ID"
+				}
+				t.Run(name, func(t *testing.T) {
+					t.Parallel()
+					for _, tc := range []struct {
+						name     string
+						status   int
+						answer   string
+						errs     []error
+						apiError *APIError
+					}{
+						{"a request refused as unknown", http.StatusNotFound, testOrderNotFoundBody, []error{order.ErrOrderNotFound, request.ErrAuthRequestFailed}, &APIError{ErrorType: "NOT_FOUND", Message: "order with this orderID was not found", ErrorDetails: "order with this orderID was not found"}},
+						{"a request refused as invalid", http.StatusBadRequest, `{"error":"INVALID_ARGUMENT","code":3,"message":"invalid order ID","error_details":"order IDs are UUIDs"}`, []error{request.ErrAuthRequestFailed}, &APIError{ErrorType: "INVALID_ARGUMENT", Code: 3, Message: "invalid order ID", ErrorDetails: "order IDs are UUIDs"}},
+						{"a request refused without Coinbase's error", http.StatusForbidden, `forbidden`, []error{request.ErrAuthRequestFailed}, nil},
+						{"a null answer", http.StatusOK, `null`, []error{common.ErrNoResponse}, nil},
+						{"no order answered", http.StatusOK, answer(), []error{errCancelOrderNotAnswered}, nil},
+						{"another order answered", http.StatusOK, answer(otherAnswered), []error{errCancelOrderNotAnswered}, nil},
+						{"another order refused", http.StatusOK, answer(otherRefused), []error{errCancelOrderNotAnswered}, nil},
+						{"the client order ID answered", http.StatusOK, answer(`{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"client-0"}`), []error{errCancelOrderNotAnswered}, nil},
+						{"the order refused", http.StatusOK, answer(refused), []error{errCancelOrderFailed}, nil},
+						{"the order refused for its product", http.StatusOK, answer(`{"success":false,"failure_reason":"INVALID_CANCEL_PRODUCT_ID","order_id":"order-0"}`), []error{errCancelOrderFailed}, nil},
+						{"the order refused beside another order answered", http.StatusOK, answer(otherAnswered, refused), []error{errCancelOrderFailed}, nil},
+						{"the order refused beside another order refused", http.StatusOK, answer(refused, otherRefused), []error{errCancelOrderFailed}, nil},
+						{"the order unknown", http.StatusOK, answer(`{"success":false,"failure_reason":"UNKNOWN_CANCEL_ORDER","order_id":"order-0"}`), []error{order.ErrOrderNotFound}, nil},
+						{"the order answered", http.StatusOK, answer(submitted), nil, nil},
+						{"the order answered after another", http.StatusOK, answer(otherAnswered, submitted), nil, nil},
+						{"the order answered beside a refusal of another", http.StatusOK, answer(otherRefused, submitted), nil, nil},
+						{"the order answered before a refusal of another", http.StatusOK, answer(submitted, otherRefused), nil, nil},
+					} {
+						t.Run(tc.name, func(t *testing.T) {
+							t.Parallel()
+							var requests atomic.Int32
+							serverExchange := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+								requests.Add(1)
+								var sent CancelOrdersWireRequest
+								assert.NoError(t, json.NewDecoder(r.Body).Decode(&sent), "decoding the cancel request should not error")
+								assert.Equal(t, []string{"order-0"}, sent.OrderIDs, "CancelOrder should send the order's ID alone")
+								w.WriteHeader(tc.status)
+								_, err := w.Write([]byte(tc.answer))
+								assert.NoError(t, err, "writing the response should not error")
+							}))
+							err := serverExchange.CancelOrder(t.Context(), &order.Cancel{OrderID: "order-0", ClientOrderID: clientOrderID, AssetType: a})
+							if len(tc.errs) == 0 {
+								assert.NoErrorf(t, err, "CancelOrder should not error with %s", tc.name)
+							}
+							for _, sentinel := range sentinels {
+								if slices.Contains(tc.errs, sentinel) {
+									assert.ErrorIsf(t, err, sentinel, "CancelOrder should return %q with %s", sentinel, tc.name)
+								} else {
+									assert.NotErrorIsf(t, err, sentinel, "CancelOrder should not return %q with %s", sentinel, tc.name)
+								}
+							}
+							if tc.apiError != nil {
+								var apiErr *APIError
+								if assert.ErrorAsf(t, err, &apiErr, "CancelOrder should return Coinbase's error with %s", tc.name) {
+									assert.Equalf(t, tc.apiError, apiErr, "CancelOrder should return Coinbase's error as sent with %s", tc.name)
+								}
+							}
+							assert.Equalf(t, int32(1), requests.Load(), "CancelOrder should send one cancel request with %s", tc.name)
+						})
+					}
+				})
+			}
+		}
+	})
+	t.Run("cancels a spot and a gateway order", func(t *testing.T) {
+		t.Parallel()
+		skipLiveUnlessCanManipulate(t)
+		spotID, gatewayID := testSandboxOrderID, testWrapperDerivativesOrderID
+		if !mockTests {
+			spotID = newLiveTestOrder(t)
+			_, placed := placeDerivativesTradingLiveOrder(t)
+			gatewayID = placed.OrderID
+		}
+		require.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: spotID, AssetType: asset.Spot}), "CancelOrder must not error for a spot order")
+		assert.ErrorIs(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: testUnknownOrderID, AssetType: asset.Spot}), order.ErrOrderNotFound, "CancelOrder should report an order Coinbase does not know")
+		assert.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{OrderID: gatewayID, AssetType: asset.USDCMarginedFutures}), "CancelOrder should not error for a gateway order")
+	})
 }
 
 func TestCancelBatchOrders(t *testing.T) {

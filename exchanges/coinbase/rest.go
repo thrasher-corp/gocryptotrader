@@ -429,11 +429,3 @@ func formatFloat(f float64) string {
 func formatTime(t time.Time) string {
 	return t.UTC().Format(time.RFC3339)
 }
-
-// checkWindow returns an error when a window's start is after its end; either may be unset
-func checkWindow(start, end time.Time) error {
-	if !start.IsZero() && !end.IsZero() {
-		return common.StartEndTimeCheck(start, end)
-	}
-	return nil
-}

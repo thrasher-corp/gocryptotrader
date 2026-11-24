@@ -448,7 +448,7 @@ func (g GlobalDerivativesAPI) getLastTradesByCurrency(ctx context.Context, overW
 	if err := validateDerivativesLastTrades(req.Count, req.Sorting); err != nil {
 		return nil, err
 	}
-	if err := checkWindow(req.StartTime, req.EndTime); err != nil {
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
 	startTimestamp, endTimestamp, err := derivativesUnixMilliRange(req.StartTime, req.EndTime)
@@ -535,7 +535,7 @@ func (g GlobalDerivativesAPI) getLastTradesByInstrument(ctx context.Context, ove
 	if err := validateDerivativesLastTrades(req.Count, req.Sorting); err != nil {
 		return nil, err
 	}
-	if err := checkWindow(req.StartTime, req.EndTime); err != nil {
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
 	startTimestamp, endTimestamp, err := derivativesUnixMilliRange(req.StartTime, req.EndTime)
@@ -912,5 +912,5 @@ func checkDerivativesLastTradesWindow(start, end time.Time) error {
 	if start.IsZero() && end.IsZero() {
 		return errDerivativesLastTradesWindowRequired
 	}
-	return checkWindow(start, end)
+	return common.StartEndTimeCheckSkipZero(start, end)
 }

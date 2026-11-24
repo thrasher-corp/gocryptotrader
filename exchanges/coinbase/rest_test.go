@@ -571,9 +571,6 @@ func TestFormatHelpers(t *testing.T) {
 	assert.Equal(t, "0.00000001", formatFloat(1e-8), "formatFloat should not use exponent notation")
 	assert.Equal(t, "150000", formatFloat(1.5e5), "formatFloat should not use exponent notation")
 	assert.Equal(t, "2026-10-19T01:02:03Z", formatTime(time.Date(2026, 10, 19, 12, 2, 3, 0, time.FixedZone("AEDT", 11*60*60))), "formatTime should format in UTC")
-	assert.NoError(t, checkWindow(time.Time{}, time.Now()), "checkWindow should allow an unset start")
-	assert.NoError(t, checkWindow(time.Now(), time.Time{}), "checkWindow should allow an unset end")
-	assert.ErrorIs(t, checkWindow(time.Unix(2, 0), time.Unix(1, 0)), common.ErrStartAfterEnd, "checkWindow should reject a reversed window")
 }
 
 func TestAppError(t *testing.T) {

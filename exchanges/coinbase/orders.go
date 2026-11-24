@@ -48,6 +48,7 @@ var (
 	errOrderEditPreviewFailed            = errors.New("order edit preview reported failures")
 	errOrderPreviewFailed                = errors.New("order preview reported failures")
 	errCancelOrderFailed                 = errors.New("order cancel request not submitted")
+	errCancelOrderNotAnswered            = errors.New("order left out of the cancel answer")
 )
 
 var (
@@ -555,7 +556,8 @@ func (r *TWAPLimitGTDRequest) orderConfiguration() (string, *OrderConfigurationL
 	if err := checkOrderNumbers(errInvalidPrice, r.LimitPrice); err != nil {
 		return "", nil, err
 	}
-	// checkWindow refuses a start after now, which a scheduled order's window has, so only the order is checked
+	// common.StartEndTimeCheckSkipZero refuses a start after now when both are set, which a scheduled order's window
+	// has, so only the order is checked
 	if !r.StartTime.IsZero() && r.StartTime.After(r.EndTime) && !r.EndTime.IsZero() {
 		return "", nil, fmt.Errorf("%w: %s to %s", common.ErrStartAfterEnd, r.StartTime, r.EndTime)
 	}
@@ -692,7 +694,7 @@ func listFillsParams(req *ListFillsRequest) (url.Values, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if err := checkWindow(req.StartSequenceTimestamp, req.EndSequenceTimestamp); err != nil {
+	if err := common.StartEndTimeCheckSkipZero(req.StartSequenceTimestamp, req.EndSequenceTimestamp); err != nil {
 		return nil, err
 	}
 	if err := checkOrderEnum(req.SortBy, errInvalidFillsSortBy, fillsSortFields); err != nil {
@@ -745,7 +747,7 @@ func listOrdersParams(req *ListOrdersRequest) (url.Values, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if err := checkWindow(req.StartDate, req.EndDate); err != nil {
+	if err := common.StartEndTimeCheckSkipZero(req.StartDate, req.EndDate); err != nil {
 		return nil, err
 	}
 	if err := checkOrderEnum(req.ProductType, errInvalidOrderProductType, orderProductTypes); err != nil {

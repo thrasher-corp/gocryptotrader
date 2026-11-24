@@ -850,8 +850,9 @@ func advancedTradeBookLevels(levels []BookLevel) orderbook.Levels {
 // UpdateAccountBalances stores and returns the balances an asset trades from: the spot accounts for spot and the US
 // derivatives accounts for futures, of the portfolio the API key belongs to, leaving out vaults, which cannot trade;
 // or the gateway's account summaries, which back both perpetual assets and are split between them by currency, and
-// each active isolated margin subaccount's as a sub-account of its own. A gateway balance's free amount is what can be
-// withdrawn, which leaves out margin held, session profit and reserved balances
+// each active isolated margin subaccount's as a sub-account of its own. A gateway refresh stores both perpetual assets'
+// balances, as the engine polls only the assets enabled, and returns the asset's. A gateway balance's free amount is
+// what can be withdrawn, which leaves out margin held, session profit and reserved balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	subAccount := accounts.NewSubAccount(a, "")
 	subAccounts := accounts.SubAccounts{subAccount}
@@ -872,9 +873,10 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 				}
 				// Coinbase's available balance leaves out what is held
 				subAccount.Balances.Set(acct.Currency, accounts.Balance{
-					Total: acct.AvailableBalance.Value.Float64() + acct.Hold.Value.Float64(),
-					Hold:  acct.Hold.Value.Float64(),
-					Free:  acct.AvailableBalance.Value.Float64(),
+					Total:                  acct.AvailableBalance.Value.Float64() + acct.Hold.Value.Float64(),
+					Hold:                   acct.Hold.Value.Float64(),
+					Free:                   acct.AvailableBalance.Value.Float64(),
+					AvailableWithoutBorrow: acct.AvailableBalance.Value.Float64(),
 				})
 			}
 			if !resp.HasNext || resp.Cursor == "" {
@@ -890,22 +892,37 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		if err != nil {
 			return nil, err
 		}
-		setDerivativesBalances(subAccount, resp.Summaries)
-		// An isolated margin subaccount holds the margin moved to its position apart from the main account, so each is a
-		// sub-account of its own, by its ID
-		for i := range resp.IsolatedAccountSummaries {
-			isolated := accounts.NewSubAccount(a, strconv.FormatUint(resp.IsolatedAccountSummaries[i].ID, 10))
-			if setDerivativesBalances(isolated, resp.IsolatedAccountSummaries[i].Summaries) {
-				subAccounts = append(subAccounts, isolated)
+		var saved accounts.SubAccounts
+		for _, perpetual := range []asset.Item{asset.CoinMarginedFutures, asset.USDCMarginedFutures} {
+			perpetualAccounts := derivativesSubAccounts(perpetual, resp)
+			if perpetual == a {
+				subAccounts = perpetualAccounts
 			}
+			// A recycled isolated margin subaccount is left out once its collateral is swept back to the main account, so
+			// the balances stored for it are cleared rather than counted again with the main account's
+			saved = slices.Concat(saved, perpetualAccounts, e.recycledSubAccounts(ctx, perpetual, perpetualAccounts))
 		}
-		// A recycled isolated margin subaccount is left out once its collateral is swept back to the main account, so
-		// the balances stored for it are cleared rather than counted again with the main account's
-		return subAccounts, e.Accounts.Save(ctx, slices.Concat(subAccounts, e.recycledSubAccounts(ctx, a, subAccounts)), true)
+		return subAccounts, e.Accounts.Save(ctx, saved, true)
 	default:
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}
 	return subAccounts, e.Accounts.Save(ctx, subAccounts, true)
+}
+
+// derivativesSubAccounts returns a perpetual asset's sub-accounts from the gateway's account summaries: the main
+// account's, and each active isolated margin subaccount's that has a summary in any of the asset's currencies, as an
+// isolated margin subaccount holds the margin moved to its position apart from the main account
+func derivativesSubAccounts(a asset.Item, resp *DerivativesAccountSummariesResponse) accounts.SubAccounts {
+	main := accounts.NewSubAccount(a, "")
+	setDerivativesBalances(main, resp.Summaries)
+	subAccounts := accounts.SubAccounts{main}
+	for i := range resp.IsolatedAccountSummaries {
+		isolated := accounts.NewSubAccount(a, strconv.FormatUint(resp.IsolatedAccountSummaries[i].ID, 10))
+		if setDerivativesBalances(isolated, resp.IsolatedAccountSummaries[i].Summaries) {
+			subAccounts = append(subAccounts, isolated)
+		}
+	}
+	return subAccounts
 }
 
 // recycledSubAccounts returns an empty sub-account for each sub-account stored for an asset that its latest balances
@@ -2118,8 +2135,17 @@ func (e *Exchange) CancelOrder(ctx context.Context, c *order.Cancel) error {
 	}
 	switch {
 	case isAdvancedTradeAsset(c.AssetType):
-		_, err := e.CancelOrders(ctx, []string{c.OrderID})
-		return err
+		resp, err := e.CancelOrders(ctx, []string{c.OrderID})
+		if resp == nil {
+			return err
+		}
+		// The order's own result decides, and Coinbase's answer can leave an order out, which then reports nothing of its
+		// cancel request
+		i := slices.IndexFunc(resp.Results, func(r CancelOrderResult) bool { return r.OrderID == c.OrderID })
+		if i < 0 {
+			return fmt.Errorf("%w: order %q", errCancelOrderNotAnswered, c.OrderID)
+		}
+		return resp.Results[i].Err()
 	case isDerivativesAsset(c.AssetType):
 		_, err := e.cancelDerivativesOrder(ctx, c.OrderID, c.MarginType == margin.Isolated, e.derivativesOverWebsocket(ctx, true))
 		return err

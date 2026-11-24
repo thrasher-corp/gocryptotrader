@@ -1203,10 +1203,10 @@ func derivativesKindOrTypeCurrencies(codes []currency.Code) (any, error) {
 	return currencies, nil
 }
 
-// derivativesUserTradesTimeRange returns a trade query's bounds in Unix milliseconds, zero for an unset bound, once
-// checkWindow accepts them
+// derivativesUserTradesTimeRange returns a trade query's bounds in Unix milliseconds, zero for an unset bound,
+// refusing a window common.StartEndTimeCheckSkipZero refuses and a bound before 1970, which has no timestamp
 func derivativesUserTradesTimeRange(start, end time.Time) (startTimestamp, endTimestamp uint64, err error) {
-	if err := checkWindow(start, end); err != nil {
+	if err := common.StartEndTimeCheckSkipZero(start, end); err != nil {
 		return 0, 0, err
 	}
 	return derivativesUnixMilliRange(start, end)

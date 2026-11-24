@@ -86,9 +86,10 @@ is replaced before it expires; its private websocket connection authenticates wi
   longer list and the gateway's orders, as the gateway cancels no list of order IDs. Advanced Trade cancels
   asynchronously, so `CancelBatchOrders` and `CancelAllOrders` report an order pending cancellation once Coinbase
   submits its cancel request, an order Coinbase refuses with the refusal, and none for an order its answer leaves out;
-  an order named twice keeps the status of a cancel that went through, or else its last refusal. `CancelAllOrders`
-  lists an Advanced Trade asset's open orders and cancels them in batches of up to 100, those of the type asked for
-  alone; a cancel request that fails ends it, returning the statuses reported before it with the error. The gateway
+  an order named twice keeps the status of a cancel that went through, or else its last refusal. `CancelOrder` returns
+  an error for an Advanced Trade order Coinbase refuses or its answer leaves out. `CancelAllOrders` lists an Advanced
+  Trade asset's open orders and cancels them in batches of up to 100, those of the type asked for alone; a cancel
+  request that fails ends it, returning the statuses reported before it with the error. The gateway
   cancels an instrument's orders together, in both margin scopes, unless the request selects them by side, margin
   type, time in force, a single stop or take profit type, or limit or market orders, as the gateway holds market
   orders' unfilled remainders as limit orders, when they are listed and cancelled one at a time.
@@ -127,8 +128,9 @@ accounts for futures, of the portfolio the API key belongs to, leaving out vault
 available balance leaves out what is held. The gateway's account summaries back both perpetual assets; a summary's free
 amount is what can be withdrawn, which leaves out margin held, session profit and reserved balances. The two assets
 split the gateway account's currencies, so each balance is counted once: bitcoin and ether, which margin the inverse
-perpetuals, under `coinmarginedfutures`, and the rest, USDC among them, under `usdcmarginedfutures`. Each active
-isolated margin subaccount is a sub-account of its own, by its ID, cleared once the gateway recycles it, as its
+perpetuals, under `coinmarginedfutures`, and the rest, USDC among them, under `usdcmarginedfutures`. A refresh of
+either asset stores both assets' balances and returns its own, as the engine refreshes only the assets enabled. Each
+active isolated margin subaccount is a sub-account of its own, by its ID, cleared once the gateway recycles it, as its
 collateral returns to the main account.
 
 ### Deposits and withdrawals

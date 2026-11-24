@@ -234,7 +234,7 @@ func marketTradesParams(req *MarketTradesRequest) (url.Values, error) {
 	if req.Limit == 0 || req.Limit > maximumMarketTradesLimit {
 		return nil, fmt.Errorf("%w: %d trades, want 1 to %d", errInvalidLimit, req.Limit, maximumMarketTradesLimit)
 	}
-	if err := checkWindow(req.Start, req.End); err != nil {
+	if err := common.StartEndTimeCheckSkipZero(req.Start, req.End); err != nil {
 		return nil, err
 	}
 	params := url.Values{}
