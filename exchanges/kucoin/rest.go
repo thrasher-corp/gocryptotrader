@@ -186,10 +186,8 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, 
 // setTimeRange sets an optional time range under the endpoint's start and end keys, in Unix milliseconds, for
 // whichever ends are set, after checking the range when both are
 func setTimeRange(params url.Values, startKey, endKey string, start, end time.Time) error {
-	if !start.IsZero() && !end.IsZero() {
-		if err := common.StartEndTimeCheck(start, end); err != nil {
-			return err
-		}
+	if err := common.StartEndTimeCheckSkipZero(start, end); err != nil {
+		return err
 	}
 	if !start.IsZero() {
 		params.Set(startKey, strconv.FormatInt(start.UnixMilli(), 10))

@@ -313,10 +313,8 @@ func (e *Exchange) GetClosedHFOrders(ctx context.Context, r *ClosedHFOrdersReque
 	if r.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	if !r.StartAt.IsZero() && !r.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartAt, r.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.StartAt, r.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", r.Symbol)
@@ -351,10 +349,8 @@ func (e *Exchange) GetHFTradeHistory(ctx context.Context, r *HFTradeHistoryReque
 	if r.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	if !r.StartAt.IsZero() && !r.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartAt, r.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.StartAt, r.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", r.Symbol)
@@ -492,10 +488,8 @@ func (e *Exchange) GetStopOrderList(ctx context.Context, r *StopOrderListRequest
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
-	if !r.StartAt.IsZero() && !r.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartAt, r.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.StartAt, r.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if r.Symbol != "" {
@@ -635,10 +629,8 @@ func (e *Exchange) GetOCOOrderList(ctx context.Context, r *OCOOrderListRequest) 
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
-	if !r.StartAt.IsZero() && !r.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartAt, r.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.StartAt, r.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if r.Symbol != "" {

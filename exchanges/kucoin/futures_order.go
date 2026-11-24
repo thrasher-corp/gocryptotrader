@@ -252,10 +252,8 @@ func (e *Exchange) GetFuturesFills(ctx context.Context, r *GetFuturesFillsReques
 
 // futuresOrderListParams builds the query parameters Get Order List, Get Stop Order List and Get Trade History share
 func futuresOrderListParams(symbol, side, orderType string, startAt, endAt time.Time, currentPage, pageSize uint64) (url.Values, error) {
-	if !startAt.IsZero() && !endAt.IsZero() {
-		if err := common.StartEndTimeCheck(startAt, endAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startAt, endAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if symbol != "" {

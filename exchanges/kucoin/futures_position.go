@@ -134,10 +134,8 @@ func (e *Exchange) GetPositionHistory(ctx context.Context, r *GetPositionHistory
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
-	if !r.From.IsZero() && !r.To.IsZero() {
-		if err := common.StartEndTimeCheck(r.From, r.To); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.From, r.To); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if r.Symbol != "" {

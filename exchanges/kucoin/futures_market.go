@@ -111,10 +111,8 @@ func (e *Exchange) GetFuturesKline(ctx context.Context, r *FuturesKlineRequest) 
 	if r.Granularity < kline.OneMin || r.Granularity.Duration()%time.Minute != 0 {
 		return nil, fmt.Errorf("%w %s: granularity is sent in whole minutes", kline.ErrUnsupportedInterval, r.Granularity)
 	}
-	if !r.From.IsZero() && !r.To.IsZero() {
-		if err := common.StartEndTimeCheck(r.From, r.To); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.From, r.To); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", r.Symbol)
@@ -179,10 +177,8 @@ func (r *FuturesHistoryRequest) params() (url.Values, error) {
 	if r.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	if !r.StartAt.IsZero() && !r.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartAt, r.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.StartAt, r.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", r.Symbol)

@@ -20,10 +20,8 @@ func (e *Exchange) GetAnnouncements(ctx context.Context, req *AnnouncementsReque
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if req.CurrentPage != 0 {
@@ -133,10 +131,8 @@ func (e *Exchange) GetKlines(ctx context.Context, req *KlinesRequest) ([]KlineRe
 	if req.Type == "" {
 		return nil, fmt.Errorf("%w: type is required", errInvalidPeriod)
 	}
-	if !req.StartAt.IsZero() && !req.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartAt, req.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartAt, req.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", req.Symbol)

@@ -314,10 +314,8 @@ func (e *Exchange) GetExchangeBrokerDepositList(ctx context.Context, arg *GetExc
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if !arg.StartTimestamp.IsZero() && !arg.EndTimestamp.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTimestamp, arg.EndTimestamp); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTimestamp, arg.EndTimestamp); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !arg.Currency.IsEmpty() {

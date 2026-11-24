@@ -80,10 +80,8 @@ func (e *Exchange) GetMarginBorrowingHistory(ctx context.Context, req *MarginBor
 	if req.IsIsolated && req.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("currency", req.Currency.Upper().String())
@@ -154,10 +152,8 @@ func (e *Exchange) GetRepaymentHistory(ctx context.Context, req *MarginRepayment
 	if req.IsIsolated && req.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("currency", req.Currency.Upper().String())
@@ -195,10 +191,8 @@ func (e *Exchange) GetCrossIsolatedMarginInterestRecords(ctx context.Context, re
 	if req.IsIsolated && req.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !req.Currency.IsEmpty() {

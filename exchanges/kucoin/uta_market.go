@@ -128,10 +128,8 @@ func (e *Exchange) GetUTAKlines(ctx context.Context, req *UTAKlinesRequest) (*UT
 		params.Set("klineType", req.KlineType)
 	}
 	params.Set("interval", req.Interval)
-	if !req.StartAt.IsZero() && !req.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartAt, req.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartAt, req.EndAt); err != nil {
+		return nil, err
 	}
 	// Kline windows are in seconds, unlike the other UTA market windows
 	if !req.StartAt.IsZero() {

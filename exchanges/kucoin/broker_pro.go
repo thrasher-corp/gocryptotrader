@@ -118,10 +118,8 @@ func (e *Exchange) GetBrokerProCommission(ctx context.Context, arg *GetBrokerPro
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if !arg.StartAt.IsZero() && !arg.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartAt, arg.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartAt, arg.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if arg.SiteType != "" {
@@ -155,10 +153,8 @@ func (e *Exchange) GetBrokerProUserList(ctx context.Context, arg *GetBrokerProUs
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if !arg.StartAt.IsZero() && !arg.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartAt, arg.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartAt, arg.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if arg.TradeType != "" {
@@ -196,10 +192,8 @@ func (e *Exchange) GetBrokerProUserTransactions(ctx context.Context, arg *GetBro
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if !arg.StartAt.IsZero() && !arg.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartAt, arg.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartAt, arg.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if arg.TradeType != "" {

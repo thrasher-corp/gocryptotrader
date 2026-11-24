@@ -109,10 +109,8 @@ func (e *Exchange) GetAccountLedgers(ctx context.Context, req *AccountLedgersReq
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartAt.IsZero() && !req.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartAt, req.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartAt, req.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if len(req.Currencies) != 0 {
@@ -171,10 +169,8 @@ func hfAccountLedgersParams(req *HFAccountLedgersRequest) (url.Values, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartAt.IsZero() && !req.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartAt, req.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartAt, req.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if len(req.Currencies) != 0 {
@@ -224,10 +220,8 @@ func (e *Exchange) GetFuturesAccountLedgers(ctx context.Context, req *FuturesAcc
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartAt.IsZero() && !req.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartAt, req.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartAt, req.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !req.Currency.IsEmpty() {

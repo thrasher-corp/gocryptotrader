@@ -16,10 +16,8 @@ func (e *Exchange) GetAffiliateInvitees(ctx context.Context, req *AffiliateInvit
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.RegistrationStartAt.IsZero() && !req.RegistrationEndAt.IsZero() {
-		if err := common.StartEndTimeCheck(req.RegistrationStartAt, req.RegistrationEndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.RegistrationStartAt, req.RegistrationEndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if req.UserType != "" {
@@ -52,10 +50,8 @@ func (e *Exchange) GetAffiliateCommission(ctx context.Context, req *AffiliateCom
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.RebateStartAt.IsZero() && !req.RebateEndAt.IsZero() {
-		if err := common.StartEndTimeCheck(req.RebateStartAt, req.RebateEndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.RebateStartAt, req.RebateEndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if req.SiteType != "" {
@@ -94,10 +90,8 @@ func (e *Exchange) GetAffiliateTradeHistory(ctx context.Context, req *AffiliateT
 	if req.UID == "" {
 		return nil, errUIDRequired
 	}
-	if !req.TradeStartAt.IsZero() && !req.TradeEndAt.IsZero() {
-		if err := common.StartEndTimeCheck(req.TradeStartAt, req.TradeEndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.TradeStartAt, req.TradeEndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("uid", req.UID)
@@ -156,10 +150,8 @@ func (e *Exchange) GetAffiliateKumining(ctx context.Context, req *AffiliateKumin
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartAt.IsZero() && !req.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartAt, req.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartAt, req.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if req.UID != "" {
