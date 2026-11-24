@@ -1121,6 +1121,48 @@ func TestSubmitOrder(t *testing.T) {
 				path: "/api/v2/sell/market/btcusd-perp/",
 				exp:  url.Values{"amount": {"0.01"}, "subtype": {"TAKE_PROFIT"}, "stop_price": {"21000"}, "margin_mode": {"CROSS"}, "leverage": {"2"}, "trigger": {"LAST_TRADED_PRICE"}},
 			},
+			{
+				name: "market sell",
+				s:    &order.Submit{Pair: spotPair, AssetType: asset.Spot, Side: order.Sell, Type: order.Market, Amount: 0.1},
+				path: "/api/v2/sell/market/btcusd/",
+				exp:  url.Values{"amount": {"0.1"}},
+			},
+			{
+				name: "perpetual market buy",
+				s:    &order.Submit{Pair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.Buy, Type: order.Market, Amount: 0.01, Leverage: 2},
+				path: "/api/v2/buy/market/btcusd-perp/",
+				exp:  url.Values{"amount": {"0.01"}, "margin_mode": {"CROSS"}, "leverage": {"2"}},
+			},
+			{
+				name: "perpetual market buy sized by a quote amount",
+				s:    &order.Submit{Pair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.Buy, Type: order.Market, QuoteAmount: 100, Leverage: 2, ClientID: "desk-7", ClientOrderID: "client-1"},
+				path: "/api/v2/buy/instant/btcusd-perp/",
+				exp:  url.Values{"amount": {"100"}, "client_order_id": {"client-1"}, "margin_mode": {"CROSS"}, "leverage": {"2"}},
+			},
+			{
+				name: "limit buy",
+				s:    &order.Submit{Pair: spotPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Amount: 0.5, Price: 20000},
+				path: "/api/v2/buy/btcusd/",
+				exp:  url.Values{"amount": {"0.5"}, "price": {"20000"}},
+			},
+			{
+				name: "perpetual market bid",
+				s:    &order.Submit{Pair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.Bid, Type: order.Market, Amount: 0.01, Leverage: 2},
+				path: "/api/v2/buy/market/btcusd-perp/",
+				exp:  url.Values{"amount": {"0.01"}, "margin_mode": {"CROSS"}, "leverage": {"2"}},
+			},
+			{
+				name: "immediate or cancel market sell",
+				s:    &order.Submit{Pair: spotPair, AssetType: asset.Spot, Side: order.Sell, Type: order.Market, Amount: 0.1, TimeInForce: order.ImmediateOrCancel},
+				path: "/api/v2/sell/market/btcusd/",
+				exp:  url.Values{"amount": {"0.1"}},
+			},
+			{
+				name: "reduce only perpetual market sell",
+				s:    &order.Submit{Pair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.Sell, Type: order.Market, Amount: 0.01, Leverage: 2, ReduceOnly: true},
+				path: "/api/v2/sell/market/btcusd-perp/",
+				exp:  url.Values{"amount": {"0.01"}, "margin_mode": {"CROSS"}, "leverage": {"2"}, "reduce_only": {"True"}},
+			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
@@ -1137,9 +1179,36 @@ func TestSubmitOrder(t *testing.T) {
 					assert.NoError(t, err, "Write should not error")
 				})
 				tc.s.Exchange = ex.Name
+				submitted := *tc.s
+				submittedAt := time.Now()
 				resp, err := ex.SubmitOrder(t.Context(), tc.s)
 				require.NoError(t, err, "SubmitOrder must not error")
+				assert.Equal(t, submitted, *tc.s, "SubmitOrder should leave the submission unchanged")
 				assert.Equal(t, "1", resp.OrderID, "OrderID should be correct")
+				assert.Equal(t, order.New, resp.Status, "SubmitOrder should report the order as new, as Bitstamp's reply only acknowledges it")
+				assert.WithinRange(t, resp.Date, submittedAt, time.Now(), "Date should be the submission time")
+				assert.WithinRange(t, resp.LastUpdated, submittedAt, time.Now(), "LastUpdated should be the submission time")
+				assert.Equal(t, &order.SubmitResponse{
+					Exchange:      submitted.Exchange,
+					Type:          submitted.Type,
+					Side:          submitted.Side,
+					Pair:          submitted.Pair,
+					AssetType:     submitted.AssetType,
+					TimeInForce:   submitted.TimeInForce,
+					ReduceOnly:    submitted.ReduceOnly,
+					Leverage:      submitted.Leverage,
+					Price:         submitted.Price,
+					Amount:        submitted.Amount,
+					QuoteAmount:   submitted.QuoteAmount,
+					TriggerPrice:  submitted.TriggerPrice,
+					ClientID:      submitted.ClientID,
+					ClientOrderID: submitted.ClientOrderID,
+					MarginType:    submitted.MarginType,
+					LastUpdated:   resp.LastUpdated,
+					Date:          resp.Date,
+					Status:        order.New,
+					OrderID:       "1",
+				}, resp, "SubmitOrder should return the submitted order's details with nothing executed")
 				require.Len(t, requests, 1, "SubmitOrder must send a request")
 				assert.Equal(t, tc.exp, <-requests, "SubmitOrder should send the order's parameters")
 			})
@@ -1184,6 +1253,7 @@ func TestSubmitOrder(t *testing.T) {
 			tc.s.Exchange = e.Name
 			resp, err := e.SubmitOrder(t.Context(), tc.s)
 			require.NoError(t, err, "SubmitOrder must not error")
+			assert.Equal(t, order.New, resp.Status, "SubmitOrder should report the order as new, as Bitstamp's reply only acknowledges it")
 			if mockTests {
 				assert.Equal(t, tc.exp, resp.OrderID, "OrderID should be correct")
 				assert.Equal(t, tc.s.AssetType, resp.AssetType, "AssetType should be correct")
@@ -2957,6 +3027,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		settled := func(i int64) time.Time { return time.Unix(first+i*28800, 0) }
 		rate := func(i int64) float64 { return float64(i) / 1e6 }
 		unix := func(t time.Time) string { return strconv.FormatInt(t.Unix(), 10) }
+		future := time.Now().Add(time.Hour).Truncate(time.Second)
 		for _, tc := range []struct {
 			name       string
 			start, end time.Time
@@ -2966,6 +3037,8 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			pageEnds   []string
 		}{
 			{name: "three pages", start: settled(1000), end: settled(1200), from: 1000, to: 1200, pageEnds: []string{unix(settled(1200)), unix(settled(1101)), unix(settled(1002))}},
+			{name: "end in the future", start: settled(1250), end: future, from: 1250, to: settlements - 1, pageEnds: []string{unix(future)}},
+			{name: "a quarter of a second from a settlement", start: settled(1250), end: settled(1250).Add(250 * time.Millisecond), from: 1250, to: 1250, pageEnds: []string{unix(settled(1250))}},
 			{name: "start after a settlement", start: settled(1000).Add(time.Second), end: settled(1199), from: 1001, to: 1199, pageEnds: []string{unix(settled(1199)), unix(settled(1100)), unix(settled(1001))}},
 			// A full page whose oldest rate is the first one after the start leaves a range without a rate before it
 			{name: "start before a full page", start: settled(1001).Add(-time.Hour), end: settled(1200), from: 1001, to: 1200, pageEnds: []string{unix(settled(1200)), unix(settled(1101)), unix(settled(1002))}},
@@ -3236,6 +3309,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		{name: "empty pair", req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract}, err: currency.ErrCurrencyPairEmpty},
 		{name: "funding payments", req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, IncludePayments: true}, err: common.ErrFunctionNotSupported},
 		{name: "start after the end", req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, StartDate: time.Now(), EndDate: time.Now().Add(-time.Hour)}, err: common.ErrStartAfterEnd},
+		{name: "start equal to the end", req: &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, StartDate: time.Unix(1756684800, 0), EndDate: time.Unix(1756684800, 0)}, err: common.ErrStartEqualsEnd},
 	} {
 		// Serial and in order, as the request below goes through the same exchange
 		t.Run(tc.name, func(t *testing.T) {
@@ -3897,6 +3971,79 @@ func TestChangePositionMargin(t *testing.T) { //nolint:tparallel // Every case c
 			assert.Truef(t, slices.ContainsFunc(paths, func(p string) bool { return strings.HasPrefix(p, "/api/v2/open_positions/") }), "ChangePositionMargin should read the open positions with %s", tc.name)
 			assert.NotContainsf(t, paths, "/api/v2/adjust_position_collateral/", "ChangePositionMargin should not change any collateral with %s", tc.name)
 			mu.Unlock()
+		})
+	}
+
+	// A margin side takes only the isolated position on that side, in any of the spellings the order side parser
+	// accepts, and a side which is neither long nor short is refused before any request. Each market also holds a
+	// cross position on the other side, which no side may take
+	const isolatedShort = `{"id":"1234567890","market":"BTC/USD-PERP","margin_mode":"ISOLATED","side":"SHORT","size":"0.01000"}`
+	const isolatedLong = `{"id":"1234567893","market":"BTC/USD-PERP","margin_mode":"ISOLATED","side":"LONG","size":"0.01000"}`
+	const crossShort = `{"id":"1234567894","market":"BTC/USD-PERP","margin_mode":"CROSS","side":"SHORT","size":"0.02000"}`
+	shortMarket := `[` + cross + `,` + isolatedShort + `]`
+	longMarket := `[` + crossShort + `,` + isolatedLong + `]`
+	for _, tc := range []struct {
+		name, market, side, changed string
+		read                        bool
+		err                         error
+	}{
+		{name: "isolated short with no side", market: shortMarket, read: true, changed: "1234567890"},
+		{name: "isolated short with a sell side", market: shortMarket, side: "sell", read: true, changed: "1234567890"},
+		{name: "isolated short with an ask side", market: shortMarket, side: "ASK", read: true, changed: "1234567890"},
+		{name: "isolated short with a short side", market: shortMarket, side: "Short", read: true, changed: "1234567890"},
+		{name: "isolated short with a buy side", market: shortMarket, side: "buy", read: true, err: futures.ErrNoPositionsFound},
+		{name: "isolated short with a bid side", market: shortMarket, side: "Bid", read: true, err: futures.ErrNoPositionsFound},
+		{name: "isolated short with a long side", market: shortMarket, side: "LONG", read: true, err: futures.ErrNoPositionsFound},
+		{name: "isolated long with no side", market: longMarket, read: true, changed: "1234567893"},
+		{name: "isolated long with a buy side", market: longMarket, side: "BUY", read: true, changed: "1234567893"},
+		{name: "isolated long with a bid side", market: longMarket, side: "bid", read: true, changed: "1234567893"},
+		{name: "isolated long with a long side", market: longMarket, side: "long", read: true, changed: "1234567893"},
+		{name: "isolated long with a mixed case buy side", market: longMarket, side: "bUy", read: true, changed: "1234567893"},
+		{name: "isolated long with a sell side", market: longMarket, side: "Sell", read: true, err: futures.ErrNoPositionsFound},
+		{name: "isolated long with an ask side", market: longMarket, side: "ask", read: true, err: futures.ErrNoPositionsFound},
+		{name: "isolated long with a short side", market: longMarket, side: "SHORT", read: true, err: futures.ErrNoPositionsFound},
+		{name: "any side", market: shortMarket, side: "any", err: order.ErrPositionSideUnsupported},
+		{name: "unknown side", market: shortMarket, side: "shrot", err: order.ErrSideIsInvalid},
+		{name: "both sides", market: shortMarket, side: "both", err: order.ErrSideIsInvalid},
+	} {
+		var mu sync.Mutex
+		var paths, changed []string
+		ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			defer mu.Unlock()
+			paths = append(paths, r.URL.Path)
+			body := `{}`
+			switch r.URL.Path {
+			case "/api/v2/open_positions/btcusd-perp/":
+				body = tc.market
+			case "/api/v2/open_positions/":
+				body = `[` + otherIsolated + `,` + tc.market[1:]
+			case "/api/v2/adjust_position_collateral/":
+				var change struct {
+					PositionID string `json:"position_id"`
+				}
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&change), "Decode should not error")
+				changed = append(changed, change.PositionID)
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "Write should not error")
+		})
+		// Serial and in order, as the change below goes to the same function
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ex.ChangePositionMargin(ctx, &margin.PositionChangeRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, MarginType: margin.Isolated, NewAllocatedMargin: 12.5, MarginSide: tc.side})
+			assert.ErrorIsf(t, err, tc.err, "ChangePositionMargin should return the correct error for side %q", tc.side)
+			mu.Lock()
+			defer mu.Unlock()
+			if tc.changed != "" {
+				assert.Equalf(t, []string{tc.changed}, changed, "ChangePositionMargin should change the isolated position's collateral for side %q", tc.side)
+			} else {
+				assert.Emptyf(t, changed, "ChangePositionMargin should not change any collateral for side %q", tc.side)
+			}
+			if tc.read {
+				assert.Truef(t, slices.ContainsFunc(paths, func(p string) bool { return strings.HasPrefix(p, "/api/v2/open_positions/") }), "ChangePositionMargin should read the open positions for side %q", tc.side)
+			} else {
+				assert.Emptyf(t, paths, "ChangePositionMargin should send no request for side %q", tc.side)
+			}
 		})
 	}
 

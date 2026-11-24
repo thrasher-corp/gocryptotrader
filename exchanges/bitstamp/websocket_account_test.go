@@ -53,19 +53,38 @@ func TestProcessOrderEvent(t *testing.T) {
 			// Floats of 67110000.00000001 and 67110000.00000002 are equal, as are floats of 92233720367.999995 and
 			// 92233720368, so an order with that little left executed the float below its amount
 			{name: "large order with 0.00000001 left", atCreate: "67110000.00000002", remaining: "0.00000001", executed: 67110000},
+			{name: "large order with 0.00000001 left after one trade", atCreate: "67110000.00000002", remaining: "0.00000001", traded: 67110000.00000001, executed: 67110000},
 			{name: "very large order with 0.000005 left", atCreate: "92233720368", remaining: "0.000005", executed: 92233720367.99998},
 		} {
+			for _, event := range []string{orderEventChanged, orderEventCreated, orderEventReplaced} {
+				ex := newWebsocketTestInstance(t)
+				t.Run(tc.name+" "+event, func(t *testing.T) {
+					t.Parallel()
+					require.NoErrorf(t, ex.processOrderEvent(ctx, event, &OrderEventData{ID: 1, AmountAtCreate: preciseNumber(t, tc.atCreate), RemainingAmount: preciseNumber(t, tc.remaining), AmountTraded: types.Number(tc.traded)}, wsSpotPair, asset.Spot), "processOrderEvent must not error for %s remaining of %s", tc.remaining, tc.atCreate)
+					payloads := dataHandlerPayloads(t, ex)
+					require.Lenf(t, payloads, 1, "the data handler must receive the event for %s remaining of %s", tc.remaining, tc.atCreate)
+					d, ok := payloads[0].(*order.Detail)
+					require.Truef(t, ok, "the payload must be an order detail for %s remaining of %s", tc.remaining, tc.atCreate)
+					assert.Equalf(t, tc.executed, d.ExecutedAmount, "processOrderEvent should subtract the exact amounts for %s remaining of %s", tc.remaining, tc.atCreate)
+					assert.Equalf(t, order.PartiallyFilled, d.Status, "processOrderEvent should report an executed amount as partially filled for %s remaining of %s", tc.remaining, tc.atCreate)
+					assert.Truef(t, d.IsActive(), "processOrderEvent should relay an order with some amount left as active for %s remaining of %s", tc.remaining, tc.atCreate)
+				})
+			}
+		}
+	})
+	t.Run("nothing left", func(t *testing.T) {
+		t.Parallel()
+		for _, event := range []string{orderEventChanged, orderEventCreated, orderEventReplaced} {
 			ex := newWebsocketTestInstance(t)
-			t.Run(tc.name, func(t *testing.T) {
+			t.Run(event, func(t *testing.T) {
 				t.Parallel()
-				require.NoErrorf(t, ex.processOrderEvent(ctx, orderEventChanged, &OrderEventData{ID: 1, AmountAtCreate: preciseNumber(t, tc.atCreate), RemainingAmount: preciseNumber(t, tc.remaining), AmountTraded: types.Number(tc.traded)}, wsSpotPair, asset.Spot), "processOrderEvent must not error for %s remaining of %s", tc.remaining, tc.atCreate)
+				require.NoErrorf(t, ex.processOrderEvent(t.Context(), event, &OrderEventData{ID: 1, AmountAtCreate: preciseNumber(t, "1"), RemainingAmount: preciseNumber(t, "0")}, wsSpotPair, asset.Spot), "processOrderEvent must not error for %s", event)
 				payloads := dataHandlerPayloads(t, ex)
-				require.Lenf(t, payloads, 1, "the data handler must receive the event for %s remaining of %s", tc.remaining, tc.atCreate)
+				require.Lenf(t, payloads, 1, "the data handler must receive the %s event", event)
 				d, ok := payloads[0].(*order.Detail)
-				require.Truef(t, ok, "the payload must be an order detail for %s remaining of %s", tc.remaining, tc.atCreate)
-				assert.Equalf(t, tc.executed, d.ExecutedAmount, "processOrderEvent should subtract the exact amounts for %s remaining of %s", tc.remaining, tc.atCreate)
-				assert.Equalf(t, order.PartiallyFilled, d.Status, "processOrderEvent should report an executed amount as partially filled for %s remaining of %s", tc.remaining, tc.atCreate)
-				assert.Truef(t, d.IsActive(), "processOrderEvent should relay an order with some amount left as active for %s remaining of %s", tc.remaining, tc.atCreate)
+				require.Truef(t, ok, "the %s payload must be an order detail", event)
+				assert.Equalf(t, 1.0, d.ExecutedAmount, "processOrderEvent should report the whole amount as executed for %s with nothing left", event)
+				assert.Falsef(t, d.IsActive(), "processOrderEvent should not relay an order with nothing left as active for %s", event)
 			})
 		}
 	})
@@ -132,6 +151,156 @@ func TestProcessOrderEvent(t *testing.T) {
 						Pair:        wsPerpetualPair,
 						LastUpdated: time.UnixMicro(1712131201000000),
 					},
+				},
+			},
+			{
+				// The API's account order data example, which shows half the order already executed
+				name:  "partly executed order created",
+				event: orderEventCreated,
+				data:  `{"id":1458532827766784,"id_str":"1458532827766784","order_type":0,"order_subtype":0,"datetime":"1643698764","microtimestamp":"1643698764000000","amount":0.5,"amount_str":"0.5","amount_traded":"0.5","amount_at_create":"1.0","price":50000,"price_str":"50000.00","is_liquidation":false,"trade_account_id":0,"client_order_id":"my-order-123","stop_price":"48000.00"}`,
+				exp: &order.Detail{
+					Exchange:        ex.Name,
+					OrderID:         "1458532827766784",
+					ClientOrderID:   "my-order-123",
+					Type:            order.Limit,
+					TimeInForce:     order.GoodTillCancel,
+					Side:            order.Buy,
+					Status:          order.PartiallyFilled,
+					AssetType:       asset.PerpetualContract,
+					Pair:            wsPerpetualPair,
+					Date:            time.UnixMicro(1643698764000000),
+					LastUpdated:     time.UnixMicro(1643698764000000),
+					Price:           50000,
+					Amount:          1,
+					RemainingAmount: 0.5,
+					ExecutedAmount:  0.5,
+					TriggerPrice:    48000,
+				},
+			},
+			{
+				name:  "partly executed market order created",
+				event: orderEventCreated,
+				data:  `{"id":1500000011,"id_str":"1500000011","order_type":1,"order_subtype":2,"datetime":"1712131209","microtimestamp":"1712131209000000","amount":0.5,"amount_str":"0.50000000","amount_traded":"0.50000000","amount_at_create":"1.00000000","price":0,"price_str":"0","trade_account_id":0,"is_liquidation":false}`,
+				exp: &order.Detail{
+					Exchange:        ex.Name,
+					OrderID:         "1500000011",
+					Type:            order.Market,
+					Side:            order.Sell,
+					Status:          order.PartiallyFilled,
+					AssetType:       asset.PerpetualContract,
+					Pair:            wsPerpetualPair,
+					Date:            time.UnixMicro(1712131209000000),
+					LastUpdated:     time.UnixMicro(1712131209000000),
+					Amount:          1,
+					RemainingAmount: 0.5,
+					ExecutedAmount:  0.5,
+				},
+			},
+			{
+				name:  "partly executed replacement",
+				event: orderEventReplaced,
+				data:  `{"id":1500000010,"id_str":"1500000010","orig_order_id":1500000002,"client_order_id":"my-order-010","amount":0.1,"amount_str":"0.10000000","amount_traded":"0.20000000","amount_at_create":"0.30000000","price":61500.00,"price_str":"61500.00","order_type":1,"order_subtype":0,"datetime":"1712131208","microtimestamp":"1712131208000000","trade_account_id":0,"is_liquidation":false}`,
+				exp: []order.Detail{
+					{
+						Exchange:        ex.Name,
+						OrderID:         "1500000010",
+						ClientOrderID:   "my-order-010",
+						Type:            order.Limit,
+						TimeInForce:     order.GoodTillCancel,
+						Side:            order.Sell,
+						Status:          order.PartiallyFilled,
+						AssetType:       asset.PerpetualContract,
+						Pair:            wsPerpetualPair,
+						Date:            time.UnixMicro(1712131208000000),
+						LastUpdated:     time.UnixMicro(1712131208000000),
+						Price:           61500,
+						Amount:          0.3,
+						RemainingAmount: 0.1,
+						ExecutedAmount:  0.2,
+					},
+					{
+						Exchange:    ex.Name,
+						OrderID:     "1500000002",
+						Status:      order.Cancelled,
+						AssetType:   asset.PerpetualContract,
+						Pair:        wsPerpetualPair,
+						LastUpdated: time.UnixMicro(1712131208000000),
+					},
+				},
+			},
+			{
+				name:  "replacement with cumulative execution and no new trade",
+				event: orderEventReplaced,
+				data:  `{"activation_price":"49000.00","amount":0.5,"amount_at_create":"1.0","amount_str":"0.5","amount_traded":"0","client_order_id":"my-order-123","datetime":"1643698765","id":1458532827766786,"id_str":"1458532827766786","is_liquidation":false,"microtimestamp":"1643698765000000","order_subtype":22,"order_type":1,"orig_order_id":1458532827766700,"price":50000,"price_str":"50000.00","reduce_only":true,"stop_price":"48000.00","trade_account_id":0,"trailing_delta":50}`,
+				exp: []order.Detail{
+					{
+						Exchange:        ex.Name,
+						OrderID:         "1458532827766786",
+						ClientOrderID:   "my-order-123",
+						Type:            order.StopLimit,
+						Side:            order.Sell,
+						Status:          order.PartiallyFilled,
+						AssetType:       asset.PerpetualContract,
+						Pair:            wsPerpetualPair,
+						Date:            time.UnixMicro(1643698765000000),
+						LastUpdated:     time.UnixMicro(1643698765000000),
+						Amount:          1.0,
+						ExecutedAmount:  0.5,
+						RemainingAmount: 0.5,
+						Price:           50000.0,
+						TriggerPrice:    48000.0,
+						ReduceOnly:      true,
+					},
+					{
+						Exchange:    ex.Name,
+						OrderID:     "1458532827766700",
+						Status:      order.Cancelled,
+						AssetType:   asset.PerpetualContract,
+						Pair:        wsPerpetualPair,
+						LastUpdated: time.UnixMicro(1643698765000000),
+					},
+				},
+			},
+			{
+				name:  "market creation before an amount is known",
+				event: orderEventCreated,
+				data:  `{"id":1658864794234880,"id_str":"1658864794234880","order_type":0,"datetime":"1693831262","microtimestamp":"1693831262313000","amount":0,"amount_str":"0","amount_traded":"0","amount_at_create":"0","price":999999999,"price_str":"999999999","trade_account_id":3141592,"client_order_id":"test_market_buy"}`,
+				exp: &order.Detail{
+					Exchange:      ex.Name,
+					OrderID:       "1658864794234880",
+					ClientOrderID: "test_market_buy",
+					Type:          order.Limit,
+					TimeInForce:   order.GoodTillCancel,
+					Side:          order.Buy,
+					Status:        order.New,
+					AssetType:     asset.PerpetualContract,
+					Pair:          wsPerpetualPair,
+					Date:          time.UnixMicro(1693831262313000),
+					LastUpdated:   time.UnixMicro(1693831262313000),
+					Price:         999999999.0,
+					AccountID:     "3141592",
+				},
+			},
+			{
+				name:  "unexecuted limit creation",
+				event: orderEventCreated,
+				data:  `{"id":1658869033291777,"id_str":"1658869033291777","order_type":1,"datetime":"1693832297","microtimestamp":"1693832297239000","amount":0.00038692,"amount_str":"0.00038692","amount_traded":"0","amount_at_create":"0.00038692","price":25845,"price_str":"25845","trade_account_id":3141592,"client_order_id":"test_limit_sell"}`,
+				exp: &order.Detail{
+					Exchange:        ex.Name,
+					OrderID:         "1658869033291777",
+					ClientOrderID:   "test_limit_sell",
+					Type:            order.Limit,
+					TimeInForce:     order.GoodTillCancel,
+					Side:            order.Sell,
+					Status:          order.New,
+					AssetType:       asset.PerpetualContract,
+					Pair:            wsPerpetualPair,
+					Date:            time.UnixMicro(1693832297239000),
+					LastUpdated:     time.UnixMicro(1693832297239000),
+					Amount:          0.00038692,
+					RemainingAmount: 0.00038692,
+					Price:           25845.0,
+					AccountID:       "3141592",
 				},
 			},
 			{

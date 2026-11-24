@@ -764,7 +764,12 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	return s.DeriveSubmitResponse(strconv.FormatUint(resp.ID, 10))
+	submitted, err := s.DeriveSubmitResponse(strconv.FormatUint(resp.ID, 10))
+	if err == nil {
+		// Bitstamp's reply only acknowledges the order: it carries no status or execution
+		submitted.Status = order.New
+	}
+	return submitted, err
 }
 
 // validateOrderSubmission checks the order types and parameters the API supports before any request is made
@@ -1933,10 +1938,8 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if r.IncludePayments {
 		return nil, fmt.Errorf("%w: funding payments", common.ErrFunctionNotSupported)
 	}
-	if !r.StartDate.IsZero() && !r.EndDate.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartDate, r.EndDate); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.StartDate, r.EndDate); err != nil {
+		return nil, err
 	}
 	fPair, err := e.FormatExchangeCurrency(r.Pair, r.Asset)
 	if err != nil {
@@ -2244,6 +2247,21 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 	if r.NewAllocatedMargin <= 0 {
 		return nil, margin.ErrNewAllocatedMarginRequired
 	}
+	// A margin side picks the isolated position on that side, so a request for one side never changes the other's
+	var side string
+	if r.MarginSide != "" {
+		s, err := order.StringToOrderSide(r.MarginSide)
+		if err != nil {
+			return nil, err
+		}
+		if s, err = s.Position(); err != nil {
+			return nil, err
+		}
+		side = PositionSideLong
+		if s == order.Short {
+			side = PositionSideShort
+		}
+	}
 	fPair, err := e.FormatExchangeCurrency(r.Pair, r.Asset)
 	if err != nil {
 		return nil, err
@@ -2255,7 +2273,7 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 	market := formatMarketName(fPair)
 	var positionID string
 	for i := range positions {
-		if positions[i].Market == market && positions[i].MarginMode == MarginModeIsolated {
+		if positions[i].Market == market && positions[i].MarginMode == MarginModeIsolated && (side == "" || positions[i].Side == side) {
 			positionID = positions[i].ID
 			break
 		}

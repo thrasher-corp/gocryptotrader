@@ -200,6 +200,8 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 			{name: "JSON", method: http.MethodPost, body: &closePositionBody{PositionID: "1234567890"}, expectedContentType: jsonContentType, expectedBody: `{"position_id":"1234567890"}`},
 			{name: "query", method: http.MethodGet, params: url.Values{"limit": {"10"}, "sort": {"asc"}}, expectedQuery: "limit=10&sort=asc"},
 			{name: "sub account", method: http.MethodPost, subAccount: "990129"},
+			{name: "sub account with a query", method: http.MethodGet, params: url.Values{"limit": {"10"}}, subAccount: "990129", expectedQuery: "limit=10"},
+			{name: "sub account with a JSON body", method: http.MethodPost, body: &closePositionBody{PositionID: "1234567890"}, subAccount: "990129", expectedContentType: jsonContentType, expectedBody: `{"position_id":"1234567890"}`},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
@@ -225,7 +227,10 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 				assert.Equal(t, tc.expectedContentType, captured.Header.Get("Content-Type"), "Content-Type should only be set with a body")
 				assert.Equal(t, "BITSTAMP key", captured.Header.Get("X-Auth"), "X-Auth should be correct")
 				assert.Equal(t, "v2", captured.Header.Get("X-Auth-Version"), "X-Auth-Version should be correct")
-				assert.Equal(t, tc.subAccount, captured.Header.Get("X-Auth-Subaccount-Id"), "X-Auth-Subaccount-Id should be correct")
+				assert.Equal(t, tc.subAccount, captured.Header.Get("X-Auth-Sub-Account-Id"), "X-Auth-Sub-Account-Id should be correct")
+				if tc.subAccount == "" {
+					assert.NotContains(t, captured.Header, "X-Auth-Sub-Account-Id", "X-Auth-Sub-Account-Id should not be sent without a sub account")
+				}
 				nonce := captured.Header.Get("X-Auth-Nonce")
 				assert.Len(t, nonce, 36, "X-Auth-Nonce should be a UUID")
 				timestamp := captured.Header.Get("X-Auth-Timestamp")

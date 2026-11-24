@@ -334,6 +334,11 @@ func (e *Exchange) processOrderEvent(ctx context.Context, event string, o *Order
 	switch event {
 	case orderEventCreated, orderEventReplaced:
 		status = order.New
+		// A creation can already carry an execution
+		if executed > 0 {
+			status = order.PartiallyFilled
+			executed = openExecutedAmount(executed, amount, remaining)
+		}
 	case orderEventChanged:
 		status = order.Open
 		if executed > 0 {

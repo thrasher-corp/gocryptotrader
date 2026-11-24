@@ -211,7 +211,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			headers["Content-Type"] = contentType
 		}
 		if creds.SubAccount != "" {
-			headers["X-Auth-Subaccount-Id"] = creds.SubAccount
+			headers["X-Auth-Sub-Account-Id"] = creds.SubAccount
 		}
 		var reader io.Reader
 		if len(payload) > 0 {
