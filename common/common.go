@@ -617,6 +617,15 @@ func StartEndTimeCheck(start, end time.Time) error {
 	return nil
 }
 
+// StartEndTimeCheckSkipZero checks a time range with StartEndTimeCheck when both its start and end are set, and returns
+// nil when either is zero, for requests whose start and end are optional
+func StartEndTimeCheckSkipZero(start, end time.Time) error {
+	if start.IsZero() || end.IsZero() {
+		return nil
+	}
+	return StartEndTimeCheck(start, end)
+}
+
 // StartEndOptionalTimeCheck checks a time window either end of which may be left unset, as StartEndTimeCheck does once
 // both are set
 func StartEndOptionalTimeCheck(start, end time.Time) error {
