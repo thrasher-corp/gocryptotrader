@@ -120,15 +120,102 @@ func TestRateLimit(t *testing.T) {
 			go func() { laterErrs <- single.RateLimit(laterCtx) }()
 			synctest.Wait()
 			cancelLater()
-			require.ErrorIs(t, <-laterErrs, context.Canceled, "cancelled later call must report cancellation")
+			select {
+			case err := <-laterErrs:
+				require.ErrorIs(t, err, context.Canceled, "cancelled later call must report cancellation")
+			case <-time.After(time.Minute):
+				require.FailNow(t, "cancelled later call must return within a minute")
+			}
 			cancel()
-			require.ErrorIs(t, <-errs, context.Canceled, "cancelled call must report cancellation")
+			select {
+			case err := <-errs:
+				require.ErrorIs(t, err, context.Canceled, "cancelled call must report cancellation")
+			case <-time.After(time.Minute):
+				require.FailNow(t, "cancelled call must return within a minute")
+			}
 
 			require.NoError(t, single.RateLimit(t.Context()), "follow-up call must not error")
 			assert.InDelta(t, time.Second, time.Since(start), float64(time.Millisecond),
 				"follow-up call should be admitted one token period after the initial call")
 		})
 	})
+
+	for _, tc := range []struct {
+		name     string
+		interval time.Duration
+		queued   Weight
+		weight   Weight
+		cancelAt time.Duration
+		deadline time.Duration
+		cause    error
+	}{
+		{
+			name:     "cancelled wait releases the reservations still pending",
+			interval: time.Second, weight: 3, cancelAt: 1500 * time.Millisecond,
+		},
+		{
+			name:     "cancelled wait with more reservations pending than spent releases them all",
+			interval: time.Second, weight: 6, cancelAt: 1500 * time.Millisecond,
+		},
+		{
+			name:     "cancelled wait queued behind another caller releases all its reservations",
+			interval: time.Second, queued: 2, weight: 2, cancelAt: 1500 * time.Millisecond,
+		},
+		{
+			name:     "cancelled wait on a faster limiter releases the reservations still pending",
+			interval: 500 * time.Millisecond, weight: 6, cancelAt: 750 * time.Millisecond,
+		},
+		{
+			name:     "wait cancelled shortly before its last reservation is due releases it",
+			interval: time.Second, weight: 3, cancelAt: 1750 * time.Millisecond,
+		},
+		{
+			name:     "wait cancelled before its deadline releases the reservations still pending",
+			interval: time.Second, weight: 3, cancelAt: 1500 * time.Millisecond, deadline: 2 * time.Second,
+		},
+		{
+			name:     "wait cancelled with a timeout cause releases the reservations still pending",
+			interval: time.Second, weight: 3, cancelAt: 1500 * time.Millisecond, cause: context.DeadlineExceeded,
+		},
+		{
+			name:     "wait cancelled with a timeout cause before its deadline releases the reservations still pending",
+			interval: time.Second, weight: 3, cancelAt: 1500 * time.Millisecond, deadline: 2500 * time.Millisecond,
+			cause: context.DeadlineExceeded,
+		},
+		{
+			name:     "wait cancelled with another cause releases the reservations still pending",
+			interval: time.Second, weight: 3, cancelAt: 1500 * time.Millisecond, cause: assert.AnError,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			synctest.Test(t, func(t *testing.T) {
+				shared := NewRateLimit(tc.interval, 1)
+				single, weighted := GetRateLimiterWithWeight(shared, 1), GetRateLimiterWithWeight(shared, tc.weight)
+				start := time.Now()
+				for range tc.queued {
+					shared.ReserveN(start, 1)
+				}
+
+				ctx, cancel := context.WithCancelCause(t.Context())
+				defer cancel(nil)
+				if tc.deadline != 0 {
+					var cancelDeadline context.CancelFunc
+					ctx, cancelDeadline = context.WithTimeout(ctx, tc.deadline)
+					defer cancelDeadline()
+				}
+				// The weighted call reserves one token per interval after any queued ones. Every row cancels it between
+				// one and two intervals in, while each reservation it holds from two intervals on is still pending.
+				time.AfterFunc(tc.cancelAt, func() { cancel(tc.cause) })
+				require.ErrorIs(t, weighted.RateLimit(ctx), context.Canceled, "cancelled call must report cancellation")
+
+				require.NoError(t, single.RateLimit(t.Context()), "follow-up call must not error")
+				assert.Equal(t, 2*tc.interval, time.Since(start),
+					"follow-up call should be admitted when the cancelled call's first pending reservation was due")
+			})
+		})
+	}
 }
 
 func TestRateLimit_Concurrent_WithFailure(t *testing.T) {
