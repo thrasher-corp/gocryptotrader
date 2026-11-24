@@ -2291,10 +2291,8 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 
-	if !r.StartDate.IsZero() && !r.EndDate.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartDate, r.EndDate); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.StartDate, r.EndDate); err != nil {
+		return nil, err
 	}
 
 	// NOTE: Opted to fail here as a misconfigured request will result in

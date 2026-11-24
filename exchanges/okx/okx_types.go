@@ -4473,7 +4473,7 @@ type CloseLeadingPositionParam struct {
 	Tag            string `json:"tag"`
 }
 
-// LeadingInstrumentItem represents leading instrument info and it's status
+// LeadingInstrumentItem represents leading instrument info and its status
 type LeadingInstrumentItem struct {
 	Enabled      bool   `json:"enabled"`
 	InstrumentID string `json:"instId"`

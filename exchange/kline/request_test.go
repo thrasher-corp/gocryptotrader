@@ -195,6 +195,81 @@ func TestRequest_ProcessResponse(t *testing.T) {
 	_, err = r.ProcessResponse(nil)
 	require.ErrorIs(t, err, ErrNoTimeSeriesDataToConvert)
 
+	hourStart := time.Date(2020, 1, 1, 10, 0, 0, 0, time.UTC)
+	february := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name             string
+		exchangeInterval Interval
+		clientRequired   Interval
+		start            time.Time
+		end              time.Time
+		timeSeries       []Candle
+		expected         []Candle
+		err              error
+	}{
+		{
+			name:             "partial period too short to convert returns the conversion error",
+			exchangeInterval: OneMin,
+			clientRequired:   OneHour,
+			start:            hourStart,
+			end:              hourStart.Add(OneHour.Duration()),
+			timeSeries:       []Candle{{Time: hourStart, Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}},
+			err:              ErrInsufficientCandleData,
+		},
+		{
+			name:             "candles outside the range leave none after the partial purge",
+			exchangeInterval: OneHour,
+			clientRequired:   OneHour,
+			start:            hourStart,
+			end:              hourStart.Add(OneHour.Duration()),
+			timeSeries:       []Candle{{Time: hourStart.Add(-OneHour.Duration()), Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}},
+			err:              ErrNoTimeSeriesDataToConvert,
+		},
+		{
+			// February holds one 15-day slot, so a frame opening after the 1st leaves only padding
+			name:             "month from 15-day candles leaves none to convert after the partial purge",
+			exchangeInterval: FifteenDay,
+			clientRequired:   OneMonth,
+			start:            february,
+			end:              february.AddDate(0, 1, 0),
+			timeSeries:       []Candle{{Time: february.AddDate(0, 0, 5), Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}},
+			err:              ErrNoTimeSeriesDataToConvert,
+		},
+		{
+			name:             "partial purge leaving one candle returns it",
+			exchangeInterval: OneHour,
+			clientRequired:   OneHour,
+			start:            hourStart,
+			end:              hourStart.Add(2 * OneHour.Duration()),
+			timeSeries:       []Candle{{Time: hourStart, Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}},
+			expected:         []Candle{{Time: hourStart, Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := &Request{
+				Exchange:         "name",
+				Pair:             pair,
+				RequestFormatted: pair,
+				Asset:            asset.Spot,
+				ExchangeInterval: tc.exchangeInterval,
+				ClientRequired:   tc.clientRequired,
+				Start:            tc.start,
+				End:              tc.end,
+				PartialCandle:    true,
+				RequestLimit:     1,
+			}
+			holder, err := req.ProcessResponse(tc.timeSeries)
+			require.ErrorIs(t, err, tc.err, "ProcessResponse must return the expected error")
+			if tc.err != nil {
+				assert.Nil(t, holder, "ProcessResponse should not return a holder on error")
+				return
+			}
+			require.NotNil(t, holder, "ProcessResponse must return a holder")
+			assert.Equal(t, tc.expected, holder.Candles, "ProcessResponse should return the candle the partial purge leaves")
+		})
+	}
+
 	_, err = CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, OneHour, start, end, 0)
 	require.ErrorIs(t, err, errInvalidSpecificEndpointLimit)
 
