@@ -103,10 +103,8 @@ func (e *Exchange) GetAlphaOrders(ctx context.Context, arg *GetAlphaOrdersReques
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if arg.Currency != "" {

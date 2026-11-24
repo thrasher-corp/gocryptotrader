@@ -1150,10 +1150,8 @@ func (e *Exchange) GetTrailOrders(ctx context.Context, settle currency.Code, arg
 	case arg.Side > 2:
 		return nil, fmt.Errorf("%w: side %d", errInvalidTrailOrderFilter, arg.Side)
 	}
-	if !arg.StartAt.IsZero() && !arg.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartAt, arg.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartAt, arg.EndAt); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if arg.Contract.IsPopulated() {
@@ -1345,10 +1343,8 @@ func (e *Exchange) GetChaseOrders(ctx context.Context, settle currency.Code, arg
 	if arg.IsFinished && (arg.StartAt.IsZero() || arg.EndAt.IsZero()) {
 		return nil, errChaseTimeRangeRequired
 	}
-	if !arg.StartAt.IsZero() && !arg.EndAt.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartAt, arg.EndAt); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartAt, arg.EndAt); err != nil {
+		return nil, err
 	}
 	switch {
 	case arg.PageSize > 100:

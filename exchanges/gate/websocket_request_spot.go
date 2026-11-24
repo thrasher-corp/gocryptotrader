@@ -174,10 +174,8 @@ func (e *Exchange) WebsocketSpotListOrders(ctx context.Context, arg *WebsocketSp
 	default:
 		return nil, fmt.Errorf("%w: %q", errInvalidOrderStatus, arg.Status)
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := &websocketSpotListOrdersParams{
 		Status:  arg.Status,

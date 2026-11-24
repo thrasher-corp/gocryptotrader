@@ -101,10 +101,8 @@ func (e *Exchange) GetPendingP2POrders(ctx context.Context, arg *PendingP2POrder
 	if arg.FiatCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w: fiat currency is missing", currency.ErrCurrencyCodeEmpty)
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	var resp gateAPIResponse[*P2POrderListResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pPendingTransactionsEPL, http.MethodPost, "p2p/merchant/transaction/get_pending_transaction_list", nil, arg, &resp)
@@ -121,10 +119,8 @@ func (e *Exchange) GetHistoricalP2POrders(ctx context.Context, arg *P2PCompleted
 	if arg.FiatCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w: fiat currency is missing", currency.ErrCurrencyCodeEmpty)
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	var resp gateAPIResponse[*P2POrderListResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pCompletedTransactionsEPL, http.MethodPost, "p2p/merchant/transaction/get_completed_transaction_list", nil, arg, &resp)

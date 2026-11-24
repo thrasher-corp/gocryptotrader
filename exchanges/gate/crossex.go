@@ -56,10 +56,8 @@ func crossExchangeHistoryParams(symbol *CrossExchangeSymbolIdentifierRequest, st
 		}
 		params.Set("symbol", formatted)
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	if !startTime.IsZero() {
 		params.Set("from", strconv.FormatInt(startTime.UnixMilli(), 10))

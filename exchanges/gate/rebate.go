@@ -57,10 +57,8 @@ func (r *RebateBrokerHistoryRequest) Params() (url.Values, error) {
 
 // rebateHistoryParams returns the query parameters every rebate history endpoint shares
 func rebateHistoryParams(userID uint64, from, to time.Time, limit, offset uint64) (url.Values, error) {
-	if !from.IsZero() && !to.IsZero() {
-		if err := common.StartEndTimeCheck(from, to); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(from, to); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if userID != 0 {
@@ -215,10 +213,8 @@ var partnerStatisticsTimezone = time.FixedZone("UTC+8", 8*60*60)
 // GetAggregatedPartnerAgentStatistics retrieves aggregated partner agent statistics, which default to the last 7 days.
 // Business type filter: - 0: All (default) - 1: Spot - 2: Futures - 3: Alpha - 4: Web3 - 5: Perps (DEX) - 6: Exchange All - 7: Web3 All - 8: TradFi
 func (e *Exchange) GetAggregatedPartnerAgentStatistics(ctx context.Context, startTime, endTime time.Time, businessType uint64) (*RebateAgentStatisticsResponse, error) {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {

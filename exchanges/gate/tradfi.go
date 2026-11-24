@@ -349,10 +349,8 @@ func validateTradFiCloseType(closeType uint64, closeVolume types.Number) error {
 
 // setTradFiTimeRangeParams sets the begin_time and end_time query parameters, in seconds, of the TradFi and Stock APIs
 func setTradFiTimeRangeParams(params url.Values, begin, end time.Time) error {
-	if !begin.IsZero() && !end.IsZero() {
-		if err := common.StartEndTimeCheck(begin, end); err != nil {
-			return err
-		}
+	if err := common.StartEndTimeCheckSkipZero(begin, end); err != nil {
+		return err
 	}
 	if !begin.IsZero() {
 		params.Set("begin_time", strconv.FormatInt(begin.Unix(), 10))
