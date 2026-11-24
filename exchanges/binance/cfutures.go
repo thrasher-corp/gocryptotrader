@@ -107,10 +107,8 @@ func (e *Exchange) futuresStatisticsParams(req *CoinMarginedFuturesStatisticsReq
 	if req.Period == 0 {
 		return nil, errInvalidPeriodOrInterval
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("pair", req.Pair.Upper().String())
@@ -147,10 +145,8 @@ func (e *Exchange) GetCoinMarginedFuturesAggregatedTradesList(ctx context.Contex
 	if req.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	symbol, err := e.FormatSymbol(req.Symbol, asset.CoinMarginedFutures)
 	if err != nil {
@@ -202,10 +198,8 @@ func (e *Exchange) klineParams(interval kline.Interval, startTime, endTime time.
 	if interval == 0 {
 		return nil, kline.ErrInvalidInterval
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("interval", e.FormatExchangeKlineInterval(interval))
@@ -563,10 +557,8 @@ func (e *Exchange) CoinMarginedFuturesTradeHistory(ctx context.Context, req *Coi
 	if req.FromID != 0 && (!req.Pair.IsEmpty() || !req.StartTime.IsZero() || !req.EndTime.IsZero()) {
 		return nil, errFromIDMutuallyExclusive
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params, err := e.symbolOrPairParams(req.Symbol, req.Pair)
 	if err != nil {
@@ -1147,10 +1139,8 @@ func (e *Exchange) GetCoinMarginedFuturesOrderModifyHistory(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	if !req.StartTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(req.StartTime.UnixMilli(), 10))
@@ -1173,10 +1163,8 @@ func (e *Exchange) CoinMarginedFuturesMarginChangeHistory(ctx context.Context, r
 	if req.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	symbol, err := e.FormatSymbol(req.Symbol, asset.CoinMarginedFutures)
 	if err != nil {
@@ -1275,10 +1263,8 @@ func (e *Exchange) CoinMarginedFuturesForceOrders(ctx context.Context, req *Coin
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	rateLimit := coinMarginedFuturesAllForceOrdersRate

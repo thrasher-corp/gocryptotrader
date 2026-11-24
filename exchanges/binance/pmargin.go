@@ -1551,10 +1551,8 @@ func (e *Exchange) GetPortfolioMarginUSDTMarginedAlgoOrderHistory(ctx context.Co
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if err := e.portfolioMarginSymbolParam(params, arg.Symbol, asset.USDTMarginedFutures); err != nil {

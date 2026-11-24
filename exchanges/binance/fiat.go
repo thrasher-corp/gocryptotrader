@@ -41,10 +41,8 @@ func fiatHistoryParams(arg *FiatHistoryRequest) (url.Values, error) {
 	if arg.TransactionType > 1 {
 		return nil, fmt.Errorf("%w: %d, want 0 or 1", errInvalidTransactionType, arg.TransactionType)
 	}
-	if !arg.BeginTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.BeginTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.BeginTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("transactionType", strconv.FormatUint(arg.TransactionType, 10))

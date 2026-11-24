@@ -77,10 +77,8 @@ func (e *Exchange) GetNFTAsset(ctx context.Context, limit, page uint64) (*NFTAss
 
 // nftHistoryParams builds the window and paging parameters the NFT history queries share
 func nftHistoryParams(startTime, endTime time.Time, limit, page uint64) (url.Values, error) {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {

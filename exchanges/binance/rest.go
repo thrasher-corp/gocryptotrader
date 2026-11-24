@@ -109,10 +109,8 @@ func (e *Exchange) GetAggregatedTrades(ctx context.Context, req *AggregatedTrade
 	if req.FromID != 0 && (!req.StartTime.IsZero() || !req.EndTime.IsZero()) {
 		return nil, fmt.Errorf("%w: fromId cannot be sent with startTime or endTime", errInvalidParameterCombination)
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	symbol, err := e.FormatSymbol(req.Symbol, asset.Spot)
 	if err != nil {
@@ -400,10 +398,8 @@ func (e *Exchange) getKlines(ctx context.Context, req *KlinesRequest, path strin
 	if req.Interval == 0 {
 		return nil, kline.ErrInvalidInterval
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	symbol, err := e.FormatSymbol(req.Symbol, asset.Spot)
 	if err != nil {
@@ -944,10 +940,8 @@ func (e *Exchange) GetAllOneCancelsTheOtherOrders(ctx context.Context, req *AllO
 		if req.FromID != 0 && (!req.StartTime.IsZero() || !req.EndTime.IsZero()) {
 			return nil, fmt.Errorf("%w: fromId cannot be sent with startTime or endTime", errInvalidParameterCombination)
 		}
-		if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-			if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-				return nil, err
-			}
+		if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+			return nil, err
 		}
 		if req.FromID != 0 {
 			params.Set("fromId", strconv.FormatUint(req.FromID, 10))
@@ -974,10 +968,8 @@ func (e *Exchange) AllOrders(ctx context.Context, req *AllOrdersRequest) ([]Trad
 	if req.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	symbol, err := e.FormatSymbol(req.Symbol, asset.Spot)
 	if err != nil {
@@ -1094,10 +1086,8 @@ func (e *Exchange) GetAllocations(ctx context.Context, req *AllocationsRequest) 
 	if req.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	symbol, err := e.FormatSymbol(req.Symbol, asset.Spot)
 	if err != nil {
@@ -1168,10 +1158,8 @@ func (e *Exchange) GetAccountTradeList(ctx context.Context, req *AccountTradeLis
 	if req.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	symbol, err := e.FormatSymbol(req.Symbol, asset.Spot)
 	if err != nil {

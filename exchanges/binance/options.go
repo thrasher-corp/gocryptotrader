@@ -33,10 +33,8 @@ func (e *Exchange) GetAccountFundingFlow(ctx context.Context, req *OptionsAccoun
 	if req.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("currency", req.Currency.Upper().String())
@@ -104,10 +102,8 @@ func (e *Exchange) GetEOptionsHistoricalExerciseRecords(ctx context.Context, req
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if req.Underlying != "" {
@@ -148,10 +144,8 @@ func (e *Exchange) GetEOptionsCandlesticks(ctx context.Context, req *OptionsKlin
 	if req.Interval == 0 {
 		return nil, kline.ErrInvalidInterval
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	symbol, err := e.FormatSymbol(req.Symbol, asset.Options)
 	if err != nil {
@@ -359,10 +353,8 @@ func (e *Exchange) GetEOptionsAccountTradeList(ctx context.Context, req *Options
 	if req.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	symbol, err := e.FormatSymbol(req.Symbol, asset.Options)
 	if err != nil {
@@ -614,10 +606,8 @@ func (e *Exchange) getCurrentOpenOptionsOrders(ctx context.Context, req *Options
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	rateLimit := allSymbols
@@ -651,10 +641,8 @@ func (e *Exchange) GetOptionsOrdersHistory(ctx context.Context, req *OptionsOrde
 	if req.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	symbol, err := e.FormatSymbol(req.Symbol, asset.Options)
 	if err != nil {
@@ -683,10 +671,8 @@ func (e *Exchange) GetUserOptionsExerciseRecord(ctx context.Context, req *Option
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !req.Symbol.IsEmpty() {

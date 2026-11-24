@@ -528,12 +528,11 @@ func TestEndpointCosts(t *testing.T) { //nolint:tparallel // Each case marks see
 		{portfolioMarginGetUSDTMarginedPositionAutoDeleveragingQuantileEstimationRate, portfolioMarginIPPool, 5, "GET /papi/v1/um/adlQuantile"},
 		{portfolioMarginAPIReferralRate, portfolioMarginIPPool, 100, "the OMS Toolkit /papi/v1/apiReferral endpoints"},
 	}
-	seen := make(map[request.EndpointLimit]bool, len(rows))
+	seen := make(common.Seen[request.EndpointLimit], len(rows))
 	// Each case marks its endpoint limit in seen for the rows after it, so they run in order
 	for _, tc := range rows {
 		t.Run(tc.endpoints, func(t *testing.T) {
-			require.Falsef(t, seen[tc.epl], "%s must have one row", tc.endpoints)
-			seen[tc.epl] = true
+			require.Falsef(t, seen.CheckAndRecord(tc.epl), "%s must have one row", tc.endpoints)
 			assert.Equalf(t, endpointCost{tc.pool, tc.weight}, endpointCosts[tc.epl], "%s should cost its documented weight on its pool", tc.endpoints)
 		})
 	}

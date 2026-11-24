@@ -252,7 +252,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
-	e.addDefaultDerivativesSubscriptions(exch)
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
 		Features:                     &e.Features.Supports.WebsocketCapabilities,
@@ -4210,13 +4209,11 @@ func pagedOrderHistory[T any](start, end time.Time, fromID uint64, maxSpan time.
 	}
 	start, end = startMilli, endMilli
 	var orders []T
-	seen := make(map[uint64]struct{})
+	seen := make(common.Seen[uint64])
 	unseen := func(page []T) []T {
 		var fresh []T
 		for i := range page {
-			id := idOf(&page[i])
-			if _, ok := seen[id]; !ok {
-				seen[id] = struct{}{}
+			if !seen.CheckAndRecord(idOf(&page[i])) {
 				fresh = append(fresh, page[i])
 			}
 		}

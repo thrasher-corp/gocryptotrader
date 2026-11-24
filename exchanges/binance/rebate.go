@@ -14,10 +14,8 @@ import (
 // GetSpotRebateHistoryRecords calls Get Spot Rebate History Records for a window of at most 30 days from 2020-06-10
 // onwards; without a window the API returns the last 7 days, at most 200 records a page
 func (e *Exchange) GetSpotRebateHistoryRecords(ctx context.Context, startTime, endTime time.Time, page uint64) (*RebateHistoryResponse, error) {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {

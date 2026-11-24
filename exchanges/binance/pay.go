@@ -14,10 +14,8 @@ import (
 // GetPayTradeHistory calls Get Pay Trade History for a window of at most 90 days within the last 18 months; without a
 // window the API returns the last 90 days
 func (e *Exchange) GetPayTradeHistory(ctx context.Context, startTime, endTime time.Time, limit uint64) (*PayTradeHistoryResponse, error) {
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(startTime, endTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {

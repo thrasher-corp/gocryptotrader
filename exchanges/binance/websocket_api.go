@@ -874,10 +874,8 @@ func (e *Exchange) getWsKlines(ctx context.Context, method string, arg *Websocke
 		return nil, err
 	}
 	params["interval"] = interval
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params.setTime("startTime", arg.StartTime)
 	params.setTime("endTime", arg.EndTime)
@@ -1011,10 +1009,8 @@ func (e *Exchange) GetWebsocketAggregatedTrades(ctx context.Context, arg *Websoc
 	if err := e.setSymbol(params, arg.Symbol); err != nil {
 		return nil, err
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params.setUint("fromId", arg.FromID)
 	params.setTime("startTime", arg.StartTime)
@@ -1400,10 +1396,8 @@ func (e *Exchange) WebsocketQueryAccountOneCancelsTheOtherOrderHistory(ctx conte
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := wsParams{}
 	params.setUint("fromId", arg.FromID)
@@ -1424,10 +1418,8 @@ func (e *Exchange) WebsocketQueryAccountOrderHistory(ctx context.Context, arg *W
 	if err := e.setSymbol(params, arg.Symbol); err != nil {
 		return nil, err
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params.setUint("orderId", arg.OrderID)
 	params.setTime("startTime", arg.StartTime)
@@ -1446,10 +1438,8 @@ func (e *Exchange) WebsocketAccountAllocation(ctx context.Context, arg *Websocke
 	if err := e.setSymbol(params, arg.Symbol); err != nil {
 		return nil, err
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params.setTime("startTime", arg.StartTime)
 	params.setTime("endTime", arg.EndTime)
@@ -1494,10 +1484,8 @@ func (e *Exchange) WebsocketAccountTradeHistory(ctx context.Context, arg *Websoc
 	if err := e.setSymbol(params, arg.Symbol); err != nil {
 		return nil, err
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params.setUint("orderId", arg.OrderID)
 	params.setTime("startTime", arg.StartTime)

@@ -3,7 +3,6 @@ package binance
 import (
 	"bufio"
 	"bytes"
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -1045,7 +1044,7 @@ type spotDepthServer struct {
 
 	mu         sync.Mutex
 	conns      map[*gws.Conn]*spotDepthConn
-	subscribed map[string]bool
+	subscribed common.Seen[string]
 	fetches    map[string]int
 	hold       chan struct{}
 	held       int
@@ -1063,7 +1062,7 @@ func newSpotDepthServer(t *testing.T) *spotDepthServer {
 		streams:    newSpotDepthStreams(),
 		done:       make(chan struct{}),
 		conns:      make(map[*gws.Conn]*spotDepthConn),
-		subscribed: make(map[string]bool),
+		subscribed: make(common.Seen[string]),
 		fetches:    make(map[string]int),
 	}
 	t.Cleanup(func() { close(s.done) })
@@ -1136,10 +1135,9 @@ func (s *spotDepthServer) handleRequest(tb testing.TB, msg []byte, w *gws.Conn) 
 			c.symbols = slices.DeleteFunc(c.symbols, func(s string) bool { return s == symbol })
 			continue
 		}
-		if s.subscribed[symbol] {
+		if s.subscribed.CheckAndRecord(symbol) {
 			s.streams.skip(symbol, 1000)
 		}
-		s.subscribed[symbol] = true
 		c.symbols = append(c.symbols, symbol)
 	}
 	s.mu.Unlock()
@@ -1351,72 +1349,6 @@ func expectedSpotSubscriptions(tb testing.TB, ex *Exchange, channels ...*subscri
 		}
 	}
 	return exp
-}
-
-func TestAddDefaultDerivativesSubscriptions(t *testing.T) {
-	t.Parallel()
-	derivatives := []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options}
-	// A configuration saved before subscriptions had assets has empty ones, which mean spot
-	assets := []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options, asset.All, asset.Empty}
-	channels := []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel, subscription.MyOrdersChannel}
-	type testCase struct {
-		name     string
-		features *config.FeaturesConfig
-		defaults []asset.Item
-	}
-	tests := make([]testCase, 0, 3+len(assets)*len(channels)*4)
-	tests = append(tests,
-		testCase{"no features", nil, derivatives},
-		testCase{"no subscriptions", &config.FeaturesConfig{}, derivatives},
-		testCase{
-			"my orders beside a USDⓈ-M ticker",
-			&config.FeaturesConfig{Subscriptions: subscription.List{
-				{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel},
-				{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel},
-			}},
-			[]asset.Item{asset.CoinMarginedFutures, asset.Options},
-		},
-	)
-	// A subscription keeps out the defaults of its derivatives asset, or of every one for all assets, whatever its channel
-	// and flags, unless it is a myOrders subscription
-	for _, a := range assets {
-		for _, channel := range channels {
-			defaults := derivatives
-			if channel != subscription.MyOrdersChannel {
-				defaults = slices.DeleteFunc(slices.Clone(derivatives), func(d asset.Item) bool { return a == asset.All || d == a })
-			}
-			for _, enabled := range []bool{true, false} {
-				for _, authenticated := range []bool{false, true} {
-					name := cmp.Or(a.String(), "no asset") + " " + channel
-					if !enabled {
-						name = "disabled " + name
-					}
-					if authenticated {
-						name += " flagged as authenticated"
-					}
-					tests = append(tests, testCase{
-						name:     name,
-						features: &config.FeaturesConfig{Subscriptions: subscription.List{{Enabled: enabled, Authenticated: authenticated, Asset: a, Channel: channel}}},
-						defaults: defaults,
-					})
-				}
-			}
-		}
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := new(Exchange)
-			ex.addDefaultDerivativesSubscriptions(&config.Exchange{Features: tc.features})
-			exp := subscription.List{}
-			for _, s := range defaultSubscriptions {
-				if slices.Contains(tc.defaults, s.Asset) {
-					exp = append(exp, s.Clone())
-				}
-			}
-			testsubs.EqualLists(t, exp, ex.Features.Subscriptions)
-		})
-	}
 }
 
 func TestGenerateSubscriptions(t *testing.T) {
@@ -1877,6 +1809,91 @@ func TestSetup(t *testing.T) {
 				conn, err := ex.Websocket.CreateTestConnection(tc.filter)
 				require.NoError(t, err, "the derivatives stream connection must be registered")
 				assert.Equal(t, tc.exp, conn.GetURL(), "the derivatives stream connection should take the host without its trailing slash")
+			})
+		}
+	})
+	t.Run("streams the subscriptions a saved configuration loads as", func(t *testing.T) {
+		t.Parallel()
+		root, err := testutils.RootPathFromCWD()
+		require.NoError(t, err, "RootPathFromCWD must not error")
+		saved, err := os.ReadFile(filepath.Join(root, "testdata", "configtest.json"))
+		require.NoError(t, err, "ReadFile must read the test configuration")
+		// Version 19 is the last before Binance had derivatives streams
+		saved, err = jsonparser.Set(saved, []byte("19"), "version")
+		require.NoError(t, err, "Set must replace the configuration's version")
+		binanceIndex, i := -1, 0
+		_, err = jsonparser.ArrayEach(saved, func(exch []byte, _ jsonparser.ValueType, _ int, _ error) {
+			if name, _ := jsonparser.GetString(exch, "name"); name == "Binance" {
+				binanceIndex = i
+			}
+			i++
+		}, "exchanges")
+		require.NoError(t, err, "ArrayEach must read the configuration's exchanges")
+		require.NotEqual(t, -1, binanceIndex, "the test configuration must hold Binance")
+		for _, tc := range []struct {
+			name, subscriptions string
+			exp                 subscription.List
+		}{
+			{
+				name:          "previous defaults",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"},{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"}]`,
+				exp:           defaultSubscriptions.Clone(),
+			},
+			{
+				name:          "customised subscriptions",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":false,"channel":"orderbook","asset":"spot","interval":"100ms"}]`,
+				exp: subscription.List{
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
+					{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+				},
+			},
+			{
+				name:          "disabled subscriptions alone",
+				subscriptions: `[{"enabled":false,"channel":"ticker","asset":"spot"}]`,
+				exp:           subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Spot}},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				data, err := jsonparser.Set(slices.Clone(saved), []byte(tc.subscriptions), "exchanges", "["+strconv.Itoa(binanceIndex)+"]", "features", "subscriptions")
+				require.NoError(t, err, "Set must replace Binance's subscriptions")
+				path := filepath.Join(t.TempDir(), "config.json")
+				require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the configuration")
+				cfg := &config.Config{}
+				require.NoError(t, cfg.LoadConfig(path, true), "LoadConfig must load and migrate the configuration")
+				exchCfg, err := cfg.GetExchangeConfig("Binance")
+				require.NoError(t, err, "GetExchangeConfig must not error")
+				assert.Equal(t, tc.exp, exchCfg.Features.Subscriptions, "the saved subscriptions should load as expected")
+				ex := new(Exchange)
+				ex.SetDefaults()
+				ex.Websocket = sharedtestvalues.NewTestWebsocket()
+				require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+				assert.Equal(t, tc.exp.Enabled(), ex.Features.Subscriptions, "Setup should take the enabled saved subscriptions")
+				var exp, streamed []string
+				for _, s := range tc.exp.Enabled() {
+					pairs, err := ex.GetEnabledPairs(s.Asset)
+					require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", s.Asset)
+					for _, p := range pairs {
+						exp = append(exp, s.Asset.String()+" "+s.Channel+" "+p.Base.Upper().String()+"/"+p.Quote.Upper().String())
+					}
+				}
+				for _, generate := range []func() (subscription.List, error){
+					ex.generateSubscriptions,
+					ex.generateUSDTMarginedFuturesPublicSubscriptions,
+					ex.generateUSDTMarginedFuturesMarketSubscriptions,
+					ex.generateCoinMarginedFuturesSubscriptions,
+					ex.generateOptionsPublicSubscriptions,
+					ex.generateOptionsMarketSubscriptions,
+				} {
+					subs, err := generate()
+					require.NoError(t, err, "each stream connection must generate its subscriptions")
+					for _, s := range subs {
+						for _, p := range s.Pairs {
+							streamed = append(streamed, s.Asset.String()+" "+s.Channel+" "+p.Base.Upper().String()+"/"+p.Quote.Upper().String())
+						}
+					}
+				}
+				assert.ElementsMatch(t, exp, streamed, "the stream connections should stream each enabled subscription once for each enabled pair")
 			})
 		}
 	})

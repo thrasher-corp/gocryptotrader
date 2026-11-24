@@ -105,10 +105,8 @@ func (e *Exchange) GetCrossOrIsolatedMarginCapitalFlow(ctx context.Context, req 
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !req.Asset.IsEmpty() {
@@ -216,10 +214,8 @@ func (e *Exchange) GetUserMarginInterestHistory(ctx context.Context, req *UserMa
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !req.Asset.IsEmpty() {
@@ -257,10 +253,8 @@ func (e *Exchange) GetBorrowOrRepayRecordsInMarginAccount(ctx context.Context, r
 	if req.Type == "" {
 		return nil, errLendingTypeRequired
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("type", string(req.Type))
@@ -338,10 +332,8 @@ func (e *Exchange) GetMarginInterestRateHistory(ctx context.Context, req *Margin
 	if req.Asset.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("asset", req.Asset.Upper().String())
@@ -478,10 +470,8 @@ func (e *Exchange) GetForceLiquidationRecord(ctx context.Context, req *ForceLiqu
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !req.StartTime.IsZero() {
@@ -542,10 +532,8 @@ func (e *Exchange) GetSmallLiabilityExchangeHistory(ctx context.Context, req *Sm
 	if req.Size == 0 {
 		return nil, errPageSizeRequired
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("current", strconv.FormatUint(req.Current, 10))
@@ -911,10 +899,8 @@ func (e *Exchange) GetMarginAccountAllOneCancelsTheOtherOrders(ctx context.Conte
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if req.IsIsolated {
@@ -952,10 +938,8 @@ func (e *Exchange) GetMarginAccountAllOrders(ctx context.Context, req *MarginAcc
 	if req.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	symbolValue, err := e.FormatSymbol(req.Symbol, asset.Margin)
 	if err != nil {
@@ -1008,10 +992,8 @@ func (e *Exchange) GetMarginAccountTradeList(ctx context.Context, req *MarginAcc
 	if req.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	symbolValue, err := e.FormatSymbol(req.Symbol, asset.Margin)
 	if err != nil {
@@ -1047,10 +1029,8 @@ func (e *Exchange) GetCrossMarginTransferHistory(ctx context.Context, req *Cross
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !req.Asset.IsEmpty() {

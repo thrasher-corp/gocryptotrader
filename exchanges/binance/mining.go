@@ -95,10 +95,8 @@ func miningPaymentParams(arg *MiningPaymentRequest) (url.Values, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !arg.StartDate.IsZero() && !arg.EndDate.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartDate, arg.EndDate); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartDate, arg.EndDate); err != nil {
+		return nil, err
 	}
 	if !arg.Coin.IsEmpty() {
 		params.Set("coin", arg.Coin.Upper().String())
@@ -196,10 +194,8 @@ func (e *Exchange) GetMiningAccountEarning(ctx context.Context, arg *MiningAccou
 	if arg.Algorithm == "" {
 		return nil, errTransferAlgorithmRequired
 	}
-	if !arg.StartDate.IsZero() && !arg.EndDate.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartDate, arg.EndDate); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartDate, arg.EndDate); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("algo", arg.Algorithm)

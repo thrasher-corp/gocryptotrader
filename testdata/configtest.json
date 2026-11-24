@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 20,
+ "version": 21,
  "dataDirectory": "",
  "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
@@ -656,6 +656,72 @@
       "enabled": true,
       "channel": "orderbook",
       "asset": "spot",
+      "interval": "100ms"
+     },
+     {
+      "enabled": true,
+      "channel": "ticker",
+      "asset": "usdtmarginedfutures"
+     },
+     {
+      "enabled": true,
+      "channel": "allTrades",
+      "asset": "usdtmarginedfutures"
+     },
+     {
+      "enabled": true,
+      "channel": "candles",
+      "asset": "usdtmarginedfutures",
+      "interval": "1m"
+     },
+     {
+      "enabled": true,
+      "channel": "orderbook",
+      "asset": "usdtmarginedfutures",
+      "interval": "100ms"
+     },
+     {
+      "enabled": true,
+      "channel": "ticker",
+      "asset": "coinmarginedfutures"
+     },
+     {
+      "enabled": true,
+      "channel": "allTrades",
+      "asset": "coinmarginedfutures"
+     },
+     {
+      "enabled": true,
+      "channel": "candles",
+      "asset": "coinmarginedfutures",
+      "interval": "1m"
+     },
+     {
+      "enabled": true,
+      "channel": "orderbook",
+      "asset": "coinmarginedfutures",
+      "interval": "100ms"
+     },
+     {
+      "enabled": true,
+      "channel": "ticker",
+      "asset": "options"
+     },
+     {
+      "enabled": true,
+      "channel": "allTrades",
+      "asset": "options"
+     },
+     {
+      "enabled": true,
+      "channel": "candles",
+      "asset": "options",
+      "interval": "1m"
+     },
+     {
+      "enabled": true,
+      "channel": "orderbook",
+      "asset": "options",
       "interval": "100ms"
      }
     ]

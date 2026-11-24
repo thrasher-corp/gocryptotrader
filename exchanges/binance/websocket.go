@@ -85,29 +85,6 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Options, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
 }
 
-// addDefaultDerivativesSubscriptions streams the default subscriptions of each derivatives asset that the configuration
-// has no subscription of, enabled or not, since configurations from before the derivatives streams list only spot's;
-// an asset with configured subscriptions, all-assets ones included, streams exactly its enabled ones. A myOrders
-// subscription has no stream of its own, so it leaves an asset's defaults in place
-func (e *Exchange) addDefaultDerivativesSubscriptions(exch *config.Exchange) {
-	var configured subscription.List
-	if exch.Features != nil {
-		configured = exch.Features.Subscriptions
-	}
-	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
-		if slices.ContainsFunc(configured, func(s *subscription.Subscription) bool {
-			return s.Channel != subscription.MyOrdersChannel && (s.Asset == a || s.Asset == asset.All)
-		}) {
-			continue
-		}
-		for _, s := range defaultSubscriptions {
-			if s.Asset == a {
-				e.Features.Subscriptions = append(e.Features.Subscriptions, s.Clone())
-			}
-		}
-	}
-}
-
 // spotStreamConnectionSetup returns the setup of the spot market data stream connection
 func (e *Exchange) spotStreamConnectionSetup(exch *config.Exchange) *websocket.ConnectionSetup {
 	return &websocket.ConnectionSetup{
@@ -504,7 +481,7 @@ func distinctSubscriptions(subs subscription.List) subscription.List {
 		levels         int
 		interval       kline.Interval
 	}
-	seen := make(map[stream]bool, len(subs))
+	seen := make(common.Seen[stream], len(subs))
 	kept := make(subscription.List, 0, len(subs))
 	for _, s := range subs {
 		pairs := make([]string, len(s.Pairs))
@@ -513,8 +490,7 @@ func distinctSubscriptions(subs subscription.List) subscription.List {
 		}
 		slices.Sort(pairs)
 		k := stream{channel: s.Channel, pairs: strings.Join(pairs, ","), asset: s.Asset, levels: s.Levels, interval: s.Interval}
-		if !seen[k] {
-			seen[k] = true
+		if !seen.CheckAndRecord(k) {
 			kept = append(kept, s)
 		}
 	}
