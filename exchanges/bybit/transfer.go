@@ -51,10 +51,8 @@ func (e *Exchange) GetInternalTransferRecords(ctx context.Context, arg *Internal
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if arg.TransferID != "" {
@@ -130,10 +128,8 @@ func (e *Exchange) GetUniversalTransferRecords(ctx context.Context, arg *Univers
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if arg.TransferID != "" {

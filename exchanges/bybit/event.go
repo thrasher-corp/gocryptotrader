@@ -54,10 +54,8 @@ func (e *Exchange) GetEventOrderHistory(ctx context.Context, req *EventOrderHist
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if req.Symbol != "" {
@@ -146,10 +144,8 @@ func (e *Exchange) GetEventSettlementRecords(ctx context.Context, req *EventSett
 	if req.Symbol == "" {
 		return nil, errSymbolMissing
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", req.Symbol)
@@ -181,10 +177,8 @@ func (e *Exchange) GetEventTradeHistory(ctx context.Context, req *EventTradeHist
 	if req.Symbol == "" {
 		return nil, errSymbolMissing
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", req.Symbol)

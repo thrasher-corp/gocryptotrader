@@ -34,10 +34,8 @@ func (e *Exchange) GetDepositRecords(ctx context.Context, arg *DepositRecordsReq
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if arg.ID != "" {
@@ -74,10 +72,8 @@ func (e *Exchange) GetSubDepositRecords(ctx context.Context, arg *SubDepositReco
 	if arg.SubMemberID == "" {
 		return nil, errMemberIDRequired
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if arg.ID != "" {
@@ -113,10 +109,8 @@ func (e *Exchange) GetInternalDepositRecordsOffChain(ctx context.Context, arg *I
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if arg.TransactionID != "" {

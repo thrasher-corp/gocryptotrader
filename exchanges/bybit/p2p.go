@@ -283,10 +283,8 @@ func p2pOrderListBody(r *P2POrderListRequest) (map[string]any, error) {
 	if r.Size == 0 {
 		return nil, errPageLimitRequired
 	}
-	if !r.BeginTime.IsZero() && !r.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(r.BeginTime, r.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.BeginTime, r.EndTime); err != nil {
+		return nil, err
 	}
 	body := make(map[string]any)
 	body["page"] = r.Page

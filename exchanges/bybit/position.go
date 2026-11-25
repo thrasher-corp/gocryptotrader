@@ -227,10 +227,8 @@ func (e *Exchange) GetClosedPNL(ctx context.Context, r *ClosedPNLRequest) (*Clos
 	if r.Category == "" {
 		return nil, errCategoryNotSet
 	}
-	if !r.StartTime.IsZero() && !r.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartTime, r.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.StartTime, r.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("category", r.Category)
@@ -262,10 +260,8 @@ func (e *Exchange) GetClosedOptionsPositions(ctx context.Context, r *ClosedOptio
 	if r.Category == "" {
 		return nil, errCategoryNotSet
 	}
-	if !r.StartTime.IsZero() && !r.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartTime, r.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.StartTime, r.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("category", r.Category)
@@ -338,10 +334,8 @@ func (e *Exchange) GetMovePositionHistory(ctx context.Context, r *MovePositionHi
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
-	if !r.StartTime.IsZero() && !r.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartTime, r.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.StartTime, r.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if r.Category != "" {

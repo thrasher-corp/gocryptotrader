@@ -31,10 +31,8 @@ func (e *Exchange) GetCardAssetRecords(ctx context.Context, req *CardAssetRecord
 	if (req.Type == "SIDE_QUERY_FINANCIAL" || req.Type == "SIDE_QUERY_REFUND") && (req.TransactionID == "" || req.OrderNumber == "") {
 		return nil, fmt.Errorf("%w: %s", errCardTransactionIDAndOrderNotSet, req.Type)
 	}
-	if !req.CreateBeginTime.IsZero() && !req.CreateEndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.CreateBeginTime, req.CreateEndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.CreateBeginTime, req.CreateEndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if req.StatusCode != "" {
@@ -85,10 +83,8 @@ func (e *Exchange) GetCardPointRecords(ctx context.Context, req *CardPointRecord
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if req.Type != "" {

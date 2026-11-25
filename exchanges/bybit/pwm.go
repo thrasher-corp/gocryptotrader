@@ -151,10 +151,8 @@ func (e *Exchange) GetPrivateWealthManagementAssetTrend(ctx context.Context, req
 	if req.PlanID == "" {
 		return nil, errPlanIDRequired
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("planId", req.PlanID)
@@ -176,10 +174,8 @@ func (e *Exchange) GetPrivateWealthManagementFundHistoricalNAV(ctx context.Conte
 	if req.FundID == "" {
 		return nil, errFundIDRequired
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("fundId", req.FundID)
@@ -300,10 +296,8 @@ func (e *Exchange) GetPrivateWealthManagementInvestmentPlanOrders(ctx context.Co
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if req.PlanID != "" {
@@ -564,10 +558,8 @@ func (e *Exchange) GetAllPrivateWealthManagementFundOrders(ctx context.Context, 
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if req.FundID != "" {

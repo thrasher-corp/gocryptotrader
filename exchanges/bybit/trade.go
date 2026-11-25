@@ -130,10 +130,8 @@ func (e *Exchange) GetTradeOrderHistory(ctx context.Context, r *OrderHistoryRequ
 	if r.Category == "" {
 		return nil, errCategoryNotSet
 	}
-	if !r.StartTime.IsZero() && !r.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartTime, r.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.StartTime, r.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("category", r.Category)
@@ -182,10 +180,8 @@ func (e *Exchange) GetExecution(ctx context.Context, r *ExecutionRequest) (*Exec
 	if r.Category == "" {
 		return nil, errCategoryNotSet
 	}
-	if !r.StartTime.IsZero() && !r.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartTime, r.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.StartTime, r.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("category", r.Category)

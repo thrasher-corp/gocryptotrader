@@ -107,10 +107,8 @@ func (e *Exchange) GetEarnOrderHistory(ctx context.Context, req *EarnOrderHistor
 	if req.Category == "OnChain" && req.OrderID == "" && req.OrderLinkID == "" {
 		return nil, errEitherOrderIDOROrderLinkIDRequired
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("category", req.Category)
@@ -196,10 +194,8 @@ func (e *Exchange) GetEarnYieldHistory(ctx context.Context, req *EarnYieldHistor
 	if req.Category == "OnChain" && req.ProductID != "" {
 		return nil, errOnChainProductIDRejected
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("category", req.Category)
@@ -230,10 +226,8 @@ func (e *Exchange) GetEarnHourlyYieldHistory(ctx context.Context, req *EarnYield
 	if req.Category == "" {
 		return nil, errCategoryNotSet
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("category", req.Category)
@@ -267,10 +261,8 @@ func (e *Exchange) GetEarnAPRHistory(ctx context.Context, req *EarnAPRHistoryReq
 	if req.ProductID == "" {
 		return nil, errProductIDRequired
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("category", req.Category)
@@ -349,10 +341,8 @@ func (e *Exchange) GetBYUSDTOrderList(ctx context.Context, req *BYUSDTOrderListR
 	if req.Coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("coin", req.Coin.Upper().String())
@@ -400,10 +390,8 @@ func (e *Exchange) GetBYUSDTDailyYieldRecords(ctx context.Context, req *BYUSDTYi
 	if req.Coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("coin", req.Coin.Upper().String())
@@ -431,10 +419,8 @@ func (e *Exchange) GetBYUSDTHourlyYieldRecords(ctx context.Context, req *BYUSDTY
 	if req.Coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("coin", req.Coin.Upper().String())
@@ -566,10 +552,8 @@ func (e *Exchange) GetFixedSavingOrderList(ctx context.Context, req *FixedSaving
 	if req.ProductID != "" && req.Category == "" {
 		return nil, errCategoryNotSet
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if req.OrderType != "" {
@@ -675,10 +659,8 @@ func (e *Exchange) GetAirdropDailyPNLRecords(ctx context.Context, req *AirdropDa
 	if req.Limit == 0 {
 		return nil, errLimitRequired
 	}
-	if !req.TimeStart.IsZero() && !req.TimeEnd.IsZero() {
-		if err := common.StartEndTimeCheck(req.TimeStart, req.TimeEnd); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.TimeStart, req.TimeEnd); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !req.TimeStart.IsZero() {

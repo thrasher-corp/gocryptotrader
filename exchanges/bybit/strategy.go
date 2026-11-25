@@ -167,10 +167,8 @@ func (e *Exchange) CreateStrategyOrder(ctx context.Context, arg *CreateStrategyO
 
 // setStrategyTimeWindow sets the strategy endpoints' beginTimeE0 and endTimeE0, which are in whole seconds
 func setStrategyTimeWindow(params url.Values, begin, end time.Time) error {
-	if !begin.IsZero() && !end.IsZero() {
-		if err := common.StartEndTimeCheck(begin, end); err != nil {
-			return err
-		}
+	if err := common.StartEndTimeCheckSkipZero(begin, end); err != nil {
+		return err
 	}
 	if !begin.IsZero() {
 		params.Set("beginTimeE0", strconv.FormatInt(begin.Unix(), 10))

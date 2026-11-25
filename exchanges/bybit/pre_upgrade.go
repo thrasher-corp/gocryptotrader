@@ -70,10 +70,8 @@ func (e *Exchange) GetPreUpgradeTradeHistory(ctx context.Context, req *PreUpgrad
 	if req.Category == "" {
 		return nil, errCategoryNotSet
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("category", req.Category)
@@ -120,10 +118,8 @@ func (e *Exchange) GetPreUpgradeClosedPNL(ctx context.Context, req *PreUpgradeCl
 	if req.Symbol == "" {
 		return nil, errSymbolMissing
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("category", req.Category)
@@ -153,10 +149,8 @@ func (e *Exchange) GetPreUpgradeTransactionLog(ctx context.Context, req *PreUpgr
 	if req.Category == "" {
 		return nil, errCategoryNotSet
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("category", req.Category)

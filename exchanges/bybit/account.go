@@ -64,10 +64,8 @@ func (e *Exchange) GetTransactionLog(ctx context.Context, req *TransactionLogReq
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if req.AccountType != "" {
@@ -265,10 +263,8 @@ func (e *Exchange) GetBorrowHistory(ctx context.Context, req *BorrowHistoryReque
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !req.Currency.IsEmpty() {
@@ -454,10 +450,8 @@ func (e *Exchange) GetTradeInfoForAnalysis(ctx context.Context, req *TradeInfoFo
 	if req.Symbol == "" {
 		return nil, errSymbolMissing
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", req.Symbol)

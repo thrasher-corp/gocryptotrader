@@ -362,10 +362,8 @@ func (e *Exchange) GetAdvancedEarnOrderInfo(ctx context.Context, req *AdvancedEa
 // setAdvancedEarnTimeWindow sets the startTime and endTime parameters in milliseconds, checking the window when both
 // bounds are given
 func setAdvancedEarnTimeWindow(params url.Values, start, end time.Time) error {
-	if !start.IsZero() && !end.IsZero() {
-		if err := common.StartEndTimeCheck(start, end); err != nil {
-			return err
-		}
+	if err := common.StartEndTimeCheckSkipZero(start, end); err != nil {
+		return err
 	}
 	if !start.IsZero() {
 		params.Set("startTime", strconv.FormatInt(start.UnixMilli(), 10))

@@ -49,10 +49,8 @@ func (e *Exchange) GetDeliveryRecord(ctx context.Context, arg *DeliveryRecordReq
 	if arg.Category == "" {
 		return nil, errCategoryNotSet
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("category", arg.Category)
@@ -87,10 +85,8 @@ func (e *Exchange) GetUSDCSessionSettlement(ctx context.Context, arg *USDCSessio
 	if arg.Category == "" {
 		return nil, errCategoryNotSet
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("category", arg.Category)

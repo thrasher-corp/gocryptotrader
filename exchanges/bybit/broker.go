@@ -42,10 +42,8 @@ func (e *Exchange) GetBrokerIPChangeLog(ctx context.Context, arg *GetBrokerIPCha
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if !arg.StartTime.IsZero() {
@@ -112,10 +110,8 @@ func (e *Exchange) GetBrokerSubAccountDepositRecords(ctx context.Context, arg *G
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(arg.StartTime, arg.EndTime); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if arg.ID != "" {
