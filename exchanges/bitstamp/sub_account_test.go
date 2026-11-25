@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // transferRequestErrors are the transfer requests refused before they are sent
@@ -55,7 +56,7 @@ func TestTransferToMainAccount(t *testing.T) {
 	}
 	t.Run("unknown sub account", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		err := e.TransferToMainAccount(t.Context(), &TransferRequest{Amount: 10000, Currency: currency.BTC, SubAccount: 1234567})
 		assert.ErrorIs(t, err, errAPIResponse, "TransferToMainAccount should error for an unknown sub account")
 		assert.ErrorContains(t, err, `Sub account with identifier "1234567" does not exist.`, "error should contain the reason")
@@ -88,7 +89,7 @@ func TestTransferFromMainAccount(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		// More bitcoin than will ever exist, so no account holds it
 		requireRefusedOnMerits(t, e.TransferFromMainAccount(t.Context(), &TransferRequest{Amount: 21000001, Currency: currency.BTC, SubAccount: 1234567}), invalidChoice)
 	})

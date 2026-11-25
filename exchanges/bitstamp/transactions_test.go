@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -31,7 +32,7 @@ func TestGetUserTransactions(t *testing.T) {
 	}
 	t.Run("valid request", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		transactions, err := e.GetUserTransactions(t.Context(), &UserTransactionsRequest{Pair: spotPair, Limit: 10, Sort: SortDescending})
 		require.NoError(t, err, "GetUserTransactions must not error")
 		if mockTests {
@@ -69,7 +70,7 @@ func TestGetCryptoTransactions(t *testing.T) {
 	}
 	t.Run("valid request", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		txs, err := e.GetCryptoTransactions(t.Context(), &CryptoTransactionsRequest{Limit: 10, IncludeIOUs: true})
 		require.NoError(t, err, "GetCryptoTransactions must not error")
 		if !mockTests {
@@ -120,7 +121,7 @@ func TestGetCryptoDeposits(t *testing.T) {
 	}
 	t.Run("valid request", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		deposits, err := e.GetCryptoDeposits(t.Context(), &CryptoDepositsRequest{Limit: 10, Status: "PENDING"})
 		require.NoError(t, err, "GetCryptoDeposits must not error")
 		if !mockTests {

@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 func TestGetContact(t *testing.T) {
@@ -18,7 +19,7 @@ func TestGetContact(t *testing.T) {
 	_, err := e.GetContact(t.Context(), "")
 	assert.ErrorIs(t, err, errContactIDRequired, "GetContact should error without a contact ID")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	contact, err := e.GetContact(t.Context(), testContact.ID)
 	if !mockTests {
 		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetContact should error for an unknown contact")
@@ -30,7 +31,7 @@ func TestGetContact(t *testing.T) {
 
 func TestGetContacts(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	_, err := e.GetContacts(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "GetContacts should error on a nil request")
 	contacts, err := e.GetContacts(t.Context(), &PaginationRequest{Page: 1, PerPage: 10})
@@ -61,7 +62,7 @@ func TestCreateContact(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		_, err := e.CreateContact(t.Context(), &ContactRequest{
 			RetailInfo:  &RetailInfo{FirstName: "John", LastName: "Doe", IDType: "unlisted", IDNumber: "PA1234567"},
 			Description: testContact.Description,
@@ -115,7 +116,7 @@ func TestSubmitCounterpartyInfo(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		_, err := e.SubmitCounterpartyInfo(t.Context(), &CounterpartyAddressRequest{
 			Address:                         core.BitcoinDonationAddress,
 			Network:                         "unlisted",
@@ -132,7 +133,7 @@ func TestGetSatoshiTests(t *testing.T) {
 	_, err := e.GetSatoshiTests(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "GetSatoshiTests should error on a nil request")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	tests, err := e.GetSatoshiTests(t.Context(), &SatoshiTestsRequest{Network: "bitcoin", Status: "pending"})
 	require.NoError(t, err, "GetSatoshiTests must not error")
 	if mockTests {
@@ -172,7 +173,7 @@ func TestCreateSatoshiTest(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		_, err := e.CreateSatoshiTest(t.Context(), &SatoshiTestRequest{Address: core.BitcoinDonationAddress, Network: "unlisted", Currency: unlistedCurrency})
 		requireRefusedOnMerits(t, err)
 	})
@@ -183,7 +184,7 @@ func TestGetSatoshiTest(t *testing.T) {
 	_, err := e.GetSatoshiTest(t.Context(), "")
 	assert.ErrorIs(t, err, errSatoshiTestIDRequired, "GetSatoshiTest should error without an ID")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	resp, err := e.GetSatoshiTest(t.Context(), testSatoshiTest.ID)
 	if !mockTests {
 		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetSatoshiTest should error for an unknown test")
@@ -200,7 +201,7 @@ func TestGetExtendedPublicKeyRegistrations(t *testing.T) {
 	_, err = e.GetExtendedPublicKeyRegistrations(t.Context(), &ExtendedPublicKeyRegistrationsRequest{Limit: 1001})
 	assert.ErrorIs(t, err, errInvalidLimit, "GetExtendedPublicKeyRegistrations should error on an invalid limit")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	registrations, err := e.GetExtendedPublicKeyRegistrations(t.Context(), &ExtendedPublicKeyRegistrationsRequest{Network: "bitcoin", Limit: 10})
 	require.NoError(t, err, "GetExtendedPublicKeyRegistrations must not error")
 	if mockTests {
@@ -260,7 +261,7 @@ func TestCreateExtendedPublicKeyRegistration(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		// The API documents extended public keys as base58 strings beginning with a key type such as xpub
 		_, err := e.CreateExtendedPublicKeyRegistration(t.Context(), &ExtendedPublicKeyRegistrationRequest{Network: "bitcoin", ExtendedPublicKey: "unlisted-key"})
 		requireRefusedOnMerits(t, err)
@@ -295,7 +296,7 @@ func TestGetExtendedPublicKeyRegistration(t *testing.T) {
 	_, err := e.GetExtendedPublicKeyRegistration(t.Context(), "")
 	assert.ErrorIs(t, err, errRegistrationIDRequired, "GetExtendedPublicKeyRegistration should error without an ID")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	resp, err := e.GetExtendedPublicKeyRegistration(t.Context(), testExtendedPublicKeyRegistrationID)
 	if !mockTests {
 		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetExtendedPublicKeyRegistration should error for an unknown registration")
@@ -321,7 +322,7 @@ func TestGetAddressVerification(t *testing.T) {
 	_, err = e.GetAddressVerification(t.Context(), "bitcoin", "")
 	assert.ErrorIs(t, err, common.ErrAddressIsEmptyOrInvalid, "GetAddressVerification should error without an address")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	resp, err := e.GetAddressVerification(t.Context(), "bitcoin", core.BitcoinDonationAddress)
 	require.NoError(t, err, "GetAddressVerification must not error")
 	if mockTests {

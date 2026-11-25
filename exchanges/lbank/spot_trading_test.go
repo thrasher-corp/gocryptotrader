@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -109,7 +110,7 @@ func TestPlaceTestOrder(t *testing.T) {
 	t.Run("valid order", func(t *testing.T) {
 		t.Parallel()
 		// A test order is validated without being placed
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		req := &PlaceOrderRequest{Pair: spotTestPair, Type: "buy", Price: 50000, Amount: 0.001, CustomID: "gct-test-order", Window: 5 * time.Second}
 		if !mockTests {
 			req = liveTestOrderRequest(t)
@@ -134,7 +135,7 @@ func TestPlaceOrder(t *testing.T) {
 	})
 	t.Run("valid order", func(t *testing.T) {
 		t.Parallel()
-		skipLiveUnlessCanManipulate(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		if !mockTests {
 			result := placeLiveTestOrder(t)
 			assert.Equal(t, "btc_usdt", result.Symbol, "PlaceOrder should return the order's pair")
@@ -182,7 +183,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 	// These cases share the package exchange and run in order
 	t.Run("by order ID", func(t *testing.T) {
-		skipLiveUnlessCanManipulate(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		if !mockTests {
 			placed := placeLiveTestOrder(t)
 			result, err := e.CancelExistingOrder(t.Context(), &OrderReferenceRequest{Pair: spotTestPair, OrderID: placed.OrderID})
@@ -214,7 +215,7 @@ func TestCancelPairOrders(t *testing.T) {
 		require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelPairOrders must require a pair")
 	})
 	t.Run("every open order on the pair", func(t *testing.T) {
-		skipLiveUnlessCanManipulate(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		if !mockTests {
 			placed := placeLiveTestOrder(t)
 			result, err := e.CancelPairOrders(t.Context(), spotTestPair)
@@ -249,7 +250,7 @@ func TestQueryOrder(t *testing.T) {
 	})
 	t.Run("by order ID", func(t *testing.T) {
 		t.Parallel()
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.QueryOrder(t.Context(), &OrderReferenceRequest{Pair: spotTestPair, OrderID: "fc2e51b9-2e6e-4949-a5f3-35a4f10c0554"})
 		if !mockTests {
 			// The order is only recorded in the mock, so the live venue reports it missing
@@ -306,7 +307,7 @@ func TestGetOpenOrders(t *testing.T) {
 	})
 	t.Run("first page", func(t *testing.T) {
 		t.Parallel()
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.GetOpenOrders(t.Context(), &OrdersPageRequest{Pair: spotTestPair})
 		require.NoError(t, err, "GetOpenOrders must not error")
 		if mockTests {
@@ -342,7 +343,7 @@ func TestQueryOrderHistory(t *testing.T) {
 
 	// These cases share the package exchange and run in order
 	t.Run("first page", func(t *testing.T) {
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.QueryOrderHistory(t.Context(), &OrdersPageRequest{Pair: spotTestPair})
 		require.NoError(t, err, "QueryOrderHistory must not error")
 		if !mockTests {
@@ -410,7 +411,7 @@ func TestOrdersPageResponseUnmarshalJSON(t *testing.T) {
 
 func TestGetAccountInformation(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	result, err := e.GetAccountInformation(t.Context())
 	require.NoError(t, err, "GetAccountInformation must not error")
 	if mockTests {
@@ -451,7 +452,7 @@ func TestGetTransactionHistory(t *testing.T) {
 	}
 	t.Run("trades in a range from an ID", func(t *testing.T) {
 		t.Parallel()
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.GetTransactionHistory(t.Context(), &TransactionHistoryRequest{
 			Pair:      spotTestPair,
 			StartTime: start,

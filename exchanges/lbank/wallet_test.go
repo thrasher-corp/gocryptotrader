@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -27,7 +28,7 @@ func TestGetSystemStatus(t *testing.T) {
 
 func TestGetAllCoinInformation(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	result, err := e.GetAllCoinInformation(t.Context())
 	require.NoError(t, err, "GetAllCoinInformation must not error")
 	if mockTests {
@@ -79,7 +80,7 @@ func TestWithdraw(t *testing.T) {
 		if mockTests {
 			t.Skip("The mock records no reply to a request built to be refused")
 		}
-		skipLiveUnlessCanManipulate(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		_, err := e.Withdraw(t.Context(), &WithdrawRequest{Address: liveMalformedAddress, Coin: currency.USDT, Amount: liveWithdrawalAmount, NetworkName: "trc20"})
 		requireRefusedOnMerits(t, err, "Withdraw", withdrawalRefusalCodes)
 	})
@@ -130,7 +131,7 @@ func TestGetDepositHistory(t *testing.T) {
 
 	// These cases share the package exchange and run in order
 	t.Run("page of deposits", func(t *testing.T) {
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.GetDepositHistory(t.Context(), nil)
 		require.NoError(t, err, "GetDepositHistory must not error")
 		if !mockTests {
@@ -174,7 +175,7 @@ func TestGetWithdrawalHistory(t *testing.T) {
 
 	// These cases share the package exchange and run in order
 	t.Run("page of withdrawals", func(t *testing.T) {
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.GetWithdrawalHistory(t.Context(), nil)
 		require.NoError(t, err, "GetWithdrawalHistory must not error")
 		if !mockTests {
@@ -217,7 +218,7 @@ func TestGetCoinDepositAddress(t *testing.T) {
 
 	// These cases share the package exchange and run in order
 	t.Run("chain asked for", func(t *testing.T) {
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.GetCoinDepositAddress(t.Context(), currency.USDT, "trc20")
 		require.NoError(t, err, "GetCoinDepositAddress must not error")
 		if !mockTests {
@@ -262,7 +263,7 @@ func TestAddDepositAddress(t *testing.T) {
 		if mockTests {
 			t.Skip("The mock records no reply to a request built to be refused")
 		}
-		skipLiveUnlessCanManipulate(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		_, err := e.AddDepositAddress(t.Context(), currency.USDT, liveUnlistedNetwork)
 		requireRefusedOnMerits(t, err, "AddDepositAddress", depositAddressRefusalCodes)
 	})
@@ -282,7 +283,7 @@ func TestAddDepositAddress(t *testing.T) {
 func TestGetAssetDetails(t *testing.T) { //nolint:tparallel // Cases share the package exchange and run in order
 	t.Parallel()
 	t.Run("every coin", func(t *testing.T) {
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.GetAssetDetails(t.Context(), currency.EMPTYCODE)
 		require.NoError(t, err, "GetAssetDetails must not error")
 		if !mockTests {
@@ -311,7 +312,7 @@ func TestGetAssetDetails(t *testing.T) { //nolint:tparallel // Cases share the p
 func TestGetTradingFeeRates(t *testing.T) { //nolint:tparallel // Cases share the package exchange and run in order
 	t.Parallel()
 	t.Run("one pair", func(t *testing.T) {
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.GetTradingFeeRates(t.Context(), spotTestPair)
 		require.NoError(t, err, "GetTradingFeeRates must not error")
 		exp := []TradingFeeRateResponse{{Symbol: "btc_usdt", MakerCommissionPercent: 0.08, TakerCommissionPercent: 0.1}}
@@ -338,7 +339,7 @@ func TestGetTradingFeeRates(t *testing.T) { //nolint:tparallel // Cases share th
 
 func TestGetAPIRestrictions(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	result, err := e.GetAPIRestrictions(t.Context())
 	require.NoError(t, err, "GetAPIRestrictions must not error")
 	if mockTests {

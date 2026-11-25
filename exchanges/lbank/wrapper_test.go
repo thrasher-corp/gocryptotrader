@@ -436,7 +436,7 @@ func TestUpdateAccountBalances(t *testing.T) { //nolint:tparallel // Cases share
 	})
 
 	t.Run("spot", func(t *testing.T) {
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
 		require.NoError(t, err, "UpdateAccountBalances must not error")
 		if !mockTests {
@@ -464,7 +464,7 @@ func TestUpdateAccountBalances(t *testing.T) { //nolint:tparallel // Cases share
 
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	result, err := e.GetAccountFundingHistory(t.Context())
 	require.NoError(t, err, "GetAccountFundingHistory must not error")
 	if !mockTests {
@@ -494,7 +494,7 @@ func TestGetWithdrawalsHistory(t *testing.T) { //nolint:tparallel // Cases share
 	})
 
 	t.Run("spot", func(t *testing.T) {
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.GetWithdrawalsHistory(t.Context(), currency.USDT, asset.Spot)
 		require.NoError(t, err, "GetWithdrawalsHistory must not error")
 		if !mockTests {
@@ -767,7 +767,7 @@ func TestSubmitOrder(t *testing.T) {
 		if mockTests {
 			t.Skip("The live order is priced from the market, which the mock does not record")
 		}
-		skipLiveUnlessCanManipulate(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		req := liveTestOrderRequest(t)
 		result, err := e.SubmitOrder(t.Context(), &order.Submit{Exchange: e.Name, Pair: spotTestPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: req.Price, Amount: req.Amount})
 		require.NoError(t, err, "SubmitOrder must not error")
@@ -1213,7 +1213,7 @@ func TestCancelOrder(t *testing.T) { //nolint:tparallel // Cases share the packa
 	})
 
 	t.Run("by order ID", func(t *testing.T) {
-		skipLiveUnlessCanManipulate(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		if !mockTests {
 			placed := placeLiveTestOrder(t)
 			assert.NoError(t, e.CancelOrder(t.Context(), &order.Cancel{Pair: spotTestPair, AssetType: asset.Spot, OrderID: placed.OrderID}), "CancelOrder should cancel by order ID")
@@ -1258,7 +1258,7 @@ func TestCancelAllOrders(t *testing.T) { //nolint:tparallel // The live case run
 		require.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders must reject contracts")
 	})
 	t.Run("every open order on the pair", func(t *testing.T) {
-		skipLiveUnlessCanManipulate(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		if !mockTests {
 			placed := placeLiveTestOrder(t)
 			result, err := e.CancelAllOrders(t.Context(), &order.Cancel{Pair: spotTestPair, AssetType: asset.Spot})
@@ -1626,7 +1626,7 @@ func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Cases share the pack
 	})
 
 	t.Run("order ID", func(t *testing.T) {
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		if !mockTests {
 			_, err := e.GetOrderInfo(t.Context(), "fc2e51b9-2e6e-4949-a5f3-35a4f10c0554", spotTestPair, asset.Spot)
 			assert.Error(t, err, "GetOrderInfo should report an order the account doesn't hold")
@@ -1655,7 +1655,7 @@ func TestGetDepositAddress(t *testing.T) {
 	})
 
 	t.Run("chain given", func(t *testing.T) {
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.GetDepositAddress(t.Context(), currency.USDT, "", "trc20")
 		require.NoError(t, err, "GetDepositAddress must not error")
 		if !mockTests {
@@ -1698,7 +1698,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 		if mockTests {
 			t.Skip("The mock records no reply to a request built to be refused")
 		}
-		skipLiveUnlessCanManipulate(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		// The fee is looked up first, so a lookup LBank refuses fails here rather than passing as the withdrawal's refusal,
 		// and a zero fee, which WithdrawCryptocurrencyFunds would look up again, is sent as one LBank must refuse
 		fee, err := e.networkWithdrawalFee(t.Context(), currency.USDT, "trc20", liveWithdrawalAmount)
@@ -1754,7 +1754,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 
 func TestNetworkWithdrawalFee(t *testing.T) { //nolint:tparallel // Cases share the package exchange and run in order
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	for _, tc := range []struct {
 		name  string
 		coin  currency.Code
@@ -1821,7 +1821,7 @@ func TestGetActiveOrders(t *testing.T) { //nolint:tparallel // Cases share the p
 
 	// Without pairs the enabled pairs are listed, BTC-USDT alone in the test config
 	t.Run("enabled pairs", func(t *testing.T) {
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
 		require.NoError(t, err, "GetActiveOrders must not error")
 		if !mockTests {
@@ -1852,7 +1852,7 @@ func TestGetOrderHistory(t *testing.T) { //nolint:tparallel // Cases share the p
 	})
 
 	t.Run("spot pair", func(t *testing.T) {
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		result, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, Pairs: currency.Pairs{spotTestPair}})
 		require.NoError(t, err, "GetOrderHistory must not error")
 		if !mockTests {
@@ -2130,7 +2130,7 @@ func TestGetAvailableTransferChains(t *testing.T) { //nolint:tparallel // Cases 
 
 func TestValidateAPICredentials(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	assert.NoError(t, e.ValidateAPICredentials(t.Context(), asset.Spot), "ValidateAPICredentials should accept working credentials")
 }
 

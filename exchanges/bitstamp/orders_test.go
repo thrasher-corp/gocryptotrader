@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -70,7 +71,7 @@ func TestGetOrderStatus(t *testing.T) {
 	_, err = e.GetOrderStatus(t.Context(), &OrderStatusRequest{})
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOrderStatus should error without an order ID")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	status, err := e.GetOrderStatus(t.Context(), &OrderStatusRequest{OrderID: 1458532827766784})
 	if !mockTests {
 		assert.ErrorIs(t, err, errAPIResponse, "GetOrderStatus should error for an unknown order")
@@ -105,7 +106,7 @@ func TestGetOrderData(t *testing.T) {
 	_, err = e.GetOrderData(t.Context(), &OrderEventsRequest{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetOrderData should error on an empty pair")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	events, err := e.GetOrderData(t.Context(), &OrderEventsRequest{Pair: spotPair})
 	require.NoError(t, err, "GetOrderData must not error")
 	if mockTests {
@@ -136,7 +137,7 @@ func TestGetAccountOrderData(t *testing.T) {
 	_, err = e.GetAccountOrderData(t.Context(), &OrderEventsRequest{OrderSource: OrderSourceOrderbook})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetAccountOrderData should error on an empty pair")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	events, err := e.GetAccountOrderData(t.Context(), &OrderEventsRequest{Pair: perpetualPair, OrderSource: OrderSourceOrderbook, SinceID: "019f4ac8-1234-abcd-af00-3e9012000020"})
 	require.NoError(t, err, "GetAccountOrderData must not error")
 	if mockTests {
@@ -168,7 +169,7 @@ func TestGetAccountOrderData(t *testing.T) {
 
 func TestGetOpenOrders(t *testing.T) { //nolint:tparallel // Cases run serially through the shared exchange
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	for _, tc := range []struct {
 		name string
 		pair currency.Pair
@@ -254,7 +255,7 @@ func TestPlaceLimitOrder(t *testing.T) {
 	}
 	t.Run("valid request", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		resp, err := e.PlaceLimitOrder(t.Context(), &LimitOrderRequest{Pair: spotPair, Side: order.Buy, Amount: 0.5, Price: 20000, ClientOrderID: "123456789"})
 		require.NoError(t, err, "PlaceLimitOrder must not error")
 		if mockTests {
@@ -304,7 +305,7 @@ func TestPlaceInstantOrder(t *testing.T) { //nolint:tparallel // Cases run seria
 		})
 	}
 
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	for side, id := range map[order.Side]uint64{order.Buy: 1234123412341239, order.Sell: 1234123412341240} {
 		// Serial, as both orders go through the same exchange
 		t.Run(side.Lower(), func(t *testing.T) {
@@ -345,7 +346,7 @@ func TestPlaceMarketOrder(t *testing.T) {
 	}
 	t.Run("valid request", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		resp, err := e.PlaceMarketOrder(t.Context(), &MarketOrderRequest{Pair: spotPair, Side: order.Sell, Amount: 0.1})
 		require.NoError(t, err, "PlaceMarketOrder must not error")
 		if mockTests {
@@ -369,7 +370,7 @@ func TestCancelExistingOrder(t *testing.T) {
 	_, err = e.CancelExistingOrder(t.Context(), &CancelOrderRequest{})
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelExistingOrder should error without an order ID")
 
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	resp, err := e.CancelExistingOrder(t.Context(), &CancelOrderRequest{OrderID: 1453282316578816})
 	if !mockTests {
 		assert.ErrorIs(t, err, errAPIResponse, "CancelExistingOrder should error for an unknown order")
@@ -387,7 +388,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 func TestCancelAllExistingOrders(t *testing.T) { //nolint:tparallel // Cases run serially through the shared exchange
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	spotOrder := CancelledOrder{ID: 1234123412341234, Amount: 0.4, Price: 100, Side: OrderSide(order.Buy), Market: "BTC/USD"}
 	perpetualOrder := CancelledOrder{ID: 1234123412341235, Amount: 0.01, Price: 85000, Side: OrderSide(order.Sell), Market: "BTC/USD-PERP"}
 	for name, tc := range map[string]struct {
@@ -428,7 +429,7 @@ func TestReplaceOrder(t *testing.T) {
 	}
 	t.Run("valid request", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		resp, err := e.ReplaceOrder(t.Context(), &ReplaceOrderRequest{OrderID: 1453282316578816, Amount: 0.02, Price: 2100.45})
 		if !mockTests {
 			assert.ErrorIs(t, err, errAPIResponse, "ReplaceOrder should error for an unknown order")
@@ -456,7 +457,7 @@ func TestReplaceOrder(t *testing.T) {
 
 func TestGetTradingMarkets(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	markets, err := e.GetTradingMarkets(t.Context())
 	require.NoError(t, err, "GetTradingMarkets must not error")
 	require.NotEmpty(t, markets, "GetTradingMarkets must return markets")
@@ -497,7 +498,7 @@ func TestGetMaxOrderAmount(t *testing.T) {
 	})
 	t.Run("valid request", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		resp, err := e.GetMaxOrderAmount(t.Context(), &MaxOrderAmountRequest{
 			Pair:                 perpetualPair,
 			MarginMode:           MarginModeIsolated,

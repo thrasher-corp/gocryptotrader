@@ -80,7 +80,7 @@ func TestGetFeeByType(t *testing.T) {
 	_, err := e.GetFeeByType(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "GetFeeByType should error on a nil fee builder")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	feeBuilder := setFeeBuilder()
 	_, err = e.GetFeeByType(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFeeByType must not error")
@@ -96,7 +96,7 @@ func TestGetFee(t *testing.T) { //nolint:tparallel // The fee types' cases go th
 	_, err := e.GetFee(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "GetFee should error on a nil fee builder")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	feeBuilder := setFeeBuilder()
 	fee, err := e.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
@@ -804,7 +804,7 @@ func TestUpdateAccountBalances(t *testing.T) { //nolint:tparallel // The assets'
 	_, err := e.UpdateAccountBalances(t.Context(), asset.Futures)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "UpdateAccountBalances should error on an unsupported asset")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	ctx := t.Context()
 	if mockTests {
 		// Balances are stored against the credentials used, which the mock instance does not have
@@ -844,7 +844,7 @@ func TestValidateAPICredentials(t *testing.T) { //nolint:tparallel // Each asset
 	t.Parallel()
 	assert.ErrorIs(t, e.ValidateAPICredentials(t.Context(), asset.Futures), asset.ErrNotSupported, "ValidateAPICredentials should error on an unsupported asset")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	ctx := t.Context()
 	if mockTests {
 		// Balances are stored against the credentials used, which the mock instance does not have
@@ -877,7 +877,7 @@ func TestGetAccountFundingHistory(t *testing.T) {
 		}}, history, "GetAccountFundingHistory should return a processed withdrawal's transaction hash")
 	})
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	history, err := e.GetAccountFundingHistory(t.Context())
 	require.NoError(t, err, "GetAccountFundingHistory must not error")
 	if mockTests {
@@ -964,7 +964,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 		assert.Equal(t, strconv.Itoa(maxResultOffset), received[len(received)-1].Get("offset"), "GetWithdrawalsHistory should request the last page at the maximum offset")
 	})
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	ctx := t.Context()
 	for _, tc := range []struct {
 		name string
@@ -1232,7 +1232,7 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = e.SubmitOrder(t.Context(), &order.Submit{Exchange: e.Name, Pair: spotPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1, TimeInForce: order.GoodTillCrossing})
 	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "SubmitOrder should error on an unsupported time in force")
 
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	for _, tc := range []struct {
 		name string
 		s    *order.Submit
@@ -1281,7 +1281,7 @@ func TestSubmitConditionalOrder(t *testing.T) { //nolint:tparallel // Every case
 		})
 	}
 
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	for _, tc := range []struct {
 		name string
 		s    *order.Submit
@@ -1481,7 +1481,7 @@ func TestCancelOrder(t *testing.T) {
 	assert.ErrorIs(t, e.CancelOrder(t.Context(), &order.Cancel{OrderID: "nope"}), order.ErrOrderIDNotSet, "CancelOrder should error on an invalid order ID")
 	assert.ErrorIs(t, e.CancelOrder(t.Context(), &order.Cancel{}), order.ErrOrderIDNotSet, "CancelOrder should error without an order ID")
 
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	err := e.CancelOrder(t.Context(), &order.Cancel{OrderID: "1453282316578816"})
 	if !mockTests {
 		assert.ErrorIs(t, err, errAPIResponse, "CancelOrder should error for an unknown order")
@@ -1538,7 +1538,7 @@ func TestCancelAllOrders(t *testing.T) {
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Futures})
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders should error on an unsupported asset")
 
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	ctx := t.Context()
 	for _, tc := range []struct {
 		name string
@@ -1649,7 +1649,7 @@ func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Every case goes to t
 	_, err = newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Finished","market":"BTC/USD","transactions":[{"tid":7,"price":"NaN","btc":"0.3","usd":"-30.3","fee":"0.1","datetime":"2025-06-16 10:00:01","type":2}],"amount_remaining":"0"}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
 	assert.ErrorIs(t, err, errMalformedTransaction, "GetOrderInfo should error on a transaction price which is not a number")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	d, err := e.GetOrderInfo(t.Context(), "1458532827766784", spotPair, asset.Spot)
 	if !mockTests {
 		assert.ErrorIs(t, err, errAPIResponse, "GetOrderInfo should error for an unknown order")
@@ -1755,7 +1755,7 @@ func TestGetDepositAddress(t *testing.T) {
 		assert.Equal(t, &deposit.Address{Address: "01abc", Tag: "12345", Chain: "casper"}, addr, "GetDepositAddress should return a Casper address's transfer ID as its tag")
 	})
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	ctx := t.Context()
 	for _, tc := range []struct {
 		c     currency.Code
@@ -1911,7 +1911,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		// More bitcoin than will ever exist, so no account holds it
 		_, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
 			Exchange: e.Name,
@@ -1975,7 +1975,7 @@ func TestWithdrawFiatFunds(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		req := testBankWithdrawalRequest(currency.EUR, 1e12)
 		req.Fiat.Bank.IBAN = invalidIBAN
 		_, err := e.WithdrawFiatFunds(t.Context(), req)
@@ -2045,7 +2045,7 @@ func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		req := testBankWithdrawalRequest(currency.USD, 1e12)
 		req.Fiat.Bank.IBAN = invalidIBAN
 		_, err := e.WithdrawFiatFundsToInternationalBank(t.Context(), req)
@@ -2157,7 +2157,7 @@ func TestGetActiveOrders(t *testing.T) { //nolint:tparallel // Every case goes t
 		RemainingAmount: 0.4,
 	}}, withoutAmountAtCreate, "GetActiveOrders should use the remaining amount as the amount of an order without its amount at creation")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	for _, tc := range []struct {
 		name string
 		req  *order.MultiOrderRequest
@@ -2223,7 +2223,7 @@ func TestGetOrderHistory(t *testing.T) { //nolint:tparallel // The cases go thro
 	_, err = e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType})
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetOrderHistory should error on an unsupported asset")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	ctx := recordedPagerContext(t)
 	for _, tc := range []struct {
 		name string
@@ -2272,7 +2272,7 @@ func TestSpotOrderHistory(t *testing.T) {
 	require.NoError(t, err, "spotOrderHistory must not error for a single pair")
 	assert.Empty(t, withoutRate, "spotOrderHistory should skip a trade without an exchange rate, which names no market")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	orders, err := e.spotOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot})
 	require.NoError(t, err, "spotOrderHistory must not error")
 	if !mockTests {
@@ -2441,7 +2441,7 @@ func TestDerivativesOrderHistory(t *testing.T) {
 	_, err = newResponseTestExchange(t, http.StatusOK, `[{"trade_id":"1","order_id":"2","datetime":"2025-06-16 10:01:00","side":"buy","price":"100","amount":"NaN","fee":"0.1","fee_currency":"USD","market":"BTC/USD-PERP"}]`).derivativesOrderHistory(t.Context(), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, errMalformedTransaction, "derivativesOrderHistory should error on an amount which is not a number")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	orders, err := e.derivativesOrderHistory(recordedPagerContext(t), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
 	require.NoError(t, err, "derivativesOrderHistory must not error")
 	if !mockTests {
@@ -3568,7 +3568,7 @@ func TestSetLeverage(t *testing.T) {
 	assert.ErrorIs(t, e.SetLeverage(t.Context(), asset.PerpetualContract, perpetualPair, margin.Isolated, maxLeverage+1, order.Buy), errInvalidLeverage, "SetLeverage should error on a leverage above the maximum")
 	assert.ErrorIs(t, e.SetLeverage(t.Context(), asset.PerpetualContract, currency.EMPTYPAIR, margin.Isolated, 5, order.Buy), currency.ErrCurrencyPairEmpty, "SetLeverage should error on an empty pair")
 
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	assert.NoError(t, e.SetLeverage(t.Context(), asset.PerpetualContract, perpetualPair, margin.Isolated, 5, order.Buy), "SetLeverage should not error")
 }
 
@@ -3590,7 +3590,7 @@ func TestGetLeverage(t *testing.T) {
 	_, err = e.GetLeverage(t.Context(), asset.PerpetualContract, perpetualPair, margin.NoMargin, order.Buy)
 	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported, "GetLeverage should error on an unsupported margin type")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	ctx := t.Context()
 	for marginType, exp := range map[margin.Type]float64{margin.Isolated: 5, margin.Multi: 3, margin.Unset: 3} {
 		// Serial, as the leverage is fetched through the same exchange
@@ -3623,7 +3623,7 @@ func TestGetFuturesPositionSummary(t *testing.T) { //nolint:tparallel // The cas
 		})
 	}
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	summary, err := e.GetFuturesPositionSummary(ctx, &futures.PositionSummaryRequest{Asset: asset.PerpetualContract, Pair: perpetualPair})
 	if !mockTests {
 		assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "GetFuturesPositionSummary should error without a position")
@@ -3716,7 +3716,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 		if mockTests {
 			t.Skip("The recorded trade history has no reply for a time range, so this case only runs live")
 		}
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		ex, api := newAuthenticatedTestInstance(t)
 		resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, StartDate: start, EndDate: end})
 		require.NoError(t, err, "GetFuturesPositionOrders must not error")
@@ -4047,7 +4047,7 @@ func TestChangePositionMargin(t *testing.T) { //nolint:tparallel // Every case c
 		})
 	}
 
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	resp, err := e.ChangePositionMargin(ctx, &margin.PositionChangeRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, MarginType: margin.Isolated, NewAllocatedMargin: 12.5})
 	if !mockTests {
 		assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "ChangePositionMargin should error without a position")

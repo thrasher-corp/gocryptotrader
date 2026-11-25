@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -62,7 +63,7 @@ func TestEarnSubscribe(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		err := e.EarnSubscribe(t.Context(), &EarnSubscriptionRequest{Currency: unlistedCurrency, EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible, Amount: 10})
 		requireRefusedOnMerits(t, err)
 	})
@@ -88,7 +89,7 @@ func TestEarnUnsubscribe(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		err := e.EarnUnsubscribe(t.Context(), &EarnSubscriptionRequest{Currency: unlistedCurrency, EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible, Amount: 10})
 		requireRefusedOnMerits(t, err)
 	})
@@ -124,7 +125,7 @@ func TestSetEarnSubscriptionSetting(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		err := e.SetEarnSubscriptionSetting(t.Context(), &EarnSubscriptionSettingRequest{Setting: EarnSettingOptIn, Currency: unlistedCurrency, EarnType: EarnTypeStaking})
 		requireRefusedOnMerits(t, err)
 	})
@@ -137,7 +138,7 @@ func TestGetEarnTransactions(t *testing.T) {
 	_, err = e.GetEarnTransactions(t.Context(), &EarnTransactionsRequest{Limit: 1001})
 	assert.ErrorIs(t, err, errInvalidLimit, "GetEarnTransactions should error on an invalid limit")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	txs, err := e.GetEarnTransactions(t.Context(), &EarnTransactionsRequest{Currency: currency.ETH, Limit: 10})
 	require.NoError(t, err, "GetEarnTransactions must not error")
 	if mockTests {
@@ -156,7 +157,7 @@ func TestGetEarnTransactions(t *testing.T) {
 
 func TestGetEarnSubscriptions(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	subs, err := e.GetEarnSubscriptions(t.Context())
 	require.NoError(t, err, "GetEarnSubscriptions must not error")
 	if mockTests {

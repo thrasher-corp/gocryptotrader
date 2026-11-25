@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 func TestGetCryptoDepositAddress(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the cases send their requests through the package exchange in order
@@ -26,7 +27,7 @@ func TestGetCryptoDepositAddress(t *testing.T) { //nolint:tparallel // top-level
 	} {
 		// Serial and in order, as each request goes through the package exchange
 		t.Run(tc.name, func(t *testing.T) {
-			skipIfLiveWithoutCredentials(t)
+			sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 			addr, err := e.GetCryptoDepositAddress(t.Context(), tc.c, tc.network)
 			require.NoErrorf(t, err, "GetCryptoDepositAddress must not error for %s", tc.c)
 			if mockTests {
@@ -38,7 +39,7 @@ func TestGetCryptoDepositAddress(t *testing.T) { //nolint:tparallel // top-level
 
 func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	deposits, err := e.GetUnconfirmedBitcoinDeposits(t.Context())
 	require.NoError(t, err, "GetUnconfirmedBitcoinDeposits must not error")
 	if mockTests {
@@ -49,7 +50,7 @@ func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 
 func TestGetRippleIOUDepositAddress(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	addr, err := e.GetRippleIOUDepositAddress(t.Context())
 	require.NoError(t, err, "GetRippleIOUDepositAddress must not error")
 	if mockTests {

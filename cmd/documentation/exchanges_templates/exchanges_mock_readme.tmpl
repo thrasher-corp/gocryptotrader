@@ -168,12 +168,10 @@ func TestDummyTest(t *testing.T) {
     }
 ```
 
-+ Authenticated endpoints will typically require valid API keys and a signature to run successfully. Authenticated endpoints should be skipped. See an example below
++ `testexch.MockHTTPInstance` skips the credential check, so authenticated endpoints can run against recorded responses. Skip them only when testing live without API keys, or without `canManipulateRealOrders` for endpoints which change the account. See an example below
 
 ```go
-    if mockTests {
-        t.Skip("skipping authenticated function for mock testing")
-    }
+    sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 ```
 
 {{template "donations" .}}

@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -107,7 +108,7 @@ func goldMarketHours(t *testing.T) MarketHoursResponse {
 
 func TestGetOpenPositions(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	positions, err := e.GetOpenPositions(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err, "GetOpenPositions must not error")
 	if mockTests {
@@ -127,7 +128,7 @@ func TestGetPositionStatus(t *testing.T) {
 	_, err := e.GetPositionStatus(t.Context(), "")
 	assert.ErrorIs(t, err, errPositionIDRequired, "GetPositionStatus should error without a position ID")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	status, err := e.GetPositionStatus(t.Context(), "1234567890")
 	if !mockTests {
 		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetPositionStatus should error for an unknown position")
@@ -149,7 +150,7 @@ func TestGetPositionHistory(t *testing.T) { //nolint:tparallel // Cases run seri
 	_, err = e.GetPositionHistory(t.Context(), &PositionHistoryRequest{Limit: 1001})
 	assert.ErrorIs(t, err, errInvalidLimit, "GetPositionHistory should error on an invalid limit")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	for _, tc := range []struct {
 		name string
 		req  *PositionHistoryRequest
@@ -208,7 +209,7 @@ func TestClosePositions(t *testing.T) {
 	_, err := e.ClosePositions(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "ClosePositions should error on a nil request")
 
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	resp, err := e.ClosePositions(t.Context(), &ClosePositionsRequest{Pair: perpetualPair, MarginMode: MarginModeIsolated})
 	require.NoError(t, err, "ClosePositions must not error")
 	if mockTests {
@@ -232,7 +233,7 @@ func TestClosePosition(t *testing.T) {
 	_, err := e.ClosePosition(t.Context(), "")
 	assert.ErrorIs(t, err, errPositionIDRequired, "ClosePosition should error without a position ID")
 
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	resp, err := e.ClosePosition(t.Context(), "1234567890")
 	if !mockTests {
 		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "ClosePosition should error for an unknown position")
@@ -260,7 +261,7 @@ func TestGetPositionSettlementTransactions(t *testing.T) { //nolint:tparallel //
 		})
 	}
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	for _, tc := range []struct {
 		name string
 		req  *SettlementTransactionsRequest
@@ -323,7 +324,7 @@ func TestGetDerivativesTradeHistory(t *testing.T) {
 	}
 	t.Run("valid request", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		trades, err := e.GetDerivativesTradeHistory(t.Context(), &DerivativesTradeHistoryRequest{OrderID: 1234123412341235, Limit: 10, Sort: SortAscending})
 		require.NoError(t, err, "GetDerivativesTradeHistory must not error")
 		if mockTests {
@@ -351,7 +352,7 @@ func TestGetDerivativesTradeHistory(t *testing.T) {
 
 func TestGetMarginInfo(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	info, err := e.GetMarginInfo(t.Context())
 	require.NoError(t, err, "GetMarginInfo must not error")
 	if mockTests {
@@ -397,7 +398,7 @@ func TestGetEstimatedOrderImpact(t *testing.T) {
 	}
 	t.Run("valid request", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		resp, err := e.GetEstimatedOrderImpact(t.Context(), &OrderImpactRequest{Pair: perpetualPair, OrderType: OrderSubtypeMarket, Amount: 0.01, Side: order.Sell, MarginMode: MarginModeCross, Leverage: 3, ReduceOnly: true})
 		require.NoError(t, err, "GetEstimatedOrderImpact must not error")
 		if mockTests {
@@ -434,7 +435,7 @@ func TestGetCollateralChangeImpact(t *testing.T) {
 	}
 	t.Run("valid request", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		resp, err := e.GetCollateralChangeImpact(t.Context(), &CollateralChangeImpactRequest{MarginMode: MarginModeCross, CollateralDeltas: map[currency.Code]float64{currency.BTC: -0.01, currency.USD: 120}})
 		require.NoError(t, err, "GetCollateralChangeImpact must not error")
 		if mockTests {
@@ -452,7 +453,7 @@ func TestGetCollateralChangeImpact(t *testing.T) {
 
 func TestGetCollateralCurrencies(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	currencies, err := e.GetCollateralCurrencies(t.Context())
 	require.NoError(t, err, "GetCollateralCurrencies must not error")
 	if mockTests {
@@ -466,7 +467,7 @@ func TestAdjustPositionCollateral(t *testing.T) {
 	assert.ErrorIs(t, e.AdjustPositionCollateral(t.Context(), &AdjustPositionCollateralRequest{NewAmount: 1}), errPositionIDRequired, "AdjustPositionCollateral should error without a position ID")
 	assert.ErrorIs(t, e.AdjustPositionCollateral(t.Context(), &AdjustPositionCollateralRequest{PositionID: "1234567890"}), order.ErrAmountIsInvalid, "AdjustPositionCollateral should error without an amount")
 
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	err := e.AdjustPositionCollateral(t.Context(), &AdjustPositionCollateralRequest{PositionID: "1234567890", NewAmount: 12.5})
 	if !mockTests {
 		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "AdjustPositionCollateral should error for an unknown position")
@@ -477,7 +478,7 @@ func TestAdjustPositionCollateral(t *testing.T) {
 
 func TestGetLeverageSettings(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	_, err := e.GetLeverageSettings(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "GetLeverageSettings should error on a nil request")
 	settings, err := e.GetLeverageSettings(t.Context(), &LeverageSettingsRequest{})
@@ -517,7 +518,7 @@ func TestUpdateLeverageSetting(t *testing.T) {
 	}
 	t.Run("valid request", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		resp, err := e.UpdateLeverageSetting(t.Context(), &LeverageSettingRequest{Pair: perpetualPair, MarginMode: MarginModeIsolated, Leverage: 5})
 		require.NoError(t, err, "UpdateLeverageSetting must not error")
 		if !mockTests {

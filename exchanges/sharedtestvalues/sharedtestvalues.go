@@ -81,6 +81,15 @@ func SkipTestIfCredentialsUnset(tb testing.TB, exch exchange.IBotExchange, canMa
 	tb.Skip(strings.Join(out, ", "))
 }
 
+// SkipLiveTestIfCredentialsUnset skips a live test as SkipTestIfCredentialsUnset does. Mocked tests always run, since a
+// mock server needs no credentials and its orders are not real
+func SkipLiveTestIfCredentialsUnset(tb testing.TB, exch exchange.IBotExchange, mockTests bool, canManipulateOrders ...bool) {
+	tb.Helper()
+	if !mockTests {
+		SkipTestIfCredentialsUnset(tb, exch, canManipulateOrders...)
+	}
+}
+
 // SkipTestIfCannotManipulateOrders will only skip if the credentials are set
 // correctly and can manipulate orders is set to false. It will continue normal
 // operations if credentials are not set, giving better code coverage.
