@@ -329,6 +329,9 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		return m.updateChannelSubscriptions(ctx, m.subscriptions, newSubs)
 	}
 
+	// A flush can connect a setup that a reconnect left without connections after an outage
+	defer m.reportConnectionsRestored(ctx)
+
 	var subscriptionError error
 	for _, ws := range m.snapshotConnectionManager() {
 		if ws.setup.SubscriptionsNotRequired {

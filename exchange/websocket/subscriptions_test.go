@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -776,6 +778,75 @@ func TestFlushChannels(t *testing.T) {
 		return currySimpleUnsubConn(w)(ctx, c, s)
 	}
 	require.NoError(t, w.FlushChannels(t.Context()), "FlushChannels must not error")
+
+	t.Run("reports a lost setup restored when a flush connects it", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+			}))
+			wsURL := "ws" + mock.URL[len("http"):] + "/ws"
+			ws := NewManager()
+			t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+			setup := newDefaultSetup()
+			setup.UseMultiConnectionManagement = true
+			setup.ExchangeConfig.ConnectionMonitorDelay = time.Second
+			require.NoError(t, ws.Setup(setup), "Setup must not error")
+			ws.trafficTimeout = time.Hour
+			var dropped atomic.Bool
+			for _, filter := range []string{"kept", "dropped", "other"} {
+				require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+					URL:           wsURL,
+					MessageFilter: filter,
+					Connector:     func(ctx context.Context, conn Connection) error { return conn.Dial(ctx, dialer, nil, nil) },
+					GenerateSubscriptions: func() (subscription.List, error) {
+						if filter == "dropped" && dropped.Load() {
+							return nil, nil
+						}
+						return subscription.List{{Channel: filter}}, nil
+					},
+					Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+						return ws.AddSuccessfulSubscriptions(conn, subs...)
+					},
+					Unsubscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+						return ws.RemoveSubscriptions(conn, subs...)
+					},
+					Handler: func(context.Context, Connection, []byte) error { return nil },
+				}), "SetupNewConnection must not error")
+			}
+			reports := func() (lost, restored []any) {
+				synctest.Wait()
+				for len(ws.DataHandler.C) != 0 {
+					switch report := (<-ws.DataHandler.C).Data.(type) {
+					case ConnectionLost:
+						lost = append(lost, report.MessageFilter)
+					case ConnectionRestored:
+						restored = append(restored, report.MessageFilter)
+					}
+				}
+				return lost, restored
+			}
+
+			require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+			dropped.Store(true) // Its next connect generates no subscriptions, so the reconnect leaves it without a connection
+			ws.ReadMessageErrors <- fmt.Errorf("%w: first fault", errConnectionFault)
+			lost, restored := reports()
+			require.ElementsMatch(t, []any{"kept", "dropped", "other"}, lost, "every setup must be reported lost")
+			require.ElementsMatch(t, []any{"kept", "other"}, restored, "only the setups holding a connection must be reported restored")
+
+			time.Sleep(10 * time.Second)
+			dropped.Store(false)
+			require.NoError(t, ws.FlushChannels(t.Context()), "FlushChannels must not error")
+			up := requireConnectionReport[ConnectionRestored](t, ws)
+			assert.Equal(t, "dropped", up.MessageFilter, "the flush should report the setup it reconnected")
+			assert.Equal(t, 10*time.Second, up.Downtime, "the restore should count the time the setup was down")
+
+			ws.ReadMessageErrors <- fmt.Errorf("%w: second fault", errConnectionFault)
+			lost, restored = reports()
+			assert.ElementsMatch(t, []any{"kept", "dropped", "other"}, lost, "every setup should be reported lost again")
+			assert.ElementsMatch(t, []any{"kept", "dropped", "other"}, restored, "every setup should be reported restored again")
+		})
+	})
 }
 
 // fakeConnection is a minimal Connection implementation used in cleanup tests.
