@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +14,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
@@ -50,14 +50,9 @@ func NewVCRServer(path string) (string, *http.Client, error) {
 
 	contents, err := os.ReadFile(path)
 	if err != nil {
-		pathing := strings.Split(path, "/")
-		dirPathing := pathing[:len(pathing)-1]
-		dir := strings.Join(dirPathing, "/")
-		err = common.CreateDir(dir)
-		if err != nil {
-			return "", nil, err
+		if !errors.Is(err, fs.ErrNotExist) {
+			return "", nil, fmt.Errorf("error reading mock recording %q: %w", path, err)
 		}
-
 		data, jErr := json.MarshalIndent(mockFile, "", " ")
 		if jErr != nil {
 			return "", nil, jErr
