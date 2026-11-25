@@ -85,6 +85,29 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Options, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
 }
 
+// addDefaultDerivativesSubscriptions streams the default subscriptions of each derivatives asset that the configuration
+// has no subscription of, enabled or not, since configurations from before the derivatives streams list only spot's;
+// an asset with configured subscriptions, all-assets ones included, streams exactly its enabled ones. A myOrders
+// subscription has no stream of its own, so it leaves an asset's defaults in place. A configuration listing no
+// subscriptions already streams the exchange's own, which setting it up again saves to it, so it gains none
+func (e *Exchange) addDefaultDerivativesSubscriptions(exch *config.Exchange) {
+	if exch.Features == nil || len(exch.Features.Subscriptions) == 0 {
+		return
+	}
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
+		if slices.ContainsFunc(exch.Features.Subscriptions, func(s *subscription.Subscription) bool {
+			return s.Channel != subscription.MyOrdersChannel && (s.Asset == a || s.Asset == asset.All)
+		}) {
+			continue
+		}
+		for _, s := range defaultSubscriptions {
+			if s.Asset == a {
+				e.Features.Subscriptions = append(e.Features.Subscriptions, s.Clone())
+			}
+		}
+	}
+}
+
 // spotStreamConnectionSetup returns the setup of the spot market data stream connection
 func (e *Exchange) spotStreamConnectionSetup(exch *config.Exchange) *websocket.ConnectionSetup {
 	return &websocket.ConnectionSetup{

@@ -319,7 +319,6 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		{Enabled: true, Asset: asset.Options, Channel: subscription.OrderbookChannel, Levels: 10, Interval: kline.HundredMilliseconds},
 		{Enabled: true, Asset: asset.Options, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
 	})
-	// The cases generate from one exchange, which the statements after them replace, so they run in order
 	for _, tc := range []struct {
 		name     string
 		generate func() (subscription.List, error)
@@ -345,6 +344,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			subs, err := tc.generate()
 			if tc.partial {
 				assert.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "%s generation should report the subscriptions it left out", tc.name)
@@ -355,8 +355,25 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		})
 	}
 
-	// A saved list streams exactly its enabled subscriptions: an enabled all-assets subscription streams on spot's and each
-	// derivatives asset's connections, beside each asset's own subscriptions, and an asset with none streams nothing
+	// An asset the configuration has no subscription of, enabled or not, streams its defaults
+	for _, tc := range []struct {
+		name string
+		subs subscription.List
+		exp  int
+	}{
+		{"an asset without configured subscriptions streams its four defaults", subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}}, 4},
+		{"an asset whose configured subscriptions are all disabled streams nothing", subscription.List{{Enabled: false, Asset: asset.CoinMarginedFutures, Channel: subscription.TickerChannel}}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			subs, err := setup(t, tc.subs).generateCoinMarginedFuturesSubscriptions()
+			require.NoError(t, err, "generateCoinMarginedFuturesSubscriptions must not error")
+			assert.Len(t, subs, tc.exp, "COIN-M should stream its defaults only where the configuration has no subscription of it")
+		})
+	}
+
+	// An all-assets subscription, enabled or not, is a configured subscription of spot and of each derivatives asset, so
+	// none of them streams its defaults beside it, while an asset's own subscriptions still stream
 	generateAll := func(t *testing.T, ex *Exchange) subscription.List {
 		t.Helper()
 		var all subscription.List
@@ -383,9 +400,6 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		subs subscription.List
 		exp  subscription.List
 	}{
-		{"spot ticker alone", subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}}, tickers()[:1]},
-		{"disabled spot ticker alone", subscription.List{{Enabled: false, Asset: asset.Spot, Channel: subscription.TickerChannel}}, subscription.List{}},
-		{"disabled COIN-M ticker alone", subscription.List{{Enabled: false, Asset: asset.CoinMarginedFutures, Channel: subscription.TickerChannel}}, subscription.List{}},
 		{"enabled all-assets ticker", subscription.List{{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel}}, tickers()},
 		{"disabled all-assets ticker", subscription.List{{Enabled: false, Asset: asset.All, Channel: subscription.TickerChannel}}, subscription.List{}},
 		{
@@ -448,7 +462,10 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 			for _, s := range subs {
 				s.Authenticated = auth.flaggedAuthenticated
 			}
+			// MyOrdersChannel leaves each asset's defaults in place, so they are taken out again to leave each generator
+			// only MyOrdersChannel to consider
 			myOrdersEx := setup(t, subs)
+			myOrdersEx.Features.Subscriptions = subs
 			myOrdersEx.Websocket.SetCanUseAuthenticatedEndpoints(auth.canUseAuthenticated)
 			for _, tc := range []struct {
 				name     string
@@ -471,12 +488,13 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		})
 	}
 
-	// MyOrdersChannel has no stream of its own, so beside it a derivatives asset streams exactly what else configures it
+	// MyOrdersChannel has no stream of its own, so beside it a derivatives asset streams its defaults where nothing else
+	// configures the asset, and exactly what else does where something does
 	spotTicker := &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}
 	for _, tc := range []struct {
 		name string
 		subs subscription.List
-		exp  map[string]int // streams of each generator that streams any
+		exp  map[string]int // streams of the generators that do not stream their defaults
 	}{
 		{"my orders of USDⓈ-M", subscription.List{spotTicker, {Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true}}, nil},
 		{"my orders of USDⓈ-M not flagged as authenticated", subscription.List{spotTicker, {Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel}}, nil},
@@ -488,12 +506,12 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		{
 			"my orders beside a USDⓈ-M ticker",
 			subscription.List{spotTicker, {Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel}, {Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true}},
-			map[string]int{"USDⓈ-M /market": 1},
+			map[string]int{"USDⓈ-M /public": 0, "USDⓈ-M /market": 1},
 		},
 		{
 			"my orders beside a disabled USDⓈ-M ticker",
 			subscription.List{spotTicker, {Enabled: false, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel}, {Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true}},
-			nil,
+			map[string]int{"USDⓈ-M /public": 0, "USDⓈ-M /market": 0},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -502,18 +520,23 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 			for _, g := range []struct {
 				name     string
 				generate func() (subscription.List, error)
+				defaults int
 			}{
-				{"USDⓈ-M /public", ex.generateUSDTMarginedFuturesPublicSubscriptions},
-				{"USDⓈ-M /market", ex.generateUSDTMarginedFuturesMarketSubscriptions},
-				{"COIN-M", ex.generateCoinMarginedFuturesSubscriptions},
-				{"options /public", ex.generateOptionsPublicSubscriptions},
-				{"options /market", ex.generateOptionsMarketSubscriptions},
+				{"USDⓈ-M /public", ex.generateUSDTMarginedFuturesPublicSubscriptions, 1},
+				{"USDⓈ-M /market", ex.generateUSDTMarginedFuturesMarketSubscriptions, 3},
+				{"COIN-M", ex.generateCoinMarginedFuturesSubscriptions, 4},
+				{"options /public", ex.generateOptionsPublicSubscriptions, 3},
+				{"options /market", ex.generateOptionsMarketSubscriptions, 1},
 			} {
 				t.Run(g.name, func(t *testing.T) {
 					t.Parallel()
+					exp, ok := tc.exp[g.name]
+					if !ok {
+						exp = g.defaults
+					}
 					subs, err := g.generate()
 					require.NoErrorf(t, err, "%s generation must not error", g.name)
-					assert.Lenf(t, subs, tc.exp[g.name], "%s should stream only what else configures it beside MyOrdersChannel", g.name)
+					assert.Lenf(t, subs, exp, "%s should stream its defaults beside MyOrdersChannel, or only what else configures it", g.name)
 				})
 			}
 		})
