@@ -90,6 +90,8 @@ var (
 	errTrackingModeUnsupported     = errors.New("tracking mode not supported")
 	errRiskManagementUnsupported   = errors.New("take profit, stop loss and stop entry orders not supported")
 	errTriggerPriceTypeUnsupported = errors.New("trigger price type not supported")
+	errSlippageUnsupported         = errors.New("slippage tolerance not supported")
+	errStopDirectionUnsupported    = errors.New("stop direction not supported")
 	errPriceTooPrecise             = errors.New("price has more than five significant figures or eight decimals")
 )
 
@@ -816,7 +818,7 @@ func placeOrderRequest(s *order.Submit) (*PlaceOrderRequest, error) {
 	if s.QuoteAmount != 0 {
 		return nil, fmt.Errorf("%w: %v", errQuoteAmountUnsupported, s.QuoteAmount)
 	}
-	if err := checkOrderOptions(&s.RiskManagementModes, s.TriggerPriceType); err != nil {
+	if err := checkOrderOptions(&s.RiskManagementModes, s.TriggerPriceType, s.SlippageTolerance); err != nil {
 		return nil, err
 	}
 	symbol, err := orderSymbol(s.AssetType, s.Pair)
@@ -869,6 +871,9 @@ func placeOrderRequest(s *order.Submit) (*PlaceOrderRequest, error) {
 	case order.Stop, order.StopLimit:
 		// A stop triggers at its trigger price, which Bitfinex takes as its price; a stop limit then places a limit
 		// order at its price
+		if err := checkStopDirection(s); err != nil {
+			return nil, err
+		}
 		if s.TriggerPrice <= 0 {
 			return nil, fmt.Errorf("%w: %s orders trigger at it", errTriggerPriceRequired, s.Type)
 		}
@@ -880,6 +885,9 @@ func placeOrderRequest(s *order.Submit) (*PlaceOrderRequest, error) {
 			req.Type, req.AuxiliaryLimitPrice = OrderTypeStopLimit, s.Price
 		}
 	case order.TrailingStop:
+		if err := checkStopDirection(s); err != nil {
+			return nil, err
+		}
 		if s.TrackingMode == order.Percentage {
 			return nil, fmt.Errorf("%w: %s, as Bitfinex trails by a price distance", errTrackingModeUnsupported, s.TrackingMode)
 		}
@@ -915,14 +923,28 @@ func placeOrderRequest(s *order.Submit) (*PlaceOrderRequest, error) {
 }
 
 // checkOrderOptions refuses what an order or a modification asks for that Bitfinex takes no field for, rather than
-// leave it out of an order reported as placed or modified: a take profit, stop loss or stop entry with the order, and a
-// price type for its trigger. The last price is a price type's zero value, so it reads the same as none
-func checkOrderOptions(r *order.RiskManagementModes, triggerPriceType order.PriceType) error {
+// leave it out of an order reported as placed or modified: a take profit, stop loss or stop entry to place once the
+// order fills, a price type for its trigger and a slippage tolerance. The last price is a price type's zero value, so
+// it reads the same as none
+func checkOrderOptions(r *order.RiskManagementModes, triggerPriceType order.PriceType, slippageTolerance float64) error {
 	if *r != (order.RiskManagementModes{}) {
 		return errRiskManagementUnsupported
 	}
 	if triggerPriceType != order.LastPrice {
 		return fmt.Errorf("%w: %s", errTriggerPriceTypeUnsupported, triggerPriceType)
+	}
+	if slippageTolerance != 0 {
+		return fmt.Errorf("%w: %v", errSlippageUnsupported, slippageTolerance)
+	}
+	return nil
+}
+
+// checkStopDirection refuses a sell stop asked to trigger as the price rises, as Bitfinex's stops trigger as it rises for
+// a buy and as it falls for a sell. Falling is the direction's zero value, so a buy asking for it reads the same as one
+// asking for neither
+func checkStopDirection(s *order.Submit) error {
+	if s.StopDirection == order.StopUp && s.Side.IsShort() {
+		return fmt.Errorf("%w: up for a %s %s order", errStopDirectionUnsupported, s.Side, s.Type)
 	}
 	return nil
 }
@@ -959,7 +981,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 	if m.Amount != 0 && !m.Side.IsLong() && !m.Side.IsShort() {
 		return nil, fmt.Errorf("%w: %s, and an order's amount is signed by its side", order.ErrSideIsInvalid, m.Side)
 	}
-	if err := checkOrderOptions(&m.RiskManagementModes, m.TriggerPriceType); err != nil {
+	if err := checkOrderOptions(&m.RiskManagementModes, m.TriggerPriceType, m.SlippageTolerance); err != nil {
 		return nil, err
 	}
 	o, err := e.openOrder(ctx, id)
@@ -2091,6 +2113,9 @@ func (e *Exchange) derivativePosition(ctx context.Context, a asset.Item, p curre
 func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
+	}
+	if r.CalculateOffline {
+		return nil, common.ErrCannotCalculateOffline
 	}
 	pos, err := e.derivativePosition(ctx, r.Asset, r.Pair)
 	if err != nil {

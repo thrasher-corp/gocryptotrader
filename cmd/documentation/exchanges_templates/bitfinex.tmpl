@@ -51,9 +51,13 @@ refused.
   it, which is how they send it.
 + An order has no margin mode to choose, so `SubmitOrder` refuses a `MarginType` other than a derivative's isolated
   margin, a margin order's cross margin and a spot order's no margin. It also refuses a `QuoteAmount`, as Bitfinex sizes
-  orders in the base currency. `SubmitOrder` and `ModifyOrder` refuse `RiskManagementModes`, as Bitfinex places no take
-  profit, stop loss or stop entry with an order, and a `TriggerPriceType` other than the last price, its zero value, as
-  Bitfinex takes none.
+  orders in the base currency. `SubmitOrder` and `ModifyOrder` refuse `RiskManagementModes`, as Bitfinex's order
+  requests have no field for a take profit, stop loss or stop entry to place once an order fills, a `TriggerPriceType`
+  other than the last price, its zero value, as Bitfinex takes none, and a `SlippageTolerance`, as Bitfinex takes no
+  slippage tolerance.
++ Bitfinex's stops trigger as the price rises for a buy and as it falls for a sell, so `SubmitOrder` refuses a sell
+  stop, stop limit or trailing stop whose `StopDirection` is `order.StopUp`. Falling is the direction's zero value, so a
+  buy stop given it is placed as one given none.
 + `ModifyOrder` looks the order up, as Bitfinex reads an update by the order's type and takes its amount as what remains
   of the order. It moves a stop by its `TriggerPrice`, refusing a `Price` without one, such as the modify order RPC
   sends; a stop limit by its `TriggerPrice` and its `Price`, its limit; a trailing stop, which trails the market, by
@@ -105,8 +109,9 @@ Bitfinex's derivatives are all perpetual contracts, on pairs whose currencies Bi
 + `GetFuturesContractDetails` returns each contract's maximum leverage, funding cap and latest funding rate, and
   `GetOpenInterest` every contract's open interest from one request.
 + `GetFuturesPositionSummary`, `GetLeverage` and `ChangePositionMargin` act on a contract's active position, which holds
-  its own collateral, as an isolated margin position does. `GetFuturesPositionOrders` returns a contract's orders of the
-  last two weeks.
+  its own collateral, as an isolated margin position does. `GetFuturesPositionSummary` reads that position from
+  Bitfinex, so it refuses an offline calculation. `GetFuturesPositionOrders` returns a contract's orders of the last two
+  weeks.
 
 ### Balances
 

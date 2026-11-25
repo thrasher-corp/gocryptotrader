@@ -953,6 +953,89 @@ func TestGetHistoricTrades(t *testing.T) {
 			})
 		}
 	})
+	// Each full page's trades are after the start and two milliseconds apart, but for the three at its oldest time: two
+	// on the first page, alike but for their IDs, and one left for the second, which may also hold a trade five
+	// milliseconds older
+	for _, older := range []bool{false, true} {
+		name := "a full page and one trade left"
+		if older {
+			name = "a full page and two trades left, one older than the first page"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			start := time.Now().Add(-4 * time.Hour).Truncate(time.Second).Add(437 * time.Millisecond)
+			end := start.Add(3 * time.Hour)
+			times := make([]int64, tradesPageLimit+1, tradesPageLimit+2)
+			for i := range times {
+				times[i] = start.Add(time.Hour - time.Duration(2*min(i, tradesPageLimit-2))*time.Millisecond).UnixMilli()
+			}
+			if older {
+				times = append(times, times[tradesPageLimit]-5)
+			}
+			// values gives each trade's amount and price, a funding trade's rate, the two oldest on the first page alike
+			values := func(i int, funding bool) (amount, price float64) {
+				if i == tradesPageLimit-1 {
+					i--
+				}
+				amount = 0.01 + float64(i)/1e6
+				if i%3 == 0 {
+					amount = -amount
+				}
+				if funding {
+					return amount, 0.0001 + float64(i)/1e8
+				}
+				return amount, 70000 + float64(i)/100
+			}
+			for _, tc := range []struct {
+				name, path string
+				pair       currency.Pair
+				asset      asset.Item
+			}{
+				{name: "pair", path: "/v2/trades/tBTCUSD/hist", pair: currency.NewBTCUSD(), asset: asset.Spot},
+				{name: "funding currency", path: "/v2/trades/fUSD/hist", pair: testFundingUSD, asset: asset.MarginFunding},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					funding := tc.asset == asset.MarginFunding
+					row := func(i int) string {
+						amount, price := values(i, funding)
+						r := `[` + strconv.Itoa(len(times)-i) + `,` + strconv.FormatInt(times[i], 10) + `,` + strconv.FormatFloat(amount, 'f', -1, 64) + `,` + strconv.FormatFloat(price, 'f', -1, 64)
+						if funding {
+							r += `,2`
+						}
+						return r + `]`
+					}
+					var windows [][2]int64
+					ex := newHistoryWindowExchange(t, tc.path, times, row, &windows)
+					trades, err := ex.GetHistoricTrades(t.Context(), tc.pair, tc.asset, start, end)
+					require.NoErrorf(t, err, "GetHistoricTrades must not error for %s trades, %s", tc.name, name)
+					require.Lenf(t, trades, len(times), "GetHistoricTrades must return every %s trade once, those left for the second page included", tc.name)
+					// Trades of one time come back in no set order, so each is found by its ID; a funding trade with a negative
+					// amount took funding, so bought
+					byID := make(map[string]int, len(trades))
+					for i := range trades {
+						require.Falsef(t, i > 0 && trades[i].Timestamp.Before(trades[i-1].Timestamp), "GetHistoricTrades must return %s trades oldest first", tc.name)
+						byID[trades[i].TID] = i
+					}
+					for i := range times {
+						amount, price := values(i, funding)
+						side := order.Buy
+						if (amount < 0) != funding {
+							side = order.Sell
+						}
+						id := strconv.Itoa(len(times) - i)
+						j, ok := byID[id]
+						require.Truef(t, ok, "GetHistoricTrades must return %s trade %s", tc.name, id)
+						got := &trades[j]
+						want := []string{ex.Name, tc.pair.Base.String(), tc.pair.Quote.String(), tc.asset.String(), side.String(), strconv.FormatFloat(price, 'f', -1, 64), strconv.FormatFloat(math.Abs(amount), 'f', -1, 64), time.UnixMilli(times[i]).UTC().Format(time.RFC3339Nano)}
+						have := []string{got.Exchange, got.CurrencyPair.Base.String(), got.CurrencyPair.Quote.String(), got.AssetType.String(), got.Side.String(), strconv.FormatFloat(got.Price, 'f', -1, 64), strconv.FormatFloat(got.Amount, 'f', -1, 64), got.Timestamp.UTC().Format(time.RFC3339Nano)}
+						require.Equalf(t, want, have, "GetHistoricTrades must return the expected fields for %s trade %s", tc.name, id)
+					}
+					assert.Equalf(t, [][2]int64{{start.UnixMilli(), end.UnixMilli()}, {start.UnixMilli(), times[tradesPageLimit-1]}}, windows, "GetHistoricTrades should read the second page of %s trades from the start to the first's oldest trade", tc.name)
+				})
+			}
+		})
+	}
 	ex := newWrapperTestExchange(t)
 	start, end := historyWindow(time.Hour)
 	_, err := ex.GetHistoricTrades(t.Context(), currency.NewBTCUSD(), asset.Spot, end, start)
@@ -1032,10 +1115,10 @@ func TestPlaceOrderRequest(t *testing.T) {
 		assert.Nil(t, got, "placeOrderRequest should return no request for a quote amount given in place of an amount")
 	})
 
-	t.Run("take profit, stop loss and trigger price type refusals", func(t *testing.T) {
+	t.Run("take profit, stop loss, trigger price type and slippage tolerance refusals", func(t *testing.T) {
 		t.Parallel()
-		// Every order type placeOrderRequest takes, every name for a side and every time in force it takes, as no refusal
-		// of either depends on them
+		// Every order type placeOrderRequest takes, every name for a side and every time in force it takes, as none of these
+		// refusals depends on them
 		orders := []order.Submit{
 			{Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100},
 			{Type: order.Market, Side: order.Sell, Amount: 1, TimeInForce: order.ImmediateOrCancel},
@@ -1046,6 +1129,7 @@ func TestPlaceOrderRequest(t *testing.T) {
 			{Type: order.StopLimit, Side: order.Sell, Amount: 1, Price: 90, TriggerPrice: 95, TimeInForce: order.GoodTillTime, EndTime: time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC)},
 			{Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, TimeInForce: order.GoodTillCrossing},
 			{Type: order.Limit, Side: order.Sell, Amount: 1, Price: 100, TimeInForce: order.GoodTillCancel},
+			{Type: order.Limit, Side: order.Sell, Amount: 1, Price: 100, TimeInForce: order.PostOnly},
 			{Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, TimeInForce: order.GoodTillDay | order.GoodTillTime, EndTime: time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC)},
 		}
 		options := orderOptionCases()
@@ -1062,11 +1146,127 @@ func TestPlaceOrderRequest(t *testing.T) {
 						_, err := placeOrderRequest(&s)
 						require.NoErrorf(t, err, "placeOrderRequest must place a %s order", name)
 						with := s
-						with.RiskManagementModes, with.TriggerPriceType = option.risk, option.triggerPriceType
+						with.RiskManagementModes, with.TriggerPriceType, with.SlippageTolerance = option.risk, option.triggerPriceType, option.slippageTolerance
 						got, err := placeOrderRequest(&with)
 						assert.ErrorIsf(t, err, option.err, "placeOrderRequest should refuse a %s order with %s", name, option.name)
 						assert.Nilf(t, got, "placeOrderRequest should return no request for a %s order with %s", name, option.name)
 					})
+				}
+			}
+		}
+
+		t.Run("slippage tolerances on each type, time in force and reduce only", func(t *testing.T) {
+			t.Parallel()
+			var slippages []orderOptionCase
+			for _, option := range options {
+				if option.err == errSlippageUnsupported {
+					slippages = append(slippages, option)
+				}
+			}
+			// Each time in force placeOrderRequest takes alone for each type, and good till day with good till time
+			stopTIFs := []order.TimeInForce{order.UnknownTIF, order.PostOnly, order.GoodTillCancel, order.GoodTillTime, order.GoodTillDay | order.GoodTillTime}
+			marketTIFs := append([]order.TimeInForce{order.ImmediateOrCancel}, stopTIFs...)
+			limitTIFs := append([]order.TimeInForce{order.FillOrKill, order.GoodTillCrossing}, marketTIFs...)
+			for _, o := range []struct {
+				s    order.Submit
+				tifs []order.TimeInForce
+			}{
+				{s: order.Submit{Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100}, tifs: limitTIFs},
+				{s: order.Submit{Type: order.Market, Side: order.Sell, Amount: 1}, tifs: marketTIFs},
+				{s: order.Submit{Type: order.Market, Side: order.Buy, Amount: 1, Price: 100}, tifs: marketTIFs},
+				{s: order.Submit{Type: order.Stop, Side: order.Sell, Amount: 1, TriggerPrice: 95}, tifs: stopTIFs},
+				{s: order.Submit{Type: order.StopLimit, Side: order.Buy, Amount: 1, Price: 110, TriggerPrice: 105}, tifs: stopTIFs},
+				{s: order.Submit{Type: order.TrailingStop, Side: order.Sell, Amount: 1, TrackingValue: 10}, tifs: stopTIFs},
+				{s: order.Submit{Type: order.TrailingStop, Side: order.Buy, Amount: 1, TrackingValue: 10, TrackingMode: order.Distance}, tifs: stopTIFs},
+			} {
+				for _, tif := range o.tifs {
+					for _, reduceOnly := range []bool{false, true} {
+						s := o.s
+						s.TimeInForce, s.ReduceOnly = tif, reduceOnly
+						if tif.Is(order.GoodTillTime) {
+							s.EndTime = time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC)
+						}
+						kind := s.Side.String() + " " + s.Type.String()
+						switch {
+						case s.Type == order.Market && s.Price != 0:
+							kind += " with a reference price"
+						case s.TrackingMode == order.Distance:
+							kind += " by a distance"
+						}
+						if tif != order.UnknownTIF {
+							kind += " " + tif.String()
+						}
+						if reduceOnly {
+							kind += " reduce only"
+						}
+						for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+							placed := s
+							placed.AssetType, placed.Pair = a, testOrderAssetPairs[a]
+							_, err := placeOrderRequest(&placed)
+							require.NoErrorf(t, err, "placeOrderRequest must place a %s %s order", a, kind)
+							for _, option := range slippages {
+								t.Run(a.String()+" "+kind+" with "+option.name, func(t *testing.T) {
+									t.Parallel()
+									with := placed
+									with.SlippageTolerance = option.slippageTolerance
+									got, err := placeOrderRequest(&with)
+									assert.ErrorIsf(t, err, errSlippageUnsupported, "placeOrderRequest should refuse a %s %s order with %s", a, kind, option.name)
+									assert.Nilf(t, got, "placeOrderRequest should return no request for a %s %s order with %s", a, kind, option.name)
+								})
+							}
+						}
+					}
+				}
+			}
+		})
+	})
+
+	t.Run("stop directions of each asset, type, time in force and side", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+			for _, o := range []order.Submit{
+				{Type: order.Stop, Amount: 1, TriggerPrice: 100},
+				{Type: order.StopLimit, Amount: 1, Price: 90, TriggerPrice: 95},
+				{Type: order.TrailingStop, Amount: 1, TrackingValue: 10},
+				{Type: order.TrailingStop, Amount: 1, TrackingValue: 10, TrackingMode: order.Distance},
+				{Type: order.Limit, Amount: 1, Price: 100},
+				{Type: order.Market, Amount: 1},
+			} {
+				for _, tif := range []order.TimeInForce{order.UnknownTIF, order.PostOnly, order.GoodTillCancel, order.GoodTillTime, order.GoodTillDay | order.GoodTillTime} {
+					for _, side := range []order.Side{order.Buy, order.Bid, order.Long, order.Sell, order.Ask, order.Short} {
+						s := o
+						s.AssetType, s.Pair, s.Side, s.TimeInForce = a, testOrderAssetPairs[a], side, tif
+						name := a.String() + " " + side.String() + " " + s.Type.String()
+						if s.TrackingMode == order.Distance {
+							name += " by a distance"
+						}
+						if tif != order.UnknownTIF {
+							name += " " + tif.String()
+						}
+						if tif.Is(order.GoodTillTime) {
+							s.EndTime = time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC)
+						}
+						t.Run(name, func(t *testing.T) {
+							t.Parallel()
+							exp, err := placeOrderRequest(&s)
+							require.NoErrorf(t, err, "placeOrderRequest must build a %s order", name)
+							down := s
+							down.StopDirection = order.StopDown
+							got, err := placeOrderRequest(&down)
+							require.NoErrorf(t, err, "placeOrderRequest must build a %s order given order.StopDown", name)
+							assert.Equalf(t, exp, got, "placeOrderRequest should build a %s order given order.StopDown as one given no direction, its zero value", name)
+							up := s
+							up.StopDirection = order.StopUp
+							got, err = placeOrderRequest(&up)
+							if side.IsShort() && (s.Type == order.Stop || s.Type == order.StopLimit || s.Type == order.TrailingStop) {
+								assert.ErrorIsf(t, err, errStopDirectionUnsupported, "placeOrderRequest should refuse a %s order given order.StopUp, as Bitfinex's sell stops trigger as the price falls", name)
+								assert.Nilf(t, got, "placeOrderRequest should return no request for a %s order given order.StopUp", name)
+								return
+							}
+							require.NoErrorf(t, err, "placeOrderRequest must build a %s order given order.StopUp", name)
+							assert.Equalf(t, exp, got, "placeOrderRequest should build a %s order given order.StopUp as one given no direction", name)
+						})
+					}
 				}
 			}
 		}
@@ -1487,14 +1687,16 @@ func TestPlaceOrderRequest(t *testing.T) {
 // orderOptionCase is an option of an order or a modification that Bitfinex takes no field for, set alone, and the error
 // refusing it
 type orderOptionCase struct {
-	name             string
-	risk             order.RiskManagementModes
-	triggerPriceType order.PriceType
-	err              error
+	name              string
+	risk              order.RiskManagementModes
+	triggerPriceType  order.PriceType
+	slippageTolerance float64
+	err               error
 }
 
 // orderOptionCases returns each take profit and stop loss mode, each field of a take profit, stop loss and stop entry set
-// alone, as wrappers read them by price or by flag, and each price type for a trigger but the last price
+// alone, as wrappers read them by price or by flag, each price type for a trigger but the last price, and slippage
+// tolerances within the range orders take, above it and below it
 func orderOptionCases() []orderOptionCase {
 	legs := []struct {
 		name string
@@ -1518,13 +1720,22 @@ func orderOptionCases() []orderOptionCase {
 		{"limit price", func(m *order.RiskManagement) { m.LimitPrice = 121 }},
 		{"order type", func(m *order.RiskManagement) { m.OrderType = order.Limit }},
 	}
-	cases := make([]orderOptionCase, 0, 5+len(legs)*len(fields))
+	cases := make([]orderOptionCase, 0, 14+len(legs)*len(fields))
 	cases = append(cases,
 		orderOptionCase{name: "a full take profit and stop loss mode", risk: order.RiskManagementModes{Mode: "full"}, err: errRiskManagementUnsupported},
 		orderOptionCase{name: "a partial take profit and stop loss mode", risk: order.RiskManagementModes{Mode: "partial"}, err: errRiskManagementUnsupported},
 		orderOptionCase{name: "a trigger on the index price", triggerPriceType: order.IndexPrice, err: errTriggerPriceTypeUnsupported},
 		orderOptionCase{name: "a trigger on the mark price", triggerPriceType: order.MarkPrice, err: errTriggerPriceTypeUnsupported},
 		orderOptionCase{name: "a trigger on an unknown price type", triggerPriceType: order.UnknownPriceType, err: errTriggerPriceTypeUnsupported},
+		orderOptionCase{name: "a slippage tolerance", slippageTolerance: 0.001, err: errSlippageUnsupported},
+		orderOptionCase{name: "the positive slippage tolerance closest to zero", slippageTolerance: math.SmallestNonzeroFloat64, err: errSlippageUnsupported},
+		orderOptionCase{name: "a slippage tolerance of 1", slippageTolerance: 1, err: errSlippageUnsupported},
+		orderOptionCase{name: "a slippage tolerance above 1", slippageTolerance: 2, err: errSlippageUnsupported},
+		orderOptionCase{name: "a negative slippage tolerance", slippageTolerance: -0.001, err: errSlippageUnsupported},
+		orderOptionCase{name: "the negative slippage tolerance closest to zero", slippageTolerance: -math.SmallestNonzeroFloat64, err: errSlippageUnsupported},
+		orderOptionCase{name: "a slippage tolerance that is not a number", slippageTolerance: math.NaN(), err: errSlippageUnsupported},
+		orderOptionCase{name: "an infinite slippage tolerance", slippageTolerance: math.Inf(1), err: errSlippageUnsupported},
+		orderOptionCase{name: "a negative infinite slippage tolerance", slippageTolerance: math.Inf(-1), err: errSlippageUnsupported},
 	)
 	for _, leg := range legs {
 		for _, field := range fields {
@@ -1589,11 +1800,44 @@ func TestCheckPricePrecision(t *testing.T) {
 
 func TestCheckOrderOptions(t *testing.T) {
 	t.Parallel()
-	assert.NoError(t, checkOrderOptions(new(order.RiskManagementModes), order.LastPrice), "checkOrderOptions should take a trigger on the last price, a price type's zero value, as none")
+	assert.NoError(t, checkOrderOptions(new(order.RiskManagementModes), order.LastPrice, 0), "checkOrderOptions should take a trigger on the last price, a price type's zero value, as none")
+	t.Run("a slippage tolerance of negative zero", func(t *testing.T) {
+		t.Parallel()
+		assert.NoError(t, checkOrderOptions(new(order.RiskManagementModes), order.LastPrice, math.Copysign(0, -1)), "checkOrderOptions should take a slippage tolerance of negative zero as none")
+	})
 	for _, tc := range orderOptionCases() {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.ErrorIsf(t, checkOrderOptions(&tc.risk, tc.triggerPriceType), tc.err, "checkOrderOptions should refuse %s", tc.name)
+			assert.ErrorIsf(t, checkOrderOptions(&tc.risk, tc.triggerPriceType, tc.slippageTolerance), tc.err, "checkOrderOptions should refuse %s", tc.name)
+		})
+	}
+}
+
+func TestCheckStopDirection(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		s    order.Submit
+		err  error
+	}{
+		{name: "a buy triggering as the price rises", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Buy, StopDirection: order.StopUp}},
+		{name: "a bid triggering as the price rises", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Bid, StopDirection: order.StopUp}},
+		{name: "a long triggering as the price rises", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Long, StopDirection: order.StopUp}},
+		{name: "a sell triggering as the price rises", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Sell, StopDirection: order.StopUp}, err: errStopDirectionUnsupported},
+		{name: "an ask triggering as the price rises", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Ask, StopDirection: order.StopUp}, err: errStopDirectionUnsupported},
+		{name: "a short triggering as the price rises", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Short, StopDirection: order.StopUp}, err: errStopDirectionUnsupported},
+		{name: "a sell and an ask at once triggering as the price rises", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Sell | order.Ask, StopDirection: order.StopUp}, err: errStopDirectionUnsupported},
+		{name: "a buy and a sell at once triggering as the price rises, placed as a buy", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Buy | order.Sell, StopDirection: order.StopUp}},
+		{name: "a buy triggering as the price falls, the direction's zero value", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Buy, StopDirection: order.StopDown}},
+		{name: "a bid triggering as the price falls", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Bid, StopDirection: order.StopDown}},
+		{name: "a long triggering as the price falls", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Long, StopDirection: order.StopDown}},
+		{name: "a sell triggering as the price falls", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Sell, StopDirection: order.StopDown}},
+		{name: "an ask triggering as the price falls", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Ask, StopDirection: order.StopDown}},
+		{name: "a short triggering as the price falls", s: order.Submit{Type: order.Stop, Amount: 1, Side: order.Short, StopDirection: order.StopDown}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, checkStopDirection(&tc.s), tc.err, "checkStopDirection should take or refuse %s as Bitfinex's stops trigger", tc.name)
 		})
 	}
 }
@@ -1726,6 +1970,146 @@ func TestSubmitOrder(t *testing.T) {
 			require.NoError(t, json.Unmarshal(inputs[i], &sent), "Decoding the order sent must not error")
 			assert.Equalf(t, placedIDs[i], sent["cid"], "SubmitOrder should send client order ID %v as its number through the websocket", placedIDs[i])
 		}
+	})
+	t.Run("stop directions and slippage tolerances over REST and the websocket", func(t *testing.T) {
+		t.Parallel()
+		cases := []struct {
+			name string
+			s    order.Submit
+			// err is the refusal, sending nothing; without one the order is placed as it would be with no direction
+			err error
+		}{
+			{name: "a sell stop triggering as the price rises", s: order.Submit{Type: order.Stop, Side: order.Sell, Amount: 1, TriggerPrice: 90, StopDirection: order.StopUp}, err: errStopDirectionUnsupported},
+			{name: "an ask stop limit triggering as the price rises", s: order.Submit{Type: order.StopLimit, Side: order.Ask, Amount: 1, Price: 89, TriggerPrice: 90, StopDirection: order.StopUp}, err: errStopDirectionUnsupported},
+			{name: "an ask stop limit triggering as the price rises, at its limit price", s: order.Submit{Type: order.StopLimit, Side: order.Ask, Amount: 1, Price: 90, TriggerPrice: 90, StopDirection: order.StopUp}, err: errStopDirectionUnsupported},
+			{name: "an ask stop limit triggering as the price rises, below its limit price", s: order.Submit{Type: order.StopLimit, Side: order.Ask, Amount: 1, Price: 91, TriggerPrice: 90, StopDirection: order.StopUp}, err: errStopDirectionUnsupported},
+			{name: "a short trailing stop triggering as the price rises", s: order.Submit{Type: order.TrailingStop, Side: order.Short, Amount: 1, TrackingValue: 5, StopDirection: order.StopUp}, err: errStopDirectionUnsupported},
+			{name: "a reduce only sell stop triggering as the price rises", s: order.Submit{Type: order.Stop, Side: order.Sell, Amount: 1, TriggerPrice: 90, StopDirection: order.StopUp, ReduceOnly: true}, err: errStopDirectionUnsupported},
+			{name: "an ask and short stop triggering as the price rises", s: order.Submit{Type: order.Stop, Side: order.Ask | order.Short, Amount: 1, TriggerPrice: 90, StopDirection: order.StopUp}, err: errStopDirectionUnsupported},
+			{name: "a buy stop triggering as the price rises, with a slippage tolerance", s: order.Submit{Type: order.Stop, Side: order.Buy, Amount: 1, TriggerPrice: 110, StopDirection: order.StopUp, SlippageTolerance: 0.001}, err: errSlippageUnsupported},
+			{name: "a market buy with a slippage tolerance", s: order.Submit{Type: order.Market, Side: order.Buy, Amount: 1, SlippageTolerance: 0.001}, err: errSlippageUnsupported},
+			{name: "a market buy with a slippage tolerance past eight decimals", s: order.Submit{Type: order.Market, Side: order.Buy, Amount: 1, SlippageTolerance: 1e-9}, err: errSlippageUnsupported},
+			{name: "a limit sell with an infinite slippage tolerance", s: order.Submit{Type: order.Limit, Side: order.Sell, Amount: 1, Price: 100, SlippageTolerance: math.Inf(1)}, err: errSlippageUnsupported},
+			{name: "a reduce only market sell with a slippage tolerance", s: order.Submit{Type: order.Market, Side: order.Sell, Amount: 1, ReduceOnly: true, SlippageTolerance: 0.001}, err: errSlippageUnsupported},
+			{name: "a post only limit buy with a slippage tolerance", s: order.Submit{Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, TimeInForce: order.PostOnly, SlippageTolerance: 0.001}, err: errSlippageUnsupported},
+			{name: "an immediate or cancel limit sell with a negative slippage tolerance", s: order.Submit{Type: order.Limit, Side: order.Sell, Amount: 1, Price: 100, TimeInForce: order.ImmediateOrCancel, SlippageTolerance: -0.001}, err: errSlippageUnsupported},
+			{name: "a sell trailing stop with a slippage tolerance", s: order.Submit{Type: order.TrailingStop, Side: order.Sell, Amount: 1, TrackingValue: 5, SlippageTolerance: 0.001}, err: errSlippageUnsupported},
+			{name: "a buy stop triggering as the price rises", s: order.Submit{Type: order.Stop, Side: order.Buy, Amount: 1, TriggerPrice: 110, StopDirection: order.StopUp}},
+			{name: "a buy stop triggering as the price rises, with a client order ID", s: order.Submit{Type: order.Stop, Side: order.Buy, Amount: 1, TriggerPrice: 110, StopDirection: order.StopUp, ClientOrderID: "493"}},
+			{name: "a bid stop limit triggering as the price rises", s: order.Submit{Type: order.StopLimit, Side: order.Bid, Amount: 1, Price: 111, TriggerPrice: 110, StopDirection: order.StopUp}},
+			{name: "a long trailing stop triggering as the price rises", s: order.Submit{Type: order.TrailingStop, Side: order.Long, Amount: 1, TrackingValue: 5, StopDirection: order.StopUp}},
+			{name: "a buy stop with no direction", s: order.Submit{Type: order.Stop, Side: order.Buy, Amount: 1, TriggerPrice: 110}},
+			{name: "a bid stop limit with no direction", s: order.Submit{Type: order.StopLimit, Side: order.Bid, Amount: 1, Price: 111, TriggerPrice: 110}},
+			{name: "a long trailing stop with no direction", s: order.Submit{Type: order.TrailingStop, Side: order.Long, Amount: 1, TrackingValue: 5}},
+			{name: "a sell stop triggering as the price falls", s: order.Submit{Type: order.Stop, Side: order.Sell, Amount: 1, TriggerPrice: 90, StopDirection: order.StopDown}},
+			{name: "a sell and ask stop triggering as the price falls", s: order.Submit{Type: order.Stop, Side: order.Sell | order.Ask, Amount: 1, TriggerPrice: 90, StopDirection: order.StopDown}},
+			{name: "a market buy with a slippage tolerance of negative zero, taken as none", s: order.Submit{Type: order.Market, Side: order.Buy, Amount: 1, SlippageTolerance: math.Copysign(0, -1)}},
+			{name: "a sell limit given a rising direction", s: order.Submit{Type: order.Limit, Side: order.Sell, Amount: 1, Price: 100, StopDirection: order.StopUp}},
+			{name: "a market sell given a rising direction", s: order.Submit{Type: order.Market, Side: order.Sell, Amount: 1, StopDirection: order.StopUp}},
+		}
+		assets := []asset.Item{asset.Spot, asset.Margin, asset.USDTMarginedFutures, asset.CoinMarginedFutures}
+		// placed returns the body an accepted order is sent with, the one it builds with no direction, as Bitfinex takes none
+		placed := func(t *testing.T, s *order.Submit) map[string]any {
+			t.Helper()
+			plain := *s
+			plain.StopDirection = order.StopDown
+			req, err := placeOrderRequest(&plain)
+			require.NoError(t, err, "placeOrderRequest must build the order with no direction")
+			body, err := req.body()
+			require.NoError(t, err, "body must not error")
+			b, err := json.Marshal(body)
+			require.NoError(t, err, "Marshal must not error")
+			var exp map[string]any
+			require.NoError(t, json.Unmarshal(b, &exp), "Unmarshal must not error")
+			return exp
+		}
+		// checkResponse checks a placed order's reported side and prices: neither a stop nor a trailing stop has a price of
+		// its own, and a trailing stop's trigger is the price the venue placed it at
+		checkResponse := func(t *testing.T, name string, s *order.Submit, resp *order.SubmitResponse, trailingTrigger float64) {
+			t.Helper()
+			require.NotNilf(t, resp, "SubmitOrder must return a response for %s", name)
+			assert.Equalf(t, s.Side, resp.Side, "SubmitOrder should report the side of %s", name)
+			switch s.Type {
+			case order.Stop:
+				assert.Zerof(t, resp.Price, "SubmitOrder should report no price for %s", name)
+				assert.Equalf(t, s.TriggerPrice, resp.TriggerPrice, "SubmitOrder should report the trigger price of %s", name)
+			case order.StopLimit:
+				assert.Equalf(t, s.Price, resp.Price, "SubmitOrder should report the limit price of %s", name)
+				assert.Equalf(t, s.TriggerPrice, resp.TriggerPrice, "SubmitOrder should report the trigger price of %s", name)
+			case order.TrailingStop:
+				assert.Zerof(t, resp.Price, "SubmitOrder should report no price for %s", name)
+				assert.Equalf(t, trailingTrigger, resp.TriggerPrice, "SubmitOrder should report the trigger price the venue placed %s at", name)
+			case order.Limit:
+				assert.Equalf(t, s.Price, resp.Price, "SubmitOrder should report the limit price of %s", name)
+			}
+		}
+		t.Run("over REST", func(t *testing.T) {
+			t.Parallel()
+			for _, a := range assets {
+				for _, tc := range cases {
+					t.Run(a.String()+" "+tc.name, func(t *testing.T) {
+						t.Parallel()
+						ex, bodies := newRequestBodyExchange(t, "/v2/auth/w/order/submit", `[1678987199,"on-req",null,null,[[1747566431,null,1678987199446,"tBTCUSD",1678987199446,1678987199448,1,1,"EXCHANGE STOP",null,null,null,0,"ACTIVE",null,null,100,0,0,0,null,null,null,0,0,null,null,null,"API>BFX",null,null,null]],null,"SUCCESS","Submitting order."]`)
+						s := tc.s
+						s.Exchange, s.AssetType, s.Pair = ex.Name, a, testOrderAssetPairs[a]
+						resp, err := ex.SubmitOrder(t.Context(), &s)
+						if tc.err != nil {
+							assert.ErrorIsf(t, err, tc.err, "SubmitOrder should refuse %s over REST", tc.name)
+							assert.Nilf(t, resp, "SubmitOrder should return no response for %s over REST", tc.name)
+							assert.Emptyf(t, bodies, "SubmitOrder should send nothing for %s over REST", tc.name)
+							return
+						}
+						require.NoErrorf(t, err, "SubmitOrder must place %s over REST", tc.name)
+						// The reply places every order at 100
+						checkResponse(t, tc.name, &s, resp, 100)
+						var sent map[string]any
+						require.NoError(t, json.Unmarshal([]byte(requestBody(t, bodies)), &sent), "Decoding the order sent must not error")
+						assert.Equalf(t, placed(t, &s), sent, "SubmitOrder should send %s over REST as with no direction", tc.name)
+					})
+				}
+			}
+		})
+		t.Run("through the websocket", func(t *testing.T) {
+			t.Parallel()
+			if !mockTests {
+				t.Skip("the websocket would reach Bitfinex")
+			}
+			ex := newRefusingTestExchange(t)
+			venue := connectWebsocketTestExchange(t, ex, subscription.List{})
+			require.True(t, ex.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "the wrapper must be able to use the authenticated websocket")
+			// The cases share the websocket in order, each reading the orders it received before and after its own
+			for _, a := range assets {
+				for _, tc := range cases {
+					t.Run(a.String()+" "+tc.name, func(t *testing.T) {
+						before := len(venue.inputs(wsOrderNew))
+						s := tc.s
+						s.Exchange, s.AssetType, s.Pair = ex.Name, a, testOrderAssetPairs[a]
+						resp, err := ex.SubmitOrder(t.Context(), &s)
+						inputs := venue.inputs(wsOrderNew)
+						if tc.err != nil {
+							assert.ErrorIsf(t, err, tc.err, "SubmitOrder should refuse %s through the websocket", tc.name)
+							assert.Nilf(t, resp, "SubmitOrder should return no response for %s through the websocket", tc.name)
+							assert.Lenf(t, inputs, before, "SubmitOrder should send nothing for %s through the websocket", tc.name)
+							return
+						}
+						require.NoErrorf(t, err, "SubmitOrder must place %s through the websocket", tc.name)
+						// The mock echoes the price sent, zero for a trailing stop
+						checkResponse(t, tc.name, &s, resp, 0)
+						require.Lenf(t, inputs, before+1, "SubmitOrder must send %s through the websocket once", tc.name)
+						var sent map[string]any
+						require.NoError(t, json.Unmarshal(inputs[before], &sent), "Decoding the order sent must not error")
+						// The websocket client supplies a missing client order ID before sending
+						if s.ClientOrderID == "" {
+							delete(sent, "cid")
+						}
+						assert.Equalf(t, placed(t, &s), sent, "SubmitOrder should send %s through the websocket as with no direction", tc.name)
+					})
+				}
+			}
+			for _, input := range []string{wsOrderUpdate, wsOrderCancel, wsOrderCancelMulti, wsFundingOfferNew, wsFundingOfferCancel, wsCalc} {
+				assert.Emptyf(t, venue.inputs(input), "SubmitOrder should send no %s input through the websocket", input)
+			}
+		})
 	})
 	t.Run("a spot or margin order's leverage of 1, which is none", func(t *testing.T) {
 		t.Parallel()
@@ -2161,6 +2545,15 @@ func TestModifyOrder(t *testing.T) {
 			assert.Equal(t, want, updates(), "ModifyOrder should send each modification within Bitfinex's precision once, in turn")
 		})
 
+		t.Run("a slippage tolerance of negative zero, taken as none", func(t *testing.T) {
+			t.Parallel()
+			ex, updates := newOrderUpdateTestExchange(t, testOrderRecord{id: 17, symbol: "tBTCUSD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 100})
+			resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "17", AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Side: order.Buy, Price: 101, SlippageTolerance: math.Copysign(0, -1)})
+			require.NoError(t, err, "ModifyOrder must take a slippage tolerance of negative zero as none")
+			require.NotNil(t, resp, "ModifyOrder must return a response for a modification with a slippage tolerance of negative zero")
+			assert.Equal(t, []map[string]any{{"id": 17.0, "price": "101"}}, updates(), "ModifyOrder should send the new price of a modification with a slippage tolerance of negative zero")
+		})
+
 		t.Run("the order's type and time in force", func(t *testing.T) {
 			t.Parallel()
 			ex, updates := newOrderUpdateTestExchange(t, testOrderRecord{id: 16, symbol: "tBTCUSD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 100, meta: `{"$F7":1}`})
@@ -2182,7 +2575,7 @@ func TestModifyOrder(t *testing.T) {
 			assert.Len(t, updates(), 3, "ModifyOrder should send nothing for a modification it refuses")
 		})
 
-		t.Run("take profit, stop loss and trigger price type refusals", func(t *testing.T) {
+		t.Run("take profit, stop loss, trigger price type and slippage tolerance refusals", func(t *testing.T) {
 			t.Parallel()
 			ex, updates := newOrderUpdateTestExchange(t, testOrderRecord{id: 11, symbol: "tBTCUSD", orderType: "LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 100})
 			// No side, any side and every name for one, no type, any type and every type Bitfinex places, every time in force,
@@ -2194,6 +2587,7 @@ func TestModifyOrder(t *testing.T) {
 				{name: "a buy's new price", m: order.Modify{Side: order.Buy, Price: 101}},
 				{name: "an ask limit's new amount", m: order.Modify{Side: order.Ask, Type: order.Limit, Amount: 2}},
 				{name: "a post only long's new price", m: order.Modify{Side: order.Long, Price: 101, TimeInForce: order.PostOnly}},
+				{name: "a post only bid limit's new price", m: order.Modify{Side: order.Bid, Type: order.Limit, Price: 101, TimeInForce: order.PostOnly}},
 				{name: "a sell's new amount", m: order.Modify{Side: order.Sell, Amount: 2}},
 				{name: "a short stop's new trigger price", m: order.Modify{Side: order.Short, Type: order.Stop, TriggerPrice: 92}},
 				{name: "a good till time bid stop limit's new prices", m: order.Modify{Side: order.Bid, Type: order.StopLimit, Price: 99, TriggerPrice: 92, TimeInForce: order.GoodTillTime}},
@@ -2207,6 +2601,9 @@ func TestModifyOrder(t *testing.T) {
 				{name: "a buy's new price for any type", m: order.Modify{Side: order.Buy, Type: order.AnyType, Price: 101}},
 				{name: "a good till day sell's new price", m: order.Modify{Side: order.Sell, Price: 101, TimeInForce: order.GoodTillDay}},
 				{name: "a stop or reduce short's new amount", m: order.Modify{Side: order.Short, Amount: 2, TimeInForce: order.StopOrReduce}},
+				{name: "a buy's new amount and price", m: order.Modify{Side: order.Buy, Amount: 2, Price: 101}},
+				{name: "a stop limit sell's new amount and prices", m: order.Modify{Side: order.Sell, Type: order.StopLimit, Amount: 2, Price: 99, TriggerPrice: 92}},
+				{name: "a buy's options alone", m: order.Modify{Side: order.Buy}},
 			}
 			options := orderOptionCases()
 			// The cases share ex in order, and the check after them expects none of them to have sent an update
@@ -2216,14 +2613,88 @@ func TestModifyOrder(t *testing.T) {
 						t.Run(a.String()+" "+mod.name+" with "+option.name, func(t *testing.T) {
 							m := mod.m
 							m.OrderID, m.AssetType, m.Pair = "11", a, testOrderAssetPairs[a]
-							m.RiskManagementModes, m.TriggerPriceType = option.risk, option.triggerPriceType
-							_, err := ex.ModifyOrder(t.Context(), &m)
+							m.RiskManagementModes, m.TriggerPriceType, m.SlippageTolerance = option.risk, option.triggerPriceType, option.slippageTolerance
+							resp, err := ex.ModifyOrder(t.Context(), &m)
 							assert.ErrorIsf(t, err, option.err, "ModifyOrder should refuse %s with %s for a %s order", mod.name, option.name, a)
+							assert.Nilf(t, resp, "ModifyOrder should return no response when it refuses %s with %s for a %s order", mod.name, option.name, a)
 						})
 					}
 				}
 			}
 			assert.Empty(t, updates(), "ModifyOrder should send no update it refuses")
+
+			for _, connected := range []bool{false, true} {
+				t.Run("refused before looking the order up, websocket connected "+strconv.FormatBool(connected), func(t *testing.T) {
+					t.Parallel()
+					if connected && !mockTests {
+						t.Skip("the websocket would reach Bitfinex")
+					}
+					refusing := newRefusingTestExchange(t)
+					var venue *websocketVenue
+					if connected {
+						venue = connectWebsocketTestExchange(t, refusing, subscription.List{})
+						require.True(t, refusing.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "the wrapper must be able to use the authenticated websocket")
+					}
+					// Connected, the cases share the websocket, and the check after them reads every input it received
+					for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+						for _, mod := range modifications {
+							for _, option := range options {
+								t.Run(a.String()+" "+mod.name+" with "+option.name, func(t *testing.T) {
+									if !connected {
+										t.Parallel()
+									}
+									m := mod.m
+									m.OrderID, m.AssetType, m.Pair = "11", a, testOrderAssetPairs[a]
+									m.RiskManagementModes, m.TriggerPriceType, m.SlippageTolerance = option.risk, option.triggerPriceType, option.slippageTolerance
+									resp, err := refusing.ModifyOrder(t.Context(), &m)
+									assert.ErrorIsf(t, err, option.err, "ModifyOrder should refuse %s with %s for a %s order before looking it up", mod.name, option.name, a)
+									assert.Nilf(t, resp, "ModifyOrder should return no response when it refuses %s with %s for a %s order", mod.name, option.name, a)
+								})
+							}
+						}
+					}
+					if connected {
+						assertNoWebsocketInputs(t, venue, "ModifyOrder")
+					}
+				})
+			}
+
+			t.Run("slippage tolerances refused before looking the order up, for each type and change", func(t *testing.T) {
+				t.Parallel()
+				refusing := newRefusingTestExchange(t)
+				for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+					for _, orderType := range []order.Type{order.UnknownType, order.AnyType, order.Limit, order.Market, order.Stop, order.StopLimit, order.TrailingStop} {
+						for _, change := range []struct {
+							name string
+							m    order.Modify
+						}{
+							{name: "a new price", m: order.Modify{Price: 101}},
+							{name: "a new amount", m: order.Modify{Amount: 2}},
+							{name: "a new trigger price", m: order.Modify{TriggerPrice: 96}},
+							{name: "a new amount and price", m: order.Modify{Amount: 2, Price: 99}},
+							{name: "a new amount and trigger price", m: order.Modify{Amount: 2, TriggerPrice: 96}},
+							{name: "new prices", m: order.Modify{Price: 99, TriggerPrice: 96}},
+							{name: "a new amount and prices", m: order.Modify{Amount: 2, Price: 99, TriggerPrice: 96}},
+							{name: "nothing new", m: order.Modify{}},
+						} {
+							for _, option := range options {
+								if option.err != errSlippageUnsupported {
+									continue
+								}
+								t.Run(a.String()+" "+orderType.String()+" buy's "+change.name+" with "+option.name, func(t *testing.T) {
+									t.Parallel()
+									m := change.m
+									m.OrderID, m.AssetType, m.Pair, m.Type, m.Side = "11", a, testOrderAssetPairs[a], orderType, order.Buy
+									m.SlippageTolerance = option.slippageTolerance
+									resp, err := refusing.ModifyOrder(t.Context(), &m)
+									assert.ErrorIsf(t, err, errSlippageUnsupported, "ModifyOrder should refuse a %s %s buy's %s with %s before looking it up", a, orderType, change.name, option.name)
+									assert.Nilf(t, resp, "ModifyOrder should return no response when it refuses a %s %s buy's %s with %s", a, orderType, change.name, option.name)
+								})
+							}
+						}
+					}
+				}
+			})
 		})
 
 		t.Run("refusals", func(t *testing.T) {
@@ -3187,8 +3658,8 @@ func newPathResponseServerExchange(t *testing.T, bodies map[string]string) *Exch
 
 // newHistoryWindowExchange returns an exchange whose history at path holds a record for each time given, newest first,
 // and serves it as Bitfinex does: the records from the start to the end of the window asked, both included, newest
-// first and at most the limit asked, refusing a window ending where it starts. row gives the record at an index, and
-// windows records each window asked for, its start and end in milliseconds
+// first, or oldest first for a sort of 1, and at most the limit asked, refusing a window ending where it starts. row
+// gives the record at an index, and windows records each window asked for, its start and end in milliseconds
 func newHistoryWindowExchange(t *testing.T, path string, times []int64, row func(i int) string, windows *[][2]int64) *Exchange {
 	t.Helper()
 	return newHistoryWindowsExchange(t, map[string]historyFixture{path: {times: times, row: row, windows: windows}})
@@ -3212,13 +3683,13 @@ func newHistoryWindowsExchange(t *testing.T, histories map[string]historyFixture
 			http.Error(w, "unexpected path", http.StatusNotFound)
 			return
 		}
-		var q struct{ Start, End, Limit int64 }
+		var q struct{ Start, End, Limit, Sort int64 }
 		var body map[string]json.RawMessage
 		if r.Method == http.MethodPost && !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "Decoding the request should not error") {
 			http.Error(w, "undecodable request", http.StatusBadRequest)
 			return
 		}
-		for k, v := range map[string]*int64{"start": &q.Start, "end": &q.End, "limit": &q.Limit} {
+		for k, v := range map[string]*int64{"start": &q.Start, "end": &q.End, "limit": &q.Limit, "sort": &q.Sort} {
 			var err error
 			if raw, ok := body[k]; ok {
 				err = json.Unmarshal(raw, v)
@@ -3242,8 +3713,12 @@ func newHistoryWindowsExchange(t *testing.T, histories map[string]historyFixture
 		var b strings.Builder
 		b.WriteByte('[')
 		var n int64
-		for i, at := range h.times {
-			if (q.Start != 0 && at < q.Start) || (q.End != 0 && at > q.End) {
+		for j := range h.times {
+			i := j
+			if q.Sort == 1 {
+				i = len(h.times) - 1 - j
+			}
+			if at := h.times[i]; (q.Start != 0 && at < q.Start) || (q.End != 0 && at > q.End) {
 				continue
 			}
 			if n == q.Limit {
@@ -5443,6 +5918,142 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFuturesPositionSummary must reject a nil request")
 	_, err = e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Margin, Pair: currency.NewBTCUSD()})
 	require.ErrorIs(t, err, futures.ErrNotPerpetualFuture, "GetFuturesPositionSummary must refuse an asset trading no perpetual contracts")
+	t.Run("an offline calculation", func(t *testing.T) {
+		t.Parallel()
+		usdt := futures.PositionSummaryRequest{Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, CalculateOffline: true}
+		coin := futures.PositionSummaryRequest{Asset: asset.CoinMarginedFutures, Pair: testCoinMarginedPair, CalculateOffline: true}
+		with := func(r futures.PositionSummaryRequest, set func(*futures.PositionSummaryRequest)) futures.PositionSummaryRequest {
+			set(&r)
+			return r
+		}
+		opening := func(r *futures.PositionSummaryRequest) {
+			r.Direction, r.CurrentPrice, r.OpeningPrice, r.OpeningSize = order.Long, decimal.NewFromInt(75000), decimal.NewFromInt(70000), decimal.NewFromInt(2)
+		}
+		// Each value an offline calculation takes, set alone; together they leave a long direction
+		values := []struct {
+			name string
+			set  func(*futures.PositionSummaryRequest)
+		}{
+			{name: "a buy's direction", set: func(r *futures.PositionSummaryRequest) { r.Direction = order.Buy }},
+			{name: "a bid's direction", set: func(r *futures.PositionSummaryRequest) { r.Direction = order.Bid }},
+			{name: "a sell's direction", set: func(r *futures.PositionSummaryRequest) { r.Direction = order.Sell }},
+			{name: "an ask's direction", set: func(r *futures.PositionSummaryRequest) { r.Direction = order.Ask }},
+			{name: "a short's direction", set: func(r *futures.PositionSummaryRequest) { r.Direction = order.Short }},
+			{name: "a long's direction", set: func(r *futures.PositionSummaryRequest) { r.Direction = order.Long }},
+			{name: "free collateral", set: func(r *futures.PositionSummaryRequest) { r.FreeCollateral = decimal.NewFromInt(1000) }},
+			{name: "total collateral", set: func(r *futures.PositionSummaryRequest) { r.TotalCollateral = decimal.NewFromInt(2500) }},
+			{name: "a current price", set: func(r *futures.PositionSummaryRequest) { r.CurrentPrice = decimal.NewFromInt(75000) }},
+			{name: "a current size", set: func(r *futures.PositionSummaryRequest) { r.CurrentSize = decimal.NewFromInt(2) }},
+			{name: "the collateral used", set: func(r *futures.PositionSummaryRequest) { r.CollateralUsed = decimal.NewFromInt(1500) }},
+			{name: "a notional price", set: func(r *futures.PositionSummaryRequest) { r.NotionalPrice = decimal.NewFromInt(150000) }},
+			{name: "the account's maximum leverage", set: func(r *futures.PositionSummaryRequest) { r.MaxLeverageForAccount = decimal.NewFromInt(100) }},
+			{name: "the open positions' total notional", set: func(r *futures.PositionSummaryRequest) { r.TotalOpenPositionNotional = decimal.NewFromInt(150000) }},
+			{name: "a position to estimate", set: func(r *futures.PositionSummaryRequest) { r.EstimatePosition = true }},
+			{name: "an opening price", set: func(r *futures.PositionSummaryRequest) { r.OpeningPrice = decimal.NewFromInt(70000) }},
+			{name: "an opening size", set: func(r *futures.PositionSummaryRequest) { r.OpeningSize = decimal.NewFromInt(2) }},
+			{name: "a leverage", set: func(r *futures.PositionSummaryRequest) { r.Leverage = decimal.NewFromInt(10) }},
+			{name: "the account's total value", set: func(r *futures.PositionSummaryRequest) { r.TotalAccountValue = decimal.NewFromInt(3000) }},
+		}
+		every := func(r *futures.PositionSummaryRequest) {
+			for _, v := range values {
+				v.set(r)
+			}
+		}
+		type summaryCase struct {
+			name string
+			r    futures.PositionSummaryRequest
+		}
+		cases := make([]summaryCase, 0, 6+len(values))
+		cases = append(cases,
+			summaryCase{name: "a USDT margined position's", r: with(usdt, opening)},
+			summaryCase{name: "a coin margined position's", r: with(coin, func(r *futures.PositionSummaryRequest) {
+				r.Direction, r.CurrentPrice, r.OpeningPrice, r.OpeningSize = order.Short, decimal.MustFromFloat(0.03), decimal.MustFromFloat(0.031), decimal.NewFromInt(3)
+			})},
+			summaryCase{name: "a USDT margined position's, given nothing but the flag", r: usdt},
+			summaryCase{name: "a coin margined position's, given nothing but the flag", r: coin},
+			summaryCase{name: "a USDT margined position's, given every offline value", r: with(usdt, every)},
+			summaryCase{name: "a coin margined position's, given every offline value", r: with(coin, every)},
+		)
+		for _, v := range values {
+			cases = append(cases, summaryCase{name: "a position's, given only " + v.name, r: with(usdt, v.set)})
+		}
+		for _, connected := range []bool{false, true} {
+			t.Run("websocket connected "+strconv.FormatBool(connected), func(t *testing.T) {
+				t.Parallel()
+				if connected && !mockTests {
+					t.Skip("the websocket would reach Bitfinex")
+				}
+				ex := newRefusingTestExchange(t)
+				var venue *websocketVenue
+				if connected {
+					venue = connectWebsocketTestExchange(t, ex, subscription.List{})
+					require.True(t, ex.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "the wrapper must be able to use the authenticated websocket")
+				}
+				// Connected, the cases share the websocket, and the check after them reads every input it received
+				for _, tc := range cases {
+					t.Run(tc.name, func(t *testing.T) {
+						if !connected {
+							t.Parallel()
+						}
+						summary, err := ex.GetFuturesPositionSummary(t.Context(), &tc.r)
+						assert.ErrorIsf(t, err, common.ErrCannotCalculateOffline, "GetFuturesPositionSummary should refuse to calculate %s offline rather than return the account's position", tc.name)
+						assert.Nilf(t, summary, "GetFuturesPositionSummary should return no summary when it refuses to calculate %s offline", tc.name)
+					})
+				}
+				if connected {
+					assertNoWebsocketInputs(t, venue, "GetFuturesPositionSummary")
+				}
+			})
+		}
+
+		bare := futures.PositionSummaryRequest{Asset: usdt.Asset, Pair: usdt.Pair}
+		// Each online request is compared with a bare one's summary of the same account, which holds a position, the same
+		// position with its profit, liquidation price, leverage and collateral null, or none
+		holdings := []struct {
+			name, positions string
+			held            bool
+			read            *futures.PositionSummary
+		}{
+			{name: "a position", held: true, positions: `[["tBTCF0:USTF0","ACTIVE",0.2,80000,0,0,-12.5,null,79400,80,null,123,1792022400000,1792022400000,null,0,null,200,null,null]]`},
+			{name: "a position with null fields", held: true, positions: `[["tBTCF0:USTF0","ACTIVE",0.2,80000,0,0,null,null,null,null,null,123,1792022400000,1792022400000,null,0,null,null,null,null]]`},
+			{name: "no position", positions: `[]`},
+		}
+		online := make([]*Exchange, len(holdings))
+		for i := range holdings {
+			online[i] = newPathResponseServerExchange(t, map[string]string{"/v2/auth/r/positions": holdings[i].positions})
+			read, err := online[i].GetFuturesPositionSummary(t.Context(), &bare)
+			if !holdings[i].held {
+				require.ErrorIs(t, err, futures.ErrNoPositionsFound, "GetFuturesPositionSummary must find no position on an account without one")
+				continue
+			}
+			require.NoErrorf(t, err, "GetFuturesPositionSummary must not error for an online request on an account with %s", holdings[i].name)
+			require.NotNilf(t, read, "GetFuturesPositionSummary must return the position for an online request on an account with %s", holdings[i].name)
+			require.Equalf(t, decimal.MustFromFloat(0.2), read.CurrentSize, "GetFuturesPositionSummary must return the server's position size on an account with %s", holdings[i].name)
+			holdings[i].read = read
+		}
+		carried := make([]summaryCase, 0, 2+len(values))
+		carried = append(carried, summaryCase{name: "the opening values", r: with(usdt, opening)}, summaryCase{name: "every offline value", r: with(usdt, every)})
+		for _, v := range values {
+			carried = append(carried, summaryCase{name: v.name, r: with(usdt, v.set)})
+		}
+		for i, holding := range holdings {
+			for _, tc := range carried {
+				t.Run("an online request carrying "+tc.name+" on an account with "+holding.name, func(t *testing.T) {
+					t.Parallel()
+					r := tc.r
+					r.CalculateOffline = false
+					summary, err := online[i].GetFuturesPositionSummary(t.Context(), &r)
+					if !holding.held {
+						assert.ErrorIsf(t, err, futures.ErrNoPositionsFound, "GetFuturesPositionSummary should find no position for an online request carrying %s, as for a bare one", tc.name)
+						assert.Nilf(t, summary, "GetFuturesPositionSummary should return no summary for an online request carrying %s on an account without a position", tc.name)
+						return
+					}
+					require.NoErrorf(t, err, "GetFuturesPositionSummary must not error for an online request carrying %s on an account with %s", tc.name, holding.name)
+					assert.Equalf(t, holding.read, summary, "GetFuturesPositionSummary should return what a bare online request does on an account with %s, whatever offline values it carries, such as %s", holding.name, tc.name)
+				})
+			}
+		}
+	})
 	skipLiveWithoutCredentials(t)
 	summary, err := e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.USDTMarginedFutures, Pair: testDerivativePair})
 	if !mockTests {
@@ -5546,14 +6157,17 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	assert.GreaterOrEqual(t, historyStart, float64(earliest), "a window starting before the order history should start as far back as it reaches")
 	assert.LessOrEqual(t, historyStart, float64(latest), "a window starting before the order history should start as far back as it reaches")
 
-	historyBodies = nil
-	ended := now.AddDate(0, 0, -4)
-	got, err = ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair}, StartDate: now.AddDate(0, 0, -20), EndDate: ended, RespectOrderHistoryLimits: true})
-	require.NoError(t, err, "GetFuturesPositionOrders must not error for a window starting before the order history and ending four days ago")
-	require.Len(t, got, 1, "GetFuturesPositionOrders must return the pair's orders for a window ending four days ago")
-	assert.Empty(t, got[0].Orders, "GetFuturesPositionOrders should leave out the orders placed after the window's end and before the order history's reach")
-	require.Len(t, historyBodies, 1, "GetFuturesPositionOrders must read the order history for a window ending four days ago")
-	assert.Equal(t, float64(ended.UnixMilli()), historyBodies[0]["end"], "the order history should be read to the window's end")
+	t.Run("a window starting before the order history and ending four days ago", func(t *testing.T) {
+		t.Parallel()
+		historyBodies = nil
+		ended := now.AddDate(0, 0, -4)
+		got, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair}, StartDate: now.AddDate(0, 0, -20), EndDate: ended, RespectOrderHistoryLimits: true})
+		require.NoError(t, err, "GetFuturesPositionOrders must not error for a window starting before the order history and ending four days ago")
+		require.Len(t, got, 1, "GetFuturesPositionOrders must return the pair's orders for a window ending four days ago")
+		assert.Empty(t, got[0].Orders, "GetFuturesPositionOrders should leave out the orders placed after the window's end and before the order history's reach")
+		require.Len(t, historyBodies, 1, "GetFuturesPositionOrders must read the order history for a window ending four days ago")
+		assert.Equal(t, float64(ended.UnixMilli()), historyBodies[0]["end"], "the order history should be read to the window's end")
+	})
 
 	t.Run("a request refused before any order is read", func(t *testing.T) {
 		t.Parallel()
